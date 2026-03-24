@@ -29,6 +29,42 @@ The repository still does not try to solve every platform capability yet, but th
 - `docs/`
   - Bundle contract, design specs, and implementation plans
 
+## Installing The Repo Skill
+
+The repository ships an AI workflow skill at `skills/flutter-cockpit/`. That directory is source-controlled reference material; it does not become active in your host automatically just because the repo is cloned.
+
+To use the skill in an AI host, install or link the folder into the host's personal skill directory, then restart the host so it rescans skills.
+
+Codex:
+
+```bash
+mkdir -p ~/.codex/skills
+ln -s /absolute/path/to/flutter_cockpit/skills/flutter-cockpit \
+  ~/.codex/skills/flutter-cockpit
+```
+
+Some newer Codex setups use `~/.agents/skills/` for native discovery instead of `~/.codex/skills/`. Use whichever directory your host is configured to scan.
+
+Claude Code:
+
+```bash
+mkdir -p ~/.claude/skills
+ln -s /absolute/path/to/flutter_cockpit/skills/flutter-cockpit \
+  ~/.claude/skills/flutter-cockpit
+```
+
+If you prefer copy instead of symlink:
+
+```bash
+cp -R skills/flutter-cockpit ~/.codex/skills/flutter-cockpit
+```
+
+If your host supports repo-local skill loading by path, you can also reference `skills/flutter-cockpit/SKILL.md` directly without copying it into a personal skill directory. The important boundary is:
+
+- the repo owns the skill source under `skills/flutter-cockpit/`
+- your AI host owns discovery and activation
+- cloning the repo alone does not install the skill
+
 ## Current Capability Slice
 
 This repository currently validates:
