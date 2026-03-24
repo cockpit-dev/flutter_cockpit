@@ -31,10 +31,8 @@ The repository still does not try to solve every platform capability yet, but th
 - `docs/`
   - Bundle contract, design specs, and implementation plans
 
-For low-friction app adoption, keep the app's production entrypoint in `lib/main.dart` and place cockpit-specific bootstrap under `cockpit/main.dart`. The example app follows that pattern:
+For low-friction app adoption, keep the app's existing production entrypoint unchanged and place cockpit-specific bootstrap under `cockpit/main.dart`. The example app follows that pattern:
 
-- `examples/cockpit_demo/lib/main.dart`
-  - plain production entrypoint
 - `examples/cockpit_demo/cockpit/main.dart`
   - cockpit-enabled development entrypoint for AI control, hot reload, probing, and acceptance flows
 
@@ -350,7 +348,7 @@ That handle is intentionally separate from the task-run bundle. It exists before
 For this recommended single-package pattern:
 
 - use `flutter run -t cockpit/main.dart` for AI-driven development
-- use `flutter build ... -t lib/main.dart` for production builds
+- keep your normal production build target unchanged instead of teaching AI to assume a fixed path
 
 The example app now proves root-level integration without per-page `CockpitSurface` wrappers and uses a production-style Todo workflow instead of a narrow form demo. Core widget tests cover root runtime behavior, Todo CRUD flows, settings persistence, screenshot attachment, and remote bridge behavior. Devtools tests cover bundle writing, `delivery.json`, and CLI-driven control scripts.
 The example app now also contains generated Android and iOS host projects so native plugin bridges can be compiled in a real app shell.

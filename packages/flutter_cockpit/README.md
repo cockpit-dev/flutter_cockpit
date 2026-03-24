@@ -36,7 +36,7 @@ dependencies:
 
 For existing apps, the recommended low-friction pattern is:
 
-- keep the production entrypoint in `lib/main.dart`
+- keep the existing production entrypoint unchanged
 - add a dedicated cockpit bootstrap entrypoint under `cockpit/main.dart`
 - import the existing app root from `lib/` instead of restructuring the app
 
@@ -59,12 +59,13 @@ Future<void> main() async {
 
 If an app needs to bootstrap other services before mounting UI, call `FlutterCockpit.ensureInitialized(...)` first. `FlutterCockpitApp` and `FlutterCockpitRoot` remain available as advanced embedding primitives when tighter manual control over runtime composition is required.
 
-A typical development/production split then becomes:
+A typical split then becomes:
 
 ```bash
 flutter run -t cockpit/main.dart
-flutter build apk --release -t lib/main.dart
 ```
+
+For production builds, keep using the app's normal production target instead of hardcoding one path into the cockpit guidance.
 
 `FlutterCockpitApp` no longer tears down the shared runtime when it unmounts unless `ownsRuntime: true` is set explicitly. This keeps long AI sessions stable across root rebuilds and temporary host composition changes.
 

@@ -6,7 +6,7 @@ Use this pattern when the task is not just "run the app" but "make this Flutter 
 
 1. Add the `flutter_cockpit` dependency to the app package.
 2. Run `flutter pub get`.
-3. Keep the production app entrypoint in `lib/main.dart`.
+3. Keep the app's existing production entrypoint unchanged.
 4. Add a cockpit development entrypoint under `cockpit/main.dart`.
 5. Add `FlutterCockpit.navigatorObserver` to the app navigator.
 6. Enable remote session configuration in debug/dev environments.
@@ -51,7 +51,7 @@ cockpit/
   cockpit_bootstrap.dart
 ```
 
-- `lib/main.dart` stays production-owned
+- the existing production entrypoint stays production-owned
 - `cockpit/main.dart` becomes the AI development entrypoint
 - `cockpit/cockpit_bootstrap.dart` stays thin and only owns cockpit wiring
 
@@ -198,7 +198,7 @@ final config = FlutterCockpitConfig.production(
 ## Expected Agent Behavior
 
 - do not add `flutter_cockpit` to a pure Dart tool package that never mounts Flutter UI
-- prefer a dedicated `cockpit/main.dart` development entrypoint when the app should keep `lib/main.dart` as the production path
+- prefer a dedicated `cockpit/main.dart` development entrypoint when the app should keep its existing production path untouched
 - prefer `FlutterCockpit.runApp(...)` for simple roots and `FlutterCockpitApp(...)` for existing app shells
 - wire `FlutterCockpit.navigatorObserver` into the navigator instead of inventing a parallel route tracker
 - keep remote-session enablement and debug diagnostics explicit
