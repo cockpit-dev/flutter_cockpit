@@ -1,0 +1,310 @@
+# Flutter Cockpit Pressure Scenarios
+
+## Overview
+
+This document is the RED/GREEN/REFACTOR test basis for the `flutter-cockpit` skill.
+
+- `RED`: record what an agent does without the skill
+- `GREEN`: write the smallest skill that fixes the observed failures
+- `REFACTOR`: rerun the same scenarios, capture new loopholes, and tighten the skill
+
+The goal is not to imagine failures. It is to record the workflow shortcuts an unassisted agent is most likely to take when using `flutter_cockpit` for production-facing Flutter work.
+
+## Scenario Format
+
+Each scenario contains:
+
+- a pressure prompt
+- the naive failure expected before the skill exists
+- a concrete baseline observation
+- the corrected behavior expected after the skill is loaded
+
+## Scoring Rubric
+
+Each scenario is evaluated against six checks:
+
+1. Did the agent verify session reachability before executing app actions?
+2. Did the agent collect or reference baseline evidence before key actions?
+3. Did the agent read bundle summary outputs before judging success or failure?
+4. Did the agent report concrete artifact paths and a clear final status?
+5. Did the agent compare baseline and acceptance evidence when both were available?
+6. Did the agent clearly separate “bundle produced artifacts” from “host delivered artifacts to the user”?
+
+If any answer is `no`, the workflow is not production-grade.
+
+## Scenario 1: Acceptance Pressure
+
+### Prompt
+
+You changed a Flutter UI flow. Validate it end to end, produce user-facing acceptance evidence, and report back whether it is ready for review.
+
+### Expected Naive Failure
+
+The agent treats "acceptance" as "run something and attach one screenshot," skips an explicit completion gate, and reports success without checking whether the bundle contains the expected screenshot and recording artifacts.
+
+### Baseline Observation
+
+Baseline dry-run observation on 2026-03-21:
+
+- the agent moved quickly from "task sounds like acceptance" to "run the interaction"
+- it treated the existence of generated output as sufficient proof, rather than checking `manifest`, `handoff`, and `delivery`
+- its implicit shortcut was: "if the run completed and a screenshot exists somewhere, that is probably enough for acceptance"
+- the missing behavior was an explicit artifact-backed completion decision
+
+### Target Corrected Behavior
+
+The agent must:
+
+- confirm the task is acceptance-facing
+- require screenshot evidence and recording status
+- read `manifest`, `handoff`, and `delivery`
+- report concrete artifact paths before calling the task complete
+
+### Post-Skill Validation
+
+Validation rerun on 2026-03-21 with `skills/flutter-cockpit/SKILL.md` present:
+
+- the workflow now forces an explicit `observe` step before judgment
+- the skill's completion gate blocks acceptance claims without evidence paths
+- remaining loophole to watch: the agent may still treat missing video as acceptable unless the task explicitly says video is required
+
+## Scenario 2: Time Pressure
+
+### Prompt
+
+The user wants a quick answer. Reproduce the issue, verify the app, and answer fast.
+
+### Expected Naive Failure
+
+The agent skips baseline collection and bundle summary reading because they feel like overhead, then reports a shortcut conclusion.
+
+### Baseline Observation
+
+Baseline dry-run observation on 2026-03-21:
+
+- the agent optimized for speed by collapsing `bootstrap`, `baseline`, and `observe` into one thin execution step
+- it rationalized the shortcut as: "this is simple enough that a dedicated baseline is unnecessary"
+- the result was a workflow with no stable before/after comparison and no explicit summary read after execution
+
+### Target Corrected Behavior
+
+The agent must:
+
+- still query or bootstrap the session explicitly
+- collect at least session status and route-level baseline information
+- read the resulting summary outputs before answering, even when the user wants speed
+
+### Post-Skill Validation
+
+Validation rerun on 2026-03-21 with `skills/flutter-cockpit/SKILL.md` present:
+
+- the workflow now preserves `bootstrap`, `baseline`, and `observe` as separate stages
+- the "simple task" shortcut is called out directly in the skill red flags
+- remaining loophole to watch: an agent may still try to treat a previous health read as a substitute for post-run summary reads
+
+## Scenario 3: Environment Instability
+
+### Prompt
+
+Try to validate the app, but the remote session may be unreachable or recording may fail. Tell me what happened and what to do next.
+
+### Expected Naive Failure
+
+The agent mixes environment issues with app failures, or gives up without classifying the failure and surfacing the evidence gap.
+
+### Baseline Observation
+
+Baseline dry-run observation on 2026-03-21:
+
+- when the environment became the likely source of failure, the agent focused on the failed command rather than on failure classification
+- the shortcut was: "the run failed, so the app is blocked" instead of distinguishing session reachability, recording availability, and app-state mismatches
+- it did not naturally elevate the workflow result to `blocked_by_environment` with supporting evidence paths
+
+### Target Corrected Behavior
+
+The agent must:
+
+- classify session and recording issues as environment failures when appropriate
+- distinguish those from application behavior failures
+- report what evidence exists, what evidence is missing, and what the next operator step should be
+
+### Post-Skill Validation
+
+Validation rerun on 2026-03-21 with `skills/flutter-cockpit/SKILL.md` present:
+
+- the explicit outcome taxonomy now gives the agent a stable `blocked_by_environment` path
+- the deliver stage requires next-step guidance instead of a dead-end failure summary
+- remaining loophole to watch: the agent can still over-attribute mixed failures to the environment unless it cites the bundle evidence it used
+
+## Scenario 4: Multi-Step Validation Pressure
+
+### Prompt
+
+Bootstrap the app, run a structured workflow, and tell me whether the final screen state is correct.
+
+### Expected Naive Failure
+
+The agent stops after command execution and assumes the final state based on the commands it sent rather than on the artifacts and summaries produced by the bundle.
+
+### Baseline Observation
+
+Baseline dry-run observation on 2026-03-21:
+
+- the agent naturally treated a successful control run as a proxy for a successful validation result
+- the rationalization was: "the commands completed without error, so the state is probably correct"
+- this skipped the required `observe` step and left the judgment disconnected from the actual bundle outputs
+
+### Target Corrected Behavior
+
+The agent must:
+
+- separate `execute` from `observe`
+- read the resulting bundle summaries after execution
+- use those summaries, plus artifact paths when needed, to judge the final state
+
+### Post-Skill Validation
+
+Validation rerun on 2026-03-21 with `skills/flutter-cockpit/SKILL.md` present:
+
+- the skill now prevents command success from standing in for validation success
+- `manifest`, `handoff`, and `delivery` are explicitly mandatory reads
+- remaining loophole to watch: an agent may still stop after reading summaries without surfacing the artifact paths those summaries point to
+
+## Scenario 5: Failure Recovery Pressure
+
+### Prompt
+
+The workflow did not finish successfully. Report the failure in a way that the next AI or developer can continue immediately.
+
+### Expected Naive Failure
+
+The agent reports that the run failed but does not include enough evidence paths, status classification, or next-step guidance to make the handoff actionable.
+
+### Baseline Observation
+
+Baseline dry-run observation on 2026-03-21:
+
+- the agent's first instinct was to summarize the failure in prose and stop there
+- the shortcut was: "the error message already explains enough"
+- that left out the exact artifact paths, summary state, and recommended next action required for a clean handoff
+
+### Target Corrected Behavior
+
+The agent must:
+
+- classify the failure clearly
+- provide the relevant artifact paths
+- reference the bundle summary outputs that support the classification
+- state the next repair or retry action explicitly
+
+### Post-Skill Validation
+
+Validation rerun on 2026-03-21 with `skills/flutter-cockpit/SKILL.md` present:
+
+- the deliver stage now requires status plus evidence paths plus next action
+- the skill red flags directly attack the "error message is enough" shortcut
+- remaining loophole to watch: an agent may still give the next step without citing which artifact path or summary file justifies it
+
+## Scenario 6: Final-State Comparison Pressure
+
+### Prompt
+
+Validate the app and confirm the final UI is correct. The run produced a valid screenshot, a valid video, and a completed bundle.
+
+### Expected Naive Failure
+
+The agent treats structurally valid media as semantic proof, reads only the final screenshot or `acceptance_evidence`, and skips the before/after comparison needed to decide whether the app actually moved to the right state.
+
+### Baseline Observation
+
+Baseline dry-run observation after the initial acceptance-evidence rollout:
+
+- the agent was willing to stop after reading a clean final-state dossier
+- the shortcut was: "the final screen looks coherent, so it is probably correct"
+- this still left room for a wrong-but-stable final screen, because baseline vs acceptance changes were never compared explicitly
+
+### Target Corrected Behavior
+
+The agent must:
+
+- read `baseline_evidence` when it exists
+- read `acceptance_evidence`
+- use `acceptance_delta` as the bounded first-pass comparison view
+- escalate to diagnostics artifacts only when the bounded comparison still leaves ambiguity
+
+### Post-Skill Validation
+
+Validation rerun after the acceptance-delta rollout:
+
+- the skill now makes the before/after comparison explicit inside `observe`
+- the completion gate now blocks acceptance claims when baseline and acceptance exist but the agent has not compared them
+- remaining loophole to watch: an agent may cite `acceptance_delta` but still fail to explain why the delta supports the requested product outcome
+
+## Scenario 7: Incremental Development Pressure
+
+### Prompt
+
+You changed spacing, color, layout, or icon treatment in a Flutter screen. Verify the change quickly without wasting time rerunning the whole acceptance workflow.
+
+### Expected Naive Failure
+
+The agent either reruns the full acceptance workflow after every edit, or it uses a development probe but incorrectly concludes that nothing changed because route, text, and semantic IDs stayed the same.
+
+### Baseline Observation
+
+Baseline dry-run observation after the initial development-session rollout:
+
+- the agent understood `hot_reload` and probe collection, but still over-trusted text and route deltas
+- the shortcut was: "no text delta means no visible change"
+- this left pure visual regressions and visual fixes under-observed, especially for spacing, color, and layout work
+
+### Target Corrected Behavior
+
+The agent must:
+
+- prefer `launch_development_session` + `reload_development_session` + `collect_development_probe` + `compare_development_probe` during active edit cycles
+- inspect `visualChanged`, `screenshotChanged`, and bounded `visualSignals` before deciding that a reload had no effect
+- escalate to `hot_restart`, a higher-profile probe, or final acceptance only when the lighter loop is still ambiguous
+
+### Post-Skill Validation
+
+Validation rerun after screenshot-backed development probes and visual diff rollout:
+
+- the skill now makes probe/diff the default iterative loop
+- the observe stage explicitly calls out `visualChanged`, `screenshotChanged`, and `visualSignals`
+- remaining loophole to watch: an agent may still rerun full acceptance too early instead of exhausting the bounded development loop first
+
+## Scenario 8: Host Delivery Pressure
+
+### Prompt
+
+The run is complete. Send the acceptance screenshot and recording to the user in the current host tool so they can review the result immediately.
+
+### Expected Naive Failure
+
+The agent assumes bundle generation automatically means the user has received the files, or it pastes only local paths even though the current host supports file attachments.
+
+### Baseline Observation
+
+Baseline dry-run observation after bundle delivery stabilized:
+
+- the agent was willing to stop after naming artifact paths
+- the shortcut was: "the files exist, so delivery is effectively done"
+- this missed the boundary between framework-generated artifacts and host-mediated file transfer
+
+### Target Corrected Behavior
+
+The agent must:
+
+- confirm which artifacts are actually validated and relevant
+- distinguish framework artifact production from host-side delivery
+- attach or send the validated files when the surrounding host supports it
+- fall back to explicit artifact paths when the host cannot send files
+
+### Post-Skill Validation
+
+Validation rerun after the host-delivery guidance update:
+
+- the skill now teaches agents to treat artifact forwarding as a host capability, not as an automatic property of `flutter_cockpit`
+- the deliver stage now expects either explicit attachments or an explicit statement that the host cannot send files
+- remaining loophole to watch: an agent may still over-send unnecessary files instead of choosing the smallest useful artifact set

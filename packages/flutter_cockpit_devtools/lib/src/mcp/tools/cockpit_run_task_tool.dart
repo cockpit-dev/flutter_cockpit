@@ -1,0 +1,59 @@
+import '../../application/cockpit_run_task_service.dart';
+import '../cockpit_mcp_tool.dart';
+
+typedef CockpitRunTaskOrchestrationFunction = Future<CockpitRunTaskResult>
+    Function(CockpitRunTaskRequest request);
+
+final class CockpitRunTaskTool extends CockpitMcpTool {
+  CockpitRunTaskTool({
+    CockpitRunTaskService? service,
+    CockpitRunTaskOrchestrationFunction? runTask,
+  }) : _runTask = runTask ?? (service ?? CockpitRunTaskService()).run;
+
+  final CockpitRunTaskOrchestrationFunction _runTask;
+
+  @override
+  String get name => 'run_task';
+
+  @override
+  String get description =>
+      'Run a full flutter_cockpit workflow with bootstrap or reuse, baseline capture, execution, post-run bundle reads, and task classification.';
+
+  @override
+  Map<String, Object?> get inputSchema => const <String, Object?>{
+        'type': 'object',
+        'required': <String>['script', 'output_root'],
+        'properties': <String, Object?>{
+          'launch': <String, Object?>{'type': 'object'},
+          'session_handle': <String, Object?>{'type': 'object'},
+          'session_handle_path': <String, Object?>{'type': 'string'},
+          'script': <String, Object?>{'type': 'object'},
+          'output_root': <String, Object?>{'type': 'string'},
+          'persist_script_path': <String, Object?>{'type': 'string'},
+          'baseline': <String, Object?>{'type': 'object'},
+          'requirements': <String, Object?>{'type': 'object'},
+        },
+      };
+
+  @override
+  Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {
+    try {
+      final request = CockpitRunTaskRequest.fromJson(arguments);
+      final result = await _runTask(request);
+
+      return cockpitMcpResult(
+        text: 'Task workflow executed and classified.',
+        structuredContent: <String, Object?>{
+          'classification': result.classification.jsonValue,
+          'recommended_next_step': result.recommendedNextStep,
+          'session_handle': result.sessionHandle?.toJson(),
+          'preflight_status': result.preflightStatus?.toJson(),
+          'blocked_reason': result.blockedReason,
+          'bundle_summary': result.bundleSummary?.toMcpJson(),
+        },
+      );
+    } on Object catch (error) {
+      cockpitRethrowAsMcpError(error);
+    }
+  }
+}

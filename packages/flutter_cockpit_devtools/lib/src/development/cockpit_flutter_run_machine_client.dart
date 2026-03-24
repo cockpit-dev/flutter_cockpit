@@ -1,0 +1,348 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
+import 'cockpit_flutter_run_machine_event.dart';
+
+final class CockpitFlutterRunMachineRequestException implements Exception {
+  const CockpitFlutterRunMachineRequestException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => 'CockpitFlutterRunMachineRequestException: $message';
+}
+
+final class CockpitFlutterRunMachineClient {
+  CockpitFlutterRunMachineClient({
+    required Stream<String> stdoutLines,
+    required Stream<String> stderrLines,
+    required Future<int> exitCode,
+    required Future<void> Function(String payload) requestWriter,
+    Future<void> Function()? closeProcess,
+  })  : _requestWriter = requestWriter,
+        _closeProcess = closeProcess {
+    _stdoutSubscription = stdoutLines.listen(_handleStdoutLine);
+    _stderrSubscription = stderrLines.listen(_handleStderrLine);
+    _exitCodeSubscription = exitCode.asStream().listen(_handleExitCode);
+  }
+
+  final Future<void> Function(String payload) _requestWriter;
+  final Future<void> Function()? _closeProcess;
+  final StreamController<CockpitFlutterRunMachineEvent> _eventsController =
+      StreamController<CockpitFlutterRunMachineEvent>.broadcast();
+  final Map<int, Completer<Object?>> _requestCompleters =
+      <int, Completer<Object?>>{};
+  late final StreamSubscription<String> _stdoutSubscription;
+  late final StreamSubscription<String> _stderrSubscription;
+  late final StreamSubscription<int> _exitCodeSubscription;
+  final Completer<Uri> _vmServiceUriCompleter = Completer<Uri>();
+  int _nextRequestId = 0;
+  String? _currentAppId;
+
+  Stream<CockpitFlutterRunMachineEvent> get events => _eventsController.stream;
+
+  String? get currentAppId => _currentAppId;
+
+  Future<Uri> get vmServiceUri => _vmServiceUriCompleter.future;
+
+  static Future<CockpitFlutterRunMachineClient> start({
+    required String projectDir,
+    required String target,
+    required String deviceId,
+    String flutterExecutable = 'flutter',
+    List<String> extraArgs = const <String>[],
+  }) async {
+    final process = await Process.start(
+        flutterExecutable,
+        <String>[
+          'run',
+          '--machine',
+          '--target',
+          target,
+          '-d',
+          deviceId,
+          ...extraArgs,
+        ],
+        workingDirectory: projectDir);
+
+    return CockpitFlutterRunMachineClient(
+      stdoutLines: process.stdout
+          .transform(utf8.decoder)
+          .transform(const LineSplitter()),
+      stderrLines: process.stderr
+          .transform(utf8.decoder)
+          .transform(const LineSplitter()),
+      exitCode: process.exitCode,
+      requestWriter: (payload) async {
+        process.stdin.write(payload);
+        await process.stdin.flush();
+      },
+      closeProcess: () => _terminateProcess(process),
+    );
+  }
+
+  static Future<CockpitFlutterRunMachineClient> attach({
+    required String projectDir,
+    required String target,
+    required String deviceId,
+    required String appId,
+    String flutterExecutable = 'flutter',
+    List<String> extraArgs = const <String>[],
+  }) async {
+    final process = await Process.start(
+        flutterExecutable,
+        <String>[
+          'attach',
+          '--machine',
+          '--target',
+          target,
+          '-d',
+          deviceId,
+          '--app-id',
+          appId,
+          ...extraArgs,
+        ],
+        workingDirectory: projectDir);
+
+    return CockpitFlutterRunMachineClient(
+      stdoutLines: process.stdout
+          .transform(utf8.decoder)
+          .transform(const LineSplitter()),
+      stderrLines: process.stderr
+          .transform(utf8.decoder)
+          .transform(const LineSplitter()),
+      exitCode: process.exitCode,
+      requestWriter: (payload) async {
+        process.stdin.write(payload);
+        await process.stdin.flush();
+      },
+      closeProcess: () => _terminateProcess(process),
+    );
+  }
+
+  Future<Object?> sendRequest(
+    String method, {
+    Map<String, Object?>? params,
+  }) async {
+    final id = _nextRequestId++;
+    final completer = Completer<Object?>();
+    _requestCompleters[id] = completer;
+    final payload = '[${jsonEncode(<String, Object?>{
+          'id': id,
+          'method': method,
+          'params': params
+        })}]\n';
+    await _requestWriter(payload);
+    return completer.future;
+  }
+
+  Future<Object?> hotReload({
+    required String appId,
+    bool pause = false,
+    String? reason,
+  }) {
+    return sendRequest(
+      'app.restart',
+      params: <String, Object?>{
+        'appId': appId,
+        'fullRestart': false,
+        'pause': pause,
+        'reason': reason,
+        'debounce': true,
+      },
+    );
+  }
+
+  Future<Object?> hotRestart({
+    required String appId,
+    bool pause = false,
+    String? reason,
+  }) {
+    return sendRequest(
+      'app.restart',
+      params: <String, Object?>{
+        'appId': appId,
+        'fullRestart': true,
+        'pause': pause,
+        'reason': reason,
+        'debounce': true,
+      },
+    );
+  }
+
+  Future<Object?> stop({required String appId}) {
+    return sendRequest('app.stop', params: <String, Object?>{'appId': appId});
+  }
+
+  Future<void> dispose() async {
+    await _closeProcess?.call();
+    await _stdoutSubscription.cancel();
+    await _stderrSubscription.cancel();
+    await _exitCodeSubscription.cancel();
+    for (final completer in _requestCompleters.values) {
+      if (!completer.isCompleted) {
+        completer.completeError(
+          const CockpitFlutterRunMachineRequestException(
+            'Machine client disposed before response was received.',
+          ),
+        );
+      }
+    }
+    _requestCompleters.clear();
+    await _eventsController.close();
+  }
+
+  static Future<void> _terminateProcess(Process process) async {
+    try {
+      process.stdin.close();
+    } on Object {
+      // Ignore shutdown races.
+    }
+    if (process.kill(ProcessSignal.sigterm)) {
+      await Future.any(<Future<Object?>>[
+        process.exitCode,
+        Future<Object?>.delayed(const Duration(milliseconds: 400)),
+      ]);
+    }
+    if (!process.kill(ProcessSignal.sigkill)) {
+      return;
+    }
+    await Future.any(<Future<Object?>>[
+      process.exitCode,
+      Future<Object?>.delayed(const Duration(milliseconds: 200)),
+    ]);
+  }
+
+  void _handleStdoutLine(String line) {
+    Object? decoded;
+    try {
+      decoded = jsonDecode(line);
+    } on FormatException {
+      _eventsController.add(
+        CockpitFlutterRunMachineEvent(
+          kind: CockpitFlutterRunMachineEventKind.stdout,
+          message: line,
+        ),
+      );
+      return;
+    }
+
+    final payload =
+        decoded is List && decoded.length == 1 && decoded.first is Map
+            ? Map<String, Object?>.from(decoded.first as Map<Object?, Object?>)
+            : null;
+    if (payload == null) {
+      _eventsController.add(
+        CockpitFlutterRunMachineEvent(
+          kind: CockpitFlutterRunMachineEventKind.stdout,
+          message: line,
+        ),
+      );
+      return;
+    }
+
+    final event = payload['event'];
+    final method = payload['method'];
+    final id = payload['id'];
+    final params = payload['params'] as Map<Object?, Object?>?;
+    if (event is String) {
+      _handleEvent(
+        event,
+        params == null ? null : Map<String, Object?>.from(params),
+      );
+      return;
+    }
+
+    if (method is String) {
+      _eventsController.add(
+        CockpitFlutterRunMachineEvent(
+          kind: CockpitFlutterRunMachineEventKind.request,
+          method: method,
+          id: id as int?,
+          params: params == null ? null : Map<String, Object?>.from(params),
+        ),
+      );
+      return;
+    }
+
+    if (id is int) {
+      final completer = _requestCompleters.remove(id);
+      final error = payload['error'];
+      if (error != null) {
+        completer?.completeError(
+          CockpitFlutterRunMachineRequestException('$error'),
+        );
+      } else {
+        completer?.complete(payload['result']);
+      }
+      _eventsController.add(
+        CockpitFlutterRunMachineEvent(
+          kind: CockpitFlutterRunMachineEventKind.response,
+          id: id,
+          result: payload['result'],
+          error: error,
+        ),
+      );
+      return;
+    }
+
+    _eventsController.add(
+      CockpitFlutterRunMachineEvent(
+        kind: CockpitFlutterRunMachineEventKind.unknown,
+        message: line,
+      ),
+    );
+  }
+
+  void _handleEvent(String eventName, Map<String, Object?>? params) {
+    switch (eventName) {
+      case 'app.start':
+        _currentAppId = params?['appId'] as String?;
+      case 'app.debugPort':
+        final wsUri = params?['wsUri'] as String?;
+        if (wsUri != null && !_vmServiceUriCompleter.isCompleted) {
+          _vmServiceUriCompleter.complete(Uri.parse(wsUri));
+        }
+    }
+
+    _eventsController.add(
+      CockpitFlutterRunMachineEvent(
+        kind: _kindForEventName(eventName),
+        eventName: eventName,
+        params: params,
+      ),
+    );
+  }
+
+  void _handleStderrLine(String line) {
+    _eventsController.add(
+      CockpitFlutterRunMachineEvent(
+        kind: CockpitFlutterRunMachineEventKind.stderr,
+        message: line,
+      ),
+    );
+  }
+
+  void _handleExitCode(int code) {
+    _eventsController.add(
+      CockpitFlutterRunMachineEvent(
+        kind: CockpitFlutterRunMachineEventKind.processExit,
+        exitCode: code,
+      ),
+    );
+  }
+
+  static CockpitFlutterRunMachineEventKind _kindForEventName(String eventName) {
+    return switch (eventName) {
+      'daemon.connected' => CockpitFlutterRunMachineEventKind.daemonConnected,
+      'app.start' => CockpitFlutterRunMachineEventKind.appStart,
+      'app.started' => CockpitFlutterRunMachineEventKind.appStarted,
+      'app.stop' => CockpitFlutterRunMachineEventKind.appStop,
+      'app.debugPort' => CockpitFlutterRunMachineEventKind.appDebugPort,
+      'app.progress' => CockpitFlutterRunMachineEventKind.appProgress,
+      'daemon.logMessage' => CockpitFlutterRunMachineEventKind.daemonLogMessage,
+      _ => CockpitFlutterRunMachineEventKind.unknown,
+    };
+  }
+}

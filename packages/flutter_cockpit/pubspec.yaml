@@ -1,0 +1,31 @@
+name: flutter_cockpit
+description: In-app runtime primitives for AI-driven Flutter development workflows.
+version: 1.0.0
+homepage: https://github.com/cockpit-dev/flutter_cockpit
+repository: https://github.com/cockpit-dev/flutter_cockpit
+issue_tracker: https://github.com/cockpit-dev/flutter_cockpit/issues
+
+environment:
+  sdk: '>=3.5.0 <4.0.0'
+  flutter: '>=3.24.0'
+
+dependencies:
+  collection: ^1.18.0
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_lints: 5.0.0
+  flutter_test:
+    sdk: flutter
+
+  path: any
+  test: any
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: dev.cockpit.flutter_cockpit
+        pluginClass: FlutterCockpitPlugin
+      ios:
+        pluginClass: FlutterCockpitPlugin

@@ -1,0 +1,447 @@
+import 'dart:convert';
+
+import 'package:drift/drift.dart';
+
+import '../model/todo_filter.dart';
+import '../model/todo_priority.dart';
+import '../model/todo_settings.dart';
+import '../model/todo_tag.dart';
+import '../model/todo_task.dart';
+import 'cockpit_demo_database.dart';
+
+abstract interface class TodoRepositoryClient {
+  Future<TodoTag> createTag({required String name, String? colorHex});
+
+  Future<List<TodoTag>> fetchTags();
+
+  Future<TodoTask> createTask({
+    required String title,
+    String notes,
+    TodoPriority priority,
+    DateTime? dueAt,
+    List<String> tagIds,
+  });
+
+  Future<TodoTask> updateTask({
+    required String taskId,
+    required String title,
+    String notes,
+    TodoPriority priority,
+    DateTime? dueAt,
+    List<String> tagIds,
+  });
+
+  Future<TodoTask> setTaskCompleted({
+    required String taskId,
+    required bool isCompleted,
+  });
+
+  Future<TodoTask> deleteTask(String taskId);
+
+  Future<TodoTask> restoreTask(String taskId);
+
+  Future<void> reorderTasks(List<String> orderedTaskIds);
+
+  Future<TodoTask?> getTask(String taskId);
+
+  Future<List<TodoTask>> fetchTasks(TodoFilter filter);
+
+  Future<TodoSettings> readSettings();
+
+  Future<void> saveSettings(TodoSettings settings);
+}
+
+final class TodoRepository implements TodoRepositoryClient {
+  TodoRepository(this._database);
+
+  final CockpitDemoDatabase _database;
+
+  @override
+  Future<TodoTag> createTag({required String name, String? colorHex}) async {
+    final normalizedName = name.trim();
+    if (normalizedName.isEmpty) {
+      throw ArgumentError.value(name, 'name', 'Tag name must not be empty.');
+    }
+
+    final existing = await (_database.select(
+      _database.tags,
+    )..where((table) => table.name.equals(normalizedName)))
+        .getSingleOrNull();
+    if (existing != null) {
+      return _mapTag(existing);
+    }
+
+    final createdAt = DateTime.now().toUtc();
+    final tagId = 'tag-${createdAt.microsecondsSinceEpoch}';
+    await _database.into(_database.tags).insert(
+          TagsCompanion.insert(
+            id: tagId,
+            name: normalizedName,
+            colorHex: Value(colorHex),
+            createdAtEpochMs: createdAt.millisecondsSinceEpoch,
+          ),
+        );
+
+    return (await _fetchTagsByIds(<String>{tagId})).single;
+  }
+
+  @override
+  Future<List<TodoTag>> fetchTags() async {
+    final rows = await (_database.select(
+      _database.tags,
+    )..orderBy([(table) => OrderingTerm.asc(table.name)]))
+        .get();
+    return rows.map(_mapTag).toList(growable: false);
+  }
+
+  @override
+  Future<TodoTask> createTask({
+    required String title,
+    String notes = '',
+    TodoPriority priority = TodoPriority.medium,
+    DateTime? dueAt,
+    List<String> tagIds = const <String>[],
+  }) async {
+    final normalizedTitle = title.trim();
+    if (normalizedTitle.isEmpty) {
+      throw ArgumentError.value(
+        title,
+        'title',
+        'Task title must not be empty.',
+      );
+    }
+
+    final now = DateTime.now().toUtc();
+    final displayOrder = await _nextDisplayOrder();
+    final taskId = 'task-${now.microsecondsSinceEpoch}';
+    await _database.into(_database.tasks).insert(
+          TasksCompanion.insert(
+            id: taskId,
+            title: normalizedTitle,
+            notes: Value(notes.trim()),
+            priority: Value(priority.storageValue),
+            dueAtEpochMs: Value(dueAt?.toUtc().millisecondsSinceEpoch),
+            displayOrder: displayOrder,
+            tagIdsJson: Value(_encodeTagIds(tagIds)),
+            createdAtEpochMs: now.millisecondsSinceEpoch,
+            updatedAtEpochMs: now.millisecondsSinceEpoch,
+          ),
+        );
+
+    return (await getTask(taskId))!;
+  }
+
+  @override
+  Future<TodoTask> updateTask({
+    required String taskId,
+    required String title,
+    String notes = '',
+    TodoPriority priority = TodoPriority.medium,
+    DateTime? dueAt,
+    List<String> tagIds = const <String>[],
+  }) async {
+    final normalizedTitle = title.trim();
+    if (normalizedTitle.isEmpty) {
+      throw ArgumentError.value(
+        title,
+        'title',
+        'Task title must not be empty.',
+      );
+    }
+
+    final now = DateTime.now().toUtc();
+    await (_database.update(
+      _database.tasks,
+    )..where((table) => table.id.equals(taskId)))
+        .write(
+      TasksCompanion(
+        title: Value(normalizedTitle),
+        notes: Value(notes.trim()),
+        priority: Value(priority.storageValue),
+        dueAtEpochMs: Value(dueAt?.toUtc().millisecondsSinceEpoch),
+        tagIdsJson: Value(_encodeTagIds(tagIds)),
+        updatedAtEpochMs: Value(now.millisecondsSinceEpoch),
+      ),
+    );
+
+    return (await getTask(taskId))!;
+  }
+
+  @override
+  Future<TodoTask> setTaskCompleted({
+    required String taskId,
+    required bool isCompleted,
+  }) async {
+    final now = DateTime.now().toUtc();
+    await (_database.update(
+      _database.tasks,
+    )..where((table) => table.id.equals(taskId)))
+        .write(
+      TasksCompanion(
+        isCompleted: Value(isCompleted),
+        completedAtEpochMs: Value(
+          isCompleted ? now.millisecondsSinceEpoch : null,
+        ),
+        updatedAtEpochMs: Value(now.millisecondsSinceEpoch),
+      ),
+    );
+
+    return (await getTask(taskId))!;
+  }
+
+  @override
+  Future<TodoTask> deleteTask(String taskId) async {
+    final now = DateTime.now().toUtc();
+    await (_database.update(
+      _database.tasks,
+    )..where((table) => table.id.equals(taskId)))
+        .write(
+      TasksCompanion(
+        deletedAtEpochMs: Value(now.millisecondsSinceEpoch),
+        updatedAtEpochMs: Value(now.millisecondsSinceEpoch),
+      ),
+    );
+    return (await getTask(taskId))!;
+  }
+
+  @override
+  Future<TodoTask> restoreTask(String taskId) async {
+    final now = DateTime.now().toUtc();
+    await (_database.update(
+      _database.tasks,
+    )..where((table) => table.id.equals(taskId)))
+        .write(
+      TasksCompanion(
+        deletedAtEpochMs: const Value(null),
+        updatedAtEpochMs: Value(now.millisecondsSinceEpoch),
+      ),
+    );
+    return (await getTask(taskId))!;
+  }
+
+  @override
+  Future<void> reorderTasks(List<String> orderedTaskIds) async {
+    if (orderedTaskIds.isEmpty) {
+      return;
+    }
+
+    final normalizedIds = orderedTaskIds.toSet().toList(growable: false);
+    await _database.transaction(() async {
+      for (var index = 0; index < normalizedIds.length; index += 1) {
+        await (_database.update(
+          _database.tasks,
+        )..where((table) => table.id.equals(normalizedIds[index])))
+            .write(
+          TasksCompanion(
+            displayOrder: Value(index),
+            updatedAtEpochMs: Value(
+              DateTime.now().toUtc().millisecondsSinceEpoch,
+            ),
+          ),
+        );
+      }
+    });
+  }
+
+  @override
+  Future<TodoTask?> getTask(String taskId) async {
+    final row = await (_database.select(
+      _database.tasks,
+    )..where((table) => table.id.equals(taskId)))
+        .getSingleOrNull();
+    if (row == null) {
+      return null;
+    }
+    return _hydrateTasks(<Task>[row]).then((tasks) => tasks.single);
+  }
+
+  @override
+  Future<List<TodoTask>> fetchTasks(TodoFilter filter) async {
+    final query = _database.select(_database.tasks);
+    if (!filter.includeDeleted) {
+      query.where((table) => table.deletedAtEpochMs.isNull());
+    }
+
+    switch (filter.completionFilter) {
+      case TodoCompletionFilter.active:
+        query.where((table) => table.isCompleted.equals(false));
+      case TodoCompletionFilter.completed:
+        query.where((table) => table.isCompleted.equals(true));
+      case TodoCompletionFilter.all:
+        break;
+    }
+
+    if (filter.priorities.isNotEmpty) {
+      query.where(
+        (table) => table.priority.isIn(
+          filter.priorities
+              .map((priority) => priority.storageValue)
+              .toList(growable: false),
+        ),
+      );
+    }
+
+    final normalizedQuery = filter.query.trim().toLowerCase();
+    if (normalizedQuery.isNotEmpty) {
+      final pattern = '%$normalizedQuery%';
+      query.where(
+        (table) =>
+            table.title.lower().like(pattern) |
+            table.notes.lower().like(pattern),
+      );
+    }
+
+    if (filter.onlyDueToday) {
+      final today = DateTime.now();
+      final dayStart = DateTime(today.year, today.month, today.day);
+      final nextDay = dayStart.add(const Duration(days: 1));
+      query.where(
+        (table) =>
+            table.dueAtEpochMs.isBiggerOrEqualValue(
+              dayStart.toUtc().millisecondsSinceEpoch,
+            ) &
+            table.dueAtEpochMs.isSmallerThanValue(
+              nextDay.toUtc().millisecondsSinceEpoch,
+            ),
+      );
+    }
+
+    query.orderBy(<OrderingTerm Function($TasksTable)>[
+      ($TasksTable table) => OrderingTerm.asc(table.displayOrder),
+      ($TasksTable table) => OrderingTerm.desc(table.updatedAtEpochMs),
+    ]);
+
+    final rows = await query.get();
+    final tasks = await _hydrateTasks(rows);
+    if (filter.tagIds.isEmpty) {
+      return tasks;
+    }
+
+    return tasks
+        .where(
+          (task) => task.tagIds.any((tagId) => filter.tagIds.contains(tagId)),
+        )
+        .toList(growable: false);
+  }
+
+  @override
+  Future<TodoSettings> readSettings() async {
+    final existing = await (_database.select(
+      _database.appSettings,
+    )..where((table) => table.id.equals(1)))
+        .getSingleOrNull();
+    if (existing != null) {
+      return _mapSettings(existing);
+    }
+
+    await saveSettings(TodoSettings.defaults);
+    return TodoSettings.defaults;
+  }
+
+  @override
+  Future<void> saveSettings(TodoSettings settings) async {
+    final now = DateTime.now().toUtc();
+    await _database.into(_database.appSettings).insertOnConflictUpdate(
+          AppSettingsCompanion.insert(
+            id: const Value<int>(1),
+            themePreference: settings.themePreference.name,
+            sortMode: settings.sortMode.name,
+            showCompletedInInbox: settings.showCompletedInInbox,
+            compactMode: settings.compactMode,
+            updatedAtEpochMs: now.millisecondsSinceEpoch,
+          ),
+        );
+  }
+
+  Future<int> _nextDisplayOrder() async {
+    final expression = _database.tasks.displayOrder.max();
+    final result = await (_database.selectOnly(
+      _database.tasks,
+    )..addColumns(<Expression<Object>>[expression]))
+        .getSingle();
+    final maxValue = result.read(expression);
+    return (maxValue ?? -1) + 1;
+  }
+
+  Future<List<TodoTask>> _hydrateTasks(List<Task> rows) async {
+    final tagIds = rows.expand((row) => _decodeTagIds(row.tagIdsJson)).toSet();
+    final tagsById = await _fetchTagsByIds(tagIds);
+    final tagMap = <String, TodoTag>{for (final tag in tagsById) tag.id: tag};
+
+    return rows.map((row) => _mapTask(row, tagMap)).toList(growable: false);
+  }
+
+  Future<List<TodoTag>> _fetchTagsByIds(Set<String> tagIds) async {
+    if (tagIds.isEmpty) {
+      return const <TodoTag>[];
+    }
+
+    final rows = await (_database.select(
+      _database.tags,
+    )..where((table) => table.id.isIn(tagIds)))
+        .get();
+    return rows.map(_mapTag).toList(growable: false);
+  }
+
+  TodoTask _mapTask(Task row, Map<String, TodoTag> tagMap) {
+    final tags = _decodeTagIds(row.tagIdsJson)
+        .map((tagId) => tagMap[tagId])
+        .whereType<TodoTag>()
+        .toList(growable: false);
+    return TodoTask(
+      id: row.id,
+      title: row.title,
+      notes: row.notes,
+      priority: TodoPriority.fromStorage(row.priority),
+      dueAt: _fromEpochMs(row.dueAtEpochMs),
+      isCompleted: row.isCompleted,
+      completedAt: _fromEpochMs(row.completedAtEpochMs),
+      deletedAt: _fromEpochMs(row.deletedAtEpochMs),
+      displayOrder: row.displayOrder,
+      createdAt: _fromEpochMs(row.createdAtEpochMs)!,
+      updatedAt: _fromEpochMs(row.updatedAtEpochMs)!,
+      tags: tags,
+    );
+  }
+
+  TodoTag _mapTag(Tag row) {
+    return TodoTag(
+      id: row.id,
+      name: row.name,
+      colorHex: row.colorHex,
+      createdAt: _fromEpochMs(row.createdAtEpochMs)!,
+    );
+  }
+
+  TodoSettings _mapSettings(AppSetting row) {
+    return TodoSettings(
+      themePreference: TodoThemePreference.values.byName(row.themePreference),
+      sortMode: TodoSortMode.values.byName(row.sortMode),
+      showCompletedInInbox: row.showCompletedInInbox,
+      compactMode: row.compactMode,
+    );
+  }
+
+  DateTime? _fromEpochMs(int? epochMs) {
+    if (epochMs == null) {
+      return null;
+    }
+    return DateTime.fromMillisecondsSinceEpoch(epochMs, isUtc: true);
+  }
+
+  String _encodeTagIds(List<String> tagIds) {
+    return jsonEncode(tagIds.toSet().toList(growable: false));
+  }
+
+  List<String> _decodeTagIds(String jsonValue) {
+    final decoded = jsonDecode(jsonValue);
+    if (decoded is! List<Object?>) {
+      return const <String>[];
+    }
+    return decoded
+        .whereType<String>()
+        .map((tagId) => tagId.trim())
+        .where((tagId) => tagId.isNotEmpty)
+        .toList(growable: false);
+  }
+}

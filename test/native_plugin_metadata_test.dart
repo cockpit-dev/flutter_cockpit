@@ -1,0 +1,49 @@
+import 'dart:io';
+
+import 'package:test/test.dart';
+
+void main() {
+  final root = Directory.current.path;
+
+  test('runtime pubspec exposes flutter_cockpit plugin identifiers', () {
+    final pubspec = File(
+      '$root/packages/flutter_cockpit/pubspec.yaml',
+    ).readAsStringSync();
+
+    expect(pubspec, contains('package: dev.cockpit.flutter_cockpit'));
+    expect(pubspec, contains('pluginClass: FlutterCockpitPlugin'));
+  });
+
+  test('native plugin sources use flutter_cockpit channel names', () {
+    final androidPlugin = File(
+      '$root/packages/flutter_cockpit/android/src/main/kotlin/dev/cockpit/flutter_cockpit/FlutterCockpitPlugin.kt',
+    );
+    final iosPlugin = File(
+      '$root/packages/flutter_cockpit/ios/Classes/FlutterCockpitPlugin.swift',
+    );
+
+    expect(androidPlugin.existsSync(), isTrue);
+    expect(iosPlugin.existsSync(), isTrue);
+
+    final androidSource = androidPlugin.readAsStringSync();
+    final iosSource = iosPlugin.readAsStringSync();
+
+    expect(androidSource, contains('dev.cockpit.flutter_cockpit/capture'));
+    expect(androidSource, contains('dev.cockpit.flutter_cockpit/recording'));
+    expect(iosSource, contains('dev.cockpit.flutter_cockpit/capture'));
+    expect(iosSource, contains('dev.cockpit.flutter_cockpit/recording'));
+  });
+
+  test('ios podspec and android manifest use flutter_cockpit names', () {
+    final podspec = File(
+      '$root/packages/flutter_cockpit/ios/flutter_cockpit.podspec',
+    ).readAsStringSync();
+    final manifest = File(
+      '$root/packages/flutter_cockpit/android/src/main/AndroidManifest.xml',
+    ).readAsStringSync();
+
+    expect(podspec, contains("s.name             = 'flutter_cockpit'"));
+    expect(podspec, contains('flutter_cockpit.'));
+    expect(manifest, contains('package="dev.cockpit.flutter_cockpit"'));
+  });
+}

@@ -1,0 +1,12 @@
+name: flutter_cockpit_workspace
+
+packages:
+  - packages/**
+  - examples/**
+
+scripts:
+  analyze: dart analyze
+  test: >-
+    (cd packages/flutter_cockpit && flutter test) &&
+    (cd packages/flutter_cockpit_devtools && dart test) &&
+    (cd examples/cockpit_demo && flutter test)

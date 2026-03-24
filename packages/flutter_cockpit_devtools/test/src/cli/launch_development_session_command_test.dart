@@ -1,0 +1,91 @@
+import 'dart:convert';
+
+import 'package:args/command_runner.dart';
+import 'package:flutter_cockpit_devtools/flutter_cockpit_devtools.dart';
+import 'package:flutter_cockpit_devtools/src/cli/commands/launch_development_session_command.dart';
+import 'package:test/test.dart';
+
+void main() {
+  test('launch-development-session prints handle and status payload', () async {
+    CockpitLaunchDevelopmentSessionRequest? capturedRequest;
+    final output = StringBuffer();
+    final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
+      ..addCommand(
+        LaunchDevelopmentSessionCommand(
+          stdoutSink: output,
+          launch: (request) async {
+            capturedRequest = request;
+            return CockpitLaunchDevelopmentSessionResult(
+              sessionHandle: _handle(reloadGeneration: 0),
+              status: _status(CockpitDevelopmentSessionState.ready),
+              persistedHandlePath: '/tmp/dev-session.json',
+            );
+          },
+        ),
+      );
+
+    final exitCode = await runner.run(<String>[
+          'launch-development-session',
+          '--project-dir',
+          '/workspace/examples/cockpit_demo',
+          '--target',
+          'lib/main.dart',
+          '--platform',
+          'android',
+          '--android-device-id',
+          'emulator-5554',
+          '--output-json',
+          '/tmp/dev-session.json',
+        ]) ??
+        0;
+
+    expect(exitCode, 0);
+    expect(capturedRequest?.projectDir, '/workspace/examples/cockpit_demo');
+    expect(capturedRequest?.deviceId, 'emulator-5554');
+    final decoded = jsonDecode(output.toString()) as Map<String, Object?>;
+    expect((decoded['status'] as Map<String, Object?>)['state'], 'ready');
+    expect(
+      (decoded['sessionHandle']
+          as Map<String, Object?>)['developmentSessionId'],
+      'dev-session-1',
+    );
+  });
+}
+
+CockpitDevelopmentSessionHandle _handle({required int reloadGeneration}) {
+  return CockpitDevelopmentSessionHandle(
+    developmentSessionId: 'dev-session-1',
+    platform: 'android',
+    deviceId: 'emulator-5554',
+    projectDir: '/workspace/examples/cockpit_demo',
+    target: 'lib/main.dart',
+    appId: 'dev.cockpit.cockpit_demo',
+    appBaseUrl: 'http://127.0.0.1:57331',
+    supervisorBaseUrl: 'http://127.0.0.1:59331',
+    remoteSessionHandle: CockpitRemoteSessionHandle(
+      platform: 'android',
+      deviceId: 'emulator-5554',
+      projectDir: '/workspace/examples/cockpit_demo',
+      target: 'lib/main.dart',
+      appId: 'dev.cockpit.cockpit_demo',
+      host: '127.0.0.1',
+      hostPort: 57331,
+      devicePort: 47331,
+      baseUrl: 'http://127.0.0.1:57331',
+      launchedAt: DateTime.utc(2026, 3, 23),
+    ),
+    launchedAt: DateTime.utc(2026, 3, 23),
+    reloadGeneration: reloadGeneration,
+  );
+}
+
+CockpitDevelopmentSessionStatus _status(CockpitDevelopmentSessionState state) {
+  return CockpitDevelopmentSessionStatus(
+    developmentSessionId: 'dev-session-1',
+    state: state,
+    appReachable: state == CockpitDevelopmentSessionState.ready,
+    remoteSessionReachable: state == CockpitDevelopmentSessionState.ready,
+    reloadGeneration: 0,
+    lastStatusAt: DateTime.utc(2026, 3, 23),
+  );
+}

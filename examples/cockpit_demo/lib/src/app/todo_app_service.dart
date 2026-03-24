@@ -1,0 +1,491 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter_cockpit/flutter_cockpit_flutter.dart';
+
+import '../data/todo_repository.dart';
+import '../model/todo_filter.dart';
+import '../model/todo_priority.dart';
+import '../model/todo_settings.dart';
+import '../model/todo_task.dart';
+import '../network/todo_sync_gateway.dart';
+import 'todo_editor_state.dart';
+import 'todo_list_state.dart';
+import 'todo_settings_state.dart';
+import 'todo_sync_state.dart';
+
+final class TodoAppService extends ChangeNotifier {
+  TodoAppService({
+    required TodoRepositoryClient repository,
+    TodoSyncGatewayClient? syncGateway,
+  })  : _repository = repository,
+        _syncGateway = syncGateway;
+
+  final TodoRepositoryClient _repository;
+  final TodoSyncGatewayClient? _syncGateway;
+  bool _isDisposed = false;
+
+  TodoEditorState _editorState = TodoEditorState.empty;
+  TodoListState _listState = const TodoListState();
+  TodoSettingsState _settingsState = const TodoSettingsState();
+  TodoSyncState _syncState = const TodoSyncState();
+
+  TodoEditorState get editorState => _editorState;
+  TodoListState get listState => _listState;
+  TodoSettingsState get settingsState => _settingsState;
+  TodoSyncState get syncState => _syncState;
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    super.dispose();
+  }
+
+  void _notifyListenersIfActive() {
+    if (!_isDisposed) {
+      notifyListeners();
+    }
+  }
+
+  void editDraft({
+    String? title,
+    String? notes,
+    TodoPriority? priority,
+    ValueGetter<DateTime?>? dueAt,
+    List<String>? selectedTagIds,
+  }) {
+    _editorState = _editorState.copyWith(
+      title: title,
+      notes: notes,
+      priority: priority,
+      dueAt: dueAt,
+      selectedTagIds: selectedTagIds,
+      validationMessage: () => null,
+    );
+    _notifyListenersIfActive();
+  }
+
+  Future<void> loadTasks([TodoFilter? filter, String? focusedTaskId]) async {
+    final nextFilter = filter ?? _listState.filter;
+    _listState = _listState.copyWith(
+      filter: nextFilter,
+      isLoading: true,
+      errorMessage: () => null,
+    );
+    _notifyListenersIfActive();
+
+    try {
+      final tasks = _sortTasks(
+        await _repository.fetchTasks(nextFilter),
+        _settingsState.settings.sortMode,
+      );
+      if (_isDisposed) {
+        return;
+      }
+      _listState = _listState.copyWith(
+        tasks: tasks,
+        filter: nextFilter,
+        isLoading: false,
+        errorMessage: () => null,
+        focusedTaskId: () {
+          final candidateFocusId = focusedTaskId ?? _listState.focusedTaskId;
+          if (candidateFocusId == null) {
+            return null;
+          }
+          return tasks.any((task) => task.id == candidateFocusId)
+              ? candidateFocusId
+              : null;
+        },
+      );
+    } on Object catch (error) {
+      if (_isDisposed) {
+        return;
+      }
+      _listState = _listState.copyWith(
+        tasks: const <TodoTask>[],
+        filter: nextFilter,
+        isLoading: false,
+        errorMessage: () => _errorMessage(error),
+        focusedTaskId: () => null,
+      );
+    }
+    _notifyListenersIfActive();
+  }
+
+  Future<void> updateFilter(TodoFilter filter) {
+    return loadTasks(filter);
+  }
+
+  Future<void> setTaskCompleted({
+    required String taskId,
+    required bool isCompleted,
+  }) async {
+    try {
+      await _repository.setTaskCompleted(
+        taskId: taskId,
+        isCompleted: isCompleted,
+      );
+      if (_isDisposed) {
+        return;
+      }
+      await loadTasks();
+    } on Object catch (error) {
+      if (_isDisposed) {
+        return;
+      }
+      _listState = _listState.copyWith(
+        errorMessage: () => _errorMessage(error),
+      );
+      _notifyListenersIfActive();
+    }
+  }
+
+  Future<TodoTask?> submitDraft({String? existingTaskId}) async {
+    final normalizedTitle = _editorState.title.trim();
+    if (normalizedTitle.isEmpty) {
+      const validationMessage = 'Task title is required.';
+      _editorState = _editorState.copyWith(
+        validationMessage: () => validationMessage,
+      );
+      _recordWorkflowIssue(
+        actionType: 'validation_error',
+        message: validationMessage,
+        details: const <String, Object?>{
+          'field': 'title',
+          'screen': 'task_editor',
+        },
+      );
+      _notifyListenersIfActive();
+      return null;
+    }
+
+    _editorState = _editorState.copyWith(
+      isSaving: true,
+      validationMessage: () => null,
+    );
+    _notifyListenersIfActive();
+
+    try {
+      late final TodoTask savedTask;
+      if (existingTaskId == null) {
+        savedTask = await _repository.createTask(
+          title: normalizedTitle,
+          notes: _editorState.notes,
+          priority: _editorState.priority,
+          dueAt: _editorState.dueAt,
+          tagIds: _editorState.selectedTagIds,
+        );
+      } else {
+        savedTask = await _repository.updateTask(
+          taskId: existingTaskId,
+          title: normalizedTitle,
+          notes: _editorState.notes,
+          priority: _editorState.priority,
+          dueAt: _editorState.dueAt,
+          tagIds: _editorState.selectedTagIds,
+        );
+      }
+      if (_isDisposed) {
+        return null;
+      }
+      _editorState = TodoEditorState.empty;
+      await loadTasks(_listState.filter, savedTask.id);
+      return savedTask;
+    } on Object catch (error) {
+      if (_isDisposed) {
+        return null;
+      }
+      final message = _errorMessage(error);
+      _editorState = _editorState.copyWith(
+        isSaving: false,
+        validationMessage: () => message,
+      );
+      _recordWorkflowIssue(
+        actionType: 'save_error',
+        message: message,
+        details: <String, Object?>{
+          'screen': 'task_editor',
+          'existingTaskId': existingTaskId,
+        },
+      );
+      _notifyListenersIfActive();
+      return null;
+    }
+  }
+
+  Future<void> deleteTask(String taskId) async {
+    try {
+      final deleted = await _repository.deleteTask(taskId);
+      if (_isDisposed) {
+        return;
+      }
+      _listState = _listState.copyWith(
+        pendingUndoTask: () => deleted,
+        errorMessage: () => null,
+      );
+      _notifyListenersIfActive();
+      await loadTasks();
+    } on Object catch (error) {
+      if (_isDisposed) {
+        return;
+      }
+      _listState = _listState.copyWith(
+        errorMessage: () => _errorMessage(error),
+      );
+      _notifyListenersIfActive();
+    }
+  }
+
+  Future<bool> undoDelete() async {
+    final pendingTask = _listState.pendingUndoTask;
+    if (pendingTask == null) {
+      return false;
+    }
+
+    try {
+      await _repository.restoreTask(pendingTask.id);
+      if (_isDisposed) {
+        return false;
+      }
+      _listState = _listState.copyWith(
+        pendingUndoTask: () => null,
+        errorMessage: () => null,
+      );
+      _notifyListenersIfActive();
+      await loadTasks();
+      return true;
+    } on Object catch (error) {
+      if (_isDisposed) {
+        return false;
+      }
+      _listState = _listState.copyWith(
+        errorMessage: () => _errorMessage(error),
+      );
+      _notifyListenersIfActive();
+      return false;
+    }
+  }
+
+  Future<void> reorderTasks({
+    required int oldIndex,
+    required int newIndex,
+  }) async {
+    if (oldIndex < 0 ||
+        newIndex < 0 ||
+        oldIndex >= _listState.tasks.length ||
+        newIndex > _listState.tasks.length) {
+      return;
+    }
+
+    final adjustedNewIndex = newIndex > oldIndex ? newIndex - 1 : newIndex;
+    if (adjustedNewIndex == oldIndex) {
+      return;
+    }
+
+    final reorderedTasks = _listState.tasks.toList(growable: true);
+    final movedTask = reorderedTasks.removeAt(oldIndex);
+    reorderedTasks.insert(adjustedNewIndex, movedTask);
+    _listState = _listState.copyWith(
+      tasks: List<TodoTask>.unmodifiable(reorderedTasks),
+      errorMessage: () => null,
+    );
+    _notifyListenersIfActive();
+
+    try {
+      await _repository.reorderTasks(
+        reorderedTasks.map((task) => task.id).toList(growable: false),
+      );
+      if (_isDisposed) {
+        return;
+      }
+      await loadTasks();
+    } on Object catch (error) {
+      if (_isDisposed) {
+        return;
+      }
+      _listState = _listState.copyWith(
+        errorMessage: () => _errorMessage(error),
+      );
+      _notifyListenersIfActive();
+    }
+  }
+
+  Future<void> loadSettings() async {
+    try {
+      final settings = await _repository.readSettings();
+      if (_isDisposed) {
+        return;
+      }
+      _settingsState = _settingsState.copyWith(
+        settings: settings,
+        isSaving: false,
+        errorMessage: () => null,
+      );
+    } on Object catch (error) {
+      if (_isDisposed) {
+        return;
+      }
+      _settingsState = _settingsState.copyWith(
+        isSaving: false,
+        errorMessage: () => _errorMessage(error),
+      );
+    }
+    _notifyListenersIfActive();
+  }
+
+  Future<void> updateSettings(TodoSettings settings) async {
+    _settingsState = _settingsState.copyWith(
+      isSaving: true,
+      errorMessage: () => null,
+    );
+    _notifyListenersIfActive();
+
+    try {
+      await _repository.saveSettings(settings);
+      if (_isDisposed) {
+        return;
+      }
+      _settingsState = _settingsState.copyWith(
+        settings: settings,
+        isSaving: false,
+        errorMessage: () => null,
+      );
+      await loadTasks();
+    } on Object catch (error) {
+      if (_isDisposed) {
+        return;
+      }
+      _settingsState = _settingsState.copyWith(
+        isSaving: false,
+        errorMessage: () => _errorMessage(error),
+      );
+    }
+    _notifyListenersIfActive();
+  }
+
+  void dismissFocusedTask() {
+    if (_listState.focusedTaskId == null) {
+      return;
+    }
+    _listState = _listState.copyWith(focusedTaskId: () => null);
+    _notifyListenersIfActive();
+  }
+
+  Future<void> runSyncHealthCheck() async {
+    final syncGateway = _syncGateway;
+    if (syncGateway == null) {
+      _syncState = _syncState.copyWith(
+        status: TodoSyncStatus.failed,
+        headline: 'Relay unavailable',
+        detail: 'No sync relay is attached to this app instance.',
+        endpoint: () => null,
+        statusCode: () => null,
+        checkedAt: () => DateTime.now().toUtc(),
+      );
+      _notifyListenersIfActive();
+      return;
+    }
+
+    _syncState = _syncState.copyWith(
+      status: TodoSyncStatus.checking,
+      headline: 'Checking relay…',
+      detail: 'Sending a health probe through the local sync boundary.',
+      checkedAt: () => DateTime.now().toUtc(),
+    );
+    _notifyListenersIfActive();
+
+    try {
+      final result = await syncGateway.probeHealth();
+      if (_isDisposed) {
+        return;
+      }
+      final isHealthy = result.statusCode >= 200 && result.statusCode < 300;
+      _syncState = _syncState.copyWith(
+        status: isHealthy ? TodoSyncStatus.healthy : TodoSyncStatus.failed,
+        headline: isHealthy ? 'Relay ready' : 'Relay degraded',
+        detail: result.summary,
+        endpoint: () => result.endpoint.toString(),
+        statusCode: () => result.statusCode,
+        checkedAt: () => result.checkedAt,
+      );
+    } on Object catch (error) {
+      if (_isDisposed) {
+        return;
+      }
+      _syncState = _syncState.copyWith(
+        status: TodoSyncStatus.failed,
+        headline: 'Relay unavailable',
+        detail: _errorMessage(error),
+        endpoint: () => null,
+        statusCode: () => null,
+        checkedAt: () => DateTime.now().toUtc(),
+      );
+    }
+    _notifyListenersIfActive();
+  }
+
+  List<TodoTask> _sortTasks(List<TodoTask> tasks, TodoSortMode sortMode) {
+    final sorted = tasks.toList(growable: true);
+    switch (sortMode) {
+      case TodoSortMode.manual:
+        sorted.sort(
+          (left, right) => left.displayOrder.compareTo(right.displayOrder),
+        );
+        return List<TodoTask>.unmodifiable(sorted);
+      case TodoSortMode.dueDate:
+        sorted.sort((left, right) {
+          final leftDue = left.dueAt;
+          final rightDue = right.dueAt;
+          if (leftDue == null && rightDue == null) {
+            return left.displayOrder.compareTo(right.displayOrder);
+          }
+          if (leftDue == null) {
+            return 1;
+          }
+          if (rightDue == null) {
+            return -1;
+          }
+          return leftDue.compareTo(rightDue);
+        });
+        return List<TodoTask>.unmodifiable(sorted);
+      case TodoSortMode.priority:
+        sorted.sort(
+          (left, right) =>
+              right.priority.storageValue.compareTo(left.priority.storageValue),
+        );
+        return List<TodoTask>.unmodifiable(sorted);
+      case TodoSortMode.updatedAt:
+        sorted.sort((left, right) => right.updatedAt.compareTo(left.updatedAt));
+        return List<TodoTask>.unmodifiable(sorted);
+    }
+  }
+
+  String _errorMessage(Object error) {
+    final message = error.toString();
+    const stateErrorPrefix = 'Bad state: ';
+    if (message.startsWith(stateErrorPrefix)) {
+      return message.substring(stateErrorPrefix.length);
+    }
+    return message;
+  }
+
+  void _recordWorkflowIssue({
+    required String actionType,
+    required String message,
+    Map<String, Object?> details = const <String, Object?>{},
+  }) {
+    final snapshot = FlutterCockpit.binding.registry.snapshot();
+    FlutterCockpit.recordStep(
+      actionType: actionType,
+      actionArgs: <String, Object?>{'message': message, ...details},
+      observation: CockpitObservation(
+        routeName: FlutterCockpit.binding.currentRouteName.value,
+        interactiveElements: snapshot.visibleTargets
+            .map((target) => target.displayLabel)
+            .whereType<String>()
+            .take(12)
+            .toList(growable: false),
+        phase: CockpitObservationPhase.failure,
+      ),
+      snapshot: snapshot,
+    );
+  }
+}
