@@ -9,6 +9,7 @@ import 'cockpit_flutter_run_machine_event.dart';
 
 typedef CockpitRemoteReachabilityProbe = Future<bool> Function(Uri baseUri);
 typedef CockpitUiIdleWaiter = Future<bool> Function(Uri baseUri);
+typedef CockpitAppStopper = Future<void> Function(String appId);
 
 final class CockpitDevelopmentSessionSupervisor {
   CockpitDevelopmentSessionSupervisor({
@@ -16,6 +17,7 @@ final class CockpitDevelopmentSessionSupervisor {
     required CockpitFlutterRunMachineClient machineClient,
     required CockpitRemoteReachabilityProbe remoteReachabilityProbe,
     required CockpitUiIdleWaiter uiIdleWaiter,
+    CockpitAppStopper? appStopper,
     DateTime Function()? now,
     InternetAddress? bindAddress,
     int bindPort = 0,
@@ -25,6 +27,7 @@ final class CockpitDevelopmentSessionSupervisor {
         _machineClient = machineClient,
         _remoteReachabilityProbe = remoteReachabilityProbe,
         _uiIdleWaiter = uiIdleWaiter,
+        _appStopper = appStopper,
         _now = now ?? DateTime.now,
         _bindAddress = bindAddress ?? InternetAddress.loopbackIPv4,
         _bindPort = bindPort,
@@ -43,6 +46,7 @@ final class CockpitDevelopmentSessionSupervisor {
   final CockpitFlutterRunMachineClient _machineClient;
   final CockpitRemoteReachabilityProbe _remoteReachabilityProbe;
   final CockpitUiIdleWaiter _uiIdleWaiter;
+  final CockpitAppStopper? _appStopper;
   final DateTime Function() _now;
   final InternetAddress _bindAddress;
   final int _bindPort;
@@ -52,8 +56,11 @@ final class CockpitDevelopmentSessionSupervisor {
   final Completer<void> _doneCompleter = Completer<void>();
   HttpServer? _server;
   StreamSubscription<CockpitFlutterRunMachineEvent>? _eventSubscription;
+  StreamSubscription<HttpRequest>? _requestSubscription;
   Future<void>? _pendingStartupSettle;
   bool _explicitStopRequested = false;
+  bool _controlPlaneClosed = false;
+  bool _resourcesDisposed = false;
 
   Future<void> start() async {
     _server = await HttpServer.bind(_bindAddress, _bindPort);
@@ -65,13 +72,12 @@ final class CockpitDevelopmentSessionSupervisor {
       ).toString(),
     );
     _eventSubscription = _machineClient.events.listen(_handleMachineEvent);
-    unawaited(_server!.listen(_handleHttpRequest).asFuture<void>());
+    _requestSubscription = _server!.listen(_handleHttpRequest);
   }
 
   Future<void> dispose() async {
-    await _eventSubscription?.cancel();
-    await _server?.close(force: true);
-    await _machineClient.dispose();
+    _controlPlaneClosed = true;
+    await _disposeResources();
     if (!_doneCompleter.isCompleted) {
       _doneCompleter.complete();
     }
@@ -139,6 +145,7 @@ final class CockpitDevelopmentSessionSupervisor {
     bool closeControlPlane = true,
   }) async {
     _explicitStopRequested = true;
+    final remoteAppId = _handle.remoteSessionHandle?.appId;
     try {
       await Future.any<Object?>(<Future<Object?>>[
         _machineClient.stop(
@@ -148,6 +155,13 @@ final class CockpitDevelopmentSessionSupervisor {
       ]);
     } on Object {
       // The process may already be gone.
+    }
+    if (_appStopper != null && remoteAppId != null && remoteAppId.isNotEmpty) {
+      try {
+        await _appStopper.call(remoteAppId);
+      } on Object {
+        // Best effort desktop shutdown only.
+      }
     }
     _setStatus(
       _status.copyWith(
@@ -335,9 +349,24 @@ final class CockpitDevelopmentSessionSupervisor {
   }
 
   Future<void> _closeControlPlane() async {
-    await _server?.close(force: true);
+    if (_controlPlaneClosed) {
+      return;
+    }
+    _controlPlaneClosed = true;
     if (!_doneCompleter.isCompleted) {
       _doneCompleter.complete();
     }
+    unawaited(_disposeResources());
+  }
+
+  Future<void> _disposeResources() async {
+    if (_resourcesDisposed) {
+      return;
+    }
+    _resourcesDisposed = true;
+    await _eventSubscription?.cancel();
+    await _requestSubscription?.cancel();
+    await _server?.close(force: true);
+    await _machineClient.dispose();
   }
 }

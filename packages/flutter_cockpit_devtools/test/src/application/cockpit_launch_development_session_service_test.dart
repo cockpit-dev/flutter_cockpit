@@ -152,6 +152,88 @@ void main() {
       expect(result.status.state, CockpitDevelopmentSessionState.ready);
     },
   );
+
+  test(
+    'daemon launcher uses direct host port for macos without Android forwarding',
+    () async {
+      final readyHandle = CockpitDevelopmentSessionHandle(
+        developmentSessionId: 'dev-session-macos',
+        platform: 'macos',
+        deviceId: 'macos',
+        projectDir: '/workspace/examples/cockpit_demo',
+        target: 'cockpit/main.dart',
+        appId: 'dev.cockpit.cockpitDemo',
+        appBaseUrl: 'http://127.0.0.1:47331',
+        supervisorBaseUrl: 'http://127.0.0.1:60003',
+        launchedAt: DateTime.utc(2026, 3, 24, 0, 0),
+        reloadGeneration: 0,
+        remoteSessionHandle: CockpitRemoteSessionHandle(
+          platform: 'macos',
+          deviceId: 'macos',
+          projectDir: '/workspace/examples/cockpit_demo',
+          target: 'cockpit/main.dart',
+          appId: 'dev.cockpit.cockpitDemo',
+          host: '127.0.0.1',
+          hostPort: 47331,
+          devicePort: 47331,
+          baseUrl: 'http://127.0.0.1:47331',
+          launchedAt: DateTime.utc(2026, 3, 24, 0, 0),
+        ),
+      );
+      final readyStatus = CockpitDevelopmentSessionStatus(
+        developmentSessionId: readyHandle.developmentSessionId,
+        state: CockpitDevelopmentSessionState.ready,
+        appReachable: true,
+        remoteSessionReachable: true,
+        reloadGeneration: readyHandle.reloadGeneration,
+        lastStatusAt: DateTime.utc(2026, 3, 24, 0, 1),
+      );
+
+      var capturedHostPort = -1;
+      var capturedPlatform = '';
+      final launcher = CockpitDevelopmentSessionDaemonLauncher(
+        supervisorStatusReader: (baseUri) async =>
+            CockpitDevelopmentSessionSupervisorResponse(
+          sessionHandle: readyHandle,
+          status: readyStatus,
+        ),
+        portForwarder: const _ThrowingPortForwarder(),
+        flutterVersionReader: () async => '3.39.0',
+        allocatePort: () async => 60003,
+        delay: (_) async {},
+        spawnSupervisor: ({
+          required request,
+          required flutterVersion,
+          required hostPort,
+          required supervisorPort,
+          required supervisorLogFile,
+        }) async {
+          capturedHostPort = hostPort;
+          capturedPlatform = request.platform;
+          return CockpitSpawnedDevelopmentSupervisor(
+            baseUri: Uri.parse('http://127.0.0.1:$supervisorPort'),
+            stop: () async {},
+          );
+        },
+      );
+
+      final result = await launcher.launch(
+        const CockpitLaunchDevelopmentSessionRequest(
+          projectDir: '/workspace/examples/cockpit_demo',
+          target: 'cockpit/main.dart',
+          platform: 'macos',
+          deviceId: 'macos',
+          sessionPort: 47331,
+          launchTimeout: Duration(seconds: 5),
+        ),
+      );
+
+      expect(capturedPlatform, 'macos');
+      expect(capturedHostPort, 47331);
+      expect(result.sessionHandle.platform, 'macos');
+      expect(result.status.state, CockpitDevelopmentSessionState.ready);
+    },
+  );
 }
 
 final class _StubPortForwarder extends CockpitAndroidPortForwarder {
@@ -166,6 +248,19 @@ final class _StubPortForwarder extends CockpitAndroidPortForwarder {
     required int devicePort,
   }) async {
     return hostPort;
+  }
+}
+
+final class _ThrowingPortForwarder extends CockpitAndroidPortForwarder {
+  const _ThrowingPortForwarder();
+
+  @override
+  Future<int> ensureForwarded({
+    required String deviceId,
+    required int preferredHostPort,
+    required int devicePort,
+  }) async {
+    throw StateError('macos bootstrap must not request Android forwarding');
   }
 }
 

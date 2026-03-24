@@ -256,6 +256,7 @@ final class CockpitDevelopmentSessionDaemonLauncher {
     required int supervisorPort,
     required File supervisorLogFile,
   }) async {
+    await supervisorLogFile.parent.create(recursive: true);
     final process = await Process.start(
       Platform.resolvedExecutable,
       <String>[
@@ -283,14 +284,6 @@ final class CockpitDevelopmentSessionDaemonLauncher {
       workingDirectory: request.projectDir,
       mode: ProcessStartMode.detachedWithStdio,
     );
-    final stdoutSink = supervisorLogFile.openWrite(
-      mode: FileMode.writeOnlyAppend,
-    );
-    final stderrSink = supervisorLogFile.openWrite(
-      mode: FileMode.writeOnlyAppend,
-    );
-    unawaited(process.stdout.pipe(stdoutSink));
-    unawaited(process.stderr.pipe(stderrSink));
     final baseUri = Uri(
       scheme: 'http',
       host: '127.0.0.1',
@@ -313,10 +306,6 @@ final class CockpitDevelopmentSessionDaemonLauncher {
         await Future.any(<Future<Object?>>[
           process.exitCode,
           Future<Object?>.delayed(const Duration(milliseconds: 200)),
-        ]);
-        await Future.wait<void>(<Future<void>>[
-          stdoutSink.close(),
-          stderrSink.close(),
         ]);
       },
     );

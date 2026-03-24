@@ -27,8 +27,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   launch-development-session \
   --project-dir examples/cockpit_demo \
   --target cockpit/main.dart \
-  --platform android \
-  --android-device-id emulator-5554 \
+  --platform macos \
   --output-json /tmp/flutter_cockpit/development_session.json
 
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
@@ -44,8 +43,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   launch-remote-session \
   --project-dir examples/cockpit_demo \
   --target cockpit/main.dart \
-  --platform android \
-  --android-device-id emulator-5554 \
+  --platform macos \
   --session-port 48331 \
   --output-json /tmp/flutter_cockpit/session.json
 
@@ -53,6 +51,11 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   query-remote-session \
   --session-json /tmp/flutter_cockpit/session.json
 ```
+
+For Android or iOS Simulator, use the same commands but add the platform-specific device flag:
+
+- Android: `--platform android --android-device-id <device>`
+- iOS Simulator: `--platform ios --ios-device-id <simulator-udid>`
 
 ## Expected Agent Behavior
 

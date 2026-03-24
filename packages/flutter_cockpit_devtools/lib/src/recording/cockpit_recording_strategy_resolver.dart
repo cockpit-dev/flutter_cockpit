@@ -1,7 +1,9 @@
 import '../adapters/cockpit_recording_adapter.dart';
 import '../remote/cockpit_remote_recording_adapter.dart';
 import '../remote/cockpit_remote_session_client.dart';
+import '../session/cockpit_remote_session_handle.dart';
 import 'cockpit_adb_recording_adapter.dart';
+import 'cockpit_macos_recording_adapter.dart';
 import 'cockpit_simctl_recording_adapter.dart';
 
 typedef CockpitRemoteRecordingAdapterFactory = CockpitRecordingAdapter Function(
@@ -10,22 +12,27 @@ typedef CockpitAdbRecordingAdapterFactory = CockpitRecordingAdapter Function(
     String deviceId);
 typedef CockpitSimctlRecordingAdapterFactory = CockpitRecordingAdapter Function(
     String deviceId);
+typedef CockpitMacosRecordingAdapterFactory = CockpitRecordingAdapter Function(
+    String appId);
 
 final class CockpitRecordingStrategyResolver {
   const CockpitRecordingStrategyResolver({
     this.remoteAdapterFactory = _defaultRemoteAdapterFactory,
     this.adbAdapterFactory = _defaultAdbAdapterFactory,
     this.simctlAdapterFactory = _defaultSimctlAdapterFactory,
+    this.macosAdapterFactory = _defaultMacosAdapterFactory,
   });
 
   final CockpitRemoteRecordingAdapterFactory remoteAdapterFactory;
   final CockpitAdbRecordingAdapterFactory adbAdapterFactory;
   final CockpitSimctlRecordingAdapterFactory simctlAdapterFactory;
+  final CockpitMacosRecordingAdapterFactory macosAdapterFactory;
 
   CockpitRecordingAdapter? resolve({
     required String platform,
     required Object? recording,
     required CockpitRemoteSessionClient client,
+    CockpitRemoteSessionHandle? sessionHandle,
     String? androidDeviceId,
     String? iosDeviceId,
   }) {
@@ -39,6 +46,11 @@ final class CockpitRecordingStrategyResolver {
     }
     if (platform == 'ios' && iosDeviceId != null && iosDeviceId.isNotEmpty) {
       return simctlAdapterFactory(iosDeviceId);
+    }
+    if (platform == 'macos' &&
+        sessionHandle != null &&
+        sessionHandle.appId.isNotEmpty) {
+      return macosAdapterFactory(sessionHandle.appId);
     }
     return remoteAdapterFactory(client);
   }
@@ -55,5 +67,9 @@ final class CockpitRecordingStrategyResolver {
 
   static CockpitRecordingAdapter _defaultSimctlAdapterFactory(String deviceId) {
     return CockpitSimctlRecordingAdapter(deviceId: deviceId);
+  }
+
+  static CockpitRecordingAdapter _defaultMacosAdapterFactory(String appId) {
+    return CockpitMacosRecordingAdapter(appId: appId);
   }
 }

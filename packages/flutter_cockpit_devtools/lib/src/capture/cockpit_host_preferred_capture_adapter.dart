@@ -27,7 +27,17 @@ final class CockpitHostPreferredCaptureAdapter
 
     await _client.waitForUiIdle();
     final execution = await _hostAcceptanceAdapter.capture(command);
-    if (!execution.result.success || !request.includeSnapshot) {
+    if (!execution.result.success) {
+      final fallbackExecution = await _remoteAdapter.capture(command);
+      if (!fallbackExecution.result.success) {
+        return execution;
+      }
+      return _withFallbackMetadata(
+        fallbackExecution,
+        degradationReason: 'hostCaptureFailed',
+      );
+    }
+    if (!request.includeSnapshot) {
       return execution;
     }
 
@@ -58,6 +68,32 @@ final class CockpitHostPreferredCaptureAdapter
     } on Object {
       return execution;
     }
+  }
+
+  CockpitCommandExecution _withFallbackMetadata(
+    CockpitCommandExecution execution, {
+    required String degradationReason,
+  }) {
+    final result = execution.result;
+    return CockpitCommandExecution(
+      result: CockpitCommandResult(
+        success: result.success,
+        commandId: result.commandId,
+        commandType: result.commandType,
+        locatorResolution: result.locatorResolution,
+        durationMs: result.durationMs,
+        artifacts: result.artifacts,
+        snapshot: result.snapshot,
+        requestedCaptureProfile: result.requestedCaptureProfile,
+        resolvedCaptureKind: result.resolvedCaptureKind,
+        usedCaptureFallback: true,
+        degradationReason: degradationReason,
+        error: result.error,
+      ),
+      artifactPayloads: execution.artifactPayloads,
+      artifactSourcePaths: execution.artifactSourcePaths,
+      runtimeSteps: execution.runtimeSteps,
+    );
   }
 
   CockpitSnapshotOptions _defaultSnapshotOptionsForReason(

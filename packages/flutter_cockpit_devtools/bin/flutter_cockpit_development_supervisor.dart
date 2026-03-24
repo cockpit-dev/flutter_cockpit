@@ -94,16 +94,30 @@ Future<void> main(List<String> args) async {
         return false;
       }
     },
+    appStopper: platform == 'macos'
+        ? (appId) async {
+            await Process.run('osascript', <String>[
+              '-e',
+              'tell application id "$appId" to quit',
+            ]).timeout(const Duration(seconds: 5));
+          }
+        : null,
     bindPort: supervisorPort,
   );
 
-  ProcessSignal.sigterm.watch().listen((_) {
+  final sigtermSubscription = ProcessSignal.sigterm.watch().listen((_) {
     unawaited(supervisor.stop());
   });
-  ProcessSignal.sigint.watch().listen((_) {
+  final sigintSubscription = ProcessSignal.sigint.watch().listen((_) {
     unawaited(supervisor.stop());
   });
 
-  await supervisor.start();
-  await supervisor.done;
+  try {
+    await supervisor.start();
+    await supervisor.done;
+  } finally {
+    await sigtermSubscription.cancel();
+    await sigintSubscription.cancel();
+  }
+  exit(0);
 }

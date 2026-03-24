@@ -80,6 +80,66 @@ void main() {
       expect(decoded['baseUrl'], 'http://127.0.0.1:58421');
     },
   );
+
+  test('launch-remote-session accepts macos without a mobile device id',
+      () async {
+    CockpitRemoteSessionLaunchOptions? capturedOptions;
+    final output = StringBuffer();
+    final runner = CommandRunner<int>(
+      'flutter_cockpit_devtools',
+      'Host-side tooling for flutter_cockpit.',
+    )..addCommand(
+        LaunchRemoteSessionCommand(
+          stdoutSink: output,
+          service: CockpitLaunchRemoteSessionService(
+            launcher: _CapturingRemoteSessionLauncher(
+              onLaunch: (options) => capturedOptions = options,
+            ),
+            statusReader: (_) async => CockpitRemoteSessionStatus(
+              sessionId: 'launch-demo-macos',
+              platform: 'macos',
+              transportType: 'remoteHttp',
+              currentRouteName: '/home',
+              capabilities: CockpitCapabilities(
+                platform: 'macos',
+                transportType: 'remoteHttp',
+                supportsInAppControl: true,
+                supportsFlutterViewCapture: true,
+                supportsNativeScreenCapture: true,
+                supportsHostAutomation: true,
+                supportedCommands: <CockpitCommandType>[
+                  CockpitCommandType.tap,
+                ],
+                supportedLocatorStrategies: CockpitLocatorKind.values,
+              ),
+              recordingCapabilities: CockpitRecordingCapabilities(
+                supportsNativeRecording: true,
+                preferredAcceptanceRecordingKind:
+                    CockpitRecordingKind.nativeScreen,
+              ),
+              snapshot: CockpitSnapshot(routeName: '/home'),
+            ),
+          ),
+        ),
+      );
+
+    final exitCode = await runner.run(<String>[
+          'launch-remote-session',
+          '--project-dir',
+          '/workspace/examples/cockpit_demo',
+          '--target',
+          'cockpit/main.dart',
+          '--platform',
+          'macos',
+        ]) ??
+        0;
+
+    expect(exitCode, 0);
+    expect(capturedOptions?.platform, 'macos');
+    expect(capturedOptions?.deviceId, 'macos');
+    final decoded = jsonDecode(output.toString()) as Map<String, Object?>;
+    expect(decoded['platform'], 'macos');
+  });
 }
 
 final class _FakeRemoteSessionLauncher implements CockpitRemoteSessionLauncher {
@@ -96,6 +156,32 @@ final class _FakeRemoteSessionLauncher implements CockpitRemoteSessionLauncher {
       host: '127.0.0.1',
       hostPort: 58421,
       devicePort: 47331,
+      baseUrl: 'http://127.0.0.1:58421',
+      launchedAt: DateTime.utc(2026, 3, 21, 0, 0),
+    );
+  }
+}
+
+final class _CapturingRemoteSessionLauncher
+    implements CockpitRemoteSessionLauncher {
+  _CapturingRemoteSessionLauncher({required this.onLaunch});
+
+  final void Function(CockpitRemoteSessionLaunchOptions options) onLaunch;
+
+  @override
+  Future<CockpitRemoteSessionHandle> launch(
+    CockpitRemoteSessionLaunchOptions options,
+  ) async {
+    onLaunch(options);
+    return CockpitRemoteSessionHandle(
+      platform: options.platform,
+      deviceId: options.deviceId,
+      projectDir: options.projectDir,
+      target: options.target,
+      appId: 'dev.cockpit.cockpit_demo',
+      host: '127.0.0.1',
+      hostPort: 58421,
+      devicePort: options.sessionPort,
       baseUrl: 'http://127.0.0.1:58421',
       launchedAt: DateTime.utc(2026, 3, 21, 0, 0),
     );

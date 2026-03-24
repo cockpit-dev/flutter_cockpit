@@ -11,8 +11,8 @@ The current slice now proves three evidence paths:
 - in-app native acceptance recording on Android and iOS, written into the standard task-run bundle for later delivery tooling
 - a remote session bridge so host-side tools can inspect and control a running app over HTTP
 - a remote recording workflow so host-side tools can start a recording, execute commands, stop the recording, and persist the resulting video inside the same task-run bundle
-- host-side recording fallback for remote runs so Android emulators and iOS Simulators can still produce acceptance videos when in-app recording is not the right path
-- a bootstrap workflow so host-side tools can launch the app themselves, emit a reusable remote-session handle, and drive later commands without any manual pre-start step
+- host-side recording fallback for remote runs so Android emulators, iOS Simulators, and local macOS runs can still produce acceptance videos when in-app recording is not the right path
+- a bootstrap workflow so host-side tools can launch the app themselves, emit a reusable remote-session handle, and drive later commands without any manual pre-start step on Android, iOS Simulator, and macOS
 
 The repository still does not try to solve every platform capability yet, but the protocol and bundle format are now shaped for later host-side automation and remote orchestration.
 
@@ -81,7 +81,7 @@ This repository currently validates:
 - host-side `run-control-script` CLI execution
 - host-side `query-remote-session` and `run-remote-control-script` CLI execution
 - host-side `collect-remote-snapshot` CLI execution for targeted diagnostics and network evidence without writing a full task bundle
-- host-side `launch-remote-session` CLI execution that builds, installs, launches, and waits for a reachable remote session on Android and iOS Simulator
+- host-side `launch-remote-session` CLI execution that builds, installs, launches, and waits for a reachable remote session on Android, iOS Simulator, and macOS
 - shared application services so CLI and MCP reuse the same launch, query, run, and bundle-summary workflows
 - a `stdio` MCP server that exposes both the fast development loop (`launch_development_session`, `reload_development_session`, `collect_development_probe`, `compare_development_probe`) and the heavier evidence/validation loop (`launch_remote_session`, `query_remote_session`, `collect_remote_snapshot`, `run_remote_control_script`, `read_task_bundle_summary`, `run_task`, `validate_task`)
 - a high-level run-task orchestration workflow that codifies `bootstrap -> baseline -> execute -> observe -> judge -> deliver`
@@ -95,11 +95,11 @@ This repository currently validates:
 - remote recording stop responses that transfer recording artifacts back to host-side tooling so remote task-run bundles contain real video files instead of device-local placeholder paths
 - host-side recording adapters that use `adb screenrecord` and `xcrun simctl io recordVideo` when a remote run already has a direct device handle
 - Flutter-view screenshot capture that attaches evidence to the bundle model
-- native acceptance screenshot capture through the `flutter_cockpit` plugin bridge for Android and iOS
+- native acceptance screenshot capture through the `flutter_cockpit` plugin bridge for Android, iOS, and macOS
 - native acceptance recording through the `flutter_cockpit` plugin bridge for Android and iOS
 - recording-aware bundle delivery metadata, including `recordings/`, `primaryRecordingRef`, and `videoAttachmentRefs`
 - delivery keyframe extraction so recordings also produce bounded `keyframes/` evidence and coverage metadata for acceptance review
-- Android and iOS example host shells for real plugin build verification
+- Android, iOS, and macOS example host shells for real plugin build verification
 - a repository-shipped `flutter_cockpit` skill asset with pressure scenarios, examples, and a maintainer-facing contract
 
 ## Package Entry Points
@@ -304,6 +304,7 @@ For host-side runs, `run-remote-control-script` accepts an optional `recording` 
 
 - Android with `--android-device-id`: host recording through `adb screenrecord`
 - iOS with `--ios-device-id`: host recording through `xcrun simctl io recordVideo`
+- macOS with `--platform macos`: host-preferred screenshot/recording adapters, with remote screenshot or synthesized timeline-video fallback when host tooling cannot produce stable media on the current machine
 - otherwise: remote in-app recording through the app session
 
 Regardless of which strategy is chosen, the resulting video is copied into the local task-run bundle, keyframes are extracted from the recorded timeline, and the final evidence set is summarized through the same `delivery.json` fields.
@@ -360,10 +361,10 @@ The current implementation is intentionally narrow:
 
 - supported execution path: in-app control through an instrumented Flutter app
 - supported external control path: remote HTTP bridge to a running instrumented app
-- supported bootstrap path: host-side app launch for Android emulators and iOS Simulators, with reusable session-handle JSON output
+- supported bootstrap path: host-side app launch for Android emulators, iOS Simulators, and local macOS desktop runs, with reusable session-handle JSON output
 - supported screenshot paths: Flutter-view capture and in-app native acceptance screenshots
-- supported recording paths: in-app native acceptance recording plus host-side remote fallback for Android emulators and iOS Simulators
-- not implemented yet: Android/iOS host automation beyond launch and recording, physical iPhone host recording, remote device orchestration, chat-channel delivery
+- supported recording paths: in-app native acceptance recording plus host-side remote fallback for Android emulators, iOS Simulators, and macOS desktop runs; when host recording cannot finalize, bundle writing can synthesize a bounded timeline video from captured screenshots so the delivery gate still fails closed on missing evidence
+- not implemented yet: Linux and Windows host loops, Android/iOS host automation beyond launch and recording, physical iPhone host recording, remote device orchestration, chat-channel delivery
 
 Those capabilities are reserved behind adapter interfaces and the existing bundle contract so later phases can extend the system without replacing the protocol surface.
 

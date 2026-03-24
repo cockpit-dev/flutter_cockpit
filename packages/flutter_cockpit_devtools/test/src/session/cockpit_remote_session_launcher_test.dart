@@ -150,6 +150,47 @@ void main() {
       );
     },
   );
+
+  test('platform launcher dispatches macos requests', () async {
+    CockpitRemoteSessionLaunchOptions? capturedOptions;
+    final launcher = CockpitPlatformRemoteSessionLauncher(
+      androidLauncher: _CapturingRemoteSessionLauncher(
+        onLaunch: (_) => fail('unexpected android launch'),
+      ),
+      iosLauncher: _CapturingRemoteSessionLauncher(
+        onLaunch: (_) => fail('unexpected ios launch'),
+      ),
+      macosLauncher: _CapturingRemoteSessionLauncher(
+        onLaunch: (options) => capturedOptions = options,
+        handleBuilder: (options) => CockpitRemoteSessionHandle(
+          platform: 'macos',
+          deviceId: 'macos',
+          projectDir: options.projectDir,
+          target: options.target,
+          appId: 'dev.cockpit.cockpitDemo',
+          host: '127.0.0.1',
+          hostPort: options.sessionPort,
+          devicePort: options.sessionPort,
+          baseUrl: 'http://127.0.0.1:${options.sessionPort}',
+          launchedAt: DateTime.utc(2026, 3, 24),
+        ),
+      ),
+    );
+
+    final handle = await launcher.launch(
+      const CockpitRemoteSessionLaunchOptions(
+        projectDir: '/workspace/examples/cockpit_demo',
+        target: 'cockpit/main.dart',
+        platform: 'macos',
+        deviceId: 'macos',
+        sessionPort: 47331,
+      ),
+    );
+
+    expect(capturedOptions?.platform, 'macos');
+    expect(handle.platform, 'macos');
+    expect(handle.appId, 'dev.cockpit.cockpitDemo');
+  });
 }
 
 final class _FakeAndroidPortForwarder extends CockpitAndroidPortForwarder {
@@ -164,5 +205,38 @@ final class _FakeAndroidPortForwarder extends CockpitAndroidPortForwarder {
     required int devicePort,
   }) async {
     return forwardedHostPort;
+  }
+}
+
+final class _CapturingRemoteSessionLauncher
+    implements CockpitRemoteSessionLauncher {
+  _CapturingRemoteSessionLauncher({
+    required this.onLaunch,
+    this.handleBuilder,
+  });
+
+  final void Function(CockpitRemoteSessionLaunchOptions options) onLaunch;
+  final CockpitRemoteSessionHandle Function(
+    CockpitRemoteSessionLaunchOptions options,
+  )? handleBuilder;
+
+  @override
+  Future<CockpitRemoteSessionHandle> launch(
+    CockpitRemoteSessionLaunchOptions options,
+  ) async {
+    onLaunch(options);
+    return handleBuilder?.call(options) ??
+        CockpitRemoteSessionHandle(
+          platform: options.platform,
+          deviceId: options.deviceId,
+          projectDir: options.projectDir,
+          target: options.target,
+          appId: 'dev.cockpit.capturing',
+          host: '127.0.0.1',
+          hostPort: options.sessionPort,
+          devicePort: options.sessionPort,
+          baseUrl: 'http://127.0.0.1:${options.sessionPort}',
+          launchedAt: DateTime.utc(2026, 3, 24),
+        );
   }
 }

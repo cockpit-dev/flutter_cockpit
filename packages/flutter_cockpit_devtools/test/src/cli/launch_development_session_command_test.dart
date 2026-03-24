@@ -50,6 +50,46 @@ void main() {
       'dev-session-1',
     );
   });
+
+  test('launch-development-session accepts macos without a mobile device id',
+      () async {
+    CockpitLaunchDevelopmentSessionRequest? capturedRequest;
+    final output = StringBuffer();
+    final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
+      ..addCommand(
+        LaunchDevelopmentSessionCommand(
+          stdoutSink: output,
+          launch: (request) async {
+            capturedRequest = request;
+            return CockpitLaunchDevelopmentSessionResult(
+              sessionHandle: _macosHandle(reloadGeneration: 0),
+              status: _macosStatus(CockpitDevelopmentSessionState.ready),
+              persistedHandlePath: '/tmp/dev-session.json',
+            );
+          },
+        ),
+      );
+
+    final exitCode = await runner.run(<String>[
+          'launch-development-session',
+          '--project-dir',
+          '/workspace/examples/cockpit_demo',
+          '--target',
+          'cockpit/main.dart',
+          '--platform',
+          'macos',
+        ]) ??
+        0;
+
+    expect(exitCode, 0);
+    expect(capturedRequest?.platform, 'macos');
+    expect(capturedRequest?.deviceId, 'macos');
+    final decoded = jsonDecode(output.toString()) as Map<String, Object?>;
+    expect(
+      (decoded['sessionHandle'] as Map<String, Object?>)['platform'],
+      'macos',
+    );
+  });
 }
 
 CockpitDevelopmentSessionHandle _handle({required int reloadGeneration}) {
@@ -82,6 +122,46 @@ CockpitDevelopmentSessionHandle _handle({required int reloadGeneration}) {
 CockpitDevelopmentSessionStatus _status(CockpitDevelopmentSessionState state) {
   return CockpitDevelopmentSessionStatus(
     developmentSessionId: 'dev-session-1',
+    state: state,
+    appReachable: state == CockpitDevelopmentSessionState.ready,
+    remoteSessionReachable: state == CockpitDevelopmentSessionState.ready,
+    reloadGeneration: 0,
+    lastStatusAt: DateTime.utc(2026, 3, 23),
+  );
+}
+
+CockpitDevelopmentSessionHandle _macosHandle({required int reloadGeneration}) {
+  return CockpitDevelopmentSessionHandle(
+    developmentSessionId: 'dev-session-macos',
+    platform: 'macos',
+    deviceId: 'macos',
+    projectDir: '/workspace/examples/cockpit_demo',
+    target: 'cockpit/main.dart',
+    appId: 'dev.cockpit.cockpit_demo',
+    appBaseUrl: 'http://127.0.0.1:57331',
+    supervisorBaseUrl: 'http://127.0.0.1:59331',
+    remoteSessionHandle: CockpitRemoteSessionHandle(
+      platform: 'macos',
+      deviceId: 'macos',
+      projectDir: '/workspace/examples/cockpit_demo',
+      target: 'cockpit/main.dart',
+      appId: 'dev.cockpit.cockpit_demo',
+      host: '127.0.0.1',
+      hostPort: 57331,
+      devicePort: 47331,
+      baseUrl: 'http://127.0.0.1:57331',
+      launchedAt: DateTime.utc(2026, 3, 23),
+    ),
+    launchedAt: DateTime.utc(2026, 3, 23),
+    reloadGeneration: reloadGeneration,
+  );
+}
+
+CockpitDevelopmentSessionStatus _macosStatus(
+  CockpitDevelopmentSessionState state,
+) {
+  return CockpitDevelopmentSessionStatus(
+    developmentSessionId: 'dev-session-macos',
     state: state,
     appReachable: state == CockpitDevelopmentSessionState.ready,
     remoteSessionReachable: state == CockpitDevelopmentSessionState.ready,

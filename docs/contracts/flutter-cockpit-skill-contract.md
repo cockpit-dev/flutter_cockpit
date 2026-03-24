@@ -48,6 +48,19 @@ The skill may depend on these currently implemented repository workflows:
   - `acceptance_delta`
 - host-mediated delivery of validated artifact files when the surrounding tool supports attachments or outbound file transfer
 
+Current first-class host bootstrap paths include:
+
+- Android emulators
+- iOS Simulators
+- local macOS desktop runs
+
+Current first-class recording delivery paths include:
+
+- Android and iOS in-app native acceptance recording
+- Android emulator host recording via `adb screenrecord`
+- iOS Simulator host recording via `xcrun simctl io recordVideo`
+- macOS host-preferred screenshot/recording with bounded fallback to remote screenshot or synthesized timeline video when host tooling cannot yield stable media on the current machine
+
 The skill must not require capabilities that are not implemented today.
 
 ## Mandatory Workflow Stages

@@ -21,22 +21,32 @@ void main() {
     final iosPlugin = File(
       '$root/packages/flutter_cockpit/ios/Classes/FlutterCockpitPlugin.swift',
     );
+    final macosPlugin = File(
+      '$root/packages/flutter_cockpit/macos/Classes/FlutterCockpitPlugin.swift',
+    );
 
     expect(androidPlugin.existsSync(), isTrue);
     expect(iosPlugin.existsSync(), isTrue);
+    expect(macosPlugin.existsSync(), isTrue);
 
     final androidSource = androidPlugin.readAsStringSync();
     final iosSource = iosPlugin.readAsStringSync();
+    final macosSource = macosPlugin.readAsStringSync();
 
     expect(androidSource, contains('dev.cockpit.flutter_cockpit/capture'));
     expect(androidSource, contains('dev.cockpit.flutter_cockpit/recording'));
     expect(iosSource, contains('dev.cockpit.flutter_cockpit/capture'));
     expect(iosSource, contains('dev.cockpit.flutter_cockpit/recording'));
+    expect(macosSource, contains('dev.cockpit.flutter_cockpit/capture'));
+    expect(macosSource, contains('dev.cockpit.flutter_cockpit/recording'));
   });
 
-  test('ios podspec and android manifest use flutter_cockpit names', () {
+  test('native package metadata uses flutter_cockpit names', () {
     final podspec = File(
       '$root/packages/flutter_cockpit/ios/flutter_cockpit.podspec',
+    ).readAsStringSync();
+    final macosPodspec = File(
+      '$root/packages/flutter_cockpit/macos/flutter_cockpit.podspec',
     ).readAsStringSync();
     final manifest = File(
       '$root/packages/flutter_cockpit/android/src/main/AndroidManifest.xml',
@@ -44,6 +54,8 @@ void main() {
 
     expect(podspec, contains("s.name             = 'flutter_cockpit'"));
     expect(podspec, contains('flutter_cockpit.'));
+    expect(macosPodspec, contains("s.name             = 'flutter_cockpit'"));
+    expect(macosPodspec, contains('flutter_cockpit'));
     expect(manifest, contains('package="dev.cockpit.flutter_cockpit"'));
   });
 }

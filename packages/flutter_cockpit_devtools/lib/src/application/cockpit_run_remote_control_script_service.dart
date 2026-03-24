@@ -103,6 +103,7 @@ final class CockpitRunRemoteControlScriptService {
     final captureAdapter = _captureStrategyResolver.resolve(
       platform: request.script.platform,
       client: client,
+      sessionHandle: resolved.sessionHandle,
       androidDeviceId: request.androidDeviceId ??
           (resolved.sessionHandle?.platform == 'android'
               ? resolved.sessionHandle?.deviceId
@@ -200,6 +201,7 @@ final class CockpitRunRemoteControlScriptService {
       platform: request.script.platform,
       recording: request.script.recording,
       client: client,
+      sessionHandle: sessionHandle,
       androidDeviceId: request.androidDeviceId ??
           (sessionHandle?.platform == 'android'
               ? sessionHandle?.deviceId

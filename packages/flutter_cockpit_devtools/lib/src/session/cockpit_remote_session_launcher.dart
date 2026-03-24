@@ -7,6 +7,7 @@ import 'package:flutter_cockpit/flutter_cockpit.dart';
 import '../remote/cockpit_remote_session_client.dart';
 import 'cockpit_android_remote_session_launcher.dart';
 import 'cockpit_ios_simulator_remote_session_launcher.dart';
+import 'cockpit_macos_remote_session_launcher.dart';
 import 'cockpit_remote_session_handle.dart';
 import 'cockpit_remote_session_launch_options.dart';
 
@@ -25,13 +26,16 @@ final class CockpitPlatformRemoteSessionLauncher
   CockpitPlatformRemoteSessionLauncher({
     CockpitRemoteSessionLauncher? androidLauncher,
     CockpitRemoteSessionLauncher? iosLauncher,
+    CockpitRemoteSessionLauncher? macosLauncher,
   })  : _androidLauncher =
             androidLauncher ?? CockpitAndroidRemoteSessionLauncher(),
         _iosLauncher =
-            iosLauncher ?? CockpitIosSimulatorRemoteSessionLauncher();
+            iosLauncher ?? CockpitIosSimulatorRemoteSessionLauncher(),
+        _macosLauncher = macosLauncher ?? CockpitMacosRemoteSessionLauncher();
 
   final CockpitRemoteSessionLauncher _androidLauncher;
   final CockpitRemoteSessionLauncher _iosLauncher;
+  final CockpitRemoteSessionLauncher _macosLauncher;
 
   @override
   Future<CockpitRemoteSessionHandle> launch(
@@ -42,6 +46,8 @@ final class CockpitPlatformRemoteSessionLauncher
         return _androidLauncher.launch(options);
       case 'ios':
         return _iosLauncher.launch(options);
+      case 'macos':
+        return _macosLauncher.launch(options);
       default:
         throw StateError(
           'Unsupported remote session launch platform: ${options.platform}',
