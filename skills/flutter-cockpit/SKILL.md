@@ -48,6 +48,7 @@ Follow this order every time:
    - `reload_development_session`
    - `collect_development_probe`
    - `compare_development_probe`
+   When the app follows the recommended low-friction integration pattern, target `cockpit/main.dart` for AI-driven development and leave `lib/main.dart` as the production entrypoint.
    When you inspect or patch app-side integration, prefer a single `FlutterCockpitApp(config: ..., child: MyApp())` bootstrap path. Treat direct `FlutterCockpitRoot` composition as an advanced escape hatch, not the default recommendation.
    When the app is not integrated yet, start from `examples/flutter-app-setup.md` instead of inventing a one-off bootstrap pattern.
 3. `baseline`

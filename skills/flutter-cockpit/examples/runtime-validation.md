@@ -24,7 +24,7 @@ For iterative development work:
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   launch-development-session \
   --project-dir examples/cockpit_demo \
-  --target lib/main.dart \
+  --target cockpit/main.dart \
   --platform android \
   --android-device-id emulator-5554 \
   --output-json /tmp/flutter_cockpit/development_session.json
@@ -41,7 +41,7 @@ For remote runtime verification:
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   launch-remote-session \
   --project-dir examples/cockpit_demo \
-  --target lib/main.dart \
+  --target cockpit/main.dart \
   --platform android \
   --android-device-id emulator-5554 \
   --session-port 48331 \
