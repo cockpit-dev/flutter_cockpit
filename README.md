@@ -1,5 +1,7 @@
 # flutter_cockpit
 
+[简体中文](README.zh-CN.md)
+
 `flutter_cockpit` is a production-oriented foundation for AI-driven Flutter development. The repository is building toward a full AI development loop: control the app, observe state, capture evidence, write a standard task bundle, and hand the result to later tooling or user-facing acceptance flows.
 
 The current slice now proves three evidence paths:
