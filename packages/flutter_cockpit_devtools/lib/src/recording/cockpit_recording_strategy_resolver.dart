@@ -60,10 +60,8 @@ final class CockpitRecordingStrategyResolver {
     if (platform == 'macos') {
       return remoteAdapterFactory(client);
     }
-    if (platform == 'windows' &&
-        sessionHandle != null &&
-        sessionHandle.appId.isNotEmpty) {
-      return windowsAdapterFactory(sessionHandle.appId);
+    if (platform == 'windows') {
+      return remoteAdapterFactory(client);
     }
     if (platform == 'linux' &&
         sessionHandle != null &&

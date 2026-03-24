@@ -66,14 +66,8 @@ final class CockpitCaptureStrategyResolver {
     if (platform == 'macos') {
       return remoteAdapter;
     }
-    if (platform == 'windows' &&
-        sessionHandle != null &&
-        sessionHandle.appId.isNotEmpty) {
-      return CockpitHostPreferredCaptureAdapter(
-        remoteAdapter: remoteAdapter,
-        hostAcceptanceAdapter: windowsAdapterFactory(sessionHandle.appId),
-        client: client,
-      );
+    if (platform == 'windows') {
+      return remoteAdapter;
     }
     if (platform == 'linux' &&
         sessionHandle != null &&

@@ -31,3 +31,5 @@ flutter:
         pluginClass: FlutterCockpitPlugin
       macos:
         pluginClass: FlutterCockpitPlugin
+      windows:
+        pluginClass: FlutterCockpitPluginCApi
