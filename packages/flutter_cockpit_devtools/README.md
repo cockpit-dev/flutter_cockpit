@@ -12,9 +12,21 @@ It turns app-side runtime instrumentation into AI-consumable workflows:
 
 ## Installation
 
+From pub:
+
 ```yaml
 dependencies:
-  flutter_cockpit_devtools: ^1.0.0
+  flutter_cockpit_devtools: any
+```
+
+Or directly from Git:
+
+```yaml
+dependencies:
+  flutter_cockpit_devtools:
+    git:
+      url: https://github.com/cockpit-dev/flutter_cockpit.git
+      path: packages/flutter_cockpit_devtools
 ```
 
 ## CLI entrypoints
