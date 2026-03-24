@@ -98,6 +98,7 @@ The skill must not allow:
 
 - remote control execution against an unverified session
 - skipping session health when a running app is being reused
+- rewriting the app's production bootstrap or assuming a fixed `lib/` file layout as part of recommended integration guidance
 
 ### `baseline`
 

@@ -49,6 +49,7 @@ Follow this order every time:
    - `collect_development_probe`
    - `compare_development_probe`
    When the app follows the recommended low-friction integration pattern, target `cockpit/main.dart` for AI-driven development and leave the app's existing production entrypoint untouched. Do not assume the production target is a specific file name.
+   When integrating a new app, do not rewrite the user's production bootstrap just to satisfy `flutter_cockpit`. Keep the production entrypoint production-owned and add cockpit wiring under `cockpit/` instead of assuming a fixed `lib/` layout.
    When you inspect or patch app-side integration, prefer a single `FlutterCockpitApp(config: ..., child: MyApp())` bootstrap path. Treat direct `FlutterCockpitRoot` composition as an advanced escape hatch, not the default recommendation.
    When the app is not integrated yet, start from `examples/flutter-app-setup.md` instead of inventing a one-off bootstrap pattern.
    When you need the exact CLI flags or a copy-ready command template, read `examples/cli-command-reference.md` instead of guessing command arguments from memory.

@@ -42,18 +42,15 @@ flutter pub get
 Keep the user's normal app structure intact:
 
 ```text
-lib/
-  main.dart
-  ...
-
 cockpit/
   main.dart
   cockpit_bootstrap.dart
 ```
 
-- the existing production entrypoint stays production-owned
+- the existing production entrypoint stays production-owned, wherever the app already keeps it
 - `cockpit/main.dart` becomes the AI development entrypoint
 - `cockpit/cockpit_bootstrap.dart` stays thin and only owns cockpit wiring
+- do not mirror or rewrite the user's internal `lib/` layout just to add cockpit
 
 ## Cockpit Development Entrypoint
 
@@ -75,7 +72,7 @@ void main() {
 import 'package:flutter/widgets.dart';
 import 'package:flutter_cockpit/flutter_cockpit_flutter.dart';
 
-import '../lib/app/my_app.dart';
+import 'package:your_app/app_shell.dart';
 
 Widget buildCockpitDevelopmentApp() {
   const enableDebugDiagnostics = bool.fromEnvironment(
@@ -103,15 +100,17 @@ Widget buildCockpitDevelopmentApp() {
       navigatorObservers: <NavigatorObserver>[
         FlutterCockpit.navigatorObserver,
       ],
-      home: const MyApp(),
+      home: const AppShell(),
     ),
   );
 }
 ```
 
-## Minimal Root Bootstrap
+Replace `package:your_app/app_shell.dart` with whatever import already exposes the app's existing root widget or bootstrap. Do not invent a new `lib/` structure just for cockpit.
 
-For simple apps, prefer the lowest-friction root bootstrap:
+## Single-Entrypoint Alternative
+
+If the app explicitly wants one shared entrypoint instead of a dedicated `cockpit/` directory, this is the smallest supported bootstrap:
 
 ```dart
 import 'package:flutter/material.dart';
@@ -199,6 +198,7 @@ final config = FlutterCockpitConfig.production(
 
 - do not add `flutter_cockpit` to a pure Dart tool package that never mounts Flutter UI
 - prefer a dedicated `cockpit/main.dart` development entrypoint when the app should keep its existing production path untouched
+- do not assume the user's production bootstrap lives at `lib/main.dart` or under any fixed `lib/` subpath
 - prefer `FlutterCockpit.runApp(...)` for simple roots and `FlutterCockpitApp(...)` for existing app shells
 - wire `FlutterCockpit.navigatorObserver` into the navigator instead of inventing a parallel route tracker
 - keep remote-session enablement and debug diagnostics explicit

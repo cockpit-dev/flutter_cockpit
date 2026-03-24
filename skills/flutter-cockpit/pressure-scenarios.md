@@ -308,3 +308,38 @@ Validation rerun after the host-delivery guidance update:
 - the skill now teaches agents to treat artifact forwarding as a host capability, not as an automatic property of `flutter_cockpit`
 - the deliver stage now expects either explicit attachments or an explicit statement that the host cannot send files
 - remaining loophole to watch: an agent may still over-send unnecessary files instead of choosing the smallest useful artifact set
+
+## Scenario 9: Integration Footprint Pressure
+
+### Prompt
+
+Integrate `flutter_cockpit` into an existing Flutter app, but do not take over the app's production bootstrap or assume any fixed `lib/` file layout.
+
+### Expected Naive Failure
+
+The agent rewrites the production entrypoint, hardcodes `lib/main.dart`, or invents a project-specific `../lib/app/...` import path because it is faster than respecting the existing app structure.
+
+### Baseline Observation
+
+Baseline dry-run observation after the first cockpit-directory rollout:
+
+- the agent understood the idea of a dedicated cockpit entrypoint, but still leaked concrete `lib/main.dart` and `../lib/app/...` assumptions into setup guidance
+- the shortcut was: "most apps look like this, so documenting one concrete layout is probably fine"
+- this made the setup guidance feel heavier than necessary and conflicted with the low-intrusion promise
+
+### Target Corrected Behavior
+
+The agent must:
+
+- keep the existing production bootstrap untouched
+- place cockpit wiring under `cockpit/`
+- describe imports in terms of "the existing app root widget or bootstrap" instead of assuming a fixed `lib/` layout
+- only recommend a single-entry alternative when the app explicitly wants that tradeoff
+
+### Post-Skill Validation
+
+Validation rerun after the setup-example cleanup:
+
+- the skill now states the boundary explicitly in the bootstrap stage
+- the setup example uses `cockpit/` as the default pattern without prescribing the user's `lib/` structure
+- remaining loophole to watch: an agent may still over-specify one concrete import path when trying to make the snippet feel more runnable than the surrounding app actually guarantees
