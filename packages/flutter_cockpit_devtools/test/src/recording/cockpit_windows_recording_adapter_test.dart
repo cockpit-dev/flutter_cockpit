@@ -1,8 +1,9 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:flutter_cockpit_devtools/src/recording/cockpit_windows_recording_adapter.dart';
-import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 void main() {
@@ -18,32 +19,28 @@ void main() {
         }
       });
 
-      final ffmpegExecutable = await _writeExecutable(
-        directory: tempDir,
-        name: 'ffmpeg',
-        body: r'''
-#!/bin/sh
-script_dir="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
-log_file="$script_dir/ffmpeg.log"
-printf '%s\n' "$*" >> "$log_file"
-output_path=""
-for arg in "$@"; do
-  output_path="$arg"
-done
-printf 'Press [q] to stop\n' >&2
-while IFS= read -r line; do
-  if [ "$line" = "q" ]; then
-    printf "windows-video" > "$output_path"
-    exit 0
-  fi
-done
-''',
-      );
+      final ffmpegInvocations = <List<String>>[];
+      final activationInvocations = <List<String>>[];
 
       final adapter = CockpitWindowsRecordingAdapter(
         appId: 'cockpit_demo',
-        ffmpegExecutable: ffmpegExecutable.path,
-        powershellExecutable: ffmpegExecutable.path,
+        ffmpegExecutable: 'ffmpeg',
+        powershellExecutable: 'powershell',
+        processStarter: (executable, arguments) async {
+          expect(executable, 'ffmpeg');
+          ffmpegInvocations.add(List<String>.from(arguments));
+          final outputPath = arguments.last;
+          return _FakeRecordingProcess(
+            startupLine: 'Press [q] to stop',
+            onStopRequested: () async {
+              File(outputPath).writeAsStringSync('windows-video');
+            },
+          );
+        },
+        processRunner: (executable, arguments) async {
+          activationInvocations.add(<String>[executable, ...arguments]);
+          return ProcessResult(0, 0, '', '');
+        },
         startupTimeout: const Duration(seconds: 2),
         stopTimeout: const Duration(seconds: 2),
         finalizationPollInterval: const Duration(milliseconds: 10),
@@ -74,21 +71,73 @@ done
         ),
       );
       expect(File(result.sourceFilePath!).readAsStringSync(), 'windows-video');
-      expect(
-        File(p.join(tempDir.path, 'ffmpeg.log')).readAsStringSync(),
-        contains('-f gdigrab'),
-      );
+      expect(ffmpegInvocations.single.join(' '), contains('-f gdigrab'));
+      expect(ffmpegInvocations.single.join(' '), contains('-i desktop'));
+      expect(activationInvocations.single.first, 'powershell');
     },
   );
 }
 
-Future<File> _writeExecutable({
-  required Directory directory,
-  required String name,
-  required String body,
-}) async {
-  final file = File(p.join(directory.path, name));
-  await file.writeAsString(body);
-  await Process.run('chmod', <String>['+x', file.path]);
-  return file;
+final class _FakeRecordingProcess implements Process {
+  _FakeRecordingProcess({
+    required String startupLine,
+    required Future<void> Function() onStopRequested,
+  }) : _onStopRequested = onStopRequested {
+    scheduleMicrotask(() {
+      if (!_stderrController.isClosed) {
+        _stderrController.add(utf8.encode('$startupLine\n'));
+      }
+    });
+    _stdinController.stream
+        .transform(utf8.decoder)
+        .transform(const LineSplitter())
+        .listen((line) async {
+      if (line == 'q' && !_exitCodeCompleter.isCompleted) {
+        await _onStopRequested();
+        await _closeWithExitCode(0);
+      }
+    });
+  }
+
+  final Future<void> Function() _onStopRequested;
+  final StreamController<List<int>> _stdoutController =
+      StreamController<List<int>>();
+  final StreamController<List<int>> _stderrController =
+      StreamController<List<int>>();
+  final StreamController<List<int>> _stdinController =
+      StreamController<List<int>>();
+  final Completer<int> _exitCodeCompleter = Completer<int>();
+
+  late final IOSink _stdin = IOSink(_stdinController.sink);
+
+  @override
+  int get pid => 4242;
+
+  @override
+  IOSink get stdin => _stdin;
+
+  @override
+  Stream<List<int>> get stdout => _stdoutController.stream;
+
+  @override
+  Stream<List<int>> get stderr => _stderrController.stream;
+
+  @override
+  Future<int> get exitCode => _exitCodeCompleter.future;
+
+  @override
+  bool kill([ProcessSignal signal = ProcessSignal.sigterm]) {
+    if (!_exitCodeCompleter.isCompleted) {
+      unawaited(_closeWithExitCode(0));
+    }
+    return true;
+  }
+
+  Future<void> _closeWithExitCode(int code) async {
+    if (!_exitCodeCompleter.isCompleted) {
+      _exitCodeCompleter.complete(code);
+    }
+    await _stdoutController.close();
+    await _stderrController.close();
+  }
 }
