@@ -43,6 +43,12 @@
 
 这份安装说明是按“宿主优先”写的：当前 agent 应先识别自己所在的 host，再确认该 host 扫描哪个本地 skill 目录，然后把 `skills/flutter-cockpit/` 安装进去。Codex 和 Claude Code 只是常见示例，不是唯一目标。
 
+可直接复制的提示词：
+
+```text
+参照 https://github.com/cockpit-dev/flutter_cockpit/blob/main/skills/flutter-cockpit/INSTALL.md 安装 flutter-cockpit skill，并根据当前 AI 宿主自动选择正确的 skill 目录。
+```
+
 需要明确的边界是：
 
 - 仓库负责维护 `skills/flutter-cockpit/` 这份 skill 源码

@@ -43,6 +43,12 @@ The exact installation path is host-specific, so the authoritative instructions 
 
 That install guide is intentionally host-first: the current agent should identify its own host, determine which local skill directory that host scans, then install `skills/flutter-cockpit/` there. Codex and Claude Code are included only as common examples.
 
+Copyable prompt:
+
+```text
+Install the flutter-cockpit skill for the current AI host by following https://github.com/cockpit-dev/flutter_cockpit/blob/main/skills/flutter-cockpit/INSTALL.md
+```
+
 The important boundary is:
 
 - the repo owns the skill source under `skills/flutter-cockpit/`
