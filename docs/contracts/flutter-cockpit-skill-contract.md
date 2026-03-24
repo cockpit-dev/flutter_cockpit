@@ -63,7 +63,7 @@ Current first-class recording delivery paths include:
 - iOS Simulator host recording via `xcrun simctl io recordVideo`
 - macOS app-side native window screenshot/recording with bounded fallback to remote screenshot or synthesized timeline video when native capture cannot yield stable media on the current machine
 - Windows app-side native window screenshot/recording with bounded fallback to synthesized timeline video when native capture cannot yield stable media on the current machine
-- Linux host-preferred screenshot/recording with bounded fallback to synthesized timeline video when desktop tooling cannot yield stable media on the current machine
+- Linux app-side native window screenshot/recording with bounded fallback to synthesized timeline video when native capture cannot yield stable media on the current machine
 
 The skill must not require capabilities that are not implemented today.
 

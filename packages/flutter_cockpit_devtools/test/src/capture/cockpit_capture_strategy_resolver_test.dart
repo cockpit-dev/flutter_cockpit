@@ -107,15 +107,14 @@ void main() {
     expect(adapter, same(remoteAdapter));
   });
 
-  test('uses linux host capture when a linux session handle is provided', () {
+  test('uses remote capture on linux when a session handle is provided', () {
     final remoteAdapter = _FakeCaptureAdapter();
-    final linuxAdapter = _FakeCaptureAdapter();
     final resolver = CockpitCaptureStrategyResolver(
       remoteAdapterFactory: (client) => remoteAdapter,
       adbAdapterFactory: (deviceId) => _FakeCaptureAdapter(),
       simctlAdapterFactory: (deviceId) => _FakeCaptureAdapter(),
       macosAdapterFactory: (appId) => _FakeCaptureAdapter(),
-      linuxAdapterFactory: (appId) => linuxAdapter,
+      linuxAdapterFactory: (appId) => _FakeCaptureAdapter(),
     );
 
     final adapter = resolver.resolve(
@@ -137,7 +136,7 @@ void main() {
       ),
     );
 
-    expect(adapter, isA<CockpitHostPreferredCaptureAdapter>());
+    expect(adapter, same(remoteAdapter));
   });
 
   test('falls back to remote capture when no host context is available', () {

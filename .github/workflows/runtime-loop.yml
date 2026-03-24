@@ -564,10 +564,15 @@ jobs:
             ninja-build \
             pkg-config \
             libgtk-3-dev \
+            libgstreamer1.0-dev \
+            libgstreamer-plugins-base1.0-dev \
+            gstreamer1.0-plugins-base \
+            gstreamer1.0-plugins-good \
+            gstreamer1.0-plugins-bad \
+            gstreamer1.0-plugins-ugly \
+            gstreamer1.0-libav \
             xvfb \
             x11-utils \
-            wmctrl \
-            scrot \
             ffmpeg
 
       - name: Enable Linux desktop

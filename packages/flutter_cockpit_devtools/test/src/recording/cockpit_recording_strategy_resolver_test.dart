@@ -142,15 +142,14 @@ void main() {
     expect(adapter, same(remoteAdapter));
   });
 
-  test('uses linux host recording when a linux session handle is provided', () {
+  test('uses remote recording on linux when a session handle is provided', () {
     final remoteAdapter = _FakeRecordingAdapter();
-    final linuxAdapter = _FakeRecordingAdapter();
     final resolver = CockpitRecordingStrategyResolver(
       remoteAdapterFactory: (client) => remoteAdapter,
       adbAdapterFactory: (deviceId) => _FakeRecordingAdapter(),
       simctlAdapterFactory: (deviceId) => _FakeRecordingAdapter(),
       macosAdapterFactory: (appId) => _FakeRecordingAdapter(),
-      linuxAdapterFactory: (appId) => linuxAdapter,
+      linuxAdapterFactory: (appId) => _FakeRecordingAdapter(),
     );
 
     final adapter = resolver.resolve(
@@ -173,7 +172,7 @@ void main() {
       ),
     );
 
-    expect(adapter, same(linuxAdapter));
+    expect(adapter, same(remoteAdapter));
   });
 
   test('returns null when the script does not request recording', () {

@@ -69,14 +69,8 @@ final class CockpitCaptureStrategyResolver {
     if (platform == 'windows') {
       return remoteAdapter;
     }
-    if (platform == 'linux' &&
-        sessionHandle != null &&
-        sessionHandle.appId.isNotEmpty) {
-      return CockpitHostPreferredCaptureAdapter(
-        remoteAdapter: remoteAdapter,
-        hostAcceptanceAdapter: linuxAdapterFactory(sessionHandle.appId),
-        client: client,
-      );
+    if (platform == 'linux') {
+      return remoteAdapter;
     }
     return remoteAdapter;
   }

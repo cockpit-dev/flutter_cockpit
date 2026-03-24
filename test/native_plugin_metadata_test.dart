@@ -12,6 +12,7 @@ void main() {
 
     expect(pubspec, contains('package: dev.cockpit.flutter_cockpit'));
     expect(pubspec, contains('pluginClass: FlutterCockpitPlugin'));
+    expect(pubspec, contains('linux:'));
   });
 
   test('native plugin sources use flutter_cockpit channel names', () {
@@ -24,14 +25,19 @@ void main() {
     final macosPlugin = File(
       '$root/packages/flutter_cockpit/macos/Classes/FlutterCockpitPlugin.swift',
     );
+    final linuxPlugin = File(
+      '$root/packages/flutter_cockpit/linux/flutter_cockpit_plugin.cc',
+    );
 
     expect(androidPlugin.existsSync(), isTrue);
     expect(iosPlugin.existsSync(), isTrue);
     expect(macosPlugin.existsSync(), isTrue);
+    expect(linuxPlugin.existsSync(), isTrue);
 
     final androidSource = androidPlugin.readAsStringSync();
     final iosSource = iosPlugin.readAsStringSync();
     final macosSource = macosPlugin.readAsStringSync();
+    final linuxSource = linuxPlugin.readAsStringSync();
 
     expect(androidSource, contains('dev.cockpit.flutter_cockpit/capture'));
     expect(androidSource, contains('dev.cockpit.flutter_cockpit/recording'));
@@ -39,6 +45,8 @@ void main() {
     expect(iosSource, contains('dev.cockpit.flutter_cockpit/recording'));
     expect(macosSource, contains('dev.cockpit.flutter_cockpit/capture'));
     expect(macosSource, contains('dev.cockpit.flutter_cockpit/recording'));
+    expect(linuxSource, contains('dev.cockpit.flutter_cockpit/capture'));
+    expect(linuxSource, contains('dev.cockpit.flutter_cockpit/recording'));
   });
 
   test('native package metadata uses flutter_cockpit names', () {

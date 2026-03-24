@@ -95,8 +95,8 @@ This repository currently validates:
 - remote recording stop responses that transfer recording artifacts back to host-side tooling so remote task-run bundles contain real video files instead of device-local placeholder paths
 - host-side recording adapters that use `adb screenrecord` and `xcrun simctl io recordVideo` when a remote run already has a direct device handle
 - Flutter-view screenshot capture that attaches evidence to the bundle model
-- acceptance screenshot capture across Android, iOS, macOS, Windows, and Linux, using the plugin bridge on mobile and host-preferred desktop adapters on desktop hosts
-- native acceptance recording through the `flutter_cockpit` plugin bridge for Android and iOS
+- acceptance screenshot capture across Android, iOS, macOS, Windows, and Linux, using the plugin bridge on mobile and plugin-native window capture on desktop hosts
+- native acceptance recording through the `flutter_cockpit` plugin bridge on Android and iOS, plus plugin-native desktop recording on macOS, Windows, and Linux
 - recording-aware bundle delivery metadata, including `recordings/`, `primaryRecordingRef`, and `videoAttachmentRefs`
 - delivery keyframe extraction so recordings also produce bounded `keyframes/` evidence and coverage metadata for acceptance review
 - Android, iOS, macOS, Windows, and Linux example host shells for real plugin build verification
@@ -306,7 +306,7 @@ For host-side runs, `run-remote-control-script` accepts an optional `recording` 
 - iOS with `--ios-device-id`: host recording through `xcrun simctl io recordVideo`
 - macOS with `--platform macos`: app-side native window screenshot and recording through the `flutter_cockpit` plugin, without relying on host shell screenshot/recording tools in the default path
 - Windows with `--platform windows`: app-side native window screenshot and recording through the `flutter_cockpit` plugin, without relying on host shell screenshot/recording tools in the default path
-- Linux with `--platform linux`: host-preferred screenshot/recording adapters built around `wmctrl`, X11 desktop capture, and ffmpeg-based recording
+- Linux with `--platform linux`: app-side native window screenshot and recording through the `flutter_cockpit` plugin, without relying on host shell screenshot/recording tools in the default path
 - otherwise: remote in-app recording through the app session
 
 Regardless of which strategy is chosen, the resulting video is copied into the local task-run bundle, keyframes are extracted from the recorded timeline, and the final evidence set is summarized through the same `delivery.json` fields.
@@ -365,7 +365,7 @@ The current implementation is intentionally narrow:
 - supported external control path: remote HTTP bridge to a running instrumented app
 - supported bootstrap path: host-side app launch for Android emulators, iOS Simulators, and local macOS, Windows, and Linux desktop runs, with reusable session-handle JSON output
 - supported screenshot paths: Flutter-view capture and in-app native acceptance screenshots
-- supported recording paths: in-app native acceptance recording plus host-side remote fallback for Android emulators, iOS Simulators, and macOS, Windows, and Linux desktop runs; when host recording cannot finalize, bundle writing can synthesize a bounded timeline video from captured screenshots so the delivery gate still fails closed on missing evidence
+- supported recording paths: in-app native acceptance recording plus host-side remote fallback for Android emulators and iOS Simulators, plugin-native desktop recording for macOS, Windows, and Linux, and synthesized bounded timeline fallback when desktop media cannot finalize into a stable artifact
 - not implemented yet: Android/iOS host automation beyond launch and recording, physical iPhone host recording, remote device orchestration, chat-channel delivery
 
 Those capabilities are reserved behind adapter interfaces and the existing bundle contract so later phases can extend the system without replacing the protocol surface.
