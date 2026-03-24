@@ -2,6 +2,8 @@
 
 Use this pattern when the task requires live app verification instead of code-only reasoning.
 
+If you need exact CLI flags or minimal JSON payload templates while following this flow, read `cli-command-reference.md` first and copy from there instead of guessing.
+
 ## Example Flow
 
 1. Decide the task requires `flutter_cockpit` because the app must be run and observed.

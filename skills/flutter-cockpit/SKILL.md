@@ -51,6 +51,7 @@ Follow this order every time:
    When the app follows the recommended low-friction integration pattern, target `cockpit/main.dart` for AI-driven development and leave the app's existing production entrypoint untouched. Do not assume the production target is a specific file name.
    When you inspect or patch app-side integration, prefer a single `FlutterCockpitApp(config: ..., child: MyApp())` bootstrap path. Treat direct `FlutterCockpitRoot` composition as an advanced escape hatch, not the default recommendation.
    When the app is not integrated yet, start from `examples/flutter-app-setup.md` instead of inventing a one-off bootstrap pattern.
+   When you need the exact CLI flags or a copy-ready command template, read `examples/cli-command-reference.md` instead of guessing command arguments from memory.
 3. `baseline`
    Capture session status and current route or app state. For verification or acceptance work, require a baseline screenshot and decide whether video evidence matters.
 4. `execute`
@@ -119,6 +120,7 @@ This applies to hosts such as OpenClaw or any other environment that supports ou
 | Final acceptance claim | `run_task` -> `validate_task` | `baseline_evidence`, `acceptance_evidence`, `acceptance_delta`, delivery evidence view |
 | User-facing artifact handoff | validated bundle + host attachment/send capability | primary screenshot path, keyframe paths when useful, primary recording path when useful |
 | Environment instability | `query_development_session` or `query_remote_session` | status, last error, missing evidence path, next action |
+| Direct CLI execution | `examples/cli-command-reference.md` | exact command template plus required flags |
 
 ## Completion Gate
 
@@ -177,6 +179,7 @@ Stop and correct your workflow if you catch yourself thinking:
 
 - `examples/flutter-app-setup.md`
 - `examples/host-devtools-setup.md`
+- `examples/cli-command-reference.md`
 - `examples/runtime-validation.md`
 - `examples/acceptance-delivery.md`
 - `examples/failure-with-evidence.md`

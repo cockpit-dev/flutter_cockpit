@@ -41,10 +41,15 @@ dart pub get
 If the host only needs command execution, prefer the shipped CLI surface:
 
 ```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools launch-development-session --help
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools collect-development-probe --help
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools collect-remote-snapshot --help
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-task --help
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools validate-task --help
 dart run flutter_cockpit_devtools:flutter_cockpit_mcp
 ```
+
+When the agent needs copy-ready command templates with the required flags already present, prefer `examples/cli-command-reference.md` over raw `--help` output.
 
 ## Direct Dart Usage
 
