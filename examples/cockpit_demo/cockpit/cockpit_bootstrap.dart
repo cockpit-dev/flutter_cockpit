@@ -1,7 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_cockpit/flutter_cockpit_flutter.dart';
 
-import '../lib/src/cockpit_demo_app.dart';
+import 'package:cockpit_demo/src/cockpit_demo_app.dart';
 
 Widget buildCockpitDemoDevelopmentApp() {
   const enableDebugDiagnostics = bool.fromEnvironment(
