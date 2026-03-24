@@ -13,9 +13,21 @@ Use this pattern when the task is not just "run the app" but "make this Flutter 
 
 ## Dependency
 
+From pub:
+
 ```yaml
 dependencies:
-  flutter_cockpit: ^1.0.0
+  flutter_cockpit: any
+```
+
+Or directly from Git:
+
+```yaml
+dependencies:
+  flutter_cockpit:
+    git:
+      url: https://github.com/cockpit-dev/flutter_cockpit.git
+      path: packages/flutter_cockpit
 ```
 
 Then install dependencies:
