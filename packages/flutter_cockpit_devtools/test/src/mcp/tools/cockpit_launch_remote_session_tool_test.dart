@@ -115,4 +115,65 @@ void main() {
       ),
     );
   });
+
+  test('launch tool accepts macos arguments', () async {
+    CockpitLaunchRemoteSessionRequest? capturedRequest;
+    final tool = CockpitLaunchRemoteSessionTool(
+      launch: (request) async {
+        capturedRequest = request;
+        return CockpitLaunchRemoteSessionResult(
+          sessionHandle: CockpitRemoteSessionHandle(
+            platform: 'macos',
+            deviceId: 'macos',
+            projectDir: request.projectDir,
+            target: request.target,
+            appId: 'dev.cockpit.cockpit_demo',
+            host: '127.0.0.1',
+            hostPort: 58421,
+            devicePort: request.sessionPort,
+            baseUrl: 'http://127.0.0.1:58421',
+            launchedAt: DateTime.utc(2026, 3, 21, 0, 0),
+          ),
+          health: CockpitRemoteSessionStatus(
+            sessionId: 'launch-tool-macos',
+            platform: 'macos',
+            transportType: 'remoteHttp',
+            currentRouteName: '/home',
+            capabilities: CockpitCapabilities(
+              platform: 'macos',
+              transportType: 'remoteHttp',
+              supportsInAppControl: true,
+              supportsFlutterViewCapture: true,
+              supportsNativeScreenCapture: true,
+              supportsHostAutomation: true,
+              supportedCommands: <CockpitCommandType>[CockpitCommandType.tap],
+              supportedLocatorStrategies: CockpitLocatorKind.values,
+            ),
+            recordingCapabilities: CockpitRecordingCapabilities(
+              supportsNativeRecording: true,
+              preferredAcceptanceRecordingKind:
+                  CockpitRecordingKind.nativeScreen,
+            ),
+            snapshot: CockpitSnapshot(routeName: '/home'),
+          ),
+        );
+      },
+    );
+
+    final result = await tool.call(<String, Object?>{
+      'project_dir': '/workspace/examples/cockpit_demo',
+      'target': 'cockpit/main.dart',
+      'platform': 'macos',
+      'device_id': 'macos',
+      'session_port': 47331,
+    });
+
+    expect(capturedRequest?.platform, 'macos');
+    final structuredContent =
+        result['structuredContent'] as Map<String, Object?>;
+    expect(
+      (structuredContent['session_handle'] as Map<String, Object?>)['platform'],
+      'macos',
+    );
+  });
 }

@@ -53,6 +53,64 @@ void main() {
       throwsA(isA<CockpitMcpError>()),
     );
   });
+
+  test('launch development tool accepts macos arguments', () async {
+    CockpitLaunchDevelopmentSessionRequest? capturedRequest;
+    final tool = CockpitLaunchDevelopmentSessionTool(
+      launch: (request) async {
+        capturedRequest = request;
+        return CockpitLaunchDevelopmentSessionResult(
+          sessionHandle: CockpitDevelopmentSessionHandle(
+            developmentSessionId: 'dev-session-macos',
+            platform: 'macos',
+            deviceId: 'macos',
+            projectDir: '/workspace/examples/cockpit_demo',
+            target: 'cockpit/main.dart',
+            appId: 'dev.cockpit.cockpit_demo',
+            appBaseUrl: 'http://127.0.0.1:57331',
+            supervisorBaseUrl: 'http://127.0.0.1:59331',
+            remoteSessionHandle: CockpitRemoteSessionHandle(
+              platform: 'macos',
+              deviceId: 'macos',
+              projectDir: '/workspace/examples/cockpit_demo',
+              target: 'cockpit/main.dart',
+              appId: 'dev.cockpit.cockpit_demo',
+              host: '127.0.0.1',
+              hostPort: 57331,
+              devicePort: 47331,
+              baseUrl: 'http://127.0.0.1:57331',
+              launchedAt: DateTime.utc(2026, 3, 23),
+            ),
+            launchedAt: DateTime.utc(2026, 3, 23),
+            reloadGeneration: 0,
+          ),
+          status: CockpitDevelopmentSessionStatus(
+            developmentSessionId: 'dev-session-macos',
+            state: CockpitDevelopmentSessionState.ready,
+            appReachable: true,
+            remoteSessionReachable: true,
+            reloadGeneration: 0,
+            lastStatusAt: DateTime.utc(2026, 3, 23),
+          ),
+        );
+      },
+    );
+
+    final result = await tool.call(<String, Object?>{
+      'project_dir': '/workspace/examples/cockpit_demo',
+      'target': 'cockpit/main.dart',
+      'platform': 'macos',
+      'device_id': 'macos',
+      'session_port': 47331,
+    });
+
+    expect(capturedRequest?.platform, 'macos');
+    final structured = result['structuredContent'] as Map<String, Object?>;
+    expect(
+      (structured['session_handle'] as Map<String, Object?>)['platform'],
+      'macos',
+    );
+  });
 }
 
 CockpitDevelopmentSessionHandle _handle() => CockpitDevelopmentSessionHandle(

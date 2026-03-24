@@ -21,7 +21,7 @@ final class CockpitLaunchRemoteSessionTool extends CockpitMcpTool {
 
   @override
   String get description =>
-      'Launch a Flutter app on Android or iOS and wait for a reachable flutter_cockpit remote session.';
+      'Launch a Flutter app on Android, iOS, or macOS and wait for a reachable flutter_cockpit remote session.';
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
@@ -38,7 +38,7 @@ final class CockpitLaunchRemoteSessionTool extends CockpitMcpTool {
           'target': <String, Object?>{'type': 'string'},
           'platform': <String, Object?>{
             'type': 'string',
-            'enum': <String>['android', 'ios'],
+            'enum': <String>['android', 'ios', 'macos'],
           },
           'device_id': <String, Object?>{'type': 'string'},
           'session_port': <String, Object?>{'type': 'integer'},
@@ -51,9 +51,9 @@ final class CockpitLaunchRemoteSessionTool extends CockpitMcpTool {
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {
     try {
       final platform = cockpitReadRequiredString(arguments, 'platform');
-      if (platform != 'android' && platform != 'ios') {
+      if (platform != 'android' && platform != 'ios' && platform != 'macos') {
         throw CockpitMcpError.invalidArguments(
-          'platform must be android or ios.',
+          'platform must be android, ios, or macos.',
           details: <String, Object?>{'argument': 'platform'},
         );
       }
