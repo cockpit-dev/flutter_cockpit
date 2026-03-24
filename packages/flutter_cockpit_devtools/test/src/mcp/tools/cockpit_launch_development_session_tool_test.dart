@@ -111,6 +111,122 @@ void main() {
       'macos',
     );
   });
+
+  test('launch development tool accepts windows arguments', () async {
+    CockpitLaunchDevelopmentSessionRequest? capturedRequest;
+    final tool = CockpitLaunchDevelopmentSessionTool(
+      launch: (request) async {
+        capturedRequest = request;
+        return CockpitLaunchDevelopmentSessionResult(
+          sessionHandle: CockpitDevelopmentSessionHandle(
+            developmentSessionId: 'dev-session-windows',
+            platform: 'windows',
+            deviceId: 'windows',
+            projectDir: '/workspace/examples/cockpit_demo',
+            target: 'cockpit/main.dart',
+            appId: 'dev.cockpit.cockpit_demo',
+            appBaseUrl: 'http://127.0.0.1:57331',
+            supervisorBaseUrl: 'http://127.0.0.1:59331',
+            remoteSessionHandle: CockpitRemoteSessionHandle(
+              platform: 'windows',
+              deviceId: 'windows',
+              projectDir: '/workspace/examples/cockpit_demo',
+              target: 'cockpit/main.dart',
+              appId: 'dev.cockpit.cockpit_demo',
+              host: '127.0.0.1',
+              hostPort: 57331,
+              devicePort: 47331,
+              baseUrl: 'http://127.0.0.1:57331',
+              launchedAt: DateTime.utc(2026, 3, 23),
+            ),
+            launchedAt: DateTime.utc(2026, 3, 23),
+            reloadGeneration: 0,
+          ),
+          status: CockpitDevelopmentSessionStatus(
+            developmentSessionId: 'dev-session-windows',
+            state: CockpitDevelopmentSessionState.ready,
+            appReachable: true,
+            remoteSessionReachable: true,
+            reloadGeneration: 0,
+            lastStatusAt: DateTime.utc(2026, 3, 23),
+          ),
+        );
+      },
+    );
+
+    final result = await tool.call(<String, Object?>{
+      'project_dir': '/workspace/examples/cockpit_demo',
+      'target': 'cockpit/main.dart',
+      'platform': 'windows',
+      'device_id': 'windows',
+      'session_port': 47331,
+    });
+
+    expect(capturedRequest?.platform, 'windows');
+    final structured = result['structuredContent'] as Map<String, Object?>;
+    expect(
+      (structured['session_handle'] as Map<String, Object?>)['platform'],
+      'windows',
+    );
+  });
+
+  test('launch development tool accepts linux arguments', () async {
+    CockpitLaunchDevelopmentSessionRequest? capturedRequest;
+    final tool = CockpitLaunchDevelopmentSessionTool(
+      launch: (request) async {
+        capturedRequest = request;
+        return CockpitLaunchDevelopmentSessionResult(
+          sessionHandle: CockpitDevelopmentSessionHandle(
+            developmentSessionId: 'dev-session-linux',
+            platform: 'linux',
+            deviceId: 'linux',
+            projectDir: '/workspace/examples/cockpit_demo',
+            target: 'cockpit/main.dart',
+            appId: 'dev.cockpit.cockpit_demo',
+            appBaseUrl: 'http://127.0.0.1:57331',
+            supervisorBaseUrl: 'http://127.0.0.1:59331',
+            remoteSessionHandle: CockpitRemoteSessionHandle(
+              platform: 'linux',
+              deviceId: 'linux',
+              projectDir: '/workspace/examples/cockpit_demo',
+              target: 'cockpit/main.dart',
+              appId: 'dev.cockpit.cockpit_demo',
+              host: '127.0.0.1',
+              hostPort: 57331,
+              devicePort: 47331,
+              baseUrl: 'http://127.0.0.1:57331',
+              launchedAt: DateTime.utc(2026, 3, 23),
+            ),
+            launchedAt: DateTime.utc(2026, 3, 23),
+            reloadGeneration: 0,
+          ),
+          status: CockpitDevelopmentSessionStatus(
+            developmentSessionId: 'dev-session-linux',
+            state: CockpitDevelopmentSessionState.ready,
+            appReachable: true,
+            remoteSessionReachable: true,
+            reloadGeneration: 0,
+            lastStatusAt: DateTime.utc(2026, 3, 23),
+          ),
+        );
+      },
+    );
+
+    final result = await tool.call(<String, Object?>{
+      'project_dir': '/workspace/examples/cockpit_demo',
+      'target': 'cockpit/main.dart',
+      'platform': 'linux',
+      'device_id': 'linux',
+      'session_port': 47331,
+    });
+
+    expect(capturedRequest?.platform, 'linux');
+    final structured = result['structuredContent'] as Map<String, Object?>;
+    expect(
+      (structured['session_handle'] as Map<String, Object?>)['platform'],
+      'linux',
+    );
+  });
 }
 
 CockpitDevelopmentSessionHandle _handle() => CockpitDevelopmentSessionHandle(

@@ -38,7 +38,7 @@ final class CockpitLaunchRemoteSessionTool extends CockpitMcpTool {
           'target': <String, Object?>{'type': 'string'},
           'platform': <String, Object?>{
             'type': 'string',
-            'enum': <String>['android', 'ios', 'macos'],
+            'enum': <String>['android', 'ios', 'macos', 'windows', 'linux'],
           },
           'device_id': <String, Object?>{'type': 'string'},
           'session_port': <String, Object?>{'type': 'integer'},
@@ -51,9 +51,13 @@ final class CockpitLaunchRemoteSessionTool extends CockpitMcpTool {
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {
     try {
       final platform = cockpitReadRequiredString(arguments, 'platform');
-      if (platform != 'android' && platform != 'ios' && platform != 'macos') {
+      if (platform != 'android' &&
+          platform != 'ios' &&
+          platform != 'macos' &&
+          platform != 'windows' &&
+          platform != 'linux') {
         throw CockpitMcpError.invalidArguments(
-          'platform must be android, ios, or macos.',
+          'platform must be android, ios, macos, windows, or linux.',
           details: <String, Object?>{'argument': 'platform'},
         );
       }

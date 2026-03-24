@@ -191,6 +191,94 @@ void main() {
     expect(handle.platform, 'macos');
     expect(handle.appId, 'dev.cockpit.cockpitDemo');
   });
+
+  test('platform launcher dispatches windows requests', () async {
+    CockpitRemoteSessionLaunchOptions? capturedOptions;
+    final launcher = CockpitPlatformRemoteSessionLauncher(
+      androidLauncher: _CapturingRemoteSessionLauncher(
+        onLaunch: (_) => fail('unexpected android launch'),
+      ),
+      iosLauncher: _CapturingRemoteSessionLauncher(
+        onLaunch: (_) => fail('unexpected ios launch'),
+      ),
+      macosLauncher: _CapturingRemoteSessionLauncher(
+        onLaunch: (_) => fail('unexpected macos launch'),
+      ),
+      windowsLauncher: _CapturingRemoteSessionLauncher(
+        onLaunch: (options) => capturedOptions = options,
+        handleBuilder: (options) => CockpitRemoteSessionHandle(
+          platform: 'windows',
+          deviceId: 'windows',
+          projectDir: options.projectDir,
+          target: options.target,
+          appId: 'dev.cockpit.cockpit_demo',
+          host: '127.0.0.1',
+          hostPort: options.sessionPort,
+          devicePort: options.sessionPort,
+          baseUrl: 'http://127.0.0.1:${options.sessionPort}',
+          launchedAt: DateTime.utc(2026, 3, 24),
+        ),
+      ),
+    );
+
+    final handle = await launcher.launch(
+      const CockpitRemoteSessionLaunchOptions(
+        projectDir: '/workspace/examples/cockpit_demo',
+        target: 'cockpit/main.dart',
+        platform: 'windows',
+        deviceId: 'windows',
+        sessionPort: 47331,
+      ),
+    );
+
+    expect(capturedOptions?.platform, 'windows');
+    expect(handle.platform, 'windows');
+    expect(handle.appId, 'dev.cockpit.cockpit_demo');
+  });
+
+  test('platform launcher dispatches linux requests', () async {
+    CockpitRemoteSessionLaunchOptions? capturedOptions;
+    final launcher = CockpitPlatformRemoteSessionLauncher(
+      androidLauncher: _CapturingRemoteSessionLauncher(
+        onLaunch: (_) => fail('unexpected android launch'),
+      ),
+      iosLauncher: _CapturingRemoteSessionLauncher(
+        onLaunch: (_) => fail('unexpected ios launch'),
+      ),
+      macosLauncher: _CapturingRemoteSessionLauncher(
+        onLaunch: (_) => fail('unexpected macos launch'),
+      ),
+      linuxLauncher: _CapturingRemoteSessionLauncher(
+        onLaunch: (options) => capturedOptions = options,
+        handleBuilder: (options) => CockpitRemoteSessionHandle(
+          platform: 'linux',
+          deviceId: 'linux',
+          projectDir: options.projectDir,
+          target: options.target,
+          appId: 'dev.cockpit.cockpit_demo',
+          host: '127.0.0.1',
+          hostPort: options.sessionPort,
+          devicePort: options.sessionPort,
+          baseUrl: 'http://127.0.0.1:${options.sessionPort}',
+          launchedAt: DateTime.utc(2026, 3, 24),
+        ),
+      ),
+    );
+
+    final handle = await launcher.launch(
+      const CockpitRemoteSessionLaunchOptions(
+        projectDir: '/workspace/examples/cockpit_demo',
+        target: 'cockpit/main.dart',
+        platform: 'linux',
+        deviceId: 'linux',
+        sessionPort: 47331,
+      ),
+    );
+
+    expect(capturedOptions?.platform, 'linux');
+    expect(handle.platform, 'linux');
+    expect(handle.appId, 'dev.cockpit.cockpit_demo');
+  });
 }
 
 final class _FakeAndroidPortForwarder extends CockpitAndroidPortForwarder {

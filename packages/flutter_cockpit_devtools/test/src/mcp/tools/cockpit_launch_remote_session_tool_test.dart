@@ -176,4 +176,126 @@ void main() {
       'macos',
     );
   });
+
+  test('launch tool accepts windows arguments', () async {
+    CockpitLaunchRemoteSessionRequest? capturedRequest;
+    final tool = CockpitLaunchRemoteSessionTool(
+      launch: (request) async {
+        capturedRequest = request;
+        return CockpitLaunchRemoteSessionResult(
+          sessionHandle: CockpitRemoteSessionHandle(
+            platform: 'windows',
+            deviceId: 'windows',
+            projectDir: request.projectDir,
+            target: request.target,
+            appId: 'dev.cockpit.cockpit_demo',
+            host: '127.0.0.1',
+            hostPort: 58421,
+            devicePort: request.sessionPort,
+            baseUrl: 'http://127.0.0.1:58421',
+            launchedAt: DateTime.utc(2026, 3, 21, 0, 0),
+          ),
+          health: CockpitRemoteSessionStatus(
+            sessionId: 'launch-tool-windows',
+            platform: 'windows',
+            transportType: 'remoteHttp',
+            currentRouteName: '/home',
+            capabilities: CockpitCapabilities(
+              platform: 'windows',
+              transportType: 'remoteHttp',
+              supportsInAppControl: true,
+              supportsFlutterViewCapture: true,
+              supportsNativeScreenCapture: true,
+              supportsHostAutomation: true,
+              supportedCommands: <CockpitCommandType>[CockpitCommandType.tap],
+              supportedLocatorStrategies: CockpitLocatorKind.values,
+            ),
+            recordingCapabilities: CockpitRecordingCapabilities(
+              supportsNativeRecording: true,
+              preferredAcceptanceRecordingKind:
+                  CockpitRecordingKind.nativeScreen,
+            ),
+            snapshot: CockpitSnapshot(routeName: '/home'),
+          ),
+        );
+      },
+    );
+
+    final result = await tool.call(<String, Object?>{
+      'project_dir': '/workspace/examples/cockpit_demo',
+      'target': 'cockpit/main.dart',
+      'platform': 'windows',
+      'device_id': 'windows',
+      'session_port': 47331,
+    });
+
+    expect(capturedRequest?.platform, 'windows');
+    final structuredContent =
+        result['structuredContent'] as Map<String, Object?>;
+    expect(
+      (structuredContent['session_handle'] as Map<String, Object?>)['platform'],
+      'windows',
+    );
+  });
+
+  test('launch tool accepts linux arguments', () async {
+    CockpitLaunchRemoteSessionRequest? capturedRequest;
+    final tool = CockpitLaunchRemoteSessionTool(
+      launch: (request) async {
+        capturedRequest = request;
+        return CockpitLaunchRemoteSessionResult(
+          sessionHandle: CockpitRemoteSessionHandle(
+            platform: 'linux',
+            deviceId: 'linux',
+            projectDir: request.projectDir,
+            target: request.target,
+            appId: 'dev.cockpit.cockpit_demo',
+            host: '127.0.0.1',
+            hostPort: 58421,
+            devicePort: request.sessionPort,
+            baseUrl: 'http://127.0.0.1:58421',
+            launchedAt: DateTime.utc(2026, 3, 21, 0, 0),
+          ),
+          health: CockpitRemoteSessionStatus(
+            sessionId: 'launch-tool-linux',
+            platform: 'linux',
+            transportType: 'remoteHttp',
+            currentRouteName: '/home',
+            capabilities: CockpitCapabilities(
+              platform: 'linux',
+              transportType: 'remoteHttp',
+              supportsInAppControl: true,
+              supportsFlutterViewCapture: true,
+              supportsNativeScreenCapture: true,
+              supportsHostAutomation: true,
+              supportedCommands: <CockpitCommandType>[CockpitCommandType.tap],
+              supportedLocatorStrategies: CockpitLocatorKind.values,
+            ),
+            recordingCapabilities: CockpitRecordingCapabilities(
+              supportsNativeRecording: true,
+              preferredAcceptanceRecordingKind:
+                  CockpitRecordingKind.nativeScreen,
+            ),
+            snapshot: CockpitSnapshot(routeName: '/home'),
+          ),
+        );
+      },
+    );
+
+    final result = await tool.call(<String, Object?>{
+      'project_dir': '/workspace/examples/cockpit_demo',
+      'target': 'cockpit/main.dart',
+      'platform': 'linux',
+      'device_id': 'linux',
+      'session_port': 47331,
+    });
+
+    expect(capturedRequest?.platform, 'linux');
+    final structuredContent =
+        result['structuredContent'] as Map<String, Object?>;
+    expect(
+      (structuredContent['session_handle'] as Map<String, Object?>)['platform'],
+      'linux',
+    );
+  });
 }

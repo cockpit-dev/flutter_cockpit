@@ -25,7 +25,7 @@ final class LaunchRemoteSessionCommand extends Command<int> {
       ..addOption(
         'platform',
         help: 'Target platform for the launch.',
-        allowed: const <String>['android', 'ios', 'macos'],
+        allowed: const <String>['android', 'ios', 'macos', 'windows', 'linux'],
       )
       ..addOption(
         'android-device-id',
@@ -95,6 +95,8 @@ final class LaunchRemoteSessionCommand extends Command<int> {
         androidDeviceId,
       'ios' when iosDeviceId != null && iosDeviceId.isNotEmpty => iosDeviceId,
       'macos' => 'macos',
+      'windows' => 'windows',
+      'linux' => 'linux',
       'android' => throw UsageException(
           '--android-device-id is required when --platform=android.',
           usage,

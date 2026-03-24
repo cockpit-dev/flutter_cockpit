@@ -28,7 +28,13 @@ final class LaunchDevelopmentSessionCommand extends Command<int> {
       )
       ..addOption(
         'platform',
-        allowed: const <String>['android', 'ios', 'macos'],
+        allowed: const <String>[
+          'android',
+          'ios',
+          'macos',
+          'windows',
+          'linux',
+        ],
         help: 'Target platform for the development session.',
       )
       ..addOption('android-device-id')
@@ -96,6 +102,8 @@ final class LaunchDevelopmentSessionCommand extends Command<int> {
         androidDeviceId,
       'ios' when iosDeviceId != null && iosDeviceId.isNotEmpty => iosDeviceId,
       'macos' => 'macos',
+      'windows' => 'windows',
+      'linux' => 'linux',
       'android' => throw UsageException(
           '--android-device-id is required when --platform=android.',
           usage,

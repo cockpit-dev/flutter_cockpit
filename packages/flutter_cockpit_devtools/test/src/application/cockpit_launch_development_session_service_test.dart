@@ -234,6 +234,170 @@ void main() {
       expect(result.status.state, CockpitDevelopmentSessionState.ready);
     },
   );
+
+  test(
+    'daemon launcher uses direct host port for windows without Android forwarding',
+    () async {
+      final readyHandle = CockpitDevelopmentSessionHandle(
+        developmentSessionId: 'dev-session-windows',
+        platform: 'windows',
+        deviceId: 'windows',
+        projectDir: '/workspace/examples/cockpit_demo',
+        target: 'cockpit/main.dart',
+        appId: 'cockpit_demo',
+        appBaseUrl: 'http://127.0.0.1:47331',
+        supervisorBaseUrl: 'http://127.0.0.1:60004',
+        launchedAt: DateTime.utc(2026, 3, 24, 0, 0),
+        reloadGeneration: 0,
+        remoteSessionHandle: CockpitRemoteSessionHandle(
+          platform: 'windows',
+          deviceId: 'windows',
+          projectDir: '/workspace/examples/cockpit_demo',
+          target: 'cockpit/main.dart',
+          appId: 'cockpit_demo',
+          host: '127.0.0.1',
+          hostPort: 47331,
+          devicePort: 47331,
+          baseUrl: 'http://127.0.0.1:47331',
+          launchedAt: DateTime.utc(2026, 3, 24, 0, 0),
+        ),
+      );
+      final readyStatus = CockpitDevelopmentSessionStatus(
+        developmentSessionId: readyHandle.developmentSessionId,
+        state: CockpitDevelopmentSessionState.ready,
+        appReachable: true,
+        remoteSessionReachable: true,
+        reloadGeneration: readyHandle.reloadGeneration,
+        lastStatusAt: DateTime.utc(2026, 3, 24, 0, 1),
+      );
+
+      var capturedHostPort = -1;
+      var capturedPlatform = '';
+      final launcher = CockpitDevelopmentSessionDaemonLauncher(
+        supervisorStatusReader: (baseUri) async =>
+            CockpitDevelopmentSessionSupervisorResponse(
+          sessionHandle: readyHandle,
+          status: readyStatus,
+        ),
+        portForwarder: const _ThrowingPortForwarder(),
+        flutterVersionReader: () async => '3.39.0',
+        allocatePort: () async => 60004,
+        delay: (_) async {},
+        spawnSupervisor: ({
+          required request,
+          required flutterVersion,
+          required hostPort,
+          required supervisorPort,
+          required supervisorLogFile,
+        }) async {
+          capturedHostPort = hostPort;
+          capturedPlatform = request.platform;
+          return CockpitSpawnedDevelopmentSupervisor(
+            baseUri: Uri.parse('http://127.0.0.1:$supervisorPort'),
+            stop: () async {},
+          );
+        },
+      );
+
+      final result = await launcher.launch(
+        const CockpitLaunchDevelopmentSessionRequest(
+          projectDir: '/workspace/examples/cockpit_demo',
+          target: 'cockpit/main.dart',
+          platform: 'windows',
+          deviceId: 'windows',
+          sessionPort: 47331,
+          launchTimeout: Duration(seconds: 5),
+        ),
+      );
+
+      expect(capturedPlatform, 'windows');
+      expect(capturedHostPort, 47331);
+      expect(result.sessionHandle.platform, 'windows');
+      expect(result.status.state, CockpitDevelopmentSessionState.ready);
+    },
+  );
+
+  test(
+    'daemon launcher uses direct host port for linux without Android forwarding',
+    () async {
+      final readyHandle = CockpitDevelopmentSessionHandle(
+        developmentSessionId: 'dev-session-linux',
+        platform: 'linux',
+        deviceId: 'linux',
+        projectDir: '/workspace/examples/cockpit_demo',
+        target: 'cockpit/main.dart',
+        appId: 'cockpit_demo',
+        appBaseUrl: 'http://127.0.0.1:47331',
+        supervisorBaseUrl: 'http://127.0.0.1:60005',
+        launchedAt: DateTime.utc(2026, 3, 24, 0, 0),
+        reloadGeneration: 0,
+        remoteSessionHandle: CockpitRemoteSessionHandle(
+          platform: 'linux',
+          deviceId: 'linux',
+          projectDir: '/workspace/examples/cockpit_demo',
+          target: 'cockpit/main.dart',
+          appId: 'cockpit_demo',
+          host: '127.0.0.1',
+          hostPort: 47331,
+          devicePort: 47331,
+          baseUrl: 'http://127.0.0.1:47331',
+          launchedAt: DateTime.utc(2026, 3, 24, 0, 0),
+        ),
+      );
+      final readyStatus = CockpitDevelopmentSessionStatus(
+        developmentSessionId: readyHandle.developmentSessionId,
+        state: CockpitDevelopmentSessionState.ready,
+        appReachable: true,
+        remoteSessionReachable: true,
+        reloadGeneration: readyHandle.reloadGeneration,
+        lastStatusAt: DateTime.utc(2026, 3, 24, 0, 1),
+      );
+
+      var capturedHostPort = -1;
+      var capturedPlatform = '';
+      final launcher = CockpitDevelopmentSessionDaemonLauncher(
+        supervisorStatusReader: (baseUri) async =>
+            CockpitDevelopmentSessionSupervisorResponse(
+          sessionHandle: readyHandle,
+          status: readyStatus,
+        ),
+        portForwarder: const _ThrowingPortForwarder(),
+        flutterVersionReader: () async => '3.39.0',
+        allocatePort: () async => 60005,
+        delay: (_) async {},
+        spawnSupervisor: ({
+          required request,
+          required flutterVersion,
+          required hostPort,
+          required supervisorPort,
+          required supervisorLogFile,
+        }) async {
+          capturedHostPort = hostPort;
+          capturedPlatform = request.platform;
+          return CockpitSpawnedDevelopmentSupervisor(
+            baseUri: Uri.parse('http://127.0.0.1:$supervisorPort'),
+            stop: () async {},
+          );
+        },
+      );
+
+      final result = await launcher.launch(
+        const CockpitLaunchDevelopmentSessionRequest(
+          projectDir: '/workspace/examples/cockpit_demo',
+          target: 'cockpit/main.dart',
+          platform: 'linux',
+          deviceId: 'linux',
+          sessionPort: 47331,
+          launchTimeout: Duration(seconds: 5),
+        ),
+      );
+
+      expect(capturedPlatform, 'linux');
+      expect(capturedHostPort, 47331);
+      expect(result.sessionHandle.platform, 'linux');
+      expect(result.status.state, CockpitDevelopmentSessionState.ready);
+    },
+  );
 }
 
 final class _StubPortForwarder extends CockpitAndroidPortForwarder {

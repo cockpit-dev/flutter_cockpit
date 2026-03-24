@@ -7,9 +7,11 @@ import 'package:flutter_cockpit/flutter_cockpit.dart';
 import '../remote/cockpit_remote_session_client.dart';
 import 'cockpit_android_remote_session_launcher.dart';
 import 'cockpit_ios_simulator_remote_session_launcher.dart';
+import 'cockpit_linux_remote_session_launcher.dart';
 import 'cockpit_macos_remote_session_launcher.dart';
 import 'cockpit_remote_session_handle.dart';
 import 'cockpit_remote_session_launch_options.dart';
+import 'cockpit_windows_remote_session_launcher.dart';
 
 typedef CockpitRemoteSessionStatusReader = Future<CockpitRemoteSessionStatus>
     Function(Uri baseUri);
@@ -27,15 +29,22 @@ final class CockpitPlatformRemoteSessionLauncher
     CockpitRemoteSessionLauncher? androidLauncher,
     CockpitRemoteSessionLauncher? iosLauncher,
     CockpitRemoteSessionLauncher? macosLauncher,
+    CockpitRemoteSessionLauncher? windowsLauncher,
+    CockpitRemoteSessionLauncher? linuxLauncher,
   })  : _androidLauncher =
             androidLauncher ?? CockpitAndroidRemoteSessionLauncher(),
         _iosLauncher =
             iosLauncher ?? CockpitIosSimulatorRemoteSessionLauncher(),
-        _macosLauncher = macosLauncher ?? CockpitMacosRemoteSessionLauncher();
+        _macosLauncher = macosLauncher ?? CockpitMacosRemoteSessionLauncher(),
+        _windowsLauncher =
+            windowsLauncher ?? CockpitWindowsRemoteSessionLauncher(),
+        _linuxLauncher = linuxLauncher ?? CockpitLinuxRemoteSessionLauncher();
 
   final CockpitRemoteSessionLauncher _androidLauncher;
   final CockpitRemoteSessionLauncher _iosLauncher;
   final CockpitRemoteSessionLauncher _macosLauncher;
+  final CockpitRemoteSessionLauncher _windowsLauncher;
+  final CockpitRemoteSessionLauncher _linuxLauncher;
 
   @override
   Future<CockpitRemoteSessionHandle> launch(
@@ -48,6 +57,10 @@ final class CockpitPlatformRemoteSessionLauncher
         return _iosLauncher.launch(options);
       case 'macos':
         return _macosLauncher.launch(options);
+      case 'windows':
+        return _windowsLauncher.launch(options);
+      case 'linux':
+        return _linuxLauncher.launch(options);
       default:
         throw StateError(
           'Unsupported remote session launch platform: ${options.platform}',
