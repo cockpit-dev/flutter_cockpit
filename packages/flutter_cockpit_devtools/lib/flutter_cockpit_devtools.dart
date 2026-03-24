@@ -42,6 +42,7 @@ export 'src/development/cockpit_development_session_status.dart';
 export 'src/development/cockpit_development_session_supervisor.dart';
 export 'src/session/cockpit_android_remote_session_launcher.dart';
 export 'src/session/cockpit_ios_simulator_remote_session_launcher.dart';
+export 'src/session/cockpit_macos_remote_session_launcher.dart';
 export 'src/session/cockpit_remote_session_handle.dart';
 export 'src/session/cockpit_remote_session_launch_options.dart';
 export 'src/session/cockpit_remote_session_launcher.dart';
