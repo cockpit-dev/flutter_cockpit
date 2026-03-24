@@ -11,17 +11,19 @@ Use this pattern when the task is not "instrument the Flutter app" but "set up a
 
 ## Dependency
 
+Add it to the host package's `dev_dependencies`.
+
 From pub:
 
 ```yaml
-dependencies:
+dev_dependencies:
   flutter_cockpit_devtools: any
 ```
 
 Or directly from Git:
 
 ```yaml
-dependencies:
+dev_dependencies:
   flutter_cockpit_devtools:
     git:
       url: https://github.com/cockpit-dev/flutter_cockpit.git

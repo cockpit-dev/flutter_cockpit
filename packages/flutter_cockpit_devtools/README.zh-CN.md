@@ -14,17 +14,19 @@
 
 ## 安装
 
+把它加到 host 侧 Dart 包的 `dev_dependencies`。
+
 从 pub：
 
 ```yaml
-dependencies:
+dev_dependencies:
   flutter_cockpit_devtools: any
 ```
 
 或者直接从 Git：
 
 ```yaml
-dependencies:
+dev_dependencies:
   flutter_cockpit_devtools:
     git:
       url: https://github.com/cockpit-dev/flutter_cockpit.git
