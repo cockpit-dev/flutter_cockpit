@@ -101,7 +101,7 @@
 - Android 与 iOS 上通过 `flutter_cockpit` plugin bridge 的原生验收录屏
 - 带 `recordings/`、`primaryRecordingRef`、`videoAttachmentRefs` 的录屏交付元数据
 - 从录屏里抽取交付关键帧，并把 `keyframes/` 证据和 coverage 元数据加入交付链
-- Android / iOS / macOS 示例宿主工程，可做真实 plugin 编译验证
+- Android / iOS / macOS / Windows / Linux 示例宿主工程，可做真实 plugin 编译验证
 - 仓库内置的 `flutter_cockpit` skill 资产，包括 pressure scenarios、examples 与 maintainer-facing contract
 
 ## Package 入口
@@ -363,7 +363,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 
 example 应用现在证明的是根级别接入，而不是到处套 `CockpitSurface` wrapper，同时也换成了生产风格 Todo workflow，而不是早期的窄表单 demo。核心 widget tests 覆盖 root runtime 行为、Todo CRUD 流程、settings 持久化、截图挂接和 remote bridge 行为。devtools tests 则覆盖 bundle writing、`delivery.json` 和 CLI 驱动的 control scripts。
 
-example 还附带了生成后的 Android / iOS / macOS 宿主工程，以便真实编译 plugin bridge。
+example 还附带了生成后的 Android / iOS / macOS / Windows / Linux 宿主工程，以便真实编译 plugin bridge。
 仓库也内置了 `skills/flutter-cockpit/` 这套 skill 资产，教 AI 如何使用这条已验证工作流，而不是把 skill 当成未来规划。
 
 ## 当前边界

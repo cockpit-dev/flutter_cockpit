@@ -81,7 +81,7 @@ This repository currently validates:
 - host-side `run-control-script` CLI execution
 - host-side `query-remote-session` and `run-remote-control-script` CLI execution
 - host-side `collect-remote-snapshot` CLI execution for targeted diagnostics and network evidence without writing a full task bundle
-- host-side `launch-remote-session` CLI execution that builds, installs, launches, and waits for a reachable remote session on Android, iOS Simulator, and macOS
+- host-side `launch-remote-session` CLI execution that builds, installs, launches, and waits for a reachable remote session on Android, iOS Simulator, and local macOS, Windows, and Linux desktop runs
 - shared application services so CLI and MCP reuse the same launch, query, run, and bundle-summary workflows
 - a `stdio` MCP server that exposes both the fast development loop (`launch_development_session`, `reload_development_session`, `collect_development_probe`, `compare_development_probe`) and the heavier evidence/validation loop (`launch_remote_session`, `query_remote_session`, `collect_remote_snapshot`, `run_remote_control_script`, `read_task_bundle_summary`, `run_task`, `validate_task`)
 - a high-level run-task orchestration workflow that codifies `bootstrap -> baseline -> execute -> observe -> judge -> deliver`
@@ -95,11 +95,11 @@ This repository currently validates:
 - remote recording stop responses that transfer recording artifacts back to host-side tooling so remote task-run bundles contain real video files instead of device-local placeholder paths
 - host-side recording adapters that use `adb screenrecord` and `xcrun simctl io recordVideo` when a remote run already has a direct device handle
 - Flutter-view screenshot capture that attaches evidence to the bundle model
-- native acceptance screenshot capture through the `flutter_cockpit` plugin bridge for Android, iOS, and macOS
+- acceptance screenshot capture across Android, iOS, macOS, Windows, and Linux, using the plugin bridge on mobile and host-preferred desktop adapters on desktop hosts
 - native acceptance recording through the `flutter_cockpit` plugin bridge for Android and iOS
 - recording-aware bundle delivery metadata, including `recordings/`, `primaryRecordingRef`, and `videoAttachmentRefs`
 - delivery keyframe extraction so recordings also produce bounded `keyframes/` evidence and coverage metadata for acceptance review
-- Android, iOS, and macOS example host shells for real plugin build verification
+- Android, iOS, macOS, Windows, and Linux example host shells for real plugin build verification
 - a repository-shipped `flutter_cockpit` skill asset with pressure scenarios, examples, and a maintainer-facing contract
 
 ## Package Entry Points
