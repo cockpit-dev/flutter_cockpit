@@ -4,10 +4,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:cockpit_demo/src/data/cockpit_demo_database.dart';
 import 'package:cockpit_demo/src/data/todo_repository.dart';
 import 'package:cockpit_demo/src/model/todo_priority.dart';
+import 'dart:io';
 
 import 'support/cockpit_demo_test_support.dart';
 
 void main() {
+  test('keeps the production main entrypoint free of cockpit bootstrap', () {
+    final contents = File('lib/main.dart').readAsStringSync();
+    expect(contents.contains('flutter_cockpit'), isFalse);
+    expect(contents.contains('FlutterCockpit'), isFalse);
+  });
+
   testWidgets(
     'todo app supports create, edit, complete, search, and settings flows',
     (tester) async {
