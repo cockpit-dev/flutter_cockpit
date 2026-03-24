@@ -4,6 +4,9 @@ import FlutterMacOS
 public final class FlutterCockpitPlugin: NSObject, FlutterPlugin {
   private static let captureChannelName = "dev.cockpit.flutter_cockpit/capture"
   private static let recordingChannelName = "dev.cockpit.flutter_cockpit/recording"
+  private lazy var recordingManager = FlutterCockpitRecordingManager(
+    windowProvider: { [weak self] in self?.activeWindow() }
+  )
 
   public static func register(with registrar: FlutterPluginRegistrar) {
     let captureChannel = FlutterMethodChannel(
@@ -26,23 +29,12 @@ public final class FlutterCockpitPlugin: NSObject, FlutterPlugin {
     case "captureAcceptanceScreenshot":
       captureAcceptanceScreenshot(result: result)
     case "queryRecordingCapabilities":
-      result([
-        "supportsNativeRecording": false,
-        "preferredAcceptanceRecordingKind": "nativeScreen",
-        "recordingLimitations": [
-          "Use the host-side macOS recording adapter for acceptance recordings."
-        ],
-      ])
+      result(recordingManager.queryCapabilities())
     case "startRecording":
-      result([
-        "state": "failed",
-        "failureReason": "hostRecordingRequired",
-      ])
+      let arguments = call.arguments as? [String: Any] ?? [:]
+      recordingManager.startRecording(arguments: arguments, result: result)
     case "stopRecording":
-      result([
-        "state": "failed",
-        "failureReason": "recordingNotActive",
-      ])
+      recordingManager.stopRecording(result: result)
     default:
       result(FlutterMethodNotImplemented)
     }

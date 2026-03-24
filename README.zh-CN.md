@@ -311,7 +311,7 @@ rebuild diagnostics 仍然是显式 opt-in。只有在 runtime bootstrap 通过 
 
 - Android 且提供 `--android-device-id`：通过 `adb screenrecord` 做 host 侧录屏
 - iOS 且提供 `--ios-device-id`：通过 `xcrun simctl io recordVideo` 做 host 侧录屏
-- macOS 且使用 `--platform macos`：优先走 host 侧截图/录屏适配器；如果当前机器的 host 工具链无法产出稳定媒体，则自动回退到 remote screenshot 或基于截图时间线合成的交付视频
+- macOS 且使用 `--platform macos`：默认走 `flutter_cockpit` plugin 内的原生窗口截图/录屏；只有在 native 产物链不可用时才回退到 remote screenshot 或基于截图时间线合成的交付视频
 - Windows 且使用 `--platform windows`：优先走基于 PowerShell 激活与桌面截图/录屏工具链的 host 侧适配器
 - Linux 且使用 `--platform linux`：优先走基于 `wmctrl`、X11 截图与 ffmpeg 录屏的 host 侧适配器
 - 否则：回退到应用 session 内部录屏

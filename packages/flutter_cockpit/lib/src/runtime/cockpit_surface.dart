@@ -504,9 +504,8 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
   }) async {
     final scrollableState = Scrollable.maybeOf(targetElement);
     final targetRenderObject = targetElement.findRenderObject();
-    final viewportRenderObject = targetRenderObject == null
-        ? null
-        : RenderAbstractViewport.of(targetRenderObject) as RenderObject?;
+    final viewportRenderObject =
+        _resolveViewportRenderObject(targetRenderObject);
     if (scrollableState == null ||
         targetRenderObject is! RenderBox ||
         !targetRenderObject.hasSize ||
@@ -586,9 +585,8 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
   }) {
     final scrollableState = Scrollable.maybeOf(targetElement);
     final targetRenderObject = targetElement.findRenderObject();
-    final viewportRenderObject = targetRenderObject == null
-        ? null
-        : RenderAbstractViewport.of(targetRenderObject) as RenderObject?;
+    final viewportRenderObject =
+        _resolveViewportRenderObject(targetRenderObject);
     if (targetRenderObject is! RenderBox ||
         !targetRenderObject.hasSize ||
         viewportRenderObject is! RenderBox ||
@@ -668,6 +666,19 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
                     alignmentPolicy: ScrollPositionAlignmentPolicy.explicit,
                   ),
     };
+  }
+
+  RenderObject? _resolveViewportRenderObject(RenderObject? targetRenderObject) {
+    if (targetRenderObject == null) {
+      return null;
+    }
+    try {
+      return RenderAbstractViewport.of(targetRenderObject) as RenderObject?;
+    } on FlutterError {
+      return null;
+    } on StateError {
+      return null;
+    }
   }
 
   @override

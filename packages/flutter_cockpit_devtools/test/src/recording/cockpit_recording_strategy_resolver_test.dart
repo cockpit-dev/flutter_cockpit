@@ -76,14 +76,13 @@ void main() {
     },
   );
 
-  test('uses macos host recording when a macos session handle is provided', () {
+  test('uses remote recording on macos when a session handle is provided', () {
     final remoteAdapter = _FakeRecordingAdapter();
-    final macosAdapter = _FakeRecordingAdapter();
     final resolver = CockpitRecordingStrategyResolver(
       remoteAdapterFactory: (client) => remoteAdapter,
       adbAdapterFactory: (deviceId) => _FakeRecordingAdapter(),
       simctlAdapterFactory: (deviceId) => _FakeRecordingAdapter(),
-      macosAdapterFactory: (appId) => macosAdapter,
+      macosAdapterFactory: (appId) => _FakeRecordingAdapter(),
     );
 
     final adapter = resolver.resolve(
@@ -106,7 +105,7 @@ void main() {
       ),
     );
 
-    expect(adapter, same(macosAdapter));
+    expect(adapter, same(remoteAdapter));
   });
 
   test('uses windows host recording when a windows session handle is provided',

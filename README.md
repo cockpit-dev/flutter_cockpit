@@ -304,7 +304,7 @@ For host-side runs, `run-remote-control-script` accepts an optional `recording` 
 
 - Android with `--android-device-id`: host recording through `adb screenrecord`
 - iOS with `--ios-device-id`: host recording through `xcrun simctl io recordVideo`
-- macOS with `--platform macos`: host-preferred screenshot/recording adapters, with remote screenshot or synthesized timeline-video fallback when host tooling cannot produce stable media on the current machine
+- macOS with `--platform macos`: app-side native window screenshot and recording through the `flutter_cockpit` plugin, without relying on host shell screenshot/recording tools in the default path
 - Windows with `--platform windows`: host-preferred screenshot/recording adapters built around PowerShell activation plus desktop capture/recording tooling
 - Linux with `--platform linux`: host-preferred screenshot/recording adapters built around `wmctrl`, X11 desktop capture, and ffmpeg-based recording
 - otherwise: remote in-app recording through the app session

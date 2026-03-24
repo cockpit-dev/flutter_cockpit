@@ -61,7 +61,7 @@ Current first-class recording delivery paths include:
 - Android and iOS in-app native acceptance recording
 - Android emulator host recording via `adb screenrecord`
 - iOS Simulator host recording via `xcrun simctl io recordVideo`
-- macOS host-preferred screenshot/recording with bounded fallback to remote screenshot or synthesized timeline video when host tooling cannot yield stable media on the current machine
+- macOS app-side native window screenshot/recording with bounded fallback to remote screenshot or synthesized timeline video when native capture cannot yield stable media on the current machine
 - Windows host-preferred screenshot/recording with bounded fallback to synthesized timeline video when desktop tooling cannot yield stable media on the current machine
 - Linux host-preferred screenshot/recording with bounded fallback to synthesized timeline video when desktop tooling cannot yield stable media on the current machine
 

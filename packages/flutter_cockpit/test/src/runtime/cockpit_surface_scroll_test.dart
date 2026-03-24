@@ -137,6 +137,56 @@ void main() {
   );
 
   testWidgets(
+    'ensureLocatorVisible does not throw for visible text outside a scrollable viewport',
+    (tester) async {
+      await tester.pumpWidget(
+        WidgetsApp(
+          color: const Color(0xFFFFFFFF),
+          builder: (context, child) {
+            return CockpitSurface(
+              routeName: '/fixed-footer',
+              child: Material(
+                child: Directionality(
+                  textDirection: TextDirection.ltr,
+                  child: Column(
+                    children: <Widget>[
+                      const Expanded(
+                        child: SingleChildScrollView(
+                          child: SizedBox(height: 600),
+                        ),
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Text('Save settings'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final surfaceState = tester.state<CockpitSurfaceState>(
+        find.byType(CockpitSurface),
+      );
+
+      final didReveal = await surfaceState.ensureLocatorVisible(
+        const CockpitLocator(
+          kind: CockpitLocatorKind.text,
+          value: 'Save settings',
+        ),
+        alignment: CockpitRevealAlignment.center,
+      );
+
+      expect(didReveal, isTrue);
+      expect(find.text('Save settings'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
     'scrollByViewport returns false when user-like scrolling cannot move the scrollable',
     (tester) async {
       final controller = ScrollController();

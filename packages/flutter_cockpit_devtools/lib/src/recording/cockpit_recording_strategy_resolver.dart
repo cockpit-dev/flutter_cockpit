@@ -57,10 +57,8 @@ final class CockpitRecordingStrategyResolver {
     if (platform == 'ios' && iosDeviceId != null && iosDeviceId.isNotEmpty) {
       return simctlAdapterFactory(iosDeviceId);
     }
-    if (platform == 'macos' &&
-        sessionHandle != null &&
-        sessionHandle.appId.isNotEmpty) {
-      return macosAdapterFactory(sessionHandle.appId);
+    if (platform == 'macos') {
+      return remoteAdapterFactory(client);
     }
     if (platform == 'windows' &&
         sessionHandle != null &&

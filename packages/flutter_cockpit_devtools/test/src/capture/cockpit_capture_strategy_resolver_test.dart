@@ -44,14 +44,13 @@ void main() {
     expect(adapter, isA<CockpitHostPreferredCaptureAdapter>());
   });
 
-  test('uses macos host capture when a macos session handle is provided', () {
+  test('uses remote capture on macos when a session handle is provided', () {
     final remoteAdapter = _FakeCaptureAdapter();
-    final macosAdapter = _FakeCaptureAdapter();
     final resolver = CockpitCaptureStrategyResolver(
       remoteAdapterFactory: (client) => remoteAdapter,
       adbAdapterFactory: (deviceId) => _FakeCaptureAdapter(),
       simctlAdapterFactory: (deviceId) => _FakeCaptureAdapter(),
-      macosAdapterFactory: (appId) => macosAdapter,
+      macosAdapterFactory: (appId) => _FakeCaptureAdapter(),
     );
 
     final adapter = resolver.resolve(
@@ -73,7 +72,7 @@ void main() {
       ),
     );
 
-    expect(adapter, isA<CockpitHostPreferredCaptureAdapter>());
+    expect(adapter, same(remoteAdapter));
   });
 
   test('uses windows host capture when a windows session handle is provided',
