@@ -49,6 +49,7 @@ Follow this order every time:
    - `collect_development_probe`
    - `compare_development_probe`
    When you inspect or patch app-side integration, prefer a single `FlutterCockpitApp(config: ..., child: MyApp())` bootstrap path. Treat direct `FlutterCockpitRoot` composition as an advanced escape hatch, not the default recommendation.
+   When the app is not integrated yet, start from `examples/flutter-app-setup.md` instead of inventing a one-off bootstrap pattern.
 3. `baseline`
    Capture session status and current route or app state. For verification or acceptance work, require a baseline screenshot and decide whether video evidence matters.
 4. `execute`
@@ -173,6 +174,7 @@ Stop and correct your workflow if you catch yourself thinking:
 
 ## Examples
 
+- `examples/flutter-app-setup.md`
 - `examples/runtime-validation.md`
 - `examples/acceptance-delivery.md`
 - `examples/failure-with-evidence.md`
