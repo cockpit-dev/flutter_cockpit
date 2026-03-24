@@ -29,3 +29,5 @@ flutter:
         pluginClass: FlutterCockpitPlugin
       ios:
         pluginClass: FlutterCockpitPlugin
+      macos:
+        pluginClass: FlutterCockpitPlugin

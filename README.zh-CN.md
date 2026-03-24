@@ -11,8 +11,8 @@
 - Android 与 iOS 的应用内原生验收录屏，并将视频写入标准 task-run bundle
 - 远程 session bridge，使 host 侧工具能够通过 HTTP 检查和控制运行中的应用
 - 远程录屏工作流，使 host 侧工具可以启动录屏、执行命令、停止录屏，并把视频持久化到同一个 task-run bundle
-- 远程运行时的 host 侧录屏兜底，使 Android 模拟器和 iOS Simulator 在不适合应用内录屏时仍能产出验收视频
-- 自举式 bootstrap 工作流，使 host 侧工具能够自行启动应用、输出可复用的 remote-session handle，并在后续命令里复用，不需要人工预启动
+- 远程运行时的 host 侧录屏兜底，使 Android 模拟器、iOS Simulator 和本地 macOS 运行在不适合应用内录屏时仍能产出验收视频
+- 自举式 bootstrap 工作流，使 host 侧工具能够在 Android、iOS Simulator 和 macOS 上自行启动应用、输出可复用的 remote-session handle，并在后续命令里复用，不需要人工预启动
 
 仓库当前还没有覆盖所有平台能力，但协议面和 bundle 格式已经为后续 host 自动化与远程编排预留了稳定边界。
 
@@ -81,7 +81,7 @@
 - host 侧 `run-control-script` CLI
 - host 侧 `query-remote-session` 与 `run-remote-control-script` CLI
 - host 侧 `collect-remote-snapshot` CLI，可在不写完整 task bundle 的情况下抓定向诊断与网络证据
-- host 侧 `launch-remote-session` CLI，可在 Android 和 iOS Simulator 上完成 build/install/launch，并等待 remote session 可达
+- host 侧 `launch-remote-session` CLI，可在 Android、iOS Simulator 和 macOS 上完成 build/install/launch，并等待 remote session 可达
 - 共享 application services，使 CLI 与 MCP 复用同一套 launch/query/run/bundle-summary 工作流
 - 一个 `stdio` MCP server，同时暴露：
   - 快速开发闭环：`launch_development_session`、`reload_development_session`、`collect_development_probe`、`compare_development_probe`
@@ -97,11 +97,11 @@
 - 远程录屏停止响应时把录屏 artifact 回传给 host，从而让远程 task-run bundle 包含真实视频文件，而不是设备本地占位路径
 - 在远程运行已经持有设备句柄时，host 侧录屏 adapter 能使用 `adb screenrecord` 和 `xcrun simctl io recordVideo`
 - Flutter 视图截图能力，并把证据挂进 bundle 模型
-- Android 与 iOS 上通过 `flutter_cockpit` plugin bridge 的原生验收截图
+- Android、iOS 与 macOS 上通过 `flutter_cockpit` plugin bridge 的原生验收截图
 - Android 与 iOS 上通过 `flutter_cockpit` plugin bridge 的原生验收录屏
 - 带 `recordings/`、`primaryRecordingRef`、`videoAttachmentRefs` 的录屏交付元数据
 - 从录屏里抽取交付关键帧，并把 `keyframes/` 证据和 coverage 元数据加入交付链
-- Android / iOS 示例宿主工程，可做真实 plugin 编译验证
+- Android / iOS / macOS 示例宿主工程，可做真实 plugin 编译验证
 - 仓库内置的 `flutter_cockpit` skill 资产，包括 pressure scenarios、examples 与 maintainer-facing contract
 
 ## Package 入口
@@ -311,6 +311,7 @@ rebuild diagnostics 仍然是显式 opt-in。只有在 runtime bootstrap 通过 
 
 - Android 且提供 `--android-device-id`：通过 `adb screenrecord` 做 host 侧录屏
 - iOS 且提供 `--ios-device-id`：通过 `xcrun simctl io recordVideo` 做 host 侧录屏
+- macOS 且使用 `--platform macos`：优先走 host 侧截图/录屏适配器；如果当前机器的 host 工具链无法产出稳定媒体，则自动回退到 remote screenshot 或基于截图时间线合成的交付视频
 - 否则：回退到应用 session 内部录屏
 
 无论最后选中哪种策略，视频都会被复制进本地 task-run bundle，同时从录屏时间线提取关键帧，并通过同一套 `delivery.json` 字段对外摘要。
@@ -360,7 +361,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 
 example 应用现在证明的是根级别接入，而不是到处套 `CockpitSurface` wrapper，同时也换成了生产风格 Todo workflow，而不是早期的窄表单 demo。核心 widget tests 覆盖 root runtime 行为、Todo CRUD 流程、settings 持久化、截图挂接和 remote bridge 行为。devtools tests 则覆盖 bundle writing、`delivery.json` 和 CLI 驱动的 control scripts。
 
-example 还附带了生成后的 Android / iOS 宿主工程，以便真实编译 plugin bridge。
+example 还附带了生成后的 Android / iOS / macOS 宿主工程，以便真实编译 plugin bridge。
 仓库也内置了 `skills/flutter-cockpit/` 这套 skill 资产，教 AI 如何使用这条已验证工作流，而不是把 skill 当成未来规划。
 
 ## 当前边界
@@ -369,10 +370,10 @@ example 还附带了生成后的 Android / iOS 宿主工程，以便真实编译
 
 - 已支持的执行路径：已接入 Flutter 应用内的 in-app control
 - 已支持的外部控制路径：指向运行中应用的 remote HTTP bridge
-- 已支持的 bootstrap 路径：Android emulator 与 iOS Simulator 上的 host-side app launch，并输出可复用的 session-handle JSON
+- 已支持的 bootstrap 路径：Android emulator、iOS Simulator 与本地 macOS 桌面运行上的 host-side app launch，并输出可复用的 session-handle JSON
 - 已支持的截图路径：Flutter-view capture 与应用内 native acceptance screenshot
-- 已支持的录屏路径：应用内 native acceptance recording，加上 Android emulator / iOS Simulator 的 host-side remote fallback
-- 还未实现：更广泛的 Android/iOS host automation、物理 iPhone host recording、远程设备编排、聊天通道交付
+- 已支持的录屏路径：应用内 native acceptance recording，加上 Android emulator / iOS Simulator / macOS 的 host-side remote fallback；当 host 录屏无法 finalize 时，bundle writer 会用截图时间线合成有界交付视频
+- 还未实现：Linux / Windows host 闭环、更广泛的 Android/iOS host automation、物理 iPhone host recording、远程设备编排、聊天通道交付
 
 这些能力已经被收敛在 adapter interface 和现有 bundle contract 后面，因此后续扩展不需要推倒协议面重来。
 

@@ -144,6 +144,9 @@ void main() {
         machineClient: harness.client,
         remoteReachabilityProbe: (_) async => true,
         uiIdleWaiter: (_) async => true,
+        appStopper: (appId) async {
+          harness.stoppedAppIds.add(appId);
+        },
         now: () => DateTime.utc(2026, 3, 23, 4),
         settleTimeout: const Duration(seconds: 2),
         settlePollInterval: const Duration(milliseconds: 10),
@@ -201,6 +204,12 @@ void main() {
         ),
         isTrue,
       );
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      expect(harness.closeProcessCallCount, 1);
+      expect(
+        harness.stoppedAppIds,
+        contains(harness.handle.remoteSessionHandle?.appId),
+      );
     },
   );
 
@@ -215,6 +224,9 @@ void main() {
         machineClient: harness.client,
         remoteReachabilityProbe: (_) async => true,
         uiIdleWaiter: (_) async => true,
+        appStopper: (appId) async {
+          harness.stoppedAppIds.add(appId);
+        },
         now: () => DateTime.utc(2026, 3, 23, 5),
         settleTimeout: const Duration(seconds: 2),
         settlePollInterval: const Duration(milliseconds: 10),
@@ -239,6 +251,12 @@ void main() {
           (payload) => payload.contains('"method":"app.stop"'),
         ),
         isTrue,
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      expect(harness.closeProcessCallCount, 1);
+      expect(
+        harness.stoppedAppIds,
+        contains(harness.handle.remoteSessionHandle?.appId),
       );
     },
   );
@@ -281,6 +299,9 @@ final class _MachineHarness {
       requestWriter: (payload) async {
         writes.add(payload);
       },
+      closeProcess: () async {
+        closeProcessCallCount += 1;
+      },
     );
   }
 
@@ -289,6 +310,8 @@ final class _MachineHarness {
   final Completer<int> exitCode;
   final List<String> writes;
   final CockpitDevelopmentSessionHandle handle;
+  int closeProcessCallCount = 0;
+  final List<String> stoppedAppIds = <String>[];
   late final CockpitFlutterRunMachineClient client;
 
   Future<void> dispose() async {

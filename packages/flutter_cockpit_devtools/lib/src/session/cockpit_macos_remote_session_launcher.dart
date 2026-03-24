@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
@@ -51,6 +52,7 @@ final class CockpitMacosRemoteSessionLauncher
       );
     }
 
+    final deadline = _now().add(options.launchTimeout);
     final flutterVersion = await _flutterVersionReader();
     await _runRequired(
       'flutter',
@@ -66,19 +68,28 @@ final class CockpitMacosRemoteSessionLauncher
         '--dart-define=FLUTTER_PILOT_FLUTTER_VERSION=$flutterVersion',
       ],
       workingDirectory: options.projectDir,
+      timeout: _remaining(deadline),
     );
 
     final appBundlePath = await _appBundlePathResolver(
       projectDir: options.projectDir,
     );
     final bundleId = await _bundleIdResolver(appBundlePath: appBundlePath);
+    await _bestEffortStopRunningApp(
+      bundleId,
+      timeout: _capTimeout(_remaining(deadline), const Duration(seconds: 5)),
+    );
 
-    await _runRequired('open', <String>['-n', appBundlePath]);
+    await _runRequired(
+      'open',
+      <String>['-n', appBundlePath],
+      timeout: _remaining(deadline),
+    );
 
     final baseUri = Uri.parse('http://127.0.0.1:${options.sessionPort}');
     final status = await cockpitWaitForRemoteSessionReady(
       baseUri: baseUri,
-      timeout: options.launchTimeout,
+      timeout: _remaining(deadline),
       statusReader: _statusReader,
     );
 
@@ -95,21 +106,57 @@ final class CockpitMacosRemoteSessionLauncher
     );
   }
 
+  Future<void> _bestEffortStopRunningApp(
+    String bundleId, {
+    required Duration timeout,
+  }) async {
+    try {
+      await _processRunner(
+        'osascript',
+        <String>['-e', 'tell application id "$bundleId" to quit'],
+      ).timeout(timeout);
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+    } on Object {
+      // The app may not be running yet; launch should still continue.
+    }
+  }
+
   Future<void> _runRequired(
     String executable,
     List<String> arguments, {
     String? workingDirectory,
+    required Duration timeout,
   }) async {
     final result = await _processRunner(
       executable,
       arguments,
       workingDirectory: workingDirectory,
+    ).timeout(
+      timeout,
+      onTimeout: () => throw TimeoutException(
+        '$executable ${arguments.join(' ')} timed out.',
+        timeout,
+      ),
     );
     if (result.exitCode != 0) {
       throw StateError(
         '$executable ${arguments.join(' ')} failed: ${result.stderr ?? result.stdout}',
       );
     }
+  }
+
+  Duration _remaining(DateTime deadline) {
+    final remaining = deadline.difference(_now());
+    if (remaining <= Duration.zero) {
+      throw TimeoutException(
+        'macOS remote session launch timed out before the next stage could start.',
+      );
+    }
+    return remaining;
+  }
+
+  Duration _capTimeout(Duration value, Duration max) {
+    return value < max ? value : max;
   }
 
   static Future<ProcessResult> _runProcess(

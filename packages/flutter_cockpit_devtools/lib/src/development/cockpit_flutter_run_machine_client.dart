@@ -176,10 +176,10 @@ final class CockpitFlutterRunMachineClient {
   }
 
   Future<void> dispose() async {
-    await _closeProcess?.call();
-    await _stdoutSubscription.cancel();
-    await _stderrSubscription.cancel();
-    await _exitCodeSubscription.cancel();
+    await _closeWithinTimeout(_closeProcess?.call());
+    await _closeWithinTimeout(_stdoutSubscription.cancel());
+    await _closeWithinTimeout(_stderrSubscription.cancel());
+    await _closeWithinTimeout(_exitCodeSubscription.cancel());
     for (final completer in _requestCompleters.values) {
       if (!completer.isCompleted) {
         completer.completeError(
@@ -191,6 +191,17 @@ final class CockpitFlutterRunMachineClient {
     }
     _requestCompleters.clear();
     await _eventsController.close();
+  }
+
+  Future<void> _closeWithinTimeout(Future<void>? operation) async {
+    if (operation == null) {
+      return;
+    }
+    try {
+      await operation.timeout(const Duration(seconds: 1));
+    } on TimeoutException {
+      // Best-effort shutdown must not hang the supervisor.
+    }
   }
 
   static Future<void> _terminateProcess(Process process) async {

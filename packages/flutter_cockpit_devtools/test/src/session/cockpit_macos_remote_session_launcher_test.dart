@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
@@ -65,8 +66,41 @@ void main() {
     expect(
       invocations,
       contains(
+        'osascript -e tell application id "dev.cockpit.cockpitDemo" to quit',
+      ),
+    );
+    expect(
+      invocations,
+      contains(
         'open -n /workspace/examples/cockpit_demo/build/macos/Build/Products/Debug/cockpit_demo.app',
       ),
+    );
+  });
+
+  test('macos remote session launcher times out slow build stages', () async {
+    final launcher = CockpitMacosRemoteSessionLauncher(
+      flutterVersionReader: () async => '3.38.9',
+      processRunner: (executable, arguments, {String? workingDirectory}) {
+        return Future<ProcessResult>.delayed(
+          const Duration(milliseconds: 150),
+          () => ProcessResult(0, 0, '', ''),
+        );
+      },
+      now: () => DateTime.utc(2026, 3, 24, 12),
+    );
+
+    expect(
+      () => launcher.launch(
+        const CockpitRemoteSessionLaunchOptions(
+          projectDir: '/workspace/examples/cockpit_demo',
+          target: 'cockpit/main.dart',
+          platform: 'macos',
+          deviceId: 'macos',
+          sessionPort: 47331,
+          launchTimeout: Duration(milliseconds: 50),
+        ),
+      ),
+      throwsA(isA<TimeoutException>()),
     );
   });
 }

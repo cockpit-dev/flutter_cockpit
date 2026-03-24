@@ -89,6 +89,81 @@ exit 0
       contains('-f avfoundation'),
     );
   });
+
+  test(
+    'macos recording adapter tolerates quiet startup when ffmpeg keeps running',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_macos_recording_adapter_quiet',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final ffmpegExecutable = await _writeExecutable(
+        directory: tempDir,
+        name: 'ffmpeg',
+        body: r'''
+#!/bin/sh
+script_dir="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
+log_file="$script_dir/ffmpeg.log"
+printf '%s\n' "$*" >> "$log_file"
+if printf '%s' "$*" | grep -q -- '-list_devices true'; then
+  printf '[1] Capture screen 0\n' >&2
+  exit 0
+fi
+output_path=""
+for arg in "$@"; do
+  output_path="$arg"
+done
+trap 'printf "quiet-macos-video" > "$output_path"; exit 0' INT
+while true; do
+  sleep 1
+done
+''',
+      );
+
+      final osascriptExecutable = await _writeExecutable(
+        directory: tempDir,
+        name: 'osascript',
+        body: r'''
+#!/bin/sh
+exit 0
+''',
+      );
+
+      final adapter = CockpitMacosRecordingAdapter(
+        appId: 'dev.cockpit.cockpitDemo',
+        ffmpegExecutable: ffmpegExecutable.path,
+        osascriptExecutable: osascriptExecutable.path,
+        startupTimeout: const Duration(milliseconds: 200),
+        stopTimeout: const Duration(seconds: 2),
+        finalizationPollInterval: const Duration(milliseconds: 10),
+        ffprobeProcessRunner: (executable, arguments) async => ProcessResult(
+          0,
+          0,
+          '{"format":{"duration":"1.500"},"streams":[{"codec_type":"video","nb_frames":"30"}]}',
+          '',
+        ),
+      );
+
+      final session = await adapter.startRecording(
+        const CockpitRecordingRequest(
+          purpose: CockpitRecordingPurpose.acceptance,
+          name: 'quiet-startup-demo',
+          attachToStep: true,
+        ),
+      );
+      final result = await adapter.stopRecording();
+
+      expect(session.state, CockpitRecordingState.recording);
+      expect(result.state, CockpitRecordingState.completed);
+      expect(
+          File(result.sourceFilePath!).readAsStringSync(), 'quiet-macos-video');
+    },
+  );
 }
 
 Future<File> _writeExecutable({

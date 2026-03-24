@@ -167,4 +167,28 @@ void main() {
 
     expect(disposeCalled, 1);
   });
+
+  test('dispose does not hang on a stuck shutdown hook', () async {
+    final stdoutController = StreamController<String>();
+    final stderrController = StreamController<String>();
+    final exitCode = Completer<int>();
+
+    final client = CockpitFlutterRunMachineClient(
+      stdoutLines: stdoutController.stream,
+      stderrLines: stderrController.stream,
+      exitCode: exitCode.future,
+      requestWriter: (_) async {},
+      closeProcess: () => Completer<void>().future,
+    );
+
+    await stdoutController.close();
+    await stderrController.close();
+    exitCode.complete(0);
+
+    final stopwatch = Stopwatch()..start();
+    await client.dispose();
+    stopwatch.stop();
+
+    expect(stopwatch.elapsed, lessThan(const Duration(seconds: 2)));
+  });
 }

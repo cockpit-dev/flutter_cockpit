@@ -17,7 +17,7 @@ final class CockpitMacosRecordingAdapter
     CockpitRecordingProcessRunner? ffprobeProcessRunner,
     CockpitRecordingTempFileFactory tempFileFactory =
         cockpitCreateRecordingTempFile,
-    Duration startupTimeout = const Duration(seconds: 5),
+    Duration startupTimeout = const Duration(seconds: 12),
     Duration stopTimeout = const Duration(seconds: 10),
     Duration finalizationPollInterval = const Duration(milliseconds: 100),
     Duration activationSettleDelay = const Duration(milliseconds: 350),
@@ -95,6 +95,12 @@ final class CockpitMacosRecordingAdapter
     unawaited(process.stdout.drain<void>());
 
     final startupCompleter = Completer<void>();
+    var processExited = false;
+    unawaited(
+      process.exitCode.then((_) {
+        processExited = true;
+      }),
+    );
     final stderrSubscription = process.stderr
         .transform(utf8.decoder)
         .transform(const LineSplitter())
@@ -114,6 +120,15 @@ final class CockpitMacosRecordingAdapter
           );
         }),
       ]).timeout(_startupTimeout);
+    } on TimeoutException {
+      if (processExited) {
+        await stderrSubscription.cancel();
+        process.kill(ProcessSignal.sigkill);
+        rethrow;
+      }
+      // Some host ffmpeg builds stay silent until they are stopped even though
+      // recording is already active. Treat a still-running process as a valid,
+      // bounded best-effort startup and let stop/finalization decide success.
     } on Object {
       await stderrSubscription.cancel();
       process.kill(ProcessSignal.sigkill);
@@ -143,8 +158,11 @@ final class CockpitMacosRecordingAdapter
     }
 
     try {
-      process.kill(ProcessSignal.sigint);
-      await process.exitCode.timeout(_stopTimeout);
+      final didStopGracefully = await _requestGracefulStop(process);
+      if (!didStopGracefully) {
+        process.kill(ProcessSignal.sigint);
+        await process.exitCode.timeout(_stopTimeout);
+      }
 
       final hasOutput = await cockpitWaitForNonEmptyFile(
         outputFile,
@@ -250,6 +268,17 @@ final class CockpitMacosRecordingAdapter
 
     final finalProbe = await _probeRecordingTimeline(outputFile.path);
     return finalProbe != null && finalProbe.durationMs > 0;
+  }
+
+  Future<bool> _requestGracefulStop(Process process) async {
+    try {
+      process.stdin.writeln('q');
+      await process.stdin.flush();
+      await process.exitCode.timeout(_stopTimeout);
+      return true;
+    } on Object {
+      return false;
+    }
   }
 
   Future<_CockpitRecordingTimelineProbe?> _probeRecordingTimeline(
