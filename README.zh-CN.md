@@ -35,33 +35,15 @@
 
 仓库自带了一个 AI 工作流 skill，路径是 `skills/flutter-cockpit/`。这个目录只是仓库里的源码资产；仅仅克隆仓库并不会让你的宿主 AI 自动启用这个 skill。
 
-如果你想在 AI 宿主里使用它，需要把这个目录安装或链接到宿主的个人 skill 目录，然后重启宿主让它重新扫描。
+如果你想在 AI 宿主里使用它，需要把这个目录安装或链接到“当前宿主实际扫描的 skill 目录”，或者让宿主直接按路径加载这个目录。
 
-Codex：
+具体安装方式是宿主相关的，因此正式说明统一放在：
 
-```bash
-mkdir -p ~/.codex/skills
-ln -s /absolute/path/to/flutter_cockpit/skills/flutter-cockpit \
-  ~/.codex/skills/flutter-cockpit
-```
+- [`skills/flutter-cockpit/INSTALL.md`](skills/flutter-cockpit/INSTALL.md)
 
-一些较新的 Codex 环境会使用 `~/.agents/skills/` 做原生发现，而不是 `~/.codex/skills/`。以你当前宿主实际扫描的目录为准。
+这份安装说明是按“宿主优先”写的：当前 agent 应先识别自己所在的 host，再确认该 host 扫描哪个本地 skill 目录，然后把 `skills/flutter-cockpit/` 安装进去。Codex 和 Claude Code 只是常见示例，不是唯一目标。
 
-Claude Code：
-
-```bash
-mkdir -p ~/.claude/skills
-ln -s /absolute/path/to/flutter_cockpit/skills/flutter-cockpit \
-  ~/.claude/skills/flutter-cockpit
-```
-
-如果你更想复制而不是软链：
-
-```bash
-cp -R skills/flutter-cockpit ~/.codex/skills/flutter-cockpit
-```
-
-如果你的宿主支持按路径直接加载 repo 内 skill，也可以直接引用 `skills/flutter-cockpit/SKILL.md`。需要明确的边界是：
+需要明确的边界是：
 
 - 仓库负责维护 `skills/flutter-cockpit/` 这份 skill 源码
 - 你的 AI 宿主负责发现、安装与激活

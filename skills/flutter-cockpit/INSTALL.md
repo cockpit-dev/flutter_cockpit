@@ -4,26 +4,39 @@ This directory is the source-controlled skill asset:
 
 - `skills/flutter-cockpit/`
 
-Installing the skill means linking or copying **this whole directory** into the current host's personal skill directory.
+Installing the skill means linking or copying **this whole directory** into the current host's skill-discovery directory.
 
-## Agent-Specific Target Directory
+## Host-First Rule
 
-Choose the destination based on the current AI host:
+Do not assume the current agent is Codex or Claude Code.
+
+The current agent should:
+
+1. identify the active host
+2. determine which directory that host scans for personal or local skills
+3. install `skills/flutter-cockpit/` into that directory, or configure the host to load this directory directly by path
+
+If the host supports repo-local skill loading by path, it may be able to load this directory directly without copying or linking it into a separate skill directory.
+
+## Typical Skill Directories
+
+These are common examples, not universal rules:
 
 - **Codex**
   - prefer `~/.agents/skills/flutter-cockpit`
-  - fall back to `~/.codex/skills/flutter-cockpit` if that is the directory your Codex host scans
+  - some setups still use `~/.codex/skills/flutter-cockpit`
 - **Claude Code**
   - `~/.claude/skills/flutter-cockpit`
-
-If the host supports repo-local skill loading by path, it may also be able to load this directory directly without copying or linking it into a personal skill directory.
+- **Other hosts**
+  - use that host's documented personal-skill or local-skill directory
+  - if the host supports direct path loading, use `skills/flutter-cockpit/` itself
 
 ## Preferred Install Method
 
 Use a symlink so the installed skill stays in sync with the repository copy.
 
 1. Resolve the absolute path of this directory.
-2. Pick the correct destination for the current host.
+2. Determine the current host's skill-discovery directory.
 3. Create the destination parent directory if needed.
 4. Create or replace the symlink.
 5. Restart the host so it rescans skills.
@@ -36,7 +49,15 @@ Set the source directory first:
 SKILL_SRC="/absolute/path/to/flutter_cockpit/skills/flutter-cockpit"
 ```
 
-### Codex
+### Generic Template
+
+```bash
+SKILL_DEST="/path/to/current-host-skill-directory/flutter-cockpit"
+mkdir -p "$(dirname "$SKILL_DEST")"
+ln -sfn "$SKILL_SRC" "$SKILL_DEST"
+```
+
+### Codex Examples
 
 Preferred native-discovery location:
 
@@ -52,7 +73,7 @@ mkdir -p ~/.codex/skills
 ln -sfn "$SKILL_SRC" ~/.codex/skills/flutter-cockpit
 ```
 
-### Claude Code
+### Claude Code Example
 
 ```bash
 mkdir -p ~/.claude/skills
@@ -64,10 +85,10 @@ ln -sfn "$SKILL_SRC" ~/.claude/skills/flutter-cockpit
 If symlinks are not appropriate in the current environment:
 
 ```bash
-cp -R "$SKILL_SRC" ~/.agents/skills/flutter-cockpit
+SKILL_DEST="/path/to/current-host-skill-directory/flutter-cockpit"
+mkdir -p "$(dirname "$SKILL_DEST")"
+cp -R "$SKILL_SRC" "$SKILL_DEST"
 ```
-
-Adjust the destination directory to match the current host.
 
 ## Verification
 
@@ -80,6 +101,7 @@ After installation:
    - `examples/`
    - `pressure-scenarios.md`
 4. Do not assume the skill is active until the host has restarted or rescanned skills.
+5. If the host still does not discover the skill, verify that you chose the correct skill-discovery directory for that host.
 
 ## Boundary
 
