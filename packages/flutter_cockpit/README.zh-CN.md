@@ -34,6 +34,14 @@ dependencies:
 
 ## 基础接入
 
+对于已有 Flutter 应用，推荐使用低心智负担的双入口模式：
+
+- 生产入口继续保持在 `lib/main.dart`
+- 额外新增一个 `cockpit/main.dart` 作为 cockpit 开发入口
+- `cockpit/` 入口直接复用 `lib/` 里的应用根组件，不要求你重构应用结构
+
+这样可以把 cockpit bootstrap 和正常生产入口分开，同时避免引入第二个 app shell。
+
 在已接入的 Flutter 应用里，优先使用 Flutter 入口：
 
 ```dart
@@ -50,6 +58,13 @@ Future<void> main() async {
 ```
 
 如果应用在挂 UI 之前还需要先初始化别的服务，可以先调 `FlutterCockpit.ensureInitialized(...)`。当你需要更细粒度地控制运行时组合方式时，仍然可以使用 `FlutterCockpitApp`、`FlutterCockpitRoot`。
+
+典型的开发/生产命令可以这样分开：
+
+```bash
+flutter run -t cockpit/main.dart
+flutter build apk --release -t lib/main.dart
+```
 
 除非显式设置 `ownsRuntime: true`，否则 `FlutterCockpitApp` 在卸载时不会 tear down 共享 runtime。这样 AI 的长会话在 root rebuild 或临时 host 组合变化下仍然稳定。
 

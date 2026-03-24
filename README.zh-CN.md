@@ -31,6 +31,13 @@
 - `docs/`
   - bundle contract、设计文档与实现计划
 
+对大多数应用，推荐采用低心智负担的双入口模式：生产入口继续放在 `lib/main.dart`，只把 cockpit 专用 bootstrap 放到 `cockpit/main.dart`。当前 example 就是按这个模式组织的：
+
+- `examples/cockpit_demo/lib/main.dart`
+  - 纯生产入口
+- `examples/cockpit_demo/cockpit/main.dart`
+  - 供 AI 控制、热重载、probe/diff 和验收流程使用的 cockpit 开发入口
+
 ## 安装仓库自带 Skill
 
 仓库自带了一个 AI 工作流 skill，路径是 `skills/flutter-cockpit/`。这个目录只是仓库里的源码资产；仅仅克隆仓库并不会让你的宿主 AI 自动启用这个 skill。
@@ -322,7 +329,7 @@ rebuild diagnostics 仍然是显式 opt-in。只有在 runtime bootstrap 通过 
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   launch-remote-session \
   --project-dir examples/cockpit_demo \
-  --target lib/main.dart \
+  --target cockpit/main.dart \
   --platform android \
   --android-device-id emulator-5554 \
   --session-port 48331 \
@@ -347,6 +354,11 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 - 发现到的 Android application ID 或 iOS bundle ID
 
 这个 handle 有意和 task-run bundle 分离。它存在于任何 task-run 之前，目标就是让后续 host 侧命令共享一次 bootstrap 结果。
+
+在这条推荐模式下：
+
+- AI 开发/调试使用 `flutter run -t cockpit/main.dart`
+- 生产构建使用 `flutter build ... -t lib/main.dart`
 
 example 应用现在证明的是根级别接入，而不是到处套 `CockpitSurface` wrapper，同时也换成了生产风格 Todo workflow，而不是早期的窄表单 demo。核心 widget tests 覆盖 root runtime 行为、Todo CRUD 流程、settings 持久化、截图挂接和 remote bridge 行为。devtools tests 则覆盖 bundle writing、`delivery.json` 和 CLI 驱动的 control scripts。
 
