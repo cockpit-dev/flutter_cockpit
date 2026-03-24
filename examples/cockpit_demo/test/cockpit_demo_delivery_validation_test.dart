@@ -496,7 +496,7 @@ CockpitRunTaskRequest _runTaskRequest({required String platform}) {
       platform: platform,
       deviceId: platform == 'android' ? 'emulator-5554' : 'ios-simulator',
       projectDir: '/workspace/examples/cockpit_demo',
-      target: 'lib/main.dart',
+      target: 'cockpit/main.dart',
       appId: platform == 'android'
           ? 'dev.cockpit.cockpit_demo'
           : 'dev.cockpit.cockpitDemo',
