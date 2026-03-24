@@ -10,6 +10,11 @@ import 'package:cockpit_demo/src/cockpit_demo_app.dart';
 import 'support/cockpit_demo_test_support.dart';
 
 void main() {
+  test('ships a dedicated cockpit development entrypoint', () {
+    expect(File('cockpit/main.dart').existsSync(), isTrue);
+    expect(File('cockpit/cockpit_bootstrap.dart').existsSync(), isTrue);
+  });
+
   testWidgets('records a todo flow and writes a task bundle', (tester) async {
     var tick = 0;
     final database = CockpitDemoDatabase.inMemory();
