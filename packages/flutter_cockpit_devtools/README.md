@@ -1,5 +1,7 @@
 # flutter_cockpit_devtools
 
+[简体中文](README.zh-CN.md)
+
 `flutter_cockpit_devtools` is the host-side companion package for `flutter_cockpit`.
 
 It turns app-side runtime instrumentation into AI-consumable workflows:

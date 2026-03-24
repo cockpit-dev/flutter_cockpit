@@ -1,5 +1,7 @@
 # flutter_cockpit
 
+[简体中文](README.zh-CN.md)
+
 `flutter_cockpit` provides the in-app runtime layer for AI-driven Flutter development workflows.
 
 It focuses on low-intrusion integration inside a Flutter app:

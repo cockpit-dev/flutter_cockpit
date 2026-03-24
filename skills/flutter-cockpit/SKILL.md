@@ -175,6 +175,7 @@ Stop and correct your workflow if you catch yourself thinking:
 ## Examples
 
 - `examples/flutter-app-setup.md`
+- `examples/host-devtools-setup.md`
 - `examples/runtime-validation.md`
 - `examples/acceptance-delivery.md`
 - `examples/failure-with-evidence.md`
