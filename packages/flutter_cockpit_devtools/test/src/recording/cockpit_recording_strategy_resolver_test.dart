@@ -76,11 +76,45 @@ void main() {
     },
   );
 
+  test('uses macos host recording when a macos session handle is provided', () {
+    final remoteAdapter = _FakeRecordingAdapter();
+    final macosAdapter = _FakeRecordingAdapter();
+    final resolver = CockpitRecordingStrategyResolver(
+      remoteAdapterFactory: (client) => remoteAdapter,
+      adbAdapterFactory: (deviceId) => _FakeRecordingAdapter(),
+      simctlAdapterFactory: (deviceId) => _FakeRecordingAdapter(),
+      macosAdapterFactory: (appId) => macosAdapter,
+    );
+
+    final adapter = resolver.resolve(
+      platform: 'macos',
+      recording: request,
+      client: CockpitRemoteSessionClient(
+        baseUri: Uri.parse('http://127.0.0.1:47331'),
+      ),
+      sessionHandle: CockpitRemoteSessionHandle(
+        platform: 'macos',
+        deviceId: 'macos',
+        projectDir: '/workspace/examples/cockpit_demo',
+        target: 'cockpit/main.dart',
+        appId: 'dev.cockpit.cockpitDemo',
+        host: '127.0.0.1',
+        hostPort: 47331,
+        devicePort: 47331,
+        baseUrl: 'http://127.0.0.1:47331',
+        launchedAt: DateTime.utc(2026, 3, 24),
+      ),
+    );
+
+    expect(adapter, same(macosAdapter));
+  });
+
   test('returns null when the script does not request recording', () {
     final resolver = CockpitRecordingStrategyResolver(
       remoteAdapterFactory: (client) => _FakeRecordingAdapter(),
       adbAdapterFactory: (deviceId) => _FakeRecordingAdapter(),
       simctlAdapterFactory: (deviceId) => _FakeRecordingAdapter(),
+      macosAdapterFactory: (appId) => _FakeRecordingAdapter(),
     );
 
     final adapter = resolver.resolve(
