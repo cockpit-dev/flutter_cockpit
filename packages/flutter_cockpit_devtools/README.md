@@ -9,7 +9,7 @@ It turns app-side runtime instrumentation into AI-consumable workflows:
 - CLI commands for launch, query, run, snapshot collection, task orchestration, and validation
 - MCP tools for AI-native access to the same workflows
 - task-run bundle writing and summary reading
-- host-side screenshot and recording adapters for Android emulators and iOS Simulators
+- host-side screenshot and recording adapters for Android emulators, iOS Simulators, and local macOS, Windows, and Linux desktop runs
 - artifact validation, including screenshot, recording, and keyframe coverage checks
 
 ## Installation

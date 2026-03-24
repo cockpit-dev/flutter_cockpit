@@ -9,7 +9,7 @@
 - 用于 launch、query、run、snapshot collection、task orchestration 和 validation 的 CLI 命令
 - 用于 AI 原生接入同一套工作流的 MCP tools
 - task-run bundle 写入与 summary 读取
-- 面向 Android emulator 与 iOS Simulator 的 host 侧截图和录屏 adapter
+- 面向 Android emulator、iOS Simulator 以及本地 macOS、Windows、Linux desktop 运行的 host 侧截图和录屏 adapter
 - artifact validation，包括截图、视频和关键帧覆盖率校验
 
 ## 安装

@@ -11,8 +11,8 @@ The current slice now proves three evidence paths:
 - in-app native acceptance recording on Android and iOS, written into the standard task-run bundle for later delivery tooling
 - a remote session bridge so host-side tools can inspect and control a running app over HTTP
 - a remote recording workflow so host-side tools can start a recording, execute commands, stop the recording, and persist the resulting video inside the same task-run bundle
-- host-side recording fallback for remote runs so Android emulators, iOS Simulators, and local macOS runs can still produce acceptance videos when in-app recording is not the right path
-- a bootstrap workflow so host-side tools can launch the app themselves, emit a reusable remote-session handle, and drive later commands without any manual pre-start step on Android, iOS Simulator, and macOS
+- host-side recording fallback for remote runs so Android emulators, iOS Simulators, and local macOS, Windows, and Linux runs can still produce acceptance videos when in-app recording is not the right path
+- a bootstrap workflow so host-side tools can launch the app themselves, emit a reusable remote-session handle, and drive later commands without any manual pre-start step on Android, iOS Simulator, and local macOS, Windows, and Linux desktop runs
 
 The repository still does not try to solve every platform capability yet, but the protocol and bundle format are now shaped for later host-side automation and remote orchestration.
 
@@ -305,6 +305,8 @@ For host-side runs, `run-remote-control-script` accepts an optional `recording` 
 - Android with `--android-device-id`: host recording through `adb screenrecord`
 - iOS with `--ios-device-id`: host recording through `xcrun simctl io recordVideo`
 - macOS with `--platform macos`: host-preferred screenshot/recording adapters, with remote screenshot or synthesized timeline-video fallback when host tooling cannot produce stable media on the current machine
+- Windows with `--platform windows`: host-preferred screenshot/recording adapters built around PowerShell activation plus desktop capture/recording tooling
+- Linux with `--platform linux`: host-preferred screenshot/recording adapters built around `wmctrl`, X11 desktop capture, and ffmpeg-based recording
 - otherwise: remote in-app recording through the app session
 
 Regardless of which strategy is chosen, the resulting video is copied into the local task-run bundle, keyframes are extracted from the recorded timeline, and the final evidence set is summarized through the same `delivery.json` fields.
@@ -352,7 +354,7 @@ For this recommended single-package pattern:
 - keep your normal production build target unchanged instead of teaching AI to assume a fixed path
 
 The example app now proves root-level integration without per-page `CockpitSurface` wrappers and uses a production-style Todo workflow instead of a narrow form demo. Core widget tests cover root runtime behavior, Todo CRUD flows, settings persistence, screenshot attachment, and remote bridge behavior. Devtools tests cover bundle writing, `delivery.json`, and CLI-driven control scripts.
-The example app now also contains generated Android and iOS host projects so native plugin bridges can be compiled in a real app shell.
+The example app now also contains generated Android, iOS, macOS, Windows, and Linux host projects so native plugin bridges can be compiled in a real app shell.
 The repository now also ships a `skills/flutter-cockpit/` asset that teaches AI how to use the validated workflow instead of treating the skill as a future integration detail.
 
 ## Current Limits
@@ -361,10 +363,10 @@ The current implementation is intentionally narrow:
 
 - supported execution path: in-app control through an instrumented Flutter app
 - supported external control path: remote HTTP bridge to a running instrumented app
-- supported bootstrap path: host-side app launch for Android emulators, iOS Simulators, and local macOS desktop runs, with reusable session-handle JSON output
+- supported bootstrap path: host-side app launch for Android emulators, iOS Simulators, and local macOS, Windows, and Linux desktop runs, with reusable session-handle JSON output
 - supported screenshot paths: Flutter-view capture and in-app native acceptance screenshots
-- supported recording paths: in-app native acceptance recording plus host-side remote fallback for Android emulators, iOS Simulators, and macOS desktop runs; when host recording cannot finalize, bundle writing can synthesize a bounded timeline video from captured screenshots so the delivery gate still fails closed on missing evidence
-- not implemented yet: Linux and Windows host loops, Android/iOS host automation beyond launch and recording, physical iPhone host recording, remote device orchestration, chat-channel delivery
+- supported recording paths: in-app native acceptance recording plus host-side remote fallback for Android emulators, iOS Simulators, and macOS, Windows, and Linux desktop runs; when host recording cannot finalize, bundle writing can synthesize a bounded timeline video from captured screenshots so the delivery gate still fails closed on missing evidence
+- not implemented yet: Android/iOS host automation beyond launch and recording, physical iPhone host recording, remote device orchestration, chat-channel delivery
 
 Those capabilities are reserved behind adapter interfaces and the existing bundle contract so later phases can extend the system without replacing the protocol surface.
 

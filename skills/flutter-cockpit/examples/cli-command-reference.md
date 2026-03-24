@@ -49,6 +49,21 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --output-json /tmp/flutter_cockpit/development_session.json
 ```
 
+Desktop (macOS, Windows, or Linux):
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  launch-development-session \
+  --project-dir /abs/path/to/flutter_app \
+  --target cockpit/main.dart \
+  --platform macos \
+  --session-port 47331 \
+  --launch-timeout-seconds 120 \
+  --output-json /tmp/flutter_cockpit/development_session.json
+```
+
+Use `--platform windows` or `--platform linux` for the other desktop hosts.
+
 Required flags:
 - `--project-dir`
 - `--platform`
@@ -171,6 +186,21 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --output-json /tmp/flutter_cockpit/session.json
 ```
 
+Desktop (macOS, Windows, or Linux):
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  launch-remote-session \
+  --project-dir /abs/path/to/flutter_app \
+  --target cockpit/main.dart \
+  --platform macos \
+  --session-port 47331 \
+  --launch-timeout-seconds 120 \
+  --output-json /tmp/flutter_cockpit/session.json
+```
+
+Use `--platform windows` or `--platform linux` for the other desktop hosts.
+
 ### 2. Query remote-session health
 
 Using the saved handle:
@@ -249,6 +279,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 Useful optional flags:
 - `--android-device-id` for Android host forwarding
 - `--ios-device-id` for iOS Simulator host recording
+- no device-id flag is needed for macOS, Windows, or Linux desktop runs
 
 ## Task Workflow
 

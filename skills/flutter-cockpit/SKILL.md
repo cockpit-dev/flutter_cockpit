@@ -52,7 +52,7 @@ Follow this order every time:
    When you inspect or patch app-side integration, prefer a single `FlutterCockpitApp(config: ..., child: MyApp())` bootstrap path. Treat direct `FlutterCockpitRoot` composition as an advanced escape hatch, not the default recommendation.
    When the app is not integrated yet, start from `examples/flutter-app-setup.md` instead of inventing a one-off bootstrap pattern.
    When you need the exact CLI flags or a copy-ready command template, read `examples/cli-command-reference.md` instead of guessing command arguments from memory.
-   Current host-launched bootstrap paths are first-class on Android emulators, iOS Simulators, and local macOS runs. On macOS, omit mobile device-id flags and point the launcher directly at the desktop target.
+   Current host-launched bootstrap paths are first-class on Android emulators, iOS Simulators, and local macOS, Windows, and Linux desktop runs. On desktop platforms, omit mobile device-id flags and point the launcher directly at the desktop target.
 3. `baseline`
    Capture session status and current route or app state. For verification or acceptance work, require a baseline screenshot and decide whether video evidence matters.
 4. `execute`

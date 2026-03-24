@@ -53,6 +53,8 @@ Current first-class host bootstrap paths include:
 - Android emulators
 - iOS Simulators
 - local macOS desktop runs
+- local Windows desktop runs
+- local Linux desktop runs
 
 Current first-class recording delivery paths include:
 
@@ -60,6 +62,8 @@ Current first-class recording delivery paths include:
 - Android emulator host recording via `adb screenrecord`
 - iOS Simulator host recording via `xcrun simctl io recordVideo`
 - macOS host-preferred screenshot/recording with bounded fallback to remote screenshot or synthesized timeline video when host tooling cannot yield stable media on the current machine
+- Windows host-preferred screenshot/recording with bounded fallback to synthesized timeline video when desktop tooling cannot yield stable media on the current machine
+- Linux host-preferred screenshot/recording with bounded fallback to synthesized timeline video when desktop tooling cannot yield stable media on the current machine
 
 The skill must not require capabilities that are not implemented today.
 

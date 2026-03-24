@@ -20,7 +20,7 @@ If you need exact CLI flags or minimal JSON payload templates while following th
 
 ## Example Commands
 
-For iterative development work:
+For iterative development work on a desktop host:
 
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
@@ -36,7 +36,9 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --profile interactive
 ```
 
-For remote runtime verification:
+Use the same shape for `--platform windows` or `--platform linux`.
+
+For remote runtime verification on a desktop host:
 
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
