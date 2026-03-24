@@ -76,6 +76,73 @@ void main() {
     expect(adapter, isA<CockpitHostPreferredCaptureAdapter>());
   });
 
+  test('uses windows host capture when a windows session handle is provided',
+      () {
+    final remoteAdapter = _FakeCaptureAdapter();
+    final windowsAdapter = _FakeCaptureAdapter();
+    final resolver = CockpitCaptureStrategyResolver(
+      remoteAdapterFactory: (client) => remoteAdapter,
+      adbAdapterFactory: (deviceId) => _FakeCaptureAdapter(),
+      simctlAdapterFactory: (deviceId) => _FakeCaptureAdapter(),
+      macosAdapterFactory: (appId) => _FakeCaptureAdapter(),
+      windowsAdapterFactory: (appId) => windowsAdapter,
+    );
+
+    final adapter = resolver.resolve(
+      platform: 'windows',
+      client: CockpitRemoteSessionClient(
+        baseUri: Uri.parse('http://127.0.0.1:47331'),
+      ),
+      sessionHandle: CockpitRemoteSessionHandle(
+        platform: 'windows',
+        deviceId: 'windows',
+        projectDir: '/workspace/examples/cockpit_demo',
+        target: 'cockpit/main.dart',
+        appId: 'cockpit_demo',
+        host: '127.0.0.1',
+        hostPort: 47331,
+        devicePort: 47331,
+        baseUrl: 'http://127.0.0.1:47331',
+        launchedAt: DateTime.utc(2026, 3, 24),
+      ),
+    );
+
+    expect(adapter, isA<CockpitHostPreferredCaptureAdapter>());
+  });
+
+  test('uses linux host capture when a linux session handle is provided', () {
+    final remoteAdapter = _FakeCaptureAdapter();
+    final linuxAdapter = _FakeCaptureAdapter();
+    final resolver = CockpitCaptureStrategyResolver(
+      remoteAdapterFactory: (client) => remoteAdapter,
+      adbAdapterFactory: (deviceId) => _FakeCaptureAdapter(),
+      simctlAdapterFactory: (deviceId) => _FakeCaptureAdapter(),
+      macosAdapterFactory: (appId) => _FakeCaptureAdapter(),
+      linuxAdapterFactory: (appId) => linuxAdapter,
+    );
+
+    final adapter = resolver.resolve(
+      platform: 'linux',
+      client: CockpitRemoteSessionClient(
+        baseUri: Uri.parse('http://127.0.0.1:47331'),
+      ),
+      sessionHandle: CockpitRemoteSessionHandle(
+        platform: 'linux',
+        deviceId: 'linux',
+        projectDir: '/workspace/examples/cockpit_demo',
+        target: 'cockpit/main.dart',
+        appId: 'cockpit_demo',
+        host: '127.0.0.1',
+        hostPort: 47331,
+        devicePort: 47331,
+        baseUrl: 'http://127.0.0.1:47331',
+        launchedAt: DateTime.utc(2026, 3, 24),
+      ),
+    );
+
+    expect(adapter, isA<CockpitHostPreferredCaptureAdapter>());
+  });
+
   test('falls back to remote capture when no host context is available', () {
     final remoteAdapter = _FakeCaptureAdapter();
     final resolver = CockpitCaptureStrategyResolver(

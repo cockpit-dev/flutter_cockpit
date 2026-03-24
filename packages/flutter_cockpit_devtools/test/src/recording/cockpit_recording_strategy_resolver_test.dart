@@ -109,6 +109,75 @@ void main() {
     expect(adapter, same(macosAdapter));
   });
 
+  test('uses windows host recording when a windows session handle is provided',
+      () {
+    final remoteAdapter = _FakeRecordingAdapter();
+    final windowsAdapter = _FakeRecordingAdapter();
+    final resolver = CockpitRecordingStrategyResolver(
+      remoteAdapterFactory: (client) => remoteAdapter,
+      adbAdapterFactory: (deviceId) => _FakeRecordingAdapter(),
+      simctlAdapterFactory: (deviceId) => _FakeRecordingAdapter(),
+      macosAdapterFactory: (appId) => _FakeRecordingAdapter(),
+      windowsAdapterFactory: (appId) => windowsAdapter,
+    );
+
+    final adapter = resolver.resolve(
+      platform: 'windows',
+      recording: request,
+      client: CockpitRemoteSessionClient(
+        baseUri: Uri.parse('http://127.0.0.1:47331'),
+      ),
+      sessionHandle: CockpitRemoteSessionHandle(
+        platform: 'windows',
+        deviceId: 'windows',
+        projectDir: '/workspace/examples/cockpit_demo',
+        target: 'cockpit/main.dart',
+        appId: 'cockpit_demo',
+        host: '127.0.0.1',
+        hostPort: 47331,
+        devicePort: 47331,
+        baseUrl: 'http://127.0.0.1:47331',
+        launchedAt: DateTime.utc(2026, 3, 24),
+      ),
+    );
+
+    expect(adapter, same(windowsAdapter));
+  });
+
+  test('uses linux host recording when a linux session handle is provided', () {
+    final remoteAdapter = _FakeRecordingAdapter();
+    final linuxAdapter = _FakeRecordingAdapter();
+    final resolver = CockpitRecordingStrategyResolver(
+      remoteAdapterFactory: (client) => remoteAdapter,
+      adbAdapterFactory: (deviceId) => _FakeRecordingAdapter(),
+      simctlAdapterFactory: (deviceId) => _FakeRecordingAdapter(),
+      macosAdapterFactory: (appId) => _FakeRecordingAdapter(),
+      linuxAdapterFactory: (appId) => linuxAdapter,
+    );
+
+    final adapter = resolver.resolve(
+      platform: 'linux',
+      recording: request,
+      client: CockpitRemoteSessionClient(
+        baseUri: Uri.parse('http://127.0.0.1:47331'),
+      ),
+      sessionHandle: CockpitRemoteSessionHandle(
+        platform: 'linux',
+        deviceId: 'linux',
+        projectDir: '/workspace/examples/cockpit_demo',
+        target: 'cockpit/main.dart',
+        appId: 'cockpit_demo',
+        host: '127.0.0.1',
+        hostPort: 47331,
+        devicePort: 47331,
+        baseUrl: 'http://127.0.0.1:47331',
+        launchedAt: DateTime.utc(2026, 3, 24),
+      ),
+    );
+
+    expect(adapter, same(linuxAdapter));
+  });
+
   test('returns null when the script does not request recording', () {
     final resolver = CockpitRecordingStrategyResolver(
       remoteAdapterFactory: (client) => _FakeRecordingAdapter(),
