@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import '../session/cockpit_remote_session_launcher.dart';
 import 'cockpit_flutter_run_machine_event.dart';
 
 final class CockpitFlutterRunMachineRequestException implements Exception {
@@ -50,11 +51,13 @@ final class CockpitFlutterRunMachineClient {
     required String projectDir,
     required String target,
     required String deviceId,
-    String flutterExecutable = 'flutter',
+    String? flutterExecutable,
     List<String> extraArgs = const <String>[],
   }) async {
+    final resolvedFlutterExecutable =
+        flutterExecutable ?? cockpitFlutterExecutable();
     final process = await Process.start(
-        flutterExecutable,
+        resolvedFlutterExecutable,
         <String>[
           'run',
           '--machine',
@@ -87,11 +90,13 @@ final class CockpitFlutterRunMachineClient {
     required String target,
     required String deviceId,
     required String appId,
-    String flutterExecutable = 'flutter',
+    String? flutterExecutable,
     List<String> extraArgs = const <String>[],
   }) async {
+    final resolvedFlutterExecutable =
+        flutterExecutable ?? cockpitFlutterExecutable();
     final process = await Process.start(
-        flutterExecutable,
+        resolvedFlutterExecutable,
         <String>[
           'attach',
           '--machine',

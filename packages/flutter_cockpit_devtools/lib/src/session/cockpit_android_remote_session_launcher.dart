@@ -58,7 +58,7 @@ final class CockpitAndroidRemoteSessionLauncher
 
     final flutterVersion = await _flutterVersionReader();
     await _runRequired(
-        'flutter',
+        cockpitFlutterExecutable(),
         <String>[
           'build',
           'apk',

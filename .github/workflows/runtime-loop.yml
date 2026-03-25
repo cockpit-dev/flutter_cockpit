@@ -157,18 +157,13 @@ jobs:
           emulator-options: >-
             -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot-save
             -camera-back none -camera-front none
-          script: |
-            bash <<'BASH'
-            set -eo pipefail
-            adb devices
-            (
-              cd "$GITHUB_WORKSPACE/packages/flutter_cockpit_devtools"
-              dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
-                validate-task \
-                --config-json "$CONFIG_JSON" \
-                --output-json "$RESULT_JSON"
-            ) 2>&1 | tee "$LOG_PATH"
-            BASH
+          script: >-
+            adb devices &&
+            cd "$GITHUB_WORKSPACE/packages/flutter_cockpit_devtools" &&
+            if dart run flutter_cockpit_devtools:flutter_cockpit_devtools validate-task
+            --config-json "$CONFIG_JSON" --output-json "$RESULT_JSON" >"$LOG_PATH" 2>&1;
+            then cat "$LOG_PATH";
+            else status=$?; cat "$LOG_PATH" || true; exit "$status"; fi
 
       - name: Verify Android smoke result
         run: |

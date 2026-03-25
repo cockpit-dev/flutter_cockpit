@@ -23,7 +23,7 @@ final class CockpitWindowsRemoteSessionLauncher
     CockpitWorkingDirectoryProcessRunner processRunner = _runProcess,
     CockpitWindowsAppExecutablePathResolver appExecutablePathResolver =
         _resolveAppExecutablePath,
-    CockpitDesktopAppStarter appStarter = _startBackgroundProcess,
+    CockpitDesktopAppStarter appStarter = _startDetachedProcess,
     CockpitRemoteSessionStatusReader statusReader =
         cockpitReadRemoteSessionStatus,
     CockpitFlutterVersionReader flutterVersionReader =
@@ -56,7 +56,7 @@ final class CockpitWindowsRemoteSessionLauncher
     final deadline = _now().add(options.launchTimeout);
     final flutterVersion = await _flutterVersionReader();
     await _runRequired(
-      'flutter',
+      cockpitFlutterExecutable(),
       <String>[
         'build',
         'windows',
@@ -152,16 +152,17 @@ final class CockpitWindowsRemoteSessionLauncher
     );
   }
 
-  static Future<void> _startBackgroundProcess({
+  static Future<void> _startDetachedProcess({
     required String executablePath,
     List<String> arguments = const <String>[],
     String? workingDirectory,
     required Duration timeout,
   }) async {
-    final process = await Process.start(
+    await Process.start(
       executablePath,
       arguments,
       workingDirectory: workingDirectory,
+      mode: ProcessStartMode.detached,
     ).timeout(
       timeout,
       onTimeout: () => throw TimeoutException(
@@ -169,9 +170,6 @@ final class CockpitWindowsRemoteSessionLauncher
         timeout,
       ),
     );
-    // Drain stdio so the desktop app can keep running while health polling waits.
-    unawaited(process.stdout.drain<void>());
-    unawaited(process.stderr.drain<void>());
   }
 
   static Future<String> _resolveAppExecutablePath({

@@ -16,6 +16,10 @@ import 'cockpit_windows_remote_session_launcher.dart';
 typedef CockpitRemoteSessionStatusReader = Future<CockpitRemoteSessionStatus>
     Function(Uri baseUri);
 typedef CockpitFlutterVersionReader = Future<String> Function();
+typedef CockpitFlutterCommandRunner = Future<ProcessResult> Function(
+  String executable,
+  List<String> arguments,
+);
 
 abstract interface class CockpitRemoteSessionLauncher {
   Future<CockpitRemoteSessionHandle> launch(
@@ -73,11 +77,22 @@ Future<CockpitRemoteSessionStatus> cockpitReadRemoteSessionStatus(Uri baseUri) {
   return CockpitRemoteSessionClient(baseUri: baseUri).readStatus();
 }
 
-Future<String> cockpitReadActiveFlutterVersion() async {
-  final result = await Process.run('flutter', <String>[
-    '--version',
-    '--machine',
-  ]);
+String cockpitFlutterExecutable({bool? isWindows}) {
+  return (isWindows ?? Platform.isWindows) ? 'flutter.bat' : 'flutter';
+}
+
+Future<String> cockpitReadActiveFlutterVersion({
+  CockpitFlutterCommandRunner processRunner = Process.run,
+  bool? isWindows,
+}) async {
+  final result = await processRunner(
+      cockpitFlutterExecutable(
+        isWindows: isWindows,
+      ),
+      <String>[
+        '--version',
+        '--machine',
+      ]);
   if (result.exitCode != 0) {
     throw StateError(
       'Unable to resolve Flutter version: ${result.stderr ?? result.stdout}',
