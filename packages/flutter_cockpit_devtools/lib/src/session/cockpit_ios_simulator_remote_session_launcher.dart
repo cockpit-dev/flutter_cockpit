@@ -1,11 +1,10 @@
 import 'dart:io';
 
-import 'package:path/path.dart' as p;
-
 import 'cockpit_android_remote_session_launcher.dart';
 import 'cockpit_remote_session_handle.dart';
 import 'cockpit_remote_session_launch_options.dart';
 import 'cockpit_remote_session_launcher.dart';
+import 'cockpit_session_path.dart';
 
 typedef CockpitIosBundleIdResolver = Future<String> Function(
     {required String appBundlePath});
@@ -60,7 +59,8 @@ final class CockpitIosSimulatorRemoteSessionLauncher
         ],
         workingDirectory: options.projectDir);
 
-    final appBundlePath = p.join(
+    final pathContext = cockpitSessionPathContext(options.projectDir);
+    final appBundlePath = pathContext.join(
       options.projectDir,
       'build',
       'ios',
@@ -134,10 +134,11 @@ final class CockpitIosSimulatorRemoteSessionLauncher
   static Future<String> _resolveBundleId({
     required String appBundlePath,
   }) async {
+    final pathContext = cockpitSessionPathContext(appBundlePath);
     final result = await Process.run('/usr/libexec/PlistBuddy', <String>[
       '-c',
       'Print :CFBundleIdentifier',
-      p.join(appBundlePath, 'Info.plist'),
+      pathContext.join(appBundlePath, 'Info.plist'),
     ]);
     if (result.exitCode != 0) {
       throw StateError(

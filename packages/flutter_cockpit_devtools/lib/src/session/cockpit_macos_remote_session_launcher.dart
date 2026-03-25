@@ -1,12 +1,11 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:path/path.dart' as p;
-
 import 'cockpit_android_remote_session_launcher.dart';
 import 'cockpit_remote_session_handle.dart';
 import 'cockpit_remote_session_launch_options.dart';
 import 'cockpit_remote_session_launcher.dart';
+import 'cockpit_session_path.dart';
 
 typedef CockpitMacosBundleIdResolver = Future<String> Function({
   required String appBundlePath,
@@ -174,10 +173,11 @@ final class CockpitMacosRemoteSessionLauncher
   static Future<String> _resolveBundleId({
     required String appBundlePath,
   }) async {
+    final pathContext = cockpitSessionPathContext(appBundlePath);
     final result = await Process.run('/usr/libexec/PlistBuddy', <String>[
       '-c',
       'Print :CFBundleIdentifier',
-      p.join(appBundlePath, 'Contents', 'Info.plist'),
+      pathContext.join(appBundlePath, 'Contents', 'Info.plist'),
     ]);
     if (result.exitCode != 0) {
       throw StateError(
@@ -190,8 +190,16 @@ final class CockpitMacosRemoteSessionLauncher
   static Future<String> _resolveAppBundlePath({
     required String projectDir,
   }) async {
+    final pathContext = cockpitSessionPathContext(projectDir);
     final productsDirectory = Directory(
-      p.join(projectDir, 'build', 'macos', 'Build', 'Products', 'Debug'),
+      pathContext.join(
+        projectDir,
+        'build',
+        'macos',
+        'Build',
+        'Products',
+        'Debug',
+      ),
     );
     if (!productsDirectory.existsSync()) {
       throw StateError(

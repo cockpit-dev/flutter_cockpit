@@ -2,12 +2,11 @@
 
 import 'dart:io';
 
-import 'package:path/path.dart' as p;
-
 import '../remote/cockpit_android_port_forwarder.dart';
 import 'cockpit_remote_session_handle.dart';
 import 'cockpit_remote_session_launch_options.dart';
 import 'cockpit_remote_session_launcher.dart';
+import 'cockpit_session_path.dart';
 
 typedef CockpitWorkingDirectoryProcessRunner = Future<ProcessResult> Function(
   String executable,
@@ -73,12 +72,13 @@ final class CockpitAndroidRemoteSessionLauncher
         ],
         workingDirectory: options.projectDir);
 
-    final buildDirectory = p.join(options.projectDir, 'build');
+    final pathContext = cockpitSessionPathContext(options.projectDir);
+    final buildDirectory = pathContext.join(options.projectDir, 'build');
     final applicationId = await _applicationIdResolver(
       projectDir: options.projectDir,
       buildDirectory: buildDirectory,
     );
-    final apkPath = p.join(
+    final apkPath = pathContext.join(
       buildDirectory,
       'app',
       'outputs',
@@ -164,9 +164,10 @@ final class CockpitAndroidRemoteSessionLauncher
     required String projectDir,
     required String buildDirectory,
   }) async {
+    final pathContext = cockpitSessionPathContext(projectDir);
     final candidates = <String>[
-      p.join(projectDir, 'android', 'app', 'build.gradle.kts'),
-      p.join(projectDir, 'android', 'app', 'build.gradle'),
+      pathContext.join(projectDir, 'android', 'app', 'build.gradle.kts'),
+      pathContext.join(projectDir, 'android', 'app', 'build.gradle'),
     ];
 
     for (final candidate in candidates) {

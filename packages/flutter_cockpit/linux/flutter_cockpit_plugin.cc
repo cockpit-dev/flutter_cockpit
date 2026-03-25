@@ -20,10 +20,14 @@
   (G_TYPE_CHECK_INSTANCE_CAST((obj), flutter_cockpit_plugin_get_type(), \
                               FlutterCockpitPlugin))
 
+namespace {
+class CockpitLinuxRecorder;
+}
+
 struct _FlutterCockpitPlugin {
   GObject parent_instance;
   GWeakRef view_ref;
-  class CockpitLinuxRecorder* active_recorder;
+  CockpitLinuxRecorder* active_recorder;
   gint64 recording_started_at_us;
 };
 
@@ -627,7 +631,7 @@ class CockpitLinuxRecorder {
     return success;
   }
 
-  GWeakRef view_ref;
+  GWeakRef view_ref_;
   std::filesystem::path output_path_;
   GstElement* pipeline_ = nullptr;
   GstElement* appsrc_ = nullptr;

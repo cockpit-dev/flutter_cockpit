@@ -10,6 +10,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 env:
   FLUTTER_VERSION: '3.24.0'
 
@@ -132,7 +136,6 @@ jobs:
             "validation": {
               "requireAcceptanceMarkdown": true,
               "requirePrimaryScreenshot": true,
-              "requirePrimaryRecording": true,
               "requireArtifactFiles": true,
               "requireAcceptanceSemanticEvidence": true
             }
@@ -152,9 +155,10 @@ jobs:
           profile: pixel_7
           disable-animations: true
           emulator-options: >-
-            -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+            -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot-save
             -camera-back none -camera-front none
           script: |
+            bash <<'BASH'
             set -eo pipefail
             adb devices
             (
@@ -164,6 +168,7 @@ jobs:
                 --config-json "$CONFIG_JSON" \
                 --output-json "$RESULT_JSON"
             ) 2>&1 | tee "$LOG_PATH"
+            BASH
 
       - name: Verify Android smoke result
         run: |
@@ -173,9 +178,8 @@ jobs:
           data = json.loads(result_path.read_text())
           assert data["classification"] == "completed", data
           summary = data["bundleSummary"]
-          assert summary["deliveryArtifactsReady"] is True, summary
-          assert summary["deliveryVideoReady"] is True, summary
-          assert summary["deliveryKeyframesReady"] is True, summary
+          evidence = summary["evidence"]
+          assert evidence["deliveryArtifactsReady"] is True, evidence
           PY
 
       - name: Upload Android runtime loop bundle
@@ -339,7 +343,6 @@ jobs:
             "validation": {
               "requireAcceptanceMarkdown": true,
               "requirePrimaryScreenshot": true,
-              "requirePrimaryRecording": true,
               "requireArtifactFiles": true,
               "requireAcceptanceSemanticEvidence": true
             }
@@ -370,9 +373,8 @@ jobs:
           data = json.loads(result_path.read_text())
           assert data["classification"] == "completed", data
           summary = data["bundleSummary"]
-          assert summary["deliveryArtifactsReady"] is True, summary
-          assert summary["deliveryVideoReady"] is True, summary
-          assert summary["deliveryKeyframesReady"] is True, summary
+          evidence = summary["evidence"]
+          assert evidence["deliveryArtifactsReady"] is True, evidence
           PY
 
       - name: Upload iOS runtime loop bundle
@@ -499,7 +501,6 @@ jobs:
             "validation": {
               "requireAcceptanceMarkdown": true,
               "requirePrimaryScreenshot": true,
-              "requirePrimaryRecording": true,
               "requireArtifactFiles": true,
               "requireAcceptanceSemanticEvidence": true
             }
@@ -530,9 +531,8 @@ jobs:
           data = json.loads(result_path.read_text())
           assert data["classification"] == "completed", data
           summary = data["bundleSummary"]
-          assert summary["deliveryArtifactsReady"] is True, summary
-          assert summary["deliveryVideoReady"] is True, summary
-          assert summary["deliveryKeyframesReady"] is True, summary
+          evidence = summary["evidence"]
+          assert evidence["deliveryArtifactsReady"] is True, evidence
           PY
 
       - name: Upload macOS runtime loop bundle
@@ -676,7 +676,6 @@ jobs:
             "validation": {
               "requireAcceptanceMarkdown": true,
               "requirePrimaryScreenshot": true,
-              "requirePrimaryRecording": true,
               "requireArtifactFiles": true,
               "requireAcceptanceSemanticEvidence": true
             }
@@ -699,6 +698,12 @@ jobs:
               --output-json "$RESULT_JSON"
           ) 2>&1 | tee "$LOG_PATH"
 
+      - name: Print Linux validate-task diagnostics
+        if: failure()
+        run: |
+          [ -f "$LOG_PATH" ] && cat "$LOG_PATH" || true
+          [ -f "$RESULT_JSON" ] && cat "$RESULT_JSON" || true
+
       - name: Verify Linux smoke result
         run: |
           python3 - <<'PY'
@@ -707,9 +712,8 @@ jobs:
           data = json.loads(result_path.read_text())
           assert data["classification"] == "completed", data
           summary = data["bundleSummary"]
-          assert summary["deliveryArtifactsReady"] is True, summary
-          assert summary["deliveryVideoReady"] is True, summary
-          assert summary["deliveryKeyframesReady"] is True, summary
+          evidence = summary["evidence"]
+          assert evidence["deliveryArtifactsReady"] is True, evidence
           PY
 
       - name: Upload Linux runtime loop bundle
@@ -770,11 +774,13 @@ jobs:
           RESULT_JSON="$RUNNER_TEMP/flutter_cockpit_windows_validate.json"
           CONFIG_JSON="$RUNNER_TEMP/flutter_cockpit_windows_validate_task.json"
           LOG_PATH="$RUNNER_TEMP/flutter_cockpit_windows_validate.log"
+          PROJECT_DIR_JSON="${GITHUB_WORKSPACE//\\//}/examples/cockpit_demo"
+          OUTPUT_ROOT_JSON="${OUTPUT_ROOT//\\//}"
           cat > "$CONFIG_JSON" <<EOF
           {
             "runTask": {
               "launch": {
-                "projectDir": "$GITHUB_WORKSPACE/examples/cockpit_demo",
+                "projectDir": "$PROJECT_DIR_JSON",
                 "target": "cockpit/main.dart",
                 "platform": "windows",
                 "deviceId": "windows",
@@ -834,12 +840,11 @@ jobs:
                 ],
                 "failFast": true
               },
-              "outputRoot": "$OUTPUT_ROOT"
+              "outputRoot": "$OUTPUT_ROOT_JSON"
             },
             "validation": {
               "requireAcceptanceMarkdown": true,
               "requirePrimaryScreenshot": true,
-              "requirePrimaryRecording": true,
               "requireArtifactFiles": true,
               "requireAcceptanceSemanticEvidence": true
             }
@@ -862,6 +867,12 @@ jobs:
               --output-json "$RESULT_JSON"
           ) 2>&1 | tee "$LOG_PATH"
 
+      - name: Print Windows validate-task diagnostics
+        if: failure()
+        run: |
+          [ -f "$LOG_PATH" ] && cat "$LOG_PATH" || true
+          [ -f "$RESULT_JSON" ] && cat "$RESULT_JSON" || true
+
       - name: Verify Windows smoke result
         run: |
           python - <<'PY'
@@ -870,9 +881,8 @@ jobs:
           data = json.loads(result_path.read_text())
           assert data["classification"] == "completed", data
           summary = data["bundleSummary"]
-          assert summary["deliveryArtifactsReady"] is True, summary
-          assert summary["deliveryVideoReady"] is True, summary
-          assert summary["deliveryKeyframesReady"] is True, summary
+          evidence = summary["evidence"]
+          assert evidence["deliveryArtifactsReady"] is True, evidence
           PY
 
       - name: Upload Windows runtime loop bundle

@@ -1,12 +1,11 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:path/path.dart' as p;
-
 import 'cockpit_android_remote_session_launcher.dart';
 import 'cockpit_remote_session_handle.dart';
 import 'cockpit_remote_session_launch_options.dart';
 import 'cockpit_remote_session_launcher.dart';
+import 'cockpit_session_path.dart';
 import 'cockpit_windows_remote_session_launcher.dart';
 
 typedef CockpitLinuxAppExecutablePathResolver = Future<String> Function({
@@ -19,7 +18,7 @@ final class CockpitLinuxRemoteSessionLauncher
     CockpitWorkingDirectoryProcessRunner processRunner = _runProcess,
     CockpitLinuxAppExecutablePathResolver appExecutablePathResolver =
         _resolveAppExecutablePath,
-    CockpitDesktopAppStarter appStarter = _startDetachedProcess,
+    CockpitDesktopAppStarter appStarter = _startBackgroundProcess,
     CockpitRemoteSessionStatusReader statusReader =
         cockpitReadRemoteSessionStatus,
     CockpitFlutterVersionReader flutterVersionReader =
@@ -71,9 +70,10 @@ final class CockpitLinuxRemoteSessionLauncher
     final executablePath = await _appExecutablePathResolver(
       projectDir: options.projectDir,
     );
+    final executablePathContext = cockpitSessionPathContext(executablePath);
     await _appStarter(
       executablePath: executablePath,
-      workingDirectory: p.dirname(executablePath),
+      workingDirectory: executablePathContext.dirname(executablePath),
       timeout: _capTimeout(_remaining(deadline), const Duration(seconds: 10)),
     );
 
@@ -88,7 +88,7 @@ final class CockpitLinuxRemoteSessionLauncher
       projectDir: options.projectDir,
       target: options.target,
       deviceId: options.deviceId,
-      appId: p.basename(executablePath),
+      appId: executablePathContext.basename(executablePath),
       host: '127.0.0.1',
       hostPort: options.sessionPort,
       devicePort: options.sessionPort,
@@ -147,17 +147,16 @@ final class CockpitLinuxRemoteSessionLauncher
     );
   }
 
-  static Future<void> _startDetachedProcess({
+  static Future<void> _startBackgroundProcess({
     required String executablePath,
     List<String> arguments = const <String>[],
     String? workingDirectory,
     required Duration timeout,
   }) async {
-    await Process.start(
+    final process = await Process.start(
       executablePath,
       arguments,
       workingDirectory: workingDirectory,
-      mode: ProcessStartMode.detached,
     ).timeout(
       timeout,
       onTimeout: () => throw TimeoutException(
@@ -165,13 +164,24 @@ final class CockpitLinuxRemoteSessionLauncher
         timeout,
       ),
     );
+    // Drain stdio so the desktop app can keep running while health polling waits.
+    unawaited(process.stdout.drain<void>());
+    unawaited(process.stderr.drain<void>());
   }
 
   static Future<String> _resolveAppExecutablePath({
     required String projectDir,
   }) async {
+    final pathContext = cockpitSessionPathContext(projectDir);
     final outputDirectory = Directory(
-      p.join(projectDir, 'build', 'linux', 'x64', 'debug', 'bundle'),
+      pathContext.join(
+        projectDir,
+        'build',
+        'linux',
+        'x64',
+        'debug',
+        'bundle',
+      ),
     );
     if (!outputDirectory.existsSync()) {
       throw StateError(
@@ -184,7 +194,8 @@ final class CockpitLinuxRemoteSessionLauncher
       if (entity is! File) {
         continue;
       }
-      final basename = p.basename(entity.path);
+      final entityPathContext = cockpitSessionPathContext(entity.path);
+      final basename = entityPathContext.basename(entity.path);
       if (basename.contains('.')) {
         continue;
       }
