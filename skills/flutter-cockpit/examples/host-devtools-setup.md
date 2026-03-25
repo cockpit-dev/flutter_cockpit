@@ -71,4 +71,5 @@ Future<void> main(List<String> args) async {
 - do not add `flutter_cockpit_devtools` to the Flutter app package when the app only needs the in-app runtime
 - use `flutter_cockpit_devtools` in host-side Dart tooling, automation wrappers, MCP adapters, or CI flows
 - prefer the CLI entrypoints unless the host truly needs direct Dart-level access to shared services
+- on desktop hosts, treat app-side native media as the default screenshot/recording path; do not preinstall shell tools unless the workflow explicitly needs a fallback path
 - keep app-side integration in `flutter_cockpit` and host-side orchestration in `flutter_cockpit_devtools`

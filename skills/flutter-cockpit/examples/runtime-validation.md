@@ -38,6 +38,8 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 
 Use the same shape for `--platform windows` or `--platform linux`.
 
+On desktop hosts, the normal screenshot and recording path is app-side native media inside `flutter_cockpit`. Do not assume you need shell screenshot or recording tools just to use the standard desktop validation workflow.
+
 For remote runtime verification on a desktop host:
 
 ```bash
@@ -65,4 +67,5 @@ For Android or iOS Simulator, use the same commands but add the platform-specifi
 - do not assume the app is ready until `query-development-session` or `query-remote-session` confirms it
 - treat the returned status as baseline evidence and preserve that before-state view for later comparison
 - keep high-frequency status reads lightweight; use explicit snapshot or probe collection when richer diagnostics are required
+- on desktop hosts, omit mobile device-id flags and rely on the app-side native media path unless the workflow explicitly needs a bounded fallback
 - if the session is unreachable, classify the result as `blocked_by_environment`

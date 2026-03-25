@@ -65,6 +65,8 @@ Current first-class recording delivery paths include:
 - Windows app-side native window screenshot/recording with bounded fallback to synthesized timeline video when native capture cannot yield stable media on the current machine
 - Linux app-side native window screenshot/recording with bounded fallback to synthesized timeline video when native capture cannot yield stable media on the current machine
 
+For desktop hosts, the contract assumes app-side native media is the default path. The skill must not teach shell-based screenshot or recording setup as if it were required for normal macOS, Windows, or Linux validation.
+
 The skill must not require capabilities that are not implemented today.
 
 ## Mandatory Workflow Stages

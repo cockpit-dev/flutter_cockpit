@@ -1,6 +1,6 @@
 ---
 name: flutter-cockpit
-description: Use when a task needs live Flutter runtime verification, iterative hot-reload debugging, or bundle-backed acceptance evidence instead of code-only reasoning.
+description: Use when a Flutter task must prove live UI, interaction, route, network, or acceptance state with runtime evidence instead of code-only reasoning.
 ---
 
 # Flutter Cockpit
@@ -117,7 +117,9 @@ This applies to hosts such as OpenClaw or any other environment that supports ou
 
 | Situation | Preferred tools | Minimum evidence to read |
 | --- | --- | --- |
+| New app integration | `examples/flutter-app-setup.md` + `examples/host-devtools-setup.md` | cockpit bootstrap path, navigator wiring, remote-session config |
 | Active edit/debug loop | `launch_development_session` -> `reload_development_session` -> `collect_development_probe` -> `compare_development_probe` | latest probe, diff summary, screenshot/visual signals when present |
+| Desktop host run | `launch_development_session` or `launch_remote_session` with `--platform macos|windows|linux` | session status, probe or bundle evidence; desktop media defaults to app-side native capture/recording |
 | Focused runtime triage | `collect_remote_snapshot` | network/runtime summaries, diagnostics artifact paths if exposed |
 | Final acceptance claim | `run_task` -> `validate_task` | `baseline_evidence`, `acceptance_evidence`, `acceptance_delta`, delivery evidence view |
 | User-facing artifact handoff | validated bundle + host attachment/send capability | primary screenshot path, keyframe paths when useful, primary recording path when useful |
@@ -174,6 +176,7 @@ Stop and correct your workflow if you catch yourself thinking:
 - Treating `validate_task` as semantic understanding: `validate_task` is the delivery gate, not the UI reviewer.
 - Treating screenshots as self-explanatory: always use the bounded summaries first, then open diagnostics artifacts when the summaries show ambiguity.
 - Treating unchanged text as unchanged UI: compare `visualSignals` and screenshot digests before concluding an edit had no effect.
+- Assuming desktop media still needs host shell tooling in the default path: macOS, Windows, and Linux now prefer app-side native window screenshot/recording; host adapters are fallback paths, not the primary recommendation.
 - Reporting success from orchestration output: use post-run bundle evidence, not command completion, as the source of truth.
 - Assuming artifact delivery is automatic: `flutter_cockpit` writes artifacts; the surrounding host must explicitly attach or send them if the user should receive the files in-chat.
 
