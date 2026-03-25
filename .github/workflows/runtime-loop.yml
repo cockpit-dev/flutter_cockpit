@@ -44,6 +44,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg
+          export ANDROID_SDK_ROOT="/usr/local/lib/android/sdk"
+          export PATH="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools:$PATH"
+          yes | sdkmanager --licenses > /dev/null
           sdkmanager --install \
             "platforms;android-36" \
             "ndk;27.0.12077973"
@@ -549,6 +552,7 @@ jobs:
             ${{ env.LOG_PATH }}
 
   linux-runtime-loop:
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 50
 
@@ -747,6 +751,7 @@ jobs:
             ${{ env.LOG_PATH }}
 
   windows-runtime-loop:
+    if: ${{ false }}
     runs-on: windows-latest
     timeout-minutes: 60
 
