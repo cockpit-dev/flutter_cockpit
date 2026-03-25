@@ -205,7 +205,6 @@ jobs:
             ${{ env.LOG_PATH }}
 
   ios-runtime-loop:
-    if: ${{ false }}
     runs-on: macos-latest
     timeout-minutes: 75
 
@@ -401,7 +400,6 @@ jobs:
             ${{ env.LOG_PATH }}
 
   macos-runtime-loop:
-    if: ${{ false }}
     runs-on: macos-latest
     timeout-minutes: 60
 
@@ -560,7 +558,6 @@ jobs:
             ${{ env.LOG_PATH }}
 
   linux-runtime-loop:
-    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 50
 
@@ -759,7 +756,6 @@ jobs:
             ${{ env.LOG_PATH }}
 
   windows-runtime-loop:
-    if: ${{ false }}
     runs-on: windows-latest
     timeout-minutes: 60
 
