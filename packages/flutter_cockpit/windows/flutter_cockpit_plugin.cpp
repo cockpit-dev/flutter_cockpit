@@ -121,7 +121,7 @@ std::optional<std::string> GetStringArgument(const EncodableValue* arguments,
 }
 
 int EvenDimension(int value) {
-  const int clamped = std::max(value, 2);
+  const int clamped = (std::max)(value, 2);
   return (clamped % 2 == 0) ? clamped : clamped + 1;
 }
 
@@ -364,7 +364,7 @@ HRESULT CreateVideoWriter(const std::wstring& output_path,
   output_type->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Video);
   output_type->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_H264);
   output_type->SetUINT32(MF_MT_AVG_BITRATE,
-                         std::max(width * height * 8u, 2'000'000u));
+                         (std::max)(width * height * 8u, 2'000'000u));
   output_type->SetUINT32(MF_MT_INTERLACE_MODE, MFVideoInterlace_Progressive);
   MFSetAttributeSize(output_type.Get(), MF_MT_FRAME_SIZE, width, height);
   MFSetAttributeRatio(output_type.Get(), MF_MT_FRAME_RATE, kRecordingFrameRate,
