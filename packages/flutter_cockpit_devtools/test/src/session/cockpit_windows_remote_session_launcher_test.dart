@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:flutter_cockpit_devtools/src/session/cockpit_remote_session_launch_options.dart';
+import 'package:flutter_cockpit_devtools/src/session/cockpit_remote_session_launcher.dart';
 import 'package:flutter_cockpit_devtools/src/session/cockpit_windows_remote_session_launcher.dart';
 import 'package:test/test.dart';
 
@@ -69,7 +70,7 @@ void main() {
     expect(
       buildInvocations,
       contains(
-        'flutter build windows --debug --target cockpit/main.dart --dart-define=FLUTTER_PILOT_REMOTE_ENABLED=true --dart-define=FLUTTER_PILOT_REMOTE_HOST=127.0.0.1 --dart-define=FLUTTER_PILOT_REMOTE_PORT=47331 --dart-define=FLUTTER_PILOT_FLUTTER_VERSION=3.38.9',
+        '${cockpitFlutterExecutable()} build windows --debug --target cockpit/main.dart --dart-define=FLUTTER_PILOT_REMOTE_ENABLED=true --dart-define=FLUTTER_PILOT_REMOTE_HOST=127.0.0.1 --dart-define=FLUTTER_PILOT_REMOTE_PORT=47331 --dart-define=FLUTTER_PILOT_FLUTTER_VERSION=3.38.9',
       ),
     );
     expect(

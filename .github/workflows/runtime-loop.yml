@@ -711,6 +711,23 @@ jobs:
           assert evidence["deliveryArtifactsReady"] is True, evidence
           PY
 
+      - name: Print Linux verify diagnostics
+        if: failure()
+        run: |
+          [ -f "$LOG_PATH" ] && cat "$LOG_PATH" || true
+          [ -f "$RESULT_JSON" ] && cat "$RESULT_JSON" || true
+          APP_PATH="$(
+            find "$GITHUB_WORKSPACE/examples/cockpit_demo/build/linux/x64/debug/bundle" \
+              -maxdepth 1 -type f -perm -111 | sort | head -n 1
+          )"
+          echo "APP_PATH=$APP_PATH"
+          [ -n "$APP_PATH" ] && ldd "$APP_PATH" || true
+          if [ -n "$APP_PATH" ]; then
+            PROBE_LOG="$RUNNER_TEMP/flutter_cockpit_linux_app_probe.log"
+            timeout 15s xvfb-run -a "$APP_PATH" >"$PROBE_LOG" 2>&1 || true
+            [ -f "$PROBE_LOG" ] && cat "$PROBE_LOG" || true
+          fi
+
       - name: Upload Linux runtime loop bundle
         if: always()
         uses: actions/upload-artifact@v4
