@@ -157,11 +157,13 @@ jobs:
           script: |
             set -eo pipefail
             adb devices
-            dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
-              validate-task \
-              --config-json "$CONFIG_JSON" \
-              --output-json "$RESULT_JSON" \
-              2>&1 | tee "$LOG_PATH"
+            (
+              cd "$GITHUB_WORKSPACE/packages/flutter_cockpit_devtools"
+              dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+                validate-task \
+                --config-json "$CONFIG_JSON" \
+                --output-json "$RESULT_JSON"
+            ) 2>&1 | tee "$LOG_PATH"
 
       - name: Verify Android smoke result
         run: |
@@ -352,11 +354,13 @@ jobs:
         timeout-minutes: 30
         run: |
           set -eo pipefail
-          dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
-            validate-task \
-            --config-json "$CONFIG_JSON" \
-            --output-json "$RESULT_JSON" \
-            2>&1 | tee "$LOG_PATH"
+          (
+            cd "$GITHUB_WORKSPACE/packages/flutter_cockpit_devtools"
+            dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+              validate-task \
+              --config-json "$CONFIG_JSON" \
+              --output-json "$RESULT_JSON"
+          ) 2>&1 | tee "$LOG_PATH"
 
       - name: Verify iOS smoke result
         run: |
@@ -510,11 +514,13 @@ jobs:
         timeout-minutes: 25
         run: |
           set -eo pipefail
-          dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
-            validate-task \
-            --config-json "$CONFIG_JSON" \
-            --output-json "$RESULT_JSON" \
-            2>&1 | tee "$LOG_PATH"
+          (
+            cd "$GITHUB_WORKSPACE/packages/flutter_cockpit_devtools"
+            dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+              validate-task \
+              --config-json "$CONFIG_JSON" \
+              --output-json "$RESULT_JSON"
+          ) 2>&1 | tee "$LOG_PATH"
 
       - name: Verify macOS smoke result
         run: |
@@ -685,11 +691,13 @@ jobs:
         timeout-minutes: 25
         run: |
           set -eo pipefail
-          xvfb-run -a dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
-            validate-task \
-            --config-json "$CONFIG_JSON" \
-            --output-json "$RESULT_JSON" \
-            2>&1 | tee "$LOG_PATH"
+          (
+            cd "$GITHUB_WORKSPACE/packages/flutter_cockpit_devtools"
+            xvfb-run -a dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+              validate-task \
+              --config-json "$CONFIG_JSON" \
+              --output-json "$RESULT_JSON"
+          ) 2>&1 | tee "$LOG_PATH"
 
       - name: Verify Linux smoke result
         run: |
@@ -846,11 +854,13 @@ jobs:
         timeout-minutes: 25
         run: |
           set -eo pipefail
-          dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
-            validate-task \
-            --config-json "$CONFIG_JSON" \
-            --output-json "$RESULT_JSON" \
-            2>&1 | tee "$LOG_PATH"
+          (
+            cd "$GITHUB_WORKSPACE/packages/flutter_cockpit_devtools"
+            dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+              validate-task \
+              --config-json "$CONFIG_JSON" \
+              --output-json "$RESULT_JSON"
+          ) 2>&1 | tee "$LOG_PATH"
 
       - name: Verify Windows smoke result
         run: |
