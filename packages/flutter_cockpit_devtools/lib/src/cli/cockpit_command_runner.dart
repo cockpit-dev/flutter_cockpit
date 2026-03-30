@@ -1,6 +1,9 @@
+import 'dart:io';
+
 import 'package:args/command_runner.dart';
 
 import '../application/cockpit_application_service_exception.dart';
+import 'cockpit_cli_help.dart';
 import 'commands/hot_reload_command.dart';
 import 'commands/hot_restart_command.dart';
 import 'commands/inspect_ui_command.dart';
@@ -26,11 +29,9 @@ const int cockpitDataExitCode = 65;
 const int cockpitNoInputExitCode = 66;
 
 final class CockpitCommandRunner {
-  CockpitCommandRunner()
-      : _runner = CommandRunner<int>(
-          'flutter_cockpit_devtools',
-          'Host-side tooling for flutter_cockpit.',
-        )
+  CockpitCommandRunner({StringSink? stderrSink})
+      : _stderrSink = stderrSink ?? stderr,
+        _runner = CockpitCliRootRunner()
           ..addCommand(ListTargetsCommand())
           ..addCommand(LaunchAppCommand())
           ..addCommand(ReadAppCommand())
@@ -51,17 +52,26 @@ final class CockpitCommandRunner {
           ..addCommand(RunScriptCommand());
 
   final CommandRunner<int> _runner;
+  final StringSink _stderrSink;
+
+  String get usage => _runner.usage;
+
+  Map<String, Command<int>> get commands => _runner.commands;
 
   Future<int> run(List<String> args) async {
     try {
       return await _runner.run(args) ?? cockpitSuccessExitCode;
-    } on UsageException {
+    } on UsageException catch (error) {
+      _stderrSink.writeln(error);
       return cockpitUsageExitCode;
-    } on FormatException {
+    } on FormatException catch (error) {
+      _stderrSink.writeln('Error: ${error.message}');
       return cockpitDataExitCode;
-    } on CockpitApplicationServiceException {
+    } on CockpitApplicationServiceException catch (error) {
+      _stderrSink.writeln('Error: ${error.message}');
       return cockpitDataExitCode;
-    } on StateError {
+    } on StateError catch (error) {
+      _stderrSink.writeln('Error: ${error.message}');
       return cockpitDataExitCode;
     }
   }

@@ -4,10 +4,11 @@ import 'dart:io';
 import 'package:args/command_runner.dart';
 
 import '../../application/cockpit_run_task_service.dart';
+import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
-final class RunTaskCommand extends Command<int> {
+final class RunTaskCommand extends CockpitCliCommand {
   RunTaskCommand({CockpitRunTaskService? service, StringSink? stdoutSink})
       : _service = service ?? CockpitRunTaskService(),
         _stdoutSink = stdoutSink ?? stdout {
@@ -32,6 +33,28 @@ final class RunTaskCommand extends Command<int> {
   @override
   String get description =>
       'Run a full flutter_cockpit task workflow including bootstrap, baseline, execution, summary reads, and classification.';
+
+  @override
+  String get summary => 'Launch, drive, classify, and summarize.';
+
+  @override
+  String get category => CockpitCliCategory.delivery;
+
+  @override
+  String get helpWhen =>
+      'Use for one-shot end-to-end execution when the workflow should launch, drive, and classify a task in one call.';
+
+  @override
+  String get helpNeeds =>
+      'A run-task config JSON file that describes launch, script, output_root, and any evidence requirements.';
+
+  @override
+  String get helpExample =>
+      'flutter_cockpit_devtools run-task --config-json /tmp/run_task.json --output-json /tmp/run_task_result.json';
+
+  @override
+  String get helpWrites =>
+      'A structured result with classification, recommended_next_step, and bundle_summary.';
 
   @override
   Future<int> run() async {

@@ -18,16 +18,11 @@ dev_dependencies:
   flutter_cockpit_devtools: any
 ```
 
-## 推荐 CLI
+## CLI
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools launch-app --help
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools read-app --help
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools --help
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-command --help
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-batch --help
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-script --help
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-task --help
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools validate-task --help
 ```
 
 推荐 app-first 闭环：
@@ -40,6 +35,8 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools validate-task --help
 6. 交付时用 `run-script`、`run-task` 或 `validate-task`
 
 CLI JSON 输出统一为 `snake_case`。
+`launch-app` 会先自动探测 `cockpit/main.dart`，找不到再退回 `lib/main.dart`。
+`run-script` 写出的 bundle 只要状态是 `failed`，命令就会非零退出。
 
 已验证可直接运行的 `run-command` 形状：
 

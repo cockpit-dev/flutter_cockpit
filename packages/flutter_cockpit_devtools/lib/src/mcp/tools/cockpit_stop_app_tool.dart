@@ -17,7 +17,7 @@ final class CockpitStopAppTool extends CockpitMcpTool {
   String get name => 'stop_app';
 
   @override
-  String get description => 'Stop a tracked development app.';
+  String get description => 'Stop a tracked development or automation app.';
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{

@@ -9,36 +9,48 @@ import '../application/cockpit_interactive_result_profile.dart';
 
 void cockpitAddRemoteSessionArgs(ArgParser parser) {
   parser
-    ..addOption('base-url', help: 'Base URL for the running app session.')
+    ..addOption(
+      'base-url',
+      help:
+          'Base URL for the running app session. Use this when you do not have session-json.',
+    )
     ..addOption(
       'session-json',
       help:
-          'Optional session handle JSON file emitted by launch-remote-session.',
+          'Recommended session handle JSON file emitted by launch-remote-session.',
     )
     ..addOption(
       'android-device-id',
-      help: 'Optional Android device ID used to set up adb port forwarding.',
+      help:
+          'Android device ID for adb port forwarding when the app is not directly reachable.',
     )
     ..addOption(
       'output-json',
-      help: 'Optional file path where the command result should be written.',
+      help:
+          'Write JSON to a file instead of stdout. Prefer this for larger results.',
     );
 }
 
 void cockpitAddAppArgs(ArgParser parser) {
   parser
-    ..addOption('base-url', help: 'Base URL for the running app.')
+    ..addOption(
+      'base-url',
+      help:
+          'Base URL for the running app. Use this when you do not have app-json.',
+    )
     ..addOption(
       'app-json',
-      help: 'Optional app handle JSON file emitted by launch-app.',
+      help: 'Recommended app handle JSON file emitted by launch-app.',
     )
     ..addOption(
       'android-device-id',
-      help: 'Optional Android device ID used to set up adb port forwarding.',
+      help:
+          'Android device ID for adb port forwarding when the app is not directly reachable.',
     )
     ..addOption(
       'output-json',
-      help: 'Optional file path where the command result should be written.',
+      help:
+          'Write JSON to a file instead of stdout. Prefer this for larger results.',
     );
 }
 
@@ -81,7 +93,79 @@ void cockpitAddProfileArg(
         .map((profile) => profile.jsonValue)
         .toList(growable: false),
     defaultsTo: defaultProfile.jsonValue,
+    help:
+        'Result layer: minimal=core only, standard=core plus small UI, inspect=summary plus failures and delta, evidence=full diagnostics and snapshot.',
   );
+}
+
+void cockpitAddSnapshotOptionsArgs(
+  ArgParser parser, {
+  String inlineOption = 'snapshot-options-json',
+  String fileOption = 'snapshot-options-file',
+}) {
+  parser
+    ..addOption(
+      inlineOption,
+      help: 'Inline JSON that overrides snapshot detail or collection limits.',
+    )
+    ..addOption(
+      fileOption,
+      help:
+          'Path to a JSON file with snapshot detail or collection limit overrides.',
+    );
+}
+
+void cockpitAddCompareAgainstSnapshotRefArg(
+  ArgParser parser, {
+  String optionName = 'compare-against-snapshot-ref',
+}) {
+  parser.addOption(
+    optionName,
+    help:
+        'Existing snapshot_ref to diff against instead of reading only the latest state.',
+  );
+}
+
+void cockpitAddCommandJsonArgs(ArgParser parser) {
+  parser
+    ..addOption(
+      'command-json',
+      help:
+          'Inline JSON object for one command. Prefer --command-file when the payload is large.',
+    )
+    ..addOption(
+      'command-file',
+      help: 'Path to a JSON file for one command object.',
+    );
+}
+
+void cockpitAddCommandsJsonArgs(ArgParser parser) {
+  parser
+    ..addOption(
+      'commands-json',
+      help:
+          'Inline JSON array of commands. Prefer --commands-file when the payload is large.',
+    )
+    ..addOption(
+      'commands-file',
+      help: 'Path to a JSON file with a command array.',
+    );
+}
+
+void cockpitAddRecordingArgs(
+  ArgParser parser, {
+  String inlineOption = 'recording-json',
+  String fileOption = 'recording-file',
+}) {
+  parser
+    ..addOption(
+      inlineOption,
+      help: 'Inline JSON object that describes the recording request.',
+    )
+    ..addOption(
+      fileOption,
+      help: 'Path to a JSON file that describes the recording request.',
+    );
 }
 
 CockpitInteractiveResultProfile cockpitReadResultProfile(

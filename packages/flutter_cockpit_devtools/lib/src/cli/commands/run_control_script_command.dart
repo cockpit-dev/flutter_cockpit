@@ -87,12 +87,19 @@ final class RunControlScriptCommand extends Command<int> {
       commands: script.commands,
     );
 
-    await _writer.writeBundle(
+    final bundleDir = await _writer.writeBundle(
       bundle: runResult.bundle,
       outputRoot: outputRoot,
       artifactPayloads: runResult.artifactPayloads,
       artifactSourcePaths: runResult.artifactSourcePaths,
     );
+    if (runResult.bundle.manifest.status == CockpitTaskStatus.failed) {
+      final summary =
+          runResult.bundle.manifest.failureSummary ?? 'Unknown failure.';
+      throw StateError(
+        'Control script bundle failed: $summary See ${bundleDir.path}.',
+      );
+    }
     return cockpitSuccessExitCode;
   }
 

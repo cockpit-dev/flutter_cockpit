@@ -692,6 +692,96 @@ void main() {
       expect(outputDirectories, hasLength(1));
     },
   );
+
+  test('run-script returns non-zero when the written bundle is failed',
+      () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'cockpit_run_remote_cli_failed_bundle',
+    );
+    addTearDown(() async {
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    final appHandleFile = File(p.join(tempDir.path, 'app.json'));
+    await appHandleFile.writeAsString(
+      jsonEncode(
+        CockpitAppHandle(
+          appId: 'remote-demo-app',
+          mode: CockpitAppMode.automation,
+          platform: 'macos',
+          deviceId: 'macos',
+          projectDir: '/workspace/examples/cockpit_demo',
+          target: 'cockpit/main.dart',
+          baseUrl: 'http://127.0.0.1:57331',
+          launchedAt: DateTime.utc(2026, 3, 30),
+          platformAppId: 'dev.cockpit.demo',
+        ).toJson(),
+      ),
+    );
+    final scriptFile = File(p.join(tempDir.path, 'remote_script.json'));
+    await scriptFile.writeAsString(
+      jsonEncode(<String, Object?>{
+        'sessionId': 'remote-script-session',
+        'taskId': 'remote-script-task',
+        'platform': 'macos',
+        'environment': const CockpitEnvironment(
+          platform: 'macos',
+          flutterVersion: '3.38.9',
+          dartVersion: '3.10.8',
+        ).toJson(),
+        'commands': <Map<String, Object?>>[],
+      }),
+    );
+
+    final bundleDir = Directory(p.join(tempDir.path, 'bundle'))
+      ..createSync(recursive: true);
+    final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
+      ..addCommand(
+        RunScriptCommand(
+          runScript: (_) async => CockpitRunRemoteControlScriptResult(
+            sessionHandle: null,
+            bundleDir: bundleDir,
+            manifest: CockpitRunManifest(
+              sessionId: 'remote-script-session',
+              taskId: 'remote-script-task',
+              platform: 'macos',
+              status: CockpitTaskStatus.failed,
+              startedAt: DateTime.utc(2026, 3, 30),
+              finishedAt: DateTime.utc(2026, 3, 30, 0, 0, 1),
+              failureSummary: 'The script assertion failed.',
+            ),
+            handoff: const <String, Object?>{},
+            delivery: const <String, Object?>{},
+            artifactPaths: CockpitBundleArtifactPaths(),
+          ),
+        ),
+      );
+
+    final exitCode = await _runCommandRunner(runner, [
+      'run-script',
+      '--app-json',
+      appHandleFile.path,
+      '--script-json',
+      scriptFile.path,
+      '--output-root',
+      tempDir.path,
+    ]);
+
+    expect(exitCode, isNonZero);
+  });
+}
+
+Future<int> _runCommandRunner(
+  CommandRunner<int> runner,
+  List<String> args,
+) async {
+  try {
+    return await runner.run(args) ?? 0;
+  } on Object {
+    return 1;
+  }
 }
 
 final class _FakeAndroidPortForwarder extends CockpitAndroidPortForwarder {

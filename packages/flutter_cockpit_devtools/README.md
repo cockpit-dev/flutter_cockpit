@@ -18,19 +18,14 @@ dev_dependencies:
   flutter_cockpit_devtools: any
 ```
 
-## Recommended CLI
+## CLI
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools launch-app --help
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools read-app --help
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools --help
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-command --help
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-batch --help
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-script --help
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-task --help
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools validate-task --help
 ```
 
-Recommended app loop:
+Recommended app-first loop:
 
 1. `launch-app --app-json /tmp/app.json`
 2. `read-app --app-json /tmp/app.json --profile minimal`
@@ -40,6 +35,8 @@ Recommended app loop:
 6. `run-script`, `run-task`, or `validate-task` for delivery
 
 CLI JSON output is normalized to `snake_case`.
+`launch-app` auto-detects `cockpit/main.dart` first, then `lib/main.dart`.
+`run-script` exits non-zero when the written bundle status is `failed`.
 
 Minimal verified `run-command` shape:
 

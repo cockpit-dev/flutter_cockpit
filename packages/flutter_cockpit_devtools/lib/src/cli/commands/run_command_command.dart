@@ -1,12 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:args/command_runner.dart';
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
 import '../../application/cockpit_interactive_result_profile.dart';
 import '../../application/cockpit_json_key_normalizer.dart';
 import '../../application/cockpit_run_command_service.dart';
+import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
@@ -14,7 +14,7 @@ typedef CockpitRunCommandFunction = Future<CockpitRunCommandResult> Function(
   CockpitRunCommandRequest request,
 );
 
-final class RunCommandCommand extends Command<int> {
+final class RunCommandCommand extends CockpitCliCommand {
   RunCommandCommand({
     CockpitRunCommandService? service,
     CockpitRunCommandFunction? runCommand,
@@ -26,12 +26,9 @@ final class RunCommandCommand extends Command<int> {
       argParser,
       defaultProfile: CockpitInteractiveResultProfileName.standard,
     );
-    argParser
-      ..addOption('command-json')
-      ..addOption('command-file')
-      ..addOption('snapshot-options-json')
-      ..addOption('snapshot-options-file')
-      ..addOption('compare-against-snapshot-ref');
+    cockpitAddCommandJsonArgs(argParser);
+    cockpitAddSnapshotOptionsArgs(argParser);
+    cockpitAddCompareAgainstSnapshotRefArg(argParser);
   }
 
   final CockpitRunCommandFunction _runCommand;
@@ -42,7 +39,33 @@ final class RunCommandCommand extends Command<int> {
 
   @override
   String get description =>
-      'Execute one cockpit command against a running app with layered interactive results.';
+      'Execute one cockpit command against a running app with layered results.';
+
+  @override
+  String get summary => 'Run one command against the app.';
+
+  @override
+  String get category => CockpitCliCategory.coreLoop;
+
+  @override
+  String get helpWhen =>
+      'Drive one UI or assertion step, then immediately inspect the result and choose the next move.';
+
+  @override
+  String get helpNeeds =>
+      'An app reference plus one command JSON object from --command-json or --command-file.';
+
+  @override
+  String get helpShape =>
+      'command.json = {"command_id":"assert-inbox","command_type":"assert_text","parameters":{"text":"Inbox"}}';
+
+  @override
+  String get helpExample =>
+      'flutter_cockpit_devtools run-command --app-json /tmp/app.json --command-file /tmp/command.json --profile standard';
+
+  @override
+  String get helpWrites =>
+      'Command outcome, optional UI and diagnostics layers, and maybe snapshot_ref.';
 
   @override
   Future<int> run() async {

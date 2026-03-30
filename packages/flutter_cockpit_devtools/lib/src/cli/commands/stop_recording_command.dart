@@ -1,9 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:args/command_runner.dart';
-
 import '../../application/cockpit_stop_recording_service.dart';
+import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
@@ -12,7 +11,7 @@ typedef CockpitStopRecordingFunction = Future<CockpitStopRecordingResult>
   CockpitStopRecordingRequest request,
 );
 
-final class StopRecordingCommand extends Command<int> {
+final class StopRecordingCommand extends CockpitCliCommand {
   StopRecordingCommand({
     CockpitStopRecordingService? service,
     CockpitStopRecordingFunction? stop,
@@ -30,6 +29,27 @@ final class StopRecordingCommand extends Command<int> {
 
   @override
   String get description => 'Stop the active recording session.';
+
+  @override
+  String get summary => 'Stop recording and write artifacts.';
+
+  @override
+  String get category => CockpitCliCategory.evidence;
+
+  @override
+  String get helpWhen =>
+      'Finalize the active recording after the interesting part of the flow has completed.';
+
+  @override
+  String get helpNeeds => 'An app reference with an active recording session.';
+
+  @override
+  String get helpExample =>
+      'flutter_cockpit_devtools stop-recording --app-json /tmp/app.json';
+
+  @override
+  String get helpWrites =>
+      'Recording completion data and artifact references for the emitted video.';
 
   @override
   Future<int> run() async {

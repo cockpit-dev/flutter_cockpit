@@ -259,6 +259,85 @@ void main() {
       expect(exitCode, isNonZero);
     },
   );
+
+  test(
+    'run-control-script returns non-zero when the written bundle is failed',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_script_cli_failed_bundle',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final scriptFile = File(p.join(tempDir.path, 'control_script.json'));
+      await scriptFile.writeAsString(
+        jsonEncode(<String, Object?>{
+          'sessionId': 'cli-session',
+          'taskId': 'cli-task',
+          'platform': 'android',
+          'environment': const CockpitEnvironment(
+            platform: 'android',
+            flutterVersion: '3.38.9',
+            dartVersion: '3.10.8',
+          ).toJson(),
+          'commands': <Map<String, Object?>>[
+            CockpitCommand(
+              commandId: 'cmd-open',
+              commandType: CockpitCommandType.tap,
+              locator: const CockpitLocator(
+                kind: CockpitLocatorKind.cockpitId,
+                value: 'open_form_button',
+              ),
+            ).toJson(),
+          ],
+        }),
+      );
+
+      final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
+        ..addCommand(
+          RunControlScriptCommand(
+            automationAdapter: _FakeAutomationAdapter(
+              capabilities: CockpitCapabilities(
+                platform: 'android',
+                transportType: 'inApp',
+                supportsInAppControl: true,
+                supportsFlutterViewCapture: false,
+                supportsNativeScreenCapture: false,
+                supportsHostAutomation: false,
+                supportedCommands: const [CockpitCommandType.tap],
+                supportedLocatorStrategies: const [
+                  CockpitLocatorKind.cockpitId,
+                ],
+              ),
+              resultsByCommandId: <String, CockpitCommandResult>{
+                'cmd-open': CockpitCommandResult(
+                  success: false,
+                  commandId: 'cmd-open',
+                  commandType: CockpitCommandType.tap,
+                  durationMs: 12,
+                  error: CockpitCommandError.assertionFailed(
+                    message: 'Open button was not visible.',
+                  ),
+                ),
+              },
+            ),
+          ),
+        );
+
+      final exitCode = await _runCommandRunner(runner, [
+        'run-control-script',
+        '--script-json',
+        scriptFile.path,
+        '--output-root',
+        tempDir.path,
+      ]);
+
+      expect(exitCode, isNonZero);
+    },
+  );
 }
 
 Future<int> _runCommandRunner(

@@ -1,3 +1,5 @@
+import 'package:flutter_cockpit/flutter_cockpit.dart';
+
 import '../../application/cockpit_app_reference_resolver.dart';
 import '../../application/cockpit_run_remote_control_script_service.dart';
 import '../../application/cockpit_session_registry.dart';
@@ -93,6 +95,16 @@ final class CockpitRunRemoteControlScriptTool extends CockpitMcpTool {
           ),
         ),
       );
+      if (result.manifest.status == CockpitTaskStatus.failed) {
+        throw CockpitMcpError.internal(
+          'Control script bundle failed.',
+          details: <String, Object?>{
+            'bundle_dir': result.bundleDir.path,
+            'failure_summary':
+                result.manifest.failureSummary ?? 'Unknown failure.',
+          },
+        );
+      }
 
       return cockpitMcpResult(
         text: 'Remote control script executed and bundle written.',

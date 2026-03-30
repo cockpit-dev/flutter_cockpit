@@ -1466,12 +1466,41 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
     CockpitCommand command,
     Stopwatch stopwatch,
   ) async {
+    final snapshot = _liveSnapshot();
+    final locator = command.locator;
+    if (locator != null) {
+      if (locator.kind == CockpitLocatorKind.route &&
+          snapshot.routeName == locator.value) {
+        return _successExecution(
+          command: command,
+          durationMs: stopwatch.elapsedMilliseconds,
+          locatorResolution: CockpitLocatorResolution(
+            matchedKind: CockpitLocatorKind.route,
+            matchedValue: locator.value,
+          ),
+          snapshot: snapshot.toJson(),
+        );
+      }
+      if (locator.kind == CockpitLocatorKind.text &&
+          _visibleTargetsContainText(_registry.visibleTargets, locator.value)) {
+        return _successExecution(
+          command: command,
+          durationMs: stopwatch.elapsedMilliseconds,
+          locatorResolution: CockpitLocatorResolution(
+            matchedKind: CockpitLocatorKind.text,
+            matchedValue: locator.value,
+          ),
+          snapshot: snapshot.toJson(),
+        );
+      }
+    }
+
     final resolution = await _resolveWithRetry(command);
     if (!resolution.isSuccess) {
       return _failureExecution(
         command: command,
         durationMs: stopwatch.elapsedMilliseconds,
-        snapshot: _liveSnapshot().toJson(),
+        snapshot: snapshot.toJson(),
         error: resolution.error!,
       );
     }

@@ -1,19 +1,19 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:args/command_runner.dart';
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
 import '../../application/cockpit_inspect_ui_service.dart';
-import '../cockpit_command_runner.dart';
 import '../../application/cockpit_json_key_normalizer.dart';
+import '../cockpit_cli_help.dart';
+import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
 typedef CockpitInspectUiFunction = Future<CockpitInspectUiResult> Function(
   CockpitInspectUiRequest request,
 );
 
-final class InspectUiCommand extends Command<int> {
+final class InspectUiCommand extends CockpitCliCommand {
   InspectUiCommand({
     CockpitInspectUiService? service,
     CockpitInspectUiFunction? inspect,
@@ -22,10 +22,8 @@ final class InspectUiCommand extends Command<int> {
         _stdoutSink = stdoutSink ?? stdout {
     cockpitAddAppArgs(argParser);
     cockpitAddProfileArg(argParser);
-    argParser
-      ..addOption('snapshot-options-json')
-      ..addOption('snapshot-options-file')
-      ..addOption('compare-against-snapshot-ref');
+    cockpitAddSnapshotOptionsArgs(argParser);
+    cockpitAddCompareAgainstSnapshotRefArg(argParser);
   }
 
   final CockpitInspectUiFunction _inspect;
@@ -36,7 +34,29 @@ final class InspectUiCommand extends Command<int> {
 
   @override
   String get description =>
-      'Inspect the current UI tree with summary, diagnostics, delta, and snapshot layers.';
+      'Inspect the current UI tree with richer layering than read-app.';
+
+  @override
+  String get summary => 'Read richer UI tree and deltas.';
+
+  @override
+  String get category => CockpitCliCategory.coreLoop;
+
+  @override
+  String get helpWhen =>
+      'Escalate from read-app when you need target summaries, diagnostics, or diffs.';
+
+  @override
+  String get helpNeeds =>
+      'An app reference and usually --profile inspect or evidence when minimal status is no longer enough.';
+
+  @override
+  String get helpExample =>
+      'flutter_cockpit_devtools inspect-ui --app-json /tmp/app.json --profile inspect';
+
+  @override
+  String get helpWrites =>
+      'Layered JSON with UI summaries, optional diagnostics, delta, and snapshot_ref.';
 
   @override
   Future<int> run() async {

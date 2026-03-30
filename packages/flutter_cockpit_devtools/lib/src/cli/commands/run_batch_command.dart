@@ -1,12 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:args/command_runner.dart';
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
 import '../../application/cockpit_interactive_result_profile.dart';
 import '../../application/cockpit_json_key_normalizer.dart';
 import '../../application/cockpit_run_batch_service.dart';
+import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
@@ -14,7 +14,7 @@ typedef CockpitRunBatchFunction = Future<CockpitRunBatchResult> Function(
   CockpitRunBatchRequest request,
 );
 
-final class RunBatchCommand extends Command<int> {
+final class RunBatchCommand extends CockpitCliCommand {
   RunBatchCommand({
     CockpitRunBatchService? service,
     CockpitRunBatchFunction? runBatch,
@@ -23,15 +23,24 @@ final class RunBatchCommand extends Command<int> {
         _stdoutSink = stdoutSink ?? stdout {
     cockpitAddAppArgs(argParser);
     cockpitAddProfileArg(argParser);
-    argParser
-      ..addOption('commands-json')
-      ..addOption('commands-file')
-      ..addFlag('fail-fast', defaultsTo: true)
-      ..addOption('recording-json')
-      ..addOption('recording-file')
-      ..addOption('final-profile')
-      ..addOption('final-snapshot-options-json')
-      ..addOption('final-snapshot-options-file');
+    cockpitAddCommandsJsonArgs(argParser);
+    argParser.addFlag(
+      'fail-fast',
+      defaultsTo: true,
+      help:
+          'Stop after the first failed command instead of finishing the full batch.',
+    );
+    cockpitAddRecordingArgs(argParser);
+    argParser.addOption(
+      'final-profile',
+      help:
+          'Optional result profile for the final snapshot emitted after the batch.',
+    );
+    cockpitAddSnapshotOptionsArgs(
+      argParser,
+      inlineOption: 'final-snapshot-options-json',
+      fileOption: 'final-snapshot-options-file',
+    );
   }
 
   final CockpitRunBatchFunction _runBatch;
@@ -43,6 +52,32 @@ final class RunBatchCommand extends Command<int> {
   @override
   String get description =>
       'Execute multiple cockpit commands in order against a running app.';
+
+  @override
+  String get summary => 'Run multiple commands in order.';
+
+  @override
+  String get category => CockpitCliCategory.coreLoop;
+
+  @override
+  String get helpWhen =>
+      'Use for short deterministic sequences where one command per round-trip is too slow.';
+
+  @override
+  String get helpNeeds =>
+      'An app reference plus a JSON array from --commands-json or --commands-file.';
+
+  @override
+  String get helpShape =>
+      'commands.json = [{"command_id":"open-inbox","command_type":"tap","parameters":{"text":"Inbox"}}]; each item may also set result_profile, snapshot_options, or compare_against_snapshot_ref.';
+
+  @override
+  String get helpExample =>
+      'flutter_cockpit_devtools run-batch --app-json /tmp/app.json --commands-file /tmp/commands.json --profile minimal';
+
+  @override
+  String get helpWrites =>
+      'Per-command results, a batch summary, and an optional final snapshot layer.';
 
   @override
   Future<int> run() async {

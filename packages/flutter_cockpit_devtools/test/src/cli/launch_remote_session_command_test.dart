@@ -28,6 +28,8 @@ void main() {
       )..addCommand(
           LaunchRemoteSessionCommand(
             service: CockpitLaunchRemoteSessionService(
+              entrypointResolver:
+                  CockpitEntrypointResolver(exists: (_) => true),
               launcher: _FakeRemoteSessionLauncher(),
               statusReader: (_) async => CockpitRemoteSessionStatus(
                 sessionId: 'launch-demo',
@@ -92,6 +94,7 @@ void main() {
         LaunchRemoteSessionCommand(
           stdoutSink: output,
           service: CockpitLaunchRemoteSessionService(
+            entrypointResolver: CockpitEntrypointResolver(exists: (_) => true),
             launcher: _CapturingRemoteSessionLauncher(
               onLaunch: (options) => capturedOptions = options,
             ),
@@ -152,6 +155,7 @@ void main() {
         LaunchRemoteSessionCommand(
           stdoutSink: output,
           service: CockpitLaunchRemoteSessionService(
+            entrypointResolver: CockpitEntrypointResolver(exists: (_) => true),
             launcher: _CapturingRemoteSessionLauncher(
               onLaunch: (options) => capturedOptions = options,
             ),
@@ -212,6 +216,7 @@ void main() {
         LaunchRemoteSessionCommand(
           stdoutSink: output,
           service: CockpitLaunchRemoteSessionService(
+            entrypointResolver: CockpitEntrypointResolver(exists: (_) => true),
             launcher: _CapturingRemoteSessionLauncher(
               onLaunch: (options) => capturedOptions = options,
             ),

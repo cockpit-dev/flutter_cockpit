@@ -9,6 +9,7 @@ import '../development/cockpit_development_session_status.dart';
 import '../development/cockpit_development_session_supervisor_client.dart';
 import '../remote/cockpit_android_port_forwarder.dart';
 import '../session/cockpit_remote_session_launcher.dart';
+import 'cockpit_entrypoint_resolver.dart';
 
 typedef CockpitDevelopmentSessionLauncher
     = Future<CockpitDevelopmentSessionBootstrap> Function(
@@ -31,16 +32,16 @@ typedef CockpitDelay = Future<void> Function(Duration duration);
 final class CockpitLaunchDevelopmentSessionRequest {
   const CockpitLaunchDevelopmentSessionRequest({
     required this.projectDir,
-    required this.target,
     required this.platform,
     required this.deviceId,
     required this.sessionPort,
+    this.target,
     this.launchTimeout = const Duration(seconds: 120),
     this.persistHandlePath,
   });
 
   final String projectDir;
-  final String target;
+  final String? target;
   final String platform;
   final String deviceId;
   final int sessionPort;
@@ -82,23 +83,38 @@ final class CockpitLaunchDevelopmentSessionService {
         const CockpitAndroidPortForwarder(),
     CockpitFlutterVersionReader flutterVersionReader =
         cockpitReadActiveFlutterVersion,
-  }) : _launcher = launcher ??
+    CockpitEntrypointResolver? entrypointResolver,
+  })  : _launcher = launcher ??
             CockpitDevelopmentSessionDaemonLauncher(
               supervisorStatusReader: (supervisorClient ??
                       CockpitDevelopmentSessionSupervisorClient())
                   .readStatus,
               portForwarder: portForwarder,
               flutterVersionReader: flutterVersionReader,
-            ).launch;
+            ).launch,
+        _entrypointResolver = entrypointResolver ?? CockpitEntrypointResolver();
 
   final CockpitDevelopmentSessionLauncher _launcher;
+  final CockpitEntrypointResolver _entrypointResolver;
 
   Future<CockpitLaunchDevelopmentSessionResult> launch(
     CockpitLaunchDevelopmentSessionRequest request,
   ) async {
-    final bootstrap = await _launcher(request);
+    final resolvedRequest = CockpitLaunchDevelopmentSessionRequest(
+      projectDir: request.projectDir,
+      target: _entrypointResolver.resolve(
+        projectDir: request.projectDir,
+        target: request.target,
+      ),
+      platform: request.platform,
+      deviceId: request.deviceId,
+      sessionPort: request.sessionPort,
+      launchTimeout: request.launchTimeout,
+      persistHandlePath: request.persistHandlePath,
+    );
+    final bootstrap = await _launcher(resolvedRequest);
     final persistedHandlePath = await _persistHandleIfRequested(
-      path: request.persistHandlePath,
+      path: resolvedRequest.persistHandlePath,
       handle: bootstrap.sessionHandle,
     );
 
@@ -227,7 +243,10 @@ final class CockpitDevelopmentSessionDaemonLauncher {
         await _delay(const Duration(milliseconds: 500));
       }
 
-      await activeAttempt.stop();
+      lastFailure = await _stopAttempt(
+        activeAttempt,
+        priorFailure: lastFailure,
+      );
       activeAttempt = null;
       if (DateTime.now().isBefore(deadline)) {
         await _delay(const Duration(seconds: 1));
@@ -235,7 +254,10 @@ final class CockpitDevelopmentSessionDaemonLauncher {
     }
 
     if (activeAttempt != null) {
-      await activeAttempt.stop();
+      lastFailure = await _stopAttempt(
+        activeAttempt,
+        priorFailure: lastFailure,
+      );
     }
     if (lastFailure != null) {
       throw StateError(
@@ -273,7 +295,7 @@ final class CockpitDevelopmentSessionDaemonLauncher {
         '--project-dir',
         request.projectDir,
         '--target',
-        request.target,
+        request.target!,
         '--platform',
         request.platform,
         '--device-id',
@@ -325,5 +347,20 @@ final class CockpitDevelopmentSessionDaemonLauncher {
       return false;
     }
     return error.toLowerCase().contains('startup lock');
+  }
+
+  Future<Object?> _stopAttempt(
+    CockpitSpawnedDevelopmentSupervisor attempt, {
+    required Object? priorFailure,
+  }) async {
+    try {
+      await attempt.stop();
+      return priorFailure;
+    } on Object catch (error) {
+      if (priorFailure != null) {
+        return priorFailure;
+      }
+      return error;
+    }
   }
 }

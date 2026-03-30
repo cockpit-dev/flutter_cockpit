@@ -37,6 +37,7 @@
 3. 做最终完成声明时用 `validate-task`
 
 公共面是 app-first，而不是 session-handle-first。把 `app.json` 持久化下来并跨步骤复用。CLI 和 MCP 输出统一为 `snake_case`。
+`launch-app` 会先自动探测 `cockpit/main.dart`，找不到再退回 `lib/main.dart`。
 
 ## 快速开始
 
@@ -63,7 +64,6 @@ Future<void> main() async {
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   launch-app \
   --project-dir examples/cockpit_demo \
-  --target cockpit/main.dart \
   --platform macos \
   --device-id macos \
   --app-json /tmp/flutter_cockpit/app.json
@@ -107,6 +107,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 - `serve-mcp`
 
 用 `--profile minimal|standard|inspect|evidence` 控制 token 成本。默认先取最小结果，只在需要时升高层级。
+`run-script` 写出的 bundle 只要状态是 `failed`，命令就会非零退出。
 
 ## MCP 公共面
 

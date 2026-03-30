@@ -1,12 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:args/command_runner.dart';
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
 import '../../application/cockpit_interactive_result_profile.dart';
 import '../../application/cockpit_json_key_normalizer.dart';
 import '../../application/cockpit_read_app_service.dart';
+import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
@@ -14,7 +14,7 @@ typedef CockpitReadAppFunction = Future<CockpitReadAppResult> Function(
   CockpitReadAppRequest request,
 );
 
-final class ReadAppCommand extends Command<int> {
+final class ReadAppCommand extends CockpitCliCommand {
   ReadAppCommand({
     CockpitReadAppService? service,
     CockpitReadAppFunction? read,
@@ -26,9 +26,7 @@ final class ReadAppCommand extends Command<int> {
       argParser,
       defaultProfile: CockpitInteractiveResultProfileName.minimal,
     );
-    argParser
-      ..addOption('snapshot-options-json')
-      ..addOption('snapshot-options-file');
+    cockpitAddSnapshotOptionsArgs(argParser);
   }
 
   final CockpitReadAppFunction _read;
@@ -39,7 +37,29 @@ final class ReadAppCommand extends Command<int> {
 
   @override
   String get description =>
-      'Read lightweight app status with optional richer UI layering.';
+      'Read current app state with the smallest useful result profile.';
+
+  @override
+  String get summary => 'Read route and small UI state.';
+
+  @override
+  String get category => CockpitCliCategory.coreLoop;
+
+  @override
+  String get helpWhen =>
+      'Read current route, app_id, and a small UI summary before deciding the next step.';
+
+  @override
+  String get helpNeeds =>
+      'An app reference from --app-json or --base-url. Prefer --profile minimal for routine polling.';
+
+  @override
+  String get helpExample =>
+      'flutter_cockpit_devtools read-app --app-json /tmp/app.json --profile minimal';
+
+  @override
+  String get helpWrites =>
+      'Layered JSON with core app state and optional UI summary or snapshot_ref.';
 
   @override
   Future<int> run() async {

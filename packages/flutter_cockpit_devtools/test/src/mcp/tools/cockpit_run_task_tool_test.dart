@@ -83,7 +83,6 @@ void main() {
       final result = await tool.call(<String, Object?>{
         'launch': <String, Object?>{
           'projectDir': '/workspace/examples/cockpit_demo',
-          'target': 'lib/main.dart',
           'platform': 'android',
           'deviceId': 'emulator-5554',
           'sessionPort': 47331,
@@ -106,6 +105,7 @@ void main() {
       });
 
       expect(capturedRequest?.launch?.deviceId, 'emulator-5554');
+      expect(capturedRequest?.launch?.target, isNull);
       expect(capturedRequest?.baseline.screenshotName, 'baseline');
       expect(capturedRequest?.script.environment, isNull);
       final structuredContent =

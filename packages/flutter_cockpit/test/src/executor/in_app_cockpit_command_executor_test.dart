@@ -1121,6 +1121,34 @@ void main() {
     expect(result.snapshot?['routeName'], '/success');
   });
 
+  test('assertVisible succeeds for the active route without target lookup',
+      () async {
+    final executor = InAppCockpitCommandExecutor(
+      registry: CockpitTargetRegistry(routeName: '/today'),
+    );
+
+    final result = await executor.execute(
+      CockpitCommand(
+        commandId: 'cmd-assert-route',
+        commandType: CockpitCommandType.assertVisible,
+        locator: const CockpitLocator(
+          kind: CockpitLocatorKind.route,
+          value: '/today',
+        ),
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(
+      result.locatorResolution,
+      const CockpitLocatorResolution(
+        matchedKind: CockpitLocatorKind.route,
+        matchedValue: '/today',
+      ),
+    );
+    expect(result.snapshot?['routeName'], '/today');
+  });
+
   test(
     'assertText succeeds even when the live snapshot would truncate the expected text',
     () async {

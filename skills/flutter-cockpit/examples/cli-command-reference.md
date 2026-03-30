@@ -22,7 +22,6 @@ Launch an app and persist `app.json`:
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   launch-app \
   --project-dir /abs/path/to/flutter_app \
-  --target cockpit/main.dart \
   --platform macos \
   --device-id macos \
   --session-port 57331 \
@@ -171,7 +170,9 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools serve-mcp
 ## Notes
 
 - Persist `app.json` and reuse it across commands.
+- `launch-app` auto-detects `cockpit/main.dart` first, then `lib/main.dart`.
 - Default to `--profile minimal` or `standard`.
 - Escalate to `inspect` or `evidence` only when required.
 - `list_apps` is MCP-only; CLI discovery is `app.json`-first.
+- `run-script` exits non-zero when the written bundle status is `failed`.
 - Write command output to `--output-json` when a later AI step must read structured state.

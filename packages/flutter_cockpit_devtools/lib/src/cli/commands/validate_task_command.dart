@@ -4,10 +4,11 @@ import 'dart:io';
 import 'package:args/command_runner.dart';
 
 import '../../application/cockpit_validate_task_service.dart';
+import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
-final class ValidateTaskCommand extends Command<int> {
+final class ValidateTaskCommand extends CockpitCliCommand {
   ValidateTaskCommand({
     CockpitValidateTaskService? service,
     StringSink? stdoutSink,
@@ -34,6 +35,28 @@ final class ValidateTaskCommand extends Command<int> {
   @override
   String get description =>
       'Run a full flutter_cockpit task workflow and validate the persisted bundle as a delivery-ready artifact set.';
+
+  @override
+  String get summary => 'Run task and validate delivery gates.';
+
+  @override
+  String get category => CockpitCliCategory.delivery;
+
+  @override
+  String get helpWhen =>
+      'Use when the output must be delivery-ready, not just executed. This is the strictest one-shot command.';
+
+  @override
+  String get helpNeeds =>
+      'A validate-task config JSON file with the same launch and script inputs as run-task plus validation requirements.';
+
+  @override
+  String get helpExample =>
+      'flutter_cockpit_devtools validate-task --config-json /tmp/validate_task.json --output-json /tmp/validate_task_result.json';
+
+  @override
+  String get helpWrites =>
+      'A structured result with run_task output, validation status, failures, and delivery guidance.';
 
   @override
   Future<int> run() async {

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_cockpit_devtools/src/application/cockpit_launch_development_session_service.dart';
+import 'package:flutter_cockpit_devtools/src/application/cockpit_entrypoint_resolver.dart';
 import 'package:flutter_cockpit_devtools/src/development/cockpit_development_session_handle.dart';
 import 'package:flutter_cockpit_devtools/src/development/cockpit_development_session_status.dart';
 import 'package:flutter_cockpit_devtools/src/development/cockpit_development_session_supervisor_client.dart';
@@ -30,6 +31,7 @@ void main() {
       );
 
       final service = CockpitLaunchDevelopmentSessionService(
+        entrypointResolver: CockpitEntrypointResolver(exists: (_) => true),
         launcher: (request) async {
           expect(request.projectDir, expectedHandle.projectDir);
           expect(request.target, expectedHandle.target);
@@ -65,6 +67,37 @@ void main() {
       expect(persistedJson['supervisorBaseUrl'], 'http://127.0.0.1:59421');
     },
   );
+
+  test('launch service infers cockpit/main.dart when target is omitted',
+      () async {
+    final expectedHandle = _handle(target: 'cockpit/main.dart');
+    final expectedStatus = _readyStatus(expectedHandle);
+
+    final service = CockpitLaunchDevelopmentSessionService(
+      entrypointResolver: CockpitEntrypointResolver(
+        exists: (path) =>
+            path == '/workspace/examples/cockpit_demo/cockpit/main.dart',
+      ),
+      launcher: (request) async {
+        expect(request.target, 'cockpit/main.dart');
+        return CockpitDevelopmentSessionBootstrap(
+          sessionHandle: expectedHandle,
+          status: expectedStatus,
+        );
+      },
+    );
+
+    final result = await service.launch(
+      CockpitLaunchDevelopmentSessionRequest(
+        projectDir: expectedHandle.projectDir,
+        platform: expectedHandle.platform,
+        deviceId: expectedHandle.deviceId,
+        sessionPort: 47331,
+      ),
+    );
+
+    expect(result.sessionHandle.target, 'cockpit/main.dart');
+  });
 
   test(
     'daemon launcher retries by stopping only the failed spawned attempt',
@@ -150,6 +183,55 @@ void main() {
       expect(stopCalls, orderedEquals(<Uri>[firstBaseUri]));
       expect(result.sessionHandle.supervisorBaseUri, secondBaseUri);
       expect(result.status.state, CockpitDevelopmentSessionState.ready);
+    },
+  );
+
+  test(
+    'daemon launcher preserves the original startup failure when stop throws for a detached process',
+    () async {
+      final launcher = CockpitDevelopmentSessionDaemonLauncher(
+        supervisorStatusReader: (_) async {
+          throw StateError('connection refused');
+        },
+        portForwarder: const _StubPortForwarder(57331),
+        flutterVersionReader: () async => '3.39.0',
+        allocatePort: () async => 60011,
+        delay: (_) async {},
+        spawnSupervisor: ({
+          required request,
+          required flutterVersion,
+          required hostPort,
+          required supervisorPort,
+          required supervisorLogFile,
+        }) async {
+          return CockpitSpawnedDevelopmentSupervisor(
+            baseUri: Uri.parse('http://127.0.0.1:$supervisorPort'),
+            stop: () async {
+              throw StateError('Process is detached');
+            },
+          );
+        },
+      );
+
+      await expectLater(
+        () => launcher.launch(
+          const CockpitLaunchDevelopmentSessionRequest(
+            projectDir: '/workspace/examples/cockpit_demo',
+            target: 'lib/main.dart',
+            platform: 'android',
+            deviceId: 'emulator-5554',
+            sessionPort: 47331,
+            launchTimeout: Duration(seconds: 1),
+          ),
+        ),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            contains('connection refused'),
+          ),
+        ),
+      );
     },
   );
 
@@ -428,13 +510,13 @@ final class _ThrowingPortForwarder extends CockpitAndroidPortForwarder {
   }
 }
 
-CockpitDevelopmentSessionHandle _handle() {
+CockpitDevelopmentSessionHandle _handle({String target = 'lib/main.dart'}) {
   return CockpitDevelopmentSessionHandle(
     developmentSessionId: 'dev-session-1',
     platform: 'android',
     deviceId: 'emulator-5554',
     projectDir: '/workspace/examples/cockpit_demo',
-    target: 'lib/main.dart',
+    target: target,
     appId: 'dev.cockpit.cockpit_demo',
     appBaseUrl: 'http://127.0.0.1:57331',
     supervisorBaseUrl: 'http://127.0.0.1:59421',
@@ -444,7 +526,7 @@ CockpitDevelopmentSessionHandle _handle() {
       platform: 'android',
       deviceId: 'emulator-5554',
       projectDir: '/workspace/examples/cockpit_demo',
-      target: 'lib/main.dart',
+      target: target,
       appId: 'dev.cockpit.cockpit_demo',
       host: '127.0.0.1',
       hostPort: 57331,

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_bundle_artifact_paths.dart';
+import 'package:flutter_cockpit_devtools/src/application/cockpit_app_handle.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_launch_remote_session_service.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_query_remote_session_service.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_read_task_bundle_summary_service.dart';
@@ -109,6 +110,117 @@ void main() {
       );
     },
   );
+
+  test('orchestration stops a launched automation app after bundle read',
+      () async {
+    final bundleDir = await Directory.systemTemp.createTemp(
+      'cockpit_task_orchestration_cleanup',
+    );
+    addTearDown(() async {
+      if (bundleDir.existsSync()) {
+        await bundleDir.delete(recursive: true);
+      }
+    });
+
+    final handle = _sessionHandle(platform: 'macos');
+    CockpitAppHandle? stoppedApp;
+    final service = CockpitTaskOrchestrationService(
+      launch: (_) async => CockpitLaunchRemoteSessionResult(
+        sessionHandle: handle,
+        health: _status(
+          sessionId: 'task-orchestration-launch-cleanup',
+          platform: 'macos',
+          route: '/inbox',
+        ),
+      ),
+      query: (_) async => throw UnimplementedError(),
+      runScript: (_) async => _runScriptResult(
+        bundleDir: bundleDir,
+        handle: handle,
+        platform: 'macos',
+        screenshotRelativePath: 'screenshots/acceptance.png',
+        recordingRelativePath: 'recordings/acceptance.mp4',
+      ),
+      readSummary: (_) async => _summary(
+        bundleDir: bundleDir,
+        platform: 'macos',
+        screenshotRelativePath: 'screenshots/acceptance.png',
+        recordingRelativePath: 'recordings/acceptance.mp4',
+        status: CockpitTaskStatus.completed,
+      ),
+      stopAutomationApp: (app) async {
+        stoppedApp = app;
+      },
+    );
+
+    final result = await service.orchestrate(
+      CockpitRunTaskRequest(
+        launch: const CockpitRunTaskLaunchRequest(
+          projectDir: '/workspace/examples/cockpit_demo',
+          platform: 'macos',
+          deviceId: 'macos',
+          sessionPort: 47331,
+        ),
+        script: _script(platform: 'macos'),
+        outputRoot: bundleDir.path,
+        requirements: const CockpitRunTaskEvidenceRequirements(
+          requireScreenshotEvidence: true,
+          requireVideoEvidence: true,
+        ),
+      ),
+    );
+
+    expect(result.classification, CockpitRunTaskClassification.completed);
+    expect(stoppedApp?.mode, CockpitAppMode.automation);
+    expect(stoppedApp?.baseUrl, handle.baseUrl);
+  });
+
+  test(
+      'orchestration still stops a launched automation app when execution fails',
+      () async {
+    final handle = _sessionHandle(platform: 'macos');
+    CockpitAppHandle? stoppedApp;
+    final service = CockpitTaskOrchestrationService(
+      launch: (_) async => CockpitLaunchRemoteSessionResult(
+        sessionHandle: handle,
+        health: _status(
+          sessionId: 'task-orchestration-launch-cleanup-failed',
+          platform: 'macos',
+          route: '/inbox',
+        ),
+      ),
+      query: (_) async => throw UnimplementedError(),
+      runScript: (_) async => throw const CockpitApplicationServiceException(
+        code: 'remoteExecutionFailed',
+        message: 'Command failed.',
+      ),
+      readSummary: (_) async => throw UnimplementedError(),
+      stopAutomationApp: (app) async {
+        stoppedApp = app;
+      },
+    );
+
+    final result = await service.orchestrate(
+      CockpitRunTaskRequest(
+        launch: const CockpitRunTaskLaunchRequest(
+          projectDir: '/workspace/examples/cockpit_demo',
+          platform: 'macos',
+          deviceId: 'macos',
+          sessionPort: 47331,
+        ),
+        script: _script(platform: 'macos'),
+        outputRoot: '/tmp/out',
+      ),
+    );
+
+    expect(
+      result.classification,
+      CockpitRunTaskClassification.blockedByEnvironment,
+    );
+    expect(result.blockedReason, 'Command failed.');
+    expect(stoppedApp?.mode, CockpitAppMode.automation);
+    expect(stoppedApp?.baseUrl, handle.baseUrl);
+  });
 
   test(
     'orchestration reports needs_more_work when required video evidence is missing',

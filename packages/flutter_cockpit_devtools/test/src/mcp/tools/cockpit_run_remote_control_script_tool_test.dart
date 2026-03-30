@@ -137,4 +137,62 @@ void main() {
       ),
     );
   });
+
+  test('run tool treats failed bundle manifests as MCP errors', () async {
+    final bundleDir = Directory.systemTemp.createTempSync(
+      'cockpit_run_remote_control_script_tool_failed',
+    );
+    addTearDown(() async {
+      if (bundleDir.existsSync()) {
+        await bundleDir.delete(recursive: true);
+      }
+    });
+
+    final tool = CockpitRunRemoteControlScriptTool(
+      run: (_) async => CockpitRunRemoteControlScriptResult(
+        sessionHandle: null,
+        bundleDir: bundleDir,
+        manifest: CockpitRunManifest(
+          sessionId: 'run-tool-session',
+          taskId: 'run-tool-task',
+          platform: 'android',
+          status: CockpitTaskStatus.failed,
+          startedAt: DateTime.utc(2026, 3, 21, 0, 0),
+          finishedAt: DateTime.utc(2026, 3, 21, 0, 5),
+          failureSummary: 'Expected text was not visible.',
+        ),
+        handoff: const <String, Object?>{},
+        delivery: const <String, Object?>{},
+        artifactPaths: CockpitBundleArtifactPaths(),
+      ),
+    );
+
+    expect(
+      () => tool.call(<String, Object?>{
+        'base_url': 'http://127.0.0.1:58421',
+        'output_root': '/tmp/out',
+        'script': <String, Object?>{
+          'sessionId': 'run-tool-session',
+          'taskId': 'run-tool-task',
+          'platform': 'android',
+          'environment': const CockpitEnvironment(
+            platform: 'android',
+            flutterVersion: '3.38.9',
+            dartVersion: '3.10.8',
+          ).toJson(),
+          'commands': const <Map<String, Object?>>[],
+          'failFast': true,
+        },
+      }),
+      throwsA(
+        isA<CockpitMcpError>()
+            .having((error) => error.code, 'code', -32000)
+            .having(
+              (error) => error.data['failure_summary'],
+              'failure_summary',
+              'Expected text was not visible.',
+            ),
+      ),
+    );
+  });
 }

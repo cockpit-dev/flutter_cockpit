@@ -26,7 +26,6 @@ final class CockpitLaunchAppTool extends CockpitMcpTool {
         'type': 'object',
         'required': <String>[
           'project_dir',
-          'target',
           'platform',
           'device_id',
           'session_port',
@@ -52,7 +51,7 @@ final class CockpitLaunchAppTool extends CockpitMcpTool {
       final result = await _launch(
         CockpitLaunchAppRequest(
           projectDir: cockpitReadRequiredString(arguments, 'project_dir'),
-          target: cockpitReadRequiredString(arguments, 'target'),
+          target: cockpitReadOptionalString(arguments, 'target'),
           platform: cockpitReadRequiredString(arguments, 'platform'),
           deviceId: cockpitReadRequiredString(arguments, 'device_id'),
           sessionPort: cockpitReadRequiredInt(arguments, 'session_port'),

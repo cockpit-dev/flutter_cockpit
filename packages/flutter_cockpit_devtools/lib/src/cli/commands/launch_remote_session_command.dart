@@ -19,8 +19,8 @@ final class LaunchRemoteSessionCommand extends Command<int> {
       ..addOption('project-dir', help: 'Flutter project directory to launch.')
       ..addOption(
         'target',
-        help: 'Target Dart entrypoint to build and launch.',
-        defaultsTo: 'lib/main.dart',
+        help:
+            'Optional Dart entrypoint. When omitted, flutter_cockpit_devtools tries cockpit/main.dart first, then lib/main.dart.',
       )
       ..addOption(
         'platform',
@@ -67,7 +67,7 @@ final class LaunchRemoteSessionCommand extends Command<int> {
     final result = await _service.launch(
       CockpitLaunchRemoteSessionRequest(
         projectDir: _readRequiredOption('project-dir'),
-        target: _readRequiredOption('target'),
+        target: _readOptionalOption('target'),
         platform: platform,
         deviceId: _resolveDeviceId(platform),
         sessionPort: int.parse(_readRequiredOption('session-port')),

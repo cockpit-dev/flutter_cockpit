@@ -7,20 +7,21 @@ import 'package:path/path.dart' as p;
 import '../session/cockpit_remote_session_handle.dart';
 import '../session/cockpit_remote_session_launch_options.dart';
 import '../session/cockpit_remote_session_launcher.dart';
+import 'cockpit_entrypoint_resolver.dart';
 
 final class CockpitLaunchRemoteSessionRequest {
   const CockpitLaunchRemoteSessionRequest({
     required this.projectDir,
-    required this.target,
     required this.platform,
     required this.deviceId,
     required this.sessionPort,
+    this.target,
     this.launchTimeout = const Duration(seconds: 120),
     this.persistHandlePath,
   });
 
   final String projectDir;
-  final String target;
+  final String? target;
   final String platform;
   final String deviceId;
   final int sessionPort;
@@ -44,19 +45,26 @@ final class CockpitLaunchRemoteSessionService {
   CockpitLaunchRemoteSessionService({
     CockpitRemoteSessionLauncher? launcher,
     CockpitRemoteSessionStatusReader? statusReader,
+    CockpitEntrypointResolver? entrypointResolver,
   })  : _launcher = launcher ?? CockpitPlatformRemoteSessionLauncher(),
-        _statusReader = statusReader ?? cockpitReadRemoteSessionStatus;
+        _statusReader = statusReader ?? cockpitReadRemoteSessionStatus,
+        _entrypointResolver = entrypointResolver ?? CockpitEntrypointResolver();
 
   final CockpitRemoteSessionLauncher _launcher;
   final CockpitRemoteSessionStatusReader _statusReader;
+  final CockpitEntrypointResolver _entrypointResolver;
 
   Future<CockpitLaunchRemoteSessionResult> launch(
     CockpitLaunchRemoteSessionRequest request,
   ) async {
+    final resolvedTarget = _entrypointResolver.resolve(
+      projectDir: request.projectDir,
+      target: request.target,
+    );
     final sessionHandle = await _launcher.launch(
       CockpitRemoteSessionLaunchOptions(
         projectDir: request.projectDir,
-        target: request.target,
+        target: resolvedTarget,
         platform: request.platform,
         deviceId: request.deviceId,
         sessionPort: request.sessionPort,

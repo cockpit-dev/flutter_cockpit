@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_launch_remote_session_service.dart';
+import 'package:flutter_cockpit_devtools/src/application/cockpit_entrypoint_resolver.dart';
 import 'package:flutter_cockpit_devtools/src/session/cockpit_remote_session_handle.dart';
 import 'package:flutter_cockpit_devtools/src/session/cockpit_remote_session_launch_options.dart';
 import 'package:flutter_cockpit_devtools/src/session/cockpit_remote_session_launcher.dart';
@@ -58,6 +59,7 @@ void main() {
 
       final outputFile = File(p.join(tempDir.path, 'session_handle.json'));
       final service = CockpitLaunchRemoteSessionService(
+        entrypointResolver: CockpitEntrypointResolver(exists: (_) => true),
         launcher: _FakeRemoteSessionLauncher(expectedHandle),
         statusReader: (baseUri) async {
           expect(baseUri.toString(), expectedHandle.baseUrl);
@@ -88,6 +90,63 @@ void main() {
       expect(persistedJson['baseUrl'], 'http://127.0.0.1:58421');
     },
   );
+
+  test('launch service infers cockpit/main.dart when target is omitted',
+      () async {
+    final expectedHandle = CockpitRemoteSessionHandle(
+      platform: 'macos',
+      deviceId: 'macos',
+      projectDir: '/workspace/examples/cockpit_demo',
+      target: 'cockpit/main.dart',
+      appId: 'dev.cockpit.cockpit_demo',
+      host: '127.0.0.1',
+      hostPort: 58421,
+      devicePort: 47331,
+      baseUrl: 'http://127.0.0.1:58421',
+      launchedAt: DateTime.utc(2026, 3, 21, 0, 0),
+    );
+    final expectedStatus = CockpitRemoteSessionStatus(
+      sessionId: 'launch-demo',
+      platform: 'macos',
+      transportType: 'remoteHttp',
+      currentRouteName: '/home',
+      capabilities: CockpitCapabilities(
+        platform: 'macos',
+        transportType: 'remoteHttp',
+        supportsInAppControl: true,
+        supportsFlutterViewCapture: true,
+        supportsNativeScreenCapture: true,
+        supportsHostAutomation: true,
+        supportedCommands: <CockpitCommandType>[CockpitCommandType.tap],
+        supportedLocatorStrategies: CockpitLocatorKind.values,
+      ),
+      recordingCapabilities: CockpitRecordingCapabilities(
+        supportsNativeRecording: true,
+        preferredAcceptanceRecordingKind: CockpitRecordingKind.nativeScreen,
+      ),
+      snapshot: CockpitSnapshot(routeName: '/home'),
+    );
+
+    final service = CockpitLaunchRemoteSessionService(
+      entrypointResolver: CockpitEntrypointResolver(
+        exists: (path) =>
+            path == '/workspace/examples/cockpit_demo/cockpit/main.dart',
+      ),
+      launcher: _FakeRemoteSessionLauncher(expectedHandle),
+      statusReader: (_) async => expectedStatus,
+    );
+
+    final result = await service.launch(
+      CockpitLaunchRemoteSessionRequest(
+        projectDir: expectedHandle.projectDir,
+        platform: expectedHandle.platform,
+        deviceId: expectedHandle.deviceId,
+        sessionPort: expectedHandle.devicePort,
+      ),
+    );
+
+    expect(result.sessionHandle.target, 'cockpit/main.dart');
+  });
 }
 
 final class _FakeRemoteSessionLauncher implements CockpitRemoteSessionLauncher {

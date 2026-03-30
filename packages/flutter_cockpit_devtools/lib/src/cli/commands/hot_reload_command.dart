@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:args/command_runner.dart';
 
 import '../../application/cockpit_hot_reload_service.dart';
+import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
@@ -11,7 +12,7 @@ typedef CockpitHotReloadFunction = Future<CockpitHotReloadResult> Function(
   CockpitHotReloadRequest request,
 );
 
-final class HotReloadCommand extends Command<int> {
+final class HotReloadCommand extends CockpitCliCommand {
   HotReloadCommand({
     CockpitHotReloadService? service,
     CockpitHotReloadFunction? reload,
@@ -19,8 +20,15 @@ final class HotReloadCommand extends Command<int> {
   })  : _reload = reload ?? (service ?? CockpitHotReloadService()).reload,
         _stdoutSink = stdoutSink ?? stdout {
     argParser
-      ..addOption('app-json')
-      ..addOption('output-json');
+      ..addOption(
+        'app-json',
+        help: 'App handle JSON emitted by launch-app.',
+      )
+      ..addOption(
+        'output-json',
+        help:
+            'Optional file path where the reload result JSON should be written.',
+      );
   }
 
   final CockpitHotReloadFunction _reload;
@@ -31,6 +39,27 @@ final class HotReloadCommand extends Command<int> {
 
   @override
   String get description => 'Trigger hot reload for a development app.';
+
+  @override
+  String get summary => 'Apply source changes without restart.';
+
+  @override
+  String get category => CockpitCliCategory.coreLoop;
+
+  @override
+  String get helpWhen =>
+      'Refresh code after editing while keeping as much app state as Flutter can preserve.';
+
+  @override
+  String get helpNeeds => 'A development app handle from launch-app.';
+
+  @override
+  String get helpExample =>
+      'flutter_cockpit_devtools hot-reload --app-json /tmp/app.json';
+
+  @override
+  String get helpWrites =>
+      'Updated app metadata and reload status for the running development session.';
 
   @override
   Future<int> run() async {

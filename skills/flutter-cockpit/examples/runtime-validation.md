@@ -17,7 +17,6 @@ Use this pattern when the task needs live app evidence.
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   launch-app \
   --project-dir examples/cockpit_demo \
-  --target cockpit/main.dart \
   --platform macos \
   --device-id macos \
   --app-json /tmp/flutter_cockpit/app.json
@@ -40,6 +39,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 ## Expected Agent Behavior
 
 - keep `app.json`
+- let `launch-app` auto-detect `cockpit/main.dart` before spelling out a target
 - start with the smallest useful profile
 - do not trust command success without a follow-up read
 - prefer app-centric `read-logs` before tailing host-supervisor logs

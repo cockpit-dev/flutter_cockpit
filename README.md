@@ -37,6 +37,7 @@ For delivery:
 3. `validate-task` when making a final completion claim
 
 The public surface is app-first, not session-handle-first. Persist `app.json` and reuse it across steps. CLI and MCP outputs are normalized to `snake_case`.
+`launch-app` auto-detects `cockpit/main.dart` first, then `lib/main.dart`.
 
 ## Quick Start
 
@@ -63,7 +64,6 @@ Run the example loop:
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   launch-app \
   --project-dir examples/cockpit_demo \
-  --target cockpit/main.dart \
   --platform macos \
   --device-id macos \
   --app-json /tmp/flutter_cockpit/app.json
@@ -107,6 +107,7 @@ Recommended commands:
 - `serve-mcp`
 
 Use `--profile minimal|standard|inspect|evidence` to control token cost. Start small and escalate only when needed.
+`run-script` now exits non-zero when the written bundle status is `failed`.
 
 ## MCP Surface
 

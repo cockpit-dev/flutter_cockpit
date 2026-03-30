@@ -52,16 +52,16 @@ enum CockpitRunTaskClassification {
 final class CockpitRunTaskLaunchRequest {
   const CockpitRunTaskLaunchRequest({
     required this.projectDir,
-    required this.target,
     required this.platform,
     required this.deviceId,
     required this.sessionPort,
+    this.target,
     this.launchTimeout = const Duration(seconds: 120),
     this.persistHandlePath,
   });
 
   final String projectDir;
-  final String target;
+  final String? target;
   final String platform;
   final String deviceId;
   final int sessionPort;
@@ -81,7 +81,7 @@ final class CockpitRunTaskLaunchRequest {
   factory CockpitRunTaskLaunchRequest.fromJson(Map<String, Object?> json) {
     return CockpitRunTaskLaunchRequest(
       projectDir: _readRequiredString(json, 'projectDir', 'project_dir'),
-      target: _readRequiredString(json, 'target'),
+      target: _readOptionalString(json, 'target'),
       platform: _readRequiredString(json, 'platform'),
       deviceId: _readRequiredString(json, 'deviceId', 'device_id'),
       sessionPort: _readRequiredInt(json, 'sessionPort', 'session_port'),

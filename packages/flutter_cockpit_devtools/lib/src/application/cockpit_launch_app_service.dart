@@ -11,17 +11,17 @@ import 'cockpit_session_registry.dart';
 final class CockpitLaunchAppRequest {
   const CockpitLaunchAppRequest({
     required this.projectDir,
-    required this.target,
     required this.platform,
     required this.deviceId,
     required this.sessionPort,
+    this.target,
     this.mode = CockpitAppMode.development,
     this.launchTimeout = const Duration(seconds: 120),
     this.appHandlePath,
   });
 
   final String projectDir;
-  final String target;
+  final String? target;
   final String platform;
   final String deviceId;
   final int sessionPort;

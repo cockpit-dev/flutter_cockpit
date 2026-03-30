@@ -19,7 +19,7 @@ void main() {
               platform: 'android',
               deviceId: 'emulator-5554',
               projectDir: request.projectDir,
-              target: request.target,
+              target: request.target ?? 'cockpit/main.dart',
               appId: 'dev.cockpit.cockpit_demo',
               host: '127.0.0.1',
               hostPort: 58421,
@@ -56,7 +56,6 @@ void main() {
 
       expect(tool.inputSchema['required'], <String>[
         'project_dir',
-        'target',
         'platform',
         'device_id',
         'session_port',
@@ -64,7 +63,6 @@ void main() {
 
       final result = await tool.call(<String, Object?>{
         'project_dir': '/workspace/examples/cockpit_demo',
-        'target': 'lib/main.dart',
         'platform': 'android',
         'device_id': 'emulator-5554',
         'session_port': 47331,
@@ -75,6 +73,7 @@ void main() {
       expect(capturedRequest?.projectDir, '/workspace/examples/cockpit_demo');
       expect(capturedRequest?.deviceId, 'emulator-5554');
       expect(capturedRequest?.launchTimeout, const Duration(seconds: 90));
+      expect(capturedRequest?.target, isNull);
 
       final structuredContent =
           result['structuredContent'] as Map<String, Object?>;
@@ -126,7 +125,7 @@ void main() {
             platform: 'macos',
             deviceId: 'macos',
             projectDir: request.projectDir,
-            target: request.target,
+            target: request.target ?? 'cockpit/main.dart',
             appId: 'dev.cockpit.cockpit_demo',
             host: '127.0.0.1',
             hostPort: 58421,
@@ -187,7 +186,7 @@ void main() {
             platform: 'windows',
             deviceId: 'windows',
             projectDir: request.projectDir,
-            target: request.target,
+            target: request.target ?? 'cockpit/main.dart',
             appId: 'dev.cockpit.cockpit_demo',
             host: '127.0.0.1',
             hostPort: 58421,
@@ -248,7 +247,7 @@ void main() {
             platform: 'linux',
             deviceId: 'linux',
             projectDir: request.projectDir,
-            target: request.target,
+            target: request.target ?? 'cockpit/main.dart',
             appId: 'dev.cockpit.cockpit_demo',
             host: '127.0.0.1',
             hostPort: 58421,

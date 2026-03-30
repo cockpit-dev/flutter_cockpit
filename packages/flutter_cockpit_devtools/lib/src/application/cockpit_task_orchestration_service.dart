@@ -2,7 +2,9 @@ import 'package:flutter_cockpit/flutter_cockpit.dart';
 
 import '../cli/cockpit_control_script.dart';
 import '../session/cockpit_remote_session_handle.dart';
+import 'cockpit_app_handle.dart';
 import 'cockpit_launch_remote_session_service.dart';
+import 'cockpit_platform_app_stopper.dart';
 import 'cockpit_query_remote_session_service.dart';
 import 'cockpit_read_task_bundle_summary_service.dart';
 import 'cockpit_run_remote_control_script_service.dart';
@@ -15,6 +17,9 @@ typedef CockpitTaskOrchestrationFunction
     = Future<CockpitTaskOrchestrationResult> Function(
   CockpitRunTaskRequest request,
 );
+typedef CockpitStopLaunchedAppFunction = Future<void> Function(
+  CockpitAppHandle app,
+);
 
 final class CockpitTaskOrchestrationService {
   CockpitTaskOrchestrationService({
@@ -26,6 +31,8 @@ final class CockpitTaskOrchestrationService {
     CockpitQueryTaskFunction? query,
     CockpitRunTaskScriptFunction? runScript,
     CockpitReadTaskSummaryFunction? readSummary,
+    CockpitPlatformAppStopper? platformAppStopper,
+    CockpitStopLaunchedAppFunction? stopAutomationApp,
   })  : _launch = launch ??
             (launchService ?? CockpitLaunchRemoteSessionService()).launch,
         _query =
@@ -34,12 +41,15 @@ final class CockpitTaskOrchestrationService {
             (runScriptService ?? CockpitRunRemoteControlScriptService()).run,
         _readSummary = readSummary ??
             (readSummaryService ?? const CockpitReadTaskBundleSummaryService())
-                .read;
+                .read,
+        _stopAutomationApp = stopAutomationApp ??
+            (platformAppStopper ?? CockpitPlatformAppStopper()).stop;
 
   final CockpitLaunchTaskFunction _launch;
   final CockpitQueryTaskFunction _query;
   final CockpitRunTaskScriptFunction _runScript;
   final CockpitReadTaskSummaryFunction _readSummary;
+  final CockpitStopLaunchedAppFunction _stopAutomationApp;
 
   Future<CockpitTaskOrchestrationResult> orchestrate(
     CockpitRunTaskRequest request,
@@ -47,6 +57,7 @@ final class CockpitTaskOrchestrationService {
     final completedStages = <CockpitTaskStage>{CockpitTaskStage.assess};
     var sessionHandle = request.sessionHandle;
     CockpitRemoteSessionStatus? preflightStatus;
+    final ownsLaunch = request.launch != null;
 
     completedStages.add(CockpitTaskStage.bootstrap);
     try {
@@ -92,81 +103,88 @@ final class CockpitTaskOrchestrationService {
       );
     }
 
-    completedStages.add(CockpitTaskStage.baseline);
-    final script = _withBaseline(request.script, request.baseline);
-
-    completedStages.add(CockpitTaskStage.execute);
-    final CockpitRunRemoteControlScriptResult runResult;
     try {
-      runResult = await _runScript(
-        CockpitRunRemoteControlScriptRequest(
+      completedStages.add(CockpitTaskStage.baseline);
+      final script = _withBaseline(request.script, request.baseline);
+
+      completedStages.add(CockpitTaskStage.execute);
+      final CockpitRunRemoteControlScriptResult runResult;
+      try {
+        runResult = await _runScript(
+          CockpitRunRemoteControlScriptRequest(
+            sessionHandle: sessionHandle,
+            sessionHandlePath:
+                sessionHandle == null ? request.sessionHandlePath : null,
+            script: script,
+            outputRoot: request.outputRoot,
+            persistScriptPath: request.persistScriptPath,
+          ),
+        );
+      } on CockpitApplicationServiceException catch (error) {
+        return _blockedResult(
+          request: request,
+          completedStages: completedStages,
+          blockedReason: error.message,
           sessionHandle: sessionHandle,
-          sessionHandlePath:
-              sessionHandle == null ? request.sessionHandlePath : null,
-          script: script,
-          outputRoot: request.outputRoot,
-          persistScriptPath: request.persistScriptPath,
-        ),
-      );
-    } on CockpitApplicationServiceException catch (error) {
-      return _blockedResult(
+          preflightStatus: preflightStatus,
+        );
+      } on Object catch (error) {
+        return _blockedResult(
+          request: request,
+          completedStages: completedStages,
+          blockedReason: error.toString(),
+          sessionHandle: sessionHandle,
+          preflightStatus: preflightStatus,
+        );
+      }
+
+      completedStages.add(CockpitTaskStage.observe);
+      final CockpitReadTaskBundleSummaryResult bundleSummary;
+      try {
+        bundleSummary = await _readBundleSummary(runResult.bundleDir.path);
+      } on CockpitApplicationServiceException catch (error) {
+        return _blockedResult(
+          request: request,
+          completedStages: completedStages,
+          blockedReason: error.message,
+          sessionHandle: runResult.sessionHandle ?? sessionHandle,
+          preflightStatus: preflightStatus,
+        );
+      } on Object catch (error) {
+        return _blockedResult(
+          request: request,
+          completedStages: completedStages,
+          blockedReason: error.toString(),
+          sessionHandle: runResult.sessionHandle ?? sessionHandle,
+          preflightStatus: preflightStatus,
+        );
+      }
+
+      completedStages
+        ..add(CockpitTaskStage.judge)
+        ..add(CockpitTaskStage.deliver);
+      final resolvedSessionHandle = runResult.sessionHandle ?? sessionHandle;
+      final gates = _buildGates(
         request: request,
-        completedStages: completedStages,
-        blockedReason: error.message,
-        sessionHandle: sessionHandle,
-        preflightStatus: preflightStatus,
+        bundleSummary: bundleSummary,
+        sessionHandle: resolvedSessionHandle,
       );
-    } on Object catch (error) {
-      return _blockedResult(
-        request: request,
+      final classification = _classify(gates);
+
+      return CockpitTaskOrchestrationResult(
+        classification: classification,
+        recommendedNextStep: _recommendedNextStep(classification),
         completedStages: completedStages,
-        blockedReason: error.toString(),
-        sessionHandle: sessionHandle,
+        gates: gates,
+        sessionHandle: resolvedSessionHandle,
         preflightStatus: preflightStatus,
+        bundleSummary: bundleSummary,
       );
+    } finally {
+      if (ownsLaunch && sessionHandle != null) {
+        await _stopLaunchedApp(sessionHandle);
+      }
     }
-
-    completedStages.add(CockpitTaskStage.observe);
-    final CockpitReadTaskBundleSummaryResult bundleSummary;
-    try {
-      bundleSummary = await _readBundleSummary(runResult.bundleDir.path);
-    } on CockpitApplicationServiceException catch (error) {
-      return _blockedResult(
-        request: request,
-        completedStages: completedStages,
-        blockedReason: error.message,
-        sessionHandle: runResult.sessionHandle ?? sessionHandle,
-        preflightStatus: preflightStatus,
-      );
-    } on Object catch (error) {
-      return _blockedResult(
-        request: request,
-        completedStages: completedStages,
-        blockedReason: error.toString(),
-        sessionHandle: runResult.sessionHandle ?? sessionHandle,
-        preflightStatus: preflightStatus,
-      );
-    }
-
-    completedStages
-      ..add(CockpitTaskStage.judge)
-      ..add(CockpitTaskStage.deliver);
-    final gates = _buildGates(
-      request: request,
-      bundleSummary: bundleSummary,
-      sessionHandle: runResult.sessionHandle ?? sessionHandle,
-    );
-    final classification = _classify(gates);
-
-    return CockpitTaskOrchestrationResult(
-      classification: classification,
-      recommendedNextStep: _recommendedNextStep(classification),
-      completedStages: completedStages,
-      gates: gates,
-      sessionHandle: runResult.sessionHandle ?? sessionHandle,
-      preflightStatus: preflightStatus,
-      bundleSummary: bundleSummary,
-    );
   }
 
   CockpitTaskOrchestrationResult _blockedResult({
@@ -339,6 +357,14 @@ final class CockpitTaskOrchestrationService {
         },
       );
     }
+  }
+
+  Future<void> _stopLaunchedApp(
+      CockpitRemoteSessionHandle? sessionHandle) async {
+    if (sessionHandle == null) {
+      return;
+    }
+    await _stopAutomationApp(CockpitAppHandle.fromRemoteSession(sessionHandle));
   }
 
   String _recommendedNextStep(CockpitRunTaskClassification classification) {

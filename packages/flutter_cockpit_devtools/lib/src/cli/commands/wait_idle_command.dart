@@ -1,9 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:args/command_runner.dart';
-
 import '../../application/cockpit_wait_idle_service.dart';
+import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
@@ -11,7 +10,7 @@ typedef CockpitWaitIdleFunction = Future<CockpitWaitIdleResult> Function(
   CockpitWaitIdleRequest request,
 );
 
-final class WaitIdleCommand extends Command<int> {
+final class WaitIdleCommand extends CockpitCliCommand {
   WaitIdleCommand({
     CockpitWaitIdleService? service,
     CockpitWaitIdleFunction? wait,
@@ -20,9 +19,21 @@ final class WaitIdleCommand extends Command<int> {
         _stdoutSink = stdoutSink ?? stdout {
     cockpitAddAppArgs(argParser);
     argParser
-      ..addOption('quiet-window-ms')
-      ..addOption('timeout-ms')
-      ..addFlag('include-network-idle', defaultsTo: true);
+      ..addOption(
+        'quiet-window-ms',
+        help:
+            'How long the UI must stay quiet before the app is considered idle.',
+      )
+      ..addOption(
+        'timeout-ms',
+        help: 'Maximum wait time before the command returns a timeout result.',
+      )
+      ..addFlag(
+        'include-network-idle',
+        defaultsTo: true,
+        help:
+            'Also require tracked network activity to go idle before succeeding.',
+      );
   }
 
   final CockpitWaitIdleFunction _wait;
@@ -33,6 +44,28 @@ final class WaitIdleCommand extends Command<int> {
 
   @override
   String get description => 'Wait for a running app UI to settle.';
+
+  @override
+  String get summary => 'Wait until UI settles.';
+
+  @override
+  String get category => CockpitCliCategory.coreLoop;
+
+  @override
+  String get helpWhen =>
+      'Pause until the app stops changing before the next read, assertion, or capture.';
+
+  @override
+  String get helpNeeds =>
+      'An app reference. Tune quiet-window-ms or timeout-ms only when the defaults are too short.';
+
+  @override
+  String get helpExample =>
+      'flutter_cockpit_devtools wait-idle --app-json /tmp/app.json';
+
+  @override
+  String get helpWrites =>
+      'An idle verdict with quiet-window timing and optional network-idle detail.';
 
   @override
   Future<int> run() async {

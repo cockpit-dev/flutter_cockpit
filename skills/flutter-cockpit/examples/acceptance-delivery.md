@@ -20,6 +20,8 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --output-root /tmp/flutter_cockpit/out
 ```
 
+`run-script` exits non-zero when the written bundle status is `failed`.
+
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   validate-task \

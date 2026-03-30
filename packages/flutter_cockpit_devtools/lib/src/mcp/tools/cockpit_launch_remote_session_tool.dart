@@ -32,7 +32,6 @@ final class CockpitLaunchRemoteSessionTool extends CockpitMcpTool {
         'type': 'object',
         'required': <String>[
           'project_dir',
-          'target',
           'platform',
           'device_id',
           'session_port',
@@ -69,7 +68,7 @@ final class CockpitLaunchRemoteSessionTool extends CockpitMcpTool {
       final result = await _launch(
         CockpitLaunchRemoteSessionRequest(
           projectDir: cockpitReadRequiredString(arguments, 'project_dir'),
-          target: cockpitReadRequiredString(arguments, 'target'),
+          target: cockpitReadOptionalString(arguments, 'target'),
           platform: platform,
           deviceId: cockpitReadRequiredString(arguments, 'device_id'),
           sessionPort: cockpitReadRequiredInt(arguments, 'session_port'),
