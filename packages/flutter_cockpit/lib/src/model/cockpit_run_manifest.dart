@@ -33,7 +33,8 @@ final class CockpitRunManifest {
         deliveryArtifactFailureCodes = List.unmodifiable(
           deliveryArtifactFailureCodes,
         ),
-        deliveryVideoFailureCodes = List.unmodifiable(deliveryVideoFailureCodes);
+        deliveryVideoFailureCodes =
+            List.unmodifiable(deliveryVideoFailureCodes);
 
   final String sessionId;
   final String taskId;

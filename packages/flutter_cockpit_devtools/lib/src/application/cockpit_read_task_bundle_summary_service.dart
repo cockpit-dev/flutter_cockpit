@@ -469,8 +469,7 @@ final class CockpitReadTaskBundleSummaryRequest {
 final class CockpitBundleGateSummary {
   const CockpitBundleGateSummary({
     this.gates = const <CockpitTaskGate, bool>{},
-    this.failureCodes =
-        const <CockpitTaskGate, List<String>>{},
+    this.failureCodes = const <CockpitTaskGate, List<String>>{},
   });
 
   final Map<CockpitTaskGate, bool> gates;
@@ -1605,9 +1604,8 @@ final class CockpitReadTaskBundleSummaryService {
     final screenshotReady = manifest.deliveryArtifactsReady;
     final recordingReadyOrExplained = manifest.deliveryVideoReady;
     final deliveryValidated = screenshotReady && recordingReadyOrExplained;
-    final finalAssertionPassed =
-        manifest.status != CockpitTaskStatus.failed &&
-            manifest.runtimeErrorCount == 0;
+    final finalAssertionPassed = manifest.status != CockpitTaskStatus.failed &&
+        manifest.runtimeErrorCount == 0;
 
     final failureCodes = <CockpitTaskGate, List<String>>{};
     if (!screenshotReady) {
@@ -1629,8 +1627,10 @@ final class CockpitReadTaskBundleSummaryService {
     }
     if (!finalAssertionPassed) {
       failureCodes[CockpitTaskGate.finalAssertionPassed] = <String>[
-        if (manifest.runtimeErrorCount > 0) 'runtimeErrorsDetected'
-        else 'taskFailed',
+        if (manifest.runtimeErrorCount > 0)
+          'runtimeErrorsDetected'
+        else
+          'taskFailed',
       ];
     }
     final baselineCollected = baselineEvidence != null ||

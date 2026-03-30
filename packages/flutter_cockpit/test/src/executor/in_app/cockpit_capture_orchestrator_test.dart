@@ -1,9 +1,6 @@
 import 'dart:typed_data';
 
 import 'package:flutter_cockpit/flutter_cockpit_flutter.dart';
-import 'package:flutter_cockpit/src/capture/cockpit_capture_kind.dart';
-import 'package:flutter_cockpit/src/capture/cockpit_capture_profile.dart';
-import 'package:flutter_cockpit/src/capture/cockpit_capture_result.dart';
 import 'package:flutter_cockpit/src/executor/in_app/cockpit_capture_orchestrator.dart';
 import 'package:flutter_test/flutter_test.dart';
 

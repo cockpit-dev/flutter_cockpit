@@ -421,12 +421,12 @@ void main() {
       expect(deliveryJson['deliveryVideoSynthesized'], isTrue);
       expect(
         ((deliveryJson['readiness'] as Map<Object?, Object?>)['video']
-                as Map<Object?, Object?>)['ready'],
+            as Map<Object?, Object?>)['ready'],
         isTrue,
       );
       expect(
         ((deliveryJson['readiness'] as Map<Object?, Object?>)['video']
-                as Map<Object?, Object?>)['failureCodes'],
+            as Map<Object?, Object?>)['failureCodes'],
         isEmpty,
       );
       expect(
@@ -444,11 +444,13 @@ void main() {
       );
       expect(handoffJson['deliveryVideoSynthesized'], isTrue);
       expect(
-        ((handoffJson['gates'] as Map<Object?, Object?>)['recordingReadyOrExplained']),
+        ((handoffJson['gates']
+            as Map<Object?, Object?>)['recordingReadyOrExplained']),
         isTrue,
       );
       expect(
-        ((handoffJson['gateFailureCodes'] as Map<Object?, Object?>)['recordingReadyOrExplained']),
+        ((handoffJson['gateFailureCodes']
+            as Map<Object?, Object?>)['recordingReadyOrExplained']),
         isEmpty,
       );
     },

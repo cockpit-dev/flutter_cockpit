@@ -8,10 +8,8 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
-import '../capture/cockpit_capture_result.dart';
 import '../capture/cockpit_capture_kind.dart';
 import '../capture/cockpit_capture_profile.dart';
-import '../control/cockpit_capture_policy.dart';
 import '../control/cockpit_command.dart';
 import '../control/cockpit_command_execution.dart';
 import '../control/cockpit_command_result.dart';
@@ -2905,14 +2903,6 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
 
   Future<void> _settleBeforeObservation() async {
     await _settleCoordinator.settleBeforeObservation();
-  }
-
-  Future<void> _bestEffortWaitForUiIdle({
-    required bool includeNetworkIdle,
-  }) async {
-    await _settleCoordinator.bestEffortWaitForUiIdle(
-      includeNetworkIdle: includeNetworkIdle,
-    );
   }
 
   Future<bool> _waitForRouteTargets(String? previousRouteName) async {

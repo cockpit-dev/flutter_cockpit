@@ -10,11 +10,13 @@ void main() {
         actionArgs: const <String, Object?>{},
         observedAt: DateTime.utc(2026, 3, 30, 10, 0, 0),
         artifactRefs: const <CockpitArtifactRef>[
-          CockpitArtifactRef(role: 'recording', relativePath: 'recordings/run.mp4'),
+          CockpitArtifactRef(
+              role: 'recording', relativePath: 'recordings/run.mp4'),
         ],
         requestedCaptureProfile: CockpitCaptureProfile.diagnostic,
         captureRefs: const <CockpitArtifactRef>[
-          CockpitArtifactRef(role: 'screenshot', relativePath: 'screenshots/baseline.png'),
+          CockpitArtifactRef(
+              role: 'screenshot', relativePath: 'screenshots/baseline.png'),
         ],
       ),
       CockpitStepRecord(
@@ -25,11 +27,13 @@ void main() {
         },
         observedAt: DateTime.utc(2026, 3, 30, 10, 0, 1),
         artifactRefs: const <CockpitArtifactRef>[
-          CockpitArtifactRef(role: 'recording', relativePath: 'recordings/run.mp4'),
+          CockpitArtifactRef(
+              role: 'recording', relativePath: 'recordings/run.mp4'),
         ],
         requestedCaptureProfile: CockpitCaptureProfile.acceptance,
         captureRefs: const <CockpitArtifactRef>[
-          CockpitArtifactRef(role: 'screenshot', relativePath: 'screenshots/acceptance.png'),
+          CockpitArtifactRef(
+              role: 'screenshot', relativePath: 'screenshots/acceptance.png'),
         ],
       ),
     ]);

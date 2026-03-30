@@ -1001,24 +1001,24 @@ CockpitRunTaskResult _runTaskResult({
     if (acceptanceEvidence != null && !acceptanceEvidence.hasComparableSignals)
       'acceptanceComparableSignalsMissing',
   ];
-  final screenshotFailureCodes =
-      deliveryArtifactFailureCodes.isNotEmpty || manifest.deliveryArtifactsReady
-          ? deliveryArtifactFailureCodes
-          : <String>[
-              if (screenshotRelativePath == null || screenshotRelativePath.isEmpty)
-                'primaryScreenshotMissing'
-              else
-                'acceptanceScreenshotMissing',
-            ];
-  final recordingFailureCodes =
-      deliveryVideoFailureCodes.isNotEmpty || manifest.deliveryVideoReady
-          ? deliveryVideoFailureCodes
-          : <String>[
-              if (recordingRelativePath == null || recordingRelativePath.isEmpty)
-                'primaryRecordingMissing'
-              else
-                'acceptanceRecordingMissing',
-            ];
+  final screenshotFailureCodes = deliveryArtifactFailureCodes.isNotEmpty ||
+          manifest.deliveryArtifactsReady
+      ? deliveryArtifactFailureCodes
+      : <String>[
+          if (screenshotRelativePath == null || screenshotRelativePath.isEmpty)
+            'primaryScreenshotMissing'
+          else
+            'acceptanceScreenshotMissing',
+        ];
+  final recordingFailureCodes = deliveryVideoFailureCodes.isNotEmpty ||
+          manifest.deliveryVideoReady
+      ? deliveryVideoFailureCodes
+      : <String>[
+          if (recordingRelativePath == null || recordingRelativePath.isEmpty)
+            'primaryRecordingMissing'
+          else
+            'acceptanceRecordingMissing',
+        ];
   final gateSummary = CockpitBundleGateSummary(
     gates: <CockpitTaskGate, bool>{
       CockpitTaskGate.sessionReachable: true,

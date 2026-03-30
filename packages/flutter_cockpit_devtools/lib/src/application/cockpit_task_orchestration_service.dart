@@ -2,7 +2,6 @@ import 'package:flutter_cockpit/flutter_cockpit.dart';
 
 import '../cli/cockpit_control_script.dart';
 import '../session/cockpit_remote_session_handle.dart';
-import 'cockpit_application_service_exception.dart';
 import 'cockpit_launch_remote_session_service.dart';
 import 'cockpit_query_remote_session_service.dart';
 import 'cockpit_read_task_bundle_summary_service.dart';

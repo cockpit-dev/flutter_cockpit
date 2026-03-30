@@ -339,7 +339,8 @@ final class CockpitValidateTaskService {
             gate: CockpitTaskGate.screenshotReady,
             gateSummary: gateSummary,
             fallbackCode: 'primaryScreenshotMissing',
-            message: 'A primary screenshot is required but the screenshot gate failed.',
+            message:
+                'A primary screenshot is required but the screenshot gate failed.',
             details: <String, Object?>{
               'primaryScreenshotPath': screenshotPath,
             },
@@ -362,7 +363,8 @@ final class CockpitValidateTaskService {
             gate: CockpitTaskGate.recordingReadyOrExplained,
             gateSummary: gateSummary,
             fallbackCode: 'primaryRecordingMissing',
-            message: 'A primary recording is required but the recording gate failed.',
+            message:
+                'A primary recording is required but the recording gate failed.',
             details: <String, Object?>{
               'primaryRecordingPath': recordingPath,
             },

@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
-import 'package:flutter_cockpit_devtools/src/application/cockpit_application_service_exception.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_bundle_artifact_paths.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_launch_remote_session_service.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_query_remote_session_service.dart';

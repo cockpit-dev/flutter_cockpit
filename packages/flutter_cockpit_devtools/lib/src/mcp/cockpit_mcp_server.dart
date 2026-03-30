@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:stream_channel/stream_channel.dart';
 
-import 'core/cockpit_mcp_feature_configuration.dart';
 import 'core/cockpit_mcp_protocol_server.dart';
 import 'core/cockpit_mcp_stdio_channel.dart';
 import 'tools/cockpit_collect_development_probe_tool.dart';

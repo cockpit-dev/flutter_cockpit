@@ -493,8 +493,7 @@ final class TaskRunBundleWriter {
       'gates': <String, Object?>{
         ...gates,
         'recordingReadyOrExplained': true,
-        'deliveryValidated':
-            (gates['screenshotReady'] as bool? ??
+        'deliveryValidated': (gates['screenshotReady'] as bool? ??
                 handoff['screenshotReady'] as bool? ??
                 true) &&
             true,

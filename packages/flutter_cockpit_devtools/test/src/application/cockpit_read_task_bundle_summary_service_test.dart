@@ -387,13 +387,16 @@ void main() {
       expect(result.evidenceSummary['acceptanceNewNetworkFailureCount'], 0);
       expect(result.evidenceSummary['acceptanceNewRuntimeErrorCount'], 0);
       expect(result.evidenceSummary['acceptanceComparisonReady'], isFalse);
-      expect(result.gateSummary.isSatisfied(CockpitTaskGate.screenshotReady), isTrue);
+      expect(result.gateSummary.isSatisfied(CockpitTaskGate.screenshotReady),
+          isTrue);
       expect(
-        result.gateSummary.isSatisfied(CockpitTaskGate.acceptanceEvidenceReadable),
+        result.gateSummary
+            .isSatisfied(CockpitTaskGate.acceptanceEvidenceReadable),
         isFalse,
       );
       expect(
-        result.gateSummary.failureCodesFor(CockpitTaskGate.acceptanceEvidenceReadable),
+        result.gateSummary
+            .failureCodesFor(CockpitTaskGate.acceptanceEvidenceReadable),
         <String>['baselineEvidenceMissing', 'acceptanceDeltaMissing'],
       );
       expect(
@@ -401,7 +404,8 @@ void main() {
         isFalse,
       );
       expect(
-        result.gateSummary.failureCodesFor(CockpitTaskGate.finalAssertionPassed),
+        result.gateSummary
+            .failureCodesFor(CockpitTaskGate.finalAssertionPassed),
         <String>['runtimeErrorsDetected'],
       );
       expect(result.networkSummary, isNotNull);

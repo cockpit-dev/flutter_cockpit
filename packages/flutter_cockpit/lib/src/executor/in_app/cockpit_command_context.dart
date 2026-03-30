@@ -1,5 +1,3 @@
-import 'package:flutter/gestures.dart';
-
 import '../../capture/cockpit_capture_result.dart';
 import '../../control/cockpit_command_type.dart';
 import '../../control/cockpit_locator.dart';

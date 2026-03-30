@@ -202,8 +202,10 @@ final class CockpitBundleSummaryAssembler {
     buffer.writeln('## Recording');
     if (evidenceIndex.recordingRefs.isNotEmpty) {
       buffer.writeln();
-      buffer.writeln('- Acceptance video: ${evidenceIndex.recordingRefs.first}');
-      buffer.writeln('- Recording count: ${evidenceIndex.recordingRefs.length}');
+      buffer
+          .writeln('- Acceptance video: ${evidenceIndex.recordingRefs.first}');
+      buffer
+          .writeln('- Recording count: ${evidenceIndex.recordingRefs.length}');
     } else {
       buffer.writeln();
       buffer.writeln('- Recording unavailable');
@@ -265,7 +267,8 @@ final class CockpitBundleSummaryAssembler {
         .lastOrNull;
   }
 
-  List<String> _deliveryArtifactFailureCodes(CockpitEvidenceIndex evidenceIndex) {
+  List<String> _deliveryArtifactFailureCodes(
+      CockpitEvidenceIndex evidenceIndex) {
     if (evidenceIndex.deliveryArtifactsReady) {
       return const <String>[];
     }

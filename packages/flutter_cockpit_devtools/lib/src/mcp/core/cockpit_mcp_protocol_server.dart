@@ -1,10 +1,8 @@
 import 'dart:async';
 
 import 'package:dart_mcp/server.dart';
-import 'package:stream_channel/stream_channel.dart';
 
 import '../cockpit_mcp_tool.dart';
-import 'cockpit_mcp_feature_configuration.dart';
 import 'cockpit_mcp_tool_adapter.dart';
 
 final class CockpitMcpProtocolServer extends MCPServer with ToolsSupport {
