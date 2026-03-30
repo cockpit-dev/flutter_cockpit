@@ -20,6 +20,23 @@ final class CockpitRunTaskTool extends CockpitMcpTool {
       'Run a full flutter_cockpit workflow with bootstrap or reuse, baseline capture, execution, post-run bundle reads, and task classification.';
 
   @override
+  CockpitMcpToolAnnotations get annotations => const CockpitMcpToolAnnotations(
+        readOnly: false,
+        destructive: false,
+        idempotent: false,
+        longRunning: true,
+        requiresSession: false,
+        producesBundleEvidence: true,
+      );
+
+  @override
+  List<CockpitMcpFeatureCategory> get categories =>
+      const <CockpitMcpFeatureCategory>[
+        CockpitMcpFeatureCategory.execution,
+        CockpitMcpFeatureCategory.delivery,
+      ];
+
+  @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
         'type': 'object',
         'required': <String>['script', 'output_root'],

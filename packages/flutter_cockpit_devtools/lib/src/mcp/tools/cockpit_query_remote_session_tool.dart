@@ -22,6 +22,23 @@ final class CockpitQueryRemoteSessionTool extends CockpitMcpTool {
       'Read health and capabilities from a running flutter_cockpit remote session.';
 
   @override
+  CockpitMcpToolAnnotations get annotations => const CockpitMcpToolAnnotations(
+        readOnly: true,
+        destructive: false,
+        idempotent: true,
+        longRunning: false,
+        requiresSession: true,
+        producesBundleEvidence: false,
+      );
+
+  @override
+  List<CockpitMcpFeatureCategory> get categories =>
+      const <CockpitMcpFeatureCategory>[
+        CockpitMcpFeatureCategory.sessionManagement,
+        CockpitMcpFeatureCategory.inspection,
+      ];
+
+  @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
         'type': 'object',
         'properties': <String, Object?>{

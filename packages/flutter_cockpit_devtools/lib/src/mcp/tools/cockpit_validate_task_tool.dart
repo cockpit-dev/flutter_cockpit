@@ -23,6 +23,22 @@ final class CockpitValidateTaskTool extends CockpitMcpTool {
       'Run a flutter_cockpit task workflow and validate the persisted bundle as a delivery-ready artifact set.';
 
   @override
+  CockpitMcpToolAnnotations get annotations => const CockpitMcpToolAnnotations(
+        readOnly: false,
+        destructive: false,
+        idempotent: false,
+        longRunning: true,
+        requiresSession: false,
+        producesBundleEvidence: true,
+      );
+
+  @override
+  List<CockpitMcpFeatureCategory> get categories =>
+      const <CockpitMcpFeatureCategory>[
+        CockpitMcpFeatureCategory.delivery,
+      ];
+
+  @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
         'type': 'object',
         'required': <String>['run_task'],
