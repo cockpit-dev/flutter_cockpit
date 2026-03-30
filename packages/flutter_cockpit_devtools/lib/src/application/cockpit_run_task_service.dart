@@ -6,6 +6,7 @@ import 'cockpit_launch_remote_session_service.dart';
 import 'cockpit_query_remote_session_service.dart';
 import 'cockpit_read_task_bundle_summary_service.dart';
 import 'cockpit_run_remote_control_script_service.dart';
+import 'cockpit_task_orchestration_service.dart';
 
 typedef CockpitLaunchTaskFunction = Future<CockpitLaunchRemoteSessionResult>
     Function(
@@ -269,230 +270,48 @@ final class CockpitRunTaskResult {
 final class CockpitRunTaskService {
   CockpitRunTaskService({
     CockpitRunTaskFunction? runTask,
+    CockpitTaskOrchestrationService? orchestrationService,
     CockpitLaunchRemoteSessionService? launchService,
     CockpitQueryRemoteSessionService? queryService,
     CockpitRunRemoteControlScriptService? runScriptService,
     CockpitReadTaskBundleSummaryService? readSummaryService,
+    CockpitTaskOrchestrationFunction? orchestrateTask,
     CockpitLaunchTaskFunction? launch,
     CockpitQueryTaskFunction? query,
     CockpitRunTaskScriptFunction? runScript,
     CockpitReadTaskSummaryFunction? readSummary,
   })  : _runTaskOverride = runTask,
-        _launch = launch ??
-            (launchService ?? CockpitLaunchRemoteSessionService()).launch,
-        _query =
-            query ?? (queryService ?? CockpitQueryRemoteSessionService()).query,
-        _runScript = runScript ??
-            (runScriptService ?? CockpitRunRemoteControlScriptService()).run,
-        _readSummary = readSummary ??
-            (readSummaryService ?? const CockpitReadTaskBundleSummaryService())
-                .read;
+        _orchestrateTask = orchestrateTask ??
+            (orchestrationService ??
+                    CockpitTaskOrchestrationService(
+                      launchService: launchService,
+                      queryService: queryService,
+                      runScriptService: runScriptService,
+                      readSummaryService: readSummaryService,
+                      launch: launch,
+                      query: query,
+                      runScript: runScript,
+                      readSummary: readSummary,
+                    ))
+                .orchestrate;
 
   final CockpitRunTaskFunction? _runTaskOverride;
-  final CockpitLaunchTaskFunction _launch;
-  final CockpitQueryTaskFunction _query;
-  final CockpitRunTaskScriptFunction _runScript;
-  final CockpitReadTaskSummaryFunction _readSummary;
+  final CockpitTaskOrchestrationFunction _orchestrateTask;
 
   Future<CockpitRunTaskResult> run(CockpitRunTaskRequest request) async {
     final override = _runTaskOverride;
     if (override != null) {
       return override(request);
     }
-
-    CockpitRemoteSessionHandle? sessionHandle = request.sessionHandle;
-    CockpitRemoteSessionStatus? preflightStatus;
-
-    try {
-      if (request.launch != null) {
-        final launchResult = await _launch(
-          CockpitLaunchRemoteSessionRequest(
-            projectDir: request.launch!.projectDir,
-            target: request.launch!.target,
-            platform: request.launch!.platform,
-            deviceId: request.launch!.deviceId,
-            sessionPort: request.launch!.sessionPort,
-            launchTimeout: request.launch!.launchTimeout,
-            persistHandlePath: request.launch!.persistHandlePath,
-          ),
-        );
-        sessionHandle = launchResult.sessionHandle;
-        preflightStatus = launchResult.health;
-      } else {
-        final queryResult = await _query(
-          CockpitQueryRemoteSessionRequest(
-            sessionHandle: request.sessionHandle,
-            sessionHandlePath: request.sessionHandlePath,
-          ),
-        );
-        sessionHandle = queryResult.sessionHandle ?? request.sessionHandle;
-        preflightStatus = queryResult.status;
-      }
-    } on CockpitApplicationServiceException catch (error) {
-      return CockpitRunTaskResult(
-        classification: CockpitRunTaskClassification.blockedByEnvironment,
-        recommendedNextStep: 'needs_relaunch',
-        blockedReason: error.message,
-      );
-    } on Object catch (error) {
-      return CockpitRunTaskResult(
-        classification: CockpitRunTaskClassification.blockedByEnvironment,
-        recommendedNextStep: 'needs_relaunch',
-        blockedReason: error.toString(),
-      );
-    }
-
-    final script = _withBaseline(request.script, request.baseline);
-    CockpitRunRemoteControlScriptResult runResult;
-    try {
-      runResult = await _runScript(
-        CockpitRunRemoteControlScriptRequest(
-          sessionHandle: sessionHandle,
-          sessionHandlePath:
-              sessionHandle == null ? request.sessionHandlePath : null,
-          script: script,
-          outputRoot: request.outputRoot,
-          persistScriptPath: request.persistScriptPath,
-        ),
-      );
-    } on CockpitApplicationServiceException catch (error) {
-      return CockpitRunTaskResult(
-        classification: CockpitRunTaskClassification.blockedByEnvironment,
-        recommendedNextStep: 'needs_relaunch',
-        sessionHandle: sessionHandle,
-        preflightStatus: preflightStatus,
-        blockedReason: error.message,
-      );
-    } on Object catch (error) {
-      return CockpitRunTaskResult(
-        classification: CockpitRunTaskClassification.blockedByEnvironment,
-        recommendedNextStep: 'needs_relaunch',
-        sessionHandle: sessionHandle,
-        preflightStatus: preflightStatus,
-        blockedReason: error.toString(),
-      );
-    }
-
-    final CockpitReadTaskBundleSummaryResult bundleSummary;
-    try {
-      bundleSummary = await _readBundleSummary(runResult.bundleDir.path);
-    } on CockpitApplicationServiceException catch (error) {
-      return CockpitRunTaskResult(
-        classification: CockpitRunTaskClassification.blockedByEnvironment,
-        recommendedNextStep: 'needs_relaunch',
-        sessionHandle: runResult.sessionHandle ?? sessionHandle,
-        preflightStatus: preflightStatus,
-        blockedReason: error.message,
-      );
-    } on Object catch (error) {
-      return CockpitRunTaskResult(
-        classification: CockpitRunTaskClassification.blockedByEnvironment,
-        recommendedNextStep: 'needs_relaunch',
-        sessionHandle: runResult.sessionHandle ?? sessionHandle,
-        preflightStatus: preflightStatus,
-        blockedReason: error.toString(),
-      );
-    }
-    final classification = _classify(
-      manifest: bundleSummary.manifest,
-      requirements: request.requirements,
-    );
-
+    final orchestration = await _orchestrateTask(request);
     return CockpitRunTaskResult(
-      classification: classification,
-      recommendedNextStep: _recommendedNextStep(classification),
-      sessionHandle: runResult.sessionHandle ?? sessionHandle,
-      preflightStatus: preflightStatus,
-      bundleSummary: bundleSummary,
+      classification: orchestration.classification,
+      recommendedNextStep: orchestration.recommendedNextStep,
+      sessionHandle: orchestration.sessionHandle,
+      preflightStatus: orchestration.preflightStatus,
+      bundleSummary: orchestration.bundleSummary,
+      blockedReason: orchestration.blockedReason,
     );
-  }
-
-  CockpitControlScript _withBaseline(
-    CockpitControlScript script,
-    CockpitRunTaskBaselineRequest baseline,
-  ) {
-    if (!baseline.captureScreenshot) {
-      return script;
-    }
-
-    final commands = <CockpitCommand>[
-      CockpitCommand(
-        commandId: 'baseline_capture',
-        commandType: CockpitCommandType.captureScreenshot,
-        screenshotRequest: CockpitScreenshotRequest(
-          reason: CockpitScreenshotReason.baseline,
-          name: baseline.screenshotName,
-          includeSnapshot: baseline.includeSnapshot,
-          attachToStep: true,
-          snapshotOptions: const CockpitSnapshotOptions.baseline(),
-        ),
-      ),
-      ...script.commands,
-    ];
-
-    return CockpitControlScript(
-      sessionId: script.sessionId,
-      taskId: script.taskId,
-      platform: script.platform,
-      environment: script.environment,
-      recording: script.recording,
-      commands: commands,
-      failFast: script.failFast,
-    );
-  }
-
-  Future<CockpitReadTaskBundleSummaryResult> _readBundleSummary(
-    String bundleDir,
-  ) async {
-    try {
-      return await _readSummary(
-        CockpitReadTaskBundleSummaryRequest(bundleDir: bundleDir),
-      );
-    } on CockpitApplicationServiceException {
-      rethrow;
-    } on Object catch (error) {
-      throw CockpitApplicationServiceException(
-        code: 'bundleReadFailed',
-        message: 'Failed to read the task bundle summary.',
-        details: <String, Object?>{
-          'bundleDir': bundleDir,
-          'error': error.toString(),
-        },
-      );
-    }
-  }
-
-  CockpitRunTaskClassification _classify({
-    required CockpitRunManifest manifest,
-    required CockpitRunTaskEvidenceRequirements requirements,
-  }) {
-    if (manifest.status == CockpitTaskStatus.failed) {
-      return CockpitRunTaskClassification.failedWithEvidence;
-    }
-    if (manifest.runtimeErrorCount > 0) {
-      return CockpitRunTaskClassification.failedWithEvidence;
-    }
-    if (requirements.requireScreenshotEvidence &&
-        !manifest.deliveryArtifactsReady) {
-      return CockpitRunTaskClassification.needsMoreWork;
-    }
-    if (requirements.requireVideoEvidence && !manifest.deliveryVideoReady) {
-      return CockpitRunTaskClassification.needsMoreWork;
-    }
-    return CockpitRunTaskClassification.completed;
-  }
-
-  String _recommendedNextStep(CockpitRunTaskClassification classification) {
-    switch (classification) {
-      case CockpitRunTaskClassification.completed:
-        return 'delivery_ready';
-      case CockpitRunTaskClassification.failedWithEvidence:
-        return 'inspect_bundle';
-      case CockpitRunTaskClassification.blockedByEnvironment:
-        return 'needs_relaunch';
-      case CockpitRunTaskClassification.needsMoreWork:
-        return 'collect_missing_evidence';
-    }
   }
 }
 

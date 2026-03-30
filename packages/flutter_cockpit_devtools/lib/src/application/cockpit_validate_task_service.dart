@@ -5,6 +5,7 @@ import '../artifacts/cockpit_recording_keyframe_extractor.dart';
 import '../validation/cockpit_bundle_artifact_validator.dart';
 import 'cockpit_read_task_bundle_summary_service.dart';
 import 'cockpit_run_task_service.dart';
+import 'cockpit_task_orchestration_service.dart';
 
 typedef CockpitValidateTaskFunction = Future<CockpitValidateTaskResult>
     Function(
@@ -185,16 +186,25 @@ final class CockpitValidateTaskResult {
 final class CockpitValidateTaskService {
   CockpitValidateTaskService({
     CockpitValidateTaskFunction? validateTask,
+    CockpitTaskOrchestrationService? orchestrationService,
     CockpitRunTaskService? runTaskService,
+    CockpitTaskOrchestrationFunction? orchestrateTask,
     CockpitRunTaskFunction? runTask,
     CockpitBundleArtifactValidator? artifactValidator,
   })  : _validateTaskOverride = validateTask,
-        _runTask = runTask ?? (runTaskService ?? CockpitRunTaskService()).run,
+        _orchestrateTask = runTask == null && runTaskService == null
+            ? (orchestrateTask ??
+                (orchestrationService ?? CockpitTaskOrchestrationService())
+                    .orchestrate)
+            : null,
+        _runTask =
+            runTask ?? (runTaskService == null ? null : runTaskService.run),
         _artifactValidator =
             artifactValidator ?? CockpitBundleArtifactValidator();
 
   final CockpitValidateTaskFunction? _validateTaskOverride;
-  final CockpitRunTaskFunction _runTask;
+  final CockpitTaskOrchestrationFunction? _orchestrateTask;
+  final CockpitRunTaskFunction? _runTask;
   final CockpitBundleArtifactValidator _artifactValidator;
 
   Future<CockpitValidateTaskResult> validate(
@@ -205,7 +215,7 @@ final class CockpitValidateTaskService {
       return override(request);
     }
 
-    final runTaskResult = await _runTask(request.runTask);
+    final runTaskResult = await _runTaskWorkflow(request.runTask);
     final bundleSummary = runTaskResult.bundleSummary;
     final validationFailures = bundleSummary == null
         ? const <CockpitValidationFailure>[]
@@ -227,6 +237,25 @@ final class CockpitValidateTaskService {
       bundleSummary: bundleSummary,
       blockedReason: runTaskResult.blockedReason,
       validationFailures: validationFailures,
+    );
+  }
+
+  Future<CockpitRunTaskResult> _runTaskWorkflow(
+    CockpitRunTaskRequest request,
+  ) async {
+    final runTask = _runTask;
+    if (runTask != null) {
+      return runTask(request);
+    }
+
+    final orchestration = await _orchestrateTask!(request);
+    return CockpitRunTaskResult(
+      classification: orchestration.classification,
+      recommendedNextStep: orchestration.recommendedNextStep,
+      sessionHandle: orchestration.sessionHandle,
+      preflightStatus: orchestration.preflightStatus,
+      bundleSummary: orchestration.bundleSummary,
+      blockedReason: orchestration.blockedReason,
     );
   }
 
