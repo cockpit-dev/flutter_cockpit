@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:args/args.dart';
 import 'package:args/command_runner.dart';
 
+import '../application/cockpit_json_key_normalizer.dart';
 import '../application/cockpit_interactive_result_profile.dart';
 
 void cockpitAddRemoteSessionArgs(ArgParser parser) {
@@ -13,6 +14,23 @@ void cockpitAddRemoteSessionArgs(ArgParser parser) {
       'session-json',
       help:
           'Optional session handle JSON file emitted by launch-remote-session.',
+    )
+    ..addOption(
+      'android-device-id',
+      help: 'Optional Android device ID used to set up adb port forwarding.',
+    )
+    ..addOption(
+      'output-json',
+      help: 'Optional file path where the command result should be written.',
+    );
+}
+
+void cockpitAddAppArgs(ArgParser parser) {
+  parser
+    ..addOption('base-url', help: 'Base URL for the running app.')
+    ..addOption(
+      'app-json',
+      help: 'Optional app handle JSON file emitted by launch-app.',
     )
     ..addOption(
       'android-device-id',
@@ -34,6 +52,18 @@ void cockpitRequireRemoteSessionReference(
       (baseUrl == null || baseUrl.isEmpty)) {
     throw UsageException(
       '--base-url is required when --session-json is not provided.',
+      usage,
+    );
+  }
+}
+
+void cockpitRequireAppReference(ArgResults? argResults, String usage) {
+  final appJsonPath = argResults?['app-json'] as String?;
+  final baseUrl = argResults?['base-url'] as String?;
+  if ((appJsonPath == null || appJsonPath.isEmpty) &&
+      (baseUrl == null || baseUrl.isEmpty)) {
+    throw UsageException(
+      '--base-url is required when --app-json is not provided.',
       usage,
     );
   }
@@ -137,19 +167,20 @@ Future<List<Map<String, Object?>>> cockpitReadRequiredJsonObjectList({
 }
 
 Future<void> cockpitWriteJsonPayload({
-  required String payload,
+  required Object payload,
   required ArgResults? argResults,
   required StringSink stdoutSink,
 }) async {
+  final renderedPayload = _renderJsonPayload(payload);
   final outputJson = argResults?['output-json'] as String?;
   if (outputJson == null || outputJson.isEmpty) {
-    stdoutSink.writeln(payload);
+    stdoutSink.writeln(renderedPayload);
     return;
   }
 
   final outputFile = File(outputJson);
   await outputFile.parent.create(recursive: true);
-  await outputFile.writeAsString(payload);
+  await outputFile.writeAsString(renderedPayload);
 }
 
 Uri? cockpitReadOptionalBaseUri(ArgResults? argResults) {
@@ -198,4 +229,25 @@ Future<Object?> _readJsonValue({
 
   final source = hasInline ? inlineValue : await File(filePath!).readAsString();
   return jsonDecode(source);
+}
+
+String _renderJsonPayload(Object payload) {
+  if (payload is! String) {
+    return const JsonEncoder.withIndent(
+      '  ',
+    ).convert(cockpitSnakeCaseJsonValue(payload));
+  }
+
+  final trimmed = payload.trimLeft();
+  if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+    return payload;
+  }
+
+  try {
+    return const JsonEncoder.withIndent(
+      '  ',
+    ).convert(cockpitSnakeCaseJsonValue(jsonDecode(payload)));
+  } on FormatException {
+    return payload;
+  }
 }

@@ -26,8 +26,8 @@ final class CockpitMcpRootsTracker {
       );
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'clientSupportsRoots': clientSupportsRoots,
-        'fallbackActive': fallbackActive,
+        'client_supports_roots': clientSupportsRoots,
+        'fallback_active': fallbackActive,
         'roots': effectiveRoots
             .map(
               (root) => <String, Object?>{

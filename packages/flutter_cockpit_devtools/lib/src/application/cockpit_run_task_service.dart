@@ -69,13 +69,13 @@ final class CockpitRunTaskLaunchRequest {
   final String? persistHandlePath;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'projectDir': projectDir,
+        'project_dir': projectDir,
         'target': target,
         'platform': platform,
-        'deviceId': deviceId,
-        'sessionPort': sessionPort,
-        'launchTimeoutSeconds': launchTimeout.inSeconds,
-        'persistHandlePath': persistHandlePath,
+        'device_id': deviceId,
+        'session_port': sessionPort,
+        'launch_timeout_seconds': launchTimeout.inSeconds,
+        'persist_handle_path': persistHandlePath,
       };
 
   factory CockpitRunTaskLaunchRequest.fromJson(Map<String, Object?> json) {
@@ -114,9 +114,9 @@ final class CockpitRunTaskBaselineRequest {
   final bool includeSnapshot;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'captureScreenshot': captureScreenshot,
-        'screenshotName': screenshotName,
-        'includeSnapshot': includeSnapshot,
+        'capture_screenshot': captureScreenshot,
+        'screenshot_name': screenshotName,
+        'include_snapshot': includeSnapshot,
       };
 
   factory CockpitRunTaskBaselineRequest.fromJson(Map<String, Object?> json) {
@@ -144,8 +144,8 @@ final class CockpitRunTaskEvidenceRequirements {
   final bool requireVideoEvidence;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'requireScreenshotEvidence': requireScreenshotEvidence,
-        'requireVideoEvidence': requireVideoEvidence,
+        'require_screenshot_evidence': requireScreenshotEvidence,
+        'require_video_evidence': requireVideoEvidence,
       };
 
   factory CockpitRunTaskEvidenceRequirements.fromJson(
@@ -191,11 +191,11 @@ final class CockpitRunTaskRequest {
 
   Map<String, Object?> toJson() => <String, Object?>{
         'launch': launch?.toJson(),
-        'sessionHandle': sessionHandle?.toJson(),
-        'sessionHandlePath': sessionHandlePath,
+        'session_handle': sessionHandle?.toJson(),
+        'session_handle_path': sessionHandlePath,
         'script': script.toJson(),
-        'outputRoot': outputRoot,
-        'persistScriptPath': persistScriptPath,
+        'output_root': outputRoot,
+        'persist_script_path': persistScriptPath,
         'baseline': baseline.toJson(),
         'requirements': requirements.toJson(),
       };
@@ -259,11 +259,11 @@ final class CockpitRunTaskResult {
 
   Map<String, Object?> toJson() => <String, Object?>{
         'classification': classification.jsonValue,
-        'recommendedNextStep': recommendedNextStep,
-        'sessionHandle': sessionHandle?.toJson(),
-        'preflightStatus': preflightStatus?.toJson(),
-        'blockedReason': blockedReason,
-        'bundleSummary': bundleSummary?.toJson(),
+        'recommended_next_step': recommendedNextStep,
+        'session_handle': sessionHandle?.toJson(),
+        'preflight_status': preflightStatus?.toJson(),
+        'blocked_reason': blockedReason,
+        'bundle_summary': bundleSummary?.toJson(),
       };
 }
 

@@ -74,7 +74,7 @@ final class CockpitReadRemoteStatusTool extends CockpitMcpTool {
   CockpitInteractiveResultProfile _readProfile(Map<String, Object?> arguments) {
     final value = arguments['result_profile'] ?? arguments['resultProfile'];
     if (value == null) {
-      return const CockpitInteractiveResultProfile.compact();
+      return const CockpitInteractiveResultProfile.minimal();
     }
     return CockpitInteractiveResultProfile.preset(
       CockpitInteractiveResultProfileName.fromJson(value),

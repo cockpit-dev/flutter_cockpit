@@ -20,22 +20,26 @@ final class CockpitRunRemoteControlScriptRequest {
   const CockpitRunRemoteControlScriptRequest({
     required this.script,
     required this.outputRoot,
+    this.platformAppId,
     this.baseUri,
     this.sessionHandle,
     this.sessionHandlePath,
     this.androidDeviceId,
     this.iosDeviceId,
     this.persistScriptPath,
+    this.portForwardingHandled = false,
   });
 
   final CockpitControlScript script;
   final String outputRoot;
+  final String? platformAppId;
   final Uri? baseUri;
   final CockpitRemoteSessionHandle? sessionHandle;
   final String? sessionHandlePath;
   final String? androidDeviceId;
   final String? iosDeviceId;
   final String? persistScriptPath;
+  final bool portForwardingHandled;
 }
 
 final class CockpitRunRemoteControlScriptResult {
@@ -82,7 +86,8 @@ final class CockpitRunRemoteControlScriptService {
       baseUri: request.baseUri,
       sessionHandle: request.sessionHandle,
       sessionHandlePath: request.sessionHandlePath,
-      androidDeviceId: request.androidDeviceId,
+      androidDeviceId:
+          request.portForwardingHandled ? null : request.androidDeviceId,
     );
     await _persistScriptIfRequested(
       path: request.persistScriptPath,
@@ -103,6 +108,7 @@ final class CockpitRunRemoteControlScriptService {
     final captureAdapter = _captureStrategyResolver.resolve(
       platform: request.script.platform,
       client: client,
+      platformAppId: request.platformAppId ?? resolved.sessionHandle?.appId,
       sessionHandle: resolved.sessionHandle,
       androidDeviceId: request.androidDeviceId ??
           (resolved.sessionHandle?.platform == 'android'

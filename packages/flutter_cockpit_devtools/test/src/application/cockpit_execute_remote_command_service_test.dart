@@ -38,7 +38,7 @@ void main() {
             commandId: 'tap-1',
             commandType: CockpitCommandType.tap,
           ),
-          resultProfile: const CockpitInteractiveResultProfile.compact(),
+          resultProfile: const CockpitInteractiveResultProfile.minimal(),
         ),
       );
 
@@ -132,7 +132,7 @@ void main() {
             commandId: 'tap-3',
             commandType: CockpitCommandType.tap,
           ),
-          resultProfile: const CockpitInteractiveResultProfile.forensic(),
+          resultProfile: const CockpitInteractiveResultProfile.evidence(),
         ),
       );
 

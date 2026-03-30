@@ -4,7 +4,7 @@ import 'package:test/test.dart';
 
 void main() {
   test(
-    'standard server registers development-session tools alongside validation tools',
+    'standard server registers AI-first app and workspace tools',
     () async {
       final server = CockpitMcpServer.standard();
 
@@ -24,29 +24,89 @@ void main() {
         containsAll(<String>[
           'add_roots',
           'remove_roots',
-          'launch_development_session',
-          'query_development_session',
-          'reload_development_session',
-          'stop_development_session',
-          'collect_development_probe',
-          'compare_development_probe',
-          'collect_remote_snapshot',
+          'list_targets',
+          'launch_app',
+          'list_apps',
+          'hot_reload',
+          'hot_restart',
+          'stop_app',
+          'read_app',
+          'inspect_ui',
+          'run_command',
+          'run_batch',
+          'wait_idle',
+          'start_recording',
+          'stop_recording',
+          'read_logs',
+          'read_errors',
           'pub_dev_search',
           'read_package_uris',
           'create_project',
           'analyze_workspace',
           'format_workspace',
-          'run_workspace_tests',
-          'apply_workspace_fixes',
-          'list_launch_targets',
-          'list_active_sessions',
-          'read_session_logs',
-          'read_runtime_errors',
+          'run_tests',
+          'apply_fixes',
+          'run_script',
+          'run_task',
           'validate_task',
         ]),
       );
     },
   );
+
+  test('standard server exposes app-first resources with snake_case templates',
+      () async {
+    final server = CockpitMcpServer.standard();
+
+    final fixedResourcesResponse = await server.handleMessage(<String, Object?>{
+      'jsonrpc': '2.0',
+      'id': 1,
+      'method': 'resources/list',
+    });
+    final fixedResources = ((fixedResourcesResponse?['result']
+            as Map<String, Object?>)['resources'] as List<Object?>)
+        .cast<Map<String, Object?>>();
+    final fixedNames = fixedResources
+        .map((resource) => resource['name'])
+        .toList(growable: false);
+
+    expect(
+        fixedNames,
+        containsAll(<String>[
+          'workspace_goals',
+          'workspace_roots',
+          'apps',
+          'latest_task',
+          'workspace_capabilities',
+        ]));
+    expect(fixedNames, isNot(contains('active_sessions')));
+
+    final templateResourcesResponse = await server.handleMessage(
+      <String, Object?>{
+        'jsonrpc': '2.0',
+        'id': 2,
+        'method': 'resources/templates/list',
+      },
+    );
+    final templateResources = ((templateResourcesResponse?['result']
+            as Map<String, Object?>)['resourceTemplates'] as List<Object?>)
+        .cast<Map<String, Object?>>();
+    final templateMap = <String, String>{
+      for (final resource in templateResources)
+        resource['name']! as String: resource['uriTemplate']! as String,
+    };
+
+    expect(templateMap['app'], 'cockpit://app/details{?app_id}');
+    expect(
+      templateMap['task_bundle_summary'],
+      'cockpit://task/summary{?bundle_dir}',
+    );
+    expect(
+      templateMap['package_uri'],
+      'cockpit://package/read{?workspace_root,uri}',
+    );
+    expect(templateMap.containsKey('development_session'), isFalse);
+  });
 
   test('server initializes, lists tools, and dispatches tool calls', () async {
     final server = CockpitMcpServer(
@@ -112,7 +172,7 @@ void main() {
     });
     final callResult = callResponse?['result'] as Map<String, Object?>;
     expect(
-      (callResult['structuredContent'] as Map<String, Object?>)['echoedValue'],
+      (callResult['structuredContent'] as Map<String, Object?>)['echoed_value'],
       'hello',
     );
   });

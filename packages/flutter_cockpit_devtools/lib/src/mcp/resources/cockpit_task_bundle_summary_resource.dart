@@ -16,7 +16,7 @@ final class CockpitTaskBundleSummaryResource extends CockpitMcpResource {
   CockpitMcpResourceDefinition get definition =>
       const CockpitMcpResourceDefinition.template(
         name: 'task_bundle_summary',
-        uriTemplate: 'cockpit://task/summary{?bundleDir}',
+        uriTemplate: 'cockpit://task/summary{?bundle_dir}',
         description:
             'Read a task bundle summary directly as a resource for inspection and delivery review.',
         mimeType: 'application/json',
@@ -34,9 +34,9 @@ final class CockpitTaskBundleSummaryResource extends CockpitMcpResource {
     if (uri.host != 'task' || uri.path != '/summary') {
       return null;
     }
-    final bundleDir = uri.queryParameters['bundleDir'];
+    final bundleDir = uri.queryParameters['bundle_dir'];
     if (bundleDir == null || bundleDir.isEmpty) {
-      throw StateError('task bundle summary resource requires bundleDir.');
+      throw StateError('task bundle summary resource requires bundle_dir.');
     }
     final result = await _service.read(
       CockpitReadTaskBundleSummaryRequest(bundleDir: bundleDir),

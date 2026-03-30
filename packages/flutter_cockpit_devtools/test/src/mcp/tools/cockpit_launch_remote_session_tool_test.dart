@@ -83,7 +83,7 @@ void main() {
         '/tmp/session_handle.json',
       );
       expect(
-        (structuredContent['health'] as Map<String, Object?>)['sessionId'],
+        (structuredContent['health'] as Map<String, Object?>)['session_id'],
         'launch-tool-demo',
       );
       expect(result['content'], isA<List<Object?>>());

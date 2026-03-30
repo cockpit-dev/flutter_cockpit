@@ -110,7 +110,7 @@ void main() {
       expect(bundleSummary['bundle_dir'], '/tmp/out/validate-task');
       expect(
         (bundleSummary['runtime_summary']
-            as Map<String, Object?>)['warningCount'],
+            as Map<String, Object?>)['warning_count'],
         1,
       );
       expect(

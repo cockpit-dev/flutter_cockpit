@@ -22,7 +22,7 @@ final class CockpitApplyWorkspaceFixesTool extends CockpitMcpTool {
   final CockpitApplyWorkspaceFixesToolFunction _apply;
 
   @override
-  String get name => 'apply_workspace_fixes';
+  String get name => 'apply_fixes';
 
   @override
   String get description => 'Run dart fix --apply for a workspace root.';

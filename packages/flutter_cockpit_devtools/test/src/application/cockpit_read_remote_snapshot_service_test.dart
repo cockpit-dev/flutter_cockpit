@@ -64,7 +64,7 @@ void main() {
       final result = await service.read(
         CockpitReadRemoteSnapshotRequest(
           sessionHandle: _sessionHandle(),
-          resultProfile: const CockpitInteractiveResultProfile.forensic(),
+          resultProfile: const CockpitInteractiveResultProfile.evidence(),
         ),
       );
 

@@ -75,7 +75,7 @@ void main() {
       final structuredContent =
           result['structuredContent'] as Map<String, Object?>;
       expect(
-        (structuredContent['snapshot'] as Map<String, Object?>)['routeName'],
+        (structuredContent['snapshot'] as Map<String, Object?>)['route_name'],
         '/investigate',
       );
       expect(

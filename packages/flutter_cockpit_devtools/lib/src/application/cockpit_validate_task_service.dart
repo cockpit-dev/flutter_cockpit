@@ -73,13 +73,14 @@ final class CockpitValidateTaskRequirements {
   final bool requireAcceptanceSemanticEvidence;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'expectedClassification': expectedClassification?.jsonValue,
-        'requireAcceptanceMarkdown': requireAcceptanceMarkdown,
-        'requireEnvironmentSnapshot': requireEnvironmentSnapshot,
-        'requirePrimaryScreenshot': requirePrimaryScreenshot,
-        'requirePrimaryRecording': requirePrimaryRecording,
-        'requireArtifactFiles': requireArtifactFiles,
-        'requireAcceptanceSemanticEvidence': requireAcceptanceSemanticEvidence,
+        'expected_classification': expectedClassification?.jsonValue,
+        'require_acceptance_markdown': requireAcceptanceMarkdown,
+        'require_environment_snapshot': requireEnvironmentSnapshot,
+        'require_primary_screenshot': requirePrimaryScreenshot,
+        'require_primary_recording': requirePrimaryRecording,
+        'require_artifact_files': requireArtifactFiles,
+        'require_acceptance_semantic_evidence':
+            requireAcceptanceSemanticEvidence,
       };
 
   factory CockpitValidateTaskRequirements.fromJson(Map<String, Object?> json) {
@@ -139,7 +140,7 @@ final class CockpitValidateTaskRequest {
   final CockpitValidateTaskRequirements validation;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'runTask': runTask.toJson(),
+        'run_task': runTask.toJson(),
         'validation': validation.toJson(),
       };
 
@@ -174,11 +175,11 @@ final class CockpitValidateTaskResult {
 
   Map<String, Object?> toJson() => <String, Object?>{
         'classification': classification.jsonValue,
-        'recommendedNextStep': recommendedNextStep,
-        'runTaskResult': runTaskResult?.toJson(),
-        'bundleSummary': bundleSummary?.toJson(),
-        'blockedReason': blockedReason,
-        'validationFailures': validationFailures
+        'recommended_next_step': recommendedNextStep,
+        'run_task_result': runTaskResult?.toJson(),
+        'bundle_summary': bundleSummary?.toJson(),
+        'blocked_reason': blockedReason,
+        'validation_failures': validationFailures
             .map((failure) => failure.toJson())
             .toList(growable: false),
       };

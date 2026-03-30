@@ -6,6 +6,7 @@ import '../remote/cockpit_remote_session_client.dart';
 import '../session/cockpit_remote_session_handle.dart';
 import 'cockpit_interactive_result_data.dart';
 import 'cockpit_interactive_session_lock.dart';
+import 'cockpit_json_key_normalizer.dart';
 import 'cockpit_session_reference_resolver.dart';
 
 typedef CockpitRemoteRecordingStopper = Future<CockpitRecordingResult> Function(
@@ -48,11 +49,13 @@ final class CockpitStopRemoteRecordingResult {
   Map<String, Object?> toJson() => <String, Object?>{
         'state': state.name,
         'purpose': purpose?.name,
-        'recording_kind': recordingKind?.name,
+        'recording_kind': recordingKind == null
+            ? null
+            : cockpitSnakeCaseEnumValue('recording_kind', recordingKind!.name),
         'artifact': artifact?.toJson(),
         'duration_ms': durationMs,
         'failure_reason': failureReason,
-        'session_handle': sessionHandle?.toJson(),
+        'session_handle': cockpitSnakeCaseJsonValue(sessionHandle?.toJson()),
       };
 }
 

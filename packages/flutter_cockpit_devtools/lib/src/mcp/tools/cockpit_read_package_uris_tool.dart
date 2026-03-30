@@ -54,6 +54,9 @@ final class CockpitReadPackageUrisTool extends CockpitMcpTool {
             'type': 'array',
             'items': <String, Object?>{'type': 'string'},
           },
+          'max_preview_chars': <String, Object?>{'type': 'integer'},
+          'max_entries': <String, Object?>{'type': 'integer'},
+          'include_full_text': <String, Object?>{'type': 'boolean'},
         },
       };
 
@@ -72,6 +75,11 @@ final class CockpitReadPackageUrisTool extends CockpitMcpTool {
         );
       }
       final allowedRoots = cockpitAllowedWorkspaceRootPaths(_rootsTracker);
+      final maxPreviewChars =
+          cockpitReadOptionalInt(arguments, 'max_preview_chars') ?? 1200;
+      final maxEntries = cockpitReadOptionalInt(arguments, 'max_entries') ?? 40;
+      final includeFullText =
+          cockpitReadOptionalBool(arguments, 'include_full_text') ?? false;
       final results = <Map<String, Object?>>[];
       for (final uri in uris) {
         final result = await _read(
@@ -79,23 +87,12 @@ final class CockpitReadPackageUrisTool extends CockpitMcpTool {
             workspaceRoot: workspaceRoot,
             uri: uri,
             allowedRoots: allowedRoots,
+            maxPreviewChars: maxPreviewChars,
+            maxEntries: maxEntries,
+            includeFullText: includeFullText,
           ),
         );
-        results.add(<String, Object?>{
-          'uri': uri,
-          'kind': result.kind.name,
-          'resolvedPath': result.resolvedPath,
-          'text': result.text,
-          'entries': result.entries
-              .map(
-                (entry) => <String, Object?>{
-                  'path': entry.path,
-                  'name': entry.name,
-                  'isDirectory': entry.isDirectory,
-                },
-              )
-              .toList(growable: false),
-        });
+        results.add(<String, Object?>{'uri': uri, ...result.toJson()});
       }
       return cockpitMcpResult(
         text: 'Package URIs resolved.',

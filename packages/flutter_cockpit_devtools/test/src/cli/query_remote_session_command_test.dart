@@ -4,12 +4,13 @@ import 'dart:io';
 import 'package:args/command_runner.dart';
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:flutter_cockpit_devtools/flutter_cockpit_devtools.dart';
-import 'package:flutter_cockpit_devtools/src/cli/commands/query_remote_session_command.dart';
+import 'package:flutter_cockpit_devtools/src/application/cockpit_app_reference_resolver.dart';
+import 'package:flutter_cockpit_devtools/src/cli/commands/read_app_command.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 void main() {
-  test('query-remote-session writes the running app health payload', () async {
+  test('read-app writes the running app payload', () async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     final tempDir = await Directory.systemTemp.createTemp(
       'cockpit_query_remote_cli',
@@ -54,7 +55,7 @@ void main() {
 
     final outputFile = File(p.join(tempDir.path, 'session.json'));
     final exitCode = await CockpitCommandRunner().run(<String>[
-      'query-remote-session',
+      'read-app',
       '--base-url',
       'http://127.0.0.1:${server.port}',
       '--output-json',
@@ -63,12 +64,12 @@ void main() {
 
     expect(exitCode, 0);
     final decoded = jsonDecode(await outputFile.readAsString());
-    expect(decoded['sessionId'], 'query-demo');
-    expect(decoded['currentRouteName'], '/home');
+    expect(decoded['session_id'], 'query-demo');
+    expect(decoded['current_route_name'], '/home');
   });
 
   test(
-    'query-remote-session uses the forwarded host port for Android devices',
+    'read-app uses the forwarded host port for Android devices',
     () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       final tempDir = await Directory.systemTemp.createTemp(
@@ -117,14 +118,18 @@ void main() {
         'flutter_cockpit_devtools',
         'Host-side tooling for flutter_cockpit.',
       )..addCommand(
-          QueryRemoteSessionCommand(
-            portForwarder: _FakeAndroidPortForwarder(
-              forwardedHostPort: server.port,
+          ReadAppCommand(
+            service: CockpitReadAppService(
+              appReferenceResolver: CockpitAppReferenceResolver(
+                portForwarder: _FakeAndroidPortForwarder(
+                  forwardedHostPort: server.port,
+                ),
+              ),
             ),
           ),
         );
       final exitCode = await runner.run(<String>[
-            'query-remote-session',
+            'read-app',
             '--base-url',
             'http://127.0.0.1:47331',
             '--output-json',
@@ -136,12 +141,12 @@ void main() {
 
       expect(exitCode, 0);
       final decoded = jsonDecode(await outputFile.readAsString());
-      expect(decoded['sessionId'], 'query-android-demo');
+      expect(decoded['session_id'], 'query-android-demo');
     },
   );
 
   test(
-    'query-remote-session can resolve its base URL from a session handle',
+    'read-app can resolve its base URL from an app handle',
     () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       final tempDir = await Directory.systemTemp.createTemp(
@@ -188,23 +193,21 @@ void main() {
       final sessionFile = File(p.join(tempDir.path, 'session_handle.json'));
       await sessionFile.writeAsString(
         jsonEncode(<String, Object?>{
+          'app_id': 'dev.cockpit.cockpitDemo',
+          'mode': 'automation',
           'platform': 'ios',
-          'deviceId': 'simulator',
-          'projectDir': '/workspace/examples/cockpit_demo',
+          'device_id': 'simulator',
+          'project_dir': '/workspace/examples/cockpit_demo',
           'target': 'lib/main.dart',
-          'appId': 'dev.cockpit.cockpitDemo',
-          'host': '127.0.0.1',
-          'hostPort': server.port,
-          'devicePort': server.port,
-          'baseUrl': 'http://127.0.0.1:${server.port}',
-          'launchedAt': '2026-03-21T00:00:00.000Z',
+          'base_url': 'http://127.0.0.1:${server.port}',
+          'launched_at': '2026-03-21T00:00:00.000Z',
         }),
       );
 
       final outputFile = File(p.join(tempDir.path, 'session_status.json'));
       final exitCode = await CockpitCommandRunner().run(<String>[
-        'query-remote-session',
-        '--session-json',
+        'read-app',
+        '--app-json',
         sessionFile.path,
         '--output-json',
         outputFile.path,
@@ -212,8 +215,8 @@ void main() {
 
       expect(exitCode, 0);
       final decoded = jsonDecode(await outputFile.readAsString());
-      expect(decoded['sessionId'], 'query-handle-demo');
-      expect(decoded['currentRouteName'], '/success');
+      expect(decoded['session_id'], 'query-handle-demo');
+      expect(decoded['current_route_name'], '/success');
     },
   );
 }

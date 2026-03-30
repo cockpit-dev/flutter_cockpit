@@ -4,13 +4,14 @@ import 'dart:io';
 import 'package:args/command_runner.dart';
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:flutter_cockpit_devtools/flutter_cockpit_devtools.dart';
-import 'package:flutter_cockpit_devtools/src/cli/commands/run_remote_control_script_command.dart';
+import 'package:flutter_cockpit_devtools/src/application/cockpit_app_reference_resolver.dart';
+import 'package:flutter_cockpit_devtools/src/cli/commands/run_script_command.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 void main() {
   test(
-    'run-remote-control-script executes commands against a remote app and writes a bundle',
+    'run-script executes commands against a running app and writes a bundle',
     () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       final tempDir = await Directory.systemTemp.createTemp(
@@ -186,7 +187,7 @@ void main() {
       );
 
       final exitCode = await CockpitCommandRunner().run(<String>[
-        'run-remote-control-script',
+        'run-script',
         '--base-url',
         'http://127.0.0.1:${server.port}',
         '--script-json',
@@ -252,7 +253,7 @@ void main() {
   );
 
   test(
-    'run-remote-control-script uses the forwarded host port for Android devices',
+    'run-script uses the forwarded host port for Android devices',
     () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       final tempDir = await Directory.systemTemp.createTemp(
@@ -353,14 +354,16 @@ void main() {
         'flutter_cockpit_devtools',
         'Host-side tooling for flutter_cockpit.',
       )..addCommand(
-          RunRemoteControlScriptCommand(
-            portForwarder: _FakeAndroidPortForwarder(
-              forwardedHostPort: server.port,
+          RunScriptCommand(
+            appReferenceResolver: CockpitAppReferenceResolver(
+              portForwarder: _FakeAndroidPortForwarder(
+                forwardedHostPort: server.port,
+              ),
             ),
           ),
         );
       final exitCode = await runner.run(<String>[
-            'run-remote-control-script',
+            'run-script',
             '--base-url',
             'http://127.0.0.1:47331',
             '--script-json',
@@ -377,7 +380,7 @@ void main() {
   );
 
   test(
-    'run-remote-control-script writes a host-recorded video without remote recording downloads',
+    'run-script writes a host-recorded video without remote recording downloads',
     () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       final tempDir = await Directory.systemTemp.createTemp(
@@ -499,23 +502,25 @@ void main() {
         'flutter_cockpit_devtools',
         'Host-side tooling for flutter_cockpit.',
       )..addCommand(
-          RunRemoteControlScriptCommand(
-            recordingStrategyResolver: CockpitRecordingStrategyResolver(
-              remoteAdapterFactory: (client) => throw StateError(
-                'remote recording adapter should not be used',
-              ),
-              adbAdapterFactory: (deviceId) => throw StateError(
-                'adb recording adapter should not be used',
-              ),
-              simctlAdapterFactory: (deviceId) =>
-                  _FakeRecordingAdapter.fromSourceFile(
-                hostRecordingSource.path,
+          RunScriptCommand(
+            service: CockpitRunRemoteControlScriptService(
+              recordingStrategyResolver: CockpitRecordingStrategyResolver(
+                remoteAdapterFactory: (client) => throw StateError(
+                  'remote recording adapter should not be used',
+                ),
+                adbAdapterFactory: (deviceId) => throw StateError(
+                  'adb recording adapter should not be used',
+                ),
+                simctlAdapterFactory: (deviceId) =>
+                    _FakeRecordingAdapter.fromSourceFile(
+                  hostRecordingSource.path,
+                ),
               ),
             ),
           ),
         );
       final exitCode = await runner.run(<String>[
-            'run-remote-control-script',
+            'run-script',
             '--base-url',
             'http://127.0.0.1:${server.port}',
             '--script-json',
@@ -554,7 +559,7 @@ void main() {
   );
 
   test(
-    'run-remote-control-script can resolve its base URL from a session handle',
+    'run-script can resolve its base URL from an app handle',
     () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       final tempDir = await Directory.systemTemp.createTemp(
@@ -628,16 +633,14 @@ void main() {
       final sessionFile = File(p.join(tempDir.path, 'session_handle.json'));
       await sessionFile.writeAsString(
         jsonEncode(<String, Object?>{
+          'app_id': 'dev.cockpit.cockpitDemo',
+          'mode': 'automation',
           'platform': 'ios',
-          'deviceId': 'simulator',
-          'projectDir': '/workspace/examples/cockpit_demo',
+          'device_id': 'simulator',
+          'project_dir': '/workspace/examples/cockpit_demo',
           'target': 'lib/main.dart',
-          'appId': 'dev.cockpit.cockpitDemo',
-          'host': '127.0.0.1',
-          'hostPort': server.port,
-          'devicePort': server.port,
-          'baseUrl': 'http://127.0.0.1:${server.port}',
-          'launchedAt': '2026-03-21T00:00:00.000Z',
+          'base_url': 'http://127.0.0.1:${server.port}',
+          'launched_at': '2026-03-21T00:00:00.000Z',
         }),
       );
 
@@ -666,8 +669,8 @@ void main() {
       );
 
       final exitCode = await CockpitCommandRunner().run(<String>[
-        'run-remote-control-script',
-        '--session-json',
+        'run-script',
+        '--app-json',
         sessionFile.path,
         '--script-json',
         scriptFile.path,

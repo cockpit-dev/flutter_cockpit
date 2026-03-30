@@ -21,9 +21,12 @@ final class CockpitRecordingRequest {
       };
 
   factory CockpitRecordingRequest.fromJson(Map<String, Object?> json) {
+    final purpose = CockpitRecordingPurpose.fromJson(json['purpose']);
     return CockpitRecordingRequest(
-      purpose: CockpitRecordingPurpose.fromJson(json['purpose']),
-      name: json['name']! as String,
+      purpose: purpose,
+      name: (json['name'] as String?)?.trim().isNotEmpty == true
+          ? json['name']! as String
+          : purpose.name,
       attachToStep: json['attachToStep'] as bool? ?? false,
       tailStabilizationDelay: Duration(
         milliseconds: (json['tailStabilizationMs'] as int?) ??

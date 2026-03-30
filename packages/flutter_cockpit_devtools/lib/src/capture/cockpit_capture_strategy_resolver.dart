@@ -42,6 +42,7 @@ final class CockpitCaptureStrategyResolver {
   CockpitCaptureAdapter resolve({
     required String platform,
     required CockpitRemoteSessionClient client,
+    String? platformAppId,
     CockpitRemoteSessionHandle? sessionHandle,
     String? androidDeviceId,
     String? iosDeviceId,
@@ -63,14 +64,33 @@ final class CockpitCaptureStrategyResolver {
         client: client,
       );
     }
-    if (platform == 'macos') {
-      return remoteAdapter;
+    final resolvedAppId = platformAppId ?? sessionHandle?.appId;
+    if (platform == 'macos' &&
+        resolvedAppId != null &&
+        resolvedAppId.isNotEmpty) {
+      return CockpitHostPreferredCaptureAdapter(
+        remoteAdapter: remoteAdapter,
+        hostAcceptanceAdapter: macosAdapterFactory(resolvedAppId),
+        client: client,
+      );
     }
-    if (platform == 'windows') {
-      return remoteAdapter;
+    if (platform == 'windows' &&
+        resolvedAppId != null &&
+        resolvedAppId.isNotEmpty) {
+      return CockpitHostPreferredCaptureAdapter(
+        remoteAdapter: remoteAdapter,
+        hostAcceptanceAdapter: windowsAdapterFactory(resolvedAppId),
+        client: client,
+      );
     }
-    if (platform == 'linux') {
-      return remoteAdapter;
+    if (platform == 'linux' &&
+        resolvedAppId != null &&
+        resolvedAppId.isNotEmpty) {
+      return CockpitHostPreferredCaptureAdapter(
+        remoteAdapter: remoteAdapter,
+        hostAcceptanceAdapter: linuxAdapterFactory(resolvedAppId),
+        client: client,
+      );
     }
     return remoteAdapter;
   }

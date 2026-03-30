@@ -1,5 +1,7 @@
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
+import '../application/cockpit_json_key_normalizer.dart';
+
 final class CockpitControlScript {
   const CockpitControlScript({
     required this.sessionId,
@@ -20,33 +22,34 @@ final class CockpitControlScript {
   final bool failFast;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'sessionId': sessionId,
-        'taskId': taskId,
+        'session_id': sessionId,
+        'task_id': taskId,
         'platform': platform,
         'environment': environment?.toJson(),
         'recording': recording?.toJson(),
         'commands':
             commands.map((command) => command.toJson()).toList(growable: false),
-        'failFast': failFast,
+        'fail_fast': failFast,
       };
 
   factory CockpitControlScript.fromJson(Map<String, Object?> json) {
-    final environmentJson = json['environment'];
+    final normalizedJson = cockpitNormalizeJsonKeys(json);
+    final environmentJson = normalizedJson['environment'];
     if (environmentJson != null && environmentJson is! Map<Object?, Object?>) {
       throw const FormatException(
         'Control script environment must be an object.',
       );
     }
 
-    final commandsJson = json['commands'];
+    final commandsJson = normalizedJson['commands'];
     if (commandsJson is! List<Object?>) {
       throw const FormatException('Control script commands must be a list.');
     }
 
     return CockpitControlScript(
-      sessionId: _readRequiredString(json, 'sessionId'),
-      taskId: _readRequiredString(json, 'taskId'),
-      platform: _readRequiredString(json, 'platform'),
+      sessionId: _readRequiredString(normalizedJson, 'sessionId'),
+      taskId: _readRequiredString(normalizedJson, 'taskId'),
+      platform: _readRequiredString(normalizedJson, 'platform'),
       environment: environmentJson == null
           ? null
           : CockpitEnvironment.fromJson(
@@ -54,14 +57,14 @@ final class CockpitControlScript {
                 environmentJson as Map<Object?, Object?>,
               ),
             ),
-      recording: _readRecording(json['recording']),
+      recording: _readRecording(normalizedJson['recording']),
       commands: commandsJson
           .cast<Map<Object?, Object?>>()
           .map(
             (item) => CockpitCommand.fromJson(Map<String, Object?>.from(item)),
           )
           .toList(growable: false),
-      failFast: json['failFast'] as bool? ?? true,
+      failFast: normalizedJson['failFast'] as bool? ?? true,
     );
   }
 
@@ -74,7 +77,9 @@ final class CockpitControlScript {
         'Control script recording must be an object.',
       );
     }
-    return CockpitRecordingRequest.fromJson(Map<String, Object?>.from(json));
+    return CockpitRecordingRequest.fromJson(
+      cockpitNormalizeJsonKeys(Map<String, Object?>.from(json)),
+    );
   }
 
   static String _readRequiredString(Map<String, Object?> json, String key) {

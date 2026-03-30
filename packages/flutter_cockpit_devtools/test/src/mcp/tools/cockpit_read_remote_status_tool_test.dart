@@ -47,10 +47,10 @@ void main() {
         'baseUrl': 'http://127.0.0.1:47331',
         'launchedAt': '2026-03-30T00:00:00.000Z',
       },
-      'result_profile': 'compact',
+      'result_profile': 'minimal',
     });
 
-    expect(capturedRequest?.resultProfile.name.jsonValue, 'compact');
+    expect(capturedRequest?.resultProfile.name.jsonValue, 'minimal');
     expect(result['structuredContent'], isA<Map<String, Object?>>());
   });
 }

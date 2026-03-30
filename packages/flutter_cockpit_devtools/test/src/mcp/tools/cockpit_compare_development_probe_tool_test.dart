@@ -36,7 +36,7 @@ void main() {
       expect(capturedRequest?.toProbe?.probeId, 'probe-after');
       final structured = result['structuredContent'] as Map<String, Object?>;
       expect(
-        (structured['delta'] as Map<String, Object?>)['routeChanged'],
+        (structured['delta'] as Map<String, Object?>)['route_changed'],
         isTrue,
       );
     },

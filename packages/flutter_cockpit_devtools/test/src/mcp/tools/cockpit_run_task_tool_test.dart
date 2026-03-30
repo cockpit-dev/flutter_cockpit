@@ -116,7 +116,7 @@ void main() {
       expect(bundleSummary['bundle_dir'], '/tmp/out/run-task');
       expect(
         (bundleSummary['runtime_summary']
-            as Map<String, Object?>)['errorCount'],
+            as Map<String, Object?>)['error_count'],
         1,
       );
       final evidence = bundleSummary['evidence'] as Map<String, Object?>;

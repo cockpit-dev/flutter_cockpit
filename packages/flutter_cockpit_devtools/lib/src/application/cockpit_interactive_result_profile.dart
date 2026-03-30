@@ -5,10 +5,10 @@ import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'cockpit_application_service_exception.dart';
 
 enum CockpitInteractiveResultProfileName {
-  compact('compact'),
+  minimal('minimal'),
   standard('standard'),
   inspect('inspect'),
-  forensic('forensic');
+  evidence('evidence');
 
   const CockpitInteractiveResultProfileName(this.jsonValue);
 
@@ -91,9 +91,9 @@ final class CockpitInteractiveResultProfile {
     required this.snapshotProfile,
   });
 
-  const CockpitInteractiveResultProfile.compact()
+  const CockpitInteractiveResultProfile.minimal()
       : this(
-          name: CockpitInteractiveResultProfileName.compact,
+          name: CockpitInteractiveResultProfileName.minimal,
           ui: CockpitInteractiveUiLevel.none,
           diagnostics: CockpitInteractiveDiagnosticsLevel.none,
           artifacts: CockpitInteractiveArtifactLevel.none,
@@ -127,9 +127,9 @@ final class CockpitInteractiveResultProfile {
           snapshotProfile: CockpitSnapshotProfile.investigate,
         );
 
-  const CockpitInteractiveResultProfile.forensic()
+  const CockpitInteractiveResultProfile.evidence()
       : this(
-          name: CockpitInteractiveResultProfileName.forensic,
+          name: CockpitInteractiveResultProfileName.evidence,
           ui: CockpitInteractiveUiLevel.snapshot,
           diagnostics: CockpitInteractiveDiagnosticsLevel.full,
           artifacts: CockpitInteractiveArtifactLevel.metadata,
@@ -220,14 +220,14 @@ final class CockpitInteractiveResultProfile {
     CockpitInteractiveResultProfileName name,
   ) {
     return switch (name) {
-      CockpitInteractiveResultProfileName.compact =>
-        const CockpitInteractiveResultProfile.compact(),
+      CockpitInteractiveResultProfileName.minimal =>
+        const CockpitInteractiveResultProfile.minimal(),
       CockpitInteractiveResultProfileName.standard =>
         const CockpitInteractiveResultProfile.standard(),
       CockpitInteractiveResultProfileName.inspect =>
         const CockpitInteractiveResultProfile.inspect(),
-      CockpitInteractiveResultProfileName.forensic =>
-        const CockpitInteractiveResultProfile.forensic(),
+      CockpitInteractiveResultProfileName.evidence =>
+        const CockpitInteractiveResultProfile.evidence(),
     };
   }
 

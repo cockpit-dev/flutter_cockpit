@@ -41,13 +41,13 @@ void main() {
             'commandType': 'tap',
           }),
           '--profile',
-          'compact',
+          'minimal',
         ]) ??
         0;
 
     expect(exitCode, 0);
     expect(capturedRequest?.command.commandId, 'tap-1');
-    expect(capturedRequest?.resultProfile.name.jsonValue, 'compact');
+    expect(capturedRequest?.resultProfile.name.jsonValue, 'minimal');
     final decoded = jsonDecode(stdoutBuffer.toString()) as Map<String, Object?>;
     expect(decoded['command'], isA<Map<String, Object?>>());
   });

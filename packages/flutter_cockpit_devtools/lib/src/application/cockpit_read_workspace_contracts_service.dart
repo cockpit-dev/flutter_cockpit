@@ -28,17 +28,32 @@ final class CockpitReadWorkspaceContractsService {
         'docs/contracts/flutter-cockpit-skill-contract.md',
     String bundleContractPath = 'docs/contracts/task-run-bundle.md',
   }) async {
-    final skillContract = _fileSystem.file(skillContractPath);
-    final bundleContract = _fileSystem.file(bundleContractPath);
     return CockpitWorkspaceContracts(
-      skillContract: CockpitWorkspaceDocument(
-        path: skillContract.path,
-        text: await skillContract.readAsString(),
-      ),
-      bundleContract: CockpitWorkspaceDocument(
-        path: bundleContract.path,
-        text: await bundleContract.readAsString(),
-      ),
+      skillContract:
+          await readSkillContract(skillContractPath: skillContractPath),
+      bundleContract:
+          await readBundleContract(bundleContractPath: bundleContractPath),
+    );
+  }
+
+  Future<CockpitWorkspaceDocument> readSkillContract({
+    String skillContractPath =
+        'docs/contracts/flutter-cockpit-skill-contract.md',
+  }) async {
+    final skillContract = _fileSystem.file(skillContractPath);
+    return CockpitWorkspaceDocument(
+      path: skillContract.path,
+      text: await skillContract.readAsString(),
+    );
+  }
+
+  Future<CockpitWorkspaceDocument> readBundleContract({
+    String bundleContractPath = 'docs/contracts/task-run-bundle.md',
+  }) async {
+    final bundleContract = _fileSystem.file(bundleContractPath);
+    return CockpitWorkspaceDocument(
+      path: bundleContract.path,
+      text: await bundleContract.readAsString(),
     );
   }
 }

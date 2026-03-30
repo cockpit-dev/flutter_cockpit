@@ -124,6 +124,24 @@ final class CockpitSessionRegistry {
     return _developmentSessions[developmentSessionId];
   }
 
+  CockpitDevelopmentSessionRecord? developmentSessionByAppId(String appId) {
+    for (final record in _developmentSessions.values) {
+      if (record.handle.appId == appId) {
+        return record;
+      }
+    }
+    return null;
+  }
+
+  CockpitRemoteSessionRecord? remoteSessionByAppId(String appId) {
+    for (final record in _remoteSessions.values) {
+      if (record.handle.appId == appId) {
+        return record;
+      }
+    }
+    return null;
+  }
+
   String _remoteSessionKey(CockpitRemoteSessionHandle handle) =>
       '${handle.platform}:${handle.deviceId}:${handle.hostPort}:${handle.appId}';
 }

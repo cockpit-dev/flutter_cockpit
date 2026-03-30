@@ -1,4 +1,6 @@
+import '../../application/cockpit_app_reference_resolver.dart';
 import '../../application/cockpit_run_remote_control_script_service.dart';
+import '../../application/cockpit_session_registry.dart';
 import '../../cli/cockpit_control_script.dart';
 import '../cockpit_mcp_error.dart';
 import '../cockpit_mcp_tool.dart';
@@ -11,13 +13,18 @@ typedef CockpitRunRemoteControlScriptFunction
 final class CockpitRunRemoteControlScriptTool extends CockpitMcpTool {
   CockpitRunRemoteControlScriptTool({
     CockpitRunRemoteControlScriptService? service,
+    CockpitSessionRegistry? registry,
+    CockpitAppReferenceResolver? appReferenceResolver,
     CockpitRunRemoteControlScriptFunction? run,
-  }) : _run = run ?? (service ?? CockpitRunRemoteControlScriptService()).run;
+  })  : _run = run ?? (service ?? CockpitRunRemoteControlScriptService()).run,
+        _appReferenceResolver = appReferenceResolver ??
+            CockpitAppReferenceResolver(registry: registry);
 
   final CockpitRunRemoteControlScriptFunction _run;
+  final CockpitAppReferenceResolver _appReferenceResolver;
 
   @override
-  String get name => 'run_remote_control_script';
+  String get name => 'run_script';
 
   @override
   String get description =>
@@ -28,8 +35,11 @@ final class CockpitRunRemoteControlScriptTool extends CockpitMcpTool {
         'type': 'object',
         'required': <String>['script', 'output_root'],
         'properties': <String, Object?>{
-          'session_handle': <String, Object?>{'type': 'object'},
-          'session_handle_path': <String, Object?>{'type': 'string'},
+          'app_id': <String, Object?>{'type': 'string'},
+          'app_json': <String, Object?>{'type': 'string'},
+          'base_url': <String, Object?>{'type': 'string'},
+          'android_device_id': <String, Object?>{'type': 'string'},
+          'ios_device_id': <String, Object?>{'type': 'string'},
           'script': <String, Object?>{'type': 'object'},
           'output_root': <String, Object?>{'type': 'string'},
           'persist_script_path': <String, Object?>{'type': 'string'},
@@ -53,13 +63,28 @@ final class CockpitRunRemoteControlScriptTool extends CockpitMcpTool {
         );
       }
 
+      final baseUrl = cockpitReadOptionalString(arguments, 'base_url');
+      final resolved = await _appReferenceResolver.resolve(
+        appId: cockpitReadOptionalString(arguments, 'app_id'),
+        appHandlePath: cockpitReadOptionalString(arguments, 'app_json'),
+        baseUri: baseUrl == null ? null : Uri.parse(baseUrl),
+        androidDeviceId: cockpitReadOptionalString(
+          arguments,
+          'android_device_id',
+        ),
+      );
       final result = await _run(
         CockpitRunRemoteControlScriptRequest(
-          sessionHandle: cockpitReadOptionalSessionHandle(arguments),
-          sessionHandlePath: cockpitReadOptionalString(
+          platformAppId: resolved.app?.platformAppId ??
+              resolved.developmentRecord?.handle.remoteSessionHandle?.appId ??
+              resolved.remoteRecord?.handle.appId,
+          baseUri: resolved.baseUri,
+          androidDeviceId: cockpitReadOptionalString(
             arguments,
-            'session_handle_path',
+            'android_device_id',
           ),
+          iosDeviceId: cockpitReadOptionalString(arguments, 'ios_device_id'),
+          portForwardingHandled: true,
           script: script,
           outputRoot: cockpitReadRequiredString(arguments, 'output_root'),
           persistScriptPath: cockpitReadOptionalString(

@@ -117,7 +117,7 @@ void main() {
       );
       expect(
         (structuredContent['runtime_summary']
-            as Map<String, Object?>)['errorCount'],
+            as Map<String, Object?>)['error_count'],
         1,
       );
       expect(structuredContent['diagnostics_artifact_paths'], <String>[
@@ -125,7 +125,7 @@ void main() {
       ]);
       expect(
         (structuredContent['artifact_paths']
-            as Map<String, Object?>)['primaryScreenshotPath'],
+            as Map<String, Object?>)['primary_screenshot_path'],
         p.join(bundleDir.path, 'screenshots', 'acceptance.png'),
       );
       final evidence = structuredContent['evidence'] as Map<String, Object?>;

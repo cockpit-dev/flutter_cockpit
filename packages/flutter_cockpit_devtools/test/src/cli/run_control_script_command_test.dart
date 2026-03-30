@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:args/command_runner.dart';
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:flutter_cockpit_devtools/flutter_cockpit_devtools.dart';
+import 'package:flutter_cockpit_devtools/src/cli/commands/run_control_script_command.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -49,56 +51,61 @@ void main() {
       }),
     );
 
-    final exitCode = await CockpitCommandRunner(
-      automationAdapter: _FakeAutomationAdapter(
-        capabilities: CockpitCapabilities(
-          platform: 'android',
-          transportType: 'inApp',
-          supportsInAppControl: true,
-          supportsFlutterViewCapture: true,
-          supportsNativeScreenCapture: false,
-          supportsHostAutomation: false,
-          supportedCommands: const [
-            CockpitCommandType.tap,
-            CockpitCommandType.captureScreenshot,
-          ],
-          supportedLocatorStrategies: const [CockpitLocatorKind.cockpitId],
-        ),
-        resultsByCommandId: <String, CockpitCommandResult>{
-          'cmd-open': CockpitCommandResult(
-            success: true,
-            commandId: 'cmd-open',
-            commandType: CockpitCommandType.tap,
-            durationMs: 12,
-            locatorResolution: const CockpitLocatorResolution(
-              matchedKind: CockpitLocatorKind.cockpitId,
-              matchedValue: 'open_form_button',
-            ),
-          ),
-        },
-      ),
-      captureAdapter: _FakeCaptureAdapter(
-        executionByCommandId: <String, CockpitCommandExecution>{
-          'cmd-capture': CockpitCommandExecution(
-            result: CockpitCommandResult(
-              success: true,
-              commandId: 'cmd-capture',
-              commandType: CockpitCommandType.captureScreenshot,
-              durationMs: 10,
-              artifacts: const [
-                CockpitArtifactRef(
-                  role: 'screenshot',
-                  relativePath: 'screenshots/home_acceptance.png',
-                ),
+    final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
+      ..addCommand(
+        RunControlScriptCommand(
+          automationAdapter: _FakeAutomationAdapter(
+            capabilities: CockpitCapabilities(
+              platform: 'android',
+              transportType: 'inApp',
+              supportsInAppControl: true,
+              supportsFlutterViewCapture: true,
+              supportsNativeScreenCapture: false,
+              supportsHostAutomation: false,
+              supportedCommands: const [
+                CockpitCommandType.tap,
+                CockpitCommandType.captureScreenshot,
               ],
+              supportedLocatorStrategies: const [CockpitLocatorKind.cockpitId],
             ),
-            artifactPayloads: const <String, List<int>>{
-              'screenshots/home_acceptance.png': <int>[7, 8, 9],
+            resultsByCommandId: <String, CockpitCommandResult>{
+              'cmd-open': CockpitCommandResult(
+                success: true,
+                commandId: 'cmd-open',
+                commandType: CockpitCommandType.tap,
+                durationMs: 12,
+                locatorResolution: const CockpitLocatorResolution(
+                  matchedKind: CockpitLocatorKind.cockpitId,
+                  matchedValue: 'open_form_button',
+                ),
+              ),
             },
           ),
-        },
-      ),
-    ).run([
+          captureAdapter: _FakeCaptureAdapter(
+            executionByCommandId: <String, CockpitCommandExecution>{
+              'cmd-capture': CockpitCommandExecution(
+                result: CockpitCommandResult(
+                  success: true,
+                  commandId: 'cmd-capture',
+                  commandType: CockpitCommandType.captureScreenshot,
+                  durationMs: 10,
+                  artifacts: const [
+                    CockpitArtifactRef(
+                      role: 'screenshot',
+                      relativePath: 'screenshots/home_acceptance.png',
+                    ),
+                  ],
+                ),
+                artifactPayloads: const <String, List<int>>{
+                  'screenshots/home_acceptance.png': <int>[7, 8, 9],
+                },
+              ),
+            },
+          ),
+        ),
+      );
+
+    final exitCode = await runner.run([
       'run-control-script',
       '--script-json',
       scriptFile.path,
@@ -155,23 +162,28 @@ void main() {
         }
       });
 
-      final exitCode = await CockpitCommandRunner(
-        automationAdapter: _FakeAutomationAdapter(
-          capabilities: CockpitCapabilities(
-            platform: 'android',
-            transportType: 'inApp',
-            supportsInAppControl: true,
-            supportsFlutterViewCapture: false,
-            supportsNativeScreenCapture: false,
-            supportsHostAutomation: false,
-            supportedCommands: const [CockpitCommandType.tap],
-            supportedLocatorStrategies: const [
-              CockpitLocatorKind.cockpitId,
-            ],
+      final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
+        ..addCommand(
+          RunControlScriptCommand(
+            automationAdapter: _FakeAutomationAdapter(
+              capabilities: CockpitCapabilities(
+                platform: 'android',
+                transportType: 'inApp',
+                supportsInAppControl: true,
+                supportsFlutterViewCapture: false,
+                supportsNativeScreenCapture: false,
+                supportsHostAutomation: false,
+                supportedCommands: const [CockpitCommandType.tap],
+                supportedLocatorStrategies: const [
+                  CockpitLocatorKind.cockpitId,
+                ],
+              ),
+              resultsByCommandId: const <String, CockpitCommandResult>{},
+            ),
           ),
-          resultsByCommandId: const <String, CockpitCommandResult>{},
-        ),
-      ).run([
+        );
+
+      final exitCode = await _runCommandRunner(runner, [
         'run-control-script',
         '--script-json',
         p.join(tempDir.path, 'missing.json'),
@@ -215,23 +227,28 @@ void main() {
         }),
       );
 
-      final exitCode = await CockpitCommandRunner(
-        automationAdapter: _FakeAutomationAdapter(
-          capabilities: CockpitCapabilities(
-            platform: 'android',
-            transportType: 'inApp',
-            supportsInAppControl: true,
-            supportsFlutterViewCapture: false,
-            supportsNativeScreenCapture: false,
-            supportsHostAutomation: false,
-            supportedCommands: const [CockpitCommandType.tap],
-            supportedLocatorStrategies: const [
-              CockpitLocatorKind.cockpitId,
-            ],
+      final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
+        ..addCommand(
+          RunControlScriptCommand(
+            automationAdapter: _FakeAutomationAdapter(
+              capabilities: CockpitCapabilities(
+                platform: 'android',
+                transportType: 'inApp',
+                supportsInAppControl: true,
+                supportsFlutterViewCapture: false,
+                supportsNativeScreenCapture: false,
+                supportsHostAutomation: false,
+                supportedCommands: const [CockpitCommandType.tap],
+                supportedLocatorStrategies: const [
+                  CockpitLocatorKind.cockpitId,
+                ],
+              ),
+              resultsByCommandId: const <String, CockpitCommandResult>{},
+            ),
           ),
-          resultsByCommandId: const <String, CockpitCommandResult>{},
-        ),
-      ).run([
+        );
+
+      final exitCode = await _runCommandRunner(runner, [
         'run-control-script',
         '--script-json',
         scriptFile.path,
@@ -242,6 +259,17 @@ void main() {
       expect(exitCode, isNonZero);
     },
   );
+}
+
+Future<int> _runCommandRunner(
+  CommandRunner<int> runner,
+  List<String> args,
+) async {
+  try {
+    return await runner.run(args) ?? 0;
+  } on Object {
+    return 1;
+  }
 }
 
 final class _FakeAutomationAdapter implements CockpitAutomationAdapter {

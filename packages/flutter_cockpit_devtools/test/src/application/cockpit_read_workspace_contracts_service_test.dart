@@ -28,4 +28,42 @@ void main() {
     expect(result.bundleContract.text, '# Bundle Contract');
     expect(result.toJson()['skillContract'], isA<Map<String, Object?>>());
   });
+
+  test('reads the skill contract without requiring the bundle contract path',
+      () async {
+    final fileSystem = MemoryFileSystem();
+    fileSystem
+        .file('/workspace/docs/contracts/flutter-cockpit-skill-contract.md')
+      ..createSync(recursive: true)
+      ..writeAsStringSync('# Skill Contract');
+
+    final service = CockpitReadWorkspaceContractsService(
+      fileSystem: LocalCockpitFileSystem(fileSystem: fileSystem),
+    );
+
+    final result = await service.readSkillContract(
+      skillContractPath:
+          '/workspace/docs/contracts/flutter-cockpit-skill-contract.md',
+    );
+
+    expect(result.text, '# Skill Contract');
+  });
+
+  test('reads the bundle contract without requiring the skill contract path',
+      () async {
+    final fileSystem = MemoryFileSystem();
+    fileSystem.file('/workspace/docs/contracts/task-run-bundle.md')
+      ..createSync(recursive: true)
+      ..writeAsStringSync('# Bundle Contract');
+
+    final service = CockpitReadWorkspaceContractsService(
+      fileSystem: LocalCockpitFileSystem(fileSystem: fileSystem),
+    );
+
+    final result = await service.readBundleContract(
+      bundleContractPath: '/workspace/docs/contracts/task-run-bundle.md',
+    );
+
+    expect(result.text, '# Bundle Contract');
+  });
 }

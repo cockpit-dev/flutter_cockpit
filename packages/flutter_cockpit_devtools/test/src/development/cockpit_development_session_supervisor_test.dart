@@ -204,7 +204,7 @@ void main() {
         ),
         isTrue,
       );
-      await Future<void>.delayed(const Duration(milliseconds: 100));
+      await supervisor.done;
       expect(harness.closeProcessCallCount, 1);
       expect(
         harness.stoppedAppIds,
@@ -252,7 +252,7 @@ void main() {
         ),
         isTrue,
       );
-      await Future<void>.delayed(const Duration(milliseconds: 100));
+      await supervisor.done;
       expect(harness.closeProcessCallCount, 1);
       expect(
         harness.stoppedAppIds,

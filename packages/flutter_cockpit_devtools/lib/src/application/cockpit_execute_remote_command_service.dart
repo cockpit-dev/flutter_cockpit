@@ -8,6 +8,7 @@ import 'cockpit_interactive_result_data.dart';
 import 'cockpit_interactive_result_profile.dart';
 import 'cockpit_interactive_session_lock.dart';
 import 'cockpit_interactive_snapshot_store.dart';
+import 'cockpit_json_key_normalizer.dart';
 import 'cockpit_read_remote_snapshot_service.dart';
 import 'cockpit_session_reference_resolver.dart';
 
@@ -67,13 +68,14 @@ final class CockpitExecuteRemoteCommandResult {
         'command': command.toJson(),
         'artifacts': artifacts.map((artifact) => artifact.toJson()).toList(),
         'ui_summary': uiSummary?.toJson(),
-        'snapshot': snapshot?.toJson(),
+        'snapshot': cockpitSnakeCaseJsonValue(snapshot?.toJson()),
         'diagnostics': diagnostics,
         'runtime_steps': runtimeSteps,
         'delta': delta?.toJson(),
         'snapshot_ref': snapshotRef,
-        'session_handle': sessionHandle?.toJson(),
-        'effective_snapshot_options': effectiveSnapshotOptions?.toJson(),
+        'session_handle': cockpitSnakeCaseJsonValue(sessionHandle?.toJson()),
+        'effective_snapshot_options':
+            cockpitSnakeCaseJsonValue(effectiveSnapshotOptions?.toJson()),
       };
 }
 
@@ -165,7 +167,7 @@ final class CockpitExecuteRemoteCommandService {
               ),
         runtimeSteps: request.resultProfile.includeRuntimeSteps
             ? execution.runtimeSteps
-                .map((step) => step.toJson())
+                .map((step) => cockpitSnakeCaseJsonKeys(step.toJson()))
                 .toList(growable: false)
             : const <Map<String, Object?>>[],
         delta: snapshot == null || baseline == null

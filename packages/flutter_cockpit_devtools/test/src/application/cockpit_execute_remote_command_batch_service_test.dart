@@ -27,6 +27,7 @@ void main() {
       final result = await service.execute(
         CockpitExecuteRemoteCommandBatchRequest(
           sessionHandle: _sessionHandle(),
+          defaultResultProfile: const CockpitInteractiveResultProfile.minimal(),
           commands: <CockpitInteractiveBatchCommand>[
             _batchCommand('first'),
             _batchCommand('second'),
@@ -62,6 +63,7 @@ void main() {
       final result = await service.execute(
         CockpitExecuteRemoteCommandBatchRequest(
           sessionHandle: _sessionHandle(),
+          defaultResultProfile: const CockpitInteractiveResultProfile.minimal(),
           commands: <CockpitInteractiveBatchCommand>[
             _batchCommand('first'),
             _batchCommand('second'),
@@ -112,7 +114,7 @@ void main() {
             _batchCommand('first'),
             _batchCommand(
               'second',
-              resultProfile: const CockpitInteractiveResultProfile.compact(),
+              resultProfile: const CockpitInteractiveResultProfile.minimal(),
             ),
           ],
         ),

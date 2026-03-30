@@ -56,6 +56,8 @@ final class CockpitListLaunchTargetsService {
     final result = await _processManager.run(
       _sdkEnvironment.flutterExecutable,
       const <String>['devices', '--machine'],
+      stdoutEncoding: utf8,
+      stderrEncoding: utf8,
     );
     if (result.exitCode != 0) {
       throw CockpitApplicationServiceException(
@@ -69,7 +71,7 @@ final class CockpitListLaunchTargetsService {
       );
     }
 
-    final decoded = jsonDecode('${result.stdout}');
+    final decoded = jsonDecode(_stdoutText(result.stdout));
     if (decoded is! List<Object?>) {
       throw const CockpitApplicationServiceException(
         code: 'invalidLaunchTargetsOutput',
@@ -84,7 +86,9 @@ final class CockpitListLaunchTargetsService {
           (item) => CockpitLaunchTarget(
             id: item['id'] as String? ?? '',
             name: item['name'] as String? ?? '',
-            platformType: item['platformType'] as String? ?? '',
+            platformType: item['targetPlatform'] as String? ??
+                item['platformType'] as String? ??
+                '',
             emulator: item['emulator'] as bool? ?? false,
             ephemeral: item['ephemeral'] as bool? ?? false,
             sdk: item['sdk'] as String?,
@@ -97,4 +101,14 @@ final class CockpitListLaunchTargetsService {
       targets: List<CockpitLaunchTarget>.unmodifiable(targets),
     );
   }
+}
+
+String _stdoutText(Object? value) {
+  if (value is String) {
+    return value;
+  }
+  if (value is List<int>) {
+    return utf8.decode(value);
+  }
+  return '$value';
 }

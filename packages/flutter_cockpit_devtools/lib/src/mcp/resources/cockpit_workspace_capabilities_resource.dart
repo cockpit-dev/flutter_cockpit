@@ -48,10 +48,10 @@ final class CockpitWorkspaceCapabilitiesResource extends CockpitMcpResource {
       return null;
     }
     final payload = <String, Object?>{
-      'serverName': serverName,
-      'serverVersion': serverVersion,
-      'enabledNames': featureConfiguration.enabledNames.toList()..sort(),
-      'disabledNames': featureConfiguration.disabledNames.toList()..sort(),
+      'server_name': serverName,
+      'server_version': serverVersion,
+      'enabled_names': featureConfiguration.enabledNames.toList()..sort(),
+      'disabled_names': featureConfiguration.disabledNames.toList()..sort(),
       'roots': rootsTracker.toJson(),
       'categories': CockpitMcpFeatureCategory.values
           .map((category) => category.serializedName)

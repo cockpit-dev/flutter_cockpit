@@ -45,7 +45,7 @@ void main() {
                 'commandId': 'tap-2',
                 'commandType': 'tap',
               },
-              'resultProfile': 'compact',
+              'resultProfile': 'minimal',
             },
           ]),
           '--default-profile',
@@ -60,7 +60,7 @@ void main() {
     expect(capturedRequest?.failFast, isFalse);
     expect(
       capturedRequest?.commands[1].resultProfile?.name.jsonValue,
-      'compact',
+      'minimal',
     );
     final decoded = jsonDecode(stdoutBuffer.toString()) as Map<String, Object?>;
     expect(decoded['summary'], isA<Map<String, Object?>>());

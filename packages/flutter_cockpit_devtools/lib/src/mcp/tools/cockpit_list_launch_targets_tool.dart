@@ -14,7 +14,7 @@ final class CockpitListLaunchTargetsTool extends CockpitMcpTool {
   final CockpitListLaunchTargetsToolFunction _listTargets;
 
   @override
-  String get name => 'list_launch_targets';
+  String get name => 'list_targets';
 
   @override
   String get description =>

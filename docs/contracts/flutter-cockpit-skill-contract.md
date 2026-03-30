@@ -2,76 +2,33 @@
 
 ## Purpose
 
-This contract defines the maintainer-facing guarantees for the `flutter-cockpit` skill.
-
-The skill exists to constrain AI behavior while using the repository's existing Flutter runtime verification workflow. It is not a replacement for CLI, MCP, protocol, or bundle documentation.
-
-## Scope
-
-The contract covers:
-
-- the repository capabilities the skill is allowed to depend on
-- the mandatory workflow stages the skill must enforce
-- the completion gate an agent must satisfy before reporting success
-- the failure taxonomy an agent must use when the workflow does not end in success
-- the boundary between bundle generation and optional host-mediated artifact delivery
-
-The contract does not cover:
-
-- future skill invocation APIs
-- automatic script generation
-- automatic task planning
-- direct in-framework chat delivery
+This contract defines what the repository-backed `flutter-cockpit` skill may rely on and what it must require from an agent before the agent claims success.
 
 ## Current Capability Dependencies
 
-The skill may depend on these currently implemented repository workflows:
+The skill may depend on these implemented public workflows:
 
-- development-session bootstrap through `launch-development-session`
-- development-session lifecycle control through `query-development-session`, `reload-development-session`, and `stop-development-session`
-- bounded iterative inspection through `collect-development-probe` and `compare-development-probe`
-- screenshot-backed development probes with bounded `visualSignals` and screenshot digest comparison
-- remote session bootstrap through `launch-remote-session`
-- remote session health reads through `query-remote-session`
-- structured remote execution through `run-remote-control-script`
-- high-level workflow orchestration through `run-task` / `run_task`
+- app bootstrap through `launch-app` / `launch_app`
+- tracked app discovery through persisted `app.json` on CLI and `list_apps` on MCP
+- bounded app reads through `read-app` / `read_app`
+- richer UI investigation through `inspect-ui` / `inspect_ui`
+- single-command control through `run-command` / `run_command`
+- multi-command control through `run-batch` / `run_batch`
+- wait gating through `wait-idle` / `wait_idle`
+- reload during development through `hot-reload` / `hot_reload` and `hot-restart` / `hot_restart`
+- app-centric log and error reads through `read-logs` / `read_logs` and `read-errors` / `read_errors`
+- on-demand recording through `start-recording` / `start_recording` and `stop-recording` / `stop_recording`
+- bundle production through `run-script` / `run_script`
+- full closed-loop orchestration through `run-task` / `run_task`
 - final delivery validation through `validate-task` / `validate_task`
-- remote-health environment resolution when the session exposes a real `CockpitEnvironment`
-- task-run bundle output with:
-  - `manifest.json`
-  - `handoff.json`
-  - `delivery.json`
-  - `acceptance.md`
-- AI-facing bundle summary evidence views with:
-  - `baseline_evidence`
-  - `acceptance_evidence`
-  - `acceptance_delta`
-- host-mediated delivery of validated artifact files when the surrounding tool supports attachments or outbound file transfer
+- task bundle summary reads through `read_task_bundle_summary`
+- workspace intelligence through `pub_dev_search`, `read_package_uris`, `create_project`, `analyze_workspace`, `format_workspace`, `run_tests`, and `apply_fixes`
 
-Current first-class host bootstrap paths include:
-
-- Android emulators
-- iOS Simulators
-- local macOS desktop runs
-- local Windows desktop runs
-- local Linux desktop runs
-
-Current first-class recording delivery paths include:
-
-- Android and iOS in-app native acceptance recording
-- Android emulator host recording via `adb screenrecord`
-- iOS Simulator host recording via `xcrun simctl io recordVideo`
-- macOS app-side native window screenshot/recording with bounded fallback to remote screenshot or synthesized timeline video when native capture cannot yield stable media on the current machine
-- Windows app-side native window screenshot/recording with bounded fallback to synthesized timeline video when native capture cannot yield stable media on the current machine
-- Linux app-side native window screenshot/recording with bounded fallback to synthesized timeline video when native capture cannot yield stable media on the current machine
-
-For desktop hosts, the contract assumes app-side native media is the default path. The skill must not teach shell-based screenshot or recording setup as if it were required for normal macOS, Windows, or Linux validation.
-
-The skill must not require capabilities that are not implemented today.
+The skill may also rely on MCP resources for goals, roots, contracts, apps, task summaries, and package reads.
 
 ## Mandatory Workflow Stages
 
-The skill must enforce these stages:
+The skill must enforce this order:
 
 1. `assess`
 2. `bootstrap`
@@ -81,147 +38,69 @@ The skill must enforce these stages:
 6. `judge`
 7. `deliver`
 
-### `assess`
-
-The agent must decide whether the task requires `flutter_cockpit`.
-
-The skill must require `flutter_cockpit` when the task involves:
-
-- running a Flutter app
-- reproducing or verifying UI behavior
-- validating a user-visible outcome
-- producing acceptance evidence
-
 ### `bootstrap`
 
-The agent must ensure the remote session is reachable before interactive control begins.
+The agent must launch or reuse an app and persist `app.json` when possible.
 
-The skill must not allow:
-
-- remote control execution against an unverified session
-- skipping session health when a running app is being reused
-- rewriting the app's production bootstrap or assuming a fixed `lib/` file layout as part of recommended integration guidance
+The skill must not teach session-handle-first workflows as the default path.
 
 ### `baseline`
 
-The agent must collect baseline evidence before key actions.
+The agent must read current state before key actions.
 
-Minimum baseline requirements:
+Minimum baseline:
 
-- session status
-- current route or app state
-- baseline screenshot when the task is verification- or acceptance-facing
-- recording strategy awareness when the task expects video evidence
+- app reachability
+- current route or equivalent app state
+- profile-appropriate evidence for the task
+- the smallest profile that can answer the current question
 
 ### `execute`
 
-The agent must prefer structured workflow execution that produces bundle-backed evidence instead of ad hoc shell interactions for the main verification path.
+The agent must prefer `run_command` and short `run_batch` loops during active debugging.
 
-For active edit/reload cycles, the skill must prefer the development-session workflow over repeatedly relaunching the entire app. Final `run-task` / `validate-task` should only happen when the feature or fix is ready for heavier acceptance validation.
-
-For iterative visual work, the skill must treat screenshot-backed development probes as the primary source of truth before final acceptance. Lack of text or semantic change is not sufficient proof that the visible UI is unchanged.
-
-When the remote session health exposes environment metadata, the agent may rely on that runtime environment instead of restating it in every control script.
-
-When the remote session health does not expose environment metadata, the agent must not guess missing environment values.
+The skill must not teach full bundle orchestration as the default loop for every small change.
 
 ### `observe`
 
-The agent must inspect task-run outputs after execution.
+The agent must inspect post-action state and not trust command success alone.
 
-Minimum required reads:
+For bundle-backed work, the agent must inspect the resulting summary and evidence paths.
 
-- `manifest`
-- `handoff`
-- `delivery`
-- `acceptance_evidence` for acceptance-facing work when it is present or required
+The skill must teach token discipline:
 
-Optional reads when needed:
-
-- `acceptance.md`
-- concrete artifact paths referenced by the bundle
-
-For acceptance-facing work, when bundle summary exposes `baseline_evidence` and `acceptance_delta`, the skill must require the agent to read them before making a completion claim. The contract treats them as the bounded before/after comparison layer that closes the gap between "media is readable" and "AI has actually compared the UI state."
-
-For iterative development work, when probe diff exposes `visualChanged`, `screenshotChanged`, or `visualSignals`, the skill must require the agent to treat those as meaningful change signals even if route, text, and semantic IDs are unchanged.
-
-For completion-facing work, the skill should prefer the dedicated validation workflow so the final claim is based on persisted bundle checks, not only orchestration output.
-
-### `judge`
-
-The agent must classify the result explicitly, not vaguely.
+- prefer `minimal` and `standard` before `inspect` or `evidence`
+- prefer bundle summaries before raw artifact files
+- request one missing fact at a time instead of all diagnostics by default
 
 ### `deliver`
 
-The agent must produce a final report with status, evidence paths, and next-step guidance when incomplete.
-
-When the surrounding host tool supports sending files to the user, the skill may also require the agent to attach validated screenshot, keyframe, or recording artifacts. The contract boundary is:
-
-- `flutter_cockpit` is responsible for producing and validating artifact files
-- the host tool is responsible for actually attaching or sending those files in chat or another delivery channel
-- if the host tool cannot send files, the skill falls back to explicit artifact paths and status reporting
-- the skill must never imply that `flutter_cockpit` itself performs chat delivery
+The agent must use `validate_task` before a final completion claim on acceptance-facing work.
 
 ## Completion Gate
 
-The skill must forbid completion claims unless the agent has:
+The skill must forbid `completed` unless the agent has:
 
-- verified session reachability
-- executed the structured workflow
-- used the validation workflow when making a final completion claim
-- produced a task-run bundle
-- read the resulting summary outputs
-- identified at least one evidence path
-- confirmed screenshot availability for acceptance-facing work
-- read semantic acceptance evidence for acceptance-facing work when present or explicitly required by validation
-- read baseline evidence and acceptance delta for acceptance-facing work when they are present
-- use the bounded final-state dossier inside `acceptance_evidence` to compare final UI, network, runtime, and rebuild signals instead of relying on media readability alone
-- use `acceptance_delta` as the bounded first-pass comparison between baseline and acceptance, then open linked diagnostics artifacts only when the bounded comparison is still insufficient
-- confirmed recording availability when the task explicitly requires video, or explicitly described why recording is unavailable
-- when the host supports artifact delivery and the task is user-facing, selected the validated screenshot, keyframe, or recording files that should be sent to the user
-
-If any of these are missing, the result must not be classified as `completed`.
+- verified live app reachability
+- executed the relevant workflow against the running app
+- read post-action state
+- validated delivery evidence for acceptance-facing claims
+- identified artifact paths when a bundle is involved
 
 ## Failure Taxonomy
 
-The skill must require the agent to distinguish between:
+The skill must require explicit use of:
 
 - `completed`
 - `failed_with_evidence`
 - `blocked_by_environment`
 - `needs_more_work`
 
-### `completed`
-
-Use only when the completion gate is fully satisfied.
-
-### `failed_with_evidence`
-
-Use when the app workflow or asserted outcome failed, and the agent can point to supporting bundle evidence.
-
-### `blocked_by_environment`
-
-Use when the environment prevented a valid run, such as:
-
-- session unreachable after bootstrap
-- environment-specific recording or connectivity failure
-- execution blocked before the app behavior could be meaningfully evaluated
-
-### `needs_more_work`
-
-Use when the run partially succeeded but the acceptance or completion gate is incomplete, such as:
-
-- missing required screenshot evidence
-- missing required recording explanation
-- bundle exists but the agent has not yet validated the outcome fully
-
-## Red-Line Non-Goals
+## Non-Goals
 
 The skill must not:
 
-- teach every CLI option
-- act as a full MCP reference
-- claim completion from command success alone
-- treat bundle existence as sufficient proof of success
-- rely on repository capabilities that do not exist on the current mainline
-- imply that bundle generation automatically means the user has received the artifacts
+- claim success from command completion alone
+- force every workflow through the heaviest profile
+- require capabilities that are not present on the current mainline
+- imply that bundle generation automatically sends files to the user

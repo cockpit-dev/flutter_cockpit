@@ -48,12 +48,12 @@ void main() {
           '--base-url',
           'http://127.0.0.1:47331',
           '--profile',
-          'compact',
+          'minimal',
         ]) ??
         0;
 
     expect(exitCode, 0);
-    expect(capturedRequest?.resultProfile.name.jsonValue, 'compact');
+    expect(capturedRequest?.resultProfile.name.jsonValue, 'minimal');
     final decoded = jsonDecode(stdoutBuffer.toString()) as Map<String, Object?>;
     expect(decoded['session_id'], 'session-1');
   });

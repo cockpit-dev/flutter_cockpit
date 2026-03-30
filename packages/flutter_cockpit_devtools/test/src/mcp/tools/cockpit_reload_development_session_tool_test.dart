@@ -32,7 +32,7 @@ void main() {
     expect(capturedRequest?.mode, CockpitDevelopmentReloadMode.hotRestart);
     final structured = result['structuredContent'] as Map<String, Object?>;
     expect(
-      (structured['status'] as Map<String, Object?>)['lastReloadMode'],
+      (structured['status'] as Map<String, Object?>)['last_reload_mode'],
       'hot_restart',
     );
   });

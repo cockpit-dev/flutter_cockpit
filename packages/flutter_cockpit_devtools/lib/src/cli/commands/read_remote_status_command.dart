@@ -23,7 +23,7 @@ final class ReadRemoteStatusCommand extends Command<int> {
     cockpitAddRemoteSessionArgs(argParser);
     cockpitAddProfileArg(
       argParser,
-      defaultProfile: CockpitInteractiveResultProfileName.compact,
+      defaultProfile: CockpitInteractiveResultProfileName.minimal,
     );
   }
 
@@ -47,7 +47,7 @@ final class ReadRemoteStatusCommand extends Command<int> {
         androidDeviceId: argResults?['android-device-id'] as String?,
         resultProfile: cockpitReadResultProfile(
           argResults,
-          defaultProfile: CockpitInteractiveResultProfileName.compact,
+          defaultProfile: CockpitInteractiveResultProfileName.minimal,
         ),
       ),
     );

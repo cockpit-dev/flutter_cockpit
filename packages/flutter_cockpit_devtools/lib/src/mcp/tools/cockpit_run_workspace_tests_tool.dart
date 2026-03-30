@@ -22,7 +22,7 @@ final class CockpitRunWorkspaceTestsTool extends CockpitMcpTool {
   final CockpitRunWorkspaceTestsToolFunction _runTests;
 
   @override
-  String get name => 'run_workspace_tests';
+  String get name => 'run_tests';
 
   @override
   String get description => 'Run unit/widget tests for a workspace root.';

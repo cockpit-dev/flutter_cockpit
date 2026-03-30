@@ -1,43 +1,39 @@
 # Acceptance Delivery Example
 
-Use this pattern when the task is user-facing and must end with concrete evidence paths.
+Use this pattern when the task must end with bundle-backed evidence.
 
-## Example Flow
+## Recommended Flow
 
-1. Confirm the task is acceptance-facing.
-2. Reuse a verified session handle.
-3. Execute a structured control script instead of ad hoc commands.
-4. Read the bundle summary before deciding the result.
-5. Report the artifact paths from the bundle, not just a prose summary.
-6. If the host tool supports outbound attachments, attach the validated screenshot, keyframes, or recording after verifying the paths.
+1. reuse a running app via `app.json`
+2. execute `run-script` if the app is already running
+3. use `run-task` if the tool should own the whole loop
+4. use `validate-task` before claiming completion
+5. report artifact paths from the resulting bundle summary
 
-## Example Commands
+## Example
 
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
-  run-remote-control-script \
-  --session-json /tmp/flutter_cockpit/session.json \
-  --script-json /tmp/flutter_cockpit/acceptance_script.json \
+  run-script \
+  --app-json /tmp/flutter_cockpit/app.json \
+  --script-json /tmp/flutter_cockpit/script.json \
   --output-root /tmp/flutter_cockpit/out
 ```
 
-## Required Summary Reads
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  validate-task \
+  --config-json /tmp/flutter_cockpit/validate_task.json \
+  --output-json /tmp/flutter_cockpit/validate_task_result.json
+```
 
-After the run, inspect:
+## Required Reads
 
 - `manifest.json`
 - `handoff.json`
 - `delivery.json`
-- `baseline_evidence` when it exists
-- `acceptance_evidence`
-- `acceptance_delta` when it exists
+- `gate_summary` or `read_task_bundle_summary` output when available
+- bundle summary evidence paths
+- validation failures when present
 
-If the task expects acceptance evidence, the agent must not call it complete until it can name the relevant screenshot or recording paths from the bundle and explain the final state using the bounded before/after evidence, not just a single screenshot.
-
-## Expected Agent Behavior
-
-- if `delivery` shows artifact refs, surface those exact paths
-- if both `baseline_evidence` and `acceptance_delta` are present, use them to explain what changed between start and finish
-- if the run completed but acceptance evidence is incomplete, classify it as `needs_more_work`
-- if the host can attach files to the conversation, send the validated screenshot/keyframes/video from the bundle rather than assuming the user will manually browse the paths
-- if the host cannot attach files, say that directly and fall back to the exact validated artifact paths
+The agent must not call the task complete until the validated bundle explains the final state and names the relevant screenshot or recording artifacts.

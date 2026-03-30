@@ -353,10 +353,10 @@ final class CockpitDevelopmentSessionSupervisor {
       return;
     }
     _controlPlaneClosed = true;
+    await _disposeResources();
     if (!_doneCompleter.isCompleted) {
       _doneCompleter.complete();
     }
-    unawaited(_disposeResources());
   }
 
   Future<void> _disposeResources() async {

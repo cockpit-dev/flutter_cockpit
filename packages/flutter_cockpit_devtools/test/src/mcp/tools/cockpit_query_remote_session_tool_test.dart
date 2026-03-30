@@ -68,7 +68,7 @@ void main() {
           result['structuredContent'] as Map<String, Object?>;
       expect(structuredContent['recommended_next_step'], 'ready_for_commands');
       expect(
-        (structuredContent['status'] as Map<String, Object?>)['sessionId'],
+        (structuredContent['status'] as Map<String, Object?>)['session_id'],
         'query-tool-demo',
       );
     },

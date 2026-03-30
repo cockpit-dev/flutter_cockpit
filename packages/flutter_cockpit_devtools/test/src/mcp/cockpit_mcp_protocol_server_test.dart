@@ -35,7 +35,10 @@ void main() {
       result.content.single,
       isA<TextContent>().having((content) => content.text, 'text', 'hello'),
     );
-    expect(result.structuredContent, <String, Object?>{'echoedValue': 'hello'});
+    expect(
+      result.structuredContent,
+      <String, Object?>{'echoed_value': 'hello'},
+    );
 
     await environment.shutdown();
   });

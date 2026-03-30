@@ -5,6 +5,7 @@ import 'package:args/command_runner.dart';
 
 import '../../application/cockpit_run_task_service.dart';
 import '../cockpit_command_runner.dart';
+import '../cockpit_interactive_cli_support.dart';
 
 final class RunTaskCommand extends Command<int> {
   RunTaskCommand({CockpitRunTaskService? service, StringSink? stdoutSink})
@@ -54,16 +55,11 @@ final class RunTaskCommand extends Command<int> {
       Map<String, Object?>.from(decoded),
     );
     final result = await _service.run(request);
-    final payload = const JsonEncoder.withIndent('  ').convert(result.toJson());
-    final outputJson = argResults?['output-json'] as String?;
-
-    if (outputJson == null || outputJson.isEmpty) {
-      _stdoutSink.writeln(payload);
-    } else {
-      final outputFile = File(outputJson);
-      await outputFile.parent.create(recursive: true);
-      await outputFile.writeAsString(payload);
-    }
+    await cockpitWriteJsonPayload(
+      payload: const JsonEncoder.withIndent('  ').convert(result.toJson()),
+      argResults: argResults,
+      stdoutSink: _stdoutSink,
+    );
 
     return cockpitSuccessExitCode;
   }

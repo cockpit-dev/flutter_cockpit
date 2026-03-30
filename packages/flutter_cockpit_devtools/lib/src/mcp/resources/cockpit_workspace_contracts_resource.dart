@@ -31,12 +31,14 @@ final class CockpitWorkspaceSkillContractResource extends CockpitMcpResource {
     if (request.uri != definition.uri) {
       return null;
     }
-    final contracts = await _service.read(skillContractPath: skillContractPath);
+    final skillContract = await _service.readSkillContract(
+      skillContractPath: skillContractPath,
+    );
     return CockpitMcpResourceResult(
       contents: <CockpitMcpResourceContents>[
         CockpitMcpTextResourceContents(
           uri: request.uri,
-          text: contracts.skillContract.text,
+          text: skillContract.text,
           mimeType: definition.mimeType,
         ),
       ],
@@ -73,13 +75,14 @@ final class CockpitWorkspaceTaskBundleContractResource
     if (request.uri != definition.uri) {
       return null;
     }
-    final contracts =
-        await _service.read(bundleContractPath: bundleContractPath);
+    final bundleContract = await _service.readBundleContract(
+      bundleContractPath: bundleContractPath,
+    );
     return CockpitMcpResourceResult(
       contents: <CockpitMcpResourceContents>[
         CockpitMcpTextResourceContents(
           uri: request.uri,
-          text: contracts.bundleContract.text,
+          text: bundleContract.text,
           mimeType: definition.mimeType,
         ),
       ],

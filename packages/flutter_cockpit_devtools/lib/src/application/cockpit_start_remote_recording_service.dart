@@ -5,6 +5,7 @@ import 'package:flutter_cockpit/flutter_cockpit.dart';
 import '../remote/cockpit_remote_session_client.dart';
 import '../session/cockpit_remote_session_handle.dart';
 import 'cockpit_interactive_session_lock.dart';
+import 'cockpit_json_key_normalizer.dart';
 import 'cockpit_session_reference_resolver.dart';
 
 typedef CockpitRemoteRecordingStarter = Future<CockpitRecordingSession>
@@ -39,8 +40,9 @@ final class CockpitStartRemoteRecordingResult {
   final CockpitRemoteSessionHandle? sessionHandle;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'recording_session': recordingSession.toJson(),
-        'session_handle': sessionHandle?.toJson(),
+        'recording_session':
+            cockpitSnakeCaseJsonValue(recordingSession.toJson()),
+        'session_handle': cockpitSnakeCaseJsonValue(sessionHandle?.toJson()),
       };
 }
 

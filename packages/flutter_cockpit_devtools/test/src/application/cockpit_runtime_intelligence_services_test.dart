@@ -3,9 +3,13 @@ import 'dart:io';
 
 import 'package:file/memory.dart';
 import 'package:flutter_cockpit/flutter_cockpit.dart';
+import 'package:flutter_cockpit_devtools/src/application/cockpit_app_handle.dart';
+import 'package:flutter_cockpit_devtools/src/application/cockpit_app_reference_resolver.dart';
+import 'package:flutter_cockpit_devtools/src/application/cockpit_list_apps_service.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_latest_task_store.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_bundle_artifact_paths.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_list_launch_targets_service.dart';
+import 'package:flutter_cockpit_devtools/src/application/cockpit_read_logs_service.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_read_runtime_errors_service.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_read_session_logs_service.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_read_task_bundle_summary_service.dart';
@@ -26,9 +30,9 @@ void main() {
           <String, Object?>{
             'id': 'macos',
             'name': 'macOS',
-            'platformType': 'darwin',
+            'targetPlatform': 'darwin',
+            'isSupported': true,
             'emulator': false,
-            'ephemeral': false,
             'sdk': 'macos',
           },
         ]),
@@ -44,6 +48,34 @@ void main() {
     expect(result.targets, hasLength(1));
     expect(result.targets.single.id, 'macos');
     expect(result.targets.single.platformType, 'darwin');
+  });
+
+  test('lists Flutter launch targets when process stdout is UTF-8 bytes',
+      () async {
+    final service = CockpitListLaunchTargetsService(
+      processManager: _MachineProcessManager(
+        stdoutPayload: jsonEncode(<Map<String, Object?>>[
+          <String, Object?>{
+            'id': 'macos',
+            'name': 'macOS',
+            'targetPlatform': 'darwin',
+            'isSupported': true,
+            'emulator': false,
+            'sdk': 'macos',
+          },
+        ]),
+        returnUtf8Bytes: true,
+      ),
+      sdkEnvironment: const CockpitSdkEnvironment(
+        dartExecutable: 'dart-sdk',
+        flutterExecutable: 'flutter-sdk',
+      ),
+    );
+
+    final result = await service.list();
+
+    expect(result.targets, hasLength(1));
+    expect(result.targets.single.id, 'macos');
   });
 
   test('reads the tail of registered development session logs', () async {
@@ -73,7 +105,261 @@ void main() {
     expect(result.truncated, isTrue);
   });
 
-  test('combines latest task and active session runtime errors', () {
+  test('lists active apps with normalized app ids and modes', () {
+    final registry = CockpitSessionRegistry();
+    registry.recordDevelopmentSession(
+      handle: _developmentHandle(),
+      status: _developmentStatus(),
+      supervisorLogPath: '/tmp/dev.log',
+    );
+
+    final result = CockpitListAppsService(registry: registry).list();
+
+    expect(result.apps, hasLength(1));
+    expect(result.apps.single.appId, 'dev.example.app');
+    expect(result.apps.single.mode.jsonValue, 'development');
+  });
+
+  test('reads app snapshot logs by app id', () async {
+    final registry = CockpitSessionRegistry();
+    registry.recordDevelopmentSession(
+      handle: _developmentHandle(),
+      status: _developmentStatus(lastError: 'boom'),
+      supervisorLogPath: '/tmp/dev.log',
+    );
+
+    final result = await CockpitReadLogsService(
+      registry: registry,
+      readSnapshot: (baseUri, options) async {
+        expect(baseUri.toString(), 'http://127.0.0.1:57331');
+        expect(options.includeRuntimeActivity, isTrue);
+        expect(options.maxRuntimeEntries, 2);
+        return CockpitRemoteSnapshotResponse(
+          snapshot: CockpitSnapshot(
+            routeName: '/inbox',
+            runtime: CockpitRuntimeSnapshot(
+              totalEntryCount: 2,
+              errorCount: 0,
+              warningCount: 0,
+              entries: <CockpitRuntimeEvent>[
+                CockpitRuntimeEvent(
+                  eventId: 'runtime-1',
+                  kind: CockpitRuntimeEventKind.debugLog,
+                  severity: CockpitRuntimeEventSeverity.info,
+                  message: 'rendered inbox',
+                  recordedAt: DateTime.utc(2026, 3, 30, 10, 0),
+                  routeName: '/inbox',
+                  source: 'debugPrint',
+                ),
+                CockpitRuntimeEvent(
+                  eventId: 'runtime-2',
+                  kind: CockpitRuntimeEventKind.debugLog,
+                  severity: CockpitRuntimeEventSeverity.info,
+                  message: 'refreshed counters',
+                  recordedAt: DateTime.utc(2026, 3, 30, 10, 1),
+                  routeName: '/inbox',
+                  source: 'print',
+                ),
+              ],
+              capturedEntryCount: 2,
+            ),
+          ),
+        );
+      },
+    ).read(
+      const CockpitReadLogsRequest(appId: 'dev.example.app', maxLines: 2),
+    );
+
+    expect(result.appId, 'dev.example.app');
+    expect(result.source, 'app_snapshot');
+    expect(result.available, isTrue);
+    expect(result.routeName, '/inbox');
+    expect(
+      result.lines,
+      <String>[
+        'info debug_log debugPrint: rendered inbox',
+        'info debug_log print: refreshed counters',
+      ],
+    );
+  });
+
+  test('returns structured missing log state when the log file is absent',
+      () async {
+    final registry = CockpitSessionRegistry();
+    registry.recordDevelopmentSession(
+      handle: _developmentHandle(),
+      status: _developmentStatus(),
+      supervisorLogPath: '/tmp/missing.log',
+    );
+
+    final result = await CockpitReadLogsService(
+      registry: registry,
+      fileSystem: LocalCockpitFileSystem(fileSystem: MemoryFileSystem()),
+      readSnapshot: (_, __) => throw StateError('app unavailable'),
+    ).read(
+      const CockpitReadLogsRequest(appId: 'dev.example.app', maxLines: 2),
+    );
+
+    expect(result.available, isFalse);
+    expect(result.missingReason, 'log_file_missing');
+    expect(result.lines, isEmpty);
+  });
+
+  test('resolves a lean app handle back to the registry session record',
+      () async {
+    final registry = CockpitSessionRegistry();
+    registry.recordDevelopmentSession(
+      handle: _developmentHandle(),
+      status: _developmentStatus(lastError: 'boom'),
+      supervisorLogPath: '/tmp/dev.log',
+    );
+
+    final tempDir = await Directory.systemTemp.createTemp(
+      'cockpit_app_handle_resolver',
+    );
+    addTearDown(() async {
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    final appFile = File('${tempDir.path}/app.json');
+    await appFile.writeAsString(
+      jsonEncode(
+        CockpitAppHandle(
+          appId: 'dev.example.app',
+          mode: CockpitAppMode.development,
+          platform: 'android',
+          deviceId: 'emulator-5554',
+          projectDir: '/workspace/app',
+          target: 'lib/main.dart',
+          baseUrl: 'http://127.0.0.1:57331',
+          launchedAt: DateTime.utc(2026, 3, 30),
+          supervisorLogPath: '/tmp/dev.log',
+        ).toJson(),
+      ),
+    );
+
+    final resolved = await CockpitAppReferenceResolver(
+      registry: registry,
+    ).resolve(appHandlePath: appFile.path);
+
+    expect(resolved.app?.developmentSession, isNull);
+    expect(
+      resolved.developmentRecord?.handle.developmentSessionId,
+      'dev-session-1',
+    );
+  });
+
+  test('reconstructs development control fields from a compact app handle',
+      () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'cockpit_compact_development_handle',
+    );
+    addTearDown(() async {
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    final appFile = File('${tempDir.path}/app.json');
+    await appFile.writeAsString(
+      jsonEncode(
+        CockpitAppHandle.fromDevelopmentSession(
+          _developmentHandle(),
+          supervisorLogPath: '/tmp/dev.log',
+        ).toJson(),
+      ),
+    );
+
+    final resolved = await CockpitAppReferenceResolver().resolve(
+      appHandlePath: appFile.path,
+    );
+
+    expect(
+      resolved.app?.developmentSession?.developmentSessionId,
+      'dev-session-1',
+    );
+    expect(
+      resolved.app?.developmentSession?.supervisorBaseUri.toString(),
+      'http://127.0.0.1:59331',
+    );
+  });
+
+  test('reads current app runtime errors from an app handle', () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'cockpit_runtime_errors_app_handle',
+    );
+    addTearDown(() async {
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    final appFile = File('${tempDir.path}/app.json');
+    await appFile.writeAsString(
+      jsonEncode(
+        CockpitAppHandle(
+          appId: 'dev.example.app',
+          mode: CockpitAppMode.development,
+          platform: 'macos',
+          deviceId: 'macos',
+          projectDir: '/workspace/app',
+          target: 'cockpit/main.dart',
+          baseUrl: 'http://127.0.0.1:57331',
+          launchedAt: DateTime.utc(2026, 3, 30),
+        ).toJson(),
+      ),
+    );
+
+    final result = await CockpitReadRuntimeErrorsService(
+      registry: CockpitSessionRegistry(),
+      latestTaskStore: CockpitLatestTaskStore(),
+      readSnapshot: (baseUri, options) async {
+        expect(baseUri.toString(), 'http://127.0.0.1:57331');
+        expect(options.includeRuntimeActivity, isTrue);
+        expect(options.runtimeQuery.onlyErrors, isTrue);
+        expect(options.maxRuntimeEntries, 4);
+        return CockpitRemoteSnapshotResponse(
+          snapshot: CockpitSnapshot(
+            routeName: '/inbox',
+            diagnosticLevel: CockpitSnapshotProfile.investigate,
+            runtime: CockpitRuntimeSnapshot(
+              totalEntryCount: 1,
+              errorCount: 1,
+              warningCount: 0,
+              entries: <CockpitRuntimeEvent>[
+                CockpitRuntimeEvent(
+                  eventId: 'runtime-1',
+                  kind: CockpitRuntimeEventKind.flutterError,
+                  severity: CockpitRuntimeEventSeverity.error,
+                  message: 'setState called after dispose',
+                  recordedAt: DateTime.utc(2026, 3, 30, 10, 0),
+                  routeName: '/inbox',
+                ),
+              ],
+              capturedEntryCount: 1,
+              query: const CockpitRuntimeQuery(onlyErrors: true),
+            ),
+          ),
+        );
+      },
+    ).read(
+      CockpitReadRuntimeErrorsRequest(
+        appHandlePath: appFile.path,
+        maxErrors: 4,
+      ),
+    );
+
+    expect(result.appId, 'dev.example.app');
+    expect(result.routeName, '/inbox');
+    expect(result.source, 'app_snapshot');
+    expect(result.hasErrors, isTrue);
+    expect(result.errors.single.message, 'setState called after dispose');
+    expect(result.errors.single.kind, 'flutterError');
+  });
+
+  test('combines latest task and active session runtime errors', () async {
     final registry = CockpitSessionRegistry();
     registry.recordDevelopmentSession(
       handle: _developmentHandle(),
@@ -89,12 +375,13 @@ void main() {
       ),
     );
 
-    final result = CockpitReadRuntimeErrorsService(
+    final result = await CockpitReadRuntimeErrorsService(
       registry: registry,
       latestTaskStore: latestTaskStore,
     ).read(const CockpitReadRuntimeErrorsRequest());
 
     expect(result.hasErrors, isTrue);
+    expect(result.source, 'aggregate');
     expect(
       result.errors.map((error) => error.source),
       containsAll(<String>['development_session', 'latest_task_bundle']),
@@ -103,9 +390,13 @@ void main() {
 }
 
 final class _MachineProcessManager implements CockpitProcessManager {
-  _MachineProcessManager({required this.stdoutPayload});
+  _MachineProcessManager({
+    required this.stdoutPayload,
+    this.returnUtf8Bytes = false,
+  });
 
   final String stdoutPayload;
+  final bool returnUtf8Bytes;
 
   @override
   Future<ProcessResult> run(
@@ -118,7 +409,12 @@ final class _MachineProcessManager implements CockpitProcessManager {
     Encoding? stdoutEncoding,
     Encoding? stderrEncoding,
   }) async {
-    return ProcessResult(1, 0, stdoutPayload, '');
+    return ProcessResult(
+      1,
+      0,
+      returnUtf8Bytes ? utf8.encode(stdoutPayload) : stdoutPayload,
+      '',
+    );
   }
 
   @override

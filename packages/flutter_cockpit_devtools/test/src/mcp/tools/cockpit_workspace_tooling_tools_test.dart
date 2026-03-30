@@ -23,8 +23,9 @@ void main() {
         capturedRequest = request;
         return const CockpitReadPackageUrisResult(
           kind: CockpitPackageUriEntryKind.file,
+          contentKind: CockpitPackageUriContentKind.text,
           resolvedPath: '/deps/example/lib/example.dart',
-          text: 'library example;',
+          preview: 'library example;',
         );
       },
     );
@@ -71,7 +72,7 @@ void main() {
     expect(capturedRequest?.parentDirectory, '/workspace');
     expect(capturedRequest?.allowedRoots, <String>['/workspace']);
     final structured = result['structuredContent'] as Map<String, Object?>;
-    expect(structured['projectDirectory'], '/workspace/new_app');
+    expect(structured['project_directory'], '/workspace/new_app');
   });
 
   test('pub_dev_search returns shaped package summaries', () async {

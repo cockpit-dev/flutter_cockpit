@@ -3,6 +3,7 @@ export 'cockpit_application_service_exception.dart';
 import '../remote/cockpit_remote_session_client.dart';
 import '../session/cockpit_remote_session_handle.dart';
 import 'cockpit_interactive_session_lock.dart';
+import 'cockpit_json_key_normalizer.dart';
 import 'cockpit_session_reference_resolver.dart';
 
 typedef CockpitRemoteUiIdleWaiter = Future<bool> Function(
@@ -55,7 +56,7 @@ final class CockpitWaitRemoteUiIdleResult {
         'quiet_window_ms': quietWindowMs,
         'timeout_ms': timeoutMs,
         'include_network_idle': includeNetworkIdle,
-        'session_handle': sessionHandle?.toJson(),
+        'session_handle': cockpitSnakeCaseJsonValue(sessionHandle?.toJson()),
       };
 }
 

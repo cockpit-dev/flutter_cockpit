@@ -5,10 +5,10 @@ import 'package:test/test.dart';
 
 void main() {
   group('CockpitInteractiveResultProfile', () {
-    test('uses compact defaults', () {
-      const profile = CockpitInteractiveResultProfile.compact();
+    test('uses minimal defaults', () {
+      const profile = CockpitInteractiveResultProfile.minimal();
 
-      expect(profile.name, CockpitInteractiveResultProfileName.compact);
+      expect(profile.name, CockpitInteractiveResultProfileName.minimal);
       expect(profile.ui, CockpitInteractiveUiLevel.none);
       expect(profile.diagnostics, CockpitInteractiveDiagnosticsLevel.none);
       expect(profile.artifacts, CockpitInteractiveArtifactLevel.none);
@@ -71,7 +71,7 @@ void main() {
     });
 
     test('preserves an explicitly richer snapshot options override', () {
-      const profile = CockpitInteractiveResultProfile.compact();
+      const profile = CockpitInteractiveResultProfile.minimal();
       final options = profile.resolveSnapshotOptions(
         const CockpitSnapshotOptions.forensic(),
       );

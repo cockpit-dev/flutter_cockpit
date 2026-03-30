@@ -10,10 +10,12 @@ void main() {
     expect(CockpitMcpServer, isNotNull);
   });
 
-  test('exports development session services and models', () {
-    expect(CockpitLaunchDevelopmentSessionService, isNotNull);
-    expect(CockpitCollectDevelopmentProbeService, isNotNull);
-    expect(CockpitDevelopmentProbe, isNotNull);
-    expect(CockpitDevelopmentSessionHandle, isNotNull);
+  test('exports AI-first app services and models', () {
+    expect(CockpitLaunchAppService, isNotNull);
+    expect(CockpitListAppsService, isNotNull);
+    expect(CockpitReadAppService, isNotNull);
+    expect(CockpitInspectUiService, isNotNull);
+    expect(CockpitReadLogsService, isNotNull);
+    expect(CockpitAppHandle, isNotNull);
   });
 }

@@ -6,7 +6,6 @@ import 'package:flutter_cockpit_devtools/src/application/cockpit_bundle_artifact
 import 'package:flutter_cockpit_devtools/src/application/cockpit_run_remote_control_script_service.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/cockpit_mcp_error.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_run_remote_control_script_tool.dart';
-import 'package:flutter_cockpit_devtools/src/session/cockpit_remote_session_handle.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -24,23 +23,11 @@ void main() {
         }
       });
 
-      final handle = CockpitRemoteSessionHandle(
-        platform: 'android',
-        deviceId: 'emulator-5554',
-        projectDir: '/workspace/examples/cockpit_demo',
-        target: 'lib/main.dart',
-        appId: 'dev.cockpit.cockpit_demo',
-        host: '127.0.0.1',
-        hostPort: 58421,
-        devicePort: 47331,
-        baseUrl: 'http://127.0.0.1:58421',
-        launchedAt: DateTime.utc(2026, 3, 21, 0, 0),
-      );
       final tool = CockpitRunRemoteControlScriptTool(
         run: (request) async {
           capturedRequest = request;
           return CockpitRunRemoteControlScriptResult(
-            sessionHandle: handle,
+            sessionHandle: null,
             bundleDir: bundleDir,
             manifest: CockpitRunManifest(
               sessionId: 'run-tool-session',
@@ -77,7 +64,7 @@ void main() {
       );
 
       final result = await tool.call(<String, Object?>{
-        'session_handle': handle.toJson(),
+        'base_url': 'http://127.0.0.1:58421',
         'output_root': '/tmp/out',
         'persist_script_path': '/tmp/replay_script.json',
         'script': <String, Object?>{
@@ -99,7 +86,9 @@ void main() {
       });
 
       expect(capturedRequest?.outputRoot, '/tmp/out');
-      expect(capturedRequest?.sessionHandle?.toJson(), handle.toJson());
+      expect(capturedRequest?.baseUri?.toString(), 'http://127.0.0.1:58421');
+      expect(capturedRequest?.androidDeviceId, isNull);
+      expect(capturedRequest?.portForwardingHandled, isTrue);
       expect(capturedRequest?.script.sessionId, 'run-tool-session');
       expect(capturedRequest?.script.environment, isNull);
 
@@ -108,7 +97,7 @@ void main() {
       expect(structuredContent['bundle_dir'], bundleDir.path);
       expect(
         (structuredContent['artifact_paths']
-            as Map<String, Object?>)['primaryRecordingPath'],
+            as Map<String, Object?>)['primary_recording_path'],
         p.join(bundleDir.path, 'recordings', 'acceptance.mp4'),
       );
     },
@@ -124,6 +113,7 @@ void main() {
 
     expect(
       () => tool.call(<String, Object?>{
+        'base_url': 'http://127.0.0.1:58421',
         'output_root': '/tmp/out',
         'script': <String, Object?>{
           'sessionId': 'run-tool-session',

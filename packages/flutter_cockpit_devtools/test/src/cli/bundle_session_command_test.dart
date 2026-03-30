@@ -1,8 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:args/command_runner.dart';
 import 'package:flutter_cockpit/flutter_cockpit.dart';
-import 'package:flutter_cockpit_devtools/src/cli/cockpit_command_runner.dart';
+import 'package:flutter_cockpit_devtools/src/cli/commands/bundle_session_command.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -39,7 +40,9 @@ void main() {
 
     await sessionFile.writeAsString(jsonEncode(bundle.toJson()));
 
-    final exitCode = await CockpitCommandRunner().run([
+    final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
+      ..addCommand(BundleSessionCommand());
+    final exitCode = await runner.run([
       'bundle-session',
       '--session-json',
       sessionFile.path,
@@ -69,7 +72,9 @@ void main() {
         }
       });
 
-      final exitCode = await CockpitCommandRunner().run([
+      final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
+        ..addCommand(BundleSessionCommand());
+      final exitCode = await _runCommandRunner(runner, [
         'bundle-session',
         '--output-root',
         tempDir.path,
@@ -79,4 +84,15 @@ void main() {
       expect(tempDir.listSync(), isEmpty);
     },
   );
+}
+
+Future<int> _runCommandRunner(
+  CommandRunner<int> runner,
+  List<String> args,
+) async {
+  try {
+    return await runner.run(args) ?? 0;
+  } on Object {
+    return 1;
+  }
 }

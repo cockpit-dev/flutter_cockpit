@@ -1,5 +1,6 @@
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
+import 'cockpit_json_key_normalizer.dart';
 import 'cockpit_interactive_result_profile.dart';
 
 final class CockpitInteractiveCommandCore {
@@ -45,15 +46,21 @@ final class CockpitInteractiveCommandCore {
 
   Map<String, Object?> toJson() => <String, Object?>{
         'command_id': commandId,
-        'command_type': commandType,
+        'command_type': cockpitSnakeCaseEnumValue('command_type', commandType),
         'success': success,
         'duration_ms': durationMs,
-        'locator_resolution': locatorResolution?.toJson(),
+        'locator_resolution':
+            cockpitSnakeCaseJsonValue(locatorResolution?.toJson()),
         'requested_capture_profile': requestedCaptureProfile,
-        'resolved_capture_kind': resolvedCaptureKind,
+        'resolved_capture_kind': resolvedCaptureKind == null
+            ? null
+            : cockpitSnakeCaseEnumValue(
+                'recording_kind',
+                resolvedCaptureKind!,
+              ),
         'used_capture_fallback': usedCaptureFallback,
         'degradation_reason': degradationReason,
-        'error': error?.toJson(),
+        'error': cockpitSnakeCaseJsonValue(error?.toJson()),
       };
 }
 
@@ -255,29 +262,33 @@ Map<String, Object?>? cockpitInteractiveDiagnosticsFromSnapshot(
     'level': diagnosticsLevel.jsonValue,
   };
   if (diagnosticsLevel == CockpitInteractiveDiagnosticsLevel.full) {
-    diagnostics['network'] = snapshot.network?.toJson();
-    diagnostics['runtime'] = snapshot.runtime?.toJson();
-    diagnostics['rebuild'] = snapshot.rebuild?.toJson();
-    diagnostics['accessibility'] = snapshot.accessibility?.toJson();
+    diagnostics['network'] =
+        cockpitSnakeCaseJsonValue(snapshot.network?.toJson());
+    diagnostics['runtime'] =
+        cockpitSnakeCaseJsonValue(snapshot.runtime?.toJson());
+    diagnostics['rebuild'] =
+        cockpitSnakeCaseJsonValue(snapshot.rebuild?.toJson());
+    diagnostics['accessibility'] =
+        cockpitSnakeCaseJsonValue(snapshot.accessibility?.toJson());
     return diagnostics;
   }
 
   final network = snapshot.network;
   if (network != null && network.failureCount > 0) {
     diagnostics['network'] = <String, Object?>{
-      'totalEntryCount': network.totalEntryCount,
-      'failureCount': network.failureCount,
+      'total_entry_count': network.totalEntryCount,
+      'failure_count': network.failureCount,
       'entries': network.entries
           .where((entry) => entry.isFailure)
-          .map((entry) => entry.toJson())
+          .map((entry) => cockpitSnakeCaseJsonValue(entry.toJson()))
           .toList(growable: false),
-      'endpointSummaries': network.endpointSummaries
+      'endpoint_summaries': network.endpointSummaries
           .where((summary) => summary.failureCount > 0)
-          .map((summary) => summary.toJson())
+          .map((summary) => cockpitSnakeCaseJsonValue(summary.toJson()))
           .toList(growable: false),
-      'capturedEntryCount': network.capturedEntryCount,
-      'inFlightCount': network.inFlightCount,
-      'query': network.query.toJson(),
+      'captured_entry_count': network.capturedEntryCount,
+      'in_flight_count': network.inFlightCount,
+      'query': cockpitSnakeCaseJsonValue(network.query.toJson()),
       'truncated': network.truncated,
     };
   }
@@ -285,15 +296,15 @@ Map<String, Object?>? cockpitInteractiveDiagnosticsFromSnapshot(
   final runtime = snapshot.runtime;
   if (runtime != null && runtime.errorCount > 0) {
     diagnostics['runtime'] = <String, Object?>{
-      'totalEntryCount': runtime.totalEntryCount,
-      'errorCount': runtime.errorCount,
-      'warningCount': runtime.warningCount,
+      'total_entry_count': runtime.totalEntryCount,
+      'error_count': runtime.errorCount,
+      'warning_count': runtime.warningCount,
       'entries': runtime.entries
           .where((entry) => entry.isError)
-          .map((entry) => entry.toJson())
+          .map((entry) => cockpitSnakeCaseJsonValue(entry.toJson()))
           .toList(growable: false),
-      'capturedEntryCount': runtime.capturedEntryCount,
-      'query': runtime.query.toJson(),
+      'captured_entry_count': runtime.capturedEntryCount,
+      'query': cockpitSnakeCaseJsonValue(runtime.query.toJson()),
       'truncated': runtime.truncated,
     };
   }

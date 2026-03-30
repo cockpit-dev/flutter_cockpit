@@ -19,7 +19,7 @@ void main() {
       final result = await service.read(
         CockpitReadRemoteStatusRequest(
           sessionHandle: handle,
-          resultProfile: const CockpitInteractiveResultProfile.compact(),
+          resultProfile: const CockpitInteractiveResultProfile.minimal(),
         ),
       );
 
@@ -94,7 +94,7 @@ void main() {
       final result = await service.read(
         CockpitReadRemoteStatusRequest(
           sessionHandle: _sessionHandle(),
-          resultProfile: const CockpitInteractiveResultProfile.forensic(),
+          resultProfile: const CockpitInteractiveResultProfile.evidence(),
         ),
       );
 

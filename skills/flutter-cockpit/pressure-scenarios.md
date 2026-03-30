@@ -262,7 +262,7 @@ Baseline dry-run observation after the initial development-session rollout:
 
 The agent must:
 
-- prefer `launch_development_session` + `reload_development_session` + `collect_development_probe` + `compare_development_probe` during active edit cycles
+- prefer `launch_app` + `read_app` + `run_command` or `run_batch` + `hot_reload` or `hot_restart` during active edit cycles
 - inspect `visualChanged`, `screenshotChanged`, and bounded `visualSignals` before deciding that a reload had no effect
 - escalate to `hot_restart`, a higher-profile probe, or final acceptance only when the lighter loop is still ambiguous
 
@@ -343,3 +343,38 @@ Validation rerun after the setup-example cleanup:
 - the skill now states the boundary explicitly in the bootstrap stage
 - the setup example uses `cockpit/` as the default pattern without prescribing the user's `lib/` structure
 - remaining loophole to watch: an agent may still over-specify one concrete import path when trying to make the snippet feel more runnable than the surrounding app actually guarantees
+
+## Scenario 10: Token Pressure
+
+### Prompt
+
+Debug the app quickly, but keep token usage low. Only ask the runtime for the data you actually need.
+
+### Expected Naive Failure
+
+The agent jumps straight to the heaviest profile, reads full snapshots or raw artifacts too early, and spends context on diagnostics that were not needed to answer the next question.
+
+### Baseline Observation
+
+Baseline dry-run observation after the first interactive profile rollout:
+
+- the agent understood that richer evidence existed, but often reached for it immediately
+- the shortcut was: "more data is safer"
+- this increased token cost without improving the decision quality for simple route, text, or reachability checks
+
+### Target Corrected Behavior
+
+The agent must:
+
+- start with `minimal` or `standard`
+- use `read_app` or `inspect_ui` summaries before raw snapshot payloads
+- prefer bundle summaries and gate failures before opening artifact files
+- request one missing fact at a time, then escalate only when the current layer is insufficient
+
+### Post-Skill Validation
+
+Validation rerun after the token-discipline update:
+
+- the skill now makes low-token profiles the default instead of a suggestion
+- the observe stage now teaches a bounded escalation ladder
+- remaining loophole to watch: an agent may still jump to `evidence` too early when it is anxious about missing a regression

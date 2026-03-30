@@ -40,11 +40,11 @@ void main() {
         'commandId': 'tap-1',
         'commandType': 'tap',
       },
-      'result_profile': 'compact',
+      'result_profile': 'minimal',
     });
 
     expect(capturedRequest?.command.commandId, 'tap-1');
-    expect(capturedRequest?.resultProfile.name.jsonValue, 'compact');
+    expect(capturedRequest?.resultProfile.name.jsonValue, 'minimal');
     expect(result['structuredContent'], isA<Map<String, Object?>>());
   });
 }

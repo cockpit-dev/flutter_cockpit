@@ -31,6 +31,15 @@ void main() {
     },
   );
 
+  test('CockpitRecordingRequest defaults name from purpose when omitted', () {
+    final request = CockpitRecordingRequest.fromJson(
+      <String, Object?>{'purpose': 'acceptance'},
+    );
+
+    expect(request.purpose, CockpitRecordingPurpose.acceptance);
+    expect(request.name, 'acceptance');
+  });
+
   test('CockpitRecordingResult preserves state, artifact, and duration', () {
     final result = CockpitRecordingResult(
       state: CockpitRecordingState.completed,
