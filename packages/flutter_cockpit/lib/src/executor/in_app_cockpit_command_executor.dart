@@ -24,7 +24,11 @@ import '../executor/cockpit_command_executor.dart';
 import '../executor/in_app/cockpit_capture_orchestrator.dart';
 import '../executor/in_app/cockpit_command_context.dart';
 import '../executor/in_app/cockpit_command_router.dart';
+import '../executor/in_app/cockpit_gesture_command_executor.dart';
 import '../executor/in_app/cockpit_post_action_settle_coordinator.dart';
+import '../executor/in_app/cockpit_semantic_command_executor.dart';
+import '../executor/in_app/cockpit_text_input_command_executor.dart';
+import '../executor/in_app/cockpit_wait_and_assert_executor.dart';
 import '../gesture/cockpit_gesture_action.dart';
 import '../gesture/cockpit_gesture_anchor.dart';
 import '../gesture/cockpit_gesture_profile.dart';
@@ -96,6 +100,69 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
       },
       defaultSnapshotOptionsForReason: _defaultSnapshotOptionsForReason,
     );
+    _semanticCommandExecutor = CockpitSemanticCommandExecutor(
+      tap: _executeTap,
+      longPress: _executeLongPress,
+      doubleTap: _executeDoubleTap,
+      showOnScreen: (command, stopwatch) {
+        return _executeSemanticAction(
+          command,
+          stopwatch,
+          requiredCommand: CockpitCommandType.showOnScreen,
+          semanticAction: (target) => target.onSemanticShowOnScreen,
+        );
+      },
+      increase: (command, stopwatch) {
+        return _executeSemanticAction(
+          command,
+          stopwatch,
+          requiredCommand: CockpitCommandType.increase,
+          semanticAction: (target) => target.onSemanticIncrease,
+        );
+      },
+      decrease: (command, stopwatch) {
+        return _executeSemanticAction(
+          command,
+          stopwatch,
+          requiredCommand: CockpitCommandType.decrease,
+          semanticAction: (target) => target.onSemanticDecrease,
+        );
+      },
+      dismiss: (command, stopwatch) {
+        return _executeSemanticAction(
+          command,
+          stopwatch,
+          requiredCommand: CockpitCommandType.dismiss,
+          semanticAction: (target) => target.onSemanticDismiss,
+        );
+      },
+    );
+    _textInputCommandExecutor = CockpitTextInputCommandExecutor(
+      enterText: _executeEnterText,
+      focusTextInput: _executeFocusTextInput,
+      setTextEditingValue: _executeSetTextEditingValue,
+      sendTextInputAction: _executeSendTextInputAction,
+      sendKeyEvent: _executeKeyEvent,
+      sendKeyDownEvent: _executeKeyEvent,
+      sendKeyUpEvent: _executeKeyEvent,
+    );
+    _gestureCommandExecutor = CockpitGestureCommandExecutor(
+      drag: _executeDrag,
+      fling: _executeFling,
+      swipe: _executeSwipe,
+      pinchZoom: _executePinchZoom,
+      rotate: _executeRotate,
+      panZoom: _executePanZoom,
+      multiTouch: _executeMultiTouch,
+    );
+    _waitAndAssertExecutor = CockpitWaitAndAssertExecutor(
+      scrollUntilVisible: _executeScrollUntilVisible,
+      waitForNetworkIdle: _executeWaitForNetworkIdle,
+      waitForUiIdle: _executeWaitForUiIdle,
+      assertVisible: _executeAssertVisible,
+      assertText: _executeAssertText,
+      waitFor: _executeWaitFor,
+    );
     _commandRouter = CockpitCommandRouter(handlers: _buildCommandHandlers());
   }
 
@@ -103,6 +170,10 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
   late final CockpitPostActionSettleCoordinator _settleCoordinator;
   late final CockpitCaptureOrchestrator _captureOrchestrator;
   late final CockpitCommandRouter _commandRouter;
+  late final CockpitSemanticCommandExecutor _semanticCommandExecutor;
+  late final CockpitTextInputCommandExecutor _textInputCommandExecutor;
+  late final CockpitGestureCommandExecutor _gestureCommandExecutor;
+  late final CockpitWaitAndAssertExecutor _waitAndAssertExecutor;
 
   CockpitTargetRegistry get _registry => _context.registry;
   CockpitCaptureHandler? get _captureHandler => _context.captureHandler;
@@ -199,64 +270,36 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
 
   Map<CockpitCommandType, CockpitInAppCommandHandler> _buildCommandHandlers() {
     return <CockpitCommandType, CockpitInAppCommandHandler>{
-      CockpitCommandType.tap: _executeTap,
-      CockpitCommandType.enterText: _executeEnterText,
-      CockpitCommandType.focusTextInput: _executeFocusTextInput,
-      CockpitCommandType.setTextEditingValue: _executeSetTextEditingValue,
-      CockpitCommandType.sendTextInputAction: _executeSendTextInputAction,
-      CockpitCommandType.sendKeyEvent: _executeKeyEvent,
-      CockpitCommandType.sendKeyDownEvent: _executeKeyEvent,
-      CockpitCommandType.sendKeyUpEvent: _executeKeyEvent,
-      CockpitCommandType.longPress: _executeLongPress,
-      CockpitCommandType.doubleTap: _executeDoubleTap,
-      CockpitCommandType.drag: _executeDrag,
-      CockpitCommandType.fling: _executeFling,
-      CockpitCommandType.swipe: _executeSwipe,
-      CockpitCommandType.pinchZoom: _executePinchZoom,
-      CockpitCommandType.rotate: _executeRotate,
-      CockpitCommandType.panZoom: _executePanZoom,
-      CockpitCommandType.multiTouch: _executeMultiTouch,
-      CockpitCommandType.scrollUntilVisible: _executeScrollUntilVisible,
+      CockpitCommandType.tap: _semanticCommandExecutor.execute,
+      CockpitCommandType.enterText: _textInputCommandExecutor.execute,
+      CockpitCommandType.focusTextInput: _textInputCommandExecutor.execute,
+      CockpitCommandType.setTextEditingValue: _textInputCommandExecutor.execute,
+      CockpitCommandType.sendTextInputAction: _textInputCommandExecutor.execute,
+      CockpitCommandType.sendKeyEvent: _textInputCommandExecutor.execute,
+      CockpitCommandType.sendKeyDownEvent: _textInputCommandExecutor.execute,
+      CockpitCommandType.sendKeyUpEvent: _textInputCommandExecutor.execute,
+      CockpitCommandType.longPress: _semanticCommandExecutor.execute,
+      CockpitCommandType.doubleTap: _semanticCommandExecutor.execute,
+      CockpitCommandType.drag: _gestureCommandExecutor.execute,
+      CockpitCommandType.fling: _gestureCommandExecutor.execute,
+      CockpitCommandType.swipe: _gestureCommandExecutor.execute,
+      CockpitCommandType.pinchZoom: _gestureCommandExecutor.execute,
+      CockpitCommandType.rotate: _gestureCommandExecutor.execute,
+      CockpitCommandType.panZoom: _gestureCommandExecutor.execute,
+      CockpitCommandType.multiTouch: _gestureCommandExecutor.execute,
+      CockpitCommandType.scrollUntilVisible: _waitAndAssertExecutor.execute,
       CockpitCommandType.clearNetworkActivity: (command, stopwatch) async =>
           _executeClearNetworkActivity(command, stopwatch),
-      CockpitCommandType.waitForNetworkIdle: _executeWaitForNetworkIdle,
-      CockpitCommandType.waitForUiIdle: _executeWaitForUiIdle,
+      CockpitCommandType.waitForNetworkIdle: _waitAndAssertExecutor.execute,
+      CockpitCommandType.waitForUiIdle: _waitAndAssertExecutor.execute,
       CockpitCommandType.back: _executeBack,
-      CockpitCommandType.showOnScreen: (command, stopwatch) {
-        return _executeSemanticAction(
-          command,
-          stopwatch,
-          requiredCommand: CockpitCommandType.showOnScreen,
-          semanticAction: (target) => target.onSemanticShowOnScreen,
-        );
-      },
-      CockpitCommandType.increase: (command, stopwatch) {
-        return _executeSemanticAction(
-          command,
-          stopwatch,
-          requiredCommand: CockpitCommandType.increase,
-          semanticAction: (target) => target.onSemanticIncrease,
-        );
-      },
-      CockpitCommandType.decrease: (command, stopwatch) {
-        return _executeSemanticAction(
-          command,
-          stopwatch,
-          requiredCommand: CockpitCommandType.decrease,
-          semanticAction: (target) => target.onSemanticDecrease,
-        );
-      },
-      CockpitCommandType.dismiss: (command, stopwatch) {
-        return _executeSemanticAction(
-          command,
-          stopwatch,
-          requiredCommand: CockpitCommandType.dismiss,
-          semanticAction: (target) => target.onSemanticDismiss,
-        );
-      },
-      CockpitCommandType.assertVisible: _executeAssertVisible,
-      CockpitCommandType.assertText: _executeAssertText,
-      CockpitCommandType.waitFor: _executeWaitFor,
+      CockpitCommandType.showOnScreen: _semanticCommandExecutor.execute,
+      CockpitCommandType.increase: _semanticCommandExecutor.execute,
+      CockpitCommandType.decrease: _semanticCommandExecutor.execute,
+      CockpitCommandType.dismiss: _semanticCommandExecutor.execute,
+      CockpitCommandType.assertVisible: _waitAndAssertExecutor.execute,
+      CockpitCommandType.assertText: _waitAndAssertExecutor.execute,
+      CockpitCommandType.waitFor: _waitAndAssertExecutor.execute,
       CockpitCommandType.collectSnapshot: (command, stopwatch) async {
         return _successExecution(
           command: command,
