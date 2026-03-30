@@ -3,25 +3,38 @@ import 'dart:async';
 import 'package:dart_mcp/server.dart';
 
 import '../cockpit_mcp_tool.dart';
+import 'cockpit_mcp_prompt.dart';
+import 'cockpit_mcp_prompt_adapter.dart';
+import 'cockpit_mcp_resource.dart';
+import 'cockpit_mcp_resource_adapter.dart';
+import 'cockpit_mcp_roots_tracker.dart';
 import 'cockpit_mcp_tool_adapter.dart';
 
-final class CockpitMcpProtocolServer extends MCPServer with ToolsSupport {
+final class CockpitMcpProtocolServer extends MCPServer
+    with LoggingSupport, ToolsSupport, ResourcesSupport, PromptsSupport {
   CockpitMcpProtocolServer(
     super.channel, {
     required List<CockpitMcpTool> tools,
+    List<CockpitMcpResource> resources = const <CockpitMcpResource>[],
+    List<CockpitMcpPrompt> prompts = const <CockpitMcpPrompt>[],
+    required CockpitMcpRootsTracker rootsTracker,
     required this.featureConfiguration,
     required this.serverName,
     required this.serverVersion,
     super.protocolLogSink,
   })  : _tools = List<CockpitMcpTool>.unmodifiable(tools),
+        _resources = List<CockpitMcpResource>.unmodifiable(resources),
+        _prompts = List<CockpitMcpPrompt>.unmodifiable(prompts),
+        _rootsTracker = rootsTracker,
         super.fromStreamChannel(
           implementation: Implementation(
             name: serverName,
             version: serverVersion,
           ),
           instructions:
-              'Use these tools to manage flutter_cockpit sessions, task '
-              'workflows, and evidence bundles.',
+              'Use the resources to read workspace context, the prompts to '
+              'follow the repository workflow, and the tools to execute '
+              'flutter_cockpit sessions, task workflows, and evidence bundles.',
         ) {
     for (final tool in _enabledTools) {
       registerTool(
@@ -29,15 +42,59 @@ final class CockpitMcpProtocolServer extends MCPServer with ToolsSupport {
         (request) => _invoke(tool, request),
       );
     }
+    for (final resource in _enabledResources) {
+      final fixedResource = CockpitMcpResourceAdapter.fixedResourceFor(resource);
+      if (fixedResource != null) {
+        addResource(
+          fixedResource,
+          (request) async =>
+              (await CockpitMcpResourceAdapter.invoke(resource, request)) ??
+              (throw StateError('Fixed resource returned no content.')),
+        );
+        continue;
+      }
+
+      final template = CockpitMcpResourceAdapter.templateFor(resource);
+      if (template != null) {
+        addResourceTemplate(
+          template,
+          (request) => CockpitMcpResourceAdapter.invoke(resource, request),
+        );
+      }
+    }
+    for (final prompt in _enabledPrompts) {
+      addPrompt(
+        CockpitMcpPromptAdapter.protocolPromptFor(prompt),
+        (request) => CockpitMcpPromptAdapter.invoke(prompt, request),
+      );
+    }
+    initialized.then((_) async {
+      await _rootsTracker.bind(
+        clientSupportsRoots: clientCapabilities.roots != null,
+        readRoots: () async => (await listRoots(ListRootsRequest())).roots,
+        rootsChanged: rootsListChanged?.map((_) {}),
+      );
+    });
   }
 
   final List<CockpitMcpTool> _tools;
+  final List<CockpitMcpResource> _resources;
+  final List<CockpitMcpPrompt> _prompts;
+  final CockpitMcpRootsTracker _rootsTracker;
   final CockpitMcpFeatureConfiguration featureConfiguration;
   final String serverName;
   final String serverVersion;
 
   List<CockpitMcpTool> get _enabledTools => _tools
       .where((tool) => featureConfiguration.isEnabled(tool.definition))
+      .toList(growable: false);
+
+  List<CockpitMcpResource> get _enabledResources => _resources
+      .where((resource) => featureConfiguration.isEnabled(resource.definition))
+      .toList(growable: false);
+
+  List<CockpitMcpPrompt> get _enabledPrompts => _prompts
+      .where((prompt) => featureConfiguration.isEnabled(prompt.definition))
       .toList(growable: false);
 
   Future<CallToolResult> _invoke(

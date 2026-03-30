@@ -1,5 +1,5 @@
 import 'cockpit_mcp_feature_category.dart';
-import 'cockpit_mcp_tool_definition.dart';
+import 'cockpit_mcp_feature_descriptor.dart';
 
 final class CockpitMcpFeatureConfiguration {
   const CockpitMcpFeatureConfiguration({
@@ -10,7 +10,7 @@ final class CockpitMcpFeatureConfiguration {
   final Set<String> enabledNames;
   final Set<String> disabledNames;
 
-  bool isEnabled(CockpitMcpToolDefinition definition) {
+  bool isEnabled(CockpitMcpFeatureDescriptor definition) {
     if (disabledNames.contains(definition.name)) {
       return false;
     }

@@ -3,8 +3,27 @@ import 'dart:io';
 
 import 'package:stream_channel/stream_channel.dart';
 
+import '../application/cockpit_latest_task_store.dart';
+import '../application/cockpit_list_active_sessions_service.dart';
+import '../application/cockpit_list_workspace_roots_service.dart';
+import '../application/cockpit_read_latest_task_summary_service.dart';
+import '../application/cockpit_session_registry.dart';
 import 'core/cockpit_mcp_protocol_server.dart';
+import 'core/cockpit_mcp_prompt.dart';
+import 'core/cockpit_mcp_resource.dart';
+import 'core/cockpit_mcp_roots_tracker.dart';
 import 'core/cockpit_mcp_stdio_channel.dart';
+import 'prompts/cockpit_create_project_with_validation_prompt.dart';
+import 'prompts/cockpit_inspect_before_claiming_done_prompt.dart';
+import 'prompts/cockpit_prepare_acceptance_delivery_prompt.dart';
+import 'prompts/cockpit_recover_from_failed_validation_prompt.dart';
+import 'prompts/cockpit_run_closed_loop_task_prompt.dart';
+import 'resources/cockpit_active_sessions_resource.dart';
+import 'resources/cockpit_latest_task_resource.dart';
+import 'resources/cockpit_workspace_capabilities_resource.dart';
+import 'resources/cockpit_workspace_contracts_resource.dart';
+import 'resources/cockpit_workspace_goals_resource.dart';
+import 'resources/cockpit_workspace_roots_resource.dart';
 import 'tools/cockpit_collect_development_probe_tool.dart';
 import 'tools/cockpit_launch_remote_session_tool.dart';
 import 'tools/cockpit_compare_development_probe_tool.dart';
@@ -24,40 +43,100 @@ import 'cockpit_mcp_tool.dart';
 final class CockpitMcpServer {
   CockpitMcpServer({
     required List<CockpitMcpTool> tools,
+    this.resources = const <CockpitMcpResource>[],
+    this.prompts = const <CockpitMcpPrompt>[],
     this.featureConfiguration = const CockpitMcpFeatureConfiguration(),
+    CockpitMcpRootsTracker? rootsTracker,
+    CockpitSessionRegistry? sessionRegistry,
+    CockpitLatestTaskStore? latestTaskStore,
     this.serverName = 'flutter_cockpit_devtools',
     this.serverVersion = '1.0.0',
-  }) : _tools = Map<String, CockpitMcpTool>.fromEntries(
+  })  : rootsTracker = rootsTracker ?? CockpitMcpRootsTracker(),
+        sessionRegistry = sessionRegistry ?? CockpitSessionRegistry(),
+        latestTaskStore = latestTaskStore ?? CockpitLatestTaskStore(),
+        _tools = Map<String, CockpitMcpTool>.fromEntries(
           tools.map((tool) => MapEntry(tool.name, tool)),
         );
 
   factory CockpitMcpServer.standard({
     String serverName = 'flutter_cockpit_devtools',
     String serverVersion = '1.0.0',
+    String goalsFilePath = 'GOALS.md',
+    String skillContractPath =
+        'docs/contracts/flutter-cockpit-skill-contract.md',
+    String bundleContractPath = 'docs/contracts/task-run-bundle.md',
+    bool forceRootsFallback = false,
   }) {
+    final rootsTracker = CockpitMcpRootsTracker(
+      forceFallback: forceRootsFallback,
+    );
+    final sessionRegistry = CockpitSessionRegistry();
+    final latestTaskStore = CockpitLatestTaskStore();
     return CockpitMcpServer(
       serverName: serverName,
       serverVersion: serverVersion,
+      rootsTracker: rootsTracker,
+      sessionRegistry: sessionRegistry,
+      latestTaskStore: latestTaskStore,
       tools: <CockpitMcpTool>[
-        CockpitLaunchDevelopmentSessionTool(),
-        CockpitQueryDevelopmentSessionTool(),
-        CockpitReloadDevelopmentSessionTool(),
-        CockpitStopDevelopmentSessionTool(),
+        CockpitLaunchDevelopmentSessionTool(sessionRegistry: sessionRegistry),
+        CockpitQueryDevelopmentSessionTool(sessionRegistry: sessionRegistry),
+        CockpitReloadDevelopmentSessionTool(sessionRegistry: sessionRegistry),
+        CockpitStopDevelopmentSessionTool(sessionRegistry: sessionRegistry),
         CockpitCollectDevelopmentProbeTool(),
         CockpitCompareDevelopmentProbeTool(),
-        CockpitLaunchRemoteSessionTool(),
+        CockpitLaunchRemoteSessionTool(sessionRegistry: sessionRegistry),
         CockpitCollectRemoteSnapshotTool(),
-        CockpitQueryRemoteSessionTool(),
+        CockpitQueryRemoteSessionTool(sessionRegistry: sessionRegistry),
         CockpitRunRemoteControlScriptTool(),
         CockpitReadTaskBundleSummaryTool(),
-        CockpitRunTaskTool(),
+        CockpitRunTaskTool(latestTaskStore: latestTaskStore),
         CockpitValidateTaskTool(),
+      ],
+      resources: <CockpitMcpResource>[
+        CockpitWorkspaceGoalsResource(goalsFilePath: goalsFilePath),
+        CockpitWorkspaceSkillContractResource(
+          skillContractPath: skillContractPath,
+        ),
+        CockpitWorkspaceTaskBundleContractResource(
+          bundleContractPath: bundleContractPath,
+        ),
+        CockpitWorkspaceRootsResource(
+          service: CockpitListWorkspaceRootsService(
+            rootsTracker: rootsTracker,
+          ),
+        ),
+        CockpitWorkspaceCapabilitiesResource(
+          serverName: serverName,
+          serverVersion: serverVersion,
+          featureConfiguration: const CockpitMcpFeatureConfiguration(),
+        ),
+        CockpitActiveSessionsResource(
+          service: CockpitListActiveSessionsService(
+            registry: sessionRegistry,
+          ),
+        ),
+        CockpitLatestTaskResource(
+          service: CockpitReadLatestTaskSummaryService(store: latestTaskStore),
+        ),
+      ],
+      prompts: const <CockpitMcpPrompt>[
+        CockpitRunClosedLoopTaskPrompt(),
+        CockpitInspectBeforeClaimingDonePrompt(),
+        CockpitRecoverFromFailedValidationPrompt(),
+        CockpitPrepareAcceptanceDeliveryPrompt(),
+        CockpitCreateProjectWithValidationPrompt(),
       ],
     );
   }
 
   final Map<String, CockpitMcpTool> _tools;
+  final List<CockpitMcpResource> resources;
+  final List<CockpitMcpPrompt> prompts;
   final CockpitMcpFeatureConfiguration featureConfiguration;
+  final CockpitMcpRootsTracker rootsTracker;
+  final CockpitSessionRegistry sessionRegistry;
+  final CockpitLatestTaskStore latestTaskStore;
   final String serverName;
   final String serverVersion;
 
@@ -72,6 +151,9 @@ final class CockpitMcpServer {
     return CockpitMcpProtocolServer(
       channel,
       tools: _enabledTools,
+      resources: resources,
+      prompts: prompts,
+      rootsTracker: rootsTracker,
       featureConfiguration: featureConfiguration,
       serverName: serverName,
       serverVersion: serverVersion,

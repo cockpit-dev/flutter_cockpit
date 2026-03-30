@@ -1,4 +1,5 @@
 import '../../application/cockpit_launch_remote_session_service.dart';
+import '../../application/cockpit_session_registry.dart';
 import '../cockpit_mcp_error.dart';
 import '../cockpit_mcp_tool.dart';
 
@@ -11,10 +12,13 @@ final class CockpitLaunchRemoteSessionTool extends CockpitMcpTool {
   CockpitLaunchRemoteSessionTool({
     CockpitLaunchRemoteSessionService? service,
     CockpitLaunchRemoteSessionFunction? launch,
+    CockpitSessionRegistry? sessionRegistry,
   }) : _launch =
-            launch ?? (service ?? CockpitLaunchRemoteSessionService()).launch;
+            launch ?? (service ?? CockpitLaunchRemoteSessionService()).launch,
+       _sessionRegistry = sessionRegistry;
 
   final CockpitLaunchRemoteSessionFunction _launch;
+  final CockpitSessionRegistry? _sessionRegistry;
 
   @override
   String get name => 'launch_remote_session';
@@ -79,6 +83,13 @@ final class CockpitLaunchRemoteSessionTool extends CockpitMcpTool {
             'persist_handle_path',
           ),
         ),
+      );
+      _sessionRegistry?.recordRemoteSession(
+        handle: result.sessionHandle,
+        status: result.health,
+        recommendedNextStep: result.health.capabilities.supportsInAppControl
+            ? 'ready_for_commands'
+            : 'limited_capabilities',
       );
 
       return cockpitMcpResult(

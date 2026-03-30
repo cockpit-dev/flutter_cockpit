@@ -1,4 +1,5 @@
 import '../../application/cockpit_stop_development_session_service.dart';
+import '../../application/cockpit_session_registry.dart';
 import '../cockpit_mcp_tool.dart';
 
 typedef CockpitStopDevelopmentSessionToolFunction
@@ -10,9 +11,12 @@ final class CockpitStopDevelopmentSessionTool extends CockpitMcpTool {
   CockpitStopDevelopmentSessionTool({
     CockpitStopDevelopmentSessionService? service,
     CockpitStopDevelopmentSessionToolFunction? stop,
-  }) : _stop = stop ?? (service ?? CockpitStopDevelopmentSessionService()).stop;
+    CockpitSessionRegistry? sessionRegistry,
+  }) : _stop = stop ?? (service ?? CockpitStopDevelopmentSessionService()).stop,
+       _sessionRegistry = sessionRegistry;
 
   final CockpitStopDevelopmentSessionToolFunction _stop;
+  final CockpitSessionRegistry? _sessionRegistry;
 
   @override
   String get name => 'stop_development_session';
@@ -40,6 +44,9 @@ final class CockpitStopDevelopmentSessionTool extends CockpitMcpTool {
             'session_handle_path',
           ),
         ),
+      );
+      _sessionRegistry?.removeDevelopmentSession(
+        result.sessionHandle.developmentSessionId,
       );
       return cockpitMcpResult(
         text: 'Development session stopped.',

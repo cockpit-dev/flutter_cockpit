@@ -4,6 +4,10 @@ import 'package:dart_mcp/client.dart';
 import 'package:dart_mcp/server.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/cockpit_mcp_server.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/cockpit_mcp_tool.dart';
+import 'package:flutter_cockpit_devtools/src/mcp/core/cockpit_mcp_prompt.dart';
+import 'package:flutter_cockpit_devtools/src/mcp/core/cockpit_mcp_prompt_definition.dart';
+import 'package:flutter_cockpit_devtools/src/mcp/core/cockpit_mcp_resource.dart';
+import 'package:flutter_cockpit_devtools/src/mcp/core/cockpit_mcp_resource_definition.dart';
 import 'package:stream_channel/stream_channel.dart';
 import 'package:test/test.dart';
 
@@ -72,10 +76,86 @@ void main() {
 
     await environment.shutdown();
   });
+
+  test('typed protocol server lists and reads resources and prompts', () async {
+    final environment = _ProtocolTestEnvironment(
+      tools: <CockpitMcpTool>[_FakeCockpitMcpTool(name: 'echo_tool')],
+      resources: <CockpitMcpResource>[
+        _FakeCockpitMcpResource(
+          definition: const CockpitMcpResourceDefinition.fixed(
+            name: 'workspace_goals',
+            uri: 'cockpit://workspace/goals',
+            description: 'Repository goals.',
+            mimeType: 'text/markdown',
+          ),
+          text: '# Goals',
+        ),
+        _FakeCockpitMcpResource(
+          definition: const CockpitMcpResourceDefinition.template(
+            name: 'task_summary',
+            uriTemplate: 'cockpit://task/summary{?bundleDir}',
+            description: 'Task summary.',
+            mimeType: 'application/json',
+          ),
+          text: '{"ok":true}',
+        ),
+      ],
+      prompts: <CockpitMcpPrompt>[
+        _FakeCockpitMcpPrompt(name: 'run_closed_loop_task'),
+      ],
+    );
+
+    final connection = await environment.initialize();
+
+    final resources = await connection.listResources();
+    expect(
+      resources.resources.map((resource) => resource.uri),
+      <String>['cockpit://workspace/goals'],
+    );
+
+    final templates = await connection.listResourceTemplates();
+    expect(
+      templates.resourceTemplates.map((template) => template.uriTemplate),
+      <String>['cockpit://task/summary{?bundleDir}'],
+    );
+
+    final resourceResult = await connection.readResource(
+      ReadResourceRequest(uri: 'cockpit://workspace/goals'),
+    );
+    expect(
+      resourceResult.contents.single,
+      isA<TextResourceContents>()
+          .having((content) => content.text, 'text', '# Goals'),
+    );
+
+    final prompts = await connection.listPrompts();
+    expect(prompts.prompts.map((prompt) => prompt.name), <String>[
+      'run_closed_loop_task',
+    ]);
+
+    final promptResult = await connection.getPrompt(
+      GetPromptRequest(
+        name: 'run_closed_loop_task',
+        arguments: const <String, Object?>{'task_goal': 'Ship it'},
+      ),
+    );
+    expect(promptResult.messages, hasLength(1));
+    expect(
+      promptResult.messages.single.content,
+      isA<TextContent>()
+          .having((content) => content.text, 'text', contains('Ship it')),
+    );
+
+    await environment.shutdown();
+  });
 }
 
 final class _ProtocolTestEnvironment {
-  _ProtocolTestEnvironment({required List<CockpitMcpTool> tools})
+  _ProtocolTestEnvironment({
+    required List<CockpitMcpTool> tools,
+    this.resources = const <CockpitMcpResource>[],
+    this.prompts = const <CockpitMcpPrompt>[],
+  })
       : _client =
             MCPClient(Implementation(name: 'test client', version: '1.0.0')),
         _clientController = StreamController<String>(),
@@ -90,6 +170,8 @@ final class _ProtocolTestEnvironment {
     );
     _server = CockpitMcpServer(
       tools: tools,
+      resources: resources,
+      prompts: prompts,
       serverName: 'flutter_cockpit_devtools',
       serverVersion: '1.0.0',
     ).createProtocolServer(serverChannel);
@@ -97,6 +179,8 @@ final class _ProtocolTestEnvironment {
   }
 
   final MCPClient _client;
+  final List<CockpitMcpPrompt> prompts;
+  final List<CockpitMcpResource> resources;
   final StreamController<String> _clientController;
   final StreamController<String> _serverController;
   late final MCPServer _server;
@@ -119,6 +203,63 @@ final class _ProtocolTestEnvironment {
   Future<void> shutdown() async {
     await _client.shutdown();
     await _server.shutdown();
+  }
+}
+
+final class _FakeCockpitMcpResource extends CockpitMcpResource {
+  const _FakeCockpitMcpResource({
+    required this.definition,
+    required this.text,
+  });
+
+  @override
+  final CockpitMcpResourceDefinition definition;
+
+  final String text;
+
+  @override
+  Future<CockpitMcpResourceResult?> read(CockpitMcpResourceRequest request) async {
+    if (!definition.isTemplate && request.uri != definition.uri) {
+      return null;
+    }
+
+    return CockpitMcpResourceResult(
+      contents: <CockpitMcpResourceContents>[
+        CockpitMcpTextResourceContents(
+          uri: request.uri,
+          text: text,
+          mimeType: definition.mimeType,
+        ),
+      ],
+    );
+  }
+}
+
+final class _FakeCockpitMcpPrompt extends CockpitMcpPrompt {
+  const _FakeCockpitMcpPrompt({required this.name});
+
+  final String name;
+
+  @override
+  CockpitMcpPromptDefinition get definition => const CockpitMcpPromptDefinition(
+        name: 'run_closed_loop_task',
+        description: 'Guides a closed-loop task.',
+        arguments: <CockpitMcpPromptArgument>[
+          CockpitMcpPromptArgument(name: 'task_goal', required: true),
+        ],
+      );
+
+  @override
+  Future<CockpitMcpPromptResult> build(
+    Map<String, Object?> arguments,
+  ) async {
+    return CockpitMcpPromptResult(
+      messages: <CockpitMcpPromptMessage>[
+        CockpitMcpPromptMessage.user(
+          'Run the task: ${arguments['task_goal']}',
+        ),
+      ],
+    );
   }
 }
 

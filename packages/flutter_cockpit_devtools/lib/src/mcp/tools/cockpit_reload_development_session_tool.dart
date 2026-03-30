@@ -1,4 +1,5 @@
 import '../../application/cockpit_reload_development_session_service.dart';
+import '../../application/cockpit_session_registry.dart';
 import '../../development/cockpit_development_session_status.dart';
 import '../cockpit_mcp_tool.dart';
 
@@ -11,10 +12,13 @@ final class CockpitReloadDevelopmentSessionTool extends CockpitMcpTool {
   CockpitReloadDevelopmentSessionTool({
     CockpitReloadDevelopmentSessionService? service,
     CockpitReloadDevelopmentSessionToolFunction? reload,
+    CockpitSessionRegistry? sessionRegistry,
   }) : _reload = reload ??
-            (service ?? CockpitReloadDevelopmentSessionService()).reload;
+            (service ?? CockpitReloadDevelopmentSessionService()).reload,
+       _sessionRegistry = sessionRegistry;
 
   final CockpitReloadDevelopmentSessionToolFunction _reload;
+  final CockpitSessionRegistry? _sessionRegistry;
 
   @override
   String get name => 'reload_development_session';
@@ -53,6 +57,10 @@ final class CockpitReloadDevelopmentSessionTool extends CockpitMcpTool {
                 CockpitDevelopmentReloadMode.hotReload.jsonValue,
           ),
         ),
+      );
+      _sessionRegistry?.recordDevelopmentSession(
+        handle: result.sessionHandle,
+        status: result.status,
       );
       return cockpitMcpResult(
         text: 'Development session reloaded.',

@@ -1,4 +1,5 @@
 import '../../application/cockpit_run_task_service.dart';
+import '../../application/cockpit_latest_task_store.dart';
 import '../cockpit_mcp_tool.dart';
 
 typedef CockpitRunTaskOrchestrationFunction = Future<CockpitRunTaskResult>
@@ -8,9 +9,12 @@ final class CockpitRunTaskTool extends CockpitMcpTool {
   CockpitRunTaskTool({
     CockpitRunTaskService? service,
     CockpitRunTaskOrchestrationFunction? runTask,
-  }) : _runTask = runTask ?? (service ?? CockpitRunTaskService()).run;
+    CockpitLatestTaskStore? latestTaskStore,
+  }) : _runTask = runTask ?? (service ?? CockpitRunTaskService()).run,
+       _latestTaskStore = latestTaskStore;
 
   final CockpitRunTaskOrchestrationFunction _runTask;
+  final CockpitLatestTaskStore? _latestTaskStore;
 
   @override
   String get name => 'run_task';
@@ -57,6 +61,7 @@ final class CockpitRunTaskTool extends CockpitMcpTool {
     try {
       final request = CockpitRunTaskRequest.fromJson(arguments);
       final result = await _runTask(request);
+      _latestTaskStore?.recordRunTask(result);
 
       return cockpitMcpResult(
         text: 'Task workflow executed and classified.',

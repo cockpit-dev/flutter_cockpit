@@ -1,4 +1,5 @@
 import '../../application/cockpit_launch_development_session_service.dart';
+import '../../application/cockpit_session_registry.dart';
 import '../cockpit_mcp_error.dart';
 import '../cockpit_mcp_tool.dart';
 
@@ -11,10 +12,13 @@ final class CockpitLaunchDevelopmentSessionTool extends CockpitMcpTool {
   CockpitLaunchDevelopmentSessionTool({
     CockpitLaunchDevelopmentSessionService? service,
     CockpitLaunchDevelopmentSessionToolFunction? launch,
+    CockpitSessionRegistry? sessionRegistry,
   }) : _launch = launch ??
-            (service ?? CockpitLaunchDevelopmentSessionService()).launch;
+            (service ?? CockpitLaunchDevelopmentSessionService()).launch,
+       _sessionRegistry = sessionRegistry;
 
   final CockpitLaunchDevelopmentSessionToolFunction _launch;
+  final CockpitSessionRegistry? _sessionRegistry;
 
   @override
   String get name => 'launch_development_session';
@@ -78,6 +82,10 @@ final class CockpitLaunchDevelopmentSessionTool extends CockpitMcpTool {
             'persist_handle_path',
           ),
         ),
+      );
+      _sessionRegistry?.recordDevelopmentSession(
+        handle: result.sessionHandle,
+        status: result.status,
       );
       return cockpitMcpResult(
         text: 'Development session launched and ready.',

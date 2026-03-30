@@ -1,4 +1,5 @@
 import '../../application/cockpit_query_remote_session_service.dart';
+import '../../application/cockpit_session_registry.dart';
 import '../cockpit_mcp_tool.dart';
 
 typedef CockpitQueryRemoteSessionFunction
@@ -10,9 +11,12 @@ final class CockpitQueryRemoteSessionTool extends CockpitMcpTool {
   CockpitQueryRemoteSessionTool({
     CockpitQueryRemoteSessionService? service,
     CockpitQueryRemoteSessionFunction? query,
-  }) : _query = query ?? (service ?? CockpitQueryRemoteSessionService()).query;
+    CockpitSessionRegistry? sessionRegistry,
+  }) : _query = query ?? (service ?? CockpitQueryRemoteSessionService()).query,
+       _sessionRegistry = sessionRegistry;
 
   final CockpitQueryRemoteSessionFunction _query;
+  final CockpitSessionRegistry? _sessionRegistry;
 
   @override
   String get name => 'query_remote_session';
@@ -59,6 +63,14 @@ final class CockpitQueryRemoteSessionTool extends CockpitMcpTool {
           ),
         ),
       );
+      final handle = result.sessionHandle;
+      if (handle != null) {
+        _sessionRegistry?.recordRemoteSession(
+          handle: handle,
+          status: result.status,
+          recommendedNextStep: result.recommendedNextStep,
+        );
+      }
 
       return cockpitMcpResult(
         text: 'Remote session status loaded.',

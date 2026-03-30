@@ -1,4 +1,5 @@
 import '../../application/cockpit_query_development_session_service.dart';
+import '../../application/cockpit_session_registry.dart';
 import '../cockpit_mcp_tool.dart';
 
 typedef CockpitQueryDevelopmentSessionToolFunction
@@ -10,10 +11,13 @@ final class CockpitQueryDevelopmentSessionTool extends CockpitMcpTool {
   CockpitQueryDevelopmentSessionTool({
     CockpitQueryDevelopmentSessionService? service,
     CockpitQueryDevelopmentSessionToolFunction? query,
+    CockpitSessionRegistry? sessionRegistry,
   }) : _query =
-            query ?? (service ?? CockpitQueryDevelopmentSessionService()).query;
+            query ?? (service ?? CockpitQueryDevelopmentSessionService()).query,
+       _sessionRegistry = sessionRegistry;
 
   final CockpitQueryDevelopmentSessionToolFunction _query;
+  final CockpitSessionRegistry? _sessionRegistry;
 
   @override
   String get name => 'query_development_session';
@@ -43,6 +47,13 @@ final class CockpitQueryDevelopmentSessionTool extends CockpitMcpTool {
           ),
         ),
       );
+      final handle = result.sessionHandle;
+      if (handle != null) {
+        _sessionRegistry?.recordDevelopmentSession(
+          handle: handle,
+          status: result.status,
+        );
+      }
       return cockpitMcpResult(
         text: 'Development session status loaded.',
         structuredContent: <String, Object?>{
