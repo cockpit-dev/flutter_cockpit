@@ -18,6 +18,7 @@ The current repository exposes this through `read_task_bundle_summary`, which ma
 - `acceptance_delta`
 
 These derived objects must remain traceable back to files in the bundle, especially `manifest.json`, `handoff.json`, `delivery.json`, `acceptance.md`, `steps.json`, `observations.json`, and any referenced artifacts under `screenshots/`, `recordings/`, `keyframes/`, or `diagnostics/`.
+The bounded summary layer may also expose additive gate-oriented views such as delivery readiness or acceptance-evidence readability, but those views must remain reconstructible from persisted bundle files rather than ephemeral in-memory orchestration state.
 
 This contract therefore covers both:
 
@@ -61,9 +62,11 @@ The manifest is the top-level summary for a task-run bundle. It must include:
 - `nativeScreenshotCount`
 - `flutterScreenshotCount`
 - `deliveryArtifactsReady`
+- `deliveryArtifactFailureCodes`
 - `recordingCount`
 - `nativeRecordingCount`
 - `deliveryVideoReady`
+- `deliveryVideoFailureCodes`
 
 `artifactRefs` is the bundle-wide evidence index. Command steps can still keep their own `artifactRefs` and `captureRefs`, but the manifest is the top-level place to discover every referenced artifact.
 
@@ -144,11 +147,19 @@ Machine-readable summary intended for the next automation step. The current impl
 - `nativeScreenshotCount`
 - `flutterScreenshotCount`
 - `deliveryArtifactsReady`
+- `deliveryArtifactFailureCodes`
 - `recordingCount`
 - `nativeRecordingCount`
 - `deliveryVideoReady`
+- `deliveryVideoFailureCodes`
+- `screenshotReady`
+- `recordingReadyOrExplained`
+- `deliveryValidated`
+- `gates`
+- `gateFailureCodes`
 
 This file is intentionally compact. It should give a later tool or AI agent enough execution context to decide what to do next without re-parsing every step immediately.
+`gates` and `gateFailureCodes` are additive readiness hints. They do not replace full validation, but they let downstream AI quickly see which screenshot, recording, or delivery gate failed and which bounded failure codes explain that state.
 
 ### `delivery.json`
 
@@ -158,9 +169,12 @@ Machine-readable delivery summary intended for later sender integrations. The cu
 - `primaryScreenshotRef`
 - `attachmentRefs`
 - `deliveryArtifactsReady`
+- `artifactFailureCodes`
 - `primaryRecordingRef`
 - `videoAttachmentRefs`
 - `deliveryVideoReady`
+- `videoFailureCodes`
+- `readiness`
 - `keyframes`
 - `keyframeCoverage`
 - `deliveryKeyframesReady`
@@ -168,6 +182,7 @@ Machine-readable delivery summary intended for later sender integrations. The cu
 
 `delivery.json` must only reference files that already exist inside the bundle. It is a handoff layer for delivery tooling, not a second artifact store.
 Each `keyframes` entry must include a bundle-relative `ref`, a semantic `label`, an `offsetMs`, and the extraction `source`.
+The optional `readiness` object should explain screenshot and video delivery state using bounded booleans and failure codes so a later AI agent can distinguish “ready”, “missing”, and “degraded but understood” states without reopening the full step log.
 
 ## Artifact Placement Rules
 

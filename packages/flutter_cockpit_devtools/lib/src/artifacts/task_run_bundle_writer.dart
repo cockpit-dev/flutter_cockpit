@@ -423,9 +423,11 @@ final class TaskRunBundleWriter {
       nativeScreenshotCount: manifest.nativeScreenshotCount,
       flutterScreenshotCount: manifest.flutterScreenshotCount,
       deliveryArtifactsReady: manifest.deliveryArtifactsReady,
+      deliveryArtifactFailureCodes: manifest.deliveryArtifactFailureCodes,
       recordingCount: manifest.recordingCount > 0 ? manifest.recordingCount : 1,
       nativeRecordingCount: manifest.nativeRecordingCount,
       deliveryVideoReady: true,
+      deliveryVideoFailureCodes: const <String>[],
       runtimeEventCount: manifest.runtimeEventCount,
       runtimeErrorCount: manifest.runtimeErrorCount,
       runtimeWarningCount: manifest.runtimeWarningCount,
@@ -440,6 +442,8 @@ final class TaskRunBundleWriter {
       return delivery;
     }
 
+    final readiness = _readJsonMap(delivery['readiness']);
+    final videoReadiness = _readJsonMap(readiness['video']);
     return <String, Object?>{
       ...delivery,
       'primaryRecordingRef': timelineVideoFallback.artifact.relativePath,
@@ -451,6 +455,17 @@ final class TaskRunBundleWriter {
       'deliveryVideoSource': 'timelineFallback',
       'deliveryVideoDurationMs': timelineVideoFallback.durationMs,
       'deliveryVideoScreenshotRefs': timelineVideoFallback.screenshotRefs,
+      'videoFailureCodes': const <String>[],
+      'readiness': <String, Object?>{
+        ...readiness,
+        'video': <String, Object?>{
+          ...videoReadiness,
+          'ready': true,
+          'failureCodes': const <String>[],
+          'failureReason': null,
+          'source': 'timelineFallback',
+        },
+      },
     };
   }
 
@@ -462,6 +477,8 @@ final class TaskRunBundleWriter {
       return handoff;
     }
 
+    final gates = _readJsonMap(handoff['gates']);
+    final gateFailureCodes = _readJsonMap(handoff['gateFailureCodes']);
     return <String, Object?>{
       ...handoff,
       'recordingCount': 1,
@@ -469,6 +486,26 @@ final class TaskRunBundleWriter {
       'deliveryVideoSynthesized': true,
       'deliveryVideoSource': 'timelineFallback',
       'deliveryVideoDurationMs': timelineVideoFallback.durationMs,
+      'videoFailureCodes': const <String>[],
+      'recordingReadyOrExplained': true,
+      'deliveryValidated':
+          (handoff['screenshotReady'] as bool? ?? true) && true,
+      'gates': <String, Object?>{
+        ...gates,
+        'recordingReadyOrExplained': true,
+        'deliveryValidated':
+            (gates['screenshotReady'] as bool? ??
+                handoff['screenshotReady'] as bool? ??
+                true) &&
+            true,
+      },
+      'gateFailureCodes': <String, Object?>{
+        ...gateFailureCodes,
+        'recordingReadyOrExplained': const <String>[],
+        'deliveryValidated': _readStringList(
+          gateFailureCodes['screenshotReady'],
+        ),
+      },
     };
   }
 
@@ -626,6 +663,20 @@ final class TaskRunBundleWriter {
       buffer.writeln('- Failure: ${keyframeExtraction.failureReason}');
     }
     return buffer.toString();
+  }
+
+  Map<String, Object?> _readJsonMap(Object? value) {
+    if (value is! Map<Object?, Object?>) {
+      return <String, Object?>{};
+    }
+    return Map<String, Object?>.from(value);
+  }
+
+  List<String> _readStringList(Object? value) {
+    if (value is! List<Object?>) {
+      return const <String>[];
+    }
+    return value.cast<String>();
   }
 
   Map<String, Object?> _stepJsonForBundle(CockpitStepRecord step) {

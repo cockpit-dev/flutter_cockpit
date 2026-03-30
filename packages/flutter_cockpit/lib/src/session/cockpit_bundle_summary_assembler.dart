@@ -28,6 +28,20 @@ final class CockpitBundleSummaryAssembler {
     String? failureSummary,
   }) {
     final evidenceIndex = CockpitEvidenceIndex.fromSteps(steps);
+    final recordingFailureReason = _lastRecordingFailureReason(steps);
+    final deliveryArtifactFailureCodes =
+        _deliveryArtifactFailureCodes(evidenceIndex);
+    final deliveryVideoFailureCodes = _deliveryVideoFailureCodes(
+      evidenceIndex: evidenceIndex,
+      recordingFailureReason: recordingFailureReason,
+    );
+    final deliveryValidationFailureCodes = _combinedFailureCodes(
+      deliveryArtifactFailureCodes,
+      deliveryVideoFailureCodes,
+    );
+    final screenshotReady = evidenceIndex.deliveryArtifactsReady;
+    final recordingReadyOrExplained = evidenceIndex.deliveryVideoReady;
+    final deliveryValidated = screenshotReady && recordingReadyOrExplained;
     final commandCount = steps.where((step) => step.commandType != null).length;
     final runtimeSummary = _summarizeRuntimeActivity(steps);
     final runtimeEventCount = runtimeSummary?.totalEntryCount ?? 0;
@@ -59,9 +73,11 @@ final class CockpitBundleSummaryAssembler {
       nativeScreenshotCount: evidenceIndex.nativeScreenshotCount,
       flutterScreenshotCount: evidenceIndex.flutterScreenshotCount,
       deliveryArtifactsReady: evidenceIndex.deliveryArtifactsReady,
+      deliveryArtifactFailureCodes: deliveryArtifactFailureCodes,
       recordingCount: evidenceIndex.recordingCount,
       nativeRecordingCount: evidenceIndex.nativeRecordingCount,
       deliveryVideoReady: evidenceIndex.deliveryVideoReady,
+      deliveryVideoFailureCodes: deliveryVideoFailureCodes,
       runtimeEventCount: runtimeEventCount,
       runtimeErrorCount: runtimeErrorCount,
       runtimeWarningCount: runtimeWarningCount,
@@ -83,12 +99,29 @@ final class CockpitBundleSummaryAssembler {
       'nativeScreenshotCount': evidenceIndex.nativeScreenshotCount,
       'flutterScreenshotCount': evidenceIndex.flutterScreenshotCount,
       'deliveryArtifactsReady': evidenceIndex.deliveryArtifactsReady,
+      'deliveryArtifactFailureCodes': deliveryArtifactFailureCodes,
       'recordingCount': evidenceIndex.recordingCount,
       'nativeRecordingCount': evidenceIndex.nativeRecordingCount,
       'deliveryVideoReady': evidenceIndex.deliveryVideoReady,
+      'deliveryVideoFailureCodes': deliveryVideoFailureCodes,
+      'screenshotReady': screenshotReady,
+      'recordingReadyOrExplained': recordingReadyOrExplained,
+      'deliveryValidated': deliveryValidated,
+      'gates': <String, Object?>{
+        'screenshotReady': screenshotReady,
+        'recordingReadyOrExplained': recordingReadyOrExplained,
+        'deliveryValidated': deliveryValidated,
+      },
+      'gateFailureCodes': <String, Object?>{
+        'screenshotReady': deliveryArtifactFailureCodes,
+        'recordingReadyOrExplained': deliveryVideoFailureCodes,
+        'deliveryValidated': deliveryValidationFailureCodes,
+      },
       'runtimeEventCount': runtimeEventCount,
       'runtimeErrorCount': runtimeErrorCount,
       'runtimeWarningCount': runtimeWarningCount,
+      if (recordingFailureReason != null)
+        'recordingFailureReason': recordingFailureReason,
       if (effectiveFailureSummary != null)
         'failureSummary': effectiveFailureSummary,
     };
@@ -121,6 +154,20 @@ final class CockpitBundleSummaryAssembler {
             : evidenceIndex.primaryRecordingRef,
         'videoAttachmentRefs': evidenceIndex.recordingRefs,
         'deliveryVideoReady': evidenceIndex.deliveryVideoReady,
+        'artifactFailureCodes': deliveryArtifactFailureCodes,
+        'videoFailureCodes': deliveryVideoFailureCodes,
+        'readiness': <String, Object?>{
+          'artifacts': <String, Object?>{
+            'ready': evidenceIndex.deliveryArtifactsReady,
+            'failureCodes': deliveryArtifactFailureCodes,
+          },
+          'video': <String, Object?>{
+            'ready': evidenceIndex.deliveryVideoReady,
+            'failureCodes': deliveryVideoFailureCodes,
+            if (recordingFailureReason != null)
+              'failureReason': recordingFailureReason,
+          },
+        },
       },
     );
   }
@@ -208,6 +255,49 @@ final class CockpitBundleSummaryAssembler {
     }
 
     return buffer.toString().trimRight();
+  }
+
+  String? _lastRecordingFailureReason(List<CockpitStepRecord> steps) {
+    return steps
+        .where((step) => step.actionType == 'recording_failed')
+        .map((step) => step.actionArgs['failureReason'] as String?)
+        .whereType<String>()
+        .lastOrNull;
+  }
+
+  List<String> _deliveryArtifactFailureCodes(CockpitEvidenceIndex evidenceIndex) {
+    if (evidenceIndex.deliveryArtifactsReady) {
+      return const <String>[];
+    }
+    if (evidenceIndex.screenshotCount == 0 ||
+        evidenceIndex.primaryScreenshotRef.isEmpty) {
+      return const <String>['primaryScreenshotMissing'];
+    }
+    return const <String>['acceptanceScreenshotMissing'];
+  }
+
+  List<String> _deliveryVideoFailureCodes({
+    required CockpitEvidenceIndex evidenceIndex,
+    required String? recordingFailureReason,
+  }) {
+    if (evidenceIndex.deliveryVideoReady) {
+      return const <String>[];
+    }
+    if (recordingFailureReason != null && recordingFailureReason.isNotEmpty) {
+      return const <String>['recordingFailed'];
+    }
+    if (evidenceIndex.recordingCount == 0 ||
+        evidenceIndex.primaryRecordingRef.isEmpty) {
+      return const <String>['primaryRecordingMissing'];
+    }
+    return const <String>['acceptanceRecordingMissing'];
+  }
+
+  List<String> _combinedFailureCodes(
+    List<String> left,
+    List<String> right,
+  ) {
+    return List<String>.unmodifiable(<String>{...left, ...right});
   }
 
   _CockpitAcceptanceNetworkSummary? _summarizeNetworkActivity(

@@ -5,6 +5,7 @@ import '../artifacts/cockpit_recording_keyframe_extractor.dart';
 import '../validation/cockpit_bundle_artifact_validator.dart';
 import 'cockpit_read_task_bundle_summary_service.dart';
 import 'cockpit_run_task_service.dart';
+import 'cockpit_task_gate.dart';
 import 'cockpit_task_orchestration_service.dart';
 
 typedef CockpitValidateTaskFunction = Future<CockpitValidateTaskResult>
@@ -197,8 +198,7 @@ final class CockpitValidateTaskService {
                 (orchestrationService ?? CockpitTaskOrchestrationService())
                     .orchestrate)
             : null,
-        _runTask =
-            runTask ?? (runTaskService == null ? null : runTaskService.run),
+        _runTask = runTask ?? runTaskService?.run,
         _artifactValidator =
             artifactValidator ?? CockpitBundleArtifactValidator();
 
@@ -266,6 +266,7 @@ final class CockpitValidateTaskService {
   }) async {
     final failures = <CockpitValidationFailure>[];
     final validatedArtifacts = <String>{};
+    final gateSummary = bundleSummary.gateSummary;
 
     final expectedClassification = requirements.expectedClassification;
     if (expectedClassification != null &&
@@ -332,14 +333,19 @@ final class CockpitValidateTaskService {
 
     if (requirements.requirePrimaryScreenshot) {
       final screenshotPath = bundleSummary.artifactPaths.primaryScreenshotPath;
-      if (screenshotPath == null || screenshotPath.isEmpty) {
+      if (!gateSummary.isSatisfied(CockpitTaskGate.screenshotReady)) {
         failures.add(
-          const CockpitValidationFailure(
-            code: 'primaryScreenshotMissing',
-            message: 'A primary screenshot is required but missing.',
+          _gateFailure(
+            gate: CockpitTaskGate.screenshotReady,
+            gateSummary: gateSummary,
+            fallbackCode: 'primaryScreenshotMissing',
+            message: 'A primary screenshot is required but the screenshot gate failed.',
+            details: <String, Object?>{
+              'primaryScreenshotPath': screenshotPath,
+            },
           ),
         );
-      } else {
+      } else if (screenshotPath != null && screenshotPath.isNotEmpty) {
         validatedArtifacts.add(screenshotPath);
         final failure = await _validateScreenshotArtifact(screenshotPath);
         if (failure != null) {
@@ -350,14 +356,19 @@ final class CockpitValidateTaskService {
 
     if (requirements.requirePrimaryRecording) {
       final recordingPath = bundleSummary.artifactPaths.primaryRecordingPath;
-      if (recordingPath == null || recordingPath.isEmpty) {
+      if (!gateSummary.isSatisfied(CockpitTaskGate.recordingReadyOrExplained)) {
         failures.add(
-          const CockpitValidationFailure(
-            code: 'primaryRecordingMissing',
-            message: 'A primary recording is required but missing.',
+          _gateFailure(
+            gate: CockpitTaskGate.recordingReadyOrExplained,
+            gateSummary: gateSummary,
+            fallbackCode: 'primaryRecordingMissing',
+            message: 'A primary recording is required but the recording gate failed.',
+            details: <String, Object?>{
+              'primaryRecordingPath': recordingPath,
+            },
           ),
         );
-      } else {
+      } else if (recordingPath != null && recordingPath.isNotEmpty) {
         validatedArtifacts.add(recordingPath);
         final failure = await _validateRecordingArtifact(recordingPath);
         if (failure != null) {
@@ -637,35 +648,39 @@ final class CockpitValidateTaskService {
       return const <CockpitValidationFailure>[];
     }
 
-    final baselineEvidence = bundleSummary.baselineEvidence;
-    final acceptanceEvidence = bundleSummary.acceptanceEvidence;
-    final acceptanceDelta = bundleSummary.acceptanceDelta;
-    final missingFields = <String>[
-      if (baselineEvidence == null) 'baselineEvidence',
-      if (acceptanceEvidence == null) 'acceptanceEvidence',
-      if (acceptanceDelta == null) 'acceptanceDelta',
-    ];
-
-    if (missingFields.isNotEmpty) {
+    final gateSummary = bundleSummary.gateSummary;
+    if (!gateSummary.isSatisfied(CockpitTaskGate.acceptanceEvidenceReadable)) {
+      final failureCodes = gateSummary.failureCodesFor(
+        CockpitTaskGate.acceptanceEvidenceReadable,
+      );
+      final code = failureCodes.any(
+        (failureCode) =>
+            failureCode == 'baselineEvidenceMissing' ||
+            failureCode == 'acceptanceEvidenceMissing' ||
+            failureCode == 'acceptanceDeltaMissing',
+      )
+          ? 'acceptanceComparisonEvidenceMissing'
+          : 'acceptanceComparisonEvidenceInsufficient';
       return <CockpitValidationFailure>[
         CockpitValidationFailure(
-          code: 'acceptanceComparisonEvidenceMissing',
+          code: code,
           message:
               'AI-facing acceptance comparison evidence is incomplete for the primary delivery screenshot.',
           details: <String, Object?>{
-            'missingFields': missingFields,
+            'gate': CockpitTaskGate.acceptanceEvidenceReadable.name,
+            'failureCodes': failureCodes,
             'primaryScreenshotPath':
                 bundleSummary.artifactPaths.primaryScreenshotPath,
-            'hasBaselineEvidence': baselineEvidence != null,
-            'hasAcceptanceEvidence': acceptanceEvidence != null,
-            'hasAcceptanceDelta': acceptanceDelta != null,
+            'hasBaselineEvidence': bundleSummary.baselineEvidence != null,
+            'hasAcceptanceEvidence': bundleSummary.acceptanceEvidence != null,
+            'hasAcceptanceDelta': bundleSummary.acceptanceDelta != null,
           },
         ),
       ];
     }
 
-    final resolvedBaselineEvidence = baselineEvidence!;
-    final resolvedAcceptanceEvidence = acceptanceEvidence!;
+    final resolvedBaselineEvidence = bundleSummary.baselineEvidence!;
+    final resolvedAcceptanceEvidence = bundleSummary.acceptanceEvidence!;
 
     if (!resolvedBaselineEvidence.hasComparableSignals ||
         !resolvedAcceptanceEvidence.hasComparableSignals) {
@@ -695,6 +710,25 @@ final class CockpitValidateTaskService {
     }
 
     return const <CockpitValidationFailure>[];
+  }
+
+  CockpitValidationFailure _gateFailure({
+    required CockpitTaskGate gate,
+    required CockpitBundleGateSummary gateSummary,
+    required String fallbackCode,
+    required String message,
+    Map<String, Object?> details = const <String, Object?>{},
+  }) {
+    final failureCodes = gateSummary.failureCodesFor(gate);
+    return CockpitValidationFailure(
+      code: failureCodes.isEmpty ? fallbackCode : failureCodes.first,
+      message: message,
+      details: <String, Object?>{
+        'gate': gate.name,
+        'failureCodes': failureCodes,
+        ...details,
+      },
+    );
   }
 }
 

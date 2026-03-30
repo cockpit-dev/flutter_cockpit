@@ -124,8 +124,17 @@ void main() {
 
     expect(bundle.manifest.recordingCount, 0);
     expect(bundle.manifest.deliveryVideoReady, isFalse);
+    expect(bundle.manifest.deliveryVideoFailureCodes, const <String>[
+      'recordingFailed',
+    ]);
     expect(bundle.delivery['primaryRecordingRef'], isNull);
     expect(bundle.delivery['videoAttachmentRefs'], isEmpty);
+    expect(
+      (((bundle.delivery['readiness'] as Map<Object?, Object?>)['video']
+              as Map<Object?, Object?>)['failureCodes'] as List<Object?>)
+          .cast<String>(),
+      const <String>['recordingFailed'],
+    );
     expect(bundle.acceptanceMarkdown, contains('Recording unavailable'));
   });
 }

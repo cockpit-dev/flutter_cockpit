@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
-import 'package:flutter_cockpit_devtools/src/application/cockpit_read_task_bundle_summary_service.dart';
+import 'package:flutter_cockpit_devtools/flutter_cockpit_devtools.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -360,35 +360,50 @@ void main() {
           'textPreview': null,
         },
       );
-      expect(result.evidenceSummary, <String, Object?>{
-        'status': 'completed',
-        'commandCount': 2,
-        'screenshotCount': 1,
-        'recordingCount': 1,
-        'failureCount': 0,
-        'keyframeCount': 0,
-        'deliveryKeyframesReady': false,
-        'diagnosticsArtifactCount': 1,
-        'networkEntryCount': 2,
-        'networkFailureCount': 1,
-        'runtimeEventCount': 2,
-        'runtimeErrorCount': 1,
-        'runtimeWarningCount': 1,
-        'rebuildTotalCount': 5,
-        'rebuildUniqueElementCount': 2,
-        'baselineSemanticSignalCount': 0,
-        'acceptanceSemanticSignalCount': 7,
-        'acceptanceAccessibilityEntryCount': 2,
-        'acceptanceInteractiveLabelCount': 1,
-        'acceptanceNetworkFailureCount': 1,
-        'acceptanceRuntimeErrorCount': 1,
-        'acceptanceRebuildHotspotCount': 2,
-        'acceptanceRouteChanged': false,
-        'acceptanceSemanticSignalDeltaCount': 0,
-        'acceptanceNewNetworkFailureCount': 0,
-        'acceptanceNewRuntimeErrorCount': 0,
-        'acceptanceComparisonReady': false,
-      });
+      expect(result.evidenceSummary['status'], 'completed');
+      expect(result.evidenceSummary['commandCount'], 2);
+      expect(result.evidenceSummary['screenshotCount'], 1);
+      expect(result.evidenceSummary['recordingCount'], 1);
+      expect(result.evidenceSummary['failureCount'], 0);
+      expect(result.evidenceSummary['keyframeCount'], 0);
+      expect(result.evidenceSummary['deliveryKeyframesReady'], isFalse);
+      expect(result.evidenceSummary['diagnosticsArtifactCount'], 1);
+      expect(result.evidenceSummary['networkEntryCount'], 2);
+      expect(result.evidenceSummary['networkFailureCount'], 1);
+      expect(result.evidenceSummary['runtimeEventCount'], 2);
+      expect(result.evidenceSummary['runtimeErrorCount'], 1);
+      expect(result.evidenceSummary['runtimeWarningCount'], 1);
+      expect(result.evidenceSummary['rebuildTotalCount'], 5);
+      expect(result.evidenceSummary['rebuildUniqueElementCount'], 2);
+      expect(result.evidenceSummary['baselineSemanticSignalCount'], 0);
+      expect(result.evidenceSummary['acceptanceSemanticSignalCount'], 7);
+      expect(result.evidenceSummary['acceptanceAccessibilityEntryCount'], 2);
+      expect(result.evidenceSummary['acceptanceInteractiveLabelCount'], 1);
+      expect(result.evidenceSummary['acceptanceNetworkFailureCount'], 1);
+      expect(result.evidenceSummary['acceptanceRuntimeErrorCount'], 1);
+      expect(result.evidenceSummary['acceptanceRebuildHotspotCount'], 2);
+      expect(result.evidenceSummary['acceptanceRouteChanged'], isFalse);
+      expect(result.evidenceSummary['acceptanceSemanticSignalDeltaCount'], 0);
+      expect(result.evidenceSummary['acceptanceNewNetworkFailureCount'], 0);
+      expect(result.evidenceSummary['acceptanceNewRuntimeErrorCount'], 0);
+      expect(result.evidenceSummary['acceptanceComparisonReady'], isFalse);
+      expect(result.gateSummary.isSatisfied(CockpitTaskGate.screenshotReady), isTrue);
+      expect(
+        result.gateSummary.isSatisfied(CockpitTaskGate.acceptanceEvidenceReadable),
+        isFalse,
+      );
+      expect(
+        result.gateSummary.failureCodesFor(CockpitTaskGate.acceptanceEvidenceReadable),
+        <String>['baselineEvidenceMissing', 'acceptanceDeltaMissing'],
+      );
+      expect(
+        result.gateSummary.isSatisfied(CockpitTaskGate.finalAssertionPassed),
+        isFalse,
+      );
+      expect(
+        result.gateSummary.failureCodesFor(CockpitTaskGate.finalAssertionPassed),
+        <String>['runtimeErrorsDetected'],
+      );
       expect(result.networkSummary, isNotNull);
       expect(result.networkSummary!.totalEntryCount, 2);
       expect(result.networkSummary!.failureCount, 1);

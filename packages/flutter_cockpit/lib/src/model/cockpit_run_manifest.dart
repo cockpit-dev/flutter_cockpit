@@ -20,14 +20,20 @@ final class CockpitRunManifest {
     this.nativeScreenshotCount = 0,
     this.flutterScreenshotCount = 0,
     this.deliveryArtifactsReady = false,
+    List<String> deliveryArtifactFailureCodes = const [],
     this.recordingCount = 0,
     this.nativeRecordingCount = 0,
     this.deliveryVideoReady = false,
+    List<String> deliveryVideoFailureCodes = const [],
     this.runtimeEventCount = 0,
     this.runtimeErrorCount = 0,
     this.runtimeWarningCount = 0,
   })  : artifactRefs = List.unmodifiable(artifactRefs),
-        capabilitiesUsed = List.unmodifiable(capabilitiesUsed);
+        capabilitiesUsed = List.unmodifiable(capabilitiesUsed),
+        deliveryArtifactFailureCodes = List.unmodifiable(
+          deliveryArtifactFailureCodes,
+        ),
+        deliveryVideoFailureCodes = List.unmodifiable(deliveryVideoFailureCodes);
 
   final String sessionId;
   final String taskId;
@@ -44,9 +50,11 @@ final class CockpitRunManifest {
   final int nativeScreenshotCount;
   final int flutterScreenshotCount;
   final bool deliveryArtifactsReady;
+  final List<String> deliveryArtifactFailureCodes;
   final int recordingCount;
   final int nativeRecordingCount;
   final bool deliveryVideoReady;
+  final List<String> deliveryVideoFailureCodes;
   final int runtimeEventCount;
   final int runtimeErrorCount;
   final int runtimeWarningCount;
@@ -73,9 +81,11 @@ final class CockpitRunManifest {
         'nativeScreenshotCount': nativeScreenshotCount,
         'flutterScreenshotCount': flutterScreenshotCount,
         'deliveryArtifactsReady': deliveryArtifactsReady,
+        'deliveryArtifactFailureCodes': deliveryArtifactFailureCodes,
         'recordingCount': recordingCount,
         'nativeRecordingCount': nativeRecordingCount,
         'deliveryVideoReady': deliveryVideoReady,
+        'deliveryVideoFailureCodes': deliveryVideoFailureCodes,
         'runtimeEventCount': runtimeEventCount,
         'runtimeErrorCount': runtimeErrorCount,
         'runtimeWarningCount': runtimeWarningCount,
@@ -111,9 +121,17 @@ final class CockpitRunManifest {
       nativeScreenshotCount: json['nativeScreenshotCount'] as int? ?? 0,
       flutterScreenshotCount: json['flutterScreenshotCount'] as int? ?? 0,
       deliveryArtifactsReady: json['deliveryArtifactsReady'] as bool? ?? false,
+      deliveryArtifactFailureCodes:
+          (json['deliveryArtifactFailureCodes'] as List<Object?>? ??
+                  const <Object?>[])
+              .cast<String>(),
       recordingCount: json['recordingCount'] as int? ?? 0,
       nativeRecordingCount: json['nativeRecordingCount'] as int? ?? 0,
       deliveryVideoReady: json['deliveryVideoReady'] as bool? ?? false,
+      deliveryVideoFailureCodes:
+          (json['deliveryVideoFailureCodes'] as List<Object?>? ??
+                  const <Object?>[])
+              .cast<String>(),
       runtimeEventCount: json['runtimeEventCount'] as int? ?? 0,
       runtimeErrorCount: json['runtimeErrorCount'] as int? ?? 0,
       runtimeWarningCount: json['runtimeWarningCount'] as int? ?? 0,
@@ -137,9 +155,17 @@ final class CockpitRunManifest {
             other.nativeScreenshotCount == nativeScreenshotCount &&
             other.flutterScreenshotCount == flutterScreenshotCount &&
             other.deliveryArtifactsReady == deliveryArtifactsReady &&
+            _stringListEquality.equals(
+              other.deliveryArtifactFailureCodes,
+              deliveryArtifactFailureCodes,
+            ) &&
             other.recordingCount == recordingCount &&
             other.nativeRecordingCount == nativeRecordingCount &&
             other.deliveryVideoReady == deliveryVideoReady &&
+            _stringListEquality.equals(
+              other.deliveryVideoFailureCodes,
+              deliveryVideoFailureCodes,
+            ) &&
             other.runtimeEventCount == runtimeEventCount &&
             other.runtimeErrorCount == runtimeErrorCount &&
             other.runtimeWarningCount == runtimeWarningCount &&
@@ -165,9 +191,11 @@ final class CockpitRunManifest {
         nativeScreenshotCount,
         flutterScreenshotCount,
         deliveryArtifactsReady,
+        _stringListEquality.hash(deliveryArtifactFailureCodes),
         recordingCount,
         nativeRecordingCount,
         deliveryVideoReady,
+        _stringListEquality.hash(deliveryVideoFailureCodes),
         runtimeEventCount,
         runtimeErrorCount,
         runtimeWarningCount,

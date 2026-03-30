@@ -5,6 +5,7 @@ import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_bundle_artifact_paths.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_read_task_bundle_summary_service.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_run_task_service.dart';
+import 'package:flutter_cockpit_devtools/src/application/cockpit_task_gate.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_validate_task_service.dart';
 import 'package:flutter_cockpit_devtools/src/cli/cockpit_control_script.dart';
 import 'package:flutter_cockpit_devtools/src/session/cockpit_remote_session_handle.dart';
@@ -497,6 +498,53 @@ void main() {
   );
 
   test(
+    'validate task surfaces recording gate failures when delivery video is unavailable',
+    () async {
+      final bundleDir = await _createBundleDir(
+        name: 'cockpit_validate_task_service_recording_gate_failure',
+        acceptanceMarkdown: '# Acceptance\n',
+        environmentJson:
+            '{"platform":"ios","flutterVersion":"3.38.9","dartVersion":"3.10.8"}',
+      );
+      addTearDown(() async => _deleteDir(bundleDir));
+
+      final service = CockpitValidateTaskService(
+        runTask: (_) async => _runTaskResult(
+          classification: CockpitRunTaskClassification.completed,
+          bundleDir: bundleDir,
+          platform: 'ios',
+          deliveryVideoFailureCodes: const <String>['recordingFailed'],
+        ),
+      );
+
+      final result = await service.validate(
+        CockpitValidateTaskRequest(
+          runTask: _runTaskRequest(platform: 'ios'),
+          validation: const CockpitValidateTaskRequirements(
+            requirePrimaryRecording: true,
+          ),
+        ),
+      );
+
+      expect(
+        result.classification,
+        CockpitValidationClassification.needsMoreWork,
+      );
+      final recordingFailure = result.validationFailures.firstWhere(
+        (failure) => failure.code == 'recordingFailed',
+      );
+      expect(
+        recordingFailure.details['gate'],
+        CockpitTaskGate.recordingReadyOrExplained.name,
+      );
+      expect(
+        recordingFailure.details['failureCodes'],
+        const <String>['recordingFailed'],
+      );
+    },
+  );
+
+  test(
     'validate task downgrades to needs_more_work when semantic acceptance evidence is required but missing',
     () async {
       final bundleDir = await _createBundleDir(
@@ -907,6 +955,8 @@ CockpitRunTaskResult _runTaskResult({
   required String platform,
   String? screenshotRelativePath,
   String? recordingRelativePath,
+  List<String> deliveryArtifactFailureCodes = const <String>[],
+  List<String> deliveryVideoFailureCodes = const <String>[],
   CockpitBundleAcceptanceEvidence? baselineEvidence,
   CockpitBundleAcceptanceEvidence? acceptanceEvidence,
   CockpitBundleAcceptanceDelta? acceptanceDelta,
@@ -936,9 +986,75 @@ CockpitRunTaskResult _runTaskResult({
     recordingCount: recordingRelativePath == null ? 0 : 1,
     deliveryArtifactsReady: screenshotRelativePath != null,
     deliveryVideoReady: recordingRelativePath != null,
+    deliveryArtifactFailureCodes: deliveryArtifactFailureCodes,
+    deliveryVideoFailureCodes: deliveryVideoFailureCodes,
     runtimeEventCount: runtimeEventCount,
     runtimeErrorCount: runtimeErrorCount,
     runtimeWarningCount: runtimeWarningCount,
+  );
+  final acceptanceEvidenceFailureCodes = <String>[
+    if (baselineEvidence == null) 'baselineEvidenceMissing',
+    if (acceptanceEvidence == null) 'acceptanceEvidenceMissing',
+    if (acceptanceDelta == null) 'acceptanceDeltaMissing',
+    if (baselineEvidence != null && !baselineEvidence.hasComparableSignals)
+      'baselineComparableSignalsMissing',
+    if (acceptanceEvidence != null && !acceptanceEvidence.hasComparableSignals)
+      'acceptanceComparableSignalsMissing',
+  ];
+  final screenshotFailureCodes =
+      deliveryArtifactFailureCodes.isNotEmpty || manifest.deliveryArtifactsReady
+          ? deliveryArtifactFailureCodes
+          : <String>[
+              if (screenshotRelativePath == null || screenshotRelativePath.isEmpty)
+                'primaryScreenshotMissing'
+              else
+                'acceptanceScreenshotMissing',
+            ];
+  final recordingFailureCodes =
+      deliveryVideoFailureCodes.isNotEmpty || manifest.deliveryVideoReady
+          ? deliveryVideoFailureCodes
+          : <String>[
+              if (recordingRelativePath == null || recordingRelativePath.isEmpty)
+                'primaryRecordingMissing'
+              else
+                'acceptanceRecordingMissing',
+            ];
+  final gateSummary = CockpitBundleGateSummary(
+    gates: <CockpitTaskGate, bool>{
+      CockpitTaskGate.sessionReachable: true,
+      CockpitTaskGate.baselineCollected:
+          baselineEvidence != null || screenshotRelativePath != null,
+      CockpitTaskGate.executionFinished: true,
+      CockpitTaskGate.bundleWritten: true,
+      CockpitTaskGate.screenshotReady: manifest.deliveryArtifactsReady,
+      CockpitTaskGate.recordingReadyOrExplained: manifest.deliveryVideoReady,
+      CockpitTaskGate.deliveryValidated:
+          manifest.deliveryArtifactsReady && manifest.deliveryVideoReady,
+      CockpitTaskGate.acceptanceEvidenceReadable:
+          acceptanceEvidenceFailureCodes.isEmpty,
+      CockpitTaskGate.finalAssertionPassed:
+          taskStatus != CockpitTaskStatus.failed && runtimeErrorCount == 0,
+    },
+    failureCodes: <CockpitTaskGate, List<String>>{
+      if (!manifest.deliveryArtifactsReady)
+        CockpitTaskGate.screenshotReady: screenshotFailureCodes,
+      if (!manifest.deliveryVideoReady)
+        CockpitTaskGate.recordingReadyOrExplained: recordingFailureCodes,
+      if (!(manifest.deliveryArtifactsReady && manifest.deliveryVideoReady))
+        CockpitTaskGate.deliveryValidated: <String>[
+          ...{
+            ...screenshotFailureCodes,
+            ...recordingFailureCodes,
+          },
+        ],
+      if (acceptanceEvidenceFailureCodes.isNotEmpty)
+        CockpitTaskGate.acceptanceEvidenceReadable:
+            acceptanceEvidenceFailureCodes,
+      if (runtimeErrorCount > 0 || taskStatus == CockpitTaskStatus.failed)
+        CockpitTaskGate.finalAssertionPassed: <String>[
+          if (runtimeErrorCount > 0) 'runtimeErrorsDetected' else 'taskFailed',
+        ],
+    },
   );
   final bundleSummary = CockpitReadTaskBundleSummaryResult(
     bundleDir: bundleDir.path,
@@ -949,6 +1065,18 @@ CockpitRunTaskResult _runTaskResult({
         'primaryScreenshotRef': screenshotRelativePath,
       if (recordingRelativePath != null)
         'primaryRecordingRef': recordingRelativePath,
+      if (deliveryArtifactFailureCodes.isNotEmpty ||
+          deliveryVideoFailureCodes.isNotEmpty)
+        'readiness': <String, Object?>{
+          'artifacts': <String, Object?>{
+            'ready': screenshotRelativePath != null,
+            'failureCodes': deliveryArtifactFailureCodes,
+          },
+          'video': <String, Object?>{
+            'ready': recordingRelativePath != null,
+            'failureCodes': deliveryVideoFailureCodes,
+          },
+        },
       if (keyframes.isNotEmpty) 'keyframes': keyframes,
       if (keyframeCoverage != null) 'keyframeCoverage': keyframeCoverage,
     },
@@ -971,6 +1099,7 @@ CockpitRunTaskResult _runTaskResult({
       'runtimeErrorCount': manifest.runtimeErrorCount,
       'runtimeWarningCount': manifest.runtimeWarningCount,
     },
+    gateSummary: gateSummary,
   );
 
   return CockpitRunTaskResult(

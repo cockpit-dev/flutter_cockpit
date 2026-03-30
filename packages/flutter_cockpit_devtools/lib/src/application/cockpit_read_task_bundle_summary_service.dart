@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 
 import 'cockpit_application_service_exception.dart';
 import 'cockpit_bundle_artifact_paths.dart';
+import 'cockpit_task_gate.dart';
 
 final class CockpitBundleNetworkSummary {
   const CockpitBundleNetworkSummary({
@@ -465,6 +466,33 @@ final class CockpitReadTaskBundleSummaryRequest {
   final String bundleDir;
 }
 
+final class CockpitBundleGateSummary {
+  const CockpitBundleGateSummary({
+    this.gates = const <CockpitTaskGate, bool>{},
+    this.failureCodes =
+        const <CockpitTaskGate, List<String>>{},
+  });
+
+  final Map<CockpitTaskGate, bool> gates;
+  final Map<CockpitTaskGate, List<String>> failureCodes;
+
+  bool isSatisfied(CockpitTaskGate gate) => gates[gate] ?? false;
+
+  List<String> failureCodesFor(CockpitTaskGate gate) =>
+      failureCodes[gate] ?? const <String>[];
+
+  Map<String, Object?> toJson() => <String, Object?>{
+        'gates': <String, Object?>{
+          for (final entry in gates.entries) entry.key.name: entry.value,
+        },
+        'failureCodes': <String, Object?>{
+          for (final entry in failureCodes.entries) entry.key.name: entry.value,
+        },
+      };
+
+  Map<String, Object?> toMcpJson() => toJson();
+}
+
 final class CockpitReadTaskBundleSummaryResult {
   const CockpitReadTaskBundleSummaryResult({
     required this.bundleDir,
@@ -481,6 +509,7 @@ final class CockpitReadTaskBundleSummaryResult {
     this.networkSummary,
     this.runtimeSummary,
     this.rebuildSummary,
+    this.gateSummary = const CockpitBundleGateSummary(),
   });
 
   final String bundleDir;
@@ -497,6 +526,7 @@ final class CockpitReadTaskBundleSummaryResult {
   final CockpitBundleNetworkSummary? networkSummary;
   final CockpitBundleRuntimeSummary? runtimeSummary;
   final CockpitBundleRebuildSummary? rebuildSummary;
+  final CockpitBundleGateSummary gateSummary;
 
   Map<String, Object?> toJson() => <String, Object?>{
         'bundleDir': bundleDir,
@@ -507,6 +537,7 @@ final class CockpitReadTaskBundleSummaryResult {
         'artifactPaths': artifactPaths.toJson(),
         'evidence': evidence.toJson(),
         'evidenceSummary': evidenceSummary,
+        'gateSummary': gateSummary.toJson(),
         if (baselineEvidence != null)
           'baselineEvidence': baselineEvidence!.toJson(),
         if (acceptanceEvidence != null)
@@ -528,6 +559,7 @@ final class CockpitReadTaskBundleSummaryResult {
         'artifact_paths': artifactPaths.toJson(),
         'evidence': evidence.toMcpJson(),
         'evidence_summary': evidenceSummary,
+        'gate_summary': gateSummary.toMcpJson(),
         if (baselineEvidence != null)
           'baseline_evidence': baselineEvidence!.toMcpJson(),
         if (acceptanceEvidence != null)
@@ -734,6 +766,14 @@ final class CockpitReadTaskBundleSummaryService {
     final networkSummary = await _readNetworkSummary(bundleDir);
     final runtimeSummary = await _readRuntimeSummary(bundleDir);
     final rebuildSummary = await _readRebuildSummary(bundleDir);
+    final gateSummary = _buildBundleGateSummary(
+      manifest: manifest,
+      handoff: handoff,
+      delivery: delivery,
+      baselineEvidence: baselineEvidence,
+      acceptanceEvidence: acceptanceEvidence,
+      acceptanceDelta: acceptanceDelta,
+    );
 
     return CockpitReadTaskBundleSummaryResult(
       bundleDir: bundleDir,
@@ -792,6 +832,34 @@ final class CockpitReadTaskBundleSummaryService {
           acceptanceEvidence: acceptanceEvidence,
           acceptanceDelta: acceptanceDelta,
         ),
+        'screenshotReady': gateSummary.isSatisfied(
+          CockpitTaskGate.screenshotReady,
+        ),
+        'recordingReadyOrExplained': gateSummary.isSatisfied(
+          CockpitTaskGate.recordingReadyOrExplained,
+        ),
+        'acceptanceEvidenceReadable': gateSummary.isSatisfied(
+          CockpitTaskGate.acceptanceEvidenceReadable,
+        ),
+        'deliveryValidated': gateSummary.isSatisfied(
+          CockpitTaskGate.deliveryValidated,
+        ),
+        'finalAssertionPassed': gateSummary.isSatisfied(
+          CockpitTaskGate.finalAssertionPassed,
+        ),
+        'screenshotGateFailureCodes': gateSummary.failureCodesFor(
+          CockpitTaskGate.screenshotReady,
+        ),
+        'recordingGateFailureCodes': gateSummary.failureCodesFor(
+          CockpitTaskGate.recordingReadyOrExplained,
+        ),
+        'acceptanceEvidenceFailureCodes': gateSummary.failureCodesFor(
+          CockpitTaskGate.acceptanceEvidenceReadable,
+        ),
+        'finalAssertionFailureCodes': gateSummary.failureCodesFor(
+          CockpitTaskGate.finalAssertionPassed,
+        ),
+        'gateSummary': gateSummary.toJson(),
       },
       baselineEvidence: baselineEvidence,
       acceptanceEvidence: acceptanceEvidence,
@@ -800,6 +868,7 @@ final class CockpitReadTaskBundleSummaryService {
       networkSummary: networkSummary,
       runtimeSummary: runtimeSummary,
       rebuildSummary: rebuildSummary,
+      gateSummary: gateSummary,
     );
   }
 
@@ -1509,6 +1578,170 @@ final class CockpitReadTaskBundleSummaryService {
     }
     return baselineEvidence.hasComparableSignals &&
         acceptanceEvidence.hasComparableSignals;
+  }
+
+  CockpitBundleGateSummary _buildBundleGateSummary({
+    required CockpitRunManifest manifest,
+    required Map<String, Object?> handoff,
+    required Map<String, Object?> delivery,
+    required CockpitBundleAcceptanceEvidence? baselineEvidence,
+    required CockpitBundleAcceptanceEvidence? acceptanceEvidence,
+    required CockpitBundleAcceptanceDelta? acceptanceDelta,
+  }) {
+    final screenshotFailureCodes = _deliveryArtifactFailureCodes(
+      manifest: manifest,
+      delivery: delivery,
+    );
+    final recordingFailureCodes = _deliveryVideoFailureCodes(
+      manifest: manifest,
+      handoff: handoff,
+      delivery: delivery,
+    );
+    final acceptanceEvidenceFailureCodes = _acceptanceEvidenceFailureCodes(
+      baselineEvidence: baselineEvidence,
+      acceptanceEvidence: acceptanceEvidence,
+      acceptanceDelta: acceptanceDelta,
+    );
+    final screenshotReady = manifest.deliveryArtifactsReady;
+    final recordingReadyOrExplained = manifest.deliveryVideoReady;
+    final deliveryValidated = screenshotReady && recordingReadyOrExplained;
+    final finalAssertionPassed =
+        manifest.status != CockpitTaskStatus.failed &&
+            manifest.runtimeErrorCount == 0;
+
+    final failureCodes = <CockpitTaskGate, List<String>>{};
+    if (!screenshotReady) {
+      failureCodes[CockpitTaskGate.screenshotReady] = screenshotFailureCodes;
+    }
+    if (!recordingReadyOrExplained) {
+      failureCodes[CockpitTaskGate.recordingReadyOrExplained] =
+          recordingFailureCodes;
+    }
+    if (!deliveryValidated) {
+      failureCodes[CockpitTaskGate.deliveryValidated] = _mergeFailureCodes(
+        screenshotFailureCodes,
+        recordingFailureCodes,
+      );
+    }
+    if (acceptanceEvidenceFailureCodes.isNotEmpty) {
+      failureCodes[CockpitTaskGate.acceptanceEvidenceReadable] =
+          acceptanceEvidenceFailureCodes;
+    }
+    if (!finalAssertionPassed) {
+      failureCodes[CockpitTaskGate.finalAssertionPassed] = <String>[
+        if (manifest.runtimeErrorCount > 0) 'runtimeErrorsDetected'
+        else 'taskFailed',
+      ];
+    }
+    final baselineCollected = baselineEvidence != null ||
+        manifest.screenshotCount > 0 ||
+        (delivery['primaryScreenshotRef'] as String?)?.isNotEmpty == true;
+    if (!baselineCollected) {
+      failureCodes[CockpitTaskGate.baselineCollected] = const <String>[
+        'baselineEvidenceMissing',
+      ];
+    }
+
+    return CockpitBundleGateSummary(
+      gates: <CockpitTaskGate, bool>{
+        CockpitTaskGate.sessionReachable: true,
+        CockpitTaskGate.baselineCollected: baselineCollected,
+        CockpitTaskGate.executionFinished: true,
+        CockpitTaskGate.bundleWritten: true,
+        CockpitTaskGate.deliveryValidated: deliveryValidated,
+        CockpitTaskGate.acceptanceEvidenceReadable:
+            acceptanceEvidenceFailureCodes.isEmpty,
+        CockpitTaskGate.screenshotReady: screenshotReady,
+        CockpitTaskGate.recordingReadyOrExplained: recordingReadyOrExplained,
+        CockpitTaskGate.finalAssertionPassed: finalAssertionPassed,
+      },
+      failureCodes: failureCodes,
+    );
+  }
+
+  List<String> _deliveryArtifactFailureCodes({
+    required CockpitRunManifest manifest,
+    required Map<String, Object?> delivery,
+  }) {
+    if (manifest.deliveryArtifactFailureCodes.isNotEmpty ||
+        manifest.deliveryArtifactsReady) {
+      return manifest.deliveryArtifactFailureCodes;
+    }
+    final primaryScreenshotRef = delivery['primaryScreenshotRef'] as String?;
+    return <String>[
+      if (primaryScreenshotRef == null || primaryScreenshotRef.isEmpty)
+        'primaryScreenshotMissing'
+      else
+        'acceptanceScreenshotMissing',
+    ];
+  }
+
+  List<String> _deliveryVideoFailureCodes({
+    required CockpitRunManifest manifest,
+    required Map<String, Object?> handoff,
+    required Map<String, Object?> delivery,
+  }) {
+    if (manifest.deliveryVideoFailureCodes.isNotEmpty ||
+        manifest.deliveryVideoReady) {
+      return manifest.deliveryVideoFailureCodes;
+    }
+    final primaryRecordingRef = delivery['primaryRecordingRef'] as String?;
+    final recordingFailureReason =
+        handoff['recordingFailureReason'] as String? ??
+            _readNestedString(
+              delivery,
+              'readiness',
+              'video',
+              'failureReason',
+            );
+    return <String>[
+      if (recordingFailureReason != null && recordingFailureReason.isNotEmpty)
+        'recordingFailed'
+      else if (primaryRecordingRef == null || primaryRecordingRef.isEmpty)
+        'primaryRecordingMissing'
+      else
+        'acceptanceRecordingMissing',
+    ];
+  }
+
+  List<String> _acceptanceEvidenceFailureCodes({
+    required CockpitBundleAcceptanceEvidence? baselineEvidence,
+    required CockpitBundleAcceptanceEvidence? acceptanceEvidence,
+    required CockpitBundleAcceptanceDelta? acceptanceDelta,
+  }) {
+    final failures = <String>[
+      if (baselineEvidence == null) 'baselineEvidenceMissing',
+      if (acceptanceEvidence == null) 'acceptanceEvidenceMissing',
+      if (acceptanceDelta == null) 'acceptanceDeltaMissing',
+      if (baselineEvidence != null && !baselineEvidence.hasComparableSignals)
+        'baselineComparableSignalsMissing',
+      if (acceptanceEvidence != null &&
+          !acceptanceEvidence.hasComparableSignals)
+        'acceptanceComparableSignalsMissing',
+    ];
+    return List<String>.unmodifiable(failures);
+  }
+
+  List<String> _mergeFailureCodes(List<String> left, List<String> right) {
+    return List<String>.unmodifiable(<String>{...left, ...right});
+  }
+
+  String? _readNestedString(
+    Map<String, Object?> source,
+    String firstKey,
+    String secondKey,
+    String thirdKey,
+  ) {
+    final first = source[firstKey];
+    if (first is! Map<Object?, Object?>) {
+      return null;
+    }
+    final second = first[secondKey];
+    if (second is! Map<Object?, Object?>) {
+      return null;
+    }
+    final value = second[thirdKey];
+    return value is String ? value : null;
   }
 
   List<String> _addedItems(List<String> baseline, List<String> acceptance) {
