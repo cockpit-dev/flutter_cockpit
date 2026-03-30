@@ -21,6 +21,10 @@ import '../control/cockpit_locator_resolution.dart';
 import '../control/cockpit_screenshot_request.dart';
 import '../errors/cockpit_command_error.dart';
 import '../executor/cockpit_command_executor.dart';
+import '../executor/in_app/cockpit_capture_orchestrator.dart';
+import '../executor/in_app/cockpit_command_context.dart';
+import '../executor/in_app/cockpit_command_router.dart';
+import '../executor/in_app/cockpit_post_action_settle_coordinator.dart';
 import '../gesture/cockpit_gesture_action.dart';
 import '../gesture/cockpit_gesture_anchor.dart';
 import '../gesture/cockpit_gesture_profile.dart';
@@ -39,41 +43,6 @@ import '../runtime/cockpit_target_registry.dart';
 import '../runtime/cockpit_ui_idle_waiter.dart';
 import '../runtime/cockpit_key_event_request.dart';
 import '../runtime/cockpit_text_input_request.dart';
-
-typedef CockpitCaptureHandler = Future<CockpitCaptureResult> Function(
-    CockpitScreenshotRequest request);
-typedef CockpitSnapshotProvider = CockpitSnapshot Function(
-    {CockpitSnapshotOptions options});
-typedef CockpitPostActionSettler = Future<void> Function();
-typedef CockpitScrollStepHandler = Future<bool> Function({
-  required bool reverse,
-  required double viewportFraction,
-  String? scrollableKey,
-  required Duration duration,
-  required CockpitGestureProfile gestureProfile,
-  required bool continuous,
-  required bool postScrollEnsureVisible,
-});
-typedef CockpitEnsureVisibleHandler = Future<bool> Function({
-  required CockpitLocator locator,
-  required Duration duration,
-  required CockpitRevealAlignment alignment,
-  required double padding,
-});
-typedef CockpitGestureHandler = Future<void> Function(
-    CockpitGestureAction action);
-typedef CockpitNetworkActivityClearer = void Function();
-typedef CockpitNetworkIdleWaiter = Future<bool> Function({
-  required Duration quietWindow,
-  required Duration timeout,
-});
-typedef CockpitBackNavigationHandler = Future<bool> Function();
-typedef CockpitWaitTickHandler = Future<void> Function(Duration duration);
-typedef CockpitRecordingActivityProbe = bool Function();
-typedef CockpitKeyEventHandler = Future<bool> Function(
-  CockpitKeyEventRequest request,
-  CockpitCommandType type,
-);
 
 final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
   InAppCockpitCommandExecutor({
@@ -94,43 +63,70 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
     CockpitRecordingActivityProbe? isRecordingActive,
     String platform = 'flutter',
     String transportType = 'inApp',
-  })  : _registry = registry,
-        _captureHandler = captureHandler,
-        _snapshotProvider =
-            snapshotProvider ?? _defaultSnapshotProvider(registry),
-        _postActionSettler = postActionSettler ?? _defaultPostActionSettler,
-        _scrollStepHandler = scrollStepHandler,
-        _ensureVisibleHandler = ensureVisibleHandler,
-        _gestureHandler = gestureHandler,
-        _clearNetworkActivityHandler = clearNetworkActivityHandler,
-        _waitForNetworkIdleHandler = waitForNetworkIdleHandler,
-        _backNavigationHandler = backNavigationHandler,
-        _hasCustomWaitTickHandler = waitTickHandler != null,
-        _waitTickHandler = waitTickHandler ?? _defaultWaitTickHandler,
-        _keyEventHandler = keyEventHandler ?? _defaultKeyEventHandler,
-        _interactionPolicy = interactionPolicy,
-        _isRecordingActive =
-            isRecordingActive ?? _defaultRecordingActivityProbe,
-        _platform = platform,
-        _transportType = transportType;
+  }) : _context = CockpitInAppCommandContext(
+          registry: registry,
+          captureHandler: captureHandler,
+          snapshotProvider:
+              snapshotProvider ?? _defaultSnapshotProvider(registry),
+          postActionSettler: postActionSettler ?? _defaultPostActionSettler,
+          scrollStepHandler: scrollStepHandler,
+          ensureVisibleHandler: ensureVisibleHandler,
+          gestureHandler: gestureHandler,
+          clearNetworkActivityHandler: clearNetworkActivityHandler,
+          waitForNetworkIdleHandler: waitForNetworkIdleHandler,
+          backNavigationHandler: backNavigationHandler,
+          hasCustomWaitTickHandler: waitTickHandler != null,
+          waitTickHandler: waitTickHandler ?? _defaultWaitTickHandler,
+          keyEventHandler: keyEventHandler ?? _defaultKeyEventHandler,
+          interactionPolicy: interactionPolicy,
+          isRecordingActive:
+              isRecordingActive ?? _defaultRecordingActivityProbe,
+          platform: platform,
+          transportType: transportType,
+        ) {
+    _settleCoordinator = CockpitPostActionSettleCoordinator(context: _context);
+    _captureOrchestrator = CockpitCaptureOrchestrator(
+      captureHandler: _context.captureHandler,
+      postActionSettler: _context.postActionSettler,
+      settleBeforeObservation: _settleCoordinator.settleBeforeObservation,
+      bestEffortWaitForUiIdle: ({required includeNetworkIdleValue}) {
+        return _settleCoordinator.bestEffortWaitForUiIdle(
+          includeNetworkIdle: includeNetworkIdleValue,
+        );
+      },
+      defaultSnapshotOptionsForReason: _defaultSnapshotOptionsForReason,
+    );
+    _commandRouter = CockpitCommandRouter(handlers: _buildCommandHandlers());
+  }
 
-  final CockpitTargetRegistry _registry;
-  final CockpitCaptureHandler? _captureHandler;
-  final CockpitSnapshotProvider _snapshotProvider;
-  final CockpitPostActionSettler _postActionSettler;
-  final CockpitScrollStepHandler? _scrollStepHandler;
-  final CockpitEnsureVisibleHandler? _ensureVisibleHandler;
-  final CockpitGestureHandler? _gestureHandler;
-  final CockpitNetworkActivityClearer? _clearNetworkActivityHandler;
-  final CockpitNetworkIdleWaiter? _waitForNetworkIdleHandler;
-  final CockpitBackNavigationHandler? _backNavigationHandler;
-  final bool _hasCustomWaitTickHandler;
-  final CockpitWaitTickHandler _waitTickHandler;
-  final CockpitKeyEventHandler _keyEventHandler;
-  final CockpitInteractionPolicy _interactionPolicy;
-  final CockpitRecordingActivityProbe _isRecordingActive;
-  final String _platform;
-  final String _transportType;
+  final CockpitInAppCommandContext _context;
+  late final CockpitPostActionSettleCoordinator _settleCoordinator;
+  late final CockpitCaptureOrchestrator _captureOrchestrator;
+  late final CockpitCommandRouter _commandRouter;
+
+  CockpitTargetRegistry get _registry => _context.registry;
+  CockpitCaptureHandler? get _captureHandler => _context.captureHandler;
+  CockpitSnapshotProvider get _snapshotProvider => _context.snapshotProvider;
+  CockpitPostActionSettler get _postActionSettler => _context.postActionSettler;
+  CockpitScrollStepHandler? get _scrollStepHandler =>
+      _context.scrollStepHandler;
+  CockpitEnsureVisibleHandler? get _ensureVisibleHandler =>
+      _context.ensureVisibleHandler;
+  CockpitGestureHandler? get _gestureHandler => _context.gestureHandler;
+  CockpitNetworkActivityClearer? get _clearNetworkActivityHandler =>
+      _context.clearNetworkActivityHandler;
+  CockpitNetworkIdleWaiter? get _waitForNetworkIdleHandler =>
+      _context.waitForNetworkIdleHandler;
+  CockpitBackNavigationHandler? get _backNavigationHandler =>
+      _context.backNavigationHandler;
+  bool get _hasCustomWaitTickHandler => _context.hasCustomWaitTickHandler;
+  CockpitWaitTickHandler get _waitTickHandler => _context.waitTickHandler;
+  CockpitKeyEventHandler get _keyEventHandler => _context.keyEventHandler;
+  CockpitInteractionPolicy get _interactionPolicy => _context.interactionPolicy;
+  CockpitRecordingActivityProbe get _isRecordingActive =>
+      _context.isRecordingActive;
+  String get _platform => _context.platform;
+  String get _transportType => _context.transportType;
 
   @override
   Future<CockpitCapabilities> describeCapabilities() async {
@@ -195,105 +191,84 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
     final stopwatch = Stopwatch()..start();
 
     try {
-      return switch (command.commandType) {
-        CockpitCommandType.tap => _executeTap(command, stopwatch),
-        CockpitCommandType.enterText => _executeEnterText(command, stopwatch),
-        CockpitCommandType.focusTextInput => _executeFocusTextInput(
-            command,
-            stopwatch,
-          ),
-        CockpitCommandType.setTextEditingValue => _executeSetTextEditingValue(
-            command,
-            stopwatch,
-          ),
-        CockpitCommandType.sendTextInputAction => _executeSendTextInputAction(
-            command,
-            stopwatch,
-          ),
-        CockpitCommandType.sendKeyEvent => _executeKeyEvent(command, stopwatch),
-        CockpitCommandType.sendKeyDownEvent => _executeKeyEvent(
-            command,
-            stopwatch,
-          ),
-        CockpitCommandType.sendKeyUpEvent => _executeKeyEvent(
-            command,
-            stopwatch,
-          ),
-        CockpitCommandType.longPress => _executeLongPress(command, stopwatch),
-        CockpitCommandType.doubleTap => _executeDoubleTap(command, stopwatch),
-        CockpitCommandType.drag => _executeDrag(command, stopwatch),
-        CockpitCommandType.fling => _executeFling(command, stopwatch),
-        CockpitCommandType.swipe => _executeSwipe(command, stopwatch),
-        CockpitCommandType.pinchZoom => _executePinchZoom(command, stopwatch),
-        CockpitCommandType.rotate => _executeRotate(command, stopwatch),
-        CockpitCommandType.panZoom => _executePanZoom(command, stopwatch),
-        CockpitCommandType.multiTouch => _executeMultiTouch(command, stopwatch),
-        CockpitCommandType.scrollUntilVisible => _executeScrollUntilVisible(
-            command,
-            stopwatch,
-          ),
-        CockpitCommandType.clearNetworkActivity =>
-          Future<CockpitCommandExecution>.value(
-            _executeClearNetworkActivity(command, stopwatch),
-          ),
-        CockpitCommandType.waitForNetworkIdle => _executeWaitForNetworkIdle(
-            command,
-            stopwatch,
-          ),
-        CockpitCommandType.waitForUiIdle => _executeWaitForUiIdle(
-            command,
-            stopwatch,
-          ),
-        CockpitCommandType.back => _executeBack(command, stopwatch),
-        CockpitCommandType.showOnScreen => _executeSemanticAction(
-            command,
-            stopwatch,
-            requiredCommand: CockpitCommandType.showOnScreen,
-            semanticAction: (target) => target.onSemanticShowOnScreen,
-          ),
-        CockpitCommandType.increase => _executeSemanticAction(
-            command,
-            stopwatch,
-            requiredCommand: CockpitCommandType.increase,
-            semanticAction: (target) => target.onSemanticIncrease,
-          ),
-        CockpitCommandType.decrease => _executeSemanticAction(
-            command,
-            stopwatch,
-            requiredCommand: CockpitCommandType.decrease,
-            semanticAction: (target) => target.onSemanticDecrease,
-          ),
-        CockpitCommandType.dismiss => _executeSemanticAction(
-            command,
-            stopwatch,
-            requiredCommand: CockpitCommandType.dismiss,
-            semanticAction: (target) => target.onSemanticDismiss,
-          ),
-        CockpitCommandType.assertVisible => _executeAssertVisible(
-            command,
-            stopwatch,
-          ),
-        CockpitCommandType.assertText => _executeAssertText(command, stopwatch),
-        CockpitCommandType.waitFor => _executeWaitFor(command, stopwatch),
-        CockpitCommandType.collectSnapshot =>
-          Future<CockpitCommandExecution>.value(
-            _successExecution(
-              command: command,
-              durationMs: stopwatch.elapsedMilliseconds,
-              snapshot: _snapshotProvider(
-                options: command.snapshotOptions ??
-                    const CockpitSnapshotOptions.baseline(),
-              ).toJson(),
-            ),
-          ),
-        CockpitCommandType.captureScreenshot => _executeCaptureScreenshot(
-            command,
-            stopwatch,
-          ),
-      };
+      return await _commandRouter.execute(command, stopwatch);
     } finally {
       stopwatch.stop();
     }
+  }
+
+  Map<CockpitCommandType, CockpitInAppCommandHandler> _buildCommandHandlers() {
+    return <CockpitCommandType, CockpitInAppCommandHandler>{
+      CockpitCommandType.tap: _executeTap,
+      CockpitCommandType.enterText: _executeEnterText,
+      CockpitCommandType.focusTextInput: _executeFocusTextInput,
+      CockpitCommandType.setTextEditingValue: _executeSetTextEditingValue,
+      CockpitCommandType.sendTextInputAction: _executeSendTextInputAction,
+      CockpitCommandType.sendKeyEvent: _executeKeyEvent,
+      CockpitCommandType.sendKeyDownEvent: _executeKeyEvent,
+      CockpitCommandType.sendKeyUpEvent: _executeKeyEvent,
+      CockpitCommandType.longPress: _executeLongPress,
+      CockpitCommandType.doubleTap: _executeDoubleTap,
+      CockpitCommandType.drag: _executeDrag,
+      CockpitCommandType.fling: _executeFling,
+      CockpitCommandType.swipe: _executeSwipe,
+      CockpitCommandType.pinchZoom: _executePinchZoom,
+      CockpitCommandType.rotate: _executeRotate,
+      CockpitCommandType.panZoom: _executePanZoom,
+      CockpitCommandType.multiTouch: _executeMultiTouch,
+      CockpitCommandType.scrollUntilVisible: _executeScrollUntilVisible,
+      CockpitCommandType.clearNetworkActivity: (command, stopwatch) async =>
+          _executeClearNetworkActivity(command, stopwatch),
+      CockpitCommandType.waitForNetworkIdle: _executeWaitForNetworkIdle,
+      CockpitCommandType.waitForUiIdle: _executeWaitForUiIdle,
+      CockpitCommandType.back: _executeBack,
+      CockpitCommandType.showOnScreen: (command, stopwatch) {
+        return _executeSemanticAction(
+          command,
+          stopwatch,
+          requiredCommand: CockpitCommandType.showOnScreen,
+          semanticAction: (target) => target.onSemanticShowOnScreen,
+        );
+      },
+      CockpitCommandType.increase: (command, stopwatch) {
+        return _executeSemanticAction(
+          command,
+          stopwatch,
+          requiredCommand: CockpitCommandType.increase,
+          semanticAction: (target) => target.onSemanticIncrease,
+        );
+      },
+      CockpitCommandType.decrease: (command, stopwatch) {
+        return _executeSemanticAction(
+          command,
+          stopwatch,
+          requiredCommand: CockpitCommandType.decrease,
+          semanticAction: (target) => target.onSemanticDecrease,
+        );
+      },
+      CockpitCommandType.dismiss: (command, stopwatch) {
+        return _executeSemanticAction(
+          command,
+          stopwatch,
+          requiredCommand: CockpitCommandType.dismiss,
+          semanticAction: (target) => target.onSemanticDismiss,
+        );
+      },
+      CockpitCommandType.assertVisible: _executeAssertVisible,
+      CockpitCommandType.assertText: _executeAssertText,
+      CockpitCommandType.waitFor: _executeWaitFor,
+      CockpitCommandType.collectSnapshot: (command, stopwatch) async {
+        return _successExecution(
+          command: command,
+          durationMs: stopwatch.elapsedMilliseconds,
+          snapshot: _snapshotProvider(
+            options: command.snapshotOptions ??
+                const CockpitSnapshotOptions.baseline(),
+          ).toJson(),
+        );
+      },
+      CockpitCommandType.captureScreenshot: _executeCaptureScreenshot,
+    };
   }
 
   Future<CockpitCommandExecution> _executeTap(
@@ -1599,9 +1574,12 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
     CockpitCommand command,
     Stopwatch stopwatch,
   ) async {
-    final captureHandler = _captureHandler;
-    final request = command.screenshotRequest;
-    if (captureHandler == null || request == null) {
+    final capture = await _captureOrchestrator.captureExplicit(
+      command,
+      waitForNetworkIdleDuringAcceptanceCapture:
+          _interactionPolicy.waitForNetworkIdleDuringAcceptanceCapture,
+    );
+    if (capture == null) {
       return _failureExecution(
         command: command,
         durationMs: stopwatch.elapsedMilliseconds,
@@ -1610,37 +1588,16 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
         ),
       );
     }
-
-    await _postActionSettler();
-    final requestReason = request.reason;
-    if (requestReason == CockpitScreenshotReason.acceptance) {
-      await _bestEffortWaitForUiIdle(
-        includeNetworkIdle:
-            _interactionPolicy.waitForNetworkIdleDuringAcceptanceCapture,
-      );
-    } else {
-      await _settleBeforeObservation();
-    }
-
-    final capture = await captureHandler(
-      request.snapshotOptions == null
-          ? request.copyWith(
-              snapshotOptions: _defaultSnapshotOptionsForReason(request.reason),
-            )
-          : request,
-    );
     return _successExecution(
       command: command,
       durationMs: stopwatch.elapsedMilliseconds,
-      artifacts: [capture.screenshot.artifact],
-      snapshot: capture.screenshot.snapshot?.toJson(),
-      requestedCaptureProfile: capture.requestedProfile,
+      artifacts: capture.artifacts,
+      snapshot: capture.snapshot,
+      requestedCaptureProfile: capture.requestedCaptureProfile,
       resolvedCaptureKind: capture.resolvedCaptureKind,
-      usedCaptureFallback: capture.usedFallback,
+      usedCaptureFallback: capture.usedCaptureFallback,
       degradationReason: capture.degradationReason,
-      artifactPayloads: <String, List<int>>{
-        capture.screenshot.artifact.relativePath: capture.screenshot.bytes,
-      },
+      artifactPayloads: capture.artifactPayloads,
     );
   }
 
@@ -2229,14 +2186,8 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
       _liveSnapshot().toJson(),
       warnings,
     );
-    final shouldCapture = switch (command.capturePolicy) {
-      CockpitCapturePolicy.afterAction ||
-      CockpitCapturePolicy.afterActionAndFailure =>
-        true,
-      CockpitCapturePolicy.none || CockpitCapturePolicy.onFailure => false,
-    };
-
-    if (!shouldCapture || _captureHandler == null) {
+    final capture = await _captureOrchestrator.captureAfterAction(command);
+    if (capture == null) {
       return _successExecution(
         command: command,
         durationMs: durationMs,
@@ -2246,33 +2197,20 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
       );
     }
 
-    final capture = await _captureHandler.call(
-      command.screenshotRequest ??
-          CockpitScreenshotRequest(
-            reason: CockpitScreenshotReason.afterAction,
-            name: command.commandId,
-            includeSnapshot: true,
-            attachToStep: true,
-            snapshotOptions: const CockpitSnapshotOptions.live(),
-          ),
-    );
-
     return _successExecution(
       command: command,
       durationMs: durationMs,
       locatorResolution: resolution?.locatorResolution,
-      artifacts: [capture.screenshot.artifact],
+      artifacts: capture.artifacts,
       snapshot: _appendWarningsToSnapshot(
-        capture.screenshot.snapshot?.toJson() ?? snapshot,
+        capture.snapshot ?? snapshot,
         warnings,
       ),
-      requestedCaptureProfile: capture.requestedProfile,
+      requestedCaptureProfile: capture.requestedCaptureProfile,
       resolvedCaptureKind: capture.resolvedCaptureKind,
-      usedCaptureFallback: capture.usedFallback,
+      usedCaptureFallback: capture.usedCaptureFallback,
       degradationReason: degradationReason ?? capture.degradationReason,
-      artifactPayloads: <String, List<int>>{
-        capture.screenshot.artifact.relativePath: capture.screenshot.bytes,
-      },
+      artifactPayloads: capture.artifactPayloads,
     );
   }
 
@@ -2923,22 +2861,13 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
   }
 
   Future<void> _settleBeforeObservation() async {
-    await waitForCockpitUiIdle(
-      quietWindow: _interactionPolicy.uiIdleQuietWindow,
-      timeout: _interactionPolicy.uiIdleTimeout,
-      waitTick: _waitTickHandler,
-      includeNetworkIdle: false,
-    );
+    await _settleCoordinator.settleBeforeObservation();
   }
 
   Future<void> _bestEffortWaitForUiIdle({
     required bool includeNetworkIdle,
   }) async {
-    await waitForCockpitUiIdle(
-      quietWindow: _interactionPolicy.uiIdleQuietWindow,
-      timeout: _interactionPolicy.uiIdleTimeout,
-      waitTick: _waitTickHandler,
-      waitForNetworkIdle: _waitForNetworkIdleHandler,
+    await _settleCoordinator.bestEffortWaitForUiIdle(
       includeNetworkIdle: includeNetworkIdle,
     );
   }
