@@ -13,9 +13,9 @@ final class CockpitLaunchDevelopmentSessionTool extends CockpitMcpTool {
     CockpitLaunchDevelopmentSessionService? service,
     CockpitLaunchDevelopmentSessionToolFunction? launch,
     CockpitSessionRegistry? sessionRegistry,
-  }) : _launch = launch ??
+  })  : _launch = launch ??
             (service ?? CockpitLaunchDevelopmentSessionService()).launch,
-       _sessionRegistry = sessionRegistry;
+        _sessionRegistry = sessionRegistry;
 
   final CockpitLaunchDevelopmentSessionToolFunction _launch;
   final CockpitSessionRegistry? _sessionRegistry;
@@ -86,6 +86,7 @@ final class CockpitLaunchDevelopmentSessionTool extends CockpitMcpTool {
       _sessionRegistry?.recordDevelopmentSession(
         handle: result.sessionHandle,
         status: result.status,
+        supervisorLogPath: result.supervisorLogPath,
       );
       return cockpitMcpResult(
         text: 'Development session launched and ready.',
@@ -93,6 +94,7 @@ final class CockpitLaunchDevelopmentSessionTool extends CockpitMcpTool {
           'session_handle': result.sessionHandle.toJson(),
           'status': result.status.toJson(),
           'session_handle_path': result.persistedHandlePath,
+          'supervisor_log_path': result.supervisorLogPath,
         },
       );
     } on Object catch (error) {

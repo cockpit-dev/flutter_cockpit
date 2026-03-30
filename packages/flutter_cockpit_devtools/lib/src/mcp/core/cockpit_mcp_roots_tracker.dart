@@ -65,7 +65,8 @@ final class CockpitMcpRootsTracker {
 
     var changed = false;
     for (final root in roots) {
-      final exists = _fallbackRoots.any((candidate) => candidate.uri == root.uri);
+      final exists =
+          _fallbackRoots.any((candidate) => candidate.uri == root.uri);
       if (!exists) {
         _fallbackRoots.add(root);
         changed = true;

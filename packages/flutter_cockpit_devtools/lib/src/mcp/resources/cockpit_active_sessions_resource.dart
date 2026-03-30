@@ -17,7 +17,8 @@ final class CockpitActiveSessionsResource extends CockpitMcpResource {
       const CockpitMcpResourceDefinition.fixed(
         name: 'active_sessions',
         uri: 'cockpit://session/active',
-        description: 'Known active sessions tracked by this MCP server process.',
+        description:
+            'Known active sessions tracked by this MCP server process.',
         mimeType: 'application/json',
         categories: <CockpitMcpFeatureCategory>[
           CockpitMcpFeatureCategory.closedLoop,
@@ -27,7 +28,8 @@ final class CockpitActiveSessionsResource extends CockpitMcpResource {
       );
 
   @override
-  Future<CockpitMcpResourceResult?> read(CockpitMcpResourceRequest request) async {
+  Future<CockpitMcpResourceResult?> read(
+      CockpitMcpResourceRequest request) async {
     if (request.uri != definition.uri) {
       return null;
     }

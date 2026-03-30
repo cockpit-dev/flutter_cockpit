@@ -26,7 +26,8 @@ final class CockpitWorkspaceGoalsResource extends CockpitMcpResource {
       );
 
   @override
-  Future<CockpitMcpResourceResult?> read(CockpitMcpResourceRequest request) async {
+  Future<CockpitMcpResourceResult?> read(
+      CockpitMcpResourceRequest request) async {
     if (request.uri != definition.uri) {
       return null;
     }

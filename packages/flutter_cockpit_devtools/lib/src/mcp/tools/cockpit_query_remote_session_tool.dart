@@ -12,8 +12,8 @@ final class CockpitQueryRemoteSessionTool extends CockpitMcpTool {
     CockpitQueryRemoteSessionService? service,
     CockpitQueryRemoteSessionFunction? query,
     CockpitSessionRegistry? sessionRegistry,
-  }) : _query = query ?? (service ?? CockpitQueryRemoteSessionService()).query,
-       _sessionRegistry = sessionRegistry;
+  })  : _query = query ?? (service ?? CockpitQueryRemoteSessionService()).query,
+        _sessionRegistry = sessionRegistry;
 
   final CockpitQueryRemoteSessionFunction _query;
   final CockpitSessionRegistry? _sessionRegistry;

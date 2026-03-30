@@ -155,8 +155,7 @@ final class _ProtocolTestEnvironment {
     required List<CockpitMcpTool> tools,
     this.resources = const <CockpitMcpResource>[],
     this.prompts = const <CockpitMcpPrompt>[],
-  })
-      : _client =
+  })  : _client =
             MCPClient(Implementation(name: 'test client', version: '1.0.0')),
         _clientController = StreamController<String>(),
         _serverController = StreamController<String>() {
@@ -218,7 +217,8 @@ final class _FakeCockpitMcpResource extends CockpitMcpResource {
   final String text;
 
   @override
-  Future<CockpitMcpResourceResult?> read(CockpitMcpResourceRequest request) async {
+  Future<CockpitMcpResourceResult?> read(
+      CockpitMcpResourceRequest request) async {
     if (!definition.isTemplate && request.uri != definition.uri) {
       return null;
     }

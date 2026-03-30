@@ -13,9 +13,9 @@ final class CockpitLaunchRemoteSessionTool extends CockpitMcpTool {
     CockpitLaunchRemoteSessionService? service,
     CockpitLaunchRemoteSessionFunction? launch,
     CockpitSessionRegistry? sessionRegistry,
-  }) : _launch =
+  })  : _launch =
             launch ?? (service ?? CockpitLaunchRemoteSessionService()).launch,
-       _sessionRegistry = sessionRegistry;
+        _sessionRegistry = sessionRegistry;
 
   final CockpitLaunchRemoteSessionFunction _launch;
   final CockpitSessionRegistry? _sessionRegistry;

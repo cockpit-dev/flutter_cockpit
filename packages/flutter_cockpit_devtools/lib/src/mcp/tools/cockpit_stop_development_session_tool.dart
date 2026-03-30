@@ -12,8 +12,9 @@ final class CockpitStopDevelopmentSessionTool extends CockpitMcpTool {
     CockpitStopDevelopmentSessionService? service,
     CockpitStopDevelopmentSessionToolFunction? stop,
     CockpitSessionRegistry? sessionRegistry,
-  }) : _stop = stop ?? (service ?? CockpitStopDevelopmentSessionService()).stop,
-       _sessionRegistry = sessionRegistry;
+  })  : _stop =
+            stop ?? (service ?? CockpitStopDevelopmentSessionService()).stop,
+        _sessionRegistry = sessionRegistry;
 
   final CockpitStopDevelopmentSessionToolFunction _stop;
   final CockpitSessionRegistry? _sessionRegistry;

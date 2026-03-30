@@ -10,8 +10,8 @@ final class CockpitRunTaskTool extends CockpitMcpTool {
     CockpitRunTaskService? service,
     CockpitRunTaskOrchestrationFunction? runTask,
     CockpitLatestTaskStore? latestTaskStore,
-  }) : _runTask = runTask ?? (service ?? CockpitRunTaskService()).run,
-       _latestTaskStore = latestTaskStore;
+  })  : _runTask = runTask ?? (service ?? CockpitRunTaskService()).run,
+        _latestTaskStore = latestTaskStore;
 
   final CockpitRunTaskOrchestrationFunction _runTask;
   final CockpitLatestTaskStore? _latestTaskStore;

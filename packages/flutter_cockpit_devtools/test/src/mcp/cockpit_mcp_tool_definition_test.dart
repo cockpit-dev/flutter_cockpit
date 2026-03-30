@@ -1,4 +1,7 @@
 import 'package:flutter_cockpit_devtools/src/mcp/core/cockpit_mcp_feature_category.dart';
+import 'package:flutter_cockpit_devtools/src/mcp/core/cockpit_mcp_roots_tracker.dart';
+import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_create_project_tool.dart';
+import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_pub_dev_search_tool.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_query_remote_session_tool.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_run_task_tool.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_validate_task_tool.dart';
@@ -53,5 +56,33 @@ void main() {
     expect(tool.definition.annotations.readOnly, isTrue);
     expect(tool.definition.annotations.requiresSession, isTrue);
     expect(tool.definition.annotations.longRunning, isFalse);
+  });
+
+  test('pub_dev_search is read-only dependency intelligence', () {
+    final tool = CockpitPubDevSearchTool(
+      search: (_) async => throw UnimplementedError(),
+    );
+
+    expect(tool.definition.name, 'pub_dev_search');
+    expect(tool.definition.categories, <CockpitMcpFeatureCategory>[
+      CockpitMcpFeatureCategory.workspace,
+      CockpitMcpFeatureCategory.dependencyIntelligence,
+    ]);
+    expect(tool.definition.annotations.readOnly, isTrue);
+  });
+
+  test('create_project is long-running project scaffolding', () {
+    final tool = CockpitCreateProjectTool(
+      rootsTracker: CockpitMcpRootsTracker(forceFallback: true),
+      create: (_) async => throw UnimplementedError(),
+    );
+
+    expect(tool.definition.name, 'create_project');
+    expect(tool.definition.categories, <CockpitMcpFeatureCategory>[
+      CockpitMcpFeatureCategory.workspace,
+      CockpitMcpFeatureCategory.projectScaffolding,
+    ]);
+    expect(tool.definition.annotations.longRunning, isTrue);
+    expect(tool.definition.annotations.readOnly, isFalse);
   });
 }

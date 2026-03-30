@@ -8,7 +8,8 @@ final class CockpitCreateProjectWithValidationPrompt extends CockpitMcpPrompt {
   @override
   CockpitMcpPromptDefinition get definition => const CockpitMcpPromptDefinition(
         name: 'create_project_with_validation',
-        description: 'Create a new Dart or Flutter project and bring it to a clean baseline.',
+        description:
+            'Create a new Dart or Flutter project and bring it to a clean baseline.',
         arguments: <CockpitMcpPromptArgument>[
           CockpitMcpPromptArgument(name: 'project_type', required: true),
           CockpitMcpPromptArgument(name: 'project_name', required: true),

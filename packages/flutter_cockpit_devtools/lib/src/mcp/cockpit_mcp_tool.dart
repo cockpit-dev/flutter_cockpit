@@ -88,6 +88,20 @@ int? cockpitReadOptionalInt(Map<String, Object?> arguments, String key) {
   );
 }
 
+bool? cockpitReadOptionalBool(Map<String, Object?> arguments, String key) {
+  final value = arguments[key];
+  if (value == null) {
+    return null;
+  }
+  if (value is bool) {
+    return value;
+  }
+  throw CockpitMcpError.invalidArguments(
+    'Argument must be a boolean.',
+    details: <String, Object?>{'argument': key},
+  );
+}
+
 Map<String, Object?> cockpitReadRequiredObject(
   Map<String, Object?> arguments,
   String key,

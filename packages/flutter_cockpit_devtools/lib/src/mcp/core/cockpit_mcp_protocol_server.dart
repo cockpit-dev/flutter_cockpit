@@ -43,7 +43,8 @@ final class CockpitMcpProtocolServer extends MCPServer
       );
     }
     for (final resource in _enabledResources) {
-      final fixedResource = CockpitMcpResourceAdapter.fixedResourceFor(resource);
+      final fixedResource =
+          CockpitMcpResourceAdapter.fixedResourceFor(resource);
       if (fixedResource != null) {
         addResource(
           fixedResource,

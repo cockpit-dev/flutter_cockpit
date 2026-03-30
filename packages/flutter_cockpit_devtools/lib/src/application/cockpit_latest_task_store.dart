@@ -26,7 +26,8 @@ final class CockpitLatestTaskSnapshot {
 }
 
 final class CockpitLatestTaskStore {
-  CockpitLatestTaskStore({DateTime Function()? now}) : _now = now ?? DateTime.now;
+  CockpitLatestTaskStore({DateTime Function()? now})
+      : _now = now ?? DateTime.now;
 
   final DateTime Function() _now;
   CockpitLatestTaskSnapshot? _latest;

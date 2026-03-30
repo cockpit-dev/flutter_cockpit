@@ -6,8 +6,7 @@ import '../core/cockpit_mcp_resource_definition.dart';
 final class CockpitWorkspaceSkillContractResource extends CockpitMcpResource {
   CockpitWorkspaceSkillContractResource({
     CockpitReadWorkspaceContractsService? service,
-    this.skillContractPath =
-        'docs/contracts/flutter-cockpit-skill-contract.md',
+    this.skillContractPath = 'docs/contracts/flutter-cockpit-skill-contract.md',
   }) : _service = service ?? CockpitReadWorkspaceContractsService();
 
   final CockpitReadWorkspaceContractsService _service;
@@ -27,7 +26,8 @@ final class CockpitWorkspaceSkillContractResource extends CockpitMcpResource {
       );
 
   @override
-  Future<CockpitMcpResourceResult?> read(CockpitMcpResourceRequest request) async {
+  Future<CockpitMcpResourceResult?> read(
+      CockpitMcpResourceRequest request) async {
     if (request.uri != definition.uri) {
       return null;
     }
@@ -44,7 +44,8 @@ final class CockpitWorkspaceSkillContractResource extends CockpitMcpResource {
   }
 }
 
-final class CockpitWorkspaceTaskBundleContractResource extends CockpitMcpResource {
+final class CockpitWorkspaceTaskBundleContractResource
+    extends CockpitMcpResource {
   CockpitWorkspaceTaskBundleContractResource({
     CockpitReadWorkspaceContractsService? service,
     this.bundleContractPath = 'docs/contracts/task-run-bundle.md',
@@ -67,11 +68,13 @@ final class CockpitWorkspaceTaskBundleContractResource extends CockpitMcpResourc
       );
 
   @override
-  Future<CockpitMcpResourceResult?> read(CockpitMcpResourceRequest request) async {
+  Future<CockpitMcpResourceResult?> read(
+      CockpitMcpResourceRequest request) async {
     if (request.uri != definition.uri) {
       return null;
     }
-    final contracts = await _service.read(bundleContractPath: bundleContractPath);
+    final contracts =
+        await _service.read(bundleContractPath: bundleContractPath);
     return CockpitMcpResourceResult(
       contents: <CockpitMcpResourceContents>[
         CockpitMcpTextResourceContents(

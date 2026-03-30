@@ -21,7 +21,8 @@ void main() {
     expect(tracker.effectiveRoots.single.uri, 'file:///workspace');
   });
 
-  test('refreshes native roots when the client reports roots support', () async {
+  test('refreshes native roots when the client reports roots support',
+      () async {
     final tracker = CockpitMcpRootsTracker();
     final controller = StreamController<void>.broadcast();
 

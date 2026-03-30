@@ -8,7 +8,8 @@ final class CockpitRunClosedLoopTaskPrompt extends CockpitMcpPrompt {
   @override
   CockpitMcpPromptDefinition get definition => const CockpitMcpPromptDefinition(
         name: 'run_closed_loop_task',
-        description: 'Run a full flutter_cockpit closed-loop task with evidence.',
+        description:
+            'Run a full flutter_cockpit closed-loop task with evidence.',
         arguments: <CockpitMcpPromptArgument>[
           CockpitMcpPromptArgument(name: 'task_goal', required: true),
           CockpitMcpPromptArgument(name: 'platform'),

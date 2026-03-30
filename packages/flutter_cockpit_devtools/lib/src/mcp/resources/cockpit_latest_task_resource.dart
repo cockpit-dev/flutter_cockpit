@@ -17,7 +17,8 @@ final class CockpitLatestTaskResource extends CockpitMcpResource {
       const CockpitMcpResourceDefinition.fixed(
         name: 'latest_task',
         uri: 'cockpit://task/latest',
-        description: 'The latest task summary recorded by this MCP server process.',
+        description:
+            'The latest task summary recorded by this MCP server process.',
         mimeType: 'application/json',
         categories: <CockpitMcpFeatureCategory>[
           CockpitMcpFeatureCategory.closedLoop,
@@ -27,7 +28,8 @@ final class CockpitLatestTaskResource extends CockpitMcpResource {
       );
 
   @override
-  Future<CockpitMcpResourceResult?> read(CockpitMcpResourceRequest request) async {
+  Future<CockpitMcpResourceResult?> read(
+      CockpitMcpResourceRequest request) async {
     if (request.uri != definition.uri) {
       return null;
     }

@@ -22,6 +22,8 @@ void main() {
       expect(
         tools,
         containsAll(<String>[
+          'add_roots',
+          'remove_roots',
           'launch_development_session',
           'query_development_session',
           'reload_development_session',
@@ -29,6 +31,17 @@ void main() {
           'collect_development_probe',
           'compare_development_probe',
           'collect_remote_snapshot',
+          'pub_dev_search',
+          'read_package_uris',
+          'create_project',
+          'analyze_workspace',
+          'format_workspace',
+          'run_workspace_tests',
+          'apply_workspace_fixes',
+          'list_launch_targets',
+          'list_active_sessions',
+          'read_session_logs',
+          'read_runtime_errors',
           'validate_task',
         ]),
       );
@@ -54,9 +67,15 @@ void main() {
     });
     final initializeResult =
         initializeResponse?['result'] as Map<String, Object?>;
-    expect(initializeResult['capabilities'], <String, Object?>{
-      'tools': <String, Object?>{},
-    });
+    expect(
+      initializeResult['capabilities'],
+      <String, Object?>{
+        'tools': <String, Object?>{},
+        'resources': <String, Object?>{},
+        'prompts': <String, Object?>{},
+        'roots': <String, Object?>{'listChanged': true},
+      },
+    );
 
     final listResponse = await server.handleMessage(<String, Object?>{
       'jsonrpc': '2.0',
@@ -73,6 +92,14 @@ void main() {
           .toList(growable: false),
       containsAll(<String>['echo_tool', 'second_tool', 'run_task']),
     );
+
+    final promptsResponse = await server.handleMessage(<String, Object?>{
+      'jsonrpc': '2.0',
+      'id': 20,
+      'method': 'prompts/list',
+    });
+    final promptsResult = promptsResponse?['result'] as Map<String, Object?>;
+    expect(promptsResult['prompts'], isEmpty);
 
     final callResponse = await server.handleMessage(<String, Object?>{
       'jsonrpc': '2.0',

@@ -51,7 +51,8 @@ final class CockpitMcpResourceAdapter {
     );
   }
 
-  static ResourceContents _convertContents(CockpitMcpResourceContents contents) {
+  static ResourceContents _convertContents(
+      CockpitMcpResourceContents contents) {
     return switch (contents) {
       CockpitMcpTextResourceContents() => TextResourceContents(
           uri: contents.uri,

@@ -8,7 +8,8 @@ final class CockpitInspectBeforeClaimingDonePrompt extends CockpitMcpPrompt {
   @override
   CockpitMcpPromptDefinition get definition => const CockpitMcpPromptDefinition(
         name: 'inspect_before_claiming_done',
-        description: 'Check bundle-backed evidence before reporting completion.',
+        description:
+            'Check bundle-backed evidence before reporting completion.',
         categories: <CockpitMcpFeatureCategory>[
           CockpitMcpFeatureCategory.closedLoop,
           CockpitMcpFeatureCategory.workflowPrompts,

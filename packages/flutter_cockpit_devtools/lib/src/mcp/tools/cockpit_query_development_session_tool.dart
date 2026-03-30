@@ -12,9 +12,9 @@ final class CockpitQueryDevelopmentSessionTool extends CockpitMcpTool {
     CockpitQueryDevelopmentSessionService? service,
     CockpitQueryDevelopmentSessionToolFunction? query,
     CockpitSessionRegistry? sessionRegistry,
-  }) : _query =
+  })  : _query =
             query ?? (service ?? CockpitQueryDevelopmentSessionService()).query,
-       _sessionRegistry = sessionRegistry;
+        _sessionRegistry = sessionRegistry;
 
   final CockpitQueryDevelopmentSessionToolFunction _query;
   final CockpitSessionRegistry? _sessionRegistry;

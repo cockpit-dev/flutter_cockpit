@@ -13,9 +13,9 @@ final class CockpitReloadDevelopmentSessionTool extends CockpitMcpTool {
     CockpitReloadDevelopmentSessionService? service,
     CockpitReloadDevelopmentSessionToolFunction? reload,
     CockpitSessionRegistry? sessionRegistry,
-  }) : _reload = reload ??
+  })  : _reload = reload ??
             (service ?? CockpitReloadDevelopmentSessionService()).reload,
-       _sessionRegistry = sessionRegistry;
+        _sessionRegistry = sessionRegistry;
 
   final CockpitReloadDevelopmentSessionToolFunction _reload;
   final CockpitSessionRegistry? _sessionRegistry;

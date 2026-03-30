@@ -8,16 +8,19 @@ final class CockpitDevelopmentSessionRecord {
     required this.handle,
     required this.status,
     required this.updatedAt,
+    this.supervisorLogPath,
   });
 
   final CockpitDevelopmentSessionHandle handle;
   final CockpitDevelopmentSessionStatus status;
   final DateTime updatedAt;
+  final String? supervisorLogPath;
 
   Map<String, Object?> toJson() => <String, Object?>{
         'handle': handle.toJson(),
         'status': status.toJson(),
         'updatedAt': updatedAt.toUtc().toIso8601String(),
+        'supervisorLogPath': supervisorLogPath,
       };
 }
 
@@ -51,8 +54,7 @@ final class CockpitActiveSessionsSnapshot {
   final List<CockpitDevelopmentSessionRecord> developmentSessions;
   final List<CockpitRemoteSessionRecord> remoteSessions;
 
-  bool get isEmpty =>
-      developmentSessions.isEmpty && remoteSessions.isEmpty;
+  bool get isEmpty => developmentSessions.isEmpty && remoteSessions.isEmpty;
 
   Map<String, Object?> toJson() => <String, Object?>{
         'developmentSessions': developmentSessions
@@ -77,12 +79,15 @@ final class CockpitSessionRegistry {
   void recordDevelopmentSession({
     required CockpitDevelopmentSessionHandle handle,
     required CockpitDevelopmentSessionStatus status,
+    String? supervisorLogPath,
   }) {
+    final previous = _developmentSessions[handle.developmentSessionId];
     _developmentSessions[handle.developmentSessionId] =
         CockpitDevelopmentSessionRecord(
       handle: handle,
       status: status,
       updatedAt: _now().toUtc(),
+      supervisorLogPath: supervisorLogPath ?? previous?.supervisorLogPath,
     );
   }
 
@@ -108,10 +113,16 @@ final class CockpitSessionRegistry {
   }
 
   CockpitActiveSessionsSnapshot snapshot() => CockpitActiveSessionsSnapshot(
-        developmentSessions: _developmentSessions.values
-            .toList(growable: false),
+        developmentSessions:
+            _developmentSessions.values.toList(growable: false),
         remoteSessions: _remoteSessions.values.toList(growable: false),
       );
+
+  CockpitDevelopmentSessionRecord? developmentSession(
+    String developmentSessionId,
+  ) {
+    return _developmentSessions[developmentSessionId];
+  }
 
   String _remoteSessionKey(CockpitRemoteSessionHandle handle) =>
       '${handle.platform}:${handle.deviceId}:${handle.hostPort}:${handle.appId}';

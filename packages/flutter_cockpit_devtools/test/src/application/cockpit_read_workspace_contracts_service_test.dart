@@ -6,7 +6,8 @@ import 'package:test/test.dart';
 void main() {
   test('reads both workspace contracts', () async {
     final fileSystem = MemoryFileSystem();
-    fileSystem.file('/workspace/docs/contracts/flutter-cockpit-skill-contract.md')
+    fileSystem
+        .file('/workspace/docs/contracts/flutter-cockpit-skill-contract.md')
       ..createSync(recursive: true)
       ..writeAsStringSync('# Skill Contract');
     fileSystem.file('/workspace/docs/contracts/task-run-bundle.md')

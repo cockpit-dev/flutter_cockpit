@@ -1,7 +1,8 @@
 import 'cockpit_mcp_feature_category.dart';
 import 'cockpit_mcp_feature_descriptor.dart';
 
-final class CockpitMcpResourceDefinition implements CockpitMcpFeatureDescriptor {
+final class CockpitMcpResourceDefinition
+    implements CockpitMcpFeatureDescriptor {
   const CockpitMcpResourceDefinition.fixed({
     required this.name,
     required this.uri,

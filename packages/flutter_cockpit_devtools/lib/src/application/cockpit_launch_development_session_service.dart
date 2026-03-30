@@ -52,10 +52,12 @@ final class CockpitDevelopmentSessionBootstrap {
   const CockpitDevelopmentSessionBootstrap({
     required this.sessionHandle,
     required this.status,
+    this.supervisorLogPath,
   });
 
   final CockpitDevelopmentSessionHandle sessionHandle;
   final CockpitDevelopmentSessionStatus status;
+  final String? supervisorLogPath;
 }
 
 final class CockpitLaunchDevelopmentSessionResult {
@@ -63,11 +65,13 @@ final class CockpitLaunchDevelopmentSessionResult {
     required this.sessionHandle,
     required this.status,
     this.persistedHandlePath,
+    this.supervisorLogPath,
   });
 
   final CockpitDevelopmentSessionHandle sessionHandle;
   final CockpitDevelopmentSessionStatus status;
   final String? persistedHandlePath;
+  final String? supervisorLogPath;
 }
 
 final class CockpitLaunchDevelopmentSessionService {
@@ -102,6 +106,7 @@ final class CockpitLaunchDevelopmentSessionService {
       sessionHandle: bootstrap.sessionHandle,
       status: bootstrap.status,
       persistedHandlePath: persistedHandlePath,
+      supervisorLogPath: bootstrap.supervisorLogPath,
     );
   }
 
@@ -126,10 +131,12 @@ final class CockpitSpawnedDevelopmentSupervisor {
   const CockpitSpawnedDevelopmentSupervisor({
     required this.baseUri,
     required this.stop,
+    this.logPath,
   });
 
   final Uri baseUri;
   final Future<void> Function() stop;
+  final String? logPath;
 }
 
 final class CockpitDevelopmentSessionDaemonLauncher {
@@ -199,6 +206,7 @@ final class CockpitDevelopmentSessionDaemonLauncher {
             return CockpitDevelopmentSessionBootstrap(
               sessionHandle: response.sessionHandle,
               status: response.status,
+              supervisorLogPath: attempt.logPath,
             );
           }
           if (_isStartupLockContention(response.status.lastError)) {
@@ -308,6 +316,7 @@ final class CockpitDevelopmentSessionDaemonLauncher {
           Future<Object?>.delayed(const Duration(milliseconds: 200)),
         ]);
       },
+      logPath: p.normalize(supervisorLogFile.path),
     );
   }
 

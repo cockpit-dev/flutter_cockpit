@@ -1,12 +1,16 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:dart_mcp/server.dart' show Root;
+import 'package:path/path.dart' as p;
 import 'package:stream_channel/stream_channel.dart';
 
 import '../application/cockpit_latest_task_store.dart';
 import '../application/cockpit_list_active_sessions_service.dart';
 import '../application/cockpit_list_workspace_roots_service.dart';
 import '../application/cockpit_read_latest_task_summary_service.dart';
+import '../application/cockpit_read_runtime_errors_service.dart';
+import '../application/cockpit_read_session_logs_service.dart';
 import '../application/cockpit_session_registry.dart';
 import 'core/cockpit_mcp_protocol_server.dart';
 import 'core/cockpit_mcp_prompt.dart';
@@ -19,20 +23,36 @@ import 'prompts/cockpit_prepare_acceptance_delivery_prompt.dart';
 import 'prompts/cockpit_recover_from_failed_validation_prompt.dart';
 import 'prompts/cockpit_run_closed_loop_task_prompt.dart';
 import 'resources/cockpit_active_sessions_resource.dart';
+import 'resources/cockpit_development_session_resource.dart';
 import 'resources/cockpit_latest_task_resource.dart';
+import 'resources/cockpit_package_uri_resource.dart';
+import 'resources/cockpit_task_bundle_summary_resource.dart';
 import 'resources/cockpit_workspace_capabilities_resource.dart';
 import 'resources/cockpit_workspace_contracts_resource.dart';
 import 'resources/cockpit_workspace_goals_resource.dart';
 import 'resources/cockpit_workspace_roots_resource.dart';
+import 'tools/cockpit_add_roots_tool.dart';
+import 'tools/cockpit_analyze_workspace_tool.dart';
+import 'tools/cockpit_apply_workspace_fixes_tool.dart';
 import 'tools/cockpit_collect_development_probe_tool.dart';
 import 'tools/cockpit_launch_remote_session_tool.dart';
 import 'tools/cockpit_compare_development_probe_tool.dart';
+import 'tools/cockpit_create_project_tool.dart';
+import 'tools/cockpit_format_workspace_tool.dart';
 import 'tools/cockpit_launch_development_session_tool.dart';
 import 'tools/cockpit_collect_remote_snapshot_tool.dart';
+import 'tools/cockpit_list_active_sessions_tool.dart';
+import 'tools/cockpit_list_launch_targets_tool.dart';
+import 'tools/cockpit_pub_dev_search_tool.dart';
 import 'tools/cockpit_query_development_session_tool.dart';
 import 'tools/cockpit_query_remote_session_tool.dart';
+import 'tools/cockpit_read_package_uris_tool.dart';
+import 'tools/cockpit_read_runtime_errors_tool.dart';
+import 'tools/cockpit_read_session_logs_tool.dart';
 import 'tools/cockpit_read_task_bundle_summary_tool.dart';
 import 'tools/cockpit_reload_development_session_tool.dart';
+import 'tools/cockpit_remove_roots_tool.dart';
+import 'tools/cockpit_run_workspace_tests_tool.dart';
 import 'tools/cockpit_run_remote_control_script_tool.dart';
 import 'tools/cockpit_run_task_tool.dart';
 import 'tools/cockpit_stop_development_session_tool.dart';
@@ -65,68 +85,115 @@ final class CockpitMcpServer {
     String skillContractPath =
         'docs/contracts/flutter-cockpit-skill-contract.md',
     String bundleContractPath = 'docs/contracts/task-run-bundle.md',
+    CockpitMcpFeatureConfiguration featureConfiguration =
+        const CockpitMcpFeatureConfiguration(),
     bool forceRootsFallback = false,
+    List<String> workspaceRoots = const <String>[],
   }) {
     final rootsTracker = CockpitMcpRootsTracker(
       forceFallback: forceRootsFallback,
     );
+    if (workspaceRoots.isNotEmpty) {
+      rootsTracker.addFallbackRoots(
+        workspaceRoots.map(
+          (root) => Root(
+            uri: Uri.directory(p.normalize(root)).toString(),
+            name: p.basename(root),
+          ),
+        ),
+      );
+    }
     final sessionRegistry = CockpitSessionRegistry();
     final latestTaskStore = CockpitLatestTaskStore();
+    final listActiveSessionsService = CockpitListActiveSessionsService(
+      registry: sessionRegistry,
+    );
+    final readLatestTaskSummaryService = CockpitReadLatestTaskSummaryService(
+      store: latestTaskStore,
+    );
+    final readSessionLogsService = CockpitReadSessionLogsService(
+      registry: sessionRegistry,
+    );
+    final readRuntimeErrorsService = CockpitReadRuntimeErrorsService(
+      registry: sessionRegistry,
+      latestTaskStore: latestTaskStore,
+    );
+    final tools = <CockpitMcpTool>[
+      CockpitAddRootsTool(rootsTracker: rootsTracker),
+      CockpitRemoveRootsTool(rootsTracker: rootsTracker),
+      CockpitLaunchDevelopmentSessionTool(sessionRegistry: sessionRegistry),
+      CockpitQueryDevelopmentSessionTool(sessionRegistry: sessionRegistry),
+      CockpitReloadDevelopmentSessionTool(sessionRegistry: sessionRegistry),
+      CockpitStopDevelopmentSessionTool(sessionRegistry: sessionRegistry),
+      CockpitCollectDevelopmentProbeTool(),
+      CockpitCompareDevelopmentProbeTool(),
+      CockpitLaunchRemoteSessionTool(sessionRegistry: sessionRegistry),
+      CockpitCollectRemoteSnapshotTool(),
+      CockpitQueryRemoteSessionTool(sessionRegistry: sessionRegistry),
+      CockpitRunRemoteControlScriptTool(),
+      CockpitReadTaskBundleSummaryTool(),
+      CockpitRunTaskTool(latestTaskStore: latestTaskStore),
+      CockpitValidateTaskTool(),
+      CockpitPubDevSearchTool(),
+      CockpitReadPackageUrisTool(rootsTracker: rootsTracker),
+      CockpitCreateProjectTool(rootsTracker: rootsTracker),
+      CockpitAnalyzeWorkspaceTool(rootsTracker: rootsTracker),
+      CockpitFormatWorkspaceTool(rootsTracker: rootsTracker),
+      CockpitRunWorkspaceTestsTool(rootsTracker: rootsTracker),
+      CockpitApplyWorkspaceFixesTool(rootsTracker: rootsTracker),
+      CockpitListLaunchTargetsTool(),
+      CockpitListActiveSessionsTool(service: listActiveSessionsService),
+      CockpitReadSessionLogsTool(service: readSessionLogsService),
+      CockpitReadRuntimeErrorsTool(service: readRuntimeErrorsService),
+    ];
+    final prompts = const <CockpitMcpPrompt>[
+      CockpitRunClosedLoopTaskPrompt(),
+      CockpitInspectBeforeClaimingDonePrompt(),
+      CockpitRecoverFromFailedValidationPrompt(),
+      CockpitPrepareAcceptanceDeliveryPrompt(),
+      CockpitCreateProjectWithValidationPrompt(),
+    ];
+    final baseResources = <CockpitMcpResource>[
+      CockpitWorkspaceGoalsResource(goalsFilePath: goalsFilePath),
+      CockpitWorkspaceSkillContractResource(
+        skillContractPath: skillContractPath,
+      ),
+      CockpitWorkspaceTaskBundleContractResource(
+        bundleContractPath: bundleContractPath,
+      ),
+      CockpitWorkspaceRootsResource(
+        service: CockpitListWorkspaceRootsService(
+          rootsTracker: rootsTracker,
+        ),
+      ),
+      CockpitActiveSessionsResource(service: listActiveSessionsService),
+      CockpitLatestTaskResource(service: readLatestTaskSummaryService),
+      CockpitTaskBundleSummaryResource(),
+      CockpitPackageUriResource(rootsTracker: rootsTracker),
+      CockpitDevelopmentSessionResource(registry: sessionRegistry),
+    ];
+    final resources = <CockpitMcpResource>[
+      ...baseResources,
+      CockpitWorkspaceCapabilitiesResource(
+        serverName: serverName,
+        serverVersion: serverVersion,
+        featureConfiguration: featureConfiguration,
+        rootsTracker: rootsTracker,
+        tools: tools,
+        resources: baseResources,
+        prompts: prompts,
+      ),
+    ];
     return CockpitMcpServer(
       serverName: serverName,
       serverVersion: serverVersion,
+      featureConfiguration: featureConfiguration,
       rootsTracker: rootsTracker,
       sessionRegistry: sessionRegistry,
       latestTaskStore: latestTaskStore,
-      tools: <CockpitMcpTool>[
-        CockpitLaunchDevelopmentSessionTool(sessionRegistry: sessionRegistry),
-        CockpitQueryDevelopmentSessionTool(sessionRegistry: sessionRegistry),
-        CockpitReloadDevelopmentSessionTool(sessionRegistry: sessionRegistry),
-        CockpitStopDevelopmentSessionTool(sessionRegistry: sessionRegistry),
-        CockpitCollectDevelopmentProbeTool(),
-        CockpitCompareDevelopmentProbeTool(),
-        CockpitLaunchRemoteSessionTool(sessionRegistry: sessionRegistry),
-        CockpitCollectRemoteSnapshotTool(),
-        CockpitQueryRemoteSessionTool(sessionRegistry: sessionRegistry),
-        CockpitRunRemoteControlScriptTool(),
-        CockpitReadTaskBundleSummaryTool(),
-        CockpitRunTaskTool(latestTaskStore: latestTaskStore),
-        CockpitValidateTaskTool(),
-      ],
-      resources: <CockpitMcpResource>[
-        CockpitWorkspaceGoalsResource(goalsFilePath: goalsFilePath),
-        CockpitWorkspaceSkillContractResource(
-          skillContractPath: skillContractPath,
-        ),
-        CockpitWorkspaceTaskBundleContractResource(
-          bundleContractPath: bundleContractPath,
-        ),
-        CockpitWorkspaceRootsResource(
-          service: CockpitListWorkspaceRootsService(
-            rootsTracker: rootsTracker,
-          ),
-        ),
-        CockpitWorkspaceCapabilitiesResource(
-          serverName: serverName,
-          serverVersion: serverVersion,
-          featureConfiguration: const CockpitMcpFeatureConfiguration(),
-        ),
-        CockpitActiveSessionsResource(
-          service: CockpitListActiveSessionsService(
-            registry: sessionRegistry,
-          ),
-        ),
-        CockpitLatestTaskResource(
-          service: CockpitReadLatestTaskSummaryService(store: latestTaskStore),
-        ),
-      ],
-      prompts: const <CockpitMcpPrompt>[
-        CockpitRunClosedLoopTaskPrompt(),
-        CockpitInspectBeforeClaimingDonePrompt(),
-        CockpitRecoverFromFailedValidationPrompt(),
-        CockpitPrepareAcceptanceDeliveryPrompt(),
-        CockpitCreateProjectWithValidationPrompt(),
-      ],
+      tools: tools,
+      resources: resources,
+      prompts: prompts,
     );
   }
 
@@ -142,6 +209,14 @@ final class CockpitMcpServer {
 
   List<CockpitMcpTool> get _enabledTools => _tools.values
       .where((tool) => featureConfiguration.isEnabled(tool.definition))
+      .toList(growable: false);
+
+  List<CockpitMcpResource> get _enabledResources => resources
+      .where((resource) => featureConfiguration.isEnabled(resource.definition))
+      .toList(growable: false);
+
+  List<CockpitMcpPrompt> get _enabledPrompts => prompts
+      .where((prompt) => featureConfiguration.isEnabled(prompt.definition))
       .toList(growable: false);
 
   CockpitMcpProtocolServer createProtocolServer(
@@ -183,7 +258,12 @@ final class CockpitMcpServer {
                         as Map<Object?, Object?>?)?['protocolVersion']
                     as String?) ??
                 '2024-11-05',
-            'capabilities': <String, Object?>{'tools': <String, Object?>{}},
+            'capabilities': <String, Object?>{
+              'tools': <String, Object?>{},
+              'resources': <String, Object?>{},
+              'prompts': <String, Object?>{},
+              'roots': <String, Object?>{'listChanged': true},
+            },
             'serverInfo': <String, Object?>{
               'name': serverName,
               'version': serverVersion,
@@ -196,6 +276,105 @@ final class CockpitMcpServer {
           return _successResponse(id, <String, Object?>{
             'tools': _enabledTools
                 .map((tool) => tool.toDescriptor())
+                .toList(growable: false),
+          });
+        case 'resources/list':
+          return _successResponse(id, <String, Object?>{
+            'resources': _enabledResources
+                .where((resource) => !resource.definition.isTemplate)
+                .map(
+                  (resource) => <String, Object?>{
+                    'name': resource.definition.name,
+                    'uri': resource.definition.uri,
+                    'description': resource.definition.description,
+                    'mimeType': resource.definition.mimeType,
+                  },
+                )
+                .toList(growable: false),
+          });
+        case 'resources/templates/list':
+          return _successResponse(id, <String, Object?>{
+            'resourceTemplates': _enabledResources
+                .where((resource) => resource.definition.isTemplate)
+                .map(
+                  (resource) => <String, Object?>{
+                    'name': resource.definition.name,
+                    'uriTemplate': resource.definition.uriTemplate,
+                    'description': resource.definition.description,
+                    'mimeType': resource.definition.mimeType,
+                  },
+                )
+                .toList(growable: false),
+          });
+        case 'resources/read':
+          final params = _readParams(message);
+          final resourceUri = _readString(params, 'uri');
+          final resourceResult = await _readResource(resourceUri);
+          return _successResponse(id, <String, Object?>{
+            'contents': resourceResult.contents
+                .map(
+                  (content) => switch (content) {
+                    CockpitMcpTextResourceContents() => <String, Object?>{
+                        'uri': content.uri,
+                        'mimeType': content.mimeType,
+                        'text': content.text,
+                      },
+                  },
+                )
+                .toList(growable: false),
+          });
+        case 'prompts/list':
+          return _successResponse(id, <String, Object?>{
+            'prompts': _enabledPrompts
+                .map(
+                  (prompt) => <String, Object?>{
+                    'name': prompt.definition.name,
+                    'description': prompt.definition.description,
+                    'arguments': prompt.definition.arguments
+                        .map(
+                          (argument) => <String, Object?>{
+                            'name': argument.name,
+                            'description': argument.description,
+                            'required': argument.required,
+                          },
+                        )
+                        .toList(growable: false),
+                  },
+                )
+                .toList(growable: false),
+          });
+        case 'prompts/get':
+          final params = _readParams(message);
+          final promptName = _readString(params, 'name');
+          final promptArguments = params['arguments'] is Map<Object?, Object?>
+              ? Map<String, Object?>.from(
+                  params['arguments']! as Map<Object?, Object?>,
+                )
+              : const <String, Object?>{};
+          final promptResult = await _getPrompt(promptName, promptArguments);
+          return _successResponse(id, <String, Object?>{
+            'description': promptResult.description,
+            'messages': promptResult.messages
+                .map(
+                  (message) => <String, Object?>{
+                    'role': message.role.name,
+                    'content': <String, Object?>{
+                      'type': 'text',
+                      'text': message.text,
+                    },
+                  },
+                )
+                .toList(growable: false),
+          });
+        case 'roots/list':
+          return _successResponse(id, <String, Object?>{
+            'roots': rootsTracker.effectiveRoots
+                .map(
+                  (root) => <String, Object?>{
+                    'uri': root.uri,
+                    if (root.name != null) 'name': root.name!,
+                  },
+                )
                 .toList(growable: false),
           });
         case 'tools/call':
@@ -260,6 +439,34 @@ final class CockpitMcpServer {
       'id': id,
       'error': error.toJson(),
     };
+  }
+
+  Future<CockpitMcpResourceResult> _readResource(String uri) async {
+    for (final resource in _enabledResources) {
+      final result = await resource.read(CockpitMcpResourceRequest(uri: uri));
+      if (result != null) {
+        return result;
+      }
+    }
+    throw CockpitMcpError.invalidArguments(
+      'Unknown MCP resource.',
+      details: <String, Object?>{'uri': uri},
+    );
+  }
+
+  Future<CockpitMcpPromptResult> _getPrompt(
+    String name,
+    Map<String, Object?> arguments,
+  ) async {
+    for (final prompt in _enabledPrompts) {
+      if (prompt.definition.name == name) {
+        return prompt.build(arguments);
+      }
+    }
+    throw CockpitMcpError.invalidArguments(
+      'Unknown MCP prompt.',
+      details: <String, Object?>{'name': name},
+    );
   }
 
   Map<String, Object?> _readParams(Map<String, Object?> message) {
