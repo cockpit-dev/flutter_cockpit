@@ -1,8 +1,10 @@
 import 'package:flutter_cockpit_devtools/src/mcp/core/cockpit_mcp_feature_category.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/core/cockpit_mcp_roots_tracker.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_create_project_tool.dart';
+import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_execute_remote_command_tool.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_pub_dev_search_tool.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_query_remote_session_tool.dart';
+import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_read_remote_status_tool.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_run_task_tool.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_validate_task_tool.dart';
 import 'package:test/test.dart';
@@ -84,5 +86,33 @@ void main() {
     ]);
     expect(tool.definition.annotations.longRunning, isTrue);
     expect(tool.definition.annotations.readOnly, isFalse);
+  });
+
+  test('execute_remote_command is session-scoped execution', () {
+    final tool = CockpitExecuteRemoteCommandTool(
+      execute: (_) async => throw UnimplementedError(),
+    );
+
+    expect(tool.definition.name, 'execute_remote_command');
+    expect(tool.definition.categories, <CockpitMcpFeatureCategory>[
+      CockpitMcpFeatureCategory.execution,
+      CockpitMcpFeatureCategory.inspection,
+    ]);
+    expect(tool.definition.annotations.readOnly, isFalse);
+    expect(tool.definition.annotations.requiresSession, isTrue);
+  });
+
+  test('read_remote_status is read-only inspection', () {
+    final tool = CockpitReadRemoteStatusTool(
+      read: (_) async => throw UnimplementedError(),
+    );
+
+    expect(tool.definition.name, 'read_remote_status');
+    expect(tool.definition.categories, <CockpitMcpFeatureCategory>[
+      CockpitMcpFeatureCategory.sessionManagement,
+      CockpitMcpFeatureCategory.inspection,
+    ]);
+    expect(tool.definition.annotations.readOnly, isTrue);
+    expect(tool.definition.annotations.requiresSession, isTrue);
   });
 }

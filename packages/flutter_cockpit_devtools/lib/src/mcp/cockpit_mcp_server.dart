@@ -8,10 +8,19 @@ import 'package:stream_channel/stream_channel.dart';
 import '../application/cockpit_latest_task_store.dart';
 import '../application/cockpit_list_active_sessions_service.dart';
 import '../application/cockpit_list_workspace_roots_service.dart';
+import '../application/cockpit_execute_remote_command_batch_service.dart';
+import '../application/cockpit_execute_remote_command_service.dart';
+import '../application/cockpit_interactive_session_lock.dart';
+import '../application/cockpit_interactive_snapshot_store.dart';
 import '../application/cockpit_read_latest_task_summary_service.dart';
+import '../application/cockpit_read_remote_snapshot_service.dart';
+import '../application/cockpit_read_remote_status_service.dart';
 import '../application/cockpit_read_runtime_errors_service.dart';
 import '../application/cockpit_read_session_logs_service.dart';
 import '../application/cockpit_session_registry.dart';
+import '../application/cockpit_start_remote_recording_service.dart';
+import '../application/cockpit_stop_remote_recording_service.dart';
+import '../application/cockpit_wait_remote_ui_idle_service.dart';
 import 'core/cockpit_mcp_protocol_server.dart';
 import 'core/cockpit_mcp_prompt.dart';
 import 'core/cockpit_mcp_resource.dart';
@@ -38,6 +47,8 @@ import 'tools/cockpit_collect_development_probe_tool.dart';
 import 'tools/cockpit_launch_remote_session_tool.dart';
 import 'tools/cockpit_compare_development_probe_tool.dart';
 import 'tools/cockpit_create_project_tool.dart';
+import 'tools/cockpit_execute_remote_command_batch_tool.dart';
+import 'tools/cockpit_execute_remote_command_tool.dart';
 import 'tools/cockpit_format_workspace_tool.dart';
 import 'tools/cockpit_launch_development_session_tool.dart';
 import 'tools/cockpit_collect_remote_snapshot_tool.dart';
@@ -46,6 +57,8 @@ import 'tools/cockpit_list_launch_targets_tool.dart';
 import 'tools/cockpit_pub_dev_search_tool.dart';
 import 'tools/cockpit_query_development_session_tool.dart';
 import 'tools/cockpit_query_remote_session_tool.dart';
+import 'tools/cockpit_read_remote_snapshot_tool.dart';
+import 'tools/cockpit_read_remote_status_tool.dart';
 import 'tools/cockpit_read_package_uris_tool.dart';
 import 'tools/cockpit_read_runtime_errors_tool.dart';
 import 'tools/cockpit_read_session_logs_tool.dart';
@@ -55,8 +68,11 @@ import 'tools/cockpit_remove_roots_tool.dart';
 import 'tools/cockpit_run_workspace_tests_tool.dart';
 import 'tools/cockpit_run_remote_control_script_tool.dart';
 import 'tools/cockpit_run_task_tool.dart';
+import 'tools/cockpit_start_remote_recording_tool.dart';
 import 'tools/cockpit_stop_development_session_tool.dart';
+import 'tools/cockpit_stop_remote_recording_tool.dart';
 import 'tools/cockpit_validate_task_tool.dart';
+import 'tools/cockpit_wait_remote_ui_idle_tool.dart';
 import 'cockpit_mcp_error.dart';
 import 'cockpit_mcp_tool.dart';
 
@@ -105,6 +121,8 @@ final class CockpitMcpServer {
     }
     final sessionRegistry = CockpitSessionRegistry();
     final latestTaskStore = CockpitLatestTaskStore();
+    final interactiveSnapshotStore = CockpitInteractiveSnapshotStore();
+    final interactiveSessionLock = CockpitInteractiveSessionLock();
     final listActiveSessionsService = CockpitListActiveSessionsService(
       registry: sessionRegistry,
     );
@@ -118,6 +136,30 @@ final class CockpitMcpServer {
       registry: sessionRegistry,
       latestTaskStore: latestTaskStore,
     );
+    final executeRemoteCommandService = CockpitExecuteRemoteCommandService(
+      snapshotStore: interactiveSnapshotStore,
+      sessionLock: interactiveSessionLock,
+    );
+    final executeRemoteCommandBatchService =
+        CockpitExecuteRemoteCommandBatchService(
+      snapshotStore: interactiveSnapshotStore,
+      sessionLock: interactiveSessionLock,
+    );
+    final readRemoteStatusService = CockpitReadRemoteStatusService(
+      snapshotStore: interactiveSnapshotStore,
+    );
+    final readRemoteSnapshotService = CockpitReadRemoteSnapshotService(
+      snapshotStore: interactiveSnapshotStore,
+    );
+    final waitRemoteUiIdleService = CockpitWaitRemoteUiIdleService(
+      sessionLock: interactiveSessionLock,
+    );
+    final startRemoteRecordingService = CockpitStartRemoteRecordingService(
+      sessionLock: interactiveSessionLock,
+    );
+    final stopRemoteRecordingService = CockpitStopRemoteRecordingService(
+      sessionLock: interactiveSessionLock,
+    );
     final tools = <CockpitMcpTool>[
       CockpitAddRootsTool(rootsTracker: rootsTracker),
       CockpitRemoveRootsTool(rootsTracker: rootsTracker),
@@ -129,6 +171,15 @@ final class CockpitMcpServer {
       CockpitCompareDevelopmentProbeTool(),
       CockpitLaunchRemoteSessionTool(sessionRegistry: sessionRegistry),
       CockpitCollectRemoteSnapshotTool(),
+      CockpitExecuteRemoteCommandTool(service: executeRemoteCommandService),
+      CockpitExecuteRemoteCommandBatchTool(
+        service: executeRemoteCommandBatchService,
+      ),
+      CockpitReadRemoteStatusTool(service: readRemoteStatusService),
+      CockpitReadRemoteSnapshotTool(service: readRemoteSnapshotService),
+      CockpitWaitRemoteUiIdleTool(service: waitRemoteUiIdleService),
+      CockpitStartRemoteRecordingTool(service: startRemoteRecordingService),
+      CockpitStopRemoteRecordingTool(service: stopRemoteRecordingService),
       CockpitQueryRemoteSessionTool(sessionRegistry: sessionRegistry),
       CockpitRunRemoteControlScriptTool(),
       CockpitReadTaskBundleSummaryTool(),

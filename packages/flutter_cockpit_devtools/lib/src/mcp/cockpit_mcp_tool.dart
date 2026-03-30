@@ -133,6 +133,28 @@ Map<String, Object?>? cockpitReadOptionalObject(
   );
 }
 
+List<Map<String, Object?>> cockpitReadRequiredObjectList(
+  Map<String, Object?> arguments,
+  String key,
+) {
+  final value = arguments[key];
+  if (value is! List<Object?>) {
+    throw CockpitMcpError.invalidArguments(
+      'Missing required object-list argument.',
+      details: <String, Object?>{'argument': key},
+    );
+  }
+  return value.map((item) {
+    if (item is! Map<Object?, Object?>) {
+      throw CockpitMcpError.invalidArguments(
+        'List argument must contain only objects.',
+        details: <String, Object?>{'argument': key},
+      );
+    }
+    return Map<String, Object?>.from(item);
+  }).toList(growable: false);
+}
+
 CockpitRemoteSessionHandle? cockpitReadOptionalSessionHandle(
   Map<String, Object?> arguments,
 ) {

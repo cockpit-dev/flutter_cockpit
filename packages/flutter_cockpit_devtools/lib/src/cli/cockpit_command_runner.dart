@@ -8,8 +8,12 @@ import 'commands/bundle_session_command.dart';
 import 'commands/collect_development_probe_command.dart';
 import 'commands/collect_remote_snapshot_command.dart';
 import 'commands/compare_development_probe_command.dart';
+import 'commands/execute_remote_command_batch_command.dart';
+import 'commands/execute_remote_command_command.dart';
 import 'commands/launch_development_session_command.dart';
 import 'commands/launch_remote_session_command.dart';
+import 'commands/read_remote_snapshot_command.dart';
+import 'commands/read_remote_status_command.dart';
 import 'commands/query_development_session_command.dart';
 import 'commands/query_remote_session_command.dart';
 import 'commands/reload_development_session_command.dart';
@@ -17,8 +21,11 @@ import 'commands/run_control_script_command.dart';
 import 'commands/run_remote_control_script_command.dart';
 import 'commands/run_task_command.dart';
 import 'commands/serve_mcp_command.dart';
+import 'commands/start_remote_recording_command.dart';
 import 'commands/stop_development_session_command.dart';
+import 'commands/stop_remote_recording_command.dart';
 import 'commands/validate_task_command.dart';
+import 'commands/wait_remote_ui_idle_command.dart';
 
 const int cockpitSuccessExitCode = 0;
 const int cockpitUsageExitCode = 64;
@@ -38,14 +45,21 @@ final class CockpitCommandRunner {
           ..addCommand(CollectDevelopmentProbeCommand())
           ..addCommand(CollectRemoteSnapshotCommand())
           ..addCommand(CompareDevelopmentProbeCommand())
+          ..addCommand(ExecuteRemoteCommandCommand())
+          ..addCommand(ExecuteRemoteCommandBatchCommand())
           ..addCommand(LaunchDevelopmentSessionCommand())
           ..addCommand(LaunchRemoteSessionCommand())
+          ..addCommand(ReadRemoteStatusCommand())
+          ..addCommand(ReadRemoteSnapshotCommand())
           ..addCommand(QueryDevelopmentSessionCommand())
           ..addCommand(QueryRemoteSessionCommand())
           ..addCommand(ReloadDevelopmentSessionCommand())
           ..addCommand(RunTaskCommand())
           ..addCommand(StopDevelopmentSessionCommand())
+          ..addCommand(StartRemoteRecordingCommand())
+          ..addCommand(StopRemoteRecordingCommand())
           ..addCommand(ValidateTaskCommand())
+          ..addCommand(WaitRemoteUiIdleCommand())
           ..addCommand(ServeMcpCommand())
           ..addCommand(
             RunControlScriptCommand(
