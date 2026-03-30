@@ -1,5 +1,10 @@
 library;
 
+export 'src/infrastructure/cockpit_clock.dart';
+export 'src/infrastructure/cockpit_file_system.dart';
+export 'src/infrastructure/cockpit_http_client.dart';
+export 'src/infrastructure/cockpit_process_manager.dart';
+export 'src/infrastructure/cockpit_sdk_environment.dart';
 export 'src/artifacts/task_run_bundle_writer.dart';
 export 'src/artifacts/cockpit_recording_keyframe_extractor.dart';
 export 'src/adapters/cockpit_automation_adapter.dart';
