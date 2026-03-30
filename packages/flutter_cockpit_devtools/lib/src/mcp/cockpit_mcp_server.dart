@@ -1,7 +1,11 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
+import 'package:stream_channel/stream_channel.dart';
+
+import 'core/cockpit_mcp_feature_configuration.dart';
+import 'core/cockpit_mcp_protocol_server.dart';
+import 'core/cockpit_mcp_stdio_channel.dart';
 import 'tools/cockpit_collect_development_probe_tool.dart';
 import 'tools/cockpit_launch_remote_session_tool.dart';
 import 'tools/cockpit_compare_development_probe_tool.dart';
@@ -21,6 +25,7 @@ import 'cockpit_mcp_tool.dart';
 final class CockpitMcpServer {
   CockpitMcpServer({
     required List<CockpitMcpTool> tools,
+    this.featureConfiguration = const CockpitMcpFeatureConfiguration(),
     this.serverName = 'flutter_cockpit_devtools',
     this.serverVersion = '1.0.0',
   }) : _tools = Map<String, CockpitMcpTool>.fromEntries(
@@ -53,8 +58,27 @@ final class CockpitMcpServer {
   }
 
   final Map<String, CockpitMcpTool> _tools;
+  final CockpitMcpFeatureConfiguration featureConfiguration;
   final String serverName;
   final String serverVersion;
+
+  List<CockpitMcpTool> get _enabledTools => _tools.values
+      .where((tool) => featureConfiguration.isEnabled(tool.definition))
+      .toList(growable: false);
+
+  CockpitMcpProtocolServer createProtocolServer(
+    StreamChannel<String> channel, {
+    Sink<String>? protocolLogSink,
+  }) {
+    return CockpitMcpProtocolServer(
+      channel,
+      tools: _enabledTools,
+      featureConfiguration: featureConfiguration,
+      serverName: serverName,
+      serverVersion: serverVersion,
+      protocolLogSink: protocolLogSink,
+    );
+  }
 
   Future<Map<String, Object?>?> handleMessage(
     Map<String, Object?> message,
@@ -89,7 +113,7 @@ final class CockpitMcpServer {
           return null;
         case 'tools/list':
           return _successResponse(id, <String, Object?>{
-            'tools': _tools.values
+            'tools': _enabledTools
                 .map((tool) => tool.toDescriptor())
                 .toList(growable: false),
           });
@@ -97,7 +121,8 @@ final class CockpitMcpServer {
           final params = _readParams(message);
           final toolName = _readString(params, 'name');
           final tool = _tools[toolName];
-          if (tool == null) {
+          if (tool == null ||
+              !featureConfiguration.isEnabled(tool.definition)) {
             throw CockpitMcpError.invalidArguments(
               'Unknown MCP tool.',
               details: <String, Object?>{'tool': toolName},
@@ -126,40 +151,19 @@ final class CockpitMcpServer {
     }
   }
 
-  Future<void> serveStdio({Stream<List<int>>? input, IOSink? output}) async {
-    final reader = _CockpitMcpFrameReader();
-    final source = input ?? stdin;
-    final sink = output ?? stdout;
-
-    await for (final chunk in source) {
-      final frames = reader.addChunk(chunk);
-      for (final frame in frames) {
-        Map<String, Object?>? response;
-        try {
-          final decoded = jsonDecode(utf8.decode(frame));
-          if (decoded is! Map<Object?, Object?>) {
-            throw CockpitMcpError.invalidArguments(
-              'MCP payload must be a JSON object.',
-            );
-          }
-          response = await handleMessage(Map<String, Object?>.from(decoded));
-        } on Object catch (error) {
-          response = _errorResponse(
-            null,
-            error is CockpitMcpError
-                ? error
-                : CockpitMcpError.internal(
-                    'Failed to process MCP frame.',
-                    details: <String, Object?>{'error': error.toString()},
-                  ),
-          );
-        }
-
-        if (response != null) {
-          _writeFrame(sink, response);
-        }
-      }
-    }
+  Future<void> serveStdio({
+    Stream<List<int>>? input,
+    StreamSink<List<int>>? output,
+    Sink<String>? protocolLogSink,
+  }) async {
+    final server = createProtocolServer(
+      cockpitMcpStdioChannel(
+        input: input ?? stdin,
+        output: output ?? stdout,
+      ),
+      protocolLogSink: protocolLogSink,
+    );
+    await server.done;
   }
 
   Map<String, Object?> _successResponse(
@@ -197,76 +201,5 @@ final class CockpitMcpServer {
       'MCP string parameter is required.',
       details: <String, Object?>{'parameter': key},
     );
-  }
-
-  void _writeFrame(IOSink sink, Map<String, Object?> payload) {
-    final body = utf8.encode(jsonEncode(payload));
-    sink.write('Content-Length: ${body.length}\r\n\r\n');
-    sink.add(body);
-    sink.flush();
-  }
-}
-
-final class _CockpitMcpFrameReader {
-  final List<int> _buffer = <int>[];
-
-  List<List<int>> addChunk(List<int> chunk) {
-    _buffer.addAll(chunk);
-    final frames = <List<int>>[];
-
-    while (true) {
-      final headerEnd = _indexOfHeaderTerminator(_buffer);
-      if (headerEnd == -1) {
-        break;
-      }
-
-      final headerBytes = _buffer.sublist(0, headerEnd);
-      final headerText = ascii.decode(headerBytes);
-      final contentLength = _readContentLength(headerText);
-      final bodyStart = headerEnd + 4;
-      final bodyEnd = bodyStart + contentLength;
-      if (_buffer.length < bodyEnd) {
-        break;
-      }
-
-      frames.add(_buffer.sublist(bodyStart, bodyEnd));
-      _buffer.removeRange(0, bodyEnd);
-    }
-
-    return frames;
-  }
-
-  int _readContentLength(String headerText) {
-    final lines = headerText.split('\r\n');
-    for (final line in lines) {
-      final separator = line.indexOf(':');
-      if (separator <= 0) {
-        continue;
-      }
-      final name = line.substring(0, separator).trim().toLowerCase();
-      if (name != 'content-length') {
-        continue;
-      }
-      final value = int.tryParse(line.substring(separator + 1).trim());
-      if (value == null || value < 0) {
-        throw CockpitMcpError.invalidArguments(
-          'Invalid Content-Length header.',
-        );
-      }
-      return value;
-    }
-    throw CockpitMcpError.invalidArguments('Missing Content-Length header.');
-  }
-
-  int _indexOfHeaderTerminator(List<int> buffer) {
-    for (var index = 0; index <= buffer.length - 4; index++) {
-      if (buffer[index] == 13 &&
-          buffer[index + 1] == 10 &&
-          buffer[index + 2] == 13 &&
-          buffer[index + 3] == 10) {
-        return index;
-      }
-    }
-    return -1;
   }
 }
