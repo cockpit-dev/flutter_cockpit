@@ -15,14 +15,60 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  FLUTTER_VERSION: '3.24.0'
+  FLUTTER_VERSION: '3.38.9'
 
 defaults:
   run:
     shell: bash
 
 jobs:
+  shared-ai-surface-regressions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+
+      - name: Bootstrap workspace
+        timeout-minutes: 10
+        run: dart run melos bootstrap
+
+      - name: Run runtime executor regressions
+        timeout-minutes: 10
+        working-directory: packages/flutter_cockpit
+        run: |
+          flutter test \
+            test/src/executor/in_app_cockpit_command_executor_test.dart
+
+      - name: Run AI-first devtools surface regressions
+        timeout-minutes: 15
+        working-directory: packages/flutter_cockpit_devtools
+        run: |
+          dart test \
+            test/src/application/cockpit_entrypoint_resolver_test.dart \
+            test/src/application/cockpit_launch_development_session_service_test.dart \
+            test/src/application/cockpit_launch_remote_session_service_test.dart \
+            test/src/application/cockpit_stop_app_service_test.dart \
+            test/src/application/cockpit_task_orchestration_service_test.dart \
+            test/src/cli/cockpit_help_test.dart \
+            test/src/cli/cockpit_command_runner_test.dart \
+            test/src/cli/launch_app_command_test.dart \
+            test/src/cli/run_control_script_command_test.dart \
+            test/src/cli/run_remote_control_script_command_test.dart \
+            test/src/cli/run_task_command_test.dart \
+            test/src/cli/validate_task_command_test.dart \
+            test/src/mcp/tools/cockpit_launch_app_tool_test.dart \
+            test/src/mcp/tools/cockpit_launch_remote_session_tool_test.dart \
+            test/src/mcp/tools/cockpit_run_remote_control_script_tool_test.dart \
+            test/src/mcp/tools/cockpit_run_task_tool_test.dart
+
   android-runtime-loop:
+    needs: shared-ai-surface-regressions
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
@@ -83,75 +129,75 @@ jobs:
           LOG_PATH="$RUNNER_TEMP/flutter_cockpit_android_validate.log"
           cat > "$CONFIG_JSON" <<EOF
           {
-            "runTask": {
+            "run_task": {
               "launch": {
-                "projectDir": "$GITHUB_WORKSPACE/examples/cockpit_demo",
-                "target": "cockpit/main.dart",
+                "project_dir": "$GITHUB_WORKSPACE/examples/cockpit_demo",
                 "platform": "android",
-                "deviceId": "emulator-5554",
-                "sessionPort": 47331,
-                "launchTimeoutSeconds": 240
+                "device_id": "emulator-5554",
+                "session_port": 47331,
+                "launch_timeout_seconds": 240
               },
               "baseline": {
-                "captureScreenshot": true,
-                "screenshotName": "android-baseline",
-                "includeSnapshot": true
+                "capture_screenshot": true,
+                "screenshot_name": "android-baseline",
+                "include_snapshot": true
               },
               "script": {
-                "sessionId": "android-runtime-loop-session",
-                "taskId": "android-runtime-loop-task",
+                "session_id": "android-runtime-loop-session",
+                "task_id": "android-runtime-loop-task",
                 "platform": "android",
                 "recording": {
                   "purpose": "acceptance",
                   "name": "android-runtime-acceptance",
-                  "attachToStep": true,
-                  "tailStabilizationMs": 1800
+                  "attach_to_step": true,
+                  "tail_stabilization_ms": 1800
                 },
                 "commands": [
                   {
-                    "commandId": "tap-today",
-                    "commandType": "tap",
+                    "command_id": "tap-today",
+                    "command_type": "tap",
                     "locator": {
                       "kind": "text",
                       "value": "Today"
                     }
                   },
                   {
-                    "commandId": "tap-completed",
-                    "commandType": "tap",
+                    "command_id": "tap-completed",
+                    "command_type": "tap",
                     "locator": {
                       "kind": "text",
                       "value": "Completed"
                     }
                   },
                   {
-                    "commandId": "tap-inbox",
-                    "commandType": "tap",
+                    "command_id": "tap-inbox",
+                    "command_type": "tap",
                     "locator": {
                       "kind": "text",
                       "value": "Inbox"
                     }
                   },
                   {
-                    "commandId": "capture-acceptance",
-                    "commandType": "captureScreenshot",
-                    "screenshotRequest": {
+                    "command_id": "capture-acceptance",
+                    "command_type": "capture_screenshot",
+                    "screenshot_request": {
                       "reason": "acceptance",
                       "name": "android-acceptance",
-                      "includeSnapshot": true,
-                      "attachToStep": true
+                      "include_snapshot": true,
+                      "attach_to_step": true
                     }
                   }
                 ],
-                "failFast": true
+                "fail_fast": true
               },
-              "outputRoot": "$OUTPUT_ROOT"
+              "output_root": "$OUTPUT_ROOT"
             },
             "validation": {
-              "requireAcceptanceMarkdown": true,
-              "requirePrimaryScreenshot": true,
-              "requireArtifactFiles": true,
-              "requireAcceptanceSemanticEvidence": true
+              "require_acceptance_markdown": true,
+              "require_primary_screenshot": true,
+              "require_primary_recording": true,
+              "require_artifact_files": true,
+              "require_acceptance_semantic_evidence": true
             }
           }
           EOF
@@ -186,9 +232,11 @@ jobs:
           result_path = pathlib.Path(os.environ["RESULT_JSON"])
           data = json.loads(result_path.read_text())
           assert data["classification"] == "completed", data
-          summary = data["bundleSummary"]
+          assert data["validation_failures"] == [], data
+          summary = data["bundle_summary"]
           evidence = summary["evidence"]
-          assert evidence["deliveryArtifactsReady"] is True, evidence
+          assert evidence["delivery_artifacts_ready"] is True, evidence
+          assert evidence["delivery_video_ready"] is True, evidence
           PY
 
       - name: Upload Android runtime loop bundle
@@ -205,6 +253,7 @@ jobs:
             ${{ env.LOG_PATH }}
 
   ios-runtime-loop:
+    needs: shared-ai-surface-regressions
     runs-on: macos-latest
     timeout-minutes: 75
 
@@ -285,75 +334,75 @@ jobs:
           LOG_PATH="$RUNNER_TEMP/flutter_cockpit_ios_validate.log"
           cat > "$CONFIG_JSON" <<EOF
           {
-            "runTask": {
+            "run_task": {
               "launch": {
-                "projectDir": "$GITHUB_WORKSPACE/examples/cockpit_demo",
-                "target": "cockpit/main.dart",
+                "project_dir": "$GITHUB_WORKSPACE/examples/cockpit_demo",
                 "platform": "ios",
-                "deviceId": "$IOS_DEVICE_ID",
-                "sessionPort": 47332,
-                "launchTimeoutSeconds": 300
+                "device_id": "$IOS_DEVICE_ID",
+                "session_port": 47332,
+                "launch_timeout_seconds": 300
               },
               "baseline": {
-                "captureScreenshot": true,
-                "screenshotName": "ios-baseline",
-                "includeSnapshot": true
+                "capture_screenshot": true,
+                "screenshot_name": "ios-baseline",
+                "include_snapshot": true
               },
               "script": {
-                "sessionId": "ios-runtime-loop-session",
-                "taskId": "ios-runtime-loop-task",
+                "session_id": "ios-runtime-loop-session",
+                "task_id": "ios-runtime-loop-task",
                 "platform": "ios",
                 "recording": {
                   "purpose": "acceptance",
                   "name": "ios-runtime-acceptance",
-                  "attachToStep": true,
-                  "tailStabilizationMs": 1800
+                  "attach_to_step": true,
+                  "tail_stabilization_ms": 1800
                 },
                 "commands": [
                   {
-                    "commandId": "tap-today",
-                    "commandType": "tap",
+                    "command_id": "tap-today",
+                    "command_type": "tap",
                     "locator": {
                       "kind": "text",
                       "value": "Today"
                     }
                   },
                   {
-                    "commandId": "tap-completed",
-                    "commandType": "tap",
+                    "command_id": "tap-completed",
+                    "command_type": "tap",
                     "locator": {
                       "kind": "text",
                       "value": "Completed"
                     }
                   },
                   {
-                    "commandId": "tap-inbox",
-                    "commandType": "tap",
+                    "command_id": "tap-inbox",
+                    "command_type": "tap",
                     "locator": {
                       "kind": "text",
                       "value": "Inbox"
                     }
                   },
                   {
-                    "commandId": "capture-acceptance",
-                    "commandType": "captureScreenshot",
-                    "screenshotRequest": {
+                    "command_id": "capture-acceptance",
+                    "command_type": "capture_screenshot",
+                    "screenshot_request": {
                       "reason": "acceptance",
                       "name": "ios-acceptance",
-                      "includeSnapshot": true,
-                      "attachToStep": true
+                      "include_snapshot": true,
+                      "attach_to_step": true
                     }
                   }
                 ],
-                "failFast": true
+                "fail_fast": true
               },
-              "outputRoot": "$OUTPUT_ROOT"
+              "output_root": "$OUTPUT_ROOT"
             },
             "validation": {
-              "requireAcceptanceMarkdown": true,
-              "requirePrimaryScreenshot": true,
-              "requireArtifactFiles": true,
-              "requireAcceptanceSemanticEvidence": true
+              "require_acceptance_markdown": true,
+              "require_primary_screenshot": true,
+              "require_primary_recording": true,
+              "require_artifact_files": true,
+              "require_acceptance_semantic_evidence": true
             }
           }
           EOF
@@ -381,9 +430,11 @@ jobs:
           result_path = pathlib.Path(os.environ["RESULT_JSON"])
           data = json.loads(result_path.read_text())
           assert data["classification"] == "completed", data
-          summary = data["bundleSummary"]
+          assert data["validation_failures"] == [], data
+          summary = data["bundle_summary"]
           evidence = summary["evidence"]
-          assert evidence["deliveryArtifactsReady"] is True, evidence
+          assert evidence["delivery_artifacts_ready"] is True, evidence
+          assert evidence["delivery_video_ready"] is True, evidence
           PY
 
       - name: Upload iOS runtime loop bundle
@@ -400,6 +451,7 @@ jobs:
             ${{ env.LOG_PATH }}
 
   macos-runtime-loop:
+    needs: shared-ai-surface-regressions
     runs-on: macos-latest
     timeout-minutes: 60
 
@@ -443,75 +495,75 @@ jobs:
           LOG_PATH="$RUNNER_TEMP/flutter_cockpit_macos_validate.log"
           cat > "$CONFIG_JSON" <<EOF
           {
-            "runTask": {
+            "run_task": {
               "launch": {
-                "projectDir": "$GITHUB_WORKSPACE/examples/cockpit_demo",
-                "target": "cockpit/main.dart",
+                "project_dir": "$GITHUB_WORKSPACE/examples/cockpit_demo",
                 "platform": "macos",
-                "deviceId": "macos",
-                "sessionPort": 47333,
-                "launchTimeoutSeconds": 240
+                "device_id": "macos",
+                "session_port": 47333,
+                "launch_timeout_seconds": 240
               },
               "baseline": {
-                "captureScreenshot": true,
-                "screenshotName": "macos-baseline",
-                "includeSnapshot": true
+                "capture_screenshot": true,
+                "screenshot_name": "macos-baseline",
+                "include_snapshot": true
               },
               "script": {
-                "sessionId": "macos-runtime-loop-session",
-                "taskId": "macos-runtime-loop-task",
+                "session_id": "macos-runtime-loop-session",
+                "task_id": "macos-runtime-loop-task",
                 "platform": "macos",
                 "recording": {
                   "purpose": "acceptance",
                   "name": "macos-runtime-acceptance",
-                  "attachToStep": true,
-                  "tailStabilizationMs": 1800
+                  "attach_to_step": true,
+                  "tail_stabilization_ms": 1800
                 },
                 "commands": [
                   {
-                    "commandId": "tap-today",
-                    "commandType": "tap",
+                    "command_id": "tap-today",
+                    "command_type": "tap",
                     "locator": {
                       "kind": "text",
                       "value": "Today"
                     }
                   },
                   {
-                    "commandId": "tap-completed",
-                    "commandType": "tap",
+                    "command_id": "tap-completed",
+                    "command_type": "tap",
                     "locator": {
                       "kind": "text",
                       "value": "Completed"
                     }
                   },
                   {
-                    "commandId": "tap-inbox",
-                    "commandType": "tap",
+                    "command_id": "tap-inbox",
+                    "command_type": "tap",
                     "locator": {
                       "kind": "text",
                       "value": "Inbox"
                     }
                   },
                   {
-                    "commandId": "capture-acceptance",
-                    "commandType": "captureScreenshot",
-                    "screenshotRequest": {
+                    "command_id": "capture-acceptance",
+                    "command_type": "capture_screenshot",
+                    "screenshot_request": {
                       "reason": "acceptance",
                       "name": "macos-acceptance",
-                      "includeSnapshot": true,
-                      "attachToStep": true
+                      "include_snapshot": true,
+                      "attach_to_step": true
                     }
                   }
                 ],
-                "failFast": true
+                "fail_fast": true
               },
-              "outputRoot": "$OUTPUT_ROOT"
+              "output_root": "$OUTPUT_ROOT"
             },
             "validation": {
-              "requireAcceptanceMarkdown": true,
-              "requirePrimaryScreenshot": true,
-              "requireArtifactFiles": true,
-              "requireAcceptanceSemanticEvidence": true
+              "require_acceptance_markdown": true,
+              "require_primary_screenshot": true,
+              "require_primary_recording": true,
+              "require_artifact_files": true,
+              "require_acceptance_semantic_evidence": true
             }
           }
           EOF
@@ -539,9 +591,11 @@ jobs:
           result_path = pathlib.Path(os.environ["RESULT_JSON"])
           data = json.loads(result_path.read_text())
           assert data["classification"] == "completed", data
-          summary = data["bundleSummary"]
+          assert data["validation_failures"] == [], data
+          summary = data["bundle_summary"]
           evidence = summary["evidence"]
-          assert evidence["deliveryArtifactsReady"] is True, evidence
+          assert evidence["delivery_artifacts_ready"] is True, evidence
+          assert evidence["delivery_video_ready"] is True, evidence
           PY
 
       - name: Upload macOS runtime loop bundle
@@ -558,6 +612,7 @@ jobs:
             ${{ env.LOG_PATH }}
 
   linux-runtime-loop:
+    needs: shared-ai-surface-regressions
     runs-on: ubuntu-latest
     timeout-minutes: 50
 
@@ -618,75 +673,75 @@ jobs:
           LOG_PATH="$RUNNER_TEMP/flutter_cockpit_linux_validate.log"
           cat > "$CONFIG_JSON" <<EOF
           {
-            "runTask": {
+            "run_task": {
               "launch": {
-                "projectDir": "$GITHUB_WORKSPACE/examples/cockpit_demo",
-                "target": "cockpit/main.dart",
+                "project_dir": "$GITHUB_WORKSPACE/examples/cockpit_demo",
                 "platform": "linux",
-                "deviceId": "linux",
-                "sessionPort": 47334,
-                "launchTimeoutSeconds": 240
+                "device_id": "linux",
+                "session_port": 47334,
+                "launch_timeout_seconds": 240
               },
               "baseline": {
-                "captureScreenshot": true,
-                "screenshotName": "linux-baseline",
-                "includeSnapshot": true
+                "capture_screenshot": true,
+                "screenshot_name": "linux-baseline",
+                "include_snapshot": true
               },
               "script": {
-                "sessionId": "linux-runtime-loop-session",
-                "taskId": "linux-runtime-loop-task",
+                "session_id": "linux-runtime-loop-session",
+                "task_id": "linux-runtime-loop-task",
                 "platform": "linux",
                 "recording": {
                   "purpose": "acceptance",
                   "name": "linux-runtime-acceptance",
-                  "attachToStep": true,
-                  "tailStabilizationMs": 1800
+                  "attach_to_step": true,
+                  "tail_stabilization_ms": 1800
                 },
                 "commands": [
                   {
-                    "commandId": "tap-today",
-                    "commandType": "tap",
+                    "command_id": "tap-today",
+                    "command_type": "tap",
                     "locator": {
                       "kind": "text",
                       "value": "Today"
                     }
                   },
                   {
-                    "commandId": "tap-completed",
-                    "commandType": "tap",
+                    "command_id": "tap-completed",
+                    "command_type": "tap",
                     "locator": {
                       "kind": "text",
                       "value": "Completed"
                     }
                   },
                   {
-                    "commandId": "tap-inbox",
-                    "commandType": "tap",
+                    "command_id": "tap-inbox",
+                    "command_type": "tap",
                     "locator": {
                       "kind": "text",
                       "value": "Inbox"
                     }
                   },
                   {
-                    "commandId": "capture-acceptance",
-                    "commandType": "captureScreenshot",
-                    "screenshotRequest": {
+                    "command_id": "capture-acceptance",
+                    "command_type": "capture_screenshot",
+                    "screenshot_request": {
                       "reason": "acceptance",
                       "name": "linux-acceptance",
-                      "includeSnapshot": true,
-                      "attachToStep": true
+                      "include_snapshot": true,
+                      "attach_to_step": true
                     }
                   }
                 ],
-                "failFast": true
+                "fail_fast": true
               },
-              "outputRoot": "$OUTPUT_ROOT"
+              "output_root": "$OUTPUT_ROOT"
             },
             "validation": {
-              "requireAcceptanceMarkdown": true,
-              "requirePrimaryScreenshot": true,
-              "requireArtifactFiles": true,
-              "requireAcceptanceSemanticEvidence": true
+              "require_acceptance_markdown": true,
+              "require_primary_screenshot": true,
+              "require_primary_recording": true,
+              "require_artifact_files": true,
+              "require_acceptance_semantic_evidence": true
             }
           }
           EOF
@@ -720,9 +775,11 @@ jobs:
           result_path = pathlib.Path(os.environ["RESULT_JSON"])
           data = json.loads(result_path.read_text())
           assert data["classification"] == "completed", data
-          summary = data["bundleSummary"]
+          assert data["validation_failures"] == [], data
+          summary = data["bundle_summary"]
           evidence = summary["evidence"]
-          assert evidence["deliveryArtifactsReady"] is True, evidence
+          assert evidence["delivery_artifacts_ready"] is True, evidence
+          assert evidence["delivery_video_ready"] is True, evidence
           PY
 
       - name: Print Linux verify diagnostics
@@ -756,6 +813,7 @@ jobs:
             ${{ env.LOG_PATH }}
 
   windows-runtime-loop:
+    needs: shared-ai-surface-regressions
     runs-on: windows-latest
     timeout-minutes: 60
 
@@ -804,75 +862,75 @@ jobs:
           OUTPUT_ROOT_JSON="${OUTPUT_ROOT//\\//}"
           cat > "$CONFIG_JSON" <<EOF
           {
-            "runTask": {
+            "run_task": {
               "launch": {
-                "projectDir": "$PROJECT_DIR_JSON",
-                "target": "cockpit/main.dart",
+                "project_dir": "$PROJECT_DIR_JSON",
                 "platform": "windows",
-                "deviceId": "windows",
-                "sessionPort": 47335,
-                "launchTimeoutSeconds": 240
+                "device_id": "windows",
+                "session_port": 47335,
+                "launch_timeout_seconds": 240
               },
               "baseline": {
-                "captureScreenshot": true,
-                "screenshotName": "windows-baseline",
-                "includeSnapshot": true
+                "capture_screenshot": true,
+                "screenshot_name": "windows-baseline",
+                "include_snapshot": true
               },
               "script": {
-                "sessionId": "windows-runtime-loop-session",
-                "taskId": "windows-runtime-loop-task",
+                "session_id": "windows-runtime-loop-session",
+                "task_id": "windows-runtime-loop-task",
                 "platform": "windows",
                 "recording": {
                   "purpose": "acceptance",
                   "name": "windows-runtime-acceptance",
-                  "attachToStep": true,
-                  "tailStabilizationMs": 1800
+                  "attach_to_step": true,
+                  "tail_stabilization_ms": 1800
                 },
                 "commands": [
                   {
-                    "commandId": "tap-today",
-                    "commandType": "tap",
+                    "command_id": "tap-today",
+                    "command_type": "tap",
                     "locator": {
                       "kind": "text",
                       "value": "Today"
                     }
                   },
                   {
-                    "commandId": "tap-completed",
-                    "commandType": "tap",
+                    "command_id": "tap-completed",
+                    "command_type": "tap",
                     "locator": {
                       "kind": "text",
                       "value": "Completed"
                     }
                   },
                   {
-                    "commandId": "tap-inbox",
-                    "commandType": "tap",
+                    "command_id": "tap-inbox",
+                    "command_type": "tap",
                     "locator": {
                       "kind": "text",
                       "value": "Inbox"
                     }
                   },
                   {
-                    "commandId": "capture-acceptance",
-                    "commandType": "captureScreenshot",
-                    "screenshotRequest": {
+                    "command_id": "capture-acceptance",
+                    "command_type": "capture_screenshot",
+                    "screenshot_request": {
                       "reason": "acceptance",
                       "name": "windows-acceptance",
-                      "includeSnapshot": true,
-                      "attachToStep": true
+                      "include_snapshot": true,
+                      "attach_to_step": true
                     }
                   }
                 ],
-                "failFast": true
+                "fail_fast": true
               },
-              "outputRoot": "$OUTPUT_ROOT_JSON"
+              "output_root": "$OUTPUT_ROOT_JSON"
             },
             "validation": {
-              "requireAcceptanceMarkdown": true,
-              "requirePrimaryScreenshot": true,
-              "requireArtifactFiles": true,
-              "requireAcceptanceSemanticEvidence": true
+              "require_acceptance_markdown": true,
+              "require_primary_screenshot": true,
+              "require_primary_recording": true,
+              "require_artifact_files": true,
+              "require_acceptance_semantic_evidence": true
             }
           }
           EOF
@@ -906,9 +964,11 @@ jobs:
           result_path = pathlib.Path(os.environ["RESULT_JSON"])
           data = json.loads(result_path.read_text())
           assert data["classification"] == "completed", data
-          summary = data["bundleSummary"]
+          assert data["validation_failures"] == [], data
+          summary = data["bundle_summary"]
           evidence = summary["evidence"]
-          assert evidence["deliveryArtifactsReady"] is True, evidence
+          assert evidence["delivery_artifacts_ready"] is True, evidence
+          assert evidence["delivery_video_ready"] is True, evidence
           PY
 
       - name: Upload Windows runtime loop bundle
