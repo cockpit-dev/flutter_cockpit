@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:test/test.dart';
 
 void main() {
-  final root = Directory.current.path;
+  final root = Directory.current.absolute.path;
 
   test('root README and goals use flutter_cockpit branding', () {
     final readme = File('$root/README.md').readAsStringSync();
@@ -50,7 +50,7 @@ void main() {
     final legacyPaths = packageRoots
         .expand((directory) => directory.listSync(recursive: true))
         .whereType<FileSystemEntity>()
-        .map((entity) => entity.path)
+        .map((entity) => _relativePath(entity.absolute.path, root))
         .where(
           (path) =>
               path.contains('flutter_pilot') || path.contains('flutter-pilot'),
@@ -59,4 +59,13 @@ void main() {
 
     expect(legacyPaths, isEmpty);
   });
+}
+
+String _relativePath(String absolutePath, String root) {
+  final normalizedRoot = root.replaceAll('\\', '/');
+  final normalizedPath = absolutePath.replaceAll('\\', '/');
+  if (normalizedPath.startsWith('$normalizedRoot/')) {
+    return normalizedPath.substring(normalizedRoot.length + 1);
+  }
+  return normalizedPath;
 }

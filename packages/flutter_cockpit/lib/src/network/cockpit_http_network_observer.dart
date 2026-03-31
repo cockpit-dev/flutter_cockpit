@@ -248,17 +248,24 @@ final class _CockpitObservedHttpClient implements HttpClient {
 
   @override
   Future<HttpClientRequest> openUrl(String method, Uri url) async {
-    final request = await _delegate.openUrl(method, url);
-    observer.markRequestStarted();
-    return _CockpitObservedHttpClientRequest(
-      request,
-      observer: observer,
-      pending: _CockpitPendingNetworkRecord(
-        requestId: observer.nextRequestId(),
-        method: method,
-        uri: url,
-      ),
+    final pending = _CockpitPendingNetworkRecord(
+      requestId: observer.nextRequestId(),
+      method: method,
+      uri: url,
     );
+    observer.markRequestStarted();
+    try {
+      final request = await _delegate.openUrl(method, url);
+      return _CockpitObservedHttpClientRequest(
+        request,
+        observer: observer,
+        pending: pending,
+      );
+    } on Object catch (error) {
+      pending.error = error.toString();
+      observer._finish(pending);
+      rethrow;
+    }
   }
 
   @override

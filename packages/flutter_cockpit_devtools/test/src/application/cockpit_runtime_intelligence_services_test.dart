@@ -12,6 +12,7 @@ import 'package:flutter_cockpit_devtools/src/application/cockpit_latest_task_sto
 import 'package:flutter_cockpit_devtools/src/application/cockpit_bundle_artifact_paths.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_list_launch_targets_service.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_read_logs_service.dart';
+import 'package:flutter_cockpit_devtools/src/application/cockpit_read_network_service.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_read_runtime_errors_service.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_read_session_logs_service.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_read_task_bundle_summary_service.dart';
@@ -419,6 +420,276 @@ void main() {
     expect(result.hasErrors, isTrue);
     expect(result.errors.single.message, 'setState called after dispose');
     expect(result.errors.single.kind, 'flutterError');
+  });
+
+  test('reads app network summary with endpoint summaries and recent failures',
+      () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'cockpit_read_network_app_handle',
+    );
+    addTearDown(() async {
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    final appFile = File('${tempDir.path}/app.json');
+    await appFile.writeAsString(
+      jsonEncode(
+        CockpitAppHandle(
+          appId: 'dev.example.app',
+          mode: CockpitAppMode.development,
+          platform: 'macos',
+          deviceId: 'macos',
+          projectDir: '/workspace/app',
+          target: 'cockpit/main.dart',
+          baseUrl: 'http://127.0.0.1:57331',
+          launchedAt: DateTime.utc(2026, 3, 30),
+        ).toJson(),
+      ),
+    );
+
+    final result = await CockpitReadNetworkService(
+      registry: CockpitSessionRegistry(),
+      readSnapshot: (baseUri, options) async {
+        expect(baseUri.toString(), 'http://127.0.0.1:57331');
+        expect(options.includeNetworkActivity, isTrue);
+        expect(options.maxNetworkEntries, 6);
+        expect(options.networkQuery.uriContains, '/api');
+        expect(options.networkQuery.onlyFailures, isFalse);
+        expect(options.networkQuery.statusCodeAtLeast, 400);
+        return CockpitRemoteSnapshotResponse(
+          snapshot: CockpitSnapshot(
+            routeName: '/inbox',
+            network: CockpitNetworkSnapshot(
+              totalEntryCount: 3,
+              failureCount: 1,
+              entries: <CockpitNetworkEntry>[
+                CockpitNetworkEntry(
+                  requestId: 'net-2',
+                  method: 'GET',
+                  uri: 'https://api.example.dev/api/messages',
+                  startedAt: DateTime.utc(2026, 3, 30, 10, 0, 1),
+                  durationMs: 90,
+                  statusCode: 503,
+                  error: 'service unavailable',
+                ),
+                CockpitNetworkEntry(
+                  requestId: 'net-3',
+                  method: 'GET',
+                  uri: 'https://api.example.dev/api/profile',
+                  startedAt: DateTime.utc(2026, 3, 30, 10, 0, 2),
+                  durationMs: 45,
+                  statusCode: 200,
+                ),
+              ],
+              endpointSummaries: <CockpitNetworkEndpointSummary>[
+                const CockpitNetworkEndpointSummary(
+                  method: 'GET',
+                  uriPattern: '/api/messages',
+                  requestCount: 2,
+                  failureCount: 1,
+                  averageDurationMs: 72,
+                  lastStatusCode: 503,
+                  latestUri: 'https://api.example.dev/api/messages',
+                ),
+                const CockpitNetworkEndpointSummary(
+                  method: 'GET',
+                  uriPattern: '/api/profile',
+                  requestCount: 1,
+                  failureCount: 0,
+                  averageDurationMs: 45,
+                  lastStatusCode: 200,
+                  latestUri: 'https://api.example.dev/api/profile',
+                ),
+              ],
+              capturedEntryCount: 5,
+              inFlightCount: 1,
+              query: const CockpitNetworkQuery(
+                uriContains: '/api',
+                statusCodeAtLeast: 400,
+              ),
+              truncated: true,
+            ),
+          ),
+        );
+      },
+    ).read(
+      CockpitReadNetworkRequest(
+        appHandlePath: appFile.path,
+        maxEntries: 6,
+        maxEndpointSummaries: 1,
+        uriContains: '/api',
+        statusCodeAtLeast: 400,
+      ),
+    );
+
+    expect(result.appId, 'dev.example.app');
+    expect(result.routeName, '/inbox');
+    expect(result.source, 'app_snapshot');
+    expect(result.available, isTrue);
+    expect(result.summary.totalEntryCount, 3);
+    expect(result.summary.failureCount, 1);
+    expect(result.summary.inFlightCount, 1);
+    expect(result.endpointSummaries, hasLength(1));
+    expect(result.endpointSummaries.single.uriPattern, '/api/messages');
+    expect(result.endpointSummariesTruncated, isTrue);
+    expect(result.recentFailures, hasLength(1));
+    expect(result.recentFailures.single.error, 'service unavailable');
+    expect(result.entries, isNull);
+  });
+
+  test('read network can include matching entries on demand', () async {
+    final result = await CockpitReadNetworkService(
+      registry: CockpitSessionRegistry(),
+      appReferenceResolver: CockpitAppReferenceResolver(),
+      readSnapshot: (baseUri, options) async {
+        expect(baseUri.toString(), 'http://127.0.0.1:57331');
+        expect(options.includeNetworkActivity, isTrue);
+        expect(options.maxNetworkEntries, 2);
+        expect(options.networkQuery.method, 'POST');
+        expect(options.networkQuery.onlyFailures, isTrue);
+        return CockpitRemoteSnapshotResponse(
+          snapshot: CockpitSnapshot(
+            routeName: '/compose',
+            network: CockpitNetworkSnapshot(
+              totalEntryCount: 1,
+              failureCount: 1,
+              entries: <CockpitNetworkEntry>[
+                CockpitNetworkEntry(
+                  requestId: 'net-9',
+                  method: 'POST',
+                  uri: 'https://api.example.dev/api/send',
+                  startedAt: DateTime.utc(2026, 3, 30, 10, 10),
+                  durationMs: 120,
+                  statusCode: 500,
+                  error: 'internal error',
+                ),
+              ],
+              endpointSummaries: const <CockpitNetworkEndpointSummary>[
+                CockpitNetworkEndpointSummary(
+                  method: 'POST',
+                  uriPattern: '/api/send',
+                  requestCount: 1,
+                  failureCount: 1,
+                  averageDurationMs: 120,
+                  lastStatusCode: 500,
+                  latestUri: 'https://api.example.dev/api/send',
+                ),
+              ],
+              capturedEntryCount: 1,
+              inFlightCount: 0,
+              query: const CockpitNetworkQuery(
+                method: 'POST',
+                onlyFailures: true,
+              ),
+            ),
+          ),
+        );
+      },
+    ).read(
+      CockpitReadNetworkRequest(
+        baseUri: Uri.parse('http://127.0.0.1:57331'),
+        maxEntries: 2,
+        method: 'POST',
+        onlyFailures: true,
+        includeEntries: true,
+      ),
+    );
+
+    expect(result.routeName, '/compose');
+    expect(result.entries, hasLength(1));
+    expect(result.entries?.single.requestId, 'net-9');
+    expect(result.recentFailures, hasLength(1));
+  });
+
+  test('read network refetches failures when summary says failures exist',
+      () async {
+    var readCount = 0;
+    final result = await CockpitReadNetworkService(
+      registry: CockpitSessionRegistry(),
+      readSnapshot: (baseUri, options) async {
+        readCount += 1;
+        if (readCount == 1) {
+          expect(options.networkQuery.onlyFailures, isFalse);
+          return CockpitRemoteSnapshotResponse(
+            snapshot: CockpitSnapshot(
+              routeName: '/inbox',
+              network: CockpitNetworkSnapshot(
+                totalEntryCount: 3,
+                failureCount: 1,
+                entries: <CockpitNetworkEntry>[
+                  CockpitNetworkEntry(
+                    requestId: 'net-3',
+                    method: 'GET',
+                    uri: 'https://api.example.dev/api/profile',
+                    startedAt: DateTime.utc(2026, 3, 30, 10, 0, 2),
+                    durationMs: 45,
+                    statusCode: 200,
+                  ),
+                ],
+                endpointSummaries: const <CockpitNetworkEndpointSummary>[
+                  CockpitNetworkEndpointSummary(
+                    method: 'GET',
+                    uriPattern: '/api/messages',
+                    requestCount: 2,
+                    failureCount: 1,
+                    averageDurationMs: 72,
+                    lastStatusCode: 503,
+                    latestUri: 'https://api.example.dev/api/messages',
+                  ),
+                ],
+                capturedEntryCount: 3,
+                inFlightCount: 0,
+                query: const CockpitNetworkQuery(uriContains: '/api'),
+              ),
+            ),
+          );
+        }
+        expect(options.networkQuery.onlyFailures, isTrue);
+        return CockpitRemoteSnapshotResponse(
+          snapshot: CockpitSnapshot(
+            routeName: '/inbox',
+            network: CockpitNetworkSnapshot(
+              totalEntryCount: 1,
+              failureCount: 1,
+              entries: <CockpitNetworkEntry>[
+                CockpitNetworkEntry(
+                  requestId: 'net-2',
+                  method: 'GET',
+                  uri: 'https://api.example.dev/api/messages',
+                  startedAt: DateTime.utc(2026, 3, 30, 10, 0, 1),
+                  durationMs: 90,
+                  statusCode: 503,
+                  error: 'service unavailable',
+                ),
+              ],
+              endpointSummaries: const <CockpitNetworkEndpointSummary>[],
+              capturedEntryCount: 3,
+              inFlightCount: 0,
+              query: const CockpitNetworkQuery(
+                uriContains: '/api',
+                onlyFailures: true,
+              ),
+            ),
+          ),
+        );
+      },
+    ).read(
+      CockpitReadNetworkRequest(
+        baseUri: Uri(
+          scheme: 'http',
+          host: '127.0.0.1',
+          port: 57331,
+        ),
+        uriContains: '/api',
+      ),
+    );
+
+    expect(readCount, 2);
+    expect(result.summary.failureCount, 1);
+    expect(result.recentFailures, hasLength(1));
+    expect(result.recentFailures.single.requestId, 'net-2');
   });
 
   test('combines latest task and active session runtime errors', () async {

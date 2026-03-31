@@ -55,6 +55,7 @@ final class CockpitCliRootRunner extends CommandRunner<int> {
       buffer,
       'Evidence',
       const <String>[
+        'read-network',
         'read-errors',
         'read-logs',
         'start-recording',

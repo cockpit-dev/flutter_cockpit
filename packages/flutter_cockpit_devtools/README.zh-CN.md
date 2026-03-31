@@ -74,6 +74,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools serve-mcp
 - `hot_restart`
 - `start_recording`
 - `stop_recording`
+- `read_network`
 - `read_logs`
 - `read_errors`
 - `stop_app`
@@ -100,8 +101,11 @@ workspace 工具：
 ## 说明
 
 - 把 `app.json` 持久化下来并跨步骤复用，这是推荐的 app 引用方式。
+- 对 example 或集成调试工程，优先走 `cockpit/main.dart` 这类 Cockpit 开发入口；网络观测和远程控制面是在这里启用的。
+- 如果应用会真的发 HTTP 请求，平台权限也要和行为保持一致：Android 需要 `INTERNET`，Apple 目标需要 outbound client entitlement，并对 loopback HTTP 打开本地网络 ATS 许可。
 - `list_apps` 只在 MCP 中暴露，因为 CLI 每次调用都是无状态进程，不保留内存中的 app registry。
 - `read_logs` 会优先读取 app-centric 的 runtime 日志；如果 `available=true` 但 `lines` 为空，通常表示应用这次没有产生日志，不代表异常。
+- `read_network` 是低 token 的网络排查入口，适合看 endpoint summary、最近失败请求，以及按需返回的有界请求明细；如果问题只和网络有关，优先走 `run_command` -> `wait_idle` -> `read_network`，不要一开始就读大 snapshot。
 - `pub` 默认返回裁剪后的依赖操作结果，而不是整段 `pub` 日志。
 - `analyze_files` 适合低 token 的定点诊断；只有在问题是全仓级别时才用 `analyze_workspace`。
 - `lsp` 使用相对路径和从 1 开始的行列号，AI 不需要手写 file URI 或做 0 基换算。

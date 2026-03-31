@@ -41,6 +41,7 @@ void main() {
           'start_recording',
           'stop_recording',
           'read_logs',
+          'read_network',
           'read_errors',
           'pub_dev_search',
           'pub',

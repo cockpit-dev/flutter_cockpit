@@ -133,6 +133,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools serve-mcp
 - `hot_restart`
 - `start_recording`
 - `stop_recording`
+- `read_network`
 - `read_logs`
 - `read_errors`
 - `stop_app`

@@ -12,6 +12,7 @@ import 'commands/list_targets_command.dart';
 import 'commands/read_app_command.dart';
 import 'commands/read_errors_command.dart';
 import 'commands/read_logs_command.dart';
+import 'commands/read_network_command.dart';
 import 'commands/run_batch_command.dart';
 import 'commands/run_command_command.dart';
 import 'commands/run_script_command.dart';
@@ -45,6 +46,7 @@ final class CockpitCommandRunner {
           ..addCommand(StartRecordingCommand())
           ..addCommand(StopRecordingCommand())
           ..addCommand(ReadLogsCommand())
+          ..addCommand(ReadNetworkCommand())
           ..addCommand(ReadErrorsCommand())
           ..addCommand(RunTaskCommand())
           ..addCommand(ValidateTaskCommand())

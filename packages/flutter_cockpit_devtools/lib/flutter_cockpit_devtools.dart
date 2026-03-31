@@ -48,6 +48,7 @@ export 'src/application/cockpit_read_latest_task_summary_service.dart';
 export 'src/application/cockpit_read_app_service.dart';
 export 'src/application/cockpit_read_errors_service.dart';
 export 'src/application/cockpit_read_logs_service.dart';
+export 'src/application/cockpit_read_network_service.dart';
 export 'src/application/cockpit_read_package_uris_service.dart';
 export 'src/application/cockpit_read_remote_snapshot_service.dart';
 export 'src/application/cockpit_read_remote_status_service.dart';

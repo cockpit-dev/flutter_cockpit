@@ -197,4 +197,48 @@ void main() {
       expect(tickCount, greaterThan(0));
     },
   );
+
+  test(
+    'CockpitHttpNetworkObserver records connection failures raised before a request is returned',
+    () async {
+      final observer = CockpitHttpNetworkObserver(maxRetainedEntries: 10);
+      observer.attachParentOverrides(_ThrowingHttpOverrides());
+
+      final client = observer.createHttpClient(null);
+
+      await expectLater(
+        client.getUrl(Uri.parse('http://127.0.0.1:63341/sync/health')),
+        throwsA(isA<SocketException>()),
+      );
+
+      final snapshot = observer.snapshot(maxEntries: 5);
+      expect(snapshot.totalEntryCount, 1);
+      expect(snapshot.failureCount, 1);
+      expect(snapshot.entries.single.method, 'GET');
+      expect(snapshot.entries.single.uri, contains('/sync/health'));
+      expect(snapshot.entries.single.error, contains('Connection failed'));
+      expect(snapshot.inFlightCount, 0);
+    },
+  );
+}
+
+final class _ThrowingHttpOverrides extends HttpOverrides {
+  @override
+  HttpClient createHttpClient(SecurityContext? context) {
+    return _ThrowingHttpClient();
+  }
+}
+
+final class _ThrowingHttpClient implements HttpClient {
+  @override
+  Future<HttpClientRequest> openUrl(String method, Uri url) {
+    throw SocketException(
+      'Connection failed',
+      address: InternetAddress('127.0.0.1'),
+      port: 63341,
+    );
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

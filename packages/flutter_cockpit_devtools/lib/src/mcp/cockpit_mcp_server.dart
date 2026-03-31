@@ -20,6 +20,7 @@ import '../application/cockpit_json_key_normalizer.dart';
 import '../application/cockpit_read_latest_task_summary_service.dart';
 import '../application/cockpit_read_app_service.dart';
 import '../application/cockpit_read_logs_service.dart';
+import '../application/cockpit_read_network_service.dart';
 import '../application/cockpit_read_remote_snapshot_service.dart';
 import '../application/cockpit_read_remote_status_service.dart';
 import '../application/cockpit_read_runtime_errors_service.dart';
@@ -68,6 +69,7 @@ import 'tools/cockpit_pub_dev_search_tool.dart';
 import 'tools/cockpit_pub_tool.dart';
 import 'tools/cockpit_read_app_tool.dart';
 import 'tools/cockpit_read_logs_tool.dart';
+import 'tools/cockpit_read_network_tool.dart';
 import 'tools/cockpit_read_package_uris_tool.dart';
 import 'tools/cockpit_read_runtime_errors_tool.dart';
 import 'tools/cockpit_read_task_bundle_summary_tool.dart';
@@ -151,6 +153,8 @@ final class CockpitMcpServer {
       registry: sessionRegistry,
     );
     final readLogsService = CockpitReadLogsService(registry: sessionRegistry);
+    final readNetworkService =
+        CockpitReadNetworkService(registry: sessionRegistry);
     final readRuntimeErrorsService = CockpitReadRuntimeErrorsService(
       registry: sessionRegistry,
       latestTaskStore: latestTaskStore,
@@ -229,6 +233,7 @@ final class CockpitMcpServer {
       CockpitStartRecordingTool(service: startRecordingService),
       CockpitStopRecordingTool(service: stopRecordingService),
       CockpitReadLogsTool(service: readLogsService),
+      CockpitReadNetworkTool(service: readNetworkService),
       CockpitReadRuntimeErrorsTool(service: readRuntimeErrorsService),
       CockpitRunRemoteControlScriptTool(registry: sessionRegistry),
       CockpitReadTaskBundleSummaryTool(),

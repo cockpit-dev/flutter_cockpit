@@ -404,7 +404,89 @@ final class _McpSurfaceVerifier {
             'compare_against_snapshot_ref': inboxSnapshotRef,
         },
       );
-      appReport['scroll_until_visible'] = await _callTool(
+      final scrollSyncCheckResult = await _callTool(
+        server,
+        'run_command',
+        <String, Object?>{
+          'app_id': appId,
+          'profile': 'inspect',
+          'timeout_ms': 20000,
+          'command': <String, Object?>{
+            'command_id': 'scroll-sync-check',
+            'command_type': 'scroll_until_visible',
+            'locator': <String, Object?>{
+              'key': 'settings-sync-check-button',
+              'text': 'Run check',
+              'route': '/settings',
+              'ancestor': <String, Object?>{'route': '/settings'},
+            },
+            'parameters': <String, Object?>{
+              'max_scrolls': 10,
+              'viewport_fraction': 0.82,
+              'continuous': true,
+              'duration_per_step_ms': 220,
+              'reveal_alignment': 'center',
+              'scrollable_locator': <String, Object?>{
+                'type': 'ListView',
+                'path': 'scaffold.body/list_view.slivers/0',
+                'route': '/settings',
+              },
+            },
+          },
+        },
+      );
+      appReport['scroll_sync_check'] = scrollSyncCheckResult;
+      _requireCommandSuccess(
+        'scroll_sync_check',
+        scrollSyncCheckResult,
+      );
+
+      final tapSyncCheckResult = await _callTool(
+        server,
+        'run_command',
+        <String, Object?>{
+          'app_id': appId,
+          'profile': 'minimal',
+          'command': <String, Object?>{
+            'command_id': 'tap-sync-check',
+            'command_type': 'tap',
+            'locator': <String, Object?>{
+              'key': 'settings-sync-check-button',
+              'text': 'Run check',
+              'route': '/settings',
+            },
+          },
+        },
+      );
+      appReport['tap_sync_check'] = tapSyncCheckResult;
+      _requireCommandSuccess('tap_sync_check', tapSyncCheckResult);
+
+      final waitIdleAfterSyncCheck = await _callTool(
+        server,
+        'wait_idle',
+        <String, Object?>{
+          'app_id': appId,
+          'timeout_ms': 5000,
+          'quiet_window_ms': 160,
+          'include_network_idle': true,
+        },
+      );
+      appReport['wait_idle_after_sync_check'] = waitIdleAfterSyncCheck;
+      _requireIdle('wait_idle_after_sync_check', waitIdleAfterSyncCheck);
+
+      final readNetworkResult = await _callTool(
+        server,
+        'read_network',
+        <String, Object?>{
+          'app_id': appId,
+          'uri_contains': '/sync/health',
+          'include_entries': true,
+        },
+      );
+      appReport['read_network'] = readNetworkResult;
+      _requireNetworkEvidence(readNetworkResult, uriContains: '/sync/health');
+
+      final scrollDebugLogResult = await _callTool(
         server,
         'run_command',
         <String, Object?>{
@@ -435,7 +517,10 @@ final class _McpSurfaceVerifier {
           },
         },
       );
-      appReport['tap_debug_log'] = await _callTool(
+      appReport['scroll_debug_log'] = scrollDebugLogResult;
+      _requireCommandSuccess('scroll_debug_log', scrollDebugLogResult);
+
+      final tapDebugLogResult = await _callTool(
         server,
         'run_command',
         <String, Object?>{
@@ -452,6 +537,9 @@ final class _McpSurfaceVerifier {
           },
         },
       );
+      appReport['tap_debug_log'] = tapDebugLogResult;
+      _requireCommandSuccess('tap_debug_log', tapDebugLogResult);
+
       appReport['read_logs'] = await _callTool(
         server,
         'read_logs',
@@ -795,6 +883,54 @@ int   sum( int left,int right ){return left+right;}
     final port = socket.port;
     await socket.close();
     return port;
+  }
+
+  void _requireCommandSuccess(String label, Map<String, Object?> result) {
+    final command = result['command'] as Map<Object?, Object?>?;
+    final success = command?['success'] as bool?;
+    if (success == true) {
+      return;
+    }
+    throw StateError(
+      '$label did not complete successfully: ${jsonEncode(result)}',
+    );
+  }
+
+  void _requireIdle(String label, Map<String, Object?> result) {
+    final idle = result['idle'] as bool?;
+    if (idle == true) {
+      return;
+    }
+    throw StateError('$label did not reach idle: ${jsonEncode(result)}');
+  }
+
+  void _requireNetworkEvidence(
+    Map<String, Object?> result, {
+    required String uriContains,
+  }) {
+    final summary = result['summary'] as Map<Object?, Object?>?;
+    final totalEntryCount = summary?['total_entry_count'] as int? ?? 0;
+    if (totalEntryCount <= 0) {
+      throw StateError(
+        'read_network did not capture any matching traffic for $uriContains: '
+        '${jsonEncode(result)}',
+      );
+    }
+    final endpointSummaries =
+        (result['endpoint_summaries'] as List<Object?>? ?? const <Object?>[])
+            .whereType<Map<Object?, Object?>>();
+    final matchedEndpoint = endpointSummaries.any((summary) {
+      final uriPattern = '${summary['uri_pattern'] ?? ''}';
+      final latestUri = '${summary['latest_uri'] ?? ''}';
+      return uriPattern.contains(uriContains) ||
+          latestUri.contains(uriContains);
+    });
+    if (!matchedEndpoint) {
+      throw StateError(
+        'read_network captured traffic but not the expected endpoint '
+        '$uriContains: ${jsonEncode(result)}',
+      );
+    }
   }
 
   Map<String, Object?> _scriptJson({

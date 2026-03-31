@@ -33,12 +33,15 @@ Keep each cycle small:
 - Start with `minimal` when you only need route, app reachability, or a tiny state check.
 - Use `standard` when you need a small UI summary after an action.
 - Use `inspect` when a locator is ambiguous, scrolling failed, or the UI changed in an unexpected way.
+- Use `read-network` when the missing fact is request traffic, endpoint coverage, or recent network failures.
+- For network questions, prefer `run-command` -> `wait-idle` -> `read-network` over a large snapshot read.
 - Use `evidence` only for final proof, hard bugs, or artifact-heavy diagnosis.
 
 ## Command Strategy
 
 - Prefer one `run-command` per decision point.
 - Use `run-batch` only for short deterministic sequences that do not need mid-step reasoning.
+- Prefer `read-network` over `inspect-ui` when the uncertainty is purely about HTTP traffic.
 - Prefer locator combinations like `key + text + ancestor.route` over long brittle paths.
 - Use fuzzy `path` only when semantic signals are insufficient.
 - Add `fallbacks` when the same intent can be reached through 2-3 stable signals.

@@ -22,11 +22,11 @@ Do not use it for docs-only edits or static refactors with no runtime claim.
 ## Required Workflow
 
 1. `bootstrap`
-   Use `launch_app` / `launch-app`. On CLI, persist `app.json`. On MCP, `list_apps` can recover tracked apps.
+   Use `launch_app` / `launch-app`. Prefer a Cockpit development entrypoint such as `cockpit/main.dart` when the project provides one. On CLI, persist `app.json`. On MCP, `list_apps` can recover tracked apps.
 2. `baseline`
    Start with `read_app` / `read-app --profile minimal`.
 3. `execute`
-   Prefer `run_command` for one action and `run_batch` for short ordered steps. Use `wait_idle`, `read_errors`, `read_logs`, `hot_reload`, and `hot_restart` only when they answer the next question.
+   Prefer `run_command` for one action and `run_batch` for short ordered steps. Use `wait_idle`, `read_network`, `read_errors`, `read_logs`, `hot_reload`, and `hot_restart` only when they answer the next question.
    For code-side questions, prefer `lsp`, `analyze_files`, and `pub` before broader workspace commands.
 4. `observe`
    Re-read with the smallest profile that answers the next missing fact.
@@ -56,6 +56,8 @@ For the shortest edit -> reload -> verify loop, use the rapid loop reference ins
 
 - Prefer `minimal` or `standard` unless the current question is still ambiguous.
 - Prefer `read_app` and `inspect_ui` summaries before raw snapshot payloads.
+- Prefer `read_network` over snapshot diagnostics when the next question is only about requests, failures, or endpoint coverage.
+- For traffic verification, use `run_command` -> `wait_idle` -> `read_network` before escalating to heavier UI inspection.
 - Prefer bundle summaries and gate failures before opening large artifact files.
 - Ask for one missing fact per step, not every diagnostic dimension at once.
 
@@ -67,6 +69,7 @@ For the shortest edit -> reload -> verify loop, use the rapid loop reference ins
 - One action: `run_command` / `run-command`
 - Ordered steps: `run_batch` / `run-batch`
 - Settle: `wait_idle` / `wait-idle`
+- Network activity: `read_network` / `read-network`
 - Runtime failures: `read_errors` / `read-errors`
 - App-centric logs: `read_logs` / `read-logs`
 - Dependency search: `pub_dev_search`
@@ -76,6 +79,7 @@ For the shortest edit -> reload -> verify loop, use the rapid loop reference ins
 - Code intelligence: `lsp`
 - Code changes: `hot_reload`, `hot_restart`
 - Evidence capture: `start_recording`, `stop_recording`
+- Cleanup: `stop_app` / `stop-app` when you launched the app for this loop
 - Running-app bundle: `run_script` / `run-script`
 - Full orchestration: `run_task` / `run-task`
 - Final delivery gate: `validate_task` / `validate-task`
@@ -90,6 +94,7 @@ Do not report completion unless you have:
 - used `validate_task` / `validate-task` for final acceptance-facing claims
 - identified concrete evidence paths when a bundle is involved
 - treated `run_script` bundle failures as real task failures
+- cleaned up owned app processes when the loop is finished or intentionally left them running
 
 ## References
 
@@ -97,4 +102,6 @@ Do not report completion unless you have:
 - [`examples/cli-command-reference.md`](examples/cli-command-reference.md)
 - [`examples/runtime-validation.md`](examples/runtime-validation.md)
 - [`examples/acceptance-delivery.md`](examples/acceptance-delivery.md)
+- [`examples/failure-with-evidence.md`](examples/failure-with-evidence.md)
+- [`examples/flutter-app-setup.md`](examples/flutter-app-setup.md)
 - [`examples/host-devtools-setup.md`](examples/host-devtools-setup.md)

@@ -133,6 +133,7 @@ Core tools:
 - `hot_restart`
 - `start_recording`
 - `stop_recording`
+- `read_network`
 - `read_logs`
 - `read_errors`
 - `stop_app`

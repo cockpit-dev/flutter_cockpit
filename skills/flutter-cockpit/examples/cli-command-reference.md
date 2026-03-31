@@ -76,6 +76,16 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --app-json /tmp/flutter_cockpit/app.json
 ```
 
+Read network after an action settles:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  read-network \
+  --app-json /tmp/flutter_cockpit/app.json \
+  --uri-contains /api \
+  --only-failures
+```
+
 Read logs or runtime errors:
 
 ```bash

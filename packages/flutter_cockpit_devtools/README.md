@@ -74,6 +74,7 @@ Core tools:
 - `hot_restart`
 - `start_recording`
 - `stop_recording`
+- `read_network`
 - `read_logs`
 - `read_errors`
 - `stop_app`
@@ -100,8 +101,11 @@ Resources and prompts are also exposed for goals, contracts, task summaries, roo
 ## Notes
 
 - Persist `app.json` and reuse it. It is the preferred app reference across steps.
+- For example apps, prefer the Cockpit development entrypoint such as `cockpit/main.dart`; that is where network observation and the remote control surface are enabled.
+- If the app makes live HTTP calls, keep platform permissions aligned with that behavior: Android needs `INTERNET`, and Apple targets need outbound client entitlement plus local-network ATS allowance for loopback HTTP.
 - `list_apps` is MCP-only because the CLI does not keep an in-memory app registry across invocations.
 - `read_logs` reads app-centric runtime lines first. `available=true` with an empty `lines` array is valid when the app emitted no runtime logs.
+- `read_network` is the low-token path for endpoint summaries, recent failures, and optional bounded entries. Prefer `run_command` -> `wait_idle` -> `read_network` over `inspect_ui` when the question is only about network traffic.
 - `pub` keeps dependency edits bounded and returns previews instead of full `pub` logs by default.
 - `analyze_files` is the low-token path for focused diagnostics; use `analyze_workspace` only when the question is workspace-wide.
 - `lsp` uses relative paths plus 1-based line and column inputs so agents do not need file URIs or zero-based math.

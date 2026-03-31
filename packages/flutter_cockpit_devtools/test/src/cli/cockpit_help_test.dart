@@ -10,6 +10,7 @@ import 'package:flutter_cockpit_devtools/src/cli/commands/list_targets_command.d
 import 'package:flutter_cockpit_devtools/src/cli/commands/read_app_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/read_errors_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/read_logs_command.dart';
+import 'package:flutter_cockpit_devtools/src/cli/commands/read_network_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/run_batch_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/run_command_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/run_script_command.dart';
@@ -29,6 +30,7 @@ void main() {
     expect(help, contains('Fast loop:'));
     expect(help, contains('launch-app'));
     expect(help, contains('run-command'));
+    expect(help, contains('read-network'));
     expect(help, contains('run-task'));
     expect(help, contains('Use --output-json'));
   });
@@ -122,6 +124,7 @@ final List<dynamic> _topLevelCommands = <dynamic>[
   StopRecordingCommand(),
   ReadLogsCommand(),
   ReadErrorsCommand(),
+  ReadNetworkCommand(),
   RunTaskCommand(),
   ValidateTaskCommand(),
   ServeMcpCommand(),
