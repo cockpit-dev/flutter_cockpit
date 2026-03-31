@@ -1,7 +1,10 @@
 import 'package:flutter_cockpit_devtools/src/mcp/core/cockpit_mcp_feature_category.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/core/cockpit_mcp_roots_tracker.dart';
+import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_analyze_files_tool.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_create_project_tool.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_execute_remote_command_tool.dart';
+import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_lsp_tool.dart';
+import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_pub_tool.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_pub_dev_search_tool.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_query_remote_session_tool.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_read_remote_status_tool.dart';
@@ -86,6 +89,51 @@ void main() {
     ]);
     expect(tool.definition.annotations.longRunning, isTrue);
     expect(tool.definition.annotations.readOnly, isFalse);
+  });
+
+  test('pub is writable dependency intelligence', () {
+    final tool = CockpitPubTool(
+      rootsTracker: CockpitMcpRootsTracker(forceFallback: true),
+      run: (_) async => throw UnimplementedError(),
+    );
+
+    expect(tool.definition.name, 'pub');
+    expect(tool.definition.categories, <CockpitMcpFeatureCategory>[
+      CockpitMcpFeatureCategory.workspace,
+      CockpitMcpFeatureCategory.dependencyIntelligence,
+    ]);
+    expect(tool.definition.annotations.readOnly, isFalse);
+    expect(tool.definition.annotations.longRunning, isTrue);
+  });
+
+  test('analyze_files is read-only focused analysis', () {
+    final tool = CockpitAnalyzeFilesTool(
+      rootsTracker: CockpitMcpRootsTracker(forceFallback: true),
+      analyze: (_) async => throw UnimplementedError(),
+    );
+
+    expect(tool.definition.name, 'analyze_files');
+    expect(tool.definition.categories, <CockpitMcpFeatureCategory>[
+      CockpitMcpFeatureCategory.workspace,
+      CockpitMcpFeatureCategory.workspaceQuality,
+      CockpitMcpFeatureCategory.codeIntelligence,
+    ]);
+    expect(tool.definition.annotations.readOnly, isTrue);
+  });
+
+  test('lsp is read-only code intelligence', () {
+    final tool = CockpitLspTool(
+      rootsTracker: CockpitMcpRootsTracker(forceFallback: true),
+      invoke: (_) async => throw UnimplementedError(),
+    );
+
+    expect(tool.definition.name, 'lsp');
+    expect(tool.definition.categories, <CockpitMcpFeatureCategory>[
+      CockpitMcpFeatureCategory.workspace,
+      CockpitMcpFeatureCategory.codeIntelligence,
+    ]);
+    expect(tool.definition.annotations.readOnly, isTrue);
+    expect(tool.definition.annotations.longRunning, isFalse);
   });
 
   test('execute_remote_command is session-scoped execution', () {

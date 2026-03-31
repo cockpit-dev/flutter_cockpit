@@ -52,6 +52,7 @@ import 'resources/cockpit_workspace_contracts_resource.dart';
 import 'resources/cockpit_workspace_goals_resource.dart';
 import 'resources/cockpit_workspace_roots_resource.dart';
 import 'tools/cockpit_add_roots_tool.dart';
+import 'tools/cockpit_analyze_files_tool.dart';
 import 'tools/cockpit_analyze_workspace_tool.dart';
 import 'tools/cockpit_apply_workspace_fixes_tool.dart';
 import 'tools/cockpit_create_project_tool.dart';
@@ -59,10 +60,12 @@ import 'tools/cockpit_format_workspace_tool.dart';
 import 'tools/cockpit_hot_reload_tool.dart';
 import 'tools/cockpit_hot_restart_tool.dart';
 import 'tools/cockpit_inspect_ui_tool.dart';
+import 'tools/cockpit_lsp_tool.dart';
 import 'tools/cockpit_launch_app_tool.dart';
 import 'tools/cockpit_list_apps_tool.dart';
 import 'tools/cockpit_list_launch_targets_tool.dart';
 import 'tools/cockpit_pub_dev_search_tool.dart';
+import 'tools/cockpit_pub_tool.dart';
 import 'tools/cockpit_read_app_tool.dart';
 import 'tools/cockpit_read_logs_tool.dart';
 import 'tools/cockpit_read_package_uris_tool.dart';
@@ -114,6 +117,18 @@ final class CockpitMcpServer {
   }) {
     final rootsTracker = CockpitMcpRootsTracker(
       forceFallback: forceRootsFallback,
+    );
+    final resolvedGoalsFilePath = _resolveWorkspacePathForStandardServer(
+      goalsFilePath,
+      workspaceRoots: workspaceRoots,
+    );
+    final resolvedSkillContractPath = _resolveWorkspacePathForStandardServer(
+      skillContractPath,
+      workspaceRoots: workspaceRoots,
+    );
+    final resolvedBundleContractPath = _resolveWorkspacePathForStandardServer(
+      bundleContractPath,
+      workspaceRoots: workspaceRoots,
     );
     if (workspaceRoots.isNotEmpty) {
       rootsTracker.addFallbackRoots(
@@ -220,7 +235,10 @@ final class CockpitMcpServer {
       CockpitRunTaskTool(latestTaskStore: latestTaskStore),
       CockpitValidateTaskTool(),
       CockpitPubDevSearchTool(),
+      CockpitPubTool(rootsTracker: rootsTracker),
       CockpitReadPackageUrisTool(rootsTracker: rootsTracker),
+      CockpitLspTool(rootsTracker: rootsTracker),
+      CockpitAnalyzeFilesTool(rootsTracker: rootsTracker),
       CockpitCreateProjectTool(rootsTracker: rootsTracker),
       CockpitAnalyzeWorkspaceTool(rootsTracker: rootsTracker),
       CockpitFormatWorkspaceTool(rootsTracker: rootsTracker),
@@ -235,12 +253,12 @@ final class CockpitMcpServer {
       CockpitCreateProjectWithValidationPrompt(),
     ];
     final baseResources = <CockpitMcpResource>[
-      CockpitWorkspaceGoalsResource(goalsFilePath: goalsFilePath),
+      CockpitWorkspaceGoalsResource(goalsFilePath: resolvedGoalsFilePath),
       CockpitWorkspaceSkillContractResource(
-        skillContractPath: skillContractPath,
+        skillContractPath: resolvedSkillContractPath,
       ),
       CockpitWorkspaceTaskBundleContractResource(
-        bundleContractPath: bundleContractPath,
+        bundleContractPath: resolvedBundleContractPath,
       ),
       CockpitWorkspaceRootsResource(
         service: CockpitListWorkspaceRootsService(
@@ -577,4 +595,17 @@ final class CockpitMcpServer {
       details: <String, Object?>{'parameter': key},
     );
   }
+}
+
+String _resolveWorkspacePathForStandardServer(
+  String candidate, {
+  required List<String> workspaceRoots,
+}) {
+  if (p.isAbsolute(candidate)) {
+    return p.normalize(candidate);
+  }
+  if (workspaceRoots.isNotEmpty) {
+    return p.normalize(p.join(workspaceRoots.first, candidate));
+  }
+  return p.normalize(candidate);
 }

@@ -8,10 +8,12 @@ final class CockpitAnalyzeWorkspaceRequest {
   const CockpitAnalyzeWorkspaceRequest({
     required this.workspaceRoot,
     this.allowedRoots = const <String>[],
+    this.timeout = const Duration(seconds: 180),
   });
 
   final String workspaceRoot;
   final List<String> allowedRoots;
+  final Duration timeout;
 }
 
 final class CockpitAnalyzeWorkspaceService {
@@ -39,6 +41,7 @@ final class CockpitAnalyzeWorkspaceService {
       toolchain: null,
       dartArguments: const <String>['analyze'],
       flutterArguments: const <String>['analyze'],
+      timeout: request.timeout,
     );
   }
 }

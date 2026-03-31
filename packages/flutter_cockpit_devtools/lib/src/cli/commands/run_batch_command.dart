@@ -24,6 +24,12 @@ final class RunBatchCommand extends CockpitCliCommand {
     cockpitAddAppArgs(argParser);
     cockpitAddProfileArg(argParser);
     cockpitAddCommandsJsonArgs(argParser);
+    cockpitAddCommandTimeoutArg(
+      argParser,
+      optionName: 'default-timeout-ms',
+      help:
+          'Default timeout in milliseconds for commands that omit timeout_ms.',
+    );
     argParser.addFlag(
       'fail-fast',
       defaultsTo: true,
@@ -69,7 +75,7 @@ final class RunBatchCommand extends CockpitCliCommand {
 
   @override
   String get helpShape =>
-      'commands.json = [{"command_id":"open-inbox","command_type":"tap","parameters":{"text":"Inbox"}}]; each item may also set result_profile, snapshot_options, or compare_against_snapshot_ref.';
+      'commands.json = [{"command_id":"open-today","command_type":"tap","locator":{"text":"Today","type":"NavigationDestinationLabel"}}]; each item may also set timeout_ms, result_profile, snapshot_options, or compare_against_snapshot_ref.';
 
   @override
   String get helpExample =>
@@ -111,6 +117,10 @@ final class RunBatchCommand extends CockpitCliCommand {
         commands: commandsJson.map(_readBatchCommand).toList(growable: false),
         defaultResultProfile: cockpitReadResultProfile(argResults),
         failFast: argResults?['fail-fast'] as bool? ?? true,
+        defaultCommandTimeout: Duration(
+          milliseconds:
+              cockpitReadOptionalInt(argResults, 'default-timeout-ms') ?? 4000,
+        ),
         recording: recordingJson == null
             ? null
             : CockpitRecordingRequest.fromJson(

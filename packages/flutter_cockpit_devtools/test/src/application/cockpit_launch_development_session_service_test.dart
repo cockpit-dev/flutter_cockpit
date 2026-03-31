@@ -148,15 +148,18 @@ void main() {
         },
         portForwarder: const _StubPortForwarder(57331),
         flutterVersionReader: () async => '3.39.0',
+        flutterExecutableReader: () async => '/opt/flutter/bin/flutter',
         allocatePort: () async => spawnCalls.isEmpty ? 60001 : 60002,
         delay: (_) async {},
         spawnSupervisor: ({
           required request,
           required flutterVersion,
+          required flutterExecutable,
           required hostPort,
           required supervisorPort,
           required supervisorLogFile,
         }) async {
+          expect(flutterExecutable, '/opt/flutter/bin/flutter');
           final baseUri = Uri.parse('http://127.0.0.1:$supervisorPort');
           spawnCalls.add(baseUri);
           return CockpitSpawnedDevelopmentSupervisor(
@@ -195,11 +198,13 @@ void main() {
         },
         portForwarder: const _StubPortForwarder(57331),
         flutterVersionReader: () async => '3.39.0',
+        flutterExecutableReader: () async => '/opt/flutter/bin/flutter',
         allocatePort: () async => 60011,
         delay: (_) async {},
         spawnSupervisor: ({
           required request,
           required flutterVersion,
+          required flutterExecutable,
           required hostPort,
           required supervisorPort,
           required supervisorLogFile,
@@ -232,6 +237,63 @@ void main() {
           ),
         ),
       );
+    },
+  );
+
+  test(
+    'daemon launcher fails fast when supervisor reports a permanent startup error',
+    () async {
+      var spawnCount = 0;
+      final launcher = CockpitDevelopmentSessionDaemonLauncher(
+        supervisorStatusReader: (_) async =>
+            CockpitDevelopmentSessionSupervisorResponse(
+          sessionHandle: _handle(),
+          status: _readyStatus(_handle()).copyWith(
+            state: CockpitDevelopmentSessionState.failed,
+            lastError: 'flutter build failed: missing entitlement',
+          ),
+        ),
+        portForwarder: const _StubPortForwarder(57331),
+        flutterVersionReader: () async => '3.39.0',
+        flutterExecutableReader: () async => '/opt/flutter/bin/flutter',
+        allocatePort: () async => 60012,
+        delay: (_) async {},
+        spawnSupervisor: ({
+          required request,
+          required flutterVersion,
+          required flutterExecutable,
+          required hostPort,
+          required supervisorPort,
+          required supervisorLogFile,
+        }) async {
+          spawnCount += 1;
+          return CockpitSpawnedDevelopmentSupervisor(
+            baseUri: Uri.parse('http://127.0.0.1:$supervisorPort'),
+            stop: () async {},
+          );
+        },
+      );
+
+      await expectLater(
+        () => launcher.launch(
+          const CockpitLaunchDevelopmentSessionRequest(
+            projectDir: '/workspace/examples/cockpit_demo',
+            target: 'lib/main.dart',
+            platform: 'macos',
+            deviceId: 'macos',
+            sessionPort: 47331,
+            launchTimeout: Duration(seconds: 30),
+          ),
+        ),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            contains('missing entitlement'),
+          ),
+        ),
+      );
+      expect(spawnCount, 1);
     },
   );
 
@@ -281,11 +343,13 @@ void main() {
         ),
         portForwarder: const _ThrowingPortForwarder(),
         flutterVersionReader: () async => '3.39.0',
+        flutterExecutableReader: () async => '/opt/flutter/bin/flutter',
         allocatePort: () async => 60003,
         delay: (_) async {},
         spawnSupervisor: ({
           required request,
           required flutterVersion,
+          required flutterExecutable,
           required hostPort,
           required supervisorPort,
           required supervisorLogFile,
@@ -363,11 +427,13 @@ void main() {
         ),
         portForwarder: const _ThrowingPortForwarder(),
         flutterVersionReader: () async => '3.39.0',
+        flutterExecutableReader: () async => '/opt/flutter/bin/flutter',
         allocatePort: () async => 60004,
         delay: (_) async {},
         spawnSupervisor: ({
           required request,
           required flutterVersion,
+          required flutterExecutable,
           required hostPort,
           required supervisorPort,
           required supervisorLogFile,
@@ -445,11 +511,13 @@ void main() {
         ),
         portForwarder: const _ThrowingPortForwarder(),
         flutterVersionReader: () async => '3.39.0',
+        flutterExecutableReader: () async => '/opt/flutter/bin/flutter',
         allocatePort: () async => 60005,
         delay: (_) async {},
         spawnSupervisor: ({
           required request,
           required flutterVersion,
+          required flutterExecutable,
           required hostPort,
           required supervisorPort,
           required supervisorLogFile,

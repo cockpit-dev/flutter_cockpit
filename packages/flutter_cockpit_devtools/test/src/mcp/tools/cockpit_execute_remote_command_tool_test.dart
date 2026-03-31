@@ -40,7 +40,7 @@ void main() {
         'commandId': 'tap-1',
         'commandType': 'tap',
       },
-      'result_profile': 'minimal',
+      'profile': 'minimal',
     });
 
     expect(capturedRequest?.command.commandId, 'tap-1');

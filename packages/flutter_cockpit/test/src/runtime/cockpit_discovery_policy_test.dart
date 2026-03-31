@@ -210,7 +210,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(innerScrolled, isFalse);
+      expect(innerScrolled.didScroll, isFalse);
+      expect(innerScrolled.scrollableKey, isNull);
       expect(innerController.offset, equals(0));
       expect(outerController.offset, equals(0));
     },

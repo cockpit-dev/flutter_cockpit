@@ -130,6 +130,13 @@ final class CockpitAppReferenceResolver {
         details: <String, Object?>{'path': path},
       );
     }
-    return CockpitAppHandle.fromJson(Map<String, Object?>.from(decoded));
+    final normalized = Map<String, Object?>.from(decoded);
+    final wrappedApp = normalized['app'];
+    if (wrappedApp is Map<Object?, Object?>) {
+      return CockpitAppHandle.fromJson(
+        Map<String, Object?>.from(wrappedApp),
+      );
+    }
+    return CockpitAppHandle.fromJson(normalized);
   }
 }

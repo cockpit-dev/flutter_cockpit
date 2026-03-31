@@ -81,6 +81,28 @@ String cockpitFlutterExecutable({bool? isWindows}) {
   return (isWindows ?? Platform.isWindows) ? 'flutter.bat' : 'flutter';
 }
 
+Future<String> cockpitResolveActiveFlutterExecutable({
+  CockpitFlutterCommandRunner processRunner = Process.run,
+  bool? isWindows,
+}) async {
+  final defaultExecutable = cockpitFlutterExecutable(isWindows: isWindows);
+  final lookupExecutable =
+      (isWindows ?? Platform.isWindows) ? 'where' : 'which';
+  final result =
+      await processRunner(lookupExecutable, <String>[defaultExecutable]);
+  if (result.exitCode != 0) {
+    return defaultExecutable;
+  }
+  final resolved = '${result.stdout}'
+      .split(RegExp(r'[\r\n]+'))
+      .map((line) => line.trim())
+      .firstWhere(
+        (line) => line.isNotEmpty,
+        orElse: () => defaultExecutable,
+      );
+  return resolved.isEmpty ? defaultExecutable : resolved;
+}
+
 Future<String> cockpitReadActiveFlutterVersion({
   CockpitFlutterCommandRunner processRunner = Process.run,
   bool? isWindows,

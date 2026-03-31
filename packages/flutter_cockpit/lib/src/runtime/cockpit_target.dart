@@ -24,9 +24,14 @@ final class CockpitTarget {
     this.text,
     this.tooltip,
     this.typeName,
+    this.path,
+    this.scrollablePath,
+    this.scrollableKeyValue,
+    this.scrollableTypeName,
     required this.routeName,
     this.isVisible = true,
     this.supportedCommands = const <CockpitCommandType>{},
+    this.locatorAncestors = const <CockpitSnapshotAncestor>[],
     this.onTap,
     this.onLongPress,
     this.onDoubleTap,
@@ -51,9 +56,14 @@ final class CockpitTarget {
   final String? text;
   final String? tooltip;
   final String? typeName;
+  final String? path;
+  final String? scrollablePath;
+  final String? scrollableKeyValue;
+  final String? scrollableTypeName;
   final String routeName;
   final bool isVisible;
   final Set<CockpitCommandType> supportedCommands;
+  final List<CockpitSnapshotAncestor> locatorAncestors;
   final CockpitTapHandler? onTap;
   final CockpitLongPressHandler? onLongPress;
   final CockpitDoubleTapHandler? onDoubleTap;
@@ -85,6 +95,10 @@ final class CockpitTarget {
       text: text,
       tooltip: tooltip,
       typeName: typeName,
+      path: path,
+      scrollablePath: scrollablePath,
+      scrollableKeyValue: scrollableKeyValue,
+      scrollableTypeName: scrollableTypeName,
       routeName: routeName,
       supportedCommands: supportedCommands.toList(growable: false),
     );
@@ -101,6 +115,10 @@ final class CockpitTarget {
             other.text == text &&
             other.tooltip == tooltip &&
             other.typeName == typeName &&
+            other.path == path &&
+            other.scrollablePath == scrollablePath &&
+            other.scrollableKeyValue == scrollableKeyValue &&
+            other.scrollableTypeName == scrollableTypeName &&
             other.routeName == routeName &&
             other.isVisible == isVisible &&
             other.diagnosticNodeProvider == diagnosticNodeProvider &&
@@ -119,6 +137,10 @@ final class CockpitTarget {
         text,
         tooltip,
         typeName,
+        path,
+        scrollablePath,
+        scrollableKeyValue,
+        scrollableTypeName,
         routeName,
         isVisible,
         diagnosticNodeProvider,

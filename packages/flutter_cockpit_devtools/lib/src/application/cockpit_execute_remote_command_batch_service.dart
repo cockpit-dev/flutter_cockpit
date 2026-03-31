@@ -40,6 +40,7 @@ final class CockpitExecuteRemoteCommandBatchRequest {
     this.recording,
     this.finalSnapshotProfile,
     this.finalSnapshotOptions,
+    this.defaultCommandTimeout = const Duration(seconds: 4),
   });
 
   final List<CockpitInteractiveBatchCommand> commands;
@@ -52,6 +53,7 @@ final class CockpitExecuteRemoteCommandBatchRequest {
   final CockpitRecordingRequest? recording;
   final CockpitInteractiveResultProfile? finalSnapshotProfile;
   final CockpitSnapshotOptions? finalSnapshotOptions;
+  final Duration defaultCommandTimeout;
 }
 
 final class CockpitExecuteRemoteCommandBatchSummary {
@@ -189,6 +191,7 @@ final class CockpitExecuteRemoteCommandBatchService {
                 batchCommand.resultProfile ?? request.defaultResultProfile,
             snapshotOptions: batchCommand.snapshotOptions,
             compareAgainstSnapshotRef: batchCommand.compareAgainstSnapshotRef,
+            defaultCommandTimeout: request.defaultCommandTimeout,
           ),
         );
         results.add(result);

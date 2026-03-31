@@ -31,7 +31,7 @@ final class CockpitInspectUiTool extends CockpitMcpTool {
           'app_id': <String, Object?>{'type': 'string'},
           'app_json': <String, Object?>{'type': 'string'},
           'base_url': <String, Object?>{'type': 'string'},
-          'result_profile': <String, Object?>{'type': 'string'},
+          'profile': <String, Object?>{'type': 'string'},
           'snapshot_options': <String, Object?>{'type': 'object'},
           'compare_against_snapshot_ref': <String, Object?>{'type': 'string'},
         },
@@ -63,7 +63,7 @@ final class CockpitInspectUiTool extends CockpitMcpTool {
   }
 
   CockpitInteractiveResultProfile _readProfile(Map<String, Object?> arguments) {
-    final value = arguments['result_profile'];
+    final value = arguments['profile'] ?? arguments['result_profile'];
     if (value == null) {
       return const CockpitInteractiveResultProfile.inspect();
     }

@@ -152,6 +152,15 @@ void cockpitAddCommandsJsonArgs(ArgParser parser) {
     );
 }
 
+void cockpitAddCommandTimeoutArg(
+  ArgParser parser, {
+  String optionName = 'timeout-ms',
+  String help =
+      'Default command timeout in milliseconds. Applied only when a command does not already set timeout_ms.',
+}) {
+  parser.addOption(optionName, help: help);
+}
+
 void cockpitAddRecordingArgs(
   ArgParser parser, {
   String inlineOption = 'recording-json',

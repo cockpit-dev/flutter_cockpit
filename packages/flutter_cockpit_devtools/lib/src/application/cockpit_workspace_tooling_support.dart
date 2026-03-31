@@ -1,3 +1,7 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:path/path.dart' as p;
 
 import '../infrastructure/cockpit_file_system.dart';
@@ -104,6 +108,7 @@ Future<CockpitWorkspaceCommandResult> runWorkspaceCommand({
   required CockpitWorkspaceToolchain? toolchain,
   required List<String> dartArguments,
   List<String>? flutterArguments,
+  Duration? timeout,
 }) async {
   final normalizedRoot =
       assertWorkspaceRootAllowed(workspaceRoot, allowedRoots);
@@ -115,19 +120,100 @@ Future<CockpitWorkspaceCommandResult> runWorkspaceCommand({
   final arguments = effectiveToolchain == CockpitWorkspaceToolchain.flutter
       ? (flutterArguments ?? dartArguments)
       : dartArguments;
-  final result = await processManager.run(
+  return runWorkspaceProcess(
+    processManager: processManager,
+    executable: executable,
+    arguments: arguments,
+    workingDirectory: normalizedRoot,
+    timeout: timeout,
+  );
+}
+
+Future<CockpitWorkspaceCommandResult> runWorkspaceProcess({
+  required CockpitProcessManager processManager,
+  required String executable,
+  required List<String> arguments,
+  required String workingDirectory,
+  Duration? timeout,
+}) async {
+  final command = CockpitWorkspaceCommand(
+    executable: executable,
+    arguments: List<String>.unmodifiable(arguments),
+    workingDirectory: workingDirectory,
+  );
+  if (timeout == null) {
+    final result = await processManager.run(
+      executable,
+      arguments,
+      workingDirectory: workingDirectory,
+    );
+    return CockpitWorkspaceCommandResult(
+      command: command,
+      exitCode: result.exitCode,
+      stdout: cockpitProcessOutputText(result.stdout),
+      stderr: cockpitProcessOutputText(result.stderr),
+    );
+  }
+
+  final process = await processManager.start(
     executable,
     arguments,
-    workingDirectory: normalizedRoot,
+    workingDirectory: workingDirectory,
   );
-  return CockpitWorkspaceCommandResult(
-    command: CockpitWorkspaceCommand(
-      executable: executable,
-      arguments: List<String>.unmodifiable(arguments),
-      workingDirectory: normalizedRoot,
-    ),
-    exitCode: result.exitCode,
-    stdout: '${result.stdout}',
-    stderr: '${result.stderr}',
-  );
+  final stdoutFuture = process.stdout.transform(utf8.decoder).join();
+  final stderrFuture = process.stderr.transform(utf8.decoder).join();
+  try {
+    final exitCode = await process.exitCode.timeout(timeout);
+    return CockpitWorkspaceCommandResult(
+      command: command,
+      exitCode: exitCode,
+      stdout: await stdoutFuture,
+      stderr: await stderrFuture,
+    );
+  } on TimeoutException {
+    if (process.pid != 0) {
+      process.kill(ProcessSignal.sigkill);
+    }
+    final stdout = await stdoutFuture.timeout(
+      const Duration(milliseconds: 200),
+      onTimeout: () => '',
+    );
+    final stderr = await stderrFuture.timeout(
+      const Duration(milliseconds: 200),
+      onTimeout: () => '',
+    );
+    throw CockpitApplicationServiceException(
+      code: 'workspaceCommandTimedOut',
+      message: 'Workspace command timed out.',
+      details: <String, Object?>{
+        'timeoutMs': timeout.inMilliseconds,
+        'command': command.toJson(),
+        if (stdout.trim().isNotEmpty) 'stdoutPreview': _outputPreview(stdout),
+        if (stderr.trim().isNotEmpty) 'stderrPreview': _outputPreview(stderr),
+      },
+    );
+  } finally {
+    await process.exitCode.timeout(
+      const Duration(seconds: 2),
+      onTimeout: () => -1,
+    );
+  }
+}
+
+String cockpitProcessOutputText(Object? value) {
+  if (value is String) {
+    return value;
+  }
+  if (value is List<int>) {
+    return utf8.decode(value);
+  }
+  return '$value';
+}
+
+String _outputPreview(String output, {int maxChars = 800}) {
+  final normalized = output.trim();
+  if (normalized.length <= maxChars) {
+    return normalized;
+  }
+  return '${normalized.substring(0, maxChars).trimRight()}...';
 }

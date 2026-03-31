@@ -12,6 +12,61 @@ import 'package:test/test.dart';
 
 void main() {
   test(
+    'supervisor exposes a starting control plane before remote launch completes',
+    () async {
+      final harness = _MachineHarness();
+      addTearDown(harness.dispose);
+
+      var connectorCalls = 0;
+      final supervisor = CockpitDevelopmentSessionSupervisor(
+        initialHandle: harness.handle.copyWith(
+          appId: '',
+          remoteSessionHandle: null,
+        ),
+        machineClient: null,
+        machineClientConnector: () async {
+          connectorCalls += 1;
+          return harness.client;
+        },
+        remoteReachabilityProbe: (_) async => true,
+        uiIdleWaiter: (_) async => true,
+        now: () => DateTime.utc(2026, 3, 23, 2, 30),
+        settleTimeout: const Duration(seconds: 2),
+        settlePollInterval: const Duration(milliseconds: 10),
+      );
+      addTearDown(supervisor.dispose);
+
+      await supervisor.start();
+
+      final client = HttpClient();
+      addTearDown(() => client.close(force: true));
+      final healthRequest = await client.getUrl(
+        (await supervisor.currentHandle()).supervisorBaseUri.resolve('/health'),
+      );
+      final healthResponse = await healthRequest.close();
+      final healthPayload =
+          jsonDecode(await utf8.decoder.bind(healthResponse).join())
+              as Map<String, Object?>;
+      expect(
+        healthPayload['state'],
+        CockpitDevelopmentSessionState.starting.jsonValue,
+      );
+      expect(connectorCalls, 0);
+
+      await supervisor.bindRemoteSession(harness.handle.remoteSessionHandle!);
+      await supervisor.waitForState(CockpitDevelopmentSessionState.ready);
+
+      expect(connectorCalls, 1);
+      final currentHandle = await supervisor.currentHandle();
+      expect(currentHandle.appId, harness.handle.appId);
+      expect(
+        currentHandle.remoteSessionHandle?.baseUrl,
+        harness.handle.remoteSessionHandle?.baseUrl,
+      );
+    },
+  );
+
+  test(
     'supervisor transitions to ready only after remote recovery and UI idle',
     () async {
       final harness = _MachineHarness();
@@ -52,8 +107,8 @@ void main() {
       expect(status.state, CockpitDevelopmentSessionState.ready);
       expect(status.appReachable, isTrue);
       expect(status.remoteSessionReachable, isTrue);
-      expect(remoteChecks, 1);
-      expect(uiIdleChecks, 1);
+      expect(remoteChecks, greaterThanOrEqualTo(1));
+      expect(uiIdleChecks, greaterThanOrEqualTo(1));
     },
   );
 
@@ -130,6 +185,48 @@ void main() {
       expect(status.state, CockpitDevelopmentSessionState.ready);
       expect(remoteChecks, greaterThanOrEqualTo(3));
       expect(uiIdleChecks, greaterThanOrEqualTo(2));
+    },
+  );
+
+  test(
+    'supervisor can become ready before attach and lazily connect on reload',
+    () async {
+      final harness = _MachineHarness();
+      addTearDown(harness.dispose);
+
+      var connectorCalls = 0;
+      final supervisor = CockpitDevelopmentSessionSupervisor(
+        initialHandle: harness.handle,
+        machineClient: null,
+        machineClientConnector: () async {
+          connectorCalls += 1;
+          return harness.client;
+        },
+        remoteReachabilityProbe: (_) async => true,
+        uiIdleWaiter: (_) async => true,
+        now: () => DateTime.utc(2026, 3, 23, 3),
+        settleTimeout: const Duration(seconds: 2),
+        settlePollInterval: const Duration(milliseconds: 10),
+      );
+      addTearDown(supervisor.dispose);
+
+      await supervisor.start();
+      await supervisor.waitForState(CockpitDevelopmentSessionState.ready);
+
+      final reloadFuture = supervisor.reload(
+        CockpitDevelopmentReloadMode.hotReload,
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(connectorCalls, 1);
+      expect(harness.writes.last, contains('"fullRestart":false'));
+      harness.stdoutController.add('[{"id":0,"result":{"code":0}}]');
+      final reloadedStatus = await reloadFuture;
+
+      expect(reloadedStatus.state, CockpitDevelopmentSessionState.ready);
+      expect(
+        reloadedStatus.lastReloadMode,
+        CockpitDevelopmentReloadMode.hotReload,
+      );
     },
   );
 

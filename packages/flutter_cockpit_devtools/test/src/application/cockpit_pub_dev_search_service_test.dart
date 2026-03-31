@@ -1,5 +1,10 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter_cockpit_devtools/src/application/cockpit_pub_dev_search_service.dart';
 import 'package:flutter_cockpit_devtools/src/infrastructure/cockpit_http_client.dart';
+import 'package:flutter_cockpit_devtools/src/infrastructure/cockpit_process_manager.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -67,6 +72,42 @@ void main() {
     expect(result.warnings, isNotEmpty);
     expect(result.suggestion, contains('Try'));
   });
+
+  test('times out instead of hanging on pub.dev search', () async {
+    final service = CockpitPubDevSearchService(
+      httpClient: _HangingHttpClient(),
+    );
+
+    expect(
+      () => service.search(
+        const CockpitPubDevSearchRequest(
+          query: 'riverpod',
+          timeout: Duration(milliseconds: 20),
+        ),
+      ),
+      throwsA(isA<Exception>()),
+    );
+  });
+
+  test('uses the external fetch fallback when the default client fails',
+      () async {
+    final service = CockpitPubDevSearchService(
+      httpClient: _AlwaysFailingHttpClient(),
+      processManager: _FakeFetchProcessManager(
+        body: '{"packages":[{"package":"collection"}]}',
+      ),
+      enableProcessFallback: true,
+    );
+
+    final result = await service.search(
+      const CockpitPubDevSearchRequest(
+        query: 'collection',
+        maxResults: 1,
+      ),
+    );
+
+    expect(result.results.single.packageName, 'collection');
+  });
 }
 
 final class _FakeHttpClient implements CockpitHttpClient {
@@ -88,4 +129,78 @@ final class _FakeHttpClient implements CockpitHttpClient {
 
   @override
   Future<List<int>> readBytes(Uri uri) async => throw UnimplementedError();
+}
+
+final class _HangingHttpClient implements CockpitHttpClient {
+  @override
+  Future<String> read(Uri uri) => Completer<String>().future;
+
+  @override
+  Future<List<int>> readBytes(Uri uri) => Completer<List<int>>().future;
+}
+
+final class _AlwaysFailingHttpClient implements CockpitHttpClient {
+  @override
+  Future<String> read(Uri uri) async {
+    throw const HandshakeException('terminated during handshake');
+  }
+
+  @override
+  Future<List<int>> readBytes(Uri uri) async {
+    throw const HandshakeException('terminated during handshake');
+  }
+}
+
+final class _FakeFetchProcessManager implements CockpitProcessManager {
+  const _FakeFetchProcessManager({required this.body});
+
+  final String body;
+
+  @override
+  Future<ProcessResult> run(
+    String executable,
+    List<String> arguments, {
+    String? workingDirectory,
+    Map<String, String>? environment,
+    bool includeParentEnvironment = true,
+    bool runInShell = false,
+    Encoding? stdoutEncoding,
+    Encoding? stderrEncoding,
+  }) async {
+    if (arguments.length < 3 ||
+        !arguments.first.startsWith('-') ||
+        !arguments[2].contains('pub.dev')) {
+      return ProcessResult(1, 1, '', 'bad fetch command');
+    }
+    if (arguments[2].contains('/score')) {
+      return ProcessResult(
+        1,
+        0,
+        '{"grantedPoints":140,"maxPoints":160,"likeCount":120,"popularityScore":0.98}',
+        '',
+      );
+    }
+    if (arguments[2].contains('/packages/collection')) {
+      return ProcessResult(
+        1,
+        0,
+        '{"name":"collection","latest":{"version":"1.19.0","pubspec":{"description":"Collections utilities."}}}',
+        '',
+      );
+    }
+    return ProcessResult(1, 0, body, '');
+  }
+
+  @override
+  Future<Process> start(
+    String executable,
+    List<String> arguments, {
+    String? workingDirectory,
+    Map<String, String>? environment,
+    bool includeParentEnvironment = true,
+    bool runInShell = false,
+    ProcessStartMode mode = ProcessStartMode.normal,
+  }) {
+    throw UnimplementedError();
+  }
 }

@@ -50,6 +50,7 @@ final class CockpitAnalyzeWorkspaceTool extends CockpitMcpTool {
         'type': 'object',
         'properties': <String, Object?>{
           'workspace_root': <String, Object?>{'type': 'string'},
+          'timeout_seconds': <String, Object?>{'type': 'integer'},
         },
       };
 
@@ -64,6 +65,10 @@ final class CockpitAnalyzeWorkspaceTool extends CockpitMcpTool {
         CockpitAnalyzeWorkspaceRequest(
           workspaceRoot: workspaceRoot,
           allowedRoots: cockpitAllowedWorkspaceRootPaths(_rootsTracker),
+          timeout: Duration(
+            seconds:
+                cockpitReadOptionalInt(arguments, 'timeout_seconds') ?? 180,
+          ),
         ),
       );
       return cockpitMcpResult(

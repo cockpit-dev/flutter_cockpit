@@ -50,7 +50,7 @@ final class StartRecordingCommand extends CockpitCliCommand {
 
   @override
   String get helpShape =>
-      'recording.json = {"purpose":"acceptance","name":"acceptance","tail_stabilization_ms":1400}';
+      'recording.json = {"purpose":"acceptance","name":"acceptance","tail_stabilization_ms":1400}; purpose accepts acceptance or repro, and diagnostic/debug/investigation map to repro.';
 
   @override
   String get helpExample =>

@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter_cockpit_devtools/src/mcp/cockpit_mcp_server.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/cockpit_mcp_tool.dart';
+import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 void main() {
@@ -40,7 +43,10 @@ void main() {
           'read_logs',
           'read_errors',
           'pub_dev_search',
+          'pub',
           'read_package_uris',
+          'lsp',
+          'analyze_files',
           'create_project',
           'analyze_workspace',
           'format_workspace',
@@ -53,6 +59,40 @@ void main() {
       );
     },
   );
+
+  test('standard server exposes concise profile parameter names', () async {
+    final server = CockpitMcpServer.standard();
+
+    final listResponse = await server.handleMessage(<String, Object?>{
+      'jsonrpc': '2.0',
+      'id': 99,
+      'method': 'tools/list',
+    });
+
+    final tools = ((listResponse?['result'] as Map<String, Object?>)['tools']
+            as List<Object?>)
+        .cast<Map<String, Object?>>();
+    final byName = <String, Map<String, Object?>>{
+      for (final tool in tools) tool['name']! as String: tool,
+    };
+
+    final readAppProperties = ((byName['read_app']!['inputSchema']
+            as Map<String, Object?>)['properties'] as Map<String, Object?>)
+        .keys;
+    expect(readAppProperties, contains('profile'));
+    expect(readAppProperties, isNot(contains('result_profile')));
+
+    final runBatchProperties = ((byName['run_batch']!['inputSchema']
+            as Map<String, Object?>)['properties'] as Map<String, Object?>)
+        .keys;
+    expect(runBatchProperties,
+        containsAll(<String>['default_profile', 'final_profile']));
+    expect(
+      runBatchProperties,
+      isNot(containsAll(
+          <String>['default_result_profile', 'final_snapshot_profile'])),
+    );
+  });
 
   test('standard server exposes app-first resources with snake_case templates',
       () async {
@@ -175,6 +215,41 @@ void main() {
       (callResult['structuredContent'] as Map<String, Object?>)['echoed_value'],
       'hello',
     );
+  });
+
+  test('standard server resolves workspace contracts from workspace roots',
+      () async {
+    final repoRoot = p.normalize(
+      p.join(
+        Directory.current.path,
+        '..',
+        '..',
+      ),
+    );
+    final server = CockpitMcpServer.standard(
+      workspaceRoots: <String>[repoRoot],
+    );
+
+    await server.handleMessage(<String, Object?>{
+      'jsonrpc': '2.0',
+      'id': 199,
+      'method': 'initialize',
+      'params': <String, Object?>{'protocolVersion': '2024-11-05'},
+    });
+
+    final resourceResponse = await server.handleMessage(<String, Object?>{
+      'jsonrpc': '2.0',
+      'id': 200,
+      'method': 'resources/read',
+      'params': <String, Object?>{
+        'uri': 'cockpit://workspace/skill-contract',
+      },
+    });
+
+    final result = resourceResponse?['result'] as Map<String, Object?>;
+    final contents =
+        (result['contents'] as List<Object?>).cast<Map<String, Object?>>();
+    expect('${contents.single['text']}', contains('launch-app'));
   });
 }
 

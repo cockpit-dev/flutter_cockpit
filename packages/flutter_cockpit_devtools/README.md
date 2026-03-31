@@ -47,6 +47,13 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --command-json '{"command_id":"assert-inbox","command_type":"assert_text","parameters":{"text":"Inbox"}}'
 ```
 
+Locator rules:
+
+- Start with `key`, `text`, or `semantic_id`.
+- Add `route`, `type`, `path`, and nested `ancestor` only when ambiguity remains.
+- `path` is fuzzy: segments like `body`, `slivers`, and numeric indexes are ignored, so shapes such as `scaffold.body/custom_scroll_view.slivers/0/...` can still match the same target.
+- Use `fallbacks` for a short ordered backup list instead of one oversized locator.
+
 ## MCP
 
 ```bash
@@ -78,7 +85,10 @@ Core tools:
 Workspace tools:
 
 - `pub_dev_search`
+- `pub`
 - `read_package_uris`
+- `lsp`
+- `analyze_files`
 - `create_project`
 - `analyze_workspace`
 - `format_workspace`
@@ -92,5 +102,18 @@ Resources and prompts are also exposed for goals, contracts, task summaries, roo
 - Persist `app.json` and reuse it. It is the preferred app reference across steps.
 - `list_apps` is MCP-only because the CLI does not keep an in-memory app registry across invocations.
 - `read_logs` reads app-centric runtime lines first. `available=true` with an empty `lines` array is valid when the app emitted no runtime logs.
+- `pub` keeps dependency edits bounded and returns previews instead of full `pub` logs by default.
+- `analyze_files` is the low-token path for focused diagnostics; use `analyze_workspace` only when the question is workspace-wide.
+- `lsp` uses relative paths plus 1-based line and column inputs so agents do not need file URIs or zero-based math.
 - Use `minimal`, `standard`, `inspect`, and `evidence` profiles to trade off token cost against detail.
+- Interactive app commands accept `timeout_ms`. Workspace tools accept `timeout_seconds`. Keep the default unless the task is known to be slow.
+- `pub_dev_search` uses a bounded network path and a local Python fallback when direct TLS fetches fail on the host.
 - Advanced low-level session services still exist in the Dart API, but the recommended public loop is app-first.
+
+## Verification
+
+Release-grade MCP verification:
+
+```bash
+dart run tool/verify_mcp_surface.dart
+```

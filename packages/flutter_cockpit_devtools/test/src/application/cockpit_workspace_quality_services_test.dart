@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:async';
 
 import 'package:file/memory.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_analyze_workspace_service.dart';
@@ -82,6 +83,32 @@ void main() {
     );
     expect(fixResult.command.arguments, <String>['fix', '--apply']);
   });
+
+  test('workspace commands time out instead of hanging forever', () async {
+    final fileSystem = MemoryFileSystem();
+    fileSystem.file('/workspace/pkg/pubspec.yaml')
+      ..createSync(recursive: true)
+      ..writeAsStringSync('name: pkg\n');
+
+    final service = CockpitFormatWorkspaceService(
+      fileSystem: LocalCockpitFileSystem(fileSystem: fileSystem),
+      processManager: _HangingProcessManager(),
+      sdkEnvironment: const CockpitSdkEnvironment(
+        dartExecutable: 'dart-sdk',
+        flutterExecutable: 'flutter-sdk',
+      ),
+    );
+
+    expect(
+      () => service.format(
+        const CockpitFormatWorkspaceRequest(
+          workspaceRoot: '/workspace/pkg',
+          timeout: Duration(milliseconds: 20),
+        ),
+      ),
+      throwsA(isA<Exception>()),
+    );
+  });
 }
 
 final class _RecordingProcessManager implements CockpitProcessManager {
@@ -117,7 +144,107 @@ final class _RecordingProcessManager implements CockpitProcessManager {
     bool includeParentEnvironment = true,
     bool runInShell = false,
     ProcessStartMode mode = ProcessStartMode.normal,
-  }) {
+  }) async {
+    return _CompletedFakeProcess(
+      stdout: jsonEncode(<String, Object?>{
+        'executable': executable,
+        'arguments': arguments,
+        'workingDirectory': workingDirectory,
+      }),
+    );
+  }
+}
+
+final class _HangingProcessManager implements CockpitProcessManager {
+  @override
+  Future<ProcessResult> run(
+    String executable,
+    List<String> arguments, {
+    String? workingDirectory,
+    Map<String, String>? environment,
+    bool includeParentEnvironment = true,
+    bool runInShell = false,
+    Encoding? stdoutEncoding,
+    Encoding? stderrEncoding,
+  }) async {
     throw UnimplementedError();
+  }
+
+  @override
+  Future<Process> start(
+    String executable,
+    List<String> arguments, {
+    String? workingDirectory,
+    Map<String, String>? environment,
+    bool includeParentEnvironment = true,
+    bool runInShell = false,
+    ProcessStartMode mode = ProcessStartMode.normal,
+  }) async {
+    return _FakeProcess();
+  }
+}
+
+final class _FakeProcess implements Process {
+  final StreamController<List<int>> _stdoutController =
+      StreamController<List<int>>();
+  final StreamController<List<int>> _stderrController =
+      StreamController<List<int>>();
+  final StreamController<List<int>> _stdinController =
+      StreamController<List<int>>();
+
+  @override
+  Future<int> get exitCode => Completer<int>().future;
+
+  @override
+  int get pid => 1;
+
+  @override
+  IOSink get stdin => IOSink(_stdinController.sink);
+
+  @override
+  Stream<List<int>> get stderr => _stderrController.stream;
+
+  @override
+  Stream<List<int>> get stdout => _stdoutController.stream;
+
+  @override
+  bool kill([ProcessSignal signal = ProcessSignal.sigterm]) {
+    _stdoutController.close();
+    _stderrController.close();
+    _stdinController.close();
+    return true;
+  }
+}
+
+final class _CompletedFakeProcess implements Process {
+  _CompletedFakeProcess({
+    required String stdout,
+    String stderr = '',
+  })  : _stdout = Stream<List<int>>.value(utf8.encode(stdout)),
+        _stderr = Stream<List<int>>.value(utf8.encode(stderr));
+
+  final Stream<List<int>> _stdout;
+  final Stream<List<int>> _stderr;
+  final StreamController<List<int>> _stdinController =
+      StreamController<List<int>>();
+  @override
+  Future<int> get exitCode => Future<int>.value(0);
+
+  @override
+  int get pid => 1;
+
+  @override
+  IOSink get stdin => IOSink(_stdinController.sink);
+
+  @override
+  Stream<List<int>> get stderr => _stderr;
+
+  @override
+  Stream<List<int>> get stdout => _stdout;
+
+  @override
+  bool kill([ProcessSignal signal = ProcessSignal.sigterm]) {
+    _stdinController.close();
+    return true;
   }
 }

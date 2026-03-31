@@ -27,6 +27,7 @@ final class CockpitExecuteRemoteCommandRequest {
     this.resultProfile = const CockpitInteractiveResultProfile.standard(),
     this.snapshotOptions,
     this.compareAgainstSnapshotRef,
+    this.defaultCommandTimeout = const Duration(seconds: 4),
   });
 
   final CockpitCommand command;
@@ -37,6 +38,7 @@ final class CockpitExecuteRemoteCommandRequest {
   final CockpitInteractiveResultProfile resultProfile;
   final CockpitSnapshotOptions? snapshotOptions;
   final String? compareAgainstSnapshotRef;
+  final Duration defaultCommandTimeout;
 }
 
 final class CockpitExecuteRemoteCommandResult {
@@ -89,6 +91,7 @@ final class CockpitExecuteRemoteCommandService {
   })  : _executeCommand = executeCommand ??
             ((baseUri, command) => CockpitRemoteSessionClient(
                   baseUri: baseUri,
+                  requestTimeout: _remoteRequestTimeoutFor(command),
                 ).executeDetailed(command)),
         _readSnapshot = readSnapshot ??
             ((baseUri, options) => CockpitRemoteSessionClient(
@@ -117,8 +120,12 @@ final class CockpitExecuteRemoteCommandService {
     final sessionKey = resolved.baseUri.toString();
 
     return _sessionLock.run(sessionKey, () async {
+      final effectiveCommand = _withDefaultTimeout(
+        request.command,
+        defaultTimeout: request.defaultCommandTimeout,
+      );
       final execution =
-          await _executeCommand(resolved.baseUri, request.command);
+          await _executeCommand(resolved.baseUri, effectiveCommand);
       final needsSnapshot =
           request.resultProfile.ui != CockpitInteractiveUiLevel.none ||
               request.resultProfile.diagnostics !=
@@ -128,7 +135,7 @@ final class CockpitExecuteRemoteCommandService {
               request.compareAgainstSnapshotRef != null;
       final effectiveSnapshotOptions = needsSnapshot
           ? request.resultProfile.resolveSnapshotOptions(
-              request.snapshotOptions ?? request.command.snapshotOptions,
+              request.snapshotOptions ?? effectiveCommand.snapshotOptions,
             )
           : null;
       final snapshot = effectiveSnapshotOptions == null
@@ -178,5 +185,91 @@ final class CockpitExecuteRemoteCommandService {
         effectiveSnapshotOptions: effectiveSnapshotOptions,
       );
     });
+  }
+
+  static CockpitCommand _withDefaultTimeout(
+    CockpitCommand command, {
+    required Duration defaultTimeout,
+  }) {
+    if (command.timeoutMs != null && command.timeoutMs! > 0) {
+      return command;
+    }
+    final recommendedTimeout = _recommendedCommandTimeout(
+      command,
+      defaultTimeout: defaultTimeout,
+    );
+    return command.copyWith(timeoutMs: recommendedTimeout.inMilliseconds);
+  }
+
+  static Duration _remoteRequestTimeoutFor(CockpitCommand command) {
+    const requestBuffer = Duration(seconds: 3);
+    const minimumTimeout = Duration(seconds: 6);
+    final commandTimeout = Duration(
+      milliseconds:
+          command.timeoutMs ?? const Duration(seconds: 4).inMilliseconds,
+    );
+    final timeout = commandTimeout + requestBuffer;
+    return timeout < minimumTimeout ? minimumTimeout : timeout;
+  }
+
+  static Duration _recommendedCommandTimeout(
+    CockpitCommand command, {
+    required Duration defaultTimeout,
+  }) {
+    var recommended = defaultTimeout;
+    final parameterTimeoutMs = _positiveInt(command.parameters['timeoutMs']);
+    switch (command.commandType) {
+      case CockpitCommandType.scrollUntilVisible:
+        final maxScrolls = _positiveInt(command.parameters['maxScrolls']) ?? 12;
+        final durationPerStepMs =
+            _positiveInt(command.parameters['durationPerStepMs']) ?? 220;
+        final revealRequested = command.parameters['revealAlignment'] != null ||
+            (_positiveNum(command.parameters['revealPadding']) ?? 0) > 0;
+        final stepBudgetMs =
+            maxScrolls * (durationPerStepMs + (revealRequested ? 420 : 320));
+        recommended = _maxDuration(
+          recommended,
+          Duration(milliseconds: stepBudgetMs + 1800),
+        );
+      case CockpitCommandType.waitFor ||
+            CockpitCommandType.waitForUiIdle ||
+            CockpitCommandType.waitForNetworkIdle:
+        if (parameterTimeoutMs != null) {
+          recommended = _maxDuration(
+            recommended,
+            Duration(milliseconds: parameterTimeoutMs),
+          );
+        }
+      default:
+        if (parameterTimeoutMs != null) {
+          recommended = _maxDuration(
+            recommended,
+            Duration(milliseconds: parameterTimeoutMs),
+          );
+        }
+    }
+    return recommended;
+  }
+
+  static int? _positiveInt(Object? value) {
+    if (value is int && value > 0) {
+      return value;
+    }
+    if (value is num) {
+      final normalized = value.toInt();
+      return normalized > 0 ? normalized : null;
+    }
+    return null;
+  }
+
+  static double? _positiveNum(Object? value) {
+    if (value is num && value > 0) {
+      return value.toDouble();
+    }
+    return null;
+  }
+
+  static Duration _maxDuration(Duration left, Duration right) {
+    return left >= right ? left : right;
   }
 }

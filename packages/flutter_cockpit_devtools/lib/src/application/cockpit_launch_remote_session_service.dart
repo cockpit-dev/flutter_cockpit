@@ -57,13 +57,14 @@ final class CockpitLaunchRemoteSessionService {
   Future<CockpitLaunchRemoteSessionResult> launch(
     CockpitLaunchRemoteSessionRequest request,
   ) async {
+    final normalizedProjectDir = cockpitNormalizeProjectDir(request.projectDir);
     final resolvedTarget = _entrypointResolver.resolve(
-      projectDir: request.projectDir,
+      projectDir: normalizedProjectDir,
       target: request.target,
     );
     final sessionHandle = await _launcher.launch(
       CockpitRemoteSessionLaunchOptions(
-        projectDir: request.projectDir,
+        projectDir: normalizedProjectDir,
         target: resolvedTarget,
         platform: request.platform,
         deviceId: request.deviceId,

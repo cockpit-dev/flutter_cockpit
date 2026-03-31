@@ -58,6 +58,7 @@ final class CockpitCreateProjectTool extends CockpitMcpTool {
             'type': 'array',
             'items': <String, Object?>{'type': 'string'},
           },
+          'timeout_seconds': <String, Object?>{'type': 'integer'},
         },
       };
 
@@ -79,6 +80,10 @@ final class CockpitCreateProjectTool extends CockpitMcpTool {
           organization: cockpitReadOptionalString(arguments, 'organization'),
           platforms: cockpitReadOptionalStringList(arguments, 'platforms'),
           allowedRoots: cockpitAllowedWorkspaceRootPaths(_rootsTracker),
+          timeout: Duration(
+            seconds:
+                cockpitReadOptionalInt(arguments, 'timeout_seconds') ?? 300,
+          ),
         ),
       );
       return cockpitMcpResult(

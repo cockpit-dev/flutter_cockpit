@@ -40,7 +40,7 @@ void main() {
           'commandType': 'tap',
         },
       ],
-      'default_result_profile': 'inspect',
+      'default_profile': 'inspect',
       'fail_fast': false,
     });
 

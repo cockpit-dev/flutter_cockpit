@@ -2,6 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_cockpit/flutter_cockpit_flutter.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+class _ProgrammaticOnlyScrollPhysics extends ClampingScrollPhysics {
+  const _ProgrammaticOnlyScrollPhysics({super.parent});
+
+  @override
+  bool shouldAcceptUserOffset(ScrollMetrics position) => false;
+
+  @override
+  bool get allowUserScrolling => true;
+
+  @override
+  _ProgrammaticOnlyScrollPhysics applyTo(ScrollPhysics? ancestor) {
+    return _ProgrammaticOnlyScrollPhysics(parent: buildParent(ancestor));
+  }
+}
+
 void main() {
   testWidgets(
     'ensureLocatorVisible can center an element within the viewport',
@@ -230,8 +245,110 @@ void main() {
         scrollableKey: 'locked-scrollable',
       );
 
-      expect(didScroll, isFalse);
+      expect(didScroll.didScroll, isFalse);
       expect(controller.offset, 0);
+    },
+  );
+
+  testWidgets(
+    'scrollByViewport falls back to programmatic scrolling when user offset is rejected',
+    (tester) async {
+      final controller = ScrollController();
+      addTearDown(controller.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: CockpitSurface(
+            routeName: '/programmatic-scroll',
+            child: Material(
+              child: RefreshIndicator(
+                onRefresh: () async {},
+                child: ListView.builder(
+                  key: const ValueKey<String>('programmatic-scrollable'),
+                  controller: controller,
+                  physics: const _ProgrammaticOnlyScrollPhysics(),
+                  itemCount: 40,
+                  itemBuilder: (context, index) {
+                    return SizedBox(
+                      height: 96,
+                      child: ListTile(title: Text('Task $index')),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final surfaceState = tester.state<CockpitSurfaceState>(
+        find.byType(CockpitSurface),
+      );
+
+      final didScroll = await surfaceState.scrollByViewport(
+        viewportFraction: 0.9,
+        scrollableKey: 'programmatic-scrollable',
+        duration: Duration.zero,
+      );
+      await tester.pumpAndSettle();
+
+      expect(didScroll.didScroll, isTrue);
+      expect(controller.offset, greaterThan(0));
+    },
+  );
+
+  testWidgets(
+    'scrollByViewport matches semantic list boundaries for mixed path scroll locators',
+    (tester) async {
+      final controller = ScrollController();
+      addTearDown(controller.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: CockpitSurface(
+            routeName: '/semantic-scrollable',
+            child: Material(
+              child: RefreshIndicator(
+                onRefresh: () async {},
+                child: ListView.builder(
+                  key: const ValueKey<String>('semantic-scrollable'),
+                  controller: controller,
+                  itemCount: 40,
+                  itemBuilder: (context, index) {
+                    return SizedBox(
+                      height: 96,
+                      child: ListTile(title: Text('Task $index')),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final surfaceState = tester.state<CockpitSurfaceState>(
+        find.byType(CockpitSurface),
+      );
+
+      final didScroll = await surfaceState.scrollByViewport(
+        viewportFraction: 0.9,
+        duration: Duration.zero,
+        scrollableLocator: const CockpitLocator(
+          key: 'semantic-scrollable',
+          type: 'list_view',
+          path: 'scaffold.body/list_view.children/0',
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(didScroll.didScroll, isTrue);
+      expect(didScroll.scrollableKey, 'semantic-scrollable');
+      expect(didScroll.scrollableTypeName, 'ListView');
+      expect(didScroll.scrollablePath, contains('/listview'));
+      expect(controller.offset, greaterThan(0));
     },
   );
 }

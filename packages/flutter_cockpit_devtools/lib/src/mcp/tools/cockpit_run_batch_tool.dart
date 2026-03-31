@@ -33,10 +33,11 @@ final class CockpitRunBatchTool extends CockpitMcpTool {
           'app_json': <String, Object?>{'type': 'string'},
           'base_url': <String, Object?>{'type': 'string'},
           'commands': <String, Object?>{'type': 'array'},
-          'default_result_profile': <String, Object?>{'type': 'string'},
+          'default_timeout_ms': <String, Object?>{'type': 'integer'},
+          'default_profile': <String, Object?>{'type': 'string'},
           'fail_fast': <String, Object?>{'type': 'boolean'},
           'recording': <String, Object?>{'type': 'object'},
-          'final_snapshot_profile': <String, Object?>{'type': 'string'},
+          'final_profile': <String, Object?>{'type': 'string'},
           'final_snapshot_options': <String, Object?>{'type': 'object'},
         },
       };
@@ -52,15 +53,21 @@ final class CockpitRunBatchTool extends CockpitMcpTool {
           commands: cockpitReadRequiredObjectList(arguments, 'commands')
               .map(_readBatchCommand)
               .toList(growable: false),
-          defaultResultProfile:
-              _readOptionalProfile(arguments, 'default_result_profile') ??
-                  const CockpitInteractiveResultProfile.standard(),
+          defaultResultProfile: (_readOptionalProfile(
+                    arguments,
+                    'default_profile',
+                  ) ??
+                  _readOptionalProfile(arguments, 'default_result_profile')) ??
+              const CockpitInteractiveResultProfile.standard(),
+          defaultCommandTimeout: Duration(
+            milliseconds:
+                cockpitReadOptionalInt(arguments, 'default_timeout_ms') ?? 4000,
+          ),
           failFast: cockpitReadOptionalBool(arguments, 'fail_fast') ?? true,
           recording: _readOptionalRecording(arguments),
-          finalSnapshotProfile: _readOptionalProfile(
-            arguments,
-            'final_snapshot_profile',
-          ),
+          finalSnapshotProfile:
+              _readOptionalProfile(arguments, 'final_profile') ??
+                  _readOptionalProfile(arguments, 'final_snapshot_profile'),
           finalSnapshotOptions: _readOptionalSnapshotOptions(arguments),
         ),
       );
@@ -83,7 +90,7 @@ final class CockpitRunBatchTool extends CockpitMcpTool {
     return CockpitRunBatchCommand(
       command: CockpitCommand.fromJson(normalized),
       resultProfile: _readOptionalProfileFromValue(
-        normalizedJson['resultProfile'],
+        normalizedJson['profile'] ?? normalizedJson['resultProfile'],
       ),
       snapshotOptions: snapshotOptionsJson is Map<Object?, Object?>
           ? CockpitSnapshotOptions.fromJson(

@@ -46,7 +46,7 @@ final class CockpitReadRemoteSnapshotTool extends CockpitMcpTool {
         'properties': <String, Object?>{
           'session_handle': <String, Object?>{'type': 'object'},
           'session_handle_path': <String, Object?>{'type': 'string'},
-          'result_profile': <String, Object?>{'type': 'string'},
+          'profile': <String, Object?>{'type': 'string'},
           'snapshot_options': <String, Object?>{'type': 'object'},
           'compare_against_snapshot_ref': <String, Object?>{'type': 'string'},
         },
@@ -81,7 +81,9 @@ final class CockpitReadRemoteSnapshotTool extends CockpitMcpTool {
   }
 
   CockpitInteractiveResultProfile _readProfile(Map<String, Object?> arguments) {
-    final value = arguments['result_profile'] ?? arguments['resultProfile'];
+    final value = arguments['profile'] ??
+        arguments['result_profile'] ??
+        arguments['resultProfile'];
     if (value == null) {
       return const CockpitInteractiveResultProfile.standard();
     }

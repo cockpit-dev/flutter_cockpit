@@ -7,6 +7,7 @@ enum CockpitMcpFeatureCategory {
   execution(all),
   delivery(all),
   dependencyIntelligence(workspace, 'dependency_intelligence'),
+  codeIntelligence(workspace, 'code_intelligence'),
   workspaceQuality(workspace, 'workspace_quality'),
   projectScaffolding(workspace, 'project_scaffolding'),
   roots(workspace),

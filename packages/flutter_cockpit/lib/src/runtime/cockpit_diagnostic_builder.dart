@@ -192,13 +192,12 @@ final class CockpitDiagnosticBuilder {
     );
 
     var truncated = false;
-    final ancestors = options.maxAncestorsPerTarget <= 0 || runtimeNode == null
-        ? const <CockpitSnapshotAncestor>[]
-        : _extractAncestors(
-            runtimeNode.element,
-            maxAncestors: options.maxAncestorsPerTarget,
-            onTruncated: () => truncated = true,
-          );
+    final ancestors = _resolvedAncestors(
+      target,
+      runtimeNode: runtimeNode,
+      maxAncestors: options.maxAncestorsPerTarget,
+      onTruncated: () => truncated = true,
+    );
     final style = runtimeNode == null || !options.includeStyleDetails
         ? null
         : _extractStyle(runtimeNode.element);
@@ -221,6 +220,10 @@ final class CockpitDiagnosticBuilder {
         text: target.text,
         tooltip: target.tooltip,
         typeName: target.typeName,
+        path: target.path,
+        scrollablePath: target.scrollablePath,
+        scrollableKeyValue: target.scrollableKeyValue,
+        scrollableTypeName: target.scrollableTypeName,
         routeName: target.routeName,
         supportedCommands: target.supportedCommands.toList(growable: false),
         layout: layout,
@@ -229,6 +232,33 @@ final class CockpitDiagnosticBuilder {
         ancestors: ancestors,
         diagnosticProperties: diagnosticProperties,
       ),
+    );
+  }
+
+  List<CockpitSnapshotAncestor> _resolvedAncestors(
+    CockpitTarget target, {
+    required _RuntimeNode? runtimeNode,
+    required int maxAncestors,
+    required VoidCallback onTruncated,
+  }) {
+    if (maxAncestors <= 0) {
+      return const <CockpitSnapshotAncestor>[];
+    }
+
+    final locatorAncestors = target.locatorAncestors;
+    if (locatorAncestors.isNotEmpty) {
+      if (locatorAncestors.length > maxAncestors) {
+        onTruncated();
+      }
+      return locatorAncestors.take(maxAncestors).toList(growable: false);
+    }
+    if (runtimeNode == null) {
+      return const <CockpitSnapshotAncestor>[];
+    }
+    return _extractAncestors(
+      runtimeNode.element,
+      maxAncestors: maxAncestors,
+      onTruncated: onTruncated,
     );
   }
 

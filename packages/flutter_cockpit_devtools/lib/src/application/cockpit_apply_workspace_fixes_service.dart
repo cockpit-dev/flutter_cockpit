@@ -8,10 +8,12 @@ final class CockpitApplyWorkspaceFixesRequest {
   const CockpitApplyWorkspaceFixesRequest({
     required this.workspaceRoot,
     this.allowedRoots = const <String>[],
+    this.timeout = const Duration(minutes: 3),
   });
 
   final String workspaceRoot;
   final List<String> allowedRoots;
+  final Duration timeout;
 }
 
 final class CockpitApplyWorkspaceFixesService {
@@ -38,6 +40,7 @@ final class CockpitApplyWorkspaceFixesService {
       allowedRoots: request.allowedRoots,
       toolchain: CockpitWorkspaceToolchain.dart,
       dartArguments: const <String>['fix', '--apply'],
+      timeout: request.timeout,
     );
   }
 }

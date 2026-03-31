@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -101,7 +102,43 @@ final class _FakeProcessManager implements CockpitProcessManager {
     bool includeParentEnvironment = true,
     bool runInShell = false,
     ProcessStartMode mode = ProcessStartMode.normal,
-  }) {
-    throw UnimplementedError();
+  }) async {
+    this.executable = executable;
+    this.arguments = arguments;
+    this.workingDirectory = workingDirectory;
+    return _CompletedFakeProcess(stdout: 'created');
+  }
+}
+
+final class _CompletedFakeProcess implements Process {
+  _CompletedFakeProcess({
+    required String stdout,
+    String stderr = '',
+  })  : _stdout = Stream<List<int>>.value(utf8.encode(stdout)),
+        _stderr = Stream<List<int>>.value(utf8.encode(stderr));
+
+  final Stream<List<int>> _stdout;
+  final Stream<List<int>> _stderr;
+  final StreamController<List<int>> _stdinController =
+      StreamController<List<int>>();
+  @override
+  Future<int> get exitCode => Future<int>.value(0);
+
+  @override
+  int get pid => 1;
+
+  @override
+  IOSink get stdin => IOSink(_stdinController.sink);
+
+  @override
+  Stream<List<int>> get stderr => _stderr;
+
+  @override
+  Stream<List<int>> get stdout => _stdout;
+
+  @override
+  bool kill([ProcessSignal signal = ProcessSignal.sigterm]) {
+    _stdinController.close();
+    return true;
   }
 }

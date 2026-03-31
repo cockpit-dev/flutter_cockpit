@@ -20,6 +20,7 @@ import 'flutter_cockpit.dart';
 import 'cockpit_tap_feedback_overlay.dart';
 import 'cockpit_capabilities.dart';
 import 'cockpit_runtime_query.dart';
+import 'cockpit_scroll_step_result.dart';
 import 'cockpit_snapshot.dart';
 import 'cockpit_snapshot_options.dart';
 import 'cockpit_surface.dart';
@@ -309,6 +310,8 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
         required reverse,
         required viewportFraction,
         scrollableKey,
+        targetLocator,
+        scrollableLocator,
         required duration,
         required gestureProfile,
         required continuous,
@@ -316,12 +319,16 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
       }) {
         final surfaceState = _surfaceKey.currentState;
         if (surfaceState == null) {
-          return Future<bool>.value(false);
+          return Future<CockpitScrollStepResult>.value(
+            const CockpitScrollStepResult(didScroll: false),
+          );
         }
         return surfaceState.scrollByViewport(
           reverse: reverse,
           viewportFraction: viewportFraction,
           scrollableKey: scrollableKey,
+          targetLocator: targetLocator,
+          scrollableLocator: scrollableLocator,
           duration: duration,
           gestureProfile: gestureProfile,
           continuous: continuous,
@@ -417,6 +424,8 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
         required reverse,
         required viewportFraction,
         scrollableKey,
+        targetLocator,
+        scrollableLocator,
         required duration,
         required gestureProfile,
         required continuous,
@@ -424,12 +433,16 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
       }) {
         final surfaceState = _surfaceKey.currentState;
         if (surfaceState == null) {
-          return Future<bool>.value(false);
+          return Future<CockpitScrollStepResult>.value(
+            const CockpitScrollStepResult(didScroll: false),
+          );
         }
         return surfaceState.scrollByViewport(
           reverse: reverse,
           viewportFraction: viewportFraction,
           scrollableKey: scrollableKey,
+          targetLocator: targetLocator,
+          scrollableLocator: scrollableLocator,
           duration: duration,
           gestureProfile: gestureProfile,
           continuous: continuous,

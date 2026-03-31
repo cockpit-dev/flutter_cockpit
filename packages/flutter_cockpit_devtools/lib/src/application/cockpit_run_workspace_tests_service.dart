@@ -8,10 +8,12 @@ final class CockpitRunWorkspaceTestsRequest {
   const CockpitRunWorkspaceTestsRequest({
     required this.workspaceRoot,
     this.allowedRoots = const <String>[],
+    this.timeout = const Duration(minutes: 5),
   });
 
   final String workspaceRoot;
   final List<String> allowedRoots;
+  final Duration timeout;
 }
 
 final class CockpitRunWorkspaceTestsService {
@@ -39,6 +41,7 @@ final class CockpitRunWorkspaceTestsService {
       toolchain: null,
       dartArguments: const <String>['test'],
       flutterArguments: const <String>['test'],
+      timeout: request.timeout,
     );
   }
 }

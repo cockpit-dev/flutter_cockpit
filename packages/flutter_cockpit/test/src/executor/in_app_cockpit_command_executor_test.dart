@@ -36,12 +36,14 @@ void main() {
         required reverse,
         required viewportFraction,
         scrollableKey,
+        targetLocator,
+        scrollableLocator,
         required duration,
         required gestureProfile,
         required continuous,
         required postScrollEnsureVisible,
       }) async {
-        return true;
+        return const CockpitScrollStepResult(didScroll: true);
       },
       gestureHandler: (_) async {},
       waitForNetworkIdleHandler:
@@ -1351,6 +1353,8 @@ void main() {
           required reverse,
           required viewportFraction,
           scrollableKey,
+          targetLocator,
+          scrollableLocator,
           required duration,
           required gestureProfile,
           required continuous,
@@ -1396,6 +1400,104 @@ void main() {
             )
             .isSuccess,
         isTrue,
+      );
+    },
+  );
+
+  testWidgets(
+    'scrollUntilVisible succeeds when a keyed target becomes visible on the final scrollable viewport',
+    (tester) async {
+      final registry = CockpitTargetRegistry(routeName: '/settings');
+
+      await tester.pumpWidget(
+        WidgetsApp(
+          color: const Color(0xFFFFFFFF),
+          builder: (context, child) {
+            return CockpitSurface(
+              routeName: '/settings',
+              registry: registry,
+              child: Material(
+                child: Directionality(
+                  textDirection: TextDirection.ltr,
+                  child: ListView(
+                    children: <Widget>[
+                      const SizedBox(height: 900),
+                      FilledButton(
+                        key:
+                            const ValueKey<String>('settings-debug-log-button'),
+                        onPressed: () {},
+                        child: const Text('Emit debug log'),
+                      ),
+                      const SizedBox(height: 40),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final surfaceState = tester.state<CockpitSurfaceState>(
+        find.byType(CockpitSurface),
+      );
+      final executor = InAppCockpitCommandExecutor(
+        registry: registry,
+        snapshotProvider: surfaceState.snapshot,
+        postActionSettler: () async {
+          await tester.pump();
+          await tester.pump();
+        },
+        scrollStepHandler: ({
+          required reverse,
+          required viewportFraction,
+          scrollableKey,
+          targetLocator,
+          scrollableLocator,
+          required duration,
+          required gestureProfile,
+          required continuous,
+          required postScrollEnsureVisible,
+        }) {
+          return surfaceState.scrollByViewport(
+            reverse: reverse,
+            viewportFraction: viewportFraction,
+            scrollableKey: scrollableKey,
+            targetLocator: targetLocator,
+            scrollableLocator: scrollableLocator,
+            duration: duration,
+            gestureProfile: gestureProfile,
+            continuous: continuous,
+            postScrollEnsureVisible: postScrollEnsureVisible,
+          );
+        },
+      );
+
+      final result = await executor.execute(
+        CockpitCommand(
+          commandId: 'scroll-to-debug-log-button',
+          commandType: CockpitCommandType.scrollUntilVisible,
+          locator: const CockpitLocator(
+            key: 'settings-debug-log-button',
+            ancestor: CockpitLocator(route: '/settings'),
+          ),
+          parameters: const <String, Object?>{
+            'maxScrolls': 3,
+            'viewportFraction': 0.65,
+            'scrollableLocator': <String, Object?>{
+              'type': 'ListView',
+              'route': '/settings',
+            },
+          },
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(result.locatorResolution?.matchedKind, CockpitLocatorKind.key);
+      expect(
+        result.locatorResolution?.matchedValue,
+        'settings-debug-log-button',
       );
     },
   );
@@ -1450,12 +1552,14 @@ void main() {
           required reverse,
           required viewportFraction,
           scrollableKey,
+          targetLocator,
+          scrollableLocator,
           required duration,
           required gestureProfile,
           required continuous,
           required postScrollEnsureVisible,
         }) async {
-          return false;
+          return const CockpitScrollStepResult(didScroll: false);
         },
       );
 
@@ -1530,12 +1634,14 @@ void main() {
           required reverse,
           required viewportFraction,
           scrollableKey,
+          targetLocator,
+          scrollableLocator,
           required duration,
           required gestureProfile,
           required continuous,
           required postScrollEnsureVisible,
         }) async {
-          return false;
+          return const CockpitScrollStepResult(didScroll: false);
         },
       );
 
@@ -1624,12 +1730,14 @@ void main() {
           required reverse,
           required viewportFraction,
           scrollableKey,
+          targetLocator,
+          scrollableLocator,
           required duration,
           required gestureProfile,
           required continuous,
           required postScrollEnsureVisible,
         }) async {
-          return false;
+          return const CockpitScrollStepResult(didScroll: false);
         },
       );
 
@@ -1646,6 +1754,106 @@ void main() {
       );
 
       expect(result.success, isFalse);
+    },
+  );
+
+  testWidgets(
+    'scrollUntilVisible failure includes scroll context and visible scrollables',
+    (tester) async {
+      final registry = CockpitTargetRegistry(routeName: '/list');
+
+      await tester.pumpWidget(
+        WidgetsApp(
+          color: const Color(0xFFFFFFFF),
+          builder: (context, child) {
+            return CockpitSurface(
+              routeName: '/list',
+              registry: registry,
+              child: Material(
+                child: Directionality(
+                  textDirection: TextDirection.ltr,
+                  child: ListView(
+                    key: const ValueKey<String>('task-list'),
+                    children: List<Widget>.generate(
+                      12,
+                      (index) => SizedBox(
+                        height: 96,
+                        child: ListTile(title: Text('Task $index')),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final surfaceState = tester.state<CockpitSurfaceState>(
+        find.byType(CockpitSurface),
+      );
+      final executor = InAppCockpitCommandExecutor(
+        registry: registry,
+        snapshotProvider: surfaceState.snapshot,
+        postActionSettler: () async {
+          await tester.pump();
+          await tester.pump();
+        },
+        scrollStepHandler: ({
+          required reverse,
+          required viewportFraction,
+          scrollableKey,
+          targetLocator,
+          scrollableLocator,
+          required duration,
+          required gestureProfile,
+          required continuous,
+          required postScrollEnsureVisible,
+        }) async {
+          return const CockpitScrollStepResult(didScroll: false);
+        },
+      );
+
+      final result = await executor.execute(
+        CockpitCommand(
+          commandId: 'scroll-failure-with-context',
+          commandType: CockpitCommandType.scrollUntilVisible,
+          locator: const CockpitLocator(key: 'task-99'),
+          parameters: const <String, Object?>{
+            'maxScrolls': 2,
+            'scrollableLocator': <String, Object?>{
+              'key': 'task-list',
+              'type': 'ListView',
+            },
+          },
+        ),
+      );
+
+      expect(result.success, isFalse);
+      expect(result.error?.code, CockpitCommandError.targetNotFoundCode);
+      expect(result.error?.details['scrollAttempts'], 1);
+      expect(result.error?.details['scrollsPerformed'], 0);
+      expect(
+        result.error?.details['scrollableLocator'],
+        <String, Object?>{
+          'key': 'task-list',
+          'type': 'ListView',
+          'fallbacks': <Object?>[],
+        },
+      );
+      final visibleScrollables =
+          (result.error?.details['visibleScrollables'] as List<Object?>?)
+                  ?.cast<Map<Object?, Object?>>()
+                  .map((entry) => Map<String, Object?>.from(entry))
+                  .toList(growable: false) ??
+              const <Map<String, Object?>>[];
+      expect(
+        visibleScrollables,
+        contains(
+          containsPair('key', 'task-list'),
+        ),
+      );
     },
   );
 
@@ -1680,6 +1888,8 @@ void main() {
         required reverse,
         required viewportFraction,
         scrollableKey,
+        targetLocator,
+        scrollableLocator,
         required duration,
         required gestureProfile,
         required continuous,
@@ -1695,7 +1905,7 @@ void main() {
             ),
           );
         }
-        return true;
+        return const CockpitScrollStepResult(didScroll: true);
       },
     );
 
@@ -1729,6 +1939,8 @@ void main() {
         required reverse,
         required viewportFraction,
         scrollableKey,
+        targetLocator,
+        scrollableLocator,
         required duration,
         required gestureProfile,
         required continuous,
@@ -1745,7 +1957,7 @@ void main() {
             routeName: '/list',
           ),
         );
-        return true;
+        return const CockpitScrollStepResult(didScroll: true);
       },
     );
 
@@ -1786,12 +1998,14 @@ void main() {
           required reverse,
           required viewportFraction,
           scrollableKey,
+          targetLocator,
+          scrollableLocator,
           required duration,
           required gestureProfile,
           required continuous,
           required postScrollEnsureVisible,
         }) async {
-          return false;
+          return const CockpitScrollStepResult(didScroll: false);
         },
         ensureVisibleHandler: ({
           required locator,
@@ -1853,12 +2067,14 @@ void main() {
           required reverse,
           required viewportFraction,
           scrollableKey,
+          targetLocator,
+          scrollableLocator,
           required duration,
           required gestureProfile,
           required continuous,
           required postScrollEnsureVisible,
         }) async {
-          return false;
+          return const CockpitScrollStepResult(didScroll: false);
         },
         ensureVisibleHandler: ({
           required locator,

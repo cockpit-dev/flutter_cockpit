@@ -6,6 +6,8 @@ final class CockpitRemoteSessionLaunchOptions {
     required this.deviceId,
     required this.sessionPort,
     this.launchTimeout = const Duration(seconds: 120),
+    this.flutterVersion,
+    this.flutterExecutable,
   });
 
   final String projectDir;
@@ -14,4 +16,6 @@ final class CockpitRemoteSessionLaunchOptions {
   final String deviceId;
   final int sessionPort;
   final Duration launchTimeout;
+  final String? flutterVersion;
+  final String? flutterExecutable;
 }

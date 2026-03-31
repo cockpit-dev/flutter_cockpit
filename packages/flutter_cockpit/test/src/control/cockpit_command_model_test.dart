@@ -194,6 +194,56 @@ void main() {
     expect(CockpitLocator.fromJson(locator.toJson()), locator);
   });
 
+  test('CockpitLocator supports multi-signal AI-first locators through json',
+      () {
+    const locator = CockpitLocator(
+      text: 'Today',
+      type: 'NavigationDestinationLabel',
+      route: '/inbox',
+      path: '/scaffold/navigationbar/navigationdestinationlabel',
+      index: 1,
+      ancestor: CockpitLocator(
+        type: 'NavigationBar',
+        ancestor: CockpitLocator(type: 'Scaffold'),
+      ),
+      fallbacks: [
+        CockpitLocator(
+          semanticId: 'nav-today',
+          type: 'NavigationDestinationLabel',
+        ),
+      ],
+    );
+
+    expect(CockpitLocator.fromJson(locator.toJson()), locator);
+    expect(locator.signalMap, <String, String>{
+      'text': 'Today',
+      'type': 'NavigationDestinationLabel',
+      'route': '/inbox',
+      'path': '/scaffold/navigationbar/navigationdestinationlabel',
+    });
+    expect(locator.index, 1);
+  });
+
+  test('CockpitTarget preserves path and scrollable metadata in snapshots', () {
+    const target = CockpitTarget(
+      registrationId: 'planning-reset',
+      keyValue: 'planning-surface-reset-zoom',
+      text: 'Reset',
+      typeName: 'TextButton',
+      path: '/scaffold/listview/planningsurfacecard/textbutton',
+      scrollablePath: '/scaffold/listview',
+      scrollableKeyValue: 'todo-collection-scroll',
+      scrollableTypeName: 'ListView',
+      routeName: '/inbox',
+      supportedCommands: {CockpitCommandType.tap},
+    );
+
+    expect(
+      CockpitSnapshotTarget.fromJson(target.toSnapshotTarget().toJson()),
+      target.toSnapshotTarget(),
+    );
+  });
+
   test('CockpitCommandResult preserves artifacts, snapshot, and errors', () {
     final result = CockpitCommandResult(
       success: false,

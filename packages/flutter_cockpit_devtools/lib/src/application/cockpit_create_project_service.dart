@@ -20,6 +20,7 @@ final class CockpitCreateProjectRequest {
     this.organization,
     this.platforms = const <String>[],
     this.allowedRoots = const <String>[],
+    this.timeout = const Duration(minutes: 5),
   });
 
   final String parentDirectory;
@@ -28,6 +29,7 @@ final class CockpitCreateProjectRequest {
   final String? organization;
   final List<String> platforms;
   final List<String> allowedRoots;
+  final Duration timeout;
 }
 
 final class CockpitCreateProjectResult {
@@ -82,19 +84,16 @@ final class CockpitCreateProjectService {
 
     switch (request.template) {
       case CockpitProjectTemplate.dartCli:
-        final result = await _processManager.run(
-          _sdkEnvironment.dartExecutable,
-          <String>['create', '--force', request.projectName],
-          workingDirectory: parentDirectory,
-        );
-        return _resultForCommand(
-          projectDirectory: projectDirectory,
+        final result = await runWorkspaceProcess(
+          processManager: _processManager,
           executable: _sdkEnvironment.dartExecutable,
           arguments: <String>['create', '--force', request.projectName],
           workingDirectory: parentDirectory,
-          exitCode: result.exitCode,
-          stdout: '${result.stdout}',
-          stderr: '${result.stderr}',
+          timeout: request.timeout,
+        );
+        return _resultForCommand(
+          projectDirectory: projectDirectory,
+          result: result,
         );
       case CockpitProjectTemplate.flutterApp:
         final arguments = <String>[
@@ -107,56 +106,43 @@ final class CockpitCreateProjectService {
             '--platforms=${request.platforms.join(',')}',
           projectDirectory,
         ];
-        final result = await _processManager.run(
-          _sdkEnvironment.flutterExecutable,
-          arguments,
-          workingDirectory: parentDirectory,
-        );
-        return _resultForCommand(
-          projectDirectory: projectDirectory,
+        final result = await runWorkspaceProcess(
+          processManager: _processManager,
           executable: _sdkEnvironment.flutterExecutable,
           arguments: arguments,
           workingDirectory: parentDirectory,
-          exitCode: result.exitCode,
-          stdout: '${result.stdout}',
-          stderr: '${result.stderr}',
+          timeout: request.timeout,
+        );
+        return _resultForCommand(
+          projectDirectory: projectDirectory,
+          result: result,
         );
     }
   }
 
   CockpitCreateProjectResult _resultForCommand({
     required String projectDirectory,
-    required String executable,
-    required List<String> arguments,
-    required String workingDirectory,
-    required int exitCode,
-    required String stdout,
-    required String stderr,
+    required CockpitWorkspaceCommandResult result,
   }) {
-    final command = CockpitWorkspaceCommand(
-      executable: executable,
-      arguments: List<String>.unmodifiable(arguments),
-      workingDirectory: workingDirectory,
-    );
-    if (exitCode != 0) {
+    if (!result.success) {
       throw CockpitApplicationServiceException(
         code: 'createProjectFailed',
         message: 'Project creation command failed.',
         details: <String, Object?>{
           'projectDirectory': projectDirectory,
-          'command': command.toJson(),
-          'exitCode': exitCode,
-          'stdout': stdout,
-          'stderr': stderr,
+          'command': result.command.toJson(),
+          'exitCode': result.exitCode,
+          'stdout': result.stdout,
+          'stderr': result.stderr,
         },
       );
     }
     return CockpitCreateProjectResult(
       projectDirectory: projectDirectory,
-      command: command,
+      command: result.command,
       success: true,
-      stdout: stdout,
-      stderr: stderr,
+      stdout: result.stdout,
+      stderr: result.stderr,
     );
   }
 }

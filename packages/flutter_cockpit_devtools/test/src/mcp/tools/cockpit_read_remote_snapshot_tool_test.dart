@@ -30,7 +30,7 @@ void main() {
         'baseUrl': 'http://127.0.0.1:47331',
         'launchedAt': '2026-03-30T00:00:00.000Z',
       },
-      'result_profile': 'inspect',
+      'profile': 'inspect',
       'snapshot_options': <String, Object?>{'profile': 'forensic'},
       'compare_against_snapshot_ref': 'snapshot-1',
     });

@@ -27,6 +27,7 @@ final class RunCommandCommand extends CockpitCliCommand {
       defaultProfile: CockpitInteractiveResultProfileName.standard,
     );
     cockpitAddCommandJsonArgs(argParser);
+    cockpitAddCommandTimeoutArg(argParser);
     cockpitAddSnapshotOptionsArgs(argParser);
     cockpitAddCompareAgainstSnapshotRefArg(argParser);
   }
@@ -57,7 +58,7 @@ final class RunCommandCommand extends CockpitCliCommand {
 
   @override
   String get helpShape =>
-      'command.json = {"command_id":"assert-inbox","command_type":"assert_text","parameters":{"text":"Inbox"}}';
+      'command.json = {"command_id":"open-today","command_type":"tap","locator":{"text":"Today","key":"nav-today","ancestor":{"route":"/inbox"}},"parameters":{"hit_test_miss_policy":"warn"}}; locator can combine text/key/semantic_id/type/path and nested ancestor filters; optional --timeout-ms sets a default for commands that omit timeout_ms.';
 
   @override
   String get helpExample =>
@@ -91,6 +92,10 @@ final class RunCommandCommand extends CockpitCliCommand {
         androidDeviceId: argResults?['android-device-id'] as String?,
         command: CockpitCommand.fromJson(cockpitNormalizeJsonKeys(commandJson)),
         resultProfile: cockpitReadResultProfile(argResults),
+        defaultCommandTimeout: Duration(
+          milliseconds:
+              cockpitReadOptionalInt(argResults, 'timeout-ms') ?? 4000,
+        ),
         snapshotOptions: snapshotOptionsJson == null
             ? null
             : CockpitSnapshotOptions.fromJson(

@@ -47,6 +47,13 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --command-json '{"command_id":"assert-inbox","command_type":"assert_text","parameters":{"text":"Inbox"}}'
 ```
 
+Locator 规则：
+
+- 先用 `key`、`text`、`semantic_id`。
+- 只有还不够准时，才继续补 `route`、`type`、`path`、嵌套 `ancestor`。
+- `path` 是 fuzzy 匹配：`body`、`slivers`、数字索引这类噪声段会被忽略，所以 `scaffold.body/custom_scroll_view.slivers/0/...` 这类形状也能命中同一目标。
+- 需要兜底时用 `fallbacks`，不要把所有条件都塞进一个超长 locator。
+
 ## MCP
 
 ```bash
@@ -78,7 +85,10 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools serve-mcp
 workspace 工具：
 
 - `pub_dev_search`
+- `pub`
 - `read_package_uris`
+- `lsp`
+- `analyze_files`
 - `create_project`
 - `analyze_workspace`
 - `format_workspace`
@@ -92,5 +102,18 @@ workspace 工具：
 - 把 `app.json` 持久化下来并跨步骤复用，这是推荐的 app 引用方式。
 - `list_apps` 只在 MCP 中暴露，因为 CLI 每次调用都是无状态进程，不保留内存中的 app registry。
 - `read_logs` 会优先读取 app-centric 的 runtime 日志；如果 `available=true` 但 `lines` 为空，通常表示应用这次没有产生日志，不代表异常。
+- `pub` 默认返回裁剪后的依赖操作结果，而不是整段 `pub` 日志。
+- `analyze_files` 适合低 token 的定点诊断；只有在问题是全仓级别时才用 `analyze_workspace`。
+- `lsp` 使用相对路径和从 1 开始的行列号，AI 不需要手写 file URI 或做 0 基换算。
 - 用 `minimal`、`standard`、`inspect`、`evidence` 控制 token 与信息量。
+- 应用交互命令使用 `timeout_ms`；workspace 工具使用 `timeout_seconds`。除非明确知道任务会很慢，否则先用默认值。
+- `pub_dev_search` 走有界网络请求；宿主机直连 TLS 不稳定时，会退回本地 Python fetch。
 - 更底层的 session service 仍保留在 Dart API 中，但推荐公开主工作流已经切到 app-first。
+
+## 验证
+
+发布级 MCP 验证：
+
+```bash
+dart run tool/verify_mcp_surface.dart
+```

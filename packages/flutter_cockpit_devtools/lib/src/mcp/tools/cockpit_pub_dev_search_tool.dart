@@ -43,6 +43,7 @@ final class CockpitPubDevSearchTool extends CockpitMcpTool {
         'properties': <String, Object?>{
           'query': <String, Object?>{'type': 'string'},
           'max_results': <String, Object?>{'type': 'integer'},
+          'timeout_seconds': <String, Object?>{'type': 'integer'},
         },
       };
 
@@ -53,6 +54,9 @@ final class CockpitPubDevSearchTool extends CockpitMcpTool {
         CockpitPubDevSearchRequest(
           query: cockpitReadRequiredString(arguments, 'query'),
           maxResults: cockpitReadOptionalInt(arguments, 'max_results') ?? 5,
+          timeout: Duration(
+            seconds: cockpitReadOptionalInt(arguments, 'timeout_seconds') ?? 20,
+          ),
         ),
       );
       return cockpitMcpResult(

@@ -34,7 +34,8 @@ final class CockpitRunCommandTool extends CockpitMcpTool {
           'app_json': <String, Object?>{'type': 'string'},
           'base_url': <String, Object?>{'type': 'string'},
           'command': <String, Object?>{'type': 'object'},
-          'result_profile': <String, Object?>{'type': 'string'},
+          'timeout_ms': <String, Object?>{'type': 'integer'},
+          'profile': <String, Object?>{'type': 'string'},
           'snapshot_options': <String, Object?>{'type': 'object'},
           'compare_against_snapshot_ref': <String, Object?>{'type': 'string'},
         },
@@ -52,6 +53,10 @@ final class CockpitRunCommandTool extends CockpitMcpTool {
             cockpitNormalizeJsonKeys(
               cockpitReadRequiredObject(arguments, 'command'),
             ),
+          ),
+          defaultCommandTimeout: Duration(
+            milliseconds:
+                cockpitReadOptionalInt(arguments, 'timeout_ms') ?? 4000,
           ),
           resultProfile: _readProfile(arguments),
           snapshotOptions: _readOptionalSnapshotOptions(arguments),
@@ -71,7 +76,7 @@ final class CockpitRunCommandTool extends CockpitMcpTool {
   }
 
   CockpitInteractiveResultProfile _readProfile(Map<String, Object?> arguments) {
-    final value = arguments['result_profile'];
+    final value = arguments['profile'] ?? arguments['result_profile'];
     if (value == null) {
       return const CockpitInteractiveResultProfile.standard();
     }

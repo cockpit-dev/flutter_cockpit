@@ -43,6 +43,12 @@ final class LaunchAppCommand extends CockpitCliCommand {
             'App-side cockpit port. Reuse this when you want a stable base_url.',
       )
       ..addOption(
+        'launch-timeout-seconds',
+        defaultsTo: '120',
+        help:
+            'Total time budget for build, launch, and ready checks. Increase this on cold builds or slower CI hosts.',
+      )
+      ..addOption(
         'mode',
         allowed: CockpitAppMode.values
             .map((mode) => mode.jsonValue)
@@ -104,6 +110,9 @@ final class LaunchAppCommand extends CockpitCliCommand {
         platform: _readRequiredOption('platform'),
         deviceId: _readDeviceId(),
         sessionPort: int.parse(_readRequiredOption('session-port')),
+        launchTimeout: Duration(
+          seconds: int.parse(_readRequiredOption('launch-timeout-seconds')),
+        ),
         mode: CockpitAppMode.fromJson(_readRequiredOption('mode')),
         appHandlePath: argResults?['app-json'] as String?,
       ),

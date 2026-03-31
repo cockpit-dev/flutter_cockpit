@@ -13,6 +13,7 @@ Default loop: launch or reuse the app, read the smallest useful state, execute o
 - running a Flutter app
 - proving visible UI, route, or interaction state
 - reproducing a live bug
+- editing Dart or Flutter code and needing focused dependency, analyzer, or symbol facts before another runtime pass
 - hot reload or hot restart during implementation
 - collecting screenshots, recordings, or bundle-backed acceptance evidence
 
@@ -26,12 +27,20 @@ Do not use it for docs-only edits or static refactors with no runtime claim.
    Start with `read_app` / `read-app --profile minimal`.
 3. `execute`
    Prefer `run_command` for one action and `run_batch` for short ordered steps. Use `wait_idle`, `read_errors`, `read_logs`, `hot_reload`, and `hot_restart` only when they answer the next question.
+   For code-side questions, prefer `lsp`, `analyze_files`, and `pub` before broader workspace commands.
 4. `observe`
    Re-read with the smallest profile that answers the next missing fact.
 5. `deliver`
    Use `run_script` for a running app, `run_task` for full orchestration, and `validate_task` before any acceptance-facing claim. Treat CLI `run-script` non-zero exit or MCP `run_script` `isError=true` as a failed bundle.
 
-## Result Profiles
+## Locator Guidance
+
+- Start with `key`, `text`, or `semantic_id`.
+- Add `route`, `type`, `path`, or nested `ancestor` only when ambiguity remains.
+- `path` is fuzzy. Segments such as `body`, `slivers`, and numeric indexes are ignored, so shorter structural paths are preferred over brittle full trees.
+- Use short ordered `fallbacks` instead of one over-constrained locator.
+
+## Profiles And Timeouts
 
 - `minimal`: fast status, lowest token cost
 - `standard`: bounded UI summary and snapshot refs
@@ -39,6 +48,7 @@ Do not use it for docs-only edits or static refactors with no runtime claim.
 - `evidence`: final or hardest cases only
 
 Default to the smallest profile that answers the current question.
+Interactive app commands accept `timeout_ms`. Workspace tools accept `timeout_seconds`. Raise them only for known slow steps such as long scrolls, `run_task`, or package operations.
 
 ## Token Discipline
 
@@ -57,6 +67,11 @@ Default to the smallest profile that answers the current question.
 - Settle: `wait_idle` / `wait-idle`
 - Runtime failures: `read_errors` / `read-errors`
 - App-centric logs: `read_logs` / `read-logs`
+- Dependency search: `pub_dev_search`
+- Dependency edits: `pub`
+- Package source reads: `read_package_uris`
+- Focused static checks: `analyze_files`
+- Code intelligence: `lsp`
 - Code changes: `hot_reload`, `hot_restart`
 - Evidence capture: `start_recording`, `stop_recording`
 - Running-app bundle: `run_script` / `run-script`

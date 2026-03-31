@@ -7,6 +7,7 @@ import '../control/cockpit_command_type.dart';
 import 'cockpit_discovery_policy.dart';
 import 'cockpit_runtime_tree_visibility.dart';
 import 'cockpit_semantics_bridge.dart';
+import 'cockpit_snapshot.dart';
 import 'cockpit_target.dart';
 import 'cockpit_target_geometry_resolver.dart';
 import 'cockpit_text_input_request.dart';
@@ -300,6 +301,7 @@ final class CockpitNativeTargetDiscovery {
         element,
         semantics: semantics,
       );
+      final scrollableMetadata = _scrollableMetadataForElement(element);
       return CockpitTarget(
         registrationId: _registrationId(
           routeName: routeName,
@@ -312,8 +314,16 @@ final class CockpitNativeTargetDiscovery {
         text: metadata.text,
         tooltip: metadata.tooltip,
         typeName: typeName,
+        path: _locatorPathForElement(element),
+        scrollablePath: scrollableMetadata.path,
+        scrollableKeyValue: scrollableMetadata.keyValue,
+        scrollableTypeName: scrollableMetadata.typeName,
         routeName: routeName ?? '',
         supportedCommands: supportedCommands,
+        locatorAncestors: _extractLocatorAncestors(
+          element,
+          routeName: routeName,
+        ),
         onTap: tapHandler,
         onLongPress: longPressHandler,
         onDoubleTap: doubleTapHandler,
@@ -344,6 +354,8 @@ final class CockpitNativeTargetDiscovery {
                     }
                   },
         diagnosticNodeProvider: () => element,
+        geometryProvider: () =>
+            CockpitTargetGeometryResolver.maybeFromElement(element),
       );
     }
 
@@ -355,6 +367,7 @@ final class CockpitNativeTargetDiscovery {
       return null;
     }
 
+    final scrollableMetadata = _scrollableMetadataForElement(element);
     return CockpitTarget(
       registrationId: _registrationId(
         routeName: routeName,
@@ -367,9 +380,244 @@ final class CockpitNativeTargetDiscovery {
       text: metadata.text,
       tooltip: metadata.tooltip,
       typeName: typeName,
+      path: _locatorPathForElement(element),
+      scrollablePath: scrollableMetadata.path,
+      scrollableKeyValue: scrollableMetadata.keyValue,
+      scrollableTypeName: scrollableMetadata.typeName,
       routeName: routeName ?? '',
+      locatorAncestors: _extractLocatorAncestors(
+        element,
+        routeName: routeName,
+      ),
       diagnosticNodeProvider: () => element,
+      geometryProvider: () => CockpitTargetGeometryResolver.maybeFromElement(
+        element,
+      ),
     );
+  }
+
+  List<CockpitSnapshotAncestor> _extractLocatorAncestors(
+    Element element, {
+    required String? routeName,
+  }) {
+    final ancestors = <CockpitSnapshotAncestor>[];
+    element.visitAncestorElements((ancestor) {
+      if (_shouldSkipAncestorElementForLocator(ancestor)) {
+        return true;
+      }
+      final semanticId = _semanticIdForElement(ancestor);
+      final keyValue = _keyValueForElement(ancestor);
+      ancestors.add(
+        CockpitSnapshotAncestor(
+          typeName: ancestor.widget.runtimeType.toString(),
+          cockpitId: _firstNonEmpty(<String?>[semanticId, keyValue]),
+          semanticId: semanticId,
+          keyValue: keyValue,
+          textPreview: _firstNonEmpty(<String?>[
+            _passiveTextForElement(ancestor),
+            _tooltipForElement(ancestor),
+          ]),
+          tooltip: _tooltipForElement(ancestor),
+          routeName: routeName,
+          path: _locatorPathForElement(ancestor),
+        ),
+      );
+      return true;
+    });
+    return List<CockpitSnapshotAncestor>.unmodifiable(ancestors);
+  }
+
+  bool _shouldSkipAncestorElementForLocator(Element ancestor) {
+    final typeName = ancestor.widget.runtimeType.toString();
+    if (typeName.startsWith('_')) {
+      return true;
+    }
+    return ancestor.widget is InheritedWidget ||
+        ancestor.widget is ParentDataWidget<ParentData> ||
+        ancestor.widget is Focus ||
+        ancestor.widget is Semantics ||
+        ancestor.widget is Listener ||
+        ancestor.widget is GestureDetector ||
+        ancestor.widget is IgnorePointer ||
+        ancestor.widget is MouseRegion ||
+        ancestor.widget is ExcludeSemantics ||
+        ancestor.widget is MergeSemantics;
+  }
+
+  String _locatorPathForElement(Element element) {
+    final segments = <String>[];
+    final chain = <Element>[element];
+    element.visitAncestorElements((ancestor) {
+      chain.add(ancestor);
+      return true;
+    });
+    for (final candidate in chain.reversed) {
+      if (_shouldSkipPathElement(candidate)) {
+        continue;
+      }
+      final segment =
+          _locatorPathSegment(candidate.widget.runtimeType.toString());
+      if (segment == null) {
+        continue;
+      }
+      segments.add(segment);
+    }
+    final trimmedSegments = _trimMeaningfulPathSegments(segments);
+    if (trimmedSegments.isEmpty) {
+      final fallback =
+          _locatorPathSegment(element.widget.runtimeType.toString());
+      if (fallback == null) {
+        return '/target';
+      }
+      return '/$fallback';
+    }
+    return '/${trimmedSegments.join('/')}';
+  }
+
+  String? _locatorPathSegment(String typeName) {
+    if (typeName.startsWith('_')) {
+      return null;
+    }
+    final slug = _slugify(typeName).replaceAll('-', '');
+    return slug.isEmpty ? null : slug;
+  }
+
+  bool _shouldSkipPathElement(Element element) {
+    final widget = element.widget;
+    final typeName = widget.runtimeType.toString();
+    if (typeName.startsWith('_')) {
+      return true;
+    }
+    if (_isNoisyPathTypeName(typeName)) {
+      return true;
+    }
+    return widget is InheritedWidget ||
+        widget is ParentDataWidget<ParentData> ||
+        widget is Focus ||
+        widget is Listener ||
+        widget is IgnorePointer ||
+        widget is MouseRegion ||
+        widget is ExcludeSemantics ||
+        widget is MergeSemantics ||
+        widget is Padding ||
+        widget is Align ||
+        widget is Center ||
+        widget is Expanded ||
+        widget is Flexible ||
+        widget is SizedBox ||
+        widget is ColoredBox ||
+        widget is DecoratedBox ||
+        widget is ConstrainedBox ||
+        widget is DefaultTextStyle ||
+        widget is MediaQuery ||
+        widget is Builder ||
+        widget is RepaintBoundary ||
+        widget is KeepAlive ||
+        widget is AutomaticKeepAlive ||
+        widget is Row ||
+        widget is Column ||
+        widget is Stack ||
+        widget is Positioned ||
+        widget is IconTheme ||
+        widget is Scrollable;
+  }
+
+  _ScrollableLocatorMetadata _scrollableMetadataForElement(Element element) {
+    final scrollable = _nearestScrollableElement(element);
+    if (scrollable == null) {
+      return const _ScrollableLocatorMetadata();
+    }
+    return _ScrollableLocatorMetadata(
+      path: _locatorPathForElement(scrollable),
+      keyValue: _scrollableKeyValue(scrollable),
+      typeName: _scrollableTypeName(scrollable),
+    );
+  }
+
+  String _scrollableTypeName(Element element) {
+    final ownType = element.widget.runtimeType.toString();
+    if (ownType != 'Scrollable') {
+      return ownType;
+    }
+    final pathHint =
+        _scrollableTypeNameFromPath(_locatorPathForElement(element));
+    return pathHint ?? ownType;
+  }
+
+  String? _scrollableTypeNameFromPath(String? path) {
+    final segments = _pathSegments(path);
+    if (segments.isEmpty) {
+      return null;
+    }
+    return switch (segments.last) {
+      'customscrollview' => 'CustomScrollView',
+      'gridview' => 'GridView',
+      'listview' => 'ListView',
+      'pageview' => 'PageView',
+      'reorderablelistview' => 'ReorderableListView',
+      'singlechildscrollview' => 'SingleChildScrollView',
+      'tabbarview' => 'TabBarView',
+      _ => null,
+    };
+  }
+
+  Element? _nearestScrollableElement(Element element) {
+    if (_marksViewportBoundary(element)) {
+      return element;
+    }
+
+    Element? scrollable;
+    element.visitAncestorElements((ancestor) {
+      if (_marksViewportBoundary(ancestor)) {
+        scrollable = ancestor;
+        return false;
+      }
+      return true;
+    });
+    return scrollable;
+  }
+
+  String? _scrollableKeyValue(Element element) {
+    final ownKey = _keyValueForElement(element);
+    if (ownKey != null && ownKey.isNotEmpty) {
+      return ownKey;
+    }
+
+    String? ancestorKey;
+    element.visitAncestorElements((ancestor) {
+      ancestorKey = _keyValueForElement(ancestor);
+      return ancestorKey == null || ancestorKey!.isEmpty;
+    });
+    return ancestorKey;
+  }
+
+  List<String> _trimMeaningfulPathSegments(List<String> segments) {
+    if (segments.isEmpty) {
+      return segments;
+    }
+    final scaffoldIndex = segments.lastIndexOf('scaffold');
+    if (scaffoldIndex >= 0) {
+      return segments.sublist(scaffoldIndex);
+    }
+    final screenIndex = segments.lastIndexWhere(
+      (segment) =>
+          segment.endsWith('screen') ||
+          segment.endsWith('page') ||
+          segment.endsWith('dialog') ||
+          segment.endsWith('drawer'),
+    );
+    if (screenIndex >= 0) {
+      return segments.sublist(screenIndex);
+    }
+    if (segments.length > 8) {
+      return segments.sublist(segments.length - 8);
+    }
+    return segments;
+  }
+
+  bool _isNoisyPathTypeName(String typeName) {
+    return _pathNoiseTypeNames.contains(typeName) ||
+        _pathNoiseTypePrefixes.any(typeName.startsWith);
   }
 
   bool _hasAnyMetadata(_TargetMetadata metadata) {
@@ -1065,6 +1313,127 @@ final class CockpitNativeTargetDiscovery {
     final normalized = value.replaceAll(RegExp(r'\s+'), ' ').trim();
     return normalized.isEmpty ? null : normalized;
   }
+
+  List<String> _pathSegments(String? value) {
+    final normalized = _normalizeText(value);
+    if (normalized == null) {
+      return const <String>[];
+    }
+
+    final canonical = normalized
+        .replaceAll(RegExp(r'[>\[\]():\s]+'), '/')
+        .replaceAll('.', '/');
+    return canonical
+        .split(RegExp(r'/+'))
+        .map((segment) {
+          final lower = segment.trim().toLowerCase();
+          if (lower.isEmpty || RegExp(r'^\d+$').hasMatch(lower)) {
+            return null;
+          }
+          final alphanumericOnly = lower.replaceAll(RegExp(r'[^a-z0-9]+'), '');
+          if (alphanumericOnly.isEmpty ||
+              _pathNoiseSegments.contains(alphanumericOnly)) {
+            return null;
+          }
+          return alphanumericOnly;
+        })
+        .whereType<String>()
+        .toList(growable: false);
+  }
+
+  static const Set<String> _pathNoiseTypeNames = <String>{
+    'AbsorbPointer',
+    'Actions',
+    'AnimatedBuilder',
+    'AnimatedContainer',
+    'AnimatedDefaultTextStyle',
+    'AnimatedPhysicalModel',
+    'AnimatedTheme',
+    'AutomaticKeepAlive',
+    'Banner',
+    'Builder',
+    'Center',
+    'CheckedModeBanner',
+    'ClipRect',
+    'ColoredBox',
+    'ConstrainedBox',
+    'Container',
+    'CupertinoTheme',
+    'CustomPaint',
+    'DecoratedBox',
+    'DecoratedBoxTransition',
+    'DefaultTextEditingShortcuts',
+    'DefaultTextStyle',
+    'Expanded',
+    'Flexible',
+    'FocusTraversalGroup',
+    'FractionalTranslation',
+    'IconTheme',
+    'IndexedSemantics',
+    'KeepAlive',
+    'KeyedSubtree',
+    'ListenableBuilder',
+    'Localizations',
+    'Material',
+    'MaterialApp',
+    'MediaQuery',
+    'NotificationListener<LayoutChangedNotification>',
+    'Offstage',
+    'Overlay',
+    'Padding',
+    'PageStorage',
+    'PhysicalModel',
+    'Positioned',
+    'RawGestureDetector',
+    'RawView',
+    'RepaintBoundary',
+    'RestorationScope',
+    'RootRestorationScope',
+    'RootWidget',
+    'SafeArea',
+    'ScaffoldMessenger',
+    'ScrollNotificationObserver',
+    'Scrollbar',
+    'Scrollable',
+    'Semantics',
+    'SharedAppData',
+    'ShortcutRegistrar',
+    'Shortcuts',
+    'SizedBox',
+    'SlideTransition',
+    'Stack',
+    'TapRegionSurface',
+    'Theme',
+    'TickerMode',
+    'ValuelistenableBuilder<String>',
+    'View',
+    'Viewport',
+    'WidgetsApp',
+  };
+
+  static const List<String> _pathNoiseTypePrefixes = <String>[
+    'NotificationListener<',
+    'ValueListenableBuilder<',
+  ];
+
+  static const Set<String> _pathNoiseSegments = <String>{
+    'actions',
+    'appbaractions',
+    'body',
+    'child',
+    'children',
+    'content',
+    'destination',
+    'destinations',
+    'footer',
+    'header',
+    'items',
+    'leading',
+    'slivers',
+    'subtitle',
+    'title',
+    'trailing',
+  };
 }
 
 final class _TargetMetadata {
@@ -1081,4 +1450,16 @@ final class _TargetMetadata {
   final String? tooltip;
 
   String? get displayLabel => text ?? semanticId ?? tooltip ?? keyValue;
+}
+
+final class _ScrollableLocatorMetadata {
+  const _ScrollableLocatorMetadata({
+    this.path,
+    this.keyValue,
+    this.typeName,
+  });
+
+  final String? path;
+  final String? keyValue;
+  final String? typeName;
 }

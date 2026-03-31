@@ -212,24 +212,44 @@ final class CockpitSnapshotAncestor {
   const CockpitSnapshotAncestor({
     required this.typeName,
     this.cockpitId,
+    this.semanticId,
+    this.keyValue,
     this.textPreview,
+    this.tooltip,
+    this.routeName,
+    this.path,
   });
 
   final String typeName;
   final String? cockpitId;
+  final String? semanticId;
+  final String? keyValue;
   final String? textPreview;
+  final String? tooltip;
+  final String? routeName;
+  final String? path;
 
   Map<String, Object?> toJson() => <String, Object?>{
         'typeName': typeName,
         'cockpitId': cockpitId,
+        'semanticId': semanticId,
+        'keyValue': keyValue,
         'textPreview': textPreview,
+        'tooltip': tooltip,
+        'routeName': routeName,
+        'path': path,
       };
 
   factory CockpitSnapshotAncestor.fromJson(Map<String, Object?> json) {
     return CockpitSnapshotAncestor(
       typeName: json['typeName']! as String,
       cockpitId: json['cockpitId'] as String?,
+      semanticId: json['semanticId'] as String?,
+      keyValue: json['keyValue'] as String?,
       textPreview: json['textPreview'] as String?,
+      tooltip: json['tooltip'] as String?,
+      routeName: json['routeName'] as String?,
+      path: json['path'] as String?,
     );
   }
 
@@ -239,11 +259,25 @@ final class CockpitSnapshotAncestor {
         other is CockpitSnapshotAncestor &&
             other.typeName == typeName &&
             other.cockpitId == cockpitId &&
-            other.textPreview == textPreview;
+            other.semanticId == semanticId &&
+            other.keyValue == keyValue &&
+            other.textPreview == textPreview &&
+            other.tooltip == tooltip &&
+            other.routeName == routeName &&
+            other.path == path;
   }
 
   @override
-  int get hashCode => Object.hash(typeName, cockpitId, textPreview);
+  int get hashCode => Object.hash(
+        typeName,
+        cockpitId,
+        semanticId,
+        keyValue,
+        textPreview,
+        tooltip,
+        routeName,
+        path,
+      );
 }
 
 final class CockpitSnapshotSummary {
@@ -331,6 +365,10 @@ final class CockpitSnapshotTarget {
     this.text,
     this.tooltip,
     this.typeName,
+    this.path,
+    this.scrollablePath,
+    this.scrollableKeyValue,
+    this.scrollableTypeName,
     required this.routeName,
     List<CockpitCommandType> supportedCommands = const <CockpitCommandType>[],
     this.layout,
@@ -350,6 +388,10 @@ final class CockpitSnapshotTarget {
   final String? text;
   final String? tooltip;
   final String? typeName;
+  final String? path;
+  final String? scrollablePath;
+  final String? scrollableKeyValue;
+  final String? scrollableTypeName;
   final String routeName;
   final List<CockpitCommandType> supportedCommands;
   final CockpitSnapshotLayout? layout;
@@ -376,6 +418,10 @@ final class CockpitSnapshotTarget {
         'text': text,
         'tooltip': tooltip,
         'typeName': typeName,
+        'path': path,
+        'scrollablePath': scrollablePath,
+        'scrollableKeyValue': scrollableKeyValue,
+        'scrollableTypeName': scrollableTypeName,
         'routeName': routeName,
         'supportedCommands':
             supportedCommands.map((command) => command.name).toList(),
@@ -399,6 +445,10 @@ final class CockpitSnapshotTarget {
       text: json['text'] as String?,
       tooltip: json['tooltip'] as String?,
       typeName: json['typeName'] as String?,
+      path: json['path'] as String?,
+      scrollablePath: json['scrollablePath'] as String?,
+      scrollableKeyValue: json['scrollableKeyValue'] as String?,
+      scrollableTypeName: json['scrollableTypeName'] as String?,
       routeName: json['routeName']! as String,
       supportedCommands:
           (json['supportedCommands'] as List<Object?>? ?? const <Object?>[])
@@ -448,6 +498,10 @@ final class CockpitSnapshotTarget {
             other.text == text &&
             other.tooltip == tooltip &&
             other.typeName == typeName &&
+            other.path == path &&
+            other.scrollablePath == scrollablePath &&
+            other.scrollableKeyValue == scrollableKeyValue &&
+            other.scrollableTypeName == scrollableTypeName &&
             other.routeName == routeName &&
             other.layout == layout &&
             other.content == content &&
@@ -472,6 +526,10 @@ final class CockpitSnapshotTarget {
         text,
         tooltip,
         typeName,
+        path,
+        scrollablePath,
+        scrollableKeyValue,
+        scrollableTypeName,
         routeName,
         layout,
         content,

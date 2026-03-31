@@ -50,7 +50,8 @@ final class CockpitExecuteRemoteCommandTool extends CockpitMcpTool {
           'session_handle': <String, Object?>{'type': 'object'},
           'session_handle_path': <String, Object?>{'type': 'string'},
           'command': <String, Object?>{'type': 'object'},
-          'result_profile': <String, Object?>{'type': 'string'},
+          'timeout_ms': <String, Object?>{'type': 'integer'},
+          'profile': <String, Object?>{'type': 'string'},
           'snapshot_options': <String, Object?>{'type': 'object'},
           'compare_against_snapshot_ref': <String, Object?>{'type': 'string'},
         },
@@ -69,8 +70,12 @@ final class CockpitExecuteRemoteCommandTool extends CockpitMcpTool {
           command: CockpitCommand.fromJson(
             cockpitReadRequiredObject(arguments, 'command'),
           ),
-          resultProfile:
-              _readProfile(arguments, 'result_profile', 'resultProfile'),
+          defaultCommandTimeout: Duration(
+            milliseconds:
+                cockpitReadOptionalInt(arguments, 'timeout_ms') ?? 4000,
+          ),
+          resultProfile: _readProfile(
+              arguments, 'profile', 'result_profile', 'resultProfile'),
           snapshotOptions: _readOptionalSnapshotOptions(
             arguments,
             'snapshot_options',
@@ -94,12 +99,13 @@ final class CockpitExecuteRemoteCommandTool extends CockpitMcpTool {
 
   CockpitInteractiveResultProfile _readProfile(
     Map<String, Object?> arguments,
-    String snakeCaseKey,
-    String camelCaseKey,
+    String canonicalKey,
+    String legacySnakeCaseKey,
+    String legacyCamelCaseKey,
   ) {
-    final value = arguments.containsKey(snakeCaseKey)
-        ? arguments[snakeCaseKey]
-        : arguments[camelCaseKey];
+    final value = arguments[canonicalKey] ??
+        arguments[legacySnakeCaseKey] ??
+        arguments[legacyCamelCaseKey];
     if (value == null) {
       return const CockpitInteractiveResultProfile.standard();
     }

@@ -52,9 +52,12 @@ final class CockpitMacosRemoteSessionLauncher
     }
 
     final deadline = _now().add(options.launchTimeout);
-    final flutterVersion = await _flutterVersionReader();
+    final flutterVersion =
+        options.flutterVersion ?? await _flutterVersionReader();
+    final flutterExecutable =
+        options.flutterExecutable ?? cockpitFlutterExecutable();
     await _runRequired(
-      cockpitFlutterExecutable(),
+      flutterExecutable,
       <String>[
         'build',
         'macos',

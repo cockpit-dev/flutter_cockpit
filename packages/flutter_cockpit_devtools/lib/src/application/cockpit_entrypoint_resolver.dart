@@ -6,6 +6,10 @@ import 'cockpit_application_service_exception.dart';
 
 typedef CockpitEntrypointExists = bool Function(String absolutePath);
 
+String cockpitNormalizeProjectDir(String projectDir) {
+  return p.normalize(Directory(projectDir).absolute.path);
+}
+
 final class CockpitEntrypointResolver {
   CockpitEntrypointResolver({CockpitEntrypointExists? exists})
       : _exists = exists ?? ((absolutePath) => File(absolutePath).existsSync());
@@ -16,7 +20,7 @@ final class CockpitEntrypointResolver {
     required String projectDir,
     String? target,
   }) {
-    final normalizedProjectDir = p.normalize(projectDir);
+    final normalizedProjectDir = cockpitNormalizeProjectDir(projectDir);
     final requestedTarget = _normalizeTarget(target);
     if (requestedTarget != null) {
       _ensureExists(

@@ -16,6 +16,7 @@ import 'cockpit_reveal_alignment.dart';
 import 'cockpit_tap_feedback_overlay.dart';
 import 'cockpit_diagnostic_builder.dart';
 import 'cockpit_runtime_tree_visibility.dart';
+import 'cockpit_scroll_step_result.dart';
 import 'cockpit_semantics_bridge.dart';
 import 'cockpit_snapshot.dart';
 import 'cockpit_snapshot_options.dart';
@@ -160,7 +161,13 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
       return false;
     }
 
-    final match = _findMountedElementForLocator(rootContext, locator);
+    final resolution = _registry.resolve(locator);
+    final resolvedNode = resolution.target?.diagnosticNodeProvider?.call();
+    final match = switch (resolvedNode) {
+      final Element element when resolution.isSuccess && element.mounted =>
+        element,
+      _ => _findMountedElementForLocator(rootContext, locator),
+    };
     if (match == null) {
       return false;
     }
@@ -213,10 +220,12 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
     return CockpitTargetGeometryResolver.maybeFromViewport(rootContext);
   }
 
-  Future<bool> scrollByViewport({
+  Future<CockpitScrollStepResult> scrollByViewport({
     bool reverse = false,
     double viewportFraction = 0.8,
     String? scrollableKey,
+    CockpitLocator? targetLocator,
+    CockpitLocator? scrollableLocator,
     Duration duration = const Duration(milliseconds: 220),
     CockpitGestureProfile gestureProfile = CockpitGestureProfile.userLike,
     bool continuous = false,
@@ -224,7 +233,7 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
   }) async {
     final rootContext = _boundaryKey.currentContext;
     if (rootContext == null) {
-      return false;
+      return const CockpitScrollStepResult(didScroll: false);
     }
 
     final scrollables =
@@ -239,20 +248,20 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
       return candidate.keyValue == scrollableKey;
     }).toList(growable: false);
     if (scrollables.isEmpty) {
-      return false;
+      return const CockpitScrollStepResult(didScroll: false);
     }
 
-    scrollables.sort((left, right) {
-      final viewportCompare = right.state.position.viewportDimension.compareTo(
-        left.state.position.viewportDimension,
-      );
-      if (viewportCompare != 0) {
-        return viewportCompare;
-      }
-      return right.depth.compareTo(left.depth);
-    });
+    final scrollable = _selectScrollableCandidate(
+      scrollables,
+      targetLocator: targetLocator,
+      scrollableLocator: scrollableLocator,
+    );
+    if (scrollable == null) {
+      return const CockpitScrollStepResult(didScroll: false);
+    }
 
-    final position = scrollables.first.state.position;
+    final position = scrollable.state.position;
+    final pixelsBefore = position.pixels;
     final axisSign = switch (position.axisDirection) {
       AxisDirection.down || AxisDirection.right => 1.0,
       AxisDirection.up || AxisDirection.left => -1.0,
@@ -264,23 +273,45 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
       position.minScrollExtent,
       position.maxScrollExtent,
     );
+    final allowsProgrammaticScroll = position.physics.allowUserScrolling;
     final acceptsUserOffset = position.physics.shouldAcceptUserOffset(position);
+    final baseResult = CockpitScrollStepResult(
+      didScroll: false,
+      strategy: 'none',
+      scrollableKey: scrollable.keyValue,
+      scrollablePath: scrollable.path,
+      scrollableTypeName: scrollable.typeName,
+      pixelsBefore: pixelsBefore,
+      pixelsAfter: position.pixels,
+      nextPixels: nextPixels,
+      minScrollExtent: position.minScrollExtent,
+      maxScrollExtent: position.maxScrollExtent,
+      viewportDimension: position.viewportDimension,
+      acceptsUserOffset: acceptsUserOffset,
+      allowsProgrammaticScroll: allowsProgrammaticScroll,
+      hadGestureTarget: false,
+      hadSemanticAction: false,
+      matchedRegistryTarget: false,
+    );
     if ((nextPixels - position.pixels).abs() < 0.5) {
-      return false;
+      return baseResult;
     }
 
     final semanticScrollAction = cockpitResolveSemanticScrollAction(
       axisDirection: position.axisDirection,
       forward: nextPixels > position.pixels,
     );
-    final scrollGeometry = CockpitTargetGeometryResolver.maybeFromElement(
-      scrollables.first.element,
-    );
+    final hadSemanticAction = semanticScrollAction != null;
+    final scrollableTarget = _registryTargetForScrollableCandidate(scrollable);
+    final scrollGeometry = scrollableTarget == null
+        ? CockpitTargetGeometryResolver.maybeFromElement(scrollable.element)
+        : null;
     if (scrollGeometry != null) {
       final initialPixels = position.pixels;
       try {
         await _gestureEngine.perform(
           CockpitGestureAction.drag(
+            target: scrollableTarget,
             geometry: scrollGeometry,
             delta: _scrollDragDelta(
               axisDirection: position.axisDirection,
@@ -290,18 +321,32 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
             duration: duration,
             moveEventCount: continuous ? 24 : 0,
             profile: gestureProfile,
-            touchSlopX: 8,
-            touchSlopY: 8,
+            touchSlopX: cockpitDefaultDragTouchSlop,
+            touchSlopY: cockpitDefaultDragTouchSlop,
           ),
         );
         if (postScrollEnsureVisible) {
           await Future<void>.microtask(() {});
         }
         if ((position.pixels - initialPixels).abs() >= 0.5) {
-          return true;
-        }
-        if (acceptsUserOffset) {
-          return true;
+          return CockpitScrollStepResult(
+            didScroll: true,
+            strategy: 'gesture',
+            scrollableKey: scrollable.keyValue,
+            scrollablePath: scrollable.path,
+            scrollableTypeName: scrollable.typeName,
+            pixelsBefore: pixelsBefore,
+            pixelsAfter: position.pixels,
+            nextPixels: nextPixels,
+            minScrollExtent: position.minScrollExtent,
+            maxScrollExtent: position.maxScrollExtent,
+            viewportDimension: position.viewportDimension,
+            acceptsUserOffset: acceptsUserOffset,
+            allowsProgrammaticScroll: allowsProgrammaticScroll,
+            hadGestureTarget: true,
+            hadSemanticAction: false,
+            matchedRegistryTarget: scrollableTarget != null,
+          );
         }
       } on StateError {
         // Fall through to semantics or direct position adjustment.
@@ -311,22 +356,351 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
     }
     if (semanticScrollAction != null) {
       final initialPixels = position.pixels;
-      final semanticAction = scrollables.first.semanticScrollActionHandler(
+      final semanticAction = scrollable.semanticScrollActionHandler(
         semanticScrollAction,
       );
       if (semanticAction != null) {
         semanticAction();
         await Future<void>.microtask(() {});
         if ((position.pixels - initialPixels).abs() >= 0.5) {
-          return true;
-        }
-        if (acceptsUserOffset) {
-          return true;
+          return CockpitScrollStepResult(
+            didScroll: true,
+            strategy: 'semantics',
+            scrollableKey: scrollable.keyValue,
+            scrollablePath: scrollable.path,
+            scrollableTypeName: scrollable.typeName,
+            pixelsBefore: pixelsBefore,
+            pixelsAfter: position.pixels,
+            nextPixels: nextPixels,
+            minScrollExtent: position.minScrollExtent,
+            maxScrollExtent: position.maxScrollExtent,
+            viewportDimension: position.viewportDimension,
+            acceptsUserOffset: acceptsUserOffset,
+            allowsProgrammaticScroll: allowsProgrammaticScroll,
+            hadGestureTarget:
+                scrollGeometry != null || scrollableTarget != null,
+            hadSemanticAction: true,
+            matchedRegistryTarget: scrollableTarget != null,
+          );
         }
       }
     }
 
-    return false;
+    if (allowsProgrammaticScroll) {
+      final initialPixels = position.pixels;
+      try {
+        if (duration == Duration.zero ||
+            _isTestBinding(WidgetsBinding.instance)) {
+          position.jumpTo(nextPixels);
+          await Future<void>.microtask(() {});
+          return CockpitScrollStepResult(
+            didScroll: (position.pixels - initialPixels).abs() >= 0.5,
+            strategy: 'jumpTo',
+            scrollableKey: scrollable.keyValue,
+            scrollablePath: scrollable.path,
+            scrollableTypeName: scrollable.typeName,
+            pixelsBefore: pixelsBefore,
+            pixelsAfter: position.pixels,
+            nextPixels: nextPixels,
+            minScrollExtent: position.minScrollExtent,
+            maxScrollExtent: position.maxScrollExtent,
+            viewportDimension: position.viewportDimension,
+            acceptsUserOffset: acceptsUserOffset,
+            allowsProgrammaticScroll: allowsProgrammaticScroll,
+            hadGestureTarget:
+                scrollGeometry != null || scrollableTarget != null,
+            hadSemanticAction: hadSemanticAction,
+            matchedRegistryTarget: scrollableTarget != null,
+          );
+        }
+        await position.animateTo(
+          nextPixels,
+          duration: duration,
+          curve: Curves.easeOutCubic,
+        );
+        await Future<void>.microtask(() {});
+        if ((position.pixels - initialPixels).abs() >= 0.5) {
+          return CockpitScrollStepResult(
+            didScroll: true,
+            strategy: 'animateTo',
+            scrollableKey: scrollable.keyValue,
+            scrollablePath: scrollable.path,
+            scrollableTypeName: scrollable.typeName,
+            pixelsBefore: pixelsBefore,
+            pixelsAfter: position.pixels,
+            nextPixels: nextPixels,
+            minScrollExtent: position.minScrollExtent,
+            maxScrollExtent: position.maxScrollExtent,
+            viewportDimension: position.viewportDimension,
+            acceptsUserOffset: acceptsUserOffset,
+            allowsProgrammaticScroll: allowsProgrammaticScroll,
+            hadGestureTarget:
+                scrollGeometry != null || scrollableTarget != null,
+            hadSemanticAction: hadSemanticAction,
+            matchedRegistryTarget: scrollableTarget != null,
+          );
+        }
+        position.jumpTo(nextPixels);
+        await Future<void>.microtask(() {});
+        if ((position.pixels - initialPixels).abs() >= 0.5) {
+          return CockpitScrollStepResult(
+            didScroll: true,
+            strategy: 'jumpTo',
+            scrollableKey: scrollable.keyValue,
+            scrollablePath: scrollable.path,
+            scrollableTypeName: scrollable.typeName,
+            pixelsBefore: pixelsBefore,
+            pixelsAfter: position.pixels,
+            nextPixels: nextPixels,
+            minScrollExtent: position.minScrollExtent,
+            maxScrollExtent: position.maxScrollExtent,
+            viewportDimension: position.viewportDimension,
+            acceptsUserOffset: acceptsUserOffset,
+            allowsProgrammaticScroll: allowsProgrammaticScroll,
+            hadGestureTarget:
+                scrollGeometry != null || scrollableTarget != null,
+            hadSemanticAction: hadSemanticAction,
+            matchedRegistryTarget: scrollableTarget != null,
+          );
+        }
+      } on StateError {
+        // Ignore and fall back to reporting the scroll failure.
+      } on ArgumentError {
+        // Ignore and fall back to reporting the scroll failure.
+      }
+    }
+
+    return CockpitScrollStepResult(
+      didScroll: false,
+      strategy: 'none',
+      scrollableKey: scrollable.keyValue,
+      scrollablePath: scrollable.path,
+      scrollableTypeName: scrollable.typeName,
+      pixelsBefore: pixelsBefore,
+      pixelsAfter: position.pixels,
+      nextPixels: nextPixels,
+      minScrollExtent: position.minScrollExtent,
+      maxScrollExtent: position.maxScrollExtent,
+      viewportDimension: position.viewportDimension,
+      acceptsUserOffset: acceptsUserOffset,
+      allowsProgrammaticScroll: allowsProgrammaticScroll,
+      hadGestureTarget: scrollGeometry != null || scrollableTarget != null,
+      hadSemanticAction: hadSemanticAction,
+      matchedRegistryTarget: scrollableTarget != null,
+    );
+  }
+
+  CockpitTarget? _registryTargetForScrollableCandidate(
+    _CockpitScrollableCandidate candidate,
+  ) {
+    final matches = _registry.visibleTargets.where((target) {
+      if (!_matchesTypeSignal(target.typeName, candidate.typeName)) {
+        return false;
+      }
+      if (candidate.keyValue != null &&
+          candidate.keyValue!.isNotEmpty &&
+          target.keyValue != candidate.keyValue) {
+        return false;
+      }
+      if (!_matchesPath(target.path, candidate.path)) {
+        return false;
+      }
+      return true;
+    }).toList(growable: false);
+    if (matches.isEmpty) {
+      return null;
+    }
+    matches.sort((left, right) {
+      final leftGeometry = left.geometryProvider?.call();
+      final rightGeometry = right.geometryProvider?.call();
+      final geometryCompare = (rightGeometry != null ? 1 : 0)
+          .compareTo(leftGeometry != null ? 1 : 0);
+      if (geometryCompare != 0) {
+        return geometryCompare;
+      }
+      return (right.path ?? '').length.compareTo((left.path ?? '').length);
+    });
+    return matches.first;
+  }
+
+  Element? _findMountedElementForLocator(
+    Element rootElement,
+    CockpitLocator locator,
+  ) {
+    for (final candidate in _flatten(locator)) {
+      final match = _visitForLocator(rootElement, candidate);
+      if (match != null) {
+        return match;
+      }
+    }
+    return null;
+  }
+
+  Iterable<CockpitLocator> _flatten(CockpitLocator locator) sync* {
+    yield locator;
+    for (final fallback in locator.fallbacks) {
+      yield* _flatten(fallback);
+    }
+  }
+
+  Element? _visitForLocator(Element rootElement, CockpitLocator locator) {
+    Element? bestMatch;
+    var bestScore = -1;
+
+    void visit(Element element) {
+      if (!element.mounted) {
+        return;
+      }
+      final score = _locatorMatchScore(element, locator);
+      if (score > bestScore) {
+        bestScore = score;
+        bestMatch = element;
+      }
+      element.visitChildElements(visit);
+    }
+
+    visit(rootElement);
+    return bestMatch;
+  }
+
+  int _locatorMatchScore(Element element, CockpitLocator locator) {
+    if (!_matchesElementLocator(element, locator)) {
+      return -1;
+    }
+
+    var score = locator.signalMap.length * 10;
+    final pathSignal = locator.path;
+    if (pathSignal != null) {
+      score +=
+          _pathMatchPriorityScore(_locatorPathForElement(element), pathSignal);
+    }
+    final keyValue = _stableKeyValue(element.widget.key);
+    if (locator.key != null && keyValue != null) {
+      score += 8;
+    }
+    if (locator.text != null && _elementTextSignal(element) != null) {
+      score += 6;
+    }
+    if (locator.semanticId != null && _elementSemanticSignal(element) != null) {
+      score += 4;
+    }
+    if (locator.ancestor != null) {
+      score += 2;
+    }
+    return score;
+  }
+
+  bool _matchesElementLocator(Element element, CockpitLocator locator) {
+    if (!locator.hasSignals) {
+      return false;
+    }
+    for (final signal in locator.signals) {
+      if (!_matchesElementSignal(element, signal.kind, signal.value)) {
+        return false;
+      }
+    }
+    final ancestor = locator.ancestor;
+    if (ancestor != null &&
+        !_matchesAncestorChain(_extractLocatorAncestors(element), ancestor)) {
+      return false;
+    }
+    return true;
+  }
+
+  bool _matchesElementSignal(
+    Element element,
+    CockpitLocatorKind kind,
+    String value,
+  ) {
+    return switch (kind) {
+      CockpitLocatorKind.cockpitId =>
+        _stableKeyValue(element.widget.key) == value ||
+            _matchesTextSignal(_elementSemanticSignal(element), value),
+      CockpitLocatorKind.semanticId =>
+        _matchesTextSignal(_elementSemanticSignal(element), value),
+      CockpitLocatorKind.key => _stableKeyValue(element.widget.key) == value,
+      CockpitLocatorKind.text =>
+        _matchesTextSignal(_elementTextSignal(element), value),
+      CockpitLocatorKind.tooltip =>
+        _matchesTextSignal(_elementTooltipSignal(element), value),
+      CockpitLocatorKind.type =>
+        _matchesTypeSignal(element.widget.runtimeType.toString(), value),
+      CockpitLocatorKind.route => widget.routeName == value,
+      CockpitLocatorKind.registrationId => false,
+      CockpitLocatorKind.path =>
+        _matchesPath(_locatorPathForElement(element), value),
+    };
+  }
+
+  String? _elementTextSignal(Element element) {
+    return _textPreviewForAncestor(element);
+  }
+
+  String? _elementSemanticSignal(Element element) {
+    final widget = element.widget;
+    if (widget is Semantics) {
+      return _normalizeText(
+        widget.properties.label ??
+            widget.properties.value ??
+            widget.properties.hint,
+      );
+    }
+    return null;
+  }
+
+  String? _elementTooltipSignal(Element element) {
+    return _elementSemanticSignal(element);
+  }
+
+  _CockpitScrollableCandidate? _selectScrollableCandidate(
+    List<_CockpitScrollableCandidate> candidates, {
+    CockpitLocator? targetLocator,
+    CockpitLocator? scrollableLocator,
+  }) {
+    final matchingScrollableCandidates = scrollableLocator == null
+        ? candidates
+        : candidates
+            .where(
+              (candidate) =>
+                  _scrollableLocatorMatchScore(candidate, scrollableLocator) >
+                  0,
+            )
+            .toList(growable: false);
+    if (matchingScrollableCandidates.isEmpty) {
+      return null;
+    }
+
+    final ordered = matchingScrollableCandidates.toList(growable: false)
+      ..sort((left, right) {
+        final rightScore = _scrollablePriorityScore(
+          right,
+          targetLocator: targetLocator,
+          scrollableLocator: scrollableLocator,
+        );
+        final leftScore = _scrollablePriorityScore(
+          left,
+          targetLocator: targetLocator,
+          scrollableLocator: scrollableLocator,
+        );
+        final scoreCompare = rightScore.compareTo(leftScore);
+        if (scoreCompare != 0) {
+          return scoreCompare;
+        }
+
+        final viewportCompare = right.state.position.viewportDimension
+            .compareTo(left.state.position.viewportDimension);
+        if (viewportCompare != 0) {
+          return viewportCompare;
+        }
+        return right.depth.compareTo(left.depth);
+      });
+    if (scrollableLocator?.index case final index?) {
+      if (index < 0 || index >= ordered.length) {
+        return null;
+      }
+      return ordered[index];
+    }
+    return ordered.first;
   }
 
   Offset _scrollDragDelta({
@@ -356,12 +730,20 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
         return;
       }
       if (element is StatefulElement && element.state is ScrollableState) {
+        final locatorBoundary = _scrollableLocatorBoundary(element);
         candidates.add(
           _CockpitScrollableCandidate(
             state: element.state as ScrollableState,
             depth: depth,
-            keyValue: _scrollableKeyValue(element),
-            element: element,
+            keyValue: _scrollableKeyValue(locatorBoundary),
+            typeName: _scrollableLocatorTypeName(
+              locatorBoundary,
+              fallbackElement: element,
+            ),
+            path: _locatorPathForElement(locatorBoundary),
+            locatorAncestors: _extractLocatorAncestors(locatorBoundary),
+            element: locatorBoundary,
+            semanticsElement: element,
           ),
         );
         if (policy.marksScrollableBoundary(element)) {
@@ -401,77 +783,548 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
     return ancestorKey;
   }
 
-  Element? _findMountedElementForLocator(
-      Element rootElement, CockpitLocator locator) {
-    for (final candidate in _flatten(locator)) {
-      final match = _visitForLocator(rootElement, candidate);
-      if (match != null) {
-        return match;
+  Element _scrollableLocatorBoundary(Element element) {
+    final keyValue = _scrollableKeyValue(element);
+    if (keyValue != null && keyValue.isNotEmpty) {
+      final keyedBoundary = _nearestElementWithStableKey(element, keyValue);
+      if (keyedBoundary != null) {
+        return keyedBoundary;
       }
     }
-    return null;
-  }
-
-  Iterable<CockpitLocator> _flatten(CockpitLocator locator) sync* {
-    yield locator;
-    for (final fallback in locator.fallbacks) {
-      yield* _flatten(fallback);
+    final descendantBoundary = _semanticScrollableBoundaryInSubtree(element);
+    if (descendantBoundary != null) {
+      return descendantBoundary;
     }
+    if (_isSemanticScrollableBoundary(element)) {
+      return element;
+    }
+
+    Element? boundary;
+    element.visitAncestorElements((ancestor) {
+      if (_isSemanticScrollableBoundary(ancestor)) {
+        boundary = ancestor;
+        return false;
+      }
+      return true;
+    });
+    return boundary ?? element;
   }
 
-  Element? _visitForLocator(Element rootElement, CockpitLocator locator) {
-    Element? bestMatch;
+  Element? _nearestElementWithStableKey(Element element, String keyValue) {
+    if (_stableKeyValue(element.widget.key) == keyValue) {
+      return element;
+    }
 
-    void visit(Element element) {
-      if (!element.mounted ||
-          widget.discoveryPolicy.ignoresSubtree(element) ||
-          !cockpitIsVisibleInRuntimeTree(element)) {
+    Element? ancestorMatch;
+    element.visitAncestorElements((ancestor) {
+      if (_stableKeyValue(ancestor.widget.key) == keyValue) {
+        ancestorMatch = ancestor;
+        return false;
+      }
+      return true;
+    });
+    if (ancestorMatch != null) {
+      return ancestorMatch;
+    }
+
+    Element? descendantMatch;
+
+    void visit(Element candidate) {
+      if (descendantMatch != null || !candidate.mounted) {
         return;
       }
-      if (_elementMatchesLocator(element, locator)) {
-        bestMatch = element;
-      }
-      if (bestMatch != null || widget.discoveryPolicy.stopsTraversal(element)) {
+      if (_stableKeyValue(candidate.widget.key) == keyValue) {
+        descendantMatch = candidate;
         return;
       }
-      element.visitChildElements(visit);
+      candidate.visitChildElements(visit);
     }
 
-    visit(rootElement);
-    return bestMatch;
+    element.visitChildElements(visit);
+    return descendantMatch;
   }
 
-  bool _elementMatchesLocator(Element element, CockpitLocator locator) {
-    return switch (locator.kind) {
-      CockpitLocatorKind.cockpitId => false,
-      CockpitLocatorKind.semanticId => false,
-      CockpitLocatorKind.key =>
-        _stableKeyValue(element.widget.key) == locator.value,
-      CockpitLocatorKind.text => _elementTextSignals(element).any(
-          (candidate) => _matchesTextSignal(candidate, locator.value),
-        ),
-      CockpitLocatorKind.tooltip => _elementTooltip(element) == locator.value,
-      CockpitLocatorKind.type =>
-        element.widget.runtimeType.toString() == locator.value,
-      CockpitLocatorKind.route => false,
+  Element? _semanticScrollableBoundaryInSubtree(Element element) {
+    if (_isSemanticScrollableBoundary(element)) {
+      return element;
+    }
+
+    Element? match;
+
+    void visit(Element candidate) {
+      if (match != null || !candidate.mounted) {
+        return;
+      }
+      if (_isSemanticScrollableBoundary(candidate)) {
+        match = candidate;
+        return;
+      }
+      candidate.visitChildElements(visit);
+    }
+
+    element.visitChildElements(visit);
+    return match;
+  }
+
+  bool _isSemanticScrollableBoundary(Element element) {
+    if (widget.discoveryPolicy.marksScrollableBoundary(element)) {
+      return true;
+    }
+    final normalizedType = _normalizeTypeName(
+      element.widget.runtimeType.toString(),
+    );
+    return normalizedType != null &&
+        _semanticScrollableTypeNames.contains(normalizedType);
+  }
+
+  String _scrollableLocatorTypeName(
+    Element element, {
+    required Element fallbackElement,
+  }) {
+    final typeName = element.widget.runtimeType.toString();
+    if (_isSemanticScrollableBoundary(element) && typeName != 'Scrollable') {
+      return typeName;
+    }
+    return _scrollableTypeName(fallbackElement);
+  }
+
+  String _scrollableTypeName(Element element) {
+    final ownType = element.widget.runtimeType.toString();
+    if (ownType != 'Scrollable') {
+      return ownType;
+    }
+    final pathHint =
+        _scrollableTypeNameFromPath(_locatorPathForElement(element));
+    return pathHint ?? ownType;
+  }
+
+  String? _scrollableTypeNameFromPath(String? path) {
+    final segments = _pathSegments(path);
+    if (segments.isEmpty) {
+      return null;
+    }
+    return switch (segments.last) {
+      'customscrollview' => 'CustomScrollView',
+      'gridview' => 'GridView',
+      'listview' => 'ListView',
+      'pageview' => 'PageView',
+      'reorderablelistview' => 'ReorderableListView',
+      'singlechildscrollview' => 'SingleChildScrollView',
+      'tabbarview' => 'TabBarView',
+      _ => null,
     };
   }
 
-  Iterable<String?> _elementTextSignals(Element element) sync* {
-    final widget = element.widget;
-    if (widget case Text(data: final data)) {
-      yield data;
-      yield widget.semanticsLabel;
-    } else if (widget is RichText) {
-      yield widget.text.toPlainText();
-    } else if (widget case EditableText(controller: final controller)) {
-      yield controller.text;
+  String _locatorPathForElement(Element element) {
+    final segments = <String>[];
+    final chain = <Element>[element];
+    element.visitAncestorElements((ancestor) {
+      chain.add(ancestor);
+      return true;
+    });
+    for (final candidate in chain.reversed) {
+      if (_shouldSkipPathElement(candidate)) {
+        continue;
+      }
+      final segment =
+          _locatorPathSegment(candidate.widget.runtimeType.toString());
+      if (segment == null) {
+        continue;
+      }
+      segments.add(segment);
     }
-    yield _elementTooltip(element);
+    final trimmedSegments = _trimMeaningfulPathSegments(segments);
+    if (trimmedSegments.isEmpty) {
+      return '/scrollable';
+    }
+    return '/${trimmedSegments.join('/')}';
   }
 
-  String? _elementTooltip(Element element) {
+  List<CockpitSnapshotAncestor> _extractLocatorAncestors(Element element) {
+    final ancestors = <CockpitSnapshotAncestor>[];
+    element.visitAncestorElements((ancestor) {
+      if (_shouldSkipAncestorElement(ancestor)) {
+        return true;
+      }
+      final keyValue = _stableKeyValue(ancestor.widget.key);
+      final semanticId = _semanticIdForAncestor(ancestor);
+      ancestors.add(
+        CockpitSnapshotAncestor(
+          typeName: ancestor.widget.runtimeType.toString(),
+          cockpitId: semanticId ?? keyValue,
+          semanticId: semanticId,
+          keyValue: keyValue,
+          textPreview: _textPreviewForAncestor(ancestor),
+          tooltip: _tooltipForAncestor(ancestor),
+          routeName: widget.routeName,
+          path: _locatorPathForElement(ancestor),
+        ),
+      );
+      return true;
+    });
+    return List<CockpitSnapshotAncestor>.unmodifiable(ancestors);
+  }
+
+  bool _shouldSkipAncestorElement(Element ancestor) {
+    final widget = ancestor.widget;
+    final typeName = widget.runtimeType.toString();
+    if (typeName.startsWith('_')) {
+      return true;
+    }
+    return widget is InheritedWidget ||
+        widget is ParentDataWidget<ParentData> ||
+        widget is Focus ||
+        widget is Semantics ||
+        widget is Listener ||
+        widget is GestureDetector ||
+        widget is IgnorePointer ||
+        widget is MouseRegion ||
+        widget is ExcludeSemantics ||
+        widget is MergeSemantics;
+  }
+
+  bool _shouldSkipPathElement(Element element) {
+    final widget = element.widget;
+    final typeName = widget.runtimeType.toString();
+    if (typeName.startsWith('_')) {
+      return true;
+    }
+    if (_isNoisyPathTypeName(typeName)) {
+      return true;
+    }
+    return widget is InheritedWidget ||
+        widget is ParentDataWidget<ParentData> ||
+        widget is Focus ||
+        widget is Listener ||
+        widget is IgnorePointer ||
+        widget is MouseRegion ||
+        widget is ExcludeSemantics ||
+        widget is MergeSemantics ||
+        widget is Padding ||
+        widget is Align ||
+        widget is Center ||
+        widget is Expanded ||
+        widget is Flexible ||
+        widget is SizedBox ||
+        widget is ColoredBox ||
+        widget is DecoratedBox ||
+        widget is ConstrainedBox ||
+        widget is DefaultTextStyle ||
+        widget is MediaQuery ||
+        widget is Builder ||
+        widget is RepaintBoundary ||
+        widget is KeepAlive ||
+        widget is AutomaticKeepAlive ||
+        widget is Row ||
+        widget is Column ||
+        widget is Stack ||
+        widget is Positioned ||
+        widget is IconTheme ||
+        widget is Scrollable;
+  }
+
+  String? _locatorPathSegment(String typeName) {
+    if (typeName.startsWith('_')) {
+      return null;
+    }
+    final slug = _slugify(typeName).replaceAll('-', '');
+    return slug.isEmpty ? null : slug;
+  }
+
+  String _slugify(String value) {
+    final buffer = StringBuffer();
+    for (final codeUnit in value.toLowerCase().codeUnits) {
+      final isAlphaNumeric = (codeUnit >= 48 && codeUnit <= 57) ||
+          (codeUnit >= 97 && codeUnit <= 122);
+      if (isAlphaNumeric) {
+        buffer.writeCharCode(codeUnit);
+      } else if (buffer.isEmpty || buffer.toString().endsWith('-')) {
+        continue;
+      } else {
+        buffer.write('-');
+      }
+    }
+    final slug = buffer.toString().replaceAll(RegExp(r'-+$'), '');
+    return slug.isEmpty ? 'value' : slug;
+  }
+
+  List<String> _trimMeaningfulPathSegments(List<String> segments) {
+    if (segments.isEmpty) {
+      return segments;
+    }
+    final scaffoldIndex = segments.lastIndexOf('scaffold');
+    if (scaffoldIndex >= 0) {
+      return segments.sublist(scaffoldIndex);
+    }
+    final screenIndex = segments.lastIndexWhere(
+      (segment) =>
+          segment.endsWith('screen') ||
+          segment.endsWith('page') ||
+          segment.endsWith('dialog') ||
+          segment.endsWith('drawer'),
+    );
+    if (screenIndex >= 0) {
+      return segments.sublist(screenIndex);
+    }
+    if (segments.length > 8) {
+      return segments.sublist(segments.length - 8);
+    }
+    return segments;
+  }
+
+  bool _isNoisyPathTypeName(String typeName) {
+    return _pathNoiseTypeNames.contains(typeName) ||
+        _pathNoiseTypePrefixes.any(typeName.startsWith);
+  }
+
+  String? _textPreviewForAncestor(Element element) {
+    final widget = element.widget;
+    if (widget is Text) {
+      return _normalizeText(widget.data ?? widget.textSpan?.toPlainText());
+    }
+    if (widget is RichText) {
+      return _normalizeText(widget.text.toPlainText());
+    }
+    if (widget is Semantics) {
+      return _normalizeText(
+        widget.properties.label ??
+            widget.properties.value ??
+            widget.properties.hint,
+      );
+    }
     return null;
+  }
+
+  String? _semanticIdForAncestor(Element element) {
+    final widget = element.widget;
+    if (widget is Semantics) {
+      return _normalizeText(
+        widget.properties.identifier ??
+            widget.properties.label ??
+            widget.properties.value ??
+            widget.properties.hint,
+      );
+    }
+    return null;
+  }
+
+  String? _tooltipForAncestor(Element element) {
+    final widget = element.widget;
+    if (widget.runtimeType.toString() == 'Tooltip') {
+      final dynamic tooltip = widget;
+      return _normalizeText(tooltip.message as String?);
+    }
+    return null;
+  }
+
+  String? _normalizeText(String? value) {
+    if (value == null) {
+      return null;
+    }
+    final normalized = value.replaceAll(RegExp(r'\s+'), ' ').trim();
+    return normalized.isEmpty ? null : normalized;
+  }
+
+  String? _normalizeTypeName(String? value) {
+    final normalized = _normalizeText(value)?.toLowerCase();
+    if (normalized == null) {
+      return null;
+    }
+    final compact = normalized.replaceAll(RegExp(r'[^a-z0-9]+'), '');
+    return compact.isEmpty ? null : compact;
+  }
+
+  bool _scrollableMatchesLocator(
+    _CockpitScrollableCandidate candidate,
+    CockpitLocator locator,
+  ) {
+    if (!locator.hasSignals) {
+      return false;
+    }
+    for (final signal in locator.signals) {
+      final matched = switch (signal.kind) {
+        CockpitLocatorKind.key => candidate.keyValue == signal.value,
+        CockpitLocatorKind.type =>
+          _matchesTypeSignal(candidate.typeName, signal.value),
+        CockpitLocatorKind.path => _matchesPath(candidate.path, signal.value),
+        CockpitLocatorKind.route => widget.routeName == signal.value,
+        CockpitLocatorKind.text =>
+          _matchesTextSignal(candidate.textPreview, signal.value),
+        CockpitLocatorKind.cockpitId => candidate.keyValue == signal.value ||
+            _matchesTextSignal(candidate.textPreview, signal.value),
+        CockpitLocatorKind.semanticId ||
+        CockpitLocatorKind.tooltip ||
+        CockpitLocatorKind.registrationId =>
+          false,
+      };
+      if (!matched) {
+        return false;
+      }
+    }
+    final ancestor = locator.ancestor;
+    if (ancestor != null &&
+        !_matchesAncestorChain(candidate.locatorAncestors, ancestor)) {
+      return false;
+    }
+    return true;
+  }
+
+  int _scrollablePriorityScore(
+    _CockpitScrollableCandidate candidate, {
+    CockpitLocator? targetLocator,
+    CockpitLocator? scrollableLocator,
+  }) {
+    var score = 0;
+    if (scrollableLocator != null) {
+      score += _scrollableLocatorMatchScore(candidate, scrollableLocator);
+    }
+
+    if (targetLocator != null) {
+      final targetPath = targetLocator.path;
+      if (targetPath != null) {
+        if (_pathContainsScrollable(candidate.path, targetPath)) {
+          score += 80;
+        } else {
+          score += _pathMatchPriorityScore(candidate.path, targetPath);
+        }
+      }
+      final targetAncestor = targetLocator.ancestor;
+      if (targetAncestor != null &&
+          (_scrollableMatchesLocator(candidate, targetAncestor) ||
+              _matchesAncestorChain(
+                  candidate.locatorAncestors, targetAncestor))) {
+        score += 60;
+      }
+    }
+
+    if (candidate.keyValue != null && candidate.keyValue!.isNotEmpty) {
+      score += 10;
+    }
+    return score;
+  }
+
+  int _scrollableLocatorMatchScore(
+    _CockpitScrollableCandidate candidate,
+    CockpitLocator locator,
+  ) {
+    if (!locator.hasSignals) {
+      return 0;
+    }
+
+    var score = 0;
+    var matchedSignals = 0;
+    final pathOnly = locator.signalMap.length == 1 &&
+        locator.path != null &&
+        locator.ancestor == null;
+
+    for (final signal in locator.signals) {
+      switch (signal.kind) {
+        case CockpitLocatorKind.key:
+          if (candidate.keyValue != signal.value) {
+            return 0;
+          }
+          score += 80;
+          matchedSignals += 1;
+        case CockpitLocatorKind.type:
+          if (!_matchesTypeSignal(candidate.typeName, signal.value)) {
+            return 0;
+          }
+          score += 64;
+          matchedSignals += 1;
+        case CockpitLocatorKind.path:
+          final pathScore =
+              _pathMatchPriorityScore(candidate.path, signal.value);
+          if (pathScore <= 0 && pathOnly) {
+            return 0;
+          }
+          if (pathScore > 0) {
+            score += pathScore;
+            matchedSignals += 1;
+          }
+        case CockpitLocatorKind.route:
+          if (widget.routeName != signal.value) {
+            return 0;
+          }
+          score += 32;
+          matchedSignals += 1;
+        case CockpitLocatorKind.text:
+          if (!_matchesTextSignal(candidate.textPreview, signal.value)) {
+            return 0;
+          }
+          score += 24;
+          matchedSignals += 1;
+        case CockpitLocatorKind.cockpitId:
+          final matched = candidate.keyValue == signal.value ||
+              _matchesTextSignal(candidate.textPreview, signal.value);
+          if (!matched) {
+            return 0;
+          }
+          score += 24;
+          matchedSignals += 1;
+        case CockpitLocatorKind.semanticId ||
+              CockpitLocatorKind.tooltip ||
+              CockpitLocatorKind.registrationId:
+          return 0;
+      }
+    }
+
+    final ancestor = locator.ancestor;
+    if (ancestor != null &&
+        !_matchesAncestorChain(candidate.locatorAncestors, ancestor)) {
+      return 0;
+    }
+    if (matchedSignals == 0) {
+      return 0;
+    }
+    return score;
+  }
+
+  bool _matchesAncestorChain(
+    List<CockpitSnapshotAncestor> ancestors,
+    CockpitLocator locator,
+  ) {
+    for (var index = 0; index < ancestors.length; index += 1) {
+      if (!_matchesAncestor(ancestors[index], locator)) {
+        continue;
+      }
+      final nested = locator.ancestor;
+      if (nested == null) {
+        return true;
+      }
+      if (_matchesAncestorChain(ancestors.sublist(index + 1), nested)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool _matchesAncestor(
+    CockpitSnapshotAncestor ancestor,
+    CockpitLocator locator,
+  ) {
+    for (final signal in locator.signals) {
+      final matched = switch (signal.kind) {
+        CockpitLocatorKind.cockpitId => ancestor.cockpitId == signal.value,
+        CockpitLocatorKind.semanticId => ancestor.semanticId == signal.value ||
+            ancestor.cockpitId == signal.value,
+        CockpitLocatorKind.key => ancestor.keyValue == signal.value ||
+            ancestor.cockpitId == signal.value,
+        CockpitLocatorKind.text =>
+          _matchesTextSignal(ancestor.textPreview, signal.value) ||
+              _matchesTextSignal(ancestor.tooltip, signal.value),
+        CockpitLocatorKind.tooltip =>
+          _matchesTextSignal(ancestor.tooltip, signal.value),
+        CockpitLocatorKind.type =>
+          _matchesTypeSignal(ancestor.typeName, signal.value),
+        CockpitLocatorKind.route => ancestor.routeName == signal.value,
+        CockpitLocatorKind.path => _matchesPath(ancestor.path, signal.value),
+        CockpitLocatorKind.registrationId => false,
+      };
+      if (!matched) {
+        return false;
+      }
+    }
+    return true;
   }
 
   bool _matchesTextSignal(String? candidate, String expected) {
@@ -484,13 +1337,230 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
         normalizedCandidate.contains(normalizedExpected);
   }
 
-  String? _normalizeText(String? value) {
-    if (value == null) {
+  bool _matchesTypeSignal(String? candidate, String expected) {
+    final normalizedCandidate = _normalizeTypeName(candidate);
+    final normalizedExpected = _normalizeTypeName(expected);
+    if (normalizedCandidate == null || normalizedExpected == null) {
+      return false;
+    }
+    return normalizedCandidate == normalizedExpected;
+  }
+
+  bool _matchesPath(String? candidate, String expected) {
+    final normalizedCandidate = _normalizePath(candidate);
+    final normalizedExpected = _normalizePath(expected);
+    if (normalizedCandidate == null || normalizedExpected == null) {
+      return false;
+    }
+    return normalizedCandidate == normalizedExpected ||
+        normalizedCandidate.endsWith(normalizedExpected) ||
+        _isPathSubsequence(
+          _pathSegments(normalizedCandidate),
+          _pathSegments(normalizedExpected),
+        );
+  }
+
+  int _pathMatchPriorityScore(String? candidate, String expected) {
+    final normalizedCandidate = _normalizePath(candidate);
+    final normalizedExpected = _normalizePath(expected);
+    if (normalizedCandidate == null || normalizedExpected == null) {
+      return 0;
+    }
+    if (normalizedCandidate == normalizedExpected) {
+      return 30;
+    }
+    if (normalizedCandidate.endsWith(normalizedExpected)) {
+      return 20;
+    }
+    if (_isPathSubsequence(
+      _pathSegments(normalizedCandidate),
+      _pathSegments(normalizedExpected),
+    )) {
+      return 10;
+    }
+    return 0;
+  }
+
+  bool _pathContainsScrollable(String? candidate, String targetPath) {
+    final candidateSegments = _pathSegments(candidate);
+    final targetSegments = _pathSegments(targetPath);
+    if (candidateSegments.isEmpty ||
+        targetSegments.length < candidateSegments.length) {
+      return false;
+    }
+    for (var candidateIndex = 0;
+        candidateIndex < candidateSegments.length;
+        candidateIndex += 1) {
+      if (candidateSegments[candidateIndex] != targetSegments[candidateIndex]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  String? _normalizePath(String? value) {
+    final segments = _pathSegments(value);
+    if (segments.isEmpty) {
       return null;
     }
-    final normalized = value.replaceAll(RegExp(r'\\s+'), ' ').trim();
-    return normalized.isEmpty ? null : normalized;
+    return '/${segments.join('/')}';
   }
+
+  List<String> _pathSegments(String? value) {
+    final normalized = _normalizeText(value);
+    if (normalized == null) {
+      return const <String>[];
+    }
+
+    final canonical = normalized
+        .replaceAll(RegExp(r'[>\[\]():\s]+'), '/')
+        .replaceAll('.', '/');
+    return canonical
+        .split(RegExp(r'/+'))
+        .map((segment) {
+          final lower = segment.trim().toLowerCase();
+          if (lower.isEmpty || RegExp(r'^\d+$').hasMatch(lower)) {
+            return null;
+          }
+          final alphanumericOnly = lower.replaceAll(RegExp(r'[^a-z0-9]+'), '');
+          if (alphanumericOnly.isEmpty ||
+              _pathNoiseSegments.contains(alphanumericOnly)) {
+            return null;
+          }
+          return alphanumericOnly;
+        })
+        .whereType<String>()
+        .toList(growable: false);
+  }
+
+  bool _isPathSubsequence(
+    List<String> candidateSegments,
+    List<String> expectedSegments,
+  ) {
+    if (candidateSegments.isEmpty || expectedSegments.isEmpty) {
+      return false;
+    }
+    var candidateIndex = 0;
+    for (final expected in expectedSegments) {
+      var found = false;
+      while (candidateIndex < candidateSegments.length) {
+        if (candidateSegments[candidateIndex] == expected) {
+          found = true;
+          candidateIndex += 1;
+          break;
+        }
+        candidateIndex += 1;
+      }
+      if (!found) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  static const Set<String> _pathNoiseSegments = <String>{
+    'actions',
+    'appbaractions',
+    'body',
+    'child',
+    'children',
+    'content',
+    'destination',
+    'destinations',
+    'footer',
+    'header',
+    'items',
+    'leading',
+    'slivers',
+    'subtitle',
+    'title',
+    'trailing',
+  };
+
+  static const Set<String> _semanticScrollableTypeNames = <String>{
+    'customscrollview',
+    'gridview',
+    'listview',
+    'pageview',
+    'reorderablelistview',
+    'singlechildscrollview',
+    'tabbarview',
+  };
+
+  static const Set<String> _pathNoiseTypeNames = <String>{
+    'AbsorbPointer',
+    'Actions',
+    'AnimatedBuilder',
+    'AnimatedContainer',
+    'AnimatedDefaultTextStyle',
+    'AnimatedPhysicalModel',
+    'AnimatedTheme',
+    'AutomaticKeepAlive',
+    'Banner',
+    'Builder',
+    'Center',
+    'CheckedModeBanner',
+    'ClipRect',
+    'ColoredBox',
+    'ConstrainedBox',
+    'Container',
+    'CupertinoTheme',
+    'CustomPaint',
+    'DecoratedBox',
+    'DecoratedBoxTransition',
+    'DefaultTextEditingShortcuts',
+    'DefaultTextStyle',
+    'Expanded',
+    'Flexible',
+    'FocusTraversalGroup',
+    'FractionalTranslation',
+    'IconTheme',
+    'IndexedSemantics',
+    'KeepAlive',
+    'KeyedSubtree',
+    'ListenableBuilder',
+    'Localizations',
+    'Material',
+    'MaterialApp',
+    'MediaQuery',
+    'NotificationListener<LayoutChangedNotification>',
+    'Offstage',
+    'Overlay',
+    'Padding',
+    'PageStorage',
+    'PhysicalModel',
+    'Positioned',
+    'RawGestureDetector',
+    'RawView',
+    'RepaintBoundary',
+    'RestorationScope',
+    'RootRestorationScope',
+    'RootWidget',
+    'SafeArea',
+    'ScaffoldMessenger',
+    'ScrollNotificationObserver',
+    'Scrollbar',
+    'Scrollable',
+    'Semantics',
+    'SharedAppData',
+    'ShortcutRegistrar',
+    'Shortcuts',
+    'SizedBox',
+    'SlideTransition',
+    'Stack',
+    'TapRegionSurface',
+    'Theme',
+    'TickerMode',
+    'ValuelistenableBuilder<String>',
+    'View',
+    'Viewport',
+    'WidgetsApp',
+  };
+
+  static const List<String> _pathNoiseTypePrefixes = <String>[
+    'NotificationListener<',
+    'ValueListenableBuilder<',
+  ];
 
   bool _isTestBinding(WidgetsBinding binding) {
     return binding.runtimeType.toString().contains('TestWidgetsFlutterBinding');
@@ -707,16 +1777,32 @@ final class _CockpitScrollableCandidate {
     required this.state,
     required this.depth,
     required this.keyValue,
+    required this.typeName,
+    required this.path,
+    required this.locatorAncestors,
     required this.element,
+    required this.semanticsElement,
   });
 
   final ScrollableState state;
   final int depth;
   final String? keyValue;
+  final String typeName;
+  final String path;
+  final List<CockpitSnapshotAncestor> locatorAncestors;
   final Element element;
+  final Element semanticsElement;
+
+  String? get textPreview =>
+      cockpitResolveSemanticsTargetInfo(element)?.label ??
+      cockpitResolveSemanticsTargetInfo(element)?.hint ??
+      cockpitResolveSemanticsTargetInfo(semanticsElement)?.label ??
+      cockpitResolveSemanticsTargetInfo(semanticsElement)?.hint;
 
   VoidCallback? semanticScrollActionHandler(SemanticsAction action) {
-    return cockpitResolveSemanticsTargetInfo(element)?.actionHandler(action);
+    return cockpitResolveSemanticsTargetInfo(semanticsElement)
+            ?.actionHandler(action) ??
+        cockpitResolveSemanticsTargetInfo(element)?.actionHandler(action);
   }
 }
 

@@ -39,6 +39,8 @@
 公共面是 app-first，而不是 session-handle-first。把 `app.json` 持久化下来并跨步骤复用。CLI 和 MCP 输出统一为 `snake_case`。
 `launch-app` 会先自动探测 `cockpit/main.dart`，找不到再退回 `lib/main.dart`。
 
+Locator 是多信号模型。优先用 `key`、`text`、`semantic_id`，只有还不够准时才补 `route`、`type`、`path`、嵌套 `ancestor` 或短 `fallbacks`。`path` 是 fuzzy 匹配，会忽略 `body`、`slivers`、数字索引这类噪声段。
+
 ## 快速开始
 
 把 cockpit 启动入口放到 `cockpit/main.dart`，不要改动正常生产入口：
@@ -142,7 +144,10 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools serve-mcp
 workspace 工具：
 
 - `pub_dev_search`
+- `pub`
 - `read_package_uris`
+- `lsp`
+- `analyze_files`
 - `create_project`
 - `analyze_workspace`
 - `format_workspace`
@@ -182,3 +187,4 @@ Prompts：
 更底层的 development-session 和 remote-session building block 仍然保留在 Dart API 中，供特殊宿主使用，但它们已经不是推荐的公开主工作流。
 
 `list_apps` 故意只在 MCP 中暴露。CLI 是无状态进程，推荐把 `app.json` 落盘并跨步骤复用，而不是依赖主机侧 app registry。
+应用交互命令使用 `timeout_ms`；workspace 工具使用 `timeout_seconds`。

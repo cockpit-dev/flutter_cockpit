@@ -22,7 +22,9 @@ The skill may depend on these implemented public workflows:
 - full closed-loop orchestration through `run-task` / `run_task`
 - final delivery validation through `validate-task` / `validate_task`
 - task bundle summary reads through `read_task_bundle_summary`
-- workspace intelligence through `pub_dev_search`, `read_package_uris`, `create_project`, `analyze_workspace`, `format_workspace`, `run_tests`, and `apply_fixes`
+- workspace intelligence through `pub_dev_search`, `pub`, `read_package_uris`, `lsp`, `analyze_files`, `create_project`, `analyze_workspace`, `format_workspace`, `run_tests`, and `apply_fixes`
+- multi-signal locators with `key`, `text`, `semantic_id`, `route`, `type`, fuzzy `path`, nested `ancestor`, and ordered `fallbacks`
+- bounded timeouts on interactive commands (`timeout_ms`) and workspace tools (`timeout_seconds`)
 
 The skill may also rely on MCP resources for goals, roots, contracts, apps, task summaries, and package reads.
 
@@ -54,6 +56,8 @@ Minimum baseline:
 - current route or equivalent app state
 - profile-appropriate evidence for the task
 - the smallest profile that can answer the current question
+
+For code-editing work, the agent should prefer `lsp` and `analyze_files` before falling back to workspace-wide analysis.
 
 ### `execute`
 

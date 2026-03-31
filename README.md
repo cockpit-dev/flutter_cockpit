@@ -39,6 +39,8 @@ For delivery:
 The public surface is app-first, not session-handle-first. Persist `app.json` and reuse it across steps. CLI and MCP outputs are normalized to `snake_case`.
 `launch-app` auto-detects `cockpit/main.dart` first, then `lib/main.dart`.
 
+Locators are multi-signal. Start with `key`, `text`, or `semantic_id`, then add `route`, `type`, `path`, nested `ancestor`, or short `fallbacks` only when needed. `path` matching is fuzzy and ignores noise such as `body`, `slivers`, and numeric indexes.
+
 ## Quick Start
 
 Add cockpit bootstrap under `cockpit/main.dart` and keep the normal production entrypoint unchanged:
@@ -142,7 +144,10 @@ Core tools:
 Workspace tools:
 
 - `pub_dev_search`
+- `pub`
 - `read_package_uris`
+- `lsp`
+- `analyze_files`
 - `create_project`
 - `analyze_workspace`
 - `format_workspace`
@@ -182,3 +187,4 @@ Prompts:
 Advanced development-session and remote-session building blocks still exist in the Dart API for lower-level hosts, but they are no longer the recommended public loop.
 
 `list_apps` is intentionally MCP-only. CLI is stateless; persist `app.json` and reuse it instead of expecting a host-side app registry.
+Interactive app commands use `timeout_ms`. Workspace tools use `timeout_seconds`.

@@ -1,15 +1,19 @@
 import 'dart:convert';
 
+import 'cockpit_application_service_exception.dart';
 import '../infrastructure/cockpit_http_client.dart';
+import '../infrastructure/cockpit_process_manager.dart';
 
 final class CockpitPubDevSearchRequest {
   const CockpitPubDevSearchRequest({
     required this.query,
     this.maxResults = 5,
+    this.timeout = const Duration(seconds: 20),
   });
 
   final String query;
   final int maxResults;
+  final Duration timeout;
 }
 
 final class CockpitPubDevPackageSummary {
@@ -82,9 +86,15 @@ final class CockpitPubDevSearchResult {
 final class CockpitPubDevSearchService {
   CockpitPubDevSearchService({
     CockpitHttpClient? httpClient,
-  }) : _httpClient = httpClient ?? DefaultCockpitHttpClient();
+    CockpitProcessManager? processManager,
+    bool? enableProcessFallback,
+  })  : _httpClient = httpClient ?? DefaultCockpitHttpClient(),
+        _processManager = processManager ?? const LocalCockpitProcessManager(),
+        _enableProcessFallback = enableProcessFallback ?? httpClient == null;
 
   final CockpitHttpClient _httpClient;
+  final CockpitProcessManager _processManager;
+  final bool _enableProcessFallback;
 
   Future<CockpitPubDevSearchResult> search(
     CockpitPubDevSearchRequest request,
@@ -93,7 +103,8 @@ final class CockpitPubDevSearchService {
       'q': request.query,
     });
     final searchJson =
-        jsonDecode(await _httpClient.read(searchUri)) as Map<Object?, Object?>;
+        jsonDecode(await _read(searchUri, timeout: request.timeout))
+            as Map<Object?, Object?>;
     final packages = ((searchJson['packages'] as List?) ?? const <Object?>[])
         .cast<Map<Object?, Object?>>()
         .take(request.maxResults);
@@ -106,8 +117,10 @@ final class CockpitPubDevSearchService {
       Map<Object?, Object?> pubspec = const <Object?, Object?>{};
       try {
         packageJson = jsonDecode(
-          await _httpClient
-              .read(Uri.https('pub.dev', '/api/packages/$packageName')),
+          await _read(
+            Uri.https('pub.dev', '/api/packages/$packageName'),
+            timeout: request.timeout,
+          ),
         ) as Map<Object?, Object?>;
         latest = Map<Object?, Object?>.from(
           packageJson['latest'] as Map<Object?, Object?>? ??
@@ -123,8 +136,10 @@ final class CockpitPubDevSearchService {
       Map<Object?, Object?> scoreJson = const <Object?, Object?>{};
       try {
         scoreJson = jsonDecode(
-          await _httpClient
-              .read(Uri.https('pub.dev', '/api/packages/$packageName/score')),
+          await _read(
+            Uri.https('pub.dev', '/api/packages/$packageName/score'),
+            timeout: request.timeout,
+          ),
         ) as Map<Object?, Object?>;
       } on Object {
         warnings.add('Package score unavailable for $packageName.');
@@ -159,4 +174,95 @@ final class CockpitPubDevSearchService {
       suggestion: suggestion,
     );
   }
+
+  Future<String> _read(Uri uri, {required Duration timeout}) {
+    return _readWithFallback(uri, timeout: timeout);
+  }
+
+  Future<String> _readWithFallback(
+    Uri uri, {
+    required Duration timeout,
+  }) async {
+    try {
+      return await _httpClient.read(uri).timeout(
+            timeout,
+            onTimeout: () => throw CockpitApplicationServiceException(
+              code: 'pubDevSearchTimedOut',
+              message: 'pub.dev request timed out.',
+              details: <String, Object?>{
+                'uri': uri.toString(),
+                'timeout_ms': timeout.inMilliseconds,
+              },
+            ),
+          );
+    } on Object catch (primaryError) {
+      if (!_enableProcessFallback) {
+        rethrow;
+      }
+      try {
+        return await _readViaPython(uri, timeout: timeout);
+      } on Object catch (fallbackError) {
+        throw CockpitApplicationServiceException(
+          code: 'pubDevSearchFailed',
+          message: 'pub.dev request failed.',
+          details: <String, Object?>{
+            'uri': uri.toString(),
+            'timeout_ms': timeout.inMilliseconds,
+            'primary_error': primaryError.toString(),
+            'fallback_error': fallbackError.toString(),
+          },
+        );
+      }
+    }
+  }
+
+  Future<String> _readViaPython(
+    Uri uri, {
+    required Duration timeout,
+  }) async {
+    final timeoutSeconds = (timeout.inMilliseconds / 1000).ceil().clamp(1, 600);
+    final commands = <(String executable, List<String> arguments)>[
+      (
+        'python3',
+        <String>['-c', _pythonFetchScript, uri.toString(), '$timeoutSeconds'],
+      ),
+      (
+        'python',
+        <String>['-c', _pythonFetchScript, uri.toString(), '$timeoutSeconds'],
+      ),
+    ];
+    Object? lastError;
+    for (final command in commands) {
+      try {
+        final result = await _processManager
+            .run(
+              command.$1,
+              command.$2,
+            )
+            .timeout(timeout + const Duration(seconds: 1));
+        final stdout = '${result.stdout}'.trim();
+        final stderr = '${result.stderr}'.trim();
+        if (result.exitCode == 0 && stdout.isNotEmpty) {
+          return stdout;
+        }
+        lastError = StateError(
+          '${command.$1} exited with ${result.exitCode}: $stderr',
+        );
+      } on Object catch (error) {
+        lastError = error;
+      }
+    }
+    throw lastError ??
+        StateError('No external fetcher was available for pub.dev.');
+  }
 }
+
+const String _pythonFetchScript = '''
+import sys
+import urllib.request
+
+url = sys.argv[1]
+timeout = float(sys.argv[2])
+with urllib.request.urlopen(url, timeout=timeout) as response:
+    sys.stdout.write(response.read().decode('utf-8'))
+''';

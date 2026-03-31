@@ -124,6 +124,44 @@ void main() {
       expect(result.results[1].uiSummary, isNull);
     });
 
+    test('injects the batch default timeout into commands that omit one',
+        () async {
+      final timeouts = <int?>[];
+      final service = CockpitExecuteRemoteCommandBatchService(
+        executeCommand: (_, command) async {
+          timeouts.add(command.timeoutMs);
+          return CockpitCommandExecution(
+            result: CockpitCommandResult(
+              success: true,
+              commandId: command.commandId,
+              commandType: command.commandType,
+              durationMs: 40,
+            ),
+          );
+        },
+      );
+
+      await service.execute(
+        CockpitExecuteRemoteCommandBatchRequest(
+          sessionHandle: _sessionHandle(),
+          defaultResultProfile: const CockpitInteractiveResultProfile.minimal(),
+          commands: <CockpitInteractiveBatchCommand>[
+            _batchCommand('default-timeout'),
+            CockpitInteractiveBatchCommand(
+              command: CockpitCommand(
+                commandId: 'explicit-timeout',
+                commandType: CockpitCommandType.tap,
+                timeoutMs: 9000,
+              ),
+            ),
+          ],
+          defaultCommandTimeout: const Duration(milliseconds: 4700),
+        ),
+      );
+
+      expect(timeouts, <int?>[4700, 9000]);
+    });
+
     test('captures a final snapshot when requested', () async {
       final service = CockpitExecuteRemoteCommandBatchService(
         executeCommand: (_, command) async {

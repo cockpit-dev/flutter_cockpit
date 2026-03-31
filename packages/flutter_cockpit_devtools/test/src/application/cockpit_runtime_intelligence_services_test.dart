@@ -286,6 +286,42 @@ void main() {
     );
   });
 
+  test('accepts a launch-app result wrapper anywhere an app handle is expected',
+      () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'cockpit_wrapped_app_handle',
+    );
+    addTearDown(() async {
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    final appFile = File('${tempDir.path}/app.json');
+    await appFile.writeAsString(
+      jsonEncode(
+        <String, Object?>{
+          'app': CockpitAppHandle.fromDevelopmentSession(
+            _developmentHandle(),
+            supervisorLogPath: '/tmp/dev.log',
+          ).toJson(),
+          'app_json_path': null,
+          'supervisor_log_path': '/tmp/dev.log',
+        },
+      ),
+    );
+
+    final resolved = await CockpitAppReferenceResolver().resolve(
+      appHandlePath: appFile.path,
+    );
+
+    expect(resolved.app?.appId, 'dev.example.app');
+    expect(
+      resolved.app?.developmentSession?.developmentSessionId,
+      'dev-session-1',
+    );
+  });
+
   test('reads current app runtime errors from an app handle', () async {
     final tempDir = await Directory.systemTemp.createTemp(
       'cockpit_runtime_errors_app_handle',

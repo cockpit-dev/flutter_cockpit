@@ -8,10 +8,12 @@ final class CockpitFormatWorkspaceRequest {
   const CockpitFormatWorkspaceRequest({
     required this.workspaceRoot,
     this.allowedRoots = const <String>[],
+    this.timeout = const Duration(seconds: 90),
   });
 
   final String workspaceRoot;
   final List<String> allowedRoots;
+  final Duration timeout;
 }
 
 final class CockpitFormatWorkspaceService {
@@ -38,6 +40,7 @@ final class CockpitFormatWorkspaceService {
       allowedRoots: request.allowedRoots,
       toolchain: CockpitWorkspaceToolchain.dart,
       dartArguments: const <String>['format', '.'],
+      timeout: request.timeout,
     );
   }
 }

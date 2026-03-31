@@ -210,4 +210,117 @@ void main() {
     expect(resolution.isSuccess, isTrue);
     expect(resolution.target?.registrationId, 'open-action');
   });
+
+  test('resolves compound locators with path suffix and ancestor chain', () {
+    final registry = CockpitTargetRegistry(routeName: '/inbox');
+
+    registry.register(
+      const CockpitTarget(
+        registrationId: 'today-nav-label',
+        text: 'Today',
+        typeName: 'NavigationDestinationLabel',
+        path: '/scaffold/navigationbar/navigationdestinationlabel',
+        routeName: '/inbox',
+        supportedCommands: {CockpitCommandType.tap},
+        locatorAncestors: <CockpitSnapshotAncestor>[
+          CockpitSnapshotAncestor(typeName: 'NavigationDestination'),
+          CockpitSnapshotAncestor(typeName: 'NavigationBar'),
+          CockpitSnapshotAncestor(typeName: 'Scaffold'),
+        ],
+      ),
+    );
+
+    final resolution = registry.resolve(
+      const CockpitLocator(
+        text: 'Today',
+        type: 'NavigationDestinationLabel',
+        path:
+            '/scaffold.body/navigation_bar/destinations/0/navigation_destination_label',
+        ancestor: CockpitLocator(
+          type: 'NavigationBar',
+          ancestor: CockpitLocator(type: 'Scaffold'),
+        ),
+      ),
+    );
+
+    expect(resolution.isSuccess, isTrue);
+    expect(resolution.target?.registrationId, 'today-nav-label');
+    expect(
+      resolution.locatorResolution,
+      const CockpitLocatorResolution(
+        matchedKind: CockpitLocatorKind.text,
+        matchedValue: 'Today',
+        matchedSignals: <String, String>{
+          'text': 'Today',
+          'type': 'NavigationDestinationLabel',
+          'path':
+              '/scaffold.body/navigation_bar/destinations/0/navigation_destination_label',
+        },
+      ),
+    );
+  });
+
+  test('resolves duplicate matches by locator index in UI order', () {
+    final registry = CockpitTargetRegistry(routeName: '/inbox');
+
+    registry.register(
+      CockpitTarget(
+        registrationId: 'open-first',
+        text: 'Open',
+        typeName: 'TextButton',
+        routeName: '/inbox',
+        supportedCommands: const {CockpitCommandType.tap},
+        geometryProvider: () => const CockpitTargetGeometry(
+          left: 12,
+          top: 24,
+          width: 40,
+          height: 20,
+          viewportLeft: 0,
+          viewportTop: 0,
+          viewportWidth: 320,
+          viewportHeight: 640,
+          viewId: 1,
+        ),
+      ),
+    );
+    registry.register(
+      CockpitTarget(
+        registrationId: 'open-second',
+        text: 'Open',
+        typeName: 'TextButton',
+        routeName: '/inbox',
+        supportedCommands: const {CockpitCommandType.tap},
+        geometryProvider: () => const CockpitTargetGeometry(
+          left: 12,
+          top: 96,
+          width: 40,
+          height: 20,
+          viewportLeft: 0,
+          viewportTop: 0,
+          viewportWidth: 320,
+          viewportHeight: 640,
+          viewId: 1,
+        ),
+      ),
+    );
+
+    final resolution = registry.resolve(
+      const CockpitLocator(text: 'Open', type: 'TextButton', index: 1),
+    );
+
+    expect(resolution.isSuccess, isTrue);
+    expect(resolution.target?.registrationId, 'open-second');
+    expect(
+      resolution.locatorResolution,
+      const CockpitLocatorResolution(
+        matchedKind: CockpitLocatorKind.text,
+        matchedValue: 'Open',
+        matchedSignals: <String, String>{
+          'text': 'Open',
+          'type': 'TextButton',
+          'index': '1',
+        },
+      ),
+    );
+  });
 }

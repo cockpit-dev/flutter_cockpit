@@ -7,6 +7,7 @@ import '../../gesture/cockpit_gesture_profile.dart';
 import '../../runtime/cockpit_interaction_policy.dart';
 import '../../runtime/cockpit_key_event_request.dart';
 import '../../runtime/cockpit_reveal_alignment.dart';
+import '../../runtime/cockpit_scroll_step_result.dart';
 import '../../runtime/cockpit_snapshot.dart';
 import '../../runtime/cockpit_snapshot_options.dart';
 import '../../runtime/cockpit_target_registry.dart';
@@ -18,10 +19,12 @@ typedef CockpitSnapshotProvider = CockpitSnapshot Function({
   CockpitSnapshotOptions options,
 });
 typedef CockpitPostActionSettler = Future<void> Function();
-typedef CockpitScrollStepHandler = Future<bool> Function({
+typedef CockpitScrollStepHandler = Future<CockpitScrollStepResult> Function({
   required bool reverse,
   required double viewportFraction,
   String? scrollableKey,
+  CockpitLocator? targetLocator,
+  CockpitLocator? scrollableLocator,
   required Duration duration,
   required CockpitGestureProfile gestureProfile,
   required bool continuous,

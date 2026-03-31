@@ -36,6 +36,7 @@ import '../runtime/cockpit_capabilities.dart';
 import '../runtime/cockpit_hit_test_miss_policy.dart';
 import '../runtime/cockpit_interaction_policy.dart';
 import '../runtime/cockpit_reveal_alignment.dart';
+import '../runtime/cockpit_scroll_step_result.dart';
 import '../runtime/cockpit_snapshot.dart';
 import '../runtime/cockpit_snapshot_options.dart';
 import '../runtime/cockpit_target.dart';
@@ -856,6 +857,8 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
         _doubleParameter(command, 'viewportFraction') ?? 0.8;
     final reverse = command.parameters['reverse'] == true;
     final scrollableKey = _stringParameter(command, 'scrollableKey');
+    final scrollableLocator = _locatorParameter(command, 'scrollLocator') ??
+        _locatorParameter(command, 'scrollableLocator');
     final durationPerStep = _durationFromOptionalPositiveInt(
       command,
       key: 'durationPerStepMs',
@@ -897,6 +900,9 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
     var resolution = allowsGenericResolution
         ? await _resolveWithRetry(command)
         : _resolve(command);
+    var scrollAttempts = 0;
+    var scrollsPerformed = 0;
+    CockpitScrollStepResult? lastScrollStep;
     if (allowsGenericResolution && resolution.isSuccess) {
       if (explicitRevealRequested) {
         await _attemptEnsureVisible(
@@ -942,22 +948,62 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
     }
 
     for (var attempt = 0; attempt < maxScrolls; attempt += 1) {
+      scrollAttempts += 1;
       await _prepareForAction(
         command,
         commandType: CockpitCommandType.scrollUntilVisible,
       );
-      final didScroll = await scrollStepHandler(
+      final scrollStep = await scrollStepHandler(
         reverse: reverse,
         viewportFraction: viewportFraction,
         scrollableKey: scrollableKey,
+        targetLocator: locator,
+        scrollableLocator: scrollableLocator,
         duration: durationPerStep,
         gestureProfile: gestureProfile,
         continuous: continuous,
         postScrollEnsureVisible: postScrollEnsureVisible,
       );
-      if (!didScroll) {
+      lastScrollStep = scrollStep;
+      if (!scrollStep.didScroll) {
+        await _postActionSettler();
+        await _settleBeforeObservation();
+        await _waitForVisualContinuity(
+          commandType: CockpitCommandType.scrollUntilVisible,
+          routeChanged: false,
+        );
+        final satisfied = _scrollLocatorResolution(command);
+        if (satisfied != null) {
+          return _successExecution(
+            command: command,
+            durationMs: stopwatch.elapsedMilliseconds,
+            locatorResolution: satisfied,
+            snapshot: _liveSnapshot().toJson(),
+          );
+        }
+        if (allowsGenericResolution) {
+          resolution = await _resolveWithRetry(command, attempts: 2);
+          if (resolution.isSuccess) {
+            return _successExecution(
+              command: command,
+              durationMs: stopwatch.elapsedMilliseconds,
+              locatorResolution: resolution.locatorResolution,
+              snapshot: _liveSnapshot().toJson(),
+            );
+          }
+          if (resolution.error?.code ==
+              CockpitCommandError.ambiguousTargetCode) {
+            return _failureExecution(
+              command: command,
+              durationMs: stopwatch.elapsedMilliseconds,
+              snapshot: _liveSnapshot().toJson(),
+              error: resolution.error!,
+            );
+          }
+        }
         break;
       }
+      scrollsPerformed += 1;
 
       await _postActionSettler();
       await _settleBeforeObservation();
@@ -1025,23 +1071,76 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
       command: command,
       durationMs: stopwatch.elapsedMilliseconds,
       snapshot: _liveSnapshot().toJson(),
-      error: resolution.error ??
-          CockpitCommandError.targetNotFound(
-            message: 'No visible target matched after scrolling.',
-            details: <String, Object?>{
-              'requestedLocator': locator.toJson(),
-              'maxScrolls': maxScrolls,
-              'reverse': reverse,
-              'viewportFraction': viewportFraction,
-              'scrollableKey': scrollableKey,
-              'durationPerStepMs': durationPerStep.inMilliseconds,
-              'gestureProfile': gestureProfile.name,
-              'continuous': continuous,
-              'postScrollEnsureVisible': postScrollEnsureVisible,
-              'revealAlignment': revealAlignment.name,
-              'revealPaddingPx': revealPadding,
-            },
-          ),
+      error: _buildScrollUntilVisibleFailure(
+        command: command,
+        resolution: resolution,
+        scrollAttempts: scrollAttempts,
+        scrollsPerformed: scrollsPerformed,
+        maxScrolls: maxScrolls,
+        reverse: reverse,
+        viewportFraction: viewportFraction,
+        scrollableKey: scrollableKey,
+        scrollableLocator: scrollableLocator,
+        durationPerStep: durationPerStep,
+        gestureProfile: gestureProfile,
+        continuous: continuous,
+        postScrollEnsureVisible: postScrollEnsureVisible,
+        revealAlignment: revealAlignment,
+        revealPadding: revealPadding,
+        lastScrollStep: lastScrollStep,
+      ),
+    );
+  }
+
+  CockpitCommandError _buildScrollUntilVisibleFailure({
+    required CockpitCommand command,
+    required CockpitTargetResolutionResult resolution,
+    required int scrollAttempts,
+    required int scrollsPerformed,
+    required int maxScrolls,
+    required bool reverse,
+    required double viewportFraction,
+    required String? scrollableKey,
+    required CockpitLocator? scrollableLocator,
+    required Duration durationPerStep,
+    required CockpitGestureProfile gestureProfile,
+    required bool continuous,
+    required bool postScrollEnsureVisible,
+    required CockpitRevealAlignment revealAlignment,
+    required double revealPadding,
+    CockpitScrollStepResult? lastScrollStep,
+  }) {
+    final enrichedResolution = _enrichResolutionFailure(command, resolution);
+    final baseError = enrichedResolution.error;
+    final details = <String, Object?>{
+      if (baseError != null) ...baseError.details,
+      'requestedLocator': command.locator?.toJson(),
+      'maxScrolls': maxScrolls,
+      'scrollAttempts': scrollAttempts,
+      'scrollsPerformed': scrollsPerformed,
+      'reverse': reverse,
+      'viewportFraction': viewportFraction,
+      'scrollableKey': scrollableKey,
+      'scrollableLocator': scrollableLocator?.toJson(),
+      'durationPerStepMs': durationPerStep.inMilliseconds,
+      'gestureProfile': gestureProfile.name,
+      'continuous': continuous,
+      'postScrollEnsureVisible': postScrollEnsureVisible,
+      'revealAlignment': revealAlignment.name,
+      'revealPaddingPx': revealPadding,
+      'visibleScrollables': _visibleScrollables(),
+      if (lastScrollStep != null) 'lastScrollStep': lastScrollStep.toJson(),
+    };
+    if (baseError != null) {
+      return CockpitCommandError(
+        code: baseError.code,
+        message: baseError.message,
+        details: details,
+      );
+    }
+    return CockpitCommandError.targetNotFound(
+      message: 'No visible target matched after scrolling.',
+      details: details,
     );
   }
 
@@ -2238,11 +2337,41 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
         if (target.semanticId != null) 'semanticId': target.semanticId,
         if (target.text != null) 'text': target.text,
         if (target.tooltip != null) 'tooltip': target.tooltip,
+        if (target.path != null) 'path': target.path,
+        if (target.scrollableKeyValue != null)
+          'scrollableKey': target.scrollableKeyValue,
+        if (target.scrollablePath != null)
+          'scrollablePath': target.scrollablePath,
         'supportedCommands': target.supportedCommands
             .map((command) => command.name)
             .toList(growable: false),
       };
     }).toList(growable: false);
+  }
+
+  List<Map<String, Object?>> _visibleScrollables() {
+    final seen = <String>{};
+    final scrollables = <Map<String, Object?>>[];
+    for (final target in _liveSnapshot().visibleTargets) {
+      final key = [
+        target.scrollableKeyValue ?? '',
+        target.scrollableTypeName ?? '',
+        target.scrollablePath ?? '',
+      ].join('|');
+      if (key == '||' || !seen.add(key)) {
+        continue;
+      }
+      scrollables.add(<String, Object?>{
+        if (target.scrollableKeyValue != null) 'key': target.scrollableKeyValue,
+        if (target.scrollableTypeName != null)
+          'typeName': target.scrollableTypeName,
+        if (target.scrollablePath != null) 'path': target.scrollablePath,
+      });
+      if (scrollables.length >= 8) {
+        break;
+      }
+    }
+    return scrollables;
   }
 
   Future<CockpitCommandExecution> _buildSuccessWithOptionalCapture({
@@ -2750,6 +2879,14 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
       return value;
     }
     return null;
+  }
+
+  CockpitLocator? _locatorParameter(CockpitCommand command, String key) {
+    final value = command.parameters[key];
+    if (value is! Map<Object?, Object?>) {
+      return null;
+    }
+    return CockpitLocator.fromJson(Map<String, Object?>.from(value));
   }
 
   bool? _boolParameter(CockpitCommand command, String key) {

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:path/path.dart' as p;
 
@@ -23,6 +24,7 @@ typedef CockpitSupervisorSpawner = Future<CockpitSpawnedDevelopmentSupervisor>
     Function({
   required CockpitLaunchDevelopmentSessionRequest request,
   required String flutterVersion,
+  required String flutterExecutable,
   required int hostPort,
   required int supervisorPort,
   required File supervisorLogFile,
@@ -83,6 +85,7 @@ final class CockpitLaunchDevelopmentSessionService {
         const CockpitAndroidPortForwarder(),
     CockpitFlutterVersionReader flutterVersionReader =
         cockpitReadActiveFlutterVersion,
+    Future<String> Function()? flutterExecutableReader,
     CockpitEntrypointResolver? entrypointResolver,
   })  : _launcher = launcher ??
             CockpitDevelopmentSessionDaemonLauncher(
@@ -91,6 +94,8 @@ final class CockpitLaunchDevelopmentSessionService {
                   .readStatus,
               portForwarder: portForwarder,
               flutterVersionReader: flutterVersionReader,
+              flutterExecutableReader: flutterExecutableReader ??
+                  cockpitResolveActiveFlutterExecutable,
             ).launch,
         _entrypointResolver = entrypointResolver ?? CockpitEntrypointResolver();
 
@@ -100,10 +105,11 @@ final class CockpitLaunchDevelopmentSessionService {
   Future<CockpitLaunchDevelopmentSessionResult> launch(
     CockpitLaunchDevelopmentSessionRequest request,
   ) async {
+    final normalizedProjectDir = cockpitNormalizeProjectDir(request.projectDir);
     final resolvedRequest = CockpitLaunchDevelopmentSessionRequest(
-      projectDir: request.projectDir,
+      projectDir: normalizedProjectDir,
       target: _entrypointResolver.resolve(
-        projectDir: request.projectDir,
+        projectDir: normalizedProjectDir,
         target: request.target,
       ),
       platform: request.platform,
@@ -160,12 +166,14 @@ final class CockpitDevelopmentSessionDaemonLauncher {
     required CockpitSupervisorStatusReader supervisorStatusReader,
     required CockpitAndroidPortForwarder portForwarder,
     required CockpitFlutterVersionReader flutterVersionReader,
+    required Future<String> Function() flutterExecutableReader,
     CockpitSupervisorSpawner? spawnSupervisor,
     Future<int> Function()? allocatePort,
     CockpitDelay? delay,
   })  : _supervisorStatusReader = supervisorStatusReader,
         _portForwarder = portForwarder,
         _flutterVersionReader = flutterVersionReader,
+        _flutterExecutableReader = flutterExecutableReader,
         _spawnSupervisor = spawnSupervisor ?? _defaultSpawnSupervisor,
         _allocatePort = allocatePort ?? _defaultAllocatePort,
         _delay = delay ?? Future<void>.delayed;
@@ -173,6 +181,7 @@ final class CockpitDevelopmentSessionDaemonLauncher {
   final CockpitSupervisorStatusReader _supervisorStatusReader;
   final CockpitAndroidPortForwarder _portForwarder;
   final CockpitFlutterVersionReader _flutterVersionReader;
+  final Future<String> Function() _flutterExecutableReader;
   final CockpitSupervisorSpawner _spawnSupervisor;
   final Future<int> Function() _allocatePort;
   final CockpitDelay _delay;
@@ -181,6 +190,7 @@ final class CockpitDevelopmentSessionDaemonLauncher {
     CockpitLaunchDevelopmentSessionRequest request,
   ) async {
     final flutterVersion = await _flutterVersionReader();
+    final flutterExecutable = await _flutterExecutableReader();
     final hostPort = request.platform == 'android'
         ? await _portForwarder.ensureForwarded(
             deviceId: request.deviceId,
@@ -205,6 +215,7 @@ final class CockpitDevelopmentSessionDaemonLauncher {
       final attempt = await _spawnSupervisor(
         request: request,
         flutterVersion: flutterVersion,
+        flutterExecutable: flutterExecutable,
         hostPort: hostPort,
         supervisorPort: supervisorPort,
         supervisorLogFile: supervisorLogFile,
@@ -214,6 +225,8 @@ final class CockpitDevelopmentSessionDaemonLauncher {
       final remaining = deadline.difference(DateTime.now());
       final attemptTimeout = remaining;
       final attemptDeadline = DateTime.now().add(attemptTimeout);
+      var shouldRetryAttempt = false;
+      var permanentStartupFailure = false;
 
       while (DateTime.now().isBefore(attemptDeadline)) {
         try {
@@ -227,6 +240,7 @@ final class CockpitDevelopmentSessionDaemonLauncher {
           }
           if (_isStartupLockContention(response.status.lastError)) {
             lastFailure = StateError(response.status.lastError!);
+            shouldRetryAttempt = true;
             break;
           }
           if (response.status.state == CockpitDevelopmentSessionState.failed ||
@@ -235,6 +249,7 @@ final class CockpitDevelopmentSessionDaemonLauncher {
               response.status.lastError ??
                   'Development supervisor entered ${response.status.state.jsonValue}.',
             );
+            permanentStartupFailure = true;
             break;
           }
         } on Object catch (error) {
@@ -248,6 +263,14 @@ final class CockpitDevelopmentSessionDaemonLauncher {
         priorFailure: lastFailure,
       );
       activeAttempt = null;
+      if (permanentStartupFailure) {
+        throw StateError('Development session startup failed: $lastFailure');
+      }
+      if (!shouldRetryAttempt &&
+          lastFailure != null &&
+          !_isTransientStartupFailure(lastFailure)) {
+        throw StateError('Development session startup failed: $lastFailure');
+      }
       if (DateTime.now().isBefore(deadline)) {
         await _delay(const Duration(seconds: 1));
       }
@@ -282,16 +305,18 @@ final class CockpitDevelopmentSessionDaemonLauncher {
   static Future<CockpitSpawnedDevelopmentSupervisor> _defaultSpawnSupervisor({
     required CockpitLaunchDevelopmentSessionRequest request,
     required String flutterVersion,
+    required String flutterExecutable,
     required int hostPort,
     required int supervisorPort,
     required File supervisorLogFile,
   }) async {
     await supervisorLogFile.parent.create(recursive: true);
+    final supervisorEntrypoint = await _resolveSupervisorEntrypoint();
     final process = await Process.start(
       Platform.resolvedExecutable,
       <String>[
         'run',
-        'flutter_cockpit_devtools:flutter_cockpit_development_supervisor',
+        supervisorEntrypoint,
         '--project-dir',
         request.projectDir,
         '--target',
@@ -306,13 +331,17 @@ final class CockpitDevelopmentSessionDaemonLauncher {
         hostPort.toString(),
         '--supervisor-port',
         supervisorPort.toString(),
+        '--flutter-executable',
+        flutterExecutable,
+        '--log-file',
+        supervisorLogFile.path,
         '--flutter-version',
         flutterVersion,
         '--launch-timeout-seconds',
         request.launchTimeout.inSeconds.toString(),
       ],
       workingDirectory: request.projectDir,
-      mode: ProcessStartMode.detachedWithStdio,
+      mode: ProcessStartMode.detached,
     );
     final baseUri = Uri(
       scheme: 'http',
@@ -322,23 +351,33 @@ final class CockpitDevelopmentSessionDaemonLauncher {
     return CockpitSpawnedDevelopmentSupervisor(
       baseUri: baseUri,
       stop: () async {
-        try {
-          process.stdin.close();
-        } on Object {
-          // Ignore shutdown races.
-        }
         process.kill(ProcessSignal.sigterm);
-        await Future.any(<Future<Object?>>[
-          process.exitCode,
-          Future<Object?>.delayed(const Duration(milliseconds: 500)),
-        ]);
+        await Future<void>.delayed(const Duration(milliseconds: 500));
         process.kill(ProcessSignal.sigkill);
-        await Future.any(<Future<Object?>>[
-          process.exitCode,
-          Future<Object?>.delayed(const Duration(milliseconds: 200)),
-        ]);
+        await Future<void>.delayed(const Duration(milliseconds: 200));
       },
       logPath: p.normalize(supervisorLogFile.path),
+    );
+  }
+
+  static Future<String> _resolveSupervisorEntrypoint() async {
+    final packageLibUri = await Isolate.resolvePackageUri(
+      Uri.parse(
+          'package:flutter_cockpit_devtools/flutter_cockpit_devtools.dart'),
+    );
+    if (packageLibUri == null) {
+      throw StateError(
+        'Unable to resolve flutter_cockpit_devtools package root for the development supervisor.',
+      );
+    }
+    final libPath = p.fromUri(packageLibUri);
+    final packageRoot = p.normalize(p.join(p.dirname(libPath), '..'));
+    return p.normalize(
+      p.join(
+        packageRoot,
+        'bin',
+        'flutter_cockpit_development_supervisor.dart',
+      ),
     );
   }
 
@@ -347,6 +386,14 @@ final class CockpitDevelopmentSessionDaemonLauncher {
       return false;
     }
     return error.toLowerCase().contains('startup lock');
+  }
+
+  static bool _isTransientStartupFailure(Object failure) {
+    final message = '$failure'.toLowerCase();
+    return message.contains('connection refused') ||
+        message.contains('connection closed') ||
+        message.contains('connection reset') ||
+        message.contains('timed out');
   }
 
   Future<Object?> _stopAttempt(

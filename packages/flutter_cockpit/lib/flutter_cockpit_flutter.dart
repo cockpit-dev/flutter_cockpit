@@ -22,6 +22,7 @@ export 'src/runtime/cockpit_discovery_policy.dart';
 export 'src/runtime/cockpit_diagnostics_config.dart';
 export 'src/runtime/cockpit_rebuild_tracker.dart';
 export 'src/runtime/cockpit_reveal_alignment.dart';
+export 'src/runtime/cockpit_scroll_step_result.dart';
 export 'src/runtime/cockpit_interaction_policy.dart';
 export 'src/runtime/cockpit_hit_test_miss_policy.dart';
 export 'src/runtime/cockpit_flutter_runtime_observer.dart';

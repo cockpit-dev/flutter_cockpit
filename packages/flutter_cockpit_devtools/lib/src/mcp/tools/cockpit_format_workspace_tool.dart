@@ -48,6 +48,7 @@ final class CockpitFormatWorkspaceTool extends CockpitMcpTool {
         'type': 'object',
         'properties': <String, Object?>{
           'workspace_root': <String, Object?>{'type': 'string'},
+          'timeout_seconds': <String, Object?>{'type': 'integer'},
         },
       };
 
@@ -62,6 +63,9 @@ final class CockpitFormatWorkspaceTool extends CockpitMcpTool {
         CockpitFormatWorkspaceRequest(
           workspaceRoot: workspaceRoot,
           allowedRoots: cockpitAllowedWorkspaceRootPaths(_rootsTracker),
+          timeout: Duration(
+            seconds: cockpitReadOptionalInt(arguments, 'timeout_seconds') ?? 90,
+          ),
         ),
       );
       return cockpitMcpResult(

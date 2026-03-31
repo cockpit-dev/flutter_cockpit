@@ -50,9 +50,12 @@ jobs:
         working-directory: packages/flutter_cockpit_devtools
         run: |
           dart test \
+            test/src/application/cockpit_analyze_files_service_test.dart \
             test/src/application/cockpit_entrypoint_resolver_test.dart \
             test/src/application/cockpit_launch_development_session_service_test.dart \
             test/src/application/cockpit_launch_remote_session_service_test.dart \
+            test/src/application/cockpit_lsp_service_test.dart \
+            test/src/application/cockpit_pub_service_test.dart \
             test/src/application/cockpit_stop_app_service_test.dart \
             test/src/application/cockpit_task_orchestration_service_test.dart \
             test/src/cli/cockpit_help_test.dart \
@@ -65,7 +68,8 @@ jobs:
             test/src/mcp/tools/cockpit_launch_app_tool_test.dart \
             test/src/mcp/tools/cockpit_launch_remote_session_tool_test.dart \
             test/src/mcp/tools/cockpit_run_remote_control_script_tool_test.dart \
-            test/src/mcp/tools/cockpit_run_task_tool_test.dart
+            test/src/mcp/tools/cockpit_run_task_tool_test.dart \
+            test/src/mcp/tools/cockpit_workspace_tooling_tools_test.dart
 
   android-runtime-loop:
     needs: shared-ai-surface-regressions

@@ -75,6 +75,28 @@ final class CockpitCommand {
     );
   }
 
+  CockpitCommand copyWith({
+    String? commandId,
+    CockpitCommandType? commandType,
+    CockpitLocator? locator,
+    Map<String, Object?>? parameters,
+    CockpitCapturePolicy? capturePolicy,
+    int? timeoutMs,
+    CockpitSnapshotOptions? snapshotOptions,
+    CockpitScreenshotRequest? screenshotRequest,
+  }) {
+    return CockpitCommand(
+      commandId: commandId ?? this.commandId,
+      commandType: commandType ?? this.commandType,
+      locator: locator ?? this.locator,
+      parameters: parameters ?? this.parameters,
+      capturePolicy: capturePolicy ?? this.capturePolicy,
+      timeoutMs: timeoutMs ?? this.timeoutMs,
+      snapshotOptions: snapshotOptions ?? this.snapshotOptions,
+      screenshotRequest: screenshotRequest ?? this.screenshotRequest,
+    );
+  }
+
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||

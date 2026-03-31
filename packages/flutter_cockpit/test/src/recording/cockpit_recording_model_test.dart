@@ -7,6 +7,18 @@ void main() {
       CockpitRecordingPurpose.fromJson(CockpitRecordingPurpose.acceptance.name),
       CockpitRecordingPurpose.acceptance,
     );
+    expect(
+      CockpitRecordingPurpose.fromJson('diagnostic'),
+      CockpitRecordingPurpose.repro,
+    );
+    expect(
+      CockpitRecordingPurpose.fromJson('debug'),
+      CockpitRecordingPurpose.repro,
+    );
+    expect(
+      CockpitRecordingPurpose.fromJson('investigation'),
+      CockpitRecordingPurpose.repro,
+    );
   });
 
   test('CockpitRecordingState round-trips through json', () {

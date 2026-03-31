@@ -54,6 +54,74 @@ void main() {
       expect(result.snapshotRef, isNull);
     });
 
+    test('injects a default timeout when the command omits one', () async {
+      CockpitCommand? capturedCommand;
+      final service = CockpitExecuteRemoteCommandService(
+        executeCommand: (_, command) async {
+          capturedCommand = command;
+          return CockpitCommandExecution(
+            result: CockpitCommandResult(
+              success: true,
+              commandId: command.commandId,
+              commandType: command.commandType,
+              durationMs: 50,
+            ),
+          );
+        },
+      );
+
+      await service.execute(
+        CockpitExecuteRemoteCommandRequest(
+          sessionHandle: _sessionHandle(),
+          command: CockpitCommand(
+            commandId: 'tap-timeout-default',
+            commandType: CockpitCommandType.tap,
+          ),
+          resultProfile: const CockpitInteractiveResultProfile.minimal(),
+          defaultCommandTimeout: const Duration(milliseconds: 4800),
+        ),
+      );
+
+      expect(capturedCommand?.timeoutMs, 4800);
+    });
+
+    test('uses a longer inferred timeout for long scroll commands', () async {
+      CockpitCommand? capturedCommand;
+      final service = CockpitExecuteRemoteCommandService(
+        executeCommand: (_, command) async {
+          capturedCommand = command;
+          return CockpitCommandExecution(
+            result: CockpitCommandResult(
+              success: true,
+              commandId: command.commandId,
+              commandType: command.commandType,
+              durationMs: 50,
+            ),
+          );
+        },
+      );
+
+      await service.execute(
+        CockpitExecuteRemoteCommandRequest(
+          sessionHandle: _sessionHandle(),
+          command: CockpitCommand(
+            commandId: 'scroll-timeout-default',
+            commandType: CockpitCommandType.scrollUntilVisible,
+            locator: const CockpitLocator(text: 'Emit debug log'),
+            parameters: const <String, Object?>{
+              'maxScrolls': 10,
+              'durationPerStepMs': 220,
+              'revealAlignment': 'center',
+            },
+          ),
+          resultProfile: const CockpitInteractiveResultProfile.minimal(),
+          defaultCommandTimeout: const Duration(seconds: 4),
+        ),
+      );
+
+      expect(capturedCommand?.timeoutMs, greaterThanOrEqualTo(8000));
+    });
+
     test('returns summary, diagnostics, artifact metadata, and snapshot refs',
         () async {
       final handle = _sessionHandle();

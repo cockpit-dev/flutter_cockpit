@@ -6,18 +6,24 @@ import 'cockpit_development_session_handle.dart';
 import 'cockpit_development_session_status.dart';
 import 'cockpit_flutter_run_machine_client.dart';
 import 'cockpit_flutter_run_machine_event.dart';
+import '../session/cockpit_remote_session_handle.dart';
 
 typedef CockpitRemoteReachabilityProbe = Future<bool> Function(Uri baseUri);
 typedef CockpitUiIdleWaiter = Future<bool> Function(Uri baseUri);
 typedef CockpitAppStopper = Future<void> Function(String appId);
+typedef CockpitMachineClientConnector = Future<CockpitFlutterRunMachineClient>
+    Function();
+typedef CockpitSupervisorLogger = Future<void> Function(String message);
 
 final class CockpitDevelopmentSessionSupervisor {
   CockpitDevelopmentSessionSupervisor({
     required CockpitDevelopmentSessionHandle initialHandle,
-    required CockpitFlutterRunMachineClient machineClient,
+    required CockpitFlutterRunMachineClient? machineClient,
     required CockpitRemoteReachabilityProbe remoteReachabilityProbe,
     required CockpitUiIdleWaiter uiIdleWaiter,
+    CockpitMachineClientConnector? machineClientConnector,
     CockpitAppStopper? appStopper,
+    CockpitSupervisorLogger? logger,
     DateTime Function()? now,
     InternetAddress? bindAddress,
     int bindPort = 0,
@@ -27,7 +33,9 @@ final class CockpitDevelopmentSessionSupervisor {
         _machineClient = machineClient,
         _remoteReachabilityProbe = remoteReachabilityProbe,
         _uiIdleWaiter = uiIdleWaiter,
+        _machineClientConnector = machineClientConnector,
         _appStopper = appStopper,
+        _logger = logger,
         _now = now ?? DateTime.now,
         _bindAddress = bindAddress ?? InternetAddress.loopbackIPv4,
         _bindPort = bindPort,
@@ -43,10 +51,12 @@ final class CockpitDevelopmentSessionSupervisor {
         );
 
   CockpitDevelopmentSessionHandle _handle;
-  final CockpitFlutterRunMachineClient _machineClient;
+  CockpitFlutterRunMachineClient? _machineClient;
   final CockpitRemoteReachabilityProbe _remoteReachabilityProbe;
   final CockpitUiIdleWaiter _uiIdleWaiter;
+  final CockpitMachineClientConnector? _machineClientConnector;
   final CockpitAppStopper? _appStopper;
+  final CockpitSupervisorLogger? _logger;
   final DateTime Function() _now;
   final InternetAddress _bindAddress;
   final int _bindPort;
@@ -58,6 +68,7 @@ final class CockpitDevelopmentSessionSupervisor {
   StreamSubscription<CockpitFlutterRunMachineEvent>? _eventSubscription;
   StreamSubscription<HttpRequest>? _requestSubscription;
   Future<void>? _pendingStartupSettle;
+  Future<CockpitFlutterRunMachineClient>? _machineClientConnectFuture;
   bool _explicitStopRequested = false;
   bool _controlPlaneClosed = false;
   bool _resourcesDisposed = false;
@@ -71,8 +82,13 @@ final class CockpitDevelopmentSessionSupervisor {
         port: _server!.port,
       ).toString(),
     );
-    _eventSubscription = _machineClient.events.listen(_handleMachineEvent);
     _requestSubscription = _server!.listen(_handleHttpRequest);
+    _subscribeToMachineClient(_machineClient);
+    _log(
+      'supervisor started control_plane=${_handle.supervisorBaseUrl} '
+      'app_base=${_handle.appBaseUrl}',
+    );
+    _beginStartupRecovery();
   }
 
   Future<void> dispose() async {
@@ -88,6 +104,39 @@ final class CockpitDevelopmentSessionSupervisor {
   Future<CockpitDevelopmentSessionHandle> currentHandle() async => _handle;
 
   Future<void> get done => _doneCompleter.future;
+
+  Future<void> bindRemoteSession(
+    CockpitRemoteSessionHandle remoteSessionHandle,
+  ) async {
+    _handle = _handle.copyWith(
+      appId: remoteSessionHandle.appId,
+      appBaseUrl: remoteSessionHandle.baseUrl,
+      remoteSessionHandle: remoteSessionHandle,
+    );
+    _setStatus(
+      _status.copyWith(
+        state: CockpitDevelopmentSessionState.starting,
+        lastError: null,
+      ),
+    );
+    _log(
+      'bound remote session app_id=${remoteSessionHandle.appId} '
+      'base_url=${remoteSessionHandle.baseUrl}',
+    );
+    _beginStartupRecovery();
+  }
+
+  void reportStartupFailure(Object error) {
+    _log('startup failure error=$error');
+    _setStatus(
+      _status.copyWith(
+        state: CockpitDevelopmentSessionState.failed,
+        appReachable: false,
+        remoteSessionReachable: false,
+        lastError: '$error',
+      ),
+    );
+  }
 
   Future<void> waitForState(
     CockpitDevelopmentSessionState state, {
@@ -108,7 +157,8 @@ final class CockpitDevelopmentSessionSupervisor {
   Future<CockpitDevelopmentSessionStatus> reload(
     CockpitDevelopmentReloadMode mode,
   ) async {
-    final appId = _machineClient.currentAppId ?? _handle.appId;
+    final machineClient = await _requireMachineClient();
+    final appId = machineClient.currentAppId ?? _handle.appId;
     _setStatus(
       _status.copyWith(
         state: mode == CockpitDevelopmentReloadMode.hotReload
@@ -118,17 +168,20 @@ final class CockpitDevelopmentSessionSupervisor {
         lastError: null,
       ),
     );
+    _log('reload requested mode=${mode.jsonValue}');
 
     try {
       switch (mode) {
         case CockpitDevelopmentReloadMode.hotReload:
-          await _machineClient.hotReload(appId: appId);
+          await machineClient.hotReload(appId: appId);
         case CockpitDevelopmentReloadMode.hotRestart:
-          await _machineClient.hotRestart(appId: appId);
+          await machineClient.hotRestart(appId: appId);
       }
       await _settleReadyState(lastReloadMode: mode, bumpGeneration: true);
+      _log('reload completed mode=${mode.jsonValue}');
       return _status;
     } on Object catch (error) {
+      _log('reload failed mode=${mode.jsonValue} error=$error');
       _setStatus(
         _status.copyWith(
           state: CockpitDevelopmentSessionState.failed,
@@ -145,16 +198,20 @@ final class CockpitDevelopmentSessionSupervisor {
     bool closeControlPlane = true,
   }) async {
     _explicitStopRequested = true;
+    _log('stop requested close_control_plane=$closeControlPlane');
     final remoteAppId = _handle.remoteSessionHandle?.appId;
-    try {
-      await Future.any<Object?>(<Future<Object?>>[
-        _machineClient.stop(
-          appId: _machineClient.currentAppId ?? _handle.appId,
-        ),
-        Future<Object?>.delayed(const Duration(milliseconds: 200)),
-      ]);
-    } on Object {
-      // The process may already be gone.
+    final machineClient = _machineClient;
+    if (machineClient != null) {
+      try {
+        await Future.any<Object?>(<Future<Object?>>[
+          machineClient.stop(
+            appId: machineClient.currentAppId ?? _handle.appId,
+          ),
+          Future<Object?>.delayed(const Duration(milliseconds: 200)),
+        ]);
+      } on Object {
+        // The process may already be gone.
+      }
     }
     if (_appStopper != null && remoteAppId != null && remoteAppId.isNotEmpty) {
       try {
@@ -183,16 +240,20 @@ final class CockpitDevelopmentSessionSupervisor {
         if (startedAppId != null) {
           _handle = _handle.copyWith(appId: startedAppId);
         }
+        _log('machine event app.start app_id=${startedAppId ?? _handle.appId}');
         _pendingStartupSettle ??= _settleReadyState(bumpGeneration: false);
       case CockpitFlutterRunMachineEventKind.appDebugPort:
         final wsUri = event.params?['wsUri'] as String?;
         if (wsUri != null) {
           _handle = _handle.copyWith(vmServiceUri: Uri.parse(wsUri));
         }
+        _log('machine event app.debugPort ws_uri=${wsUri ?? ''}');
       case CockpitFlutterRunMachineEventKind.appStarted:
+        _log('machine event app.started');
         _pendingStartupSettle ??= _settleReadyState(bumpGeneration: false);
       case CockpitFlutterRunMachineEventKind.appStop:
         final error = event.params?['error'] as String?;
+        _log('machine event app.stop error=${error ?? ''}');
         _setStatus(
           _status.copyWith(
             state: _explicitStopRequested
@@ -206,8 +267,10 @@ final class CockpitDevelopmentSessionSupervisor {
           ),
         );
       case CockpitFlutterRunMachineEventKind.stderr:
+        _log('machine stderr ${event.message ?? ''}');
         _setStatus(_status.copyWith(lastError: event.message));
       case CockpitFlutterRunMachineEventKind.processExit:
+        _log('machine exit code=${event.exitCode?.toString() ?? ''}');
         _setStatus(
           _status.copyWith(
             state: _explicitStopRequested
@@ -221,8 +284,15 @@ final class CockpitDevelopmentSessionSupervisor {
           ),
         );
       case CockpitFlutterRunMachineEventKind.daemonConnected:
+        _log('machine event daemon.connected');
       case CockpitFlutterRunMachineEventKind.appProgress:
+        if (event.message case final message? when message.isNotEmpty) {
+          _log('machine progress $message');
+        }
       case CockpitFlutterRunMachineEventKind.daemonLogMessage:
+        if (event.message case final message? when message.isNotEmpty) {
+          _log('machine log $message');
+        }
       case CockpitFlutterRunMachineEventKind.request:
       case CockpitFlutterRunMachineEventKind.response:
       case CockpitFlutterRunMachineEventKind.stdout:
@@ -235,6 +305,11 @@ final class CockpitDevelopmentSessionSupervisor {
     CockpitDevelopmentReloadMode? lastReloadMode,
     required bool bumpGeneration,
   }) async {
+    _log(
+      'settle begin '
+      'mode=${lastReloadMode?.jsonValue ?? 'startup'} '
+      'base_url=${_handle.baseUri}',
+    );
     final deadline = _now().add(_settleTimeout);
     var remoteReachable = false;
     var uiIdle = false;
@@ -270,7 +345,87 @@ final class CockpitDevelopmentSessionSupervisor {
             : 'Remote session did not recover to an idle ready state.',
       ),
     );
+    _log(
+      'settle end state=${_status.state.jsonValue} '
+      'app_reachable=${_status.appReachable} '
+      'remote_reachable=${_status.remoteSessionReachable} '
+      'error=${_status.lastError ?? ''}',
+    );
     _pendingStartupSettle = null;
+  }
+
+  Future<CockpitFlutterRunMachineClient> _requireMachineClient() async {
+    final existing = _machineClient;
+    if (existing != null) {
+      return existing;
+    }
+    final connected = await _ensureMachineClientConnected(
+      updateStatusOnFailure: true,
+    );
+    if (connected == null) {
+      throw StateError('Development attach is unavailable for this session.');
+    }
+    return connected;
+  }
+
+  void _beginStartupRecovery() {
+    if (!_canProbeRemoteSession) {
+      return;
+    }
+    _pendingStartupSettle ??= _settleReadyState(bumpGeneration: false);
+    if (_machineClient == null) {
+      final connectFuture = _ensureMachineClientConnected(
+        updateStatusOnFailure: false,
+      );
+      unawaited(connectFuture.catchError((_) => null));
+    }
+  }
+
+  bool get _canProbeRemoteSession {
+    return _handle.remoteSessionHandle != null && _handle.appId.isNotEmpty;
+  }
+
+  Future<CockpitFlutterRunMachineClient?> _ensureMachineClientConnected({
+    required bool updateStatusOnFailure,
+  }) {
+    final existing = _machineClient;
+    if (existing != null) {
+      return Future<CockpitFlutterRunMachineClient?>.value(existing);
+    }
+    final connector = _machineClientConnector;
+    if (connector == null) {
+      return Future<CockpitFlutterRunMachineClient?>.value(null);
+    }
+    final pending = _machineClientConnectFuture;
+    if (pending != null) {
+      return pending;
+    }
+    final future = connector().then((client) {
+      _machineClient = client;
+      _subscribeToMachineClient(client);
+      _machineClientConnectFuture = null;
+      return client;
+    }).catchError((Object error) {
+      _machineClientConnectFuture = null;
+      if (updateStatusOnFailure) {
+        _setStatus(
+          _status.copyWith(
+            state: CockpitDevelopmentSessionState.failed,
+            lastError: '$error',
+          ),
+        );
+      }
+      throw error;
+    });
+    _machineClientConnectFuture = future;
+    return future;
+  }
+
+  void _subscribeToMachineClient(CockpitFlutterRunMachineClient? client) {
+    if (client == null || _eventSubscription != null) {
+      return;
+    }
+    _eventSubscription = client.events.listen(_handleMachineEvent);
   }
 
   Future<void> _handleHttpRequest(HttpRequest request) async {
@@ -317,6 +472,7 @@ final class CockpitDevelopmentSessionSupervisor {
           });
       }
     } catch (error) {
+      _log('http ${request.method} ${request.uri.path} failed error=$error');
       request.response.statusCode = HttpStatus.internalServerError;
       await _writeJson(request.response, <String, Object?>{'error': '$error'});
     } finally {
@@ -345,6 +501,14 @@ final class CockpitDevelopmentSessionSupervisor {
   }
 
   void _setStatus(CockpitDevelopmentSessionStatus status) {
+    if (_status != status) {
+      _log(
+        'status ${_status.state.jsonValue} -> ${status.state.jsonValue} '
+        'app=${status.appReachable} remote=${status.remoteSessionReachable} '
+        'reload_generation=${status.reloadGeneration} '
+        'error=${status.lastError ?? ''}',
+      );
+    }
     _status = status.copyWith(lastStatusAt: _now().toUtc());
   }
 
@@ -367,6 +531,14 @@ final class CockpitDevelopmentSessionSupervisor {
     await _eventSubscription?.cancel();
     await _requestSubscription?.cancel();
     await _server?.close(force: true);
-    await _machineClient.dispose();
+    await _machineClient?.dispose();
+  }
+
+  void _log(String message) {
+    final logger = _logger;
+    if (logger == null) {
+      return;
+    }
+    unawaited(logger(message));
   }
 }
