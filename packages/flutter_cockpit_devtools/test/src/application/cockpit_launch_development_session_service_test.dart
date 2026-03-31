@@ -37,7 +37,7 @@ void main() {
             request.projectDir,
             cockpitNormalizeProjectDir(expectedHandle.projectDir),
           );
-          expect(request.target, expectedHandle.target);
+          expect(request.target, p.normalize(expectedHandle.target));
           expect(request.platform, expectedHandle.platform);
           expect(request.deviceId, expectedHandle.deviceId);
           expect(request.sessionPort, 47331);
