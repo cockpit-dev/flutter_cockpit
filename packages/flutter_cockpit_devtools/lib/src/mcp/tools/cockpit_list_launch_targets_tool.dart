@@ -2,14 +2,16 @@ import '../../application/cockpit_list_launch_targets_service.dart';
 import '../cockpit_mcp_tool.dart';
 
 typedef CockpitListLaunchTargetsToolFunction
-    = Future<CockpitListLaunchTargetsResult> Function();
+    = Future<CockpitListLaunchTargetsResult> Function(Duration timeout);
 
 final class CockpitListLaunchTargetsTool extends CockpitMcpTool {
   CockpitListLaunchTargetsTool({
     CockpitListLaunchTargetsService? service,
     CockpitListLaunchTargetsToolFunction? listTargets,
-  }) : _listTargets =
-            listTargets ?? (service ?? CockpitListLaunchTargetsService()).list;
+  }) : _listTargets = listTargets ??
+            ((timeout) => (service ?? CockpitListLaunchTargetsService()).list(
+                  timeout: timeout,
+                ));
 
   final CockpitListLaunchTargetsToolFunction _listTargets;
 
@@ -18,7 +20,7 @@ final class CockpitListLaunchTargetsTool extends CockpitMcpTool {
 
   @override
   String get description =>
-      'List available Flutter launch targets from flutter devices --machine.';
+      'List reachable Flutter devices and platforms from flutter devices --machine.';
 
   @override
   CockpitMcpToolAnnotations get annotations => const CockpitMcpToolAnnotations(
@@ -40,13 +42,17 @@ final class CockpitListLaunchTargetsTool extends CockpitMcpTool {
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
         'type': 'object',
-        'properties': <String, Object?>{},
+        'properties': <String, Object?>{
+          'timeout_seconds': <String, Object?>{'type': 'integer'},
+        },
       };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {
     try {
-      final result = await _listTargets();
+      final timeoutSeconds =
+          cockpitReadOptionalInt(arguments, 'timeout_seconds') ?? 20;
+      final result = await _listTargets(Duration(seconds: timeoutSeconds));
       return cockpitMcpResult(
         text: 'Launch targets loaded.',
         structuredContent: result.toJson(),

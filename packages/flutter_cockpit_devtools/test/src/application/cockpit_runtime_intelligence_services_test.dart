@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:file/memory.dart';
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_app_handle.dart';
+import 'package:flutter_cockpit_devtools/src/application/cockpit_application_service_exception.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_app_reference_resolver.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_list_apps_service.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_latest_task_store.dart';
@@ -76,6 +78,30 @@ void main() {
 
     expect(result.targets, hasLength(1));
     expect(result.targets.single.id, 'macos');
+  });
+
+  test('list launch targets times out instead of hanging forever', () async {
+    final service = CockpitListLaunchTargetsService(
+      processManager: _MachineProcessManager(
+        stdoutPayload: '[]',
+        hangOnStart: true,
+      ),
+      sdkEnvironment: const CockpitSdkEnvironment(
+        dartExecutable: 'dart-sdk',
+        flutterExecutable: 'flutter-sdk',
+      ),
+    );
+
+    await expectLater(
+      service.list(timeout: const Duration(milliseconds: 50)),
+      throwsA(
+        isA<CockpitApplicationServiceException>().having(
+          (error) => error.code,
+          'code',
+          'listLaunchTargetsTimedOut',
+        ),
+      ),
+    );
   });
 
   test('reads the tail of registered development session logs', () async {
@@ -429,10 +455,12 @@ final class _MachineProcessManager implements CockpitProcessManager {
   _MachineProcessManager({
     required this.stdoutPayload,
     this.returnUtf8Bytes = false,
+    this.hangOnStart = false,
   });
 
   final String stdoutPayload;
   final bool returnUtf8Bytes;
+  final bool hangOnStart;
 
   @override
   Future<ProcessResult> run(
@@ -462,9 +490,77 @@ final class _MachineProcessManager implements CockpitProcessManager {
     bool includeParentEnvironment = true,
     bool runInShell = false,
     ProcessStartMode mode = ProcessStartMode.normal,
-  }) {
-    throw UnimplementedError();
+  }) async {
+    if (hangOnStart) {
+      return _HangingFakeProcess();
+    }
+    return _CompletedFakeProcess(
+      stdoutPayload: stdoutPayload,
+      stderrPayload: '',
+      exitCodeValue: 0,
+      returnUtf8Bytes: returnUtf8Bytes,
+    );
   }
+}
+
+final class _CompletedFakeProcess implements Process {
+  _CompletedFakeProcess({
+    required String stdoutPayload,
+    required String stderrPayload,
+    required int exitCodeValue,
+    this.returnUtf8Bytes = false,
+  })  : stdout = Stream<List<int>>.value(
+          returnUtf8Bytes
+              ? utf8.encode(stdoutPayload)
+              : utf8.encode(stdoutPayload),
+        ),
+        stderr = Stream<List<int>>.value(
+          returnUtf8Bytes
+              ? utf8.encode(stderrPayload)
+              : utf8.encode(stderrPayload),
+        ),
+        _exitCode = Future<int>.value(exitCodeValue);
+
+  final Future<int> _exitCode;
+  final bool returnUtf8Bytes;
+
+  @override
+  Future<int> get exitCode => _exitCode;
+
+  @override
+  final Stream<List<int>> stdout;
+
+  @override
+  final Stream<List<int>> stderr;
+
+  @override
+  int get pid => 1;
+
+  @override
+  bool kill([ProcessSignal signal = ProcessSignal.sigterm]) => true;
+
+  @override
+  IOSink get stdin => throw UnsupportedError('stdin is not used in tests');
+}
+
+final class _HangingFakeProcess implements Process {
+  @override
+  Future<int> get exitCode => Completer<int>().future;
+
+  @override
+  Stream<List<int>> get stdout => const Stream<List<int>>.empty();
+
+  @override
+  Stream<List<int>> get stderr => const Stream<List<int>>.empty();
+
+  @override
+  int get pid => 1;
+
+  @override
+  bool kill([ProcessSignal signal = ProcessSignal.sigterm]) => true;
+
+  @override
+  IOSink get stdin => throw UnsupportedError('stdin is not used in tests');
 }
 
 CockpitDevelopmentSessionHandle _developmentHandle() =>

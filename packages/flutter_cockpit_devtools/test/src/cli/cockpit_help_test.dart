@@ -45,6 +45,14 @@ void main() {
     expect(usage, contains('Example:'));
   });
 
+  test('list-targets help describes device discovery and timeout control', () {
+    final usage = _helpForCommand(ListTargetsCommand());
+
+    expect(usage, contains('reachable Flutter devices and platforms'));
+    expect(usage, contains('timeout-seconds'));
+    expect(usage, contains('flutter devices discovery'));
+  });
+
   test('run-command help documents command shape and profiles', () {
     final usage = _helpForCommand(RunCommandCommand());
 

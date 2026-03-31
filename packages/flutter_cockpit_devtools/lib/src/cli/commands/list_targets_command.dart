@@ -6,20 +6,27 @@ import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
-typedef CockpitListTargetsFunction = Future<CockpitListTargetsResult>
-    Function();
+typedef CockpitListTargetsFunction = Future<CockpitListTargetsResult> Function(
+    Duration timeout);
 
 final class ListTargetsCommand extends CockpitCliCommand {
   ListTargetsCommand({
     CockpitListTargetsService? service,
     CockpitListTargetsFunction? listTargets,
     StringSink? stdoutSink,
-  })  : _listTargets =
-            listTargets ?? (service ?? CockpitListTargetsService()).list,
+  })  : _listTargets = listTargets ??
+            ((timeout) => (service ?? CockpitListTargetsService()).list(
+                  timeout: timeout,
+                )),
         _stdoutSink = stdoutSink ?? stdout {
     argParser.addOption(
       'output-json',
       help: 'Write the target list JSON to a file instead of stdout.',
+    );
+    argParser.addOption(
+      'timeout-seconds',
+      help: 'Time budget for flutter devices discovery before it is aborted.',
+      defaultsTo: '20',
     );
   }
 
@@ -31,7 +38,7 @@ final class ListTargetsCommand extends CockpitCliCommand {
 
   @override
   String get description =>
-      'List launchable Flutter targets from the current workspace.';
+      'List reachable Flutter devices that can be used as launch targets.';
 
   @override
   String get summary => 'Show launchable Flutter targets.';
@@ -41,11 +48,11 @@ final class ListTargetsCommand extends CockpitCliCommand {
 
   @override
   String get helpWhen =>
-      'Start here when you do not yet know which project, target, or platform to launch.';
+      'Start here when you do not yet know which device or platform is available for launch.';
 
   @override
   String get helpNeeds =>
-      'No required inputs. Use --output-json when a later step should read the target list as structured data.';
+      'No required inputs. Use --output-json when a later step should read the device list as structured data.';
 
   @override
   String get helpExample =>
@@ -53,11 +60,13 @@ final class ListTargetsCommand extends CockpitCliCommand {
 
   @override
   String get helpWrites =>
-      'A JSON list of project directories, entrypoints, and detected platforms.';
+      'A JSON list of reachable Flutter devices and platforms.';
 
   @override
   Future<int> run() async {
-    final result = await _listTargets();
+    final timeoutSeconds =
+        int.tryParse('${argResults!['timeout-seconds'] ?? '20'}') ?? 20;
+    final result = await _listTargets(Duration(seconds: timeoutSeconds));
     await cockpitWriteJsonPayload(
       payload: const JsonEncoder.withIndent('  ').convert(result.toJson()),
       argResults: argResults,

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import '../infrastructure/cockpit_process_manager.dart';
 import '../infrastructure/cockpit_sdk_environment.dart';
@@ -46,32 +47,63 @@ final class CockpitListLaunchTargetsService {
   CockpitListLaunchTargetsService({
     CockpitProcessManager? processManager,
     CockpitSdkEnvironment? sdkEnvironment,
+    this.defaultTimeout = const Duration(seconds: 20),
   })  : _processManager = processManager ?? const LocalCockpitProcessManager(),
         _sdkEnvironment = sdkEnvironment ?? const CockpitSdkEnvironment();
 
   final CockpitProcessManager _processManager;
   final CockpitSdkEnvironment _sdkEnvironment;
+  final Duration defaultTimeout;
 
-  Future<CockpitListLaunchTargetsResult> list() async {
-    final result = await _processManager.run(
+  Future<CockpitListLaunchTargetsResult> list({Duration? timeout}) async {
+    final effectiveTimeout = timeout ?? defaultTimeout;
+    final process = await _processManager.start(
       _sdkEnvironment.flutterExecutable,
       const <String>['devices', '--machine'],
-      stdoutEncoding: utf8,
-      stderrEncoding: utf8,
     );
-    if (result.exitCode != 0) {
+    final stdoutFuture = process.stdout.transform(utf8.decoder).join();
+    final stderrFuture = process.stderr.transform(utf8.decoder).join();
+    final exitCode = await process.exitCode.timeout(
+      effectiveTimeout,
+      onTimeout: () {
+        process.kill(ProcessSignal.sigkill);
+        return -1;
+      },
+    );
+    final stdout = await stdoutFuture.timeout(
+      const Duration(milliseconds: 200),
+      onTimeout: () => '',
+    );
+    final stderr = await stderrFuture.timeout(
+      const Duration(milliseconds: 200),
+      onTimeout: () => '',
+    );
+
+    if (exitCode == -1) {
       throw CockpitApplicationServiceException(
-        code: 'listLaunchTargetsFailed',
-        message: 'Unable to list Flutter launch targets.',
+        code: 'listLaunchTargetsTimedOut',
+        message: 'Timed out while listing Flutter launch targets.',
         details: <String, Object?>{
-          'exitCode': result.exitCode,
-          'stdout': '${result.stdout}',
-          'stderr': '${result.stderr}',
+          'timeout_ms': effectiveTimeout.inMilliseconds,
+          if (stdout.trim().isNotEmpty) 'stdout': stdout,
+          if (stderr.trim().isNotEmpty) 'stderr': stderr,
         },
       );
     }
 
-    final decoded = jsonDecode(_stdoutText(result.stdout));
+    if (exitCode != 0) {
+      throw CockpitApplicationServiceException(
+        code: 'listLaunchTargetsFailed',
+        message: 'Unable to list Flutter launch targets.',
+        details: <String, Object?>{
+          'exitCode': exitCode,
+          'stdout': stdout,
+          'stderr': stderr,
+        },
+      );
+    }
+
+    final decoded = jsonDecode(stdout);
     if (decoded is! List<Object?>) {
       throw const CockpitApplicationServiceException(
         code: 'invalidLaunchTargetsOutput',
@@ -101,14 +133,4 @@ final class CockpitListLaunchTargetsService {
       targets: List<CockpitLaunchTarget>.unmodifiable(targets),
     );
   }
-}
-
-String _stdoutText(Object? value) {
-  if (value is String) {
-    return value;
-  }
-  if (value is List<int>) {
-    return utf8.decode(value);
-  }
-  return '$value';
 }
