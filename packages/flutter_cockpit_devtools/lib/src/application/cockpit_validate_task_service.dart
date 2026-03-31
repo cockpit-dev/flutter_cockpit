@@ -498,6 +498,10 @@ final class CockpitValidateTaskService {
       final failure = await _validateDeliveryConsistency(
         screenshotPath: primaryScreenshotPath,
         recordingPath: primaryRecordingPath,
+        candidateFramePaths: _deliveryConsistencyFramePaths(
+          bundleSummary: bundleSummary,
+          screenshotPath: primaryScreenshotPath,
+        ),
       );
       if (failure != null) {
         failures.add(failure);
@@ -581,10 +585,12 @@ final class CockpitValidateTaskService {
   Future<CockpitValidationFailure?> _validateDeliveryConsistency({
     required String screenshotPath,
     required String recordingPath,
+    required List<String> candidateFramePaths,
   }) async {
     final result = await _artifactValidator.validateDeliveryConsistency(
       screenshotPath: screenshotPath,
       recordingPath: recordingPath,
+      candidateFramePaths: candidateFramePaths,
     );
     if (result.isValid) {
       return null;
@@ -599,6 +605,50 @@ final class CockpitValidateTaskService {
         ...result.details,
       },
     );
+  }
+
+  List<String> _deliveryConsistencyFramePaths({
+    required CockpitReadTaskBundleSummaryResult bundleSummary,
+    required String screenshotPath,
+  }) {
+    final prioritizedKeyframes = bundleSummary.evidence.keyframes.toList()
+      ..sort(
+        (left, right) => _deliveryConsistencyPriority(
+          keyframe: left,
+          screenshotPath: screenshotPath,
+        ).compareTo(
+          _deliveryConsistencyPriority(
+            keyframe: right,
+            screenshotPath: screenshotPath,
+          ),
+        ),
+      );
+
+    final paths = <String>[];
+    final seen = <String>{};
+    for (final keyframe in prioritizedKeyframes) {
+      if (keyframe.path.isEmpty || !seen.add(keyframe.path)) {
+        continue;
+      }
+      paths.add(keyframe.path);
+    }
+    return List<String>.unmodifiable(paths);
+  }
+
+  int _deliveryConsistencyPriority({
+    required CockpitBundleEvidenceKeyframe keyframe,
+    required String screenshotPath,
+  }) {
+    if (keyframe.linkedScreenshotPath == screenshotPath) {
+      return 0;
+    }
+    return switch (keyframe.label) {
+      'acceptance' => 1,
+      'tail_consistency' => 2,
+      'midpoint' => 3,
+      'baseline' => 4,
+      _ => 5,
+    };
   }
 
   List<CockpitRecordingKeyframe> _readRecordingKeyframes(

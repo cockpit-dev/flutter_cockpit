@@ -1,6 +1,6 @@
 # flutter_cockpit
 
-[English](/Users/iota9star/Development/workspace/flutter/flutter_pilot/packages/flutter_cockpit/README.md)
+[English](README.md)
 
 `flutter_cockpit` 是面向 AI 驱动 Flutter 开发的应用内运行时。
 
@@ -52,4 +52,4 @@ flutter run -t cockpit/main.dart
 - 截图和录屏请求
 - 远程会话状态与命令端点
 
-宿主侧编排、MCP、workspace tooling 和交付验证在 [`flutter_cockpit_devtools`](/Users/iota9star/Development/workspace/flutter/flutter_pilot/packages/flutter_cockpit_devtools/README.md) 中。
+宿主侧编排、MCP、workspace tooling 和交付验证在 [`flutter_cockpit_devtools`](../flutter_cockpit_devtools/README.md) 中。

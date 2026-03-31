@@ -1,6 +1,6 @@
 # flutter_cockpit
 
-[简体中文](/Users/iota9star/Development/workspace/flutter/flutter_pilot/packages/flutter_cockpit/README.zh-CN.md)
+[简体中文](README.zh-CN.md)
 
 `flutter_cockpit` is the in-app runtime for AI-driven Flutter development.
 
@@ -52,4 +52,4 @@ flutter run -t cockpit/main.dart
 - screenshot and recording requests
 - remote session status and command endpoints
 
-Host-side orchestration, MCP, workspace tooling, and delivery validation live in [`flutter_cockpit_devtools`](/Users/iota9star/Development/workspace/flutter/flutter_pilot/packages/flutter_cockpit_devtools/README.md).
+Host-side orchestration, MCP, workspace tooling, and delivery validation live in [`flutter_cockpit_devtools`](../flutter_cockpit_devtools/README.md).

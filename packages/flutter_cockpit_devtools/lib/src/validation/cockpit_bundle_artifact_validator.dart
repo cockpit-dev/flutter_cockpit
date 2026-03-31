@@ -96,6 +96,7 @@ final class CockpitBundleArtifactValidator {
   Future<CockpitBundleArtifactValidationResult> validateDeliveryConsistency({
     required String screenshotPath,
     required String recordingPath,
+    List<String> candidateFramePaths = const <String>[],
   }) async {
     final screenshotFile = File(screenshotPath);
     final recordingFile = File(recordingPath);
@@ -119,9 +120,54 @@ final class CockpitBundleArtifactValidator {
 
     final durationMs = await _probeRecordingDurationMs(recordingPath);
     final offsets = _lateFrameOffsets(durationMs);
-    final similarities = <double>[];
+    final comparisons = <Map<String, Object?>>[];
     double? bestSimilarity;
     double? bestOffsetSeconds;
+    String? bestSource;
+
+    Future<void> compareCandidate({
+      required img.Image frameImage,
+      required String source,
+      double? offsetSeconds,
+      String? framePath,
+    }) async {
+      final similarity = _normalizedSimilarity(screenshotImage, frameImage);
+      comparisons.add(<String, Object?>{
+        'source': source,
+        if (offsetSeconds != null) 'offsetSeconds': offsetSeconds,
+        if (framePath != null) 'framePath': framePath,
+        'similarity': similarity,
+      });
+      if (bestSimilarity == null || similarity > bestSimilarity!) {
+        bestSimilarity = similarity;
+        bestOffsetSeconds = offsetSeconds;
+        bestSource = source;
+      }
+    }
+
+    final seenCandidatePaths = <String>{};
+    for (final candidatePath in candidateFramePaths) {
+      if (candidatePath.isEmpty) {
+        continue;
+      }
+      final normalizedCandidatePath = File(candidatePath).path;
+      if (!seenCandidatePaths.add(normalizedCandidatePath)) {
+        continue;
+      }
+      final candidateFile = File(normalizedCandidatePath);
+      if (!candidateFile.existsSync()) {
+        continue;
+      }
+      final candidateImage = img.decodeImage(await candidateFile.readAsBytes());
+      if (candidateImage == null) {
+        continue;
+      }
+      await compareCandidate(
+        frameImage: candidateImage,
+        source: 'bundleKeyframe',
+        framePath: normalizedCandidatePath,
+      );
+    }
 
     try {
       for (final offsetSeconds in offsets) {
@@ -138,14 +184,30 @@ final class CockpitBundleArtifactValidator {
           continue;
         }
 
-        final similarity = _normalizedSimilarity(screenshotImage, frameImage);
-        similarities.add(similarity);
-        if (bestSimilarity == null || similarity > bestSimilarity) {
-          bestSimilarity = similarity;
-          bestOffsetSeconds = offsetSeconds;
-        }
+        await compareCandidate(
+          frameImage: frameImage,
+          source: 'lateFrame',
+          offsetSeconds: offsetSeconds,
+          framePath: frameFile.path,
+        );
       }
     } on ProcessException {
+      if (bestSimilarity != null) {
+        return _valid(
+          validator: 'deliveryConsistency',
+          message:
+              'Primary screenshot and recording appear to represent the same final screen.',
+          details: <String, Object?>{
+            'screenshotPath': screenshotPath,
+            'recordingPath': recordingPath,
+            'bestSimilarity': bestSimilarity,
+            'bestFrameOffsetSeconds': bestOffsetSeconds,
+            'bestSource': bestSource,
+            'candidateOffsetsSeconds': offsets,
+            'comparisons': comparisons,
+          },
+        );
+      }
       return _valid(
         validator: 'deliveryConsistencySkipped',
         message:
@@ -153,6 +215,7 @@ final class CockpitBundleArtifactValidator {
         details: <String, Object?>{
           'screenshotPath': screenshotPath,
           'recordingPath': recordingPath,
+          'candidateFramePaths': candidateFramePaths,
         },
       );
     }
@@ -166,12 +229,13 @@ final class CockpitBundleArtifactValidator {
         details: <String, Object?>{
           'screenshotPath': screenshotPath,
           'recordingPath': recordingPath,
+          'candidateFramePaths': candidateFramePaths,
           'candidateOffsetsSeconds': offsets,
         },
       );
     }
 
-    if (bestSimilarity < 0.78) {
+    if (bestSimilarity! < 0.78) {
       return _invalid(
         code: 'inconsistentDeliveryEvidence',
         validator: 'deliveryConsistency',
@@ -182,8 +246,10 @@ final class CockpitBundleArtifactValidator {
           'recordingPath': recordingPath,
           'bestSimilarity': bestSimilarity,
           'bestFrameOffsetSeconds': bestOffsetSeconds,
+          'bestSource': bestSource,
+          'candidateFramePaths': candidateFramePaths,
           'candidateOffsetsSeconds': offsets,
-          'similarities': similarities,
+          'comparisons': comparisons,
         },
       );
     }
@@ -197,8 +263,10 @@ final class CockpitBundleArtifactValidator {
         'recordingPath': recordingPath,
         'bestSimilarity': bestSimilarity,
         'bestFrameOffsetSeconds': bestOffsetSeconds,
+        'bestSource': bestSource,
+        'candidateFramePaths': candidateFramePaths,
         'candidateOffsetsSeconds': offsets,
-        'similarities': similarities,
+        'comparisons': comparisons,
       },
     );
   }
@@ -573,20 +641,23 @@ final class CockpitBundleArtifactValidator {
   double _normalizedSimilarity(img.Image screenshot, img.Image frame) {
     final normalizedScreenshot = _normalizedComparisonImage(screenshot);
     final normalizedFrame = _normalizedComparisonImage(frame);
-    var totalDelta = 0;
+    var totalDelta = 0.0;
     final pixelCount = normalizedScreenshot.width * normalizedScreenshot.height;
     for (var y = 0; y < normalizedScreenshot.height; y++) {
       for (var x = 0; x < normalizedScreenshot.width; x++) {
         final screenshotPixel = normalizedScreenshot.getPixel(x, y);
         final framePixel = normalizedFrame.getPixel(x, y);
-        totalDelta +=
-            (img.getLuminance(screenshotPixel) - img.getLuminance(framePixel))
-                .abs()
-                .round();
+        final screenshotLuminance =
+            screenshotPixel.luminanceNormalized.toDouble().clamp(0.0, 1.0);
+        final frameLuminance =
+            framePixel.luminanceNormalized.toDouble().clamp(0.0, 1.0);
+        totalDelta += (screenshotLuminance - frameLuminance).abs();
       }
     }
-    final maxDelta = pixelCount * 255;
-    return 1 - (totalDelta / maxDelta);
+    if (pixelCount == 0) {
+      return 0;
+    }
+    return (1 - (totalDelta / pixelCount)).clamp(0.0, 1.0);
   }
 
   img.Image _normalizedComparisonImage(img.Image image) {

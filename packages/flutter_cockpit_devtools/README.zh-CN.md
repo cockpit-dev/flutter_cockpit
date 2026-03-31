@@ -1,6 +1,6 @@
 # flutter_cockpit_devtools
 
-[English](/Users/iota9star/Development/workspace/flutter/flutter_pilot/packages/flutter_cockpit_devtools/README.md)
+[English](README.md)
 
 `flutter_cockpit_devtools` 是 `flutter_cockpit` 的宿主侧工具包。
 

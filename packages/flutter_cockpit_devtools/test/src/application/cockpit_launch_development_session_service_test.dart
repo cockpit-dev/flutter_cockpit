@@ -33,7 +33,10 @@ void main() {
       final service = CockpitLaunchDevelopmentSessionService(
         entrypointResolver: CockpitEntrypointResolver(exists: (_) => true),
         launcher: (request) async {
-          expect(request.projectDir, expectedHandle.projectDir);
+          expect(
+            request.projectDir,
+            cockpitNormalizeProjectDir(expectedHandle.projectDir),
+          );
           expect(request.target, expectedHandle.target);
           expect(request.platform, expectedHandle.platform);
           expect(request.deviceId, expectedHandle.deviceId);
@@ -72,11 +75,19 @@ void main() {
       () async {
     final expectedHandle = _handle(target: 'cockpit/main.dart');
     final expectedStatus = _readyStatus(expectedHandle);
+    final normalizedProjectDir = cockpitNormalizeProjectDir(
+      expectedHandle.projectDir,
+    );
+    final expectedEntrypointPath = p.join(
+      normalizedProjectDir,
+      'cockpit',
+      'main.dart',
+    );
 
     final service = CockpitLaunchDevelopmentSessionService(
       entrypointResolver: CockpitEntrypointResolver(
         exists: (path) =>
-            path == '/workspace/examples/cockpit_demo/cockpit/main.dart',
+            p.normalize(path) == p.normalize(expectedEntrypointPath),
       ),
       launcher: (request) async {
         expect(request.target, 'cockpit/main.dart');

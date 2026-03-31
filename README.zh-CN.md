@@ -1,6 +1,6 @@
 # flutter_cockpit
 
-[English](/Users/iota9star/Development/workspace/flutter/flutter_pilot/README.md)
+[English](README.md)
 
 `flutter_cockpit` 是一套面向生产环境的 Flutter AI 控制与验证基础设施。
 
@@ -16,8 +16,8 @@
 
 ## 包结构
 
-- [`packages/flutter_cockpit`](/Users/iota9star/Development/workspace/flutter/flutter_pilot/packages/flutter_cockpit)：应用内运行时、远程会话服务、命令执行、快照、截图、录屏
-- [`packages/flutter_cockpit_devtools`](/Users/iota9star/Development/workspace/flutter/flutter_pilot/packages/flutter_cockpit_devtools)：宿主侧 CLI、MCP、编排、bundle 写入、验证、workspace tooling
+- [`packages/flutter_cockpit`](packages/flutter_cockpit)：应用内运行时、远程会话服务、命令执行、快照、截图、录屏
+- [`packages/flutter_cockpit_devtools`](packages/flutter_cockpit_devtools)：宿主侧 CLI、MCP、编排、bundle 写入、验证、workspace tooling
 
 ## 推荐闭环
 
@@ -177,12 +177,12 @@ Prompts：
 
 ## 示例与文档
 
-- 示例应用：[`examples/cockpit_demo`](/Users/iota9star/Development/workspace/flutter/flutter_pilot/examples/cockpit_demo)
-- 运行时 README：[`packages/flutter_cockpit/README.md`](/Users/iota9star/Development/workspace/flutter/flutter_pilot/packages/flutter_cockpit/README.md)
-- Devtools README：[`packages/flutter_cockpit_devtools/README.md`](/Users/iota9star/Development/workspace/flutter/flutter_pilot/packages/flutter_cockpit_devtools/README.md)
-- Skill：[`skills/flutter-cockpit/SKILL.md`](/Users/iota9star/Development/workspace/flutter/flutter_pilot/skills/flutter-cockpit/SKILL.md)
-- CLI 示例：[`skills/flutter-cockpit/examples/cli-command-reference.md`](/Users/iota9star/Development/workspace/flutter/flutter_pilot/skills/flutter-cockpit/examples/cli-command-reference.md)
-- Bundle 契约：[`docs/contracts/task-run-bundle.md`](/Users/iota9star/Development/workspace/flutter/flutter_pilot/docs/contracts/task-run-bundle.md)
+- 示例应用：[`examples/cockpit_demo`](examples/cockpit_demo)
+- 运行时 README：[`packages/flutter_cockpit/README.md`](packages/flutter_cockpit/README.md)
+- Devtools README：[`packages/flutter_cockpit_devtools/README.md`](packages/flutter_cockpit_devtools/README.md)
+- Skill：[`skills/flutter-cockpit/SKILL.md`](skills/flutter-cockpit/SKILL.md)
+- CLI 示例：[`skills/flutter-cockpit/examples/cli-command-reference.md`](skills/flutter-cockpit/examples/cli-command-reference.md)
+- Bundle 契约：[`docs/contracts/task-run-bundle.md`](docs/contracts/task-run-bundle.md)
 
 更底层的 development-session 和 remote-session building block 仍然保留在 Dart API 中，供特殊宿主使用，但它们已经不是推荐的公开主工作流。
 

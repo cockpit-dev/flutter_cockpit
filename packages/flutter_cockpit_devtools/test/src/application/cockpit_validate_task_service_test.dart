@@ -669,6 +669,145 @@ void main() {
   );
 
   test(
+    'validate task accepts bundle keyframes as delivery consistency candidates',
+    () async {
+      final bundleDir = await _createBundleDir(
+        name: 'cockpit_validate_task_service_keyframe_consistency',
+        acceptanceMarkdown: '# Acceptance\n\n- Status: completed\n',
+        environmentJson:
+            '{"platform":"ios","flutterVersion":"3.38.9","dartVersion":"3.10.8"}',
+        screenshotRelativePath: 'screenshots/acceptance.png',
+        recordingRelativePath: 'recordings/acceptance.mp4',
+      );
+      addTearDown(() async => _deleteDir(bundleDir));
+
+      final screenshotPath = p.join(
+        bundleDir.path,
+        'screenshots',
+        'acceptance.png',
+      );
+      await File(screenshotPath).writeAsBytes(_structuredAcceptancePngBytes);
+      for (final name in <String>[
+        'acceptance_baseline.png',
+        'acceptance_midpoint.png',
+        'acceptance_tail.png',
+      ]) {
+        final keyframePath = p.join(bundleDir.path, 'keyframes', name);
+        await File(keyframePath).parent.create(recursive: true);
+        await File(keyframePath).writeAsBytes(_structuredAcceptancePngBytes);
+      }
+
+      final service = CockpitValidateTaskService(
+        artifactValidator: CockpitBundleArtifactValidator(
+          processRunner: (executable, arguments) async {
+            if (executable == 'ffprobe') {
+              final path = arguments.last;
+              if (path.endsWith('.png')) {
+                return ProcessResult(
+                  0,
+                  0,
+                  '{"streams":[{"codec_name":"png","codec_type":"video","width":240,"height":480}],"format":{"format_name":"png_pipe"}}',
+                  '',
+                );
+              }
+              return ProcessResult(
+                0,
+                0,
+                '{"streams":[{"codec_name":"h264","codec_type":"video","width":240,"height":480,"nb_frames":"44"}],"format":{"format_name":"mov,mp4,m4a,3gp,3g2,mj2","duration":"13.455"}}',
+                '',
+              );
+            }
+            if (executable == 'ffmpeg') {
+              final outputPath = arguments.last;
+              await File(outputPath).parent.create(recursive: true);
+              await File(outputPath).writeAsBytes(_contrastAcceptancePngBytes);
+              return ProcessResult(0, 0, '', '');
+            }
+            throw ProcessException(
+              executable,
+              arguments,
+              'unexpected executable',
+            );
+          },
+        ),
+        runTask: (_) async => _runTaskResult(
+          classification: CockpitRunTaskClassification.completed,
+          bundleDir: bundleDir,
+          platform: 'ios',
+          screenshotRelativePath: 'screenshots/acceptance.png',
+          recordingRelativePath: 'recordings/acceptance.mp4',
+          keyframes: const <Map<String, Object?>>[
+            <String, Object?>{
+              'ref': 'keyframes/acceptance_baseline.png',
+              'label': 'baseline',
+              'offsetMs': 1644,
+              'source': 'stepCapture',
+            },
+            <String, Object?>{
+              'ref': 'keyframes/acceptance_midpoint.png',
+              'label': 'midpoint',
+              'offsetMs': 6728,
+              'source': 'syntheticCoverage',
+            },
+            <String, Object?>{
+              'ref': 'keyframes/acceptance_tail.png',
+              'label': 'acceptance',
+              'offsetMs': 12238,
+              'source': 'stepCapture',
+              'linkedScreenshotRef': 'screenshots/acceptance.png',
+            },
+            <String, Object?>{
+              'ref': 'keyframes/acceptance_tail.png',
+              'label': 'tail_consistency',
+              'offsetMs': 12855,
+              'source': 'tailConsistency',
+            },
+          ],
+          keyframeCoverage: const <String, Object?>{
+            'durationMs': 13455,
+            'hasEarlyCoverage': true,
+            'hasMidCoverage': true,
+            'hasLateCoverage': true,
+            'isReady': true,
+          },
+          baselineEvidence: _acceptanceEvidence(
+            routeName: '/inbox',
+            visibleTextPreviews: const <String>['Inbox'],
+            interactiveLabels: const <String>['Inbox', 'New task'],
+            accessibilityLabels: const <String>['Inbox'],
+          ),
+          acceptanceEvidence: _acceptanceEvidence(
+            routeName: '/inbox',
+            visibleTextPreviews: const <String>['Inbox'],
+            interactiveLabels: const <String>['Inbox', 'New task'],
+            accessibilityLabels: const <String>['Inbox', 'Fresh canvas'],
+          ),
+          acceptanceDelta: _acceptanceDelta(
+            baselineRouteName: '/inbox',
+            acceptanceRouteName: '/inbox',
+            routeChanged: false,
+            addedAccessibilityLabels: const <String>['Fresh canvas'],
+          ),
+        ),
+      );
+
+      final result = await service.validate(
+        CockpitValidateTaskRequest(
+          runTask: _runTaskRequest(platform: 'ios'),
+          validation: const CockpitValidateTaskRequirements(
+            expectedClassification: CockpitRunTaskClassification.completed,
+            requirePrimaryScreenshot: true,
+            requirePrimaryRecording: true,
+          ),
+        ),
+      );
+
+      expect(result.classification, CockpitValidationClassification.completed);
+      expect(result.validationFailures, isEmpty);
+    },
+  );
+
+  test(
     'validate task downgrades to needs_more_work when a recording has no extracted keyframes',
     () async {
       final bundleDir = await _createBundleDir(

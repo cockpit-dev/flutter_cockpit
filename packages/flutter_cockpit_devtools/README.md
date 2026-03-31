@@ -1,6 +1,6 @@
 # flutter_cockpit_devtools
 
-[简体中文](/Users/iota9star/Development/workspace/flutter/flutter_pilot/packages/flutter_cockpit_devtools/README.zh-CN.md)
+[简体中文](README.zh-CN.md)
 
 `flutter_cockpit_devtools` is the host-side package for `flutter_cockpit`.
 

@@ -93,8 +93,8 @@ Do not report completion unless you have:
 
 ## References
 
-- [`examples/rapid-dev-loop.md`](/Users/iota9star/Development/workspace/flutter/flutter_pilot/skills/flutter-cockpit/examples/rapid-dev-loop.md)
-- [`examples/cli-command-reference.md`](/Users/iota9star/Development/workspace/flutter/flutter_pilot/skills/flutter-cockpit/examples/cli-command-reference.md)
-- [`examples/runtime-validation.md`](/Users/iota9star/Development/workspace/flutter/flutter_pilot/skills/flutter-cockpit/examples/runtime-validation.md)
-- [`examples/acceptance-delivery.md`](/Users/iota9star/Development/workspace/flutter/flutter_pilot/skills/flutter-cockpit/examples/acceptance-delivery.md)
-- [`examples/host-devtools-setup.md`](/Users/iota9star/Development/workspace/flutter/flutter_pilot/skills/flutter-cockpit/examples/host-devtools-setup.md)
+- [`examples/rapid-dev-loop.md`](examples/rapid-dev-loop.md)
+- [`examples/cli-command-reference.md`](examples/cli-command-reference.md)
+- [`examples/runtime-validation.md`](examples/runtime-validation.md)
+- [`examples/acceptance-delivery.md`](examples/acceptance-delivery.md)
+- [`examples/host-devtools-setup.md`](examples/host-devtools-setup.md)

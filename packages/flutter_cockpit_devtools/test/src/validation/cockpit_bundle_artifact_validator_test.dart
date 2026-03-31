@@ -294,6 +294,57 @@ void main() {
   );
 
   test(
+    'uses bundle keyframes before ffmpeg late-frame extraction for delivery consistency',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_bundle_artifact_validator_consistency_keyframe',
+      );
+      addTearDown(() async => _deleteDir(tempDir));
+
+      final screenshotFile = File(p.join(tempDir.path, 'acceptance.png'));
+      final recordingFile = File(p.join(tempDir.path, 'acceptance.mp4'));
+      final keyframeFile =
+          File(p.join(tempDir.path, 'acceptance_keyframe.png'));
+      await screenshotFile.writeAsBytes(
+        _encodedPng(_buildCanvasImage(0xFF184E46)),
+      );
+      await recordingFile.writeAsBytes(_validMp4Bytes);
+      await keyframeFile.writeAsBytes(
+        _encodedPng(_buildCanvasImage(0xFF184E46)),
+      );
+
+      final validator = CockpitBundleArtifactValidator(
+        processRunner: (executable, arguments) async {
+          if (executable == 'ffmpeg') {
+            final outputPath = arguments.last;
+            await File(outputPath).parent.create(recursive: true);
+            await File(
+              outputPath,
+            ).writeAsBytes(_encodedPng(_buildContrastImage()));
+            return ProcessResult(0, 0, '', '');
+          }
+          throw ProcessException(
+            executable,
+            arguments,
+            'unexpected executable',
+          );
+        },
+      );
+
+      final result = await validator.validateDeliveryConsistency(
+        screenshotPath: screenshotFile.path,
+        recordingPath: recordingFile.path,
+        candidateFramePaths: <String>[keyframeFile.path],
+      );
+
+      expect(result.isValid, isTrue);
+      expect(result.validator, 'deliveryConsistency');
+      expect(result.details['bestSource'], 'bundleKeyframe');
+      expect(result.details['bestSimilarity'], greaterThan(0.9));
+    },
+  );
+
+  test(
     'rejects short recordings when only an early frame matches the screenshot',
     () async {
       final tempDir = await Directory.systemTemp.createTemp(
@@ -358,6 +409,39 @@ void main() {
       );
     },
   );
+
+  test(
+    'keeps delivery consistency similarity bounded for high-range image formats',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_bundle_artifact_validator_consistency_bounded',
+      );
+      addTearDown(() async => _deleteDir(tempDir));
+
+      final screenshotFile = File(p.join(tempDir.path, 'acceptance.png'));
+      final recordingFile = File(p.join(tempDir.path, 'acceptance.mp4'));
+      final keyframeFile =
+          File(p.join(tempDir.path, 'acceptance_keyframe.png'));
+      await screenshotFile.writeAsBytes(_encodeHighRangePng(65535, 8192, 2048));
+      await recordingFile.writeAsBytes(_validMp4Bytes);
+      await keyframeFile.writeAsBytes(_encodeHighRangePng(65535, 8192, 2048));
+
+      final validator = CockpitBundleArtifactValidator(
+        processRunner: (executable, arguments) {
+          throw ProcessException(executable, arguments, 'ffmpeg unavailable');
+        },
+      );
+
+      final result = await validator.validateDeliveryConsistency(
+        screenshotPath: screenshotFile.path,
+        recordingPath: recordingFile.path,
+        candidateFramePaths: <String>[keyframeFile.path],
+      );
+
+      expect(result.isValid, isTrue);
+      expect(result.details['bestSimilarity'], inInclusiveRange(0.0, 1.0));
+    },
+  );
 }
 
 Future<void> _deleteDir(Directory dir) async {
@@ -381,6 +465,27 @@ const String _ffprobeVideoJson =
     '{"streams":[{"codec_name":"h264","codec_type":"video","width":16,"height":16}],"format":{"format_name":"mov,mp4,m4a,3gp,3g2,mj2"}}';
 
 List<int> _encodedPng(img.Image image) => img.encodePng(image);
+
+List<int> _encodeHighRangePng(int r, int g, int b) {
+  final image = img.Image(
+    width: 240,
+    height: 480,
+    format: img.Format.uint16,
+  );
+  img.fill(
+    image,
+    color: img.ColorUint16.rgb(r, g, b),
+  );
+  img.fillRect(
+    image,
+    x1: 18,
+    y1: 28,
+    x2: 220,
+    y2: 78,
+    color: img.ColorUint16.rgb(r, g, b),
+  );
+  return img.encodePng(image);
+}
 
 img.Image _buildCanvasImage(int accentColor) {
   final image = img.Image(width: 240, height: 480);

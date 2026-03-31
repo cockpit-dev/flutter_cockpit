@@ -1,6 +1,6 @@
 # flutter_cockpit
 
-[简体中文](/Users/iota9star/Development/workspace/flutter/flutter_pilot/README.zh-CN.md)
+[简体中文](README.zh-CN.md)
 
 `flutter_cockpit` is a production-grade AI control and verification stack for Flutter.
 
@@ -16,8 +16,8 @@ It gives AI one closed loop:
 
 ## Packages
 
-- [`packages/flutter_cockpit`](/Users/iota9star/Development/workspace/flutter/flutter_pilot/packages/flutter_cockpit): in-app runtime, remote session server, command execution, snapshots, capture, recording
-- [`packages/flutter_cockpit_devtools`](/Users/iota9star/Development/workspace/flutter/flutter_pilot/packages/flutter_cockpit_devtools): host-side CLI, MCP server, orchestration, bundle writing, validation, workspace tooling
+- [`packages/flutter_cockpit`](packages/flutter_cockpit): in-app runtime, remote session server, command execution, snapshots, capture, recording
+- [`packages/flutter_cockpit_devtools`](packages/flutter_cockpit_devtools): host-side CLI, MCP server, orchestration, bundle writing, validation, workspace tooling
 
 ## Recommended Loop
 
@@ -177,12 +177,12 @@ Prompts:
 
 ## Example And Docs
 
-- Example app: [`examples/cockpit_demo`](/Users/iota9star/Development/workspace/flutter/flutter_pilot/examples/cockpit_demo)
-- Runtime package README: [`packages/flutter_cockpit/README.md`](/Users/iota9star/Development/workspace/flutter/flutter_pilot/packages/flutter_cockpit/README.md)
-- Devtools package README: [`packages/flutter_cockpit_devtools/README.md`](/Users/iota9star/Development/workspace/flutter/flutter_pilot/packages/flutter_cockpit_devtools/README.md)
-- Skill: [`skills/flutter-cockpit/SKILL.md`](/Users/iota9star/Development/workspace/flutter/flutter_pilot/skills/flutter-cockpit/SKILL.md)
-- CLI examples: [`skills/flutter-cockpit/examples/cli-command-reference.md`](/Users/iota9star/Development/workspace/flutter/flutter_pilot/skills/flutter-cockpit/examples/cli-command-reference.md)
-- Bundle contract: [`docs/contracts/task-run-bundle.md`](/Users/iota9star/Development/workspace/flutter/flutter_pilot/docs/contracts/task-run-bundle.md)
+- Example app: [`examples/cockpit_demo`](examples/cockpit_demo)
+- Runtime package README: [`packages/flutter_cockpit/README.md`](packages/flutter_cockpit/README.md)
+- Devtools package README: [`packages/flutter_cockpit_devtools/README.md`](packages/flutter_cockpit_devtools/README.md)
+- Skill: [`skills/flutter-cockpit/SKILL.md`](skills/flutter-cockpit/SKILL.md)
+- CLI examples: [`skills/flutter-cockpit/examples/cli-command-reference.md`](skills/flutter-cockpit/examples/cli-command-reference.md)
+- Bundle contract: [`docs/contracts/task-run-bundle.md`](docs/contracts/task-run-bundle.md)
 
 Advanced development-session and remote-session building blocks still exist in the Dart API for lower-level hosts, but they are no longer the recommended public loop.
 
