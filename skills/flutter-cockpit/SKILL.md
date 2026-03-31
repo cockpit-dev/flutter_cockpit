@@ -50,6 +50,8 @@ Do not use it for docs-only edits or static refactors with no runtime claim.
 Default to the smallest profile that answers the current question.
 Interactive app commands accept `timeout_ms`. Workspace tools accept `timeout_seconds`. Raise them only for known slow steps such as long scrolls, `run_task`, or package operations.
 
+For the shortest edit -> reload -> verify loop, use the rapid loop reference instead of escalating every step to bundle-grade evidence.
+
 ## Token Discipline
 
 - Prefer `minimal` or `standard` unless the current question is still ambiguous.
@@ -91,6 +93,7 @@ Do not report completion unless you have:
 
 ## References
 
+- [`examples/rapid-dev-loop.md`](/Users/iota9star/Development/workspace/flutter/flutter_pilot/skills/flutter-cockpit/examples/rapid-dev-loop.md)
 - [`examples/cli-command-reference.md`](/Users/iota9star/Development/workspace/flutter/flutter_pilot/skills/flutter-cockpit/examples/cli-command-reference.md)
 - [`examples/runtime-validation.md`](/Users/iota9star/Development/workspace/flutter/flutter_pilot/skills/flutter-cockpit/examples/runtime-validation.md)
 - [`examples/acceptance-delivery.md`](/Users/iota9star/Development/workspace/flutter/flutter_pilot/skills/flutter-cockpit/examples/acceptance-delivery.md)
