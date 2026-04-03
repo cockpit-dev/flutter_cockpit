@@ -2,9 +2,22 @@ name: flutter_cockpit_workspace
 publish_to: none
 
 environment:
-  sdk: '>=3.5.0 <4.0.0'
+  sdk: '>=3.6.0 <4.0.0'
+
+workspace:
+  - packages/flutter_cockpit
+  - packages/flutter_cockpit_devtools
+  - examples/cockpit_demo
 
 dev_dependencies:
   lints: 5.0.0
-  melos: 6.3.2
+  melos: 7.5.0
   test: ^1.25.7
+
+melos:
+  scripts:
+    analyze: dart analyze
+    test: >-
+      (cd packages/flutter_cockpit && flutter test) &&
+      (cd packages/flutter_cockpit_devtools && dart test) &&
+      (cd examples/cockpit_demo && flutter test)

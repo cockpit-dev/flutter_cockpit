@@ -4,8 +4,10 @@ publish_to: none
 version: 1.0.0
 
 environment:
-  sdk: '>=3.5.0 <4.0.0'
+  sdk: '>=3.6.0 <4.0.0'
   flutter: '>=3.24.0'
+
+resolution: workspace
 
 dependencies:
   drift: 2.21.0
