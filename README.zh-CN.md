@@ -1,5 +1,10 @@
 # flutter_cockpit
 
+[![Runtime Loop](https://github.com/cockpit-dev/flutter_cockpit/actions/workflows/runtime-loop.yml/badge.svg)](https://github.com/cockpit-dev/flutter_cockpit/actions/workflows/runtime-loop.yml)
+[![License](https://img.shields.io/github/license/cockpit-dev/flutter_cockpit)](https://github.com/cockpit-dev/flutter_cockpit/blob/main/packages/flutter_cockpit/LICENSE)
+[![flutter_cockpit on pub.dev](https://img.shields.io/pub/v/flutter_cockpit?logo=dart&label=flutter_cockpit)](https://pub.dev/packages/flutter_cockpit)
+[![flutter_cockpit_devtools on pub.dev](https://img.shields.io/pub/v/flutter_cockpit_devtools?logo=dart&label=flutter_cockpit_devtools)](https://pub.dev/packages/flutter_cockpit_devtools)
+
 [English](README.md)
 
 `flutter_cockpit` 是一套面向生产环境的 Flutter AI 控制与验证基础设施。
@@ -13,6 +18,21 @@
 - 采集截图和录屏
 - 写出并验证交付 bundle
 - 通过 CLI 与 MCP 暴露同一套能力
+
+## 安装包
+
+```yaml
+dependencies:
+  flutter_cockpit: ^1.0.0
+
+dev_dependencies:
+  flutter_cockpit_devtools: ^1.0.0
+```
+
+包地址：
+
+- [`flutter_cockpit` on pub.dev](https://pub.dev/packages/flutter_cockpit)
+- [`flutter_cockpit_devtools` on pub.dev](https://pub.dev/packages/flutter_cockpit_devtools)
 
 ## 包结构
 

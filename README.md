@@ -1,5 +1,10 @@
 # flutter_cockpit
 
+[![Runtime Loop](https://github.com/cockpit-dev/flutter_cockpit/actions/workflows/runtime-loop.yml/badge.svg)](https://github.com/cockpit-dev/flutter_cockpit/actions/workflows/runtime-loop.yml)
+[![License](https://img.shields.io/github/license/cockpit-dev/flutter_cockpit)](https://github.com/cockpit-dev/flutter_cockpit/blob/main/packages/flutter_cockpit/LICENSE)
+[![flutter_cockpit on pub.dev](https://img.shields.io/pub/v/flutter_cockpit?logo=dart&label=flutter_cockpit)](https://pub.dev/packages/flutter_cockpit)
+[![flutter_cockpit_devtools on pub.dev](https://img.shields.io/pub/v/flutter_cockpit_devtools?logo=dart&label=flutter_cockpit_devtools)](https://pub.dev/packages/flutter_cockpit_devtools)
+
 [简体中文](README.zh-CN.md)
 
 `flutter_cockpit` is a production-grade AI control and verification stack for Flutter.
@@ -13,6 +18,21 @@ It gives AI one closed loop:
 - capture screenshots and recordings
 - write and validate delivery bundles
 - expose the same workflows through CLI and MCP
+
+## Install Packages
+
+```yaml
+dependencies:
+  flutter_cockpit: ^1.0.0
+
+dev_dependencies:
+  flutter_cockpit_devtools: ^1.0.0
+```
+
+Package pages:
+
+- [`flutter_cockpit` on pub.dev](https://pub.dev/packages/flutter_cockpit)
+- [`flutter_cockpit_devtools` on pub.dev](https://pub.dev/packages/flutter_cockpit_devtools)
 
 ## Packages
 

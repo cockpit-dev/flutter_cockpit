@@ -1,5 +1,11 @@
 # flutter_cockpit
 
+[![pub package](https://img.shields.io/pub/v/flutter_cockpit?logo=dart&label=pub.dev)](https://pub.dev/packages/flutter_cockpit)
+[![pub points](https://img.shields.io/pub/points/flutter_cockpit?logo=dart)](https://pub.dev/packages/flutter_cockpit/score)
+[![likes](https://img.shields.io/pub/likes/flutter_cockpit?logo=dart)](https://pub.dev/packages/flutter_cockpit/score)
+[![Runtime Loop](https://github.com/cockpit-dev/flutter_cockpit/actions/workflows/runtime-loop.yml/badge.svg)](https://github.com/cockpit-dev/flutter_cockpit/actions/workflows/runtime-loop.yml)
+[![License](https://img.shields.io/github/license/cockpit-dev/flutter_cockpit)](https://github.com/cockpit-dev/flutter_cockpit/blob/main/packages/flutter_cockpit/LICENSE)
+
 [English](README.md)
 
 `flutter_cockpit` 是面向 AI 驱动 Flutter 开发的应用内运行时。
@@ -15,7 +21,7 @@
 
 ```yaml
 dependencies:
-  flutter_cockpit: any
+  flutter_cockpit: ^1.0.0
 ```
 
 ## 推荐接入方式
@@ -53,3 +59,5 @@ flutter run -t cockpit/main.dart
 - 远程会话状态与命令端点
 
 宿主侧编排、MCP、workspace tooling 和交付验证在 [`flutter_cockpit_devtools`](../flutter_cockpit_devtools/README.md) 中。
+
+包地址：[pub.dev/packages/flutter_cockpit](https://pub.dev/packages/flutter_cockpit)

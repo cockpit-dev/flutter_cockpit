@@ -4,6 +4,16 @@ version: 1.0.0
 homepage: https://github.com/cockpit-dev/flutter_cockpit
 repository: https://github.com/cockpit-dev/flutter_cockpit
 issue_tracker: https://github.com/cockpit-dev/flutter_cockpit/issues
+documentation: https://github.com/cockpit-dev/flutter_cockpit/tree/main/packages/flutter_cockpit_devtools
+topics:
+  - flutter
+  - cli
+  - tooling
+  - ai
+  - mcp
+executables:
+  flutter_cockpit_devtools:
+  flutter_cockpit_mcp:
 
 environment:
   sdk: '>=3.6.0 <4.0.0'

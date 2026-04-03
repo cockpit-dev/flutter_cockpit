@@ -4,6 +4,13 @@ version: 1.0.0
 homepage: https://github.com/cockpit-dev/flutter_cockpit
 repository: https://github.com/cockpit-dev/flutter_cockpit
 issue_tracker: https://github.com/cockpit-dev/flutter_cockpit/issues
+documentation: https://github.com/cockpit-dev/flutter_cockpit/tree/main/packages/flutter_cockpit
+topics:
+  - flutter
+  - automation
+  - testing
+  - ai
+  - plugin
 
 environment:
   sdk: '>=3.6.0 <4.0.0'

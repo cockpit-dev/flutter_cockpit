@@ -1,5 +1,11 @@
 # flutter_cockpit_devtools
 
+[![pub package](https://img.shields.io/pub/v/flutter_cockpit_devtools?logo=dart&label=pub.dev)](https://pub.dev/packages/flutter_cockpit_devtools)
+[![pub points](https://img.shields.io/pub/points/flutter_cockpit_devtools?logo=dart)](https://pub.dev/packages/flutter_cockpit_devtools/score)
+[![likes](https://img.shields.io/pub/likes/flutter_cockpit_devtools?logo=dart)](https://pub.dev/packages/flutter_cockpit_devtools/score)
+[![Runtime Loop](https://github.com/cockpit-dev/flutter_cockpit/actions/workflows/runtime-loop.yml/badge.svg)](https://github.com/cockpit-dev/flutter_cockpit/actions/workflows/runtime-loop.yml)
+[![License](https://img.shields.io/github/license/cockpit-dev/flutter_cockpit)](https://github.com/cockpit-dev/flutter_cockpit/blob/main/packages/flutter_cockpit_devtools/LICENSE)
+
 [English](README.md)
 
 `flutter_cockpit_devtools` 是 `flutter_cockpit` 的宿主侧工具包。
@@ -15,7 +21,15 @@
 
 ```yaml
 dev_dependencies:
-  flutter_cockpit_devtools: any
+  flutter_cockpit_devtools: ^1.0.0
+```
+
+可选的全局安装方式：
+
+```bash
+dart pub global activate flutter_cockpit_devtools
+flutter_cockpit_devtools --help
+flutter_cockpit_mcp
 ```
 
 ## CLI
@@ -121,3 +135,5 @@ workspace 工具：
 ```bash
 dart run tool/verify_mcp_surface.dart
 ```
+
+包地址：[pub.dev/packages/flutter_cockpit_devtools](https://pub.dev/packages/flutter_cockpit_devtools)

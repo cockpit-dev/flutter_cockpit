@@ -1,5 +1,11 @@
 # flutter_cockpit
 
+[![pub package](https://img.shields.io/pub/v/flutter_cockpit?logo=dart&label=pub.dev)](https://pub.dev/packages/flutter_cockpit)
+[![pub points](https://img.shields.io/pub/points/flutter_cockpit?logo=dart)](https://pub.dev/packages/flutter_cockpit/score)
+[![likes](https://img.shields.io/pub/likes/flutter_cockpit?logo=dart)](https://pub.dev/packages/flutter_cockpit/score)
+[![Runtime Loop](https://github.com/cockpit-dev/flutter_cockpit/actions/workflows/runtime-loop.yml/badge.svg)](https://github.com/cockpit-dev/flutter_cockpit/actions/workflows/runtime-loop.yml)
+[![License](https://img.shields.io/github/license/cockpit-dev/flutter_cockpit)](https://github.com/cockpit-dev/flutter_cockpit/blob/main/packages/flutter_cockpit/LICENSE)
+
 [简体中文](README.zh-CN.md)
 
 `flutter_cockpit` is the in-app runtime for AI-driven Flutter development.
@@ -15,7 +21,7 @@ It provides:
 
 ```yaml
 dependencies:
-  flutter_cockpit: any
+  flutter_cockpit: ^1.0.0
 ```
 
 ## Recommended Integration
@@ -53,3 +59,5 @@ flutter run -t cockpit/main.dart
 - remote session status and command endpoints
 
 Host-side orchestration, MCP, workspace tooling, and delivery validation live in [`flutter_cockpit_devtools`](../flutter_cockpit_devtools/README.md).
+
+Package page: [pub.dev/packages/flutter_cockpit](https://pub.dev/packages/flutter_cockpit)
