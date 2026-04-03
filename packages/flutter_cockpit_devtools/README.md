@@ -21,7 +21,7 @@ It provides:
 
 ```yaml
 dev_dependencies:
-  flutter_cockpit_devtools: ^1.0.0
+  flutter_cockpit_devtools: any
 ```
 
 Optional global activation:

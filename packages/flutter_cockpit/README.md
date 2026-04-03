@@ -21,7 +21,7 @@ It provides:
 
 ```yaml
 dependencies:
-  flutter_cockpit: ^1.0.0
+  flutter_cockpit: any
 ```
 
 ## Recommended Integration

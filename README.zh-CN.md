@@ -23,10 +23,10 @@
 
 ```yaml
 dependencies:
-  flutter_cockpit: ^1.0.0
+  flutter_cockpit: any
 
 dev_dependencies:
-  flutter_cockpit_devtools: ^1.0.0
+  flutter_cockpit_devtools: any
 ```
 
 包地址：
