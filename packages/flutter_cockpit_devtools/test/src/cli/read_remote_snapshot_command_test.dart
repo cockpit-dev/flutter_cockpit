@@ -46,6 +46,6 @@ void main() {
         CockpitSnapshotProfile.forensic);
     expect(capturedRequest?.compareAgainstSnapshotRef, 'snapshot-1');
     final decoded = jsonDecode(stdoutBuffer.toString()) as Map<String, Object?>;
-    expect(decoded['route_name'], '/details');
+    expect(decoded['routeName'], '/details');
   });
 }

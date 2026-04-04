@@ -2,7 +2,6 @@ import 'package:flutter_cockpit/flutter_cockpit.dart';
 
 import '../remote/cockpit_remote_session_client.dart';
 import 'cockpit_app_reference_resolver.dart';
-import 'cockpit_json_key_normalizer.dart';
 import 'cockpit_latest_task_store.dart';
 import 'cockpit_session_registry.dart';
 
@@ -28,11 +27,11 @@ final class CockpitRuntimeErrorEntry {
   Map<String, Object?> toJson() => <String, Object?>{
         'source': source,
         'message': message,
-        'recorded_at': recordedAt?.toUtc().toIso8601String(),
-        'session_id': sessionId,
-        'bundle_dir': bundleDir,
-        'kind': kind == null ? null : cockpitSnakeCaseEnumValue('kind', kind!),
-        'route_name': routeName,
+        'recordedAt': recordedAt?.toUtc().toIso8601String(),
+        'sessionId': sessionId,
+        'bundleDir': bundleDir,
+        'kind': kind,
+        'routeName': routeName,
       };
 }
 
@@ -81,10 +80,10 @@ final class CockpitReadRuntimeErrorsResult {
   bool get hasErrors => errors.isNotEmpty;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'app_id': appId,
-        'route_name': routeName,
+        'appId': appId,
+        'routeName': routeName,
         'source': source,
-        'has_errors': hasErrors,
+        'hasErrors': hasErrors,
         'errors': errors.map((error) => error.toJson()).toList(growable: false),
       };
 }

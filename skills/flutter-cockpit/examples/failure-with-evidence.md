@@ -19,7 +19,7 @@ Use this pattern when the workflow does not complete successfully and the next o
 ## Expected Agent Behavior
 
 - reference `manifest`, `handoff`, and `delivery`
-- reference `baseline_evidence`, `acceptance_evidence`, or `acceptance_delta` when they explain why the final state is still wrong or incomplete
+- reference `baselineEvidence`, `acceptanceEvidence`, or `acceptanceDelta` when they explain why the final state is still wrong or incomplete
 - include concrete artifact paths when they exist
 - state what should happen next:
   - relaunch or repair the environment

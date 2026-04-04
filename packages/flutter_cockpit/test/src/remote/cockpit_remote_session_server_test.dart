@@ -331,6 +331,70 @@ void main() {
   );
 
   test(
+    'remote session health output omits null fields',
+    () async {
+      final server = CockpitRemoteSessionServer(
+        configuration: const CockpitRemoteSessionConfiguration(
+          enabled: true,
+          autoStart: false,
+          port: 0,
+        ),
+        statusProvider: () async => CockpitRemoteSessionStatus(
+          sessionId: 'remote-health-compact',
+          platform: 'android',
+          transportType: 'remoteHttp',
+          currentRouteName: null,
+          capabilities: CockpitCapabilities(
+            platform: 'android',
+            transportType: 'remoteHttp',
+            supportsInAppControl: true,
+            supportsFlutterViewCapture: true,
+            supportsNativeScreenCapture: false,
+            supportsHostAutomation: false,
+            supportedCommands: const <CockpitCommandType>[
+              CockpitCommandType.collectSnapshot,
+            ],
+            supportedLocatorStrategies: CockpitLocatorKind.values,
+          ),
+          recordingCapabilities: CockpitRecordingCapabilities(
+            supportsNativeRecording: false,
+            preferredAcceptanceRecordingKind: CockpitRecordingKind.nativeScreen,
+          ),
+          snapshot: CockpitSnapshot(routeName: '/home'),
+        ),
+        snapshotProvider: ({required options}) async => CockpitSnapshot(
+          routeName: '/home',
+          diagnosticLevel: options.profile,
+        ),
+        commandExecutor: (_) async => CockpitCommandExecution(
+          result: CockpitCommandResult(
+            success: true,
+            commandId: 'noop',
+            commandType: CockpitCommandType.collectSnapshot,
+            durationMs: 0,
+          ),
+        ),
+        startRecording: (request) async => CockpitRecordingSession(
+          request: request,
+          state: CockpitRecordingState.recording,
+        ),
+        stopRecording: () async =>
+            CockpitRecordingResult(state: CockpitRecordingState.failed),
+      );
+      await server.start();
+      addTearDown(server.close);
+
+      final healthJson = await _readJson(server.baseUri!.resolve('/health'));
+
+      expect(healthJson, isNotNull);
+      expect(healthJson['sessionId'], 'remote-health-compact');
+      expect(healthJson.containsKey('currentRouteName'), isFalse);
+      expect(healthJson.containsKey('environment'), isFalse);
+      expect(healthJson.containsKey('activeRecording'), isFalse);
+    },
+  );
+
+  test(
     'remote snapshot endpoint forwards network diagnostic query parameters',
     () async {
       CockpitSnapshotOptions? capturedOptions;

@@ -176,7 +176,7 @@ void main() {
 
       final replayJson = jsonDecode(await persistedScript.readAsString())
           as Map<String, Object?>;
-      expect(replayJson['session_id'], 'remote-script-session');
+      expect(replayJson['sessionId'], 'remote-script-session');
       expect(
         File(
           p.join(

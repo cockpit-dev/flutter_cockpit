@@ -26,7 +26,8 @@ abstract base class CockpitMcpTool {
   CockpitMcpToolDefinition get definition => CockpitMcpToolDefinition(
         name: name,
         description: description,
-        inputSchema: inputSchema,
+        inputSchema:
+            cockpitCamelCaseJsonValue(inputSchema) as Map<String, Object?>,
         annotations: annotations,
         categories: categories,
         enabledByDefault: enabledByDefault,
@@ -38,18 +39,18 @@ abstract base class CockpitMcpTool {
 }
 
 String cockpitReadRequiredString(Map<String, Object?> arguments, String key) {
-  final value = arguments[key];
+  final value = _readArgumentValue(arguments, key);
   if (value is String && value.isNotEmpty) {
     return value;
   }
   throw CockpitMcpError.invalidArguments(
     'Missing required string argument.',
-    details: <String, Object?>{'argument': key},
+    details: <String, Object?>{'argument': _publicArgumentKey(key)},
   );
 }
 
 String? cockpitReadOptionalString(Map<String, Object?> arguments, String key) {
-  final value = arguments[key];
+  final value = _readArgumentValue(arguments, key);
   if (value == null) {
     return null;
   }
@@ -58,24 +59,24 @@ String? cockpitReadOptionalString(Map<String, Object?> arguments, String key) {
   }
   throw CockpitMcpError.invalidArguments(
     'Argument must be a non-empty string.',
-    details: <String, Object?>{'argument': key},
+    details: <String, Object?>{'argument': _publicArgumentKey(key)},
   );
 }
 
 int cockpitReadRequiredInt(Map<String, Object?> arguments, String key) {
-  final value = arguments[key];
+  final value = _readArgumentValue(arguments, key);
   final parsed = _readInt(value);
   if (parsed != null) {
     return parsed;
   }
   throw CockpitMcpError.invalidArguments(
     'Missing required integer argument.',
-    details: <String, Object?>{'argument': key},
+    details: <String, Object?>{'argument': _publicArgumentKey(key)},
   );
 }
 
 int? cockpitReadOptionalInt(Map<String, Object?> arguments, String key) {
-  final value = arguments[key];
+  final value = _readArgumentValue(arguments, key);
   if (value == null) {
     return null;
   }
@@ -85,12 +86,12 @@ int? cockpitReadOptionalInt(Map<String, Object?> arguments, String key) {
   }
   throw CockpitMcpError.invalidArguments(
     'Argument must be an integer.',
-    details: <String, Object?>{'argument': key},
+    details: <String, Object?>{'argument': _publicArgumentKey(key)},
   );
 }
 
 bool? cockpitReadOptionalBool(Map<String, Object?> arguments, String key) {
-  final value = arguments[key];
+  final value = _readArgumentValue(arguments, key);
   if (value == null) {
     return null;
   }
@@ -99,7 +100,7 @@ bool? cockpitReadOptionalBool(Map<String, Object?> arguments, String key) {
   }
   throw CockpitMcpError.invalidArguments(
     'Argument must be a boolean.',
-    details: <String, Object?>{'argument': key},
+    details: <String, Object?>{'argument': _publicArgumentKey(key)},
   );
 }
 
@@ -107,13 +108,13 @@ Map<String, Object?> cockpitReadRequiredObject(
   Map<String, Object?> arguments,
   String key,
 ) {
-  final value = arguments[key];
+  final value = _readArgumentValue(arguments, key);
   if (value is Map<Object?, Object?>) {
     return Map<String, Object?>.from(value);
   }
   throw CockpitMcpError.invalidArguments(
     'Missing required object argument.',
-    details: <String, Object?>{'argument': key},
+    details: <String, Object?>{'argument': _publicArgumentKey(key)},
   );
 }
 
@@ -121,7 +122,7 @@ Map<String, Object?>? cockpitReadOptionalObject(
   Map<String, Object?> arguments,
   String key,
 ) {
-  final value = arguments[key];
+  final value = _readArgumentValue(arguments, key);
   if (value == null) {
     return null;
   }
@@ -130,7 +131,7 @@ Map<String, Object?>? cockpitReadOptionalObject(
   }
   throw CockpitMcpError.invalidArguments(
     'Argument must be an object.',
-    details: <String, Object?>{'argument': key},
+    details: <String, Object?>{'argument': _publicArgumentKey(key)},
   );
 }
 
@@ -138,18 +139,18 @@ List<Map<String, Object?>> cockpitReadRequiredObjectList(
   Map<String, Object?> arguments,
   String key,
 ) {
-  final value = arguments[key];
+  final value = _readArgumentValue(arguments, key);
   if (value is! List<Object?>) {
     throw CockpitMcpError.invalidArguments(
       'Missing required object-list argument.',
-      details: <String, Object?>{'argument': key},
+      details: <String, Object?>{'argument': _publicArgumentKey(key)},
     );
   }
   return value.map((item) {
     if (item is! Map<Object?, Object?>) {
       throw CockpitMcpError.invalidArguments(
         'List argument must contain only objects.',
-        details: <String, Object?>{'argument': key},
+        details: <String, Object?>{'argument': _publicArgumentKey(key)},
       );
     }
     return Map<String, Object?>.from(item);
@@ -159,7 +160,8 @@ List<Map<String, Object?>> cockpitReadRequiredObjectList(
 CockpitRemoteSessionHandle? cockpitReadOptionalSessionHandle(
   Map<String, Object?> arguments,
 ) {
-  final value = cockpitReadOptionalObject(arguments, 'session_handle');
+  const key = 'sessionHandle';
+  final value = cockpitReadOptionalObject(arguments, key);
   if (value == null) {
     return null;
   }
@@ -167,8 +169,8 @@ CockpitRemoteSessionHandle? cockpitReadOptionalSessionHandle(
     return CockpitRemoteSessionHandle.fromJson(value);
   } on Object {
     throw CockpitMcpError.invalidArguments(
-      'session_handle is invalid JSON.',
-      details: <String, Object?>{'argument': 'session_handle'},
+      '$key is invalid JSON.',
+      details: <String, Object?>{'argument': key},
     );
   }
 }
@@ -176,7 +178,8 @@ CockpitRemoteSessionHandle? cockpitReadOptionalSessionHandle(
 CockpitDevelopmentSessionHandle? cockpitReadOptionalDevelopmentSessionHandle(
   Map<String, Object?> arguments,
 ) {
-  final value = cockpitReadOptionalObject(arguments, 'session_handle');
+  const key = 'sessionHandle';
+  final value = cockpitReadOptionalObject(arguments, key);
   if (value == null) {
     return null;
   }
@@ -184,8 +187,8 @@ CockpitDevelopmentSessionHandle? cockpitReadOptionalDevelopmentSessionHandle(
     return CockpitDevelopmentSessionHandle.fromJson(value);
   } on Object {
     throw CockpitMcpError.invalidArguments(
-      'session_handle is invalid development session JSON.',
-      details: <String, Object?>{'argument': 'session_handle'},
+      '$key is invalid development session JSON.',
+      details: <String, Object?>{'argument': key},
     );
   }
 }
@@ -201,9 +204,10 @@ CockpitDevelopmentProbe? cockpitReadOptionalDevelopmentProbe(
   try {
     return CockpitDevelopmentProbe.fromJson(value);
   } on Object {
+    final publicKey = _publicArgumentKey(key);
     throw CockpitMcpError.invalidArguments(
-      '$key is invalid development probe JSON.',
-      details: <String, Object?>{'argument': key},
+      '$publicKey is invalid development probe JSON.',
+      details: <String, Object?>{'argument': publicKey},
     );
   }
 }
@@ -216,8 +220,9 @@ Map<String, Object?> cockpitMcpResult({
     'content': <Map<String, Object?>>[
       <String, Object?>{'type': 'text', 'text': text},
     ],
-    'structuredContent':
-        cockpitSnakeCaseJsonValue(structuredContent) as Map<String, Object?>,
+    'structuredContent': cockpitCompactJsonValue(
+      cockpitCamelCaseJsonValue(structuredContent),
+    ) as Map<String, Object?>,
   };
 }
 
@@ -248,4 +253,57 @@ int? _readInt(Object? value) {
     return int.tryParse(value);
   }
   return null;
+}
+
+Object? _readArgumentValue(Map<String, Object?> arguments, String key) {
+  if (arguments.containsKey(key)) {
+    return arguments[key];
+  }
+  final camelKey = _snakeToCamel(key);
+  if (arguments.containsKey(camelKey)) {
+    return arguments[camelKey];
+  }
+  final snakeKey = _camelToSnake(key);
+  if (arguments.containsKey(snakeKey)) {
+    return arguments[snakeKey];
+  }
+  return null;
+}
+
+String _publicArgumentKey(String key) {
+  return _snakeToCamel(key);
+}
+
+String _snakeToCamel(String key) {
+  if (!key.contains('_')) {
+    return key;
+  }
+  final segments = key.split('_');
+  return segments.first +
+      segments.skip(1).map((segment) {
+        if (segment.isEmpty) {
+          return '';
+        }
+        return segment[0].toUpperCase() + segment.substring(1);
+      }).join();
+}
+
+String _camelToSnake(String key) {
+  if (key.isEmpty) {
+    return key;
+  }
+  final buffer = StringBuffer();
+  for (var index = 0; index < key.length; index += 1) {
+    final codeUnit = key.codeUnitAt(index);
+    final isUppercase = codeUnit >= 65 && codeUnit <= 90;
+    if (isUppercase) {
+      if (index > 0) {
+        buffer.write('_');
+      }
+      buffer.writeCharCode(codeUnit + 32);
+      continue;
+    }
+    buffer.writeCharCode(codeUnit);
+  }
+  return buffer.toString();
 }

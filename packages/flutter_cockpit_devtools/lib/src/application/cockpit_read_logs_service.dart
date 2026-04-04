@@ -45,14 +45,14 @@ final class CockpitReadLogsResult {
   final String? missingReason;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'app_id': appId,
+        'appId': appId,
         'source': source,
         'available': available,
-        'route_name': routeName,
-        'log_path': logPath,
+        'routeName': routeName,
+        'logPath': logPath,
         'lines': lines,
         'truncated': truncated,
-        'missing_reason': missingReason,
+        'missingReason': missingReason,
       };
 }
 

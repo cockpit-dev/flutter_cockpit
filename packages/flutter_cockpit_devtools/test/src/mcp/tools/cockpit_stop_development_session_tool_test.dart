@@ -23,7 +23,7 @@ void main() {
     );
 
     final result = await tool.call(<String, Object?>{
-      'session_handle_path': '/tmp/dev-session.json',
+      'sessionHandlePath': '/tmp/dev-session.json',
     });
 
     expect(capturedRequest?.sessionHandlePath, '/tmp/dev-session.json');

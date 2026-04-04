@@ -44,11 +44,11 @@ final class CockpitReadRemoteSnapshotTool extends CockpitMcpTool {
   Map<String, Object?> get inputSchema => const <String, Object?>{
         'type': 'object',
         'properties': <String, Object?>{
-          'session_handle': <String, Object?>{'type': 'object'},
-          'session_handle_path': <String, Object?>{'type': 'string'},
+          'sessionHandle': <String, Object?>{'type': 'object'},
+          'sessionHandlePath': <String, Object?>{'type': 'string'},
           'profile': <String, Object?>{'type': 'string'},
-          'snapshot_options': <String, Object?>{'type': 'object'},
-          'compare_against_snapshot_ref': <String, Object?>{'type': 'string'},
+          'snapshotOptions': <String, Object?>{'type': 'object'},
+          'compareAgainstSnapshotRef': <String, Object?>{'type': 'string'},
         },
       };
 
@@ -60,15 +60,14 @@ final class CockpitReadRemoteSnapshotTool extends CockpitMcpTool {
           sessionHandle: cockpitReadOptionalSessionHandle(arguments),
           sessionHandlePath: cockpitReadOptionalString(
             arguments,
-            'session_handle_path',
+            'sessionHandlePath',
           ),
           resultProfile: _readProfile(arguments),
           snapshotOptions: _readOptionalSnapshotOptions(arguments),
           compareAgainstSnapshotRef: cockpitReadOptionalString(
-                arguments,
-                'compare_against_snapshot_ref',
-              ) ??
-              cockpitReadOptionalString(arguments, 'compareAgainstSnapshotRef'),
+            arguments,
+            'compareAgainstSnapshotRef',
+          ),
         ),
       );
       return cockpitMcpResult(
@@ -81,9 +80,8 @@ final class CockpitReadRemoteSnapshotTool extends CockpitMcpTool {
   }
 
   CockpitInteractiveResultProfile _readProfile(Map<String, Object?> arguments) {
-    final value = arguments['profile'] ??
-        arguments['result_profile'] ??
-        arguments['resultProfile'];
+    final value = cockpitReadOptionalString(arguments, 'profile') ??
+        cockpitReadOptionalString(arguments, 'resultProfile');
     if (value == null) {
       return const CockpitInteractiveResultProfile.standard();
     }
@@ -95,8 +93,7 @@ final class CockpitReadRemoteSnapshotTool extends CockpitMcpTool {
   CockpitSnapshotOptions? _readOptionalSnapshotOptions(
     Map<String, Object?> arguments,
   ) {
-    final json = cockpitReadOptionalObject(arguments, 'snapshot_options') ??
-        cockpitReadOptionalObject(arguments, 'snapshotOptions');
+    final json = cockpitReadOptionalObject(arguments, 'snapshotOptions');
     if (json == null) {
       return null;
     }

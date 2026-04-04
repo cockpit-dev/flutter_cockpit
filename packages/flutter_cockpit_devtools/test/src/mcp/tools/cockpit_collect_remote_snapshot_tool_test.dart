@@ -43,8 +43,8 @@ void main() {
       );
 
       final result = await tool.call(<String, Object?>{
-        'session_handle': handle.toJson(),
-        'snapshot_options': <String, Object?>{
+        'sessionHandle': handle.toJson(),
+        'snapshotOptions': <String, Object?>{
           'profile': 'forensic',
           'includeNetworkActivity': true,
           'includeRuntimeActivity': true,
@@ -75,7 +75,7 @@ void main() {
       final structuredContent =
           result['structuredContent'] as Map<String, Object?>;
       expect(
-        (structuredContent['snapshot'] as Map<String, Object?>)['route_name'],
+        (structuredContent['snapshot'] as Map<String, Object?>)['routeName'],
         '/investigate',
       );
       expect(

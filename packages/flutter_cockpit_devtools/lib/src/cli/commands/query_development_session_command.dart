@@ -1,9 +1,9 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:args/command_runner.dart';
 
 import '../../application/cockpit_query_development_session_service.dart';
+import '../../application/cockpit_json_key_normalizer.dart';
 import '../cockpit_command_runner.dart';
 
 typedef CockpitQueryDevelopmentSessionFunction
@@ -47,8 +47,7 @@ final class QueryDevelopmentSessionCommand extends Command<int> {
     final result = await _query(
       CockpitQueryDevelopmentSessionRequest(sessionHandlePath: sessionJsonPath),
     );
-    final payload =
-        const JsonEncoder.withIndent('  ').convert(<String, Object?>{
+    final payload = cockpitPrettyJsonText(<String, Object?>{
       'status': result.status.toJson(),
       'sessionHandle': result.sessionHandle?.toJson(),
       'recommendedNextStep': result.recommendedNextStep,

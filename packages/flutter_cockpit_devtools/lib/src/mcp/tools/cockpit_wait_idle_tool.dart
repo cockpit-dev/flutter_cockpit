@@ -24,12 +24,12 @@ final class CockpitWaitIdleTool extends CockpitMcpTool {
   Map<String, Object?> get inputSchema => const <String, Object?>{
         'type': 'object',
         'properties': <String, Object?>{
-          'app_id': <String, Object?>{'type': 'string'},
-          'app_json': <String, Object?>{'type': 'string'},
-          'base_url': <String, Object?>{'type': 'string'},
-          'quiet_window_ms': <String, Object?>{'type': 'integer'},
-          'timeout_ms': <String, Object?>{'type': 'integer'},
-          'include_network_idle': <String, Object?>{'type': 'boolean'},
+          'appId': <String, Object?>{'type': 'string'},
+          'appJson': <String, Object?>{'type': 'string'},
+          'baseUrl': <String, Object?>{'type': 'string'},
+          'quietWindowMs': <String, Object?>{'type': 'integer'},
+          'timeoutMs': <String, Object?>{'type': 'integer'},
+          'includeNetworkIdle': <String, Object?>{'type': 'boolean'},
         },
       };
 

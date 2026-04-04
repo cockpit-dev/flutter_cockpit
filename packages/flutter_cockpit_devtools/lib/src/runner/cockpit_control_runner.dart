@@ -162,7 +162,7 @@ final class CockpitControlRunner {
       }
       _sessionController.recordStep(
         actionType: result.state == CockpitRecordingState.completed
-            ? 'recording_stopped'
+            ? 'recordingStopped'
             : 'recording_failed',
         actionArgs: <String, Object?>{
           'recordingName': session.request.name,

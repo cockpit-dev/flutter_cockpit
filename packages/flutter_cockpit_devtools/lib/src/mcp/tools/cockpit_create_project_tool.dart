@@ -47,8 +47,8 @@ final class CockpitCreateProjectTool extends CockpitMcpTool {
         'type': 'object',
         'required': <String>['project_name', 'template'],
         'properties': <String, Object?>{
-          'parent_directory': <String, Object?>{'type': 'string'},
-          'project_name': <String, Object?>{'type': 'string'},
+          'parentDirectory': <String, Object?>{'type': 'string'},
+          'projectName': <String, Object?>{'type': 'string'},
           'template': <String, Object?>{
             'type': 'string',
             'enum': <String>['dart_cli', 'flutter_app'],
@@ -58,7 +58,7 @@ final class CockpitCreateProjectTool extends CockpitMcpTool {
             'type': 'array',
             'items': <String, Object?>{'type': 'string'},
           },
-          'timeout_seconds': <String, Object?>{'type': 'integer'},
+          'timeoutSeconds': <String, Object?>{'type': 'integer'},
         },
       };
 

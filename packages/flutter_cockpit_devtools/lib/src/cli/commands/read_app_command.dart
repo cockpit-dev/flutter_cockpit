@@ -47,7 +47,7 @@ final class ReadAppCommand extends CockpitCliCommand {
 
   @override
   String get helpWhen =>
-      'Read current route, app_id, and a small UI summary before deciding the next step.';
+      'Read current route, appId, and a small UI summary before deciding the next step.';
 
   @override
   String get helpNeeds =>
@@ -59,7 +59,7 @@ final class ReadAppCommand extends CockpitCliCommand {
 
   @override
   String get helpWrites =>
-      'Layered JSON with core app state and optional UI summary or snapshot_ref.';
+      'Layered JSON with core app state and optional UI summary or snapshotRef.';
 
   @override
   Future<int> run() async {

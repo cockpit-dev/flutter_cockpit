@@ -42,8 +42,8 @@ final class CockpitPubDevSearchTool extends CockpitMcpTool {
         'required': <String>['query'],
         'properties': <String, Object?>{
           'query': <String, Object?>{'type': 'string'},
-          'max_results': <String, Object?>{'type': 'integer'},
-          'timeout_seconds': <String, Object?>{'type': 'integer'},
+          'maxResults': <String, Object?>{'type': 'integer'},
+          'timeoutSeconds': <String, Object?>{'type': 'integer'},
         },
       };
 

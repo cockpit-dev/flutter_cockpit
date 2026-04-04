@@ -29,7 +29,7 @@ void main() {
       );
 
       final result = await tool.call(<String, Object?>{
-        'session_handle': _handle().toJson(),
+        'sessionHandle': _handle().toJson(),
         'profile': 'interactive',
         'reason': 'post_reload',
         'checkpoint': 'after_reload',

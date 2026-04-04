@@ -16,7 +16,7 @@ List<String> cockpitAllowedWorkspaceRootPaths(
 String cockpitResolveWorkspaceRootFromArguments(
   Map<String, Object?> arguments,
   CockpitMcpRootsTracker rootsTracker, {
-  String key = 'workspace_root',
+  String key = 'workspaceRoot',
 }) {
   try {
     return resolveWorkspaceRoot(
@@ -32,7 +32,7 @@ String cockpitResolveWorkspaceRootFromArguments(
 String cockpitResolveParentDirectoryFromArguments(
   Map<String, Object?> arguments,
   CockpitMcpRootsTracker rootsTracker, {
-  String key = 'parent_directory',
+  String key = 'parentDirectory',
 }) {
   try {
     return resolveWorkspaceRoot(

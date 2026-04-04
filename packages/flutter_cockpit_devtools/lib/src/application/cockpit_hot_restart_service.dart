@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
@@ -36,8 +35,8 @@ final class CockpitHotRestartResult {
 
   Map<String, Object?> toJson() => <String, Object?>{
         'app': app.toJson(),
-        'status': cockpitSnakeCaseJsonValue(status.toJson()),
-        'app_json_path': appJsonPath,
+        'status': (status.toJson()),
+        'appJsonPath': appJsonPath,
       };
 }
 
@@ -108,9 +107,7 @@ final class CockpitHotRestartService {
     }
     final file = File(path);
     await file.parent.create(recursive: true);
-    await file.writeAsString(
-      const JsonEncoder.withIndent('  ').convert(app.toJson()),
-    );
+    await file.writeAsString(cockpitPrettyJsonText(app.toJson()));
     return p.normalize(file.path);
   }
 }

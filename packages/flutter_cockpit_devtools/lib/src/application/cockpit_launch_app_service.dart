@@ -1,9 +1,9 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
 import 'cockpit_app_handle.dart';
+import 'cockpit_json_key_normalizer.dart';
 import 'cockpit_launch_development_session_service.dart';
 import 'cockpit_launch_remote_session_service.dart';
 import 'cockpit_session_registry.dart';
@@ -43,8 +43,8 @@ final class CockpitLaunchAppResult {
 
   Map<String, Object?> toJson() => <String, Object?>{
         'app': app.toJson(),
-        'app_json_path': appJsonPath,
-        'supervisor_log_path': supervisorLogPath,
+        'appJsonPath': appJsonPath,
+        'supervisorLogPath': supervisorLogPath,
       };
 }
 
@@ -119,7 +119,7 @@ final class CockpitLaunchAppService {
       handle: result.sessionHandle,
       status: result.health,
       recommendedNextStep: result.health.capabilities.supportsInAppControl
-          ? 'ready_for_commands'
+          ? 'readyForCommands'
           : 'limited_capabilities',
     );
     final app = CockpitAppHandle.fromRemoteSession(result.sessionHandle);
@@ -142,9 +142,7 @@ final class CockpitLaunchAppService {
     }
     final file = File(path);
     await file.parent.create(recursive: true);
-    await file.writeAsString(
-      const JsonEncoder.withIndent('  ').convert(app.toJson()),
-    );
+    await file.writeAsString(cockpitPrettyJsonText(app.toJson()));
     return p.normalize(file.path);
   }
 }

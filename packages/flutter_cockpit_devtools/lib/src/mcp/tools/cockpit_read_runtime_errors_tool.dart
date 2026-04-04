@@ -43,13 +43,13 @@ final class CockpitReadRuntimeErrorsTool extends CockpitMcpTool {
   Map<String, Object?> get inputSchema => const <String, Object?>{
         'type': 'object',
         'properties': <String, Object?>{
-          'app_id': <String, Object?>{'type': 'string'},
-          'app_json': <String, Object?>{'type': 'string'},
-          'base_url': <String, Object?>{'type': 'string'},
-          'android_device_id': <String, Object?>{'type': 'string'},
-          'max_errors': <String, Object?>{'type': 'integer'},
-          'include_latest_task': <String, Object?>{'type': 'boolean'},
-          'include_sessions': <String, Object?>{'type': 'boolean'},
+          'appId': <String, Object?>{'type': 'string'},
+          'appJson': <String, Object?>{'type': 'string'},
+          'baseUrl': <String, Object?>{'type': 'string'},
+          'androidDeviceId': <String, Object?>{'type': 'string'},
+          'maxErrors': <String, Object?>{'type': 'integer'},
+          'includeLatestTask': <String, Object?>{'type': 'boolean'},
+          'includeSessions': <String, Object?>{'type': 'boolean'},
         },
       };
 

@@ -1,9 +1,9 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:args/command_runner.dart';
 
 import '../../application/cockpit_query_remote_session_service.dart';
+import '../../application/cockpit_json_key_normalizer.dart';
 import '../../application/cockpit_session_reference_resolver.dart';
 import '../../remote/cockpit_android_port_forwarder.dart';
 import '../cockpit_command_runner.dart';
@@ -67,7 +67,7 @@ final class QueryRemoteSessionCommand extends Command<int> {
         androidDeviceId: argResults?['android-device-id'] as String?,
       ),
     );
-    final payload = jsonEncode(result.status.toJson());
+    final payload = cockpitCompactJsonText(result.status.toJson());
     final outputJson = argResults?['output-json'] as String?;
 
     if (outputJson == null || outputJson.isEmpty) {

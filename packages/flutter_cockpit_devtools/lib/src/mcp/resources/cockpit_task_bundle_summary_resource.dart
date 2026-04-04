@@ -1,5 +1,4 @@
-import 'dart:convert';
-
+import '../../application/cockpit_json_key_normalizer.dart';
 import '../../application/cockpit_read_task_bundle_summary_service.dart';
 import '../core/cockpit_mcp_feature_category.dart';
 import '../core/cockpit_mcp_resource.dart';
@@ -15,8 +14,8 @@ final class CockpitTaskBundleSummaryResource extends CockpitMcpResource {
   @override
   CockpitMcpResourceDefinition get definition =>
       const CockpitMcpResourceDefinition.template(
-        name: 'task_bundle_summary',
-        uriTemplate: 'cockpit://task/summary{?bundle_dir}',
+        name: 'task_bundleSummary',
+        uriTemplate: 'cockpit://task/summary{?bundleDir}',
         description:
             'Read a task bundle summary directly as a resource for inspection and delivery review.',
         mimeType: 'application/json',
@@ -34,9 +33,9 @@ final class CockpitTaskBundleSummaryResource extends CockpitMcpResource {
     if (uri.host != 'task' || uri.path != '/summary') {
       return null;
     }
-    final bundleDir = uri.queryParameters['bundle_dir'];
+    final bundleDir = uri.queryParameters['bundleDir'];
     if (bundleDir == null || bundleDir.isEmpty) {
-      throw StateError('task bundle summary resource requires bundle_dir.');
+      throw StateError('task bundle summary resource requires bundleDir.');
     }
     final result = await _service.read(
       CockpitReadTaskBundleSummaryRequest(bundleDir: bundleDir),
@@ -45,7 +44,7 @@ final class CockpitTaskBundleSummaryResource extends CockpitMcpResource {
       contents: <CockpitMcpResourceContents>[
         CockpitMcpTextResourceContents(
           uri: request.uri,
-          text: const JsonEncoder.withIndent('  ').convert(result.toJson()),
+          text: cockpitPrettyJsonText(result.toJson()),
           mimeType: definition.mimeType,
         ),
       ],

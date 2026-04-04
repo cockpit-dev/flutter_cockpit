@@ -43,7 +43,7 @@ final class CockpitValidateTaskTool extends CockpitMcpTool {
         'type': 'object',
         'required': <String>['run_task'],
         'properties': <String, Object?>{
-          'run_task': <String, Object?>{'type': 'object'},
+          'runTask': <String, Object?>{'type': 'object'},
           'validation': <String, Object?>{'type': 'object'},
         },
       };
@@ -58,13 +58,13 @@ final class CockpitValidateTaskTool extends CockpitMcpTool {
         text: 'Task workflow executed and validated.',
         structuredContent: <String, Object?>{
           'classification': result.classification.jsonValue,
-          'recommended_next_step': result.recommendedNextStep,
-          'blocked_reason': result.blockedReason,
-          'validation_failures': result.validationFailures
+          'recommendedNextStep': result.recommendedNextStep,
+          'blockedReason': result.blockedReason,
+          'validationFailures': result.validationFailures
               .map((failure) => failure.toJson())
               .toList(growable: false),
-          'run_task_result': result.runTaskResult?.toJson(),
-          'bundle_summary': result.bundleSummary?.toMcpJson(),
+          'runTaskResult': result.runTaskResult?.toJson(),
+          'bundleSummary': result.bundleSummary?.toMcpJson(),
         },
       );
     } on Object catch (error) {

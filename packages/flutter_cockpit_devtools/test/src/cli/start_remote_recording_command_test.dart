@@ -41,6 +41,6 @@ void main() {
     expect(exitCode, 0);
     expect(capturedRequest?.recording.name, 'debug-pass');
     final decoded = jsonDecode(stdoutBuffer.toString()) as Map<String, Object?>;
-    expect(decoded['recording_session'], isA<Map<String, Object?>>());
+    expect(decoded['recordingSession'], isA<Map<String, Object?>>());
   });
 }

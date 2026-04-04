@@ -29,9 +29,9 @@ final class CockpitCollectRemoteSnapshotTool extends CockpitMcpTool {
   Map<String, Object?> get inputSchema => const <String, Object?>{
         'type': 'object',
         'properties': <String, Object?>{
-          'session_handle': <String, Object?>{'type': 'object'},
-          'session_handle_path': <String, Object?>{'type': 'string'},
-          'snapshot_options': <String, Object?>{'type': 'object'},
+          'sessionHandle': <String, Object?>{'type': 'object'},
+          'sessionHandlePath': <String, Object?>{'type': 'string'},
+          'snapshotOptions': <String, Object?>{'type': 'object'},
         },
       };
 
@@ -61,8 +61,8 @@ final class CockpitCollectRemoteSnapshotTool extends CockpitMcpTool {
         text: 'Remote snapshot collected.',
         structuredContent: <String, Object?>{
           'snapshot': result.snapshot.toJson(),
-          'effective_options': result.effectiveOptions.toJson(),
-          'session_handle': result.sessionHandle?.toJson(),
+          'effectiveOptions': result.effectiveOptions.toJson(),
+          'sessionHandle': result.sessionHandle?.toJson(),
           'warnings': result.warnings,
         },
       );

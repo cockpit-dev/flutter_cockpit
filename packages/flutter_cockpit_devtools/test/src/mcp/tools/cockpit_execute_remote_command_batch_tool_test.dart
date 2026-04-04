@@ -22,7 +22,7 @@ void main() {
     );
 
     final result = await tool.call(<String, Object?>{
-      'session_handle': <String, Object?>{
+      'sessionHandle': <String, Object?>{
         'platform': 'macos',
         'deviceId': 'macos',
         'projectDir': '/workspace',
@@ -40,8 +40,8 @@ void main() {
           'commandType': 'tap',
         },
       ],
-      'default_profile': 'inspect',
-      'fail_fast': false,
+      'defaultProfile': 'inspect',
+      'failFast': false,
     });
 
     expect(capturedRequest?.commands.length, 1);

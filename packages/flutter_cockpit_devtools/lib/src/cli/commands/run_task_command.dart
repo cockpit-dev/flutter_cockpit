@@ -46,15 +46,15 @@ final class RunTaskCommand extends CockpitCliCommand {
 
   @override
   String get helpNeeds =>
-      'A run-task config JSON file that describes launch, script, output_root, and any evidence requirements.';
+      'A run-task config JSON file that describes launch, script, outputRoot, and any evidence requirements.';
 
   @override
   String get helpExample =>
-      'flutter_cockpit_devtools run-task --config-json /tmp/run_task.json --output-json /tmp/run_task_result.json';
+      'flutter_cockpit_devtools run-task --config-json /tmp/run_task.json --output-json /tmp/runTaskResult.json';
 
   @override
   String get helpWrites =>
-      'A structured result with classification, recommended_next_step, and bundle_summary.';
+      'A structured result with classification, recommendedNextStep, and bundleSummary.';
 
   @override
   Future<int> run() async {

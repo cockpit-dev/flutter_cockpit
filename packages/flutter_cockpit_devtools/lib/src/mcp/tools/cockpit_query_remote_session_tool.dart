@@ -46,8 +46,8 @@ final class CockpitQueryRemoteSessionTool extends CockpitMcpTool {
   Map<String, Object?> get inputSchema => const <String, Object?>{
         'type': 'object',
         'properties': <String, Object?>{
-          'session_handle': <String, Object?>{'type': 'object'},
-          'session_handle_path': <String, Object?>{'type': 'string'},
+          'sessionHandle': <String, Object?>{'type': 'object'},
+          'sessionHandlePath': <String, Object?>{'type': 'string'},
         },
       };
 
@@ -59,7 +59,7 @@ final class CockpitQueryRemoteSessionTool extends CockpitMcpTool {
           sessionHandle: cockpitReadOptionalSessionHandle(arguments),
           sessionHandlePath: cockpitReadOptionalString(
             arguments,
-            'session_handle_path',
+            'sessionHandlePath',
           ),
         ),
       );
@@ -76,8 +76,8 @@ final class CockpitQueryRemoteSessionTool extends CockpitMcpTool {
         text: 'Remote session status loaded.',
         structuredContent: <String, Object?>{
           'status': result.status.toJson(),
-          'session_handle': result.sessionHandle?.toJson(),
-          'recommended_next_step': result.recommendedNextStep,
+          'sessionHandle': result.sessionHandle?.toJson(),
+          'recommendedNextStep': result.recommendedNextStep,
         },
       );
     } on Object catch (error) {

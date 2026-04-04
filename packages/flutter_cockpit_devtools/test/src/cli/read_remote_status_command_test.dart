@@ -55,6 +55,10 @@ void main() {
     expect(exitCode, 0);
     expect(capturedRequest?.resultProfile.name.jsonValue, 'minimal');
     final decoded = jsonDecode(stdoutBuffer.toString()) as Map<String, Object?>;
-    expect(decoded['session_id'], 'session-1');
+    expect(decoded['sessionId'], 'session-1');
+    expect(decoded.containsKey('activeRecording'), isFalse);
+    expect(decoded.containsKey('environment'), isFalse);
+    expect(decoded.containsKey('snapshot'), isFalse);
+    expect(decoded.containsKey('snapshotRef'), isFalse);
   });
 }

@@ -418,91 +418,91 @@ void main() {
       expect(result.runtimeSummary!.totalEntryCount, 2);
       expect(result.runtimeSummary!.errorCount, 1);
       expect(result.runtimeSummary!.recentEntries.first.eventId, 'runtime-2');
-      expect(result.toMcpJson()['acceptance_evidence'], <String, Object?>{
-        'route_name': '/acceptance',
-        'diagnostic_level': 'forensic',
-        'diagnostics_artifact_path': p.join(
+      expect(result.toMcpJson()['acceptanceEvidence'], <String, Object?>{
+        'routeName': '/acceptance',
+        'diagnosticLevel': 'forensic',
+        'diagnosticsArtifactPath': p.join(
           bundleDir.path,
           'diagnostics',
           'step_000_snapshot.json',
         ),
-        'visible_text_previews': <String>['Save changes', 'Acceptance bundles'],
-        'visible_semantic_ids': <String>['Save changes', 'Acceptance bundles'],
-        'interactive_labels': <String>['Save changes'],
-        'accessibility_labels': <String>['save_button', 'Acceptance bundles'],
-        'visible_target_count': 2,
-        'accessibility_entry_count': 2,
-        'has_accessibility_summary': true,
-        'network_entry_count': 2,
-        'network_failure_count': 1,
-        'network_failure_signals': <Object?>[
+        'visibleTextPreviews': <String>['Save changes', 'Acceptance bundles'],
+        'visibleSemanticIds': <String>['Save changes', 'Acceptance bundles'],
+        'interactiveLabels': <String>['Save changes'],
+        'accessibilityLabels': <String>['save_button', 'Acceptance bundles'],
+        'visibleTargetCount': 2,
+        'accessibilityEntryCount': 2,
+        'hasAccessibilitySummary': true,
+        'networkEntryCount': 2,
+        'networkFailureCount': 1,
+        'networkFailureSignals': <Object?>[
           <String, Object?>{
-            'request_id': 'net-2',
+            'requestId': 'net-2',
             'method': 'POST',
             'uri': 'https://api.example.dev/tasks',
-            'status_code': 500,
+            'statusCode': 500,
             'error': 'serverError',
-            'duration_ms': 190,
+            'durationMs': 190,
           },
         ],
-        'runtime_entry_count': 2,
-        'runtime_error_count': 1,
-        'runtime_warning_count': 1,
-        'runtime_error_signals': <Object?>[
+        'runtimeEntryCount': 2,
+        'runtimeErrorCount': 1,
+        'runtimeWarningCount': 1,
+        'runtimeErrorSignals': <Object?>[
           <String, Object?>{
-            'event_id': 'runtime-2',
+            'eventId': 'runtime-2',
             'kind': 'uncaughtError',
             'severity': 'error',
             'message': 'Socket closed',
           },
         ],
-        'rebuild_total_count': 5,
-        'rebuild_unique_element_count': 2,
-        'rebuild_hotspots': <Object?>[
+        'rebuildTotalCount': 5,
+        'rebuildUniqueElementCount': 2,
+        'rebuildHotspots': <Object?>[
           <String, Object?>{
             'signature': '/acceptance|FilledButton|sync',
-            'route_name': '/acceptance',
-            'type_name': 'FilledButton',
-            'rebuild_count': 3,
-            'key_value': 'sync',
-            'semantic_id': null,
-            'text_preview': null,
+            'routeName': '/acceptance',
+            'typeName': 'FilledButton',
+            'rebuildCount': 3,
+            'keyValue': 'sync',
+            'semanticId': null,
+            'textPreview': null,
           },
           <String, Object?>{
             'signature': '/acceptance|TextField|title',
-            'route_name': '/acceptance',
-            'type_name': 'TextField',
-            'rebuild_count': 2,
-            'key_value': 'title',
-            'semantic_id': null,
-            'text_preview': null,
+            'routeName': '/acceptance',
+            'typeName': 'TextField',
+            'rebuildCount': 2,
+            'keyValue': 'title',
+            'semanticId': null,
+            'textPreview': null,
           },
         ],
       });
-      expect(result.toMcpJson()['rebuild_summary'], <String, Object?>{
-        'total_rebuild_count': 5,
-        'unique_element_count': 2,
+      expect(result.toMcpJson()['rebuildSummary'], <String, Object?>{
+        'totalRebuildCount': 5,
+        'uniqueElementCount': 2,
         'truncated': false,
         'entries': <Object?>[
           <String, Object?>{
             'signature': '/acceptance|FilledButton|sync',
-            'route_name': '/acceptance',
-            'type_name': 'FilledButton',
-            'rebuild_count': 3,
-            'built_once_count': 1,
-            'key_value': 'sync',
-            'semantic_id': null,
-            'text_preview': null,
+            'routeName': '/acceptance',
+            'typeName': 'FilledButton',
+            'rebuildCount': 3,
+            'builtOnceCount': 1,
+            'keyValue': 'sync',
+            'semanticId': null,
+            'textPreview': null,
           },
           <String, Object?>{
             'signature': '/acceptance|TextField|title',
-            'route_name': '/acceptance',
-            'type_name': 'TextField',
-            'rebuild_count': 2,
-            'built_once_count': 1,
-            'key_value': 'title',
-            'semantic_id': null,
-            'text_preview': null,
+            'routeName': '/acceptance',
+            'typeName': 'TextField',
+            'rebuildCount': 2,
+            'builtOnceCount': 1,
+            'keyValue': 'title',
+            'semanticId': null,
+            'textPreview': null,
           },
         ],
       });
@@ -864,73 +864,73 @@ void main() {
       expect(result.evidenceSummary['acceptanceNewRuntimeErrorCount'], 1);
       expect(result.evidenceSummary['acceptanceComparisonReady'], isTrue);
       final baselineMcp =
-          result.toMcpJson()['baseline_evidence'] as Map<String, Object?>;
-      expect(baselineMcp['route_name'], '/editor');
+          result.toMcpJson()['baselineEvidence'] as Map<String, Object?>;
+      expect(baselineMcp['routeName'], '/editor');
       final acceptanceDeltaMcp =
-          result.toMcpJson()['acceptance_delta'] as Map<String, Object?>;
-      expect(acceptanceDeltaMcp['baseline_route_name'], '/editor');
-      expect(acceptanceDeltaMcp['acceptance_route_name'], '/preview');
-      expect(acceptanceDeltaMcp['route_changed'], isTrue);
+          result.toMcpJson()['acceptanceDelta'] as Map<String, Object?>;
+      expect(acceptanceDeltaMcp['baselineRouteName'], '/editor');
+      expect(acceptanceDeltaMcp['acceptanceRouteName'], '/preview');
+      expect(acceptanceDeltaMcp['routeChanged'], isTrue);
       expect(
-        acceptanceDeltaMcp['added_visible_text_previews'],
+        acceptanceDeltaMcp['addedVisibleTextPreviews'],
         unorderedEquals(<String>['Published title', 'Share result']),
       );
       expect(
-        acceptanceDeltaMcp['removed_visible_text_previews'],
+        acceptanceDeltaMcp['removedVisibleTextPreviews'],
         unorderedEquals(<String>['Draft title', 'Save draft']),
       );
-      expect(acceptanceDeltaMcp['added_semantic_ids'], <String>[
+      expect(acceptanceDeltaMcp['addedSemanticIds'], <String>[
         'publish.share',
       ]);
-      expect(acceptanceDeltaMcp['removed_semantic_ids'], <String>[
+      expect(acceptanceDeltaMcp['removedSemanticIds'], <String>[
         'draft.save',
       ]);
-      expect(acceptanceDeltaMcp['added_interactive_labels'], <String>[
+      expect(acceptanceDeltaMcp['addedInteractiveLabels'], <String>[
         'Share result',
       ]);
-      expect(acceptanceDeltaMcp['removed_interactive_labels'], <String>[
+      expect(acceptanceDeltaMcp['removedInteractiveLabels'], <String>[
         'Save draft',
       ]);
-      expect(acceptanceDeltaMcp['added_accessibility_labels'], <String>[
+      expect(acceptanceDeltaMcp['addedAccessibilityLabels'], <String>[
         'publish.share',
       ]);
-      expect(acceptanceDeltaMcp['removed_accessibility_labels'], <String>[
+      expect(acceptanceDeltaMcp['removedAccessibilityLabels'], <String>[
         'draft.save',
       ]);
-      expect(acceptanceDeltaMcp['network_failure_delta_count'], 1);
-      expect(acceptanceDeltaMcp['new_network_failure_signals'], <Object?>[
+      expect(acceptanceDeltaMcp['networkFailureDeltaCount'], 1);
+      expect(acceptanceDeltaMcp['newNetworkFailureSignals'], <Object?>[
         <String, Object?>{
-          'request_id': 'publish-1',
+          'requestId': 'publish-1',
           'method': 'POST',
           'uri': 'https://api.example.dev/publish',
-          'status_code': 500,
+          'statusCode': 500,
           'error': 'serverError',
-          'duration_ms': 220,
+          'durationMs': 220,
         },
       ]);
-      expect(acceptanceDeltaMcp['runtime_error_delta_count'], 1);
-      expect(acceptanceDeltaMcp['new_runtime_error_signals'], <Object?>[
+      expect(acceptanceDeltaMcp['runtimeErrorDeltaCount'], 1);
+      expect(acceptanceDeltaMcp['newRuntimeErrorSignals'], <Object?>[
         <String, Object?>{
-          'event_id': 'runtime-publish',
+          'eventId': 'runtime-publish',
           'kind': 'uncaughtError',
           'severity': 'error',
           'message': 'Publish failed',
         },
       ]);
-      expect(acceptanceDeltaMcp['rebuild_total_delta_count'], 4);
-      expect(acceptanceDeltaMcp['rebuild_unique_element_delta_count'], 1);
-      expect(acceptanceDeltaMcp['new_rebuild_hotspots'], <Object?>[
+      expect(acceptanceDeltaMcp['rebuildTotalDeltaCount'], 4);
+      expect(acceptanceDeltaMcp['rebuildUniqueElementDeltaCount'], 1);
+      expect(acceptanceDeltaMcp['newRebuildHotspots'], <Object?>[
         <String, Object?>{
           'signature': '/preview|FilledButton|share',
-          'route_name': '/preview',
-          'type_name': 'FilledButton',
-          'rebuild_count': 4,
-          'key_value': 'share',
-          'semantic_id': null,
-          'text_preview': null,
+          'routeName': '/preview',
+          'typeName': 'FilledButton',
+          'rebuildCount': 4,
+          'keyValue': 'share',
+          'semanticId': null,
+          'textPreview': null,
         },
       ]);
-      expect(acceptanceDeltaMcp['semantic_signal_delta_count'], 10);
+      expect(acceptanceDeltaMcp['semanticSignalDeltaCount'], 10);
     },
   );
 }

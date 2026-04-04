@@ -57,7 +57,7 @@ final class CockpitEntrypointResolver {
       code: 'missingTargetEntrypoint',
       message: 'Target entrypoint does not exist: $target',
       details: <String, Object?>{
-        'project_dir': projectDir,
+        'projectDir': projectDir,
         'target': target,
       },
     );

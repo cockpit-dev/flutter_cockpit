@@ -1,6 +1,5 @@
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
-import 'cockpit_json_key_normalizer.dart';
 import 'cockpit_interactive_result_profile.dart';
 
 final class CockpitInteractiveCommandCore {
@@ -45,22 +44,16 @@ final class CockpitInteractiveCommandCore {
   }
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'command_id': commandId,
-        'command_type': cockpitSnakeCaseEnumValue('command_type', commandType),
+        'commandId': commandId,
+        'commandType': commandType,
         'success': success,
-        'duration_ms': durationMs,
-        'locator_resolution':
-            cockpitSnakeCaseJsonValue(locatorResolution?.toJson()),
-        'requested_capture_profile': requestedCaptureProfile,
-        'resolved_capture_kind': resolvedCaptureKind == null
-            ? null
-            : cockpitSnakeCaseEnumValue(
-                'recording_kind',
-                resolvedCaptureKind!,
-              ),
-        'used_capture_fallback': usedCaptureFallback,
-        'degradation_reason': degradationReason,
-        'error': cockpitSnakeCaseJsonValue(error?.toJson()),
+        'durationMs': durationMs,
+        'locatorResolution': locatorResolution?.toJson(),
+        'requestedCaptureProfile': requestedCaptureProfile,
+        'resolvedCaptureKind': resolvedCaptureKind,
+        'usedCaptureFallback': usedCaptureFallback,
+        'degradationReason': degradationReason,
+        'error': error?.toJson(),
       };
 }
 
@@ -80,13 +73,13 @@ final class CockpitInteractiveArtifactDescriptor {
   Map<String, Object?> toJson() {
     final json = <String, Object?>{
       'role': role,
-      'relative_path': relativePath,
+      'relativePath': relativePath,
     };
     if (byteLength != null) {
-      json['byte_length'] = byteLength;
+      json['byteLength'] = byteLength;
     }
     if (sourcePath != null) {
-      json['source_path'] = sourcePath;
+      json['sourcePath'] = sourcePath;
     }
     return json;
   }
@@ -128,21 +121,21 @@ final class CockpitInteractiveSnapshotSummary {
   final List<String> textPreviews;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'route_name': routeName,
-        'diagnostic_level': diagnosticLevel,
+        'routeName': routeName,
+        'diagnosticLevel': diagnosticLevel,
         'truncated': truncated,
-        'visible_target_count': visibleTargetCount,
-        'targets_with_cockpit_id_count': targetsWithCockpitIdCount,
-        'targets_with_text_count': targetsWithTextCount,
-        'network_entry_count': networkEntryCount,
-        'network_failure_count': networkFailureCount,
-        'runtime_entry_count': runtimeEntryCount,
-        'runtime_error_count': runtimeErrorCount,
-        'rebuild_entry_count': rebuildEntryCount,
-        'total_rebuild_count': totalRebuildCount,
-        'accessibility_target_count': accessibilityTargetCount,
-        'accessibility_traversal_count': accessibilityTraversalCount,
-        'text_previews': textPreviews,
+        'visibleTargetCount': visibleTargetCount,
+        'targetsWithCockpitIdCount': targetsWithCockpitIdCount,
+        'targetsWithTextCount': targetsWithTextCount,
+        'networkEntryCount': networkEntryCount,
+        'networkFailureCount': networkFailureCount,
+        'runtimeEntryCount': runtimeEntryCount,
+        'runtimeErrorCount': runtimeErrorCount,
+        'rebuildEntryCount': rebuildEntryCount,
+        'totalRebuildCount': totalRebuildCount,
+        'accessibilityTargetCount': accessibilityTargetCount,
+        'accessibilityTraversalCount': accessibilityTraversalCount,
+        'textPreviews': textPreviews,
       };
 }
 
@@ -172,16 +165,16 @@ final class CockpitInteractiveSnapshotDelta {
   final List<String> removedTextPreviews;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'route_changed': routeChanged,
-        'from_route_name': fromRouteName,
-        'to_route_name': toRouteName,
-        'visible_target_count_delta': visibleTargetCountDelta,
-        'targets_with_text_count_delta': targetsWithTextCountDelta,
-        'network_failure_count_delta': networkFailureCountDelta,
-        'runtime_error_count_delta': runtimeErrorCountDelta,
-        'accessibility_target_count_delta': accessibilityTargetCountDelta,
-        'added_text_previews': addedTextPreviews,
-        'removed_text_previews': removedTextPreviews,
+        'routeChanged': routeChanged,
+        'fromRouteName': fromRouteName,
+        'toRouteName': toRouteName,
+        'visibleTargetCountDelta': visibleTargetCountDelta,
+        'targetsWithTextCountDelta': targetsWithTextCountDelta,
+        'networkFailureCountDelta': networkFailureCountDelta,
+        'runtimeErrorCountDelta': runtimeErrorCountDelta,
+        'accessibilityTargetCountDelta': accessibilityTargetCountDelta,
+        'addedTextPreviews': addedTextPreviews,
+        'removedTextPreviews': removedTextPreviews,
       };
 }
 
@@ -262,33 +255,29 @@ Map<String, Object?>? cockpitInteractiveDiagnosticsFromSnapshot(
     'level': diagnosticsLevel.jsonValue,
   };
   if (diagnosticsLevel == CockpitInteractiveDiagnosticsLevel.full) {
-    diagnostics['network'] =
-        cockpitSnakeCaseJsonValue(snapshot.network?.toJson());
-    diagnostics['runtime'] =
-        cockpitSnakeCaseJsonValue(snapshot.runtime?.toJson());
-    diagnostics['rebuild'] =
-        cockpitSnakeCaseJsonValue(snapshot.rebuild?.toJson());
-    diagnostics['accessibility'] =
-        cockpitSnakeCaseJsonValue(snapshot.accessibility?.toJson());
+    diagnostics['network'] = (snapshot.network?.toJson());
+    diagnostics['runtime'] = (snapshot.runtime?.toJson());
+    diagnostics['rebuild'] = (snapshot.rebuild?.toJson());
+    diagnostics['accessibility'] = (snapshot.accessibility?.toJson());
     return diagnostics;
   }
 
   final network = snapshot.network;
   if (network != null && network.failureCount > 0) {
     diagnostics['network'] = <String, Object?>{
-      'total_entry_count': network.totalEntryCount,
-      'failure_count': network.failureCount,
+      'totalEntryCount': network.totalEntryCount,
+      'failureCount': network.failureCount,
       'entries': network.entries
           .where((entry) => entry.isFailure)
-          .map((entry) => cockpitSnakeCaseJsonValue(entry.toJson()))
+          .map((entry) => (entry.toJson()))
           .toList(growable: false),
-      'endpoint_summaries': network.endpointSummaries
+      'endpointSummaries': network.endpointSummaries
           .where((summary) => summary.failureCount > 0)
-          .map((summary) => cockpitSnakeCaseJsonValue(summary.toJson()))
+          .map((summary) => (summary.toJson()))
           .toList(growable: false),
-      'captured_entry_count': network.capturedEntryCount,
-      'in_flight_count': network.inFlightCount,
-      'query': cockpitSnakeCaseJsonValue(network.query.toJson()),
+      'capturedEntryCount': network.capturedEntryCount,
+      'inFlightCount': network.inFlightCount,
+      'query': (network.query.toJson()),
       'truncated': network.truncated,
     };
   }
@@ -296,15 +285,15 @@ Map<String, Object?>? cockpitInteractiveDiagnosticsFromSnapshot(
   final runtime = snapshot.runtime;
   if (runtime != null && runtime.errorCount > 0) {
     diagnostics['runtime'] = <String, Object?>{
-      'total_entry_count': runtime.totalEntryCount,
-      'error_count': runtime.errorCount,
-      'warning_count': runtime.warningCount,
+      'totalEntryCount': runtime.totalEntryCount,
+      'errorCount': runtime.errorCount,
+      'warningCount': runtime.warningCount,
       'entries': runtime.entries
           .where((entry) => entry.isError)
-          .map((entry) => cockpitSnakeCaseJsonValue(entry.toJson()))
+          .map((entry) => (entry.toJson()))
           .toList(growable: false),
-      'captured_entry_count': runtime.capturedEntryCount,
-      'query': cockpitSnakeCaseJsonValue(runtime.query.toJson()),
+      'capturedEntryCount': runtime.capturedEntryCount,
+      'query': (runtime.query.toJson()),
       'truncated': runtime.truncated,
     };
   }

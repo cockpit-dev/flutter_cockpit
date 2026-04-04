@@ -1,5 +1,4 @@
-import 'dart:convert';
-
+import '../../application/cockpit_json_key_normalizer.dart';
 import '../../application/cockpit_read_latest_task_summary_service.dart';
 import '../core/cockpit_mcp_feature_category.dart';
 import '../core/cockpit_mcp_resource.dart';
@@ -43,7 +42,7 @@ final class CockpitLatestTaskResource extends CockpitMcpResource {
       contents: <CockpitMcpResourceContents>[
         CockpitMcpTextResourceContents(
           uri: request.uri,
-          text: const JsonEncoder.withIndent('  ').convert(payload),
+          text: cockpitPrettyJsonText(payload),
           mimeType: definition.mimeType,
         ),
       ],

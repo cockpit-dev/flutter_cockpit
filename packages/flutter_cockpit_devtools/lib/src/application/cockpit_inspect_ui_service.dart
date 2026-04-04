@@ -4,7 +4,6 @@ import 'cockpit_app_handle.dart';
 import 'cockpit_app_reference_resolver.dart';
 import 'cockpit_interactive_result_data.dart';
 import 'cockpit_interactive_result_profile.dart';
-import 'cockpit_json_key_normalizer.dart';
 import 'cockpit_read_remote_snapshot_service.dart';
 import 'cockpit_session_registry.dart';
 
@@ -57,16 +56,15 @@ final class CockpitInspectUiResult {
 
   Map<String, Object?> toJson() => <String, Object?>{
         'app': app?.toJson(),
-        'route_name': routeName,
-        'diagnostic_level': diagnosticLevel,
+        'routeName': routeName,
+        'diagnosticLevel': diagnosticLevel,
         'truncated': truncated,
-        'ui_summary': uiSummary?.toJson(),
-        'snapshot': cockpitSnakeCaseJsonValue(snapshot?.toJson()),
+        'uiSummary': uiSummary?.toJson(),
+        'snapshot': (snapshot?.toJson()),
         'diagnostics': diagnostics,
         'delta': delta?.toJson(),
-        'snapshot_ref': snapshotRef,
-        'effective_snapshot_options':
-            cockpitSnakeCaseJsonValue(effectiveSnapshotOptions?.toJson()),
+        'snapshotRef': snapshotRef,
+        'effectiveSnapshotOptions': (effectiveSnapshotOptions?.toJson()),
       };
 }
 

@@ -27,8 +27,7 @@ final class RunBatchCommand extends CockpitCliCommand {
     cockpitAddCommandTimeoutArg(
       argParser,
       optionName: 'default-timeout-ms',
-      help:
-          'Default timeout in milliseconds for commands that omit timeout_ms.',
+      help: 'Default timeout in milliseconds for commands that omit timeoutMs.',
     );
     argParser.addFlag(
       'fail-fast',
@@ -75,7 +74,7 @@ final class RunBatchCommand extends CockpitCliCommand {
 
   @override
   String get helpShape =>
-      'commands.json = [{"command_id":"open-today","command_type":"tap","locator":{"text":"Today","type":"NavigationDestinationLabel"}}]; each item may also set timeout_ms, result_profile, snapshot_options, or compare_against_snapshot_ref.';
+      'commands.json = [{"commandId":"open-today","commandType":"tap","locator":{"text":"Today","type":"NavigationDestinationLabel"}}]; each item may also set timeoutMs, resultProfile, snapshotOptions, or compareAgainstSnapshotRef.';
 
   @override
   String get helpExample =>

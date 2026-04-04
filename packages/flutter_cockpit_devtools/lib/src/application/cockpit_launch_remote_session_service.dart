@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
@@ -8,6 +7,7 @@ import '../session/cockpit_remote_session_handle.dart';
 import '../session/cockpit_remote_session_launch_options.dart';
 import '../session/cockpit_remote_session_launcher.dart';
 import 'cockpit_entrypoint_resolver.dart';
+import 'cockpit_json_key_normalizer.dart';
 
 final class CockpitLaunchRemoteSessionRequest {
   const CockpitLaunchRemoteSessionRequest({
@@ -95,9 +95,7 @@ final class CockpitLaunchRemoteSessionService {
 
     final file = File(path);
     await file.parent.create(recursive: true);
-    await file.writeAsString(
-      const JsonEncoder.withIndent('  ').convert(handle.toJson()),
-    );
+    await file.writeAsString(cockpitPrettyJsonText(handle.toJson()));
     return p.normalize(file.path);
   }
 }

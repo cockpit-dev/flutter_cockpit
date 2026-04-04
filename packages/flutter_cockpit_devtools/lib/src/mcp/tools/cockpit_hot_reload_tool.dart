@@ -23,8 +23,8 @@ final class CockpitHotReloadTool extends CockpitMcpTool {
   Map<String, Object?> get inputSchema => const <String, Object?>{
         'type': 'object',
         'properties': <String, Object?>{
-          'app_id': <String, Object?>{'type': 'string'},
-          'app_json': <String, Object?>{'type': 'string'},
+          'appId': <String, Object?>{'type': 'string'},
+          'appJson': <String, Object?>{'type': 'string'},
         },
       };
 

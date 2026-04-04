@@ -18,7 +18,7 @@ void main() {
     );
 
     final result = await tool.call(<String, Object?>{
-      'session_handle': <String, Object?>{
+      'sessionHandle': <String, Object?>{
         'platform': 'macos',
         'deviceId': 'macos',
         'projectDir': '/workspace',

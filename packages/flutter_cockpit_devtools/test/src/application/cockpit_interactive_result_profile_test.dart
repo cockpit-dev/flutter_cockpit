@@ -50,10 +50,10 @@ void main() {
           'ui': 'snapshot',
           'diagnostics': 'full',
           'artifacts': 'metadata',
-          'include_delta': true,
-          'include_runtime_steps': true,
-          'emit_snapshot_ref': false,
-          'snapshot_profile': 'forensic',
+          'includeDelta': true,
+          'includeRuntimeSteps': true,
+          'emitSnapshotRef': false,
+          'snapshotProfile': 'forensic',
         },
       );
 

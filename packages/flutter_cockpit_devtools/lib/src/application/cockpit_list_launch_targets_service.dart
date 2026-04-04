@@ -84,7 +84,7 @@ final class CockpitListLaunchTargetsService {
         code: 'listLaunchTargetsTimedOut',
         message: 'Timed out while listing Flutter launch targets.',
         details: <String, Object?>{
-          'timeout_ms': effectiveTimeout.inMilliseconds,
+          'timeoutMs': effectiveTimeout.inMilliseconds,
           if (stdout.trim().isNotEmpty) 'stdout': stdout,
           if (stderr.trim().isNotEmpty) 'stderr': stderr,
         },

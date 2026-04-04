@@ -1,8 +1,8 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:args/command_runner.dart';
 
+import '../../application/cockpit_json_key_normalizer.dart';
 import '../../application/cockpit_launch_development_session_service.dart';
 import '../cockpit_command_runner.dart';
 
@@ -85,7 +85,7 @@ final class LaunchDevelopmentSessionCommand extends Command<int> {
     );
 
     _stdoutSink.writeln(
-      const JsonEncoder.withIndent('  ').convert(<String, Object?>{
+      cockpitPrettyJsonText(<String, Object?>{
         'sessionHandle': result.sessionHandle.toJson(),
         'status': result.status.toJson(),
         'persistedHandlePath': result.persistedHandlePath,

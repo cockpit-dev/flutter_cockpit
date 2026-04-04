@@ -5,6 +5,26 @@ import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 void main() {
+  test('runner registers workspace intelligence commands', () {
+    final commands = CockpitCommandRunner().commands.keys.toSet();
+
+    expect(
+      commands,
+      containsAll(<String>[
+        'pub-dev-search',
+        'pub',
+        'read-package-uris',
+        'lsp',
+        'analyze-files',
+        'create-project',
+        'analyze-workspace',
+        'format-workspace',
+        'run-tests',
+        'apply-fixes',
+      ]),
+    );
+  });
+
   test('usage errors are written to stderr', () async {
     final stderrBuffer = StringBuffer();
     final exitCode = await CockpitCommandRunner(

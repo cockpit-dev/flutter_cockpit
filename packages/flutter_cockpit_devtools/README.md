@@ -48,9 +48,17 @@ Recommended app-first loop:
 5. `hot-reload` or `hot-restart`
 6. `run-script`, `run-task`, or `validate-task` for delivery
 
-CLI JSON output is normalized to `snake_case`.
+Recommended code-side loop:
+
+1. `analyze-files --path ...`
+2. `lsp --command ...`
+3. `pub-dev-search`, `pub`, or `read-package-uris`
+4. `run-tests` or `analyze-workspace` only when the question is no longer local
+
+CLI JSON output is normalized to lower camel case.
 `launch-app` auto-detects `cockpit/main.dart` first, then `lib/main.dart`.
 `run-script` exits non-zero when the written bundle status is `failed`.
+Workspace commands default `--workspace-root` or `--parent-directory` to the current directory.
 
 Minimal verified `run-command` shape:
 
@@ -58,12 +66,12 @@ Minimal verified `run-command` shape:
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   run-command \
   --app-json /tmp/app.json \
-  --command-json '{"command_id":"assert-inbox","command_type":"assert_text","parameters":{"text":"Inbox"}}'
+  --command-json '{"commandId":"assert-inbox","commandType":"assertText","parameters":{"text":"Inbox"}}'
 ```
 
 Locator rules:
 
-- Start with `key`, `text`, or `semantic_id`.
+- Start with `key`, `text`, or `semanticId`.
 - Add `route`, `type`, `path`, and nested `ancestor` only when ambiguity remains.
 - `path` is fuzzy: segments like `body`, `slivers`, and numeric indexes are ignored, so shapes such as `scaffold.body/custom_scroll_view.slivers/0/...` can still match the same target.
 - Use `fallbacks` for a short ordered backup list instead of one oversized locator.
@@ -110,7 +118,7 @@ Workspace tools:
 - `run_tests`
 - `apply_fixes`
 
-Resources and prompts are also exposed for goals, contracts, task summaries, roots, package reads, and standard closed-loop guidance.
+Resources and prompts are also exposed for contracts, capabilities, task summaries, roots, package reads, and standard closed-loop guidance.
 
 ## Notes
 
@@ -121,10 +129,11 @@ Resources and prompts are also exposed for goals, contracts, task summaries, roo
 - `read_logs` reads app-centric runtime lines first. `available=true` with an empty `lines` array is valid when the app emitted no runtime logs.
 - `read_network` is the low-token path for endpoint summaries, recent failures, and optional bounded entries. Prefer `run_command` -> `wait_idle` -> `read_network` over `inspect_ui` when the question is only about network traffic.
 - `pub` keeps dependency edits bounded and returns previews instead of full `pub` logs by default.
+- Shell agents usually get the lowest token cost from the CLI surface. Tool-calling hosts can use the matching MCP tools instead of reopening large command payloads in model context.
 - `analyze_files` is the low-token path for focused diagnostics; use `analyze_workspace` only when the question is workspace-wide.
 - `lsp` uses relative paths plus 1-based line and column inputs so agents do not need file URIs or zero-based math.
 - Use `minimal`, `standard`, `inspect`, and `evidence` profiles to trade off token cost against detail.
-- Interactive app commands accept `timeout_ms`. Workspace tools accept `timeout_seconds`. Keep the default unless the task is known to be slow.
+- Interactive app commands accept `timeoutMs`. Workspace tools accept `timeoutSeconds`. Keep the default unless the task is known to be slow.
 - `pub_dev_search` uses a bounded network path and a local Python fallback when direct TLS fetches fail on the host.
 - Advanced low-level session services still exist in the Dart API, but the recommended public loop is app-first.
 

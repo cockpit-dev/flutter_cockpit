@@ -6,21 +6,31 @@ import 'package:flutter_cockpit_devtools/src/cli/commands/hot_reload_command.dar
 import 'package:flutter_cockpit_devtools/src/cli/commands/hot_restart_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/inspect_ui_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/launch_app_command.dart';
+import 'package:flutter_cockpit_devtools/src/cli/commands/lsp_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/list_targets_command.dart';
+import 'package:flutter_cockpit_devtools/src/cli/commands/pub_command.dart';
+import 'package:flutter_cockpit_devtools/src/cli/commands/pub_dev_search_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/read_app_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/read_errors_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/read_logs_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/read_network_command.dart';
+import 'package:flutter_cockpit_devtools/src/cli/commands/read_package_uris_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/run_batch_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/run_command_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/run_script_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/run_task_command.dart';
+import 'package:flutter_cockpit_devtools/src/cli/commands/run_tests_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/serve_mcp_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/start_recording_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/stop_app_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/stop_recording_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/validate_task_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/wait_idle_command.dart';
+import 'package:flutter_cockpit_devtools/src/cli/commands/analyze_files_command.dart';
+import 'package:flutter_cockpit_devtools/src/cli/commands/analyze_workspace_command.dart';
+import 'package:flutter_cockpit_devtools/src/cli/commands/apply_fixes_command.dart';
+import 'package:flutter_cockpit_devtools/src/cli/commands/create_project_command.dart';
+import 'package:flutter_cockpit_devtools/src/cli/commands/format_workspace_command.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -28,11 +38,16 @@ void main() {
     final help = await _captureHelp(const <String>['--help']);
 
     expect(help, contains('Fast loop:'));
+    expect(help, contains('Workspace'));
     expect(help, contains('launch-app'));
+    expect(help, contains('analyze-files'));
+    expect(help, contains('lsp'));
+    expect(help, contains('pub'));
     expect(help, contains('run-command'));
     expect(help, contains('read-network'));
     expect(help, contains('run-task'));
     expect(help, contains('Use --output-json'));
+    expect(help, contains('current directory'));
   });
 
   test('launch-app help explains required inputs and emitted handle', () {
@@ -59,8 +74,8 @@ void main() {
     final usage = _helpForCommand(RunCommandCommand());
 
     expect(usage, contains('command.json'));
-    expect(usage, contains('"command_id"'));
-    expect(usage, contains('"command_type"'));
+    expect(usage, contains('"commandId"'));
+    expect(usage, contains('"commandType"'));
     expect(usage, contains('"parameters"'));
     expect(usage, contains('minimal=core only'));
     expect(usage, contains('compare-against-snapshot-ref'));
@@ -120,6 +135,16 @@ final List<dynamic> _topLevelCommands = <dynamic>[
   HotRestartCommand(),
   StopAppCommand(),
   WaitIdleCommand(),
+  PubDevSearchCommand(),
+  PubCommand(),
+  ReadPackageUrisCommand(),
+  LspCommand(),
+  AnalyzeFilesCommand(),
+  CreateProjectCommand(),
+  AnalyzeWorkspaceCommand(),
+  FormatWorkspaceCommand(),
+  RunTestsCommand(),
+  ApplyFixesCommand(),
   StartRecordingCommand(),
   StopRecordingCommand(),
   ReadLogsCommand(),

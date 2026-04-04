@@ -62,7 +62,7 @@ final class CockpitLspResult {
 
   Map<String, Object?> toJson() => <String, Object?>{
         'command': _cockpitLspCommandName(command),
-        'workspace_root': workspaceRoot,
+        'workspaceRoot': workspaceRoot,
         'summary': summary,
         ...payload,
       };
@@ -185,7 +185,7 @@ final class CockpitLspService {
         'path': p.relative(documentPath, from: workspaceRoot),
         'line': request.line!,
         'column': request.column!,
-        'definition_count': definitions.length,
+        'definitionCount': definitions.length,
         'definitions': definitions,
       },
     );
@@ -246,8 +246,8 @@ final class CockpitLspService {
         'path': p.relative(documentPath, from: workspaceRoot),
         'line': request.line!,
         'column': request.column!,
-        'active_signature': json['activeSignature'] as int?,
-        'active_parameter': json['activeParameter'] as int?,
+        'activeSignature': json['activeSignature'] as int?,
+        'activeParameter': json['activeParameter'] as int?,
         'signatures': signatures,
       },
     );
@@ -284,7 +284,7 @@ final class CockpitLspService {
           : '${symbols.length} document symbols found.',
       payload: <String, Object?>{
         'path': p.relative(documentPath, from: workspaceRoot),
-        'symbol_count': symbols.length,
+        'symbolCount': symbols.length,
         'symbols': symbols,
       },
     );
@@ -308,9 +308,9 @@ final class CockpitLspService {
           details: <String, Object?>{
             'method': method,
             'path': p.relative(documentPath, from: workspaceRoot),
-            'timeout_ms': timeout.inMilliseconds,
+            'timeoutMs': timeout.inMilliseconds,
             if (lastRetryableError != null)
-              'last_error': lastRetryableError.toString(),
+              'lastError': lastRetryableError.toString(),
           },
         );
       }
@@ -381,9 +381,9 @@ final class CockpitLspService {
       payload: <String, Object?>{
         'query': query,
         'source': directSymbols.isNotEmpty
-            ? 'workspace_symbol'
+            ? 'workspaceSymbol'
             : 'document_symbol_fallback',
-        'symbol_count': symbols.length,
+        'symbolCount': symbols.length,
         'symbols': symbols,
       },
     );
@@ -407,7 +407,7 @@ final class CockpitLspService {
         message: 'path does not exist.',
         details: <String, Object?>{
           'path': rawPath,
-          'resolved_path': candidate,
+          'resolvedPath': candidate,
         },
       );
     }
@@ -607,7 +607,7 @@ final class _LocalCockpitLspExecutor implements CockpitLspExecutor {
         message: 'LSP request timed out.',
         details: <String, Object?>{
           'method': method,
-          'timeout_ms': timeout.inMilliseconds,
+          'timeoutMs': timeout.inMilliseconds,
           if (stderr.trim().isNotEmpty) 'stderr': _truncateText(stderr, 1200),
         },
       );
@@ -846,10 +846,10 @@ Map<String, Object?>? _rangeToJson(Object? raw) {
   final end = Map<Object?, Object?>.from(
       raw['end'] as Map<Object?, Object?>? ?? const {});
   return <String, Object?>{
-    'start_line': (start['line'] as int? ?? 0) + 1,
-    'start_column': (start['character'] as int? ?? 0) + 1,
-    'end_line': (end['line'] as int? ?? 0) + 1,
-    'end_column': (end['character'] as int? ?? 0) + 1,
+    'startLine': (start['line'] as int? ?? 0) + 1,
+    'startColumn': (start['character'] as int? ?? 0) + 1,
+    'endLine': (end['line'] as int? ?? 0) + 1,
+    'endColumn': (end['character'] as int? ?? 0) + 1,
   };
 }
 
@@ -915,7 +915,7 @@ List<Map<String, Object?>> _documentSymbolResults(
     items.add(<String, Object?>{
       'name': '${json['name'] ?? ''}',
       'kind': _symbolKindName(json['kind'] as int?),
-      if (containerName != null) 'container_name': containerName,
+      if (containerName != null) 'containerName': containerName,
       if (json['detail'] case final String detail when detail.trim().isNotEmpty)
         'detail': _truncateText(detail, maxChars),
       'path': p.relative(defaultPath, from: workspaceRoot),
@@ -947,7 +947,7 @@ List<Map<String, Object?>> _documentSymbolResults(
         'kind': _symbolKindName(item['kind'] as int?),
         if (item['containerName'] case final String containerName
             when containerName.trim().isNotEmpty)
-          'container_name': containerName,
+          'containerName': containerName,
         'path': uri == null
             ? p.relative(defaultPath, from: workspaceRoot)
             : p.relative(Uri.parse(uri).toFilePath(), from: workspaceRoot),
@@ -979,7 +979,7 @@ List<Map<String, Object?>> _workspaceSymbolResults(
       'kind': _symbolKindName(item['kind'] as int?),
       if (item['containerName'] case final String containerName
           when containerName.trim().isNotEmpty)
-        'container_name': containerName,
+        'containerName': containerName,
       if (item['deprecated'] case final bool deprecated)
         'deprecated': deprecated,
       if (uri != null)

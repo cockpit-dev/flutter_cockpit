@@ -59,20 +59,20 @@ final class CockpitPubResult {
   final int stderrLineCount;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'workspace_root': workspaceRoot,
+        'workspaceRoot': workspaceRoot,
         'toolchain': toolchain.name,
-        'pub_command': pubCommand.name,
+        'pubCommand': pubCommand.name,
         'packages': packages,
         'command': command.toJson(),
-        'exit_code': exitCode,
+        'exitCode': exitCode,
         'success': success,
         'summary': summary,
-        if (stdoutPreview != null) 'stdout_preview': stdoutPreview,
-        'stdout_truncated': stdoutTruncated,
-        'stdout_line_count': stdoutLineCount,
-        if (stderrPreview != null) 'stderr_preview': stderrPreview,
-        'stderr_truncated': stderrTruncated,
-        'stderr_line_count': stderrLineCount,
+        if (stdoutPreview != null) 'stdoutPreview': stdoutPreview,
+        'stdoutTruncated': stdoutTruncated,
+        'stdoutLineCount': stdoutLineCount,
+        if (stderrPreview != null) 'stderrPreview': stderrPreview,
+        'stderrTruncated': stderrTruncated,
+        'stderrLineCount': stderrLineCount,
       };
 }
 

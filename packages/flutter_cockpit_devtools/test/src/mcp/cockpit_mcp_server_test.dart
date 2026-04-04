@@ -81,17 +81,17 @@ void main() {
             as Map<String, Object?>)['properties'] as Map<String, Object?>)
         .keys;
     expect(readAppProperties, contains('profile'));
-    expect(readAppProperties, isNot(contains('result_profile')));
+    expect(readAppProperties, isNot(contains('resultProfile')));
 
     final runBatchProperties = ((byName['run_batch']!['inputSchema']
             as Map<String, Object?>)['properties'] as Map<String, Object?>)
         .keys;
     expect(runBatchProperties,
-        containsAll(<String>['default_profile', 'final_profile']));
+        containsAll(<String>['defaultProfile', 'finalProfile']));
     expect(
       runBatchProperties,
       isNot(containsAll(
-          <String>['default_result_profile', 'final_snapshot_profile'])),
+          <String>['defaultResultProfile', 'finalSnapshotProfile'])),
     );
   });
 
@@ -114,12 +114,14 @@ void main() {
     expect(
         fixedNames,
         containsAll(<String>[
-          'workspace_goals',
-          'workspace_roots',
+          'workspace_skill_contract',
+          'workspace_task_bundle_contract',
+          'workspaceRoots',
           'apps',
           'latest_task',
           'workspace_capabilities',
         ]));
+    expect(fixedNames, isNot(contains('workspace_goals')));
     expect(fixedNames, isNot(contains('active_sessions')));
 
     final templateResourcesResponse = await server.handleMessage(
@@ -137,16 +139,35 @@ void main() {
         resource['name']! as String: resource['uriTemplate']! as String,
     };
 
-    expect(templateMap['app'], 'cockpit://app/details{?app_id}');
+    expect(templateMap['app'], 'cockpit://app/details{?appId}');
     expect(
-      templateMap['task_bundle_summary'],
-      'cockpit://task/summary{?bundle_dir}',
+      templateMap['task_bundleSummary'],
+      'cockpit://task/summary{?bundleDir}',
     );
     expect(
       templateMap['package_uri'],
-      'cockpit://package/read{?workspace_root,uri}',
+      'cockpit://package/read{?workspaceRoot,uri}',
     );
-    expect(templateMap.containsKey('development_session'), isFalse);
+    expect(templateMap.containsKey('developmentSession'), isFalse);
+  });
+
+  test('standard server exposes workspace_goals only when configured',
+      () async {
+    final server = CockpitMcpServer.standard(goalsFilePath: '/tmp/GOALS.md');
+
+    final fixedResourcesResponse = await server.handleMessage(<String, Object?>{
+      'jsonrpc': '2.0',
+      'id': 11,
+      'method': 'resources/list',
+    });
+    final fixedResources = ((fixedResourcesResponse?['result']
+            as Map<String, Object?>)['resources'] as List<Object?>)
+        .cast<Map<String, Object?>>();
+    final fixedNames = fixedResources
+        .map((resource) => resource['name'])
+        .toList(growable: false);
+
+    expect(fixedNames, contains('workspace_goals'));
   });
 
   test('server initializes, lists tools, and dispatches tool calls', () async {
@@ -213,20 +234,30 @@ void main() {
     });
     final callResult = callResponse?['result'] as Map<String, Object?>;
     expect(
-      (callResult['structuredContent'] as Map<String, Object?>)['echoed_value'],
+      (callResult['structuredContent'] as Map<String, Object?>)['echoedValue'],
       'hello',
     );
   });
 
   test('standard server resolves workspace contracts from workspace roots',
       () async {
-    final repoRoot = p.normalize(
+    final currentDir = Directory.current.path;
+    final repoRoot = File(
       p.join(
-        Directory.current.path,
-        '..',
-        '..',
+        currentDir,
+        'docs',
+        'contracts',
+        'flutter-cockpit-skill-contract.md',
       ),
-    );
+    ).existsSync()
+        ? currentDir
+        : p.normalize(
+            p.join(
+              currentDir,
+              '..',
+              '..',
+            ),
+          );
     final server = CockpitMcpServer.standard(
       workspaceRoots: <String>[repoRoot],
     );

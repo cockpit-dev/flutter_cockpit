@@ -44,8 +44,8 @@ final class CockpitReadSessionLogsTool extends CockpitMcpTool {
         'type': 'object',
         'required': <String>['development_session_id'],
         'properties': <String, Object?>{
-          'development_session_id': <String, Object?>{'type': 'string'},
-          'max_lines': <String, Object?>{'type': 'integer'},
+          'developmentSessionId': <String, Object?>{'type': 'string'},
+          'maxLines': <String, Object?>{'type': 'integer'},
         },
       };
 

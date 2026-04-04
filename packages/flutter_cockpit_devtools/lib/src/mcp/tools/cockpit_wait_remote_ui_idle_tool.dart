@@ -42,11 +42,11 @@ final class CockpitWaitRemoteUiIdleTool extends CockpitMcpTool {
   Map<String, Object?> get inputSchema => const <String, Object?>{
         'type': 'object',
         'properties': <String, Object?>{
-          'session_handle': <String, Object?>{'type': 'object'},
-          'session_handle_path': <String, Object?>{'type': 'string'},
-          'quiet_window_ms': <String, Object?>{'type': 'integer'},
-          'timeout_ms': <String, Object?>{'type': 'integer'},
-          'include_network_idle': <String, Object?>{'type': 'boolean'},
+          'sessionHandle': <String, Object?>{'type': 'object'},
+          'sessionHandlePath': <String, Object?>{'type': 'string'},
+          'quietWindowMs': <String, Object?>{'type': 'integer'},
+          'timeoutMs': <String, Object?>{'type': 'integer'},
+          'includeNetworkIdle': <String, Object?>{'type': 'boolean'},
         },
       };
 

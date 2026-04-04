@@ -58,7 +58,7 @@ final class RunCommandCommand extends CockpitCliCommand {
 
   @override
   String get helpShape =>
-      'command.json = {"command_id":"open-today","command_type":"tap","locator":{"text":"Today","key":"nav-today","ancestor":{"route":"/inbox"}},"parameters":{"hit_test_miss_policy":"warn"}}; locator can combine text/key/semantic_id/type/path and nested ancestor filters; optional --timeout-ms sets a default for commands that omit timeout_ms.';
+      'command.json = {"commandId":"open-today","commandType":"tap","locator":{"text":"Today","key":"nav-today","ancestor":{"route":"/inbox"}},"parameters":{"hitTestMissPolicy":"warn"}}; locator can combine text/key/semanticId/type/path and nested ancestor filters; optional --timeout-ms sets a default for commands that omit timeoutMs.';
 
   @override
   String get helpExample =>
@@ -66,7 +66,7 @@ final class RunCommandCommand extends CockpitCliCommand {
 
   @override
   String get helpWrites =>
-      'Command outcome, optional UI and diagnostics layers, and maybe snapshot_ref.';
+      'Command outcome, optional UI and diagnostics layers, and maybe snapshotRef.';
 
   @override
   Future<int> run() async {

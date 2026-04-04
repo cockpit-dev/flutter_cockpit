@@ -108,7 +108,7 @@ final class CockpitMcpServer {
   factory CockpitMcpServer.standard({
     String serverName = 'flutter_cockpit_devtools',
     String serverVersion = '1.0.0',
-    String goalsFilePath = 'GOALS.md',
+    String? goalsFilePath,
     String skillContractPath =
         'docs/contracts/flutter-cockpit-skill-contract.md',
     String bundleContractPath = 'docs/contracts/task-run-bundle.md',
@@ -120,10 +120,12 @@ final class CockpitMcpServer {
     final rootsTracker = CockpitMcpRootsTracker(
       forceFallback: forceRootsFallback,
     );
-    final resolvedGoalsFilePath = _resolveWorkspacePathForStandardServer(
-      goalsFilePath,
-      workspaceRoots: workspaceRoots,
-    );
+    final resolvedGoalsFilePath = goalsFilePath == null
+        ? null
+        : _resolveWorkspacePathForStandardServer(
+            goalsFilePath,
+            workspaceRoots: workspaceRoots,
+          );
     final resolvedSkillContractPath = _resolveWorkspacePathForStandardServer(
       skillContractPath,
       workspaceRoots: workspaceRoots,
@@ -258,7 +260,6 @@ final class CockpitMcpServer {
       CockpitCreateProjectWithValidationPrompt(),
     ];
     final baseResources = <CockpitMcpResource>[
-      CockpitWorkspaceGoalsResource(goalsFilePath: resolvedGoalsFilePath),
       CockpitWorkspaceSkillContractResource(
         skillContractPath: resolvedSkillContractPath,
       ),
@@ -275,6 +276,8 @@ final class CockpitMcpServer {
       CockpitLatestTaskResource(service: readLatestTaskSummaryService),
       CockpitTaskBundleSummaryResource(),
       CockpitPackageUriResource(rootsTracker: rootsTracker),
+      if (resolvedGoalsFilePath != null)
+        CockpitWorkspaceGoalsResource(goalsFilePath: resolvedGoalsFilePath),
     ];
     final resources = <CockpitMcpResource>[
       ...baseResources,
@@ -499,7 +502,7 @@ final class CockpitMcpServer {
           final result = await tool.call(normalizedArguments);
           final structuredContent = result['structuredContent'];
           if (structuredContent is Map<Object?, Object?>) {
-            result['structuredContent'] = cockpitSnakeCaseJsonValue(
+            result['structuredContent'] = cockpitCamelCaseJsonValue(
               Map<String, Object?>.from(structuredContent),
             ) as Map<String, Object?>;
           }

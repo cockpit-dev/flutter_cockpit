@@ -49,14 +49,14 @@ final class CockpitAnalyzeFilesTool extends CockpitMcpTool {
         'type': 'object',
         'required': <String>['paths'],
         'properties': <String, Object?>{
-          'workspace_root': <String, Object?>{'type': 'string'},
+          'workspaceRoot': <String, Object?>{'type': 'string'},
           'paths': <String, Object?>{
             'type': 'array',
             'items': <String, Object?>{'type': 'string'},
           },
-          'max_diagnostics': <String, Object?>{'type': 'integer'},
-          'max_output_chars': <String, Object?>{'type': 'integer'},
-          'timeout_seconds': <String, Object?>{'type': 'integer'},
+          'maxDiagnostics': <String, Object?>{'type': 'integer'},
+          'maxOutputChars': <String, Object?>{'type': 'integer'},
+          'timeoutSeconds': <String, Object?>{'type': 'integer'},
         },
       };
 

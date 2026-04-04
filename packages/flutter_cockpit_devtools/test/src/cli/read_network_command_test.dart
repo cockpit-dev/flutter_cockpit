@@ -66,7 +66,7 @@ void main() {
     expect(capturedRequest?.onlyFailures, isTrue);
     expect(capturedRequest?.includeEntries, isTrue);
     final decoded = jsonDecode(stdoutBuffer.toString()) as Map<String, Object?>;
-    expect(decoded['app_id'], 'dev.example.app');
+    expect(decoded['appId'], 'dev.example.app');
     expect(decoded['available'], isTrue);
     expect(decoded['summary'], isA<Map<String, Object?>>());
   });

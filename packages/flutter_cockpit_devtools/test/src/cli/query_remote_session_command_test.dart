@@ -64,8 +64,8 @@ void main() {
 
     expect(exitCode, 0);
     final decoded = jsonDecode(await outputFile.readAsString());
-    expect(decoded['session_id'], 'query-demo');
-    expect(decoded['current_route_name'], '/home');
+    expect(decoded['sessionId'], 'query-demo');
+    expect(decoded['currentRouteName'], '/home');
   });
 
   test(
@@ -141,7 +141,7 @@ void main() {
 
       expect(exitCode, 0);
       final decoded = jsonDecode(await outputFile.readAsString());
-      expect(decoded['session_id'], 'query-android-demo');
+      expect(decoded['sessionId'], 'query-android-demo');
     },
   );
 
@@ -190,16 +190,16 @@ void main() {
         await request.response.close();
       });
 
-      final sessionFile = File(p.join(tempDir.path, 'session_handle.json'));
+      final sessionFile = File(p.join(tempDir.path, 'sessionHandle.json'));
       await sessionFile.writeAsString(
         jsonEncode(<String, Object?>{
-          'app_id': 'dev.cockpit.cockpitDemo',
+          'appId': 'dev.cockpit.cockpitDemo',
           'mode': 'automation',
           'platform': 'ios',
-          'device_id': 'simulator',
-          'project_dir': '/workspace/examples/cockpit_demo',
+          'deviceId': 'simulator',
+          'projectDir': '/workspace/examples/cockpit_demo',
           'target': 'lib/main.dart',
-          'base_url': 'http://127.0.0.1:${server.port}',
+          'baseUrl': 'http://127.0.0.1:${server.port}',
           'launched_at': '2026-03-21T00:00:00.000Z',
         }),
       );
@@ -215,8 +215,8 @@ void main() {
 
       expect(exitCode, 0);
       final decoded = jsonDecode(await outputFile.readAsString());
-      expect(decoded['session_id'], 'query-handle-demo');
-      expect(decoded['current_route_name'], '/success');
+      expect(decoded['sessionId'], 'query-handle-demo');
+      expect(decoded['currentRouteName'], '/success');
     },
   );
 }

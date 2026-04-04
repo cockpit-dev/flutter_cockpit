@@ -47,15 +47,15 @@ final class CockpitExecuteRemoteCommandBatchTool extends CockpitMcpTool {
         'type': 'object',
         'required': <String>['commands'],
         'properties': <String, Object?>{
-          'session_handle': <String, Object?>{'type': 'object'},
-          'session_handle_path': <String, Object?>{'type': 'string'},
+          'sessionHandle': <String, Object?>{'type': 'object'},
+          'sessionHandlePath': <String, Object?>{'type': 'string'},
           'commands': <String, Object?>{'type': 'array'},
-          'default_timeout_ms': <String, Object?>{'type': 'integer'},
-          'default_profile': <String, Object?>{'type': 'string'},
-          'fail_fast': <String, Object?>{'type': 'boolean'},
+          'defaultTimeoutMs': <String, Object?>{'type': 'integer'},
+          'defaultProfile': <String, Object?>{'type': 'string'},
+          'failFast': <String, Object?>{'type': 'boolean'},
           'recording': <String, Object?>{'type': 'object'},
-          'final_profile': <String, Object?>{'type': 'string'},
-          'final_snapshot_options': <String, Object?>{'type': 'object'},
+          'finalProfile': <String, Object?>{'type': 'string'},
+          'finalSnapshotOptions': <String, Object?>{'type': 'object'},
         },
       };
 
@@ -67,32 +67,30 @@ final class CockpitExecuteRemoteCommandBatchTool extends CockpitMcpTool {
           sessionHandle: cockpitReadOptionalSessionHandle(arguments),
           sessionHandlePath: cockpitReadOptionalString(
             arguments,
-            'session_handle_path',
+            'sessionHandlePath',
           ),
           commands: cockpitReadRequiredObjectList(arguments, 'commands')
               .map(_readBatchCommand)
               .toList(growable: false),
           defaultResultProfile: (_readOptionalProfile(
                     arguments,
-                    'default_profile',
+                    'defaultProfile',
                   ) ??
-                  _readOptionalProfile(arguments, 'default_result_profile')) ??
+                  _readOptionalProfile(arguments, 'defaultResultProfile')) ??
               const CockpitInteractiveResultProfile.standard(),
           defaultCommandTimeout: Duration(
             milliseconds:
-                cockpitReadOptionalInt(arguments, 'default_timeout_ms') ?? 4000,
+                cockpitReadOptionalInt(arguments, 'defaultTimeoutMs') ?? 4000,
           ),
-          failFast: cockpitReadOptionalBool(arguments, 'fail_fast') ??
-              cockpitReadOptionalBool(arguments, 'failFast') ??
-              true,
+          failFast: cockpitReadOptionalBool(arguments, 'failFast') ?? true,
           recording: _readOptionalRecording(arguments),
           finalSnapshotProfile:
-              _readOptionalProfile(arguments, 'final_profile') ??
-                  _readOptionalProfile(arguments, 'final_snapshot_profile') ??
+              _readOptionalProfile(arguments, 'finalProfile') ??
+                  _readOptionalProfile(arguments, 'finalSnapshotProfile') ??
                   _readOptionalProfile(arguments, 'finalSnapshotProfile'),
           finalSnapshotOptions: _readOptionalSnapshotOptions(
             arguments,
-            'final_snapshot_options',
+            'finalSnapshotOptions',
             'finalSnapshotOptions',
           ),
         ),
@@ -111,21 +109,18 @@ final class CockpitExecuteRemoteCommandBatchTool extends CockpitMcpTool {
     final normalized = commandJson is Map<Object?, Object?>
         ? Map<String, Object?>.from(commandJson)
         : json;
-    final snapshotOptionsJson =
-        json['snapshot_options'] ?? json['snapshotOptions'];
+    final snapshotOptionsJson = json['snapshotOptions'];
     return CockpitInteractiveBatchCommand(
       command: CockpitCommand.fromJson(normalized),
       resultProfile: _readOptionalProfileFromValue(
-        json['profile'] ?? json['result_profile'] ?? json['resultProfile'],
+        json['profile'] ?? json['resultProfile'],
       ),
       snapshotOptions: snapshotOptionsJson is Map<Object?, Object?>
           ? CockpitSnapshotOptions.fromJson(
               Map<String, Object?>.from(snapshotOptionsJson),
             )
           : null,
-      compareAgainstSnapshotRef:
-          json['compare_against_snapshot_ref'] as String? ??
-              json['compareAgainstSnapshotRef'] as String?,
+      compareAgainstSnapshotRef: json['compareAgainstSnapshotRef'] as String?,
     );
   }
 
@@ -133,7 +128,7 @@ final class CockpitExecuteRemoteCommandBatchTool extends CockpitMcpTool {
     Map<String, Object?> arguments,
     String key,
   ) {
-    final value = arguments[key];
+    final value = cockpitReadOptionalString(arguments, key);
     return _readOptionalProfileFromValue(value);
   }
 
@@ -162,9 +157,7 @@ final class CockpitExecuteRemoteCommandBatchTool extends CockpitMcpTool {
     String snakeCaseKey,
     String camelCaseKey,
   ) {
-    final json = arguments.containsKey(snakeCaseKey)
-        ? cockpitReadOptionalObject(arguments, snakeCaseKey)
-        : cockpitReadOptionalObject(arguments, camelCaseKey);
+    final json = cockpitReadOptionalObject(arguments, camelCaseKey);
     if (json == null) {
       return null;
     }

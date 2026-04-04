@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
@@ -7,6 +6,7 @@ import '../development/cockpit_development_session_status.dart';
 import 'cockpit_app_handle.dart';
 import 'cockpit_app_reference_resolver.dart';
 import 'cockpit_application_service_exception.dart';
+import 'cockpit_json_key_normalizer.dart';
 import 'cockpit_platform_app_stopper.dart';
 import 'cockpit_session_registry.dart';
 import 'cockpit_stop_development_session_service.dart';
@@ -65,7 +65,7 @@ final class CockpitStopAppResult {
   Map<String, Object?> toJson() => <String, Object?>{
         'app': app.toJson(),
         'status': status.toJson(),
-        'app_json_path': appJsonPath,
+        'appJsonPath': appJsonPath,
       };
 }
 
@@ -87,9 +87,9 @@ final class CockpitAppStopStatus {
   Map<String, Object?> toJson() => <String, Object?>{
         'mode': mode.jsonValue,
         'state': state,
-        'app_reachable': appReachable,
-        'remote_session_reachable': remoteSessionReachable,
-        'last_error': lastError,
+        'appReachable': appReachable,
+        'remoteSessionReachable': remoteSessionReachable,
+        'lastError': lastError,
       };
 
   factory CockpitAppStopStatus.fromDevelopmentStatus(
@@ -211,9 +211,7 @@ final class CockpitStopAppService {
     }
     final file = File(path);
     await file.parent.create(recursive: true);
-    await file.writeAsString(
-      const JsonEncoder.withIndent('  ').convert(app.toJson()),
-    );
+    await file.writeAsString(cockpitPrettyJsonText(app.toJson()));
     return p.normalize(file.path);
   }
 

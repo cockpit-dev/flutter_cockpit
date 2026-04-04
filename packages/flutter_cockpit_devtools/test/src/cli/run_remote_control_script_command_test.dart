@@ -630,16 +630,16 @@ void main() {
         await request.response.close();
       });
 
-      final sessionFile = File(p.join(tempDir.path, 'session_handle.json'));
+      final sessionFile = File(p.join(tempDir.path, 'sessionHandle.json'));
       await sessionFile.writeAsString(
         jsonEncode(<String, Object?>{
-          'app_id': 'dev.cockpit.cockpitDemo',
+          'appId': 'dev.cockpit.cockpitDemo',
           'mode': 'automation',
           'platform': 'ios',
-          'device_id': 'simulator',
-          'project_dir': '/workspace/examples/cockpit_demo',
+          'deviceId': 'simulator',
+          'projectDir': '/workspace/examples/cockpit_demo',
           'target': 'lib/main.dart',
-          'base_url': 'http://127.0.0.1:${server.port}',
+          'baseUrl': 'http://127.0.0.1:${server.port}',
           'launched_at': '2026-03-21T00:00:00.000Z',
         }),
       );

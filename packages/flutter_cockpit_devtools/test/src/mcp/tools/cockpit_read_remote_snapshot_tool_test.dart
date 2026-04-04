@@ -18,7 +18,7 @@ void main() {
     );
 
     final result = await tool.call(<String, Object?>{
-      'session_handle': <String, Object?>{
+      'sessionHandle': <String, Object?>{
         'platform': 'macos',
         'deviceId': 'macos',
         'projectDir': '/workspace',
@@ -31,8 +31,8 @@ void main() {
         'launchedAt': '2026-03-30T00:00:00.000Z',
       },
       'profile': 'inspect',
-      'snapshot_options': <String, Object?>{'profile': 'forensic'},
-      'compare_against_snapshot_ref': 'snapshot-1',
+      'snapshotOptions': <String, Object?>{'profile': 'forensic'},
+      'compareAgainstSnapshotRef': 'snapshot-1',
     });
 
     expect(capturedRequest?.resultProfile.name.jsonValue, 'inspect');

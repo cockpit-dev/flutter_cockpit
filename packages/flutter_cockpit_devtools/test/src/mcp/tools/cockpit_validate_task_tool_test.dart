@@ -87,7 +87,7 @@ void main() {
             'commands': const <Map<String, Object?>>[],
             'failFast': true,
           },
-          'output_root': '/tmp/out',
+          'outputRoot': '/tmp/out',
         },
         'validation': const <String, Object?>{
           'expected_classification': 'completed',
@@ -104,18 +104,18 @@ void main() {
       final structuredContent =
           result['structuredContent'] as Map<String, Object?>;
       expect(structuredContent['classification'], 'completed');
-      expect(structuredContent['recommended_next_step'], 'delivery_ready');
+      expect(structuredContent['recommendedNextStep'], 'delivery_ready');
       final bundleSummary =
-          structuredContent['bundle_summary'] as Map<String, Object?>;
-      expect(bundleSummary['bundle_dir'], '/tmp/out/validate-task');
+          structuredContent['bundleSummary'] as Map<String, Object?>;
+      expect(bundleSummary['bundleDir'], '/tmp/out/validate-task');
       expect(
-        (bundleSummary['runtime_summary']
-            as Map<String, Object?>)['warning_count'],
+        (bundleSummary['runtimeSummary']
+            as Map<String, Object?>)['warningCount'],
         1,
       );
       expect(
         (bundleSummary['evidence']
-            as Map<String, Object?>)['delivery_keyframes_ready'],
+            as Map<String, Object?>)['deliveryKeyframesReady'],
         isTrue,
       );
     },
@@ -142,7 +142,7 @@ void main() {
             'commands': const <Map<String, Object?>>[],
             'failFast': true,
           },
-          'output_root': '/tmp/out',
+          'outputRoot': '/tmp/out',
         },
       }),
       throwsA(isA<CockpitMcpError>()),

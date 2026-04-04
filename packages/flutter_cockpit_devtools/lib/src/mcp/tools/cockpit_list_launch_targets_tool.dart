@@ -43,7 +43,7 @@ final class CockpitListLaunchTargetsTool extends CockpitMcpTool {
   Map<String, Object?> get inputSchema => const <String, Object?>{
         'type': 'object',
         'properties': <String, Object?>{
-          'timeout_seconds': <String, Object?>{'type': 'integer'},
+          'timeoutSeconds': <String, Object?>{'type': 'integer'},
         },
       };
 

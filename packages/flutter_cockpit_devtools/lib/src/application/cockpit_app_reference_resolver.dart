@@ -87,7 +87,7 @@ final class CockpitAppReferenceResolver {
       throw CockpitApplicationServiceException(
         code: 'unknownAppId',
         message: 'Unknown app_id.',
-        details: <String, Object?>{'app_id': appId},
+        details: <String, Object?>{'appId': appId},
       );
     }
 

@@ -30,14 +30,14 @@ final class CockpitRunCommandTool extends CockpitMcpTool {
         'type': 'object',
         'required': <String>['command'],
         'properties': <String, Object?>{
-          'app_id': <String, Object?>{'type': 'string'},
-          'app_json': <String, Object?>{'type': 'string'},
-          'base_url': <String, Object?>{'type': 'string'},
+          'appId': <String, Object?>{'type': 'string'},
+          'appJson': <String, Object?>{'type': 'string'},
+          'baseUrl': <String, Object?>{'type': 'string'},
           'command': <String, Object?>{'type': 'object'},
-          'timeout_ms': <String, Object?>{'type': 'integer'},
+          'timeoutMs': <String, Object?>{'type': 'integer'},
           'profile': <String, Object?>{'type': 'string'},
-          'snapshot_options': <String, Object?>{'type': 'object'},
-          'compare_against_snapshot_ref': <String, Object?>{'type': 'string'},
+          'snapshotOptions': <String, Object?>{'type': 'object'},
+          'compareAgainstSnapshotRef': <String, Object?>{'type': 'string'},
         },
       };
 

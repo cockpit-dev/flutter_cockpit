@@ -64,9 +64,9 @@ void main() {
       );
 
       final result = await tool.call(<String, Object?>{
-        'base_url': 'http://127.0.0.1:58421',
-        'output_root': '/tmp/out',
-        'persist_script_path': '/tmp/replay_script.json',
+        'baseUrl': 'http://127.0.0.1:58421',
+        'outputRoot': '/tmp/out',
+        'persistScriptPath': '/tmp/replay_script.json',
         'script': <String, Object?>{
           'sessionId': 'run-tool-session',
           'taskId': 'run-tool-task',
@@ -94,10 +94,10 @@ void main() {
 
       final structuredContent =
           result['structuredContent'] as Map<String, Object?>;
-      expect(structuredContent['bundle_dir'], bundleDir.path);
+      expect(structuredContent['bundleDir'], bundleDir.path);
       expect(
-        (structuredContent['artifact_paths']
-            as Map<String, Object?>)['primary_recording_path'],
+        (structuredContent['artifactPaths']
+            as Map<String, Object?>)['primaryRecordingPath'],
         p.join(bundleDir.path, 'recordings', 'acceptance.mp4'),
       );
     },
@@ -113,8 +113,8 @@ void main() {
 
     expect(
       () => tool.call(<String, Object?>{
-        'base_url': 'http://127.0.0.1:58421',
-        'output_root': '/tmp/out',
+        'baseUrl': 'http://127.0.0.1:58421',
+        'outputRoot': '/tmp/out',
         'script': <String, Object?>{
           'sessionId': 'run-tool-session',
           'taskId': 'run-tool-task',
@@ -169,8 +169,8 @@ void main() {
 
     expect(
       () => tool.call(<String, Object?>{
-        'base_url': 'http://127.0.0.1:58421',
-        'output_root': '/tmp/out',
+        'baseUrl': 'http://127.0.0.1:58421',
+        'outputRoot': '/tmp/out',
         'script': <String, Object?>{
           'sessionId': 'run-tool-session',
           'taskId': 'run-tool-task',
@@ -188,8 +188,8 @@ void main() {
         isA<CockpitMcpError>()
             .having((error) => error.code, 'code', -32000)
             .having(
-              (error) => error.data['failure_summary'],
-              'failure_summary',
+              (error) => error.data['failureSummary'],
+              'failureSummary',
               'Expected text was not visible.',
             ),
       ),

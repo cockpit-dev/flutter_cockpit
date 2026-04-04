@@ -1,5 +1,4 @@
-import 'dart:convert';
-
+import '../../application/cockpit_json_key_normalizer.dart';
 import '../../application/cockpit_session_registry.dart';
 import '../core/cockpit_mcp_feature_category.dart';
 import '../core/cockpit_mcp_resource.dart';
@@ -46,12 +45,10 @@ final class CockpitDevelopmentSessionResource extends CockpitMcpResource {
         contents: <CockpitMcpResourceContents>[
           CockpitMcpTextResourceContents(
             uri: request.uri,
-            text: const JsonEncoder.withIndent('  ').convert(
-              <String, Object?>{
-                'state': 'missing',
-                'developmentSessionId': developmentSessionId,
-              },
-            ),
+            text: cockpitPrettyJsonText(<String, Object?>{
+              'state': 'missing',
+              'developmentSessionId': developmentSessionId,
+            }),
             mimeType: definition.mimeType,
           ),
         ],
@@ -61,7 +58,7 @@ final class CockpitDevelopmentSessionResource extends CockpitMcpResource {
       contents: <CockpitMcpResourceContents>[
         CockpitMcpTextResourceContents(
           uri: request.uri,
-          text: const JsonEncoder.withIndent('  ').convert(record.toJson()),
+          text: cockpitPrettyJsonText(record.toJson()),
           mimeType: definition.mimeType,
         ),
       ],

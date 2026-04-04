@@ -49,14 +49,14 @@ final class CockpitReadPackageUrisTool extends CockpitMcpTool {
         'type': 'object',
         'required': <String>['uris'],
         'properties': <String, Object?>{
-          'workspace_root': <String, Object?>{'type': 'string'},
+          'workspaceRoot': <String, Object?>{'type': 'string'},
           'uris': <String, Object?>{
             'type': 'array',
             'items': <String, Object?>{'type': 'string'},
           },
-          'max_preview_chars': <String, Object?>{'type': 'integer'},
-          'max_entries': <String, Object?>{'type': 'integer'},
-          'include_full_text': <String, Object?>{'type': 'boolean'},
+          'maxPreviewChars': <String, Object?>{'type': 'integer'},
+          'maxEntries': <String, Object?>{'type': 'integer'},
+          'includeFullText': <String, Object?>{'type': 'boolean'},
         },
       };
 
@@ -97,7 +97,7 @@ final class CockpitReadPackageUrisTool extends CockpitMcpTool {
       return cockpitMcpResult(
         text: 'Package URIs resolved.',
         structuredContent: <String, Object?>{
-          'workspace_root': workspaceRoot,
+          'workspaceRoot': workspaceRoot,
           'results': results,
         },
       );

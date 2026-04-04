@@ -48,9 +48,17 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-command --help
 5. `hot-reload` 或 `hot-restart`
 6. 交付时用 `run-script`、`run-task` 或 `validate-task`
 
-CLI JSON 输出统一为 `snake_case`。
+推荐代码侧闭环：
+
+1. `analyze-files --path ...`
+2. `lsp --command ...`
+3. `pub-dev-search`、`pub` 或 `read-package-uris`
+4. 只有问题已经不再是局部修改时，才升级到 `run-tests` 或 `analyze-workspace`
+
+CLI JSON 输出统一为 lower camel case。
 `launch-app` 会先自动探测 `cockpit/main.dart`，找不到再退回 `lib/main.dart`。
 `run-script` 写出的 bundle 只要状态是 `failed`，命令就会非零退出。
+workspace 命令默认把 `--workspace-root` 或 `--parent-directory` 视为当前目录。
 
 已验证可直接运行的 `run-command` 形状：
 
@@ -58,12 +66,12 @@ CLI JSON 输出统一为 `snake_case`。
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   run-command \
   --app-json /tmp/app.json \
-  --command-json '{"command_id":"assert-inbox","command_type":"assert_text","parameters":{"text":"Inbox"}}'
+  --command-json '{"commandId":"assert-inbox","commandType":"assertText","parameters":{"text":"Inbox"}}'
 ```
 
 Locator 规则：
 
-- 先用 `key`、`text`、`semantic_id`。
+- 先用 `key`、`text`、`semanticId`。
 - 只有还不够准时，才继续补 `route`、`type`、`path`、嵌套 `ancestor`。
 - `path` 是 fuzzy 匹配：`body`、`slivers`、数字索引这类噪声段会被忽略，所以 `scaffold.body/custom_scroll_view.slivers/0/...` 这类形状也能命中同一目标。
 - 需要兜底时用 `fallbacks`，不要把所有条件都塞进一个超长 locator。
@@ -110,7 +118,7 @@ workspace 工具：
 - `run_tests`
 - `apply_fixes`
 
-同时还会暴露 goals、contracts、task summary、roots、package read 与闭环提示词相关的 resources/prompts。
+同时还会暴露 contracts、capabilities、task summary、roots、package read 与闭环提示词相关的 resources/prompts。
 
 ## 说明
 
@@ -121,10 +129,11 @@ workspace 工具：
 - `read_logs` 会优先读取 app-centric 的 runtime 日志；如果 `available=true` 但 `lines` 为空，通常表示应用这次没有产生日志，不代表异常。
 - `read_network` 是低 token 的网络排查入口，适合看 endpoint summary、最近失败请求，以及按需返回的有界请求明细；如果问题只和网络有关，优先走 `run_command` -> `wait_idle` -> `read_network`，不要一开始就读大 snapshot。
 - `pub` 默认返回裁剪后的依赖操作结果，而不是整段 `pub` 日志。
+- 对 shell agent，CLI 通常是最低 token 成本的公共入口；对 tool-calling host，则可以直接走同能力的 MCP tool，而不是把大段命令输出重新塞回模型上下文。
 - `analyze_files` 适合低 token 的定点诊断；只有在问题是全仓级别时才用 `analyze_workspace`。
 - `lsp` 使用相对路径和从 1 开始的行列号，AI 不需要手写 file URI 或做 0 基换算。
 - 用 `minimal`、`standard`、`inspect`、`evidence` 控制 token 与信息量。
-- 应用交互命令使用 `timeout_ms`；workspace 工具使用 `timeout_seconds`。除非明确知道任务会很慢，否则先用默认值。
+- 应用交互命令使用 `timeoutMs`；workspace 工具使用 `timeoutSeconds`。除非明确知道任务会很慢，否则先用默认值。
 - `pub_dev_search` 走有界网络请求；宿主机直连 TLS 不稳定时，会退回本地 Python fetch。
 - 更底层的 session service 仍保留在 Dart API 中，但推荐公开主工作流已经切到 app-first。
 

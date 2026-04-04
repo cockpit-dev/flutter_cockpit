@@ -1,5 +1,4 @@
-import 'dart:convert';
-
+import '../../application/cockpit_json_key_normalizer.dart';
 import '../../application/cockpit_read_package_uris_service.dart';
 import '../../application/cockpit_workspace_tooling_support.dart';
 import '../core/cockpit_mcp_feature_category.dart';
@@ -21,7 +20,7 @@ final class CockpitPackageUriResource extends CockpitMcpResource {
   CockpitMcpResourceDefinition get definition =>
       const CockpitMcpResourceDefinition.template(
         name: 'package_uri',
-        uriTemplate: 'cockpit://package/read{?workspace_root,uri}',
+        uriTemplate: 'cockpit://package/read{?workspaceRoot,uri}',
         description:
             'Read a package: or package-root: URI using a workspace package_config.',
         mimeType: 'application/json',
@@ -39,13 +38,13 @@ final class CockpitPackageUriResource extends CockpitMcpResource {
     if (uri.host != 'package' || uri.path != '/read') {
       return null;
     }
-    final workspaceRootPath = uri.queryParameters['workspace_root'];
+    final workspaceRootPath = uri.queryParameters['workspaceRoot'];
     final workspaceRoot = resolveWorkspaceRoot(
       workspaceRoot: workspaceRootPath,
       allowedRoots: cockpitPathsFromRootUris(
         _rootsTracker.effectiveRoots.map((root) => root.uri),
       ),
-      argumentName: 'workspace_root',
+      argumentName: 'workspaceRoot',
     );
     final packageUri = uri.queryParameters['uri'];
     if (packageUri == null || packageUri.isEmpty) {
@@ -62,23 +61,23 @@ final class CockpitPackageUriResource extends CockpitMcpResource {
       ),
     );
     final payload = <String, Object?>{
-      'workspace_root': workspaceRoot,
+      'workspaceRoot': workspaceRoot,
       'uri': packageUri,
       'kind': result.kind.name,
-      'content_kind': result.contentKind.name,
-      'resolved_path': result.resolvedPath,
+      'contentKind': result.contentKind.name,
+      'resolvedPath': result.resolvedPath,
       'preview': result.preview,
       'text': result.text,
-      'media_type': result.mediaType,
-      'total_bytes': result.totalBytes,
-      'entry_count': result.entryCount,
+      'mediaType': result.mediaType,
+      'totalBytes': result.totalBytes,
+      'entryCount': result.entryCount,
       'truncated': result.truncated,
       'entries': result.entries
           .map(
             (entry) => <String, Object?>{
               'path': entry.path,
               'name': entry.name,
-              'is_directory': entry.isDirectory,
+              'isDirectory': entry.isDirectory,
             },
           )
           .toList(growable: false),
@@ -87,7 +86,7 @@ final class CockpitPackageUriResource extends CockpitMcpResource {
       contents: <CockpitMcpResourceContents>[
         CockpitMcpTextResourceContents(
           uri: request.uri,
-          text: const JsonEncoder.withIndent('  ').convert(payload),
+          text: cockpitPrettyJsonText(payload),
           mimeType: definition.mimeType,
         ),
       ],

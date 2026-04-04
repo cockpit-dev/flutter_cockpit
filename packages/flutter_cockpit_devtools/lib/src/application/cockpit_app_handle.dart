@@ -1,5 +1,6 @@
 import '../development/cockpit_development_session_handle.dart';
 import '../session/cockpit_remote_session_handle.dart';
+import 'cockpit_json_key_normalizer.dart';
 
 enum CockpitAppMode {
   development('development'),
@@ -55,42 +56,45 @@ final class CockpitAppHandle {
   bool get supportsHotReload => mode == CockpitAppMode.development;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'app_id': appId,
+        'appId': appId,
         'mode': mode.jsonValue,
         'platform': platform,
-        'device_id': deviceId,
-        'project_dir': projectDir,
+        'deviceId': deviceId,
+        'projectDir': projectDir,
         'target': target,
-        'base_url': baseUrl,
-        'launched_at': launchedAt.toUtc().toIso8601String(),
-        'platform_app_id': platformAppId,
-        'supports_hot_reload': supportsHotReload,
-        'supervisor_log_path': supervisorLogPath,
-        'development_session_id': developmentSession?.developmentSessionId,
-        'supervisor_base_url': developmentSession?.supervisorBaseUri.toString(),
-        'reload_generation': developmentSession?.reloadGeneration,
-        'vm_service_uri': developmentSession?.vmServiceUri?.toString(),
-        'last_reload_at':
+        'baseUrl': baseUrl,
+        'launchedAt': launchedAt.toUtc().toIso8601String(),
+        'platformAppId': platformAppId,
+        'supportsHotReload': supportsHotReload,
+        'supervisorLogPath': supervisorLogPath,
+        'developmentSessionId': developmentSession?.developmentSessionId,
+        'supervisorBaseUrl': developmentSession?.supervisorBaseUri.toString(),
+        'reloadGeneration': developmentSession?.reloadGeneration,
+        'vmServiceUri': developmentSession?.vmServiceUri?.toString(),
+        'lastReloadAt':
             developmentSession?.lastReloadAt?.toUtc().toIso8601String(),
       };
 
   factory CockpitAppHandle.fromJson(Map<String, Object?> json) {
+    final normalizedJson = cockpitNormalizeJsonKeys(json);
     final developmentSessionJson =
-        json['development_session'] as Map<Object?, Object?>?;
-    final remoteSessionJson = json['remote_session'] as Map<Object?, Object?>?;
+        normalizedJson['developmentSession'] as Map<Object?, Object?>?;
+    final remoteSessionJson =
+        normalizedJson['remoteSession'] as Map<Object?, Object?>?;
     return CockpitAppHandle(
-      appId: json['app_id']! as String,
-      mode: CockpitAppMode.fromJson(json['mode']),
-      platform: json['platform']! as String,
-      deviceId: json['device_id']! as String,
-      projectDir: json['project_dir']! as String,
-      target: json['target']! as String,
-      baseUrl: json['base_url']! as String,
-      launchedAt: DateTime.parse(json['launched_at']! as String).toUtc(),
-      platformAppId: json['platform_app_id'] as String?,
-      supervisorLogPath: json['supervisor_log_path'] as String?,
+      appId: normalizedJson['appId']! as String,
+      mode: CockpitAppMode.fromJson(normalizedJson['mode']),
+      platform: normalizedJson['platform']! as String,
+      deviceId: normalizedJson['deviceId']! as String,
+      projectDir: normalizedJson['projectDir']! as String,
+      target: normalizedJson['target']! as String,
+      baseUrl: normalizedJson['baseUrl']! as String,
+      launchedAt:
+          DateTime.parse(normalizedJson['launchedAt']! as String).toUtc(),
+      platformAppId: normalizedJson['platformAppId'] as String?,
+      supervisorLogPath: normalizedJson['supervisorLogPath'] as String?,
       developmentSession: developmentSessionJson == null
-          ? _developmentSessionFromCompactJson(json)
+          ? _developmentSessionFromCompactJson(normalizedJson)
           : CockpitDevelopmentSessionHandle.fromJson(
               Map<String, Object?>.from(developmentSessionJson),
             ),
@@ -171,8 +175,8 @@ final class CockpitAppHandle {
 CockpitDevelopmentSessionHandle? _developmentSessionFromCompactJson(
   Map<String, Object?> json,
 ) {
-  final developmentSessionId = json['development_session_id'] as String?;
-  final supervisorBaseUrl = json['supervisor_base_url'] as String?;
+  final developmentSessionId = json['developmentSessionId'] as String?;
+  final supervisorBaseUrl = json['supervisorBaseUrl'] as String?;
   if (developmentSessionId == null ||
       developmentSessionId.isEmpty ||
       supervisorBaseUrl == null ||
@@ -182,19 +186,19 @@ CockpitDevelopmentSessionHandle? _developmentSessionFromCompactJson(
   return CockpitDevelopmentSessionHandle(
     developmentSessionId: developmentSessionId,
     platform: json['platform']! as String,
-    deviceId: json['device_id']! as String,
-    projectDir: json['project_dir']! as String,
+    deviceId: json['deviceId']! as String,
+    projectDir: json['projectDir']! as String,
     target: json['target']! as String,
-    appId: json['app_id']! as String,
-    appBaseUrl: json['base_url']! as String,
+    appId: json['appId']! as String,
+    appBaseUrl: json['baseUrl']! as String,
     supervisorBaseUrl: supervisorBaseUrl,
-    launchedAt: DateTime.parse(json['launched_at']! as String).toUtc(),
-    reloadGeneration: json['reload_generation'] as int? ?? 0,
-    vmServiceUri: json['vm_service_uri'] == null
+    launchedAt: DateTime.parse(json['launchedAt']! as String).toUtc(),
+    reloadGeneration: json['reloadGeneration'] as int? ?? 0,
+    vmServiceUri: json['vmServiceUri'] == null
         ? null
-        : Uri.parse(json['vm_service_uri']! as String),
-    lastReloadAt: json['last_reload_at'] == null
+        : Uri.parse(json['vmServiceUri']! as String),
+    lastReloadAt: json['lastReloadAt'] == null
         ? null
-        : DateTime.parse(json['last_reload_at']! as String).toUtc(),
+        : DateTime.parse(json['lastReloadAt']! as String).toUtc(),
   );
 }

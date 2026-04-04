@@ -1,5 +1,4 @@
-import 'dart:convert';
-
+import '../../application/cockpit_json_key_normalizer.dart';
 import '../../application/cockpit_list_workspace_roots_service.dart';
 import '../core/cockpit_mcp_feature_category.dart';
 import '../core/cockpit_mcp_resource.dart';
@@ -15,7 +14,7 @@ final class CockpitWorkspaceRootsResource extends CockpitMcpResource {
   @override
   CockpitMcpResourceDefinition get definition =>
       const CockpitMcpResourceDefinition.fixed(
-        name: 'workspace_roots',
+        name: 'workspaceRoots',
         uri: 'cockpit://workspace/roots',
         description: 'The effective workspace roots for this MCP server.',
         mimeType: 'application/json',
@@ -36,7 +35,7 @@ final class CockpitWorkspaceRootsResource extends CockpitMcpResource {
       contents: <CockpitMcpResourceContents>[
         CockpitMcpTextResourceContents(
           uri: request.uri,
-          text: const JsonEncoder.withIndent('  ').convert(_service.list()),
+          text: cockpitPrettyJsonText(_service.list()),
           mimeType: definition.mimeType,
         ),
       ],

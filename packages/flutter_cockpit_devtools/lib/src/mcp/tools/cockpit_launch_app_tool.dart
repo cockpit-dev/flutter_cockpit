@@ -31,17 +31,17 @@ final class CockpitLaunchAppTool extends CockpitMcpTool {
           'session_port',
         ],
         'properties': <String, Object?>{
-          'project_dir': <String, Object?>{'type': 'string'},
+          'projectDir': <String, Object?>{'type': 'string'},
           'target': <String, Object?>{'type': 'string'},
           'platform': <String, Object?>{'type': 'string'},
-          'device_id': <String, Object?>{'type': 'string'},
-          'session_port': <String, Object?>{'type': 'integer'},
+          'deviceId': <String, Object?>{'type': 'string'},
+          'sessionPort': <String, Object?>{'type': 'integer'},
           'mode': <String, Object?>{
             'type': 'string',
             'enum': <String>['development', 'automation'],
           },
-          'launch_timeout_seconds': <String, Object?>{'type': 'integer'},
-          'app_json': <String, Object?>{'type': 'string'},
+          'launchTimeoutSeconds': <String, Object?>{'type': 'integer'},
+          'appJson': <String, Object?>{'type': 'string'},
         },
       };
 

@@ -27,7 +27,7 @@ final class CockpitReadTaskBundleSummaryTool extends CockpitMcpTool {
         'type': 'object',
         'required': <String>['bundle_dir'],
         'properties': <String, Object?>{
-          'bundle_dir': <String, Object?>{'type': 'string'},
+          'bundleDir': <String, Object?>{'type': 'string'},
         },
       };
 

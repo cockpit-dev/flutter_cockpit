@@ -1,5 +1,4 @@
-import 'dart:convert';
-
+import '../../application/cockpit_json_key_normalizer.dart';
 import '../cockpit_mcp_tool.dart';
 import '../core/cockpit_mcp_prompt.dart';
 import '../core/cockpit_mcp_resource.dart';
@@ -48,10 +47,10 @@ final class CockpitWorkspaceCapabilitiesResource extends CockpitMcpResource {
       return null;
     }
     final payload = <String, Object?>{
-      'server_name': serverName,
-      'server_version': serverVersion,
-      'enabled_names': featureConfiguration.enabledNames.toList()..sort(),
-      'disabled_names': featureConfiguration.disabledNames.toList()..sort(),
+      'serverName': serverName,
+      'serverVersion': serverVersion,
+      'enabledNames': featureConfiguration.enabledNames.toList()..sort(),
+      'disabledNames': featureConfiguration.disabledNames.toList()..sort(),
       'roots': rootsTracker.toJson(),
       'categories': CockpitMcpFeatureCategory.values
           .map((category) => category.serializedName)
@@ -74,7 +73,7 @@ final class CockpitWorkspaceCapabilitiesResource extends CockpitMcpResource {
       contents: <CockpitMcpResourceContents>[
         CockpitMcpTextResourceContents(
           uri: request.uri,
-          text: const JsonEncoder.withIndent('  ').convert(payload),
+          text: cockpitPrettyJsonText(payload),
           mimeType: definition.mimeType,
         ),
       ],

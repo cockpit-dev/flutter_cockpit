@@ -19,7 +19,7 @@ void main() {
     );
 
     final result = await tool.call(<String, Object?>{
-      'session_handle': <String, Object?>{
+      'sessionHandle': <String, Object?>{
         'platform': 'macos',
         'deviceId': 'macos',
         'projectDir': '/workspace',
@@ -31,9 +31,9 @@ void main() {
         'baseUrl': 'http://127.0.0.1:47331',
         'launchedAt': '2026-03-30T00:00:00.000Z',
       },
-      'quiet_window_ms': 120,
-      'timeout_ms': 2000,
-      'include_network_idle': false,
+      'quietWindowMs': 120,
+      'timeoutMs': 2000,
+      'includeNetworkIdle': false,
     });
 
     expect(capturedRequest?.quietWindow.inMilliseconds, 120);

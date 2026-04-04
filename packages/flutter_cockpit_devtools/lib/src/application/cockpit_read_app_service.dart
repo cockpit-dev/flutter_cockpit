@@ -4,7 +4,6 @@ import 'cockpit_app_handle.dart';
 import 'cockpit_app_reference_resolver.dart';
 import 'cockpit_interactive_result_data.dart';
 import 'cockpit_interactive_result_profile.dart';
-import 'cockpit_json_key_normalizer.dart';
 import 'cockpit_read_remote_status_service.dart';
 import 'cockpit_session_registry.dart';
 
@@ -60,22 +59,19 @@ final class CockpitReadAppResult {
   final CockpitSnapshotOptions? effectiveSnapshotOptions;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'session_id': sessionId,
-        'transport_type':
-            cockpitSnakeCaseEnumValue('transport_type', transportType),
-        'capabilities': cockpitSnakeCaseJsonValue(capabilities.toJson()),
-        'recording_capabilities':
-            cockpitSnakeCaseJsonValue(recordingCapabilities.toJson()),
+        'sessionId': sessionId,
+        'transportType': transportType,
+        'capabilities': capabilities.toJson(),
+        'recordingCapabilities': recordingCapabilities.toJson(),
         'app': app?.toJson(),
         'state': state,
-        'last_error': lastError,
-        'current_route_name': currentRouteName,
-        'ui_summary': uiSummary?.toJson(),
-        'snapshot': cockpitSnakeCaseJsonValue(snapshot?.toJson()),
-        'snapshot_ref': snapshotRef,
+        'lastError': lastError,
+        'currentRouteName': currentRouteName,
+        'uiSummary': uiSummary?.toJson(),
+        'snapshot': snapshot?.toJson(),
+        'snapshotRef': snapshotRef,
         'diagnostics': diagnostics,
-        'effective_snapshot_options':
-            cockpitSnakeCaseJsonValue(effectiveSnapshotOptions?.toJson()),
+        'effectiveSnapshotOptions': effectiveSnapshotOptions?.toJson(),
       };
 }
 

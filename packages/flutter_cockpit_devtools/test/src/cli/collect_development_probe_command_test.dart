@@ -62,6 +62,7 @@ void main() {
         (((decoded['probe'] as Map<String, Object?>)['profile'] as String)),
         'interactive',
       );
+      expect(decoded.containsKey('effectiveSnapshotOptions'), isTrue);
     },
   );
 }

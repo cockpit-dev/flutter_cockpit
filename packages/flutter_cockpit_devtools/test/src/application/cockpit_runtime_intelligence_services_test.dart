@@ -332,7 +332,7 @@ void main() {
             _developmentHandle(),
             supervisorLogPath: '/tmp/dev.log',
           ).toJson(),
-          'app_json_path': null,
+          'appJson_path': null,
           'supervisor_log_path': '/tmp/dev.log',
         },
       ),

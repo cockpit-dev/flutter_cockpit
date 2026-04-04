@@ -2,7 +2,6 @@ import 'package:flutter_cockpit/flutter_cockpit.dart';
 
 import '../remote/cockpit_remote_session_client.dart';
 import 'cockpit_app_reference_resolver.dart';
-import 'cockpit_json_key_normalizer.dart';
 import 'cockpit_session_registry.dart';
 
 typedef CockpitReadNetworkSnapshotReader = Future<CockpitRemoteSnapshotResponse>
@@ -64,12 +63,12 @@ final class CockpitReadNetworkSummary {
   final CockpitNetworkQuery query;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'total_entry_count': totalEntryCount,
-        'failure_count': failureCount,
-        'captured_entry_count': capturedEntryCount,
-        'in_flight_count': inFlightCount,
+        'totalEntryCount': totalEntryCount,
+        'failureCount': failureCount,
+        'capturedEntryCount': capturedEntryCount,
+        'inFlightCount': inFlightCount,
         'truncated': truncated,
-        'query': cockpitSnakeCaseJsonValue(query.toJson()),
+        'query': (query.toJson()),
       };
 }
 
@@ -97,21 +96,20 @@ final class CockpitReadNetworkResult {
   final List<CockpitNetworkEntry>? entries;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'app_id': appId,
+        'appId': appId,
         'source': source,
         'available': available,
-        'route_name': routeName,
+        'routeName': routeName,
         'summary': summary.toJson(),
-        'endpoint_summaries': endpointSummaries
-            .map((summary) => cockpitSnakeCaseJsonValue(summary.toJson()))
+        'endpointSummaries': endpointSummaries
+            .map((summary) => (summary.toJson()))
             .toList(growable: false),
-        'endpoint_summaries_truncated': endpointSummariesTruncated,
-        'recent_failures': recentFailures
-            .map((entry) => cockpitSnakeCaseJsonValue(entry.toJson()))
+        'endpointSummariesTruncated': endpointSummariesTruncated,
+        'recentFailures': recentFailures
+            .map((entry) => (entry.toJson()))
             .toList(growable: false),
-        'entries': entries
-            ?.map((entry) => cockpitSnakeCaseJsonValue(entry.toJson()))
-            .toList(growable: false),
+        'entries':
+            entries?.map((entry) => (entry.toJson())).toList(growable: false),
       };
 }
 

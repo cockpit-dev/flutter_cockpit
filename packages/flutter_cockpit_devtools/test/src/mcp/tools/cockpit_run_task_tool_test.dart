@@ -94,7 +94,7 @@ void main() {
           'commands': const <Map<String, Object?>>[],
           'failFast': true,
         },
-        'output_root': '/tmp/out',
+        'outputRoot': '/tmp/out',
         'baseline': const <String, Object?>{
           'captureScreenshot': true,
           'screenshotName': 'baseline',
@@ -112,26 +112,23 @@ void main() {
           result['structuredContent'] as Map<String, Object?>;
       expect(structuredContent['classification'], 'completed');
       final bundleSummary =
-          structuredContent['bundle_summary'] as Map<String, Object?>;
-      expect(bundleSummary['bundle_dir'], '/tmp/out/run-task');
+          structuredContent['bundleSummary'] as Map<String, Object?>;
+      expect(bundleSummary['bundleDir'], '/tmp/out/run-task');
       expect(
-        (bundleSummary['runtime_summary']
-            as Map<String, Object?>)['error_count'],
+        (bundleSummary['runtimeSummary'] as Map<String, Object?>)['errorCount'],
         1,
       );
       final evidence = bundleSummary['evidence'] as Map<String, Object?>;
       expect(
-        evidence['primary_recording_path'],
+        evidence['primaryRecordingPath'],
         '/tmp/out/run-task/recordings/acceptance.mp4',
       );
-      expect(evidence['delivery_keyframes_ready'], isTrue);
+      expect(evidence['deliveryKeyframesReady'], isTrue);
       expect((evidence['keyframes'] as List<Object?>).single, <String, Object?>{
         'ref': 'keyframes/acceptance_tail.png',
         'path': '/tmp/out/run-task/keyframes/acceptance_tail.png',
         'label': 'tail_consistency',
-        'offset_ms': 3900,
-        'linked_screenshot_ref': null,
-        'linked_screenshot_path': null,
+        'offsetMs': 3900,
       });
     },
   );
@@ -158,7 +155,7 @@ void main() {
           'commands': const <Map<String, Object?>>[],
           'failFast': true,
         },
-        'output_root': '/tmp/out',
+        'outputRoot': '/tmp/out',
       }),
       throwsA(
         isA<CockpitMcpError>().having(

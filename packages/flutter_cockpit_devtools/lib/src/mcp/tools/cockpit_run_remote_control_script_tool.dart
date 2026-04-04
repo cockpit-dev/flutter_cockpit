@@ -37,14 +37,14 @@ final class CockpitRunRemoteControlScriptTool extends CockpitMcpTool {
         'type': 'object',
         'required': <String>['script', 'output_root'],
         'properties': <String, Object?>{
-          'app_id': <String, Object?>{'type': 'string'},
-          'app_json': <String, Object?>{'type': 'string'},
-          'base_url': <String, Object?>{'type': 'string'},
-          'android_device_id': <String, Object?>{'type': 'string'},
-          'ios_device_id': <String, Object?>{'type': 'string'},
+          'appId': <String, Object?>{'type': 'string'},
+          'appJson': <String, Object?>{'type': 'string'},
+          'baseUrl': <String, Object?>{'type': 'string'},
+          'androidDeviceId': <String, Object?>{'type': 'string'},
+          'iosDeviceId': <String, Object?>{'type': 'string'},
           'script': <String, Object?>{'type': 'object'},
-          'output_root': <String, Object?>{'type': 'string'},
-          'persist_script_path': <String, Object?>{'type': 'string'},
+          'outputRoot': <String, Object?>{'type': 'string'},
+          'persistScriptPath': <String, Object?>{'type': 'string'},
         },
       };
 
@@ -99,8 +99,8 @@ final class CockpitRunRemoteControlScriptTool extends CockpitMcpTool {
         throw CockpitMcpError.internal(
           'Control script bundle failed.',
           details: <String, Object?>{
-            'bundle_dir': result.bundleDir.path,
-            'failure_summary':
+            'bundleDir': result.bundleDir.path,
+            'failureSummary':
                 result.manifest.failureSummary ?? 'Unknown failure.',
           },
         );
@@ -109,12 +109,12 @@ final class CockpitRunRemoteControlScriptTool extends CockpitMcpTool {
       return cockpitMcpResult(
         text: 'Remote control script executed and bundle written.',
         structuredContent: <String, Object?>{
-          'bundle_dir': result.bundleDir.path,
+          'bundleDir': result.bundleDir.path,
           'manifest': result.manifest.toJson(),
           'handoff': result.handoff,
           'delivery': result.delivery,
-          'artifact_paths': result.artifactPaths.toJson(),
-          'session_handle': result.sessionHandle?.toJson(),
+          'artifactPaths': result.artifactPaths.toJson(),
+          'sessionHandle': result.sessionHandle?.toJson(),
         },
       );
     } on Object catch (error) {

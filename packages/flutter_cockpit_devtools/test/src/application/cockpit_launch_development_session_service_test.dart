@@ -27,7 +27,7 @@ void main() {
       final expectedHandle = _handle();
       final expectedStatus = _readyStatus(expectedHandle);
       final outputFile = File(
-        p.join(tempDir.path, 'development_session_handle.json'),
+        p.join(tempDir.path, 'developmentSessionHandle.json'),
       );
 
       final service = CockpitLaunchDevelopmentSessionService(

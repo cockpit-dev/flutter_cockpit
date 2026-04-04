@@ -49,8 +49,8 @@ void main() {
     expect(capturedRequest?.includeLatestTask, isFalse);
     expect(capturedRequest?.includeSessions, isFalse);
     final decoded = jsonDecode(stdoutBuffer.toString()) as Map<String, Object?>;
-    expect(decoded['app_id'], 'dev.example.app');
+    expect(decoded['appId'], 'dev.example.app');
     expect(decoded['source'], 'app_snapshot');
-    expect(decoded['has_errors'], isTrue);
+    expect(decoded['hasErrors'], isTrue);
   });
 }

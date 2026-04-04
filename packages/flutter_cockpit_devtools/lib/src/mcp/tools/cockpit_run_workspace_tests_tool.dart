@@ -48,8 +48,8 @@ final class CockpitRunWorkspaceTestsTool extends CockpitMcpTool {
   Map<String, Object?> get inputSchema => const <String, Object?>{
         'type': 'object',
         'properties': <String, Object?>{
-          'workspace_root': <String, Object?>{'type': 'string'},
-          'timeout_seconds': <String, Object?>{'type': 'integer'},
+          'workspaceRoot': <String, Object?>{'type': 'string'},
+          'timeoutSeconds': <String, Object?>{'type': 'integer'},
         },
       };
 

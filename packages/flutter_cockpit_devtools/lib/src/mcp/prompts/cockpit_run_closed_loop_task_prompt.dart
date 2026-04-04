@@ -27,11 +27,12 @@ final class CockpitRunClosedLoopTaskPrompt extends CockpitMcpPrompt {
     return CockpitMcpPromptResult(
       messages: <CockpitMcpPromptMessage>[
         CockpitMcpPromptMessage.user(
-          'Read `cockpit://workspace/goals`, `cockpit://workspace/skill-contract`, '
-          'and `cockpit://workspace/task-bundle-contract` before acting. Then '
-          'establish or reuse a session, collect baseline evidence, execute the '
-          'task, inspect the resulting bundle, validate the outcome, and only '
-          'claim success after evidence-backed completion. Task goal: $taskGoal',
+          'Read `cockpit://workspace/skill-contract`, '
+          '`cockpit://workspace/task-bundle-contract`, and '
+          '`cockpit://workspace/capabilities` before acting. Then establish '
+          'or reuse a session, collect baseline evidence, execute the task, '
+          'inspect the resulting bundle, validate the outcome, and only claim '
+          'success after evidence-backed completion. Task goal: $taskGoal',
         ),
       ],
     );

@@ -833,7 +833,7 @@ void main() {
           .cast<Map<Object?, Object?>>();
 
       expect(deliveryJson['deliveryKeyframesReady'], isTrue);
-      expect(deliveryJson['keyframeFailureReason'], isNull);
+      expect(deliveryJson.containsKey('keyframeFailureReason'), isFalse);
       expect(deliveryJson['keyframeCoverage'], <String, Object?>{
         'durationMs': 3269,
         'hasEarlyCoverage': true,

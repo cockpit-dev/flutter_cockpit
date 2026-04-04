@@ -56,7 +56,7 @@ final class InspectUiCommand extends CockpitCliCommand {
 
   @override
   String get helpWrites =>
-      'Layered JSON with UI summaries, optional diagnostics, delta, and snapshot_ref.';
+      'Layered JSON with UI summaries, optional diagnostics, delta, and snapshotRef.';
 
   @override
   Future<int> run() async {

@@ -104,42 +104,42 @@ void main() {
       );
 
       final result = await tool.call(<String, Object?>{
-        'bundle_dir': bundleDir.path,
+        'bundleDir': bundleDir.path,
       });
 
       expect(capturedRequest?.bundleDir, bundleDir.path);
       final structuredContent =
           result['structuredContent'] as Map<String, Object?>;
       expect(
-        (structuredContent['evidence_summary']
+        (structuredContent['evidenceSummary']
             as Map<String, Object?>)['status'],
         'completed',
       );
       expect(
-        (structuredContent['runtime_summary']
-            as Map<String, Object?>)['error_count'],
+        (structuredContent['runtimeSummary']
+            as Map<String, Object?>)['errorCount'],
         1,
       );
-      expect(structuredContent['diagnostics_artifact_paths'], <String>[
+      expect(structuredContent['diagnosticsArtifactPaths'], <String>[
         p.join(bundleDir.path, 'diagnostics', 'acceptance_snapshot.json'),
       ]);
       expect(
-        (structuredContent['artifact_paths']
-            as Map<String, Object?>)['primary_screenshot_path'],
+        (structuredContent['artifactPaths']
+            as Map<String, Object?>)['primaryScreenshotPath'],
         p.join(bundleDir.path, 'screenshots', 'acceptance.png'),
       );
       final evidence = structuredContent['evidence'] as Map<String, Object?>;
-      expect(evidence['delivery_keyframes_ready'], isTrue);
-      expect(evidence['keyframe_paths'], <String>[
+      expect(evidence['deliveryKeyframesReady'], isTrue);
+      expect(evidence['keyframePaths'], <String>[
         p.join(bundleDir.path, 'keyframes', 'acceptance_midpoint.png'),
       ]);
       expect((evidence['keyframes'] as List<Object?>).single, <String, Object?>{
         'ref': 'keyframes/acceptance_midpoint.png',
         'path': p.join(bundleDir.path, 'keyframes', 'acceptance_midpoint.png'),
         'label': 'midpoint',
-        'offset_ms': 2100,
-        'linked_screenshot_ref': 'screenshots/acceptance.png',
-        'linked_screenshot_path': p.join(
+        'offsetMs': 2100,
+        'linkedScreenshotRef': 'screenshots/acceptance.png',
+        'linkedScreenshotPath': p.join(
           bundleDir.path,
           'screenshots',
           'acceptance.png',
@@ -159,7 +159,7 @@ void main() {
       );
 
       expect(
-        () => tool.call(<String, Object?>{'bundle_dir': '/tmp/missing'}),
+        () => tool.call(<String, Object?>{'bundleDir': '/tmp/missing'}),
         throwsA(
           isA<CockpitMcpError>().having(
             (error) => error.data['serviceCode'],

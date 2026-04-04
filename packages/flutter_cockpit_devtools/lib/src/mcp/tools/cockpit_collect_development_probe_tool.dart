@@ -27,8 +27,8 @@ final class CockpitCollectDevelopmentProbeTool extends CockpitMcpTool {
   Map<String, Object?> get inputSchema => <String, Object?>{
         'type': 'object',
         'properties': <String, Object?>{
-          'session_handle': const <String, Object?>{'type': 'object'},
-          'session_handle_path': const <String, Object?>{'type': 'string'},
+          'sessionHandle': const <String, Object?>{'type': 'object'},
+          'sessionHandlePath': const <String, Object?>{'type': 'string'},
           'profile': <String, Object?>{
             'type': 'string',
             'enum': CockpitDevelopmentProbeProfile.values
@@ -70,9 +70,8 @@ final class CockpitCollectDevelopmentProbeTool extends CockpitMcpTool {
         text: 'Development probe collected.',
         structuredContent: <String, Object?>{
           'probe': result.probe.toJson(),
-          'session_handle': result.sessionHandle.toJson(),
-          'effective_snapshot_options':
-              result.effectiveSnapshotOptions.toJson(),
+          'sessionHandle': result.sessionHandle.toJson(),
+          'effectiveSnapshotOptions': result.effectiveSnapshotOptions.toJson(),
           'warnings': result.warnings,
         },
       );

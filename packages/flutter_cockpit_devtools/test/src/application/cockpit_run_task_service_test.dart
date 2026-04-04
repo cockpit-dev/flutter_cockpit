@@ -13,6 +13,59 @@ import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 void main() {
+  test('run task request json uses lower camel case keys', () {
+    final request = CockpitRunTaskRequest(
+      launch: const CockpitRunTaskLaunchRequest(
+        projectDir: '/workspace/examples/cockpit_demo',
+        target: 'cockpit/main.dart',
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        sessionPort: 47331,
+        launchTimeout: Duration(seconds: 90),
+        persistHandlePath: '/tmp/session.json',
+      ),
+      sessionHandlePath: '/tmp/existing-session.json',
+      script: _script(platform: 'android'),
+      outputRoot: '/tmp/output',
+      persistScriptPath: '/tmp/script.json',
+      baseline: const CockpitRunTaskBaselineRequest(
+        captureScreenshot: true,
+        screenshotName: 'baseline-home',
+        includeSnapshot: false,
+      ),
+      requirements: const CockpitRunTaskEvidenceRequirements(
+        requireScreenshotEvidence: true,
+        requireVideoEvidence: true,
+      ),
+    );
+
+    expect(request.toJson(), <String, Object?>{
+      'launch': <String, Object?>{
+        'projectDir': '/workspace/examples/cockpit_demo',
+        'target': 'cockpit/main.dart',
+        'platform': 'android',
+        'deviceId': 'emulator-5554',
+        'sessionPort': 47331,
+        'launchTimeoutSeconds': 90,
+        'persistHandlePath': '/tmp/session.json',
+      },
+      'sessionHandle': null,
+      'sessionHandlePath': '/tmp/existing-session.json',
+      'script': _script(platform: 'android').toJson(),
+      'outputRoot': '/tmp/output',
+      'persistScriptPath': '/tmp/script.json',
+      'baseline': <String, Object?>{
+        'captureScreenshot': true,
+        'screenshotName': 'baseline-home',
+        'includeSnapshot': false,
+      },
+      'requirements': <String, Object?>{
+        'requireScreenshotEvidence': true,
+        'requireVideoEvidence': true,
+      },
+    });
+  });
+
   test(
     'run task launches, injects baseline capture, reads the persisted bundle, and classifies completion',
     () async {

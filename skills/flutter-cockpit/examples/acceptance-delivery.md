@@ -34,7 +34,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 - `manifest.json`
 - `handoff.json`
 - `delivery.json`
-- `gate_summary` or `read_task_bundle_summary` output when available
+- `gateSummary` or `read_task_bundle_summary` output when available
 - bundle summary evidence paths
 - validation failures when present
 

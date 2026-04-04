@@ -306,10 +306,10 @@ final class CockpitInteractiveResultProfile {
         'ui': ui.jsonValue,
         'diagnostics': diagnostics.jsonValue,
         'artifacts': artifacts.jsonValue,
-        'include_delta': includeDelta,
-        'include_runtime_steps': includeRuntimeSteps,
-        'emit_snapshot_ref': emitSnapshotRef,
-        'snapshot_profile': snapshotProfile.jsonValue,
+        'includeDelta': includeDelta,
+        'includeRuntimeSteps': includeRuntimeSteps,
+        'emitSnapshotRef': emitSnapshotRef,
+        'snapshotProfile': snapshotProfile.jsonValue,
       };
 
   static Object? _readAliasedValue(

@@ -25,9 +25,9 @@ final class CockpitReadLogsTool extends CockpitMcpTool {
   Map<String, Object?> get inputSchema => const <String, Object?>{
         'type': 'object',
         'properties': <String, Object?>{
-          'app_id': <String, Object?>{'type': 'string'},
-          'app_json': <String, Object?>{'type': 'string'},
-          'max_lines': <String, Object?>{'type': 'integer'},
+          'appId': <String, Object?>{'type': 'string'},
+          'appJson': <String, Object?>{'type': 'string'},
+          'maxLines': <String, Object?>{'type': 'integer'},
         },
       };
 

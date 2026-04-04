@@ -57,11 +57,11 @@ void main() {
     expect(capturedRequest?.launchTimeout, const Duration(seconds: 120));
     final decoded = jsonDecode(output.toString()) as Map<String, Object?>;
     final app = decoded['app'] as Map<String, Object?>;
-    expect(app['app_id'], 'dev.cockpit.demo');
-    expect(app['development_session_id'], isNotNull);
-    expect(app['supervisor_base_url'], isNotNull);
-    expect(app.containsKey('development_session'), isFalse);
-    expect(app.containsKey('remote_session'), isFalse);
+    expect(app['appId'], 'dev.cockpit.demo');
+    expect(app['developmentSessionId'], isNotNull);
+    expect(app['supervisorBaseUrl'], isNotNull);
+    expect(app.containsKey('developmentSession'), isFalse);
+    expect(app.containsKey('remoteSession'), isFalse);
   });
 
   test('launch-app accepts an omitted target so the service can infer it',

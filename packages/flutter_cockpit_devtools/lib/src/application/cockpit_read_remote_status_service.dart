@@ -8,7 +8,6 @@ import '../session/cockpit_remote_session_handle.dart';
 import 'cockpit_interactive_result_data.dart';
 import 'cockpit_interactive_result_profile.dart';
 import 'cockpit_interactive_snapshot_store.dart';
-import 'cockpit_json_key_normalizer.dart';
 import 'cockpit_read_remote_snapshot_service.dart';
 import 'cockpit_session_reference_resolver.dart';
 
@@ -66,23 +65,19 @@ final class CockpitReadRemoteStatusResult {
   final CockpitSnapshotOptions? effectiveSnapshotOptions;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'session_id': sessionId,
+        'sessionId': sessionId,
         'platform': platform,
-        'transport_type':
-            cockpitSnakeCaseEnumValue('transport_type', transportType),
-        'current_route_name': currentRouteName,
-        'capabilities': cockpitSnakeCaseJsonValue(capabilities.toJson()),
-        'recording_capabilities':
-            cockpitSnakeCaseJsonValue(recordingCapabilities.toJson()),
-        'active_recording':
-            cockpitSnakeCaseJsonValue(activeRecording?.toJson()),
-        'environment': cockpitSnakeCaseJsonValue(environment?.toJson()),
-        'ui_summary': uiSummary?.toJson(),
-        'snapshot': cockpitSnakeCaseJsonValue(snapshot?.toJson()),
-        'snapshot_ref': snapshotRef,
-        'session_handle': cockpitSnakeCaseJsonValue(sessionHandle?.toJson()),
-        'effective_snapshot_options':
-            cockpitSnakeCaseJsonValue(effectiveSnapshotOptions?.toJson()),
+        'transportType': transportType,
+        'currentRouteName': currentRouteName,
+        'capabilities': capabilities.toJson(),
+        'recordingCapabilities': recordingCapabilities.toJson(),
+        'activeRecording': activeRecording?.toJson(),
+        'environment': environment?.toJson(),
+        'uiSummary': uiSummary?.toJson(),
+        'snapshot': snapshot?.toJson(),
+        'snapshotRef': snapshotRef,
+        'sessionHandle': sessionHandle?.toJson(),
+        'effectiveSnapshotOptions': effectiveSnapshotOptions?.toJson(),
       };
 }
 

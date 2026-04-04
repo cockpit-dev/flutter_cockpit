@@ -48,17 +48,17 @@ final class CockpitPubDevPackageSummary {
   final List<String> topics;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'package_name': packageName,
-        'latest_version': latestVersion,
+        'packageName': packageName,
+        'latestVersion': latestVersion,
         'description': description,
         'publisher': publisher,
-        'granted_points': grantedPoints,
-        'max_points': maxPoints,
-        'like_count': likeCount,
-        'popularity_score': popularityScore,
-        'homepage_url': homepageUrl,
-        'repository_url': repositoryUrl,
-        'documentation_url': documentationUrl,
+        'grantedPoints': grantedPoints,
+        'maxPoints': maxPoints,
+        'likeCount': likeCount,
+        'popularityScore': popularityScore,
+        'homepageUrl': homepageUrl,
+        'repositoryUrl': repositoryUrl,
+        'documentationUrl': documentationUrl,
         'license': license,
         'topics': topics,
       };
@@ -191,7 +191,7 @@ final class CockpitPubDevSearchService {
               message: 'pub.dev request timed out.',
               details: <String, Object?>{
                 'uri': uri.toString(),
-                'timeout_ms': timeout.inMilliseconds,
+                'timeoutMs': timeout.inMilliseconds,
               },
             ),
           );
@@ -207,9 +207,9 @@ final class CockpitPubDevSearchService {
           message: 'pub.dev request failed.',
           details: <String, Object?>{
             'uri': uri.toString(),
-            'timeout_ms': timeout.inMilliseconds,
-            'primary_error': primaryError.toString(),
-            'fallback_error': fallbackError.toString(),
+            'timeoutMs': timeout.inMilliseconds,
+            'primaryError': primaryError.toString(),
+            'fallbackError': fallbackError.toString(),
           },
         );
       }

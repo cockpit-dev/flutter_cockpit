@@ -88,20 +88,20 @@ final class CockpitBundleRebuildSummary {
       };
 
   Map<String, Object?> toMcpJson() => <String, Object?>{
-        'total_rebuild_count': totalRebuildCount,
-        'unique_element_count': uniqueElementCount,
+        'totalRebuildCount': totalRebuildCount,
+        'uniqueElementCount': uniqueElementCount,
         'truncated': truncated,
         'entries': entries
             .map(
               (entry) => <String, Object?>{
                 'signature': entry.signature,
-                'route_name': entry.routeName,
-                'type_name': entry.typeName,
-                'rebuild_count': entry.rebuildCount,
-                'built_once_count': entry.builtOnceCount,
-                'key_value': entry.keyValue,
-                'semantic_id': entry.semanticId,
-                'text_preview': entry.textPreview,
+                'routeName': entry.routeName,
+                'typeName': entry.typeName,
+                'rebuildCount': entry.rebuildCount,
+                'builtOnceCount': entry.builtOnceCount,
+                'keyValue': entry.keyValue,
+                'semanticId': entry.semanticId,
+                'textPreview': entry.textPreview,
               },
             )
             .toList(growable: false),
@@ -204,30 +204,30 @@ final class CockpitBundleAcceptanceEvidence {
       };
 
   Map<String, Object?> toMcpJson() => <String, Object?>{
-        'route_name': routeName,
-        'diagnostic_level': diagnosticLevel,
-        'diagnostics_artifact_path': diagnosticsArtifactPath,
-        'visible_text_previews': visibleTextPreviews,
-        'visible_semantic_ids': visibleSemanticIds,
-        'interactive_labels': interactiveLabels,
-        'accessibility_labels': accessibilityLabels,
-        'visible_target_count': visibleTargetCount,
-        'accessibility_entry_count': accessibilityEntryCount,
-        'has_accessibility_summary': hasAccessibilitySummary,
-        'network_entry_count': networkEntryCount,
-        'network_failure_count': networkFailureCount,
-        'network_failure_signals': networkFailureSignals
+        'routeName': routeName,
+        'diagnosticLevel': diagnosticLevel,
+        'diagnosticsArtifactPath': diagnosticsArtifactPath,
+        'visibleTextPreviews': visibleTextPreviews,
+        'visibleSemanticIds': visibleSemanticIds,
+        'interactiveLabels': interactiveLabels,
+        'accessibilityLabels': accessibilityLabels,
+        'visibleTargetCount': visibleTargetCount,
+        'accessibilityEntryCount': accessibilityEntryCount,
+        'hasAccessibilitySummary': hasAccessibilitySummary,
+        'networkEntryCount': networkEntryCount,
+        'networkFailureCount': networkFailureCount,
+        'networkFailureSignals': networkFailureSignals
             .map((signal) => signal.toMcpJson())
             .toList(growable: false),
-        'runtime_entry_count': runtimeEntryCount,
-        'runtime_error_count': runtimeErrorCount,
-        'runtime_warning_count': runtimeWarningCount,
-        'runtime_error_signals': runtimeErrorSignals
+        'runtimeEntryCount': runtimeEntryCount,
+        'runtimeErrorCount': runtimeErrorCount,
+        'runtimeWarningCount': runtimeWarningCount,
+        'runtimeErrorSignals': runtimeErrorSignals
             .map((signal) => signal.toMcpJson())
             .toList(growable: false),
-        'rebuild_total_count': rebuildTotalCount,
-        'rebuild_unique_element_count': rebuildUniqueElementCount,
-        'rebuild_hotspots': rebuildHotspots
+        'rebuildTotalCount': rebuildTotalCount,
+        'rebuildUniqueElementCount': rebuildUniqueElementCount,
+        'rebuildHotspots': rebuildHotspots
             .map((hotspot) => hotspot.toMcpJson())
             .toList(growable: false),
       };
@@ -328,31 +328,31 @@ final class CockpitBundleAcceptanceDelta {
       };
 
   Map<String, Object?> toMcpJson() => <String, Object?>{
-        'baseline_route_name': baselineRouteName,
-        'acceptance_route_name': acceptanceRouteName,
-        'route_changed': routeChanged,
-        'added_visible_text_previews': addedVisibleTextPreviews,
-        'removed_visible_text_previews': removedVisibleTextPreviews,
-        'added_semantic_ids': addedSemanticIds,
-        'removed_semantic_ids': removedSemanticIds,
-        'added_interactive_labels': addedInteractiveLabels,
-        'removed_interactive_labels': removedInteractiveLabels,
-        'added_accessibility_labels': addedAccessibilityLabels,
-        'removed_accessibility_labels': removedAccessibilityLabels,
-        'network_failure_delta_count': networkFailureDeltaCount,
-        'new_network_failure_signals': newNetworkFailureSignals
+        'baselineRouteName': baselineRouteName,
+        'acceptanceRouteName': acceptanceRouteName,
+        'routeChanged': routeChanged,
+        'addedVisibleTextPreviews': addedVisibleTextPreviews,
+        'removedVisibleTextPreviews': removedVisibleTextPreviews,
+        'addedSemanticIds': addedSemanticIds,
+        'removedSemanticIds': removedSemanticIds,
+        'addedInteractiveLabels': addedInteractiveLabels,
+        'removedInteractiveLabels': removedInteractiveLabels,
+        'addedAccessibilityLabels': addedAccessibilityLabels,
+        'removedAccessibilityLabels': removedAccessibilityLabels,
+        'networkFailureDeltaCount': networkFailureDeltaCount,
+        'newNetworkFailureSignals': newNetworkFailureSignals
             .map((signal) => signal.toMcpJson())
             .toList(growable: false),
-        'runtime_error_delta_count': runtimeErrorDeltaCount,
-        'new_runtime_error_signals': newRuntimeErrorSignals
+        'runtimeErrorDeltaCount': runtimeErrorDeltaCount,
+        'newRuntimeErrorSignals': newRuntimeErrorSignals
             .map((signal) => signal.toMcpJson())
             .toList(growable: false),
-        'rebuild_total_delta_count': rebuildTotalDeltaCount,
-        'rebuild_unique_element_delta_count': rebuildUniqueElementDeltaCount,
-        'new_rebuild_hotspots': newRebuildHotspots
+        'rebuildTotalDeltaCount': rebuildTotalDeltaCount,
+        'rebuildUniqueElementDeltaCount': rebuildUniqueElementDeltaCount,
+        'newRebuildHotspots': newRebuildHotspots
             .map((hotspot) => hotspot.toMcpJson())
             .toList(growable: false),
-        'semantic_signal_delta_count': semanticSignalDeltaCount,
+        'semanticSignalDeltaCount': semanticSignalDeltaCount,
       };
 }
 
@@ -383,12 +383,12 @@ final class CockpitBundleAcceptanceNetworkSignal {
       };
 
   Map<String, Object?> toMcpJson() => <String, Object?>{
-        'request_id': requestId,
+        'requestId': requestId,
         'method': method,
         'uri': uri,
-        'status_code': statusCode,
+        'statusCode': statusCode,
         'error': error,
-        'duration_ms': durationMs,
+        'durationMs': durationMs,
       };
 }
 
@@ -413,7 +413,7 @@ final class CockpitBundleAcceptanceRuntimeSignal {
       };
 
   Map<String, Object?> toMcpJson() => <String, Object?>{
-        'event_id': eventId,
+        'eventId': eventId,
         'kind': kind,
         'severity': severity,
         'message': message,
@@ -451,12 +451,12 @@ final class CockpitBundleAcceptanceRebuildHotspot {
 
   Map<String, Object?> toMcpJson() => <String, Object?>{
         'signature': signature,
-        'route_name': routeName,
-        'type_name': typeName,
-        'rebuild_count': rebuildCount,
-        'key_value': keyValue,
-        'semantic_id': semanticId,
-        'text_preview': textPreview,
+        'routeName': routeName,
+        'typeName': typeName,
+        'rebuildCount': rebuildCount,
+        'keyValue': keyValue,
+        'semanticId': semanticId,
+        'textPreview': textPreview,
       };
 }
 
@@ -550,26 +550,26 @@ final class CockpitReadTaskBundleSummaryResult {
       };
 
   Map<String, Object?> toMcpJson() => <String, Object?>{
-        'bundle_dir': bundleDir,
+        'bundleDir': bundleDir,
         'manifest': manifest.toJson(),
         'handoff': handoff,
         'delivery': delivery,
-        'acceptance_markdown': acceptanceMarkdown,
-        'artifact_paths': artifactPaths.toJson(),
+        'acceptanceMarkdown': acceptanceMarkdown,
+        'artifactPaths': artifactPaths.toJson(),
         'evidence': evidence.toMcpJson(),
-        'evidence_summary': evidenceSummary,
-        'gate_summary': gateSummary.toMcpJson(),
+        'evidenceSummary': evidenceSummary,
+        'gateSummary': gateSummary.toMcpJson(),
         if (baselineEvidence != null)
-          'baseline_evidence': baselineEvidence!.toMcpJson(),
+          'baselineEvidence': baselineEvidence!.toMcpJson(),
         if (acceptanceEvidence != null)
-          'acceptance_evidence': acceptanceEvidence!.toMcpJson(),
+          'acceptanceEvidence': acceptanceEvidence!.toMcpJson(),
         if (acceptanceDelta != null)
-          'acceptance_delta': acceptanceDelta!.toMcpJson(),
-        'diagnostics_artifact_paths': diagnosticsArtifactPaths,
-        if (networkSummary != null) 'network_summary': networkSummary!.toJson(),
-        if (runtimeSummary != null) 'runtime_summary': runtimeSummary!.toJson(),
+          'acceptanceDelta': acceptanceDelta!.toMcpJson(),
+        'diagnosticsArtifactPaths': diagnosticsArtifactPaths,
+        if (networkSummary != null) 'networkSummary': networkSummary!.toJson(),
+        if (runtimeSummary != null) 'runtimeSummary': runtimeSummary!.toJson(),
         if (rebuildSummary != null)
-          'rebuild_summary': rebuildSummary!.toMcpJson(),
+          'rebuildSummary': rebuildSummary!.toMcpJson(),
       };
 
   CockpitBundleEvidenceView get evidence => CockpitBundleEvidenceView(
@@ -660,17 +660,17 @@ final class CockpitBundleEvidenceView {
       };
 
   Map<String, Object?> toMcpJson() => <String, Object?>{
-        'primary_screenshot_path': primaryScreenshotPath,
-        'attachment_paths': attachmentPaths,
-        'primary_recording_path': primaryRecordingPath,
-        'video_attachment_paths': videoAttachmentPaths,
-        'keyframe_paths': keyframePaths,
-        'diagnostics_artifact_paths': diagnosticsArtifactPaths,
-        'delivery_artifacts_ready': deliveryArtifactsReady,
-        'delivery_video_ready': deliveryVideoReady,
-        'delivery_keyframes_ready': deliveryKeyframesReady,
-        'keyframe_count': keyframePaths.length,
-        if (keyframeCoverage != null) 'keyframe_coverage': keyframeCoverage,
+        'primaryScreenshotPath': primaryScreenshotPath,
+        'attachmentPaths': attachmentPaths,
+        'primaryRecordingPath': primaryRecordingPath,
+        'videoAttachmentPaths': videoAttachmentPaths,
+        'keyframePaths': keyframePaths,
+        'diagnosticsArtifactPaths': diagnosticsArtifactPaths,
+        'deliveryArtifactsReady': deliveryArtifactsReady,
+        'deliveryVideoReady': deliveryVideoReady,
+        'deliveryKeyframesReady': deliveryKeyframesReady,
+        'keyframeCount': keyframePaths.length,
+        if (keyframeCoverage != null) 'keyframeCoverage': keyframeCoverage,
         'keyframes': keyframes
             .map((keyframe) => keyframe.toMcpJson())
             .toList(growable: false),
@@ -725,9 +725,9 @@ final class CockpitBundleEvidenceKeyframe {
         'ref': ref,
         'path': path,
         'label': label,
-        'offset_ms': offsetMs,
-        'linked_screenshot_ref': linkedScreenshotRef,
-        'linked_screenshot_path': linkedScreenshotPath,
+        'offsetMs': offsetMs,
+        'linkedScreenshotRef': linkedScreenshotRef,
+        'linkedScreenshotPath': linkedScreenshotPath,
       };
 }
 

@@ -27,6 +27,7 @@ Keep each cycle small:
 - Use `lsp` for hover, definition, signature help, or symbols instead of opening large files blindly.
 - Use `pub` for bounded dependency edits.
 - Use `pub_dev_search` before adding a package you do not know well.
+- Keep command JSON in files when it grows beyond a few lines.
 
 ## Runtime Escalation Rules
 
@@ -49,8 +50,8 @@ Keep each cycle small:
 ## Timeout Strategy
 
 - Keep default timeouts unless the step is known to be slow.
-- Raise `timeout_ms` for long scrolls, waits, or slow environment transitions.
-- Raise `timeout_seconds` for `pub`, `analyze_files`, `run_tests`, or project creation only when needed.
+- Raise `timeoutMs` for long scrolls, waits, or slow environment transitions.
+- Raise `timeoutSeconds` for `pub`, `analyze_files`, `run_tests`, or project creation only when needed.
 - If a command times out, inspect whether the environment is blocked before retrying with a larger budget.
 
 ## Verification Ladder
@@ -60,6 +61,20 @@ Keep each cycle small:
 - Before claiming delivery readiness: `run-script`, `run-task`, or `validate-task`
 
 Do not pay delivery-grade cost on every edit. Do pay it before any user-facing completion claim.
+
+## Token-Saving Shell Patterns
+
+- Keep `app.json` and reuse it:
+  `flutter_cockpit_devtools read-app --app-json /tmp/flutter_cockpit/app.json --profile minimal | jq '{currentRouteName,state}'`
+- When only one branch decision matters, extract one field:
+  `flutter_cockpit_devtools read-errors --app-json /tmp/flutter_cockpit/app.json | jq '.hasErrors'`
+- Keep larger results off stdout:
+  `flutter_cockpit_devtools run-task --config-json /tmp/run_task.json --output-json /tmp/runTaskResult.json`
+  `jq '{classification,recommendedNextStep}' /tmp/runTaskResult.json`
+- Workspace commands default to the current directory, so omit `--workspace-root` unless you are operating outside the repo you already opened.
+- Prefer file inputs over long inline JSON:
+  `flutter_cockpit_devtools run-command --app-json /tmp/flutter_cockpit/app.json --command-file /tmp/command.json --profile standard`
+- Use `jq` to trim, not to compensate for asking the app for an unnecessarily heavy profile.
 
 ## Example
 
@@ -82,7 +97,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   run-command \
   --app-json /tmp/flutter_cockpit/app.json \
   --profile standard \
-  --command-json '{"command_id":"open-today","command_type":"tap","locator":{"text":"Today","key":"nav-today","ancestor":{"route":"/inbox"}}}'
+  --command-json '{"commandId":"open-today","commandType":"tap","locator":{"text":"Today","key":"nav-today","ancestor":{"route":"/inbox"}}}'
 ```
 
 ```bash

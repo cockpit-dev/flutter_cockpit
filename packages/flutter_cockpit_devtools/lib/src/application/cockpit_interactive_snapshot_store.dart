@@ -19,9 +19,9 @@ final class CockpitInteractiveStoredSnapshot {
 
   Map<String, Object?> toJson() => <String, Object?>{
         'ref': ref,
-        'session_key': sessionKey,
+        'sessionKey': sessionKey,
         'snapshot': snapshot.toJson(),
-        'created_at': createdAt.toUtc().toIso8601String(),
+        'createdAt': createdAt.toUtc().toIso8601String(),
       };
 }
 
@@ -64,7 +64,7 @@ final class CockpitInteractiveSnapshotStore {
       throw CockpitApplicationServiceException(
         code: 'interactiveSnapshotRefNotFound',
         message: 'Snapshot ref does not exist.',
-        details: <String, Object?>{'snapshot_ref': ref},
+        details: <String, Object?>{'snapshotRef': ref},
       );
     }
     if (_isExpired(entry)) {
@@ -72,7 +72,7 @@ final class CockpitInteractiveSnapshotStore {
       throw CockpitApplicationServiceException(
         code: 'interactiveSnapshotRefExpired',
         message: 'Snapshot ref has expired.',
-        details: <String, Object?>{'snapshot_ref': ref},
+        details: <String, Object?>{'snapshotRef': ref},
       );
     }
     if (sessionKey != null && entry.sessionKey != sessionKey) {
@@ -80,8 +80,8 @@ final class CockpitInteractiveSnapshotStore {
         code: 'interactiveSnapshotRefSessionMismatch',
         message: 'Snapshot ref does not belong to the requested session.',
         details: <String, Object?>{
-          'snapshot_ref': ref,
-          'session_key': sessionKey,
+          'snapshotRef': ref,
+          'sessionKey': sessionKey,
         },
       );
     }

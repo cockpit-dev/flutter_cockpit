@@ -33,7 +33,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   run-command \
   --app-json /tmp/flutter_cockpit/app.json \
-  --command-json '{"command_id":"assert-inbox","command_type":"assert_text","parameters":{"text":"Inbox"}}'
+  --command-json '{"commandId":"assert-inbox","commandType":"assertText","parameters":{"text":"Inbox"}}'
 ```
 
 ## Expected Agent Behavior

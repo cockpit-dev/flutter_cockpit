@@ -128,9 +128,9 @@ void main() {
       final decoded =
           jsonDecode(await outputFile.readAsString()) as Map<String, Object?>;
       expect(decoded['classification'], 'completed');
-      expect(decoded['recommended_next_step'], 'delivery_ready');
+      expect(decoded['recommendedNextStep'], 'delivery_ready');
       expect(
-        (decoded['bundle_summary'] as Map<String, Object?>)['bundle_dir'],
+        (decoded['bundleSummary'] as Map<String, Object?>)['bundleDir'],
         tempDir.path,
       );
     },

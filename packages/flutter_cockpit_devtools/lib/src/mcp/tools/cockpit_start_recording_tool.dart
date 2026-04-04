@@ -29,9 +29,9 @@ final class CockpitStartRecordingTool extends CockpitMcpTool {
         'type': 'object',
         'required': <String>['recording'],
         'properties': <String, Object?>{
-          'app_id': <String, Object?>{'type': 'string'},
-          'app_json': <String, Object?>{'type': 'string'},
-          'base_url': <String, Object?>{'type': 'string'},
+          'appId': <String, Object?>{'type': 'string'},
+          'appJson': <String, Object?>{'type': 'string'},
+          'baseUrl': <String, Object?>{'type': 'string'},
           'recording': <String, Object?>{'type': 'object'},
         },
       };

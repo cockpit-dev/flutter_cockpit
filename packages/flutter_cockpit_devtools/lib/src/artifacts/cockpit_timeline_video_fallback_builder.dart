@@ -210,7 +210,7 @@ final class DefaultCockpitTimelineVideoFallbackBuilder
   String _sanitizedBaseName(CockpitContextBundle bundle) {
     final raw = '${bundle.manifest.taskId}_${bundle.manifest.sessionId}';
     final sanitized = raw.replaceAll(RegExp(r'[^A-Za-z0-9._-]+'), '_');
-    return sanitized.isEmpty ? 'timeline_video' : sanitized;
+    return sanitized.isEmpty ? 'timelineVideo' : sanitized;
   }
 }
 

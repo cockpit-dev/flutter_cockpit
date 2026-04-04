@@ -111,7 +111,7 @@ void main() {
       launchedAt: DateTime.utc(2026, 3, 23, 0, 0),
       reloadGeneration: 1,
     );
-    final handleFile = File(p.join(tempDir.path, 'development_session.json'));
+    final handleFile = File(p.join(tempDir.path, 'developmentSession.json'));
     await handleFile.writeAsString(jsonEncode(handle.toJson()));
 
     final resolver = CockpitDevelopmentSessionReferenceResolver();
@@ -159,7 +159,7 @@ void main() {
         launchedAt: DateTime.utc(2026, 3, 23, 0, 0),
         reloadGeneration: 4,
       );
-      final handleFile = File(p.join(tempDir.path, 'development_session.json'));
+      final handleFile = File(p.join(tempDir.path, 'developmentSession.json'));
       await handleFile.writeAsString(jsonEncode(handle.toJson()));
 
       final service = CockpitCollectDevelopmentProbeService(

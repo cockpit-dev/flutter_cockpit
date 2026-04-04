@@ -31,8 +31,8 @@ final class CockpitReloadDevelopmentSessionTool extends CockpitMcpTool {
   Map<String, Object?> get inputSchema => <String, Object?>{
         'type': 'object',
         'properties': <String, Object?>{
-          'session_handle': const <String, Object?>{'type': 'object'},
-          'session_handle_path': const <String, Object?>{'type': 'string'},
+          'sessionHandle': const <String, Object?>{'type': 'object'},
+          'sessionHandlePath': const <String, Object?>{'type': 'string'},
           'mode': <String, Object?>{
             'type': 'string',
             'enum': CockpitDevelopmentReloadMode.values
@@ -65,9 +65,9 @@ final class CockpitReloadDevelopmentSessionTool extends CockpitMcpTool {
       return cockpitMcpResult(
         text: 'Development session reloaded.',
         structuredContent: <String, Object?>{
-          'session_handle': result.sessionHandle.toJson(),
+          'sessionHandle': result.sessionHandle.toJson(),
           'status': result.status.toJson(),
-          'session_handle_path': result.persistedHandlePath,
+          'sessionHandlePath': result.persistedHandlePath,
         },
       );
     } on Object catch (error) {

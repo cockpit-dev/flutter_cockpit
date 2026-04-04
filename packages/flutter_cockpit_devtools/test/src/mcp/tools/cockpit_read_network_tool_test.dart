@@ -39,17 +39,17 @@ void main() {
     );
 
     final result = await tool.call(<String, Object?>{
-      'app_id': 'dev.example.app',
-      'app_json': '/tmp/app.json',
-      'base_url': 'http://127.0.0.1:47331',
-      'android_device_id': 'emulator-5554',
-      'max_entries': 8,
-      'max_endpoint_summaries': 3,
-      'include_entries': true,
+      'appId': 'dev.example.app',
+      'appJson': '/tmp/app.json',
+      'baseUrl': 'http://127.0.0.1:47331',
+      'androidDeviceId': 'emulator-5554',
+      'maxEntries': 8,
+      'maxEndpointSummaries': 3,
+      'includeEntries': true,
       'method': 'GET',
-      'uri_contains': '/api',
-      'status_code_at_least': 400,
-      'only_failures': true,
+      'uriContains': '/api',
+      'statusCodeAtLeast': 400,
+      'onlyFailures': true,
     });
 
     expect(capturedRequest?.appId, 'dev.example.app');

@@ -37,7 +37,7 @@ void main() {
     );
     expect(
       result.structuredContent,
-      <String, Object?>{'echoed_value': 'hello'},
+      <String, Object?>{'echoedValue': 'hello'},
     );
 
     await environment.shutdown();

@@ -56,10 +56,10 @@ For delivery:
 2. `run-task` when the tool should own bootstrap, baseline, execution, and classification
 3. `validate-task` when making a final completion claim
 
-The public surface is app-first, not session-handle-first. Persist `app.json` and reuse it across steps. CLI and MCP outputs are normalized to `snake_case`.
+The public surface is app-first, not session-handle-first. Persist `app.json` and reuse it across steps. CLI and MCP outputs are normalized to lower camel case.
 `launch-app` auto-detects `cockpit/main.dart` first, then `lib/main.dart`.
 
-Locators are multi-signal. Start with `key`, `text`, or `semantic_id`, then add `route`, `type`, `path`, nested `ancestor`, or short `fallbacks` only when needed. `path` matching is fuzzy and ignores noise such as `body`, `slivers`, and numeric indexes.
+Locators are multi-signal. Start with `key`, `text`, or `semanticId`, then add `route`, `type`, `path`, nested `ancestor`, or short `fallbacks` only when needed. `path` matching is fuzzy and ignores noise such as `body`, `slivers`, and numeric indexes.
 
 ## Quick Start
 
@@ -102,7 +102,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   run-command \
   --app-json /tmp/flutter_cockpit/app.json \
-  --command-json '{"command_id":"assert-inbox","command_type":"assert_text","parameters":{"text":"Inbox"}}'
+  --command-json '{"commandId":"assert-inbox","commandType":"assertText","parameters":{"text":"Inbox"}}'
 ```
 
 ## CLI Surface
@@ -177,16 +177,15 @@ Workspace tools:
 
 Resources:
 
-- `cockpit://workspace/goals`
 - `cockpit://workspace/skill-contract`
 - `cockpit://workspace/task-bundle-contract`
 - `cockpit://workspace/roots`
 - `cockpit://workspace/capabilities`
 - `cockpit://app/list`
-- `cockpit://app/details{?app_id}`
+- `cockpit://app/details{?appId}`
 - `cockpit://task/latest`
-- `cockpit://task/summary{?bundle_dir}`
-- `cockpit://package/read{?workspace_root,uri}`
+- `cockpit://task/summary{?bundleDir}`
+- `cockpit://package/read{?workspaceRoot,uri}`
 
 Prompts:
 
@@ -208,4 +207,5 @@ Prompts:
 Advanced development-session and remote-session building blocks still exist in the Dart API for lower-level hosts, but they are no longer the recommended public loop.
 
 `list_apps` is intentionally MCP-only. CLI is stateless; persist `app.json` and reuse it instead of expecting a host-side app registry.
-Interactive app commands use `timeout_ms`. Workspace tools use `timeout_seconds`.
+Interactive app commands use `timeoutMs`. Workspace tools use `timeoutSeconds`.
+For code-side work, CLI and MCP expose the same workspace intelligence. In shell agents, CLI plus `--output-json` and `jq` is usually the cheapest path.

@@ -18,14 +18,14 @@ void main() {
         },
       );
 
-      expect(tool.inputSchema['required'], contains('project_dir'));
+      expect(tool.inputSchema['required'], contains('projectDir'));
 
       final result = await tool.call(<String, Object?>{
-        'project_dir': '/workspace/examples/cockpit_demo',
+        'projectDir': '/workspace/examples/cockpit_demo',
         'target': 'lib/main.dart',
         'platform': 'android',
-        'device_id': 'emulator-5554',
-        'session_port': 47331,
+        'deviceId': 'emulator-5554',
+        'sessionPort': 47331,
       });
 
       expect(capturedRequest?.platform, 'android');
@@ -44,11 +44,11 @@ void main() {
 
     expect(
       () => tool.call(<String, Object?>{
-        'project_dir': '/workspace/examples/cockpit_demo',
+        'projectDir': '/workspace/examples/cockpit_demo',
         'target': 'lib/main.dart',
         'platform': 'android',
-        'device_id': 'emulator-5554',
-        'session_port': 47331,
+        'deviceId': 'emulator-5554',
+        'sessionPort': 47331,
       }),
       throwsA(isA<CockpitMcpError>()),
     );
@@ -97,17 +97,17 @@ void main() {
     );
 
     final result = await tool.call(<String, Object?>{
-      'project_dir': '/workspace/examples/cockpit_demo',
+      'projectDir': '/workspace/examples/cockpit_demo',
       'target': 'cockpit/main.dart',
       'platform': 'macos',
-      'device_id': 'macos',
-      'session_port': 47331,
+      'deviceId': 'macos',
+      'sessionPort': 47331,
     });
 
     expect(capturedRequest?.platform, 'macos');
     final structured = result['structuredContent'] as Map<String, Object?>;
     expect(
-      (structured['session_handle'] as Map<String, Object?>)['platform'],
+      (structured['sessionHandle'] as Map<String, Object?>)['platform'],
       'macos',
     );
   });
@@ -155,17 +155,17 @@ void main() {
     );
 
     final result = await tool.call(<String, Object?>{
-      'project_dir': '/workspace/examples/cockpit_demo',
+      'projectDir': '/workspace/examples/cockpit_demo',
       'target': 'cockpit/main.dart',
       'platform': 'windows',
-      'device_id': 'windows',
-      'session_port': 47331,
+      'deviceId': 'windows',
+      'sessionPort': 47331,
     });
 
     expect(capturedRequest?.platform, 'windows');
     final structured = result['structuredContent'] as Map<String, Object?>;
     expect(
-      (structured['session_handle'] as Map<String, Object?>)['platform'],
+      (structured['sessionHandle'] as Map<String, Object?>)['platform'],
       'windows',
     );
   });
@@ -213,17 +213,17 @@ void main() {
     );
 
     final result = await tool.call(<String, Object?>{
-      'project_dir': '/workspace/examples/cockpit_demo',
+      'projectDir': '/workspace/examples/cockpit_demo',
       'target': 'cockpit/main.dart',
       'platform': 'linux',
-      'device_id': 'linux',
-      'session_port': 47331,
+      'deviceId': 'linux',
+      'sessionPort': 47331,
     });
 
     expect(capturedRequest?.platform, 'linux');
     final structured = result['structuredContent'] as Map<String, Object?>;
     expect(
-      (structured['session_handle'] as Map<String, Object?>)['platform'],
+      (structured['sessionHandle'] as Map<String, Object?>)['platform'],
       'linux',
     );
   });

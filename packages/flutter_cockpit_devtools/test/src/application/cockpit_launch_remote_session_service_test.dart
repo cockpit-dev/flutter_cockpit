@@ -57,7 +57,7 @@ void main() {
         snapshot: CockpitSnapshot(routeName: '/home'),
       );
 
-      final outputFile = File(p.join(tempDir.path, 'session_handle.json'));
+      final outputFile = File(p.join(tempDir.path, 'sessionHandle.json'));
       final service = CockpitLaunchRemoteSessionService(
         entrypointResolver: CockpitEntrypointResolver(exists: (_) => true),
         launcher: _FakeRemoteSessionLauncher(expectedHandle),

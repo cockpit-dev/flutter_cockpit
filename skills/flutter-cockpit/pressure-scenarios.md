@@ -213,7 +213,7 @@ Validate the app and confirm the final UI is correct. The run produced a valid s
 
 ### Expected Naive Failure
 
-The agent treats structurally valid media as semantic proof, reads only the final screenshot or `acceptance_evidence`, and skips the before/after comparison needed to decide whether the app actually moved to the right state.
+The agent treats structurally valid media as semantic proof, reads only the final screenshot or `acceptanceEvidence`, and skips the before/after comparison needed to decide whether the app actually moved to the right state.
 
 ### Baseline Observation
 
@@ -227,9 +227,9 @@ Baseline dry-run observation after the initial acceptance-evidence rollout:
 
 The agent must:
 
-- read `baseline_evidence` when it exists
-- read `acceptance_evidence`
-- use `acceptance_delta` as the bounded first-pass comparison view
+- read `baselineEvidence` when it exists
+- read `acceptanceEvidence`
+- use `acceptanceDelta` as the bounded first-pass comparison view
 - escalate to diagnostics artifacts only when the bounded comparison still leaves ambiguity
 
 ### Post-Skill Validation
@@ -238,7 +238,7 @@ Validation rerun after the acceptance-delta rollout:
 
 - the skill now makes the before/after comparison explicit inside `observe`
 - the completion gate now blocks acceptance claims when baseline and acceptance exist but the agent has not compared them
-- remaining loophole to watch: an agent may cite `acceptance_delta` but still fail to explain why the delta supports the requested product outcome
+- remaining loophole to watch: an agent may cite `acceptanceDelta` but still fail to explain why the delta supports the requested product outcome
 
 ## Scenario 7: Incremental Development Pressure
 

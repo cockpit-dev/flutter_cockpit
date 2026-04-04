@@ -1,9 +1,9 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:args/command_runner.dart';
 
 import '../../application/cockpit_launch_remote_session_service.dart';
+import '../../application/cockpit_json_key_normalizer.dart';
 import '../../session/cockpit_remote_session_launcher.dart';
 import '../cockpit_command_runner.dart';
 
@@ -78,7 +78,7 @@ final class LaunchRemoteSessionCommand extends Command<int> {
       ),
     );
 
-    final payload = jsonEncode(result.sessionHandle.toJson());
+    final payload = cockpitCompactJsonText(result.sessionHandle.toJson());
     if (result.persistedHandlePath == null) {
       _stdoutSink.writeln(payload);
     }

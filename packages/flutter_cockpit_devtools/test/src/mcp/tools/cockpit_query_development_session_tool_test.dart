@@ -26,13 +26,13 @@ void main() {
       );
 
       final result = await tool.call(<String, Object?>{
-        'session_handle_path': '/tmp/dev-session.json',
+        'sessionHandlePath': '/tmp/dev-session.json',
       });
 
       expect(capturedRequest?.sessionHandlePath, '/tmp/dev-session.json');
       final structured = result['structuredContent'] as Map<String, Object?>;
       expect(
-        structured['recommended_next_step'],
+        structured['recommendedNextStep'],
         'ready_for_incremental_probe',
       );
     },

@@ -317,7 +317,7 @@ final class CockpitRemoteSessionServer {
   }) async {
     response.statusCode = statusCode;
     response.headers.contentType = ContentType.json;
-    response.write(jsonEncode(payload));
+    response.write(jsonEncode(_compactJsonValue(payload)));
     await response.close();
   }
 
@@ -354,7 +354,9 @@ final class CockpitRemoteSessionServer {
     if (!options.emitArtifactWhenLarge) {
       return CockpitRemoteSnapshotResponse(snapshot: snapshot);
     }
-    final snapshotBytes = utf8.encode(jsonEncode(snapshot.toJson()));
+    final snapshotBytes = utf8.encode(
+      jsonEncode(_compactJsonValue(snapshot.toJson())),
+    );
     if (snapshotBytes.length <= 16384) {
       return CockpitRemoteSnapshotResponse(snapshot: snapshot);
     }
@@ -479,4 +481,25 @@ final class CockpitRemoteSessionServer {
     request.response.add(entry.bytes ?? const <int>[]);
     await request.response.close();
   }
+}
+
+Object? _compactJsonValue(Object? value) {
+  if (value is Map<Object?, Object?>) {
+    final compacted = <String, Object?>{};
+    for (final entry in value.entries) {
+      final key = entry.key;
+      if (key is! String) {
+        continue;
+      }
+      final compactedValue = _compactJsonValue(entry.value);
+      if (compactedValue != null) {
+        compacted[key] = compactedValue;
+      }
+    }
+    return compacted;
+  }
+  if (value is List<Object?>) {
+    return value.map(_compactJsonValue).toList(growable: false);
+  }
+  return value;
 }

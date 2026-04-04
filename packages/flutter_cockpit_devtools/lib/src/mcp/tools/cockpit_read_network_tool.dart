@@ -42,17 +42,17 @@ final class CockpitReadNetworkTool extends CockpitMcpTool {
   Map<String, Object?> get inputSchema => const <String, Object?>{
         'type': 'object',
         'properties': <String, Object?>{
-          'app_id': <String, Object?>{'type': 'string'},
-          'app_json': <String, Object?>{'type': 'string'},
-          'base_url': <String, Object?>{'type': 'string'},
-          'android_device_id': <String, Object?>{'type': 'string'},
-          'max_entries': <String, Object?>{'type': 'integer'},
-          'max_endpoint_summaries': <String, Object?>{'type': 'integer'},
-          'include_entries': <String, Object?>{'type': 'boolean'},
+          'appId': <String, Object?>{'type': 'string'},
+          'appJson': <String, Object?>{'type': 'string'},
+          'baseUrl': <String, Object?>{'type': 'string'},
+          'androidDeviceId': <String, Object?>{'type': 'string'},
+          'maxEntries': <String, Object?>{'type': 'integer'},
+          'maxEndpointSummaries': <String, Object?>{'type': 'integer'},
+          'includeEntries': <String, Object?>{'type': 'boolean'},
           'method': <String, Object?>{'type': 'string'},
-          'uri_contains': <String, Object?>{'type': 'string'},
-          'status_code_at_least': <String, Object?>{'type': 'integer'},
-          'only_failures': <String, Object?>{'type': 'boolean'},
+          'uriContains': <String, Object?>{'type': 'string'},
+          'statusCodeAtLeast': <String, Object?>{'type': 'integer'},
+          'onlyFailures': <String, Object?>{'type': 'boolean'},
         },
       };
 

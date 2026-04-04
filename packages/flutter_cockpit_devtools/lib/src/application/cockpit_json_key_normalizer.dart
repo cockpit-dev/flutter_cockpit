@@ -1,59 +1,75 @@
+import 'dart:convert';
+
 Map<String, Object?> cockpitNormalizeJsonKeys(Map<String, Object?> json) {
+  return cockpitCamelCaseJsonKeys(json);
+}
+
+Map<String, Object?> cockpitCamelCaseJsonKeys(Map<String, Object?> json) {
   final normalized = <String, Object?>{};
   json.forEach((key, value) {
     final normalizedKey = _snakeToCamel(key);
-    normalized[normalizedKey] = _normalizeJsonValue(normalizedKey, value);
+    final normalizedValue = _camelCaseJsonValue(normalizedKey, value);
+    if (normalizedValue != null) {
+      normalized[normalizedKey] = normalizedValue;
+    }
   });
   return normalized;
 }
 
-Map<String, Object?> cockpitSnakeCaseJsonKeys(Map<String, Object?> json) {
-  final normalized = <String, Object?>{};
-  json.forEach((key, value) {
-    final normalizedKey = _camelToSnake(key);
-    normalized[normalizedKey] = _snakeCaseJsonValue(normalizedKey, value);
-  });
-  return normalized;
+Object? cockpitCamelCaseJsonValue(Object? value) {
+  return _camelCaseJsonValue(null, value);
 }
 
-Object? cockpitSnakeCaseJsonValue(Object? value) {
-  return _snakeCaseJsonValue(null, value);
-}
-
-String cockpitSnakeCaseEnumValue(String key, String value) {
-  final normalized = _snakeCaseJsonValue(key, value);
-  return normalized is String ? normalized : value;
-}
-
-Object? _normalizeJsonValue(String key, Object? value) {
+Object? cockpitCompactJsonValue(Object? value) {
   if (value is Map<Object?, Object?>) {
-    return cockpitNormalizeJsonKeys(Map<String, Object?>.from(value));
+    final compacted = <String, Object?>{};
+    for (final entry in value.entries) {
+      final key = entry.key;
+      if (key is! String) {
+        continue;
+      }
+      final compactedValue = cockpitCompactJsonValue(entry.value);
+      if (compactedValue != null) {
+        compacted[key] = compactedValue;
+      }
+    }
+    return compacted;
   }
   if (value is List<Object?>) {
-    return value
-        .map((item) => _normalizeJsonValue(key, item))
-        .toList(growable: false);
-  }
-  if (value is String && _enumLikeKeys.contains(key) && value.contains('_')) {
-    return _snakeToCamel(value);
+    return value.map(cockpitCompactJsonValue).toList(growable: false);
   }
   return value;
 }
 
-Object? _snakeCaseJsonValue(String? key, Object? value) {
+String cockpitPrettyJsonText(Object? value) {
+  return const JsonEncoder.withIndent(
+    '  ',
+  ).convert(cockpitCompactJsonValue(value));
+}
+
+String cockpitCompactJsonText(Object? value) {
+  return jsonEncode(cockpitCompactJsonValue(value));
+}
+
+Object? _camelCaseJsonValue(String? key, Object? value) {
   if (value is Map<Object?, Object?>) {
-    return cockpitSnakeCaseJsonKeys(Map<String, Object?>.from(value));
+    return cockpitCamelCaseJsonKeys(Map<String, Object?>.from(value));
   }
   if (value is List<Object?>) {
+    if (key != null && _schemaFieldListKeys.contains(key)) {
+      return value
+          .map((item) => item is String ? _snakeToCamel(item) : item)
+          .toList(growable: false);
+    }
     return value
-        .map((item) => _snakeCaseJsonValue(key, item))
+        .map((item) => _camelCaseJsonValue(key, item))
         .toList(growable: false);
   }
   if (value is String &&
       key != null &&
-      _enumLikeJsonKeys.contains(key) &&
-      _looksLikeCamelEnum(value)) {
-    return _camelToSnake(value);
+      _enumLikeKeys.contains(key) &&
+      value.contains('_')) {
+    return _snakeToCamel(value);
   }
   return value;
 }
@@ -75,44 +91,12 @@ String _snakeToCamel(String key) {
       }).join();
 }
 
-String _camelToSnake(String key) {
-  if (key.isEmpty) {
-    return key;
-  }
-  final buffer = StringBuffer();
-  for (var index = 0; index < key.length; index += 1) {
-    final rune = key.codeUnitAt(index);
-    final isUppercase = rune >= 65 && rune <= 90;
-    if (isUppercase) {
-      if (index > 0) {
-        buffer.write('_');
-      }
-      buffer.writeCharCode(rune + 32);
-      continue;
-    }
-    buffer.writeCharCode(rune);
-  }
-  return buffer.toString();
-}
-
 const Set<String> _enumLikeKeys = <String>{
   'commandType',
   'capturePolicy',
   'kind',
 };
 
-const Set<String> _enumLikeJsonKeys = <String>{
-  'transport_type',
-  'supported_commands',
-  'supported_locator_strategies',
-  'preferred_acceptance_recording_kind',
-  'matched_kind',
-  'command_type',
-  'capture_policy',
-  'recording_kind',
-  'kind',
+const Set<String> _schemaFieldListKeys = <String>{
+  'required',
 };
-
-bool _looksLikeCamelEnum(String value) {
-  return value.codeUnits.any((codeUnit) => codeUnit >= 65 && codeUnit <= 90);
-}

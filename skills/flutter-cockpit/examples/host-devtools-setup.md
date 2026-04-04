@@ -40,4 +40,4 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools serve-mcp
 - prefer `read-app` before taking heavier snapshots
 - use `run-command` and `run-batch` for active debugging
 - use `run-task` and `validate-task` for final delivery work
-- use MCP workspace tools when the agent needs package intelligence or repo-quality actions
+- prefer the shipped public workspace surfaces: CLI inside shell agents, MCP when the host specifically needs tool calling or roots-aware server state

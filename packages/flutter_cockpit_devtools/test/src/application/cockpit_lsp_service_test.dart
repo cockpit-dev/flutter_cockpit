@@ -48,7 +48,7 @@ void main() {
     expect(executor.timeout!, lessThanOrEqualTo(const Duration(seconds: 20)));
     expect(executor.timeout!, greaterThan(const Duration(seconds: 19)));
     expect(result.toJson()['found'], isTrue);
-    expect((result.toJson()['range'] as Map<String, Object?>)['start_line'], 1);
+    expect((result.toJson()['range'] as Map<String, Object?>)['startLine'], 1);
   });
 
   test('workspace symbols are bounded and normalized', () async {

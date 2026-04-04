@@ -2,6 +2,7 @@ import 'package:args/command_runner.dart';
 
 final class CockpitCliCategory {
   static const String coreLoop = 'Core loop';
+  static const String workspace = 'Workspace';
   static const String evidence = 'Evidence';
   static const String delivery = 'Delivery';
   static const String server = 'Server';
@@ -47,6 +48,23 @@ final class CockpitCliRootRunner extends CommandRunner<int> {
     buffer.writeln();
     _writeSection(
       buffer,
+      'Workspace',
+      const <String>[
+        'pub-dev-search',
+        'pub',
+        'read-package-uris',
+        'lsp',
+        'analyze-files',
+        'create-project',
+        'analyze-workspace',
+        'format-workspace',
+        'run-tests',
+        'apply-fixes',
+      ],
+    );
+    buffer.writeln();
+    _writeSection(
+      buffer,
       'Delivery',
       const <String>['run-script', 'run-task', 'validate-task'],
     );
@@ -81,9 +99,15 @@ final class CockpitCliRootRunner extends CommandRunner<int> {
         '  launch-app --project-dir <dir> --platform <platform> --app-json <app.json>',
         '  read-app --app-json <app.json> --profile minimal',
         '  run-command --app-json <app.json> --command-file <command.json>',
+        'Workspace loop:',
+        '  analyze-files --path lib/main.dart',
+        '  lsp --command hover --path lib/main.dart --line 12 --column 8',
+        '  pub --command get',
         '  stop-app --app-json <app.json>',
         'launch-app auto-detects cockpit/main.dart first, then lib/main.dart.',
+        'Workspace commands default --workspace-root or --parent-directory to the current directory.',
         'Use --output-json when a result is too large for stdout. launch-app writes the app handle reused by most app commands.',
+        'Prefer --output-json plus jq or short pipes when you only need a few fields from a large result.',
         'Delivery: run-script writes a bundle from a running app. run-task and validate-task launch, execute, classify, and validate end to end.',
       ].join('\n');
 

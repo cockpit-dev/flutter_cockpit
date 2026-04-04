@@ -23,10 +23,10 @@ The skill may depend on these implemented public workflows:
 - final delivery validation through `validate-task` / `validate_task`
 - task bundle summary reads through `read_task_bundle_summary`
 - workspace intelligence through `pub_dev_search`, `pub`, `read_package_uris`, `lsp`, `analyze_files`, `create_project`, `analyze_workspace`, `format_workspace`, `run_tests`, and `apply_fixes`
-- multi-signal locators with `key`, `text`, `semantic_id`, `route`, `type`, fuzzy `path`, nested `ancestor`, and ordered `fallbacks`
-- bounded timeouts on interactive commands (`timeout_ms`) and workspace tools (`timeout_seconds`)
+- multi-signal locators with `key`, `text`, `semanticId`, `route`, `type`, fuzzy `path`, nested `ancestor`, and ordered `fallbacks`
+- bounded timeouts on interactive commands (`timeoutMs`) and workspace tools (`timeoutSeconds`)
 
-The skill may also rely on MCP resources for goals, roots, contracts, apps, task summaries, and package reads.
+The skill may also rely on public context resources for roots, contracts, capabilities, apps, task summaries, and package reads. Treat any extra repository-specific context document as optional host configuration, not a default framework dependency.
 
 ## Mandatory Workflow Stages
 

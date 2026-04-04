@@ -56,19 +56,19 @@ void main() {
 
       expect(
         (tool.inputSchema['properties'] as Map<String, Object?>).keys,
-        containsAll(<String>['session_handle', 'session_handle_path']),
+        containsAll(<String>['sessionHandle', 'sessionHandlePath']),
       );
 
       final result = await tool.call(<String, Object?>{
-        'session_handle': handle.toJson(),
+        'sessionHandle': handle.toJson(),
       });
 
       expect(capturedRequest?.sessionHandle?.toJson(), handle.toJson());
       final structuredContent =
           result['structuredContent'] as Map<String, Object?>;
-      expect(structuredContent['recommended_next_step'], 'ready_for_commands');
+      expect(structuredContent['recommendedNextStep'], 'ready_for_commands');
       expect(
-        (structuredContent['status'] as Map<String, Object?>)['session_id'],
+        (structuredContent['status'] as Map<String, Object?>)['sessionId'],
         'query-tool-demo',
       );
     },

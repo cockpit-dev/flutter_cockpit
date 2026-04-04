@@ -1,9 +1,9 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:path/path.dart' as p;
 
+import '../application/cockpit_json_key_normalizer.dart';
 import 'cockpit_recording_keyframe_extractor.dart';
 import 'cockpit_timeline_video_fallback_builder.dart';
 
@@ -144,8 +144,7 @@ final class TaskRunBundleWriter {
   }
 
   void _writeJson(String path, Object payload) {
-    const encoder = JsonEncoder.withIndent('  ');
-    File(path).writeAsStringSync(encoder.convert(payload));
+    File(path).writeAsStringSync(cockpitPrettyJsonText(payload));
   }
 
   void _writeArtifacts({

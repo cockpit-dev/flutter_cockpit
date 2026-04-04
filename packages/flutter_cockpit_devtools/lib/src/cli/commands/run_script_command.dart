@@ -65,7 +65,7 @@ final class RunScriptCommand extends CockpitCliCommand {
 
   @override
   String get helpShape =>
-      'script.json is a task-style control script object with session_id, task_id, commands, and optional recording settings.';
+      'script.json is a task-style control script object with sessionId, task_id, commands, and optional recording settings.';
 
   @override
   String get helpExample =>

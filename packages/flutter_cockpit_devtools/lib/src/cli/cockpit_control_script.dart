@@ -22,14 +22,14 @@ final class CockpitControlScript {
   final bool failFast;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'session_id': sessionId,
-        'task_id': taskId,
+        'sessionId': sessionId,
+        'taskId': taskId,
         'platform': platform,
         'environment': environment?.toJson(),
         'recording': recording?.toJson(),
         'commands':
             commands.map((command) => command.toJson()).toList(growable: false),
-        'fail_fast': failFast,
+        'failFast': failFast,
       };
 
   factory CockpitControlScript.fromJson(Map<String, Object?> json) {

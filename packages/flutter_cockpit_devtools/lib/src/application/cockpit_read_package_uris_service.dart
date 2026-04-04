@@ -25,7 +25,7 @@ final class CockpitPackageUriDirectoryEntry {
   Map<String, Object?> toJson() => <String, Object?>{
         'path': path,
         'name': name,
-        'is_directory': isDirectory,
+        'isDirectory': isDirectory,
       };
 }
 
@@ -74,13 +74,13 @@ final class CockpitReadPackageUrisResult {
 
   Map<String, Object?> toJson() => <String, Object?>{
         'kind': kind.name,
-        'content_kind': contentKind.name,
-        'resolved_path': resolvedPath,
+        'contentKind': contentKind.name,
+        'resolvedPath': resolvedPath,
         'preview': preview,
         'text': text,
-        'media_type': mediaType,
-        'total_bytes': totalBytes,
-        'entry_count': entryCount,
+        'mediaType': mediaType,
+        'totalBytes': totalBytes,
+        'entryCount': entryCount,
         'truncated': truncated,
         'entries':
             entries.map((entry) => entry.toJson()).toList(growable: false),

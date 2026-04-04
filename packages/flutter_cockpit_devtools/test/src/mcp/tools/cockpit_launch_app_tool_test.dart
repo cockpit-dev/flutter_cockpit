@@ -28,10 +28,10 @@ void main() {
     );
 
     final result = await tool.call(<String, Object?>{
-      'project_dir': '/workspace/examples/cockpit_demo',
+      'projectDir': '/workspace/examples/cockpit_demo',
       'platform': 'macos',
-      'device_id': 'macos',
-      'session_port': 57331,
+      'deviceId': 'macos',
+      'sessionPort': 57331,
     });
 
     expect(result['structuredContent'], isA<Map<String, Object?>>());

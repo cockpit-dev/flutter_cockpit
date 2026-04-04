@@ -25,14 +25,14 @@ void main() {
     );
 
     final result = await tool.call(<String, Object?>{
-      'session_handle': _handle().toJson(),
+      'sessionHandle': _handle().toJson(),
       'mode': 'hot_restart',
     });
 
     expect(capturedRequest?.mode, CockpitDevelopmentReloadMode.hotRestart);
     final structured = result['structuredContent'] as Map<String, Object?>;
     expect(
-      (structured['status'] as Map<String, Object?>)['last_reload_mode'],
+      (structured['status'] as Map<String, Object?>)['lastReloadMode'],
       'hot_restart',
     );
   });

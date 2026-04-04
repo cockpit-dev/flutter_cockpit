@@ -31,22 +31,22 @@ final class CockpitLaunchRemoteSessionTool extends CockpitMcpTool {
   Map<String, Object?> get inputSchema => const <String, Object?>{
         'type': 'object',
         'required': <String>[
-          'project_dir',
+          'projectDir',
           'platform',
-          'device_id',
-          'session_port',
+          'deviceId',
+          'sessionPort',
         ],
         'properties': <String, Object?>{
-          'project_dir': <String, Object?>{'type': 'string'},
+          'projectDir': <String, Object?>{'type': 'string'},
           'target': <String, Object?>{'type': 'string'},
           'platform': <String, Object?>{
             'type': 'string',
             'enum': <String>['android', 'ios', 'macos', 'windows', 'linux'],
           },
-          'device_id': <String, Object?>{'type': 'string'},
-          'session_port': <String, Object?>{'type': 'integer'},
-          'launch_timeout_seconds': <String, Object?>{'type': 'integer'},
-          'persist_handle_path': <String, Object?>{'type': 'string'},
+          'deviceId': <String, Object?>{'type': 'string'},
+          'sessionPort': <String, Object?>{'type': 'integer'},
+          'launchTimeoutSeconds': <String, Object?>{'type': 'integer'},
+          'persistHandlePath': <String, Object?>{'type': 'string'},
         },
       };
 
@@ -67,19 +67,19 @@ final class CockpitLaunchRemoteSessionTool extends CockpitMcpTool {
 
       final result = await _launch(
         CockpitLaunchRemoteSessionRequest(
-          projectDir: cockpitReadRequiredString(arguments, 'project_dir'),
+          projectDir: cockpitReadRequiredString(arguments, 'projectDir'),
           target: cockpitReadOptionalString(arguments, 'target'),
           platform: platform,
-          deviceId: cockpitReadRequiredString(arguments, 'device_id'),
-          sessionPort: cockpitReadRequiredInt(arguments, 'session_port'),
+          deviceId: cockpitReadRequiredString(arguments, 'deviceId'),
+          sessionPort: cockpitReadRequiredInt(arguments, 'sessionPort'),
           launchTimeout: Duration(
             seconds:
-                cockpitReadOptionalInt(arguments, 'launch_timeout_seconds') ??
+                cockpitReadOptionalInt(arguments, 'launchTimeoutSeconds') ??
                     120,
           ),
           persistHandlePath: cockpitReadOptionalString(
             arguments,
-            'persist_handle_path',
+            'persistHandlePath',
           ),
         ),
       );
@@ -87,15 +87,15 @@ final class CockpitLaunchRemoteSessionTool extends CockpitMcpTool {
         handle: result.sessionHandle,
         status: result.health,
         recommendedNextStep: result.health.capabilities.supportsInAppControl
-            ? 'ready_for_commands'
+            ? 'readyForCommands'
             : 'limited_capabilities',
       );
 
       return cockpitMcpResult(
         text: 'Remote session launched and ready.',
         structuredContent: <String, Object?>{
-          'session_handle': result.sessionHandle.toJson(),
-          'session_handle_path': result.persistedHandlePath,
+          'sessionHandle': result.sessionHandle.toJson(),
+          'sessionHandlePath': result.persistedHandlePath,
           'health': result.health.toJson(),
         },
       );

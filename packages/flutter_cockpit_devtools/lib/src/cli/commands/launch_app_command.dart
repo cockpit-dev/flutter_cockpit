@@ -40,7 +40,7 @@ final class LaunchAppCommand extends CockpitCliCommand {
         'session-port',
         defaultsTo: '57331',
         help:
-            'App-side cockpit port. Reuse this when you want a stable base_url.',
+            'App-side cockpit port. Reuse this when you want a stable baseUrl.',
       )
       ..addOption(
         'launch-timeout-seconds',

@@ -7,7 +7,6 @@ import '../session/cockpit_remote_session_handle.dart';
 import 'cockpit_interactive_result_data.dart';
 import 'cockpit_interactive_result_profile.dart';
 import 'cockpit_interactive_snapshot_store.dart';
-import 'cockpit_json_key_normalizer.dart';
 import 'cockpit_session_reference_resolver.dart';
 
 typedef CockpitRemoteSnapshotDetailedReader
@@ -62,17 +61,16 @@ final class CockpitReadRemoteSnapshotResult {
   final CockpitSnapshotOptions? effectiveSnapshotOptions;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'route_name': routeName,
-        'diagnostic_level': diagnosticLevel,
+        'routeName': routeName,
+        'diagnosticLevel': diagnosticLevel,
         'truncated': truncated,
-        'ui_summary': uiSummary?.toJson(),
-        'snapshot': cockpitSnakeCaseJsonValue(snapshot?.toJson()),
+        'uiSummary': uiSummary?.toJson(),
+        'snapshot': (snapshot?.toJson()),
         'diagnostics': diagnostics,
         'delta': delta?.toJson(),
-        'snapshot_ref': snapshotRef,
-        'session_handle': cockpitSnakeCaseJsonValue(sessionHandle?.toJson()),
-        'effective_snapshot_options':
-            cockpitSnakeCaseJsonValue(effectiveSnapshotOptions?.toJson()),
+        'snapshotRef': snapshotRef,
+        'sessionHandle': (sessionHandle?.toJson()),
+        'effectiveSnapshotOptions': (effectiveSnapshotOptions?.toJson()),
       };
 }
 

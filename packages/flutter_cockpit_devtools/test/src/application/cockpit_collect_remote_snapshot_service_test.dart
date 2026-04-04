@@ -32,7 +32,7 @@ void main() {
         baseUrl: 'http://127.0.0.1:58421',
         launchedAt: DateTime.utc(2026, 3, 22, 0, 0),
       );
-      final sessionJsonFile = File(p.join(tempDir.path, 'session_handle.json'));
+      final sessionJsonFile = File(p.join(tempDir.path, 'sessionHandle.json'));
       await sessionJsonFile.writeAsString(jsonEncode(handle.toJson()));
 
       Uri? capturedBaseUri;

@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
@@ -7,6 +6,7 @@ import '../development/cockpit_development_session_handle.dart';
 import '../development/cockpit_development_session_reference_resolver.dart';
 import '../development/cockpit_development_session_status.dart';
 import '../development/cockpit_development_session_supervisor_client.dart';
+import 'cockpit_json_key_normalizer.dart';
 
 typedef CockpitDevelopmentSessionReloader
     = Future<CockpitDevelopmentSessionReloadResult> Function(
@@ -88,9 +88,7 @@ final class CockpitReloadDevelopmentSessionService {
     }
     final file = File(path);
     await file.parent.create(recursive: true);
-    await file.writeAsString(
-      const JsonEncoder.withIndent('  ').convert(handle.toJson()),
-    );
+    await file.writeAsString(cockpitPrettyJsonText(handle.toJson()));
     return p.normalize(file.path);
   }
 }

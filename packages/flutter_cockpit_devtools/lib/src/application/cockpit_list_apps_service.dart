@@ -29,17 +29,17 @@ final class CockpitAppSummary {
   final String? lastError;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'app_id': appId,
+        'appId': appId,
         'mode': mode.jsonValue,
         'platform': platform,
-        'device_id': deviceId,
-        'project_dir': projectDir,
+        'deviceId': deviceId,
+        'projectDir': projectDir,
         'target': target,
-        'base_url': baseUrl,
-        'updated_at': updatedAt.toUtc().toIso8601String(),
-        'platform_app_id': platformAppId,
+        'baseUrl': baseUrl,
+        'updatedAt': updatedAt.toUtc().toIso8601String(),
+        'platformAppId': platformAppId,
         'state': state,
-        'last_error': lastError,
+        'lastError': lastError,
       };
 }
 

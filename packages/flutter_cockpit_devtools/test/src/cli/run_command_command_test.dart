@@ -35,8 +35,8 @@ void main() {
           'http://127.0.0.1:47331',
           '--command-json',
           jsonEncode(<String, Object?>{
-            'command_id': 'tap-1',
-            'command_type': 'tap',
+            'commandId': 'tap-1',
+            'commandType': 'tap',
           }),
           '--profile',
           'minimal',

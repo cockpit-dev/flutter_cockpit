@@ -1,9 +1,9 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:args/command_runner.dart';
 
 import '../../application/cockpit_collect_development_probe_service.dart';
+import '../../application/cockpit_json_key_normalizer.dart';
 import '../../development/cockpit_development_probe.dart';
 import '../cockpit_command_runner.dart';
 
@@ -70,7 +70,7 @@ final class CollectDevelopmentProbeCommand extends Command<int> {
         checkpoint: _readOptionalOption('checkpoint'),
       ),
     );
-    final payload = const JsonEncoder.withIndent('  ').convert(result.toJson());
+    final payload = cockpitPrettyJsonText(result.toJson());
     final outputJson = argResults?['output-json'] as String?;
     if (outputJson == null || outputJson.isEmpty) {
       _stdoutSink.writeln(payload);

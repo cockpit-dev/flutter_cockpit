@@ -1,6 +1,5 @@
-import 'dart:convert';
-
 import '../../application/cockpit_app_handle.dart';
+import '../../application/cockpit_json_key_normalizer.dart';
 import '../../application/cockpit_list_apps_service.dart';
 import '../../application/cockpit_session_registry.dart';
 import '../core/cockpit_mcp_feature_category.dart';
@@ -39,8 +38,7 @@ final class CockpitAppsResource extends CockpitMcpResource {
       contents: <CockpitMcpResourceContents>[
         CockpitMcpTextResourceContents(
           uri: request.uri,
-          text: const JsonEncoder.withIndent('  ')
-              .convert(_service.list().toJson()),
+          text: cockpitPrettyJsonText(_service.list().toJson()),
           mimeType: definition.mimeType,
         ),
       ],
@@ -59,8 +57,8 @@ final class CockpitAppResource extends CockpitMcpResource {
   CockpitMcpResourceDefinition get definition =>
       const CockpitMcpResourceDefinition.template(
         name: 'app',
-        uriTemplate: 'cockpit://app/details{?app_id}',
-        description: 'Read the latest tracked app record by app_id.',
+        uriTemplate: 'cockpit://app/details{?appId}',
+        description: 'Read the latest tracked app record by appId.',
         mimeType: 'application/json',
         categories: <CockpitMcpFeatureCategory>[
           CockpitMcpFeatureCategory.closedLoop,
@@ -77,17 +75,17 @@ final class CockpitAppResource extends CockpitMcpResource {
     if (uri.host != 'app' || uri.path != '/details') {
       return null;
     }
-    final appId = uri.queryParameters['app_id'];
+    final appId = uri.queryParameters['appId'];
     if (appId == null || appId.isEmpty) {
-      throw StateError('app resource requires app_id.');
+      throw StateError('app resource requires appId.');
     }
 
     final developmentRecord = _registry.developmentSessionByAppId(appId);
     if (developmentRecord != null) {
       final payload = <String, Object?>{
         'state': developmentRecord.status.state.jsonValue,
-        'updated_at': developmentRecord.updatedAt.toUtc().toIso8601String(),
-        'last_error': developmentRecord.status.lastError,
+        'updatedAt': developmentRecord.updatedAt.toUtc().toIso8601String(),
+        'lastError': developmentRecord.status.lastError,
         'app': CockpitAppHandle.fromDevelopmentSession(
           developmentRecord.handle,
           supervisorLogPath: developmentRecord.supervisorLogPath,
@@ -100,8 +98,8 @@ final class CockpitAppResource extends CockpitMcpResource {
     if (remoteRecord != null) {
       final payload = <String, Object?>{
         'state': remoteRecord.recommendedNextStep,
-        'updated_at': remoteRecord.updatedAt.toUtc().toIso8601String(),
-        'last_error': null,
+        'updatedAt': remoteRecord.updatedAt.toUtc().toIso8601String(),
+        'lastError': null,
         'app': CockpitAppHandle.fromRemoteSession(remoteRecord.handle).toJson(),
       };
       return _textResult(request.uri, payload);
@@ -111,7 +109,7 @@ final class CockpitAppResource extends CockpitMcpResource {
       request.uri,
       <String, Object?>{
         'state': 'missing',
-        'app_id': appId,
+        'appId': appId,
       },
     );
   }
@@ -122,7 +120,7 @@ final class CockpitAppResource extends CockpitMcpResource {
       contents: <CockpitMcpResourceContents>[
         CockpitMcpTextResourceContents(
           uri: uri,
-          text: const JsonEncoder.withIndent('  ').convert(payload),
+          text: cockpitPrettyJsonText(payload),
           mimeType: definition.mimeType,
         ),
       ],

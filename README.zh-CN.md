@@ -56,10 +56,10 @@ dev_dependencies:
 2. 需要工具全权负责启动、基线、执行和分类时用 `run-task`
 3. 做最终完成声明时用 `validate-task`
 
-公共面是 app-first，而不是 session-handle-first。把 `app.json` 持久化下来并跨步骤复用。CLI 和 MCP 输出统一为 `snake_case`。
+公共面是 app-first，而不是 session-handle-first。把 `app.json` 持久化下来并跨步骤复用。CLI 和 MCP 输出统一为 lower camel case。
 `launch-app` 会先自动探测 `cockpit/main.dart`，找不到再退回 `lib/main.dart`。
 
-Locator 是多信号模型。优先用 `key`、`text`、`semantic_id`，只有还不够准时才补 `route`、`type`、`path`、嵌套 `ancestor` 或短 `fallbacks`。`path` 是 fuzzy 匹配，会忽略 `body`、`slivers`、数字索引这类噪声段。
+Locator 是多信号模型。优先用 `key`、`text`、`semanticId`，只有还不够准时才补 `route`、`type`、`path`、嵌套 `ancestor` 或短 `fallbacks`。`path` 是 fuzzy 匹配，会忽略 `body`、`slivers`、数字索引这类噪声段。
 
 ## 快速开始
 
@@ -102,7 +102,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   run-command \
   --app-json /tmp/flutter_cockpit/app.json \
-  --command-json '{"command_id":"assert-inbox","command_type":"assert_text","parameters":{"text":"Inbox"}}'
+  --command-json '{"commandId":"assert-inbox","commandType":"assertText","parameters":{"text":"Inbox"}}'
 ```
 
 ## CLI 公共面
@@ -177,16 +177,15 @@ workspace 工具：
 
 资源：
 
-- `cockpit://workspace/goals`
 - `cockpit://workspace/skill-contract`
 - `cockpit://workspace/task-bundle-contract`
 - `cockpit://workspace/roots`
 - `cockpit://workspace/capabilities`
 - `cockpit://app/list`
-- `cockpit://app/details{?app_id}`
+- `cockpit://app/details{?appId}`
 - `cockpit://task/latest`
-- `cockpit://task/summary{?bundle_dir}`
-- `cockpit://package/read{?workspace_root,uri}`
+- `cockpit://task/summary{?bundleDir}`
+- `cockpit://package/read{?workspaceRoot,uri}`
 
 Prompts：
 
@@ -208,4 +207,5 @@ Prompts：
 更底层的 development-session 和 remote-session building block 仍然保留在 Dart API 中，供特殊宿主使用，但它们已经不是推荐的公开主工作流。
 
 `list_apps` 故意只在 MCP 中暴露。CLI 是无状态进程，推荐把 `app.json` 落盘并跨步骤复用，而不是依赖主机侧 app registry。
-应用交互命令使用 `timeout_ms`；workspace 工具使用 `timeout_seconds`。
+应用交互命令使用 `timeoutMs`；workspace 工具使用 `timeoutSeconds`。
+对代码侧问题，CLI 和 MCP 暴露的是同一套 workspace intelligence；在 shell agent 里，CLI 配合 `--output-json` 和 `jq` 往往是最低成本路径。

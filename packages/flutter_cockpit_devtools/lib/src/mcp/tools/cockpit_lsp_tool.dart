@@ -48,7 +48,7 @@ final class CockpitLspTool extends CockpitMcpTool {
         'type': 'object',
         'required': <String>['command'],
         'properties': <String, Object?>{
-          'workspace_root': <String, Object?>{'type': 'string'},
+          'workspaceRoot': <String, Object?>{'type': 'string'},
           'command': <String, Object?>{
             'type': 'string',
             'enum': <String>[
@@ -63,9 +63,9 @@ final class CockpitLspTool extends CockpitMcpTool {
           'line': <String, Object?>{'type': 'integer'},
           'column': <String, Object?>{'type': 'integer'},
           'query': <String, Object?>{'type': 'string'},
-          'max_results': <String, Object?>{'type': 'integer'},
-          'max_chars': <String, Object?>{'type': 'integer'},
-          'timeout_seconds': <String, Object?>{'type': 'integer'},
+          'maxResults': <String, Object?>{'type': 'integer'},
+          'maxChars': <String, Object?>{'type': 'integer'},
+          'timeoutSeconds': <String, Object?>{'type': 'integer'},
         },
       };
 

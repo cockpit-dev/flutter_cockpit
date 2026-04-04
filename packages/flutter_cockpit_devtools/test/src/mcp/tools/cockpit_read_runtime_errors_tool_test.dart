@@ -31,13 +31,13 @@ void main() {
     );
 
     final result = await tool.call(<String, Object?>{
-      'app_id': 'dev.example.app',
-      'app_json': '/tmp/app.json',
-      'base_url': 'http://127.0.0.1:47331',
-      'android_device_id': 'emulator-5554',
-      'max_errors': 8,
-      'include_latest_task': false,
-      'include_sessions': false,
+      'appId': 'dev.example.app',
+      'appJson': '/tmp/app.json',
+      'baseUrl': 'http://127.0.0.1:47331',
+      'androidDeviceId': 'emulator-5554',
+      'maxErrors': 8,
+      'includeLatestTask': false,
+      'includeSessions': false,
     });
 
     expect(capturedRequest?.appId, 'dev.example.app');

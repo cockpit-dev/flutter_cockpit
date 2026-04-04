@@ -21,7 +21,7 @@ void main() {
         }
       });
 
-      final outputFile = File(p.join(tempDir.path, 'session_handle.json'));
+      final outputFile = File(p.join(tempDir.path, 'sessionHandle.json'));
       final runner = CommandRunner<int>(
         'flutter_cockpit_devtools',
         'Host-side tooling for flutter_cockpit.',

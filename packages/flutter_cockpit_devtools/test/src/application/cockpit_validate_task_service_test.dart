@@ -548,7 +548,7 @@ void main() {
     'validate task downgrades to needs_more_work when semantic acceptance evidence is required but missing',
     () async {
       final bundleDir = await _createBundleDir(
-        name: 'cockpit_validate_task_service_acceptance_evidence_missing',
+        name: 'cockpit_validate_task_service_acceptanceEvidence_missing',
         acceptanceMarkdown: '# Acceptance\n',
         environmentJson:
             '{"platform":"android","flutterVersion":"3.38.9","dartVersion":"3.10.8"}',

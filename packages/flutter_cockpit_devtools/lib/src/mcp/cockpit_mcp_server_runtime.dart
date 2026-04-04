@@ -22,7 +22,7 @@ final class CockpitMcpServerRuntimeOptions {
   final Set<String> disabledNames;
   final bool forceRootsFallback;
   final List<String> workspaceRoots;
-  final String goalsFilePath;
+  final String? goalsFilePath;
   final String skillContractPath;
   final String bundleContractPath;
   final String? logFilePath;
@@ -103,8 +103,8 @@ final class CockpitMcpServerRuntime {
       )
       ..addOption(
         'goals-file',
-        defaultsTo: 'GOALS.md',
-        help: 'Path to the workspace goals document.',
+        help:
+            'Optional path to an additional workspace goals document. Not required for the default flutter_cockpit loop.',
       )
       ..addOption(
         'skill-contract-file',
@@ -130,7 +130,7 @@ final class CockpitMcpServerRuntime {
       workspaceRoots: List<String>.unmodifiable(
         args.multiOption('workspace-root'),
       ),
-      goalsFilePath: args['goals-file'] as String? ?? 'GOALS.md',
+      goalsFilePath: args['goals-file'] as String?,
       skillContractPath: args['skill-contract-file'] as String? ??
           'docs/contracts/flutter-cockpit-skill-contract.md',
       bundleContractPath: args['bundle-contract-file'] as String? ??

@@ -53,7 +53,7 @@ Run one command:
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   run-command \
   --app-json /tmp/flutter_cockpit/app.json \
-  --command-json '{"command_id":"assert-inbox","command_type":"assert_text","parameters":{"text":"Inbox"}}'
+  --command-json '{"commandId":"assert-inbox","commandType":"assertText","parameters":{"text":"Inbox"}}'
 ```
 
 Run a short batch:
@@ -63,8 +63,8 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   run-batch \
   --app-json /tmp/flutter_cockpit/app.json \
   --commands-json '[
-    {"command_id":"wait-1","command_type":"wait_for_ui_idle"},
-    {"command_id":"assert-inbox","command_type":"assert_text","parameters":{"text":"Inbox"}}
+    {"commandId":"wait-1","commandType":"waitForUiIdle"},
+    {"commandId":"assert-inbox","commandType":"assertText","parameters":{"text":"Inbox"}}
   ]'
 ```
 
@@ -130,7 +130,7 @@ Start recording:
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   start-recording \
   --app-json /tmp/flutter_cockpit/app.json \
-  --recording-json '{"purpose":"acceptance","tail_stabilization_ms":1400}'
+  --recording-json '{"purpose":"acceptance","tailStabilizationMs":1400}'
 ```
 
 Stop recording:
@@ -159,7 +159,7 @@ Run a full task workflow:
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   run-task \
   --config-json /tmp/flutter_cockpit/run_task.json \
-  --output-json /tmp/flutter_cockpit/run_task_result.json
+  --output-json /tmp/flutter_cockpit/runTaskResult.json
 ```
 
 Validate a full task workflow:
@@ -186,3 +186,48 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools serve-mcp
 - `list_apps` is MCP-only; CLI discovery is `app.json`-first.
 - `run-script` exits non-zero when the written bundle status is `failed`.
 - Write command output to `--output-json` when a later AI step must read structured state.
+- Prefer the lowest-cost public surface: in shell agents, CLI + command files + `jq` usually costs fewer tokens than reopening large payloads in model context; in tool-calling hosts, MCP is fine.
+
+## Pipe And jq Examples
+
+Read only the route and state:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  read-app \
+  --app-json /tmp/flutter_cockpit/app.json \
+  --profile minimal | jq '{sessionId,currentRouteName,state}'
+```
+
+Extract one scalar:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  read-app \
+  --app-json /tmp/flutter_cockpit/app.json \
+  --profile minimal | jq -r '.currentRouteName'
+```
+
+Keep a larger result on disk, then read only the needed fields:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  validate-task \
+  --config-json /tmp/flutter_cockpit/validate_task.json \
+  --output-json /tmp/flutter_cockpit/validate_task_result.json
+```
+
+```bash
+jq '{classification,recommendedNextStep,validationFailures}' \
+  /tmp/flutter_cockpit/validate_task_result.json
+```
+
+Prefer command files over long inline JSON:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-command \
+  --app-json /tmp/flutter_cockpit/app.json \
+  --command-file /tmp/flutter_cockpit/command.json \
+  --profile standard
+```

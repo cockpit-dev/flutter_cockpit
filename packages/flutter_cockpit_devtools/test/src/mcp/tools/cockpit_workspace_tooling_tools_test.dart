@@ -47,7 +47,7 @@ void main() {
     expect((structured['results'] as List<Object?>), hasLength(1));
   });
 
-  test('create_project defaults parent_directory to the single configured root',
+  test('create_project defaults parentDirectory to the single configured root',
       () async {
     final rootsTracker = CockpitMcpRootsTracker(forceFallback: true)
       ..addFallbackRoots(
@@ -72,7 +72,7 @@ void main() {
     );
 
     final result = await tool.call(<String, Object?>{
-      'project_name': 'new_app',
+      'projectName': 'new_app',
       'template': 'flutter_app',
     });
 
@@ -80,7 +80,7 @@ void main() {
     expect(capturedRequest?.allowedRoots, <String>['/workspace']);
     expect(capturedRequest?.timeout, const Duration(minutes: 5));
     final structured = result['structuredContent'] as Map<String, Object?>;
-    expect(structured['project_directory'], '/workspace/new_app');
+    expect(structured['projectDirectory'], '/workspace/new_app');
   });
 
   test('pub_dev_search returns shaped package summaries', () async {
@@ -196,7 +196,7 @@ void main() {
     expect(capturedRequest?.paths, <String>['lib/main.dart']);
     expect(capturedRequest?.timeout, const Duration(minutes: 2));
     final structured = result['structuredContent'] as Map<String, Object?>;
-    expect(structured['total_diagnostics'], 1);
+    expect(structured['totalDiagnostics'], 1);
   });
 
   test('lsp exposes concise code intelligence results', () async {

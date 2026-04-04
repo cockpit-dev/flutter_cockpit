@@ -8,21 +8,31 @@ import 'commands/hot_reload_command.dart';
 import 'commands/hot_restart_command.dart';
 import 'commands/inspect_ui_command.dart';
 import 'commands/launch_app_command.dart';
+import 'commands/lsp_command.dart';
 import 'commands/list_targets_command.dart';
+import 'commands/pub_command.dart';
+import 'commands/pub_dev_search_command.dart';
 import 'commands/read_app_command.dart';
 import 'commands/read_errors_command.dart';
 import 'commands/read_logs_command.dart';
 import 'commands/read_network_command.dart';
+import 'commands/read_package_uris_command.dart';
 import 'commands/run_batch_command.dart';
 import 'commands/run_command_command.dart';
 import 'commands/run_script_command.dart';
 import 'commands/run_task_command.dart';
+import 'commands/run_tests_command.dart';
 import 'commands/serve_mcp_command.dart';
 import 'commands/start_recording_command.dart';
 import 'commands/stop_app_command.dart';
 import 'commands/stop_recording_command.dart';
 import 'commands/validate_task_command.dart';
 import 'commands/wait_idle_command.dart';
+import 'commands/analyze_files_command.dart';
+import 'commands/analyze_workspace_command.dart';
+import 'commands/apply_fixes_command.dart';
+import 'commands/create_project_command.dart';
+import 'commands/format_workspace_command.dart';
 
 const int cockpitSuccessExitCode = 0;
 const int cockpitUsageExitCode = 64;
@@ -43,6 +53,16 @@ final class CockpitCommandRunner {
           ..addCommand(HotRestartCommand())
           ..addCommand(StopAppCommand())
           ..addCommand(WaitIdleCommand())
+          ..addCommand(PubDevSearchCommand())
+          ..addCommand(PubCommand())
+          ..addCommand(ReadPackageUrisCommand())
+          ..addCommand(LspCommand())
+          ..addCommand(AnalyzeFilesCommand())
+          ..addCommand(CreateProjectCommand())
+          ..addCommand(AnalyzeWorkspaceCommand())
+          ..addCommand(FormatWorkspaceCommand())
+          ..addCommand(RunTestsCommand())
+          ..addCommand(ApplyFixesCommand())
           ..addCommand(StartRecordingCommand())
           ..addCommand(StopRecordingCommand())
           ..addCommand(ReadLogsCommand())

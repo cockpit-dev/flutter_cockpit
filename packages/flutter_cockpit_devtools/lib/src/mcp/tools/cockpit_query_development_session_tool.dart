@@ -30,8 +30,8 @@ final class CockpitQueryDevelopmentSessionTool extends CockpitMcpTool {
   Map<String, Object?> get inputSchema => const <String, Object?>{
         'type': 'object',
         'properties': <String, Object?>{
-          'session_handle': <String, Object?>{'type': 'object'},
-          'session_handle_path': <String, Object?>{'type': 'string'},
+          'sessionHandle': <String, Object?>{'type': 'object'},
+          'sessionHandlePath': <String, Object?>{'type': 'string'},
         },
       };
 
@@ -43,7 +43,7 @@ final class CockpitQueryDevelopmentSessionTool extends CockpitMcpTool {
           sessionHandle: cockpitReadOptionalDevelopmentSessionHandle(arguments),
           sessionHandlePath: cockpitReadOptionalString(
             arguments,
-            'session_handle_path',
+            'sessionHandlePath',
           ),
         ),
       );
@@ -58,8 +58,8 @@ final class CockpitQueryDevelopmentSessionTool extends CockpitMcpTool {
         text: 'Development session status loaded.',
         structuredContent: <String, Object?>{
           'status': result.status.toJson(),
-          'session_handle': result.sessionHandle?.toJson(),
-          'recommended_next_step': result.recommendedNextStep,
+          'sessionHandle': result.sessionHandle?.toJson(),
+          'recommendedNextStep': result.recommendedNextStep,
         },
       );
     } on Object catch (error) {

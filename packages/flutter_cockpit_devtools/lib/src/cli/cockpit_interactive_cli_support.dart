@@ -122,7 +122,7 @@ void cockpitAddCompareAgainstSnapshotRefArg(
   parser.addOption(
     optionName,
     help:
-        'Existing snapshot_ref to diff against instead of reading only the latest state.',
+        'Existing snapshotRef to diff against instead of reading only the latest state.',
   );
 }
 
@@ -156,7 +156,7 @@ void cockpitAddCommandTimeoutArg(
   ArgParser parser, {
   String optionName = 'timeout-ms',
   String help =
-      'Default command timeout in milliseconds. Applied only when a command does not already set timeout_ms.',
+      'Default command timeout in milliseconds. Applied only when a command does not already set timeoutMs.',
 }) {
   parser.addOption(optionName, help: help);
 }
@@ -326,9 +326,7 @@ Future<Object?> _readJsonValue({
 
 String _renderJsonPayload(Object payload) {
   if (payload is! String) {
-    return const JsonEncoder.withIndent(
-      '  ',
-    ).convert(cockpitSnakeCaseJsonValue(payload));
+    return cockpitPrettyJsonText(payload);
   }
 
   final trimmed = payload.trimLeft();
@@ -337,9 +335,7 @@ String _renderJsonPayload(Object payload) {
   }
 
   try {
-    return const JsonEncoder.withIndent(
-      '  ',
-    ).convert(cockpitSnakeCaseJsonValue(jsonDecode(payload)));
+    return cockpitPrettyJsonText(jsonDecode(payload));
   } on FormatException {
     return payload;
   }

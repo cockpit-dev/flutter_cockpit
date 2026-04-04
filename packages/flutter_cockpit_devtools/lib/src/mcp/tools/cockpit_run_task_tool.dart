@@ -46,11 +46,11 @@ final class CockpitRunTaskTool extends CockpitMcpTool {
         'required': <String>['script', 'output_root'],
         'properties': <String, Object?>{
           'launch': <String, Object?>{'type': 'object'},
-          'session_handle': <String, Object?>{'type': 'object'},
-          'session_handle_path': <String, Object?>{'type': 'string'},
+          'sessionHandle': <String, Object?>{'type': 'object'},
+          'sessionHandlePath': <String, Object?>{'type': 'string'},
           'script': <String, Object?>{'type': 'object'},
-          'output_root': <String, Object?>{'type': 'string'},
-          'persist_script_path': <String, Object?>{'type': 'string'},
+          'outputRoot': <String, Object?>{'type': 'string'},
+          'persistScriptPath': <String, Object?>{'type': 'string'},
           'baseline': <String, Object?>{'type': 'object'},
           'requirements': <String, Object?>{'type': 'object'},
         },
@@ -67,11 +67,11 @@ final class CockpitRunTaskTool extends CockpitMcpTool {
         text: 'Task workflow executed and classified.',
         structuredContent: <String, Object?>{
           'classification': result.classification.jsonValue,
-          'recommended_next_step': result.recommendedNextStep,
-          'session_handle': result.sessionHandle?.toJson(),
-          'preflight_status': result.preflightStatus?.toJson(),
-          'blocked_reason': result.blockedReason,
-          'bundle_summary': result.bundleSummary?.toMcpJson(),
+          'recommendedNextStep': result.recommendedNextStep,
+          'sessionHandle': result.sessionHandle?.toJson(),
+          'preflightStatus': result.preflightStatus?.toJson(),
+          'blockedReason': result.blockedReason,
+          'bundleSummary': result.bundleSummary?.toMcpJson(),
         },
       );
     } on Object catch (error) {

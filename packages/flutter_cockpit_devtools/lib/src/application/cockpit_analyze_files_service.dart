@@ -62,10 +62,10 @@ final class CockpitAnalyzeFilesDiagnostic {
         'message': message,
         'line': line,
         'column': column,
-        'end_line': endLine,
-        'end_column': endColumn,
+        'endLine': endLine,
+        'endColumn': endColumn,
         if (correction != null) 'correction': correction,
-        if (documentationUrl != null) 'documentation_url': documentationUrl,
+        if (documentationUrl != null) 'documentationUrl': documentationUrl,
       };
 }
 
@@ -107,22 +107,22 @@ final class CockpitAnalyzeFilesResult {
   final bool stderrTruncated;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'workspace_root': workspaceRoot,
+        'workspaceRoot': workspaceRoot,
         'toolchain': toolchain.name,
         'paths': paths,
         'command': command.toJson(),
-        'exit_code': exitCode,
+        'exitCode': exitCode,
         'success': success,
         'clean': clean,
         'summary': summary,
-        'total_diagnostics': totalDiagnostics,
+        'totalDiagnostics': totalDiagnostics,
         'diagnostics': diagnostics.map((item) => item.toJson()).toList(),
-        'diagnostics_truncated': diagnosticsTruncated,
-        'severity_counts': severityCounts,
-        if (stdoutPreview != null) 'stdout_preview': stdoutPreview,
-        'stdout_truncated': stdoutTruncated,
-        if (stderrPreview != null) 'stderr_preview': stderrPreview,
-        'stderr_truncated': stderrTruncated,
+        'diagnosticsTruncated': diagnosticsTruncated,
+        'severityCounts': severityCounts,
+        if (stdoutPreview != null) 'stdoutPreview': stdoutPreview,
+        'stdoutTruncated': stdoutTruncated,
+        if (stderrPreview != null) 'stderrPreview': stderrPreview,
+        'stderrTruncated': stderrTruncated,
       };
 }
 
@@ -235,7 +235,7 @@ final class CockpitAnalyzeFilesService {
         message: 'Analysis path does not exist.',
         details: <String, Object?>{
           'path': rawPath,
-          'resolved_path': candidate,
+          'resolvedPath': candidate,
         },
       );
     }
@@ -256,10 +256,10 @@ String _pickAnalyzerJson(String stdout, String stderr) {
     code: 'analyzerJsonMissing',
     message: 'Analyzer output did not contain JSON diagnostics.',
     details: <String, Object?>{
-      'stdout_preview': normalizedStdout.length > 400
+      'stdoutPreview': normalizedStdout.length > 400
           ? '${normalizedStdout.substring(0, 400)}...'
           : normalizedStdout,
-      'stderr_preview': normalizedStderr.length > 400
+      'stderrPreview': normalizedStderr.length > 400
           ? '${normalizedStderr.substring(0, 400)}...'
           : normalizedStderr,
     },

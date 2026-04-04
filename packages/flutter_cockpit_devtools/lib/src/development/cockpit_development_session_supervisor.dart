@@ -6,6 +6,7 @@ import 'cockpit_development_session_handle.dart';
 import 'cockpit_development_session_status.dart';
 import 'cockpit_flutter_run_machine_client.dart';
 import 'cockpit_flutter_run_machine_event.dart';
+import '../application/cockpit_json_key_normalizer.dart';
 import '../session/cockpit_remote_session_handle.dart';
 
 typedef CockpitRemoteReachabilityProbe = Future<bool> Function(Uri baseUri);
@@ -497,7 +498,7 @@ final class CockpitDevelopmentSessionSupervisor {
     Map<String, Object?> payload,
   ) async {
     response.headers.contentType = ContentType.json;
-    response.write(jsonEncode(payload));
+    response.write(cockpitCompactJsonText(payload));
   }
 
   void _setStatus(CockpitDevelopmentSessionStatus status) {

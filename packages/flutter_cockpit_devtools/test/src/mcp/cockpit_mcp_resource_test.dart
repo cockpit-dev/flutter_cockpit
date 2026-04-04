@@ -24,7 +24,7 @@ void main() {
   test('template resource definition preserves URI template metadata', () {
     const definition = CockpitMcpResourceDefinition.template(
       name: 'task_summary',
-      uriTemplate: 'cockpit://task/summary{?bundle_dir}',
+      uriTemplate: 'cockpit://task/summary{?bundleDir}',
       description: 'Task bundle summary.',
       mimeType: 'application/json',
       categories: <CockpitMcpFeatureCategory>[
@@ -35,7 +35,7 @@ void main() {
 
     expect(definition.isTemplate, isTrue);
     expect(definition.uri, isNull);
-    expect(definition.uriTemplate, 'cockpit://task/summary{?bundle_dir}');
+    expect(definition.uriTemplate, 'cockpit://task/summary{?bundleDir}');
     expect(definition.mimeType, 'application/json');
   });
 }

@@ -7,7 +7,6 @@ import 'cockpit_execute_remote_command_service.dart';
 import 'cockpit_interactive_result_profile.dart';
 import 'cockpit_interactive_session_lock.dart';
 import 'cockpit_interactive_snapshot_store.dart';
-import 'cockpit_json_key_normalizer.dart';
 import 'cockpit_read_remote_snapshot_service.dart';
 import 'cockpit_session_reference_resolver.dart';
 import 'cockpit_start_remote_recording_service.dart';
@@ -70,10 +69,10 @@ final class CockpitExecuteRemoteCommandBatchSummary {
   final bool stoppedEarly;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'total_count': totalCount,
-        'success_count': successCount,
-        'failure_count': failureCount,
-        'stopped_early': stoppedEarly,
+        'totalCount': totalCount,
+        'successCount': successCount,
+        'failureCount': failureCount,
+        'stoppedEarly': stoppedEarly,
       };
 }
 
@@ -97,10 +96,10 @@ final class CockpitExecuteRemoteCommandBatchResult {
   Map<String, Object?> toJson() => <String, Object?>{
         'results': results.map((result) => result.toJson()).toList(),
         'summary': summary.toJson(),
-        'recording_session': recordingSession?.toJson(),
-        'recording_result': recordingResult?.toJson(),
-        'final_snapshot': cockpitSnakeCaseJsonValue(finalSnapshot?.toJson()),
-        'session_handle': cockpitSnakeCaseJsonValue(sessionHandle?.toJson()),
+        'recordingSession': recordingSession?.toJson(),
+        'recordingResult': recordingResult?.toJson(),
+        'finalSnapshot': (finalSnapshot?.toJson()),
+        'sessionHandle': (sessionHandle?.toJson()),
       };
 }
 

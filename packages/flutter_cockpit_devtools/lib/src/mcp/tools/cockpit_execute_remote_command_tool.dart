@@ -47,13 +47,13 @@ final class CockpitExecuteRemoteCommandTool extends CockpitMcpTool {
         'type': 'object',
         'required': <String>['command'],
         'properties': <String, Object?>{
-          'session_handle': <String, Object?>{'type': 'object'},
-          'session_handle_path': <String, Object?>{'type': 'string'},
+          'sessionHandle': <String, Object?>{'type': 'object'},
+          'sessionHandlePath': <String, Object?>{'type': 'string'},
           'command': <String, Object?>{'type': 'object'},
-          'timeout_ms': <String, Object?>{'type': 'integer'},
+          'timeoutMs': <String, Object?>{'type': 'integer'},
           'profile': <String, Object?>{'type': 'string'},
-          'snapshot_options': <String, Object?>{'type': 'object'},
-          'compare_against_snapshot_ref': <String, Object?>{'type': 'string'},
+          'snapshotOptions': <String, Object?>{'type': 'object'},
+          'compareAgainstSnapshotRef': <String, Object?>{'type': 'string'},
         },
       };
 

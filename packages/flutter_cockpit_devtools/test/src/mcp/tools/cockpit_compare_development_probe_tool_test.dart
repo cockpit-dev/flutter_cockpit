@@ -28,15 +28,15 @@ void main() {
       );
 
       final result = await tool.call(<String, Object?>{
-        'from_probe': _probe('probe-before').toJson(),
-        'to_probe': _probe('probe-after').toJson(),
+        'fromProbe': _probe('probe-before').toJson(),
+        'toProbe': _probe('probe-after').toJson(),
       });
 
       expect(capturedRequest?.fromProbe?.probeId, 'probe-before');
       expect(capturedRequest?.toProbe?.probeId, 'probe-after');
       final structured = result['structuredContent'] as Map<String, Object?>;
       expect(
-        (structured['delta'] as Map<String, Object?>)['route_changed'],
+        (structured['delta'] as Map<String, Object?>)['routeChanged'],
         isTrue,
       );
     },

@@ -182,6 +182,35 @@ void main() {
       'linux',
     );
   });
+
+  test('launch-development-session omits null fields in the payload', () async {
+    final output = StringBuffer();
+    final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
+      ..addCommand(
+        LaunchDevelopmentSessionCommand(
+          stdoutSink: output,
+          launch: (_) async => CockpitLaunchDevelopmentSessionResult(
+            sessionHandle: _handle(reloadGeneration: 0),
+            status: _status(CockpitDevelopmentSessionState.ready),
+          ),
+        ),
+      );
+
+    final exitCode = await runner.run(<String>[
+          'launch-development-session',
+          '--project-dir',
+          '/workspace/examples/cockpit_demo',
+          '--platform',
+          'android',
+          '--android-device-id',
+          'emulator-5554',
+        ]) ??
+        0;
+
+    expect(exitCode, 0);
+    final decoded = jsonDecode(output.toString()) as Map<String, Object?>;
+    expect(decoded.containsKey('persisted_handle_path'), isFalse);
+  });
 }
 
 CockpitDevelopmentSessionHandle _handle({required int reloadGeneration}) {
