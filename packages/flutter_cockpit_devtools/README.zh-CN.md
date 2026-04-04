@@ -75,6 +75,7 @@ Locator 规则：
 - 只有还不够准时，才继续补 `route`、`type`、`path`、嵌套 `ancestor`。
 - `path` 是 fuzzy 匹配：`body`、`slivers`、数字索引这类噪声段会被忽略，所以 `scaffold.body/custom_scroll_view.slivers/0/...` 这类形状也能命中同一目标。
 - 需要兜底时用 `fallbacks`，不要把所有条件都塞进一个超长 locator。
+- `scrollUntilVisible` 现在会在内部滚动分段之间做探测，所以 AI 应该先提升 locator 质量、再调小 `viewportFraction`，不要先写一串盲滚命令。
 
 ## 省 Token 的 Shell 用法
 
@@ -151,6 +152,7 @@ workspace 工具：
 - `list_apps` 只在 MCP 中暴露，因为 CLI 每次调用都是无状态进程，不保留内存中的 app registry。
 - `read_logs` 会优先读取 app-centric 的 runtime 日志；如果 `available=true` 但 `lines` 为空，通常表示应用这次没有产生日志，不代表异常。
 - `read_network` 是低 token 的网络排查入口，适合看 endpoint summary、最近失败请求，以及按需返回的有界请求明细；如果问题只和网络有关，优先走 `run_command` -> `wait_idle` -> `read_network`，不要一开始就读大 snapshot。
+- 长页面优先先露出稳定的 section 或 card；如果深层控件总是被 sticky header/footer 压住，先把 `viewportFraction` 调到更小，再考虑升级到 `inspect_ui`。
 - `pub` 默认返回裁剪后的依赖操作结果，而不是整段 `pub` 日志。
 - 对 shell agent，CLI 通常是最低 token 成本的公共入口；对 tool-calling host，则可以直接走同能力的 MCP tool，而不是把大段命令输出重新塞回模型上下文。
 - `analyze_files` 适合低 token 的定点诊断；只有在问题是全仓级别时才用 `analyze_workspace`。

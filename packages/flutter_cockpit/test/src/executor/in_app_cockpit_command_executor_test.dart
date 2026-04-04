@@ -1478,6 +1478,129 @@ void main() {
   );
 
   testWidgets(
+    'scrollUntilVisible stops probing before a newly visible target is pushed under a sticky overlay',
+    (tester) async {
+      final registry = CockpitTargetRegistry(routeName: '/settings');
+
+      await tester.pumpWidget(
+        WidgetsApp(
+          color: const Color(0xFFFFFFFF),
+          builder: (context, child) {
+            return Center(
+              child: SizedBox(
+                width: 320,
+                height: 320,
+                child: CockpitSurface(
+                  routeName: '/settings',
+                  registry: registry,
+                  child: Material(
+                    child: Directionality(
+                      textDirection: TextDirection.ltr,
+                      child: Stack(
+                        children: <Widget>[
+                          ListView(
+                            key: const ValueKey<String>('settings-list'),
+                            padding: EdgeInsets.zero,
+                            children: <Widget>[
+                              SizedBox(height: 330),
+                              SizedBox(
+                                height: 24,
+                                child: FilledButton(
+                                  key: const ValueKey<String>(
+                                    'settings-danger-zone',
+                                  ),
+                                  onPressed: () {},
+                                  child: const Text('Danger zone'),
+                                ),
+                              ),
+                              const SizedBox(height: 600),
+                            ],
+                          ),
+                          Align(
+                            alignment: Alignment.topCenter,
+                            child: GestureDetector(
+                              onTap: () {},
+                              behavior: HitTestBehavior.opaque,
+                              child: Container(
+                                height: 96,
+                                color: const Color(0xFF101214),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final surfaceState = tester.state<CockpitSurfaceState>(
+        find.byType(CockpitSurface),
+      );
+      final executor = InAppCockpitCommandExecutor(
+        registry: registry,
+        snapshotProvider: surfaceState.snapshot,
+        postActionSettler: () async {
+          await tester.pump();
+          await tester.pump();
+        },
+        scrollStepHandler: ({
+          required reverse,
+          required viewportFraction,
+          scrollableKey,
+          targetLocator,
+          scrollableLocator,
+          required duration,
+          required gestureProfile,
+          required continuous,
+          required postScrollEnsureVisible,
+        }) {
+          return surfaceState.scrollByViewport(
+            reverse: reverse,
+            viewportFraction: viewportFraction,
+            scrollableKey: scrollableKey,
+            targetLocator: targetLocator,
+            scrollableLocator: scrollableLocator,
+            duration: duration,
+            gestureProfile: gestureProfile,
+            continuous: continuous,
+            postScrollEnsureVisible: postScrollEnsureVisible,
+          );
+        },
+      );
+
+      final result = await executor.execute(
+        CockpitCommand(
+          commandId: 'scroll-to-danger-zone-before-overlay',
+          commandType: CockpitCommandType.scrollUntilVisible,
+          locator: const CockpitLocator(
+            key: 'settings-danger-zone',
+            ancestor: CockpitLocator(route: '/settings'),
+          ),
+          parameters: const <String, Object?>{
+            'maxScrolls': 1,
+            'viewportFraction': 0.8,
+            'scrollableLocator': <String, Object?>{
+              'key': 'settings-list',
+              'type': 'ListView',
+              'route': '/settings',
+            },
+          },
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(result.locatorResolution?.matchedKind, CockpitLocatorKind.key);
+      expect(result.locatorResolution?.matchedValue, 'settings-danger-zone');
+    },
+  );
+
+  testWidgets(
     'scrollUntilVisible treats visible passive text as visible when its ancestor owns the hit',
     (tester) async {
       final registry = CockpitTargetRegistry(routeName: '/stack');

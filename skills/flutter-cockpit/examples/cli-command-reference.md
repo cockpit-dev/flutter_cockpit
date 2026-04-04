@@ -56,6 +56,33 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --command-json '{"commandId":"assert-inbox","commandType":"assertText","parameters":{"text":"Inbox"}}'
 ```
 
+Scroll to a deep control with one locator:
+
+```bash
+cat >/tmp/flutter_cockpit/scroll_command.json <<'JSON'
+{
+  "commandId": "reveal-sync-card",
+  "commandType": "scrollUntilVisible",
+  "locator": {
+    "key": "settings-sync-card",
+    "ancestor": {
+      "route": "/settings"
+    }
+  },
+  "parameters": {
+    "maxScrolls": 8,
+    "viewportFraction": 0.55
+  }
+}
+JSON
+
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-command \
+  --app-json /tmp/flutter_cockpit/app.json \
+  --command-file /tmp/flutter_cockpit/scroll_command.json \
+  --profile standard | jq '{command: .command.success, route: .uiSummary.routeName, visible: .uiSummary.visibleTargetCount}'
+```
+
 Run a short batch:
 
 ```bash
@@ -183,6 +210,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools serve-mcp
 - `launch-app` auto-detects `cockpit/main.dart` first, then `lib/main.dart`.
 - Default to `--profile minimal` or `standard`.
 - Escalate to `inspect` or `evidence` only when required.
+- `scrollUntilVisible` already probes between internal scroll segments. Prefer a better locator or a smaller `viewportFraction` over manual repeated blind scroll commands.
 - `list_apps` is MCP-only; CLI discovery is `app.json`-first.
 - `run-script` exits non-zero when the written bundle status is `failed`.
 - Write command output to `--output-json` when a later AI step must read structured state.

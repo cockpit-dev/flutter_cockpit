@@ -20,11 +20,14 @@ void main() {
     expect(skill, contains('jq'));
     expect(skill, contains('pipe'));
     expect(skill, contains('Do not parallelize'));
+    expect(skill, contains('probes between internal scroll segments'));
     expect(skill, contains('stable section heading'));
     expect(cliReference, contains('--output-json'));
     expect(cliReference, contains('jq'));
+    expect(cliReference, contains('scrollUntilVisible'));
     expect(rapidLoop, contains('jq'));
     expect(rapidLoop, contains('app.json'));
+    expect(rapidLoop, contains('viewportFraction'));
     expect(rapidLoop, contains('stable section heading'));
     expect(rapidLoop, contains('Do not parallelize'));
   });

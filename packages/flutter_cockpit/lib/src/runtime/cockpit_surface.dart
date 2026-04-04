@@ -230,6 +230,7 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
     CockpitGestureProfile gestureProfile = CockpitGestureProfile.userLike,
     bool continuous = false,
     bool postScrollEnsureVisible = true,
+    bool probeDuringScroll = true,
   }) async {
     final rootContext = _boundaryKey.currentContext;
     if (rootContext == null) {
@@ -261,6 +262,63 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
     }
 
     final position = scrollable.state.position;
+    final probeSegmentCount = probeDuringScroll
+        ? _scrollProbeSegmentCount(
+            targetLocator: targetLocator,
+            viewportFraction: viewportFraction,
+          )
+        : 1;
+    if (probeSegmentCount > 1) {
+      final stepViewportFraction = viewportFraction / probeSegmentCount;
+      final stepDuration = duration == Duration.zero
+          ? Duration.zero
+          : Duration(
+              milliseconds: (duration.inMilliseconds / probeSegmentCount)
+                  .ceil()
+                  .clamp(1, duration.inMilliseconds),
+            );
+      final pixelsBeforeProbe = position.pixels;
+      var didScroll = false;
+      CockpitScrollStepResult? lastStep;
+
+      for (var index = 0; index < probeSegmentCount; index += 1) {
+        final stepResult = await scrollByViewport(
+          reverse: reverse,
+          viewportFraction: stepViewportFraction,
+          scrollableKey: scrollableKey,
+          targetLocator: targetLocator,
+          scrollableLocator: scrollableLocator,
+          duration: stepDuration,
+          gestureProfile: gestureProfile,
+          continuous: continuous,
+          postScrollEnsureVisible: postScrollEnsureVisible,
+          probeDuringScroll: false,
+        );
+        lastStep = stepResult;
+        didScroll = didScroll || stepResult.didScroll;
+        if (_locatorIsVisible(targetLocator)) {
+          return _mergeProbeResult(
+            base: stepResult,
+            pixelsBefore: pixelsBeforeProbe,
+            pixelsAfter: position.pixels,
+            didScroll: didScroll,
+          );
+        }
+        if (!stepResult.didScroll) {
+          break;
+        }
+      }
+
+      if (lastStep != null) {
+        return _mergeProbeResult(
+          base: lastStep,
+          pixelsBefore: pixelsBeforeProbe,
+          pixelsAfter: position.pixels,
+          didScroll: didScroll,
+        );
+      }
+    }
+
     final pixelsBefore = position.pixels;
     final axisSign = switch (position.axisDirection) {
       AxisDirection.down || AxisDirection.right => 1.0,
@@ -488,6 +546,61 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
       hadSemanticAction: hadSemanticAction,
       matchedRegistryTarget: scrollableTarget != null,
     );
+  }
+
+  CockpitScrollStepResult _mergeProbeResult({
+    required CockpitScrollStepResult base,
+    required double pixelsBefore,
+    required double pixelsAfter,
+    required bool didScroll,
+  }) {
+    return CockpitScrollStepResult(
+      didScroll: didScroll,
+      strategy: didScroll && base.strategy != 'none'
+          ? '${base.strategy}_probe'
+          : base.strategy,
+      scrollableKey: base.scrollableKey,
+      scrollablePath: base.scrollablePath,
+      scrollableTypeName: base.scrollableTypeName,
+      pixelsBefore: pixelsBefore,
+      pixelsAfter: pixelsAfter,
+      nextPixels: base.nextPixels,
+      minScrollExtent: base.minScrollExtent,
+      maxScrollExtent: base.maxScrollExtent,
+      viewportDimension: base.viewportDimension,
+      acceptsUserOffset: base.acceptsUserOffset,
+      allowsProgrammaticScroll: base.allowsProgrammaticScroll,
+      hadGestureTarget: base.hadGestureTarget,
+      hadSemanticAction: base.hadSemanticAction,
+      matchedRegistryTarget: base.matchedRegistryTarget,
+    );
+  }
+
+  int _scrollProbeSegmentCount({
+    required CockpitLocator? targetLocator,
+    required double viewportFraction,
+  }) {
+    if (targetLocator == null) {
+      return 1;
+    }
+    final clampedFraction = viewportFraction.clamp(0.1, 0.95).toDouble();
+    if (clampedFraction < 0.4) {
+      return 1;
+    }
+    if (_locatorIsVisible(targetLocator)) {
+      return 1;
+    }
+    return (clampedFraction / 0.2).floor().clamp(1, 4);
+  }
+
+  bool _locatorIsVisible(CockpitLocator? locator) {
+    if (locator == null) {
+      return false;
+    }
+    if (locator.kind == CockpitLocatorKind.route) {
+      return widget.routeName == locator.value;
+    }
+    return _registry.resolve(locator).isSuccess;
   }
 
   CockpitTarget? _registryTargetForScrollableCandidate(

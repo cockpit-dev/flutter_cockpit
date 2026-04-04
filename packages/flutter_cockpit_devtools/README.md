@@ -75,6 +75,7 @@ Locator rules:
 - Add `route`, `type`, `path`, and nested `ancestor` only when ambiguity remains.
 - `path` is fuzzy: segments like `body`, `slivers`, and numeric indexes are ignored, so shapes such as `scaffold.body/custom_scroll_view.slivers/0/...` can still match the same target.
 - Use `fallbacks` for a short ordered backup list instead of one oversized locator.
+- `scrollUntilVisible` probes between internal scroll segments, so agents should prefer one good locator and tune `viewportFraction` before falling back to manual repeated scroll commands.
 
 ## Token-Saving Shell Patterns
 
@@ -151,6 +152,7 @@ Resources and prompts are also exposed for contracts, capabilities, task summari
 - `list_apps` is MCP-only because the CLI does not keep an in-memory app registry across invocations.
 - `read_logs` reads app-centric runtime lines first. `available=true` with an empty `lines` array is valid when the app emitted no runtime logs.
 - `read_network` is the low-token path for endpoint summaries, recent failures, and optional bounded entries. Prefer `run_command` -> `wait_idle` -> `read_network` over `inspect_ui` when the question is only about network traffic.
+- On long pages, reveal a stable card or section first. If a deep control still misses under sticky chrome, lower `viewportFraction` before escalating to `inspect_ui`.
 - `pub` keeps dependency edits bounded and returns previews instead of full `pub` logs by default.
 - Shell agents usually get the lowest token cost from the CLI surface. Tool-calling hosts can use the matching MCP tools instead of reopening large command payloads in model context.
 - `analyze_files` is the low-token path for focused diagnostics; use `analyze_workspace` only when the question is workspace-wide.

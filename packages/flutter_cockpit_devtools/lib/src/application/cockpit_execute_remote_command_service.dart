@@ -222,10 +222,12 @@ final class CockpitExecuteRemoteCommandService {
         final maxScrolls = _positiveInt(command.parameters['maxScrolls']) ?? 12;
         final durationPerStepMs =
             _positiveInt(command.parameters['durationPerStepMs']) ?? 220;
+        final probeSegments = _recommendedScrollProbeSegments(command);
         final revealRequested = command.parameters['revealAlignment'] != null ||
             (_positiveNum(command.parameters['revealPadding']) ?? 0) > 0;
-        final stepBudgetMs =
-            maxScrolls * (durationPerStepMs + (revealRequested ? 420 : 320));
+        final perStepBudgetMs =
+            probeSegments * (durationPerStepMs + (revealRequested ? 420 : 320));
+        final stepBudgetMs = maxScrolls * perStepBudgetMs;
         recommended = _maxDuration(
           recommended,
           Duration(milliseconds: stepBudgetMs + 1800),
@@ -266,6 +268,20 @@ final class CockpitExecuteRemoteCommandService {
       return value.toDouble();
     }
     return null;
+  }
+
+  static int _recommendedScrollProbeSegments(CockpitCommand command) {
+    if (command.locator == null) {
+      return 1;
+    }
+    final viewportFraction =
+        (_positiveNum(command.parameters['viewportFraction']) ?? 0.8)
+            .clamp(0.1, 0.95)
+            .toDouble();
+    if (viewportFraction < 0.4) {
+      return 1;
+    }
+    return (viewportFraction / 0.2).floor().clamp(1, 4);
   }
 
   static Duration _maxDuration(Duration left, Duration right) {

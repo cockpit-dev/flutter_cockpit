@@ -122,6 +122,43 @@ void main() {
       expect(capturedCommand?.timeoutMs, greaterThanOrEqualTo(8000));
     });
 
+    test('extends inferred timeout when scroll probing splits large steps',
+        () async {
+      CockpitCommand? capturedCommand;
+      final service = CockpitExecuteRemoteCommandService(
+        executeCommand: (_, command) async {
+          capturedCommand = command;
+          return CockpitCommandExecution(
+            result: CockpitCommandResult(
+              success: true,
+              commandId: command.commandId,
+              commandType: command.commandType,
+              durationMs: 50,
+            ),
+          );
+        },
+      );
+
+      await service.execute(
+        CockpitExecuteRemoteCommandRequest(
+          sessionHandle: _sessionHandle(),
+          command: CockpitCommand(
+            commandId: 'scroll-probe-timeout-default',
+            commandType: CockpitCommandType.scrollUntilVisible,
+            locator: const CockpitLocator(key: 'settings-sync-check-button'),
+            parameters: const <String, Object?>{
+              'maxScrolls': 6,
+              'viewportFraction': 0.8,
+            },
+          ),
+          resultProfile: const CockpitInteractiveResultProfile.minimal(),
+          defaultCommandTimeout: const Duration(seconds: 4),
+        ),
+      );
+
+      expect(capturedCommand?.timeoutMs, greaterThanOrEqualTo(12000));
+    });
+
     test('returns summary, diagnostics, artifact metadata, and snapshot refs',
         () async {
       final handle = _sessionHandle();
