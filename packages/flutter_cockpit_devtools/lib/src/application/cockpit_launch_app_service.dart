@@ -43,8 +43,8 @@ final class CockpitLaunchAppResult {
 
   Map<String, Object?> toJson() => <String, Object?>{
         'app': app.toJson(),
-        'appJsonPath': appJsonPath,
-        'supervisorLogPath': supervisorLogPath,
+        if (appJsonPath != null) 'appJsonPath': appJsonPath,
+        if (supervisorLogPath != null) 'supervisorLogPath': supervisorLogPath,
       };
 }
 

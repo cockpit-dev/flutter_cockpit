@@ -48,12 +48,15 @@ final class CockpitInteractiveCommandCore {
         'commandType': commandType,
         'success': success,
         'durationMs': durationMs,
-        'locatorResolution': locatorResolution?.toJson(),
-        'requestedCaptureProfile': requestedCaptureProfile,
-        'resolvedCaptureKind': resolvedCaptureKind,
+        if (locatorResolution != null)
+          'locatorResolution': locatorResolution!.toJson(),
+        if (requestedCaptureProfile != null)
+          'requestedCaptureProfile': requestedCaptureProfile,
+        if (resolvedCaptureKind != null)
+          'resolvedCaptureKind': resolvedCaptureKind,
         'usedCaptureFallback': usedCaptureFallback,
-        'degradationReason': degradationReason,
-        'error': error?.toJson(),
+        if (degradationReason != null) 'degradationReason': degradationReason,
+        if (error != null) 'error': error!.toJson(),
       };
 }
 
@@ -121,7 +124,7 @@ final class CockpitInteractiveSnapshotSummary {
   final List<String> textPreviews;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'routeName': routeName,
+        if (routeName != null) 'routeName': routeName,
         'diagnosticLevel': diagnosticLevel,
         'truncated': truncated,
         'visibleTargetCount': visibleTargetCount,
@@ -166,8 +169,8 @@ final class CockpitInteractiveSnapshotDelta {
 
   Map<String, Object?> toJson() => <String, Object?>{
         'routeChanged': routeChanged,
-        'fromRouteName': fromRouteName,
-        'toRouteName': toRouteName,
+        if (fromRouteName != null) 'fromRouteName': fromRouteName,
+        if (toRouteName != null) 'toRouteName': toRouteName,
         'visibleTargetCountDelta': visibleTargetCountDelta,
         'targetsWithTextCountDelta': targetsWithTextCountDelta,
         'networkFailureCountDelta': networkFailureCountDelta,

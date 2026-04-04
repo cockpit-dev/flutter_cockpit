@@ -64,15 +64,20 @@ final class CockpitAppHandle {
         'target': target,
         'baseUrl': baseUrl,
         'launchedAt': launchedAt.toUtc().toIso8601String(),
-        'platformAppId': platformAppId,
+        if (platformAppId != null) 'platformAppId': platformAppId,
         'supportsHotReload': supportsHotReload,
-        'supervisorLogPath': supervisorLogPath,
-        'developmentSessionId': developmentSession?.developmentSessionId,
-        'supervisorBaseUrl': developmentSession?.supervisorBaseUri.toString(),
-        'reloadGeneration': developmentSession?.reloadGeneration,
-        'vmServiceUri': developmentSession?.vmServiceUri?.toString(),
-        'lastReloadAt':
-            developmentSession?.lastReloadAt?.toUtc().toIso8601String(),
+        if (supervisorLogPath != null) 'supervisorLogPath': supervisorLogPath,
+        if (developmentSession != null)
+          'developmentSessionId': developmentSession!.developmentSessionId,
+        if (developmentSession != null)
+          'supervisorBaseUrl': developmentSession!.supervisorBaseUri.toString(),
+        if (developmentSession != null)
+          'reloadGeneration': developmentSession!.reloadGeneration,
+        if (developmentSession?.vmServiceUri != null)
+          'vmServiceUri': developmentSession!.vmServiceUri!.toString(),
+        if (developmentSession?.lastReloadAt != null)
+          'lastReloadAt':
+              developmentSession!.lastReloadAt!.toUtc().toIso8601String(),
       };
 
   factory CockpitAppHandle.fromJson(Map<String, Object?> json) {

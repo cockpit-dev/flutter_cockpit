@@ -39,8 +39,8 @@ final class CockpitStartRemoteRecordingResult {
   final CockpitRemoteSessionHandle? sessionHandle;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'recordingSession': (recordingSession.toJson()),
-        'sessionHandle': (sessionHandle?.toJson()),
+        'recordingSession': recordingSession.toJson(),
+        if (sessionHandle != null) 'sessionHandle': sessionHandle!.toJson(),
       };
 }
 

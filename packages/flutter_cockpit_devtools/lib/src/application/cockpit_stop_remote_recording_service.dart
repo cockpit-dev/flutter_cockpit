@@ -47,12 +47,12 @@ final class CockpitStopRemoteRecordingResult {
 
   Map<String, Object?> toJson() => <String, Object?>{
         'state': state.name,
-        'purpose': purpose?.name,
-        'recordingKind': recordingKind?.name,
-        'artifact': artifact?.toJson(),
-        'durationMs': durationMs,
-        'failureReason': failureReason,
-        'sessionHandle': sessionHandle?.toJson(),
+        if (purpose != null) 'purpose': purpose!.name,
+        if (recordingKind != null) 'recordingKind': recordingKind!.name,
+        if (artifact != null) 'artifact': artifact!.toJson(),
+        if (durationMs != null) 'durationMs': durationMs,
+        if (failureReason != null) 'failureReason': failureReason,
+        if (sessionHandle != null) 'sessionHandle': sessionHandle!.toJson(),
       };
 }
 

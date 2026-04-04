@@ -68,14 +68,15 @@ final class CockpitExecuteRemoteCommandResult {
   Map<String, Object?> toJson() => <String, Object?>{
         'command': command.toJson(),
         'artifacts': artifacts.map((artifact) => artifact.toJson()).toList(),
-        'uiSummary': uiSummary?.toJson(),
-        'snapshot': (snapshot?.toJson()),
-        'diagnostics': diagnostics,
+        if (uiSummary != null) 'uiSummary': uiSummary!.toJson(),
+        if (snapshot != null) 'snapshot': snapshot!.toJson(),
+        if (diagnostics != null) 'diagnostics': diagnostics,
         'runtimeSteps': runtimeSteps,
-        'delta': delta?.toJson(),
-        'snapshotRef': snapshotRef,
-        'sessionHandle': (sessionHandle?.toJson()),
-        'effectiveSnapshotOptions': (effectiveSnapshotOptions?.toJson()),
+        if (delta != null) 'delta': delta!.toJson(),
+        if (snapshotRef != null) 'snapshotRef': snapshotRef,
+        if (sessionHandle != null) 'sessionHandle': sessionHandle!.toJson(),
+        if (effectiveSnapshotOptions != null)
+          'effectiveSnapshotOptions': effectiveSnapshotOptions!.toJson(),
       };
 }
 

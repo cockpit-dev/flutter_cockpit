@@ -73,7 +73,8 @@ final class CockpitValidateTaskRequirements {
   final bool requireAcceptanceSemanticEvidence;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'expectedClassification': expectedClassification?.jsonValue,
+        if (expectedClassification != null)
+          'expectedClassification': expectedClassification!.jsonValue,
         'requireAcceptanceMarkdown': requireAcceptanceMarkdown,
         'requireEnvironmentSnapshot': requireEnvironmentSnapshot,
         'requirePrimaryScreenshot': requirePrimaryScreenshot,
@@ -175,9 +176,9 @@ final class CockpitValidateTaskResult {
   Map<String, Object?> toJson() => <String, Object?>{
         'classification': classification.jsonValue,
         'recommendedNextStep': recommendedNextStep,
-        'runTaskResult': runTaskResult?.toJson(),
-        'bundleSummary': bundleSummary?.toJson(),
-        'blockedReason': blockedReason,
+        if (runTaskResult != null) 'runTaskResult': runTaskResult!.toJson(),
+        if (bundleSummary != null) 'bundleSummary': bundleSummary!.toJson(),
+        if (blockedReason != null) 'blockedReason': blockedReason,
         'validationFailures': validationFailures
             .map((failure) => failure.toJson())
             .toList(growable: false),

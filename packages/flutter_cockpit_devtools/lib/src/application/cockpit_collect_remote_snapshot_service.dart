@@ -44,7 +44,7 @@ final class CockpitCollectRemoteSnapshotResult {
   Map<String, Object?> toJson() => <String, Object?>{
         'snapshot': snapshot.toJson(),
         'effectiveOptions': effectiveOptions.toJson(),
-        'sessionHandle': sessionHandle?.toJson(),
+        if (sessionHandle != null) 'sessionHandle': sessionHandle!.toJson(),
         'warnings': warnings,
       };
 }

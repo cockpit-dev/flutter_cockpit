@@ -96,10 +96,12 @@ final class CockpitExecuteRemoteCommandBatchResult {
   Map<String, Object?> toJson() => <String, Object?>{
         'results': results.map((result) => result.toJson()).toList(),
         'summary': summary.toJson(),
-        'recordingSession': recordingSession?.toJson(),
-        'recordingResult': recordingResult?.toJson(),
-        'finalSnapshot': (finalSnapshot?.toJson()),
-        'sessionHandle': (sessionHandle?.toJson()),
+        if (recordingSession != null)
+          'recordingSession': recordingSession!.toJson(),
+        if (recordingResult != null)
+          'recordingResult': recordingResult!.toJson(),
+        if (finalSnapshot != null) 'finalSnapshot': finalSnapshot!.toJson(),
+        if (sessionHandle != null) 'sessionHandle': sessionHandle!.toJson(),
       };
 }
 

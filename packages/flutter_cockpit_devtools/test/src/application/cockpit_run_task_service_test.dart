@@ -49,7 +49,6 @@ void main() {
         'launchTimeoutSeconds': 90,
         'persistHandlePath': '/tmp/session.json',
       },
-      'sessionHandle': null,
       'sessionHandlePath': '/tmp/existing-session.json',
       'script': _script(platform: 'android').toJson(),
       'outputRoot': '/tmp/output',

@@ -68,16 +68,18 @@ final class CockpitReadRemoteStatusResult {
         'sessionId': sessionId,
         'platform': platform,
         'transportType': transportType,
-        'currentRouteName': currentRouteName,
+        if (currentRouteName != null) 'currentRouteName': currentRouteName,
         'capabilities': capabilities.toJson(),
         'recordingCapabilities': recordingCapabilities.toJson(),
-        'activeRecording': activeRecording?.toJson(),
-        'environment': environment?.toJson(),
-        'uiSummary': uiSummary?.toJson(),
-        'snapshot': snapshot?.toJson(),
-        'snapshotRef': snapshotRef,
-        'sessionHandle': sessionHandle?.toJson(),
-        'effectiveSnapshotOptions': effectiveSnapshotOptions?.toJson(),
+        if (activeRecording != null)
+          'activeRecording': activeRecording!.toJson(),
+        if (environment != null) 'environment': environment!.toJson(),
+        if (uiSummary != null) 'uiSummary': uiSummary!.toJson(),
+        if (snapshot != null) 'snapshot': snapshot!.toJson(),
+        if (snapshotRef != null) 'snapshotRef': snapshotRef,
+        if (sessionHandle != null) 'sessionHandle': sessionHandle!.toJson(),
+        if (effectiveSnapshotOptions != null)
+          'effectiveSnapshotOptions': effectiveSnapshotOptions!.toJson(),
       };
 }
 

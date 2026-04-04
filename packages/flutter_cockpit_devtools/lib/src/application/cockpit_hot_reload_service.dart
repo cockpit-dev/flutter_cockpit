@@ -35,8 +35,8 @@ final class CockpitHotReloadResult {
 
   Map<String, Object?> toJson() => <String, Object?>{
         'app': app.toJson(),
-        'status': (status.toJson()),
-        'appJsonPath': appJsonPath,
+        'status': status.toJson(),
+        if (appJsonPath != null) 'appJsonPath': appJsonPath,
       };
 }
 

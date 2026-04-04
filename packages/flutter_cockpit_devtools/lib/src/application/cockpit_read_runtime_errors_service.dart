@@ -27,11 +27,12 @@ final class CockpitRuntimeErrorEntry {
   Map<String, Object?> toJson() => <String, Object?>{
         'source': source,
         'message': message,
-        'recordedAt': recordedAt?.toUtc().toIso8601String(),
-        'sessionId': sessionId,
-        'bundleDir': bundleDir,
-        'kind': kind,
-        'routeName': routeName,
+        if (recordedAt != null)
+          'recordedAt': recordedAt!.toUtc().toIso8601String(),
+        if (sessionId != null) 'sessionId': sessionId,
+        if (bundleDir != null) 'bundleDir': bundleDir,
+        if (kind != null) 'kind': kind,
+        if (routeName != null) 'routeName': routeName,
       };
 }
 
@@ -80,9 +81,9 @@ final class CockpitReadRuntimeErrorsResult {
   bool get hasErrors => errors.isNotEmpty;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'appId': appId,
-        'routeName': routeName,
-        'source': source,
+        if (appId != null) 'appId': appId,
+        if (routeName != null) 'routeName': routeName,
+        if (source != null) 'source': source,
         'hasErrors': hasErrors,
         'errors': errors.map((error) => error.toJson()).toList(growable: false),
       };

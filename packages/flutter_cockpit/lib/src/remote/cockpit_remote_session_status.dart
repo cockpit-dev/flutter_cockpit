@@ -31,12 +31,13 @@ final class CockpitRemoteSessionStatus {
         'sessionId': sessionId,
         'platform': platform,
         'transportType': transportType,
-        'currentRouteName': currentRouteName,
+        if (currentRouteName != null) 'currentRouteName': currentRouteName,
         'capabilities': capabilities.toJson(),
         'recordingCapabilities': recordingCapabilities.toJson(),
         'snapshot': snapshot.toJson(),
-        'environment': environment?.toJson(),
-        'activeRecording': activeRecording?.toJson(),
+        if (environment != null) 'environment': environment!.toJson(),
+        if (activeRecording != null)
+          'activeRecording': activeRecording!.toJson(),
       };
 
   factory CockpitRemoteSessionStatus.fromJson(Map<String, Object?> json) {

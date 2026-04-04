@@ -46,9 +46,11 @@ final class CockpitBundleArtifactPaths {
   }
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'primaryScreenshotPath': primaryScreenshotPath,
+        if (primaryScreenshotPath != null)
+          'primaryScreenshotPath': primaryScreenshotPath,
         'attachmentPaths': attachmentPaths,
-        'primaryRecordingPath': primaryRecordingPath,
+        if (primaryRecordingPath != null)
+          'primaryRecordingPath': primaryRecordingPath,
         'videoAttachmentPaths': videoAttachmentPaths,
         'keyframePaths': keyframePaths,
       };

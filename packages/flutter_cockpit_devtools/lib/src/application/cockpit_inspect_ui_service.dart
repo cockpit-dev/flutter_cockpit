@@ -55,16 +55,17 @@ final class CockpitInspectUiResult {
   final CockpitSnapshotOptions? effectiveSnapshotOptions;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'app': app?.toJson(),
-        'routeName': routeName,
+        if (app != null) 'app': app!.toJson(),
+        if (routeName != null) 'routeName': routeName,
         'diagnosticLevel': diagnosticLevel,
         'truncated': truncated,
-        'uiSummary': uiSummary?.toJson(),
-        'snapshot': (snapshot?.toJson()),
-        'diagnostics': diagnostics,
-        'delta': delta?.toJson(),
-        'snapshotRef': snapshotRef,
-        'effectiveSnapshotOptions': (effectiveSnapshotOptions?.toJson()),
+        if (uiSummary != null) 'uiSummary': uiSummary!.toJson(),
+        if (snapshot != null) 'snapshot': snapshot!.toJson(),
+        if (diagnostics != null) 'diagnostics': diagnostics,
+        if (delta != null) 'delta': delta!.toJson(),
+        if (snapshotRef != null) 'snapshotRef': snapshotRef,
+        if (effectiveSnapshotOptions != null)
+          'effectiveSnapshotOptions': effectiveSnapshotOptions!.toJson(),
       };
 }
 

@@ -63,15 +63,16 @@ final class CockpitReadAppResult {
         'transportType': transportType,
         'capabilities': capabilities.toJson(),
         'recordingCapabilities': recordingCapabilities.toJson(),
-        'app': app?.toJson(),
-        'state': state,
-        'lastError': lastError,
-        'currentRouteName': currentRouteName,
-        'uiSummary': uiSummary?.toJson(),
-        'snapshot': snapshot?.toJson(),
-        'snapshotRef': snapshotRef,
-        'diagnostics': diagnostics,
-        'effectiveSnapshotOptions': effectiveSnapshotOptions?.toJson(),
+        if (app != null) 'app': app!.toJson(),
+        if (state != null) 'state': state,
+        if (lastError != null) 'lastError': lastError,
+        if (currentRouteName != null) 'currentRouteName': currentRouteName,
+        if (uiSummary != null) 'uiSummary': uiSummary!.toJson(),
+        if (snapshot != null) 'snapshot': snapshot!.toJson(),
+        if (snapshotRef != null) 'snapshotRef': snapshotRef,
+        if (diagnostics != null) 'diagnostics': diagnostics,
+        if (effectiveSnapshotOptions != null)
+          'effectiveSnapshotOptions': effectiveSnapshotOptions!.toJson(),
       };
 }
 

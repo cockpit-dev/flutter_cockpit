@@ -55,7 +55,7 @@ final class CockpitWaitRemoteUiIdleResult {
         'quietWindowMs': quietWindowMs,
         'timeoutMs': timeoutMs,
         'includeNetworkIdle': includeNetworkIdle,
-        'sessionHandle': (sessionHandle?.toJson()),
+        if (sessionHandle != null) 'sessionHandle': sessionHandle!.toJson(),
       };
 }
 

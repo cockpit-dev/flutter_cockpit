@@ -70,12 +70,12 @@ final class CockpitRunTaskLaunchRequest {
 
   Map<String, Object?> toJson() => <String, Object?>{
         'projectDir': projectDir,
-        'target': target,
+        if (target != null) 'target': target,
         'platform': platform,
         'deviceId': deviceId,
         'sessionPort': sessionPort,
         'launchTimeoutSeconds': launchTimeout.inSeconds,
-        'persistHandlePath': persistHandlePath,
+        if (persistHandlePath != null) 'persistHandlePath': persistHandlePath,
       };
 
   factory CockpitRunTaskLaunchRequest.fromJson(Map<String, Object?> json) {
@@ -190,12 +190,12 @@ final class CockpitRunTaskRequest {
   final CockpitRunTaskEvidenceRequirements requirements;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'launch': launch?.toJson(),
-        'sessionHandle': sessionHandle?.toJson(),
-        'sessionHandlePath': sessionHandlePath,
+        if (launch != null) 'launch': launch!.toJson(),
+        if (sessionHandle != null) 'sessionHandle': sessionHandle!.toJson(),
+        if (sessionHandlePath != null) 'sessionHandlePath': sessionHandlePath,
         'script': script.toJson(),
         'outputRoot': outputRoot,
-        'persistScriptPath': persistScriptPath,
+        if (persistScriptPath != null) 'persistScriptPath': persistScriptPath,
         'baseline': baseline.toJson(),
         'requirements': requirements.toJson(),
       };
@@ -260,10 +260,11 @@ final class CockpitRunTaskResult {
   Map<String, Object?> toJson() => <String, Object?>{
         'classification': classification.jsonValue,
         'recommendedNextStep': recommendedNextStep,
-        'sessionHandle': sessionHandle?.toJson(),
-        'preflightStatus': preflightStatus?.toJson(),
-        'blockedReason': blockedReason,
-        'bundleSummary': bundleSummary?.toJson(),
+        if (sessionHandle != null) 'sessionHandle': sessionHandle!.toJson(),
+        if (preflightStatus != null)
+          'preflightStatus': preflightStatus!.toJson(),
+        if (blockedReason != null) 'blockedReason': blockedReason,
+        if (bundleSummary != null) 'bundleSummary': bundleSummary!.toJson(),
       };
 }
 

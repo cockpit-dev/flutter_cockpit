@@ -25,8 +25,8 @@ final class CockpitControlScript {
         'sessionId': sessionId,
         'taskId': taskId,
         'platform': platform,
-        'environment': environment?.toJson(),
-        'recording': recording?.toJson(),
+        if (environment != null) 'environment': environment!.toJson(),
+        if (recording != null) 'recording': recording!.toJson(),
         'commands':
             commands.map((command) => command.toJson()).toList(growable: false),
         'failFast': failFast,

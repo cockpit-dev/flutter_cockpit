@@ -61,16 +61,17 @@ final class CockpitReadRemoteSnapshotResult {
   final CockpitSnapshotOptions? effectiveSnapshotOptions;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'routeName': routeName,
+        if (routeName != null) 'routeName': routeName,
         'diagnosticLevel': diagnosticLevel,
         'truncated': truncated,
-        'uiSummary': uiSummary?.toJson(),
-        'snapshot': (snapshot?.toJson()),
-        'diagnostics': diagnostics,
-        'delta': delta?.toJson(),
-        'snapshotRef': snapshotRef,
-        'sessionHandle': (sessionHandle?.toJson()),
-        'effectiveSnapshotOptions': (effectiveSnapshotOptions?.toJson()),
+        if (uiSummary != null) 'uiSummary': uiSummary!.toJson(),
+        if (snapshot != null) 'snapshot': snapshot!.toJson(),
+        if (diagnostics != null) 'diagnostics': diagnostics,
+        if (delta != null) 'delta': delta!.toJson(),
+        if (snapshotRef != null) 'snapshotRef': snapshotRef,
+        if (sessionHandle != null) 'sessionHandle': sessionHandle!.toJson(),
+        if (effectiveSnapshotOptions != null)
+          'effectiveSnapshotOptions': effectiveSnapshotOptions!.toJson(),
       };
 }
 

@@ -643,9 +643,11 @@ final class CockpitBundleEvidenceView {
   final List<CockpitBundleEvidenceKeyframe> keyframes;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'primaryScreenshotPath': primaryScreenshotPath,
+        if (primaryScreenshotPath != null)
+          'primaryScreenshotPath': primaryScreenshotPath,
         'attachmentPaths': attachmentPaths,
-        'primaryRecordingPath': primaryRecordingPath,
+        if (primaryRecordingPath != null)
+          'primaryRecordingPath': primaryRecordingPath,
         'videoAttachmentPaths': videoAttachmentPaths,
         'keyframePaths': keyframePaths,
         'diagnosticsArtifactPaths': diagnosticsArtifactPaths,
@@ -660,9 +662,11 @@ final class CockpitBundleEvidenceView {
       };
 
   Map<String, Object?> toMcpJson() => <String, Object?>{
-        'primaryScreenshotPath': primaryScreenshotPath,
+        if (primaryScreenshotPath != null)
+          'primaryScreenshotPath': primaryScreenshotPath,
         'attachmentPaths': attachmentPaths,
-        'primaryRecordingPath': primaryRecordingPath,
+        if (primaryRecordingPath != null)
+          'primaryRecordingPath': primaryRecordingPath,
         'videoAttachmentPaths': videoAttachmentPaths,
         'keyframePaths': keyframePaths,
         'diagnosticsArtifactPaths': diagnosticsArtifactPaths,
@@ -717,8 +721,10 @@ final class CockpitBundleEvidenceKeyframe {
         'path': path,
         'label': label,
         'offsetMs': offsetMs,
-        'linkedScreenshotRef': linkedScreenshotRef,
-        'linkedScreenshotPath': linkedScreenshotPath,
+        if (linkedScreenshotRef != null)
+          'linkedScreenshotRef': linkedScreenshotRef,
+        if (linkedScreenshotPath != null)
+          'linkedScreenshotPath': linkedScreenshotPath,
       };
 
   Map<String, Object?> toMcpJson() => <String, Object?>{
@@ -726,8 +732,10 @@ final class CockpitBundleEvidenceKeyframe {
         'path': path,
         'label': label,
         'offsetMs': offsetMs,
-        'linkedScreenshotRef': linkedScreenshotRef,
-        'linkedScreenshotPath': linkedScreenshotPath,
+        if (linkedScreenshotRef != null)
+          'linkedScreenshotRef': linkedScreenshotRef,
+        if (linkedScreenshotPath != null)
+          'linkedScreenshotPath': linkedScreenshotPath,
       };
 }
 
