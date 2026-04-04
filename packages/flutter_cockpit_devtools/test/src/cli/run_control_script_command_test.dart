@@ -33,8 +33,7 @@ void main() {
             commandId: 'cmd-open',
             commandType: CockpitCommandType.tap,
             locator: const CockpitLocator(
-              kind: CockpitLocatorKind.cockpitId,
-              value: 'open_form_button',
+              cockpitId: 'open_form_button',
             ),
           ).toJson(),
           CockpitCommand(
@@ -219,8 +218,7 @@ void main() {
               commandId: 'cmd-open',
               commandType: CockpitCommandType.tap,
               locator: const CockpitLocator(
-                kind: CockpitLocatorKind.cockpitId,
-                value: 'open_form_button',
+                cockpitId: 'open_form_button',
               ),
             ).toJson(),
           ],
@@ -288,8 +286,7 @@ void main() {
               commandId: 'cmd-open',
               commandType: CockpitCommandType.tap,
               locator: const CockpitLocator(
-                kind: CockpitLocatorKind.cockpitId,
-                value: 'open_form_button',
+                cockpitId: 'open_form_button',
               ),
             ).toJson(),
           ],

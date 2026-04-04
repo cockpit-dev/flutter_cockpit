@@ -71,8 +71,7 @@ void main() {
             commandId: 'tap-native-open-form',
             commandType: CockpitCommandType.tap,
             locator: const CockpitLocator(
-              kind: CockpitLocatorKind.key,
-              value: 'native-open-form-button',
+              key: 'native-open-form-button',
             ),
           ).toJson(),
         );
@@ -162,8 +161,7 @@ void main() {
             commandId: 'tap-open-form',
             commandType: CockpitCommandType.tap,
             locator: const CockpitLocator(
-              kind: CockpitLocatorKind.cockpitId,
-              value: 'open_form_button',
+              cockpitId: 'open_form_button',
             ),
           ).toJson(),
         );
@@ -250,8 +248,7 @@ void main() {
             commandId: 'tap-runtime-step',
             commandType: CockpitCommandType.tap,
             locator: const CockpitLocator(
-              kind: CockpitLocatorKind.key,
-              value: 'runtime-step-button',
+              key: 'runtime-step-button',
             ),
           ).toJson(),
         );

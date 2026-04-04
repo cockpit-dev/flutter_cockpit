@@ -58,23 +58,18 @@ final class CockpitWaitRemoteUiIdleTool extends CockpitMcpTool {
           sessionHandle: cockpitReadOptionalSessionHandle(arguments),
           sessionHandlePath: cockpitReadOptionalString(
             arguments,
-            'session_handle_path',
+            'sessionHandlePath',
           ),
           quietWindow: Duration(
             milliseconds:
-                cockpitReadOptionalInt(arguments, 'quiet_window_ms') ??
-                    cockpitReadOptionalInt(arguments, 'quietWindowMs') ??
-                    96,
+                cockpitReadOptionalInt(arguments, 'quietWindowMs') ?? 96,
           ),
           timeout: Duration(
-            milliseconds: cockpitReadOptionalInt(arguments, 'timeout_ms') ??
-                cockpitReadOptionalInt(arguments, 'timeoutMs') ??
-                1600,
+            milliseconds:
+                cockpitReadOptionalInt(arguments, 'timeoutMs') ?? 1600,
           ),
           includeNetworkIdle:
-              cockpitReadOptionalBool(arguments, 'include_network_idle') ??
-                  cockpitReadOptionalBool(arguments, 'includeNetworkIdle') ??
-                  true,
+              cockpitReadOptionalBool(arguments, 'includeNetworkIdle') ?? true,
         ),
       );
       return cockpitMcpResult(

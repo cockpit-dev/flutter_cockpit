@@ -298,8 +298,7 @@ void main() {
               commandId: 'scroll-settings-diagnostics-$attempt',
               commandType: CockpitCommandType.scrollUntilVisible,
               locator: const CockpitLocator(
-                kind: CockpitLocatorKind.text,
-                value: 'Acceptance bundles',
+                text: 'Acceptance bundles',
               ),
               parameters: const <String, Object?>{
                 'maxScrolls': 1,
@@ -412,8 +411,7 @@ void main() {
         commandId: 'remote-long-press-selection',
         commandType: CockpitCommandType.longPress,
         locator: CockpitLocator(
-          kind: CockpitLocatorKind.key,
-          value: 'task-open-${firstTask.id}',
+          key: 'task-open-${firstTask.id}',
         ),
       ),
     );
@@ -429,8 +427,7 @@ void main() {
         commandId: 'remote-clear-selection',
         commandType: CockpitCommandType.tap,
         locator: CockpitLocator(
-          kind: CockpitLocatorKind.key,
-          value: 'selection-clear-button',
+          key: 'selection-clear-button',
         ),
       ),
     );
@@ -450,8 +447,7 @@ void main() {
         commandId: 'remote-double-tap-complete',
         commandType: CockpitCommandType.doubleTap,
         locator: CockpitLocator(
-          kind: CockpitLocatorKind.key,
-          value: 'task-open-${secondTask.id}',
+          key: 'task-open-${secondTask.id}',
         ),
       ),
     );
@@ -469,8 +465,7 @@ void main() {
         commandId: 'remote-drag-handle-reorder',
         commandType: CockpitCommandType.drag,
         locator: CockpitLocator(
-          kind: CockpitLocatorKind.key,
-          value: 'task-reorder-handle-${thirdTask.id}',
+          key: 'task-reorder-handle-${thirdTask.id}',
         ),
         parameters: const <String, Object?>{
           'dx': 0.0,

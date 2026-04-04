@@ -5,9 +5,43 @@ import 'package:flutter_cockpit_devtools/src/application/cockpit_session_referen
 import 'package:test/test.dart';
 
 void main() {
-  test('reads snake_case remote session handles', () async {
+  test('reads lower camel case remote session handles', () async {
     final tempDir = await Directory.systemTemp.createTemp(
       'cockpit_session_reference_resolver',
+    );
+    addTearDown(() async {
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    final handleFile = File('${tempDir.path}/session.json');
+    await handleFile.writeAsString(
+      jsonEncode(<String, Object?>{
+        'platform': 'android',
+        'deviceId': 'emulator-5554',
+        'projectDir': '/workspace/examples/cockpit_demo',
+        'target': 'cockpit/main.dart',
+        'appId': 'dev.cockpit.cockpit_demo',
+        'host': '127.0.0.1',
+        'hostPort': 58421,
+        'devicePort': 47331,
+        'baseUrl': 'http://127.0.0.1:58421',
+        'launchedAt': DateTime.utc(2026, 3, 23).toIso8601String(),
+      }),
+    );
+
+    final resolved = await CockpitSessionReferenceResolver().readSessionHandle(
+      handleFile.path,
+    );
+
+    expect(resolved.deviceId, 'emulator-5554');
+    expect(resolved.baseUrl, 'http://127.0.0.1:58421');
+  });
+
+  test('rejects legacy snake case remote session handles', () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'cockpit_session_reference_resolver_legacy',
     );
     addTearDown(() async {
       if (tempDir.existsSync()) {
@@ -31,11 +65,11 @@ void main() {
       }),
     );
 
-    final resolved = await CockpitSessionReferenceResolver().readSessionHandle(
-      handleFile.path,
+    expect(
+      () => CockpitSessionReferenceResolver().readSessionHandle(
+        handleFile.path,
+      ),
+      throwsA(isA<TypeError>()),
     );
-
-    expect(resolved.deviceId, 'emulator-5554');
-    expect(resolved.baseUrl, 'http://127.0.0.1:58421');
   });
 }

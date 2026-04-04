@@ -53,9 +53,9 @@ final class CockpitPubDevSearchTool extends CockpitMcpTool {
       final result = await _search(
         CockpitPubDevSearchRequest(
           query: cockpitReadRequiredString(arguments, 'query'),
-          maxResults: cockpitReadOptionalInt(arguments, 'max_results') ?? 5,
+          maxResults: cockpitReadOptionalInt(arguments, 'maxResults') ?? 5,
           timeout: Duration(
-            seconds: cockpitReadOptionalInt(arguments, 'timeout_seconds') ?? 20,
+            seconds: cockpitReadOptionalInt(arguments, 'timeoutSeconds') ?? 20,
           ),
         ),
       );

@@ -76,10 +76,10 @@ final class CockpitReadPackageUrisTool extends CockpitMcpTool {
       }
       final allowedRoots = cockpitAllowedWorkspaceRootPaths(_rootsTracker);
       final maxPreviewChars =
-          cockpitReadOptionalInt(arguments, 'max_preview_chars') ?? 1200;
-      final maxEntries = cockpitReadOptionalInt(arguments, 'max_entries') ?? 40;
+          cockpitReadOptionalInt(arguments, 'maxPreviewChars') ?? 1200;
+      final maxEntries = cockpitReadOptionalInt(arguments, 'maxEntries') ?? 40;
       final includeFullText =
-          cockpitReadOptionalBool(arguments, 'include_full_text') ?? false;
+          cockpitReadOptionalBool(arguments, 'includeFullText') ?? false;
       final results = <Map<String, Object?>>[];
       for (final uri in uris) {
         final result = await _read(

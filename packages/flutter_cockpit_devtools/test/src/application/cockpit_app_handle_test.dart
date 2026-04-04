@@ -39,22 +39,22 @@ void main() {
     expect(handle.toJson().containsKey('lastReloadAt'), isFalse);
   });
 
-  test('fromJson accepts legacy snake case payloads', () {
+  test('fromJson reads the canonical lower camel case payload', () {
     final handle = CockpitAppHandle.fromJson(<String, Object?>{
-      'app_id': 'dev.cockpit.cockpit_demo',
+      'appId': 'dev.cockpit.cockpit_demo',
       'mode': 'development',
       'platform': 'android',
-      'device_id': 'emulator-5554',
-      'project_dir': '/workspace/examples/cockpit_demo',
+      'deviceId': 'emulator-5554',
+      'projectDir': '/workspace/examples/cockpit_demo',
       'target': 'cockpit/main.dart',
-      'base_url': 'http://127.0.0.1:57331',
-      'launched_at': DateTime.utc(2026, 3, 23).toIso8601String(),
-      'platform_app_id': 'remote.dev.cockpit.cockpit_demo',
-      'development_session_id': 'dev-session-1',
-      'supervisor_base_url': 'http://127.0.0.1:59421',
-      'reload_generation': 2,
-      'vm_service_uri': 'ws://127.0.0.1:8181/ws',
-      'last_reload_at': DateTime.utc(2026, 3, 23, 0, 5).toIso8601String(),
+      'baseUrl': 'http://127.0.0.1:57331',
+      'launchedAt': DateTime.utc(2026, 3, 23).toIso8601String(),
+      'platformAppId': 'remote.dev.cockpit.cockpit_demo',
+      'developmentSessionId': 'dev-session-1',
+      'supervisorBaseUrl': 'http://127.0.0.1:59421',
+      'reloadGeneration': 2,
+      'vmServiceUri': 'ws://127.0.0.1:8181/ws',
+      'lastReloadAt': DateTime.utc(2026, 3, 23, 0, 5).toIso8601String(),
     });
 
     expect(handle.appId, 'dev.cockpit.cockpit_demo');
@@ -66,6 +66,22 @@ void main() {
     expect(
       handle.developmentSession?.vmServiceUri?.toString(),
       'ws://127.0.0.1:8181/ws',
+    );
+  });
+
+  test('fromJson rejects legacy snake case payloads', () {
+    expect(
+      () => CockpitAppHandle.fromJson(<String, Object?>{
+        'app_id': 'dev.cockpit.cockpit_demo',
+        'mode': 'development',
+        'platform': 'android',
+        'device_id': 'emulator-5554',
+        'project_dir': '/workspace/examples/cockpit_demo',
+        'target': 'cockpit/main.dart',
+        'base_url': 'http://127.0.0.1:57331',
+        'launched_at': DateTime.utc(2026, 3, 23).toIso8601String(),
+      }),
+      throwsA(isA<TypeError>()),
     );
   });
 }

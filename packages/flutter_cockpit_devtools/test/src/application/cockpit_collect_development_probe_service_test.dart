@@ -334,7 +334,7 @@ void main() {
       expect(
         result.probe.runtime['errorSignals'],
         orderedEquals(const <String>[
-          'flutter_error:error:RenderFlex overflowed by 12 pixels',
+          'flutterError:error:RenderFlex overflowed by 12 pixels',
         ]),
       );
       expect(

@@ -5,9 +5,9 @@ import 'package:test/test.dart';
 void main() {
   test('fixed resource definition preserves URI metadata', () {
     const definition = CockpitMcpResourceDefinition.fixed(
-      name: 'workspace_goals',
-      uri: 'cockpit://workspace/goals',
-      description: 'Repository goals.',
+      name: 'workspace_skill_contract',
+      uri: 'cockpit://workspace/skill-contract',
+      description: 'Skill contract.',
       mimeType: 'text/markdown',
       categories: <CockpitMcpFeatureCategory>[
         CockpitMcpFeatureCategory.workspace,
@@ -16,7 +16,7 @@ void main() {
     );
 
     expect(definition.isTemplate, isFalse);
-    expect(definition.uri, 'cockpit://workspace/goals');
+    expect(definition.uri, 'cockpit://workspace/skill-contract');
     expect(definition.uriTemplate, isNull);
     expect(definition.mimeType, 'text/markdown');
   });

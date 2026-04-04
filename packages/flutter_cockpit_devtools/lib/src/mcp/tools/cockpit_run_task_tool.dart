@@ -43,7 +43,7 @@ final class CockpitRunTaskTool extends CockpitMcpTool {
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
         'type': 'object',
-        'required': <String>['script', 'output_root'],
+        'required': <String>['script', 'outputRoot'],
         'properties': <String, Object?>{
           'launch': <String, Object?>{'type': 'object'},
           'sessionHandle': <String, Object?>{'type': 'object'},

@@ -178,18 +178,9 @@ final class CockpitReadLogsService {
   String _formatRuntimeLogLine(CockpitRuntimeEvent entry) {
     final parts = <String>[
       entry.severity.jsonValue,
-      _snakeCase(entry.kind.jsonValue),
+      entry.kind.jsonValue,
       if (entry.source != null && entry.source!.isNotEmpty) entry.source!,
     ];
     return '${parts.join(' ')}: ${entry.message}';
-  }
-
-  String _snakeCase(String value) {
-    return value
-        .replaceAllMapped(
-          RegExp(r'([a-z0-9])([A-Z])'),
-          (match) => '${match.group(1)}_${match.group(2)}',
-        )
-        .toLowerCase();
   }
 }

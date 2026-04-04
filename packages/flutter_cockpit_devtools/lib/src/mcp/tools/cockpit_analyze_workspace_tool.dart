@@ -66,8 +66,7 @@ final class CockpitAnalyzeWorkspaceTool extends CockpitMcpTool {
           workspaceRoot: workspaceRoot,
           allowedRoots: cockpitAllowedWorkspaceRootPaths(_rootsTracker),
           timeout: Duration(
-            seconds:
-                cockpitReadOptionalInt(arguments, 'timeout_seconds') ?? 180,
+            seconds: cockpitReadOptionalInt(arguments, 'timeoutSeconds') ?? 180,
           ),
         ),
       );

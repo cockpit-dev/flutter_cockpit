@@ -65,26 +65,18 @@ final class CockpitExecuteRemoteCommandTool extends CockpitMcpTool {
           sessionHandle: cockpitReadOptionalSessionHandle(arguments),
           sessionHandlePath: cockpitReadOptionalString(
             arguments,
-            'session_handle_path',
+            'sessionHandlePath',
           ),
           command: CockpitCommand.fromJson(
             cockpitReadRequiredObject(arguments, 'command'),
           ),
           defaultCommandTimeout: Duration(
             milliseconds:
-                cockpitReadOptionalInt(arguments, 'timeout_ms') ?? 4000,
+                cockpitReadOptionalInt(arguments, 'timeoutMs') ?? 4000,
           ),
-          resultProfile: _readProfile(
-              arguments, 'profile', 'result_profile', 'resultProfile'),
-          snapshotOptions: _readOptionalSnapshotOptions(
-            arguments,
-            'snapshot_options',
-            'snapshotOptions',
-          ),
-          compareAgainstSnapshotRef: cockpitReadOptionalString(
-                arguments,
-                'compare_against_snapshot_ref',
-              ) ??
+          resultProfile: _readProfile(arguments),
+          snapshotOptions: _readOptionalSnapshotOptions(arguments),
+          compareAgainstSnapshotRef:
               cockpitReadOptionalString(arguments, 'compareAgainstSnapshotRef'),
         ),
       );
@@ -97,15 +89,8 @@ final class CockpitExecuteRemoteCommandTool extends CockpitMcpTool {
     }
   }
 
-  CockpitInteractiveResultProfile _readProfile(
-    Map<String, Object?> arguments,
-    String canonicalKey,
-    String legacySnakeCaseKey,
-    String legacyCamelCaseKey,
-  ) {
-    final value = arguments[canonicalKey] ??
-        arguments[legacySnakeCaseKey] ??
-        arguments[legacyCamelCaseKey];
+  CockpitInteractiveResultProfile _readProfile(Map<String, Object?> arguments) {
+    final value = arguments['profile'];
     if (value == null) {
       return const CockpitInteractiveResultProfile.standard();
     }
@@ -116,12 +101,8 @@ final class CockpitExecuteRemoteCommandTool extends CockpitMcpTool {
 
   CockpitSnapshotOptions? _readOptionalSnapshotOptions(
     Map<String, Object?> arguments,
-    String snakeCaseKey,
-    String camelCaseKey,
   ) {
-    final json = arguments.containsKey(snakeCaseKey)
-        ? cockpitReadOptionalObject(arguments, snakeCaseKey)
-        : cockpitReadOptionalObject(arguments, camelCaseKey);
+    final json = cockpitReadOptionalObject(arguments, 'snapshotOptions');
     if (json == null) {
       return null;
     }

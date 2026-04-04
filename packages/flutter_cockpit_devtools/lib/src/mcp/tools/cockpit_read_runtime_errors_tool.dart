@@ -56,29 +56,28 @@ final class CockpitReadRuntimeErrorsTool extends CockpitMcpTool {
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {
     try {
-      final hasAppReference = arguments.containsKey('app_id') ||
-          arguments.containsKey('app_json') ||
-          arguments.containsKey('base_url');
-      final baseUrl = cockpitReadOptionalString(arguments, 'base_url');
+      final hasAppReference = arguments.containsKey('appId') ||
+          arguments.containsKey('appJson') ||
+          arguments.containsKey('baseUrl');
+      final baseUrl = cockpitReadOptionalString(arguments, 'baseUrl');
       final result = await _read(
         CockpitReadRuntimeErrorsRequest(
-          appId: cockpitReadOptionalString(arguments, 'app_id'),
-          appHandlePath: cockpitReadOptionalString(arguments, 'app_json'),
+          appId: cockpitReadOptionalString(arguments, 'appId'),
+          appHandlePath: cockpitReadOptionalString(arguments, 'appJson'),
           baseUri: baseUrl == null ? null : Uri.parse(baseUrl),
           androidDeviceId: cockpitReadOptionalString(
             arguments,
-            'android_device_id',
+            'androidDeviceId',
           ),
-          maxErrors: cockpitReadOptionalInt(arguments, 'max_errors') ?? 20,
-          includeLatestTask:
-              hasAppReference && !arguments.containsKey('include_latest_task')
-                  ? null
-                  : cockpitReadOptionalBool(arguments, 'include_latest_task') ??
-                      true,
-          includeSessions: hasAppReference &&
-                  !arguments.containsKey('include_sessions')
+          maxErrors: cockpitReadOptionalInt(arguments, 'maxErrors') ?? 20,
+          includeLatestTask: hasAppReference &&
+                  !arguments.containsKey('includeLatestTask')
               ? null
-              : cockpitReadOptionalBool(arguments, 'include_sessions') ?? true,
+              : cockpitReadOptionalBool(arguments, 'includeLatestTask') ?? true,
+          includeSessions: hasAppReference &&
+                  !arguments.containsKey('includeSessions')
+              ? null
+              : cockpitReadOptionalBool(arguments, 'includeSessions') ?? true,
         ),
       );
       return cockpitMcpResult(

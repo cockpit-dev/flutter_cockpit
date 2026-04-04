@@ -35,8 +35,8 @@ final class CockpitStopRecordingTool extends CockpitMcpTool {
     try {
       final result = await _stop(
         CockpitStopRecordingRequest(
-          appId: cockpitReadOptionalString(arguments, 'app_id'),
-          appHandlePath: cockpitReadOptionalString(arguments, 'app_json'),
+          appId: cockpitReadOptionalString(arguments, 'appId'),
+          appHandlePath: cockpitReadOptionalString(arguments, 'appJson'),
           baseUri: _readOptionalBaseUri(arguments),
         ),
       );
@@ -50,7 +50,7 @@ final class CockpitStopRecordingTool extends CockpitMcpTool {
   }
 
   Uri? _readOptionalBaseUri(Map<String, Object?> arguments) {
-    final baseUrl = cockpitReadOptionalString(arguments, 'base_url');
+    final baseUrl = cockpitReadOptionalString(arguments, 'baseUrl');
     if (baseUrl == null || baseUrl.isEmpty) {
       return null;
     }

@@ -26,8 +26,7 @@ abstract base class CockpitMcpTool {
   CockpitMcpToolDefinition get definition => CockpitMcpToolDefinition(
         name: name,
         description: description,
-        inputSchema:
-            cockpitCamelCaseJsonValue(inputSchema) as Map<String, Object?>,
+        inputSchema: inputSchema,
         annotations: annotations,
         categories: categories,
         enabledByDefault: enabledByDefault,
@@ -220,9 +219,8 @@ Map<String, Object?> cockpitMcpResult({
     'content': <Map<String, Object?>>[
       <String, Object?>{'type': 'text', 'text': text},
     ],
-    'structuredContent': cockpitCompactJsonValue(
-      cockpitCamelCaseJsonValue(structuredContent),
-    ) as Map<String, Object?>,
+    'structuredContent':
+        cockpitCompactJsonValue(structuredContent) as Map<String, Object?>,
   };
 }
 
@@ -256,54 +254,9 @@ int? _readInt(Object? value) {
 }
 
 Object? _readArgumentValue(Map<String, Object?> arguments, String key) {
-  if (arguments.containsKey(key)) {
-    return arguments[key];
-  }
-  final camelKey = _snakeToCamel(key);
-  if (arguments.containsKey(camelKey)) {
-    return arguments[camelKey];
-  }
-  final snakeKey = _camelToSnake(key);
-  if (arguments.containsKey(snakeKey)) {
-    return arguments[snakeKey];
-  }
-  return null;
+  return arguments[key];
 }
 
 String _publicArgumentKey(String key) {
-  return _snakeToCamel(key);
-}
-
-String _snakeToCamel(String key) {
-  if (!key.contains('_')) {
-    return key;
-  }
-  final segments = key.split('_');
-  return segments.first +
-      segments.skip(1).map((segment) {
-        if (segment.isEmpty) {
-          return '';
-        }
-        return segment[0].toUpperCase() + segment.substring(1);
-      }).join();
-}
-
-String _camelToSnake(String key) {
-  if (key.isEmpty) {
-    return key;
-  }
-  final buffer = StringBuffer();
-  for (var index = 0; index < key.length; index += 1) {
-    final codeUnit = key.codeUnitAt(index);
-    final isUppercase = codeUnit >= 65 && codeUnit <= 90;
-    if (isUppercase) {
-      if (index > 0) {
-        buffer.write('_');
-      }
-      buffer.writeCharCode(codeUnit + 32);
-      continue;
-    }
-    buffer.writeCharCode(codeUnit);
-  }
-  return buffer.toString();
+  return key;
 }

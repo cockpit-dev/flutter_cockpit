@@ -114,11 +114,11 @@ final class ExecuteRemoteCommandBatchCommand extends Command<int> {
     final snapshotOptionsJson = json['snapshotOptions'];
     return CockpitInteractiveBatchCommand(
       command: CockpitCommand.fromJson(normalizedCommandJson),
-      resultProfile: json['resultProfile'] == null
+      resultProfile: json['profile'] == null
           ? null
           : CockpitInteractiveResultProfile.preset(
               CockpitInteractiveResultProfileName.fromJson(
-                json['resultProfile'],
+                json['profile'],
               ),
             ),
       snapshotOptions: snapshotOptionsJson is Map<Object?, Object?>

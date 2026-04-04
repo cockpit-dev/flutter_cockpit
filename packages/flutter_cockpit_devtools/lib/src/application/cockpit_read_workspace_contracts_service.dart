@@ -1,5 +1,5 @@
 import '../infrastructure/cockpit_file_system.dart';
-import 'cockpit_read_workspace_goals_service.dart';
+import 'cockpit_workspace_document.dart';
 
 final class CockpitWorkspaceContracts {
   const CockpitWorkspaceContracts({

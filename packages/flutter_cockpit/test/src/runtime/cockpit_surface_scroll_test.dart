@@ -62,8 +62,7 @@ void main() {
 
       final didReveal = await surfaceState.ensureLocatorVisible(
         const CockpitLocator(
-          kind: CockpitLocatorKind.text,
-          value: 'Task 18',
+          text: 'Task 18',
         ),
         alignment: CockpitRevealAlignment.center,
       );
@@ -126,8 +125,7 @@ void main() {
 
       final didReveal = await surfaceState.ensureLocatorVisible(
         const CockpitLocator(
-          kind: CockpitLocatorKind.text,
-          value: 'Task 18',
+          text: 'Task 18',
         ),
         alignment: CockpitRevealAlignment.end,
         padding: 32,
@@ -190,8 +188,7 @@ void main() {
 
       final didReveal = await surfaceState.ensureLocatorVisible(
         const CockpitLocator(
-          kind: CockpitLocatorKind.text,
-          value: 'Save settings',
+          text: 'Save settings',
         ),
         alignment: CockpitRevealAlignment.center,
       );

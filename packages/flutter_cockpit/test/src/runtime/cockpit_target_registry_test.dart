@@ -53,14 +53,12 @@ void main() {
 
     final resolution = registry.resolve(
       const CockpitLocator(
-        kind: CockpitLocatorKind.cockpitId,
-        value: 'missing_button',
+        cockpitId: 'missing_button',
         fallbacks: [
           CockpitLocator(
-            kind: CockpitLocatorKind.semanticId,
-            value: 'checkout_submit',
+            semanticId: 'checkout_submit',
           ),
-          CockpitLocator(kind: CockpitLocatorKind.text, value: 'Submit order'),
+          CockpitLocator(text: 'Submit order'),
         ],
       ),
     );
@@ -100,10 +98,9 @@ void main() {
 
       final resolution = registry.resolve(
         const CockpitLocator(
-          kind: CockpitLocatorKind.cockpitId,
-          value: 'missing_button',
+          cockpitId: 'missing_button',
           fallbacks: [
-            CockpitLocator(kind: CockpitLocatorKind.text, value: 'Continue'),
+            CockpitLocator(text: 'Continue'),
           ],
         ),
       );
@@ -131,7 +128,7 @@ void main() {
     );
 
     final resolution = registry.resolve(
-      const CockpitLocator(kind: CockpitLocatorKind.key, value: 'task-item:42'),
+      const CockpitLocator(key: 'task-item:42'),
     );
 
     expect(resolution.isSuccess, isTrue);
@@ -202,8 +199,7 @@ void main() {
 
     final resolution = registry.resolve(
       const CockpitLocator(
-        kind: CockpitLocatorKind.semanticId,
-        value: 'Open task Gesture alpha',
+        semanticId: 'Open task Gesture alpha',
       ),
     );
 

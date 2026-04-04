@@ -1,7 +1,6 @@
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
 import '../../application/cockpit_interactive_result_profile.dart';
-import '../../application/cockpit_json_key_normalizer.dart';
 import '../../application/cockpit_run_batch_service.dart';
 import '../cockpit_mcp_tool.dart';
 
@@ -47,27 +46,22 @@ final class CockpitRunBatchTool extends CockpitMcpTool {
     try {
       final result = await _runBatch(
         CockpitRunBatchRequest(
-          appId: cockpitReadOptionalString(arguments, 'app_id'),
-          appHandlePath: cockpitReadOptionalString(arguments, 'app_json'),
+          appId: cockpitReadOptionalString(arguments, 'appId'),
+          appHandlePath: cockpitReadOptionalString(arguments, 'appJson'),
           baseUri: _readOptionalBaseUri(arguments),
           commands: cockpitReadRequiredObjectList(arguments, 'commands')
               .map(_readBatchCommand)
               .toList(growable: false),
-          defaultResultProfile: (_readOptionalProfile(
-                    arguments,
-                    'default_profile',
-                  ) ??
-                  _readOptionalProfile(arguments, 'default_result_profile')) ??
-              const CockpitInteractiveResultProfile.standard(),
+          defaultResultProfile:
+              _readOptionalProfile(arguments, 'defaultProfile') ??
+                  const CockpitInteractiveResultProfile.standard(),
           defaultCommandTimeout: Duration(
             milliseconds:
-                cockpitReadOptionalInt(arguments, 'default_timeout_ms') ?? 4000,
+                cockpitReadOptionalInt(arguments, 'defaultTimeoutMs') ?? 4000,
           ),
-          failFast: cockpitReadOptionalBool(arguments, 'fail_fast') ?? true,
+          failFast: cockpitReadOptionalBool(arguments, 'failFast') ?? true,
           recording: _readOptionalRecording(arguments),
-          finalSnapshotProfile:
-              _readOptionalProfile(arguments, 'final_profile') ??
-                  _readOptionalProfile(arguments, 'final_snapshot_profile'),
+          finalSnapshotProfile: _readOptionalProfile(arguments, 'finalProfile'),
           finalSnapshotOptions: _readOptionalSnapshotOptions(arguments),
         ),
       );
@@ -81,26 +75,20 @@ final class CockpitRunBatchTool extends CockpitMcpTool {
   }
 
   CockpitRunBatchCommand _readBatchCommand(Map<String, Object?> json) {
-    final normalizedJson = cockpitNormalizeJsonKeys(json);
-    final commandJson = normalizedJson['command'];
+    final commandJson = json['command'];
     final normalized = commandJson is Map<Object?, Object?>
         ? Map<String, Object?>.from(commandJson)
-        : normalizedJson;
-    final snapshotOptionsJson = normalizedJson['snapshotOptions'];
+        : json;
+    final snapshotOptionsJson = json['snapshotOptions'];
     return CockpitRunBatchCommand(
       command: CockpitCommand.fromJson(normalized),
-      resultProfile: _readOptionalProfileFromValue(
-        normalizedJson['profile'] ?? normalizedJson['resultProfile'],
-      ),
+      resultProfile: _readOptionalProfileFromValue(json['profile']),
       snapshotOptions: snapshotOptionsJson is Map<Object?, Object?>
           ? CockpitSnapshotOptions.fromJson(
-              cockpitNormalizeJsonKeys(
-                Map<String, Object?>.from(snapshotOptionsJson),
-              ),
+              Map<String, Object?>.from(snapshotOptionsJson),
             )
           : null,
-      compareAgainstSnapshotRef:
-          normalizedJson['compareAgainstSnapshotRef'] as String?,
+      compareAgainstSnapshotRef: json['compareAgainstSnapshotRef'] as String?,
     );
   }
 
@@ -129,23 +117,21 @@ final class CockpitRunBatchTool extends CockpitMcpTool {
     if (recordingJson == null) {
       return null;
     }
-    return CockpitRecordingRequest.fromJson(
-      cockpitNormalizeJsonKeys(recordingJson),
-    );
+    return CockpitRecordingRequest.fromJson(recordingJson);
   }
 
   CockpitSnapshotOptions? _readOptionalSnapshotOptions(
     Map<String, Object?> arguments,
   ) {
-    final json = cockpitReadOptionalObject(arguments, 'final_snapshot_options');
+    final json = cockpitReadOptionalObject(arguments, 'finalSnapshotOptions');
     if (json == null) {
       return null;
     }
-    return CockpitSnapshotOptions.fromJson(cockpitNormalizeJsonKeys(json));
+    return CockpitSnapshotOptions.fromJson(json);
   }
 
   Uri? _readOptionalBaseUri(Map<String, Object?> arguments) {
-    final baseUrl = cockpitReadOptionalString(arguments, 'base_url');
+    final baseUrl = cockpitReadOptionalString(arguments, 'baseUrl');
     if (baseUrl == null || baseUrl.isEmpty) {
       return null;
     }

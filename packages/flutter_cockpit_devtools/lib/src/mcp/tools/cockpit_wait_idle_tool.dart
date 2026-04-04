@@ -38,20 +38,19 @@ final class CockpitWaitIdleTool extends CockpitMcpTool {
     try {
       final result = await _wait(
         CockpitWaitIdleRequest(
-          appId: cockpitReadOptionalString(arguments, 'app_id'),
-          appHandlePath: cockpitReadOptionalString(arguments, 'app_json'),
+          appId: cockpitReadOptionalString(arguments, 'appId'),
+          appHandlePath: cockpitReadOptionalString(arguments, 'appJson'),
           baseUri: _readOptionalBaseUri(arguments),
           quietWindow: Duration(
             milliseconds:
-                cockpitReadOptionalInt(arguments, 'quiet_window_ms') ?? 96,
+                cockpitReadOptionalInt(arguments, 'quietWindowMs') ?? 96,
           ),
           timeout: Duration(
             milliseconds:
-                cockpitReadOptionalInt(arguments, 'timeout_ms') ?? 1600,
+                cockpitReadOptionalInt(arguments, 'timeoutMs') ?? 1600,
           ),
           includeNetworkIdle:
-              cockpitReadOptionalBool(arguments, 'include_network_idle') ??
-                  true,
+              cockpitReadOptionalBool(arguments, 'includeNetworkIdle') ?? true,
         ),
       );
       return cockpitMcpResult(
@@ -64,7 +63,7 @@ final class CockpitWaitIdleTool extends CockpitMcpTool {
   }
 
   Uri? _readOptionalBaseUri(Map<String, Object?> arguments) {
-    final baseUrl = cockpitReadOptionalString(arguments, 'base_url');
+    final baseUrl = cockpitReadOptionalString(arguments, 'baseUrl');
     if (baseUrl == null || baseUrl.isEmpty) {
       return null;
     }

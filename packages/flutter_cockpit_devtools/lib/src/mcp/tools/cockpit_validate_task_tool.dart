@@ -41,7 +41,7 @@ final class CockpitValidateTaskTool extends CockpitMcpTool {
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
         'type': 'object',
-        'required': <String>['run_task'],
+        'required': <String>['runTask'],
         'properties': <String, Object?>{
           'runTask': <String, Object?>{'type': 'object'},
           'validation': <String, Object?>{'type': 'object'},

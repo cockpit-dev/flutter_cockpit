@@ -9,7 +9,7 @@ void main() {
       description: 'Guide a full closed-loop task execution.',
       arguments: <CockpitMcpPromptArgument>[
         CockpitMcpPromptArgument(
-          name: 'task_goal',
+          name: 'taskGoal',
           description: 'The requested task.',
           required: true,
         ),
@@ -34,7 +34,7 @@ void main() {
       ],
     );
     expect(definition.arguments, hasLength(2));
-    expect(definition.arguments.first.name, 'task_goal');
+    expect(definition.arguments.first.name, 'taskGoal');
     expect(definition.arguments.first.required, isTrue);
   });
 }

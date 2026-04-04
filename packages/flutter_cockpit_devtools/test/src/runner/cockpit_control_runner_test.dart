@@ -80,8 +80,7 @@ void main() {
             commandId: 'cmd-open',
             commandType: CockpitCommandType.tap,
             locator: const CockpitLocator(
-              kind: CockpitLocatorKind.cockpitId,
-              value: 'open_form_button',
+              cockpitId: 'open_form_button',
             ),
           ),
           CockpitCommand(
@@ -173,16 +172,14 @@ void main() {
           commandId: 'cmd-first',
           commandType: CockpitCommandType.tap,
           locator: const CockpitLocator(
-            kind: CockpitLocatorKind.cockpitId,
-            value: 'open_form_button',
+            cockpitId: 'open_form_button',
           ),
         ),
         CockpitCommand(
           commandId: 'cmd-second',
           commandType: CockpitCommandType.tap,
           locator: const CockpitLocator(
-            kind: CockpitLocatorKind.cockpitId,
-            value: 'submit_button',
+            cockpitId: 'submit_button',
           ),
         ),
       ],
@@ -255,8 +252,7 @@ void main() {
           commandId: 'cmd-save',
           commandType: CockpitCommandType.tap,
           locator: const CockpitLocator(
-            kind: CockpitLocatorKind.text,
-            value: 'Save task',
+            text: 'Save task',
           ),
         ),
       ],
@@ -318,8 +314,7 @@ void main() {
             commandId: 'cmd-finish',
             commandType: CockpitCommandType.tap,
             locator: const CockpitLocator(
-              kind: CockpitLocatorKind.key,
-              value: 'settings-save-button',
+              key: 'settings-save-button',
             ),
           ),
         ],

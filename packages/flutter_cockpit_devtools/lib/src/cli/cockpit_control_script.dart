@@ -1,7 +1,5 @@
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
-import '../application/cockpit_json_key_normalizer.dart';
-
 final class CockpitControlScript {
   const CockpitControlScript({
     required this.sessionId,
@@ -33,23 +31,22 @@ final class CockpitControlScript {
       };
 
   factory CockpitControlScript.fromJson(Map<String, Object?> json) {
-    final normalizedJson = cockpitNormalizeJsonKeys(json);
-    final environmentJson = normalizedJson['environment'];
+    final environmentJson = json['environment'];
     if (environmentJson != null && environmentJson is! Map<Object?, Object?>) {
       throw const FormatException(
         'Control script environment must be an object.',
       );
     }
 
-    final commandsJson = normalizedJson['commands'];
+    final commandsJson = json['commands'];
     if (commandsJson is! List<Object?>) {
       throw const FormatException('Control script commands must be a list.');
     }
 
     return CockpitControlScript(
-      sessionId: _readRequiredString(normalizedJson, 'sessionId'),
-      taskId: _readRequiredString(normalizedJson, 'taskId'),
-      platform: _readRequiredString(normalizedJson, 'platform'),
+      sessionId: _readRequiredString(json, 'sessionId'),
+      taskId: _readRequiredString(json, 'taskId'),
+      platform: _readRequiredString(json, 'platform'),
       environment: environmentJson == null
           ? null
           : CockpitEnvironment.fromJson(
@@ -57,14 +54,14 @@ final class CockpitControlScript {
                 environmentJson as Map<Object?, Object?>,
               ),
             ),
-      recording: _readRecording(normalizedJson['recording']),
+      recording: _readRecording(json['recording']),
       commands: commandsJson
           .cast<Map<Object?, Object?>>()
           .map(
             (item) => CockpitCommand.fromJson(Map<String, Object?>.from(item)),
           )
           .toList(growable: false),
-      failFast: normalizedJson['failFast'] as bool? ?? true,
+      failFast: json['failFast'] as bool? ?? true,
     );
   }
 
@@ -78,7 +75,7 @@ final class CockpitControlScript {
       );
     }
     return CockpitRecordingRequest.fromJson(
-      cockpitNormalizeJsonKeys(Map<String, Object?>.from(json)),
+      Map<String, Object?>.from(json),
     );
   }
 

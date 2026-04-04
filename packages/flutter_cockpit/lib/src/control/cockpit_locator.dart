@@ -20,8 +20,6 @@ typedef CockpitLocatorSignal = ({CockpitLocatorKind kind, String value});
 
 final class CockpitLocator {
   const CockpitLocator({
-    CockpitLocatorKind? kind,
-    String? value,
     this.cockpitId,
     this.semanticId,
     this.key,
@@ -34,11 +32,8 @@ final class CockpitLocator {
     this.index,
     this.ancestor,
     this.fallbacks = const [],
-  })  : _legacyKind = kind,
-        _legacyValue = value;
+  });
 
-  final CockpitLocatorKind? _legacyKind;
-  final String? _legacyValue;
   final String? cockpitId;
   final String? semanticId;
   final String? key;
@@ -102,9 +97,6 @@ final class CockpitLocator {
     yield* emit(CockpitLocatorKind.route, route);
     yield* emit(CockpitLocatorKind.registrationId, registrationId);
     yield* emit(CockpitLocatorKind.path, path);
-    if (_legacyKind != null) {
-      yield* emit(_legacyKind, _legacyValue);
-    }
   }
 
   Map<String, String> get signalMap {
@@ -142,6 +134,11 @@ final class CockpitLocator {
   }
 
   factory CockpitLocator.fromJson(Map<String, Object?> json) {
+    if (json.containsKey('kind') || json.containsKey('value')) {
+      throw const FormatException(
+        'CockpitLocator JSON no longer supports legacy kind/value fields.',
+      );
+    }
     final fallbacks = (json['fallbacks'] as List<Object?>? ?? const <Object?>[])
         .cast<Map<Object?, Object?>>()
         .map((item) => CockpitLocator.fromJson(Map<String, Object?>.from(item)))
@@ -149,10 +146,6 @@ final class CockpitLocator {
     final ancestorJson = json['ancestor'] as Map<Object?, Object?>?;
 
     return CockpitLocator(
-      kind: json['kind'] == null
-          ? null
-          : CockpitLocatorKind.fromJson(json['kind']),
-      value: json['value'] as String?,
       cockpitId: json['cockpitId'] as String?,
       semanticId: json['semanticId'] as String?,
       key: json['key'] as String?,

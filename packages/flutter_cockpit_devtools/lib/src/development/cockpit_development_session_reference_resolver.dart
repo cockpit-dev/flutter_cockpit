@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import '../application/cockpit_application_service_exception.dart';
-import '../application/cockpit_json_key_normalizer.dart';
 import 'cockpit_development_session_handle.dart';
 
 final class CockpitResolvedDevelopmentSessionReference {
@@ -68,7 +67,7 @@ final class CockpitDevelopmentSessionReferenceResolver {
     }
 
     return CockpitDevelopmentSessionHandle.fromJson(
-      cockpitNormalizeJsonKeys(Map<String, Object?>.from(decoded)),
+      Map<String, Object?>.from(decoded),
     );
   }
 }

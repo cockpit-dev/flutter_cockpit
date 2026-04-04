@@ -7,7 +7,7 @@ void main() {
     const prompt = CockpitRunClosedLoopTaskPrompt();
 
     final result = await prompt.build(<String, Object?>{
-      'task_goal': 'Ship the feature with evidence.',
+      'taskGoal': 'Ship the feature with evidence.',
     });
 
     expect(result.messages, hasLength(1));

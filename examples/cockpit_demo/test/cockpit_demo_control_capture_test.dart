@@ -81,8 +81,7 @@ void main() {
           commandId: 'cmd-scroll-settings-ledger',
           commandType: CockpitCommandType.scrollUntilVisible,
           locator: const CockpitLocator(
-            kind: CockpitLocatorKind.text,
-            value: 'Acceptance bundles',
+            text: 'Acceptance bundles',
           ),
           parameters: const <String, Object?>{
             'maxScrolls': 8,
@@ -176,8 +175,7 @@ void main() {
           commandId: 'cmd-scroll-settings-sync-check',
           commandType: CockpitCommandType.scrollUntilVisible,
           locator: const CockpitLocator(
-            kind: CockpitLocatorKind.text,
-            value: 'Run check',
+            text: 'Run check',
           ),
           parameters: const <String, Object?>{
             'maxScrolls': 8,
@@ -194,8 +192,7 @@ void main() {
           commandId: 'cmd-run-sync-check',
           commandType: CockpitCommandType.tap,
           locator: const CockpitLocator(
-            kind: CockpitLocatorKind.text,
-            value: 'Run check',
+            text: 'Run check',
           ),
         ),
       );
@@ -206,8 +203,7 @@ void main() {
           commandId: 'cmd-scroll-settings-diagnostics',
           commandType: CockpitCommandType.scrollUntilVisible,
           locator: const CockpitLocator(
-            kind: CockpitLocatorKind.text,
-            value: 'Emit debug log',
+            text: 'Emit debug log',
           ),
           parameters: const <String, Object?>{
             'maxScrolls': 8,
@@ -288,8 +284,7 @@ void main() {
         registry
             .resolve(
               const CockpitLocator(
-                kind: CockpitLocatorKind.key,
-                value: 'fab-add-task',
+                key: 'fab-add-task',
               ),
             )
             .isSuccess,
@@ -300,8 +295,7 @@ void main() {
         commandId: 'cmd-open-editor',
         commandType: CockpitCommandType.tap,
         locator: const CockpitLocator(
-          kind: CockpitLocatorKind.key,
-          value: 'fab-add-task',
+          key: 'fab-add-task',
         ),
       );
       controller.recordCommandResult(
@@ -314,8 +308,7 @@ void main() {
         commandId: 'cmd-enter-title',
         commandType: CockpitCommandType.enterText,
         locator: const CockpitLocator(
-          kind: CockpitLocatorKind.key,
-          value: 'task-title-input',
+          key: 'task-title-input',
         ),
         parameters: const <String, Object?>{'text': 'Review diagnostics'},
       );
@@ -329,8 +322,7 @@ void main() {
         commandId: 'cmd-save-task',
         commandType: CockpitCommandType.tap,
         locator: const CockpitLocator(
-          kind: CockpitLocatorKind.key,
-          value: 'task-save-button',
+          key: 'task-save-button',
         ),
       );
       controller.recordCommandResult(
@@ -347,8 +339,7 @@ void main() {
         commandId: 'cmd-scroll-to-task',
         commandType: CockpitCommandType.scrollUntilVisible,
         locator: CockpitLocator(
-          kind: CockpitLocatorKind.key,
-          value: taskOpenKey,
+          key: taskOpenKey,
         ),
         parameters: const <String, Object?>{
           'scrollableKey': 'todo-collection-scroll',
@@ -366,8 +357,7 @@ void main() {
         commandId: 'cmd-assert-task-visible',
         commandType: CockpitCommandType.assertVisible,
         locator: CockpitLocator(
-          kind: CockpitLocatorKind.key,
-          value: taskOpenKey,
+          key: taskOpenKey,
         ),
       );
       controller.recordCommandResult(

@@ -84,48 +84,23 @@ final class CockpitValidateTaskRequirements {
       };
 
   factory CockpitValidateTaskRequirements.fromJson(Map<String, Object?> json) {
-    final expectedClassificationValue =
-        json['expectedClassification'] ?? json['expected_classification'];
+    final expectedClassificationValue = json['expectedClassification'];
     return CockpitValidateTaskRequirements(
       expectedClassification: expectedClassificationValue == null
           ? null
           : CockpitRunTaskClassification.fromJson(expectedClassificationValue),
-      requireAcceptanceMarkdown: _readOptionalBool(
-            json,
-            'requireAcceptanceMarkdown',
-            'require_acceptance_markdown',
-          ) ??
-          false,
-      requireEnvironmentSnapshot: _readOptionalBool(
-            json,
-            'requireEnvironmentSnapshot',
-            'require_environment_snapshot',
-          ) ??
-          false,
-      requirePrimaryScreenshot: _readOptionalBool(
-            json,
-            'requirePrimaryScreenshot',
-            'require_primary_screenshot',
-          ) ??
-          false,
-      requirePrimaryRecording: _readOptionalBool(
-            json,
-            'requirePrimaryRecording',
-            'require_primary_recording',
-          ) ??
-          false,
-      requireArtifactFiles: _readOptionalBool(
-            json,
-            'requireArtifactFiles',
-            'require_artifact_files',
-          ) ??
-          false,
-      requireAcceptanceSemanticEvidence: _readOptionalBool(
-            json,
-            'requireAcceptanceSemanticEvidence',
-            'require_acceptance_semantic_evidence',
-          ) ??
-          false,
+      requireAcceptanceMarkdown:
+          _readOptionalBool(json, 'requireAcceptanceMarkdown') ?? false,
+      requireEnvironmentSnapshot:
+          _readOptionalBool(json, 'requireEnvironmentSnapshot') ?? false,
+      requirePrimaryScreenshot:
+          _readOptionalBool(json, 'requirePrimaryScreenshot') ?? false,
+      requirePrimaryRecording:
+          _readOptionalBool(json, 'requirePrimaryRecording') ?? false,
+      requireArtifactFiles:
+          _readOptionalBool(json, 'requireArtifactFiles') ?? false,
+      requireAcceptanceSemanticEvidence:
+          _readOptionalBool(json, 'requireAcceptanceSemanticEvidence') ?? false,
     );
   }
 }
@@ -145,7 +120,7 @@ final class CockpitValidateTaskRequest {
       };
 
   factory CockpitValidateTaskRequest.fromJson(Map<String, Object?> json) {
-    final runTaskJson = _readRequiredObject(json, 'runTask', 'run_task');
+    final runTaskJson = _readRequiredObject(json, 'runTask');
     final validationJson = _readOptionalObject(json, 'validation');
     return CockpitValidateTaskRequest(
       runTask: CockpitRunTaskRequest.fromJson(runTaskJson),
@@ -334,7 +309,10 @@ final class CockpitValidateTaskService {
 
     if (requirements.requirePrimaryScreenshot) {
       final screenshotPath = bundleSummary.artifactPaths.primaryScreenshotPath;
-      if (!gateSummary.isSatisfied(CockpitTaskGate.screenshotReady)) {
+      final screenshotReady =
+          gateSummary.isSatisfied(CockpitTaskGate.screenshotReady) ||
+              _hasPrimaryScreenshotEvidence(bundleSummary);
+      if (!screenshotReady) {
         failures.add(
           _gateFailure(
             gate: CockpitTaskGate.screenshotReady,
@@ -358,7 +336,10 @@ final class CockpitValidateTaskService {
 
     if (requirements.requirePrimaryRecording) {
       final recordingPath = bundleSummary.artifactPaths.primaryRecordingPath;
-      if (!gateSummary.isSatisfied(CockpitTaskGate.recordingReadyOrExplained)) {
+      final recordingReady =
+          gateSummary.isSatisfied(CockpitTaskGate.recordingReadyOrExplained) ||
+              _hasPrimaryRecordingEvidence(bundleSummary);
+      if (!recordingReady) {
         failures.add(
           _gateFailure(
             gate: CockpitTaskGate.recordingReadyOrExplained,
@@ -702,7 +683,12 @@ final class CockpitValidateTaskService {
     }
 
     final gateSummary = bundleSummary.gateSummary;
-    if (!gateSummary.isSatisfied(CockpitTaskGate.acceptanceEvidenceReadable)) {
+    final hasDirectComparisonEvidence =
+        bundleSummary.baselineEvidence != null &&
+            bundleSummary.acceptanceEvidence != null &&
+            bundleSummary.acceptanceDelta != null;
+    if (!gateSummary.isSatisfied(CockpitTaskGate.acceptanceEvidenceReadable) &&
+        !hasDirectComparisonEvidence) {
       final failureCodes = gateSummary.failureCodesFor(
         CockpitTaskGate.acceptanceEvidenceReadable,
       );
@@ -765,6 +751,22 @@ final class CockpitValidateTaskService {
     return const <CockpitValidationFailure>[];
   }
 
+  bool _hasPrimaryScreenshotEvidence(
+    CockpitReadTaskBundleSummaryResult bundleSummary,
+  ) {
+    final screenshotPath = bundleSummary.artifactPaths.primaryScreenshotPath;
+    return bundleSummary.manifest.deliveryArtifactsReady ||
+        (screenshotPath != null && screenshotPath.isNotEmpty);
+  }
+
+  bool _hasPrimaryRecordingEvidence(
+    CockpitReadTaskBundleSummaryResult bundleSummary,
+  ) {
+    final recordingPath = bundleSummary.artifactPaths.primaryRecordingPath;
+    return bundleSummary.manifest.deliveryVideoReady ||
+        (recordingPath != null && recordingPath.isNotEmpty);
+  }
+
   CockpitValidationFailure _gateFailure({
     required CockpitTaskGate gate,
     required CockpitBundleGateSummary gateSummary,
@@ -787,10 +789,9 @@ final class CockpitValidateTaskService {
 
 bool? _readOptionalBool(
   Map<String, Object?> json,
-  String key, [
-  String? alternateKey,
-]) {
-  final value = json[key] ?? (alternateKey == null ? null : json[alternateKey]);
+  String key,
+) {
+  final value = json[key];
   if (value == null) {
     return null;
   }
@@ -799,21 +800,20 @@ bool? _readOptionalBool(
   }
   throw ArgumentError.value(
     value,
-    alternateKey ?? key,
+    key,
     'Expected a boolean field.',
   );
 }
 
 Map<String, Object?> _readRequiredObject(
   Map<String, Object?> json,
-  String key, [
-  String? alternateKey,
-]) {
-  final value = _readOptionalObject(json, key, alternateKey);
+  String key,
+) {
+  final value = _readOptionalObject(json, key);
   if (value == null) {
     throw ArgumentError.value(
       json,
-      alternateKey ?? key,
+      key,
       'Missing required object field.',
     );
   }
@@ -822,10 +822,9 @@ Map<String, Object?> _readRequiredObject(
 
 Map<String, Object?>? _readOptionalObject(
   Map<String, Object?> json,
-  String key, [
-  String? alternateKey,
-]) {
-  final value = json[key] ?? (alternateKey == null ? null : json[alternateKey]);
+  String key,
+) {
+  final value = json[key];
   if (value == null) {
     return null;
   }
@@ -834,7 +833,7 @@ Map<String, Object?>? _readOptionalObject(
   }
   throw ArgumentError.value(
     value,
-    alternateKey ?? key,
+    key,
     'Expected an object field.',
   );
 }

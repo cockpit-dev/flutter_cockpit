@@ -53,7 +53,7 @@ final class CockpitCollectDevelopmentProbeTool extends CockpitMcpTool {
           sessionHandle: cockpitReadOptionalDevelopmentSessionHandle(arguments),
           sessionHandlePath: cockpitReadOptionalString(
             arguments,
-            'session_handle_path',
+            'sessionHandlePath',
           ),
           profile: CockpitDevelopmentProbeProfile.fromJson(
             cockpitReadOptionalString(arguments, 'profile') ??

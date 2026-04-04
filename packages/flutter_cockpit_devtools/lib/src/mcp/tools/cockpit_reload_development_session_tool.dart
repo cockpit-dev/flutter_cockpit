@@ -50,7 +50,7 @@ final class CockpitReloadDevelopmentSessionTool extends CockpitMcpTool {
           sessionHandle: cockpitReadOptionalDevelopmentSessionHandle(arguments),
           sessionHandlePath: cockpitReadOptionalString(
             arguments,
-            'session_handle_path',
+            'sessionHandlePath',
           ),
           mode: CockpitDevelopmentReloadMode.fromJson(
             cockpitReadOptionalString(arguments, 'mode') ??

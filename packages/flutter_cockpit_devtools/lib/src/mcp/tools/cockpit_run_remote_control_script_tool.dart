@@ -35,7 +35,7 @@ final class CockpitRunRemoteControlScriptTool extends CockpitMcpTool {
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
         'type': 'object',
-        'required': <String>['script', 'output_root'],
+        'required': <String>['script', 'outputRoot'],
         'properties': <String, Object?>{
           'appId': <String, Object?>{'type': 'string'},
           'appJson': <String, Object?>{'type': 'string'},
@@ -65,14 +65,14 @@ final class CockpitRunRemoteControlScriptTool extends CockpitMcpTool {
         );
       }
 
-      final baseUrl = cockpitReadOptionalString(arguments, 'base_url');
+      final baseUrl = cockpitReadOptionalString(arguments, 'baseUrl');
       final resolved = await _appReferenceResolver.resolve(
-        appId: cockpitReadOptionalString(arguments, 'app_id'),
-        appHandlePath: cockpitReadOptionalString(arguments, 'app_json'),
+        appId: cockpitReadOptionalString(arguments, 'appId'),
+        appHandlePath: cockpitReadOptionalString(arguments, 'appJson'),
         baseUri: baseUrl == null ? null : Uri.parse(baseUrl),
         androidDeviceId: cockpitReadOptionalString(
           arguments,
-          'android_device_id',
+          'androidDeviceId',
         ),
       );
       final result = await _run(
@@ -83,15 +83,15 @@ final class CockpitRunRemoteControlScriptTool extends CockpitMcpTool {
           baseUri: resolved.baseUri,
           androidDeviceId: cockpitReadOptionalString(
             arguments,
-            'android_device_id',
+            'androidDeviceId',
           ),
-          iosDeviceId: cockpitReadOptionalString(arguments, 'ios_device_id'),
+          iosDeviceId: cockpitReadOptionalString(arguments, 'iosDeviceId'),
           portForwardingHandled: true,
           script: script,
-          outputRoot: cockpitReadRequiredString(arguments, 'output_root'),
+          outputRoot: cockpitReadRequiredString(arguments, 'outputRoot'),
           persistScriptPath: cockpitReadOptionalString(
             arguments,
-            'persist_script_path',
+            'persistScriptPath',
           ),
         ),
       );

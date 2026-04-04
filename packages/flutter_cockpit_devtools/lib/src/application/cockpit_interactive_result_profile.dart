@@ -165,54 +165,26 @@ final class CockpitInteractiveResultProfile {
 
     return CockpitInteractiveResultProfile(
       name: base.name,
-      ui: _readAliasedValue(json, 'ui_level', 'ui') == null
+      ui: json['ui'] == null
           ? base.ui
-          : CockpitInteractiveUiLevel.fromJson(
-              _readAliasedValue(json, 'ui_level', 'ui'),
+          : CockpitInteractiveUiLevel.fromJson(json['ui']),
+      diagnostics: json['diagnostics'] == null
+          ? base.diagnostics
+          : CockpitInteractiveDiagnosticsLevel.fromJson(
+              json['diagnostics'],
             ),
-      diagnostics:
-          _readAliasedValue(json, 'diagnostics_level', 'diagnostics') == null
-              ? base.diagnostics
-              : CockpitInteractiveDiagnosticsLevel.fromJson(
-                  _readAliasedValue(
-                    json,
-                    'diagnostics_level',
-                    'diagnostics',
-                  ),
-                ),
-      artifacts: _readAliasedValue(json, 'artifact_level', 'artifacts') == null
+      artifacts: json['artifacts'] == null
           ? base.artifacts
-          : CockpitInteractiveArtifactLevel.fromJson(
-              _readAliasedValue(json, 'artifact_level', 'artifacts'),
-            ),
-      includeDelta: _readOptionalBool(
-            json,
-            'include_delta',
-            'includeDelta',
-          ) ??
-          base.includeDelta,
-      includeRuntimeSteps: _readOptionalBool(
-            json,
-            'include_runtime_steps',
-            'includeRuntimeSteps',
-          ) ??
+          : CockpitInteractiveArtifactLevel.fromJson(json['artifacts']),
+      includeDelta:
+          _readOptionalBool(json, 'includeDelta') ?? base.includeDelta,
+      includeRuntimeSteps: _readOptionalBool(json, 'includeRuntimeSteps') ??
           base.includeRuntimeSteps,
-      emitSnapshotRef: _readOptionalBool(
-            json,
-            'emit_snapshot_ref',
-            'emitSnapshotRef',
-          ) ??
-          base.emitSnapshotRef,
-      snapshotProfile: _readAliasedValue(
-                json,
-                'snapshot_profile',
-                'snapshotProfile',
-              ) ==
-              null
+      emitSnapshotRef:
+          _readOptionalBool(json, 'emitSnapshotRef') ?? base.emitSnapshotRef,
+      snapshotProfile: json['snapshotProfile'] == null
           ? base.snapshotProfile
-          : CockpitSnapshotProfile.fromJson(
-              _readAliasedValue(json, 'snapshot_profile', 'snapshotProfile'),
-            ),
+          : CockpitSnapshotProfile.fromJson(json['snapshotProfile']),
     );
   }
 
@@ -312,23 +284,8 @@ final class CockpitInteractiveResultProfile {
         'snapshotProfile': snapshotProfile.jsonValue,
       };
 
-  static Object? _readAliasedValue(
-    Map<String, Object?> json,
-    String snakeCaseKey,
-    String camelCaseKey,
-  ) {
-    if (json.containsKey(snakeCaseKey)) {
-      return json[snakeCaseKey];
-    }
-    return json[camelCaseKey];
-  }
-
-  static bool? _readOptionalBool(
-    Map<String, Object?> json,
-    String snakeCaseKey,
-    String camelCaseKey,
-  ) {
-    final value = _readAliasedValue(json, snakeCaseKey, camelCaseKey);
+  static bool? _readOptionalBool(Map<String, Object?> json, String key) {
+    final value = json[key];
     if (value == null) {
       return null;
     }

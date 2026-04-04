@@ -45,7 +45,7 @@ final class CockpitCreateProjectTool extends CockpitMcpTool {
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
         'type': 'object',
-        'required': <String>['project_name', 'template'],
+        'required': <String>['projectName', 'template'],
         'properties': <String, Object?>{
           'parentDirectory': <String, Object?>{'type': 'string'},
           'projectName': <String, Object?>{'type': 'string'},
@@ -75,14 +75,13 @@ final class CockpitCreateProjectTool extends CockpitMcpTool {
       final result = await _create(
         CockpitCreateProjectRequest(
           parentDirectory: parentDirectory,
-          projectName: cockpitReadRequiredString(arguments, 'project_name'),
+          projectName: cockpitReadRequiredString(arguments, 'projectName'),
           template: template,
           organization: cockpitReadOptionalString(arguments, 'organization'),
           platforms: cockpitReadOptionalStringList(arguments, 'platforms'),
           allowedRoots: cockpitAllowedWorkspaceRootPaths(_rootsTracker),
           timeout: Duration(
-            seconds:
-                cockpitReadOptionalInt(arguments, 'timeout_seconds') ?? 300,
+            seconds: cockpitReadOptionalInt(arguments, 'timeoutSeconds') ?? 300,
           ),
         ),
       );

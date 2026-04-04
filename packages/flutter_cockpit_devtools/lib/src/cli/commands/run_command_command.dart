@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
 import '../../application/cockpit_interactive_result_profile.dart';
-import '../../application/cockpit_json_key_normalizer.dart';
 import '../../application/cockpit_run_command_service.dart';
 import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
@@ -90,7 +89,7 @@ final class RunCommandCommand extends CockpitCliCommand {
         baseUri: cockpitReadOptionalBaseUri(argResults),
         appHandlePath: argResults?['app-json'] as String?,
         androidDeviceId: argResults?['android-device-id'] as String?,
-        command: CockpitCommand.fromJson(cockpitNormalizeJsonKeys(commandJson)),
+        command: CockpitCommand.fromJson(commandJson),
         resultProfile: cockpitReadResultProfile(argResults),
         defaultCommandTimeout: Duration(
           milliseconds:
@@ -98,9 +97,7 @@ final class RunCommandCommand extends CockpitCliCommand {
         ),
         snapshotOptions: snapshotOptionsJson == null
             ? null
-            : CockpitSnapshotOptions.fromJson(
-                cockpitNormalizeJsonKeys(snapshotOptionsJson),
-              ),
+            : CockpitSnapshotOptions.fromJson(snapshotOptionsJson),
         compareAgainstSnapshotRef:
             argResults?['compare-against-snapshot-ref'] as String?,
       ),

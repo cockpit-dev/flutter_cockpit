@@ -1,6 +1,5 @@
 import '../development/cockpit_development_session_handle.dart';
 import '../session/cockpit_remote_session_handle.dart';
-import 'cockpit_json_key_normalizer.dart';
 
 enum CockpitAppMode {
   development('development'),
@@ -81,25 +80,22 @@ final class CockpitAppHandle {
       };
 
   factory CockpitAppHandle.fromJson(Map<String, Object?> json) {
-    final normalizedJson = cockpitNormalizeJsonKeys(json);
     final developmentSessionJson =
-        normalizedJson['developmentSession'] as Map<Object?, Object?>?;
-    final remoteSessionJson =
-        normalizedJson['remoteSession'] as Map<Object?, Object?>?;
+        json['developmentSession'] as Map<Object?, Object?>?;
+    final remoteSessionJson = json['remoteSession'] as Map<Object?, Object?>?;
     return CockpitAppHandle(
-      appId: normalizedJson['appId']! as String,
-      mode: CockpitAppMode.fromJson(normalizedJson['mode']),
-      platform: normalizedJson['platform']! as String,
-      deviceId: normalizedJson['deviceId']! as String,
-      projectDir: normalizedJson['projectDir']! as String,
-      target: normalizedJson['target']! as String,
-      baseUrl: normalizedJson['baseUrl']! as String,
-      launchedAt:
-          DateTime.parse(normalizedJson['launchedAt']! as String).toUtc(),
-      platformAppId: normalizedJson['platformAppId'] as String?,
-      supervisorLogPath: normalizedJson['supervisorLogPath'] as String?,
+      appId: json['appId']! as String,
+      mode: CockpitAppMode.fromJson(json['mode']),
+      platform: json['platform']! as String,
+      deviceId: json['deviceId']! as String,
+      projectDir: json['projectDir']! as String,
+      target: json['target']! as String,
+      baseUrl: json['baseUrl']! as String,
+      launchedAt: DateTime.parse(json['launchedAt']! as String).toUtc(),
+      platformAppId: json['platformAppId'] as String?,
+      supervisorLogPath: json['supervisorLogPath'] as String?,
       developmentSession: developmentSessionJson == null
-          ? _developmentSessionFromCompactJson(normalizedJson)
+          ? _developmentSessionFromCompactJson(json)
           : CockpitDevelopmentSessionHandle.fromJson(
               Map<String, Object?>.from(developmentSessionJson),
             ),

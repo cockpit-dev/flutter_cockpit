@@ -76,6 +76,29 @@ Locator rules:
 - `path` is fuzzy: segments like `body`, `slivers`, and numeric indexes are ignored, so shapes such as `scaffold.body/custom_scroll_view.slivers/0/...` can still match the same target.
 - Use `fallbacks` for a short ordered backup list instead of one oversized locator.
 
+## Token-Saving Shell Patterns
+
+When the host is a shell agent, prefer the CLI surface plus small `jq` projections:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  read-app \
+  --app-json /tmp/app.json \
+  --profile minimal | jq '{currentRouteName,state}'
+```
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  validate-task \
+  --config-json /tmp/validate_task.json \
+  --output-json /tmp/validate_task_result.json
+
+jq '{classification,recommendedNextStep,validationFailures}' \
+  /tmp/validate_task_result.json
+```
+
+Keep larger payloads in files with `--output-json`, and prefer `--command-file`, `--commands-file`, or `--config-json` over long inline JSON once the request body stops being trivial.
+
 ## MCP
 
 ```bash

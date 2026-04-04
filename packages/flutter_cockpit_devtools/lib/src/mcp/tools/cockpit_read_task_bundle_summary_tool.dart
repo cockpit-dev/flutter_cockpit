@@ -25,7 +25,7 @@ final class CockpitReadTaskBundleSummaryTool extends CockpitMcpTool {
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
         'type': 'object',
-        'required': <String>['bundle_dir'],
+        'required': <String>['bundleDir'],
         'properties': <String, Object?>{
           'bundleDir': <String, Object?>{'type': 'string'},
         },
@@ -36,7 +36,7 @@ final class CockpitReadTaskBundleSummaryTool extends CockpitMcpTool {
     try {
       final result = await _read(
         CockpitReadTaskBundleSummaryRequest(
-          bundleDir: cockpitReadRequiredString(arguments, 'bundle_dir'),
+          bundleDir: cockpitReadRequiredString(arguments, 'bundleDir'),
         ),
       );
 

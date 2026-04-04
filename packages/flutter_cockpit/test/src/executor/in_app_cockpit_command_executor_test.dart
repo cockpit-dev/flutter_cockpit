@@ -160,8 +160,7 @@ void main() {
         commandId: 'cmd-tap',
         commandType: CockpitCommandType.tap,
         locator: const CockpitLocator(
-          kind: CockpitLocatorKind.cockpitId,
-          value: 'submit_button',
+          cockpitId: 'submit_button',
         ),
       ),
     );
@@ -206,8 +205,7 @@ void main() {
           commandId: 'cmd-focus',
           commandType: CockpitCommandType.focusTextInput,
           locator: const CockpitLocator(
-            kind: CockpitLocatorKind.cockpitId,
-            value: 'task_input',
+            cockpitId: 'task_input',
           ),
         ),
       );
@@ -216,8 +214,7 @@ void main() {
           commandId: 'cmd-action',
           commandType: CockpitCommandType.sendTextInputAction,
           locator: const CockpitLocator(
-            kind: CockpitLocatorKind.cockpitId,
-            value: 'task_input',
+            cockpitId: 'task_input',
           ),
           parameters: const {'inputAction': 'search'},
         ),
@@ -259,8 +256,7 @@ void main() {
         commandId: 'cmd-editing-value',
         commandType: CockpitCommandType.setTextEditingValue,
         locator: const CockpitLocator(
-          kind: CockpitLocatorKind.cockpitId,
-          value: 'task_input',
+          cockpitId: 'task_input',
         ),
         parameters: const {
           'text': 'Search inbox',
@@ -346,8 +342,7 @@ void main() {
         commandId: 'cmd-increase',
         commandType: CockpitCommandType.increase,
         locator: const CockpitLocator(
-          kind: CockpitLocatorKind.key,
-          value: 'stepper-control',
+          key: 'stepper-control',
         ),
       ),
     );
@@ -356,8 +351,7 @@ void main() {
         commandId: 'cmd-dismiss',
         commandType: CockpitCommandType.dismiss,
         locator: const CockpitLocator(
-          kind: CockpitLocatorKind.key,
-          value: 'stepper-control',
+          key: 'stepper-control',
         ),
       ),
     );
@@ -390,12 +384,10 @@ void main() {
         commandId: 'cmd-fallback',
         commandType: CockpitCommandType.tap,
         locator: const CockpitLocator(
-          kind: CockpitLocatorKind.cockpitId,
-          value: 'missing_button',
+          cockpitId: 'missing_button',
           fallbacks: [
             CockpitLocator(
-              kind: CockpitLocatorKind.text,
-              value: 'Submit order',
+              text: 'Submit order',
             ),
           ],
         ),
@@ -453,8 +445,7 @@ void main() {
           commandId: 'cmd-open-form',
           commandType: CockpitCommandType.tap,
           locator: const CockpitLocator(
-            kind: CockpitLocatorKind.cockpitId,
-            value: 'open_form_button',
+            cockpitId: 'open_form_button',
           ),
         ),
       );
@@ -463,8 +454,7 @@ void main() {
           commandId: 'cmd-enter-name',
           commandType: CockpitCommandType.enterText,
           locator: const CockpitLocator(
-            kind: CockpitLocatorKind.cockpitId,
-            value: 'name_input',
+            cockpitId: 'name_input',
           ),
           parameters: const {'text': 'Alice'},
         ),
@@ -516,8 +506,7 @@ void main() {
           commandId: 'cmd-eventual-target',
           commandType: CockpitCommandType.tap,
           locator: const CockpitLocator(
-            kind: CockpitLocatorKind.key,
-            value: 'create-task-button',
+            key: 'create-task-button',
           ),
         ),
       );
@@ -563,8 +552,7 @@ void main() {
           commandId: 'cmd-paced-tap',
           commandType: CockpitCommandType.tap,
           locator: const CockpitLocator(
-            kind: CockpitLocatorKind.key,
-            value: 'submit-button',
+            key: 'submit-button',
           ),
         ),
       );
@@ -611,8 +599,7 @@ void main() {
           commandId: 'cmd-pre-action-tap',
           commandType: CockpitCommandType.tap,
           locator: const CockpitLocator(
-            kind: CockpitLocatorKind.key,
-            value: 'submit-button',
+            key: 'submit-button',
           ),
         ),
       );
@@ -661,8 +648,7 @@ void main() {
           commandId: 'cmd-recording-pre-action',
           commandType: CockpitCommandType.tap,
           locator: const CockpitLocator(
-            kind: CockpitLocatorKind.key,
-            value: 'submit-button',
+            key: 'submit-button',
           ),
         ),
       );
@@ -684,8 +670,7 @@ void main() {
           commandId: 'cmd-missing',
           commandType: CockpitCommandType.tap,
           locator: const CockpitLocator(
-            kind: CockpitLocatorKind.cockpitId,
-            value: 'missing_button',
+            cockpitId: 'missing_button',
           ),
         ),
       );
@@ -723,8 +708,7 @@ void main() {
         commandId: 'cmd-ambiguous',
         commandType: CockpitCommandType.tap,
         locator: const CockpitLocator(
-          kind: CockpitLocatorKind.text,
-          value: 'Continue',
+          text: 'Continue',
         ),
       ),
     );
@@ -754,8 +738,7 @@ void main() {
           commandId: 'cmd-input',
           commandType: CockpitCommandType.enterText,
           locator: const CockpitLocator(
-            kind: CockpitLocatorKind.cockpitId,
-            value: 'submit_button',
+            cockpitId: 'submit_button',
           ),
           parameters: const {'text': 'Alice'},
         ),
@@ -984,8 +967,7 @@ void main() {
           commandId: 'cmd-held-drag',
           commandType: CockpitCommandType.drag,
           locator: const CockpitLocator(
-            kind: CockpitLocatorKind.key,
-            value: 'manual-queue-card-a',
+            key: 'manual-queue-card-a',
           ),
           parameters: const <String, Object?>{
             'dx': -180.0,
@@ -1025,8 +1007,7 @@ void main() {
         commandId: 'cmd-rotate',
         commandType: CockpitCommandType.rotate,
         locator: const CockpitLocator(
-          kind: CockpitLocatorKind.key,
-          value: 'planning-surface-canvas',
+          key: 'planning-surface-canvas',
         ),
         parameters: const <String, Object?>{
           'rotationRadians': 0.35,
@@ -1134,8 +1115,7 @@ void main() {
         commandId: 'cmd-assert-route',
         commandType: CockpitCommandType.assertVisible,
         locator: const CockpitLocator(
-          kind: CockpitLocatorKind.route,
-          value: '/today',
+          route: '/today',
         ),
       ),
     );
@@ -1230,8 +1210,7 @@ void main() {
         commandId: 'cmd-wait-for',
         commandType: CockpitCommandType.waitFor,
         locator: const CockpitLocator(
-          kind: CockpitLocatorKind.cockpitId,
-          value: 'success_label',
+          cockpitId: 'success_label',
         ),
         timeoutMs: 500,
       ),
@@ -1275,8 +1254,7 @@ void main() {
           commandId: 'cmd-wait-for-widget',
           commandType: CockpitCommandType.waitFor,
           locator: const CockpitLocator(
-            kind: CockpitLocatorKind.key,
-            value: 'success-key',
+            key: 'success-key',
           ),
           timeoutMs: 500,
         ),
@@ -1331,8 +1309,7 @@ void main() {
         registry
             .resolve(
               const CockpitLocator(
-                kind: CockpitLocatorKind.key,
-                value: 'task-39',
+                key: 'task-39',
               ),
             )
             .isSuccess,
@@ -1377,8 +1354,7 @@ void main() {
           commandId: 'scroll-to-task-39',
           commandType: CockpitCommandType.scrollUntilVisible,
           locator: const CockpitLocator(
-            kind: CockpitLocatorKind.key,
-            value: 'task-39',
+            key: 'task-39',
           ),
           parameters: const <String, Object?>{
             'maxScrolls': 20,
@@ -1394,8 +1370,7 @@ void main() {
         registry
             .resolve(
               const CockpitLocator(
-                kind: CockpitLocatorKind.key,
-                value: 'task-39',
+                key: 'task-39',
               ),
             )
             .isSuccess,
@@ -1568,8 +1543,7 @@ void main() {
           commandId: 'scroll-passive-text-hit-owned-by-ancestor',
           commandType: CockpitCommandType.scrollUntilVisible,
           locator: const CockpitLocator(
-            kind: CockpitLocatorKind.text,
-            value: 'Acceptance bundles',
+            text: 'Acceptance bundles',
           ),
           parameters: const <String, Object?>{'maxScrolls': 1},
         ),
@@ -1650,8 +1624,7 @@ void main() {
           commandId: 'scroll-passive-row-text',
           commandType: CockpitCommandType.scrollUntilVisible,
           locator: const CockpitLocator(
-            kind: CockpitLocatorKind.text,
-            value: 'Acceptance bundles',
+            text: 'Acceptance bundles',
           ),
           parameters: const <String, Object?>{'maxScrolls': 1},
         ),
@@ -1746,8 +1719,7 @@ void main() {
           commandId: 'scroll-covered-target',
           commandType: CockpitCommandType.scrollUntilVisible,
           locator: const CockpitLocator(
-            kind: CockpitLocatorKind.text,
-            value: 'Acceptance bundles',
+            text: 'Acceptance bundles',
           ),
           parameters: const <String, Object?>{'maxScrolls': 1},
         ),
@@ -1914,8 +1886,7 @@ void main() {
         commandId: 'scroll-paced',
         commandType: CockpitCommandType.scrollUntilVisible,
         locator: const CockpitLocator(
-          kind: CockpitLocatorKind.key,
-          value: 'task-39',
+          key: 'task-39',
         ),
         parameters: const <String, Object?>{'maxScrolls': 3},
       ),
@@ -1966,8 +1937,7 @@ void main() {
         commandId: 'scroll-forwarding',
         commandType: CockpitCommandType.scrollUntilVisible,
         locator: const CockpitLocator(
-          kind: CockpitLocatorKind.key,
-          value: 'task-39',
+          key: 'task-39',
         ),
         parameters: const <String, Object?>{
           'durationPerStepMs': 360,
@@ -2031,8 +2001,7 @@ void main() {
           commandId: 'scroll-forward-reveal-alignment',
           commandType: CockpitCommandType.scrollUntilVisible,
           locator: const CockpitLocator(
-            kind: CockpitLocatorKind.key,
-            value: 'task-39',
+            key: 'task-39',
           ),
           parameters: const <String, Object?>{
             'revealAlignment': 'center',
@@ -2092,8 +2061,7 @@ void main() {
           commandId: 'scroll-visible-realign',
           commandType: CockpitCommandType.scrollUntilVisible,
           locator: const CockpitLocator(
-            kind: CockpitLocatorKind.key,
-            value: 'task-0',
+            key: 'task-0',
           ),
           parameters: const <String, Object?>{
             'revealAlignment': 'center',
@@ -2155,8 +2123,7 @@ void main() {
           commandId: 'cmd-tap-search-input',
           commandType: CockpitCommandType.tap,
           locator: const CockpitLocator(
-            kind: CockpitLocatorKind.key,
-            value: 'task-search-input',
+            key: 'task-search-input',
           ),
         ),
       );
@@ -2223,8 +2190,7 @@ void main() {
         commandId: 'cmd-hit-test-warn',
         commandType: CockpitCommandType.tap,
         locator: const CockpitLocator(
-          kind: CockpitLocatorKind.key,
-          value: 'occluded-target',
+          key: 'occluded-target',
         ),
         parameters: const <String, Object?>{'hitTestMissPolicy': 'warn'},
       ),
@@ -2296,8 +2262,7 @@ void main() {
           commandId: 'cmd-hit-test-fail',
           commandType: CockpitCommandType.tap,
           locator: const CockpitLocator(
-            kind: CockpitLocatorKind.key,
-            value: 'blocked-target',
+            key: 'blocked-target',
           ),
           parameters: const <String, Object?>{'hitTestMissPolicy': 'fail'},
         ),
@@ -2333,8 +2298,7 @@ void main() {
           commandId: 'cmd-rich-enter-text',
           commandType: CockpitCommandType.enterText,
           locator: const CockpitLocator(
-            kind: CockpitLocatorKind.key,
-            value: 'search-input',
+            key: 'search-input',
           ),
           parameters: const <String, Object?>{
             'text': 'Alice',
@@ -2412,8 +2376,7 @@ void main() {
           commandId: 'cmd-input-next',
           commandType: CockpitCommandType.enterText,
           locator: const CockpitLocator(
-            kind: CockpitLocatorKind.key,
-            value: 'first-input',
+            key: 'first-input',
           ),
           parameters: const <String, Object?>{
             'text': 'Alpha',

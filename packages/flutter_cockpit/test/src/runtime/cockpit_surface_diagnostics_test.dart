@@ -82,8 +82,7 @@ void main() {
           commandId: 'tap-create-task',
           commandType: CockpitCommandType.tap,
           locator: const CockpitLocator(
-            kind: CockpitLocatorKind.key,
-            value: 'create-task-button',
+            key: 'create-task-button',
           ),
         ),
       );
@@ -96,8 +95,7 @@ void main() {
           commandId: 'enter-task-title',
           commandType: CockpitCommandType.enterText,
           locator: const CockpitLocator(
-            kind: CockpitLocatorKind.key,
-            value: 'task-input',
+            key: 'task-input',
           ),
           parameters: const <String, Object?>{'text': 'Review pull request'},
         ),
@@ -360,8 +358,7 @@ void main() {
           commandId: 'long-press-board',
           commandType: CockpitCommandType.longPress,
           locator: const CockpitLocator(
-            kind: CockpitLocatorKind.key,
-            value: 'gesture-card',
+            key: 'gesture-card',
           ),
         ),
       );

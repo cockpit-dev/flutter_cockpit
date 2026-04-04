@@ -65,8 +65,7 @@ final class CockpitRunWorkspaceTestsTool extends CockpitMcpTool {
           workspaceRoot: workspaceRoot,
           allowedRoots: cockpitAllowedWorkspaceRootPaths(_rootsTracker),
           timeout: Duration(
-            seconds:
-                cockpitReadOptionalInt(arguments, 'timeout_seconds') ?? 300,
+            seconds: cockpitReadOptionalInt(arguments, 'timeoutSeconds') ?? 300,
           ),
         ),
       );

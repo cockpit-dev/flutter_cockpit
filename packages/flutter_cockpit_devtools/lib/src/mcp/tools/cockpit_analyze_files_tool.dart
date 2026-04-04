@@ -73,12 +73,11 @@ final class CockpitAnalyzeFilesTool extends CockpitMcpTool {
           paths: cockpitReadOptionalStringList(arguments, 'paths'),
           allowedRoots: cockpitAllowedWorkspaceRootPaths(_rootsTracker),
           maxDiagnostics:
-              cockpitReadOptionalInt(arguments, 'max_diagnostics') ?? 50,
+              cockpitReadOptionalInt(arguments, 'maxDiagnostics') ?? 50,
           maxOutputChars:
-              cockpitReadOptionalInt(arguments, 'max_output_chars') ?? 1600,
+              cockpitReadOptionalInt(arguments, 'maxOutputChars') ?? 1600,
           timeout: Duration(
-            seconds:
-                cockpitReadOptionalInt(arguments, 'timeout_seconds') ?? 120,
+            seconds: cockpitReadOptionalInt(arguments, 'timeoutSeconds') ?? 120,
           ),
         ),
       );

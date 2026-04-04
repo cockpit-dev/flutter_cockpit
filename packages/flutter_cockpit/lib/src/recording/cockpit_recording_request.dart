@@ -29,9 +29,7 @@ final class CockpitRecordingRequest {
           : purpose.name,
       attachToStep: json['attachToStep'] as bool? ?? false,
       tailStabilizationDelay: Duration(
-        milliseconds: (json['tailStabilizationMs'] as int?) ??
-            (json['tail_stabilization_ms'] as int?) ??
-            1400,
+        milliseconds: (json['tailStabilizationMs'] as int?) ?? 1400,
       ),
     );
   }

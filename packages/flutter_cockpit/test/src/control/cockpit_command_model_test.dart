@@ -21,8 +21,7 @@ void main() {
       ],
       commandType: CockpitCommandType.tap,
       locator: const CockpitLocator(
-        kind: CockpitLocatorKind.cockpitId,
-        value: 'submit_button',
+        cockpitId: 'submit_button',
       ),
       locatorResolution: const CockpitLocatorResolution(
         matchedKind: CockpitLocatorKind.cockpitId,
@@ -74,14 +73,12 @@ void main() {
       commandId: 'cmd-001',
       commandType: CockpitCommandType.enterText,
       locator: const CockpitLocator(
-        kind: CockpitLocatorKind.cockpitId,
-        value: 'email_field',
+        cockpitId: 'email_field',
         fallbacks: [
           CockpitLocator(
-            kind: CockpitLocatorKind.semanticId,
-            value: 'email_input',
+            semanticId: 'email_input',
           ),
-          CockpitLocator(kind: CockpitLocatorKind.text, value: 'Email'),
+          CockpitLocator(text: 'Email'),
         ],
       ),
       parameters: const {'text': 'cockpit@example.com'},
@@ -119,8 +116,7 @@ void main() {
       commandId: 'cmd-gesture',
       commandType: CockpitCommandType.multiTouch,
       locator: const CockpitLocator(
-        kind: CockpitLocatorKind.text,
-        value: 'Canvas',
+        text: 'Canvas',
       ),
       parameters: <String, Object?>{
         'sequence': CockpitMultiTouchSequence(
@@ -163,16 +159,13 @@ void main() {
 
   test('CockpitLocator preserves fallback chains through json', () {
     const locator = CockpitLocator(
-      kind: CockpitLocatorKind.cockpitId,
-      value: 'submit_button',
+      cockpitId: 'submit_button',
       fallbacks: [
         CockpitLocator(
-          kind: CockpitLocatorKind.semanticId,
-          value: 'checkout_submit',
+          semanticId: 'checkout_submit',
           fallbacks: [
             CockpitLocator(
-              kind: CockpitLocatorKind.text,
-              value: 'Submit order',
+              text: 'Submit order',
             ),
           ],
         ),
@@ -184,10 +177,9 @@ void main() {
 
   test('CockpitLocator supports widget key locators through json', () {
     const locator = CockpitLocator(
-      kind: CockpitLocatorKind.key,
-      value: 'task-item:42',
+      key: 'task-item:42',
       fallbacks: [
-        CockpitLocator(kind: CockpitLocatorKind.text, value: 'Review docs'),
+        CockpitLocator(text: 'Review docs'),
       ],
     );
 
@@ -222,6 +214,16 @@ void main() {
       'path': '/scaffold/navigationbar/navigationdestinationlabel',
     });
     expect(locator.index, 1);
+  });
+
+  test('CockpitLocator rejects legacy kind/value JSON payloads', () {
+    expect(
+      () => CockpitLocator.fromJson(<String, Object?>{
+        'kind': 'cockpitId',
+        'value': 'submit_button',
+      }),
+      throwsA(isA<FormatException>()),
+    );
   });
 
   test('CockpitTarget preserves path and scrollable metadata in snapshots', () {

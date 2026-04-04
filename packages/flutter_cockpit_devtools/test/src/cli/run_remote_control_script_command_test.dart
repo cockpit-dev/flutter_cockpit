@@ -168,8 +168,7 @@ void main() {
               commandId: 'remote-open',
               commandType: CockpitCommandType.tap,
               locator: const CockpitLocator(
-                kind: CockpitLocatorKind.cockpitId,
-                value: 'open_form_button',
+                cockpitId: 'open_form_button',
               ),
             ).toJson(),
             CockpitCommand(
@@ -342,8 +341,7 @@ void main() {
               commandId: 'remote-open',
               commandType: CockpitCommandType.tap,
               locator: const CockpitLocator(
-                kind: CockpitLocatorKind.cockpitId,
-                value: 'open_form_button',
+                cockpitId: 'open_form_button',
               ),
             ).toJson(),
           ],
@@ -490,8 +488,7 @@ void main() {
               commandId: 'remote-open',
               commandType: CockpitCommandType.tap,
               locator: const CockpitLocator(
-                kind: CockpitLocatorKind.cockpitId,
-                value: 'open_form_button',
+                cockpitId: 'open_form_button',
               ),
             ).toJson(),
           ],
@@ -640,7 +637,7 @@ void main() {
           'projectDir': '/workspace/examples/cockpit_demo',
           'target': 'lib/main.dart',
           'baseUrl': 'http://127.0.0.1:${server.port}',
-          'launched_at': '2026-03-21T00:00:00.000Z',
+          'launchedAt': '2026-03-21T00:00:00.000Z',
         }),
       );
 
@@ -660,8 +657,7 @@ void main() {
               commandId: 'remote-open',
               commandType: CockpitCommandType.tap,
               locator: const CockpitLocator(
-                kind: CockpitLocatorKind.cockpitId,
-                value: 'open_form_button',
+                cockpitId: 'open_form_button',
               ),
             ).toJson(),
           ],

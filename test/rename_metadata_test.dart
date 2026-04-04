@@ -3,15 +3,15 @@ import 'dart:io';
 import 'package:test/test.dart';
 
 void main() {
-  test('melos workspace metadata points at flutter_cockpit package paths', () {
+  test('workspace metadata points at flutter_cockpit package paths', () {
     final rootPubspec = File('pubspec.yaml').readAsStringSync();
-    final melosYaml = File('melos.yaml').readAsStringSync();
 
     expect(rootPubspec, contains('name: flutter_cockpit_workspace'));
-    expect(rootPubspec, isNot(contains('workspace:')));
-    expect(melosYaml, contains('name: flutter_cockpit_workspace'));
-    expect(melosYaml, contains('- packages/**'));
-    expect(melosYaml, contains('- examples/**'));
+    expect(rootPubspec, contains('workspace:'));
+    expect(rootPubspec, contains('- packages/flutter_cockpit'));
+    expect(rootPubspec, contains('- packages/flutter_cockpit_devtools'));
+    expect(rootPubspec, contains('- examples/cockpit_demo'));
+    expect(rootPubspec, contains('melos:'));
   });
 
   test('cockpit_demo depends on flutter_cockpit packages', () {

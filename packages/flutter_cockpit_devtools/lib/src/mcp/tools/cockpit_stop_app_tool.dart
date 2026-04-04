@@ -33,8 +33,8 @@ final class CockpitStopAppTool extends CockpitMcpTool {
     try {
       final result = await _stop(
         CockpitStopAppRequest(
-          appId: cockpitReadOptionalString(arguments, 'app_id'),
-          appHandlePath: cockpitReadOptionalString(arguments, 'app_json'),
+          appId: cockpitReadOptionalString(arguments, 'appId'),
+          appHandlePath: cockpitReadOptionalString(arguments, 'appJson'),
         ),
       );
       return cockpitMcpResult(

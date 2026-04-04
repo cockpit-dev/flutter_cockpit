@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
-import '../../application/cockpit_json_key_normalizer.dart';
 import '../../application/cockpit_start_recording_service.dart';
 import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
@@ -75,9 +74,7 @@ final class StartRecordingCommand extends CockpitCliCommand {
         baseUri: cockpitReadOptionalBaseUri(argResults),
         appHandlePath: argResults?['app-json'] as String?,
         androidDeviceId: argResults?['android-device-id'] as String?,
-        recording: CockpitRecordingRequest.fromJson(
-          cockpitNormalizeJsonKeys(recordingJson),
-        ),
+        recording: CockpitRecordingRequest.fromJson(recordingJson),
       ),
     );
     await cockpitWriteJsonPayload(

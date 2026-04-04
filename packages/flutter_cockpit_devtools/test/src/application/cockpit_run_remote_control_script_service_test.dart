@@ -132,8 +132,7 @@ void main() {
             commandId: 'remote-open',
             commandType: CockpitCommandType.tap,
             locator: const CockpitLocator(
-              kind: CockpitLocatorKind.cockpitId,
-              value: 'open_form_button',
+              cockpitId: 'open_form_button',
             ),
           ),
           CockpitCommand(
@@ -285,8 +284,7 @@ void main() {
             'commandId': 'remote-open',
             'commandType': 'tap',
             'locator': const CockpitLocator(
-              kind: CockpitLocatorKind.cockpitId,
-              value: 'open_form_button',
+              cockpitId: 'open_form_button',
             ).toJson(),
           },
         ],
@@ -393,8 +391,7 @@ void main() {
             'commandId': 'remote-open',
             'commandType': 'tap',
             'locator': const CockpitLocator(
-              kind: CockpitLocatorKind.cockpitId,
-              value: 'open_form_button',
+              cockpitId: 'open_form_button',
             ).toJson(),
           },
         ],

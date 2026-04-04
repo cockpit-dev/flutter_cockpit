@@ -87,10 +87,10 @@ final class CockpitLspTool extends CockpitMcpTool {
           column: cockpitReadOptionalInt(arguments, 'column'),
           query: cockpitReadOptionalString(arguments, 'query'),
           allowedRoots: cockpitAllowedWorkspaceRootPaths(_rootsTracker),
-          maxResults: cockpitReadOptionalInt(arguments, 'max_results') ?? 20,
-          maxChars: cockpitReadOptionalInt(arguments, 'max_chars') ?? 1600,
+          maxResults: cockpitReadOptionalInt(arguments, 'maxResults') ?? 20,
+          maxChars: cockpitReadOptionalInt(arguments, 'maxChars') ?? 1600,
           timeout: Duration(
-            seconds: cockpitReadOptionalInt(arguments, 'timeout_seconds') ?? 20,
+            seconds: cockpitReadOptionalInt(arguments, 'timeoutSeconds') ?? 20,
           ),
         ),
       );

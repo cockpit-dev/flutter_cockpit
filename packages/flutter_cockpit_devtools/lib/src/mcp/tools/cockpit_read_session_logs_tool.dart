@@ -42,7 +42,7 @@ final class CockpitReadSessionLogsTool extends CockpitMcpTool {
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
         'type': 'object',
-        'required': <String>['development_session_id'],
+        'required': <String>['developmentSessionId'],
         'properties': <String, Object?>{
           'developmentSessionId': <String, Object?>{'type': 'string'},
           'maxLines': <String, Object?>{'type': 'integer'},
@@ -56,9 +56,9 @@ final class CockpitReadSessionLogsTool extends CockpitMcpTool {
         CockpitReadSessionLogsRequest(
           developmentSessionId: cockpitReadRequiredString(
             arguments,
-            'development_session_id',
+            'developmentSessionId',
           ),
-          maxLines: cockpitReadOptionalInt(arguments, 'max_lines') ?? 200,
+          maxLines: cockpitReadOptionalInt(arguments, 'maxLines') ?? 200,
         ),
       );
       return cockpitMcpResult(

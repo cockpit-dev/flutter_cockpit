@@ -76,6 +76,29 @@ Locator 规则：
 - `path` 是 fuzzy 匹配：`body`、`slivers`、数字索引这类噪声段会被忽略，所以 `scaffold.body/custom_scroll_view.slivers/0/...` 这类形状也能命中同一目标。
 - 需要兜底时用 `fallbacks`，不要把所有条件都塞进一个超长 locator。
 
+## 省 Token 的 Shell 用法
+
+当宿主是 shell agent 时，优先使用 CLI，再配合小范围 `jq` 投影：
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  read-app \
+  --app-json /tmp/app.json \
+  --profile minimal | jq '{currentRouteName,state}'
+```
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  validate-task \
+  --config-json /tmp/validate_task.json \
+  --output-json /tmp/validate_task_result.json
+
+jq '{classification,recommendedNextStep,validationFailures}' \
+  /tmp/validate_task_result.json
+```
+
+较大的结构化结果优先落到 `--output-json` 文件里，再按需读取；只要请求体不再是几行以内，就优先使用 `--command-file`、`--commands-file`、`--config-json`，不要把长 JSON 直接内联进命令。
+
 ## MCP
 
 ```bash

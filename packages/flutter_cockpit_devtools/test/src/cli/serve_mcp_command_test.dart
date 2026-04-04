@@ -64,8 +64,6 @@ void main() {
           '--force-roots-fallback',
           '--workspace-root',
           '/workspace',
-          '--goals-file',
-          'GOALS.md',
           '--skill-contract-file',
           'docs/contracts/flutter-cockpit-skill-contract.md',
           '--bundle-contract-file',

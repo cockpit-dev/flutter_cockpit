@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
 import '../../application/cockpit_inspect_ui_service.dart';
-import '../../application/cockpit_json_key_normalizer.dart';
 import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
@@ -76,9 +75,7 @@ final class InspectUiCommand extends CockpitCliCommand {
         resultProfile: cockpitReadResultProfile(argResults),
         snapshotOptions: snapshotOptionsJson == null
             ? null
-            : CockpitSnapshotOptions.fromJson(
-                cockpitNormalizeJsonKeys(snapshotOptionsJson),
-              ),
+            : CockpitSnapshotOptions.fromJson(snapshotOptionsJson),
         compareAgainstSnapshotRef:
             argResults?['compare-against-snapshot-ref'] as String?,
       ),

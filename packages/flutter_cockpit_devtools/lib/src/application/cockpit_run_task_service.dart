@@ -80,24 +80,15 @@ final class CockpitRunTaskLaunchRequest {
 
   factory CockpitRunTaskLaunchRequest.fromJson(Map<String, Object?> json) {
     return CockpitRunTaskLaunchRequest(
-      projectDir: _readRequiredString(json, 'projectDir', 'project_dir'),
+      projectDir: _readRequiredString(json, 'projectDir'),
       target: _readOptionalString(json, 'target'),
       platform: _readRequiredString(json, 'platform'),
-      deviceId: _readRequiredString(json, 'deviceId', 'device_id'),
-      sessionPort: _readRequiredInt(json, 'sessionPort', 'session_port'),
+      deviceId: _readRequiredString(json, 'deviceId'),
+      sessionPort: _readRequiredInt(json, 'sessionPort'),
       launchTimeout: Duration(
-        seconds: _readOptionalInt(
-              json,
-              'launchTimeoutSeconds',
-              'launch_timeout_seconds',
-            ) ??
-            120,
+        seconds: _readOptionalInt(json, 'launchTimeoutSeconds') ?? 120,
       ),
-      persistHandlePath: _readOptionalString(
-        json,
-        'persistHandlePath',
-        'persist_handle_path',
-      ),
+      persistHandlePath: _readOptionalString(json, 'persistHandlePath'),
     );
   }
 }
@@ -121,15 +112,9 @@ final class CockpitRunTaskBaselineRequest {
 
   factory CockpitRunTaskBaselineRequest.fromJson(Map<String, Object?> json) {
     return CockpitRunTaskBaselineRequest(
-      captureScreenshot:
-          _readOptionalBool(json, 'captureScreenshot', 'capture_screenshot') ??
-              false,
-      screenshotName:
-          _readOptionalString(json, 'screenshotName', 'screenshot_name') ??
-              'baseline',
-      includeSnapshot:
-          _readOptionalBool(json, 'includeSnapshot', 'include_snapshot') ??
-              true,
+      captureScreenshot: _readOptionalBool(json, 'captureScreenshot') ?? false,
+      screenshotName: _readOptionalString(json, 'screenshotName') ?? 'baseline',
+      includeSnapshot: _readOptionalBool(json, 'includeSnapshot') ?? true,
     );
   }
 }
@@ -152,18 +137,10 @@ final class CockpitRunTaskEvidenceRequirements {
     Map<String, Object?> json,
   ) {
     return CockpitRunTaskEvidenceRequirements(
-      requireScreenshotEvidence: _readOptionalBool(
-            json,
-            'requireScreenshotEvidence',
-            'require_screenshot_evidence',
-          ) ??
-          false,
-      requireVideoEvidence: _readOptionalBool(
-            json,
-            'requireVideoEvidence',
-            'require_video_evidence',
-          ) ??
-          false,
+      requireScreenshotEvidence:
+          _readOptionalBool(json, 'requireScreenshotEvidence') ?? false,
+      requireVideoEvidence:
+          _readOptionalBool(json, 'requireVideoEvidence') ?? false,
     );
   }
 }
@@ -202,11 +179,7 @@ final class CockpitRunTaskRequest {
 
   factory CockpitRunTaskRequest.fromJson(Map<String, Object?> json) {
     final launchJson = _readOptionalObject(json, 'launch');
-    final sessionHandleJson = _readOptionalObject(
-      json,
-      'sessionHandle',
-      'session_handle',
-    );
+    final sessionHandleJson = _readOptionalObject(json, 'sessionHandle');
     final scriptJson = _readRequiredObject(json, 'script');
     final baselineJson = _readOptionalObject(json, 'baseline');
     final requirementsJson = _readOptionalObject(json, 'requirements');
@@ -218,18 +191,10 @@ final class CockpitRunTaskRequest {
       sessionHandle: sessionHandleJson == null
           ? null
           : CockpitRemoteSessionHandle.fromJson(sessionHandleJson),
-      sessionHandlePath: _readOptionalString(
-        json,
-        'sessionHandlePath',
-        'session_handle_path',
-      ),
+      sessionHandlePath: _readOptionalString(json, 'sessionHandlePath'),
       script: CockpitControlScript.fromJson(scriptJson),
-      outputRoot: _readRequiredString(json, 'outputRoot', 'output_root'),
-      persistScriptPath: _readOptionalString(
-        json,
-        'persistScriptPath',
-        'persist_script_path',
-      ),
+      outputRoot: _readRequiredString(json, 'outputRoot'),
+      persistScriptPath: _readOptionalString(json, 'persistScriptPath'),
       baseline: baselineJson == null
           ? const CockpitRunTaskBaselineRequest()
           : CockpitRunTaskBaselineRequest.fromJson(baselineJson),
@@ -318,15 +283,14 @@ final class CockpitRunTaskService {
 
 String _readRequiredString(
   Map<String, Object?> json,
-  String key, [
-  String? alternateKey,
-]) {
-  final value = _readOptionalString(json, key, alternateKey);
+  String key,
+) {
+  final value = _readOptionalString(json, key);
   if (value == null || value.isEmpty) {
     throw CockpitApplicationServiceException(
       code: 'invalidRunTaskRequest',
       message: 'Missing required string field.',
-      details: <String, Object?>{'field': alternateKey ?? key},
+      details: <String, Object?>{'field': key},
     );
   }
   return value;
@@ -334,10 +298,9 @@ String _readRequiredString(
 
 String? _readOptionalString(
   Map<String, Object?> json,
-  String key, [
-  String? alternateKey,
-]) {
-  final value = json[key] ?? (alternateKey == null ? null : json[alternateKey]);
+  String key,
+) {
+  final value = json[key];
   if (value == null) {
     return null;
   }
@@ -347,21 +310,20 @@ String? _readOptionalString(
   throw CockpitApplicationServiceException(
     code: 'invalidRunTaskRequest',
     message: 'Expected a non-empty string field.',
-    details: <String, Object?>{'field': alternateKey ?? key},
+    details: <String, Object?>{'field': key},
   );
 }
 
 int _readRequiredInt(
   Map<String, Object?> json,
-  String key, [
-  String? alternateKey,
-]) {
-  final value = _readOptionalInt(json, key, alternateKey);
+  String key,
+) {
+  final value = _readOptionalInt(json, key);
   if (value == null) {
     throw CockpitApplicationServiceException(
       code: 'invalidRunTaskRequest',
       message: 'Missing required integer field.',
-      details: <String, Object?>{'field': alternateKey ?? key},
+      details: <String, Object?>{'field': key},
     );
   }
   return value;
@@ -369,10 +331,9 @@ int _readRequiredInt(
 
 int? _readOptionalInt(
   Map<String, Object?> json,
-  String key, [
-  String? alternateKey,
-]) {
-  final value = json[key] ?? (alternateKey == null ? null : json[alternateKey]);
+  String key,
+) {
+  final value = json[key];
   if (value == null) {
     return null;
   }
@@ -385,16 +346,15 @@ int? _readOptionalInt(
   throw CockpitApplicationServiceException(
     code: 'invalidRunTaskRequest',
     message: 'Expected an integer field.',
-    details: <String, Object?>{'field': alternateKey ?? key},
+    details: <String, Object?>{'field': key},
   );
 }
 
 bool? _readOptionalBool(
   Map<String, Object?> json,
-  String key, [
-  String? alternateKey,
-]) {
-  final value = json[key] ?? (alternateKey == null ? null : json[alternateKey]);
+  String key,
+) {
+  final value = json[key];
   if (value == null) {
     return null;
   }
@@ -404,21 +364,20 @@ bool? _readOptionalBool(
   throw CockpitApplicationServiceException(
     code: 'invalidRunTaskRequest',
     message: 'Expected a boolean field.',
-    details: <String, Object?>{'field': alternateKey ?? key},
+    details: <String, Object?>{'field': key},
   );
 }
 
 Map<String, Object?> _readRequiredObject(
   Map<String, Object?> json,
-  String key, [
-  String? alternateKey,
-]) {
-  final value = _readOptionalObject(json, key, alternateKey);
+  String key,
+) {
+  final value = _readOptionalObject(json, key);
   if (value == null) {
     throw CockpitApplicationServiceException(
       code: 'invalidRunTaskRequest',
       message: 'Missing required object field.',
-      details: <String, Object?>{'field': alternateKey ?? key},
+      details: <String, Object?>{'field': key},
     );
   }
   return value;
@@ -426,10 +385,9 @@ Map<String, Object?> _readRequiredObject(
 
 Map<String, Object?>? _readOptionalObject(
   Map<String, Object?> json,
-  String key, [
-  String? alternateKey,
-]) {
-  final value = json[key] ?? (alternateKey == null ? null : json[alternateKey]);
+  String key,
+) {
+  final value = json[key];
   if (value == null) {
     return null;
   }
@@ -439,6 +397,6 @@ Map<String, Object?>? _readOptionalObject(
   throw CockpitApplicationServiceException(
     code: 'invalidRunTaskRequest',
     message: 'Expected an object field.',
-    details: <String, Object?>{'field': alternateKey ?? key},
+    details: <String, Object?>{'field': key},
   );
 }

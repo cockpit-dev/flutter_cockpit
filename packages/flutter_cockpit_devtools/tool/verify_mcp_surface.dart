@@ -115,7 +115,7 @@ final class _McpSurfaceVerifier {
         server,
         'run_closed_loop_task',
         <String, Object?>{
-          'task_goal': 'Verify the MCP release surface end to end.',
+          'taskGoal': 'Verify the MCP release surface end to end.',
           'platform': 'macos',
           'requiresVideo': true,
         },

@@ -5,8 +5,7 @@ import 'package:flutter_cockpit_devtools/src/development/cockpit_development_ses
 import 'package:test/test.dart';
 
 void main() {
-  test('reads both legacy camelCase and snake_case development handles',
-      () async {
+  test('reads lower camel case development handles', () async {
     final tempDir = await Directory.systemTemp.createTemp(
       'cockpit_development_session_reference_resolver',
     );
@@ -16,8 +15,8 @@ void main() {
       }
     });
 
-    final legacyFile = File('${tempDir.path}/legacy.json');
-    await legacyFile.writeAsString(
+    final handleFile = File('${tempDir.path}/development_session.json');
+    await handleFile.writeAsString(
       jsonEncode(<String, Object?>{
         'developmentSessionId': 'dev-session-1',
         'platform': 'android',
@@ -32,8 +31,25 @@ void main() {
       }),
     );
 
-    final snakeCaseFile = File('${tempDir.path}/snake_case.json');
-    await snakeCaseFile.writeAsString(
+    const resolver = CockpitDevelopmentSessionReferenceResolver();
+    final handle = await resolver.readSessionHandle(handleFile.path);
+
+    expect(handle.developmentSessionId, 'dev-session-1');
+    expect(handle.reloadGeneration, 1);
+  });
+
+  test('rejects snake case development handles', () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'cockpit_development_session_reference_resolver_legacy',
+    );
+    addTearDown(() async {
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    final handleFile = File('${tempDir.path}/development_session.json');
+    await handleFile.writeAsString(
       jsonEncode(<String, Object?>{
         'development_session_id': 'dev-session-2',
         'platform': 'android',
@@ -48,13 +64,12 @@ void main() {
       }),
     );
 
-    const resolver = CockpitDevelopmentSessionReferenceResolver();
-    final legacy = await resolver.readSessionHandle(legacyFile.path);
-    final snakeCase = await resolver.readSessionHandle(snakeCaseFile.path);
-
-    expect(legacy.developmentSessionId, 'dev-session-1');
-    expect(legacy.reloadGeneration, 1);
-    expect(snakeCase.developmentSessionId, 'dev-session-2');
-    expect(snakeCase.reloadGeneration, 2);
+    expect(
+      () =>
+          const CockpitDevelopmentSessionReferenceResolver().readSessionHandle(
+        handleFile.path,
+      ),
+      throwsA(isA<TypeError>()),
+    );
   });
 }

@@ -11,9 +11,9 @@ final class CockpitRunClosedLoopTaskPrompt extends CockpitMcpPrompt {
         description:
             'Run a full flutter_cockpit closed-loop task with evidence.',
         arguments: <CockpitMcpPromptArgument>[
-          CockpitMcpPromptArgument(name: 'task_goal', required: true),
+          CockpitMcpPromptArgument(name: 'taskGoal', required: true),
           CockpitMcpPromptArgument(name: 'platform'),
-          CockpitMcpPromptArgument(name: 'requires_video'),
+          CockpitMcpPromptArgument(name: 'requiresVideo'),
         ],
         categories: <CockpitMcpFeatureCategory>[
           CockpitMcpFeatureCategory.closedLoop,
@@ -23,7 +23,7 @@ final class CockpitRunClosedLoopTaskPrompt extends CockpitMcpPrompt {
 
   @override
   Future<CockpitMcpPromptResult> build(Map<String, Object?> arguments) async {
-    final taskGoal = arguments['task_goal'] ?? '';
+    final taskGoal = arguments['taskGoal'] ?? '';
     return CockpitMcpPromptResult(
       messages: <CockpitMcpPromptMessage>[
         CockpitMcpPromptMessage.user(

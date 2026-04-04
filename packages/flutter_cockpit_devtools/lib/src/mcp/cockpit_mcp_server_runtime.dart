@@ -12,7 +12,6 @@ final class CockpitMcpServerRuntimeOptions {
     required this.disabledNames,
     required this.forceRootsFallback,
     required this.workspaceRoots,
-    required this.goalsFilePath,
     required this.skillContractPath,
     required this.bundleContractPath,
     this.logFilePath,
@@ -22,7 +21,6 @@ final class CockpitMcpServerRuntimeOptions {
   final Set<String> disabledNames;
   final bool forceRootsFallback;
   final List<String> workspaceRoots;
-  final String? goalsFilePath;
   final String skillContractPath;
   final String bundleContractPath;
   final String? logFilePath;
@@ -102,11 +100,6 @@ final class CockpitMcpServerRuntime {
             'Seed one or more workspace roots for fallback mode before the MCP client sends roots.',
       )
       ..addOption(
-        'goals-file',
-        help:
-            'Optional path to an additional workspace goals document. Not required for the default flutter_cockpit loop.',
-      )
-      ..addOption(
         'skill-contract-file',
         defaultsTo: 'docs/contracts/flutter-cockpit-skill-contract.md',
         help: 'Path to the flutter_cockpit skill contract document.',
@@ -130,7 +123,6 @@ final class CockpitMcpServerRuntime {
       workspaceRoots: List<String>.unmodifiable(
         args.multiOption('workspace-root'),
       ),
-      goalsFilePath: args['goals-file'] as String?,
       skillContractPath: args['skill-contract-file'] as String? ??
           'docs/contracts/flutter-cockpit-skill-contract.md',
       bundleContractPath: args['bundle-contract-file'] as String? ??
@@ -164,7 +156,6 @@ final class CockpitMcpServerRuntime {
       ),
       forceRootsFallback: options.forceRootsFallback,
       workspaceRoots: options.workspaceRoots,
-      goalsFilePath: options.goalsFilePath,
       skillContractPath: options.skillContractPath,
       bundleContractPath: options.bundleContractPath,
     );

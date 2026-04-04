@@ -200,7 +200,7 @@ void main() {
           'projectDir': '/workspace/examples/cockpit_demo',
           'target': 'lib/main.dart',
           'baseUrl': 'http://127.0.0.1:${server.port}',
-          'launched_at': '2026-03-21T00:00:00.000Z',
+          'launchedAt': '2026-03-21T00:00:00.000Z',
         }),
       );
 

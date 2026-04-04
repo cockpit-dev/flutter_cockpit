@@ -124,7 +124,7 @@ void main() {
           ],
         },
         runtime: const <String, Object?>{
-          'errorSignals': <String>['flutter_error:error:RenderFlex overflowed'],
+          'errorSignals': <String>['flutterError:error:RenderFlex overflowed'],
         },
         rebuild: const <String, Object?>{
           'hotspots': <String>['task-list', 'settings.theme'],
@@ -186,7 +186,7 @@ void main() {
       expect(
         result.delta.newRuntimeErrors,
         orderedEquals(const <String>[
-          'flutter_error:error:RenderFlex overflowed',
+          'flutterError:error:RenderFlex overflowed',
         ]),
       );
       expect(

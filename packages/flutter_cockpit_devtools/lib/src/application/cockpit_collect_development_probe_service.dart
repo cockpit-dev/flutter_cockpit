@@ -408,9 +408,9 @@ final class CockpitCollectDevelopmentProbeService {
 
   static String _runtimeErrorSignal(CockpitRuntimeEvent entry) {
     final normalizedKind = switch (entry.kind) {
-      CockpitRuntimeEventKind.flutterError => 'flutter_error',
-      CockpitRuntimeEventKind.uncaughtError => 'uncaught_error',
-      CockpitRuntimeEventKind.debugLog => 'debug_log',
+      CockpitRuntimeEventKind.flutterError => 'flutterError',
+      CockpitRuntimeEventKind.uncaughtError => 'uncaughtError',
+      CockpitRuntimeEventKind.debugLog => 'debugLog',
     };
     return '$normalizedKind:${entry.severity.jsonValue}:${entry.message}';
   }

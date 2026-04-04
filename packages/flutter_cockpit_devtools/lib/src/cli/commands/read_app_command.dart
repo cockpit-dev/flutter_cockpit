@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
 import '../../application/cockpit_interactive_result_profile.dart';
-import '../../application/cockpit_json_key_normalizer.dart';
 import '../../application/cockpit_read_app_service.dart';
 import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
@@ -82,9 +81,7 @@ final class ReadAppCommand extends CockpitCliCommand {
         ),
         snapshotOptions: snapshotOptionsJson == null
             ? null
-            : CockpitSnapshotOptions.fromJson(
-                cockpitNormalizeJsonKeys(snapshotOptionsJson),
-              ),
+            : CockpitSnapshotOptions.fromJson(snapshotOptionsJson),
       ),
     );
     await cockpitWriteJsonPayload(

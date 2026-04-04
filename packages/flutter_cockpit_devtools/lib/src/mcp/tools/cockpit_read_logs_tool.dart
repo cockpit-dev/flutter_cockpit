@@ -34,14 +34,14 @@ final class CockpitReadLogsTool extends CockpitMcpTool {
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {
     try {
-      final appId = cockpitReadOptionalString(arguments, 'app_id');
-      final appHandlePath = cockpitReadOptionalString(arguments, 'app_json');
+      final appId = cockpitReadOptionalString(arguments, 'appId');
+      final appHandlePath = cockpitReadOptionalString(arguments, 'appJson');
       if ((appId == null || appId.isEmpty) &&
           (appHandlePath == null || appHandlePath.isEmpty)) {
         throw CockpitMcpError.invalidArguments(
-          'Either app_id or app_json is required.',
+          'Either appId or appJson is required.',
           details: const <String, Object?>{
-            'arguments': <String>['app_id', 'app_json'],
+            'arguments': <String>['appId', 'appJson'],
           },
         );
       }
@@ -49,7 +49,7 @@ final class CockpitReadLogsTool extends CockpitMcpTool {
         CockpitReadLogsRequest(
           appId: appId,
           appHandlePath: appHandlePath,
-          maxLines: cockpitReadOptionalInt(arguments, 'max_lines') ?? 200,
+          maxLines: cockpitReadOptionalInt(arguments, 'maxLines') ?? 200,
         ),
       );
       return cockpitMcpResult(

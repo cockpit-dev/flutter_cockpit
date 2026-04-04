@@ -64,7 +64,7 @@ final class CockpitFormatWorkspaceTool extends CockpitMcpTool {
           workspaceRoot: workspaceRoot,
           allowedRoots: cockpitAllowedWorkspaceRootPaths(_rootsTracker),
           timeout: Duration(
-            seconds: cockpitReadOptionalInt(arguments, 'timeout_seconds') ?? 90,
+            seconds: cockpitReadOptionalInt(arguments, 'timeoutSeconds') ?? 90,
           ),
         ),
       );

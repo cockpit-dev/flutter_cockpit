@@ -95,7 +95,7 @@ void main() {
       find.byType(CockpitSurface),
     );
     final resolution = surfaceState.registry.resolve(
-      const CockpitLocator(kind: CockpitLocatorKind.text, value: 'Sync now'),
+      const CockpitLocator(text: 'Sync now'),
     );
 
     expect(resolution.isSuccess, isTrue);
@@ -136,8 +136,7 @@ void main() {
     );
     final resolution = surfaceState.registry.resolve(
       const CockpitLocator(
-        kind: CockpitLocatorKind.text,
-        value: 'Hidden action',
+        text: 'Hidden action',
       ),
     );
 

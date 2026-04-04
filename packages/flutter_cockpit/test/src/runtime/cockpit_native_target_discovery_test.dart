@@ -116,8 +116,7 @@ void main() {
     );
     final resolution = surfaceState.registry.resolve(
       const CockpitLocator(
-        kind: CockpitLocatorKind.key,
-        value: 'task-priority-urgent',
+        key: 'task-priority-urgent',
       ),
     );
 
@@ -164,8 +163,7 @@ void main() {
       surfaceState.registry
           .resolve(
             const CockpitLocator(
-              kind: CockpitLocatorKind.key,
-              value: 'task-row-shell',
+              key: 'task-row-shell',
             ),
           )
           .isSuccess,
@@ -287,8 +285,7 @@ void main() {
     );
     final resolution = surfaceState.registry.resolve(
       const CockpitLocator(
-        kind: CockpitLocatorKind.key,
-        value: 'task-open-alpha',
+        key: 'task-open-alpha',
       ),
     );
 
@@ -413,8 +410,7 @@ void main() {
         surfaceState.registry
             .resolve(
               const CockpitLocator(
-                kind: CockpitLocatorKind.text,
-                value: 'Acceptance bundles',
+                text: 'Acceptance bundles',
               ),
             )
             .isSuccess,
@@ -435,7 +431,7 @@ Future<CockpitTarget> _resolveKeyedInputTarget(
     find.byType(CockpitSurface),
   );
   final resolution = surfaceState.registry.resolve(
-    const CockpitLocator(kind: CockpitLocatorKind.key, value: 'task-input'),
+    const CockpitLocator(key: 'task-input'),
   );
 
   expect(resolution.isSuccess, isTrue);

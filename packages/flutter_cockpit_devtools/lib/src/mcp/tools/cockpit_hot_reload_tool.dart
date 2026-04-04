@@ -33,8 +33,8 @@ final class CockpitHotReloadTool extends CockpitMcpTool {
     try {
       final result = await _reload(
         CockpitHotReloadRequest(
-          appId: cockpitReadOptionalString(arguments, 'app_id'),
-          appHandlePath: cockpitReadOptionalString(arguments, 'app_json'),
+          appId: cockpitReadOptionalString(arguments, 'appId'),
+          appHandlePath: cockpitReadOptionalString(arguments, 'appJson'),
         ),
       );
       return cockpitMcpResult(

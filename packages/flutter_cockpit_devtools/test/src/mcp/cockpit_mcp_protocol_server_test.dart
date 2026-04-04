@@ -86,12 +86,12 @@ void main() {
       resources: <CockpitMcpResource>[
         _FakeCockpitMcpResource(
           definition: const CockpitMcpResourceDefinition.fixed(
-            name: 'workspace_goals',
-            uri: 'cockpit://workspace/goals',
-            description: 'Repository goals.',
+            name: 'workspace_skill_contract',
+            uri: 'cockpit://workspace/skill-contract',
+            description: 'Skill contract.',
             mimeType: 'text/markdown',
           ),
-          text: '# Goals',
+          text: '# Skill Contract',
         ),
         _FakeCockpitMcpResource(
           definition: const CockpitMcpResourceDefinition.template(
@@ -113,7 +113,7 @@ void main() {
     final resources = await connection.listResources();
     expect(
       resources.resources.map((resource) => resource.uri),
-      <String>['cockpit://workspace/goals'],
+      <String>['cockpit://workspace/skill-contract'],
     );
 
     final templates = await connection.listResourceTemplates();
@@ -123,12 +123,12 @@ void main() {
     );
 
     final resourceResult = await connection.readResource(
-      ReadResourceRequest(uri: 'cockpit://workspace/goals'),
+      ReadResourceRequest(uri: 'cockpit://workspace/skill-contract'),
     );
     expect(
       resourceResult.contents.single,
       isA<TextResourceContents>()
-          .having((content) => content.text, 'text', '# Goals'),
+          .having((content) => content.text, 'text', '# Skill Contract'),
     );
 
     final prompts = await connection.listPrompts();
@@ -139,7 +139,7 @@ void main() {
     final promptResult = await connection.getPrompt(
       GetPromptRequest(
         name: 'run_closed_loop_task',
-        arguments: const <String, Object?>{'task_goal': 'Ship it'},
+        arguments: const <String, Object?>{'taskGoal': 'Ship it'},
       ),
     );
     expect(promptResult.messages, hasLength(1));
@@ -248,7 +248,7 @@ final class _FakeCockpitMcpPrompt extends CockpitMcpPrompt {
         name: 'run_closed_loop_task',
         description: 'Guides a closed-loop task.',
         arguments: <CockpitMcpPromptArgument>[
-          CockpitMcpPromptArgument(name: 'task_goal', required: true),
+          CockpitMcpPromptArgument(name: 'taskGoal', required: true),
         ],
       );
 
@@ -259,7 +259,7 @@ final class _FakeCockpitMcpPrompt extends CockpitMcpPrompt {
     return CockpitMcpPromptResult(
       messages: <CockpitMcpPromptMessage>[
         CockpitMcpPromptMessage.user(
-          'Run the task: ${arguments['task_goal']}',
+          'Run the task: ${arguments['taskGoal']}',
         ),
       ],
     );

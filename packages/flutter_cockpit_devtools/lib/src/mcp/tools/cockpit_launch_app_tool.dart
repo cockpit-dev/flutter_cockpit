@@ -25,10 +25,10 @@ final class CockpitLaunchAppTool extends CockpitMcpTool {
   Map<String, Object?> get inputSchema => const <String, Object?>{
         'type': 'object',
         'required': <String>[
-          'project_dir',
+          'projectDir',
           'platform',
-          'device_id',
-          'session_port',
+          'deviceId',
+          'sessionPort',
         ],
         'properties': <String, Object?>{
           'projectDir': <String, Object?>{'type': 'string'},
@@ -50,20 +50,20 @@ final class CockpitLaunchAppTool extends CockpitMcpTool {
     try {
       final result = await _launch(
         CockpitLaunchAppRequest(
-          projectDir: cockpitReadRequiredString(arguments, 'project_dir'),
+          projectDir: cockpitReadRequiredString(arguments, 'projectDir'),
           target: cockpitReadOptionalString(arguments, 'target'),
           platform: cockpitReadRequiredString(arguments, 'platform'),
-          deviceId: cockpitReadRequiredString(arguments, 'device_id'),
-          sessionPort: cockpitReadRequiredInt(arguments, 'session_port'),
+          deviceId: cockpitReadRequiredString(arguments, 'deviceId'),
+          sessionPort: cockpitReadRequiredInt(arguments, 'sessionPort'),
           mode: CockpitAppMode.fromJson(
             cockpitReadOptionalString(arguments, 'mode') ?? 'development',
           ),
           launchTimeout: Duration(
             seconds:
-                cockpitReadOptionalInt(arguments, 'launch_timeout_seconds') ??
+                cockpitReadOptionalInt(arguments, 'launchTimeoutSeconds') ??
                     120,
           ),
-          appHandlePath: cockpitReadOptionalString(arguments, 'app_json'),
+          appHandlePath: cockpitReadOptionalString(arguments, 'appJson'),
         ),
       );
       return cockpitMcpResult(

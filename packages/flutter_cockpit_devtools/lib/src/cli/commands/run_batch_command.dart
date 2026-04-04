@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
 import '../../application/cockpit_interactive_result_profile.dart';
-import '../../application/cockpit_json_key_normalizer.dart';
 import '../../application/cockpit_run_batch_service.dart';
 import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
@@ -74,7 +73,7 @@ final class RunBatchCommand extends CockpitCliCommand {
 
   @override
   String get helpShape =>
-      'commands.json = [{"commandId":"open-today","commandType":"tap","locator":{"text":"Today","type":"NavigationDestinationLabel"}}]; each item may also set timeoutMs, resultProfile, snapshotOptions, or compareAgainstSnapshotRef.';
+      'commands.json = [{"commandId":"open-today","commandType":"tap","locator":{"text":"Today","type":"NavigationDestinationLabel"}}]; each item may also set timeoutMs, profile, snapshotOptions, or compareAgainstSnapshotRef.';
 
   @override
   String get helpExample =>
@@ -122,16 +121,12 @@ final class RunBatchCommand extends CockpitCliCommand {
         ),
         recording: recordingJson == null
             ? null
-            : CockpitRecordingRequest.fromJson(
-                cockpitNormalizeJsonKeys(recordingJson),
-              ),
+            : CockpitRecordingRequest.fromJson(recordingJson),
         finalSnapshotProfile:
             _readOptionalProfile(argResults?['final-profile']),
         finalSnapshotOptions: finalSnapshotOptionsJson == null
             ? null
-            : CockpitSnapshotOptions.fromJson(
-                cockpitNormalizeJsonKeys(finalSnapshotOptionsJson),
-              ),
+            : CockpitSnapshotOptions.fromJson(finalSnapshotOptionsJson),
       ),
     );
     await cockpitWriteJsonPayload(
@@ -143,24 +138,20 @@ final class RunBatchCommand extends CockpitCliCommand {
   }
 
   CockpitRunBatchCommand _readBatchCommand(Map<String, Object?> json) {
-    final normalizedJson = cockpitNormalizeJsonKeys(json);
-    final commandJson = normalizedJson['command'];
+    final commandJson = json['command'];
     final normalized = commandJson is Map<Object?, Object?>
         ? Map<String, Object?>.from(commandJson)
-        : normalizedJson;
-    final snapshotOptionsJson = normalizedJson['snapshotOptions'];
+        : json;
+    final snapshotOptionsJson = json['snapshotOptions'];
     return CockpitRunBatchCommand(
       command: CockpitCommand.fromJson(normalized),
-      resultProfile: _readOptionalProfile(normalizedJson['resultProfile']),
+      resultProfile: _readOptionalProfile(json['profile']),
       snapshotOptions: snapshotOptionsJson is Map<Object?, Object?>
           ? CockpitSnapshotOptions.fromJson(
-              cockpitNormalizeJsonKeys(
-                Map<String, Object?>.from(snapshotOptionsJson),
-              ),
+              Map<String, Object?>.from(snapshotOptionsJson),
             )
           : null,
-      compareAgainstSnapshotRef:
-          normalizedJson['compareAgainstSnapshotRef'] as String?,
+      compareAgainstSnapshotRef: json['compareAgainstSnapshotRef'] as String?,
     );
   }
 

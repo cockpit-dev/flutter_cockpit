@@ -16,7 +16,6 @@ import '../application/cockpit_hot_restart_service.dart';
 import '../application/cockpit_inspect_ui_service.dart';
 import '../application/cockpit_interactive_session_lock.dart';
 import '../application/cockpit_interactive_snapshot_store.dart';
-import '../application/cockpit_json_key_normalizer.dart';
 import '../application/cockpit_read_latest_task_summary_service.dart';
 import '../application/cockpit_read_app_service.dart';
 import '../application/cockpit_read_logs_service.dart';
@@ -50,7 +49,6 @@ import 'resources/cockpit_package_uri_resource.dart';
 import 'resources/cockpit_task_bundle_summary_resource.dart';
 import 'resources/cockpit_workspace_capabilities_resource.dart';
 import 'resources/cockpit_workspace_contracts_resource.dart';
-import 'resources/cockpit_workspace_goals_resource.dart';
 import 'resources/cockpit_workspace_roots_resource.dart';
 import 'tools/cockpit_add_roots_tool.dart';
 import 'tools/cockpit_analyze_files_tool.dart';
@@ -108,7 +106,6 @@ final class CockpitMcpServer {
   factory CockpitMcpServer.standard({
     String serverName = 'flutter_cockpit_devtools',
     String serverVersion = '1.0.0',
-    String? goalsFilePath,
     String skillContractPath =
         'docs/contracts/flutter-cockpit-skill-contract.md',
     String bundleContractPath = 'docs/contracts/task-run-bundle.md',
@@ -120,12 +117,6 @@ final class CockpitMcpServer {
     final rootsTracker = CockpitMcpRootsTracker(
       forceFallback: forceRootsFallback,
     );
-    final resolvedGoalsFilePath = goalsFilePath == null
-        ? null
-        : _resolveWorkspacePathForStandardServer(
-            goalsFilePath,
-            workspaceRoots: workspaceRoots,
-          );
     final resolvedSkillContractPath = _resolveWorkspacePathForStandardServer(
       skillContractPath,
       workspaceRoots: workspaceRoots,
@@ -276,8 +267,6 @@ final class CockpitMcpServer {
       CockpitLatestTaskResource(service: readLatestTaskSummaryService),
       CockpitTaskBundleSummaryResource(),
       CockpitPackageUriResource(rootsTracker: rootsTracker),
-      if (resolvedGoalsFilePath != null)
-        CockpitWorkspaceGoalsResource(goalsFilePath: resolvedGoalsFilePath),
     ];
     final resources = <CockpitMcpResource>[
       ...baseResources,
@@ -500,12 +489,6 @@ final class CockpitMcpServer {
               ? Map<String, Object?>.from(arguments)
               : <String, Object?>{};
           final result = await tool.call(normalizedArguments);
-          final structuredContent = result['structuredContent'];
-          if (structuredContent is Map<Object?, Object?>) {
-            result['structuredContent'] = cockpitCamelCaseJsonValue(
-              Map<String, Object?>.from(structuredContent),
-            ) as Map<String, Object?>;
-          }
           return _successResponse(id, result);
         default:
           throw CockpitMcpError.methodNotFound(method);

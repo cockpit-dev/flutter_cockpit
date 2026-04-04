@@ -57,7 +57,7 @@ final class CockpitReadRemoteStatusTool extends CockpitMcpTool {
           sessionHandle: cockpitReadOptionalSessionHandle(arguments),
           sessionHandlePath: cockpitReadOptionalString(
             arguments,
-            'session_handle_path',
+            'sessionHandlePath',
           ),
           resultProfile: _readProfile(arguments),
         ),
@@ -72,9 +72,7 @@ final class CockpitReadRemoteStatusTool extends CockpitMcpTool {
   }
 
   CockpitInteractiveResultProfile _readProfile(Map<String, Object?> arguments) {
-    final value = arguments['profile'] ??
-        arguments['result_profile'] ??
-        arguments['resultProfile'];
+    final value = arguments['profile'];
     if (value == null) {
       return const CockpitInteractiveResultProfile.minimal();
     }

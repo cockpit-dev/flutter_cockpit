@@ -45,7 +45,7 @@ void main() {
                 'commandId': 'tap-2',
                 'commandType': 'tap',
               },
-              'resultProfile': 'minimal',
+              'profile': 'minimal',
             },
           ]),
           '--default-profile',

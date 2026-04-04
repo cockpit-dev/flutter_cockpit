@@ -61,7 +61,7 @@ final class CockpitAppReferenceResolver {
       if (registry == null) {
         throw const CockpitApplicationServiceException(
           code: 'appLookupUnavailable',
-          message: 'App lookup by app_id requires a session registry.',
+          message: 'App lookup by appId requires a session registry.',
         );
       }
       final developmentRecord = registry.developmentSessionByAppId(appId);
@@ -86,7 +86,7 @@ final class CockpitAppReferenceResolver {
       }
       throw CockpitApplicationServiceException(
         code: 'unknownAppId',
-        message: 'Unknown app_id.',
+        message: 'Unknown appId.',
         details: <String, Object?>{'appId': appId},
       );
     }
@@ -109,7 +109,7 @@ final class CockpitAppReferenceResolver {
     throw const CockpitApplicationServiceException(
       code: 'missingAppReference',
       message:
-          'An app_id, app handle, app handle path, or base URI is required.',
+          'An appId, app handle, app handle path, or base URI is required.',
     );
   }
 

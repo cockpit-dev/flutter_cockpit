@@ -2,7 +2,6 @@ import 'package:flutter_cockpit/flutter_cockpit.dart';
 
 import '../../application/cockpit_inspect_ui_service.dart';
 import '../../application/cockpit_interactive_result_profile.dart';
-import '../../application/cockpit_json_key_normalizer.dart';
 import '../cockpit_mcp_tool.dart';
 
 typedef CockpitInspectUiToolFunction = Future<CockpitInspectUiResult> Function(
@@ -42,14 +41,14 @@ final class CockpitInspectUiTool extends CockpitMcpTool {
     try {
       final result = await _inspect(
         CockpitInspectUiRequest(
-          appId: cockpitReadOptionalString(arguments, 'app_id'),
-          appHandlePath: cockpitReadOptionalString(arguments, 'app_json'),
+          appId: cockpitReadOptionalString(arguments, 'appId'),
+          appHandlePath: cockpitReadOptionalString(arguments, 'appJson'),
           baseUri: _readOptionalBaseUri(arguments),
           resultProfile: _readProfile(arguments),
           snapshotOptions: _readOptionalSnapshotOptions(arguments),
           compareAgainstSnapshotRef: cockpitReadOptionalString(
             arguments,
-            'compare_against_snapshot_ref',
+            'compareAgainstSnapshotRef',
           ),
         ),
       );
@@ -63,7 +62,7 @@ final class CockpitInspectUiTool extends CockpitMcpTool {
   }
 
   CockpitInteractiveResultProfile _readProfile(Map<String, Object?> arguments) {
-    final value = arguments['profile'] ?? arguments['result_profile'];
+    final value = arguments['profile'];
     if (value == null) {
       return const CockpitInteractiveResultProfile.inspect();
     }
@@ -75,15 +74,15 @@ final class CockpitInspectUiTool extends CockpitMcpTool {
   CockpitSnapshotOptions? _readOptionalSnapshotOptions(
     Map<String, Object?> arguments,
   ) {
-    final json = cockpitReadOptionalObject(arguments, 'snapshot_options');
+    final json = cockpitReadOptionalObject(arguments, 'snapshotOptions');
     if (json == null) {
       return null;
     }
-    return CockpitSnapshotOptions.fromJson(cockpitNormalizeJsonKeys(json));
+    return CockpitSnapshotOptions.fromJson(json);
   }
 
   Uri? _readOptionalBaseUri(Map<String, Object?> arguments) {
-    final baseUrl = cockpitReadOptionalString(arguments, 'base_url');
+    final baseUrl = cockpitReadOptionalString(arguments, 'baseUrl');
     if (baseUrl == null || baseUrl.isEmpty) {
       return null;
     }

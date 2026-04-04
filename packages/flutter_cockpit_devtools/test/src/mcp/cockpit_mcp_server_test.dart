@@ -151,25 +151,6 @@ void main() {
     expect(templateMap.containsKey('developmentSession'), isFalse);
   });
 
-  test('standard server exposes workspace_goals only when configured',
-      () async {
-    final server = CockpitMcpServer.standard(goalsFilePath: '/tmp/GOALS.md');
-
-    final fixedResourcesResponse = await server.handleMessage(<String, Object?>{
-      'jsonrpc': '2.0',
-      'id': 11,
-      'method': 'resources/list',
-    });
-    final fixedResources = ((fixedResourcesResponse?['result']
-            as Map<String, Object?>)['resources'] as List<Object?>)
-        .cast<Map<String, Object?>>();
-    final fixedNames = fixedResources
-        .map((resource) => resource['name'])
-        .toList(growable: false);
-
-    expect(fixedNames, contains('workspace_goals'));
-  });
-
   test('server initializes, lists tools, and dispatches tool calls', () async {
     final server = CockpitMcpServer(
       tools: <CockpitMcpTool>[

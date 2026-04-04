@@ -80,8 +80,7 @@ final class CockpitReadRemoteSnapshotTool extends CockpitMcpTool {
   }
 
   CockpitInteractiveResultProfile _readProfile(Map<String, Object?> arguments) {
-    final value = cockpitReadOptionalString(arguments, 'profile') ??
-        cockpitReadOptionalString(arguments, 'resultProfile');
+    final value = cockpitReadOptionalString(arguments, 'profile');
     if (value == null) {
       return const CockpitInteractiveResultProfile.standard();
     }

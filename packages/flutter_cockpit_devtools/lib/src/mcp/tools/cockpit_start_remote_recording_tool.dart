@@ -59,7 +59,7 @@ final class CockpitStartRemoteRecordingTool extends CockpitMcpTool {
           sessionHandle: cockpitReadOptionalSessionHandle(arguments),
           sessionHandlePath: cockpitReadOptionalString(
             arguments,
-            'session_handle_path',
+            'sessionHandlePath',
           ),
           recording: CockpitRecordingRequest.fromJson(
             cockpitReadRequiredObject(arguments, 'recording'),

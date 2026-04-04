@@ -5,21 +5,14 @@ import 'package:test/test.dart';
 void main() {
   final root = Directory.current.absolute.path;
 
-  test('root README and goals use flutter_cockpit branding', () {
+  test('root README uses flutter_cockpit branding', () {
     final readme = File('$root/README.md').readAsStringSync();
-    final goals = File('$root/GOALS.md').readAsStringSync();
 
     expect(readme, contains('# flutter_cockpit'));
     expect(readme, contains('packages/flutter_cockpit'));
     expect(readme, contains('skills/flutter-cockpit'));
     expect(readme, isNot(contains('packages/flutter_pilot`')));
     expect(readme, isNot(contains('skills/flutter-pilot')));
-
-    expect(goals, contains('# flutter_cockpit Goals'));
-    expect(goals, contains('packages/flutter_cockpit'));
-    expect(goals, contains('packages/flutter_cockpit_devtools'));
-    expect(goals, isNot(contains('packages/flutter_pilot')));
-    expect(goals, isNot(contains('packages/flutter_pilot_devtools')));
   });
 
   test('active skill assets use flutter_cockpit branding and paths', () {

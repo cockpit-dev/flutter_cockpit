@@ -27,26 +27,26 @@ void main() {
     ).readAsStringSync();
 
     expect(runtimeReadme, contains('# flutter_cockpit'));
-    expect(runtimeReadme, contains('flutter_cockpit: ^1.0.0'));
-    expect(
-      runtimeReadme,
-      contains("package:flutter_cockpit/flutter_cockpit.dart"),
-    );
+    expect(runtimeReadme, contains('flutter_cockpit: any'));
     expect(
       runtimeReadme,
       contains("package:flutter_cockpit/flutter_cockpit_flutter.dart"),
     );
+    expect(
+      runtimeReadme,
+      contains('flutter run -t cockpit/main.dart'),
+    );
     expect(runtimeReadme, isNot(contains('flutter_pilot')));
 
     expect(devtoolsReadme, contains('# flutter_cockpit_devtools'));
-    expect(devtoolsReadme, contains('flutter_cockpit_devtools: ^1.0.0'));
+    expect(devtoolsReadme, contains('flutter_cockpit_devtools: any'));
     expect(
       devtoolsReadme,
       contains('dart run flutter_cockpit_devtools:flutter_cockpit_devtools'),
     );
     expect(
       devtoolsReadme,
-      contains('dart run flutter_cockpit_devtools:flutter_cockpit_mcp'),
+      contains('serve-mcp'),
     );
     expect(devtoolsReadme, isNot(contains('flutter_pilot_devtools')));
     expect(devtoolsReadme, isNot(contains('flutter_pilot')));

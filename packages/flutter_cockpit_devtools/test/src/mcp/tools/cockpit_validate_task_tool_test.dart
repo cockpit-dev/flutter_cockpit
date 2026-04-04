@@ -72,7 +72,7 @@ void main() {
       );
 
       final result = await tool.call(<String, Object?>{
-        'run_task': <String, Object?>{
+        'runTask': <String, Object?>{
           'launch': <String, Object?>{
             'projectDir': '/workspace/examples/cockpit_demo',
             'target': 'lib/main.dart',
@@ -90,9 +90,9 @@ void main() {
           'outputRoot': '/tmp/out',
         },
         'validation': const <String, Object?>{
-          'expected_classification': 'completed',
-          'require_acceptance_markdown': true,
-          'require_artifact_files': true,
+          'expectedClassification': 'completed',
+          'requireAcceptanceMarkdown': true,
+          'requireArtifactFiles': true,
         },
       });
 
@@ -129,7 +129,7 @@ void main() {
 
     expect(
       () => tool.call(<String, Object?>{
-        'run_task': <String, Object?>{
+        'runTask': <String, Object?>{
           'script': <String, Object?>{
             'sessionId': 'mcp-validate-task-session',
             'taskId': 'mcp-validate-task-id',
@@ -139,6 +139,28 @@ void main() {
               flutterVersion: '3.38.9',
               dartVersion: '3.10.8',
             ).toJson(),
+            'commands': const <Map<String, Object?>>[],
+            'failFast': true,
+          },
+          'outputRoot': '/tmp/out',
+        },
+      }),
+      throwsA(isA<CockpitMcpError>()),
+    );
+  });
+
+  test('validate_task tool rejects legacy snake case request fields', () async {
+    final tool = CockpitValidateTaskTool(
+      validateTask: (_) async => throw UnimplementedError(),
+    );
+
+    expect(
+      () => tool.call(<String, Object?>{
+        'run_task': <String, Object?>{
+          'script': <String, Object?>{
+            'sessionId': 'mcp-validate-task-session',
+            'taskId': 'mcp-validate-task-id',
+            'platform': 'android',
             'commands': const <Map<String, Object?>>[],
             'failFast': true,
           },

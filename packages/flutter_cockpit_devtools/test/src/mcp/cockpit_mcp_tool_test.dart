@@ -3,16 +3,16 @@ import 'package:flutter_cockpit_devtools/src/mcp/cockpit_mcp_tool.dart';
 import 'package:test/test.dart';
 
 void main() {
-  test('cockpitMcpResult emits lower camel case keys without null fields', () {
+  test('cockpitMcpResult preserves canonical lower camel case keys', () {
     final result = cockpitMcpResult(
       text: 'ok',
       structuredContent: const <String, Object?>{
-        'session_handle': <String, Object?>{
-          'app_id': 'dev.cockpit.demo',
-          'base_url': 'http://127.0.0.1:8080',
-          'diagnostics_path': null,
+        'sessionHandle': <String, Object?>{
+          'appId': 'dev.cockpit.demo',
+          'baseUrl': 'http://127.0.0.1:8080',
+          'diagnosticsPath': null,
         },
-        'linked_screenshot_ref': null,
+        'linkedScreenshotRef': null,
       },
     );
 
@@ -25,9 +25,9 @@ void main() {
     });
   });
 
-  test('argument errors report lower camel case field names', () {
+  test('argument errors report canonical field names', () {
     expect(
-      () => cockpitReadRequiredString(const <String, Object?>{}, 'bundle_dir'),
+      () => cockpitReadRequiredString(const <String, Object?>{}, 'bundleDir'),
       throwsA(
         isA<CockpitMcpError>().having(
           (error) => error.data['argument'],
@@ -35,6 +35,16 @@ void main() {
           'bundleDir',
         ),
       ),
+    );
+  });
+
+  test('argument readers do not accept snake case aliases', () {
+    expect(
+      () => cockpitReadRequiredString(
+        const <String, Object?>{'bundle_dir': '/tmp/out'},
+        'bundleDir',
+      ),
+      throwsA(isA<CockpitMcpError>()),
     );
   });
 }

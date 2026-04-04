@@ -27,10 +27,10 @@ void main() {
       enabledByDefault: true,
     );
 
-    const goalsResource = CockpitMcpResourceDefinition.fixed(
-      name: 'workspace_goals',
-      uri: 'cockpit://workspace/goals',
-      description: 'Repository goals.',
+    const contractsResource = CockpitMcpResourceDefinition.fixed(
+      name: 'workspace_skill_contract',
+      uri: 'cockpit://workspace/skill-contract',
+      description: 'Skill contract.',
       mimeType: 'text/markdown',
       categories: <CockpitMcpFeatureCategory>[
         CockpitMcpFeatureCategory.workspace,
@@ -43,7 +43,7 @@ void main() {
       description: 'Guides the AI through a full flutter_cockpit workflow.',
       arguments: <CockpitMcpPromptArgument>[
         CockpitMcpPromptArgument(
-          name: 'task_goal',
+          name: 'taskGoal',
           description: 'The requested task.',
           required: true,
         ),
@@ -63,7 +63,7 @@ void main() {
     test('returns the resource default when no overrides exist', () {
       const configuration = CockpitMcpFeatureConfiguration();
 
-      expect(configuration.isEnabled(goalsResource), isTrue);
+      expect(configuration.isEnabled(contractsResource), isTrue);
     });
 
     test('returns the prompt default when no overrides exist', () {
@@ -94,7 +94,7 @@ void main() {
         disabledNames: <String>{'context_resources'},
       );
 
-      expect(configuration.isEnabled(goalsResource), isFalse);
+      expect(configuration.isEnabled(contractsResource), isFalse);
     });
 
     test('disabling a category disables matching prompts', () {

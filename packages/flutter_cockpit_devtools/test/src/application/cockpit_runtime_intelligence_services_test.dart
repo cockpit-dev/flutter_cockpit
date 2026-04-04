@@ -204,8 +204,8 @@ void main() {
     expect(
       result.lines,
       <String>[
-        'info debug_log debugPrint: rendered inbox',
-        'info debug_log print: refreshed counters',
+        'info debugLog debugPrint: rendered inbox',
+        'info debugLog print: refreshed counters',
       ],
     );
   });

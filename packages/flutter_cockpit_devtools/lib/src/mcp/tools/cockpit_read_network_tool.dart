@@ -61,24 +61,26 @@ final class CockpitReadNetworkTool extends CockpitMcpTool {
     try {
       final result = await _read(
         CockpitReadNetworkRequest(
-          appId: cockpitReadOptionalString(arguments, 'app_id'),
-          appHandlePath: cockpitReadOptionalString(arguments, 'app_json'),
+          appId: cockpitReadOptionalString(arguments, 'appId'),
+          appHandlePath: cockpitReadOptionalString(arguments, 'appJson'),
           baseUri: _readOptionalBaseUri(arguments),
           androidDeviceId: cockpitReadOptionalString(
             arguments,
-            'android_device_id',
+            'androidDeviceId',
           ),
-          maxEntries: cockpitReadOptionalInt(arguments, 'max_entries') ?? 8,
+          maxEntries: cockpitReadOptionalInt(arguments, 'maxEntries') ?? 8,
           maxEndpointSummaries:
-              cockpitReadOptionalInt(arguments, 'max_endpoint_summaries') ?? 8,
+              cockpitReadOptionalInt(arguments, 'maxEndpointSummaries') ?? 8,
           includeEntries:
-              cockpitReadOptionalBool(arguments, 'include_entries') ?? false,
+              cockpitReadOptionalBool(arguments, 'includeEntries') ?? false,
           method: cockpitReadOptionalString(arguments, 'method'),
-          uriContains: cockpitReadOptionalString(arguments, 'uri_contains'),
-          statusCodeAtLeast:
-              cockpitReadOptionalInt(arguments, 'status_code_at_least'),
+          uriContains: cockpitReadOptionalString(arguments, 'uriContains'),
+          statusCodeAtLeast: cockpitReadOptionalInt(
+            arguments,
+            'statusCodeAtLeast',
+          ),
           onlyFailures:
-              cockpitReadOptionalBool(arguments, 'only_failures') ?? false,
+              cockpitReadOptionalBool(arguments, 'onlyFailures') ?? false,
         ),
       );
       return cockpitMcpResult(
@@ -91,7 +93,7 @@ final class CockpitReadNetworkTool extends CockpitMcpTool {
   }
 
   Uri? _readOptionalBaseUri(Map<String, Object?> arguments) {
-    final baseUrl = cockpitReadOptionalString(arguments, 'base_url');
+    final baseUrl = cockpitReadOptionalString(arguments, 'baseUrl');
     if (baseUrl == null || baseUrl.isEmpty) {
       return null;
     }
