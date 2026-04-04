@@ -43,7 +43,6 @@ final class PlanningSurfaceCard extends StatelessWidget {
     ];
 
     return DecoratedBox(
-      key: const ValueKey<String>('planning-surface-card'),
       decoration: BoxDecoration(
         color: theme.editorialMutedSurfaceColor,
         border: Border(
@@ -93,7 +92,6 @@ final class PlanningSurfaceCard extends StatelessWidget {
                 ),
                 Text(
                   'Canvas ${(zoomLevel * 100).round()}%',
-                  key: const ValueKey<String>('planning-surface-zoom-label'),
                   style: theme.textTheme.labelMedium?.copyWith(
                     color: colorScheme.onSurfaceVariant,
                     fontWeight: FontWeight.w800,
@@ -102,7 +100,6 @@ final class PlanningSurfaceCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
                 TextButton(
-                  key: const ValueKey<String>('planning-surface-reset-zoom'),
                   onPressed: onResetZoom,
                   child: const Text('Reset'),
                 ),
@@ -110,7 +107,6 @@ final class PlanningSurfaceCard extends StatelessWidget {
             ),
             const SizedBox(height: 18),
             GestureDetector(
-              key: const ValueKey<String>('planning-surface-canvas'),
               behavior: HitTestBehavior.opaque,
               onScaleStart: onScaleStart,
               onScaleUpdate: onScaleUpdate,

@@ -81,6 +81,26 @@ void main() {
       );
     });
 
+    test('creates tags and filters the list by selected tag ids', () async {
+      final backendTag = await service.createTag(name: 'Backend');
+      await repository.createTask(
+        title: 'Verify relay tracing',
+        tagIds: <String>[backendTag.id],
+      );
+      await repository.createTask(title: 'Polish release notes');
+
+      await service.loadTasks(
+        TodoFilter(tagIds: <String>{backendTag.id}),
+      );
+
+      expect(
+        service.availableTags.map((tag) => tag.name).toList(growable: false),
+        contains('Backend'),
+      );
+      expect(service.listState.tasks, hasLength(1));
+      expect(service.listState.tasks.single.title, 'Verify relay tracing');
+    });
+
     test('persists settings mutations through the repository', () async {
       await service.loadSettings();
 
@@ -152,6 +172,84 @@ void main() {
       expect(prioritiesById[first.id], TodoPriority.urgent);
       expect(prioritiesById[second.id], TodoPriority.urgent);
       expect(prioritiesById[third.id], TodoPriority.high);
+    });
+
+    test('updates the due date of multiple tasks in a single batch', () async {
+      final first = await repository.createTask(title: 'First scheduled task');
+      final second =
+          await repository.createTask(title: 'Second scheduled task');
+      final third = await repository.createTask(title: 'Unchanged task');
+      final tomorrow = DateTime.utc(2026, 4, 6, 17);
+
+      await service.loadTasks();
+      final updated = await service.updateTasksDueDate(
+        taskIds: <String>[first.id, second.id],
+        dueAt: tomorrow,
+      );
+
+      expect(updated, isTrue);
+      final refreshed = await repository.fetchTasks(const TodoFilter.inbox());
+      final dueDatesById = <String, DateTime?>{
+        for (final task in refreshed) task.id: task.dueAt?.toUtc(),
+      };
+      expect(dueDatesById[first.id], tomorrow);
+      expect(dueDatesById[second.id], tomorrow);
+      expect(dueDatesById[third.id], isNull);
+    });
+
+    test('updates the tags of multiple tasks in a single batch', () async {
+      final backendTag = await repository.createTag(name: 'Backend');
+      final designTag = await repository.createTag(name: 'Design');
+      final first = await repository.createTask(
+        title: 'Coordinate release notes',
+        tagIds: <String>[backendTag.id],
+      );
+      final second = await repository.createTask(title: 'Align launch brief');
+      final third = await repository.createTask(title: 'Keep existing task');
+
+      await service.loadTasks();
+      final updated = await service.updateTasksTags(
+        taskIds: <String>[first.id, second.id],
+        tagIds: <String>[backendTag.id, designTag.id],
+      );
+
+      expect(updated, isTrue);
+      final refreshed = await repository.fetchTasks(const TodoFilter.inbox());
+      final tagsById = <String, List<String>>{
+        for (final task in refreshed)
+          task.id: task.tags.map((tag) => tag.name).toList(growable: false),
+      };
+      expect(tagsById[first.id], <String>['Backend', 'Design']);
+      expect(tagsById[second.id], <String>['Backend', 'Design']);
+      expect(tagsById[third.id], isEmpty);
+    });
+
+    test('creates a follow-up task while carrying selected fields', () async {
+      final backendTag = await repository.createTag(name: 'Backend');
+      final source = await repository.createTask(
+        title: 'Verify relay tracing',
+        notes: 'Preserve the context for the next step.',
+        priority: TodoPriority.high,
+        tagIds: <String>[backendTag.id],
+      );
+      final followUpDueAt = DateTime.utc(2026, 4, 7, 17);
+
+      final followUp = await service.createFollowUpTask(
+        sourceTaskId: source.id,
+        title: 'Verify relay tracing follow-up',
+        carryNotes: true,
+        carryTags: true,
+        dueAt: followUpDueAt,
+      );
+
+      expect(followUp.title, 'Verify relay tracing follow-up');
+      expect(followUp.notes, 'Preserve the context for the next step.');
+      expect(followUp.priority, TodoPriority.high);
+      expect(followUp.dueAt?.toUtc(), followUpDueAt);
+      expect(
+        followUp.tags.map((tag) => tag.name).toList(growable: false),
+        <String>['Backend'],
+      );
     });
 
     test('deletes multiple tasks with one undo batch', () async {
@@ -421,5 +519,32 @@ final class _FailingTodoRepository implements TodoRepositoryClient {
     required TodoPriority priority,
   }) {
     throw StateError('Simulated update failure');
+  }
+
+  @override
+  Future<List<TodoTask>> updateTasksDueDate({
+    required List<String> taskIds,
+    required DateTime? dueAt,
+  }) {
+    throw StateError('Simulated update failure');
+  }
+
+  @override
+  Future<List<TodoTask>> updateTasksTags({
+    required List<String> taskIds,
+    required List<String> tagIds,
+  }) {
+    throw StateError('Simulated update failure');
+  }
+
+  @override
+  Future<TodoTask> createFollowUpTask({
+    required String sourceTaskId,
+    required String title,
+    required bool carryNotes,
+    required bool carryTags,
+    DateTime? dueAt,
+  }) {
+    throw StateError('Simulated create failure');
   }
 }

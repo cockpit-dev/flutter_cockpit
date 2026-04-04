@@ -4,6 +4,7 @@ import 'package:flutter_cockpit/flutter_cockpit_flutter.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:cockpit_demo/src/data/cockpit_demo_database.dart';
 import 'package:cockpit_demo/src/data/todo_repository.dart';
+import 'package:cockpit_demo/src/model/todo_filter.dart';
 
 import 'support/cockpit_demo_test_support.dart';
 
@@ -29,27 +30,17 @@ void main() {
         database: database,
       );
 
-      final firstOpenFinder = find.byKey(
-        ValueKey<String>('task-open-${firstTask.id}'),
-      );
+      final firstOpenFinder = taskRowByTitle(firstTask.title);
       await scrollTodoCollectionUntilVisible(tester, firstOpenFinder);
       await tester.longPress(firstOpenFinder);
       await tester.pumpAndSettle();
 
-      expect(
-        find.byKey(const ValueKey<String>('selection-mode-banner')),
-        findsOneWidget,
-      );
       expect(find.text('1 selected'), findsOneWidget);
 
-      await tester.tap(
-        find.byKey(const ValueKey<String>('selection-clear-button')),
-      );
+      await tester.tap(find.byTooltip('Clear selection'));
       await tester.pumpAndSettle();
 
-      final secondOpenFinder = find.byKey(
-        ValueKey<String>('task-open-${secondTask.id}'),
-      );
+      final secondOpenFinder = taskRowByTitle(secondTask.title);
       await scrollTodoCollectionUntilVisible(tester, secondOpenFinder);
       await tester.tap(secondOpenFinder);
       await tester.pump(const Duration(milliseconds: 40));
@@ -77,12 +68,8 @@ void main() {
       database: database,
     );
 
-    final zoomLabelFinder = find.byKey(
-      const ValueKey<String>('planning-surface-zoom-label'),
-    );
-    final canvasFinder = find.byKey(
-      const ValueKey<String>('planning-surface-canvas'),
-    );
+    final zoomLabelFinder = find.textContaining('Canvas ');
+    final canvasFinder = planningSurfaceCanvas();
     await scrollTodoCollectionUntilVisible(tester, canvasFinder);
     final center = tester.getCenter(canvasFinder);
     final leftFinger = await tester.startGesture(
@@ -103,6 +90,40 @@ void main() {
 
     final zoomLabel = tester.widget<Text>(zoomLabelFinder);
     expect(zoomLabel.data, isNot('Canvas 100%'));
+  });
+
+  testWidgets('todo app supports manual queue drag reorder', (tester) async {
+    final database = CockpitDemoDatabase.inMemory();
+    addCockpitDemoDatabaseTearDown(tester, database);
+    final repository = TodoRepository(database);
+    await repository.createTask(title: 'Queue first');
+    await repository.createTask(title: 'Queue second');
+    await repository.createTask(title: 'Queue third');
+
+    await pumpTodoApp(
+      tester,
+      controller: _testController('gesture-reorder'),
+      database: database,
+    );
+
+    await scrollTodoCollectionUntilVisible(tester, find.text('Manual queue'));
+    final handleFinder = manualQueueReorderHandle('Queue third');
+    expect(handleFinder, findsOneWidget);
+
+    final gesture = await tester.startGesture(tester.getCenter(handleFinder));
+    await tester.pump();
+    await gesture.moveBy(const Offset(0, -140));
+    await tester.pump(const Duration(milliseconds: 80));
+    await gesture.moveBy(const Offset(0, -180));
+    await tester.pump(const Duration(milliseconds: 80));
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    final reordered = await repository.fetchTasks(const TodoFilter.inbox());
+    expect(
+      reordered.map((task) => task.title).toList(growable: false),
+      <String>['Queue first', 'Queue third', 'Queue second'],
+    );
   });
 }
 

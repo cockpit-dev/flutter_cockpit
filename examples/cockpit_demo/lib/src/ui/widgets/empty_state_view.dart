@@ -63,7 +63,6 @@ final class EmptyStateView extends StatelessWidget {
               ),
               const SizedBox(height: 18),
               FilledButton.icon(
-                key: const ValueKey<String>('empty-state-add-task'),
                 onPressed: onAction,
                 icon: const Icon(Icons.add_rounded),
                 label: Text(actionLabel),

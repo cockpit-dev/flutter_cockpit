@@ -72,8 +72,8 @@ void main() {
         tester,
         title: 'Record Todo acceptance',
         notes: 'Persist the finished recording into the bundle',
-        priorityKey: 'task-priority-urgent',
-        dueKey: 'task-due-tomorrow',
+        priorityLabel: 'URGENT',
+        dueLabel: 'Tomorrow',
       );
 
       final result = await rootState.stopRecording();

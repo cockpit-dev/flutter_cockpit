@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:flutter/material.dart';
 import 'package:flutter_cockpit/flutter_cockpit_flutter.dart';
 import 'package:flutter_cockpit_devtools/flutter_cockpit_devtools.dart';
 import 'package:flutter_cockpit_devtools/src/cli/cockpit_control_script.dart';
@@ -99,8 +98,8 @@ void main() {
         tester,
         title: 'Ship AI Todo flow',
         notes: 'Validate screenshots, recordings, and bundle summaries',
-        priorityKey: 'task-priority-urgent',
-        dueKey: 'task-due-today',
+        priorityLabel: 'URGENT',
+        dueLabel: 'Today',
       );
 
       final acceptanceCapture = await tester.runAsync(() {
@@ -385,9 +384,9 @@ void main() {
 
       await pumpTodoApp(tester, controller: controller, database: database);
 
-      await tester.tap(find.byKey(const ValueKey<String>('fab-add-task')));
+      await tester.tap(find.text('New task'));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey<String>('task-save-button')));
+      await tester.tap(find.text('Save task'));
       await tester.pump();
 
       final rootState = tester.state<FlutterCockpitRootState>(

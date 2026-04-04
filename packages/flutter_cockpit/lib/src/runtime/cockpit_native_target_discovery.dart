@@ -300,6 +300,7 @@ final class CockpitNativeTargetDiscovery {
       final metadata = _extractInteractiveMetadata(
         element,
         semantics: semantics,
+        isTextInput: enterTextHandler != null || textInputHandler != null,
       );
       final scrollableMetadata = _scrollableMetadataForElement(element);
       return CockpitTarget(
@@ -1035,16 +1036,20 @@ final class CockpitNativeTargetDiscovery {
   _TargetMetadata _extractInteractiveMetadata(
     Element element, {
     required CockpitSemanticsTargetInfo? semantics,
+    required bool isTextInput,
   }) {
-    final text = _firstNonEmpty(<String?>[
-      policy.extractText?.call(element),
-      semantics?.label,
-      semantics?.value,
-      semantics?.hint,
-      _interactiveTextForElement(element),
-      _passiveTextForElement(element),
-      _inputLabelForElement(element),
-    ]);
+    final inputLabel = _inputLabelForElement(element);
+    final text = isTextInput && inputLabel != null
+        ? inputLabel
+        : _firstNonEmpty(<String?>[
+            policy.extractText?.call(element),
+            semantics?.label,
+            semantics?.value,
+            semantics?.hint,
+            _interactiveTextForElement(element),
+            _passiveTextForElement(element),
+            inputLabel,
+          ]);
     return _TargetMetadata(
       text: text,
       keyValue: _keyValueForElement(element),
@@ -1124,6 +1129,14 @@ final class CockpitNativeTargetDiscovery {
             : widget.decoration?.labelText ?? widget.decoration?.hintText,
       );
     }
+    if (widget is TextFormField) {
+      final controllerText = widget.controller?.text;
+      return _normalizeText(
+        controllerText != null && controllerText.isNotEmpty
+            ? controllerText
+            : widget.initialValue,
+      );
+    }
     return null;
   }
 
@@ -1131,6 +1144,10 @@ final class CockpitNativeTargetDiscovery {
     final selfLabel = _inputLabelFromWidget(element.widget);
     if (selfLabel != null) {
       return selfLabel;
+    }
+    final descendantLabel = _inputLabelFromDescendantTextField(element);
+    if (descendantLabel != null) {
+      return descendantLabel;
     }
 
     String? label;
@@ -1148,6 +1165,24 @@ final class CockpitNativeTargetDiscovery {
       );
     }
     return null;
+  }
+
+  String? _inputLabelFromDescendantTextField(Element element) {
+    String? label;
+
+    void visit(Element candidate) {
+      if (label != null || !candidate.mounted) {
+        return;
+      }
+      label = _inputLabelFromWidget(candidate.widget);
+      if (label != null) {
+        return;
+      }
+      candidate.visitChildElements(visit);
+    }
+
+    element.visitChildElements(visit);
+    return label;
   }
 
   String? _stableKeyValue(Key? key) {

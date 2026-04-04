@@ -22,7 +22,7 @@ final class CockpitRunBatchRequest {
     this.recording,
     this.finalSnapshotProfile,
     this.finalSnapshotOptions,
-    this.defaultCommandTimeout = const Duration(seconds: 4),
+    this.defaultCommandTimeout = const Duration(seconds: 30),
   });
 
   final List<CockpitRunBatchCommand> commands;

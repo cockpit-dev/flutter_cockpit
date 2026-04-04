@@ -21,7 +21,7 @@ void main() {
         tester,
         title: 'Capture inbox acceptance',
         notes: 'Verify screenshot evidence from the root surface',
-        priorityKey: 'task-priority-high',
+        priorityLabel: 'HIGH',
       );
 
       final rootState = tester.state<FlutterCockpitRootState>(
@@ -86,7 +86,7 @@ void main() {
       expect(capture.screenshot.snapshot?.routeName, '/inbox');
       expect(
         capture.screenshot.snapshot?.visibleTargets.any(
-          (target) => target.keyValue == 'open-settings-button',
+          (target) => target.tooltip == 'Settings' || target.text == 'Settings',
         ),
         isTrue,
       );

@@ -29,7 +29,6 @@ final class CollectionOverviewCard extends StatelessWidget {
     final compact = MediaQuery.sizeOf(context).width < 620;
 
     return DecoratedBox(
-      key: const ValueKey<String>('collection-overview-card'),
       decoration: BoxDecoration(
         color: theme.editorialSurfaceColor,
         border: Border(

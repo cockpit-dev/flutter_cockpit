@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../app/todo_app_service.dart';
 import '../../model/todo_priority.dart';
+import '../../model/todo_tag.dart';
 import '../../model/todo_task.dart';
 import '../theme/orbit_todo_theme.dart';
 import '../widgets/editorial_section.dart';
@@ -21,6 +24,7 @@ final class _TaskEditorScreenState extends State<TaskEditorScreen> {
   late final TextEditingController _notesController;
   late TodoPriority _priority;
   DateTime? _dueAt;
+  late final Set<String> _selectedTagIds;
 
   @override
   void initState() {
@@ -31,6 +35,16 @@ final class _TaskEditorScreenState extends State<TaskEditorScreen> {
     _notesController.addListener(_handleNotesChanged);
     _priority = task?.priority ?? TodoPriority.medium;
     _dueAt = task?.dueAt;
+    _selectedTagIds = task?.tagIds.toSet() ?? <String>{};
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      if (widget.service.availableTags.isEmpty &&
+          !widget.service.isLoadingTags) {
+        unawaited(widget.service.loadTags());
+      }
+    });
   }
 
   @override
@@ -53,6 +67,7 @@ final class _TaskEditorScreenState extends State<TaskEditorScreen> {
       notes: _notesController.text,
       priority: _priority,
       dueAt: () => _dueAt,
+      selectedTagIds: _selectedTagIds.toList(growable: false),
     );
     final savedTask = await widget.service.submitDraft(
       existingTaskId: widget.task?.id,
@@ -80,6 +95,31 @@ final class _TaskEditorScreenState extends State<TaskEditorScreen> {
     _notesController.clear();
   }
 
+  void _toggleTag(String tagId) {
+    setState(() {
+      if (_selectedTagIds.contains(tagId)) {
+        _selectedTagIds.remove(tagId);
+      } else {
+        _selectedTagIds.add(tagId);
+      }
+    });
+  }
+
+  Future<void> _createTag() async {
+    final createdTag = await showModalBottomSheet<TodoTag>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) => _CreateTagSheet(service: widget.service),
+    );
+    if (createdTag == null || !mounted) {
+      return;
+    }
+    setState(() {
+      _selectedTagIds.add(createdTag.id);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final editorState = widget.service.editorState;
@@ -98,7 +138,7 @@ final class _TaskEditorScreenState extends State<TaskEditorScreen> {
               padding: const EdgeInsets.fromLTRB(20, 18, 20, 120),
               children: <Widget>[
                 EditorialSection(
-                  padding: const EdgeInsets.fromLTRB(0, 26, 0, 26),
+                  padding: const EdgeInsets.fromLTRB(18, 26, 18, 26),
                   backgroundColor: theme.editorialMutedSurfaceColor,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -130,7 +170,7 @@ final class _TaskEditorScreenState extends State<TaskEditorScreen> {
                 ),
                 const SizedBox(height: 24),
                 EditorialSection(
-                  padding: const EdgeInsets.fromLTRB(0, 22, 0, 22),
+                  padding: const EdgeInsets.fromLTRB(18, 22, 18, 22),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
@@ -152,7 +192,6 @@ final class _TaskEditorScreenState extends State<TaskEditorScreen> {
                       ),
                       const SizedBox(height: 18),
                       TextField(
-                        key: const ValueKey<String>('task-title-input'),
                         controller: _titleController,
                         decoration: InputDecoration(
                           labelText: 'Task title',
@@ -164,7 +203,6 @@ final class _TaskEditorScreenState extends State<TaskEditorScreen> {
                       ),
                       const SizedBox(height: 18),
                       TextField(
-                        key: const ValueKey<String>('task-notes-input'),
                         controller: _notesController,
                         minLines: 4,
                         maxLines: 6,
@@ -179,9 +217,6 @@ final class _TaskEditorScreenState extends State<TaskEditorScreen> {
                         Align(
                           alignment: Alignment.centerRight,
                           child: TextButton.icon(
-                            key: const ValueKey<String>(
-                              'task-clear-notes-button',
-                            ),
                             onPressed: _clearNotes,
                             icon: const Icon(Icons.clear_rounded),
                             label: const Text('Clear notes'),
@@ -193,7 +228,7 @@ final class _TaskEditorScreenState extends State<TaskEditorScreen> {
                 ),
                 const SizedBox(height: 24),
                 EditorialSection(
-                  padding: const EdgeInsets.fromLTRB(0, 22, 0, 22),
+                  padding: const EdgeInsets.fromLTRB(18, 22, 18, 22),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
@@ -225,9 +260,6 @@ final class _TaskEditorScreenState extends State<TaskEditorScreen> {
                         children: TodoPriority.values
                             .map(
                               (priority) => ChoiceChip(
-                                key: ValueKey<String>(
-                                  'task-priority-${priority.name}',
-                                ),
                                 selected: _priority == priority,
                                 label: Text(priority.name.toUpperCase()),
                                 onSelected: (_) {
@@ -247,26 +279,90 @@ final class _TaskEditorScreenState extends State<TaskEditorScreen> {
                         runSpacing: 8,
                         children: <Widget>[
                           ChoiceChip(
-                            key: const ValueKey<String>('task-due-none'),
                             selected: _dueAt == null,
                             label: const Text('No date'),
                             onSelected: (_) => _selectDuePreset('none'),
                           ),
                           ChoiceChip(
-                            key: const ValueKey<String>('task-due-today'),
                             selected: _dueAt != null &&
                                 _dueAt!.difference(DateTime.now()).inDays == 0,
                             label: const Text('Today'),
                             onSelected: (_) => _selectDuePreset('today'),
                           ),
                           ChoiceChip(
-                            key: const ValueKey<String>('task-due-tomorrow'),
                             selected: _dueAt != null &&
                                 _dueAt!.difference(DateTime.now()).inDays == 1,
                             label: const Text('Tomorrow'),
                             onSelected: (_) => _selectDuePreset('tomorrow'),
                           ),
                         ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                EditorialSection(
+                  padding: const EdgeInsets.fromLTRB(18, 22, 18, 22),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        'TAGS',
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                          letterSpacing: 0.95,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        'Tags and ownership',
+                        style: theme.textTheme.headlineSmall,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Use tags to isolate domains such as backend, design, or release so search and AI validation can narrow the board quickly.',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      if (widget.service.availableTags.isEmpty) ...<Widget>[
+                        Text(
+                          widget.service.isLoadingTags
+                              ? 'Loading tags…'
+                              : 'No tags yet. Create the first one for this task.',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ] else
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: widget.service.availableTags
+                              .map(
+                                (tag) => FilterChip(
+                                  selected: _selectedTagIds.contains(tag.id),
+                                  label: Text(tag.name),
+                                  onSelected: (_) => _toggleTag(tag.id),
+                                ),
+                              )
+                              .toList(growable: false),
+                        ),
+                      if (widget.service.tagsErrorMessage != null) ...<Widget>[
+                        const SizedBox(height: 12),
+                        Text(
+                          widget.service.tagsErrorMessage!,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colorScheme.error,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 16),
+                      OutlinedButton.icon(
+                        onPressed: _createTag,
+                        icon: const Icon(Icons.add_circle_outline_rounded),
+                        label: const Text('Create tag'),
                       ),
                     ],
                   ),
@@ -281,7 +377,7 @@ final class _TaskEditorScreenState extends State<TaskEditorScreen> {
                         colorScheme.errorContainer.withAlphaFraction(
                       0.82,
                     ),
-                    padding: const EdgeInsets.fromLTRB(0, 18, 0, 18),
+                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
                     child: Text(
                       editorState.validationMessage!,
                       style: TextStyle(color: colorScheme.onErrorContainer),
@@ -295,7 +391,6 @@ final class _TaskEditorScreenState extends State<TaskEditorScreen> {
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
               child: FilledButton.icon(
-                key: const ValueKey<String>('task-save-button'),
                 onPressed: editorState.isSaving ? null : _save,
                 icon: const Icon(Icons.check_rounded),
                 label: Text(widget.task == null ? 'Save task' : 'Save changes'),
@@ -304,6 +399,109 @@ final class _TaskEditorScreenState extends State<TaskEditorScreen> {
           ),
         );
       },
+    );
+  }
+}
+
+final class _CreateTagSheet extends StatefulWidget {
+  const _CreateTagSheet({required this.service});
+
+  final TodoAppService service;
+
+  @override
+  State<_CreateTagSheet> createState() => _CreateTagSheetState();
+}
+
+final class _CreateTagSheetState extends State<_CreateTagSheet> {
+  late final TextEditingController _controller;
+  bool _isSaving = false;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final normalizedName = _controller.text.trim();
+    if (normalizedName.isEmpty) {
+      setState(() {
+        _errorMessage = 'Tag name is required.';
+      });
+      return;
+    }
+    setState(() {
+      _isSaving = true;
+      _errorMessage = null;
+    });
+    try {
+      final createdTag = await widget.service.createTag(name: normalizedName);
+      if (!mounted) {
+        return;
+      }
+      Navigator.of(context).pop(createdTag);
+    } on Object catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _isSaving = false;
+        _errorMessage = error.toString();
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final viewInsets = MediaQuery.viewInsetsOf(context);
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(20, 12, 20, viewInsets.bottom + 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text('Create tag', style: theme.textTheme.headlineSmall),
+            const SizedBox(height: 8),
+            Text(
+              'Create one reusable label and immediately attach it to this task.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 18),
+            TextField(
+              controller: _controller,
+              autofocus: true,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _submit(),
+              decoration: InputDecoration(
+                labelText: 'Tag name',
+                hintText: 'Backend',
+                errorText: _errorMessage,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton.icon(
+                onPressed: _isSaving ? null : _submit,
+                icon: const Icon(Icons.check_rounded),
+                label: Text(_isSaving ? 'Creating…' : 'Create tag'),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

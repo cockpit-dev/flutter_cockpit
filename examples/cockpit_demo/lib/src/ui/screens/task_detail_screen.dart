@@ -61,6 +61,24 @@ final class _TaskDetailScreenState extends State<TaskDetailScreen> {
     Navigator.of(context).pop();
   }
 
+  Future<void> _createFollowUp() async {
+    final createdTask = await showModalBottomSheet<TodoTask>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) => _CreateFollowUpSheet(
+        service: widget.service,
+        sourceTask: _task,
+      ),
+    );
+    if (createdTask == null || !mounted) {
+      return;
+    }
+    await Navigator.of(
+      context,
+    ).pushReplacementNamed('/detail', arguments: createdTask);
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -70,13 +88,16 @@ final class _TaskDetailScreenState extends State<TaskDetailScreen> {
         title: const Text('Task detail'),
         actions: <Widget>[
           IconButton(
-            key: const ValueKey<String>('detail-edit-button'),
+            tooltip: 'Create follow-up',
+            onPressed: _createFollowUp,
+            icon: const Icon(Icons.copy_all_rounded),
+          ),
+          IconButton(
             tooltip: 'Edit task',
             onPressed: _editTask,
             icon: const Icon(Icons.edit_rounded),
           ),
           IconButton(
-            key: const ValueKey<String>('detail-delete-button'),
             tooltip: 'Delete task',
             onPressed: _deleteTask,
             icon: const Icon(Icons.delete_outline_rounded),
@@ -89,7 +110,7 @@ final class _TaskDetailScreenState extends State<TaskDetailScreen> {
           padding: const EdgeInsets.fromLTRB(20, 18, 20, 120),
           children: <Widget>[
             EditorialSection(
-              padding: const EdgeInsets.fromLTRB(0, 26, 0, 26),
+              padding: const EdgeInsets.fromLTRB(18, 26, 18, 26),
               backgroundColor: theme.editorialMutedSurfaceColor,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -131,12 +152,27 @@ final class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       ),
                     ],
                   ),
+                  if (_task.tags.isNotEmpty) ...<Widget>[
+                    const SizedBox(height: 16),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: _task.tags
+                          .map(
+                            (tag) => _DetailChip(
+                              label: tag.name,
+                              icon: Icons.sell_rounded,
+                            ),
+                          )
+                          .toList(growable: false),
+                    ),
+                  ],
                 ],
               ),
             ),
             const SizedBox(height: 24),
             EditorialSection(
-              padding: const EdgeInsets.fromLTRB(0, 22, 0, 22),
+              padding: const EdgeInsets.fromLTRB(18, 22, 18, 22),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
@@ -162,7 +198,7 @@ final class _TaskDetailScreenState extends State<TaskDetailScreen> {
             ),
             const SizedBox(height: 24),
             EditorialSection(
-              padding: const EdgeInsets.fromLTRB(0, 22, 0, 22),
+              padding: const EdgeInsets.fromLTRB(18, 22, 18, 22),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
@@ -177,7 +213,6 @@ final class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   Text('Status', style: theme.textTheme.headlineSmall),
                   const SizedBox(height: 10),
                   CheckboxListTile(
-                    key: const ValueKey<String>('detail-complete-toggle'),
                     value: _task.isCompleted,
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Completed'),
@@ -192,6 +227,214 @@ final class _TaskDetailScreenState extends State<TaskDetailScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+final class _CreateFollowUpSheet extends StatefulWidget {
+  const _CreateFollowUpSheet({
+    required this.service,
+    required this.sourceTask,
+  });
+
+  final TodoAppService service;
+  final TodoTask sourceTask;
+
+  @override
+  State<_CreateFollowUpSheet> createState() => _CreateFollowUpSheetState();
+}
+
+final class _CreateFollowUpSheetState extends State<_CreateFollowUpSheet> {
+  late final TextEditingController _titleController;
+  bool _carryNotes = true;
+  bool _carryTags = true;
+  DateTime? _dueAt;
+  bool _isSaving = false;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController(
+      text: '${widget.sourceTask.title} follow-up',
+    );
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    super.dispose();
+  }
+
+  void _selectDuePreset(String preset) {
+    final today = DateTime.now();
+    setState(() {
+      _dueAt = switch (preset) {
+        'none' => null,
+        'today' => DateTime(today.year, today.month, today.day, 17),
+        'tomorrow' => DateTime(today.year, today.month, today.day + 1, 17),
+        'nextWeek' => DateTime(today.year, today.month, today.day + 7, 17),
+        _ => _dueAt,
+      };
+    });
+  }
+
+  Future<void> _submit() async {
+    final normalizedTitle = _titleController.text.trim();
+    if (normalizedTitle.isEmpty) {
+      setState(() {
+        _errorMessage = 'Follow-up title is required.';
+      });
+      return;
+    }
+
+    setState(() {
+      _isSaving = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final createdTask = await widget.service.createFollowUpTask(
+        sourceTaskId: widget.sourceTask.id,
+        title: normalizedTitle,
+        carryNotes: _carryNotes,
+        carryTags: _carryTags,
+        dueAt: _dueAt,
+      );
+      if (!mounted) {
+        return;
+      }
+      Navigator.of(context).pop(createdTask);
+    } on Object catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _isSaving = false;
+        _errorMessage = error.toString();
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final viewInsets = MediaQuery.viewInsetsOf(context);
+    return SafeArea(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.82,
+        ),
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(20, 12, 20, viewInsets.bottom + 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        'Follow-up task',
+                        style: theme.textTheme.headlineSmall,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Spin the current task into the next executable step without losing the context that still matters.',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      TextField(
+                        controller: _titleController,
+                        textInputAction: TextInputAction.done,
+                        onSubmitted: (_) => _submit(),
+                        decoration: InputDecoration(
+                          labelText: 'Follow-up title',
+                          errorText: _errorMessage,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Carry notes'),
+                        subtitle: const Text(
+                          'Preserve implementation context and handoff details.',
+                        ),
+                        value: _carryNotes,
+                        onChanged: (value) {
+                          setState(() {
+                            _carryNotes = value;
+                          });
+                        },
+                      ),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Carry tags'),
+                        subtitle: const Text(
+                          'Keep domain ownership such as backend or design.',
+                        ),
+                        value: _carryTags,
+                        onChanged: (value) {
+                          setState(() {
+                            _carryTags = value;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 10),
+                      Text('Due date', style: theme.textTheme.titleSmall),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: <Widget>[
+                          ChoiceChip(
+                            selected: _dueAt == null,
+                            label: const Text('No date'),
+                            onSelected: (_) => _selectDuePreset('none'),
+                          ),
+                          ChoiceChip(
+                            selected: _dueAt != null &&
+                                _dueAt!.difference(DateTime.now()).inDays == 0,
+                            label: const Text('Today'),
+                            onSelected: (_) => _selectDuePreset('today'),
+                          ),
+                          ChoiceChip(
+                            selected: _dueAt != null &&
+                                _dueAt!.difference(DateTime.now()).inDays == 1,
+                            label: const Text('Tomorrow'),
+                            onSelected: (_) => _selectDuePreset('tomorrow'),
+                          ),
+                          ChoiceChip(
+                            selected: _dueAt != null &&
+                                _dueAt!.difference(DateTime.now()).inDays >= 6,
+                            label: const Text('Next week'),
+                            onSelected: (_) => _selectDuePreset('nextWeek'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Align(
+                alignment: Alignment.centerRight,
+                child: FilledButton.icon(
+                  onPressed: _isSaving ? null : _submit,
+                  icon: const Icon(Icons.copy_all_rounded),
+                  label: Text(_isSaving ? 'Creating…' : 'Create follow-up'),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -215,7 +458,7 @@ final class _DetailChip extends StatelessWidget {
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[

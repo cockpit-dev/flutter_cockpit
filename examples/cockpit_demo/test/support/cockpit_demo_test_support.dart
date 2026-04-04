@@ -11,6 +11,7 @@ import 'package:cockpit_demo/src/data/cockpit_demo_database.dart';
 import 'package:cockpit_demo/src/cockpit_demo_app.dart';
 import 'package:cockpit_demo/src/network/todo_sync_gateway.dart';
 import 'package:cockpit_demo/src/ui/screens/todo_collection_screen.dart';
+import 'package:cockpit_demo/src/ui/widgets/editorial_section.dart';
 import 'package:path/path.dart' as p;
 
 bool _cockpitDemoTestRuntimeConfigured = false;
@@ -78,34 +79,44 @@ Future<void> createTaskThroughUi(
   WidgetTester tester, {
   required String title,
   String notes = '',
-  String? priorityKey,
-  String? dueKey,
+  String? priorityLabel,
+  String? dueLabel,
 }) async {
-  await tester.tap(find.byKey(const ValueKey<String>('fab-add-task')));
+  await tester.tap(find.text('New task'));
   await tester.pumpAndSettle();
   await tester.enterText(
-    find.byKey(const ValueKey<String>('task-title-input')),
+    textFieldByLabel('Task title'),
     title,
   );
   if (notes.isNotEmpty) {
     await tester.enterText(
-      find.byKey(const ValueKey<String>('task-notes-input')),
+      textFieldByLabel('Notes'),
       notes,
     );
   }
-  if (priorityKey != null) {
-    await _scrollUntilVisible(tester, ValueKey<String>(priorityKey));
-    await tester.tap(find.byKey(ValueKey<String>(priorityKey)));
+  if (priorityLabel != null) {
+    final priorityFinder = find.widgetWithText(
+      ChoiceChip,
+      priorityLabel.toUpperCase(),
+    );
+    await _scrollUntilVisible(tester, priorityFinder);
+    await tester.tap(priorityFinder);
     await tester.pumpAndSettle();
   }
-  if (dueKey != null) {
-    await _scrollUntilVisible(tester, ValueKey<String>(dueKey));
-    await tester.tap(find.byKey(ValueKey<String>(dueKey)));
+  if (dueLabel != null) {
+    final dueFinder = find.widgetWithText(ChoiceChip, dueLabel);
+    await _scrollUntilVisible(tester, dueFinder);
+    await tester.tap(dueFinder);
     await tester.pumpAndSettle();
   }
-  await _scrollUntilVisible(tester, const ValueKey<String>('task-save-button'));
-  await tester.tap(find.byKey(const ValueKey<String>('task-save-button')));
+  final saveFinder = find.text('Save task');
+  await _scrollUntilVisible(tester, saveFinder);
+  await tester.tap(saveFinder);
   await tester.pumpAndSettle();
+  await settleAfterTaskSave(tester);
+}
+
+Future<void> settleAfterTaskSave(WidgetTester tester) async {
   for (var attempt = 0; attempt < 12; attempt += 1) {
     final routeSettled =
         FlutterCockpit.binding.currentRouteName.value != '/editor';
@@ -129,9 +140,8 @@ Future<void> createTaskThroughUi(
 
 Future<void> _scrollUntilVisible(
   WidgetTester tester,
-  ValueKey<String> key,
+  Finder finder,
 ) async {
-  final finder = find.byKey(key);
   await tester
       .scrollUntilVisible(
         finder,
@@ -156,13 +166,11 @@ Future<void> scrollTodoCollectionUntilVisible(
   Finder finder, {
   double delta = 220,
 }) async {
-  final collectionScrollable = find.byKey(
-    const ValueKey<String>('todo-collection-scroll'),
-  );
-  final scrollable = collectionScrollable.evaluate().isNotEmpty
+  final collection = find.byType(TodoCollectionScreen);
+  final scrollable = collection.evaluate().isNotEmpty
       ? find
           .descendant(
-            of: collectionScrollable,
+            of: collection,
             matching: find.byType(Scrollable),
           )
           .first
@@ -178,6 +186,55 @@ Future<void> scrollTodoCollectionUntilVisible(
     const Duration(milliseconds: 100),
     EnginePhase.sendSemanticsUpdate,
     const Duration(seconds: 5),
+  );
+}
+
+Finder textFieldByLabel(String label) {
+  return find.byWidgetPredicate(
+    (widget) =>
+        widget is TextField &&
+        (widget.decoration?.labelText == label ||
+            widget.decoration?.hintText == label),
+    description: 'TextField($label)',
+  );
+}
+
+Finder taskRowByTitle(String title, {bool selectionMode = false}) {
+  return find.ancestor(
+    of: find.text(title),
+    matching: find.byType(InkWell),
+  );
+}
+
+Finder taskToggleByTitle(String title, {bool completed = false}) {
+  return find.bySemanticsLabel(
+    '${completed ? 'Reopen' : 'Complete'} task $title',
+  );
+}
+
+Finder manualQueueReorderHandle(String title) {
+  final manualQueueTitle = find.text(title).last;
+  final cardFinder = find.ancestor(
+    of: manualQueueTitle,
+    matching: find.byType(EditorialSection),
+  );
+  return find.descendant(
+    of: cardFinder.first,
+    matching: find.byIcon(Icons.drag_indicator_rounded),
+  );
+}
+
+Finder navigationButton(String label) {
+  return find.ancestor(
+    of: find.text(label).last,
+    matching: find.byType(TextButton),
+  );
+}
+
+Finder planningSurfaceCanvas() {
+  return find.byWidgetPredicate(
+    (widget) => widget is GestureDetector && widget.onScaleUpdate != null,
+    description: 'Planning surface canvas',
   );
 }
 

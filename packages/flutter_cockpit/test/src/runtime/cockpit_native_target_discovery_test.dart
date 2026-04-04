@@ -87,6 +87,104 @@ void main() {
     expect(controller.text, 'Production handoff');
   });
 
+  testWidgets('resolves unlabeled text input targets by field label text', (
+    tester,
+  ) async {
+    final titleController = TextEditingController();
+    final notesController = TextEditingController();
+    addTearDown(titleController.dispose);
+    addTearDown(notesController.dispose);
+
+    await tester.pumpWidget(
+      CockpitSurface(
+        routeName: '/editor',
+        child: MaterialApp(
+          home: Scaffold(
+            body: Column(
+              children: <Widget>[
+                TextField(
+                  controller: titleController,
+                  decoration: const InputDecoration(labelText: 'Task title'),
+                ),
+                TextField(
+                  controller: notesController,
+                  decoration: const InputDecoration(labelText: 'Notes'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final surfaceState = tester.state<CockpitSurfaceState>(
+      find.byType(CockpitSurface),
+    );
+    final resolution = surfaceState.registry.resolve(
+      const CockpitLocator(
+        text: 'Task title',
+        type: 'TextField',
+      ),
+    );
+
+    expect(resolution.isSuccess, isTrue);
+    final target = resolution.target;
+    expect(target, isNotNull);
+    target!.onEnterText?.call('AI planned title');
+    await tester.pump();
+
+    expect(titleController.text, 'AI planned title');
+    expect(notesController.text, isEmpty);
+  });
+
+  testWidgets(
+    'prefers the field label over a prefilled input value for text targeting',
+    (tester) async {
+      final controller =
+          TextEditingController(text: 'Existing follow-up title');
+      addTearDown(controller.dispose);
+
+      await tester.pumpWidget(
+        CockpitSurface(
+          routeName: '/detail',
+          child: MaterialApp(
+            home: Scaffold(
+              body: Padding(
+                padding: const EdgeInsets.all(24),
+                child: TextField(
+                  controller: controller,
+                  decoration: const InputDecoration(
+                    labelText: 'Follow-up title',
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final surfaceState = tester.state<CockpitSurfaceState>(
+        find.byType(CockpitSurface),
+      );
+      final resolution = surfaceState.registry.resolve(
+        const CockpitLocator(
+          text: 'Follow-up title',
+          type: 'TextField',
+        ),
+      );
+
+      expect(resolution.isSuccess, isTrue);
+      final target = resolution.target;
+      expect(target, isNotNull);
+      target!.onEnterText?.call('Next follow-up title');
+      await tester.pump();
+
+      expect(controller.text, 'Next follow-up title');
+    },
+  );
+
   testWidgets('discovers interactive targets by their own key', (tester) async {
     var selected = false;
 

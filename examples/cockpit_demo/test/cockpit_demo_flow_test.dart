@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:flutter/material.dart';
 import 'package:flutter_cockpit/flutter_cockpit_flutter.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
@@ -44,17 +43,17 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const ValueKey<String>('fab-add-task')));
+    await tester.tap(find.text('New task'));
     await tester.pumpAndSettle();
     await tester.enterText(
-      find.byKey(const ValueKey<String>('task-title-input')),
+      textFieldByLabel('Task title'),
       'Review bundle output',
     );
     await tester.enterText(
-      find.byKey(const ValueKey<String>('task-notes-input')),
+      textFieldByLabel('Notes'),
       'Check manifest and delivery metadata',
     );
-    await tester.tap(find.byKey(const ValueKey<String>('task-save-button')));
+    await tester.tap(find.text('Save task'));
     await tester.pumpAndSettle();
 
     final bundle = controller.finish(
@@ -76,7 +75,7 @@ void main() {
     );
     await scrollTodoCollectionUntilVisible(
       tester,
-      find.byKey(ValueKey<String>('task-open-${createdTask.id}')),
+      taskRowByTitle(createdTask.title),
     );
 
     expect(writtenBundle, isNotNull);
@@ -111,9 +110,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const ValueKey<String>('fab-add-task')));
+    await tester.tap(find.text('New task'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey<String>('task-save-button')));
+    await tester.tap(find.text('Save task'));
     await tester.pump();
 
     final bundle = controller.finishWithFailure(

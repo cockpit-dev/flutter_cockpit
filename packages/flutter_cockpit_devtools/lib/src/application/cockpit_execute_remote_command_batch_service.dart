@@ -39,7 +39,7 @@ final class CockpitExecuteRemoteCommandBatchRequest {
     this.recording,
     this.finalSnapshotProfile,
     this.finalSnapshotOptions,
-    this.defaultCommandTimeout = const Duration(seconds: 4),
+    this.defaultCommandTimeout = const Duration(seconds: 30),
   });
 
   final List<CockpitInteractiveBatchCommand> commands;

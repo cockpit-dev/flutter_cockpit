@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../app/todo_app_service.dart';
@@ -5,6 +7,7 @@ import '../../app/todo_list_state.dart';
 import '../../model/todo_filter.dart';
 import '../../model/todo_priority.dart';
 import '../../model/todo_settings.dart';
+import '../../model/todo_tag.dart';
 import '../../model/todo_task.dart';
 import '../theme/orbit_todo_theme.dart';
 import '../widgets/collection_overview_card.dart';
@@ -46,6 +49,7 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
   late final TextEditingController _searchController;
   late final ScrollController _scrollController;
   bool _highPriorityOnly = false;
+  late final Set<String> _selectedTagIds;
   final Set<String> _selectedTaskIds = <String>{};
   double _planningZoom = 1.0;
   double _planningZoomAtStart = 1.0;
@@ -58,9 +62,14 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
     _highPriorityOnly = widget.baseFilter.priorities.contains(
       TodoPriority.high,
     );
+    _selectedTagIds = widget.baseFilter.tagIds.toSet();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) {
         return;
+      }
+      if (widget.service.availableTags.isEmpty &&
+          !widget.service.isLoadingTags) {
+        widget.service.loadTags();
       }
       widget.service.loadTasks(_effectiveFilter());
     });
@@ -84,7 +93,7 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
       priorities: _highPriorityOnly
           ? const <TodoPriority>{TodoPriority.high}
           : widget.baseFilter.priorities,
-      tagIds: widget.baseFilter.tagIds,
+      tagIds: _selectedTagIds,
       includeDeleted: widget.baseFilter.includeDeleted,
       onlyDueToday: widget.baseFilter.onlyDueToday,
     );
@@ -98,7 +107,31 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
     return widget.routeName == '/inbox' &&
         settings.sortMode == TodoSortMode.manual &&
         _searchController.text.trim().isEmpty &&
-        !_highPriorityOnly;
+        !_highPriorityOnly &&
+        _selectedTagIds.isEmpty;
+  }
+
+  Future<void> _refreshCurrentFilter() {
+    return widget.service.updateFilter(_effectiveFilter());
+  }
+
+  void _toggleTagFilter(String tagId) {
+    setState(() {
+      if (_selectedTagIds.contains(tagId)) {
+        _selectedTagIds.remove(tagId);
+      } else {
+        _selectedTagIds.add(tagId);
+      }
+    });
+    _refreshCurrentFilter();
+  }
+
+  void _clearTagFilters() {
+    if (_selectedTagIds.isEmpty) {
+      return;
+    }
+    setState(_selectedTagIds.clear);
+    _refreshCurrentFilter();
   }
 
   Future<void> _openEditor() async {
@@ -242,9 +275,6 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
                     const SizedBox(height: 16),
                     ...TodoPriority.values.map(
                       (priority) => ListTile(
-                        key: ValueKey<String>(
-                          'selection-priority-option-${priority.name}',
-                        ),
                         contentPadding: EdgeInsets.zero,
                         title: Text(_prioritySheetTitle(priority)),
                         subtitle: Text(_prioritySheetSubtitle(priority)),
@@ -270,6 +300,123 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
     final updated = await widget.service.updateTasksPriority(
       taskIds: selectedTasks.map((task) => task.id).toList(growable: false),
       priority: nextPriority,
+    );
+    if (updated && mounted) {
+      setState(_selectedTaskIds.clear);
+    }
+  }
+
+  Future<void> _changeSelectedDueDate(List<TodoTask> tasks) async {
+    final selectedTasks = _selectedTasks(tasks);
+    if (selectedTasks.isEmpty) {
+      return;
+    }
+    final dueAt = await showModalBottomSheet<DateTime?>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (context) {
+        final theme = Theme.of(context);
+        final colorScheme = theme.colorScheme;
+        final today = DateTime.now();
+        final presets = <({String label, String detail, DateTime? dueAt})>[
+          (
+            label: 'No date',
+            detail: 'Clear the schedule and return the tasks to open planning.',
+            dueAt: null,
+          ),
+          (
+            label: 'Today',
+            detail: 'Anchor the selected tasks to today at 17:00.',
+            dueAt: DateTime(today.year, today.month, today.day, 17),
+          ),
+          (
+            label: 'Tomorrow',
+            detail: 'Move the selected tasks into tomorrow’s review lane.',
+            dueAt: DateTime(today.year, today.month, today.day + 1, 17),
+          ),
+          (
+            label: 'Next week',
+            detail:
+                'Push the selection one week forward without changing scope.',
+            dueAt: DateTime(today.year, today.month, today.day + 7, 17),
+          ),
+        ];
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  'Update due date',
+                  style: theme.textTheme.headlineSmall,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Apply one due date preset to ${selectedTasks.length} selected tasks.',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ...presets.map(
+                  (preset) => ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(preset.label),
+                    subtitle: Text(preset.detail),
+                    trailing: Icon(
+                      preset.dueAt == null
+                          ? Icons.event_busy_rounded
+                          : Icons.event_available_rounded,
+                      color: colorScheme.primary,
+                    ),
+                    onTap: () => Navigator.of(context).pop(preset.dueAt),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    final updated = await widget.service.updateTasksDueDate(
+      taskIds: selectedTasks.map((task) => task.id).toList(growable: false),
+      dueAt: dueAt,
+    );
+    if (updated && mounted) {
+      setState(_selectedTaskIds.clear);
+    }
+  }
+
+  Future<void> _changeSelectedTags(List<TodoTask> tasks) async {
+    final selectedTasks = _selectedTasks(tasks);
+    if (selectedTasks.isEmpty) {
+      return;
+    }
+    final nextTagIds = await showModalBottomSheet<List<String>>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (context) => _BatchTagSheet(
+        selectedTaskCount: selectedTasks.length,
+        availableTags: widget.service.availableTags,
+        initialSelectedTagIds: selectedTasks
+            .expand((task) => task.tagIds)
+            .toSet()
+            .toList(growable: false),
+        onCreateTag: (name) => widget.service.createTag(name: name),
+      ),
+    );
+    if (nextTagIds == null) {
+      return;
+    }
+
+    final updated = await widget.service.updateTasksTags(
+      taskIds: selectedTasks.map((task) => task.id).toList(growable: false),
+      tagIds: nextTagIds,
     );
     if (updated && mounted) {
       setState(_selectedTaskIds.clear);
@@ -319,12 +466,10 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
           ),
           actions: <Widget>[
             TextButton(
-              key: const ValueKey<String>('selection-delete-cancel-button'),
               onPressed: () => Navigator.of(context).pop(false),
               child: const Text('Cancel'),
             ),
             FilledButton(
-              key: const ValueKey<String>('selection-delete-confirm-button'),
               onPressed: () => Navigator.of(context).pop(true),
               child: const Text('Delete tasks'),
             ),
@@ -369,10 +514,6 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
     setState(() {
       _planningZoom = (_planningZoomAtStart * details.scale).clamp(0.9, 1.75);
     });
-  }
-
-  Future<void> _handleReorder(int oldIndex, int newIndex) {
-    return widget.service.reorderTasks(oldIndex: oldIndex, newIndex: newIndex);
   }
 
   @override
@@ -433,7 +574,6 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
               Padding(
                 padding: const EdgeInsetsDirectional.only(end: 4),
                 child: TextButton.icon(
-                  key: const ValueKey<String>('fab-add-task'),
                   onPressed: _openEditor,
                   icon: const Icon(Icons.add_rounded, size: 18),
                   label: const Text('New task'),
@@ -452,7 +592,6 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
                 ),
               ),
               IconButton(
-                key: const ValueKey<String>('open-settings-button'),
                 tooltip: 'Settings',
                 onPressed: _openSettings,
                 icon: const Icon(Icons.tune_rounded),
@@ -475,7 +614,6 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
                   children: <Widget>[
                     Expanded(
                       child: _NavigationButton(
-                        targetKey: const ValueKey<String>('nav-inbox'),
                         icon: Icons.inbox_rounded,
                         label: 'Inbox',
                         selected: widget.navigationIndex == 0,
@@ -484,7 +622,6 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
                     ),
                     Expanded(
                       child: _NavigationButton(
-                        targetKey: const ValueKey<String>('nav-today'),
                         icon: Icons.calendar_today_rounded,
                         label: 'Today',
                         selected: widget.navigationIndex == 1,
@@ -493,7 +630,6 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
                     ),
                     Expanded(
                       child: _NavigationButton(
-                        targetKey: const ValueKey<String>('nav-completed'),
                         icon: Icons.task_alt_rounded,
                         label: 'Completed',
                         selected: widget.navigationIndex == 2,
@@ -516,7 +652,7 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
                       backgroundColor: colorScheme.secondaryContainer
                           .withAlphaFraction(0.82),
                       leadingAccentColor: colorScheme.secondary,
-                      padding: const EdgeInsets.fromLTRB(0, 16, 0, 16),
+                      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
                       child: Row(
                         children: <Widget>[
                           Icon(
@@ -533,7 +669,6 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
                             ),
                           ),
                           TextButton(
-                            key: const ValueKey<String>('undo-delete-button'),
                             onPressed: widget.service.undoDelete,
                             child: const Text('Undo'),
                           ),
@@ -545,11 +680,10 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
                     child: EditorialSection(
-                      key: const ValueKey<String>('selection-mode-banner'),
                       backgroundColor: colorScheme.secondaryContainer
                           .withAlphaFraction(0.86),
                       leadingAccentColor: colorScheme.primary,
-                      padding: const EdgeInsets.fromLTRB(0, 16, 0, 16),
+                      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
@@ -570,9 +704,6 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
                                 ),
                               ),
                               IconButton(
-                                key: const ValueKey<String>(
-                                  'selection-clear-button',
-                                ),
                                 tooltip: 'Clear selection',
                                 onPressed: _clearSelection,
                                 icon: const Icon(Icons.close_rounded),
@@ -585,9 +716,6 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
                             runSpacing: 8,
                             children: <Widget>[
                               OutlinedButton.icon(
-                                key: const ValueKey<String>(
-                                  'selection-select-all-button',
-                                ),
                                 onPressed: allVisibleSelected
                                     ? null
                                     : () => _selectAllFilteredTasks(tasks),
@@ -595,17 +723,21 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
                                 label: const Text('All results'),
                               ),
                               OutlinedButton.icon(
-                                key: const ValueKey<String>(
-                                  'selection-priority-button',
-                                ),
                                 onPressed: () => _changeSelectedPriority(tasks),
                                 icon: const Icon(Icons.flag_rounded),
                                 label: const Text('Priority'),
                               ),
                               OutlinedButton.icon(
-                                key: const ValueKey<String>(
-                                  'selection-complete-button',
-                                ),
+                                onPressed: () => _changeSelectedDueDate(tasks),
+                                icon: const Icon(Icons.event_available_rounded),
+                                label: const Text('Schedule'),
+                              ),
+                              OutlinedButton.icon(
+                                onPressed: () => _changeSelectedTags(tasks),
+                                icon: const Icon(Icons.sell_rounded),
+                                label: const Text('Tags'),
+                              ),
+                              OutlinedButton.icon(
                                 onPressed: () => _completeSelectedTasks(tasks),
                                 icon: Icon(
                                   shouldCompleteSelection
@@ -619,9 +751,6 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
                                 ),
                               ),
                               FilledButton.tonalIcon(
-                                key: const ValueKey<String>(
-                                  'selection-delete-button',
-                                ),
                                 onPressed: () => _deleteSelectedTasks(tasks),
                                 icon: const Icon(Icons.delete_sweep_rounded),
                                 label: const Text('Delete'),
@@ -637,17 +766,15 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
                     onRefresh: () =>
                         widget.service.loadTasks(_effectiveFilter()),
                     child: ListView(
-                      key: const ValueKey<String>('todo-collection-scroll'),
                       controller: _scrollController,
                       padding: const EdgeInsets.fromLTRB(20, 18, 20, 120),
                       children: <Widget>[
                         if (focusedTask != null) ...<Widget>[
                           EditorialSection(
-                            key: const ValueKey<String>('focused-task-banner'),
                             backgroundColor: colorScheme.primaryContainer
                                 .withAlphaFraction(0.84),
                             leadingAccentColor: colorScheme.primary,
-                            padding: const EdgeInsets.fromLTRB(0, 12, 0, 12),
+                            padding: const EdgeInsets.fromLTRB(18, 12, 18, 12),
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: <Widget>[
@@ -715,9 +842,6 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
                                       mainAxisSize: MainAxisSize.min,
                                       children: <Widget>[
                                         TextButton(
-                                          key: const ValueKey<String>(
-                                            'focused-task-open-button',
-                                          ),
                                           onPressed: () {
                                             widget.onOpenTask(focusedTask);
                                           },
@@ -754,9 +878,6 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
                                         ),
                                         const SizedBox(width: 4),
                                         IconButton(
-                                          key: const ValueKey<String>(
-                                            'focused-task-dismiss-button',
-                                          ),
                                           tooltip: 'Dismiss latest update',
                                           onPressed:
                                               widget.service.dismissFocusedTask,
@@ -792,7 +913,8 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
                               backgroundColor: colorScheme.errorContainer
                                   .withAlphaFraction(0.88),
                               leadingAccentColor: colorScheme.error,
-                              padding: const EdgeInsets.fromLTRB(0, 16, 0, 16),
+                              padding:
+                                  const EdgeInsets.fromLTRB(18, 16, 18, 16),
                               child: Row(
                                 children: <Widget>[
                                   Icon(
@@ -869,6 +991,8 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
                           TaskFilterBar(
                             searchController: _searchController,
                             highPriorityOnly: _highPriorityOnly,
+                            availableTags: widget.service.availableTags,
+                            selectedTagIds: _selectedTagIds,
                             onSearchChanged: (_) {
                               widget.service.updateFilter(_effectiveFilter());
                             },
@@ -878,6 +1002,8 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
                               });
                               widget.service.updateFilter(_effectiveFilter());
                             },
+                            onTagToggle: _toggleTagFilter,
+                            onClearTagSelection: _clearTagFilters,
                           ),
                           const SizedBox(height: 18),
                           Padding(
@@ -900,7 +1026,6 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
                             ),
                           ),
                           _buildTaskList(
-                            theme: theme,
                             tasks: tasks,
                             settings: settingsState.settings,
                           ),
@@ -955,7 +1080,6 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
                           )) ...<Widget>[
                             const SizedBox(height: 18),
                             _buildManualQueuePanel(
-                              theme: theme,
                               tasks: tasks,
                               compactMode: settingsState.settings.compactMode,
                             ),
@@ -1020,7 +1144,6 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
   }
 
   Widget _buildTaskList({
-    required ThemeData theme,
     required List<TodoTask> tasks,
     required TodoSettings settings,
   }) {
@@ -1029,7 +1152,6 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
         children: tasks
             .map(
               (task) => _buildTaskRow(
-                theme: theme,
                 task: task,
                 compactMode: settings.compactMode,
                 isHighlighted:
@@ -1044,7 +1166,6 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
       children: tasks
           .map(
             (task) => _buildTaskRow(
-              theme: theme,
               task: task,
               compactMode: settings.compactMode,
               isHighlighted: task.id == widget.service.listState.focusedTaskId,
@@ -1055,29 +1176,16 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
   }
 
   Widget _buildTaskRow({
-    required ThemeData theme,
     required TodoTask task,
     required bool compactMode,
     required bool isHighlighted,
   }) {
-    return Dismissible(
-      key: ValueKey<String>('task-dismiss-${task.id}'),
-      direction: DismissDirection.horizontal,
-      background: _DismissBackground(
-        alignment: Alignment.centerLeft,
-        icon: Icons.delete_sweep_rounded,
-        label: 'Delete',
-      ),
-      secondaryBackground: _DismissBackground(
-        alignment: Alignment.centerRight,
-        icon: Icons.delete_sweep_rounded,
-        label: 'Delete',
-      ),
-      onDismissed: (_) {
+    return _SwipeToDeleteTaskRow(
+      taskId: task.id,
+      onDismissed: () {
         widget.service.deleteTask(task.id);
       },
       child: TaskListItem(
-        key: ValueKey<String>('task-item-${task.id}'),
         task: task,
         compactMode: compactMode,
         selectionMode: _selectionMode,
@@ -1090,6 +1198,25 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
           widget.service.setTaskCompleted(taskId: task.id, isCompleted: value);
         },
       ),
+    );
+  }
+
+  Future<void> _moveTaskToIndex({
+    required List<TodoTask> tasks,
+    required String draggedTaskId,
+    required int targetIndex,
+  }) async {
+    final oldIndex = tasks.indexWhere((task) => task.id == draggedTaskId);
+    if (oldIndex == -1 ||
+        targetIndex < 0 ||
+        targetIndex >= tasks.length ||
+        oldIndex == targetIndex) {
+      return;
+    }
+    final newIndex = targetIndex > oldIndex ? targetIndex + 1 : targetIndex;
+    await widget.service.reorderTasks(
+      oldIndex: oldIndex,
+      newIndex: newIndex,
     );
   }
 
@@ -1106,151 +1233,125 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
   }
 
   Widget _buildManualQueuePanel({
-    required ThemeData theme,
     required List<TodoTask> tasks,
     required bool compactMode,
   }) {
-    return EditorialSection(
-      key: const ValueKey<String>('manual-queue-panel'),
-      backgroundColor: theme.editorialMutedSurfaceColor,
-      padding: const EdgeInsets.fromLTRB(0, 22, 0, 22),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text('Manual queue', style: theme.textTheme.titleLarge),
-          const SizedBox(height: 6),
-          Text(
-            'Drag tasks to set the next execution order.',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 14),
-          SizedBox(
-            height: (tasks.length * (compactMode ? 92.0 : 104.0)).clamp(
-              196.0,
-              372.0,
-            ),
-            child: ReorderableListView.builder(
-              key: const ValueKey<String>('manual-queue-list'),
-              buildDefaultDragHandles: false,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              padding: EdgeInsets.zero,
-              itemCount: tasks.length,
-              proxyDecorator: (child, index, animation) {
-                return Material(
-                  color: Colors.transparent,
-                  child: ScaleTransition(
-                    scale: Tween<double>(
-                      begin: 1,
-                      end: 1.03,
-                    ).animate(animation),
-                    child: child,
-                  ),
-                );
-              },
-              onReorder: _handleReorder,
-              itemBuilder: (context, index) {
-                final task = tasks[index];
-                return Padding(
-                  key: ValueKey<String>('manual-queue-card-${task.id}'),
-                  padding: EdgeInsets.only(
-                    bottom: index == tasks.length - 1 ? 0 : 12,
-                  ),
-                  child: EditorialSection(
-                    backgroundColor: theme.editorialSurfaceColor,
-                    leadingAccentColor:
-                        theme.colorScheme.primary.withAlphaFraction(
-                      0.55,
-                    ),
-                    padding: EdgeInsets.fromLTRB(
-                      0,
-                      compactMode ? 10 : 12,
-                      0,
-                      compactMode ? 10 : 12,
-                    ),
-                    child: Row(
-                      children: <Widget>[
-                        DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.surfaceContainerHighest,
-                            border: Border.all(
-                              color: theme.colorScheme.outlineVariant
-                                  .withAlphaFraction(0.82),
-                            ),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 10,
-                            ),
-                            child: Text(
-                              '#${index + 1}',
-                              style: theme.textTheme.labelLarge?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: <Widget>[
-                              Text(
-                                task.title,
-                                maxLines: compactMode ? 1 : 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.titleMedium,
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                task.priority.name.toUpperCase(),
-                                style: theme.textTheme.labelMedium?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                  letterSpacing: 0.7,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        ReorderableDragStartListener(
-                          index: index,
-                          child: Semantics(
-                            button: true,
-                            label: 'Reorder task ${task.title}',
-                            child: Container(
-                              key: ValueKey<String>(
-                                'task-reorder-handle-${task.id}',
-                              ),
-                              width: 52,
-                              height: 52,
-                              decoration: BoxDecoration(
-                                color: theme.editorialChromeColor,
-                                border: Border.all(
-                                  color: theme.colorScheme.outlineVariant
-                                      .withAlphaFraction(0.82),
-                                ),
-                              ),
-                              child: Icon(
-                                Icons.drag_indicator_rounded,
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
+    return _ManualQueuePanel(
+      tasks: tasks,
+      compactMode: compactMode,
+      onMoveToIndex: (draggedTaskId, targetIndex) => _moveTaskToIndex(
+        tasks: tasks,
+        draggedTaskId: draggedTaskId,
+        targetIndex: targetIndex,
       ),
+    );
+  }
+}
+
+final class _SwipeToDeleteTaskRow extends StatefulWidget {
+  const _SwipeToDeleteTaskRow({
+    required this.taskId,
+    required this.onDismissed,
+    required this.child,
+  });
+
+  final String taskId;
+  final VoidCallback onDismissed;
+  final Widget child;
+
+  @override
+  State<_SwipeToDeleteTaskRow> createState() => _SwipeToDeleteTaskRowState();
+}
+
+final class _SwipeToDeleteTaskRowState extends State<_SwipeToDeleteTaskRow> {
+  static const Duration _settleDuration = Duration(milliseconds: 170);
+  static const double _dismissVelocity = 760;
+  static const double _dismissThresholdFactor = 0.34;
+  double _dragOffset = 0;
+  bool _isDragging = false;
+  bool _dismissScheduled = false;
+
+  @override
+  void didUpdateWidget(covariant _SwipeToDeleteTaskRow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.taskId != widget.taskId) {
+      _dragOffset = 0;
+      _isDragging = false;
+      _dismissScheduled = false;
+    }
+  }
+
+  void _scheduleDismiss() {
+    if (_dismissScheduled) {
+      return;
+    }
+    _dismissScheduled = true;
+    Future<void>.delayed(_settleDuration, () {
+      if (mounted && _dismissScheduled) {
+        widget.onDismissed();
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth <= 0 ? 1.0 : constraints.maxWidth;
+        final dismissThreshold = width * _dismissThresholdFactor;
+        final fraction = _dragOffset / width;
+        final showingBackground = _dragOffset.abs() > 1;
+        return Stack(
+          children: <Widget>[
+            if (showingBackground)
+              Positioned.fill(
+                child: _DismissBackground(
+                  alignment: _dragOffset >= 0
+                      ? Alignment.centerLeft
+                      : Alignment.centerRight,
+                  icon: Icons.delete_sweep_rounded,
+                  label: 'Delete',
+                ),
+              ),
+            GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onHorizontalDragStart: (_) {
+                _dismissScheduled = false;
+                setState(() {
+                  _isDragging = true;
+                });
+              },
+              onHorizontalDragUpdate: (details) {
+                setState(() {
+                  _dragOffset = (_dragOffset + details.delta.dx).clamp(
+                    -width,
+                    width,
+                  );
+                });
+              },
+              onHorizontalDragEnd: (details) {
+                final shouldDismiss = _dragOffset.abs() >= dismissThreshold ||
+                    details.primaryVelocity!.abs() >= _dismissVelocity;
+                setState(() {
+                  _isDragging = false;
+                  _dragOffset = shouldDismiss
+                      ? (_dragOffset.isNegative ? -width : width)
+                      : 0;
+                });
+                if (shouldDismiss) {
+                  _scheduleDismiss();
+                }
+              },
+              child: AnimatedSlide(
+                duration: _isDragging ? Duration.zero : _settleDuration,
+                curve: Curves.easeOutCubic,
+                offset: Offset(fraction, 0),
+                child: widget.child,
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -1279,6 +1380,471 @@ final class _OverviewActionRail extends StatelessWidget {
           label: const Text('Create task'),
         ),
       ],
+    );
+  }
+}
+
+final class _ManualQueuePanel extends StatefulWidget {
+  const _ManualQueuePanel({
+    required this.tasks,
+    required this.compactMode,
+    required this.onMoveToIndex,
+  });
+
+  final List<TodoTask> tasks;
+  final bool compactMode;
+  final Future<void> Function(String draggedTaskId, int targetIndex)
+      onMoveToIndex;
+
+  @override
+  State<_ManualQueuePanel> createState() => _ManualQueuePanelState();
+}
+
+final class _ManualQueuePanelState extends State<_ManualQueuePanel> {
+  String? _draggedTaskId;
+  double _dragDeltaY = 0;
+
+  void _clearDragState() {
+    if (mounted) {
+      setState(() {
+        _draggedTaskId = null;
+        _dragDeltaY = 0;
+      });
+    }
+  }
+
+  void _handleDragStart(String taskId) {
+    setState(() {
+      _draggedTaskId = taskId;
+      _dragDeltaY = 0;
+    });
+  }
+
+  void _handleDragUpdate(TodoTask task, DragUpdateDetails details) {
+    if (_draggedTaskId != task.id) {
+      return;
+    }
+    final stepExtent = widget.compactMode ? 104.0 : 116.0;
+    _dragDeltaY += details.delta.dy;
+    if (_dragDeltaY.abs() < stepExtent * 0.72) {
+      setState(() {});
+      return;
+    }
+
+    final currentIndex = widget.tasks.indexWhere(
+      (candidate) => candidate.id == task.id,
+    );
+    if (currentIndex == -1) {
+      _clearDragState();
+      return;
+    }
+
+    final direction = _dragDeltaY.isNegative ? -1 : 1;
+    final targetIndex = (currentIndex + direction).clamp(
+      0,
+      widget.tasks.length - 1,
+    );
+    _dragDeltaY = 0;
+    if (targetIndex != currentIndex) {
+      unawaited(widget.onMoveToIndex(task.id, targetIndex));
+    }
+    setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return EditorialSection(
+      backgroundColor: theme.editorialMutedSurfaceColor,
+      padding: const EdgeInsets.fromLTRB(18, 22, 18, 22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text('Manual queue', style: theme.textTheme.titleLarge),
+          const SizedBox(height: 6),
+          Text(
+            'Drag tasks to set the next execution order.',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            height: (widget.tasks.length * (widget.compactMode ? 92.0 : 104.0))
+                .clamp(196.0, 372.0),
+            child: ListView.separated(
+              physics: const NeverScrollableScrollPhysics(),
+              padding: EdgeInsets.zero,
+              itemCount: widget.tasks.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                final task = widget.tasks[index];
+                return Opacity(
+                  opacity: _draggedTaskId == task.id ? 0.62 : 1,
+                  child: _ManualQueueCard(
+                    index: index,
+                    task: task,
+                    compactMode: widget.compactMode,
+                    highlightDropTarget: _draggedTaskId == task.id,
+                    dragHandle: _ManualQueueHandle(
+                      label: 'Reorder task ${task.title}',
+                      faded: _draggedTaskId == task.id,
+                      onVerticalDragStart: (_) => _handleDragStart(task.id),
+                      onVerticalDragUpdate: (details) =>
+                          _handleDragUpdate(task, details),
+                      onVerticalDragEnd: (_) => _clearDragState(),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+final class _BatchTagSheet extends StatefulWidget {
+  const _BatchTagSheet({
+    required this.selectedTaskCount,
+    required this.availableTags,
+    required this.initialSelectedTagIds,
+    required this.onCreateTag,
+  });
+
+  final int selectedTaskCount;
+  final List<TodoTag> availableTags;
+  final List<String> initialSelectedTagIds;
+  final Future<TodoTag> Function(String name) onCreateTag;
+
+  @override
+  State<_BatchTagSheet> createState() => _BatchTagSheetState();
+}
+
+final class _BatchTagSheetState extends State<_BatchTagSheet> {
+  late final TextEditingController _newTagController;
+  late List<TodoTag> _availableTags;
+  late Set<String> _selectedTagIds;
+  bool _isCreatingTag = false;
+  String? _tagErrorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _newTagController = TextEditingController();
+    _availableTags = _sortTags(widget.availableTags);
+    _selectedTagIds = widget.initialSelectedTagIds.toSet();
+  }
+
+  @override
+  void dispose() {
+    _newTagController.dispose();
+    super.dispose();
+  }
+
+  List<TodoTag> _sortTags(List<TodoTag> tags) {
+    final sorted = tags.toList(growable: false);
+    sorted.sort((left, right) => left.name.compareTo(right.name));
+    return sorted;
+  }
+
+  void _toggleTag(String tagId) {
+    setState(() {
+      if (_selectedTagIds.contains(tagId)) {
+        _selectedTagIds.remove(tagId);
+      } else {
+        _selectedTagIds.add(tagId);
+      }
+    });
+  }
+
+  Future<void> _createTag() async {
+    final normalizedName = _newTagController.text.trim();
+    if (normalizedName.isEmpty) {
+      setState(() {
+        _tagErrorMessage = 'Tag name is required.';
+      });
+      return;
+    }
+
+    setState(() {
+      _isCreatingTag = true;
+      _tagErrorMessage = null;
+    });
+
+    try {
+      final createdTag = await widget.onCreateTag(normalizedName);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _availableTags = _sortTags(<TodoTag>[..._availableTags, createdTag]);
+        _selectedTagIds.add(createdTag.id);
+        _newTagController.clear();
+        _isCreatingTag = false;
+      });
+    } on Object catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _isCreatingTag = false;
+        _tagErrorMessage = error.toString();
+      });
+    }
+  }
+
+  List<String> _orderedSelectedTagIds() {
+    return _availableTags
+        .where((tag) => _selectedTagIds.contains(tag.id))
+        .map((tag) => tag.id)
+        .toList(growable: false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final viewInsets = MediaQuery.viewInsetsOf(context);
+    return SafeArea(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.82,
+        ),
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(20, 12, 20, viewInsets.bottom + 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        'Update tags',
+                        style: theme.textTheme.headlineSmall,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Choose the shared tag set that ${widget.selectedTaskCount} selected tasks should carry.',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      TextField(
+                        controller: _newTagController,
+                        textInputAction: TextInputAction.done,
+                        onSubmitted: (_) => _createTag(),
+                        decoration: InputDecoration(
+                          labelText: 'New tag',
+                          errorText: _tagErrorMessage,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton.icon(
+                          onPressed: _isCreatingTag ? null : _createTag,
+                          icon: _isCreatingTag
+                              ? SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: colorScheme.primary,
+                                  ),
+                                )
+                              : const Icon(Icons.add_rounded),
+                          label:
+                              Text(_isCreatingTag ? 'Creating…' : 'Create tag'),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      if (_availableTags.isEmpty)
+                        Text(
+                          'Create the first tag to apply a shared context to the selection.',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        )
+                      else
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: _availableTags
+                              .map(
+                                (tag) => FilterChip(
+                                  selected: _selectedTagIds.contains(tag.id),
+                                  label: Text(tag.name),
+                                  onSelected: (_) => _toggleTag(tag.id),
+                                ),
+                              )
+                              .toList(growable: false),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                children: <Widget>[
+                  TextButton(
+                    onPressed: _selectedTagIds.isEmpty
+                        ? null
+                        : () {
+                            setState(_selectedTagIds.clear);
+                          },
+                    child: const Text('Clear all tags'),
+                  ),
+                  const Spacer(),
+                  FilledButton.icon(
+                    onPressed: _isCreatingTag
+                        ? null
+                        : () =>
+                            Navigator.of(context).pop(_orderedSelectedTagIds()),
+                    icon: const Icon(Icons.sell_rounded),
+                    label: const Text('Apply tags'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+final class _ManualQueueCard extends StatelessWidget {
+  const _ManualQueueCard({
+    required this.index,
+    required this.task,
+    required this.compactMode,
+    required this.highlightDropTarget,
+    required this.dragHandle,
+  });
+
+  final int index;
+  final TodoTask task;
+  final bool compactMode;
+  final bool highlightDropTarget;
+  final Widget dragHandle;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return EditorialSection(
+      backgroundColor: highlightDropTarget
+          ? theme.colorScheme.primaryContainer.withAlphaFraction(0.7)
+          : theme.editorialSurfaceColor,
+      leadingAccentColor: theme.colorScheme.primary.withAlphaFraction(
+        highlightDropTarget ? 0.92 : 0.55,
+      ),
+      padding: EdgeInsets.fromLTRB(
+        18,
+        compactMode ? 10 : 12,
+        18,
+        compactMode ? 10 : 12,
+      ),
+      child: Row(
+        children: <Widget>[
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest,
+              border: Border.all(
+                color: theme.colorScheme.outlineVariant.withAlphaFraction(0.82),
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Text(
+                '#${index + 1}',
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Text(
+                  task.title,
+                  maxLines: compactMode ? 1 : 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleMedium,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  task.priority.name.toUpperCase(),
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    letterSpacing: 0.7,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          dragHandle,
+        ],
+      ),
+    );
+  }
+}
+
+final class _ManualQueueHandle extends StatelessWidget {
+  const _ManualQueueHandle({
+    required this.label,
+    this.faded = false,
+    this.onVerticalDragStart,
+    this.onVerticalDragUpdate,
+    this.onVerticalDragEnd,
+  });
+
+  final String label;
+  final bool faded;
+  final GestureDragStartCallback? onVerticalDragStart;
+  final GestureDragUpdateCallback? onVerticalDragUpdate;
+  final GestureDragEndCallback? onVerticalDragEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Semantics(
+      button: true,
+      label: label,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onVerticalDragStart: onVerticalDragStart,
+        onVerticalDragUpdate: onVerticalDragUpdate,
+        onVerticalDragEnd: onVerticalDragEnd,
+        child: Opacity(
+          opacity: faded ? 0.34 : 1,
+          child: Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: theme.editorialChromeColor,
+              border: Border.all(
+                color: theme.colorScheme.outlineVariant.withAlphaFraction(0.82),
+              ),
+            ),
+            child: Icon(
+              Icons.drag_indicator_rounded,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -1325,14 +1891,12 @@ final class _DismissBackground extends StatelessWidget {
 
 final class _NavigationButton extends StatelessWidget {
   const _NavigationButton({
-    required this.targetKey,
     required this.icon,
     required this.label,
     required this.selected,
     required this.onPressed,
   });
 
-  final Key targetKey;
   final IconData icon;
   final String label;
   final bool selected;
@@ -1343,7 +1907,6 @@ final class _NavigationButton extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     return TextButton(
-      key: targetKey,
       onPressed: onPressed,
       style: TextButton.styleFrom(
         foregroundColor:

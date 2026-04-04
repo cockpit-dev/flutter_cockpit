@@ -85,7 +85,6 @@ final class TaskListItem extends StatelessWidget {
                         '${task.isCompleted ? 'Reopen' : 'Complete'} task ${task.title}',
                     checked: task.isCompleted,
                     child: Checkbox(
-                      key: ValueKey<String>('task-toggle-${task.id}'),
                       value: task.isCompleted,
                       onChanged: (value) => onToggleCompleted(value ?? false),
                     ),
@@ -99,7 +98,6 @@ final class TaskListItem extends StatelessWidget {
                         : 'Open task ${task.title}',
                     button: true,
                     child: InkWell(
-                      key: ValueKey<String>('task-open-${task.id}'),
                       onTap: onTap,
                       onLongPress: onLongPress,
                       onDoubleTap: onDoubleTap,
@@ -161,6 +159,20 @@ final class TaskListItem extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                               style: subtitleStyle,
                             ),
+                            if (task.tags.isNotEmpty) ...<Widget>[
+                              const SizedBox(height: 10),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: task.tags
+                                    .map(
+                                      (tag) => _TaskTagBadge(
+                                        label: tag.name,
+                                      ),
+                                    )
+                                    .toList(growable: false),
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -206,6 +218,37 @@ final class TaskListItem extends StatelessWidget {
     final month = date.month.toString().padLeft(2, '0');
     final day = date.day.toString().padLeft(2, '0');
     return '$month/$day';
+  }
+}
+
+final class _TaskTagBadge extends StatelessWidget {
+  const _TaskTagBadge({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest.withAlphaFraction(0.72),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withAlphaFraction(0.74),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        child: Text(
+          label,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: colorScheme.onSurfaceVariant,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.3,
+          ),
+        ),
+      ),
+    );
   }
 }
 

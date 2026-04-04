@@ -1,26 +1,36 @@
 import 'package:flutter/material.dart';
 
+import '../../model/todo_tag.dart';
 import '../theme/orbit_todo_theme.dart';
 
 final class TaskFilterBar extends StatelessWidget {
   const TaskFilterBar({
     required this.searchController,
     required this.highPriorityOnly,
+    required this.availableTags,
+    required this.selectedTagIds,
     required this.onSearchChanged,
     required this.onHighPriorityChanged,
+    required this.onTagToggle,
+    required this.onClearTagSelection,
     super.key,
   });
 
   final TextEditingController searchController;
   final bool highPriorityOnly;
+  final List<TodoTag> availableTags;
+  final Set<String> selectedTagIds;
   final ValueChanged<String> onSearchChanged;
   final ValueChanged<bool> onHighPriorityChanged;
+  final ValueChanged<String> onTagToggle;
+  final VoidCallback onClearTagSelection;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final narrow = MediaQuery.sizeOf(context).width < 560;
+    final hasTags = availableTags.isNotEmpty;
 
     final controls = <Widget>[
       ConstrainedBox(
@@ -46,7 +56,6 @@ final class TaskFilterBar extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: TextField(
-                  key: const ValueKey<String>('task-search-input'),
                   controller: searchController,
                   textInputAction: TextInputAction.search,
                   decoration: const InputDecoration(
@@ -65,7 +74,6 @@ final class TaskFilterBar extends StatelessWidget {
         ),
       ),
       _PriorityToggle(
-        key: const ValueKey<String>('filter-priority-high'),
         selected: highPriorityOnly,
         label: 'High priority only',
         onPressed: () => onHighPriorityChanged(!highPriorityOnly),
@@ -85,40 +93,81 @@ final class TaskFilterBar extends StatelessWidget {
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 14),
-        child: narrow
-            ? Column(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            if (narrow)
+              Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text(
-                    'Filters',
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.1,
-                    ),
-                  ),
+                  _FilterSectionLabel(colorScheme: colorScheme),
                   const SizedBox(height: 12),
                   ...controls.expand(
                     (widget) => <Widget>[widget, const SizedBox(height: 10)],
                   ),
                 ],
               )
-            : Row(
+            else
+              Row(
                 children: <Widget>[
-                  Text(
-                    'Filters',
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.1,
-                    ),
-                  ),
+                  _FilterSectionLabel(colorScheme: colorScheme),
                   const SizedBox(width: 18),
                   Expanded(child: controls.first),
                   const SizedBox(width: 12),
                   controls.last,
                 ],
               ),
+            if (hasTags) ...<Widget>[
+              const SizedBox(height: 14),
+              Text(
+                'Tags',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.0,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: <Widget>[
+                  FilterChip(
+                    label: const Text('Any tag'),
+                    selected: selectedTagIds.isEmpty,
+                    onSelected: (_) => onClearTagSelection(),
+                  ),
+                  ...availableTags.map(
+                    (tag) => FilterChip(
+                      selected: selectedTagIds.contains(tag.id),
+                      label: Text(tag.name),
+                      onSelected: (_) => onTagToggle(tag.id),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+final class _FilterSectionLabel extends StatelessWidget {
+  const _FilterSectionLabel({required this.colorScheme});
+
+  final ColorScheme colorScheme;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Text(
+      'Filters',
+      style: theme.textTheme.labelMedium?.copyWith(
+        color: colorScheme.onSurfaceVariant,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 1.1,
       ),
     );
   }
@@ -129,7 +178,6 @@ final class _PriorityToggle extends StatelessWidget {
     required this.selected,
     required this.label,
     required this.onPressed,
-    super.key,
   });
 
   final bool selected;

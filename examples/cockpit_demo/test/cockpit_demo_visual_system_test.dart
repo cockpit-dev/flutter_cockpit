@@ -28,10 +28,6 @@ void main() {
       final headlineMedium = materialApp.theme!.textTheme.headlineMedium;
 
       expect(headlineMedium?.fontFamily, isNotNull);
-      expect(
-        find.byKey(const ValueKey<String>('collection-overview-card')),
-        findsOneWidget,
-      );
       expect(find.text('INBOX'), findsOneWidget);
       expect(find.text('Work queue'), findsOneWidget);
       expect(
@@ -62,15 +58,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(
-        find.byKey(const ValueKey<String>('open-settings-button')),
-      );
+      await tester.tap(find.byTooltip('Settings'));
       await tester.pumpAndSettle();
 
-      expect(
-        find.byKey(const ValueKey<String>('settings-appearance-card')),
-        findsOneWidget,
-      );
       expect(find.byType(Card), findsNothing);
       expect(find.text('Appearance'), findsOneWidget);
       expect(find.text('Tune the workspace.'), findsOneWidget);
@@ -82,14 +72,6 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(
-        find.byKey(const ValueKey<String>('settings-workflow-card')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const ValueKey<String>('settings-delivery-card')),
-        findsOneWidget,
-      );
       expect(find.text('Workflow defaults'), findsOneWidget);
       expect(find.text('Storage and delivery'), findsOneWidget);
       expect(find.text('Use compact task rows'), findsOneWidget);

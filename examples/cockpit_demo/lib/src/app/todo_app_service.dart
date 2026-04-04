@@ -5,6 +5,7 @@ import '../data/todo_repository.dart';
 import '../model/todo_filter.dart';
 import '../model/todo_priority.dart';
 import '../model/todo_settings.dart';
+import '../model/todo_tag.dart';
 import '../model/todo_task.dart';
 import '../network/todo_sync_gateway.dart';
 import 'todo_editor_state.dart';
@@ -27,11 +28,17 @@ final class TodoAppService extends ChangeNotifier {
   TodoListState _listState = const TodoListState();
   TodoSettingsState _settingsState = const TodoSettingsState();
   TodoSyncState _syncState = const TodoSyncState();
+  List<TodoTag> _availableTags = const <TodoTag>[];
+  bool _isLoadingTags = false;
+  String? _tagsErrorMessage;
 
   TodoEditorState get editorState => _editorState;
   TodoListState get listState => _listState;
   TodoSettingsState get settingsState => _settingsState;
   TodoSyncState get syncState => _syncState;
+  List<TodoTag> get availableTags => _availableTags;
+  bool get isLoadingTags => _isLoadingTags;
+  String? get tagsErrorMessage => _tagsErrorMessage;
 
   @override
   void dispose() {
@@ -112,6 +119,43 @@ final class TodoAppService extends ChangeNotifier {
 
   Future<void> updateFilter(TodoFilter filter) {
     return loadTasks(filter);
+  }
+
+  Future<void> loadTags() async {
+    _isLoadingTags = true;
+    _tagsErrorMessage = null;
+    _notifyListenersIfActive();
+
+    try {
+      final tags = await _repository.fetchTags();
+      if (_isDisposed) {
+        return;
+      }
+      _availableTags = List<TodoTag>.unmodifiable(tags);
+      _tagsErrorMessage = null;
+    } on Object catch (error) {
+      if (_isDisposed) {
+        return;
+      }
+      _tagsErrorMessage = _errorMessage(error);
+    } finally {
+      if (!_isDisposed) {
+        _isLoadingTags = false;
+        _notifyListenersIfActive();
+      }
+    }
+  }
+
+  Future<TodoTag> createTag({required String name, String? colorHex}) async {
+    final createdTag = await _repository.createTag(
+      name: name,
+      colorHex: colorHex,
+    );
+    if (_isDisposed) {
+      return createdTag;
+    }
+    await loadTags();
+    return createdTag;
   }
 
   Future<void> setTaskCompleted({
@@ -321,6 +365,89 @@ final class TodoAppService extends ChangeNotifier {
       _notifyListenersIfActive();
       return false;
     }
+  }
+
+  Future<bool> updateTasksDueDate({
+    required List<String> taskIds,
+    required DateTime? dueAt,
+  }) async {
+    final normalizedIds = taskIds.toSet().toList(growable: false);
+    if (normalizedIds.isEmpty) {
+      return false;
+    }
+
+    try {
+      await _repository.updateTasksDueDate(
+        taskIds: normalizedIds,
+        dueAt: dueAt,
+      );
+      if (_isDisposed) {
+        return false;
+      }
+      await loadTasks();
+      return true;
+    } on Object catch (error) {
+      if (_isDisposed) {
+        return false;
+      }
+      _listState = _listState.copyWith(
+        errorMessage: () => _errorMessage(error),
+      );
+      _notifyListenersIfActive();
+      return false;
+    }
+  }
+
+  Future<bool> updateTasksTags({
+    required List<String> taskIds,
+    required List<String> tagIds,
+  }) async {
+    final normalizedIds = taskIds.toSet().toList(growable: false);
+    if (normalizedIds.isEmpty) {
+      return false;
+    }
+
+    try {
+      await _repository.updateTasksTags(
+        taskIds: normalizedIds,
+        tagIds: tagIds,
+      );
+      if (_isDisposed) {
+        return false;
+      }
+      await loadTasks();
+      return true;
+    } on Object catch (error) {
+      if (_isDisposed) {
+        return false;
+      }
+      _listState = _listState.copyWith(
+        errorMessage: () => _errorMessage(error),
+      );
+      _notifyListenersIfActive();
+      return false;
+    }
+  }
+
+  Future<TodoTask> createFollowUpTask({
+    required String sourceTaskId,
+    required String title,
+    required bool carryNotes,
+    required bool carryTags,
+    DateTime? dueAt,
+  }) async {
+    final followUp = await _repository.createFollowUpTask(
+      sourceTaskId: sourceTaskId,
+      title: title,
+      carryNotes: carryNotes,
+      carryTags: carryTags,
+      dueAt: dueAt,
+    );
+    if (_isDisposed) {
+      return followUp;
+    }
+    await loadTasks(_listState.filter, followUp.id);
+    return followUp;
   }
 
   Future<void> reorderTasks({

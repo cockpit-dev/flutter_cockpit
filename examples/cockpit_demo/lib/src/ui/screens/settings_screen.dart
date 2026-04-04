@@ -101,7 +101,7 @@ final class _SettingsScreenState extends State<SettingsScreen> {
               padding: const EdgeInsets.fromLTRB(20, 18, 20, 120),
               children: <Widget>[
                 EditorialSection(
-                  padding: const EdgeInsets.fromLTRB(0, 26, 0, 26),
+                  padding: const EdgeInsets.fromLTRB(18, 26, 18, 26),
                   backgroundColor: theme.editorialMutedSurfaceColor,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -131,8 +131,7 @@ final class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const SizedBox(height: 24),
                 EditorialSection(
-                  key: const ValueKey<String>('settings-appearance-card'),
-                  padding: const EdgeInsets.fromLTRB(0, 22, 0, 22),
+                  padding: const EdgeInsets.fromLTRB(18, 22, 18, 22),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
@@ -158,9 +157,6 @@ final class _SettingsScreenState extends State<SettingsScreen> {
                       Column(
                         children: <Widget>[
                           _ThemeModeOptionTile(
-                            controlKey: const ValueKey<String>(
-                              'theme-system-option',
-                            ),
                             label: 'Follow system',
                             selected:
                                 _themePreference == TodoThemePreference.system,
@@ -171,9 +167,6 @@ final class _SettingsScreenState extends State<SettingsScreen> {
                             },
                           ),
                           _ThemeModeOptionTile(
-                            controlKey: const ValueKey<String>(
-                              'theme-light-option',
-                            ),
                             label: 'Light',
                             selected:
                                 _themePreference == TodoThemePreference.light,
@@ -184,9 +177,6 @@ final class _SettingsScreenState extends State<SettingsScreen> {
                             },
                           ),
                           _ThemeModeOptionTile(
-                            controlKey: const ValueKey<String>(
-                              'theme-dark-option',
-                            ),
                             label: 'Dark',
                             selected:
                                 _themePreference == TodoThemePreference.dark,
@@ -203,8 +193,7 @@ final class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const SizedBox(height: 24),
                 EditorialSection(
-                  key: const ValueKey<String>('settings-workflow-card'),
-                  padding: const EdgeInsets.fromLTRB(0, 22, 0, 22),
+                  padding: const EdgeInsets.fromLTRB(18, 22, 18, 22),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
@@ -229,7 +218,6 @@ final class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       const SizedBox(height: 18),
                       DropdownButtonFormField<TodoSortMode>(
-                        key: const ValueKey<String>('sort-mode-dropdown'),
                         // ignore: deprecated_member_use
                         value: _sortMode,
                         decoration: const InputDecoration(
@@ -253,9 +241,6 @@ final class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       const SizedBox(height: 18),
                       _SettingsToggleRow(
-                        controlKey: const ValueKey<String>(
-                          'show-completed-switch',
-                        ),
                         title: 'Keep completed tasks visible in Inbox',
                         value: _showCompletedInInbox,
                         onChanged: (value) {
@@ -265,9 +250,6 @@ final class _SettingsScreenState extends State<SettingsScreen> {
                         },
                       ),
                       _SettingsToggleRow(
-                        controlKey: const ValueKey<String>(
-                          'compact-mode-switch',
-                        ),
                         title: 'Use compact task rows',
                         value: _compactMode,
                         onChanged: (value) {
@@ -281,8 +263,7 @@ final class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const SizedBox(height: 24),
                 EditorialSection(
-                  key: const ValueKey<String>('settings-delivery-card'),
-                  padding: const EdgeInsets.fromLTRB(0, 22, 0, 22),
+                  padding: const EdgeInsets.fromLTRB(18, 22, 18, 22),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
@@ -317,9 +298,6 @@ final class _SettingsScreenState extends State<SettingsScreen> {
                               children: <Widget>[
                                 Text(
                                   syncState.headline,
-                                  key: const ValueKey<String>(
-                                    'settings-sync-status-heading',
-                                  ),
                                   style: theme.textTheme.titleMedium?.copyWith(
                                     fontWeight: FontWeight.w800,
                                   ),
@@ -349,9 +327,6 @@ final class _SettingsScreenState extends State<SettingsScreen> {
                                   Padding(
                                     padding: const EdgeInsets.only(top: 12),
                                     child: Column(
-                                      key: const ValueKey<String>(
-                                        'settings-sync-last-success',
-                                      ),
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: <Widget>[
@@ -397,9 +372,6 @@ final class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                           const SizedBox(width: 16),
                           FilledButton.tonal(
-                            key: const ValueKey<String>(
-                              'settings-sync-check-button',
-                            ),
                             onPressed: syncState.isChecking
                                 ? null
                                 : widget.service.runSyncHealthCheck,
@@ -412,9 +384,6 @@ final class _SettingsScreenState extends State<SettingsScreen> {
                         Align(
                           alignment: Alignment.centerRight,
                           child: TextButton(
-                            key: const ValueKey<String>(
-                              'settings-sync-reset-button',
-                            ),
                             onPressed: widget.service.resetSyncRelayState,
                             child: const Text('Reset relay state'),
                           ),
@@ -422,9 +391,6 @@ final class _SettingsScreenState extends State<SettingsScreen> {
                       ],
                       const SizedBox(height: 18),
                       _SettingsToggleRow(
-                        controlKey: const ValueKey<String>(
-                          'simulate-relay-failure-switch',
-                        ),
                         title: 'Simulate relay outage',
                         value: syncState.simulateFailure,
                         onChanged: widget.service.setSimulateRelayFailure,
@@ -475,8 +441,7 @@ final class _SettingsScreenState extends State<SettingsScreen> {
                 if (kDebugMode) ...<Widget>[
                   const SizedBox(height: 24),
                   EditorialSection(
-                    key: const ValueKey<String>('settings-diagnostics-card'),
-                    padding: const EdgeInsets.fromLTRB(0, 22, 0, 22),
+                    padding: const EdgeInsets.fromLTRB(18, 22, 18, 22),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
@@ -504,9 +469,6 @@ final class _SettingsScreenState extends State<SettingsScreen> {
                           children: <Widget>[
                             Expanded(
                               child: FilledButton.tonal(
-                                key: const ValueKey<String>(
-                                  'settings-debug-log-button',
-                                ),
                                 onPressed: _emitDebugLog,
                                 child: const Text('Emit debug log'),
                               ),
@@ -514,9 +476,6 @@ final class _SettingsScreenState extends State<SettingsScreen> {
                             const SizedBox(width: 12),
                             Expanded(
                               child: FilledButton.tonal(
-                                key: const ValueKey<String>(
-                                  'settings-runtime-error-button',
-                                ),
                                 onPressed: _emitRuntimeError,
                                 child: const Text('Trigger runtime error'),
                               ),
@@ -534,7 +493,6 @@ final class _SettingsScreenState extends State<SettingsScreen> {
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
               child: FilledButton.icon(
-                key: const ValueKey<String>('settings-save-button'),
                 onPressed: _save,
                 icon: const Icon(Icons.save_outlined),
                 label: const Text('Save settings'),
@@ -590,13 +548,11 @@ final class _SettingsLedgerRow extends StatelessWidget {
 
 final class _ThemeModeOptionTile extends StatelessWidget {
   const _ThemeModeOptionTile({
-    required this.controlKey,
     required this.label,
     required this.selected,
     required this.onTap,
   });
 
-  final Key controlKey;
   final String label;
   final bool selected;
   final VoidCallback onTap;
@@ -608,7 +564,6 @@ final class _ThemeModeOptionTile extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: InkWell(
-        key: controlKey,
         onTap: onTap,
         child: DecoratedBox(
           decoration: BoxDecoration(
@@ -665,13 +620,11 @@ final class _ThemeModeOptionTile extends StatelessWidget {
 
 final class _SettingsToggleRow extends StatelessWidget {
   const _SettingsToggleRow({
-    required this.controlKey,
     required this.title,
     required this.value,
     required this.onChanged,
   });
 
-  final Key controlKey;
   final String title;
   final bool value;
   final ValueChanged<bool> onChanged;
@@ -683,7 +636,6 @@ final class _SettingsToggleRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: InkWell(
-        key: controlKey,
         onTap: () => onChanged(!value),
         child: DecoratedBox(
           decoration: BoxDecoration(

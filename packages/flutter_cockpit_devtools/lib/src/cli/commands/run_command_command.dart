@@ -93,7 +93,7 @@ final class RunCommandCommand extends CockpitCliCommand {
         resultProfile: cockpitReadResultProfile(argResults),
         defaultCommandTimeout: Duration(
           milliseconds:
-              cockpitReadOptionalInt(argResults, 'timeout-ms') ?? 4000,
+              cockpitReadOptionalInt(argResults, 'timeout-ms') ?? 30000,
         ),
         snapshotOptions: snapshotOptionsJson == null
             ? null

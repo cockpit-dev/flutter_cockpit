@@ -2,6 +2,8 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_cockpit/flutter_cockpit_flutter.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:cockpit_demo/src/data/cockpit_demo_database.dart';
+import 'package:cockpit_demo/src/data/todo_repository.dart';
+import 'package:cockpit_demo/src/model/todo_filter.dart';
 import 'package:cockpit_demo/src/cockpit_demo_app.dart';
 
 import 'support/cockpit_demo_test_support.dart';
@@ -284,7 +286,7 @@ void main() {
         registry
             .resolve(
               const CockpitLocator(
-                key: 'fab-add-task',
+                text: 'New task',
               ),
             )
             .isSuccess,
@@ -295,12 +297,16 @@ void main() {
         commandId: 'cmd-open-editor',
         commandType: CockpitCommandType.tap,
         locator: const CockpitLocator(
-          key: 'fab-add-task',
+          text: 'New task',
         ),
       );
+      final openEditorResult =
+          await executorForCurrentRoute().execute(openEditorCommand);
+      expect(openEditorResult.success, isTrue,
+          reason: openEditorResult.error?.message);
       controller.recordCommandResult(
         openEditorCommand,
-        await executorForCurrentRoute().execute(openEditorCommand),
+        openEditorResult,
       );
       await tester.pumpAndSettle();
 
@@ -308,41 +314,47 @@ void main() {
         commandId: 'cmd-enter-title',
         commandType: CockpitCommandType.enterText,
         locator: const CockpitLocator(
-          key: 'task-title-input',
+          type: 'TextField',
         ),
         parameters: const <String, Object?>{'text': 'Review diagnostics'},
       );
+      final enterTitleResult =
+          await executorForCurrentRoute().execute(enterTitleCommand);
+      expect(enterTitleResult.success, isTrue,
+          reason: enterTitleResult.error?.message);
       controller.recordCommandResult(
         enterTitleCommand,
-        await executorForCurrentRoute().execute(enterTitleCommand),
+        enterTitleResult,
       );
       await tester.pumpAndSettle();
 
       final saveTaskCommand = CockpitCommand(
         commandId: 'cmd-save-task',
         commandType: CockpitCommandType.tap,
-        locator: const CockpitLocator(
-          key: 'task-save-button',
-        ),
+        locator: const CockpitLocator(text: 'Save task'),
       );
+      final saveTaskResult =
+          await executorForCurrentRoute().execute(saveTaskCommand);
+      expect(saveTaskResult.success, isTrue,
+          reason: saveTaskResult.error?.message);
       controller.recordCommandResult(
         saveTaskCommand,
-        await executorForCurrentRoute().execute(saveTaskCommand),
+        saveTaskResult,
       );
       await tester.pumpAndSettle();
+      await settleAfterTaskSave(tester);
 
       final createdTasks = await database.select(database.tasks).get();
       final createdTask = createdTasks.single;
-      final taskOpenKey = 'task-open-${createdTask.id}';
 
       final revealTaskCommand = CockpitCommand(
         commandId: 'cmd-scroll-to-task',
         commandType: CockpitCommandType.scrollUntilVisible,
         locator: CockpitLocator(
-          key: taskOpenKey,
+          text: createdTask.title,
+          type: 'InkWell',
         ),
         parameters: const <String, Object?>{
-          'scrollableKey': 'todo-collection-scroll',
           'maxScrolls': 8,
           'viewportFraction': 0.72,
         },
@@ -357,7 +369,8 @@ void main() {
         commandId: 'cmd-assert-task-visible',
         commandType: CockpitCommandType.assertVisible,
         locator: CockpitLocator(
-          key: taskOpenKey,
+          text: createdTask.title,
+          type: 'InkWell',
         ),
       );
       controller.recordCommandResult(
@@ -365,7 +378,7 @@ void main() {
         await executorForCurrentRoute().execute(assertTaskVisibleCommand),
       );
 
-      expect(find.byKey(ValueKey<String>(taskOpenKey)), findsOneWidget);
+      expect(taskRowByTitle(createdTask.title), findsOneWidget);
 
       final bundle = controller.finish(
         environment: const CockpitEnvironment(
@@ -394,6 +407,314 @@ void main() {
           CockpitCommandType.scrollUntilVisible,
           CockpitCommandType.assertVisible,
         ],
+      );
+    },
+  );
+
+  testWidgets(
+    'creates a follow-up task through the in-app executor with label-based input targeting',
+    (tester) async {
+      final controller = CockpitSessionController(
+        sessionId: 'follow-up-capture-session',
+        taskId: 'follow-up-capture-task',
+        platform: 'android',
+      );
+      final registry = CockpitTargetRegistry(routeName: '/inbox');
+      final database = CockpitDemoDatabase.inMemory();
+      addCockpitDemoDatabaseTearDown(tester, database);
+      final repository = TodoRepository(database);
+      final sourceTask = await repository.createTask(
+        title: 'Verify relay tracing',
+        notes: 'Carry the backend context forward.',
+      );
+
+      await tester.pumpWidget(
+        CockpitDemoApp(
+          configuration: FlutterCockpitConfiguration(
+            sessionController: controller,
+            registry: registry,
+          ),
+          database: database,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      InAppCockpitCommandExecutor executorForCurrentRoute() {
+        final surfaceState = tester.state<CockpitSurfaceState>(
+          find.byType(CockpitSurface),
+        );
+        return InAppCockpitCommandExecutor(
+          registry: registry,
+          snapshotProvider: surfaceState.snapshot,
+          waitTickHandler: tester.pump,
+          scrollStepHandler: ({
+            required reverse,
+            required viewportFraction,
+            scrollableKey,
+            targetLocator,
+            scrollableLocator,
+            required duration,
+            required gestureProfile,
+            required continuous,
+            required postScrollEnsureVisible,
+          }) {
+            return surfaceState.scrollByViewport(
+              reverse: reverse,
+              viewportFraction: viewportFraction,
+              scrollableKey: scrollableKey,
+              targetLocator: targetLocator,
+              scrollableLocator: scrollableLocator,
+              duration: duration,
+              gestureProfile: gestureProfile,
+              continuous: continuous,
+              postScrollEnsureVisible: postScrollEnsureVisible,
+            );
+          },
+        );
+      }
+
+      final openTaskCommand = CockpitCommand(
+        commandId: 'cmd-open-source-task',
+        commandType: CockpitCommandType.tap,
+        locator: CockpitLocator(
+          text: sourceTask.title,
+          type: 'InkWell',
+        ),
+      );
+      final openTaskResult =
+          await executorForCurrentRoute().execute(openTaskCommand);
+      expect(openTaskResult.success, isTrue,
+          reason: openTaskResult.error?.message);
+      controller.recordCommandResult(openTaskCommand, openTaskResult);
+      await tester.pumpAndSettle();
+
+      final openFollowUpSheetCommand = CockpitCommand(
+        commandId: 'cmd-open-follow-up-sheet',
+        commandType: CockpitCommandType.tap,
+        locator: const CockpitLocator(
+          tooltip: 'Create follow-up',
+        ),
+      );
+      final openFollowUpSheetResult =
+          await executorForCurrentRoute().execute(openFollowUpSheetCommand);
+      expect(
+        openFollowUpSheetResult.success,
+        isTrue,
+        reason: openFollowUpSheetResult.error?.message,
+      );
+      controller.recordCommandResult(
+        openFollowUpSheetCommand,
+        openFollowUpSheetResult,
+      );
+      await tester.pumpAndSettle();
+
+      final enterTitleCommand = CockpitCommand(
+        commandId: 'cmd-enter-follow-up-title',
+        commandType: CockpitCommandType.enterText,
+        locator: const CockpitLocator(
+          text: 'Follow-up title',
+          type: 'TextField',
+        ),
+        parameters: const <String, Object?>{
+          'text': 'Verify relay tracing follow-up',
+        },
+      );
+      final enterTitleResult =
+          await executorForCurrentRoute().execute(enterTitleCommand);
+      expect(
+        enterTitleResult.success,
+        isTrue,
+        reason: enterTitleResult.error?.message,
+      );
+      controller.recordCommandResult(enterTitleCommand, enterTitleResult);
+      await tester.pumpAndSettle();
+
+      final createFollowUpCommand = CockpitCommand(
+        commandId: 'cmd-create-follow-up',
+        commandType: CockpitCommandType.tap,
+        locator: const CockpitLocator(
+          text: 'Create follow-up',
+        ),
+      );
+      final createFollowUpResult =
+          await executorForCurrentRoute().execute(createFollowUpCommand);
+      expect(
+        createFollowUpResult.success,
+        isTrue,
+        reason: createFollowUpResult.error?.message,
+      );
+      controller.recordCommandResult(
+        createFollowUpCommand,
+        createFollowUpResult,
+      );
+      await tester.pumpAndSettle();
+      await settleAfterTaskSave(tester);
+
+      expect(find.text('Verify relay tracing follow-up'), findsWidgets);
+      final tasks = await repository.fetchTasks(const TodoFilter.inbox());
+      expect(
+        tasks.any((task) => task.title == 'Verify relay tracing follow-up'),
+        isTrue,
+      );
+    },
+  );
+
+  testWidgets(
+    'creates and applies a shared batch tag through the in-app executor',
+    (tester) async {
+      final controller = CockpitSessionController(
+        sessionId: 'batch-tag-capture-session',
+        taskId: 'batch-tag-capture-task',
+        platform: 'android',
+      );
+      final registry = CockpitTargetRegistry(routeName: '/inbox');
+      final database = CockpitDemoDatabase.inMemory();
+      addCockpitDemoDatabaseTearDown(tester, database);
+      final repository = TodoRepository(database);
+      final first = await repository.createTask(title: 'Tag first');
+      final second = await repository.createTask(title: 'Tag second');
+
+      await tester.pumpWidget(
+        CockpitDemoApp(
+          configuration: FlutterCockpitConfiguration(
+            sessionController: controller,
+            registry: registry,
+          ),
+          database: database,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      InAppCockpitCommandExecutor executorForCurrentRoute() {
+        final surfaceState = tester.state<CockpitSurfaceState>(
+          find.byType(CockpitSurface),
+        );
+        return InAppCockpitCommandExecutor(
+          registry: registry,
+          snapshotProvider: surfaceState.snapshot,
+          waitTickHandler: tester.pump,
+          scrollStepHandler: ({
+            required reverse,
+            required viewportFraction,
+            scrollableKey,
+            targetLocator,
+            scrollableLocator,
+            required duration,
+            required gestureProfile,
+            required continuous,
+            required postScrollEnsureVisible,
+          }) {
+            return surfaceState.scrollByViewport(
+              reverse: reverse,
+              viewportFraction: viewportFraction,
+              scrollableKey: scrollableKey,
+              targetLocator: targetLocator,
+              scrollableLocator: scrollableLocator,
+              duration: duration,
+              gestureProfile: gestureProfile,
+              continuous: continuous,
+              postScrollEnsureVisible: postScrollEnsureVisible,
+            );
+          },
+        );
+      }
+
+      final selectFirstCommand = CockpitCommand(
+        commandId: 'cmd-select-first-task',
+        commandType: CockpitCommandType.longPress,
+        locator: CockpitLocator(
+          text: first.title,
+          type: 'InkWell',
+        ),
+      );
+      final selectFirstResult =
+          await executorForCurrentRoute().execute(selectFirstCommand);
+      expect(selectFirstResult.success, isTrue,
+          reason: selectFirstResult.error?.message);
+      controller.recordCommandResult(selectFirstCommand, selectFirstResult);
+      await tester.pumpAndSettle();
+
+      final selectAllCommand = CockpitCommand(
+        commandId: 'cmd-select-all-results',
+        commandType: CockpitCommandType.tap,
+        locator: const CockpitLocator(
+          text: 'All results',
+        ),
+      );
+      final selectAllResult =
+          await executorForCurrentRoute().execute(selectAllCommand);
+      expect(selectAllResult.success, isTrue,
+          reason: selectAllResult.error?.message);
+      controller.recordCommandResult(selectAllCommand, selectAllResult);
+      await tester.pumpAndSettle();
+
+      final openTagsCommand = CockpitCommand(
+        commandId: 'cmd-open-batch-tags',
+        commandType: CockpitCommandType.tap,
+        locator: const CockpitLocator(
+          text: 'Tags',
+          type: 'OutlinedButton',
+        ),
+      );
+      final openTagsResult =
+          await executorForCurrentRoute().execute(openTagsCommand);
+      expect(openTagsResult.success, isTrue,
+          reason: openTagsResult.error?.message);
+      controller.recordCommandResult(openTagsCommand, openTagsResult);
+      await tester.pumpAndSettle();
+
+      final enterTagNameCommand = CockpitCommand(
+        commandId: 'cmd-enter-tag-name',
+        commandType: CockpitCommandType.enterText,
+        locator: const CockpitLocator(
+          text: 'New tag',
+          type: 'TextField',
+        ),
+        parameters: const <String, Object?>{
+          'text': 'Ops',
+        },
+      );
+      final enterTagNameResult =
+          await executorForCurrentRoute().execute(enterTagNameCommand);
+      expect(enterTagNameResult.success, isTrue,
+          reason: enterTagNameResult.error?.message);
+      controller.recordCommandResult(enterTagNameCommand, enterTagNameResult);
+      await tester.pumpAndSettle();
+
+      final createTagCommand = CockpitCommand(
+        commandId: 'cmd-create-batch-tag',
+        commandType: CockpitCommandType.tap,
+        locator: const CockpitLocator(
+          text: 'Create tag',
+        ),
+      );
+      final createTagResult =
+          await executorForCurrentRoute().execute(createTagCommand);
+      expect(createTagResult.success, isTrue,
+          reason: createTagResult.error?.message);
+      controller.recordCommandResult(createTagCommand, createTagResult);
+      await tester.pumpAndSettle();
+
+      final applyTagsCommand = CockpitCommand(
+        commandId: 'cmd-apply-batch-tags',
+        commandType: CockpitCommandType.tap,
+        locator: const CockpitLocator(
+          text: 'Apply tags',
+        ),
+      );
+      final applyTagsResult =
+          await executorForCurrentRoute().execute(applyTagsCommand);
+      expect(applyTagsResult.success, isTrue,
+          reason: applyTagsResult.error?.message);
+      controller.recordCommandResult(applyTagsCommand, applyTagsResult);
+      await tester.pumpAndSettle();
+
+      final tasks = await repository.fetchTasks(const TodoFilter.inbox());
+      expect(
+        tasks
+            .where((task) => task.id == first.id || task.id == second.id)
+            .every((task) => task.tags.map((tag) => tag.name).contains('Ops')),
+        isTrue,
       );
     },
   );

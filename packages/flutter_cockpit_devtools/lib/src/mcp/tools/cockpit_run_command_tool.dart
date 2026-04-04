@@ -53,7 +53,7 @@ final class CockpitRunCommandTool extends CockpitMcpTool {
           ),
           defaultCommandTimeout: Duration(
             milliseconds:
-                cockpitReadOptionalInt(arguments, 'timeoutMs') ?? 4000,
+                cockpitReadOptionalInt(arguments, 'timeoutMs') ?? 30000,
           ),
           resultProfile: _readProfile(arguments),
           snapshotOptions: _readOptionalSnapshotOptions(arguments),

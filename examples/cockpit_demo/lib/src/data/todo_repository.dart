@@ -54,6 +54,24 @@ abstract interface class TodoRepositoryClient {
     required TodoPriority priority,
   });
 
+  Future<List<TodoTask>> updateTasksDueDate({
+    required List<String> taskIds,
+    required DateTime? dueAt,
+  });
+
+  Future<List<TodoTask>> updateTasksTags({
+    required List<String> taskIds,
+    required List<String> tagIds,
+  });
+
+  Future<TodoTask> createFollowUpTask({
+    required String sourceTaskId,
+    required String title,
+    required bool carryNotes,
+    required bool carryTags,
+    DateTime? dueAt,
+  });
+
   Future<void> reorderTasks(List<String> orderedTaskIds);
 
   Future<TodoTask?> getTask(String taskId);
@@ -283,6 +301,73 @@ final class TodoRepository implements TodoRepositoryClient {
       ),
     );
     return _fetchTasksByIds(normalizedIds);
+  }
+
+  @override
+  Future<List<TodoTask>> updateTasksDueDate({
+    required List<String> taskIds,
+    required DateTime? dueAt,
+  }) async {
+    final normalizedIds = taskIds.toSet().toList(growable: false);
+    if (normalizedIds.isEmpty) {
+      return const <TodoTask>[];
+    }
+    final now = DateTime.now().toUtc();
+    await (_database.update(
+      _database.tasks,
+    )..where((table) => table.id.isIn(normalizedIds)))
+        .write(
+      TasksCompanion(
+        dueAtEpochMs: Value(dueAt?.toUtc().millisecondsSinceEpoch),
+        updatedAtEpochMs: Value(now.millisecondsSinceEpoch),
+      ),
+    );
+    return _fetchTasksByIds(normalizedIds);
+  }
+
+  @override
+  Future<List<TodoTask>> updateTasksTags({
+    required List<String> taskIds,
+    required List<String> tagIds,
+  }) async {
+    final normalizedIds = taskIds.toSet().toList(growable: false);
+    if (normalizedIds.isEmpty) {
+      return const <TodoTask>[];
+    }
+    final now = DateTime.now().toUtc();
+    await (_database.update(
+      _database.tasks,
+    )..where((table) => table.id.isIn(normalizedIds)))
+        .write(
+      TasksCompanion(
+        tagIdsJson: Value(_encodeTagIds(tagIds)),
+        updatedAtEpochMs: Value(now.millisecondsSinceEpoch),
+      ),
+    );
+    return _fetchTasksByIds(normalizedIds);
+  }
+
+  @override
+  Future<TodoTask> createFollowUpTask({
+    required String sourceTaskId,
+    required String title,
+    required bool carryNotes,
+    required bool carryTags,
+    DateTime? dueAt,
+  }) async {
+    final sourceTask = await getTask(sourceTaskId);
+    if (sourceTask == null) {
+      throw StateError('Task $sourceTaskId no longer exists.');
+    }
+    return createTask(
+      title: title,
+      notes: carryNotes ? sourceTask.notes : '',
+      priority: sourceTask.priority,
+      dueAt: dueAt,
+      tagIds: carryTags
+          ? sourceTask.tags.map((tag) => tag.id).toList(growable: false)
+          : const <String>[],
+    );
   }
 
   @override

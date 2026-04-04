@@ -65,7 +65,7 @@ jq -n --arg text "Draft release checklist" '{
   commandId: "enter-title",
   commandType: "enterText",
   locator: {
-    key: "task-title-input",
+    type: "TextField",
     ancestor: {
       route: "/editor"
     }
@@ -89,7 +89,7 @@ jq -n '{
   commandId: "reveal-sync-card",
   commandType: "scrollUntilVisible",
   locator: {
-    key: "settings-sync-card",
+    text: "Acceptance bundles",
     ancestor: {
       route: "/settings"
     }
@@ -242,10 +242,25 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools serve-mcp
 - When `scrollUntilVisible` hits the wrong boundary first, it can recover by trying the opposite direction once. Keep explicit `reverse` for cases where you already know the target is above the current viewport.
 - After `hot-restart`, do not assume route and scroll position reset. Re-read route, then re-anchor or switch `reverse` if the target region is now above the viewport.
 - `enterText` success does not guarantee that `uiSummary.textPreviews` will echo the entered value. Prefer validating the next visible control, route change, or saved list state.
+- When a locator returns `ambiguousTarget`, prefer adding `index`, `ancestor`, or `type` before changing any app code.
 - `list_apps` is MCP-only; CLI discovery is `app.json`-first.
 - `run-script` exits non-zero when the written bundle status is `failed`.
 - Write command output to `--output-json` when a later AI step must read structured state.
 - Prefer the lowest-cost public surface: in shell agents, CLI + command files + `jq` usually costs fewer tokens than reopening large payloads in model context; in tool-calling hosts, MCP is fine.
+
+For short dependent flows, prefer `run-batch` so one request carries the whole ordered chain:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-batch \
+  --app-json /tmp/flutter_cockpit/app.json \
+  --commands-file /tmp/flutter_cockpit/commands.json \
+  --profile minimal \
+  --output-json /tmp/flutter_cockpit/run_batch_result.json
+
+jq '{summary, commandStatuses: [.results[] | {id: .command.commandId, success: .command.success}]}' \
+  /tmp/flutter_cockpit/run_batch_result.json
+```
 
 ## Pipe And jq Examples
 

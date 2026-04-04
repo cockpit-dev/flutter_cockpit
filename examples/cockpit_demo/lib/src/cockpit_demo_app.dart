@@ -47,7 +47,7 @@ final class CockpitDemoApp extends StatefulWidget {
 }
 
 final class _CockpitDemoAppState extends State<CockpitDemoApp> {
-  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+  final _AppNavigatorObserver _navigatorObserver = _AppNavigatorObserver();
   late final CockpitDemoDatabase _database =
       widget.database ?? CockpitDemoDatabase.local();
   late final TodoRepository _repository = TodoRepository(_database);
@@ -65,6 +65,7 @@ final class _CockpitDemoAppState extends State<CockpitDemoApp> {
   void initState() {
     super.initState();
     unawaited(_service.loadSettings());
+    unawaited(_service.loadTags());
   }
 
   @override
@@ -85,13 +86,13 @@ final class _CockpitDemoAppState extends State<CockpitDemoApp> {
         return FlutterCockpitApp(
           config: widget.cockpitConfig,
           child: MaterialApp(
-            navigatorKey: _navigatorKey,
             title: 'Orbit Todo',
             theme: _buildTheme(Brightness.light),
             darkTheme: _buildTheme(Brightness.dark),
             themeMode: _themeModeFor(_service.settingsState.settings),
             navigatorObservers: <NavigatorObserver>[
               FlutterCockpit.navigatorObserver,
+              _navigatorObserver,
             ],
             initialRoute: widget.initialRouteName,
             onGenerateRoute: _buildRoute,
@@ -153,7 +154,7 @@ final class _CockpitDemoAppState extends State<CockpitDemoApp> {
   }
 
   Future<String?> _openEditor() async {
-    final result = await _navigatorKey.currentState!.pushNamed('/editor');
+    final result = await _navigatorObserver.navigator!.pushNamed('/editor');
     if (result is String && result.isNotEmpty) {
       return result;
     }
@@ -161,16 +162,16 @@ final class _CockpitDemoAppState extends State<CockpitDemoApp> {
   }
 
   Future<TodoTask?> _editTask(TodoTask task) async {
-    await _navigatorKey.currentState!.pushNamed('/editor', arguments: task);
+    await _navigatorObserver.navigator!.pushNamed('/editor', arguments: task);
     return _repository.getTask(task.id);
   }
 
   Future<void> _openTask(TodoTask task) {
-    return _navigatorKey.currentState!.pushNamed('/detail', arguments: task);
+    return _navigatorObserver.navigator!.pushNamed('/detail', arguments: task);
   }
 
   Future<void> _openSettings() {
-    return _navigatorKey.currentState!.pushNamed('/settings');
+    return _navigatorObserver.navigator!.pushNamed('/settings');
   }
 
   void _navigateFromIndex(int index) {
@@ -182,7 +183,7 @@ final class _CockpitDemoAppState extends State<CockpitDemoApp> {
     if (FlutterCockpit.binding.currentRouteName.value == routeName) {
       return;
     }
-    _navigatorKey.currentState!.pushReplacementNamed(routeName);
+    _navigatorObserver.navigator!.pushReplacementNamed(routeName);
   }
 
   Future<Map<String, Object?>> _buildSyncProbePayload() async {
@@ -233,3 +234,5 @@ final class _CockpitDemoAppState extends State<CockpitDemoApp> {
     };
   }
 }
+
+final class _AppNavigatorObserver extends NavigatorObserver {}

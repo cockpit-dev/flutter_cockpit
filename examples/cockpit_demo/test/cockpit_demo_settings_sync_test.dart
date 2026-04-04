@@ -31,21 +31,15 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.scrollUntilVisible(
-        find.byKey(const ValueKey<String>('settings-sync-status-heading')),
+        find.text('Sync relay idle'),
         220,
         scrollable: find.byType(Scrollable).first,
       );
       await tester.pumpAndSettle();
 
-      expect(
-        find.byKey(const ValueKey<String>('settings-sync-status-heading')),
-        findsOneWidget,
-      );
       expect(find.text('Sync relay idle'), findsOneWidget);
-      expect(
-        find.byKey(const ValueKey<String>('settings-sync-check-button')),
-        findsOneWidget,
-      );
+      expect(find.text('Sync relay idle'), findsOneWidget);
+      expect(find.text('Run check'), findsOneWidget);
 
       await service.runSyncHealthCheck();
       await tester.pumpAndSettle();
@@ -54,18 +48,12 @@ void main() {
       expect(service.syncState.headline, 'Relay ready');
       expect(service.syncState.detail, contains('pending writes 0'));
 
-      await tester.ensureVisible(
-        find.byKey(const ValueKey<String>('simulate-relay-failure-switch')),
-      );
+      await tester.ensureVisible(find.text('Simulate relay outage'));
       await tester.pumpAndSettle();
-      await tester.tap(
-        find.byKey(const ValueKey<String>('simulate-relay-failure-switch')),
-      );
+      await tester.tap(find.text('Simulate relay outage'));
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(
-        find.byKey(const ValueKey<String>('settings-sync-check-button')),
-      );
+      await tester.ensureVisible(find.text('Run check'));
       await tester.pumpAndSettle();
       await service.runSyncHealthCheck();
       await tester.pumpAndSettle();
@@ -76,18 +64,12 @@ void main() {
       expect(find.text('Last successful check'), findsOneWidget);
       expect(find.textContaining('pending writes 0'), findsWidgets);
 
-      await tester.ensureVisible(
-        find.byKey(const ValueKey<String>('simulate-relay-failure-switch')),
-      );
+      await tester.ensureVisible(find.text('Simulate relay outage'));
       await tester.pumpAndSettle();
-      await tester.tap(
-        find.byKey(const ValueKey<String>('simulate-relay-failure-switch')),
-      );
+      await tester.tap(find.text('Simulate relay outage'));
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(
-        find.byKey(const ValueKey<String>('settings-sync-check-button')),
-      );
+      await tester.ensureVisible(find.text('Retry now'));
       await tester.pumpAndSettle();
       await service.runSyncHealthCheck();
       await tester.pumpAndSettle();
@@ -96,13 +78,9 @@ void main() {
       expect(service.syncState.headline, 'Relay ready');
       expect(find.text('Run check'), findsOneWidget);
 
-      await tester.ensureVisible(
-        find.byKey(const ValueKey<String>('settings-sync-reset-button')),
-      );
+      await tester.ensureVisible(find.text('Reset relay state'));
       await tester.pumpAndSettle();
-      await tester.tap(
-        find.byKey(const ValueKey<String>('settings-sync-reset-button')),
-      );
+      await tester.tap(find.text('Reset relay state'));
       await tester.pumpAndSettle();
 
       expect(service.syncState.status, TodoSyncStatus.idle);

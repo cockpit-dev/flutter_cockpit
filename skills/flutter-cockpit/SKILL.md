@@ -36,10 +36,13 @@ Do not use it for docs-only edits or static refactors with no runtime claim.
 
 ## Locator Guidance
 
-- Start with `key`, `text`, or `semanticId`.
+- Start with `text`, `tooltip`, or `semanticId`.
+- Use `key` only when the app already exposes a legitimate stable key for product reasons. Do not add automation-only keys or selectors to application code.
 - Add `route`, `type`, `path`, or nested `ancestor` only when ambiguity remains.
 - `path` is fuzzy. Segments such as `body`, `slivers`, and numeric indexes are ignored, so shorter structural paths are preferred over brittle full trees.
 - Use short ordered `fallbacks` instead of one over-constrained locator.
+- When repeated rows, focus banners, or mirrored cards reuse the same text, add `index` or a nearby `ancestor` before reaching for any lower-level signal.
+- For text inputs, do not assume the target text will equal the visible field label. If the field target is ambiguous, combine `type` with `ancestor` or a nearby section heading, then verify the downstream saved state instead of the raw input echo.
 - `scrollUntilVisible` probes between internal scroll segments and can stop early when a target becomes visible mid-search, so prefer one precise locator over manual repeated blind scroll commands.
 - If the current direction hits a scroll boundary first, `scrollUntilVisible` can recover by trying the opposite direction once. Use explicit `reverse` only when you already know the target region is above the current viewport.
 - On long settings pages, forms, or dashboards, reveal a stable section heading or card first, then target deeper controls inside that section. Jumping straight to a deeply nested off-screen control can overshoot or time out.
@@ -65,6 +68,7 @@ For the shortest edit -> reload -> verify loop, use the rapid loop reference ins
 
 - Prefer `minimal` or `standard` unless the current question is still ambiguous.
 - Prefer `read_app` and `inspect_ui` summaries before raw snapshot payloads.
+- Prefer `run_batch` over repeated `run_command` round-trips when the next few mutations are already known and must stay ordered.
 - Prefer `read_network` over snapshot diagnostics when the next question is only about requests, failures, or endpoint coverage.
 - For traffic verification, use `run_command` -> `wait_idle` -> `read_network` before escalating to heavier UI inspection.
 - Prefer bundle summaries and gate failures before opening large artifact files.

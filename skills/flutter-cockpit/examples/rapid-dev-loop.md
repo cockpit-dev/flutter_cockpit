@@ -34,7 +34,7 @@ Keep each cycle small:
 
 - Start with `minimal` when you only need route, app reachability, or a tiny state check.
 - Use `standard` when you need a small UI summary after an action.
-- `read-app --profile standard` gives counts and `textPreviews`, not a full locator inventory. Escalate to `inspect-ui` only when keys or semantic IDs are the missing fact.
+- `read-app --profile standard` gives counts and `textPreviews`, not a full locator inventory. Escalate to `inspect-ui` only when text, tooltip, semantic IDs, or path clues are still insufficient.
 - Use `inspect` when a locator is ambiguous, scrolling failed, or the UI changed in an unexpected way.
 - Use `read-network` when the missing fact is request traffic, endpoint coverage, or recent network failures.
 - For network questions, prefer `run-command` -> `wait-idle` -> `read-network` over a large snapshot read.
@@ -44,10 +44,13 @@ Keep each cycle small:
 
 - Prefer one `run-command` per decision point.
 - Use `run-batch` only for short deterministic sequences that do not need mid-step reasoning.
+- If the next 3-8 mutations are already obvious and order-dependent, prefer `run-batch` to amortize round-trips.
 - Prefer `read-network` over `inspect-ui` when the uncertainty is purely about HTTP traffic.
-- Prefer locator combinations like `key + text + ancestor.route` over long brittle paths.
+- Prefer locator combinations like `text + ancestor.route + type` over long brittle paths.
+- Use `key` only when the app already has a meaningful stable key. Do not add keys just to make automation pass.
 - Use fuzzy `path` only when semantic signals are insufficient.
 - Add `fallbacks` when the same intent can be reached through 2-3 stable signals.
+- When identical text appears in multiple visible regions, tighten the locator with `index` or a nearby `ancestor` instead of reaching for code changes.
 - `scrollUntilVisible` already probes between internal scroll segments, so try one precise locator before composing manual multi-scroll loops.
 - `scrollUntilVisible` can recover once in the opposite direction after it hits the wrong boundary, so only force `reverse` when you already know you started above or below the target region.
 - On long pages, first reveal a stable section heading or card, then target deeper controls inside that section.
@@ -115,7 +118,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   run-command \
   --app-json /tmp/flutter_cockpit/app.json \
   --profile standard \
-  --command-json '{"commandId":"open-today","commandType":"tap","locator":{"text":"Today","key":"nav-today","ancestor":{"route":"/inbox"}}}'
+  --command-json '{"commandId":"open-today","commandType":"tap","locator":{"text":"Today","type":"TextButton","ancestor":{"route":"/inbox"}}}'
 ```
 
 ```bash

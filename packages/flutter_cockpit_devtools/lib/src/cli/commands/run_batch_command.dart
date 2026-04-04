@@ -117,7 +117,7 @@ final class RunBatchCommand extends CockpitCliCommand {
         failFast: argResults?['fail-fast'] as bool? ?? true,
         defaultCommandTimeout: Duration(
           milliseconds:
-              cockpitReadOptionalInt(argResults, 'default-timeout-ms') ?? 4000,
+              cockpitReadOptionalInt(argResults, 'default-timeout-ms') ?? 30000,
         ),
         recording: recordingJson == null
             ? null

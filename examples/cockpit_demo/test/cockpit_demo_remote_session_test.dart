@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/widgets.dart';
 import 'package:flutter_cockpit/flutter_cockpit_flutter.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:cockpit_demo/src/data/cockpit_demo_database.dart';
@@ -66,13 +65,13 @@ void main() {
     expect(health.snapshot.diagnosticLevel, CockpitSnapshotProfile.live);
     expect(
       health.snapshot.visibleTargets.any(
-        (target) => target.keyValue == 'fab-add-task',
+        (target) => target.text == 'New task',
       ),
       isTrue,
     );
     expect(
       health.snapshot.visibleTargets.any(
-        (target) => target.keyValue == 'nav-completed',
+        (target) => target.text == 'Completed',
       ),
       isTrue,
     );
@@ -83,13 +82,13 @@ void main() {
     expect(investigateSnapshot.routeName, '/inbox');
     expect(
       investigateSnapshot.visibleTargets.any(
-        (target) => target.keyValue == 'fab-add-task',
+        (target) => target.text == 'New task',
       ),
       isTrue,
     );
     expect(
       investigateSnapshot.visibleTargets.any(
-        (target) => target.keyValue == 'nav-completed',
+        (target) => target.text == 'Completed',
       ),
       isTrue,
     );
@@ -157,7 +156,7 @@ void main() {
       );
       await scrollTodoCollectionUntilVisible(
         tester,
-        find.byKey(ValueKey<String>('task-open-${task.id}')),
+        taskRowByTitle(task.title),
       );
 
       final snapshotJson = await tester.runAsync(() async {
@@ -228,9 +227,7 @@ void main() {
       final task = createdTasks.singleWhere(
         (candidate) => candidate.title == 'Inspect typography',
       );
-      final taskOpenFinder = find.byKey(
-        ValueKey<String>('task-open-${task.id}'),
-      );
+      final taskOpenFinder = taskRowByTitle(task.title);
       await scrollTodoCollectionUntilVisible(tester, taskOpenFinder);
       await tester.tap(taskOpenFinder);
       await settleSingleTapGesture(tester);
@@ -342,7 +339,7 @@ void main() {
     final secondTask = await repository.createTask(
       title: 'Remote double tap completion',
     );
-    final thirdTask = await repository.createTask(
+    await repository.createTask(
       title: 'Remote delayed reorder',
     );
 
@@ -404,99 +401,53 @@ void main() {
 
     await scrollTodoCollectionUntilVisible(
       tester,
-      find.byKey(ValueKey<String>('task-open-${firstTask.id}')),
+      taskRowByTitle(firstTask.title),
     );
     final longPressResponse = await executeRemote(
       CockpitCommand(
         commandId: 'remote-long-press-selection',
         commandType: CockpitCommandType.longPress,
         locator: CockpitLocator(
-          key: 'task-open-${firstTask.id}',
+          semanticId: 'Open task ${firstTask.title}',
+          ancestor: const CockpitLocator(route: '/inbox'),
         ),
       ),
     );
     expect(longPressResponse.result.success, isTrue);
     await settleUi('remote long press');
-    expect(
-      find.byKey(const ValueKey<String>('selection-mode-banner')),
-      findsOneWidget,
-    );
+    expect(find.text('1 selected'), findsOneWidget);
 
     final clearSelectionResponse = await executeRemote(
       CockpitCommand(
         commandId: 'remote-clear-selection',
         commandType: CockpitCommandType.tap,
-        locator: CockpitLocator(
-          key: 'selection-clear-button',
+        locator: const CockpitLocator(
+          tooltip: 'Clear selection',
+          ancestor: CockpitLocator(route: '/inbox'),
         ),
       ),
     );
     expect(clearSelectionResponse.result.success, isTrue);
     await settleUi('remote clear selection');
-    expect(
-      find.byKey(const ValueKey<String>('selection-mode-banner')),
-      findsNothing,
-    );
+    expect(find.textContaining('selected'), findsNothing);
 
     await scrollTodoCollectionUntilVisible(
       tester,
-      find.byKey(ValueKey<String>('task-open-${secondTask.id}')),
+      taskRowByTitle(secondTask.title),
     );
     final doubleTapResponse = await executeRemote(
       CockpitCommand(
         commandId: 'remote-double-tap-complete',
         commandType: CockpitCommandType.doubleTap,
         locator: CockpitLocator(
-          key: 'task-open-${secondTask.id}',
+          semanticId: 'Open task ${secondTask.title}',
+          ancestor: const CockpitLocator(route: '/inbox'),
         ),
       ),
     );
     expect(doubleTapResponse.result.success, isTrue);
     await settleUi('remote double tap');
     expect(find.text('Completed'), findsWidgets);
-
-    await scrollTodoCollectionUntilVisible(
-      tester,
-      find.byKey(ValueKey<String>('task-reorder-handle-${thirdTask.id}')),
-    );
-
-    final reorderResponse = await executeRemote(
-      CockpitCommand(
-        commandId: 'remote-drag-handle-reorder',
-        commandType: CockpitCommandType.drag,
-        locator: CockpitLocator(
-          key: 'task-reorder-handle-${thirdTask.id}',
-        ),
-        parameters: const <String, Object?>{
-          'dx': 0.0,
-          'dy': -260.0,
-          'durationMs': 240,
-        },
-      ),
-    );
-    expect(reorderResponse.result.success, isTrue);
-    await settleUi('remote reorder');
-    await tester.drag(
-      find.byKey(const ValueKey<String>('todo-collection-scroll')),
-      const Offset(0, 1600),
-    );
-    await tester.pumpAndSettle(
-      const Duration(milliseconds: 100),
-      EnginePhase.sendSemanticsUpdate,
-      const Duration(seconds: 5),
-    );
-    final thirdTaskFinder = find.byKey(
-      ValueKey<String>('task-open-${thirdTask.id}'),
-    );
-    final firstTaskFinder = find.byKey(
-      ValueKey<String>('task-open-${firstTask.id}'),
-    );
-    expect(thirdTaskFinder, findsOneWidget);
-    expect(firstTaskFinder, findsOneWidget);
-    expect(
-      tester.getTopLeft(thirdTaskFinder).dy,
-      lessThan(tester.getTopLeft(firstTaskFinder).dy),
-    );
   });
 }
 

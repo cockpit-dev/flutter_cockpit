@@ -26,7 +26,7 @@ final class CockpitExecuteRemoteCommandRequest {
     this.resultProfile = const CockpitInteractiveResultProfile.standard(),
     this.snapshotOptions,
     this.compareAgainstSnapshotRef,
-    this.defaultCommandTimeout = const Duration(seconds: 4),
+    this.defaultCommandTimeout = const Duration(seconds: 30),
   });
 
   final CockpitCommand command;
