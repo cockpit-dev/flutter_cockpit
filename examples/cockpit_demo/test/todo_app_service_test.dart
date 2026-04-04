@@ -224,6 +224,45 @@ void main() {
       expect(tagsById[third.id], isEmpty);
     });
 
+    test('duplicates multiple tasks while carrying selected fields', () async {
+      final backendTag = await repository.createTag(name: 'Backend');
+      final first = await repository.createTask(
+        title: 'Verify relay tracing',
+        notes: 'Carry the backend context.',
+        priority: TodoPriority.high,
+        dueAt: DateTime.utc(2026, 4, 8, 17),
+        tagIds: <String>[backendTag.id],
+      );
+      final second = await repository.createTask(
+        title: 'Prepare launch brief',
+        notes: 'Keep the stakeholder summary.',
+        priority: TodoPriority.medium,
+      );
+
+      await service.loadTasks();
+      final duplicated = await service.duplicateTasks(
+        taskIds: <String>[first.id, second.id],
+        titlePrefix: 'Copy',
+        carryNotes: true,
+        carryDueDate: true,
+        carryTags: true,
+      );
+
+      expect(duplicated, hasLength(2));
+      expect(
+        duplicated.map((task) => task.title).toList(growable: false),
+        <String>['Copy: Verify relay tracing', 'Copy: Prepare launch brief'],
+      );
+      expect(duplicated.first.notes, 'Carry the backend context.');
+      expect(duplicated.first.dueAt?.toUtc(), DateTime.utc(2026, 4, 8, 17));
+      expect(
+        duplicated.first.tags.map((tag) => tag.name).toList(growable: false),
+        <String>['Backend'],
+      );
+      expect(duplicated.last.notes, 'Keep the stakeholder summary.');
+      expect(duplicated.last.dueAt, isNull);
+    });
+
     test('creates a follow-up task while carrying selected fields', () async {
       final backendTag = await repository.createTag(name: 'Backend');
       final source = await repository.createTask(
@@ -533,6 +572,17 @@ final class _FailingTodoRepository implements TodoRepositoryClient {
   Future<List<TodoTask>> updateTasksTags({
     required List<String> taskIds,
     required List<String> tagIds,
+  }) {
+    throw StateError('Simulated update failure');
+  }
+
+  @override
+  Future<List<TodoTask>> duplicateTasks({
+    required List<String> taskIds,
+    required String titlePrefix,
+    required bool carryNotes,
+    required bool carryDueDate,
+    required bool carryTags,
   }) {
     throw StateError('Simulated update failure');
   }

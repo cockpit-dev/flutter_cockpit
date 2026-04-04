@@ -47,6 +47,7 @@ Do not use it for docs-only edits or static refactors with no runtime claim.
 - If the current direction hits a scroll boundary first, `scrollUntilVisible` can recover by trying the opposite direction once. Use explicit `reverse` only when you already know the target region is above the current viewport.
 - On long settings pages, forms, or dashboards, reveal a stable section heading or card first, then target deeper controls inside that section. Jumping straight to a deeply nested off-screen control can overshoot or time out.
 - After selection banners, snackbars, or bottom sheets appear, assume list geometry changed. Re-anchor the next row or control instead of reusing the pre-overlay scroll position.
+- After creating, duplicating, or editing a row inside a dense list, prefer re-anchoring with the list search field or a focused summary card before the next row-level gesture.
 - After `hot-reload` or `hot-restart`, do not assume the route or scroll position reset. Re-read minimal state, then re-anchor from a known section before sending the next deep locator.
 - A successful `hot-reload` or `hot-restart` status only proves the request completed and the app became reachable again. Re-read the specific control you changed, and relaunch once if the intended UI delta still does not appear.
 

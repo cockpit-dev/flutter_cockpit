@@ -357,6 +357,62 @@ void main() {
   );
 
   testWidgets(
+    'selection mode can duplicate selected tasks with a shared prefix',
+    (tester) async {
+      final database = CockpitDemoDatabase.inMemory();
+      addCockpitDemoDatabaseTearDown(tester, database);
+      final repository = TodoRepository(database);
+      final backendTag = await repository.createTag(name: 'Backend');
+      final first = await repository.createTask(
+        title: 'Duplicate first',
+        notes: 'Carry the backend context.',
+        tagIds: <String>[backendTag.id],
+      );
+      await repository.createTask(title: 'Duplicate second');
+
+      await pumpTodoApp(
+        tester,
+        controller: _testController(),
+        database: database,
+      );
+
+      await tester.longPress(taskRowByTitle(first.title));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('All results'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Duplicate'));
+      await tester.pumpAndSettle();
+      expect(find.text('Duplicate tasks'), findsOneWidget);
+
+      await tester.enterText(textFieldByLabel('Title prefix'), 'Copy');
+      await tester.ensureVisible(find.text('Create duplicates'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Create duplicates'));
+      await tester.pumpAndSettle();
+
+      final refreshed = await repository.fetchTasks(const TodoFilter.inbox());
+      expect(
+        refreshed.any((task) => task.title == 'Copy: Duplicate first'),
+        isTrue,
+      );
+      expect(
+        refreshed.any((task) => task.title == 'Copy: Duplicate second'),
+        isTrue,
+      );
+      final copiedFirst = refreshed.singleWhere(
+        (task) => task.title == 'Copy: Duplicate first',
+      );
+      expect(copiedFirst.notes, 'Carry the backend context.');
+      expect(
+        copiedFirst.tags.map((tag) => tag.name).toList(growable: false),
+        <String>['Backend'],
+      );
+      expect(find.textContaining('selected'), findsNothing);
+    },
+  );
+
+  testWidgets(
     'task detail can create a follow-up task and open it immediately',
     (tester) async {
       final database = CockpitDemoDatabase.inMemory();

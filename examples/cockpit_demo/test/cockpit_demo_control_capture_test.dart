@@ -718,4 +718,151 @@ void main() {
       );
     },
   );
+
+  testWidgets(
+    'duplicates selected tasks through the in-app executor with label-based input targeting',
+    (tester) async {
+      final controller = CockpitSessionController(
+        sessionId: 'batch-duplicate-capture-session',
+        taskId: 'batch-duplicate-capture-task',
+        platform: 'android',
+      );
+      final registry = CockpitTargetRegistry(routeName: '/inbox');
+      final database = CockpitDemoDatabase.inMemory();
+      addCockpitDemoDatabaseTearDown(tester, database);
+      final repository = TodoRepository(database);
+      final first = await repository.createTask(title: 'Duplicate first');
+      await repository.createTask(title: 'Duplicate second');
+
+      await tester.pumpWidget(
+        CockpitDemoApp(
+          configuration: FlutterCockpitConfiguration(
+            sessionController: controller,
+            registry: registry,
+          ),
+          database: database,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      InAppCockpitCommandExecutor executorForCurrentRoute() {
+        final surfaceState = tester.state<CockpitSurfaceState>(
+          find.byType(CockpitSurface),
+        );
+        return InAppCockpitCommandExecutor(
+          registry: registry,
+          snapshotProvider: surfaceState.snapshot,
+          waitTickHandler: tester.pump,
+          scrollStepHandler: ({
+            required reverse,
+            required viewportFraction,
+            scrollableKey,
+            targetLocator,
+            scrollableLocator,
+            required duration,
+            required gestureProfile,
+            required continuous,
+            required postScrollEnsureVisible,
+          }) {
+            return surfaceState.scrollByViewport(
+              reverse: reverse,
+              viewportFraction: viewportFraction,
+              scrollableKey: scrollableKey,
+              targetLocator: targetLocator,
+              scrollableLocator: scrollableLocator,
+              duration: duration,
+              gestureProfile: gestureProfile,
+              continuous: continuous,
+              postScrollEnsureVisible: postScrollEnsureVisible,
+            );
+          },
+        );
+      }
+
+      final selectFirstCommand = CockpitCommand(
+        commandId: 'cmd-select-duplicate-first-task',
+        commandType: CockpitCommandType.longPress,
+        locator: CockpitLocator(
+          text: first.title,
+          type: 'InkWell',
+        ),
+      );
+      final selectFirstResult =
+          await executorForCurrentRoute().execute(selectFirstCommand);
+      expect(selectFirstResult.success, isTrue,
+          reason: selectFirstResult.error?.message);
+      controller.recordCommandResult(selectFirstCommand, selectFirstResult);
+      await tester.pumpAndSettle();
+
+      final selectAllCommand = CockpitCommand(
+        commandId: 'cmd-select-duplicate-all-results',
+        commandType: CockpitCommandType.tap,
+        locator: const CockpitLocator(text: 'All results'),
+      );
+      final selectAllResult =
+          await executorForCurrentRoute().execute(selectAllCommand);
+      expect(selectAllResult.success, isTrue,
+          reason: selectAllResult.error?.message);
+      controller.recordCommandResult(selectAllCommand, selectAllResult);
+      await tester.pumpAndSettle();
+
+      final openDuplicateCommand = CockpitCommand(
+        commandId: 'cmd-open-duplicate-sheet',
+        commandType: CockpitCommandType.tap,
+        locator: const CockpitLocator(
+          text: 'Duplicate',
+          type: 'OutlinedButton',
+        ),
+      );
+      final openDuplicateResult =
+          await executorForCurrentRoute().execute(openDuplicateCommand);
+      expect(openDuplicateResult.success, isTrue,
+          reason: openDuplicateResult.error?.message);
+      controller.recordCommandResult(openDuplicateCommand, openDuplicateResult);
+      await tester.pumpAndSettle();
+
+      final enterPrefixCommand = CockpitCommand(
+        commandId: 'cmd-enter-duplicate-prefix',
+        commandType: CockpitCommandType.enterText,
+        locator: const CockpitLocator(
+          text: 'Title prefix',
+          type: 'TextField',
+        ),
+        parameters: const <String, Object?>{
+          'text': 'Copy',
+        },
+      );
+      final enterPrefixResult =
+          await executorForCurrentRoute().execute(enterPrefixCommand);
+      expect(enterPrefixResult.success, isTrue,
+          reason: enterPrefixResult.error?.message);
+      controller.recordCommandResult(enterPrefixCommand, enterPrefixResult);
+      await tester.pumpAndSettle();
+
+      final createDuplicatesCommand = CockpitCommand(
+        commandId: 'cmd-create-duplicates',
+        commandType: CockpitCommandType.tap,
+        locator: const CockpitLocator(text: 'Create duplicates'),
+      );
+      final createDuplicatesResult =
+          await executorForCurrentRoute().execute(createDuplicatesCommand);
+      expect(createDuplicatesResult.success, isTrue,
+          reason: createDuplicatesResult.error?.message);
+      controller.recordCommandResult(
+        createDuplicatesCommand,
+        createDuplicatesResult,
+      );
+      await tester.pumpAndSettle();
+
+      final tasks = await repository.fetchTasks(const TodoFilter.inbox());
+      expect(
+        tasks.any((task) => task.title == 'Copy: Duplicate first'),
+        isTrue,
+      );
+      expect(
+        tasks.any((task) => task.title == 'Copy: Duplicate second'),
+        isTrue,
+      );
+    },
+  );
 }

@@ -423,6 +423,35 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
     }
   }
 
+  Future<void> _duplicateSelectedTasks(List<TodoTask> tasks) async {
+    final selectedTasks = _selectedTasks(tasks);
+    if (selectedTasks.isEmpty) {
+      return;
+    }
+    final result = await showModalBottomSheet<_DuplicateSelectionResult>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (context) => _DuplicateSelectionSheet(
+        selectedTaskCount: selectedTasks.length,
+      ),
+    );
+    if (result == null) {
+      return;
+    }
+
+    final duplicated = await widget.service.duplicateTasks(
+      taskIds: selectedTasks.map((task) => task.id).toList(growable: false),
+      titlePrefix: result.titlePrefix,
+      carryNotes: result.carryNotes,
+      carryDueDate: result.carryDueDate,
+      carryTags: result.carryTags,
+    );
+    if (duplicated.isNotEmpty && mounted) {
+      setState(_selectedTaskIds.clear);
+    }
+  }
+
   void _clearSelection() {
     setState(_selectedTaskIds.clear);
   }
@@ -721,6 +750,11 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
                                     : () => _selectAllFilteredTasks(tasks),
                                 icon: const Icon(Icons.done_all_rounded),
                                 label: const Text('All results'),
+                              ),
+                              OutlinedButton.icon(
+                                onPressed: () => _duplicateSelectedTasks(tasks),
+                                icon: const Icon(Icons.copy_all_rounded),
+                                label: const Text('Duplicate'),
                               ),
                               OutlinedButton.icon(
                                 onPressed: () => _changeSelectedPriority(tasks),
@@ -1711,6 +1745,173 @@ final class _BatchTagSheetState extends State<_BatchTagSheet> {
                     label: const Text('Apply tags'),
                   ),
                 ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+final class _DuplicateSelectionResult {
+  const _DuplicateSelectionResult({
+    required this.titlePrefix,
+    required this.carryNotes,
+    required this.carryDueDate,
+    required this.carryTags,
+  });
+
+  final String titlePrefix;
+  final bool carryNotes;
+  final bool carryDueDate;
+  final bool carryTags;
+}
+
+final class _DuplicateSelectionSheet extends StatefulWidget {
+  const _DuplicateSelectionSheet({required this.selectedTaskCount});
+
+  final int selectedTaskCount;
+
+  @override
+  State<_DuplicateSelectionSheet> createState() =>
+      _DuplicateSelectionSheetState();
+}
+
+final class _DuplicateSelectionSheetState
+    extends State<_DuplicateSelectionSheet> {
+  late final TextEditingController _prefixController;
+  bool _carryNotes = true;
+  bool _carryDueDate = true;
+  bool _carryTags = true;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _prefixController = TextEditingController(text: 'Copy');
+  }
+
+  @override
+  void dispose() {
+    _prefixController.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final normalizedPrefix = _prefixController.text.trim();
+    if (normalizedPrefix.isEmpty) {
+      setState(() {
+        _errorMessage = 'Title prefix is required.';
+      });
+      return;
+    }
+
+    Navigator.of(context).pop(
+      _DuplicateSelectionResult(
+        titlePrefix: normalizedPrefix,
+        carryNotes: _carryNotes,
+        carryDueDate: _carryDueDate,
+        carryTags: _carryTags,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final viewInsets = MediaQuery.viewInsetsOf(context);
+    return SafeArea(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.82,
+        ),
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(20, 12, 20, viewInsets.bottom + 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        'Duplicate tasks',
+                        style: theme.textTheme.headlineSmall,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Create ${widget.selectedTaskCount} new tasks with a shared prefix so the copied work stays easy to locate and verify.',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      TextField(
+                        controller: _prefixController,
+                        textInputAction: TextInputAction.done,
+                        onSubmitted: (_) => _submit(),
+                        decoration: InputDecoration(
+                          labelText: 'Title prefix',
+                          errorText: _errorMessage,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Carry notes'),
+                        subtitle: const Text(
+                          'Keep implementation context and handoff detail.',
+                        ),
+                        value: _carryNotes,
+                        onChanged: (value) {
+                          setState(() {
+                            _carryNotes = value;
+                          });
+                        },
+                      ),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Carry due date'),
+                        subtitle: const Text(
+                          'Preserve schedule pressure from the source tasks.',
+                        ),
+                        value: _carryDueDate,
+                        onChanged: (value) {
+                          setState(() {
+                            _carryDueDate = value;
+                          });
+                        },
+                      ),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Carry tags'),
+                        subtitle: const Text(
+                          'Keep shared ownership markers such as backend or design.',
+                        ),
+                        value: _carryTags,
+                        onChanged: (value) {
+                          setState(() {
+                            _carryTags = value;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Align(
+                alignment: Alignment.centerRight,
+                child: FilledButton.icon(
+                  onPressed: _submit,
+                  icon: const Icon(Icons.copy_all_rounded),
+                  label: const Text('Create duplicates'),
+                ),
               ),
             ],
           ),

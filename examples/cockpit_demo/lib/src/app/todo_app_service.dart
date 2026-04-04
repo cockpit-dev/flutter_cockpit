@@ -429,6 +429,44 @@ final class TodoAppService extends ChangeNotifier {
     }
   }
 
+  Future<List<TodoTask>> duplicateTasks({
+    required List<String> taskIds,
+    required String titlePrefix,
+    required bool carryNotes,
+    required bool carryDueDate,
+    required bool carryTags,
+  }) async {
+    final normalizedIds = taskIds.toSet().toList(growable: false);
+    if (normalizedIds.isEmpty) {
+      return const <TodoTask>[];
+    }
+
+    try {
+      final duplicated = await _repository.duplicateTasks(
+        taskIds: normalizedIds,
+        titlePrefix: titlePrefix,
+        carryNotes: carryNotes,
+        carryDueDate: carryDueDate,
+        carryTags: carryTags,
+      );
+      if (_isDisposed) {
+        return duplicated;
+      }
+      final focusedTaskId = duplicated.isEmpty ? null : duplicated.first.id;
+      await loadTasks(_listState.filter, focusedTaskId);
+      return duplicated;
+    } on Object catch (error) {
+      if (_isDisposed) {
+        return const <TodoTask>[];
+      }
+      _listState = _listState.copyWith(
+        errorMessage: () => _errorMessage(error),
+      );
+      _notifyListenersIfActive();
+      return const <TodoTask>[];
+    }
+  }
+
   Future<TodoTask> createFollowUpTask({
     required String sourceTaskId,
     required String title,

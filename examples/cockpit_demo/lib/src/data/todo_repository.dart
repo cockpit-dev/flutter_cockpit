@@ -64,6 +64,14 @@ abstract interface class TodoRepositoryClient {
     required List<String> tagIds,
   });
 
+  Future<List<TodoTask>> duplicateTasks({
+    required List<String> taskIds,
+    required String titlePrefix,
+    required bool carryNotes,
+    required bool carryDueDate,
+    required bool carryTags,
+  });
+
   Future<TodoTask> createFollowUpTask({
     required String sourceTaskId,
     required String title,
@@ -345,6 +353,56 @@ final class TodoRepository implements TodoRepositoryClient {
       ),
     );
     return _fetchTasksByIds(normalizedIds);
+  }
+
+  @override
+  Future<List<TodoTask>> duplicateTasks({
+    required List<String> taskIds,
+    required String titlePrefix,
+    required bool carryNotes,
+    required bool carryDueDate,
+    required bool carryTags,
+  }) async {
+    final normalizedIds = taskIds.toSet().toList(growable: false);
+    if (normalizedIds.isEmpty) {
+      return const <TodoTask>[];
+    }
+
+    final normalizedPrefix = titlePrefix.trim();
+    if (normalizedPrefix.isEmpty) {
+      throw ArgumentError.value(
+        titlePrefix,
+        'titlePrefix',
+        'Duplicate title prefix must not be empty.',
+      );
+    }
+
+    final sourceTasks = await _fetchTasksByIds(normalizedIds);
+    final sourceTasksById = <String, TodoTask>{
+      for (final task in sourceTasks) task.id: task,
+    };
+    for (final taskId in normalizedIds) {
+      if (!sourceTasksById.containsKey(taskId)) {
+        throw StateError('Task $taskId no longer exists.');
+      }
+    }
+
+    final duplicatedTasks = <TodoTask>[];
+    await _database.transaction(() async {
+      for (final taskId in normalizedIds) {
+        final sourceTask = sourceTasksById[taskId]!;
+        duplicatedTasks.add(
+          await createTask(
+            title: '$normalizedPrefix: ${sourceTask.title}',
+            notes: carryNotes ? sourceTask.notes : '',
+            priority: sourceTask.priority,
+            dueAt: carryDueDate ? sourceTask.dueAt : null,
+            tagIds: carryTags ? sourceTask.tagIds : const <String>[],
+          ),
+        );
+      }
+    });
+    return List<TodoTask>.unmodifiable(duplicatedTasks);
   }
 
   @override
