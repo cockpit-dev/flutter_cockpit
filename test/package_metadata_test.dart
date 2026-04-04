@@ -22,8 +22,14 @@ void main() {
     final runtimeReadme = File(
       'packages/flutter_cockpit/README.md',
     ).readAsStringSync();
+    final runtimeReadmeZh = File(
+      'packages/flutter_cockpit/README.zh-CN.md',
+    ).readAsStringSync();
     final devtoolsReadme = File(
       'packages/flutter_cockpit_devtools/README.md',
+    ).readAsStringSync();
+    final devtoolsReadmeZh = File(
+      'packages/flutter_cockpit_devtools/README.zh-CN.md',
     ).readAsStringSync();
 
     expect(runtimeReadme, contains('# flutter_cockpit'));
@@ -35,6 +41,10 @@ void main() {
     expect(
       runtimeReadme,
       contains('flutter run -t cockpit/main.dart'),
+    );
+    expect(
+      runtimeReadme,
+      contains('https://pub.dev/packages/flutter_cockpit_devtools'),
     );
     expect(runtimeReadme, isNot(contains('flutter_pilot')));
 
@@ -50,5 +60,12 @@ void main() {
     );
     expect(devtoolsReadme, isNot(contains('flutter_pilot_devtools')));
     expect(devtoolsReadme, isNot(contains('flutter_pilot')));
+
+    expect(runtimeReadmeZh, contains('flutter_cockpit: any'));
+    expect(
+      runtimeReadmeZh,
+      contains('https://pub.dev/packages/flutter_cockpit_devtools'),
+    );
+    expect(devtoolsReadmeZh, contains('flutter_cockpit_devtools: any'));
   });
 }

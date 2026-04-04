@@ -58,6 +58,6 @@ flutter run -t cockpit/main.dart
 - 截图和录屏请求
 - 远程会话状态与命令端点
 
-宿主侧编排、MCP、workspace tooling 和交付验证在 [`flutter_cockpit_devtools`](../flutter_cockpit_devtools/README.md) 中。
+宿主侧编排、MCP、workspace tooling 和交付验证在 [`flutter_cockpit_devtools`](https://pub.dev/packages/flutter_cockpit_devtools) 中。
 
 包地址：[pub.dev/packages/flutter_cockpit](https://pub.dev/packages/flutter_cockpit)
