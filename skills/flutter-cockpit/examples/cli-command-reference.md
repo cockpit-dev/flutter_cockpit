@@ -38,6 +38,8 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --profile minimal
 ```
 
+`read-app --profile standard` is still summary-only. It is good for `textPreviews` and counts, but not for a full target inventory.
+
 Inspect richer UI state:
 
 ```bash
@@ -56,25 +58,47 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --command-json '{"commandId":"assert-inbox","commandType":"assertText","parameters":{"text":"Inbox"}}'
 ```
 
+Enter text into a field:
+
+```bash
+jq -n --arg text "Draft release checklist" '{
+  commandId: "enter-title",
+  commandType: "enterText",
+  locator: {
+    key: "task-title-input",
+    ancestor: {
+      route: "/editor"
+    }
+  },
+  parameters: {
+    text: $text
+  }
+}' >/tmp/flutter_cockpit/enter_text.json
+
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-command \
+  --app-json /tmp/flutter_cockpit/app.json \
+  --command-file /tmp/flutter_cockpit/enter_text.json \
+  --profile standard | jq '{success: .command.success, route: .uiSummary.routeName}'
+```
+
 Scroll to a deep control with one locator:
 
 ```bash
-cat >/tmp/flutter_cockpit/scroll_command.json <<'JSON'
-{
-  "commandId": "reveal-sync-card",
-  "commandType": "scrollUntilVisible",
-  "locator": {
-    "key": "settings-sync-card",
-    "ancestor": {
-      "route": "/settings"
+jq -n '{
+  commandId: "reveal-sync-card",
+  commandType: "scrollUntilVisible",
+  locator: {
+    key: "settings-sync-card",
+    ancestor: {
+      route: "/settings"
     }
   },
-  "parameters": {
-    "maxScrolls": 8,
-    "viewportFraction": 0.55
+  parameters: {
+    maxScrolls: 8,
+    viewportFraction: 0.55
   }
-}
-JSON
+}' >/tmp/flutter_cockpit/scroll_command.json
 
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   run-command \
@@ -94,6 +118,8 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
     {"commandId":"assert-inbox","commandType":"assertText","parameters":{"text":"Inbox"}}
   ]'
 ```
+
+If a banner, snackbar, or bottom sheet appears after one command, do not assume the next row stayed in the same place. Re-anchor or scroll again before the next deep tap.
 
 Wait for idle:
 
@@ -132,13 +158,15 @@ Hot reload or hot restart:
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   hot-reload \
-  --app-json /tmp/flutter_cockpit/app.json
+  --app-json /tmp/flutter_cockpit/app.json | jq '{reloadGeneration: .status.reloadGeneration, lastReloadSucceeded: .status.lastReloadSucceeded, lastReloadMode: .status.lastReloadMode}'
 ```
+
+Then verify the changed control. If the intended copy or layout delta is still missing, relaunch once before assuming the app ignored your code edit.
 
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   hot-restart \
-  --app-json /tmp/flutter_cockpit/app.json
+  --app-json /tmp/flutter_cockpit/app.json | jq '{reloadGeneration: .status.reloadGeneration, lastReloadSucceeded: .status.lastReloadSucceeded, lastReloadMode: .status.lastReloadMode}'
 ```
 
 Stop the app:
@@ -211,12 +239,27 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools serve-mcp
 - Default to `--profile minimal` or `standard`.
 - Escalate to `inspect` or `evidence` only when required.
 - `scrollUntilVisible` already probes between internal scroll segments. Prefer a better locator or a smaller `viewportFraction` over manual repeated blind scroll commands.
+- When `scrollUntilVisible` hits the wrong boundary first, it can recover by trying the opposite direction once. Keep explicit `reverse` for cases where you already know the target is above the current viewport.
+- After `hot-restart`, do not assume route and scroll position reset. Re-read route, then re-anchor or switch `reverse` if the target region is now above the viewport.
+- `enterText` success does not guarantee that `uiSummary.textPreviews` will echo the entered value. Prefer validating the next visible control, route change, or saved list state.
 - `list_apps` is MCP-only; CLI discovery is `app.json`-first.
 - `run-script` exits non-zero when the written bundle status is `failed`.
 - Write command output to `--output-json` when a later AI step must read structured state.
 - Prefer the lowest-cost public surface: in shell agents, CLI + command files + `jq` usually costs fewer tokens than reopening large payloads in model context; in tool-calling hosts, MCP is fine.
 
 ## Pipe And jq Examples
+
+Search a dependency package before opening files:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  grep-package-uris \
+  --package flutter \
+  --query ThemeData \
+  --output-json /tmp/flutter_cockpit/grep_package_uris.json
+
+jq '{summary, firstMatch: .packages[0].files[0].packageUri}' /tmp/flutter_cockpit/grep_package_uris.json
+```
 
 Read only the route and state:
 

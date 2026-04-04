@@ -31,6 +31,7 @@ import 'package:flutter_cockpit_devtools/src/cli/commands/analyze_workspace_comm
 import 'package:flutter_cockpit_devtools/src/cli/commands/apply_fixes_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/create_project_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/format_workspace_command.dart';
+import 'package:flutter_cockpit_devtools/src/cli/commands/grep_package_uris_command.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -43,6 +44,7 @@ void main() {
     expect(help, contains('analyze-files'));
     expect(help, contains('lsp'));
     expect(help, contains('pub'));
+    expect(help, contains('grep-package-uris'));
     expect(help, contains('run-command'));
     expect(help, contains('read-network'));
     expect(help, contains('run-task'));
@@ -138,6 +140,7 @@ final List<dynamic> _topLevelCommands = <dynamic>[
   PubDevSearchCommand(),
   PubCommand(),
   ReadPackageUrisCommand(),
+  GrepPackageUrisCommand(),
   LspCommand(),
   AnalyzeFilesCommand(),
   CreateProjectCommand(),

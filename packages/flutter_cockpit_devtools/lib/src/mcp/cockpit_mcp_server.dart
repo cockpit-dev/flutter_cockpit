@@ -56,6 +56,7 @@ import 'tools/cockpit_analyze_workspace_tool.dart';
 import 'tools/cockpit_apply_workspace_fixes_tool.dart';
 import 'tools/cockpit_create_project_tool.dart';
 import 'tools/cockpit_format_workspace_tool.dart';
+import 'tools/cockpit_grep_package_uris_tool.dart';
 import 'tools/cockpit_hot_reload_tool.dart';
 import 'tools/cockpit_hot_restart_tool.dart';
 import 'tools/cockpit_inspect_ui_tool.dart';
@@ -235,6 +236,7 @@ final class CockpitMcpServer {
       CockpitPubDevSearchTool(),
       CockpitPubTool(rootsTracker: rootsTracker),
       CockpitReadPackageUrisTool(rootsTracker: rootsTracker),
+      CockpitGrepPackageUrisTool(rootsTracker: rootsTracker),
       CockpitLspTool(rootsTracker: rootsTracker),
       CockpitAnalyzeFilesTool(rootsTracker: rootsTracker),
       CockpitCreateProjectTool(rootsTracker: rootsTracker),

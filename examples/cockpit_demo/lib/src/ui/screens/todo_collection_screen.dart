@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../app/todo_app_service.dart';
+import '../../app/todo_list_state.dart';
 import '../../model/todo_filter.dart';
 import '../../model/todo_priority.dart';
 import '../../model/todo_settings.dart';
@@ -89,7 +90,9 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
     );
   }
 
-  bool get _selectionMode => _selectedTaskIds.isNotEmpty;
+  bool get _selectionMode => widget.service.listState.tasks.any(
+        (task) => _selectedTaskIds.contains(task.id),
+      );
 
   bool _canManualReorder(TodoSettings settings) {
     return widget.routeName == '/inbox' &&
@@ -153,30 +156,209 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
     );
   }
 
-  Future<void> _deleteSelectedTasks() async {
-    final selectedIds = _selectedTaskIds.toList(growable: false);
-    for (final taskId in selectedIds) {
-      await widget.service.deleteTask(taskId);
+  List<TodoTask> _selectedTasks(List<TodoTask> tasks) {
+    return tasks
+        .where((task) => _selectedTaskIds.contains(task.id))
+        .toList(growable: false);
+  }
+
+  bool _allFilteredTasksSelected(List<TodoTask> tasks) {
+    return tasks.isNotEmpty &&
+        tasks.every((task) => _selectedTaskIds.contains(task.id));
+  }
+
+  void _selectAllFilteredTasks(List<TodoTask> tasks) {
+    setState(() {
+      _selectedTaskIds.addAll(tasks.map((task) => task.id));
+    });
+  }
+
+  Future<void> _deleteSelectedTasks(List<TodoTask> tasks) async {
+    final selectedTasks = _selectedTasks(tasks);
+    if (selectedTasks.isEmpty) {
+      return;
     }
-    if (mounted) {
+    final confirmed = await _showDeleteSelectionDialog(selectedTasks);
+    if (confirmed != true) {
+      return;
+    }
+
+    final deleted = await widget.service.deleteTasks(
+      selectedTasks.map((task) => task.id).toList(growable: false),
+    );
+    if (deleted && mounted) {
       setState(_selectedTaskIds.clear);
     }
   }
 
-  Future<void> _completeSelectedTasks() async {
-    final selectedTasks = widget.service.listState.tasks
-        .where((task) => _selectedTaskIds.contains(task.id))
-        .toList(growable: false);
-    for (final task in selectedTasks) {
-      await widget.service.setTaskCompleted(taskId: task.id, isCompleted: true);
+  Future<void> _completeSelectedTasks(List<TodoTask> tasks) async {
+    final selectedTasks = _selectedTasks(tasks);
+    if (selectedTasks.isEmpty) {
+      return;
     }
-    if (mounted) {
+    final shouldComplete = selectedTasks.any((task) => !task.isCompleted);
+    final updated = await widget.service.setTasksCompleted(
+      taskIds: selectedTasks.map((task) => task.id).toList(growable: false),
+      isCompleted: shouldComplete,
+    );
+    if (updated && mounted) {
+      setState(_selectedTaskIds.clear);
+    }
+  }
+
+  Future<void> _changeSelectedPriority(List<TodoTask> tasks) async {
+    final selectedTasks = _selectedTasks(tasks);
+    if (selectedTasks.isEmpty) {
+      return;
+    }
+    final nextPriority = await showModalBottomSheet<TodoPriority>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (context) {
+        final theme = Theme.of(context);
+        final colorScheme = theme.colorScheme;
+        return SafeArea(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(context).height * 0.72,
+            ),
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text('Update priority',
+                        style: theme.textTheme.headlineSmall),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Apply one priority to ${selectedTasks.length} selected tasks.',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    ...TodoPriority.values.map(
+                      (priority) => ListTile(
+                        key: ValueKey<String>(
+                          'selection-priority-option-${priority.name}',
+                        ),
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(_prioritySheetTitle(priority)),
+                        subtitle: Text(_prioritySheetSubtitle(priority)),
+                        trailing: Icon(
+                          Icons.flag_rounded,
+                          color: _priorityColor(colorScheme, priority),
+                        ),
+                        onTap: () => Navigator.of(context).pop(priority),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+    if (nextPriority == null) {
+      return;
+    }
+
+    final updated = await widget.service.updateTasksPriority(
+      taskIds: selectedTasks.map((task) => task.id).toList(growable: false),
+      priority: nextPriority,
+    );
+    if (updated && mounted) {
       setState(_selectedTaskIds.clear);
     }
   }
 
   void _clearSelection() {
     setState(_selectedTaskIds.clear);
+  }
+
+  Future<bool?> _showDeleteSelectionDialog(List<TodoTask> selectedTasks) {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) {
+        final theme = Theme.of(context);
+        final colorScheme = theme.colorScheme;
+        final previewTasks = selectedTasks.take(3).toList(growable: false);
+        return AlertDialog(
+          title: Text('Delete ${selectedTasks.length} tasks?'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  'This removes the selected tasks from the visible board and keeps one grouped undo step.',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                ...previewTasks.map(
+                  (task) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text('• ${task.title}'),
+                  ),
+                ),
+                if (selectedTasks.length > previewTasks.length)
+                  Text(
+                    '+${selectedTasks.length - previewTasks.length} more tasks',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              key: const ValueKey<String>('selection-delete-cancel-button'),
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              key: const ValueKey<String>('selection-delete-confirm-button'),
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Delete tasks'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  String _prioritySheetTitle(TodoPriority priority) {
+    return switch (priority) {
+      TodoPriority.low => 'Low priority',
+      TodoPriority.medium => 'Medium priority',
+      TodoPriority.high => 'High priority',
+      TodoPriority.urgent => 'Urgent priority',
+    };
+  }
+
+  String _prioritySheetSubtitle(TodoPriority priority) {
+    return switch (priority) {
+      TodoPriority.low => 'Keep it visible without interrupting the queue.',
+      TodoPriority.medium => 'Default working level for normal delivery tasks.',
+      TodoPriority.high => 'Move the selection into the active review lane.',
+      TodoPriority.urgent => 'Escalate the selection to the top decision tier.',
+    };
+  }
+
+  Color _priorityColor(ColorScheme colorScheme, TodoPriority priority) {
+    return switch (priority) {
+      TodoPriority.low => colorScheme.secondary,
+      TodoPriority.medium => colorScheme.tertiary,
+      TodoPriority.high => colorScheme.primary,
+      TodoPriority.urgent => colorScheme.error,
+    };
   }
 
   void _handlePlanningScaleStart(ScaleStartDetails details) {
@@ -203,6 +385,12 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
         final listState = widget.service.listState;
         final settingsState = widget.service.settingsState;
         final tasks = listState.tasks;
+        final selectedTasks = _selectedTasks(tasks);
+        final selectionCount = selectedTasks.length;
+        final allVisibleSelected = _allFilteredTasksSelected(tasks);
+        final shouldCompleteSelection = selectedTasks.any(
+          (task) => !task.isCompleted,
+        );
         final focusedTask = _taskById(tasks, listState.focusedTaskId);
         final showEmptyState = !listState.isLoading &&
             listState.errorMessage == null &&
@@ -321,7 +509,7 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
             decoration: BoxDecoration(color: theme.scaffoldBackgroundColor),
             child: Column(
               children: <Widget>[
-                if (listState.pendingUndoTask != null)
+                if (listState.canUndoDelete)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
                     child: EditorialSection(
@@ -338,7 +526,7 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
-                              'Removed "${listState.pendingUndoTask!.title}" from the board.',
+                              _undoDeleteBannerMessage(listState),
                               style: theme.textTheme.bodyMedium?.copyWith(
                                 color: colorScheme.onSecondaryContainer,
                               ),
@@ -362,43 +550,83 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
                           .withAlphaFraction(0.86),
                       leadingAccentColor: colorScheme.primary,
                       padding: const EdgeInsets.fromLTRB(0, 16, 0, 16),
-                      child: Row(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
-                          Icon(
-                            Icons.select_all_rounded,
-                            color: colorScheme.onSecondaryContainer,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              '${_selectedTaskIds.length} selected',
-                              style: theme.textTheme.titleMedium?.copyWith(
+                          Row(
+                            children: <Widget>[
+                              Icon(
+                                Icons.select_all_rounded,
                                 color: colorScheme.onSecondaryContainer,
-                                fontWeight: FontWeight.w800,
                               ),
-                            ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  '$selectionCount selected',
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    color: colorScheme.onSecondaryContainer,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                key: const ValueKey<String>(
+                                  'selection-clear-button',
+                                ),
+                                tooltip: 'Clear selection',
+                                onPressed: _clearSelection,
+                                icon: const Icon(Icons.close_rounded),
+                              ),
+                            ],
                           ),
-                          TextButton(
-                            key: const ValueKey<String>(
-                              'selection-complete-button',
-                            ),
-                            onPressed: _completeSelectedTasks,
-                            child: const Text('Complete'),
-                          ),
-                          TextButton(
-                            key: const ValueKey<String>(
-                              'selection-delete-button',
-                            ),
-                            onPressed: _deleteSelectedTasks,
-                            child: const Text('Delete'),
-                          ),
-                          IconButton(
-                            key: const ValueKey<String>(
-                              'selection-clear-button',
-                            ),
-                            tooltip: 'Clear selection',
-                            onPressed: _clearSelection,
-                            icon: const Icon(Icons.close_rounded),
+                          const SizedBox(height: 12),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: <Widget>[
+                              OutlinedButton.icon(
+                                key: const ValueKey<String>(
+                                  'selection-select-all-button',
+                                ),
+                                onPressed: allVisibleSelected
+                                    ? null
+                                    : () => _selectAllFilteredTasks(tasks),
+                                icon: const Icon(Icons.done_all_rounded),
+                                label: const Text('All results'),
+                              ),
+                              OutlinedButton.icon(
+                                key: const ValueKey<String>(
+                                  'selection-priority-button',
+                                ),
+                                onPressed: () => _changeSelectedPriority(tasks),
+                                icon: const Icon(Icons.flag_rounded),
+                                label: const Text('Priority'),
+                              ),
+                              OutlinedButton.icon(
+                                key: const ValueKey<String>(
+                                  'selection-complete-button',
+                                ),
+                                onPressed: () => _completeSelectedTasks(tasks),
+                                icon: Icon(
+                                  shouldCompleteSelection
+                                      ? Icons.task_alt_rounded
+                                      : Icons.undo_rounded,
+                                ),
+                                label: Text(
+                                  shouldCompleteSelection
+                                      ? 'Complete'
+                                      : 'Reopen',
+                                ),
+                              ),
+                              FilledButton.tonalIcon(
+                                key: const ValueKey<String>(
+                                  'selection-delete-button',
+                                ),
+                                onPressed: () => _deleteSelectedTasks(tasks),
+                                icon: const Icon(Icons.delete_sweep_rounded),
+                                label: const Text('Delete'),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -781,6 +1009,14 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
       _ =>
         'The main queue keeps due dates, urgency, and notes visible without burying the working surface in chrome.',
     };
+  }
+
+  String _undoDeleteBannerMessage(TodoListState listState) {
+    final pendingTask = listState.pendingUndoTask;
+    if (pendingTask != null) {
+      return 'Removed "${pendingTask.title}" from the board.';
+    }
+    return 'Removed ${listState.pendingUndoCount} tasks from the board.';
   }
 
   Widget _buildTaskList({

@@ -33,6 +33,7 @@ import 'commands/analyze_workspace_command.dart';
 import 'commands/apply_fixes_command.dart';
 import 'commands/create_project_command.dart';
 import 'commands/format_workspace_command.dart';
+import 'commands/grep_package_uris_command.dart';
 
 const int cockpitSuccessExitCode = 0;
 const int cockpitUsageExitCode = 64;
@@ -56,6 +57,7 @@ final class CockpitCommandRunner {
           ..addCommand(PubDevSearchCommand())
           ..addCommand(PubCommand())
           ..addCommand(ReadPackageUrisCommand())
+          ..addCommand(GrepPackageUrisCommand())
           ..addCommand(LspCommand())
           ..addCommand(AnalyzeFilesCommand())
           ..addCommand(CreateProjectCommand())

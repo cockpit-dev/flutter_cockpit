@@ -46,6 +46,7 @@ void main() {
           'pub_dev_search',
           'pub',
           'read_package_uris',
+          'grep_package_uris',
           'lsp',
           'analyze_files',
           'create_project',

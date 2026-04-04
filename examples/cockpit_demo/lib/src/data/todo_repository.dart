@@ -36,9 +36,23 @@ abstract interface class TodoRepositoryClient {
     required bool isCompleted,
   });
 
+  Future<void> setTasksCompleted({
+    required List<String> taskIds,
+    required bool isCompleted,
+  });
+
   Future<TodoTask> deleteTask(String taskId);
 
+  Future<List<TodoTask>> deleteTasks(List<String> taskIds);
+
   Future<TodoTask> restoreTask(String taskId);
+
+  Future<void> restoreTasks(List<String> taskIds);
+
+  Future<List<TodoTask>> updateTasksPriority({
+    required List<String> taskIds,
+    required TodoPriority priority,
+  });
 
   Future<void> reorderTasks(List<String> orderedTaskIds);
 
@@ -172,10 +186,24 @@ final class TodoRepository implements TodoRepositoryClient {
     required String taskId,
     required bool isCompleted,
   }) async {
+    await setTasksCompleted(
+        taskIds: <String>[taskId], isCompleted: isCompleted);
+    return (await getTask(taskId))!;
+  }
+
+  @override
+  Future<void> setTasksCompleted({
+    required List<String> taskIds,
+    required bool isCompleted,
+  }) async {
+    final normalizedIds = taskIds.toSet().toList(growable: false);
+    if (normalizedIds.isEmpty) {
+      return;
+    }
     final now = DateTime.now().toUtc();
     await (_database.update(
       _database.tasks,
-    )..where((table) => table.id.equals(taskId)))
+    )..where((table) => table.id.isIn(normalizedIds)))
         .write(
       TasksCompanion(
         isCompleted: Value(isCompleted),
@@ -185,38 +213,76 @@ final class TodoRepository implements TodoRepositoryClient {
         updatedAtEpochMs: Value(now.millisecondsSinceEpoch),
       ),
     );
-
-    return (await getTask(taskId))!;
   }
 
   @override
   Future<TodoTask> deleteTask(String taskId) async {
+    return (await deleteTasks(<String>[taskId])).single;
+  }
+
+  @override
+  Future<List<TodoTask>> deleteTasks(List<String> taskIds) async {
+    final normalizedIds = taskIds.toSet().toList(growable: false);
+    if (normalizedIds.isEmpty) {
+      return const <TodoTask>[];
+    }
     final now = DateTime.now().toUtc();
     await (_database.update(
       _database.tasks,
-    )..where((table) => table.id.equals(taskId)))
+    )..where((table) => table.id.isIn(normalizedIds)))
         .write(
       TasksCompanion(
         deletedAtEpochMs: Value(now.millisecondsSinceEpoch),
         updatedAtEpochMs: Value(now.millisecondsSinceEpoch),
       ),
     );
-    return (await getTask(taskId))!;
+    return _fetchTasksByIds(normalizedIds);
   }
 
   @override
   Future<TodoTask> restoreTask(String taskId) async {
+    await restoreTasks(<String>[taskId]);
+    return (await getTask(taskId))!;
+  }
+
+  @override
+  Future<void> restoreTasks(List<String> taskIds) async {
+    final normalizedIds = taskIds.toSet().toList(growable: false);
+    if (normalizedIds.isEmpty) {
+      return;
+    }
     final now = DateTime.now().toUtc();
     await (_database.update(
       _database.tasks,
-    )..where((table) => table.id.equals(taskId)))
+    )..where((table) => table.id.isIn(normalizedIds)))
         .write(
       TasksCompanion(
         deletedAtEpochMs: const Value(null),
         updatedAtEpochMs: Value(now.millisecondsSinceEpoch),
       ),
     );
-    return (await getTask(taskId))!;
+  }
+
+  @override
+  Future<List<TodoTask>> updateTasksPriority({
+    required List<String> taskIds,
+    required TodoPriority priority,
+  }) async {
+    final normalizedIds = taskIds.toSet().toList(growable: false);
+    if (normalizedIds.isEmpty) {
+      return const <TodoTask>[];
+    }
+    final now = DateTime.now().toUtc();
+    await (_database.update(
+      _database.tasks,
+    )..where((table) => table.id.isIn(normalizedIds)))
+        .write(
+      TasksCompanion(
+        priority: Value(priority.storageValue),
+        updatedAtEpochMs: Value(now.millisecondsSinceEpoch),
+      ),
+    );
+    return _fetchTasksByIds(normalizedIds);
   }
 
   @override
@@ -381,6 +447,21 @@ final class TodoRepository implements TodoRepositoryClient {
     )..where((table) => table.id.isIn(tagIds)))
         .get();
     return rows.map(_mapTag).toList(growable: false);
+  }
+
+  Future<List<TodoTask>> _fetchTasksByIds(List<String> taskIds) async {
+    if (taskIds.isEmpty) {
+      return const <TodoTask>[];
+    }
+    final rows = await (_database.select(
+      _database.tasks,
+    )..where((table) => table.id.isIn(taskIds)))
+        .get();
+    final mapped = await _hydrateTasks(rows);
+    final byId = <String, TodoTask>{for (final task in mapped) task.id: task};
+    return taskIds.map((taskId) => byId[taskId]).whereType<TodoTask>().toList(
+          growable: false,
+        );
   }
 
   TodoTask _mapTask(Task row, Map<String, TodoTag> tagMap) {

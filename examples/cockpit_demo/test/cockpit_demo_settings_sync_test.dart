@@ -95,6 +95,20 @@ void main() {
       expect(service.syncState.status, TodoSyncStatus.healthy);
       expect(service.syncState.headline, 'Relay ready');
       expect(find.text('Run check'), findsOneWidget);
+
+      await tester.ensureVisible(
+        find.byKey(const ValueKey<String>('settings-sync-reset-button')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const ValueKey<String>('settings-sync-reset-button')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(service.syncState.status, TodoSyncStatus.idle);
+      expect(service.syncState.headline, 'Sync relay idle');
+      expect(find.text('Run check'), findsOneWidget);
+      expect(find.text('Last successful check'), findsNothing);
     },
   );
 }

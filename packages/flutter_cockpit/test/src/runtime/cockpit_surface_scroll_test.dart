@@ -348,4 +348,50 @@ void main() {
       expect(controller.offset, greaterThan(0));
     },
   );
+
+  testWidgets(
+    'scrollByViewport uses programmatic segmented probing for target-driven search',
+    (tester) async {
+      final controller = ScrollController();
+      addTearDown(controller.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: CockpitSurface(
+            routeName: '/probe-scrollable',
+            child: Material(
+              child: ListView.builder(
+                key: const ValueKey<String>('probe-scrollable'),
+                controller: controller,
+                itemCount: 60,
+                itemBuilder: (context, index) {
+                  return SizedBox(
+                    height: 96,
+                    child: ListTile(title: Text('Task $index')),
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final surfaceState = tester.state<CockpitSurfaceState>(
+        find.byType(CockpitSurface),
+      );
+
+      final didScroll = await surfaceState.scrollByViewport(
+        viewportFraction: 0.8,
+        duration: const Duration(milliseconds: 220),
+        scrollableKey: 'probe-scrollable',
+        targetLocator: const CockpitLocator(key: 'task-59'),
+      );
+      await tester.pumpAndSettle();
+
+      expect(didScroll.didScroll, isTrue);
+      expect(didScroll.strategy, 'jumpTo_probe');
+      expect(controller.offset, greaterThan(0));
+    },
+  );
 }

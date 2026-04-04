@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../app/todo_app_service.dart';
+import '../../app/todo_sync_state.dart';
 import '../../model/todo_settings.dart';
 import '../theme/orbit_todo_theme.dart';
 import '../widgets/editorial_section.dart';
@@ -87,6 +88,11 @@ final class _SettingsScreenState extends State<SettingsScreen> {
         final theme = Theme.of(context);
         final colorScheme = theme.colorScheme;
         final syncState = widget.service.syncState;
+        final canResetSyncState = !syncState.isChecking &&
+            (syncState.status != TodoSyncStatus.idle ||
+                syncState.hasSuccessfulCheck ||
+                syncState.endpoint != null ||
+                syncState.checkedAt != null);
         return Scaffold(
           appBar: AppBar(title: const Text('Settings')),
           body: DecoratedBox(
@@ -353,8 +359,7 @@ final class _SettingsScreenState extends State<SettingsScreen> {
                                           'Last successful check',
                                           style: theme.textTheme.labelMedium
                                               ?.copyWith(
-                                            color:
-                                                colorScheme.onSurfaceVariant,
+                                            color: colorScheme.onSurfaceVariant,
                                             fontWeight: FontWeight.w700,
                                             letterSpacing: 0.4,
                                           ),
@@ -364,19 +369,18 @@ final class _SettingsScreenState extends State<SettingsScreen> {
                                           syncState.lastHealthySummary!,
                                           style: theme.textTheme.bodyMedium
                                               ?.copyWith(
-                                            color:
-                                                colorScheme.onSurfaceVariant,
+                                            color: colorScheme.onSurfaceVariant,
                                             height: 1.45,
                                           ),
                                         ),
-                                        if (syncState.lastHealthyEndpoint case final endpoint?)
+                                        if (syncState.lastHealthyEndpoint
+                                            case final endpoint?)
                                           Padding(
                                             padding:
                                                 const EdgeInsets.only(top: 4),
                                             child: Text(
                                               'Endpoint · $endpoint${syncState.lastHealthyStatusCode == null ? '' : ' · HTTP ${syncState.lastHealthyStatusCode}'}',
-                                              style: theme.textTheme
-                                                  .labelMedium
+                                              style: theme.textTheme.labelMedium
                                                   ?.copyWith(
                                                 color: colorScheme
                                                     .onSurfaceVariant,
@@ -403,6 +407,19 @@ final class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                         ],
                       ),
+                      if (canResetSyncState) ...<Widget>[
+                        const SizedBox(height: 12),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            key: const ValueKey<String>(
+                              'settings-sync-reset-button',
+                            ),
+                            onPressed: widget.service.resetSyncRelayState,
+                            child: const Text('Reset relay state'),
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 18),
                       _SettingsToggleRow(
                         controlKey: const ValueKey<String>(

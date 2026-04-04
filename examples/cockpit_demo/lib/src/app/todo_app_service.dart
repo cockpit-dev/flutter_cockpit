@@ -118,23 +118,39 @@ final class TodoAppService extends ChangeNotifier {
     required String taskId,
     required bool isCompleted,
   }) async {
+    await setTasksCompleted(
+      taskIds: <String>[taskId],
+      isCompleted: isCompleted,
+    );
+  }
+
+  Future<bool> setTasksCompleted({
+    required List<String> taskIds,
+    required bool isCompleted,
+  }) async {
+    final normalizedIds = taskIds.toSet().toList(growable: false);
+    if (normalizedIds.isEmpty) {
+      return false;
+    }
     try {
-      await _repository.setTaskCompleted(
-        taskId: taskId,
+      await _repository.setTasksCompleted(
+        taskIds: normalizedIds,
         isCompleted: isCompleted,
       );
       if (_isDisposed) {
-        return;
+        return false;
       }
       await loadTasks();
+      return true;
     } on Object catch (error) {
       if (_isDisposed) {
-        return;
+        return false;
       }
       _listState = _listState.copyWith(
         errorMessage: () => _errorMessage(error),
       );
       _notifyListenersIfActive();
+      return false;
     }
   }
 
@@ -212,44 +228,87 @@ final class TodoAppService extends ChangeNotifier {
   }
 
   Future<void> deleteTask(String taskId) async {
+    await deleteTasks(<String>[taskId]);
+  }
+
+  Future<bool> deleteTasks(List<String> taskIds) async {
+    final normalizedIds = taskIds.toSet().toList(growable: false);
+    if (normalizedIds.isEmpty) {
+      return false;
+    }
     try {
-      final deleted = await _repository.deleteTask(taskId);
+      final deleted = await _repository.deleteTasks(normalizedIds);
       if (_isDisposed) {
-        return;
+        return false;
       }
       _listState = _listState.copyWith(
-        pendingUndoTask: () => deleted,
+        pendingUndoTasks: List<TodoTask>.unmodifiable(deleted),
         errorMessage: () => null,
       );
       _notifyListenersIfActive();
       await loadTasks();
+      return true;
     } on Object catch (error) {
       if (_isDisposed) {
-        return;
+        return false;
       }
       _listState = _listState.copyWith(
         errorMessage: () => _errorMessage(error),
       );
       _notifyListenersIfActive();
+      return false;
     }
   }
 
   Future<bool> undoDelete() async {
-    final pendingTask = _listState.pendingUndoTask;
-    if (pendingTask == null) {
+    final pendingTasks = _listState.pendingUndoTasks;
+    if (pendingTasks.isEmpty) {
       return false;
     }
 
     try {
-      await _repository.restoreTask(pendingTask.id);
+      await _repository.restoreTasks(
+        pendingTasks.map((task) => task.id).toList(growable: false),
+      );
       if (_isDisposed) {
         return false;
       }
       _listState = _listState.copyWith(
-        pendingUndoTask: () => null,
+        pendingUndoTasks: const <TodoTask>[],
         errorMessage: () => null,
       );
       _notifyListenersIfActive();
+      await loadTasks();
+      return true;
+    } on Object catch (error) {
+      if (_isDisposed) {
+        return false;
+      }
+      _listState = _listState.copyWith(
+        errorMessage: () => _errorMessage(error),
+      );
+      _notifyListenersIfActive();
+      return false;
+    }
+  }
+
+  Future<bool> updateTasksPriority({
+    required List<String> taskIds,
+    required TodoPriority priority,
+  }) async {
+    final normalizedIds = taskIds.toSet().toList(growable: false);
+    if (normalizedIds.isEmpty) {
+      return false;
+    }
+
+    try {
+      await _repository.updateTasksPriority(
+        taskIds: normalizedIds,
+        priority: priority,
+      );
+      if (_isDisposed) {
+        return false;
+      }
       await loadTasks();
       return true;
     } on Object catch (error) {
@@ -432,6 +491,11 @@ final class TodoAppService extends ChangeNotifier {
       return;
     }
     _syncState = _syncState.copyWith(simulateFailure: value);
+    _notifyListenersIfActive();
+  }
+
+  void resetSyncRelayState() {
+    _syncState = TodoSyncState(simulateFailure: _syncState.simulateFailure);
     _notifyListenersIfActive();
   }
 

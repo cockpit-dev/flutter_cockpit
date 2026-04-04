@@ -124,6 +124,65 @@ void main() {
       },
     );
 
+    test('updates the priority of multiple tasks in a single batch', () async {
+      final first = await repository.createTask(
+        title: 'Prepare release notes',
+        priority: TodoPriority.low,
+      );
+      final second = await repository.createTask(
+        title: 'Review modal behavior',
+        priority: TodoPriority.medium,
+      );
+      final third = await repository.createTask(
+        title: 'Preserve baseline coverage',
+        priority: TodoPriority.high,
+      );
+
+      await service.loadTasks();
+      final updated = await service.updateTasksPriority(
+        taskIds: <String>[first.id, second.id],
+        priority: TodoPriority.urgent,
+      );
+
+      expect(updated, isTrue);
+      final refreshed = await repository.fetchTasks(const TodoFilter.inbox());
+      final prioritiesById = <String, TodoPriority>{
+        for (final task in refreshed) task.id: task.priority,
+      };
+      expect(prioritiesById[first.id], TodoPriority.urgent);
+      expect(prioritiesById[second.id], TodoPriority.urgent);
+      expect(prioritiesById[third.id], TodoPriority.high);
+    });
+
+    test('deletes multiple tasks with one undo batch', () async {
+      final first = await repository.createTask(title: 'First batch task');
+      final second = await repository.createTask(title: 'Second batch task');
+      await repository.createTask(title: 'Keep visible');
+
+      await service.loadTasks();
+      final deleted = await service.deleteTasks(<String>[first.id, second.id]);
+
+      expect(deleted, isTrue);
+      expect(
+        service.listState.tasks
+            .map((task) => task.title)
+            .toList(growable: false),
+        <String>['Keep visible'],
+      );
+      expect(
+        service.listState.pendingUndoTasks.map((task) => task.id).toList(
+              growable: false,
+            ),
+        <String>[first.id, second.id],
+      );
+
+      final restored = await service.undoDelete();
+
+      expect(restored, isTrue);
+      expect(service.listState.pendingUndoTasks, isEmpty);
+      expect(service.listState.tasks, hasLength(3));
+    });
+
     test('captures repository failures as recoverable state', () async {
       final failingService = TodoAppService(
         repository: _FailingTodoRepository(),
@@ -197,6 +256,36 @@ void main() {
         );
       },
     );
+
+    test('can reset sync relay state back to idle after previous checks',
+        () async {
+      service = TodoAppService(
+        repository: repository,
+        syncGateway: _FakeTodoSyncGateway(),
+      );
+
+      await service.runSyncHealthCheck();
+
+      expect(service.syncState.status, TodoSyncStatus.healthy);
+      expect(service.syncState.hasSuccessfulCheck, isTrue);
+
+      service.resetSyncRelayState();
+
+      expect(service.syncState.status, TodoSyncStatus.idle);
+      expect(service.syncState.headline, 'Sync relay idle');
+      expect(
+        service.syncState.detail,
+        'Run a relay check to capture request and response evidence.',
+      );
+      expect(service.syncState.endpoint, isNull);
+      expect(service.syncState.statusCode, isNull);
+      expect(service.syncState.checkedAt, isNull);
+      expect(service.syncState.hasSuccessfulCheck, isFalse);
+      expect(service.syncState.lastHealthySummary, isNull);
+      expect(service.syncState.lastHealthyEndpoint, isNull);
+      expect(service.syncState.lastHealthyStatusCode, isNull);
+      expect(service.syncState.lastHealthyCheckedAt, isNull);
+    });
   });
 }
 
@@ -264,6 +353,11 @@ final class _FailingTodoRepository implements TodoRepositoryClient {
   }
 
   @override
+  Future<List<TodoTask>> deleteTasks(List<String> taskIds) {
+    throw StateError('Simulated delete failure');
+  }
+
+  @override
   Future<List<TodoTask>> fetchTasks(TodoFilter filter) {
     throw StateError('Simulated fetch failure');
   }
@@ -286,11 +380,24 @@ final class _FailingTodoRepository implements TodoRepositoryClient {
   }
 
   @override
+  Future<void> restoreTasks(List<String> taskIds) {
+    throw StateError('Simulated restore failure');
+  }
+
+  @override
   Future<void> saveSettings(TodoSettings settings) async {}
 
   @override
   Future<TodoTask> setTaskCompleted({
     required String taskId,
+    required bool isCompleted,
+  }) {
+    throw StateError('Simulated completion failure');
+  }
+
+  @override
+  Future<void> setTasksCompleted({
+    required List<String> taskIds,
     required bool isCompleted,
   }) {
     throw StateError('Simulated completion failure');
@@ -304,6 +411,14 @@ final class _FailingTodoRepository implements TodoRepositoryClient {
     TodoPriority priority = TodoPriority.medium,
     DateTime? dueAt,
     List<String> tagIds = const <String>[],
+  }) {
+    throw StateError('Simulated update failure');
+  }
+
+  @override
+  Future<List<TodoTask>> updateTasksPriority({
+    required List<String> taskIds,
+    required TodoPriority priority,
   }) {
     throw StateError('Simulated update failure');
   }

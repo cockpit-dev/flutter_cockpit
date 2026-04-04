@@ -215,6 +215,17 @@ final class _McpSurfaceVerifier {
           },
         ).toString(),
       );
+      workspaceReport['grep_package_uris'] = await _callTool(
+        server,
+        'grep_package_uris',
+        <String, Object?>{
+          'workspaceRoot': projectRoot,
+          'packageNames': <String>['mcp_verify_project'],
+          'query': 'describeValue',
+          'maxMatches': 5,
+          'timeoutSeconds': 20,
+        },
+      );
       workspaceReport['lsp_hover'] = await _callTool(
         server,
         'lsp',

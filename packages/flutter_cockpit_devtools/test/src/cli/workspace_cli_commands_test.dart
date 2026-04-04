@@ -6,6 +6,7 @@ import 'package:flutter_cockpit_devtools/flutter_cockpit_devtools.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_workspace_tooling_support.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/analyze_files_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/create_project_command.dart';
+import 'package:flutter_cockpit_devtools/src/cli/commands/grep_package_uris_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/lsp_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/pub_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/pub_dev_search_command.dart';
@@ -164,6 +165,88 @@ void main() {
     final decoded = jsonDecode(output.toString()) as Map<String, Object?>;
     expect(decoded['workspaceRoot'], currentRoot);
     expect((decoded['results'] as List<Object?>), hasLength(2));
+  });
+
+  test('grep-package-uris defaults workspace-root to the current directory',
+      () async {
+    final originalCurrent = Directory.current;
+    final tempDir =
+        await Directory.systemTemp.createTemp('grep_package_uris_command');
+    addTearDown(() async {
+      Directory.current = originalCurrent;
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+    Directory.current = tempDir;
+    final currentRoot = p.normalize(Directory.current.path);
+
+    CockpitGrepPackageUrisRequest? capturedRequest;
+    final output = StringBuffer();
+    final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
+      ..addCommand(
+        GrepPackageUrisCommand(
+          stdoutSink: output,
+          grep: (request) async {
+            capturedRequest = request;
+            return const CockpitGrepPackageUrisResult(
+              workspaceRoot: '/workspace',
+              query: 'ThemeData',
+              searchDir: 'lib',
+              useRegex: false,
+              caseSensitive: false,
+              usedRipgrep: false,
+              matchedPackageCount: 1,
+              matchedFileCount: 1,
+              totalMatches: 1,
+              truncated: false,
+              summary: 'Found 1 match across 1 file in 1 package.',
+              packages: <CockpitGrepPackageUrisPackageResult>[
+                CockpitGrepPackageUrisPackageResult(
+                  packageName: 'flutter',
+                  searchRoot: '/deps/flutter/lib',
+                  matchCount: 1,
+                  files: <CockpitGrepPackageUrisFileResult>[
+                    CockpitGrepPackageUrisFileResult(
+                      path: '/deps/flutter/lib/src/material/theme_data.dart',
+                      relativePath: 'lib/src/material/theme_data.dart',
+                      packageRootUri:
+                          'package-root:flutter/lib/src/material/theme_data.dart',
+                      packageUri:
+                          'package:flutter/src/material/theme_data.dart',
+                      matches: <CockpitGrepPackageUrisMatch>[
+                        CockpitGrepPackageUrisMatch(
+                          line: 10,
+                          column: 7,
+                          endColumn: 15,
+                          text: 'class ThemeData {',
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            );
+          },
+        ),
+      );
+
+    final exitCode = await runner.run(<String>[
+          'grep-package-uris',
+          '--package',
+          'flutter',
+          '--query',
+          'ThemeData',
+        ]) ??
+        0;
+
+    expect(exitCode, 0);
+    expect(capturedRequest?.workspaceRoot, currentRoot);
+    expect(capturedRequest?.packageNames, <String>['flutter']);
+    expect(capturedRequest?.query, 'ThemeData');
+    final decoded = jsonDecode(output.toString()) as Map<String, Object?>;
+    expect(decoded['matchedPackageCount'], 1);
+    expect((decoded['packages'] as List<Object?>), hasLength(1));
   });
 
   test('lsp defaults workspace-root to the current directory', () async {

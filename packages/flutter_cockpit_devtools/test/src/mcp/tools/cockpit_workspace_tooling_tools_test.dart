@@ -1,5 +1,6 @@
 import 'package:dart_mcp/server.dart' show Root;
 import 'package:flutter_cockpit_devtools/src/application/cockpit_create_project_service.dart';
+import 'package:flutter_cockpit_devtools/src/application/cockpit_grep_package_uris_service.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_analyze_files_service.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_lsp_service.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_pub_service.dart';
@@ -11,6 +12,7 @@ import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_analyze_files_too
 import 'package:flutter_cockpit_devtools/src/mcp/core/cockpit_mcp_roots_tracker.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_add_roots_tool.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_create_project_tool.dart';
+import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_grep_package_uris_tool.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_lsp_tool.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_pub_tool.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_pub_dev_search_tool.dart';
@@ -105,6 +107,67 @@ void main() {
         await tool.call(<String, Object?>{'query': 'state management'});
     final structured = result['structuredContent'] as Map<String, Object?>;
     expect((structured['results'] as List<Object?>), hasLength(1));
+  });
+
+  test('grep_package_uris defaults to the single configured root', () async {
+    final rootsTracker = CockpitMcpRootsTracker(forceFallback: true)
+      ..addFallbackRoots(
+          <Root>[Root(uri: 'file:///workspace/', name: 'workspace')]);
+    CockpitGrepPackageUrisRequest? capturedRequest;
+    final tool = CockpitGrepPackageUrisTool(
+      rootsTracker: rootsTracker,
+      grep: (request) async {
+        capturedRequest = request;
+        return const CockpitGrepPackageUrisResult(
+          workspaceRoot: '/workspace',
+          query: 'ThemeData',
+          searchDir: 'lib',
+          useRegex: false,
+          caseSensitive: false,
+          usedRipgrep: false,
+          matchedPackageCount: 1,
+          matchedFileCount: 1,
+          totalMatches: 1,
+          truncated: false,
+          summary: 'Found 1 match across 1 file in 1 package.',
+          packages: <CockpitGrepPackageUrisPackageResult>[
+            CockpitGrepPackageUrisPackageResult(
+              packageName: 'flutter',
+              searchRoot: '/deps/flutter/lib',
+              matchCount: 1,
+              files: <CockpitGrepPackageUrisFileResult>[
+                CockpitGrepPackageUrisFileResult(
+                  path: '/deps/flutter/lib/src/material/theme_data.dart',
+                  relativePath: 'lib/src/material/theme_data.dart',
+                  packageRootUri:
+                      'package-root:flutter/lib/src/material/theme_data.dart',
+                  packageUri: 'package:flutter/src/material/theme_data.dart',
+                  matches: <CockpitGrepPackageUrisMatch>[
+                    CockpitGrepPackageUrisMatch(
+                      line: 10,
+                      column: 7,
+                      endColumn: 15,
+                      text: 'class ThemeData {',
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+
+    final result = await tool.call(<String, Object?>{
+      'packageNames': <String>['flutter'],
+      'query': 'ThemeData',
+    });
+
+    expect(capturedRequest?.workspaceRoot, '/workspace');
+    expect(capturedRequest?.allowedRoots, <String>['/workspace']);
+    final structured = result['structuredContent'] as Map<String, Object?>;
+    expect(structured['matchedPackageCount'], 1);
+    expect((structured['packages'] as List<Object?>), hasLength(1));
   });
 
   test(

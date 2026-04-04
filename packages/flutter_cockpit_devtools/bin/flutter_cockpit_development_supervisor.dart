@@ -2,14 +2,13 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:args/args.dart';
+import 'package:flutter_cockpit_devtools/src/development/cockpit_development_session_machine_launcher.dart';
 import 'package:flutter_cockpit_devtools/src/development/cockpit_development_session_handle.dart';
 import 'package:flutter_cockpit_devtools/src/development/cockpit_development_session_supervisor.dart';
 import 'package:flutter_cockpit_devtools/src/development/cockpit_flutter_run_machine_client.dart';
 import 'package:flutter_cockpit_devtools/src/remote/cockpit_android_port_forwarder.dart';
 import 'package:flutter_cockpit_devtools/src/remote/cockpit_remote_session_client.dart';
 import 'package:flutter_cockpit_devtools/src/session/cockpit_remote_session_handle.dart';
-import 'package:flutter_cockpit_devtools/src/session/cockpit_remote_session_launch_options.dart';
-import 'package:flutter_cockpit_devtools/src/session/cockpit_remote_session_launcher.dart';
 
 Future<void> main(List<String> args) async {
   final parser = ArgParser()
@@ -54,6 +53,7 @@ Future<void> main(List<String> args) async {
   }
 
   CockpitRemoteSessionHandle? remoteHandle;
+  CockpitFlutterRunMachineClient? machineClient;
   final developmentHandle = CockpitDevelopmentSessionHandle(
     developmentSessionId:
         'dev-$platform-${DateTime.now().toUtc().microsecondsSinceEpoch}',
@@ -69,9 +69,26 @@ Future<void> main(List<String> args) async {
   );
 
   final portForwarder = const CockpitAndroidPortForwarder();
+  final machineLauncher = CockpitDevelopmentSessionMachineLauncher(
+    portForwarder: portForwarder,
+  );
+  final machineLaunchRequest = CockpitLaunchDevelopmentMachineSessionRequest(
+    projectDir: projectDir,
+    target: target,
+    platform: platform,
+    deviceId: deviceId,
+    sessionPort: sessionPort,
+    hostPort: appHostPort,
+    launchTimeout: launchTimeout,
+    flutterExecutable: flutterExecutable,
+    flutterVersion: flutterVersion,
+  );
+  await writeLog('development machine launch start');
+  machineClient =
+      await machineLauncher.startMachineClient(machineLaunchRequest);
   final supervisor = CockpitDevelopmentSessionSupervisor(
     initialHandle: developmentHandle,
-    machineClient: null,
+    machineClient: machineClient,
     remoteReachabilityProbe: (baseUri) async {
       if (platform == 'android') {
         await portForwarder.ensureForwarded(
@@ -96,27 +113,6 @@ Future<void> main(List<String> args) async {
         return false;
       }
     },
-    machineClientConnector: () {
-      final launchedRemoteHandle = remoteHandle;
-      if (launchedRemoteHandle == null) {
-        throw StateError('Remote session has not been launched yet.');
-      }
-      return CockpitFlutterRunMachineClient.attach(
-        projectDir: projectDir,
-        target: target,
-        deviceId: deviceId,
-        appId: launchedRemoteHandle.appId,
-        flutterExecutable: flutterExecutable,
-      );
-    },
-    appStopper: platform == 'macos'
-        ? (appId) async {
-            await Process.run('osascript', <String>[
-              '-e',
-              'tell application id "$appId" to quit',
-            ]).timeout(const Duration(seconds: 5));
-          }
-        : null,
     logger: writeLog,
     bindPort: supervisorPort,
   );
@@ -138,21 +134,12 @@ Future<void> main(List<String> args) async {
     await supervisor.start();
     unawaited(() async {
       try {
-        await writeLog('remote launch start');
-        remoteHandle = await CockpitPlatformRemoteSessionLauncher().launch(
-          CockpitRemoteSessionLaunchOptions(
-            projectDir: projectDir,
-            target: target,
-            platform: platform,
-            deviceId: deviceId,
-            sessionPort: sessionPort,
-            launchTimeout: launchTimeout,
-            flutterVersion: flutterVersion,
-            flutterExecutable: flutterExecutable,
-          ),
+        remoteHandle = await machineLauncher.waitForRemoteSession(
+          request: machineLaunchRequest,
+          machineClient: machineClient!,
         );
         await writeLog(
-          'remote launch ready app_id=${remoteHandle!.appId} '
+          'development machine ready app_id=${remoteHandle!.appId} '
           'base_url=${remoteHandle!.baseUrl}',
         );
         await supervisor.bindRemoteSession(remoteHandle!);

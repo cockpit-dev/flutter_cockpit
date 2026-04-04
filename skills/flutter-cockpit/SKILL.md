@@ -28,7 +28,7 @@ Do not use it for docs-only edits or static refactors with no runtime claim.
    Start with `read_app` / `read-app --profile minimal`.
 3. `execute`
    Prefer `run_command` for one action and `run_batch` for short ordered steps. Use `wait_idle`, `read_network`, `read_errors`, `read_logs`, `hot_reload`, and `hot_restart` only when they answer the next question.
-   For code-side questions, prefer `lsp`, `analyze_files`, and `pub` before broader workspace commands.
+   For code-side questions, prefer `lsp`, `analyze_files`, `grep_package_uris`, `read_package_uris`, and `pub` before broader workspace commands.
 4. `observe`
    Re-read with the smallest profile that answers the next missing fact.
 5. `deliver`
@@ -41,7 +41,11 @@ Do not use it for docs-only edits or static refactors with no runtime claim.
 - `path` is fuzzy. Segments such as `body`, `slivers`, and numeric indexes are ignored, so shorter structural paths are preferred over brittle full trees.
 - Use short ordered `fallbacks` instead of one over-constrained locator.
 - `scrollUntilVisible` probes between internal scroll segments and can stop early when a target becomes visible mid-search, so prefer one precise locator over manual repeated blind scroll commands.
+- If the current direction hits a scroll boundary first, `scrollUntilVisible` can recover by trying the opposite direction once. Use explicit `reverse` only when you already know the target region is above the current viewport.
 - On long settings pages, forms, or dashboards, reveal a stable section heading or card first, then target deeper controls inside that section. Jumping straight to a deeply nested off-screen control can overshoot or time out.
+- After selection banners, snackbars, or bottom sheets appear, assume list geometry changed. Re-anchor the next row or control instead of reusing the pre-overlay scroll position.
+- After `hot-reload` or `hot-restart`, do not assume the route or scroll position reset. Re-read minimal state, then re-anchor from a known section before sending the next deep locator.
+- A successful `hot-reload` or `hot-restart` status only proves the request completed and the app became reachable again. Re-read the specific control you changed, and relaunch once if the intended UI delta still does not appear.
 
 ## Profiles And Timeouts
 
@@ -51,6 +55,7 @@ Do not use it for docs-only edits or static refactors with no runtime claim.
 - `evidence`: final or hardest cases only
 
 Default to the smallest profile that answers the current question.
+`read-app --profile standard` gives summary counts and `textPreviews`, not a full target inventory. Escalate to `inspect-ui` only when you truly need keys, semantic IDs, or a richer target list.
 Interactive app commands accept `timeoutMs`. Workspace tools accept `timeoutSeconds`. Raise them only for known slow steps such as long scrolls, `run_task`, or package operations.
 If deep controls still miss under sticky headers or footers, lower `viewportFraction` before escalating to heavier inspection.
 
@@ -65,6 +70,7 @@ For the shortest edit -> reload -> verify loop, use the rapid loop reference ins
 - Prefer bundle summaries and gate failures before opening large artifact files.
 - Ask for one missing fact per step, not every diagnostic dimension at once.
 - Prefer `--output-json` plus shell filtering over pasting large raw JSON back into context.
+- Prefer `grep_package_uris` before opening large dependency files blindly; search first, then read only the matching package URI.
 - Prefer `jq -r` or short pipes to extract one route, status, failure code, or readiness field at a time.
 - Prefer `--command-file`, `--commands-file`, and `--config-json` files over long inline JSON literals when the payload is more than a few lines.
 - Reuse `app.json`, command files, and config files across loops instead of regenerating them in every step.
@@ -77,11 +83,17 @@ For the shortest edit -> reload -> verify loop, use the rapid loop reference ins
   `flutter_cockpit_devtools read-app --app-json /tmp/flutter_cockpit/app.json --profile minimal | jq '{sessionId,currentRouteName,state}'`
 - Extract one scalar when only the next branch decision matters:
   `flutter_cockpit_devtools read-app --app-json /tmp/flutter_cockpit/app.json --profile minimal | jq -r '.currentRouteName'`
+- Reload commands report status under nested fields:
+  `flutter_cockpit_devtools hot-reload --app-json /tmp/flutter_cockpit/app.json | jq '{reloadGeneration: .status.reloadGeneration, lastReloadSucceeded: .status.lastReloadSucceeded, lastReloadMode: .status.lastReloadMode}'`
 - Keep large results off stdout and read only the needed fields later:
   `flutter_cockpit_devtools validate-task --config-json /tmp/validate_task.json --output-json /tmp/validate_task_result.json`
   `jq '{classification,recommendedNextStep,validationFailures}' /tmp/validate_task_result.json`
+- Search a dependency package, then read only the matched file:
+  `flutter_cockpit_devtools grep-package-uris --package flutter --query ThemeData --output-json /tmp/grep_package_uris.json`
+  `jq -r '.packages[0].files[0].packageUri' /tmp/grep_package_uris.json`
 - For command results, prefer a short projection:
   `flutter_cockpit_devtools run-command --app-json /tmp/flutter_cockpit/app.json --command-file /tmp/command.json --profile standard | jq '{success,commandId,currentRouteName,uiSummary,snapshotRef}'`
+- After `enterText`, do not rely on `uiSummary.textPreviews` to echo the field contents. Prefer verifying the next state transition, dependent control, or downstream saved result.
 - Use pipes only to trim the response. Do not ask the app for heavier profiles unless the filtered low-cost result still leaves the next fact ambiguous.
 
 ## Tool Selection
@@ -97,6 +109,7 @@ For the shortest edit -> reload -> verify loop, use the rapid loop reference ins
 - App-centric logs: `read_logs` / `read-logs`
 - Dependency search: `pub_dev_search` / `pub-dev-search`
 - Dependency edits: `pub`
+- Dependency source search: `grep_package_uris` / `grep-package-uris`
 - Package source reads: `read_package_uris` / `read-package-uris`
 - Focused static checks: `analyze_files` / `analyze-files`
 - Code intelligence: `lsp`

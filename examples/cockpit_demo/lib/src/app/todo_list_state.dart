@@ -10,7 +10,7 @@ final class TodoListState {
     this.filter = const TodoFilter.inbox(),
     this.isLoading = false,
     this.errorMessage,
-    this.pendingUndoTask,
+    this.pendingUndoTasks = const <TodoTask>[],
     this.focusedTaskId,
   });
 
@@ -18,17 +18,20 @@ final class TodoListState {
   final TodoFilter filter;
   final bool isLoading;
   final String? errorMessage;
-  final TodoTask? pendingUndoTask;
+  final List<TodoTask> pendingUndoTasks;
   final String? focusedTaskId;
 
-  bool get canUndoDelete => pendingUndoTask != null;
+  TodoTask? get pendingUndoTask =>
+      pendingUndoTasks.length == 1 ? pendingUndoTasks.single : null;
+  int get pendingUndoCount => pendingUndoTasks.length;
+  bool get canUndoDelete => pendingUndoTasks.isNotEmpty;
 
   TodoListState copyWith({
     List<TodoTask>? tasks,
     TodoFilter? filter,
     bool? isLoading,
     ValueGetter<String?>? errorMessage,
-    ValueGetter<TodoTask?>? pendingUndoTask,
+    List<TodoTask>? pendingUndoTasks,
     ValueGetter<String?>? focusedTaskId,
   }) {
     return TodoListState(
@@ -36,8 +39,7 @@ final class TodoListState {
       filter: filter ?? this.filter,
       isLoading: isLoading ?? this.isLoading,
       errorMessage: errorMessage == null ? this.errorMessage : errorMessage(),
-      pendingUndoTask:
-          pendingUndoTask == null ? this.pendingUndoTask : pendingUndoTask(),
+      pendingUndoTasks: pendingUndoTasks ?? this.pendingUndoTasks,
       focusedTaskId:
           focusedTaskId == null ? this.focusedTaskId : focusedTaskId(),
     );

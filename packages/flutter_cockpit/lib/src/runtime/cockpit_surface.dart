@@ -282,17 +282,15 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
       CockpitScrollStepResult? lastStep;
 
       for (var index = 0; index < probeSegmentCount; index += 1) {
-        final stepResult = await scrollByViewport(
+        final stepResult = await _scrollScrollableByViewport(
+          scrollable,
           reverse: reverse,
           viewportFraction: stepViewportFraction,
-          scrollableKey: scrollableKey,
-          targetLocator: targetLocator,
-          scrollableLocator: scrollableLocator,
           duration: stepDuration,
           gestureProfile: gestureProfile,
           continuous: continuous,
           postScrollEnsureVisible: postScrollEnsureVisible,
-          probeDuringScroll: false,
+          preferProgrammatic: true,
         );
         lastStep = stepResult;
         didScroll = didScroll || stepResult.didScroll;
@@ -319,6 +317,28 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
       }
     }
 
+    return _scrollScrollableByViewport(
+      scrollable,
+      reverse: reverse,
+      viewportFraction: viewportFraction,
+      duration: duration,
+      gestureProfile: gestureProfile,
+      continuous: continuous,
+      postScrollEnsureVisible: postScrollEnsureVisible,
+    );
+  }
+
+  Future<CockpitScrollStepResult> _scrollScrollableByViewport(
+    _CockpitScrollableCandidate scrollable, {
+    required bool reverse,
+    required double viewportFraction,
+    required Duration duration,
+    required CockpitGestureProfile gestureProfile,
+    required bool continuous,
+    required bool postScrollEnsureVisible,
+    bool preferProgrammatic = false,
+  }) async {
+    final position = scrollable.state.position;
     final pixelsBefore = position.pixels;
     final axisSign = switch (position.axisDirection) {
       AxisDirection.down || AxisDirection.right => 1.0,
@@ -364,7 +384,7 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
     final scrollGeometry = scrollableTarget == null
         ? CockpitTargetGeometryResolver.maybeFromElement(scrollable.element)
         : null;
-    if (scrollGeometry != null) {
+    if (!preferProgrammatic && scrollGeometry != null) {
       final initialPixels = position.pixels;
       try {
         await _gestureEngine.perform(

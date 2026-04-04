@@ -14,6 +14,7 @@ void main() {
         'pub-dev-search',
         'pub',
         'read-package-uris',
+        'grep-package-uris',
         'lsp',
         'analyze-files',
         'create-project',

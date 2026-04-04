@@ -28,15 +28,23 @@ final class _TaskEditorScreenState extends State<TaskEditorScreen> {
     final task = widget.task;
     _titleController = TextEditingController(text: task?.title ?? '');
     _notesController = TextEditingController(text: task?.notes ?? '');
+    _notesController.addListener(_handleNotesChanged);
     _priority = task?.priority ?? TodoPriority.medium;
     _dueAt = task?.dueAt;
   }
 
   @override
   void dispose() {
+    _notesController.removeListener(_handleNotesChanged);
     _titleController.dispose();
     _notesController.dispose();
     super.dispose();
+  }
+
+  void _handleNotesChanged() {
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   Future<void> _save() async {
@@ -66,6 +74,10 @@ final class _TaskEditorScreenState extends State<TaskEditorScreen> {
         _ => _dueAt,
       };
     });
+  }
+
+  void _clearNotes() {
+    _notesController.clear();
   }
 
   @override
@@ -162,6 +174,20 @@ final class _TaskEditorScreenState extends State<TaskEditorScreen> {
                               'Add context, handoff details, or validation notes.',
                         ),
                       ),
+                      if (_notesController.text.trim().isNotEmpty) ...<Widget>[
+                        const SizedBox(height: 10),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton.icon(
+                            key: const ValueKey<String>(
+                              'task-clear-notes-button',
+                            ),
+                            onPressed: _clearNotes,
+                            icon: const Icon(Icons.clear_rounded),
+                            label: const Text('Clear notes'),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),

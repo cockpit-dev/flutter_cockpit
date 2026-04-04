@@ -40,10 +40,12 @@ final class CockpitFlutterRunMachineClient {
   final Completer<Uri> _vmServiceUriCompleter = Completer<Uri>();
   int _nextRequestId = 0;
   String? _currentAppId;
+  Uri? _currentVmServiceUri;
 
   Stream<CockpitFlutterRunMachineEvent> get events => _eventsController.stream;
 
   String? get currentAppId => _currentAppId;
+  Uri? get currentVmServiceUri => _currentVmServiceUri;
 
   Future<Uri> get vmServiceUri => _vmServiceUriCompleter.future;
 
@@ -317,8 +319,12 @@ final class CockpitFlutterRunMachineClient {
         _currentAppId = params?['appId'] as String?;
       case 'app.debugPort':
         final wsUri = params?['wsUri'] as String?;
-        if (wsUri != null && !_vmServiceUriCompleter.isCompleted) {
-          _vmServiceUriCompleter.complete(Uri.parse(wsUri));
+        if (wsUri != null) {
+          _currentVmServiceUri = Uri.parse(wsUri);
+        }
+        if (_currentVmServiceUri != null &&
+            !_vmServiceUriCompleter.isCompleted) {
+          _vmServiceUriCompleter.complete(_currentVmServiceUri!);
         }
     }
 

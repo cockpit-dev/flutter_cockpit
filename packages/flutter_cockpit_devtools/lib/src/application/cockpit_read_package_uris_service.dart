@@ -4,6 +4,7 @@ import 'package:file/file.dart';
 import 'package:path/path.dart' as p;
 
 import 'cockpit_application_service_exception.dart';
+import 'cockpit_package_config_support.dart';
 import '../infrastructure/cockpit_file_system.dart';
 import 'cockpit_workspace_tooling_support.dart';
 
@@ -101,7 +102,10 @@ final class CockpitReadPackageUrisService {
       request.workspaceRoot,
       request.allowedRoots,
     );
-    final packageConfig = _readPackageConfig(workspaceRoot);
+    final packageConfig = cockpitReadPackageConfig(
+      fileSystem: _fileSystem,
+      workspaceRoot: workspaceRoot,
+    );
     final uri = request.uri;
     final packageRootMode = uri.startsWith('package-root:');
     if (!packageRootMode && !uri.startsWith('package:')) {
@@ -190,24 +194,6 @@ final class CockpitReadPackageUrisService {
       },
     );
   }
-
-  Map<String, _CockpitPackageConfigEntry> _readPackageConfig(
-      String workspaceRoot) {
-    final configFile = _fileSystem.file(
-      p.join(workspaceRoot, '.dart_tool', 'package_config.json'),
-    );
-    final decoded =
-        jsonDecode(configFile.readAsStringSync()) as Map<Object?, Object?>;
-    final packages = ((decoded['packages'] as List?) ?? const <Object?>[])
-        .cast<Map<Object?, Object?>>();
-    return <String, _CockpitPackageConfigEntry>{
-      for (final package in packages)
-        package['name'] as String: _CockpitPackageConfigEntry.fromJson(
-          package,
-          configDirectoryPath: configFile.parent.path,
-        ),
-    };
-  }
 }
 
 final class _CockpitPreviewResult {
@@ -218,42 +204,6 @@ final class _CockpitPreviewResult {
 
   final String preview;
   final bool truncated;
-}
-
-final class _CockpitPackageConfigEntry {
-  const _CockpitPackageConfigEntry({
-    required this.rootPath,
-    required this.packagePath,
-  });
-
-  final String rootPath;
-  final String packagePath;
-
-  factory _CockpitPackageConfigEntry.fromJson(
-    Map<Object?, Object?> json, {
-    required String configDirectoryPath,
-  }) {
-    final rootPath = _pathFromPackageConfigUri(
-      json['rootUri'] as String,
-      configDirectoryPath: configDirectoryPath,
-    );
-    final packageUri = json['packageUri'] as String? ?? 'lib/';
-    return _CockpitPackageConfigEntry(
-      rootPath: rootPath,
-      packagePath: p.normalize(p.join(rootPath, packageUri)),
-    );
-  }
-
-  static String _pathFromPackageConfigUri(
-    String uri, {
-    required String configDirectoryPath,
-  }) {
-    final parsed = Uri.parse(uri);
-    if (parsed.scheme.isEmpty) {
-      return Uri.directory(configDirectoryPath).resolveUri(parsed).toFilePath();
-    }
-    return parsed.toFilePath();
-  }
 }
 
 CockpitPackageUriContentKind _contentKindForPath(String path, List<int> bytes) {

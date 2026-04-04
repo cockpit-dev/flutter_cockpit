@@ -25,6 +25,7 @@ Keep each cycle small:
 
 - Use `analyze_files` before `analyze_workspace` when the change is local.
 - Use `lsp` for hover, definition, signature help, or symbols instead of opening large files blindly.
+- Use `grep-package-uris` before `read-package-uris` when you only know the symbol, string, or API fragment inside a dependency.
 - Use `pub` for bounded dependency edits.
 - Use `pub_dev_search` before adding a package you do not know well.
 - Keep command JSON in files when it grows beyond a few lines.
@@ -33,6 +34,7 @@ Keep each cycle small:
 
 - Start with `minimal` when you only need route, app reachability, or a tiny state check.
 - Use `standard` when you need a small UI summary after an action.
+- `read-app --profile standard` gives counts and `textPreviews`, not a full locator inventory. Escalate to `inspect-ui` only when keys or semantic IDs are the missing fact.
 - Use `inspect` when a locator is ambiguous, scrolling failed, or the UI changed in an unexpected way.
 - Use `read-network` when the missing fact is request traffic, endpoint coverage, or recent network failures.
 - For network questions, prefer `run-command` -> `wait-idle` -> `read-network` over a large snapshot read.
@@ -47,7 +49,10 @@ Keep each cycle small:
 - Use fuzzy `path` only when semantic signals are insufficient.
 - Add `fallbacks` when the same intent can be reached through 2-3 stable signals.
 - `scrollUntilVisible` already probes between internal scroll segments, so try one precise locator before composing manual multi-scroll loops.
+- `scrollUntilVisible` can recover once in the opposite direction after it hits the wrong boundary, so only force `reverse` when you already know you started above or below the target region.
 - On long pages, first reveal a stable section heading or card, then target deeper controls inside that section.
+- If you have already scrolled past the target region, switch direction with `reverse: true` or re-anchor from a stable card instead of repeatedly scrolling forward.
+- After selection banners, snackbars, or bottom sheets appear, assume the list shifted and re-anchor before tapping the next off-edge row.
 - Do not parallelize a mutating `run-command` with the follow-up `read-app`, `read-network`, or `inspect-ui` that depends on its side effects.
 
 ## Timeout Strategy
@@ -55,6 +60,8 @@ Keep each cycle small:
 - Keep default timeouts unless the step is known to be slow.
 - Raise `timeoutMs` for long scrolls, waits, or slow environment transitions.
 - If a deep target keeps slipping under sticky headers or footers, lower `viewportFraction` to `0.35`-`0.55` before escalating to `inspect-ui`.
+- After `hot-restart`, re-read route and consider one explicit `wait-idle` or a larger `timeoutMs` for the first deep interaction instead of assuming the session is immediately stable.
+- Treat hot reload success as transport-level success, not proof that your literal, layout, or banner copy changed. Re-read the changed control, then relaunch once if the intended delta is still missing.
 - Raise `timeoutSeconds` for `pub`, `analyze_files`, `run_tests`, or project creation only when needed.
 - If a command times out, inspect whether the environment is blocked before retrying with a larger budget.
 
@@ -70,6 +77,13 @@ Do not pay delivery-grade cost on every edit. Do pay it before any user-facing c
 
 - Keep `app.json` and reuse it:
   `flutter_cockpit_devtools read-app --app-json /tmp/flutter_cockpit/app.json --profile minimal | jq '{currentRouteName,state}'`
+- For reload status, project nested fields instead of assuming top-level booleans:
+  `flutter_cockpit_devtools hot-reload --app-json /tmp/flutter_cockpit/app.json | jq '{reloadGeneration: .status.reloadGeneration, lastReloadSucceeded: .status.lastReloadSucceeded}'`
+- For text input flows, verify the next control or saved state instead of expecting `textPreviews` to mirror the field contents:
+  `flutter_cockpit_devtools run-command --app-json /tmp/flutter_cockpit/app.json --command-file /tmp/enter_text.json --profile standard`
+- Search first, then open one dependency file:
+  `flutter_cockpit_devtools grep-package-uris --package flutter --query ThemeData --output-json /tmp/grep_package_uris.json`
+  `jq -r '.packages[0].files[0].packageUri' /tmp/grep_package_uris.json`
 - When only one branch decision matters, extract one field:
   `flutter_cockpit_devtools read-errors --app-json /tmp/flutter_cockpit/app.json | jq '.hasErrors'`
 - Keep larger results off stdout:

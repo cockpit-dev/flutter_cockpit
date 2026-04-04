@@ -231,6 +231,45 @@ void main() {
   );
 
   test(
+    'supervisor syncs cached machine app state when the machine client emitted before subscription',
+    () async {
+      final harness = _MachineHarness();
+      addTearDown(harness.dispose);
+
+      harness.stdoutController.add(
+        '[{"event":"app.start","params":{"appId":"machine-app-early"}}]',
+      );
+      harness.stdoutController.add(
+        '[{"event":"app.debugPort","params":{"wsUri":"ws://127.0.0.1:34567/early/ws"}}]',
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      final supervisor = CockpitDevelopmentSessionSupervisor(
+        initialHandle: harness.handle.copyWith(
+          appId: '',
+          vmServiceUri: null,
+        ),
+        machineClient: harness.client,
+        remoteReachabilityProbe: (_) async => true,
+        uiIdleWaiter: (_) async => true,
+        now: () => DateTime.utc(2026, 3, 23, 4),
+        settleTimeout: const Duration(seconds: 2),
+        settlePollInterval: const Duration(milliseconds: 10),
+      );
+      addTearDown(supervisor.dispose);
+
+      await supervisor.start();
+
+      final currentHandle = await supervisor.currentHandle();
+      expect(currentHandle.appId, 'machine-app-early');
+      expect(
+        currentHandle.vmServiceUri,
+        Uri.parse('ws://127.0.0.1:34567/early/ws'),
+      );
+    },
+  );
+
+  test(
     'reload updates generation and stop shuts down the control plane',
     () async {
       final harness = _MachineHarness();

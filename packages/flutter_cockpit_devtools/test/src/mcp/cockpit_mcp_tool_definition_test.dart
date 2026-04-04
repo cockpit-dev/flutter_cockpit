@@ -3,6 +3,7 @@ import 'package:flutter_cockpit_devtools/src/mcp/core/cockpit_mcp_roots_tracker.
 import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_analyze_files_tool.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_create_project_tool.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_execute_remote_command_tool.dart';
+import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_grep_package_uris_tool.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_lsp_tool.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_pub_tool.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_pub_dev_search_tool.dart';
@@ -69,6 +70,20 @@ void main() {
     );
 
     expect(tool.definition.name, 'pub_dev_search');
+    expect(tool.definition.categories, <CockpitMcpFeatureCategory>[
+      CockpitMcpFeatureCategory.workspace,
+      CockpitMcpFeatureCategory.dependencyIntelligence,
+    ]);
+    expect(tool.definition.annotations.readOnly, isTrue);
+  });
+
+  test('grep_package_uris is read-only dependency source search', () {
+    final tool = CockpitGrepPackageUrisTool(
+      rootsTracker: CockpitMcpRootsTracker(forceFallback: true),
+      grep: (_) async => throw UnimplementedError(),
+    );
+
+    expect(tool.definition.name, 'grep_package_uris');
     expect(tool.definition.categories, <CockpitMcpFeatureCategory>[
       CockpitMcpFeatureCategory.workspace,
       CockpitMcpFeatureCategory.dependencyIntelligence,

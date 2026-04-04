@@ -1601,6 +1601,113 @@ void main() {
   );
 
   testWidgets(
+    'scrollUntilVisible falls back to the opposite direction after hitting the wrong scroll boundary',
+    (tester) async {
+      final registry = CockpitTargetRegistry(routeName: '/settings');
+      final controller = ScrollController();
+      addTearDown(controller.dispose);
+
+      await tester.pumpWidget(
+        WidgetsApp(
+          color: const Color(0xFFFFFFFF),
+          builder: (context, child) {
+            return SizedBox(
+              width: 320,
+              height: 320,
+              child: CockpitSurface(
+                routeName: '/settings',
+                registry: registry,
+                child: Material(
+                  child: Directionality(
+                    textDirection: TextDirection.ltr,
+                    child: ListView.builder(
+                      key: const ValueKey<String>('settings-list'),
+                      controller: controller,
+                      itemCount: 24,
+                      itemBuilder: (context, index) {
+                        return SizedBox(
+                          height: 96,
+                          child: ListTile(
+                            key: ValueKey<String>('settings-item-$index'),
+                            title: Text('Settings item $index'),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      controller.jumpTo(controller.position.maxScrollExtent);
+      await tester.pumpAndSettle();
+
+      final surfaceState = tester.state<CockpitSurfaceState>(
+        find.byType(CockpitSurface),
+      );
+      final executor = InAppCockpitCommandExecutor(
+        registry: registry,
+        snapshotProvider: surfaceState.snapshot,
+        postActionSettler: () async {
+          await tester.pump();
+          await tester.pump();
+        },
+        scrollStepHandler: ({
+          required reverse,
+          required viewportFraction,
+          scrollableKey,
+          targetLocator,
+          scrollableLocator,
+          required duration,
+          required gestureProfile,
+          required continuous,
+          required postScrollEnsureVisible,
+        }) {
+          return surfaceState.scrollByViewport(
+            reverse: reverse,
+            viewportFraction: viewportFraction,
+            scrollableKey: scrollableKey,
+            targetLocator: targetLocator,
+            scrollableLocator: scrollableLocator,
+            duration: duration,
+            gestureProfile: gestureProfile,
+            continuous: continuous,
+            postScrollEnsureVisible: postScrollEnsureVisible,
+          );
+        },
+      );
+
+      final result = await executor.execute(
+        CockpitCommand(
+          commandId: 'scroll-recover-wrong-direction',
+          commandType: CockpitCommandType.scrollUntilVisible,
+          locator: const CockpitLocator(
+            key: 'settings-item-18',
+            ancestor: CockpitLocator(route: '/settings'),
+          ),
+          parameters: const <String, Object?>{
+            'maxScrolls': 3,
+            'viewportFraction': 0.65,
+            'scrollableLocator': <String, Object?>{
+              'key': 'settings-list',
+              'type': 'ListView',
+              'route': '/settings',
+            },
+          },
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(result.locatorResolution?.matchedKind, CockpitLocatorKind.key);
+      expect(result.locatorResolution?.matchedValue, 'settings-item-18');
+    },
+  );
+
+  testWidgets(
     'scrollUntilVisible treats visible passive text as visible when its ancestor owns the hit',
     (tester) async {
       final registry = CockpitTargetRegistry(routeName: '/stack');

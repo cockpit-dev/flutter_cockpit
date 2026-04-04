@@ -426,6 +426,14 @@ final class CockpitDevelopmentSessionSupervisor {
     if (client == null || _eventSubscription != null) {
       return;
     }
+    final currentAppId = client.currentAppId;
+    if (currentAppId != null && currentAppId.isNotEmpty) {
+      _handle = _handle.copyWith(appId: currentAppId);
+    }
+    final currentVmServiceUri = client.currentVmServiceUri;
+    if (currentVmServiceUri != null) {
+      _handle = _handle.copyWith(vmServiceUri: currentVmServiceUri);
+    }
     _eventSubscription = client.events.listen(_handleMachineEvent);
   }
 
