@@ -48,4 +48,27 @@ void main() {
       expect(snapshot.entries.single.statusCode, 200);
     },
   );
+
+  test(
+    'TodoLoopbackSyncGateway can simulate a degraded relay response for validation flows',
+    () async {
+      var simulateFailure = true;
+      final gateway = TodoLoopbackSyncGateway(
+        payloadBuilder: () async => <String, Object?>{
+          'status': 'ready',
+          'summary': 'Local relay healthy · pending writes 0',
+        },
+        shouldSimulateFailure: () => simulateFailure,
+      );
+      addTearDown(gateway.close);
+
+      final result = await gateway.probeHealth();
+
+      expect(result.statusCode, 503);
+      expect(result.endpoint.path, '/sync/health');
+      expect(result.responseBody['status'], 'degraded');
+      expect(result.summary, contains('Simulated relay outage'));
+      simulateFailure = false;
+    },
+  );
 }

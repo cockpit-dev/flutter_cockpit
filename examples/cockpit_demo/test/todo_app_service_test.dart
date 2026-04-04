@@ -154,6 +154,49 @@ void main() {
         expect(service.syncState.detail, contains('pending writes 0'));
       },
     );
+
+    test(
+      'preserves the last successful sync check when a later relay check fails',
+      () async {
+        service = TodoAppService(
+          repository: repository,
+          syncGateway: _SequenceTodoSyncGateway(
+            results: <Object>[
+              TodoSyncProbeResult(
+                endpoint: Uri.parse('http://127.0.0.1:47331/sync/health'),
+                checkedAt: DateTime.utc(2026, 3, 21, 4),
+                statusCode: 200,
+                responseBody: const <String, Object?>{
+                  'status': 'ready',
+                  'summary': 'Local relay healthy · pending writes 0',
+                },
+                summary: 'Local relay healthy · pending writes 0',
+              ),
+              StateError('Simulated relay outage'),
+            ],
+          ),
+        );
+
+        await service.runSyncHealthCheck();
+        await service.runSyncHealthCheck();
+
+        expect(service.syncState.status, TodoSyncStatus.failed);
+        expect(service.syncState.headline, 'Relay unavailable');
+        expect(
+          service.syncState.lastHealthySummary,
+          'Local relay healthy · pending writes 0',
+        );
+        expect(
+          service.syncState.lastHealthyEndpoint,
+          'http://127.0.0.1:47331/sync/health',
+        );
+        expect(service.syncState.lastHealthyStatusCode, 200);
+        expect(
+          service.syncState.lastHealthyCheckedAt,
+          DateTime.utc(2026, 3, 21, 4),
+        );
+      },
+    );
   });
 }
 
@@ -173,6 +216,28 @@ final class _FakeTodoSyncGateway implements TodoSyncGatewayClient {
       },
       summary: 'Local relay healthy · pending writes 0',
     );
+  }
+}
+
+final class _SequenceTodoSyncGateway implements TodoSyncGatewayClient {
+  _SequenceTodoSyncGateway({required List<Object> results})
+      : _results = List<Object>.from(results);
+
+  final List<Object> _results;
+
+  @override
+  Future<void> close() async {}
+
+  @override
+  Future<TodoSyncProbeResult> probeHealth() async {
+    final next = _results.removeAt(0);
+    if (next is TodoSyncProbeResult) {
+      return next;
+    }
+    if (next is Error) {
+      throw next;
+    }
+    throw next;
   }
 }
 

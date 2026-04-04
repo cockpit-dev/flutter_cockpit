@@ -339,6 +339,55 @@ final class _SettingsScreenState extends State<SettingsScreen> {
                                       ),
                                     ),
                                   ),
+                                if (syncState.hasSuccessfulCheck)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 12),
+                                    child: Column(
+                                      key: const ValueKey<String>(
+                                        'settings-sync-last-success',
+                                      ),
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: <Widget>[
+                                        Text(
+                                          'Last successful check',
+                                          style: theme.textTheme.labelMedium
+                                              ?.copyWith(
+                                            color:
+                                                colorScheme.onSurfaceVariant,
+                                            fontWeight: FontWeight.w700,
+                                            letterSpacing: 0.4,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          syncState.lastHealthySummary!,
+                                          style: theme.textTheme.bodyMedium
+                                              ?.copyWith(
+                                            color:
+                                                colorScheme.onSurfaceVariant,
+                                            height: 1.45,
+                                          ),
+                                        ),
+                                        if (syncState.lastHealthyEndpoint case final endpoint?)
+                                          Padding(
+                                            padding:
+                                                const EdgeInsets.only(top: 4),
+                                            child: Text(
+                                              'Endpoint · $endpoint${syncState.lastHealthyStatusCode == null ? '' : ' · HTTP ${syncState.lastHealthyStatusCode}'}',
+                                              style: theme.textTheme
+                                                  .labelMedium
+                                                  ?.copyWith(
+                                                color: colorScheme
+                                                    .onSurfaceVariant,
+                                                fontWeight: FontWeight.w700,
+                                                letterSpacing: 0.4,
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
                               ],
                             ),
                           ),
@@ -350,11 +399,26 @@ final class _SettingsScreenState extends State<SettingsScreen> {
                             onPressed: syncState.isChecking
                                 ? null
                                 : widget.service.runSyncHealthCheck,
-                            child: Text(
-                              syncState.isChecking ? 'Checking…' : 'Run check',
-                            ),
+                            child: Text(syncState.actionLabel),
                           ),
                         ],
+                      ),
+                      const SizedBox(height: 18),
+                      _SettingsToggleRow(
+                        controlKey: const ValueKey<String>(
+                          'simulate-relay-failure-switch',
+                        ),
+                        title: 'Simulate relay outage',
+                        value: syncState.simulateFailure,
+                        onChanged: widget.service.setSimulateRelayFailure,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Use this to validate failure recovery before wiring the example to any real upstream sync service.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                          height: 1.45,
+                        ),
                       ),
                       const SizedBox(height: 18),
                       DecoratedBox(

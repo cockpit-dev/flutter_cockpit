@@ -52,7 +52,10 @@ final class _CockpitDemoAppState extends State<CockpitDemoApp> {
       widget.database ?? CockpitDemoDatabase.local();
   late final TodoRepository _repository = TodoRepository(_database);
   late final TodoSyncGatewayClient _syncGateway = widget.syncGateway ??
-      TodoLoopbackSyncGateway(payloadBuilder: _buildSyncProbePayload);
+      TodoLoopbackSyncGateway(
+        payloadBuilder: _buildSyncProbePayload,
+        shouldSimulateFailure: () => _service.syncState.simulateFailure,
+      );
   late final TodoAppService _service = TodoAppService(
     repository: _repository,
     syncGateway: _syncGateway,

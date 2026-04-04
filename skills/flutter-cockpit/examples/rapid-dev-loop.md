@@ -46,6 +46,8 @@ Keep each cycle small:
 - Prefer locator combinations like `key + text + ancestor.route` over long brittle paths.
 - Use fuzzy `path` only when semantic signals are insufficient.
 - Add `fallbacks` when the same intent can be reached through 2-3 stable signals.
+- On long pages, first reveal a stable section heading or card, then target deeper controls inside that section.
+- Do not parallelize a mutating `run-command` with the follow-up `read-app`, `read-network`, or `inspect-ui` that depends on its side effects.
 
 ## Timeout Strategy
 

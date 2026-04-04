@@ -40,6 +40,7 @@ Do not use it for docs-only edits or static refactors with no runtime claim.
 - Add `route`, `type`, `path`, or nested `ancestor` only when ambiguity remains.
 - `path` is fuzzy. Segments such as `body`, `slivers`, and numeric indexes are ignored, so shorter structural paths are preferred over brittle full trees.
 - Use short ordered `fallbacks` instead of one over-constrained locator.
+- On long settings pages, forms, or dashboards, reveal a stable section heading or card first, then target deeper controls inside that section. Jumping straight to a deeply nested off-screen control can overshoot or time out.
 
 ## Profiles And Timeouts
 
@@ -66,6 +67,7 @@ For the shortest edit -> reload -> verify loop, use the rapid loop reference ins
 - Prefer `--command-file`, `--commands-file`, and `--config-json` files over long inline JSON literals when the payload is more than a few lines.
 - Reuse `app.json`, command files, and config files across loops instead of regenerating them in every step.
 - Workspace CLI commands default `--workspace-root` or `--parent-directory` to the current directory, so avoid repeating that flag unless you are operating outside the current repo.
+- Do not parallelize `run-command` with dependent `read-app`, `read-network`, or `inspect-ui` calls when the second step depends on the first step's side effects. Serialize mutation, then observation, to avoid racey route and scroll state.
 
 ## Shell Patterns
 

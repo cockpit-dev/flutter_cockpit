@@ -405,6 +405,11 @@ final class TodoAppService extends ChangeNotifier {
         endpoint: () => result.endpoint.toString(),
         statusCode: () => result.statusCode,
         checkedAt: () => result.checkedAt,
+        lastHealthySummary: isHealthy ? () => result.summary : null,
+        lastHealthyEndpoint:
+            isHealthy ? () => result.endpoint.toString() : null,
+        lastHealthyStatusCode: isHealthy ? () => result.statusCode : null,
+        lastHealthyCheckedAt: isHealthy ? () => result.checkedAt : null,
       );
     } on Object catch (error) {
       if (_isDisposed) {
@@ -419,6 +424,14 @@ final class TodoAppService extends ChangeNotifier {
         checkedAt: () => DateTime.now().toUtc(),
       );
     }
+    _notifyListenersIfActive();
+  }
+
+  void setSimulateRelayFailure(bool value) {
+    if (_syncState.simulateFailure == value) {
+      return;
+    }
+    _syncState = _syncState.copyWith(simulateFailure: value);
     _notifyListenersIfActive();
   }
 

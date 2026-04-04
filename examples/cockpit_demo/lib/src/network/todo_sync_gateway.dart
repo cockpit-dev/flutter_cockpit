@@ -28,18 +28,22 @@ final class TodoSyncProbeResult {
 }
 
 typedef TodoSyncPayloadBuilder = Future<Map<String, Object?>> Function();
+typedef TodoSyncFailurePredicate = bool Function();
 
 final class TodoLoopbackSyncGateway implements TodoSyncGatewayClient {
   TodoLoopbackSyncGateway({
     required TodoSyncPayloadBuilder payloadBuilder,
     HttpClient Function()? httpClientFactory,
+    TodoSyncFailurePredicate? shouldSimulateFailure,
     String host = '127.0.0.1',
   })  : _payloadBuilder = payloadBuilder,
         _httpClientFactory = httpClientFactory ?? HttpClient.new,
+        _shouldSimulateFailure = shouldSimulateFailure,
         _host = host;
 
   final TodoSyncPayloadBuilder _payloadBuilder;
   final HttpClient Function() _httpClientFactory;
+  final TodoSyncFailurePredicate? _shouldSimulateFailure;
   final String _host;
 
   HttpServer? _server;
@@ -103,6 +107,20 @@ final class TodoLoopbackSyncGateway implements TodoSyncGatewayClient {
         jsonEncode(<String, Object?>{
           'status': 'not_found',
           'summary': 'Unknown sync relay route.',
+        }),
+      );
+      await request.response.close();
+      return;
+    }
+
+    if (_shouldSimulateFailure?.call() ?? false) {
+      request.response.statusCode = HttpStatus.serviceUnavailable;
+      request.response.headers.contentType = ContentType.json;
+      request.response.write(
+        jsonEncode(<String, Object?>{
+          'status': 'degraded',
+          'summary':
+              'Simulated relay outage · retry after disabling diagnostics failure mode.',
         }),
       );
       await request.response.close();
