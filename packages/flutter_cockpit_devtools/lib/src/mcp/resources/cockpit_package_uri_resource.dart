@@ -1,4 +1,4 @@
-import '../../application/cockpit_json_key_normalizer.dart';
+import '../../application/cockpit_compact_json.dart';
 import '../../application/cockpit_read_package_uris_service.dart';
 import '../../application/cockpit_workspace_tooling_support.dart';
 import '../core/cockpit_mcp_feature_category.dart';

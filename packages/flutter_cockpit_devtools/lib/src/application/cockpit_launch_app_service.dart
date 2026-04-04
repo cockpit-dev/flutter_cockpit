@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 import 'cockpit_app_handle.dart';
-import 'cockpit_json_key_normalizer.dart';
+import 'cockpit_compact_json.dart';
 import 'cockpit_launch_development_session_service.dart';
 import 'cockpit_launch_remote_session_service.dart';
 import 'cockpit_session_registry.dart';

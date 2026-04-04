@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:args/command_runner.dart';
 
 import '../../application/cockpit_stop_development_session_service.dart';
-import '../../application/cockpit_json_key_normalizer.dart';
+import '../../application/cockpit_compact_json.dart';
 import '../cockpit_command_runner.dart';
 
 typedef CockpitStopDevelopmentSessionFunction

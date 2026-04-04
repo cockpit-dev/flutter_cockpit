@@ -13,7 +13,7 @@ import '../runner/cockpit_control_runner.dart';
 import '../session/cockpit_remote_session_handle.dart';
 import 'cockpit_bundle_artifact_paths.dart';
 import 'cockpit_application_service_exception.dart';
-import 'cockpit_json_key_normalizer.dart';
+import 'cockpit_compact_json.dart';
 import 'cockpit_session_reference_resolver.dart';
 
 final class CockpitRunRemoteControlScriptRequest {

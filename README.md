@@ -56,7 +56,8 @@ For delivery:
 2. `run-task` when the tool should own bootstrap, baseline, execution, and classification
 3. `validate-task` when making a final completion claim
 
-The public surface is app-first, not session-handle-first. Persist `app.json` and reuse it across steps. CLI and MCP outputs are normalized to lower camel case.
+The public surface is app-first, not session-handle-first. Persist `app.json` and reuse it across steps. CLI and MCP output uses lower camel case keys.
+Prefer `--command-file`, `--commands-file`, and `--config-json` once a payload stops being trivial.
 `launch-app` auto-detects `cockpit/main.dart` first, then `lib/main.dart`.
 
 Locators are multi-signal. Start with `key`, `text`, or `semanticId`, then add `route`, `type`, `path`, nested `ancestor`, or short `fallbacks` only when needed. `path` matching is fuzzy and ignores noise such as `body`, `slivers`, and numeric indexes.

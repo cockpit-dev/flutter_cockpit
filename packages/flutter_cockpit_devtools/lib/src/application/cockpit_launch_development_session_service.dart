@@ -10,7 +10,7 @@ import '../development/cockpit_development_session_supervisor_client.dart';
 import '../remote/cockpit_android_port_forwarder.dart';
 import '../session/cockpit_remote_session_launcher.dart';
 import 'cockpit_entrypoint_resolver.dart';
-import 'cockpit_json_key_normalizer.dart';
+import 'cockpit_compact_json.dart';
 
 typedef CockpitDevelopmentSessionLauncher
     = Future<CockpitDevelopmentSessionBootstrap> Function(

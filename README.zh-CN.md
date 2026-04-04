@@ -56,7 +56,8 @@ dev_dependencies:
 2. 需要工具全权负责启动、基线、执行和分类时用 `run-task`
 3. 做最终完成声明时用 `validate-task`
 
-公共面是 app-first，而不是 session-handle-first。把 `app.json` 持久化下来并跨步骤复用。CLI 和 MCP 输出统一为 lower camel case。
+公共面是 app-first，而不是 session-handle-first。把 `app.json` 持久化下来并跨步骤复用。CLI 和 MCP 输出使用 lower camel case keys。
+只要请求体不再是几行以内，就优先使用 `--command-file`、`--commands-file`、`--config-json`。
 `launch-app` 会先自动探测 `cockpit/main.dart`，找不到再退回 `lib/main.dart`。
 
 Locator 是多信号模型。优先用 `key`、`text`、`semanticId`，只有还不够准时才补 `route`、`type`、`path`、嵌套 `ancestor` 或短 `fallbacks`。`path` 是 fuzzy 匹配，会忽略 `body`、`slivers`、数字索引这类噪声段。

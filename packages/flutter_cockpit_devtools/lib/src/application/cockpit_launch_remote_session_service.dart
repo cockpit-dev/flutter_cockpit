@@ -7,7 +7,7 @@ import '../session/cockpit_remote_session_handle.dart';
 import '../session/cockpit_remote_session_launch_options.dart';
 import '../session/cockpit_remote_session_launcher.dart';
 import 'cockpit_entrypoint_resolver.dart';
-import 'cockpit_json_key_normalizer.dart';
+import 'cockpit_compact_json.dart';
 
 final class CockpitLaunchRemoteSessionRequest {
   const CockpitLaunchRemoteSessionRequest({

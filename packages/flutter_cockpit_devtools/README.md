@@ -55,7 +55,7 @@ Recommended code-side loop:
 3. `pub-dev-search`, `pub`, or `read-package-uris`
 4. `run-tests` or `analyze-workspace` only when the question is no longer local
 
-CLI JSON output is normalized to lower camel case.
+CLI JSON output uses lower camel case keys.
 `launch-app` auto-detects `cockpit/main.dart` first, then `lib/main.dart`.
 `run-script` exits non-zero when the written bundle status is `failed`.
 Workspace commands default `--workspace-root` or `--parent-directory` to the current directory.

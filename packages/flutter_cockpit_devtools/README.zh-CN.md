@@ -55,7 +55,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-command --help
 3. `pub-dev-search`、`pub` 或 `read-package-uris`
 4. 只有问题已经不再是局部修改时，才升级到 `run-tests` 或 `analyze-workspace`
 
-CLI JSON 输出统一为 lower camel case。
+CLI JSON 输出使用 lower camel case keys。
 `launch-app` 会先自动探测 `cockpit/main.dart`，找不到再退回 `lib/main.dart`。
 `run-script` 写出的 bundle 只要状态是 `failed`，命令就会非零退出。
 workspace 命令默认把 `--workspace-root` 或 `--parent-directory` 视为当前目录。

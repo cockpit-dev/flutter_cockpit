@@ -4,7 +4,7 @@ export 'core/cockpit_mcp_tool_annotations.dart';
 export 'core/cockpit_mcp_tool_definition.dart';
 
 import '../application/cockpit_application_service_exception.dart';
-import '../application/cockpit_json_key_normalizer.dart';
+import '../application/cockpit_compact_json.dart';
 import '../development/cockpit_development_probe.dart';
 import '../development/cockpit_development_session_handle.dart';
 import '../session/cockpit_remote_session_handle.dart';

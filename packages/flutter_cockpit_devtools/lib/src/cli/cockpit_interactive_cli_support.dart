@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:args/args.dart';
 import 'package:args/command_runner.dart';
 
-import '../application/cockpit_json_key_normalizer.dart';
+import '../application/cockpit_compact_json.dart';
 import '../application/cockpit_interactive_result_profile.dart';
 
 void cockpitAddRemoteSessionArgs(ArgParser parser) {

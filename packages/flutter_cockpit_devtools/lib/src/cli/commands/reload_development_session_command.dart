@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:args/command_runner.dart';
 
-import '../../application/cockpit_json_key_normalizer.dart';
+import '../../application/cockpit_compact_json.dart';
 import '../../application/cockpit_reload_development_session_service.dart';
 import '../../development/cockpit_development_session_status.dart';
 import '../cockpit_command_runner.dart';

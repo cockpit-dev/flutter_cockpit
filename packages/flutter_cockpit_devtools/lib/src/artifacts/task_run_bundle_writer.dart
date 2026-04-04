@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:path/path.dart' as p;
 
-import '../application/cockpit_json_key_normalizer.dart';
+import '../application/cockpit_compact_json.dart';
 import 'cockpit_recording_keyframe_extractor.dart';
 import 'cockpit_timeline_video_fallback_builder.dart';
 

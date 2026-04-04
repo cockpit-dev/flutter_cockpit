@@ -1,9 +1,9 @@
-import 'package:flutter_cockpit_devtools/src/application/cockpit_json_key_normalizer.dart';
+import 'package:flutter_cockpit_devtools/src/application/cockpit_compact_json.dart';
 import 'package:test/test.dart';
 
 void main() {
   test('cockpitCompactJsonValue omits null fields recursively from maps', () {
-    final normalized = cockpitCompactJsonValue(<String, Object?>{
+    final compacted = cockpitCompactJsonValue(<String, Object?>{
       'sessionId': 'session-1',
       'current_route_name': null,
       'snapshot': <String, Object?>{
@@ -18,12 +18,12 @@ void main() {
       ],
     }) as Map<String, Object?>;
 
-    expect(normalized['sessionId'], 'session-1');
-    expect(normalized.containsKey('current_route_name'), isFalse);
-    expect(normalized['snapshot'], <String, Object?>{
+    expect(compacted['sessionId'], 'session-1');
+    expect(compacted.containsKey('current_route_name'), isFalse);
+    expect(compacted['snapshot'], <String, Object?>{
       'route_name': '/home',
     });
-    expect(normalized['entries'], <Object?>[
+    expect(compacted['entries'], <Object?>[
       <String, Object?>{'label': 'Inbox'},
     ]);
   });

@@ -6,7 +6,7 @@ import '../development/cockpit_development_session_handle.dart';
 import '../development/cockpit_development_session_reference_resolver.dart';
 import '../development/cockpit_development_session_status.dart';
 import '../development/cockpit_development_session_supervisor_client.dart';
-import 'cockpit_json_key_normalizer.dart';
+import 'cockpit_compact_json.dart';
 
 typedef CockpitDevelopmentSessionReloader
     = Future<CockpitDevelopmentSessionReloadResult> Function(

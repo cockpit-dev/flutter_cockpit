@@ -4,7 +4,7 @@ import 'package:args/command_runner.dart';
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
 import '../../application/cockpit_collect_remote_snapshot_service.dart';
-import '../../application/cockpit_json_key_normalizer.dart';
+import '../../application/cockpit_compact_json.dart';
 import '../cockpit_command_runner.dart';
 
 typedef CockpitCollectRemoteSnapshotFunction

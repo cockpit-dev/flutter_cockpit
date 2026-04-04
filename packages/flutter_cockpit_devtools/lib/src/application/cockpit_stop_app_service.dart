@@ -6,7 +6,7 @@ import '../development/cockpit_development_session_status.dart';
 import 'cockpit_app_handle.dart';
 import 'cockpit_app_reference_resolver.dart';
 import 'cockpit_application_service_exception.dart';
-import 'cockpit_json_key_normalizer.dart';
+import 'cockpit_compact_json.dart';
 import 'cockpit_platform_app_stopper.dart';
 import 'cockpit_session_registry.dart';
 import 'cockpit_stop_development_session_service.dart';

@@ -52,6 +52,55 @@ void main() {
 
     expect(legacyPaths, isEmpty);
   });
+
+  test('root readmes teach low-token app-first workflow', () {
+    final readme = File('$root/README.md').readAsStringSync();
+    final readmeZh = File('$root/README.zh-CN.md').readAsStringSync();
+
+    expect(readme, contains('app.json'));
+    expect(readme, contains('--output-json'));
+    expect(readme, contains('jq'));
+    expect(readme, contains('--command-file'));
+    expect(readme, contains('lower camel case keys'));
+
+    expect(readmeZh, contains('app.json'));
+    expect(readmeZh, contains('--output-json'));
+    expect(readmeZh, contains('jq'));
+    expect(readmeZh, contains('--command-file'));
+    expect(readmeZh, contains('lower camel case'));
+  });
+
+  test('tracked text files do not keep TODO or FIXME markers', () {
+    final trackedFilesResult = Process.runSync(
+      'git',
+      const <String>['ls-files'],
+      workingDirectory: root,
+    );
+
+    expect(trackedFilesResult.exitCode, 0);
+
+    final offenders = <String>[];
+    for (final relativePath in (trackedFilesResult.stdout as String)
+        .split('\n')
+        .where((path) => path.trim().isNotEmpty)
+        .where(_isScannableTextFile)) {
+      final file = File('$root/$relativePath');
+      if (!file.existsSync()) {
+        continue;
+      }
+      final content = file.readAsStringSync();
+      if (RegExp(r'\b(?:TODO|FIXME):').hasMatch(content)) {
+        offenders.add(relativePath);
+      }
+    }
+
+    expect(
+      offenders,
+      isEmpty,
+      reason: 'Tracked text files still contain TODO/FIXME markers:\n'
+          '${offenders.join('\n')}',
+    );
+  });
 }
 
 String _relativePath(String absolutePath, String root) {
@@ -61,4 +110,23 @@ String _relativePath(String absolutePath, String root) {
     return normalizedPath.substring(normalizedRoot.length + 1);
   }
   return normalizedPath;
+}
+
+bool _isScannableTextFile(String relativePath) {
+  if (relativePath.endsWith('.png') ||
+      relativePath.endsWith('.jpg') ||
+      relativePath.endsWith('.jpeg') ||
+      relativePath.endsWith('.gif') ||
+      relativePath.endsWith('.webp') ||
+      relativePath.endsWith('.ttf') ||
+      relativePath.endsWith('.otf') ||
+      relativePath.endsWith('.jar') ||
+      relativePath.endsWith('.so') ||
+      relativePath.endsWith('.dll') ||
+      relativePath.endsWith('.dylib') ||
+      relativePath.endsWith('.ico') ||
+      relativePath.endsWith('.icns')) {
+    return false;
+  }
+  return true;
 }
