@@ -230,6 +230,11 @@ Prompts：
 - Skill 契约：[`docs/contracts/flutter-cockpit-skill-contract.md`](docs/contracts/flutter-cockpit-skill-contract.md)
 - Bundle 契约：[`docs/contracts/task-run-bundle.md`](docs/contracts/task-run-bundle.md)
 
+## 致谢
+
+感谢 Dart 团队官方的 [Dart Tooling MCP Server](https://github.com/dart-lang/ai/tree/main/pkgs/dart_mcp_server)，为 Dart 和 Flutter 工作流提供了很强的 MCP tooling 基础。
+`flutter_cockpit` 在这套基础之上，进一步针对 AI 独立开发应用的使用场景做了方法级优化，包括 app-first 句柄、低 token 默认路径、有界结果形状，以及完整闭环的交付工作流。
+
 更底层的 development-session 和 remote-session building block 仍然保留在 Dart API 中，供特殊宿主使用，但它们已经不是推荐的公开主工作流。
 
 `list_apps` 故意只在 MCP 中暴露。CLI 是无状态进程，推荐把 `app.json` 落盘并跨步骤复用，而不是依赖主机侧 app registry。

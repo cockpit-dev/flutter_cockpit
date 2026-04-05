@@ -230,6 +230,11 @@ Prompts:
 - Skill contract: [`docs/contracts/flutter-cockpit-skill-contract.md`](docs/contracts/flutter-cockpit-skill-contract.md)
 - Bundle contract: [`docs/contracts/task-run-bundle.md`](docs/contracts/task-run-bundle.md)
 
+## Acknowledgements
+
+Thanks to the Dart team's official [Dart Tooling MCP Server](https://github.com/dart-lang/ai/tree/main/pkgs/dart_mcp_server) for establishing a strong MCP tooling foundation for Dart and Flutter workflows.
+`flutter_cockpit` builds on that foundation and further optimizes the exposed methods for AI-first application development, including app-first handles, lower-token defaults, bounded result shapes, and closed-loop delivery workflows.
+
 Advanced development-session and remote-session building blocks still exist in the Dart API for lower-level hosts, but they are no longer the recommended public loop.
 
 `list_apps` is intentionally MCP-only. CLI is stateless; persist `app.json` and reuse it instead of expecting a host-side app registry.
