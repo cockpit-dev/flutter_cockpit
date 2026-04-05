@@ -20,7 +20,7 @@ final class CockpitDevelopmentSessionRecord {
         'handle': handle.toJson(),
         'status': status.toJson(),
         'updatedAt': updatedAt.toUtc().toIso8601String(),
-        'supervisorLogPath': supervisorLogPath,
+        if (supervisorLogPath != null) 'supervisorLogPath': supervisorLogPath,
       };
 }
 

@@ -74,7 +74,7 @@ For the shortest edit -> reload -> verify loop, use the rapid loop reference ins
 - For traffic verification, use `run_command` -> `wait_idle` -> `read_network` before escalating to heavier UI inspection.
 - Prefer bundle summaries and gate failures before opening large artifact files.
 - Ask for one missing fact per step, not every diagnostic dimension at once.
-- Prefer stdout projections such as `| jq` for immediate branch decisions. Add `--output-json` only when the result is too large for stdout or a later step must reopen the full payload.
+- Prefer compact stdout projections such as `| jq` for immediate branch decisions. Add `--output-json` only when the result is too large for stdout or a later step must reopen the full payload.
 - Prefer `grep_package_uris` before opening large dependency files blindly; search first, then read only the matching package URI.
 - Prefer `jq -r` or short pipes to extract one route, status, failure code, or readiness field at a time.
 - Prefer `--command-file`, `--commands-file`, and `--config-json` files over long inline JSON literals when the payload is more than a few lines.

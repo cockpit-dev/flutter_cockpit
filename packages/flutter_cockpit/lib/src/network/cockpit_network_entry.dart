@@ -47,16 +47,18 @@ final class CockpitNetworkEntry {
         'uri': uri,
         'startedAt': startedAt.toUtc().toIso8601String(),
         'durationMs': durationMs,
-        'statusCode': statusCode,
+        if (statusCode != null) 'statusCode': statusCode,
         'requestHeaders': requestHeaders,
         'responseHeaders': responseHeaders,
-        'requestBodyPreview': requestBodyPreview,
-        'responseBodyPreview': responseBodyPreview,
+        if (requestBodyPreview != null)
+          'requestBodyPreview': requestBodyPreview,
+        if (responseBodyPreview != null)
+          'responseBodyPreview': responseBodyPreview,
         'requestBodyBytes': requestBodyBytes,
         'responseBodyBytes': responseBodyBytes,
         'requestBodyTruncated': requestBodyTruncated,
         'responseBodyTruncated': responseBodyTruncated,
-        'error': error,
+        if (error != null) 'error': error,
       };
 
   factory CockpitNetworkEntry.fromJson(Map<String, Object?> json) {

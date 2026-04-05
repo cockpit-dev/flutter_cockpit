@@ -79,7 +79,7 @@ final class CockpitDevelopmentProbe {
         'reloadGeneration': reloadGeneration,
         'capturedAt': capturedAt.toUtc().toIso8601String(),
         'reason': reason.jsonValue,
-        'checkpoint': checkpoint,
+        if (checkpoint != null) 'checkpoint': checkpoint,
         'profile': profile.jsonValue,
         'routeName': routeName,
         'ui': ui,

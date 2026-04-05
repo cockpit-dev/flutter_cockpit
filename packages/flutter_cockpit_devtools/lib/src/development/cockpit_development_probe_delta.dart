@@ -63,7 +63,7 @@ final class CockpitDevelopmentProbeDelta {
         'newNetworkFailures': newNetworkFailures,
         'newRuntimeErrors': newRuntimeErrors,
         'newRebuildHotspots': newRebuildHotspots,
-        'changeSummary': changeSummary,
+        if (changeSummary != null) 'changeSummary': changeSummary,
       };
 
   factory CockpitDevelopmentProbeDelta.fromJson(Map<String, Object?> json) {

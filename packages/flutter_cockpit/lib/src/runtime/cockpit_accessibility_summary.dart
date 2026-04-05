@@ -23,11 +23,11 @@ final class CockpitAccessibilityEntry {
 
   Map<String, Object?> toJson() => <String, Object?>{
         'nodeId': nodeId,
-        'label': label,
-        'identifier': identifier,
-        'value': value,
-        'hint': hint,
-        'tooltip': tooltip,
+        if (label != null) 'label': label,
+        if (identifier != null) 'identifier': identifier,
+        if (value != null) 'value': value,
+        if (hint != null) 'hint': hint,
+        if (tooltip != null) 'tooltip': tooltip,
       };
 
   factory CockpitAccessibilityEntry.fromJson(Map<String, Object?> json) {

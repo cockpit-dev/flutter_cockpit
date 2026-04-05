@@ -46,15 +46,18 @@ final class CockpitCommandResult {
         'success': success,
         'commandId': commandId,
         'commandType': commandType.name,
-        'locatorResolution': locatorResolution?.toJson(),
+        if (locatorResolution != null)
+          'locatorResolution': locatorResolution!.toJson(),
         'durationMs': durationMs,
         'artifacts': artifacts.map((artifact) => artifact.toJson()).toList(),
-        'snapshot': snapshot,
-        'requestedCaptureProfile': requestedCaptureProfile?.name,
-        'resolvedCaptureKind': resolvedCaptureKind?.name,
+        if (snapshot != null) 'snapshot': snapshot,
+        if (requestedCaptureProfile != null)
+          'requestedCaptureProfile': requestedCaptureProfile!.name,
+        if (resolvedCaptureKind != null)
+          'resolvedCaptureKind': resolvedCaptureKind!.name,
         'usedCaptureFallback': usedCaptureFallback,
-        'degradationReason': degradationReason,
-        'error': error?.toJson(),
+        if (degradationReason != null) 'degradationReason': degradationReason,
+        if (error != null) 'error': error!.toJson(),
       };
 
   factory CockpitCommandResult.fromJson(Map<String, Object?> json) {

@@ -85,7 +85,7 @@ final class LaunchDevelopmentSessionCommand extends Command<int> {
     );
 
     _stdoutSink.writeln(
-      cockpitPrettyJsonText(<String, Object?>{
+      cockpitCompactJsonText(<String, Object?>{
         'sessionHandle': result.sessionHandle.toJson(),
         'status': result.status.toJson(),
         'persistedHandlePath': result.persistedHandlePath,

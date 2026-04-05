@@ -239,4 +239,4 @@ Advanced development-session and remote-session building blocks still exist in t
 
 `list_apps` is intentionally MCP-only. CLI is stateless; persist `app.json` and reuse it instead of expecting a host-side app registry.
 Interactive app commands use `timeoutMs`. Workspace tools use `timeoutSeconds`.
-For code-side work, CLI and MCP expose the same workspace intelligence. In shell agents, CLI plus stdout pipes such as `jq` is usually the cheapest path; add `--output-json` only when another step needs to reopen the full result.
+For code-side work, CLI and MCP expose the same workspace intelligence. In shell agents, CLI plus compact stdout pipes such as `jq` is usually the cheapest path; add `--output-json` only when another step needs to reopen the full result.

@@ -461,7 +461,6 @@ final class TaskRunBundleWriter {
           ...videoReadiness,
           'ready': true,
           'failureCodes': const <String>[],
-          'failureReason': null,
           'source': 'timelineFallback',
         },
       },

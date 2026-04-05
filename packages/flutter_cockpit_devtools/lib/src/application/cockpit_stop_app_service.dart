@@ -65,7 +65,7 @@ final class CockpitStopAppResult {
   Map<String, Object?> toJson() => <String, Object?>{
         'app': app.toJson(),
         'status': status.toJson(),
-        'appJsonPath': appJsonPath,
+        if (appJsonPath != null) 'appJsonPath': appJsonPath,
       };
 }
 
@@ -89,7 +89,7 @@ final class CockpitAppStopStatus {
         'state': state,
         'appReachable': appReachable,
         'remoteSessionReachable': remoteSessionReachable,
-        'lastError': lastError,
+        if (lastError != null) 'lastError': lastError,
       };
 
   factory CockpitAppStopStatus.fromDevelopmentStatus(

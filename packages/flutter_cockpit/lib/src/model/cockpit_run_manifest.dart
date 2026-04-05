@@ -71,10 +71,11 @@ final class CockpitRunManifest {
         'platform': platform,
         'status': status.name,
         'startedAt': startedAt.toUtc().toIso8601String(),
-        'finishedAt': finishedAt?.toUtc().toIso8601String(),
+        if (finishedAt != null)
+          'finishedAt': finishedAt!.toUtc().toIso8601String(),
         'artifactRefs':
             artifactRefs.map((artifact) => artifact.toJson()).toList(),
-        'failureSummary': failureSummary,
+        if (failureSummary != null) 'failureSummary': failureSummary,
         'capabilitiesUsed': capabilitiesUsed,
         'commandCount': commandCount,
         'screenshotCount': screenshotCount,

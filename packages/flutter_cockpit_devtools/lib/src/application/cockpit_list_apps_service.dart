@@ -37,9 +37,9 @@ final class CockpitAppSummary {
         'target': target,
         'baseUrl': baseUrl,
         'updatedAt': updatedAt.toUtc().toIso8601String(),
-        'platformAppId': platformAppId,
-        'state': state,
-        'lastError': lastError,
+        if (platformAppId != null) 'platformAppId': platformAppId,
+        if (state != null) 'state': state,
+        if (lastError != null) 'lastError': lastError,
       };
 }
 

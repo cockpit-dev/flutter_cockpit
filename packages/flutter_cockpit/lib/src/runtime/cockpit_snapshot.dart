@@ -90,7 +90,8 @@ final class CockpitSnapshotLayout {
         'height': height,
         'dx': dx,
         'dy': dy,
-        'constraintsSummary': constraintsSummary,
+        if (constraintsSummary != null)
+          'constraintsSummary': constraintsSummary,
       };
 
   factory CockpitSnapshotLayout.fromJson(Map<String, Object?> json) {
@@ -125,8 +126,8 @@ final class CockpitSnapshotContent {
   final String? textPreview;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'displayLabel': displayLabel,
-        'textPreview': textPreview,
+        if (displayLabel != null) 'displayLabel': displayLabel,
+        if (textPreview != null) 'textPreview': textPreview,
       };
 
   factory CockpitSnapshotContent.fromJson(Map<String, Object?> json) {
@@ -166,12 +167,12 @@ final class CockpitSnapshotStyle {
   final String? shadowSummary;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'textColor': textColor,
-        'backgroundColor': backgroundColor,
-        'fontSize': fontSize,
-        'fontWeight': fontWeight,
-        'borderSummary': borderSummary,
-        'shadowSummary': shadowSummary,
+        if (textColor != null) 'textColor': textColor,
+        if (backgroundColor != null) 'backgroundColor': backgroundColor,
+        if (fontSize != null) 'fontSize': fontSize,
+        if (fontWeight != null) 'fontWeight': fontWeight,
+        if (borderSummary != null) 'borderSummary': borderSummary,
+        if (shadowSummary != null) 'shadowSummary': shadowSummary,
       };
 
   factory CockpitSnapshotStyle.fromJson(Map<String, Object?> json) {
@@ -231,13 +232,13 @@ final class CockpitSnapshotAncestor {
 
   Map<String, Object?> toJson() => <String, Object?>{
         'typeName': typeName,
-        'cockpitId': cockpitId,
-        'semanticId': semanticId,
-        'keyValue': keyValue,
-        'textPreview': textPreview,
-        'tooltip': tooltip,
-        'routeName': routeName,
-        'path': path,
+        if (cockpitId != null) 'cockpitId': cockpitId,
+        if (semanticId != null) 'semanticId': semanticId,
+        if (keyValue != null) 'keyValue': keyValue,
+        if (textPreview != null) 'textPreview': textPreview,
+        if (tooltip != null) 'tooltip': tooltip,
+        if (routeName != null) 'routeName': routeName,
+        if (path != null) 'path': path,
       };
 
   factory CockpitSnapshotAncestor.fromJson(Map<String, Object?> json) {
@@ -412,22 +413,24 @@ final class CockpitSnapshotTarget {
 
   Map<String, Object?> toJson() => {
         'registrationId': registrationId,
-        'cockpitId': cockpitId,
-        'semanticId': semanticId,
-        'keyValue': keyValue,
-        'text': text,
-        'tooltip': tooltip,
-        'typeName': typeName,
-        'path': path,
-        'scrollablePath': scrollablePath,
-        'scrollableKeyValue': scrollableKeyValue,
-        'scrollableTypeName': scrollableTypeName,
+        if (cockpitId != null) 'cockpitId': cockpitId,
+        if (semanticId != null) 'semanticId': semanticId,
+        if (keyValue != null) 'keyValue': keyValue,
+        if (text != null) 'text': text,
+        if (tooltip != null) 'tooltip': tooltip,
+        if (typeName != null) 'typeName': typeName,
+        if (path != null) 'path': path,
+        if (scrollablePath != null) 'scrollablePath': scrollablePath,
+        if (scrollableKeyValue != null)
+          'scrollableKeyValue': scrollableKeyValue,
+        if (scrollableTypeName != null)
+          'scrollableTypeName': scrollableTypeName,
         'routeName': routeName,
         'supportedCommands':
             supportedCommands.map((command) => command.name).toList(),
-        'layout': layout?.toJson(),
-        'content': content?.toJson(),
-        'style': style?.toJson(),
+        if (layout != null) 'layout': layout!.toJson(),
+        if (content != null) 'content': content!.toJson(),
+        if (style != null) 'style': style!.toJson(),
         'ancestors': ancestors.map((ancestor) => ancestor.toJson()).toList(),
         'diagnosticProperties':
             diagnosticProperties.map((property) => property.toJson()).toList(),
@@ -570,17 +573,18 @@ final class CockpitSnapshot {
       ListEquality<CockpitSnapshotTarget>();
 
   Map<String, Object?> toJson() => {
-        'routeName': routeName,
+        if (routeName != null) 'routeName': routeName,
         'visibleTargets':
             visibleTargets.map((target) => target.toJson()).toList(),
         'diagnosticLevel': diagnosticLevel.jsonValue,
         'truncated': truncated,
-        'diagnosticsArtifactRef': diagnosticsArtifactRef?.toJson(),
-        'summary': summary?.toJson(),
-        'network': network?.toJson(),
-        'runtime': runtime?.toJson(),
-        'rebuild': rebuild?.toJson(),
-        'accessibility': accessibility?.toJson(),
+        if (diagnosticsArtifactRef != null)
+          'diagnosticsArtifactRef': diagnosticsArtifactRef!.toJson(),
+        if (summary != null) 'summary': summary!.toJson(),
+        if (network != null) 'network': network!.toJson(),
+        if (runtime != null) 'runtime': runtime!.toJson(),
+        if (rebuild != null) 'rebuild': rebuild!.toJson(),
+        if (accessibility != null) 'accessibility': accessibility!.toJson(),
       };
 
   factory CockpitSnapshot.fromJson(Map<String, Object?> json) {

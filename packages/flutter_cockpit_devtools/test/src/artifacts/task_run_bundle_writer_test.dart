@@ -430,6 +430,12 @@ void main() {
         isEmpty,
       );
       expect(
+        ((deliveryJson['readiness'] as Map<Object?, Object?>)['video']
+                as Map<Object?, Object?>)
+            .containsKey('failureReason'),
+        isFalse,
+      );
+      expect(
         deliveryJson['primaryRecordingRef'],
         'recordings/task-fallback-video_session-fallback-video_timeline_fallback.mp4',
       );

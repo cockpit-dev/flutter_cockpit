@@ -2,11 +2,12 @@ import 'dart:io';
 
 import 'package:args/command_runner.dart';
 
-import '../../application/cockpit_query_remote_session_service.dart';
 import '../../application/cockpit_compact_json.dart';
+import '../../application/cockpit_query_remote_session_service.dart';
 import '../../application/cockpit_session_reference_resolver.dart';
 import '../../remote/cockpit_android_port_forwarder.dart';
 import '../cockpit_command_runner.dart';
+import '../cockpit_interactive_cli_support.dart';
 
 final class QueryRemoteSessionCommand extends Command<int> {
   QueryRemoteSessionCommand({
@@ -67,14 +68,11 @@ final class QueryRemoteSessionCommand extends Command<int> {
         androidDeviceId: argResults?['android-device-id'] as String?,
       ),
     );
-    final payload = cockpitCompactJsonText(result.status.toJson());
-    final outputJson = argResults?['output-json'] as String?;
-
-    if (outputJson == null || outputJson.isEmpty) {
-      _stdoutSink.writeln(payload);
-    } else {
-      await File(outputJson).writeAsString(payload);
-    }
+    await cockpitWriteJsonPayload(
+      payload: cockpitCompactJsonText(result.status.toJson()),
+      argResults: argResults,
+      stdoutSink: _stdoutSink,
+    );
 
     return cockpitSuccessExitCode;
   }

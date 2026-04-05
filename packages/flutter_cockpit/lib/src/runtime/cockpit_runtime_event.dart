@@ -79,10 +79,10 @@ final class CockpitRuntimeEvent {
         'severity': severity.jsonValue,
         'message': message,
         'recordedAt': recordedAt.toUtc().toIso8601String(),
-        'routeName': routeName,
-        'source': source,
+        if (routeName != null) 'routeName': routeName,
+        if (source != null) 'source': source,
         'details': details,
-        'stackTracePreview': stackTracePreview,
+        if (stackTracePreview != null) 'stackTracePreview': stackTracePreview,
         'stackTraceTruncated': stackTraceTruncated,
       };
 

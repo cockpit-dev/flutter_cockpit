@@ -27,7 +27,7 @@ void cockpitAddRemoteSessionArgs(ArgParser parser) {
     ..addOption(
       'output-json',
       help:
-          'Write JSON to a file instead of stdout. Prefer this for larger results.',
+          'Write pretty JSON to a file instead of compact stdout. Prefer this for larger results.',
     );
 }
 
@@ -50,7 +50,7 @@ void cockpitAddAppArgs(ArgParser parser) {
     ..addOption(
       'output-json',
       help:
-          'Write JSON to a file instead of stdout. Prefer this for larger results.',
+          'Write pretty JSON to a file instead of compact stdout. Prefer this for larger results.',
     );
 }
 
@@ -264,16 +264,15 @@ Future<void> cockpitWriteJsonPayload({
   required ArgResults? argResults,
   required StringSink stdoutSink,
 }) async {
-  final renderedPayload = _renderJsonPayload(payload);
   final outputJson = argResults?['output-json'] as String?;
   if (outputJson == null || outputJson.isEmpty) {
-    stdoutSink.writeln(renderedPayload);
+    stdoutSink.writeln(_renderJsonPayload(payload, pretty: false));
     return;
   }
 
   final outputFile = File(outputJson);
   await outputFile.parent.create(recursive: true);
-  await outputFile.writeAsString(renderedPayload);
+  await outputFile.writeAsString(_renderJsonPayload(payload, pretty: true));
 }
 
 Uri? cockpitReadOptionalBaseUri(ArgResults? argResults) {
@@ -324,9 +323,11 @@ Future<Object?> _readJsonValue({
   return jsonDecode(source);
 }
 
-String _renderJsonPayload(Object payload) {
+String _renderJsonPayload(Object payload, {required bool pretty}) {
   if (payload is! String) {
-    return cockpitPrettyJsonText(payload);
+    return pretty
+        ? cockpitPrettyJsonText(payload)
+        : cockpitCompactJsonText(payload);
   }
 
   final trimmed = payload.trimLeft();
@@ -335,7 +336,10 @@ String _renderJsonPayload(Object payload) {
   }
 
   try {
-    return cockpitPrettyJsonText(jsonDecode(payload));
+    final decoded = jsonDecode(payload);
+    return pretty
+        ? cockpitPrettyJsonText(decoded)
+        : cockpitCompactJsonText(decoded);
   } on FormatException {
     return payload;
   }

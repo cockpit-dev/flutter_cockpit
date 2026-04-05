@@ -67,6 +67,42 @@ void main() {
   );
 
   test(
+    'supervisor clears stale lastError after bind and ready recovery',
+    () async {
+      final harness = _MachineHarness();
+      addTearDown(harness.dispose);
+
+      final supervisor = CockpitDevelopmentSessionSupervisor(
+        initialHandle: harness.handle.copyWith(
+          appId: '',
+          remoteSessionHandle: null,
+        ),
+        machineClient: harness.client,
+        remoteReachabilityProbe: (_) async => true,
+        uiIdleWaiter: (_) async => true,
+        now: () => DateTime.utc(2026, 3, 23, 2, 30),
+        settleTimeout: const Duration(seconds: 2),
+        settlePollInterval: const Duration(milliseconds: 10),
+      );
+      addTearDown(supervisor.dispose);
+
+      await supervisor.start();
+      supervisor.reportStartupFailure(StateError('stale startup failure'));
+
+      final failedStatus = await supervisor.currentStatus();
+      expect(failedStatus.state, CockpitDevelopmentSessionState.failed);
+      expect(failedStatus.lastError, contains('stale startup failure'));
+
+      await supervisor.bindRemoteSession(harness.handle.remoteSessionHandle!);
+      await supervisor.waitForState(CockpitDevelopmentSessionState.ready);
+
+      final recoveredStatus = await supervisor.currentStatus();
+      expect(recoveredStatus.state, CockpitDevelopmentSessionState.ready);
+      expect(recoveredStatus.lastError, isNull);
+    },
+  );
+
+  test(
     'supervisor transitions to ready only after remote recovery and UI idle',
     () async {
       final harness = _MachineHarness();

@@ -42,6 +42,8 @@ enum CockpitDevelopmentReloadMode {
   }
 }
 
+const Object _cockpitUnsetField = Object();
+
 final class CockpitDevelopmentSessionStatus {
   const CockpitDevelopmentSessionStatus({
     required this.developmentSessionId,
@@ -71,9 +73,10 @@ final class CockpitDevelopmentSessionStatus {
         'appReachable': appReachable,
         'remoteSessionReachable': remoteSessionReachable,
         'reloadGeneration': reloadGeneration,
-        'lastReloadMode': lastReloadMode?.jsonValue,
-        'lastReloadSucceeded': lastReloadSucceeded,
-        'lastError': lastError,
+        if (lastReloadMode != null) 'lastReloadMode': lastReloadMode?.jsonValue,
+        if (lastReloadSucceeded != null)
+          'lastReloadSucceeded': lastReloadSucceeded,
+        if (lastError != null) 'lastError': lastError,
         'lastStatusAt': lastStatusAt.toUtc().toIso8601String(),
       };
 
@@ -99,9 +102,9 @@ final class CockpitDevelopmentSessionStatus {
     bool? appReachable,
     bool? remoteSessionReachable,
     int? reloadGeneration,
-    CockpitDevelopmentReloadMode? lastReloadMode,
-    bool? lastReloadSucceeded,
-    String? lastError,
+    Object? lastReloadMode = _cockpitUnsetField,
+    Object? lastReloadSucceeded = _cockpitUnsetField,
+    Object? lastError = _cockpitUnsetField,
     DateTime? lastStatusAt,
   }) {
     return CockpitDevelopmentSessionStatus(
@@ -111,9 +114,15 @@ final class CockpitDevelopmentSessionStatus {
       remoteSessionReachable:
           remoteSessionReachable ?? this.remoteSessionReachable,
       reloadGeneration: reloadGeneration ?? this.reloadGeneration,
-      lastReloadMode: lastReloadMode ?? this.lastReloadMode,
-      lastReloadSucceeded: lastReloadSucceeded ?? this.lastReloadSucceeded,
-      lastError: lastError ?? this.lastError,
+      lastReloadMode: identical(lastReloadMode, _cockpitUnsetField)
+          ? this.lastReloadMode
+          : lastReloadMode as CockpitDevelopmentReloadMode?,
+      lastReloadSucceeded: identical(lastReloadSucceeded, _cockpitUnsetField)
+          ? this.lastReloadSucceeded
+          : lastReloadSucceeded as bool?,
+      lastError: identical(lastError, _cockpitUnsetField)
+          ? this.lastError
+          : lastError as String?,
       lastStatusAt: lastStatusAt ?? this.lastStatusAt,
     );
   }

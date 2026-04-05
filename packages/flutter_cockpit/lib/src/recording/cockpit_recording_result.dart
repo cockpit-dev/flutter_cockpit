@@ -30,13 +30,13 @@ final class CockpitRecordingResult {
 
   Map<String, Object?> toJson() => {
         'state': state.name,
-        'purpose': purpose?.name,
-        'recordingKind': recordingKind?.name,
-        'artifact': artifact?.toJson(),
-        'durationMs': durationMs,
-        'bytes': bytes,
-        'sourceFilePath': sourceFilePath,
-        'failureReason': failureReason,
+        if (purpose != null) 'purpose': purpose!.name,
+        if (recordingKind != null) 'recordingKind': recordingKind!.name,
+        if (artifact != null) 'artifact': artifact!.toJson(),
+        if (durationMs != null) 'durationMs': durationMs,
+        if (bytes != null) 'bytes': bytes,
+        if (sourceFilePath != null) 'sourceFilePath': sourceFilePath,
+        if (failureReason != null) 'failureReason': failureReason,
       };
 
   factory CockpitRecordingResult.fromJson(Map<String, Object?> json) {

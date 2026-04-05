@@ -3,8 +3,8 @@ import 'dart:io';
 import 'package:args/command_runner.dart';
 
 import '../../application/cockpit_stop_development_session_service.dart';
-import '../../application/cockpit_compact_json.dart';
 import '../cockpit_command_runner.dart';
+import '../cockpit_interactive_cli_support.dart';
 
 typedef CockpitStopDevelopmentSessionFunction
     = Future<CockpitStopDevelopmentSessionResult> Function(
@@ -46,18 +46,14 @@ final class StopDevelopmentSessionCommand extends Command<int> {
         sessionHandlePath: _readRequiredOption('session-json'),
       ),
     );
-    final payload = cockpitPrettyJsonText(<String, Object?>{
-      'sessionHandle': result.sessionHandle.toJson(),
-      'status': result.status.toJson(),
-    });
-    final outputJson = argResults?['output-json'] as String?;
-    if (outputJson == null || outputJson.isEmpty) {
-      _stdoutSink.writeln(payload);
-    } else {
-      final file = File(outputJson);
-      await file.parent.create(recursive: true);
-      await file.writeAsString(payload);
-    }
+    await cockpitWriteJsonPayload(
+      payload: <String, Object?>{
+        'sessionHandle': result.sessionHandle.toJson(),
+        'status': result.status.toJson(),
+      },
+      argResults: argResults,
+      stdoutSink: _stdoutSink,
+    );
     return cockpitSuccessExitCode;
   }
 

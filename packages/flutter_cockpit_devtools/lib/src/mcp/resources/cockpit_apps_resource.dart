@@ -85,7 +85,8 @@ final class CockpitAppResource extends CockpitMcpResource {
       final payload = <String, Object?>{
         'state': developmentRecord.status.state.jsonValue,
         'updatedAt': developmentRecord.updatedAt.toUtc().toIso8601String(),
-        'lastError': developmentRecord.status.lastError,
+        if (developmentRecord.status.lastError != null)
+          'lastError': developmentRecord.status.lastError,
         'app': CockpitAppHandle.fromDevelopmentSession(
           developmentRecord.handle,
           supervisorLogPath: developmentRecord.supervisorLogPath,
@@ -99,7 +100,6 @@ final class CockpitAppResource extends CockpitMcpResource {
       final payload = <String, Object?>{
         'state': remoteRecord.recommendedNextStep,
         'updatedAt': remoteRecord.updatedAt.toUtc().toIso8601String(),
-        'lastError': null,
         'app': CockpitAppHandle.fromRemoteSession(remoteRecord.handle).toJson(),
       };
       return _textResult(request.uri, payload);

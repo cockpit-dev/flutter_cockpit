@@ -1,11 +1,10 @@
-import 'package:flutter_cockpit_devtools/src/application/cockpit_app_handle.dart';
 import 'package:flutter_cockpit_devtools/src/development/cockpit_development_session_handle.dart';
 import 'package:flutter_cockpit_devtools/src/session/cockpit_remote_session_handle.dart';
 import 'package:test/test.dart';
 
 void main() {
-  test('app handle copyWith can clear nullable fields', () {
-    final developmentSession = CockpitDevelopmentSessionHandle(
+  test('development session handle omits absent optional JSON fields', () {
+    final json = CockpitDevelopmentSessionHandle(
       developmentSessionId: 'dev-session-1',
       platform: 'macos',
       deviceId: 'macos',
@@ -16,7 +15,14 @@ void main() {
       supervisorBaseUrl: 'http://127.0.0.1:57332',
       launchedAt: DateTime.utc(2026, 4, 5),
       reloadGeneration: 2,
-    );
+    ).toJson();
+
+    expect(json.containsKey('remoteSessionHandle'), isFalse);
+    expect(json.containsKey('vmServiceUri'), isFalse);
+    expect(json.containsKey('lastReloadAt'), isFalse);
+  });
+
+  test('development session handle copyWith can clear nullable fields', () {
     final remoteSession = CockpitRemoteSessionHandle(
       platform: 'macos',
       deviceId: 'macos',
@@ -29,32 +35,30 @@ void main() {
       baseUrl: 'http://127.0.0.1:57331',
       launchedAt: DateTime.utc(2026, 4, 5),
     );
-
-    final handle = CockpitAppHandle(
-      appId: 'dev.example.app',
-      mode: CockpitAppMode.development,
+    final handle = CockpitDevelopmentSessionHandle(
+      developmentSessionId: 'dev-session-1',
       platform: 'macos',
       deviceId: 'macos',
       projectDir: '/workspace/app',
       target: 'cockpit/main.dart',
-      baseUrl: 'http://127.0.0.1:57331',
+      appId: 'dev.example.app',
+      appBaseUrl: 'http://127.0.0.1:57331',
+      supervisorBaseUrl: 'http://127.0.0.1:57332',
       launchedAt: DateTime.utc(2026, 4, 5),
-      platformAppId: 'platform-app-id',
-      supervisorLogPath: '/tmp/flutter_cockpit/supervisor.log',
-      developmentSession: developmentSession,
-      remoteSession: remoteSession,
+      reloadGeneration: 2,
+      remoteSessionHandle: remoteSession,
+      vmServiceUri: Uri.parse('ws://127.0.0.1:34567/ws'),
+      lastReloadAt: DateTime.utc(2026, 4, 5, 0, 1),
     );
 
     final cleared = handle.copyWith(
-      platformAppId: null,
-      supervisorLogPath: null,
-      developmentSession: null,
-      remoteSession: null,
+      remoteSessionHandle: null,
+      vmServiceUri: null,
+      lastReloadAt: null,
     );
 
-    expect(cleared.platformAppId, isNull);
-    expect(cleared.supervisorLogPath, isNull);
-    expect(cleared.developmentSession, isNull);
-    expect(cleared.remoteSession, isNull);
+    expect(cleared.remoteSessionHandle, isNull);
+    expect(cleared.vmServiceUri, isNull);
+    expect(cleared.lastReloadAt, isNull);
   });
 }

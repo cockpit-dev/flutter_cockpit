@@ -27,9 +27,9 @@ final class CockpitRebuildEntry {
         'typeName': typeName,
         'rebuildCount': rebuildCount,
         'builtOnceCount': builtOnceCount,
-        'keyValue': keyValue,
-        'semanticId': semanticId,
-        'textPreview': textPreview,
+        if (keyValue != null) 'keyValue': keyValue,
+        if (semanticId != null) 'semanticId': semanticId,
+        if (textPreview != null) 'textPreview': textPreview,
       };
 
   factory CockpitRebuildEntry.fromJson(Map<String, Object?> json) {

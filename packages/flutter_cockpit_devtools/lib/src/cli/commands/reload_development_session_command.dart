@@ -2,10 +2,10 @@ import 'dart:io';
 
 import 'package:args/command_runner.dart';
 
-import '../../application/cockpit_compact_json.dart';
 import '../../application/cockpit_reload_development_session_service.dart';
 import '../../development/cockpit_development_session_status.dart';
 import '../cockpit_command_runner.dart';
+import '../cockpit_interactive_cli_support.dart';
 
 typedef CockpitReloadDevelopmentSessionFunction
     = Future<CockpitReloadDevelopmentSessionResult> Function(
@@ -59,19 +59,15 @@ final class ReloadDevelopmentSessionCommand extends Command<int> {
         ),
       ),
     );
-    final payload = cockpitPrettyJsonText(<String, Object?>{
-      'sessionHandle': result.sessionHandle.toJson(),
-      'status': result.status.toJson(),
-      'persistedHandlePath': result.persistedHandlePath,
-    });
-    final outputJson = argResults?['output-json'] as String?;
-    if (outputJson == null || outputJson.isEmpty) {
-      _stdoutSink.writeln(payload);
-    } else {
-      final file = File(outputJson);
-      await file.parent.create(recursive: true);
-      await file.writeAsString(payload);
-    }
+    await cockpitWriteJsonPayload(
+      payload: <String, Object?>{
+        'sessionHandle': result.sessionHandle.toJson(),
+        'status': result.status.toJson(),
+        'persistedHandlePath': result.persistedHandlePath,
+      },
+      argResults: argResults,
+      stdoutSink: _stdoutSink,
+    );
     return cockpitSuccessExitCode;
   }
 

@@ -101,7 +101,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --output-json /tmp/validate_task_result.json
 ```
 
-JSON 默认直接输出到 stdout，所以立刻要消费的结果优先配合 `| jq`。只有结果太大不适合 stdout，或者后续步骤要重新打开整份结果时，才使用 `--output-json` 落盘；只要请求体不再是几行以内，就优先使用 `--command-file`、`--commands-file`、`--config-json`，不要把长 JSON 直接内联进命令。
+JSON 默认会以 compact 形式直接输出到 stdout，便于立刻接 `| jq`，也更省 token。只有结果太大不适合 stdout，或者后续步骤要重新打开整份结果时，才使用 `--output-json` 生成 pretty JSON 文件；只要请求体不再是几行以内，就优先使用 `--command-file`、`--commands-file`、`--config-json`，不要把长 JSON 直接内联进命令。
 
 ## MCP
 

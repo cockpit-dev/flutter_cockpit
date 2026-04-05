@@ -37,13 +37,15 @@ final class CockpitObservation {
   static const ListEquality<String> _listEquality = ListEquality<String>();
 
   Map<String, Object?> toJson() => {
-        'routeName': routeName,
+        if (routeName != null) 'routeName': routeName,
         'interactiveElements': interactiveElements,
-        'phase': phase?.name,
-        'diagnosticLevel': diagnosticLevel?.jsonValue,
+        if (phase != null) 'phase': phase!.name,
+        if (diagnosticLevel != null)
+          'diagnosticLevel': diagnosticLevel!.jsonValue,
         'truncated': truncated,
-        'diagnosticsArtifactRef': diagnosticsArtifactRef?.toJson(),
-        'summary': summary?.toJson(),
+        if (diagnosticsArtifactRef != null)
+          'diagnosticsArtifactRef': diagnosticsArtifactRef!.toJson(),
+        if (summary != null) 'summary': summary!.toJson(),
       };
 
   factory CockpitObservation.fromJson(Map<String, Object?> json) {

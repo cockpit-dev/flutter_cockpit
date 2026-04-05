@@ -4,8 +4,8 @@ import 'package:args/command_runner.dart';
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
 import '../../application/cockpit_collect_remote_snapshot_service.dart';
-import '../../application/cockpit_compact_json.dart';
 import '../cockpit_command_runner.dart';
+import '../cockpit_interactive_cli_support.dart';
 
 typedef CockpitCollectRemoteSnapshotFunction
     = Future<CockpitCollectRemoteSnapshotResult> Function(
@@ -129,16 +129,11 @@ final class CollectRemoteSnapshotCommand extends Command<int> {
         options: _readSnapshotOptions(),
       ),
     );
-    final payload = cockpitPrettyJsonText(result.toJson());
-    final outputJson = argResults?['output-json'] as String?;
-
-    if (outputJson == null || outputJson.isEmpty) {
-      _stdoutSink.writeln(payload);
-    } else {
-      final outputFile = File(outputJson);
-      await outputFile.parent.create(recursive: true);
-      await outputFile.writeAsString(payload);
-    }
+    await cockpitWriteJsonPayload(
+      payload: result.toJson(),
+      argResults: argResults,
+      stdoutSink: _stdoutSink,
+    );
     return cockpitSuccessExitCode;
   }
 

@@ -32,6 +32,36 @@ void main() {
     }
   });
 
+  test('development session status copyWith can clear optional fields', () {
+    final status = CockpitDevelopmentSessionStatus(
+      developmentSessionId: 'dev-session-1',
+      state: CockpitDevelopmentSessionState.failed,
+      appReachable: false,
+      remoteSessionReachable: false,
+      reloadGeneration: 4,
+      lastReloadMode: CockpitDevelopmentReloadMode.hotReload,
+      lastReloadSucceeded: false,
+      lastError: 'machine process exited',
+      lastStatusAt: DateTime.utc(2026, 3, 23, 2),
+    );
+
+    final cleared = status.copyWith(
+      state: CockpitDevelopmentSessionState.ready,
+      appReachable: true,
+      remoteSessionReachable: true,
+      lastReloadMode: null,
+      lastReloadSucceeded: null,
+      lastError: null,
+    );
+
+    expect(cleared.state, CockpitDevelopmentSessionState.ready);
+    expect(cleared.appReachable, isTrue);
+    expect(cleared.remoteSessionReachable, isTrue);
+    expect(cleared.lastReloadMode, isNull);
+    expect(cleared.lastReloadSucceeded, isNull);
+    expect(cleared.lastError, isNull);
+  });
+
   test('development probe delta round-trips through json', () {
     final delta = CockpitDevelopmentProbeDelta(
       fromProbeId: 'probe-1',

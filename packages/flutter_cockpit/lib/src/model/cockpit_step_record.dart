@@ -61,19 +61,22 @@ final class CockpitStepRecord {
         'actionType': actionType,
         'actionArgs': actionArgs,
         'observedAt': observedAt.toUtc().toIso8601String(),
-        'observation': observation?.toJson(),
-        'snapshot': snapshot?.toJson(),
+        if (observation != null) 'observation': observation!.toJson(),
+        if (snapshot != null) 'snapshot': snapshot!.toJson(),
         'artifactRefs':
             artifactRefs.map((artifact) => artifact.toJson()).toList(),
-        'commandType': commandType?.name,
-        'locator': locator?.toJson(),
-        'locatorResolution': locatorResolution?.toJson(),
-        'durationMs': durationMs,
-        'status': status?.name,
-        'requestedCaptureProfile': requestedCaptureProfile?.name,
-        'resolvedCaptureKind': resolvedCaptureKind?.name,
+        if (commandType != null) 'commandType': commandType!.name,
+        if (locator != null) 'locator': locator!.toJson(),
+        if (locatorResolution != null)
+          'locatorResolution': locatorResolution!.toJson(),
+        if (durationMs != null) 'durationMs': durationMs,
+        if (status != null) 'status': status!.name,
+        if (requestedCaptureProfile != null)
+          'requestedCaptureProfile': requestedCaptureProfile!.name,
+        if (resolvedCaptureKind != null)
+          'resolvedCaptureKind': resolvedCaptureKind!.name,
         'usedCaptureFallback': usedCaptureFallback,
-        'degradationReason': degradationReason,
+        if (degradationReason != null) 'degradationReason': degradationReason,
         'captureRefs':
             captureRefs.map((artifact) => artifact.toJson()).toList(),
       };

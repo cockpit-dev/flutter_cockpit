@@ -43,7 +43,8 @@ final class CockpitScreenshotRequest {
         'name': name,
         'includeSnapshot': includeSnapshot,
         'attachToStep': attachToStep,
-        'snapshotOptions': snapshotOptions?.toJson(),
+        if (snapshotOptions != null)
+          'snapshotOptions': snapshotOptions!.toJson(),
       };
 
   factory CockpitScreenshotRequest.fromJson(Map<String, Object?> json) {

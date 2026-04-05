@@ -28,8 +28,8 @@ final class CockpitNetworkEndpointSummary {
         'requestCount': requestCount,
         'failureCount': failureCount,
         'averageDurationMs': averageDurationMs,
-        'lastStatusCode': lastStatusCode,
-        'latestUri': latestUri,
+        if (lastStatusCode != null) 'lastStatusCode': lastStatusCode,
+        if (latestUri != null) 'latestUri': latestUri,
       };
 
   factory CockpitNetworkEndpointSummary.fromJson(Map<String, Object?> json) {

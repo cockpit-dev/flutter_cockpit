@@ -3,8 +3,8 @@ import 'dart:io';
 import 'package:args/command_runner.dart';
 
 import '../../application/cockpit_compare_development_probe_service.dart';
-import '../../application/cockpit_compact_json.dart';
 import '../cockpit_command_runner.dart';
+import '../cockpit_interactive_cli_support.dart';
 
 typedef CockpitCompareDevelopmentProbeFunction
     = Future<CockpitCompareDevelopmentProbeResult> Function(
@@ -46,15 +46,11 @@ final class CompareDevelopmentProbeCommand extends Command<int> {
         toProbePath: _readRequiredOption('to-probe-json'),
       ),
     );
-    final payload = cockpitPrettyJsonText(result.toJson());
-    final outputJson = argResults?['output-json'] as String?;
-    if (outputJson == null || outputJson.isEmpty) {
-      _stdoutSink.writeln(payload);
-    } else {
-      final file = File(outputJson);
-      await file.parent.create(recursive: true);
-      await file.writeAsString(payload);
-    }
+    await cockpitWriteJsonPayload(
+      payload: result.toJson(),
+      argResults: argResults,
+      stdoutSink: _stdoutSink,
+    );
     return cockpitSuccessExitCode;
   }
 

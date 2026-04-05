@@ -33,12 +33,14 @@ final class CockpitCommand {
   Map<String, Object?> toJson() => {
         'commandId': commandId,
         'commandType': commandType.name,
-        'locator': locator?.toJson(),
+        if (locator != null) 'locator': locator!.toJson(),
         'parameters': parameters,
         'capturePolicy': capturePolicy.name,
-        'timeoutMs': timeoutMs,
-        'snapshotOptions': snapshotOptions?.toJson(),
-        'screenshotRequest': screenshotRequest?.toJson(),
+        if (timeoutMs != null) 'timeoutMs': timeoutMs,
+        if (snapshotOptions != null)
+          'snapshotOptions': snapshotOptions!.toJson(),
+        if (screenshotRequest != null)
+          'screenshotRequest': screenshotRequest!.toJson(),
       };
 
   factory CockpitCommand.fromJson(Map<String, Object?> json) {

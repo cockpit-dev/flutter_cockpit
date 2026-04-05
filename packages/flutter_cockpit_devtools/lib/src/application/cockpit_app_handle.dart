@@ -1,6 +1,8 @@
 import '../development/cockpit_development_session_handle.dart';
 import '../session/cockpit_remote_session_handle.dart';
 
+const Object _cockpitUnsetAppHandleField = Object();
+
 enum CockpitAppMode {
   development('development'),
   automation('automation');
@@ -151,10 +153,10 @@ final class CockpitAppHandle {
     String? target,
     String? baseUrl,
     DateTime? launchedAt,
-    String? platformAppId,
-    String? supervisorLogPath,
-    CockpitDevelopmentSessionHandle? developmentSession,
-    CockpitRemoteSessionHandle? remoteSession,
+    Object? platformAppId = _cockpitUnsetAppHandleField,
+    Object? supervisorLogPath = _cockpitUnsetAppHandleField,
+    Object? developmentSession = _cockpitUnsetAppHandleField,
+    Object? remoteSession = _cockpitUnsetAppHandleField,
   }) {
     return CockpitAppHandle(
       appId: appId ?? this.appId,
@@ -165,10 +167,20 @@ final class CockpitAppHandle {
       target: target ?? this.target,
       baseUrl: baseUrl ?? this.baseUrl,
       launchedAt: launchedAt ?? this.launchedAt,
-      platformAppId: platformAppId ?? this.platformAppId,
-      supervisorLogPath: supervisorLogPath ?? this.supervisorLogPath,
-      developmentSession: developmentSession ?? this.developmentSession,
-      remoteSession: remoteSession ?? this.remoteSession,
+      platformAppId: identical(platformAppId, _cockpitUnsetAppHandleField)
+          ? this.platformAppId
+          : platformAppId as String?,
+      supervisorLogPath:
+          identical(supervisorLogPath, _cockpitUnsetAppHandleField)
+              ? this.supervisorLogPath
+              : supervisorLogPath as String?,
+      developmentSession:
+          identical(developmentSession, _cockpitUnsetAppHandleField)
+              ? this.developmentSession
+              : developmentSession as CockpitDevelopmentSessionHandle?,
+      remoteSession: identical(remoteSession, _cockpitUnsetAppHandleField)
+          ? this.remoteSession
+          : remoteSession as CockpitRemoteSessionHandle?,
     );
   }
 }
