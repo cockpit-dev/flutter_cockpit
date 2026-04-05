@@ -6,6 +6,16 @@ This directory is the source-controlled skill asset:
 
 Installing the skill means linking or copying **this whole directory** into the current host's skill-discovery directory.
 
+## Preferred AI Prompt
+
+If the current AI host can install skills for you, paste this prompt first:
+
+```text
+Install the flutter-cockpit skill for the current AI host by following https://github.com/cockpit-dev/flutter_cockpit/blob/main/skills/flutter-cockpit/INSTALL.md
+```
+
+Use the manual steps below only when the host cannot complete installation itself.
+
 ## Host-First Rule
 
 Do not assume the current agent is Codex or Claude Code.

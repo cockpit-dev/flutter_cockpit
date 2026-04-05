@@ -34,6 +34,149 @@ Package pages:
 - [`flutter_cockpit` on pub.dev](https://pub.dev/packages/flutter_cockpit)
 - [`flutter_cockpit_devtools` on pub.dev](https://pub.dev/packages/flutter_cockpit_devtools)
 
+Installing the Dart packages does not automatically install the AI skill or expose a globally callable MCP launcher. Those are separate host-side setup steps.
+
+## Install Skill
+
+The repository-owned skill lives at [`skills/flutter-cockpit`](skills/flutter-cockpit).
+
+Preferred: ask the current AI host to install it for you. Copy this prompt:
+
+```text
+Install the flutter-cockpit skill for the current AI host by following https://github.com/cockpit-dev/flutter_cockpit/blob/main/skills/flutter-cockpit/INSTALL.md
+```
+
+Full host-specific instructions live in [`skills/flutter-cockpit/INSTALL.md`](skills/flutter-cockpit/INSTALL.md).
+
+## Install MCP
+
+`flutter_cockpit` does not ship a separate MCP package. The MCP server is provided by `flutter_cockpit_devtools`.
+
+One-shot launch:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools serve-mcp
+```
+
+If the host expects a globally callable command, install devtools globally:
+
+```bash
+dart pub global activate flutter_cockpit_devtools
+flutter_cockpit_mcp
+```
+
+## Configure MCP In Mainstream Agents
+
+Typical local setup command:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools serve-mcp
+```
+
+If you already activated `flutter_cockpit_devtools` globally, you can replace the `dart run ... serve-mcp` command below with `flutter_cockpit_mcp`.
+
+### Codex
+
+Add the local stdio server:
+
+```bash
+codex mcp add flutterCockpit -- dart run flutter_cockpit_devtools:flutter_cockpit_devtools serve-mcp
+```
+
+Verify:
+
+```bash
+codex mcp list
+```
+
+### Claude Code
+
+Add the local stdio server:
+
+```bash
+claude mcp add --transport stdio flutter-cockpit -- dart run flutter_cockpit_devtools:flutter_cockpit_devtools serve-mcp
+```
+
+Verify inside Claude Code with `/mcp`, or from the shell:
+
+```bash
+claude mcp list
+```
+
+### Cursor
+
+Add a global MCP config at `~/.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "flutter-cockpit": {
+      "type": "stdio",
+      "command": "dart",
+      "args": [
+        "run",
+        "flutter_cockpit_devtools:flutter_cockpit_devtools",
+        "serve-mcp"
+      ]
+    }
+  }
+}
+```
+
+You can also use `.cursor/mcp.json` in a project for repo-local configuration.
+
+### VS Code
+
+Add a workspace config at `.vscode/mcp.json`, or add the same server entry to your user-profile `mcp.json`:
+
+```json
+{
+  "servers": {
+    "flutterCockpit": {
+      "type": "stdio",
+      "command": "dart",
+      "args": [
+        "run",
+        "flutter_cockpit_devtools:flutter_cockpit_devtools",
+        "serve-mcp"
+      ]
+    }
+  }
+}
+```
+
+You can also add it from the Command Palette with `MCP: Add Server`.
+
+### OpenCode
+
+Add a global config at `~/.config/opencode/opencode.json`, or add the same block to a repo-local `opencode.json`:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "flutterCockpit": {
+      "type": "local",
+      "command": [
+        "dart",
+        "run",
+        "flutter_cockpit_devtools:flutter_cockpit_devtools",
+        "serve-mcp"
+      ],
+      "enabled": true
+    }
+  }
+}
+```
+
+These host commands and config entry points can evolve. If a host UI or command differs on your machine, prefer the host's latest MCP docs:
+
+- Codex: local `codex mcp --help`
+- Claude Code: [Connect Claude Code to tools via MCP](https://docs.anthropic.com/en/docs/claude-code/mcp)
+- Cursor: [Cursor MCP docs](https://docs.cursor.com/context/model-context-protocol)
+- VS Code: [VS Code MCP configuration reference](https://code.visualstudio.com/docs/copilot/reference/mcp-configuration)
+- OpenCode: [OpenCode MCP servers](https://opencode.ai/docs/mcp-servers)
+
 ## Packages
 
 - [`packages/flutter_cockpit`](packages/flutter_cockpit): in-app runtime, remote session server, command execution, snapshots, capture, recording
@@ -225,6 +368,7 @@ Prompts:
 - Runtime package README: [`packages/flutter_cockpit/README.md`](packages/flutter_cockpit/README.md)
 - Devtools package README: [`packages/flutter_cockpit_devtools/README.md`](packages/flutter_cockpit_devtools/README.md)
 - Skill: [`skills/flutter-cockpit/SKILL.md`](skills/flutter-cockpit/SKILL.md)
+- Skill install: [`skills/flutter-cockpit/INSTALL.md`](skills/flutter-cockpit/INSTALL.md)
 - App setup reference: [`skills/flutter-cockpit/examples/flutter-app-setup.md`](skills/flutter-cockpit/examples/flutter-app-setup.md)
 - CLI examples: [`skills/flutter-cockpit/examples/cli-command-reference.md`](skills/flutter-cockpit/examples/cli-command-reference.md)
 - Skill contract: [`docs/contracts/flutter-cockpit-skill-contract.md`](docs/contracts/flutter-cockpit-skill-contract.md)

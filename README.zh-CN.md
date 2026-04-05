@@ -34,6 +34,149 @@ dev_dependencies:
 - [`flutter_cockpit` on pub.dev](https://pub.dev/packages/flutter_cockpit)
 - [`flutter_cockpit_devtools` on pub.dev](https://pub.dev/packages/flutter_cockpit_devtools)
 
+安装 Dart 包本身，并不会自动安装 AI skill，也不会自动提供全局可调用的 MCP 启动命令。这两件事都属于宿主侧额外配置。
+
+## 安装 Skill
+
+仓库内维护的 skill 位于 [`skills/flutter-cockpit`](skills/flutter-cockpit)。
+
+优先让当前 AI host 自己帮你安装。下面这段提示词可以直接复制给 AI：
+
+```text
+Install the flutter-cockpit skill for the current AI host by following https://github.com/cockpit-dev/flutter_cockpit/blob/main/skills/flutter-cockpit/INSTALL.md
+```
+
+完整宿主侧说明见 [`skills/flutter-cockpit/INSTALL.md`](skills/flutter-cockpit/INSTALL.md)。
+
+## 安装 MCP
+
+`flutter_cockpit` 没有单独拆出一个 MCP 包。MCP server 由 `flutter_cockpit_devtools` 提供。
+
+一次性启动：
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools serve-mcp
+```
+
+如果宿主需要全局命令，先全局安装 devtools：
+
+```bash
+dart pub global activate flutter_cockpit_devtools
+flutter_cockpit_mcp
+```
+
+## 主流 Agent 的 MCP 配置
+
+本地 MCP server 的典型启动命令是：
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools serve-mcp
+```
+
+如果你已经把 `flutter_cockpit_devtools` 全局安装好了，下面这些示例里的 `dart run ... serve-mcp` 也都可以直接替换成 `flutter_cockpit_mcp`。
+
+### Codex
+
+添加本地 stdio server：
+
+```bash
+codex mcp add flutterCockpit -- dart run flutter_cockpit_devtools:flutter_cockpit_devtools serve-mcp
+```
+
+验证：
+
+```bash
+codex mcp list
+```
+
+### Claude Code
+
+添加本地 stdio server：
+
+```bash
+claude mcp add --transport stdio flutter-cockpit -- dart run flutter_cockpit_devtools:flutter_cockpit_devtools serve-mcp
+```
+
+可以在 Claude Code 里用 `/mcp` 查看，也可以直接在终端验证：
+
+```bash
+claude mcp list
+```
+
+### Cursor
+
+在 `~/.cursor/mcp.json` 里加入全局配置：
+
+```json
+{
+  "mcpServers": {
+    "flutter-cockpit": {
+      "type": "stdio",
+      "command": "dart",
+      "args": [
+        "run",
+        "flutter_cockpit_devtools:flutter_cockpit_devtools",
+        "serve-mcp"
+      ]
+    }
+  }
+}
+```
+
+如果想做 repo-local 配置，也可以使用项目内的 `.cursor/mcp.json`。
+
+### VS Code
+
+可以在仓库里添加 `.vscode/mcp.json`，也可以把同样的 server 配置写到用户 profile 的 `mcp.json`：
+
+```json
+{
+  "servers": {
+    "flutterCockpit": {
+      "type": "stdio",
+      "command": "dart",
+      "args": [
+        "run",
+        "flutter_cockpit_devtools:flutter_cockpit_devtools",
+        "serve-mcp"
+      ]
+    }
+  }
+}
+```
+
+也可以直接通过 Command Palette 里的 `MCP: Add Server` 添加。
+
+### OpenCode
+
+可以在 `~/.config/opencode/opencode.json` 里加全局配置，也可以把同样的块写进项目根目录的 `opencode.json`：
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "flutterCockpit": {
+      "type": "local",
+      "command": [
+        "dart",
+        "run",
+        "flutter_cockpit_devtools:flutter_cockpit_devtools",
+        "serve-mcp"
+      ],
+      "enabled": true
+    }
+  }
+}
+```
+
+这些宿主的命令和配置入口后续可能会调整。如果你本机看到的 UI 或命令不同，优先以宿主自己的最新 MCP 文档为准：
+
+- Codex：优先看本机 `codex mcp --help`
+- Claude Code：[Connect Claude Code to tools via MCP](https://docs.anthropic.com/en/docs/claude-code/mcp)
+- Cursor：[Cursor MCP docs](https://docs.cursor.com/context/model-context-protocol)
+- VS Code：[VS Code MCP configuration reference](https://code.visualstudio.com/docs/copilot/reference/mcp-configuration)
+- OpenCode：[OpenCode MCP servers](https://opencode.ai/docs/mcp-servers)
+
 ## 包结构
 
 - [`packages/flutter_cockpit`](packages/flutter_cockpit)：应用内运行时、远程会话服务、命令执行、快照、截图、录屏
@@ -225,6 +368,7 @@ Prompts：
 - 运行时 README：[`packages/flutter_cockpit/README.md`](packages/flutter_cockpit/README.md)
 - Devtools README：[`packages/flutter_cockpit_devtools/README.md`](packages/flutter_cockpit_devtools/README.md)
 - Skill：[`skills/flutter-cockpit/SKILL.md`](skills/flutter-cockpit/SKILL.md)
+- Skill 安装：[`skills/flutter-cockpit/INSTALL.md`](skills/flutter-cockpit/INSTALL.md)
 - 应用接入参考：[`skills/flutter-cockpit/examples/flutter-app-setup.md`](skills/flutter-cockpit/examples/flutter-app-setup.md)
 - CLI 示例：[`skills/flutter-cockpit/examples/cli-command-reference.md`](skills/flutter-cockpit/examples/cli-command-reference.md)
 - Skill 契约：[`docs/contracts/flutter-cockpit-skill-contract.md`](docs/contracts/flutter-cockpit-skill-contract.md)

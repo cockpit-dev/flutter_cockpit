@@ -32,6 +32,29 @@ flutter_cockpit_devtools --help
 flutter_cockpit_mcp
 ```
 
+`flutter_cockpit_mcp` 就是这个包暴露出来的全局 MCP 启动命令。如果不需要全局命令，也可以直接这样启动：
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools serve-mcp
+```
+
+常见宿主配置方式：
+
+- Codex：
+  `codex mcp add flutterCockpit -- dart run flutter_cockpit_devtools:flutter_cockpit_devtools serve-mcp`
+- Claude Code：
+  `claude mcp add --transport stdio flutter-cockpit -- dart run flutter_cockpit_devtools:flutter_cockpit_devtools serve-mcp`
+- Cursor：
+  在 `~/.cursor/mcp.json` 或项目内 `.cursor/mcp.json` 里添加 `flutter-cockpit` 这个 stdio server
+- VS Code：
+  在 `.vscode/mcp.json` 或用户 profile 的 `mcp.json` 里，用 `"servers"` 添加一个 stdio server
+- OpenCode：
+  在 `~/.config/opencode/opencode.json` 或项目根 `opencode.json` 里，用 `"mcp"` 添加一个 local server
+
+更完整的宿主侧配置说明，见仓库根 README：
+
+- [主流 Agent 的 MCP 配置](https://github.com/cockpit-dev/flutter_cockpit/blob/main/README.zh-CN.md#主流-agent-的-mcp-配置)
+
 ## CLI
 
 ```bash

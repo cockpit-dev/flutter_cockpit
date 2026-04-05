@@ -32,6 +32,29 @@ flutter_cockpit_devtools --help
 flutter_cockpit_mcp
 ```
 
+`flutter_cockpit_mcp` is the global MCP launcher exposed by this package. If you do not need a global command, you can also run MCP directly with:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools serve-mcp
+```
+
+Typical host setup:
+
+- Codex:
+  `codex mcp add flutterCockpit -- dart run flutter_cockpit_devtools:flutter_cockpit_devtools serve-mcp`
+- Claude Code:
+  `claude mcp add --transport stdio flutter-cockpit -- dart run flutter_cockpit_devtools:flutter_cockpit_devtools serve-mcp`
+- Cursor:
+  add a `flutter-cockpit` stdio server in `~/.cursor/mcp.json` or `.cursor/mcp.json`
+- VS Code:
+  add a stdio server in `.vscode/mcp.json` or your profile `mcp.json` under `"servers"`
+- OpenCode:
+  add a local MCP entry in `~/.config/opencode/opencode.json` or repo-local `opencode.json` under `"mcp"`
+
+For the fuller host-specific setup guide, see the repository README section:
+
+- [Configure MCP In Mainstream Agents](https://github.com/cockpit-dev/flutter_cockpit#configure-mcp-in-mainstream-agents)
+
 ## CLI
 
 ```bash
