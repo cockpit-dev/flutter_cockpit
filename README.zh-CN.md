@@ -12,7 +12,7 @@
 它给 AI 提供一条完整闭环：
 
 - 启动或复用应用
-- 读取 route、UI、日志、运行时错误和诊断信息
+- 读取 route、UI、网络、日志、运行时错误和诊断信息
 - 执行单条命令或批量命令
 - 在开发期热重载或热重启
 - 采集截图和录屏
@@ -46,7 +46,7 @@ dev_dependencies:
 1. `list-targets`
 2. `launch-app --app-json /tmp/app.json`
 3. `read-app --app-json /tmp/app.json --profile minimal`
-4. `run-command`、`run-batch`、`inspect-ui`、`wait-idle`、`read-errors`、`read-logs`
+4. `run-command`、`run-batch`、`inspect-ui`、`read-network`、`wait-idle`、`read-errors`、`read-logs`
 5. `hot-reload` 或 `hot-restart`
 6. 循环直到应用正确
 
@@ -59,27 +59,47 @@ dev_dependencies:
 公共面是 app-first，而不是 session-handle-first。把 `app.json` 持久化下来并跨步骤复用。CLI 和 MCP 输出使用 lower camel case keys。
 只要请求体不再是几行以内，就优先使用 `--command-file`、`--commands-file`、`--config-json`。
 `launch-app` 会先自动探测 `cockpit/main.dart`，找不到再退回 `lib/main.dart`。
+代码侧问题优先走 `analyze-files`、`lsp`、`grep-package-uris`、`read-package-uris`、`pub`，再升级到全仓级命令。
 
-Locator 是多信号模型。优先用 `key`、`text`、`semanticId`，只有还不够准时才补 `route`、`type`、`path`、嵌套 `ancestor` 或短 `fallbacks`。`path` 是 fuzzy 匹配，会忽略 `body`、`slivers`、数字索引这类噪声段。
+Locator 是多信号模型。先用 `text`、`tooltip`、`semanticId`；只有应用本身已经出于产品原因暴露了稳定 `key` 时才使用 `key`。仍然不够准时，再补 `route`、`type`、`path`、嵌套 `ancestor` 或短 `fallbacks`。`path` 是 fuzzy 匹配，会忽略 `body`、`slivers`、数字索引这类噪声段。
 
 ## 快速开始
 
 把 cockpit 启动入口放到 `cockpit/main.dart`，不要改动正常生产入口：
 
 ```dart
+import 'package:flutter/material.dart';
 import 'package:flutter_cockpit/flutter_cockpit_flutter.dart';
 
-import '../lib/app.dart';
+import 'package:your_app/app_shell.dart';
 
 Future<void> main() async {
-  FlutterCockpit.runApp(
-    const MyApp(),
-    config: const FlutterCockpitConfig.production(
-      initialRouteName: '/inbox',
+  runApp(buildCockpitDevelopmentApp());
+}
+
+Widget buildCockpitDevelopmentApp() {
+  return FlutterCockpitApp(
+    config: FlutterCockpitConfig.production(
+      remoteSession: CockpitRemoteSessionConfiguration.resolveFromEnvironment(
+        fallback: const CockpitRemoteSessionConfiguration(
+          enabled: true,
+          host: '127.0.0.1',
+          port: 47331,
+        ),
+      ),
+    ),
+    child: MaterialApp(
+      navigatorObservers: <NavigatorObserver>[
+        FlutterCockpit.navigatorObserver,
+      ],
+      home: const AppShell(),
     ),
   );
 }
 ```
+
+把 `package:your_app/app_shell.dart` 替换成你现有应用根组件或 bootstrap 的真实 import。`launch-app` 会注入 `FLUTTER_PILOT_REMOTE_*` 这组 dart-define，所以 `resolveFromEnvironment(...)` 可以在不接管生产入口的前提下启用远程控制面。
+如果现有应用内部已经自己持有 `MaterialApp`，就用 `FlutterCockpitApp` 包住那层 app shell，并把 `FlutterCockpit.navigatorObserver` 接到原来的 navigator 上，不要再嵌一层新的 `MaterialApp`。
 
 运行 example：
 
@@ -116,6 +136,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 - `inspect-ui`
 - `run-command`
 - `run-batch`
+- `read-network`
 - `wait-idle`
 - `hot-reload`
 - `hot-restart`
@@ -131,6 +152,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 
 用 `--profile minimal|standard|inspect|evidence` 控制 token 成本。默认先取最小结果，只在需要时升高层级。
 `run-script` 写出的 bundle 只要状态是 `failed`，命令就会非零退出。
+依赖和源码问题优先走 `analyze-files`、`lsp`、`grep-package-uris`、`read-package-uris`、`pub`，再考虑更重的 workspace 级检查。
 
 ## MCP 公共面
 
@@ -167,6 +189,7 @@ workspace 工具：
 
 - `pub_dev_search`
 - `pub`
+- `grep_package_uris`
 - `read_package_uris`
 - `lsp`
 - `analyze_files`
@@ -202,7 +225,9 @@ Prompts：
 - 运行时 README：[`packages/flutter_cockpit/README.md`](packages/flutter_cockpit/README.md)
 - Devtools README：[`packages/flutter_cockpit_devtools/README.md`](packages/flutter_cockpit_devtools/README.md)
 - Skill：[`skills/flutter-cockpit/SKILL.md`](skills/flutter-cockpit/SKILL.md)
+- 应用接入参考：[`skills/flutter-cockpit/examples/flutter-app-setup.md`](skills/flutter-cockpit/examples/flutter-app-setup.md)
 - CLI 示例：[`skills/flutter-cockpit/examples/cli-command-reference.md`](skills/flutter-cockpit/examples/cli-command-reference.md)
+- Skill 契约：[`docs/contracts/flutter-cockpit-skill-contract.md`](docs/contracts/flutter-cockpit-skill-contract.md)
 - Bundle 契约：[`docs/contracts/task-run-bundle.md`](docs/contracts/task-run-bundle.md)
 
 更底层的 development-session 和 remote-session building block 仍然保留在 Dart API 中，供特殊宿主使用，但它们已经不是推荐的公开主工作流。

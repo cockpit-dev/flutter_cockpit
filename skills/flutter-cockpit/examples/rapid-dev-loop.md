@@ -56,7 +56,7 @@ Keep each cycle small:
 - On long pages, first reveal a stable section heading or card, then target deeper controls inside that section.
 - If you have already scrolled past the target region, switch direction with `reverse: true` or re-anchor from a stable card instead of repeatedly scrolling forward.
 - After selection banners, snackbars, or bottom sheets appear, assume the list shifted and re-anchor before tapping the next off-edge row.
-- After creating or duplicating a new row in a busy list, search for the fresh title before the next long-press or deep row action.
+- After a mutation inserts, removes, filters, or reorders collection items, re-anchor from a stable visible signal before the next deep collection gesture.
 - Do not parallelize a mutating `run-command` with the follow-up `read-app`, `read-network`, or `inspect-ui` that depends on its side effects.
 
 ## Timeout Strategy

@@ -15,6 +15,7 @@ The skill may depend on these implemented public workflows:
 - single-command control through `run-command` / `run_command`
 - multi-command control through `run-batch` / `run_batch`
 - wait gating through `wait-idle` / `wait_idle`
+- network investigation through `read-network` / `read_network`
 - reload during development through `hot-reload` / `hot_reload` and `hot-restart` / `hot_restart`
 - app-centric log and error reads through `read-logs` / `read_logs` and `read-errors` / `read_errors`
 - on-demand recording through `start-recording` / `start_recording` and `stop-recording` / `stop_recording`
@@ -22,9 +23,10 @@ The skill may depend on these implemented public workflows:
 - full closed-loop orchestration through `run-task` / `run_task`
 - final delivery validation through `validate-task` / `validate_task`
 - task bundle summary reads through `read_task_bundle_summary`
-- workspace intelligence through `pub_dev_search`, `pub`, `read_package_uris`, `lsp`, `analyze_files`, `create_project`, `analyze_workspace`, `format_workspace`, `run_tests`, and `apply_fixes`
-- multi-signal locators with `key`, `text`, `semanticId`, `route`, `type`, fuzzy `path`, nested `ancestor`, and ordered `fallbacks`
+- workspace intelligence through `pub_dev_search`, `pub`, `grep_package_uris`, `read_package_uris`, `lsp`, `analyze_files`, `create_project`, `analyze_workspace`, `format_workspace`, `run_tests`, and `apply_fixes`
+- multi-signal locators with `text`, `tooltip`, `semanticId`, optional stable `key`, `route`, `type`, fuzzy `path`, nested `ancestor`, and ordered `fallbacks`
 - bounded timeouts on interactive commands (`timeoutMs`) and workspace tools (`timeoutSeconds`)
+- canonical lower camel case JSON fields across CLI and MCP payloads so shell filters and prompt snippets stay stable
 
 The skill may also rely on public context resources for roots, contracts, capabilities, apps, task summaries, and package reads. Treat any extra repository-specific context document as optional host configuration, not a default framework dependency.
 

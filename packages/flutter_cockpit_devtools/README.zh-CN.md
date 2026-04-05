@@ -44,7 +44,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-command --help
 1. `launch-app --app-json /tmp/app.json`
 2. `read-app --app-json /tmp/app.json --profile minimal`
 3. `run-command` 或 `run-batch`
-4. 需要时再用 `inspect-ui`、`read-errors`、`read-logs`、`wait-idle`
+4. 需要时再用 `inspect-ui`、`read-network`、`read-errors`、`read-logs`、`wait-idle`
 5. `hot-reload` 或 `hot-restart`
 6. 交付时用 `run-script`、`run-task` 或 `validate-task`
 
@@ -52,8 +52,9 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-command --help
 
 1. `analyze-files --path ...`
 2. `lsp --command ...`
-3. `pub-dev-search`、`pub` 或 `read-package-uris`
-4. 只有问题已经不再是局部修改时，才升级到 `run-tests` 或 `analyze-workspace`
+3. `grep-package-uris` 或 `read-package-uris`
+4. `pub-dev-search` 或 `pub`
+5. 只有问题已经不再是局部修改时，才升级到 `run-tests` 或 `analyze-workspace`
 
 CLI JSON 输出使用 lower camel case keys。
 `launch-app` 会先自动探测 `cockpit/main.dart`，找不到再退回 `lib/main.dart`。
@@ -71,7 +72,8 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 
 Locator 规则：
 
-- 先用 `key`、`text`、`semanticId`。
+- 先用 `text`、`tooltip`、`semanticId`。
+- 只有应用本身已经出于产品原因暴露了稳定 `key` 时才使用 `key`，不要为了自动化额外往业务代码里加 key。
 - 只有还不够准时，才继续补 `route`、`type`、`path`、嵌套 `ancestor`。
 - `path` 是 fuzzy 匹配：`body`、`slivers`、数字索引这类噪声段会被忽略，所以 `scaffold.body/custom_scroll_view.slivers/0/...` 这类形状也能命中同一目标。
 - 需要兜底时用 `fallbacks`，不要把所有条件都塞进一个超长 locator。
@@ -133,6 +135,7 @@ workspace 工具：
 
 - `pub_dev_search`
 - `pub`
+- `grep_package_uris`
 - `read_package_uris`
 - `lsp`
 - `analyze_files`
@@ -147,7 +150,7 @@ workspace 工具：
 ## 说明
 
 - 把 `app.json` 持久化下来并跨步骤复用，这是推荐的 app 引用方式。
-- 对 example 或集成调试工程，优先走 `cockpit/main.dart` 这类 Cockpit 开发入口；网络观测和远程控制面是在这里启用的。
+- 对已经接入 Cockpit 的应用，优先走 `cockpit/main.dart` 这类 Cockpit 开发入口；网络观测和远程控制面是在这里启用的。
 - 如果应用会真的发 HTTP 请求，平台权限也要和行为保持一致：Android 需要 `INTERNET`，Apple 目标需要 outbound client entitlement，并对 loopback HTTP 打开本地网络 ATS 许可。
 - `list_apps` 只在 MCP 中暴露，因为 CLI 每次调用都是无状态进程，不保留内存中的 app registry。
 - `read_logs` 会优先读取 app-centric 的 runtime 日志；如果 `available=true` 但 `lines` 为空，通常表示应用这次没有产生日志，不代表异常。

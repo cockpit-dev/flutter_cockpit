@@ -41,13 +41,13 @@ Do not use it for docs-only edits or static refactors with no runtime claim.
 - Add `route`, `type`, `path`, or nested `ancestor` only when ambiguity remains.
 - `path` is fuzzy. Segments such as `body`, `slivers`, and numeric indexes are ignored, so shorter structural paths are preferred over brittle full trees.
 - Use short ordered `fallbacks` instead of one over-constrained locator.
-- When repeated rows, focus banners, or mirrored cards reuse the same text, add `index` or a nearby `ancestor` before reaching for any lower-level signal.
+- When the same label appears in multiple visible regions, add `index` or a nearby `ancestor` before reaching for any lower-level signal.
 - For text inputs, do not assume the target text will equal the visible field label. If the field target is ambiguous, combine `type` with `ancestor` or a nearby section heading, then verify the downstream saved state instead of the raw input echo.
 - `scrollUntilVisible` probes between internal scroll segments and can stop early when a target becomes visible mid-search, so prefer one precise locator over manual repeated blind scroll commands.
 - If the current direction hits a scroll boundary first, `scrollUntilVisible` can recover by trying the opposite direction once. Use explicit `reverse` only when you already know the target region is above the current viewport.
 - On long settings pages, forms, or dashboards, reveal a stable section heading or card first, then target deeper controls inside that section. Jumping straight to a deeply nested off-screen control can overshoot or time out.
 - After selection banners, snackbars, or bottom sheets appear, assume list geometry changed. Re-anchor the next row or control instead of reusing the pre-overlay scroll position.
-- After creating, duplicating, or editing a row inside a dense list, prefer re-anchoring with the list search field or a focused summary card before the next row-level gesture.
+- After a command inserts, removes, filters, or reorders collection items, re-anchor from a stable visible signal before the next deep collection-level gesture.
 - After `hot-reload` or `hot-restart`, do not assume the route or scroll position reset. Re-read minimal state, then re-anchor from a known section before sending the next deep locator.
 - A successful `hot-reload` or `hot-restart` status only proves the request completed and the app became reachable again. Re-read the specific control you changed, and relaunch once if the intended UI delta still does not appear.
 
@@ -118,8 +118,8 @@ For the shortest edit -> reload -> verify loop, use the rapid loop reference ins
 - Package source reads: `read_package_uris` / `read-package-uris`
 - Focused static checks: `analyze_files` / `analyze-files`
 - Code intelligence: `lsp`
-- Code changes: `hot_reload`, `hot_restart`
-- Evidence capture: `start_recording`, `stop_recording`
+- Code changes: `hot_reload` / `hot-reload`, `hot_restart` / `hot-restart`
+- Evidence capture: `start_recording` / `start-recording`, `stop_recording` / `stop-recording`
 - Cleanup: `stop_app` / `stop-app` when you launched the app for this loop
 - Running-app bundle: `run_script` / `run-script`
 - Full orchestration: `run_task` / `run-task`

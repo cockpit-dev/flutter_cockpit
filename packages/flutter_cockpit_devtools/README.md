@@ -44,7 +44,7 @@ Recommended app-first loop:
 1. `launch-app --app-json /tmp/app.json`
 2. `read-app --app-json /tmp/app.json --profile minimal`
 3. `run-command` or `run-batch`
-4. `inspect-ui`, `read-errors`, `read-logs`, `wait-idle` when needed
+4. `inspect-ui`, `read-network`, `read-errors`, `read-logs`, `wait-idle` when needed
 5. `hot-reload` or `hot-restart`
 6. `run-script`, `run-task`, or `validate-task` for delivery
 
@@ -52,8 +52,9 @@ Recommended code-side loop:
 
 1. `analyze-files --path ...`
 2. `lsp --command ...`
-3. `pub-dev-search`, `pub`, or `read-package-uris`
-4. `run-tests` or `analyze-workspace` only when the question is no longer local
+3. `grep-package-uris` or `read-package-uris`
+4. `pub-dev-search` or `pub`
+5. `run-tests` or `analyze-workspace` only when the question is no longer local
 
 CLI JSON output uses lower camel case keys.
 `launch-app` auto-detects `cockpit/main.dart` first, then `lib/main.dart`.
@@ -71,7 +72,8 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 
 Locator rules:
 
-- Start with `key`, `text`, or `semanticId`.
+- Start with `text`, `tooltip`, or `semanticId`.
+- Use `key` only when the app already exposes a legitimate stable key for product reasons. Do not add automation-only keys.
 - Add `route`, `type`, `path`, and nested `ancestor` only when ambiguity remains.
 - `path` is fuzzy: segments like `body`, `slivers`, and numeric indexes are ignored, so shapes such as `scaffold.body/custom_scroll_view.slivers/0/...` can still match the same target.
 - Use `fallbacks` for a short ordered backup list instead of one oversized locator.
@@ -133,6 +135,7 @@ Workspace tools:
 
 - `pub_dev_search`
 - `pub`
+- `grep_package_uris`
 - `read_package_uris`
 - `lsp`
 - `analyze_files`
@@ -147,7 +150,7 @@ Resources and prompts are also exposed for contracts, capabilities, task summari
 ## Notes
 
 - Persist `app.json` and reuse it. It is the preferred app reference across steps.
-- For example apps, prefer the Cockpit development entrypoint such as `cockpit/main.dart`; that is where network observation and the remote control surface are enabled.
+- For apps wired for Cockpit, prefer the Cockpit development entrypoint such as `cockpit/main.dart`; that is where network observation and the remote control surface are enabled.
 - If the app makes live HTTP calls, keep platform permissions aligned with that behavior: Android needs `INTERNET`, and Apple targets need outbound client entitlement plus local-network ATS allowance for loopback HTTP.
 - `list_apps` is MCP-only because the CLI does not keep an in-memory app registry across invocations.
 - `read_logs` reads app-centric runtime lines first. `available=true` with an empty `lines` array is valid when the app emitted no runtime logs.

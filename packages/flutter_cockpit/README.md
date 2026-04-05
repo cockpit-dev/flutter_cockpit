@@ -12,7 +12,7 @@
 
 It provides:
 
-- runtime bootstrap through `FlutterCockpit.runApp`
+- runtime bootstrap through `FlutterCockpit.runApp` or `FlutterCockpitApp`
 - command execution for taps, text input, gestures, waits, assertions, screenshots, and snapshots
 - remote session serving over HTTP
 - snapshot, artifact, recording, and bundle models
@@ -29,19 +29,38 @@ dependencies:
 Keep the normal production entrypoint unchanged and add `cockpit/main.dart`:
 
 ```dart
+import 'package:flutter/material.dart';
 import 'package:flutter_cockpit/flutter_cockpit_flutter.dart';
 
-import '../lib/app.dart';
+import 'package:your_app/app_shell.dart';
 
 Future<void> main() async {
-  FlutterCockpit.runApp(
-    const MyApp(),
-    config: const FlutterCockpitConfig.production(
-      initialRouteName: '/inbox',
+  runApp(buildCockpitDevelopmentApp());
+}
+
+Widget buildCockpitDevelopmentApp() {
+  return FlutterCockpitApp(
+    config: FlutterCockpitConfig.production(
+      remoteSession: CockpitRemoteSessionConfiguration.resolveFromEnvironment(
+        fallback: const CockpitRemoteSessionConfiguration(
+          enabled: true,
+          host: '127.0.0.1',
+          port: 47331,
+        ),
+      ),
+    ),
+    child: MaterialApp(
+      navigatorObservers: <NavigatorObserver>[
+        FlutterCockpit.navigatorObserver,
+      ],
+      home: const AppShell(),
     ),
   );
 }
 ```
+
+Replace `package:your_app/app_shell.dart` with the import that already exposes your app root widget or bootstrap. `launch-app` injects the `FLUTTER_PILOT_REMOTE_*` dart-defines, so `resolveFromEnvironment(...)` enables the remote surface without taking over the production bootstrap.
+If your app already owns `MaterialApp`, wrap that shell with `FlutterCockpitApp` and add `FlutterCockpit.navigatorObserver` there instead of nesting a second `MaterialApp`.
 
 Run it with:
 

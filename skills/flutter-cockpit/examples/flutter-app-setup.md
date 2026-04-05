@@ -107,6 +107,7 @@ Widget buildCockpitDevelopmentApp() {
 ```
 
 Replace `package:your_app/app_shell.dart` with whatever import already exposes the app's existing root widget or bootstrap. Do not invent a new `lib/` structure just for cockpit.
+Use `CockpitRemoteSessionConfiguration.resolveFromEnvironment(...)` or an equivalent app-owned bridge so `launch-app` can enable the remote surface through `FLUTTER_PILOT_REMOTE_*` dart-defines without rewriting production bootstrap.
 
 ## Single-Entrypoint Alternative
 
@@ -201,5 +202,6 @@ final config = FlutterCockpitConfig.production(
 - do not assume the user's production bootstrap lives at `lib/main.dart` or under any fixed `lib/` subpath
 - prefer `FlutterCockpit.runApp(...)` for simple roots and `FlutterCockpitApp(...)` for existing app shells
 - wire `FlutterCockpit.navigatorObserver` into the navigator instead of inventing a parallel route tracker
+- use `CockpitRemoteSessionConfiguration.resolveFromEnvironment(...)` or an equivalent app-owned bridge so host launchers can enable control without editing production config
 - keep remote-session enablement and debug diagnostics explicit
 - treat direct `FlutterCockpitRoot` composition as an advanced escape hatch, not the default recommendation

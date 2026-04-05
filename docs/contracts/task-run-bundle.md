@@ -13,11 +13,12 @@ The bundle directory is the durable source of truth. Later tooling may expose a 
 The current repository exposes this through `read_task_bundle_summary`, which may derive:
 
 - `evidence`
-- `baseline_evidence`
-- `acceptance_evidence`
-- `acceptance_delta`
+- `baselineEvidence`
+- `acceptanceEvidence`
+- `acceptanceDelta`
 
 These derived objects must remain traceable back to files in the bundle, especially `manifest.json`, `handoff.json`, `delivery.json`, `acceptance.md`, `steps.json`, `observations.json`, and any referenced artifacts under `screenshots/`, `recordings/`, `keyframes/`, or `diagnostics/`.
+Summary field names follow the same lower camel case convention as the rest of the public CLI and MCP JSON surfaces.
 The bounded summary layer may also expose additive gate-oriented views such as delivery readiness or acceptance-evidence readability, but those views must remain reconstructible from persisted bundle files rather than ephemeral in-memory orchestration state.
 
 This contract therefore covers both:

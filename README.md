@@ -12,7 +12,7 @@
 It gives AI one closed loop:
 
 - launch or reuse an app
-- inspect live route, UI, logs, runtime errors, and diagnostics
+- inspect live route, UI, network, logs, runtime errors, and diagnostics
 - run single commands or batches
 - hot reload or hot restart during development
 - capture screenshots and recordings
@@ -46,7 +46,7 @@ For active development and debugging:
 1. `list-targets`
 2. `launch-app --app-json /tmp/app.json`
 3. `read-app --app-json /tmp/app.json --profile minimal`
-4. `run-command`, `run-batch`, `inspect-ui`, `wait-idle`, `read-errors`, `read-logs`
+4. `run-command`, `run-batch`, `inspect-ui`, `read-network`, `wait-idle`, `read-errors`, `read-logs`
 5. `hot-reload` or `hot-restart`
 6. repeat until the app is correct
 
@@ -59,27 +59,47 @@ For delivery:
 The public surface is app-first, not session-handle-first. Persist `app.json` and reuse it across steps. CLI and MCP output uses lower camel case keys.
 Prefer `--command-file`, `--commands-file`, and `--config-json` once a payload stops being trivial.
 `launch-app` auto-detects `cockpit/main.dart` first, then `lib/main.dart`.
+For code-side questions, prefer `analyze-files`, `lsp`, `grep-package-uris`, `read-package-uris`, and `pub` before workspace-wide commands.
 
-Locators are multi-signal. Start with `key`, `text`, or `semanticId`, then add `route`, `type`, `path`, nested `ancestor`, or short `fallbacks` only when needed. `path` matching is fuzzy and ignores noise such as `body`, `slivers`, and numeric indexes.
+Locators are multi-signal. Start with `text`, `tooltip`, or `semanticId`. Use `key` only when the app already exposes a legitimate stable key for product reasons, then add `route`, `type`, `path`, nested `ancestor`, or short `fallbacks` only when needed. `path` matching is fuzzy and ignores noise such as `body`, `slivers`, and numeric indexes.
 
 ## Quick Start
 
 Add cockpit bootstrap under `cockpit/main.dart` and keep the normal production entrypoint unchanged:
 
 ```dart
+import 'package:flutter/material.dart';
 import 'package:flutter_cockpit/flutter_cockpit_flutter.dart';
 
-import '../lib/app.dart';
+import 'package:your_app/app_shell.dart';
 
 Future<void> main() async {
-  FlutterCockpit.runApp(
-    const MyApp(),
-    config: const FlutterCockpitConfig.production(
-      initialRouteName: '/inbox',
+  runApp(buildCockpitDevelopmentApp());
+}
+
+Widget buildCockpitDevelopmentApp() {
+  return FlutterCockpitApp(
+    config: FlutterCockpitConfig.production(
+      remoteSession: CockpitRemoteSessionConfiguration.resolveFromEnvironment(
+        fallback: const CockpitRemoteSessionConfiguration(
+          enabled: true,
+          host: '127.0.0.1',
+          port: 47331,
+        ),
+      ),
+    ),
+    child: MaterialApp(
+      navigatorObservers: <NavigatorObserver>[
+        FlutterCockpit.navigatorObserver,
+      ],
+      home: const AppShell(),
     ),
   );
 }
 ```
+
+Replace `package:your_app/app_shell.dart` with the import that already exposes your app root widget or bootstrap. `launch-app` injects the `FLUTTER_PILOT_REMOTE_*` dart-defines, so `resolveFromEnvironment(...)` enables the remote control surface without taking over the production bootstrap.
+If the existing app already owns `MaterialApp`, wrap that shell with `FlutterCockpitApp` and add `FlutterCockpit.navigatorObserver` to its navigator instead of nesting a second `MaterialApp`.
 
 Run the example loop:
 
@@ -116,6 +136,7 @@ Recommended commands:
 - `inspect-ui`
 - `run-command`
 - `run-batch`
+- `read-network`
 - `wait-idle`
 - `hot-reload`
 - `hot-restart`
@@ -131,6 +152,7 @@ Recommended commands:
 
 Use `--profile minimal|standard|inspect|evidence` to control token cost. Start small and escalate only when needed.
 `run-script` now exits non-zero when the written bundle status is `failed`.
+For dependency and source questions, prefer `analyze-files`, `lsp`, `grep-package-uris`, `read-package-uris`, and `pub` before broader workspace passes.
 
 ## MCP Surface
 
@@ -167,6 +189,7 @@ Workspace tools:
 
 - `pub_dev_search`
 - `pub`
+- `grep_package_uris`
 - `read_package_uris`
 - `lsp`
 - `analyze_files`
@@ -202,7 +225,9 @@ Prompts:
 - Runtime package README: [`packages/flutter_cockpit/README.md`](packages/flutter_cockpit/README.md)
 - Devtools package README: [`packages/flutter_cockpit_devtools/README.md`](packages/flutter_cockpit_devtools/README.md)
 - Skill: [`skills/flutter-cockpit/SKILL.md`](skills/flutter-cockpit/SKILL.md)
+- App setup reference: [`skills/flutter-cockpit/examples/flutter-app-setup.md`](skills/flutter-cockpit/examples/flutter-app-setup.md)
 - CLI examples: [`skills/flutter-cockpit/examples/cli-command-reference.md`](skills/flutter-cockpit/examples/cli-command-reference.md)
+- Skill contract: [`docs/contracts/flutter-cockpit-skill-contract.md`](docs/contracts/flutter-cockpit-skill-contract.md)
 - Bundle contract: [`docs/contracts/task-run-bundle.md`](docs/contracts/task-run-bundle.md)
 
 Advanced development-session and remote-session building blocks still exist in the Dart API for lower-level hosts, but they are no longer the recommended public loop.
