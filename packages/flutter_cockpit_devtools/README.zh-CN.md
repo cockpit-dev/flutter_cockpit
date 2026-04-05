@@ -93,14 +93,15 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   validate-task \
+  --config-json /tmp/validate_task.json | jq '{classification,recommendedNextStep,validationFailures}'
+
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  validate-task \
   --config-json /tmp/validate_task.json \
   --output-json /tmp/validate_task_result.json
-
-jq '{classification,recommendedNextStep,validationFailures}' \
-  /tmp/validate_task_result.json
 ```
 
-较大的结构化结果优先落到 `--output-json` 文件里，再按需读取；只要请求体不再是几行以内，就优先使用 `--command-file`、`--commands-file`、`--config-json`，不要把长 JSON 直接内联进命令。
+JSON 默认直接输出到 stdout，所以立刻要消费的结果优先配合 `| jq`。只有结果太大不适合 stdout，或者后续步骤要重新打开整份结果时，才使用 `--output-json` 落盘；只要请求体不再是几行以内，就优先使用 `--command-file`、`--commands-file`、`--config-json`，不要把长 JSON 直接内联进命令。
 
 ## MCP
 

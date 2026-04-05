@@ -108,8 +108,8 @@ final class CockpitCliRootRunner extends CommandRunner<int> {
         '  stop-app --app-json <app.json>',
         'launch-app auto-detects cockpit/main.dart first, then lib/main.dart.',
         'Workspace commands default --workspace-root or --parent-directory to the current directory.',
-        'Use --output-json when a result is too large for stdout. launch-app writes the app handle reused by most app commands.',
-        'Prefer --output-json plus jq or short pipes when you only need a few fields from a large result.',
+        'Default JSON output goes to stdout, so short follow-up reads can use jq or other shell pipes immediately.',
+        'Use --output-json only when the result is too large for stdout or a later step needs to reopen the full payload from disk. launch-app writes the app handle reused by most app commands.',
         'Delivery: run-script writes a bundle from a running app. run-task and validate-task launch, execute, classify, and validate end to end.',
       ].join('\n');
 

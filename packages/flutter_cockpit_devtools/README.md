@@ -93,14 +93,15 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   validate-task \
+  --config-json /tmp/validate_task.json | jq '{classification,recommendedNextStep,validationFailures}'
+
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  validate-task \
   --config-json /tmp/validate_task.json \
   --output-json /tmp/validate_task_result.json
-
-jq '{classification,recommendedNextStep,validationFailures}' \
-  /tmp/validate_task_result.json
 ```
 
-Keep larger payloads in files with `--output-json`, and prefer `--command-file`, `--commands-file`, or `--config-json` over long inline JSON once the request body stops being trivial.
+JSON goes to stdout by default, so immediate follow-up reads can use `| jq`. Keep larger payloads in files with `--output-json` only when the response is too large for stdout or another step must reopen the full result later. Prefer `--command-file`, `--commands-file`, or `--config-json` over long inline JSON once the request body stops being trivial.
 
 ## MCP
 

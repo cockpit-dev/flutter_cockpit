@@ -94,7 +94,7 @@ final class GrepPackageUrisCommand extends CockpitCliCommand {
 
   @override
   String get helpExample =>
-      'flutter_cockpit_devtools grep-package-uris --package flutter --query ThemeData';
+      'flutter_cockpit_devtools grep-package-uris --package flutter --query ThemeData | jq -r \'.packages[0].files[0].packageUri\'';
 
   @override
   String get helpWrites =>

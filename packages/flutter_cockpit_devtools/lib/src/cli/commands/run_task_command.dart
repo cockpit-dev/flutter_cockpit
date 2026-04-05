@@ -50,7 +50,7 @@ final class RunTaskCommand extends CockpitCliCommand {
 
   @override
   String get helpExample =>
-      'flutter_cockpit_devtools run-task --config-json /tmp/run_task.json --output-json /tmp/runTaskResult.json';
+      'flutter_cockpit_devtools run-task --config-json /tmp/run_task.json | jq \'{classification,recommendedNextStep}\'';
 
   @override
   String get helpWrites =>

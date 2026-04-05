@@ -74,7 +74,7 @@ For the shortest edit -> reload -> verify loop, use the rapid loop reference ins
 - For traffic verification, use `run_command` -> `wait_idle` -> `read_network` before escalating to heavier UI inspection.
 - Prefer bundle summaries and gate failures before opening large artifact files.
 - Ask for one missing fact per step, not every diagnostic dimension at once.
-- Prefer `--output-json` plus shell filtering over pasting large raw JSON back into context.
+- Prefer stdout projections such as `| jq` for immediate branch decisions. Add `--output-json` only when the result is too large for stdout or a later step must reopen the full payload.
 - Prefer `grep_package_uris` before opening large dependency files blindly; search first, then read only the matching package URI.
 - Prefer `jq -r` or short pipes to extract one route, status, failure code, or readiness field at a time.
 - Prefer `--command-file`, `--commands-file`, and `--config-json` files over long inline JSON literals when the payload is more than a few lines.
@@ -90,12 +90,13 @@ For the shortest edit -> reload -> verify loop, use the rapid loop reference ins
   `flutter_cockpit_devtools read-app --app-json /tmp/flutter_cockpit/app.json --profile minimal | jq -r '.currentRouteName'`
 - Reload commands report status under nested fields:
   `flutter_cockpit_devtools hot-reload --app-json /tmp/flutter_cockpit/app.json | jq '{reloadGeneration: .status.reloadGeneration, lastReloadSucceeded: .status.lastReloadSucceeded, lastReloadMode: .status.lastReloadMode}'`
+- For immediate branch decisions, keep task results on stdout and project only the needed fields:
+  `flutter_cockpit_devtools validate-task --config-json /tmp/validate_task.json | jq '{classification,recommendedNextStep,validationFailures}'`
 - Keep large results off stdout and read only the needed fields later:
   `flutter_cockpit_devtools validate-task --config-json /tmp/validate_task.json --output-json /tmp/validate_task_result.json`
   `jq '{classification,recommendedNextStep,validationFailures}' /tmp/validate_task_result.json`
 - Search a dependency package, then read only the matched file:
-  `flutter_cockpit_devtools grep-package-uris --package flutter --query ThemeData --output-json /tmp/grep_package_uris.json`
-  `jq -r '.packages[0].files[0].packageUri' /tmp/grep_package_uris.json`
+  `flutter_cockpit_devtools grep-package-uris --package flutter --query ThemeData | jq -r '.packages[0].files[0].packageUri'`
 - For command results, prefer a short projection:
   `flutter_cockpit_devtools run-command --app-json /tmp/flutter_cockpit/app.json --command-file /tmp/command.json --profile standard | jq '{success,commandId,currentRouteName,uiSummary,snapshotRef}'`
 - After `enterText`, do not rely on `uiSummary.textPreviews` to echo the field contents. Prefer verifying the next state transition, dependent control, or downstream saved result.

@@ -234,4 +234,4 @@ Prompts：
 
 `list_apps` 故意只在 MCP 中暴露。CLI 是无状态进程，推荐把 `app.json` 落盘并跨步骤复用，而不是依赖主机侧 app registry。
 应用交互命令使用 `timeoutMs`；workspace 工具使用 `timeoutSeconds`。
-对代码侧问题，CLI 和 MCP 暴露的是同一套 workspace intelligence；在 shell agent 里，CLI 配合 `--output-json` 和 `jq` 往往是最低成本路径。
+对代码侧问题，CLI 和 MCP 暴露的是同一套 workspace intelligence；在 shell agent 里，CLI 直接配合 stdout 管道和 `jq` 往往是最低成本路径，只有后续步骤要重新打开整份结果时再加 `--output-json`。

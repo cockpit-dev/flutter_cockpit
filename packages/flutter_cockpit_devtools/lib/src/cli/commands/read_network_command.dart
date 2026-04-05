@@ -85,7 +85,7 @@ final class ReadNetworkCommand extends CockpitCliCommand {
 
   @override
   String get helpExample =>
-      'flutter_cockpit_devtools read-network --app-json /tmp/app.json --uri-contains /api --only-failures';
+      'flutter_cockpit_devtools read-network --app-json /tmp/app.json --uri-contains /api --only-failures | jq \'{routeName, failureCount: .summary.failureCount, endpoints: [.endpointSummaries[] | {uriPattern,requestCount,failureCount}]}\'';
 
   @override
   String get helpWrites =>

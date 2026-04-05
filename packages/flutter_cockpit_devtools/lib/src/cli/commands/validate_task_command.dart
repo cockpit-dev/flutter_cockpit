@@ -52,7 +52,7 @@ final class ValidateTaskCommand extends CockpitCliCommand {
 
   @override
   String get helpExample =>
-      'flutter_cockpit_devtools validate-task --config-json /tmp/validate_task.json --output-json /tmp/validate_task_result.json';
+      'flutter_cockpit_devtools validate-task --config-json /tmp/validate_task.json | jq \'{classification,recommendedNextStep,validationFailures}\'';
 
   @override
   String get helpWrites =>

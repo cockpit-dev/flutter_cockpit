@@ -52,11 +52,11 @@ final class ListTargetsCommand extends CockpitCliCommand {
 
   @override
   String get helpNeeds =>
-      'No required inputs. Use --output-json when a later step should read the device list as structured data.';
+      'No required inputs. Default JSON goes to stdout, so a quick device choice can use jq immediately; add --output-json only when another step must reopen the full list.';
 
   @override
   String get helpExample =>
-      'flutter_cockpit_devtools list-targets --output-json /tmp/targets.json';
+      'flutter_cockpit_devtools list-targets | jq \'.targets[] | {id,platform}\'';
 
   @override
   String get helpWrites =>

@@ -86,11 +86,10 @@ Do not pay delivery-grade cost on every edit. Do pay it before any user-facing c
 - For text input flows, verify the next control or saved state instead of expecting `textPreviews` to mirror the field contents:
   `flutter_cockpit_devtools run-command --app-json /tmp/flutter_cockpit/app.json --command-file /tmp/enter_text.json --profile standard`
 - Search first, then open one dependency file:
-  `flutter_cockpit_devtools grep-package-uris --package flutter --query ThemeData --output-json /tmp/grep_package_uris.json`
-  `jq -r '.packages[0].files[0].packageUri' /tmp/grep_package_uris.json`
+  `flutter_cockpit_devtools grep-package-uris --package flutter --query ThemeData | jq -r '.packages[0].files[0].packageUri'`
 - When only one branch decision matters, extract one field:
   `flutter_cockpit_devtools read-errors --app-json /tmp/flutter_cockpit/app.json | jq '.hasErrors'`
-- Keep larger results off stdout:
+- Keep larger results off stdout only when a later step needs the full payload again:
   `flutter_cockpit_devtools run-task --config-json /tmp/run_task.json --output-json /tmp/runTaskResult.json`
   `jq '{classification,recommendedNextStep}' /tmp/runTaskResult.json`
 - Workspace commands default to the current directory, so omit `--workspace-root` unless you are operating outside the repo you already opened.

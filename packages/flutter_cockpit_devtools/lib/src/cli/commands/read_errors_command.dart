@@ -71,7 +71,7 @@ final class ReadErrorsCommand extends CockpitCliCommand {
 
   @override
   String get helpExample =>
-      'flutter_cockpit_devtools read-errors --app-json /tmp/app.json --max-errors 10';
+      'flutter_cockpit_devtools read-errors --app-json /tmp/app.json --max-errors 10 | jq \'{hasErrors,routeName,errorMessages: [.errors[].message]}\'';
 
   @override
   String get helpWrites =>

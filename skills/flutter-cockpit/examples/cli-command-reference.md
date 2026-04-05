@@ -213,8 +213,7 @@ Run a full task workflow:
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   run-task \
-  --config-json /tmp/flutter_cockpit/run_task.json \
-  --output-json /tmp/flutter_cockpit/runTaskResult.json
+  --config-json /tmp/flutter_cockpit/run_task.json | jq '{classification,recommendedNextStep}'
 ```
 
 Validate a full task workflow:
@@ -222,8 +221,7 @@ Validate a full task workflow:
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   validate-task \
-  --config-json /tmp/flutter_cockpit/validate_task.json \
-  --output-json /tmp/flutter_cockpit/validate_task_result.json
+  --config-json /tmp/flutter_cockpit/validate_task.json | jq '{classification,recommendedNextStep,validationFailures}'
 ```
 
 ## MCP
@@ -255,11 +253,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   run-batch \
   --app-json /tmp/flutter_cockpit/app.json \
   --commands-file /tmp/flutter_cockpit/commands.json \
-  --profile minimal \
-  --output-json /tmp/flutter_cockpit/run_batch_result.json
-
-jq '{summary, commandStatuses: [.results[] | {id: .command.commandId, success: .command.success}]}' \
-  /tmp/flutter_cockpit/run_batch_result.json
+  --profile minimal | jq '{summary, commandStatuses: [.results[] | {id: .command.commandId, success: .command.success}]}'
 ```
 
 ## Pipe And jq Examples
@@ -270,10 +264,7 @@ Search a dependency package before opening files:
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   grep-package-uris \
   --package flutter \
-  --query ThemeData \
-  --output-json /tmp/flutter_cockpit/grep_package_uris.json
-
-jq '{summary, firstMatch: .packages[0].files[0].packageUri}' /tmp/flutter_cockpit/grep_package_uris.json
+  --query ThemeData | jq '{summary, firstMatch: .packages[0].files[0].packageUri}'
 ```
 
 Read only the route and state:

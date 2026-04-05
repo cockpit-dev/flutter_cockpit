@@ -55,7 +55,7 @@ final class HotRestartCommand extends CockpitCliCommand {
 
   @override
   String get helpExample =>
-      'flutter_cockpit_devtools hot-restart --app-json /tmp/app.json';
+      'flutter_cockpit_devtools hot-restart --app-json /tmp/app.json | jq \'{reloadGeneration: .status.reloadGeneration, lastReloadSucceeded: .status.lastReloadSucceeded, lastReloadMode: .status.lastReloadMode}\'';
 
   @override
   String get helpWrites =>

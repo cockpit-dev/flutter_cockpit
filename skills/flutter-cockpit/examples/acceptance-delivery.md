@@ -25,9 +25,10 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   validate-task \
-  --config-json /tmp/flutter_cockpit/validate_task.json \
-  --output-json /tmp/flutter_cockpit/validate_task_result.json
+  --config-json /tmp/flutter_cockpit/validate_task.json | jq '{classification,recommendedNextStep,validationFailures}'
 ```
+
+Use `--output-json` only when the validation result is too large for stdout or another step needs to reopen the full payload from disk.
 
 ## Required Reads
 
