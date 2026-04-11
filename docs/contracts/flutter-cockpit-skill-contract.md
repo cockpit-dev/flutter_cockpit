@@ -9,11 +9,15 @@ This contract defines what the repository-backed `flutter-cockpit` skill may rel
 The skill may depend on these implemented public workflows:
 
 - app bootstrap through `launch-app` / `launch_app`
+- target bootstrap through `launch-target` / `launch_target`
 - tracked app discovery through persisted `app.json` on CLI and `list_apps` on MCP
 - bounded app reads through `read-app` / `read_app`
+- bounded target reads through `read-target` / `read_target`
 - richer UI investigation through `inspect-ui` / `inspect_ui`
+- surface-oriented investigation through `inspect-surface` / `inspect_surface`
 - single-command control through `run-command` / `run_command`
 - multi-command control through `run-batch` / `run_batch`
+- direct host execution through `run-shell` / `run_shell`
 - wait gating through `wait-idle` / `wait_idle`
 - network investigation through `read-network` / `read_network`
 - reload during development through `hot-reload` / `hot_reload` and `hot-restart` / `hot_restart`
@@ -27,6 +31,7 @@ The skill may depend on these implemented public workflows:
 - multi-signal locators with `text`, `tooltip`, `semanticId`, optional stable `key`, `route`, `type`, fuzzy `path`, nested `ancestor`, and ordered `fallbacks`
 - bounded timeouts on interactive commands (`timeoutMs`) and workspace tools (`timeoutSeconds`)
 - canonical lower camel case JSON fields across CLI and MCP payloads so shell filters and prompt snippets stay stable
+- plane-aware task summaries with `targetKind`, `primaryExecutionPlane`, `planesUsed`, `surfaceKindsUsed`, `fallbackCount`, and bounded delivery gates
 
 The skill may also rely on public context resources for roots, contracts, capabilities, apps, task summaries, and package reads. Treat any extra repository-specific context document as optional host configuration, not a default framework dependency.
 
@@ -47,6 +52,7 @@ The skill must enforce this order:
 The agent must launch or reuse an app and persist `app.json` when possible.
 
 The skill must not teach session-handle-first workflows as the default path.
+For non-Flutter or direct system surfaces, the skill may switch to target-first bootstrap with `launch_target` / `launch-target`, but it should still prefer the smallest truthful capability surface instead of pretending every target is a Flutter app.
 
 ### `baseline`
 
@@ -58,6 +64,8 @@ Minimum baseline:
 - current route or equivalent app state
 - profile-appropriate evidence for the task
 - the smallest profile that can answer the current question
+
+For target-first flows, replace app-specific reads with `read_target` / `read-target` and `inspect_surface` / `inspect-surface` while keeping the same summary-first discipline.
 
 For code-editing work, the agent should prefer `lsp` and `analyze_files` before falling back to workspace-wide analysis.
 
@@ -82,6 +90,7 @@ The skill must teach token discipline:
 ### `deliver`
 
 The agent must use `validate_task` before a final completion claim on acceptance-facing work.
+When a bundle is involved, the skill must treat plane-aware gates and fallback summaries as first-class signals, not optional decoration.
 
 ## Completion Gate
 

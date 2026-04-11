@@ -5,7 +5,6 @@ import 'package:args/command_runner.dart';
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
 import '../../application/cockpit_inspect_surface_service.dart';
-import '../../application/cockpit_interactive_result_profile.dart';
 import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';

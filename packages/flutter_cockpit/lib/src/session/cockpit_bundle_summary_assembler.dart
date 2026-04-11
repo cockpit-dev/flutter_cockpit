@@ -1,13 +1,17 @@
 import 'package:collection/collection.dart';
 
 import '../context/cockpit_context_bundle.dart';
+import '../capture/cockpit_capture_kind.dart';
 import '../model/cockpit_environment.dart';
 import '../model/cockpit_observation.dart';
 import '../model/cockpit_run_manifest.dart';
 import '../model/cockpit_step_record.dart';
 import '../model/cockpit_task_status.dart';
 import '../network/cockpit_network_entry.dart';
+import '../runtime/cockpit_plane_kind.dart';
 import '../runtime/cockpit_runtime_event.dart';
+import '../runtime/cockpit_surface_kind.dart';
+import '../runtime/cockpit_target_kind.dart';
 import 'cockpit_evidence_index.dart';
 import 'cockpit_session.dart';
 import 'cockpit_timestamp_provider.dart';
@@ -28,7 +32,9 @@ final class CockpitBundleSummaryAssembler {
     String? failureSummary,
   }) {
     final evidenceIndex = CockpitEvidenceIndex.fromSteps(steps);
+    final executionSummary = _summarizeExecutionContext(steps);
     final recordingFailureReason = _lastRecordingFailureReason(steps);
+    final networkSummary = _summarizeNetworkActivity(steps);
     final deliveryArtifactFailureCodes =
         _deliveryArtifactFailureCodes(evidenceIndex);
     final deliveryVideoFailureCodes = _deliveryVideoFailureCodes(
@@ -57,6 +63,20 @@ final class CockpitBundleSummaryAssembler {
                 runtimeErrorCount > 0
             ? 'Runtime errors were captured during the task.'
             : failureSummary;
+    final targetReachable = session.sessionId.isNotEmpty;
+    final intendedPlaneWorked = executionSummary.fallbackCount == 0;
+    final postconditionsSatisfied =
+        effectiveStatus != CockpitTaskStatus.failed && runtimeErrorCount == 0;
+    final artifactsReady = deliveryValidated;
+    final logsCollected = networkSummary != null ||
+        runtimeSummary != null ||
+        steps.any(_hasDiagnosticsEvidence);
+    final deliveryReadable = steps.isNotEmpty ||
+        evidenceIndex.artifactRefs.isNotEmpty ||
+        runtimeSummary != null ||
+        networkSummary != null;
+    final fallbackAcceptable =
+        intendedPlaneWorked || (postconditionsSatisfied && deliveryReadable);
     final manifest = CockpitRunManifest(
       sessionId: session.sessionId,
       taskId: session.taskId,
@@ -66,6 +86,11 @@ final class CockpitBundleSummaryAssembler {
       finishedAt: _now().toUtc(),
       artifactRefs: evidenceIndex.artifactRefs,
       failureSummary: effectiveFailureSummary,
+      targetKind: executionSummary.targetKind,
+      primaryExecutionPlane: executionSummary.primaryExecutionPlane,
+      planesUsed: executionSummary.planesUsed,
+      surfaceKindsUsed: executionSummary.surfaceKindsUsed,
+      fallbackCount: executionSummary.fallbackCount,
       capabilitiesUsed: capabilitiesUsed,
       commandCount: commandCount,
       screenshotCount: evidenceIndex.screenshotCount,
@@ -91,6 +116,18 @@ final class CockpitBundleSummaryAssembler {
       'taskId': session.taskId,
       'platform': session.platform,
       'status': effectiveStatus.name,
+      if (executionSummary.targetKind != null)
+        'targetKind': executionSummary.targetKind!.name,
+      if (executionSummary.primaryExecutionPlane != null)
+        'primaryExecutionPlane': executionSummary.primaryExecutionPlane!.name,
+      if (executionSummary.planesUsed.isNotEmpty)
+        'planesUsed':
+            executionSummary.planesUsed.map((plane) => plane.name).toList(),
+      if (executionSummary.surfaceKindsUsed.isNotEmpty)
+        'surfaceKindsUsed': executionSummary.surfaceKindsUsed
+            .map((surface) => surface.name)
+            .toList(),
+      'fallbackCount': executionSummary.fallbackCount,
       'stepCount': steps.length,
       'capabilitiesUsed': capabilitiesUsed,
       'commandCount': commandCount,
@@ -108,11 +145,55 @@ final class CockpitBundleSummaryAssembler {
       'recordingReadyOrExplained': recordingReadyOrExplained,
       'deliveryValidated': deliveryValidated,
       'gates': <String, Object?>{
+        'targetReachable': targetReachable,
+        'intendedPlaneWorked': intendedPlaneWorked,
+        'fallbackAcceptable': fallbackAcceptable,
+        'postconditionsSatisfied': postconditionsSatisfied,
+        'artifactsReady': artifactsReady,
+        'logsCollected': logsCollected,
+        'deliveryReadable': deliveryReadable,
         'screenshotReady': screenshotReady,
         'recordingReadyOrExplained': recordingReadyOrExplained,
         'deliveryValidated': deliveryValidated,
       },
       'gateFailureCodes': <String, Object?>{
+        'targetReachable': targetReachable
+            ? const <String>[]
+            : const <String>['targetUnreachable'],
+        'intendedPlaneWorked': intendedPlaneWorked
+            ? const <String>[]
+            : const <String>['fallbackRequired'],
+        'fallbackAcceptable': fallbackAcceptable
+            ? const <String>[]
+            : _combinedFailureCodes(
+                intendedPlaneWorked
+                    ? const <String>[]
+                    : const <String>['fallbackRequired'],
+                _combinedFailureCodes(
+                  postconditionsSatisfied
+                      ? const <String>[]
+                      : const <String>['postconditionsNotSatisfied'],
+                  artifactsReady
+                      ? const <String>[]
+                      : deliveryValidationFailureCodes,
+                ),
+              ),
+        'postconditionsSatisfied': postconditionsSatisfied
+            ? const <String>[]
+            : <String>[
+                if (runtimeErrorCount > 0)
+                  'runtimeErrorsDetected'
+                else
+                  'taskFailed',
+              ],
+        'artifactsReady':
+            artifactsReady ? const <String>[] : deliveryValidationFailureCodes,
+        'logsCollected': logsCollected
+            ? const <String>[]
+            : const <String>['logsNotCollected'],
+        'deliveryReadable': deliveryReadable
+            ? const <String>[]
+            : const <String>['deliveryUnreadable'],
         'screenshotReady': deliveryArtifactFailureCodes,
         'recordingReadyOrExplained': deliveryVideoFailureCodes,
         'deliveryValidated': deliveryValidationFailureCodes,
@@ -134,9 +215,11 @@ final class CockpitBundleSummaryAssembler {
       acceptanceMarkdown: _buildAcceptanceMarkdown(
         session: session,
         steps: steps,
+        executionSummary: executionSummary,
         evidenceIndex: evidenceIndex,
         status: effectiveStatus,
         failureSummary: effectiveFailureSummary,
+        networkSummary: networkSummary,
         runtimeSummary: runtimeSummary,
       ),
       handoff: handoff,
@@ -175,9 +258,11 @@ final class CockpitBundleSummaryAssembler {
   String _buildAcceptanceMarkdown({
     required CockpitSession session,
     required List<CockpitStepRecord> steps,
+    required _CockpitExecutionSummary executionSummary,
     required CockpitEvidenceIndex evidenceIndex,
     required CockpitTaskStatus status,
     String? failureSummary,
+    _CockpitAcceptanceNetworkSummary? networkSummary,
     _CockpitAcceptanceRuntimeSummary? runtimeSummary,
   }) {
     final lastRecordingFailure = steps
@@ -191,6 +276,13 @@ final class CockpitBundleSummaryAssembler {
       ..writeln('- Session: ${session.sessionId}')
       ..writeln('- Task: ${session.taskId}')
       ..writeln('- Platform: ${session.platform}')
+      ..writeln(
+        '- Target kind: ${executionSummary.targetKind?.name ?? 'unknown'}',
+      )
+      ..writeln(
+        '- Primary plane: ${executionSummary.primaryExecutionPlane?.name ?? 'unknown'}',
+      )
+      ..writeln('- Fallback count: ${executionSummary.fallbackCount}')
       ..writeln('- Status: ${status.name}')
       ..writeln('- Steps: ${steps.length}');
 
@@ -214,7 +306,6 @@ final class CockpitBundleSummaryAssembler {
       }
     }
 
-    final networkSummary = _summarizeNetworkActivity(steps);
     if (networkSummary != null) {
       buffer.writeln();
       buffer.writeln('## Network');
@@ -301,6 +392,106 @@ final class CockpitBundleSummaryAssembler {
     List<String> right,
   ) {
     return List<String>.unmodifiable(<String>{...left, ...right});
+  }
+
+  bool _hasDiagnosticsEvidence(CockpitStepRecord step) {
+    if (step.snapshot?.diagnosticsArtifactRef != null ||
+        step.observation?.diagnosticsArtifactRef != null) {
+      return true;
+    }
+    return step.artifactRefs.any((artifact) => artifact.role == 'diagnostics');
+  }
+
+  _CockpitExecutionSummary _summarizeExecutionContext(
+    List<CockpitStepRecord> steps,
+  ) {
+    CockpitTargetKind? targetKind;
+    final planesUsed = <CockpitPlaneKind>[];
+    final surfaceKindsUsed = <CockpitSurfaceKind>[];
+    var fallbackCount = 0;
+
+    void addPlane(CockpitPlaneKind? plane) {
+      if (plane != null && !planesUsed.contains(plane)) {
+        planesUsed.add(plane);
+      }
+    }
+
+    void addSurface(CockpitSurfaceKind? surface) {
+      if (surface != null && !surfaceKindsUsed.contains(surface)) {
+        surfaceKindsUsed.add(surface);
+      }
+    }
+
+    for (final step in steps) {
+      targetKind ??= step.targetKind ?? step.observation?.targetKind;
+      final executionPlane = step.executionPlane ??
+          step.observation?.executionPlane ??
+          _inferExecutionPlane(step);
+      final surfaceKind = step.surfaceKind ??
+          step.observation?.surfaceKind ??
+          _inferSurfaceKind(step);
+      addPlane(executionPlane);
+      addSurface(surfaceKind);
+      for (final fallbackPlane in step.fallbackTrail) {
+        addPlane(fallbackPlane);
+      }
+      if (step.usedPlaneFallback ||
+          step.fallbackTrail.isNotEmpty ||
+          step.observation?.fallbackUsed == true) {
+        fallbackCount += 1;
+      }
+    }
+
+    return _CockpitExecutionSummary(
+      targetKind: targetKind,
+      primaryExecutionPlane: planesUsed.firstOrNull,
+      planesUsed: planesUsed,
+      surfaceKindsUsed: surfaceKindsUsed,
+      fallbackCount: fallbackCount,
+    );
+  }
+
+  CockpitPlaneKind? _inferExecutionPlane(CockpitStepRecord step) {
+    if (step.executionPlane case final executionPlane?) {
+      return executionPlane;
+    }
+    return switch (_inferSurfaceKind(step)) {
+      CockpitSurfaceKind.nativeUi => CockpitPlaneKind.nativeUiPlane,
+      CockpitSurfaceKind.systemUi ||
+      CockpitSurfaceKind.deviceShell =>
+        CockpitPlaneKind.deviceSystemPlane,
+      CockpitSurfaceKind.hostShell => CockpitPlaneKind.hostPlane,
+      CockpitSurfaceKind.flutterSemantic ||
+      CockpitSurfaceKind.desktopWindow ||
+      CockpitSurfaceKind.browserDom =>
+        CockpitPlaneKind.flutterSemanticPlane,
+      null => null,
+    };
+  }
+
+  CockpitSurfaceKind? _inferSurfaceKind(CockpitStepRecord step) {
+    if (step.surfaceKind case final surfaceKind?) {
+      return surfaceKind;
+    }
+    if (step.resolvedCaptureKind case final captureKind?) {
+      return switch (captureKind) {
+        CockpitCaptureKind.nativeAcceptance => CockpitSurfaceKind.nativeUi,
+        CockpitCaptureKind.flutterView => CockpitSurfaceKind.flutterSemantic,
+      };
+    }
+    if (step.snapshot != null || step.observation != null) {
+      return CockpitSurfaceKind.flutterSemantic;
+    }
+    return switch (step.targetKind ?? step.observation?.targetKind) {
+      CockpitTargetKind.nativeApp => CockpitSurfaceKind.nativeUi,
+      CockpitTargetKind.desktopApp => CockpitSurfaceKind.desktopWindow,
+      CockpitTargetKind.browserPage => CockpitSurfaceKind.browserDom,
+      CockpitTargetKind.systemSurface => CockpitSurfaceKind.systemUi,
+      CockpitTargetKind.device => CockpitSurfaceKind.deviceShell,
+      CockpitTargetKind.hostWorkspace => CockpitSurfaceKind.hostShell,
+      CockpitTargetKind.flutterApp => CockpitSurfaceKind.flutterSemantic,
+      null => null,
+    };
   }
 
   _CockpitAcceptanceNetworkSummary? _summarizeNetworkActivity(
@@ -445,6 +636,22 @@ final class CockpitBundleSummaryAssembler {
   }
 
   static DateTime _systemNow() => DateTime.now().toUtc();
+}
+
+final class _CockpitExecutionSummary {
+  const _CockpitExecutionSummary({
+    required this.targetKind,
+    required this.primaryExecutionPlane,
+    required this.planesUsed,
+    required this.surfaceKindsUsed,
+    required this.fallbackCount,
+  });
+
+  final CockpitTargetKind? targetKind;
+  final CockpitPlaneKind? primaryExecutionPlane;
+  final List<CockpitPlaneKind> planesUsed;
+  final List<CockpitSurfaceKind> surfaceKindsUsed;
+  final int fallbackCount;
 }
 
 final class _CockpitAcceptanceNetworkSummary {

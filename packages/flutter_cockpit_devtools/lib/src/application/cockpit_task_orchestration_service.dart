@@ -173,7 +173,10 @@ final class CockpitTaskOrchestrationService {
 
       return CockpitTaskOrchestrationResult(
         classification: classification,
-        recommendedNextStep: _recommendedNextStep(classification),
+        recommendedNextStep: _recommendedNextStep(
+          classification,
+          gates: gates,
+        ),
         completedStages: completedStages,
         gates: gates,
         sessionHandle: resolvedSessionHandle,
@@ -231,29 +234,75 @@ final class CockpitTaskOrchestrationService {
         bundleSummary.acceptanceDelta != null &&
         bundleSummary.baselineEvidence!.hasComparableSignals &&
         bundleSummary.acceptanceEvidence!.hasComparableSignals;
+    final finalAssertionPassed =
+        bundleSummary.manifest.status != CockpitTaskStatus.failed &&
+            bundleSummary.manifest.runtimeErrorCount == 0;
+    final intendedPlaneWorked = _gateValueOrDefault(
+      bundleSummary.gateSummary,
+      CockpitTaskGate.intendedPlaneWorked,
+      bundleSummary.manifest.fallbackCount == 0,
+    );
+    final deliveryReadable = _gateValueOrDefault(
+      bundleSummary.gateSummary,
+      CockpitTaskGate.deliveryReadable,
+      bundleSummary.acceptanceMarkdown.trim().isNotEmpty,
+    );
+    final fallbackAcceptable = _gateValueOrDefault(
+      bundleSummary.gateSummary,
+      CockpitTaskGate.fallbackAcceptable,
+      intendedPlaneWorked || (finalAssertionPassed && deliveryReadable),
+    );
 
     return _defaultGates(
       request,
       sessionReachable: sessionHandle != null,
+      targetReachable: _gateValueOrDefault(
+        bundleSummary.gateSummary,
+        CockpitTaskGate.targetReachable,
+        sessionHandle != null,
+      ),
       baselineCollected: _baselineCollected(request, bundleSummary),
       executionFinished: true,
       bundleWritten: true,
+      intendedPlaneWorked: intendedPlaneWorked,
+      fallbackAcceptable: fallbackAcceptable,
+      postconditionsSatisfied: _gateValueOrDefault(
+        bundleSummary.gateSummary,
+        CockpitTaskGate.postconditionsSatisfied,
+        finalAssertionPassed,
+      ),
+      artifactsReady: _gateValueOrDefault(
+        bundleSummary.gateSummary,
+        CockpitTaskGate.artifactsReady,
+        deliveryValidated,
+      ),
+      logsCollected: _gateValueOrDefault(
+        bundleSummary.gateSummary,
+        CockpitTaskGate.logsCollected,
+        true,
+      ),
+      deliveryReadable: deliveryReadable,
       deliveryValidated: deliveryValidated,
       acceptanceEvidenceReadable: acceptanceEvidenceReadable,
       screenshotReady: screenshotReady,
       recordingReadyOrExplained: recordingReadyOrExplained,
-      finalAssertionPassed:
-          bundleSummary.manifest.status != CockpitTaskStatus.failed &&
-              bundleSummary.manifest.runtimeErrorCount == 0,
+      finalAssertionPassed: finalAssertionPassed,
     );
   }
 
   Map<CockpitTaskGate, bool> _defaultGates(
     CockpitRunTaskRequest request, {
     bool sessionReachable = false,
+    bool targetReachable = false,
     bool baselineCollected = false,
     bool executionFinished = false,
     bool bundleWritten = false,
+    bool intendedPlaneWorked = true,
+    bool fallbackAcceptable = true,
+    bool postconditionsSatisfied = false,
+    bool artifactsReady = false,
+    bool logsCollected = true,
+    bool deliveryReadable = false,
     bool deliveryValidated = false,
     bool acceptanceEvidenceReadable = false,
     bool? screenshotReady,
@@ -262,10 +311,17 @@ final class CockpitTaskOrchestrationService {
   }) {
     return <CockpitTaskGate, bool>{
       CockpitTaskGate.sessionReachable: sessionReachable,
+      CockpitTaskGate.targetReachable: targetReachable,
       CockpitTaskGate.baselineCollected:
           !request.baseline.captureScreenshot || baselineCollected,
       CockpitTaskGate.executionFinished: executionFinished,
       CockpitTaskGate.bundleWritten: bundleWritten,
+      CockpitTaskGate.intendedPlaneWorked: intendedPlaneWorked,
+      CockpitTaskGate.fallbackAcceptable: fallbackAcceptable,
+      CockpitTaskGate.postconditionsSatisfied: postconditionsSatisfied,
+      CockpitTaskGate.artifactsReady: artifactsReady,
+      CockpitTaskGate.logsCollected: logsCollected,
+      CockpitTaskGate.deliveryReadable: deliveryReadable,
       CockpitTaskGate.deliveryValidated: deliveryValidated,
       CockpitTaskGate.acceptanceEvidenceReadable: acceptanceEvidenceReadable,
       CockpitTaskGate.screenshotReady:
@@ -291,14 +347,19 @@ final class CockpitTaskOrchestrationService {
 
   CockpitRunTaskClassification _classify(Map<CockpitTaskGate, bool> gates) {
     if (!(gates[CockpitTaskGate.sessionReachable] ?? false) ||
+        !(gates[CockpitTaskGate.targetReachable] ?? false) ||
         !(gates[CockpitTaskGate.executionFinished] ?? false) ||
         !(gates[CockpitTaskGate.bundleWritten] ?? false)) {
       return CockpitRunTaskClassification.blockedByEnvironment;
     }
-    if (!(gates[CockpitTaskGate.finalAssertionPassed] ?? false)) {
+    if (!(gates[CockpitTaskGate.finalAssertionPassed] ?? false) ||
+        !(gates[CockpitTaskGate.postconditionsSatisfied] ?? false)) {
       return CockpitRunTaskClassification.failedWithEvidence;
     }
-    if (!(gates[CockpitTaskGate.deliveryValidated] ?? false)) {
+    if (!(gates[CockpitTaskGate.deliveryValidated] ?? false) ||
+        !(gates[CockpitTaskGate.artifactsReady] ?? false) ||
+        !(gates[CockpitTaskGate.fallbackAcceptable] ?? false) ||
+        !(gates[CockpitTaskGate.deliveryReadable] ?? false)) {
       return CockpitRunTaskClassification.needsMoreWork;
     }
     return CockpitRunTaskClassification.completed;
@@ -367,10 +428,15 @@ final class CockpitTaskOrchestrationService {
     await _stopAutomationApp(CockpitAppHandle.fromRemoteSession(sessionHandle));
   }
 
-  String _recommendedNextStep(CockpitRunTaskClassification classification) {
+  String _recommendedNextStep(
+    CockpitRunTaskClassification classification, {
+    required Map<CockpitTaskGate, bool> gates,
+  }) {
     switch (classification) {
       case CockpitRunTaskClassification.completed:
-        return 'delivery_ready';
+        return (gates[CockpitTaskGate.intendedPlaneWorked] ?? true)
+            ? 'delivery_ready'
+            : 'review_fallbacks';
       case CockpitRunTaskClassification.failedWithEvidence:
         return 'inspect_bundle';
       case CockpitRunTaskClassification.blockedByEnvironment:
@@ -378,5 +444,13 @@ final class CockpitTaskOrchestrationService {
       case CockpitRunTaskClassification.needsMoreWork:
         return 'collect_missing_evidence';
     }
+  }
+
+  bool _gateValueOrDefault(
+    CockpitBundleGateSummary summary,
+    CockpitTaskGate gate,
+    bool fallback,
+  ) {
+    return summary.hasGate(gate) ? summary.isSatisfied(gate) : fallback;
   }
 }

@@ -37,8 +37,7 @@ void main() {
         ),
         recordingCapabilities: CockpitRecordingCapabilities(
           supportsNativeRecording: true,
-          preferredAcceptanceRecordingKind:
-              CockpitRecordingKind.nativeScreen,
+          preferredAcceptanceRecordingKind: CockpitRecordingKind.nativeScreen,
         ),
         selectedPlane: CockpitPlaneKind.flutterSemanticPlane,
         fallbackTrail: const <CockpitPlaneKind>[

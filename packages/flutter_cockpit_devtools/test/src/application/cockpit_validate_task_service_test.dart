@@ -1177,6 +1177,145 @@ void main() {
   );
 
   test(
+    'validate task downgrades to needs_more_work when fallback is not acceptable',
+    () async {
+      final bundleDir = await _createBundleDir(
+        name: 'cockpit_validate_task_service_unacceptable_fallback',
+        acceptanceMarkdown: '# Acceptance\n\n- Status: completed\n',
+        environmentJson:
+            '{"platform":"android","flutterVersion":"3.38.9","dartVersion":"3.10.8"}',
+        screenshotRelativePath: 'screenshots/acceptance.png',
+        recordingRelativePath: 'recordings/acceptance.mp4',
+      );
+      addTearDown(() async => _deleteDir(bundleDir));
+
+      final service = CockpitValidateTaskService(
+        artifactValidator: CockpitBundleArtifactValidator(
+          processRunner: (executable, arguments) async {
+            if (executable == 'ffprobe') {
+              final path = arguments.last;
+              if (path.endsWith('.png')) {
+                return ProcessResult(
+                  0,
+                  0,
+                  '{"streams":[{"codec_name":"png","codec_type":"video","width":240,"height":480}],"format":{"format_name":"png_pipe"}}',
+                  '',
+                );
+              }
+              return ProcessResult(
+                0,
+                0,
+                '{"streams":[{"codec_name":"h264","codec_type":"video","width":240,"height":480,"nb_frames":"44"}],"format":{"format_name":"mov,mp4,m4a,3gp,3g2,mj2","duration":"2.706"}}',
+                '',
+              );
+            }
+            if (executable == 'ffmpeg') {
+              final outputPath = arguments.last;
+              await File(outputPath).parent.create(recursive: true);
+              await File(
+                outputPath,
+              ).writeAsBytes(_structuredAcceptancePngBytes);
+              return ProcessResult(0, 0, '', '');
+            }
+            throw ProcessException(
+              executable,
+              arguments,
+              'unexpected executable',
+            );
+          },
+        ),
+        runTask: (_) async => _runTaskResult(
+          classification: CockpitRunTaskClassification.completed,
+          bundleDir: bundleDir,
+          platform: 'android',
+          screenshotRelativePath: 'screenshots/acceptance.png',
+          recordingRelativePath: 'recordings/acceptance.mp4',
+          targetKind: CockpitTargetKind.flutterApp,
+          primaryExecutionPlane: CockpitPlaneKind.flutterSemanticPlane,
+          planesUsed: const <CockpitPlaneKind>[
+            CockpitPlaneKind.flutterSemanticPlane,
+            CockpitPlaneKind.nativeUiPlane,
+          ],
+          surfaceKindsUsed: const <CockpitSurfaceKind>[
+            CockpitSurfaceKind.flutterSemantic,
+            CockpitSurfaceKind.nativeUi,
+          ],
+          fallbackCount: 1,
+          baselineEvidence: _acceptanceEvidence(
+            routeName: '/editor',
+            visibleTextPreviews: const <String>['Draft'],
+            interactiveLabels: const <String>['Publish'],
+            accessibilityLabels: const <String>['Draft screen'],
+          ),
+          acceptanceEvidence: _acceptanceEvidence(
+            routeName: '/preview',
+            visibleTextPreviews: const <String>['Published'],
+            interactiveLabels: const <String>['Share'],
+            accessibilityLabels: const <String>['Preview screen'],
+          ),
+          acceptanceDelta: _acceptanceDelta(
+            baselineRouteName: '/editor',
+            acceptanceRouteName: '/preview',
+            routeChanged: true,
+            addedVisibleTextPreviews: const <String>['Published'],
+            removedVisibleTextPreviews: const <String>['Draft'],
+            addedInteractiveLabels: const <String>['Share'],
+            removedInteractiveLabels: const <String>['Publish'],
+            addedAccessibilityLabels: const <String>['Preview screen'],
+            removedAccessibilityLabels: const <String>['Draft screen'],
+          ),
+          gateOverrides: const <CockpitTaskGate, bool>{
+            CockpitTaskGate.targetReachable: true,
+            CockpitTaskGate.intendedPlaneWorked: false,
+            CockpitTaskGate.fallbackAcceptable: false,
+            CockpitTaskGate.postconditionsSatisfied: true,
+            CockpitTaskGate.artifactsReady: true,
+            CockpitTaskGate.logsCollected: true,
+            CockpitTaskGate.deliveryReadable: true,
+          },
+          gateFailureOverrides: const <CockpitTaskGate, List<String>>{
+            CockpitTaskGate.fallbackAcceptable: <String>[
+              'fallbackNotAcceptable',
+            ],
+          },
+        ),
+      );
+
+      final result = await service.validate(
+        CockpitValidateTaskRequest(
+          runTask: _runTaskRequest(platform: 'android'),
+          validation: const CockpitValidateTaskRequirements(
+            expectedClassification: CockpitRunTaskClassification.completed,
+            requirePrimaryScreenshot: true,
+            requirePrimaryRecording: true,
+          ),
+        ),
+      );
+
+      expect(
+        result.classification,
+        CockpitValidationClassification.needsMoreWork,
+      );
+      expect(
+        result.validationFailures.map((failure) => failure.code),
+        contains('fallbackNotAcceptable'),
+      );
+      expect(
+        result.bundleSummary?.gateSummary.isSatisfied(
+          CockpitTaskGate.intendedPlaneWorked,
+        ),
+        isFalse,
+      );
+      expect(
+        result.bundleSummary?.gateSummary.isSatisfied(
+          CockpitTaskGate.fallbackAcceptable,
+        ),
+        isFalse,
+      );
+    },
+  );
+
+  test(
     'validate task propagates blocked_by_environment from run_task',
     () async {
       final service = CockpitValidateTaskService(
@@ -1265,6 +1404,11 @@ CockpitRunTaskResult _runTaskResult({
   required String platform,
   String? screenshotRelativePath,
   String? recordingRelativePath,
+  CockpitTargetKind? targetKind,
+  CockpitPlaneKind? primaryExecutionPlane,
+  List<CockpitPlaneKind> planesUsed = const <CockpitPlaneKind>[],
+  List<CockpitSurfaceKind> surfaceKindsUsed = const <CockpitSurfaceKind>[],
+  int fallbackCount = 0,
   List<String> deliveryArtifactFailureCodes = const <String>[],
   List<String> deliveryVideoFailureCodes = const <String>[],
   CockpitBundleAcceptanceEvidence? baselineEvidence,
@@ -1276,6 +1420,9 @@ CockpitRunTaskResult _runTaskResult({
   int runtimeEventCount = 0,
   int runtimeErrorCount = 0,
   int runtimeWarningCount = 0,
+  Map<CockpitTaskGate, bool> gateOverrides = const <CockpitTaskGate, bool>{},
+  Map<CockpitTaskGate, List<String>> gateFailureOverrides =
+      const <CockpitTaskGate, List<String>>{},
 }) {
   final artifactPaths = CockpitBundleArtifactPaths(
     primaryScreenshotPath: screenshotRelativePath == null
@@ -1292,6 +1439,11 @@ CockpitRunTaskResult _runTaskResult({
     status: taskStatus,
     startedAt: DateTime.utc(2026, 3, 21, 0, 0),
     finishedAt: DateTime.utc(2026, 3, 21, 0, 5),
+    targetKind: targetKind,
+    primaryExecutionPlane: primaryExecutionPlane,
+    planesUsed: planesUsed,
+    surfaceKindsUsed: surfaceKindsUsed,
+    fallbackCount: fallbackCount,
     screenshotCount: screenshotRelativePath == null ? 0 : 1,
     recordingCount: recordingRelativePath == null ? 0 : 1,
     deliveryArtifactsReady: screenshotRelativePath != null,
@@ -1332,10 +1484,22 @@ CockpitRunTaskResult _runTaskResult({
   final gateSummary = CockpitBundleGateSummary(
     gates: <CockpitTaskGate, bool>{
       CockpitTaskGate.sessionReachable: true,
+      CockpitTaskGate.targetReachable: true,
       CockpitTaskGate.baselineCollected:
           baselineEvidence != null || screenshotRelativePath != null,
       CockpitTaskGate.executionFinished: true,
       CockpitTaskGate.bundleWritten: true,
+      CockpitTaskGate.intendedPlaneWorked: fallbackCount == 0,
+      CockpitTaskGate.fallbackAcceptable: true,
+      CockpitTaskGate.postconditionsSatisfied:
+          taskStatus != CockpitTaskStatus.failed && runtimeErrorCount == 0,
+      CockpitTaskGate.artifactsReady:
+          manifest.deliveryArtifactsReady && manifest.deliveryVideoReady,
+      CockpitTaskGate.logsCollected: runtimeEventCount > 0 ||
+          baselineEvidence != null ||
+          acceptanceEvidence != null,
+      CockpitTaskGate.deliveryReadable:
+          manifest.deliveryArtifactsReady || manifest.deliveryVideoReady,
       CockpitTaskGate.screenshotReady: manifest.deliveryArtifactsReady,
       CockpitTaskGate.recordingReadyOrExplained: manifest.deliveryVideoReady,
       CockpitTaskGate.deliveryValidated:
@@ -1344,6 +1508,7 @@ CockpitRunTaskResult _runTaskResult({
           acceptanceEvidenceFailureCodes.isEmpty,
       CockpitTaskGate.finalAssertionPassed:
           taskStatus != CockpitTaskStatus.failed && runtimeErrorCount == 0,
+      ...gateOverrides,
     },
     failureCodes: <CockpitTaskGate, List<String>>{
       if (!manifest.deliveryArtifactsReady)
@@ -1364,6 +1529,7 @@ CockpitRunTaskResult _runTaskResult({
         CockpitTaskGate.finalAssertionPassed: <String>[
           if (runtimeErrorCount > 0) 'runtimeErrorsDetected' else 'taskFailed',
         ],
+      ...gateFailureOverrides,
     },
   );
   final bundleSummary = CockpitReadTaskBundleSummaryResult(
@@ -1401,6 +1567,13 @@ CockpitRunTaskResult _runTaskResult({
       'screenshotCount': manifest.screenshotCount,
       'recordingCount': manifest.recordingCount,
       'failureCount': manifest.failureCount,
+      if (targetKind != null) 'targetKind': targetKind.name,
+      if (primaryExecutionPlane != null)
+        'primaryExecutionPlane': primaryExecutionPlane.name,
+      'planesUsed': planesUsed.map((plane) => plane.name).toList(),
+      'surfaceKindsUsed':
+          surfaceKindsUsed.map((surface) => surface.name).toList(),
+      'fallbackCount': fallbackCount,
       'keyframeCount': keyframes.length,
       'deliveryKeyframesReady': keyframeCoverage == null
           ? false

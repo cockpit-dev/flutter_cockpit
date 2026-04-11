@@ -1,9 +1,13 @@
 import '../control/cockpit_command.dart';
 import '../control/cockpit_command_result.dart';
+import '../capture/cockpit_capture_kind.dart';
 import '../model/cockpit_artifact_ref.dart';
 import '../model/cockpit_observation.dart';
+import '../runtime/cockpit_plane_kind.dart';
 import '../runtime/cockpit_snapshot.dart';
 import '../runtime/cockpit_snapshot_options.dart';
+import '../runtime/cockpit_surface_kind.dart';
+import '../runtime/cockpit_target_kind.dart';
 
 final class CockpitObservationAssembler {
   const CockpitObservationAssembler();
@@ -47,6 +51,10 @@ final class CockpitObservationAssembler {
       truncated: snapshot.truncated,
       diagnosticsArtifactRef: snapshot.diagnosticsArtifactRef,
       summary: snapshot.summary,
+      targetKind: CockpitTargetKind.flutterApp,
+      executionPlane: _executionPlaneFor(result),
+      surfaceKind: _surfaceKindFor(result),
+      fallbackUsed: result.usedCaptureFallback,
     );
   }
 
@@ -103,5 +111,21 @@ final class CockpitObservationAssembler {
   String _sanitizeForPath(String value) {
     final sanitized = value.replaceAll(RegExp(r'[^a-zA-Z0-9]+'), '_');
     return sanitized.replaceAll(RegExp(r'^_+|_+$'), '');
+  }
+
+  CockpitPlaneKind _executionPlaneFor(CockpitCommandResult result) {
+    return switch (_surfaceKindFor(result)) {
+      CockpitSurfaceKind.nativeUi => CockpitPlaneKind.nativeUiPlane,
+      CockpitSurfaceKind.systemUi => CockpitPlaneKind.deviceSystemPlane,
+      CockpitSurfaceKind.hostShell => CockpitPlaneKind.hostPlane,
+      _ => CockpitPlaneKind.flutterSemanticPlane,
+    };
+  }
+
+  CockpitSurfaceKind _surfaceKindFor(CockpitCommandResult result) {
+    return switch (result.resolvedCaptureKind) {
+      CockpitCaptureKind.nativeAcceptance => CockpitSurfaceKind.nativeUi,
+      _ => CockpitSurfaceKind.flutterSemantic,
+    };
   }
 }

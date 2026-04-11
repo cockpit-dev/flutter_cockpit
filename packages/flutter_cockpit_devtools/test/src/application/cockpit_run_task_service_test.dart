@@ -7,6 +7,7 @@ import 'package:flutter_cockpit_devtools/src/application/cockpit_query_remote_se
 import 'package:flutter_cockpit_devtools/src/application/cockpit_read_task_bundle_summary_service.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_run_remote_control_script_service.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_run_task_service.dart';
+import 'package:flutter_cockpit_devtools/src/application/cockpit_task_gate.dart';
 import 'package:flutter_cockpit_devtools/src/cli/cockpit_control_script.dart';
 import 'package:flutter_cockpit_devtools/src/session/cockpit_remote_session_handle.dart';
 import 'package:path/path.dart' as p;
@@ -600,6 +601,195 @@ void main() {
 
       expect(result.classification, CockpitRunTaskClassification.completed);
       expect(result.preflightStatus?.toJson()['environment'], isNotNull);
+    },
+  );
+
+  test(
+    'run task keeps completed classification when fallback is acceptable but exposes degraded plane gates',
+    () async {
+      final bundleDir = await Directory.systemTemp.createTemp(
+        'cockpit_run_task_service_plane_fallback',
+      );
+      addTearDown(() async {
+        if (bundleDir.existsSync()) {
+          await bundleDir.delete(recursive: true);
+        }
+      });
+
+      final handle = _sessionHandle(platform: 'android');
+      final gateSummary = const CockpitBundleGateSummary(
+        gates: <CockpitTaskGate, bool>{
+          CockpitTaskGate.sessionReachable: true,
+          CockpitTaskGate.targetReachable: true,
+          CockpitTaskGate.baselineCollected: true,
+          CockpitTaskGate.executionFinished: true,
+          CockpitTaskGate.bundleWritten: true,
+          CockpitTaskGate.intendedPlaneWorked: false,
+          CockpitTaskGate.fallbackAcceptable: true,
+          CockpitTaskGate.postconditionsSatisfied: true,
+          CockpitTaskGate.artifactsReady: true,
+          CockpitTaskGate.logsCollected: true,
+          CockpitTaskGate.deliveryReadable: true,
+          CockpitTaskGate.deliveryValidated: true,
+          CockpitTaskGate.acceptanceEvidenceReadable: true,
+          CockpitTaskGate.screenshotReady: true,
+          CockpitTaskGate.recordingReadyOrExplained: true,
+          CockpitTaskGate.finalAssertionPassed: true,
+        },
+      );
+      final service = CockpitRunTaskService(
+        launch: (_) async => throw UnimplementedError(),
+        query: (_) async => CockpitQueryRemoteSessionResult(
+          status: _status(
+            sessionId: 'run-task-fallback-demo',
+            platform: 'android',
+            route: '/home',
+          ),
+          sessionHandle: handle,
+          recommendedNextStep: 'ready_for_commands',
+        ),
+        runScript: (_) async => CockpitRunRemoteControlScriptResult(
+          sessionHandle: handle,
+          bundleDir: bundleDir,
+          manifest: CockpitRunManifest(
+            sessionId: 'run-task-session',
+            taskId: 'run-task-id',
+            platform: 'android',
+            status: CockpitTaskStatus.completed,
+            startedAt: DateTime.utc(2026, 4, 11, 9, 0),
+            finishedAt: DateTime.utc(2026, 4, 11, 9, 1),
+            targetKind: CockpitTargetKind.flutterApp,
+            primaryExecutionPlane: CockpitPlaneKind.flutterSemanticPlane,
+            planesUsed: const <CockpitPlaneKind>[
+              CockpitPlaneKind.flutterSemanticPlane,
+              CockpitPlaneKind.nativeUiPlane,
+            ],
+            surfaceKindsUsed: const <CockpitSurfaceKind>[
+              CockpitSurfaceKind.flutterSemantic,
+              CockpitSurfaceKind.nativeUi,
+            ],
+            fallbackCount: 1,
+            commandCount: 1,
+            screenshotCount: 1,
+            recordingCount: 1,
+            deliveryArtifactsReady: true,
+            deliveryVideoReady: true,
+            runtimeEventCount: 1,
+          ),
+          handoff: const <String, Object?>{
+            'status': 'completed',
+            'fallbackCount': 1,
+          },
+          delivery: const <String, Object?>{
+            'primaryScreenshotRef': 'screenshots/acceptance.png',
+            'primaryRecordingRef': 'recordings/acceptance.mp4',
+          },
+          artifactPaths: CockpitBundleArtifactPaths(
+            primaryScreenshotPath: p.join(
+              bundleDir.path,
+              'screenshots',
+              'acceptance.png',
+            ),
+            primaryRecordingPath: p.join(
+              bundleDir.path,
+              'recordings',
+              'acceptance.mp4',
+            ),
+          ),
+        ),
+        readSummary: (_) async => CockpitReadTaskBundleSummaryResult(
+          bundleDir: bundleDir.path,
+          manifest: CockpitRunManifest(
+            sessionId: 'run-task-session',
+            taskId: 'run-task-id',
+            platform: 'android',
+            status: CockpitTaskStatus.completed,
+            startedAt: DateTime.utc(2026, 4, 11, 9, 0),
+            finishedAt: DateTime.utc(2026, 4, 11, 9, 1),
+            targetKind: CockpitTargetKind.flutterApp,
+            primaryExecutionPlane: CockpitPlaneKind.flutterSemanticPlane,
+            planesUsed: const <CockpitPlaneKind>[
+              CockpitPlaneKind.flutterSemanticPlane,
+              CockpitPlaneKind.nativeUiPlane,
+            ],
+            surfaceKindsUsed: const <CockpitSurfaceKind>[
+              CockpitSurfaceKind.flutterSemantic,
+              CockpitSurfaceKind.nativeUi,
+            ],
+            fallbackCount: 1,
+            commandCount: 1,
+            screenshotCount: 1,
+            recordingCount: 1,
+            deliveryArtifactsReady: true,
+            deliveryVideoReady: true,
+            runtimeEventCount: 1,
+          ),
+          handoff: const <String, Object?>{
+            'status': 'completed',
+            'fallbackCount': 1,
+          },
+          delivery: const <String, Object?>{
+            'primaryScreenshotRef': 'screenshots/acceptance.png',
+            'primaryRecordingRef': 'recordings/acceptance.mp4',
+          },
+          acceptanceMarkdown: '# Acceptance\n\n- Status: completed\n',
+          artifactPaths: CockpitBundleArtifactPaths(
+            primaryScreenshotPath: p.join(
+              bundleDir.path,
+              'screenshots',
+              'acceptance.png',
+            ),
+            primaryRecordingPath: p.join(
+              bundleDir.path,
+              'recordings',
+              'acceptance.mp4',
+            ),
+          ),
+          evidenceSummary: const <String, Object?>{
+            'status': 'completed',
+            'commandCount': 1,
+            'screenshotCount': 1,
+            'recordingCount': 1,
+            'failureCount': 0,
+            'targetKind': 'flutterApp',
+            'primaryExecutionPlane': 'flutterSemanticPlane',
+            'planesUsed': <String>[
+              'flutterSemanticPlane',
+              'nativeUiPlane',
+            ],
+            'surfaceKindsUsed': <String>['flutterSemantic', 'nativeUi'],
+            'fallbackCount': 1,
+          },
+          gateSummary: gateSummary,
+        ),
+      );
+
+      final result = await service.run(
+        CockpitRunTaskRequest(
+          sessionHandle: handle,
+          script: _script(platform: 'android'),
+          outputRoot: bundleDir.path,
+          requirements: const CockpitRunTaskEvidenceRequirements(
+            requireScreenshotEvidence: true,
+            requireVideoEvidence: true,
+          ),
+        ),
+      );
+
+      expect(result.classification, CockpitRunTaskClassification.completed);
+      expect(result.recommendedNextStep, 'review_fallbacks');
+      expect(
+        result.bundleSummary?.gateSummary.isSatisfied(
+          CockpitTaskGate.intendedPlaneWorked,
+        ),
+        isFalse,
+      );
+      expect(
+        result.bundleSummary?.gateSummary.isSatisfied(
+          CockpitTaskGate.fallbackAcceptable,
+        ),
+        isTrue,
+      );
     },
   );
 }

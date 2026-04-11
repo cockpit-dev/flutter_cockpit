@@ -2,6 +2,9 @@ import 'package:collection/collection.dart';
 
 import '../runtime/cockpit_snapshot.dart';
 import '../runtime/cockpit_snapshot_options.dart';
+import '../runtime/cockpit_plane_kind.dart';
+import '../runtime/cockpit_surface_kind.dart';
+import '../runtime/cockpit_target_kind.dart';
 import 'cockpit_artifact_ref.dart';
 
 enum CockpitObservationPhase {
@@ -24,6 +27,10 @@ final class CockpitObservation {
     this.truncated = false,
     this.diagnosticsArtifactRef,
     this.summary,
+    this.targetKind,
+    this.executionPlane,
+    this.surfaceKind,
+    this.fallbackUsed = false,
   }) : interactiveElements = List.unmodifiable(interactiveElements);
 
   final String? routeName;
@@ -33,6 +40,10 @@ final class CockpitObservation {
   final bool truncated;
   final CockpitArtifactRef? diagnosticsArtifactRef;
   final CockpitSnapshotSummary? summary;
+  final CockpitTargetKind? targetKind;
+  final CockpitPlaneKind? executionPlane;
+  final CockpitSurfaceKind? surfaceKind;
+  final bool fallbackUsed;
 
   static const ListEquality<String> _listEquality = ListEquality<String>();
 
@@ -46,6 +57,10 @@ final class CockpitObservation {
         if (diagnosticsArtifactRef != null)
           'diagnosticsArtifactRef': diagnosticsArtifactRef!.toJson(),
         if (summary != null) 'summary': summary!.toJson(),
+        if (targetKind != null) 'targetKind': targetKind!.name,
+        if (executionPlane != null) 'executionPlane': executionPlane!.name,
+        if (surfaceKind != null) 'surfaceKind': surfaceKind!.name,
+        if (fallbackUsed) 'fallbackUsed': fallbackUsed,
       };
 
   factory CockpitObservation.fromJson(Map<String, Object?> json) {
@@ -76,6 +91,16 @@ final class CockpitObservation {
           : CockpitSnapshotSummary.fromJson(
               Map<String, Object?>.from(summaryJson),
             ),
+      targetKind: json['targetKind'] == null
+          ? null
+          : CockpitTargetKind.fromJson(json['targetKind']),
+      executionPlane: json['executionPlane'] == null
+          ? null
+          : CockpitPlaneKind.fromJson(json['executionPlane']),
+      surfaceKind: json['surfaceKind'] == null
+          ? null
+          : CockpitSurfaceKind.fromJson(json['surfaceKind']),
+      fallbackUsed: json['fallbackUsed'] as bool? ?? false,
     );
   }
 
@@ -89,6 +114,10 @@ final class CockpitObservation {
             other.truncated == truncated &&
             other.diagnosticsArtifactRef == diagnosticsArtifactRef &&
             other.summary == summary &&
+            other.targetKind == targetKind &&
+            other.executionPlane == executionPlane &&
+            other.surfaceKind == surfaceKind &&
+            other.fallbackUsed == fallbackUsed &&
             _listEquality.equals(
               other.interactiveElements,
               interactiveElements,
@@ -103,6 +132,10 @@ final class CockpitObservation {
         truncated,
         diagnosticsArtifactRef,
         summary,
+        targetKind,
+        executionPlane,
+        surfaceKind,
+        fallbackUsed,
         _listEquality.hash(interactiveElements),
       );
 }

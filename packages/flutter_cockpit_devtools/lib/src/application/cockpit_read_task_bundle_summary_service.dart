@@ -475,6 +475,8 @@ final class CockpitBundleGateSummary {
   final Map<CockpitTaskGate, bool> gates;
   final Map<CockpitTaskGate, List<String>> failureCodes;
 
+  bool hasGate(CockpitTaskGate gate) => gates.containsKey(gate);
+
   bool isSatisfied(CockpitTaskGate gate) => gates[gate] ?? false;
 
   List<String> failureCodesFor(CockpitTaskGate gate) =>
@@ -609,6 +611,22 @@ final class CockpitReadTaskBundleSummaryResult {
         .toList(growable: false);
     return List<CockpitBundleEvidenceKeyframe>.unmodifiable(keyframes);
   }
+}
+
+final class _CockpitExecutionSummary {
+  const _CockpitExecutionSummary({
+    required this.targetKind,
+    required this.primaryExecutionPlane,
+    required this.planesUsed,
+    required this.surfaceKindsUsed,
+    required this.fallbackCount,
+  });
+
+  final CockpitTargetKind? targetKind;
+  final CockpitPlaneKind? primaryExecutionPlane;
+  final List<CockpitPlaneKind> planesUsed;
+  final List<CockpitSurfaceKind> surfaceKindsUsed;
+  final int fallbackCount;
 }
 
 final class CockpitBundleEvidenceView {
@@ -761,6 +779,10 @@ final class CockpitReadTaskBundleSummaryService {
     final diagnosticsArtifactPaths = await _readDiagnosticsArtifactPaths(
       bundleDir,
     );
+    final executionSummary = await _readExecutionSummary(
+      bundleDir: bundleDir,
+      manifest: manifest,
+    );
     final baselineEvidence = await _readBaselineEvidence(bundleDir);
     final acceptanceEvidence = await _readAcceptanceEvidence(bundleDir);
     final acceptanceDelta =
@@ -777,9 +799,14 @@ final class CockpitReadTaskBundleSummaryService {
       manifest: manifest,
       handoff: handoff,
       delivery: delivery,
+      acceptanceMarkdown: acceptanceMarkdown,
+      executionSummary: executionSummary,
+      diagnosticsArtifactPaths: diagnosticsArtifactPaths,
       baselineEvidence: baselineEvidence,
       acceptanceEvidence: acceptanceEvidence,
       acceptanceDelta: acceptanceDelta,
+      networkSummary: networkSummary,
+      runtimeSummary: runtimeSummary,
     );
 
     return CockpitReadTaskBundleSummaryResult(
@@ -795,6 +822,16 @@ final class CockpitReadTaskBundleSummaryService {
         'screenshotCount': manifest.screenshotCount,
         'recordingCount': manifest.recordingCount,
         'failureCount': manifest.failureCount,
+        if (executionSummary.targetKind != null)
+          'targetKind': executionSummary.targetKind!.name,
+        if (executionSummary.primaryExecutionPlane != null)
+          'primaryExecutionPlane': executionSummary.primaryExecutionPlane!.name,
+        'planesUsed':
+            executionSummary.planesUsed.map((plane) => plane.name).toList(),
+        'surfaceKindsUsed': executionSummary.surfaceKindsUsed
+            .map((surface) => surface.name)
+            .toList(),
+        'fallbackCount': executionSummary.fallbackCount,
         'keyframeCount': artifactPaths.keyframePaths.length,
         'deliveryKeyframesReady': delivery['deliveryKeyframesReady'] == true,
         'diagnosticsArtifactCount': diagnosticsArtifactPaths.length,
@@ -839,6 +876,27 @@ final class CockpitReadTaskBundleSummaryService {
           acceptanceEvidence: acceptanceEvidence,
           acceptanceDelta: acceptanceDelta,
         ),
+        'targetReachable': gateSummary.isSatisfied(
+          CockpitTaskGate.targetReachable,
+        ),
+        'intendedPlaneWorked': gateSummary.isSatisfied(
+          CockpitTaskGate.intendedPlaneWorked,
+        ),
+        'fallbackAcceptable': gateSummary.isSatisfied(
+          CockpitTaskGate.fallbackAcceptable,
+        ),
+        'postconditionsSatisfied': gateSummary.isSatisfied(
+          CockpitTaskGate.postconditionsSatisfied,
+        ),
+        'artifactsReady': gateSummary.isSatisfied(
+          CockpitTaskGate.artifactsReady,
+        ),
+        'logsCollected': gateSummary.isSatisfied(
+          CockpitTaskGate.logsCollected,
+        ),
+        'deliveryReadable': gateSummary.isSatisfied(
+          CockpitTaskGate.deliveryReadable,
+        ),
         'screenshotReady': gateSummary.isSatisfied(
           CockpitTaskGate.screenshotReady,
         ),
@@ -862,6 +920,27 @@ final class CockpitReadTaskBundleSummaryService {
         ),
         'acceptanceEvidenceFailureCodes': gateSummary.failureCodesFor(
           CockpitTaskGate.acceptanceEvidenceReadable,
+        ),
+        'targetReachableFailureCodes': gateSummary.failureCodesFor(
+          CockpitTaskGate.targetReachable,
+        ),
+        'intendedPlaneFailureCodes': gateSummary.failureCodesFor(
+          CockpitTaskGate.intendedPlaneWorked,
+        ),
+        'fallbackFailureCodes': gateSummary.failureCodesFor(
+          CockpitTaskGate.fallbackAcceptable,
+        ),
+        'postconditionFailureCodes': gateSummary.failureCodesFor(
+          CockpitTaskGate.postconditionsSatisfied,
+        ),
+        'artifactFailureCodes': gateSummary.failureCodesFor(
+          CockpitTaskGate.artifactsReady,
+        ),
+        'logFailureCodes': gateSummary.failureCodesFor(
+          CockpitTaskGate.logsCollected,
+        ),
+        'deliveryReadableFailureCodes': gateSummary.failureCodesFor(
+          CockpitTaskGate.deliveryReadable,
         ),
         'finalAssertionFailureCodes': gateSummary.failureCodesFor(
           CockpitTaskGate.finalAssertionPassed,
@@ -1591,9 +1670,14 @@ final class CockpitReadTaskBundleSummaryService {
     required CockpitRunManifest manifest,
     required Map<String, Object?> handoff,
     required Map<String, Object?> delivery,
+    required String acceptanceMarkdown,
+    required _CockpitExecutionSummary executionSummary,
+    required List<String> diagnosticsArtifactPaths,
     required CockpitBundleAcceptanceEvidence? baselineEvidence,
     required CockpitBundleAcceptanceEvidence? acceptanceEvidence,
     required CockpitBundleAcceptanceDelta? acceptanceDelta,
+    required CockpitBundleNetworkSummary? networkSummary,
+    required CockpitBundleRuntimeSummary? runtimeSummary,
   }) {
     final screenshotFailureCodes = _deliveryArtifactFailureCodes(
       manifest: manifest,
@@ -1614,14 +1698,105 @@ final class CockpitReadTaskBundleSummaryService {
     final deliveryValidated = screenshotReady && recordingReadyOrExplained;
     final finalAssertionPassed = manifest.status != CockpitTaskStatus.failed &&
         manifest.runtimeErrorCount == 0;
+    final targetReachable = _readGateOverride(
+          handoff: handoff,
+          gateName: CockpitTaskGate.targetReachable.name,
+        ) ??
+        manifest.sessionId.isNotEmpty;
+    final intendedPlaneWorked = _readGateOverride(
+          handoff: handoff,
+          gateName: CockpitTaskGate.intendedPlaneWorked.name,
+        ) ??
+        executionSummary.fallbackCount == 0;
+    final postconditionsSatisfied = _readGateOverride(
+          handoff: handoff,
+          gateName: CockpitTaskGate.postconditionsSatisfied.name,
+        ) ??
+        finalAssertionPassed;
+    final artifactsReady = _readGateOverride(
+          handoff: handoff,
+          gateName: CockpitTaskGate.artifactsReady.name,
+        ) ??
+        deliveryValidated;
+    final logsCollected = _readGateOverride(
+          handoff: handoff,
+          gateName: CockpitTaskGate.logsCollected.name,
+        ) ??
+        (diagnosticsArtifactPaths.isNotEmpty ||
+            networkSummary != null ||
+            runtimeSummary != null);
+    final deliveryReadable = _readGateOverride(
+          handoff: handoff,
+          gateName: CockpitTaskGate.deliveryReadable.name,
+        ) ??
+        (acceptanceMarkdown.trim().isNotEmpty &&
+            (manifest.artifactRefs.isNotEmpty ||
+                manifest.commandCount > 0 ||
+                manifest.screenshotCount > 0 ||
+                manifest.recordingCount > 0 ||
+                manifest.deliveryArtifactsReady ||
+                manifest.deliveryVideoReady));
+    final fallbackAcceptable = _readGateOverride(
+          handoff: handoff,
+          gateName: CockpitTaskGate.fallbackAcceptable.name,
+        ) ??
+        (intendedPlaneWorked || (postconditionsSatisfied && deliveryReadable));
 
     final failureCodes = <CockpitTaskGate, List<String>>{};
+    if (!targetReachable) {
+      failureCodes[CockpitTaskGate.targetReachable] = const <String>[
+        'targetUnreachable',
+      ];
+    }
     if (!screenshotReady) {
       failureCodes[CockpitTaskGate.screenshotReady] = screenshotFailureCodes;
     }
     if (!recordingReadyOrExplained) {
       failureCodes[CockpitTaskGate.recordingReadyOrExplained] =
           recordingFailureCodes;
+    }
+    if (!intendedPlaneWorked) {
+      failureCodes[CockpitTaskGate.intendedPlaneWorked] = const <String>[
+        'fallbackRequired',
+      ];
+    }
+    if (!fallbackAcceptable) {
+      failureCodes[CockpitTaskGate.fallbackAcceptable] = _mergeFailureCodes(
+        failureCodes[CockpitTaskGate.intendedPlaneWorked] ??
+            const <String>['fallbackRequired'],
+        _mergeFailureCodes(
+          postconditionsSatisfied
+              ? const <String>[]
+              : const <String>['postconditionsNotSatisfied'],
+          deliveryReadable
+              ? const <String>[]
+              : const <String>['deliveryUnreadable'],
+        ),
+      );
+    }
+    if (!postconditionsSatisfied) {
+      failureCodes[CockpitTaskGate.postconditionsSatisfied] = <String>[
+        if (manifest.runtimeErrorCount > 0)
+          'runtimeErrorsDetected'
+        else
+          'taskFailed',
+      ];
+    }
+    if (!artifactsReady) {
+      failureCodes[CockpitTaskGate.artifactsReady] = _mergeFailureCodes(
+        screenshotFailureCodes,
+        recordingFailureCodes,
+      );
+    }
+    if (!logsCollected) {
+      failureCodes[CockpitTaskGate.logsCollected] = const <String>[
+        'logsNotCollected',
+      ];
+    }
+    if (!deliveryReadable) {
+      failureCodes[CockpitTaskGate.deliveryReadable] = const <String>[
+        'deliveryUnreadable',
+      ];
     }
     if (!deliveryValidated) {
       failureCodes[CockpitTaskGate.deliveryValidated] = _mergeFailureCodes(
@@ -1653,9 +1828,16 @@ final class CockpitReadTaskBundleSummaryService {
     return CockpitBundleGateSummary(
       gates: <CockpitTaskGate, bool>{
         CockpitTaskGate.sessionReachable: true,
+        CockpitTaskGate.targetReachable: targetReachable,
         CockpitTaskGate.baselineCollected: baselineCollected,
         CockpitTaskGate.executionFinished: true,
         CockpitTaskGate.bundleWritten: true,
+        CockpitTaskGate.intendedPlaneWorked: intendedPlaneWorked,
+        CockpitTaskGate.fallbackAcceptable: fallbackAcceptable,
+        CockpitTaskGate.postconditionsSatisfied: postconditionsSatisfied,
+        CockpitTaskGate.artifactsReady: artifactsReady,
+        CockpitTaskGate.logsCollected: logsCollected,
+        CockpitTaskGate.deliveryReadable: deliveryReadable,
         CockpitTaskGate.deliveryValidated: deliveryValidated,
         CockpitTaskGate.acceptanceEvidenceReadable:
             acceptanceEvidenceFailureCodes.isEmpty,
@@ -1730,8 +1912,150 @@ final class CockpitReadTaskBundleSummaryService {
     return List<String>.unmodifiable(failures);
   }
 
+  Future<_CockpitExecutionSummary> _readExecutionSummary({
+    required String bundleDir,
+    required CockpitRunManifest manifest,
+  }) async {
+    final steps = await _readStepRecords(bundleDir);
+    final inferred = _summarizeExecutionFromSteps(steps);
+    return _CockpitExecutionSummary(
+      targetKind: manifest.targetKind ?? inferred.targetKind,
+      primaryExecutionPlane:
+          manifest.primaryExecutionPlane ?? inferred.primaryExecutionPlane,
+      planesUsed: _mergePlaneKinds(manifest.planesUsed, inferred.planesUsed),
+      surfaceKindsUsed: _mergeSurfaceKinds(
+        manifest.surfaceKindsUsed,
+        inferred.surfaceKindsUsed,
+      ),
+      fallbackCount: manifest.fallbackCount > inferred.fallbackCount
+          ? manifest.fallbackCount
+          : inferred.fallbackCount,
+    );
+  }
+
+  _CockpitExecutionSummary _summarizeExecutionFromSteps(
+    List<CockpitStepRecord> steps,
+  ) {
+    CockpitTargetKind? targetKind;
+    final planesUsed = <CockpitPlaneKind>[];
+    final surfaceKindsUsed = <CockpitSurfaceKind>[];
+    var fallbackCount = 0;
+
+    void addPlane(CockpitPlaneKind? plane) {
+      if (plane != null && !planesUsed.contains(plane)) {
+        planesUsed.add(plane);
+      }
+    }
+
+    void addSurface(CockpitSurfaceKind? surface) {
+      if (surface != null && !surfaceKindsUsed.contains(surface)) {
+        surfaceKindsUsed.add(surface);
+      }
+    }
+
+    for (final step in steps) {
+      targetKind ??= step.targetKind ?? step.observation?.targetKind;
+      final executionPlane = step.executionPlane ??
+          step.observation?.executionPlane ??
+          _inferExecutionPlane(step);
+      final surfaceKind = step.surfaceKind ??
+          step.observation?.surfaceKind ??
+          _inferSurfaceKind(step);
+      addPlane(executionPlane);
+      addSurface(surfaceKind);
+      for (final fallbackPlane in step.fallbackTrail) {
+        addPlane(fallbackPlane);
+      }
+      if (step.usedPlaneFallback ||
+          step.fallbackTrail.isNotEmpty ||
+          step.observation?.fallbackUsed == true) {
+        fallbackCount += 1;
+      }
+    }
+
+    return _CockpitExecutionSummary(
+      targetKind: targetKind,
+      primaryExecutionPlane: planesUsed.isEmpty ? null : planesUsed.first,
+      planesUsed: planesUsed,
+      surfaceKindsUsed: surfaceKindsUsed,
+      fallbackCount: fallbackCount,
+    );
+  }
+
+  List<CockpitPlaneKind> _mergePlaneKinds(
+    List<CockpitPlaneKind> primary,
+    List<CockpitPlaneKind> secondary,
+  ) {
+    return List<CockpitPlaneKind>.unmodifiable(<CockpitPlaneKind>{
+      ...primary,
+      ...secondary,
+    });
+  }
+
+  List<CockpitSurfaceKind> _mergeSurfaceKinds(
+    List<CockpitSurfaceKind> primary,
+    List<CockpitSurfaceKind> secondary,
+  ) {
+    return List<CockpitSurfaceKind>.unmodifiable(<CockpitSurfaceKind>{
+      ...primary,
+      ...secondary,
+    });
+  }
+
+  CockpitPlaneKind? _inferExecutionPlane(CockpitStepRecord step) {
+    return switch (_inferSurfaceKind(step)) {
+      CockpitSurfaceKind.nativeUi => CockpitPlaneKind.nativeUiPlane,
+      CockpitSurfaceKind.systemUi ||
+      CockpitSurfaceKind.deviceShell =>
+        CockpitPlaneKind.deviceSystemPlane,
+      CockpitSurfaceKind.hostShell => CockpitPlaneKind.hostPlane,
+      CockpitSurfaceKind.flutterSemantic ||
+      CockpitSurfaceKind.desktopWindow ||
+      CockpitSurfaceKind.browserDom =>
+        CockpitPlaneKind.flutterSemanticPlane,
+      null => null,
+    };
+  }
+
+  CockpitSurfaceKind? _inferSurfaceKind(CockpitStepRecord step) {
+    if (step.resolvedCaptureKind case final captureKind?) {
+      return switch (captureKind) {
+        CockpitCaptureKind.nativeAcceptance => CockpitSurfaceKind.nativeUi,
+        CockpitCaptureKind.flutterView => CockpitSurfaceKind.flutterSemantic,
+      };
+    }
+    if (step.snapshot != null || step.observation != null) {
+      return CockpitSurfaceKind.flutterSemantic;
+    }
+    return switch (step.targetKind ?? step.observation?.targetKind) {
+      CockpitTargetKind.nativeApp => CockpitSurfaceKind.nativeUi,
+      CockpitTargetKind.desktopApp => CockpitSurfaceKind.desktopWindow,
+      CockpitTargetKind.browserPage => CockpitSurfaceKind.browserDom,
+      CockpitTargetKind.systemSurface => CockpitSurfaceKind.systemUi,
+      CockpitTargetKind.device => CockpitSurfaceKind.deviceShell,
+      CockpitTargetKind.hostWorkspace => CockpitSurfaceKind.hostShell,
+      CockpitTargetKind.flutterApp => CockpitSurfaceKind.flutterSemantic,
+      null => null,
+    };
+  }
+
   List<String> _mergeFailureCodes(List<String> left, List<String> right) {
     return List<String>.unmodifiable(<String>{...left, ...right});
+  }
+
+  bool? _readGateOverride({
+    required Map<String, Object?> handoff,
+    required String gateName,
+  }) {
+    final gates = handoff['gates'];
+    if (gates is Map<Object?, Object?>) {
+      final gateValue = gates[gateName];
+      if (gateValue is bool) {
+        return gateValue;
+      }
+    }
+    final topLevel = handoff[gateName];
+    return topLevel is bool ? topLevel : null;
   }
 
   String? _readNestedString(

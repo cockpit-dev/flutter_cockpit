@@ -7,7 +7,6 @@ import 'cockpit_application_service_exception.dart';
 import 'cockpit_inspect_ui_service.dart';
 import 'cockpit_interactive_result_data.dart';
 import 'cockpit_interactive_result_profile.dart';
-import 'cockpit_read_target_service.dart';
 
 typedef CockpitInspectSurfaceFunction = Future<CockpitInspectSurfaceResult>
     Function(

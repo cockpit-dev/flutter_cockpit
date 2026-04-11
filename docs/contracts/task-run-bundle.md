@@ -13,9 +13,26 @@ The bundle directory is the durable source of truth. Later tooling may expose a 
 The current repository exposes this through `read_task_bundle_summary`, which may derive:
 
 - `evidence`
+- `evidenceSummary`
+- `gateSummary`
 - `baselineEvidence`
 - `acceptanceEvidence`
 - `acceptanceDelta`
+
+The bounded summary layer may add plane-aware fields such as:
+
+- `targetKind`
+- `primaryExecutionPlane`
+- `planesUsed`
+- `surfaceKindsUsed`
+- `fallbackCount`
+- `targetReachable`
+- `intendedPlaneWorked`
+- `fallbackAcceptable`
+- `postconditionsSatisfied`
+- `artifactsReady`
+- `logsCollected`
+- `deliveryReadable`
 
 These derived objects must remain traceable back to files in the bundle, especially `manifest.json`, `handoff.json`, `delivery.json`, `acceptance.md`, `steps.json`, `observations.json`, and any referenced artifacts under `screenshots/`, `recordings/`, `keyframes/`, or `diagnostics/`.
 Summary field names follow the same lower camel case convention as the rest of the public CLI and MCP JSON surfaces.
@@ -56,6 +73,11 @@ The manifest is the top-level summary for a task-run bundle. It must include:
 - `finishedAt`
 - `artifactRefs`
 - `failureSummary` when the task ends in failure
+- `targetKind`
+- `primaryExecutionPlane`
+- `planesUsed`
+- `surfaceKindsUsed`
+- `fallbackCount`
 - `capabilitiesUsed`
 - `commandCount`
 - `screenshotCount`
@@ -68,6 +90,9 @@ The manifest is the top-level summary for a task-run bundle. It must include:
 - `nativeRecordingCount`
 - `deliveryVideoReady`
 - `deliveryVideoFailureCodes`
+- `runtimeEventCount`
+- `runtimeErrorCount`
+- `runtimeWarningCount`
 
 `artifactRefs` is the bundle-wide evidence index. Command steps can still keep their own `artifactRefs` and `captureRefs`, but the manifest is the top-level place to discover every referenced artifact.
 
@@ -97,6 +122,11 @@ The steps file records every action emitted by `CockpitSessionController`. Each 
 - optional `locatorResolution`
 - optional `durationMs`
 - optional `status`
+- optional `targetKind`
+- optional `executionPlane`
+- optional `surfaceKind`
+- optional `fallbackTrail`
+- optional `usedPlaneFallback`
 - optional `requestedCaptureProfile`
 - optional `resolvedCaptureKind`
 - optional `usedCaptureFallback`
@@ -117,6 +147,10 @@ The observations file stores the extracted observation list for the bundle. Each
 - optional `truncated`
 - optional `diagnosticsArtifactRef`
 - optional `summary`
+- optional `targetKind`
+- optional `executionPlane`
+- optional `surfaceKind`
+- optional `fallbackUsed`
 
 `phase` marks when the observation was collected in the execution flow. Current values are:
 
@@ -139,6 +173,11 @@ Machine-readable summary intended for the next automation step. The current impl
 - `taskId`
 - `platform`
 - `status`
+- optional `targetKind`
+- optional `primaryExecutionPlane`
+- optional `planesUsed`
+- optional `surfaceKindsUsed`
+- `fallbackCount`
 - `stepCount`
 - `capabilitiesUsed`
 - `commandCount`
@@ -161,6 +200,18 @@ Machine-readable summary intended for the next automation step. The current impl
 
 This file is intentionally compact. It should give a later tool or AI agent enough execution context to decide what to do next without re-parsing every step immediately.
 `gates` and `gateFailureCodes` are additive readiness hints. They do not replace full validation, but they let downstream AI quickly see which screenshot, recording, or delivery gate failed and which bounded failure codes explain that state.
+Current plane-aware gates may include:
+
+- `targetReachable`
+- `intendedPlaneWorked`
+- `fallbackAcceptable`
+- `postconditionsSatisfied`
+- `artifactsReady`
+- `logsCollected`
+- `deliveryReadable`
+- `screenshotReady`
+- `recordingReadyOrExplained`
+- `deliveryValidated`
 
 ### `delivery.json`
 

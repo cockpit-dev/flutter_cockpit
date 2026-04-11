@@ -208,7 +208,10 @@ final class CockpitValidateTaskService {
 
     return CockpitValidateTaskResult(
       classification: classification,
-      recommendedNextStep: _recommendedNextStep(classification),
+      recommendedNextStep: _recommendedNextStep(
+        classification,
+        bundleSummary: bundleSummary,
+      ),
       runTaskResult: runTaskResult,
       bundleSummary: bundleSummary,
       blockedReason: runTaskResult.blockedReason,
@@ -438,6 +441,10 @@ final class CockpitValidateTaskService {
       );
     }
 
+    failures.addAll(
+      _collectPlaneAwareGateFailures(bundleSummary: bundleSummary),
+    );
+
     if (primaryScreenshotPath != null &&
         primaryScreenshotPath.isNotEmpty &&
         primaryRecordingPath != null &&
@@ -496,6 +503,9 @@ final class CockpitValidateTaskService {
     required CockpitRunTaskClassification runTaskClassification,
     required List<CockpitValidationFailure> validationFailures,
   }) {
+    final hasTargetReachabilityFailure = validationFailures.any(
+      (failure) => failure.code == 'targetUnreachable',
+    );
     switch (runTaskClassification) {
       case CockpitRunTaskClassification.blockedByEnvironment:
         return CockpitValidationClassification.blockedByEnvironment;
@@ -504,15 +514,29 @@ final class CockpitValidateTaskService {
       case CockpitRunTaskClassification.needsMoreWork:
         return CockpitValidationClassification.needsMoreWork;
       case CockpitRunTaskClassification.completed:
+        if (hasTargetReachabilityFailure) {
+          return CockpitValidationClassification.blockedByEnvironment;
+        }
         return validationFailures.isEmpty
             ? CockpitValidationClassification.completed
             : CockpitValidationClassification.needsMoreWork;
     }
   }
 
-  String _recommendedNextStep(CockpitValidationClassification classification) {
+  String _recommendedNextStep(
+    CockpitValidationClassification classification, {
+    CockpitReadTaskBundleSummaryResult? bundleSummary,
+  }) {
     switch (classification) {
       case CockpitValidationClassification.completed:
+        final gateSummary = bundleSummary?.gateSummary;
+        if (gateSummary != null &&
+            gateSummary.hasGate(CockpitTaskGate.intendedPlaneWorked) &&
+            !gateSummary.isSatisfied(CockpitTaskGate.intendedPlaneWorked) &&
+            (!gateSummary.hasGate(CockpitTaskGate.fallbackAcceptable) ||
+                gateSummary.isSatisfied(CockpitTaskGate.fallbackAcceptable))) {
+          return 'review_fallbacks';
+        }
         return 'delivery_ready';
       case CockpitValidationClassification.failedWithEvidence:
         return 'inspect_bundle';
@@ -784,6 +808,44 @@ final class CockpitValidateTaskService {
         ...details,
       },
     );
+  }
+
+  List<CockpitValidationFailure> _collectPlaneAwareGateFailures({
+    required CockpitReadTaskBundleSummaryResult bundleSummary,
+  }) {
+    final gateSummary = bundleSummary.gateSummary;
+    final failures = <CockpitValidationFailure>[];
+
+    if (gateSummary.hasGate(CockpitTaskGate.targetReachable) &&
+        !gateSummary.isSatisfied(CockpitTaskGate.targetReachable)) {
+      failures.add(
+        _gateFailure(
+          gate: CockpitTaskGate.targetReachable,
+          gateSummary: gateSummary,
+          fallbackCode: 'targetUnreachable',
+          message: 'The target could not be reached reliably.',
+        ),
+      );
+    }
+
+    if (gateSummary.hasGate(CockpitTaskGate.fallbackAcceptable) &&
+        !gateSummary.isSatisfied(CockpitTaskGate.fallbackAcceptable)) {
+      failures.add(
+        _gateFailure(
+          gate: CockpitTaskGate.fallbackAcceptable,
+          gateSummary: gateSummary,
+          fallbackCode: 'fallbackNotAcceptable',
+          message:
+              'Execution required a fallback path, but the fallback outcome is not acceptable for delivery.',
+          details: <String, Object?>{
+            'intendedPlaneWorked':
+                gateSummary.isSatisfied(CockpitTaskGate.intendedPlaneWorked),
+          },
+        ),
+      );
+    }
+
+    return failures;
   }
 }
 

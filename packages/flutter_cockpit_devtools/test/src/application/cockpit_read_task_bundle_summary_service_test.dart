@@ -933,6 +933,137 @@ void main() {
       expect(acceptanceDeltaMcp['semanticSignalDeltaCount'], 10);
     },
   );
+
+  test(
+    'read bundle summary surfaces plane-aware execution fields and gates',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_read_task_bundle_summary_service_plane_aware',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final bundleDir = Directory(p.join(tempDir.path, 'bundle'));
+      await bundleDir.create(recursive: true);
+      await File(p.join(bundleDir.path, 'manifest.json')).writeAsString(
+        jsonEncode(
+          CockpitRunManifest(
+            sessionId: 'bundle-session',
+            taskId: 'bundle-task',
+            platform: 'android',
+            status: CockpitTaskStatus.completed,
+            startedAt: DateTime.utc(2026, 4, 11, 9, 0),
+            finishedAt: DateTime.utc(2026, 4, 11, 9, 1),
+            targetKind: CockpitTargetKind.flutterApp,
+            primaryExecutionPlane: CockpitPlaneKind.flutterSemanticPlane,
+            planesUsed: const <CockpitPlaneKind>[
+              CockpitPlaneKind.flutterSemanticPlane,
+              CockpitPlaneKind.nativeUiPlane,
+            ],
+            surfaceKindsUsed: const <CockpitSurfaceKind>[
+              CockpitSurfaceKind.flutterSemantic,
+              CockpitSurfaceKind.nativeUi,
+            ],
+            fallbackCount: 1,
+            deliveryArtifactsReady: true,
+            deliveryVideoReady: true,
+            runtimeEventCount: 1,
+          ).toJson(),
+        ),
+      );
+      await File(p.join(bundleDir.path, 'handoff.json')).writeAsString(
+        jsonEncode(<String, Object?>{
+          'status': 'completed',
+          'targetKind': 'flutterApp',
+          'primaryExecutionPlane': 'flutterSemanticPlane',
+          'planesUsed': <String>['flutterSemanticPlane', 'nativeUiPlane'],
+          'surfaceKindsUsed': <String>['flutterSemantic', 'nativeUi'],
+          'fallbackCount': 1,
+        }),
+      );
+      await File(p.join(bundleDir.path, 'delivery.json')).writeAsString(
+        jsonEncode(<String, Object?>{
+          'deliveryArtifactsReady': true,
+          'deliveryVideoReady': true,
+        }),
+      );
+      await File(
+        p.join(bundleDir.path, 'acceptance.md'),
+      ).writeAsString('# Acceptance\n\n- Status: completed\n');
+      await File(p.join(bundleDir.path, 'steps.json')).writeAsString(
+        jsonEncode(<Object?>[
+          CockpitStepRecord(
+            index: 0,
+            actionType: 'runtime_event',
+            actionArgs: <String, Object?>{
+              'eventId': 'runtime-1',
+              'kind': CockpitRuntimeEventKind.debugLog.jsonValue,
+              'severity': CockpitRuntimeEventSeverity.info.jsonValue,
+              'message': 'fallback used',
+              'recordedAt':
+                  DateTime.utc(2026, 4, 11, 9, 0, 30).toIso8601String(),
+            },
+            observedAt: DateTime.utc(2026, 4, 11, 9, 0, 30),
+            targetKind: CockpitTargetKind.flutterApp,
+            executionPlane: CockpitPlaneKind.nativeUiPlane,
+            surfaceKind: CockpitSurfaceKind.nativeUi,
+            usedPlaneFallback: true,
+            fallbackTrail: const <CockpitPlaneKind>[
+              CockpitPlaneKind.flutterSemanticPlane,
+            ],
+          ).toJson(),
+        ]),
+      );
+
+      final service = CockpitReadTaskBundleSummaryService();
+      final result = await service.read(
+        CockpitReadTaskBundleSummaryRequest(bundleDir: bundleDir.path),
+      );
+
+      expect(result.manifest.targetKind, CockpitTargetKind.flutterApp);
+      expect(
+        result.manifest.primaryExecutionPlane,
+        CockpitPlaneKind.flutterSemanticPlane,
+      );
+      expect(result.evidenceSummary['targetKind'], 'flutterApp');
+      expect(
+        result.evidenceSummary['primaryExecutionPlane'],
+        'flutterSemanticPlane',
+      );
+      expect(result.evidenceSummary['planesUsed'], <String>[
+        'flutterSemanticPlane',
+        'nativeUiPlane',
+      ]);
+      expect(result.evidenceSummary['surfaceKindsUsed'], <String>[
+        'flutterSemantic',
+        'nativeUi',
+      ]);
+      expect(result.evidenceSummary['fallbackCount'], 1);
+      expect(
+        result.gateSummary.isSatisfied(CockpitTaskGate.targetReachable),
+        isTrue,
+      );
+      expect(
+        result.gateSummary.isSatisfied(CockpitTaskGate.intendedPlaneWorked),
+        isFalse,
+      );
+      expect(
+        result.gateSummary.isSatisfied(CockpitTaskGate.fallbackAcceptable),
+        isTrue,
+      );
+      expect(
+        result.gateSummary.isSatisfied(CockpitTaskGate.logsCollected),
+        isTrue,
+      );
+      expect(
+        result.gateSummary.isSatisfied(CockpitTaskGate.deliveryReadable),
+        isTrue,
+      );
+    },
+  );
 }
 
 Map<String, Object?> _snapshotJsonForDelta({

@@ -2,6 +2,9 @@ import 'package:collection/collection.dart';
 
 import 'cockpit_artifact_ref.dart';
 import 'cockpit_task_status.dart';
+import '../runtime/cockpit_plane_kind.dart';
+import '../runtime/cockpit_surface_kind.dart';
+import '../runtime/cockpit_target_kind.dart';
 
 final class CockpitRunManifest {
   CockpitRunManifest({
@@ -13,6 +16,11 @@ final class CockpitRunManifest {
     this.finishedAt,
     List<CockpitArtifactRef> artifactRefs = const [],
     this.failureSummary,
+    this.targetKind,
+    this.primaryExecutionPlane,
+    List<CockpitPlaneKind> planesUsed = const [],
+    List<CockpitSurfaceKind> surfaceKindsUsed = const [],
+    this.fallbackCount = 0,
     List<String> capabilitiesUsed = const [],
     this.commandCount = 0,
     this.screenshotCount = 0,
@@ -29,6 +37,8 @@ final class CockpitRunManifest {
     this.runtimeErrorCount = 0,
     this.runtimeWarningCount = 0,
   })  : artifactRefs = List.unmodifiable(artifactRefs),
+        planesUsed = List.unmodifiable(planesUsed),
+        surfaceKindsUsed = List.unmodifiable(surfaceKindsUsed),
         capabilitiesUsed = List.unmodifiable(capabilitiesUsed),
         deliveryArtifactFailureCodes = List.unmodifiable(
           deliveryArtifactFailureCodes,
@@ -44,6 +54,11 @@ final class CockpitRunManifest {
   final DateTime? finishedAt;
   final List<CockpitArtifactRef> artifactRefs;
   final String? failureSummary;
+  final CockpitTargetKind? targetKind;
+  final CockpitPlaneKind? primaryExecutionPlane;
+  final List<CockpitPlaneKind> planesUsed;
+  final List<CockpitSurfaceKind> surfaceKindsUsed;
+  final int fallbackCount;
   final List<String> capabilitiesUsed;
   final int commandCount;
   final int screenshotCount;
@@ -62,6 +77,10 @@ final class CockpitRunManifest {
 
   static const ListEquality<CockpitArtifactRef> _artifactListEquality =
       ListEquality<CockpitArtifactRef>();
+  static const ListEquality<CockpitPlaneKind> _planeListEquality =
+      ListEquality<CockpitPlaneKind>();
+  static const ListEquality<CockpitSurfaceKind> _surfaceListEquality =
+      ListEquality<CockpitSurfaceKind>();
   static const ListEquality<String> _stringListEquality =
       ListEquality<String>();
 
@@ -76,6 +95,15 @@ final class CockpitRunManifest {
         'artifactRefs':
             artifactRefs.map((artifact) => artifact.toJson()).toList(),
         if (failureSummary != null) 'failureSummary': failureSummary,
+        if (targetKind != null) 'targetKind': targetKind!.name,
+        if (primaryExecutionPlane != null)
+          'primaryExecutionPlane': primaryExecutionPlane!.name,
+        if (planesUsed.isNotEmpty)
+          'planesUsed': planesUsed.map((plane) => plane.name).toList(),
+        if (surfaceKindsUsed.isNotEmpty)
+          'surfaceKindsUsed':
+              surfaceKindsUsed.map((surface) => surface.name).toList(),
+        if (fallbackCount > 0) 'fallbackCount': fallbackCount,
         'capabilitiesUsed': capabilitiesUsed,
         'commandCount': commandCount,
         'screenshotCount': screenshotCount,
@@ -114,6 +142,20 @@ final class CockpitRunManifest {
           : DateTime.parse(json['finishedAt']! as String).toUtc(),
       artifactRefs: artifactRefs,
       failureSummary: json['failureSummary'] as String?,
+      targetKind: json['targetKind'] == null
+          ? null
+          : CockpitTargetKind.fromJson(json['targetKind']),
+      primaryExecutionPlane: json['primaryExecutionPlane'] == null
+          ? null
+          : CockpitPlaneKind.fromJson(json['primaryExecutionPlane']),
+      planesUsed: (json['planesUsed'] as List<Object?>? ?? const <Object?>[])
+          .map(CockpitPlaneKind.fromJson)
+          .toList(growable: false),
+      surfaceKindsUsed:
+          (json['surfaceKindsUsed'] as List<Object?>? ?? const <Object?>[])
+              .map(CockpitSurfaceKind.fromJson)
+              .toList(growable: false),
+      fallbackCount: json['fallbackCount'] as int? ?? 0,
       capabilitiesUsed:
           (json['capabilitiesUsed'] as List<Object?>? ?? const <Object?>[])
               .cast<String>(),
@@ -151,6 +193,14 @@ final class CockpitRunManifest {
             other.startedAt == startedAt &&
             other.finishedAt == finishedAt &&
             other.failureSummary == failureSummary &&
+            other.targetKind == targetKind &&
+            other.primaryExecutionPlane == primaryExecutionPlane &&
+            _planeListEquality.equals(other.planesUsed, planesUsed) &&
+            _surfaceListEquality.equals(
+              other.surfaceKindsUsed,
+              surfaceKindsUsed,
+            ) &&
+            other.fallbackCount == fallbackCount &&
             other.commandCount == commandCount &&
             other.screenshotCount == screenshotCount &&
             other.failureCount == failureCount &&
@@ -187,6 +237,11 @@ final class CockpitRunManifest {
         startedAt,
         finishedAt,
         failureSummary,
+        targetKind,
+        primaryExecutionPlane,
+        _planeListEquality.hash(planesUsed),
+        _surfaceListEquality.hash(surfaceKindsUsed),
+        fallbackCount,
         commandCount,
         screenshotCount,
         failureCount,

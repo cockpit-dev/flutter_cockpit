@@ -9,7 +9,10 @@ import '../control/cockpit_locator_resolution.dart';
 import '../model/cockpit_artifact_ref.dart';
 import '../model/cockpit_observation.dart';
 import '../model/cockpit_step_record.dart';
+import '../runtime/cockpit_plane_kind.dart';
 import '../runtime/cockpit_snapshot.dart';
+import '../runtime/cockpit_surface_kind.dart';
+import '../runtime/cockpit_target_kind.dart';
 import 'cockpit_observation_assembler.dart';
 import 'cockpit_timestamp_provider.dart';
 
@@ -38,6 +41,11 @@ final class CockpitStepRecorder {
     CockpitLocatorResolution? locatorResolution,
     int? durationMs,
     CockpitCommandStatus? status,
+    CockpitTargetKind? targetKind,
+    CockpitPlaneKind? executionPlane,
+    CockpitSurfaceKind? surfaceKind,
+    List<CockpitPlaneKind> fallbackTrail = const <CockpitPlaneKind>[],
+    bool usedPlaneFallback = false,
     CockpitCaptureProfile? requestedCaptureProfile,
     CockpitCaptureKind? resolvedCaptureKind,
     bool usedCaptureFallback = false,
@@ -58,6 +66,11 @@ final class CockpitStepRecorder {
         locatorResolution: locatorResolution,
         durationMs: durationMs,
         status: status,
+        targetKind: targetKind,
+        executionPlane: executionPlane,
+        surfaceKind: surfaceKind,
+        fallbackTrail: fallbackTrail,
+        usedPlaneFallback: usedPlaneFallback,
         requestedCaptureProfile: requestedCaptureProfile,
         resolvedCaptureKind: resolvedCaptureKind,
         usedCaptureFallback: usedCaptureFallback,
@@ -78,6 +91,9 @@ final class CockpitStepRecorder {
     );
     final observation =
         _observationAssembler.observationFromCommandResult(result, snapshot);
+    final executionPlane = observation?.executionPlane;
+    final usedPlaneFallback =
+        observation?.fallbackUsed == true || result.usedCaptureFallback;
 
     recordStep(
       actionType: command.commandType.name,
@@ -99,6 +115,14 @@ final class CockpitStepRecorder {
       status: result.success
           ? CockpitCommandStatus.succeeded
           : CockpitCommandStatus.failed,
+      targetKind: observation?.targetKind,
+      executionPlane: executionPlane,
+      surfaceKind: observation?.surfaceKind,
+      fallbackTrail: _fallbackTrailFor(
+        executionPlane: executionPlane,
+        usedPlaneFallback: usedPlaneFallback,
+      ),
+      usedPlaneFallback: usedPlaneFallback,
       requestedCaptureProfile: result.requestedCaptureProfile,
       resolvedCaptureKind: result.resolvedCaptureKind,
       usedCaptureFallback: result.usedCaptureFallback,
@@ -125,6 +149,11 @@ final class CockpitStepRecorder {
           locatorResolution: step.locatorResolution,
           durationMs: step.durationMs,
           status: step.status,
+          targetKind: step.targetKind,
+          executionPlane: step.executionPlane,
+          surfaceKind: step.surfaceKind,
+          fallbackTrail: step.fallbackTrail,
+          usedPlaneFallback: step.usedPlaneFallback,
           requestedCaptureProfile: step.requestedCaptureProfile,
           resolvedCaptureKind: step.resolvedCaptureKind,
           usedCaptureFallback: step.usedCaptureFallback,
@@ -133,5 +162,24 @@ final class CockpitStepRecorder {
         ),
       );
     }
+  }
+
+  List<CockpitPlaneKind> _fallbackTrailFor({
+    required CockpitPlaneKind? executionPlane,
+    required bool usedPlaneFallback,
+  }) {
+    if (!usedPlaneFallback) {
+      return const <CockpitPlaneKind>[];
+    }
+    return switch (executionPlane) {
+      CockpitPlaneKind.nativeUiPlane => const <CockpitPlaneKind>[
+          CockpitPlaneKind.flutterSemanticPlane,
+        ],
+      CockpitPlaneKind.deviceSystemPlane => const <CockpitPlaneKind>[
+          CockpitPlaneKind.nativeUiPlane,
+          CockpitPlaneKind.flutterSemanticPlane,
+        ],
+      _ => const <CockpitPlaneKind>[CockpitPlaneKind.flutterSemanticPlane],
+    };
   }
 }

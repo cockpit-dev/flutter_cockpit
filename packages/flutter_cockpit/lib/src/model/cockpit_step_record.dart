@@ -6,7 +6,10 @@ import '../control/cockpit_command_status.dart';
 import '../control/cockpit_command_type.dart';
 import '../control/cockpit_locator.dart';
 import '../control/cockpit_locator_resolution.dart';
+import '../runtime/cockpit_plane_kind.dart';
 import '../runtime/cockpit_snapshot.dart';
+import '../runtime/cockpit_surface_kind.dart';
+import '../runtime/cockpit_target_kind.dart';
 import 'cockpit_artifact_ref.dart';
 import 'cockpit_observation.dart';
 
@@ -24,6 +27,11 @@ final class CockpitStepRecord {
     this.locatorResolution,
     this.durationMs,
     this.status,
+    this.targetKind,
+    this.executionPlane,
+    this.surfaceKind,
+    List<CockpitPlaneKind> fallbackTrail = const <CockpitPlaneKind>[],
+    this.usedPlaneFallback = false,
     this.requestedCaptureProfile,
     this.resolvedCaptureKind,
     this.usedCaptureFallback = false,
@@ -31,6 +39,7 @@ final class CockpitStepRecord {
     List<CockpitArtifactRef> captureRefs = const [],
   })  : actionArgs = Map.unmodifiable(actionArgs),
         artifactRefs = List.unmodifiable(artifactRefs),
+        fallbackTrail = List.unmodifiable(fallbackTrail),
         captureRefs = List.unmodifiable(captureRefs);
 
   final int index;
@@ -45,6 +54,11 @@ final class CockpitStepRecord {
   final CockpitLocatorResolution? locatorResolution;
   final int? durationMs;
   final CockpitCommandStatus? status;
+  final CockpitTargetKind? targetKind;
+  final CockpitPlaneKind? executionPlane;
+  final CockpitSurfaceKind? surfaceKind;
+  final List<CockpitPlaneKind> fallbackTrail;
+  final bool usedPlaneFallback;
   final CockpitCaptureProfile? requestedCaptureProfile;
   final CockpitCaptureKind? resolvedCaptureKind;
   final bool usedCaptureFallback;
@@ -55,6 +69,8 @@ final class CockpitStepRecord {
       MapEquality<String, Object?>();
   static const ListEquality<CockpitArtifactRef> _artifactListEquality =
       ListEquality<CockpitArtifactRef>();
+  static const ListEquality<CockpitPlaneKind> _planeListEquality =
+      ListEquality<CockpitPlaneKind>();
 
   Map<String, Object?> toJson() => {
         'index': index,
@@ -71,6 +87,12 @@ final class CockpitStepRecord {
           'locatorResolution': locatorResolution!.toJson(),
         if (durationMs != null) 'durationMs': durationMs,
         if (status != null) 'status': status!.name,
+        if (targetKind != null) 'targetKind': targetKind!.name,
+        if (executionPlane != null) 'executionPlane': executionPlane!.name,
+        if (surfaceKind != null) 'surfaceKind': surfaceKind!.name,
+        if (fallbackTrail.isNotEmpty)
+          'fallbackTrail': fallbackTrail.map((plane) => plane.name).toList(),
+        if (usedPlaneFallback) 'usedPlaneFallback': usedPlaneFallback,
         if (requestedCaptureProfile != null)
           'requestedCaptureProfile': requestedCaptureProfile!.name,
         if (resolvedCaptureKind != null)
@@ -137,6 +159,20 @@ final class CockpitStepRecord {
       status: json['status'] == null
           ? null
           : CockpitCommandStatus.fromJson(json['status']),
+      targetKind: json['targetKind'] == null
+          ? null
+          : CockpitTargetKind.fromJson(json['targetKind']),
+      executionPlane: json['executionPlane'] == null
+          ? null
+          : CockpitPlaneKind.fromJson(json['executionPlane']),
+      surfaceKind: json['surfaceKind'] == null
+          ? null
+          : CockpitSurfaceKind.fromJson(json['surfaceKind']),
+      fallbackTrail:
+          (json['fallbackTrail'] as List<Object?>? ?? const <Object?>[])
+              .map(CockpitPlaneKind.fromJson)
+              .toList(growable: false),
+      usedPlaneFallback: json['usedPlaneFallback'] as bool? ?? false,
       requestedCaptureProfile: json['requestedCaptureProfile'] == null
           ? null
           : CockpitCaptureProfile.fromJson(json['requestedCaptureProfile']),
@@ -164,16 +200,21 @@ final class CockpitStepRecord {
             other.locatorResolution == locatorResolution &&
             other.durationMs == durationMs &&
             other.status == status &&
+            other.targetKind == targetKind &&
+            other.executionPlane == executionPlane &&
+            other.surfaceKind == surfaceKind &&
+            other.usedPlaneFallback == usedPlaneFallback &&
             other.requestedCaptureProfile == requestedCaptureProfile &&
             other.resolvedCaptureKind == resolvedCaptureKind &&
             other.usedCaptureFallback == usedCaptureFallback &&
             other.degradationReason == degradationReason &&
+            _planeListEquality.equals(other.fallbackTrail, fallbackTrail) &&
             _artifactListEquality.equals(other.artifactRefs, artifactRefs) &&
             _artifactListEquality.equals(other.captureRefs, captureRefs);
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll(<Object?>[
         index,
         actionType,
         _mapEquality.hash(actionArgs),
@@ -185,11 +226,16 @@ final class CockpitStepRecord {
         locatorResolution,
         durationMs,
         status,
+        targetKind,
+        executionPlane,
+        surfaceKind,
+        _planeListEquality.hash(fallbackTrail),
+        usedPlaneFallback,
         requestedCaptureProfile,
         resolvedCaptureKind,
         usedCaptureFallback,
         degradationReason,
         _artifactListEquality.hash(artifactRefs),
         _artifactListEquality.hash(captureRefs),
-      );
+      ]);
 }
