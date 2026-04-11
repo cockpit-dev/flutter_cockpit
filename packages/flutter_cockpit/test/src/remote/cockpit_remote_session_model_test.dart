@@ -111,6 +111,21 @@ void main() {
           CockpitCommandType.captureScreenshot,
         ],
         supportedLocatorStrategies: CockpitLocatorKind.values,
+        capabilityProfile: CockpitCapabilityProfile(
+          targetKind: CockpitTargetKind.flutterApp,
+          surfaceKinds: <CockpitSurfaceKind>{
+            CockpitSurfaceKind.flutterSemantic,
+            CockpitSurfaceKind.nativeUi,
+          },
+          actionCapabilities: <CockpitActionCapability>{
+            CockpitActionCapability.tap,
+            CockpitActionCapability.captureScreenshot,
+          },
+          evidenceCapabilities: <CockpitEvidenceCapability>{
+            CockpitEvidenceCapability.flutterScreenshot,
+            CockpitEvidenceCapability.nativeScreenshot,
+          },
+        ),
       ),
       recordingCapabilities: CockpitRecordingCapabilities(
         supportsNativeRecording: true,
@@ -141,6 +156,14 @@ void main() {
     );
 
     expect(CockpitRemoteSessionStatus.fromJson(status.toJson()), status);
+    expect(
+      status.toJson()['capabilities'],
+      isA<Map<String, Object?>>().having(
+        (value) => value['capabilityProfile'],
+        'capabilityProfile',
+        isA<Map<String, Object?>>(),
+      ),
+    );
   });
 
   test(
@@ -163,6 +186,20 @@ void main() {
             CockpitCommandType.captureScreenshot,
           ],
           supportedLocatorStrategies: CockpitLocatorKind.values,
+          capabilityProfile: CockpitCapabilityProfile(
+            targetKind: CockpitTargetKind.flutterApp,
+            surfaceKinds: <CockpitSurfaceKind>{
+              CockpitSurfaceKind.flutterSemantic,
+              CockpitSurfaceKind.nativeUi,
+            },
+            actionCapabilities: <CockpitActionCapability>{
+              CockpitActionCapability.tap,
+              CockpitActionCapability.captureScreenshot,
+            },
+            evidenceCapabilities: <CockpitEvidenceCapability>{
+              CockpitEvidenceCapability.flutterScreenshot,
+            },
+          ),
         ).toJson(),
         'recordingCapabilities': CockpitRecordingCapabilities(
           supportsNativeRecording: true,

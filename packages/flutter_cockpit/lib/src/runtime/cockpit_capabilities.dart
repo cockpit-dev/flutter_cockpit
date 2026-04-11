@@ -2,6 +2,7 @@ import 'package:collection/collection.dart';
 
 import '../control/cockpit_command_type.dart';
 import '../control/cockpit_locator.dart';
+import 'cockpit_capability_profile.dart';
 
 final class CockpitCapabilities {
   CockpitCapabilities({
@@ -14,6 +15,7 @@ final class CockpitCapabilities {
     List<CockpitCommandType> supportedCommands = const <CockpitCommandType>[],
     List<CockpitLocatorKind> supportedLocatorStrategies =
         const <CockpitLocatorKind>[],
+    this.capabilityProfile,
   })  : supportedCommands = List.unmodifiable(supportedCommands),
         supportedLocatorStrategies = List.unmodifiable(
           supportedLocatorStrategies,
@@ -27,6 +29,7 @@ final class CockpitCapabilities {
   final bool supportsHostAutomation;
   final List<CockpitCommandType> supportedCommands;
   final List<CockpitLocatorKind> supportedLocatorStrategies;
+  final CockpitCapabilityProfile? capabilityProfile;
 
   static const ListEquality<CockpitCommandType> _commandListEquality =
       ListEquality<CockpitCommandType>();
@@ -44,9 +47,13 @@ final class CockpitCapabilities {
             supportedCommands.map((command) => command.name).toList(),
         'supportedLocatorStrategies':
             supportedLocatorStrategies.map((kind) => kind.name).toList(),
+        if (capabilityProfile != null)
+          'capabilityProfile': capabilityProfile!.toJson(),
       };
 
   factory CockpitCapabilities.fromJson(Map<String, Object?> json) {
+    final capabilityProfileJson =
+        json['capabilityProfile'] as Map<Object?, Object?>?;
     return CockpitCapabilities(
       platform: json['platform']! as String,
       transportType: json['transportType']! as String,
@@ -63,6 +70,11 @@ final class CockpitCapabilities {
                   const <Object?>[])
               .map(CockpitLocatorKind.fromJson)
               .toList(growable: false),
+      capabilityProfile: capabilityProfileJson == null
+          ? null
+          : CockpitCapabilityProfile.fromJson(
+              Map<String, Object?>.from(capabilityProfileJson),
+            ),
     );
   }
 
@@ -76,6 +88,7 @@ final class CockpitCapabilities {
             other.supportsFlutterViewCapture == supportsFlutterViewCapture &&
             other.supportsNativeScreenCapture == supportsNativeScreenCapture &&
             other.supportsHostAutomation == supportsHostAutomation &&
+            other.capabilityProfile == capabilityProfile &&
             _commandListEquality.equals(
               other.supportedCommands,
               supportedCommands,
@@ -94,6 +107,7 @@ final class CockpitCapabilities {
         supportsFlutterViewCapture,
         supportsNativeScreenCapture,
         supportsHostAutomation,
+        capabilityProfile,
         _commandListEquality.hash(supportedCommands),
         _locatorListEquality.hash(supportedLocatorStrategies),
       );
