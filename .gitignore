@@ -1,0 +1,34 @@
+/.worktrees/
+/artifacts/
+
+# Dart / Flutter workspace state
+.dart_tool/
+**/.dart_tool/
+.metadata
+**/.metadata
+.packages
+.pub/
+pubspec_overrides.yaml
+**/pubspec_overrides.yaml
+/packages/**/pubspec.lock
+/examples/**/pubspec.lock
+.flutter-plugins
+.flutter-plugins-dependencies
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/macos/Flutter/ephemeral/
+**/macos/Pods/
+build/
+**/build/
+coverage/
+**/coverage/
+
+# IDE / editor files
+.idea/
+.vscode/
+.fleet/
+.zed/
+.claude/
+*.iml
+# OS-generated junk
+.DS_Store
