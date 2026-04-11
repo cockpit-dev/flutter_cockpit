@@ -154,6 +154,59 @@ void main() {
       );
     },
   );
+
+  test(
+    'inspect surface rethrows unexpected desktop flutter inspection failures',
+    () async {
+      final service = CockpitInspectSurfaceService(
+        platformDriverRegistry: CockpitPlatformDriverRegistry(
+          drivers: <String, CockpitPlatformDriverFactory>{
+            'macos': ({required String deviceId}) =>
+                _FakeEvidencePlatformDriver(
+                  platform: 'macos',
+                  capabilityProfile: CockpitCapabilityProfile(
+                    targetKind: CockpitTargetKind.desktopApp,
+                    surfaceKinds: const <CockpitSurfaceKind>{
+                      CockpitSurfaceKind.desktopWindow,
+                      CockpitSurfaceKind.hostShell,
+                    },
+                    actionCapabilities: const <CockpitActionCapability>{
+                      CockpitActionCapability.captureScreenshot,
+                    },
+                    evidenceCapabilities: const <CockpitEvidenceCapability>{
+                      CockpitEvidenceCapability.windowCapture,
+                    },
+                  ),
+                ),
+          },
+        ),
+        inspectFlutterSurface: (_) async {
+          throw StateError('unexpected inspect failure');
+        },
+      );
+
+      await expectLater(
+        () => service.inspect(
+          CockpitInspectSurfaceRequest(
+            target: CockpitTargetHandle(
+              targetId: 'dev.cockpit.desktop.macos',
+              targetKind: CockpitTargetKind.desktopApp,
+              platform: 'macos',
+              deviceId: 'macos',
+              projectDir: '/workspace/examples/cockpit_demo',
+              target: 'cockpit/main.dart',
+              connection: const CockpitTargetConnection(
+                baseUrl: 'http://127.0.0.1:57331',
+              ),
+              launchedAt: DateTime.utc(2026, 4, 11),
+            ),
+            resultProfile: const CockpitInteractiveResultProfile.inspect(),
+          ),
+        ),
+        throwsA(isA<StateError>()),
+      );
+    },
+  );
 }
 
 final class _FakeEvidencePlatformDriver

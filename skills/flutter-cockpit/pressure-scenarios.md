@@ -378,3 +378,41 @@ Validation rerun after the token-discipline update:
 - the skill now makes low-token profiles the default instead of a suggestion
 - the observe stage now teaches a bounded escalation ladder
 - remaining loophole to watch: an agent may still jump to `evidence` too early when it is anxious about missing a regression
+
+## Scenario 11: Target-First Surface Pressure
+
+### Prompt
+
+The task is on a desktop Flutter target or a direct system surface, not a plain mobile app handle. Prove the visible state with the smallest truthful evidence and tell me whether shell control is available.
+
+### Expected Naive Failure
+
+The agent forces the task through `app.json` and Flutter-only assumptions, or it treats a desktop target as native-only and skips remote semantic inspection even when that path is reachable.
+
+### Baseline Observation
+
+Baseline dry-run observation after the first target-first rollout:
+
+- the agent understood `launch-target`, but still drifted toward one of two shortcuts
+- shortcut one: "everything should be converted back into an app handle"
+- shortcut two: "desktop means native capture only"
+- both shortcuts lose truthful capability selection and either hide the semantic plane or invent one
+
+### Target Corrected Behavior
+
+The agent must:
+
+- persist and reuse `target.json`
+- start with `read-target --profile minimal`
+- use `inspect-surface` when the next missing fact is still ambiguous
+- prefer remote semantic inspection for desktop Flutter targets when reachable
+- fall back to native/window evidence only when the semantic path is unavailable
+- use `run-shell` only when the resolved target or platform actually exposes shell control
+
+### Post-Skill Validation
+
+Validation target after the target-aware shell and desktop inspect rollout:
+
+- the skill now teaches `target.json` reuse as a first-class loop
+- the observe step now distinguishes semantic-first desktop Flutter targets from direct native/system targets
+- remaining loophole to watch: an agent may still treat any desktop inspect failure as a reason to silently downgrade, instead of distinguishing recoverable transport failures from unexpected logic errors

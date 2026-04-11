@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:collection/collection.dart';
 
@@ -318,12 +321,23 @@ final class CockpitInspectSurfaceService {
         snapshotRef: inspectResult.snapshotRef,
         effectiveSnapshotOptions: inspectResult.effectiveSnapshotOptions,
       );
-    } on Object {
-      if (target.targetKind == CockpitTargetKind.flutterApp) {
+    } on Object catch (error) {
+      if (target.targetKind == CockpitTargetKind.flutterApp ||
+          !_isRecoverableFlutterInspectFailure(error)) {
         rethrow;
       }
       return null;
     }
+  }
+
+  bool _isRecoverableFlutterInspectFailure(Object error) {
+    if (error is SocketException ||
+        error is HttpException ||
+        error is TimeoutException) {
+      return true;
+    }
+    return error is CockpitApplicationServiceException &&
+        error.code == 'remoteUnavailable';
   }
 
   CockpitAppHandle _appFromTarget(CockpitTargetHandle target) {

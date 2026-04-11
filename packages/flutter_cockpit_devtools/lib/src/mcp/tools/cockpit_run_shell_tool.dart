@@ -19,15 +19,30 @@ final class CockpitRunShellTool extends CockpitMcpTool {
 
   @override
   String get description =>
-      'Run a shell command against the current shell scope.';
+      'Run a shell command against a host or target-aware shell scope.';
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
         'type': 'object',
         'required': <String>['command'],
         'properties': <String, Object?>{
-          'scope': <String, Object?>{'type': 'string'},
-          'command': <String, Object?>{'type': 'array'},
+          'scope': <String, Object?>{
+            'type': 'string',
+            'enum': <String>[
+              'host',
+              'target',
+              'android',
+              'ios',
+              'macos',
+              'windows',
+              'linux',
+              'web',
+            ],
+          },
+          'command': <String, Object?>{
+            'type': 'array',
+            'items': <String, Object?>{'type': 'string'},
+          },
           'workingDirectory': <String, Object?>{'type': 'string'},
           'targetJson': <String, Object?>{'type': 'string'},
           'deviceId': <String, Object?>{'type': 'string'},

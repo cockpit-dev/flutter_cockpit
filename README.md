@@ -212,7 +212,7 @@ Target-first flows are platform-aware and capability-truthful:
 
 - `launch-target` persists a normalized `target.json` and maps desktop Flutter launches to `desktopApp` instead of pretending every session is a mobile `flutterApp`.
 - `read-target` stays summary-first. App-backed Flutter and desktop targets may reuse remote Flutter summaries, while browser or direct system targets fall back to capability-only summaries when no live semantic plane exists.
-- `inspect-surface` prefers the foreground surface for the resolved target. Flutter apps inspect the semantic plane, while desktop and direct system targets prefer native/window capture when no Flutter semantic surface is advertised.
+- `inspect-surface` prefers the foreground surface for the resolved target. Flutter apps inspect the semantic plane; desktop Flutter targets try remote semantic inspection first and fall back to native/window capture only when that semantic path is unavailable; direct system targets stay capability/capture-first.
 - `run-shell` is target-aware. Use `--scope target --target-json /tmp/target.json` to bind shell execution to a normalized target, `--scope android --device-id <id>` for `adb shell`, `--scope ios --device-id <simulator-udid>` for `xcrun simctl spawn`, and desktop host-aligned scopes when the platform truthfully exposes shell control.
 
 The public surface is app-first, not session-handle-first. Persist `app.json` and reuse it across steps. CLI and MCP output uses lower camel case keys.

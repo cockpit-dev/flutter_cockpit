@@ -33,11 +33,21 @@ final class RunShellCommand extends CockpitCliCommand {
           'web',
         ],
         defaultsTo: 'host',
+        help: 'Host, target handle, or explicit platform shell scope.',
       )
-      ..addOption('target-json')
-      ..addOption('device-id')
-      ..addOption('working-directory')
-      ..addOption('executable')
+      ..addOption(
+        'target-json',
+        help: 'Normalized target handle JSON for --scope target.',
+      )
+      ..addOption(
+        'device-id',
+        help: 'Explicit device or simulator identifier for platform scopes.',
+      )
+      ..addOption(
+        'working-directory',
+        help: 'Host working directory for host-aligned shell execution.',
+      )
+      ..addOption('executable', help: 'Executable or entry command to run.')
       ..addMultiOption('arg')
       ..addOption('output-json');
   }
@@ -50,7 +60,7 @@ final class RunShellCommand extends CockpitCliCommand {
 
   @override
   String get description =>
-      'Run a shell command against the current shell scope.';
+      'Run a shell command against a host or target-aware shell scope.';
 
   @override
   String get summary => 'Run host or target-aware shell commands.';

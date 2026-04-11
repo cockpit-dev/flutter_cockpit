@@ -21,6 +21,18 @@ Keep each cycle small:
 5. `run-command` for one action or assertion
 6. `read-app --profile minimal` or `inspect-ui --profile inspect` only if the result is still ambiguous
 
+## Target-First Quick Loop
+
+Use this branch when the target is not purely a Flutter app handle:
+
+1. `launch-target`
+2. `read-target --profile minimal`
+3. one bounded edit or one bounded external action
+4. `inspect-surface --profile inspect` only when the target summary is still ambiguous
+5. `run-shell` only when the resolved platform truthfully exposes shell control
+
+For desktop Flutter targets, prefer semantic inspection when the remote path is reachable. Fall back to native/window evidence only when that semantic path is unavailable.
+
 ## Code-Side Shortcuts
 
 - Use `analyze_files` before `analyze_workspace` when the change is local.

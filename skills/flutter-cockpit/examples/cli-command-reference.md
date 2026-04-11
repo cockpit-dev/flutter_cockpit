@@ -40,6 +40,72 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 
 `read-app --profile standard` is still summary-only. It is good for `textPreviews` and counts, but not for a full target inventory.
 
+## Target-First Surface Loop
+
+Launch a normalized target and persist `target.json`:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  launch-target \
+  --project-dir /abs/path/to/flutter_app \
+  --platform macos \
+  --device-id macos \
+  --session-port 57331 \
+  --target-json /tmp/flutter_cockpit/target.json
+```
+
+Read the smallest truthful target state:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  read-target \
+  --target-json /tmp/flutter_cockpit/target.json \
+  --profile minimal
+```
+
+Inspect the current target surface when the summary is still ambiguous:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  inspect-surface \
+  --target-json /tmp/flutter_cockpit/target.json \
+  --profile inspect
+```
+
+Run a shell command through a normalized target:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-shell \
+  --scope target \
+  --target-json /tmp/flutter_cockpit/target.json \
+  --executable getprop \
+  --arg ro.build.version.sdk
+```
+
+Run platform-explicit shells when you already know the device:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-shell \
+  --scope android \
+  --device-id emulator-5554 \
+  --executable getprop \
+  --arg ro.build.version.sdk
+```
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-shell \
+  --scope ios \
+  --device-id A1B2C3D4-0000-1111-2222-333344445555 \
+  --executable defaults \
+  --arg read \
+  --arg com.apple.Preferences
+```
+
+For desktop Flutter targets, `inspect-surface` can reuse remote semantic inspection when it is reachable and fall back to native/window capture only when that semantic path is unavailable.
+
 Inspect richer UI state:
 
 ```bash
@@ -242,6 +308,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools serve-mcp
 - `enterText` success does not guarantee that `uiSummary.textPreviews` will echo the entered value. Prefer validating the next visible control, route change, or saved list state.
 - When a locator returns `ambiguousTarget`, prefer adding `index`, `ancestor`, or `type` before changing any app code.
 - `list_apps` is MCP-only; CLI discovery is `app.json`-first.
+- For target-first CLI loops, persist `target.json` and reuse it across commands the same way you reuse `app.json`.
 - `run-script` exits non-zero when the written bundle status is `failed`.
 - Write command output to `--output-json` when a later AI step must read structured state.
 - Prefer the lowest-cost public surface: in shell agents, CLI + command files + `jq` usually costs fewer tokens than reopening large payloads in model context; in tool-calling hosts, MCP is fine.

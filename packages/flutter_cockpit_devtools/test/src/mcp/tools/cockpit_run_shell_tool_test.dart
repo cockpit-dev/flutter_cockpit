@@ -3,6 +3,30 @@ import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_run_shell_tool.da
 import 'package:test/test.dart';
 
 void main() {
+  test('run_shell exposes target-aware schema inputs', () {
+    final tool = CockpitRunShellTool();
+
+    final schema = tool.inputSchema;
+    final properties = schema['properties']! as Map<String, Object?>;
+    final scope = properties['scope']! as Map<String, Object?>;
+
+    expect(
+      scope['enum'],
+      containsAll(<String>[
+        'host',
+        'target',
+        'android',
+        'ios',
+        'macos',
+        'windows',
+        'linux',
+        'web',
+      ]),
+    );
+    expect(properties.keys,
+        containsAll(<String>['targetJson', 'target', 'deviceId']));
+  });
+
   test('run_shell executes host commands through the tool surface', () async {
     final tool = CockpitRunShellTool(
       runShell: (_) async => const CockpitRunShellResult(
