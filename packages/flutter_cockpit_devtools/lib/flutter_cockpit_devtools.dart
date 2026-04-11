@@ -86,6 +86,8 @@ export 'src/mcp/cockpit_mcp_error.dart';
 export 'src/mcp/cockpit_mcp_server.dart';
 export 'src/mcp/cockpit_mcp_server_runtime.dart';
 export 'src/mcp/cockpit_mcp_tool.dart';
+export 'src/targets/cockpit_target_handle.dart';
+export 'src/targets/cockpit_target_reference_resolver.dart';
 export 'src/capture/cockpit_capture_strategy_resolver.dart';
 export 'src/capture/cockpit_linux_capture_adapter.dart';
 export 'src/recording/cockpit_adb_recording_adapter.dart';
