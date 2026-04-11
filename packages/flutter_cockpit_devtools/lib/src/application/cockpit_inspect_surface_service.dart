@@ -142,36 +142,14 @@ final class CockpitInspectSurfaceService {
     }
 
     final capabilityProfile = await _resolveCapabilityProfile(target);
-    if (_usesFlutterRemoteInspect(target.targetKind, capabilityProfile)) {
-      final inspectResult = await _inspectFlutterSurface(
-        CockpitInspectUiRequest(
-          app: resolved.app ?? _appFromTarget(target),
-          baseUri: resolved.baseUri,
-          resultProfile: request.resultProfile,
-          snapshotOptions: request.snapshotOptions,
-          compareAgainstSnapshotRef: request.compareAgainstSnapshotRef,
-        ),
-      );
-      final mergedProfile = cockpitMergeTargetCapabilityProfiles(
-        primary: capabilityProfile,
-        secondary: _legacyCapabilityProfile(target.platform),
-      );
-      return CockpitInspectSurfaceResult(
-        target: target.copyWith(capabilityProfile: mergedProfile),
-        capabilityProfile: mergedProfile,
-        surfaceKind: cockpitForegroundSurfaceForTargetProfile(mergedProfile),
-        selectedPlane: CockpitPlaneKind.flutterSemanticPlane,
-        recommendedNextStep: 'runNextCommand',
-        routeName: inspectResult.routeName,
-        diagnosticLevel: inspectResult.diagnosticLevel,
-        truncated: inspectResult.truncated,
-        uiSummary: inspectResult.uiSummary,
-        snapshot: inspectResult.snapshot,
-        diagnostics: inspectResult.diagnostics,
-        delta: inspectResult.delta,
-        snapshotRef: inspectResult.snapshotRef,
-        effectiveSnapshotOptions: inspectResult.effectiveSnapshotOptions,
-      );
+    final flutterInspectResult = await _tryFlutterRemoteInspect(
+      request: request,
+      target: target,
+      resolved: resolved,
+      capabilityProfile: capabilityProfile,
+    );
+    if (flutterInspectResult != null) {
+      return flutterInspectResult;
     }
 
     final evidenceDriver = _platformDriverRegistry.resolveEvidenceDriver(
@@ -295,12 +273,57 @@ final class CockpitInspectSurfaceService {
     );
   }
 
-  bool _usesFlutterRemoteInspect(
-    CockpitTargetKind targetKind,
-    CockpitCapabilityProfile capabilityProfile,
-  ) {
-    return targetKind == CockpitTargetKind.flutterApp ||
-        capabilityProfile.supportsSurface(CockpitSurfaceKind.flutterSemantic);
+  bool _shouldAttemptFlutterRemoteInspect(CockpitTargetHandle target) {
+    return target.targetKind == CockpitTargetKind.flutterApp ||
+        target.targetKind == CockpitTargetKind.desktopApp;
+  }
+
+  Future<CockpitInspectSurfaceResult?> _tryFlutterRemoteInspect({
+    required CockpitInspectSurfaceRequest request,
+    required CockpitTargetHandle target,
+    required CockpitResolvedTargetReference resolved,
+    required CockpitCapabilityProfile capabilityProfile,
+  }) async {
+    if (!_shouldAttemptFlutterRemoteInspect(target)) {
+      return null;
+    }
+
+    try {
+      final inspectResult = await _inspectFlutterSurface(
+        CockpitInspectUiRequest(
+          app: resolved.app ?? _appFromTarget(target),
+          baseUri: resolved.baseUri,
+          resultProfile: request.resultProfile,
+          snapshotOptions: request.snapshotOptions,
+          compareAgainstSnapshotRef: request.compareAgainstSnapshotRef,
+        ),
+      );
+      final mergedProfile = cockpitMergeTargetCapabilityProfiles(
+        primary: capabilityProfile,
+        secondary: _legacyCapabilityProfile(target.platform),
+      );
+      return CockpitInspectSurfaceResult(
+        target: target.copyWith(capabilityProfile: mergedProfile),
+        capabilityProfile: mergedProfile,
+        surfaceKind: cockpitForegroundSurfaceForTargetProfile(mergedProfile),
+        selectedPlane: CockpitPlaneKind.flutterSemanticPlane,
+        recommendedNextStep: 'runNextCommand',
+        routeName: inspectResult.routeName,
+        diagnosticLevel: inspectResult.diagnosticLevel,
+        truncated: inspectResult.truncated,
+        uiSummary: inspectResult.uiSummary,
+        snapshot: inspectResult.snapshot,
+        diagnostics: inspectResult.diagnostics,
+        delta: inspectResult.delta,
+        snapshotRef: inspectResult.snapshotRef,
+        effectiveSnapshotOptions: inspectResult.effectiveSnapshotOptions,
+      );
+    } on Object {
+      if (target.targetKind == CockpitTargetKind.flutterApp) {
+        rethrow;
+      }
+      return null;
+    }
   }
 
   CockpitAppHandle _appFromTarget(CockpitTargetHandle target) {

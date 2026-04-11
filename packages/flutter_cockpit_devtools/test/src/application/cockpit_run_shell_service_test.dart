@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
+import 'package:flutter_cockpit_devtools/src/application/cockpit_application_service_exception.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_run_shell_service.dart';
 import 'package:flutter_cockpit_devtools/src/targets/cockpit_target_handle.dart';
 import 'package:test/test.dart';
@@ -67,5 +68,58 @@ void main() {
     ]);
     expect(result.scope, 'android');
     expect(result.success, isTrue);
+  });
+
+  test('run shell executes ios simulator commands through simctl spawn',
+      () async {
+    late String capturedExecutable;
+    late List<String> capturedArguments;
+    final service = CockpitRunShellService(
+      processRunner: (executable, arguments, {String? workingDirectory}) async {
+        capturedExecutable = executable;
+        capturedArguments = arguments;
+        return ProcessResult(0, 0, '', '');
+      },
+    );
+
+    final result = await service.run(
+      CockpitRunShellRequest(
+        scope: 'ios',
+        deviceId: 'A1B2C3D4-0000-1111-2222-333344445555',
+        command: const <String>['defaults', 'read', 'com.apple.Preferences'],
+      ),
+    );
+
+    expect(capturedExecutable, 'xcrun');
+    expect(capturedArguments, <String>[
+      'simctl',
+      'spawn',
+      'A1B2C3D4-0000-1111-2222-333344445555',
+      'defaults',
+      'read',
+      'com.apple.Preferences',
+    ]);
+    expect(result.scope, 'ios');
+    expect(result.success, isTrue);
+  });
+
+  test('run shell rejects unsupported browser shell scopes', () async {
+    final service = CockpitRunShellService();
+
+    await expectLater(
+      () => service.run(
+        const CockpitRunShellRequest(
+          scope: 'web',
+          command: <String>['echo', 'hi'],
+        ),
+      ),
+      throwsA(
+        isA<CockpitApplicationServiceException>().having(
+          (error) => error.code,
+          'code',
+          'unsupportedShellScope',
+        ),
+      ),
+    );
   });
 }

@@ -208,6 +208,13 @@ target-first 或非 Flutter / 系统直控场景：
 3. 需要时使用 `inspect-surface`、`run-shell`，或者在目标解析成 Flutter 应用后继续走现有 app/batch 命令
 4. 在最终声明前，用 `read_task_bundle_summary` 或 `validate-task` 读取 `targetKind`、`primaryExecutionPlane`、`planesUsed`、`surfaceKindsUsed`、`fallbackCount` 和 fallback gates
 
+target-first 流程现在会按平台真实能力工作，而不是假装所有目标都是同一种 Flutter app：
+
+- `launch-target` 会写出标准化的 `target.json`，并把桌面 Flutter 启动结果归一化成 `desktopApp`，而不是一律记成移动端 `flutterApp`。
+- `read-target` 继续坚持 summary-first。Flutter 和桌面 Flutter 目标可以复用远端 Flutter 摘要；浏览器或直接系统目标在没有 live semantic plane 时会退回 capability-only 摘要。
+- `inspect-surface` 会优先观察目标当前真正的前台表面。Flutter 目标优先 inspect semantic plane；桌面和直接系统目标在没有可用 Flutter 语义面时优先走原生窗口/截图证据链。
+- `run-shell` 已经支持 target-aware。可以用 `--scope target --target-json /tmp/target.json` 绑定标准化 target，用 `--scope android --device-id <id>` 走 `adb shell`，用 `--scope ios --device-id <simulator-udid>` 走 `xcrun simctl spawn`；桌面 scope 则在平台真实暴露 shell 能力时走宿主侧执行。
+
 公共面是 app-first，而不是 session-handle-first。把 `app.json` 持久化下来并跨步骤复用。CLI 和 MCP 输出使用 lower camel case keys。
 只要请求体不再是几行以内，就优先使用 `--command-file`、`--commands-file`、`--config-json`。
 `launch-app` 会先自动探测 `cockpit/main.dart`，找不到再退回 `lib/main.dart`。
