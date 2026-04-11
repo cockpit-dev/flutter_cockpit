@@ -7,22 +7,26 @@ import 'package:stream_channel/stream_channel.dart';
 
 import '../application/cockpit_latest_task_store.dart';
 import '../application/cockpit_launch_app_service.dart';
+import '../application/cockpit_launch_target_service.dart';
 import '../application/cockpit_list_apps_service.dart';
 import '../application/cockpit_list_workspace_roots_service.dart';
 import '../application/cockpit_execute_remote_command_batch_service.dart';
 import '../application/cockpit_execute_remote_command_service.dart';
 import '../application/cockpit_hot_reload_service.dart';
 import '../application/cockpit_hot_restart_service.dart';
+import '../application/cockpit_inspect_surface_service.dart';
 import '../application/cockpit_inspect_ui_service.dart';
 import '../application/cockpit_interactive_session_lock.dart';
 import '../application/cockpit_interactive_snapshot_store.dart';
 import '../application/cockpit_read_latest_task_summary_service.dart';
 import '../application/cockpit_read_app_service.dart';
+import '../application/cockpit_read_target_service.dart';
 import '../application/cockpit_read_logs_service.dart';
 import '../application/cockpit_read_network_service.dart';
 import '../application/cockpit_read_remote_snapshot_service.dart';
 import '../application/cockpit_read_remote_status_service.dart';
 import '../application/cockpit_read_runtime_errors_service.dart';
+import '../application/cockpit_run_shell_service.dart';
 import '../application/cockpit_run_batch_service.dart';
 import '../application/cockpit_run_command_service.dart';
 import '../application/cockpit_session_registry.dart';
@@ -60,13 +64,16 @@ import 'tools/cockpit_grep_package_uris_tool.dart';
 import 'tools/cockpit_hot_reload_tool.dart';
 import 'tools/cockpit_hot_restart_tool.dart';
 import 'tools/cockpit_inspect_ui_tool.dart';
+import 'tools/cockpit_inspect_surface_tool.dart';
 import 'tools/cockpit_lsp_tool.dart';
 import 'tools/cockpit_launch_app_tool.dart';
+import 'tools/cockpit_launch_target_tool.dart';
 import 'tools/cockpit_list_apps_tool.dart';
 import 'tools/cockpit_list_launch_targets_tool.dart';
 import 'tools/cockpit_pub_dev_search_tool.dart';
 import 'tools/cockpit_pub_tool.dart';
 import 'tools/cockpit_read_app_tool.dart';
+import 'tools/cockpit_read_target_tool.dart';
 import 'tools/cockpit_read_logs_tool.dart';
 import 'tools/cockpit_read_network_tool.dart';
 import 'tools/cockpit_read_package_uris_tool.dart';
@@ -75,6 +82,7 @@ import 'tools/cockpit_read_task_bundle_summary_tool.dart';
 import 'tools/cockpit_remove_roots_tool.dart';
 import 'tools/cockpit_run_batch_tool.dart';
 import 'tools/cockpit_run_command_tool.dart';
+import 'tools/cockpit_run_shell_tool.dart';
 import 'tools/cockpit_run_workspace_tests_tool.dart';
 import 'tools/cockpit_run_remote_control_script_tool.dart';
 import 'tools/cockpit_run_task_tool.dart';
@@ -178,6 +186,9 @@ final class CockpitMcpServer {
       sessionLock: interactiveSessionLock,
     );
     final launchAppService = CockpitLaunchAppService(registry: sessionRegistry);
+    final launchTargetService = CockpitLaunchTargetService(
+      launchAppService: launchAppService,
+    );
     final hotReloadService = CockpitHotReloadService(registry: sessionRegistry);
     final hotRestartService =
         CockpitHotRestartService(registry: sessionRegistry);
@@ -186,9 +197,15 @@ final class CockpitMcpServer {
       remoteStatusService: readRemoteStatusService,
       registry: sessionRegistry,
     );
+    final readTargetService = CockpitReadTargetService(
+      readAppService: readAppService,
+    );
     final inspectUiService = CockpitInspectUiService(
       snapshotService: readRemoteSnapshotService,
       registry: sessionRegistry,
+    );
+    final inspectSurfaceService = CockpitInspectSurfaceService(
+      inspectUiService: inspectUiService,
     );
     final runCommandService = CockpitRunCommandService(
       executeService: executeRemoteCommandService,
@@ -210,19 +227,24 @@ final class CockpitMcpServer {
       stopService: stopRemoteRecordingService,
       registry: sessionRegistry,
     );
+    final runShellService = CockpitRunShellService();
     final tools = <CockpitMcpTool>[
       CockpitAddRootsTool(rootsTracker: rootsTracker),
       CockpitRemoveRootsTool(rootsTracker: rootsTracker),
       CockpitListLaunchTargetsTool(),
       CockpitLaunchAppTool(service: launchAppService),
+      CockpitLaunchTargetTool(service: launchTargetService),
       CockpitListAppsTool(service: listAppsService),
       CockpitHotReloadTool(service: hotReloadService),
       CockpitHotRestartTool(service: hotRestartService),
       CockpitStopAppTool(service: stopAppService),
       CockpitReadAppTool(service: readAppService),
+      CockpitReadTargetTool(service: readTargetService),
       CockpitInspectUiTool(service: inspectUiService),
+      CockpitInspectSurfaceTool(service: inspectSurfaceService),
       CockpitRunCommandTool(service: runCommandService),
       CockpitRunBatchTool(service: runBatchService),
+      CockpitRunShellTool(service: runShellService),
       CockpitWaitIdleTool(service: waitIdleService),
       CockpitStartRecordingTool(service: startRecordingService),
       CockpitStopRecordingTool(service: stopRecordingService),

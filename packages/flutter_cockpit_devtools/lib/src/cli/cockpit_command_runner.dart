@@ -7,18 +7,22 @@ import 'cockpit_cli_help.dart';
 import 'commands/hot_reload_command.dart';
 import 'commands/hot_restart_command.dart';
 import 'commands/inspect_ui_command.dart';
+import 'commands/inspect_surface_command.dart';
 import 'commands/launch_app_command.dart';
+import 'commands/launch_target_command.dart';
 import 'commands/lsp_command.dart';
 import 'commands/list_targets_command.dart';
 import 'commands/pub_command.dart';
 import 'commands/pub_dev_search_command.dart';
 import 'commands/read_app_command.dart';
+import 'commands/read_target_command.dart';
 import 'commands/read_errors_command.dart';
 import 'commands/read_logs_command.dart';
 import 'commands/read_network_command.dart';
 import 'commands/read_package_uris_command.dart';
 import 'commands/run_batch_command.dart';
 import 'commands/run_command_command.dart';
+import 'commands/run_shell_command.dart';
 import 'commands/run_script_command.dart';
 import 'commands/run_task_command.dart';
 import 'commands/run_tests_command.dart';
@@ -46,10 +50,14 @@ final class CockpitCommandRunner {
         _runner = CockpitCliRootRunner()
           ..addCommand(ListTargetsCommand())
           ..addCommand(LaunchAppCommand())
+          ..addCommand(LaunchTargetCommand())
           ..addCommand(ReadAppCommand())
+          ..addCommand(ReadTargetCommand())
           ..addCommand(InspectUiCommand())
+          ..addCommand(InspectSurfaceCommand())
           ..addCommand(RunCommandCommand())
           ..addCommand(RunBatchCommand())
+          ..addCommand(RunShellCommand())
           ..addCommand(HotReloadCommand())
           ..addCommand(HotRestartCommand())
           ..addCommand(StopAppCommand())

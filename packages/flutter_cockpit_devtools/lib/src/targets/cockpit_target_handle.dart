@@ -60,6 +60,32 @@ final class CockpitTargetHandle {
 
   Uri get baseUri => connection.baseUri;
 
+  CockpitTargetHandle copyWith({
+    String? targetId,
+    CockpitTargetKind? targetKind,
+    String? platform,
+    String? deviceId,
+    String? projectDir,
+    String? target,
+    CockpitTargetConnection? connection,
+    DateTime? launchedAt,
+    CockpitCapabilityProfile? capabilityProfile,
+    Map<String, Object?>? metadata,
+  }) {
+    return CockpitTargetHandle(
+      targetId: targetId ?? this.targetId,
+      targetKind: targetKind ?? this.targetKind,
+      platform: platform ?? this.platform,
+      deviceId: deviceId ?? this.deviceId,
+      projectDir: projectDir ?? this.projectDir,
+      target: target ?? this.target,
+      connection: connection ?? this.connection,
+      launchedAt: launchedAt ?? this.launchedAt,
+      capabilityProfile: capabilityProfile ?? this.capabilityProfile,
+      metadata: metadata ?? this.metadata,
+    );
+  }
+
   factory CockpitTargetHandle.fromAppHandle(CockpitAppHandle app) {
     return CockpitTargetHandle(
       targetId: app.appId,
