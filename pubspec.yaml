@@ -18,6 +18,7 @@ melos:
   scripts:
     analyze: dart analyze
     test: >-
+      (dart test test) &&
       (cd packages/flutter_cockpit && flutter test) &&
       (cd packages/flutter_cockpit_devtools && dart test) &&
       (cd examples/cockpit_demo && flutter test)

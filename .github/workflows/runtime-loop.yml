@@ -24,7 +24,7 @@ defaults:
 jobs:
   shared-ai-surface-regressions:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 40
 
     steps:
       - uses: actions/checkout@v4
@@ -38,43 +38,190 @@ jobs:
         timeout-minutes: 10
         run: dart run melos bootstrap
 
-      - name: Run runtime executor regressions
-        timeout-minutes: 10
-        working-directory: packages/flutter_cockpit
-        run: |
-          flutter test \
-            test/src/executor/in_app_cockpit_command_executor_test.dart
+      - name: Run full shared regression suite
+        timeout-minutes: 35
+        run: melos run test
 
-      - name: Run AI-first devtools surface regressions
+  macos-mcp-surface:
+    needs: shared-ai-surface-regressions
+    runs-on: macos-latest
+    timeout-minutes: 90
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+
+      - name: Install macOS MCP verification dependencies
         timeout-minutes: 15
+        run: brew install ffmpeg
+
+      - name: Enable macOS desktop
+        run: flutter config --enable-macos-desktop
+
+      - name: Bootstrap workspace
+        timeout-minutes: 10
+        run: dart run melos bootstrap
+
+      - name: Run MCP surface verification
         working-directory: packages/flutter_cockpit_devtools
+        timeout-minutes: 45
         run: |
-          dart test \
-            test/src/application/cockpit_analyze_files_service_test.dart \
-            test/src/application/cockpit_entrypoint_resolver_test.dart \
-            test/src/application/cockpit_launch_development_session_service_test.dart \
-            test/src/application/cockpit_launch_remote_session_service_test.dart \
-            test/src/application/cockpit_lsp_service_test.dart \
-            test/src/application/cockpit_pub_service_test.dart \
-            test/src/application/cockpit_stop_app_service_test.dart \
-            test/src/application/cockpit_task_orchestration_service_test.dart \
-            test/src/cli/cockpit_help_test.dart \
-            test/src/cli/cockpit_command_runner_test.dart \
-            test/src/cli/launch_app_command_test.dart \
-            test/src/cli/run_control_script_command_test.dart \
-            test/src/cli/run_remote_control_script_command_test.dart \
-            test/src/cli/run_task_command_test.dart \
-            test/src/cli/validate_task_command_test.dart \
-            test/src/mcp/tools/cockpit_launch_app_tool_test.dart \
-            test/src/mcp/tools/cockpit_launch_remote_session_tool_test.dart \
-            test/src/mcp/tools/cockpit_run_remote_control_script_tool_test.dart \
-            test/src/mcp/tools/cockpit_run_task_tool_test.dart \
-            test/src/mcp/tools/cockpit_workspace_tooling_tools_test.dart
+          MCP_VERIFY_LOG="$RUNNER_TEMP/flutter_cockpit_mcp_surface.log"
+          echo "MCP_VERIFY_LOG=$MCP_VERIFY_LOG" >> "$GITHUB_ENV"
+          set +e
+          set -o pipefail
+          dart run tool/verify_mcp_surface.dart 2>&1 | tee "$MCP_VERIFY_LOG"
+          STATUS=${PIPESTATUS[0]}
+          set +o pipefail
+          set -e
+          MCP_VERIFY_JSON="$(tail -n 1 "$MCP_VERIFY_LOG")"
+          echo "MCP_VERIFY_JSON=$MCP_VERIFY_JSON" >> "$GITHUB_ENV"
+          if [ "$STATUS" -ne 0 ]; then
+            exit "$STATUS"
+          fi
+          if [ ! -f "$MCP_VERIFY_JSON" ]; then
+            echo "Expected MCP verification report path on the last log line, got: $MCP_VERIFY_JSON" >&2
+            exit 1
+          fi
+
+      - name: Print MCP surface diagnostics
+        if: failure()
+        run: |
+          [ -f "$MCP_VERIFY_LOG" ] && cat "$MCP_VERIFY_LOG" || true
+          [ -n "$MCP_VERIFY_JSON" ] && [ -f "$MCP_VERIFY_JSON" ] && cat "$MCP_VERIFY_JSON" || true
+
+      - name: Verify MCP surface report
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib
+
+          report_path = pathlib.Path(os.environ["MCP_VERIFY_JSON"])
+          report = json.loads(report_path.read_text())
+          mcp_cli = report["mcp_cli_verification"]
+          workspace = report["workspace_verification"]
+          target = report["target_verification"]
+          app = report["app_verification"]
+
+          for key in ("initialize", "toolNames", "resourceNames", "listTargets"):
+              assert key in mcp_cli, key
+
+          assert "launch_app" in mcp_cli["toolNames"], mcp_cli
+          assert "launch_target" in mcp_cli["toolNames"], mcp_cli
+          assert "validate_task" in mcp_cli["toolNames"], mcp_cli
+
+          for key in (
+              "pub_dev_search",
+              "pub_get",
+              "pub_add",
+              "pub_deps",
+              "pub_outdated",
+              "pub_upgrade",
+              "package_uri_tool",
+              "package_uri_resource",
+              "grep_package_uris",
+              "lsp_hover",
+              "lsp_definition",
+              "lsp_signature_help",
+              "lsp_document_symbols",
+              "lsp_workspace_symbols",
+              "analyze_files",
+              "format_workspace",
+              "apply_fixes",
+              "run_tests",
+              "analyze_workspace",
+              "pub_remove",
+          ):
+              assert key in workspace, key
+
+          for key in (
+              "launch_target",
+              "read_target",
+              "inspect_surface",
+              "run_shell_host",
+              "run_shell_target",
+          ):
+              assert key in target, key
+
+          assert target["launch_target"]["target"]["targetKind"] == "desktopApp", target
+          assert target["read_target"]["selectedPlane"] == "flutterSemanticPlane", target
+          assert target["inspect_surface"]["selectedPlane"] == "flutterSemanticPlane", target
+          assert target["run_shell_host"]["success"] is True, target
+          assert target["run_shell_target"]["success"] is True, target
+
+          for key in (
+              "list_targets",
+              "launch_app",
+              "list_apps",
+              "apps_resource",
+              "app_resource",
+              "read_app",
+              "inspect_ui_inbox",
+              "open_settings",
+              "inspect_ui_settings",
+              "scroll_sync_check",
+              "tap_sync_check",
+              "wait_idle_after_sync_check",
+              "read_network",
+              "scroll_debug_log",
+              "tap_debug_log",
+              "read_logs",
+              "start_recording",
+              "tap_runtime_error",
+              "read_errors",
+              "stop_recording",
+              "run_batch",
+              "wait_idle",
+              "hot_reload",
+              "hot_restart",
+              "read_app_after_restart",
+              "run_script",
+              "read_task_bundle_summary",
+              "runTask",
+              "latest_task_resource",
+              "validate_task",
+              "stop_app",
+              "list_apps_after_stop",
+          ):
+              assert key in app, key
+
+          assert app["validate_task"]["classification"] == "completed", app["validate_task"]
+          assert app["runTask"]["classification"] == "completed", app["runTask"]
+          assert app["read_network"]["summary"]["failureCount"] == 0, app["read_network"]
+          assert app["read_errors"]["errors"], app["read_errors"]
+          assert app["stop_recording"]["artifact"]["relativePath"], app["stop_recording"]
+          PY
+
+      - name: Expose MCP verify root
+        run: |
+          MCP_VERIFY_ROOT="$(python3 - <<'PY'
+          import json, os, pathlib
+          report_path = pathlib.Path(os.environ["MCP_VERIFY_JSON"])
+          report = json.loads(report_path.read_text())
+          print(report["verify_root"])
+          PY
+          )"
+          echo "MCP_VERIFY_ROOT=$MCP_VERIFY_ROOT" >> "$GITHUB_ENV"
+
+      - name: Upload MCP surface artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-mcp-surface
+          retention-days: 14
+          if-no-files-found: warn
+          path: |
+            ${{ env.MCP_VERIFY_ROOT }}
+            ${{ env.MCP_VERIFY_JSON }}
+            ${{ env.MCP_VERIFY_LOG }}
 
   android-runtime-loop:
     needs: shared-ai-surface-regressions
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 70
 
     steps:
       - uses: actions/checkout@v4
@@ -125,94 +272,18 @@ jobs:
             test/src/recording/cockpit_adb_recording_adapter_test.dart \
             test/src/recording/cockpit_recording_strategy_resolver_test.dart
 
-      - name: Write Android validate-task config
+      - name: Prepare Android verifier outputs
         run: |
           OUTPUT_ROOT="$RUNNER_TEMP/flutter_cockpit_android_out"
-          RESULT_JSON="$RUNNER_TEMP/flutter_cockpit_android_validate.json"
-          CONFIG_JSON="$RUNNER_TEMP/flutter_cockpit_android_validate_task.json"
-          LOG_PATH="$RUNNER_TEMP/flutter_cockpit_android_validate.log"
-          cat > "$CONFIG_JSON" <<EOF
-          {
-            "run_task": {
-              "launch": {
-                "project_dir": "$GITHUB_WORKSPACE/examples/cockpit_demo",
-                "platform": "android",
-                "device_id": "emulator-5554",
-                "session_port": 47331,
-                "launch_timeout_seconds": 240
-              },
-              "baseline": {
-                "capture_screenshot": true,
-                "screenshot_name": "android-baseline",
-                "include_snapshot": true
-              },
-              "script": {
-                "session_id": "android-runtime-loop-session",
-                "task_id": "android-runtime-loop-task",
-                "platform": "android",
-                "recording": {
-                  "purpose": "acceptance",
-                  "name": "android-runtime-acceptance",
-                  "attach_to_step": true,
-                  "tail_stabilization_ms": 1800
-                },
-                "commands": [
-                  {
-                    "command_id": "tap-today",
-                    "command_type": "tap",
-                    "locator": {
-                      "kind": "text",
-                      "value": "Today"
-                    }
-                  },
-                  {
-                    "command_id": "tap-completed",
-                    "command_type": "tap",
-                    "locator": {
-                      "kind": "text",
-                      "value": "Completed"
-                    }
-                  },
-                  {
-                    "command_id": "tap-inbox",
-                    "command_type": "tap",
-                    "locator": {
-                      "kind": "text",
-                      "value": "Inbox"
-                    }
-                  },
-                  {
-                    "command_id": "capture-acceptance",
-                    "command_type": "capture_screenshot",
-                    "screenshot_request": {
-                      "reason": "acceptance",
-                      "name": "android-acceptance",
-                      "include_snapshot": true,
-                      "attach_to_step": true
-                    }
-                  }
-                ],
-                "fail_fast": true
-              },
-              "output_root": "$OUTPUT_ROOT"
-            },
-            "validation": {
-              "require_acceptance_markdown": true,
-              "require_primary_screenshot": true,
-              "require_primary_recording": true,
-              "require_artifact_files": true,
-              "require_acceptance_semantic_evidence": true
-            }
-          }
-          EOF
+          RESULT_JSON="$RUNNER_TEMP/flutter_cockpit_android_verification.json"
+          LOG_PATH="$RUNNER_TEMP/flutter_cockpit_android_verification.log"
           echo "OUTPUT_ROOT=$OUTPUT_ROOT" >> "$GITHUB_ENV"
           echo "RESULT_JSON=$RESULT_JSON" >> "$GITHUB_ENV"
-          echo "CONFIG_JSON=$CONFIG_JSON" >> "$GITHUB_ENV"
           echo "LOG_PATH=$LOG_PATH" >> "$GITHUB_ENV"
 
-      - name: Run Android validate-task smoke
+      - name: Run Android full verifier
         uses: reactivecircus/android-emulator-runner@v2
-        timeout-minutes: 30
+        timeout-minutes: 35
         with:
           api-level: 34
           arch: x86_64
@@ -223,24 +294,59 @@ jobs:
             -camera-back none -camera-front none
           script: >-
             adb devices &&
-            cd "$GITHUB_WORKSPACE/packages/flutter_cockpit_devtools" &&
-            if dart run flutter_cockpit_devtools:flutter_cockpit_devtools validate-task
-            --config-json "$CONFIG_JSON" --output-json "$RESULT_JSON" >"$LOG_PATH" 2>&1;
+            cd "$GITHUB_WORKSPACE/examples/cockpit_demo" &&
+            if dart run tool/verify_platforms.dart --platform android
+            --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo"
+            --output-root "$OUTPUT_ROOT"
+            --output-json "$RESULT_JSON"
+            --android-emulator-id "Pixel_9_Pro"
+            --launch-timeout-seconds 300 >"$LOG_PATH" 2>&1;
             then cat "$LOG_PATH";
             else status=$?; cat "$LOG_PATH" || true; exit "$status"; fi
 
-      - name: Verify Android smoke result
+      - name: Verify Android runtime loop result
+        env:
+          EXPECTED_PLATFORM: android
+          EXPECTED_RECORDING_DRIVER: adb
         run: |
           python3 - <<'PY'
           import json, os, pathlib
+
+          expected_commands = [
+              "launch-app",
+              "read-app",
+              "inspect-ui",
+              "run-batch",
+              "start-recording",
+              "stop-recording",
+              "wait-idle",
+              "read-network",
+              "read-errors",
+              "read-logs",
+              "inspect-surface",
+              "capture-screenshot",
+              "hot-reload",
+              "hot-restart",
+          ]
+
           result_path = pathlib.Path(os.environ["RESULT_JSON"])
           data = json.loads(result_path.read_text())
-          assert data["classification"] == "completed", data
-          assert data["validation_failures"] == [], data
-          summary = data["bundle_summary"]
-          evidence = summary["evidence"]
-          assert evidence["delivery_artifacts_ready"] is True, evidence
-          assert evidence["delivery_video_ready"] is True, evidence
+          assert data["success"] is True, data
+          assert data["recommendedNextStep"] == "continue", data
+          assert len(data["platforms"]) == 1, data
+          platform = data["platforms"][0]
+          assert platform["platform"] == os.environ["EXPECTED_PLATFORM"], platform
+          assert platform["status"] == "passed", platform
+          assert platform["verifiedCommands"] == expected_commands, platform
+          assert platform["recordingDriver"] == os.environ["EXPECTED_RECORDING_DRIVER"], platform
+          assert platform["batchCommandCount"] == 4, platform
+          assert platform["networkFailureCount"] == 0, platform
+          assert platform["runtimeErrorCount"] == 0, platform
+          assert platform["hotReloadSucceeded"] is True, platform
+          assert platform["hotRestartSucceeded"] is True, platform
+          assert platform["waitIdleSucceeded"] is True, platform
+          assert platform["recordingArtifactRef"], platform
+          assert platform["screenshotArtifactRef"], platform
           PY
 
       - name: Upload Android runtime loop bundle
@@ -253,7 +359,6 @@ jobs:
           path: |
             ${{ env.OUTPUT_ROOT }}
             ${{ env.RESULT_JSON }}
-            ${{ env.CONFIG_JSON }}
             ${{ env.LOG_PATH }}
 
   ios-runtime-loop:
@@ -330,115 +435,69 @@ jobs:
           xcrun simctl bootstatus "$IOS_DEVICE_ID" -b
           echo "IOS_DEVICE_ID=$IOS_DEVICE_ID" >> "$GITHUB_ENV"
 
-      - name: Write iOS validate-task config
+      - name: Prepare iOS verifier outputs
         run: |
           OUTPUT_ROOT="$RUNNER_TEMP/flutter_cockpit_ios_out"
-          RESULT_JSON="$RUNNER_TEMP/flutter_cockpit_ios_validate.json"
-          CONFIG_JSON="$RUNNER_TEMP/flutter_cockpit_ios_validate_task.json"
-          LOG_PATH="$RUNNER_TEMP/flutter_cockpit_ios_validate.log"
-          cat > "$CONFIG_JSON" <<EOF
-          {
-            "run_task": {
-              "launch": {
-                "project_dir": "$GITHUB_WORKSPACE/examples/cockpit_demo",
-                "platform": "ios",
-                "device_id": "$IOS_DEVICE_ID",
-                "session_port": 47332,
-                "launch_timeout_seconds": 300
-              },
-              "baseline": {
-                "capture_screenshot": true,
-                "screenshot_name": "ios-baseline",
-                "include_snapshot": true
-              },
-              "script": {
-                "session_id": "ios-runtime-loop-session",
-                "task_id": "ios-runtime-loop-task",
-                "platform": "ios",
-                "recording": {
-                  "purpose": "acceptance",
-                  "name": "ios-runtime-acceptance",
-                  "attach_to_step": true,
-                  "tail_stabilization_ms": 1800
-                },
-                "commands": [
-                  {
-                    "command_id": "tap-today",
-                    "command_type": "tap",
-                    "locator": {
-                      "kind": "text",
-                      "value": "Today"
-                    }
-                  },
-                  {
-                    "command_id": "tap-completed",
-                    "command_type": "tap",
-                    "locator": {
-                      "kind": "text",
-                      "value": "Completed"
-                    }
-                  },
-                  {
-                    "command_id": "tap-inbox",
-                    "command_type": "tap",
-                    "locator": {
-                      "kind": "text",
-                      "value": "Inbox"
-                    }
-                  },
-                  {
-                    "command_id": "capture-acceptance",
-                    "command_type": "capture_screenshot",
-                    "screenshot_request": {
-                      "reason": "acceptance",
-                      "name": "ios-acceptance",
-                      "include_snapshot": true,
-                      "attach_to_step": true
-                    }
-                  }
-                ],
-                "fail_fast": true
-              },
-              "output_root": "$OUTPUT_ROOT"
-            },
-            "validation": {
-              "require_acceptance_markdown": true,
-              "require_primary_screenshot": true,
-              "require_primary_recording": true,
-              "require_artifact_files": true,
-              "require_acceptance_semantic_evidence": true
-            }
-          }
-          EOF
+          RESULT_JSON="$RUNNER_TEMP/flutter_cockpit_ios_verification.json"
+          LOG_PATH="$RUNNER_TEMP/flutter_cockpit_ios_verification.log"
           echo "OUTPUT_ROOT=$OUTPUT_ROOT" >> "$GITHUB_ENV"
           echo "RESULT_JSON=$RESULT_JSON" >> "$GITHUB_ENV"
-          echo "CONFIG_JSON=$CONFIG_JSON" >> "$GITHUB_ENV"
           echo "LOG_PATH=$LOG_PATH" >> "$GITHUB_ENV"
 
-      - name: Run iOS validate-task smoke
-        timeout-minutes: 30
+      - name: Run iOS full verifier
+        working-directory: examples/cockpit_demo
+        timeout-minutes: 35
         run: |
           set -eo pipefail
-          (
-            cd "$GITHUB_WORKSPACE/packages/flutter_cockpit_devtools"
-            dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
-              validate-task \
-              --config-json "$CONFIG_JSON" \
-              --output-json "$RESULT_JSON"
-          ) 2>&1 | tee "$LOG_PATH"
+          dart run tool/verify_platforms.dart --platform ios \
+            --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo" \
+            --output-root "$OUTPUT_ROOT" \
+            --output-json "$RESULT_JSON" \
+            --launch-timeout-seconds 300 2>&1 | tee "$LOG_PATH"
 
-      - name: Verify iOS smoke result
+      - name: Verify iOS runtime loop result
+        env:
+          EXPECTED_PLATFORM: ios
+          EXPECTED_RECORDING_DRIVER: simctl
         run: |
           python3 - <<'PY'
           import json, os, pathlib
+
+          expected_commands = [
+              "launch-app",
+              "read-app",
+              "inspect-ui",
+              "run-batch",
+              "start-recording",
+              "stop-recording",
+              "wait-idle",
+              "read-network",
+              "read-errors",
+              "read-logs",
+              "inspect-surface",
+              "capture-screenshot",
+              "hot-reload",
+              "hot-restart",
+          ]
+
           result_path = pathlib.Path(os.environ["RESULT_JSON"])
           data = json.loads(result_path.read_text())
-          assert data["classification"] == "completed", data
-          assert data["validation_failures"] == [], data
-          summary = data["bundle_summary"]
-          evidence = summary["evidence"]
-          assert evidence["delivery_artifacts_ready"] is True, evidence
-          assert evidence["delivery_video_ready"] is True, evidence
+          assert data["success"] is True, data
+          assert data["recommendedNextStep"] == "continue", data
+          assert len(data["platforms"]) == 1, data
+          platform = data["platforms"][0]
+          assert platform["platform"] == os.environ["EXPECTED_PLATFORM"], platform
+          assert platform["status"] == "passed", platform
+          assert platform["verifiedCommands"] == expected_commands, platform
+          assert platform["recordingDriver"] == os.environ["EXPECTED_RECORDING_DRIVER"], platform
+          assert platform["batchCommandCount"] == 4, platform
+          assert platform["networkFailureCount"] == 0, platform
+          assert platform["runtimeErrorCount"] == 0, platform
+          assert platform["hotReloadSucceeded"] is True, platform
+          assert platform["hotRestartSucceeded"] is True, platform
+          assert platform["waitIdleSucceeded"] is True, platform
+          assert platform["recordingArtifactRef"], platform
+          assert platform["screenshotArtifactRef"], platform
           PY
 
       - name: Upload iOS runtime loop bundle
@@ -451,7 +510,6 @@ jobs:
           path: |
             ${{ env.OUTPUT_ROOT }}
             ${{ env.RESULT_JSON }}
-            ${{ env.CONFIG_JSON }}
             ${{ env.LOG_PATH }}
 
   macos-runtime-loop:
@@ -491,115 +549,69 @@ jobs:
             test/src/recording/cockpit_macos_recording_adapter_test.dart \
             test/src/recording/cockpit_recording_strategy_resolver_test.dart
 
-      - name: Write macOS validate-task config
+      - name: Prepare macOS verifier outputs
         run: |
           OUTPUT_ROOT="$RUNNER_TEMP/flutter_cockpit_macos_out"
-          RESULT_JSON="$RUNNER_TEMP/flutter_cockpit_macos_validate.json"
-          CONFIG_JSON="$RUNNER_TEMP/flutter_cockpit_macos_validate_task.json"
-          LOG_PATH="$RUNNER_TEMP/flutter_cockpit_macos_validate.log"
-          cat > "$CONFIG_JSON" <<EOF
-          {
-            "run_task": {
-              "launch": {
-                "project_dir": "$GITHUB_WORKSPACE/examples/cockpit_demo",
-                "platform": "macos",
-                "device_id": "macos",
-                "session_port": 47333,
-                "launch_timeout_seconds": 240
-              },
-              "baseline": {
-                "capture_screenshot": true,
-                "screenshot_name": "macos-baseline",
-                "include_snapshot": true
-              },
-              "script": {
-                "session_id": "macos-runtime-loop-session",
-                "task_id": "macos-runtime-loop-task",
-                "platform": "macos",
-                "recording": {
-                  "purpose": "acceptance",
-                  "name": "macos-runtime-acceptance",
-                  "attach_to_step": true,
-                  "tail_stabilization_ms": 1800
-                },
-                "commands": [
-                  {
-                    "command_id": "tap-today",
-                    "command_type": "tap",
-                    "locator": {
-                      "kind": "text",
-                      "value": "Today"
-                    }
-                  },
-                  {
-                    "command_id": "tap-completed",
-                    "command_type": "tap",
-                    "locator": {
-                      "kind": "text",
-                      "value": "Completed"
-                    }
-                  },
-                  {
-                    "command_id": "tap-inbox",
-                    "command_type": "tap",
-                    "locator": {
-                      "kind": "text",
-                      "value": "Inbox"
-                    }
-                  },
-                  {
-                    "command_id": "capture-acceptance",
-                    "command_type": "capture_screenshot",
-                    "screenshot_request": {
-                      "reason": "acceptance",
-                      "name": "macos-acceptance",
-                      "include_snapshot": true,
-                      "attach_to_step": true
-                    }
-                  }
-                ],
-                "fail_fast": true
-              },
-              "output_root": "$OUTPUT_ROOT"
-            },
-            "validation": {
-              "require_acceptance_markdown": true,
-              "require_primary_screenshot": true,
-              "require_primary_recording": true,
-              "require_artifact_files": true,
-              "require_acceptance_semantic_evidence": true
-            }
-          }
-          EOF
+          RESULT_JSON="$RUNNER_TEMP/flutter_cockpit_macos_verification.json"
+          LOG_PATH="$RUNNER_TEMP/flutter_cockpit_macos_verification.log"
           echo "OUTPUT_ROOT=$OUTPUT_ROOT" >> "$GITHUB_ENV"
           echo "RESULT_JSON=$RESULT_JSON" >> "$GITHUB_ENV"
-          echo "CONFIG_JSON=$CONFIG_JSON" >> "$GITHUB_ENV"
           echo "LOG_PATH=$LOG_PATH" >> "$GITHUB_ENV"
 
-      - name: Run macOS validate-task smoke
-        timeout-minutes: 25
+      - name: Run macOS full verifier
+        working-directory: examples/cockpit_demo
+        timeout-minutes: 30
         run: |
           set -eo pipefail
-          (
-            cd "$GITHUB_WORKSPACE/packages/flutter_cockpit_devtools"
-            dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
-              validate-task \
-              --config-json "$CONFIG_JSON" \
-              --output-json "$RESULT_JSON"
-          ) 2>&1 | tee "$LOG_PATH"
+          dart run tool/verify_platforms.dart --platform macos \
+            --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo" \
+            --output-root "$OUTPUT_ROOT" \
+            --output-json "$RESULT_JSON" \
+            --launch-timeout-seconds 300 2>&1 | tee "$LOG_PATH"
 
-      - name: Verify macOS smoke result
+      - name: Verify macOS runtime loop result
+        env:
+          EXPECTED_PLATFORM: macos
+          EXPECTED_RECORDING_DRIVER: remote
         run: |
           python3 - <<'PY'
           import json, os, pathlib
+
+          expected_commands = [
+              "launch-app",
+              "read-app",
+              "inspect-ui",
+              "run-batch",
+              "start-recording",
+              "stop-recording",
+              "wait-idle",
+              "read-network",
+              "read-errors",
+              "read-logs",
+              "inspect-surface",
+              "capture-screenshot",
+              "hot-reload",
+              "hot-restart",
+          ]
+
           result_path = pathlib.Path(os.environ["RESULT_JSON"])
           data = json.loads(result_path.read_text())
-          assert data["classification"] == "completed", data
-          assert data["validation_failures"] == [], data
-          summary = data["bundle_summary"]
-          evidence = summary["evidence"]
-          assert evidence["delivery_artifacts_ready"] is True, evidence
-          assert evidence["delivery_video_ready"] is True, evidence
+          assert data["success"] is True, data
+          assert data["recommendedNextStep"] == "continue", data
+          assert len(data["platforms"]) == 1, data
+          platform = data["platforms"][0]
+          assert platform["platform"] == os.environ["EXPECTED_PLATFORM"], platform
+          assert platform["status"] == "passed", platform
+          assert platform["verifiedCommands"] == expected_commands, platform
+          assert platform["recordingDriver"] == os.environ["EXPECTED_RECORDING_DRIVER"], platform
+          assert platform["batchCommandCount"] == 4, platform
+          assert platform["networkFailureCount"] == 0, platform
+          assert platform["runtimeErrorCount"] == 0, platform
+          assert platform["hotReloadSucceeded"] is True, platform
+          assert platform["hotRestartSucceeded"] is True, platform
+          assert platform["waitIdleSucceeded"] is True, platform
+          assert platform["recordingArtifactRef"], platform
+          assert platform["screenshotArtifactRef"], platform
           PY
 
       - name: Upload macOS runtime loop bundle
@@ -612,13 +624,12 @@ jobs:
           path: |
             ${{ env.OUTPUT_ROOT }}
             ${{ env.RESULT_JSON }}
-            ${{ env.CONFIG_JSON }}
             ${{ env.LOG_PATH }}
 
   linux-runtime-loop:
     needs: shared-ai-surface-regressions
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 60
 
     steps:
       - uses: actions/checkout@v4
@@ -669,139 +680,76 @@ jobs:
             test/src/recording/cockpit_linux_recording_adapter_test.dart \
             test/src/recording/cockpit_recording_strategy_resolver_test.dart
 
-      - name: Write Linux validate-task config
+      - name: Prepare Linux verifier outputs
         run: |
           OUTPUT_ROOT="$RUNNER_TEMP/flutter_cockpit_linux_out"
-          RESULT_JSON="$RUNNER_TEMP/flutter_cockpit_linux_validate.json"
-          CONFIG_JSON="$RUNNER_TEMP/flutter_cockpit_linux_validate_task.json"
-          LOG_PATH="$RUNNER_TEMP/flutter_cockpit_linux_validate.log"
-          cat > "$CONFIG_JSON" <<EOF
-          {
-            "run_task": {
-              "launch": {
-                "project_dir": "$GITHUB_WORKSPACE/examples/cockpit_demo",
-                "platform": "linux",
-                "device_id": "linux",
-                "session_port": 47334,
-                "launch_timeout_seconds": 240
-              },
-              "baseline": {
-                "capture_screenshot": true,
-                "screenshot_name": "linux-baseline",
-                "include_snapshot": true
-              },
-              "script": {
-                "session_id": "linux-runtime-loop-session",
-                "task_id": "linux-runtime-loop-task",
-                "platform": "linux",
-                "recording": {
-                  "purpose": "acceptance",
-                  "name": "linux-runtime-acceptance",
-                  "attach_to_step": true,
-                  "tail_stabilization_ms": 1800
-                },
-                "commands": [
-                  {
-                    "command_id": "tap-today",
-                    "command_type": "tap",
-                    "locator": {
-                      "kind": "text",
-                      "value": "Today"
-                    }
-                  },
-                  {
-                    "command_id": "tap-completed",
-                    "command_type": "tap",
-                    "locator": {
-                      "kind": "text",
-                      "value": "Completed"
-                    }
-                  },
-                  {
-                    "command_id": "tap-inbox",
-                    "command_type": "tap",
-                    "locator": {
-                      "kind": "text",
-                      "value": "Inbox"
-                    }
-                  },
-                  {
-                    "command_id": "capture-acceptance",
-                    "command_type": "capture_screenshot",
-                    "screenshot_request": {
-                      "reason": "acceptance",
-                      "name": "linux-acceptance",
-                      "include_snapshot": true,
-                      "attach_to_step": true
-                    }
-                  }
-                ],
-                "fail_fast": true
-              },
-              "output_root": "$OUTPUT_ROOT"
-            },
-            "validation": {
-              "require_acceptance_markdown": true,
-              "require_primary_screenshot": true,
-              "require_primary_recording": true,
-              "require_artifact_files": true,
-              "require_acceptance_semantic_evidence": true
-            }
-          }
-          EOF
+          RESULT_JSON="$RUNNER_TEMP/flutter_cockpit_linux_verification.json"
+          LOG_PATH="$RUNNER_TEMP/flutter_cockpit_linux_verification.log"
           echo "OUTPUT_ROOT=$OUTPUT_ROOT" >> "$GITHUB_ENV"
           echo "RESULT_JSON=$RESULT_JSON" >> "$GITHUB_ENV"
-          echo "CONFIG_JSON=$CONFIG_JSON" >> "$GITHUB_ENV"
           echo "LOG_PATH=$LOG_PATH" >> "$GITHUB_ENV"
 
-      - name: Run Linux validate-task smoke
-        timeout-minutes: 25
+      - name: Run Linux full verifier
+        working-directory: examples/cockpit_demo
+        timeout-minutes: 30
         run: |
           set -eo pipefail
-          (
-            cd "$GITHUB_WORKSPACE/packages/flutter_cockpit_devtools"
-            xvfb-run -a dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
-              validate-task \
-              --config-json "$CONFIG_JSON" \
-              --output-json "$RESULT_JSON"
-          ) 2>&1 | tee "$LOG_PATH"
+          xvfb-run -a dart run tool/verify_platforms.dart --platform linux \
+            --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo" \
+            --output-root "$OUTPUT_ROOT" \
+            --output-json "$RESULT_JSON" \
+            --launch-timeout-seconds 300 2>&1 | tee "$LOG_PATH"
 
-      - name: Print Linux validate-task diagnostics
+      - name: Print Linux verifier diagnostics
         if: failure()
         run: |
           [ -f "$LOG_PATH" ] && cat "$LOG_PATH" || true
           [ -f "$RESULT_JSON" ] && cat "$RESULT_JSON" || true
 
-      - name: Verify Linux smoke result
+      - name: Verify Linux runtime loop result
+        env:
+          EXPECTED_PLATFORM: linux
+          EXPECTED_RECORDING_DRIVER: remote
         run: |
           python3 - <<'PY'
           import json, os, pathlib
+
+          expected_commands = [
+              "launch-app",
+              "read-app",
+              "inspect-ui",
+              "run-batch",
+              "start-recording",
+              "stop-recording",
+              "wait-idle",
+              "read-network",
+              "read-errors",
+              "read-logs",
+              "inspect-surface",
+              "capture-screenshot",
+              "hot-reload",
+              "hot-restart",
+          ]
+
           result_path = pathlib.Path(os.environ["RESULT_JSON"])
           data = json.loads(result_path.read_text())
-          assert data["classification"] == "completed", data
-          assert data["validation_failures"] == [], data
-          summary = data["bundle_summary"]
-          evidence = summary["evidence"]
-          assert evidence["delivery_artifacts_ready"] is True, evidence
-          assert evidence["delivery_video_ready"] is True, evidence
+          assert data["success"] is True, data
+          assert data["recommendedNextStep"] == "continue", data
+          assert len(data["platforms"]) == 1, data
+          platform = data["platforms"][0]
+          assert platform["platform"] == os.environ["EXPECTED_PLATFORM"], platform
+          assert platform["status"] == "passed", platform
+          assert platform["verifiedCommands"] == expected_commands, platform
+          assert platform["recordingDriver"] == os.environ["EXPECTED_RECORDING_DRIVER"], platform
+          assert platform["batchCommandCount"] == 4, platform
+          assert platform["networkFailureCount"] == 0, platform
+          assert platform["runtimeErrorCount"] == 0, platform
+          assert platform["hotReloadSucceeded"] is True, platform
+          assert platform["hotRestartSucceeded"] is True, platform
+          assert platform["waitIdleSucceeded"] is True, platform
+          assert platform["recordingArtifactRef"], platform
+          assert platform["screenshotArtifactRef"], platform
           PY
-
-      - name: Print Linux verify diagnostics
-        if: failure()
-        run: |
-          [ -f "$LOG_PATH" ] && cat "$LOG_PATH" || true
-          [ -f "$RESULT_JSON" ] && cat "$RESULT_JSON" || true
-          APP_PATH="$(
-            find "$GITHUB_WORKSPACE/examples/cockpit_demo/build/linux/x64/debug/bundle" \
-              -maxdepth 1 -type f -perm -111 | sort | head -n 1
-          )"
-          echo "APP_PATH=$APP_PATH"
-          [ -n "$APP_PATH" ] && ldd "$APP_PATH" || true
-          if [ -n "$APP_PATH" ]; then
-            PROBE_LOG="$RUNNER_TEMP/flutter_cockpit_linux_app_probe.log"
-            timeout 15s xvfb-run -a "$APP_PATH" >"$PROBE_LOG" 2>&1 || true
-            [ -f "$PROBE_LOG" ] && cat "$PROBE_LOG" || true
-          fi
 
       - name: Upload Linux runtime loop bundle
         if: always()
@@ -813,13 +761,12 @@ jobs:
           path: |
             ${{ env.OUTPUT_ROOT }}
             ${{ env.RESULT_JSON }}
-            ${{ env.CONFIG_JSON }}
             ${{ env.LOG_PATH }}
 
   windows-runtime-loop:
     needs: shared-ai-surface-regressions
     runs-on: windows-latest
-    timeout-minutes: 60
+    timeout-minutes: 65
 
     steps:
       - uses: actions/checkout@v4
@@ -856,123 +803,83 @@ jobs:
             test/src/recording/cockpit_windows_recording_adapter_test.dart \
             test/src/recording/cockpit_recording_strategy_resolver_test.dart
 
-      - name: Write Windows validate-task config
+      - name: Prepare Windows verifier outputs
         run: |
           OUTPUT_ROOT="$RUNNER_TEMP/flutter_cockpit_windows_out"
-          RESULT_JSON="$RUNNER_TEMP/flutter_cockpit_windows_validate.json"
-          CONFIG_JSON="$RUNNER_TEMP/flutter_cockpit_windows_validate_task.json"
-          LOG_PATH="$RUNNER_TEMP/flutter_cockpit_windows_validate.log"
-          PROJECT_DIR_JSON="${GITHUB_WORKSPACE//\\//}/examples/cockpit_demo"
-          OUTPUT_ROOT_JSON="${OUTPUT_ROOT//\\//}"
-          cat > "$CONFIG_JSON" <<EOF
-          {
-            "run_task": {
-              "launch": {
-                "project_dir": "$PROJECT_DIR_JSON",
-                "platform": "windows",
-                "device_id": "windows",
-                "session_port": 47335,
-                "launch_timeout_seconds": 240
-              },
-              "baseline": {
-                "capture_screenshot": true,
-                "screenshot_name": "windows-baseline",
-                "include_snapshot": true
-              },
-              "script": {
-                "session_id": "windows-runtime-loop-session",
-                "task_id": "windows-runtime-loop-task",
-                "platform": "windows",
-                "recording": {
-                  "purpose": "acceptance",
-                  "name": "windows-runtime-acceptance",
-                  "attach_to_step": true,
-                  "tail_stabilization_ms": 1800
-                },
-                "commands": [
-                  {
-                    "command_id": "tap-today",
-                    "command_type": "tap",
-                    "locator": {
-                      "kind": "text",
-                      "value": "Today"
-                    }
-                  },
-                  {
-                    "command_id": "tap-completed",
-                    "command_type": "tap",
-                    "locator": {
-                      "kind": "text",
-                      "value": "Completed"
-                    }
-                  },
-                  {
-                    "command_id": "tap-inbox",
-                    "command_type": "tap",
-                    "locator": {
-                      "kind": "text",
-                      "value": "Inbox"
-                    }
-                  },
-                  {
-                    "command_id": "capture-acceptance",
-                    "command_type": "capture_screenshot",
-                    "screenshot_request": {
-                      "reason": "acceptance",
-                      "name": "windows-acceptance",
-                      "include_snapshot": true,
-                      "attach_to_step": true
-                    }
-                  }
-                ],
-                "fail_fast": true
-              },
-              "output_root": "$OUTPUT_ROOT_JSON"
-            },
-            "validation": {
-              "require_acceptance_markdown": true,
-              "require_primary_screenshot": true,
-              "require_primary_recording": true,
-              "require_artifact_files": true,
-              "require_acceptance_semantic_evidence": true
-            }
-          }
-          EOF
+          RESULT_JSON="$RUNNER_TEMP/flutter_cockpit_windows_verification.json"
+          LOG_PATH="$RUNNER_TEMP/flutter_cockpit_windows_verification.log"
+          PROJECT_DIR="${GITHUB_WORKSPACE//\\//}/examples/cockpit_demo"
+          OUTPUT_ROOT_POSIX="${OUTPUT_ROOT//\\//}"
+          RESULT_JSON_POSIX="${RESULT_JSON//\\//}"
+          LOG_PATH_POSIX="${LOG_PATH//\\//}"
           echo "OUTPUT_ROOT=$OUTPUT_ROOT" >> "$GITHUB_ENV"
           echo "RESULT_JSON=$RESULT_JSON" >> "$GITHUB_ENV"
-          echo "CONFIG_JSON=$CONFIG_JSON" >> "$GITHUB_ENV"
           echo "LOG_PATH=$LOG_PATH" >> "$GITHUB_ENV"
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+          echo "OUTPUT_ROOT_POSIX=$OUTPUT_ROOT_POSIX" >> "$GITHUB_ENV"
+          echo "RESULT_JSON_POSIX=$RESULT_JSON_POSIX" >> "$GITHUB_ENV"
+          echo "LOG_PATH_POSIX=$LOG_PATH_POSIX" >> "$GITHUB_ENV"
 
-      - name: Run Windows validate-task smoke
-        timeout-minutes: 25
+      - name: Run Windows full verifier
+        timeout-minutes: 30
         run: |
           set -eo pipefail
-          (
-            cd "$GITHUB_WORKSPACE/packages/flutter_cockpit_devtools"
-            dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
-              validate-task \
-              --config-json "$CONFIG_JSON" \
-              --output-json "$RESULT_JSON"
-          ) 2>&1 | tee "$LOG_PATH"
+          cd "$PROJECT_DIR"
+          dart run tool/verify_platforms.dart --platform windows \
+            --project-dir "$PROJECT_DIR" \
+            --output-root "$OUTPUT_ROOT_POSIX" \
+            --output-json "$RESULT_JSON_POSIX" \
+            --launch-timeout-seconds 300 2>&1 | tee "$LOG_PATH_POSIX"
 
-      - name: Print Windows validate-task diagnostics
+      - name: Print Windows verifier diagnostics
         if: failure()
         run: |
-          [ -f "$LOG_PATH" ] && cat "$LOG_PATH" || true
-          [ -f "$RESULT_JSON" ] && cat "$RESULT_JSON" || true
+          [ -f "$LOG_PATH_POSIX" ] && cat "$LOG_PATH_POSIX" || true
+          [ -f "$RESULT_JSON_POSIX" ] && cat "$RESULT_JSON_POSIX" || true
 
-      - name: Verify Windows smoke result
+      - name: Verify Windows runtime loop result
+        env:
+          EXPECTED_PLATFORM: windows
+          EXPECTED_RECORDING_DRIVER: remote
         run: |
           python - <<'PY'
           import json, os, pathlib
-          result_path = pathlib.Path(os.environ["RESULT_JSON"])
+
+          expected_commands = [
+              "launch-app",
+              "read-app",
+              "inspect-ui",
+              "run-batch",
+              "start-recording",
+              "stop-recording",
+              "wait-idle",
+              "read-network",
+              "read-errors",
+              "read-logs",
+              "inspect-surface",
+              "capture-screenshot",
+              "hot-reload",
+              "hot-restart",
+          ]
+
+          result_path = pathlib.Path(os.environ["RESULT_JSON_POSIX"])
           data = json.loads(result_path.read_text())
-          assert data["classification"] == "completed", data
-          assert data["validation_failures"] == [], data
-          summary = data["bundle_summary"]
-          evidence = summary["evidence"]
-          assert evidence["delivery_artifacts_ready"] is True, evidence
-          assert evidence["delivery_video_ready"] is True, evidence
+          assert data["success"] is True, data
+          assert data["recommendedNextStep"] == "continue", data
+          assert len(data["platforms"]) == 1, data
+          platform = data["platforms"][0]
+          assert platform["platform"] == os.environ["EXPECTED_PLATFORM"], platform
+          assert platform["status"] == "passed", platform
+          assert platform["verifiedCommands"] == expected_commands, platform
+          assert platform["recordingDriver"] == os.environ["EXPECTED_RECORDING_DRIVER"], platform
+          assert platform["batchCommandCount"] == 4, platform
+          assert platform["networkFailureCount"] == 0, platform
+          assert platform["runtimeErrorCount"] == 0, platform
+          assert platform["hotReloadSucceeded"] is True, platform
+          assert platform["hotRestartSucceeded"] is True, platform
+          assert platform["waitIdleSucceeded"] is True, platform
+          assert platform["recordingArtifactRef"], platform
+          assert platform["screenshotArtifactRef"], platform
           PY
 
       - name: Upload Windows runtime loop bundle
@@ -985,5 +892,4 @@ jobs:
           path: |
             ${{ env.OUTPUT_ROOT }}
             ${{ env.RESULT_JSON }}
-            ${{ env.CONFIG_JSON }}
             ${{ env.LOG_PATH }}

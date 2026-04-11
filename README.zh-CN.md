@@ -285,6 +285,27 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --command-json '{"commandId":"assert-inbox","commandType":"assertText","parameters":{"text":"Inbox"}}'
 ```
 
+如果你要一次性证明仓库示例在多平台上的完整开发闭环都可用，直接使用仓库内置的 live verifier：
+
+```bash
+cd examples/cockpit_demo
+dart run tool/verify_platforms.dart --output-json /tmp/cockpit_demo_all_platforms_verification.json
+```
+
+不传 `--platform` 时，这条命令默认跑本地三平台 sweep：macOS、iOS 模拟器、Android 模拟器。
+`runtime-loop` CI 会在 Linux 和 Windows 上也显式调用同一个 verifier，并按平台拆成独立 job，这样所有已发布运行平台都走的是同一条完整命令链。
+如果当前宿主机本地具备 Linux 或 Windows 桌面运行条件，也可以显式追加 `--platform linux` 和 `--platform windows`，把本地 sweep 扩到默认三平台之外。
+
+这个 verifier 会验证：
+
+- `launch-app`、`read-app`、`inspect-ui`
+- `run-batch`、`wait-idle`、`read-network`、`read-errors`、`read-logs`
+- `inspect-surface`、截图采集、`hot-reload`、`hot-restart`
+- 平台感知录屏链路：macOS、Linux、Windows 走 remote，iOS 模拟器走 `simctl`，Android 模拟器走 `adb`
+
+它还会为每个平台自动选择空闲 session 端口，并在 Android 验证结束后清理 `adb forward`，避免多次运行时前一个平台污染后一个平台。
+同一个 `runtime-loop` workflow 还会在 macOS 上运行 `packages/flutter_cockpit_devtools/tool/verify_mcp_surface.dart`，把真实的 `serve-mcp` stdio 面、workspace tooling、target-first surface 流程和交付工具链也纳入端到端验证。
+
 ## CLI 公共面
 
 推荐命令：

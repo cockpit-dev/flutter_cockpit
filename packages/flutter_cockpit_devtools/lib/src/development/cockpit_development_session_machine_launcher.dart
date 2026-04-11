@@ -136,9 +136,10 @@ final class CockpitDevelopmentSessionMachineLauncher {
   List<String> _buildRemoteSessionExtraArgs(
     CockpitLaunchDevelopmentMachineSessionRequest request,
   ) {
+    final bindHost = cockpitRemoteBindHostForPlatform(request.platform);
     return <String>[
       '--dart-define=FLUTTER_PILOT_REMOTE_ENABLED=true',
-      '--dart-define=FLUTTER_PILOT_REMOTE_HOST=127.0.0.1',
+      '--dart-define=FLUTTER_PILOT_REMOTE_HOST=$bindHost',
       '--dart-define=FLUTTER_PILOT_REMOTE_PORT=${request.sessionPort}',
       '--dart-define=FLUTTER_PILOT_FLUTTER_VERSION=${request.flutterVersion}',
     ];

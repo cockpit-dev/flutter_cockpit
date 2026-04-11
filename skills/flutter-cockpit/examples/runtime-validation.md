@@ -43,6 +43,28 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --command-json '{"commandId":"assert-inbox","commandType":"assertText","parameters":{"text":"Inbox"}}'
 ```
 
+For this repository's demo app, finish the platform sweep with the example-local verifier:
+
+```bash
+cd examples/cockpit_demo
+dart run tool/verify_platforms.dart --output-json /tmp/cockpit_demo_all_platforms_verification.json
+```
+
+Without `--platform`, that command runs the local default sweep on macOS, iOS Simulator, and Android Emulator.
+The `runtime-loop` CI workflow invokes the same verifier explicitly on Linux and Windows too, one platform per job.
+When the host can run desktop Linux or Windows locally, pass `--platform linux` and `--platform windows` explicitly to extend the sweep.
+It validates `run-batch`, `inspect-ui`, `wait-idle`, `read-network`, `read-errors`, `read-logs`, `inspect-surface`, screenshot capture, recording, `hot-reload`, and `hot-restart`.
+Recording is platform-aware in that sweep: macOS, Linux, and Windows use the remote recording path, iOS Simulator uses `simctl`, and Android Emulator uses `adb`.
+
+For release-grade MCP and target-first verification in this repository, run:
+
+```bash
+cd packages/flutter_cockpit_devtools
+dart run tool/verify_mcp_surface.dart
+```
+
+That verifier exercises the real `serve-mcp` stdio surface, workspace tooling, target-first commands, and delivery tools (`run-script`, `run-task`, `validate-task`) end to end.
+
 ## Expected Agent Behavior
 
 - keep `app.json`

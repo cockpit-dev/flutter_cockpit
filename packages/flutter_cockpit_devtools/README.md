@@ -210,4 +210,7 @@ Release-grade MCP verification:
 dart run tool/verify_mcp_surface.dart
 ```
 
+This verifier exercises the real `serve-mcp` stdio surface, workspace tooling, target-first commands, and delivery tools end to end.
+The repository `runtime-loop` workflow runs it on macOS as the MCP and target-first release gate.
+
 Package page: [pub.dev/packages/flutter_cockpit_devtools](https://pub.dev/packages/flutter_cockpit_devtools)

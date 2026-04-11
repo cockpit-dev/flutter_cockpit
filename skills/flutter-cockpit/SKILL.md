@@ -37,6 +37,9 @@ Do not use it for docs-only edits or static refactors with no runtime claim.
 5. `deliver`
    Use `run_script` for a running app, `run_task` for full orchestration, and `validate_task` before any acceptance-facing claim. Treat CLI `run-script` non-zero exit or MCP `run_script` `isError=true` as a failed bundle.
 
+When the repo is this project and the target is the demo app, close the loop with `examples/cockpit_demo/tool/verify_platforms.dart` before a release-facing claim. The default local sweep runs the real macOS, iOS Simulator, and Android Emulator development loops. The `runtime-loop` CI workflow invokes the same verifier explicitly on Linux and Windows too. The verifier auto-avoids busy host ports, cleans Android `adb forward` leftovers, and validates recording through the correct platform driver (`remote`, `simctl`, or `adb`).
+When the release claim also covers MCP, target-first control, or workspace tooling, run `packages/flutter_cockpit_devtools/tool/verify_mcp_surface.dart` as well. That verifier exercises the real `serve-mcp` stdio entrypoint, workspace tools, target-first surface flow, and delivery tooling end to end.
+
 ## Locator Guidance
 
 - Start with `text`, `tooltip`, or `semanticId`.

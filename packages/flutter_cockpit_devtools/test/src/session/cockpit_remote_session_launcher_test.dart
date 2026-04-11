@@ -133,7 +133,7 @@ void main() {
       expect(
         invocations,
         contains(
-          '${cockpitFlutterExecutable()} build ios --simulator --debug --no-codesign --target lib/main.dart --dart-define=FLUTTER_PILOT_REMOTE_ENABLED=true --dart-define=FLUTTER_PILOT_REMOTE_HOST=127.0.0.1 --dart-define=FLUTTER_PILOT_REMOTE_PORT=49321 --dart-define=FLUTTER_PILOT_FLUTTER_VERSION=3.38.9',
+          '${cockpitFlutterExecutable()} build ios --simulator --debug --no-codesign --target lib/main.dart --dart-define=FLUTTER_PILOT_REMOTE_ENABLED=true --dart-define=FLUTTER_PILOT_REMOTE_HOST=0.0.0.0 --dart-define=FLUTTER_PILOT_REMOTE_PORT=49321 --dart-define=FLUTTER_PILOT_FLUTTER_VERSION=3.38.9',
         ),
       );
       expect(

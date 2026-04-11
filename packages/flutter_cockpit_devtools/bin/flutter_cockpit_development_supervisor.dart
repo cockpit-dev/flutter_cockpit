@@ -115,6 +115,7 @@ Future<void> main(List<String> args) async {
     },
     logger: writeLog,
     bindPort: supervisorPort,
+    settleTimeout: const Duration(seconds: 90),
   );
 
   final sigtermSubscription = ProcessSignal.sigterm.watch().listen((_) {

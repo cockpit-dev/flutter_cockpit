@@ -285,6 +285,27 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --command-json '{"commandId":"assert-inbox","commandType":"assertText","parameters":{"text":"Inbox"}}'
 ```
 
+For the repository example, use the built-in live verifier when you need one proof that the full cross-platform dev loop still works end to end:
+
+```bash
+cd examples/cockpit_demo
+dart run tool/verify_platforms.dart --output-json /tmp/cockpit_demo_all_platforms_verification.json
+```
+
+Without `--platform`, that command runs the local default sweep: macOS, iOS Simulator, and Android Emulator.
+The `runtime-loop` CI workflow invokes the same verifier explicitly on Linux and Windows too, one platform per job, so every shipped runtime platform is exercised through the same full command chain.
+When the host can run desktop Linux or Windows locally, pass `--platform linux` and `--platform windows` explicitly to extend the sweep beyond the default three platforms.
+
+The verifier validates:
+
+- `launch-app`, `read-app`, `inspect-ui`
+- `run-batch`, `wait-idle`, `read-network`, `read-errors`, `read-logs`
+- `inspect-surface`, screenshot capture, `hot-reload`, `hot-restart`
+- platform-aware recording drivers: remote on macOS, Linux, and Windows, `simctl` on iOS Simulator, and `adb` on Android Emulator
+
+It also auto-picks a free session port per platform and cleans Android `adb forward` state after verification so repeated runs do not poison later platforms.
+The same `runtime-loop` workflow also runs `packages/flutter_cockpit_devtools/tool/verify_mcp_surface.dart` on macOS to validate the real `serve-mcp` stdio surface, workspace tooling, target-first surface flow, and release delivery tools end to end.
+
 ## CLI Surface
 
 Recommended commands:

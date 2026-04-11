@@ -81,6 +81,10 @@ String cockpitFlutterExecutable({bool? isWindows}) {
   return (isWindows ?? Platform.isWindows) ? 'flutter.bat' : 'flutter';
 }
 
+String cockpitRemoteBindHostForPlatform(String platform) {
+  return platform == 'ios' ? '0.0.0.0' : '127.0.0.1';
+}
+
 Future<String> cockpitResolveActiveFlutterExecutable({
   CockpitFlutterCommandRunner processRunner = Process.run,
   bool? isWindows,

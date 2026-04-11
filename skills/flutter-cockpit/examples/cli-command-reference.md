@@ -185,7 +185,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   ]'
 ```
 
-If a banner, snackbar, bottom sheet, or collection mutation changes layout, do not assume the next target stayed in the same place. Re-anchor or scroll again before the next deep tap.
+If a banner, snackbar, or bottom sheet appears, or a collection mutation changes layout, do not assume the next target stayed in the same place. Re-anchor or scroll again before the next deep tap.
 
 Wait for idle:
 

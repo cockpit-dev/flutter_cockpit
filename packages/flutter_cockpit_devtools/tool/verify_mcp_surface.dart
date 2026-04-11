@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_cockpit_devtools/flutter_cockpit_devtools.dart';
 import 'package:path/path.dart' as p;
+import 'package:flutter_cockpit_devtools/src/mcp/core/cockpit_mcp_stdio_channel.dart';
 
 Future<void> main() async {
   final verifier = _McpSurfaceVerifier();
@@ -51,9 +53,13 @@ final class _McpSurfaceVerifier {
     };
     final extraRoot = Directory(p.join(verifyDirectory.path, 'extra_root'))
       ..createSync(recursive: true);
+    final mcpCliReport = <String, Object?>{};
     final workspaceReport = <String, Object?>{};
+    final targetReport = <String, Object?>{};
     final appReport = <String, Object?>{};
+    report['mcp_cli_verification'] = mcpCliReport;
     report['workspace_verification'] = workspaceReport;
+    report['target_verification'] = targetReport;
     report['app_verification'] = appReport;
 
     final server = CockpitMcpServer.standard(
@@ -62,7 +68,9 @@ final class _McpSurfaceVerifier {
     );
 
     final appJsonPath = p.join(verifyDirectory.path, 'example_app.json');
+    final targetJsonPath = p.join(verifyDirectory.path, 'example_target.json');
     String? appId;
+    String? targetAppId;
 
     try {
       report['initialize'] = await _rpc(server, 'initialize', <String, Object?>{
@@ -119,6 +127,9 @@ final class _McpSurfaceVerifier {
           'platform': 'macos',
           'requiresVideo': true,
         },
+      );
+      report['mcp_cli_verification'] = await _verifyServeMcpCli(
+        verifyDirectory.path,
       );
 
       final createdProject = await _callTool(
@@ -348,6 +359,108 @@ final class _McpSurfaceVerifier {
         'list_targets',
         const <String, Object?>{},
       );
+      final targetLaunchResult = await _callTool(
+        server,
+        'launch_target',
+        <String, Object?>{
+          'projectDir': p.join(_repoRoot, 'examples', 'cockpit_demo'),
+          'platform': 'macos',
+          'deviceId': 'macos',
+          'sessionPort': await _freePort(),
+          'launchTimeoutSeconds': 150,
+          'targetJson': targetJsonPath,
+        },
+      );
+      targetReport['launch_target'] = targetLaunchResult;
+      final launchedTarget =
+          targetLaunchResult['target'] as Map<Object?, Object?>?;
+      if ('${launchedTarget?['targetKind'] ?? ''}' != 'desktopApp') {
+        throw StateError(
+          'launch_target did not normalize the desktop target kind: '
+          '${jsonEncode(targetLaunchResult)}',
+        );
+      }
+      final persistedTargetJsonPath =
+          '${targetLaunchResult['targetJsonPath'] ?? ''}';
+      if (persistedTargetJsonPath.isEmpty ||
+          p.normalize(persistedTargetJsonPath) != p.normalize(targetJsonPath)) {
+        throw StateError(
+          'launch_target did not persist targetJson to the requested path: '
+          '${jsonEncode(targetLaunchResult)}',
+        );
+      }
+      final targetApp = targetLaunchResult['app'] as Map<Object?, Object?>?;
+      targetAppId = switch ('${targetApp?['appId'] ?? ''}') {
+        '' => null,
+        final value => value,
+      };
+      targetReport['read_target'] = await _callTool(
+        server,
+        'read_target',
+        <String, Object?>{
+          'targetJson': targetJsonPath,
+          'profile': 'minimal',
+        },
+      );
+      final targetRead = targetReport['read_target'] as Map<String, Object?>;
+      if ('${targetRead['selectedPlane'] ?? ''}' != 'flutterSemanticPlane') {
+        throw StateError(
+          'read_target did not resolve the expected semantic plane: '
+          '${jsonEncode(targetRead)}',
+        );
+      }
+      targetReport['inspect_surface'] = await _callTool(
+        server,
+        'inspect_surface',
+        <String, Object?>{
+          'targetJson': targetJsonPath,
+          'profile': 'inspect',
+        },
+      );
+      final inspectSurface =
+          targetReport['inspect_surface'] as Map<String, Object?>;
+      if ('${inspectSurface['selectedPlane'] ?? ''}' !=
+          'flutterSemanticPlane') {
+        throw StateError(
+          'inspect_surface did not resolve the expected semantic plane: '
+          '${jsonEncode(inspectSurface)}',
+        );
+      }
+      targetReport['run_shell_host'] = await _callTool(
+        server,
+        'run_shell',
+        <String, Object?>{
+          'scope': 'host',
+          'command': <String>['echo', 'mcp-host-shell'],
+        },
+      );
+      _requireShellSuccess(
+        'run_shell_host',
+        targetReport['run_shell_host'] as Map<String, Object?>,
+        stdoutContains: 'mcp-host-shell',
+      );
+      targetReport['run_shell_target'] = await _callTool(
+        server,
+        'run_shell',
+        <String, Object?>{
+          'scope': 'target',
+          'targetJson': targetJsonPath,
+          'command': <String>['echo', 'mcp-target-shell'],
+        },
+      );
+      _requireShellSuccess(
+        'run_shell_target',
+        targetReport['run_shell_target'] as Map<String, Object?>,
+        stdoutContains: 'mcp-target-shell',
+      );
+      if (targetAppId != null) {
+        targetReport['stop_target_app'] = await _callTool(
+          server,
+          'stop_app',
+          <String, Object?>{'appId': targetAppId},
+        );
+        targetAppId = null;
+      }
       final launchPort = await _freePort();
       final launchResult = await _callTool(
         server,
@@ -405,12 +518,15 @@ final class _McpSurfaceVerifier {
             'commandId': 'open-settings',
             'commandType': 'tap',
             'locator': <String, Object?>{
-              'key': 'open-settings-button',
               'tooltip': 'Settings',
               'route': '/inbox',
             },
           },
         },
+      );
+      _requireCommandSuccess(
+        'open_settings',
+        appReport['open_settings'] as Map<String, Object?>,
       );
       appReport['inspect_ui_settings'] = await _callTool(
         server,
@@ -422,6 +538,14 @@ final class _McpSurfaceVerifier {
             'compareAgainstSnapshotRef': inboxSnapshotRef,
         },
       );
+      final settingsInspection =
+          appReport['inspect_ui_settings'] as Map<String, Object?>;
+      if ('${settingsInspection['routeName'] ?? ''}' != '/settings') {
+        throw StateError(
+          'inspect_ui_settings did not land on the settings route: '
+          '${jsonEncode(settingsInspection)}',
+        );
+      }
       final scrollSyncCheckResult = await _callTool(
         server,
         'run_command',
@@ -433,7 +557,6 @@ final class _McpSurfaceVerifier {
             'commandId': 'scroll-sync-check',
             'commandType': 'scrollUntilVisible',
             'locator': <String, Object?>{
-              'key': 'settings-sync-check-button',
               'text': 'Run check',
               'route': '/settings',
               'ancestor': <String, Object?>{'route': '/settings'},
@@ -469,7 +592,6 @@ final class _McpSurfaceVerifier {
             'commandId': 'tap-sync-check',
             'commandType': 'tap',
             'locator': <String, Object?>{
-              'key': 'settings-sync-check-button',
               'text': 'Run check',
               'route': '/settings',
             },
@@ -515,7 +637,6 @@ final class _McpSurfaceVerifier {
             'commandId': 'scroll-debug-log',
             'commandType': 'scrollUntilVisible',
             'locator': <String, Object?>{
-              'key': 'settings-debug-log-button',
               'text': 'Emit debug log',
               'route': '/settings',
               'ancestor': <String, Object?>{'route': '/settings'},
@@ -548,7 +669,6 @@ final class _McpSurfaceVerifier {
             'commandId': 'tap-debug-log',
             'commandType': 'tap',
             'locator': <String, Object?>{
-              'key': 'settings-debug-log-button',
               'text': 'Emit debug log',
               'route': '/settings',
             },
@@ -588,7 +708,6 @@ final class _McpSurfaceVerifier {
             'commandId': 'tap-runtime-error',
             'commandType': 'tap',
             'locator': <String, Object?>{
-              'key': 'settings-runtime-error-button',
               'text': 'Trigger runtime error',
               'route': '/settings',
             },
@@ -714,6 +833,17 @@ final class _McpSurfaceVerifier {
         ),
       );
     } finally {
+      if (targetAppId != null) {
+        try {
+          targetReport['stop_target_app'] = await _callTool(
+            server,
+            'stop_app',
+            <String, Object?>{'appId': targetAppId},
+          );
+        } on Object {
+          // Keep the report from the original failure.
+        }
+      }
       if (appId != null) {
         try {
           appReport['stop_app'] = await _callTool(
@@ -951,6 +1081,149 @@ int   sum( int left,int right ){return left+right;}
     }
   }
 
+  void _requireShellSuccess(
+    String label,
+    Map<String, Object?> result, {
+    String? stdoutContains,
+  }) {
+    final success = result['success'] as bool?;
+    final stdout = '${result['stdout'] ?? ''}';
+    if (success == true &&
+        (stdoutContains == null || stdout.contains(stdoutContains))) {
+      return;
+    }
+    throw StateError(
+        '$label did not complete successfully: ${jsonEncode(result)}');
+  }
+
+  Future<Map<String, Object?>> _verifyServeMcpCli(String verifyRoot) async {
+    final logPath = p.join(verifyRoot, 'serve_mcp_protocol.log');
+    final process = await Process.start(
+      'dart',
+      <String>[
+        'run',
+        'flutter_cockpit_devtools:flutter_cockpit_devtools',
+        'serve-mcp',
+        '--workspace-root',
+        _repoRoot,
+        '--log-file',
+        logPath,
+      ],
+      workingDirectory: _repoRoot,
+    );
+    final stderrBuffer = StringBuffer();
+    final stderrSubscription =
+        process.stderr.transform(utf8.decoder).listen(stderrBuffer.write);
+    final channel = cockpitMcpStdioChannel(
+      input: process.stdout,
+      output: process.stdin,
+    );
+    final responses = StreamIterator<String>(channel.stream);
+    var requestId = 0;
+
+    Future<Map<String, Object?>> rpc(
+      String method, [
+      Map<String, Object?>? params,
+    ]) async {
+      final id = ++requestId;
+      channel.sink.add(
+        jsonEncode(<String, Object?>{
+          'jsonrpc': '2.0',
+          'id': id,
+          'method': method,
+          if (params != null) 'params': params,
+        }),
+      );
+      while (await responses.moveNext()) {
+        final payload = Map<String, Object?>.from(
+          jsonDecode(responses.current) as Map<Object?, Object?>,
+        );
+        if (payload['id'] != id) {
+          continue;
+        }
+        final error = payload['error'] as Map<Object?, Object?>?;
+        if (error != null) {
+          throw StateError(
+            'serve-mcp $method failed: '
+            '${jsonEncode(Map<String, Object?>.from(error))}',
+          );
+        }
+        final result = payload['result'];
+        if (result is! Map<Object?, Object?>) {
+          throw StateError(
+            'serve-mcp $method returned an unexpected payload.',
+          );
+        }
+        return Map<String, Object?>.from(result);
+      }
+      throw StateError('serve-mcp closed before responding to $method.');
+    }
+
+    try {
+      final initialize = await rpc('initialize', <String, Object?>{
+        'protocolVersion': '2024-11-05',
+        'capabilities': <String, Object?>{},
+        'clientInfo': <String, Object?>{
+          'name': 'flutter_cockpit verify_mcp_surface',
+          'version': '1.0.0',
+        },
+      });
+      channel.sink.add(
+        jsonEncode(<String, Object?>{
+          'jsonrpc': '2.0',
+          'method': 'notifications/initialized',
+        }),
+      );
+      final tools = await rpc('tools/list');
+      final resources = await rpc('resources/list');
+      final targets = await rpc('tools/call', <String, Object?>{
+        'name': 'list_targets',
+        'arguments': const <String, Object?>{},
+      });
+
+      final toolNames =
+          ((tools['tools'] as List<Object?>?) ?? const <Object?>[])
+              .whereType<Map<Object?, Object?>>()
+              .map((tool) => '${tool['name']}')
+              .toList(growable: false);
+      if (!toolNames.contains('launch_app') ||
+          !toolNames.contains('launch_target') ||
+          !toolNames.contains('validate_task')) {
+        throw StateError('serve-mcp did not expose the expected tool surface.');
+      }
+
+      return <String, Object?>{
+        'logPath': logPath,
+        'initialize': initialize,
+        'toolNames': toolNames,
+        'resourceNames':
+            ((resources['resources'] as List<Object?>?) ?? const <Object?>[])
+                .whereType<Map<Object?, Object?>>()
+                .map((resource) => '${resource['name']}')
+                .toList(growable: false),
+        'listTargets': Map<String, Object?>.from(
+          (targets['structuredContent'] as Map<Object?, Object?>?) ??
+              const <Object?, Object?>{},
+        ),
+      };
+    } finally {
+      await channel.sink.close();
+      await responses.cancel();
+      await stderrSubscription.cancel();
+      if (process.kill()) {
+        await process.exitCode;
+      } else {
+        await process.exitCode.timeout(const Duration(seconds: 5));
+      }
+      if (stderrBuffer.isNotEmpty) {
+        final stderrPath = p.join(verifyRoot, 'serve_mcp_stderr.log');
+        File(stderrPath)
+          ..createSync(recursive: true)
+          ..writeAsStringSync(stderrBuffer.toString());
+      }
+    }
+  }
+
   Map<String, Object?> _scriptJson({
     required String sessionId,
     required String taskId,
@@ -975,7 +1248,6 @@ int   sum( int left,int right ){return left+right;}
           'commandId': 'open-today',
           'commandType': 'tap',
           'locator': <String, Object?>{
-            'key': 'nav-today',
             'text': 'Today',
             'type': 'TextButton',
             'route': '/inbox',

@@ -210,4 +210,7 @@ workspace 工具：
 dart run tool/verify_mcp_surface.dart
 ```
 
+这条 verifier 会把真实的 `serve-mcp` stdio 面、workspace tooling、target-first 命令和交付工具链一起做端到端验证。
+仓库内的 `runtime-loop` workflow 会在 macOS 上执行它，把 MCP 和 target-first 能力作为发布闸门的一部分。
+
 包地址：[pub.dev/packages/flutter_cockpit_devtools](https://pub.dev/packages/flutter_cockpit_devtools)

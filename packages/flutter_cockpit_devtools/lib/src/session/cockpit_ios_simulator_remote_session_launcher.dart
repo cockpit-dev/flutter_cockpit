@@ -45,6 +45,7 @@ final class CockpitIosSimulatorRemoteSessionLauncher
         options.flutterVersion ?? await _flutterVersionReader();
     final flutterExecutable =
         options.flutterExecutable ?? cockpitFlutterExecutable();
+    final bindHost = cockpitRemoteBindHostForPlatform(options.platform);
     await _runRequired(
         flutterExecutable,
         <String>[
@@ -56,7 +57,7 @@ final class CockpitIosSimulatorRemoteSessionLauncher
           '--target',
           options.target,
           '--dart-define=FLUTTER_PILOT_REMOTE_ENABLED=true',
-          '--dart-define=FLUTTER_PILOT_REMOTE_HOST=127.0.0.1',
+          '--dart-define=FLUTTER_PILOT_REMOTE_HOST=$bindHost',
           '--dart-define=FLUTTER_PILOT_REMOTE_PORT=${options.sessionPort}',
           '--dart-define=FLUTTER_PILOT_FLUTTER_VERSION=$flutterVersion',
         ],
