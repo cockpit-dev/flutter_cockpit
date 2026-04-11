@@ -33,6 +33,10 @@ final class CockpitReadAppResult {
     required this.transportType,
     required this.capabilities,
     required this.recordingCapabilities,
+    this.selectedPlane = CockpitPlaneKind.flutterSemanticPlane,
+    this.fallbackTrail = const <CockpitPlaneKind>[],
+    this.recommendedNextStep = 'runNextCommand',
+    this.whatMatters,
     this.app,
     this.state,
     this.lastError,
@@ -48,6 +52,10 @@ final class CockpitReadAppResult {
   final String transportType;
   final CockpitCapabilities capabilities;
   final CockpitRecordingCapabilities recordingCapabilities;
+  final CockpitPlaneKind selectedPlane;
+  final List<CockpitPlaneKind> fallbackTrail;
+  final String recommendedNextStep;
+  final String? whatMatters;
   final CockpitAppHandle? app;
   final String? state;
   final String? lastError;
@@ -63,6 +71,11 @@ final class CockpitReadAppResult {
         'transportType': transportType,
         'capabilities': capabilities.toJson(),
         'recordingCapabilities': recordingCapabilities.toJson(),
+        'selectedPlane': selectedPlane.name,
+        'fallbackTrail':
+            fallbackTrail.map((planeKind) => planeKind.name).toList(),
+        'recommendedNextStep': recommendedNextStep,
+        if (whatMatters != null) 'whatMatters': whatMatters,
         if (app != null) 'app': app!.toJson(),
         if (state != null) 'state': state,
         if (lastError != null) 'lastError': lastError,
@@ -110,6 +123,16 @@ final class CockpitReadAppService {
       transportType: result.transportType,
       capabilities: result.capabilities,
       recordingCapabilities: result.recordingCapabilities,
+      selectedPlane: _selectedPlaneFor(result.capabilities),
+      fallbackTrail: _fallbackTrailFor(result.capabilities),
+      recommendedNextStep: _recommendedNextStep(
+        currentRouteName: result.currentRouteName,
+        lastError: resolved.developmentRecord?.status.lastError,
+      ),
+      whatMatters: _whatMatters(
+        currentRouteName: result.currentRouteName,
+        lastError: resolved.developmentRecord?.status.lastError,
+      ),
       app: resolved.app,
       state: resolved.developmentRecord?.status.state.jsonValue ??
           resolved.remoteRecord?.recommendedNextStep,
@@ -121,5 +144,60 @@ final class CockpitReadAppService {
       diagnostics: null,
       effectiveSnapshotOptions: result.effectiveSnapshotOptions,
     );
+  }
+
+  static CockpitPlaneKind _selectedPlaneFor(CockpitCapabilities capabilities) {
+    if (capabilities.supportsInAppControl) {
+      return CockpitPlaneKind.flutterSemanticPlane;
+    }
+    if (capabilities.supportsHostAutomation) {
+      return CockpitPlaneKind.hostPlane;
+    }
+    if (capabilities.supportsNativeScreenCapture) {
+      return CockpitPlaneKind.nativeUiPlane;
+    }
+    return CockpitPlaneKind.deviceSystemPlane;
+  }
+
+  static List<CockpitPlaneKind> _fallbackTrailFor(
+    CockpitCapabilities capabilities,
+  ) {
+    return switch (_selectedPlaneFor(capabilities)) {
+      CockpitPlaneKind.flutterSemanticPlane => <CockpitPlaneKind>[
+          CockpitPlaneKind.nativeUiPlane,
+          CockpitPlaneKind.deviceSystemPlane,
+        ],
+      CockpitPlaneKind.hostPlane => const <CockpitPlaneKind>[],
+      CockpitPlaneKind.nativeUiPlane => <CockpitPlaneKind>[
+          CockpitPlaneKind.deviceSystemPlane,
+        ],
+      CockpitPlaneKind.deviceSystemPlane => const <CockpitPlaneKind>[],
+    };
+  }
+
+  static String _recommendedNextStep({
+    required String? currentRouteName,
+    required String? lastError,
+  }) {
+    if (lastError != null && lastError.isNotEmpty) {
+      return 'inspectFailureDiagnostics';
+    }
+    if (currentRouteName != null && currentRouteName.isNotEmpty) {
+      return 'runNextCommand';
+    }
+    return 'inspectCurrentState';
+  }
+
+  static String? _whatMatters({
+    required String? currentRouteName,
+    required String? lastError,
+  }) {
+    if (lastError != null && lastError.isNotEmpty) {
+      return lastError;
+    }
+    if (currentRouteName != null && currentRouteName.isNotEmpty) {
+      return 'Current route is $currentRouteName.';
+    }
+    return null;
   }
 }

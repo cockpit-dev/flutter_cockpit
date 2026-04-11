@@ -52,6 +52,13 @@ void main() {
       expect(result.diagnostics, isNull);
       expect(result.artifacts, isEmpty);
       expect(result.snapshotRef, isNull);
+      expect(result.selectedPlane, CockpitPlaneKind.flutterSemanticPlane);
+      expect(result.fallbackTrail, <CockpitPlaneKind>[
+        CockpitPlaneKind.nativeUiPlane,
+        CockpitPlaneKind.deviceSystemPlane,
+      ]);
+      expect(result.recommendedNextStep, 'readPostActionState');
+      expect(result.toJson()['selectedPlane'], 'flutterSemanticPlane');
     });
 
     test('injects a default timeout when the command omits one', () async {

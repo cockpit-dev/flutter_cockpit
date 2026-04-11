@@ -2,6 +2,10 @@ export 'cockpit_application_service_exception.dart';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
+import '../control_core/cockpit_control_planner.dart';
+import '../control_core/cockpit_execution_plan.dart';
+import '../control_core/cockpit_intent.dart';
+import '../control_core/cockpit_intent_action.dart';
 import '../remote/cockpit_remote_session_client.dart';
 import '../session/cockpit_remote_session_handle.dart';
 import 'cockpit_interactive_result_data.dart';
@@ -44,6 +48,11 @@ final class CockpitExecuteRemoteCommandResult {
   const CockpitExecuteRemoteCommandResult({
     required this.command,
     required this.artifacts,
+    this.selectedPlane = CockpitPlaneKind.flutterSemanticPlane,
+    this.fallbackTrail = const <CockpitPlaneKind>[],
+    this.recommendedNextStep = 'continue',
+    this.whatChanged,
+    this.whatMatters,
     this.uiSummary,
     this.snapshot,
     this.diagnostics,
@@ -56,6 +65,11 @@ final class CockpitExecuteRemoteCommandResult {
 
   final CockpitInteractiveCommandCore command;
   final List<CockpitInteractiveArtifactDescriptor> artifacts;
+  final CockpitPlaneKind selectedPlane;
+  final List<CockpitPlaneKind> fallbackTrail;
+  final String recommendedNextStep;
+  final String? whatChanged;
+  final String? whatMatters;
   final CockpitInteractiveSnapshotSummary? uiSummary;
   final CockpitSnapshot? snapshot;
   final Map<String, Object?>? diagnostics;
@@ -68,6 +82,12 @@ final class CockpitExecuteRemoteCommandResult {
   Map<String, Object?> toJson() => <String, Object?>{
         'command': command.toJson(),
         'artifacts': artifacts.map((artifact) => artifact.toJson()).toList(),
+        'selectedPlane': selectedPlane.name,
+        'fallbackTrail':
+            fallbackTrail.map((planeKind) => planeKind.name).toList(),
+        'recommendedNextStep': recommendedNextStep,
+        if (whatChanged != null) 'whatChanged': whatChanged,
+        if (whatMatters != null) 'whatMatters': whatMatters,
         if (uiSummary != null) 'uiSummary': uiSummary!.toJson(),
         if (snapshot != null) 'snapshot': snapshot!.toJson(),
         if (diagnostics != null) 'diagnostics': diagnostics,
@@ -123,6 +143,11 @@ final class CockpitExecuteRemoteCommandService {
         request.command,
         defaultTimeout: request.defaultCommandTimeout,
       );
+      final intent = CockpitIntent.fromCommand(effectiveCommand);
+      final executionPlan = CockpitControlPlanner().plan(
+        intent: intent,
+        capabilityProfile: _legacyFlutterCapabilityProfile(intent),
+      );
       final execution =
           await _executeCommand(resolved.baseUri, effectiveCommand);
       final needsSnapshot =
@@ -158,6 +183,14 @@ final class CockpitExecuteRemoteCommandService {
           execution,
           request.resultProfile.artifacts,
         ),
+        selectedPlane: executionPlan.selectedPlane,
+        fallbackTrail: executionPlan.fallbackChain,
+        recommendedNextStep: _recommendedNextStep(
+          execution: execution,
+          executionPlan: executionPlan,
+        ),
+        whatChanged: _whatChanged(execution.result),
+        whatMatters: _whatMatters(execution.result),
         uiSummary: snapshot == null ||
                 request.resultProfile.ui != CockpitInteractiveUiLevel.summary
             ? null
@@ -286,5 +319,64 @@ final class CockpitExecuteRemoteCommandService {
 
   static Duration _maxDuration(Duration left, Duration right) {
     return left >= right ? left : right;
+  }
+
+  static CockpitCapabilityProfile _legacyFlutterCapabilityProfile(
+    CockpitIntent intent,
+  ) {
+    return CockpitCapabilityProfile(
+      targetKind: CockpitTargetKind.flutterApp,
+      surfaceKinds: <CockpitSurfaceKind>{
+        CockpitSurfaceKind.flutterSemantic,
+        CockpitSurfaceKind.nativeUi,
+      },
+      actionCapabilities: <CockpitActionCapability>{
+        CockpitActionCapability.tap,
+        CockpitActionCapability.typeText,
+        CockpitActionCapability.captureScreenshot,
+        CockpitActionCapability.readLogs,
+      },
+      evidenceCapabilities: <CockpitEvidenceCapability>{
+        CockpitEvidenceCapability.flutterScreenshot,
+        if (intent.action == CockpitIntentAction.captureScreenshot)
+          CockpitEvidenceCapability.nativeScreenshot,
+      },
+    );
+  }
+
+  static String _recommendedNextStep({
+    required CockpitCommandExecution execution,
+    required CockpitExecutionPlan executionPlan,
+  }) {
+    if (!execution.result.success) {
+      return 'inspectFailureDiagnostics';
+    }
+    if (executionPlan.requiresObservation) {
+      return 'readPostActionState';
+    }
+    if (executionPlan.requiresEvidence) {
+      return 'reviewCapturedEvidence';
+    }
+    return 'continue';
+  }
+
+  static String _whatChanged(CockpitCommandResult result) {
+    return result.success
+        ? 'Command ${result.commandId} completed successfully.'
+        : 'Command ${result.commandId} failed.';
+  }
+
+  static String? _whatMatters(CockpitCommandResult result) {
+    if (result.error != null) {
+      return result.error!.message;
+    }
+    if (result.degradationReason != null &&
+        result.degradationReason!.isNotEmpty) {
+      return result.degradationReason;
+    }
+    if (result.usedCaptureFallback) {
+      return 'Capture completed with a fallback path.';
+    }
+    return null;
   }
 }

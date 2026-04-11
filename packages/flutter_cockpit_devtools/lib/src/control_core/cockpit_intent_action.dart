@@ -3,6 +3,30 @@ import 'package:flutter_cockpit/flutter_cockpit.dart';
 enum CockpitIntentAction {
   tap,
   enterText,
+  focusTextInput,
+  setTextEditingValue,
+  sendTextInputAction,
+  sendKeyEvent,
+  sendKeyDownEvent,
+  sendKeyUpEvent,
+  longPress,
+  doubleTap,
+  drag,
+  fling,
+  swipe,
+  pinchZoom,
+  rotate,
+  panZoom,
+  multiTouch,
+  scrollUntilVisible,
+  clearNetworkActivity,
+  waitForNetworkIdle,
+  waitForUiIdle,
+  back,
+  showOnScreen,
+  increase,
+  decrease,
+  dismiss,
   captureScreenshot,
   collectSnapshot,
   waitFor,
@@ -14,15 +38,42 @@ enum CockpitIntentAction {
     return switch (commandType) {
       CockpitCommandType.tap => CockpitIntentAction.tap,
       CockpitCommandType.enterText => CockpitIntentAction.enterText,
+      CockpitCommandType.focusTextInput => CockpitIntentAction.focusTextInput,
+      CockpitCommandType.setTextEditingValue =>
+        CockpitIntentAction.setTextEditingValue,
+      CockpitCommandType.sendTextInputAction =>
+        CockpitIntentAction.sendTextInputAction,
+      CockpitCommandType.sendKeyEvent => CockpitIntentAction.sendKeyEvent,
+      CockpitCommandType.sendKeyDownEvent =>
+        CockpitIntentAction.sendKeyDownEvent,
+      CockpitCommandType.sendKeyUpEvent => CockpitIntentAction.sendKeyUpEvent,
+      CockpitCommandType.longPress => CockpitIntentAction.longPress,
+      CockpitCommandType.doubleTap => CockpitIntentAction.doubleTap,
+      CockpitCommandType.drag => CockpitIntentAction.drag,
+      CockpitCommandType.fling => CockpitIntentAction.fling,
+      CockpitCommandType.swipe => CockpitIntentAction.swipe,
+      CockpitCommandType.pinchZoom => CockpitIntentAction.pinchZoom,
+      CockpitCommandType.rotate => CockpitIntentAction.rotate,
+      CockpitCommandType.panZoom => CockpitIntentAction.panZoom,
+      CockpitCommandType.multiTouch => CockpitIntentAction.multiTouch,
+      CockpitCommandType.scrollUntilVisible =>
+        CockpitIntentAction.scrollUntilVisible,
+      CockpitCommandType.clearNetworkActivity =>
+        CockpitIntentAction.clearNetworkActivity,
+      CockpitCommandType.waitForNetworkIdle =>
+        CockpitIntentAction.waitForNetworkIdle,
+      CockpitCommandType.waitForUiIdle => CockpitIntentAction.waitForUiIdle,
+      CockpitCommandType.back => CockpitIntentAction.back,
+      CockpitCommandType.showOnScreen => CockpitIntentAction.showOnScreen,
+      CockpitCommandType.increase => CockpitIntentAction.increase,
+      CockpitCommandType.decrease => CockpitIntentAction.decrease,
+      CockpitCommandType.dismiss => CockpitIntentAction.dismiss,
       CockpitCommandType.captureScreenshot =>
         CockpitIntentAction.captureScreenshot,
       CockpitCommandType.collectSnapshot => CockpitIntentAction.collectSnapshot,
       CockpitCommandType.waitFor => CockpitIntentAction.waitFor,
       CockpitCommandType.assertVisible => CockpitIntentAction.assertVisible,
       CockpitCommandType.assertText => CockpitIntentAction.assertText,
-      _ => throw UnsupportedError(
-          'CockpitIntentAction does not yet support ${commandType.name}.',
-        ),
     };
   }
 }

@@ -116,6 +116,30 @@ final class CockpitControlPlanner {
     return switch (action) {
       CockpitIntentAction.tap ||
       CockpitIntentAction.enterText ||
+      CockpitIntentAction.focusTextInput ||
+      CockpitIntentAction.setTextEditingValue ||
+      CockpitIntentAction.sendTextInputAction ||
+      CockpitIntentAction.sendKeyEvent ||
+      CockpitIntentAction.sendKeyDownEvent ||
+      CockpitIntentAction.sendKeyUpEvent ||
+      CockpitIntentAction.longPress ||
+      CockpitIntentAction.doubleTap ||
+      CockpitIntentAction.drag ||
+      CockpitIntentAction.fling ||
+      CockpitIntentAction.swipe ||
+      CockpitIntentAction.pinchZoom ||
+      CockpitIntentAction.rotate ||
+      CockpitIntentAction.panZoom ||
+      CockpitIntentAction.multiTouch ||
+      CockpitIntentAction.scrollUntilVisible ||
+      CockpitIntentAction.clearNetworkActivity ||
+      CockpitIntentAction.waitForNetworkIdle ||
+      CockpitIntentAction.waitForUiIdle ||
+      CockpitIntentAction.back ||
+      CockpitIntentAction.showOnScreen ||
+      CockpitIntentAction.increase ||
+      CockpitIntentAction.decrease ||
+      CockpitIntentAction.dismiss ||
       CockpitIntentAction.waitFor ||
       CockpitIntentAction.assertVisible ||
       CockpitIntentAction.assertText =>
@@ -129,14 +153,41 @@ final class CockpitControlPlanner {
 
   CockpitActionCapability _actionCapabilityFor(CockpitIntentAction action) {
     return switch (action) {
-      CockpitIntentAction.tap => CockpitActionCapability.tap,
-      CockpitIntentAction.enterText => CockpitActionCapability.typeText,
+      CockpitIntentAction.tap ||
+      CockpitIntentAction.longPress ||
+      CockpitIntentAction.doubleTap ||
+      CockpitIntentAction.drag ||
+      CockpitIntentAction.fling ||
+      CockpitIntentAction.swipe ||
+      CockpitIntentAction.pinchZoom ||
+      CockpitIntentAction.rotate ||
+      CockpitIntentAction.panZoom ||
+      CockpitIntentAction.multiTouch ||
+      CockpitIntentAction.scrollUntilVisible ||
+      CockpitIntentAction.back ||
+      CockpitIntentAction.showOnScreen ||
+      CockpitIntentAction.increase ||
+      CockpitIntentAction.decrease ||
+      CockpitIntentAction.dismiss ||
+      CockpitIntentAction.waitFor ||
+      CockpitIntentAction.assertVisible ||
+      CockpitIntentAction.assertText =>
+        CockpitActionCapability.tap,
+      CockpitIntentAction.enterText ||
+      CockpitIntentAction.focusTextInput ||
+      CockpitIntentAction.setTextEditingValue ||
+      CockpitIntentAction.sendTextInputAction ||
+      CockpitIntentAction.sendKeyEvent ||
+      CockpitIntentAction.sendKeyDownEvent ||
+      CockpitIntentAction.sendKeyUpEvent =>
+        CockpitActionCapability.typeText,
       CockpitIntentAction.captureScreenshot =>
         CockpitActionCapability.captureScreenshot,
-      CockpitIntentAction.collectSnapshot => CockpitActionCapability.readLogs,
-      CockpitIntentAction.waitFor => CockpitActionCapability.tap,
-      CockpitIntentAction.assertVisible => CockpitActionCapability.tap,
-      CockpitIntentAction.assertText => CockpitActionCapability.tap,
+      CockpitIntentAction.collectSnapshot ||
+      CockpitIntentAction.clearNetworkActivity ||
+      CockpitIntentAction.waitForNetworkIdle ||
+      CockpitIntentAction.waitForUiIdle =>
+        CockpitActionCapability.readLogs,
       CockpitIntentAction.runShell => CockpitActionCapability.runShell,
     };
   }
