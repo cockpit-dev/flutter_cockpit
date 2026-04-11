@@ -14,6 +14,7 @@ It provides:
 
 - AI-first CLI commands
 - an MCP server with the same workflows
+- target-first entrypoints for non-Flutter, native, and host-level control
 - task bundle writing and validation
 - workspace tooling for search, package inspection, project creation, analyze, format, test, and fixes
 
@@ -70,6 +71,13 @@ Recommended app-first loop:
 4. `inspect-ui`, `read-network`, `read-errors`, `read-logs`, `wait-idle` when needed
 5. `hot-reload` or `hot-restart`
 6. `run-script`, `run-task`, or `validate-task` for delivery
+
+Target-first loop when the agent needs direct system or non-Flutter control:
+
+1. `launch-target`
+2. `read-target --profile minimal`
+3. `inspect-surface` or `run-shell`
+4. `read_task_bundle_summary` or `validate-task`
 
 Recommended code-side loop:
 
@@ -136,11 +144,15 @@ Core tools:
 
 - `list_targets`
 - `launch_app`
+- `launch_target`
 - `list_apps`
 - `read_app`
+- `read_target`
 - `inspect_ui`
+- `inspect_surface`
 - `run_command`
 - `run_batch`
+- `run_shell`
 - `wait_idle`
 - `hot_reload`
 - `hot_restart`
@@ -188,6 +200,7 @@ Resources and prompts are also exposed for contracts, capabilities, task summari
 - Interactive app commands accept `timeoutMs`. Workspace tools accept `timeoutSeconds`. Keep the default unless the task is known to be slow.
 - `pub_dev_search` uses a bounded network path and a local Python fallback when direct TLS fetches fail on the host.
 - Advanced low-level session services still exist in the Dart API, but the recommended public loop is app-first.
+- `read_task_bundle_summary` and `validate-task` now expose plane-aware delivery state, including `targetKind`, `primaryExecutionPlane`, `planesUsed`, `surfaceKindsUsed`, `fallbackCount`, and bounded fallback gates.
 
 ## Verification
 

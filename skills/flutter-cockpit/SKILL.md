@@ -8,6 +8,7 @@ description: Use when a Flutter task must prove live UI, interaction, route, net
 Use this skill when the task needs live Flutter evidence, not just source inspection.
 Default loop: launch or reuse the app, read the smallest useful state, execute one action or short batch, inspect only the next missing fact, then validate delivery before any final claim.
 Prefer the lowest-token public surface. In shell-driven work that is usually the shipped CLI. Use MCP when the host specifically needs tool calling, roots-aware state, or a long-lived server surface.
+When the surface is not purely Flutter, switch to the same summary-first loop with target-first commands instead of forcing everything through app handles.
 
 ## When To Use
 
@@ -24,8 +25,10 @@ Do not use it for docs-only edits or static refactors with no runtime claim.
 
 1. `bootstrap`
    Use `launch_app` / `launch-app`. Prefer a Cockpit development entrypoint such as `cockpit/main.dart` when the project provides one. On CLI, persist `app.json` and reuse it instead of relaunching. On MCP, `list_apps` can recover tracked apps.
+   For direct system or non-Flutter targets, use `launch_target` / `launch-target`.
 2. `baseline`
    Start with `read_app` / `read-app --profile minimal`.
+   For target-first work, start with `read_target` / `read-target --profile minimal`.
 3. `execute`
    Prefer `run_command` for one action and `run_batch` for short ordered steps. Use `wait_idle`, `read_network`, `read_errors`, `read_logs`, `hot_reload`, and `hot_restart` only when they answer the next question.
    For code-side questions, prefer `lsp`, `analyze_files`, `grep_package_uris`, `read_package_uris`, and `pub` before broader workspace commands.
@@ -105,10 +108,14 @@ For the shortest edit -> reload -> verify loop, use the rapid loop reference ins
 ## Tool Selection
 
 - Launch: `launch_app` / `launch-app`
+- Target launch: `launch_target` / `launch-target`
 - Lightweight state: `read_app` / `read-app`
+- Target state: `read_target` / `read-target`
 - UI structure or ambiguity: `inspect_ui` / `inspect-ui`
+- Surface structure: `inspect_surface` / `inspect-surface`
 - One action: `run_command` / `run-command`
 - Ordered steps: `run_batch` / `run-batch`
+- Direct host command: `run_shell` / `run-shell`
 - Settle: `wait_idle` / `wait-idle`
 - Network activity: `read_network` / `read-network`
 - Runtime failures: `read_errors` / `read-errors`
@@ -135,6 +142,7 @@ Do not report completion unless you have:
 - read post-action state instead of trusting command success alone
 - used `validate_task` / `validate-task` for final acceptance-facing claims
 - identified concrete evidence paths when a bundle is involved
+- read plane-aware bundle signals such as `targetKind`, `primaryExecutionPlane`, `planesUsed`, `surfaceKindsUsed`, `fallbackCount`, and fallback gates before declaring success
 - treated `run_script` bundle failures as real task failures
 - cleaned up owned app processes when the loop is finished or intentionally left them running
 

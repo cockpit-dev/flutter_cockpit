@@ -12,8 +12,10 @@
 它给 AI 提供一条完整闭环：
 
 - 启动或复用应用
+- 当目标并不只是 Flutter UI 时，也可以直接启动或复用 target
 - 读取 route、UI、网络、日志、运行时错误和诊断信息
 - 执行单条命令或批量命令
+- 在 Flutter 语义面、原生 UI 面、系统面、宿主面之间按真实能力切换
 - 在开发期热重载或热重启
 - 采集截图和录屏
 - 写出并验证交付 bundle
@@ -198,6 +200,13 @@ claude mcp list
 1. 已有运行中应用时用 `run-script`
 2. 需要工具全权负责启动、基线、执行和分类时用 `run-task`
 3. 做最终完成声明时用 `validate-task`
+
+target-first 或非 Flutter / 系统直控场景：
+
+1. `launch-target`
+2. `read-target --profile minimal`
+3. 需要时使用 `inspect-surface`、`run-shell`，或者在目标解析成 Flutter 应用后继续走现有 app/batch 命令
+4. 在最终声明前，用 `read_task_bundle_summary` 或 `validate-task` 读取 `targetKind`、`primaryExecutionPlane`、`planesUsed`、`surfaceKindsUsed`、`fallbackCount` 和 fallback gates
 
 公共面是 app-first，而不是 session-handle-first。把 `app.json` 持久化下来并跨步骤复用。CLI 和 MCP 输出使用 lower camel case keys。
 只要请求体不再是几行以内，就优先使用 `--command-file`、`--commands-file`、`--config-json`。

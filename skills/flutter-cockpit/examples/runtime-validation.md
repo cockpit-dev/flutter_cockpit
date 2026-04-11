@@ -11,6 +11,13 @@ Use this pattern when the task needs live app evidence.
 5. `hot-reload` or `hot-restart` during active development
 6. repeat until correct
 
+When the task is not purely Flutter UI, switch to:
+
+1. `launch-target`
+2. `read-target --profile minimal`
+3. `inspect-surface` or `run-shell`
+4. `read_task_bundle_summary` or `validate-task`
+
 ## Example
 
 ```bash
@@ -42,6 +49,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 - let `launch-app` auto-detect `cockpit/main.dart` before spelling out a target
 - start with the smallest useful profile
 - do not trust command success without a follow-up read
+- if the workflow used target-first control, inspect `targetKind`, `primaryExecutionPlane`, `planesUsed`, and `fallbackCount` before claiming success
 - for network questions, prefer `run-command` -> `wait-idle` -> `read-network`
 - prefer app-centric `read-logs` before tailing host-supervisor logs
 - prefer `read-network` over full UI snapshots when the missing fact is about requests, failures, or endpoint coverage

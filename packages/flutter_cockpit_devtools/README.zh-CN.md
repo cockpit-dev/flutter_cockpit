@@ -14,6 +14,7 @@
 
 - 面向 AI 的 CLI 命令
 - 暴露同一套工作流的 MCP server
+- 面向非 Flutter、原生和宿主直控场景的 target-first 入口
 - task bundle 写入与验证
 - workspace tooling：依赖搜索、包源码读取、工程创建、analyze、format、test、fix
 
@@ -70,6 +71,13 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-command --help
 4. 需要时再用 `inspect-ui`、`read-network`、`read-errors`、`read-logs`、`wait-idle`
 5. `hot-reload` 或 `hot-restart`
 6. 交付时用 `run-script`、`run-task` 或 `validate-task`
+
+target-first 闭环：
+
+1. `launch-target`
+2. `read-target --profile minimal`
+3. `inspect-surface` 或 `run-shell`
+4. `read_task_bundle_summary` 或 `validate-task`
 
 推荐代码侧闭环：
 
@@ -136,11 +144,15 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools serve-mcp
 
 - `list_targets`
 - `launch_app`
+- `launch_target`
 - `list_apps`
 - `read_app`
+- `read_target`
 - `inspect_ui`
+- `inspect_surface`
 - `run_command`
 - `run_batch`
+- `run_shell`
 - `wait_idle`
 - `hot_reload`
 - `hot_restart`
@@ -188,6 +200,7 @@ workspace 工具：
 - 应用交互命令使用 `timeoutMs`；workspace 工具使用 `timeoutSeconds`。除非明确知道任务会很慢，否则先用默认值。
 - `pub_dev_search` 走有界网络请求；宿主机直连 TLS 不稳定时，会退回本地 Python fetch。
 - 更底层的 session service 仍保留在 Dart API 中，但推荐公开主工作流已经切到 app-first。
+- `read_task_bundle_summary` 与 `validate-task` 现在会暴露 plane-aware 交付状态，包括 `targetKind`、`primaryExecutionPlane`、`planesUsed`、`surfaceKindsUsed`、`fallbackCount` 和 fallback gates。
 
 ## 验证
 

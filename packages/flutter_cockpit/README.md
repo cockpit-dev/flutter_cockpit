@@ -16,6 +16,7 @@ It provides:
 - command execution for taps, text input, gestures, waits, assertions, screenshots, and snapshots
 - remote session serving over HTTP
 - snapshot, artifact, recording, and bundle models
+- target, plane, surface, and fallback-aware runtime models for AI-first summaries
 
 ## Install
 
@@ -78,5 +79,6 @@ flutter run -t cockpit/main.dart
 - remote session status and command endpoints
 
 Host-side orchestration, MCP, workspace tooling, and delivery validation live in [`flutter_cockpit_devtools`](https://pub.dev/packages/flutter_cockpit_devtools).
+The runtime bundle models now preserve `targetKind`, `primaryExecutionPlane`, `planesUsed`, `surfaceKindsUsed`, `fallbackCount`, plus per-step and per-observation plane metadata so host-side tooling can explain when Flutter control stayed on-plan versus when it had to degrade to another surface.
 
 Package page: [pub.dev/packages/flutter_cockpit](https://pub.dev/packages/flutter_cockpit)

@@ -16,6 +16,7 @@
 - 点击、输入、手势、等待、断言、截图、快照等命令执行能力
 - 基于 HTTP 的远程会话服务
 - snapshot、artifact、recording 和 bundle 模型
+- 面向 AI 摘要的 target / plane / surface / fallback 运行时模型
 
 ## 安装
 
@@ -78,5 +79,6 @@ flutter run -t cockpit/main.dart
 - 远程会话状态与命令端点
 
 宿主侧编排、MCP、workspace tooling 和交付验证在 [`flutter_cockpit_devtools`](https://pub.dev/packages/flutter_cockpit_devtools) 中。
+运行时 bundle 模型现在会保留 `targetKind`、`primaryExecutionPlane`、`planesUsed`、`surfaceKindsUsed`、`fallbackCount`，以及 step / observation 级别的 plane 元数据，方便宿主侧准确解释这次控制是按预期平面完成，还是发生了受控降级。
 
 包地址：[pub.dev/packages/flutter_cockpit](https://pub.dev/packages/flutter_cockpit)

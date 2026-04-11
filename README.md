@@ -12,8 +12,10 @@
 It gives AI one closed loop:
 
 - launch or reuse an app
+- launch or reuse a target when the surface is not purely Flutter
 - inspect live route, UI, network, logs, runtime errors, and diagnostics
 - run single commands or batches
+- switch between Flutter semantic, native UI, system, and host planes with explicit capability truth
 - hot reload or hot restart during development
 - capture screenshots and recordings
 - write and validate delivery bundles
@@ -198,6 +200,13 @@ For delivery:
 1. `run-script` when you need a bundle from an already running app
 2. `run-task` when the tool should own bootstrap, baseline, execution, and classification
 3. `validate-task` when making a final completion claim
+
+For target-first and non-Flutter/system work:
+
+1. `launch-target`
+2. `read-target --profile minimal`
+3. `inspect-surface`, `run-shell`, or the existing app/batch commands when the target resolves to a Flutter app
+4. `read_task_bundle_summary` or `validate-task` to review `targetKind`, `primaryExecutionPlane`, `planesUsed`, `surfaceKindsUsed`, `fallbackCount`, and fallback gates before claiming success
 
 The public surface is app-first, not session-handle-first. Persist `app.json` and reuse it across steps. CLI and MCP output uses lower camel case keys.
 Prefer `--command-file`, `--commands-file`, and `--config-json` once a payload stops being trivial.
