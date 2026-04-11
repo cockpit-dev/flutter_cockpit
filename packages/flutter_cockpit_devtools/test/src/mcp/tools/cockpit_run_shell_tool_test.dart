@@ -22,4 +22,33 @@ void main() {
 
     expect(result['structuredContent'], isA<Map<String, Object?>>());
   });
+
+  test('run_shell forwards targetJson for target-aware shell execution',
+      () async {
+    CockpitRunShellRequest? capturedRequest;
+    final tool = CockpitRunShellTool(
+      runShell: (request) async {
+        capturedRequest = request;
+        return const CockpitRunShellResult(
+          scope: 'android',
+          command: <String>['getprop', 'ro.build.version.sdk'],
+          exitCode: 0,
+          stdout: '34',
+          stderr: '',
+          success: true,
+          recommendedNextStep: 'continue',
+        );
+      },
+    );
+
+    final result = await tool.call(<String, Object?>{
+      'scope': 'target',
+      'targetJson': '/tmp/target.json',
+      'command': <String>['getprop', 'ro.build.version.sdk'],
+    });
+
+    expect(result['structuredContent'], isA<Map<String, Object?>>());
+    expect(capturedRequest?.scope, 'target');
+    expect(capturedRequest?.targetHandlePath, '/tmp/target.json');
+  });
 }

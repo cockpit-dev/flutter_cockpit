@@ -1,7 +1,11 @@
 import 'package:flutter_cockpit/flutter_cockpit.dart';
+import 'package:collection/collection.dart';
 
+import '../platform/cockpit_platform_driver_registry.dart';
+import '../targets/cockpit_target_capability_support.dart';
 import '../targets/cockpit_target_handle.dart';
 import '../targets/cockpit_target_reference_resolver.dart';
+import '../capture/cockpit_host_capture_adapter.dart';
 import 'cockpit_app_handle.dart';
 import 'cockpit_application_service_exception.dart';
 import 'cockpit_inspect_ui_service.dart';
@@ -99,15 +103,19 @@ final class CockpitInspectSurfaceService {
     CockpitInspectUiService? inspectUiService,
     CockpitInspectFlutterSurfaceFunction? inspectFlutterSurface,
     CockpitTargetReferenceResolver? targetReferenceResolver,
+    CockpitPlatformDriverRegistry? platformDriverRegistry,
   })  : _inspectSurfaceOverride = inspectSurface,
         _inspectFlutterSurface = inspectFlutterSurface ??
             (inspectUiService ?? CockpitInspectUiService()).inspect,
         _targetReferenceResolver =
-            targetReferenceResolver ?? CockpitTargetReferenceResolver();
+            targetReferenceResolver ?? CockpitTargetReferenceResolver(),
+        _platformDriverRegistry =
+            platformDriverRegistry ?? CockpitPlatformDriverRegistry();
 
   final CockpitInspectSurfaceFunction? _inspectSurfaceOverride;
   final CockpitInspectFlutterSurfaceFunction _inspectFlutterSurface;
   final CockpitTargetReferenceResolver _targetReferenceResolver;
+  final CockpitPlatformDriverRegistry _platformDriverRegistry;
 
   Future<CockpitInspectSurfaceResult> inspect(
     CockpitInspectSurfaceRequest request,
@@ -126,39 +134,114 @@ final class CockpitInspectSurfaceService {
       androidDeviceId: request.androidDeviceId,
     );
     final target = resolved.target;
-    if (target == null || target.targetKind != CockpitTargetKind.flutterApp) {
+    if (target == null) {
       throw CockpitApplicationServiceException(
-        code: 'unsupportedInspectSurface',
-        message: 'inspect-surface currently supports flutterApp targets only.',
+        code: 'missingTargetReference',
+        message: 'inspect-surface requires a resolved target handle.',
       );
     }
 
-    final inspectResult = await _inspectFlutterSurface(
-      CockpitInspectUiRequest(
-        app: resolved.app,
-        baseUri: resolved.baseUri,
-        resultProfile: request.resultProfile,
-        snapshotOptions: request.snapshotOptions,
-        compareAgainstSnapshotRef: request.compareAgainstSnapshotRef,
-      ),
+    final capabilityProfile = await _resolveCapabilityProfile(target);
+    if (_usesFlutterRemoteInspect(target.targetKind, capabilityProfile)) {
+      final inspectResult = await _inspectFlutterSurface(
+        CockpitInspectUiRequest(
+          app: resolved.app ?? _appFromTarget(target),
+          baseUri: resolved.baseUri,
+          resultProfile: request.resultProfile,
+          snapshotOptions: request.snapshotOptions,
+          compareAgainstSnapshotRef: request.compareAgainstSnapshotRef,
+        ),
+      );
+      final mergedProfile = cockpitMergeTargetCapabilityProfiles(
+        primary: capabilityProfile,
+        secondary: _legacyCapabilityProfile(target.platform),
+      );
+      return CockpitInspectSurfaceResult(
+        target: target.copyWith(capabilityProfile: mergedProfile),
+        capabilityProfile: mergedProfile,
+        surfaceKind: cockpitForegroundSurfaceForTargetProfile(mergedProfile),
+        selectedPlane: CockpitPlaneKind.flutterSemanticPlane,
+        recommendedNextStep: 'runNextCommand',
+        routeName: inspectResult.routeName,
+        diagnosticLevel: inspectResult.diagnosticLevel,
+        truncated: inspectResult.truncated,
+        uiSummary: inspectResult.uiSummary,
+        snapshot: inspectResult.snapshot,
+        diagnostics: inspectResult.diagnostics,
+        delta: inspectResult.delta,
+        snapshotRef: inspectResult.snapshotRef,
+        effectiveSnapshotOptions: inspectResult.effectiveSnapshotOptions,
+      );
+    }
+
+    final evidenceDriver = _platformDriverRegistry.resolveEvidenceDriver(
+      platform: target.platform,
+      deviceId: target.deviceId,
     );
-    final capabilityProfile =
-        target.capabilityProfile ?? _legacyCapabilityProfile(target.platform);
+    final captureAdapter = evidenceDriver?.captureAdapter;
+    if (captureAdapter is CockpitHostCaptureAdapter) {
+      final capture = await captureAdapter.capture(
+        CockpitCommand(
+          commandId: 'inspect-surface-capture',
+          commandType: CockpitCommandType.captureScreenshot,
+          screenshotRequest: CockpitScreenshotRequest(
+            reason: CockpitScreenshotReason.afterAction,
+            name: 'inspect_surface_${target.platform}',
+          ),
+        ),
+      );
+      if (!capture.result.success) {
+        throw CockpitApplicationServiceException(
+          code: 'surfaceCaptureFailed',
+          message: capture.result.error?.message ??
+              'Unable to capture the current target surface.',
+          details: capture.result.error?.details ?? const <String, Object?>{},
+        );
+      }
+      final artifactDescriptors = _artifactDescriptorsFromExecution(capture);
+      final snapshotRef = capture.artifactSourcePaths.values.firstOrNull ??
+          artifactDescriptors.firstOrNull?.relativePath;
+      final selectedPlane = cockpitPlaneForSurface(
+        cockpitForegroundSurfaceForTargetProfile(capabilityProfile),
+      );
+      return CockpitInspectSurfaceResult(
+        target: target.copyWith(capabilityProfile: capabilityProfile),
+        capabilityProfile: capabilityProfile,
+        surfaceKind:
+            cockpitForegroundSurfaceForTargetProfile(capabilityProfile),
+        selectedPlane: selectedPlane,
+        recommendedNextStep: 'reviewCapture',
+        diagnosticLevel: request.resultProfile.snapshotProfile.jsonValue,
+        truncated: false,
+        uiSummary: _staticSummaryForProfile(request.resultProfile),
+        diagnostics: <String, Object?>{
+          'capture':
+              CockpitInteractiveCommandCore.fromResult(capture.result).toJson(),
+          'artifacts': artifactDescriptors
+              .map((artifact) => artifact.toJson())
+              .toList(growable: false),
+        },
+        snapshotRef: snapshotRef,
+      );
+    }
+
+    final selectedPlane = cockpitPlaneForSurface(
+      cockpitForegroundSurfaceForTargetProfile(capabilityProfile),
+    );
     return CockpitInspectSurfaceResult(
       target: target.copyWith(capabilityProfile: capabilityProfile),
       capabilityProfile: capabilityProfile,
-      surfaceKind: CockpitSurfaceKind.flutterSemantic,
-      selectedPlane: CockpitPlaneKind.flutterSemanticPlane,
-      recommendedNextStep: 'runNextCommand',
-      routeName: inspectResult.routeName,
-      diagnosticLevel: inspectResult.diagnosticLevel,
-      truncated: inspectResult.truncated,
-      uiSummary: inspectResult.uiSummary,
-      snapshot: inspectResult.snapshot,
-      diagnostics: inspectResult.diagnostics,
-      delta: inspectResult.delta,
-      snapshotRef: inspectResult.snapshotRef,
-      effectiveSnapshotOptions: inspectResult.effectiveSnapshotOptions,
+      surfaceKind: cockpitForegroundSurfaceForTargetProfile(capabilityProfile),
+      selectedPlane: selectedPlane,
+      recommendedNextStep: cockpitRecommendedNextStepForProfile(
+        capabilityProfile,
+      ),
+      diagnosticLevel: request.resultProfile.snapshotProfile.jsonValue,
+      truncated: false,
+      uiSummary: _staticSummaryForProfile(request.resultProfile),
+      diagnostics: <String, Object?>{
+        'reason': 'No host capture adapter is available for this target.',
+      },
     );
   }
 
@@ -181,6 +264,95 @@ final class CockpitInspectSurfaceService {
       qualityFlags: platform == 'ios'
           ? <CockpitQualityFlag>{CockpitQualityFlag.simulatorOnly}
           : const <CockpitQualityFlag>{},
+    );
+  }
+
+  Future<CockpitCapabilityProfile> _resolveCapabilityProfile(
+    CockpitTargetHandle target,
+  ) async {
+    final existing = target.capabilityProfile;
+    final driver = _platformDriverRegistry.resolve(
+      platform: target.platform,
+      deviceId: target.deviceId,
+    );
+    if (existing != null && driver == null) {
+      return existing;
+    }
+    if (driver == null) {
+      throw CockpitApplicationServiceException(
+        code: 'unsupportedPlatform',
+        message: 'No platform driver is available for this target.',
+        details: <String, Object?>{'platform': target.platform},
+      );
+    }
+    final described = await driver.describeCapabilities();
+    if (existing == null) {
+      return described;
+    }
+    return cockpitMergeTargetCapabilityProfiles(
+      primary: existing,
+      secondary: described,
+    );
+  }
+
+  bool _usesFlutterRemoteInspect(
+    CockpitTargetKind targetKind,
+    CockpitCapabilityProfile capabilityProfile,
+  ) {
+    return targetKind == CockpitTargetKind.flutterApp ||
+        capabilityProfile.supportsSurface(CockpitSurfaceKind.flutterSemantic);
+  }
+
+  CockpitAppHandle _appFromTarget(CockpitTargetHandle target) {
+    return CockpitAppHandle(
+      appId: target.targetId,
+      mode: CockpitAppMode.automation,
+      platform: target.platform,
+      deviceId: target.deviceId,
+      projectDir: target.projectDir,
+      target: target.target,
+      baseUrl: target.connection.baseUrl,
+      launchedAt: target.launchedAt,
+      platformAppId: target.metadata['platformAppId'] as String?,
+    );
+  }
+
+  List<CockpitInteractiveArtifactDescriptor> _artifactDescriptorsFromExecution(
+    CockpitCommandExecution execution,
+  ) {
+    return execution.result.artifacts
+        .map(
+          (artifact) => CockpitInteractiveArtifactDescriptor(
+            role: artifact.role,
+            relativePath: artifact.relativePath,
+            sourcePath: execution.artifactSourcePaths[artifact.relativePath],
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  CockpitInteractiveSnapshotSummary? _staticSummaryForProfile(
+    CockpitInteractiveResultProfile profile,
+  ) {
+    if (profile.ui == CockpitInteractiveUiLevel.none) {
+      return null;
+    }
+    return CockpitInteractiveSnapshotSummary(
+      routeName: null,
+      diagnosticLevel: profile.snapshotProfile.jsonValue,
+      truncated: false,
+      visibleTargetCount: 0,
+      targetsWithCockpitIdCount: 0,
+      targetsWithTextCount: 0,
+      networkEntryCount: 0,
+      networkFailureCount: 0,
+      runtimeEntryCount: 0,
+      runtimeErrorCount: 0,
+      rebuildEntryCount: 0,
+      totalRebuildCount: 0,
+      accessibilityTargetCount: 0,
+      accessibilityTraversalCount: 0,
+      textPreviews: const <String>[],
     );
   }
 }

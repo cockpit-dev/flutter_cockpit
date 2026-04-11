@@ -1,15 +1,29 @@
 import 'dart:io';
 
+import 'package:flutter_cockpit/flutter_cockpit.dart';
+
+import '../platform/cockpit_platform_driver_registry.dart';
+import '../targets/cockpit_target_capability_support.dart';
+import '../targets/cockpit_target_handle.dart';
+import '../targets/cockpit_target_reference_resolver.dart';
+import 'cockpit_application_service_exception.dart';
+
 final class CockpitRunShellRequest {
   const CockpitRunShellRequest({
     required this.command,
     this.scope = 'host',
     this.workingDirectory,
+    this.target,
+    this.targetHandlePath,
+    this.deviceId,
   });
 
   final List<String> command;
   final String scope;
   final String? workingDirectory;
+  final CockpitTargetHandle? target;
+  final String? targetHandlePath;
+  final String? deviceId;
 }
 
 final class CockpitRunShellResult {
@@ -56,11 +70,19 @@ final class CockpitRunShellService {
   CockpitRunShellService({
     CockpitRunShellFunction? runShell,
     CockpitShellProcessRunner processRunner = Process.run,
+    CockpitTargetReferenceResolver? targetReferenceResolver,
+    CockpitPlatformDriverRegistry? platformDriverRegistry,
   })  : _runShellOverride = runShell,
-        _processRunner = processRunner;
+        _processRunner = processRunner,
+        _targetReferenceResolver =
+            targetReferenceResolver ?? CockpitTargetReferenceResolver(),
+        _platformDriverRegistry =
+            platformDriverRegistry ?? CockpitPlatformDriverRegistry();
 
   final CockpitRunShellFunction? _runShellOverride;
   final CockpitShellProcessRunner _processRunner;
+  final CockpitTargetReferenceResolver _targetReferenceResolver;
+  final CockpitPlatformDriverRegistry _platformDriverRegistry;
 
   Future<CockpitRunShellResult> run(CockpitRunShellRequest request) async {
     final override = _runShellOverride;
@@ -68,11 +90,6 @@ final class CockpitRunShellService {
       return override(request);
     }
 
-    if (request.scope != 'host') {
-      throw UnsupportedError(
-        'run-shell currently supports host scope only.',
-      );
-    }
     if (request.command.isEmpty) {
       throw ArgumentError.value(
         request.command,
@@ -81,17 +98,18 @@ final class CockpitRunShellService {
       );
     }
 
+    final execution = await _resolveExecution(request);
     final result = await _processRunner(
-      request.command.first,
-      request.command.skip(1).toList(growable: false),
+      execution.executable,
+      execution.arguments,
       workingDirectory: request.workingDirectory,
     );
     final stdoutText = '${result.stdout}'.trimRight();
     final stderrText = '${result.stderr}'.trimRight();
     final success = result.exitCode == 0;
     return CockpitRunShellResult(
-      scope: request.scope,
-      command: request.command,
+      scope: execution.scope,
+      command: execution.command,
       exitCode: result.exitCode,
       stdout: stdoutText,
       stderr: stderrText,
@@ -99,4 +117,175 @@ final class CockpitRunShellService {
       recommendedNextStep: success ? 'continue' : 'inspectShellFailure',
     );
   }
+
+  Future<_ResolvedShellExecution> _resolveExecution(
+    CockpitRunShellRequest request,
+  ) async {
+    if (request.scope == 'host') {
+      return _ResolvedShellExecution.host(
+        scope: 'host',
+        command: request.command,
+      );
+    }
+
+    final referencedTarget = await _resolveOptionalTarget(request);
+    if (request.scope == 'target') {
+      if (referencedTarget == null) {
+        throw const CockpitApplicationServiceException(
+          code: 'missingTargetReference',
+          message: 'run-shell with target scope requires a target handle.',
+        );
+      }
+      return _resolvePlatformExecution(
+        scope: referencedTarget.platform,
+        command: request.command,
+        deviceId: referencedTarget.deviceId,
+      );
+    }
+
+    if (referencedTarget != null &&
+        referencedTarget.platform != request.scope) {
+      throw CockpitApplicationServiceException(
+        code: 'targetScopeMismatch',
+        message: 'The provided target handle does not match the shell scope.',
+        details: <String, Object?>{
+          'scope': request.scope,
+          'targetPlatform': referencedTarget.platform,
+        },
+      );
+    }
+
+    return _resolvePlatformExecution(
+      scope: request.scope,
+      command: request.command,
+      deviceId: request.deviceId ?? referencedTarget?.deviceId,
+    );
+  }
+
+  Future<CockpitTargetHandle?> _resolveOptionalTarget(
+    CockpitRunShellRequest request,
+  ) async {
+    if (request.target == null &&
+        (request.targetHandlePath == null ||
+            request.targetHandlePath!.isEmpty)) {
+      return null;
+    }
+    final resolved = await _targetReferenceResolver.resolve(
+      target: request.target,
+      targetHandlePath: request.targetHandlePath,
+    );
+    return resolved.target;
+  }
+
+  Future<_ResolvedShellExecution> _resolvePlatformExecution({
+    required String scope,
+    required List<String> command,
+    required String? deviceId,
+  }) async {
+    final normalizedDeviceId = deviceId ?? _defaultDeviceIdForScope(scope);
+    if (normalizedDeviceId == null || normalizedDeviceId.isEmpty) {
+      throw CockpitApplicationServiceException(
+        code: 'missingDeviceId',
+        message: 'run-shell requires a device ID for this scope.',
+        details: <String, Object?>{'scope': scope},
+      );
+    }
+
+    final driver = _platformDriverRegistry.resolve(
+      platform: scope,
+      deviceId: normalizedDeviceId,
+    );
+    if (driver == null) {
+      throw CockpitApplicationServiceException(
+        code: 'unsupportedPlatform',
+        message: 'run-shell does not support this platform.',
+        details: <String, Object?>{'platform': scope},
+      );
+    }
+
+    final capabilityProfile = await driver.describeCapabilities();
+    if (!capabilityProfile.supportsAction(CockpitActionCapability.runShell)) {
+      throw CockpitApplicationServiceException(
+        code: 'unsupportedShellScope',
+        message: 'run-shell is not available for this target scope.',
+        details: <String, Object?>{
+          'scope': scope,
+          'platform': scope,
+          'recommendedNextStep': cockpitRecommendedNextStepForProfile(
+            capabilityProfile,
+          ),
+        },
+      );
+    }
+
+    return switch (scope) {
+      'android' => _ResolvedShellExecution(
+          scope: 'android',
+          executable: 'adb',
+          arguments: <String>[
+            '-s',
+            normalizedDeviceId,
+            'shell',
+            ...command,
+          ],
+          command: command,
+        ),
+      'ios' => _ResolvedShellExecution(
+          scope: 'ios',
+          executable: 'xcrun',
+          arguments: <String>[
+            'simctl',
+            'spawn',
+            normalizedDeviceId,
+            ...command,
+          ],
+          command: command,
+        ),
+      'macos' || 'windows' || 'linux' || 'web' => _ResolvedShellExecution.host(
+          scope: scope,
+          command: command,
+        ),
+      _ => throw CockpitApplicationServiceException(
+          code: 'unsupportedPlatform',
+          message: 'run-shell does not support this platform.',
+          details: <String, Object?>{'platform': scope},
+        ),
+    };
+  }
+
+  String? _defaultDeviceIdForScope(String scope) {
+    return switch (scope) {
+      'macos' => 'macos',
+      'windows' => 'windows',
+      'linux' => 'linux',
+      'web' => 'web',
+      _ => null,
+    };
+  }
+}
+
+final class _ResolvedShellExecution {
+  const _ResolvedShellExecution({
+    required this.scope,
+    required this.executable,
+    required this.arguments,
+    required this.command,
+  });
+
+  factory _ResolvedShellExecution.host({
+    required String scope,
+    required List<String> command,
+  }) {
+    return _ResolvedShellExecution(
+      scope: scope,
+      executable: command.first,
+      arguments: command.skip(1).toList(growable: false),
+      command: List<String>.unmodifiable(command),
+    );
+  }
+
+  final String scope;
+  final String executable;
+  final List<String> arguments;
+  final List<String> command;
 }

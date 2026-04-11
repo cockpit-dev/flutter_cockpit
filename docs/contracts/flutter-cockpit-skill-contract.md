@@ -17,7 +17,7 @@ The skill may depend on these implemented public workflows:
 - surface-oriented investigation through `inspect-surface` / `inspect_surface`
 - single-command control through `run-command` / `run_command`
 - multi-command control through `run-batch` / `run_batch`
-- direct host execution through `run-shell` / `run_shell`
+- direct host and target-aware shell execution through `run-shell` / `run_shell`
 - wait gating through `wait-idle` / `wait_idle`
 - network investigation through `read-network` / `read_network`
 - reload during development through `hot-reload` / `hot_reload` and `hot-restart` / `hot_restart`
@@ -66,6 +66,7 @@ Minimum baseline:
 - the smallest profile that can answer the current question
 
 For target-first flows, replace app-specific reads with `read_target` / `read-target` and `inspect_surface` / `inspect-surface` while keeping the same summary-first discipline.
+The skill may assume `read_target` can return capability-only summaries for browser or direct system targets, and `inspect_surface` may prefer native/window evidence instead of a Flutter semantic tree when that is the smaller truthful surface.
 
 For code-editing work, the agent should prefer `lsp` and `analyze_files` before falling back to workspace-wide analysis.
 
@@ -86,6 +87,7 @@ The skill must teach token discipline:
 - prefer `minimal` and `standard` before `inspect` or `evidence`
 - prefer bundle summaries before raw artifact files
 - request one missing fact at a time instead of all diagnostics by default
+- prefer `run_shell` target scopes only when the resolved platform truthfully exposes shell control, instead of pretending every browser or system target has an attached shell
 
 ### `deliver`
 

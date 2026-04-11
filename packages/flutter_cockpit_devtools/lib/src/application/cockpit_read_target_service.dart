@@ -1,5 +1,7 @@
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
+import '../platform/cockpit_platform_driver_registry.dart';
+import '../targets/cockpit_target_capability_support.dart';
 import '../targets/cockpit_target_handle.dart';
 import '../targets/cockpit_target_reference_resolver.dart';
 import 'cockpit_app_handle.dart';
@@ -97,15 +99,19 @@ final class CockpitReadTargetService {
     CockpitReadAppService? readAppService,
     CockpitReadFlutterTargetFunction? readFlutterTarget,
     CockpitTargetReferenceResolver? targetReferenceResolver,
+    CockpitPlatformDriverRegistry? platformDriverRegistry,
   })  : _readTargetOverride = readTarget,
         _readFlutterTarget = readFlutterTarget ??
             (readAppService ?? CockpitReadAppService()).read,
         _targetReferenceResolver =
-            targetReferenceResolver ?? CockpitTargetReferenceResolver();
+            targetReferenceResolver ?? CockpitTargetReferenceResolver(),
+        _platformDriverRegistry =
+            platformDriverRegistry ?? CockpitPlatformDriverRegistry();
 
   final CockpitReadTargetFunction? _readTargetOverride;
   final CockpitReadFlutterTargetFunction _readFlutterTarget;
   final CockpitTargetReferenceResolver _targetReferenceResolver;
+  final CockpitPlatformDriverRegistry _platformDriverRegistry;
 
   Future<CockpitReadTargetResult> read(CockpitReadTargetRequest request) async {
     final override = _readTargetOverride;
@@ -122,39 +128,146 @@ final class CockpitReadTargetService {
       androidDeviceId: request.androidDeviceId,
     );
     final target = resolved.target;
-    if (target == null || target.targetKind != CockpitTargetKind.flutterApp) {
+    if (target == null) {
       throw CockpitApplicationServiceException(
-        code: 'unsupportedTargetRead',
-        message: 'read-target currently supports flutterApp targets only.',
+        code: 'missingTargetReference',
+        message: 'read-target requires a resolved target handle.',
       );
     }
 
-    final appResult = await _readFlutterTarget(
-      CockpitReadAppRequest(
-        app: resolved.app,
-        baseUri: resolved.baseUri,
-        resultProfile: request.resultProfile,
-        snapshotOptions: request.snapshotOptions,
-      ),
-    );
-    final capabilityProfile = target.capabilityProfile ??
-        appResult.capabilities.capabilityProfile ??
-        _legacyCapabilityProfile(appResult.capabilities);
+    final capabilityProfile = await _resolveCapabilityProfile(target);
+    if (_usesFlutterRemoteRead(target.targetKind)) {
+      final appResult = await _readFlutterTarget(
+        CockpitReadAppRequest(
+          app: resolved.app ?? _appFromTarget(target),
+          baseUri: resolved.baseUri,
+          resultProfile: request.resultProfile,
+          snapshotOptions: request.snapshotOptions,
+        ),
+      );
+      final remoteProfile = appResult.capabilities.capabilityProfile ??
+          _legacyCapabilityProfile(appResult.capabilities);
+      final mergedCapabilityProfile = cockpitMergeTargetCapabilityProfiles(
+        primary: capabilityProfile,
+        secondary: remoteProfile,
+      );
+      return CockpitReadTargetResult(
+        target: target.copyWith(capabilityProfile: mergedCapabilityProfile),
+        capabilityProfile: mergedCapabilityProfile,
+        foregroundSurface:
+            cockpitForegroundSurfaceForTargetProfile(mergedCapabilityProfile),
+        selectedPlane: appResult.selectedPlane,
+        fallbackTrail: appResult.fallbackTrail.isEmpty
+            ? cockpitFallbackTrailForProfile(
+                profile: mergedCapabilityProfile,
+                selectedPlane: appResult.selectedPlane,
+              )
+            : appResult.fallbackTrail,
+        recommendedNextStep: appResult.recommendedNextStep,
+        whatMatters: appResult.whatMatters ??
+            cockpitWhatMattersForProfile(mergedCapabilityProfile),
+        sessionId: appResult.sessionId,
+        transportType: appResult.transportType,
+        currentRouteName: appResult.currentRouteName,
+        uiSummary: appResult.uiSummary,
+        snapshot: appResult.snapshot,
+        snapshotRef: appResult.snapshotRef,
+        effectiveSnapshotOptions: appResult.effectiveSnapshotOptions,
+      );
+    }
+
     return CockpitReadTargetResult(
       target: target.copyWith(capabilityProfile: capabilityProfile),
       capabilityProfile: capabilityProfile,
-      foregroundSurface: CockpitSurfaceKind.flutterSemantic,
-      selectedPlane: appResult.selectedPlane,
-      fallbackTrail: appResult.fallbackTrail,
-      recommendedNextStep: appResult.recommendedNextStep,
-      whatMatters: appResult.whatMatters,
-      sessionId: appResult.sessionId,
-      transportType: appResult.transportType,
-      currentRouteName: appResult.currentRouteName,
-      uiSummary: appResult.uiSummary,
-      snapshot: appResult.snapshot,
-      snapshotRef: appResult.snapshotRef,
-      effectiveSnapshotOptions: appResult.effectiveSnapshotOptions,
+      foregroundSurface: cockpitForegroundSurfaceForTargetProfile(
+        capabilityProfile,
+      ),
+      selectedPlane: cockpitPlaneForSurface(
+        cockpitForegroundSurfaceForTargetProfile(capabilityProfile),
+      ),
+      fallbackTrail: cockpitFallbackTrailForProfile(
+        profile: capabilityProfile,
+        selectedPlane: cockpitPlaneForSurface(
+          cockpitForegroundSurfaceForTargetProfile(capabilityProfile),
+        ),
+      ),
+      recommendedNextStep: cockpitRecommendedNextStepForProfile(
+        capabilityProfile,
+      ),
+      whatMatters: cockpitWhatMattersForProfile(capabilityProfile),
+      uiSummary: _staticSummaryForProfile(request.resultProfile),
+    );
+  }
+
+  Future<CockpitCapabilityProfile> _resolveCapabilityProfile(
+    CockpitTargetHandle target,
+  ) async {
+    final existing = target.capabilityProfile;
+    final driver = _platformDriverRegistry.resolve(
+      platform: target.platform,
+      deviceId: target.deviceId,
+    );
+    if (existing != null && driver == null) {
+      return existing;
+    }
+    if (driver == null) {
+      throw CockpitApplicationServiceException(
+        code: 'unsupportedPlatform',
+        message: 'No platform driver is available for this target.',
+        details: <String, Object?>{'platform': target.platform},
+      );
+    }
+    final described = await driver.describeCapabilities();
+    if (existing == null) {
+      return described;
+    }
+    return cockpitMergeTargetCapabilityProfiles(
+      primary: existing,
+      secondary: described,
+    );
+  }
+
+  bool _usesFlutterRemoteRead(CockpitTargetKind targetKind) {
+    return targetKind == CockpitTargetKind.flutterApp ||
+        targetKind == CockpitTargetKind.desktopApp;
+  }
+
+  CockpitAppHandle _appFromTarget(CockpitTargetHandle target) {
+    return CockpitAppHandle(
+      appId: target.targetId,
+      mode: CockpitAppMode.automation,
+      platform: target.platform,
+      deviceId: target.deviceId,
+      projectDir: target.projectDir,
+      target: target.target,
+      baseUrl: target.connection.baseUrl,
+      launchedAt: target.launchedAt,
+      platformAppId: target.metadata['platformAppId'] as String?,
+    );
+  }
+
+  CockpitInteractiveSnapshotSummary? _staticSummaryForProfile(
+    CockpitInteractiveResultProfile profile,
+  ) {
+    if (profile.ui == CockpitInteractiveUiLevel.none) {
+      return null;
+    }
+    return CockpitInteractiveSnapshotSummary(
+      routeName: null,
+      diagnosticLevel: profile.snapshotProfile.jsonValue,
+      truncated: false,
+      visibleTargetCount: 0,
+      targetsWithCockpitIdCount: 0,
+      targetsWithTextCount: 0,
+      networkEntryCount: 0,
+      networkFailureCount: 0,
+      runtimeEntryCount: 0,
+      runtimeErrorCount: 0,
+      rebuildEntryCount: 0,
+      totalRebuildCount: 0,
+      accessibilityTargetCount: 0,
+      accessibilityTraversalCount: 0,
+      textPreviews: const <String>[],
     );
   }
 

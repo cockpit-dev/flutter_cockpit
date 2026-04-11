@@ -22,9 +22,20 @@ final class RunShellCommand extends CockpitCliCommand {
     argParser
       ..addOption(
         'scope',
-        allowed: const <String>['host'],
+        allowed: const <String>[
+          'host',
+          'target',
+          'android',
+          'ios',
+          'macos',
+          'windows',
+          'linux',
+          'web',
+        ],
         defaultsTo: 'host',
       )
+      ..addOption('target-json')
+      ..addOption('device-id')
       ..addOption('working-directory')
       ..addOption('executable')
       ..addMultiOption('arg')
@@ -42,7 +53,7 @@ final class RunShellCommand extends CockpitCliCommand {
       'Run a shell command against the current shell scope.';
 
   @override
-  String get summary => 'Run host shell commands.';
+  String get summary => 'Run host or target-aware shell commands.';
 
   @override
   String get category => CockpitCliCategory.workspace;
@@ -53,11 +64,20 @@ final class RunShellCommand extends CockpitCliCommand {
     if (executable == null || executable.isEmpty) {
       throw UsageException('--executable is required.', usage);
     }
+    final scope = argResults?['scope'] as String? ?? 'host';
+    final targetJsonPath = argResults?['target-json'] as String?;
+    if (scope == 'target' &&
+        (targetJsonPath == null || targetJsonPath.isEmpty)) {
+      throw UsageException(
+          '--target-json is required for target scope.', usage);
+    }
     final args = (argResults?['arg'] as List<String>? ?? const <String>[]);
     final result = await _runShell(
       CockpitRunShellRequest(
-        scope: argResults?['scope'] as String? ?? 'host',
+        scope: scope,
         command: <String>[executable, ...args],
+        targetHandlePath: targetJsonPath,
+        deviceId: argResults?['device-id'] as String?,
         workingDirectory: argResults?['working-directory'] as String?,
       ),
     );

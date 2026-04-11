@@ -37,4 +37,44 @@ void main() {
     expect(decoded['scope'], 'host');
     expect(decoded['success'], isTrue);
   });
+
+  test('run-shell forwards target-json for target-aware shell execution',
+      () async {
+    final output = StringBuffer();
+    CockpitRunShellRequest? capturedRequest;
+    final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
+      ..addCommand(
+        RunShellCommand(
+          stdoutSink: output,
+          runShell: (request) async {
+            capturedRequest = request;
+            return const CockpitRunShellResult(
+              scope: 'android',
+              command: <String>['getprop', 'ro.build.version.sdk'],
+              exitCode: 0,
+              stdout: '34',
+              stderr: '',
+              success: true,
+              recommendedNextStep: 'continue',
+            );
+          },
+        ),
+      );
+
+    final exitCode = await runner.run(<String>[
+          'run-shell',
+          '--scope',
+          'target',
+          '--target-json',
+          '/tmp/target.json',
+          '--executable',
+          'getprop',
+          '--arg=ro.build.version.sdk',
+        ]) ??
+        0;
+
+    expect(exitCode, 0);
+    expect(capturedRequest?.scope, 'target');
+    expect(capturedRequest?.targetHandlePath, '/tmp/target.json');
+  });
 }

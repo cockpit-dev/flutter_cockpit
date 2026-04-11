@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:path/path.dart' as p;
 
+import '../platform/cockpit_platform_driver_registry.dart';
 import '../targets/cockpit_target_handle.dart';
 import 'cockpit_app_handle.dart';
 import 'cockpit_application_service_exception.dart';
@@ -65,12 +66,16 @@ final class CockpitLaunchTargetService {
     CockpitLaunchTargetFunction? launchTarget,
     CockpitLaunchAppService? launchAppService,
     CockpitLaunchFlutterAppTargetFunction? launchFlutterApp,
+    CockpitPlatformDriverRegistry? platformDriverRegistry,
   })  : _launchTargetOverride = launchTarget,
         _launchFlutterApp = launchFlutterApp ??
-            (launchAppService ?? CockpitLaunchAppService()).launch;
+            (launchAppService ?? CockpitLaunchAppService()).launch,
+        _platformDriverRegistry =
+            platformDriverRegistry ?? CockpitPlatformDriverRegistry();
 
   final CockpitLaunchTargetFunction? _launchTargetOverride;
   final CockpitLaunchFlutterAppTargetFunction _launchFlutterApp;
+  final CockpitPlatformDriverRegistry _platformDriverRegistry;
 
   Future<CockpitLaunchTargetResult> launch(
     CockpitLaunchTargetRequest request,
@@ -80,11 +85,24 @@ final class CockpitLaunchTargetService {
       return override(request);
     }
 
-    if (request.targetKind != CockpitTargetKind.flutterApp) {
+    final capabilityProfile = await _resolveCapabilityProfile(
+      platform: request.platform,
+      deviceId: request.deviceId,
+    );
+    final normalizedTargetKind = _normalizeTargetKind(
+      requestedTargetKind: request.targetKind,
+      capabilityProfile: capabilityProfile,
+    );
+
+    if (!_isLaunchableTargetKind(normalizedTargetKind)) {
       throw CockpitApplicationServiceException(
         code: 'unsupportedTargetKind',
-        message: 'launch-target currently supports flutterApp targets only.',
-        details: <String, Object?>{'targetKind': request.targetKind.name},
+        message: 'launch-target cannot directly launch this target kind.',
+        details: <String, Object?>{
+          'targetKind': normalizedTargetKind.name,
+          'platform': request.platform,
+          'recommendedNextStep': 'createTargetHandleExternally',
+        },
       );
     }
 
@@ -99,7 +117,10 @@ final class CockpitLaunchTargetService {
         launchTimeout: request.launchTimeout,
       ),
     );
-    final target = CockpitTargetHandle.fromAppHandle(appResult.app);
+    final target = CockpitTargetHandle.fromAppHandle(appResult.app).copyWith(
+      targetKind: normalizedTargetKind,
+      capabilityProfile: capabilityProfile,
+    );
     final targetJsonPath = await _persistTargetIfRequested(
       path: request.targetHandlePath,
       target: target,
@@ -122,5 +143,56 @@ final class CockpitLaunchTargetService {
     await file.parent.create(recursive: true);
     await file.writeAsString(cockpitPrettyJsonText(target.toJson()));
     return p.normalize(file.path);
+  }
+
+  Future<CockpitCapabilityProfile> _resolveCapabilityProfile({
+    required String platform,
+    required String deviceId,
+  }) async {
+    final driver = _platformDriverRegistry.resolve(
+      platform: platform,
+      deviceId: deviceId,
+    );
+    if (driver == null) {
+      throw CockpitApplicationServiceException(
+        code: 'unsupportedPlatform',
+        message: 'launch-target does not support this platform.',
+        details: <String, Object?>{'platform': platform},
+      );
+    }
+    return driver.describeCapabilities();
+  }
+
+  CockpitTargetKind _normalizeTargetKind({
+    required CockpitTargetKind requestedTargetKind,
+    required CockpitCapabilityProfile capabilityProfile,
+  }) {
+    if (requestedTargetKind == capabilityProfile.targetKind) {
+      return requestedTargetKind;
+    }
+    if (requestedTargetKind == CockpitTargetKind.flutterApp &&
+        capabilityProfile.targetKind == CockpitTargetKind.desktopApp) {
+      return capabilityProfile.targetKind;
+    }
+    throw CockpitApplicationServiceException(
+      code: 'unsupportedTargetKind',
+      message: 'The requested target kind is incompatible with this platform.',
+      details: <String, Object?>{
+        'requestedTargetKind': requestedTargetKind.name,
+        'platformTargetKind': capabilityProfile.targetKind.name,
+      },
+    );
+  }
+
+  bool _isLaunchableTargetKind(CockpitTargetKind targetKind) {
+    return switch (targetKind) {
+      CockpitTargetKind.flutterApp || CockpitTargetKind.desktopApp => true,
+      CockpitTargetKind.nativeApp ||
+      CockpitTargetKind.browserPage ||
+      CockpitTargetKind.systemSurface ||
+      CockpitTargetKind.device ||
+      CockpitTargetKind.hostWorkspace =>
+        false,
+    };
   }
 }
