@@ -16,7 +16,7 @@ List available targets:
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools list-targets
 ```
 
-Launch an app and persist `app.json`:
+Launch an app:
 
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
@@ -25,16 +25,16 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --platform macos \
   --device-id macos \
   --session-port 57331 \
-  --mode development \
-  --app-json /tmp/flutter_cockpit/app.json
+  --mode development
 ```
+
+If you omit `--app-json`, the CLI writes the reusable handle to `.dart_tool/flutter_cockpit/latest_app.json` in the current working directory and later app commands reuse it automatically.
 
 Read lightweight state:
 
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   read-app \
-  --app-json /tmp/flutter_cockpit/app.json \
   --profile minimal
 ```
 
@@ -112,7 +112,6 @@ Inspect richer UI state:
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   inspect-ui \
-  --app-json /tmp/flutter_cockpit/app.json \
   --profile inspect
 ```
 
@@ -121,7 +120,6 @@ Run one command:
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   run-command \
-  --app-json /tmp/flutter_cockpit/app.json \
   --command-json '{"commandId":"assert-inbox","commandType":"assertText","parameters":{"text":"Inbox"}}'
 ```
 
@@ -144,7 +142,6 @@ jq -n --arg text "Draft release checklist" '{
 
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   run-command \
-  --app-json /tmp/flutter_cockpit/app.json \
   --command-file /tmp/flutter_cockpit/enter_text.json \
   --profile standard | jq '{success: .command.success, route: .uiSummary.routeName}'
 ```
@@ -169,7 +166,6 @@ jq -n '{
 
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   run-command \
-  --app-json /tmp/flutter_cockpit/app.json \
   --command-file /tmp/flutter_cockpit/scroll_command.json \
   --profile standard | jq '{command: .command.success, route: .uiSummary.routeName, visible: .uiSummary.visibleTargetCount}'
 ```
@@ -179,7 +175,6 @@ Run a short batch:
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   run-batch \
-  --app-json /tmp/flutter_cockpit/app.json \
   --commands-json '[
     {"commandId":"wait-1","commandType":"waitForUiIdle"},
     {"commandId":"assert-inbox","commandType":"assertText","parameters":{"text":"Inbox"}}
@@ -191,9 +186,7 @@ If a banner, snackbar, or bottom sheet appears, or a collection mutation changes
 Wait for idle:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
-  wait-idle \
-  --app-json /tmp/flutter_cockpit/app.json
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools wait-idle
 ```
 
 Read network after an action settles:
@@ -201,7 +194,6 @@ Read network after an action settles:
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   read-network \
-  --app-json /tmp/flutter_cockpit/app.json \
   --uri-contains /api \
   --only-failures
 ```
@@ -209,39 +201,31 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 Read logs or runtime errors:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
-  read-logs \
-  --app-json /tmp/flutter_cockpit/app.json
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools read-logs
 ```
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
-  read-errors \
-  --app-json /tmp/flutter_cockpit/app.json
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools read-errors
 ```
 
 Hot reload or hot restart:
 
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
-  hot-reload \
-  --app-json /tmp/flutter_cockpit/app.json | jq '{reloadGeneration: .status.reloadGeneration, lastReloadSucceeded: .status.lastReloadSucceeded, lastReloadMode: .status.lastReloadMode}'
+  hot-reload | jq '{reloadGeneration: .status.reloadGeneration, lastReloadSucceeded: .status.lastReloadSucceeded, lastReloadMode: .status.lastReloadMode}'
 ```
 
 Then verify the changed control. If the intended copy or layout delta is still missing, relaunch once before assuming the app ignored your code edit.
 
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
-  hot-restart \
-  --app-json /tmp/flutter_cockpit/app.json | jq '{reloadGeneration: .status.reloadGeneration, lastReloadSucceeded: .status.lastReloadSucceeded, lastReloadMode: .status.lastReloadMode}'
+  hot-restart | jq '{reloadGeneration: .status.reloadGeneration, lastReloadSucceeded: .status.lastReloadSucceeded, lastReloadMode: .status.lastReloadMode}'
 ```
 
 Stop the app:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
-  stop-app \
-  --app-json /tmp/flutter_cockpit/app.json
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools stop-app
 ```
 
 ## Recording
@@ -251,16 +235,13 @@ Start recording:
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   start-recording \
-  --app-json /tmp/flutter_cockpit/app.json \
   --recording-json '{"purpose":"acceptance","tailStabilizationMs":1400}'
 ```
 
 Stop recording:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
-  stop-recording \
-  --app-json /tmp/flutter_cockpit/app.json
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools stop-recording
 ```
 
 For local macOS web validation, if browser-host recording is blocked only because the desktop has not granted screen-capture permission yet, use:

@@ -1,8 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:args/command_runner.dart';
-
 import '../../application/cockpit_hot_reload_service.dart';
 import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
@@ -63,10 +61,7 @@ final class HotReloadCommand extends CockpitCliCommand {
 
   @override
   Future<int> run() async {
-    final appJson = argResults?['app-json'] as String?;
-    if (appJson == null || appJson.isEmpty) {
-      throw UsageException('--app-json is required.', usage);
-    }
+    final appJson = cockpitRequireResolvedAppHandlePath(argResults, usage);
     final result =
         await _reload(CockpitHotReloadRequest(appHandlePath: appJson));
     await cockpitWriteJsonPayload(

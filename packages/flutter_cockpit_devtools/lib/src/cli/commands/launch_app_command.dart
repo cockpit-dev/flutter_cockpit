@@ -99,7 +99,7 @@ final class LaunchAppCommand extends CockpitCliCommand {
 
   @override
   String get helpWrites =>
-      'The command result JSON. --app-json also writes the reusable app handle consumed by most app commands.';
+      'The command result JSON. The reusable app handle is always written to the current workspace at .dart_tool/flutter_cockpit/latest_app.json, and --app-json can also mirror it elsewhere.';
 
   @override
   Future<int> run() async {
@@ -114,7 +114,8 @@ final class LaunchAppCommand extends CockpitCliCommand {
           seconds: int.parse(_readRequiredOption('launch-timeout-seconds')),
         ),
         mode: CockpitAppMode.fromJson(_readRequiredOption('mode')),
-        appHandlePath: argResults?['app-json'] as String?,
+        appHandlePath: (argResults?['app-json'] as String?) ??
+            cockpitDefaultAppHandlePath(),
       ),
     );
     await cockpitWriteJsonPayload(

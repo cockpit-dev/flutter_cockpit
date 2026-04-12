@@ -110,7 +110,7 @@ final class RunBatchCommand extends CockpitCliCommand {
     final result = await _runBatch(
       CockpitRunBatchRequest(
         baseUri: cockpitReadOptionalBaseUri(argResults),
-        appHandlePath: argResults?['app-json'] as String?,
+        appHandlePath: cockpitResolveAppHandlePath(argResults),
         androidDeviceId: argResults?['android-device-id'] as String?,
         commands: commandsJson.map(_readBatchCommand).toList(growable: false),
         defaultResultProfile: cockpitReadResultProfile(argResults),
@@ -121,12 +121,21 @@ final class RunBatchCommand extends CockpitCliCommand {
         ),
         recording: recordingJson == null
             ? null
-            : CockpitRecordingRequest.fromJson(recordingJson),
+            : cockpitDecodeCliJson(
+                decode: () => CockpitRecordingRequest.fromJson(recordingJson),
+                label: 'recording JSON',
+                usage: usage,
+              ),
         finalSnapshotProfile:
             _readOptionalProfile(argResults?['final-profile']),
         finalSnapshotOptions: finalSnapshotOptionsJson == null
             ? null
-            : CockpitSnapshotOptions.fromJson(finalSnapshotOptionsJson),
+            : cockpitDecodeCliJson(
+                decode: () =>
+                    CockpitSnapshotOptions.fromJson(finalSnapshotOptionsJson),
+                label: 'final snapshot options JSON',
+                usage: usage,
+              ),
       ),
     );
     await cockpitWriteJsonPayload(
@@ -144,11 +153,19 @@ final class RunBatchCommand extends CockpitCliCommand {
         : json;
     final snapshotOptionsJson = json['snapshotOptions'];
     return CockpitRunBatchCommand(
-      command: CockpitCommand.fromJson(normalized),
+      command: cockpitDecodeCliJson(
+        decode: () => CockpitCommand.fromJson(normalized),
+        label: 'commands JSON',
+        usage: usage,
+      ),
       resultProfile: _readOptionalProfile(json['profile']),
       snapshotOptions: snapshotOptionsJson is Map<Object?, Object?>
-          ? CockpitSnapshotOptions.fromJson(
-              Map<String, Object?>.from(snapshotOptionsJson),
+          ? cockpitDecodeCliJson(
+              decode: () => CockpitSnapshotOptions.fromJson(
+                Map<String, Object?>.from(snapshotOptionsJson),
+              ),
+              label: 'commands JSON',
+              usage: usage,
             )
           : null,
       compareAgainstSnapshotRef: json['compareAgainstSnapshotRef'] as String?,

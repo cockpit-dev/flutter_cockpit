@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:args/command_runner.dart';
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:flutter_cockpit_devtools/flutter_cockpit_devtools.dart';
+import 'package:flutter_cockpit_devtools/src/cli/cockpit_interactive_cli_support.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_app_reference_resolver.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/read_app_command.dart';
 import 'package:path/path.dart' as p;
@@ -15,7 +16,10 @@ void main() {
     final tempDir = await Directory.systemTemp.createTemp(
       'cockpit_query_remote_cli',
     );
+    final previousCurrent = Directory.current;
+    Directory.current = tempDir;
     addTearDown(() async {
+      Directory.current = previousCurrent;
       await server.close(force: true);
       if (tempDir.existsSync()) {
         await tempDir.delete(recursive: true);
@@ -75,7 +79,10 @@ void main() {
       final tempDir = await Directory.systemTemp.createTemp(
         'cockpit_query_remote_cli_android',
       );
+      final previousCurrent = Directory.current;
+      Directory.current = tempDir;
       addTearDown(() async {
+        Directory.current = previousCurrent;
         await server.close(force: true);
         if (tempDir.existsSync()) {
           await tempDir.delete(recursive: true);
@@ -152,7 +159,10 @@ void main() {
       final tempDir = await Directory.systemTemp.createTemp(
         'cockpit_query_remote_cli_handle',
       );
+      final previousCurrent = Directory.current;
+      Directory.current = tempDir;
       addTearDown(() async {
+        Directory.current = previousCurrent;
         await server.close(force: true);
         if (tempDir.existsSync()) {
           await tempDir.delete(recursive: true);
@@ -217,6 +227,83 @@ void main() {
       final decoded = jsonDecode(await outputFile.readAsString());
       expect(decoded['sessionId'], 'query-handle-demo');
       expect(decoded['currentRouteName'], '/success');
+    },
+  );
+
+  test(
+    'read-app uses the default latest app handle path in the current working directory',
+    () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_query_remote_cli_default_handle',
+      );
+      final previousCurrent = Directory.current;
+      Directory.current = tempDir;
+      addTearDown(() async {
+        Directory.current = previousCurrent;
+        await server.close(force: true);
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      server.listen((request) async {
+        request.response.headers.contentType = ContentType.json;
+        request.response.write(
+          jsonEncode(
+            CockpitRemoteSessionStatus(
+              sessionId: 'query-default-handle-demo',
+              platform: 'ios',
+              transportType: 'remoteHttp',
+              currentRouteName: '/settings',
+              capabilities: CockpitCapabilities(
+                platform: 'ios',
+                transportType: 'remoteHttp',
+                supportsInAppControl: true,
+                supportsFlutterViewCapture: true,
+                supportsNativeScreenCapture: true,
+                supportsHostAutomation: false,
+                supportedCommands: <CockpitCommandType>[CockpitCommandType.tap],
+                supportedLocatorStrategies: CockpitLocatorKind.values,
+              ),
+              recordingCapabilities: CockpitRecordingCapabilities(
+                supportsNativeRecording: true,
+                preferredAcceptanceRecordingKind:
+                    CockpitRecordingKind.nativeScreen,
+              ),
+              snapshot: CockpitSnapshot(routeName: '/settings'),
+            ).toJson(),
+          ),
+        );
+        await request.response.close();
+      });
+
+      final sessionFile = File(cockpitDefaultAppHandlePath(tempDir.path));
+      await sessionFile.parent.create(recursive: true);
+      await sessionFile.writeAsString(
+        jsonEncode(<String, Object?>{
+          'appId': 'dev.cockpit.cockpitDemo',
+          'mode': 'automation',
+          'platform': 'ios',
+          'deviceId': 'simulator',
+          'projectDir': '/workspace/examples/cockpit_demo',
+          'target': 'lib/main.dart',
+          'baseUrl': 'http://127.0.0.1:${server.port}',
+          'launchedAt': '2026-03-21T00:00:00.000Z',
+        }),
+      );
+
+      final outputFile = File(p.join(tempDir.path, 'session_status.json'));
+      final exitCode = await CockpitCommandRunner().run(<String>[
+        'read-app',
+        '--output-json',
+        outputFile.path,
+      ]);
+
+      expect(exitCode, 0);
+      final decoded = jsonDecode(await outputFile.readAsString());
+      expect(decoded['sessionId'], 'query-default-handle-demo');
+      expect(decoded['currentRouteName'], '/settings');
     },
   );
 }

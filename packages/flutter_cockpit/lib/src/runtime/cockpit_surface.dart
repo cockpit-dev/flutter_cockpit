@@ -205,10 +205,20 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
       return const <CockpitTarget>[];
     }
 
+    final discovered = _discoveryEngine.discover(
+      rootContext: rootContext,
+      routeName: _registry.routeName,
+      explicitTargets: _registry.registeredTargets,
+    );
+    if (discovered.isNotEmpty || _registry.routeName == null) {
+      return discovered;
+    }
+
     return _discoveryEngine.discover(
       rootContext: rootContext,
       routeName: _registry.routeName,
       explicitTargets: _registry.registeredTargets,
+      allowInactiveRouteFallback: true,
     );
   }
 

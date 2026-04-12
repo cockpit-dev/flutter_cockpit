@@ -92,12 +92,13 @@ Do not pay delivery-grade cost on every edit. Do pay it before any user-facing c
 
 ## Token-Saving Shell Patterns
 
-- Keep `app.json` and reuse it:
-  `flutter_cockpit_devtools read-app --app-json /tmp/flutter_cockpit/app.json --profile minimal | jq '{currentRouteName,state}'`
+- Read one small state slice from the default latest-app handle:
+  `flutter_cockpit_devtools read-app --profile minimal | jq '{currentRouteName,state}'`
+- If you stay in one repo, let `launch-app` manage `.dart_tool/flutter_cockpit/latest_app.json` and stop repeating `--app-json` unless another step must reopen a named handle from elsewhere.
 - For reload status, project nested fields instead of assuming top-level booleans:
-  `flutter_cockpit_devtools hot-reload --app-json /tmp/flutter_cockpit/app.json | jq '{reloadGeneration: .status.reloadGeneration, lastReloadSucceeded: .status.lastReloadSucceeded}'`
+  `flutter_cockpit_devtools hot-reload | jq '{reloadGeneration: .status.reloadGeneration, lastReloadSucceeded: .status.lastReloadSucceeded}'`
 - For text input flows, verify the next control or saved state instead of expecting `textPreviews` to mirror the field contents:
-  `flutter_cockpit_devtools run-command --app-json /tmp/flutter_cockpit/app.json --command-file /tmp/enter_text.json --profile standard`
+  `flutter_cockpit_devtools run-command --command-file /tmp/enter_text.json --profile standard`
 - Search first, then open one dependency file:
   `flutter_cockpit_devtools grep-package-uris --package flutter --query ThemeData | jq -r '.packages[0].files[0].packageUri'`
 - When only one branch decision matters, extract one field:
@@ -107,7 +108,7 @@ Do not pay delivery-grade cost on every edit. Do pay it before any user-facing c
   `jq '{classification,recommendedNextStep}' /tmp/runTaskResult.json`
 - Workspace commands default to the current directory, so omit `--workspace-root` unless you are operating outside the repo you already opened.
 - Prefer file inputs over long inline JSON:
-  `flutter_cockpit_devtools run-command --app-json /tmp/flutter_cockpit/app.json --command-file /tmp/command.json --profile standard`
+  `flutter_cockpit_devtools run-command --command-file /tmp/command.json --profile standard`
 - Use `jq` to trim, not to compensate for asking the app for an unnecessarily heavy profile.
 
 ## Example
@@ -116,34 +117,28 @@ Do not pay delivery-grade cost on every edit. Do pay it before any user-facing c
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   launch-app \
   --project-dir examples/cockpit_demo \
-  --platform macos \
-  --app-json /tmp/flutter_cockpit/app.json
+  --platform macos
 ```
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
-  hot-reload \
-  --app-json /tmp/flutter_cockpit/app.json
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools hot-reload
 ```
 
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   run-command \
-  --app-json /tmp/flutter_cockpit/app.json \
   --profile standard \
   --command-json '{"commandId":"open-today","commandType":"tap","locator":{"text":"Today","type":"TextButton","ancestor":{"route":"/inbox"}}}'
 ```
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
-  read-app \
-  --app-json /tmp/flutter_cockpit/app.json \
-  --profile minimal
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools read-app --profile minimal
 ```
 
 ## Expected Agent Behavior
 
-- keep `app.json` and reuse it instead of relaunching
+- keep the latest app handle and reuse it instead of relaunching
+- in one workspace, prefer the default latest-app handle over repeating `--app-json`
 - prefer hot reload over restart when state preservation helps
 - ask for one missing fact per cycle
 - avoid reading full snapshots unless the smaller profile failed to answer the question

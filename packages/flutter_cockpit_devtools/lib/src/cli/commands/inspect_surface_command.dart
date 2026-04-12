@@ -58,13 +58,18 @@ final class InspectSurfaceCommand extends CockpitCliCommand {
     final result = await _inspect(
       CockpitInspectSurfaceRequest(
         targetHandlePath: argResults?['target-json'] as String?,
-        appHandlePath: argResults?['app-json'] as String?,
+        appHandlePath: cockpitResolveAppHandlePath(argResults),
         baseUri: cockpitReadOptionalBaseUri(argResults),
         androidDeviceId: argResults?['android-device-id'] as String?,
         resultProfile: cockpitReadResultProfile(argResults),
         snapshotOptions: snapshotOptionsJson == null
             ? null
-            : CockpitSnapshotOptions.fromJson(snapshotOptionsJson),
+            : cockpitDecodeCliJson(
+                decode: () =>
+                    CockpitSnapshotOptions.fromJson(snapshotOptionsJson),
+                label: 'snapshot options JSON',
+                usage: usage,
+              ),
         compareAgainstSnapshotRef:
             argResults?['compare-against-snapshot-ref'] as String?,
       ),
@@ -79,7 +84,7 @@ final class InspectSurfaceCommand extends CockpitCliCommand {
 
   void _requireTargetReference() {
     final targetJsonPath = argResults?['target-json'] as String?;
-    final appJsonPath = argResults?['app-json'] as String?;
+    final appJsonPath = cockpitResolveAppHandlePath(argResults);
     final baseUrl = argResults?['base-url'] as String?;
     if ((targetJsonPath == null || targetJsonPath.isEmpty) &&
         (appJsonPath == null || appJsonPath.isEmpty) &&

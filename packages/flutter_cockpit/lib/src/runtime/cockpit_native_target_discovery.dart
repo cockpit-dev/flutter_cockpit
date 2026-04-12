@@ -23,6 +23,7 @@ final class CockpitNativeTargetDiscovery {
     required BuildContext rootContext,
     required String? routeName,
     List<CockpitTarget> explicitTargets = const <CockpitTarget>[],
+    bool allowInactiveRouteFallback = false,
   }) {
     final rootElement = rootContext as Element;
     final rootViewport = _viewportBoundsFor(rootElement);
@@ -35,7 +36,10 @@ final class CockpitNativeTargetDiscovery {
     void visit(Element element, String path, bool insideActionableTarget) {
       if (!element.mounted ||
           policy.ignoresSubtree(element) ||
-          !cockpitIsVisibleInRuntimeTree(element) ||
+          !cockpitIsVisibleInRuntimeTree(
+            element,
+            ignoreCurrentRoute: allowInactiveRouteFallback,
+          ) ||
           _isCoveredByExplicitTarget(element, explicitElements)) {
         return;
       }

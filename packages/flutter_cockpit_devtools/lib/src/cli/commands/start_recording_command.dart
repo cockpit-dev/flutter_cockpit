@@ -72,9 +72,13 @@ final class StartRecordingCommand extends CockpitCliCommand {
     final result = await _start(
       CockpitStartRecordingRequest(
         baseUri: cockpitReadOptionalBaseUri(argResults),
-        appHandlePath: argResults?['app-json'] as String?,
+        appHandlePath: cockpitResolveAppHandlePath(argResults),
         androidDeviceId: argResults?['android-device-id'] as String?,
-        recording: CockpitRecordingRequest.fromJson(recordingJson),
+        recording: cockpitDecodeCliJson(
+          decode: () => CockpitRecordingRequest.fromJson(recordingJson),
+          label: 'recording JSON',
+          usage: usage,
+        ),
       ),
     );
     await cockpitWriteJsonPayload(

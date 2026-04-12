@@ -315,12 +315,7 @@ final class CockpitTargetRegistry {
   }
 
   List<CockpitTarget> _explicitVisibleTargets() {
-    return _targets.values.where((target) {
-      if (!target.isVisible) {
-        return false;
-      }
-      return routeName == null || target.routeName == routeName;
-    }).toList(growable: false);
+    return _visibleTargetsFor(_targets.values);
   }
 
   List<CockpitTarget> _discoveredVisibleTargets() {
@@ -329,12 +324,31 @@ final class CockpitTargetRegistry {
       return const <CockpitTarget>[];
     }
 
-    return provider().where((target) {
-      if (!target.isVisible) {
-        return false;
-      }
-      return routeName == null || target.routeName == routeName;
-    }).toList(growable: false);
+    return _visibleTargetsFor(provider());
+  }
+
+  List<CockpitTarget> _visibleTargetsFor(Iterable<CockpitTarget> targets) {
+    final visibleTargets =
+        targets.where((target) => target.isVisible).toList(growable: false);
+    final currentRouteName = routeName;
+    if (currentRouteName == null || currentRouteName.isEmpty) {
+      return visibleTargets;
+    }
+
+    final routeMatched = visibleTargets
+        .where((target) => target.routeName == currentRouteName)
+        .toList(growable: false);
+    if (routeMatched.isNotEmpty) {
+      return routeMatched;
+    }
+
+    return visibleTargets
+        .where((target) => _isUnresolvedRouteTarget(target.routeName))
+        .toList(growable: false);
+  }
+
+  bool _isUnresolvedRouteTarget(String routeName) {
+    return routeName.isEmpty || routeName == '/';
   }
 
   List<CockpitTarget> _deduplicatedDiscoveredVisibleTargets() {

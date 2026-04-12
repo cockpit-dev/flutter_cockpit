@@ -1,6 +1,9 @@
 import 'package:flutter/widgets.dart';
 
-bool cockpitIsVisibleInRuntimeTree(Element element) {
+bool cockpitIsVisibleInRuntimeTree(
+  Element element, {
+  bool ignoreCurrentRoute = false,
+}) {
   if (!element.mounted) {
     return false;
   }
@@ -11,6 +14,9 @@ bool cockpitIsVisibleInRuntimeTree(Element element) {
 
   final routeScope = _nearestRouteScope(element);
   if (routeScope == null) {
+    return true;
+  }
+  if (ignoreCurrentRoute) {
     return true;
   }
   return routeScope.isCurrent;

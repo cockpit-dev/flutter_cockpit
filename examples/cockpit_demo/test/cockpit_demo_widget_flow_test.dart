@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_cockpit/flutter_cockpit_flutter.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:cockpit_demo/src/data/cockpit_demo_database.dart';
 import 'package:cockpit_demo/src/data/todo_repository.dart';
 import 'package:cockpit_demo/src/model/todo_filter.dart';
@@ -12,7 +13,7 @@ import 'support/cockpit_demo_test_support.dart';
 
 void main() {
   test('keeps the production main entrypoint free of cockpit bootstrap', () {
-    final contents = File('lib/main.dart').readAsStringSync();
+    final contents = _resolveExampleFile('lib/main.dart').readAsStringSync();
     expect(contents.contains('flutter_cockpit'), isFalse);
     expect(contents.contains('FlutterCockpit'), isFalse);
   });
@@ -103,6 +104,42 @@ void main() {
           .getSingle();
       expect(storedSettings.compactMode, isTrue);
       expect(storedSettings.themePreference, 'dark');
+    },
+  );
+
+  testWidgets(
+    'runtime snapshot keeps visible settings targets after navigating from inbox',
+    (tester) async {
+      final database = CockpitDemoDatabase.inMemory();
+      addCockpitDemoDatabaseTearDown(tester, database);
+
+      await pumpTodoApp(
+        tester,
+        controller: _testController(),
+        database: database,
+      );
+
+      await tester.tap(find.byTooltip('Settings'));
+      await tester.pumpAndSettle();
+
+      final rootState = tester.state<FlutterCockpitRootState>(
+        find.byType(FlutterCockpitRoot),
+      );
+      final snapshot = rootState.snapshot(
+        options: const CockpitSnapshotOptions.investigate(),
+      );
+
+      expect(snapshot.routeName, '/settings');
+      expect(snapshot.visibleTargets, isNotEmpty);
+      expect(
+        snapshot.visibleTargets.any(
+          (target) =>
+              target.text == 'Save settings' ||
+              target.tooltip == 'Save settings' ||
+              target.text == 'Simulate relay outage',
+        ),
+        isTrue,
+      );
     },
   );
 
@@ -573,6 +610,33 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.textContaining('Review runtime diagnostics'), findsOneWidget);
     },
+  );
+}
+
+File _resolveExampleFile(String relativePath) {
+  var current = Directory.current.absolute;
+  for (var depth = 0; depth < 6; depth += 1) {
+    final direct = File(p.join(current.path, relativePath));
+    if (direct.existsSync()) {
+      return direct;
+    }
+
+    final nested = File(
+      p.join(current.path, 'examples', 'cockpit_demo', relativePath),
+    );
+    if (nested.existsSync()) {
+      return nested;
+    }
+
+    final parent = current.parent;
+    if (parent.path == current.path) {
+      break;
+    }
+    current = parent;
+  }
+
+  throw StateError(
+    'Unable to resolve cockpit_demo/$relativePath from ${Directory.current.path}.',
   );
 }
 

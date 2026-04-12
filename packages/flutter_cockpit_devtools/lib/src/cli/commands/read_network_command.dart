@@ -96,7 +96,7 @@ final class ReadNetworkCommand extends CockpitCliCommand {
     cockpitRequireAppReference(argResults, usage);
     final result = await _read(
       CockpitReadNetworkRequest(
-        appHandlePath: argResults?['app-json'] as String?,
+        appHandlePath: cockpitResolveAppHandlePath(argResults),
         baseUri: cockpitReadOptionalBaseUri(argResults),
         androidDeviceId: argResults?['android-device-id'] as String?,
         maxEntries: cockpitReadOptionalInt(argResults, 'max-entries') ?? 8,

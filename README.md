@@ -189,8 +189,8 @@ These host commands and config entry points can evolve. If a host UI or command 
 For active development and debugging:
 
 1. `list-targets`
-2. `launch-app --app-json /tmp/app.json`
-3. `read-app --app-json /tmp/app.json --profile minimal`
+2. `launch-app`
+3. `read-app --profile minimal`
 4. `run-command`, `run-batch`, `inspect-ui`, `read-network`, `wait-idle`, `read-errors`, `read-logs`
 5. `hot-reload` or `hot-restart`
 6. repeat until the app is correct
@@ -215,10 +215,11 @@ Target-first flows are platform-aware and capability-truthful:
 - `inspect-surface` prefers the foreground surface for the resolved target. Flutter apps inspect the semantic plane; desktop Flutter targets try remote semantic inspection first and fall back to native/window capture only when that semantic path is unavailable; direct system targets stay capability/capture-first.
 - `run-shell` is target-aware. Use `--scope target --target-json /tmp/target.json` to bind shell execution to a normalized target, `--scope android --device-id <id>` for `adb shell`, `--scope ios --device-id <simulator-udid>` for `xcrun simctl spawn`, and desktop host-aligned scopes when the platform truthfully exposes shell control.
 
-The public surface is app-first, not session-handle-first. Persist `app.json` and reuse it across steps. CLI and MCP output uses lower camel case keys.
+The public surface is app-first, not session-handle-first. If you omit `--app-json`, `launch-app` writes the latest handle to `.dart_tool/flutter_cockpit/latest_app.json` in the current working directory, and follow-up app commands reuse it automatically. CLI and MCP output uses lower camel case keys.
 Prefer `--command-file`, `--commands-file`, and `--config-json` once a payload stops being trivial.
 `launch-app` auto-detects `cockpit/main.dart` first, then `lib/main.dart`.
 For code-side questions, prefer `analyze-files`, `lsp`, `grep-package-uris`, `read-package-uris`, and `pub` before workspace-wide commands.
+Serialize mutation, then observation. Do not parallelize `run-command` with the `read-app`, `inspect-ui`, or `read-network` step that depends on its side effects.
 
 Locators are multi-signal. Start with `text`, `tooltip`, or `semanticId`. Use `key` only when the app already exposes a legitimate stable key for product reasons, then add `route`, `type`, `path`, nested `ancestor`, or short `fallbacks` only when needed. `path` matching is fuzzy and ignores noise such as `body`, `slivers`, and numeric indexes.
 

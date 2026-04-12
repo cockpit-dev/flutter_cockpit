@@ -59,7 +59,7 @@ final class ReadTargetCommand extends CockpitCliCommand {
     final result = await _read(
       CockpitReadTargetRequest(
         targetHandlePath: argResults?['target-json'] as String?,
-        appHandlePath: argResults?['app-json'] as String?,
+        appHandlePath: cockpitResolveAppHandlePath(argResults),
         baseUri: cockpitReadOptionalBaseUri(argResults),
         androidDeviceId: argResults?['android-device-id'] as String?,
         resultProfile: cockpitReadResultProfile(
@@ -68,7 +68,12 @@ final class ReadTargetCommand extends CockpitCliCommand {
         ),
         snapshotOptions: snapshotOptionsJson == null
             ? null
-            : CockpitSnapshotOptions.fromJson(snapshotOptionsJson),
+            : cockpitDecodeCliJson(
+                decode: () =>
+                    CockpitSnapshotOptions.fromJson(snapshotOptionsJson),
+                label: 'snapshot options JSON',
+                usage: usage,
+              ),
       ),
     );
     await cockpitWriteJsonPayload(
@@ -81,7 +86,7 @@ final class ReadTargetCommand extends CockpitCliCommand {
 
   void _requireTargetReference() {
     final targetJsonPath = argResults?['target-json'] as String?;
-    final appJsonPath = argResults?['app-json'] as String?;
+    final appJsonPath = cockpitResolveAppHandlePath(argResults);
     final baseUrl = argResults?['base-url'] as String?;
     if ((targetJsonPath == null || targetJsonPath.isEmpty) &&
         (appJsonPath == null || appJsonPath.isEmpty) &&

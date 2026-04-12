@@ -13,11 +13,13 @@ final class CockpitDiscoveryEngine {
     required BuildContext rootContext,
     required String? routeName,
     List<CockpitTarget> explicitTargets = const <CockpitTarget>[],
+    bool allowInactiveRouteFallback = false,
   }) {
     return CockpitNativeTargetDiscovery(policy: policy).discover(
       rootContext: rootContext,
       routeName: routeName,
       explicitTargets: explicitTargets,
+      allowInactiveRouteFallback: allowInactiveRouteFallback,
     );
   }
 }

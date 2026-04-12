@@ -1,3 +1,5 @@
+import 'dart:async';
+
 export 'cockpit_application_service_exception.dart';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
@@ -105,9 +107,10 @@ final class CockpitReadRemoteSnapshotService {
         request.resultProfile.resolveSnapshotOptions(
       request.snapshotOptions,
     );
-    final snapshot = (await _readSnapshot(
-      resolved.baseUri,
-      effectiveSnapshotOptions,
+    final snapshot = (await cockpitReadRemoteSnapshotConsistently(
+      baseUri: resolved.baseUri,
+      options: effectiveSnapshotOptions,
+      readSnapshot: _readSnapshot,
     ))
         .snapshot;
     final sessionKey = resolved.baseUri.toString();
@@ -143,4 +146,52 @@ final class CockpitReadRemoteSnapshotService {
       effectiveSnapshotOptions: effectiveSnapshotOptions,
     );
   }
+}
+
+Future<CockpitRemoteSnapshotResponse> cockpitReadRemoteSnapshotConsistently({
+  required Uri baseUri,
+  required CockpitSnapshotOptions options,
+  required CockpitRemoteSnapshotDetailedReader readSnapshot,
+}) async {
+  var response = await readSnapshot(baseUri, options);
+  if (!_isLikelyTransitionEmptySnapshot(response.snapshot)) {
+    return response;
+  }
+
+  for (final delay in _transitionSnapshotRetryDelays) {
+    await Future<void>.delayed(delay);
+    response = await readSnapshot(baseUri, options);
+    if (!_isLikelyTransitionEmptySnapshot(response.snapshot)) {
+      break;
+    }
+  }
+
+  return response;
+}
+
+const List<Duration> _transitionSnapshotRetryDelays = <Duration>[
+  Duration(milliseconds: 120),
+  Duration(milliseconds: 240),
+];
+
+bool _isLikelyTransitionEmptySnapshot(CockpitSnapshot snapshot) {
+  final routeName = snapshot.routeName;
+  if (routeName == null || routeName.isEmpty) {
+    return false;
+  }
+  if (snapshot.visibleTargets.isNotEmpty) {
+    return false;
+  }
+
+  final summary = snapshot.summary;
+  if (summary != null && summary.visibleTargetCount > 0) {
+    return false;
+  }
+
+  final accessibility = snapshot.accessibility;
+  if (accessibility != null && accessibility.totalAccessibleTargetCount > 0) {
+    return false;
+  }
+
+  return true;
 }
