@@ -253,6 +253,47 @@ void main() {
       expect(result.diagnostics?['runtime'], isNotNull);
     });
 
+    test('retries transient empty post-action snapshots before summarizing',
+        () async {
+      var snapshotReads = 0;
+      final service = CockpitExecuteRemoteCommandService(
+        executeCommand: (_, command) async {
+          return CockpitCommandExecution(
+            result: CockpitCommandResult(
+              success: true,
+              commandId: command.commandId,
+              commandType: command.commandType,
+              durationMs: 80,
+            ),
+          );
+        },
+        readSnapshot: (_, __) async {
+          snapshotReads += 1;
+          return CockpitRemoteSnapshotResponse(
+            snapshot: snapshotReads == 1
+                ? _emptyRouteSnapshot('/inbox')
+                : _richSnapshot(routeName: '/inbox', label: 'Create task'),
+          );
+        },
+      );
+
+      final result = await service.execute(
+        CockpitExecuteRemoteCommandRequest(
+          sessionHandle: _sessionHandle(),
+          command: CockpitCommand(
+            commandId: 'tap-after-route-change',
+            commandType: CockpitCommandType.tap,
+          ),
+          resultProfile: const CockpitInteractiveResultProfile.standard(),
+        ),
+      );
+
+      expect(snapshotReads, 2);
+      expect(result.uiSummary?.routeName, '/inbox');
+      expect(result.uiSummary?.visibleTargetCount, 1);
+      expect(result.uiSummary?.textPreviews, contains('Create task'));
+    });
+
     test('returns refs without metadata for standard artifact profiles',
         () async {
       final service = CockpitExecuteRemoteCommandService(
@@ -461,6 +502,24 @@ CockpitRemoteSessionHandle _sessionHandle() {
     devicePort: 47331,
     baseUrl: 'http://127.0.0.1:47331',
     launchedAt: DateTime.utc(2026, 3, 30),
+  );
+}
+
+CockpitSnapshot _emptyRouteSnapshot(String routeName) {
+  return CockpitSnapshot(
+    routeName: routeName,
+    diagnosticLevel: CockpitSnapshotProfile.baseline,
+    visibleTargets: const <CockpitSnapshotTarget>[],
+    summary: const CockpitSnapshotSummary(
+      visibleTargetCount: 0,
+      targetsWithCockpitIdCount: 0,
+      targetsWithTextCount: 0,
+      styleDetailsIncluded: false,
+      diagnosticPropertiesIncluded: false,
+      ancestorSummariesIncluded: false,
+      rebuildSummaryIncluded: false,
+      accessibilitySummaryIncluded: false,
+    ),
   );
 }
 
