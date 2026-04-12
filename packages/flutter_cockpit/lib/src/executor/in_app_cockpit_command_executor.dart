@@ -2361,10 +2361,22 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
           'visibleTextCandidates': _visibleTextCandidates(
             _registry.visibleTargets,
           ).take(12).toList(growable: false),
+          if (_emptyRouteHint() case final hint?) 'emptyRouteHint': hint,
         },
       ),
       matches: resolution.matches,
     );
+  }
+
+  String? _emptyRouteHint() {
+    final routeName = _liveSnapshot().routeName;
+    if (routeName == null || routeName.isEmpty) {
+      return null;
+    }
+    if (_registry.visibleTargets.isNotEmpty) {
+      return null;
+    }
+    return 'The current route is ready but target discovery is still empty. Read app state or inspect UI before retrying, or keep route-crossing steps in one run-batch.';
   }
 
   List<Map<String, Object?>> _visibleTargetHints() {

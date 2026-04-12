@@ -686,6 +686,36 @@ void main() {
               const <Map<String, Object?>>[];
       expect(visibleTargetHints, isEmpty);
       expect(result.error?.details['visibleTextCandidates'], const <Object?>[]);
+      expect(result.error?.details['emptyRouteHint'], isNull);
+    },
+  );
+
+  test(
+    'adds a recovery hint when the current route is known but target discovery is still empty',
+    () async {
+      final executor = InAppCockpitCommandExecutor(
+        registry: CockpitTargetRegistry(routeName: '/editor'),
+      );
+
+      final result = await executor.execute(
+        CockpitCommand(
+          commandId: 'cmd-editor-transition',
+          commandType: CockpitCommandType.enterText,
+          locator: const CockpitLocator(
+            text: 'Task title',
+            ancestor: CockpitLocator(route: '/editor'),
+          ),
+          parameters: const <String, Object?>{'text': 'Hello'},
+        ),
+      );
+
+      expect(result.success, isFalse);
+      expect(result.error?.code, CockpitCommandError.targetNotFoundCode);
+      expect(result.error?.details['routeName'], '/editor');
+      expect(
+        result.error?.details['emptyRouteHint'],
+        contains('run-batch'),
+      );
     },
   );
 
