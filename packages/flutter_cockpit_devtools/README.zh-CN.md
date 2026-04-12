@@ -88,9 +88,11 @@ target-first 闭环：
 5. 只有问题已经不再是局部修改时，才升级到 `run-tests` 或 `analyze-workspace`
 
 CLI JSON 输出使用 lower camel case keys。
+如果命令同时支持 `--app-json` 和 `--base-url`，优先级是：显式 `--app-json`，然后显式 `--base-url`，最后才是当前工作目录里的隐式 `.dart_tool/flutter_cockpit/latest_app.json`。
 `launch-app` 会先自动探测 `cockpit/main.dart`，找不到再退回 `lib/main.dart`。
 `run-script` 写出的 bundle 只要状态是 `failed`，命令就会非零退出。
 workspace 命令默认把 `--workspace-root` 或 `--parent-directory` 视为当前目录。
+当后续几步已经明确，而且流程会跨路由，比如 `/inbox -> /editor -> /inbox`，优先用一次有序的 `run-batch`，不要拆成多次 `run-command` 往返。这样更省 token，也更能避开路由切换窗口期的状态抖动。
 
 已验证可直接运行的 `run-command` 形状：
 

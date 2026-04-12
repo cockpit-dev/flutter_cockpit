@@ -77,12 +77,14 @@ For the shortest edit -> reload -> verify loop, use the rapid loop reference ins
 - Prefer `minimal` or `standard` unless the current question is still ambiguous.
 - Prefer `read_app` and `inspect_ui` summaries before raw snapshot payloads.
 - Prefer `run_batch` over repeated `run_command` round-trips when the next few mutations are already known and must stay ordered.
+- Prefer `run_batch` for short route-crossing flows such as open editor -> fill fields -> save. It keeps the mutation chain ordered inside one remote loop and avoids paying extra token and stability cost on each intermediate route transition.
 - Prefer `read_network` over snapshot diagnostics when the next question is only about requests, failures, or endpoint coverage.
 - For traffic verification, use `run_command` -> `wait_idle` -> `read_network` before escalating to heavier UI inspection.
 - Prefer bundle summaries and gate failures before opening large artifact files.
 - Ask for one missing fact per step, not every diagnostic dimension at once.
 - Prefer compact stdout projections such as `| jq` for immediate branch decisions. Add `--output-json` only when the result is too large for stdout or a later step must reopen the full payload.
 - Prefer the default latest-app handle in one workspace instead of repeating `--app-json` on every command.
+- When both are accepted, remember the app reference precedence: explicit `--app-json`, then explicit `--base-url`, then the implicit latest-app handle in the current working directory.
 - Prefer `grep_package_uris` before opening large dependency files blindly; search first, then read only the matching package URI.
 - Prefer `jq -r` or short pipes to extract one route, status, failure code, or readiness field at a time.
 - Prefer `--command-file`, `--commands-file`, and `--config-json` files over long inline JSON literals when the payload is more than a few lines.

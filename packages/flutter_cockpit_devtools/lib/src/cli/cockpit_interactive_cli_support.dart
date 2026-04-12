@@ -103,6 +103,14 @@ String? cockpitResolveAppHandlePath(
     return explicit;
   }
 
+  final hasBaseUrlOption =
+      argResults != null && argResults.options.contains('base-url');
+  final explicitBaseUrl =
+      hasBaseUrlOption ? argResults['base-url'] as String? : null;
+  if (explicitBaseUrl != null && explicitBaseUrl.isNotEmpty) {
+    return null;
+  }
+
   final defaultPath = cockpitDefaultAppHandlePath(workingDirectory);
   if (File(defaultPath).existsSync()) {
     return defaultPath;

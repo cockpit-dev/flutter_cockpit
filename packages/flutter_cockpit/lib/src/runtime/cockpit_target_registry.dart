@@ -44,6 +44,7 @@ final class CockpitTargetResolutionResult {
 
 final class CockpitTargetRegistry {
   static const int liveSnapshotTargetLimit = 120;
+  static const int candidateDetailLimit = 8;
 
   CockpitTargetRegistry({this.routeName});
 
@@ -91,9 +92,8 @@ final class CockpitTargetRegistry {
                 'requestedLocator': candidate.toJson(),
                 'matchedCount': matches.length,
                 'requestedIndex': candidate.index,
-                'candidates': orderedMatches
-                    .map((target) => target.registrationId)
-                    .toList(growable: false),
+                'candidateCount': orderedMatches.length,
+                'candidates': _candidateIdsFor(orderedMatches),
                 'candidateHints': _targetHintsFor(orderedMatches),
               },
             ),
@@ -131,9 +131,8 @@ final class CockpitTargetRegistry {
             details: <String, Object?>{
               'matchedKind': candidate.kind.name,
               'matchedValue': candidate.value,
-              'candidates': orderedMatches
-                  .map((target) => target.registrationId)
-                  .toList(growable: false),
+              'candidateCount': orderedMatches.length,
+              'candidates': _candidateIdsFor(orderedMatches),
               'candidateHints': _targetHintsFor(orderedMatches),
             },
           ),
@@ -244,6 +243,13 @@ final class CockpitTargetRegistry {
       }
     }
     return hints;
+  }
+
+  List<String> _candidateIdsFor(Iterable<CockpitTarget> targets) {
+    return targets
+        .take(candidateDetailLimit)
+        .map((target) => target.registrationId)
+        .toList(growable: false);
   }
 
   Map<String, Object?> _targetHintFor(CockpitTarget target) {
