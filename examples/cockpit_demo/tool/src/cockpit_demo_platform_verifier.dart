@@ -84,6 +84,24 @@ const List<String> cockpitDemoSupportedVerificationPlatforms = <String>[
   'windows',
 ];
 
+String cockpitDemoDefaultProjectDir({
+  required String currentDirectory,
+  String? scriptPath,
+}) {
+  final fallback = p.normalize(currentDirectory);
+  if (scriptPath == null || scriptPath.isEmpty) {
+    return fallback;
+  }
+
+  final candidate = p.normalize(
+    p.join(
+      p.dirname(p.normalize(scriptPath)),
+      '..',
+    ),
+  );
+  return p.basename(candidate) == 'cockpit_demo' ? candidate : fallback;
+}
+
 final class CockpitDemoHostDevice {
   const CockpitDemoHostDevice({
     required this.name,

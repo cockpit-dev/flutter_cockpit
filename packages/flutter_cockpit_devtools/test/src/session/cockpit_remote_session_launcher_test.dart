@@ -5,10 +5,9 @@ import 'package:flutter_cockpit_devtools/flutter_cockpit_devtools.dart';
 import 'package:test/test.dart';
 
 void main() {
-  test('web remote session helpers prefer localhost for browser-facing URLs',
-      () {
-    expect(cockpitRemoteBindHostForPlatform('web'), 'localhost');
-    expect(cockpitRemotePublicHostForPlatform('web'), 'localhost');
+  test('web remote session helpers use explicit IPv4 loopback endpoints', () {
+    expect(cockpitRemoteBindHostForPlatform('web'), '127.0.0.1');
+    expect(cockpitRemotePublicHostForPlatform('web'), '127.0.0.1');
     expect(cockpitRemoteBindHostForPlatform('ios'), '0.0.0.0');
     expect(cockpitRemotePublicHostForPlatform('ios'), '127.0.0.1');
   });

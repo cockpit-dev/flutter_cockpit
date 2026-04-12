@@ -132,10 +132,11 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --app-json /tmp/flutter_cockpit/web_app.json
 ```
 
-在 web 上，`launch-app` 现在会先在宿主机 `localhost` 拉起 bridge，再让浏览器应用通过 WebSocket 回连，同时对 agent 保持原来的 HTTP app surface（`/health`、`/snapshot`、`/commands/execute`、`/recording/*`）不变。
+在 web 上，`launch-app` 现在会先在宿主机 `127.0.0.1` 拉起 bridge，再让浏览器应用通过 WebSocket 回连，同时对 agent 保持原来的 HTTP app surface（`/health`、`/snapshot`、`/commands/execute`、`/recording/*`）不变。
 浏览器录屏仍然依赖宿主桌面系统给浏览器和采集链授予屏幕采集权限；如果宿主权限或设备策略阻止采集，`stop-recording` 会返回结构化失败结果，而不是把整个 session 卡死。
 仓库里的 `runtime-loop` workflow 还会在 Linux + `xvfb` 环境下运行 `examples/cockpit_demo/tool/verify_platforms.dart --platform web`，把截图、录屏、hot reload、hot restart 全都纳入真实 web 端到端校验。
 如果是在 macOS 本地做 web 验证，`examples/cockpit_demo/tool/verify_platforms.dart --platform web --allow-web-host-recording-prerequisite-failure` 会继续严格验证应用控制、截图和 reload 流程，同时把缺失桌面录屏权限降级成结构化 warning。
+现在直接在仓库根目录运行仓库自带 verifier 入口也能自动解析到 `examples/cockpit_demo`，所以可以直接执行 `dart run examples/cockpit_demo/tool/verify_platforms.dart --platform web`，不必额外再传 `--project-dir`。
 
 Locator 规则：
 

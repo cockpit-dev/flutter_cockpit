@@ -7,6 +7,10 @@ import 'package:path/path.dart' as p;
 import 'src/cockpit_demo_platform_verifier.dart';
 
 Future<void> main(List<String> arguments) async {
+  final defaultProjectDir = cockpitDemoDefaultProjectDir(
+    currentDirectory: Directory.current.path,
+    scriptPath: _tryResolveScriptPath(),
+  );
   final parser = ArgParser()
     ..addMultiOption(
       'platform',
@@ -16,8 +20,9 @@ Future<void> main(List<String> arguments) async {
     )
     ..addOption(
       'project-dir',
-      defaultsTo: Directory.current.path,
-      help: 'cockpit_demo project directory.',
+      defaultsTo: defaultProjectDir,
+      help:
+          'cockpit_demo project directory. Defaults to the example that contains this script.',
     )
     ..addOption(
       'target',
@@ -128,4 +133,12 @@ String? _readOptionalString(ArgResults parsed, String name) {
     return null;
   }
   return value;
+}
+
+String? _tryResolveScriptPath() {
+  final script = Platform.script;
+  if (script.scheme != 'file') {
+    return null;
+  }
+  return script.toFilePath();
 }
