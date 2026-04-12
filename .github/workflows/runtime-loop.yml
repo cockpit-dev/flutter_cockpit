@@ -38,6 +38,18 @@ jobs:
         timeout-minutes: 10
         run: dart run melos bootstrap
 
+      - name: Run publish readiness gates
+        timeout-minutes: 20
+        run: |
+          dart format --output=none --set-exit-if-changed \
+            packages/flutter_cockpit \
+            packages/flutter_cockpit_devtools \
+            examples/cockpit_demo \
+            test
+          dart analyze packages/flutter_cockpit packages/flutter_cockpit_devtools examples/cockpit_demo test
+          (cd packages/flutter_cockpit && flutter pub publish --dry-run)
+          (cd packages/flutter_cockpit_devtools && dart pub publish --dry-run)
+
       - name: Run full shared regression suite
         timeout-minutes: 35
         run: melos run test
@@ -619,6 +631,126 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: macos-runtime-loop-bundle
+          retention-days: 14
+          if-no-files-found: warn
+          path: |
+            ${{ env.OUTPUT_ROOT }}
+            ${{ env.RESULT_JSON }}
+            ${{ env.LOG_PATH }}
+
+  web-runtime-loop:
+    needs: shared-ai-surface-regressions
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+
+      - name: Install web validation dependencies
+        timeout-minutes: 15
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg xvfb
+
+      - name: Resolve Chrome executable
+        timeout-minutes: 5
+        run: |
+          CHROME_EXECUTABLE="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium-browser || command -v chromium || true)"
+          if [ -z "$CHROME_EXECUTABLE" ]; then
+            echo "No supported Chrome or Chromium executable found on the runner." >&2
+            exit 1
+          fi
+          echo "CHROME_EXECUTABLE=$CHROME_EXECUTABLE" >> "$GITHUB_ENV"
+          "$CHROME_EXECUTABLE" --version
+
+      - name: Enable Flutter web
+        run: flutter config --enable-web
+
+      - name: Bootstrap workspace
+        timeout-minutes: 10
+        run: dart run melos bootstrap
+
+      - name: Prepare web verifier outputs
+        run: |
+          OUTPUT_ROOT="$RUNNER_TEMP/flutter_cockpit_web_out"
+          RESULT_JSON="$RUNNER_TEMP/flutter_cockpit_web_verification.json"
+          LOG_PATH="$RUNNER_TEMP/flutter_cockpit_web_verification.log"
+          echo "OUTPUT_ROOT=$OUTPUT_ROOT" >> "$GITHUB_ENV"
+          echo "RESULT_JSON=$RESULT_JSON" >> "$GITHUB_ENV"
+          echo "LOG_PATH=$LOG_PATH" >> "$GITHUB_ENV"
+
+      - name: Run web full verifier
+        working-directory: examples/cockpit_demo
+        timeout-minutes: 35
+        run: |
+          set -eo pipefail
+          xvfb-run -a dart run tool/verify_platforms.dart --platform web \
+            --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo" \
+            --output-root "$OUTPUT_ROOT" \
+            --output-json "$RESULT_JSON" \
+            --launch-timeout-seconds 300 2>&1 | tee "$LOG_PATH"
+
+      - name: Print web verifier diagnostics
+        if: failure()
+        run: |
+          [ -f "$LOG_PATH" ] && cat "$LOG_PATH" || true
+          [ -f "$RESULT_JSON" ] && cat "$RESULT_JSON" || true
+
+      - name: Verify web runtime loop result
+        env:
+          EXPECTED_PLATFORM: web
+          EXPECTED_RECORDING_DRIVER: browser-host
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib
+
+          expected_commands = [
+              "launch-app",
+              "read-app",
+              "inspect-ui",
+              "run-batch",
+              "start-recording",
+              "stop-recording",
+              "wait-idle",
+              "read-network",
+              "read-errors",
+              "read-logs",
+              "inspect-surface",
+              "capture-screenshot",
+              "hot-reload",
+              "hot-restart",
+          ]
+
+          result_path = pathlib.Path(os.environ["RESULT_JSON"])
+          data = json.loads(result_path.read_text())
+          assert data["success"] is True, data
+          assert data["recommendedNextStep"] == "continue", data
+          assert len(data["platforms"]) == 1, data
+          platform = data["platforms"][0]
+          assert platform["platform"] == os.environ["EXPECTED_PLATFORM"], platform
+          assert platform["status"] == "passed", platform
+          assert platform["verifiedCommands"] == expected_commands, platform
+          assert platform["recordingDriver"] == os.environ["EXPECTED_RECORDING_DRIVER"], platform
+          assert platform["batchCommandCount"] == 4, platform
+          assert platform["networkFailureCount"] == 0, platform
+          assert platform["runtimeErrorCount"] == 0, platform
+          assert platform["hotReloadSucceeded"] is True, platform
+          assert platform["hotRestartSucceeded"] is True, platform
+          assert platform["waitIdleSucceeded"] is True, platform
+          assert platform["recordingArtifactRef"], platform
+          assert platform["screenshotArtifactRef"], platform
+          PY
+
+      - name: Upload web runtime loop bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-runtime-loop-bundle
           retention-days: 14
           if-no-files-found: warn
           path: |

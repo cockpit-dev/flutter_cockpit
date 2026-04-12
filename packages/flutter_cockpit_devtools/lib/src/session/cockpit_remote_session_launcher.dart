@@ -82,7 +82,15 @@ String cockpitFlutterExecutable({bool? isWindows}) {
 }
 
 String cockpitRemoteBindHostForPlatform(String platform) {
-  return platform == 'ios' ? '0.0.0.0' : '127.0.0.1';
+  return switch (platform) {
+    'ios' => '0.0.0.0',
+    'web' => cockpitRemotePublicHostForPlatform(platform),
+    _ => cockpitRemotePublicHostForPlatform(platform),
+  };
+}
+
+String cockpitRemotePublicHostForPlatform(String platform) {
+  return platform == 'web' ? 'localhost' : '127.0.0.1';
 }
 
 Future<String> cockpitResolveActiveFlutterExecutable({

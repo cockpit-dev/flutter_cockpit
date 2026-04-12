@@ -51,10 +51,11 @@ dart run tool/verify_platforms.dart --output-json /tmp/cockpit_demo_all_platform
 ```
 
 Without `--platform`, that command runs the local default sweep on macOS, iOS Simulator, and Android Emulator.
-The `runtime-loop` CI workflow invokes the same verifier explicitly on Linux and Windows too, one platform per job.
+The `runtime-loop` CI workflow invokes the same verifier explicitly on Linux, Windows, and web too, one platform per job.
 When the host can run desktop Linux or Windows locally, pass `--platform linux` and `--platform windows` explicitly to extend the sweep.
 It validates `run-batch`, `inspect-ui`, `wait-idle`, `read-network`, `read-errors`, `read-logs`, `inspect-surface`, screenshot capture, recording, `hot-reload`, and `hot-restart`.
-Recording is platform-aware in that sweep: macOS, Linux, and Windows use the remote recording path, iOS Simulator uses `simctl`, and Android Emulator uses `adb`.
+Recording is platform-aware in that sweep: macOS, Linux, and Windows use the remote recording path, web uses `browser-host`, iOS Simulator uses `simctl`, and Android Emulator uses `adb`.
+For local macOS web runs where desktop recording permission is still blocked, add `--allow-web-host-recording-prerequisite-failure` so the verifier reports a structured warning instead of failing the whole runtime loop.
 
 For release-grade MCP and target-first verification in this repository, run:
 

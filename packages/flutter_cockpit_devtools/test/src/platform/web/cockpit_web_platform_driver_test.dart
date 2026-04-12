@@ -17,12 +17,24 @@ void main() {
       contains(CockpitActionCapability.captureScreenshot),
     );
     expect(
+      profile.actionCapabilities,
+      contains(CockpitActionCapability.startRecording),
+    );
+    expect(
+      profile.actionCapabilities,
+      contains(CockpitActionCapability.stopRecording),
+    );
+    expect(
       profile.evidenceCapabilities,
       contains(CockpitEvidenceCapability.domSnapshot),
     );
     expect(
       profile.evidenceCapabilities,
       contains(CockpitEvidenceCapability.windowCapture),
+    );
+    expect(
+      profile.evidenceCapabilities,
+      contains(CockpitEvidenceCapability.screenRecording),
     );
     expect(
       profile.actionCapabilities,

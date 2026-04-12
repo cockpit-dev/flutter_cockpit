@@ -765,7 +765,7 @@ void main() {
   );
 
   testWidgets(
-    'remote session capture command preserves capture metadata for fallback screenshots',
+    'remote session capture command falls back cleanly when native capture is unavailable',
     (tester) async {
       final controller = CockpitSessionController(
         sessionId: 'remote-capture-session',
@@ -835,8 +835,8 @@ void main() {
       expect(result.success, isTrue);
       expect(result.requestedCaptureProfile, CockpitCaptureProfile.acceptance);
       expect(result.resolvedCaptureKind, CockpitCaptureKind.flutterView);
-      expect(result.usedCaptureFallback, isTrue);
-      expect(result.degradationReason, isNotEmpty);
+      expect(result.usedCaptureFallback, isFalse);
+      expect(result.degradationReason, isNull);
       expect(response.artifactPayloads.single.bytes, isNotEmpty);
       expect(
         result.artifacts.single.relativePath,

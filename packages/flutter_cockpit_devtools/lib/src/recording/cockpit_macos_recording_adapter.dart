@@ -18,6 +18,7 @@ final class CockpitMacosRecordingAdapter
     CockpitRecordingTempFileFactory tempFileFactory =
         cockpitCreateRecordingTempFile,
     Duration startupTimeout = const Duration(seconds: 12),
+    Duration startupEvidenceTimeout = const Duration(seconds: 2),
     Duration stopTimeout = const Duration(seconds: 10),
     Duration finalizationPollInterval = const Duration(milliseconds: 100),
     Duration activationSettleDelay = const Duration(milliseconds: 350),
@@ -29,6 +30,7 @@ final class CockpitMacosRecordingAdapter
         _ffprobeProcessRunner = ffprobeProcessRunner ?? processRunner,
         _tempFileFactory = tempFileFactory,
         _startupTimeout = startupTimeout,
+        _startupEvidenceTimeout = startupEvidenceTimeout,
         _stopTimeout = stopTimeout,
         _finalizationPollInterval = finalizationPollInterval,
         _activationSettleDelay = activationSettleDelay;
@@ -41,6 +43,7 @@ final class CockpitMacosRecordingAdapter
   final CockpitRecordingProcessRunner _ffprobeProcessRunner;
   final CockpitRecordingTempFileFactory _tempFileFactory;
   final Duration _startupTimeout;
+  final Duration _startupEvidenceTimeout;
   final Duration _stopTimeout;
   final Duration _finalizationPollInterval;
   final Duration _activationSettleDelay;
@@ -51,11 +54,14 @@ final class CockpitMacosRecordingAdapter
   StreamSubscription<String>? _stderrSubscription;
   Stopwatch? _stopwatch;
 
+  String get _sessionCacheKey => 'macos:$_appId';
+
   @override
   Future<CockpitRecordingSession> startRecording(
     CockpitRecordingRequest request,
   ) async {
-    if (_process != null) {
+    if (_process != null ||
+        cockpitReadActiveHostRecordingSession(_sessionCacheKey) != null) {
       throw StateError('A macOS recording is already active.');
     }
 
@@ -95,6 +101,7 @@ final class CockpitMacosRecordingAdapter
     unawaited(process.stdout.drain<void>());
 
     final startupCompleter = Completer<void>();
+    final recentStderrLines = <String>[];
     var processExited = false;
     unawaited(
       process.exitCode.then((_) {
@@ -105,6 +112,7 @@ final class CockpitMacosRecordingAdapter
         .transform(utf8.decoder)
         .transform(const LineSplitter())
         .listen((line) {
+      _appendRecentStderrLine(recentStderrLines, line);
       if (!startupCompleter.isCompleted &&
           (line.contains('Press [q] to stop') || line.contains('Output #0'))) {
         startupCompleter.complete();
@@ -126,9 +134,18 @@ final class CockpitMacosRecordingAdapter
         process.kill(ProcessSignal.sigkill);
         rethrow;
       }
-      // Some host ffmpeg builds stay silent until they are stopped even though
-      // recording is already active. Treat a still-running process as a valid,
-      // bounded best-effort startup and let stop/finalization decide success.
+      final hasOutputEvidence = await cockpitWaitForNonEmptyFile(
+        outputFile,
+        timeout: _startupEvidenceTimeout,
+        pollInterval: _finalizationPollInterval,
+      );
+      if (!hasOutputEvidence) {
+        await stderrSubscription.cancel();
+        process.kill(ProcessSignal.sigkill);
+        throw StateError(
+          _buildStartupFailureMessage(recentStderrLines),
+        );
+      }
     } on Object {
       await stderrSubscription.cancel();
       process.kill(ProcessSignal.sigkill);
@@ -140,6 +157,16 @@ final class CockpitMacosRecordingAdapter
     _outputFile = outputFile;
     _stderrSubscription = stderrSubscription;
     _stopwatch = Stopwatch()..start();
+    cockpitStoreActiveHostRecordingSession(
+      _sessionCacheKey,
+      CockpitHostRecordingRuntimeSession(
+        process: process,
+        request: request,
+        outputFile: outputFile,
+        stderrSubscription: stderrSubscription,
+        stopwatch: _stopwatch,
+      ),
+    );
 
     return CockpitRecordingSession(
       request: request,
@@ -149,10 +176,11 @@ final class CockpitMacosRecordingAdapter
 
   @override
   Future<CockpitRecordingResult> stopRecording() async {
-    final process = _process;
-    final request = _request;
-    final outputFile = _outputFile;
-    final stopwatch = _stopwatch;
+    final session = _currentSessionState;
+    final process = session?.process;
+    final request = session?.request;
+    final outputFile = session?.outputFile;
+    final stopwatch = session?.stopwatch;
     if (process == null || request == null || outputFile == null) {
       throw StateError('No active macOS recording session exists.');
     }
@@ -206,13 +234,30 @@ final class CockpitMacosRecordingAdapter
         failureReason: 'macOS recording did not stop before timeout.',
       );
     } finally {
-      await _stderrSubscription?.cancel();
+      await session?.stderrSubscription?.cancel();
+      cockpitClearActiveHostRecordingSession(_sessionCacheKey);
       _process = null;
       _request = null;
       _outputFile = null;
       _stderrSubscription = null;
       _stopwatch = null;
     }
+  }
+
+  CockpitHostRecordingRuntimeSession? get _currentSessionState {
+    final process = _process;
+    final request = _request;
+    final outputFile = _outputFile;
+    if (process != null && request != null && outputFile != null) {
+      return CockpitHostRecordingRuntimeSession(
+        process: process,
+        request: request,
+        outputFile: outputFile,
+        stderrSubscription: _stderrSubscription,
+        stopwatch: _stopwatch,
+      );
+    }
+    return cockpitReadActiveHostRecordingSession(_sessionCacheKey);
   }
 
   Future<void> _activateApp() async {
@@ -319,6 +364,27 @@ final class CockpitMacosRecordingAdapter
     } on Object {
       return null;
     }
+  }
+
+  void _appendRecentStderrLine(List<String> buffer, String line) {
+    final trimmed = line.trim();
+    if (trimmed.isEmpty) {
+      return;
+    }
+    buffer.add(trimmed);
+    if (buffer.length > 8) {
+      buffer.removeAt(0);
+    }
+  }
+
+  String _buildStartupFailureMessage(List<String> recentStderrLines) {
+    const prefix =
+        'ffmpeg never confirmed macOS screen capture startup or produced output. '
+        'Ensure Screen Recording permission is granted to the terminal, Dart, and ffmpeg on this host.';
+    if (recentStderrLines.isEmpty) {
+      return prefix;
+    }
+    return '$prefix Recent ffmpeg output: ${recentStderrLines.join(' | ')}';
   }
 }
 

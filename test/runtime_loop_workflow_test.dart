@@ -11,6 +11,19 @@ void main() {
     final workflow = workflowFile.readAsStringSync();
 
     expect(workflow, contains('macos-mcp-surface:'));
+    expect(workflow, contains('Run publish readiness gates'));
+    expect(
+      workflow,
+      contains('dart format --output=none --set-exit-if-changed'),
+    );
+    expect(
+      workflow,
+      contains(
+        'dart analyze packages/flutter_cockpit packages/flutter_cockpit_devtools examples/cockpit_demo test',
+      ),
+    );
+    expect(workflow, contains('flutter pub publish --dry-run'));
+    expect(workflow, contains('dart pub publish --dry-run'));
     expect(workflow, contains('run: melos run test'));
     expect(workflow, contains('android-runtime-loop:'));
     expect(workflow, contains('ios-runtime-loop:'));

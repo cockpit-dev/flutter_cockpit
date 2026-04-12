@@ -39,6 +39,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 ```
 
 `read-app --profile standard` is still summary-only. It is good for `textPreviews` and counts, but not for a full target inventory.
+For platform-specific powers such as browser DOM access, host shell automation, or browser-host recording, prefer `capabilities.capabilityProfile` over the older top-level booleans.
 
 ## Target-First Surface Loop
 
@@ -260,6 +261,16 @@ Stop recording:
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   stop-recording \
   --app-json /tmp/flutter_cockpit/app.json
+```
+
+For local macOS web validation, if browser-host recording is blocked only because the desktop has not granted screen-capture permission yet, use:
+
+```bash
+cd examples/cockpit_demo
+dart run tool/verify_platforms.dart \
+  --platform web \
+  --allow-web-host-recording-prerequisite-failure \
+  --output-json /tmp/cockpit_demo_web_verification.json
 ```
 
 ## Bundle And Delivery

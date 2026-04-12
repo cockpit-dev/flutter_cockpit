@@ -1,5 +1,7 @@
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
+import '../platform/cockpit_platform_driver_registry.dart';
+import '../targets/cockpit_target_capability_support.dart';
 import 'cockpit_app_handle.dart';
 import 'cockpit_app_reference_resolver.dart';
 import 'cockpit_interactive_result_data.dart';
@@ -93,14 +95,18 @@ final class CockpitReadAppService {
   CockpitReadAppService({
     CockpitReadRemoteStatusService? remoteStatusService,
     CockpitAppReferenceResolver? appReferenceResolver,
+    CockpitPlatformDriverRegistry? platformDriverRegistry,
     CockpitSessionRegistry? registry,
   })  : _remoteStatusService =
             remoteStatusService ?? CockpitReadRemoteStatusService(),
         _appReferenceResolver = appReferenceResolver ??
-            CockpitAppReferenceResolver(registry: registry);
+            CockpitAppReferenceResolver(registry: registry),
+        _platformDriverRegistry =
+            platformDriverRegistry ?? CockpitPlatformDriverRegistry();
 
   final CockpitReadRemoteStatusService _remoteStatusService;
   final CockpitAppReferenceResolver _appReferenceResolver;
+  final CockpitPlatformDriverRegistry _platformDriverRegistry;
 
   Future<CockpitReadAppResult> read(CockpitReadAppRequest request) async {
     final resolved = await _appReferenceResolver.resolve(
@@ -117,14 +123,27 @@ final class CockpitReadAppService {
         snapshotOptions: request.snapshotOptions,
       ),
     );
+    final capabilityProfile = await _resolveCapabilityProfile(
+      app: resolved.app,
+      capabilities: result.capabilities,
+    );
+    final capabilities = _normalizedCapabilities(
+      app: resolved.app,
+      capabilities: result.capabilities,
+      capabilityProfile: capabilityProfile,
+    );
+    final recordingCapabilities = _normalizedRecordingCapabilities(
+      recordingCapabilities: result.recordingCapabilities,
+      capabilityProfile: capabilityProfile,
+    );
 
     return CockpitReadAppResult(
       sessionId: result.sessionId,
       transportType: result.transportType,
-      capabilities: result.capabilities,
-      recordingCapabilities: result.recordingCapabilities,
-      selectedPlane: _selectedPlaneFor(result.capabilities),
-      fallbackTrail: _fallbackTrailFor(result.capabilities),
+      capabilities: capabilities,
+      recordingCapabilities: recordingCapabilities,
+      selectedPlane: _selectedPlaneFor(capabilities),
+      fallbackTrail: _fallbackTrailFor(capabilities),
       recommendedNextStep: _recommendedNextStep(
         currentRouteName: result.currentRouteName,
         lastError: resolved.developmentRecord?.status.lastError,
@@ -143,6 +162,75 @@ final class CockpitReadAppService {
       snapshotRef: result.snapshotRef,
       diagnostics: null,
       effectiveSnapshotOptions: result.effectiveSnapshotOptions,
+    );
+  }
+
+  Future<CockpitCapabilityProfile?> _resolveCapabilityProfile({
+    required CockpitAppHandle? app,
+    required CockpitCapabilities capabilities,
+  }) async {
+    final remoteProfile = capabilities.capabilityProfile ??
+        _legacyCapabilityProfile(capabilities);
+    if (app == null) {
+      return remoteProfile;
+    }
+
+    final driver = _platformDriverRegistry.resolve(
+      platform: app.platform,
+      deviceId: app.deviceId,
+    );
+    if (driver == null) {
+      return remoteProfile;
+    }
+
+    return cockpitMergeTargetCapabilityProfiles(
+      primary: await driver.describeCapabilities(),
+      secondary: remoteProfile,
+    );
+  }
+
+  static CockpitCapabilities _normalizedCapabilities({
+    required CockpitAppHandle? app,
+    required CockpitCapabilities capabilities,
+    required CockpitCapabilityProfile? capabilityProfile,
+  }) {
+    final supportsHostAutomation = capabilities.supportsHostAutomation ||
+        (capabilityProfile?.supportsSurface(CockpitSurfaceKind.hostShell) ??
+            false);
+    return CockpitCapabilities(
+      platform: app?.platform ?? capabilities.platform,
+      transportType: capabilities.transportType,
+      supportsInAppControl: capabilities.supportsInAppControl,
+      supportsFlutterViewCapture: capabilities.supportsFlutterViewCapture,
+      supportsNativeScreenCapture: capabilities.supportsNativeScreenCapture,
+      supportsHostAutomation: supportsHostAutomation,
+      supportedCommands: capabilities.supportedCommands,
+      supportedLocatorStrategies: capabilities.supportedLocatorStrategies,
+      capabilityProfile: capabilityProfile,
+    );
+  }
+
+  static CockpitRecordingCapabilities _normalizedRecordingCapabilities({
+    required CockpitRecordingCapabilities recordingCapabilities,
+    required CockpitCapabilityProfile? capabilityProfile,
+  }) {
+    final profileSupportsRecording = capabilityProfile != null &&
+        capabilityProfile
+            .supportsAction(CockpitActionCapability.startRecording) &&
+        capabilityProfile
+            .supportsAction(CockpitActionCapability.stopRecording) &&
+        capabilityProfile.supportsEvidence(
+          CockpitEvidenceCapability.screenRecording,
+        );
+    final limitations = <String>{
+      ...recordingCapabilities.recordingLimitations,
+    };
+    return CockpitRecordingCapabilities(
+      supportsNativeRecording: recordingCapabilities.supportsNativeRecording ||
+          profileSupportsRecording,
+      preferredAcceptanceRecordingKind:
+          recordingCapabilities.preferredAcceptanceRecordingKind,
+      recordingLimitations: limitations.toList(growable: false),
     );
   }
 
@@ -173,6 +261,48 @@ final class CockpitReadAppService {
         ],
       CockpitPlaneKind.deviceSystemPlane => const <CockpitPlaneKind>[],
     };
+  }
+
+  static CockpitCapabilityProfile _legacyCapabilityProfile(
+    CockpitCapabilities capabilities,
+  ) {
+    final actionCapabilities = <CockpitActionCapability>{};
+    for (final command in capabilities.supportedCommands) {
+      switch (command) {
+        case CockpitCommandType.tap ||
+              CockpitCommandType.longPress ||
+              CockpitCommandType.doubleTap:
+          actionCapabilities.add(CockpitActionCapability.tap);
+        case CockpitCommandType.enterText ||
+              CockpitCommandType.focusTextInput ||
+              CockpitCommandType.setTextEditingValue ||
+              CockpitCommandType.sendTextInputAction ||
+              CockpitCommandType.sendKeyEvent ||
+              CockpitCommandType.sendKeyDownEvent ||
+              CockpitCommandType.sendKeyUpEvent:
+          actionCapabilities.add(CockpitActionCapability.typeText);
+        case CockpitCommandType.captureScreenshot:
+          actionCapabilities.add(CockpitActionCapability.captureScreenshot);
+        default:
+          break;
+      }
+    }
+    return CockpitCapabilityProfile(
+      targetKind: CockpitTargetKind.flutterApp,
+      surfaceKinds: <CockpitSurfaceKind>{
+        if (capabilities.supportsInAppControl)
+          CockpitSurfaceKind.flutterSemantic,
+        if (capabilities.supportsNativeScreenCapture)
+          CockpitSurfaceKind.nativeUi,
+      },
+      actionCapabilities: actionCapabilities,
+      evidenceCapabilities: <CockpitEvidenceCapability>{
+        if (capabilities.supportsFlutterViewCapture)
+          CockpitEvidenceCapability.flutterScreenshot,
+        if (capabilities.supportsNativeScreenCapture)
+          CockpitEvidenceCapability.nativeScreenshot,
+      },
+    );
   }
 
   static String _recommendedNextStep({

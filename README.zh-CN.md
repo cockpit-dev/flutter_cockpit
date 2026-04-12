@@ -25,10 +25,10 @@
 
 ```yaml
 dependencies:
-  flutter_cockpit: any
+  flutter_cockpit: ^1.0.0
 
 dev_dependencies:
-  flutter_cockpit_devtools: any
+  flutter_cockpit_devtools: ^1.0.0
 ```
 
 包地址：
@@ -285,6 +285,34 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --command-json '{"commandId":"assert-inbox","commandType":"assertText","parameters":{"text":"Inbox"}}'
 ```
 
+已验证的 web 闭环：
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  launch-app \
+  --project-dir examples/cockpit_demo \
+  --platform web \
+  --device-id chrome \
+  --app-json /tmp/flutter_cockpit/web_app.json
+```
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  read-app \
+  --app-json /tmp/flutter_cockpit/web_app.json \
+  --profile minimal
+```
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-command \
+  --app-json /tmp/flutter_cockpit/web_app.json \
+  --command-json '{"commandId":"assert-inbox","commandType":"assertText","parameters":{"text":"Inbox"}}'
+```
+
+对于 web，宿主机会保持原有 HTTP 会话面不变，并在 `localhost` 上运行一个 bridge，让浏览器应用通过 WebSocket 回连。
+`hot-reload` 和 `hot-restart` 继续走 development supervisor；浏览器录屏则仍然由宿主侧驱动，并依赖本机桌面系统授予屏幕采集权限。
+
 如果你要一次性证明仓库示例在多平台上的完整开发闭环都可用，直接使用仓库内置的 live verifier：
 
 ```bash
@@ -293,15 +321,17 @@ dart run tool/verify_platforms.dart --output-json /tmp/cockpit_demo_all_platform
 ```
 
 不传 `--platform` 时，这条命令默认跑本地三平台 sweep：macOS、iOS 模拟器、Android 模拟器。
-`runtime-loop` CI 会在 Linux 和 Windows 上也显式调用同一个 verifier，并按平台拆成独立 job，这样所有已发布运行平台都走的是同一条完整命令链。
+`runtime-loop` CI 还会在 Linux、Windows 和 web 上显式调用同一个 verifier，并按平台拆成独立 job，这样所有已发布运行平台都走的是同一条完整命令链。
+web job 运行在 Linux + `xvfb` + Chrome 上，因此即使本地 macOS 宿主机还没给屏幕采集权限，CI 里仍然会把浏览器录屏链路完整跑通。
 如果当前宿主机本地具备 Linux 或 Windows 桌面运行条件，也可以显式追加 `--platform linux` 和 `--platform windows`，把本地 sweep 扩到默认三平台之外。
+如果你是在 macOS 本地验证 web，而且桌面系统还没有把屏幕采集权限授予 terminal、Dart 或 `ffmpeg`，可以额外加上 `--allow-web-host-recording-prerequisite-failure`。这样 verifier 仍然会对其余命令链保持严格校验，只把宿主录屏前置条件记成结构化 warning，而不是笼统失败。
 
 这个 verifier 会验证：
 
 - `launch-app`、`read-app`、`inspect-ui`
 - `run-batch`、`wait-idle`、`read-network`、`read-errors`、`read-logs`
 - `inspect-surface`、截图采集、`hot-reload`、`hot-restart`
-- 平台感知录屏链路：macOS、Linux、Windows 走 remote，iOS 模拟器走 `simctl`，Android 模拟器走 `adb`
+- 平台感知录屏链路：macOS、Linux、Windows 走 remote，web 走 `browser-host`，iOS 模拟器走 `simctl`，Android 模拟器走 `adb`
 
 它还会为每个平台自动选择空闲 session 端口，并在 Android 验证结束后清理 `adb forward`，避免多次运行时前一个平台污染后一个平台。
 同一个 `runtime-loop` workflow 还会在 macOS 上运行 `packages/flutter_cockpit_devtools/tool/verify_mcp_surface.dart`，把真实的 `serve-mcp` stdio 面、workspace tooling、target-first surface 流程和交付工具链也纳入端到端验证。

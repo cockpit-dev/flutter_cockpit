@@ -22,7 +22,7 @@ It provides:
 
 ```yaml
 dependencies:
-  flutter_cockpit: any
+  flutter_cockpit: ^1.0.0
 ```
 
 ## Recommended Integration
@@ -80,5 +80,6 @@ flutter run -t cockpit/main.dart
 
 Host-side orchestration, MCP, workspace tooling, and delivery validation live in [`flutter_cockpit_devtools`](https://pub.dev/packages/flutter_cockpit_devtools).
 The runtime bundle models now preserve `targetKind`, `primaryExecutionPlane`, `planesUsed`, `surfaceKindsUsed`, `fallbackCount`, plus per-step and per-observation plane metadata so host-side tooling can explain when Flutter control stayed on-plan versus when it had to degrade to another surface.
+On web, the runtime supports the Flutter semantic and Flutter-view control path directly, while the native method channels are registered as explicit unavailable stubs so capability checks stay truthful instead of failing through missing-plugin noise. Use Flutter-view screenshots in-app and host-side browser recording through `flutter_cockpit_devtools`.
 
 Package page: [pub.dev/packages/flutter_cockpit](https://pub.dev/packages/flutter_cockpit)

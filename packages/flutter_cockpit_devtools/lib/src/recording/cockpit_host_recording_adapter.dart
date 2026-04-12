@@ -1,5 +1,6 @@
 // ignore_for_file: deprecated_member_use
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
@@ -16,6 +17,43 @@ typedef CockpitRecordingTempFileFactory = Future<File> Function(
 
 abstract interface class CockpitHostRecordingAdapter
     implements CockpitRecordingAdapter {}
+
+final class CockpitHostRecordingRuntimeSession {
+  const CockpitHostRecordingRuntimeSession({
+    required this.process,
+    required this.request,
+    required this.outputFile,
+    required this.stderrSubscription,
+    required this.stopwatch,
+  });
+
+  final Process process;
+  final CockpitRecordingRequest request;
+  final File outputFile;
+  final StreamSubscription<String>? stderrSubscription;
+  final Stopwatch? stopwatch;
+}
+
+final Map<String, CockpitHostRecordingRuntimeSession>
+    _activeHostRecordingSessions =
+    <String, CockpitHostRecordingRuntimeSession>{};
+
+CockpitHostRecordingRuntimeSession? cockpitReadActiveHostRecordingSession(
+  String key,
+) {
+  return _activeHostRecordingSessions[key];
+}
+
+void cockpitStoreActiveHostRecordingSession(
+  String key,
+  CockpitHostRecordingRuntimeSession session,
+) {
+  _activeHostRecordingSessions[key] = session;
+}
+
+void cockpitClearActiveHostRecordingSession(String key) {
+  _activeHostRecordingSessions.remove(key);
+}
 
 Future<File> cockpitCreateRecordingTempFile(String basename) async {
   final directory = await Directory.systemTemp.createTemp(

@@ -19,6 +19,10 @@ void main() {
   });
 
   test('package readmes teach flutter_cockpit installation and usage', () {
+    final runtimeVersion = _readPackageVersion('packages/flutter_cockpit');
+    final devtoolsVersion = _readPackageVersion(
+      'packages/flutter_cockpit_devtools',
+    );
     final runtimeReadme = File(
       'packages/flutter_cockpit/README.md',
     ).readAsStringSync();
@@ -33,7 +37,7 @@ void main() {
     ).readAsStringSync();
 
     expect(runtimeReadme, contains('# flutter_cockpit'));
-    expect(runtimeReadme, contains('flutter_cockpit: any'));
+    expect(runtimeReadme, contains('flutter_cockpit: ^$runtimeVersion'));
     expect(
       runtimeReadme,
       contains("package:flutter_cockpit/flutter_cockpit_flutter.dart"),
@@ -49,7 +53,10 @@ void main() {
     expect(runtimeReadme, isNot(contains('flutter_pilot')));
 
     expect(devtoolsReadme, contains('# flutter_cockpit_devtools'));
-    expect(devtoolsReadme, contains('flutter_cockpit_devtools: any'));
+    expect(
+      devtoolsReadme,
+      contains('flutter_cockpit_devtools: ^$devtoolsVersion'),
+    );
     expect(
       devtoolsReadme,
       contains('dart run flutter_cockpit_devtools:flutter_cockpit_devtools'),
@@ -61,11 +68,25 @@ void main() {
     expect(devtoolsReadme, isNot(contains('flutter_pilot_devtools')));
     expect(devtoolsReadme, isNot(contains('flutter_pilot')));
 
-    expect(runtimeReadmeZh, contains('flutter_cockpit: any'));
+    expect(runtimeReadmeZh, contains('flutter_cockpit: ^$runtimeVersion'));
     expect(
       runtimeReadmeZh,
       contains('https://pub.dev/packages/flutter_cockpit_devtools'),
     );
-    expect(devtoolsReadmeZh, contains('flutter_cockpit_devtools: any'));
+    expect(
+      devtoolsReadmeZh,
+      contains('flutter_cockpit_devtools: ^$devtoolsVersion'),
+    );
   });
+}
+
+String _readPackageVersion(String packageDir) {
+  final pubspec = File('$packageDir/pubspec.yaml').readAsStringSync();
+  final match =
+      RegExp(r'^version:\s+([0-9]+\.[0-9]+\.[0-9]+)$', multiLine: true)
+          .firstMatch(pubspec);
+  if (match == null) {
+    throw StateError('Unable to read version from $packageDir/pubspec.yaml');
+  }
+  return match.group(1)!;
 }

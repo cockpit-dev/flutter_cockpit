@@ -138,6 +138,61 @@ void main() {
   );
 
   testWidgets(
+    'FlutterCockpitRoot skips native capture when the platform reports it as unavailable',
+    (tester) async {
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      final channel = const MethodChannel(
+        'dev.cockpit.flutter_cockpit/capture',
+      );
+
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        if (call.method == 'queryNativeCaptureAvailability') {
+          return false;
+        }
+        fail('native capture should not be invoked when unavailable');
+      });
+      addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+
+      FlutterCockpit.initialize(
+        FlutterCockpitConfiguration(
+          initialRouteName: '/',
+          nativeCapture: CockpitNativeCapture(channel: channel),
+        ),
+      );
+
+      final rootKey = GlobalKey<FlutterCockpitRootState>();
+
+      await tester.pumpWidget(
+        FlutterCockpitRoot(
+          key: rootKey,
+          child: MaterialApp(
+            navigatorObservers: [FlutterCockpit.navigatorObserver],
+            home: const Scaffold(body: Center(child: Text('Cockpit Root'))),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final capture = await tester.runAsync(() {
+        return rootKey.currentState!.captureScreenshot(
+          const CockpitScreenshotRequest(
+            reason: CockpitScreenshotReason.acceptance,
+            name: 'root-home-no-native',
+            includeSnapshot: true,
+            attachToStep: true,
+          ),
+        );
+      });
+
+      expect(capture, isNotNull);
+      expect(capture!.resolvedCaptureKind, CockpitCaptureKind.flutterView);
+      expect(capture.usedFallback, isFalse);
+      expect(capture.screenshot.bytes.length, greaterThan(8));
+    },
+  );
+
+  testWidgets(
     'FlutterCockpitRoot falls back to Flutter capture when native capture fails',
     (tester) async {
       final messenger =
@@ -147,6 +202,9 @@ void main() {
       );
 
       messenger.setMockMethodCallHandler(channel, (call) async {
+        if (call.method == 'queryNativeCaptureAvailability') {
+          return true;
+        }
         if (call.method == 'captureAcceptanceScreenshot') {
           throw PlatformException(
             code: 'blankCapture',

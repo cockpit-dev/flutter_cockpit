@@ -51,11 +51,14 @@ final class CockpitWindowsRecordingAdapter
   StreamSubscription<String>? _stderrSubscription;
   Stopwatch? _stopwatch;
 
+  String get _sessionCacheKey => 'windows:$_appId';
+
   @override
   Future<CockpitRecordingSession> startRecording(
     CockpitRecordingRequest request,
   ) async {
-    if (_process != null) {
+    if (_process != null ||
+        cockpitReadActiveHostRecordingSession(_sessionCacheKey) != null) {
       throw StateError('A Windows recording is already active.');
     }
 
@@ -133,6 +136,16 @@ final class CockpitWindowsRecordingAdapter
     _outputFile = outputFile;
     _stderrSubscription = stderrSubscription;
     _stopwatch = Stopwatch()..start();
+    cockpitStoreActiveHostRecordingSession(
+      _sessionCacheKey,
+      CockpitHostRecordingRuntimeSession(
+        process: process,
+        request: request,
+        outputFile: outputFile,
+        stderrSubscription: stderrSubscription,
+        stopwatch: _stopwatch,
+      ),
+    );
 
     return CockpitRecordingSession(
       request: request,
@@ -142,10 +155,11 @@ final class CockpitWindowsRecordingAdapter
 
   @override
   Future<CockpitRecordingResult> stopRecording() async {
-    final process = _process;
-    final request = _request;
-    final outputFile = _outputFile;
-    final stopwatch = _stopwatch;
+    final session = _currentSessionState;
+    final process = session?.process;
+    final request = session?.request;
+    final outputFile = session?.outputFile;
+    final stopwatch = session?.stopwatch;
     if (process == null || request == null || outputFile == null) {
       throw StateError('No active Windows recording session exists.');
     }
@@ -199,13 +213,30 @@ final class CockpitWindowsRecordingAdapter
         failureReason: 'Windows recording did not stop before timeout.',
       );
     } finally {
-      await _stderrSubscription?.cancel();
+      await session?.stderrSubscription?.cancel();
+      cockpitClearActiveHostRecordingSession(_sessionCacheKey);
       _process = null;
       _request = null;
       _outputFile = null;
       _stderrSubscription = null;
       _stopwatch = null;
     }
+  }
+
+  CockpitHostRecordingRuntimeSession? get _currentSessionState {
+    final process = _process;
+    final request = _request;
+    final outputFile = _outputFile;
+    if (process != null && request != null && outputFile != null) {
+      return CockpitHostRecordingRuntimeSession(
+        process: process,
+        request: request,
+        outputFile: outputFile,
+        stderrSubscription: _stderrSubscription,
+        stopwatch: _stopwatch,
+      );
+    }
+    return cockpitReadActiveHostRecordingSession(_sessionCacheKey);
   }
 
   Future<void> _bestEffortActivateApp() async {

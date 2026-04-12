@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import '../bridge/cockpit_web_remote_session_bridge_server.dart';
 import 'cockpit_development_session_handle.dart';
 import 'cockpit_development_session_status.dart';
 import 'cockpit_flutter_run_machine_client.dart';
@@ -15,6 +16,10 @@ typedef CockpitAppStopper = Future<void> Function(String appId);
 typedef CockpitMachineClientConnector = Future<CockpitFlutterRunMachineClient>
     Function();
 typedef CockpitSupervisorLogger = Future<void> Function(String message);
+typedef CockpitWebRemoteSessionBridgeServerFactory
+    = CockpitWebRemoteSessionBridgeServer? Function({
+  required CockpitDevelopmentSessionHandle handle,
+});
 
 final class CockpitDevelopmentSessionSupervisor {
   CockpitDevelopmentSessionSupervisor({
@@ -25,6 +30,7 @@ final class CockpitDevelopmentSessionSupervisor {
     CockpitMachineClientConnector? machineClientConnector,
     CockpitAppStopper? appStopper,
     CockpitSupervisorLogger? logger,
+    CockpitWebRemoteSessionBridgeServerFactory? webBridgeServerFactory,
     DateTime Function()? now,
     InternetAddress? bindAddress,
     int bindPort = 0,
@@ -37,6 +43,8 @@ final class CockpitDevelopmentSessionSupervisor {
         _machineClientConnector = machineClientConnector,
         _appStopper = appStopper,
         _logger = logger,
+        _webBridgeServerFactory =
+            webBridgeServerFactory ?? cockpitCreateWebRemoteSessionBridgeServer,
         _now = now ?? DateTime.now,
         _bindAddress = bindAddress ?? InternetAddress.loopbackIPv4,
         _bindPort = bindPort,
@@ -58,6 +66,7 @@ final class CockpitDevelopmentSessionSupervisor {
   final CockpitMachineClientConnector? _machineClientConnector;
   final CockpitAppStopper? _appStopper;
   final CockpitSupervisorLogger? _logger;
+  final CockpitWebRemoteSessionBridgeServerFactory _webBridgeServerFactory;
   final DateTime Function() _now;
   final InternetAddress _bindAddress;
   final int _bindPort;
@@ -66,6 +75,7 @@ final class CockpitDevelopmentSessionSupervisor {
   CockpitDevelopmentSessionStatus _status;
   final Completer<void> _doneCompleter = Completer<void>();
   HttpServer? _server;
+  CockpitWebRemoteSessionBridgeServer? _webBridgeServer;
   StreamSubscription<CockpitFlutterRunMachineEvent>? _eventSubscription;
   StreamSubscription<HttpRequest>? _requestSubscription;
   Future<void>? _pendingStartupSettle;
@@ -75,6 +85,14 @@ final class CockpitDevelopmentSessionSupervisor {
   bool _resourcesDisposed = false;
 
   Future<void> start() async {
+    if (_handle.platform == 'web') {
+      final bridge = _webBridgeServerFactory(handle: _handle);
+      if (bridge != null) {
+        await bridge.start();
+        _webBridgeServer = bridge;
+        _handle = _handle.copyWith(appBaseUrl: bridge.baseUri.toString());
+      }
+    }
     _server = await HttpServer.bind(_bindAddress, _bindPort);
     _handle = _handle.copyWith(
       supervisorBaseUrl: Uri(
@@ -540,6 +558,7 @@ final class CockpitDevelopmentSessionSupervisor {
     await _eventSubscription?.cancel();
     await _requestSubscription?.cancel();
     await _server?.close(force: true);
+    await _webBridgeServer?.close();
     await _machineClient?.dispose();
   }
 

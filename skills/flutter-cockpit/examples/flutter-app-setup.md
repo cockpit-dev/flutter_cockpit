@@ -18,7 +18,7 @@ From pub:
 
 ```yaml
 dependencies:
-  flutter_cockpit: any
+  flutter_cockpit: ^1.0.0
 ```
 
 Or directly from Git:

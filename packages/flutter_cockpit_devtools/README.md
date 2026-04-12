@@ -22,7 +22,7 @@ It provides:
 
 ```yaml
 dev_dependencies:
-  flutter_cockpit_devtools: any
+  flutter_cockpit_devtools: ^1.0.0
 ```
 
 Optional global activation:
@@ -100,6 +100,35 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --app-json /tmp/app.json \
   --command-json '{"commandId":"assert-inbox","commandType":"assertText","parameters":{"text":"Inbox"}}'
 ```
+
+Verified web development loop:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  launch-app \
+  --project-dir examples/cockpit_demo \
+  --platform web \
+  --device-id chrome \
+  --app-json /tmp/flutter_cockpit/web_app.json
+```
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  read-app \
+  --app-json /tmp/flutter_cockpit/web_app.json \
+  --profile minimal
+```
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  hot-restart \
+  --app-json /tmp/flutter_cockpit/web_app.json
+```
+
+On web, `launch-app` now stands up a host-side bridge on `localhost` and lets the browser app connect back over WebSocket while keeping the existing HTTP app surface (`/health`, `/snapshot`, `/commands/execute`, `/recording/*`) stable for agents.
+Host-side browser recording still depends on the desktop OS granting screen-capture permission to the browser and capture stack; when that host permission or device policy blocks capture, `stop-recording` returns a structured failure result instead of hanging the session.
+The repository `runtime-loop` workflow also runs `examples/cockpit_demo/tool/verify_platforms.dart --platform web` on Linux under `xvfb`, so screenshot, recording, hot reload, and hot restart all stay covered by a real end-to-end web job.
+For local macOS web validation, `examples/cockpit_demo/tool/verify_platforms.dart --platform web --allow-web-host-recording-prerequisite-failure` keeps the verifier strict for app control, screenshots, and reload flows while downgrading missing desktop recording permission into a structured warning.
 
 Locator rules:
 
