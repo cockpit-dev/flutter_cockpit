@@ -40,6 +40,37 @@ void main() {
       expect(result.idle, isTrue);
       expect(result.durationMs, greaterThanOrEqualTo(0));
     });
+
+    test('retries one transient false idle result before failing', () async {
+      var attemptCount = 0;
+      final waitedDurations = <Duration>[];
+      final service = CockpitWaitRemoteUiIdleService(
+        waitForIdle: (
+          baseUri, {
+          required quietWindow,
+          required timeout,
+          required includeNetworkIdle,
+        }) async {
+          attemptCount += 1;
+          return attemptCount > 1;
+        },
+        wait: (duration) async {
+          waitedDurations.add(duration);
+        },
+      );
+
+      final result = await service.wait(
+        CockpitWaitRemoteUiIdleRequest(
+          sessionHandle: _sessionHandle(),
+          quietWindow: const Duration(milliseconds: 96),
+          timeout: const Duration(milliseconds: 1600),
+        ),
+      );
+
+      expect(result.idle, isTrue);
+      expect(attemptCount, 2);
+      expect(waitedDurations, const <Duration>[Duration(milliseconds: 120)]);
+    });
   });
 }
 
