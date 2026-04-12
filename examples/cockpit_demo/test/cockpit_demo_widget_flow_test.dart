@@ -143,6 +143,57 @@ void main() {
     },
   );
 
+  testWidgets(
+    'runtime snapshot keeps inbox targets visible after returning from task detail',
+    (tester) async {
+      final database = CockpitDemoDatabase.inMemory();
+      addCockpitDemoDatabaseTearDown(tester, database);
+
+      await pumpTodoApp(
+        tester,
+        controller: _testController(),
+        database: database,
+      );
+
+      await createTaskThroughUi(
+        tester,
+        title: 'Snapshot return guard',
+        notes: 'Ensure cockpit can still rediscover inbox after detail closes.',
+      );
+      await tester.pumpAndSettle();
+
+      await scrollTodoCollectionUntilVisible(
+        tester,
+        taskRowByTitle('Snapshot return guard'),
+      );
+      await tester.tap(taskRowByTitle('Snapshot return guard'));
+      await settleSingleTapGesture(tester);
+      expect(find.text('Task detail'), findsOneWidget);
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+
+      final rootState = tester.state<FlutterCockpitRootState>(
+        find.byType(FlutterCockpitRoot),
+      );
+      final snapshot = rootState.snapshot(
+        options: const CockpitSnapshotOptions.investigate(),
+      );
+
+      expect(snapshot.routeName, '/inbox');
+      expect(snapshot.visibleTargets, isNotEmpty);
+      expect(
+        snapshot.visibleTargets.any(
+          (target) =>
+              target.text == 'New task' ||
+              target.text == 'Search title or notes' ||
+              target.text == 'Snapshot return guard',
+        ),
+        isTrue,
+      );
+    },
+  );
+
   testWidgets('task editor can clear notes before saving', (tester) async {
     final database = CockpitDemoDatabase.inMemory();
     addCockpitDemoDatabaseTearDown(tester, database);

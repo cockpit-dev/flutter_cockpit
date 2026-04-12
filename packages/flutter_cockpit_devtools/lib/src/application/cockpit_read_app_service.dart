@@ -145,12 +145,16 @@ final class CockpitReadAppService {
       selectedPlane: _selectedPlaneFor(capabilities),
       fallbackTrail: _fallbackTrailFor(capabilities),
       recommendedNextStep: _recommendedNextStep(
+        capabilities: capabilities,
         currentRouteName: result.currentRouteName,
         lastError: resolved.developmentRecord?.status.lastError,
+        uiSummary: result.uiSummary,
       ),
       whatMatters: _whatMatters(
+        capabilities: capabilities,
         currentRouteName: result.currentRouteName,
         lastError: resolved.developmentRecord?.status.lastError,
+        uiSummary: result.uiSummary,
       ),
       app: resolved.app,
       state: resolved.developmentRecord?.status.state.jsonValue ??
@@ -306,11 +310,20 @@ final class CockpitReadAppService {
   }
 
   static String _recommendedNextStep({
+    required CockpitCapabilities capabilities,
     required String? currentRouteName,
     required String? lastError,
+    required CockpitInteractiveSnapshotSummary? uiSummary,
   }) {
     if (lastError != null && lastError.isNotEmpty) {
       return 'inspectFailureDiagnostics';
+    }
+    if (_shouldHintBrowserVisibilityRecovery(
+      capabilities: capabilities,
+      currentRouteName: currentRouteName,
+      uiSummary: uiSummary,
+    )) {
+      return 'recoverBrowserVisibility';
     }
     if (currentRouteName != null && currentRouteName.isNotEmpty) {
       return 'runNextCommand';
@@ -319,15 +332,39 @@ final class CockpitReadAppService {
   }
 
   static String? _whatMatters({
+    required CockpitCapabilities capabilities,
     required String? currentRouteName,
     required String? lastError,
+    required CockpitInteractiveSnapshotSummary? uiSummary,
   }) {
     if (lastError != null && lastError.isNotEmpty) {
       return lastError;
+    }
+    if (_shouldHintBrowserVisibilityRecovery(
+      capabilities: capabilities,
+      currentRouteName: currentRouteName,
+      uiSummary: uiSummary,
+    )) {
+      return 'Current route is $currentRouteName, but no visible targets were '
+          'discovered. On browser pages this usually means the tab is '
+          'backgrounded, throttled, or still reconnecting.';
     }
     if (currentRouteName != null && currentRouteName.isNotEmpty) {
       return 'Current route is $currentRouteName.';
     }
     return null;
+  }
+
+  static bool _shouldHintBrowserVisibilityRecovery({
+    required CockpitCapabilities capabilities,
+    required String? currentRouteName,
+    required CockpitInteractiveSnapshotSummary? uiSummary,
+  }) {
+    final profile = capabilities.capabilityProfile;
+    return currentRouteName != null &&
+        currentRouteName.isNotEmpty &&
+        uiSummary != null &&
+        uiSummary.visibleTargetCount == 0 &&
+        profile?.targetKind == CockpitTargetKind.browserPage;
   }
 }
