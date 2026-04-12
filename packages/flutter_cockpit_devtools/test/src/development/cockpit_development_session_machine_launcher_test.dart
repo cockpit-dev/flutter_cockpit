@@ -163,7 +163,7 @@ void main() {
   );
 
   test(
-    'web development launch uses localhost for browser-facing health probes',
+    'web development launch uses explicit IPv4 loopback health probes',
     () async {
       final stdoutController = StreamController<String>();
       final stderrController = StreamController<String>();
@@ -223,14 +223,14 @@ void main() {
         capturedStarts.single['extraArgs'],
         <String>[
           '--dart-define=FLUTTER_PILOT_REMOTE_ENABLED=true',
-          '--dart-define=FLUTTER_PILOT_REMOTE_HOST=localhost',
+          '--dart-define=FLUTTER_PILOT_REMOTE_HOST=127.0.0.1',
           '--dart-define=FLUTTER_PILOT_REMOTE_PORT=59331',
           '--dart-define=FLUTTER_PILOT_FLUTTER_VERSION=3.39.0',
         ],
       );
-      expect(probedBaseUris, <Uri>[Uri.parse('http://localhost:59331')]);
-      expect(result.remoteSessionHandle.host, 'localhost');
-      expect(result.remoteSessionHandle.baseUrl, 'http://localhost:59331');
+      expect(probedBaseUris, <Uri>[Uri.parse('http://127.0.0.1:59331')]);
+      expect(result.remoteSessionHandle.host, '127.0.0.1');
+      expect(result.remoteSessionHandle.baseUrl, 'http://127.0.0.1:59331');
 
       await stdoutController.close();
       await stderrController.close();

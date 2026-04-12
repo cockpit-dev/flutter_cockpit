@@ -90,7 +90,7 @@ String cockpitRemoteBindHostForPlatform(String platform) {
 }
 
 String cockpitRemotePublicHostForPlatform(String platform) {
-  return platform == 'web' ? 'localhost' : '127.0.0.1';
+  return '127.0.0.1';
 }
 
 Future<String> cockpitResolveActiveFlutterExecutable({

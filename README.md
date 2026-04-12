@@ -318,7 +318,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --command-json '{"commandId":"assert-inbox","commandType":"assertText","parameters":{"text":"Inbox"}}'
 ```
 
-For web, the host keeps the public HTTP session surface stable and runs a localhost bridge that the browser app joins over WebSocket.
+For web, the host keeps the public HTTP session surface stable and runs a `127.0.0.1` bridge that the browser app joins over WebSocket.
 `hot-reload` and `hot-restart` stay available through the development supervisor, while browser recording remains host-driven and depends on the local desktop granting screen-capture permission.
 
 For the repository example, use the built-in live verifier when you need one proof that the full cross-platform dev loop still works end to end:

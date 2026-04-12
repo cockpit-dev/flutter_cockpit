@@ -74,6 +74,15 @@ dart run tool/verify_platforms.dart \
   --output-json /tmp/cockpit_demo_verification.json
 ```
 
+From the repository root you can also run:
+
+```bash
+dart run examples/cockpit_demo/tool/verify_platforms.dart \
+  --output-json /tmp/cockpit_demo_verification.json
+```
+
+The tool now resolves `examples/cockpit_demo` as its default `--project-dir` automatically when launched through the repository-owned entrypoint.
+
 The verifier covers:
 
 - `launch-app`

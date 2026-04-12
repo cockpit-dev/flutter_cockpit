@@ -7,6 +7,30 @@ import 'package:flutter_test/flutter_test.dart';
 import '../tool/src/cockpit_demo_platform_verifier.dart';
 
 void main() {
+  test('default project dir resolves cockpit_demo when invoked from repo root',
+      () {
+    expect(
+      cockpitDemoDefaultProjectDir(
+        scriptPath:
+            '/workspace/flutter_cockpit/examples/cockpit_demo/tool/verify_platforms.dart',
+        currentDirectory: '/workspace/flutter_cockpit',
+      ),
+      '/workspace/flutter_cockpit/examples/cockpit_demo',
+    );
+  });
+
+  test('default project dir keeps the example directory when already inside it',
+      () {
+    expect(
+      cockpitDemoDefaultProjectDir(
+        scriptPath:
+            '/workspace/flutter_cockpit/examples/cockpit_demo/tool/verify_platforms.dart',
+        currentDirectory: '/workspace/flutter_cockpit/examples/cockpit_demo',
+      ),
+      '/workspace/flutter_cockpit/examples/cockpit_demo',
+    );
+  });
+
   test(
     'verifier boots missing mobile targets and validates the development loop',
     () async {
