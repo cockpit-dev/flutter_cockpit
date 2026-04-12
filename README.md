@@ -25,10 +25,10 @@ It gives AI one closed loop:
 
 ```yaml
 dependencies:
-  flutter_cockpit: any
+  flutter_cockpit: ^1.0.0
 
 dev_dependencies:
-  flutter_cockpit_devtools: any
+  flutter_cockpit_devtools: ^1.0.0
 ```
 
 Package pages:
@@ -285,6 +285,34 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --command-json '{"commandId":"assert-inbox","commandType":"assertText","parameters":{"text":"Inbox"}}'
 ```
 
+Verified web loop:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  launch-app \
+  --project-dir examples/cockpit_demo \
+  --platform web \
+  --device-id chrome \
+  --app-json /tmp/flutter_cockpit/web_app.json
+```
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  read-app \
+  --app-json /tmp/flutter_cockpit/web_app.json \
+  --profile minimal
+```
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-command \
+  --app-json /tmp/flutter_cockpit/web_app.json \
+  --command-json '{"commandId":"assert-inbox","commandType":"assertText","parameters":{"text":"Inbox"}}'
+```
+
+For web, the host keeps the public HTTP session surface stable and runs a localhost bridge that the browser app joins over WebSocket.
+`hot-reload` and `hot-restart` stay available through the development supervisor, while browser recording remains host-driven and depends on the local desktop granting screen-capture permission.
+
 For the repository example, use the built-in live verifier when you need one proof that the full cross-platform dev loop still works end to end:
 
 ```bash
@@ -293,15 +321,17 @@ dart run tool/verify_platforms.dart --output-json /tmp/cockpit_demo_all_platform
 ```
 
 Without `--platform`, that command runs the local default sweep: macOS, iOS Simulator, and Android Emulator.
-The `runtime-loop` CI workflow invokes the same verifier explicitly on Linux and Windows too, one platform per job, so every shipped runtime platform is exercised through the same full command chain.
+The `runtime-loop` CI workflow invokes the same verifier explicitly on Linux, Windows, and web too, one platform per job, so every shipped runtime platform is exercised through the same full command chain.
+The web job runs on Linux under `xvfb` with Chrome, which keeps browser recording fully covered in CI even when a local macOS host has not granted screen-capture permission yet.
 When the host can run desktop Linux or Windows locally, pass `--platform linux` and `--platform windows` explicitly to extend the sweep beyond the default three platforms.
+When you are validating web locally on macOS and the desktop has not granted screen-capture permission to the terminal, Dart, or `ffmpeg` yet, add `--allow-web-host-recording-prerequisite-failure` to keep the verifier strict for every other command while surfacing host-recording as a structured warning instead of a generic failure.
 
 The verifier validates:
 
 - `launch-app`, `read-app`, `inspect-ui`
 - `run-batch`, `wait-idle`, `read-network`, `read-errors`, `read-logs`
 - `inspect-surface`, screenshot capture, `hot-reload`, `hot-restart`
-- platform-aware recording drivers: remote on macOS, Linux, and Windows, `simctl` on iOS Simulator, and `adb` on Android Emulator
+- platform-aware recording drivers: remote on macOS, Linux, and Windows, `browser-host` on web, `simctl` on iOS Simulator, and `adb` on Android Emulator
 
 It also auto-picks a free session port per platform and cleans Android `adb forward` state after verification so repeated runs do not poison later platforms.
 The same `runtime-loop` workflow also runs `packages/flutter_cockpit_devtools/tool/verify_mcp_surface.dart` on macOS to validate the real `serve-mcp` stdio surface, workspace tooling, target-first surface flow, and release delivery tools end to end.

@@ -161,6 +161,83 @@ void main() {
       await result.machineClient.dispose();
     },
   );
+
+  test(
+    'web development launch uses localhost for browser-facing health probes',
+    () async {
+      final stdoutController = StreamController<String>();
+      final stderrController = StreamController<String>();
+      final exitCode = Completer<int>();
+      final capturedStarts = <Map<String, Object?>>[];
+      final probedBaseUris = <Uri>[];
+
+      final launcher = CockpitDevelopmentSessionMachineLauncher(
+        machineClientStarter: ({
+          required projectDir,
+          required target,
+          required deviceId,
+          flutterExecutable,
+          extraArgs = const <String>[],
+        }) async {
+          capturedStarts.add(<String, Object?>{
+            'projectDir': projectDir,
+            'target': target,
+            'deviceId': deviceId,
+            'flutterExecutable': flutterExecutable,
+            'extraArgs': extraArgs,
+          });
+          final client = CockpitFlutterRunMachineClient(
+            stdoutLines: stdoutController.stream,
+            stderrLines: stderrController.stream,
+            exitCode: exitCode.future,
+            requestWriter: (_) async {},
+          );
+          stdoutController.add(
+            '[{"event":"app.start","params":{"appId":"machine-web-app"}}]',
+          );
+          return client;
+        },
+        statusReader: (baseUri) async {
+          probedBaseUris.add(baseUri);
+          return _readyStatus('web');
+        },
+        now: () => DateTime.utc(2026, 4, 4, 17),
+      );
+
+      final result = await launcher.launch(
+        const CockpitLaunchDevelopmentMachineSessionRequest(
+          projectDir: '/workspace/examples/cockpit_demo',
+          target: 'cockpit/main.dart',
+          platform: 'web',
+          deviceId: 'chrome',
+          sessionPort: 59331,
+          hostPort: 59331,
+          launchTimeout: Duration(seconds: 10),
+          flutterVersion: '3.39.0',
+          flutterExecutable: '/opt/flutter/bin/flutter',
+        ),
+      );
+
+      expect(capturedStarts, hasLength(1));
+      expect(
+        capturedStarts.single['extraArgs'],
+        <String>[
+          '--dart-define=FLUTTER_PILOT_REMOTE_ENABLED=true',
+          '--dart-define=FLUTTER_PILOT_REMOTE_HOST=localhost',
+          '--dart-define=FLUTTER_PILOT_REMOTE_PORT=59331',
+          '--dart-define=FLUTTER_PILOT_FLUTTER_VERSION=3.39.0',
+        ],
+      );
+      expect(probedBaseUris, <Uri>[Uri.parse('http://localhost:59331')]);
+      expect(result.remoteSessionHandle.host, 'localhost');
+      expect(result.remoteSessionHandle.baseUrl, 'http://localhost:59331');
+
+      await stdoutController.close();
+      await stderrController.close();
+      exitCode.complete(0);
+      await result.machineClient.dispose();
+    },
+  );
 }
 
 final class _RecordingPortForwarder extends CockpitAndroidPortForwarder {

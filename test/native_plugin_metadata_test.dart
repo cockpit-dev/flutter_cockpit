@@ -13,6 +13,9 @@ void main() {
     expect(pubspec, contains('package: dev.cockpit.flutter_cockpit'));
     expect(pubspec, contains('pluginClass: FlutterCockpitPlugin'));
     expect(pubspec, contains('linux:'));
+    expect(pubspec, contains('web:'));
+    expect(pubspec, contains('pluginClass: FlutterCockpitWeb'));
+    expect(pubspec, contains('fileName: src/web/flutter_cockpit_web.dart'));
   });
 
   test('native plugin sources use flutter_cockpit channel names', () {

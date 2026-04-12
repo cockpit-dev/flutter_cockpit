@@ -22,7 +22,7 @@
 
 ```yaml
 dependencies:
-  flutter_cockpit: any
+  flutter_cockpit: ^1.0.0
 ```
 
 ## 推荐接入方式
@@ -80,5 +80,6 @@ flutter run -t cockpit/main.dart
 
 宿主侧编排、MCP、workspace tooling 和交付验证在 [`flutter_cockpit_devtools`](https://pub.dev/packages/flutter_cockpit_devtools) 中。
 运行时 bundle 模型现在会保留 `targetKind`、`primaryExecutionPlane`、`planesUsed`、`surfaceKindsUsed`、`fallbackCount`，以及 step / observation 级别的 plane 元数据，方便宿主侧准确解释这次控制是按预期平面完成，还是发生了受控降级。
+在 web 上，runtime 直接支持 Flutter semantic 和 Flutter-view 控制路径；原生 method channel 会注册为“显式不可用”的 stub，这样能力判断会保持真实，不会退化成缺少插件的噪音报错。应用内截图请走 Flutter-view，浏览器录屏请走 `flutter_cockpit_devtools` 提供的宿主侧链路。
 
 包地址：[pub.dev/packages/flutter_cockpit](https://pub.dev/packages/flutter_cockpit)

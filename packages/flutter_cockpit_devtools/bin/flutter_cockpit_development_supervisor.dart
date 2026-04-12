@@ -9,6 +9,7 @@ import 'package:flutter_cockpit_devtools/src/development/cockpit_flutter_run_mac
 import 'package:flutter_cockpit_devtools/src/remote/cockpit_android_port_forwarder.dart';
 import 'package:flutter_cockpit_devtools/src/remote/cockpit_remote_session_client.dart';
 import 'package:flutter_cockpit_devtools/src/session/cockpit_remote_session_handle.dart';
+import 'package:flutter_cockpit_devtools/src/session/cockpit_remote_session_launcher.dart';
 
 Future<void> main(List<String> args) async {
   final parser = ArgParser()
@@ -62,7 +63,8 @@ Future<void> main(List<String> args) async {
     projectDir: projectDir,
     target: target,
     appId: '',
-    appBaseUrl: 'http://127.0.0.1:$appHostPort',
+    appBaseUrl:
+        'http://${cockpitRemotePublicHostForPlatform(platform)}:$appHostPort',
     supervisorBaseUrl: 'http://127.0.0.1:$supervisorPort',
     launchedAt: DateTime.now().toUtc(),
     reloadGeneration: 0,

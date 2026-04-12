@@ -47,6 +47,7 @@ For desktop Flutter targets, prefer semantic inspection when the remote path is 
 - Start with `minimal` when you only need route, app reachability, or a tiny state check.
 - Use `standard` when you need a small UI summary after an action.
 - `read-app --profile standard` gives counts and `textPreviews`, not a full locator inventory. Escalate to `inspect-ui` only when text, tooltip, semantic IDs, or path clues are still insufficient.
+- When a target exposes platform-specific powers, read `capabilities.capabilityProfile` before assuming the older booleans tell the whole story. That is where browser DOM, host shell, and browser-host recording capabilities are surfaced accurately.
 - Use `inspect` when a locator is ambiguous, scrolling failed, or the UI changed in an unexpected way.
 - Use `read-network` when the missing fact is request traffic, endpoint coverage, or recent network failures.
 - For network questions, prefer `run-command` -> `wait-idle` -> `read-network` over a large snapshot read.

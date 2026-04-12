@@ -37,7 +37,8 @@ Do not use it for docs-only edits or static refactors with no runtime claim.
 5. `deliver`
    Use `run_script` for a running app, `run_task` for full orchestration, and `validate_task` before any acceptance-facing claim. Treat CLI `run-script` non-zero exit or MCP `run_script` `isError=true` as a failed bundle.
 
-When the repo is this project and the target is the demo app, close the loop with `examples/cockpit_demo/tool/verify_platforms.dart` before a release-facing claim. The default local sweep runs the real macOS, iOS Simulator, and Android Emulator development loops. The `runtime-loop` CI workflow invokes the same verifier explicitly on Linux and Windows too. The verifier auto-avoids busy host ports, cleans Android `adb forward` leftovers, and validates recording through the correct platform driver (`remote`, `simctl`, or `adb`).
+When the repo is this project and the target is the demo app, close the loop with `examples/cockpit_demo/tool/verify_platforms.dart` before a release-facing claim. The default local sweep runs the real macOS, iOS Simulator, and Android Emulator development loops. The `runtime-loop` CI workflow invokes the same verifier explicitly on Linux, Windows, and web too. The verifier auto-avoids busy host ports, cleans Android `adb forward` leftovers, and validates recording through the correct platform driver (`remote`, `browser-host`, `simctl`, or `adb`).
+For local macOS web runs where the desktop has not yet granted screen-capture permission to the terminal, Dart, or `ffmpeg`, add `--allow-web-host-recording-prerequisite-failure` so the verifier stays strict for app control, screenshots, and reload flows while surfacing host recording as a structured warning.
 When the release claim also covers MCP, target-first control, or workspace tooling, run `packages/flutter_cockpit_devtools/tool/verify_mcp_surface.dart` as well. That verifier exercises the real `serve-mcp` stdio entrypoint, workspace tools, target-first surface flow, and delivery tooling end to end.
 
 ## Locator Guidance
@@ -148,6 +149,12 @@ Do not report completion unless you have:
 - read plane-aware bundle signals such as `targetKind`, `primaryExecutionPlane`, `planesUsed`, `surfaceKindsUsed`, `fallbackCount`, and fallback gates before declaring success
 - treated `run_script` bundle failures as real task failures
 - cleaned up owned app processes when the loop is finished or intentionally left them running
+
+## Capability Truth
+
+- Treat `capabilities.capabilityProfile` as the canonical source for platform-specific powers such as browser DOM access, host shell automation, and screen recording.
+- The legacy booleans (`supportsInAppControl`, `supportsFlutterViewCapture`, `supportsNativeScreenCapture`, `supportsHostAutomation`) are still useful fast filters, but when they and `capabilityProfile` differ, prefer the richer `capabilityProfile`.
+- Distinguish target platform from host prerequisites. A web target can truthfully expose browser-host recording in `capabilityProfile` while `recordingLimitations` still warns that the local desktop has not granted screen-capture permission yet.
 
 ## References
 

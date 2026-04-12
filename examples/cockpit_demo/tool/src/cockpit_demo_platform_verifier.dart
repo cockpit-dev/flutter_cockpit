@@ -80,6 +80,7 @@ const List<String> cockpitDemoSupportedVerificationPlatforms = <String>[
   'ios',
   'linux',
   'macos',
+  'web',
   'windows',
 ];
 
@@ -115,6 +116,7 @@ final class CockpitDemoHostDevice {
         final value when value.startsWith('android') => 'android',
         final value when value.startsWith('ios') => 'ios',
         final value when value.startsWith('linux') => 'linux',
+        final value when value.startsWith('web') => 'web',
         final value when value.startsWith('windows') => 'windows',
         'darwin' => 'macos',
         _ => rawPlatform,
@@ -152,6 +154,7 @@ final class CockpitDemoPlatformVerificationRequest {
     this.launchTimeout = const Duration(seconds: 180),
     this.deviceTimeout = const Duration(seconds: 420),
     this.androidEmulatorId = 'Pixel_9_Pro',
+    this.allowWebHostRecordingPrerequisiteFailure = false,
     this.failFast = false,
   });
 
@@ -163,6 +166,7 @@ final class CockpitDemoPlatformVerificationRequest {
   final Duration launchTimeout;
   final Duration deviceTimeout;
   final String androidEmulatorId;
+  final bool allowWebHostRecordingPrerequisiteFailure;
   final bool failFast;
 }
 
@@ -200,6 +204,7 @@ final class CockpitDemoPlatformVerification {
     this.screenshotArtifactRef,
     this.screenshotByteLength,
     this.verifiedCommands = const <String>[],
+    this.warnings = const <String>[],
     this.baseUrl,
     this.failureCode,
     this.failureMessage,
@@ -237,6 +242,7 @@ final class CockpitDemoPlatformVerification {
   final String? screenshotArtifactRef;
   final int? screenshotByteLength;
   final List<String> verifiedCommands;
+  final List<String> warnings;
   final String? baseUrl;
   final String? failureCode;
   final String? failureMessage;
@@ -285,6 +291,7 @@ final class CockpitDemoPlatformVerification {
         if (screenshotByteLength != null)
           'screenshotByteLength': screenshotByteLength,
         'verifiedCommands': verifiedCommands,
+        if (warnings.isNotEmpty) 'warnings': warnings,
         if (failureCode != null) 'failureCode': failureCode,
         if (failureMessage != null) 'failureMessage': failureMessage,
       };
@@ -446,22 +453,10 @@ final class CockpitDemoPlatformVerifier {
       app = launchedApp;
       final resolvedAppJsonPath = launchResult.appJsonPath ?? appJsonPath;
       final appBaseUri = Uri.parse(launchedApp.baseUrl);
-      const verifiedCommands = <String>[
+      final verifiedCommands = <String>[
         'launch-app',
-        'read-app',
-        'inspect-ui',
-        'run-batch',
-        'start-recording',
-        'stop-recording',
-        'wait-idle',
-        'read-network',
-        'read-errors',
-        'read-logs',
-        'inspect-surface',
-        'capture-screenshot',
-        'hot-reload',
-        'hot-restart',
       ];
+      final warnings = <String>[];
 
       final initialRead = await _readApp(
         CockpitReadAppRequest(
@@ -475,6 +470,7 @@ final class CockpitDemoPlatformVerifier {
         label: 'initial route',
         platform: platform,
       );
+      verifiedCommands.add('read-app');
       final inspectUiResult = await _inspectUi(
         CockpitInspectUiRequest(
           app: launchedApp,
@@ -487,6 +483,7 @@ final class CockpitDemoPlatformVerifier {
         label: 'inspect-ui route',
         platform: platform,
       );
+      verifiedCommands.add('inspect-ui');
 
       final taskTitle =
           'Platform smoke ${platform}_${_clock().toUtc().microsecondsSinceEpoch}';
@@ -518,17 +515,36 @@ final class CockpitDemoPlatformVerifier {
           details: <String, Object?>{'platform': platform},
         );
       }
-      final recordingStart = await recordingAdapter.startRecording(
-        recordingRequest,
-      );
-      if (recordingStart.state != CockpitRecordingState.recording) {
-        throw CockpitApplicationServiceException(
-          code: 'recordingStartFailed',
-          message: 'Recording session did not enter the recording state.',
-          details: <String, Object?>{
-            'platform': platform,
-            'state': recordingStart.state.name,
-          },
+      var recordingStarted = false;
+      String? recordingArtifactRef;
+      String? recordingOutputPath;
+      int? recordingDurationMs;
+      String? recordingKind;
+      try {
+        final recordingStart = await recordingAdapter.startRecording(
+          recordingRequest,
+        );
+        if (recordingStart.state != CockpitRecordingState.recording) {
+          throw CockpitApplicationServiceException(
+            code: 'recordingStartFailed',
+            message: 'Recording session did not enter the recording state.',
+            details: <String, Object?>{
+              'platform': platform,
+              'state': recordingStart.state.name,
+            },
+          );
+        }
+        recordingStarted = true;
+      } on Object catch (error) {
+        if (!_shouldAllowWebHostRecordingPrerequisiteFailure(
+          platform: platform,
+          request: request,
+          error: error,
+        )) {
+          rethrow;
+        }
+        warnings.add(
+          'Web host recording was skipped because the local desktop capture prerequisite is not available: $error',
         );
       }
       final batchResult = await _runBatch(
@@ -588,23 +604,46 @@ final class CockpitDemoPlatformVerifier {
         result: batchResult,
         expectedCount: 4,
       );
-      final recordingStop = await recordingAdapter.stopRecording();
-      if (recordingStop.state != CockpitRecordingState.completed) {
-        throw CockpitApplicationServiceException(
-          code: 'recordingStopFailed',
-          message: 'Recording session did not complete successfully.',
-          details: <String, Object?>{
-            'platform': platform,
-            'state': recordingStop.state.name,
-            'failureReason': recordingStop.failureReason,
-          },
-        );
+      verifiedCommands.add('run-batch');
+      if (recordingStarted) {
+        verifiedCommands.add('start-recording');
       }
-      final recordingOutputPath = await _copyArtifactToOutputDir(
-        artifact: recordingStop.artifact,
-        sourcePath: recordingStop.sourceFilePath,
-        outputDir: outputDir,
-      );
+      if (recordingStarted) {
+        try {
+          final recordingStop = await recordingAdapter.stopRecording();
+          if (recordingStop.state != CockpitRecordingState.completed) {
+            throw CockpitApplicationServiceException(
+              code: 'recordingStopFailed',
+              message: 'Recording session did not complete successfully.',
+              details: <String, Object?>{
+                'platform': platform,
+                'state': recordingStop.state.name,
+                'failureReason': recordingStop.failureReason,
+              },
+            );
+          }
+          verifiedCommands.add('stop-recording');
+          recordingArtifactRef = recordingStop.artifact?.relativePath;
+          recordingOutputPath = await _copyArtifactToOutputDir(
+            artifact: recordingStop.artifact,
+            sourcePath: recordingStop.sourceFilePath,
+            outputDir: outputDir,
+          );
+          recordingDurationMs = recordingStop.durationMs;
+          recordingKind = recordingStop.recordingKind?.name;
+        } on Object catch (error) {
+          if (!_shouldAllowWebHostRecordingPrerequisiteFailure(
+            platform: platform,
+            request: request,
+            error: error,
+          )) {
+            rethrow;
+          }
+          warnings.add(
+            'Web host recording could not be finalized on this machine: $error',
+          );
+        }
+      }
       final waitIdleResult = await _waitIdle(
         CockpitWaitIdleRequest(
           app: launchedApp,
@@ -623,6 +662,7 @@ final class CockpitDemoPlatformVerifier {
           },
         );
       }
+      verifiedCommands.add('wait-idle');
 
       final postSaveRead = await _readApp(
         CockpitReadAppRequest(
@@ -662,6 +702,7 @@ final class CockpitDemoPlatformVerifier {
           },
         );
       }
+      verifiedCommands.add('read-network');
       final errorsResult = await _readErrors(
         CockpitReadErrorsRequest(
           appHandlePath: resolvedAppJsonPath,
@@ -680,6 +721,7 @@ final class CockpitDemoPlatformVerifier {
           },
         );
       }
+      verifiedCommands.add('read-errors');
       final logsResult = await _readLogs(
         CockpitReadLogsRequest(
           appHandlePath: resolvedAppJsonPath,
@@ -696,6 +738,7 @@ final class CockpitDemoPlatformVerifier {
           },
         );
       }
+      verifiedCommands.add('read-logs');
 
       final inspectResult = await _inspectSurface(
         CockpitInspectSurfaceRequest(
@@ -714,6 +757,7 @@ final class CockpitDemoPlatformVerifier {
           },
         );
       }
+      verifiedCommands.add('inspect-surface');
       final captureResult = await _runRequiredCommand(
         app: launchedApp,
         command: CockpitCommand(
@@ -737,6 +781,7 @@ final class CockpitDemoPlatformVerifier {
           details: <String, Object?>{'platform': platform},
         ),
       );
+      verifiedCommands.add('capture-screenshot');
 
       final hotReloadResult = await _hotReload(
         CockpitHotReloadRequest(app: launchedApp),
@@ -751,6 +796,7 @@ final class CockpitDemoPlatformVerifier {
           },
         );
       }
+      verifiedCommands.add('hot-reload');
 
       final postReloadRead = await _readApp(
         CockpitReadAppRequest(
@@ -789,6 +835,7 @@ final class CockpitDemoPlatformVerifier {
           },
         );
       }
+      verifiedCommands.add('hot-restart');
       final postRestartRead = await _readApp(
         CockpitReadAppRequest(
           app: hotRestartResult.app,
@@ -829,14 +876,15 @@ final class CockpitDemoPlatformVerifier {
         networkFailureCount: networkResult.summary.failureCount,
         runtimeErrorCount: errorsResult.errors.length,
         logLineCount: logsResult.lines.length,
-        recordingArtifactRef: recordingStop.artifact?.relativePath,
+        recordingArtifactRef: recordingArtifactRef,
         recordingOutputPath: recordingOutputPath,
-        recordingDurationMs: recordingStop.durationMs,
-        recordingKind: recordingStop.recordingKind?.name,
+        recordingDurationMs: recordingDurationMs,
+        recordingKind: recordingKind,
         recordingDriver: cockpitDemoRecordingDriverForPlatform(platform),
         screenshotArtifactRef: screenshotArtifact.relativePath,
         screenshotByteLength: screenshotArtifact.byteLength,
         verifiedCommands: verifiedCommands,
+        warnings: warnings,
       );
     } on Object catch (error) {
       return CockpitDemoPlatformVerification(
@@ -899,6 +947,12 @@ final class CockpitDemoPlatformVerifier {
           code: 'windowsUnavailable',
           message: 'Windows desktop is not available in flutter devices.',
         );
+      case 'web':
+        throw const CockpitApplicationServiceException(
+          code: 'webUnavailable',
+          message:
+              'A supported web browser is not available in flutter devices.',
+        );
       case 'ios':
         final simulators = await _listIosSimulators();
         final simulator = _selectIosSimulator(simulators);
@@ -937,7 +991,8 @@ final class CockpitDemoPlatformVerifier {
     }
     throw CockpitApplicationServiceException(
       code: 'unsupportedVerificationPlatform',
-      message: 'Only android, ios, linux, macos, and windows are supported.',
+      message:
+          'Only android, ios, linux, macos, web, and windows are supported.',
       details: <String, Object?>{'platform': platform},
     );
   }
@@ -1457,6 +1512,7 @@ String cockpitDemoRecordingDriverForPlatform(String platform) {
   return switch (platform) {
     'android' => 'adb',
     'ios' => 'simctl',
+    'web' => 'browser-host',
     _ => 'remote',
   };
 }
@@ -1502,10 +1558,11 @@ String _formatRuntimeLogLine(CockpitRuntimeEvent entry) {
 
 String _normalizePlatform(String platform) {
   return switch (platform) {
-    'android' || 'ios' || 'linux' || 'macos' || 'windows' => platform,
+    'android' || 'ios' || 'linux' || 'macos' || 'web' || 'windows' => platform,
     _ => throw CockpitApplicationServiceException(
         code: 'unsupportedVerificationPlatform',
-        message: 'Only android, ios, linux, macos, and windows are supported.',
+        message:
+            'Only android, ios, linux, macos, web, and windows are supported.',
         details: <String, Object?>{'platform': platform},
       ),
   };
@@ -1513,12 +1570,28 @@ String _normalizePlatform(String platform) {
 
 bool _isDesktopVerificationPlatform(String platform) {
   return switch (platform) {
-    'linux' || 'macos' || 'windows' => true,
+    'linux' || 'macos' || 'web' || 'windows' => true,
     _ => false,
   };
 }
 
 Future<void> _defaultWait(Duration duration) => Future<void>.delayed(duration);
+
+bool _shouldAllowWebHostRecordingPrerequisiteFailure({
+  required String platform,
+  required CockpitDemoPlatformVerificationRequest request,
+  required Object error,
+}) {
+  if (platform != 'web' || !request.allowWebHostRecordingPrerequisiteFailure) {
+    return false;
+  }
+
+  final message = '$error';
+  return message.contains('Remote session request failed: 412') ||
+      message.contains('"error":"recordingStartFailed"') ||
+      message.contains('Screen Recording permission') ||
+      message.contains('desktop capture prerequisite');
+}
 
 final class _ResolvedRemoteReference {
   const _ResolvedRemoteReference({

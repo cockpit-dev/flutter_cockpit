@@ -12,7 +12,7 @@ Future<void> main(List<String> arguments) async {
       'platform',
       allowed: cockpitDemoSupportedVerificationPlatforms,
       defaultsTo: cockpitDemoDefaultVerificationPlatforms,
-      help: 'Platforms to verify: android, ios, linux, macos, windows.',
+      help: 'Platforms to verify: android, ios, linux, macos, web, windows.',
     )
     ..addOption(
       'project-dir',
@@ -49,6 +49,12 @@ Future<void> main(List<String> arguments) async {
       help: 'Bootstrap timeout for iOS simulator and Android emulator.',
     )
     ..addFlag(
+      'allow-web-host-recording-prerequisite-failure',
+      negatable: false,
+      help:
+          'Allow local web verification to continue when host-side browser recording is blocked by desktop capture prerequisites.',
+    )
+    ..addFlag(
       'fail-fast',
       negatable: false,
       help: 'Stop after the first platform failure.',
@@ -76,7 +82,7 @@ Future<void> main(List<String> arguments) async {
 
   if (parsed['help'] as bool) {
     stdout.writeln(
-      'Verify cockpit_demo development loops on macOS, iOS simulator, and Android emulator.',
+      'Verify cockpit_demo development loops on supported desktop, web, and simulator targets.',
     );
     stdout.writeln();
     stdout.writeln(parser.usage);
@@ -96,6 +102,8 @@ Future<void> main(List<String> arguments) async {
       seconds: int.parse(parsed['device-timeout-seconds'] as String),
     ),
     androidEmulatorId: parsed['android-emulator-id'] as String,
+    allowWebHostRecordingPrerequisiteFailure:
+        parsed['allow-web-host-recording-prerequisite-failure'] as bool,
     failFast: parsed['fail-fast'] as bool,
   );
 

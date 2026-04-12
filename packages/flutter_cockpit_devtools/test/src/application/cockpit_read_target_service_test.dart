@@ -156,9 +156,12 @@ void main() {
                   actionCapabilities: const <CockpitActionCapability>{
                     CockpitActionCapability.tap,
                     CockpitActionCapability.captureScreenshot,
+                    CockpitActionCapability.startRecording,
+                    CockpitActionCapability.stopRecording,
                   },
                   evidenceCapabilities: const <CockpitEvidenceCapability>{
                     CockpitEvidenceCapability.domSnapshot,
+                    CockpitEvidenceCapability.screenRecording,
                   },
                 ),
               ),
@@ -189,6 +192,10 @@ void main() {
     expect(result.selectedPlane, CockpitPlaneKind.nativeUiPlane);
     expect(result.recommendedNextStep, 'inspectSurface');
     expect(result.currentRouteName, isNull);
+    expect(
+      result.capabilityProfile.actionCapabilities,
+      contains(CockpitActionCapability.startRecording),
+    );
   });
 }
 

@@ -54,6 +54,13 @@ void main() {
                   emulator: false,
                   supported: true,
                 ),
+                const CockpitDemoHostDevice(
+                  name: 'Chrome',
+                  deviceId: 'chrome',
+                  platform: 'web',
+                  emulator: false,
+                  supported: true,
+                ),
               ],
             2 => <CockpitDemoHostDevice>[
                 const CockpitDemoHostDevice(
@@ -74,6 +81,13 @@ void main() {
                   name: 'Windows',
                   deviceId: 'windows',
                   platform: 'windows',
+                  emulator: false,
+                  supported: true,
+                ),
+                const CockpitDemoHostDevice(
+                  name: 'Chrome',
+                  deviceId: 'chrome',
+                  platform: 'web',
                   emulator: false,
                   supported: true,
                 ),
@@ -107,6 +121,13 @@ void main() {
                   emulator: false,
                   supported: true,
                 ),
+                const CockpitDemoHostDevice(
+                  name: 'Chrome',
+                  deviceId: 'chrome',
+                  platform: 'web',
+                  emulator: false,
+                  supported: true,
+                ),
               ],
             4 => <CockpitDemoHostDevice>[
                 const CockpitDemoHostDevice(
@@ -134,6 +155,13 @@ void main() {
                   name: 'Windows',
                   deviceId: 'windows',
                   platform: 'windows',
+                  emulator: false,
+                  supported: true,
+                ),
+                const CockpitDemoHostDevice(
+                  name: 'Chrome',
+                  deviceId: 'chrome',
+                  platform: 'web',
                   emulator: false,
                   supported: true,
                 ),
@@ -171,6 +199,13 @@ void main() {
                   name: 'Windows',
                   deviceId: 'windows',
                   platform: 'windows',
+                  emulator: false,
+                  supported: true,
+                ),
+                const CockpitDemoHostDevice(
+                  name: 'Chrome',
+                  deviceId: 'chrome',
+                  platform: 'web',
                   emulator: false,
                   supported: true,
                 ),
@@ -439,7 +474,14 @@ void main() {
       final result = await verifier.verify(
         const CockpitDemoPlatformVerificationRequest(
           projectDir: '/workspace/examples/cockpit_demo',
-          platforms: <String>['macos', 'ios', 'android', 'linux', 'windows'],
+          platforms: <String>[
+            'macos',
+            'ios',
+            'android',
+            'linux',
+            'windows',
+            'web'
+          ],
           outputRoot: '/tmp/cockpit_demo_platforms',
         ),
       );
@@ -447,7 +489,7 @@ void main() {
       expect(result.success, isTrue);
       expect(
         result.platforms.map((platform) => platform.platform),
-        <String>['macos', 'ios', 'android', 'linux', 'windows'],
+        <String>['macos', 'ios', 'android', 'linux', 'windows', 'web'],
       );
       expect(
         result.platforms.map((platform) => platform.status),
@@ -464,6 +506,7 @@ void main() {
           'emulator-5554',
           'linux',
           'windows',
+          'chrome',
         ],
       );
       expect(
@@ -483,7 +526,7 @@ void main() {
           ]),
         ),
       );
-      expect(commandTypes.length, 15);
+      expect(commandTypes.length, 18);
       final expectedBatchPattern = <CockpitCommandType>[
         CockpitCommandType.tap,
         CockpitCommandType.enterText,
@@ -493,11 +536,11 @@ void main() {
       expect(
         batchedCommandTypes,
         List<CockpitCommandType>.generate(
-          5 * expectedBatchPattern.length,
+          6 * expectedBatchPattern.length,
           (index) => expectedBatchPattern[index % expectedBatchPattern.length],
         ),
       );
-      expect(batchRequests, hasLength(5));
+      expect(batchRequests, hasLength(6));
       final firstBatchCommands = batchRequests.first.commands
           .map((batchCommand) => batchCommand.command)
           .toList(growable: false);
@@ -511,19 +554,19 @@ void main() {
       expect(firstBatchCommands[2].locator?.ancestor?.route, '/editor');
       expect(firstBatchCommands[3].locator?.text, 'Save task');
       expect(firstBatchCommands[3].locator?.ancestor?.route, '/editor');
-      expect(inspectUiRequests, hasLength(5));
-      expect(waitIdleRequests, hasLength(5));
-      expect(readNetworkRequests, hasLength(5));
-      expect(readErrorsRequests, hasLength(5));
-      expect(readLogsRequests, hasLength(5));
+      expect(inspectUiRequests, hasLength(6));
+      expect(waitIdleRequests, hasLength(6));
+      expect(readNetworkRequests, hasLength(6));
+      expect(readErrorsRequests, hasLength(6));
+      expect(readLogsRequests, hasLength(6));
       expect(
         recordingResolverPlatforms,
-        <String>['macos', 'ios', 'android', 'linux', 'windows'],
+        <String>['macos', 'ios', 'android', 'linux', 'windows', 'web'],
       );
-      expect(recordingRequests, hasLength(5));
-      expect(recordingStopCount, 5);
-      expect(hotRestartRequests, hasLength(5));
-      expect(stopRequests, hasLength(5));
+      expect(recordingRequests, hasLength(6));
+      expect(recordingStopCount, 6);
+      expect(hotRestartRequests, hasLength(6));
+      expect(stopRequests, hasLength(6));
       expect(
         result.platforms.every((platform) => platform.hotReloadSucceeded),
         isTrue,
@@ -558,7 +601,7 @@ void main() {
       );
       expect(
         result.platforms.map((platform) => platform.recordingDriver),
-        <String>['remote', 'simctl', 'adb', 'remote', 'remote'],
+        <String>['remote', 'simctl', 'adb', 'remote', 'remote', 'browser-host'],
       );
       expect(
         result.platforms.map((platform) => platform.screenshotArtifactRef),
@@ -624,6 +667,252 @@ void main() {
     expect(result.platforms.last.status, 'failed');
   });
 
+  test(
+    'verifier can continue local web validation when host recording prerequisites are explicitly allowed to fail',
+    () async {
+      final verifier = CockpitDemoPlatformVerifier(
+        probeDevices: () async => const <CockpitDemoHostDevice>[
+          CockpitDemoHostDevice(
+            name: 'Chrome',
+            deviceId: 'chrome',
+            platform: 'web',
+            emulator: false,
+            supported: true,
+          ),
+        ],
+        wait: (_) async {},
+        runProcess: (executable, arguments, {String? workingDirectory}) async {
+          return ProcessResult(0, 0, '', '');
+        },
+        launchApp: (request) async {
+          return CockpitLaunchAppResult(
+            app: _appForPlatform(
+              platform: request.platform,
+              deviceId: request.deviceId,
+              baseUrl: 'http://127.0.0.1:${request.sessionPort}',
+            ),
+            appJsonPath:
+                '${request.projectDir}/.dart_tool/cockpit_platforms/${request.platform}/app.json',
+          );
+        },
+        readApp: (request) async => CockpitReadAppResult(
+          sessionId: 'web-session',
+          transportType: 'remoteHttp',
+          capabilities: CockpitCapabilities(
+            platform: 'web',
+            transportType: 'remoteHttp',
+            supportsInAppControl: true,
+            supportsFlutterViewCapture: true,
+            supportsNativeScreenCapture: false,
+            supportsHostAutomation: false,
+            supportedCommands: const <CockpitCommandType>[
+              CockpitCommandType.tap,
+              CockpitCommandType.enterText,
+              CockpitCommandType.assertText,
+              CockpitCommandType.captureScreenshot,
+            ],
+            supportedLocatorStrategies: CockpitLocatorKind.values,
+          ),
+          recordingCapabilities: CockpitRecordingCapabilities(
+            supportsNativeRecording: true,
+            preferredAcceptanceRecordingKind: CockpitRecordingKind.nativeScreen,
+          ),
+          currentRouteName: '/inbox',
+        ),
+        inspectUi: (_) async => const CockpitInspectUiResult(
+          routeName: '/inbox',
+          diagnosticLevel: 'investigate',
+          truncated: false,
+        ),
+        runCommand: (request) async => CockpitExecuteRemoteCommandResult(
+          command: CockpitInteractiveCommandCore(
+            commandId: request.command.commandId,
+            commandType: request.command.commandType.name,
+            success: true,
+            durationMs: 10,
+            usedCaptureFallback: false,
+          ),
+          artifacts: request.command.commandType ==
+                  CockpitCommandType.captureScreenshot
+              ? const <CockpitInteractiveArtifactDescriptor>[
+                  CockpitInteractiveArtifactDescriptor(
+                    role: 'screenshot',
+                    relativePath: 'screenshots/web-warning-proof.png',
+                    byteLength: 512,
+                  ),
+                ]
+              : const <CockpitInteractiveArtifactDescriptor>[],
+        ),
+        runBatch: (request) async => CockpitRunBatchResult(
+          results: request.commands
+              .map(
+                (batchCommand) => CockpitExecuteRemoteCommandResult(
+                  command: CockpitInteractiveCommandCore(
+                    commandId: batchCommand.command.commandId,
+                    commandType: batchCommand.command.commandType.name,
+                    success: true,
+                    durationMs: 10,
+                    usedCaptureFallback: false,
+                  ),
+                  artifacts: const <CockpitInteractiveArtifactDescriptor>[],
+                ),
+              )
+              .toList(growable: false),
+          summary: CockpitExecuteRemoteCommandBatchSummary(
+            totalCount: request.commands.length,
+            successCount: request.commands.length,
+            failureCount: 0,
+            stoppedEarly: false,
+          ),
+        ),
+        waitIdle: (_) async => const CockpitWaitIdleResult(
+          idle: true,
+          durationMs: 120,
+          quietWindowMs: 160,
+          timeoutMs: 5000,
+          includeNetworkIdle: true,
+        ),
+        readNetwork: (request) async => CockpitReadNetworkResult(
+          appId: 'web-network',
+          source: 'app_snapshot',
+          available: true,
+          routeName: '/inbox',
+          summary: CockpitReadNetworkSummary(
+            totalEntryCount: 0,
+            failureCount: 0,
+            capturedEntryCount: 0,
+            inFlightCount: 0,
+            truncated: false,
+            query: request.networkQuery,
+          ),
+          endpointSummaries: const <CockpitNetworkEndpointSummary>[],
+          endpointSummariesTruncated: false,
+          recentFailures: const <CockpitNetworkEntry>[],
+        ),
+        readErrors: (_) async => const CockpitReadErrorsResult(
+          appId: 'web-errors',
+          routeName: '/inbox',
+          source: 'app_snapshot',
+          errors: <CockpitErrorEntry>[],
+        ),
+        readLogs: (_) async => const CockpitReadLogsResult(
+          appId: 'web-logs',
+          source: 'app_snapshot',
+          available: true,
+          routeName: '/inbox',
+          lines: <String>['info runtime: web verification warning path'],
+          truncated: false,
+        ),
+        inspectSurface: (request) async => CockpitInspectSurfaceResult(
+          target: CockpitTargetHandle.fromAppHandle(request.app!),
+          capabilityProfile: CockpitCapabilityProfile(
+            targetKind: CockpitTargetKind.browserPage,
+            surfaceKinds: <CockpitSurfaceKind>{
+              CockpitSurfaceKind.browserDom,
+              CockpitSurfaceKind.flutterSemantic,
+            },
+            actionCapabilities: <CockpitActionCapability>{
+              CockpitActionCapability.tap,
+              CockpitActionCapability.captureScreenshot,
+            },
+            evidenceCapabilities: <CockpitEvidenceCapability>{
+              CockpitEvidenceCapability.windowCapture,
+              CockpitEvidenceCapability.flutterScreenshot,
+            },
+          ),
+          surfaceKind: CockpitSurfaceKind.browserDom,
+          selectedPlane: CockpitPlaneKind.flutterSemanticPlane,
+          recommendedNextStep: 'continue',
+          routeName: '/inbox',
+          diagnosticLevel: 'inspect',
+          truncated: false,
+        ),
+        recordingAdapterResolver: ({
+          required platform,
+          required deviceId,
+          required client,
+          required recording,
+        }) {
+          return _FakeRecordingAdapter(
+            onStart: (_) async {
+              throw StateError(
+                'Remote session request failed: 412 {"error":"recordingStartFailed","message":"Screen Recording permission is missing."}',
+              );
+            },
+            onStop: () async => throw StateError('stop should not be called'),
+          );
+        },
+        hotReload: (request) async => CockpitHotReloadResult(
+          app: request.app!,
+          status: CockpitDevelopmentSessionStatus(
+            developmentSessionId: 'web-session',
+            state: CockpitDevelopmentSessionState.ready,
+            appReachable: true,
+            remoteSessionReachable: true,
+            reloadGeneration: 1,
+            lastReloadMode: CockpitDevelopmentReloadMode.hotReload,
+            lastReloadSucceeded: true,
+            lastStatusAt: DateTime.utc(2026, 4, 11),
+          ),
+        ),
+        hotRestart: (request) async => CockpitHotRestartResult(
+          app: request.app!,
+          status: CockpitDevelopmentSessionStatus(
+            developmentSessionId: 'web-session',
+            state: CockpitDevelopmentSessionState.ready,
+            appReachable: true,
+            remoteSessionReachable: true,
+            reloadGeneration: 2,
+            lastReloadMode: CockpitDevelopmentReloadMode.hotRestart,
+            lastReloadSucceeded: true,
+            lastStatusAt: DateTime.utc(2026, 4, 11, 0, 0, 1),
+          ),
+        ),
+        stopApp: (request) async => CockpitStopAppResult(
+          app: request.app!,
+          status: CockpitAppStopStatus.stopped(mode: request.app!.mode),
+        ),
+      );
+
+      final result = await verifier.verify(
+        const CockpitDemoPlatformVerificationRequest(
+          projectDir: '/workspace/examples/cockpit_demo',
+          platforms: <String>['web'],
+          allowWebHostRecordingPrerequisiteFailure: true,
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(result.platforms, hasLength(1));
+      final platform = result.platforms.single;
+      expect(platform.status, 'passed');
+      expect(platform.recordingArtifactRef, isNull);
+      expect(platform.recordingDriver, 'browser-host');
+      expect(
+        platform.verifiedCommands,
+        <String>[
+          'launch-app',
+          'read-app',
+          'inspect-ui',
+          'run-batch',
+          'wait-idle',
+          'read-network',
+          'read-errors',
+          'read-logs',
+          'inspect-surface',
+          'capture-screenshot',
+          'hot-reload',
+          'hot-restart',
+        ],
+      );
+      expect(platform.warnings, hasLength(1));
+      expect(
+        platform.warnings.single,
+        contains('Screen Recording permission is missing.'),
+      );
+    },
+  );
+
   test('device probe normalizes desktop and android variant target platforms',
       () async {
     final devices = await cockpitDemoProbeHostDevices(
@@ -655,6 +944,13 @@ void main() {
     "isSupported": true,
     "targetPlatform": "windows-x64",
     "emulator": false
+  },
+  {
+    "name": "Chrome",
+    "id": "chrome",
+    "isSupported": true,
+    "targetPlatform": "web-javascript",
+    "emulator": false
   }
 ]
 ''',
@@ -663,18 +959,18 @@ void main() {
       },
     );
 
-    expect(devices, hasLength(3));
+    expect(devices, hasLength(4));
     expect(
       devices.map((device) => device.platform),
-      <String>['android', 'linux', 'windows'],
+      <String>['android', 'linux', 'windows', 'web'],
     );
     expect(
       devices.map((device) => device.deviceId),
-      <String>['emulator-5554', 'linux', 'windows'],
+      <String>['emulator-5554', 'linux', 'windows', 'chrome'],
     );
     expect(
       devices.map((device) => device.emulator),
-      <bool>[true, false, false],
+      <bool>[true, false, false, false],
     );
   });
 }

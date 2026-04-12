@@ -22,7 +22,7 @@
 
 ```yaml
 dev_dependencies:
-  flutter_cockpit_devtools: any
+  flutter_cockpit_devtools: ^1.0.0
 ```
 
 可选的全局安装方式：
@@ -100,6 +100,35 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --app-json /tmp/app.json \
   --command-json '{"commandId":"assert-inbox","commandType":"assertText","parameters":{"text":"Inbox"}}'
 ```
+
+已验证的 web 开发闭环：
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  launch-app \
+  --project-dir examples/cockpit_demo \
+  --platform web \
+  --device-id chrome \
+  --app-json /tmp/flutter_cockpit/web_app.json
+```
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  read-app \
+  --app-json /tmp/flutter_cockpit/web_app.json \
+  --profile minimal
+```
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  hot-restart \
+  --app-json /tmp/flutter_cockpit/web_app.json
+```
+
+在 web 上，`launch-app` 现在会先在宿主机 `localhost` 拉起 bridge，再让浏览器应用通过 WebSocket 回连，同时对 agent 保持原来的 HTTP app surface（`/health`、`/snapshot`、`/commands/execute`、`/recording/*`）不变。
+浏览器录屏仍然依赖宿主桌面系统给浏览器和采集链授予屏幕采集权限；如果宿主权限或设备策略阻止采集，`stop-recording` 会返回结构化失败结果，而不是把整个 session 卡死。
+仓库里的 `runtime-loop` workflow 还会在 Linux + `xvfb` 环境下运行 `examples/cockpit_demo/tool/verify_platforms.dart --platform web`，把截图、录屏、hot reload、hot restart 全都纳入真实 web 端到端校验。
+如果是在 macOS 本地做 web 验证，`examples/cockpit_demo/tool/verify_platforms.dart --platform web --allow-web-host-recording-prerequisite-failure` 会继续严格验证应用控制、截图和 reload 流程，同时把缺失桌面录屏权限降级成结构化 warning。
 
 Locator 规则：
 

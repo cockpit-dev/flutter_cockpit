@@ -10,8 +10,11 @@ import '../capture/cockpit_capture_result.dart';
 import '../control/cockpit_screenshot_request.dart';
 import '../executor/in_app_cockpit_command_executor.dart';
 import '../gesture/cockpit_gesture_action.dart';
+import '../remote/cockpit_remote_bridge_protocol.dart';
 import '../remote/cockpit_remote_session_server.dart';
 import '../remote/cockpit_remote_session_status.dart';
+import '../remote/cockpit_remote_session_bridge_client.dart';
+import '../remote/cockpit_remote_session_endpoint_handler.dart';
 import '../recording/cockpit_recording_capabilities.dart';
 import '../recording/cockpit_recording_request.dart';
 import '../recording/cockpit_recording_result.dart';
@@ -20,6 +23,7 @@ import 'flutter_cockpit.dart';
 import 'cockpit_tap_feedback_overlay.dart';
 import 'cockpit_capabilities.dart';
 import 'cockpit_runtime_query.dart';
+import 'cockpit_remote_session_platform.dart';
 import 'cockpit_scroll_step_result.dart';
 import 'cockpit_snapshot.dart';
 import 'cockpit_snapshot_options.dart';
@@ -39,6 +43,7 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
   final GlobalKey<CockpitSurfaceState> _surfaceKey =
       GlobalKey<CockpitSurfaceState>();
   CockpitRemoteSessionServer? _remoteSessionServer;
+  CockpitRemoteSessionBridgeClient? _remoteSessionBridgeClient;
   Future<void>? _remoteSessionStartFuture;
   CockpitTapFeedbackController? _tapFeedbackController;
 
@@ -130,8 +135,11 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
           )
         : null;
 
-    if (effectiveProfile == CockpitCaptureProfile.acceptance ||
-        effectiveProfile == CockpitCaptureProfile.nativePreferred) {
+    final prefersNativeCapture =
+        effectiveProfile == CockpitCaptureProfile.acceptance ||
+            effectiveProfile == CockpitCaptureProfile.nativePreferred;
+    if (prefersNativeCapture &&
+        await FlutterCockpit.binding.queryNativeCaptureAvailability()) {
       try {
         final screenshot = await FlutterCockpit.binding.nativeCapture.capture(
           request: effectiveRequest,
@@ -206,11 +214,13 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
     return surfaceState.performGesture(action);
   }
 
-  Uri? get remoteSessionBaseUri => _remoteSessionServer?.baseUri;
+  Uri? get remoteSessionBaseUri =>
+      _remoteSessionServer?.baseUri ??
+      _remoteSessionBridgeClient?.publicBaseUri;
 
   Future<Uri?> waitForRemoteSession() async {
     await _ensureRemoteSessionStarted();
-    return _remoteSessionServer?.baseUri;
+    return remoteSessionBaseUri;
   }
 
   Future<CockpitRemoteSessionStatus> remoteSessionStatus() {
@@ -220,6 +230,7 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
   @override
   void dispose() {
     unawaited(_remoteSessionServer?.close());
+    unawaited(_remoteSessionBridgeClient?.close());
     _tapFeedbackController?.dispose();
     super.dispose();
   }
@@ -298,7 +309,7 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
     if (configuration == null || !configuration.enabled) {
       return;
     }
-    if (_remoteSessionServer != null) {
+    if (_remoteSessionServer != null || _remoteSessionBridgeClient != null) {
       return;
     }
 
@@ -386,6 +397,28 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
       platform: defaultTargetPlatform.name,
       transportType: 'remoteHttp',
     );
+    final endpointHandler = CockpitRemoteSessionEndpointHandler(
+      configuration: configuration,
+      statusProvider: _buildRemoteSessionStatus,
+      snapshotProvider: ({required options}) => snapshot(options: options),
+      commandExecutor: executor.executeWithArtifacts,
+      runtimeStepDrainer: ({required clear}) {
+        return FlutterCockpit.drainRecordedSteps(clear: clear);
+      },
+      startRecording: startRecording,
+      stopRecording: stopRecording,
+    );
+    if (kIsWeb) {
+      final bridgeClient = CockpitRemoteSessionBridgeClient(
+        configuration: configuration,
+        protocol: CockpitRemoteSessionBridgeProtocol(
+          requestHandler: endpointHandler.handle,
+        ),
+      );
+      await bridgeClient.start();
+      _remoteSessionBridgeClient = bridgeClient;
+      return;
+    }
     final server = CockpitRemoteSessionServer(
       configuration: configuration,
       statusProvider: _buildRemoteSessionStatus,
@@ -416,6 +449,10 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
   }
 
   Future<CockpitRemoteSessionStatus> _buildRemoteSessionStatus() async {
+    final remoteSessionPlatform = resolveCockpitRemoteSessionPlatform(
+      isWeb: kIsWeb,
+      targetPlatform: defaultTargetPlatform,
+    );
     final executor = InAppCockpitCommandExecutor(
       registry: FlutterCockpit.binding.registry,
       captureHandler: captureScreenshot,
@@ -479,7 +516,7 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
       interactionPolicy: FlutterCockpit.binding.configuration.interactionPolicy,
       isRecordingActive: () =>
           FlutterCockpit.binding.activeRecordingSession != null,
-      platform: defaultTargetPlatform.name,
+      platform: remoteSessionPlatform,
       transportType: 'remoteHttp',
     );
     final baseCapabilities = await executor.describeCapabilities();
@@ -487,8 +524,8 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
         await FlutterCockpit.binding.queryNativeCaptureAvailability();
     return CockpitRemoteSessionStatus(
       sessionId:
-          'cockpit-${defaultTargetPlatform.name}-${remoteSessionBaseUri?.port ?? 0}',
-      platform: defaultTargetPlatform.name,
+          'cockpit-$remoteSessionPlatform-${remoteSessionBaseUri?.port ?? 0}',
+      platform: remoteSessionPlatform,
       transportType: 'remoteHttp',
       currentRouteName: FlutterCockpit.binding.currentRouteName.value,
       capabilities: CockpitCapabilities(

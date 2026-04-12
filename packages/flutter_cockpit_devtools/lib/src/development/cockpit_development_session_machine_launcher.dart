@@ -108,7 +108,8 @@ final class CockpitDevelopmentSessionMachineLauncher {
             devicePort: request.sessionPort,
           )
         : request.hostPort;
-    final baseUri = Uri.parse('http://127.0.0.1:$hostPort');
+    final publicHost = cockpitRemotePublicHostForPlatform(request.platform);
+    final baseUri = Uri.parse('http://$publicHost:$hostPort');
     final deadline = _now().add(request.launchTimeout);
     final status = await cockpitWaitForRemoteSessionReady(
       baseUri: baseUri,
@@ -125,7 +126,7 @@ final class CockpitDevelopmentSessionMachineLauncher {
       target: request.target,
       deviceId: request.deviceId,
       appId: appId,
-      host: '127.0.0.1',
+      host: publicHost,
       hostPort: hostPort,
       devicePort: request.sessionPort,
       status: status,

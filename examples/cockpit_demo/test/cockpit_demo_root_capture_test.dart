@@ -66,10 +66,7 @@ void main() {
           flutterVersion: '3.38.9',
           dartVersion: '3.10.8',
         ),
-        capabilitiesUsed: const <String>[
-          'flutterViewCapture',
-          'nativeAcceptanceCapture',
-        ],
+        capabilitiesUsed: const <String>['flutterViewCapture'],
       );
       final captureStep = bundle.steps.lastWhere(
         (step) => step.actionType == 'capture_acceptance',
@@ -82,7 +79,7 @@ void main() {
         CockpitCaptureProfile.acceptance,
       );
       expect(captureStep.resolvedCaptureKind, CockpitCaptureKind.flutterView);
-      expect(captureStep.usedCaptureFallback, isTrue);
+      expect(captureStep.usedCaptureFallback, isFalse);
       expect(capture.screenshot.snapshot?.routeName, '/inbox');
       expect(
         capture.screenshot.snapshot?.visibleTargets.any(

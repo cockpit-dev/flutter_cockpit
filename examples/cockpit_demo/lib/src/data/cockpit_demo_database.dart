@@ -1,8 +1,7 @@
 import 'package:drift/drift.dart';
-import 'package:drift/native.dart';
-import 'package:drift_flutter/drift_flutter.dart';
 
 import '../model/todo_settings.dart';
+import 'cockpit_demo_database_executor.dart';
 import 'tables/app_settings.dart';
 import 'tables/tags.dart';
 import 'tables/tasks.dart';
@@ -14,11 +13,15 @@ class CockpitDemoDatabase extends _$CockpitDemoDatabase {
   CockpitDemoDatabase(super.executor);
 
   factory CockpitDemoDatabase.local() {
-    return CockpitDemoDatabase(driftDatabase(name: 'cockpit_demo'));
+    return CockpitDemoDatabase(
+      cockpitDemoCreateLocalExecutor(name: 'cockpit_demo'),
+    );
   }
 
   factory CockpitDemoDatabase.inMemory() {
-    return CockpitDemoDatabase(NativeDatabase.memory());
+    return CockpitDemoDatabase(
+      cockpitDemoCreateInMemoryExecutor(name: 'cockpit_demo_test'),
+    );
   }
 
   @override
