@@ -82,6 +82,7 @@ final class CockpitTargetRegistry {
       if (candidate.index != null) {
         final indexedMatch = _selectIndexedMatch(matches, candidate);
         if (indexedMatch == null) {
+          final orderedMatches = _orderedMatches(matches, candidate);
           return CockpitTargetResolutionResult.failure(
             error: CockpitCommandError.targetNotFound(
               message:
@@ -90,12 +91,10 @@ final class CockpitTargetRegistry {
                 'requestedLocator': candidate.toJson(),
                 'matchedCount': matches.length,
                 'requestedIndex': candidate.index,
-                'candidates': _orderedMatches(
-                  matches,
-                  candidate,
-                )
+                'candidates': orderedMatches
                     .map((target) => target.registrationId)
                     .toList(growable: false),
+                'candidateHints': _targetHintsFor(orderedMatches),
               },
             ),
             matches: matches,
@@ -113,6 +112,7 @@ final class CockpitTargetRegistry {
       }
 
       if (matches.length > 1) {
+        final orderedMatches = _orderedMatches(matches, candidate);
         final preferredMatch = _selectPreferredMatch(matches, candidate);
         if (preferredMatch != null) {
           return CockpitTargetResolutionResult.success(
@@ -131,9 +131,10 @@ final class CockpitTargetRegistry {
             details: <String, Object?>{
               'matchedKind': candidate.kind.name,
               'matchedValue': candidate.value,
-              'candidates': matches
+              'candidates': orderedMatches
                   .map((target) => target.registrationId)
                   .toList(growable: false),
+              'candidateHints': _targetHintsFor(orderedMatches),
             },
           ),
           matches: matches,
@@ -224,6 +225,58 @@ final class CockpitTargetRegistry {
       score += 1;
     }
     return score;
+  }
+
+  List<Map<String, Object?>> _targetHintsFor(
+    Iterable<CockpitTarget> targets, {
+    int limit = 8,
+  }) {
+    final hints = <Map<String, Object?>>[];
+    final seen = <String>{};
+    for (final target in targets) {
+      final hint = _targetHintFor(target);
+      if (!seen.add(_targetHintSignature(hint))) {
+        continue;
+      }
+      hints.add(hint);
+      if (hints.length >= limit) {
+        break;
+      }
+    }
+    return hints;
+  }
+
+  Map<String, Object?> _targetHintFor(CockpitTarget target) {
+    final hint = <String, Object?>{
+      if (target.cockpitId != null) 'cockpitId': target.cockpitId,
+      if (target.semanticId != null) 'semanticId': target.semanticId,
+      if (target.keyValue != null) 'key': target.keyValue,
+      if (target.text != null) 'text': target.text,
+      if (target.tooltip != null) 'tooltip': target.tooltip,
+      if (target.typeName != null) 'type': target.typeName,
+      if (target.routeName.isNotEmpty) 'route': target.routeName,
+      if (target.supportedCommands.isNotEmpty)
+        'supportedCommands': target.supportedCommands
+            .map((command) => command.name)
+            .toList(growable: false),
+    };
+    if (hint.isEmpty) {
+      hint['registrationId'] = target.registrationId;
+    }
+    return hint;
+  }
+
+  String _targetHintSignature(Map<String, Object?> hint) {
+    return <Object?>[
+      hint['cockpitId'],
+      hint['semanticId'],
+      hint['key'],
+      hint['text'],
+      hint['tooltip'],
+      hint['type'],
+      hint['route'],
+      hint['supportedCommands'],
+    ].join('|');
   }
 
   Iterable<CockpitLocator> _flatten(CockpitLocator locator) sync* {

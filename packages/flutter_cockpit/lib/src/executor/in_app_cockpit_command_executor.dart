@@ -2357,33 +2357,97 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
           ...error.details,
           'routeName': _liveSnapshot().routeName,
           'visibleTargetCount': _registry.visibleTargets.length,
-          'visibleTargetSignals': _visibleTargetSignals(),
+          'visibleTargetHints': _visibleTargetHints(),
+          'visibleTextCandidates': _visibleTextCandidates(
+            _registry.visibleTargets,
+          ).take(12).toList(growable: false),
         },
       ),
       matches: resolution.matches,
     );
   }
 
-  List<Map<String, Object?>> _visibleTargetSignals() {
-    return _registry.visibleTargets.take(24).map((target) {
-      return <String, Object?>{
-        'registrationId': target.registrationId,
-        'typeName': target.typeName,
-        'routeName': target.routeName,
-        if (target.keyValue != null) 'key': target.keyValue,
+  List<Map<String, Object?>> _visibleTargetHints() {
+    final prioritized = _registry.visibleTargets.toList(growable: false)
+      ..sort((left, right) {
+        final commandCompare = right.supportedCommands.length.compareTo(
+          left.supportedCommands.length,
+        );
+        if (commandCompare != 0) {
+          return commandCompare;
+        }
+
+        final leftSignalCount = _hintSignalCount(left);
+        final rightSignalCount = _hintSignalCount(right);
+        final signalCompare = rightSignalCount.compareTo(leftSignalCount);
+        if (signalCompare != 0) {
+          return signalCompare;
+        }
+
+        return left.registrationId.compareTo(right.registrationId);
+      });
+
+    final hints = <Map<String, Object?>>[];
+    final seen = <String>{};
+    for (final target in prioritized) {
+      final hint = <String, Object?>{
+        if (target.cockpitId != null) 'cockpitId': target.cockpitId,
         if (target.semanticId != null) 'semanticId': target.semanticId,
+        if (target.keyValue != null) 'key': target.keyValue,
         if (target.text != null) 'text': target.text,
         if (target.tooltip != null) 'tooltip': target.tooltip,
-        if (target.path != null) 'path': target.path,
-        if (target.scrollableKeyValue != null)
-          'scrollableKey': target.scrollableKeyValue,
-        if (target.scrollablePath != null)
-          'scrollablePath': target.scrollablePath,
-        'supportedCommands': target.supportedCommands
-            .map((command) => command.name)
-            .toList(growable: false),
+        if (target.typeName != null) 'type': target.typeName,
+        if (target.routeName.isNotEmpty) 'route': target.routeName,
+        if (target.supportedCommands.isNotEmpty)
+          'supportedCommands': target.supportedCommands
+              .map((command) => command.name)
+              .toList(growable: false),
       };
-    }).toList(growable: false);
+      if (hint.isEmpty) {
+        hint['registrationId'] = target.registrationId;
+      }
+      if (!seen.add(_targetHintSignature(hint))) {
+        continue;
+      }
+      hints.add(hint);
+      if (hints.length >= 8) {
+        break;
+      }
+    }
+    return hints;
+  }
+
+  int _hintSignalCount(CockpitTarget target) {
+    var count = 0;
+    if (target.cockpitId != null && target.cockpitId!.isNotEmpty) {
+      count += 3;
+    }
+    if (target.semanticId != null && target.semanticId!.isNotEmpty) {
+      count += 3;
+    }
+    if (target.keyValue != null && target.keyValue!.isNotEmpty) {
+      count += 2;
+    }
+    if (target.text != null && target.text!.isNotEmpty) {
+      count += 2;
+    }
+    if (target.tooltip != null && target.tooltip!.isNotEmpty) {
+      count += 1;
+    }
+    return count;
+  }
+
+  String _targetHintSignature(Map<String, Object?> hint) {
+    return <Object?>[
+      hint['cockpitId'],
+      hint['semanticId'],
+      hint['key'],
+      hint['text'],
+      hint['tooltip'],
+      hint['type'],
+      hint['route'],
+      hint['supportedCommands'],
+    ].join('|');
   }
 
   List<Map<String, Object?>> _visibleScrollables() {
