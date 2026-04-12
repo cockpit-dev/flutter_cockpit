@@ -306,6 +306,213 @@ void main() {
       expect(decoded['currentRouteName'], '/settings');
     },
   );
+
+  test(
+    'read-app prefers an explicit base-url over the implicit default app handle',
+    () async {
+      final implicitServer = await HttpServer.bind(
+        InternetAddress.loopbackIPv4,
+        0,
+      );
+      final explicitServer = await HttpServer.bind(
+        InternetAddress.loopbackIPv4,
+        0,
+      );
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_query_remote_cli_base_url_precedence',
+      );
+      final previousCurrent = Directory.current;
+      Directory.current = tempDir;
+      addTearDown(() async {
+        Directory.current = previousCurrent;
+        await implicitServer.close(force: true);
+        await explicitServer.close(force: true);
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      Future<void> respond(
+          HttpRequest request, String sessionId, String route) async {
+        request.response.headers.contentType = ContentType.json;
+        request.response.write(
+          jsonEncode(
+            CockpitRemoteSessionStatus(
+              sessionId: sessionId,
+              platform: 'ios',
+              transportType: 'remoteHttp',
+              currentRouteName: route,
+              capabilities: CockpitCapabilities(
+                platform: 'ios',
+                transportType: 'remoteHttp',
+                supportsInAppControl: true,
+                supportsFlutterViewCapture: true,
+                supportsNativeScreenCapture: true,
+                supportsHostAutomation: false,
+                supportedCommands: <CockpitCommandType>[CockpitCommandType.tap],
+                supportedLocatorStrategies: CockpitLocatorKind.values,
+              ),
+              recordingCapabilities: CockpitRecordingCapabilities(
+                supportsNativeRecording: true,
+                preferredAcceptanceRecordingKind:
+                    CockpitRecordingKind.nativeScreen,
+              ),
+              snapshot: CockpitSnapshot(routeName: route),
+            ).toJson(),
+          ),
+        );
+        await request.response.close();
+      }
+
+      implicitServer.listen(
+        (request) => respond(
+          request,
+          'query-implicit-handle-demo',
+          '/implicit',
+        ),
+      );
+      explicitServer.listen(
+        (request) => respond(
+          request,
+          'query-explicit-base-url-demo',
+          '/explicit',
+        ),
+      );
+
+      final sessionFile = File(cockpitDefaultAppHandlePath(tempDir.path));
+      await sessionFile.parent.create(recursive: true);
+      await sessionFile.writeAsString(
+        jsonEncode(<String, Object?>{
+          'appId': 'dev.cockpit.cockpitDemo',
+          'mode': 'automation',
+          'platform': 'ios',
+          'deviceId': 'simulator',
+          'projectDir': '/workspace/examples/cockpit_demo',
+          'target': 'lib/main.dart',
+          'baseUrl': 'http://127.0.0.1:${implicitServer.port}',
+          'launchedAt': '2026-03-21T00:00:00.000Z',
+        }),
+      );
+
+      final outputFile = File(p.join(tempDir.path, 'session_status.json'));
+      final exitCode = await CockpitCommandRunner().run(<String>[
+        'read-app',
+        '--base-url',
+        'http://127.0.0.1:${explicitServer.port}',
+        '--output-json',
+        outputFile.path,
+      ]);
+
+      expect(exitCode, 0);
+      final decoded = jsonDecode(await outputFile.readAsString());
+      expect(decoded['sessionId'], 'query-explicit-base-url-demo');
+      expect(decoded['currentRouteName'], '/explicit');
+    },
+  );
+
+  test(
+    'read-app still prefers an explicit app-json over base-url',
+    () async {
+      final appHandleServer = await HttpServer.bind(
+        InternetAddress.loopbackIPv4,
+        0,
+      );
+      final baseUrlServer = await HttpServer.bind(
+        InternetAddress.loopbackIPv4,
+        0,
+      );
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_query_remote_cli_app_json_precedence',
+      );
+      final previousCurrent = Directory.current;
+      Directory.current = tempDir;
+      addTearDown(() async {
+        Directory.current = previousCurrent;
+        await appHandleServer.close(force: true);
+        await baseUrlServer.close(force: true);
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      Future<void> respond(
+          HttpRequest request, String sessionId, String route) async {
+        request.response.headers.contentType = ContentType.json;
+        request.response.write(
+          jsonEncode(
+            CockpitRemoteSessionStatus(
+              sessionId: sessionId,
+              platform: 'ios',
+              transportType: 'remoteHttp',
+              currentRouteName: route,
+              capabilities: CockpitCapabilities(
+                platform: 'ios',
+                transportType: 'remoteHttp',
+                supportsInAppControl: true,
+                supportsFlutterViewCapture: true,
+                supportsNativeScreenCapture: true,
+                supportsHostAutomation: false,
+                supportedCommands: <CockpitCommandType>[CockpitCommandType.tap],
+                supportedLocatorStrategies: CockpitLocatorKind.values,
+              ),
+              recordingCapabilities: CockpitRecordingCapabilities(
+                supportsNativeRecording: true,
+                preferredAcceptanceRecordingKind:
+                    CockpitRecordingKind.nativeScreen,
+              ),
+              snapshot: CockpitSnapshot(routeName: route),
+            ).toJson(),
+          ),
+        );
+        await request.response.close();
+      }
+
+      appHandleServer.listen(
+        (request) => respond(
+          request,
+          'query-explicit-app-json-demo',
+          '/handle',
+        ),
+      );
+      baseUrlServer.listen(
+        (request) => respond(
+          request,
+          'query-explicit-base-url-ignored-demo',
+          '/base-url',
+        ),
+      );
+
+      final sessionFile = File(p.join(tempDir.path, 'explicit_app.json'));
+      await sessionFile.writeAsString(
+        jsonEncode(<String, Object?>{
+          'appId': 'dev.cockpit.cockpitDemo',
+          'mode': 'automation',
+          'platform': 'ios',
+          'deviceId': 'simulator',
+          'projectDir': '/workspace/examples/cockpit_demo',
+          'target': 'lib/main.dart',
+          'baseUrl': 'http://127.0.0.1:${appHandleServer.port}',
+          'launchedAt': '2026-03-21T00:00:00.000Z',
+        }),
+      );
+
+      final outputFile = File(p.join(tempDir.path, 'session_status.json'));
+      final exitCode = await CockpitCommandRunner().run(<String>[
+        'read-app',
+        '--app-json',
+        sessionFile.path,
+        '--base-url',
+        'http://127.0.0.1:${baseUrlServer.port}',
+        '--output-json',
+        outputFile.path,
+      ]);
+
+      expect(exitCode, 0);
+      final decoded = jsonDecode(await outputFile.readAsString());
+      expect(decoded['sessionId'], 'query-explicit-app-json-demo');
+      expect(decoded['currentRouteName'], '/handle');
+    },
+  );
 }
 
 final class _FakeAndroidPortForwarder extends CockpitAndroidPortForwarder {

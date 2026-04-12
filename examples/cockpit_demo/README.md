@@ -62,6 +62,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 ```
 
 When `--app-json` is omitted, `launch-app` writes the reusable handle to `.dart_tool/flutter_cockpit/latest_app.json` in the current working directory. The next `read-app`, `inspect-ui`, `run-command`, `hot-reload`, and `stop-app` calls can reuse it without extra flags.
+If a command also accepts `--base-url`, precedence is explicit `--app-json`, then explicit `--base-url`, then the implicit latest-app handle in the working directory.
 
 ## Full Verifier
 
@@ -115,6 +116,7 @@ When driving the demo through `read-app` or `read-target`:
 - use `selectedPlane` to understand the primary interaction plane
 - use `capabilities.capabilityProfile` as the canonical source of platform-specific powers
 - use `recordingCapabilities.recordingLimitations` to detect host prerequisites or capture scope constraints before starting a recording
+- when the next few actions are already known and the flow will cross routes such as `/inbox -> /editor -> /inbox`, prefer one `run-batch` instead of multiple `run-command` calls; this is both lower-token and more stable for short editor or settings loops
 
 ## CI
 

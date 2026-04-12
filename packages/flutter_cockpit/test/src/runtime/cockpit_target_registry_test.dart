@@ -123,6 +123,40 @@ void main() {
     },
   );
 
+  test('caps raw ambiguous candidate ids while preserving the total count', () {
+    final registry = CockpitTargetRegistry(routeName: '/checkout');
+
+    for (var index = 0; index < 16; index += 1) {
+      registry.register(
+        CockpitTarget(
+          registrationId: 'candidate-$index',
+          text: 'Continue',
+          routeName: '/checkout',
+          supportedCommands: const {CockpitCommandType.tap},
+        ),
+      );
+    }
+
+    final resolution = registry.resolve(
+      const CockpitLocator(
+        text: 'Continue',
+      ),
+    );
+
+    expect(resolution.isSuccess, isFalse);
+    expect(resolution.error?.code, CockpitCommandError.ambiguousTargetCode);
+    expect(resolution.error?.details['candidateCount'], 16);
+    final candidates =
+        (resolution.error?.details['candidates'] as List<Object?>?)
+                ?.cast<String>() ??
+            const <String>[];
+    expect(
+      candidates.length,
+      CockpitTargetRegistry.candidateDetailLimit,
+    );
+    expect(candidates, isNot(contains('candidate-9')));
+  });
+
   test('resolves targets by native widget key', () {
     final registry = CockpitTargetRegistry(routeName: '/inbox');
 

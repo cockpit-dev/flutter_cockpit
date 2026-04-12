@@ -89,10 +89,12 @@ Recommended code-side loop:
 
 CLI JSON output uses lower camel case keys.
 If `launch-app` omits `--app-json`, it persists the current app handle at `.dart_tool/flutter_cockpit/latest_app.json` in the working directory and later app commands reuse it automatically.
+When a command accepts both `--app-json` and `--base-url`, precedence is: explicit `--app-json`, then explicit `--base-url`, then the implicit `.dart_tool/flutter_cockpit/latest_app.json` handle in the current working directory.
 `launch-app` auto-detects `cockpit/main.dart` first, then `lib/main.dart`.
 `run-script` exits non-zero when the written bundle status is `failed`.
 Workspace commands default `--workspace-root` or `--parent-directory` to the current directory.
 Serialize mutation, then observation. Do not run a mutating `run-command` in parallel with the `read-app`, `inspect-ui`, or `read-network` call that depends on its result.
+When the next few steps are already known and the flow will cross a route boundary such as `/inbox -> /editor -> /inbox`, prefer one ordered `run-batch` over separate `run-command` round-trips. It cuts token cost and avoids route-transition gaps between commands.
 
 Minimal verified `run-command` shape:
 
