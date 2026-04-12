@@ -16,6 +16,12 @@ typedef CockpitRemoteSnapshotDetailedReader
   Uri baseUri,
   CockpitSnapshotOptions options,
 );
+typedef CockpitRemoteSnapshotUiIdleWaiter = Future<bool> Function(
+  Uri baseUri, {
+  required Duration quietWindow,
+  required Duration timeout,
+  required bool includeNetworkIdle,
+});
 
 final class CockpitReadRemoteSnapshotRequest {
   const CockpitReadRemoteSnapshotRequest({
@@ -152,6 +158,7 @@ Future<CockpitRemoteSnapshotResponse> cockpitReadRemoteSnapshotConsistently({
   required Uri baseUri,
   required CockpitSnapshotOptions options,
   required CockpitRemoteSnapshotDetailedReader readSnapshot,
+  CockpitRemoteSnapshotUiIdleWaiter? waitForUiIdle,
 }) async {
   var response = await readSnapshot(baseUri, options);
   if (!_isLikelyTransitionEmptySnapshot(response.snapshot)) {
@@ -166,6 +173,16 @@ Future<CockpitRemoteSnapshotResponse> cockpitReadRemoteSnapshotConsistently({
     }
   }
 
+  if (_isLikelyTransitionEmptySnapshot(response.snapshot)) {
+    await (waitForUiIdle ?? _defaultWaitForRemoteUiIdle)(
+      baseUri,
+      quietWindow: _transitionSnapshotIdleQuietWindow,
+      timeout: _transitionSnapshotIdleTimeout,
+      includeNetworkIdle: true,
+    );
+    response = await readSnapshot(baseUri, options);
+  }
+
   return response;
 }
 
@@ -173,6 +190,34 @@ const List<Duration> _transitionSnapshotRetryDelays = <Duration>[
   Duration(milliseconds: 120),
   Duration(milliseconds: 240),
 ];
+const Duration _transitionSnapshotIdleQuietWindow = Duration(milliseconds: 96);
+const Duration _transitionSnapshotIdleTimeout = Duration(milliseconds: 1600);
+
+Future<bool> _defaultWaitForRemoteUiIdle(
+  Uri baseUri, {
+  required Duration quietWindow,
+  required Duration timeout,
+  required bool includeNetworkIdle,
+}) async {
+  final client = CockpitRemoteSessionClient(baseUri: baseUri);
+  final initial = await client.waitForUiIdle(
+    quietWindow: quietWindow,
+    timeout: timeout,
+    includeNetworkIdle: includeNetworkIdle,
+  );
+  if (initial) {
+    return true;
+  }
+  await Future<void>.delayed(const Duration(milliseconds: 120));
+  final retryTimeout = timeout < const Duration(milliseconds: 400)
+      ? timeout
+      : const Duration(milliseconds: 400);
+  return client.waitForUiIdle(
+    quietWindow: quietWindow,
+    timeout: retryTimeout,
+    includeNetworkIdle: includeNetworkIdle,
+  );
+}
 
 bool _isLikelyTransitionEmptySnapshot(CockpitSnapshot snapshot) {
   final routeName = snapshot.routeName;

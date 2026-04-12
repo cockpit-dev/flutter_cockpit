@@ -415,11 +415,18 @@ final class CockpitRemoteSessionEndpointHandler {
           relativePath:
               'diagnostics/remote_snapshot_${DateTime.now().toUtc().microsecondsSinceEpoch}.json',
         );
-    _downloadableArtifacts[artifactRef.relativePath] =
-        await _persistArtifactBytes(
-      cockpitSanitizeRemoteArtifactBasename(artifactRef.relativePath),
-      snapshotBytes,
-    );
+    try {
+      _downloadableArtifacts[artifactRef.relativePath] =
+          await _persistArtifactBytes(
+        cockpitSanitizeRemoteArtifactBasename(artifactRef.relativePath),
+        snapshotBytes,
+      );
+    } on Object {
+      // Browsers and other constrained runtimes may not support temp-file
+      // persistence for large diagnostics snapshots. Keep the session usable by
+      // returning the full snapshot inline instead of failing the request.
+      return CockpitRemoteSnapshotResponse(snapshot: snapshot);
+    }
 
     return CockpitRemoteSnapshotResponse(
       snapshot: _summarizedSnapshot(

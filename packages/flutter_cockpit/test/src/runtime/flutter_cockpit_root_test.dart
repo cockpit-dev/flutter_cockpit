@@ -46,6 +46,97 @@ void main() {
   );
 
   testWidgets(
+    'FlutterCockpitRoot re-exposes previous route targets after a pushed route pops',
+    (tester) async {
+      FlutterCockpit.initialize(
+        const FlutterCockpitConfiguration(initialRouteName: '/'),
+      );
+
+      final rootKey = GlobalKey<FlutterCockpitRootState>();
+
+      await tester.pumpWidget(
+        FlutterCockpitRoot(
+          key: rootKey,
+          child: MaterialApp(
+            navigatorObservers: [FlutterCockpit.navigatorObserver],
+            routes: <String, WidgetBuilder>{
+              '/': (context) => Scaffold(
+                    body: Column(
+                      children: <Widget>[
+                        ElevatedButton(
+                          key: const ValueKey<String>('home-compose-button'),
+                          onPressed: () {},
+                          child: const Text('Compose'),
+                        ),
+                        ElevatedButton(
+                          onPressed: () =>
+                              Navigator.of(context).pushNamed('/details'),
+                          child: const Text('Open details'),
+                        ),
+                      ],
+                    ),
+                  ),
+              '/details': (context) => Scaffold(
+                    body: Center(
+                      child: ElevatedButton(
+                        key: const ValueKey<String>('details-save-button'),
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: const Text('Save'),
+                      ),
+                    ),
+                  ),
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        rootKey.currentState!.snapshot().visibleTargets.any(
+              (target) => target.keyValue == 'home-compose-button',
+            ),
+        isTrue,
+      );
+
+      await tester.tap(find.text('Open details'));
+      await tester.pumpAndSettle();
+
+      final detailsSnapshot = rootKey.currentState!.snapshot();
+      expect(detailsSnapshot.routeName, '/details');
+      expect(
+        detailsSnapshot.visibleTargets.any(
+          (target) => target.keyValue == 'details-save-button',
+        ),
+        isTrue,
+      );
+      expect(
+        detailsSnapshot.visibleTargets.any(
+          (target) => target.keyValue == 'home-compose-button',
+        ),
+        isFalse,
+      );
+
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      final homeSnapshot = rootKey.currentState!.snapshot();
+      expect(homeSnapshot.routeName, '/');
+      expect(
+        homeSnapshot.visibleTargets.any(
+          (target) => target.keyValue == 'home-compose-button',
+        ),
+        isTrue,
+      );
+      expect(
+        homeSnapshot.visibleTargets.any(
+          (target) => target.keyValue == 'details-save-button',
+        ),
+        isFalse,
+      );
+    },
+  );
+
+  testWidgets(
     'FlutterCockpitRoot captures a full-app Flutter screenshot without per-page CockpitSurface',
     (tester) async {
       FlutterCockpit.initialize(
