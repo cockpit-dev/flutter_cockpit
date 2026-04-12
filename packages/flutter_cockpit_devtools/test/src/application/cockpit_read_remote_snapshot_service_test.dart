@@ -130,6 +130,117 @@ void main() {
       expect(result.snapshot?.visibleTargets, isNotEmpty);
     });
 
+    test('waits for remote ui idle before one final snapshot retry', () async {
+      var readCount = 0;
+      Uri? waitedBaseUri;
+      Duration? waitedQuietWindow;
+      Duration? waitedTimeout;
+      bool? waitedIncludeNetworkIdle;
+
+      final response = await cockpitReadRemoteSnapshotConsistently(
+        baseUri: _sessionHandle().baseUri,
+        options: const CockpitSnapshotOptions.forensic(),
+        readSnapshot: (_, __) async {
+          readCount += 1;
+          return CockpitRemoteSnapshotResponse(
+            snapshot: readCount < 4
+                ? _emptySnapshot('/editor')
+                : CockpitSnapshot(
+                    routeName: '/editor',
+                    diagnosticLevel: CockpitSnapshotProfile.forensic,
+                    visibleTargets: <CockpitSnapshotTarget>[
+                      CockpitSnapshotTarget(
+                        registrationId: 'editor-save',
+                        routeName: '/editor',
+                        text: 'Save task',
+                      ),
+                    ],
+                    summary: const CockpitSnapshotSummary(
+                      visibleTargetCount: 1,
+                      targetsWithCockpitIdCount: 0,
+                      targetsWithTextCount: 1,
+                      styleDetailsIncluded: true,
+                      diagnosticPropertiesIncluded: true,
+                      ancestorSummariesIncluded: true,
+                      rebuildSummaryIncluded: true,
+                      accessibilitySummaryIncluded: true,
+                    ),
+                  ),
+          );
+        },
+        waitForUiIdle: (
+          baseUri, {
+          required quietWindow,
+          required timeout,
+          required includeNetworkIdle,
+        }) async {
+          waitedBaseUri = baseUri;
+          waitedQuietWindow = quietWindow;
+          waitedTimeout = timeout;
+          waitedIncludeNetworkIdle = includeNetworkIdle;
+          return true;
+        },
+      );
+
+      expect(readCount, 4);
+      expect(waitedBaseUri, _sessionHandle().baseUri);
+      expect(waitedQuietWindow, const Duration(milliseconds: 96));
+      expect(waitedTimeout, const Duration(milliseconds: 1600));
+      expect(waitedIncludeNetworkIdle, isTrue);
+      expect(response.snapshot.visibleTargets, isNotEmpty);
+    });
+
+    test(
+      'still performs one final snapshot read after an idle wait attempt returns false',
+      () async {
+        var readCount = 0;
+
+        final response = await cockpitReadRemoteSnapshotConsistently(
+          baseUri: _sessionHandle().baseUri,
+          options: const CockpitSnapshotOptions.forensic(),
+          readSnapshot: (_, __) async {
+            readCount += 1;
+            return CockpitRemoteSnapshotResponse(
+              snapshot: readCount < 4
+                  ? _emptySnapshot('/editor')
+                  : CockpitSnapshot(
+                      routeName: '/editor',
+                      diagnosticLevel: CockpitSnapshotProfile.forensic,
+                      visibleTargets: <CockpitSnapshotTarget>[
+                        CockpitSnapshotTarget(
+                          registrationId: 'editor-title',
+                          routeName: '/editor',
+                          text: 'Task title',
+                        ),
+                      ],
+                      summary: const CockpitSnapshotSummary(
+                        visibleTargetCount: 1,
+                        targetsWithCockpitIdCount: 0,
+                        targetsWithTextCount: 1,
+                        styleDetailsIncluded: true,
+                        diagnosticPropertiesIncluded: true,
+                        ancestorSummariesIncluded: true,
+                        rebuildSummaryIncluded: true,
+                        accessibilitySummaryIncluded: true,
+                      ),
+                    ),
+            );
+          },
+          waitForUiIdle: (
+            baseUri, {
+            required quietWindow,
+            required timeout,
+            required includeNetworkIdle,
+          }) async {
+            return false;
+          },
+        );
+
+        expect(readCount, 4);
+        expect(response.snapshot.visibleTargets, isNotEmpty);
+      },
+    );
+
     test('filters failures-only diagnostics for inspect reads', () async {
       final service = CockpitReadRemoteSnapshotService(
         readSnapshot: (_, __) async => CockpitRemoteSnapshotResponse(
@@ -264,6 +375,23 @@ void main() {
       expect(result.delta?.addedTextPreviews, contains('After'));
     });
   });
+}
+
+CockpitSnapshot _emptySnapshot(String routeName) {
+  return CockpitSnapshot(
+    routeName: routeName,
+    diagnosticLevel: CockpitSnapshotProfile.forensic,
+    summary: const CockpitSnapshotSummary(
+      visibleTargetCount: 0,
+      targetsWithCockpitIdCount: 0,
+      targetsWithTextCount: 0,
+      styleDetailsIncluded: true,
+      diagnosticPropertiesIncluded: true,
+      ancestorSummariesIncluded: true,
+      rebuildSummaryIncluded: true,
+      accessibilitySummaryIncluded: true,
+    ),
+  );
 }
 
 CockpitRemoteSessionHandle _sessionHandle() {

@@ -10,12 +10,14 @@ import '../capture/cockpit_capture_result.dart';
 import '../control/cockpit_screenshot_request.dart';
 import '../executor/in_app_cockpit_command_executor.dart';
 import '../gesture/cockpit_gesture_action.dart';
+import '../model/cockpit_environment.dart';
 import '../remote/cockpit_remote_bridge_protocol.dart';
 import '../remote/cockpit_remote_session_server.dart';
 import '../remote/cockpit_remote_session_status.dart';
 import '../remote/cockpit_remote_session_bridge_client.dart';
 import '../remote/cockpit_remote_session_endpoint_handler.dart';
 import '../recording/cockpit_recording_capabilities.dart';
+import '../recording/cockpit_recording_kind.dart';
 import '../recording/cockpit_recording_request.dart';
 import '../recording/cockpit_recording_result.dart';
 import '../recording/cockpit_recording_session.dart';
@@ -453,6 +455,7 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
       isWeb: kIsWeb,
       targetPlatform: defaultTargetPlatform,
     );
+    final currentRouteName = FlutterCockpit.binding.currentRouteName.value;
     final executor = InAppCockpitCommandExecutor(
       registry: FlutterCockpit.binding.registry,
       captureHandler: captureScreenshot,
@@ -527,7 +530,7 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
           'cockpit-$remoteSessionPlatform-${remoteSessionBaseUri?.port ?? 0}',
       platform: remoteSessionPlatform,
       transportType: 'remoteHttp',
-      currentRouteName: FlutterCockpit.binding.currentRouteName.value,
+      currentRouteName: currentRouteName,
       capabilities: CockpitCapabilities(
         platform: baseCapabilities.platform,
         transportType: baseCapabilities.transportType,
@@ -538,19 +541,52 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
         supportedCommands: baseCapabilities.supportedCommands,
         supportedLocatorStrategies: baseCapabilities.supportedLocatorStrategies,
       ),
-      recordingCapabilities: await queryRecordingCapabilities(),
-      snapshot: snapshot(
+      recordingCapabilities:
+          await _recordingCapabilitiesForRemoteSessionHealth(),
+      snapshot: _snapshotForRemoteSessionHealth(currentRouteName),
+      environment: _runtimeEnvironmentForRemoteSessionHealth(),
+      activeRecording: FlutterCockpit.binding.activeRecordingSession,
+    );
+  }
+
+  Future<CockpitRecordingCapabilities>
+      _recordingCapabilitiesForRemoteSessionHealth() async {
+    try {
+      return await queryRecordingCapabilities();
+    } on Object catch (error) {
+      return CockpitRecordingCapabilities(
+        supportsNativeRecording: false,
+        preferredAcceptanceRecordingKind: CockpitRecordingKind.nativeScreen,
+        recordingLimitations: <String>[error.toString()],
+      );
+    }
+  }
+
+  CockpitSnapshot _snapshotForRemoteSessionHealth(String currentRouteName) {
+    try {
+      return snapshot(
         options: const CockpitSnapshotOptions(
           profile: CockpitSnapshotProfile.live,
           includeRuntimeActivity: true,
           maxRuntimeEntries: 4,
           runtimeQuery: CockpitRuntimeQuery(onlyErrors: true),
         ),
-      ),
-      environment: FlutterCockpit.binding.resolveRuntimeEnvironment(
+      );
+    } on Object {
+      return CockpitSnapshot(
+        routeName: currentRouteName,
+        diagnosticLevel: CockpitSnapshotProfile.live,
+      );
+    }
+  }
+
+  CockpitEnvironment? _runtimeEnvironmentForRemoteSessionHealth() {
+    try {
+      return FlutterCockpit.binding.resolveRuntimeEnvironment(
         platform: defaultTargetPlatform.name,
-      ),
-      activeRecording: FlutterCockpit.binding.activeRecordingSession,
-    );
+      );
+    } on Object {
+      return null;
+    }
   }
 }

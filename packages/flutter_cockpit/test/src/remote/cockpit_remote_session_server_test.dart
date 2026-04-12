@@ -709,6 +709,99 @@ void main() {
     },
   );
 
+  test(
+    'remote session snapshot falls back to inline payloads when large-artifact persistence is unavailable',
+    () async {
+      final server = CockpitRemoteSessionServer(
+        configuration: const CockpitRemoteSessionConfiguration(
+          enabled: true,
+          autoStart: false,
+          port: 0,
+        ),
+        statusProvider: () async => CockpitRemoteSessionStatus(
+          sessionId: 'remote-inline-fallback-session',
+          platform: 'web',
+          transportType: 'remoteHttp',
+          currentRouteName: '/debug',
+          capabilities: CockpitCapabilities(
+            platform: 'web',
+            transportType: 'remoteHttp',
+            supportsInAppControl: true,
+            supportsFlutterViewCapture: true,
+            supportsNativeScreenCapture: false,
+            supportsHostAutomation: false,
+            supportedCommands: const <CockpitCommandType>[
+              CockpitCommandType.collectSnapshot,
+            ],
+            supportedLocatorStrategies: CockpitLocatorKind.values,
+          ),
+          recordingCapabilities: CockpitRecordingCapabilities(
+            supportsNativeRecording: false,
+            preferredAcceptanceRecordingKind: CockpitRecordingKind.nativeScreen,
+          ),
+          snapshot: CockpitSnapshot(routeName: '/debug'),
+        ),
+        snapshotProvider: ({required options}) async => CockpitSnapshot(
+          routeName: '/debug',
+          diagnosticLevel: options.profile,
+          visibleTargets: <CockpitSnapshotTarget>[
+            CockpitSnapshotTarget(
+              registrationId: 'debug.sync-check',
+              keyValue: 'settings-sync-check-button',
+              text: 'Run check',
+              typeName: 'FilledButton',
+              routeName: '/debug',
+              supportedCommands: const <CockpitCommandType>[
+                CockpitCommandType.tap,
+              ],
+              diagnosticProperties: <CockpitDiagnosticProperty>[
+                CockpitDiagnosticProperty(
+                  name: 'payload',
+                  value: 'x' * 24000,
+                  category: CockpitDiagnosticCategory.other,
+                ),
+              ],
+            ),
+          ],
+        ),
+        commandExecutor: (_) async => CockpitCommandExecution(
+          result: CockpitCommandResult(
+            success: true,
+            commandId: 'noop',
+            commandType: CockpitCommandType.collectSnapshot,
+            durationMs: 0,
+          ),
+        ),
+        startRecording: (request) async => CockpitRecordingSession(
+          request: request,
+          state: CockpitRecordingState.recording,
+        ),
+        stopRecording: () async =>
+            CockpitRecordingResult(state: CockpitRecordingState.failed),
+        artifactTempFileFactory: (_) async {
+          throw UnsupportedError('Unsupported operation: _Namespace');
+        },
+      );
+      await server.start();
+
+      final responseJson = await _readJson(
+        server.baseUri!.resolve(
+          '/snapshot?profile=forensic&includeDiagnosticProperties=true&emitArtifactWhenLarge=true',
+        ),
+      );
+
+      expect(responseJson.containsKey('artifactDownloads'), isFalse);
+      final snapshot = CockpitSnapshot.fromJson(responseJson);
+      expect(snapshot.diagnosticsArtifactRef, isNull);
+      expect(
+        snapshot.visibleTargets.single.diagnosticProperties.single.value.length,
+        greaterThan(20000),
+      );
+
+      await server.close();
+    },
+  );
+
   testWidgets(
     'remote session health reports native capture support when the plugin is available',
     (tester) async {
@@ -776,6 +869,79 @@ void main() {
       final status = CockpitRemoteSessionStatus.fromJson(responseJson!);
 
       expect(status.capabilities.supportsNativeScreenCapture, isTrue);
+    },
+  );
+
+  testWidgets(
+    'remote session health degrades unsupported platform capability probes instead of failing',
+    (tester) async {
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      const captureChannel = MethodChannel(
+        'dev.cockpit.flutter_cockpit/capture',
+      );
+      messenger.setMockMethodCallHandler(captureChannel, (call) async {
+        if (call.method == 'queryNativeCaptureAvailability') {
+          throw UnsupportedError('Unsupported operation: _Namespace');
+        }
+        return null;
+      });
+      addTearDown(
+        () => messenger.setMockMethodCallHandler(captureChannel, null),
+      );
+
+      final controller = CockpitSessionController(
+        sessionId: 'remote-capability-fallback-session',
+        taskId: 'remote-capability-fallback-task',
+        platform: 'web',
+      );
+      final registry = CockpitTargetRegistry(routeName: '/home');
+
+      await tester.pumpWidget(
+        _RemoteTestApp(
+          controller: controller,
+          registry: registry,
+          configuration: FlutterCockpitConfiguration(
+            initialRouteName: '/home',
+            remoteSession: const CockpitRemoteSessionConfiguration(
+              enabled: true,
+              autoStart: false,
+              port: 0,
+            ),
+            nativeCapture: const CockpitNativeCapture(channel: captureChannel),
+            nativeRecording: _ThrowingCockpitNativeRecording(),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      final rootState = tester.state<FlutterCockpitRootState>(
+        find.byType(FlutterCockpitRoot),
+      );
+      final baseUri = await tester.runAsync(() async {
+        return rootState.waitForRemoteSession().timeout(
+          const Duration(seconds: 5),
+          onTimeout: () {
+            throw TimeoutException('waitForRemoteSession');
+          },
+        );
+      });
+
+      final response = (await tester.runAsync(() async {
+        return _readBinaryResponse(baseUri!.resolve('/health'));
+      }))!;
+
+      expect(response.statusCode, HttpStatus.ok);
+      final status = CockpitRemoteSessionStatus.fromJson(
+        jsonDecode(utf8.decode(response.bytes)) as Map<String, Object?>,
+      );
+      expect(status.capabilities.supportsNativeScreenCapture, isFalse);
+      expect(status.recordingCapabilities.supportsNativeRecording, isFalse);
+      expect(
+        status.recordingCapabilities.recordingLimitations.single,
+        contains('Unsupported operation: _Namespace'),
+      );
     },
   );
 
@@ -1201,6 +1367,13 @@ final class _FakeCockpitNativeRecording extends CockpitNativeRecording {
     file.parent.createSync(recursive: true);
     file.writeAsBytesSync(_recordingBytes);
     return file.path;
+  }
+}
+
+final class _ThrowingCockpitNativeRecording extends CockpitNativeRecording {
+  @override
+  Future<CockpitRecordingCapabilities> queryCapabilities() {
+    throw UnsupportedError('Unsupported operation: _Namespace');
   }
 }
 

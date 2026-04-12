@@ -92,9 +92,7 @@ final class FlutterCockpitBinding {
   Future<bool> queryNativeCaptureAvailability() async {
     try {
       return await nativeCapture.queryAvailability();
-    } on MissingPluginException {
-      return false;
-    } on PlatformException {
+    } on Object {
       return false;
     }
   }
@@ -102,19 +100,11 @@ final class FlutterCockpitBinding {
   Future<CockpitRecordingCapabilities> queryRecordingCapabilities() async {
     try {
       return await nativeRecording.queryCapabilities();
-    } on MissingPluginException catch (error) {
+    } on Object catch (error) {
       return CockpitRecordingCapabilities(
         supportsNativeRecording: false,
         preferredAcceptanceRecordingKind: CockpitRecordingKind.nativeScreen,
-        recordingLimitations: <String>[
-          error.message ?? 'Native recording plugin is unavailable.',
-        ],
-      );
-    } on PlatformException catch (error) {
-      return CockpitRecordingCapabilities(
-        supportsNativeRecording: false,
-        preferredAcceptanceRecordingKind: CockpitRecordingKind.nativeScreen,
-        recordingLimitations: <String>[error.message ?? error.code],
+        recordingLimitations: <String>[_recordingProbeFailureMessage(error)],
       );
     }
   }
@@ -379,6 +369,18 @@ final class FlutterCockpitBinding {
       // Runtime observation must never crash the app after a session has closed.
     }
   }
+}
+
+String _recordingProbeFailureMessage(Object error) {
+  return switch (error) {
+    MissingPluginException(:final message?) =>
+      message.isEmpty ? 'Native recording plugin is unavailable.' : message,
+    MissingPluginException() => 'Native recording plugin is unavailable.',
+    PlatformException(:final message?, :final code) =>
+      message.isNotEmpty ? message : code,
+    StateError(:final message) => message,
+    _ => '$error',
+  };
 }
 
 final class _FlutterCockpitNavigatorObserver extends NavigatorObserver {
