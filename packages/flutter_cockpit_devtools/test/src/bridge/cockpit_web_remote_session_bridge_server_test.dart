@@ -11,6 +11,17 @@ void main() {
   test(
     'web bridge proxies browser endpoints and serves host recording artifacts',
     () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_web_remote_session_bridge_artifacts',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+      final sourceFile = File(
+        '${tempDir.path}/recordings/web-acceptance.mp4',
+      )..parent.createSync(recursive: true);
       final startedRecordings = <CockpitRecordingRequest>[];
       var stopRecordingCount = 0;
       final server = CockpitWebRemoteSessionBridgeServer(
@@ -26,6 +37,7 @@ void main() {
           },
           onStop: () async {
             stopRecordingCount += 1;
+            sourceFile.writeAsStringSync('host-recording');
             return CockpitRecordingResult(
               state: CockpitRecordingState.completed,
               purpose: CockpitRecordingPurpose.acceptance,
@@ -34,7 +46,7 @@ void main() {
                 role: 'recording',
                 relativePath: 'recordings/web-acceptance.mp4',
               ),
-              bytes: utf8.encode('host-recording'),
+              sourceFilePath: sourceFile.path,
               durationMs: 1800,
             );
           },
@@ -170,6 +182,11 @@ void main() {
         server.baseUri.resolve(downloadPath),
       );
       expect(utf8.decode(hostRecordingBytes), 'host-recording');
+      sourceFile.deleteSync();
+      final deletedResponse = await _readBytesResponse(
+        server.baseUri.resolve(downloadPath),
+      );
+      expect(deletedResponse.statusCode, HttpStatus.notFound);
 
       final browserArtifactBytes = await _readBytes(
         server.baseUri
@@ -211,6 +228,42 @@ void main() {
       );
     },
   );
+
+  test('web bridge stops an active host recording when the server closes',
+      () async {
+    var stopRecordingCount = 0;
+    final server = CockpitWebRemoteSessionBridgeServer(
+      bindHost: '127.0.0.1',
+      bindPort: 0,
+      recordingAdapter: _FakeHostRecordingAdapter(
+        onStart: (request) async => CockpitRecordingSession(
+          request: request,
+          state: CockpitRecordingState.recording,
+        ),
+        onStop: () async {
+          stopRecordingCount += 1;
+          return CockpitRecordingResult(
+            state: CockpitRecordingState.completed,
+            purpose: CockpitRecordingPurpose.acceptance,
+            recordingKind: CockpitRecordingKind.nativeScreen,
+          );
+        },
+      ),
+    );
+    await server.start();
+
+    await _postJson(
+      server.baseUri.resolve('/recording/start'),
+      const CockpitRecordingRequest(
+        purpose: CockpitRecordingPurpose.acceptance,
+        name: 'web_acceptance',
+      ).toJson(),
+    );
+
+    await server.close();
+
+    expect(stopRecordingCount, 1);
+  });
 }
 
 final class _FakeHostRecordingAdapter implements CockpitHostRecordingAdapter {
@@ -282,15 +335,21 @@ Future<_HttpJsonResponse> _postJsonResponse(
 }
 
 Future<List<int>> _readBytes(Uri uri) async {
+  final response = await _readBytesResponse(uri);
+  return response.bytes;
+}
+
+Future<_HttpBytesResponse> _readBytesResponse(Uri uri) async {
   final client = HttpClient();
   try {
     final request = await client.getUrl(uri);
     final response = await request.close();
-    return response.fold<List<int>>(<int>[], (bytes, chunk) {
+    final bytes = await response.fold<List<int>>(<int>[], (bytes, chunk) {
       final next = List<int>.of(bytes);
       next.addAll(chunk);
       return next;
     });
+    return _HttpBytesResponse(statusCode: response.statusCode, bytes: bytes);
   } finally {
     client.close(force: true);
   }
@@ -304,4 +363,14 @@ final class _HttpJsonResponse {
 
   final int statusCode;
   final Map<String, Object?> body;
+}
+
+final class _HttpBytesResponse {
+  const _HttpBytesResponse({
+    required this.statusCode,
+    required this.bytes,
+  });
+
+  final int statusCode;
+  final List<int> bytes;
 }

@@ -32,6 +32,7 @@ final class CockpitLinuxRecordingAdapter
         cockpitCreateRecordingTempFile,
     CockpitLinuxDisplayConfigResolver? displayConfigResolver,
     Duration startupTimeout = const Duration(seconds: 12),
+    Duration startupEvidenceTimeout = const Duration(seconds: 2),
     Duration stopTimeout = const Duration(seconds: 10),
     Duration finalizationPollInterval = const Duration(milliseconds: 100),
     Duration activationSettleDelay = const Duration(milliseconds: 250),
@@ -45,6 +46,7 @@ final class CockpitLinuxRecordingAdapter
         _displayConfigResolver = displayConfigResolver ??
             (() => _resolveDisplayConfig(processRunner)),
         _startupTimeout = startupTimeout,
+        _startupEvidenceTimeout = startupEvidenceTimeout,
         _stopTimeout = stopTimeout,
         _finalizationPollInterval = finalizationPollInterval,
         _activationSettleDelay = activationSettleDelay;
@@ -58,6 +60,7 @@ final class CockpitLinuxRecordingAdapter
   final CockpitRecordingTempFileFactory _tempFileFactory;
   final CockpitLinuxDisplayConfigResolver _displayConfigResolver;
   final Duration _startupTimeout;
+  final Duration _startupEvidenceTimeout;
   final Duration _stopTimeout;
   final Duration _finalizationPollInterval;
   final Duration _activationSettleDelay;
@@ -114,6 +117,7 @@ final class CockpitLinuxRecordingAdapter
     unawaited(process.stdout.drain<void>());
 
     final startupCompleter = Completer<void>();
+    final recentStderrLines = <String>[];
     var processExited = false;
     unawaited(
       process.exitCode.then((_) {
@@ -124,6 +128,7 @@ final class CockpitLinuxRecordingAdapter
         .transform(utf8.decoder)
         .transform(const LineSplitter())
         .listen((line) {
+      _appendRecentStderrLine(recentStderrLines, line);
       if (!startupCompleter.isCompleted &&
           (line.contains('Press [q] to stop') || line.contains('Output #0'))) {
         startupCompleter.complete();
@@ -144,6 +149,16 @@ final class CockpitLinuxRecordingAdapter
         await stderrSubscription.cancel();
         process.kill(ProcessSignal.sigkill);
         rethrow;
+      }
+      final hasOutputEvidence = await cockpitWaitForNonEmptyFile(
+        outputFile,
+        timeout: _startupEvidenceTimeout,
+        pollInterval: _finalizationPollInterval,
+      );
+      if (!hasOutputEvidence) {
+        await stderrSubscription.cancel();
+        process.kill(ProcessSignal.sigkill);
+        throw StateError(_buildStartupFailureMessage(recentStderrLines));
       }
     } on Object {
       await stderrSubscription.cancel();
@@ -389,6 +404,26 @@ final class CockpitLinuxRecordingAdapter
 
     throw StateError(
         'Unable to resolve Linux display dimensions for $display.');
+  }
+
+  void _appendRecentStderrLine(List<String> buffer, String line) {
+    final trimmed = line.trim();
+    if (trimmed.isEmpty) {
+      return;
+    }
+    buffer.add(trimmed);
+    if (buffer.length > 8) {
+      buffer.removeAt(0);
+    }
+  }
+
+  String _buildStartupFailureMessage(List<String> recentStderrLines) {
+    const prefix = 'Linux recording did not confirm startup or produce output. '
+        'Ensure DISPLAY points at a live X11 desktop and ffmpeg can capture the screen on this host.';
+    if (recentStderrLines.isEmpty) {
+      return prefix;
+    }
+    return '$prefix Recent ffmpeg output: ${recentStderrLines.join(' | ')}';
   }
 }
 
