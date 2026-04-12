@@ -121,6 +121,11 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --profile minimal
 ```
 
+如果浏览器页已经给出了明确路由，但 `visibleTargetCount: 0`，先再跑一次
+`read-app --profile standard`，不要立刻把它当成应用坏掉。现在结果里会在
+页面疑似处于后台、被节流或仍在重连时返回
+`recommendedNextStep: "recoverBrowserVisibility"`。
+
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   hot-restart \

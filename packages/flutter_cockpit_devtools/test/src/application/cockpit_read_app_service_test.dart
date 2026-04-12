@@ -150,6 +150,111 @@ void main() {
   );
 
   test(
+    'read app points browser targets at visibility recovery when the route is known but no targets are visible',
+    () async {
+      final app = CockpitAppHandle(
+        appId: 'dev.cockpit.web.zero-targets',
+        mode: CockpitAppMode.development,
+        platform: 'web',
+        deviceId: 'chrome',
+        projectDir: '/workspace/examples/cockpit_demo',
+        target: 'cockpit/main.dart',
+        baseUrl: 'http://127.0.0.1:58331',
+        launchedAt: DateTime.utc(2026, 4, 12),
+      );
+      final service = CockpitReadAppService(
+        platformDriverRegistry: CockpitPlatformDriverRegistry(
+          drivers: <String, CockpitPlatformDriverFactory>{
+            'web': ({required String deviceId}) => _FakePlatformDriver(
+                  platform: 'web',
+                  capabilityProfile: CockpitCapabilityProfile(
+                    targetKind: CockpitTargetKind.browserPage,
+                    surfaceKinds: const <CockpitSurfaceKind>{
+                      CockpitSurfaceKind.browserDom,
+                    },
+                    actionCapabilities: const <CockpitActionCapability>{
+                      CockpitActionCapability.captureScreenshot,
+                    },
+                    evidenceCapabilities: const <CockpitEvidenceCapability>{
+                      CockpitEvidenceCapability.domSnapshot,
+                    },
+                    qualityFlags: const <CockpitQualityFlag>{
+                      CockpitQualityFlag.requiresBrowserDriver,
+                    },
+                  ),
+                ),
+          },
+        ),
+        remoteStatusService: CockpitReadRemoteStatusService(
+          readStatus: (_) async => CockpitRemoteSessionStatus(
+            sessionId: 'session-web-zero-targets',
+            platform: 'web',
+            transportType: 'remoteHttp',
+            currentRouteName: '/inbox',
+            capabilities: CockpitCapabilities(
+              platform: 'web',
+              transportType: 'remoteHttp',
+              supportsInAppControl: true,
+              supportsFlutterViewCapture: true,
+              supportsNativeScreenCapture: false,
+              supportsHostAutomation: false,
+              supportedCommands: const <CockpitCommandType>[
+                CockpitCommandType.tap,
+              ],
+              supportedLocatorStrategies: CockpitLocatorKind.values,
+            ),
+            recordingCapabilities: CockpitRecordingCapabilities(
+              supportsNativeRecording: false,
+              preferredAcceptanceRecordingKind:
+                  CockpitRecordingKind.nativeScreen,
+            ),
+            snapshot: CockpitSnapshot(
+              routeName: '/inbox',
+              summary: const CockpitSnapshotSummary(
+                visibleTargetCount: 0,
+                targetsWithCockpitIdCount: 0,
+                targetsWithTextCount: 0,
+                styleDetailsIncluded: false,
+                diagnosticPropertiesIncluded: false,
+                ancestorSummariesIncluded: false,
+                rebuildSummaryIncluded: false,
+                accessibilitySummaryIncluded: false,
+              ),
+            ),
+          ),
+          readSnapshot: (_, __) async => CockpitRemoteSnapshotResponse(
+            snapshot: CockpitSnapshot(
+              routeName: '/inbox',
+              summary: const CockpitSnapshotSummary(
+                visibleTargetCount: 0,
+                targetsWithCockpitIdCount: 0,
+                targetsWithTextCount: 0,
+                styleDetailsIncluded: false,
+                diagnosticPropertiesIncluded: false,
+                ancestorSummariesIncluded: false,
+                rebuildSummaryIncluded: false,
+                accessibilitySummaryIncluded: false,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final result = await service.read(
+        CockpitReadAppRequest(
+          app: app,
+          resultProfile: const CockpitInteractiveResultProfile.standard(),
+        ),
+      );
+
+      expect(result.uiSummary?.visibleTargetCount, 0);
+      expect(result.recommendedNextStep, 'recoverBrowserVisibility');
+      expect(result.whatMatters, contains('no visible targets were discovered'));
+      expect(result.whatMatters, contains('/inbox'));
+    },
+  );
+
+  test(
     'read app promotes host automation when the platform driver exposes host shell support',
     () async {
       final app = CockpitAppHandle(

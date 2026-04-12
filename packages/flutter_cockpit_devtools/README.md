@@ -123,6 +123,11 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --profile minimal
 ```
 
+If a browser-backed session reports a real route but `visibleTargetCount: 0`,
+rerun `read-app --profile standard` before assuming the app is broken. The
+result now surfaces `recommendedNextStep: "recoverBrowserVisibility"` when the
+page looks backgrounded, throttled, or still reconnecting.
+
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   hot-restart \
