@@ -76,7 +76,7 @@ Target-first loop when the agent needs direct system or non-Flutter control:
 
 1. `launch-target`
 2. `read-target --profile minimal`
-3. `inspect-surface` or `run-shell`
+3. `inspect-surface` or `run-shell` when the resolved platform truthfully exposes shell control
 4. `read_task_bundle_summary` or `validate-task`
 
 Recommended code-side loop:

@@ -36,7 +36,6 @@ final class CockpitRunShellTool extends CockpitMcpTool {
               'macos',
               'windows',
               'linux',
-              'web',
             ],
           },
           'command': <String, Object?>{

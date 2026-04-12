@@ -25,15 +25,25 @@ final class LaunchTargetCommand extends CockpitCliCommand {
     argParser
       ..addOption('project-dir', help: 'Project directory to launch from.')
       ..addOption('target', help: 'Optional Dart entrypoint.')
-      ..addOption('platform', help: 'Target platform.')
+      ..addOption(
+        'platform',
+        help:
+            'Target platform such as android, ios, macos, windows, linux, or web.',
+      )
       ..addOption('device-id', help: 'Device or host target identifier.')
-      ..addOption('session-port', defaultsTo: '57331')
+      ..addOption(
+        'session-port',
+        defaultsTo: '57331',
+        help:
+            'Target-side cockpit port or browser bridge port to launch against.',
+      )
       ..addOption(
         'target-kind',
         allowed: CockpitTargetKind.values
             .map((targetKind) => targetKind.name)
             .toList(growable: false),
         defaultsTo: CockpitTargetKind.flutterApp.name,
+        help: 'Normalized target kind to persist in target.json.',
       )
       ..addOption(
         'mode',
@@ -41,14 +51,25 @@ final class LaunchTargetCommand extends CockpitCliCommand {
             .map((mode) => mode.jsonValue)
             .toList(growable: false),
         defaultsTo: CockpitAppMode.development.jsonValue,
+        help:
+            'Launch mode: development keeps reload support when available; automation favors clean target sessions.',
       )
-      ..addOption('launch-timeout-seconds', defaultsTo: '120')
+      ..addOption(
+        'launch-timeout-seconds',
+        defaultsTo: '120',
+        help:
+            'Total time budget for build, launch, and ready checks on the target loop.',
+      )
       ..addOption(
         'target-json',
         help:
             'Optional path where the normalized target handle JSON is written.',
       )
-      ..addOption('output-json');
+      ..addOption(
+        'output-json',
+        help:
+            'Optional path where the full launch result JSON should be written.',
+      );
   }
 
   final CockpitLaunchTargetCliFunction _launch;
@@ -66,6 +87,22 @@ final class LaunchTargetCommand extends CockpitCliCommand {
 
   @override
   String get category => CockpitCliCategory.coreLoop;
+
+  @override
+  String get helpWhen =>
+      'Use at the start of a target-first loop when the surface is not purely a Flutter app handle or when direct system truth matters.';
+
+  @override
+  String get helpNeeds =>
+      'project-dir, platform, and a target-capable device or host identifier. target is optional when cockpit/main.dart or lib/main.dart exists.';
+
+  @override
+  String get helpExample =>
+      'flutter_cockpit_devtools launch-target --project-dir examples/cockpit_demo --platform web --device-id chrome --target-kind browserPage --target-json /tmp/target.json';
+
+  @override
+  String get helpWrites =>
+      'The command result JSON plus an optional normalized target handle at --target-json.';
 
   @override
   Future<int> run() async {

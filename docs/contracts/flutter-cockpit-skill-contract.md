@@ -8,6 +8,7 @@ This contract defines what the repository-backed `flutter-cockpit` skill may rel
 
 The skill may depend on these implemented public workflows:
 
+- launchable Flutter target discovery through `list-targets` / `list_targets`
 - app bootstrap through `launch-app` / `launch_app`
 - target bootstrap through `launch-target` / `launch_target`
 - tracked app discovery through persisted `app.json` on CLI and `list_apps` on MCP

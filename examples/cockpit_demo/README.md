@@ -64,6 +64,43 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 When `--app-json` is omitted, `launch-app` writes the reusable handle to `.dart_tool/flutter_cockpit/latest_app.json` in the current working directory. The next `read-app`, `inspect-ui`, `run-command`, `hot-reload`, and `stop-app` calls can reuse it without extra flags.
 If a command also accepts `--base-url`, precedence is explicit `--app-json`, then explicit `--base-url`, then the implicit latest-app handle in the working directory.
 
+## Target-First Examples
+
+When the task is not purely an app-first semantic loop, drive the same demo through the target-first surface:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  launch-target \
+  --project-dir examples/cockpit_demo \
+  --platform web \
+  --device-id chrome \
+  --target-kind browserPage \
+  --target-json /tmp/cockpit_demo_target.json
+```
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  read-target \
+  --target-json /tmp/cockpit_demo_target.json \
+  --profile minimal
+```
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  inspect-surface \
+  --target-json /tmp/cockpit_demo_target.json \
+  --profile inspect
+```
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-shell \
+  --scope host \
+  --executable pwd
+```
+
+Persist `target.json` the same way you persist `app.json`: keep it around for the whole loop instead of relaunching the target on every step. Browser targets do not expose a direct device shell, so browser prerequisite checks stay on `--scope host`.
+
 ## Full Verifier
 
 Run the example-local verifier:
