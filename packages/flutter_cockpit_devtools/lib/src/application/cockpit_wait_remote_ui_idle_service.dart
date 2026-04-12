@@ -11,6 +11,7 @@ typedef CockpitRemoteUiIdleWaiter = Future<bool> Function(
   required Duration timeout,
   required bool includeNetworkIdle,
 });
+typedef CockpitUiIdleBackoffWait = Future<void> Function(Duration duration);
 
 final class CockpitWaitRemoteUiIdleRequest {
   const CockpitWaitRemoteUiIdleRequest({
@@ -64,6 +65,7 @@ final class CockpitWaitRemoteUiIdleService {
     CockpitRemoteUiIdleWaiter? waitForIdle,
     CockpitSessionReferenceResolver? sessionReferenceResolver,
     CockpitInteractiveSessionLock? sessionLock,
+    CockpitUiIdleBackoffWait? wait,
   })  : _waitForIdle = waitForIdle ??
             ((
               baseUri, {
@@ -78,11 +80,13 @@ final class CockpitWaitRemoteUiIdleService {
                 )),
         _sessionReferenceResolver =
             sessionReferenceResolver ?? CockpitSessionReferenceResolver(),
-        _sessionLock = sessionLock ?? CockpitInteractiveSessionLock();
+        _sessionLock = sessionLock ?? CockpitInteractiveSessionLock(),
+        _wait = wait ?? Future<void>.delayed;
 
   final CockpitRemoteUiIdleWaiter _waitForIdle;
   final CockpitSessionReferenceResolver _sessionReferenceResolver;
   final CockpitInteractiveSessionLock _sessionLock;
+  final CockpitUiIdleBackoffWait _wait;
 
   Future<CockpitWaitRemoteUiIdleResult> wait(
     CockpitWaitRemoteUiIdleRequest request,
@@ -96,12 +100,25 @@ final class CockpitWaitRemoteUiIdleService {
     final stopwatch = Stopwatch()..start();
     final idle = await _sessionLock.run(
       resolved.baseUri.toString(),
-      () => _waitForIdle(
-        resolved.baseUri,
-        quietWindow: request.quietWindow,
-        timeout: request.timeout,
-        includeNetworkIdle: request.includeNetworkIdle,
-      ),
+      () async {
+        final initial = await _waitForIdle(
+          resolved.baseUri,
+          quietWindow: request.quietWindow,
+          timeout: request.timeout,
+          includeNetworkIdle: request.includeNetworkIdle,
+        );
+        if (initial) {
+          return true;
+        }
+
+        await _wait(_transientRetryDelay);
+        return _waitForIdle(
+          resolved.baseUri,
+          quietWindow: request.quietWindow,
+          timeout: _retryTimeoutFor(request.timeout),
+          includeNetworkIdle: request.includeNetworkIdle,
+        );
+      },
     );
     stopwatch.stop();
 
@@ -114,4 +131,11 @@ final class CockpitWaitRemoteUiIdleService {
       sessionHandle: resolved.sessionHandle,
     );
   }
+
+  static Duration _retryTimeoutFor(Duration timeout) {
+    const retryCap = Duration(milliseconds: 400);
+    return timeout < retryCap ? timeout : retryCap;
+  }
 }
+
+const Duration _transientRetryDelay = Duration(milliseconds: 120);
