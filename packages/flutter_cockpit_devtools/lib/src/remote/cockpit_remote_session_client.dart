@@ -4,6 +4,8 @@ import 'dart:io';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
+import '../application/cockpit_application_service_exception.dart';
+
 final class CockpitRemoteSessionClient {
   CockpitRemoteSessionClient({
     required Uri baseUri,
@@ -246,6 +248,24 @@ final class CockpitRemoteSessionClient {
           );
         },
       );
+    } on SocketException catch (error) {
+      throw _remoteUnavailable(
+        method: method,
+        path: path,
+        error: error,
+      );
+    } on HttpException catch (error) {
+      throw _remoteUnavailable(
+        method: method,
+        path: path,
+        error: error,
+      );
+    } on TimeoutException catch (error) {
+      throw _remoteUnavailable(
+        method: method,
+        path: path,
+        error: error,
+      );
     } finally {
       client.close(force: true);
     }
@@ -280,9 +300,46 @@ final class CockpitRemoteSessionClient {
           );
         },
       );
+    } on SocketException catch (error) {
+      throw _remoteUnavailable(
+        method: 'GET',
+        path: relativePath,
+        error: error,
+      );
+    } on HttpException catch (error) {
+      throw _remoteUnavailable(
+        method: 'GET',
+        path: relativePath,
+        error: error,
+      );
+    } on TimeoutException catch (error) {
+      throw _remoteUnavailable(
+        method: 'GET',
+        path: relativePath,
+        error: error,
+      );
     } finally {
       client.close(force: true);
     }
+  }
+
+  CockpitApplicationServiceException _remoteUnavailable({
+    required String method,
+    required String path,
+    required Object error,
+  }) {
+    return CockpitApplicationServiceException(
+      code: 'remoteUnavailable',
+      message:
+          'Remote session is temporarily unavailable. The app may still be launching, restarting, or reconnecting; wait and retry.',
+      details: <String, Object?>{
+        'baseUrl': _baseUri.toString(),
+        'method': method,
+        'path': path,
+        'errorType': error.runtimeType.toString(),
+        'cause': error.toString(),
+      },
+    );
   }
 
   static Uri _normalizedBaseUri(Uri uri) {

@@ -677,6 +677,15 @@ void main() {
 
       expect(result.success, isFalse);
       expect(result.error?.code, CockpitCommandError.targetNotFoundCode);
+      expect(result.error?.details['visibleTargetSignals'], isNull);
+      final visibleTargetHints =
+          (result.error?.details['visibleTargetHints'] as List<Object?>?)
+                  ?.cast<Map<Object?, Object?>>()
+                  .map((entry) => Map<String, Object?>.from(entry))
+                  .toList(growable: false) ??
+              const <Map<String, Object?>>[];
+      expect(visibleTargetHints, isEmpty);
+      expect(result.error?.details['visibleTextCandidates'], const <Object?>[]);
     },
   );
 
@@ -715,6 +724,14 @@ void main() {
 
     expect(result.success, isFalse);
     expect(result.error?.code, CockpitCommandError.ambiguousTargetCode);
+    final candidateHints =
+        (result.error?.details['candidateHints'] as List<Object?>?)
+                ?.cast<Map<Object?, Object?>>()
+                .map((entry) => Map<String, Object?>.from(entry))
+                .toList(growable: false) ??
+            const <Map<String, Object?>>[];
+    expect(candidateHints, hasLength(1));
+    expect(candidateHints.first['text'], 'Continue');
   });
 
   test(

@@ -111,6 +111,15 @@ void main() {
         resolution.matches.map((target) => target.registrationId),
         containsAll(<String>['primary', 'secondary']),
       );
+      final candidateHints =
+          (resolution.error?.details['candidateHints'] as List<Object?>?)
+                  ?.cast<Map<Object?, Object?>>()
+                  .map((entry) => Map<String, Object?>.from(entry))
+                  .toList(growable: false) ??
+              const <Map<String, Object?>>[];
+      expect(candidateHints, hasLength(1));
+      expect(candidateHints.first['text'], 'Continue');
+      expect(candidateHints.first['type'], isNull);
     },
   );
 

@@ -385,4 +385,28 @@ void main() {
       );
     },
   );
+
+  test(
+    'remote session client wraps transport interruptions as remoteUnavailable',
+    () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      final baseUri = Uri.parse('http://127.0.0.1:${server.port}');
+      await server.close(force: true);
+
+      final client = CockpitRemoteSessionClient(baseUri: baseUri);
+
+      expect(
+        client.readStatus,
+        throwsA(
+          isA<CockpitApplicationServiceException>()
+              .having((error) => error.code, 'code', 'remoteUnavailable')
+              .having(
+                (error) => error.message,
+                'message',
+                contains('temporarily unavailable'),
+              ),
+        ),
+      );
+    },
+  );
 }
