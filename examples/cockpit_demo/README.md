@@ -48,8 +48,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   launch-app \
   --project-dir examples/cockpit_demo \
   --platform macos \
-  --device-id macos \
-  --app-json /tmp/flutter_cockpit_demo_macos_app.json
+  --device-id macos
 ```
 
 Web:
@@ -59,9 +58,10 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   launch-app \
   --project-dir examples/cockpit_demo \
   --platform web \
-  --device-id chrome \
-  --app-json /tmp/flutter_cockpit_demo_web_app.json
+  --device-id chrome
 ```
+
+When `--app-json` is omitted, `launch-app` writes the reusable handle to `.dart_tool/flutter_cockpit/latest_app.json` in the current working directory. The next `read-app`, `inspect-ui`, `run-command`, `hot-reload`, and `stop-app` calls can reuse it without extra flags.
 
 ## Full Verifier
 

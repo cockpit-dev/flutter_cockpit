@@ -80,11 +80,11 @@ final class ReadErrorsCommand extends CockpitCliCommand {
   @override
   Future<int> run() async {
     final hasAppReference =
-        ((argResults?['app-json'] as String?)?.isNotEmpty ?? false) ||
+        ((cockpitResolveAppHandlePath(argResults))?.isNotEmpty ?? false) ||
             ((argResults?['base-url'] as String?)?.isNotEmpty ?? false);
     final result = await _read(
       CockpitReadErrorsRequest(
-        appHandlePath: argResults?['app-json'] as String?,
+        appHandlePath: cockpitResolveAppHandlePath(argResults),
         baseUri: cockpitReadOptionalBaseUri(argResults),
         androidDeviceId: argResults?['android-device-id'] as String?,
         maxErrors: cockpitReadOptionalInt(argResults, 'max-errors') ?? 20,

@@ -103,4 +103,33 @@ void main() {
     final decoded = jsonDecode(written) as Map<String, Object?>;
     expect(decoded['command'], isA<Map<String, Object?>>());
   });
+
+  test('run-command reports invalid command json as a usage error', () async {
+    final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
+      ..addCommand(RunCommandCommand());
+
+    await expectLater(
+      () => runner.run(<String>[
+        'run-command',
+        '--base-url',
+        'http://127.0.0.1:47331',
+        '--command-json',
+        jsonEncode(<String, Object?>{
+          'commandId': 'capture-1',
+          'commandType': 'captureScreenshot',
+          'screenshotRequest': <String, Object?>{
+            'reason': 'debug',
+            'name': 'invalid-reason',
+          },
+        }),
+      ]),
+      throwsA(
+        isA<UsageException>().having(
+          (error) => error.message,
+          'message',
+          contains('command JSON is invalid'),
+        ),
+      ),
+    );
+  });
 }

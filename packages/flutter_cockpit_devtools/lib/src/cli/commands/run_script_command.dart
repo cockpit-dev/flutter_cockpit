@@ -96,11 +96,15 @@ final class RunScriptCommand extends CockpitCliCommand {
       );
     }
     final resolved = await _appReferenceResolver.resolve(
-      appHandlePath: argResults?['app-json'] as String?,
+      appHandlePath: cockpitResolveAppHandlePath(argResults),
       baseUri: cockpitReadOptionalBaseUri(argResults),
       androidDeviceId: argResults?['android-device-id'] as String?,
     );
-    final script = CockpitControlScript.fromJson(decoded);
+    final script = cockpitDecodeCliJson(
+      decode: () => CockpitControlScript.fromJson(decoded),
+      label: 'script JSON',
+      usage: usage,
+    );
     final result = await _runScript(
       CockpitRunRemoteControlScriptRequest(
         script: script,

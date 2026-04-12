@@ -65,8 +65,8 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-command --help
 
 Recommended app-first loop:
 
-1. `launch-app --app-json /tmp/app.json`
-2. `read-app --app-json /tmp/app.json --profile minimal`
+1. `launch-app`
+2. `read-app --profile minimal`
 3. `run-command` or `run-batch`
 4. `inspect-ui`, `read-network`, `read-errors`, `read-logs`, `wait-idle` when needed
 5. `hot-reload` or `hot-restart`
@@ -88,9 +88,11 @@ Recommended code-side loop:
 5. `run-tests` or `analyze-workspace` only when the question is no longer local
 
 CLI JSON output uses lower camel case keys.
+If `launch-app` omits `--app-json`, it persists the current app handle at `.dart_tool/flutter_cockpit/latest_app.json` in the working directory and later app commands reuse it automatically.
 `launch-app` auto-detects `cockpit/main.dart` first, then `lib/main.dart`.
 `run-script` exits non-zero when the written bundle status is `failed`.
 Workspace commands default `--workspace-root` or `--parent-directory` to the current directory.
+Serialize mutation, then observation. Do not run a mutating `run-command` in parallel with the `read-app`, `inspect-ui`, or `read-network` call that depends on its result.
 
 Minimal verified `run-command` shape:
 
@@ -146,7 +148,6 @@ When the host is a shell agent, prefer the CLI surface plus small `jq` projectio
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   read-app \
-  --app-json /tmp/app.json \
   --profile minimal | jq '{currentRouteName,state}'
 ```
 
@@ -215,6 +216,7 @@ Resources and prompts are also exposed for contracts, capabilities, task summari
 ## Notes
 
 - Persist `app.json` and reuse it. It is the preferred app reference across steps.
+- If you stay in one repo, the default `.dart_tool/flutter_cockpit/latest_app.json` handle is the lowest-friction path and usually removes the need to keep passing `--app-json`.
 - For apps wired for Cockpit, prefer the Cockpit development entrypoint such as `cockpit/main.dart`; that is where network observation and the remote control surface are enabled.
 - If the app makes live HTTP calls, keep platform permissions aligned with that behavior: Android needs `INTERNET`, and Apple targets need outbound client entitlement plus local-network ATS allowance for loopback HTTP.
 - `list_apps` is MCP-only because the CLI does not keep an in-memory app registry across invocations.

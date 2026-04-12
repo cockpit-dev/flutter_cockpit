@@ -70,22 +70,27 @@ final class ReadAppCommand extends CockpitCliCommand {
       label: 'snapshot options JSON',
       usage: usage,
     );
+    final resultProfile = cockpitReadResultProfile(
+      argResults,
+      defaultProfile: CockpitInteractiveResultProfileName.minimal,
+    );
     final result = await _read(
       CockpitReadAppRequest(
         baseUri: cockpitReadOptionalBaseUri(argResults),
-        appHandlePath: argResults?['app-json'] as String?,
+        appHandlePath: cockpitResolveAppHandlePath(argResults),
         androidDeviceId: argResults?['android-device-id'] as String?,
-        resultProfile: cockpitReadResultProfile(
-          argResults,
-          defaultProfile: CockpitInteractiveResultProfileName.minimal,
-        ),
+        resultProfile: resultProfile,
         snapshotOptions: snapshotOptionsJson == null
             ? null
             : CockpitSnapshotOptions.fromJson(snapshotOptionsJson),
       ),
     );
+    final payload =
+        resultProfile.name == CockpitInteractiveResultProfileName.minimal
+            ? cockpitCompactMinimalReadAppPayload(result.toJson())
+            : result.toJson();
     await cockpitWriteJsonPayload(
-      payload: const JsonEncoder.withIndent('  ').convert(result.toJson()),
+      payload: const JsonEncoder.withIndent('  ').convert(payload),
       argResults: argResults,
       stdoutSink: _stdoutSink,
     );

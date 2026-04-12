@@ -70,12 +70,17 @@ final class InspectUiCommand extends CockpitCliCommand {
     final result = await _inspect(
       CockpitInspectUiRequest(
         baseUri: cockpitReadOptionalBaseUri(argResults),
-        appHandlePath: argResults?['app-json'] as String?,
+        appHandlePath: cockpitResolveAppHandlePath(argResults),
         androidDeviceId: argResults?['android-device-id'] as String?,
         resultProfile: cockpitReadResultProfile(argResults),
         snapshotOptions: snapshotOptionsJson == null
             ? null
-            : CockpitSnapshotOptions.fromJson(snapshotOptionsJson),
+            : cockpitDecodeCliJson(
+                decode: () =>
+                    CockpitSnapshotOptions.fromJson(snapshotOptionsJson),
+                label: 'snapshot options JSON',
+                usage: usage,
+              ),
         compareAgainstSnapshotRef:
             argResults?['compare-against-snapshot-ref'] as String?,
       ),

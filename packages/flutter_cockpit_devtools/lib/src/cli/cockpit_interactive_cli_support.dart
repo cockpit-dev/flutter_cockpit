@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:args/args.dart';
 import 'package:args/command_runner.dart';
+import 'package:path/path.dart' as p;
 
 import '../application/cockpit_compact_json.dart';
 import '../application/cockpit_interactive_result_profile.dart';
@@ -70,15 +71,55 @@ void cockpitRequireRemoteSessionReference(
 }
 
 void cockpitRequireAppReference(ArgResults? argResults, String usage) {
-  final appJsonPath = argResults?['app-json'] as String?;
+  final appJsonPath = cockpitResolveAppHandlePath(argResults);
   final baseUrl = argResults?['base-url'] as String?;
   if ((appJsonPath == null || appJsonPath.isEmpty) &&
       (baseUrl == null || baseUrl.isEmpty)) {
     throw UsageException(
-      '--base-url is required when --app-json is not provided.',
+      '--base-url is required when --app-json is not provided and '
+      '${cockpitDefaultAppHandlePath()} does not exist.',
       usage,
     );
   }
+}
+
+String cockpitDefaultAppHandlePath([String? workingDirectory]) {
+  return p.normalize(
+    p.join(
+      workingDirectory ?? Directory.current.path,
+      '.dart_tool',
+      'flutter_cockpit',
+      'latest_app.json',
+    ),
+  );
+}
+
+String? cockpitResolveAppHandlePath(
+  ArgResults? argResults, {
+  String? workingDirectory,
+}) {
+  final explicit = argResults?['app-json'] as String?;
+  if (explicit != null && explicit.isNotEmpty) {
+    return explicit;
+  }
+
+  final defaultPath = cockpitDefaultAppHandlePath(workingDirectory);
+  if (File(defaultPath).existsSync()) {
+    return defaultPath;
+  }
+  return null;
+}
+
+String cockpitRequireResolvedAppHandlePath(
+    ArgResults? argResults, String usage) {
+  final resolved = cockpitResolveAppHandlePath(argResults);
+  if (resolved != null && resolved.isNotEmpty) {
+    return resolved;
+  }
+  throw UsageException(
+    '--app-json is required unless ${cockpitDefaultAppHandlePath()} already exists.',
+    usage,
+  );
 }
 
 void cockpitAddProfileArg(
@@ -343,4 +384,45 @@ String _renderJsonPayload(Object payload, {required bool pretty}) {
   } on FormatException {
     return payload;
   }
+}
+
+T cockpitDecodeCliJson<T>({
+  required T Function() decode,
+  required String label,
+  required String usage,
+}) {
+  try {
+    return decode();
+  } on FormatException catch (error) {
+    throw UsageException('$label is invalid: ${error.message}', usage);
+  } on ArgumentError catch (error) {
+    throw UsageException('$label is invalid: ${error.message}', usage);
+  } on StateError catch (error) {
+    throw UsageException('$label is invalid: ${error.message}', usage);
+  }
+}
+
+Map<String, Object?> cockpitCompactMinimalReadAppPayload(
+  Map<String, Object?> payload,
+) {
+  final compacted = Map<String, Object?>.from(payload)..remove('app');
+
+  final capabilities = payload['capabilities'];
+  if (capabilities is Map<Object?, Object?>) {
+    final normalizedCapabilities = Map<String, Object?>.from(capabilities);
+    normalizedCapabilities.remove('supportedCommands');
+    normalizedCapabilities.remove('supportedLocatorStrategies');
+
+    final capabilityProfile = capabilities['capabilityProfile'];
+    if (capabilityProfile is Map<Object?, Object?>) {
+      final normalizedProfile = Map<String, Object?>.from(capabilityProfile);
+      normalizedProfile.remove('actionCapabilities');
+      normalizedProfile.remove('evidenceCapabilities');
+      normalizedCapabilities['capabilityProfile'] = normalizedProfile;
+    }
+
+    compacted['capabilities'] = normalizedCapabilities;
+  }
+
+  return compacted;
 }

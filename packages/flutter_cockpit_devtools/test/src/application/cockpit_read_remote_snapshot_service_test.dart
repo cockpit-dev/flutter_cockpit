@@ -72,6 +72,64 @@ void main() {
       expect(result.uiSummary, isNull);
     });
 
+    test('retries transient empty snapshots before returning', () async {
+      var readCount = 0;
+      final service = CockpitReadRemoteSnapshotService(
+        readSnapshot: (_, __) async {
+          readCount += 1;
+          return CockpitRemoteSnapshotResponse(
+            snapshot: readCount == 1
+                ? CockpitSnapshot(
+                    routeName: '/settings',
+                    diagnosticLevel: CockpitSnapshotProfile.forensic,
+                    summary: const CockpitSnapshotSummary(
+                      visibleTargetCount: 0,
+                      targetsWithCockpitIdCount: 0,
+                      targetsWithTextCount: 0,
+                      styleDetailsIncluded: true,
+                      diagnosticPropertiesIncluded: true,
+                      ancestorSummariesIncluded: true,
+                      rebuildSummaryIncluded: true,
+                      accessibilitySummaryIncluded: true,
+                    ),
+                  )
+                : CockpitSnapshot(
+                    routeName: '/settings',
+                    diagnosticLevel: CockpitSnapshotProfile.forensic,
+                    visibleTargets: <CockpitSnapshotTarget>[
+                      CockpitSnapshotTarget(
+                        registrationId: 'settings-save',
+                        routeName: '/settings',
+                        text: 'Save settings',
+                      ),
+                    ],
+                    summary: const CockpitSnapshotSummary(
+                      visibleTargetCount: 1,
+                      targetsWithCockpitIdCount: 0,
+                      targetsWithTextCount: 1,
+                      styleDetailsIncluded: true,
+                      diagnosticPropertiesIncluded: true,
+                      ancestorSummariesIncluded: true,
+                      rebuildSummaryIncluded: true,
+                      accessibilitySummaryIncluded: true,
+                    ),
+                  ),
+          );
+        },
+      );
+
+      final result = await service.read(
+        CockpitReadRemoteSnapshotRequest(
+          sessionHandle: _sessionHandle(),
+          resultProfile: const CockpitInteractiveResultProfile.evidence(),
+        ),
+      );
+
+      expect(readCount, 2);
+      expect(result.snapshot?.routeName, '/settings');
+      expect(result.snapshot?.visibleTargets, isNotEmpty);
+    });
+
     test('filters failures-only diagnostics for inspect reads', () async {
       final service = CockpitReadRemoteSnapshotService(
         readSnapshot: (_, __) async => CockpitRemoteSnapshotResponse(

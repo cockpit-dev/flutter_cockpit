@@ -175,6 +175,25 @@ void main() {
     );
   });
 
+  test(
+    'falls back to unresolved discovered targets when route filtering would otherwise empty the visible surface',
+    () {
+      final registry = CockpitTargetRegistry(routeName: '/settings')
+        ..discoveredTargetsProvider = () => const <CockpitTarget>[
+              CockpitTarget(
+                registrationId: 'save-settings',
+                text: 'Save settings',
+                routeName: '',
+                supportedCommands: {CockpitCommandType.tap},
+              ),
+            ];
+
+      expect(registry.visibleTargets, hasLength(1));
+      expect(registry.visibleTargets.single.registrationId, 'save-settings');
+      expect(registry.snapshot().summary?.visibleTargetCount, 1);
+    },
+  );
+
   test('prefers a unique actionable keyed match over passive duplicates', () {
     final registry = CockpitTargetRegistry(routeName: '/inbox');
 

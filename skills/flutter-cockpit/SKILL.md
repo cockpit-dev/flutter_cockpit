@@ -24,7 +24,7 @@ Do not use it for docs-only edits or static refactors with no runtime claim.
 ## Required Workflow
 
 1. `bootstrap`
-   Use `launch_app` / `launch-app`. Prefer a Cockpit development entrypoint such as `cockpit/main.dart` when the project provides one. On CLI, persist `app.json` and reuse it instead of relaunching. On MCP, `list_apps` can recover tracked apps.
+   Use `launch_app` / `launch-app`. Prefer a Cockpit development entrypoint such as `cockpit/main.dart` when the project provides one. On CLI, omit `--app-json` when you are staying in one repo so `launch-app` can reuse `.dart_tool/flutter_cockpit/latest_app.json` automatically; pass an explicit `app.json` only when another step must reopen a named handle outside the current working directory. On MCP, `list_apps` can recover tracked apps.
    For direct system or non-Flutter targets, use `launch_target` / `launch-target` and persist `target.json` when you are on the CLI.
 2. `baseline`
    Start with `read_app` / `read-app --profile minimal`.
@@ -82,6 +82,7 @@ For the shortest edit -> reload -> verify loop, use the rapid loop reference ins
 - Prefer bundle summaries and gate failures before opening large artifact files.
 - Ask for one missing fact per step, not every diagnostic dimension at once.
 - Prefer compact stdout projections such as `| jq` for immediate branch decisions. Add `--output-json` only when the result is too large for stdout or a later step must reopen the full payload.
+- Prefer the default latest-app handle in one workspace instead of repeating `--app-json` on every command.
 - Prefer `grep_package_uris` before opening large dependency files blindly; search first, then read only the matching package URI.
 - Prefer `jq -r` or short pipes to extract one route, status, failure code, or readiness field at a time.
 - Prefer `--command-file`, `--commands-file`, and `--config-json` files over long inline JSON literals when the payload is more than a few lines.
@@ -92,9 +93,9 @@ For the shortest edit -> reload -> verify loop, use the rapid loop reference ins
 ## Shell Patterns
 
 - Read one fact instead of the whole payload:
-  `flutter_cockpit_devtools read-app --app-json /tmp/flutter_cockpit/app.json --profile minimal | jq '{sessionId,currentRouteName,state}'`
+  `flutter_cockpit_devtools read-app --profile minimal | jq '{sessionId,currentRouteName,state}'`
 - Extract one scalar when only the next branch decision matters:
-  `flutter_cockpit_devtools read-app --app-json /tmp/flutter_cockpit/app.json --profile minimal | jq -r '.currentRouteName'`
+  `flutter_cockpit_devtools read-app --profile minimal | jq -r '.currentRouteName'`
 - Reload commands report status under nested fields:
   `flutter_cockpit_devtools hot-reload --app-json /tmp/flutter_cockpit/app.json | jq '{reloadGeneration: .status.reloadGeneration, lastReloadSucceeded: .status.lastReloadSucceeded, lastReloadMode: .status.lastReloadMode}'`
 - For immediate branch decisions, keep task results on stdout and project only the needed fields:

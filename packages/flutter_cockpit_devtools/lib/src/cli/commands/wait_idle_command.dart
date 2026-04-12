@@ -73,7 +73,7 @@ final class WaitIdleCommand extends CockpitCliCommand {
     final result = await _wait(
       CockpitWaitIdleRequest(
         baseUri: cockpitReadOptionalBaseUri(argResults),
-        appHandlePath: argResults?['app-json'] as String?,
+        appHandlePath: cockpitResolveAppHandlePath(argResults),
         androidDeviceId: argResults?['android-device-id'] as String?,
         quietWindow: Duration(
           milliseconds:

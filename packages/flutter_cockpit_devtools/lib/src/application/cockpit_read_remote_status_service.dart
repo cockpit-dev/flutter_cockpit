@@ -124,7 +124,11 @@ final class CockpitReadRemoteStatusService {
         : null;
     final snapshot = effectiveSnapshotOptions == null
         ? status.snapshot
-        : (await _readSnapshot(resolved.baseUri, effectiveSnapshotOptions))
+        : (await cockpitReadRemoteSnapshotConsistently(
+            baseUri: resolved.baseUri,
+            options: effectiveSnapshotOptions,
+            readSnapshot: _readSnapshot,
+          ))
             .snapshot;
     final snapshotRef = request.resultProfile.emitSnapshotRef
         ? _snapshotStore.put(
