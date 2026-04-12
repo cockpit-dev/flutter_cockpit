@@ -1,6 +1,6 @@
 ---
 name: flutter-cockpit
-description: Use when a Flutter task must prove live UI, interaction, route, network, or acceptance state with runtime evidence instead of code-only reasoning.
+description: Use when a Flutter app or adjacent browser, desktop, device, or host-control task must prove live UI, interaction, route, network, or acceptance state with runtime evidence instead of code-only reasoning.
 ---
 
 # Flutter Cockpit
@@ -13,6 +13,7 @@ When the surface is not purely Flutter, switch to the same summary-first loop wi
 ## When To Use
 
 - running a Flutter app
+- driving an adjacent browser, desktop, device, or host surface when the task is not purely Flutter-semantic
 - proving visible UI, route, or interaction state
 - reproducing a live bug
 - editing Dart or Flutter code and needing focused dependency, analyzer, or symbol facts before another runtime pass
@@ -37,7 +38,7 @@ Do not use it for docs-only edits or static refactors with no runtime claim.
 5. `deliver`
    Use `run_script` for a running app, `run_task` for full orchestration, and `validate_task` before any acceptance-facing claim. Treat CLI `run-script` non-zero exit or MCP `run_script` `isError=true` as a failed bundle.
 
-When the repo is this project and the target is the demo app, close the loop with `examples/cockpit_demo/tool/verify_platforms.dart` before a release-facing claim. The default local sweep runs the real macOS, iOS Simulator, and Android Emulator development loops. The `runtime-loop` CI workflow invokes the same verifier explicitly on Linux, Windows, and web too. The verifier auto-avoids busy host ports, cleans Android `adb forward` leftovers, and validates recording through the correct platform driver (`remote`, `browser-host`, `simctl`, or `adb`).
+When the repo is this project and the target is the demo app, close the loop with `examples/cockpit_demo/tool/verify_platforms.dart` before a release-facing claim. From the repo root, `dart run examples/cockpit_demo/tool/verify_platforms.dart ...` now auto-resolves `examples/cockpit_demo` as the default `--project-dir`; inside the example directory you can still use `dart run tool/verify_platforms.dart ...`. The default local sweep runs the real macOS, iOS Simulator, and Android Emulator development loops. The `runtime-loop` CI workflow invokes the same verifier explicitly on Linux, Windows, and web too. The verifier auto-avoids busy host ports, cleans Android `adb forward` leftovers, and validates recording through the correct platform driver (`remote`, `browser-host`, `simctl`, or `adb`).
 For local macOS web runs where the desktop has not yet granted screen-capture permission to the terminal, Dart, or `ffmpeg`, add `--allow-web-host-recording-prerequisite-failure` so the verifier stays strict for app control, screenshots, and reload flows while surfacing host recording as a structured warning.
 When the release claim also covers MCP, target-first control, or workspace tooling, run `packages/flutter_cockpit_devtools/tool/verify_mcp_surface.dart` as well. That verifier exercises the real `serve-mcp` stdio entrypoint, workspace tools, target-first surface flow, and delivery tooling end to end.
 

@@ -76,7 +76,7 @@ target-first 闭环：
 
 1. `launch-target`
 2. `read-target --profile minimal`
-3. `inspect-surface` 或 `run-shell`
+3. `inspect-surface`，或者在目标平台真实暴露 shell 能力时再用 `run-shell`
 4. `read_task_bundle_summary` 或 `validate-task`
 
 推荐代码侧闭环：

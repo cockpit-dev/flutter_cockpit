@@ -29,12 +29,12 @@ final class LaunchAppCommand extends CockpitCliCommand {
       )
       ..addOption(
         'platform',
-        help: 'Target platform: android, ios, macos, windows, or linux.',
+        help: 'Target platform: android, ios, macos, windows, linux, or web.',
       )
       ..addOption(
         'device-id',
         help:
-            'Device or emulator ID. Required for mobile; desktop defaults to the platform.',
+            'Device, browser, or emulator ID. Required for android, ios, and web; desktop defaults to the platform.',
       )
       ..addOption(
         'session-port',
@@ -91,7 +91,7 @@ final class LaunchAppCommand extends CockpitCliCommand {
 
   @override
   String get helpNeeds =>
-      'project-dir, platform, and a mobile device ID when the platform is android or ios. target is optional when cockpit/main.dart or lib/main.dart exists.';
+      'project-dir, platform, and a device ID when the platform is android, ios, or web. target is optional when cockpit/main.dart or lib/main.dart exists.';
 
   @override
   String get helpExample =>

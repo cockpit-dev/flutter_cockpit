@@ -80,8 +80,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   run-shell \
   --scope target \
   --target-json /tmp/flutter_cockpit/target.json \
-  --executable getprop \
-  --arg ro.build.version.sdk
+  --executable pwd
 ```
 
 Run platform-explicit shells when you already know the device:
@@ -106,6 +105,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 ```
 
 For desktop Flutter targets, `inspect-surface` can reuse remote semantic inspection when it is reachable and fall back to native/window capture only when that semantic path is unavailable.
+Browser targets do not expose a direct device shell. For web work, stay on `inspect-surface` and app or target reads, or use `run-shell --scope host` only for host-side browser prerequisites and tooling.
 
 Inspect richer UI state:
 

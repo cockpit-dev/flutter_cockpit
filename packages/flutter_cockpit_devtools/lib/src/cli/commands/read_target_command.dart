@@ -22,7 +22,10 @@ final class ReadTargetCommand extends CockpitCliCommand {
   })  : _read = read ?? (service ?? CockpitReadTargetService()).read,
         _stdoutSink = stdoutSink ?? stdout {
     cockpitAddAppArgs(argParser);
-    argParser.addOption('target-json');
+    argParser.addOption(
+      'target-json',
+      help: 'Normalized target handle JSON emitted by launch-target.',
+    );
     cockpitAddProfileArg(
       argParser,
       defaultProfile: CockpitInteractiveResultProfileName.minimal,
@@ -45,6 +48,22 @@ final class ReadTargetCommand extends CockpitCliCommand {
 
   @override
   String get category => CockpitCliCategory.coreLoop;
+
+  @override
+  String get helpWhen =>
+      'Use when the current surface is target-first and you need the smallest truthful target, plane, and capability summary before acting.';
+
+  @override
+  String get helpNeeds =>
+      'A target reference from --target-json, --app-json, or --base-url. Prefer --profile minimal for routine polling.';
+
+  @override
+  String get helpExample =>
+      'flutter_cockpit_devtools read-target --target-json /tmp/target.json --profile minimal';
+
+  @override
+  String get helpWrites =>
+      'Layered JSON with normalized target metadata, selected plane, capability profile, and optional bounded UI summary.';
 
   @override
   Future<int> run() async {

@@ -35,7 +35,10 @@ final class CockpitCliRootRunner extends CommandRunner<int> {
       const <String>[
         'list-targets',
         'launch-app',
+        'launch-target',
         'read-app',
+        'read-target',
+        'inspect-surface',
         'run-command',
         'run-batch',
         'inspect-ui',
@@ -52,6 +55,7 @@ final class CockpitCliRootRunner extends CommandRunner<int> {
       const <String>[
         'pub-dev-search',
         'pub',
+        'run-shell',
         'read-package-uris',
         'grep-package-uris',
         'lsp',
@@ -98,7 +102,9 @@ final class CockpitCliRootRunner extends CommandRunner<int> {
         'Fast loop:',
         '  list-targets',
         '  launch-app --project-dir <dir> --platform <platform>',
+        '  launch-target --project-dir <dir> --platform <platform> --target-kind <kind>',
         '  read-app --profile minimal',
+        '  read-target --target-json <target.json> --profile minimal',
         '  run-command --command-file <command.json>',
         'Workspace loop:',
         '  analyze-files --path lib/main.dart',

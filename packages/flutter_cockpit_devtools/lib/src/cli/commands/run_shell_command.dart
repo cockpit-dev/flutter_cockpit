@@ -30,7 +30,6 @@ final class RunShellCommand extends CockpitCliCommand {
           'macos',
           'windows',
           'linux',
-          'web',
         ],
         defaultsTo: 'host',
         help: 'Host, target handle, or explicit platform shell scope.',
@@ -48,8 +47,14 @@ final class RunShellCommand extends CockpitCliCommand {
         help: 'Host working directory for host-aligned shell execution.',
       )
       ..addOption('executable', help: 'Executable or entry command to run.')
-      ..addMultiOption('arg')
-      ..addOption('output-json');
+      ..addMultiOption(
+        'arg',
+        help: 'Repeatable argument passed through to the executable.',
+      )
+      ..addOption(
+        'output-json',
+        help: 'Optional path where the shell result JSON should be written.',
+      );
   }
 
   final CockpitRunShellCliFunction _runShell;
@@ -67,6 +72,26 @@ final class RunShellCommand extends CockpitCliCommand {
 
   @override
   String get category => CockpitCliCategory.workspace;
+
+  @override
+  String get helpWhen =>
+      'Use when the next fact lives in host, target, or platform shell state rather than Flutter semantics or bundle output.';
+
+  @override
+  String get helpNeeds =>
+      'An executable plus either a host scope, an explicit platform scope, or --target-json when --scope target is used.';
+
+  @override
+  String get helpShape =>
+      'Pass one --executable plus repeated --arg values. Use --scope target with --target-json for normalized target shells, or platform scopes such as android and ios when the device is already known. Browser targets do not expose a direct shell scope.';
+
+  @override
+  String get helpExample =>
+      'flutter_cockpit_devtools run-shell --scope target --target-json /tmp/target.json --executable getprop --arg ro.build.version.sdk';
+
+  @override
+  String get helpWrites =>
+      'Structured shell result JSON with scope, command, exitCode, stdout, stderr, and success.';
 
   @override
   Future<int> run() async {

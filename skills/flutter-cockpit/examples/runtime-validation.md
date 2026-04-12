@@ -18,6 +18,34 @@ When the task is not purely Flutter UI, switch to:
 3. `inspect-surface` or `run-shell`
 4. `read_task_bundle_summary` or `validate-task`
 
+Use `run-shell` only when the resolved target truthfully exposes shell control. Browser targets stay `read-target` and `inspect-surface` first; any browser prerequisite checks should use host shell scope instead of a browser device shell.
+
+Target-first example:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  launch-target \
+  --project-dir examples/cockpit_demo \
+  --platform web \
+  --device-id chrome \
+  --target-kind browserPage \
+  --target-json /tmp/flutter_cockpit/target.json
+```
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  read-target \
+  --target-json /tmp/flutter_cockpit/target.json \
+  --profile minimal
+```
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  inspect-surface \
+  --target-json /tmp/flutter_cockpit/target.json \
+  --profile inspect
+```
+
 ## Example
 
 ```bash
@@ -48,6 +76,12 @@ For this repository's demo app, finish the platform sweep with the example-local
 ```bash
 cd examples/cockpit_demo
 dart run tool/verify_platforms.dart --output-json /tmp/cockpit_demo_all_platforms_verification.json
+```
+
+Or from the repository root:
+
+```bash
+dart run examples/cockpit_demo/tool/verify_platforms.dart --output-json /tmp/cockpit_demo_all_platforms_verification.json
 ```
 
 Without `--platform`, that command runs the local default sweep on macOS, iOS Simulator, and Android Emulator.

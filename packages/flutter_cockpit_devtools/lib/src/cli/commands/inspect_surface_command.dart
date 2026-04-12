@@ -23,7 +23,10 @@ final class InspectSurfaceCommand extends CockpitCliCommand {
             inspect ?? (service ?? CockpitInspectSurfaceService()).inspect,
         _stdoutSink = stdoutSink ?? stdout {
     cockpitAddAppArgs(argParser);
-    argParser.addOption('target-json');
+    argParser.addOption(
+      'target-json',
+      help: 'Normalized target handle JSON emitted by launch-target.',
+    );
     cockpitAddProfileArg(argParser);
     cockpitAddSnapshotOptionsArgs(argParser);
     cockpitAddCompareAgainstSnapshotRefArg(argParser);
@@ -44,6 +47,22 @@ final class InspectSurfaceCommand extends CockpitCliCommand {
 
   @override
   String get category => CockpitCliCategory.coreLoop;
+
+  @override
+  String get helpWhen =>
+      'Use when read-target is still ambiguous and you need richer target surface structure, deltas, or capture-backed fallback context.';
+
+  @override
+  String get helpNeeds =>
+      'A target reference from --target-json, --app-json, or --base-url. Use inspect only when the smaller target summary still leaves uncertainty.';
+
+  @override
+  String get helpExample =>
+      'flutter_cockpit_devtools inspect-surface --target-json /tmp/target.json --profile inspect';
+
+  @override
+  String get helpWrites =>
+      'A richer target surface payload with selected plane, route or foreground surface clues, and optional delta context.';
 
   @override
   Future<int> run() async {

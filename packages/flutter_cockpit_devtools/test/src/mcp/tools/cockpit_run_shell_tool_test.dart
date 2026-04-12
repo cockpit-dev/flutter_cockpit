@@ -20,9 +20,9 @@ void main() {
         'macos',
         'windows',
         'linux',
-        'web',
       ]),
     );
+    expect(scope['enum'], isNot(contains('web')));
     expect(properties.keys,
         containsAll(<String>['targetJson', 'target', 'deviceId']));
   });

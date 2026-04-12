@@ -5,12 +5,15 @@ import 'package:flutter_cockpit_devtools/flutter_cockpit_devtools.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/hot_reload_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/hot_restart_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/inspect_ui_command.dart';
+import 'package:flutter_cockpit_devtools/src/cli/commands/inspect_surface_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/launch_app_command.dart';
+import 'package:flutter_cockpit_devtools/src/cli/commands/launch_target_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/lsp_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/list_targets_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/pub_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/pub_dev_search_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/read_app_command.dart';
+import 'package:flutter_cockpit_devtools/src/cli/commands/read_target_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/read_errors_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/read_logs_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/read_network_command.dart';
@@ -18,6 +21,7 @@ import 'package:flutter_cockpit_devtools/src/cli/commands/read_package_uris_comm
 import 'package:flutter_cockpit_devtools/src/cli/commands/run_batch_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/run_command_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/run_script_command.dart';
+import 'package:flutter_cockpit_devtools/src/cli/commands/run_shell_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/run_task_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/run_tests_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/serve_mcp_command.dart';
@@ -41,6 +45,10 @@ void main() {
     expect(help, contains('Fast loop:'));
     expect(help, contains('Workspace'));
     expect(help, contains('launch-app'));
+    expect(help, contains('launch-target'));
+    expect(help, contains('read-target'));
+    expect(help, contains('inspect-surface'));
+    expect(help, contains('run-shell'));
     expect(help, contains('analyze-files'));
     expect(help, contains('lsp'));
     expect(help, contains('pub'));
@@ -58,10 +66,34 @@ void main() {
     expect(usage, contains('Flutter project directory to launch.'));
     expect(usage, contains('Optional Dart entrypoint.'));
     expect(usage, contains('cockpit/main.dart first, then lib/main.dart'));
+    expect(usage, contains('android, ios, macos, windows, linux, or web'));
     expect(usage, contains('When:'));
     expect(usage, contains('Writes:'));
     expect(usage, contains('app.json'));
     expect(usage, contains('Example:'));
+  });
+
+  test('target-first command help explains the normalized target loop', () {
+    expect(
+      _helpForCommand(LaunchTargetCommand()),
+      contains('When:'),
+    );
+    expect(
+      _helpForCommand(ReadTargetCommand()),
+      contains('Example:'),
+    );
+    expect(
+      _helpForCommand(InspectSurfaceCommand()),
+      contains('Writes:'),
+    );
+    expect(
+      _helpForCommand(RunShellCommand()),
+      contains('target-json'),
+    );
+    expect(
+      _helpForCommand(RunShellCommand()),
+      isNot(contains('web]')),
+    );
   });
 
   test('list-targets help describes device discovery and timeout control', () {
@@ -130,9 +162,13 @@ final List<dynamic> _topLevelCommands = <dynamic>[
   ListTargetsCommand(),
   LaunchAppCommand(),
   ReadAppCommand(),
+  LaunchTargetCommand(),
+  ReadTargetCommand(),
   InspectUiCommand(),
+  InspectSurfaceCommand(),
   RunCommandCommand(),
   RunBatchCommand(),
+  RunShellCommand(),
   HotReloadCommand(),
   HotRestartCommand(),
   StopAppCommand(),
