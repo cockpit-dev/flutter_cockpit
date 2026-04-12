@@ -88,7 +88,10 @@ void main() {
       if (!file.existsSync()) {
         continue;
       }
-      final content = file.readAsStringSync();
+      final content = _tryReadUtf8Text(file);
+      if (content == null) {
+        continue;
+      }
       if (RegExp(r'\b(?:TODO|FIXME):').hasMatch(content)) {
         offenders.add(relativePath);
       }
@@ -129,4 +132,12 @@ bool _isScannableTextFile(String relativePath) {
     return false;
   }
   return true;
+}
+
+String? _tryReadUtf8Text(File file) {
+  try {
+    return file.readAsStringSync();
+  } on FileSystemException {
+    return null;
+  }
 }

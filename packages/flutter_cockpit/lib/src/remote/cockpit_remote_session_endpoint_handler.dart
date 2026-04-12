@@ -32,6 +32,9 @@ typedef CockpitRemoteRecordingStarter = Future<CockpitRecordingSession>
     Function(CockpitRecordingRequest request);
 typedef CockpitRemoteRecordingStopper = Future<CockpitRecordingResult>
     Function();
+typedef CockpitRemoteArtifactTempFileFactory = Future<File> Function(
+  String basename,
+);
 
 final class CockpitRemoteSessionEndpointRequest {
   const CockpitRemoteSessionEndpointRequest({
@@ -51,6 +54,7 @@ final class CockpitRemoteSessionEndpointResponse {
     required this.contentType,
     this.jsonBody,
     this.binaryBody,
+    this.sourceFilePath,
   });
 
   const CockpitRemoteSessionEndpointResponse.json(
@@ -72,16 +76,33 @@ final class CockpitRemoteSessionEndpointResponse {
           binaryBody: bytes,
         );
 
+  const CockpitRemoteSessionEndpointResponse.binaryFile(
+    String sourceFilePath, {
+    int statusCode = HttpStatus.ok,
+    String contentType = 'application/octet-stream',
+  }) : this._(
+          statusCode: statusCode,
+          contentType: contentType,
+          sourceFilePath: sourceFilePath,
+        );
+
   final int statusCode;
   final String contentType;
   final Map<String, Object?>? jsonBody;
   final List<int>? binaryBody;
+  final String? sourceFilePath;
 }
 
 final class _RemoteArtifactEntry {
-  const _RemoteArtifactEntry({this.bytes});
+  const _RemoteArtifactEntry({
+    this.bytes,
+    this.sourceFilePath,
+    this.deleteOnClose = false,
+  });
 
   final List<int>? bytes;
+  final String? sourceFilePath;
+  final bool deleteOnClose;
 }
 
 final class CockpitRemoteSessionEndpointHandler {
@@ -93,13 +114,16 @@ final class CockpitRemoteSessionEndpointHandler {
     CockpitRemoteRuntimeStepDrainer? runtimeStepDrainer,
     required CockpitRemoteRecordingStarter startRecording,
     required CockpitRemoteRecordingStopper stopRecording,
+    CockpitRemoteArtifactTempFileFactory? artifactTempFileFactory,
   })  : _configuration = configuration,
         _statusProvider = statusProvider,
         _snapshotProvider = snapshotProvider,
         _commandExecutor = commandExecutor,
         _runtimeStepDrainer = runtimeStepDrainer,
         _startRecording = startRecording,
-        _stopRecording = stopRecording;
+        _stopRecording = stopRecording,
+        _artifactTempFileFactory =
+            artifactTempFileFactory ?? _defaultArtifactTempFileFactory;
 
   final CockpitRemoteSessionConfiguration _configuration;
   final CockpitRemoteSessionStatusProvider _statusProvider;
@@ -108,8 +132,32 @@ final class CockpitRemoteSessionEndpointHandler {
   final CockpitRemoteRuntimeStepDrainer? _runtimeStepDrainer;
   final CockpitRemoteRecordingStarter _startRecording;
   final CockpitRemoteRecordingStopper _stopRecording;
+  final CockpitRemoteArtifactTempFileFactory _artifactTempFileFactory;
   final Map<String, _RemoteArtifactEntry> _downloadableArtifacts =
       <String, _RemoteArtifactEntry>{};
+  CockpitRecordingSession? _activeRecordingSession;
+
+  Future<void> close() async {
+    await _bestEffortStopActiveRecording();
+    final artifacts = _downloadableArtifacts.values.toList(growable: false);
+    _downloadableArtifacts.clear();
+    for (final artifact in artifacts) {
+      final sourceFilePath = artifact.sourceFilePath;
+      if (!artifact.deleteOnClose ||
+          sourceFilePath == null ||
+          sourceFilePath.isEmpty) {
+        continue;
+      }
+      try {
+        final file = File(sourceFilePath);
+        if (await file.exists()) {
+          await file.delete();
+        }
+      } on Object {
+        // Best-effort cleanup only for generated diagnostics artifacts.
+      }
+    }
+  }
 
   Future<CockpitRemoteSessionEndpointResponse> handle(
     CockpitRemoteSessionEndpointRequest request,
@@ -126,7 +174,7 @@ final class CockpitRemoteSessionEndpointHandler {
             request.uri.queryParameters,
           );
           final snapshot = await _snapshotProvider(options: snapshotOptions);
-          final snapshotResponse = _snapshotResponseFor(
+          final snapshotResponse = await _snapshotResponseFor(
             snapshot,
             options: snapshotOptions,
           );
@@ -155,12 +203,12 @@ final class CockpitRemoteSessionEndpointHandler {
           ).toJson();
           return CockpitRemoteSessionEndpointResponse.json(responsePayload);
         case ('POST', '/recording/start'):
-          final recording = await _startRecording(
+          final recording = await _handleStartRecording(
             CockpitRecordingRequest.fromJson(request.jsonBody),
           );
           return CockpitRemoteSessionEndpointResponse.json(recording.toJson());
         case ('POST', '/recording/stop'):
-          final result = await _stopRecording();
+          final result = await _handleStopRecording();
           return CockpitRemoteSessionEndpointResponse.json(
             _recordingResponseFor(result).toJson(),
           );
@@ -328,10 +376,29 @@ final class CockpitRemoteSessionEndpointHandler {
     );
   }
 
-  CockpitRemoteSnapshotResponse _snapshotResponseFor(
+  Future<CockpitRecordingSession> _handleStartRecording(
+    CockpitRecordingRequest request,
+  ) async {
+    final session = await _startRecording(request);
+    _activeRecordingSession = session;
+    return session;
+  }
+
+  Future<CockpitRecordingResult> _handleStopRecording() async {
+    try {
+      final result = await _stopRecording();
+      _activeRecordingSession = null;
+      return result;
+    } on StateError {
+      _activeRecordingSession = null;
+      rethrow;
+    }
+  }
+
+  Future<CockpitRemoteSnapshotResponse> _snapshotResponseFor(
     CockpitSnapshot snapshot, {
     required CockpitSnapshotOptions options,
-  }) {
+  }) async {
     if (!options.emitArtifactWhenLarge) {
       return CockpitRemoteSnapshotResponse(snapshot: snapshot);
     }
@@ -348,8 +415,10 @@ final class CockpitRemoteSessionEndpointHandler {
           relativePath:
               'diagnostics/remote_snapshot_${DateTime.now().toUtc().microsecondsSinceEpoch}.json',
         );
-    _downloadableArtifacts[artifactRef.relativePath] = _RemoteArtifactEntry(
-      bytes: List<int>.unmodifiable(snapshotBytes),
+    _downloadableArtifacts[artifactRef.relativePath] =
+        await _persistArtifactBytes(
+      cockpitSanitizeRemoteArtifactBasename(artifactRef.relativePath),
+      snapshotBytes,
     );
 
     return CockpitRemoteSnapshotResponse(
@@ -406,7 +475,20 @@ final class CockpitRemoteSessionEndpointHandler {
       return null;
     }
     return _RemoteArtifactEntry(
-      bytes: List<int>.unmodifiable(sourceFile.readAsBytesSync()),
+      sourceFilePath: sourceFile.path,
+    );
+  }
+
+  Future<_RemoteArtifactEntry> _persistArtifactBytes(
+    String basename,
+    List<int> bytes,
+  ) async {
+    final file = await _artifactTempFileFactory(basename);
+    await file.parent.create(recursive: true);
+    await file.writeAsBytes(bytes, flush: true);
+    return _RemoteArtifactEntry(
+      sourceFilePath: file.path,
+      deleteOnClose: true,
     );
   }
 
@@ -435,10 +517,64 @@ final class CockpitRemoteSessionEndpointHandler {
       );
     }
 
-    return CockpitRemoteSessionEndpointResponse.binary(
-      entry.bytes ?? const <int>[],
-    );
+    final bytes = entry.bytes;
+    if (bytes != null) {
+      return CockpitRemoteSessionEndpointResponse.binary(bytes);
+    }
+
+    final sourceFilePath = entry.sourceFilePath;
+    if (sourceFilePath == null || sourceFilePath.isEmpty) {
+      _downloadableArtifacts.remove(relativePath);
+      return const CockpitRemoteSessionEndpointResponse.json(
+        <String, Object?>{
+          'error': 'artifactNotFound',
+          'message': 'Artifact content is unavailable.',
+        },
+        statusCode: HttpStatus.notFound,
+      );
+    }
+
+    final sourceFile = File(sourceFilePath);
+    if (!await sourceFile.exists()) {
+      _downloadableArtifacts.remove(relativePath);
+      return const CockpitRemoteSessionEndpointResponse.json(
+        <String, Object?>{
+          'error': 'artifactNotFound',
+          'message': 'Artifact file is no longer available.',
+        },
+        statusCode: HttpStatus.notFound,
+      );
+    }
+
+    return CockpitRemoteSessionEndpointResponse.binaryFile(sourceFile.path);
   }
+
+  Future<void> _bestEffortStopActiveRecording() async {
+    if (_activeRecordingSession == null) {
+      return;
+    }
+    _activeRecordingSession = null;
+    try {
+      await _stopRecording();
+    } on Object {
+      // Cleanup is best-effort during server shutdown.
+    }
+  }
+}
+
+Future<File> _defaultArtifactTempFileFactory(String basename) async {
+  final safeBasename = basename.isEmpty ? 'artifact.bin' : basename;
+  final path = [
+    Directory.systemTemp.path,
+    'flutter_cockpit_remote_${DateTime.now().toUtc().microsecondsSinceEpoch}_$safeBasename',
+  ].join(Platform.pathSeparator);
+  return File(path);
+}
+
+String cockpitSanitizeRemoteArtifactBasename(String relativePath) {
+  final basename = relativePath.split('/').last;
+  final sanitized = basename.replaceAll(RegExp(r'[^A-Za-z0-9._-]+'), '_');
+  return sanitized.isEmpty ? 'artifact.bin' : sanitized;
 }
 
 Object? _compactJsonValue(Object? value) {

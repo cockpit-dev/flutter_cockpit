@@ -73,10 +73,12 @@ final class CockpitWebRemoteSessionBridgeServer {
 
   Future<void> close() async {
     _failPending(StateError('Bridge server closed.'));
+    await _bestEffortStopActiveRecording();
     await _socketSubscription?.cancel();
     await _socket?.close();
     await _requestSubscription?.cancel();
     await _server?.close(force: true);
+    _localArtifacts.clear();
     _socketSubscription = null;
     _socket = null;
     _requestSubscription = null;
@@ -387,7 +389,7 @@ final class CockpitWebRemoteSessionBridgeServer {
       return null;
     }
     return _BridgeArtifactEntry(
-      bytes: List<int>.unmodifiable(sourceFile.readAsBytesSync()),
+      sourceFilePath: sourceFile.path,
     );
   }
 
@@ -402,9 +404,49 @@ final class CockpitWebRemoteSessionBridgeServer {
     if (entry == null) {
       return null;
     }
-    return CockpitRemoteSessionEndpointResponse.binary(
-      entry.bytes ?? const <int>[],
-    );
+    final bytes = entry.bytes;
+    if (bytes != null) {
+      return CockpitRemoteSessionEndpointResponse.binary(bytes);
+    }
+    final sourceFilePath = entry.sourceFilePath;
+    if (sourceFilePath == null || sourceFilePath.isEmpty) {
+      _localArtifacts.remove(relativePath);
+      return const CockpitRemoteSessionEndpointResponse.json(
+        <String, Object?>{
+          'error': 'artifactNotFound',
+          'message': 'Artifact content is unavailable.',
+        },
+        statusCode: HttpStatus.notFound,
+      );
+    }
+    final sourceFile = File(sourceFilePath);
+    if (!sourceFile.existsSync()) {
+      _localArtifacts.remove(relativePath);
+      return const CockpitRemoteSessionEndpointResponse.json(
+        <String, Object?>{
+          'error': 'artifactNotFound',
+          'message': 'Artifact file is no longer available.',
+        },
+        statusCode: HttpStatus.notFound,
+      );
+    }
+    return CockpitRemoteSessionEndpointResponse.binaryFile(sourceFile.path);
+  }
+
+  Future<void> _bestEffortStopActiveRecording() async {
+    if (_activeRecordingSession == null) {
+      return;
+    }
+    final adapter = recordingAdapter;
+    _activeRecordingSession = null;
+    if (adapter == null) {
+      return;
+    }
+    try {
+      await adapter.stopRecording();
+    } on Object {
+      // Cleanup is best-effort during bridge shutdown.
+    }
   }
 
   void _failPending(Object error) {
@@ -454,6 +496,13 @@ final class CockpitWebRemoteSessionBridgeServer {
         charset: 'utf-8',
       );
       response.write(jsonEncode(_compactJsonValue(endpointResponse.jsonBody)));
+    } else if (endpointResponse.sourceFilePath != null) {
+      response.headers.contentType = ContentType.parse(
+        endpointResponse.contentType,
+      );
+      await response.addStream(
+        File(endpointResponse.sourceFilePath!).openRead(),
+      );
     } else {
       response.headers.contentType = ContentType.parse(
         endpointResponse.contentType,
@@ -465,9 +514,10 @@ final class CockpitWebRemoteSessionBridgeServer {
 }
 
 final class _BridgeArtifactEntry {
-  const _BridgeArtifactEntry({this.bytes});
+  const _BridgeArtifactEntry({this.bytes, this.sourceFilePath});
 
   final List<int>? bytes;
+  final String? sourceFilePath;
 }
 
 String _joinPath(String basePath, String segment) {

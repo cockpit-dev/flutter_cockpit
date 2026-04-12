@@ -24,7 +24,21 @@ void main() {
     );
     expect(workflow, contains('flutter pub publish --dry-run'));
     expect(workflow, contains('dart pub publish --dry-run'));
-    expect(workflow, contains('run: melos run test'));
+    expect(workflow, contains('dart test test'));
+    expect(
+      workflow,
+      contains('(cd packages/flutter_cockpit && flutter test)'),
+    );
+    expect(
+      workflow,
+      contains('(cd packages/flutter_cockpit_devtools && dart test)'),
+    );
+    expect(
+      workflow,
+      contains('(cd examples/cockpit_demo && flutter test)'),
+    );
+    expect(workflow, isNot(contains('run: melos run test')));
+    expect(workflow, isNot(contains('run: dart run melos test')));
     expect(workflow, contains('android-runtime-loop:'));
     expect(workflow, contains('ios-runtime-loop:'));
     expect(workflow, contains('macos-runtime-loop:'));

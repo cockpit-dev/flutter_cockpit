@@ -593,6 +593,17 @@ void main() {
   test(
     'remote snapshot endpoint externalizes large forensic payloads into downloadable diagnostics artifacts',
     () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_remote_snapshot_artifacts',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+      final artifactFile = File(
+        p.join(tempDir.path, 'remote_snapshot_debug.json'),
+      );
       final server = CockpitRemoteSessionServer(
         configuration: const CockpitRemoteSessionConfiguration(
           enabled: true,
@@ -659,9 +670,9 @@ void main() {
         ),
         stopRecording: () async =>
             CockpitRecordingResult(state: CockpitRecordingState.failed),
+        artifactTempFileFactory: (_) async => artifactFile,
       );
       await server.start();
-      addTearDown(server.close);
 
       final responseJson = await _readJson(
         server.baseUri!.resolve(
@@ -691,6 +702,10 @@ void main() {
             .visibleTargets.single.diagnosticProperties.single.value.length,
         greaterThan(20000),
       );
+      expect(artifactFile.existsSync(), isTrue);
+
+      await server.close();
+      expect(artifactFile.existsSync(), isFalse);
     },
   );
 
@@ -959,7 +974,6 @@ void main() {
         response.artifactDownloads.single.downloadPath,
         '/artifacts/download?path=recordings%2Fremote_home_acceptance.mp4',
       );
-      sourceFile.deleteSync();
       expect(
         await _readBytes(
           resolvedBaseUri.resolve(
@@ -968,8 +982,96 @@ void main() {
         ),
         <int>[1, 2, 3, 4],
       );
+      sourceFile.deleteSync();
+      final deletedResponse = await _readBinaryResponse(
+        resolvedBaseUri.resolve(
+          response.artifactDownloads.single.downloadPath,
+        ),
+      );
+      expect(deletedResponse.statusCode, HttpStatus.notFound);
     },
   );
+
+  test('remote session server stops an active recording when it closes',
+      () async {
+    var stopRecordingCount = 0;
+    final server = CockpitRemoteSessionServer(
+      configuration: const CockpitRemoteSessionConfiguration(
+        enabled: true,
+        autoStart: false,
+        port: 0,
+      ),
+      statusProvider: () async => CockpitRemoteSessionStatus(
+        sessionId: 'remote-active-recording-close',
+        platform: 'ios',
+        transportType: 'remoteHttp',
+        currentRouteName: '/home',
+        capabilities: CockpitCapabilities(
+          platform: 'ios',
+          transportType: 'remoteHttp',
+          supportsInAppControl: true,
+          supportsFlutterViewCapture: true,
+          supportsNativeScreenCapture: true,
+          supportsHostAutomation: false,
+          supportedCommands: const <CockpitCommandType>[
+            CockpitCommandType.tap,
+          ],
+          supportedLocatorStrategies: CockpitLocatorKind.values,
+        ),
+        recordingCapabilities: CockpitRecordingCapabilities(
+          supportsNativeRecording: true,
+          preferredAcceptanceRecordingKind: CockpitRecordingKind.nativeScreen,
+        ),
+        snapshot: CockpitSnapshot(routeName: '/home'),
+      ),
+      snapshotProvider: ({required options}) async => CockpitSnapshot(
+        routeName: '/home',
+        diagnosticLevel: options.profile,
+      ),
+      commandExecutor: (_) async => CockpitCommandExecution(
+        result: CockpitCommandResult(
+          success: true,
+          commandId: 'noop',
+          commandType: CockpitCommandType.tap,
+          durationMs: 0,
+        ),
+      ),
+      startRecording: (request) async => CockpitRecordingSession(
+        request: request,
+        state: CockpitRecordingState.recording,
+      ),
+      stopRecording: () async {
+        stopRecordingCount += 1;
+        return CockpitRecordingResult(
+          state: CockpitRecordingState.completed,
+          purpose: CockpitRecordingPurpose.acceptance,
+          recordingKind: CockpitRecordingKind.nativeScreen,
+        );
+      },
+    );
+    await server.start();
+
+    final baseUri = server.baseUri;
+    expect(baseUri, isNotNull);
+    final resolvedBaseUri =
+        baseUri ?? (throw StateError('Remote session server failed to start.'));
+
+    final sessionJson = await _postJson(
+      resolvedBaseUri.resolve('/recording/start'),
+      const <String, Object?>{
+        'purpose': 'acceptance',
+        'name': 'remote_home_acceptance',
+        'attachToStep': true,
+      },
+    );
+
+    final session = CockpitRecordingSession.fromJson(sessionJson);
+    expect(session.state, CockpitRecordingState.recording);
+
+    await server.close();
+
+    expect(stopRecordingCount, 1);
+  });
 }
 
 Future<Map<String, Object?>> _readJson(Uri uri) async {
@@ -1008,6 +1110,11 @@ Future<Map<String, Object?>> _postJson(
 }
 
 Future<List<int>> _readBytes(Uri uri) async {
+  final response = await _readBinaryResponse(uri);
+  return response.bytes;
+}
+
+Future<_HttpBinaryResponse> _readBinaryResponse(Uri uri) async {
   return HttpOverrides.runZoned(() async {
     final client = HttpClient();
     try {
@@ -1018,11 +1125,21 @@ Future<List<int>> _readBytes(Uri uri) async {
         combined.addAll(chunk);
         return combined;
       });
-      return bytes;
+      return _HttpBinaryResponse(statusCode: response.statusCode, bytes: bytes);
     } finally {
       client.close(force: true);
     }
   }, createHttpClient: _RealHttpOverrides().createHttpClient);
+}
+
+final class _HttpBinaryResponse {
+  const _HttpBinaryResponse({
+    required this.statusCode,
+    required this.bytes,
+  });
+
+  final int statusCode;
+  final List<int> bytes;
 }
 
 final class _RealHttpOverrides extends HttpOverrides {}

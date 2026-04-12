@@ -14,6 +14,7 @@ final class CockpitRemoteSessionServer {
     CockpitRemoteRuntimeStepDrainer? runtimeStepDrainer,
     required CockpitRemoteRecordingStarter startRecording,
     required CockpitRemoteRecordingStopper stopRecording,
+    CockpitRemoteArtifactTempFileFactory? artifactTempFileFactory,
   })  : _configuration = configuration,
         _endpointHandler = CockpitRemoteSessionEndpointHandler(
           configuration: configuration,
@@ -23,6 +24,7 @@ final class CockpitRemoteSessionServer {
           runtimeStepDrainer: runtimeStepDrainer,
           startRecording: startRecording,
           stopRecording: stopRecording,
+          artifactTempFileFactory: artifactTempFileFactory,
         );
 
   final CockpitRemoteSessionConfiguration _configuration;
@@ -54,6 +56,7 @@ final class CockpitRemoteSessionServer {
   }
 
   Future<void> close() async {
+    await _endpointHandler.close();
     await _subscription?.cancel();
     await _server?.close(force: true);
     _subscription = null;
@@ -117,6 +120,13 @@ final class CockpitRemoteSessionServer {
         charset: 'utf-8',
       );
       response.write(jsonEncode(_compactJsonValue(endpointResponse.jsonBody)));
+    } else if (endpointResponse.sourceFilePath != null) {
+      response.headers.contentType = ContentType.parse(
+        endpointResponse.contentType,
+      );
+      await response.addStream(
+        File(endpointResponse.sourceFilePath!).openRead(),
+      );
     } else {
       response.headers.contentType = ContentType.parse(
         endpointResponse.contentType,
