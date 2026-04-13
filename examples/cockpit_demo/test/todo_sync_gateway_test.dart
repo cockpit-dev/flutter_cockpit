@@ -1,7 +1,10 @@
 import 'dart:io';
 
 import 'package:flutter_cockpit/flutter_cockpit_flutter.dart';
+import 'package:cockpit_demo/src/model/todo_priority.dart';
+import 'package:cockpit_demo/src/model/todo_task.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:cockpit_demo/src/network/todo_sync_contract.dart';
 import 'package:cockpit_demo/src/network/todo_sync_gateway.dart';
 
 void main() {
@@ -70,5 +73,61 @@ void main() {
       expect(result.summary, contains('Simulated relay outage'));
       simulateFailure = false;
     },
+  );
+
+  test('TodoLoopbackSyncGateway classifies mixed sync outcomes', () async {
+    final gateway = TodoLoopbackSyncGateway(
+      payloadBuilder: () async => <String, Object?>{
+        'status': 'ready',
+        'summary': 'Local relay healthy · pending writes 0',
+      },
+    );
+    addTearDown(gateway.close);
+
+    final result = await gateway.syncTasks(
+      TodoSyncBatchRequest.fromTasks(
+        tasks: <TodoTask>[
+          _buildTask(
+            id: 'task-success',
+            title: 'Ship acceptance notes',
+            pendingChanges: const <String>['title'],
+          ),
+          _buildTask(
+            id: 'task-retry',
+            title: 'Retry simulator session',
+            pendingChanges: const <String>['simulate_retry'],
+          ),
+          _buildTask(
+            id: 'task-conflict',
+            title: 'Resolve route copy',
+            pendingChanges: const <String>['simulate_conflict'],
+          ),
+        ],
+        triggeredAt: DateTime.utc(2026, 4, 12, 9),
+      ),
+    );
+
+    expect(result.succeededTaskIds, <String>['task-success']);
+    expect(result.retryableFailures.single.taskId, 'task-retry');
+    expect(result.conflicts.single.taskId, 'task-conflict');
+  });
+}
+
+TodoTask _buildTask({
+  required String id,
+  required String title,
+  List<String> pendingChanges = const <String>[],
+}) {
+  final now = DateTime.utc(2026, 4, 12, 9);
+  return TodoTask(
+    id: id,
+    title: title,
+    notes: '',
+    priority: TodoPriority.medium,
+    isCompleted: false,
+    displayOrder: 0,
+    createdAt: now,
+    updatedAt: now,
+    pendingChanges: pendingChanges,
   );
 }

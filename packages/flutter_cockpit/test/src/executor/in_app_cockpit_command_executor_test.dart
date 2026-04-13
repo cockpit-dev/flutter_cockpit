@@ -686,7 +686,10 @@ void main() {
               const <Map<String, Object?>>[];
       expect(visibleTargetHints, isEmpty);
       expect(result.error?.details['visibleTextCandidates'], const <Object?>[]);
-      expect(result.error?.details['emptyRouteHint'], isNull);
+      expect(
+        result.error?.details['emptyRouteHint'],
+        contains('run-batch'),
+      );
     },
   );
 

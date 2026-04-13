@@ -6,8 +6,11 @@ import 'package:cockpit_demo/src/data/todo_repository.dart';
 import 'package:cockpit_demo/src/model/todo_filter.dart';
 import 'package:cockpit_demo/src/model/todo_priority.dart';
 import 'package:cockpit_demo/src/model/todo_settings.dart';
+import 'package:cockpit_demo/src/model/todo_sync_conflict.dart';
 import 'package:cockpit_demo/src/model/todo_tag.dart';
 import 'package:cockpit_demo/src/model/todo_task.dart';
+import 'package:cockpit_demo/src/model/todo_task_sync_status.dart';
+import 'package:cockpit_demo/src/network/todo_sync_contract.dart';
 import 'package:cockpit_demo/src/network/todo_sync_gateway.dart';
 
 void main() {
@@ -423,6 +426,70 @@ void main() {
       expect(service.syncState.lastHealthyStatusCode, isNull);
       expect(service.syncState.lastHealthyCheckedAt, isNull);
     });
+
+    test(
+      'queues local edits, surfaces pending counts, and resolves conflicts after retry',
+      () async {
+        final created = await repository.createTask(title: 'Draft ship notes');
+        service = TodoAppService(
+          repository: repository,
+          syncGateway: _SequencedBatchTodoSyncGateway(
+            results: <TodoSyncBatchResult>[
+              TodoSyncBatchResult(
+                conflicts: <TodoSyncConflictEntry>[
+                  TodoSyncConflictEntry(
+                    taskId: created.id,
+                    conflict: const TodoSyncConflict(
+                      type: TodoSyncConflictType.concurrentEdit,
+                      summary:
+                          'Remote notes changed while local title changed.',
+                      localFields: <String>['title'],
+                      remoteFields: <String>['notes'],
+                    ),
+                  ),
+                ],
+              ),
+              TodoSyncBatchResult(
+                succeededTaskIds: <String>[created.id],
+              ),
+            ],
+          ),
+        );
+
+        await service.loadTasks();
+        await service.editTaskAndQueueSync(
+          taskId: created.id,
+          title: 'Draft release notes',
+        );
+
+        expect(service.syncState.pendingTaskCount, 1);
+        expect(service.syncState.conflictTaskCount, 0);
+
+        await service.runSyncNow();
+
+        expect(service.syncState.status, TodoSyncStatus.conflicted);
+        expect(service.syncState.conflictTaskCount, 1);
+        expect(service.syncState.pendingTaskCount, 1);
+
+        await service.resolveConflict(
+          taskId: created.id,
+          resolution: TodoConflictResolution.keepLocal,
+        );
+
+        expect(service.syncState.pendingTaskCount, 1);
+        expect(service.syncState.conflictTaskCount, 0);
+
+        await service.runSyncNow();
+
+        expect(service.syncState.status, TodoSyncStatus.synced);
+        expect(service.syncState.pendingTaskCount, 0);
+        expect(service.syncState.conflictTaskCount, 0);
+
+        final refreshed = await repository.getTask(created.id);
+        expect(refreshed?.title, 'Draft release notes');
+        expect(refreshed?.syncStatus, TodoTaskSyncStatus.synced);
+      },
+    );
   });
 }
 
@@ -442,6 +509,11 @@ final class _FakeTodoSyncGateway implements TodoSyncGatewayClient {
       },
       summary: 'Local relay healthy · pending writes 0',
     );
+  }
+
+  @override
+  Future<TodoSyncBatchResult> syncTasks(TodoSyncBatchRequest request) async {
+    return const TodoSyncBatchResult();
   }
 }
 
@@ -465,9 +537,57 @@ final class _SequenceTodoSyncGateway implements TodoSyncGatewayClient {
     }
     throw next;
   }
+
+  @override
+  Future<TodoSyncBatchResult> syncTasks(TodoSyncBatchRequest request) async {
+    return const TodoSyncBatchResult();
+  }
+}
+
+final class _SequencedBatchTodoSyncGateway implements TodoSyncGatewayClient {
+  _SequencedBatchTodoSyncGateway({required List<TodoSyncBatchResult> results})
+      : _results = List<TodoSyncBatchResult>.from(results);
+
+  final List<TodoSyncBatchResult> _results;
+
+  @override
+  Future<void> close() async {}
+
+  @override
+  Future<TodoSyncProbeResult> probeHealth() async {
+    return TodoSyncProbeResult(
+      endpoint: Uri.parse('http://127.0.0.1:47331/sync/health'),
+      checkedAt: DateTime.utc(2026, 3, 21, 4),
+      statusCode: 200,
+      responseBody: const <String, Object?>{
+        'status': 'ready',
+        'summary': 'Local relay healthy · pending writes 0',
+      },
+      summary: 'Local relay healthy · pending writes 0',
+    );
+  }
+
+  @override
+  Future<TodoSyncBatchResult> syncTasks(TodoSyncBatchRequest request) async {
+    return _results.removeAt(0);
+  }
 }
 
 final class _FailingTodoRepository implements TodoRepositoryClient {
+  @override
+  Future<TodoTask> applySyncResolution({
+    required String taskId,
+    required TodoTaskSyncStatus syncStatus,
+    required int localRevision,
+    required int remoteRevision,
+    TodoSyncConflict? conflict,
+    List<String> pendingChanges = const <String>[],
+    String? lastSyncFailure,
+    DateTime? lastSyncedAt,
+  }) {
+    throw StateError('Simulated sync failure');
+  }
+
   @override
   Future<TodoTag> createTag({required String name, String? colorHex}) {
     throw UnimplementedError();

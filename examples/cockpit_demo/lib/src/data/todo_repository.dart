@@ -5,8 +5,10 @@ import 'package:drift/drift.dart';
 import '../model/todo_filter.dart';
 import '../model/todo_priority.dart';
 import '../model/todo_settings.dart';
+import '../model/todo_sync_conflict.dart';
 import '../model/todo_tag.dart';
 import '../model/todo_task.dart';
+import '../model/todo_task_sync_status.dart';
 import 'cockpit_demo_database.dart';
 
 abstract interface class TodoRepositoryClient {
@@ -78,6 +80,17 @@ abstract interface class TodoRepositoryClient {
     required bool carryNotes,
     required bool carryTags,
     DateTime? dueAt,
+  });
+
+  Future<TodoTask> applySyncResolution({
+    required String taskId,
+    required TodoTaskSyncStatus syncStatus,
+    required int localRevision,
+    required int remoteRevision,
+    TodoSyncConflict? conflict,
+    List<String> pendingChanges,
+    String? lastSyncFailure,
+    DateTime? lastSyncedAt,
   });
 
   Future<void> reorderTasks(List<String> orderedTaskIds);
@@ -429,6 +442,52 @@ final class TodoRepository implements TodoRepositoryClient {
   }
 
   @override
+  Future<TodoTask> applySyncResolution({
+    required String taskId,
+    required TodoTaskSyncStatus syncStatus,
+    required int localRevision,
+    required int remoteRevision,
+    TodoSyncConflict? conflict,
+    List<String> pendingChanges = const <String>[],
+    String? lastSyncFailure,
+    DateTime? lastSyncedAt,
+  }) async {
+    final now = DateTime.now().toUtc();
+    await _database.customStatement(
+      'INSERT INTO task_sync_state ('
+      'task_id, sync_status, local_revision, remote_revision, '
+      'pending_change_json, sync_conflict_json, last_sync_failure, '
+      'last_synced_at_epoch_ms'
+      ') VALUES ('
+      '${_sqlString(taskId)}, '
+      '${_sqlString(syncStatus.name)}, '
+      '$localRevision, '
+      '$remoteRevision, '
+      '${_sqlString(_encodeStringList(pendingChanges))}, '
+      '${_sqlStringOrNull(_encodeSyncConflict(conflict))}, '
+      '${_sqlStringOrNull(lastSyncFailure)}, '
+      '${_sqlIntOrNull(lastSyncedAt?.toUtc().millisecondsSinceEpoch)}'
+      ') ON CONFLICT(task_id) DO UPDATE SET '
+      'sync_status = excluded.sync_status, '
+      'local_revision = excluded.local_revision, '
+      'remote_revision = excluded.remote_revision, '
+      'pending_change_json = excluded.pending_change_json, '
+      'sync_conflict_json = excluded.sync_conflict_json, '
+      'last_sync_failure = excluded.last_sync_failure, '
+      'last_synced_at_epoch_ms = excluded.last_synced_at_epoch_ms',
+    );
+    await (_database.update(
+      _database.tasks,
+    )..where((table) => table.id.equals(taskId)))
+        .write(
+      TasksCompanion(
+        updatedAtEpochMs: Value(now.millisecondsSinceEpoch),
+      ),
+    );
+    return (await getTask(taskId))!;
+  }
+
+  @override
   Future<void> reorderTasks(List<String> orderedTaskIds) async {
     if (orderedTaskIds.isEmpty) {
       return;
@@ -522,15 +581,17 @@ final class TodoRepository implements TodoRepositoryClient {
 
     final rows = await query.get();
     final tasks = await _hydrateTasks(rows);
-    if (filter.tagIds.isEmpty) {
+    if (filter.tagIds.isEmpty && filter.syncStatuses.isEmpty) {
       return tasks;
     }
 
-    return tasks
-        .where(
-          (task) => task.tagIds.any((tagId) => filter.tagIds.contains(tagId)),
-        )
-        .toList(growable: false);
+    return tasks.where((task) {
+      final matchesTags = filter.tagIds.isEmpty ||
+          task.tagIds.any((tagId) => filter.tagIds.contains(tagId));
+      final matchesSyncStatus = filter.syncStatuses.isEmpty ||
+          filter.syncStatuses.contains(task.syncStatus);
+      return matchesTags && matchesSyncStatus;
+    }).toList(growable: false);
   }
 
   @override
@@ -576,8 +637,19 @@ final class TodoRepository implements TodoRepositoryClient {
     final tagIds = rows.expand((row) => _decodeTagIds(row.tagIdsJson)).toSet();
     final tagsById = await _fetchTagsByIds(tagIds);
     final tagMap = <String, TodoTag>{for (final tag in tagsById) tag.id: tag};
+    final syncMap = await _fetchSyncSnapshots(
+      rows.map((row) => row.id).toSet(),
+    );
 
-    return rows.map((row) => _mapTask(row, tagMap)).toList(growable: false);
+    return rows
+        .map(
+          (row) => _mapTask(
+            row,
+            tagMap,
+            syncMap[row.id] ?? const _TaskSyncSnapshot(),
+          ),
+        )
+        .toList(growable: false);
   }
 
   Future<List<TodoTag>> _fetchTagsByIds(Set<String> tagIds) async {
@@ -607,7 +679,55 @@ final class TodoRepository implements TodoRepositoryClient {
         );
   }
 
-  TodoTask _mapTask(Task row, Map<String, TodoTag> tagMap) {
+  Future<Map<String, _TaskSyncSnapshot>> _fetchSyncSnapshots(
+    Set<String> taskIds,
+  ) async {
+    if (taskIds.isEmpty) {
+      return const <String, _TaskSyncSnapshot>{};
+    }
+    final rows = await _database
+        .customSelect(
+          'SELECT '
+          'task_id AS taskId, '
+          'sync_status AS syncStatus, '
+          'local_revision AS localRevision, '
+          'remote_revision AS remoteRevision, '
+          'pending_change_json AS pendingChangeJson, '
+          'sync_conflict_json AS syncConflictJson, '
+          'last_sync_failure AS lastSyncFailure, '
+          'last_synced_at_epoch_ms AS lastSyncedAtEpochMs '
+          'FROM task_sync_state '
+          'WHERE task_id IN (${taskIds.map(_sqlString).join(', ')})',
+        )
+        .get();
+    return <String, _TaskSyncSnapshot>{
+      for (final row in rows)
+        row.read<String>('taskId'): _TaskSyncSnapshot(
+          syncStatus: TodoTaskSyncStatus.values.byName(
+            row.readNullable<String>('syncStatus') ??
+                TodoTaskSyncStatus.idle.name,
+          ),
+          localRevision: row.readNullable<int>('localRevision') ?? 0,
+          remoteRevision: row.readNullable<int>('remoteRevision') ?? 0,
+          pendingChanges: _decodeStringList(
+            row.readNullable<String>('pendingChangeJson') ?? '[]',
+          ),
+          syncConflict: _decodeSyncConflict(
+            row.readNullable<String>('syncConflictJson'),
+          ),
+          lastSyncFailure: row.readNullable<String>('lastSyncFailure'),
+          lastSyncedAt: _fromEpochMs(
+            row.readNullable<int>('lastSyncedAtEpochMs'),
+          ),
+        ),
+    };
+  }
+
+  TodoTask _mapTask(
+    Task row,
+    Map<String, TodoTag> tagMap,
+    _TaskSyncSnapshot syncSnapshot,
+  ) {
     final tags = _decodeTagIds(row.tagIdsJson)
         .map((tagId) => tagMap[tagId])
         .whereType<TodoTag>()
@@ -624,6 +744,13 @@ final class TodoRepository implements TodoRepositoryClient {
       displayOrder: row.displayOrder,
       createdAt: _fromEpochMs(row.createdAtEpochMs)!,
       updatedAt: _fromEpochMs(row.updatedAtEpochMs)!,
+      syncStatus: syncSnapshot.syncStatus,
+      localRevision: syncSnapshot.localRevision,
+      remoteRevision: syncSnapshot.remoteRevision,
+      lastSyncedAt: syncSnapshot.lastSyncedAt,
+      lastSyncFailure: syncSnapshot.lastSyncFailure,
+      pendingChanges: syncSnapshot.pendingChanges,
+      syncConflict: syncSnapshot.syncConflict,
       tags: tags,
     );
   }
@@ -654,10 +781,18 @@ final class TodoRepository implements TodoRepositoryClient {
   }
 
   String _encodeTagIds(List<String> tagIds) {
-    return jsonEncode(tagIds.toSet().toList(growable: false));
+    return _encodeStringList(tagIds);
   }
 
   List<String> _decodeTagIds(String jsonValue) {
+    return _decodeStringList(jsonValue);
+  }
+
+  String _encodeStringList(List<String> values) {
+    return jsonEncode(values.toSet().toList(growable: false));
+  }
+
+  List<String> _decodeStringList(String jsonValue) {
     final decoded = jsonDecode(jsonValue);
     if (decoded is! List<Object?>) {
       return const <String>[];
@@ -668,4 +803,62 @@ final class TodoRepository implements TodoRepositoryClient {
         .where((tagId) => tagId.isNotEmpty)
         .toList(growable: false);
   }
+
+  String? _encodeSyncConflict(TodoSyncConflict? conflict) {
+    if (conflict == null) {
+      return null;
+    }
+    return jsonEncode(conflict.toJson());
+  }
+
+  TodoSyncConflict? _decodeSyncConflict(String? jsonValue) {
+    if (jsonValue == null || jsonValue.isEmpty) {
+      return null;
+    }
+    final decoded = jsonDecode(jsonValue);
+    if (decoded is! Map<Object?, Object?>) {
+      return null;
+    }
+    return TodoSyncConflict.fromJson(
+      decoded.map(
+        (key, value) => MapEntry('$key', value),
+      ),
+    );
+  }
+
+  String _sqlString(String value) {
+    final escaped = value.replaceAll('\'', '\'\'');
+    return '\'$escaped\'';
+  }
+
+  String _sqlStringOrNull(String? value) {
+    if (value == null) {
+      return 'NULL';
+    }
+    return _sqlString(value);
+  }
+
+  String _sqlIntOrNull(int? value) {
+    return value == null ? 'NULL' : '$value';
+  }
+}
+
+final class _TaskSyncSnapshot {
+  const _TaskSyncSnapshot({
+    this.syncStatus = TodoTaskSyncStatus.idle,
+    this.localRevision = 0,
+    this.remoteRevision = 0,
+    this.pendingChanges = const <String>[],
+    this.syncConflict,
+    this.lastSyncFailure,
+    this.lastSyncedAt,
+  });
+
+  final TodoTaskSyncStatus syncStatus;
+  final int localRevision;
+  final int remoteRevision;
+  final List<String> pendingChanges;
+  final TodoSyncConflict? syncConflict;
+  final String? lastSyncFailure;
+  final DateTime? lastSyncedAt;
 }

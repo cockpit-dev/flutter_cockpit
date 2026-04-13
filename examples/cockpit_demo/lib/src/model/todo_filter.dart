@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import 'todo_priority.dart';
+import 'todo_task_sync_status.dart';
 
 enum TodoCompletionFilter { active, completed, all }
 
@@ -11,6 +12,7 @@ final class TodoFilter {
     this.completionFilter = TodoCompletionFilter.active,
     this.priorities = const <TodoPriority>{},
     this.tagIds = const <String>{},
+    this.syncStatuses = const <TodoTaskSyncStatus>{},
     this.includeDeleted = false,
     this.onlyDueToday = false,
   });
@@ -20,6 +22,7 @@ final class TodoFilter {
         completionFilter = TodoCompletionFilter.active,
         priorities = const <TodoPriority>{},
         tagIds = const <String>{},
+        syncStatuses = const <TodoTaskSyncStatus>{},
         includeDeleted = false,
         onlyDueToday = false;
 
@@ -28,6 +31,7 @@ final class TodoFilter {
         completionFilter = TodoCompletionFilter.completed,
         priorities = const <TodoPriority>{},
         tagIds = const <String>{},
+        syncStatuses = const <TodoTaskSyncStatus>{},
         includeDeleted = false,
         onlyDueToday = false;
 
@@ -35,6 +39,7 @@ final class TodoFilter {
   final TodoCompletionFilter completionFilter;
   final Set<TodoPriority> priorities;
   final Set<String> tagIds;
+  final Set<TodoTaskSyncStatus> syncStatuses;
   final bool includeDeleted;
   final bool onlyDueToday;
 
@@ -46,6 +51,7 @@ final class TodoFilter {
             other.completionFilter == completionFilter &&
             setEquals(other.priorities, priorities) &&
             setEquals(other.tagIds, tagIds) &&
+            setEquals(other.syncStatuses, syncStatuses) &&
             other.includeDeleted == includeDeleted &&
             other.onlyDueToday == onlyDueToday;
   }
@@ -56,6 +62,7 @@ final class TodoFilter {
         completionFilter,
         Object.hashAll(priorities),
         Object.hashAll(tagIds),
+        Object.hashAll(syncStatuses),
         includeDeleted,
         onlyDueToday,
       );

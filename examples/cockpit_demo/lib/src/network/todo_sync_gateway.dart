@@ -4,8 +4,13 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
+import '../model/todo_sync_conflict.dart';
+import 'todo_sync_contract.dart';
+
 abstract interface class TodoSyncGatewayClient {
   Future<TodoSyncProbeResult> probeHealth();
+
+  Future<TodoSyncBatchResult> syncTasks(TodoSyncBatchRequest request);
 
   Future<void> close();
 }
@@ -29,21 +34,27 @@ final class TodoSyncProbeResult {
 
 typedef TodoSyncPayloadBuilder = Future<Map<String, Object?>> Function();
 typedef TodoSyncFailurePredicate = bool Function();
+typedef TodoSyncBatchHandler = Future<TodoSyncBatchResult> Function(
+  TodoSyncBatchRequest request,
+);
 
 final class TodoLoopbackSyncGateway implements TodoSyncGatewayClient {
   TodoLoopbackSyncGateway({
     required TodoSyncPayloadBuilder payloadBuilder,
     HttpClient Function()? httpClientFactory,
     TodoSyncFailurePredicate? shouldSimulateFailure,
+    TodoSyncBatchHandler? batchHandler,
     String host = '127.0.0.1',
   })  : _payloadBuilder = payloadBuilder,
         _httpClientFactory = httpClientFactory ?? HttpClient.new,
         _shouldSimulateFailure = shouldSimulateFailure,
+        _batchHandler = batchHandler,
         _host = host;
 
   final TodoSyncPayloadBuilder _payloadBuilder;
   final HttpClient Function() _httpClientFactory;
   final TodoSyncFailurePredicate? _shouldSimulateFailure;
+  final TodoSyncBatchHandler? _batchHandler;
   final String _host;
 
   HttpServer? _server;
@@ -75,6 +86,72 @@ final class TodoLoopbackSyncGateway implements TodoSyncGatewayClient {
     } finally {
       client.close(force: true);
     }
+  }
+
+  @override
+  Future<TodoSyncBatchResult> syncTasks(TodoSyncBatchRequest request) async {
+    final batchHandler = _batchHandler;
+    if (batchHandler != null) {
+      return batchHandler(request);
+    }
+
+    if (_shouldSimulateFailure?.call() ?? false) {
+      return TodoSyncBatchResult(
+        retryableFailures: request.tasks
+            .map(
+              (task) => TodoSyncRetryableFailure(
+                taskId: task.id,
+                summary:
+                    'Simulated relay outage · retry after disabling diagnostics failure mode.',
+              ),
+            )
+            .toList(growable: false),
+      );
+    }
+
+    final succeededTaskIds = <String>[];
+    final retryableFailures = <TodoSyncRetryableFailure>[];
+    final conflicts = <TodoSyncConflictEntry>[];
+
+    for (final task in request.tasks) {
+      final normalizedTitle = task.title.toLowerCase();
+      if (task.pendingChanges.contains('resolved_keep_local')) {
+        succeededTaskIds.add(task.id);
+        continue;
+      }
+      if (task.pendingChanges.contains('simulate_conflict') ||
+          normalizedTitle.contains('conflict')) {
+        conflicts.add(
+          TodoSyncConflictEntry(
+            taskId: task.id,
+            conflict: const TodoSyncConflict(
+              type: TodoSyncConflictType.concurrentEdit,
+              summary: 'Remote notes changed while local title changed.',
+              localFields: <String>['title'],
+              remoteFields: <String>['notes'],
+            ),
+          ),
+        );
+        continue;
+      }
+      if (task.pendingChanges.contains('simulate_retry') ||
+          normalizedTitle.contains('retry')) {
+        retryableFailures.add(
+          TodoSyncRetryableFailure(
+            taskId: task.id,
+            summary: 'Relay timed out while syncing ${task.title}.',
+          ),
+        );
+        continue;
+      }
+      succeededTaskIds.add(task.id);
+    }
+
+    return TodoSyncBatchResult(
+      succeededTaskIds: succeededTaskIds,
+      retryableFailures: retryableFailures,
+      conflicts: conflicts,
+    );
   }
 
   @override

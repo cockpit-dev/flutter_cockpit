@@ -222,6 +222,7 @@ Prefer `--command-file`, `--commands-file`, and `--config-json` once a payload s
 For code-side questions, prefer `analyze-files`, `lsp`, `grep-package-uris`, `read-package-uris`, and `pub` before workspace-wide commands.
 Serialize mutation, then observation. Do not parallelize `run-command` with the `read-app`, `inspect-ui`, or `read-network` step that depends on its side effects.
 When the next few mutations are already known and the flow will cross route boundaries such as `/inbox -> /editor -> /inbox`, prefer one ordered `run-batch` over separate `run-command` round-trips to reduce token cost and avoid transition gaps between commands.
+When an app summary already exposes workflow counters such as `syncStatus`, `pendingTaskCount`, `failedTaskCount`, and `conflictTaskCount`, prefer those bounded fields before reopening a heavier inspection payload.
 
 Locators are multi-signal. Start with `text`, `tooltip`, or `semanticId`. Use `key` only when the app already exposes a legitimate stable key for product reasons, then add `route`, `type`, `path`, nested `ancestor`, or short `fallbacks` only when needed. `path` matching is fuzzy and ignores noise such as `body`, `slivers`, and numeric indexes.
 
@@ -262,6 +263,8 @@ Widget buildCockpitDevelopmentApp() {
 
 Replace `package:your_app/app_shell.dart` with the import that already exposes your app root widget or bootstrap. `launch-app` injects the `FLUTTER_PILOT_REMOTE_*` dart-defines, so `resolveFromEnvironment(...)` enables the remote control surface without taking over the production bootstrap.
 If the existing app already owns `MaterialApp`, wrap that shell with `FlutterCockpitApp` and add `FlutterCockpit.navigatorObserver` to its navigator instead of nesting a second `MaterialApp`.
+
+`examples/cockpit_demo` now includes a repository-owned Sync Lab workflow used to validate queued local edits, mixed sync outcomes, conflict-only filtering, in-product conflict resolution, and retry after resolution.
 
 Run the example loop:
 

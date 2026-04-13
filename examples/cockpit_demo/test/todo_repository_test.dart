@@ -4,7 +4,9 @@ import 'package:cockpit_demo/src/data/todo_repository.dart';
 import 'package:cockpit_demo/src/model/todo_filter.dart';
 import 'package:cockpit_demo/src/model/todo_priority.dart';
 import 'package:cockpit_demo/src/model/todo_settings.dart';
+import 'package:cockpit_demo/src/model/todo_sync_conflict.dart';
 import 'package:cockpit_demo/src/model/todo_tag.dart';
+import 'package:cockpit_demo/src/model/todo_task_sync_status.dart';
 
 void main() {
   group('TodoRepository', () {
@@ -159,6 +161,41 @@ void main() {
       await repository.saveSettings(settings);
 
       expect(await repository.readSettings(), settings);
+    });
+
+    test('persists sync metadata and filters conflicted tasks', () async {
+      final created = await repository.createTask(title: 'Resolve launch copy');
+
+      await repository.applySyncResolution(
+        taskId: created.id,
+        syncStatus: TodoTaskSyncStatus.conflicted,
+        localRevision: 2,
+        remoteRevision: 4,
+        conflict: const TodoSyncConflict(
+          type: TodoSyncConflictType.concurrentEdit,
+          summary: 'Remote notes changed while local title changed.',
+          localFields: <String>['title'],
+          remoteFields: <String>['notes'],
+        ),
+      );
+
+      final conflicted = await repository.fetchTasks(
+        const TodoFilter(
+          syncStatuses: <TodoTaskSyncStatus>{
+            TodoTaskSyncStatus.conflicted,
+          },
+        ),
+      );
+
+      expect(conflicted, hasLength(1));
+      expect(conflicted.single.id, created.id);
+      expect(conflicted.single.syncStatus, TodoTaskSyncStatus.conflicted);
+      expect(
+        conflicted.single.syncConflict?.type,
+        TodoSyncConflictType.concurrentEdit,
+      );
+      expect(conflicted.single.localRevision, 2);
+      expect(conflicted.single.remoteRevision, 4);
     });
   });
 }

@@ -4,6 +4,7 @@ import 'package:cockpit_demo/src/app/todo_app_service.dart';
 import 'package:cockpit_demo/src/app/todo_sync_state.dart';
 import 'package:cockpit_demo/src/data/cockpit_demo_database.dart';
 import 'package:cockpit_demo/src/data/todo_repository.dart';
+import 'package:cockpit_demo/src/network/todo_sync_contract.dart';
 import 'package:cockpit_demo/src/ui/screens/settings_screen.dart';
 import 'package:cockpit_demo/src/network/todo_sync_gateway.dart';
 
@@ -98,6 +99,11 @@ final class _ConfigurableTodoSyncGateway implements TodoSyncGatewayClient {
 
   @override
   Future<void> close() async {}
+
+  @override
+  Future<TodoSyncBatchResult> syncTasks(TodoSyncBatchRequest request) async {
+    return const TodoSyncBatchResult();
+  }
 
   @override
   Future<TodoSyncProbeResult> probeHealth() async {
