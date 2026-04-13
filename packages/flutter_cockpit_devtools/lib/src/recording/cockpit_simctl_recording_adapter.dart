@@ -11,7 +11,8 @@ final class CockpitSimctlRecordingAdapter
   CockpitSimctlRecordingAdapter({
     required String deviceId,
     String executable = 'xcrun',
-    CockpitRecordingProcessStarter processStarter = Process.start,
+    CockpitRecordingProcessStarter processStarter =
+        _startDetachedRecordingProcess,
     CockpitRecordingProcessRunner processRunner = Process.run,
     CockpitRecordingTempFileFactory tempFileFactory =
         cockpitCreateRecordingTempFile,
@@ -39,17 +40,11 @@ final class CockpitSimctlRecordingAdapter
   final Duration _stopTimeout;
   final Duration _finalizationPollInterval;
 
-  Process? _process;
-  CockpitRecordingRequest? _request;
-  File? _outputFile;
-  StreamSubscription<String>? _stderrSubscription;
-  Stopwatch? _stopwatch;
-
   @override
   Future<CockpitRecordingSession> startRecording(
     CockpitRecordingRequest request,
   ) async {
-    if (_process != null) {
+    if (await _restoreableSessionExists()) {
       throw StateError('A simctl recording is already active.');
     }
 
@@ -70,7 +65,7 @@ final class CockpitSimctlRecordingAdapter
       outputFile.path,
     ]);
 
-    unawaited(process.stdout.drain<void>());
+    final stdoutSubscription = process.stdout.listen((_) {});
 
     final startupCompleter = Completer<void>();
     final stderrBuffer = StringBuffer();
@@ -85,25 +80,29 @@ final class CockpitSimctlRecordingAdapter
     });
 
     try {
-      await Future.any<void>(<Future<void>>[
-        startupCompleter.future,
-        process.exitCode.then((exitCode) {
-          throw StateError(
-            'simctl recordVideo exited before startup (exitCode=$exitCode): ${stderrBuffer.toString().trim()}',
-          );
-        }),
-      ]).timeout(_startupTimeout);
+      await _waitForProcessStartup(
+        process: process,
+        startupCompleter: startupCompleter,
+        stderrBuffer: stderrBuffer,
+      );
     } on Object {
+      await stdoutSubscription.cancel();
       await stderrSubscription.cancel();
       process.kill(ProcessSignal.sigkill);
       rethrow;
     }
 
-    _process = process;
-    _request = request;
-    _outputFile = outputFile;
-    _stderrSubscription = stderrSubscription;
-    _stopwatch = Stopwatch()..start();
+    final startedAt = DateTime.now();
+    await _writePersistedSession(
+      _PersistedSimctlRecordingSession(
+        pid: process.pid,
+        request: request,
+        outputFilePath: outputFile.path,
+        startedAt: startedAt,
+      ),
+    );
+    await stdoutSubscription.cancel();
+    await stderrSubscription.cancel();
 
     return CockpitRecordingSession(
       request: request,
@@ -113,68 +112,209 @@ final class CockpitSimctlRecordingAdapter
 
   @override
   Future<CockpitRecordingResult> stopRecording() async {
-    final process = _process;
-    final request = _request;
-    final outputFile = _outputFile;
-    final stopwatch = _stopwatch;
-    if (process == null || request == null || outputFile == null) {
+    final persistedSession = await _readPersistedSession();
+    if (persistedSession == null) {
       throw StateError('No active simctl recording session exists.');
     }
 
     try {
-      process.kill(ProcessSignal.sigint);
-      await process.exitCode.timeout(_stopTimeout);
-      final hasOutput = await cockpitWaitForNonEmptyFile(
-        outputFile,
-        timeout: _stopTimeout,
-        pollInterval: _finalizationPollInterval,
-      );
-      if (!hasOutput) {
+      Process.killPid(persistedSession.pid, ProcessSignal.sigint);
+      final exited = await _waitForProcessExit(persistedSession.pid);
+      if (!exited) {
+        Process.killPid(persistedSession.pid, ProcessSignal.sigkill);
         return CockpitRecordingResult(
           state: CockpitRecordingState.failed,
-          purpose: request.purpose,
+          purpose: persistedSession.request.purpose,
           recordingKind: CockpitRecordingKind.nativeScreen,
-          failureReason: 'simctl recording output file was missing or empty.',
+          failureReason: 'simctl recording did not stop before timeout.',
         );
       }
-      final finalized = await _waitForFinalizedOutput(
-        outputFile,
-        expectedDurationMs: stopwatch?.elapsedMilliseconds ?? 0,
-      );
-      if (!finalized) {
-        return CockpitRecordingResult(
-          state: CockpitRecordingState.failed,
-          purpose: request.purpose,
-          recordingKind: CockpitRecordingKind.nativeScreen,
-          failureReason:
-              'simctl recording output did not finalize to a stable duration.',
-        );
-      }
-
-      stopwatch?.stop();
-      return CockpitRecordingResult(
-        state: CockpitRecordingState.completed,
-        purpose: request.purpose,
-        recordingKind: CockpitRecordingKind.nativeScreen,
-        artifact: cockpitRecordingArtifactForName(request.name),
-        durationMs: stopwatch?.elapsedMilliseconds,
-        sourceFilePath: outputFile.path,
+      return await _finalizeStoppedRecording(
+        request: persistedSession.request,
+        outputFile: File(persistedSession.outputFilePath),
+        durationMs: DateTime.now()
+            .difference(persistedSession.startedAt)
+            .inMilliseconds,
       );
     } on TimeoutException {
-      process.kill(ProcessSignal.sigkill);
+      Process.killPid(persistedSession.pid, ProcessSignal.sigkill);
       return CockpitRecordingResult(
         state: CockpitRecordingState.failed,
-        purpose: request.purpose,
+        purpose: persistedSession.request.purpose,
         recordingKind: CockpitRecordingKind.nativeScreen,
         failureReason: 'simctl recording did not stop before timeout.',
       );
     } finally {
-      await _stderrSubscription?.cancel();
-      _process = null;
-      _request = null;
-      _outputFile = null;
-      _stderrSubscription = null;
-      _stopwatch = null;
+      await _clearActiveSession();
+    }
+  }
+
+  Future<CockpitRecordingResult> _finalizeStoppedRecording({
+    required CockpitRecordingRequest request,
+    required File outputFile,
+    required int durationMs,
+  }) async {
+    final hasOutput = await cockpitWaitForNonEmptyFile(
+      outputFile,
+      timeout: _stopTimeout,
+      pollInterval: _finalizationPollInterval,
+    );
+    if (!hasOutput) {
+      return CockpitRecordingResult(
+        state: CockpitRecordingState.failed,
+        purpose: request.purpose,
+        recordingKind: CockpitRecordingKind.nativeScreen,
+        failureReason: 'simctl recording output file was missing or empty.',
+      );
+    }
+    final finalized = await _waitForFinalizedOutput(
+      outputFile,
+      expectedDurationMs: durationMs,
+    );
+    if (!finalized) {
+      return CockpitRecordingResult(
+        state: CockpitRecordingState.failed,
+        purpose: request.purpose,
+        recordingKind: CockpitRecordingKind.nativeScreen,
+        failureReason:
+            'simctl recording output did not finalize to a stable duration.',
+      );
+    }
+
+    return CockpitRecordingResult(
+      state: CockpitRecordingState.completed,
+      purpose: request.purpose,
+      recordingKind: CockpitRecordingKind.nativeScreen,
+      artifact: cockpitRecordingArtifactForName(request.name),
+      durationMs: durationMs,
+      sourceFilePath: outputFile.path,
+    );
+  }
+
+  Future<void> _waitForProcessStartup({
+    required Process process,
+    required Completer<void> startupCompleter,
+    required StringBuffer stderrBuffer,
+  }) async {
+    final deadline = DateTime.now().add(_startupTimeout);
+    const stableRunningWindow = Duration(milliseconds: 750);
+    DateTime? runningSince;
+    while (DateTime.now().isBefore(deadline)) {
+      if (startupCompleter.isCompleted) {
+        return;
+      }
+
+      final running = await _isProcessRunning(process.pid);
+      if (!running) {
+        final exitCode = await process.exitCode;
+        throw StateError(
+          'simctl recordVideo exited before startup (exitCode=$exitCode): ${stderrBuffer.toString().trim()}',
+        );
+      }
+
+      runningSince ??= DateTime.now();
+      await Future<void>.delayed(Duration.zero);
+      if (startupCompleter.isCompleted) {
+        return;
+      }
+      if (DateTime.now().difference(runningSince) >= stableRunningWindow) {
+        return;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    }
+
+    if (startupCompleter.isCompleted) {
+      return;
+    }
+
+    if (await _isProcessRunning(process.pid)) {
+      return;
+    }
+    final exitCode = await process.exitCode;
+
+    throw TimeoutException(
+      'simctl recordVideo exited before confirming startup (exitCode=$exitCode).',
+    );
+  }
+
+  Future<bool> _restoreableSessionExists() async {
+    final persisted = await _readPersistedSession();
+    if (persisted == null) {
+      return false;
+    }
+    if (await _isProcessRunning(persisted.pid)) {
+      return true;
+    }
+    await _clearPersistedSession();
+    return false;
+  }
+
+  Future<void> _clearActiveSession() async {
+    await _clearPersistedSession();
+  }
+
+  File get _sessionFile {
+    final sanitizedDeviceId =
+        _deviceId.replaceAll(RegExp(r'[^A-Za-z0-9._-]+'), '_');
+    return File(
+      '${Directory.systemTemp.path}${Platform.pathSeparator}'
+      'flutter_cockpit_recording_sessions${Platform.pathSeparator}'
+      'simctl_$sanitizedDeviceId.json',
+    );
+  }
+
+  Future<void> _writePersistedSession(
+    _PersistedSimctlRecordingSession session,
+  ) async {
+    final file = _sessionFile;
+    await file.parent.create(recursive: true);
+    await file.writeAsString(jsonEncode(session.toJson()));
+  }
+
+  Future<_PersistedSimctlRecordingSession?> _readPersistedSession() async {
+    final file = _sessionFile;
+    if (!file.existsSync()) {
+      return null;
+    }
+    try {
+      final decoded = jsonDecode(await file.readAsString());
+      if (decoded is! Map<Object?, Object?>) {
+        await _clearPersistedSession();
+        return null;
+      }
+      return _PersistedSimctlRecordingSession.fromJson(
+        Map<String, Object?>.from(decoded),
+      );
+    } on FormatException {
+      await _clearPersistedSession();
+      return null;
+    }
+  }
+
+  Future<void> _clearPersistedSession() async {
+    final file = _sessionFile;
+    if (file.existsSync()) {
+      await file.delete();
+    }
+  }
+
+  Future<bool> _waitForProcessExit(int pid) async {
+    final deadline = DateTime.now().add(_stopTimeout);
+    while (DateTime.now().isBefore(deadline)) {
+      if (!await _isProcessRunning(pid)) {
+        return true;
+      }
+      await Future<void>.delayed(_finalizationPollInterval);
+    }
+    return !await _isProcessRunning(pid);
+  }
+
+  Future<bool> _isProcessRunning(int pid) async {
+    try {
+      final result = await Process.run('/bin/kill', <String>['-0', '$pid']);
+      return result.exitCode == 0;
+    } on ProcessException {
+      return false;
     }
   }
 
@@ -193,7 +333,9 @@ final class CockpitSimctlRecordingAdapter
 
     final minimumExpectedDurationMs = expectedDurationMs <= 0
         ? 800
-        : (expectedDurationMs * 0.7).round().clamp(800, expectedDurationMs);
+        : expectedDurationMs < 800
+            ? expectedDurationMs
+            : (expectedDurationMs * 0.7).round().clamp(800, expectedDurationMs);
     final deadline = DateTime.now().add(_stopTimeout);
     while (DateTime.now().isBefore(deadline)) {
       final probe = await _probeRecordingTimeline(outputFile.path);
@@ -284,6 +426,51 @@ final class CockpitSimctlRecordingAdapter
       return null;
     }
   }
+}
+
+final class _PersistedSimctlRecordingSession {
+  const _PersistedSimctlRecordingSession({
+    required this.pid,
+    required this.request,
+    required this.outputFilePath,
+    required this.startedAt,
+  });
+
+  final int pid;
+  final CockpitRecordingRequest request;
+  final String outputFilePath;
+  final DateTime startedAt;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+        'pid': pid,
+        'request': request.toJson(),
+        'outputFilePath': outputFilePath,
+        'startedAt': startedAt.toUtc().toIso8601String(),
+      };
+
+  factory _PersistedSimctlRecordingSession.fromJson(
+    Map<String, Object?> json,
+  ) {
+    return _PersistedSimctlRecordingSession(
+      pid: json['pid']! as int,
+      request: CockpitRecordingRequest.fromJson(
+        Map<String, Object?>.from(json['request']! as Map<Object?, Object?>),
+      ),
+      outputFilePath: json['outputFilePath']! as String,
+      startedAt: DateTime.parse(json['startedAt']! as String).toUtc(),
+    );
+  }
+}
+
+Future<Process> _startDetachedRecordingProcess(
+  String executable,
+  List<String> arguments,
+) {
+  return Process.start(
+    executable,
+    arguments,
+    mode: ProcessStartMode.detachedWithStdio,
+  );
 }
 
 final class _CockpitRecordingTimelineProbe {
