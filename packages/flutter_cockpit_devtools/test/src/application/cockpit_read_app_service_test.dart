@@ -249,7 +249,8 @@ void main() {
 
       expect(result.uiSummary?.visibleTargetCount, 0);
       expect(result.recommendedNextStep, 'recoverBrowserVisibility');
-      expect(result.whatMatters, contains('no visible targets were discovered'));
+      expect(
+          result.whatMatters, contains('no visible targets were discovered'));
       expect(result.whatMatters, contains('/inbox'));
     },
   );

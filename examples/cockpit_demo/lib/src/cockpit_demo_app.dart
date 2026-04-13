@@ -9,10 +9,12 @@ import 'data/todo_repository.dart';
 import 'model/todo_settings.dart';
 import 'model/todo_filter.dart';
 import 'model/todo_task.dart';
+import 'model/todo_task_sync_status.dart';
 import 'network/todo_sync_gateway.dart';
 import 'ui/screens/completed_screen.dart';
 import 'ui/screens/inbox_screen.dart';
 import 'ui/screens/settings_screen.dart';
+import 'ui/screens/sync_conflict_screen.dart';
 import 'ui/screens/task_detail_screen.dart';
 import 'ui/screens/task_editor_screen.dart';
 import 'ui/screens/today_screen.dart';
@@ -139,6 +141,16 @@ final class _CockpitDemoAppState extends State<CockpitDemoApp> {
             );
           case '/settings':
             return SettingsScreen(service: _service);
+          case '/sync-conflict':
+            final task = settings.arguments;
+            if (task is! TodoTask) {
+              return _fallbackScreen();
+            }
+            return SyncConflictScreen(
+              service: _service,
+              repository: _repository,
+              task: task,
+            );
           case '/inbox':
           default:
             return InboxScreen(
@@ -194,6 +206,21 @@ final class _CockpitDemoAppState extends State<CockpitDemoApp> {
     final today = DateTime.now();
     final activeCount = tasks.where((task) => !task.isCompleted).length;
     final completedCount = tasks.where((task) => task.isCompleted).length;
+    final pendingCount = tasks
+        .where(
+          (task) => task.syncStatus == TodoTaskSyncStatus.pending,
+        )
+        .length;
+    final failedCount = tasks
+        .where(
+          (task) => task.syncStatus == TodoTaskSyncStatus.failed,
+        )
+        .length;
+    final conflictCount = tasks
+        .where(
+          (task) => task.syncStatus == TodoTaskSyncStatus.conflicted,
+        )
+        .length;
     final dueTodayCount = tasks.where((task) {
       final dueAt = task.dueAt;
       return dueAt != null &&
@@ -206,9 +233,13 @@ final class _CockpitDemoAppState extends State<CockpitDemoApp> {
       'status': 'ready',
       'mode': 'local-first',
       'summary':
-          'Local relay healthy · pending writes 0 · active $activeCount · completed $completedCount',
+          'Local relay healthy · pending $pendingCount · conflicts $conflictCount · active $activeCount',
       'activeTaskCount': activeCount,
       'completedTaskCount': completedCount,
+      'pendingTaskCount': pendingCount,
+      'failedTaskCount': failedCount,
+      'conflictTaskCount': conflictCount,
+      'syncStatus': _service.syncState.status.name,
       'dueTodayCount': dueTodayCount,
       'sortMode': settings.sortMode.name,
       'compactMode': settings.compactMode,

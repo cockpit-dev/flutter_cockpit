@@ -162,7 +162,16 @@ When driving the demo through `read-app` or `read-target`:
 - use `selectedPlane` to understand the primary interaction plane
 - use `capabilities.capabilityProfile` as the canonical source of platform-specific powers
 - use `recordingCapabilities.recordingLimitations` to detect host prerequisites or capture scope constraints before starting a recording
+- use `syncStatus`, `pendingTaskCount`, `failedTaskCount`, and `conflictTaskCount` as the summary-first sync health view before opening heavier inspections
 - when the next few actions are already known and the flow will cross routes such as `/inbox -> /editor -> /inbox`, prefer one `run-batch` instead of multiple `run-command` calls; this is both lower-token and more stable for short editor or settings loops
+
+The example now also ships a repository-owned Sync Lab workflow covering:
+
+- queued local edits
+- mixed sync outcomes
+- conflict-only filtering
+- in-product conflict resolution
+- retry after resolution
 
 ## CI
 

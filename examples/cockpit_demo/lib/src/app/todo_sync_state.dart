@@ -1,6 +1,14 @@
 import 'package:flutter/foundation.dart';
 
-enum TodoSyncStatus { idle, checking, healthy, failed }
+enum TodoSyncStatus {
+  idle,
+  checking,
+  healthy,
+  syncing,
+  synced,
+  failed,
+  conflicted
+}
 
 @immutable
 final class TodoSyncState {
@@ -16,6 +24,10 @@ final class TodoSyncState {
     this.lastHealthyEndpoint,
     this.lastHealthyStatusCode,
     this.lastHealthyCheckedAt,
+    this.pendingTaskCount = 0,
+    this.failedTaskCount = 0,
+    this.conflictTaskCount = 0,
+    this.lastRunSummary,
   });
 
   final TodoSyncStatus status;
@@ -29,6 +41,10 @@ final class TodoSyncState {
   final String? lastHealthyEndpoint;
   final int? lastHealthyStatusCode;
   final DateTime? lastHealthyCheckedAt;
+  final int pendingTaskCount;
+  final int failedTaskCount;
+  final int conflictTaskCount;
+  final String? lastRunSummary;
 
   bool get isChecking => status == TodoSyncStatus.checking;
   bool get hasSuccessfulCheck => lastHealthySummary != null;
@@ -51,6 +67,10 @@ final class TodoSyncState {
     ValueGetter<String?>? lastHealthyEndpoint,
     ValueGetter<int?>? lastHealthyStatusCode,
     ValueGetter<DateTime?>? lastHealthyCheckedAt,
+    int? pendingTaskCount,
+    int? failedTaskCount,
+    int? conflictTaskCount,
+    ValueGetter<String?>? lastRunSummary,
   }) {
     return TodoSyncState(
       status: status ?? this.status,
@@ -72,6 +92,11 @@ final class TodoSyncState {
       lastHealthyCheckedAt: lastHealthyCheckedAt == null
           ? this.lastHealthyCheckedAt
           : lastHealthyCheckedAt(),
+      pendingTaskCount: pendingTaskCount ?? this.pendingTaskCount,
+      failedTaskCount: failedTaskCount ?? this.failedTaskCount,
+      conflictTaskCount: conflictTaskCount ?? this.conflictTaskCount,
+      lastRunSummary:
+          lastRunSummary == null ? this.lastRunSummary : lastRunSummary(),
     );
   }
 }

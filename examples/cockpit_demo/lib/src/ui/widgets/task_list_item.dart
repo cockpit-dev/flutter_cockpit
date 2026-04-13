@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../model/todo_priority.dart';
 import '../../model/todo_task.dart';
+import '../../model/todo_task_sync_status.dart';
 import '../theme/orbit_todo_theme.dart';
+import 'task_sync_badge.dart';
 
 final class TaskListItem extends StatelessWidget {
   const TaskListItem({
@@ -125,6 +127,11 @@ final class TaskListItem extends StatelessWidget {
                                     label: 'Completed',
                                     color: colorScheme.primary,
                                   ),
+                                if (task.syncStatus !=
+                                        TodoTaskSyncStatus.idle &&
+                                    task.syncStatus !=
+                                        TodoTaskSyncStatus.synced)
+                                  TaskSyncBadge(status: task.syncStatus),
                                 if (isSelected)
                                   _InlineMeta(
                                     label: 'Selected',

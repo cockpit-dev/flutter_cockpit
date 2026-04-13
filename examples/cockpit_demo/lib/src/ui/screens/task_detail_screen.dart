@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../app/todo_app_service.dart';
 import '../../data/todo_repository.dart';
+import '../../model/todo_task_sync_status.dart';
 import '../../model/todo_task.dart';
 import '../theme/orbit_todo_theme.dart';
 import '../widgets/editorial_section.dart';
@@ -79,6 +80,24 @@ final class _TaskDetailScreenState extends State<TaskDetailScreen> {
     ).pushReplacementNamed('/detail', arguments: createdTask);
   }
 
+  Future<void> _resolveConflict() async {
+    final refreshed = await Navigator.of(
+      context,
+    ).pushNamed('/sync-conflict', arguments: _task);
+    if (!mounted) {
+      return;
+    }
+    final latest = refreshed is TodoTask
+        ? refreshed
+        : await widget.repository.getTask(_task.id);
+    if (latest == null) {
+      return;
+    }
+    setState(() {
+      _task = latest;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -150,6 +169,11 @@ final class _TaskDetailScreenState extends State<TaskDetailScreen> {
                             ? Icons.check_circle_rounded
                             : Icons.timelapse_rounded,
                       ),
+                      if (_task.syncStatus != TodoTaskSyncStatus.idle)
+                        _DetailChip(
+                          label: 'Sync ${_task.syncStatus.name}',
+                          icon: Icons.sync_rounded,
+                        ),
                     ],
                   ),
                   if (_task.tags.isNotEmpty) ...<Widget>[
@@ -170,6 +194,42 @@ final class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 ],
               ),
             ),
+            if (_task.syncConflict != null) ...<Widget>[
+              const SizedBox(height: 24),
+              EditorialSection(
+                padding: const EdgeInsets.fromLTRB(18, 22, 18, 22),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      'SYNC',
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                        letterSpacing: 0.95,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Conflict requires review',
+                      style: theme.textTheme.headlineSmall,
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      _task.syncConflict!.summary,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                        height: 1.45,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    FilledButton.tonal(
+                      onPressed: _resolveConflict,
+                      child: const Text('Resolve conflict'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 24),
             EditorialSection(
               padding: const EdgeInsets.fromLTRB(18, 22, 18, 22),

@@ -5,12 +5,15 @@ import '../data/todo_repository.dart';
 import '../model/todo_filter.dart';
 import '../model/todo_priority.dart';
 import '../model/todo_settings.dart';
+import '../model/todo_sync_conflict.dart';
 import '../model/todo_tag.dart';
 import '../model/todo_task.dart';
+import '../model/todo_task_sync_status.dart';
 import '../network/todo_sync_gateway.dart';
 import 'todo_editor_state.dart';
 import 'todo_list_state.dart';
 import 'todo_settings_state.dart';
+import 'todo_sync_machine.dart';
 import 'todo_sync_state.dart';
 
 final class TodoAppService extends ChangeNotifier {
@@ -101,6 +104,23 @@ final class TodoAppService extends ChangeNotifier {
               ? candidateFocusId
               : null;
         },
+      );
+      _syncState = _syncState.copyWith(
+        pendingTaskCount: _countTasksWithSyncStatus(
+          tasks,
+          const <TodoTaskSyncStatus>{
+            TodoTaskSyncStatus.pending,
+            TodoTaskSyncStatus.failed,
+          },
+        ),
+        failedTaskCount: _countTasksWithSyncStatus(
+          tasks,
+          const <TodoTaskSyncStatus>{TodoTaskSyncStatus.failed},
+        ),
+        conflictTaskCount: _countTasksWithSyncStatus(
+          tasks,
+          const <TodoTaskSyncStatus>{TodoTaskSyncStatus.conflicted},
+        ),
       );
     } on Object catch (error) {
       if (_isDisposed) {
@@ -246,9 +266,19 @@ final class TodoAppService extends ChangeNotifier {
       if (_isDisposed) {
         return null;
       }
+      final queuedTask = await _repository.applySyncResolution(
+        taskId: savedTask.id,
+        syncStatus: TodoTaskSyncStatus.pending,
+        localRevision: savedTask.localRevision + 1,
+        remoteRevision: savedTask.remoteRevision,
+        pendingChanges: _draftPendingChanges(),
+        conflict: null,
+        lastSyncFailure: null,
+        lastSyncedAt: savedTask.lastSyncedAt,
+      );
       _editorState = TodoEditorState.empty;
-      await loadTasks(_listState.filter, savedTask.id);
-      return savedTask;
+      await loadTasks(_listState.filter, queuedTask.id);
+      return queuedTask;
     } on Object catch (error) {
       if (_isDisposed) {
         return null;
@@ -593,6 +623,219 @@ final class TodoAppService extends ChangeNotifier {
     _notifyListenersIfActive();
   }
 
+  Future<TodoTask?> editTaskAndQueueSync({
+    required String taskId,
+    required String title,
+  }) async {
+    final existing = await _repository.getTask(taskId);
+    if (existing == null) {
+      return null;
+    }
+    final updated = await _repository.updateTask(
+      taskId: taskId,
+      title: title,
+      notes: existing.notes,
+      priority: existing.priority,
+      dueAt: existing.dueAt,
+      tagIds: existing.tagIds,
+    );
+    final queued = await _repository.applySyncResolution(
+      taskId: updated.id,
+      syncStatus: TodoTaskSyncStatus.pending,
+      localRevision: updated.localRevision + 1,
+      remoteRevision: updated.remoteRevision,
+      pendingChanges: const <String>['title'],
+      conflict: null,
+      lastSyncFailure: null,
+      lastSyncedAt: updated.lastSyncedAt,
+    );
+    await loadTasks(_listState.filter, queued.id);
+    return queued;
+  }
+
+  Future<void> runSyncNow() async {
+    final syncGateway = _syncGateway;
+    if (syncGateway == null) {
+      _syncState = _syncState.copyWith(
+        status: TodoSyncStatus.failed,
+        headline: 'Relay unavailable',
+        detail: 'No sync relay is attached to this app instance.',
+        lastRunSummary: () => 'No sync relay is attached to this app instance.',
+      );
+      _notifyListenersIfActive();
+      return;
+    }
+
+    final queuedTasks = await _repository.fetchTasks(
+      const TodoFilter(
+        completionFilter: TodoCompletionFilter.all,
+        syncStatuses: <TodoTaskSyncStatus>{
+          TodoTaskSyncStatus.pending,
+          TodoTaskSyncStatus.failed,
+          TodoTaskSyncStatus.conflicted,
+        },
+      ),
+    );
+    if (queuedTasks.isEmpty) {
+      _syncState = _syncState.copyWith(
+        status: TodoSyncStatus.synced,
+        headline: 'Sync complete',
+        detail: 'No queued task changes are waiting to sync.',
+        pendingTaskCount: 0,
+        failedTaskCount: 0,
+        conflictTaskCount: 0,
+        lastRunSummary: () => 'No queued task changes are waiting to sync.',
+      );
+      _notifyListenersIfActive();
+      return;
+    }
+
+    _syncState = _syncState.copyWith(
+      status: TodoSyncStatus.syncing,
+      headline: 'Syncing tasks…',
+      detail: 'Pushing queued local edits through the sync boundary.',
+      pendingTaskCount: queuedTasks.length,
+    );
+    _notifyListenersIfActive();
+
+    final outcome = await TodoSyncMachine(
+      gateway: syncGateway,
+    ).sync(tasks: queuedTasks);
+    final queuedById = <String, TodoTask>{
+      for (final task in queuedTasks) task.id: task,
+    };
+
+    for (final taskId in outcome.succeededTaskIds) {
+      final task = queuedById[taskId];
+      if (task == null) {
+        continue;
+      }
+      await _repository.applySyncResolution(
+        taskId: task.id,
+        syncStatus: TodoTaskSyncStatus.synced,
+        localRevision: task.localRevision,
+        remoteRevision: task.localRevision,
+        pendingChanges: const <String>[],
+        conflict: null,
+        lastSyncFailure: null,
+        lastSyncedAt: DateTime.now().toUtc(),
+      );
+    }
+
+    for (final failure in outcome.retryableFailures) {
+      final task = queuedById[failure.taskId];
+      if (task == null) {
+        continue;
+      }
+      await _repository.applySyncResolution(
+        taskId: task.id,
+        syncStatus: TodoTaskSyncStatus.failed,
+        localRevision: task.localRevision,
+        remoteRevision: task.remoteRevision,
+        pendingChanges: task.pendingChanges,
+        conflict: null,
+        lastSyncFailure: failure.summary,
+        lastSyncedAt: task.lastSyncedAt,
+      );
+    }
+
+    for (final conflictEntry in outcome.conflicts) {
+      final task = queuedById[conflictEntry.taskId];
+      if (task == null) {
+        continue;
+      }
+      await _repository.applySyncResolution(
+        taskId: task.id,
+        syncStatus: TodoTaskSyncStatus.conflicted,
+        localRevision: task.localRevision,
+        remoteRevision: task.remoteRevision + 1,
+        pendingChanges: task.pendingChanges,
+        conflict: conflictEntry.conflict,
+        lastSyncFailure: null,
+        lastSyncedAt: task.lastSyncedAt,
+      );
+    }
+
+    await loadTasks(_listState.filter);
+    final nextStatus = outcome.hasConflicts
+        ? TodoSyncStatus.conflicted
+        : outcome.hasFailures
+            ? TodoSyncStatus.failed
+            : TodoSyncStatus.synced;
+    _syncState = _syncState.copyWith(
+      status: nextStatus,
+      headline: switch (nextStatus) {
+        TodoSyncStatus.conflicted => 'Conflicts detected',
+        TodoSyncStatus.failed => 'Sync needs retry',
+        _ => 'Sync complete',
+      },
+      detail: switch (nextStatus) {
+        TodoSyncStatus.conflicted =>
+          'Resolve conflicts before running sync again.',
+        TodoSyncStatus.failed => 'Retry failed sync items after investigating.',
+        _ => 'All queued task changes synced successfully.',
+      },
+      pendingTaskCount: outcome.pendingTaskCount,
+      failedTaskCount: outcome.retryableFailures.length,
+      conflictTaskCount: outcome.conflicts.length,
+      lastRunSummary: () => switch (nextStatus) {
+        TodoSyncStatus.conflicted =>
+          'Conflicts detected for ${outcome.conflicts.length} tasks.',
+        TodoSyncStatus.failed =>
+          'Retry required for ${outcome.retryableFailures.length} tasks.',
+        _ => 'All queued task changes synced successfully.',
+      },
+    );
+    _notifyListenersIfActive();
+  }
+
+  Future<void> resolveConflict({
+    required String taskId,
+    required TodoConflictResolution resolution,
+  }) async {
+    final task = await _repository.getTask(taskId);
+    if (task == null) {
+      return;
+    }
+
+    switch (resolution) {
+      case TodoConflictResolution.keepLocal:
+        await _repository.applySyncResolution(
+          taskId: task.id,
+          syncStatus: TodoTaskSyncStatus.pending,
+          localRevision: task.localRevision + 1,
+          remoteRevision: task.remoteRevision,
+          pendingChanges: const <String>['resolved_keep_local'],
+          conflict: null,
+          lastSyncFailure: null,
+          lastSyncedAt: task.lastSyncedAt,
+        );
+      case TodoConflictResolution.mergeFields:
+        await _repository.applySyncResolution(
+          taskId: task.id,
+          syncStatus: TodoTaskSyncStatus.pending,
+          localRevision: task.localRevision + 1,
+          remoteRevision: task.remoteRevision,
+          pendingChanges: const <String>['merge_fields'],
+          conflict: null,
+          lastSyncFailure: null,
+          lastSyncedAt: task.lastSyncedAt,
+        );
+      case TodoConflictResolution.keepRemote:
+        await _repository.applySyncResolution(
+          taskId: task.id,
+          syncStatus: TodoTaskSyncStatus.synced,
+          localRevision: task.localRevision,
+          remoteRevision: task.remoteRevision,
+          pendingChanges: const <String>[],
+          conflict: null,
+          lastSyncFailure: null,
+          lastSyncedAt: DateTime.now().toUtc(),
+        );
+    }
+    await loadTasks(_listState.filter, task.id);
+  }
+
   Future<void> runSyncHealthCheck() async {
     final syncGateway = _syncGateway;
     if (syncGateway == null) {
@@ -662,6 +905,23 @@ final class TodoAppService extends ChangeNotifier {
   void resetSyncRelayState() {
     _syncState = TodoSyncState(simulateFailure: _syncState.simulateFailure);
     _notifyListenersIfActive();
+  }
+
+  int _countTasksWithSyncStatus(
+    List<TodoTask> tasks,
+    Set<TodoTaskSyncStatus> statuses,
+  ) {
+    return tasks.where((task) => statuses.contains(task.syncStatus)).length;
+  }
+
+  List<String> _draftPendingChanges() {
+    final changes = <String>[
+      'title',
+      if (_editorState.notes.trim().isNotEmpty) 'notes',
+      if (_editorState.dueAt != null) 'dueAt',
+      if (_editorState.selectedTagIds.isNotEmpty) 'tags',
+    ];
+    return changes.toSet().toList(growable: false);
   }
 
   List<TodoTask> _sortTasks(List<TodoTask> tasks, TodoSortMode sortMode) {

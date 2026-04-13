@@ -9,6 +9,7 @@ import '../../model/todo_priority.dart';
 import '../../model/todo_settings.dart';
 import '../../model/todo_tag.dart';
 import '../../model/todo_task.dart';
+import '../../model/todo_task_sync_status.dart';
 import '../theme/orbit_todo_theme.dart';
 import '../widgets/collection_overview_card.dart';
 import '../widgets/editorial_section.dart';
@@ -49,6 +50,7 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
   late final TextEditingController _searchController;
   late final ScrollController _scrollController;
   bool _highPriorityOnly = false;
+  bool _conflictsOnly = false;
   late final Set<String> _selectedTagIds;
   final Set<String> _selectedTaskIds = <String>{};
   double _planningZoom = 1.0;
@@ -61,6 +63,9 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
     _scrollController = ScrollController();
     _highPriorityOnly = widget.baseFilter.priorities.contains(
       TodoPriority.high,
+    );
+    _conflictsOnly = widget.baseFilter.syncStatuses.contains(
+      TodoTaskSyncStatus.conflicted,
     );
     _selectedTagIds = widget.baseFilter.tagIds.toSet();
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -94,6 +99,9 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
           ? const <TodoPriority>{TodoPriority.high}
           : widget.baseFilter.priorities,
       tagIds: _selectedTagIds,
+      syncStatuses: _conflictsOnly
+          ? const <TodoTaskSyncStatus>{TodoTaskSyncStatus.conflicted}
+          : widget.baseFilter.syncStatuses,
       includeDeleted: widget.baseFilter.includeDeleted,
       onlyDueToday: widget.baseFilter.onlyDueToday,
     );
@@ -108,6 +116,7 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
         settings.sortMode == TodoSortMode.manual &&
         _searchController.text.trim().isEmpty &&
         !_highPriorityOnly &&
+        !_conflictsOnly &&
         _selectedTagIds.isEmpty;
   }
 
@@ -1025,6 +1034,7 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
                           TaskFilterBar(
                             searchController: _searchController,
                             highPriorityOnly: _highPriorityOnly,
+                            conflictsOnly: _conflictsOnly,
                             availableTags: widget.service.availableTags,
                             selectedTagIds: _selectedTagIds,
                             onSearchChanged: (_) {
@@ -1033,6 +1043,12 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
                             onHighPriorityChanged: (selected) {
                               setState(() {
                                 _highPriorityOnly = selected;
+                              });
+                              widget.service.updateFilter(_effectiveFilter());
+                            },
+                            onConflictsOnlyChanged: (selected) {
+                              setState(() {
+                                _conflictsOnly = selected;
                               });
                               widget.service.updateFilter(_effectiveFilter());
                             },

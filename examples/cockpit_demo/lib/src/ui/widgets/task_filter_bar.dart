@@ -7,10 +7,12 @@ final class TaskFilterBar extends StatelessWidget {
   const TaskFilterBar({
     required this.searchController,
     required this.highPriorityOnly,
+    required this.conflictsOnly,
     required this.availableTags,
     required this.selectedTagIds,
     required this.onSearchChanged,
     required this.onHighPriorityChanged,
+    required this.onConflictsOnlyChanged,
     required this.onTagToggle,
     required this.onClearTagSelection,
     super.key,
@@ -18,10 +20,12 @@ final class TaskFilterBar extends StatelessWidget {
 
   final TextEditingController searchController;
   final bool highPriorityOnly;
+  final bool conflictsOnly;
   final List<TodoTag> availableTags;
   final Set<String> selectedTagIds;
   final ValueChanged<String> onSearchChanged;
   final ValueChanged<bool> onHighPriorityChanged;
+  final ValueChanged<bool> onConflictsOnlyChanged;
   final ValueChanged<String> onTagToggle;
   final VoidCallback onClearTagSelection;
 
@@ -78,6 +82,11 @@ final class TaskFilterBar extends StatelessWidget {
         label: 'High priority only',
         onPressed: () => onHighPriorityChanged(!highPriorityOnly),
       ),
+      _PriorityToggle(
+        selected: conflictsOnly,
+        label: 'Conflicts only',
+        onPressed: () => onConflictsOnlyChanged(!conflictsOnly),
+      ),
     ];
 
     return DecoratedBox(
@@ -114,7 +123,10 @@ final class TaskFilterBar extends StatelessWidget {
                   const SizedBox(width: 18),
                   Expanded(child: controls.first),
                   const SizedBox(width: 12),
-                  controls.last,
+                  Wrap(
+                    spacing: 12,
+                    children: controls.skip(1).toList(growable: false),
+                  ),
                 ],
               ),
             if (hasTags) ...<Widget>[

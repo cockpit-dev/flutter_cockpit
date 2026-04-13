@@ -289,11 +289,10 @@ final class _SettingsScreenState extends State<SettingsScreen> {
                       const SizedBox(height: 18),
                       Text('Sync relay', style: theme.textTheme.titleMedium),
                       const SizedBox(height: 8),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Expanded(
-                            child: Column(
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          Widget buildSyncSummary() {
+                            return Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: <Widget>[
                                 Text(
@@ -368,16 +367,56 @@ final class _SettingsScreenState extends State<SettingsScreen> {
                                     ),
                                   ),
                               ],
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          FilledButton.tonal(
-                            onPressed: syncState.isChecking
-                                ? null
-                                : widget.service.runSyncHealthCheck,
-                            child: Text(syncState.actionLabel),
-                          ),
-                        ],
+                            );
+                          }
+
+                          Widget buildSyncActions() {
+                            return Wrap(
+                              spacing: 12,
+                              runSpacing: 12,
+                              children: <Widget>[
+                                FilledButton.tonal(
+                                  onPressed:
+                                      syncState.status == TodoSyncStatus.syncing
+                                          ? null
+                                          : widget.service.runSyncNow,
+                                  child: const Text('Run queued sync'),
+                                ),
+                                FilledButton.tonal(
+                                  onPressed: syncState.isChecking
+                                      ? null
+                                      : widget.service.runSyncHealthCheck,
+                                  child: Text(syncState.actionLabel),
+                                ),
+                              ],
+                            );
+                          }
+
+                          if (constraints.maxWidth < 520) {
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                buildSyncSummary(),
+                                const SizedBox(height: 16),
+                                buildSyncActions(),
+                              ],
+                            );
+                          }
+
+                          return Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Expanded(child: buildSyncSummary()),
+                              const SizedBox(width: 16),
+                              Flexible(
+                                child: Align(
+                                  alignment: Alignment.topRight,
+                                  child: buildSyncActions(),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
                       ),
                       if (canResetSyncState) ...<Widget>[
                         const SizedBox(height: 12),
