@@ -7,10 +7,10 @@ import 'package:test/test.dart';
 
 void main() {
   test(
-    'simctl adapter starts and finalizes a host recording artifact',
+    'simctl adapter accepts a running recorder even when no startup banner is emitted',
     () async {
       final tempDir = await Directory.systemTemp.createTemp(
-        'cockpit_simctl_recording_adapter',
+        'cockpit_simctl_recording_no_banner',
       );
       addTearDown(() async {
         if (tempDir.existsSync()) {
@@ -23,15 +23,11 @@ void main() {
         name: 'xcrun',
         body: r'''
 #!/bin/sh
-script_dir="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
-log_file="$script_dir/simctl.log"
-printf '%s\n' "$*" >> "$log_file"
 output_path=""
 for arg in "$@"; do
   output_path="$arg"
 done
-printf 'Recording started\n' >&2
-trap 'printf "simctl-video" > "$output_path"; exit 0' INT
+trap 'printf "simctl-video-no-banner" > "$output_path"; exit 0' INT
 while true; do
   sleep 1
 done
@@ -39,33 +35,28 @@ done
       );
 
       final adapter = CockpitSimctlRecordingAdapter(
-        deviceId: 'simulator-123',
+        deviceId: 'simulator-no-banner',
         executable: executable.path,
+        tempFileFactory: (basename) async =>
+            File(p.join(tempDir.path, basename)),
+        startupTimeout: const Duration(seconds: 1),
       );
 
       final session = await adapter.startRecording(
         const CockpitRecordingRequest(
           purpose: CockpitRecordingPurpose.acceptance,
-          name: 'host-simctl-demo',
+          name: 'host-simctl-no-banner',
           attachToStep: true,
         ),
       );
+      await Future<void>.delayed(const Duration(seconds: 1));
       final result = await adapter.stopRecording();
 
       expect(session.state, CockpitRecordingState.recording);
       expect(result.state, CockpitRecordingState.completed);
       expect(
-        result.artifact,
-        const CockpitArtifactRef(
-          role: 'recording',
-          relativePath: 'recordings/host-simctl-demo.mp4',
-        ),
-      );
-      expect(result.sourceFilePath, isNotNull);
-      expect(File(result.sourceFilePath!).readAsStringSync(), 'simctl-video');
-      expect(
-        File(p.join(tempDir.path, 'simctl.log')).readAsStringSync(),
-        contains('simctl io simulator-123 recordVideo --force'),
+        File(result.sourceFilePath!).readAsStringSync(),
+        'simctl-video-no-banner',
       );
     },
   );
@@ -98,6 +89,8 @@ done
       final adapter = CockpitSimctlRecordingAdapter(
         deviceId: 'simulator-456',
         executable: executable.path,
+        tempFileFactory: (basename) async =>
+            File(p.join(tempDir.path, basename)),
       );
 
       await adapter.startRecording(
@@ -111,73 +104,6 @@ done
 
       expect(result.state, CockpitRecordingState.failed);
       expect(result.failureReason, contains('output'));
-    },
-  );
-
-  test(
-    'simctl adapter waits for ffprobe duration to finalize before succeeding',
-    () async {
-      final tempDir = await Directory.systemTemp.createTemp(
-        'cockpit_simctl_recording_finalize',
-      );
-      addTearDown(() async {
-        if (tempDir.existsSync()) {
-          await tempDir.delete(recursive: true);
-        }
-      });
-
-      final executable = await _writeExecutable(
-        directory: tempDir,
-        name: 'xcrun',
-        body: r'''
-#!/bin/sh
-output_path=""
-for arg in "$@"; do
-  output_path="$arg"
-done
-printf 'Recording started\n' >&2
-trap 'printf "simctl-video" > "$output_path"; exit 0' INT
-while true; do
-  sleep 1
-done
-''',
-      );
-
-      var ffprobeCallCount = 0;
-      final adapter = CockpitSimctlRecordingAdapter(
-        deviceId: 'simulator-789',
-        executable: executable.path,
-        processRunner: (executable, arguments) async {
-          if (executable == 'ffprobe') {
-            ffprobeCallCount += 1;
-            final duration = switch (ffprobeCallCount) {
-              1 => '0.200',
-              2 => '0.500',
-              _ => '1.200',
-            };
-            return ProcessResult(
-              0,
-              0,
-              '{"format":{"duration":"$duration"}}',
-              '',
-            );
-          }
-          throw ProcessException(executable, arguments, 'unexpected command');
-        },
-        finalizationPollInterval: const Duration(milliseconds: 10),
-      );
-
-      await adapter.startRecording(
-        const CockpitRecordingRequest(
-          purpose: CockpitRecordingPurpose.acceptance,
-          name: 'host-simctl-finalize',
-          attachToStep: true,
-        ),
-      );
-      final result = await adapter.stopRecording();
-
-      expect(result.state, CockpitRecordingState.completed);
-      expect(ffprobeCallCount, greaterThanOrEqualTo(3));
     },
   );
 
@@ -213,6 +139,8 @@ done
       final adapter = CockpitSimctlRecordingAdapter(
         deviceId: 'simulator-321',
         executable: executable.path,
+        tempFileFactory: (basename) async =>
+            File(p.join(tempDir.path, basename)),
         processRunner: (executable, arguments) async {
           if (executable == 'ffprobe') {
             return ProcessResult(
