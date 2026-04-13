@@ -849,7 +849,7 @@ final class _McpSurfaceVerifier {
         _requireBatchSuccess(
           'sync_lab_create_task',
           syncLabReport['createTaskBatch'] as Map<String, Object?>,
-          expectedCount: 4,
+          expectedCount: 5,
         );
         syncLabReport['postCreateRead'] = await _callTool(
           server,
