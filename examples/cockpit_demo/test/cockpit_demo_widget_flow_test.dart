@@ -7,6 +7,7 @@ import 'package:cockpit_demo/src/data/todo_repository.dart';
 import 'package:cockpit_demo/src/model/todo_filter.dart';
 import 'package:cockpit_demo/src/model/todo_priority.dart';
 import 'package:cockpit_demo/src/model/todo_task.dart';
+import 'package:cockpit_demo/src/ui/widgets/collection_overview_card.dart';
 import 'dart:io';
 
 import 'support/cockpit_demo_test_support.dart';
@@ -17,6 +18,28 @@ void main() {
     expect(contents.contains('flutter_cockpit'), isFalse);
     expect(contents.contains('FlutterCockpit'), isFalse);
   });
+
+  testWidgets(
+    'overview card keeps its content inset from the card edge',
+    (tester) async {
+      final database = CockpitDemoDatabase.inMemory();
+      addCockpitDemoDatabaseTearDown(tester, database);
+
+      await pumpTodoApp(
+        tester,
+        controller: _testController(),
+        database: database,
+      );
+
+      final overviewCard = find.byType(CollectionOverviewCard).first;
+      final cardRect = tester.getRect(overviewCard);
+      final headlineRect = tester.getRect(find.text('Work queue').first);
+      final metricRect = tester.getRect(find.text('OPEN').first);
+
+      expect(headlineRect.left - cardRect.left, greaterThanOrEqualTo(16));
+      expect(metricRect.left - cardRect.left, greaterThanOrEqualTo(16));
+    },
+  );
 
   testWidgets(
     'todo app supports create, edit, complete, search, and settings flows',

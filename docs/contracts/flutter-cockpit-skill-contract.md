@@ -74,12 +74,14 @@ For code-editing work, the agent should prefer `lsp` and `analyze_files` before 
 ### `execute`
 
 The agent must prefer `run_command` and short `run_batch` loops during active debugging.
+The skill must teach route-aware recovery for `remoteUnavailable`, transport timeouts, or reconnect windows that happen after a mutating or route-changing step. In that situation the agent must re-read minimal route or state before retrying, resume from the smallest remaining step, and must not blindly replay a non-idempotent batch.
 
 The skill must not teach full bundle orchestration as the default loop for every small change.
 
 ### `observe`
 
 The agent must inspect post-action state and not trust command success alone.
+The skill must treat current route or equivalent state as the first recovery checkpoint after a transient transport failure. If the route already advanced, the agent should continue from the next valid checkpoint instead of replaying the whole mutation sequence.
 
 For bundle-backed work, the agent must inspect the resulting summary and evidence paths.
 

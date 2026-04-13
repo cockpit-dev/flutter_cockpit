@@ -32,6 +32,7 @@ Do not use it for docs-only edits or static refactors with no runtime claim.
    For target-first work, start with `read_target` / `read-target --profile minimal`.
 3. `execute`
    Prefer `run_command` for one action and `run_batch` for short ordered steps. Use `wait_idle`, `read_network`, `read_errors`, `read_logs`, `hot_reload`, and `hot_restart` only when they answer the next question.
+   If a remote session becomes temporarily unavailable after a mutating or route-changing step, use route-aware recovery: re-read minimal route or state before retrying, do not blindly replay a non-idempotent batch, and resume from the smallest remaining step.
    For code-side questions, prefer `lsp`, `analyze_files`, `grep_package_uris`, `read_package_uris`, and `pub` before broader workspace commands.
 4. `observe`
    Re-read with the smallest profile that answers the next missing fact. For target-first work, use `inspect_surface` / `inspect-surface` when `read_target` still leaves ambiguity. Desktop Flutter targets may reuse remote semantic inspection; if that path is unavailable, prefer the native/window fallback instead of pretending semantic evidence still exists.
@@ -69,6 +70,7 @@ When the release claim also covers MCP, target-first control, or workspace tooli
 Default to the smallest profile that answers the current question.
 `read-app --profile standard` gives summary counts and `textPreviews`, not a full target inventory. Escalate to `inspect-ui` only when you truly need keys, semantic IDs, or a richer target list.
 Interactive app commands accept `timeoutMs`. Workspace tools accept `timeoutSeconds`. Raise them only for known slow steps such as long scrolls, `run_task`, or package operations.
+If `remoteUnavailable` happens after a mutating step, do not just increase the timeout and replay everything. Re-read minimal route or state before retrying so you can tell whether the mutation already committed.
 If deep controls still miss under sticky headers or footers, lower `viewportFraction` before escalating to heavier inspection.
 
 For the shortest edit -> reload -> verify loop, use the rapid loop reference instead of escalating every step to bundle-grade evidence.
@@ -79,6 +81,8 @@ For the shortest edit -> reload -> verify loop, use the rapid loop reference ins
 - Prefer `read_app` and `inspect_ui` summaries before raw snapshot payloads.
 - Prefer `run_batch` over repeated `run_command` round-trips when the next few mutations are already known and must stay ordered.
 - Prefer `run_batch` for short route-crossing flows such as open editor -> fill fields -> save. It keeps the mutation chain ordered inside one remote loop and avoids paying extra token and stability cost on each intermediate route transition.
+- When a mutating or route-changing step hits `remoteUnavailable` or a transport timeout, switch to route-aware recovery: re-read minimal route or state before retrying, confirm whether the route already advanced, and resume from the smallest remaining step.
+- If the sequence is non-idempotent, do not blindly replay a non-idempotent batch. Split the flow into smaller checkpoints or continue from the next verified route instead.
 - Prefer `read_network` over snapshot diagnostics when the next question is only about requests, failures, or endpoint coverage.
 - For traffic verification, use `run_command` -> `wait_idle` -> `read_network` before escalating to heavier UI inspection.
 - Prefer bundle summaries and gate failures before opening large artifact files.

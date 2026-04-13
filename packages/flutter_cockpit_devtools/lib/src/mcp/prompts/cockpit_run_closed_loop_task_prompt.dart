@@ -29,8 +29,13 @@ final class CockpitRunClosedLoopTaskPrompt extends CockpitMcpPrompt {
         CockpitMcpPromptMessage.user(
           'Read `cockpit://workspace/skill-contract`, '
           '`cockpit://workspace/task-bundle-contract`, and '
-          '`cockpit://workspace/capabilities` before acting. Then establish '
-          'or reuse a session, collect baseline evidence, execute the task, '
+          '`cockpit://workspace/capabilities` before acting. Then reuse the '
+          'persisted app or target handle whenever possible, prefer bounded '
+          'summary reads before full inspection, and if a remote session goes '
+          'temporarily unavailable after a mutating or route-changing step, '
+          're-read minimal route or state before retrying, do not blindly '
+          'replay a non-idempotent batch, and resume from the smallest '
+          'remaining step. Then collect baseline evidence, execute the task, '
           'inspect the resulting bundle, validate the outcome, and only claim '
           'success after evidence-backed completion. Task goal: $taskGoal',
         ),

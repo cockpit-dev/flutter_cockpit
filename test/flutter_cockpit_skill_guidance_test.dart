@@ -9,6 +9,9 @@ void main() {
     final skill = File(
       '$root/skills/flutter-cockpit/SKILL.md',
     ).readAsStringSync();
+    final contract = File(
+      '$root/docs/contracts/flutter-cockpit-skill-contract.md',
+    ).readAsStringSync();
     final cliReference = File(
       '$root/skills/flutter-cockpit/examples/cli-command-reference.md',
     ).readAsStringSync();
@@ -27,6 +30,11 @@ void main() {
     expect(skill, contains('stable section heading'));
     expect(skill, contains('selection banners, snackbars, or bottom sheets'));
     expect(skill, contains('summary counts and `textPreviews`'));
+    expect(skill, contains('do not blindly replay a non-idempotent batch'));
+    expect(skill, contains('re-read minimal route or state before retrying'));
+    expect(skill, contains('route-aware recovery'));
+    expect(contract, contains('non-idempotent batch'));
+    expect(contract, contains('route-aware recovery'));
     expect(cliReference, contains('--output-json'));
     expect(cliReference, contains('jq'));
     expect(cliReference, contains('grep-package-uris'));
@@ -42,6 +50,8 @@ void main() {
     expect(rapidLoop, contains('textPreviews'));
     expect(rapidLoop, contains('stable section heading'));
     expect(rapidLoop, contains('list shifted'));
+    expect(rapidLoop, contains('remoteUnavailable'));
+    expect(rapidLoop, contains('smallest remaining step'));
     expect(rapidLoop, contains('Do not parallelize'));
   });
 }
