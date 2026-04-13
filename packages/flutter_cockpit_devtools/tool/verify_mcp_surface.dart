@@ -145,9 +145,13 @@ final class _McpSurfaceVerifier {
       syncLabReport['promptHasBoundedSummaryGuidance'] = promptText.contains(
         'prefer bounded summary reads before full inspection',
       );
+      syncLabReport['promptHasRouteAwareRecoveryGuidance'] = promptText
+              .contains('do not blindly replay a non-idempotent batch') &&
+          promptText.contains('re-read minimal route or state before retrying');
       syncLabReport['promptStatus'] =
           (syncLabReport['promptHasHandleReuse'] as bool) &&
-                  (syncLabReport['promptHasBoundedSummaryGuidance'] as bool)
+                  (syncLabReport['promptHasBoundedSummaryGuidance'] as bool) &&
+                  (syncLabReport['promptHasRouteAwareRecoveryGuidance'] as bool)
               ? 'passed'
               : 'failed';
       syncLabReport['status'] = 'pending';

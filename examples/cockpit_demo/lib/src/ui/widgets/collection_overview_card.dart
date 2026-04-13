@@ -27,6 +27,7 @@ final class CollectionOverviewCard extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final compact = MediaQuery.sizeOf(context).width < 620;
+    const horizontalInset = 20.0;
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -41,7 +42,12 @@ final class CollectionOverviewCard extends StatelessWidget {
         ),
       ),
       child: Padding(
-        padding: EdgeInsets.fromLTRB(0, dense ? 18 : 26, 0, dense ? 18 : 26),
+        padding: EdgeInsets.fromLTRB(
+          horizontalInset,
+          dense ? 18 : 26,
+          horizontalInset,
+          dense ? 18 : 26,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[

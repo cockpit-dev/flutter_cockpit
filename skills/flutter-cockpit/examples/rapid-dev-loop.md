@@ -58,6 +58,8 @@ For desktop Flutter targets, prefer semantic inspection when the remote path is 
 - Prefer one `run-command` per decision point.
 - Use `run-batch` only for short deterministic sequences that do not need mid-step reasoning.
 - If the next 3-8 mutations are already obvious and order-dependent, prefer `run-batch` to amortize round-trips.
+- If a mutating or route-changing step hits `remoteUnavailable`, re-read minimal route or state before retrying.
+- If the route already advanced, resume from the smallest remaining step instead of replaying the whole sequence.
 - Prefer `read-network` over `inspect-ui` when the uncertainty is purely about HTTP traffic.
 - Prefer locator combinations like `text + ancestor.route + type` over long brittle paths.
 - Use `key` only when the app already has a meaningful stable key. Do not add keys just to make automation pass.
@@ -76,6 +78,7 @@ For desktop Flutter targets, prefer semantic inspection when the remote path is 
 
 - Keep default timeouts unless the step is known to be slow.
 - Raise `timeoutMs` for long scrolls, waits, or slow environment transitions.
+- If a mutating step times out, do not blindly replay the whole batch. Re-read minimal route or state first so you know whether the original action already committed.
 - If a deep target keeps slipping under sticky headers or footers, lower `viewportFraction` to `0.35`-`0.55` before escalating to `inspect-ui`.
 - After `hot-restart`, re-read route and consider one explicit `wait-idle` or a larger `timeoutMs` for the first deep interaction instead of assuming the session is immediately stable.
 - Treat hot reload success as transport-level success, not proof that your literal, layout, or banner copy changed. Re-read the changed control, then relaunch once if the intended delta is still missing.
