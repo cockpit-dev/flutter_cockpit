@@ -65,8 +65,8 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-command --help
 
 推荐 app-first 闭环：
 
-1. `launch-app --app-json /tmp/app.json`
-2. `read-app --app-json /tmp/app.json --profile minimal`
+1. `launch-app`
+2. `read-app --profile minimal`
 3. `run-command` 或 `run-batch`
 4. 需要时再用 `inspect-ui`、`read-network`、`read-errors`、`read-logs`、`wait-idle`
 5. `hot-reload` 或 `hot-restart`
@@ -222,7 +222,8 @@ workspace 工具：
 
 ## 说明
 
-- 把 `app.json` 持久化下来并跨步骤复用，这是推荐的 app 引用方式。
+- 需要跨目录或跨会话复用时，再把 `app.json` 持久化下来作为 app 引用。
+- 如果一直在同一个仓库里工作，默认的 `.dart_tool/flutter_cockpit/latest_app.json` handle 是最低摩擦的路径，通常不需要每一步都重复传 `--app-json`。
 - 对已经接入 Cockpit 的应用，优先走 `cockpit/main.dart` 这类 Cockpit 开发入口；网络观测和远程控制面是在这里启用的。
 - 如果应用会真的发 HTTP 请求，平台权限也要和行为保持一致：Android 需要 `INTERNET`，Apple 目标需要 outbound client entitlement，并对 loopback HTTP 打开本地网络 ATS 许可。
 - `list_apps` 只在 MCP 中暴露，因为 CLI 每次调用都是无状态进程，不保留内存中的 app registry。
