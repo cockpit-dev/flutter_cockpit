@@ -260,7 +260,7 @@ final class CockpitDevelopmentSessionSupervisor {
           _handle = _handle.copyWith(appId: startedAppId);
         }
         _log('machine event app.start app_id=${startedAppId ?? _handle.appId}');
-        _pendingStartupSettle ??= _settleReadyState(bumpGeneration: false);
+        _beginStartupRecovery();
       case CockpitFlutterRunMachineEventKind.appDebugPort:
         final wsUri = event.params?['wsUri'] as String?;
         if (wsUri != null) {
@@ -269,7 +269,7 @@ final class CockpitDevelopmentSessionSupervisor {
         _log('machine event app.debugPort ws_uri=${wsUri ?? ''}');
       case CockpitFlutterRunMachineEventKind.appStarted:
         _log('machine event app.started');
-        _pendingStartupSettle ??= _settleReadyState(bumpGeneration: false);
+        _beginStartupRecovery();
       case CockpitFlutterRunMachineEventKind.appStop:
         final error = event.params?['error'] as String?;
         _log('machine event app.stop error=${error ?? ''}');
@@ -324,6 +324,7 @@ final class CockpitDevelopmentSessionSupervisor {
     CockpitDevelopmentReloadMode? lastReloadMode,
     required bool bumpGeneration,
   }) async {
+    final requireUiIdle = lastReloadMode == null;
     _log(
       'settle begin '
       'mode=${lastReloadMode?.jsonValue ?? 'startup'} '
@@ -337,12 +338,18 @@ final class CockpitDevelopmentSessionSupervisor {
     while (!ready && _now().isBefore(deadline)) {
       remoteReachable = await _remoteReachabilityProbe(_handle.baseUri);
       uiIdle = remoteReachable ? await _uiIdleWaiter(_handle.baseUri) : false;
-      ready = remoteReachable && uiIdle;
+      ready = remoteReachable && (uiIdle || !requireUiIdle);
       if (!ready) {
         await Future<void>.delayed(_settlePollInterval);
       }
     }
 
+    if (ready && !requireUiIdle && !uiIdle) {
+      _log(
+        'settle accepted remote recovery without ui idle '
+        'mode=${lastReloadMode.jsonValue}',
+      );
+    }
     if (bumpGeneration && ready) {
       _handle = _handle.copyWith(
         reloadGeneration: _handle.reloadGeneration + 1,
@@ -361,7 +368,9 @@ final class CockpitDevelopmentSessionSupervisor {
         lastReloadSucceeded: ready,
         lastError: ready
             ? null
-            : 'Remote session did not recover to an idle ready state.',
+            : requireUiIdle
+                ? 'Remote session did not recover to an idle ready state.'
+                : 'Remote session did not recover to a ready state.',
       ),
     );
     _log(

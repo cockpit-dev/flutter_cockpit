@@ -456,6 +456,11 @@ final class CockpitDemoPlatformVerifier {
       );
       deviceId = resolvedDevice.deviceId;
       bootstrappedDevice = resolvedDevice.bootstrapped;
+      await _cleanupExampleLocalState(
+        platform: platform,
+        deviceId: deviceId,
+        workingDirectory: request.projectDir,
+      );
 
       final launchResult = await _launchApp(
         CockpitLaunchAppRequest(
@@ -593,10 +598,21 @@ final class CockpitDemoPlatformVerifier {
             ),
             CockpitRunBatchCommand(
               command: CockpitCommand(
+                commandId: 'verify-focus-notes',
+                commandType: CockpitCommandType.tap,
+                locator: const CockpitLocator(
+                  text: 'Notes',
+                  ancestor: CockpitLocator(route: '/editor'),
+                ),
+              ),
+            ),
+            CockpitRunBatchCommand(
+              command: CockpitCommand(
                 commandId: 'verify-enter-notes',
                 commandType: CockpitCommandType.enterText,
                 locator: const CockpitLocator(
                   text: 'Notes',
+                  type: 'TextField',
                   ancestor: CockpitLocator(route: '/editor'),
                 ),
                 parameters: <String, Object?>{'text': taskNotes},
@@ -621,7 +637,7 @@ final class CockpitDemoPlatformVerifier {
       _requireBatchSuccess(
         platform: platform,
         result: batchResult,
-        expectedCount: 4,
+        expectedCount: 5,
       );
       verifiedCommands.add('run-batch');
       if (recordingStarted) {
@@ -1319,7 +1335,102 @@ final class CockpitDemoPlatformVerifier {
       // Best effort cleanup to avoid stale forwards across verification runs.
     }
   }
+
+  Future<void> _cleanupExampleLocalState({
+    required String platform,
+    required String? deviceId,
+    required String workingDirectory,
+  }) async {
+    try {
+      switch (platform) {
+        case 'android':
+          if (deviceId == null || deviceId.isEmpty) {
+            return;
+          }
+          await _processRunner(
+            'adb',
+            <String>[
+              '-s',
+              deviceId,
+              'shell',
+              'run-as',
+              _androidExampleApplicationId,
+              'rm',
+              '-f',
+              'app_flutter/cockpit_demo.sqlite',
+              'app_flutter/cockpit_demo.sqlite-shm',
+              'app_flutter/cockpit_demo.sqlite-wal',
+            ],
+            workingDirectory: workingDirectory,
+          );
+        case 'ios':
+          if (deviceId == null || deviceId.isEmpty) {
+            return;
+          }
+          final containerResult = await _processRunner(
+            'xcrun',
+            <String>[
+              'simctl',
+              'get_app_container',
+              deviceId,
+              _appleExampleBundleId,
+              'data',
+            ],
+            workingDirectory: workingDirectory,
+          );
+          if (containerResult.exitCode != 0) {
+            return;
+          }
+          final containerPath = '${containerResult.stdout}'.trim();
+          if (containerPath.isEmpty) {
+            return;
+          }
+          await _deleteExampleDatabaseArtifacts(
+            p.join(containerPath, 'Documents'),
+          );
+        case 'macos':
+          final home = Platform.environment['HOME'];
+          if (home == null || home.isEmpty) {
+            return;
+          }
+          await _deleteExampleDatabaseArtifacts(
+            p.join(
+              home,
+              'Library',
+              'Containers',
+              _appleExampleBundleId,
+              'Data',
+              'Documents',
+            ),
+          );
+        case 'linux':
+        case 'web':
+        case 'windows':
+          return;
+      }
+    } on Object {
+      // Verification should stay best-effort when cleanup cannot run.
+    }
+  }
+
+  Future<void> _deleteExampleDatabaseArtifacts(String directoryPath) async {
+    final filenames = <String>[
+      'cockpit_demo.sqlite',
+      'cockpit_demo.sqlite-shm',
+      'cockpit_demo.sqlite-wal',
+    ];
+    for (final filename in filenames) {
+      final file = File(p.join(directoryPath, filename));
+      if (!file.existsSync()) {
+        continue;
+      }
+      await file.delete();
+    }
+  }
 }
+
+const String _appleExampleBundleId = 'dev.cockpit.cockpitDemo';
+const String _androidExampleApplicationId = 'dev.cockpit.cockpit_demo';
 
 Future<List<CockpitDemoHostDevice>> cockpitDemoProbeHostDevices({
   CockpitDemoProcessRunner processRunner = Process.run,

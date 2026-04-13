@@ -103,6 +103,54 @@ void main() {
   );
 
   test(
+    'supervisor does not settle startup from machine app events before remote session is bound',
+    () async {
+      final harness = _MachineHarness();
+      addTearDown(harness.dispose);
+
+      var remoteChecks = 0;
+      var uiIdleChecks = 0;
+      final supervisor = CockpitDevelopmentSessionSupervisor(
+        initialHandle: harness.handle.copyWith(
+          appId: '',
+          remoteSessionHandle: null,
+        ),
+        machineClient: harness.client,
+        remoteReachabilityProbe: (_) async {
+          remoteChecks += 1;
+          return true;
+        },
+        uiIdleWaiter: (_) async {
+          uiIdleChecks += 1;
+          return true;
+        },
+        now: () => DateTime.utc(2026, 3, 23, 2, 30),
+        settleTimeout: const Duration(seconds: 2),
+        settlePollInterval: const Duration(milliseconds: 10),
+      );
+      addTearDown(supervisor.dispose);
+
+      await supervisor.start();
+      harness.stdoutController.add(
+        '[{"event":"app.start","params":{"appId":"app-1"}}]',
+      );
+      harness.stdoutController.add('[{"event":"app.started","params":{}}]');
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      final pendingStatus = await supervisor.currentStatus();
+      expect(pendingStatus.state, CockpitDevelopmentSessionState.starting);
+      expect(remoteChecks, 0);
+      expect(uiIdleChecks, 0);
+
+      await supervisor.bindRemoteSession(harness.handle.remoteSessionHandle!);
+      await supervisor.waitForState(CockpitDevelopmentSessionState.ready);
+
+      expect(remoteChecks, greaterThanOrEqualTo(1));
+      expect(uiIdleChecks, greaterThanOrEqualTo(1));
+    },
+  );
+
+  test(
     'supervisor transitions to ready only after remote recovery and UI idle',
     () async {
       final harness = _MachineHarness();
@@ -263,6 +311,93 @@ void main() {
         reloadedStatus.lastReloadMode,
         CockpitDevelopmentReloadMode.hotReload,
       );
+    },
+  );
+
+  test(
+    'reload succeeds once the remote session is reachable even if ui idle does not recover',
+    () async {
+      final harness = _MachineHarness();
+      addTearDown(harness.dispose);
+
+      var now = DateTime.utc(2026, 3, 23, 3);
+      var uiIdleRecovered = true;
+
+      final supervisor = CockpitDevelopmentSessionSupervisor(
+        initialHandle: harness.handle,
+        machineClient: harness.client,
+        remoteReachabilityProbe: (_) async => true,
+        uiIdleWaiter: (_) async => uiIdleRecovered,
+        now: () {
+          final current = now;
+          now = now.add(const Duration(milliseconds: 250));
+          return current;
+        },
+        settleTimeout: const Duration(seconds: 2),
+        settlePollInterval: const Duration(milliseconds: 10),
+      );
+      addTearDown(supervisor.dispose);
+
+      await supervisor.start();
+      harness.stdoutController.add(
+        '[{"event":"app.start","params":{"appId":"app-1"}}]',
+      );
+      harness.stdoutController.add('[{"event":"app.started","params":{}}]');
+      await supervisor.bindRemoteSession(harness.handle.remoteSessionHandle!);
+      await supervisor.waitForState(CockpitDevelopmentSessionState.ready);
+
+      uiIdleRecovered = false;
+      final reloadFuture = supervisor.reload(
+        CockpitDevelopmentReloadMode.hotReload,
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(harness.writes.last, contains('"fullRestart":false'));
+      harness.stdoutController.add('[{"id":0,"result":{"code":0}}]');
+      final reloadedStatus = await reloadFuture;
+
+      expect(reloadedStatus.state, CockpitDevelopmentSessionState.ready);
+      expect(reloadedStatus.lastReloadSucceeded, isTrue);
+      expect(
+        reloadedStatus.lastReloadMode,
+        CockpitDevelopmentReloadMode.hotReload,
+      );
+    },
+  );
+
+  test(
+    'startup still requires ui idle recovery before becoming ready',
+    () async {
+      final harness = _MachineHarness();
+      addTearDown(harness.dispose);
+
+      var now = DateTime.utc(2026, 3, 23, 3);
+      final supervisor = CockpitDevelopmentSessionSupervisor(
+        initialHandle: harness.handle,
+        machineClient: harness.client,
+        remoteReachabilityProbe: (_) async => true,
+        uiIdleWaiter: (_) async => false,
+        now: () {
+          final current = now;
+          now = now.add(const Duration(milliseconds: 250));
+          return current;
+        },
+        settleTimeout: const Duration(seconds: 2),
+        settlePollInterval: const Duration(milliseconds: 10),
+      );
+      addTearDown(supervisor.dispose);
+
+      await supervisor.start();
+      harness.stdoutController.add(
+        '[{"event":"app.start","params":{"appId":"app-1"}}]',
+      );
+      harness.stdoutController.add('[{"event":"app.started","params":{}}]');
+
+      await supervisor.waitForState(CockpitDevelopmentSessionState.failed);
+
+      final status = await supervisor.currentStatus();
+      expect(status.state, CockpitDevelopmentSessionState.failed);
+      expect(status.lastError,
+          'Remote session did not recover to an idle ready state.');
     },
   );
 

@@ -555,11 +555,12 @@ void main() {
       final expectedBatchPattern = <CockpitCommandType>[
         CockpitCommandType.tap,
         CockpitCommandType.enterText,
+        CockpitCommandType.tap,
         CockpitCommandType.enterText,
         CockpitCommandType.tap,
       ];
       expect(
-        batchedCommandTypes.take(4).toList(growable: false),
+        batchedCommandTypes.take(5).toList(growable: false),
         expectedBatchPattern,
       );
       expect(
@@ -569,7 +570,7 @@ void main() {
           CockpitCommandType.waitFor,
         ]),
       );
-      expect(batchedCommandTypes.length, 138);
+      expect(batchedCommandTypes.length, 144);
       expect(batchRequests, hasLength(30));
       final firstBatchCommands = batchRequests.first.commands
           .map((batchCommand) => batchCommand.command)
@@ -579,11 +580,17 @@ void main() {
       expect(firstBatchCommands[1].locator?.text, 'Task title');
       expect(firstBatchCommands[1].locator?.type, isNull);
       expect(firstBatchCommands[1].locator?.ancestor?.route, '/editor');
+      expect(firstBatchCommands[2].commandId, 'verify-focus-notes');
       expect(firstBatchCommands[2].locator?.text, 'Notes');
       expect(firstBatchCommands[2].locator?.type, isNull);
       expect(firstBatchCommands[2].locator?.ancestor?.route, '/editor');
-      expect(firstBatchCommands[3].locator?.text, 'Save task');
+      expect(firstBatchCommands[3].commandId, 'verify-enter-notes');
+      expect(firstBatchCommands[3].locator?.text, 'Notes');
+      expect(firstBatchCommands[3].locator?.type, 'TextField');
       expect(firstBatchCommands[3].locator?.ancestor?.route, '/editor');
+      expect(firstBatchCommands[4].locator?.text, 'Save task');
+      expect(firstBatchCommands[4].locator?.ancestor?.route, '/editor');
+      expect(firstBatchCommands[4].commandId, 'verify-save-task');
       final syncLabBatchCommands = batchRequests[1]
           .commands
           .map((batchCommand) => batchCommand.command.commandId)
@@ -666,7 +673,7 @@ void main() {
       );
       expect(
         result.platforms.map((platform) => platform.batchCommandCount),
-        everyElement(23),
+        everyElement(24),
       );
       expect(
         result.platforms.map((platform) => platform.networkFailureCount),

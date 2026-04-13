@@ -799,6 +799,70 @@ void main() {
     },
   );
 
+  test(
+    'enterText prefers an input-capable match when a label shares the same text',
+    () async {
+      final registry = CockpitTargetRegistry(routeName: '/editor');
+      String? capturedText;
+
+      registry.register(
+        CockpitTarget(
+          registrationId: 'notes-label',
+          text: 'Notes',
+          routeName: '/editor',
+          supportedCommands: const {CockpitCommandType.tap},
+          onTap: () {},
+          geometryProvider: () => const CockpitTargetGeometry(
+            left: 0,
+            top: 0,
+            width: 100,
+            height: 20,
+            viewportLeft: 0,
+            viewportTop: 0,
+            viewportWidth: 400,
+            viewportHeight: 800,
+            viewId: 1,
+          ),
+        ),
+      );
+      registry.register(
+        CockpitTarget(
+          registrationId: 'notes-input',
+          text: 'Notes',
+          routeName: '/editor',
+          supportedCommands: const {CockpitCommandType.enterText},
+          onEnterText: (value) {
+            capturedText = value;
+          },
+          geometryProvider: () => const CockpitTargetGeometry(
+            left: 0,
+            top: 32,
+            width: 280,
+            height: 120,
+            viewportLeft: 0,
+            viewportTop: 0,
+            viewportWidth: 400,
+            viewportHeight: 800,
+            viewId: 1,
+          ),
+        ),
+      );
+
+      final executor = InAppCockpitCommandExecutor(registry: registry);
+      final result = await executor.execute(
+        CockpitCommand(
+          commandId: 'cmd-notes',
+          commandType: CockpitCommandType.enterText,
+          locator: const CockpitLocator(text: 'Notes'),
+          parameters: const {'text': 'Investigate Android notes input'},
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(capturedText, 'Investigate Android notes input');
+    },
+  );
+
   test('longPress requires a locator', () async {
     final executor = InAppCockpitCommandExecutor(
       registry: CockpitTargetRegistry(routeName: '/checkout'),
