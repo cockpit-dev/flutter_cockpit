@@ -546,11 +546,12 @@ void main() {
         everyElement(
           isIn(<CockpitCommandType>[
             CockpitCommandType.assertText,
+            CockpitCommandType.tap,
             CockpitCommandType.captureScreenshot,
           ]),
         ),
       );
-      expect(commandTypes.length, 18);
+      expect(commandTypes.length, 30);
       final expectedBatchPattern = <CockpitCommandType>[
         CockpitCommandType.tap,
         CockpitCommandType.enterText,
@@ -558,13 +559,18 @@ void main() {
         CockpitCommandType.tap,
       ];
       expect(
-        batchedCommandTypes,
-        List<CockpitCommandType>.generate(
-          6 * expectedBatchPattern.length,
-          (index) => expectedBatchPattern[index % expectedBatchPattern.length],
-        ),
+        batchedCommandTypes.take(4).toList(growable: false),
+        expectedBatchPattern,
       );
-      expect(batchRequests, hasLength(6));
+      expect(
+        batchedCommandTypes,
+        containsAll(<CockpitCommandType>[
+          CockpitCommandType.scrollUntilVisible,
+          CockpitCommandType.waitFor,
+        ]),
+      );
+      expect(batchedCommandTypes.length, 138);
+      expect(batchRequests, hasLength(30));
       final firstBatchCommands = batchRequests.first.commands
           .map((batchCommand) => batchCommand.command)
           .toList(growable: false);
@@ -578,6 +584,61 @@ void main() {
       expect(firstBatchCommands[2].locator?.ancestor?.route, '/editor');
       expect(firstBatchCommands[3].locator?.text, 'Save task');
       expect(firstBatchCommands[3].locator?.ancestor?.route, '/editor');
+      final syncLabBatchCommands = batchRequests[1]
+          .commands
+          .map((batchCommand) => batchCommand.command.commandId)
+          .toList(growable: false);
+      expect(
+        syncLabBatchCommands,
+        <String>[
+          'verify-open-sync-settings',
+          'verify-scroll-run-queued-sync',
+          'verify-run-queued-sync',
+          'verify-wait-for-conflicted-sync-state',
+          'verify-close-settings',
+        ],
+      );
+      final syncLabOpenConflictCommands = batchRequests[2]
+          .commands
+          .map((batchCommand) => batchCommand.command.commandId)
+          .toList(growable: false);
+      expect(
+        syncLabOpenConflictCommands,
+        <String>[
+          'verify-search-created-task',
+          'verify-wait-for-created-task-search-results',
+          'verify-open-created-task',
+          'verify-open-conflict-resolution',
+        ],
+      );
+      final syncLabRecoveryCommands = batchRequests[3]
+          .commands
+          .map((batchCommand) => batchCommand.command.commandId)
+          .toList(growable: false);
+      expect(
+        syncLabRecoveryCommands,
+        <String>[
+          'verify-return-from-detail',
+          'verify-open-sync-settings',
+          'verify-scroll-run-queued-sync',
+          'verify-run-queued-sync',
+          'verify-wait-for-synced-state',
+          'verify-close-settings',
+        ],
+      );
+      final syncLabRecoveryVerificationCommands = batchRequests[4]
+          .commands
+          .map((batchCommand) => batchCommand.command.commandId)
+          .toList(growable: false);
+      expect(
+        syncLabRecoveryVerificationCommands,
+        <String>[
+          'verify-search-created-task-after-recovery',
+          'verify-wait-for-created-task-search-results-after-recovery',
+          'verify-open-created-task-after-recovery',
+          'verify-assert-task-synced',
+        ],
+      );
       expect(inspectUiRequests, hasLength(6));
       expect(waitIdleRequests, hasLength(6));
       expect(readNetworkRequests, hasLength(6));
@@ -605,7 +666,7 @@ void main() {
       );
       expect(
         result.platforms.map((platform) => platform.batchCommandCount),
-        everyElement(4),
+        everyElement(23),
       );
       expect(
         result.platforms.map((platform) => platform.networkFailureCount),
@@ -641,6 +702,7 @@ void main() {
           'start-recording',
           'stop-recording',
           'wait-idle',
+          'sync_lab_conflict_recovery',
           'read-network',
           'read-errors',
           'read-logs',
@@ -689,6 +751,270 @@ void main() {
     expect(result.platforms.first.failureCode, 'launchFailed');
     expect(result.platforms.last.platform, 'ios');
     expect(result.platforms.last.status, 'failed');
+  });
+
+  test('verifier records sync lab conflict recovery evidence', () async {
+    var currentRoute = '/inbox';
+    final verifier = CockpitDemoPlatformVerifier(
+      probeDevices: () async => const <CockpitDemoHostDevice>[
+        CockpitDemoHostDevice(
+          name: 'macOS',
+          deviceId: 'macos',
+          platform: 'macos',
+          emulator: false,
+          supported: true,
+        ),
+      ],
+      listIosSimulators: () async => const <CockpitDemoIosSimulator>[],
+      runProcess: (executable, arguments, {String? workingDirectory}) async {
+        return ProcessResult(0, 0, '', '');
+      },
+      wait: (_) async {},
+      launchApp: (request) async {
+        return CockpitLaunchAppResult(
+          app: _appForPlatform(
+            platform: request.platform,
+            deviceId: request.deviceId,
+            baseUrl: 'http://127.0.0.1:${request.sessionPort}',
+          ),
+          appJsonPath: '/tmp/${request.platform}/app.json',
+        );
+      },
+      readApp: (request) async {
+        final app = request.app!;
+        return CockpitReadAppResult(
+          sessionId: '${app.platform}-session',
+          transportType: 'remoteHttp',
+          capabilities: CockpitCapabilities(
+            platform: app.platform,
+            transportType: 'remoteHttp',
+            supportsInAppControl: true,
+            supportsFlutterViewCapture: true,
+            supportsNativeScreenCapture: true,
+            supportsHostAutomation: true,
+            supportedCommands: const <CockpitCommandType>[
+              CockpitCommandType.tap,
+              CockpitCommandType.enterText,
+              CockpitCommandType.assertText,
+            ],
+            supportedLocatorStrategies: CockpitLocatorKind.values,
+          ),
+          recordingCapabilities: CockpitRecordingCapabilities(
+            supportsNativeRecording: true,
+            preferredAcceptanceRecordingKind: CockpitRecordingKind.nativeScreen,
+          ),
+          currentRouteName: currentRoute,
+        );
+      },
+      runCommand: (request) async {
+        if (request.command.commandId == 'verify-keep-local-resolution') {
+          currentRoute = '/detail';
+        }
+        if (request.command.commandId ==
+            'verify-return-from-detail-after-recovery') {
+          currentRoute = '/inbox';
+        }
+        return CockpitExecuteRemoteCommandResult(
+          command: CockpitInteractiveCommandCore(
+            commandId: request.command.commandId,
+            commandType: request.command.commandType.name,
+            success: true,
+            durationMs: 12,
+            usedCaptureFallback: false,
+          ),
+          artifacts: request.command.commandType ==
+                  CockpitCommandType.captureScreenshot
+              ? const <CockpitInteractiveArtifactDescriptor>[
+                  CockpitInteractiveArtifactDescriptor(
+                    role: 'screenshot',
+                    relativePath: 'screenshots/platform-proof.png',
+                    byteLength: 1024,
+                  ),
+                ]
+              : const <CockpitInteractiveArtifactDescriptor>[],
+        );
+      },
+      runBatch: (request) async {
+        for (final batchCommand in request.commands) {
+          switch (batchCommand.command.commandId) {
+            case 'verify-open-editor':
+              currentRoute = '/editor';
+            case 'verify-save-task':
+              currentRoute = '/inbox';
+            case 'verify-open-sync-settings':
+              currentRoute = '/settings';
+            case 'verify-close-settings':
+              currentRoute = '/inbox';
+            case 'verify-open-created-task':
+            case 'verify-open-created-task-after-recovery':
+              currentRoute = '/detail';
+            case 'verify-open-conflict-resolution':
+              currentRoute = '/sync-conflict';
+          }
+        }
+        return CockpitRunBatchResult(
+          results: request.commands
+              .map(
+                (batchCommand) => CockpitExecuteRemoteCommandResult(
+                  command: CockpitInteractiveCommandCore(
+                    commandId: batchCommand.command.commandId,
+                    commandType: batchCommand.command.commandType.name,
+                    success: true,
+                    durationMs: 12,
+                    usedCaptureFallback: false,
+                  ),
+                  artifacts: const <CockpitInteractiveArtifactDescriptor>[],
+                ),
+              )
+              .toList(growable: false),
+          summary: CockpitExecuteRemoteCommandBatchSummary(
+            totalCount: request.commands.length,
+            successCount: request.commands.length,
+            failureCount: 0,
+            stoppedEarly: false,
+          ),
+        );
+      },
+      inspectUi: (request) async {
+        return CockpitInspectUiResult(
+          routeName: currentRoute,
+          diagnosticLevel: 'investigate',
+          truncated: false,
+        );
+      },
+      inspectSurface: (request) async {
+        return CockpitInspectSurfaceResult(
+          target: CockpitTargetHandle.fromAppHandle(request.app!),
+          capabilityProfile: CockpitCapabilityProfile(
+            targetKind: CockpitTargetKind.flutterApp,
+            surfaceKinds: <CockpitSurfaceKind>{
+              CockpitSurfaceKind.flutterSemantic,
+            },
+            actionCapabilities: <CockpitActionCapability>{
+              CockpitActionCapability.tap,
+              CockpitActionCapability.typeText,
+            },
+            evidenceCapabilities: <CockpitEvidenceCapability>{
+              CockpitEvidenceCapability.flutterScreenshot,
+            },
+          ),
+          surfaceKind: CockpitSurfaceKind.flutterSemantic,
+          selectedPlane: CockpitPlaneKind.flutterSemanticPlane,
+          recommendedNextStep: 'continue',
+          routeName: currentRoute,
+          diagnosticLevel: 'inspect',
+          truncated: false,
+        );
+      },
+      waitIdle: (request) async => const CockpitWaitIdleResult(
+        idle: true,
+        durationMs: 120,
+        quietWindowMs: 120,
+        timeoutMs: 5000,
+        includeNetworkIdle: true,
+      ),
+      readNetwork: (request) async => CockpitReadNetworkResult(
+        appId: 'network-app',
+        source: 'app_snapshot',
+        available: true,
+        routeName: currentRoute,
+        summary: CockpitReadNetworkSummary(
+          totalEntryCount: 0,
+          failureCount: 0,
+          capturedEntryCount: 0,
+          inFlightCount: 0,
+          truncated: false,
+          query: request.networkQuery,
+        ),
+        endpointSummaries: const <CockpitNetworkEndpointSummary>[],
+        endpointSummariesTruncated: false,
+        recentFailures: const <CockpitNetworkEntry>[],
+      ),
+      readErrors: (request) async => const CockpitReadErrorsResult(
+        appId: 'errors-app',
+        routeName: '/inbox',
+        source: 'app_snapshot',
+        errors: <CockpitErrorEntry>[],
+      ),
+      readLogs: (request) async => const CockpitReadLogsResult(
+        appId: 'logs-app',
+        source: 'app_snapshot',
+        available: true,
+        routeName: '/inbox',
+        lines: <String>['info runtime: sync lab loop settled'],
+        truncated: false,
+      ),
+      recordingAdapterResolver: ({
+        required platform,
+        required deviceId,
+        required client,
+        required recording,
+      }) {
+        return _FakeRecordingAdapter(
+          onStart: (request) async => CockpitRecordingSession(
+            request: request,
+            state: CockpitRecordingState.recording,
+          ),
+          onStop: () async => CockpitRecordingResult(
+            state: CockpitRecordingState.completed,
+            purpose: CockpitRecordingPurpose.acceptance,
+            recordingKind: CockpitRecordingKind.nativeScreen,
+            artifact: const CockpitArtifactRef(
+              role: 'recording',
+              relativePath: 'recordings/platform-loop.mp4',
+            ),
+            durationMs: 1600,
+            sourceFilePath: '/tmp/platform-loop.mp4',
+          ),
+        );
+      },
+      hotReload: (request) async => CockpitHotReloadResult(
+        app: request.app!,
+        status: CockpitDevelopmentSessionStatus(
+          developmentSessionId: 'sync-lab-session',
+          state: CockpitDevelopmentSessionState.ready,
+          appReachable: true,
+          remoteSessionReachable: true,
+          reloadGeneration: 1,
+          lastReloadMode: CockpitDevelopmentReloadMode.hotReload,
+          lastReloadSucceeded: true,
+          lastStatusAt: DateTime.utc(2026, 4, 12),
+        ),
+      ),
+      hotRestart: (request) async => CockpitHotRestartResult(
+        app: request.app!,
+        status: CockpitDevelopmentSessionStatus(
+          developmentSessionId: 'sync-lab-session',
+          state: CockpitDevelopmentSessionState.ready,
+          appReachable: true,
+          remoteSessionReachable: true,
+          reloadGeneration: 2,
+          lastReloadMode: CockpitDevelopmentReloadMode.hotRestart,
+          lastReloadSucceeded: true,
+          lastStatusAt: DateTime.utc(2026, 4, 12, 0, 0, 1),
+        ),
+      ),
+      stopApp: (request) async => CockpitStopAppResult(
+        app: request.app!,
+        status: CockpitAppStopStatus.stopped(mode: request.app!.mode),
+      ),
+    );
+
+    final result = await verifier.verify(
+      const CockpitDemoPlatformVerificationRequest(
+        projectDir: '/workspace/examples/cockpit_demo',
+        platforms: <String>['macos'],
+        outputRoot: '/tmp/cockpit_demo_platforms',
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.platforms, hasLength(1));
+    expect(
+      result.platforms.single.verifiedCommands,
+      contains('sync_lab_conflict_recovery'),
+    );
+    expect(result.platforms.single.inspectRouteName, '/sync-conflict');
   });
 
   test(
@@ -920,6 +1246,7 @@ void main() {
           'inspect-ui',
           'run-batch',
           'wait-idle',
+          'sync_lab_conflict_recovery',
           'read-network',
           'read-errors',
           'read-logs',
