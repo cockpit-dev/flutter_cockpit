@@ -1365,7 +1365,11 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
   ) async {
     final previousRouteName = _liveSnapshot().routeName;
     final resolution = await _resolveWithRetry(command);
-    if (!resolution.isSuccess) {
+    final target = _preferredTextInputTarget(
+      resolution: resolution,
+      requiredCommand: CockpitCommandType.enterText,
+    );
+    if (!resolution.isSuccess && target == null) {
       return _failureExecution(
         command: command,
         durationMs: stopwatch.elapsedMilliseconds,
@@ -1374,25 +1378,27 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
       );
     }
 
-    final target = resolution.target!;
+    final resolvedTarget = target!;
     final request = _textInputRequest(command);
     if (request == null ||
-        !target.supportedCommands.contains(CockpitCommandType.enterText) ||
-        (target.onSemanticTextInput == null &&
-            target.onTextInput == null &&
-            target.onSemanticEnterText == null &&
-            target.onEnterText == null)) {
+        !resolvedTarget.supportedCommands.contains(
+          CockpitCommandType.enterText,
+        ) ||
+        (resolvedTarget.onSemanticTextInput == null &&
+            resolvedTarget.onTextInput == null &&
+            resolvedTarget.onSemanticEnterText == null &&
+            resolvedTarget.onEnterText == null)) {
       return _unsupportedExecution(
         command: command,
         durationMs: stopwatch.elapsedMilliseconds,
-        target: target,
+        target: resolvedTarget,
       );
     }
 
-    final semanticTextInput = target.onSemanticTextInput;
-    final textInput = target.onTextInput;
-    final semanticEnterText = target.onSemanticEnterText;
-    final enterText = target.onEnterText;
+    final semanticTextInput = resolvedTarget.onSemanticTextInput;
+    final textInput = resolvedTarget.onTextInput;
+    final semanticEnterText = resolvedTarget.onSemanticEnterText;
+    final enterText = resolvedTarget.onEnterText;
     await _prepareForAction(command, commandType: CockpitCommandType.enterText);
     if (semanticTextInput != null) {
       semanticTextInput(request);
@@ -1406,7 +1412,7 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
       return _unsupportedExecution(
         command: command,
         durationMs: stopwatch.elapsedMilliseconds,
-        target: target,
+        target: resolvedTarget,
       );
     }
     await _stabilizeAfterAction(previousRouteName);
@@ -1492,7 +1498,11 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
 
     final previousRouteName = _liveSnapshot().routeName;
     final resolution = await _resolveWithRetry(command);
-    if (!resolution.isSuccess) {
+    final target = _preferredTextInputTarget(
+      resolution: resolution,
+      requiredCommand: requiredCommand,
+    );
+    if (!resolution.isSuccess && target == null) {
       return _failureExecution(
         command: command,
         durationMs: stopwatch.elapsedMilliseconds,
@@ -1501,18 +1511,18 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
       );
     }
 
-    final target = resolution.target!;
-    if (!target.supportedCommands.contains(requiredCommand) ||
-        target.onTextInput == null) {
+    final resolvedTarget = target!;
+    if (!resolvedTarget.supportedCommands.contains(requiredCommand) ||
+        resolvedTarget.onTextInput == null) {
       return _unsupportedExecution(
         command: command,
         durationMs: stopwatch.elapsedMilliseconds,
-        target: target,
+        target: resolvedTarget,
       );
     }
 
     await _prepareForAction(command, commandType: requiredCommand);
-    target.onTextInput!.call(request);
+    resolvedTarget.onTextInput!.call(request);
     await _stabilizeAfterAction(
       previousRouteName,
       commandType: requiredCommand,
@@ -2338,6 +2348,43 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
   bool _shouldStopResolutionRetry(CockpitTargetResolutionResult resolution) {
     return resolution.isSuccess ||
         resolution.error?.code != CockpitCommandError.targetNotFoundCode;
+  }
+
+  CockpitTarget? _preferredTextInputTarget({
+    required CockpitTargetResolutionResult resolution,
+    required CockpitCommandType requiredCommand,
+  }) {
+    final resolved = resolution.target;
+    if (resolved != null &&
+        _supportsTextInputCommand(resolved, requiredCommand)) {
+      return resolved;
+    }
+    for (final candidate in resolution.matches) {
+      if (_supportsTextInputCommand(candidate, requiredCommand)) {
+        return candidate;
+      }
+    }
+    return resolved;
+  }
+
+  bool _supportsTextInputCommand(
+    CockpitTarget target,
+    CockpitCommandType requiredCommand,
+  ) {
+    if (!target.supportedCommands.contains(requiredCommand)) {
+      return false;
+    }
+    return switch (requiredCommand) {
+      CockpitCommandType.enterText => target.onSemanticTextInput != null ||
+          target.onTextInput != null ||
+          target.onSemanticEnterText != null ||
+          target.onEnterText != null,
+      CockpitCommandType.focusTextInput ||
+      CockpitCommandType.setTextEditingValue ||
+      CockpitCommandType.sendTextInputAction =>
+        target.onTextInput != null,
+      _ => false,
+    };
   }
 
   CockpitTargetResolutionResult _enrichResolutionFailure(

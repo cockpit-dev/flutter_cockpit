@@ -29,7 +29,7 @@ void main() {
       taskTitle: 'MCP sync conflict 42',
     );
 
-    expect(commands, hasLength(4));
+    expect(commands, hasLength(5));
     expect(commands[0]['commandId'], 'verify-open-editor');
     expect(commands[0]['commandType'], 'tap');
     expect(
@@ -52,7 +52,7 @@ void main() {
       commands[1]['parameters'],
       <String, Object?>{'text': 'MCP sync conflict 42'},
     );
-    expect(commands[2]['commandId'], 'verify-enter-task-notes');
+    expect(commands[2]['commandId'], 'verify-focus-task-notes');
     expect(
       commands[2]['locator'],
       <String, Object?>{
@@ -60,9 +60,18 @@ void main() {
         'ancestor': <String, Object?>{'route': '/editor'},
       },
     );
-    expect(commands[3]['commandId'], 'verify-save-task');
+    expect(commands[3]['commandId'], 'verify-enter-task-notes');
     expect(
       commands[3]['locator'],
+      <String, Object?>{
+        'text': 'Notes',
+        'type': 'TextField',
+        'ancestor': <String, Object?>{'route': '/editor'},
+      },
+    );
+    expect(commands[4]['commandId'], 'verify-save-task');
+    expect(
+      commands[4]['locator'],
       <String, Object?>{
         'text': 'Save task',
         'ancestor': <String, Object?>{'route': '/editor'},
@@ -126,7 +135,7 @@ void main() {
       commands[3]['parameters'],
       <String, Object?>{
         'text': 'Conflicts detected',
-        'timeoutMs': 12000,
+        'timeoutMs': 20000,
       },
     );
   });
@@ -247,7 +256,7 @@ void main() {
       commands[4]['parameters'],
       <String, Object?>{
         'text': 'Sync complete',
-        'timeoutMs': 12000,
+        'timeoutMs': 20000,
       },
     );
   });

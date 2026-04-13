@@ -20,7 +20,7 @@ final class CockpitDevelopmentSessionSupervisorClient {
     HttpClient Function()? httpClientFactory,
     Duration? requestTimeout,
   })  : _httpClientFactory = httpClientFactory ?? HttpClient.new,
-        _requestTimeout = requestTimeout ?? const Duration(seconds: 90);
+        _requestTimeout = requestTimeout ?? const Duration(seconds: 120);
 
   final HttpClient Function() _httpClientFactory;
   final Duration _requestTimeout;

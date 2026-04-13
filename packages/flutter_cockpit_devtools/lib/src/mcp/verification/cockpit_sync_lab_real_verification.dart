@@ -43,10 +43,19 @@ List<Map<String, Object?>> buildSyncLabCreateTaskBatch({
       'parameters': <String, Object?>{'text': taskTitle},
     },
     <String, Object?>{
+      'commandId': 'verify-focus-task-notes',
+      'commandType': 'tap',
+      'locator': <String, Object?>{
+        'text': 'Notes',
+        'ancestor': <String, Object?>{'route': '/editor'},
+      },
+    },
+    <String, Object?>{
       'commandId': 'verify-enter-task-notes',
       'commandType': 'enterText',
       'locator': <String, Object?>{
         'text': 'Notes',
+        'type': 'TextField',
         'ancestor': <String, Object?>{'route': '/editor'},
       },
       'parameters': <String, Object?>{'text': notes},
@@ -247,7 +256,7 @@ Map<String, Object?> _waitForSyncStateCommand({
     'commandType': 'waitFor',
     'parameters': <String, Object?>{
       'text': text,
-      'timeoutMs': 12000,
+      'timeoutMs': 20000,
     },
   };
 }
