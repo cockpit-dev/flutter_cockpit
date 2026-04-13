@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:flutter_cockpit_devtools/flutter_cockpit_devtools.dart';
+import 'package:flutter_cockpit_devtools/src/mcp/verification/cockpit_sync_lab_real_verification.dart';
 import 'package:path/path.dart' as p;
 
 typedef CockpitDemoPlatformDeviceProbe = Future<List<CockpitDemoHostDevice>>
@@ -504,7 +505,7 @@ final class CockpitDemoPlatformVerifier {
       verifiedCommands.add('inspect-ui');
 
       final taskTitle =
-          'Platform smoke ${platform}_${_clock().toUtc().microsecondsSinceEpoch}';
+          'Platform sync conflict ${platform}_${_clock().toUtc().microsecondsSinceEpoch}';
       final taskNotes =
           'Cross-platform verification for $platform with screenshot and recording coverage.';
       final recordingRequest = CockpitRecordingRequest(
@@ -702,6 +703,100 @@ final class CockpitDemoPlatformVerifier {
           parameters: <String, Object?>{'text': taskTitle},
         ),
       );
+      final syncLabConflictBatchResult = await _runBatch(
+        CockpitRunBatchRequest(
+          app: launchedApp,
+          commands: _batchCommandsFromJson(buildSyncLabConflictSyncBatch()),
+          defaultResultProfile:
+              const CockpitInteractiveResultProfile.standard(),
+          failFast: true,
+        ),
+      );
+      _requireBatchSuccess(
+        platform: platform,
+        result: syncLabConflictBatchResult,
+        expectedCount: 5,
+      );
+      final syncLabOpenConflictBatchResult = await _runBatch(
+        CockpitRunBatchRequest(
+          app: launchedApp,
+          commands: _batchCommandsFromJson(<Map<String, Object?>>[
+            ...buildSyncLabOpenConflictBatch(taskTitle: taskTitle),
+            buildSyncLabOpenConflictResolutionCommand(),
+          ]),
+          defaultResultProfile:
+              const CockpitInteractiveResultProfile.standard(),
+          failFast: true,
+        ),
+      );
+      _requireBatchSuccess(
+        platform: platform,
+        result: syncLabOpenConflictBatchResult,
+        expectedCount: 4,
+      );
+      final inspectResult = await _inspectSurface(
+        CockpitInspectSurfaceRequest(
+          app: launchedApp,
+          resultProfile: const CockpitInteractiveResultProfile.inspect(),
+        ),
+      );
+      if (inspectResult.selectedPlane !=
+          CockpitPlaneKind.flutterSemanticPlane) {
+        throw CockpitApplicationServiceException(
+          code: 'unexpectedInspectPlane',
+          message: 'Expected flutterSemanticPlane during example verification.',
+          details: <String, Object?>{
+            'platform': platform,
+            'selectedPlane': inspectResult.selectedPlane.name,
+          },
+        );
+      }
+      await _runRequiredCommand(
+        app: launchedApp,
+        command: _commandFromJson(buildSyncLabKeepLocalResolutionCommand()),
+      );
+      final syncRecoveryBatchResult = await _runBatch(
+        CockpitRunBatchRequest(
+          app: launchedApp,
+          commands: _batchCommandsFromJson(buildSyncLabRecoverySyncBatch()),
+          defaultResultProfile:
+              const CockpitInteractiveResultProfile.standard(),
+          failFast: true,
+        ),
+      );
+      _requireBatchSuccess(
+        platform: platform,
+        result: syncRecoveryBatchResult,
+        expectedCount: 6,
+      );
+      final syncRecoveryVerificationBatchResult = await _runBatch(
+        CockpitRunBatchRequest(
+          app: launchedApp,
+          commands: _batchCommandsFromJson(
+            buildSyncLabRecoveryVerificationBatch(taskTitle: taskTitle),
+          ),
+          defaultResultProfile:
+              const CockpitInteractiveResultProfile.standard(),
+          failFast: true,
+        ),
+      );
+      _requireBatchSuccess(
+        platform: platform,
+        result: syncRecoveryVerificationBatchResult,
+        expectedCount: 4,
+      );
+      await _runRequiredCommand(
+        app: launchedApp,
+        command: CockpitCommand(
+          commandId: 'verify-return-from-detail-after-recovery',
+          commandType: CockpitCommandType.tap,
+          locator: CockpitLocator(
+            tooltip: 'Back',
+            ancestor: CockpitLocator(route: '/detail'),
+          ),
+        ),
+      );
+      verifiedCommands.add('sync_lab_conflict_recovery');
       final networkResult = await _readNetwork(
         CockpitReadNetworkRequest(
           appHandlePath: resolvedAppJsonPath,
@@ -758,23 +853,6 @@ final class CockpitDemoPlatformVerifier {
       }
       verifiedCommands.add('read-logs');
 
-      final inspectResult = await _inspectSurface(
-        CockpitInspectSurfaceRequest(
-          app: launchedApp,
-          resultProfile: const CockpitInteractiveResultProfile.inspect(),
-        ),
-      );
-      if (inspectResult.selectedPlane !=
-          CockpitPlaneKind.flutterSemanticPlane) {
-        throw CockpitApplicationServiceException(
-          code: 'unexpectedInspectPlane',
-          message: 'Expected flutterSemanticPlane during example verification.',
-          details: <String, Object?>{
-            'platform': platform,
-            'selectedPlane': inspectResult.selectedPlane.name,
-          },
-        );
-      }
       verifiedCommands.add('inspect-surface');
       final captureResult = await _runRequiredCommand(
         app: launchedApp,
@@ -890,7 +968,11 @@ final class CockpitDemoPlatformVerifier {
         reloadGeneration: hotRestartResult.status.reloadGeneration,
         waitIdleSucceeded: waitIdleResult.idle,
         waitIdleDurationMs: waitIdleResult.durationMs,
-        batchCommandCount: batchResult.summary.totalCount,
+        batchCommandCount: batchResult.summary.totalCount +
+            syncLabConflictBatchResult.summary.totalCount +
+            syncLabOpenConflictBatchResult.summary.totalCount +
+            syncRecoveryBatchResult.summary.totalCount +
+            syncRecoveryVerificationBatchResult.summary.totalCount,
         networkFailureCount: networkResult.summary.failureCount,
         runtimeErrorCount: errorsResult.errors.length,
         logLineCount: logsResult.lines.length,
@@ -1104,6 +1186,22 @@ final class CockpitDemoPlatformVerifier {
         'commandType': failedCommand.commandType,
       },
     );
+  }
+
+  List<CockpitRunBatchCommand> _batchCommandsFromJson(
+    List<Map<String, Object?>> commands,
+  ) {
+    return commands
+        .map(
+          (command) => CockpitRunBatchCommand(
+            command: _commandFromJson(command),
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  CockpitCommand _commandFromJson(Map<String, Object?> command) {
+    return CockpitCommand.fromJson(command);
   }
 
   Future<CockpitExecuteRemoteCommandResult> _runRequiredCommand({
