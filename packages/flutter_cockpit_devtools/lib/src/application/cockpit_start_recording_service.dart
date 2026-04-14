@@ -55,19 +55,42 @@ final class CockpitStartRecordingService {
       baseUri: request.baseUri,
       androidDeviceId: request.androidDeviceId,
     );
-    final iosDeviceId = request.iosDeviceId ??
-        (resolved.app?.platform == 'ios' ? resolved.app?.deviceId : null);
-    if (iosDeviceId != null && iosDeviceId.isNotEmpty) {
-      final adapter = _recordingStrategyResolver.resolve(
-        platform: 'ios',
+    final platform = _resolvedPlatform(
+      app: resolved.app,
+      androidDeviceId: request.androidDeviceId,
+      iosDeviceId: request.iosDeviceId,
+    );
+    if (platform != null) {
+      final resolution = _recordingStrategyResolver.resolveDetailed(
+        platform: platform,
         recording: request.recording,
         client: CockpitRemoteSessionClient(baseUri: resolved.baseUri),
-        iosDeviceId: iosDeviceId,
+        sessionHandle: resolved.app?.remoteSession,
+        androidDeviceId: request.androidDeviceId ??
+            (resolved.app?.platform == 'android'
+                ? resolved.app?.deviceId
+                : null),
+        iosDeviceId: request.iosDeviceId ??
+            (resolved.app?.platform == 'ios' ? resolved.app?.deviceId : null),
+        platformAppId:
+            resolved.app?.platformAppId ?? resolved.app?.remoteSession?.appId,
       );
+      final adapter = resolution?.adapter;
       if (adapter != null) {
         final recordingSession =
             await adapter.startRecording(request.recording);
         return CockpitStartRecordingResult(recordingSession: recordingSession);
+      }
+      if (resolution?.unsupportedReason != null) {
+        throw CockpitApplicationServiceException(
+          code: 'recordingStrategyUnavailable',
+          message: resolution!.unsupportedReason!,
+          details: <String, Object?>{
+            'platform': platform,
+            'baseUrl': resolved.baseUri.toString(),
+            'recording': request.recording.toJson(),
+          },
+        );
       }
     }
     return _startService.start(
@@ -76,5 +99,23 @@ final class CockpitStartRecordingService {
         recording: request.recording,
       ),
     );
+  }
+
+  String? _resolvedPlatform({
+    required CockpitAppHandle? app,
+    required String? androidDeviceId,
+    required String? iosDeviceId,
+  }) {
+    final appPlatform = app?.platform;
+    if (appPlatform != null && appPlatform.isNotEmpty) {
+      return appPlatform;
+    }
+    if (iosDeviceId != null && iosDeviceId.isNotEmpty) {
+      return 'ios';
+    }
+    if (androidDeviceId != null && androidDeviceId.isNotEmpty) {
+      return 'android';
+    }
+    return null;
   }
 }

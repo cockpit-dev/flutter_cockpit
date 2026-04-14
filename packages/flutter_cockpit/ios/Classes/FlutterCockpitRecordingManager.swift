@@ -11,6 +11,8 @@ final class FlutterCockpitRecordingManager {
       return [
         "supportsNativeRecording": recorder.isAvailable,
         "preferredAcceptanceRecordingKind": "nativeScreen",
+        "supportedLayers": ["system"],
+        "preferredLayer": "system",
         "recordingLimitations": [
           "System recording consent is required.",
           "Protected or DRM content may not be captured.",
@@ -21,6 +23,7 @@ final class FlutterCockpitRecordingManager {
     return [
       "supportsNativeRecording": false,
       "preferredAcceptanceRecordingKind": "nativeScreen",
+      "supportedLayers": [],
       "recordingLimitations": [
         "Native recording requires iOS 14 or newer.",
       ],
@@ -171,6 +174,7 @@ final class FlutterCockpitRecordingManager {
         result([
           "state": "completed",
           "recordingKind": "nativeScreen",
+          "effectiveLayer": "system",
           "durationMs": durationMs,
           "sourceFilePath": outputURL.path,
         ])

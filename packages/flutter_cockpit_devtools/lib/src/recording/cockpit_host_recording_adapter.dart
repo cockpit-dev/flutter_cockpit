@@ -44,6 +44,10 @@ CockpitHostRecordingRuntimeSession? cockpitReadActiveHostRecordingSession(
   return _activeHostRecordingSessions[key];
 }
 
+bool cockpitHasActiveHostRecordingSession(String key) {
+  return _activeHostRecordingSessions.containsKey(key);
+}
+
 void cockpitStoreActiveHostRecordingSession(
   String key,
   CockpitHostRecordingRuntimeSession session,

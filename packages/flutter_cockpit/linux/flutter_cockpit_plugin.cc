@@ -706,6 +706,12 @@ void HandleRecordingMethodCall(FlutterCockpitPlugin* self,
                              fl_value_new_bool(true));
     fl_value_set_string_take(payload, "preferredAcceptanceRecordingKind",
                              fl_value_new_string("nativeScreen"));
+    g_autoptr(FlValue) supported_layers = fl_value_new_list();
+    fl_value_append_take(supported_layers,
+                         fl_value_new_string("app-window"));
+    fl_value_set_string(payload, "supportedLayers", supported_layers);
+    fl_value_set_string_take(payload, "preferredLayer",
+                             fl_value_new_string("app-window"));
     g_autoptr(FlValue) limitations = fl_value_new_list();
     fl_value_append_take(
         limitations,
@@ -787,6 +793,8 @@ void HandleRecordingMethodCall(FlutterCockpitPlugin* self,
                              fl_value_new_string("completed"));
     fl_value_set_string_take(payload, "recordingKind",
                              fl_value_new_string("nativeScreen"));
+    fl_value_set_string_take(payload, "effectiveLayer",
+                             fl_value_new_string("app-window"));
     fl_value_set_string_take(payload, "durationMs",
                              fl_value_new_int(duration_ms));
     fl_value_set_string_take(

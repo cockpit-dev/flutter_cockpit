@@ -1,3 +1,5 @@
+import 'package:flutter_cockpit/flutter_cockpit.dart';
+
 import 'cockpit_app_handle.dart';
 import 'cockpit_app_reference_resolver.dart';
 import 'cockpit_interactive_result_data.dart';
@@ -52,37 +54,81 @@ final class CockpitStopRecordingService {
       baseUri: request.baseUri,
       androidDeviceId: request.androidDeviceId,
     );
-    final iosDeviceId = request.iosDeviceId ??
-        (resolved.app?.platform == 'ios' ? resolved.app?.deviceId : null);
-    if (iosDeviceId != null && iosDeviceId.isNotEmpty) {
-      final adapter = _recordingStrategyResolver.resolve(
-        platform: 'ios',
-        recording: true,
+    final platform = _resolvedPlatform(
+      app: resolved.app,
+      androidDeviceId: request.androidDeviceId,
+      iosDeviceId: request.iosDeviceId,
+    );
+    if (platform != null) {
+      final resolution = _recordingStrategyResolver.resolveDetailed(
+        platform: platform,
+        recording: const CockpitRecordingRequest(
+          purpose: CockpitRecordingPurpose.acceptance,
+          name: 'active-recording',
+        ),
         client: CockpitRemoteSessionClient(baseUri: resolved.baseUri),
-        iosDeviceId: iosDeviceId,
+        sessionHandle: resolved.app?.remoteSession,
+        androidDeviceId: request.androidDeviceId ??
+            (resolved.app?.platform == 'android'
+                ? resolved.app?.deviceId
+                : null),
+        iosDeviceId: request.iosDeviceId ??
+            (resolved.app?.platform == 'ios' ? resolved.app?.deviceId : null),
+        platformAppId:
+            resolved.app?.platformAppId ?? resolved.app?.remoteSession?.appId,
+        preferActiveHostSession: true,
       );
+      final adapter = resolution?.adapter;
       if (adapter != null) {
-        final recordingResult = await adapter.stopRecording();
-        final artifactRef = recordingResult.artifact;
-        return CockpitStopRecordingResult(
-          state: recordingResult.state,
-          purpose: recordingResult.purpose,
-          recordingKind: recordingResult.recordingKind,
-          artifact: artifactRef == null
-              ? null
-              : CockpitInteractiveArtifactDescriptor(
-                  role: artifactRef.role,
-                  relativePath: artifactRef.relativePath,
-                  byteLength: recordingResult.bytes?.length,
-                  sourcePath: recordingResult.sourceFilePath,
-                ),
-          durationMs: recordingResult.durationMs,
-          failureReason: recordingResult.failureReason,
-        );
+        return _toStopResult(await adapter.stopRecording());
       }
     }
     return _stopService.stop(
       CockpitStopRemoteRecordingRequest(baseUri: resolved.baseUri),
     );
+  }
+
+  CockpitStopRecordingResult _toStopResult(
+    CockpitRecordingResult recordingResult,
+  ) {
+    final artifactRef = recordingResult.artifact;
+    return CockpitStopRecordingResult(
+      state: recordingResult.state,
+      purpose: recordingResult.purpose,
+      recordingKind: recordingResult.recordingKind,
+      requestedMode: recordingResult.requestedMode,
+      requestedLayer: recordingResult.requestedLayer,
+      effectiveLayer: recordingResult.effectiveLayer,
+      fallbackUsed: recordingResult.fallbackUsed,
+      fallbackReason: recordingResult.fallbackReason,
+      artifact: artifactRef == null
+          ? null
+          : CockpitInteractiveArtifactDescriptor(
+              role: artifactRef.role,
+              relativePath: artifactRef.relativePath,
+              byteLength: recordingResult.bytes?.length,
+              sourcePath: recordingResult.sourceFilePath,
+            ),
+      durationMs: recordingResult.durationMs,
+      failureReason: recordingResult.failureReason,
+    );
+  }
+
+  String? _resolvedPlatform({
+    required CockpitAppHandle? app,
+    required String? androidDeviceId,
+    required String? iosDeviceId,
+  }) {
+    final appPlatform = app?.platform;
+    if (appPlatform != null && appPlatform.isNotEmpty) {
+      return appPlatform;
+    }
+    if (iosDeviceId != null && iosDeviceId.isNotEmpty) {
+      return 'ios';
+    }
+    if (androidDeviceId != null && androidDeviceId.isNotEmpty) {
+      return 'android';
+    }
+    return null;
   }
 }

@@ -5,6 +5,10 @@ import 'package:flutter_cockpit/flutter_cockpit.dart';
 
 import 'cockpit_host_recording_adapter.dart';
 
+bool cockpitHasActiveAdbRecordingSession(String deviceId) {
+  return cockpitHasActiveHostRecordingSession(_adbSessionCacheKey(deviceId));
+}
+
 final class CockpitAdbRecordingAdapter implements CockpitHostRecordingAdapter {
   CockpitAdbRecordingAdapter({
     required String deviceId,
@@ -36,11 +40,14 @@ final class CockpitAdbRecordingAdapter implements CockpitHostRecordingAdapter {
   String? _remotePath;
   Stopwatch? _stopwatch;
 
+  String get _sessionCacheKey => _adbSessionCacheKey(_deviceId);
+
   @override
   Future<CockpitRecordingSession> startRecording(
     CockpitRecordingRequest request,
   ) async {
-    if (_process != null) {
+    if (_process != null ||
+        cockpitReadActiveHostRecordingSession(_sessionCacheKey) != null) {
       throw StateError('An adb recording is already active.');
     }
 
@@ -68,6 +75,16 @@ final class CockpitAdbRecordingAdapter implements CockpitHostRecordingAdapter {
     _request = request;
     _remotePath = remotePath;
     _stopwatch = Stopwatch()..start();
+    cockpitStoreActiveHostRecordingSession(
+      _sessionCacheKey,
+      CockpitHostRecordingRuntimeSession(
+        process: process,
+        request: request,
+        outputFile: File(remotePath),
+        stderrSubscription: null,
+        stopwatch: _stopwatch,
+      ),
+    );
 
     return CockpitRecordingSession(
       request: request,
@@ -77,10 +94,11 @@ final class CockpitAdbRecordingAdapter implements CockpitHostRecordingAdapter {
 
   @override
   Future<CockpitRecordingResult> stopRecording() async {
-    final process = _process;
-    final request = _request;
-    final remotePath = _remotePath;
-    final stopwatch = _stopwatch;
+    final session = _currentSessionState;
+    final process = session?.process;
+    final request = session?.request;
+    final remotePath = session?.outputFile.path;
+    final stopwatch = session?.stopwatch;
     if (process == null || request == null || remotePath == null) {
       throw StateError('No active adb recording session exists.');
     }
@@ -112,6 +130,9 @@ final class CockpitAdbRecordingAdapter implements CockpitHostRecordingAdapter {
           state: CockpitRecordingState.failed,
           purpose: request.purpose,
           recordingKind: CockpitRecordingKind.nativeScreen,
+          requestedMode: request.mode,
+          requestedLayer: request.layer,
+          effectiveLayer: CockpitRecordingLayer.system,
           failureReason:
               'adb pull failed: ${pullResult.stderr ?? pullResult.stdout}',
         );
@@ -126,6 +147,9 @@ final class CockpitAdbRecordingAdapter implements CockpitHostRecordingAdapter {
           state: CockpitRecordingState.failed,
           purpose: request.purpose,
           recordingKind: CockpitRecordingKind.nativeScreen,
+          requestedMode: request.mode,
+          requestedLayer: request.layer,
+          effectiveLayer: CockpitRecordingLayer.system,
           failureReason: 'adb recording output file was missing or empty.',
         );
       }
@@ -135,6 +159,9 @@ final class CockpitAdbRecordingAdapter implements CockpitHostRecordingAdapter {
         state: CockpitRecordingState.completed,
         purpose: request.purpose,
         recordingKind: CockpitRecordingKind.nativeScreen,
+        requestedMode: request.mode,
+        requestedLayer: request.layer,
+        effectiveLayer: CockpitRecordingLayer.system,
         artifact: cockpitRecordingArtifactForName(request.name),
         durationMs: stopwatch?.elapsedMilliseconds,
         sourceFilePath: outputFile.path,
@@ -145,15 +172,35 @@ final class CockpitAdbRecordingAdapter implements CockpitHostRecordingAdapter {
         state: CockpitRecordingState.failed,
         purpose: request.purpose,
         recordingKind: CockpitRecordingKind.nativeScreen,
+        requestedMode: request.mode,
+        requestedLayer: request.layer,
+        effectiveLayer: CockpitRecordingLayer.system,
         failureReason: 'adb recording did not stop before timeout.',
       );
     } finally {
       await _cleanupRemoteFile(remotePath);
+      cockpitClearActiveHostRecordingSession(_sessionCacheKey);
       _process = null;
       _request = null;
       _remotePath = null;
       _stopwatch = null;
     }
+  }
+
+  CockpitHostRecordingRuntimeSession? get _currentSessionState {
+    final process = _process;
+    final request = _request;
+    final remotePath = _remotePath;
+    if (process != null && request != null && remotePath != null) {
+      return CockpitHostRecordingRuntimeSession(
+        process: process,
+        request: request,
+        outputFile: File(remotePath),
+        stderrSubscription: null,
+        stopwatch: _stopwatch,
+      );
+    }
+    return cockpitReadActiveHostRecordingSession(_sessionCacheKey);
   }
 
   Future<void> _cleanupRemoteFile(String remotePath) async {
@@ -253,3 +300,5 @@ final class CockpitAdbRecordingAdapter implements CockpitHostRecordingAdapter {
     return '${psResult.stdout}'.contains('screenrecord');
   }
 }
+
+String _adbSessionCacheKey(String deviceId) => 'adb:$deviceId';

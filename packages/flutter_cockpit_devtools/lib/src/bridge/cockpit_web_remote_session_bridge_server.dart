@@ -261,6 +261,10 @@ final class CockpitWebRemoteSessionBridgeServer {
     next['recordingCapabilities'] = CockpitRecordingCapabilities(
       supportsNativeRecording: true,
       preferredAcceptanceRecordingKind: CockpitRecordingKind.nativeScreen,
+      supportedLayers: const <CockpitRecordingLayer>[
+        CockpitRecordingLayer.hostScreen,
+      ],
+      preferredLayer: CockpitRecordingLayer.hostScreen,
       recordingLimitations: const <String>[
         'Browser recording runs on the host desktop and requires screen-capture permission for the terminal, Dart, and ffmpeg.',
       ],

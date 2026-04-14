@@ -17,6 +17,8 @@ final class FlutterCockpitRecordingManager {
     [
       "supportsNativeRecording": true,
       "preferredAcceptanceRecordingKind": "nativeScreen",
+      "supportedLayers": ["app-window"],
+      "preferredLayer": "app-window",
       "recordingLimitations": [
         "Native macOS recording captures the Flutter app window content only.",
         "Window chrome and other desktop surfaces are not included.",
@@ -103,6 +105,7 @@ final class FlutterCockpitRecordingManager {
             result([
               "state": "completed",
               "recordingKind": "nativeScreen",
+              "effectiveLayer": "app-window",
               "durationMs": durationMs,
               "sourceFilePath": outputURL.path,
             ])

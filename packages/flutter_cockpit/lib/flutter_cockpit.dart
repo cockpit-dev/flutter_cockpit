@@ -42,6 +42,8 @@ export 'src/remote/cockpit_remote_session_configuration.dart';
 export 'src/remote/cockpit_remote_session_status.dart';
 export 'src/recording/cockpit_recording_capabilities.dart';
 export 'src/recording/cockpit_recording_kind.dart';
+export 'src/recording/cockpit_recording_layer.dart';
+export 'src/recording/cockpit_recording_mode.dart';
 export 'src/recording/cockpit_recording_paths.dart';
 export 'src/recording/cockpit_recording_purpose.dart';
 export 'src/recording/cockpit_recording_request.dart';

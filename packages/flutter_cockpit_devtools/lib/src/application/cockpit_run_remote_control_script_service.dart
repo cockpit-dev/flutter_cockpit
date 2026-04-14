@@ -203,7 +203,7 @@ final class CockpitRunRemoteControlScriptService {
     required CockpitRunRemoteControlScriptRequest request,
     required CockpitRemoteSessionHandle? sessionHandle,
   }) {
-    return _recordingStrategyResolver.resolve(
+    final resolution = _recordingStrategyResolver.resolveDetailed(
       platform: request.script.platform,
       recording: request.script.recording,
       client: client,
@@ -214,7 +214,19 @@ final class CockpitRunRemoteControlScriptService {
               : null),
       iosDeviceId: request.iosDeviceId ??
           (sessionHandle?.platform == 'ios' ? sessionHandle?.deviceId : null),
+      platformAppId: sessionHandle?.appId,
     );
+    if (resolution?.unsupportedReason != null && resolution?.adapter == null) {
+      throw CockpitApplicationServiceException(
+        code: 'recordingStrategyUnavailable',
+        message: resolution!.unsupportedReason!,
+        details: <String, Object?>{
+          'platform': request.script.platform,
+          'recording': request.script.recording?.toJson(),
+        },
+      );
+    }
+    return resolution?.adapter;
   }
 
   Future<void> _persistScriptIfRequested({

@@ -12,6 +12,7 @@ import '../network/cockpit_network_observer.dart';
 import '../recording/cockpit_native_recording.dart';
 import '../recording/cockpit_recording_capabilities.dart';
 import '../recording/cockpit_recording_kind.dart';
+import '../recording/cockpit_recording_layer.dart';
 import '../recording/cockpit_recording_request.dart';
 import '../recording/cockpit_recording_result.dart';
 import '../recording/cockpit_recording_session.dart';
@@ -104,6 +105,7 @@ final class FlutterCockpitBinding {
       return CockpitRecordingCapabilities(
         supportsNativeRecording: false,
         preferredAcceptanceRecordingKind: CockpitRecordingKind.nativeScreen,
+        supportedLayers: const <CockpitRecordingLayer>[],
         recordingLimitations: <String>[_recordingProbeFailureMessage(error)],
       );
     }
