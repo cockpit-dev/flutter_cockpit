@@ -99,6 +99,7 @@ export 'src/recording/cockpit_linux_recording_adapter.dart';
 export 'src/recording/cockpit_macos_recording_adapter.dart';
 export 'src/recording/cockpit_host_recording_adapter.dart';
 export 'src/recording/cockpit_recording_strategy_resolver.dart';
+export 'src/recording/cockpit_recording_strategy_resolution.dart';
 export 'src/recording/cockpit_simctl_recording_adapter.dart';
 export 'src/recording/cockpit_windows_recording_adapter.dart';
 export 'src/capture/cockpit_windows_capture_adapter.dart';

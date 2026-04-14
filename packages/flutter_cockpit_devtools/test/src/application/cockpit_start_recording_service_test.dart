@@ -5,6 +5,49 @@ import 'package:test/test.dart';
 void main() {
   group('CockpitStartRecordingService', () {
     test(
+      'uses adb host recording for Android apps when auto mode has a device handle',
+      () async {
+        var remoteStartCalled = false;
+        final hostAdapter = _FakeRecordingAdapter(
+          onStart: (request) async => CockpitRecordingSession(
+            request: request,
+            state: CockpitRecordingState.recording,
+          ),
+        );
+        final service = CockpitStartRecordingService(
+          startService: CockpitStartRemoteRecordingService(
+            startRecording: (_, __) async {
+              remoteStartCalled = true;
+              throw StateError(
+                'remote start should not be used for Android host recording',
+              );
+            },
+          ),
+          recordingStrategyResolver: CockpitRecordingStrategyResolver(
+            remoteAdapterFactory: (_) => _FakeRecordingAdapter(),
+            adbAdapterFactory: (_) => hostAdapter,
+            simctlAdapterFactory: (_) => _FakeRecordingAdapter(),
+          ),
+        );
+
+        final result = await service.start(
+          CockpitStartRecordingRequest(
+            app: _androidAppHandle(),
+            recording: const CockpitRecordingRequest(
+              purpose: CockpitRecordingPurpose.acceptance,
+              name: 'android-host-recording',
+            ),
+          ),
+        );
+
+        expect(remoteStartCalled, isFalse);
+        expect(result.recordingSession.state, CockpitRecordingState.recording);
+        expect(
+            hostAdapter.startedRequests.single.name, 'android-host-recording');
+      },
+    );
+
+    test(
       'uses simctl host recording for iOS apps instead of remote runtime recording',
       () async {
         var remoteStartCalled = false;
@@ -45,7 +88,71 @@ void main() {
         expect(hostAdapter.startedRequests.single.name, 'ios-host-recording');
       },
     );
+
+    test(
+      'uses remote native recording for iOS native mode',
+      () async {
+        var remoteStartCalled = false;
+        final nativeAdapter = _FakeRecordingAdapter(
+          onStart: (request) async => CockpitRecordingSession(
+            request: request,
+            state: CockpitRecordingState.recording,
+          ),
+        );
+        final simctlAdapter = _FakeRecordingAdapter(
+          onStart: (_) async => throw StateError(
+            'simctl should not be used for native mode',
+          ),
+        );
+        final service = CockpitStartRecordingService(
+          startService: CockpitStartRemoteRecordingService(
+            startRecording: (_, __) async {
+              remoteStartCalled = true;
+              throw StateError(
+                'remote start service should not be used when resolver selects a native adapter',
+              );
+            },
+          ),
+          recordingStrategyResolver: CockpitRecordingStrategyResolver(
+            remoteAdapterFactory: (_) => nativeAdapter,
+            adbAdapterFactory: (_) => _FakeRecordingAdapter(),
+            simctlAdapterFactory: (_) => simctlAdapter,
+          ),
+        );
+
+        final result = await service.start(
+          CockpitStartRecordingRequest(
+            app: _iosAppHandle(),
+            recording: const CockpitRecordingRequest(
+              purpose: CockpitRecordingPurpose.acceptance,
+              name: 'ios-native-recording',
+              mode: CockpitRecordingMode.native,
+            ),
+          ),
+        );
+
+        expect(remoteStartCalled, isFalse);
+        expect(result.recordingSession.state, CockpitRecordingState.recording);
+        expect(
+          nativeAdapter.startedRequests.single.mode,
+          CockpitRecordingMode.native,
+        );
+      },
+    );
   });
+}
+
+CockpitAppHandle _androidAppHandle() {
+  return CockpitAppHandle(
+    appId: 'android-app',
+    mode: CockpitAppMode.development,
+    platform: 'android',
+    deviceId: 'emulator-5554',
+    projectDir: '/workspace/examples/cockpit_demo',
+    target: 'cockpit/main.dart',
+    baseUrl: 'http://127.0.0.1:47331',
+    launchedAt: DateTime.utc(2026, 4, 13),
+  );
 }
 
 CockpitAppHandle _iosAppHandle() {

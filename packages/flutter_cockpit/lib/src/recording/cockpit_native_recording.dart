@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../model/cockpit_artifact_ref.dart';
 import 'cockpit_recording_capabilities.dart';
 import 'cockpit_recording_kind.dart';
+import 'cockpit_recording_layer.dart';
 import 'cockpit_recording_paths.dart';
 import 'cockpit_recording_request.dart';
 import 'cockpit_recording_result.dart';
@@ -37,6 +38,9 @@ class CockpitNativeRecording {
         .invokeMethod<Object?>('startRecording', <String, Object?>{
       'purpose': request.purpose.name,
       'name': request.name,
+      'mode': request.mode.jsonValue,
+      'layer': request.layer?.jsonValue,
+      'allowFallback': request.allowFallback,
       'attachToStep': request.attachToStep,
       'relativePath': cockpitRecordingRelativePathFor(request),
     });
@@ -73,6 +77,13 @@ class CockpitNativeRecording {
       recordingKind: payload['recordingKind'] == null
           ? CockpitRecordingKind.nativeScreen
           : CockpitRecordingKind.fromJson(payload['recordingKind']),
+      requestedMode: session.request.mode,
+      requestedLayer: session.request.layer,
+      effectiveLayer: payload['effectiveLayer'] == null
+          ? session.request.layer
+          : CockpitRecordingLayer.fromJson(payload['effectiveLayer']),
+      fallbackUsed: payload['fallbackUsed'] as bool? ?? false,
+      fallbackReason: payload['fallbackReason'] as String?,
       artifact: state == CockpitRecordingState.completed
           ? CockpitArtifactRef(role: 'recording', relativePath: relativePath)
           : null,

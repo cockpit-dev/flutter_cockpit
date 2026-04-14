@@ -730,6 +730,9 @@ void FlutterCockpitPlugin::QueryRecordingCapabilities(
   payload[EncodableValue("supportsNativeRecording")] = EncodableValue(true);
   payload[EncodableValue("preferredAcceptanceRecordingKind")] =
       EncodableValue("nativeScreen");
+  payload[EncodableValue("supportedLayers")] =
+      EncodableValue(std::vector<EncodableValue>{EncodableValue("app-window")});
+  payload[EncodableValue("preferredLayer")] = EncodableValue("app-window");
   payload[EncodableValue("recordingLimitations")] = EncodableValue(
       std::vector<EncodableValue>{
           EncodableValue(
@@ -812,6 +815,7 @@ void FlutterCockpitPlugin::StopRecording(
 
   payload[EncodableValue("state")] = EncodableValue("completed");
   payload[EncodableValue("recordingKind")] = EncodableValue("nativeScreen");
+  payload[EncodableValue("effectiveLayer")] = EncodableValue("app-window");
   payload[EncodableValue("durationMs")] = EncodableValue(duration_ms);
   payload[EncodableValue("sourceFilePath")] = EncodableValue(source_file_path);
   result->Success(EncodableValue(payload));

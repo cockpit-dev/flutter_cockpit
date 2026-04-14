@@ -51,6 +51,7 @@ final class FlutterCockpitWeb {
           'supportsNativeRecording': false,
           'preferredAcceptanceRecordingKind':
               CockpitRecordingKind.nativeScreen.name,
+          'supportedLayers': const <String>[],
           'recordingLimitations': <String>[_nativeRecordingUnavailableMessage],
         };
       case 'startRecording':
@@ -62,6 +63,7 @@ final class FlutterCockpitWeb {
         return <String, Object?>{
           'state': CockpitRecordingState.failed.name,
           'recordingKind': CockpitRecordingKind.nativeScreen.name,
+          'effectiveLayer': 'host-screen',
           'failureReason': 'recordingNotActive',
         };
     }

@@ -31,6 +31,11 @@ final class CockpitStopRemoteRecordingResult {
     required this.state,
     this.purpose,
     this.recordingKind,
+    this.requestedMode,
+    this.requestedLayer,
+    this.effectiveLayer,
+    this.fallbackUsed = false,
+    this.fallbackReason,
     this.artifact,
     this.durationMs,
     this.failureReason,
@@ -40,6 +45,11 @@ final class CockpitStopRemoteRecordingResult {
   final CockpitRecordingState state;
   final CockpitRecordingPurpose? purpose;
   final CockpitRecordingKind? recordingKind;
+  final CockpitRecordingMode? requestedMode;
+  final CockpitRecordingLayer? requestedLayer;
+  final CockpitRecordingLayer? effectiveLayer;
+  final bool fallbackUsed;
+  final String? fallbackReason;
   final CockpitInteractiveArtifactDescriptor? artifact;
   final int? durationMs;
   final String? failureReason;
@@ -49,6 +59,11 @@ final class CockpitStopRemoteRecordingResult {
         'state': state.name,
         if (purpose != null) 'purpose': purpose!.name,
         if (recordingKind != null) 'recordingKind': recordingKind!.name,
+        if (requestedMode != null) 'requestedMode': requestedMode!.jsonValue,
+        if (requestedLayer != null) 'requestedLayer': requestedLayer!.jsonValue,
+        if (effectiveLayer != null) 'effectiveLayer': effectiveLayer!.jsonValue,
+        if (fallbackUsed) 'fallbackUsed': fallbackUsed,
+        if (fallbackReason != null) 'fallbackReason': fallbackReason,
         if (artifact != null) 'artifact': artifact!.toJson(),
         if (durationMs != null) 'durationMs': durationMs,
         if (failureReason != null) 'failureReason': failureReason,
@@ -91,6 +106,11 @@ final class CockpitStopRemoteRecordingService {
       state: recordingResult.state,
       purpose: recordingResult.purpose,
       recordingKind: recordingResult.recordingKind,
+      requestedMode: recordingResult.requestedMode,
+      requestedLayer: recordingResult.requestedLayer,
+      effectiveLayer: recordingResult.effectiveLayer,
+      fallbackUsed: recordingResult.fallbackUsed,
+      fallbackReason: recordingResult.fallbackReason,
       artifact: artifactRef == null
           ? null
           : CockpitInteractiveArtifactDescriptor(

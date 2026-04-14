@@ -18,6 +18,7 @@ import '../remote/cockpit_remote_session_bridge_client.dart';
 import '../remote/cockpit_remote_session_endpoint_handler.dart';
 import '../recording/cockpit_recording_capabilities.dart';
 import '../recording/cockpit_recording_kind.dart';
+import '../recording/cockpit_recording_layer.dart';
 import '../recording/cockpit_recording_request.dart';
 import '../recording/cockpit_recording_result.dart';
 import '../recording/cockpit_recording_session.dart';
@@ -557,6 +558,7 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
       return CockpitRecordingCapabilities(
         supportsNativeRecording: false,
         preferredAcceptanceRecordingKind: CockpitRecordingKind.nativeScreen,
+        supportedLayers: const <CockpitRecordingLayer>[],
         recordingLimitations: <String>[error.toString()],
       );
     }

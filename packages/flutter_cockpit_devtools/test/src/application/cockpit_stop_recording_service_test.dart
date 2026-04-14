@@ -5,35 +5,38 @@ import 'package:test/test.dart';
 void main() {
   group('CockpitStopRecordingService', () {
     test(
-      'uses simctl host recording for iOS apps instead of remote runtime recording',
+      'uses remote runtime recording for iOS apps when no host recording session is active',
       () async {
-        var remoteStopCalled = false;
-        final hostAdapter = _FakeRecordingAdapter(
+        final nativeAdapter = _FakeRecordingAdapter(
           onStop: () async => CockpitRecordingResult(
             state: CockpitRecordingState.completed,
             purpose: CockpitRecordingPurpose.acceptance,
             recordingKind: CockpitRecordingKind.nativeScreen,
+            effectiveLayer: CockpitRecordingLayer.system,
             artifact: const CockpitArtifactRef(
               role: 'recording',
-              relativePath: 'recordings/ios-host-recording.mp4',
+              relativePath: 'recordings/ios-native-recording.mp4',
             ),
             durationMs: 2400,
-            sourceFilePath: '/tmp/ios-host-recording.mp4',
+            sourceFilePath: '/tmp/ios-native-recording.mp4',
           ),
         );
         final service = CockpitStopRecordingService(
           stopService: CockpitStopRemoteRecordingService(
             stopRecording: (_) async {
-              remoteStopCalled = true;
               throw StateError(
-                'remote stop should not be used for iOS host recording',
+                'stop service should not be used when resolver selects an adapter',
               );
             },
           ),
           recordingStrategyResolver: CockpitRecordingStrategyResolver(
-            remoteAdapterFactory: (_) => _FakeRecordingAdapter(),
+            remoteAdapterFactory: (_) => nativeAdapter,
             adbAdapterFactory: (_) => _FakeRecordingAdapter(),
-            simctlAdapterFactory: (_) => hostAdapter,
+            simctlAdapterFactory: (_) => _FakeRecordingAdapter(
+              onStop: () async => throw StateError(
+                'simctl should not be used without an active host session',
+              ),
+            ),
           ),
         );
 
@@ -43,13 +46,13 @@ void main() {
           ),
         );
 
-        expect(remoteStopCalled, isFalse);
         expect(result.state, CockpitRecordingState.completed);
         expect(
           result.artifact?.relativePath,
-          'recordings/ios-host-recording.mp4',
+          'recordings/ios-native-recording.mp4',
         );
-        expect(result.artifact?.sourcePath, '/tmp/ios-host-recording.mp4');
+        expect(result.artifact?.sourcePath, '/tmp/ios-native-recording.mp4');
+        expect(result.effectiveLayer, CockpitRecordingLayer.system);
       },
     );
   });

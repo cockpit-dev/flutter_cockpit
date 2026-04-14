@@ -208,6 +208,7 @@ internal class FlutterCockpitRecordingService : Service() {
                 mapOf<String, Any?>(
                     "state" to "completed",
                     "recordingKind" to "nativeScreen",
+                    "effectiveLayer" to "system",
                     "durationMs" to durationMs,
                     "sourceFilePath" to outputFile.absolutePath,
                 )

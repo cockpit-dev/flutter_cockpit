@@ -6,6 +6,10 @@ import 'package:flutter_cockpit/flutter_cockpit.dart';
 
 import 'cockpit_host_recording_adapter.dart';
 
+bool cockpitHasActiveSimctlRecordingSession(String deviceId) {
+  return _simctlSessionFile(deviceId).existsSync();
+}
+
 final class CockpitSimctlRecordingAdapter
     implements CockpitHostRecordingAdapter {
   CockpitSimctlRecordingAdapter({
@@ -253,15 +257,7 @@ final class CockpitSimctlRecordingAdapter
     await _clearPersistedSession();
   }
 
-  File get _sessionFile {
-    final sanitizedDeviceId =
-        _deviceId.replaceAll(RegExp(r'[^A-Za-z0-9._-]+'), '_');
-    return File(
-      '${Directory.systemTemp.path}${Platform.pathSeparator}'
-      'flutter_cockpit_recording_sessions${Platform.pathSeparator}'
-      'simctl_$sanitizedDeviceId.json',
-    );
-  }
+  File get _sessionFile => _simctlSessionFile(_deviceId);
 
   Future<void> _writePersistedSession(
     _PersistedSimctlRecordingSession session,
@@ -426,6 +422,16 @@ final class CockpitSimctlRecordingAdapter
       return null;
     }
   }
+}
+
+File _simctlSessionFile(String deviceId) {
+  final sanitizedDeviceId =
+      deviceId.replaceAll(RegExp(r'[^A-Za-z0-9._-]+'), '_');
+  return File(
+    '${Directory.systemTemp.path}${Platform.pathSeparator}'
+    'flutter_cockpit_recording_sessions${Platform.pathSeparator}'
+    'simctl_$sanitizedDeviceId.json',
+  );
 }
 
 final class _PersistedSimctlRecordingSession {

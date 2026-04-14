@@ -234,6 +234,8 @@ final class CockpitReadAppService {
           profileSupportsRecording,
       preferredAcceptanceRecordingKind:
           recordingCapabilities.preferredAcceptanceRecordingKind,
+      supportedLayers: recordingCapabilities.supportedLayers,
+      preferredLayer: recordingCapabilities.preferredLayer,
       recordingLimitations: limitations.toList(growable: false),
     );
   }

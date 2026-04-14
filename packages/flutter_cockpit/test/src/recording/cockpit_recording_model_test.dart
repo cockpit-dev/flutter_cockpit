@@ -2,6 +2,25 @@ import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('CockpitRecordingMode round-trips through json', () {
+    expect(
+      CockpitRecordingMode.fromJson(CockpitRecordingMode.full.jsonValue),
+      CockpitRecordingMode.full,
+    );
+  });
+
+  test('CockpitRecordingLayer round-trips through json aliases', () {
+    expect(
+      CockpitRecordingLayer.fromJson(
+          CockpitRecordingLayer.hostScreen.jsonValue),
+      CockpitRecordingLayer.hostScreen,
+    );
+    expect(
+      CockpitRecordingLayer.fromJson('appWindow'),
+      CockpitRecordingLayer.appWindow,
+    );
+  });
+
   test('CockpitRecordingPurpose round-trips through json', () {
     expect(
       CockpitRecordingPurpose.fromJson(CockpitRecordingPurpose.acceptance.name),
@@ -29,17 +48,50 @@ void main() {
   });
 
   test(
-    'CockpitRecordingRequest preserves purpose, attachment, and tail stabilization metadata',
+    'CockpitRecordingRequest preserves policy, attachment, and tail stabilization metadata',
     () {
       final request = CockpitRecordingRequest(
         purpose: CockpitRecordingPurpose.acceptance,
         name: 'home_acceptance',
+        mode: CockpitRecordingMode.full,
+        layer: CockpitRecordingLayer.hostScreen,
+        allowFallback: false,
         attachToStep: true,
         tailStabilizationDelay: const Duration(milliseconds: 1450),
       );
 
       expect(CockpitRecordingRequest.fromJson(request.toJson()), request);
+      expect(request.toJson()['mode'], CockpitRecordingMode.full.jsonValue);
+      expect(
+        request.toJson()['layer'],
+        CockpitRecordingLayer.hostScreen.jsonValue,
+      );
+      expect(request.toJson()['allowFallback'], isFalse);
       expect(request.toJson()['tailStabilizationMs'], 1450);
+    },
+  );
+
+  test(
+    'CockpitRecordingRequest derives fallback defaults from mode and layer',
+    () {
+      const autoRequest = CockpitRecordingRequest(
+        purpose: CockpitRecordingPurpose.acceptance,
+        name: 'auto_recording',
+      );
+      const preciseLayerRequest = CockpitRecordingRequest(
+        purpose: CockpitRecordingPurpose.acceptance,
+        name: 'flutter_recording',
+        layer: CockpitRecordingLayer.flutter,
+      );
+      const strictNativeRequest = CockpitRecordingRequest(
+        purpose: CockpitRecordingPurpose.acceptance,
+        name: 'native_recording',
+        mode: CockpitRecordingMode.native,
+      );
+
+      expect(autoRequest.allowsFallback, isTrue);
+      expect(preciseLayerRequest.allowsFallback, isFalse);
+      expect(strictNativeRequest.allowsFallback, isFalse);
     },
   );
 
@@ -52,21 +104,55 @@ void main() {
     expect(request.name, 'acceptance');
   });
 
-  test('CockpitRecordingResult preserves state, artifact, and duration', () {
-    final result = CockpitRecordingResult(
-      state: CockpitRecordingState.completed,
-      purpose: CockpitRecordingPurpose.acceptance,
-      recordingKind: CockpitRecordingKind.nativeScreen,
-      artifact: const CockpitArtifactRef(
-        role: 'recording',
-        relativePath: 'recordings/home_acceptance.mp4',
-      ),
-      durationMs: 4200,
-      bytes: const [1, 2, 3, 4],
-    );
+  test(
+    'CockpitRecordingResult preserves requested, effective, and fallback metadata',
+    () {
+      final result = CockpitRecordingResult(
+        state: CockpitRecordingState.completed,
+        purpose: CockpitRecordingPurpose.acceptance,
+        recordingKind: CockpitRecordingKind.nativeScreen,
+        requestedMode: CockpitRecordingMode.full,
+        requestedLayer: CockpitRecordingLayer.system,
+        effectiveLayer: CockpitRecordingLayer.hostScreen,
+        fallbackUsed: true,
+        fallbackReason: 'System-layer recording is unavailable on macOS.',
+        artifact: const CockpitArtifactRef(
+          role: 'recording',
+          relativePath: 'recordings/home_acceptance.mp4',
+        ),
+        durationMs: 4200,
+        bytes: const [1, 2, 3, 4],
+      );
 
-    expect(CockpitRecordingResult.fromJson(result.toJson()), result);
-  });
+      expect(CockpitRecordingResult.fromJson(result.toJson()), result);
+      expect(result.toJson()['fallbackUsed'], isTrue);
+    },
+  );
+
+  test(
+    'CockpitRecordingCapabilities preserves supported and preferred layers',
+    () {
+      final capabilities = CockpitRecordingCapabilities(
+        supportsNativeRecording: true,
+        preferredAcceptanceRecordingKind: CockpitRecordingKind.nativeScreen,
+        supportedLayers: const <CockpitRecordingLayer>[
+          CockpitRecordingLayer.appWindow,
+          CockpitRecordingLayer.hostScreen,
+        ],
+        preferredLayer: CockpitRecordingLayer.appWindow,
+        recordingLimitations: const <String>['Window chrome is excluded.'],
+      );
+
+      expect(
+        CockpitRecordingCapabilities.fromJson(capabilities.toJson()),
+        capabilities,
+      );
+      expect(
+        capabilities.toJson()['supportedLayers'],
+        <String>['app-window', 'host-screen'],
+      );
+    },
+  );
 
   test('CockpitRunManifest preserves recording delivery metadata', () {
     final manifest = CockpitRunManifest(

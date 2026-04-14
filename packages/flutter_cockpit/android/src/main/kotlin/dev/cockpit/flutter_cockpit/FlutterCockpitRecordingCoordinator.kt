@@ -34,6 +34,8 @@ internal class FlutterCockpitRecordingCoordinator(
             mapOf<String, Any>(
                 "supportsNativeRecording" to (activity != null),
                 "preferredAcceptanceRecordingKind" to "nativeScreen",
+                "supportedLayers" to listOf("system"),
+                "preferredLayer" to "system",
                 "recordingLimitations" to listOf(
                     "System recording consent is required.",
                     "Protected content may not be recorded.",
