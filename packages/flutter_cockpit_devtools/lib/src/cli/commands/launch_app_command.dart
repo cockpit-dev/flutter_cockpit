@@ -87,11 +87,11 @@ final class LaunchAppCommand extends CockpitCliCommand {
 
   @override
   String get helpWhen =>
-      'Use once at the start of an app-first loop or whenever you need a fresh app handle.';
+      'Default start of most loops. App-first is the lowest-friction path for reload, logs, network reads, screenshots, recordings, and cleanup.';
 
   @override
   String get helpNeeds =>
-      'project-dir, platform, and a device ID when the platform is android, ios, or web. target is optional when cockpit/main.dart or lib/main.dart exists.';
+      'project-dir and platform. Run list-targets first on a fresh machine, simulator, emulator, or browser loop; device-id is required for android, ios, and web. target is optional when cockpit/main.dart or lib/main.dart exists.';
 
   @override
   String get helpExample =>
@@ -99,7 +99,7 @@ final class LaunchAppCommand extends CockpitCliCommand {
 
   @override
   String get helpWrites =>
-      'The command result JSON. The reusable app handle is always written to the current workspace at .dart_tool/flutter_cockpit/latest_app.json, and --app-json can also mirror it elsewhere.';
+      'The command result JSON. The reusable app handle is always written to the current workspace at .dart_tool/flutter_cockpit/latest_app.json, and --app-json can mirror it elsewhere for cross-directory follow-up steps.';
 
   @override
   Future<int> run() async {

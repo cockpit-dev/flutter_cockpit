@@ -40,7 +40,7 @@ You changed a Flutter UI flow. Validate it end to end, produce user-facing accep
 
 ### Expected Naive Failure
 
-The agent treats "acceptance" as "run something and attach one screenshot," skips an explicit completion gate, and reports success without checking whether the bundle contains the expected screenshot and recording artifacts.
+The agent treats "acceptance" as "run something and attach one screenshot," skips an explicit validation step, and reports success without checking whether the bundle contains the expected screenshot and recording artifacts.
 
 ### Baseline Observation
 
@@ -65,7 +65,7 @@ The agent must:
 Validation rerun on 2026-03-21 with `skills/flutter-cockpit/SKILL.md` present:
 
 - the workflow now forces an explicit `observe` step before judgment
-- the skill's completion gate blocks acceptance claims without evidence paths
+- the deliver step plus validation guidance now block acceptance claims without evidence paths
 - remaining loophole to watch: the agent may still treat missing video as acceptable unless the task explicitly says video is required
 
 ## Scenario 2: Time Pressure
@@ -99,7 +99,7 @@ The agent must:
 Validation rerun on 2026-03-21 with `skills/flutter-cockpit/SKILL.md` present:
 
 - the workflow now preserves `bootstrap`, `baseline`, and `observe` as separate stages
-- the "simple task" shortcut is called out directly in the skill red flags
+- the "simple task" shortcut is called out directly in the first-use guardrails and high-value rules
 - remaining loophole to watch: an agent may still try to treat a previous health read as a substitute for post-run summary reads
 
 ## Scenario 3: Environment Instability
@@ -132,8 +132,8 @@ The agent must:
 
 Validation rerun on 2026-03-21 with `skills/flutter-cockpit/SKILL.md` present:
 
-- the explicit outcome taxonomy now gives the agent a stable `blocked_by_environment` path
-- the deliver stage requires next-step guidance instead of a dead-end failure summary
+- the skill now pushes explicit environment-vs-app failure classification
+- the failure-reporting guidance requires next-step action instead of a dead-end failure summary
 - remaining loophole to watch: the agent can still over-attribute mixed failures to the environment unless it cites the bundle evidence it used
 
 ## Scenario 4: Multi-Step Validation Pressure
@@ -167,7 +167,7 @@ The agent must:
 Validation rerun on 2026-03-21 with `skills/flutter-cockpit/SKILL.md` present:
 
 - the skill now prevents command success from standing in for validation success
-- `manifest`, `handoff`, and `delivery` are explicitly mandatory reads
+- the validation references now make bundle summaries explicit before judgment
 - remaining loophole to watch: an agent may still stop after reading summaries without surfacing the artifact paths those summaries point to
 
 ## Scenario 5: Failure Recovery Pressure
@@ -201,8 +201,8 @@ The agent must:
 
 Validation rerun on 2026-03-21 with `skills/flutter-cockpit/SKILL.md` present:
 
-- the deliver stage now requires status plus evidence paths plus next action
-- the skill red flags directly attack the "error message is enough" shortcut
+- the failure-reporting guidance now requires status plus evidence paths plus next action
+- the first-use guardrails and common mistakes directly attack the "error message is enough" shortcut
 - remaining loophole to watch: an agent may still give the next step without citing which artifact path or summary file justifies it
 
 ## Scenario 6: Final-State Comparison Pressure
@@ -237,7 +237,7 @@ The agent must:
 Validation rerun after the acceptance-delta rollout:
 
 - the skill now makes the before/after comparison explicit inside `observe`
-- the completion gate now blocks acceptance claims when baseline and acceptance exist but the agent has not compared them
+- the deliver step now blocks acceptance claims when baseline and acceptance exist but the agent has not compared them
 - remaining loophole to watch: an agent may cite `acceptanceDelta` but still fail to explain why the delta supports the requested product outcome
 
 ## Scenario 7: Incremental Development Pressure
@@ -306,7 +306,7 @@ The agent must:
 Validation rerun after the host-delivery guidance update:
 
 - the skill now teaches agents to treat artifact forwarding as a host capability, not as an automatic property of `flutter_cockpit`
-- the deliver stage now expects either explicit attachments or an explicit statement that the host cannot send files
+- the failure-and-delivery guidance now expects either explicit attachments or an explicit statement that the host cannot send files
 - remaining loophole to watch: an agent may still over-send unnecessary files instead of choosing the smallest useful artifact set
 
 ## Scenario 9: Integration Footprint Pressure

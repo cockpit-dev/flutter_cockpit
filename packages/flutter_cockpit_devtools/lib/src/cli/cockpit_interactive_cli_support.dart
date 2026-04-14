@@ -8,6 +8,18 @@ import 'package:path/path.dart' as p;
 import '../application/cockpit_compact_json.dart';
 import '../application/cockpit_interactive_result_profile.dart';
 
+const String cockpitDefaultAppHandleRelativePath =
+    '.dart_tool/flutter_cockpit/latest_app.json';
+
+const String cockpitAppJsonOptionHelp =
+    'App handle JSON emitted by launch-app. If omitted, the CLI reuses '
+    '$cockpitDefaultAppHandleRelativePath when it exists in the current workspace.';
+
+const String cockpitPrettyOutputJsonOptionHelp =
+    'Write pretty JSON to a file instead of compact stdout. Prefer stdout plus jq '
+    'for short follow-up reads; use this when the result is large or a later '
+    'step must reopen it.';
+
 void cockpitAddRemoteSessionArgs(ArgParser parser) {
   parser
     ..addOption(
@@ -36,23 +48,16 @@ void cockpitAddAppArgs(ArgParser parser) {
   parser
     ..addOption(
       'base-url',
-      help:
-          'Base URL for the running app. Use this when you do not have app-json.',
+      help: 'Base URL for the running app. Use this only when you do not have '
+          'app-json and no reusable latest_app.json handle is available.',
     )
-    ..addOption(
-      'app-json',
-      help: 'Recommended app handle JSON file emitted by launch-app.',
-    )
+    ..addOption('app-json', help: cockpitAppJsonOptionHelp)
     ..addOption(
       'android-device-id',
       help:
           'Android device ID for adb port forwarding when the app is not directly reachable.',
     )
-    ..addOption(
-      'output-json',
-      help:
-          'Write pretty JSON to a file instead of compact stdout. Prefer this for larger results.',
-    );
+    ..addOption('output-json', help: cockpitPrettyOutputJsonOptionHelp);
 }
 
 void cockpitRequireRemoteSessionReference(
@@ -87,9 +92,7 @@ String cockpitDefaultAppHandlePath([String? workingDirectory]) {
   return p.normalize(
     p.join(
       workingDirectory ?? Directory.current.path,
-      '.dart_tool',
-      'flutter_cockpit',
-      'latest_app.json',
+      cockpitDefaultAppHandleRelativePath,
     ),
   );
 }

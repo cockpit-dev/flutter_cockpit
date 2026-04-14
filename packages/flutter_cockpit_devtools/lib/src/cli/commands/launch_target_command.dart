@@ -63,12 +63,12 @@ final class LaunchTargetCommand extends CockpitCliCommand {
       ..addOption(
         'target-json',
         help:
-            'Optional path where the normalized target handle JSON is written.',
+            'Optional path where the normalized target handle JSON is written. Persist this when later target-first reads must reopen the same surface.',
       )
       ..addOption(
         'output-json',
         help:
-            'Optional path where the full launch result JSON should be written.',
+            'Optional path where the full launch result JSON should be written. Persist this when later app-scoped commands may need the embedded .app handle.',
       );
   }
 
@@ -90,19 +90,19 @@ final class LaunchTargetCommand extends CockpitCliCommand {
 
   @override
   String get helpWhen =>
-      'Use at the start of a target-first loop when the surface is not purely a Flutter app handle or when direct system truth matters.';
+      'Use at the start of a target-first loop when browser, desktop, mixed-system, or host-controlled surface truth matters more than a plain app handle.';
 
   @override
   String get helpNeeds =>
-      'project-dir, platform, and a target-capable device or host identifier. target is optional when cockpit/main.dart or lib/main.dart exists.';
+      'project-dir and platform. Run list-targets first on a fresh loop; target is optional when cockpit/main.dart or lib/main.dart exists. Persist --target-json for target-first follow-up reads, and also persist --output-json if later app-scoped commands may be needed.';
 
   @override
   String get helpExample =>
-      'flutter_cockpit_devtools launch-target --project-dir examples/cockpit_demo --platform web --device-id chrome --target-kind browserPage --target-json /tmp/target.json';
+      'flutter_cockpit_devtools launch-target --project-dir examples/cockpit_demo --platform web --device-id chrome --target-kind browserPage --target-json /tmp/target.json --output-json /tmp/launch_target.json';
 
   @override
   String get helpWrites =>
-      'The command result JSON plus an optional normalized target handle at --target-json.';
+      'The command result JSON plus an optional normalized target handle at --target-json. The full launch result can also persist the embedded .app handle under .app for later extraction.';
 
   @override
   Future<int> run() async {

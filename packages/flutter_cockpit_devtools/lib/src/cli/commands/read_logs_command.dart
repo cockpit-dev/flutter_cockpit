@@ -24,7 +24,7 @@ final class ReadLogsCommand extends CockpitCliCommand {
     argParser
       ..addOption(
         'app-json',
-        help: 'App handle JSON emitted by launch-app.',
+        help: cockpitAppJsonOptionHelp,
       )
       ..addOption(
         'max-lines',
@@ -32,8 +32,7 @@ final class ReadLogsCommand extends CockpitCliCommand {
       )
       ..addOption(
         'output-json',
-        help:
-            'Optional file path where the log payload JSON should be written.',
+        help: cockpitPrettyOutputJsonOptionHelp,
       );
   }
 
@@ -58,7 +57,7 @@ final class ReadLogsCommand extends CockpitCliCommand {
 
   @override
   String get helpNeeds =>
-      'An app handle. max-lines defaults to 200 and can be reduced to save tokens.';
+      'An app handle. In the same workspace, the default latest_app.json handle is usually enough; max-lines defaults to 200 and can be reduced to save tokens.';
 
   @override
   String get helpExample =>

@@ -41,7 +41,7 @@ final class StartRecordingCommand extends CockpitCliCommand {
 
   @override
   String get helpWhen =>
-      'Capture a focused clip around a risky flow without running a full delivery bundle.';
+      'Capture motion, transition, or acceptance proof around a risky flow. Prefer a screenshot when one still state already answers the question.';
 
   @override
   String get helpNeeds =>
@@ -57,7 +57,7 @@ final class StartRecordingCommand extends CockpitCliCommand {
 
   @override
   String get helpWrites =>
-      'Recording session metadata. Use stop-recording to finalize the artifact.';
+      'Recording session metadata only. Use stop-recording to finalize the artifact and collect the emitted video refs or paths.';
 
   @override
   Future<int> run() async {

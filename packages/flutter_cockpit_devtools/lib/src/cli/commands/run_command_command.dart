@@ -53,11 +53,11 @@ final class RunCommandCommand extends CockpitCliCommand {
 
   @override
   String get helpNeeds =>
-      'An app reference plus one command JSON object from --command-json or --command-file.';
+      'An app reference plus one command JSON object from --command-json or --command-file. Prefer --command-file once the payload stops being trivial.';
 
   @override
   String get helpShape =>
-      'command.json = {"commandId":"open-today","commandType":"tap","locator":{"text":"Today","key":"nav-today","ancestor":{"route":"/inbox"}},"parameters":{"hitTestMissPolicy":"warn"}}; locator can combine text/key/semanticId/type/path and nested ancestor filters; optional --timeout-ms sets a default for commands that omit timeoutMs.';
+      'command.json = {"commandId":"tap-save","commandType":"tap","locator":{"text":"Save"}}; safe first commandType values: tap, enterText, assertText, waitForUiIdle, scrollUntilVisible, captureScreenshot. Start locators with text, semanticId, tooltip, type, ancestor, index, or fallbacks; use key only when the app already exposes a stable key.';
 
   @override
   String get helpExample =>
@@ -65,7 +65,7 @@ final class RunCommandCommand extends CockpitCliCommand {
 
   @override
   String get helpWrites =>
-      'Command outcome, optional UI and diagnostics layers, and maybe snapshotRef.';
+      'Command outcome, optional UI and diagnostics layers, and maybe snapshotRef. Re-read state after non-trivial actions; command success alone is not proof.';
 
   @override
   Future<int> run() async {

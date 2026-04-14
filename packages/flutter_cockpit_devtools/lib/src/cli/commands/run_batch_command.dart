@@ -65,15 +65,15 @@ final class RunBatchCommand extends CockpitCliCommand {
 
   @override
   String get helpWhen =>
-      'Use for short deterministic sequences where one command per round-trip is too slow.';
+      'Use for short deterministic route-crossing sequences where one command per round-trip is too slow or too fragile.';
 
   @override
   String get helpNeeds =>
-      'An app reference plus a JSON array from --commands-json or --commands-file.';
+      'An app reference plus a JSON array from --commands-json or --commands-file. Optional --recording-json or --recording-file wraps the whole batch in one capture.';
 
   @override
   String get helpShape =>
-      'commands.json = [{"commandId":"open-today","commandType":"tap","locator":{"text":"Today","type":"NavigationDestinationLabel"}}]; each item may also set timeoutMs, profile, snapshotOptions, or compareAgainstSnapshotRef.';
+      'commands.json = [{"commandId":"wait-1","commandType":"waitForUiIdle"},{"commandId":"assert-inbox","commandType":"assertText","parameters":{"text":"Inbox"}}]; prefer batch for short open -> edit -> save style flows. Each item may also set timeoutMs, profile, snapshotOptions, or compareAgainstSnapshotRef.';
 
   @override
   String get helpExample =>
@@ -81,7 +81,7 @@ final class RunBatchCommand extends CockpitCliCommand {
 
   @override
   String get helpWrites =>
-      'Per-command results, a batch summary, and an optional final snapshot layer.';
+      'Per-command results, a batch summary, an optional final snapshot layer, and optional recording metadata when recording is requested.';
 
   @override
   Future<int> run() async {

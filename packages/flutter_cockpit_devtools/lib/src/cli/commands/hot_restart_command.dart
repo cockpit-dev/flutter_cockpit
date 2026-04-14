@@ -20,12 +20,11 @@ final class HotRestartCommand extends CockpitCliCommand {
     argParser
       ..addOption(
         'app-json',
-        help: 'App handle JSON emitted by launch-app.',
+        help: cockpitAppJsonOptionHelp,
       )
       ..addOption(
         'output-json',
-        help:
-            'Optional file path where the restart result JSON should be written.',
+        help: cockpitPrettyOutputJsonOptionHelp,
       );
   }
 
@@ -49,7 +48,8 @@ final class HotRestartCommand extends CockpitCliCommand {
       'Use when hot reload is not enough and you need a clean app state from current source.';
 
   @override
-  String get helpNeeds => 'A development app handle from launch-app.';
+  String get helpNeeds =>
+      'A development app handle from launch-app. In the same workspace, the default latest_app.json handle is usually enough.';
 
   @override
   String get helpExample =>
