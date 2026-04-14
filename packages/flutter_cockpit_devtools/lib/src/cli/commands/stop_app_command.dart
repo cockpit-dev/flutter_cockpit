@@ -20,12 +20,11 @@ final class StopAppCommand extends CockpitCliCommand {
     argParser
       ..addOption(
         'app-json',
-        help: 'App handle JSON emitted by launch-app.',
+        help: cockpitAppJsonOptionHelp,
       )
       ..addOption(
         'output-json',
-        help:
-            'Optional file path where the stopped app result JSON should be written.',
+        help: cockpitPrettyOutputJsonOptionHelp,
       );
   }
 
@@ -49,7 +48,8 @@ final class StopAppCommand extends CockpitCliCommand {
       'End an app-first loop and release the running app, recorder, and attach processes.';
 
   @override
-  String get helpNeeds => 'An app handle emitted by launch-app.';
+  String get helpNeeds =>
+      'An app handle emitted by launch-app. In the same workspace, the default latest_app.json handle is usually enough.';
 
   @override
   String get helpExample =>

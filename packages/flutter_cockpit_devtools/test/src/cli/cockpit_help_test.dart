@@ -42,7 +42,7 @@ void main() {
   test('root help explains the shortest AI-first loop', () async {
     final help = await _captureHelp(const <String>['--help']);
 
-    expect(help, contains('Fast loop:'));
+    expect(help, contains('Fast loop (default app-first):'));
     expect(help, contains('Workspace'));
     expect(help, contains('launch-app'));
     expect(help, contains('launch-target'));
@@ -57,6 +57,14 @@ void main() {
     expect(help, contains('read-network'));
     expect(help, contains('run-task'));
     expect(help, contains('Use --output-json'));
+    expect(help, contains('If a flag or JSON shape is unclear'));
+    expect(help, contains('--device-id <id for android|ios|web>'));
+    expect(
+        help,
+        contains(
+            '--target-json /tmp/target.json --output-json /tmp/launch_target.json'));
+    expect(help, contains('latest_app.json'));
+    expect(help, contains("jq '.app' /tmp/launch_target.json > /tmp/app.json"));
     expect(help, contains('current directory'));
   });
 
@@ -68,6 +76,8 @@ void main() {
     expect(usage, contains('cockpit/main.dart first, then lib/main.dart'));
     expect(usage, contains('android, ios, macos, windows, linux, or web'));
     expect(usage, contains('When:'));
+    expect(usage, contains('App-first is the lowest-friction path'));
+    expect(usage, contains('Run list-targets first'));
     expect(usage, contains('Writes:'));
     expect(usage, contains('app.json'));
     expect(usage, contains('Example:'));
@@ -77,6 +87,14 @@ void main() {
     expect(
       _helpForCommand(LaunchTargetCommand()),
       contains('When:'),
+    );
+    expect(
+      _helpForCommand(LaunchTargetCommand()),
+      contains('embedded .app'),
+    );
+    expect(
+      _helpForCommand(LaunchTargetCommand()),
+      contains('--output-json /tmp/launch_target.json'),
     );
     expect(
       _helpForCommand(ReadTargetCommand()),
@@ -110,9 +128,59 @@ void main() {
     expect(usage, contains('command.json'));
     expect(usage, contains('"commandId"'));
     expect(usage, contains('"commandType"'));
-    expect(usage, contains('"parameters"'));
+    expect(usage, contains('safe first commandType values'));
+    expect(usage, contains('captureScreenshot'));
     expect(usage, contains('minimal=core only'));
     expect(usage, contains('compare-against-snapshot-ref'));
+    expect(
+        usage,
+        contains(
+            'text, semanticId, tooltip, type, ancestor, index, or fallbacks'));
+    expect(usage,
+        contains('use key only when the app already exposes a stable key'));
+  });
+
+  test('run-batch help exposes whole-batch recording for evidence capture', () {
+    final usage = _helpForCommand(RunBatchCommand());
+
+    expect(usage, contains('--recording-json or --recording-file'));
+    expect(usage, contains('open -> edit -> save style flows'));
+    expect(usage, contains('optional recording metadata'));
+  });
+
+  test('app-scoped command help explains default latest_app.json reuse', () {
+    final usages = <String>[
+      _helpForCommand(ReadAppCommand()),
+      _helpForCommand(RunCommandCommand()),
+      _helpForCommand(RunBatchCommand()),
+      _helpForCommand(StartRecordingCommand()),
+      _helpForCommand(StopRecordingCommand()),
+      _helpForCommand(ReadLogsCommand()),
+      _helpForCommand(HotReloadCommand()),
+      _helpForCommand(HotRestartCommand()),
+      _helpForCommand(StopAppCommand()),
+    ];
+
+    for (final usage in usages) {
+      expect(usage, contains('.dart_tool/flutter_cockpit/latest_app.json'));
+    }
+  });
+
+  test('recording help explains when to record and how artifacts are finalized',
+      () {
+    final startUsage = _helpForCommand(StartRecordingCommand());
+    final stopUsage = _helpForCommand(StopRecordingCommand());
+
+    expect(
+      startUsage,
+      contains(
+          'Prefer a screenshot when one still state already answers the question'),
+    );
+    expect(
+      startUsage,
+      contains('stop-recording to finalize the artifact'),
+    );
+    expect(stopUsage, contains('artifact references'));
   });
 
   test('every top-level command gives help text for custom options', () {

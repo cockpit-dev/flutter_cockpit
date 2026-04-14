@@ -20,12 +20,11 @@ final class HotReloadCommand extends CockpitCliCommand {
     argParser
       ..addOption(
         'app-json',
-        help: 'App handle JSON emitted by launch-app.',
+        help: cockpitAppJsonOptionHelp,
       )
       ..addOption(
         'output-json',
-        help:
-            'Optional file path where the reload result JSON should be written.',
+        help: cockpitPrettyOutputJsonOptionHelp,
       );
   }
 
@@ -49,7 +48,8 @@ final class HotReloadCommand extends CockpitCliCommand {
       'Refresh code after editing while keeping as much app state as Flutter can preserve.';
 
   @override
-  String get helpNeeds => 'A development app handle from launch-app.';
+  String get helpNeeds =>
+      'A development app handle from launch-app. In the same workspace, the default latest_app.json handle is usually enough.';
 
   @override
   String get helpExample =>
