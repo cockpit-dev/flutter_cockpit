@@ -10,12 +10,25 @@ Widget buildCockpitDemoDevelopmentApp() {
   const enableTapFeedback = bool.fromEnvironment(
     'FLUTTER_COCKPIT_ENABLE_TAP_FEEDBACK',
   );
+  const enableHttpNetworkObserver = bool.fromEnvironment(
+    'FLUTTER_COCKPIT_ENABLE_HTTP_NETWORK_OBSERVER',
+    defaultValue: true,
+  );
+  const enableRuntimeObserver = bool.fromEnvironment(
+    'FLUTTER_COCKPIT_ENABLE_RUNTIME_OBSERVER',
+    defaultValue: true,
+  );
 
   return CockpitDemoApp(
     configuration: FlutterCockpitConfiguration(
       initialRouteName: '/inbox',
-      httpNetworkObserver: CockpitHttpNetworkObserverConfiguration(
-        maxRetainedEntries: 80,
+      httpNetworkObserver: !enableHttpNetworkObserver
+          ? null
+          : CockpitHttpNetworkObserverConfiguration(
+              maxRetainedEntries: 80,
+            ),
+      runtimeObserverConfiguration: CockpitRuntimeObserverConfiguration(
+        enabled: enableRuntimeObserver,
       ),
       diagnostics: CockpitDiagnosticsConfig(
         enableRebuildTracking: enableDebugDiagnostics,

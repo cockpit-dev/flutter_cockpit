@@ -136,7 +136,7 @@ final class CockpitReadTargetService {
     }
 
     final capabilityProfile = await _resolveCapabilityProfile(target);
-    if (_usesFlutterRemoteRead(target.targetKind)) {
+    if (_usesFlutterRemoteRead(target)) {
       final appResult = await _readFlutterTarget(
         CockpitReadAppRequest(
           app: resolved.app ?? _appFromTarget(target),
@@ -227,9 +227,14 @@ final class CockpitReadTargetService {
     );
   }
 
-  bool _usesFlutterRemoteRead(CockpitTargetKind targetKind) {
-    return targetKind == CockpitTargetKind.flutterApp ||
-        targetKind == CockpitTargetKind.desktopApp;
+  bool _usesFlutterRemoteRead(CockpitTargetHandle target) {
+    if (target.targetKind == CockpitTargetKind.flutterApp ||
+        target.targetKind == CockpitTargetKind.desktopApp) {
+      return true;
+    }
+    return target.targetKind == CockpitTargetKind.browserPage &&
+        target.metadata['appId'] is String &&
+        '${target.metadata['appId']}'.trim().isNotEmpty;
   }
 
   CockpitAppHandle _appFromTarget(CockpitTargetHandle target) {

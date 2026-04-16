@@ -1,7 +1,10 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:path/path.dart' as p;
+
 import 'cockpit_android_remote_session_launcher.dart';
+import 'cockpit_apple_bundle_support.dart';
 import 'cockpit_remote_session_handle.dart';
 import 'cockpit_remote_session_launch_options.dart';
 import 'cockpit_remote_session_launcher.dart';
@@ -13,6 +16,7 @@ typedef CockpitMacosBundleIdResolver = Future<String> Function({
 
 typedef CockpitMacosAppBundlePathResolver = Future<String> Function({
   required String projectDir,
+  String? flavor,
 });
 
 final class CockpitMacosRemoteSessionLauncher
@@ -64,6 +68,8 @@ final class CockpitMacosRemoteSessionLauncher
         '--debug',
         '--target',
         options.target,
+        if (options.flavor case final flavor?
+            when flavor.isNotEmpty) ...<String>['--flavor', flavor],
         '--dart-define=FLUTTER_PILOT_REMOTE_ENABLED=true',
         '--dart-define=FLUTTER_PILOT_REMOTE_HOST=127.0.0.1',
         '--dart-define=FLUTTER_PILOT_REMOTE_PORT=${options.sessionPort}',
@@ -75,6 +81,7 @@ final class CockpitMacosRemoteSessionLauncher
 
     final appBundlePath = await _appBundlePathResolver(
       projectDir: options.projectDir,
+      flavor: options.flavor,
     );
     final bundleId = await _bundleIdResolver(appBundlePath: appBundlePath);
     await _bestEffortStopRunningApp(
@@ -175,23 +182,12 @@ final class CockpitMacosRemoteSessionLauncher
 
   static Future<String> _resolveBundleId({
     required String appBundlePath,
-  }) async {
-    final pathContext = cockpitSessionPathContext(appBundlePath);
-    final result = await Process.run('/usr/libexec/PlistBuddy', <String>[
-      '-c',
-      'Print :CFBundleIdentifier',
-      pathContext.join(appBundlePath, 'Contents', 'Info.plist'),
-    ]);
-    if (result.exitCode != 0) {
-      throw StateError(
-        'Unable to resolve macOS bundle identifier from $appBundlePath: ${result.stderr ?? result.stdout}',
-      );
-    }
-    return '${result.stdout}'.trim();
-  }
+  }) =>
+      cockpitResolveMacosBundleId(appBundlePath: appBundlePath);
 
   static Future<String> _resolveAppBundlePath({
     required String projectDir,
+    String? flavor,
   }) async {
     final pathContext = cockpitSessionPathContext(projectDir);
     final productsDirectory = Directory(
@@ -209,14 +205,23 @@ final class CockpitMacosRemoteSessionLauncher
         'Unable to locate macOS build products at ${productsDirectory.path}.',
       );
     }
-
-    final appBundle =
-        productsDirectory.listSync().whereType<Directory>().firstWhere(
-              (entry) => entry.path.endsWith('.app'),
-              orElse: () => throw StateError(
-                'Unable to locate a macOS .app bundle in ${productsDirectory.path}.',
-              ),
-            );
-    return appBundle.path;
+    return _selectBestMacosAppBundlePath(
+      productsDirectory: productsDirectory,
+      flavor: flavor,
+      pathContext: pathContext,
+    );
   }
+}
+
+String _selectBestMacosAppBundlePath({
+  required Directory productsDirectory,
+  required String? flavor,
+  required p.Context pathContext,
+}) {
+  return cockpitSelectBestAppBundlePath(
+    searchRoot: productsDirectory,
+    flavor: flavor,
+    pathContext: pathContext,
+    platformLabel: 'macOS',
+  );
 }

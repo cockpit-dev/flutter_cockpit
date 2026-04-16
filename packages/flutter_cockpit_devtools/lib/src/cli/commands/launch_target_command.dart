@@ -26,11 +26,20 @@ final class LaunchTargetCommand extends CockpitCliCommand {
       ..addOption('project-dir', help: 'Project directory to launch from.')
       ..addOption('target', help: 'Optional Dart entrypoint.')
       ..addOption(
+        'flavor',
+        help:
+            'Optional Flutter flavor / Xcode scheme to build and run for the target-first loop.',
+      )
+      ..addOption(
         'platform',
         help:
             'Target platform such as android, ios, macos, windows, linux, or web.',
       )
-      ..addOption('device-id', help: 'Device or host target identifier.')
+      ..addOption(
+        'device-id',
+        help:
+            'Device, browser, or host target identifier. Required for android, ios, and web; desktop defaults to the platform.',
+      )
       ..addOption(
         'session-port',
         defaultsTo: '57331',
@@ -52,7 +61,7 @@ final class LaunchTargetCommand extends CockpitCliCommand {
             .toList(growable: false),
         defaultsTo: CockpitAppMode.development.jsonValue,
         help:
-            'Launch mode: development keeps reload support when available; automation favors clean target sessions.',
+            'Launch mode: development keeps reload support when available; automation favors clean target sessions. Web target-first loops also use development mode.',
       )
       ..addOption(
         'launch-timeout-seconds',
@@ -94,11 +103,11 @@ final class LaunchTargetCommand extends CockpitCliCommand {
 
   @override
   String get helpNeeds =>
-      'project-dir and platform. Run list-targets first on a fresh loop; target is optional when cockpit/main.dart or lib/main.dart exists. Persist --target-json for target-first follow-up reads, and also persist --output-json if later app-scoped commands may be needed.';
+      'project-dir and platform. Run list-targets first on a fresh loop; device-id is required for android, ios, and web, while desktop defaults to the platform. target is optional when cockpit/main.dart or lib/main.dart exists. Persist --target-json for target-first follow-up reads, and also persist --output-json if later app-scoped commands may be needed. Web target-first loops also use development mode.';
 
   @override
   String get helpExample =>
-      'flutter_cockpit_devtools launch-target --project-dir examples/cockpit_demo --platform web --device-id chrome --target-kind browserPage --target-json /tmp/target.json --output-json /tmp/launch_target.json';
+      'flutter_cockpit_devtools launch-target --project-dir examples/cockpit_demo --platform web --device-id chrome --target-json /tmp/target.json --output-json /tmp/launch_target.json';
 
   @override
   String get helpWrites =>
@@ -110,6 +119,7 @@ final class LaunchTargetCommand extends CockpitCliCommand {
       CockpitLaunchTargetRequest(
         projectDir: _readRequiredOption('project-dir'),
         target: _readOptionalOption('target'),
+        flavor: _readOptionalOption('flavor'),
         platform: _readRequiredOption('platform'),
         deviceId: _readDeviceId(),
         sessionPort: int.parse(_readRequiredOption('session-port')),
@@ -141,7 +151,6 @@ final class LaunchTargetCommand extends CockpitCliCommand {
       'macos' => 'macos',
       'windows' => 'windows',
       'linux' => 'linux',
-      'web' => 'web',
       _ =>
         throw UsageException('--device-id is required for $platform.', usage),
     };

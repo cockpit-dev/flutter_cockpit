@@ -2,6 +2,9 @@ import 'dart:async';
 import 'dart:io';
 
 import 'cockpit_app_handle.dart';
+import 'cockpit_application_service_exception.dart';
+import '../platform/ios/cockpit_ios_device_connection.dart';
+import '../platform/ios/cockpit_ios_device_process.dart';
 
 typedef CockpitPlatformStopProcessRunner = Future<ProcessResult> Function(
   String executable,
@@ -11,9 +14,13 @@ typedef CockpitPlatformStopProcessRunner = Future<ProcessResult> Function(
 final class CockpitPlatformAppStopper {
   CockpitPlatformAppStopper({
     CockpitPlatformStopProcessRunner? processRunner,
-  }) : _processRunner = processRunner ?? _defaultProcessRunner;
+    CockpitIosDeviceProcessTerminator? iosDeviceProcessTerminator,
+  })  : _processRunner = processRunner ?? _defaultProcessRunner,
+        _iosDeviceProcessTerminator =
+            iosDeviceProcessTerminator ?? CockpitIosDeviceProcessTerminator();
 
   final CockpitPlatformStopProcessRunner _processRunner;
+  final CockpitIosDeviceProcessTerminator _iosDeviceProcessTerminator;
 
   Future<void> stop(CockpitAppHandle app) async {
     final appId = app.platformAppId ?? app.appId;
@@ -32,12 +39,19 @@ final class CockpitPlatformAppStopper {
           appId,
         ]);
       case 'ios':
-        await _bestEffortRun('xcrun', <String>[
-          'simctl',
-          'terminate',
-          app.deviceId,
-          appId,
-        ]);
+        if (cockpitLooksLikeIosSimulatorDeviceId(app.deviceId)) {
+          await _bestEffortRun('xcrun', <String>[
+            'simctl',
+            'terminate',
+            app.deviceId,
+            appId,
+          ]);
+        } else {
+          await _bestEffortTerminateIosPhysicalApp(
+            deviceId: app.deviceId,
+            bundleId: appId,
+          );
+        }
       case 'macos':
         await _bestEffortRun('osascript', <String>[
           '-e',
@@ -51,6 +65,17 @@ final class CockpitPlatformAppStopper {
         ]);
       case 'linux':
         await _bestEffortRun('pkill', <String>['-x', appId]);
+      case 'web':
+        throw const CockpitApplicationServiceException(
+          code: 'unsupportedAutomationPlatform',
+          message: 'stop-app cannot terminate web automation sessions because '
+              'web launches only support development mode.',
+          details: <String, Object?>{
+            'platform': 'web',
+            'operation': 'stopApp',
+            'recommendedMode': 'development',
+          },
+        );
     }
   }
 
@@ -62,6 +87,22 @@ final class CockpitPlatformAppStopper {
       await _processRunner(executable, arguments).timeout(
         const Duration(seconds: 5),
       );
+    } on Object {
+      // Reachability checks decide whether stop really succeeded.
+    }
+  }
+
+  Future<void> _bestEffortTerminateIosPhysicalApp({
+    required String deviceId,
+    required String bundleId,
+  }) async {
+    try {
+      await _iosDeviceProcessTerminator
+          .terminateApp(
+            deviceId: deviceId,
+            bundleId: bundleId,
+          )
+          .timeout(const Duration(seconds: 5));
     } on Object {
       // Reachability checks decide whether stop really succeeded.
     }

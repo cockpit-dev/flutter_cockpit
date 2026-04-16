@@ -226,7 +226,7 @@ final class CockpitInspectSurfaceService {
     );
   }
 
-  static CockpitCapabilityProfile _legacyCapabilityProfile(String platform) {
+  static CockpitCapabilityProfile _legacyCapabilityProfile() {
     return CockpitCapabilityProfile(
       targetKind: CockpitTargetKind.flutterApp,
       surfaceKinds: <CockpitSurfaceKind>{
@@ -242,9 +242,6 @@ final class CockpitInspectSurfaceService {
         CockpitEvidenceCapability.flutterScreenshot,
         CockpitEvidenceCapability.nativeScreenshot,
       },
-      qualityFlags: platform == 'ios'
-          ? <CockpitQualityFlag>{CockpitQualityFlag.simulatorOnly}
-          : const <CockpitQualityFlag>{},
     );
   }
 
@@ -303,7 +300,7 @@ final class CockpitInspectSurfaceService {
       );
       final mergedProfile = cockpitMergeTargetCapabilityProfiles(
         primary: capabilityProfile,
-        secondary: _legacyCapabilityProfile(target.platform),
+        secondary: _legacyCapabilityProfile(),
       );
       return CockpitInspectSurfaceResult(
         target: target.copyWith(capabilityProfile: mergedProfile),

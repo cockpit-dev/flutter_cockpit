@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_launch_development_session_service.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_entrypoint_resolver.dart';
 import 'package:flutter_cockpit_devtools/src/development/cockpit_development_session_handle.dart';
+import 'package:flutter_cockpit_devtools/src/development/cockpit_development_session_machine_launcher.dart';
 import 'package:flutter_cockpit_devtools/src/development/cockpit_development_session_status.dart';
 import 'package:flutter_cockpit_devtools/src/development/cockpit_development_session_supervisor_client.dart';
 import 'package:flutter_cockpit_devtools/src/remote/cockpit_android_port_forwarder.dart';
@@ -305,6 +306,67 @@ void main() {
         ),
       );
       expect(spawnCount, 1);
+    },
+  );
+
+  test(
+    'daemon launcher rehydrates fallback-coded supervisor failures',
+    () async {
+      final launcher = CockpitDevelopmentSessionDaemonLauncher(
+        supervisorStatusReader: (_) async =>
+            CockpitDevelopmentSessionSupervisorResponse(
+          sessionHandle: _handle(),
+          status: _readyStatus(_handle()).copyWith(
+            state: CockpitDevelopmentSessionState.failed,
+            lastError:
+                '[iosPhysicalRemoteSessionReadyButDevelopmentAttachFailed] The remote session is ready, automation fallback is safe.',
+          ),
+        ),
+        portForwarder: const _StubPortForwarder(57331),
+        flutterVersionReader: () async => '3.39.0',
+        flutterExecutableReader: () async => '/opt/flutter/bin/flutter',
+        allocatePort: () async => 60013,
+        delay: (_) async {},
+        spawnSupervisor: ({
+          required request,
+          required flutterVersion,
+          required flutterExecutable,
+          required hostPort,
+          required supervisorPort,
+          required supervisorLogFile,
+        }) async {
+          return CockpitSpawnedDevelopmentSupervisor(
+            baseUri: Uri.parse('http://127.0.0.1:$supervisorPort'),
+            stop: () async {},
+          );
+        },
+      );
+
+      await expectLater(
+        () => launcher.launch(
+          const CockpitLaunchDevelopmentSessionRequest(
+            projectDir: '/workspace/examples/cockpit_demo',
+            target: 'lib/main.dart',
+            platform: 'ios',
+            deviceId: '00008110-0009341C2EF3801E',
+            sessionPort: 47331,
+            launchTimeout: Duration(seconds: 30),
+          ),
+        ),
+        throwsA(
+          isA<CockpitDevelopmentSessionFallbackException>()
+              .having(
+                (error) => error.code,
+                'code',
+                'iosPhysicalRemoteSessionReadyButDevelopmentAttachFailed',
+              )
+              .having(
+                (error) => error.remoteSessionHandle?.baseUrl,
+                'remoteSessionHandle.baseUrl',
+                _handle().remoteSessionHandle?.baseUrl,
+              ),
+        ),
+      );
     },
   );
 

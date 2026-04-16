@@ -1,6 +1,7 @@
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
 import '../adapters/cockpit_recording_adapter.dart';
+import '../platform/ios/cockpit_ios_device_connection.dart';
 import '../remote/cockpit_remote_recording_adapter.dart';
 import '../remote/cockpit_remote_session_client.dart';
 import '../session/cockpit_remote_session_handle.dart';
@@ -92,6 +93,24 @@ final class CockpitRecordingStrategyResolver {
     final desiredLayer = recording.layer ??
         _preferredLayerForMode(normalizedPlatform, recording.mode);
 
+    final preferredActiveSessionCandidate =
+        _preferredActiveSessionCandidate(candidates, preferActiveHostSession);
+    if (preferredActiveSessionCandidate != null) {
+      final effectiveLayer = preferredActiveSessionCandidate.layer;
+      final fallbackUsed =
+          desiredLayer != null && effectiveLayer != desiredLayer;
+      return _buildResolution(
+        candidate: preferredActiveSessionCandidate,
+        request: recording,
+        effectiveLayer: effectiveLayer,
+        fallbackUsed: fallbackUsed,
+        fallbackReason: fallbackUsed
+            ? 'An active host recording session is already running. '
+                'Reusing ${effectiveLayer.jsonValue} to stop the active host recording.'
+            : null,
+      );
+    }
+
     if (desiredLayer != null) {
       for (final candidate in candidates) {
         if (candidate.layer == desiredLayer) {
@@ -147,6 +166,22 @@ final class CockpitRecordingStrategyResolver {
           ? 'Recording mode ${recording.mode.jsonValue} is unavailable on $normalizedPlatform. Falling back to ${fallbackCandidate.layer.jsonValue}.'
           : 'Recording layer ${desiredLayer.jsonValue} is unavailable on $normalizedPlatform. Falling back to ${fallbackCandidate.layer.jsonValue}.',
     );
+  }
+
+  _RecordingCandidate? _preferredActiveSessionCandidate(
+    List<_RecordingCandidate> candidates,
+    bool preferActiveHostSession,
+  ) {
+    if (!preferActiveHostSession || candidates.isEmpty) {
+      return null;
+    }
+    final candidate = candidates.first;
+    final sessionKey = candidate.sessionKey;
+    if (sessionKey == null ||
+        !cockpitHasActiveHostRecordingSession(sessionKey)) {
+      return null;
+    }
+    return candidate;
   }
 
   CockpitRecordingStrategyResolution _buildResolution({
@@ -208,19 +243,24 @@ final class CockpitRecordingStrategyResolver {
           preferActiveHostSession: preferActiveHostSession,
         );
       case 'ios':
+        final simulatorDeviceId = (iosDeviceId == null ||
+                iosDeviceId.isEmpty ||
+                !cockpitLooksLikeIosSimulatorDeviceId(iosDeviceId))
+            ? null
+            : iosDeviceId;
         return _mobileCandidates(
           mode: mode,
           remote: remote,
-          host: (iosDeviceId == null || iosDeviceId.isEmpty)
+          host: (simulatorDeviceId == null || simulatorDeviceId.isEmpty)
               ? null
               : _RecordingCandidate(
                   implementation: 'simctl',
                   layer: CockpitRecordingLayer.system,
-                  factory: () => simctlAdapterFactory(iosDeviceId),
+                  factory: () => simctlAdapterFactory(simulatorDeviceId),
                 ),
-          activeHostSession: iosDeviceId != null &&
-              iosDeviceId.isNotEmpty &&
-              cockpitHasActiveSimctlRecordingSession(iosDeviceId),
+          activeHostSession: simulatorDeviceId != null &&
+              simulatorDeviceId.isNotEmpty &&
+              cockpitHasActiveSimctlRecordingSession(simulatorDeviceId),
           preferActiveHostSession: preferActiveHostSession,
         );
       case 'macos':

@@ -10,6 +10,9 @@ bool cockpitHasActiveSimctlRecordingSession(String deviceId) {
   return _simctlSessionFile(deviceId).existsSync();
 }
 
+typedef CockpitPidSignalSender = bool Function(int pid, ProcessSignal signal);
+typedef CockpitPidLivenessChecker = Future<bool> Function(int pid);
+
 final class CockpitSimctlRecordingAdapter
     implements CockpitHostRecordingAdapter {
   CockpitSimctlRecordingAdapter({
@@ -24,6 +27,9 @@ final class CockpitSimctlRecordingAdapter
     Duration startupTimeout = const Duration(seconds: 5),
     Duration stopTimeout = const Duration(seconds: 10),
     Duration finalizationPollInterval = const Duration(milliseconds: 100),
+    CockpitPidSignalSender pidSignalSender = Process.killPid,
+    CockpitPidLivenessChecker pidLivenessChecker =
+        _defaultCockpitPidLivenessChecker,
   })  : _deviceId = deviceId,
         _executable = executable,
         _processStarter = processStarter,
@@ -32,7 +38,9 @@ final class CockpitSimctlRecordingAdapter
         _ffprobeExecutable = ffprobeExecutable,
         _startupTimeout = startupTimeout,
         _stopTimeout = stopTimeout,
-        _finalizationPollInterval = finalizationPollInterval;
+        _finalizationPollInterval = finalizationPollInterval,
+        _pidSignalSender = pidSignalSender,
+        _pidLivenessChecker = pidLivenessChecker;
 
   final String _deviceId;
   final String _executable;
@@ -43,6 +51,8 @@ final class CockpitSimctlRecordingAdapter
   final Duration _startupTimeout;
   final Duration _stopTimeout;
   final Duration _finalizationPollInterval;
+  final CockpitPidSignalSender _pidSignalSender;
+  final CockpitPidLivenessChecker _pidLivenessChecker;
 
   @override
   Future<CockpitRecordingSession> startRecording(
@@ -122,10 +132,10 @@ final class CockpitSimctlRecordingAdapter
     }
 
     try {
-      Process.killPid(persistedSession.pid, ProcessSignal.sigint);
+      _pidSignalSender(persistedSession.pid, ProcessSignal.sigint);
       final exited = await _waitForProcessExit(persistedSession.pid);
       if (!exited) {
-        Process.killPid(persistedSession.pid, ProcessSignal.sigkill);
+        _pidSignalSender(persistedSession.pid, ProcessSignal.sigkill);
         return CockpitRecordingResult(
           state: CockpitRecordingState.failed,
           purpose: persistedSession.request.purpose,
@@ -141,7 +151,7 @@ final class CockpitSimctlRecordingAdapter
             .inMilliseconds,
       );
     } on TimeoutException {
-      Process.killPid(persistedSession.pid, ProcessSignal.sigkill);
+      _pidSignalSender(persistedSession.pid, ProcessSignal.sigkill);
       return CockpitRecordingResult(
         state: CockpitRecordingState.failed,
         purpose: persistedSession.request.purpose,
@@ -306,12 +316,7 @@ final class CockpitSimctlRecordingAdapter
   }
 
   Future<bool> _isProcessRunning(int pid) async {
-    try {
-      final result = await Process.run('/bin/kill', <String>['-0', '$pid']);
-      return result.exitCode == 0;
-    } on ProcessException {
-      return false;
-    }
+    return _pidLivenessChecker(pid);
   }
 
   Future<bool> _waitForFinalizedOutput(
@@ -477,6 +482,33 @@ Future<Process> _startDetachedRecordingProcess(
     arguments,
     mode: ProcessStartMode.detachedWithStdio,
   );
+}
+
+Future<bool> _defaultCockpitPidLivenessChecker(int pid) async {
+  try {
+    final signalResult = await Process.run('/bin/kill', <String>['-0', '$pid']);
+    if (signalResult.exitCode != 0) {
+      return false;
+    }
+
+    final statResult = await Process.run('/bin/ps', <String>[
+      '-o',
+      'stat=',
+      '-p',
+      '$pid',
+    ]);
+    if (statResult.exitCode != 0) {
+      return true;
+    }
+
+    final state = '${statResult.stdout}'.trimLeft();
+    if (state.isEmpty) {
+      return false;
+    }
+    return !state.startsWith('Z');
+  } on ProcessException {
+    return false;
+  }
 }
 
 final class _CockpitRecordingTimelineProbe {

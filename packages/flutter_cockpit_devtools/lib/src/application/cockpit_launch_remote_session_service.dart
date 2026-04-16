@@ -16,12 +16,14 @@ final class CockpitLaunchRemoteSessionRequest {
     required this.deviceId,
     required this.sessionPort,
     this.target,
+    this.flavor,
     this.launchTimeout = const Duration(seconds: 120),
     this.persistHandlePath,
   });
 
   final String projectDir;
   final String? target;
+  final String? flavor;
   final String platform;
   final String deviceId;
   final int sessionPort;
@@ -69,6 +71,7 @@ final class CockpitLaunchRemoteSessionService {
         platform: request.platform,
         deviceId: request.deviceId,
         sessionPort: request.sessionPort,
+        flavor: request.flavor,
         launchTimeout: request.launchTimeout,
       ),
     );

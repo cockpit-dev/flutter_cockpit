@@ -849,7 +849,7 @@ final class _McpSurfaceVerifier {
         _requireBatchSuccess(
           'sync_lab_create_task',
           syncLabReport['createTaskBatch'] as Map<String, Object?>,
-          expectedCount: 5,
+          expectedCount: 6,
         );
         syncLabReport['postCreateRead'] = await _callTool(
           server,
@@ -925,18 +925,21 @@ final class _McpSurfaceVerifier {
         );
         syncLabReport['openConflictResolution'] = await _callTool(
           server,
-          'run_command',
+          'run_batch',
           <String, Object?>{
             'appId': appId,
             'profile': 'minimal',
-            'timeoutMs': 30000,
-            'command': buildSyncLabOpenConflictResolutionCommand(),
+            'commands': <Map<String, Object?>>[
+              buildSyncLabRevealConflictResolutionCommand(),
+              buildSyncLabOpenConflictResolutionCommand(),
+            ],
           },
           remoteRetryAttempts: 3,
         );
-        _requireCommandSuccess(
+        _requireBatchSuccess(
           'sync_lab_open_conflict_resolution',
           syncLabReport['openConflictResolution'] as Map<String, Object?>,
+          expectedCount: 2,
         );
         syncLabReport['postConflictRead'] = await _callTool(
           server,
@@ -968,17 +971,21 @@ final class _McpSurfaceVerifier {
         }
         syncLabReport['keepLocalResolution'] = await _callTool(
           server,
-          'run_command',
+          'run_batch',
           <String, Object?>{
             'appId': appId,
             'profile': 'minimal',
-            'command': buildSyncLabKeepLocalResolutionCommand(),
+            'commands': <Map<String, Object?>>[
+              buildSyncLabRevealKeepLocalResolutionCommand(),
+              buildSyncLabKeepLocalResolutionCommand(),
+            ],
           },
           remoteRetryAttempts: 3,
         );
-        _requireCommandSuccess(
+        _requireBatchSuccess(
           'sync_lab_keep_local_resolution',
           syncLabReport['keepLocalResolution'] as Map<String, Object?>,
+          expectedCount: 2,
         );
         syncLabReport['postResolutionRead'] = await _callTool(
           server,

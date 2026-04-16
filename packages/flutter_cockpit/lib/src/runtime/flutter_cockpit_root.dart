@@ -12,6 +12,7 @@ import '../executor/in_app_cockpit_command_executor.dart';
 import '../gesture/cockpit_gesture_action.dart';
 import '../model/cockpit_environment.dart';
 import '../remote/cockpit_remote_bridge_protocol.dart';
+import '../remote/cockpit_remote_session_configuration.dart';
 import '../remote/cockpit_remote_session_server.dart';
 import '../remote/cockpit_remote_session_status.dart';
 import '../remote/cockpit_remote_session_bridge_client.dart';
@@ -49,6 +50,9 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
   CockpitRemoteSessionBridgeClient? _remoteSessionBridgeClient;
   Future<void>? _remoteSessionStartFuture;
   CockpitTapFeedbackController? _tapFeedbackController;
+  Object? _remoteSessionStartError;
+  StackTrace? _remoteSessionStartErrorStackTrace;
+  bool _reportedRemoteSessionStartFailure = false;
 
   @override
   void initState() {
@@ -58,7 +62,7 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
     if (configuration != null &&
         configuration.enabled &&
         configuration.autoStart) {
-      _remoteSessionStartFuture = _startRemoteSessionIfEnabled();
+      _remoteSessionStartFuture = _beginRemoteSessionStart(ignoreFailure: true);
     }
   }
 
@@ -437,18 +441,94 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
     _remoteSessionServer = server;
   }
 
+  Future<void> _beginRemoteSessionStart({
+    bool ignoreFailure = false,
+  }) async {
+    try {
+      await _startRemoteSessionIfEnabled();
+      _remoteSessionStartError = null;
+      _remoteSessionStartErrorStackTrace = null;
+    } on Object catch (error, stackTrace) {
+      _remoteSessionStartError = error;
+      _remoteSessionStartErrorStackTrace = stackTrace;
+      _reportRemoteSessionStartFailure(error, stackTrace);
+      if (!ignoreFailure) {
+        rethrow;
+      }
+    }
+  }
+
   Future<void> _ensureRemoteSessionStarted() {
     final configuration = FlutterCockpit.binding.configuration.remoteSession;
     if (configuration == null || !configuration.enabled) {
       return Future<void>.value();
     }
+    if (_remoteSessionStartError != null) {
+      return Future<void>.error(
+        _remoteSessionStartError!,
+        _remoteSessionStartErrorStackTrace,
+      );
+    }
 
-    return _remoteSessionStartFuture ??= _startRemoteSessionIfEnabled();
+    return _remoteSessionStartFuture ??= _beginRemoteSessionStart();
   }
 
   Future<T> _withRemoteSessionStarted<T>(Future<T> Function() action) async {
     await _ensureRemoteSessionStarted();
     return action();
+  }
+
+  void _reportRemoteSessionStartFailure(
+    Object error,
+    StackTrace stackTrace,
+  ) {
+    if (_reportedRemoteSessionStartFailure) {
+      return;
+    }
+    _reportedRemoteSessionStartFailure = true;
+
+    final configuration = FlutterCockpit.binding.configuration.remoteSession;
+    final message = 'flutter_cockpit remote session startup failed: $error';
+    debugPrint(message);
+    if (defaultTargetPlatform == TargetPlatform.iOS &&
+        configuration != null &&
+        configuration.host != '127.0.0.1' &&
+        configuration.host != 'localhost') {
+      debugPrint(
+        'flutter_cockpit iOS hint: remote-session host ${configuration.host} '
+        'may require local network access and a reachable device-side bind.',
+      );
+    }
+    FlutterError.reportError(
+      FlutterErrorDetails(
+        exception: StateError(
+          'Failed to start the flutter_cockpit remote session: $error',
+        ),
+        stack: stackTrace,
+        library: 'flutter_cockpit',
+        context: ErrorDescription(
+          'while starting the flutter_cockpit remote session',
+        ),
+        informationCollector: () sync* {
+          if (configuration != null) {
+            yield DiagnosticsProperty<CockpitRemoteSessionConfiguration>(
+              'remoteSessionConfiguration',
+              configuration,
+            );
+            final host = configuration.host;
+            if (defaultTargetPlatform == TargetPlatform.iOS &&
+                host != '127.0.0.1' &&
+                host != 'localhost') {
+              yield ErrorHint(
+                'Physical iOS apps that expose flutter_cockpit over the '
+                'device network must declare NSLocalNetworkUsageDescription '
+                'in Info.plist and allow local network access.',
+              );
+            }
+          }
+        },
+      ),
+    );
   }
 
   Future<CockpitRemoteSessionStatus> _buildRemoteSessionStatus() async {

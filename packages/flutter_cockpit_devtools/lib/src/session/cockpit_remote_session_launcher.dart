@@ -4,8 +4,11 @@ import 'dart:io';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
+import '../application/cockpit_application_service_exception.dart';
+import '../platform/ios/cockpit_ios_device_connection.dart';
 import '../remote/cockpit_remote_session_client.dart';
 import 'cockpit_android_remote_session_launcher.dart';
+import 'cockpit_ios_physical_remote_session_launcher.dart';
 import 'cockpit_ios_simulator_remote_session_launcher.dart';
 import 'cockpit_linux_remote_session_launcher.dart';
 import 'cockpit_macos_remote_session_launcher.dart';
@@ -32,20 +35,24 @@ final class CockpitPlatformRemoteSessionLauncher
   CockpitPlatformRemoteSessionLauncher({
     CockpitRemoteSessionLauncher? androidLauncher,
     CockpitRemoteSessionLauncher? iosLauncher,
+    CockpitRemoteSessionLauncher? iosPhysicalLauncher,
     CockpitRemoteSessionLauncher? macosLauncher,
     CockpitRemoteSessionLauncher? windowsLauncher,
     CockpitRemoteSessionLauncher? linuxLauncher,
   })  : _androidLauncher =
             androidLauncher ?? CockpitAndroidRemoteSessionLauncher(),
-        _iosLauncher =
+        _iosSimulatorLauncher =
             iosLauncher ?? CockpitIosSimulatorRemoteSessionLauncher(),
+        _iosPhysicalLauncher =
+            iosPhysicalLauncher ?? CockpitIosPhysicalRemoteSessionLauncher(),
         _macosLauncher = macosLauncher ?? CockpitMacosRemoteSessionLauncher(),
         _windowsLauncher =
             windowsLauncher ?? CockpitWindowsRemoteSessionLauncher(),
         _linuxLauncher = linuxLauncher ?? CockpitLinuxRemoteSessionLauncher();
 
   final CockpitRemoteSessionLauncher _androidLauncher;
-  final CockpitRemoteSessionLauncher _iosLauncher;
+  final CockpitRemoteSessionLauncher _iosSimulatorLauncher;
+  final CockpitRemoteSessionLauncher _iosPhysicalLauncher;
   final CockpitRemoteSessionLauncher _macosLauncher;
   final CockpitRemoteSessionLauncher _windowsLauncher;
   final CockpitRemoteSessionLauncher _linuxLauncher;
@@ -58,16 +65,31 @@ final class CockpitPlatformRemoteSessionLauncher
       case 'android':
         return _androidLauncher.launch(options);
       case 'ios':
-        return _iosLauncher.launch(options);
+        return cockpitLooksLikeIosSimulatorDeviceId(options.deviceId)
+            ? _iosSimulatorLauncher.launch(options)
+            : _iosPhysicalLauncher.launch(options);
       case 'macos':
         return _macosLauncher.launch(options);
       case 'windows':
         return _windowsLauncher.launch(options);
       case 'linux':
         return _linuxLauncher.launch(options);
+      case 'web':
+        throw const CockpitApplicationServiceException(
+          code: 'unsupportedAutomationPlatform',
+          message: 'Web automation launch is not supported. Use development '
+              'mode with an explicit browser device ID from list-targets.',
+          details: <String, Object?>{
+            'platform': 'web',
+            'mode': 'automation',
+            'recommendedMode': 'development',
+          },
+        );
       default:
-        throw StateError(
-          'Unsupported remote session launch platform: ${options.platform}',
+        throw CockpitApplicationServiceException(
+          code: 'unsupportedPlatform',
+          message: 'Unsupported remote session launch platform.',
+          details: <String, Object?>{'platform': options.platform},
         );
     }
   }

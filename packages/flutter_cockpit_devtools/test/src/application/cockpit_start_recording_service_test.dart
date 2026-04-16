@@ -139,6 +139,55 @@ void main() {
         );
       },
     );
+
+    test(
+      'uses macOS host recording with the resolved platform app id for full mode',
+      () async {
+        var remoteStartCalled = false;
+        String? capturedAppId;
+        final hostAdapter = _FakeRecordingAdapter(
+          onStart: (request) async => CockpitRecordingSession(
+            request: request,
+            state: CockpitRecordingState.recording,
+          ),
+        );
+        final service = CockpitStartRecordingService(
+          startService: CockpitStartRemoteRecordingService(
+            startRecording: (_, __) async {
+              remoteStartCalled = true;
+              throw StateError(
+                'remote start should not be used for macOS full host recording',
+              );
+            },
+          ),
+          recordingStrategyResolver: CockpitRecordingStrategyResolver(
+            remoteAdapterFactory: (_) => _FakeRecordingAdapter(),
+            adbAdapterFactory: (_) => _FakeRecordingAdapter(),
+            simctlAdapterFactory: (_) => _FakeRecordingAdapter(),
+            macosAdapterFactory: (appId) {
+              capturedAppId = appId;
+              return hostAdapter;
+            },
+          ),
+        );
+
+        final result = await service.start(
+          CockpitStartRecordingRequest(
+            app: _macosAppHandle(),
+            recording: const CockpitRecordingRequest(
+              purpose: CockpitRecordingPurpose.acceptance,
+              name: 'macos-host-recording',
+              mode: CockpitRecordingMode.full,
+            ),
+          ),
+        );
+
+        expect(remoteStartCalled, isFalse);
+        expect(capturedAppId, 'dev.cockpit.cockpitDemo.host');
+        expect(result.recordingSession.state, CockpitRecordingState.recording);
+        expect(hostAdapter.startedRequests.single.name, 'macos-host-recording');
+      },
+    );
   });
 }
 
@@ -164,6 +213,32 @@ CockpitAppHandle _iosAppHandle() {
     projectDir: '/workspace/examples/cockpit_demo',
     target: 'cockpit/main.dart',
     baseUrl: 'http://127.0.0.1:47331',
+    launchedAt: DateTime.utc(2026, 4, 13),
+  );
+}
+
+CockpitAppHandle _macosAppHandle() {
+  return CockpitAppHandle(
+    appId: 'macos-app',
+    platformAppId: 'dev.cockpit.cockpitDemo.host',
+    mode: CockpitAppMode.automation,
+    platform: 'macos',
+    deviceId: 'macos',
+    projectDir: '/workspace/examples/cockpit_demo',
+    target: 'cockpit/main.dart',
+    baseUrl: 'http://127.0.0.1:47331',
+    remoteSession: CockpitRemoteSessionHandle(
+      platform: 'macos',
+      deviceId: 'macos',
+      projectDir: '/workspace/examples/cockpit_demo',
+      target: 'cockpit/main.dart',
+      appId: 'dev.cockpit.cockpitDemo.session',
+      host: '127.0.0.1',
+      hostPort: 47331,
+      devicePort: 47331,
+      baseUrl: 'http://127.0.0.1:47331',
+      launchedAt: DateTime.utc(2026, 4, 13),
+    ),
     launchedAt: DateTime.utc(2026, 4, 13),
   );
 }
