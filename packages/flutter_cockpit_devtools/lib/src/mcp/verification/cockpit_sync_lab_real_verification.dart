@@ -43,6 +43,22 @@ List<Map<String, Object?>> buildSyncLabCreateTaskBatch({
       'parameters': <String, Object?>{'text': taskTitle},
     },
     <String, Object?>{
+      'commandId': 'verify-reveal-task-notes',
+      'commandType': 'scrollUntilVisible',
+      'locator': <String, Object?>{
+        'text': 'Notes',
+        'route': '/editor',
+        'ancestor': <String, Object?>{'route': '/editor'},
+      },
+      'parameters': <String, Object?>{
+        'maxScrolls': 6,
+        'viewportFraction': 0.72,
+        'continuous': true,
+        'durationPerStepMs': 180,
+        'revealAlignment': 'center',
+      },
+    },
+    <String, Object?>{
       'commandId': 'verify-focus-task-notes',
       'commandType': 'tap',
       'locator': <String, Object?>{
@@ -121,10 +137,15 @@ List<Map<String, Object?>> buildSyncLabOpenConflictBatch({
       'commandId': 'verify-open-created-task',
       'commandType': 'tap',
       'locator': <String, Object?>{
-        'semanticId': 'Open task $taskTitle',
+        'text': 'Open',
+        'type': 'TextButton',
         'ancestor': <String, Object?>{'route': '/inbox'},
       },
     },
+    _waitForRouteCommand(
+      commandId: 'verify-wait-for-detail-route',
+      routeName: '/detail',
+    ),
   ];
 }
 
@@ -139,6 +160,14 @@ Map<String, Object?> buildSyncLabOpenConflictResolutionCommand() {
   };
 }
 
+Map<String, Object?> buildSyncLabRevealConflictResolutionCommand() {
+  return _revealBelowFoldCommand(
+    commandId: 'verify-reveal-conflict-resolution',
+    text: 'Resolve conflict',
+    route: '/detail',
+  );
+}
+
 Map<String, Object?> buildSyncLabKeepLocalResolutionCommand() {
   return <String, Object?>{
     'commandId': 'verify-keep-local-resolution',
@@ -148,6 +177,14 @@ Map<String, Object?> buildSyncLabKeepLocalResolutionCommand() {
       'ancestor': <String, Object?>{'route': '/sync-conflict'},
     },
   };
+}
+
+Map<String, Object?> buildSyncLabRevealKeepLocalResolutionCommand() {
+  return _revealBelowFoldCommand(
+    commandId: 'verify-reveal-keep-local-resolution',
+    text: 'Keep local',
+    route: '/sync-conflict',
+  );
 }
 
 List<Map<String, Object?>> buildSyncLabRecoverySyncBatch() {
@@ -208,10 +245,15 @@ List<Map<String, Object?>> buildSyncLabRecoveryVerificationBatch({
       'commandId': 'verify-open-created-task-after-recovery',
       'commandType': 'tap',
       'locator': <String, Object?>{
-        'semanticId': 'Open task $taskTitle',
+        'text': 'Open',
+        'type': 'TextButton',
         'ancestor': <String, Object?>{'route': '/inbox'},
       },
     },
+    _waitForRouteCommand(
+      commandId: 'verify-wait-for-detail-route-after-recovery',
+      routeName: '/detail',
+    ),
     <String, Object?>{
       'commandId': 'verify-assert-task-synced',
       'commandType': 'assertText',
@@ -232,6 +274,29 @@ Map<String, Object?> _searchForTaskCommand({
       'ancestor': <String, Object?>{'route': '/inbox'},
     },
     'parameters': <String, Object?>{'text': taskTitle},
+  };
+}
+
+Map<String, Object?> _revealBelowFoldCommand({
+  required String commandId,
+  required String text,
+  required String route,
+}) {
+  return <String, Object?>{
+    'commandId': commandId,
+    'commandType': 'scrollUntilVisible',
+    'locator': <String, Object?>{
+      'text': text,
+      'route': route,
+      'ancestor': <String, Object?>{'route': route},
+    },
+    'parameters': <String, Object?>{
+      'maxScrolls': 6,
+      'viewportFraction': 0.72,
+      'continuous': true,
+      'durationPerStepMs': 180,
+      'revealAlignment': 'center',
+    },
   };
 }
 
@@ -258,6 +323,18 @@ Map<String, Object?> _waitForSyncStateCommand({
       'text': text,
       'timeoutMs': 20000,
     },
+  };
+}
+
+Map<String, Object?> _waitForRouteCommand({
+  required String commandId,
+  required String routeName,
+}) {
+  return <String, Object?>{
+    'commandId': commandId,
+    'commandType': 'waitFor',
+    'timeoutMs': 12000,
+    'parameters': <String, Object?>{'routeName': routeName},
   };
 }
 

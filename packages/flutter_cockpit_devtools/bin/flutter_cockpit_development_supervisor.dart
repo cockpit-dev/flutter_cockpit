@@ -15,6 +15,7 @@ Future<void> main(List<String> args) async {
   final parser = ArgParser()
     ..addOption('project-dir', mandatory: true)
     ..addOption('target', mandatory: true)
+    ..addOption('flavor')
     ..addOption('platform', mandatory: true)
     ..addOption('device-id', mandatory: true)
     ..addOption('session-port', mandatory: true)
@@ -28,6 +29,7 @@ Future<void> main(List<String> args) async {
 
   final projectDir = results['project-dir']! as String;
   final target = results['target']! as String;
+  final flavor = results['flavor'] as String?;
   final platform = results['platform']! as String;
   final deviceId = results['device-id']! as String;
   final sessionPort = int.parse(results['session-port']! as String);
@@ -77,6 +79,7 @@ Future<void> main(List<String> args) async {
   final machineLaunchRequest = CockpitLaunchDevelopmentMachineSessionRequest(
     projectDir: projectDir,
     target: target,
+    flavor: flavor,
     platform: platform,
     deviceId: deviceId,
     sessionPort: sessionPort,
@@ -85,9 +88,13 @@ Future<void> main(List<String> args) async {
     flutterExecutable: flutterExecutable,
     flutterVersion: flutterVersion,
   );
+  final endpoint =
+      await machineLauncher.resolveRemoteSessionEndpoint(machineLaunchRequest);
   await writeLog('development machine launch start');
-  machineClient =
-      await machineLauncher.startMachineClient(machineLaunchRequest);
+  machineClient = await machineLauncher.startMachineClient(
+    machineLaunchRequest,
+    endpoint: endpoint,
+  );
   final supervisor = CockpitDevelopmentSessionSupervisor(
     initialHandle: developmentHandle,
     machineClient: machineClient,
@@ -130,6 +137,7 @@ Future<void> main(List<String> args) async {
   try {
     await writeLog(
       'boot project_dir=$projectDir target=$target platform=$platform '
+      'flavor=${flavor ?? ''} '
       'device_id=$deviceId app_host_port=$appHostPort '
       'supervisor_port=$supervisorPort flutter_executable=$flutterExecutable '
       'flutter_version=$flutterVersion',
@@ -140,6 +148,7 @@ Future<void> main(List<String> args) async {
         remoteHandle = await machineLauncher.waitForRemoteSession(
           request: machineLaunchRequest,
           machineClient: machineClient!,
+          endpoint: endpoint,
         );
         await writeLog(
           'development machine ready app_id=${remoteHandle!.appId} '

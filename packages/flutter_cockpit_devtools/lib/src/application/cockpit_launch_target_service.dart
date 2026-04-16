@@ -26,6 +26,7 @@ final class CockpitLaunchTargetRequest {
     required this.deviceId,
     required this.sessionPort,
     this.target,
+    this.flavor,
     this.targetKind = CockpitTargetKind.flutterApp,
     this.mode = CockpitAppMode.development,
     this.launchTimeout = const Duration(seconds: 120),
@@ -34,6 +35,7 @@ final class CockpitLaunchTargetRequest {
 
   final String projectDir;
   final String? target;
+  final String? flavor;
   final String platform;
   final String deviceId;
   final int sessionPort;
@@ -110,6 +112,7 @@ final class CockpitLaunchTargetService {
       CockpitLaunchAppRequest(
         projectDir: request.projectDir,
         target: request.target,
+        flavor: request.flavor,
         platform: request.platform,
         deviceId: request.deviceId,
         sessionPort: request.sessionPort,
@@ -171,7 +174,8 @@ final class CockpitLaunchTargetService {
       return requestedTargetKind;
     }
     if (requestedTargetKind == CockpitTargetKind.flutterApp &&
-        capabilityProfile.targetKind == CockpitTargetKind.desktopApp) {
+        (capabilityProfile.targetKind == CockpitTargetKind.desktopApp ||
+            capabilityProfile.targetKind == CockpitTargetKind.browserPage)) {
       return capabilityProfile.targetKind;
     }
     throw CockpitApplicationServiceException(
@@ -186,9 +190,11 @@ final class CockpitLaunchTargetService {
 
   bool _isLaunchableTargetKind(CockpitTargetKind targetKind) {
     return switch (targetKind) {
-      CockpitTargetKind.flutterApp || CockpitTargetKind.desktopApp => true,
+      CockpitTargetKind.flutterApp ||
+      CockpitTargetKind.desktopApp ||
+      CockpitTargetKind.browserPage =>
+        true,
       CockpitTargetKind.nativeApp ||
-      CockpitTargetKind.browserPage ||
       CockpitTargetKind.systemSurface ||
       CockpitTargetKind.device ||
       CockpitTargetKind.hostWorkspace =>

@@ -16,7 +16,8 @@ void main() {
         invocations.add('$executable ${arguments.join(' ')}');
         return ProcessResult(0, 0, '', '');
       },
-      appBundlePathResolver: ({required String projectDir}) async =>
+      appBundlePathResolver: (
+              {required String projectDir, String? flavor}) async =>
           '$projectDir/build/macos/Build/Products/Debug/cockpit_demo.app',
       bundleIdResolver: ({required String appBundlePath}) async =>
           'dev.cockpit.cockpitDemo',
@@ -102,5 +103,219 @@ void main() {
       ),
       throwsA(isA<TimeoutException>()),
     );
+  });
+
+  test('macos remote session launcher prefers a flavor-matching app bundle',
+      () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'cockpit_macos_remote_session_launcher_flavor',
+    );
+    addTearDown(() async {
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    final productsDirectory = Directory(
+      '${tempDir.path}/build/macos/Build/Products/Debug',
+    );
+    await productsDirectory.create(recursive: true);
+    final defaultBundle = Directory('${productsDirectory.path}/Orbit.app');
+    final flavoredBundle =
+        Directory('${productsDirectory.path}/OrbitStaging.app');
+    await flavoredBundle.create(recursive: true);
+    await Directory('${flavoredBundle.path}/Contents').create(recursive: true);
+    await File('${flavoredBundle.path}/Contents/Info.plist').writeAsString('');
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    await defaultBundle.create(recursive: true);
+    await Directory('${defaultBundle.path}/Contents').create(recursive: true);
+    await File('${defaultBundle.path}/Contents/Info.plist').writeAsString('');
+
+    String? resolvedBundlePath;
+    final launcher = CockpitMacosRemoteSessionLauncher(
+      flutterVersionReader: () async => '3.38.9',
+      processRunner: (executable, arguments, {String? workingDirectory}) async {
+        return ProcessResult(0, 0, '', '');
+      },
+      bundleIdResolver: ({required String appBundlePath}) async {
+        resolvedBundlePath = appBundlePath;
+        return 'dev.cockpit.orbitStaging';
+      },
+      statusReader: (baseUri) async => CockpitRemoteSessionStatus(
+        sessionId: 'macos-staging-session',
+        platform: 'macos',
+        transportType: 'remoteHttp',
+        currentRouteName: '/home',
+        capabilities: CockpitCapabilities(
+          platform: 'macos',
+          transportType: 'remoteHttp',
+          supportsInAppControl: true,
+          supportsFlutterViewCapture: true,
+          supportsNativeScreenCapture: true,
+          supportsHostAutomation: true,
+        ),
+        recordingCapabilities: CockpitRecordingCapabilities(
+          supportsNativeRecording: true,
+        ),
+        snapshot: CockpitSnapshot(routeName: '/home'),
+      ),
+    );
+
+    await launcher.launch(
+      CockpitRemoteSessionLaunchOptions(
+        projectDir: tempDir.path,
+        target: 'cockpit/main.dart',
+        flavor: 'staging',
+        platform: 'macos',
+        deviceId: 'macos',
+        sessionPort: 47331,
+      ),
+    );
+
+    expect(resolvedBundlePath, flavoredBundle.path);
+  });
+
+  test('macos remote session launcher falls back to the newest app bundle',
+      () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'cockpit_macos_remote_session_launcher_recency',
+    );
+    addTearDown(() async {
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    final productsDirectory = Directory(
+      '${tempDir.path}/build/macos/Build/Products/Debug',
+    );
+    await productsDirectory.create(recursive: true);
+    final staleBundle = Directory('${productsDirectory.path}/Orbit.app');
+    final newestBundle =
+        Directory('${productsDirectory.path}/Cockpit Demo.app');
+    await staleBundle.create(recursive: true);
+    await Directory('${staleBundle.path}/Contents').create(recursive: true);
+    await File('${staleBundle.path}/Contents/Info.plist')
+        .create(recursive: true);
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    await newestBundle.create(recursive: true);
+    await Directory('${newestBundle.path}/Contents').create(recursive: true);
+    await File('${newestBundle.path}/Contents/Info.plist')
+        .create(recursive: true);
+
+    String? resolvedBundlePath;
+    final launcher = CockpitMacosRemoteSessionLauncher(
+      flutterVersionReader: () async => '3.38.9',
+      processRunner: (executable, arguments, {String? workingDirectory}) async {
+        return ProcessResult(0, 0, '', '');
+      },
+      bundleIdResolver: ({required String appBundlePath}) async {
+        resolvedBundlePath = appBundlePath;
+        return 'dev.cockpit.cockpitDemo';
+      },
+      statusReader: (baseUri) async => CockpitRemoteSessionStatus(
+        sessionId: 'macos-latest-session',
+        platform: 'macos',
+        transportType: 'remoteHttp',
+        currentRouteName: '/home',
+        capabilities: CockpitCapabilities(
+          platform: 'macos',
+          transportType: 'remoteHttp',
+          supportsInAppControl: true,
+          supportsFlutterViewCapture: true,
+          supportsNativeScreenCapture: true,
+          supportsHostAutomation: true,
+        ),
+        recordingCapabilities: CockpitRecordingCapabilities(
+          supportsNativeRecording: true,
+        ),
+        snapshot: CockpitSnapshot(routeName: '/home'),
+      ),
+    );
+
+    await launcher.launch(
+      CockpitRemoteSessionLaunchOptions(
+        projectDir: tempDir.path,
+        target: 'cockpit/main.dart',
+        platform: 'macos',
+        deviceId: 'macos',
+        sessionPort: 47331,
+      ),
+    );
+
+    expect(resolvedBundlePath, newestBundle.path);
+  });
+
+  test('macos remote session launcher ignores nested helper app bundles',
+      () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'cockpit_macos_remote_session_launcher_nested',
+    );
+    addTearDown(() async {
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    final productsDirectory = Directory(
+      '${tempDir.path}/build/macos/Build/Products/Debug',
+    );
+    await productsDirectory.create(recursive: true);
+    final topLevelBundle = Directory('${productsDirectory.path}/Orbit.app');
+    await topLevelBundle.create(recursive: true);
+    await Directory('${topLevelBundle.path}/Contents').create(recursive: true);
+    await File('${topLevelBundle.path}/Contents/Info.plist')
+        .create(recursive: true);
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    final nestedHelperBundle = Directory(
+      '${topLevelBundle.path}/Contents/Helpers/Orbit Helper.app',
+    );
+    await nestedHelperBundle.create(recursive: true);
+    await Directory('${nestedHelperBundle.path}/Contents')
+        .create(recursive: true);
+    await File('${nestedHelperBundle.path}/Contents/Info.plist')
+        .create(recursive: true);
+
+    String? resolvedBundlePath;
+    final launcher = CockpitMacosRemoteSessionLauncher(
+      flutterVersionReader: () async => '3.38.9',
+      processRunner: (executable, arguments, {String? workingDirectory}) async {
+        return ProcessResult(0, 0, '', '');
+      },
+      bundleIdResolver: ({required String appBundlePath}) async {
+        resolvedBundlePath = appBundlePath;
+        return 'dev.cockpit.orbit';
+      },
+      statusReader: (baseUri) async => CockpitRemoteSessionStatus(
+        sessionId: 'macos-nested-session',
+        platform: 'macos',
+        transportType: 'remoteHttp',
+        currentRouteName: '/home',
+        capabilities: CockpitCapabilities(
+          platform: 'macos',
+          transportType: 'remoteHttp',
+          supportsInAppControl: true,
+          supportsFlutterViewCapture: true,
+          supportsNativeScreenCapture: true,
+          supportsHostAutomation: true,
+        ),
+        recordingCapabilities: CockpitRecordingCapabilities(
+          supportsNativeRecording: true,
+        ),
+        snapshot: CockpitSnapshot(routeName: '/home'),
+      ),
+    );
+
+    await launcher.launch(
+      CockpitRemoteSessionLaunchOptions(
+        projectDir: tempDir.path,
+        target: 'cockpit/main.dart',
+        platform: 'macos',
+        deviceId: 'macos',
+        sessionPort: 47331,
+      ),
+    );
+
+    expect(resolvedBundlePath, topLevelBundle.path);
   });
 }

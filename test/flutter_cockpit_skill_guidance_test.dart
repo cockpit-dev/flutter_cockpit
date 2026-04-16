@@ -19,37 +19,53 @@ void main() {
       '$root/skills/flutter-cockpit/examples/rapid-dev-loop.md',
     ).readAsStringSync();
 
-    expect(skill, contains('lowest-token public surface'));
+    expect(skill, contains('First-Use Guardrails'));
+    expect(skill, contains('Default Loops'));
+    expect(skill, contains('app-first'));
+    expect(skill, contains('help <command>'));
+    expect(
+        skill, contains('MCP `launch_app` and `launch_target` mirror the CLI'));
+    expect(skill, contains('.dart_tool/flutter_cockpit/latest_app.json'));
+    expect(skill, contains('after `launch-app` in the same workspace'));
+    expect(skill, contains('--flavor <name>'));
+    expect(
+      skill,
+      contains('auto-normalizes to `desktopApp` and `browserPage`'),
+    );
+    expect(
+      skill,
+      contains('do not guess `web`, and stay on `mode: development`'),
+    );
     expect(skill, contains('jq'));
-    expect(skill, contains('pipe'));
-    expect(skill, contains('grep_package_uris'));
-    expect(skill, contains('Do not parallelize'));
-    expect(skill, contains('probes between internal scroll segments'));
-    expect(skill, contains('do not assume the route or scroll position reset'));
-    expect(skill, contains('opposite direction once'));
-    expect(skill, contains('stable section heading'));
-    expect(skill, contains('selection banners, snackbars, or bottom sheets'));
-    expect(skill, contains('summary counts and `textPreviews`'));
-    expect(skill, contains('do not blindly replay a non-idempotent batch'));
+    expect(skill, contains('grep-package-uris'));
+    expect(skill, contains('captureScreenshot'));
+    expect(skill, contains('artifact refs or output paths'));
+    expect(skill, contains('Do not blindly replay a non-idempotent batch'));
     expect(skill, contains('re-read minimal route or state before retrying'));
-    expect(skill, contains('route-aware recovery'));
+    expect(skill, contains('Prefer `run-batch` for route-crossing flows'));
     expect(contract, contains('non-idempotent batch'));
     expect(contract, contains('route-aware recovery'));
     expect(cliReference, contains('--output-json'));
+    expect(cliReference, contains('--flavor'));
     expect(cliReference, contains('jq'));
     expect(cliReference, contains('grep-package-uris'));
+    expect(
+      cliReference,
+      contains('automation launch is not a supported browser path'),
+    );
+    expect(
+      cliReference,
+      contains('auto-normalizes the default `flutterApp` target kind'),
+    );
     expect(cliReference, contains('scrollUntilVisible'));
     expect(cliReference, contains('enterText'));
     expect(cliReference, contains('lastReloadSucceeded'));
-    expect(cliReference, contains('bottom sheet appears'));
+    expect(cliReference, contains('start-recording'));
+    expect(cliReference, contains('--app-json /tmp/flutter_cockpit/app.json'));
     expect(rapidLoop, contains('jq'));
     expect(rapidLoop, contains('app.json'));
     expect(rapidLoop, contains('grep-package-uris'));
-    expect(rapidLoop, contains('viewportFraction'));
-    expect(rapidLoop, contains('reverse: true'));
     expect(rapidLoop, contains('textPreviews'));
-    expect(rapidLoop, contains('stable section heading'));
-    expect(rapidLoop, contains('list shifted'));
     expect(rapidLoop, contains('remoteUnavailable'));
     expect(rapidLoop, contains('smallest remaining step'));
     expect(rapidLoop, contains('Do not parallelize'));

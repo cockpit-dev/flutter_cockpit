@@ -24,7 +24,8 @@ void main() {
     expect(adapter, isA<CockpitHostPreferredCaptureAdapter>());
   });
 
-  test('uses simctl host capture when an iOS device ID is provided', () {
+  test('uses simctl host capture when an iOS simulator device ID is provided',
+      () {
     final remoteAdapter = _FakeCaptureAdapter();
     final simctlAdapter = _FakeCaptureAdapter();
     final resolver = CockpitCaptureStrategyResolver(
@@ -42,6 +43,25 @@ void main() {
     );
 
     expect(adapter, isA<CockpitHostPreferredCaptureAdapter>());
+  });
+
+  test('uses remote capture for physical iOS device IDs', () {
+    final remoteAdapter = _FakeCaptureAdapter();
+    final resolver = CockpitCaptureStrategyResolver(
+      remoteAdapterFactory: (client) => remoteAdapter,
+      adbAdapterFactory: (deviceId) => _FakeCaptureAdapter(),
+      simctlAdapterFactory: (deviceId) => _FakeCaptureAdapter(),
+    );
+
+    final adapter = resolver.resolve(
+      platform: 'ios',
+      client: CockpitRemoteSessionClient(
+        baseUri: Uri.parse('http://127.0.0.1:47331'),
+      ),
+      iosDeviceId: '00008110-0009341C2EF3801E',
+    );
+
+    expect(adapter, same(remoteAdapter));
   });
 
   test('uses host-preferred capture on macos when an app id is available', () {

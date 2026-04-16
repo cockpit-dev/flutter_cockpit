@@ -1,27 +1,35 @@
 import 'dart:io';
 
-import 'package:path/path.dart' as p;
-
+import '../platform/ios/cockpit_ios_device_connection.dart';
 import 'cockpit_apple_bundle_support.dart';
-import 'cockpit_android_remote_session_launcher.dart';
 import 'cockpit_remote_session_handle.dart';
 import 'cockpit_remote_session_launch_options.dart';
 import 'cockpit_remote_session_launcher.dart';
 import 'cockpit_session_path.dart';
 
-typedef CockpitIosBundleIdResolver = Future<String> Function(
-    {required String appBundlePath});
-typedef CockpitIosSimulatorAppBundlePathResolver = Future<String> Function({
+typedef CockpitIosPhysicalProcessRunner = Future<ProcessResult> Function(
+  String executable,
+  List<String> arguments, {
+  String? workingDirectory,
+});
+typedef CockpitIosDeviceConnectionReader = Future<CockpitIosDeviceConnection?>
+    Function(String deviceId);
+typedef CockpitIosPhysicalBundleIdResolver = Future<String> Function({
+  required String appBundlePath,
+});
+typedef CockpitIosPhysicalAppBundlePathResolver = Future<String> Function({
   required String projectDir,
   String? flavor,
 });
 
-final class CockpitIosSimulatorRemoteSessionLauncher
+final class CockpitIosPhysicalRemoteSessionLauncher
     implements CockpitRemoteSessionLauncher {
-  CockpitIosSimulatorRemoteSessionLauncher({
-    CockpitWorkingDirectoryProcessRunner processRunner = _runProcess,
-    CockpitIosBundleIdResolver bundleIdResolver = _resolveBundleId,
-    CockpitIosSimulatorAppBundlePathResolver appBundlePathResolver =
+  CockpitIosPhysicalRemoteSessionLauncher({
+    CockpitIosPhysicalProcessRunner processRunner = _runProcess,
+    CockpitIosDeviceConnectionReader deviceConnectionResolver =
+        _defaultDeviceConnectionResolver,
+    CockpitIosPhysicalBundleIdResolver bundleIdResolver = _resolveBundleId,
+    CockpitIosPhysicalAppBundlePathResolver appBundlePathResolver =
         _resolveAppBundlePath,
     CockpitRemoteSessionStatusReader statusReader =
         cockpitReadRemoteSessionStatus,
@@ -29,15 +37,17 @@ final class CockpitIosSimulatorRemoteSessionLauncher
         cockpitReadActiveFlutterVersion,
     DateTime Function()? now,
   })  : _processRunner = processRunner,
+        _deviceConnectionResolver = deviceConnectionResolver,
         _bundleIdResolver = bundleIdResolver,
         _appBundlePathResolver = appBundlePathResolver,
         _statusReader = statusReader,
         _flutterVersionReader = flutterVersionReader,
         _now = now ?? DateTime.now;
 
-  final CockpitWorkingDirectoryProcessRunner _processRunner;
-  final CockpitIosBundleIdResolver _bundleIdResolver;
-  final CockpitIosSimulatorAppBundlePathResolver _appBundlePathResolver;
+  final CockpitIosPhysicalProcessRunner _processRunner;
+  final CockpitIosDeviceConnectionReader _deviceConnectionResolver;
+  final CockpitIosPhysicalBundleIdResolver _bundleIdResolver;
+  final CockpitIosPhysicalAppBundlePathResolver _appBundlePathResolver;
   final CockpitRemoteSessionStatusReader _statusReader;
   final CockpitFlutterVersionReader _flutterVersionReader;
   final DateTime Function() _now;
@@ -48,7 +58,19 @@ final class CockpitIosSimulatorRemoteSessionLauncher
   ) async {
     if (options.platform != 'ios') {
       throw StateError(
-        'CockpitIosSimulatorRemoteSessionLauncher only supports ios options.',
+        'CockpitIosPhysicalRemoteSessionLauncher only supports ios options.',
+      );
+    }
+    if (cockpitLooksLikeIosSimulatorDeviceId(options.deviceId)) {
+      throw StateError(
+        'CockpitIosPhysicalRemoteSessionLauncher only supports physical iOS devices.',
+      );
+    }
+
+    final connection = await _deviceConnectionResolver(options.deviceId);
+    if (connection == null || !connection.hasReachableTunnel) {
+      throw StateError(
+        'Unable to resolve a reachable iOS device tunnel for ${options.deviceId}.',
       );
     }
 
@@ -56,46 +78,38 @@ final class CockpitIosSimulatorRemoteSessionLauncher
         options.flutterVersion ?? await _flutterVersionReader();
     final flutterExecutable =
         options.flutterExecutable ?? cockpitFlutterExecutable();
-    final bindHost = cockpitRemoteBindHostForPlatform(options.platform);
     await _runRequired(
-        flutterExecutable,
-        <String>[
-          'build',
-          'ios',
-          '--simulator',
-          '--debug',
-          '--no-codesign',
-          '--target',
-          options.target,
-          if (options.flavor case final flavor?
-              when flavor.isNotEmpty) ...<String>['--flavor', flavor],
-          '--dart-define=FLUTTER_PILOT_REMOTE_ENABLED=true',
-          '--dart-define=FLUTTER_PILOT_REMOTE_HOST=$bindHost',
-          '--dart-define=FLUTTER_PILOT_REMOTE_PORT=${options.sessionPort}',
-          '--dart-define=FLUTTER_PILOT_FLUTTER_VERSION=$flutterVersion',
-        ],
-        workingDirectory: options.projectDir);
+      flutterExecutable,
+      <String>[
+        'run',
+        '-d',
+        options.deviceId,
+        '--profile',
+        '--no-resident',
+        '--target',
+        options.target,
+        if (options.flavor case final flavor?
+            when flavor.isNotEmpty) ...<String>['--flavor', flavor],
+        '--dart-define=FLUTTER_PILOT_REMOTE_ENABLED=true',
+        '--dart-define=FLUTTER_PILOT_REMOTE_HOST=::',
+        '--dart-define=FLUTTER_PILOT_REMOTE_PORT=${options.sessionPort}',
+        '--dart-define=FLUTTER_COCKPIT_ENABLE_HTTP_NETWORK_OBSERVER=false',
+        '--dart-define=FLUTTER_COCKPIT_ENABLE_RUNTIME_OBSERVER=false',
+        '--dart-define=FLUTTER_PILOT_FLUTTER_VERSION=$flutterVersion',
+      ],
+      workingDirectory: options.projectDir,
+    );
 
     final appBundlePath = await _appBundlePathResolver(
       projectDir: options.projectDir,
       flavor: options.flavor,
     );
     final bundleId = await _bundleIdResolver(appBundlePath: appBundlePath);
-
-    await _runRequired('xcrun', <String>[
-      'simctl',
-      'install',
-      options.deviceId,
-      appBundlePath,
-    ]);
-    await _runRequired('xcrun', <String>[
-      'simctl',
-      'launch',
-      options.deviceId,
-      bundleId,
-    ]);
-
-    final baseUri = Uri.parse('http://127.0.0.1:${options.sessionPort}');
+    final baseUri = Uri(
+      scheme: 'http',
+      host: connection.tunnelIpAddress!,
+      port: options.sessionPort,
+    );
     final status = await cockpitWaitForRemoteSessionReady(
       baseUri: baseUri,
       timeout: options.launchTimeout,
@@ -107,7 +121,7 @@ final class CockpitIosSimulatorRemoteSessionLauncher
       target: options.target,
       deviceId: options.deviceId,
       appId: bundleId,
-      host: '127.0.0.1',
+      host: connection.tunnelIpAddress!,
       hostPort: options.sessionPort,
       devicePort: options.sessionPort,
       status: status,
@@ -155,32 +169,24 @@ final class CockpitIosSimulatorRemoteSessionLauncher
   }) async {
     final pathContext = cockpitSessionPathContext(projectDir);
     final buildDirectory = Directory(
-      pathContext.join(projectDir, 'build', 'ios', 'iphonesimulator'),
+      pathContext.join(projectDir, 'build', 'ios', 'iphoneos'),
     );
     if (!buildDirectory.existsSync()) {
       throw StateError(
-        'Unable to locate iOS simulator build output at ${buildDirectory.path}.',
+        'Unable to locate iOS device build output at ${buildDirectory.path}.',
       );
     }
-    return _selectBestAppBundlePath(
-      buildDirectory: buildDirectory,
+    return cockpitSelectBestAppBundlePath(
+      searchRoot: buildDirectory,
       flavor: flavor,
       pathContext: pathContext,
-      platformLabel: 'iOS simulator',
+      platformLabel: 'iOS device',
     );
   }
 }
 
-String _selectBestAppBundlePath({
-  required Directory buildDirectory,
-  required String? flavor,
-  required p.Context pathContext,
-  required String platformLabel,
-}) {
-  return cockpitSelectBestAppBundlePath(
-    searchRoot: buildDirectory,
-    flavor: flavor,
-    pathContext: pathContext,
-    platformLabel: platformLabel,
-  );
+Future<CockpitIosDeviceConnection?> _defaultDeviceConnectionResolver(
+  String deviceId,
+) {
+  return CockpitIosDeviceConnectionProbe().probe(deviceId);
 }

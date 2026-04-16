@@ -48,6 +48,12 @@ final class CockpitMacosRecordingAdapter
   final Duration _finalizationPollInterval;
   final Duration _activationSettleDelay;
 
+  static const Set<String> _browserAppIds = <String>{
+    'com.google.Chrome',
+    'com.microsoft.edgemac',
+    'org.mozilla.firefox',
+  };
+
   Process? _process;
   CockpitRecordingRequest? _request;
   File? _outputFile;
@@ -55,6 +61,28 @@ final class CockpitMacosRecordingAdapter
   Stopwatch? _stopwatch;
 
   String get _sessionCacheKey => 'macos:$_appId';
+
+  bool get _usesBrowserHostCapture => _browserAppIds.contains(_appId);
+
+  Duration get _effectiveStartupEvidenceTimeout {
+    if (!_usesBrowserHostCapture) {
+      return _startupEvidenceTimeout;
+    }
+    const browserMinimum = Duration(seconds: 6);
+    return _startupEvidenceTimeout >= browserMinimum
+        ? _startupEvidenceTimeout
+        : browserMinimum;
+  }
+
+  Duration get _effectiveActivationSettleDelay {
+    if (!_usesBrowserHostCapture) {
+      return _activationSettleDelay;
+    }
+    const browserMinimum = Duration(seconds: 1);
+    return _activationSettleDelay >= browserMinimum
+        ? _activationSettleDelay
+        : browserMinimum;
+  }
 
   @override
   Future<CockpitRecordingSession> startRecording(
@@ -66,8 +94,8 @@ final class CockpitMacosRecordingAdapter
     }
 
     await _activateApp();
-    if (_activationSettleDelay > Duration.zero) {
-      await Future<void>.delayed(_activationSettleDelay);
+    if (_effectiveActivationSettleDelay > Duration.zero) {
+      await Future<void>.delayed(_effectiveActivationSettleDelay);
     }
 
     final inputSpecifier = await _resolveScreenInputSpecifier();
@@ -136,10 +164,13 @@ final class CockpitMacosRecordingAdapter
       }
       final hasOutputEvidence = await cockpitWaitForNonEmptyFile(
         outputFile,
-        timeout: _startupEvidenceTimeout,
+        timeout: _effectiveStartupEvidenceTimeout,
         pollInterval: _finalizationPollInterval,
       );
-      if (!hasOutputEvidence) {
+      if (!hasOutputEvidence && _usesBrowserHostCapture) {
+        // Browser-host capture can stay silent until stop/finalization even
+        // when ffmpeg has attached successfully to the screen input.
+      } else if (!hasOutputEvidence) {
         await stderrSubscription.cancel();
         process.kill(ProcessSignal.sigkill);
         throw StateError(

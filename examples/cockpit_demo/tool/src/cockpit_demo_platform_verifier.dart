@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:flutter_cockpit_devtools/flutter_cockpit_devtools.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/verification/cockpit_sync_lab_real_verification.dart';
+import 'package:flutter_cockpit_devtools/src/platform/ios/cockpit_ios_device_connection.dart';
 import 'package:path/path.dart' as p;
 
 typedef CockpitDemoPlatformDeviceProbe = Future<List<CockpitDemoHostDevice>>
@@ -445,8 +446,10 @@ final class CockpitDemoPlatformVerifier {
     final outputDir = p.normalize(p.join(request.outputRoot, platform));
     final appJsonPath = p.join(outputDir, 'app.json');
     CockpitAppHandle? app;
+    CockpitRecordingAdapter? activeRecordingAdapter;
     String? deviceId;
     var bootstrappedDevice = false;
+    var recordingStarted = false;
 
     try {
       await Directory(outputDir).create(recursive: true);
@@ -539,11 +542,11 @@ final class CockpitDemoPlatformVerifier {
           details: <String, Object?>{'platform': platform},
         );
       }
-      var recordingStarted = false;
       String? recordingArtifactRef;
       String? recordingOutputPath;
       int? recordingDurationMs;
       String? recordingKind;
+      activeRecordingAdapter = recordingAdapter;
       try {
         final recordingStart = await recordingAdapter.startRecording(
           recordingRequest,
@@ -571,64 +574,15 @@ final class CockpitDemoPlatformVerifier {
           'Web host recording was skipped because the local desktop capture prerequisite is not available: $error',
         );
       }
-      final batchResult = await _runBatch(
+      final batchResult = await _runBatchWithRetry(
         CockpitRunBatchRequest(
           app: launchedApp,
-          commands: <CockpitRunBatchCommand>[
-            CockpitRunBatchCommand(
-              command: CockpitCommand(
-                commandId: 'verify-open-editor',
-                commandType: CockpitCommandType.tap,
-                locator: const CockpitLocator(
-                  text: 'New task',
-                  ancestor: CockpitLocator(route: '/inbox'),
-                ),
-              ),
+          commands: _batchCommandsFromJson(
+            buildSyncLabCreateTaskBatch(
+              taskTitle: taskTitle,
+              notes: taskNotes,
             ),
-            CockpitRunBatchCommand(
-              command: CockpitCommand(
-                commandId: 'verify-enter-title',
-                commandType: CockpitCommandType.enterText,
-                locator: const CockpitLocator(
-                  text: 'Task title',
-                  ancestor: CockpitLocator(route: '/editor'),
-                ),
-                parameters: <String, Object?>{'text': taskTitle},
-              ),
-            ),
-            CockpitRunBatchCommand(
-              command: CockpitCommand(
-                commandId: 'verify-focus-notes',
-                commandType: CockpitCommandType.tap,
-                locator: const CockpitLocator(
-                  text: 'Notes',
-                  ancestor: CockpitLocator(route: '/editor'),
-                ),
-              ),
-            ),
-            CockpitRunBatchCommand(
-              command: CockpitCommand(
-                commandId: 'verify-enter-notes',
-                commandType: CockpitCommandType.enterText,
-                locator: const CockpitLocator(
-                  text: 'Notes',
-                  type: 'TextField',
-                  ancestor: CockpitLocator(route: '/editor'),
-                ),
-                parameters: <String, Object?>{'text': taskNotes},
-              ),
-            ),
-            CockpitRunBatchCommand(
-              command: CockpitCommand(
-                commandId: 'verify-save-task',
-                commandType: CockpitCommandType.tap,
-                locator: const CockpitLocator(
-                  text: 'Save task',
-                  ancestor: CockpitLocator(route: '/editor'),
-                ),
-              ),
-            ),
-          ],
+          ),
           defaultResultProfile:
               const CockpitInteractiveResultProfile.standard(),
           failFast: true,
@@ -637,7 +591,7 @@ final class CockpitDemoPlatformVerifier {
       _requireBatchSuccess(
         platform: platform,
         result: batchResult,
-        expectedCount: 5,
+        expectedCount: 6,
       );
       verifiedCommands.add('run-batch');
       if (recordingStarted) {
@@ -658,6 +612,7 @@ final class CockpitDemoPlatformVerifier {
             );
           }
           verifiedCommands.add('stop-recording');
+          recordingStarted = false;
           recordingArtifactRef = recordingStop.artifact?.relativePath;
           recordingOutputPath = await _copyArtifactToOutputDir(
             artifact: recordingStop.artifact,
@@ -719,7 +674,7 @@ final class CockpitDemoPlatformVerifier {
           parameters: <String, Object?>{'text': taskTitle},
         ),
       );
-      final syncLabConflictBatchResult = await _runBatch(
+      final syncLabConflictBatchResult = await _runBatchWithRetry(
         CockpitRunBatchRequest(
           app: launchedApp,
           commands: _batchCommandsFromJson(buildSyncLabConflictSyncBatch()),
@@ -733,11 +688,30 @@ final class CockpitDemoPlatformVerifier {
         result: syncLabConflictBatchResult,
         expectedCount: 5,
       );
-      final syncLabOpenConflictBatchResult = await _runBatch(
+      final postConflictSyncIdleResult = await _waitIdle(
+        CockpitWaitIdleRequest(
+          app: launchedApp,
+          quietWindow: const Duration(milliseconds: 160),
+          timeout: const Duration(seconds: 5),
+        ),
+      );
+      if (!postConflictSyncIdleResult.idle) {
+        throw CockpitApplicationServiceException(
+          code: 'waitIdleTimedOut',
+          message: 'The example app did not settle after conflict sync.',
+          details: <String, Object?>{
+            'platform': platform,
+            'durationMs': postConflictSyncIdleResult.durationMs,
+            'timeoutMs': postConflictSyncIdleResult.timeoutMs,
+          },
+        );
+      }
+      final syncLabOpenConflictBatchResult = await _runBatchWithRetry(
         CockpitRunBatchRequest(
           app: launchedApp,
           commands: _batchCommandsFromJson(<Map<String, Object?>>[
             ...buildSyncLabOpenConflictBatch(taskTitle: taskTitle),
+            buildSyncLabRevealConflictResolutionCommand(),
             buildSyncLabOpenConflictResolutionCommand(),
           ]),
           defaultResultProfile:
@@ -748,7 +722,7 @@ final class CockpitDemoPlatformVerifier {
       _requireBatchSuccess(
         platform: platform,
         result: syncLabOpenConflictBatchResult,
-        expectedCount: 4,
+        expectedCount: 6,
       );
       final inspectResult = await _inspectSurface(
         CockpitInspectSurfaceRequest(
@@ -769,9 +743,14 @@ final class CockpitDemoPlatformVerifier {
       }
       await _runRequiredCommand(
         app: launchedApp,
+        command:
+            _commandFromJson(buildSyncLabRevealKeepLocalResolutionCommand()),
+      );
+      await _runRequiredCommand(
+        app: launchedApp,
         command: _commandFromJson(buildSyncLabKeepLocalResolutionCommand()),
       );
-      final syncRecoveryBatchResult = await _runBatch(
+      final syncRecoveryBatchResult = await _runBatchWithRetry(
         CockpitRunBatchRequest(
           app: launchedApp,
           commands: _batchCommandsFromJson(buildSyncLabRecoverySyncBatch()),
@@ -785,7 +764,7 @@ final class CockpitDemoPlatformVerifier {
         result: syncRecoveryBatchResult,
         expectedCount: 6,
       );
-      final syncRecoveryVerificationBatchResult = await _runBatch(
+      final syncRecoveryVerificationBatchResult = await _runBatchWithRetry(
         CockpitRunBatchRequest(
           app: launchedApp,
           commands: _batchCommandsFromJson(
@@ -799,7 +778,7 @@ final class CockpitDemoPlatformVerifier {
       _requireBatchSuccess(
         platform: platform,
         result: syncRecoveryVerificationBatchResult,
-        expectedCount: 4,
+        expectedCount: 5,
       );
       await _runRequiredCommand(
         app: launchedApp,
@@ -996,7 +975,10 @@ final class CockpitDemoPlatformVerifier {
         recordingOutputPath: recordingOutputPath,
         recordingDurationMs: recordingDurationMs,
         recordingKind: recordingKind,
-        recordingDriver: cockpitDemoRecordingDriverForPlatform(platform),
+        recordingDriver: cockpitDemoRecordingDriverForPlatform(
+          platform: platform,
+          deviceId: deviceId,
+        ),
         screenshotArtifactRef: screenshotArtifact.relativePath,
         screenshotByteLength: screenshotArtifact.byteLength,
         verifiedCommands: verifiedCommands,
@@ -1017,6 +999,13 @@ final class CockpitDemoPlatformVerifier {
         failureMessage: '$error',
       );
     } finally {
+      if (recordingStarted && activeRecordingAdapter != null) {
+        try {
+          await activeRecordingAdapter.stopRecording();
+        } on Object {
+          // Preserve the primary verification result and avoid shadowing it.
+        }
+      }
       if (app != null) {
         try {
           await _stopApp(CockpitStopAppRequest(app: app));
@@ -1226,7 +1215,7 @@ final class CockpitDemoPlatformVerifier {
     CockpitInteractiveResultProfile resultProfile =
         const CockpitInteractiveResultProfile.standard(),
   }) async {
-    final result = await _runCommand(
+    final result = await _runCommandWithRetry(
       CockpitRunCommandRequest(
         app: app,
         command: command,
@@ -1244,6 +1233,42 @@ final class CockpitDemoPlatformVerifier {
       );
     }
     return result;
+  }
+
+  Future<CockpitExecuteRemoteCommandResult> _runCommandWithRetry(
+    CockpitRunCommandRequest request,
+  ) async {
+    for (var attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        return await _runCommand(request);
+      } on CockpitApplicationServiceException catch (error) {
+        final shouldRetry =
+            error.code == 'remoteUnavailable' && attempt + 1 < 2;
+        if (!shouldRetry) {
+          rethrow;
+        }
+        await _wait(Duration(milliseconds: 400 * (attempt + 1)));
+      }
+    }
+    throw StateError('Unreachable command retry state.');
+  }
+
+  Future<CockpitRunBatchResult> _runBatchWithRetry(
+    CockpitRunBatchRequest request,
+  ) async {
+    for (var attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        return await _runBatch(request);
+      } on CockpitApplicationServiceException catch (error) {
+        final shouldRetry =
+            error.code == 'remoteUnavailable' && attempt + 1 < 2;
+        if (!shouldRetry) {
+          rethrow;
+        }
+        await _wait(Duration(milliseconds: 400 * (attempt + 1)));
+      }
+    }
+    throw StateError('Unreachable batch retry state.');
   }
 
   Future<String?> _copyArtifactToOutputDir({
@@ -1735,10 +1760,17 @@ CockpitRecordingAdapter? cockpitDemoResolveRecordingAdapter({
   );
 }
 
-String cockpitDemoRecordingDriverForPlatform(String platform) {
+String cockpitDemoRecordingDriverForPlatform({
+  required String platform,
+  required String? deviceId,
+}) {
   return switch (platform) {
     'android' => 'adb',
-    'ios' => 'simctl',
+    'ios' => deviceId != null &&
+            deviceId.isNotEmpty &&
+            cockpitLooksLikeIosSimulatorDeviceId(deviceId)
+        ? 'simctl'
+        : 'remote',
     'web' => 'browser-host',
     _ => 'remote',
   };
@@ -1816,6 +1848,8 @@ bool _shouldAllowWebHostRecordingPrerequisiteFailure({
   final message = '$error';
   return message.contains('Remote session request failed: 412') ||
       message.contains('"error":"recordingStartFailed"') ||
+      message.contains('recordingStopFailed') ||
+      message.contains('did not stop before timeout') ||
       message.contains('Screen Recording permission') ||
       message.contains('desktop capture prerequisite');
 }

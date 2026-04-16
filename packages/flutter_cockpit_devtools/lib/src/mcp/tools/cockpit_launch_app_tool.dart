@@ -1,5 +1,6 @@
 import '../../application/cockpit_app_handle.dart';
 import '../../application/cockpit_launch_app_service.dart';
+import '../cockpit_mcp_error.dart';
 import '../cockpit_mcp_tool.dart';
 
 typedef CockpitLaunchAppToolFunction = Future<CockpitLaunchAppResult> Function(
@@ -27,15 +28,34 @@ final class CockpitLaunchAppTool extends CockpitMcpTool {
         'required': <String>[
           'projectDir',
           'platform',
-          'deviceId',
           'sessionPort',
         ],
         'properties': <String, Object?>{
-          'projectDir': <String, Object?>{'type': 'string'},
-          'target': <String, Object?>{'type': 'string'},
-          'platform': <String, Object?>{'type': 'string'},
-          'deviceId': <String, Object?>{'type': 'string'},
-          'sessionPort': <String, Object?>{'type': 'integer'},
+          'projectDir': <String, Object?>{
+            'type': 'string',
+            'description': 'Flutter project directory to launch.',
+          },
+          'target': <String, Object?>{
+            'type': 'string',
+            'description': 'Optional Dart entrypoint.',
+          },
+          'flavor': <String, Object?>{
+            'type': 'string',
+            'description': 'Optional Flutter flavor or Xcode scheme.',
+          },
+          'platform': <String, Object?>{
+            'type': 'string',
+            'description': 'android, ios, macos, windows, linux, or web.',
+          },
+          'deviceId': <String, Object?>{
+            'type': 'string',
+            'description': 'Required for android, ios, and web. Desktop '
+                'launches default to the platform name.',
+          },
+          'sessionPort': <String, Object?>{
+            'type': 'integer',
+            'description': 'Cockpit port exposed by the launched app.',
+          },
           'mode': <String, Object?>{
             'type': 'string',
             'enum': <String>['development', 'automation'],
@@ -48,12 +68,14 @@ final class CockpitLaunchAppTool extends CockpitMcpTool {
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {
     try {
+      final platform = cockpitReadRequiredString(arguments, 'platform');
       final result = await _launch(
         CockpitLaunchAppRequest(
           projectDir: cockpitReadRequiredString(arguments, 'projectDir'),
           target: cockpitReadOptionalString(arguments, 'target'),
-          platform: cockpitReadRequiredString(arguments, 'platform'),
-          deviceId: cockpitReadRequiredString(arguments, 'deviceId'),
+          flavor: cockpitReadOptionalString(arguments, 'flavor'),
+          platform: platform,
+          deviceId: _readDeviceId(arguments, platform),
           sessionPort: cockpitReadRequiredInt(arguments, 'sessionPort'),
           mode: CockpitAppMode.fromJson(
             cockpitReadOptionalString(arguments, 'mode') ?? 'development',
@@ -73,5 +95,24 @@ final class CockpitLaunchAppTool extends CockpitMcpTool {
     } on Object catch (error) {
       cockpitRethrowAsMcpError(error);
     }
+  }
+
+  String _readDeviceId(Map<String, Object?> arguments, String platform) {
+    final explicit = cockpitReadOptionalString(arguments, 'deviceId');
+    if (explicit != null) {
+      return explicit;
+    }
+    return switch (platform) {
+      'macos' => 'macos',
+      'windows' => 'windows',
+      'linux' => 'linux',
+      _ => throw CockpitMcpError.invalidArguments(
+          'deviceId is required for this platform.',
+          details: <String, Object?>{
+            'argument': 'deviceId',
+            'platform': platform,
+          },
+        ),
+    };
   }
 }

@@ -29,7 +29,7 @@ void main() {
       taskTitle: 'MCP sync conflict 42',
     );
 
-    expect(commands, hasLength(5));
+    expect(commands, hasLength(6));
     expect(commands[0]['commandId'], 'verify-open-editor');
     expect(commands[0]['commandType'], 'tap');
     expect(
@@ -52,26 +52,46 @@ void main() {
       commands[1]['parameters'],
       <String, Object?>{'text': 'MCP sync conflict 42'},
     );
-    expect(commands[2]['commandId'], 'verify-focus-task-notes');
+    expect(commands[2]['commandId'], 'verify-reveal-task-notes');
+    expect(commands[2]['commandType'], 'scrollUntilVisible');
     expect(
       commands[2]['locator'],
+      <String, Object?>{
+        'text': 'Notes',
+        'route': '/editor',
+        'ancestor': <String, Object?>{'route': '/editor'},
+      },
+    );
+    expect(
+      commands[2]['parameters'],
+      <String, Object?>{
+        'maxScrolls': 6,
+        'viewportFraction': 0.72,
+        'continuous': true,
+        'durationPerStepMs': 180,
+        'revealAlignment': 'center',
+      },
+    );
+    expect(commands[3]['commandId'], 'verify-focus-task-notes');
+    expect(
+      commands[3]['locator'],
       <String, Object?>{
         'text': 'Notes',
         'ancestor': <String, Object?>{'route': '/editor'},
       },
     );
-    expect(commands[3]['commandId'], 'verify-enter-task-notes');
+    expect(commands[4]['commandId'], 'verify-enter-task-notes');
     expect(
-      commands[3]['locator'],
+      commands[4]['locator'],
       <String, Object?>{
         'text': 'Notes',
         'type': 'TextField',
         'ancestor': <String, Object?>{'route': '/editor'},
       },
     );
-    expect(commands[4]['commandId'], 'verify-save-task');
+    expect(commands[5]['commandId'], 'verify-save-task');
     expect(
-      commands[4]['locator'],
+      commands[5]['locator'],
       <String, Object?>{
         'text': 'Save task',
         'ancestor': <String, Object?>{'route': '/editor'},
@@ -151,6 +171,7 @@ void main() {
         'verify-search-created-task',
         'verify-wait-for-created-task-search-results',
         'verify-open-created-task',
+        'verify-wait-for-detail-route',
       ],
     );
     expect(commands[0]['commandType'], 'enterText');
@@ -178,9 +199,16 @@ void main() {
     expect(
       commands[2]['locator'],
       <String, Object?>{
-        'semanticId': 'Open task MCP sync conflict 42',
+        'text': 'Open',
+        'type': 'TextButton',
         'ancestor': <String, Object?>{'route': '/inbox'},
       },
+    );
+    expect(commands[3]['commandType'], 'waitFor');
+    expect(commands[3]['timeoutMs'], 12000);
+    expect(
+      commands[3]['parameters'],
+      <String, Object?>{'routeName': '/detail'},
     );
   });
 
@@ -193,6 +221,22 @@ void main() {
       command['locator'],
       <String, Object?>{
         'text': 'Resolve conflict',
+        'ancestor': <String, Object?>{'route': '/detail'},
+      },
+    );
+  });
+
+  test('buildSyncLabRevealConflictResolutionCommand reveals the detail CTA',
+      () {
+    final command = buildSyncLabRevealConflictResolutionCommand();
+
+    expect(command['commandId'], 'verify-reveal-conflict-resolution');
+    expect(command['commandType'], 'scrollUntilVisible');
+    expect(
+      command['locator'],
+      <String, Object?>{
+        'text': 'Resolve conflict',
+        'route': '/detail',
         'ancestor': <String, Object?>{'route': '/detail'},
       },
     );
@@ -273,6 +317,7 @@ void main() {
         'verify-search-created-task-after-recovery',
         'verify-wait-for-created-task-search-results-after-recovery',
         'verify-open-created-task-after-recovery',
+        'verify-wait-for-detail-route-after-recovery',
         'verify-assert-task-synced',
       ],
     );
@@ -301,14 +346,37 @@ void main() {
     expect(
       commands[2]['locator'],
       <String, Object?>{
-        'semanticId': 'Open task MCP sync conflict 42',
+        'text': 'Open',
+        'type': 'TextButton',
         'ancestor': <String, Object?>{'route': '/inbox'},
       },
     );
-    expect(commands[3]['commandType'], 'assertText');
+    expect(commands[3]['commandType'], 'waitFor');
+    expect(commands[3]['timeoutMs'], 12000);
     expect(
       commands[3]['parameters'],
+      <String, Object?>{'routeName': '/detail'},
+    );
+    expect(commands[4]['commandType'], 'assertText');
+    expect(
+      commands[4]['parameters'],
       <String, Object?>{'text': 'Sync synced'},
+    );
+  });
+
+  test('buildSyncLabRevealKeepLocalResolutionCommand reveals keep local CTA',
+      () {
+    final command = buildSyncLabRevealKeepLocalResolutionCommand();
+
+    expect(command['commandId'], 'verify-reveal-keep-local-resolution');
+    expect(command['commandType'], 'scrollUntilVisible');
+    expect(
+      command['locator'],
+      <String, Object?>{
+        'text': 'Keep local',
+        'route': '/sync-conflict',
+        'ancestor': <String, Object?>{'route': '/sync-conflict'},
+      },
     );
   });
 }

@@ -115,6 +115,7 @@ export 'src/development/cockpit_development_session_reference_resolver.dart';
 export 'src/development/cockpit_development_session_status.dart';
 export 'src/development/cockpit_development_session_supervisor.dart';
 export 'src/session/cockpit_android_remote_session_launcher.dart';
+export 'src/session/cockpit_ios_physical_remote_session_launcher.dart';
 export 'src/session/cockpit_ios_simulator_remote_session_launcher.dart';
 export 'src/session/cockpit_linux_remote_session_launcher.dart';
 export 'src/session/cockpit_macos_remote_session_launcher.dart';

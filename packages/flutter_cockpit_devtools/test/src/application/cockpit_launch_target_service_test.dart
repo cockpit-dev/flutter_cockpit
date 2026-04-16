@@ -91,6 +91,60 @@ void main() {
       contains(CockpitSurfaceKind.desktopWindow),
     );
   });
+
+  test('launch target normalizes web targets to browser-page profiles',
+      () async {
+    final service = CockpitLaunchTargetService(
+      platformDriverRegistry: CockpitPlatformDriverRegistry(
+        drivers: <String, CockpitPlatformDriverFactory>{
+          'web': ({required String deviceId}) => _FakePlatformDriver(
+                platform: 'web',
+                capabilityProfile: CockpitCapabilityProfile(
+                  targetKind: CockpitTargetKind.browserPage,
+                  surfaceKinds: const <CockpitSurfaceKind>{
+                    CockpitSurfaceKind.browserDom,
+                  },
+                  actionCapabilities: const <CockpitActionCapability>{
+                    CockpitActionCapability.launchApp,
+                  },
+                  evidenceCapabilities: const <CockpitEvidenceCapability>{
+                    CockpitEvidenceCapability.domSnapshot,
+                  },
+                ),
+              ),
+        },
+      ),
+      launchFlutterApp: (_) async => CockpitLaunchAppResult(
+        app: CockpitAppHandle(
+          appId: 'web-app',
+          mode: CockpitAppMode.development,
+          platform: 'web',
+          deviceId: 'chrome',
+          projectDir: '/workspace/examples/cockpit_demo',
+          target: 'web/main.dart',
+          baseUrl: 'http://127.0.0.1:57331',
+          launchedAt: DateTime.utc(2026, 4, 11),
+        ),
+      ),
+    );
+
+    final result = await service.launch(
+      const CockpitLaunchTargetRequest(
+        projectDir: '/workspace/examples/cockpit_demo',
+        platform: 'web',
+        deviceId: 'chrome',
+        sessionPort: 57331,
+        mode: CockpitAppMode.development,
+      ),
+    );
+
+    expect(result.target.targetKind, CockpitTargetKind.browserPage);
+    expect(
+      result.target.capabilityProfile?.surfaceKinds,
+      contains(CockpitSurfaceKind.browserDom),
+    );
+    expect(result.app?.platform, 'web');
+  });
 }
 
 final class _FakePlatformDriver implements CockpitPlatformDriver {

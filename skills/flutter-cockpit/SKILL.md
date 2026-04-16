@@ -14,6 +14,7 @@ Keep context small: read this file first, then open exactly one reference doc on
 - Never invent command names, flags, `commandType` values, or locator keys.
 - If the exact syntax you need is not in this file, run `dart run flutter_cockpit_devtools:flutter_cockpit_devtools help <command>` before executing anything.
 - On a fresh machine or simulator loop, always start with `list-targets`. Do not guess `--device-id`.
+- MCP `launch_app` and `launch_target` mirror the CLI device rules: desktop may omit `deviceId`, but android, ios, and web still need the explicit ID from `list-targets`.
 - In one repo, prefer the implicit `.dart_tool/flutter_cockpit/latest_app.json` handle instead of repeating `--app-json` everywhere.
 - Prefer `app-first` unless you specifically need target-first surface truth. It is the lowest-friction path for reload, logs, errors, network reads, screenshots, and cleanup.
 
@@ -55,9 +56,11 @@ Use these canonical forms on first contact. If you need something beyond them, o
 - App-first launch:
   `dart run flutter_cockpit_devtools:flutter_cockpit_devtools launch-app --project-dir <dir> --platform <android|ios|macos|windows|linux|web> --device-id <id>`
   `--device-id` is required for android, ios, and web. Desktop defaults to the platform.
+  Add `--flavor <name>` for consumer apps that do not build through the default scheme or flavor.
 - Target-first launch:
   `dart run flutter_cockpit_devtools:flutter_cockpit_devtools launch-target --project-dir <dir> --platform <platform> --device-id <id> --target-json /tmp/target.json --output-json /tmp/launch_target.json`
-  Add `--target-kind <flutterApp|desktopApp|browserPage|...>` only when target normalization truly matters.
+  The default `--target-kind flutterApp` auto-normalizes to `desktopApp` and `browserPage` when the platform capability profile requires it, so add `--target-kind <...>` only when you need a specific persisted kind.
+  For web, use the exact browser device ID from `list-targets` such as `chrome`; do not guess `web`, and stay on `mode: development`.
 - Lowest-cost app read:
   `dart run flutter_cockpit_devtools:flutter_cockpit_devtools read-app --profile minimal`
   Valid profiles are `minimal`, `standard`, `inspect`, `evidence`.
@@ -85,8 +88,9 @@ Use these canonical forms on first contact. If you need something beyond them, o
   Minimal shape:
   `{"commandId":"capture-acceptance","commandType":"captureScreenshot","screenshotRequest":{"reason":"acceptance","name":"acceptance","includeSnapshot":true,"attachToStep":true}}`
 - Recording evidence:
-  `dart run flutter_cockpit_devtools:flutter_cockpit_devtools start-recording --recording-json '{"purpose":"acceptance","name":"acceptance","tailStabilizationMs":1400}'`
-  `dart run flutter_cockpit_devtools:flutter_cockpit_devtools stop-recording`
+  after `launch-app` in the same workspace, or with an explicit app handle:
+  `dart run flutter_cockpit_devtools:flutter_cockpit_devtools start-recording --app-json /tmp/app.json --recording-json '{"purpose":"acceptance","name":"acceptance","tailStabilizationMs":1400}'`
+  `dart run flutter_cockpit_devtools:flutter_cockpit_devtools stop-recording --app-json /tmp/app.json`
 - End the loop:
   `dart run flutter_cockpit_devtools:flutter_cockpit_devtools stop-app`
 - Delivery gate:

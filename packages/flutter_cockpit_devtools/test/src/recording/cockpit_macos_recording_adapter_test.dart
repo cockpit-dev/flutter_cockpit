@@ -314,6 +314,276 @@ exit 0
       );
     },
   );
+
+  test(
+    'macos recording adapter gives browser-host capture more quiet startup time',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_macos_browser_recording_adapter',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final ffmpegExecutable = await _writeExecutable(
+        directory: tempDir,
+        name: 'ffmpeg',
+        body: r'''
+#!/bin/sh
+script_dir="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
+log_file="$script_dir/ffmpeg.log"
+printf '%s\n' "$*" >> "$log_file"
+if printf '%s' "$*" | grep -q -- '-list_devices true'; then
+  printf '[1] Capture screen 0\n' >&2
+  exit 0
+fi
+output_path=""
+for arg in "$@"; do
+  output_path="$arg"
+done
+printf '[avfoundation @ 0xc78808000] Overriding selected pixel format to use uyvy422 instead.\n' >&2
+trap 'printf "browser-macos-video" > "$output_path"; exit 0' INT
+sleep 3
+printf "browser-startup-evidence" > "$output_path"
+while true; do
+  sleep 1
+done
+''',
+      );
+
+      final osascriptExecutable = await _writeExecutable(
+        directory: tempDir,
+        name: 'osascript',
+        body: r'''
+#!/bin/sh
+exit 0
+''',
+      );
+
+      final adapter = CockpitMacosRecordingAdapter(
+        appId: 'com.google.Chrome',
+        ffmpegExecutable: ffmpegExecutable.path,
+        osascriptExecutable: osascriptExecutable.path,
+        startupTimeout: const Duration(milliseconds: 200),
+        startupEvidenceTimeout: const Duration(milliseconds: 100),
+        stopTimeout: const Duration(seconds: 2),
+        finalizationPollInterval: const Duration(milliseconds: 10),
+        ffprobeProcessRunner: (executable, arguments) async => ProcessResult(
+          0,
+          0,
+          '{"format":{"duration":"2.000"},"streams":[{"codec_type":"video","nb_frames":"40"}]}',
+          '',
+        ),
+      );
+
+      final session = await adapter.startRecording(
+        const CockpitRecordingRequest(
+          purpose: CockpitRecordingPurpose.acceptance,
+          name: 'browser-host-demo',
+          attachToStep: true,
+        ),
+      );
+      final result = await adapter.stopRecording();
+
+      expect(session.state, CockpitRecordingState.recording);
+      expect(result.state, CockpitRecordingState.completed);
+      expect(
+        File(result.sourceFilePath!).readAsStringSync(),
+        'browser-macos-video',
+      );
+    },
+  );
+
+  test(
+    'macos recording adapter allows silent browser-host startup when ffmpeg stays running',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_macos_browser_silent_recording_adapter',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final ffmpegExecutable = await _writeExecutable(
+        directory: tempDir,
+        name: 'ffmpeg',
+        body: r'''
+#!/bin/sh
+script_dir="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
+if printf '%s' "$*" | grep -q -- '-list_devices true'; then
+  printf '[1] Capture screen 0\n' >&2
+  exit 0
+fi
+output_path=""
+for arg in "$@"; do
+  output_path="$arg"
+done
+printf '[avfoundation @ 0xc78808000] Overriding selected pixel format to use uyvy422 instead.\n' >&2
+trap 'printf "browser-silent-video" > "$output_path"; exit 0' INT
+while true; do
+  sleep 1
+done
+''',
+      );
+
+      final osascriptExecutable = await _writeExecutable(
+        directory: tempDir,
+        name: 'osascript',
+        body: r'''
+#!/bin/sh
+exit 0
+''',
+      );
+
+      final adapter = CockpitMacosRecordingAdapter(
+        appId: 'com.google.Chrome',
+        ffmpegExecutable: ffmpegExecutable.path,
+        osascriptExecutable: osascriptExecutable.path,
+        startupTimeout: const Duration(milliseconds: 200),
+        startupEvidenceTimeout: const Duration(milliseconds: 100),
+        stopTimeout: const Duration(seconds: 2),
+        finalizationPollInterval: const Duration(milliseconds: 10),
+        ffprobeProcessRunner: (executable, arguments) async => ProcessResult(
+          0,
+          0,
+          '{"format":{"duration":"2.000"},"streams":[{"codec_type":"video","nb_frames":"40"}]}',
+          '',
+        ),
+      );
+
+      final session = await adapter.startRecording(
+        const CockpitRecordingRequest(
+          purpose: CockpitRecordingPurpose.acceptance,
+          name: 'browser-host-silent-demo',
+          attachToStep: true,
+        ),
+      );
+      final result = await adapter.stopRecording();
+
+      expect(session.state, CockpitRecordingState.recording);
+      expect(result.state, CockpitRecordingState.completed);
+      expect(
+        File(result.sourceFilePath!).readAsStringSync(),
+        'browser-silent-video',
+      );
+    },
+  );
+
+  test(
+    'macos recording adapter clears the active session after a failed stop so a new recording can start',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_macos_recording_adapter_retry_after_failed_stop',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final ffmpegExecutable = await _writeExecutable(
+        directory: tempDir,
+        name: 'ffmpeg',
+        body: r'''
+#!/bin/sh
+script_dir="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
+state_file="$script_dir/run-count"
+if printf '%s' "$*" | grep -q -- '-list_devices true'; then
+  printf '[1] Capture screen 0\n' >&2
+  exit 0
+fi
+count=0
+if [ -f "$state_file" ]; then
+  count="$(cat "$state_file")"
+fi
+count=$((count + 1))
+printf '%s' "$count" > "$state_file"
+output_path=""
+for arg in "$@"; do
+  output_path="$arg"
+done
+printf 'Press [q] to stop\n' >&2
+if [ "$count" -eq 1 ]; then
+  trap 'exit 0' INT
+else
+  trap 'printf "retry-macos-video" > "$output_path"; exit 0' INT
+fi
+while true; do
+  sleep 1
+done
+''',
+      );
+
+      final osascriptExecutable = await _writeExecutable(
+        directory: tempDir,
+        name: 'osascript',
+        body: r'''
+#!/bin/sh
+exit 0
+''',
+      );
+
+      CockpitMacosRecordingAdapter buildAdapter() {
+        return CockpitMacosRecordingAdapter(
+          appId: 'dev.cockpit.cockpitDemo',
+          ffmpegExecutable: ffmpegExecutable.path,
+          osascriptExecutable: osascriptExecutable.path,
+          startupTimeout: const Duration(seconds: 2),
+          stopTimeout: const Duration(seconds: 2),
+          finalizationPollInterval: const Duration(milliseconds: 10),
+          ffprobeProcessRunner: (executable, arguments) async {
+            final countFile = File(p.join(tempDir.path, 'run-count'));
+            final count = int.parse(countFile.readAsStringSync());
+            if (count == 1) {
+              return ProcessResult(
+                0,
+                0,
+                '{"format":{"duration":"0.000"},"streams":[{"codec_type":"video","nb_frames":"0"}]}',
+                '',
+              );
+            }
+            return ProcessResult(
+              0,
+              0,
+              '{"format":{"duration":"2.000"},"streams":[{"codec_type":"video","nb_frames":"40"}]}',
+              '',
+            );
+          },
+        );
+      }
+
+      final firstAdapter = buildAdapter();
+      await firstAdapter.startRecording(
+        const CockpitRecordingRequest(
+          purpose: CockpitRecordingPurpose.acceptance,
+          name: 'failed-stop-demo',
+        ),
+      );
+      final firstResult = await firstAdapter.stopRecording();
+
+      expect(firstResult.state, CockpitRecordingState.failed);
+
+      final secondAdapter = buildAdapter();
+      final secondSession = await secondAdapter.startRecording(
+        const CockpitRecordingRequest(
+          purpose: CockpitRecordingPurpose.acceptance,
+          name: 'retry-stop-demo',
+        ),
+      );
+      final secondResult = await secondAdapter.stopRecording();
+
+      expect(secondSession.state, CockpitRecordingState.recording);
+      expect(secondResult.state, CockpitRecordingState.completed);
+      expect(
+        File(secondResult.sourceFilePath!).readAsStringSync(),
+        'retry-macos-video',
+      );
+    },
+  );
 }
 
 Future<File> _writeExecutable({

@@ -30,6 +30,13 @@ Bootstrap the workspace first:
 dart run melos bootstrap
 ```
 
+Host prerequisites for the full verifier:
+
+- install `ffmpeg` on the host machine; desktop and browser-host recording flows depend on it
+- for local web verification, install Chrome and allow the browser plus host capture stack to use screen recording
+- for iOS simulator verification, Xcode command-line tools and `xcrun simctl` must be available
+- for Android verification, `adb` plus a bootable emulator must already be available
+
 If you want to validate web locally, prepare the generated worker and wasm assets:
 
 ```bash
@@ -74,7 +81,6 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --project-dir examples/cockpit_demo \
   --platform web \
   --device-id chrome \
-  --target-kind browserPage \
   --target-json /tmp/cockpit_demo_target.json
 ```
 

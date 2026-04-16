@@ -5,6 +5,7 @@ import 'dart:io';
 import '../bridge/cockpit_web_remote_session_bridge_server.dart';
 import 'cockpit_development_session_handle.dart';
 import 'cockpit_development_session_status.dart';
+import 'cockpit_development_session_machine_launcher.dart';
 import 'cockpit_flutter_run_machine_client.dart';
 import 'cockpit_flutter_run_machine_event.dart';
 import '../application/cockpit_compact_json.dart';
@@ -146,13 +147,23 @@ final class CockpitDevelopmentSessionSupervisor {
   }
 
   void reportStartupFailure(Object error) {
+    final fallbackError =
+        error is CockpitDevelopmentSessionFallbackException ? error : null;
+    final remoteSessionHandle = fallbackError?.remoteSessionHandle;
+    if (remoteSessionHandle != null) {
+      _handle = _handle.copyWith(
+        appId: remoteSessionHandle.appId,
+        appBaseUrl: remoteSessionHandle.baseUrl,
+        remoteSessionHandle: remoteSessionHandle,
+      );
+    }
     _log('startup failure error=$error');
     _setStatus(
       _status.copyWith(
         state: CockpitDevelopmentSessionState.failed,
-        appReachable: false,
-        remoteSessionReachable: false,
-        lastError: '$error',
+        appReachable: remoteSessionHandle != null,
+        remoteSessionReachable: remoteSessionHandle != null,
+        lastError: _startupFailureMessage(error),
       ),
     );
   }
@@ -171,6 +182,13 @@ final class CockpitDevelopmentSessionSupervisor {
       }
       await Future<void>.delayed(const Duration(milliseconds: 10));
     }
+  }
+
+  String _startupFailureMessage(Object error) {
+    if (error is CockpitDevelopmentSessionFallbackException) {
+      return '[${error.code}] ${error.message}';
+    }
+    return '$error';
   }
 
   Future<CockpitDevelopmentSessionStatus> reload(

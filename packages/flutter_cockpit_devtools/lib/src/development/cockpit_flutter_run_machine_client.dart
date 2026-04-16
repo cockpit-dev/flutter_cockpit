@@ -34,6 +34,7 @@ final class CockpitFlutterRunMachineClient {
       StreamController<CockpitFlutterRunMachineEvent>.broadcast();
   final Map<int, Completer<Object?>> _requestCompleters =
       <int, Completer<Object?>>{};
+  final List<String> _recentStderrLines = <String>[];
   late final StreamSubscription<String> _stdoutSubscription;
   late final StreamSubscription<String> _stderrSubscription;
   late final StreamSubscription<int> _exitCodeSubscription;
@@ -41,11 +42,16 @@ final class CockpitFlutterRunMachineClient {
   int _nextRequestId = 0;
   String? _currentAppId;
   Uri? _currentVmServiceUri;
+  int? _lastExitCode;
+  String? _lastStderrLine;
 
   Stream<CockpitFlutterRunMachineEvent> get events => _eventsController.stream;
 
   String? get currentAppId => _currentAppId;
   Uri? get currentVmServiceUri => _currentVmServiceUri;
+  int? get lastExitCode => _lastExitCode;
+  String? get lastStderrLine => _lastStderrLine;
+  String get recentDiagnosticSummary => _recentStderrLines.join('\n').trim();
 
   Future<Uri> get vmServiceUri => _vmServiceUriCompleter.future;
 
@@ -53,6 +59,7 @@ final class CockpitFlutterRunMachineClient {
     required String projectDir,
     required String target,
     required String deviceId,
+    String? flavor,
     String? flutterExecutable,
     List<String> extraArgs = const <String>[],
   }) async {
@@ -67,6 +74,10 @@ final class CockpitFlutterRunMachineClient {
           target,
           '-d',
           deviceId,
+          if (flavor != null && flavor.isNotEmpty) ...<String>[
+            '--flavor',
+            flavor
+          ],
           ...extraArgs,
         ],
         workingDirectory: projectDir);
@@ -92,6 +103,7 @@ final class CockpitFlutterRunMachineClient {
     required String target,
     required String deviceId,
     required String appId,
+    String? flavor,
     String? flutterExecutable,
     List<String> extraArgs = const <String>[],
   }) async {
@@ -108,6 +120,10 @@ final class CockpitFlutterRunMachineClient {
           deviceId,
           '--app-id',
           appId,
+          if (flavor != null && flavor.isNotEmpty) ...<String>[
+            '--flavor',
+            flavor
+          ],
           ...extraArgs,
         ],
         workingDirectory: projectDir);
@@ -132,6 +148,12 @@ final class CockpitFlutterRunMachineClient {
     String method, {
     Map<String, Object?>? params,
   }) async {
+    final exitCode = _lastExitCode;
+    if (exitCode != null) {
+      throw CockpitFlutterRunMachineRequestException(
+        _requestFailureMessage(exitCode),
+      );
+    }
     final id = _nextRequestId++;
     final completer = Completer<Object?>();
     _requestCompleters[id] = completer;
@@ -140,7 +162,12 @@ final class CockpitFlutterRunMachineClient {
           'method': method,
           'params': params
         })}]\n';
-    await _requestWriter(payload);
+    try {
+      await _requestWriter(payload);
+    } on Object {
+      _requestCompleters.remove(id);
+      rethrow;
+    }
     return completer.future;
   }
 
@@ -338,6 +365,11 @@ final class CockpitFlutterRunMachineClient {
   }
 
   void _handleStderrLine(String line) {
+    _lastStderrLine = line;
+    _recentStderrLines.add(line);
+    if (_recentStderrLines.length > 10) {
+      _recentStderrLines.removeAt(0);
+    }
     _eventsController.add(
       CockpitFlutterRunMachineEvent(
         kind: CockpitFlutterRunMachineEventKind.stderr,
@@ -347,12 +379,29 @@ final class CockpitFlutterRunMachineClient {
   }
 
   void _handleExitCode(int code) {
+    _lastExitCode = code;
+    for (final completer in _requestCompleters.values) {
+      if (!completer.isCompleted) {
+        completer.completeError(
+          CockpitFlutterRunMachineRequestException(
+            _requestFailureMessage(code),
+          ),
+        );
+      }
+    }
+    _requestCompleters.clear();
     _eventsController.add(
       CockpitFlutterRunMachineEvent(
         kind: CockpitFlutterRunMachineEventKind.processExit,
         exitCode: code,
       ),
     );
+  }
+
+  String _requestFailureMessage(int code) {
+    return 'Flutter run machine exited before the request completed '
+        '(exitCode=$code)'
+        '${recentDiagnosticSummary.isEmpty ? '' : ': $recentDiagnosticSummary'}';
   }
 
   static CockpitFlutterRunMachineEventKind _kindForEventName(String eventName) {

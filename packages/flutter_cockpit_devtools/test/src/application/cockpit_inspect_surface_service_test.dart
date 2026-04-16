@@ -207,6 +207,65 @@ void main() {
       );
     },
   );
+
+  test(
+    'inspect surface does not label physical iOS targets as simulator-only when flutter inspection succeeds',
+    () async {
+      final service = CockpitInspectSurfaceService(
+        platformDriverRegistry: CockpitPlatformDriverRegistry(
+          drivers: <String, CockpitPlatformDriverFactory>{
+            'ios': ({required String deviceId}) => _FakeEvidencePlatformDriver(
+                  platform: 'ios',
+                  capabilityProfile: CockpitCapabilityProfile(
+                    targetKind: CockpitTargetKind.flutterApp,
+                    surfaceKinds: const <CockpitSurfaceKind>{
+                      CockpitSurfaceKind.flutterSemantic,
+                      CockpitSurfaceKind.nativeUi,
+                    },
+                    actionCapabilities: const <CockpitActionCapability>{
+                      CockpitActionCapability.captureScreenshot,
+                      CockpitActionCapability.tap,
+                    },
+                    evidenceCapabilities: const <CockpitEvidenceCapability>{
+                      CockpitEvidenceCapability.flutterScreenshot,
+                      CockpitEvidenceCapability.nativeScreenshot,
+                    },
+                  ),
+                ),
+          },
+        ),
+        inspectFlutterSurface: (_) async => const CockpitInspectUiResult(
+          routeName: '/physical-ios-home',
+          diagnosticLevel: 'inspect',
+          truncated: false,
+        ),
+      );
+
+      final result = await service.inspect(
+        CockpitInspectSurfaceRequest(
+          target: CockpitTargetHandle(
+            targetId: 'dev.cockpit.ios.device',
+            targetKind: CockpitTargetKind.flutterApp,
+            platform: 'ios',
+            deviceId: '00008110-0009341C2EF3801E',
+            projectDir: '/workspace/examples/cockpit_demo',
+            target: 'cockpit/main.dart',
+            connection: const CockpitTargetConnection(
+              baseUrl: 'http://127.0.0.1:57331',
+            ),
+            launchedAt: DateTime.utc(2026, 4, 16),
+          ),
+          resultProfile: const CockpitInteractiveResultProfile.inspect(),
+        ),
+      );
+
+      expect(result.routeName, '/physical-ios-home');
+      expect(
+        result.capabilityProfile.qualityFlags,
+        isNot(contains(CockpitQualityFlag.simulatorOnly)),
+      );
+    },
+  );
 }
 
 final class _FakeEvidencePlatformDriver

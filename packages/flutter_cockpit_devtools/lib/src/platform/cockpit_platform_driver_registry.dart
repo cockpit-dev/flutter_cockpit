@@ -1,6 +1,8 @@
 import 'android/cockpit_android_platform_driver.dart';
 import 'cockpit_evidence_driver.dart';
 import 'cockpit_platform_driver.dart';
+import 'ios/cockpit_ios_device_connection.dart';
+import 'ios/cockpit_ios_physical_platform_driver.dart';
 import 'ios/cockpit_ios_simulator_platform_driver.dart';
 import 'linux/cockpit_linux_platform_driver.dart';
 import 'macos/cockpit_macos_platform_driver.dart';
@@ -30,7 +32,9 @@ final class CockpitPlatformDriverRegistry {
     }
     return switch (platform) {
       'android' => CockpitAndroidPlatformDriver(deviceId: deviceId),
-      'ios' => CockpitIosSimulatorPlatformDriver(deviceId: deviceId),
+      'ios' => cockpitLooksLikeIosSimulatorDeviceId(deviceId)
+          ? CockpitIosSimulatorPlatformDriver(deviceId: deviceId)
+          : CockpitIosPhysicalPlatformDriver(deviceId: deviceId),
       'macos' => CockpitMacosPlatformDriver(),
       'windows' => CockpitWindowsPlatformDriver(),
       'linux' => CockpitLinuxPlatformDriver(),

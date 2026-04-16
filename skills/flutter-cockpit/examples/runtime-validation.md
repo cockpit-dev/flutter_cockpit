@@ -28,7 +28,6 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --project-dir examples/cockpit_demo \
   --platform web \
   --device-id chrome \
-  --target-kind browserPage \
   --target-json /tmp/flutter_cockpit/target.json
 ```
 

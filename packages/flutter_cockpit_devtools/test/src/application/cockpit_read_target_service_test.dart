@@ -197,6 +197,94 @@ void main() {
       contains(CockpitActionCapability.startRecording),
     );
   });
+
+  test(
+    'read target reuses flutter app reads for launched browser targets that retain app metadata',
+    () async {
+      final target = CockpitTargetHandle(
+        targetId: 'chrome-demo',
+        targetKind: CockpitTargetKind.browserPage,
+        platform: 'web',
+        deviceId: 'chrome',
+        projectDir: '/workspace/examples/cockpit_demo',
+        target: 'web',
+        connection: const CockpitTargetConnection(
+          baseUrl: 'http://127.0.0.1:57331',
+        ),
+        launchedAt: DateTime.utc(2026, 4, 11),
+        metadata: const <String, Object?>{
+          'appId': 'web-app',
+          'appMode': 'development',
+          'supportsHotReload': true,
+        },
+      );
+      final service = CockpitReadTargetService(
+        platformDriverRegistry: CockpitPlatformDriverRegistry(
+          drivers: <String, CockpitPlatformDriverFactory>{
+            'web': ({required String deviceId}) => _FakePlatformDriver(
+                  platform: 'web',
+                  capabilityProfile: CockpitCapabilityProfile(
+                    targetKind: CockpitTargetKind.browserPage,
+                    surfaceKinds: const <CockpitSurfaceKind>{
+                      CockpitSurfaceKind.browserDom,
+                    },
+                    actionCapabilities: const <CockpitActionCapability>{
+                      CockpitActionCapability.tap,
+                      CockpitActionCapability.captureScreenshot,
+                    },
+                    evidenceCapabilities: const <CockpitEvidenceCapability>{
+                      CockpitEvidenceCapability.domSnapshot,
+                    },
+                  ),
+                ),
+          },
+        ),
+        readFlutterTarget: (_) async => CockpitReadAppResult(
+          sessionId: 'web-session',
+          transportType: 'remoteHttp',
+          capabilities: CockpitCapabilities(
+            platform: 'web',
+            transportType: 'remoteHttp',
+            supportsInAppControl: true,
+            supportsFlutterViewCapture: true,
+            supportsNativeScreenCapture: false,
+            supportsHostAutomation: false,
+            supportedCommands: const <CockpitCommandType>[
+              CockpitCommandType.tap,
+            ],
+            supportedLocatorStrategies: CockpitLocatorKind.values,
+          ),
+          recordingCapabilities: CockpitRecordingCapabilities(
+            supportsNativeRecording: true,
+            preferredAcceptanceRecordingKind: CockpitRecordingKind.nativeScreen,
+          ),
+          selectedPlane: CockpitPlaneKind.flutterSemanticPlane,
+          recommendedNextStep: 'runNextCommand',
+          currentRouteName: '/web-home',
+        ),
+      );
+
+      final result = await service.read(
+        CockpitReadTargetRequest(
+          target: target,
+          resultProfile: const CockpitInteractiveResultProfile.minimal(),
+        ),
+      );
+
+      expect(result.target.targetKind, CockpitTargetKind.browserPage);
+      expect(result.foregroundSurface, CockpitSurfaceKind.browserDom);
+      expect(result.selectedPlane, CockpitPlaneKind.flutterSemanticPlane);
+      expect(result.currentRouteName, '/web-home');
+      expect(result.recommendedNextStep, 'runNextCommand');
+      expect(
+        result.capabilityProfile.surfaceKinds,
+        containsAll(<CockpitSurfaceKind>[
+          CockpitSurfaceKind.browserDom,
+          CockpitSurfaceKind.flutterSemantic,
+        ]),
+      );
+    },
+  );
 }
 
 final class _FakePlatformDriver implements CockpitPlatformDriver {

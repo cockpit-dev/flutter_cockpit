@@ -5,6 +5,7 @@ import 'dart:isolate';
 import 'package:path/path.dart' as p;
 
 import '../development/cockpit_development_session_handle.dart';
+import '../development/cockpit_development_session_machine_launcher.dart';
 import '../development/cockpit_development_session_status.dart';
 import '../development/cockpit_development_session_supervisor_client.dart';
 import '../remote/cockpit_android_port_forwarder.dart';
@@ -38,12 +39,14 @@ final class CockpitLaunchDevelopmentSessionRequest {
     required this.deviceId,
     required this.sessionPort,
     this.target,
+    this.flavor,
     this.launchTimeout = const Duration(seconds: 120),
     this.persistHandlePath,
   });
 
   final String projectDir;
   final String? target;
+  final String? flavor;
   final String platform;
   final String deviceId;
   final int sessionPort;
@@ -112,6 +115,7 @@ final class CockpitLaunchDevelopmentSessionService {
         projectDir: normalizedProjectDir,
         target: request.target,
       ),
+      flavor: request.flavor,
       platform: request.platform,
       deviceId: request.deviceId,
       sessionPort: request.sessionPort,
@@ -243,10 +247,14 @@ final class CockpitDevelopmentSessionDaemonLauncher {
           }
           if (response.status.state == CockpitDevelopmentSessionState.failed ||
               response.status.state == CockpitDevelopmentSessionState.stopped) {
-            lastFailure = StateError(
-              response.status.lastError ??
-                  'Development supervisor entered ${response.status.state.jsonValue}.',
-            );
+            lastFailure = _fallbackExceptionFromStatusError(
+                  response.status.lastError,
+                  sessionHandle: response.sessionHandle,
+                ) ??
+                StateError(
+                  response.status.lastError ??
+                      'Development supervisor entered ${response.status.state.jsonValue}.',
+                );
             permanentStartupFailure = true;
             break;
           }
@@ -262,6 +270,9 @@ final class CockpitDevelopmentSessionDaemonLauncher {
       );
       activeAttempt = null;
       if (permanentStartupFailure) {
+        if (lastFailure is CockpitDevelopmentSessionFallbackException) {
+          throw lastFailure;
+        }
         throw StateError('Development session startup failed: $lastFailure');
       }
       if (!shouldRetryAttempt &&
@@ -319,6 +330,11 @@ final class CockpitDevelopmentSessionDaemonLauncher {
         request.projectDir,
         '--target',
         request.target!,
+        if (request.flavor case final flavor?
+            when flavor.isNotEmpty) ...<String>[
+          '--flavor',
+          flavor,
+        ],
         '--platform',
         request.platform,
         '--device-id',
@@ -408,4 +424,27 @@ final class CockpitDevelopmentSessionDaemonLauncher {
       return error;
     }
   }
+}
+
+CockpitDevelopmentSessionFallbackException? _fallbackExceptionFromStatusError(
+  String? error, {
+  CockpitDevelopmentSessionHandle? sessionHandle,
+}) {
+  if (error == null || !error.startsWith('[')) {
+    return null;
+  }
+  final closingBracketIndex = error.indexOf('] ');
+  if (closingBracketIndex <= 1) {
+    return null;
+  }
+  final code = error.substring(1, closingBracketIndex);
+  final message = error.substring(closingBracketIndex + 2);
+  if (code.isEmpty || message.isEmpty) {
+    return null;
+  }
+  return CockpitDevelopmentSessionFallbackException(
+    code: code,
+    message: message,
+    remoteSessionHandle: sessionHandle?.remoteSessionHandle,
+  );
 }

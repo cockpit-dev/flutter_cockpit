@@ -73,4 +73,44 @@ void main() {
     expect(File(capturedRequest!.appHandlePath!).existsSync(), isTrue);
     expect(stdoutBuffer.toString(), contains('appJsonPath'));
   });
+
+  test('launch-app forwards flavor when provided', () async {
+    CockpitLaunchAppRequest? capturedRequest;
+    final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
+      ..addCommand(
+        LaunchAppCommand(
+          launch: (request) async {
+            capturedRequest = request;
+            return CockpitLaunchAppResult(
+              app: CockpitAppHandle(
+                appId: 'dev.cockpit.demo',
+                mode: CockpitAppMode.development,
+                platform: 'android',
+                deviceId: 'emulator-5554',
+                projectDir: request.projectDir,
+                target: request.target ?? 'cockpit/main.dart',
+                baseUrl: 'http://127.0.0.1:57331',
+                launchedAt: DateTime.utc(2026, 4, 12),
+              ),
+            );
+          },
+        ),
+      );
+
+    final exitCode = await runner.run(<String>[
+          'launch-app',
+          '--project-dir',
+          'examples/cockpit_demo',
+          '--platform',
+          'android',
+          '--device-id',
+          'emulator-5554',
+          '--flavor',
+          'staging',
+        ]) ??
+        0;
+
+    expect(exitCode, 0);
+    expect(capturedRequest?.flavor, 'staging');
+  });
 }

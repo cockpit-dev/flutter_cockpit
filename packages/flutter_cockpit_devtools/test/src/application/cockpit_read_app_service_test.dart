@@ -333,6 +333,66 @@ void main() {
       );
     },
   );
+
+  test(
+    'read app does not inherit simulator-only capabilities for physical iOS devices',
+    () async {
+      final app = CockpitAppHandle(
+        appId: 'dev.cockpit.ios.device',
+        mode: CockpitAppMode.development,
+        platform: 'ios',
+        deviceId: '00008110-0009341C2EF3801E',
+        projectDir: '/workspace/examples/cockpit_demo',
+        target: 'cockpit/main.dart',
+        baseUrl: 'http://127.0.0.1:50331',
+        launchedAt: DateTime.utc(2026, 4, 16),
+      );
+      final service = CockpitReadAppService(
+        remoteStatusService: CockpitReadRemoteStatusService(
+          readStatus: (_) async => CockpitRemoteSessionStatus(
+            sessionId: 'session-ios-device',
+            platform: 'ios',
+            transportType: 'remoteHttp',
+            currentRouteName: '/home',
+            capabilities: CockpitCapabilities(
+              platform: 'ios',
+              transportType: 'remoteHttp',
+              supportsInAppControl: true,
+              supportsFlutterViewCapture: true,
+              supportsNativeScreenCapture: true,
+              supportsHostAutomation: false,
+              supportedCommands: const <CockpitCommandType>[
+                CockpitCommandType.tap,
+              ],
+              supportedLocatorStrategies: CockpitLocatorKind.values,
+            ),
+            recordingCapabilities: CockpitRecordingCapabilities(
+              supportsNativeRecording: true,
+              preferredAcceptanceRecordingKind:
+                  CockpitRecordingKind.nativeScreen,
+            ),
+            snapshot: CockpitSnapshot(routeName: '/home'),
+          ),
+        ),
+      );
+
+      final result = await service.read(
+        CockpitReadAppRequest(
+          app: app,
+          resultProfile: const CockpitInteractiveResultProfile.minimal(),
+        ),
+      );
+
+      expect(
+        result.capabilities.capabilityProfile?.qualityFlags,
+        isNot(contains(CockpitQualityFlag.simulatorOnly)),
+      );
+      expect(
+        result.capabilities.capabilityProfile?.actionCapabilities,
+        isNot(contains(CockpitActionCapability.runShell)),
+      );
+    },
+  );
 }
 
 final class _FakePlatformDriver implements CockpitPlatformDriver {

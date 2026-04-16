@@ -29,6 +29,8 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 ```
 
 If you omit `--app-json`, the CLI writes the reusable handle to `.dart_tool/flutter_cockpit/latest_app.json` in the current working directory and later app commands reuse it automatically.
+Add `--flavor <name>` when the app uses a non-default Android flavor or Xcode scheme.
+For web, keep `--mode development`, and use the exact browser `--device-id` reported by `list-targets`.
 
 Read lightweight state:
 
@@ -54,6 +56,9 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --session-port 57331 \
   --target-json /tmp/flutter_cockpit/target.json
 ```
+
+For browser target-first work, automation launch is not a supported browser path. Use development mode with the concrete browser `--device-id` from `list-targets`, such as `chrome`.
+`launch-target` now auto-normalizes the default `flutterApp` target kind to `browserPage` on web and `desktopApp` on desktop, so you usually do not need to pass `--target-kind`.
 
 Read the smallest truthful target state:
 
@@ -230,18 +235,23 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools stop-app
 
 ## Recording
 
+Assumes a prior `launch-app` in the same workspace, or an explicit reusable app handle.
+
 Start recording:
 
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   start-recording \
+  --app-json /tmp/flutter_cockpit/app.json \
   --recording-json '{"purpose":"acceptance","tailStabilizationMs":1400}'
 ```
 
 Stop recording:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools stop-recording
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  stop-recording \
+  --app-json /tmp/flutter_cockpit/app.json
 ```
 
 For local macOS web validation, if browser-host recording is blocked only because the desktop has not granted screen-capture permission yet, use:

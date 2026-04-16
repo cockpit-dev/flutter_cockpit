@@ -28,6 +28,11 @@ final class LaunchAppCommand extends CockpitCliCommand {
             'Optional Dart entrypoint. When omitted, flutter_cockpit_devtools tries cockpit/main.dart first, then lib/main.dart.',
       )
       ..addOption(
+        'flavor',
+        help:
+            'Optional Flutter flavor / Xcode scheme to build and run. Use this for consumer apps that do not launch through the default flavor.',
+      )
+      ..addOption(
         'platform',
         help: 'Target platform: android, ios, macos, windows, linux, or web.',
       )
@@ -55,7 +60,7 @@ final class LaunchAppCommand extends CockpitCliCommand {
             .toList(growable: false),
         defaultsTo: CockpitAppMode.development.jsonValue,
         help:
-            'Launch mode: development keeps reload support; automation favors clean automation sessions.',
+            'Launch mode: development keeps reload support; automation favors clean automation sessions. Web currently launches through development mode.',
       )
       ..addOption(
         'app-json',
@@ -91,7 +96,7 @@ final class LaunchAppCommand extends CockpitCliCommand {
 
   @override
   String get helpNeeds =>
-      'project-dir and platform. Run list-targets first on a fresh machine, simulator, emulator, or browser loop; device-id is required for android, ios, and web. target is optional when cockpit/main.dart or lib/main.dart exists.';
+      'project-dir and platform. Run list-targets first on a fresh machine, simulator, emulator, or browser loop; device-id is required for android, ios, and web. target is optional when cockpit/main.dart or lib/main.dart exists. Web currently launches through development mode.';
 
   @override
   String get helpExample =>
@@ -107,6 +112,7 @@ final class LaunchAppCommand extends CockpitCliCommand {
       CockpitLaunchAppRequest(
         projectDir: _readRequiredOption('project-dir'),
         target: _readOptionalOption('target'),
+        flavor: _readOptionalOption('flavor'),
         platform: _readRequiredOption('platform'),
         deviceId: _readDeviceId(),
         sessionPort: int.parse(_readRequiredOption('session-port')),

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:flutter_cockpit_devtools/flutter_cockpit_devtools.dart';
 import 'package:test/test.dart';
@@ -92,6 +94,30 @@ void main() {
           baseUri: Uri.parse('http://127.0.0.1:47331'),
         ),
         iosDeviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+      );
+
+      expect(resolution?.implementation, 'remote');
+      expect(resolution?.effectiveLayer, CockpitRecordingLayer.system);
+      expect(resolution?.fallbackUsed, isFalse);
+    },
+  );
+
+  test(
+    'uses remote recording for physical iOS device IDs instead of simctl',
+    () {
+      final resolver = CockpitRecordingStrategyResolver(
+        remoteAdapterFactory: (client) => _FakeRecordingAdapter(),
+        adbAdapterFactory: (deviceId) => _FakeRecordingAdapter(),
+        simctlAdapterFactory: (deviceId) => _FakeRecordingAdapter(),
+      );
+
+      final resolution = resolver.resolveDetailed(
+        platform: 'ios',
+        recording: autoRequest,
+        client: CockpitRemoteSessionClient(
+          baseUri: Uri.parse('http://127.0.0.1:47331'),
+        ),
+        iosDeviceId: '00008110-0009341C2EF3801E',
       );
 
       expect(resolution?.implementation, 'remote');
@@ -197,6 +223,58 @@ void main() {
 
     expect(resolution, isNull);
   });
+
+  test(
+    'prefers an active macOS host recording session when stop flow requests active host reuse',
+    () {
+      addTearDown(() {
+        cockpitClearActiveHostRecordingSession(
+          'macos:dev.cockpit.cockpitDemo.session',
+        );
+      });
+      cockpitStoreActiveHostRecordingSession(
+        'macos:dev.cockpit.cockpitDemo.session',
+        CockpitHostRecordingRuntimeSession(
+          process: _FakeProcess(),
+          request: autoRequest,
+          outputFile: File('/tmp/active-recording.mp4'),
+          stderrSubscription: null,
+          stopwatch: Stopwatch(),
+        ),
+      );
+
+      final resolver = CockpitRecordingStrategyResolver(
+        remoteAdapterFactory: (client) => _FakeRecordingAdapter(),
+        adbAdapterFactory: (deviceId) => _FakeRecordingAdapter(),
+        simctlAdapterFactory: (deviceId) => _FakeRecordingAdapter(),
+        macosAdapterFactory: (appId) => _FakeRecordingAdapter(),
+      );
+
+      final resolution = resolver.resolveDetailed(
+        platform: 'macos',
+        recording: autoRequest,
+        client: CockpitRemoteSessionClient(
+          baseUri: Uri.parse('http://127.0.0.1:47331'),
+        ),
+        sessionHandle: CockpitRemoteSessionHandle(
+          platform: 'macos',
+          deviceId: 'macos',
+          projectDir: '/workspace/examples/cockpit_demo',
+          target: 'cockpit/main.dart',
+          appId: 'dev.cockpit.cockpitDemo.session',
+          host: '127.0.0.1',
+          hostPort: 47331,
+          devicePort: 47331,
+          baseUrl: 'http://127.0.0.1:47331',
+          launchedAt: DateTime.utc(2026, 4, 13),
+        ),
+        preferActiveHostSession: true,
+      );
+
+      expect(resolution?.implementation, 'macosHost');
+      expect(resolution?.effectiveLayer, CockpitRecordingLayer.hostScreen);
+    },
+  );
 }
 
 final class _FakeRecordingAdapter implements CockpitRecordingAdapter {
@@ -211,4 +289,24 @@ final class _FakeRecordingAdapter implements CockpitRecordingAdapter {
   Future<CockpitRecordingResult> stopRecording() {
     throw UnimplementedError();
   }
+}
+
+final class _FakeProcess implements Process {
+  @override
+  bool kill([ProcessSignal signal = ProcessSignal.sigterm]) => true;
+
+  @override
+  Future<int> get exitCode async => 0;
+
+  @override
+  int get pid => 1;
+
+  @override
+  IOSink get stdin => throw UnimplementedError();
+
+  @override
+  Stream<List<int>> get stderr => const Stream<List<int>>.empty();
+
+  @override
+  Stream<List<int>> get stdout => const Stream<List<int>>.empty();
 }

@@ -1,4 +1,5 @@
 import '../adapters/cockpit_capture_adapter.dart';
+import '../platform/ios/cockpit_ios_device_connection.dart';
 import '../remote/cockpit_remote_capture_adapter.dart';
 import '../remote/cockpit_remote_session_client.dart';
 import '../session/cockpit_remote_session_handle.dart';
@@ -57,7 +58,10 @@ final class CockpitCaptureStrategyResolver {
         client: client,
       );
     }
-    if (platform == 'ios' && iosDeviceId != null && iosDeviceId.isNotEmpty) {
+    if (platform == 'ios' &&
+        iosDeviceId != null &&
+        iosDeviceId.isNotEmpty &&
+        cockpitLooksLikeIosSimulatorDeviceId(iosDeviceId)) {
       return CockpitHostPreferredCaptureAdapter(
         remoteAdapter: remoteAdapter,
         hostAcceptanceAdapter: simctlAdapterFactory(iosDeviceId),

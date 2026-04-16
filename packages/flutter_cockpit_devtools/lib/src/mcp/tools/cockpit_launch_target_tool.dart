@@ -2,6 +2,7 @@ import 'package:flutter_cockpit/flutter_cockpit.dart';
 
 import '../../application/cockpit_app_handle.dart';
 import '../../application/cockpit_launch_target_service.dart';
+import '../cockpit_mcp_error.dart';
 import '../cockpit_mcp_tool.dart';
 
 typedef CockpitLaunchTargetToolFunction = Future<CockpitLaunchTargetResult>
@@ -27,18 +28,33 @@ final class CockpitLaunchTargetTool extends CockpitMcpTool {
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
         'type': 'object',
-        'required': <String>[
-          'projectDir',
-          'platform',
-          'deviceId',
-          'sessionPort'
-        ],
+        'required': <String>['projectDir', 'platform', 'sessionPort'],
         'properties': <String, Object?>{
-          'projectDir': <String, Object?>{'type': 'string'},
-          'target': <String, Object?>{'type': 'string'},
-          'platform': <String, Object?>{'type': 'string'},
-          'deviceId': <String, Object?>{'type': 'string'},
-          'sessionPort': <String, Object?>{'type': 'integer'},
+          'projectDir': <String, Object?>{
+            'type': 'string',
+            'description': 'Flutter project directory to launch from.',
+          },
+          'target': <String, Object?>{
+            'type': 'string',
+            'description': 'Optional Dart entrypoint.',
+          },
+          'flavor': <String, Object?>{
+            'type': 'string',
+            'description': 'Optional Flutter flavor or Xcode scheme.',
+          },
+          'platform': <String, Object?>{
+            'type': 'string',
+            'description': 'android, ios, macos, windows, linux, or web.',
+          },
+          'deviceId': <String, Object?>{
+            'type': 'string',
+            'description': 'Required for android, ios, and web. Desktop '
+                'target-first launches default to the platform name.',
+          },
+          'sessionPort': <String, Object?>{
+            'type': 'integer',
+            'description': 'Cockpit port or browser bridge port to use.',
+          },
           'targetKind': <String, Object?>{'type': 'string'},
           'mode': <String, Object?>{
             'type': 'string',
@@ -52,12 +68,14 @@ final class CockpitLaunchTargetTool extends CockpitMcpTool {
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {
     try {
+      final platform = cockpitReadRequiredString(arguments, 'platform');
       final result = await _launch(
         CockpitLaunchTargetRequest(
           projectDir: cockpitReadRequiredString(arguments, 'projectDir'),
           target: cockpitReadOptionalString(arguments, 'target'),
-          platform: cockpitReadRequiredString(arguments, 'platform'),
-          deviceId: cockpitReadRequiredString(arguments, 'deviceId'),
+          flavor: cockpitReadOptionalString(arguments, 'flavor'),
+          platform: platform,
+          deviceId: _readDeviceId(arguments, platform),
           sessionPort: cockpitReadRequiredInt(arguments, 'sessionPort'),
           targetKind: CockpitTargetKind.fromJson(
             cockpitReadOptionalString(arguments, 'targetKind') ??
@@ -81,5 +99,24 @@ final class CockpitLaunchTargetTool extends CockpitMcpTool {
     } on Object catch (error) {
       cockpitRethrowAsMcpError(error);
     }
+  }
+
+  String _readDeviceId(Map<String, Object?> arguments, String platform) {
+    final explicit = cockpitReadOptionalString(arguments, 'deviceId');
+    if (explicit != null) {
+      return explicit;
+    }
+    return switch (platform) {
+      'macos' => 'macos',
+      'windows' => 'windows',
+      'linux' => 'linux',
+      _ => throw CockpitMcpError.invalidArguments(
+          'deviceId is required for this platform.',
+          details: <String, Object?>{
+            'argument': 'deviceId',
+            'platform': platform,
+          },
+        ),
+    };
   }
 }

@@ -78,6 +78,8 @@ void main() {
     expect(usage, contains('When:'));
     expect(usage, contains('App-first is the lowest-friction path'));
     expect(usage, contains('Run list-targets first'));
+    expect(usage, contains('--flavor'));
+    expect(usage, contains('Web currently launches through development mode'));
     expect(usage, contains('Writes:'));
     expect(usage, contains('app.json'));
     expect(usage, contains('Example:'));
@@ -94,7 +96,19 @@ void main() {
     );
     expect(
       _helpForCommand(LaunchTargetCommand()),
+      contains('--flavor'),
+    );
+    expect(
+      _helpForCommand(LaunchTargetCommand()),
+      contains('Web target-first loops also use development mode'),
+    );
+    expect(
+      _helpForCommand(LaunchTargetCommand()),
       contains('--output-json /tmp/launch_target.json'),
+    );
+    expect(
+      _helpForCommand(LaunchTargetCommand()),
+      contains('--platform web --device-id chrome --target-json'),
     );
     expect(
       _helpForCommand(ReadTargetCommand()),
