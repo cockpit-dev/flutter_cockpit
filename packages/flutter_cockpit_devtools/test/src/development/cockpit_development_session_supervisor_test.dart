@@ -58,7 +58,7 @@ void main() {
 
       expect(connectorCalls, 1);
       final currentHandle = await supervisor.currentHandle();
-      expect(currentHandle.appId, harness.handle.appId);
+      expect(currentHandle.appId, '');
       expect(
         currentHandle.remoteSessionHandle?.baseUrl,
         harness.handle.remoteSessionHandle?.baseUrl,
@@ -567,10 +567,53 @@ void main() {
       );
     },
   );
+
+  test(
+    'supervisor does not call the platform stopper when the remote platform app id is unknown',
+    () async {
+      final harness = _MachineHarness(
+        remoteSessionHandle: CockpitRemoteSessionHandle(
+          platform: 'ios',
+          deviceId: '00008110-0009341C2EF3801E',
+          projectDir: '/workspace/examples/cockpit_demo',
+          target: 'lib/main.dart',
+          appId: 'remote-session-1',
+          platformAppIdKnown: false,
+          host: 'fd69:8f18:f0a9::1',
+          hostPort: 57331,
+          devicePort: 57331,
+          baseUrl: 'http://[fd69:8f18:f0a9::1]:57331',
+          launchedAt: DateTime.utc(2026, 3, 23, 0, 0),
+        ),
+      );
+      addTearDown(harness.dispose);
+
+      final supervisor = CockpitDevelopmentSessionSupervisor(
+        initialHandle: harness.handle,
+        machineClient: harness.client,
+        remoteReachabilityProbe: (_) async => true,
+        uiIdleWaiter: (_) async => true,
+        appStopper: (appId) async {
+          harness.stoppedAppIds.add(appId);
+        },
+        now: () => DateTime.utc(2026, 3, 23, 5),
+        settleTimeout: const Duration(seconds: 2),
+        settlePollInterval: const Duration(milliseconds: 10),
+      );
+      addTearDown(supervisor.dispose);
+
+      await supervisor.start();
+      await supervisor.waitForState(CockpitDevelopmentSessionState.ready);
+
+      await supervisor.stop();
+
+      expect(harness.stoppedAppIds, isEmpty);
+    },
+  );
 }
 
 final class _MachineHarness {
-  _MachineHarness()
+  _MachineHarness({CockpitRemoteSessionHandle? remoteSessionHandle})
       : stdoutController = StreamController<String>(),
         stderrController = StreamController<String>(),
         exitCode = Completer<int>(),
@@ -586,18 +629,19 @@ final class _MachineHarness {
           supervisorBaseUrl: 'http://127.0.0.1:0',
           launchedAt: DateTime.utc(2026, 3, 23, 0, 0),
           reloadGeneration: 1,
-          remoteSessionHandle: CockpitRemoteSessionHandle(
-            platform: 'android',
-            deviceId: 'emulator-5554',
-            projectDir: '/workspace/examples/cockpit_demo',
-            target: 'lib/main.dart',
-            appId: 'dev.cockpit.cockpit_demo',
-            host: '127.0.0.1',
-            hostPort: 57331,
-            devicePort: 47331,
-            baseUrl: 'http://127.0.0.1:57331',
-            launchedAt: DateTime.utc(2026, 3, 23, 0, 0),
-          ),
+          remoteSessionHandle: remoteSessionHandle ??
+              CockpitRemoteSessionHandle(
+                platform: 'android',
+                deviceId: 'emulator-5554',
+                projectDir: '/workspace/examples/cockpit_demo',
+                target: 'lib/main.dart',
+                appId: 'dev.cockpit.cockpit_demo',
+                host: '127.0.0.1',
+                hostPort: 57331,
+                devicePort: 47331,
+                baseUrl: 'http://127.0.0.1:57331',
+                launchedAt: DateTime.utc(2026, 3, 23, 0, 0),
+              ),
         ) {
     client = CockpitFlutterRunMachineClient(
       stdoutLines: stdoutController.stream,
