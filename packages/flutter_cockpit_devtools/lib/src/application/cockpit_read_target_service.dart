@@ -1,6 +1,7 @@
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
 import '../platform/cockpit_platform_driver_registry.dart';
+import '../session/cockpit_remote_session_handle.dart';
 import '../targets/cockpit_target_capability_support.dart';
 import '../targets/cockpit_target_handle.dart';
 import '../targets/cockpit_target_reference_resolver.dart';
@@ -151,21 +152,25 @@ final class CockpitReadTargetService {
         primary: capabilityProfile,
         secondary: remoteProfile,
       );
-      return CockpitReadTargetResult(
-        target: target.copyWith(capabilityProfile: mergedCapabilityProfile),
+      final normalizedMergedProfile = _normalizedCapabilityProfile(
         capabilityProfile: mergedCapabilityProfile,
+        recordingCapabilities: appResult.recordingCapabilities,
+      );
+      return CockpitReadTargetResult(
+        target: target.copyWith(capabilityProfile: normalizedMergedProfile),
+        capabilityProfile: normalizedMergedProfile,
         foregroundSurface:
-            cockpitForegroundSurfaceForTargetProfile(mergedCapabilityProfile),
+            cockpitForegroundSurfaceForTargetProfile(normalizedMergedProfile),
         selectedPlane: appResult.selectedPlane,
         fallbackTrail: appResult.fallbackTrail.isEmpty
             ? cockpitFallbackTrailForProfile(
-                profile: mergedCapabilityProfile,
+                profile: normalizedMergedProfile,
                 selectedPlane: appResult.selectedPlane,
               )
             : appResult.fallbackTrail,
         recommendedNextStep: appResult.recommendedNextStep,
         whatMatters: appResult.whatMatters ??
-            cockpitWhatMattersForProfile(mergedCapabilityProfile),
+            cockpitWhatMattersForProfile(normalizedMergedProfile),
         sessionId: appResult.sessionId,
         transportType: appResult.transportType,
         currentRouteName: appResult.currentRouteName,
@@ -203,9 +208,12 @@ final class CockpitReadTargetService {
     CockpitTargetHandle target,
   ) async {
     final existing = target.capabilityProfile;
+    final remoteSession = _targetRemoteSession(target);
     final driver = _platformDriverRegistry.resolve(
       platform: target.platform,
       deviceId: target.deviceId,
+      appId: _targetPlatformAppId(target, remoteSession: remoteSession),
+      processId: _targetProcessId(target, remoteSession: remoteSession),
     );
     if (existing != null && driver == null) {
       return existing;
@@ -238,16 +246,90 @@ final class CockpitReadTargetService {
   }
 
   CockpitAppHandle _appFromTarget(CockpitTargetHandle target) {
+    final remoteSession = _targetRemoteSession(target);
+    final metadataAppId = target.metadata['appId'] as String?;
     return CockpitAppHandle(
-      appId: target.targetId,
-      mode: CockpitAppMode.automation,
+      appId: (metadataAppId != null && metadataAppId.trim().isNotEmpty)
+          ? metadataAppId
+          : target.targetId,
+      mode: target.metadata['appMode'] == CockpitAppMode.development.jsonValue
+          ? CockpitAppMode.development
+          : CockpitAppMode.automation,
       platform: target.platform,
       deviceId: target.deviceId,
       projectDir: target.projectDir,
       target: target.target,
       baseUrl: target.connection.baseUrl,
       launchedAt: target.launchedAt,
-      platformAppId: target.metadata['platformAppId'] as String?,
+      platformAppId: _targetPlatformAppId(target, remoteSession: remoteSession),
+      processId: _targetProcessId(target, remoteSession: remoteSession),
+      remoteSession: remoteSession,
+    );
+  }
+
+  String? _targetPlatformAppId(
+    CockpitTargetHandle target, {
+    CockpitRemoteSessionHandle? remoteSession,
+  }) {
+    final explicit = target.metadata['platformAppId'] as String?;
+    if (explicit != null && explicit.trim().isNotEmpty) {
+      return explicit;
+    }
+    return remoteSession?.effectivePlatformAppId;
+  }
+
+  int? _targetProcessId(
+    CockpitTargetHandle target, {
+    CockpitRemoteSessionHandle? remoteSession,
+  }) {
+    final value = target.metadata['processId'];
+    if (value is int) {
+      return value;
+    }
+    if (value is num) {
+      return value.toInt();
+    }
+    if (value is String && value.isNotEmpty) {
+      return int.tryParse(value);
+    }
+    return remoteSession?.processId;
+  }
+
+  CockpitRemoteSessionHandle? _targetRemoteSession(CockpitTargetHandle target) {
+    final value = target.metadata['remoteSession'];
+    if (value is! Map<Object?, Object?>) {
+      return null;
+    }
+    return CockpitRemoteSessionHandle.fromJson(
+      Map<String, Object?>.from(value),
+    );
+  }
+
+  CockpitCapabilityProfile _normalizedCapabilityProfile({
+    required CockpitCapabilityProfile capabilityProfile,
+    required CockpitRecordingCapabilities recordingCapabilities,
+  }) {
+    if (capabilityProfile.targetKind != CockpitTargetKind.flutterApp ||
+        recordingCapabilities.supportsNativeRecording) {
+      return capabilityProfile;
+    }
+    return CockpitCapabilityProfile(
+      targetKind: capabilityProfile.targetKind,
+      surfaceKinds: capabilityProfile.surfaceKinds,
+      actionCapabilities: capabilityProfile.actionCapabilities
+          .where(
+            (capability) =>
+                capability != CockpitActionCapability.startRecording &&
+                capability != CockpitActionCapability.stopRecording,
+          )
+          .toSet(),
+      evidenceCapabilities: capabilityProfile.evidenceCapabilities
+          .where(
+            (capability) =>
+                capability != CockpitEvidenceCapability.screenRecording,
+          )
+          .toSet(),
+      qualityFlags: capabilityProfile.qualityFlags,
     );
   }
 

@@ -149,30 +149,30 @@ final class CockpitLaunchAppService {
     if (remoteSessionHandle == null) {
       return null;
     }
-    try {
-      final remoteStatus =
-          await _readFallbackRemoteStatus(error, remoteSessionHandle);
-      if (remoteStatus != null) {
+    final remoteStatus =
+        await _readFallbackRemoteStatus(error, remoteSessionHandle);
+    if (remoteStatus != null) {
+      try {
         _registry?.recordRemoteSession(
           handle: remoteSessionHandle,
           status: remoteStatus,
           recommendedNextStep: remoteStatus.capabilities.supportsInAppControl
-              ? 'readyForCommands'
+              ? 'ready_for_commands'
               : 'limited_capabilities',
         );
+      } on Object {
+        // Registry writes are best-effort for fallback reuse.
       }
-      final app = CockpitAppHandle.fromRemoteSession(remoteSessionHandle);
-      final appJsonPath = await _persistAppIfRequested(
-        path: request.appHandlePath,
-        app: app,
-      );
-      return CockpitLaunchAppResult(
-        app: app,
-        appJsonPath: appJsonPath,
-      );
-    } on Object {
-      return null;
     }
+    final app = CockpitAppHandle.fromRemoteSession(remoteSessionHandle);
+    final appJsonPath = await _persistAppIfRequested(
+      path: request.appHandlePath,
+      app: app,
+    );
+    return CockpitLaunchAppResult(
+      app: app,
+      appJsonPath: appJsonPath,
+    );
   }
 
   Future<CockpitRemoteSessionStatus?> _readFallbackRemoteStatus(
@@ -207,7 +207,7 @@ final class CockpitLaunchAppService {
       handle: result.sessionHandle,
       status: result.health,
       recommendedNextStep: result.health.capabilities.supportsInAppControl
-          ? 'readyForCommands'
+          ? 'ready_for_commands'
           : 'limited_capabilities',
     );
     final app = CockpitAppHandle.fromRemoteSession(result.sessionHandle);
