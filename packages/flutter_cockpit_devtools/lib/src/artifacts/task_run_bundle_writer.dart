@@ -786,6 +786,18 @@ final class TaskRunBundleWriter {
         .toIso8601String()
         .replaceAll(':', '-')
         .replaceAll('.', '_');
-    return '${safeTimestamp}_${manifest.sessionId}';
+    final safeSessionId = _sanitizePathToken(
+      manifest.sessionId,
+      fallback: 'session',
+    );
+    return '${safeTimestamp}_$safeSessionId';
+  }
+
+  String _sanitizePathToken(String value, {required String fallback}) {
+    final sanitized = value
+        .replaceAll(RegExp(r'[^A-Za-z0-9._-]+'), '_')
+        .replaceAll(RegExp(r'_+'), '_')
+        .replaceAll(RegExp(r'^[._-]+|[._-]+$'), '');
+    return sanitized.isEmpty ? fallback : sanitized;
   }
 }

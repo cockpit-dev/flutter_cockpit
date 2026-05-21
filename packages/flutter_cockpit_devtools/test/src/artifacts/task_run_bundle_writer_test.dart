@@ -116,6 +116,54 @@ void main() {
     expect(acceptance, contains('# Acceptance'));
   });
 
+  test('uses a file-system-safe single directory for unsafe session ids',
+      () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'cockpit_bundle_safe_name_test',
+    );
+    addTearDown(() async {
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    final writer = TaskRunBundleWriter();
+    final bundle = CockpitContextBundle(
+      manifest: CockpitRunManifest(
+        sessionId: '../team/session:ios 17',
+        taskId: 'task-safe-name',
+        platform: 'ios',
+        status: CockpitTaskStatus.completed,
+        startedAt: DateTime.utc(2026, 3, 20, 8),
+        finishedAt: DateTime.utc(2026, 3, 20, 8, 1),
+        artifactRefs: const [],
+      ),
+      environment: const CockpitEnvironment(
+        platform: 'ios',
+        flutterVersion: '3.38.9',
+        dartVersion: '3.10.8',
+      ),
+      steps: const [],
+      observations: const [],
+      acceptanceMarkdown: '# Acceptance\n\nDone.',
+      handoff: const {'status': 'completed'},
+    );
+
+    final outputDir = await writer.writeBundle(
+      bundle: bundle,
+      outputRoot: tempDir.path,
+    );
+
+    expect(p.isWithin(tempDir.path, outputDir.path), isTrue);
+    expect(p.dirname(outputDir.path), tempDir.path);
+    expect(p.basename(outputDir.path), contains('team_session_ios_17'));
+    expect(
+      p.basename(outputDir.path),
+      isNot(anyOf(contains('/'), contains('..'), contains(' '), contains(':'))),
+    );
+    expect(File(p.join(outputDir.path, 'manifest.json')).existsSync(), isTrue);
+  });
+
   test('writes binary artifact payloads into the bundle output', () async {
     final tempDir = await Directory.systemTemp.createTemp(
       'cockpit_bundle_test',
