@@ -5,7 +5,7 @@ import 'package:flutter_cockpit_devtools/src/platform/ios/cockpit_ios_simulator_
 import 'package:test/test.dart';
 
 void main() {
-  test('ios physical platform driver reports non-simulator remote evidence',
+  test('ios physical platform driver reports remote physical-device evidence',
       () async {
     final driver = CockpitIosPhysicalPlatformDriver(
       deviceId: '00008110-0009341C2EF3801E',
@@ -25,15 +25,23 @@ void main() {
     );
     expect(
       profile.evidenceCapabilities,
-      contains(CockpitEvidenceCapability.nativeScreenshot),
+      contains(CockpitEvidenceCapability.flutterScreenshot),
     );
     expect(
       profile.evidenceCapabilities,
-      contains(CockpitEvidenceCapability.screenRecording),
+      isNot(contains(CockpitEvidenceCapability.nativeScreenshot)),
+    );
+    expect(
+      profile.evidenceCapabilities,
+      isNot(contains(CockpitEvidenceCapability.screenRecording)),
     );
     expect(
       profile.qualityFlags,
       isNot(contains(CockpitQualityFlag.simulatorOnly)),
+    );
+    expect(
+      profile.qualityFlags,
+      contains(CockpitQualityFlag.requiresForegroundWindow),
     );
   });
 

@@ -37,17 +37,16 @@ final class CockpitIosPhysicalPlatformDriver
         CockpitActionCapability.scroll,
         CockpitActionCapability.typeText,
         CockpitActionCapability.captureScreenshot,
-        CockpitActionCapability.startRecording,
-        CockpitActionCapability.stopRecording,
         CockpitActionCapability.readLogs,
       },
       evidenceCapabilities: <CockpitEvidenceCapability>{
         CockpitEvidenceCapability.flutterScreenshot,
-        CockpitEvidenceCapability.nativeScreenshot,
-        CockpitEvidenceCapability.screenRecording,
         CockpitEvidenceCapability.appLogs,
         CockpitEvidenceCapability.runtimeErrors,
         CockpitEvidenceCapability.networkSignals,
+      },
+      qualityFlags: <CockpitQualityFlag>{
+        CockpitQualityFlag.requiresForegroundWindow,
       },
     );
   }
