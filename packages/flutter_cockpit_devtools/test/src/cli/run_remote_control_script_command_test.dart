@@ -689,6 +689,88 @@ void main() {
     },
   );
 
+  test('run-script forwards process ids from app handles', () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'cockpit_run_remote_cli_process_id',
+    );
+    addTearDown(() async {
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    final appHandleFile = File(p.join(tempDir.path, 'app.json'));
+    await appHandleFile.writeAsString(
+      jsonEncode(
+        CockpitAppHandle(
+          appId: 'remote-demo-app',
+          mode: CockpitAppMode.automation,
+          platform: 'windows',
+          deviceId: 'windows',
+          projectDir: '/workspace/examples/cockpit_demo',
+          target: 'cockpit/main.dart',
+          baseUrl: 'http://127.0.0.1:57331',
+          launchedAt: DateTime.utc(2026, 4, 17),
+          platformAppId: 'cockpit_demo',
+          processId: 4101,
+        ).toJson(),
+      ),
+    );
+    final scriptFile = File(p.join(tempDir.path, 'remote_script.json'));
+    await scriptFile.writeAsString(
+      jsonEncode(<String, Object?>{
+        'sessionId': 'remote-script-session',
+        'taskId': 'remote-script-task',
+        'platform': 'windows',
+        'environment': const CockpitEnvironment(
+          platform: 'windows',
+          flutterVersion: '3.38.9',
+          dartVersion: '3.10.8',
+        ).toJson(),
+        'commands': <Map<String, Object?>>[],
+      }),
+    );
+
+    CockpitRunRemoteControlScriptRequest? capturedRequest;
+    final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
+      ..addCommand(
+        RunScriptCommand(
+          runScript: (request) async {
+            capturedRequest = request;
+            return CockpitRunRemoteControlScriptResult(
+              sessionHandle: null,
+              bundleDir: Directory(tempDir.path),
+              manifest: CockpitRunManifest(
+                sessionId: 'remote-script-session',
+                taskId: 'remote-script-task',
+                platform: 'windows',
+                status: CockpitTaskStatus.completed,
+                startedAt: DateTime.utc(2026, 4, 17),
+                finishedAt: DateTime.utc(2026, 4, 17, 0, 0, 1),
+              ),
+              handoff: const <String, Object?>{},
+              delivery: const <String, Object?>{},
+              artifactPaths: CockpitBundleArtifactPaths(),
+            );
+          },
+        ),
+      );
+
+    final exitCode = await _runCommandRunner(runner, [
+      'run-script',
+      '--app-json',
+      appHandleFile.path,
+      '--script-json',
+      scriptFile.path,
+      '--output-root',
+      tempDir.path,
+    ]);
+
+    expect(exitCode, 0);
+    expect(capturedRequest?.platformAppId, 'cockpit_demo');
+    expect(capturedRequest?.processId, 4101);
+  });
+
   test('run-script returns non-zero when the written bundle is failed',
       () async {
     final tempDir = await Directory.systemTemp.createTemp(

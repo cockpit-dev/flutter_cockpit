@@ -21,6 +21,7 @@ final class CockpitRunRemoteControlScriptRequest {
     required this.script,
     required this.outputRoot,
     this.platformAppId,
+    this.processId,
     this.baseUri,
     this.sessionHandle,
     this.sessionHandlePath,
@@ -33,6 +34,7 @@ final class CockpitRunRemoteControlScriptRequest {
   final CockpitControlScript script;
   final String outputRoot;
   final String? platformAppId;
+  final int? processId;
   final Uri? baseUri;
   final CockpitRemoteSessionHandle? sessionHandle;
   final String? sessionHandlePath;
@@ -108,7 +110,9 @@ final class CockpitRunRemoteControlScriptService {
     final captureAdapter = _captureStrategyResolver.resolve(
       platform: request.script.platform,
       client: client,
-      platformAppId: request.platformAppId ?? resolved.sessionHandle?.appId,
+      platformAppId: request.platformAppId ??
+          resolved.sessionHandle?.effectivePlatformAppId,
+      processId: request.processId ?? resolved.sessionHandle?.processId,
       sessionHandle: resolved.sessionHandle,
       androidDeviceId: request.androidDeviceId ??
           (resolved.sessionHandle?.platform == 'android'
@@ -214,7 +218,9 @@ final class CockpitRunRemoteControlScriptService {
               : null),
       iosDeviceId: request.iosDeviceId ??
           (sessionHandle?.platform == 'ios' ? sessionHandle?.deviceId : null),
-      platformAppId: sessionHandle?.appId,
+      platformAppId:
+          request.platformAppId ?? sessionHandle?.effectivePlatformAppId,
+      processId: request.processId ?? sessionHandle?.processId,
     );
     if (resolution?.unsupportedReason != null && resolution?.adapter == null) {
       throw CockpitApplicationServiceException(
