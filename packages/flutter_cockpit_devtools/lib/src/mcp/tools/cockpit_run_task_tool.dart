@@ -71,6 +71,7 @@ final class CockpitRunTaskTool extends CockpitMcpTool {
           'sessionHandle': result.sessionHandle?.toJson(),
           'preflightStatus': result.preflightStatus?.toJson(),
           'blockedReason': result.blockedReason,
+          'warnings': result.warnings,
           'bundleSummary': result.bundleSummary?.toMcpJson(),
         },
       );

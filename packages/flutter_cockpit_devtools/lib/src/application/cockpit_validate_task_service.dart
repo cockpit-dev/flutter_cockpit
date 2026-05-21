@@ -139,6 +139,7 @@ final class CockpitValidateTaskResult {
     this.bundleSummary,
     this.blockedReason,
     this.validationFailures = const <CockpitValidationFailure>[],
+    this.warnings = const <String>[],
   });
 
   final CockpitValidationClassification classification;
@@ -147,6 +148,7 @@ final class CockpitValidateTaskResult {
   final CockpitReadTaskBundleSummaryResult? bundleSummary;
   final String? blockedReason;
   final List<CockpitValidationFailure> validationFailures;
+  final List<String> warnings;
 
   Map<String, Object?> toJson() => <String, Object?>{
         'classification': classification.jsonValue,
@@ -154,6 +156,7 @@ final class CockpitValidateTaskResult {
         if (runTaskResult != null) 'runTaskResult': runTaskResult!.toJson(),
         if (bundleSummary != null) 'bundleSummary': bundleSummary!.toJson(),
         if (blockedReason != null) 'blockedReason': blockedReason,
+        if (warnings.isNotEmpty) 'warnings': warnings,
         'validationFailures': validationFailures
             .map((failure) => failure.toJson())
             .toList(growable: false),
@@ -216,6 +219,7 @@ final class CockpitValidateTaskService {
       bundleSummary: bundleSummary,
       blockedReason: runTaskResult.blockedReason,
       validationFailures: validationFailures,
+      warnings: runTaskResult.warnings,
     );
   }
 
@@ -235,6 +239,7 @@ final class CockpitValidateTaskService {
       preflightStatus: orchestration.preflightStatus,
       bundleSummary: orchestration.bundleSummary,
       blockedReason: orchestration.blockedReason,
+      warnings: orchestration.warnings,
     );
   }
 

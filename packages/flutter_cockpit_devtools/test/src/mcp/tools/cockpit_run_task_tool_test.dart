@@ -18,6 +18,9 @@ void main() {
           return CockpitRunTaskResult(
             classification: CockpitRunTaskClassification.completed,
             recommendedNextStep: 'delivery_ready',
+            warnings: const <String>[
+              'Automation cleanup failed after task orchestration: stop timeout.',
+            ],
             bundleSummary: CockpitReadTaskBundleSummaryResult(
               bundleDir: '/tmp/out/run-task',
               manifest: CockpitRunManifest(
@@ -111,6 +114,12 @@ void main() {
       final structuredContent =
           result['structuredContent'] as Map<String, Object?>;
       expect(structuredContent['classification'], 'completed');
+      expect(
+        structuredContent['warnings'],
+        <String>[
+          'Automation cleanup failed after task orchestration: stop timeout.',
+        ],
+      );
       final bundleSummary =
           structuredContent['bundleSummary'] as Map<String, Object?>;
       expect(bundleSummary['bundleDir'], '/tmp/out/run-task');
