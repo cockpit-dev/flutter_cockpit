@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:path/path.dart' as p;
 
+import '../application/cockpit_bundle_diagnostics_artifact_refs.dart';
 import '../application/cockpit_compact_json.dart';
 import 'cockpit_recording_keyframe_extractor.dart';
 import 'cockpit_timeline_video_fallback_builder.dart';
@@ -701,9 +702,24 @@ final class TaskRunBundleWriter {
       if (snapshot == null || diagnosticsArtifactRef == null) {
         continue;
       }
+      _validateDiagnosticsArtifactRef(diagnosticsArtifactRef);
       diagnosticsArtifacts[diagnosticsArtifactRef.relativePath] = snapshot;
     }
     return diagnosticsArtifacts;
+  }
+
+  void _validateDiagnosticsArtifactRef(CockpitArtifactRef artifactRef) {
+    final resolvedPath = CockpitBundleDiagnosticsArtifactRefs.resolvePath(
+      '/',
+      artifactRef.relativePath,
+    );
+    if (artifactRef.role != 'diagnostics' || resolvedPath == null) {
+      throw ArgumentError.value(
+        artifactRef.relativePath,
+        'relativePath',
+        'Diagnostics artifact path must stay under diagnostics/.',
+      );
+    }
   }
 
   CockpitSnapshot _summarizedSnapshot(CockpitSnapshot snapshot) {
