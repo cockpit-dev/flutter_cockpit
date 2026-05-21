@@ -1,7 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_execute_remote_command_service.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_interactive_result_profile.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_interactive_snapshot_store.dart';
+import 'package:flutter_cockpit_devtools/src/application/cockpit_session_reference_resolver.dart';
+import 'package:flutter_cockpit_devtools/src/remote/cockpit_android_port_forwarder.dart';
 import 'package:flutter_cockpit_devtools/src/session/cockpit_remote_session_handle.dart';
 import 'package:test/test.dart';
 
@@ -90,6 +94,49 @@ void main() {
       );
 
       expect(capturedCommand?.timeoutMs, 4800);
+    });
+
+    test('refreshes android host forwarding before executing commands',
+        () async {
+      Uri? capturedBaseUri;
+      final service = CockpitExecuteRemoteCommandService(
+        sessionReferenceResolver: CockpitSessionReferenceResolver(
+          portForwarder: CockpitAndroidPortForwarder(
+            processRunner: (_, __) async => ProcessResult(
+              0,
+              0,
+              'emulator-5554 tcp:61331 tcp:47331\n',
+              '',
+            ),
+            hostPortAllocator: () async => 61331,
+            hostPortAvailabilityChecker: (_) async => false,
+          ),
+        ),
+        executeCommand: (baseUri, command) async {
+          capturedBaseUri = baseUri;
+          return CockpitCommandExecution(
+            result: CockpitCommandResult(
+              success: true,
+              commandId: command.commandId,
+              commandType: command.commandType,
+              durationMs: 120,
+            ),
+          );
+        },
+      );
+
+      await service.execute(
+        CockpitExecuteRemoteCommandRequest(
+          sessionHandle: _androidSessionHandle(),
+          command: CockpitCommand(
+            commandId: 'tap-android-forwarded',
+            commandType: CockpitCommandType.tap,
+          ),
+          resultProfile: const CockpitInteractiveResultProfile.minimal(),
+        ),
+      );
+
+      expect(capturedBaseUri.toString(), 'http://127.0.0.1:61331');
     });
 
     test('uses a longer inferred timeout for long scroll commands', () async {
@@ -494,6 +541,21 @@ CockpitRemoteSessionHandle _sessionHandle() {
   return CockpitRemoteSessionHandle(
     platform: 'macos',
     deviceId: 'macos',
+    projectDir: '/workspace/examples/cockpit_demo',
+    target: 'cockpit/main.dart',
+    appId: 'dev.cockpit.demo',
+    host: '127.0.0.1',
+    hostPort: 47331,
+    devicePort: 47331,
+    baseUrl: 'http://127.0.0.1:47331',
+    launchedAt: DateTime.utc(2026, 3, 30),
+  );
+}
+
+CockpitRemoteSessionHandle _androidSessionHandle() {
+  return CockpitRemoteSessionHandle(
+    platform: 'android',
+    deviceId: 'emulator-5554',
     projectDir: '/workspace/examples/cockpit_demo',
     target: 'cockpit/main.dart',
     appId: 'dev.cockpit.demo',

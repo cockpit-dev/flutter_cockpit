@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter_cockpit_devtools/src/session/cockpit_remote_session_launcher.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -15,9 +16,10 @@ void main() {
         'cli',
         'flutter_cockpit_import_surface_fixture.dart',
       );
+      final dartExecutable = await cockpitResolveActiveDartExecutable();
 
       final result = await Process.run(
-          Platform.resolvedExecutable,
+          dartExecutable,
           <String>[
             fixturePath,
           ],

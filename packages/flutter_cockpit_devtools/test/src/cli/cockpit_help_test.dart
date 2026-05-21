@@ -180,6 +180,20 @@ void main() {
     }
   });
 
+  test('launch-app help describes explicit app-json as a replacement path', () {
+    final usage = _helpForCommand(LaunchAppCommand());
+
+    expect(
+      usage,
+      contains('If --app-json is omitted'),
+    );
+    expect(
+      usage,
+      contains(
+          'When --app-json is provided, that explicit path is written instead.'),
+    );
+  });
+
   test('recording help explains when to record and how artifacts are finalized',
       () {
     final startUsage = _helpForCommand(StartRecordingCommand());
