@@ -599,16 +599,32 @@ final class CockpitReadTaskBundleSummaryResult {
     String bundleDir,
     Object? value,
   ) {
-    final keyframes = (value as List<Object?>? ?? const <Object?>[])
-        .whereType<Map<Object?, Object?>>()
-        .map((item) => Map<String, Object?>.from(item))
-        .map(
-          (item) => CockpitBundleEvidenceKeyframe.fromDeliveryEntry(
-            bundleDir: bundleDir,
-            json: item,
-          ),
-        )
-        .toList(growable: false);
+    final keyframes = <CockpitBundleEvidenceKeyframe>[];
+    for (final rawItem in (value as List<Object?>? ?? const <Object?>[])) {
+      if (rawItem is! Map<Object?, Object?>) {
+        continue;
+      }
+      final item = Map<String, Object?>.from(rawItem);
+      final ref = item['ref'] as String? ?? '';
+      if (ref.isEmpty) {
+        continue;
+      }
+      final resolvedPath = CockpitBundleArtifactPaths.resolveBundleArtifactPath(
+        bundleDir,
+        ref,
+        allowedRoots: const <String>{'keyframes'},
+      );
+      if (resolvedPath == null) {
+        continue;
+      }
+      keyframes.add(
+        CockpitBundleEvidenceKeyframe.fromDeliveryEntry(
+          bundleDir: bundleDir,
+          path: resolvedPath,
+          json: item,
+        ),
+      );
+    }
     return List<CockpitBundleEvidenceKeyframe>.unmodifiable(keyframes);
   }
 }
@@ -711,19 +727,25 @@ final class CockpitBundleEvidenceKeyframe {
 
   factory CockpitBundleEvidenceKeyframe.fromDeliveryEntry({
     required String bundleDir,
+    required String path,
     required Map<String, Object?> json,
   }) {
     final ref = json['ref'] as String? ?? '';
     final linkedScreenshotRef = json['linkedScreenshotRef'] as String?;
+    final linkedScreenshotPath = linkedScreenshotRef == null
+        ? null
+        : CockpitBundleArtifactPaths.resolveBundleArtifactPath(
+            bundleDir,
+            linkedScreenshotRef,
+            allowedRoots: const <String>{'screenshots'},
+          );
     return CockpitBundleEvidenceKeyframe(
       ref: ref,
-      path: ref.isEmpty ? '' : p.join(bundleDir, ref),
+      path: path,
       label: json['label'] as String? ?? '',
       offsetMs: json['offsetMs'] as int? ?? 0,
       linkedScreenshotRef: linkedScreenshotRef,
-      linkedScreenshotPath: linkedScreenshotRef == null
-          ? null
-          : p.join(bundleDir, linkedScreenshotRef),
+      linkedScreenshotPath: linkedScreenshotPath,
     );
   }
 
