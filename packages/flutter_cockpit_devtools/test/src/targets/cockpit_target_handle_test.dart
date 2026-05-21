@@ -16,6 +16,7 @@ void main() {
       baseUrl: 'http://127.0.0.1:47331',
       launchedAt: DateTime.utc(2026, 4, 11),
       platformAppId: 'dev.example.demo',
+      processId: 4101,
     );
 
     final target = CockpitTargetHandle.fromAppHandle(app);
@@ -27,6 +28,7 @@ void main() {
     expect(target.connection.baseUri.toString(), app.baseUrl);
     expect(target.metadata['appMode'], 'automation');
     expect(target.metadata['platformAppId'], 'dev.example.demo');
+    expect(target.metadata['processId'], 4101);
   });
 
   test('target handle round-trips through json', () {

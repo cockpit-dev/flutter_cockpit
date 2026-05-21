@@ -7,6 +7,9 @@ final class CockpitRemoteSessionHandle {
     required this.projectDir,
     required this.target,
     required this.appId,
+    this.platformAppId,
+    this.platformAppIdKnown = true,
+    this.processId,
     required this.host,
     required this.hostPort,
     required this.devicePort,
@@ -19,6 +22,9 @@ final class CockpitRemoteSessionHandle {
   final String projectDir;
   final String target;
   final String appId;
+  final String? platformAppId;
+  final bool platformAppIdKnown;
+  final int? processId;
   final String host;
   final int hostPort;
   final int devicePort;
@@ -27,12 +33,27 @@ final class CockpitRemoteSessionHandle {
 
   Uri get baseUri => Uri.parse(baseUrl);
 
+  String? get effectivePlatformAppId {
+    if (!platformAppIdKnown) {
+      return null;
+    }
+    final explicit = platformAppId?.trim();
+    if (explicit != null && explicit.isNotEmpty) {
+      return explicit;
+    }
+    final fallback = appId.trim();
+    return fallback.isEmpty ? null : fallback;
+  }
+
   Map<String, Object?> toJson() => <String, Object?>{
         'platform': platform,
         'deviceId': deviceId,
         'projectDir': projectDir,
         'target': target,
         'appId': appId,
+        if (platformAppId != null) 'platformAppId': platformAppId,
+        if (!platformAppIdKnown) 'platformAppIdKnown': false,
+        if (processId != null) 'processId': processId,
         'host': host,
         'hostPort': hostPort,
         'devicePort': devicePort,
@@ -47,6 +68,9 @@ final class CockpitRemoteSessionHandle {
       projectDir: json['projectDir']! as String,
       target: json['target']! as String,
       appId: json['appId']! as String,
+      platformAppId: json['platformAppId'] as String?,
+      platformAppIdKnown: json['platformAppIdKnown'] as bool? ?? true,
+      processId: json['processId'] as int?,
       host: json['host']! as String,
       hostPort: json['hostPort']! as int,
       devicePort: json['devicePort']! as int,
@@ -60,6 +84,9 @@ final class CockpitRemoteSessionHandle {
     required String target,
     required String deviceId,
     required String appId,
+    String? platformAppId,
+    bool platformAppIdKnown = true,
+    int? processId,
     required String host,
     required int hostPort,
     required int devicePort,
@@ -72,6 +99,9 @@ final class CockpitRemoteSessionHandle {
       projectDir: projectDir,
       target: target,
       appId: appId,
+      platformAppId: platformAppId,
+      platformAppIdKnown: platformAppIdKnown,
+      processId: processId,
       host: host,
       hostPort: hostPort,
       devicePort: devicePort,
