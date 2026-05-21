@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:path/path.dart' as p;
 
+import '../artifacts/cockpit_recording_keyframe_extractor.dart';
+import '../validation/cockpit_bundle_artifact_validator.dart';
 import 'cockpit_application_service_exception.dart';
 import 'cockpit_bundle_artifact_paths.dart';
 import 'cockpit_bundle_diagnostics_artifact_refs.dart';
@@ -1757,6 +1759,11 @@ final class CockpitReadTaskBundleSummaryService {
       delivery: delivery,
       artifactPaths: artifactPaths,
     );
+    final keyframeFailureCodes = _deliveryKeyframeFailureCodes(
+      bundleDir: bundleDir,
+      delivery: delivery,
+      artifactPaths: artifactPaths,
+    );
     final attachmentFailureCodes = _deliveryAttachmentFailureCodes(
       bundleDir: bundleDir,
       delivery: delivery,
@@ -1779,6 +1786,7 @@ final class CockpitReadTaskBundleSummaryService {
         manifest.deliveryVideoReady && recordingFailureCodes.isEmpty;
     final deliveryValidated = screenshotReady &&
         recordingReadyOrExplained &&
+        keyframeFailureCodes.isEmpty &&
         attachmentFailureCodes.isEmpty &&
         manifestArtifactFailureCodes.isEmpty &&
         diagnosticsArtifactFailureCodes.isEmpty;
@@ -1872,7 +1880,10 @@ final class CockpitReadTaskBundleSummaryService {
     if (!artifactsReady) {
       failureCodes[CockpitTaskGate.artifactsReady] = _mergeFailureCodes(
         _mergeFailureCodes(
-          _mergeFailureCodes(screenshotFailureCodes, recordingFailureCodes),
+          _mergeFailureCodes(
+            _mergeFailureCodes(screenshotFailureCodes, recordingFailureCodes),
+            keyframeFailureCodes,
+          ),
           attachmentFailureCodes,
         ),
         _mergeFailureCodes(
@@ -1894,7 +1905,10 @@ final class CockpitReadTaskBundleSummaryService {
     if (!deliveryValidated) {
       failureCodes[CockpitTaskGate.deliveryValidated] = _mergeFailureCodes(
         _mergeFailureCodes(
-          _mergeFailureCodes(screenshotFailureCodes, recordingFailureCodes),
+          _mergeFailureCodes(
+            _mergeFailureCodes(screenshotFailureCodes, recordingFailureCodes),
+            keyframeFailureCodes,
+          ),
           attachmentFailureCodes,
         ),
         _mergeFailureCodes(
@@ -2008,6 +2022,132 @@ final class CockpitReadTaskBundleSummaryService {
     return <String>[
       'acceptanceRecordingMissing',
     ];
+  }
+
+  List<String> _deliveryKeyframeFailureCodes({
+    required String bundleDir,
+    required Map<String, Object?> delivery,
+    required CockpitBundleArtifactPaths artifactPaths,
+  }) {
+    final primaryScreenshotPath = artifactPaths.primaryScreenshotPath;
+    final primaryRecordingPath = artifactPaths.primaryRecordingPath;
+    if (primaryScreenshotPath == null ||
+        primaryScreenshotPath.isEmpty ||
+        primaryRecordingPath == null ||
+        primaryRecordingPath.isEmpty) {
+      return const <String>[];
+    }
+
+    final keyframes = _readRecordingKeyframes(delivery);
+    if (keyframes.isEmpty) {
+      return const <String>['recordingKeyframesMissing'];
+    }
+
+    final failureCodes = <String>{};
+    final seenRefs = <String>{};
+    for (final keyframe in keyframes) {
+      final ref = keyframe.relativePath;
+      if (ref.isEmpty) {
+        failureCodes.add('recordingKeyframeRefMissing');
+        continue;
+      }
+      final resolvedPath = CockpitBundleArtifactPaths.resolveBundleArtifactPath(
+        bundleDir,
+        ref,
+        allowedRoots: const <String>{'keyframes'},
+      );
+      if (resolvedPath == null) {
+        failureCodes.add('recordingKeyframeRefInvalid');
+        continue;
+      }
+      if (!File(resolvedPath).existsSync()) {
+        failureCodes.add('recordingKeyframeMissing');
+        continue;
+      }
+      seenRefs.add(ref);
+    }
+
+    final indexedRefs = _readIndexedKeyframeRefs(
+      bundleDir,
+      delivery['keyframes'],
+    );
+    if (seenRefs.difference(indexedRefs).isNotEmpty) {
+      failureCodes.add('recordingKeyframeNotIndexed');
+    }
+
+    final coverageJson = delivery['keyframeCoverage'] as Map<Object?, Object?>?;
+    final durationMs = coverageJson == null
+        ? 0
+        : (Map<String, Object?>.from(coverageJson)['durationMs'] as int? ?? 0);
+    final coverageResult = CockpitBundleArtifactValidator()
+        .validateRecordingCoverage(
+            durationMs: durationMs, keyframes: keyframes);
+    if (!coverageResult.isValid) {
+      failureCodes.add(coverageResult.code);
+    }
+
+    return List<String>.unmodifiable(failureCodes);
+  }
+
+  List<CockpitRecordingKeyframe> _readRecordingKeyframes(
+    Map<String, Object?> delivery,
+  ) {
+    final rawKeyframes = delivery['keyframes'] as List<Object?>?;
+    if (rawKeyframes == null) {
+      return const <CockpitRecordingKeyframe>[];
+    }
+
+    final keyframes = <CockpitRecordingKeyframe>[];
+    for (final item in rawKeyframes.whereType<Map<Object?, Object?>>()) {
+      try {
+        keyframes.add(
+          CockpitRecordingKeyframe.fromJson(Map<String, Object?>.from(item)),
+        );
+      } on TypeError {
+        keyframes.add(
+          const CockpitRecordingKeyframe(
+            relativePath: '',
+            label: '',
+            offsetMs: 0,
+            source: CockpitRecordingKeyframeSource.stepCapture,
+          ),
+        );
+      } on ArgumentError {
+        keyframes.add(
+          const CockpitRecordingKeyframe(
+            relativePath: '',
+            label: '',
+            offsetMs: 0,
+            source: CockpitRecordingKeyframeSource.stepCapture,
+          ),
+        );
+      }
+    }
+    return List<CockpitRecordingKeyframe>.unmodifiable(keyframes);
+  }
+
+  Set<String> _readIndexedKeyframeRefs(String bundleDir, Object? value) {
+    final refs = <String>{};
+    for (final rawItem in (value as List<Object?>? ?? const <Object?>[])) {
+      if (rawItem is! Map<Object?, Object?>) {
+        continue;
+      }
+      final item = Map<String, Object?>.from(rawItem);
+      final ref = item['ref'] as String? ?? '';
+      if (ref.isEmpty) {
+        continue;
+      }
+      final resolvedPath = CockpitBundleArtifactPaths.resolveBundleArtifactPath(
+        bundleDir,
+        ref,
+        allowedRoots: const <String>{'keyframes'},
+      );
+      if (resolvedPath == null) {
+        continue;
+      }
+      refs.add(ref);
+    }
+    return Set<String>.unmodifiable(refs);
   }
 
   List<String> _deliveryAttachmentFailureCodes({

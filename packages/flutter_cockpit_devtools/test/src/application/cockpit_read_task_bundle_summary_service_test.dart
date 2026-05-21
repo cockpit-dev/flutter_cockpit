@@ -1329,7 +1329,7 @@ void main() {
   );
 
   test(
-    'read bundle summary ignores keyframe refs that are not bundle-local files',
+    'read bundle summary rejects delivery validation for keyframe refs outside the bundle',
     () async {
       final tempDir = await Directory.systemTemp.createTemp(
         'cockpit_read_task_bundle_summary_service_escaped_keyframes',
@@ -1442,6 +1442,273 @@ void main() {
       expect(
         result.evidence.keyframes.single.path,
         p.join(bundleDir.path, 'keyframes', 'acceptance_tail.png'),
+      );
+      expect(
+        result.gateSummary.isSatisfied(CockpitTaskGate.artifactsReady),
+        isFalse,
+      );
+      expect(
+        result.gateSummary.isSatisfied(CockpitTaskGate.deliveryValidated),
+        isFalse,
+      );
+      expect(
+        result.gateSummary.failureCodesFor(CockpitTaskGate.artifactsReady),
+        contains('recordingKeyframeRefInvalid'),
+      );
+      expect(
+        result.evidenceSummary['artifactFailureCodes'],
+        contains('recordingKeyframeRefInvalid'),
+      );
+    },
+  );
+
+  test(
+    'read bundle summary rejects delivery validation when recording keyframes are missing',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_read_task_bundle_summary_service_missing_keyframes',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final bundleDir = Directory(p.join(tempDir.path, 'bundle'));
+      await Directory(p.join(bundleDir.path, 'screenshots')).create(
+        recursive: true,
+      );
+      await Directory(p.join(bundleDir.path, 'recordings')).create(
+        recursive: true,
+      );
+      await File(
+        p.join(bundleDir.path, 'screenshots', 'acceptance.png'),
+      ).writeAsBytes(const <int>[1, 2, 3]);
+      await File(
+        p.join(bundleDir.path, 'recordings', 'acceptance.mp4'),
+      ).writeAsBytes(const <int>[4, 5, 6]);
+      await File(p.join(bundleDir.path, 'manifest.json')).writeAsString(
+        jsonEncode(
+          CockpitRunManifest(
+            sessionId: 'bundle-session',
+            taskId: 'bundle-task',
+            platform: 'android',
+            status: CockpitTaskStatus.completed,
+            startedAt: DateTime.utc(2026, 4, 12, 10, 15),
+            finishedAt: DateTime.utc(2026, 4, 12, 10, 16),
+            artifactRefs: const <CockpitArtifactRef>[
+              CockpitArtifactRef(
+                role: 'screenshot',
+                relativePath: 'screenshots/acceptance.png',
+              ),
+              CockpitArtifactRef(
+                role: 'recording',
+                relativePath: 'recordings/acceptance.mp4',
+              ),
+            ],
+            commandCount: 1,
+            screenshotCount: 1,
+            recordingCount: 1,
+            deliveryArtifactsReady: true,
+            deliveryVideoReady: true,
+          ).toJson(),
+        ),
+      );
+      await File(p.join(bundleDir.path, 'handoff.json')).writeAsString(
+        jsonEncode(<String, Object?>{
+          'status': 'completed',
+          'gates': <String, Object?>{
+            'artifactsReady': true,
+            'deliveryValidated': true,
+          },
+        }),
+      );
+      await File(p.join(bundleDir.path, 'delivery.json')).writeAsString(
+        jsonEncode(<String, Object?>{
+          'primaryScreenshotRef': 'screenshots/acceptance.png',
+          'attachmentRefs': <String>['screenshots/acceptance.png'],
+          'primaryRecordingRef': 'recordings/acceptance.mp4',
+          'videoAttachmentRefs': <String>['recordings/acceptance.mp4'],
+          'deliveryArtifactsReady': true,
+          'deliveryVideoReady': true,
+          'deliveryKeyframesReady': false,
+          'keyframeCoverage': <String, Object?>{
+            'durationMs': 1200,
+            'hasEarlyCoverage': false,
+            'hasMidCoverage': false,
+            'hasLateCoverage': false,
+            'isReady': false,
+          },
+        }),
+      );
+      await File(
+        p.join(bundleDir.path, 'acceptance.md'),
+      ).writeAsString('# Acceptance\n\n- Status: completed\n');
+      await File(p.join(bundleDir.path, 'steps.json')).writeAsString('[]');
+
+      final service = CockpitReadTaskBundleSummaryService();
+      final result = await service.read(
+        CockpitReadTaskBundleSummaryRequest(bundleDir: bundleDir.path),
+      );
+
+      expect(
+        result.gateSummary
+            .isSatisfied(CockpitTaskGate.recordingReadyOrExplained),
+        isTrue,
+      );
+      expect(
+        result.gateSummary.isSatisfied(CockpitTaskGate.artifactsReady),
+        isFalse,
+      );
+      expect(
+        result.gateSummary.isSatisfied(CockpitTaskGate.deliveryValidated),
+        isFalse,
+      );
+      expect(
+        result.gateSummary.failureCodesFor(CockpitTaskGate.artifactsReady),
+        contains('recordingKeyframesMissing'),
+      );
+      expect(
+        result.gateSummary.failureCodesFor(CockpitTaskGate.deliveryValidated),
+        contains('recordingKeyframesMissing'),
+      );
+      expect(
+        result.evidenceSummary['deliveryValidated'],
+        isFalse,
+      );
+      expect(
+        result.evidenceSummary['artifactFailureCodes'],
+        contains('recordingKeyframesMissing'),
+      );
+    },
+  );
+
+  test(
+    'read bundle summary rejects delivery validation when recording keyframe coverage is insufficient',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_read_task_bundle_summary_service_insufficient_keyframes',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final bundleDir = Directory(p.join(tempDir.path, 'bundle'));
+      await Directory(p.join(bundleDir.path, 'screenshots')).create(
+        recursive: true,
+      );
+      await Directory(p.join(bundleDir.path, 'recordings')).create(
+        recursive: true,
+      );
+      await Directory(p.join(bundleDir.path, 'keyframes')).create(
+        recursive: true,
+      );
+      await File(
+        p.join(bundleDir.path, 'screenshots', 'acceptance.png'),
+      ).writeAsBytes(const <int>[1, 2, 3]);
+      await File(
+        p.join(bundleDir.path, 'recordings', 'acceptance.mp4'),
+      ).writeAsBytes(const <int>[4, 5, 6]);
+      await File(
+        p.join(bundleDir.path, 'keyframes', 'acceptance_midpoint.png'),
+      ).writeAsBytes(const <int>[7, 8, 9]);
+      await File(p.join(bundleDir.path, 'manifest.json')).writeAsString(
+        jsonEncode(
+          CockpitRunManifest(
+            sessionId: 'bundle-session',
+            taskId: 'bundle-task',
+            platform: 'android',
+            status: CockpitTaskStatus.completed,
+            startedAt: DateTime.utc(2026, 4, 12, 10, 20),
+            finishedAt: DateTime.utc(2026, 4, 12, 10, 21),
+            artifactRefs: const <CockpitArtifactRef>[
+              CockpitArtifactRef(
+                role: 'screenshot',
+                relativePath: 'screenshots/acceptance.png',
+              ),
+              CockpitArtifactRef(
+                role: 'recording',
+                relativePath: 'recordings/acceptance.mp4',
+              ),
+              CockpitArtifactRef(
+                role: 'keyframe',
+                relativePath: 'keyframes/acceptance_midpoint.png',
+              ),
+            ],
+            commandCount: 1,
+            screenshotCount: 1,
+            recordingCount: 1,
+            deliveryArtifactsReady: true,
+            deliveryVideoReady: true,
+          ).toJson(),
+        ),
+      );
+      await File(p.join(bundleDir.path, 'handoff.json')).writeAsString(
+        jsonEncode(<String, Object?>{
+          'status': 'completed',
+          'gates': <String, Object?>{
+            'artifactsReady': true,
+            'deliveryValidated': true,
+          },
+        }),
+      );
+      await File(p.join(bundleDir.path, 'delivery.json')).writeAsString(
+        jsonEncode(<String, Object?>{
+          'primaryScreenshotRef': 'screenshots/acceptance.png',
+          'attachmentRefs': <String>['screenshots/acceptance.png'],
+          'primaryRecordingRef': 'recordings/acceptance.mp4',
+          'videoAttachmentRefs': <String>['recordings/acceptance.mp4'],
+          'deliveryArtifactsReady': true,
+          'deliveryVideoReady': true,
+          'deliveryKeyframesReady': false,
+          'keyframes': <Map<String, Object?>>[
+            <String, Object?>{
+              'ref': 'keyframes/acceptance_midpoint.png',
+              'label': 'midpoint',
+              'offsetMs': 2500,
+              'source': 'stepCapture',
+            },
+          ],
+          'keyframeCoverage': <String, Object?>{
+            'durationMs': 5000,
+            'hasEarlyCoverage': false,
+            'hasMidCoverage': true,
+            'hasLateCoverage': false,
+            'isReady': false,
+          },
+        }),
+      );
+      await File(
+        p.join(bundleDir.path, 'acceptance.md'),
+      ).writeAsString('# Acceptance\n\n- Status: completed\n');
+      await File(p.join(bundleDir.path, 'steps.json')).writeAsString('[]');
+
+      final service = CockpitReadTaskBundleSummaryService();
+      final result = await service.read(
+        CockpitReadTaskBundleSummaryRequest(bundleDir: bundleDir.path),
+      );
+
+      expect(
+        result.gateSummary.isSatisfied(CockpitTaskGate.artifactsReady),
+        isFalse,
+      );
+      expect(
+        result.gateSummary.isSatisfied(CockpitTaskGate.deliveryValidated),
+        isFalse,
+      );
+      expect(
+        result.gateSummary.failureCodesFor(CockpitTaskGate.artifactsReady),
+        contains('recordingCoverageInsufficient'),
+      );
+      expect(
+        result.gateSummary.failureCodesFor(CockpitTaskGate.deliveryValidated),
+        contains('recordingCoverageInsufficient'),
+      );
+      expect(
+        result.evidenceSummary['artifactFailureCodes'],
+        contains('recordingCoverageInsufficient'),
       );
     },
   );
