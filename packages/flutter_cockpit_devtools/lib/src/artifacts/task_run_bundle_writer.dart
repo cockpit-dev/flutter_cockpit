@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:path/path.dart' as p;
 
+import '../application/cockpit_bundle_artifact_paths.dart';
 import '../application/cockpit_bundle_diagnostics_artifact_refs.dart';
 import '../application/cockpit_compact_json.dart';
 import 'cockpit_recording_keyframe_extractor.dart';
@@ -100,6 +101,7 @@ final class TaskRunBundleWriter {
       delivery,
       finalizedKeyframeExtraction,
     );
+    _validateDeliveryArtifactRefs(finalizedDelivery);
     final finalizedHandoff = _withKeyframeHandoff(
       handoff,
       finalizedKeyframeExtraction,
@@ -146,6 +148,77 @@ final class TaskRunBundleWriter {
 
   void _writeJson(String path, Object payload) {
     File(path).writeAsStringSync(cockpitPrettyJsonText(payload));
+  }
+
+  void _validateDeliveryArtifactRefs(Map<String, Object?> delivery) {
+    _validateDeliveryRef(
+      delivery['primaryScreenshotRef'],
+      fieldName: 'primaryScreenshotRef',
+      allowedRoots: const <String>{'screenshots'},
+      message: 'Delivery screenshot refs must stay under screenshots/.',
+    );
+    _validateDeliveryRefList(
+      delivery['attachmentRefs'],
+      fieldName: 'attachmentRefs',
+      allowedRoots: const <String>{'screenshots'},
+      message: 'Delivery screenshot refs must stay under screenshots/.',
+    );
+    _validateDeliveryRef(
+      delivery['primaryRecordingRef'],
+      fieldName: 'primaryRecordingRef',
+      allowedRoots: const <String>{'recordings'},
+      message: 'Delivery recording refs must stay under recordings/.',
+    );
+    _validateDeliveryRefList(
+      delivery['videoAttachmentRefs'],
+      fieldName: 'videoAttachmentRefs',
+      allowedRoots: const <String>{'recordings'},
+      message: 'Delivery recording refs must stay under recordings/.',
+    );
+  }
+
+  void _validateDeliveryRefList(
+    Object? refs, {
+    required String fieldName,
+    required Set<String> allowedRoots,
+    required String message,
+  }) {
+    if (refs == null) {
+      return;
+    }
+    if (refs is! List<Object?>) {
+      throw ArgumentError.value(refs, fieldName, message);
+    }
+    for (final ref in refs) {
+      _validateDeliveryRef(
+        ref,
+        fieldName: fieldName,
+        allowedRoots: allowedRoots,
+        message: message,
+      );
+    }
+  }
+
+  void _validateDeliveryRef(
+    Object? ref, {
+    required String fieldName,
+    required Set<String> allowedRoots,
+    required String message,
+  }) {
+    if (ref == null) {
+      return;
+    }
+    if (ref is! String || ref.isEmpty) {
+      throw ArgumentError.value(ref, fieldName, message);
+    }
+    final resolvedPath = CockpitBundleArtifactPaths.resolveBundleArtifactPath(
+      '/',
+      ref,
+      allowedRoots: allowedRoots,
+    );
+    if (resolvedPath == null) {
+      throw ArgumentError.value(ref, fieldName, message);
+    }
   }
 
   void _writeArtifacts({

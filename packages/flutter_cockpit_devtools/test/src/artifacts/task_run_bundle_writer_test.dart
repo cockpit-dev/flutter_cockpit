@@ -329,6 +329,112 @@ void main() {
     },
   );
 
+  test(
+    'rejects delivery screenshot refs outside screenshot artifacts',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_bundle_invalid_delivery_ref',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final writer = TaskRunBundleWriter();
+      final bundle = CockpitContextBundle(
+        manifest: CockpitRunManifest(
+          sessionId: 'session-invalid-delivery',
+          taskId: 'task-invalid-delivery',
+          platform: 'android',
+          status: CockpitTaskStatus.completed,
+          startedAt: DateTime.utc(2026, 3, 20, 8),
+          finishedAt: DateTime.utc(2026, 3, 20, 8, 2),
+          artifactRefs: const <CockpitArtifactRef>[],
+          deliveryArtifactsReady: true,
+        ),
+        environment: const CockpitEnvironment(
+          platform: 'android',
+          flutterVersion: '3.38.9',
+          dartVersion: '3.10.8',
+        ),
+        steps: const <CockpitStepRecord>[],
+        observations: const <CockpitObservation>[],
+        acceptanceMarkdown: '# Acceptance\n\nDelivered.',
+        handoff: const <String, Object?>{'status': 'completed'},
+        delivery: const <String, Object?>{
+          'primaryScreenshotRef': 'recordings/not_a_screenshot.mp4',
+          'attachmentRefs': <String>['../outside.png'],
+          'deliveryArtifactsReady': true,
+        },
+      );
+
+      await expectLater(
+        writer.writeBundle(bundle: bundle, outputRoot: tempDir.path),
+        throwsA(
+          isA<ArgumentError>().having(
+            (error) => error.message,
+            'message',
+            contains('Delivery screenshot refs must stay under screenshots/'),
+          ),
+        ),
+      );
+    },
+  );
+
+  test(
+    'rejects delivery recording refs outside recording artifacts',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_bundle_invalid_delivery_recording_ref',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final writer = TaskRunBundleWriter();
+      final bundle = CockpitContextBundle(
+        manifest: CockpitRunManifest(
+          sessionId: 'session-invalid-delivery-recording',
+          taskId: 'task-invalid-delivery-recording',
+          platform: 'android',
+          status: CockpitTaskStatus.completed,
+          startedAt: DateTime.utc(2026, 3, 20, 8),
+          finishedAt: DateTime.utc(2026, 3, 20, 8, 2),
+          artifactRefs: const <CockpitArtifactRef>[],
+          deliveryVideoReady: true,
+        ),
+        environment: const CockpitEnvironment(
+          platform: 'android',
+          flutterVersion: '3.38.9',
+          dartVersion: '3.10.8',
+        ),
+        steps: const <CockpitStepRecord>[],
+        observations: const <CockpitObservation>[],
+        acceptanceMarkdown: '# Acceptance\n\nRecorded.',
+        handoff: const <String, Object?>{'status': 'completed'},
+        delivery: const <String, Object?>{
+          'primaryRecordingRef': 'screenshots/not_a_recording.png',
+          'videoAttachmentRefs': <String>['../outside.mp4'],
+          'deliveryVideoReady': true,
+        },
+      );
+
+      await expectLater(
+        writer.writeBundle(bundle: bundle, outputRoot: tempDir.path),
+        throwsA(
+          isA<ArgumentError>().having(
+            (error) => error.message,
+            'message',
+            contains('Delivery recording refs must stay under recordings/'),
+          ),
+        ),
+      );
+    },
+  );
+
   test('copies recording source files into the bundle output', () async {
     final tempDir = await Directory.systemTemp.createTemp(
       'cockpit_bundle_test',
