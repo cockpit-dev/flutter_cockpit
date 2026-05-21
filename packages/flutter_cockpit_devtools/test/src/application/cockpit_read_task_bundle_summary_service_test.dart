@@ -1173,6 +1173,118 @@ void main() {
       );
     },
   );
+
+  test(
+    'read bundle summary ignores keyframe refs that are not bundle-local files',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_read_task_bundle_summary_service_escaped_keyframes',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final bundleDir = Directory(p.join(tempDir.path, 'bundle'));
+      await Directory(p.join(bundleDir.path, 'screenshots')).create(
+        recursive: true,
+      );
+      await Directory(p.join(bundleDir.path, 'recordings')).create(
+        recursive: true,
+      );
+      await Directory(p.join(bundleDir.path, 'keyframes')).create(
+        recursive: true,
+      );
+      await File(
+        p.join(bundleDir.path, 'screenshots', 'acceptance.png'),
+      ).writeAsBytes(const <int>[1, 2, 3]);
+      await File(
+        p.join(bundleDir.path, 'recordings', 'acceptance.mp4'),
+      ).writeAsBytes(const <int>[4, 5, 6]);
+      await File(
+        p.join(bundleDir.path, 'keyframes', 'acceptance_tail.png'),
+      ).writeAsBytes(const <int>[7, 8, 9]);
+      await File(p.join(bundleDir.path, 'manifest.json')).writeAsString(
+        jsonEncode(
+          CockpitRunManifest(
+            sessionId: 'bundle-session',
+            taskId: 'bundle-task',
+            platform: 'android',
+            status: CockpitTaskStatus.completed,
+            startedAt: DateTime.utc(2026, 4, 12, 10, 0),
+            finishedAt: DateTime.utc(2026, 4, 12, 10, 1),
+            artifactRefs: const <CockpitArtifactRef>[
+              CockpitArtifactRef(
+                role: 'screenshot',
+                relativePath: 'screenshots/acceptance.png',
+              ),
+              CockpitArtifactRef(
+                role: 'recording',
+                relativePath: 'recordings/acceptance.mp4',
+              ),
+            ],
+            commandCount: 1,
+            screenshotCount: 1,
+            recordingCount: 1,
+            deliveryArtifactsReady: true,
+            deliveryVideoReady: true,
+          ).toJson(),
+        ),
+      );
+      await File(p.join(bundleDir.path, 'handoff.json')).writeAsString(
+        jsonEncode(<String, Object?>{'status': 'completed'}),
+      );
+      await File(p.join(bundleDir.path, 'delivery.json')).writeAsString(
+        jsonEncode(<String, Object?>{
+          'primaryScreenshotRef': 'screenshots/acceptance.png',
+          'primaryRecordingRef': 'recordings/acceptance.mp4',
+          'keyframes': <Map<String, Object?>>[
+            <String, Object?>{
+              'ref': '../escaped_tail.png',
+              'label': 'tail_consistency',
+              'offsetMs': 700,
+              'source': 'tailConsistency',
+            },
+            <String, Object?>{
+              'ref': 'keyframes/acceptance_tail.png',
+              'label': 'acceptance',
+              'offsetMs': 700,
+              'source': 'stepCapture',
+            },
+          ],
+          'keyframeCoverage': <String, Object?>{
+            'durationMs': 900,
+            'hasEarlyCoverage': true,
+            'hasMidCoverage': true,
+            'hasLateCoverage': true,
+            'isReady': true,
+          },
+        }),
+      );
+      await File(
+        p.join(bundleDir.path, 'acceptance.md'),
+      ).writeAsString('# Acceptance\n\n- Status: completed\n');
+      await File(p.join(bundleDir.path, 'steps.json')).writeAsString('[]');
+
+      final service = CockpitReadTaskBundleSummaryService();
+      final result = await service.read(
+        CockpitReadTaskBundleSummaryRequest(bundleDir: bundleDir.path),
+      );
+
+      expect(result.artifactPaths.keyframePaths, <String>[
+        p.join(bundleDir.path, 'keyframes', 'acceptance_tail.png'),
+      ]);
+      expect(
+        result.evidence.keyframes.map((keyframe) => keyframe.ref),
+        <String>['keyframes/acceptance_tail.png'],
+      );
+      expect(
+        result.evidence.keyframes.single.path,
+        p.join(bundleDir.path, 'keyframes', 'acceptance_tail.png'),
+      );
+    },
+  );
 }
 
 Map<String, Object?> _snapshotJsonForDelta({

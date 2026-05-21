@@ -62,7 +62,7 @@ final class CockpitBundleArtifactPaths {
     if (relativePath == null || relativePath.isEmpty) {
       return null;
     }
-    return _resolveBundleArtifactPath(bundleDir, relativePath);
+    return resolveBundleArtifactPath(bundleDir, relativePath);
   }
 
   static List<String> _resolvePaths({
@@ -72,7 +72,7 @@ final class CockpitBundleArtifactPaths {
     final values = (relativePaths as List<Object?>? ?? const <Object?>[])
         .whereType<String>()
         .where((path) => path.isNotEmpty)
-        .map((path) => _resolveBundleArtifactPath(bundleDir, path))
+        .map((path) => resolveBundleArtifactPath(bundleDir, path))
         .whereType<String>()
         .toList(growable: false);
     return values;
@@ -89,24 +89,25 @@ final class CockpitBundleArtifactPaths {
             .map((item) => item['ref'])
             .whereType<String>()
             .where((path) => path.isNotEmpty)
-            .map((path) => _resolveBundleArtifactPath(bundleDir, path))
+            .map(
+              (path) => resolveBundleArtifactPath(
+                bundleDir,
+                path,
+                allowedRoots: const <String>{'keyframes'},
+              ),
+            )
             .whereType<String>()
             .toList(growable: false);
     return keyframes;
   }
 
-  static String? _resolveBundleArtifactPath(
+  static String? resolveBundleArtifactPath(
     String bundleDir,
-    String relativePath,
-  ) {
+    String relativePath, {
+    Set<String> allowedRoots = _allowedArtifactRoots,
+  }) {
     final normalized = p.normalize(relativePath);
     final allowedRoot = normalized.split(p.separator).firstOrNull;
-    const allowedRoots = <String>{
-      'screenshots',
-      'recordings',
-      'keyframes',
-      'diagnostics',
-    };
     if (normalized.isEmpty ||
         p.isAbsolute(normalized) ||
         normalized == '.' ||
@@ -123,4 +124,11 @@ final class CockpitBundleArtifactPaths {
     }
     return resolvedPath;
   }
+
+  static const Set<String> _allowedArtifactRoots = <String>{
+    'screenshots',
+    'recordings',
+    'keyframes',
+    'diagnostics',
+  };
 }

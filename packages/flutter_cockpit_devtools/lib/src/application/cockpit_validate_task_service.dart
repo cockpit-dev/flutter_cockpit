@@ -3,6 +3,7 @@ import 'dart:io';
 
 import '../artifacts/cockpit_recording_keyframe_extractor.dart';
 import '../validation/cockpit_bundle_artifact_validator.dart';
+import 'cockpit_bundle_artifact_paths.dart';
 import 'cockpit_read_task_bundle_summary_service.dart';
 import 'cockpit_run_task_service.dart';
 import 'cockpit_task_gate.dart';
@@ -488,6 +489,12 @@ final class CockpitValidateTaskService {
           ),
         );
       } else {
+        failures.addAll(
+          _validateRecordingKeyframeRefs(
+            bundleSummary: bundleSummary,
+            keyframes: keyframes,
+          ),
+        );
         for (final path in bundleSummary.artifactPaths.keyframePaths) {
           if (validatedArtifacts.add(path)) {
             final failure = await _validateScreenshotArtifact(path);
@@ -700,6 +707,91 @@ final class CockpitValidateTaskService {
           ),
         )
         .toList(growable: false);
+  }
+
+  List<CockpitValidationFailure> _validateRecordingKeyframeRefs({
+    required CockpitReadTaskBundleSummaryResult bundleSummary,
+    required List<CockpitRecordingKeyframe> keyframes,
+  }) {
+    final failures = <CockpitValidationFailure>[];
+    final seenRefs = <String>{};
+    for (final keyframe in keyframes) {
+      final ref = keyframe.relativePath;
+      if (ref.isEmpty) {
+        failures.add(
+          CockpitValidationFailure(
+            code: 'recordingKeyframeRefMissing',
+            message:
+                'A recording keyframe entry is missing its bundle-relative ref.',
+            details: <String, Object?>{
+              'label': keyframe.label,
+              'offsetMs': keyframe.offsetMs,
+              'source': keyframe.source.name,
+            },
+          ),
+        );
+        continue;
+      }
+
+      final resolvedPath = CockpitBundleArtifactPaths.resolveBundleArtifactPath(
+        bundleSummary.bundleDir,
+        ref,
+        allowedRoots: const <String>{'keyframes'},
+      );
+      if (resolvedPath == null) {
+        failures.add(
+          CockpitValidationFailure(
+            code: 'recordingKeyframeRefInvalid',
+            message:
+                'Recording keyframe refs must point to bundle-local files under keyframes/.',
+            details: <String, Object?>{
+              'ref': ref,
+              'label': keyframe.label,
+              'offsetMs': keyframe.offsetMs,
+              'source': keyframe.source.name,
+            },
+          ),
+        );
+        continue;
+      }
+
+      if (!File(resolvedPath).existsSync()) {
+        failures.add(
+          CockpitValidationFailure(
+            code: 'recordingKeyframeMissing',
+            message:
+                'A recording keyframe is referenced but missing from the bundle.',
+            details: <String, Object?>{
+              'ref': ref,
+              'path': resolvedPath,
+              'label': keyframe.label,
+              'offsetMs': keyframe.offsetMs,
+              'source': keyframe.source.name,
+            },
+          ),
+        );
+        continue;
+      }
+
+      seenRefs.add(ref);
+    }
+
+    final indexedRefs = bundleSummary.evidence.keyframes
+        .map((keyframe) => keyframe.ref)
+        .where((ref) => ref.isNotEmpty)
+        .toSet();
+    for (final ref in seenRefs.difference(indexedRefs)) {
+      failures.add(
+        CockpitValidationFailure(
+          code: 'recordingKeyframeNotIndexed',
+          message:
+              'A recording keyframe ref is not present in the sanitized bundle evidence index.',
+          details: <String, Object?>{'ref': ref},
+        ),
+      );
+    }
+
+    return List<CockpitValidationFailure>.unmodifiable(failures);
   }
 
   CockpitValidationFailure? _validateRecordingCoverage({
