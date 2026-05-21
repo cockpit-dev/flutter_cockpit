@@ -110,6 +110,18 @@ final class TaskRunBundleWriter {
       acceptanceMarkdown,
       finalizedKeyframeExtraction,
     );
+    _writeDiagnosticsArtifacts(
+      outputDirectory: outputDirectory,
+      diagnosticsArtifacts: diagnosticsArtifacts,
+    );
+    _validateManifestArtifactRefs(
+      outputDirectory: outputDirectory,
+      manifest: manifest,
+    );
+    _validateDeliveryArtifactFiles(
+      outputDirectory: outputDirectory,
+      delivery: finalizedDelivery,
+    );
 
     _writeJson(
       p.join(outputDirectory.path, 'manifest.json'),
@@ -137,10 +149,6 @@ final class TaskRunBundleWriter {
     File(
       p.join(outputDirectory.path, 'acceptance.md'),
     ).writeAsStringSync(finalizedAcceptanceMarkdown);
-    _writeDiagnosticsArtifacts(
-      outputDirectory: outputDirectory,
-      diagnosticsArtifacts: diagnosticsArtifacts,
-    );
     await _cleanupTimelineVideoFallback(timelineVideoFallback);
 
     return outputDirectory;
@@ -175,6 +183,43 @@ final class TaskRunBundleWriter {
       allowedRoots: const <String>{'recordings'},
       message: 'Delivery recording refs must stay under recordings/.',
     );
+    _validateDeliveryKeyframeRefs(delivery['keyframes']);
+  }
+
+  void _validateDeliveryKeyframeRefs(Object? keyframes) {
+    if (keyframes == null) {
+      return;
+    }
+    if (keyframes is! List<Object?>) {
+      throw ArgumentError.value(
+        keyframes,
+        'keyframes',
+        'Delivery keyframes must decode to a list.',
+      );
+    }
+    for (final keyframe in keyframes) {
+      if (keyframe is! Map<Object?, Object?>) {
+        throw ArgumentError.value(
+          keyframe,
+          'keyframes',
+          'Delivery keyframe entries must decode to JSON objects.',
+        );
+      }
+      final json = Map<String, Object?>.from(keyframe);
+      _validateDeliveryRef(
+        json['ref'],
+        fieldName: 'keyframes.ref',
+        allowedRoots: const <String>{'keyframes'},
+        message: 'Delivery keyframe refs must stay under keyframes/.',
+      );
+      _validateDeliveryRef(
+        json['linkedScreenshotRef'],
+        fieldName: 'keyframes.linkedScreenshotRef',
+        allowedRoots: const <String>{'screenshots'},
+        message:
+            'Delivery keyframe linked screenshot refs must stay under screenshots/.',
+      );
+    }
   }
 
   void _validateDeliveryRefList(
@@ -219,6 +264,105 @@ final class TaskRunBundleWriter {
     if (resolvedPath == null) {
       throw ArgumentError.value(ref, fieldName, message);
     }
+  }
+
+  void _validateManifestArtifactRefs({
+    required Directory outputDirectory,
+    required CockpitRunManifest manifest,
+  }) {
+    for (final artifact in manifest.artifactRefs) {
+      final allowedRoots =
+          CockpitBundleArtifactPaths.allowedRootsForArtifactRole(artifact.role);
+      final artifactPath = CockpitBundleArtifactPaths.resolveBundleArtifactPath(
+        outputDirectory.path,
+        artifact.relativePath,
+        allowedRoots: allowedRoots,
+      );
+      if (artifact.relativePath.isEmpty || artifactPath == null) {
+        throw ArgumentError.value(
+          artifact.relativePath,
+          'relativePath',
+          'Manifest artifact refs must stay under their expected evidence directory.',
+        );
+      }
+      if (!File(artifactPath).existsSync()) {
+        throw StateError(
+          'Manifest artifact file does not exist: ${artifact.relativePath}',
+        );
+      }
+    }
+  }
+
+  void _validateDeliveryArtifactFiles({
+    required Directory outputDirectory,
+    required Map<String, Object?> delivery,
+  }) {
+    for (final ref in <String>[
+      if (delivery['primaryScreenshotRef'] case final String ref
+          when ref.isNotEmpty)
+        ref,
+      ..._stringRefs(delivery['attachmentRefs']),
+      if (delivery['primaryRecordingRef'] case final String ref
+          when ref.isNotEmpty)
+        ref,
+      ..._stringRefs(delivery['videoAttachmentRefs']),
+    ]) {
+      _validateDeliveryArtifactFileExists(
+        outputDirectory: outputDirectory,
+        ref: ref,
+        allowedRoots: const <String>{'screenshots', 'recordings'},
+      );
+    }
+
+    for (final keyframe in _keyframeJsonObjects(delivery['keyframes'])) {
+      if (keyframe['ref'] case final String ref when ref.isNotEmpty) {
+        _validateDeliveryArtifactFileExists(
+          outputDirectory: outputDirectory,
+          ref: ref,
+          allowedRoots: const <String>{'keyframes'},
+        );
+      }
+      if (keyframe['linkedScreenshotRef'] case final String ref
+          when ref.isNotEmpty) {
+        _validateDeliveryArtifactFileExists(
+          outputDirectory: outputDirectory,
+          ref: ref,
+          allowedRoots: const <String>{'screenshots'},
+        );
+      }
+    }
+  }
+
+  void _validateDeliveryArtifactFileExists({
+    required Directory outputDirectory,
+    required String ref,
+    required Set<String> allowedRoots,
+  }) {
+    final artifactPath = CockpitBundleArtifactPaths.resolveBundleArtifactPath(
+      outputDirectory.path,
+      ref,
+      allowedRoots: allowedRoots,
+    );
+    if (artifactPath == null || !File(artifactPath).existsSync()) {
+      throw StateError('Delivery artifact file does not exist: $ref');
+    }
+  }
+
+  List<Map<String, Object?>> _keyframeJsonObjects(Object? keyframes) {
+    if (keyframes is! List<Object?>) {
+      return const <Map<String, Object?>>[];
+    }
+    return keyframes
+        .whereType<Map<Object?, Object?>>()
+        .map((item) => Map<String, Object?>.from(item))
+        .toList(growable: false);
+  }
+
+  List<String> _stringRefs(Object? refs) {
+    if (refs is! List<Object?>) {
+      return const <String>[];
+    }
+    return refs.whereType<String>().where((ref) => ref.isNotEmpty).toList();
   }
 
   void _writeArtifacts({
