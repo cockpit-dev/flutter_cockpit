@@ -64,16 +64,6 @@ class FlutterCockpitPlugin : FlutterPlugin, ActivityAware {
                 return@request
             }
 
-            if (isLikelyBlankCapture(bitmap)) {
-                bitmap.recycle()
-                result.error(
-                    "blankCapture",
-                    "Native screenshot capture produced a blank image.",
-                    null,
-                )
-                return@request
-            }
-
             val stream = ByteArrayOutputStream()
             val encoded = bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
             bitmap.recycle()
@@ -89,35 +79,6 @@ class FlutterCockpitPlugin : FlutterPlugin, ActivityAware {
                 )
             )
         }, Handler(Looper.getMainLooper()))
-    }
-
-    private fun isLikelyBlankCapture(bitmap: Bitmap): Boolean {
-        val sampleColumns = 11
-        val sampleRows = 11
-        var sampled = 0
-
-        for (column in 0 until sampleColumns) {
-            val x = sampleCoordinate(column, sampleColumns, bitmap.width)
-            for (row in 0 until sampleRows) {
-                val y = sampleCoordinate(row, sampleRows, bitmap.height)
-                val pixel = bitmap.getPixel(x, y)
-                val alpha = pixel ushr 24
-                val rgb = pixel and 0x00FFFFFF
-                if (rgb != 0 || alpha !in setOf(0x00, 0xFF)) {
-                    return false
-                }
-                sampled += 1
-            }
-        }
-
-        return sampled > 0
-    }
-
-    private fun sampleCoordinate(index: Int, total: Int, size: Int): Int {
-        if (size <= 1 || total <= 1) {
-            return 0
-        }
-        return ((size - 1L) * index / (total - 1)).toInt()
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
