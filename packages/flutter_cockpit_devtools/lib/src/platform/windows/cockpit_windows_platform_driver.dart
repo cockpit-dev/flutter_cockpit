@@ -15,31 +15,46 @@ final class CockpitWindowsPlatformDriver
         CockpitDeviceLifecycleDriver,
         CockpitEvidenceDriver {
   CockpitWindowsPlatformDriver({
-    String appId = 'dev.cockpit.desktop.windows',
+    String? appId,
+    int? processId,
     CockpitWindowsRemoteSessionLauncher? launcher,
     CockpitWindowsCaptureAdapter? captureAdapter,
+    bool enableDefaultCaptureAdapter = true,
     CockpitWindowsRecordingAdapter? recordingAdapter,
+    bool enableDefaultRecordingAdapter = true,
   })  : _launcher = launcher ?? CockpitWindowsRemoteSessionLauncher(),
-        _captureAdapter =
-            captureAdapter ?? CockpitWindowsCaptureAdapter(appId: appId),
-        _recordingAdapter =
-            recordingAdapter ?? CockpitWindowsRecordingAdapter(appId: appId);
+        _captureAdapter = captureAdapter ??
+            ((!enableDefaultCaptureAdapter || appId == null || appId.isEmpty)
+                ? null
+                : CockpitWindowsCaptureAdapter(
+                    appId: appId,
+                    processId: processId,
+                  )),
+        _recordingAdapter = recordingAdapter ??
+            ((!enableDefaultRecordingAdapter || appId == null || appId.isEmpty)
+                ? null
+                : CockpitWindowsRecordingAdapter(
+                    appId: appId,
+                    processId: processId,
+                  ));
 
   final CockpitWindowsRemoteSessionLauncher _launcher;
-  final CockpitWindowsCaptureAdapter _captureAdapter;
-  final CockpitWindowsRecordingAdapter _recordingAdapter;
+  final CockpitWindowsCaptureAdapter? _captureAdapter;
+  final CockpitWindowsRecordingAdapter? _recordingAdapter;
 
   @override
   String get platform => 'windows';
 
   @override
-  CockpitWindowsCaptureAdapter get captureAdapter => _captureAdapter;
+  CockpitWindowsCaptureAdapter? get captureAdapter => _captureAdapter;
 
   @override
-  CockpitWindowsRecordingAdapter get recordingAdapter => _recordingAdapter;
+  CockpitWindowsRecordingAdapter? get recordingAdapter => _recordingAdapter;
 
   @override
   Future<CockpitCapabilityProfile> describeCapabilities() async {
+    final supportsWindowCapture = _captureAdapter != null;
+    final supportsScreenRecording = _recordingAdapter != null;
     return CockpitCapabilityProfile(
       targetKind: CockpitTargetKind.desktopApp,
       surfaceKinds: <CockpitSurfaceKind>{
@@ -53,15 +68,15 @@ final class CockpitWindowsPlatformDriver
         CockpitActionCapability.focusApp,
         CockpitActionCapability.tap,
         CockpitActionCapability.typeText,
-        CockpitActionCapability.captureScreenshot,
-        CockpitActionCapability.startRecording,
-        CockpitActionCapability.stopRecording,
+        if (supportsWindowCapture) CockpitActionCapability.captureScreenshot,
+        if (supportsScreenRecording) CockpitActionCapability.startRecording,
+        if (supportsScreenRecording) CockpitActionCapability.stopRecording,
         CockpitActionCapability.readLogs,
         CockpitActionCapability.runShell,
       },
       evidenceCapabilities: <CockpitEvidenceCapability>{
-        CockpitEvidenceCapability.windowCapture,
-        CockpitEvidenceCapability.screenRecording,
+        if (supportsWindowCapture) CockpitEvidenceCapability.windowCapture,
+        if (supportsScreenRecording) CockpitEvidenceCapability.screenRecording,
         CockpitEvidenceCapability.appLogs,
         CockpitEvidenceCapability.runtimeErrors,
       },

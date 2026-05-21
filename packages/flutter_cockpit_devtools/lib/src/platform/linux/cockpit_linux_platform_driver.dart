@@ -15,31 +15,46 @@ final class CockpitLinuxPlatformDriver
         CockpitDeviceLifecycleDriver,
         CockpitEvidenceDriver {
   CockpitLinuxPlatformDriver({
-    String appId = 'dev.cockpit.desktop.linux',
+    String? appId,
+    int? processId,
     CockpitLinuxRemoteSessionLauncher? launcher,
     CockpitLinuxCaptureAdapter? captureAdapter,
+    bool enableDefaultCaptureAdapter = true,
     CockpitLinuxRecordingAdapter? recordingAdapter,
+    bool enableDefaultRecordingAdapter = true,
   })  : _launcher = launcher ?? CockpitLinuxRemoteSessionLauncher(),
-        _captureAdapter =
-            captureAdapter ?? CockpitLinuxCaptureAdapter(appId: appId),
-        _recordingAdapter =
-            recordingAdapter ?? CockpitLinuxRecordingAdapter(appId: appId);
+        _captureAdapter = captureAdapter ??
+            ((!enableDefaultCaptureAdapter || appId == null || appId.isEmpty)
+                ? null
+                : CockpitLinuxCaptureAdapter(
+                    appId: appId,
+                    processId: processId,
+                  )),
+        _recordingAdapter = recordingAdapter ??
+            ((!enableDefaultRecordingAdapter || appId == null || appId.isEmpty)
+                ? null
+                : CockpitLinuxRecordingAdapter(
+                    appId: appId,
+                    processId: processId,
+                  ));
 
   final CockpitLinuxRemoteSessionLauncher _launcher;
-  final CockpitLinuxCaptureAdapter _captureAdapter;
-  final CockpitLinuxRecordingAdapter _recordingAdapter;
+  final CockpitLinuxCaptureAdapter? _captureAdapter;
+  final CockpitLinuxRecordingAdapter? _recordingAdapter;
 
   @override
   String get platform => 'linux';
 
   @override
-  CockpitLinuxCaptureAdapter get captureAdapter => _captureAdapter;
+  CockpitLinuxCaptureAdapter? get captureAdapter => _captureAdapter;
 
   @override
-  CockpitLinuxRecordingAdapter get recordingAdapter => _recordingAdapter;
+  CockpitLinuxRecordingAdapter? get recordingAdapter => _recordingAdapter;
 
   @override
   Future<CockpitCapabilityProfile> describeCapabilities() async {
+    final supportsWindowCapture = _captureAdapter != null;
+    final supportsScreenRecording = _recordingAdapter != null;
     return CockpitCapabilityProfile(
       targetKind: CockpitTargetKind.desktopApp,
       surfaceKinds: <CockpitSurfaceKind>{
@@ -53,15 +68,15 @@ final class CockpitLinuxPlatformDriver
         CockpitActionCapability.focusApp,
         CockpitActionCapability.tap,
         CockpitActionCapability.typeText,
-        CockpitActionCapability.captureScreenshot,
-        CockpitActionCapability.startRecording,
-        CockpitActionCapability.stopRecording,
+        if (supportsWindowCapture) CockpitActionCapability.captureScreenshot,
+        if (supportsScreenRecording) CockpitActionCapability.startRecording,
+        if (supportsScreenRecording) CockpitActionCapability.stopRecording,
         CockpitActionCapability.readLogs,
         CockpitActionCapability.runShell,
       },
       evidenceCapabilities: <CockpitEvidenceCapability>{
-        CockpitEvidenceCapability.windowCapture,
-        CockpitEvidenceCapability.screenRecording,
+        if (supportsWindowCapture) CockpitEvidenceCapability.windowCapture,
+        if (supportsScreenRecording) CockpitEvidenceCapability.screenRecording,
         CockpitEvidenceCapability.appLogs,
         CockpitEvidenceCapability.runtimeErrors,
       },

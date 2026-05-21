@@ -3,28 +3,36 @@ import 'dart:io';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
+import '../platform/windows/cockpit_windows_window_target.dart';
 import 'cockpit_host_capture_adapter.dart';
 
 final class CockpitWindowsCaptureAdapter implements CockpitHostCaptureAdapter {
   CockpitWindowsCaptureAdapter({
     required String appId,
+    int? processId,
     String powershellExecutable = 'powershell',
     CockpitCaptureProcessRunner processRunner = Process.run,
     CockpitCaptureTempFileFactory tempFileFactory =
         cockpitCreateCaptureTempFile,
+    CockpitWindowsWindowResolver windowResolver =
+        cockpitResolveWindowsWindowTarget,
     Duration timeout = const Duration(seconds: 5),
     Duration activationSettleDelay = const Duration(milliseconds: 250),
   })  : _appId = appId,
+        _processId = processId,
         _powershellExecutable = powershellExecutable,
         _processRunner = processRunner,
         _tempFileFactory = tempFileFactory,
+        _windowResolver = windowResolver,
         _timeout = timeout,
         _activationSettleDelay = activationSettleDelay;
 
   final String _appId;
+  final int? _processId;
   final String _powershellExecutable;
   final CockpitCaptureProcessRunner _processRunner;
   final CockpitCaptureTempFileFactory _tempFileFactory;
+  final CockpitWindowsWindowResolver _windowResolver;
   final Duration _timeout;
   final Duration _activationSettleDelay;
 
@@ -50,14 +58,24 @@ final class CockpitWindowsCaptureAdapter implements CockpitHostCaptureAdapter {
     }
 
     try {
+      final windowTarget = await _windowResolver(
+        appId: _appId,
+        processId: _processId,
+        powershellExecutable: _powershellExecutable,
+        processRunner: _processRunner,
+        timeout: _timeout,
+        activationSettleDelay: _activationSettleDelay,
+      );
       final result = await _processRunner(_powershellExecutable, <String>[
         '-NoProfile',
         '-NonInteractive',
         '-Command',
         _captureScript,
-        _appId,
         outputFile.path,
-        _activationSettleDelay.inMilliseconds.toString(),
+        windowTarget.left.toString(),
+        windowTarget.top.toString(),
+        windowTarget.width.toString(),
+        windowTarget.height.toString(),
       ]).timeout(_timeout);
       stopwatch.stop();
 
@@ -96,6 +114,17 @@ final class CockpitWindowsCaptureAdapter implements CockpitHostCaptureAdapter {
         message: 'Windows host screenshot timed out.',
         details: <String, Object?>{'appId': _appId},
       );
+    } on StateError catch (error) {
+      stopwatch.stop();
+      return cockpitFailedCaptureExecution(
+        command: command,
+        durationMs: stopwatch.elapsedMilliseconds,
+        message: 'Windows host screenshot failed.',
+        details: <String, Object?>{
+          'appId': _appId,
+          'error': error.toString(),
+        },
+      );
     } on Object catch (error) {
       stopwatch.stop();
       return cockpitFailedCaptureExecution(
@@ -111,22 +140,19 @@ final class CockpitWindowsCaptureAdapter implements CockpitHostCaptureAdapter {
   }
 
   static const String _captureScript = r'''
-Add-Type -AssemblyName Microsoft.VisualBasic
-Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
-$appId = $args[0]
-$outputPath = $args[1]
-$settleMs = [int]$args[2]
-try {
-  [Microsoft.VisualBasic.Interaction]::AppActivate($appId) | Out-Null
-} catch {}
-if ($settleMs -gt 0) {
-  Start-Sleep -Milliseconds $settleMs
-}
-$bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
-$bitmap = New-Object System.Drawing.Bitmap $bounds.Width, $bounds.Height
+$outputPath = $args[0]
+$left = [int]$args[1]
+$top = [int]$args[2]
+$width = [int]$args[3]
+$height = [int]$args[4]
+$bitmap = New-Object System.Drawing.Bitmap $width, $height
 $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
-$graphics.CopyFromScreen($bounds.Location, [System.Drawing.Point]::Empty, $bounds.Size)
+$graphics.CopyFromScreen(
+  [System.Drawing.Point]::new($left, $top),
+  [System.Drawing.Point]::Empty,
+  [System.Drawing.Size]::new($width, $height)
+)
 $bitmap.Save($outputPath, [System.Drawing.Imaging.ImageFormat]::Png)
 $graphics.Dispose()
 $bitmap.Dispose()

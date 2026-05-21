@@ -15,31 +15,39 @@ final class CockpitMacosPlatformDriver
         CockpitDeviceLifecycleDriver,
         CockpitEvidenceDriver {
   CockpitMacosPlatformDriver({
-    String appId = 'dev.cockpit.desktop.macos',
+    String? appId,
     CockpitMacosRemoteSessionLauncher? launcher,
     CockpitMacosCaptureAdapter? captureAdapter,
+    bool enableDefaultCaptureAdapter = true,
     CockpitMacosRecordingAdapter? recordingAdapter,
+    bool enableDefaultRecordingAdapter = true,
   })  : _launcher = launcher ?? CockpitMacosRemoteSessionLauncher(),
-        _captureAdapter =
-            captureAdapter ?? CockpitMacosCaptureAdapter(appId: appId),
-        _recordingAdapter =
-            recordingAdapter ?? CockpitMacosRecordingAdapter(appId: appId);
+        _captureAdapter = captureAdapter ??
+            ((!enableDefaultCaptureAdapter || appId == null || appId.isEmpty)
+                ? null
+                : CockpitMacosCaptureAdapter(appId: appId)),
+        _recordingAdapter = recordingAdapter ??
+            ((!enableDefaultRecordingAdapter || appId == null || appId.isEmpty)
+                ? null
+                : CockpitMacosRecordingAdapter(appId: appId));
 
   final CockpitMacosRemoteSessionLauncher _launcher;
-  final CockpitMacosCaptureAdapter _captureAdapter;
-  final CockpitMacosRecordingAdapter _recordingAdapter;
+  final CockpitMacosCaptureAdapter? _captureAdapter;
+  final CockpitMacosRecordingAdapter? _recordingAdapter;
 
   @override
   String get platform => 'macos';
 
   @override
-  CockpitMacosCaptureAdapter get captureAdapter => _captureAdapter;
+  CockpitMacosCaptureAdapter? get captureAdapter => _captureAdapter;
 
   @override
-  CockpitMacosRecordingAdapter get recordingAdapter => _recordingAdapter;
+  CockpitMacosRecordingAdapter? get recordingAdapter => _recordingAdapter;
 
   @override
   Future<CockpitCapabilityProfile> describeCapabilities() async {
+    final supportsWindowCapture = _captureAdapter != null;
+    final supportsScreenRecording = _recordingAdapter != null;
     return CockpitCapabilityProfile(
       targetKind: CockpitTargetKind.desktopApp,
       surfaceKinds: <CockpitSurfaceKind>{
@@ -53,15 +61,15 @@ final class CockpitMacosPlatformDriver
         CockpitActionCapability.focusApp,
         CockpitActionCapability.tap,
         CockpitActionCapability.typeText,
-        CockpitActionCapability.captureScreenshot,
-        CockpitActionCapability.startRecording,
-        CockpitActionCapability.stopRecording,
+        if (supportsWindowCapture) CockpitActionCapability.captureScreenshot,
+        if (supportsScreenRecording) CockpitActionCapability.startRecording,
+        if (supportsScreenRecording) CockpitActionCapability.stopRecording,
         CockpitActionCapability.readLogs,
         CockpitActionCapability.runShell,
       },
       evidenceCapabilities: <CockpitEvidenceCapability>{
-        CockpitEvidenceCapability.windowCapture,
-        CockpitEvidenceCapability.screenRecording,
+        if (supportsWindowCapture) CockpitEvidenceCapability.windowCapture,
+        if (supportsScreenRecording) CockpitEvidenceCapability.screenRecording,
         CockpitEvidenceCapability.appLogs,
         CockpitEvidenceCapability.runtimeErrors,
       },

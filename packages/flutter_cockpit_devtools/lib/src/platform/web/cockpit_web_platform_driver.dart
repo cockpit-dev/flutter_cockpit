@@ -1,13 +1,26 @@
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
+import '../../bridge/cockpit_browser_recording_adapter_resolver.dart';
 import '../cockpit_platform_driver.dart';
 
 final class CockpitWebPlatformDriver implements CockpitPlatformDriver {
+  CockpitWebPlatformDriver({
+    required String deviceId,
+    bool Function(String deviceId) browserRecordingSupportResolver =
+        cockpitSupportsBrowserRecordingDeviceId,
+  })  : _deviceId = deviceId,
+        _browserRecordingSupportResolver = browserRecordingSupportResolver;
+
+  final String _deviceId;
+  final bool Function(String deviceId) _browserRecordingSupportResolver;
+
   @override
   String get platform => 'web';
 
   @override
   Future<CockpitCapabilityProfile> describeCapabilities() async {
+    final supportsBrowserRecording =
+        _browserRecordingSupportResolver(_deviceId);
     return CockpitCapabilityProfile(
       targetKind: CockpitTargetKind.browserPage,
       surfaceKinds: <CockpitSurfaceKind>{
@@ -18,14 +31,13 @@ final class CockpitWebPlatformDriver implements CockpitPlatformDriver {
         CockpitActionCapability.scroll,
         CockpitActionCapability.typeText,
         CockpitActionCapability.captureScreenshot,
-        CockpitActionCapability.startRecording,
-        CockpitActionCapability.stopRecording,
+        if (supportsBrowserRecording) CockpitActionCapability.startRecording,
+        if (supportsBrowserRecording) CockpitActionCapability.stopRecording,
         CockpitActionCapability.readLogs,
       },
       evidenceCapabilities: <CockpitEvidenceCapability>{
         CockpitEvidenceCapability.domSnapshot,
-        CockpitEvidenceCapability.windowCapture,
-        CockpitEvidenceCapability.screenRecording,
+        if (supportsBrowserRecording) CockpitEvidenceCapability.screenRecording,
         CockpitEvidenceCapability.runtimeErrors,
         CockpitEvidenceCapability.networkSignals,
       },

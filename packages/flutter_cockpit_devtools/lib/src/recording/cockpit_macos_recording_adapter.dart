@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
+import '../platform/macos/cockpit_macos_window_target.dart';
 import 'cockpit_host_recording_adapter.dart';
 
 final class CockpitMacosRecordingAdapter
@@ -17,6 +19,8 @@ final class CockpitMacosRecordingAdapter
     CockpitRecordingProcessRunner? ffprobeProcessRunner,
     CockpitRecordingTempFileFactory tempFileFactory =
         cockpitCreateRecordingTempFile,
+    CockpitMacosWindowTargetResolver windowTargetResolver =
+        cockpitResolveMacosWindowTarget,
     Duration startupTimeout = const Duration(seconds: 12),
     Duration startupEvidenceTimeout = const Duration(seconds: 2),
     Duration stopTimeout = const Duration(seconds: 10),
@@ -29,6 +33,7 @@ final class CockpitMacosRecordingAdapter
         _processRunner = processRunner,
         _ffprobeProcessRunner = ffprobeProcessRunner ?? processRunner,
         _tempFileFactory = tempFileFactory,
+        _windowTargetResolver = windowTargetResolver,
         _startupTimeout = startupTimeout,
         _startupEvidenceTimeout = startupEvidenceTimeout,
         _stopTimeout = stopTimeout,
@@ -42,6 +47,7 @@ final class CockpitMacosRecordingAdapter
   final CockpitRecordingProcessRunner _processRunner;
   final CockpitRecordingProcessRunner _ffprobeProcessRunner;
   final CockpitRecordingTempFileFactory _tempFileFactory;
+  final CockpitMacosWindowTargetResolver _windowTargetResolver;
   final Duration _startupTimeout;
   final Duration _startupEvidenceTimeout;
   final Duration _stopTimeout;
@@ -316,11 +322,78 @@ final class CockpitMacosRecordingAdapter
       '${result.stdout}',
       '${result.stderr}',
     ].join('\n');
-    final match = RegExp(r'\[([0-9]+)\]\s+Capture screen').firstMatch(output);
-    if (match == null) {
+    final screens = _parseCaptureScreens(output);
+    if (screens.isEmpty) {
       throw StateError('Unable to resolve a macOS capture screen input.');
     }
-    return '${match.group(1)}:none';
+    final selectedScreen = await _selectCaptureScreen(screens);
+    return '${selectedScreen.index}:none';
+  }
+
+  Future<_CockpitMacosCaptureScreen> _selectCaptureScreen(
+    List<_CockpitMacosCaptureScreen> screens,
+  ) async {
+    if (screens.length == 1) {
+      return screens.first;
+    }
+
+    final screensWithBounds =
+        screens.where((screen) => screen.hasBounds).toList(growable: false);
+    if (screensWithBounds.isEmpty) {
+      return screens.first;
+    }
+
+    final windowTarget = await _tryResolveWindowTarget();
+    if (windowTarget == null) {
+      return screens.first;
+    }
+
+    _CockpitMacosCaptureScreen? bestScreen;
+    var bestOverlap = 0;
+    for (final screen in screensWithBounds) {
+      final overlap = screen.overlapAreaWith(windowTarget);
+      if (overlap > bestOverlap) {
+        bestScreen = screen;
+        bestOverlap = overlap;
+      }
+    }
+    if (bestScreen != null && bestOverlap > 0) {
+      return bestScreen;
+    }
+
+    final centerX = windowTarget.left + (windowTarget.width / 2.0);
+    final centerY = windowTarget.top + (windowTarget.height / 2.0);
+    for (final screen in screensWithBounds) {
+      if (screen.containsPoint(centerX, centerY)) {
+        return screen;
+      }
+    }
+
+    var nearestScreen = screensWithBounds.first;
+    var nearestDistance =
+        nearestScreen.squaredDistanceToPoint(centerX, centerY);
+    for (final screen in screensWithBounds.skip(1)) {
+      final distance = screen.squaredDistanceToPoint(centerX, centerY);
+      if (distance < nearestDistance) {
+        nearestScreen = screen;
+        nearestDistance = distance;
+      }
+    }
+    return nearestScreen;
+  }
+
+  Future<CockpitMacosWindowTarget?> _tryResolveWindowTarget() async {
+    try {
+      return await _windowTargetResolver(
+        appId: _appId,
+        osascriptExecutable: _osascriptExecutable,
+        processRunner: _processRunner,
+        timeout: _startupTimeout,
+        activationSettleDelay: Duration.zero,
+      );
+    } on Object {
+      return null;
+    }
   }
 
   Future<bool> _waitForFinalizedOutput(File outputFile) async {
@@ -416,6 +489,90 @@ final class CockpitMacosRecordingAdapter
       return prefix;
     }
     return '$prefix Recent ffmpeg output: ${recentStderrLines.join(' | ')}';
+  }
+}
+
+List<_CockpitMacosCaptureScreen> _parseCaptureScreens(String output) {
+  return _captureScreenPattern.allMatches(output).map((match) {
+    return _CockpitMacosCaptureScreen(
+      index: int.parse(match.group(1)!),
+      width: int.tryParse(match.group(2) ?? ''),
+      height: int.tryParse(match.group(3) ?? ''),
+      left: int.tryParse(match.group(4) ?? ''),
+      top: int.tryParse(match.group(5) ?? ''),
+    );
+  }).toList(growable: false);
+}
+
+final RegExp _captureScreenPattern = RegExp(
+  r'\[([0-9]+)\]\s+Capture screen(?:\s+\d+)?(?:\s+(\d+)x(\d+)\s+@\s+(-?\d+),(-?\d+))?',
+  multiLine: true,
+);
+
+final class _CockpitMacosCaptureScreen {
+  const _CockpitMacosCaptureScreen({
+    required this.index,
+    this.width,
+    this.height,
+    this.left,
+    this.top,
+  });
+
+  final int index;
+  final int? width;
+  final int? height;
+  final int? left;
+  final int? top;
+
+  bool get hasBounds =>
+      width != null &&
+      height != null &&
+      left != null &&
+      top != null &&
+      width! > 0 &&
+      height! > 0;
+
+  int get _right => left! + width!;
+  int get _bottom => top! + height!;
+
+  bool containsPoint(double x, double y) {
+    if (!hasBounds) {
+      return false;
+    }
+    return x >= left! && x < _right && y >= top! && y < _bottom;
+  }
+
+  int overlapAreaWith(CockpitMacosWindowTarget target) {
+    if (!hasBounds) {
+      return 0;
+    }
+    final overlapLeft = math.max(left!, target.left);
+    final overlapTop = math.max(top!, target.top);
+    final overlapRight = math.min(_right, target.left + target.width);
+    final overlapBottom = math.min(_bottom, target.top + target.height);
+    final overlapWidth = overlapRight - overlapLeft;
+    final overlapHeight = overlapBottom - overlapTop;
+    if (overlapWidth <= 0 || overlapHeight <= 0) {
+      return 0;
+    }
+    return overlapWidth * overlapHeight;
+  }
+
+  double squaredDistanceToPoint(double x, double y) {
+    if (!hasBounds) {
+      return double.infinity;
+    }
+    final dx = x < left!
+        ? left! - x
+        : x > _right
+            ? x - _right
+            : 0.0;
+    final dy = y < top!
+        ? top! - y
+        : y > _bottom
+            ? y - _bottom
+            : 0.0;
+    return (dx * dx) + (dy * dy);
   }
 }
 

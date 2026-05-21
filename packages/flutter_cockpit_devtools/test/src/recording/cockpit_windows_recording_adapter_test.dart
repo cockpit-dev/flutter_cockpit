@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
+import 'package:flutter_cockpit_devtools/src/platform/windows/cockpit_windows_window_target.dart';
 import 'package:flutter_cockpit_devtools/src/recording/cockpit_windows_recording_adapter.dart';
 import 'package:test/test.dart';
 
@@ -24,6 +25,26 @@ void main() {
 
       final adapter = CockpitWindowsRecordingAdapter(
         appId: 'cockpit_demo',
+        processId: 4101,
+        windowResolver: ({
+          required appId,
+          required processId,
+          required powershellExecutable,
+          required processRunner,
+          required timeout,
+          required activationSettleDelay,
+        }) async {
+          expect(appId, 'cockpit_demo');
+          expect(processId, 4101);
+          return const CockpitWindowsWindowTarget(
+            title: 'Cockpit Demo',
+            handle: 4242,
+            left: 120,
+            top: 48,
+            width: 900,
+            height: 640,
+          );
+        },
         ffmpegExecutable: 'ffmpeg',
         powershellExecutable: 'powershell',
         processStarter: (executable, arguments) async {
@@ -72,8 +93,13 @@ void main() {
       );
       expect(File(result.sourceFilePath!).readAsStringSync(), 'windows-video');
       expect(ffmpegInvocations.single.join(' '), contains('-f gdigrab'));
-      expect(ffmpegInvocations.single.join(' '), contains('-i desktop'));
-      expect(activationInvocations.single.first, 'powershell');
+      expect(
+        ffmpegInvocations.single.join(' '),
+        contains('-i hwnd=4242'),
+      );
+      expect(ffmpegInvocations.single.join(' '), isNot(contains('title=')));
+      expect(ffmpegInvocations.single.join(' '), isNot(contains('-i desktop')));
+      expect(activationInvocations, isEmpty);
     },
   );
 
@@ -91,6 +117,22 @@ void main() {
 
       final adapter = CockpitWindowsRecordingAdapter(
         appId: 'cockpit_demo',
+        windowResolver: ({
+          required appId,
+          required processId,
+          required powershellExecutable,
+          required processRunner,
+          required timeout,
+          required activationSettleDelay,
+        }) async =>
+            const CockpitWindowsWindowTarget(
+          title: 'Cockpit Demo',
+          handle: 4242,
+          left: 20,
+          top: 12,
+          width: 300,
+          height: 240,
+        ),
         ffmpegExecutable: 'ffmpeg',
         powershellExecutable: 'powershell',
         processStarter: (executable, arguments) async {
@@ -139,6 +181,22 @@ void main() {
     () async {
       final adapter = CockpitWindowsRecordingAdapter(
         appId: 'cockpit_demo',
+        windowResolver: ({
+          required appId,
+          required processId,
+          required powershellExecutable,
+          required processRunner,
+          required timeout,
+          required activationSettleDelay,
+        }) async =>
+            const CockpitWindowsWindowTarget(
+          title: 'Cockpit Demo',
+          handle: 4242,
+          left: 20,
+          top: 12,
+          width: 300,
+          height: 240,
+        ),
         ffmpegExecutable: 'ffmpeg',
         powershellExecutable: 'powershell',
         processStarter: (_, __) async => _FakeRecordingProcess(

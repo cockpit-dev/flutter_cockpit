@@ -22,9 +22,14 @@ typedef CockpitSimctlRecordingAdapterFactory = CockpitRecordingAdapter Function(
 typedef CockpitMacosRecordingAdapterFactory = CockpitRecordingAdapter Function(
     String appId);
 typedef CockpitWindowsRecordingAdapterFactory = CockpitRecordingAdapter
-    Function(String appId);
+    Function(
+  String appId, {
+  int? processId,
+});
 typedef CockpitLinuxRecordingAdapterFactory = CockpitRecordingAdapter Function(
-    String appId);
+  String appId, {
+  int? processId,
+});
 
 final class CockpitRecordingStrategyResolver {
   const CockpitRecordingStrategyResolver({
@@ -51,6 +56,7 @@ final class CockpitRecordingStrategyResolver {
     String? androidDeviceId,
     String? iosDeviceId,
     String? platformAppId,
+    int? processId,
     bool preferActiveHostSession = false,
   }) {
     return resolveDetailed(
@@ -61,6 +67,7 @@ final class CockpitRecordingStrategyResolver {
       androidDeviceId: androidDeviceId,
       iosDeviceId: iosDeviceId,
       platformAppId: platformAppId,
+      processId: processId,
       preferActiveHostSession: preferActiveHostSession,
     )?.adapter;
   }
@@ -73,6 +80,7 @@ final class CockpitRecordingStrategyResolver {
     String? androidDeviceId,
     String? iosDeviceId,
     String? platformAppId,
+    int? processId,
     bool preferActiveHostSession = false,
   }) {
     if (recording == null) {
@@ -88,6 +96,7 @@ final class CockpitRecordingStrategyResolver {
       androidDeviceId: androidDeviceId,
       iosDeviceId: iosDeviceId,
       platformAppId: platformAppId,
+      processId: processId,
       preferActiveHostSession: preferActiveHostSession,
     );
     final desiredLayer = recording.layer ??
@@ -217,6 +226,7 @@ final class CockpitRecordingStrategyResolver {
     required String? androidDeviceId,
     required String? iosDeviceId,
     required String? platformAppId,
+    required int? processId,
     required bool preferActiveHostSession,
   }) {
     final remote = _RecordingCandidate(
@@ -269,7 +279,7 @@ final class CockpitRecordingStrategyResolver {
           remote: remote,
           host: _desktopHostCandidate(
             platform: platform,
-            appId: platformAppId ?? sessionHandle?.appId,
+            appId: platformAppId ?? sessionHandle?.effectivePlatformAppId,
           ),
           preferActiveHostSession: preferActiveHostSession,
         );
@@ -279,7 +289,8 @@ final class CockpitRecordingStrategyResolver {
           remote: remote,
           host: _desktopHostCandidate(
             platform: platform,
-            appId: platformAppId ?? sessionHandle?.appId,
+            appId: platformAppId ?? sessionHandle?.effectivePlatformAppId,
+            processId: processId ?? sessionHandle?.processId,
           ),
           preferActiveHostSession: preferActiveHostSession,
         );
@@ -289,7 +300,8 @@ final class CockpitRecordingStrategyResolver {
           remote: remote,
           host: _desktopHostCandidate(
             platform: platform,
-            appId: platformAppId ?? sessionHandle?.appId,
+            appId: platformAppId ?? sessionHandle?.effectivePlatformAppId,
+            processId: processId ?? sessionHandle?.processId,
           ),
           preferActiveHostSession: preferActiveHostSession,
         );
@@ -303,6 +315,7 @@ final class CockpitRecordingStrategyResolver {
   _RecordingCandidate? _desktopHostCandidate({
     required String platform,
     required String? appId,
+    int? processId,
   }) {
     if (appId == null || appId.isEmpty) {
       return null;
@@ -317,18 +330,37 @@ final class CockpitRecordingStrategyResolver {
       'windows' => _RecordingCandidate(
           implementation: 'windowsHost',
           layer: CockpitRecordingLayer.hostScreen,
-          factory: () => windowsAdapterFactory(appId),
-          sessionKey: 'windows:$appId',
+          factory: () => windowsAdapterFactory(appId, processId: processId),
+          sessionKey: _desktopHostSessionKey(
+            platform: platform,
+            appId: appId,
+            processId: processId,
+          ),
         ),
       'linux' => _RecordingCandidate(
           implementation: 'linuxHost',
           layer: CockpitRecordingLayer.hostScreen,
-          factory: () => linuxAdapterFactory(appId),
-          sessionKey: 'linux:$appId',
+          factory: () => linuxAdapterFactory(appId, processId: processId),
+          sessionKey: _desktopHostSessionKey(
+            platform: platform,
+            appId: appId,
+            processId: processId,
+          ),
         ),
       _ => null,
     };
     return hostCandidate;
+  }
+
+  String _desktopHostSessionKey({
+    required String platform,
+    required String appId,
+    int? processId,
+  }) {
+    if ((platform == 'windows' || platform == 'linux') && processId != null) {
+      return '$platform:$processId';
+    }
+    return '$platform:$appId';
   }
 
   List<_RecordingCandidate> _mobileCandidates({
@@ -466,12 +498,24 @@ final class CockpitRecordingStrategyResolver {
     return CockpitMacosRecordingAdapter(appId: appId);
   }
 
-  static CockpitRecordingAdapter _defaultWindowsAdapterFactory(String appId) {
-    return CockpitWindowsRecordingAdapter(appId: appId);
+  static CockpitRecordingAdapter _defaultWindowsAdapterFactory(
+    String appId, {
+    int? processId,
+  }) {
+    return CockpitWindowsRecordingAdapter(
+      appId: appId,
+      processId: processId,
+    );
   }
 
-  static CockpitRecordingAdapter _defaultLinuxAdapterFactory(String appId) {
-    return CockpitLinuxRecordingAdapter(appId: appId);
+  static CockpitRecordingAdapter _defaultLinuxAdapterFactory(
+    String appId, {
+    int? processId,
+  }) {
+    return CockpitLinuxRecordingAdapter(
+      appId: appId,
+      processId: processId,
+    );
   }
 }
 
