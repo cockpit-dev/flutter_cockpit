@@ -74,8 +74,10 @@ final class CockpitStopRecordingService {
                 : null),
         iosDeviceId: request.iosDeviceId ??
             (resolved.app?.platform == 'ios' ? resolved.app?.deviceId : null),
-        platformAppId:
-            resolved.app?.platformAppId ?? resolved.app?.remoteSession?.appId,
+        platformAppId: resolved.app?.platformAppId ??
+            resolved.app?.remoteSession?.effectivePlatformAppId,
+        processId:
+            resolved.app?.processId ?? resolved.app?.remoteSession?.processId,
         preferActiveHostSession: true,
       );
       final adapter = resolution?.adapter;

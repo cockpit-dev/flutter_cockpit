@@ -78,8 +78,13 @@ final class CockpitRunRemoteControlScriptTool extends CockpitMcpTool {
       final result = await _run(
         CockpitRunRemoteControlScriptRequest(
           platformAppId: resolved.app?.platformAppId ??
-              resolved.developmentRecord?.handle.remoteSessionHandle?.appId ??
-              resolved.remoteRecord?.handle.appId,
+              resolved.developmentRecord?.handle.remoteSessionHandle
+                  ?.effectivePlatformAppId ??
+              resolved.remoteRecord?.handle.effectivePlatformAppId,
+          processId: resolved.app?.processId ??
+              resolved
+                  .developmentRecord?.handle.remoteSessionHandle?.processId ??
+              resolved.remoteRecord?.handle.processId,
           baseUri: resolved.baseUri,
           androidDeviceId: cockpitReadOptionalString(
             arguments,

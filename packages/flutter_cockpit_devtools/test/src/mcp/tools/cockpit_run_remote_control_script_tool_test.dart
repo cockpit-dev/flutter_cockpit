@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
+import 'package:flutter_cockpit_devtools/src/application/cockpit_app_handle.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_application_service_exception.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_bundle_artifact_paths.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_run_remote_control_script_service.dart';
@@ -135,6 +137,76 @@ void main() {
         ),
       ),
     );
+  });
+
+  test('run tool forwards process ids from app handles', () async {
+    CockpitRunRemoteControlScriptRequest? capturedRequest;
+    final tempDir = await Directory.systemTemp.createTemp(
+      'cockpit_run_remote_control_script_tool_process_id',
+    );
+    addTearDown(() async {
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    final appHandleFile = File(p.join(tempDir.path, 'app.json'));
+    await appHandleFile.writeAsString(
+      jsonEncode(
+        CockpitAppHandle(
+          appId: 'windows-app',
+          mode: CockpitAppMode.automation,
+          platform: 'windows',
+          deviceId: 'windows',
+          projectDir: '/workspace/examples/cockpit_demo',
+          target: 'cockpit/main.dart',
+          baseUrl: 'http://127.0.0.1:57331',
+          launchedAt: DateTime.utc(2026, 4, 17),
+          platformAppId: 'cockpit_demo',
+          processId: 4101,
+        ).toJson(),
+      ),
+    );
+
+    final tool = CockpitRunRemoteControlScriptTool(
+      run: (request) async {
+        capturedRequest = request;
+        return CockpitRunRemoteControlScriptResult(
+          sessionHandle: null,
+          bundleDir: tempDir,
+          manifest: CockpitRunManifest(
+            sessionId: 'run-tool-session',
+            taskId: 'run-tool-task',
+            platform: 'windows',
+            status: CockpitTaskStatus.completed,
+            startedAt: DateTime.utc(2026, 4, 17, 0, 0),
+            finishedAt: DateTime.utc(2026, 4, 17, 0, 5),
+          ),
+          handoff: const <String, Object?>{},
+          delivery: const <String, Object?>{},
+          artifactPaths: CockpitBundleArtifactPaths(),
+        );
+      },
+    );
+
+    await tool.call(<String, Object?>{
+      'appJson': appHandleFile.path,
+      'outputRoot': '/tmp/out',
+      'script': <String, Object?>{
+        'sessionId': 'run-tool-session',
+        'taskId': 'run-tool-task',
+        'platform': 'windows',
+        'environment': const CockpitEnvironment(
+          platform: 'windows',
+          flutterVersion: '3.38.9',
+          dartVersion: '3.10.8',
+        ).toJson(),
+        'commands': const <Map<String, Object?>>[],
+      },
+    });
+
+    expect(capturedRequest?.platformAppId, 'cockpit_demo');
+    expect(capturedRequest?.processId, 4101);
   });
 
   test('run tool treats failed bundle manifests as MCP errors', () async {

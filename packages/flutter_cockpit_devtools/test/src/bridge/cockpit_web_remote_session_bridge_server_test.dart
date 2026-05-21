@@ -145,6 +145,13 @@ void main() {
             .single,
         contains('requires screen-capture permission'),
       );
+      expect(
+        ((healthJson['recordingCapabilities']
+                    as Map<String, Object?>)['recordingLimitations']!
+                as List<Object?>)
+            .single,
+        contains('best-effort'),
+      );
 
       final startJson = await _postJson(
         server.baseUri.resolve('/recording/start'),

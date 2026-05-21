@@ -266,7 +266,7 @@ final class CockpitWebRemoteSessionBridgeServer {
       ],
       preferredLayer: CockpitRecordingLayer.hostScreen,
       recordingLimitations: const <String>[
-        'Browser recording runs on the host desktop and requires screen-capture permission for the terminal, Dart, and ffmpeg.',
+        'Browser recording runs on the host desktop and requires screen-capture permission for the terminal, Dart, and ffmpeg. When multiple browser windows or tabs share the same host process, window targeting remains best-effort and works most reliably with the target browser window foregrounded and isolated.',
       ],
     ).toJson();
     if (_activeRecordingSession != null) {
