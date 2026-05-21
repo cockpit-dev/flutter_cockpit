@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
+import 'package:path/path.dart' as p;
 
 import '../application/cockpit_application_service_exception.dart';
 import '../platform/ios/cockpit_ios_device_connection.dart';
@@ -20,6 +21,10 @@ typedef CockpitRemoteSessionStatusReader = Future<CockpitRemoteSessionStatus>
     Function(Uri baseUri);
 typedef CockpitFlutterVersionReader = Future<String> Function();
 typedef CockpitFlutterCommandRunner = Future<ProcessResult> Function(
+  String executable,
+  List<String> arguments,
+);
+typedef CockpitExecutableLookupRunner = Future<ProcessResult> Function(
   String executable,
   List<String> arguments,
 );
@@ -103,6 +108,10 @@ String cockpitFlutterExecutable({bool? isWindows}) {
   return (isWindows ?? Platform.isWindows) ? 'flutter.bat' : 'flutter';
 }
 
+String cockpitDartExecutable({bool? isWindows}) {
+  return (isWindows ?? Platform.isWindows) ? 'dart.bat' : 'dart';
+}
+
 String cockpitRemoteBindHostForPlatform(String platform) {
   return switch (platform) {
     'ios' => '0.0.0.0',
@@ -120,6 +129,36 @@ Future<String> cockpitResolveActiveFlutterExecutable({
   bool? isWindows,
 }) async {
   final defaultExecutable = cockpitFlutterExecutable(isWindows: isWindows);
+  final lookupExecutable =
+      (isWindows ?? Platform.isWindows) ? 'where' : 'which';
+  final result =
+      await processRunner(lookupExecutable, <String>[defaultExecutable]);
+  if (result.exitCode != 0) {
+    return defaultExecutable;
+  }
+  final resolved = '${result.stdout}'
+      .split(RegExp(r'[\r\n]+'))
+      .map((line) => line.trim())
+      .firstWhere(
+        (line) => line.isNotEmpty,
+        orElse: () => defaultExecutable,
+      );
+  return resolved.isEmpty ? defaultExecutable : resolved;
+}
+
+Future<String> cockpitResolveActiveDartExecutable({
+  CockpitExecutableLookupRunner processRunner = Process.run,
+  bool? isWindows,
+  String? currentExecutable,
+}) async {
+  final resolvedCurrentExecutable =
+      currentExecutable ?? Platform.resolvedExecutable;
+  final currentBasename = p.basename(resolvedCurrentExecutable).toLowerCase();
+  if (currentBasename == 'dart' || currentBasename == 'dart.bat') {
+    return resolvedCurrentExecutable;
+  }
+
+  final defaultExecutable = cockpitDartExecutable(isWindows: isWindows);
   final lookupExecutable =
       (isWindows ?? Platform.isWindows) ? 'where' : 'which';
   final result =
@@ -178,11 +217,21 @@ Future<CockpitRemoteSessionStatus> cockpitWaitForRemoteSessionReady({
 }) async {
   final deadline = DateTime.now().add(timeout);
 
-  while (DateTime.now().isBefore(deadline)) {
+  while (true) {
+    final remaining = deadline.difference(DateTime.now());
+    if (remaining <= Duration.zero) {
+      break;
+    }
     try {
-      return await statusReader(baseUri);
+      return await statusReader(baseUri).timeout(remaining);
     } on Object {
-      await Future<void>.delayed(pollInterval);
+      final retryDelay = deadline.difference(DateTime.now());
+      if (retryDelay <= Duration.zero) {
+        break;
+      }
+      await Future<void>.delayed(
+        retryDelay < pollInterval ? retryDelay : pollInterval,
+      );
     }
   }
 

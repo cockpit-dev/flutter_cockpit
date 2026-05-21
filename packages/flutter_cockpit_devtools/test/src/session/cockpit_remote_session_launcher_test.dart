@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
@@ -169,6 +170,42 @@ void main() {
     },
   );
 
+  test('iOS simulator remote session launcher times out slow build stages',
+      () async {
+    final launcher = CockpitIosSimulatorRemoteSessionLauncher(
+      flutterVersionReader: () async => '3.38.9',
+      processRunner: (executable, arguments, {String? workingDirectory}) =>
+          Completer<ProcessResult>().future,
+      appBundlePathResolver: ({required projectDir, String? flavor}) async =>
+          '/workspace/examples/cockpit_demo/build/ios/iphonesimulator/Runner.app',
+      bundleIdResolver: ({required String appBundlePath}) async =>
+          'dev.cockpit.cockpitDemo',
+      statusReader: (_) async => throw StateError('status should not be read'),
+      now: () => DateTime.utc(2026, 3, 24, 12),
+    );
+
+    expect(
+      () => launcher
+          .launch(
+            const CockpitRemoteSessionLaunchOptions(
+              projectDir: '/workspace/examples/cockpit_demo',
+              target: 'lib/main.dart',
+              platform: 'ios',
+              deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+              sessionPort: 49321,
+              launchTimeout: Duration(milliseconds: 50),
+            ),
+          )
+          .timeout(
+            const Duration(milliseconds: 120),
+            onTimeout: () => throw StateError(
+              'launcher did not enforce build timeout',
+            ),
+          ),
+      throwsA(isA<TimeoutException>()),
+    );
+  });
+
   test(
     'iOS physical-device remote session launcher runs profile no-resident and uses the tunnel address',
     () async {
@@ -239,6 +276,46 @@ void main() {
     },
   );
 
+  test('iOS physical-device remote session launcher times out slow run stages',
+      () async {
+    final launcher = CockpitIosPhysicalRemoteSessionLauncher(
+      flutterVersionReader: () async => '3.38.9',
+      processRunner: (executable, arguments, {String? workingDirectory}) =>
+          Completer<ProcessResult>().future,
+      deviceConnectionResolver: (_) async => const CockpitIosDeviceConnection(
+        isPhysical: true,
+        tunnelIpAddress: 'fd69:8f18:f0a9::1',
+      ),
+      appBundlePathResolver: ({required projectDir, String? flavor}) async =>
+          '/workspace/examples/cockpit_demo/build/ios/iphoneos/Runner.app',
+      bundleIdResolver: ({required String appBundlePath}) async =>
+          'dev.cockpit.cockpitDemo',
+      statusReader: (_) async => throw StateError('status should not be read'),
+      now: () => DateTime.utc(2026, 3, 24, 12),
+    );
+
+    expect(
+      () => launcher
+          .launch(
+            const CockpitRemoteSessionLaunchOptions(
+              projectDir: '/workspace/examples/cockpit_demo',
+              target: 'cockpit/main.dart',
+              platform: 'ios',
+              deviceId: '00008110-0009341C2EF3801E',
+              sessionPort: 57331,
+              launchTimeout: Duration(milliseconds: 50),
+            ),
+          )
+          .timeout(
+            const Duration(milliseconds: 120),
+            onTimeout: () => throw StateError(
+              'launcher did not enforce run timeout',
+            ),
+          ),
+      throwsA(isA<TimeoutException>()),
+    );
+  });
+
   test(
     'Android remote session launcher forwards flavor and resolves app id plus APK path from build metadata',
     () async {
@@ -306,6 +383,47 @@ void main() {
       );
     },
   );
+
+  test('Android remote session launcher times out slow build stages', () async {
+    final launcher = CockpitAndroidRemoteSessionLauncher(
+      flutterVersionReader: () async => '3.38.9',
+      processRunner: (executable, arguments, {String? workingDirectory}) =>
+          Completer<ProcessResult>().future,
+      buildArtifactResolver: ({
+        required String projectDir,
+        required String buildDirectory,
+        String? flavor,
+      }) async =>
+          const CockpitAndroidBuildArtifact(
+        applicationId: 'dev.cockpit.cockpit_demo',
+        apkPath:
+            '/workspace/examples/cockpit_demo/build/app/outputs/flutter-apk/app-debug.apk',
+      ),
+      statusReader: (_) async => throw StateError('status should not be read'),
+      now: () => DateTime.utc(2026, 3, 24, 12),
+    );
+
+    expect(
+      () => launcher
+          .launch(
+            const CockpitRemoteSessionLaunchOptions(
+              projectDir: '/workspace/examples/cockpit_demo',
+              target: 'lib/main.dart',
+              platform: 'android',
+              deviceId: 'emulator-5554',
+              sessionPort: 47331,
+              launchTimeout: Duration(milliseconds: 50),
+            ),
+          )
+          .timeout(
+            const Duration(milliseconds: 120),
+            onTimeout: () => throw StateError(
+              'launcher did not enforce build timeout',
+            ),
+          ),
+      throwsA(isA<TimeoutException>()),
+    );
+  });
 
   test(
     'iOS simulator launcher forwards flavor and resolves the built app bundle path dynamically',
@@ -702,6 +820,44 @@ void main() {
       ),
     );
   });
+
+  test(
+    'wait for remote session readiness enforces the overall timeout on a hanging probe',
+    () async {
+      expect(
+        () => cockpitWaitForRemoteSessionReady(
+          baseUri: Uri.parse('http://127.0.0.1:47331'),
+          timeout: const Duration(milliseconds: 50),
+          statusReader: (_) => Completer<CockpitRemoteSessionStatus>().future,
+        ).timeout(
+          const Duration(milliseconds: 120),
+          onTimeout: () => throw StateError(
+            'wait helper did not enforce probe timeout',
+          ),
+        ),
+        throwsA(isA<TimeoutException>()),
+      );
+    },
+  );
+
+  test(
+    'wait for remote session readiness caps retry delays to the remaining deadline',
+    () async {
+      expect(
+        () => cockpitWaitForRemoteSessionReady(
+          baseUri: Uri.parse('http://127.0.0.1:47331'),
+          timeout: const Duration(milliseconds: 50),
+          statusReader: (_) async => throw StateError('still booting'),
+        ).timeout(
+          const Duration(milliseconds: 120),
+          onTimeout: () => throw StateError(
+            'wait helper slept past the remaining deadline',
+          ),
+        ),
+        throwsA(isA<TimeoutException>()),
+      );
+    },
+  );
 }
 
 CockpitRemoteSessionStatus _readyStatus(String platform) {

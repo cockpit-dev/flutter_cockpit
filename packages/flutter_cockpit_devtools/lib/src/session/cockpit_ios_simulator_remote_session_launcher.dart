@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
@@ -52,53 +53,76 @@ final class CockpitIosSimulatorRemoteSessionLauncher
       );
     }
 
+    final deadline = _now().add(options.launchTimeout);
     final flutterVersion =
         options.flutterVersion ?? await _flutterVersionReader();
     final flutterExecutable =
         options.flutterExecutable ?? cockpitFlutterExecutable();
     final bindHost = cockpitRemoteBindHostForPlatform(options.platform);
     await _runRequired(
-        flutterExecutable,
-        <String>[
-          'build',
-          'ios',
-          '--simulator',
-          '--debug',
-          '--no-codesign',
-          '--target',
-          options.target,
-          if (options.flavor case final flavor?
-              when flavor.isNotEmpty) ...<String>['--flavor', flavor],
-          '--dart-define=FLUTTER_PILOT_REMOTE_ENABLED=true',
-          '--dart-define=FLUTTER_PILOT_REMOTE_HOST=$bindHost',
-          '--dart-define=FLUTTER_PILOT_REMOTE_PORT=${options.sessionPort}',
-          '--dart-define=FLUTTER_PILOT_FLUTTER_VERSION=$flutterVersion',
-        ],
-        workingDirectory: options.projectDir);
+      flutterExecutable,
+      <String>[
+        'build',
+        'ios',
+        '--simulator',
+        '--debug',
+        '--no-codesign',
+        '--target',
+        options.target,
+        if (options.flavor case final flavor?
+            when flavor.isNotEmpty) ...<String>['--flavor', flavor],
+        '--dart-define=FLUTTER_PILOT_REMOTE_ENABLED=true',
+        '--dart-define=FLUTTER_PILOT_REMOTE_HOST=$bindHost',
+        '--dart-define=FLUTTER_PILOT_REMOTE_PORT=${options.sessionPort}',
+        '--dart-define=FLUTTER_PILOT_FLUTTER_VERSION=$flutterVersion',
+      ],
+      workingDirectory: options.projectDir,
+      timeout: _remaining(deadline),
+    );
 
     final appBundlePath = await _appBundlePathResolver(
       projectDir: options.projectDir,
       flavor: options.flavor,
+    ).timeout(
+      _remaining(deadline),
+      onTimeout: () => throw TimeoutException(
+        'Resolving iOS simulator app bundle path timed out.',
+        _remaining(deadline),
+      ),
     );
-    final bundleId = await _bundleIdResolver(appBundlePath: appBundlePath);
+    final bundleId = await _bundleIdResolver(
+      appBundlePath: appBundlePath,
+    ).timeout(
+      _remaining(deadline),
+      onTimeout: () => throw TimeoutException(
+        'Resolving iOS simulator bundle identifier timed out.',
+        _remaining(deadline),
+      ),
+    );
 
-    await _runRequired('xcrun', <String>[
-      'simctl',
-      'install',
-      options.deviceId,
-      appBundlePath,
-    ]);
-    await _runRequired('xcrun', <String>[
-      'simctl',
-      'launch',
-      options.deviceId,
-      bundleId,
-    ]);
+    await _runRequired(
+        'xcrun',
+        <String>[
+          'simctl',
+          'install',
+          options.deviceId,
+          appBundlePath,
+        ],
+        timeout: _remaining(deadline));
+    await _runRequired(
+        'xcrun',
+        <String>[
+          'simctl',
+          'launch',
+          options.deviceId,
+          bundleId,
+        ],
+        timeout: _remaining(deadline));
 
     final baseUri = Uri.parse('http://127.0.0.1:${options.sessionPort}');
     final status = await cockpitWaitForRemoteSessionReady(
       baseUri: baseUri,
-      timeout: options.launchTimeout,
+      timeout: _remaining(deadline),
       statusReader: _statusReader,
     );
 
@@ -119,17 +143,34 @@ final class CockpitIosSimulatorRemoteSessionLauncher
     String executable,
     List<String> arguments, {
     String? workingDirectory,
+    required Duration timeout,
   }) async {
     final result = await _processRunner(
       executable,
       arguments,
       workingDirectory: workingDirectory,
+    ).timeout(
+      timeout,
+      onTimeout: () => throw TimeoutException(
+        '$executable ${arguments.join(' ')} timed out.',
+        timeout,
+      ),
     );
     if (result.exitCode != 0) {
       throw StateError(
         '$executable ${arguments.join(' ')} failed: ${result.stderr ?? result.stdout}',
       );
     }
+  }
+
+  Duration _remaining(DateTime deadline) {
+    final remaining = deadline.difference(_now());
+    if (remaining <= Duration.zero) {
+      throw TimeoutException(
+        'iOS simulator remote session launch timed out before the next stage could start.',
+      );
+    }
+    return remaining;
   }
 
   static Future<ProcessResult> _runProcess(

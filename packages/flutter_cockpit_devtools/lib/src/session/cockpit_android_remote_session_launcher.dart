@@ -1,3 +1,4 @@
+import 'dart:async';
 // ignore_for_file: deprecated_member_use
 
 import 'dart:convert';
@@ -70,26 +71,29 @@ final class CockpitAndroidRemoteSessionLauncher
       );
     }
 
+    final deadline = _now().add(options.launchTimeout);
     final flutterVersion =
         options.flutterVersion ?? await _flutterVersionReader();
     final flutterExecutable =
         options.flutterExecutable ?? cockpitFlutterExecutable();
     await _runRequired(
-        flutterExecutable,
-        <String>[
-          'build',
-          'apk',
-          '--debug',
-          '--target',
-          options.target,
-          if (options.flavor case final flavor?
-              when flavor.isNotEmpty) ...<String>['--flavor', flavor],
-          '--dart-define=FLUTTER_PILOT_REMOTE_ENABLED=true',
-          '--dart-define=FLUTTER_PILOT_REMOTE_HOST=127.0.0.1',
-          '--dart-define=FLUTTER_PILOT_REMOTE_PORT=${options.sessionPort}',
-          '--dart-define=FLUTTER_PILOT_FLUTTER_VERSION=$flutterVersion',
-        ],
-        workingDirectory: options.projectDir);
+      flutterExecutable,
+      <String>[
+        'build',
+        'apk',
+        '--debug',
+        '--target',
+        options.target,
+        if (options.flavor case final flavor?
+            when flavor.isNotEmpty) ...<String>['--flavor', flavor],
+        '--dart-define=FLUTTER_PILOT_REMOTE_ENABLED=true',
+        '--dart-define=FLUTTER_PILOT_REMOTE_HOST=127.0.0.1',
+        '--dart-define=FLUTTER_PILOT_REMOTE_PORT=${options.sessionPort}',
+        '--dart-define=FLUTTER_PILOT_FLUTTER_VERSION=$flutterVersion',
+      ],
+      workingDirectory: options.projectDir,
+      timeout: _remaining(deadline),
+    );
 
     final pathContext = cockpitSessionPathContext(options.projectDir);
     final buildDirectory = pathContext.join(options.projectDir, 'build');
@@ -97,37 +101,57 @@ final class CockpitAndroidRemoteSessionLauncher
       projectDir: options.projectDir,
       buildDirectory: buildDirectory,
       flavor: options.flavor,
+    ).timeout(
+      _remaining(deadline),
+      onTimeout: () => throw TimeoutException(
+        'Resolving Android build artifacts timed out.',
+        _remaining(deadline),
+      ),
     );
 
-    await _runRequired('adb', <String>[
-      '-s',
-      options.deviceId,
-      'install',
-      '-r',
-      buildArtifact.apkPath,
-    ]);
+    await _runRequired(
+        'adb',
+        <String>[
+          '-s',
+          options.deviceId,
+          'install',
+          '-r',
+          buildArtifact.apkPath,
+        ],
+        timeout: _remaining(deadline));
 
-    await _runRequired('adb', <String>[
-      '-s',
-      options.deviceId,
-      'shell',
-      'monkey',
-      '-p',
-      buildArtifact.applicationId,
-      '-c',
-      'android.intent.category.LAUNCHER',
-      '1',
-    ]);
+    await _runRequired(
+        'adb',
+        <String>[
+          '-s',
+          options.deviceId,
+          'shell',
+          'monkey',
+          '-p',
+          buildArtifact.applicationId,
+          '-c',
+          'android.intent.category.LAUNCHER',
+          '1',
+        ],
+        timeout: _remaining(deadline));
 
-    final hostPort = await _portForwarder.ensureForwarded(
-      deviceId: options.deviceId,
-      preferredHostPort: options.sessionPort,
-      devicePort: options.sessionPort,
-    );
+    final hostPort = await _portForwarder
+        .ensureForwarded(
+          deviceId: options.deviceId,
+          preferredHostPort: options.sessionPort,
+          devicePort: options.sessionPort,
+        )
+        .timeout(
+          _remaining(deadline),
+          onTimeout: () => throw TimeoutException(
+            'Android port forwarding timed out.',
+            _remaining(deadline),
+          ),
+        );
     final baseUri = Uri.parse('http://127.0.0.1:$hostPort');
     final status = await cockpitWaitForRemoteSessionReady(
       baseUri: baseUri,
-      timeout: options.launchTimeout,
+      timeout: _remaining(deadline),
       statusReader: _statusReader,
     );
 
@@ -148,17 +172,34 @@ final class CockpitAndroidRemoteSessionLauncher
     String executable,
     List<String> arguments, {
     String? workingDirectory,
+    required Duration timeout,
   }) async {
     final result = await _processRunner(
       executable,
       arguments,
       workingDirectory: workingDirectory,
+    ).timeout(
+      timeout,
+      onTimeout: () => throw TimeoutException(
+        '$executable ${arguments.join(' ')} timed out.',
+        timeout,
+      ),
     );
     if (result.exitCode != 0) {
       throw StateError(
         '$executable ${arguments.join(' ')} failed: ${result.stderr ?? result.stdout}',
       );
     }
+  }
+
+  Duration _remaining(DateTime deadline) {
+    final remaining = deadline.difference(_now());
+    if (remaining <= Duration.zero) {
+      throw TimeoutException(
+        'Android remote session launch timed out before the next stage could start.',
+      );
+    }
+    return remaining;
   }
 
   static Future<ProcessResult> _runProcess(
@@ -372,6 +413,16 @@ final class CockpitAndroidRemoteSessionLauncher
     throw StateError(
       'Unable to resolve Android applicationId from $projectDir/android/app/build.gradle(.kts).',
     );
+  }
+
+  static Future<String?> resolveApplicationId({
+    required String projectDir,
+  }) async {
+    final applicationId = await _resolveAndroidApplicationIdFromGradle(
+      projectDir: projectDir,
+    );
+    final normalized = applicationId.trim();
+    return normalized.isEmpty ? null : normalized;
   }
 }
 

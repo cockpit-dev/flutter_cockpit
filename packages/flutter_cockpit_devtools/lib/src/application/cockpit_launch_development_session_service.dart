@@ -26,6 +26,7 @@ typedef CockpitSupervisorSpawner = Future<CockpitSpawnedDevelopmentSupervisor>
   required CockpitLaunchDevelopmentSessionRequest request,
   required String flutterVersion,
   required String flutterExecutable,
+  required String dartExecutable,
   required int hostPort,
   required int supervisorPort,
   required File supervisorLogFile,
@@ -169,6 +170,7 @@ final class CockpitDevelopmentSessionDaemonLauncher {
     required CockpitAndroidPortForwarder portForwarder,
     required CockpitFlutterVersionReader flutterVersionReader,
     required Future<String> Function() flutterExecutableReader,
+    Future<String> Function()? dartExecutableReader,
     CockpitSupervisorSpawner? spawnSupervisor,
     Future<int> Function()? allocatePort,
     CockpitDelay? delay,
@@ -176,6 +178,8 @@ final class CockpitDevelopmentSessionDaemonLauncher {
         _portForwarder = portForwarder,
         _flutterVersionReader = flutterVersionReader,
         _flutterExecutableReader = flutterExecutableReader,
+        _dartExecutableReader =
+            dartExecutableReader ?? cockpitResolveActiveDartExecutable,
         _spawnSupervisor = spawnSupervisor ?? _defaultSpawnSupervisor,
         _allocatePort = allocatePort ?? _defaultAllocatePort,
         _delay = delay ?? Future<void>.delayed;
@@ -184,6 +188,7 @@ final class CockpitDevelopmentSessionDaemonLauncher {
   final CockpitAndroidPortForwarder _portForwarder;
   final CockpitFlutterVersionReader _flutterVersionReader;
   final Future<String> Function() _flutterExecutableReader;
+  final Future<String> Function() _dartExecutableReader;
   final CockpitSupervisorSpawner _spawnSupervisor;
   final Future<int> Function() _allocatePort;
   final CockpitDelay _delay;
@@ -193,6 +198,7 @@ final class CockpitDevelopmentSessionDaemonLauncher {
   ) async {
     final flutterVersion = await _flutterVersionReader();
     final flutterExecutable = await _flutterExecutableReader();
+    final dartExecutable = await _dartExecutableReader();
     final hostPort = request.platform == 'android'
         ? await _portForwarder.ensureForwarded(
             deviceId: request.deviceId,
@@ -218,6 +224,7 @@ final class CockpitDevelopmentSessionDaemonLauncher {
         request: request,
         flutterVersion: flutterVersion,
         flutterExecutable: flutterExecutable,
+        dartExecutable: dartExecutable,
         hostPort: hostPort,
         supervisorPort: supervisorPort,
         supervisorLogFile: supervisorLogFile,
@@ -315,6 +322,7 @@ final class CockpitDevelopmentSessionDaemonLauncher {
     required CockpitLaunchDevelopmentSessionRequest request,
     required String flutterVersion,
     required String flutterExecutable,
+    required String dartExecutable,
     required int hostPort,
     required int supervisorPort,
     required File supervisorLogFile,
@@ -322,7 +330,7 @@ final class CockpitDevelopmentSessionDaemonLauncher {
     await supervisorLogFile.parent.create(recursive: true);
     final supervisorEntrypoint = await _resolveSupervisorEntrypoint();
     final process = await Process.start(
-      Platform.resolvedExecutable,
+      dartExecutable,
       <String>[
         'run',
         supervisorEntrypoint,

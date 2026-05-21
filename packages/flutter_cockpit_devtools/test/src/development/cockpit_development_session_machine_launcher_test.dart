@@ -49,6 +49,16 @@ void main() {
         },
         statusReader: (_) async => _readyStatus('android'),
         portForwarder: const _RecordingPortForwarder(58331),
+        platformAppIdResolver: ({
+          required projectDir,
+          required platform,
+          flavor,
+        }) async {
+          expect(projectDir, '/workspace/examples/cockpit_demo');
+          expect(platform, 'android');
+          expect(flavor, isNull);
+          return 'dev.example.android';
+        },
         now: () => DateTime.utc(2026, 4, 4, 15),
       );
 
@@ -77,6 +87,11 @@ void main() {
         ],
       );
       expect(result.remoteSessionHandle.appId, 'machine-app-1');
+      expect(result.remoteSessionHandle.platformAppId, 'dev.example.android');
+      expect(
+        result.remoteSessionHandle.effectivePlatformAppId,
+        'dev.example.android',
+      );
       expect(result.remoteSessionHandle.hostPort, 58331);
       expect(
         result.machineClient.currentVmServiceUri,
@@ -130,6 +145,16 @@ void main() {
           return client;
         },
         statusReader: (_) async => _readyStatus('ios'),
+        platformAppIdResolver: ({
+          required projectDir,
+          required platform,
+          flavor,
+        }) async {
+          expect(projectDir, '/workspace/examples/cockpit_demo');
+          expect(platform, 'ios');
+          expect(flavor, isNull);
+          return 'dev.example.ios';
+        },
         now: () => DateTime.utc(2026, 4, 4, 16),
       );
 
@@ -158,6 +183,11 @@ void main() {
         ],
       );
       expect(result.remoteSessionHandle.appId, 'machine-ios-app');
+      expect(result.remoteSessionHandle.platformAppId, 'dev.example.ios');
+      expect(
+        result.remoteSessionHandle.effectivePlatformAppId,
+        'dev.example.ios',
+      );
       expect(result.remoteSessionHandle.hostPort, 57331);
 
       await stdoutController.close();
@@ -535,6 +565,264 @@ void main() {
 
       await stdoutController.close();
       await stderrController.close();
+    },
+  );
+
+  test(
+    'keeps polling physical iOS remote health after flutter run exits so a ready tunnel session can still be reused',
+    () async {
+      final stdoutController = StreamController<String>();
+      final stderrController = StreamController<String>();
+      final exitCode = Completer<int>();
+      var now = DateTime.utc(2026, 4, 4, 20, 30);
+      var statusReadCount = 0;
+
+      final launcher = CockpitDevelopmentSessionMachineLauncher(
+        machineClientStarter: ({
+          required projectDir,
+          required target,
+          required deviceId,
+          flavor,
+          flutterExecutable,
+          extraArgs = const <String>[],
+        }) async {
+          final client = CockpitFlutterRunMachineClient(
+            stdoutLines: stdoutController.stream,
+            stderrLines: stderrController.stream,
+            exitCode: exitCode.future,
+            requestWriter: (_) async {},
+          );
+          Future<void>.microtask(() {
+            stderrController.add('The Dart VM Service was not discovered.');
+            exitCode.complete(1);
+          });
+          return client;
+        },
+        statusReader: (_) async {
+          statusReadCount += 1;
+          if (statusReadCount < 3) {
+            throw StateError('connection refused');
+          }
+          return _readyStatus('ios');
+        },
+        iosDeviceConnectionResolver: (_) async =>
+            const CockpitIosDeviceConnection(
+          isPhysical: true,
+          tunnelIpAddress: 'fd69:8f18:f0a9::1',
+        ),
+        delay: (duration) async {
+          now = now.add(duration);
+        },
+        now: () => now,
+      );
+
+      await expectLater(
+        () => launcher.launch(
+          const CockpitLaunchDevelopmentMachineSessionRequest(
+            projectDir: '/workspace/examples/cockpit_demo',
+            target: 'cockpit/main.dart',
+            platform: 'ios',
+            deviceId: '00008110-0009341C2EF3801E',
+            sessionPort: 47331,
+            hostPort: 57331,
+            launchTimeout: Duration(seconds: 10),
+            flutterVersion: '3.39.0',
+            flutterExecutable: '/opt/flutter/bin/flutter',
+          ),
+        ),
+        throwsA(
+          isA<CockpitDevelopmentSessionFallbackException>()
+              .having((error) => error.code, 'code',
+                  'iosPhysicalRemoteSessionReadyButDevelopmentAttachFailed')
+              .having(
+                (error) => error.remoteSessionHandle?.baseUrl,
+                'baseUrl',
+                'http://[fd69:8f18:f0a9::1]:57331',
+              ),
+        ),
+      );
+
+      expect(statusReadCount, 3);
+      await stdoutController.close();
+      await stderrController.close();
+    },
+  );
+
+  test(
+    'physical iOS fallback preserves session identity but leaves platform app id unknown when bundle lookup fails',
+    () async {
+      final stdoutController = StreamController<String>();
+      final stderrController = StreamController<String>();
+      final exitCode = Completer<int>();
+
+      final launcher = CockpitDevelopmentSessionMachineLauncher(
+        machineClientStarter: ({
+          required projectDir,
+          required target,
+          required deviceId,
+          flavor,
+          flutterExecutable,
+          extraArgs = const <String>[],
+        }) async {
+          final client = CockpitFlutterRunMachineClient(
+            stdoutLines: stdoutController.stream,
+            stderrLines: stderrController.stream,
+            exitCode: exitCode.future,
+            requestWriter: (_) async {},
+          );
+          Future<void>.microtask(() {
+            stderrController.add('The Dart VM Service was not discovered.');
+            exitCode.complete(1);
+          });
+          return client;
+        },
+        statusReader: (_) async => _readyStatus('ios'),
+        iosDeviceConnectionResolver: (_) async =>
+            const CockpitIosDeviceConnection(
+          isPhysical: true,
+          tunnelIpAddress: 'fd69:8f18:f0a9::1',
+        ),
+        iosFallbackAppBundlePathResolver: ({
+          required projectDir,
+          flavor,
+        }) async {
+          throw StateError('missing device app bundle');
+        },
+        now: () => DateTime.utc(2026, 4, 4, 20, 45),
+      );
+
+      await expectLater(
+        () => launcher.launch(
+          const CockpitLaunchDevelopmentMachineSessionRequest(
+            projectDir: '/workspace/examples/cockpit_demo',
+            target: 'cockpit/main.dart',
+            platform: 'ios',
+            deviceId: '00008110-0009341C2EF3801E',
+            sessionPort: 47331,
+            hostPort: 57331,
+            launchTimeout: Duration(seconds: 10),
+            flutterVersion: '3.39.0',
+            flutterExecutable: '/opt/flutter/bin/flutter',
+          ),
+        ),
+        throwsA(
+          isA<CockpitDevelopmentSessionFallbackException>()
+              .having(
+                (error) => error.remoteSessionHandle?.appId,
+                'remoteSessionHandle.appId',
+                'remote-session-1',
+              )
+              .having(
+                (error) => error.remoteSessionHandle?.platformAppIdKnown,
+                'remoteSessionHandle.platformAppIdKnown',
+                isFalse,
+              )
+              .having(
+                (error) => error.remoteSessionHandle?.effectivePlatformAppId,
+                'remoteSessionHandle.effectivePlatformAppId',
+                isNull,
+              ),
+        ),
+      );
+
+      await stdoutController.close();
+      await stderrController.close();
+    },
+  );
+
+  test(
+    'development machine launcher enforces the launch timeout on a hanging remote-health probe',
+    () async {
+      final launcher = CockpitDevelopmentSessionMachineLauncher(
+        machineClientStarter: ({
+          required projectDir,
+          required target,
+          required deviceId,
+          flavor,
+          flutterExecutable,
+          extraArgs = const <String>[],
+        }) async =>
+            CockpitFlutterRunMachineClient(
+          stdoutLines: const Stream<String>.empty(),
+          stderrLines: const Stream<String>.empty(),
+          exitCode: Completer<int>().future,
+          requestWriter: (_) async {},
+        ),
+        statusReader: (_) => Completer<CockpitRemoteSessionStatus>().future,
+        portForwarder: const _RecordingPortForwarder(58331),
+      );
+
+      expect(
+        () => launcher
+            .launch(
+              const CockpitLaunchDevelopmentMachineSessionRequest(
+                projectDir: '/workspace/examples/cockpit_demo',
+                target: 'cockpit/main.dart',
+                platform: 'android',
+                deviceId: 'emulator-5554',
+                sessionPort: 47331,
+                hostPort: 57331,
+                launchTimeout: Duration(milliseconds: 50),
+                flutterVersion: '3.39.0',
+                flutterExecutable: '/opt/flutter/bin/flutter',
+              ),
+            )
+            .timeout(
+              const Duration(milliseconds: 120),
+              onTimeout: () => throw StateError(
+                'development launcher did not enforce probe timeout',
+              ),
+            ),
+        throwsA(isA<TimeoutException>()),
+      );
+    },
+  );
+
+  test(
+    'development machine launcher caps remote-health retry delays to the remaining deadline',
+    () async {
+      final launcher = CockpitDevelopmentSessionMachineLauncher(
+        machineClientStarter: ({
+          required projectDir,
+          required target,
+          required deviceId,
+          flavor,
+          flutterExecutable,
+          extraArgs = const <String>[],
+        }) async =>
+            CockpitFlutterRunMachineClient(
+          stdoutLines: const Stream<String>.empty(),
+          stderrLines: const Stream<String>.empty(),
+          exitCode: Completer<int>().future,
+          requestWriter: (_) async {},
+        ),
+        statusReader: (_) async => throw StateError('still booting'),
+        portForwarder: const _RecordingPortForwarder(58331),
+      );
+
+      expect(
+        () => launcher
+            .launch(
+              const CockpitLaunchDevelopmentMachineSessionRequest(
+                projectDir: '/workspace/examples/cockpit_demo',
+                target: 'cockpit/main.dart',
+                platform: 'android',
+                deviceId: 'emulator-5554',
+                sessionPort: 47331,
+                hostPort: 57331,
+                launchTimeout: Duration(milliseconds: 50),
+                flutterVersion: '3.39.0',
+                flutterExecutable: '/opt/flutter/bin/flutter',
+              ),
+            )
+            .timeout(
+              const Duration(milliseconds: 120),
+              onTimeout: () => throw StateError(
+                'development launcher slept past the remaining deadline',
+              ),
+            ),
+        throwsA(isA<TimeoutException>()),
+      );
     },
   );
 }
