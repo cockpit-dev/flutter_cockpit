@@ -5,6 +5,7 @@ import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:flutter_cockpit_devtools/src/session/cockpit_remote_session_launch_options.dart';
 import 'package:flutter_cockpit_devtools/src/session/cockpit_remote_session_launcher.dart';
 import 'package:flutter_cockpit_devtools/src/session/cockpit_windows_remote_session_launcher.dart';
+import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 void main() {
@@ -29,6 +30,7 @@ void main() {
         launchInvocations.add(
           '$executablePath ${arguments.join(' ')} @${workingDirectory ?? ''}',
         );
+        return 4101;
       },
       statusReader: (baseUri) async => CockpitRemoteSessionStatus(
         sessionId: 'windows-bootstrap-session',
@@ -66,6 +68,7 @@ void main() {
     expect(handle.platform, 'windows');
     expect(handle.deviceId, 'windows');
     expect(handle.appId, 'cockpit_demo');
+    expect(handle.processId, 4101);
     expect(handle.baseUrl, 'http://127.0.0.1:47331');
     expect(
       buildInvocations,
@@ -106,5 +109,77 @@ void main() {
       ),
       throwsA(isA<TimeoutException>()),
     );
+  });
+
+  test(
+      'windows remote session launcher prefers the executable that matches pubspec name',
+      () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'cockpit_windows_remote_session_launcher_executable',
+    );
+    addTearDown(() async {
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    await File(p.join(tempDir.path, 'pubspec.yaml')).writeAsString(
+      'name: cockpit_demo\n',
+    );
+    final outputDirectory = Directory(
+      p.join(tempDir.path, 'build', 'windows', 'x64', 'runner', 'Debug'),
+    )..createSync(recursive: true);
+    final helperExe = File(p.join(outputDirectory.path, 'a_helper.exe'))
+      ..writeAsStringSync('');
+    final appExe = File(p.join(outputDirectory.path, 'cockpit_demo.exe'))
+      ..writeAsStringSync('');
+    String? launchedExecutable;
+
+    final launcher = CockpitWindowsRemoteSessionLauncher(
+      flutterVersionReader: () async => '3.38.9',
+      processRunner: (executable, arguments, {String? workingDirectory}) async {
+        return ProcessResult(0, 0, '', '');
+      },
+      appStarter: ({
+        required String executablePath,
+        List<String> arguments = const <String>[],
+        String? workingDirectory,
+        required Duration timeout,
+      }) async {
+        launchedExecutable = executablePath;
+        return 9001;
+      },
+      statusReader: (baseUri) async => CockpitRemoteSessionStatus(
+        sessionId: 'windows-bootstrap-session',
+        platform: 'windows',
+        transportType: 'remoteHttp',
+        currentRouteName: '/home',
+        capabilities: CockpitCapabilities(
+          platform: 'windows',
+          transportType: 'remoteHttp',
+          supportsInAppControl: true,
+          supportsFlutterViewCapture: true,
+          supportsNativeScreenCapture: true,
+          supportsHostAutomation: true,
+        ),
+        recordingCapabilities: CockpitRecordingCapabilities(
+          supportsNativeRecording: true,
+        ),
+        snapshot: CockpitSnapshot(routeName: '/home'),
+      ),
+    );
+
+    await launcher.launch(
+      CockpitRemoteSessionLaunchOptions(
+        projectDir: tempDir.path,
+        target: 'cockpit/main.dart',
+        platform: 'windows',
+        deviceId: 'windows',
+        sessionPort: 47331,
+      ),
+    );
+
+    expect(helperExe.existsSync(), isTrue);
+    expect(launchedExecutable, appExe.path);
   });
 }

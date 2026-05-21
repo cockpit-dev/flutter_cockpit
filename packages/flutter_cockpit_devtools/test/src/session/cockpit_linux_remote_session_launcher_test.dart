@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:flutter_cockpit_devtools/src/session/cockpit_linux_remote_session_launcher.dart';
 import 'package:flutter_cockpit_devtools/src/session/cockpit_remote_session_launch_options.dart';
+import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 void main() {
@@ -28,6 +29,7 @@ void main() {
         launchInvocations.add(
           '$executablePath ${arguments.join(' ')} @${workingDirectory ?? ''}',
         );
+        return 5101;
       },
       statusReader: (baseUri) async => CockpitRemoteSessionStatus(
         sessionId: 'linux-bootstrap-session',
@@ -65,6 +67,7 @@ void main() {
     expect(handle.platform, 'linux');
     expect(handle.deviceId, 'linux');
     expect(handle.appId, 'cockpit_demo');
+    expect(handle.processId, 5101);
     expect(handle.baseUrl, 'http://127.0.0.1:47331');
     expect(
       buildInvocations,
@@ -105,5 +108,82 @@ void main() {
       ),
       throwsA(isA<TimeoutException>()),
     );
+  });
+
+  test(
+      'linux remote session launcher prefers the executable that matches pubspec name',
+      () async {
+    if (Platform.isWindows) {
+      return;
+    }
+
+    final tempDir = await Directory.systemTemp.createTemp(
+      'cockpit_linux_remote_session_launcher_executable',
+    );
+    addTearDown(() async {
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    await File(p.join(tempDir.path, 'pubspec.yaml')).writeAsString(
+      'name: cockpit_demo\n',
+    );
+    final outputDirectory = Directory(
+      p.join(tempDir.path, 'build', 'linux', 'x64', 'debug', 'bundle'),
+    )..createSync(recursive: true);
+    final helperBinary = File(p.join(outputDirectory.path, 'a_helper'))
+      ..writeAsStringSync('');
+    final appBinary = File(p.join(outputDirectory.path, 'cockpit_demo'))
+      ..writeAsStringSync('');
+    await Process.run(
+        'chmod', <String>['+x', helperBinary.path, appBinary.path]);
+    String? launchedExecutable;
+
+    final launcher = CockpitLinuxRemoteSessionLauncher(
+      flutterVersionReader: () async => '3.38.9',
+      processRunner: (executable, arguments, {String? workingDirectory}) async {
+        return ProcessResult(0, 0, '', '');
+      },
+      appStarter: ({
+        required String executablePath,
+        List<String> arguments = const <String>[],
+        String? workingDirectory,
+        required Duration timeout,
+      }) async {
+        launchedExecutable = executablePath;
+        return 9002;
+      },
+      statusReader: (baseUri) async => CockpitRemoteSessionStatus(
+        sessionId: 'linux-bootstrap-session',
+        platform: 'linux',
+        transportType: 'remoteHttp',
+        currentRouteName: '/home',
+        capabilities: CockpitCapabilities(
+          platform: 'linux',
+          transportType: 'remoteHttp',
+          supportsInAppControl: true,
+          supportsFlutterViewCapture: true,
+          supportsNativeScreenCapture: true,
+          supportsHostAutomation: true,
+        ),
+        recordingCapabilities: CockpitRecordingCapabilities(
+          supportsNativeRecording: true,
+        ),
+        snapshot: CockpitSnapshot(routeName: '/home'),
+      ),
+    );
+
+    await launcher.launch(
+      CockpitRemoteSessionLaunchOptions(
+        projectDir: tempDir.path,
+        target: 'cockpit/main.dart',
+        platform: 'linux',
+        deviceId: 'linux',
+        sessionPort: 47331,
+      ),
+    );
+
+    expect(launchedExecutable, appBinary.path);
   });
 }

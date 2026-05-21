@@ -34,6 +34,7 @@ final class CockpitAppHandle {
     required this.baseUrl,
     required this.launchedAt,
     this.platformAppId,
+    this.processId,
     this.supervisorLogPath,
     this.developmentSession,
     this.remoteSession,
@@ -48,6 +49,7 @@ final class CockpitAppHandle {
   final String baseUrl;
   final DateTime launchedAt;
   final String? platformAppId;
+  final int? processId;
   final String? supervisorLogPath;
   final CockpitDevelopmentSessionHandle? developmentSession;
   final CockpitRemoteSessionHandle? remoteSession;
@@ -66,6 +68,7 @@ final class CockpitAppHandle {
         'baseUrl': baseUrl,
         'launchedAt': launchedAt.toUtc().toIso8601String(),
         if (platformAppId != null) 'platformAppId': platformAppId,
+        if (processId != null) 'processId': processId,
         'supportsHotReload': supportsHotReload,
         if (supervisorLogPath != null) 'supervisorLogPath': supervisorLogPath,
         if (developmentSession != null)
@@ -79,6 +82,9 @@ final class CockpitAppHandle {
         if (developmentSession?.lastReloadAt != null)
           'lastReloadAt':
               developmentSession!.lastReloadAt!.toUtc().toIso8601String(),
+        if (developmentSession != null)
+          'developmentSession': developmentSession!.toJson(),
+        if (remoteSession != null) 'remoteSession': remoteSession!.toJson(),
       };
 
   factory CockpitAppHandle.fromJson(Map<String, Object?> json) {
@@ -95,6 +101,8 @@ final class CockpitAppHandle {
       baseUrl: json['baseUrl']! as String,
       launchedAt: DateTime.parse(json['launchedAt']! as String).toUtc(),
       platformAppId: json['platformAppId'] as String?,
+      processId:
+          json['processId'] as int? ?? remoteSessionJson?['processId'] as int?,
       supervisorLogPath: json['supervisorLogPath'] as String?,
       developmentSession: developmentSessionJson == null
           ? _developmentSessionFromCompactJson(json)
@@ -121,7 +129,8 @@ final class CockpitAppHandle {
       target: handle.target,
       baseUrl: handle.appBaseUrl,
       launchedAt: handle.launchedAt,
-      platformAppId: handle.remoteSessionHandle?.appId,
+      platformAppId: handle.remoteSessionHandle?.effectivePlatformAppId,
+      processId: handle.remoteSessionHandle?.processId,
       supervisorLogPath: supervisorLogPath,
       developmentSession: handle,
       remoteSession: handle.remoteSessionHandle,
@@ -139,7 +148,8 @@ final class CockpitAppHandle {
       target: handle.target,
       baseUrl: handle.baseUrl,
       launchedAt: handle.launchedAt,
-      platformAppId: handle.appId,
+      platformAppId: handle.effectivePlatformAppId,
+      processId: handle.processId,
       remoteSession: handle,
     );
   }
@@ -154,6 +164,7 @@ final class CockpitAppHandle {
     String? baseUrl,
     DateTime? launchedAt,
     Object? platformAppId = _cockpitUnsetAppHandleField,
+    Object? processId = _cockpitUnsetAppHandleField,
     Object? supervisorLogPath = _cockpitUnsetAppHandleField,
     Object? developmentSession = _cockpitUnsetAppHandleField,
     Object? remoteSession = _cockpitUnsetAppHandleField,
@@ -170,6 +181,9 @@ final class CockpitAppHandle {
       platformAppId: identical(platformAppId, _cockpitUnsetAppHandleField)
           ? this.platformAppId
           : platformAppId as String?,
+      processId: identical(processId, _cockpitUnsetAppHandleField)
+          ? this.processId
+          : processId as int?,
       supervisorLogPath:
           identical(supervisorLogPath, _cockpitUnsetAppHandleField)
               ? this.supervisorLogPath

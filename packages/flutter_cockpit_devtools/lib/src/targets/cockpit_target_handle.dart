@@ -101,6 +101,9 @@ final class CockpitTargetHandle {
         'appMode': app.mode.jsonValue,
         'supportsHotReload': app.supportsHotReload,
         if (app.platformAppId != null) 'platformAppId': app.platformAppId,
+        if (app.processId != null) 'processId': app.processId,
+        if (app.remoteSession != null)
+          'remoteSession': app.remoteSession!.toJson(),
         if (app.supervisorLogPath != null)
           'supervisorLogPath': app.supervisorLogPath,
       },

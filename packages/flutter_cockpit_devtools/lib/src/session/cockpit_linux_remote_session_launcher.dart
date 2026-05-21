@@ -74,7 +74,7 @@ final class CockpitLinuxRemoteSessionLauncher
       projectDir: options.projectDir,
     );
     final executablePathContext = cockpitSessionPathContext(executablePath);
-    await _appStarter(
+    final processId = await _appStarter(
       executablePath: executablePath,
       workingDirectory: executablePathContext.dirname(executablePath),
       timeout: _capTimeout(_remaining(deadline), const Duration(seconds: 10)),
@@ -92,6 +92,7 @@ final class CockpitLinuxRemoteSessionLauncher
       target: options.target,
       deviceId: options.deviceId,
       appId: executablePathContext.basename(executablePath),
+      processId: processId,
       host: '127.0.0.1',
       hostPort: options.sessionPort,
       devicePort: options.sessionPort,
@@ -150,13 +151,13 @@ final class CockpitLinuxRemoteSessionLauncher
     );
   }
 
-  static Future<void> _startDetachedProcess({
+  static Future<int?> _startDetachedProcess({
     required String executablePath,
     List<String> arguments = const <String>[],
     String? workingDirectory,
     required Duration timeout,
   }) async {
-    await Process.start(
+    final process = await Process.start(
       executablePath,
       arguments,
       workingDirectory: workingDirectory,
@@ -168,12 +169,14 @@ final class CockpitLinuxRemoteSessionLauncher
         timeout,
       ),
     );
+    return process.pid == 0 ? null : process.pid;
   }
 
   static Future<String> _resolveAppExecutablePath({
     required String projectDir,
   }) async {
     final pathContext = cockpitSessionPathContext(projectDir);
+    final preferredBaseName = cockpitReadWorkspacePubspecName(projectDir);
     final outputDirectory = Directory(
       pathContext.join(
         projectDir,
@@ -213,6 +216,24 @@ final class CockpitLinuxRemoteSessionLauncher
         'Unable to locate a Linux executable in ${outputDirectory.path}.',
       );
     }
+    if (preferredBaseName != null && preferredBaseName.isNotEmpty) {
+      for (final candidate in candidates) {
+        final candidateBaseName = pathContext.basename(candidate);
+        if (candidateBaseName == preferredBaseName) {
+          return candidate;
+        }
+      }
+    }
     return candidates.first;
+  }
+
+  static Future<String?> resolveAppBaseName({
+    required String projectDir,
+  }) async {
+    final executablePath =
+        await _resolveAppExecutablePath(projectDir: projectDir);
+    final pathContext = cockpitSessionPathContext(executablePath);
+    final baseName = pathContext.basename(executablePath).trim();
+    return baseName.isEmpty ? null : baseName;
   }
 }
