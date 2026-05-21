@@ -81,7 +81,11 @@ final class CockpitAppResource extends CockpitMcpResource {
     }
 
     final developmentRecord = _registry.developmentSessionByAppId(appId);
-    if (developmentRecord != null) {
+    final remoteRecord = _registry.remoteSessionByAppId(appId);
+    final preferDevelopment = developmentRecord != null &&
+        (remoteRecord == null ||
+            !remoteRecord.updatedAt.isAfter(developmentRecord.updatedAt));
+    if (preferDevelopment) {
       final payload = <String, Object?>{
         'state': developmentRecord.status.state.jsonValue,
         'updatedAt': developmentRecord.updatedAt.toUtc().toIso8601String(),
@@ -95,7 +99,6 @@ final class CockpitAppResource extends CockpitMcpResource {
       return _textResult(request.uri, payload);
     }
 
-    final remoteRecord = _registry.remoteSessionByAppId(appId);
     if (remoteRecord != null) {
       final payload = <String, Object?>{
         'state': remoteRecord.recommendedNextStep,

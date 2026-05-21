@@ -127,14 +127,18 @@ final class CockpitReadAppService {
       app: resolved.app,
       capabilities: result.capabilities,
     );
-    final capabilities = _normalizedCapabilities(
-      app: resolved.app,
-      capabilities: result.capabilities,
-      capabilityProfile: capabilityProfile,
-    );
     final recordingCapabilities = _normalizedRecordingCapabilities(
       recordingCapabilities: result.recordingCapabilities,
       capabilityProfile: capabilityProfile,
+    );
+    final normalizedCapabilityProfile = _normalizedCapabilityProfile(
+      capabilityProfile: capabilityProfile,
+      recordingCapabilities: recordingCapabilities,
+    );
+    final capabilities = _normalizedCapabilities(
+      app: resolved.app,
+      capabilities: result.capabilities,
+      capabilityProfile: normalizedCapabilityProfile,
     );
 
     return CockpitReadAppResult(
@@ -182,6 +186,8 @@ final class CockpitReadAppService {
     final driver = _platformDriverRegistry.resolve(
       platform: app.platform,
       deviceId: app.deviceId,
+      appId: app.platformAppId ?? app.remoteSession?.effectivePlatformAppId,
+      processId: app.processId ?? app.remoteSession?.processId,
     );
     if (driver == null) {
       return remoteProfile;
@@ -219,6 +225,7 @@ final class CockpitReadAppService {
     required CockpitCapabilityProfile? capabilityProfile,
   }) {
     final profileSupportsRecording = capabilityProfile != null &&
+        _shouldPromoteRecordingFromProfile(capabilityProfile) &&
         capabilityProfile
             .supportsAction(CockpitActionCapability.startRecording) &&
         capabilityProfile
@@ -238,6 +245,49 @@ final class CockpitReadAppService {
       preferredLayer: recordingCapabilities.preferredLayer,
       recordingLimitations: limitations.toList(growable: false),
     );
+  }
+
+  static CockpitCapabilityProfile? _normalizedCapabilityProfile({
+    required CockpitCapabilityProfile? capabilityProfile,
+    required CockpitRecordingCapabilities recordingCapabilities,
+  }) {
+    if (capabilityProfile == null ||
+        capabilityProfile.targetKind != CockpitTargetKind.flutterApp ||
+        recordingCapabilities.supportsNativeRecording) {
+      return capabilityProfile;
+    }
+    return CockpitCapabilityProfile(
+      targetKind: capabilityProfile.targetKind,
+      surfaceKinds: capabilityProfile.surfaceKinds,
+      actionCapabilities: capabilityProfile.actionCapabilities
+          .where(
+            (capability) =>
+                capability != CockpitActionCapability.startRecording &&
+                capability != CockpitActionCapability.stopRecording,
+          )
+          .toSet(),
+      evidenceCapabilities: capabilityProfile.evidenceCapabilities
+          .where(
+            (capability) =>
+                capability != CockpitEvidenceCapability.screenRecording,
+          )
+          .toSet(),
+      qualityFlags: capabilityProfile.qualityFlags,
+    );
+  }
+
+  static bool _shouldPromoteRecordingFromProfile(
+    CockpitCapabilityProfile profile,
+  ) {
+    return switch (profile.targetKind) {
+      CockpitTargetKind.desktopApp || CockpitTargetKind.browserPage => true,
+      CockpitTargetKind.flutterApp ||
+      CockpitTargetKind.nativeApp ||
+      CockpitTargetKind.systemSurface ||
+      CockpitTargetKind.device ||
+      CockpitTargetKind.hostWorkspace =>
+        false,
+    };
   }
 
   static CockpitPlaneKind _selectedPlaneFor(CockpitCapabilities capabilities) {

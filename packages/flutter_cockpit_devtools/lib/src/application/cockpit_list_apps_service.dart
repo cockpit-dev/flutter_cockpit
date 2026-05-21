@@ -72,7 +72,8 @@ final class CockpitListAppsService {
           target: record.handle.target,
           baseUrl: record.handle.appBaseUrl,
           updatedAt: record.updatedAt,
-          platformAppId: record.handle.remoteSessionHandle?.appId,
+          platformAppId:
+              record.handle.remoteSessionHandle?.effectivePlatformAppId,
           state: record.status.state.jsonValue,
           lastError: record.status.lastError,
         ),
@@ -86,10 +87,8 @@ final class CockpitListAppsService {
           target: record.handle.target,
           baseUrl: record.handle.baseUrl,
           updatedAt: record.updatedAt,
-          platformAppId: record.handle.appId,
-          state: record.status.capabilities.supportsInAppControl
-              ? 'ready'
-              : 'limited_capabilities',
+          platformAppId: record.handle.effectivePlatformAppId,
+          state: record.recommendedNextStep,
           lastError: null,
         ),
     ];

@@ -122,6 +122,9 @@ void main() {
               supportsNativeRecording: false,
               preferredAcceptanceRecordingKind:
                   CockpitRecordingKind.nativeScreen,
+              recordingLimitations: const <String>[
+                'Browser recording is best-effort when multiple browser windows share the same host process.',
+              ],
             ),
             snapshot: CockpitSnapshot(routeName: '/inbox'),
           ),
@@ -146,6 +149,150 @@ void main() {
         contains(CockpitActionCapability.startRecording),
       );
       expect(result.recordingCapabilities.supportsNativeRecording, isTrue);
+      expect(
+        result.recordingCapabilities.recordingLimitations.join(' '),
+        contains('best-effort'),
+      );
+    },
+  );
+
+  test(
+    'read app keeps browser recording disabled when the target browser has no host recording support',
+    () async {
+      final app = CockpitAppHandle(
+        appId: 'dev.cockpit.web.safari',
+        mode: CockpitAppMode.development,
+        platform: 'web',
+        deviceId: 'safari',
+        projectDir: '/workspace/examples/cockpit_demo',
+        target: 'cockpit/main.dart',
+        baseUrl: 'http://127.0.0.1:48331',
+        launchedAt: DateTime.utc(2026, 4, 11),
+      );
+      final service = CockpitReadAppService(
+        remoteStatusService: CockpitReadRemoteStatusService(
+          readStatus: (_) async => CockpitRemoteSessionStatus(
+            sessionId: 'session-web-safari',
+            platform: 'web',
+            transportType: 'remoteHttp',
+            currentRouteName: '/inbox',
+            capabilities: CockpitCapabilities(
+              platform: 'web',
+              transportType: 'remoteHttp',
+              supportsInAppControl: true,
+              supportsFlutterViewCapture: true,
+              supportsNativeScreenCapture: false,
+              supportsHostAutomation: false,
+              supportedCommands: const <CockpitCommandType>[
+                CockpitCommandType.tap,
+                CockpitCommandType.captureScreenshot,
+              ],
+              supportedLocatorStrategies: CockpitLocatorKind.values,
+            ),
+            recordingCapabilities: CockpitRecordingCapabilities(
+              supportsNativeRecording: false,
+              preferredAcceptanceRecordingKind:
+                  CockpitRecordingKind.nativeScreen,
+            ),
+            snapshot: CockpitSnapshot(routeName: '/inbox'),
+          ),
+        ),
+      );
+
+      final result = await service.read(
+        CockpitReadAppRequest(
+          app: app,
+          resultProfile: const CockpitInteractiveResultProfile.minimal(),
+        ),
+      );
+
+      expect(
+        result.capabilities.capabilityProfile?.actionCapabilities,
+        isNot(contains(CockpitActionCapability.startRecording)),
+      );
+      expect(result.recordingCapabilities.supportsNativeRecording, isFalse);
+    },
+  );
+
+  test(
+    'read app does not promote linux recording when the merged capability profile lacks recording support',
+    () async {
+      final app = CockpitAppHandle(
+        appId: 'dev.cockpit.linux',
+        mode: CockpitAppMode.automation,
+        platform: 'linux',
+        deviceId: 'linux',
+        projectDir: '/workspace/examples/cockpit_demo',
+        target: 'cockpit/main.dart',
+        baseUrl: 'http://127.0.0.1:49331',
+        launchedAt: DateTime.utc(2026, 5, 10),
+        platformAppId: 'cockpit_demo',
+      );
+      final service = CockpitReadAppService(
+        platformDriverRegistry: CockpitPlatformDriverRegistry(
+          drivers: <String, CockpitPlatformDriverFactory>{
+            'linux': ({required String deviceId}) => _FakePlatformDriver(
+                  platform: 'linux',
+                  capabilityProfile: CockpitCapabilityProfile(
+                    targetKind: CockpitTargetKind.desktopApp,
+                    surfaceKinds: const <CockpitSurfaceKind>{
+                      CockpitSurfaceKind.desktopWindow,
+                      CockpitSurfaceKind.hostShell,
+                    },
+                    actionCapabilities: const <CockpitActionCapability>{
+                      CockpitActionCapability.captureScreenshot,
+                    },
+                    evidenceCapabilities: const <CockpitEvidenceCapability>{
+                      CockpitEvidenceCapability.windowCapture,
+                    },
+                  ),
+                ),
+          },
+        ),
+        remoteStatusService: CockpitReadRemoteStatusService(
+          readStatus: (_) async => CockpitRemoteSessionStatus(
+            sessionId: 'session-linux',
+            platform: 'linux',
+            transportType: 'remoteHttp',
+            currentRouteName: '/desktop-home',
+            capabilities: CockpitCapabilities(
+              platform: 'linux',
+              transportType: 'remoteHttp',
+              supportsInAppControl: true,
+              supportsFlutterViewCapture: true,
+              supportsNativeScreenCapture: true,
+              supportsHostAutomation: true,
+              supportedCommands: const <CockpitCommandType>[
+                CockpitCommandType.tap,
+              ],
+              supportedLocatorStrategies: CockpitLocatorKind.values,
+            ),
+            recordingCapabilities: CockpitRecordingCapabilities(
+              supportsNativeRecording: false,
+              preferredAcceptanceRecordingKind:
+                  CockpitRecordingKind.nativeScreen,
+            ),
+            snapshot: CockpitSnapshot(routeName: '/desktop-home'),
+          ),
+        ),
+      );
+
+      final result = await service.read(
+        CockpitReadAppRequest(
+          app: app,
+          resultProfile: const CockpitInteractiveResultProfile.minimal(),
+        ),
+      );
+
+      expect(result.recordingCapabilities.supportsNativeRecording, isFalse);
+      expect(
+        result.capabilities.capabilityProfile?.actionCapabilities,
+        isNot(contains(CockpitActionCapability.startRecording)),
+      );
+      expect(
+        result.capabilities.capabilityProfile?.evidenceCapabilities,
+        isNot(contains(CockpitEvidenceCapability.screenRecording)),
+      );
     },
   );
 
@@ -330,6 +477,282 @@ void main() {
       expect(
         result.capabilities.capabilityProfile?.surfaceKinds,
         contains(CockpitSurfaceKind.hostShell),
+      );
+    },
+  );
+
+  test(
+    'read app keeps desktop host evidence disabled when the driver has no bound evidence adapters',
+    () async {
+      final app = CockpitAppHandle(
+        appId: 'dev.cockpit.windows',
+        mode: CockpitAppMode.development,
+        platform: 'windows',
+        deviceId: 'windows',
+        projectDir: '/workspace/examples/cockpit_demo',
+        target: 'cockpit/main.dart',
+        baseUrl: 'http://127.0.0.1:51331',
+        launchedAt: DateTime.utc(2026, 4, 17),
+      );
+      final service = CockpitReadAppService(
+        remoteStatusService: CockpitReadRemoteStatusService(
+          readStatus: (_) async => CockpitRemoteSessionStatus(
+            sessionId: 'session-windows',
+            platform: 'windows',
+            transportType: 'remoteHttp',
+            currentRouteName: '/home',
+            capabilities: CockpitCapabilities(
+              platform: 'windows',
+              transportType: 'remoteHttp',
+              supportsInAppControl: true,
+              supportsFlutterViewCapture: true,
+              supportsNativeScreenCapture: true,
+              supportsHostAutomation: false,
+              supportedCommands: const <CockpitCommandType>[
+                CockpitCommandType.tap,
+              ],
+              supportedLocatorStrategies: CockpitLocatorKind.values,
+            ),
+            recordingCapabilities: CockpitRecordingCapabilities(
+              supportsNativeRecording: false,
+              preferredAcceptanceRecordingKind:
+                  CockpitRecordingKind.nativeScreen,
+            ),
+            snapshot: CockpitSnapshot(routeName: '/home'),
+          ),
+        ),
+      );
+
+      final result = await service.read(
+        CockpitReadAppRequest(
+          app: app,
+          resultProfile: const CockpitInteractiveResultProfile.minimal(),
+        ),
+      );
+
+      expect(
+        result.capabilities.capabilityProfile?.actionCapabilities,
+        isNot(contains(CockpitActionCapability.captureScreenshot)),
+      );
+      expect(
+        result.capabilities.capabilityProfile?.actionCapabilities,
+        isNot(contains(CockpitActionCapability.startRecording)),
+      );
+      expect(
+        result.capabilities.capabilityProfile?.evidenceCapabilities,
+        isNot(contains(CockpitEvidenceCapability.windowCapture)),
+      );
+      expect(
+        result.capabilities.capabilityProfile?.evidenceCapabilities,
+        isNot(contains(CockpitEvidenceCapability.screenRecording)),
+      );
+      expect(result.recordingCapabilities.supportsNativeRecording, isFalse);
+    },
+  );
+
+  test(
+    'read app includes desktop host evidence when the launched app carries a bound platform app id',
+    () async {
+      final app = CockpitAppHandle(
+        appId: 'dev.cockpit.windows',
+        mode: CockpitAppMode.development,
+        platform: 'windows',
+        deviceId: 'windows',
+        projectDir: '/workspace/examples/cockpit_demo',
+        target: 'cockpit/main.dart',
+        baseUrl: 'http://127.0.0.1:51331',
+        launchedAt: DateTime.utc(2026, 4, 17),
+        platformAppId: 'cockpit_demo',
+        processId: 4101,
+      );
+      final service = CockpitReadAppService(
+        remoteStatusService: CockpitReadRemoteStatusService(
+          readStatus: (_) async => CockpitRemoteSessionStatus(
+            sessionId: 'session-windows-bound',
+            platform: 'windows',
+            transportType: 'remoteHttp',
+            currentRouteName: '/home',
+            capabilities: CockpitCapabilities(
+              platform: 'windows',
+              transportType: 'remoteHttp',
+              supportsInAppControl: true,
+              supportsFlutterViewCapture: true,
+              supportsNativeScreenCapture: true,
+              supportsHostAutomation: false,
+              supportedCommands: const <CockpitCommandType>[
+                CockpitCommandType.tap,
+              ],
+              supportedLocatorStrategies: CockpitLocatorKind.values,
+            ),
+            recordingCapabilities: CockpitRecordingCapabilities(
+              supportsNativeRecording: false,
+              preferredAcceptanceRecordingKind:
+                  CockpitRecordingKind.nativeScreen,
+            ),
+            snapshot: CockpitSnapshot(routeName: '/home'),
+          ),
+        ),
+      );
+
+      final result = await service.read(
+        CockpitReadAppRequest(
+          app: app,
+          resultProfile: const CockpitInteractiveResultProfile.minimal(),
+        ),
+      );
+
+      expect(
+        result.capabilities.capabilityProfile?.actionCapabilities,
+        contains(CockpitActionCapability.captureScreenshot),
+      );
+      expect(
+        result.capabilities.capabilityProfile?.actionCapabilities,
+        contains(CockpitActionCapability.startRecording),
+      );
+      expect(
+        result.capabilities.capabilityProfile?.evidenceCapabilities,
+        contains(CockpitEvidenceCapability.windowCapture),
+      );
+      expect(
+        result.capabilities.capabilityProfile?.evidenceCapabilities,
+        contains(CockpitEvidenceCapability.screenRecording),
+      );
+      expect(result.recordingCapabilities.supportsNativeRecording, isTrue);
+    },
+  );
+
+  test(
+    'read app keeps Android recording disabled when runtime health reports native recording unavailable',
+    () async {
+      final app = CockpitAppHandle(
+        appId: 'dev.cockpit.android',
+        mode: CockpitAppMode.development,
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        projectDir: '/workspace/examples/cockpit_demo',
+        target: 'cockpit/main.dart',
+        baseUrl: 'http://127.0.0.1:52331',
+        launchedAt: DateTime.utc(2026, 4, 17),
+      );
+      final service = CockpitReadAppService(
+        remoteStatusService: CockpitReadRemoteStatusService(
+          readStatus: (_) async => CockpitRemoteSessionStatus(
+            sessionId: 'session-android-recording-unavailable',
+            platform: 'android',
+            transportType: 'remoteHttp',
+            currentRouteName: '/home',
+            capabilities: CockpitCapabilities(
+              platform: 'android',
+              transportType: 'remoteHttp',
+              supportsInAppControl: true,
+              supportsFlutterViewCapture: true,
+              supportsNativeScreenCapture: true,
+              supportsHostAutomation: false,
+              supportedCommands: const <CockpitCommandType>[
+                CockpitCommandType.tap,
+              ],
+              supportedLocatorStrategies: CockpitLocatorKind.values,
+            ),
+            recordingCapabilities: CockpitRecordingCapabilities(
+              supportsNativeRecording: false,
+              preferredAcceptanceRecordingKind:
+                  CockpitRecordingKind.nativeScreen,
+              recordingLimitations: const <String>[
+                'Screen recording consent is unavailable in the current activity.',
+              ],
+            ),
+            snapshot: CockpitSnapshot(routeName: '/home'),
+          ),
+        ),
+      );
+
+      final result = await service.read(
+        CockpitReadAppRequest(
+          app: app,
+          resultProfile: const CockpitInteractiveResultProfile.minimal(),
+        ),
+      );
+
+      expect(result.recordingCapabilities.supportsNativeRecording, isFalse);
+      expect(
+        result.recordingCapabilities.recordingLimitations.join(' '),
+        contains('unavailable'),
+      );
+      expect(
+        result.capabilities.capabilityProfile?.actionCapabilities,
+        isNot(contains(CockpitActionCapability.startRecording)),
+      );
+      expect(
+        result.capabilities.capabilityProfile?.evidenceCapabilities,
+        isNot(contains(CockpitEvidenceCapability.screenRecording)),
+      );
+    },
+  );
+
+  test(
+    'read app keeps iOS recording disabled when runtime health reports ReplayKit unavailable',
+    () async {
+      final app = CockpitAppHandle(
+        appId: 'dev.cockpit.ios.device',
+        mode: CockpitAppMode.development,
+        platform: 'ios',
+        deviceId: '00008110-0009341C2EF3801E',
+        projectDir: '/workspace/examples/cockpit_demo',
+        target: 'cockpit/main.dart',
+        baseUrl: 'http://127.0.0.1:53331',
+        launchedAt: DateTime.utc(2026, 4, 17),
+      );
+      final service = CockpitReadAppService(
+        remoteStatusService: CockpitReadRemoteStatusService(
+          readStatus: (_) async => CockpitRemoteSessionStatus(
+            sessionId: 'session-ios-recording-unavailable',
+            platform: 'ios',
+            transportType: 'remoteHttp',
+            currentRouteName: '/home',
+            capabilities: CockpitCapabilities(
+              platform: 'ios',
+              transportType: 'remoteHttp',
+              supportsInAppControl: true,
+              supportsFlutterViewCapture: true,
+              supportsNativeScreenCapture: true,
+              supportsHostAutomation: false,
+              supportedCommands: const <CockpitCommandType>[
+                CockpitCommandType.tap,
+              ],
+              supportedLocatorStrategies: CockpitLocatorKind.values,
+            ),
+            recordingCapabilities: CockpitRecordingCapabilities(
+              supportsNativeRecording: false,
+              preferredAcceptanceRecordingKind:
+                  CockpitRecordingKind.nativeScreen,
+              recordingLimitations: const <String>[
+                'Native recording requires iOS 14 or newer.',
+              ],
+            ),
+            snapshot: CockpitSnapshot(routeName: '/home'),
+          ),
+        ),
+      );
+
+      final result = await service.read(
+        CockpitReadAppRequest(
+          app: app,
+          resultProfile: const CockpitInteractiveResultProfile.minimal(),
+        ),
+      );
+
+      expect(result.recordingCapabilities.supportsNativeRecording, isFalse);
+      expect(
+        result.recordingCapabilities.recordingLimitations.join(' '),
+        contains('iOS 14'),
+      );
+      expect(
+        result.capabilities.capabilityProfile?.actionCapabilities,
+        isNot(contains(CockpitActionCapability.startRecording)),
+      );
+      expect(
+        result.capabilities.capabilityProfile?.evidenceCapabilities,
+        isNot(contains(CockpitEvidenceCapability.screenRecording)),
       );
     },
   );

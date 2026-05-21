@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
@@ -8,7 +9,9 @@ import '../targets/cockpit_target_handle.dart';
 import 'cockpit_app_handle.dart';
 import 'cockpit_application_service_exception.dart';
 import 'cockpit_compact_json.dart';
+import 'cockpit_interactive_result_profile.dart';
 import 'cockpit_launch_app_service.dart';
+import 'cockpit_read_app_service.dart';
 
 typedef CockpitLaunchTargetFunction = Future<CockpitLaunchTargetResult>
     Function(
@@ -17,6 +20,9 @@ typedef CockpitLaunchTargetFunction = Future<CockpitLaunchTargetResult>
 typedef CockpitLaunchFlutterAppTargetFunction = Future<CockpitLaunchAppResult>
     Function(
   CockpitLaunchAppRequest request,
+);
+typedef CockpitReadLaunchedAppFunction = Future<CockpitReadAppResult> Function(
+  CockpitReadAppRequest request,
 );
 
 final class CockpitLaunchTargetRequest {
@@ -68,15 +74,19 @@ final class CockpitLaunchTargetService {
     CockpitLaunchTargetFunction? launchTarget,
     CockpitLaunchAppService? launchAppService,
     CockpitLaunchFlutterAppTargetFunction? launchFlutterApp,
+    CockpitReadAppService? readAppService,
+    CockpitReadLaunchedAppFunction? readApp,
     CockpitPlatformDriverRegistry? platformDriverRegistry,
   })  : _launchTargetOverride = launchTarget,
         _launchFlutterApp = launchFlutterApp ??
             (launchAppService ?? CockpitLaunchAppService()).launch,
+        _readApp = readApp ?? (readAppService ?? CockpitReadAppService()).read,
         _platformDriverRegistry =
             platformDriverRegistry ?? CockpitPlatformDriverRegistry();
 
   final CockpitLaunchTargetFunction? _launchTargetOverride;
   final CockpitLaunchFlutterAppTargetFunction _launchFlutterApp;
+  final CockpitReadLaunchedAppFunction _readApp;
   final CockpitPlatformDriverRegistry _platformDriverRegistry;
 
   Future<CockpitLaunchTargetResult> launch(
@@ -120,9 +130,13 @@ final class CockpitLaunchTargetService {
         launchTimeout: request.launchTimeout,
       ),
     );
+    final launchedCapabilityProfile = await _resolveLaunchedCapabilityProfile(
+      app: appResult.app,
+      targetKind: normalizedTargetKind,
+    );
     final target = CockpitTargetHandle.fromAppHandle(appResult.app).copyWith(
       targetKind: normalizedTargetKind,
-      capabilityProfile: capabilityProfile,
+      capabilityProfile: launchedCapabilityProfile,
     );
     final targetJsonPath = await _persistTargetIfRequested(
       path: request.targetHandlePath,
@@ -151,10 +165,14 @@ final class CockpitLaunchTargetService {
   Future<CockpitCapabilityProfile> _resolveCapabilityProfile({
     required String platform,
     required String deviceId,
+    String? appId,
+    int? processId,
   }) async {
     final driver = _platformDriverRegistry.resolve(
       platform: platform,
       deviceId: deviceId,
+      appId: appId,
+      processId: processId,
     );
     if (driver == null) {
       throw CockpitApplicationServiceException(
@@ -164,6 +182,63 @@ final class CockpitLaunchTargetService {
       );
     }
     return driver.describeCapabilities();
+  }
+
+  Future<CockpitCapabilityProfile> _resolveLaunchedCapabilityProfile({
+    required CockpitAppHandle app,
+    required CockpitTargetKind targetKind,
+  }) async {
+    final fallbackProfile = await _resolveCapabilityProfile(
+      platform: app.platform,
+      deviceId: app.deviceId,
+      appId: app.platformAppId ?? app.remoteSession?.effectivePlatformAppId,
+      processId: app.processId ?? app.remoteSession?.processId,
+    );
+    if (!_canReadLaunchedApp(app)) {
+      return fallbackProfile;
+    }
+
+    try {
+      final readResult = await _readApp(
+        CockpitReadAppRequest(
+          app: app,
+          resultProfile: const CockpitInteractiveResultProfile.minimal(),
+        ),
+      );
+      final profile = readResult.capabilities.capabilityProfile;
+      if (profile == null) {
+        return fallbackProfile;
+      }
+      if (profile.targetKind == targetKind) {
+        return profile;
+      }
+      return CockpitCapabilityProfile(
+        targetKind: targetKind,
+        surfaceKinds: profile.surfaceKinds,
+        actionCapabilities: profile.actionCapabilities,
+        evidenceCapabilities: profile.evidenceCapabilities,
+        qualityFlags: profile.qualityFlags,
+      );
+    } on Object catch (error) {
+      if (!_isRecoverableLaunchedAppReadFailure(error)) {
+        rethrow;
+      }
+      return fallbackProfile;
+    }
+  }
+
+  bool _canReadLaunchedApp(CockpitAppHandle app) {
+    return app.remoteSession != null || app.developmentSession != null;
+  }
+
+  bool _isRecoverableLaunchedAppReadFailure(Object error) {
+    if (error is SocketException ||
+        error is HttpException ||
+        error is TimeoutException) {
+      return true;
+    }
+    return error is CockpitApplicationServiceException &&
+        error.code == 'remoteUnavailable';
   }
 
   CockpitTargetKind _normalizeTargetKind({
