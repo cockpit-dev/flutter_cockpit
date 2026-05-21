@@ -14,6 +14,7 @@ import '../session/cockpit_remote_session_handle.dart';
 import 'cockpit_bundle_artifact_paths.dart';
 import 'cockpit_application_service_exception.dart';
 import 'cockpit_compact_json.dart';
+import 'cockpit_read_task_bundle_summary_service.dart';
 import 'cockpit_session_reference_resolver.dart';
 
 final class CockpitRunRemoteControlScriptRequest {
@@ -70,16 +71,20 @@ final class CockpitRunRemoteControlScriptService {
     CockpitRecordingStrategyResolver recordingStrategyResolver =
         const CockpitRecordingStrategyResolver(),
     TaskRunBundleWriter writer = const TaskRunBundleWriter(),
+    CockpitReadTaskBundleSummaryService readSummaryService =
+        const CockpitReadTaskBundleSummaryService(),
   })  : _sessionReferenceResolver =
             sessionReferenceResolver ?? CockpitSessionReferenceResolver(),
         _captureStrategyResolver = captureStrategyResolver,
         _recordingStrategyResolver = recordingStrategyResolver,
-        _writer = writer;
+        _writer = writer,
+        _readSummaryService = readSummaryService;
 
   final CockpitSessionReferenceResolver _sessionReferenceResolver;
   final CockpitCaptureStrategyResolver _captureStrategyResolver;
   final CockpitRecordingStrategyResolver _recordingStrategyResolver;
   final TaskRunBundleWriter _writer;
+  final CockpitReadTaskBundleSummaryService _readSummaryService;
 
   Future<CockpitRunRemoteControlScriptResult> run(
     CockpitRunRemoteControlScriptRequest request,
@@ -145,18 +150,17 @@ final class CockpitRunRemoteControlScriptService {
       artifactPayloads: runResult.artifactPayloads,
       artifactSourcePaths: runResult.artifactSourcePaths,
     );
-    final artifactPaths = CockpitBundleArtifactPaths.fromDelivery(
-      bundleDir: bundleDir.path,
-      delivery: runResult.bundle.delivery,
+    final summary = await _readSummaryService.read(
+      CockpitReadTaskBundleSummaryRequest(bundleDir: bundleDir.path),
     );
 
     return CockpitRunRemoteControlScriptResult(
       sessionHandle: resolved.sessionHandle,
       bundleDir: bundleDir,
-      manifest: runResult.bundle.manifest,
-      handoff: runResult.bundle.handoff,
-      delivery: runResult.bundle.delivery,
-      artifactPaths: artifactPaths,
+      manifest: summary.manifest,
+      handoff: summary.handoff,
+      delivery: summary.delivery,
+      artifactPaths: summary.artifactPaths,
     );
   }
 
