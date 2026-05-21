@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 
 import 'cockpit_application_service_exception.dart';
 import 'cockpit_bundle_artifact_paths.dart';
+import 'cockpit_bundle_diagnostics_artifact_refs.dart';
 import 'cockpit_task_gate.dart';
 
 final class CockpitBundleNetworkSummary {
@@ -1036,13 +1037,24 @@ final class CockpitReadTaskBundleSummaryService {
         );
         final diagnosticsArtifactRef = step.snapshot?.diagnosticsArtifactRef;
         if (diagnosticsArtifactRef != null) {
-          diagnosticsPaths.add(
-            p.join(bundleDir, diagnosticsArtifactRef.relativePath),
+          final resolvedPath = CockpitBundleDiagnosticsArtifactRefs.resolvePath(
+            bundleDir,
+            diagnosticsArtifactRef.relativePath,
           );
+          if (resolvedPath != null) {
+            diagnosticsPaths.add(resolvedPath);
+          }
         }
         for (final artifact in step.artifactRefs) {
           if (artifact.role == 'diagnostics') {
-            diagnosticsPaths.add(p.join(bundleDir, artifact.relativePath));
+            final resolvedPath =
+                CockpitBundleDiagnosticsArtifactRefs.resolvePath(
+              bundleDir,
+              artifact.relativePath,
+            );
+            if (resolvedPath != null) {
+              diagnosticsPaths.add(resolvedPath);
+            }
           }
         }
       }
@@ -1067,9 +1079,13 @@ final class CockpitReadTaskBundleSummaryService {
         );
         final diagnosticsArtifactRef = observation.diagnosticsArtifactRef;
         if (diagnosticsArtifactRef != null) {
-          diagnosticsPaths.add(
-            p.join(bundleDir, diagnosticsArtifactRef.relativePath),
+          final resolvedPath = CockpitBundleDiagnosticsArtifactRefs.resolvePath(
+            bundleDir,
+            diagnosticsArtifactRef.relativePath,
           );
+          if (resolvedPath != null) {
+            diagnosticsPaths.add(resolvedPath);
+          }
         }
       }
     }
@@ -1305,10 +1321,14 @@ final class CockpitReadTaskBundleSummaryService {
       if (artifactRef == null) {
         continue;
       }
-      final diagnosticsArtifactPath = p.join(
+      final diagnosticsArtifactPath =
+          CockpitBundleDiagnosticsArtifactRefs.resolvePath(
         bundleDir,
         artifactRef.relativePath,
       );
+      if (diagnosticsArtifactPath == null) {
+        continue;
+      }
       final snapshot = await _readDiagnosticSnapshot(diagnosticsArtifactPath);
       if (snapshot == null) {
         continue;
@@ -1360,19 +1380,34 @@ final class CockpitReadTaskBundleSummaryService {
       }
       final diagnosticsArtifactRef = step.snapshot?.diagnosticsArtifactRef;
       if (diagnosticsArtifactRef != null) {
-        final diagnosticSnapshot = await _readDiagnosticSnapshot(
-          p.join(bundleDir, diagnosticsArtifactRef.relativePath),
+        final diagnosticsArtifactPath =
+            CockpitBundleDiagnosticsArtifactRefs.resolvePath(
+          bundleDir,
+          diagnosticsArtifactRef.relativePath,
         );
-        if (diagnosticSnapshot != null) {
-          snapshots.add(diagnosticSnapshot);
+        if (diagnosticsArtifactPath != null) {
+          final diagnosticSnapshot = await _readDiagnosticSnapshot(
+            diagnosticsArtifactPath,
+          );
+          if (diagnosticSnapshot != null) {
+            snapshots.add(diagnosticSnapshot);
+          }
         }
       }
       for (final artifact in step.artifactRefs) {
         if (artifact.role != 'diagnostics') {
           continue;
         }
+        final diagnosticsArtifactPath =
+            CockpitBundleDiagnosticsArtifactRefs.resolvePath(
+          bundleDir,
+          artifact.relativePath,
+        );
+        if (diagnosticsArtifactPath == null) {
+          continue;
+        }
         final diagnosticSnapshot = await _readDiagnosticSnapshot(
-          p.join(bundleDir, artifact.relativePath),
+          diagnosticsArtifactPath,
         );
         if (diagnosticSnapshot != null) {
           snapshots.add(diagnosticSnapshot);
@@ -1432,7 +1467,7 @@ final class CockpitReadTaskBundleSummaryService {
     final inlineSnapshot = step.snapshot;
     final inlineDiagnosticsPath = step.snapshot?.diagnosticsArtifactRef == null
         ? null
-        : p.join(
+        : CockpitBundleDiagnosticsArtifactRefs.resolvePath(
             bundleDir,
             step.snapshot!.diagnosticsArtifactRef!.relativePath,
           );
@@ -1448,7 +1483,13 @@ final class CockpitReadTaskBundleSummaryService {
         if (artifact.role != 'diagnostics') {
           continue;
         }
-        final candidatePath = p.join(bundleDir, artifact.relativePath);
+        final candidatePath = CockpitBundleDiagnosticsArtifactRefs.resolvePath(
+          bundleDir,
+          artifact.relativePath,
+        );
+        if (candidatePath == null) {
+          continue;
+        }
         final candidateSnapshot = await _readDiagnosticSnapshot(candidatePath);
         if (candidateSnapshot == null) {
           continue;
@@ -1724,6 +1765,9 @@ final class CockpitReadTaskBundleSummaryService {
       bundleDir: bundleDir,
       manifest: manifest,
     );
+    final diagnosticsArtifactFailureCodes = _diagnosticsArtifactFailureCodes(
+      bundleDir: bundleDir,
+    );
     final acceptanceEvidenceFailureCodes = _acceptanceEvidenceFailureCodes(
       baselineEvidence: baselineEvidence,
       acceptanceEvidence: acceptanceEvidence,
@@ -1736,7 +1780,8 @@ final class CockpitReadTaskBundleSummaryService {
     final deliveryValidated = screenshotReady &&
         recordingReadyOrExplained &&
         attachmentFailureCodes.isEmpty &&
-        manifestArtifactFailureCodes.isEmpty;
+        manifestArtifactFailureCodes.isEmpty &&
+        diagnosticsArtifactFailureCodes.isEmpty;
     final finalAssertionPassed = manifest.status != CockpitTaskStatus.failed &&
         manifest.runtimeErrorCount == 0;
     final targetReachable = _readGateOverride(
@@ -1830,7 +1875,10 @@ final class CockpitReadTaskBundleSummaryService {
           _mergeFailureCodes(screenshotFailureCodes, recordingFailureCodes),
           attachmentFailureCodes,
         ),
-        manifestArtifactFailureCodes,
+        _mergeFailureCodes(
+          manifestArtifactFailureCodes,
+          diagnosticsArtifactFailureCodes,
+        ),
       );
     }
     if (!logsCollected) {
@@ -1849,7 +1897,10 @@ final class CockpitReadTaskBundleSummaryService {
           _mergeFailureCodes(screenshotFailureCodes, recordingFailureCodes),
           attachmentFailureCodes,
         ),
-        manifestArtifactFailureCodes,
+        _mergeFailureCodes(
+          manifestArtifactFailureCodes,
+          diagnosticsArtifactFailureCodes,
+        ),
       );
     }
     if (acceptanceEvidenceFailureCodes.isNotEmpty) {
@@ -2040,6 +2091,28 @@ final class CockpitReadTaskBundleSummaryService {
       }
       if (!File(resolvedPath).existsSync()) {
         failureCodes.add('manifestArtifactMissing');
+      }
+    }
+    return List<String>.unmodifiable(failureCodes);
+  }
+
+  List<String> _diagnosticsArtifactFailureCodes({
+    required String bundleDir,
+  }) {
+    final failureCodes = <String>{};
+    for (final ref in CockpitBundleDiagnosticsArtifactRefs.readBundleRefs(
+      bundleDir,
+    )) {
+      final resolvedPath = CockpitBundleDiagnosticsArtifactRefs.resolvePath(
+        bundleDir,
+        ref.relativePath,
+      );
+      if (resolvedPath == null) {
+        failureCodes.add('diagnosticsArtifactRefInvalid');
+        continue;
+      }
+      if (!File(resolvedPath).existsSync()) {
+        failureCodes.add('diagnosticsArtifactMissing');
       }
     }
     return List<String>.unmodifiable(failureCodes);

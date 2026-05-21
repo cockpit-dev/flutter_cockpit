@@ -935,6 +935,154 @@ void main() {
   );
 
   test(
+    'read bundle summary rejects diagnostics refs outside diagnostics artifacts',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_read_task_bundle_summary_service_invalid_diagnostics_refs',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final bundleDir = Directory(p.join(tempDir.path, 'bundle'));
+      await Directory(
+        p.join(bundleDir.path, 'screenshots'),
+      ).create(recursive: true);
+      await Directory(
+        p.join(bundleDir.path, 'recordings'),
+      ).create(recursive: true);
+      await Directory(
+        p.join(bundleDir.path, 'diagnostics'),
+      ).create(recursive: true);
+      await File(
+        p.join(bundleDir.path, 'screenshots', 'acceptance.png'),
+      ).writeAsBytes(const <int>[1, 2, 3]);
+      await File(
+        p.join(bundleDir.path, 'recordings', 'acceptance.mp4'),
+      ).writeAsBytes(const <int>[4, 5, 6]);
+      final escapedDiagnosticsPath = p.join(
+        tempDir.path,
+        'escaped_snapshot.json',
+      );
+      await File(escapedDiagnosticsPath).writeAsString(
+        jsonEncode(
+          _snapshotJsonForDelta(routeName: '/escaped', isAcceptance: true),
+        ),
+      );
+      await File(
+        p.join(bundleDir.path, 'screenshots', 'not_diagnostics.json'),
+      ).writeAsString(
+        jsonEncode(
+          _snapshotJsonForDelta(routeName: '/wrong-root', isAcceptance: true),
+        ),
+      );
+      await File(p.join(bundleDir.path, 'manifest.json')).writeAsString(
+        jsonEncode(
+          CockpitRunManifest(
+            sessionId: 'bundle-session',
+            taskId: 'bundle-task',
+            platform: 'android',
+            status: CockpitTaskStatus.completed,
+            startedAt: DateTime.utc(2026, 4, 12, 9, 0),
+            finishedAt: DateTime.utc(2026, 4, 12, 9, 1),
+            artifactRefs: const <CockpitArtifactRef>[
+              CockpitArtifactRef(
+                role: 'screenshot',
+                relativePath: 'screenshots/acceptance.png',
+              ),
+              CockpitArtifactRef(
+                role: 'recording',
+                relativePath: 'recordings/acceptance.mp4',
+              ),
+            ],
+            commandCount: 1,
+            screenshotCount: 1,
+            recordingCount: 1,
+            deliveryArtifactsReady: true,
+            deliveryVideoReady: true,
+          ).toJson(),
+        ),
+      );
+      await File(
+        p.join(bundleDir.path, 'handoff.json'),
+      ).writeAsString(jsonEncode(<String, Object?>{'status': 'completed'}));
+      await File(p.join(bundleDir.path, 'delivery.json')).writeAsString(
+        jsonEncode(<String, Object?>{
+          'primaryScreenshotRef': 'screenshots/acceptance.png',
+          'attachmentRefs': <String>['screenshots/acceptance.png'],
+          'primaryRecordingRef': 'recordings/acceptance.mp4',
+          'videoAttachmentRefs': <String>['recordings/acceptance.mp4'],
+          'deliveryArtifactsReady': true,
+          'deliveryVideoReady': true,
+        }),
+      );
+      await File(
+        p.join(bundleDir.path, 'acceptance.md'),
+      ).writeAsString('# Acceptance\n\n- Status: completed\n');
+      await File(p.join(bundleDir.path, 'steps.json')).writeAsString(
+        jsonEncode(<Object?>[
+          CockpitStepRecord(
+            index: 0,
+            actionType: 'captureScreenshot',
+            actionArgs: const <String, Object?>{},
+            observedAt: DateTime.utc(2026, 4, 12, 9, 0, 10),
+            requestedCaptureProfile: CockpitCaptureProfile.acceptance,
+            artifactRefs: const <CockpitArtifactRef>[
+              CockpitArtifactRef(
+                role: 'diagnostics',
+                relativePath: '../escaped_snapshot.json',
+              ),
+            ],
+          ).toJson(),
+        ]),
+      );
+      await File(p.join(bundleDir.path, 'observations.json')).writeAsString(
+        jsonEncode(<Object?>[
+          CockpitObservation(
+            routeName: '/wrong-root',
+            diagnosticLevel: CockpitSnapshotProfile.forensic,
+            truncated: true,
+            diagnosticsArtifactRef: CockpitArtifactRef(
+              role: 'diagnostics',
+              relativePath: 'screenshots/not_diagnostics.json',
+            ),
+          ).toJson(),
+        ]),
+      );
+
+      final result = await const CockpitReadTaskBundleSummaryService().read(
+        CockpitReadTaskBundleSummaryRequest(bundleDir: bundleDir.path),
+      );
+
+      expect(result.diagnosticsArtifactPaths, isEmpty);
+      expect(result.acceptanceEvidence, isNull);
+      expect(result.networkSummary, isNull);
+      expect(
+        result.gateSummary.isSatisfied(CockpitTaskGate.artifactsReady),
+        isFalse,
+      );
+      expect(
+        result.gateSummary.isSatisfied(CockpitTaskGate.deliveryValidated),
+        isFalse,
+      );
+      expect(
+        result.gateSummary.failureCodesFor(CockpitTaskGate.artifactsReady),
+        contains('diagnosticsArtifactRefInvalid'),
+      );
+      expect(
+        result.evidenceSummary['artifactFailureCodes'],
+        contains('diagnosticsArtifactRefInvalid'),
+      );
+      expect(
+        result.toMcpJson()['diagnosticsArtifactPaths'],
+        isEmpty,
+      );
+    },
+  );
+
+  test(
     'read bundle summary surfaces plane-aware execution fields and gates',
     () async {
       final tempDir = await Directory.systemTemp.createTemp(
