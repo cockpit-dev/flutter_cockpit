@@ -30,16 +30,18 @@ final class CockpitSessionReferenceResolver {
     String? androidDeviceId,
   }) async {
     if (sessionHandle != null) {
+      final resolvedBaseUri = await _resolvedBaseUriForSession(sessionHandle);
       return CockpitResolvedSessionReference(
-        baseUri: sessionHandle.baseUri,
+        baseUri: resolvedBaseUri,
         sessionHandle: sessionHandle,
       );
     }
 
     if (sessionHandlePath != null && sessionHandlePath.isNotEmpty) {
       final resolvedHandle = await readSessionHandle(sessionHandlePath);
+      final resolvedBaseUri = await _resolvedBaseUriForSession(resolvedHandle);
       return CockpitResolvedSessionReference(
-        baseUri: resolvedHandle.baseUri,
+        baseUri: resolvedBaseUri,
         sessionHandle: resolvedHandle,
       );
     }
@@ -63,6 +65,25 @@ final class CockpitSessionReferenceResolver {
     throw const CockpitApplicationServiceException(
       code: 'missingSessionReference',
       message: 'A session handle, handle path, or base URI is required.',
+    );
+  }
+
+  Future<Uri> _resolvedBaseUriForSession(
+    CockpitRemoteSessionHandle handle,
+  ) async {
+    if (handle.platform != 'android') {
+      return handle.baseUri;
+    }
+    final hostPort = await _portForwarder.ensureForwarded(
+      deviceId: handle.deviceId,
+      preferredHostPort: handle.hostPort,
+      devicePort: handle.devicePort,
+    );
+    return Uri(
+      scheme: handle.baseUri.scheme,
+      host: '127.0.0.1',
+      port: hostPort,
+      path: handle.baseUri.path,
     );
   }
 
