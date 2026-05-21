@@ -5,6 +5,8 @@ import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:flutter_cockpit_devtools/src/adapters/cockpit_recording_adapter.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_application_service_exception.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_run_remote_control_script_service.dart';
+import 'package:flutter_cockpit_devtools/src/artifacts/cockpit_timeline_video_fallback_builder.dart';
+import 'package:flutter_cockpit_devtools/src/artifacts/task_run_bundle_writer.dart';
 import 'package:flutter_cockpit_devtools/src/cli/cockpit_control_script.dart';
 import 'package:flutter_cockpit_devtools/src/recording/cockpit_recording_strategy_resolver.dart';
 import 'package:flutter_cockpit_devtools/src/session/cockpit_remote_session_handle.dart';
@@ -187,6 +189,156 @@ void main() {
           ),
         ).readAsBytesSync(),
         <int>[1, 2, 3],
+      );
+    },
+  );
+
+  test(
+    'run service returns metadata from the finalized written bundle',
+    () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_run_remote_control_script_service_finalized_metadata',
+      );
+      addTearDown(() async {
+        await server.close(force: true);
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      server.listen((request) async {
+        request.response.headers.contentType = ContentType.json;
+        switch ((request.method, request.uri.path)) {
+          case ('GET', '/health'):
+            request.response.write(
+              jsonEncode(
+                CockpitRemoteSessionStatus(
+                  sessionId: 'service-finalized-demo',
+                  platform: 'ios',
+                  transportType: 'remoteHttp',
+                  currentRouteName: '/home',
+                  capabilities: CockpitCapabilities(
+                    platform: 'ios',
+                    transportType: 'remoteHttp',
+                    supportsInAppControl: true,
+                    supportsFlutterViewCapture: true,
+                    supportsNativeScreenCapture: false,
+                    supportsHostAutomation: false,
+                    supportedCommands: <CockpitCommandType>[
+                      CockpitCommandType.captureScreenshot,
+                    ],
+                    supportedLocatorStrategies: CockpitLocatorKind.values,
+                  ),
+                  recordingCapabilities: CockpitRecordingCapabilities(
+                    supportsNativeRecording: false,
+                    preferredAcceptanceRecordingKind:
+                        CockpitRecordingKind.nativeScreen,
+                  ),
+                  snapshot: CockpitSnapshot(routeName: '/home'),
+                  environment: const CockpitEnvironment(
+                    platform: 'ios',
+                    flutterVersion: '3.38.9',
+                    dartVersion: '3.10.8',
+                  ),
+                ).toJson(),
+              ),
+            );
+          case ('POST', '/commands/execute'):
+            request.response.write(
+              jsonEncode(
+                CockpitRemoteCommandResponse(
+                  result: CockpitCommandResult(
+                    success: true,
+                    commandId: 'capture-acceptance',
+                    commandType: CockpitCommandType.captureScreenshot,
+                    durationMs: 16,
+                    artifacts: const <CockpitArtifactRef>[
+                      CockpitArtifactRef(
+                        role: 'screenshot',
+                        relativePath: 'screenshots/finalized_acceptance.png',
+                      ),
+                    ],
+                    snapshot: CockpitSnapshot(routeName: '/done').toJson(),
+                    requestedCaptureProfile: CockpitCaptureProfile.acceptance,
+                  ),
+                  artifactPayloads: const <CockpitRemoteArtifactPayload>[
+                    CockpitRemoteArtifactPayload(
+                      artifact: CockpitArtifactRef(
+                        role: 'screenshot',
+                        relativePath: 'screenshots/finalized_acceptance.png',
+                      ),
+                      bytes: <int>[137, 80, 78, 71],
+                    ),
+                  ],
+                ).toJson(),
+              ),
+            );
+          default:
+            request.response.statusCode = HttpStatus.notFound;
+            request.response.write(
+              jsonEncode(const <String, Object?>{'error': 'notFound'}),
+            );
+        }
+        await request.response.close();
+      });
+
+      final writer = TaskRunBundleWriter(
+        timelineVideoFallbackBuilder: _FakeTimelineFallbackBuilder(
+          sourceRoot: tempDir.path,
+          relativePath: 'recordings/finalized_timeline_fallback.mp4',
+        ),
+      );
+      final service = CockpitRunRemoteControlScriptService(writer: writer);
+
+      final result = await service.run(
+        CockpitRunRemoteControlScriptRequest(
+          script: CockpitControlScript(
+            sessionId: 'finalized-metadata-session',
+            taskId: 'finalized-metadata-task',
+            platform: 'ios',
+            commands: <CockpitCommand>[
+              CockpitCommand(
+                commandId: 'capture-acceptance',
+                commandType: CockpitCommandType.captureScreenshot,
+                screenshotRequest: const CockpitScreenshotRequest(
+                  reason: CockpitScreenshotReason.acceptance,
+                  name: 'finalized-acceptance',
+                  includeSnapshot: true,
+                  attachToStep: true,
+                ),
+              ),
+            ],
+            failFast: true,
+            recording: const CockpitRecordingRequest(
+              purpose: CockpitRecordingPurpose.acceptance,
+              name: 'finalized-recording',
+              attachToStep: true,
+            ),
+          ),
+          outputRoot: tempDir.path,
+          baseUri: Uri.parse('http://127.0.0.1:${server.port}'),
+        ),
+      );
+
+      expect(result.manifest.deliveryVideoReady, isTrue);
+      expect(result.manifest.recordingCount, 1);
+      expect(result.delivery['deliveryVideoSynthesized'], isTrue);
+      expect(
+        result.delivery['primaryRecordingRef'],
+        'recordings/finalized_timeline_fallback.mp4',
+      );
+      expect(
+        result.artifactPaths.primaryRecordingPath,
+        p.join(
+          result.bundleDir.path,
+          'recordings',
+          'finalized_timeline_fallback.mp4',
+        ),
+      );
+      expect(
+        File(result.artifactPaths.primaryRecordingPath!).readAsBytesSync(),
+        <int>[0, 1, 2, 3],
       );
     },
   );
@@ -572,6 +724,35 @@ final class _HostOnlyRecordingAdapter implements CockpitRecordingAdapter {
       ),
       sourceFilePath: sourceFilePath,
       durationMs: 600,
+    );
+  }
+}
+
+final class _FakeTimelineFallbackBuilder
+    implements CockpitTimelineVideoFallbackBuilder {
+  const _FakeTimelineFallbackBuilder({
+    required this.sourceRoot,
+    required this.relativePath,
+  });
+
+  final String sourceRoot;
+  final String relativePath;
+
+  @override
+  Future<CockpitTimelineVideoFallbackResult?> build({
+    required CockpitContextBundle bundle,
+    required String outputDirectoryPath,
+  }) async {
+    final sourceFile = File(p.join(sourceRoot, 'timeline_fallback.mp4'));
+    sourceFile.writeAsBytesSync(const <int>[0, 1, 2, 3]);
+    return CockpitTimelineVideoFallbackResult(
+      artifact: CockpitArtifactRef(
+        role: 'recording',
+        relativePath: relativePath,
+      ),
+      sourceFilePath: sourceFile.path,
+      durationMs: 1800,
+      screenshotRefs: const <String>['screenshots/finalized_acceptance.png'],
     );
   }
 }
