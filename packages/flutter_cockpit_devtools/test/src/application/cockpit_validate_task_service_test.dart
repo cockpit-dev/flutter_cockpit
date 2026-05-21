@@ -1667,6 +1667,140 @@ void main() {
   );
 
   test(
+    'validate task downgrades when diagnostics refs cannot provide bounded comparison evidence',
+    () async {
+      final bundleDir = await _createBundleDir(
+        name: 'cockpit_validate_task_service_invalid_diagnostics_refs',
+        acceptanceMarkdown: '# Acceptance\n\n- Status: completed\n',
+        environmentJson:
+            '{"platform":"android","flutterVersion":"3.38.9","dartVersion":"3.10.8"}',
+        screenshotRelativePath: 'screenshots/acceptance.png',
+      );
+      addTearDown(() async => _deleteDir(bundleDir));
+      final escapedDiagnosticsPath = p.join(
+        bundleDir.parent.path,
+        'escaped_snapshot.json',
+      );
+      await File(escapedDiagnosticsPath).writeAsString(
+        jsonEncode(<String, Object?>{
+          'routeName': '/escaped',
+          'diagnosticLevel': 'forensic',
+          'visibleTargets': <Object?>[
+            <String, Object?>{
+              'registrationId': 'escaped.publish',
+              'text': 'Published',
+              'semanticId': 'publish.screen',
+              'typeName': 'Text',
+              'routeName': '/escaped',
+              'supportedCommands': <String>[],
+            },
+          ],
+          'summary': <String, Object?>{
+            'visibleTargetCount': 1,
+            'targetsWithTextCount': 1,
+            'accessibilitySummaryIncluded': false,
+          },
+        }),
+      );
+      final service = CockpitValidateTaskService(
+        runTask: (_) async {
+          await File(p.join(bundleDir.path, 'manifest.json')).writeAsString(
+            jsonEncode(
+              CockpitRunManifest(
+                sessionId: 'validate-task-session',
+                taskId: 'validate-task-id',
+                platform: 'android',
+                status: CockpitTaskStatus.completed,
+                startedAt: DateTime.utc(2026, 4, 12, 9, 0),
+                finishedAt: DateTime.utc(2026, 4, 12, 9, 1),
+                artifactRefs: const <CockpitArtifactRef>[
+                  CockpitArtifactRef(
+                    role: 'screenshot',
+                    relativePath: 'screenshots/acceptance.png',
+                  ),
+                ],
+                commandCount: 1,
+                screenshotCount: 1,
+                deliveryArtifactsReady: true,
+              ).toJson(),
+            ),
+          );
+          await File(
+            p.join(bundleDir.path, 'handoff.json'),
+          ).writeAsString(jsonEncode(<String, Object?>{'status': 'completed'}));
+          await File(p.join(bundleDir.path, 'delivery.json')).writeAsString(
+            jsonEncode(<String, Object?>{
+              'primaryScreenshotRef': 'screenshots/acceptance.png',
+              'attachmentRefs': <String>['screenshots/acceptance.png'],
+              'deliveryArtifactsReady': true,
+            }),
+          );
+          await File(p.join(bundleDir.path, 'steps.json')).writeAsString(
+            jsonEncode(<Object?>[
+              CockpitStepRecord(
+                index: 0,
+                actionType: 'captureScreenshot',
+                actionArgs: const <String, Object?>{},
+                observedAt: DateTime.utc(2026, 4, 12, 9, 0, 10),
+                requestedCaptureProfile: CockpitCaptureProfile.acceptance,
+                artifactRefs: const <CockpitArtifactRef>[
+                  CockpitArtifactRef(
+                    role: 'diagnostics',
+                    relativePath: '../escaped_snapshot.json',
+                  ),
+                ],
+              ).toJson(),
+            ]),
+          );
+          await File(
+            p.join(bundleDir.path, 'observations.json'),
+          ).writeAsString('[]');
+          final bundleSummary =
+              await const CockpitReadTaskBundleSummaryService().read(
+            CockpitReadTaskBundleSummaryRequest(bundleDir: bundleDir.path),
+          );
+          return CockpitRunTaskResult(
+            classification: CockpitRunTaskClassification.completed,
+            recommendedNextStep: 'delivery_ready',
+            bundleSummary: bundleSummary,
+          );
+        },
+      );
+
+      final result = await service.validate(
+        CockpitValidateTaskRequest(
+          runTask: _runTaskRequest(platform: 'android'),
+          validation: const CockpitValidateTaskRequirements(
+            requirePrimaryScreenshot: true,
+            requireAcceptanceSemanticEvidence: true,
+          ),
+        ),
+      );
+
+      expect(
+        result.classification,
+        CockpitValidationClassification.needsMoreWork,
+      );
+      expect(result.bundleSummary!.diagnosticsArtifactPaths, isEmpty);
+      expect(result.bundleSummary!.acceptanceEvidence, isNull);
+      expect(
+        result.bundleSummary!.gateSummary.failureCodesFor(
+          CockpitTaskGate.artifactsReady,
+        ),
+        contains('diagnosticsArtifactRefInvalid'),
+      );
+      expect(
+        result.validationFailures.map((failure) => failure.code),
+        containsAll(<String>[
+          'diagnosticsArtifactRefInvalid',
+          'acceptanceComparisonEvidenceMissing',
+          'acceptanceSemanticEvidenceMissing',
+        ]),
+      );
+    },
+  );
+
+  test(
     'validate task downgrades to needs_more_work when fallback is not acceptable',
     () async {
       final bundleDir = await _createBundleDir(

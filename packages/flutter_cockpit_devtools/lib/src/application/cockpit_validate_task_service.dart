@@ -4,6 +4,7 @@ import 'dart:io';
 import '../artifacts/cockpit_recording_keyframe_extractor.dart';
 import '../validation/cockpit_bundle_artifact_validator.dart';
 import 'cockpit_bundle_artifact_paths.dart';
+import 'cockpit_bundle_diagnostics_artifact_refs.dart';
 import 'cockpit_read_task_bundle_summary_service.dart';
 import 'cockpit_run_task_service.dart';
 import 'cockpit_task_gate.dart';
@@ -480,6 +481,9 @@ final class CockpitValidateTaskService {
     failures.addAll(
       _validateManifestArtifactRefs(bundleSummary: bundleSummary),
     );
+    failures.addAll(
+      _validateDiagnosticsArtifactRefs(bundleSummary: bundleSummary),
+    );
 
     if (primaryScreenshotPath != null &&
         primaryScreenshotPath.isNotEmpty &&
@@ -538,6 +542,49 @@ final class CockpitValidateTaskService {
       }
     }
 
+    return List<CockpitValidationFailure>.unmodifiable(failures);
+  }
+
+  List<CockpitValidationFailure> _validateDiagnosticsArtifactRefs({
+    required CockpitReadTaskBundleSummaryResult bundleSummary,
+  }) {
+    final failures = <CockpitValidationFailure>[];
+    for (final ref in CockpitBundleDiagnosticsArtifactRefs.readBundleRefs(
+      bundleSummary.bundleDir,
+    )) {
+      final resolvedPath = CockpitBundleDiagnosticsArtifactRefs.resolvePath(
+        bundleSummary.bundleDir,
+        ref.relativePath,
+      );
+      if (resolvedPath == null) {
+        failures.add(
+          CockpitValidationFailure(
+            code: 'diagnosticsArtifactRefInvalid',
+            message:
+                'Diagnostic artifact refs must point to bundle-local files under diagnostics/.',
+            details: <String, Object?>{
+              'role': ref.role,
+              'relativePath': ref.relativePath,
+            },
+          ),
+        );
+        continue;
+      }
+      if (!File(resolvedPath).existsSync()) {
+        failures.add(
+          CockpitValidationFailure(
+            code: 'diagnosticsArtifactMissing',
+            message:
+                'A diagnostic artifact ref points to a file that is missing from the bundle.',
+            details: <String, Object?>{
+              'role': ref.role,
+              'relativePath': ref.relativePath,
+              'path': resolvedPath,
+            },
+          ),
+        );
+      }
+    }
     return List<CockpitValidationFailure>.unmodifiable(failures);
   }
 
