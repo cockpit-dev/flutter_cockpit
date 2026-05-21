@@ -125,21 +125,29 @@ final class CockpitSessionRegistry {
   }
 
   CockpitDevelopmentSessionRecord? developmentSessionByAppId(String appId) {
+    CockpitDevelopmentSessionRecord? latest;
     for (final record in _developmentSessions.values) {
-      if (record.handle.appId == appId) {
-        return record;
+      if (record.handle.appId != appId) {
+        continue;
+      }
+      if (latest == null || record.updatedAt.isAfter(latest.updatedAt)) {
+        latest = record;
       }
     }
-    return null;
+    return latest;
   }
 
   CockpitRemoteSessionRecord? remoteSessionByAppId(String appId) {
+    CockpitRemoteSessionRecord? latest;
     for (final record in _remoteSessions.values) {
-      if (record.handle.appId == appId) {
-        return record;
+      if (record.handle.appId != appId) {
+        continue;
+      }
+      if (latest == null || record.updatedAt.isAfter(latest.updatedAt)) {
+        latest = record;
       }
     }
-    return null;
+    return latest;
   }
 
   String _remoteSessionKey(CockpitRemoteSessionHandle handle) =>
