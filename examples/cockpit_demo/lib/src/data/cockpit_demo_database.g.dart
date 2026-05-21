@@ -11,139 +11,85 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<String> id = GeneratedColumn<String>(
-    'id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
   static const VerificationMeta _titleMeta = const VerificationMeta('title');
   @override
   late final GeneratedColumn<String> title = GeneratedColumn<String>(
-    'title',
-    aliasedName,
-    false,
-    additionalChecks: GeneratedColumn.checkTextLength(
-      minTextLength: 1,
-      maxTextLength: 200,
-    ),
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
+      'title', aliasedName, false,
+      additionalChecks:
+          GeneratedColumn.checkTextLength(minTextLength: 1, maxTextLength: 200),
+      type: DriftSqlType.string,
+      requiredDuringInsert: true);
   static const VerificationMeta _notesMeta = const VerificationMeta('notes');
   @override
   late final GeneratedColumn<String> notes = GeneratedColumn<String>(
-    'notes',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-    defaultValue: const Constant(''),
-  );
-  static const VerificationMeta _priorityMeta = const VerificationMeta(
-    'priority',
-  );
+      'notes', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _priorityMeta =
+      const VerificationMeta('priority');
   @override
   late final GeneratedColumn<int> priority = GeneratedColumn<int>(
-    'priority',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    defaultValue: const Constant(1),
-  );
-  static const VerificationMeta _dueAtEpochMsMeta = const VerificationMeta(
-    'dueAtEpochMs',
-  );
+      'priority', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(1));
+  static const VerificationMeta _dueAtEpochMsMeta =
+      const VerificationMeta('dueAtEpochMs');
   @override
   late final GeneratedColumn<int> dueAtEpochMs = GeneratedColumn<int>(
-    'due_at_epoch_ms',
-    aliasedName,
-    true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _isCompletedMeta = const VerificationMeta(
-    'isCompleted',
-  );
+      'due_at_epoch_ms', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _isCompletedMeta =
+      const VerificationMeta('isCompleted');
   @override
   late final GeneratedColumn<bool> isCompleted = GeneratedColumn<bool>(
-    'is_completed',
-    aliasedName,
-    false,
-    type: DriftSqlType.bool,
-    requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'CHECK ("is_completed" IN (0, 1))',
-    ),
-    defaultValue: const Constant(false),
-  );
+      'is_completed', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("is_completed" IN (0, 1))'),
+      defaultValue: const Constant(false));
   static const VerificationMeta _completedAtEpochMsMeta =
       const VerificationMeta('completedAtEpochMs');
   @override
   late final GeneratedColumn<int> completedAtEpochMs = GeneratedColumn<int>(
-    'completed_at_epoch_ms',
-    aliasedName,
-    true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _deletedAtEpochMsMeta = const VerificationMeta(
-    'deletedAtEpochMs',
-  );
+      'completed_at_epoch_ms', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _deletedAtEpochMsMeta =
+      const VerificationMeta('deletedAtEpochMs');
   @override
   late final GeneratedColumn<int> deletedAtEpochMs = GeneratedColumn<int>(
-    'deleted_at_epoch_ms',
-    aliasedName,
-    true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _displayOrderMeta = const VerificationMeta(
-    'displayOrder',
-  );
+      'deleted_at_epoch_ms', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _displayOrderMeta =
+      const VerificationMeta('displayOrder');
   @override
   late final GeneratedColumn<int> displayOrder = GeneratedColumn<int>(
-    'display_order',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _tagIdsJsonMeta = const VerificationMeta(
-    'tagIdsJson',
-  );
+      'display_order', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _tagIdsJsonMeta =
+      const VerificationMeta('tagIdsJson');
   @override
   late final GeneratedColumn<String> tagIdsJson = GeneratedColumn<String>(
-    'tag_ids_json',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-    defaultValue: const Constant('[]'),
-  );
-  static const VerificationMeta _createdAtEpochMsMeta = const VerificationMeta(
-    'createdAtEpochMs',
-  );
+      'tag_ids_json', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('[]'));
+  static const VerificationMeta _createdAtEpochMsMeta =
+      const VerificationMeta('createdAtEpochMs');
   @override
   late final GeneratedColumn<int> createdAtEpochMs = GeneratedColumn<int>(
-    'created_at_epoch_ms',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _updatedAtEpochMsMeta = const VerificationMeta(
-    'updatedAtEpochMs',
-  );
+      'created_at_epoch_ms', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtEpochMsMeta =
+      const VerificationMeta('updatedAtEpochMs');
   @override
   late final GeneratedColumn<int> updatedAtEpochMs = GeneratedColumn<int>(
-    'updated_at_epoch_ms',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-  );
+      'updated_at_epoch_ms', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -157,7 +103,7 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
         displayOrder,
         tagIdsJson,
         createdAtEpochMs,
-        updatedAtEpochMs,
+        updatedAtEpochMs
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -165,10 +111,8 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
   String get actualTableName => $name;
   static const String $name = 'tasks';
   @override
-  VerificationContext validateIntegrity(
-    Insertable<Task> instance, {
-    bool isInserting = false,
-  }) {
+  VerificationContext validateIntegrity(Insertable<Task> instance,
+      {bool isInserting = false}) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
@@ -178,99 +122,69 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
     }
     if (data.containsKey('title')) {
       context.handle(
-        _titleMeta,
-        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
-      );
+          _titleMeta, title.isAcceptableOrUnknown(data['title']!, _titleMeta));
     } else if (isInserting) {
       context.missing(_titleMeta);
     }
     if (data.containsKey('notes')) {
       context.handle(
-        _notesMeta,
-        notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
-      );
+          _notesMeta, notes.isAcceptableOrUnknown(data['notes']!, _notesMeta));
     }
     if (data.containsKey('priority')) {
-      context.handle(
-        _priorityMeta,
-        priority.isAcceptableOrUnknown(data['priority']!, _priorityMeta),
-      );
+      context.handle(_priorityMeta,
+          priority.isAcceptableOrUnknown(data['priority']!, _priorityMeta));
     }
     if (data.containsKey('due_at_epoch_ms')) {
       context.handle(
-        _dueAtEpochMsMeta,
-        dueAtEpochMs.isAcceptableOrUnknown(
-          data['due_at_epoch_ms']!,
           _dueAtEpochMsMeta,
-        ),
-      );
+          dueAtEpochMs.isAcceptableOrUnknown(
+              data['due_at_epoch_ms']!, _dueAtEpochMsMeta));
     }
     if (data.containsKey('is_completed')) {
       context.handle(
-        _isCompletedMeta,
-        isCompleted.isAcceptableOrUnknown(
-          data['is_completed']!,
           _isCompletedMeta,
-        ),
-      );
+          isCompleted.isAcceptableOrUnknown(
+              data['is_completed']!, _isCompletedMeta));
     }
     if (data.containsKey('completed_at_epoch_ms')) {
       context.handle(
-        _completedAtEpochMsMeta,
-        completedAtEpochMs.isAcceptableOrUnknown(
-          data['completed_at_epoch_ms']!,
           _completedAtEpochMsMeta,
-        ),
-      );
+          completedAtEpochMs.isAcceptableOrUnknown(
+              data['completed_at_epoch_ms']!, _completedAtEpochMsMeta));
     }
     if (data.containsKey('deleted_at_epoch_ms')) {
       context.handle(
-        _deletedAtEpochMsMeta,
-        deletedAtEpochMs.isAcceptableOrUnknown(
-          data['deleted_at_epoch_ms']!,
           _deletedAtEpochMsMeta,
-        ),
-      );
+          deletedAtEpochMs.isAcceptableOrUnknown(
+              data['deleted_at_epoch_ms']!, _deletedAtEpochMsMeta));
     }
     if (data.containsKey('display_order')) {
       context.handle(
-        _displayOrderMeta,
-        displayOrder.isAcceptableOrUnknown(
-          data['display_order']!,
           _displayOrderMeta,
-        ),
-      );
+          displayOrder.isAcceptableOrUnknown(
+              data['display_order']!, _displayOrderMeta));
     } else if (isInserting) {
       context.missing(_displayOrderMeta);
     }
     if (data.containsKey('tag_ids_json')) {
       context.handle(
-        _tagIdsJsonMeta,
-        tagIdsJson.isAcceptableOrUnknown(
-          data['tag_ids_json']!,
           _tagIdsJsonMeta,
-        ),
-      );
+          tagIdsJson.isAcceptableOrUnknown(
+              data['tag_ids_json']!, _tagIdsJsonMeta));
     }
     if (data.containsKey('created_at_epoch_ms')) {
       context.handle(
-        _createdAtEpochMsMeta,
-        createdAtEpochMs.isAcceptableOrUnknown(
-          data['created_at_epoch_ms']!,
           _createdAtEpochMsMeta,
-        ),
-      );
+          createdAtEpochMs.isAcceptableOrUnknown(
+              data['created_at_epoch_ms']!, _createdAtEpochMsMeta));
     } else if (isInserting) {
       context.missing(_createdAtEpochMsMeta);
     }
     if (data.containsKey('updated_at_epoch_ms')) {
       context.handle(
-        _updatedAtEpochMsMeta,
-        updatedAtEpochMs.isAcceptableOrUnknown(
-          data['updated_at_epoch_ms']!,
           _updatedAtEpochMsMeta,
-        ),
-      );
+          updatedAtEpochMs.isAcceptableOrUnknown(
+              data['updated_at_epoch_ms']!, _updatedAtEpochMsMeta));
     } else if (isInserting) {
       context.missing(_updatedAtEpochMsMeta);
     }
@@ -283,54 +197,30 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
   Task map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return Task(
-      id: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}id'],
-      )!,
-      title: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}title'],
-      )!,
-      notes: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}notes'],
-      )!,
-      priority: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}priority'],
-      )!,
-      dueAtEpochMs: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}due_at_epoch_ms'],
-      ),
-      isCompleted: attachedDatabase.typeMapping.read(
-        DriftSqlType.bool,
-        data['${effectivePrefix}is_completed'],
-      )!,
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      title: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}title'])!,
+      notes: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}notes'])!,
+      priority: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}priority'])!,
+      dueAtEpochMs: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}due_at_epoch_ms']),
+      isCompleted: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_completed'])!,
       completedAtEpochMs: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}completed_at_epoch_ms'],
-      ),
+          DriftSqlType.int, data['${effectivePrefix}completed_at_epoch_ms']),
       deletedAtEpochMs: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}deleted_at_epoch_ms'],
-      ),
-      displayOrder: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}display_order'],
-      )!,
-      tagIdsJson: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}tag_ids_json'],
-      )!,
+          DriftSqlType.int, data['${effectivePrefix}deleted_at_epoch_ms']),
+      displayOrder: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}display_order'])!,
+      tagIdsJson: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}tag_ids_json'])!,
       createdAtEpochMs: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}created_at_epoch_ms'],
-      )!,
+          DriftSqlType.int, data['${effectivePrefix}created_at_epoch_ms'])!,
       updatedAtEpochMs: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}updated_at_epoch_ms'],
-      )!,
+          DriftSqlType.int, data['${effectivePrefix}updated_at_epoch_ms'])!,
     );
   }
 
@@ -353,20 +243,19 @@ class Task extends DataClass implements Insertable<Task> {
   final String tagIdsJson;
   final int createdAtEpochMs;
   final int updatedAtEpochMs;
-  const Task({
-    required this.id,
-    required this.title,
-    required this.notes,
-    required this.priority,
-    this.dueAtEpochMs,
-    required this.isCompleted,
-    this.completedAtEpochMs,
-    this.deletedAtEpochMs,
-    required this.displayOrder,
-    required this.tagIdsJson,
-    required this.createdAtEpochMs,
-    required this.updatedAtEpochMs,
-  });
+  const Task(
+      {required this.id,
+      required this.title,
+      required this.notes,
+      required this.priority,
+      this.dueAtEpochMs,
+      required this.isCompleted,
+      this.completedAtEpochMs,
+      this.deletedAtEpochMs,
+      required this.displayOrder,
+      required this.tagIdsJson,
+      required this.createdAtEpochMs,
+      required this.updatedAtEpochMs});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -414,10 +303,8 @@ class Task extends DataClass implements Insertable<Task> {
     );
   }
 
-  factory Task.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
+  factory Task.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return Task(
       id: serializer.fromJson<String>(json['id']),
@@ -453,20 +340,19 @@ class Task extends DataClass implements Insertable<Task> {
     };
   }
 
-  Task copyWith({
-    String? id,
-    String? title,
-    String? notes,
-    int? priority,
-    Value<int?> dueAtEpochMs = const Value.absent(),
-    bool? isCompleted,
-    Value<int?> completedAtEpochMs = const Value.absent(),
-    Value<int?> deletedAtEpochMs = const Value.absent(),
-    int? displayOrder,
-    String? tagIdsJson,
-    int? createdAtEpochMs,
-    int? updatedAtEpochMs,
-  }) =>
+  Task copyWith(
+          {String? id,
+          String? title,
+          String? notes,
+          int? priority,
+          Value<int?> dueAtEpochMs = const Value.absent(),
+          bool? isCompleted,
+          Value<int?> completedAtEpochMs = const Value.absent(),
+          Value<int?> deletedAtEpochMs = const Value.absent(),
+          int? displayOrder,
+          String? tagIdsJson,
+          int? createdAtEpochMs,
+          int? updatedAtEpochMs}) =>
       Task(
         id: id ?? this.id,
         title: title ?? this.title,
@@ -538,19 +424,18 @@ class Task extends DataClass implements Insertable<Task> {
 
   @override
   int get hashCode => Object.hash(
-        id,
-        title,
-        notes,
-        priority,
-        dueAtEpochMs,
-        isCompleted,
-        completedAtEpochMs,
-        deletedAtEpochMs,
-        displayOrder,
-        tagIdsJson,
-        createdAtEpochMs,
-        updatedAtEpochMs,
-      );
+      id,
+      title,
+      notes,
+      priority,
+      dueAtEpochMs,
+      isCompleted,
+      completedAtEpochMs,
+      deletedAtEpochMs,
+      displayOrder,
+      tagIdsJson,
+      createdAtEpochMs,
+      updatedAtEpochMs);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -650,21 +535,20 @@ class TasksCompanion extends UpdateCompanion<Task> {
     });
   }
 
-  TasksCompanion copyWith({
-    Value<String>? id,
-    Value<String>? title,
-    Value<String>? notes,
-    Value<int>? priority,
-    Value<int?>? dueAtEpochMs,
-    Value<bool>? isCompleted,
-    Value<int?>? completedAtEpochMs,
-    Value<int?>? deletedAtEpochMs,
-    Value<int>? displayOrder,
-    Value<String>? tagIdsJson,
-    Value<int>? createdAtEpochMs,
-    Value<int>? updatedAtEpochMs,
-    Value<int>? rowid,
-  }) {
+  TasksCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? title,
+      Value<String>? notes,
+      Value<int>? priority,
+      Value<int?>? dueAtEpochMs,
+      Value<bool>? isCompleted,
+      Value<int?>? completedAtEpochMs,
+      Value<int?>? deletedAtEpochMs,
+      Value<int>? displayOrder,
+      Value<String>? tagIdsJson,
+      Value<int>? createdAtEpochMs,
+      Value<int>? updatedAtEpochMs,
+      Value<int>? rowid}) {
     return TasksCompanion(
       id: id ?? this.id,
       title: title ?? this.title,
@@ -756,47 +640,28 @@ class $TagsTable extends Tags with TableInfo<$TagsTable, Tag> {
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<String> id = GeneratedColumn<String>(
-    'id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
   static const VerificationMeta _nameMeta = const VerificationMeta('name');
   @override
   late final GeneratedColumn<String> name = GeneratedColumn<String>(
-    'name',
-    aliasedName,
-    false,
-    additionalChecks: GeneratedColumn.checkTextLength(
-      minTextLength: 1,
-      maxTextLength: 80,
-    ),
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _colorHexMeta = const VerificationMeta(
-    'colorHex',
-  );
+      'name', aliasedName, false,
+      additionalChecks:
+          GeneratedColumn.checkTextLength(minTextLength: 1, maxTextLength: 80),
+      type: DriftSqlType.string,
+      requiredDuringInsert: true);
+  static const VerificationMeta _colorHexMeta =
+      const VerificationMeta('colorHex');
   @override
   late final GeneratedColumn<String> colorHex = GeneratedColumn<String>(
-    'color_hex',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _createdAtEpochMsMeta = const VerificationMeta(
-    'createdAtEpochMs',
-  );
+      'color_hex', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtEpochMsMeta =
+      const VerificationMeta('createdAtEpochMs');
   @override
   late final GeneratedColumn<int> createdAtEpochMs = GeneratedColumn<int>(
-    'created_at_epoch_ms',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-  );
+      'created_at_epoch_ms', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
   @override
   List<GeneratedColumn> get $columns => [id, name, colorHex, createdAtEpochMs];
   @override
@@ -805,10 +670,8 @@ class $TagsTable extends Tags with TableInfo<$TagsTable, Tag> {
   String get actualTableName => $name;
   static const String $name = 'tags';
   @override
-  VerificationContext validateIntegrity(
-    Insertable<Tag> instance, {
-    bool isInserting = false,
-  }) {
+  VerificationContext validateIntegrity(Insertable<Tag> instance,
+      {bool isInserting = false}) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
@@ -818,26 +681,19 @@ class $TagsTable extends Tags with TableInfo<$TagsTable, Tag> {
     }
     if (data.containsKey('name')) {
       context.handle(
-        _nameMeta,
-        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
-      );
+          _nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
     } else if (isInserting) {
       context.missing(_nameMeta);
     }
     if (data.containsKey('color_hex')) {
-      context.handle(
-        _colorHexMeta,
-        colorHex.isAcceptableOrUnknown(data['color_hex']!, _colorHexMeta),
-      );
+      context.handle(_colorHexMeta,
+          colorHex.isAcceptableOrUnknown(data['color_hex']!, _colorHexMeta));
     }
     if (data.containsKey('created_at_epoch_ms')) {
       context.handle(
-        _createdAtEpochMsMeta,
-        createdAtEpochMs.isAcceptableOrUnknown(
-          data['created_at_epoch_ms']!,
           _createdAtEpochMsMeta,
-        ),
-      );
+          createdAtEpochMs.isAcceptableOrUnknown(
+              data['created_at_epoch_ms']!, _createdAtEpochMsMeta));
     } else if (isInserting) {
       context.missing(_createdAtEpochMsMeta);
     }
@@ -854,22 +710,14 @@ class $TagsTable extends Tags with TableInfo<$TagsTable, Tag> {
   Tag map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return Tag(
-      id: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}id'],
-      )!,
-      name: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}name'],
-      )!,
-      colorHex: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}color_hex'],
-      ),
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      name: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
+      colorHex: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}color_hex']),
       createdAtEpochMs: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}created_at_epoch_ms'],
-      )!,
+          DriftSqlType.int, data['${effectivePrefix}created_at_epoch_ms'])!,
     );
   }
 
@@ -884,12 +732,11 @@ class Tag extends DataClass implements Insertable<Tag> {
   final String name;
   final String? colorHex;
   final int createdAtEpochMs;
-  const Tag({
-    required this.id,
-    required this.name,
-    this.colorHex,
-    required this.createdAtEpochMs,
-  });
+  const Tag(
+      {required this.id,
+      required this.name,
+      this.colorHex,
+      required this.createdAtEpochMs});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -913,10 +760,8 @@ class Tag extends DataClass implements Insertable<Tag> {
     );
   }
 
-  factory Tag.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
+  factory Tag.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return Tag(
       id: serializer.fromJson<String>(json['id']),
@@ -936,12 +781,11 @@ class Tag extends DataClass implements Insertable<Tag> {
     };
   }
 
-  Tag copyWith({
-    String? id,
-    String? name,
-    Value<String?> colorHex = const Value.absent(),
-    int? createdAtEpochMs,
-  }) =>
+  Tag copyWith(
+          {String? id,
+          String? name,
+          Value<String?> colorHex = const Value.absent(),
+          int? createdAtEpochMs}) =>
       Tag(
         id: id ?? this.id,
         name: name ?? this.name,
@@ -1020,13 +864,12 @@ class TagsCompanion extends UpdateCompanion<Tag> {
     });
   }
 
-  TagsCompanion copyWith({
-    Value<String>? id,
-    Value<String>? name,
-    Value<String?>? colorHex,
-    Value<int>? createdAtEpochMs,
-    Value<int>? rowid,
-  }) {
+  TagsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? name,
+      Value<String?>? colorHex,
+      Value<int>? createdAtEpochMs,
+      Value<int>? rowid}) {
     return TagsCompanion(
       id: id ?? this.id,
       name: name ?? this.name,
@@ -1079,72 +922,44 @@ class $AppSettingsTable extends AppSettings
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<int> id = GeneratedColumn<int>(
-    'id',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _themePreferenceMeta = const VerificationMeta(
-    'themePreference',
-  );
+      'id', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _themePreferenceMeta =
+      const VerificationMeta('themePreference');
   @override
   late final GeneratedColumn<String> themePreference = GeneratedColumn<String>(
-    'theme_preference',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _sortModeMeta = const VerificationMeta(
-    'sortMode',
-  );
+      'theme_preference', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _sortModeMeta =
+      const VerificationMeta('sortMode');
   @override
   late final GeneratedColumn<String> sortMode = GeneratedColumn<String>(
-    'sort_mode',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
+      'sort_mode', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
   static const VerificationMeta _showCompletedInInboxMeta =
       const VerificationMeta('showCompletedInInbox');
   @override
   late final GeneratedColumn<bool> showCompletedInInbox = GeneratedColumn<bool>(
-    'show_completed_in_inbox',
-    aliasedName,
-    false,
-    type: DriftSqlType.bool,
-    requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'CHECK ("show_completed_in_inbox" IN (0, 1))',
-    ),
-  );
-  static const VerificationMeta _compactModeMeta = const VerificationMeta(
-    'compactMode',
-  );
+      'show_completed_in_inbox', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: true,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("show_completed_in_inbox" IN (0, 1))'));
+  static const VerificationMeta _compactModeMeta =
+      const VerificationMeta('compactMode');
   @override
   late final GeneratedColumn<bool> compactMode = GeneratedColumn<bool>(
-    'compact_mode',
-    aliasedName,
-    false,
-    type: DriftSqlType.bool,
-    requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'CHECK ("compact_mode" IN (0, 1))',
-    ),
-  );
-  static const VerificationMeta _updatedAtEpochMsMeta = const VerificationMeta(
-    'updatedAtEpochMs',
-  );
+      'compact_mode', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: true,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("compact_mode" IN (0, 1))'));
+  static const VerificationMeta _updatedAtEpochMsMeta =
+      const VerificationMeta('updatedAtEpochMs');
   @override
   late final GeneratedColumn<int> updatedAtEpochMs = GeneratedColumn<int>(
-    'updated_at_epoch_ms',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-  );
+      'updated_at_epoch_ms', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -1152,7 +967,7 @@ class $AppSettingsTable extends AppSettings
         sortMode,
         showCompletedInInbox,
         compactMode,
-        updatedAtEpochMs,
+        updatedAtEpochMs
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1160,10 +975,8 @@ class $AppSettingsTable extends AppSettings
   String get actualTableName => $name;
   static const String $name = 'app_settings';
   @override
-  VerificationContext validateIntegrity(
-    Insertable<AppSetting> instance, {
-    bool isInserting = false,
-  }) {
+  VerificationContext validateIntegrity(Insertable<AppSetting> instance,
+      {bool isInserting = false}) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
@@ -1171,53 +984,39 @@ class $AppSettingsTable extends AppSettings
     }
     if (data.containsKey('theme_preference')) {
       context.handle(
-        _themePreferenceMeta,
-        themePreference.isAcceptableOrUnknown(
-          data['theme_preference']!,
           _themePreferenceMeta,
-        ),
-      );
+          themePreference.isAcceptableOrUnknown(
+              data['theme_preference']!, _themePreferenceMeta));
     } else if (isInserting) {
       context.missing(_themePreferenceMeta);
     }
     if (data.containsKey('sort_mode')) {
-      context.handle(
-        _sortModeMeta,
-        sortMode.isAcceptableOrUnknown(data['sort_mode']!, _sortModeMeta),
-      );
+      context.handle(_sortModeMeta,
+          sortMode.isAcceptableOrUnknown(data['sort_mode']!, _sortModeMeta));
     } else if (isInserting) {
       context.missing(_sortModeMeta);
     }
     if (data.containsKey('show_completed_in_inbox')) {
       context.handle(
-        _showCompletedInInboxMeta,
-        showCompletedInInbox.isAcceptableOrUnknown(
-          data['show_completed_in_inbox']!,
           _showCompletedInInboxMeta,
-        ),
-      );
+          showCompletedInInbox.isAcceptableOrUnknown(
+              data['show_completed_in_inbox']!, _showCompletedInInboxMeta));
     } else if (isInserting) {
       context.missing(_showCompletedInInboxMeta);
     }
     if (data.containsKey('compact_mode')) {
       context.handle(
-        _compactModeMeta,
-        compactMode.isAcceptableOrUnknown(
-          data['compact_mode']!,
           _compactModeMeta,
-        ),
-      );
+          compactMode.isAcceptableOrUnknown(
+              data['compact_mode']!, _compactModeMeta));
     } else if (isInserting) {
       context.missing(_compactModeMeta);
     }
     if (data.containsKey('updated_at_epoch_ms')) {
       context.handle(
-        _updatedAtEpochMsMeta,
-        updatedAtEpochMs.isAcceptableOrUnknown(
-          data['updated_at_epoch_ms']!,
           _updatedAtEpochMsMeta,
-        ),
-      );
+          updatedAtEpochMs.isAcceptableOrUnknown(
+              data['updated_at_epoch_ms']!, _updatedAtEpochMsMeta));
     } else if (isInserting) {
       context.missing(_updatedAtEpochMsMeta);
     }
@@ -1230,30 +1029,18 @@ class $AppSettingsTable extends AppSettings
   AppSetting map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return AppSetting(
-      id: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}id'],
-      )!,
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
       themePreference: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}theme_preference'],
-      )!,
-      sortMode: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}sort_mode'],
-      )!,
-      showCompletedInInbox: attachedDatabase.typeMapping.read(
-        DriftSqlType.bool,
-        data['${effectivePrefix}show_completed_in_inbox'],
-      )!,
-      compactMode: attachedDatabase.typeMapping.read(
-        DriftSqlType.bool,
-        data['${effectivePrefix}compact_mode'],
-      )!,
+          DriftSqlType.string, data['${effectivePrefix}theme_preference'])!,
+      sortMode: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}sort_mode'])!,
+      showCompletedInInbox: attachedDatabase.typeMapping.read(DriftSqlType.bool,
+          data['${effectivePrefix}show_completed_in_inbox'])!,
+      compactMode: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}compact_mode'])!,
       updatedAtEpochMs: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}updated_at_epoch_ms'],
-      )!,
+          DriftSqlType.int, data['${effectivePrefix}updated_at_epoch_ms'])!,
     );
   }
 
@@ -1270,14 +1057,13 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   final bool showCompletedInInbox;
   final bool compactMode;
   final int updatedAtEpochMs;
-  const AppSetting({
-    required this.id,
-    required this.themePreference,
-    required this.sortMode,
-    required this.showCompletedInInbox,
-    required this.compactMode,
-    required this.updatedAtEpochMs,
-  });
+  const AppSetting(
+      {required this.id,
+      required this.themePreference,
+      required this.sortMode,
+      required this.showCompletedInInbox,
+      required this.compactMode,
+      required this.updatedAtEpochMs});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -1301,18 +1087,15 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     );
   }
 
-  factory AppSetting.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
+  factory AppSetting.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return AppSetting(
       id: serializer.fromJson<int>(json['id']),
       themePreference: serializer.fromJson<String>(json['themePreference']),
       sortMode: serializer.fromJson<String>(json['sortMode']),
-      showCompletedInInbox: serializer.fromJson<bool>(
-        json['showCompletedInInbox'],
-      ),
+      showCompletedInInbox:
+          serializer.fromJson<bool>(json['showCompletedInInbox']),
       compactMode: serializer.fromJson<bool>(json['compactMode']),
       updatedAtEpochMs: serializer.fromJson<int>(json['updatedAtEpochMs']),
     );
@@ -1330,14 +1113,13 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     };
   }
 
-  AppSetting copyWith({
-    int? id,
-    String? themePreference,
-    String? sortMode,
-    bool? showCompletedInInbox,
-    bool? compactMode,
-    int? updatedAtEpochMs,
-  }) =>
+  AppSetting copyWith(
+          {int? id,
+          String? themePreference,
+          String? sortMode,
+          bool? showCompletedInInbox,
+          bool? compactMode,
+          int? updatedAtEpochMs}) =>
       AppSetting(
         id: id ?? this.id,
         themePreference: themePreference ?? this.themePreference,
@@ -1378,14 +1160,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   }
 
   @override
-  int get hashCode => Object.hash(
-        id,
-        themePreference,
-        sortMode,
-        showCompletedInInbox,
-        compactMode,
-        updatedAtEpochMs,
-      );
+  int get hashCode => Object.hash(id, themePreference, sortMode,
+      showCompletedInInbox, compactMode, updatedAtEpochMs);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1444,14 +1220,13 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     });
   }
 
-  AppSettingsCompanion copyWith({
-    Value<int>? id,
-    Value<String>? themePreference,
-    Value<String>? sortMode,
-    Value<bool>? showCompletedInInbox,
-    Value<bool>? compactMode,
-    Value<int>? updatedAtEpochMs,
-  }) {
+  AppSettingsCompanion copyWith(
+      {Value<int>? id,
+      Value<String>? themePreference,
+      Value<String>? sortMode,
+      Value<bool>? showCompletedInInbox,
+      Value<bool>? compactMode,
+      Value<int>? updatedAtEpochMs}) {
     return AppSettingsCompanion(
       id: id ?? this.id,
       themePreference: themePreference ?? this.themePreference,
@@ -1475,9 +1250,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       map['sort_mode'] = Variable<String>(sortMode.value);
     }
     if (showCompletedInInbox.present) {
-      map['show_completed_in_inbox'] = Variable<bool>(
-        showCompletedInInbox.value,
-      );
+      map['show_completed_in_inbox'] =
+          Variable<bool>(showCompletedInInbox.value);
     }
     if (compactMode.present) {
       map['compact_mode'] = Variable<bool>(compactMode.value);
@@ -1512,11 +1286,8 @@ abstract class _$CockpitDemoDatabase extends GeneratedDatabase {
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
-  List<DatabaseSchemaEntity> get allSchemaEntities => [
-        tasks,
-        tags,
-        appSettings,
-      ];
+  List<DatabaseSchemaEntity> get allSchemaEntities =>
+      [tasks, tags, appSettings];
 }
 
 typedef $$TasksTableCreateCompanionBuilder = TasksCompanion Function({
@@ -1560,64 +1331,44 @@ class $$TasksTableFilterComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<String> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnFilters(column),
-      );
+      column: $table.id, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get title => $composableBuilder(
-        column: $table.title,
-        builder: (column) => ColumnFilters(column),
-      );
+      column: $table.title, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get notes => $composableBuilder(
-        column: $table.notes,
-        builder: (column) => ColumnFilters(column),
-      );
+      column: $table.notes, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get priority => $composableBuilder(
-        column: $table.priority,
-        builder: (column) => ColumnFilters(column),
-      );
+      column: $table.priority, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get dueAtEpochMs => $composableBuilder(
-        column: $table.dueAtEpochMs,
-        builder: (column) => ColumnFilters(column),
-      );
+      column: $table.dueAtEpochMs, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<bool> get isCompleted => $composableBuilder(
-        column: $table.isCompleted,
-        builder: (column) => ColumnFilters(column),
-      );
+      column: $table.isCompleted, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get completedAtEpochMs => $composableBuilder(
-        column: $table.completedAtEpochMs,
-        builder: (column) => ColumnFilters(column),
-      );
+      column: $table.completedAtEpochMs,
+      builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get deletedAtEpochMs => $composableBuilder(
-        column: $table.deletedAtEpochMs,
-        builder: (column) => ColumnFilters(column),
-      );
+      column: $table.deletedAtEpochMs,
+      builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get displayOrder => $composableBuilder(
-        column: $table.displayOrder,
-        builder: (column) => ColumnFilters(column),
-      );
+      column: $table.displayOrder, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get tagIdsJson => $composableBuilder(
-        column: $table.tagIdsJson,
-        builder: (column) => ColumnFilters(column),
-      );
+      column: $table.tagIdsJson, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get createdAtEpochMs => $composableBuilder(
-        column: $table.createdAtEpochMs,
-        builder: (column) => ColumnFilters(column),
-      );
+      column: $table.createdAtEpochMs,
+      builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get updatedAtEpochMs => $composableBuilder(
-        column: $table.updatedAtEpochMs,
-        builder: (column) => ColumnFilters(column),
-      );
+      column: $table.updatedAtEpochMs,
+      builder: (column) => ColumnFilters(column));
 }
 
 class $$TasksTableOrderingComposer
@@ -1630,64 +1381,46 @@ class $$TasksTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<String> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnOrderings(column),
-      );
+      column: $table.id, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get title => $composableBuilder(
-        column: $table.title,
-        builder: (column) => ColumnOrderings(column),
-      );
+      column: $table.title, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get notes => $composableBuilder(
-        column: $table.notes,
-        builder: (column) => ColumnOrderings(column),
-      );
+      column: $table.notes, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<int> get priority => $composableBuilder(
-        column: $table.priority,
-        builder: (column) => ColumnOrderings(column),
-      );
+      column: $table.priority, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<int> get dueAtEpochMs => $composableBuilder(
-        column: $table.dueAtEpochMs,
-        builder: (column) => ColumnOrderings(column),
-      );
+      column: $table.dueAtEpochMs,
+      builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<bool> get isCompleted => $composableBuilder(
-        column: $table.isCompleted,
-        builder: (column) => ColumnOrderings(column),
-      );
+      column: $table.isCompleted, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<int> get completedAtEpochMs => $composableBuilder(
-        column: $table.completedAtEpochMs,
-        builder: (column) => ColumnOrderings(column),
-      );
+      column: $table.completedAtEpochMs,
+      builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<int> get deletedAtEpochMs => $composableBuilder(
-        column: $table.deletedAtEpochMs,
-        builder: (column) => ColumnOrderings(column),
-      );
+      column: $table.deletedAtEpochMs,
+      builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<int> get displayOrder => $composableBuilder(
-        column: $table.displayOrder,
-        builder: (column) => ColumnOrderings(column),
-      );
+      column: $table.displayOrder,
+      builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get tagIdsJson => $composableBuilder(
-        column: $table.tagIdsJson,
-        builder: (column) => ColumnOrderings(column),
-      );
+      column: $table.tagIdsJson, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<int> get createdAtEpochMs => $composableBuilder(
-        column: $table.createdAtEpochMs,
-        builder: (column) => ColumnOrderings(column),
-      );
+      column: $table.createdAtEpochMs,
+      builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<int> get updatedAtEpochMs => $composableBuilder(
-        column: $table.updatedAtEpochMs,
-        builder: (column) => ColumnOrderings(column),
-      );
+      column: $table.updatedAtEpochMs,
+      builder: (column) => ColumnOrderings(column));
 }
 
 class $$TasksTableAnnotationComposer
@@ -1712,44 +1445,28 @@ class $$TasksTableAnnotationComposer
       $composableBuilder(column: $table.priority, builder: (column) => column);
 
   GeneratedColumn<int> get dueAtEpochMs => $composableBuilder(
-        column: $table.dueAtEpochMs,
-        builder: (column) => column,
-      );
+      column: $table.dueAtEpochMs, builder: (column) => column);
 
   GeneratedColumn<bool> get isCompleted => $composableBuilder(
-        column: $table.isCompleted,
-        builder: (column) => column,
-      );
+      column: $table.isCompleted, builder: (column) => column);
 
   GeneratedColumn<int> get completedAtEpochMs => $composableBuilder(
-        column: $table.completedAtEpochMs,
-        builder: (column) => column,
-      );
+      column: $table.completedAtEpochMs, builder: (column) => column);
 
   GeneratedColumn<int> get deletedAtEpochMs => $composableBuilder(
-        column: $table.deletedAtEpochMs,
-        builder: (column) => column,
-      );
+      column: $table.deletedAtEpochMs, builder: (column) => column);
 
   GeneratedColumn<int> get displayOrder => $composableBuilder(
-        column: $table.displayOrder,
-        builder: (column) => column,
-      );
+      column: $table.displayOrder, builder: (column) => column);
 
   GeneratedColumn<String> get tagIdsJson => $composableBuilder(
-        column: $table.tagIdsJson,
-        builder: (column) => column,
-      );
+      column: $table.tagIdsJson, builder: (column) => column);
 
   GeneratedColumn<int> get createdAtEpochMs => $composableBuilder(
-        column: $table.createdAtEpochMs,
-        builder: (column) => column,
-      );
+      column: $table.createdAtEpochMs, builder: (column) => column);
 
   GeneratedColumn<int> get updatedAtEpochMs => $composableBuilder(
-        column: $table.updatedAtEpochMs,
-        builder: (column) => column,
-      );
+      column: $table.updatedAtEpochMs, builder: (column) => column);
 }
 
 class $$TasksTableTableManager extends RootTableManager<
@@ -1765,82 +1482,80 @@ class $$TasksTableTableManager extends RootTableManager<
     Task,
     PrefetchHooks Function()> {
   $$TasksTableTableManager(_$CockpitDemoDatabase db, $TasksTable table)
-      : super(
-          TableManagerState(
-            db: db,
-            table: table,
-            createFilteringComposer: () =>
-                $$TasksTableFilterComposer($db: db, $table: table),
-            createOrderingComposer: () =>
-                $$TasksTableOrderingComposer($db: db, $table: table),
-            createComputedFieldComposer: () =>
-                $$TasksTableAnnotationComposer($db: db, $table: table),
-            updateCompanionCallback: ({
-              Value<String> id = const Value.absent(),
-              Value<String> title = const Value.absent(),
-              Value<String> notes = const Value.absent(),
-              Value<int> priority = const Value.absent(),
-              Value<int?> dueAtEpochMs = const Value.absent(),
-              Value<bool> isCompleted = const Value.absent(),
-              Value<int?> completedAtEpochMs = const Value.absent(),
-              Value<int?> deletedAtEpochMs = const Value.absent(),
-              Value<int> displayOrder = const Value.absent(),
-              Value<String> tagIdsJson = const Value.absent(),
-              Value<int> createdAtEpochMs = const Value.absent(),
-              Value<int> updatedAtEpochMs = const Value.absent(),
-              Value<int> rowid = const Value.absent(),
-            }) =>
-                TasksCompanion(
-              id: id,
-              title: title,
-              notes: notes,
-              priority: priority,
-              dueAtEpochMs: dueAtEpochMs,
-              isCompleted: isCompleted,
-              completedAtEpochMs: completedAtEpochMs,
-              deletedAtEpochMs: deletedAtEpochMs,
-              displayOrder: displayOrder,
-              tagIdsJson: tagIdsJson,
-              createdAtEpochMs: createdAtEpochMs,
-              updatedAtEpochMs: updatedAtEpochMs,
-              rowid: rowid,
-            ),
-            createCompanionCallback: ({
-              required String id,
-              required String title,
-              Value<String> notes = const Value.absent(),
-              Value<int> priority = const Value.absent(),
-              Value<int?> dueAtEpochMs = const Value.absent(),
-              Value<bool> isCompleted = const Value.absent(),
-              Value<int?> completedAtEpochMs = const Value.absent(),
-              Value<int?> deletedAtEpochMs = const Value.absent(),
-              required int displayOrder,
-              Value<String> tagIdsJson = const Value.absent(),
-              required int createdAtEpochMs,
-              required int updatedAtEpochMs,
-              Value<int> rowid = const Value.absent(),
-            }) =>
-                TasksCompanion.insert(
-              id: id,
-              title: title,
-              notes: notes,
-              priority: priority,
-              dueAtEpochMs: dueAtEpochMs,
-              isCompleted: isCompleted,
-              completedAtEpochMs: completedAtEpochMs,
-              deletedAtEpochMs: deletedAtEpochMs,
-              displayOrder: displayOrder,
-              tagIdsJson: tagIdsJson,
-              createdAtEpochMs: createdAtEpochMs,
-              updatedAtEpochMs: updatedAtEpochMs,
-              rowid: rowid,
-            ),
-            withReferenceMapper: (p0) => p0
-                .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
-                .toList(),
-            prefetchHooksCallback: null,
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$TasksTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$TasksTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$TasksTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> title = const Value.absent(),
+            Value<String> notes = const Value.absent(),
+            Value<int> priority = const Value.absent(),
+            Value<int?> dueAtEpochMs = const Value.absent(),
+            Value<bool> isCompleted = const Value.absent(),
+            Value<int?> completedAtEpochMs = const Value.absent(),
+            Value<int?> deletedAtEpochMs = const Value.absent(),
+            Value<int> displayOrder = const Value.absent(),
+            Value<String> tagIdsJson = const Value.absent(),
+            Value<int> createdAtEpochMs = const Value.absent(),
+            Value<int> updatedAtEpochMs = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              TasksCompanion(
+            id: id,
+            title: title,
+            notes: notes,
+            priority: priority,
+            dueAtEpochMs: dueAtEpochMs,
+            isCompleted: isCompleted,
+            completedAtEpochMs: completedAtEpochMs,
+            deletedAtEpochMs: deletedAtEpochMs,
+            displayOrder: displayOrder,
+            tagIdsJson: tagIdsJson,
+            createdAtEpochMs: createdAtEpochMs,
+            updatedAtEpochMs: updatedAtEpochMs,
+            rowid: rowid,
           ),
-        );
+          createCompanionCallback: ({
+            required String id,
+            required String title,
+            Value<String> notes = const Value.absent(),
+            Value<int> priority = const Value.absent(),
+            Value<int?> dueAtEpochMs = const Value.absent(),
+            Value<bool> isCompleted = const Value.absent(),
+            Value<int?> completedAtEpochMs = const Value.absent(),
+            Value<int?> deletedAtEpochMs = const Value.absent(),
+            required int displayOrder,
+            Value<String> tagIdsJson = const Value.absent(),
+            required int createdAtEpochMs,
+            required int updatedAtEpochMs,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              TasksCompanion.insert(
+            id: id,
+            title: title,
+            notes: notes,
+            priority: priority,
+            dueAtEpochMs: dueAtEpochMs,
+            isCompleted: isCompleted,
+            completedAtEpochMs: completedAtEpochMs,
+            deletedAtEpochMs: deletedAtEpochMs,
+            displayOrder: displayOrder,
+            tagIdsJson: tagIdsJson,
+            createdAtEpochMs: createdAtEpochMs,
+            updatedAtEpochMs: updatedAtEpochMs,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
 }
 
 typedef $$TasksTableProcessedTableManager = ProcessedTableManager<
@@ -1880,24 +1595,17 @@ class $$TagsTableFilterComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<String> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnFilters(column),
-      );
+      column: $table.id, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get name => $composableBuilder(
-        column: $table.name,
-        builder: (column) => ColumnFilters(column),
-      );
+      column: $table.name, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get colorHex => $composableBuilder(
-        column: $table.colorHex,
-        builder: (column) => ColumnFilters(column),
-      );
+      column: $table.colorHex, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get createdAtEpochMs => $composableBuilder(
-        column: $table.createdAtEpochMs,
-        builder: (column) => ColumnFilters(column),
-      );
+      column: $table.createdAtEpochMs,
+      builder: (column) => ColumnFilters(column));
 }
 
 class $$TagsTableOrderingComposer
@@ -1910,24 +1618,17 @@ class $$TagsTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<String> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnOrderings(column),
-      );
+      column: $table.id, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get name => $composableBuilder(
-        column: $table.name,
-        builder: (column) => ColumnOrderings(column),
-      );
+      column: $table.name, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get colorHex => $composableBuilder(
-        column: $table.colorHex,
-        builder: (column) => ColumnOrderings(column),
-      );
+      column: $table.colorHex, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<int> get createdAtEpochMs => $composableBuilder(
-        column: $table.createdAtEpochMs,
-        builder: (column) => ColumnOrderings(column),
-      );
+      column: $table.createdAtEpochMs,
+      builder: (column) => ColumnOrderings(column));
 }
 
 class $$TagsTableAnnotationComposer
@@ -1949,9 +1650,7 @@ class $$TagsTableAnnotationComposer
       $composableBuilder(column: $table.colorHex, builder: (column) => column);
 
   GeneratedColumn<int> get createdAtEpochMs => $composableBuilder(
-        column: $table.createdAtEpochMs,
-        builder: (column) => column,
-      );
+      column: $table.createdAtEpochMs, builder: (column) => column);
 }
 
 class $$TagsTableTableManager extends RootTableManager<
@@ -1967,50 +1666,48 @@ class $$TagsTableTableManager extends RootTableManager<
     Tag,
     PrefetchHooks Function()> {
   $$TagsTableTableManager(_$CockpitDemoDatabase db, $TagsTable table)
-      : super(
-          TableManagerState(
-            db: db,
-            table: table,
-            createFilteringComposer: () =>
-                $$TagsTableFilterComposer($db: db, $table: table),
-            createOrderingComposer: () =>
-                $$TagsTableOrderingComposer($db: db, $table: table),
-            createComputedFieldComposer: () =>
-                $$TagsTableAnnotationComposer($db: db, $table: table),
-            updateCompanionCallback: ({
-              Value<String> id = const Value.absent(),
-              Value<String> name = const Value.absent(),
-              Value<String?> colorHex = const Value.absent(),
-              Value<int> createdAtEpochMs = const Value.absent(),
-              Value<int> rowid = const Value.absent(),
-            }) =>
-                TagsCompanion(
-              id: id,
-              name: name,
-              colorHex: colorHex,
-              createdAtEpochMs: createdAtEpochMs,
-              rowid: rowid,
-            ),
-            createCompanionCallback: ({
-              required String id,
-              required String name,
-              Value<String?> colorHex = const Value.absent(),
-              required int createdAtEpochMs,
-              Value<int> rowid = const Value.absent(),
-            }) =>
-                TagsCompanion.insert(
-              id: id,
-              name: name,
-              colorHex: colorHex,
-              createdAtEpochMs: createdAtEpochMs,
-              rowid: rowid,
-            ),
-            withReferenceMapper: (p0) => p0
-                .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
-                .toList(),
-            prefetchHooksCallback: null,
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$TagsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$TagsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$TagsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> name = const Value.absent(),
+            Value<String?> colorHex = const Value.absent(),
+            Value<int> createdAtEpochMs = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              TagsCompanion(
+            id: id,
+            name: name,
+            colorHex: colorHex,
+            createdAtEpochMs: createdAtEpochMs,
+            rowid: rowid,
           ),
-        );
+          createCompanionCallback: ({
+            required String id,
+            required String name,
+            Value<String?> colorHex = const Value.absent(),
+            required int createdAtEpochMs,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              TagsCompanion.insert(
+            id: id,
+            name: name,
+            colorHex: colorHex,
+            createdAtEpochMs: createdAtEpochMs,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
 }
 
 typedef $$TagsTableProcessedTableManager = ProcessedTableManager<
@@ -2054,34 +1751,25 @@ class $$AppSettingsTableFilterComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<int> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnFilters(column),
-      );
+      column: $table.id, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get themePreference => $composableBuilder(
-        column: $table.themePreference,
-        builder: (column) => ColumnFilters(column),
-      );
+      column: $table.themePreference,
+      builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get sortMode => $composableBuilder(
-        column: $table.sortMode,
-        builder: (column) => ColumnFilters(column),
-      );
+      column: $table.sortMode, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<bool> get showCompletedInInbox => $composableBuilder(
-        column: $table.showCompletedInInbox,
-        builder: (column) => ColumnFilters(column),
-      );
+      column: $table.showCompletedInInbox,
+      builder: (column) => ColumnFilters(column));
 
   ColumnFilters<bool> get compactMode => $composableBuilder(
-        column: $table.compactMode,
-        builder: (column) => ColumnFilters(column),
-      );
+      column: $table.compactMode, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get updatedAtEpochMs => $composableBuilder(
-        column: $table.updatedAtEpochMs,
-        builder: (column) => ColumnFilters(column),
-      );
+      column: $table.updatedAtEpochMs,
+      builder: (column) => ColumnFilters(column));
 }
 
 class $$AppSettingsTableOrderingComposer
@@ -2094,34 +1782,25 @@ class $$AppSettingsTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<int> get id => $composableBuilder(
-        column: $table.id,
-        builder: (column) => ColumnOrderings(column),
-      );
+      column: $table.id, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get themePreference => $composableBuilder(
-        column: $table.themePreference,
-        builder: (column) => ColumnOrderings(column),
-      );
+      column: $table.themePreference,
+      builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get sortMode => $composableBuilder(
-        column: $table.sortMode,
-        builder: (column) => ColumnOrderings(column),
-      );
+      column: $table.sortMode, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<bool> get showCompletedInInbox => $composableBuilder(
-        column: $table.showCompletedInInbox,
-        builder: (column) => ColumnOrderings(column),
-      );
+      column: $table.showCompletedInInbox,
+      builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<bool> get compactMode => $composableBuilder(
-        column: $table.compactMode,
-        builder: (column) => ColumnOrderings(column),
-      );
+      column: $table.compactMode, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<int> get updatedAtEpochMs => $composableBuilder(
-        column: $table.updatedAtEpochMs,
-        builder: (column) => ColumnOrderings(column),
-      );
+      column: $table.updatedAtEpochMs,
+      builder: (column) => ColumnOrderings(column));
 }
 
 class $$AppSettingsTableAnnotationComposer
@@ -2137,27 +1816,19 @@ class $$AppSettingsTableAnnotationComposer
       $composableBuilder(column: $table.id, builder: (column) => column);
 
   GeneratedColumn<String> get themePreference => $composableBuilder(
-        column: $table.themePreference,
-        builder: (column) => column,
-      );
+      column: $table.themePreference, builder: (column) => column);
 
   GeneratedColumn<String> get sortMode =>
       $composableBuilder(column: $table.sortMode, builder: (column) => column);
 
   GeneratedColumn<bool> get showCompletedInInbox => $composableBuilder(
-        column: $table.showCompletedInInbox,
-        builder: (column) => column,
-      );
+      column: $table.showCompletedInInbox, builder: (column) => column);
 
   GeneratedColumn<bool> get compactMode => $composableBuilder(
-        column: $table.compactMode,
-        builder: (column) => column,
-      );
+      column: $table.compactMode, builder: (column) => column);
 
   GeneratedColumn<int> get updatedAtEpochMs => $composableBuilder(
-        column: $table.updatedAtEpochMs,
-        builder: (column) => column,
-      );
+      column: $table.updatedAtEpochMs, builder: (column) => column);
 }
 
 class $$AppSettingsTableTableManager extends RootTableManager<
@@ -2171,61 +1842,58 @@ class $$AppSettingsTableTableManager extends RootTableManager<
     $$AppSettingsTableUpdateCompanionBuilder,
     (
       AppSetting,
-      BaseReferences<_$CockpitDemoDatabase, $AppSettingsTable, AppSetting>,
+      BaseReferences<_$CockpitDemoDatabase, $AppSettingsTable, AppSetting>
     ),
     AppSetting,
     PrefetchHooks Function()> {
   $$AppSettingsTableTableManager(
-    _$CockpitDemoDatabase db,
-    $AppSettingsTable table,
-  ) : super(
-          TableManagerState(
-            db: db,
-            table: table,
-            createFilteringComposer: () =>
-                $$AppSettingsTableFilterComposer($db: db, $table: table),
-            createOrderingComposer: () =>
-                $$AppSettingsTableOrderingComposer($db: db, $table: table),
-            createComputedFieldComposer: () =>
-                $$AppSettingsTableAnnotationComposer($db: db, $table: table),
-            updateCompanionCallback: ({
-              Value<int> id = const Value.absent(),
-              Value<String> themePreference = const Value.absent(),
-              Value<String> sortMode = const Value.absent(),
-              Value<bool> showCompletedInInbox = const Value.absent(),
-              Value<bool> compactMode = const Value.absent(),
-              Value<int> updatedAtEpochMs = const Value.absent(),
-            }) =>
-                AppSettingsCompanion(
-              id: id,
-              themePreference: themePreference,
-              sortMode: sortMode,
-              showCompletedInInbox: showCompletedInInbox,
-              compactMode: compactMode,
-              updatedAtEpochMs: updatedAtEpochMs,
-            ),
-            createCompanionCallback: ({
-              Value<int> id = const Value.absent(),
-              required String themePreference,
-              required String sortMode,
-              required bool showCompletedInInbox,
-              required bool compactMode,
-              required int updatedAtEpochMs,
-            }) =>
-                AppSettingsCompanion.insert(
-              id: id,
-              themePreference: themePreference,
-              sortMode: sortMode,
-              showCompletedInInbox: showCompletedInInbox,
-              compactMode: compactMode,
-              updatedAtEpochMs: updatedAtEpochMs,
-            ),
-            withReferenceMapper: (p0) => p0
-                .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
-                .toList(),
-            prefetchHooksCallback: null,
+      _$CockpitDemoDatabase db, $AppSettingsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AppSettingsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AppSettingsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AppSettingsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<String> themePreference = const Value.absent(),
+            Value<String> sortMode = const Value.absent(),
+            Value<bool> showCompletedInInbox = const Value.absent(),
+            Value<bool> compactMode = const Value.absent(),
+            Value<int> updatedAtEpochMs = const Value.absent(),
+          }) =>
+              AppSettingsCompanion(
+            id: id,
+            themePreference: themePreference,
+            sortMode: sortMode,
+            showCompletedInInbox: showCompletedInInbox,
+            compactMode: compactMode,
+            updatedAtEpochMs: updatedAtEpochMs,
           ),
-        );
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            required String themePreference,
+            required String sortMode,
+            required bool showCompletedInInbox,
+            required bool compactMode,
+            required int updatedAtEpochMs,
+          }) =>
+              AppSettingsCompanion.insert(
+            id: id,
+            themePreference: themePreference,
+            sortMode: sortMode,
+            showCompletedInInbox: showCompletedInInbox,
+            compactMode: compactMode,
+            updatedAtEpochMs: updatedAtEpochMs,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
 }
 
 typedef $$AppSettingsTableProcessedTableManager = ProcessedTableManager<
@@ -2239,7 +1907,7 @@ typedef $$AppSettingsTableProcessedTableManager = ProcessedTableManager<
     $$AppSettingsTableUpdateCompanionBuilder,
     (
       AppSetting,
-      BaseReferences<_$CockpitDemoDatabase, $AppSettingsTable, AppSetting>,
+      BaseReferences<_$CockpitDemoDatabase, $AppSettingsTable, AppSetting>
     ),
     AppSetting,
     PrefetchHooks Function()>;
