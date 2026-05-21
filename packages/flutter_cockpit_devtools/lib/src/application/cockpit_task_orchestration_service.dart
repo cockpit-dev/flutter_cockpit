@@ -55,139 +55,176 @@ final class CockpitTaskOrchestrationService {
     CockpitRunTaskRequest request,
   ) async {
     final completedStages = <CockpitTaskStage>{CockpitTaskStage.assess};
+    final warnings = <String>[];
     var sessionHandle = request.sessionHandle;
     CockpitRemoteSessionStatus? preflightStatus;
     final ownsLaunch = request.launch != null;
-
-    completedStages.add(CockpitTaskStage.bootstrap);
-    try {
-      if (request.launch != null) {
-        final launchResult = await _launch(
-          CockpitLaunchRemoteSessionRequest(
-            projectDir: request.launch!.projectDir,
-            target: request.launch!.target,
-            platform: request.launch!.platform,
-            deviceId: request.launch!.deviceId,
-            sessionPort: request.launch!.sessionPort,
-            launchTimeout: request.launch!.launchTimeout,
-            persistHandlePath: request.launch!.persistHandlePath,
-          ),
-        );
-        sessionHandle = launchResult.sessionHandle;
-        preflightStatus = launchResult.health;
-      } else {
-        final queryResult = await _query(
-          CockpitQueryRemoteSessionRequest(
-            sessionHandle: request.sessionHandle,
-            sessionHandlePath: request.sessionHandlePath,
-          ),
-        );
-        sessionHandle = queryResult.sessionHandle ?? request.sessionHandle;
-        preflightStatus = queryResult.status;
-      }
-    } on CockpitApplicationServiceException catch (error) {
-      return _blockedResult(
-        request: request,
-        completedStages: completedStages,
-        blockedReason: error.message,
-        sessionHandle: sessionHandle,
-        preflightStatus: preflightStatus,
-      );
-    } on Object catch (error) {
-      return _blockedResult(
-        request: request,
-        completedStages: completedStages,
-        blockedReason: error.toString(),
-        sessionHandle: sessionHandle,
-        preflightStatus: preflightStatus,
-      );
-    }
+    CockpitTaskOrchestrationResult? result;
 
     try {
-      completedStages.add(CockpitTaskStage.baseline);
-      final script = _withBaseline(request.script, request.baseline);
-
-      completedStages.add(CockpitTaskStage.execute);
-      final CockpitRunRemoteControlScriptResult runResult;
+      completedStages.add(CockpitTaskStage.bootstrap);
       try {
-        runResult = await _runScript(
-          CockpitRunRemoteControlScriptRequest(
+        if (request.launch != null) {
+          final launchResult = await _launch(
+            CockpitLaunchRemoteSessionRequest(
+              projectDir: request.launch!.projectDir,
+              target: request.launch!.target,
+              platform: request.launch!.platform,
+              deviceId: request.launch!.deviceId,
+              sessionPort: request.launch!.sessionPort,
+              launchTimeout: request.launch!.launchTimeout,
+              persistHandlePath: request.launch!.persistHandlePath,
+            ),
+          );
+          sessionHandle = launchResult.sessionHandle;
+          preflightStatus = launchResult.health;
+        } else {
+          final queryResult = await _query(
+            CockpitQueryRemoteSessionRequest(
+              sessionHandle: request.sessionHandle,
+              sessionHandlePath: request.sessionHandlePath,
+            ),
+          );
+          sessionHandle = queryResult.sessionHandle ?? request.sessionHandle;
+          preflightStatus = queryResult.status;
+        }
+      } on CockpitApplicationServiceException catch (error) {
+        result = _blockedResult(
+          request: request,
+          completedStages: completedStages,
+          blockedReason: error.message,
+          sessionHandle: sessionHandle,
+          preflightStatus: preflightStatus,
+          warnings: warnings,
+        );
+      } on Object catch (error) {
+        result = _blockedResult(
+          request: request,
+          completedStages: completedStages,
+          blockedReason: error.toString(),
+          sessionHandle: sessionHandle,
+          preflightStatus: preflightStatus,
+          warnings: warnings,
+        );
+      }
+
+      if (result == null) {
+        completedStages.add(CockpitTaskStage.baseline);
+        final script = _withBaseline(request.script, request.baseline);
+
+        completedStages.add(CockpitTaskStage.execute);
+        CockpitRunRemoteControlScriptResult? runResult;
+        try {
+          runResult = await _runScript(
+            CockpitRunRemoteControlScriptRequest(
+              sessionHandle: sessionHandle,
+              sessionHandlePath:
+                  sessionHandle == null ? request.sessionHandlePath : null,
+              script: script,
+              outputRoot: request.outputRoot,
+              persistScriptPath: request.persistScriptPath,
+            ),
+          );
+        } on CockpitApplicationServiceException catch (error) {
+          result = _blockedResult(
+            request: request,
+            completedStages: completedStages,
+            blockedReason: error.message,
             sessionHandle: sessionHandle,
-            sessionHandlePath:
-                sessionHandle == null ? request.sessionHandlePath : null,
-            script: script,
-            outputRoot: request.outputRoot,
-            persistScriptPath: request.persistScriptPath,
-          ),
-        );
-      } on CockpitApplicationServiceException catch (error) {
-        return _blockedResult(
-          request: request,
-          completedStages: completedStages,
-          blockedReason: error.message,
-          sessionHandle: sessionHandle,
-          preflightStatus: preflightStatus,
-        );
-      } on Object catch (error) {
-        return _blockedResult(
-          request: request,
-          completedStages: completedStages,
-          blockedReason: error.toString(),
-          sessionHandle: sessionHandle,
-          preflightStatus: preflightStatus,
-        );
+            preflightStatus: preflightStatus,
+            warnings: warnings,
+          );
+        } on Object catch (error) {
+          result = _blockedResult(
+            request: request,
+            completedStages: completedStages,
+            blockedReason: error.toString(),
+            sessionHandle: sessionHandle,
+            preflightStatus: preflightStatus,
+            warnings: warnings,
+          );
+        }
+
+        if (result == null) {
+          completedStages.add(CockpitTaskStage.observe);
+          final resolvedRunResult = runResult!;
+          CockpitReadTaskBundleSummaryResult? bundleSummary;
+          try {
+            bundleSummary =
+                await _readBundleSummary(resolvedRunResult.bundleDir.path);
+          } on CockpitApplicationServiceException catch (error) {
+            result = _blockedResult(
+              request: request,
+              completedStages: completedStages,
+              blockedReason: error.message,
+              sessionHandle: resolvedRunResult.sessionHandle ?? sessionHandle,
+              preflightStatus: preflightStatus,
+              warnings: warnings,
+            );
+          } on Object catch (error) {
+            result = _blockedResult(
+              request: request,
+              completedStages: completedStages,
+              blockedReason: error.toString(),
+              sessionHandle: resolvedRunResult.sessionHandle ?? sessionHandle,
+              preflightStatus: preflightStatus,
+              warnings: warnings,
+            );
+          }
+
+          if (result == null) {
+            completedStages
+              ..add(CockpitTaskStage.judge)
+              ..add(CockpitTaskStage.deliver);
+            final resolvedSessionHandle =
+                resolvedRunResult.sessionHandle ?? sessionHandle;
+            final gates = _buildGates(
+              request: request,
+              bundleSummary: bundleSummary!,
+              sessionHandle: resolvedSessionHandle,
+            );
+            final classification = _classify(gates);
+
+            result = CockpitTaskOrchestrationResult(
+              classification: classification,
+              recommendedNextStep: _recommendedNextStep(
+                classification,
+                gates: gates,
+              ),
+              completedStages: completedStages,
+              gates: gates,
+              sessionHandle: resolvedSessionHandle,
+              preflightStatus: preflightStatus,
+              bundleSummary: bundleSummary,
+              warnings: warnings,
+            );
+          }
+        }
       }
-
-      completedStages.add(CockpitTaskStage.observe);
-      final CockpitReadTaskBundleSummaryResult bundleSummary;
-      try {
-        bundleSummary = await _readBundleSummary(runResult.bundleDir.path);
-      } on CockpitApplicationServiceException catch (error) {
-        return _blockedResult(
-          request: request,
-          completedStages: completedStages,
-          blockedReason: error.message,
-          sessionHandle: runResult.sessionHandle ?? sessionHandle,
-          preflightStatus: preflightStatus,
-        );
-      } on Object catch (error) {
-        return _blockedResult(
-          request: request,
-          completedStages: completedStages,
-          blockedReason: error.toString(),
-          sessionHandle: runResult.sessionHandle ?? sessionHandle,
-          preflightStatus: preflightStatus,
-        );
-      }
-
-      completedStages
-        ..add(CockpitTaskStage.judge)
-        ..add(CockpitTaskStage.deliver);
-      final resolvedSessionHandle = runResult.sessionHandle ?? sessionHandle;
-      final gates = _buildGates(
-        request: request,
-        bundleSummary: bundleSummary,
-        sessionHandle: resolvedSessionHandle,
-      );
-      final classification = _classify(gates);
-
-      return CockpitTaskOrchestrationResult(
-        classification: classification,
-        recommendedNextStep: _recommendedNextStep(
-          classification,
-          gates: gates,
-        ),
-        completedStages: completedStages,
-        gates: gates,
-        sessionHandle: resolvedSessionHandle,
-        preflightStatus: preflightStatus,
-        bundleSummary: bundleSummary,
-      );
     } finally {
       if (ownsLaunch && sessionHandle != null) {
-        await _stopLaunchedApp(sessionHandle);
+        final cleanupWarning = await _stopLaunchedApp(sessionHandle);
+        if (cleanupWarning != null) {
+          warnings.add(cleanupWarning);
+        }
       }
     }
+
+    final finalizedResult = result;
+    if (warnings.isEmpty || finalizedResult.warnings.isNotEmpty) {
+      return finalizedResult;
+    }
+    return CockpitTaskOrchestrationResult(
+      classification: finalizedResult.classification,
+      recommendedNextStep: finalizedResult.recommendedNextStep,
+      completedStages: finalizedResult.completedStages,
+      gates: finalizedResult.gates,
+      sessionHandle: finalizedResult.sessionHandle,
+      preflightStatus: finalizedResult.preflightStatus,
+      bundleSummary: finalizedResult.bundleSummary,
+      blockedReason: finalizedResult.blockedReason,
+      warnings: warnings,
+    );
   }
 
   CockpitTaskOrchestrationResult _blockedResult({
@@ -196,6 +233,7 @@ final class CockpitTaskOrchestrationService {
     required String blockedReason,
     required CockpitRemoteSessionHandle? sessionHandle,
     required CockpitRemoteSessionStatus? preflightStatus,
+    required List<String> warnings,
   }) {
     return CockpitTaskOrchestrationResult(
       classification: CockpitRunTaskClassification.blockedByEnvironment,
@@ -208,6 +246,7 @@ final class CockpitTaskOrchestrationService {
       sessionHandle: sessionHandle,
       preflightStatus: preflightStatus,
       blockedReason: blockedReason,
+      warnings: warnings,
     );
   }
 
@@ -420,12 +459,18 @@ final class CockpitTaskOrchestrationService {
     }
   }
 
-  Future<void> _stopLaunchedApp(
+  Future<String?> _stopLaunchedApp(
       CockpitRemoteSessionHandle? sessionHandle) async {
     if (sessionHandle == null) {
-      return;
+      return null;
     }
-    await _stopAutomationApp(CockpitAppHandle.fromRemoteSession(sessionHandle));
+    try {
+      await _stopAutomationApp(
+          CockpitAppHandle.fromRemoteSession(sessionHandle));
+      return null;
+    } on Object catch (error) {
+      return 'Automation cleanup failed after task orchestration: $error';
+    }
   }
 
   String _recommendedNextStep(

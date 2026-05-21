@@ -16,8 +16,10 @@ final class CockpitTaskOrchestrationResult {
     this.preflightStatus,
     this.bundleSummary,
     this.blockedReason,
+    List<String> warnings = const <String>[],
   })  : completedStages = Set<CockpitTaskStage>.unmodifiable(completedStages),
-        gates = Map<CockpitTaskGate, bool>.unmodifiable(gates);
+        gates = Map<CockpitTaskGate, bool>.unmodifiable(gates),
+        warnings = List<String>.unmodifiable(warnings);
 
   final CockpitRunTaskClassification classification;
   final String recommendedNextStep;
@@ -27,6 +29,7 @@ final class CockpitTaskOrchestrationResult {
   final CockpitRemoteSessionStatus? preflightStatus;
   final CockpitReadTaskBundleSummaryResult? bundleSummary;
   final String? blockedReason;
+  final List<String> warnings;
 
   bool isGateSatisfied(CockpitTaskGate gate) => gates[gate] ?? false;
 }

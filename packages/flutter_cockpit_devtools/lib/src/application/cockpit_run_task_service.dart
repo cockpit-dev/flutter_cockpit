@@ -213,6 +213,7 @@ final class CockpitRunTaskResult {
     this.preflightStatus,
     this.bundleSummary,
     this.blockedReason,
+    this.warnings = const <String>[],
   });
 
   final CockpitRunTaskClassification classification;
@@ -221,6 +222,7 @@ final class CockpitRunTaskResult {
   final CockpitRemoteSessionStatus? preflightStatus;
   final CockpitReadTaskBundleSummaryResult? bundleSummary;
   final String? blockedReason;
+  final List<String> warnings;
 
   Map<String, Object?> toJson() => <String, Object?>{
         'classification': classification.jsonValue,
@@ -229,6 +231,7 @@ final class CockpitRunTaskResult {
         if (preflightStatus != null)
           'preflightStatus': preflightStatus!.toJson(),
         if (blockedReason != null) 'blockedReason': blockedReason,
+        if (warnings.isNotEmpty) 'warnings': warnings,
         if (bundleSummary != null) 'bundleSummary': bundleSummary!.toJson(),
       };
 }
@@ -277,6 +280,7 @@ final class CockpitRunTaskService {
       preflightStatus: orchestration.preflightStatus,
       bundleSummary: orchestration.bundleSummary,
       blockedReason: orchestration.blockedReason,
+      warnings: orchestration.warnings,
     );
   }
 }

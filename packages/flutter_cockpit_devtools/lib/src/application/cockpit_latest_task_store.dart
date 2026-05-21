@@ -7,6 +7,7 @@ final class CockpitLatestTaskSnapshot {
     required this.classification,
     required this.recommendedNextStep,
     this.blockedReason,
+    this.warnings = const <String>[],
     this.bundleSummary,
   });
 
@@ -14,6 +15,7 @@ final class CockpitLatestTaskSnapshot {
   final CockpitRunTaskClassification classification;
   final String recommendedNextStep;
   final String? blockedReason;
+  final List<String> warnings;
   final CockpitReadTaskBundleSummaryResult? bundleSummary;
 
   Map<String, Object?> toJson() => <String, Object?>{
@@ -21,6 +23,7 @@ final class CockpitLatestTaskSnapshot {
         'classification': classification.jsonValue,
         'recommendedNextStep': recommendedNextStep,
         'blockedReason': blockedReason,
+        if (warnings.isNotEmpty) 'warnings': warnings,
         if (bundleSummary != null) 'bundleSummary': bundleSummary!.toJson(),
       };
 }
@@ -40,6 +43,7 @@ final class CockpitLatestTaskStore {
       classification: result.classification,
       recommendedNextStep: result.recommendedNextStep,
       blockedReason: result.blockedReason,
+      warnings: result.warnings,
       bundleSummary: result.bundleSummary,
     );
   }

@@ -60,6 +60,7 @@ final class CockpitValidateTaskTool extends CockpitMcpTool {
           'classification': result.classification.jsonValue,
           'recommendedNextStep': result.recommendedNextStep,
           'blockedReason': result.blockedReason,
+          'warnings': result.warnings,
           'validationFailures': result.validationFailures
               .map((failure) => failure.toJson())
               .toList(growable: false),
