@@ -62,7 +62,7 @@ final class CockpitBundleArtifactPaths {
     if (relativePath == null || relativePath.isEmpty) {
       return null;
     }
-    return p.join(bundleDir, relativePath);
+    return _resolveBundleArtifactPath(bundleDir, relativePath);
   }
 
   static List<String> _resolvePaths({
@@ -72,7 +72,8 @@ final class CockpitBundleArtifactPaths {
     final values = (relativePaths as List<Object?>? ?? const <Object?>[])
         .whereType<String>()
         .where((path) => path.isNotEmpty)
-        .map((path) => p.join(bundleDir, path))
+        .map((path) => _resolveBundleArtifactPath(bundleDir, path))
+        .whereType<String>()
         .toList(growable: false);
     return values;
   }
@@ -88,8 +89,38 @@ final class CockpitBundleArtifactPaths {
             .map((item) => item['ref'])
             .whereType<String>()
             .where((path) => path.isNotEmpty)
-            .map((path) => p.join(bundleDir, path))
+            .map((path) => _resolveBundleArtifactPath(bundleDir, path))
+            .whereType<String>()
             .toList(growable: false);
     return keyframes;
+  }
+
+  static String? _resolveBundleArtifactPath(
+    String bundleDir,
+    String relativePath,
+  ) {
+    final normalized = p.normalize(relativePath);
+    final allowedRoot = normalized.split(p.separator).firstOrNull;
+    const allowedRoots = <String>{
+      'screenshots',
+      'recordings',
+      'keyframes',
+      'diagnostics',
+    };
+    if (normalized.isEmpty ||
+        p.isAbsolute(normalized) ||
+        normalized == '.' ||
+        normalized == '..' ||
+        normalized.startsWith('..${p.separator}') ||
+        !allowedRoots.contains(allowedRoot)) {
+      return null;
+    }
+
+    final bundleRoot = p.canonicalize(bundleDir);
+    final resolvedPath = p.canonicalize(p.join(bundleRoot, normalized));
+    if (!p.isWithin(bundleRoot, resolvedPath)) {
+      return null;
+    }
+    return resolvedPath;
   }
 }
