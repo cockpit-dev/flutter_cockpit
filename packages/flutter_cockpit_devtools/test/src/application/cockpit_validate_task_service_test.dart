@@ -1511,6 +1511,162 @@ void main() {
   );
 
   test(
+    'validate task downgrades to needs_more_work when manifest artifact refs are invalid',
+    () async {
+      final bundleDir = await _createBundleDir(
+        name: 'cockpit_validate_task_service_invalid_manifest_artifacts',
+        acceptanceMarkdown: '# Acceptance\n\n- Status: completed\n',
+        environmentJson:
+            '{"platform":"android","flutterVersion":"3.38.9","dartVersion":"3.10.8"}',
+        screenshotRelativePath: 'screenshots/acceptance.png',
+        recordingRelativePath: 'recordings/acceptance.mp4',
+      );
+      addTearDown(() async => _deleteDir(bundleDir));
+      await File(
+        p.join(bundleDir.path, 'screenshots', 'acceptance.png'),
+      ).writeAsBytes(_structuredAcceptancePngBytes);
+      for (final name in <String>[
+        'acceptance_baseline.png',
+        'acceptance_midpoint.png',
+        'acceptance_tail.png',
+      ]) {
+        final keyframePath = p.join(bundleDir.path, 'keyframes', name);
+        await File(keyframePath).parent.create(recursive: true);
+        await File(keyframePath).writeAsBytes(_structuredAcceptancePngBytes);
+      }
+
+      final service = CockpitValidateTaskService(
+        artifactValidator: CockpitBundleArtifactValidator(
+          processRunner: (executable, arguments) async {
+            if (executable == 'ffprobe') {
+              final path = arguments.last;
+              if (path.endsWith('.png')) {
+                return ProcessResult(
+                  0,
+                  0,
+                  '{"streams":[{"codec_name":"png","codec_type":"video","width":240,"height":480}],"format":{"format_name":"png_pipe"}}',
+                  '',
+                );
+              }
+              return ProcessResult(
+                0,
+                0,
+                '{"streams":[{"codec_name":"h264","codec_type":"video","width":240,"height":480,"nb_frames":"44"}],"format":{"format_name":"mov,mp4,m4a,3gp,3g2,mj2","duration":"7.800"}}',
+                '',
+              );
+            }
+            if (executable == 'ffmpeg') {
+              final outputPath = arguments.last;
+              await File(outputPath).parent.create(recursive: true);
+              await File(outputPath)
+                  .writeAsBytes(_structuredAcceptancePngBytes);
+              return ProcessResult(0, 0, '', '');
+            }
+            throw ProcessException(
+              executable,
+              arguments,
+              'unexpected executable',
+            );
+          },
+        ),
+        runTask: (_) async => _runTaskResult(
+          classification: CockpitRunTaskClassification.completed,
+          bundleDir: bundleDir,
+          platform: 'android',
+          screenshotRelativePath: 'screenshots/acceptance.png',
+          recordingRelativePath: 'recordings/acceptance.mp4',
+          manifestArtifactRefs: const <CockpitArtifactRef>[
+            CockpitArtifactRef(
+              role: 'screenshot',
+              relativePath: 'screenshots/acceptance.png',
+            ),
+            CockpitArtifactRef(
+              role: 'screenshot',
+              relativePath: '../escaped_screenshot.png',
+            ),
+            CockpitArtifactRef(
+              role: 'recording',
+              relativePath: 'recordings/missing_acceptance.mp4',
+            ),
+            CockpitArtifactRef(
+              role: 'diagnostics',
+              relativePath: 'screenshots/not_diagnostics.json',
+            ),
+          ],
+          keyframes: const <Map<String, Object?>>[
+            <String, Object?>{
+              'ref': 'keyframes/acceptance_baseline.png',
+              'label': 'baseline',
+              'offsetMs': 600,
+              'source': 'stepCapture',
+            },
+            <String, Object?>{
+              'ref': 'keyframes/acceptance_midpoint.png',
+              'label': 'midpoint',
+              'offsetMs': 3600,
+              'source': 'syntheticCoverage',
+            },
+            <String, Object?>{
+              'ref': 'keyframes/acceptance_tail.png',
+              'label': 'tail_consistency',
+              'offsetMs': 7600,
+              'source': 'tailConsistency',
+            },
+          ],
+          keyframeCoverage: const <String, Object?>{
+            'durationMs': 7800,
+            'hasEarlyCoverage': true,
+            'hasMidCoverage': true,
+            'hasLateCoverage': true,
+            'isReady': true,
+          },
+          baselineEvidence: _acceptanceEvidence(
+            routeName: '/editor',
+            visibleTextPreviews: const <String>['Draft'],
+            visibleSemanticIds: const <String>['draft-screen'],
+          ),
+          acceptanceEvidence: _acceptanceEvidence(
+            routeName: '/preview',
+            visibleTextPreviews: const <String>['Published'],
+            visibleSemanticIds: const <String>['preview-screen'],
+          ),
+          acceptanceDelta: _acceptanceDelta(
+            baselineRouteName: '/editor',
+            acceptanceRouteName: '/preview',
+            routeChanged: true,
+            addedVisibleTextPreviews: const <String>['Published'],
+            removedVisibleTextPreviews: const <String>['Draft'],
+            addedSemanticIds: const <String>['preview-screen'],
+            removedSemanticIds: const <String>['draft-screen'],
+          ),
+        ),
+      );
+
+      final result = await service.validate(
+        CockpitValidateTaskRequest(
+          runTask: _runTaskRequest(platform: 'android'),
+          validation: const CockpitValidateTaskRequirements(
+            requirePrimaryScreenshot: true,
+            requirePrimaryRecording: true,
+          ),
+        ),
+      );
+
+      expect(
+        result.classification,
+        CockpitValidationClassification.needsMoreWork,
+      );
+      expect(
+        result.validationFailures.map((failure) => failure.code),
+        containsAll(<String>[
+          'manifestArtifactRefInvalid',
+          'manifestArtifactMissing',
+        ]),
+      );
+    },
+  );
+
+  test(
     'validate task downgrades to needs_more_work when fallback is not acceptable',
     () async {
       final bundleDir = await _createBundleDir(
@@ -1740,6 +1896,7 @@ CockpitRunTaskResult _runTaskResult({
   String? recordingRelativePath,
   List<String> attachmentRefs = const <String>[],
   List<String> videoAttachmentRefs = const <String>[],
+  List<CockpitArtifactRef> manifestArtifactRefs = const <CockpitArtifactRef>[],
   CockpitTargetKind? targetKind,
   CockpitPlaneKind? primaryExecutionPlane,
   List<CockpitPlaneKind> planesUsed = const <CockpitPlaneKind>[],
@@ -1781,6 +1938,7 @@ CockpitRunTaskResult _runTaskResult({
     status: taskStatus,
     startedAt: DateTime.utc(2026, 3, 21, 0, 0),
     finishedAt: DateTime.utc(2026, 3, 21, 0, 5),
+    artifactRefs: manifestArtifactRefs,
     targetKind: targetKind,
     primaryExecutionPlane: primaryExecutionPlane,
     planesUsed: planesUsed,

@@ -477,6 +477,9 @@ final class CockpitValidateTaskService {
     failures.addAll(
       _validateDeliveryAttachmentRefs(bundleSummary: bundleSummary),
     );
+    failures.addAll(
+      _validateManifestArtifactRefs(bundleSummary: bundleSummary),
+    );
 
     if (primaryScreenshotPath != null &&
         primaryScreenshotPath.isNotEmpty &&
@@ -535,6 +538,66 @@ final class CockpitValidateTaskService {
       }
     }
 
+    return List<CockpitValidationFailure>.unmodifiable(failures);
+  }
+
+  List<CockpitValidationFailure> _validateManifestArtifactRefs({
+    required CockpitReadTaskBundleSummaryResult bundleSummary,
+  }) {
+    final failures = <CockpitValidationFailure>[];
+    for (final artifact in bundleSummary.manifest.artifactRefs) {
+      if (artifact.relativePath.isEmpty) {
+        failures.add(
+          CockpitValidationFailure(
+            code: 'manifestArtifactRefInvalid',
+            message:
+                'manifest.artifactRefs entries must use non-empty bundle-relative paths.',
+            details: <String, Object?>{
+              'role': artifact.role,
+              'relativePath': artifact.relativePath,
+            },
+          ),
+        );
+        continue;
+      }
+
+      final allowedRoots =
+          CockpitBundleArtifactPaths.allowedRootsForArtifactRole(artifact.role);
+      final resolvedPath = CockpitBundleArtifactPaths.resolveBundleArtifactPath(
+        bundleSummary.bundleDir,
+        artifact.relativePath,
+        allowedRoots: allowedRoots,
+      );
+      if (resolvedPath == null) {
+        failures.add(
+          CockpitValidationFailure(
+            code: 'manifestArtifactRefInvalid',
+            message:
+                'manifest.artifactRefs entries must point to bundle-local artifact files under the expected evidence directory.',
+            details: <String, Object?>{
+              'role': artifact.role,
+              'relativePath': artifact.relativePath,
+              'allowedRoots': allowedRoots.toList(growable: false),
+            },
+          ),
+        );
+        continue;
+      }
+      if (!File(resolvedPath).existsSync()) {
+        failures.add(
+          CockpitValidationFailure(
+            code: 'manifestArtifactMissing',
+            message:
+                'manifest.artifactRefs references a file that is missing from the bundle.',
+            details: <String, Object?>{
+              'role': artifact.role,
+              'relativePath': artifact.relativePath,
+              'path': resolvedPath,
+            },
+          ),
+        );
+      }
+    }
     return List<CockpitValidationFailure>.unmodifiable(failures);
   }
 

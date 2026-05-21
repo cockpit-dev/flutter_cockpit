@@ -1720,6 +1720,10 @@ final class CockpitReadTaskBundleSummaryService {
       bundleDir: bundleDir,
       delivery: delivery,
     );
+    final manifestArtifactFailureCodes = _manifestArtifactFailureCodes(
+      bundleDir: bundleDir,
+      manifest: manifest,
+    );
     final acceptanceEvidenceFailureCodes = _acceptanceEvidenceFailureCodes(
       baselineEvidence: baselineEvidence,
       acceptanceEvidence: acceptanceEvidence,
@@ -1731,7 +1735,8 @@ final class CockpitReadTaskBundleSummaryService {
         manifest.deliveryVideoReady && recordingFailureCodes.isEmpty;
     final deliveryValidated = screenshotReady &&
         recordingReadyOrExplained &&
-        attachmentFailureCodes.isEmpty;
+        attachmentFailureCodes.isEmpty &&
+        manifestArtifactFailureCodes.isEmpty;
     final finalAssertionPassed = manifest.status != CockpitTaskStatus.failed &&
         manifest.runtimeErrorCount == 0;
     final targetReachable = _readGateOverride(
@@ -1749,11 +1754,12 @@ final class CockpitReadTaskBundleSummaryService {
           gateName: CockpitTaskGate.postconditionsSatisfied.name,
         ) ??
         finalAssertionPassed;
-    final artifactsReady = _readGateOverride(
-          handoff: handoff,
-          gateName: CockpitTaskGate.artifactsReady.name,
-        ) ??
-        deliveryValidated;
+    final handoffArtifactsReady = _readGateOverride(
+      handoff: handoff,
+      gateName: CockpitTaskGate.artifactsReady.name,
+    );
+    final artifactsReady =
+        (handoffArtifactsReady ?? deliveryValidated) && deliveryValidated;
     final logsCollected = _readGateOverride(
           handoff: handoff,
           gateName: CockpitTaskGate.logsCollected.name,
@@ -1820,8 +1826,11 @@ final class CockpitReadTaskBundleSummaryService {
     }
     if (!artifactsReady) {
       failureCodes[CockpitTaskGate.artifactsReady] = _mergeFailureCodes(
-        _mergeFailureCodes(screenshotFailureCodes, recordingFailureCodes),
-        attachmentFailureCodes,
+        _mergeFailureCodes(
+          _mergeFailureCodes(screenshotFailureCodes, recordingFailureCodes),
+          attachmentFailureCodes,
+        ),
+        manifestArtifactFailureCodes,
       );
     }
     if (!logsCollected) {
@@ -1836,8 +1845,11 @@ final class CockpitReadTaskBundleSummaryService {
     }
     if (!deliveryValidated) {
       failureCodes[CockpitTaskGate.deliveryValidated] = _mergeFailureCodes(
-        _mergeFailureCodes(screenshotFailureCodes, recordingFailureCodes),
-        attachmentFailureCodes,
+        _mergeFailureCodes(
+          _mergeFailureCodes(screenshotFailureCodes, recordingFailureCodes),
+          attachmentFailureCodes,
+        ),
+        manifestArtifactFailureCodes,
       );
     }
     if (acceptanceEvidenceFailureCodes.isNotEmpty) {
@@ -2004,6 +2016,30 @@ final class CockpitReadTaskBundleSummaryService {
       }
       if (!File(resolvedPath).existsSync()) {
         failureCodes.add(missingCode);
+      }
+    }
+    return List<String>.unmodifiable(failureCodes);
+  }
+
+  List<String> _manifestArtifactFailureCodes({
+    required String bundleDir,
+    required CockpitRunManifest manifest,
+  }) {
+    final failureCodes = <String>{};
+    for (final artifact in manifest.artifactRefs) {
+      final allowedRoots =
+          CockpitBundleArtifactPaths.allowedRootsForArtifactRole(artifact.role);
+      final resolvedPath = CockpitBundleArtifactPaths.resolveBundleArtifactPath(
+        bundleDir,
+        artifact.relativePath,
+        allowedRoots: allowedRoots,
+      );
+      if (resolvedPath == null) {
+        failureCodes.add('manifestArtifactRefInvalid');
+        continue;
+      }
+      if (!File(resolvedPath).existsSync()) {
+        failureCodes.add('manifestArtifactMissing');
       }
     }
     return List<String>.unmodifiable(failureCodes);

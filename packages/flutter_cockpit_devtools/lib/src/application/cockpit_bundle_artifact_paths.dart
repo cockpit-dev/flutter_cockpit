@@ -125,6 +125,16 @@ final class CockpitBundleArtifactPaths {
     return resolvedPath;
   }
 
+  static Set<String> allowedRootsForArtifactRole(String role) {
+    return switch (role) {
+      'screenshot' || 'step_screenshot' => const <String>{'screenshots'},
+      'recording' => const <String>{'recordings'},
+      'keyframe' => const <String>{'keyframes'},
+      'diagnostics' => const <String>{'diagnostics'},
+      _ => _allowedArtifactRoots,
+    };
+  }
+
   static const Set<String> _allowedArtifactRoots = <String>{
     'screenshots',
     'recordings',

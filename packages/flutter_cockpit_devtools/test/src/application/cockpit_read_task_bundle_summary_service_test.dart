@@ -1112,7 +1112,13 @@ void main() {
         ),
       );
       await File(p.join(bundleDir.path, 'handoff.json')).writeAsString(
-        jsonEncode(<String, Object?>{'status': 'completed'}),
+        jsonEncode(<String, Object?>{
+          'status': 'completed',
+          'gates': <String, Object?>{
+            'artifactsReady': true,
+            'deliveryValidated': true,
+          },
+        }),
       );
       await File(p.join(bundleDir.path, 'delivery.json')).writeAsString(
         jsonEncode(<String, Object?>{
@@ -1233,7 +1239,13 @@ void main() {
         ),
       );
       await File(p.join(bundleDir.path, 'handoff.json')).writeAsString(
-        jsonEncode(<String, Object?>{'status': 'completed'}),
+        jsonEncode(<String, Object?>{
+          'status': 'completed',
+          'gates': <String, Object?>{
+            'artifactsReady': true,
+            'deliveryValidated': true,
+          },
+        }),
       );
       await File(p.join(bundleDir.path, 'delivery.json')).writeAsString(
         jsonEncode(<String, Object?>{
@@ -1387,6 +1399,114 @@ void main() {
         containsAll(<String>[
           'deliveryAttachmentRefInvalid',
           'deliveryVideoAttachmentRefInvalid',
+        ]),
+      );
+    },
+  );
+
+  test(
+    'read bundle summary rejects artifact readiness when manifest artifact refs are invalid',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_read_task_bundle_summary_service_invalid_manifest_artifacts',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final bundleDir = Directory(p.join(tempDir.path, 'bundle'));
+      await Directory(p.join(bundleDir.path, 'screenshots')).create(
+        recursive: true,
+      );
+      await Directory(p.join(bundleDir.path, 'recordings')).create(
+        recursive: true,
+      );
+      await File(
+        p.join(bundleDir.path, 'screenshots', 'acceptance.png'),
+      ).writeAsBytes(const <int>[1, 2, 3]);
+      await File(
+        p.join(bundleDir.path, 'recordings', 'acceptance.mp4'),
+      ).writeAsBytes(const <int>[4, 5, 6]);
+      await File(p.join(bundleDir.path, 'manifest.json')).writeAsString(
+        jsonEncode(
+          CockpitRunManifest(
+            sessionId: 'bundle-session',
+            taskId: 'bundle-task',
+            platform: 'android',
+            status: CockpitTaskStatus.completed,
+            startedAt: DateTime.utc(2026, 4, 12, 10, 45),
+            finishedAt: DateTime.utc(2026, 4, 12, 10, 46),
+            artifactRefs: const <CockpitArtifactRef>[
+              CockpitArtifactRef(
+                role: 'screenshot',
+                relativePath: 'screenshots/acceptance.png',
+              ),
+              CockpitArtifactRef(
+                role: 'screenshot',
+                relativePath: '../escaped_screenshot.png',
+              ),
+              CockpitArtifactRef(
+                role: 'recording',
+                relativePath: 'recordings/missing_acceptance.mp4',
+              ),
+              CockpitArtifactRef(
+                role: 'diagnostics',
+                relativePath: 'recordings/not_diagnostics.json',
+              ),
+            ],
+            commandCount: 1,
+            screenshotCount: 1,
+            recordingCount: 1,
+            deliveryArtifactsReady: true,
+            deliveryVideoReady: true,
+          ).toJson(),
+        ),
+      );
+      await File(p.join(bundleDir.path, 'handoff.json')).writeAsString(
+        jsonEncode(<String, Object?>{'status': 'completed'}),
+      );
+      await File(p.join(bundleDir.path, 'delivery.json')).writeAsString(
+        jsonEncode(<String, Object?>{
+          'primaryScreenshotRef': 'screenshots/acceptance.png',
+          'attachmentRefs': <String>['screenshots/acceptance.png'],
+          'primaryRecordingRef': 'recordings/acceptance.mp4',
+          'videoAttachmentRefs': <String>['recordings/acceptance.mp4'],
+          'deliveryArtifactsReady': true,
+          'deliveryVideoReady': true,
+        }),
+      );
+      await File(
+        p.join(bundleDir.path, 'acceptance.md'),
+      ).writeAsString('# Acceptance\n\n- Status: completed\n');
+      await File(p.join(bundleDir.path, 'steps.json')).writeAsString('[]');
+
+      final service = CockpitReadTaskBundleSummaryService();
+      final result = await service.read(
+        CockpitReadTaskBundleSummaryRequest(bundleDir: bundleDir.path),
+      );
+
+      expect(
+        result.gateSummary.isSatisfied(CockpitTaskGate.artifactsReady),
+        isFalse,
+      );
+      expect(
+        result.gateSummary.isSatisfied(CockpitTaskGate.deliveryValidated),
+        isFalse,
+      );
+      expect(
+        result.gateSummary.failureCodesFor(CockpitTaskGate.artifactsReady),
+        containsAll(<String>[
+          'manifestArtifactRefInvalid',
+          'manifestArtifactMissing',
+        ]),
+      );
+      expect(
+        result.evidenceSummary['artifactFailureCodes'],
+        containsAll(<String>[
+          'manifestArtifactRefInvalid',
+          'manifestArtifactMissing',
         ]),
       );
     },
