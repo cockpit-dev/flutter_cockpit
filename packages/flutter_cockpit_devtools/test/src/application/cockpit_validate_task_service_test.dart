@@ -410,6 +410,66 @@ void main() {
   );
 
   test(
+    'validate task rejects stale delivery gates when referenced media files are missing',
+    () async {
+      final bundleDir = await _createBundleDir(
+        name: 'cockpit_validate_task_service_stale_delivery_gates',
+        acceptanceMarkdown: '# Acceptance\n',
+        environmentJson:
+            '{"platform":"android","flutterVersion":"3.38.9","dartVersion":"3.10.8"}',
+        screenshotRelativePath: 'screenshots/acceptance.png',
+        recordingRelativePath: 'recordings/acceptance.mp4',
+      );
+      addTearDown(() async => _deleteDir(bundleDir));
+      await File(
+        p.join(bundleDir.path, 'screenshots', 'acceptance.png'),
+      ).delete();
+      await File(
+        p.join(bundleDir.path, 'recordings', 'acceptance.mp4'),
+      ).delete();
+
+      final service = CockpitValidateTaskService(
+        runTask: (_) async => _runTaskResult(
+          classification: CockpitRunTaskClassification.completed,
+          bundleDir: bundleDir,
+          platform: 'android',
+          screenshotRelativePath: 'screenshots/acceptance.png',
+          recordingRelativePath: 'recordings/acceptance.mp4',
+          gateOverrides: const <CockpitTaskGate, bool>{
+            CockpitTaskGate.screenshotReady: true,
+            CockpitTaskGate.recordingReadyOrExplained: true,
+            CockpitTaskGate.artifactsReady: true,
+            CockpitTaskGate.deliveryValidated: true,
+          },
+        ),
+      );
+
+      final result = await service.validate(
+        CockpitValidateTaskRequest(
+          runTask: _runTaskRequest(platform: 'android'),
+          validation: const CockpitValidateTaskRequirements(
+            requirePrimaryScreenshot: true,
+            requirePrimaryRecording: true,
+          ),
+        ),
+      );
+
+      expect(
+        result.classification,
+        CockpitValidationClassification.needsMoreWork,
+      );
+      expect(
+        result.validationFailures.map((failure) => failure.code),
+        containsAll(<String>[
+          'missingBundleArtifact',
+          'acceptanceScreenshotMissing',
+          'acceptanceRecordingMissing',
+        ]),
+      );
+    },
+  );
+
+  test(
     'validate task downgrades to needs_more_work when the screenshot artifact is invalid',
     () async {
       final bundleDir = await _createBundleDir(
