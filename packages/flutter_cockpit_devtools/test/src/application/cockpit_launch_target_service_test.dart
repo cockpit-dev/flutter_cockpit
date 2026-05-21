@@ -273,6 +273,7 @@ void main() {
             CockpitPlaneKind.deviceSystemPlane,
           ],
           recommendedNextStep: 'runNextCommand',
+          whatMatters: 'Native recording requires iOS 14 or newer.',
           app: null,
           currentRouteName: '/home',
         ),
@@ -323,6 +324,16 @@ void main() {
       expect(
         result.target.capabilityProfile?.surfaceKinds,
         contains(CockpitSurfaceKind.flutterSemantic),
+      );
+      expect(result.recommendedNextStep, 'runNextCommand');
+      expect(
+        result.whatMatters,
+        contains('Native recording requires iOS 14 or newer.'),
+      );
+      expect(result.toJson()['recommendedNextStep'], 'runNextCommand');
+      expect(
+        result.toJson()['whatMatters'],
+        contains('Native recording requires iOS 14 or newer.'),
       );
     },
   );

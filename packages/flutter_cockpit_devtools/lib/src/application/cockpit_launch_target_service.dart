@@ -56,16 +56,23 @@ final class CockpitLaunchTargetResult {
     required this.target,
     this.targetJsonPath,
     this.app,
+    this.recommendedNextStep,
+    this.whatMatters,
   });
 
   final CockpitTargetHandle target;
   final String? targetJsonPath;
   final CockpitAppHandle? app;
+  final String? recommendedNextStep;
+  final String? whatMatters;
 
   Map<String, Object?> toJson() => <String, Object?>{
         'target': target.toJson(),
         if (targetJsonPath != null) 'targetJsonPath': targetJsonPath,
         if (app != null) 'app': app!.toJson(),
+        if (recommendedNextStep != null)
+          'recommendedNextStep': recommendedNextStep,
+        if (whatMatters != null) 'whatMatters': whatMatters,
       };
 }
 
@@ -130,13 +137,13 @@ final class CockpitLaunchTargetService {
         launchTimeout: request.launchTimeout,
       ),
     );
-    final launchedCapabilityProfile = await _resolveLaunchedCapabilityProfile(
+    final launchedProfile = await _resolveLaunchedProfile(
       app: appResult.app,
       targetKind: normalizedTargetKind,
     );
     final target = CockpitTargetHandle.fromAppHandle(appResult.app).copyWith(
       targetKind: normalizedTargetKind,
-      capabilityProfile: launchedCapabilityProfile,
+      capabilityProfile: launchedProfile.capabilityProfile,
     );
     final targetJsonPath = await _persistTargetIfRequested(
       path: request.targetHandlePath,
@@ -146,6 +153,8 @@ final class CockpitLaunchTargetService {
       target: target,
       targetJsonPath: targetJsonPath,
       app: appResult.app,
+      recommendedNextStep: launchedProfile.recommendedNextStep,
+      whatMatters: launchedProfile.whatMatters,
     );
   }
 
@@ -184,7 +193,7 @@ final class CockpitLaunchTargetService {
     return driver.describeCapabilities();
   }
 
-  Future<CockpitCapabilityProfile> _resolveLaunchedCapabilityProfile({
+  Future<_LaunchedTargetProfile> _resolveLaunchedProfile({
     required CockpitAppHandle app,
     required CockpitTargetKind targetKind,
   }) async {
@@ -195,7 +204,7 @@ final class CockpitLaunchTargetService {
       processId: app.processId ?? app.remoteSession?.processId,
     );
     if (!_canReadLaunchedApp(app)) {
-      return fallbackProfile;
+      return _LaunchedTargetProfile(capabilityProfile: fallbackProfile);
     }
 
     try {
@@ -207,23 +216,31 @@ final class CockpitLaunchTargetService {
       );
       final profile = readResult.capabilities.capabilityProfile;
       if (profile == null) {
-        return fallbackProfile;
+        return _LaunchedTargetProfile(
+          capabilityProfile: fallbackProfile,
+          recommendedNextStep: readResult.recommendedNextStep,
+          whatMatters: readResult.whatMatters,
+        );
       }
-      if (profile.targetKind == targetKind) {
-        return profile;
-      }
-      return CockpitCapabilityProfile(
-        targetKind: targetKind,
-        surfaceKinds: profile.surfaceKinds,
-        actionCapabilities: profile.actionCapabilities,
-        evidenceCapabilities: profile.evidenceCapabilities,
-        qualityFlags: profile.qualityFlags,
+      final capabilityProfile = profile.targetKind == targetKind
+          ? profile
+          : CockpitCapabilityProfile(
+              targetKind: targetKind,
+              surfaceKinds: profile.surfaceKinds,
+              actionCapabilities: profile.actionCapabilities,
+              evidenceCapabilities: profile.evidenceCapabilities,
+              qualityFlags: profile.qualityFlags,
+            );
+      return _LaunchedTargetProfile(
+        capabilityProfile: capabilityProfile,
+        recommendedNextStep: readResult.recommendedNextStep,
+        whatMatters: readResult.whatMatters,
       );
     } on Object catch (error) {
       if (!_isRecoverableLaunchedAppReadFailure(error)) {
         rethrow;
       }
-      return fallbackProfile;
+      return _LaunchedTargetProfile(capabilityProfile: fallbackProfile);
     }
   }
 
@@ -276,4 +293,16 @@ final class CockpitLaunchTargetService {
         false,
     };
   }
+}
+
+final class _LaunchedTargetProfile {
+  const _LaunchedTargetProfile({
+    required this.capabilityProfile,
+    this.recommendedNextStep,
+    this.whatMatters,
+  });
+
+  final CockpitCapabilityProfile capabilityProfile;
+  final String? recommendedNextStep;
+  final String? whatMatters;
 }
