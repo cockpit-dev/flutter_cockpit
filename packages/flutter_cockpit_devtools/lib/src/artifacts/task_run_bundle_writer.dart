@@ -153,7 +153,9 @@ final class TaskRunBundleWriter {
     required Map<String, String> artifactSourcePaths,
   }) {
     for (final entry in artifactPayloads.entries) {
-      final artifactFile = File(p.join(outputDirectory.path, entry.key));
+      final artifactFile = File(
+        _bundleArtifactPath(outputDirectory, entry.key),
+      );
       artifactFile.parent.createSync(recursive: true);
       artifactFile.writeAsBytesSync(entry.value);
     }
@@ -168,7 +170,9 @@ final class TaskRunBundleWriter {
         throw StateError('Artifact source file does not exist: ${entry.value}');
       }
 
-      final artifactFile = File(p.join(outputDirectory.path, entry.key));
+      final artifactFile = File(
+        _bundleArtifactPath(outputDirectory, entry.key),
+      );
       artifactFile.parent.createSync(recursive: true);
       sourceFile.copySync(artifactFile.path);
     }
@@ -735,8 +739,45 @@ final class TaskRunBundleWriter {
     required Map<String, CockpitSnapshot> diagnosticsArtifacts,
   }) {
     for (final entry in diagnosticsArtifacts.entries) {
-      _writeJson(p.join(outputDirectory.path, entry.key), entry.value.toJson());
+      _writeJson(
+        _bundleArtifactPath(outputDirectory, entry.key),
+        entry.value.toJson(),
+      );
     }
+  }
+
+  String _bundleArtifactPath(Directory outputDirectory, String relativePath) {
+    final normalized = p.normalize(relativePath);
+    final allowedRoot = normalized.split(p.separator).firstOrNull;
+    const allowedRoots = <String>{
+      'screenshots',
+      'recordings',
+      'keyframes',
+      'diagnostics',
+    };
+    if (normalized.isEmpty ||
+        p.isAbsolute(normalized) ||
+        normalized == '.' ||
+        normalized.startsWith('..${p.separator}') ||
+        normalized == '..' ||
+        !allowedRoots.contains(allowedRoot)) {
+      throw ArgumentError.value(
+        relativePath,
+        'relativePath',
+        'Artifact path must stay inside the task-run bundle under screenshots/, recordings/, keyframes/, or diagnostics/.',
+      );
+    }
+
+    final outputRoot = p.canonicalize(outputDirectory.path);
+    final artifactPath = p.canonicalize(p.join(outputRoot, normalized));
+    if (!p.isWithin(outputRoot, artifactPath)) {
+      throw ArgumentError.value(
+        relativePath,
+        'relativePath',
+        'Artifact path must stay inside the task-run bundle under screenshots/, recordings/, keyframes/, or diagnostics/.',
+      );
+    }
+    return artifactPath;
   }
 
   String _directoryNameFor(CockpitRunManifest manifest) {

@@ -166,6 +166,58 @@ void main() {
     );
   });
 
+  test('rejects artifact payload paths that escape the bundle', () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'cockpit_bundle_escape_test',
+    );
+    addTearDown(() async {
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    final writer = TaskRunBundleWriter();
+    final bundle = CockpitContextBundle(
+      manifest: CockpitRunManifest(
+        sessionId: 'session-escape',
+        taskId: 'task-escape',
+        platform: 'android',
+        status: CockpitTaskStatus.completed,
+        startedAt: DateTime.utc(2026, 3, 20, 8),
+        finishedAt: DateTime.utc(2026, 3, 20, 8, 1),
+        artifactRefs: const [],
+      ),
+      environment: const CockpitEnvironment(
+        platform: 'android',
+        flutterVersion: '3.38.9',
+        dartVersion: '3.10.8',
+      ),
+      steps: const [],
+      observations: const [],
+      acceptanceMarkdown: '# Acceptance\n\nDone.',
+      handoff: const {'status': 'completed'},
+    );
+
+    await expectLater(
+      writer.writeBundle(
+        bundle: bundle,
+        outputRoot: tempDir.path,
+        artifactPayloads: const <String, List<int>>{
+          '../outside.png': <int>[137, 80, 78, 71],
+        },
+      ),
+      throwsA(
+        isA<ArgumentError>().having(
+          (error) => error.message,
+          'message',
+          contains('Artifact path must stay inside the task-run bundle'),
+        ),
+      ),
+    );
+
+    expect(File(p.join(tempDir.path, 'outside.png')).existsSync(), isFalse);
+  });
+
   test(
     'writes delivery.json with bundle-local screenshot references',
     () async {
