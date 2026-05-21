@@ -1285,6 +1285,112 @@ void main() {
       );
     },
   );
+
+  test(
+    'read bundle summary rejects artifact readiness when delivery attachments are invalid',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_read_task_bundle_summary_service_invalid_attachments',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final bundleDir = Directory(p.join(tempDir.path, 'bundle'));
+      await Directory(p.join(bundleDir.path, 'screenshots')).create(
+        recursive: true,
+      );
+      await Directory(p.join(bundleDir.path, 'recordings')).create(
+        recursive: true,
+      );
+      await File(
+        p.join(bundleDir.path, 'screenshots', 'acceptance.png'),
+      ).writeAsBytes(const <int>[1, 2, 3]);
+      await File(
+        p.join(bundleDir.path, 'recordings', 'acceptance.mp4'),
+      ).writeAsBytes(const <int>[4, 5, 6]);
+      await File(p.join(bundleDir.path, 'manifest.json')).writeAsString(
+        jsonEncode(
+          CockpitRunManifest(
+            sessionId: 'bundle-session',
+            taskId: 'bundle-task',
+            platform: 'android',
+            status: CockpitTaskStatus.completed,
+            startedAt: DateTime.utc(2026, 4, 12, 10, 30),
+            finishedAt: DateTime.utc(2026, 4, 12, 10, 31),
+            artifactRefs: const <CockpitArtifactRef>[
+              CockpitArtifactRef(
+                role: 'screenshot',
+                relativePath: 'screenshots/acceptance.png',
+              ),
+              CockpitArtifactRef(
+                role: 'recording',
+                relativePath: 'recordings/acceptance.mp4',
+              ),
+            ],
+            commandCount: 1,
+            screenshotCount: 1,
+            recordingCount: 1,
+            deliveryArtifactsReady: true,
+            deliveryVideoReady: true,
+          ).toJson(),
+        ),
+      );
+      await File(p.join(bundleDir.path, 'handoff.json')).writeAsString(
+        jsonEncode(<String, Object?>{'status': 'completed'}),
+      );
+      await File(p.join(bundleDir.path, 'delivery.json')).writeAsString(
+        jsonEncode(<String, Object?>{
+          'primaryScreenshotRef': 'screenshots/acceptance.png',
+          'attachmentRefs': <String>[
+            'screenshots/acceptance.png',
+            '../escaped_screenshot.png',
+          ],
+          'primaryRecordingRef': 'recordings/acceptance.mp4',
+          'videoAttachmentRefs': <String>[
+            'recordings/acceptance.mp4',
+            'screenshots/not_a_recording.png',
+          ],
+          'deliveryArtifactsReady': true,
+          'deliveryVideoReady': true,
+        }),
+      );
+      await File(
+        p.join(bundleDir.path, 'acceptance.md'),
+      ).writeAsString('# Acceptance\n\n- Status: completed\n');
+      await File(p.join(bundleDir.path, 'steps.json')).writeAsString('[]');
+
+      final service = CockpitReadTaskBundleSummaryService();
+      final result = await service.read(
+        CockpitReadTaskBundleSummaryRequest(bundleDir: bundleDir.path),
+      );
+
+      expect(
+        result.gateSummary.isSatisfied(CockpitTaskGate.artifactsReady),
+        isFalse,
+      );
+      expect(
+        result.gateSummary.isSatisfied(CockpitTaskGate.deliveryValidated),
+        isFalse,
+      );
+      expect(
+        result.gateSummary.failureCodesFor(CockpitTaskGate.artifactsReady),
+        containsAll(<String>[
+          'deliveryAttachmentRefInvalid',
+          'deliveryVideoAttachmentRefInvalid',
+        ]),
+      );
+      expect(
+        result.evidenceSummary['artifactFailureCodes'],
+        containsAll(<String>[
+          'deliveryAttachmentRefInvalid',
+          'deliveryVideoAttachmentRefInvalid',
+        ]),
+      );
+    },
+  );
 }
 
 Map<String, Object?> _snapshotJsonForDelta({

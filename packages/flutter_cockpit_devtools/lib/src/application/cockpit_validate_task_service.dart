@@ -474,6 +474,9 @@ final class CockpitValidateTaskService {
     failures.addAll(
       _collectPlaneAwareGateFailures(bundleSummary: bundleSummary),
     );
+    failures.addAll(
+      _validateDeliveryAttachmentRefs(bundleSummary: bundleSummary),
+    );
 
     if (primaryScreenshotPath != null &&
         primaryScreenshotPath.isNotEmpty &&
@@ -532,6 +535,105 @@ final class CockpitValidateTaskService {
       }
     }
 
+    return List<CockpitValidationFailure>.unmodifiable(failures);
+  }
+
+  List<CockpitValidationFailure> _validateDeliveryAttachmentRefs({
+    required CockpitReadTaskBundleSummaryResult bundleSummary,
+  }) {
+    final failures = <CockpitValidationFailure>[];
+    failures.addAll(
+      _validateDeliveryRefList(
+        bundleDir: bundleSummary.bundleDir,
+        delivery: bundleSummary.delivery,
+        fieldName: 'attachmentRefs',
+        codePrefix: 'deliveryAttachment',
+        allowedRoots: const <String>{'screenshots'},
+      ),
+    );
+    failures.addAll(
+      _validateDeliveryRefList(
+        bundleDir: bundleSummary.bundleDir,
+        delivery: bundleSummary.delivery,
+        fieldName: 'videoAttachmentRefs',
+        codePrefix: 'deliveryVideoAttachment',
+        allowedRoots: const <String>{'recordings'},
+      ),
+    );
+    return List<CockpitValidationFailure>.unmodifiable(failures);
+  }
+
+  List<CockpitValidationFailure> _validateDeliveryRefList({
+    required String bundleDir,
+    required Map<String, Object?> delivery,
+    required String fieldName,
+    required String codePrefix,
+    required Set<String> allowedRoots,
+  }) {
+    final rawRefs = delivery[fieldName];
+    if (rawRefs == null) {
+      return const <CockpitValidationFailure>[];
+    }
+    if (rawRefs is! List<Object?>) {
+      return <CockpitValidationFailure>[
+        CockpitValidationFailure(
+          code: '${codePrefix}RefsInvalid',
+          message: '$fieldName must be a list of bundle-relative paths.',
+          details: <String, Object?>{'fieldName': fieldName},
+        ),
+      ];
+    }
+
+    final failures = <CockpitValidationFailure>[];
+    for (final rawRef in rawRefs) {
+      if (rawRef is! String || rawRef.isEmpty) {
+        failures.add(
+          CockpitValidationFailure(
+            code: '${codePrefix}RefInvalid',
+            message: '$fieldName entries must be non-empty strings.',
+            details: <String, Object?>{
+              'fieldName': fieldName,
+              'ref': rawRef,
+            },
+          ),
+        );
+        continue;
+      }
+      final resolvedPath = CockpitBundleArtifactPaths.resolveBundleArtifactPath(
+        bundleDir,
+        rawRef,
+        allowedRoots: allowedRoots,
+      );
+      if (resolvedPath == null) {
+        failures.add(
+          CockpitValidationFailure(
+            code: '${codePrefix}RefInvalid',
+            message:
+                '$fieldName entries must point to bundle-local files under ${allowedRoots.join(', ')}.',
+            details: <String, Object?>{
+              'fieldName': fieldName,
+              'ref': rawRef,
+              'allowedRoots': allowedRoots.toList(growable: false),
+            },
+          ),
+        );
+        continue;
+      }
+      if (!File(resolvedPath).existsSync()) {
+        failures.add(
+          CockpitValidationFailure(
+            code: '${codePrefix}Missing',
+            message:
+                '$fieldName references a file that is missing from the bundle.',
+            details: <String, Object?>{
+              'fieldName': fieldName,
+              'ref': rawRef,
+              'path': resolvedPath,
+            },
+          ),
+        );
+      }
+    }
     return List<CockpitValidationFailure>.unmodifiable(failures);
   }
 

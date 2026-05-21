@@ -818,6 +818,7 @@ final class CockpitReadTaskBundleSummaryService {
     final runtimeSummary = await _readRuntimeSummary(bundleDir);
     final rebuildSummary = await _readRebuildSummary(bundleDir);
     final gateSummary = _buildBundleGateSummary(
+      bundleDir: bundleDir,
       manifest: manifest,
       handoff: handoff,
       delivery: delivery,
@@ -1690,6 +1691,7 @@ final class CockpitReadTaskBundleSummaryService {
   }
 
   CockpitBundleGateSummary _buildBundleGateSummary({
+    required String bundleDir,
     required CockpitRunManifest manifest,
     required Map<String, Object?> handoff,
     required Map<String, Object?> delivery,
@@ -1714,6 +1716,10 @@ final class CockpitReadTaskBundleSummaryService {
       delivery: delivery,
       artifactPaths: artifactPaths,
     );
+    final attachmentFailureCodes = _deliveryAttachmentFailureCodes(
+      bundleDir: bundleDir,
+      delivery: delivery,
+    );
     final acceptanceEvidenceFailureCodes = _acceptanceEvidenceFailureCodes(
       baselineEvidence: baselineEvidence,
       acceptanceEvidence: acceptanceEvidence,
@@ -1723,7 +1729,9 @@ final class CockpitReadTaskBundleSummaryService {
         manifest.deliveryArtifactsReady && screenshotFailureCodes.isEmpty;
     final recordingReadyOrExplained =
         manifest.deliveryVideoReady && recordingFailureCodes.isEmpty;
-    final deliveryValidated = screenshotReady && recordingReadyOrExplained;
+    final deliveryValidated = screenshotReady &&
+        recordingReadyOrExplained &&
+        attachmentFailureCodes.isEmpty;
     final finalAssertionPassed = manifest.status != CockpitTaskStatus.failed &&
         manifest.runtimeErrorCount == 0;
     final targetReachable = _readGateOverride(
@@ -1812,8 +1820,8 @@ final class CockpitReadTaskBundleSummaryService {
     }
     if (!artifactsReady) {
       failureCodes[CockpitTaskGate.artifactsReady] = _mergeFailureCodes(
-        screenshotFailureCodes,
-        recordingFailureCodes,
+        _mergeFailureCodes(screenshotFailureCodes, recordingFailureCodes),
+        attachmentFailureCodes,
       );
     }
     if (!logsCollected) {
@@ -1828,8 +1836,8 @@ final class CockpitReadTaskBundleSummaryService {
     }
     if (!deliveryValidated) {
       failureCodes[CockpitTaskGate.deliveryValidated] = _mergeFailureCodes(
-        screenshotFailureCodes,
-        recordingFailureCodes,
+        _mergeFailureCodes(screenshotFailureCodes, recordingFailureCodes),
+        attachmentFailureCodes,
       );
     }
     if (acceptanceEvidenceFailureCodes.isNotEmpty) {
@@ -1937,6 +1945,68 @@ final class CockpitReadTaskBundleSummaryService {
     return <String>[
       'acceptanceRecordingMissing',
     ];
+  }
+
+  List<String> _deliveryAttachmentFailureCodes({
+    required String bundleDir,
+    required Map<String, Object?> delivery,
+  }) {
+    return _mergeFailureCodes(
+      _deliveryRefListFailureCodes(
+        bundleDir: bundleDir,
+        delivery: delivery,
+        fieldName: 'attachmentRefs',
+        invalidCode: 'deliveryAttachmentRefInvalid',
+        missingCode: 'deliveryAttachmentMissing',
+        allowedRoots: const <String>{'screenshots'},
+      ),
+      _deliveryRefListFailureCodes(
+        bundleDir: bundleDir,
+        delivery: delivery,
+        fieldName: 'videoAttachmentRefs',
+        invalidCode: 'deliveryVideoAttachmentRefInvalid',
+        missingCode: 'deliveryVideoAttachmentMissing',
+        allowedRoots: const <String>{'recordings'},
+      ),
+    );
+  }
+
+  List<String> _deliveryRefListFailureCodes({
+    required String bundleDir,
+    required Map<String, Object?> delivery,
+    required String fieldName,
+    required String invalidCode,
+    required String missingCode,
+    required Set<String> allowedRoots,
+  }) {
+    final rawRefs = delivery[fieldName];
+    if (rawRefs == null) {
+      return const <String>[];
+    }
+    if (rawRefs is! List<Object?>) {
+      return <String>[invalidCode];
+    }
+
+    final failureCodes = <String>{};
+    for (final rawRef in rawRefs) {
+      if (rawRef is! String || rawRef.isEmpty) {
+        failureCodes.add(invalidCode);
+        continue;
+      }
+      final resolvedPath = CockpitBundleArtifactPaths.resolveBundleArtifactPath(
+        bundleDir,
+        rawRef,
+        allowedRoots: allowedRoots,
+      );
+      if (resolvedPath == null) {
+        failureCodes.add(invalidCode);
+        continue;
+      }
+      if (!File(resolvedPath).existsSync()) {
+        failureCodes.add(missingCode);
+      }
+    }
+    return List<String>.unmodifiable(failureCodes);
   }
 
   List<String> _acceptanceEvidenceFailureCodes({
