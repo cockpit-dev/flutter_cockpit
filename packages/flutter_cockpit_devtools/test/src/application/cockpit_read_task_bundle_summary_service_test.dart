@@ -1064,6 +1064,115 @@ void main() {
       );
     },
   );
+
+  test(
+    'read bundle summary rejects delivery readiness when referenced files are missing',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_read_task_bundle_summary_service_missing_delivery_files',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final bundleDir = Directory(p.join(tempDir.path, 'bundle'));
+      await Directory(p.join(bundleDir.path, 'screenshots')).create(
+        recursive: true,
+      );
+      await Directory(p.join(bundleDir.path, 'recordings')).create(
+        recursive: true,
+      );
+      await File(p.join(bundleDir.path, 'manifest.json')).writeAsString(
+        jsonEncode(
+          CockpitRunManifest(
+            sessionId: 'bundle-session',
+            taskId: 'bundle-task',
+            platform: 'android',
+            status: CockpitTaskStatus.completed,
+            startedAt: DateTime.utc(2026, 4, 12, 9, 0),
+            finishedAt: DateTime.utc(2026, 4, 12, 9, 1),
+            artifactRefs: const <CockpitArtifactRef>[
+              CockpitArtifactRef(
+                role: 'screenshot',
+                relativePath: 'screenshots/missing_acceptance.png',
+              ),
+              CockpitArtifactRef(
+                role: 'recording',
+                relativePath: 'recordings/missing_acceptance.mp4',
+              ),
+            ],
+            commandCount: 1,
+            screenshotCount: 1,
+            recordingCount: 1,
+            deliveryArtifactsReady: true,
+            deliveryVideoReady: true,
+          ).toJson(),
+        ),
+      );
+      await File(p.join(bundleDir.path, 'handoff.json')).writeAsString(
+        jsonEncode(<String, Object?>{'status': 'completed'}),
+      );
+      await File(p.join(bundleDir.path, 'delivery.json')).writeAsString(
+        jsonEncode(<String, Object?>{
+          'primaryScreenshotRef': 'screenshots/missing_acceptance.png',
+          'attachmentRefs': <String>['screenshots/missing_acceptance.png'],
+          'primaryRecordingRef': 'recordings/missing_acceptance.mp4',
+          'videoAttachmentRefs': <String>['recordings/missing_acceptance.mp4'],
+          'deliveryArtifactsReady': true,
+          'deliveryVideoReady': true,
+        }),
+      );
+      await File(
+        p.join(bundleDir.path, 'acceptance.md'),
+      ).writeAsString('# Acceptance\n\n- Status: completed\n');
+      await File(p.join(bundleDir.path, 'steps.json')).writeAsString('[]');
+
+      final service = CockpitReadTaskBundleSummaryService();
+      final result = await service.read(
+        CockpitReadTaskBundleSummaryRequest(bundleDir: bundleDir.path),
+      );
+
+      expect(
+        result.gateSummary.isSatisfied(CockpitTaskGate.screenshotReady),
+        isFalse,
+      );
+      expect(
+        result.gateSummary.failureCodesFor(CockpitTaskGate.screenshotReady),
+        <String>['acceptanceScreenshotMissing'],
+      );
+      expect(
+        result.gateSummary
+            .isSatisfied(CockpitTaskGate.recordingReadyOrExplained),
+        isFalse,
+      );
+      expect(
+        result.gateSummary
+            .failureCodesFor(CockpitTaskGate.recordingReadyOrExplained),
+        <String>['acceptanceRecordingMissing'],
+      );
+      expect(
+        result.gateSummary.isSatisfied(CockpitTaskGate.artifactsReady),
+        isFalse,
+      );
+      expect(
+        result.gateSummary.isSatisfied(CockpitTaskGate.deliveryValidated),
+        isFalse,
+      );
+      expect(
+        result.evidenceSummary['deliveryValidated'],
+        isFalse,
+      );
+      expect(
+        result.evidenceSummary['artifactFailureCodes'],
+        containsAll(<String>[
+          'acceptanceScreenshotMissing',
+          'acceptanceRecordingMissing',
+        ]),
+      );
+    },
+  );
 }
 
 Map<String, Object?> _snapshotJsonForDelta({

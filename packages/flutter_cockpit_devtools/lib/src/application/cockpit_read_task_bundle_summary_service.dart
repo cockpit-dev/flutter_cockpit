@@ -799,6 +799,7 @@ final class CockpitReadTaskBundleSummaryService {
       manifest: manifest,
       handoff: handoff,
       delivery: delivery,
+      artifactPaths: artifactPaths,
       acceptanceMarkdown: acceptanceMarkdown,
       executionSummary: executionSummary,
       diagnosticsArtifactPaths: diagnosticsArtifactPaths,
@@ -1670,6 +1671,7 @@ final class CockpitReadTaskBundleSummaryService {
     required CockpitRunManifest manifest,
     required Map<String, Object?> handoff,
     required Map<String, Object?> delivery,
+    required CockpitBundleArtifactPaths artifactPaths,
     required String acceptanceMarkdown,
     required _CockpitExecutionSummary executionSummary,
     required List<String> diagnosticsArtifactPaths,
@@ -1682,19 +1684,23 @@ final class CockpitReadTaskBundleSummaryService {
     final screenshotFailureCodes = _deliveryArtifactFailureCodes(
       manifest: manifest,
       delivery: delivery,
+      artifactPaths: artifactPaths,
     );
     final recordingFailureCodes = _deliveryVideoFailureCodes(
       manifest: manifest,
       handoff: handoff,
       delivery: delivery,
+      artifactPaths: artifactPaths,
     );
     final acceptanceEvidenceFailureCodes = _acceptanceEvidenceFailureCodes(
       baselineEvidence: baselineEvidence,
       acceptanceEvidence: acceptanceEvidence,
       acceptanceDelta: acceptanceDelta,
     );
-    final screenshotReady = manifest.deliveryArtifactsReady;
-    final recordingReadyOrExplained = manifest.deliveryVideoReady;
+    final screenshotReady =
+        manifest.deliveryArtifactsReady && screenshotFailureCodes.isEmpty;
+    final recordingReadyOrExplained =
+        manifest.deliveryVideoReady && recordingFailureCodes.isEmpty;
     final deliveryValidated = screenshotReady && recordingReadyOrExplained;
     final finalAssertionPassed = manifest.status != CockpitTaskStatus.failed &&
         manifest.runtimeErrorCount == 0;
@@ -1852,17 +1858,25 @@ final class CockpitReadTaskBundleSummaryService {
   List<String> _deliveryArtifactFailureCodes({
     required CockpitRunManifest manifest,
     required Map<String, Object?> delivery,
+    required CockpitBundleArtifactPaths artifactPaths,
   }) {
-    if (manifest.deliveryArtifactFailureCodes.isNotEmpty ||
-        manifest.deliveryArtifactsReady) {
+    if (manifest.deliveryArtifactFailureCodes.isNotEmpty) {
       return manifest.deliveryArtifactFailureCodes;
     }
     final primaryScreenshotRef = delivery['primaryScreenshotRef'] as String?;
+    if (primaryScreenshotRef == null || primaryScreenshotRef.isEmpty) {
+      return const <String>['primaryScreenshotMissing'];
+    }
+    final primaryScreenshotPath = artifactPaths.primaryScreenshotPath;
+    if (primaryScreenshotPath == null ||
+        !File(primaryScreenshotPath).existsSync()) {
+      return const <String>['acceptanceScreenshotMissing'];
+    }
+    if (manifest.deliveryArtifactsReady) {
+      return const <String>[];
+    }
     return <String>[
-      if (primaryScreenshotRef == null || primaryScreenshotRef.isEmpty)
-        'primaryScreenshotMissing'
-      else
-        'acceptanceScreenshotMissing',
+      'acceptanceScreenshotMissing',
     ];
   }
 
@@ -1870,9 +1884,9 @@ final class CockpitReadTaskBundleSummaryService {
     required CockpitRunManifest manifest,
     required Map<String, Object?> handoff,
     required Map<String, Object?> delivery,
+    required CockpitBundleArtifactPaths artifactPaths,
   }) {
-    if (manifest.deliveryVideoFailureCodes.isNotEmpty ||
-        manifest.deliveryVideoReady) {
+    if (manifest.deliveryVideoFailureCodes.isNotEmpty) {
       return manifest.deliveryVideoFailureCodes;
     }
     final primaryRecordingRef = delivery['primaryRecordingRef'] as String?;
@@ -1884,13 +1898,22 @@ final class CockpitReadTaskBundleSummaryService {
               'video',
               'failureReason',
             );
+    if (recordingFailureReason != null && recordingFailureReason.isNotEmpty) {
+      return const <String>['recordingFailed'];
+    }
+    if (primaryRecordingRef == null || primaryRecordingRef.isEmpty) {
+      return const <String>['primaryRecordingMissing'];
+    }
+    final primaryRecordingPath = artifactPaths.primaryRecordingPath;
+    if (primaryRecordingPath == null ||
+        !File(primaryRecordingPath).existsSync()) {
+      return const <String>['acceptanceRecordingMissing'];
+    }
+    if (manifest.deliveryVideoReady) {
+      return const <String>[];
+    }
     return <String>[
-      if (recordingFailureReason != null && recordingFailureReason.isNotEmpty)
-        'recordingFailed'
-      else if (primaryRecordingRef == null || primaryRecordingRef.isEmpty)
-        'primaryRecordingMissing'
-      else
-        'acceptanceRecordingMissing',
+      'acceptanceRecordingMissing',
     ];
   }
 

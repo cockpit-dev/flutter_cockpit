@@ -334,6 +334,18 @@ final class CockpitValidateTaskService {
           ),
         );
       } else if (screenshotPath != null && screenshotPath.isNotEmpty) {
+        if (!File(screenshotPath).existsSync()) {
+          failures.add(
+            CockpitValidationFailure(
+              code: 'acceptanceScreenshotMissing',
+              message:
+                  'The primary screenshot is referenced but missing from the bundle.',
+              details: <String, Object?>{
+                'primaryScreenshotPath': screenshotPath,
+              },
+            ),
+          );
+        }
         validatedArtifacts.add(screenshotPath);
         final failure = await _validateScreenshotArtifact(screenshotPath);
         if (failure != null) {
@@ -361,6 +373,18 @@ final class CockpitValidateTaskService {
           ),
         );
       } else if (recordingPath != null && recordingPath.isNotEmpty) {
+        if (!File(recordingPath).existsSync()) {
+          failures.add(
+            CockpitValidationFailure(
+              code: 'acceptanceRecordingMissing',
+              message:
+                  'The primary recording is referenced but missing from the bundle.',
+              details: <String, Object?>{
+                'primaryRecordingPath': recordingPath,
+              },
+            ),
+          );
+        }
         validatedArtifacts.add(recordingPath);
         final failure = await _validateRecordingArtifact(recordingPath);
         if (failure != null) {
