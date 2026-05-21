@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import '../platform/ios/cockpit_ios_device_connection.dart';
@@ -67,7 +68,16 @@ final class CockpitIosPhysicalRemoteSessionLauncher
       );
     }
 
-    final connection = await _deviceConnectionResolver(options.deviceId);
+    final deadline = _now().add(options.launchTimeout);
+    final connection = await _deviceConnectionResolver(
+      options.deviceId,
+    ).timeout(
+      _remaining(deadline),
+      onTimeout: () => throw TimeoutException(
+        'Resolving the iOS device tunnel timed out.',
+        _remaining(deadline),
+      ),
+    );
     if (connection == null || !connection.hasReachableTunnel) {
       throw StateError(
         'Unable to resolve a reachable iOS device tunnel for ${options.deviceId}.',
@@ -98,13 +108,28 @@ final class CockpitIosPhysicalRemoteSessionLauncher
         '--dart-define=FLUTTER_PILOT_FLUTTER_VERSION=$flutterVersion',
       ],
       workingDirectory: options.projectDir,
+      timeout: _remaining(deadline),
     );
 
     final appBundlePath = await _appBundlePathResolver(
       projectDir: options.projectDir,
       flavor: options.flavor,
+    ).timeout(
+      _remaining(deadline),
+      onTimeout: () => throw TimeoutException(
+        'Resolving the iOS device app bundle path timed out.',
+        _remaining(deadline),
+      ),
     );
-    final bundleId = await _bundleIdResolver(appBundlePath: appBundlePath);
+    final bundleId = await _bundleIdResolver(
+      appBundlePath: appBundlePath,
+    ).timeout(
+      _remaining(deadline),
+      onTimeout: () => throw TimeoutException(
+        'Resolving the iOS device bundle identifier timed out.',
+        _remaining(deadline),
+      ),
+    );
     final baseUri = Uri(
       scheme: 'http',
       host: connection.tunnelIpAddress!,
@@ -112,7 +137,7 @@ final class CockpitIosPhysicalRemoteSessionLauncher
     );
     final status = await cockpitWaitForRemoteSessionReady(
       baseUri: baseUri,
-      timeout: options.launchTimeout,
+      timeout: _remaining(deadline),
       statusReader: _statusReader,
     );
 
@@ -133,17 +158,34 @@ final class CockpitIosPhysicalRemoteSessionLauncher
     String executable,
     List<String> arguments, {
     String? workingDirectory,
+    required Duration timeout,
   }) async {
     final result = await _processRunner(
       executable,
       arguments,
       workingDirectory: workingDirectory,
+    ).timeout(
+      timeout,
+      onTimeout: () => throw TimeoutException(
+        '$executable ${arguments.join(' ')} timed out.',
+        timeout,
+      ),
     );
     if (result.exitCode != 0) {
       throw StateError(
         '$executable ${arguments.join(' ')} failed: ${result.stderr ?? result.stdout}',
       );
     }
+  }
+
+  Duration _remaining(DateTime deadline) {
+    final remaining = deadline.difference(_now());
+    if (remaining <= Duration.zero) {
+      throw TimeoutException(
+        'iOS physical-device remote session launch timed out before the next stage could start.',
+      );
+    }
+    return remaining;
   }
 
   static Future<ProcessResult> _runProcess(

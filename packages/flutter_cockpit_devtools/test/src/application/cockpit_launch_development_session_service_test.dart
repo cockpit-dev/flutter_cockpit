@@ -161,17 +161,21 @@ void main() {
         portForwarder: const _StubPortForwarder(57331),
         flutterVersionReader: () async => '3.39.0',
         flutterExecutableReader: () async => '/opt/flutter/bin/flutter',
+        dartExecutableReader: () async =>
+            '/opt/flutter/bin/cache/dart-sdk/bin/dart',
         allocatePort: () async => spawnCalls.isEmpty ? 60001 : 60002,
         delay: (_) async {},
         spawnSupervisor: ({
           required request,
           required flutterVersion,
           required flutterExecutable,
+          required dartExecutable,
           required hostPort,
           required supervisorPort,
           required supervisorLogFile,
         }) async {
           expect(flutterExecutable, '/opt/flutter/bin/flutter');
+          expect(dartExecutable, '/opt/flutter/bin/cache/dart-sdk/bin/dart');
           final baseUri = Uri.parse('http://127.0.0.1:$supervisorPort');
           spawnCalls.add(baseUri);
           return CockpitSpawnedDevelopmentSupervisor(
@@ -211,12 +215,15 @@ void main() {
         portForwarder: const _StubPortForwarder(57331),
         flutterVersionReader: () async => '3.39.0',
         flutterExecutableReader: () async => '/opt/flutter/bin/flutter',
+        dartExecutableReader: () async =>
+            '/opt/flutter/bin/cache/dart-sdk/bin/dart',
         allocatePort: () async => 60011,
         delay: (_) async {},
         spawnSupervisor: ({
           required request,
           required flutterVersion,
           required flutterExecutable,
+          required dartExecutable,
           required hostPort,
           required supervisorPort,
           required supervisorLogFile,
@@ -268,12 +275,15 @@ void main() {
         portForwarder: const _StubPortForwarder(57331),
         flutterVersionReader: () async => '3.39.0',
         flutterExecutableReader: () async => '/opt/flutter/bin/flutter',
+        dartExecutableReader: () async =>
+            '/opt/flutter/bin/cache/dart-sdk/bin/dart',
         allocatePort: () async => 60012,
         delay: (_) async {},
         spawnSupervisor: ({
           required request,
           required flutterVersion,
           required flutterExecutable,
+          required dartExecutable,
           required hostPort,
           required supervisorPort,
           required supervisorLogFile,
@@ -325,12 +335,15 @@ void main() {
         portForwarder: const _StubPortForwarder(57331),
         flutterVersionReader: () async => '3.39.0',
         flutterExecutableReader: () async => '/opt/flutter/bin/flutter',
+        dartExecutableReader: () async =>
+            '/opt/flutter/bin/cache/dart-sdk/bin/dart',
         allocatePort: () async => 60013,
         delay: (_) async {},
         spawnSupervisor: ({
           required request,
           required flutterVersion,
           required flutterExecutable,
+          required dartExecutable,
           required hostPort,
           required supervisorPort,
           required supervisorLogFile,
@@ -417,12 +430,15 @@ void main() {
         portForwarder: const _ThrowingPortForwarder(),
         flutterVersionReader: () async => '3.39.0',
         flutterExecutableReader: () async => '/opt/flutter/bin/flutter',
+        dartExecutableReader: () async =>
+            '/opt/flutter/bin/cache/dart-sdk/bin/dart',
         allocatePort: () async => 60003,
         delay: (_) async {},
         spawnSupervisor: ({
           required request,
           required flutterVersion,
           required flutterExecutable,
+          required dartExecutable,
           required hostPort,
           required supervisorPort,
           required supervisorLogFile,
@@ -501,12 +517,15 @@ void main() {
         portForwarder: const _ThrowingPortForwarder(),
         flutterVersionReader: () async => '3.39.0',
         flutterExecutableReader: () async => '/opt/flutter/bin/flutter',
+        dartExecutableReader: () async =>
+            '/opt/flutter/bin/cache/dart-sdk/bin/dart',
         allocatePort: () async => 60004,
         delay: (_) async {},
         spawnSupervisor: ({
           required request,
           required flutterVersion,
           required flutterExecutable,
+          required dartExecutable,
           required hostPort,
           required supervisorPort,
           required supervisorLogFile,
@@ -585,12 +604,15 @@ void main() {
         portForwarder: const _ThrowingPortForwarder(),
         flutterVersionReader: () async => '3.39.0',
         flutterExecutableReader: () async => '/opt/flutter/bin/flutter',
+        dartExecutableReader: () async =>
+            '/opt/flutter/bin/cache/dart-sdk/bin/dart',
         allocatePort: () async => 60005,
         delay: (_) async {},
         spawnSupervisor: ({
           required request,
           required flutterVersion,
           required flutterExecutable,
+          required dartExecutable,
           required hostPort,
           required supervisorPort,
           required supervisorLogFile,
