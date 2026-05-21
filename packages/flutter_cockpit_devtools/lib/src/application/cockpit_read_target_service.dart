@@ -169,8 +169,13 @@ final class CockpitReadTargetService {
               )
             : appResult.fallbackTrail,
         recommendedNextStep: appResult.recommendedNextStep,
-        whatMatters: appResult.whatMatters ??
-            cockpitWhatMattersForProfile(normalizedMergedProfile),
+        whatMatters: _whatMattersForFlutterRead(
+          base: appResult.whatMatters ??
+              cockpitWhatMattersForProfile(normalizedMergedProfile),
+          recordingCapabilities: appResult.recordingCapabilities,
+          capabilityProfile: mergedCapabilityProfile,
+          normalizedCapabilityProfile: normalizedMergedProfile,
+        ),
         sessionId: appResult.sessionId,
         transportType: appResult.transportType,
         currentRouteName: appResult.currentRouteName,
@@ -331,6 +336,33 @@ final class CockpitReadTargetService {
           .toSet(),
       qualityFlags: capabilityProfile.qualityFlags,
     );
+  }
+
+  String? _whatMattersForFlutterRead({
+    required String? base,
+    required CockpitRecordingCapabilities recordingCapabilities,
+    required CockpitCapabilityProfile capabilityProfile,
+    required CockpitCapabilityProfile normalizedCapabilityProfile,
+  }) {
+    if (recordingCapabilities.supportsNativeRecording ||
+        !capabilityProfile
+            .supportsEvidence(CockpitEvidenceCapability.screenRecording) ||
+        normalizedCapabilityProfile
+            .supportsEvidence(CockpitEvidenceCapability.screenRecording)) {
+      return base;
+    }
+
+    final limitation = recordingCapabilities.recordingLimitations
+        .where((entry) => entry.trim().isNotEmpty)
+        .join(' ');
+    final recordingHint = limitation.isEmpty
+        ? 'Native recording is unavailable for this target right now.'
+        : 'Native recording is unavailable for this target right now: '
+            '$limitation';
+    if (base == null || base.trim().isEmpty) {
+      return recordingHint;
+    }
+    return '$base $recordingHint';
   }
 
   CockpitInteractiveSnapshotSummary? _staticSummaryForProfile(
