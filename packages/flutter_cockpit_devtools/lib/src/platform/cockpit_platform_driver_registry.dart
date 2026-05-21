@@ -25,6 +25,8 @@ final class CockpitPlatformDriverRegistry {
   CockpitPlatformDriver? resolve({
     required String platform,
     required String deviceId,
+    String? appId,
+    int? processId,
   }) {
     final override = _drivers[platform];
     if (override != null) {
@@ -35,10 +37,16 @@ final class CockpitPlatformDriverRegistry {
       'ios' => cockpitLooksLikeIosSimulatorDeviceId(deviceId)
           ? CockpitIosSimulatorPlatformDriver(deviceId: deviceId)
           : CockpitIosPhysicalPlatformDriver(deviceId: deviceId),
-      'macos' => CockpitMacosPlatformDriver(),
-      'windows' => CockpitWindowsPlatformDriver(),
-      'linux' => CockpitLinuxPlatformDriver(),
-      'web' => CockpitWebPlatformDriver(),
+      'macos' => CockpitMacosPlatformDriver(appId: appId),
+      'windows' => CockpitWindowsPlatformDriver(
+          appId: appId,
+          processId: processId,
+        ),
+      'linux' => CockpitLinuxPlatformDriver(
+          appId: appId,
+          processId: processId,
+        ),
+      'web' => CockpitWebPlatformDriver(deviceId: deviceId),
       _ => null,
     };
   }
@@ -46,8 +54,15 @@ final class CockpitPlatformDriverRegistry {
   CockpitEvidenceDriver? resolveEvidenceDriver({
     required String platform,
     required String deviceId,
+    String? appId,
+    int? processId,
   }) {
-    final driver = resolve(platform: platform, deviceId: deviceId);
+    final driver = resolve(
+      platform: platform,
+      deviceId: deviceId,
+      appId: appId,
+      processId: processId,
+    );
     if (driver is CockpitEvidenceDriver) {
       return driver as CockpitEvidenceDriver;
     }

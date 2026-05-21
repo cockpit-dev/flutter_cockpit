@@ -19,9 +19,13 @@ typedef CockpitSimctlCaptureAdapterFactory = CockpitCaptureAdapter Function(
 typedef CockpitMacosCaptureAdapterFactory = CockpitCaptureAdapter Function(
     String appId);
 typedef CockpitWindowsCaptureAdapterFactory = CockpitCaptureAdapter Function(
-    String appId);
+  String appId, {
+  int? processId,
+});
 typedef CockpitLinuxCaptureAdapterFactory = CockpitCaptureAdapter Function(
-    String appId);
+  String appId, {
+  int? processId,
+});
 
 final class CockpitCaptureStrategyResolver {
   const CockpitCaptureStrategyResolver({
@@ -44,6 +48,7 @@ final class CockpitCaptureStrategyResolver {
     required String platform,
     required CockpitRemoteSessionClient client,
     String? platformAppId,
+    int? processId,
     CockpitRemoteSessionHandle? sessionHandle,
     String? androidDeviceId,
     String? iosDeviceId,
@@ -68,7 +73,9 @@ final class CockpitCaptureStrategyResolver {
         client: client,
       );
     }
-    final resolvedAppId = platformAppId ?? sessionHandle?.appId;
+    final resolvedAppId =
+        platformAppId ?? sessionHandle?.effectivePlatformAppId;
+    final resolvedProcessId = processId ?? sessionHandle?.processId;
     if (platform == 'macos' &&
         resolvedAppId != null &&
         resolvedAppId.isNotEmpty) {
@@ -83,7 +90,10 @@ final class CockpitCaptureStrategyResolver {
         resolvedAppId.isNotEmpty) {
       return CockpitHostPreferredCaptureAdapter(
         remoteAdapter: remoteAdapter,
-        hostAcceptanceAdapter: windowsAdapterFactory(resolvedAppId),
+        hostAcceptanceAdapter: windowsAdapterFactory(
+          resolvedAppId,
+          processId: resolvedProcessId,
+        ),
         client: client,
       );
     }
@@ -92,7 +102,10 @@ final class CockpitCaptureStrategyResolver {
         resolvedAppId.isNotEmpty) {
       return CockpitHostPreferredCaptureAdapter(
         remoteAdapter: remoteAdapter,
-        hostAcceptanceAdapter: linuxAdapterFactory(resolvedAppId),
+        hostAcceptanceAdapter: linuxAdapterFactory(
+          resolvedAppId,
+          processId: resolvedProcessId,
+        ),
         client: client,
       );
     }
@@ -117,11 +130,23 @@ final class CockpitCaptureStrategyResolver {
     return CockpitMacosCaptureAdapter(appId: appId);
   }
 
-  static CockpitCaptureAdapter _defaultWindowsAdapterFactory(String appId) {
-    return CockpitWindowsCaptureAdapter(appId: appId);
+  static CockpitCaptureAdapter _defaultWindowsAdapterFactory(
+    String appId, {
+    int? processId,
+  }) {
+    return CockpitWindowsCaptureAdapter(
+      appId: appId,
+      processId: processId,
+    );
   }
 
-  static CockpitCaptureAdapter _defaultLinuxAdapterFactory(String appId) {
-    return CockpitLinuxCaptureAdapter(appId: appId);
+  static CockpitCaptureAdapter _defaultLinuxAdapterFactory(
+    String appId, {
+    int? processId,
+  }) {
+    return CockpitLinuxCaptureAdapter(
+      appId: appId,
+      processId: processId,
+    );
   }
 }

@@ -160,6 +160,138 @@ void main() {
     expect(resolution?.fallbackUsed, isFalse);
   });
 
+  test('uses process-scoped host recording for Windows full mode', () {
+    String? capturedAppId;
+    int? capturedProcessId;
+    final resolver = CockpitRecordingStrategyResolver(
+      remoteAdapterFactory: (client) => _FakeRecordingAdapter(),
+      adbAdapterFactory: (deviceId) => _FakeRecordingAdapter(),
+      simctlAdapterFactory: (deviceId) => _FakeRecordingAdapter(),
+      windowsAdapterFactory: (appId, {processId}) {
+        capturedAppId = appId;
+        capturedProcessId = processId;
+        return _FakeRecordingAdapter();
+      },
+    );
+
+    final resolution = resolver.resolveDetailed(
+      platform: 'windows',
+      recording: fullRequest,
+      client: CockpitRemoteSessionClient(
+        baseUri: Uri.parse('http://127.0.0.1:47331'),
+      ),
+      sessionHandle: CockpitRemoteSessionHandle(
+        platform: 'windows',
+        deviceId: 'windows',
+        projectDir: '/workspace/examples/cockpit_demo',
+        target: 'cockpit/main.dart',
+        appId: 'cockpit_demo',
+        processId: 4101,
+        host: '127.0.0.1',
+        hostPort: 47331,
+        devicePort: 47331,
+        baseUrl: 'http://127.0.0.1:47331',
+        launchedAt: DateTime.utc(2026, 3, 24),
+      ),
+    );
+
+    expect(resolution?.implementation, 'windowsHost');
+    expect(resolution?.effectiveLayer, CockpitRecordingLayer.hostScreen);
+    expect(resolution?.fallbackUsed, isFalse);
+    expect(capturedAppId, 'cockpit_demo');
+    expect(capturedProcessId, 4101);
+  });
+
+  test('reuses an active Windows host recording session by process id', () {
+    addTearDown(() {
+      cockpitClearActiveHostRecordingSession('windows:4101');
+    });
+    cockpitStoreActiveHostRecordingSession(
+      'windows:4101',
+      CockpitHostRecordingRuntimeSession(
+        process: _FakeProcess(),
+        request: autoRequest,
+        outputFile: File('/tmp/windows-active-recording.mp4'),
+        stderrSubscription: null,
+        stopwatch: Stopwatch(),
+      ),
+    );
+
+    final resolver = CockpitRecordingStrategyResolver(
+      remoteAdapterFactory: (client) => _FakeRecordingAdapter(),
+      adbAdapterFactory: (deviceId) => _FakeRecordingAdapter(),
+      simctlAdapterFactory: (deviceId) => _FakeRecordingAdapter(),
+      windowsAdapterFactory: (appId, {processId}) => _FakeRecordingAdapter(),
+    );
+
+    final resolution = resolver.resolveDetailed(
+      platform: 'windows',
+      recording: autoRequest,
+      client: CockpitRemoteSessionClient(
+        baseUri: Uri.parse('http://127.0.0.1:47331'),
+      ),
+      sessionHandle: CockpitRemoteSessionHandle(
+        platform: 'windows',
+        deviceId: 'windows',
+        projectDir: '/workspace/examples/cockpit_demo',
+        target: 'cockpit/main.dart',
+        appId: 'cockpit_demo',
+        processId: 4101,
+        host: '127.0.0.1',
+        hostPort: 47331,
+        devicePort: 47331,
+        baseUrl: 'http://127.0.0.1:47331',
+        launchedAt: DateTime.utc(2026, 4, 13),
+      ),
+      preferActiveHostSession: true,
+    );
+
+    expect(resolution?.implementation, 'windowsHost');
+    expect(resolution?.effectiveLayer, CockpitRecordingLayer.hostScreen);
+  });
+
+  test('uses process-scoped host recording for Linux full mode', () {
+    String? capturedAppId;
+    int? capturedProcessId;
+    final resolver = CockpitRecordingStrategyResolver(
+      remoteAdapterFactory: (client) => _FakeRecordingAdapter(),
+      adbAdapterFactory: (deviceId) => _FakeRecordingAdapter(),
+      simctlAdapterFactory: (deviceId) => _FakeRecordingAdapter(),
+      linuxAdapterFactory: (appId, {processId}) {
+        capturedAppId = appId;
+        capturedProcessId = processId;
+        return _FakeRecordingAdapter();
+      },
+    );
+
+    final resolution = resolver.resolveDetailed(
+      platform: 'linux',
+      recording: fullRequest,
+      client: CockpitRemoteSessionClient(
+        baseUri: Uri.parse('http://127.0.0.1:47331'),
+      ),
+      sessionHandle: CockpitRemoteSessionHandle(
+        platform: 'linux',
+        deviceId: 'linux',
+        projectDir: '/workspace/examples/cockpit_demo',
+        target: 'cockpit/main.dart',
+        appId: 'cockpit_demo',
+        processId: 5101,
+        host: '127.0.0.1',
+        hostPort: 47331,
+        devicePort: 47331,
+        baseUrl: 'http://127.0.0.1:47331',
+        launchedAt: DateTime.utc(2026, 3, 24),
+      ),
+    );
+
+    expect(resolution?.implementation, 'linuxHost');
+    expect(resolution?.effectiveLayer, CockpitRecordingLayer.hostScreen);
+    expect(resolution?.fallbackUsed, isFalse);
+    expect(capturedAppId, 'cockpit_demo');
+    expect(capturedProcessId, 5101);
+  });
+
   test(
     'falls back to app-window recording when macOS system-layer recording is requested with fallback enabled',
     () {

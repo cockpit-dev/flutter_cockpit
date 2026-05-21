@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
+import '../platform/linux/cockpit_linux_window_target.dart';
 import 'cockpit_host_recording_adapter.dart';
 
 final class CockpitLinuxDisplayConfig {
@@ -23,6 +24,7 @@ final class CockpitLinuxRecordingAdapter
     implements CockpitHostRecordingAdapter {
   CockpitLinuxRecordingAdapter({
     required String appId,
+    int? processId,
     String ffmpegExecutable = 'ffmpeg',
     String? windowActivatorExecutable = 'wmctrl',
     CockpitRecordingProcessStarter processStarter = Process.start,
@@ -31,12 +33,15 @@ final class CockpitLinuxRecordingAdapter
     CockpitRecordingTempFileFactory tempFileFactory =
         cockpitCreateRecordingTempFile,
     CockpitLinuxDisplayConfigResolver? displayConfigResolver,
+    CockpitLinuxWindowTargetResolver windowTargetResolver =
+        cockpitResolveLinuxWindowTarget,
     Duration startupTimeout = const Duration(seconds: 12),
     Duration startupEvidenceTimeout = const Duration(seconds: 2),
     Duration stopTimeout = const Duration(seconds: 10),
     Duration finalizationPollInterval = const Duration(milliseconds: 100),
     Duration activationSettleDelay = const Duration(milliseconds: 250),
   })  : _appId = appId,
+        _processId = processId,
         _ffmpegExecutable = ffmpegExecutable,
         _windowActivatorExecutable = windowActivatorExecutable,
         _processStarter = processStarter,
@@ -45,6 +50,7 @@ final class CockpitLinuxRecordingAdapter
         _tempFileFactory = tempFileFactory,
         _displayConfigResolver = displayConfigResolver ??
             (() => _resolveDisplayConfig(processRunner)),
+        _windowTargetResolver = windowTargetResolver,
         _startupTimeout = startupTimeout,
         _startupEvidenceTimeout = startupEvidenceTimeout,
         _stopTimeout = stopTimeout,
@@ -52,6 +58,7 @@ final class CockpitLinuxRecordingAdapter
         _activationSettleDelay = activationSettleDelay;
 
   final String _appId;
+  final int? _processId;
   final String _ffmpegExecutable;
   final String? _windowActivatorExecutable;
   final CockpitRecordingProcessStarter _processStarter;
@@ -59,6 +66,7 @@ final class CockpitLinuxRecordingAdapter
   final CockpitRecordingProcessRunner _ffprobeProcessRunner;
   final CockpitRecordingTempFileFactory _tempFileFactory;
   final CockpitLinuxDisplayConfigResolver _displayConfigResolver;
+  final CockpitLinuxWindowTargetResolver _windowTargetResolver;
   final Duration _startupTimeout;
   final Duration _startupEvidenceTimeout;
   final Duration _stopTimeout;
@@ -71,7 +79,7 @@ final class CockpitLinuxRecordingAdapter
   StreamSubscription<String>? _stderrSubscription;
   Stopwatch? _stopwatch;
 
-  String get _sessionCacheKey => 'linux:$_appId';
+  String get _sessionCacheKey => 'linux:${_processId ?? _appId}';
 
   @override
   Future<CockpitRecordingSession> startRecording(
@@ -82,7 +90,8 @@ final class CockpitLinuxRecordingAdapter
       throw StateError('A Linux recording is already active.');
     }
 
-    await _bestEffortActivateApp();
+    final windowTarget = await _tryResolveWindowTarget();
+    await _bestEffortActivateApp(windowTarget);
     final displayConfig = await _displayConfigResolver();
 
     final outputFile = await _tempFileFactory(
@@ -101,10 +110,19 @@ final class CockpitLinuxRecordingAdapter
       '30',
       '-draw_mouse',
       '1',
-      '-video_size',
-      displayConfig.captureSize,
+      if (windowTarget != null) ...<String>[
+        '-window_id',
+        windowTarget.windowId,
+        '-video_size',
+        '${windowTarget.width}x${windowTarget.height}',
+      ] else ...<String>[
+        '-video_size',
+        displayConfig.captureSize,
+      ],
       '-i',
-      '${displayConfig.display}+0,0',
+      windowTarget == null
+          ? '${displayConfig.display}+0,0'
+          : displayConfig.display,
       '-vf',
       'format=yuv420p',
       '-c:v',
@@ -274,15 +292,33 @@ final class CockpitLinuxRecordingAdapter
     return cockpitReadActiveHostRecordingSession(_sessionCacheKey);
   }
 
-  Future<void> _bestEffortActivateApp() async {
+  Future<CockpitLinuxWindowTarget?> _tryResolveWindowTarget() async {
+    try {
+      return await _windowTargetResolver(
+        appId: _appId,
+        processId: _processId,
+        processRunner: _processRunner,
+        timeout: _startupTimeout,
+      );
+    } on Object {
+      return null;
+    }
+  }
+
+  Future<void> _bestEffortActivateApp(
+    CockpitLinuxWindowTarget? windowTarget,
+  ) async {
     final executable = _windowActivatorExecutable;
     if (executable == null || executable.isEmpty) {
       return;
     }
     try {
+      final arguments = windowTarget == null
+          ? <String>['-xa', _appId]
+          : <String>['-ia', windowTarget.windowId];
       final result = await _processRunner(
         executable,
-        <String>['-xa', _appId],
+        arguments,
       ).timeout(_startupTimeout);
       if (result.exitCode == 0 && _activationSettleDelay > Duration.zero) {
         await Future<void>.delayed(_activationSettleDelay);

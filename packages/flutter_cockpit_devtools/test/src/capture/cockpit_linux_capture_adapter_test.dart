@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:flutter_cockpit_devtools/src/capture/cockpit_linux_capture_adapter.dart';
+import 'package:flutter_cockpit_devtools/src/platform/linux/cockpit_linux_window_target.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -21,7 +22,24 @@ void main() {
     final outputFile = File(p.join(tempDir.path, 'acceptance.png'));
     final adapter = CockpitLinuxCaptureAdapter(
       appId: 'cockpit_demo',
+      processId: 5101,
       captureExecutables: const <String>['gnome-screenshot', 'grim'],
+      windowTargetResolver: ({
+        required appId,
+        required processId,
+        required processRunner,
+        required timeout,
+      }) async {
+        expect(appId, 'cockpit_demo');
+        expect(processId, 5101);
+        return const CockpitLinuxWindowTarget(
+          windowId: '0x02c00007',
+          left: 120,
+          top: 48,
+          width: 900,
+          height: 640,
+        );
+      },
       tempFileFactory: (_) async => outputFile,
       processRunner: (executable, arguments) async {
         invocations.add('$executable ${arguments.join(' ')}');
@@ -55,9 +73,12 @@ void main() {
       contains('screenshots/linux_acceptance_acceptance_'),
     );
     expect(outputFile.readAsStringSync(), 'png-data');
-    expect(invocations.first, contains('wmctrl -xa cockpit_demo'));
-    expect(invocations, contains('gnome-screenshot -f ${outputFile.path}'));
-    expect(invocations, contains('grim ${outputFile.path}'));
+    expect(invocations.first, contains('wmctrl -ia 0x02c00007'));
+    expect(invocations, contains('gnome-screenshot -w -f ${outputFile.path}'));
+    expect(
+      invocations,
+      contains('grim -g 120,48 900x640 ${outputFile.path}'),
+    );
   });
 
   test('linux capture adapter reports failure when no screenshot tool works',

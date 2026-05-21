@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
+import 'package:flutter_cockpit_devtools/src/platform/macos/cockpit_macos_window_target.dart';
 import 'package:flutter_cockpit_devtools/src/recording/cockpit_macos_recording_adapter.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
@@ -581,6 +582,106 @@ exit 0
       expect(
         File(secondResult.sourceFilePath!).readAsStringSync(),
         'retry-macos-video',
+      );
+    },
+  );
+
+  test(
+    'macos recording adapter selects the capture screen that matches the target window coordinates',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_macos_recording_adapter_display_selection',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final ffmpegExecutable = await _writeExecutable(
+        directory: tempDir,
+        name: 'ffmpeg',
+        body: r'''
+#!/bin/sh
+script_dir="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
+log_file="$script_dir/ffmpeg.log"
+printf '%s\n' "$*" >> "$log_file"
+if printf '%s' "$*" | grep -q -- '-list_devices true'; then
+  cat <<'EOF' >&2
+[AVFoundation indev @ 0x111] AVFoundation video devices:
+[AVFoundation indev @ 0x111] [0] Capture screen 0 1440x900 @ 0,0
+[AVFoundation indev @ 0x111] [1] Capture screen 1 2560x1440 @ 1440,0
+EOF
+  exit 0
+fi
+output_path=""
+for arg in "$@"; do
+  output_path="$arg"
+done
+printf 'Press [q] to stop\n' >&2
+trap 'printf "display-selected-video" > "$output_path"; exit 0' INT
+while true; do
+  sleep 1
+done
+''',
+      );
+
+      final osascriptExecutable = await _writeExecutable(
+        directory: tempDir,
+        name: 'osascript',
+        body: r'''
+#!/bin/sh
+exit 0
+''',
+      );
+
+      final adapter = CockpitMacosRecordingAdapter(
+        appId: 'dev.cockpit.cockpitDemo',
+        ffmpegExecutable: ffmpegExecutable.path,
+        osascriptExecutable: osascriptExecutable.path,
+        windowTargetResolver: ({
+          required appId,
+          required osascriptExecutable,
+          required processRunner,
+          required timeout,
+          required activationSettleDelay,
+        }) async {
+          return const CockpitMacosWindowTarget(
+            left: 1680,
+            top: 120,
+            width: 1280,
+            height: 720,
+          );
+        },
+        startupTimeout: const Duration(seconds: 2),
+        stopTimeout: const Duration(seconds: 2),
+        finalizationPollInterval: const Duration(milliseconds: 10),
+        ffprobeProcessRunner: (executable, arguments) async => ProcessResult(
+          0,
+          0,
+          '{"format":{"duration":"2.000"},"streams":[{"codec_type":"video","nb_frames":"40"}]}',
+          '',
+        ),
+      );
+
+      final session = await adapter.startRecording(
+        const CockpitRecordingRequest(
+          purpose: CockpitRecordingPurpose.acceptance,
+          name: 'host-macos-display-selection',
+          attachToStep: true,
+        ),
+      );
+      final result = await adapter.stopRecording();
+
+      expect(session.state, CockpitRecordingState.recording);
+      expect(result.state, CockpitRecordingState.completed);
+      expect(
+        File(result.sourceFilePath!).readAsStringSync(),
+        'display-selected-video',
+      );
+      expect(
+        File(p.join(tempDir.path, 'ffmpeg.log')).readAsStringSync(),
+        contains('-i 1:none'),
       );
     },
   );

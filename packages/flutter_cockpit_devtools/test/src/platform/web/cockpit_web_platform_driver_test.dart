@@ -6,7 +6,7 @@ void main() {
   test(
       'web platform driver reports browser DOM inspection but not device shell',
       () async {
-    final driver = CockpitWebPlatformDriver();
+    final driver = CockpitWebPlatformDriver(deviceId: 'chrome');
 
     final profile = await driver.describeCapabilities();
 
@@ -30,7 +30,7 @@ void main() {
     );
     expect(
       profile.evidenceCapabilities,
-      contains(CockpitEvidenceCapability.windowCapture),
+      isNot(contains(CockpitEvidenceCapability.windowCapture)),
     );
     expect(
       profile.evidenceCapabilities,
@@ -43,6 +43,27 @@ void main() {
     expect(
       profile.qualityFlags,
       contains(CockpitQualityFlag.requiresBrowserDriver),
+    );
+  });
+
+  test(
+      'web platform driver does not advertise host recording for unsupported browsers',
+      () async {
+    final driver = CockpitWebPlatformDriver(deviceId: 'safari');
+
+    final profile = await driver.describeCapabilities();
+
+    expect(
+      profile.actionCapabilities,
+      isNot(contains(CockpitActionCapability.startRecording)),
+    );
+    expect(
+      profile.actionCapabilities,
+      isNot(contains(CockpitActionCapability.stopRecording)),
+    );
+    expect(
+      profile.evidenceCapabilities,
+      isNot(contains(CockpitEvidenceCapability.screenRecording)),
     );
   });
 }

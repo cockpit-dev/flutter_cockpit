@@ -4,12 +4,14 @@ import 'dart:io';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
+import '../platform/windows/cockpit_windows_window_target.dart';
 import 'cockpit_host_recording_adapter.dart';
 
 final class CockpitWindowsRecordingAdapter
     implements CockpitHostRecordingAdapter {
   CockpitWindowsRecordingAdapter({
     required String appId,
+    int? processId,
     String ffmpegExecutable = 'ffmpeg',
     String powershellExecutable = 'powershell',
     CockpitRecordingProcessStarter processStarter = Process.start,
@@ -17,18 +19,22 @@ final class CockpitWindowsRecordingAdapter
     CockpitRecordingProcessRunner? ffprobeProcessRunner,
     CockpitRecordingTempFileFactory tempFileFactory =
         cockpitCreateRecordingTempFile,
+    CockpitWindowsWindowResolver windowResolver =
+        cockpitResolveWindowsWindowTarget,
     Duration startupTimeout = const Duration(seconds: 12),
     Duration startupEvidenceTimeout = const Duration(seconds: 2),
     Duration stopTimeout = const Duration(seconds: 10),
     Duration finalizationPollInterval = const Duration(milliseconds: 100),
     Duration activationSettleDelay = const Duration(milliseconds: 250),
   })  : _appId = appId,
+        _processId = processId,
         _ffmpegExecutable = ffmpegExecutable,
         _powershellExecutable = powershellExecutable,
         _processStarter = processStarter,
         _processRunner = processRunner,
         _ffprobeProcessRunner = ffprobeProcessRunner ?? processRunner,
         _tempFileFactory = tempFileFactory,
+        _windowResolver = windowResolver,
         _startupTimeout = startupTimeout,
         _startupEvidenceTimeout = startupEvidenceTimeout,
         _stopTimeout = stopTimeout,
@@ -36,12 +42,14 @@ final class CockpitWindowsRecordingAdapter
         _activationSettleDelay = activationSettleDelay;
 
   final String _appId;
+  final int? _processId;
   final String _ffmpegExecutable;
   final String _powershellExecutable;
   final CockpitRecordingProcessStarter _processStarter;
   final CockpitRecordingProcessRunner _processRunner;
   final CockpitRecordingProcessRunner _ffprobeProcessRunner;
   final CockpitRecordingTempFileFactory _tempFileFactory;
+  final CockpitWindowsWindowResolver _windowResolver;
   final Duration _startupTimeout;
   final Duration _startupEvidenceTimeout;
   final Duration _stopTimeout;
@@ -54,7 +62,7 @@ final class CockpitWindowsRecordingAdapter
   StreamSubscription<String>? _stderrSubscription;
   Stopwatch? _stopwatch;
 
-  String get _sessionCacheKey => 'windows:$_appId';
+  String get _sessionCacheKey => 'windows:${_processId ?? _appId}';
 
   @override
   Future<CockpitRecordingSession> startRecording(
@@ -65,7 +73,14 @@ final class CockpitWindowsRecordingAdapter
       throw StateError('A Windows recording is already active.');
     }
 
-    await _bestEffortActivateApp();
+    final windowTarget = await _windowResolver(
+      appId: _appId,
+      processId: _processId,
+      powershellExecutable: _powershellExecutable,
+      processRunner: _processRunner,
+      timeout: _startupTimeout,
+      activationSettleDelay: _activationSettleDelay,
+    );
 
     final outputFile = await _tempFileFactory(
       cockpitRecordingFileName(request.name),
@@ -84,7 +99,7 @@ final class CockpitWindowsRecordingAdapter
       '-draw_mouse',
       '1',
       '-i',
-      'desktop',
+      'hwnd=${windowTarget.handle}',
       '-vf',
       'format=yuv420p',
       '-c:v',
@@ -254,21 +269,6 @@ final class CockpitWindowsRecordingAdapter
     return cockpitReadActiveHostRecordingSession(_sessionCacheKey);
   }
 
-  Future<void> _bestEffortActivateApp() async {
-    try {
-      await _processRunner(_powershellExecutable, <String>[
-        '-NoProfile',
-        '-NonInteractive',
-        '-Command',
-        _activationScript,
-        _appId,
-        _activationSettleDelay.inMilliseconds.toString(),
-      ]).timeout(_startupTimeout);
-    } on Object {
-      // Activation is best-effort only on desktop hosts.
-    }
-  }
-
   Future<bool> _requestGracefulStop(Process process) async {
     try {
       process.stdin.writeln('q');
@@ -342,18 +342,6 @@ final class CockpitWindowsRecordingAdapter
       return null;
     }
   }
-
-  static const String _activationScript = r'''
-Add-Type -AssemblyName Microsoft.VisualBasic
-$appId = $args[0]
-$settleMs = [int]$args[1]
-try {
-  [Microsoft.VisualBasic.Interaction]::AppActivate($appId) | Out-Null
-} catch {}
-if ($settleMs -gt 0) {
-  Start-Sleep -Milliseconds $settleMs
-}
-''';
 
   void _appendRecentStderrLine(List<String> buffer, String line) {
     final trimmed = line.trim();

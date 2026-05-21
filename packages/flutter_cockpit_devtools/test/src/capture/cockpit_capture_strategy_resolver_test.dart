@@ -100,12 +100,18 @@ void main() {
       () {
     final remoteAdapter = _FakeCaptureAdapter();
     final windowsAdapter = _FakeCaptureAdapter();
+    String? capturedAppId;
+    int? capturedProcessId;
     final resolver = CockpitCaptureStrategyResolver(
       remoteAdapterFactory: (client) => remoteAdapter,
       adbAdapterFactory: (deviceId) => _FakeCaptureAdapter(),
       simctlAdapterFactory: (deviceId) => _FakeCaptureAdapter(),
       macosAdapterFactory: (appId) => _FakeCaptureAdapter(),
-      windowsAdapterFactory: (appId) => windowsAdapter,
+      windowsAdapterFactory: (appId, {processId}) {
+        capturedAppId = appId;
+        capturedProcessId = processId;
+        return windowsAdapter;
+      },
     );
 
     final adapter = resolver.resolve(
@@ -119,6 +125,7 @@ void main() {
         projectDir: '/workspace/examples/cockpit_demo',
         target: 'cockpit/main.dart',
         appId: 'cockpit_demo',
+        processId: 4101,
         host: '127.0.0.1',
         hostPort: 47331,
         devicePort: 47331,
@@ -128,17 +135,25 @@ void main() {
     );
 
     expect(adapter, isA<CockpitHostPreferredCaptureAdapter>());
+    expect(capturedAppId, 'cockpit_demo');
+    expect(capturedProcessId, 4101);
   });
 
   test('uses host-preferred capture on linux when an app id is available', () {
     final remoteAdapter = _FakeCaptureAdapter();
     final linuxAdapter = _FakeCaptureAdapter();
+    String? capturedAppId;
+    int? capturedProcessId;
     final resolver = CockpitCaptureStrategyResolver(
       remoteAdapterFactory: (client) => remoteAdapter,
       adbAdapterFactory: (deviceId) => _FakeCaptureAdapter(),
       simctlAdapterFactory: (deviceId) => _FakeCaptureAdapter(),
       macosAdapterFactory: (appId) => _FakeCaptureAdapter(),
-      linuxAdapterFactory: (appId) => linuxAdapter,
+      linuxAdapterFactory: (appId, {processId}) {
+        capturedAppId = appId;
+        capturedProcessId = processId;
+        return linuxAdapter;
+      },
     );
 
     final adapter = resolver.resolve(
@@ -152,6 +167,7 @@ void main() {
         projectDir: '/workspace/examples/cockpit_demo',
         target: 'cockpit/main.dart',
         appId: 'cockpit_demo',
+        processId: 5101,
         host: '127.0.0.1',
         hostPort: 47331,
         devicePort: 47331,
@@ -161,6 +177,8 @@ void main() {
     );
 
     expect(adapter, isA<CockpitHostPreferredCaptureAdapter>());
+    expect(capturedAppId, 'cockpit_demo');
+    expect(capturedProcessId, 5101);
   });
 
   test('falls back to remote capture when no host context is available', () {

@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
+import '../platform/macos/cockpit_macos_window_target.dart';
 import 'cockpit_host_capture_adapter.dart';
 
 final class CockpitMacosCaptureAdapter implements CockpitHostCaptureAdapter {
@@ -13,6 +14,8 @@ final class CockpitMacosCaptureAdapter implements CockpitHostCaptureAdapter {
     CockpitCaptureProcessRunner processRunner = Process.run,
     CockpitCaptureTempFileFactory tempFileFactory =
         cockpitCreateCaptureTempFile,
+    CockpitMacosWindowTargetResolver windowTargetResolver =
+        cockpitResolveMacosWindowTarget,
     Duration timeout = const Duration(seconds: 5),
     Duration activationSettleDelay = const Duration(milliseconds: 250),
   })  : _appId = appId,
@@ -20,6 +23,7 @@ final class CockpitMacosCaptureAdapter implements CockpitHostCaptureAdapter {
         _screencaptureExecutable = screencaptureExecutable,
         _processRunner = processRunner,
         _tempFileFactory = tempFileFactory,
+        _windowTargetResolver = windowTargetResolver,
         _timeout = timeout,
         _activationSettleDelay = activationSettleDelay;
 
@@ -28,6 +32,7 @@ final class CockpitMacosCaptureAdapter implements CockpitHostCaptureAdapter {
   final String _screencaptureExecutable;
   final CockpitCaptureProcessRunner _processRunner;
   final CockpitCaptureTempFileFactory _tempFileFactory;
+  final CockpitMacosWindowTargetResolver _windowTargetResolver;
   final Duration _timeout;
   final Duration _activationSettleDelay;
 
@@ -53,13 +58,22 @@ final class CockpitMacosCaptureAdapter implements CockpitHostCaptureAdapter {
     }
 
     try {
-      await _activateApp();
-      if (_activationSettleDelay > Duration.zero) {
-        await Future<void>.delayed(_activationSettleDelay);
-      }
+      final windowTarget = await _windowTargetResolver(
+        appId: _appId,
+        osascriptExecutable: _osascriptExecutable,
+        processRunner: _processRunner,
+        timeout: _timeout,
+        activationSettleDelay: _activationSettleDelay,
+      );
       final result = await _processRunner(
         _screencaptureExecutable,
-        <String>['-x', '-o', outputFile.path],
+        <String>[
+          '-x',
+          '-o',
+          '-R',
+          '${windowTarget.left},${windowTarget.top},${windowTarget.width},${windowTarget.height}',
+          outputFile.path,
+        ],
       ).timeout(_timeout);
       stopwatch.stop();
 
@@ -98,6 +112,17 @@ final class CockpitMacosCaptureAdapter implements CockpitHostCaptureAdapter {
         message: 'macOS screencapture timed out.',
         details: <String, Object?>{'appId': _appId},
       );
+    } on StateError catch (error) {
+      stopwatch.stop();
+      return cockpitFailedCaptureExecution(
+        command: command,
+        durationMs: stopwatch.elapsedMilliseconds,
+        message: 'macOS host screenshot failed.',
+        details: <String, Object?>{
+          'appId': _appId,
+          'error': error.toString(),
+        },
+      );
     } on Object catch (error) {
       stopwatch.stop();
       return cockpitFailedCaptureExecution(
@@ -108,18 +133,6 @@ final class CockpitMacosCaptureAdapter implements CockpitHostCaptureAdapter {
           'appId': _appId,
           'error': error.toString(),
         },
-      );
-    }
-  }
-
-  Future<void> _activateApp() async {
-    final result = await _processRunner(_osascriptExecutable, <String>[
-      '-e',
-      'tell application id "$_appId" to activate',
-    ]);
-    if (result.exitCode != 0) {
-      throw StateError(
-        'Unable to activate macOS app $_appId: ${result.stderr ?? result.stdout}',
       );
     }
   }
