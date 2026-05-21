@@ -79,4 +79,50 @@ void main() {
     expect(result.status.state, 'stopped');
     expect(result.status.remoteSessionReachable, isFalse);
   });
+
+  test(
+    'stop app fails fast for physical iOS automation apps without a resolved bundle id',
+    () async {
+      var stopCalls = 0;
+      var probeCalls = 0;
+      final service = CockpitStopAppService(
+        stopAutomation: (_) async {
+          stopCalls += 1;
+        },
+        probeReachability: (_) async {
+          probeCalls += 1;
+          return true;
+        },
+      );
+
+      await expectLater(
+        () => service.stop(
+          CockpitStopAppRequest(
+            app: CockpitAppHandle(
+              appId: 'remote-session-1',
+              mode: CockpitAppMode.automation,
+              platform: 'ios',
+              deviceId: '00008110-0009341C2EF3801E',
+              projectDir: '/workspace/examples/cockpit_demo',
+              target: 'cockpit/main.dart',
+              baseUrl: 'http://[fd69:8f18:f0a9::1]:57331',
+              launchedAt: DateTime.utc(2026, 5, 10),
+            ),
+          ),
+        ),
+        throwsA(
+          isA<CockpitApplicationServiceException>()
+              .having((error) => error.code, 'code', 'missingPlatformAppId')
+              .having(
+                (error) => error.details['deviceId'],
+                'deviceId',
+                '00008110-0009341C2EF3801E',
+              ),
+        ),
+      );
+
+      expect(stopCalls, 0);
+      expect(probeCalls, 0);
+    },
+  );
 }

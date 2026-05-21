@@ -104,7 +104,7 @@ final class LaunchAppCommand extends CockpitCliCommand {
 
   @override
   String get helpWrites =>
-      'The command result JSON. The reusable app handle is always written to the current workspace at .dart_tool/flutter_cockpit/latest_app.json, and --app-json can mirror it elsewhere for cross-directory follow-up steps.';
+      'The command result JSON. If --app-json is omitted, launch-app writes the reusable app handle to .dart_tool/flutter_cockpit/latest_app.json in the current workspace. When --app-json is provided, that explicit path is written instead.';
 
   @override
   Future<int> run() async {

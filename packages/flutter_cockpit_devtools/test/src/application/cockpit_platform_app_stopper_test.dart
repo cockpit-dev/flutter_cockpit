@@ -46,6 +46,7 @@ void main() {
         target: 'cockpit/main.dart',
         baseUrl: 'http://[fd69:8f18:f0a9::1]:57331',
         launchedAt: DateTime.utc(2026, 4, 15),
+        platformAppId: 'dev.example.target',
       ),
     );
 
@@ -59,6 +60,40 @@ void main() {
       invocations.where((command) => command.contains('simctl terminate')),
       isEmpty,
     );
+  });
+
+  test(
+      'does not attempt physical iOS termination when platform bundle id is unknown',
+      () async {
+    final invocations = <String>[];
+    final stopper = CockpitPlatformAppStopper(
+      processRunner: (executable, arguments) async {
+        invocations.add('$executable ${arguments.join(' ')}');
+        return ProcessResult(0, 0, '', '');
+      },
+      iosDeviceProcessTerminator: CockpitIosDeviceProcessTerminator(
+        processRunner: (executable, arguments,
+            {String? workingDirectory}) async {
+          invocations.add('$executable ${arguments.join(' ')}');
+          return ProcessResult(0, 0, '', '');
+        },
+      ),
+    );
+
+    await stopper.stop(
+      CockpitAppHandle(
+        appId: 'remote-session-1',
+        mode: CockpitAppMode.automation,
+        platform: 'ios',
+        deviceId: '00008110-0009341C2EF3801E',
+        projectDir: '/workspace/app',
+        target: 'cockpit/main.dart',
+        baseUrl: 'http://[fd69:8f18:f0a9::1]:57331',
+        launchedAt: DateTime.utc(2026, 4, 15),
+      ),
+    );
+
+    expect(invocations, isEmpty);
   });
 
   test('fails fast for unsupported web automation stops', () {
@@ -87,6 +122,66 @@ void main() {
               'stopApp',
             ),
       ),
+    );
+  });
+
+  test('uses process id for windows automation apps when available', () async {
+    final invocations = <String>[];
+    final stopper = CockpitPlatformAppStopper(
+      processRunner: (executable, arguments) async {
+        invocations.add('$executable ${arguments.join(' ')}');
+        return ProcessResult(0, 0, '', '');
+      },
+    );
+
+    await stopper.stop(
+      CockpitAppHandle(
+        appId: 'cockpit_demo',
+        mode: CockpitAppMode.automation,
+        platform: 'windows',
+        deviceId: 'windows',
+        projectDir: '/workspace/app',
+        target: 'cockpit/main.dart',
+        baseUrl: 'http://127.0.0.1:57331',
+        launchedAt: DateTime.utc(2026, 4, 17),
+        processId: 4101,
+      ),
+    );
+
+    expect(invocations, contains('taskkill /PID 4101 /T /F'));
+    expect(
+      invocations.where((command) => command.contains('/IM cockpit_demo.exe')),
+      isEmpty,
+    );
+  });
+
+  test('uses process id for linux automation apps when available', () async {
+    final invocations = <String>[];
+    final stopper = CockpitPlatformAppStopper(
+      processRunner: (executable, arguments) async {
+        invocations.add('$executable ${arguments.join(' ')}');
+        return ProcessResult(0, 0, '', '');
+      },
+    );
+
+    await stopper.stop(
+      CockpitAppHandle(
+        appId: 'cockpit_demo',
+        mode: CockpitAppMode.automation,
+        platform: 'linux',
+        deviceId: 'linux',
+        projectDir: '/workspace/app',
+        target: 'cockpit/main.dart',
+        baseUrl: 'http://127.0.0.1:57331',
+        launchedAt: DateTime.utc(2026, 4, 17),
+        processId: 5101,
+      ),
+    );
+
+    expect(invocations, contains('kill -TERM 5101'));
+    expect(
+      invocations.where((command) => command.contains('pkill -x cockpit_demo')),
+      isEmpty,
     );
   });
 }
