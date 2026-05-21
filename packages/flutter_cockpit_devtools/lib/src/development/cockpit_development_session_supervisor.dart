@@ -129,7 +129,6 @@ final class CockpitDevelopmentSessionSupervisor {
     CockpitRemoteSessionHandle remoteSessionHandle,
   ) async {
     _handle = _handle.copyWith(
-      appId: remoteSessionHandle.appId,
       appBaseUrl: remoteSessionHandle.baseUrl,
       remoteSessionHandle: remoteSessionHandle,
     );
@@ -152,7 +151,6 @@ final class CockpitDevelopmentSessionSupervisor {
     final remoteSessionHandle = fallbackError?.remoteSessionHandle;
     if (remoteSessionHandle != null) {
       _handle = _handle.copyWith(
-        appId: remoteSessionHandle.appId,
         appBaseUrl: remoteSessionHandle.baseUrl,
         remoteSessionHandle: remoteSessionHandle,
       );
@@ -236,7 +234,7 @@ final class CockpitDevelopmentSessionSupervisor {
   }) async {
     _explicitStopRequested = true;
     _log('stop requested close_control_plane=$closeControlPlane');
-    final remoteAppId = _handle.remoteSessionHandle?.appId;
+    final remoteAppId = _handle.remoteSessionHandle?.effectivePlatformAppId;
     final machineClient = _machineClient;
     if (machineClient != null) {
       try {
@@ -428,7 +426,7 @@ final class CockpitDevelopmentSessionSupervisor {
   }
 
   bool get _canProbeRemoteSession {
-    return _handle.remoteSessionHandle != null && _handle.appId.isNotEmpty;
+    return _handle.remoteSessionHandle != null;
   }
 
   Future<CockpitFlutterRunMachineClient?> _ensureMachineClientConnected({
