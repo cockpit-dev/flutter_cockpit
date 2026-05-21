@@ -437,6 +437,10 @@ void main() {
         result.capabilityProfile.evidenceCapabilities,
         isNot(contains(CockpitEvidenceCapability.screenRecording)),
       );
+      expect(
+        result.whatMatters,
+        contains('Native recording requires iOS 14 or newer.'),
+      );
     },
   );
 }
