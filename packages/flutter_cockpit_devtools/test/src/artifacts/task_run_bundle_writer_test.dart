@@ -267,6 +267,110 @@ void main() {
   });
 
   test(
+    'rejects manifest artifact refs outside their expected evidence directory',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_bundle_invalid_manifest_ref',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final writer = TaskRunBundleWriter();
+      final bundle = CockpitContextBundle(
+        manifest: CockpitRunManifest(
+          sessionId: 'session-invalid-manifest-ref',
+          taskId: 'task-invalid-manifest-ref',
+          platform: 'android',
+          status: CockpitTaskStatus.completed,
+          startedAt: DateTime.utc(2026, 3, 20, 8),
+          finishedAt: DateTime.utc(2026, 3, 20, 8, 1),
+          artifactRefs: const <CockpitArtifactRef>[
+            CockpitArtifactRef(
+              role: 'screenshot',
+              relativePath: 'recordings/not_a_screenshot.mp4',
+            ),
+          ],
+        ),
+        environment: const CockpitEnvironment(
+          platform: 'android',
+          flutterVersion: '3.38.9',
+          dartVersion: '3.10.8',
+        ),
+        steps: const <CockpitStepRecord>[],
+        observations: const <CockpitObservation>[],
+        acceptanceMarkdown: '# Acceptance\n\nDone.',
+        handoff: const <String, Object?>{'status': 'completed'},
+      );
+
+      await expectLater(
+        writer.writeBundle(bundle: bundle, outputRoot: tempDir.path),
+        throwsA(
+          isA<ArgumentError>().having(
+            (error) => error.message,
+            'message',
+            contains(
+              'Manifest artifact refs must stay under their expected evidence directory.',
+            ),
+          ),
+        ),
+      );
+    },
+  );
+
+  test('rejects manifest artifact refs that are missing from the bundle',
+      () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'cockpit_bundle_missing_manifest_artifact',
+    );
+    addTearDown(() async {
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    final writer = TaskRunBundleWriter();
+    final bundle = CockpitContextBundle(
+      manifest: CockpitRunManifest(
+        sessionId: 'session-missing-manifest-artifact',
+        taskId: 'task-missing-manifest-artifact',
+        platform: 'android',
+        status: CockpitTaskStatus.completed,
+        startedAt: DateTime.utc(2026, 3, 20, 8),
+        finishedAt: DateTime.utc(2026, 3, 20, 8, 1),
+        artifactRefs: const <CockpitArtifactRef>[
+          CockpitArtifactRef(
+            role: 'screenshot',
+            relativePath: 'screenshots/missing_acceptance.png',
+          ),
+        ],
+      ),
+      environment: const CockpitEnvironment(
+        platform: 'android',
+        flutterVersion: '3.38.9',
+        dartVersion: '3.10.8',
+      ),
+      steps: const <CockpitStepRecord>[],
+      observations: const <CockpitObservation>[],
+      acceptanceMarkdown: '# Acceptance\n\nDone.',
+      handoff: const <String, Object?>{'status': 'completed'},
+    );
+
+    await expectLater(
+      writer.writeBundle(bundle: bundle, outputRoot: tempDir.path),
+      throwsA(
+        isA<StateError>().having(
+          (error) => error.message,
+          'message',
+          contains('Manifest artifact file does not exist'),
+        ),
+      ),
+    );
+  });
+
+  test(
     'writes delivery.json with bundle-local screenshot references',
     () async {
       final tempDir = await Directory.systemTemp.createTemp(
@@ -314,6 +418,9 @@ void main() {
       final outputDir = await writer.writeBundle(
         bundle: bundle,
         outputRoot: tempDir.path,
+        artifactPayloads: <String, List<int>>{
+          artifact.relativePath: const <int>[137, 80, 78, 71],
+        },
       );
 
       final deliveryJson = jsonDecode(
@@ -326,6 +433,221 @@ void main() {
       expect((deliveryJson['attachmentRefs'] as List<Object?>).cast<String>(), [
         artifact.relativePath,
       ]);
+    },
+  );
+
+  test('rejects delivery screenshot refs that are missing from the bundle',
+      () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'cockpit_bundle_missing_delivery_artifact',
+    );
+    addTearDown(() async {
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    final writer = TaskRunBundleWriter();
+    final bundle = CockpitContextBundle(
+      manifest: CockpitRunManifest(
+        sessionId: 'session-missing-delivery-artifact',
+        taskId: 'task-missing-delivery-artifact',
+        platform: 'ios',
+        status: CockpitTaskStatus.completed,
+        startedAt: DateTime.utc(2026, 3, 20, 8),
+        finishedAt: DateTime.utc(2026, 3, 20, 8, 2),
+        artifactRefs: const <CockpitArtifactRef>[],
+        nativeScreenshotCount: 1,
+        deliveryArtifactsReady: true,
+      ),
+      environment: const CockpitEnvironment(
+        platform: 'ios',
+        flutterVersion: '3.38.9',
+        dartVersion: '3.10.8',
+      ),
+      steps: const <CockpitStepRecord>[],
+      observations: const <CockpitObservation>[],
+      acceptanceMarkdown: '# Acceptance\n\nDelivered.',
+      handoff: const <String, Object?>{'status': 'completed'},
+      delivery: const <String, Object?>{
+        'summary': 'Ready for user delivery',
+        'primaryScreenshotRef': 'screenshots/missing_acceptance.png',
+        'attachmentRefs': <String>['screenshots/missing_acceptance.png'],
+        'deliveryArtifactsReady': true,
+      },
+    );
+
+    await expectLater(
+      writer.writeBundle(bundle: bundle, outputRoot: tempDir.path),
+      throwsA(
+        isA<StateError>().having(
+          (error) => error.message,
+          'message',
+          contains('Delivery artifact file does not exist'),
+        ),
+      ),
+    );
+  });
+
+  test(
+    'rejects delivery keyframe refs outside keyframe artifacts',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_bundle_invalid_keyframe_ref',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final writer = TaskRunBundleWriter(
+        keyframeExtractor: const _InvalidKeyframeExtractor(
+          keyframeRef: 'screenshots/not_a_keyframe.png',
+        ),
+      );
+      final recordingArtifact = const CockpitArtifactRef(
+        role: 'recording',
+        relativePath: 'recordings/home_acceptance.mp4',
+      );
+      final sourceFile = File(p.join(tempDir.path, 'temp_recording.mp4'));
+      await sourceFile.writeAsBytes(const <int>[0, 1, 2, 3, 4]);
+      final startedAt = DateTime.utc(2026, 3, 22, 6, 0, 0);
+      final bundle = CockpitContextBundle(
+        manifest: CockpitRunManifest(
+          sessionId: 'session-invalid-keyframe-ref',
+          taskId: 'task-invalid-keyframe-ref',
+          platform: 'android',
+          status: CockpitTaskStatus.completed,
+          startedAt: startedAt,
+          finishedAt: startedAt.add(const Duration(seconds: 2)),
+          artifactRefs: <CockpitArtifactRef>[recordingArtifact],
+          recordingCount: 1,
+          deliveryVideoReady: true,
+        ),
+        environment: const CockpitEnvironment(
+          platform: 'android',
+          flutterVersion: '3.38.9',
+          dartVersion: '3.10.8',
+        ),
+        steps: <CockpitStepRecord>[
+          CockpitStepRecord(
+            index: 0,
+            actionType: 'recording_started',
+            actionArgs: const <String, Object?>{
+              'recordingPurpose': 'acceptance',
+            },
+            observedAt: startedAt,
+          ),
+        ],
+        observations: const <CockpitObservation>[],
+        acceptanceMarkdown: '# Acceptance\n\nRecorded.',
+        handoff: const <String, Object?>{'status': 'completed'},
+        delivery: const <String, Object?>{
+          'primaryRecordingRef': 'recordings/home_acceptance.mp4',
+          'videoAttachmentRefs': <String>['recordings/home_acceptance.mp4'],
+          'deliveryVideoReady': true,
+        },
+      );
+
+      await expectLater(
+        writer.writeBundle(
+          bundle: bundle,
+          outputRoot: tempDir.path,
+          artifactSourcePaths: <String, String>{
+            recordingArtifact.relativePath: sourceFile.path,
+          },
+        ),
+        throwsA(
+          isA<ArgumentError>().having(
+            (error) => error.message,
+            'message',
+            contains('Delivery keyframe refs must stay under keyframes/'),
+          ),
+        ),
+      );
+    },
+  );
+
+  test(
+    'rejects delivery keyframe linked screenshot refs outside screenshot artifacts',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_bundle_invalid_keyframe_linked_screenshot',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final writer = TaskRunBundleWriter(
+        keyframeExtractor: const _InvalidKeyframeExtractor(
+          linkedScreenshotRef: 'recordings/not_a_screenshot.mp4',
+        ),
+      );
+      final recordingArtifact = const CockpitArtifactRef(
+        role: 'recording',
+        relativePath: 'recordings/home_acceptance.mp4',
+      );
+      final sourceFile = File(p.join(tempDir.path, 'temp_recording.mp4'));
+      await sourceFile.writeAsBytes(const <int>[0, 1, 2, 3, 4]);
+      final startedAt = DateTime.utc(2026, 3, 22, 6, 0, 0);
+      final bundle = CockpitContextBundle(
+        manifest: CockpitRunManifest(
+          sessionId: 'session-invalid-keyframe-link',
+          taskId: 'task-invalid-keyframe-link',
+          platform: 'android',
+          status: CockpitTaskStatus.completed,
+          startedAt: startedAt,
+          finishedAt: startedAt.add(const Duration(seconds: 2)),
+          artifactRefs: <CockpitArtifactRef>[recordingArtifact],
+          recordingCount: 1,
+          deliveryVideoReady: true,
+        ),
+        environment: const CockpitEnvironment(
+          platform: 'android',
+          flutterVersion: '3.38.9',
+          dartVersion: '3.10.8',
+        ),
+        steps: <CockpitStepRecord>[
+          CockpitStepRecord(
+            index: 0,
+            actionType: 'recording_started',
+            actionArgs: const <String, Object?>{
+              'recordingPurpose': 'acceptance',
+            },
+            observedAt: startedAt,
+          ),
+        ],
+        observations: const <CockpitObservation>[],
+        acceptanceMarkdown: '# Acceptance\n\nRecorded.',
+        handoff: const <String, Object?>{'status': 'completed'},
+        delivery: const <String, Object?>{
+          'primaryRecordingRef': 'recordings/home_acceptance.mp4',
+          'videoAttachmentRefs': <String>['recordings/home_acceptance.mp4'],
+          'deliveryVideoReady': true,
+        },
+      );
+
+      await expectLater(
+        writer.writeBundle(
+          bundle: bundle,
+          outputRoot: tempDir.path,
+          artifactSourcePaths: <String, String>{
+            recordingArtifact.relativePath: sourceFile.path,
+          },
+        ),
+        throwsA(
+          isA<ArgumentError>().having(
+            (error) => error.message,
+            'message',
+            contains(
+              'Delivery keyframe linked screenshot refs must stay under screenshots/',
+            ),
+          ),
+        ),
+      );
     },
   );
 
@@ -1490,6 +1812,46 @@ final class _FakeRecordingKeyframeExtractor
       },
       coverage: const CockpitRecordingCoverage(
         durationMs: 8000,
+        hasEarlyCoverage: true,
+        hasMidCoverage: true,
+        hasLateCoverage: true,
+      ),
+    );
+  }
+}
+
+final class _InvalidKeyframeExtractor
+    implements CockpitRecordingKeyframeExtractor {
+  const _InvalidKeyframeExtractor({
+    this.keyframeRef = 'keyframes/home_acceptance_tail.png',
+    this.linkedScreenshotRef,
+  });
+
+  final String keyframeRef;
+  final String? linkedScreenshotRef;
+
+  @override
+  Future<CockpitRecordingKeyframeExtractionResult> extract({
+    required String recordingPath,
+    required String recordingRelativePath,
+    required List<CockpitStepRecord> steps,
+    String? bundleDirectoryPath,
+  }) async {
+    return CockpitRecordingKeyframeExtractionResult(
+      keyframes: <CockpitRecordingKeyframe>[
+        CockpitRecordingKeyframe(
+          relativePath: keyframeRef,
+          label: 'tail_consistency',
+          offsetMs: 1600,
+          source: CockpitRecordingKeyframeSource.tailConsistency,
+          linkedScreenshotRef: linkedScreenshotRef,
+        ),
+      ],
+      artifactPayloads: <String, List<int>>{
+        keyframeRef: const <int>[137, 80, 78, 71],
+      },
+      coverage: const CockpitRecordingCoverage(
+        durationMs: 1800,
         hasEarlyCoverage: true,
         hasMidCoverage: true,
         hasLateCoverage: true,
