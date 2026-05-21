@@ -39,6 +39,22 @@ void main() {
             'emulator': false,
             'sdk': 'macos',
           },
+          <String, Object?>{
+            'id': 'emulator-5554',
+            'name': 'Pixel 8',
+            'targetPlatform': 'android-arm64',
+            'isSupported': true,
+            'emulator': true,
+            'sdk': 'android',
+          },
+          <String, Object?>{
+            'id': 'chrome',
+            'name': 'Chrome',
+            'targetPlatform': 'web-javascript',
+            'isSupported': true,
+            'emulator': false,
+            'sdk': 'web',
+          },
         ]),
       ),
       sdkEnvironment: const CockpitSdkEnvironment(
@@ -49,9 +65,15 @@ void main() {
 
     final result = await service.list();
 
-    expect(result.targets, hasLength(1));
-    expect(result.targets.single.id, 'macos');
-    expect(result.targets.single.platformType, 'darwin');
+    expect(result.targets, hasLength(3));
+    expect(result.targets[0].id, 'macos');
+    expect(result.targets[0].platformType, 'darwin');
+    expect(result.targets[0].platform, 'macos');
+    expect(result.targets[1].platformType, 'android-arm64');
+    expect(result.targets[1].platform, 'android');
+    expect(result.targets[2].platformType, 'web-javascript');
+    expect(result.targets[2].platform, 'web');
+    expect(result.targets[0].toJson()['platform'], 'macos');
   });
 
   test('lists Flutter launch targets when process stdout is UTF-8 bytes',

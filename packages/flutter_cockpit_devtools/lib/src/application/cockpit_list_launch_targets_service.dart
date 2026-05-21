@@ -9,6 +9,7 @@ final class CockpitLaunchTarget {
   const CockpitLaunchTarget({
     required this.id,
     required this.name,
+    required this.platform,
     required this.platformType,
     required this.emulator,
     required this.ephemeral,
@@ -17,6 +18,7 @@ final class CockpitLaunchTarget {
 
   final String id;
   final String name;
+  final String platform;
   final String platformType;
   final bool emulator;
   final bool ephemeral;
@@ -25,6 +27,7 @@ final class CockpitLaunchTarget {
   Map<String, Object?> toJson() => <String, Object?>{
         'id': id,
         'name': name,
+        'platform': platform,
         'platformType': platformType,
         'emulator': emulator,
         'ephemeral': ephemeral,
@@ -118,9 +121,8 @@ final class CockpitListLaunchTargetsService {
           (item) => CockpitLaunchTarget(
             id: item['id'] as String? ?? '',
             name: item['name'] as String? ?? '',
-            platformType: item['targetPlatform'] as String? ??
-                item['platformType'] as String? ??
-                '',
+            platform: _normalizeLaunchPlatform(item),
+            platformType: _rawPlatformType(item),
             emulator: item['emulator'] as bool? ?? false,
             ephemeral: item['ephemeral'] as bool? ?? false,
             sdk: item['sdk'] as String?,
@@ -132,5 +134,39 @@ final class CockpitListLaunchTargetsService {
     return CockpitListLaunchTargetsResult(
       targets: List<CockpitLaunchTarget>.unmodifiable(targets),
     );
+  }
+
+  static String _rawPlatformType(Map<String, Object?> item) {
+    return item['targetPlatform'] as String? ??
+        item['platformType'] as String? ??
+        '';
+  }
+
+  static String _normalizeLaunchPlatform(Map<String, Object?> item) {
+    final sdk = (item['sdk'] as String? ?? '').trim().toLowerCase();
+    if (sdk == 'android' || sdk == 'ios' || sdk == 'macos' || sdk == 'web') {
+      return sdk;
+    }
+
+    final platformType = _rawPlatformType(item).trim().toLowerCase();
+    if (platformType.startsWith('android')) {
+      return 'android';
+    }
+    if (platformType.startsWith('ios')) {
+      return 'ios';
+    }
+    if (platformType == 'darwin' || platformType.startsWith('darwin-')) {
+      return 'macos';
+    }
+    if (platformType.startsWith('web')) {
+      return 'web';
+    }
+    if (platformType.startsWith('windows')) {
+      return 'windows';
+    }
+    if (platformType.startsWith('linux')) {
+      return 'linux';
+    }
+    return sdk.isNotEmpty ? sdk : platformType;
   }
 }
