@@ -1,6 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_interactive_result_profile.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_read_remote_status_service.dart';
+import 'package:flutter_cockpit_devtools/src/application/cockpit_session_reference_resolver.dart';
+import 'package:flutter_cockpit_devtools/src/remote/cockpit_android_port_forwarder.dart';
 import 'package:flutter_cockpit_devtools/src/session/cockpit_remote_session_handle.dart';
 import 'package:test/test.dart';
 
@@ -162,6 +166,37 @@ void main() {
       expect(result.currentRouteName, '/settings');
       expect(result.snapshot?.visibleTargets, isNotEmpty);
     });
+
+    test('refreshes android host forwarding before reading status', () async {
+      Uri? capturedBaseUri;
+      final service = CockpitReadRemoteStatusService(
+        sessionReferenceResolver: CockpitSessionReferenceResolver(
+          portForwarder: CockpitAndroidPortForwarder(
+            processRunner: (_, __) async => ProcessResult(
+              0,
+              0,
+              'emulator-5554 tcp:61331 tcp:47331\n',
+              '',
+            ),
+            hostPortAllocator: () async => 61331,
+            hostPortAvailabilityChecker: (_) async => false,
+          ),
+        ),
+        readStatus: (baseUri) async {
+          capturedBaseUri = baseUri;
+          return _status(snapshot: CockpitSnapshot(routeName: '/home'));
+        },
+      );
+
+      await service.read(
+        CockpitReadRemoteStatusRequest(
+          sessionHandle: _androidSessionHandle(),
+          resultProfile: const CockpitInteractiveResultProfile.minimal(),
+        ),
+      );
+
+      expect(capturedBaseUri.toString(), 'http://127.0.0.1:61331');
+    });
   });
 }
 
@@ -193,6 +228,21 @@ CockpitRemoteSessionHandle _sessionHandle() {
   return CockpitRemoteSessionHandle(
     platform: 'macos',
     deviceId: 'macos',
+    projectDir: '/workspace/examples/cockpit_demo',
+    target: 'cockpit/main.dart',
+    appId: 'dev.cockpit.demo',
+    host: '127.0.0.1',
+    hostPort: 47331,
+    devicePort: 47331,
+    baseUrl: 'http://127.0.0.1:47331',
+    launchedAt: DateTime.utc(2026, 3, 30),
+  );
+}
+
+CockpitRemoteSessionHandle _androidSessionHandle() {
+  return CockpitRemoteSessionHandle(
+    platform: 'android',
+    deviceId: 'emulator-5554',
     projectDir: '/workspace/examples/cockpit_demo',
     target: 'cockpit/main.dart',
     appId: 'dev.cockpit.demo',

@@ -23,6 +23,7 @@ import 'package:flutter_cockpit_devtools/src/development/cockpit_development_ses
 import 'package:flutter_cockpit_devtools/src/infrastructure/cockpit_file_system.dart';
 import 'package:flutter_cockpit_devtools/src/infrastructure/cockpit_process_manager.dart';
 import 'package:flutter_cockpit_devtools/src/infrastructure/cockpit_sdk_environment.dart';
+import 'package:flutter_cockpit_devtools/src/session/cockpit_remote_session_handle.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -145,6 +146,22 @@ void main() {
     expect(result.apps, hasLength(1));
     expect(result.apps.single.appId, 'dev.example.app');
     expect(result.apps.single.mode.jsonValue, 'development');
+  });
+
+  test('lists remote apps with the registry readiness state unchanged', () {
+    final registry = CockpitSessionRegistry();
+    registry.recordRemoteSession(
+      handle: _remoteHandle(),
+      status: _remoteStatus(),
+      recommendedNextStep: 'ready_for_commands',
+    );
+
+    final result = CockpitListAppsService(registry: registry).list();
+
+    expect(result.apps, hasLength(1));
+    expect(result.apps.single.appId, 'dev.example.remote');
+    expect(result.apps.single.mode.jsonValue, 'automation');
+    expect(result.apps.single.state, 'ready_for_commands');
   });
 
   test('reads app snapshot logs by app id', () async {
@@ -347,6 +364,31 @@ void main() {
       resolved.app?.developmentSession?.developmentSessionId,
       'dev-session-1',
     );
+  });
+
+  test('preserves remote session details when reading an automation app handle',
+      () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'cockpit_remote_app_handle',
+    );
+    addTearDown(() async {
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    final appFile = File('${tempDir.path}/app.json');
+    await appFile.writeAsString(
+      jsonEncode(CockpitAppHandle.fromRemoteSession(_remoteHandle()).toJson()),
+    );
+
+    final resolved = await CockpitAppReferenceResolver().resolve(
+      appHandlePath: appFile.path,
+    );
+
+    expect(resolved.app?.remoteSession?.appId, 'dev.example.remote');
+    expect(resolved.app?.remoteSession?.hostPort, 57331);
+    expect(resolved.app?.platformAppId, 'dev.example.remote');
   });
 
   test('reads current app runtime errors from an app handle', () async {
@@ -846,6 +888,41 @@ CockpitDevelopmentSessionHandle _developmentHandle() =>
       supervisorBaseUrl: 'http://127.0.0.1:59331',
       launchedAt: DateTime.utc(2026, 3, 30),
       reloadGeneration: 0,
+    );
+
+CockpitRemoteSessionHandle _remoteHandle() => CockpitRemoteSessionHandle(
+      platform: 'macos',
+      deviceId: 'macos',
+      projectDir: '/workspace/app',
+      target: 'cockpit/main.dart',
+      appId: 'dev.example.remote',
+      host: '127.0.0.1',
+      hostPort: 57331,
+      devicePort: 47331,
+      baseUrl: 'http://127.0.0.1:57331',
+      launchedAt: DateTime.utc(2026, 3, 30),
+    );
+
+CockpitRemoteSessionStatus _remoteStatus() => CockpitRemoteSessionStatus(
+      sessionId: 'remote-session-1',
+      platform: 'macos',
+      transportType: 'remoteHttp',
+      currentRouteName: '/home',
+      capabilities: CockpitCapabilities(
+        platform: 'macos',
+        transportType: 'remoteHttp',
+        supportsInAppControl: true,
+        supportsFlutterViewCapture: true,
+        supportsNativeScreenCapture: true,
+        supportsHostAutomation: true,
+        supportedCommands: <CockpitCommandType>[CockpitCommandType.tap],
+        supportedLocatorStrategies: CockpitLocatorKind.values,
+      ),
+      recordingCapabilities: CockpitRecordingCapabilities(
+        supportsNativeRecording: true,
+        preferredAcceptanceRecordingKind: CockpitRecordingKind.nativeScreen,
+      ),
+      snapshot: CockpitSnapshot(routeName: '/home'),
     );
 
 CockpitDevelopmentSessionStatus _developmentStatus({String? lastError}) =>
