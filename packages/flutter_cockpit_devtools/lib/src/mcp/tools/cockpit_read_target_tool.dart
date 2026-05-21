@@ -31,6 +31,7 @@ final class CockpitReadTargetTool extends CockpitMcpTool {
           'targetJson': <String, Object?>{'type': 'string'},
           'appJson': <String, Object?>{'type': 'string'},
           'baseUrl': <String, Object?>{'type': 'string'},
+          'androidDeviceId': <String, Object?>{'type': 'string'},
           'profile': <String, Object?>{'type': 'string'},
           'snapshotOptions': <String, Object?>{'type': 'object'},
         },
@@ -44,6 +45,10 @@ final class CockpitReadTargetTool extends CockpitMcpTool {
           targetHandlePath: cockpitReadOptionalString(arguments, 'targetJson'),
           appHandlePath: cockpitReadOptionalString(arguments, 'appJson'),
           baseUri: _readOptionalBaseUri(arguments),
+          androidDeviceId: cockpitReadOptionalString(
+            arguments,
+            'androidDeviceId',
+          ),
           resultProfile: _readProfile(arguments),
           snapshotOptions: _readOptionalSnapshotOptions(arguments),
         ),
