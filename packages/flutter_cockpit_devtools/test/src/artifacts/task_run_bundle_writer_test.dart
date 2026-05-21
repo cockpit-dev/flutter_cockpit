@@ -1287,6 +1287,71 @@ void main() {
       expect(inlineSnapshot['truncated'], isTrue);
     },
   );
+
+  test(
+    'rejects externalized diagnostics refs outside diagnostics artifacts',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_bundle_invalid_diagnostics_ref',
+      );
+      final writer = TaskRunBundleWriter();
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      const diagnosticsArtifact = CockpitArtifactRef(
+        role: 'diagnostics',
+        relativePath: 'screenshots/not_diagnostics.json',
+      );
+      final bundle = CockpitContextBundle(
+        manifest: CockpitRunManifest(
+          sessionId: 'session-invalid-diagnostics',
+          taskId: 'task-invalid-diagnostics',
+          platform: 'android',
+          status: CockpitTaskStatus.completed,
+          startedAt: DateTime.utc(2026, 3, 20, 8),
+          finishedAt: DateTime.utc(2026, 3, 20, 8, 4),
+          artifactRefs: const <CockpitArtifactRef>[diagnosticsArtifact],
+        ),
+        environment: const CockpitEnvironment(
+          platform: 'android',
+          flutterVersion: '3.38.9',
+          dartVersion: '3.10.8',
+        ),
+        steps: <CockpitStepRecord>[
+          CockpitStepRecord(
+            index: 0,
+            actionType: 'collectSnapshot',
+            actionArgs: const <String, Object?>{},
+            observedAt: DateTime.utc(2026, 3, 20, 8, 1),
+            artifactRefs: const <CockpitArtifactRef>[diagnosticsArtifact],
+            snapshot: CockpitSnapshot(
+              routeName: '/checkout',
+              diagnosticLevel: CockpitSnapshotProfile.forensic,
+              truncated: true,
+              diagnosticsArtifactRef: diagnosticsArtifact,
+            ),
+          ),
+        ],
+        observations: const <CockpitObservation>[],
+        acceptanceMarkdown: '# Acceptance\n\nDiagnosed.',
+        handoff: const <String, Object?>{'status': 'completed'},
+      );
+
+      await expectLater(
+        writer.writeBundle(bundle: bundle, outputRoot: tempDir.path),
+        throwsA(
+          isA<ArgumentError>().having(
+            (error) => error.message,
+            'message',
+            contains('Diagnostics artifact path must stay under diagnostics/'),
+          ),
+        ),
+      );
+    },
+  );
 }
 
 final class _FakeRecordingKeyframeExtractor
