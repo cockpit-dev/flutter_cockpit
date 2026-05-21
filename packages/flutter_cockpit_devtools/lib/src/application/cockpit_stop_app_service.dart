@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 import '../development/cockpit_development_session_status.dart';
+import '../platform/ios/cockpit_ios_device_connection.dart';
 import 'cockpit_app_handle.dart';
 import 'cockpit_app_reference_resolver.dart';
 import 'cockpit_application_service_exception.dart';
@@ -184,6 +185,7 @@ final class CockpitStopAppService {
         message: 'Stop requires a resolved app handle.',
       );
     }
+    _validateAutomationStopSupport(automationApp);
     await _stopAutomation(automationApp);
     final status = await _waitUntilStopped(automationApp);
     final remoteHandle =
@@ -199,6 +201,27 @@ final class CockpitStopAppService {
       app: automationApp,
       status: status,
       appJsonPath: appJsonPath,
+    );
+  }
+
+  void _validateAutomationStopSupport(CockpitAppHandle app) {
+    if (app.platform != 'ios' ||
+        cockpitLooksLikeIosSimulatorDeviceId(app.deviceId)) {
+      return;
+    }
+    final bundleId = app.platformAppId?.trim();
+    if (bundleId != null && bundleId.isNotEmpty) {
+      return;
+    }
+    throw CockpitApplicationServiceException(
+      code: 'missingPlatformAppId',
+      message: 'stop-app requires a resolved iOS bundle identifier for '
+          'physical-device automation sessions.',
+      details: <String, Object?>{
+        'platform': app.platform,
+        'deviceId': app.deviceId,
+        'appId': app.appId,
+      },
     );
   }
 

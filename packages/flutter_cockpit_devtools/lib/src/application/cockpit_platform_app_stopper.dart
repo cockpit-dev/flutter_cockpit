@@ -24,6 +24,7 @@ final class CockpitPlatformAppStopper {
 
   Future<void> stop(CockpitAppHandle app) async {
     final appId = app.platformAppId ?? app.appId;
+    final processId = app.processId;
     if (appId.isEmpty) {
       return;
     }
@@ -47,6 +48,9 @@ final class CockpitPlatformAppStopper {
             appId,
           ]);
         } else {
+          if (app.platformAppId == null || app.platformAppId!.trim().isEmpty) {
+            return;
+          }
           await _bestEffortTerminateIosPhysicalApp(
             deviceId: app.deviceId,
             bundleId: appId,
@@ -58,13 +62,28 @@ final class CockpitPlatformAppStopper {
           'tell application id "$appId" to quit',
         ]);
       case 'windows':
-        await _bestEffortRun('taskkill', <String>[
-          '/IM',
-          '$appId.exe',
-          '/F',
-        ]);
+        await _bestEffortRun(
+          'taskkill',
+          processId == null
+              ? <String>[
+                  '/IM',
+                  '$appId.exe',
+                  '/F',
+                ]
+              : <String>[
+                  '/PID',
+                  '$processId',
+                  '/T',
+                  '/F',
+                ],
+        );
       case 'linux':
-        await _bestEffortRun('pkill', <String>['-x', appId]);
+        await _bestEffortRun(
+          processId == null ? 'pkill' : 'kill',
+          processId == null
+              ? <String>['-x', appId]
+              : <String>['-TERM', '$processId'],
+        );
       case 'web':
         throw const CockpitApplicationServiceException(
           code: 'unsupportedAutomationPlatform',

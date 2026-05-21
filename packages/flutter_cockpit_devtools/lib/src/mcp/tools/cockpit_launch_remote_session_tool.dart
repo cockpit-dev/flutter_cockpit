@@ -87,7 +87,7 @@ final class CockpitLaunchRemoteSessionTool extends CockpitMcpTool {
         handle: result.sessionHandle,
         status: result.health,
         recommendedNextStep: result.health.capabilities.supportsInAppControl
-            ? 'readyForCommands'
+            ? 'ready_for_commands'
             : 'limited_capabilities',
       );
 

@@ -1,6 +1,7 @@
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_application_service_exception.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_launch_remote_session_service.dart';
+import 'package:flutter_cockpit_devtools/src/application/cockpit_session_registry.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/cockpit_mcp_error.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_launch_remote_session_tool.dart';
 import 'package:flutter_cockpit_devtools/src/session/cockpit_remote_session_handle.dart';
@@ -296,5 +297,61 @@ void main() {
       (structuredContent['sessionHandle'] as Map<String, Object?>)['platform'],
       'linux',
     );
+  });
+
+  test('launch tool records remote sessions with normalized readiness state',
+      () async {
+    final registry = CockpitSessionRegistry(
+      now: () => DateTime.utc(2026, 3, 21, 0, 0, 1),
+    );
+    final tool = CockpitLaunchRemoteSessionTool(
+      sessionRegistry: registry,
+      launch: (request) async => CockpitLaunchRemoteSessionResult(
+        sessionHandle: CockpitRemoteSessionHandle(
+          platform: 'windows',
+          deviceId: 'windows',
+          projectDir: request.projectDir,
+          target: request.target ?? 'cockpit/main.dart',
+          appId: 'dev.cockpit.review_demo',
+          host: '127.0.0.1',
+          hostPort: 58421,
+          devicePort: request.sessionPort,
+          baseUrl: 'http://127.0.0.1:58421',
+          launchedAt: DateTime.utc(2026, 3, 21, 0, 0),
+        ),
+        health: CockpitRemoteSessionStatus(
+          sessionId: 'launch-tool-registry',
+          platform: 'windows',
+          transportType: 'remoteHttp',
+          currentRouteName: '/home',
+          capabilities: CockpitCapabilities(
+            platform: 'windows',
+            transportType: 'remoteHttp',
+            supportsInAppControl: true,
+            supportsFlutterViewCapture: true,
+            supportsNativeScreenCapture: true,
+            supportsHostAutomation: true,
+            supportedCommands: <CockpitCommandType>[CockpitCommandType.tap],
+            supportedLocatorStrategies: CockpitLocatorKind.values,
+          ),
+          recordingCapabilities: CockpitRecordingCapabilities(
+            supportsNativeRecording: true,
+            preferredAcceptanceRecordingKind: CockpitRecordingKind.nativeScreen,
+          ),
+          snapshot: CockpitSnapshot(routeName: '/home'),
+        ),
+      ),
+    );
+
+    await tool.call(<String, Object?>{
+      'projectDir': '/workspace/examples/cockpit_demo',
+      'platform': 'windows',
+      'deviceId': 'windows',
+      'sessionPort': 47331,
+    });
+
+    final record = registry.remoteSessionByAppId('dev.cockpit.review_demo');
+    expect(record, isNotNull);
+    expect(record?.recommendedNextStep, 'ready_for_commands');
   });
 }
