@@ -221,8 +221,8 @@ Prefer `--command-file`, `--commands-file`, and `--config-json` once a payload s
 `launch-app` auto-detects `cockpit/main.dart` first, then `lib/main.dart`.
 For code-side questions, prefer `analyze-files`, `lsp`, `grep-package-uris`, `read-package-uris`, and `pub` before workspace-wide commands.
 Serialize mutation, then observation. Do not parallelize `run-command` with the `read-app`, `inspect-ui`, or `read-network` step that depends on its side effects.
-When the next few mutations are already known and the flow will cross route boundaries such as `/inbox -> /editor -> /inbox`, prefer one ordered `run-batch` over separate `run-command` round-trips to reduce token cost and avoid transition gaps between commands.
-When an app summary already exposes workflow counters such as `syncStatus`, `pendingTaskCount`, `failedTaskCount`, and `conflictTaskCount`, prefer those bounded fields before reopening a heavier inspection payload.
+When the next few mutations are already known and the flow will cross route boundaries such as list -> editor -> list, prefer one ordered `run-batch` over separate `run-command` round-trips to reduce token cost and avoid transition gaps between commands.
+When an app summary already exposes bounded workflow counters or state fields, prefer those fields before reopening a heavier inspection payload.
 
 Locators are multi-signal. Start with `text`, `tooltip`, or `semanticId`. Use `key` only when the app already exposes a legitimate stable key for product reasons, then add `route`, `type`, `path`, nested `ancestor`, or short `fallbacks` only when needed. `path` matching is fuzzy and ignores noise such as `body`, `slivers`, and numeric indexes.
 
@@ -264,16 +264,14 @@ Widget buildCockpitDevelopmentApp() {
 Replace `package:your_app/app_shell.dart` with the import that already exposes your app root widget or bootstrap. `launch-app` injects the `FLUTTER_PILOT_REMOTE_*` dart-defines, so `resolveFromEnvironment(...)` enables the remote control surface without taking over the production bootstrap.
 If the existing app already owns `MaterialApp`, wrap that shell with `FlutterCockpitApp` and add `FlutterCockpit.navigatorObserver` to its navigator instead of nesting a second `MaterialApp`.
 
-`examples/cockpit_demo` now includes a repository-owned Sync Lab workflow used to validate queued local edits, mixed sync outcomes, conflict-only filtering, in-product conflict resolution, and retry after resolution.
-
-Run the example loop:
+Run a minimal app loop:
 
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   launch-app \
-  --project-dir examples/cockpit_demo \
-  --platform macos \
-  --device-id macos \
+  --project-dir <project-dir> \
+  --platform <platform> \
+  --device-id <device-id> \
   --app-json /tmp/flutter_cockpit/app.json
 ```
 
@@ -288,17 +286,17 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   run-command \
   --app-json /tmp/flutter_cockpit/app.json \
-  --command-json '{"commandId":"assert-inbox","commandType":"assertText","parameters":{"text":"Inbox"}}'
+  --command-json '{"commandId":"assert-ready","commandType":"assertText","parameters":{"text":"<expected-text>"}}'
 ```
 
-Verified web loop:
+Run the same loop on web with the exact browser device ID reported by `list-targets`:
 
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   launch-app \
-  --project-dir examples/cockpit_demo \
+  --project-dir <project-dir> \
   --platform web \
-  --device-id chrome \
+  --device-id <browser-device-id> \
   --app-json /tmp/flutter_cockpit/web_app.json
 ```
 
@@ -318,34 +316,18 @@ page looks backgrounded, throttled, or still reconnecting.
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   run-command \
   --app-json /tmp/flutter_cockpit/web_app.json \
-  --command-json '{"commandId":"assert-inbox","commandType":"assertText","parameters":{"text":"Inbox"}}'
+  --command-json '{"commandId":"assert-ready","commandType":"assertText","parameters":{"text":"<expected-text>"}}'
 ```
 
 For web, the host keeps the public HTTP session surface stable and runs a `127.0.0.1` bridge that the browser app joins over WebSocket.
 `hot-reload` and `hot-restart` stay available through the development supervisor, while browser recording remains host-driven and depends on the local desktop granting screen-capture permission.
 
-For the repository example, use the built-in live verifier when you need one proof that the full cross-platform dev loop still works end to end:
+For AI-first project validation, keep two verifier tiers:
 
-```bash
-cd examples/cockpit_demo
-dart run tool/verify_platforms.dart --output-json /tmp/cockpit_demo_all_platforms_verification.json
-```
+- A rapid verifier for the normal edit -> reload -> assert loop. It should launch the app, drive one representative production flow, hot reload, assert the changed state, capture one still artifact when useful, read runtime errors, and stop the app. Its JSON should stay compact: completed phases, failed command metadata, final route or state preview, bounded runtime error previews, and artifact refs.
+- A release verifier for the expensive surfaces. It should add recordings, hot restart, network and log reads, target-first inspection, multi-platform coverage, and acceptance or delivery gates.
 
-Without `--platform`, that command runs the local default sweep: macOS, iOS Simulator, and Android Emulator.
-The `runtime-loop` CI workflow invokes the same verifier explicitly on Linux, Windows, and web too, one platform per job, so every shipped runtime platform is exercised through the same full command chain.
-The web job runs on Linux under `xvfb` with Chrome, which keeps browser recording fully covered in CI even when a local macOS host has not granted screen-capture permission yet.
-When the host can run desktop Linux or Windows locally, pass `--platform linux` and `--platform windows` explicitly to extend the sweep beyond the default three platforms.
-When you are validating web locally on macOS and the desktop has not granted screen-capture permission to the terminal, Dart, or `ffmpeg` yet, add `--allow-web-host-recording-prerequisite-failure` to keep the verifier strict for every other command while surfacing host-recording as a structured warning instead of a generic failure.
-
-The verifier validates:
-
-- `launch-app`, `read-app`, `inspect-ui`
-- `run-batch`, `wait-idle`, `read-network`, `read-errors`, `read-logs`
-- `inspect-surface`, screenshot capture, `hot-reload`, `hot-restart`
-- platform-aware recording drivers: remote on macOS, Linux, and Windows, `browser-host` on web, `simctl` on iOS Simulator, and `adb` on Android Emulator
-
-It also auto-picks a free session port per platform and cleans Android `adb forward` state after verification so repeated runs do not poison later platforms.
-The same `runtime-loop` workflow also runs `packages/flutter_cockpit_devtools/tool/verify_mcp_surface.dart` on macOS to validate the real `serve-mcp` stdio surface, workspace tooling, target-first surface flow, and release delivery tools end to end.
+Platform-specific capture should be capability-driven rather than hard-coded: desktop and physical devices may use remote or host adapters, web may use browser-host capture, iOS simulators may use simulator-native tooling, and Android emulators may use device tooling. If a host permission blocks recording while app control still passes, report it as a structured environment warning instead of masking the app result.
 
 ## CLI Surface
 

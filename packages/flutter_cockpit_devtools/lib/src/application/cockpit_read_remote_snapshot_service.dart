@@ -126,7 +126,7 @@ final class CockpitReadRemoteSnapshotService {
             request.compareAgainstSnapshotRef!,
             sessionKey: sessionKey,
           );
-    final snapshotRef = request.resultProfile.emitSnapshotRef
+    final snapshotRef = request.resultProfile.emitsSnapshotRef
         ? _snapshotStore.put(sessionKey: sessionKey, snapshot: snapshot)
         : null;
 
@@ -134,12 +134,10 @@ final class CockpitReadRemoteSnapshotService {
       routeName: snapshot.routeName,
       diagnosticLevel: snapshot.diagnosticLevel.jsonValue,
       truncated: snapshot.truncated,
-      uiSummary: request.resultProfile.ui == CockpitInteractiveUiLevel.summary
+      uiSummary: request.resultProfile.emitsUiSummary
           ? cockpitInteractiveSummarizeSnapshot(snapshot)
           : null,
-      snapshot: request.resultProfile.ui == CockpitInteractiveUiLevel.snapshot
-          ? snapshot
-          : null,
+      snapshot: request.resultProfile.emitsInlineSnapshot ? snapshot : null,
       diagnostics: cockpitInteractiveDiagnosticsFromSnapshot(
         snapshot,
         request.resultProfile.diagnostics,

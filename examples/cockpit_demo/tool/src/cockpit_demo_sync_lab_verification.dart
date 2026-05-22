@@ -1,6 +1,6 @@
-const String syncLabVerifierTaskTitlePrefix = 'MCP sync conflict ';
+const String syncLabVerifierTaskTitlePrefix = 'Cockpit demo sync conflict ';
 const String syncLabVerifierTaskNotes =
-    'Created by MCP real verifier to exercise sync conflict recovery.';
+    'Created by cockpit_demo verifier to exercise sync conflict recovery.';
 
 String buildSyncLabVerifierArtifactCountSql() {
   return 'select count(*) from tasks where ${_syncLabVerifierWhereClause()};';

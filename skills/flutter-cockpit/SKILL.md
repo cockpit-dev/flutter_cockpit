@@ -73,7 +73,7 @@ Use these canonical forms on first contact. If you need something beyond them, o
 - Short ordered batch:
   `dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-batch --commands-file /tmp/commands.json --profile minimal --final-profile standard`
   Minimal shape:
-  `[{"commandId":"wait-1","commandType":"waitForUiIdle"},{"commandId":"assert-inbox","commandType":"assertText","parameters":{"text":"Inbox"}}]`
+  `[{"commandId":"wait-1","commandType":"waitForUiIdle"},{"commandId":"assert-ready","commandType":"assertText","parameters":{"text":"<expected-text>"}}]`
 - Wait for settle:
   `dart run flutter_cockpit_devtools:flutter_cockpit_devtools wait-idle`
 - Reload code:
@@ -111,6 +111,7 @@ Common locator keys that are safe to reach for first: `text`, `tooltip`, `semant
 - Prefer compact stdout first. Use `--output-json` only when the result is too large for stdout or a later step must reopen the full payload.
 - Prefer `--command-file`, `--commands-file`, and config files once JSON stops being trivial. Do not fight shell quoting with long inline payloads.
 - After `remoteUnavailable`, a transport timeout, `hot-reload`, or `hot-restart`, re-read minimal route or state before retrying. Do not blindly replay a non-idempotent batch.
+- For custom project verifier failures, design and read a compact result first: completed phases, failed command, final route or state summary, bounded runtime error previews, and artifact refs. Open large artifacts only when the compact result cannot explain the next repair step.
 - Prefer `run-batch` for route-crossing flows such as open editor -> fill fields -> save. It is cheaper and more stable than many separate `run-command` round-trips.
 - For text inputs, tighten locators with `type` and `ancestor` when labels collide, then verify downstream saved state instead of relying on `uiSummary.textPreviews`.
 - Use screenshots for still-state proof and recordings for motion, transition, or acceptance proof. Do not record by default when one screenshot and a bounded state read already answer the question.
@@ -127,6 +128,7 @@ Common locator keys that are safe to reach for first: `text`, `tooltip`, `semant
 - guessing `device-id`, command names, flags, or locator keys instead of using `list-targets` and `help <command>`
 - jumping straight to `inspect` or `evidence` when `minimal` or `standard` would answer the next question
 - rerunning a full validation loop after every small edit instead of using `hot-reload` plus a bounded re-read
+- treating mismatched exact-count summaries as UI flakiness before checking app state isolation, persistent storage cleanup, or non-idempotent replay
 - starting recording too early, too late, or for every routine check instead of reserving it for motion, transitions, or acceptance evidence
 - using `target.json` as if it were automatically an app handle for `stop-app`, `hot-reload`, or `read-logs`
 - treating a finished run, screenshot, or bundle as enough proof without reading post-action state or validation output

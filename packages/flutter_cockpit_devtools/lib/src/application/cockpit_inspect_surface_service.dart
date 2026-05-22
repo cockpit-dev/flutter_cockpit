@@ -204,7 +204,9 @@ final class CockpitInspectSurfaceService {
       recommendedNextStep: 'reviewCapture',
       diagnosticLevel: request.resultProfile.snapshotProfile.jsonValue,
       truncated: false,
-      uiSummary: _staticSummaryForProfile(request.resultProfile),
+      uiSummary: cockpitInteractiveStaticSummaryForProfile(
+        request.resultProfile,
+      ),
       diagnostics: <String, Object?>{
         'capture':
             CockpitInteractiveCommandCore.fromResult(capture.result).toJson(),
@@ -405,30 +407,5 @@ final class CockpitInspectSurfaceService {
           ),
         )
         .toList(growable: false);
-  }
-
-  CockpitInteractiveSnapshotSummary? _staticSummaryForProfile(
-    CockpitInteractiveResultProfile profile,
-  ) {
-    if (profile.ui == CockpitInteractiveUiLevel.none) {
-      return null;
-    }
-    return CockpitInteractiveSnapshotSummary(
-      routeName: null,
-      diagnosticLevel: profile.snapshotProfile.jsonValue,
-      truncated: false,
-      visibleTargetCount: 0,
-      targetsWithCockpitIdCount: 0,
-      targetsWithTextCount: 0,
-      networkEntryCount: 0,
-      networkFailureCount: 0,
-      runtimeEntryCount: 0,
-      runtimeErrorCount: 0,
-      rebuildEntryCount: 0,
-      totalRebuildCount: 0,
-      accessibilityTargetCount: 0,
-      accessibilityTraversalCount: 0,
-      textPreviews: const <String>[],
-    );
   }
 }

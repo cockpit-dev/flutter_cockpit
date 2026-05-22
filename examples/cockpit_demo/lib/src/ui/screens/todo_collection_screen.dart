@@ -584,6 +584,12 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
                       task.priority == TodoPriority.urgent),
             )
             .length;
+        final queueBrief = _queueBrief(
+          activeCount: activeCount,
+          dueTodayCount: dueTodayCount,
+          priorityCount: priorityCount,
+          conflictTaskCount: widget.service.syncState.conflictTaskCount,
+        );
         return Scaffold(
           appBar: AppBar(
             toolbarHeight: 74,
@@ -1031,6 +1037,8 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
                             onAction: _openEditor,
                           )
                         else if (!listState.isLoading) ...<Widget>[
+                          _QueueBriefStrip(summary: queueBrief),
+                          const SizedBox(height: 18),
                           TaskFilterBar(
                             searchController: _searchController,
                             highPriorityOnly: _highPriorityOnly,
@@ -1193,6 +1201,16 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
     return 'Removed ${listState.pendingUndoCount} tasks from the board.';
   }
 
+  String _queueBrief({
+    required int activeCount,
+    required int dueTodayCount,
+    required int priorityCount,
+    required int conflictTaskCount,
+  }) {
+    return 'Queue brief: $activeCount active / $dueTodayCount due today / '
+        '$priorityCount priority / $conflictTaskCount conflicts';
+  }
+
   Widget _buildTaskList({
     required List<TodoTask> tasks,
     required TodoSettings settings,
@@ -1293,6 +1311,48 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
         tasks: tasks,
         draggedTaskId: draggedTaskId,
         targetIndex: targetIndex,
+      ),
+    );
+  }
+}
+
+final class _QueueBriefStrip extends StatelessWidget {
+  const _QueueBriefStrip({required this.summary});
+
+  final String summary;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Semantics(
+      container: true,
+      label: 'Queue brief summary',
+      child: EditorialSection(
+        backgroundColor: colorScheme.primaryContainer.withAlphaFraction(0.52),
+        leadingAccentColor: colorScheme.primary,
+        padding: const EdgeInsets.fromLTRB(18, 13, 18, 13),
+        child: Row(
+          children: <Widget>[
+            Icon(
+              Icons.auto_awesome_rounded,
+              size: 20,
+              color: colorScheme.onPrimaryContainer,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                summary,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onPrimaryContainer,
+                  fontWeight: FontWeight.w800,
+                  height: 1.25,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

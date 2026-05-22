@@ -369,10 +369,24 @@ void main() {
           key: rootKey,
           child: MaterialApp(
             navigatorObservers: [FlutterCockpit.navigatorObserver],
-            home: const Scaffold(body: Center(child: Text('Cockpit Root'))),
+            routes: <String, WidgetBuilder>{
+              '/': (context) => Scaffold(
+                    body: Center(
+                      child: ElevatedButton(
+                        onPressed: () =>
+                            Navigator.of(context).pushNamed('/details'),
+                        child: const Text('Open details'),
+                      ),
+                    ),
+                  ),
+              '/details': (_) =>
+                  const Scaffold(body: Center(child: Text('Details'))),
+            },
           ),
         ),
       );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Open details'));
       await tester.pumpAndSettle();
 
       final status = (await tester.runAsync(() {
@@ -386,6 +400,13 @@ void main() {
       expect(environmentJson?['flutterVersion'], '3.38.9');
       expect(environmentJson?['dartVersion'], isA<String>());
       expect((environmentJson?['dartVersion'] as String?)?.isNotEmpty, isTrue);
+      expect(environmentJson?.keys, <String>[
+        'platform',
+        'flutterVersion',
+        'dartVersion',
+      ]);
+      expect(status.currentRouteName, '/details');
+      expect(status.snapshot.routeName, '/details');
     },
   );
 

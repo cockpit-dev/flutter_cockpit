@@ -148,6 +148,33 @@ final class CockpitInteractiveResultProfile {
   final bool emitSnapshotRef;
   final CockpitSnapshotProfile snapshotProfile;
 
+  bool get emitsUiSummary => ui == CockpitInteractiveUiLevel.summary;
+
+  bool get emitsInlineSnapshot => ui == CockpitInteractiveUiLevel.snapshot;
+
+  bool get emitsDiagnostics =>
+      diagnostics != CockpitInteractiveDiagnosticsLevel.none;
+
+  bool get emitsSnapshotRef => emitSnapshotRef;
+
+  bool get emitsRuntimeSteps => includeRuntimeSteps;
+
+  bool get requiresStatusSnapshotRead =>
+      ui != CockpitInteractiveUiLevel.none ||
+      emitsSnapshotRef ||
+      snapshotProfile != CockpitSnapshotProfile.live ||
+      emitsDiagnostics;
+
+  bool requiresPostActionSnapshotRead({
+    bool compareAgainstSnapshot = false,
+  }) {
+    return ui != CockpitInteractiveUiLevel.none ||
+        emitsDiagnostics ||
+        includeDelta ||
+        emitsSnapshotRef ||
+        compareAgainstSnapshot;
+  }
+
   factory CockpitInteractiveResultProfile.fromJson(
     Map<String, Object?>? json, {
     CockpitInteractiveResultProfileName defaultProfile =

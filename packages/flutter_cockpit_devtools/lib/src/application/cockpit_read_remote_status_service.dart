@@ -113,13 +113,8 @@ final class CockpitReadRemoteStatusService {
       androidDeviceId: request.androidDeviceId,
     );
     final status = await _readStatus(resolved.baseUri);
-    final needsRichSnapshot = request.resultProfile.ui !=
-            CockpitInteractiveUiLevel.none ||
-        request.resultProfile.emitSnapshotRef ||
-        request.resultProfile.snapshotProfile != CockpitSnapshotProfile.live ||
-        request.resultProfile.diagnostics !=
-            CockpitInteractiveDiagnosticsLevel.none;
-    final effectiveSnapshotOptions = needsRichSnapshot
+    final effectiveSnapshotOptions = request
+            .resultProfile.requiresStatusSnapshotRead
         ? request.resultProfile.resolveSnapshotOptions(request.snapshotOptions)
         : null;
     final snapshot = effectiveSnapshotOptions == null
@@ -130,7 +125,7 @@ final class CockpitReadRemoteStatusService {
             readSnapshot: _readSnapshot,
           ))
             .snapshot;
-    final snapshotRef = request.resultProfile.emitSnapshotRef
+    final snapshotRef = request.resultProfile.emitsSnapshotRef
         ? _snapshotStore.put(
             sessionKey: resolved.baseUri.toString(),
             snapshot: snapshot,
@@ -146,12 +141,10 @@ final class CockpitReadRemoteStatusService {
       recordingCapabilities: status.recordingCapabilities,
       activeRecording: status.activeRecording,
       environment: status.environment,
-      uiSummary: request.resultProfile.ui == CockpitInteractiveUiLevel.summary
+      uiSummary: request.resultProfile.emitsUiSummary
           ? cockpitInteractiveSummarizeSnapshot(snapshot)
           : null,
-      snapshot: request.resultProfile.ui == CockpitInteractiveUiLevel.snapshot
-          ? snapshot
-          : null,
+      snapshot: request.resultProfile.emitsInlineSnapshot ? snapshot : null,
       snapshotRef: snapshotRef,
       sessionHandle: resolved.sessionHandle,
       effectiveSnapshotOptions: effectiveSnapshotOptions,

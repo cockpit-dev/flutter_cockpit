@@ -14,6 +14,33 @@ import 'package:cockpit_demo/src/ui/screens/todo_collection_screen.dart';
 import 'package:cockpit_demo/src/ui/widgets/editorial_section.dart';
 import 'package:path/path.dart' as p;
 
+File resolveCockpitDemoFile(String relativePath) {
+  var current = Directory.current.absolute;
+  for (var depth = 0; depth < 6; depth += 1) {
+    final direct = File(p.join(current.path, relativePath));
+    if (direct.existsSync()) {
+      return direct;
+    }
+
+    final nested = File(
+      p.join(current.path, 'examples', 'cockpit_demo', relativePath),
+    );
+    if (nested.existsSync()) {
+      return nested;
+    }
+
+    final parent = current.parent;
+    if (parent.path == current.path) {
+      break;
+    }
+    current = parent;
+  }
+
+  throw StateError(
+    'Unable to resolve cockpit_demo/$relativePath from ${Directory.current.path}.',
+  );
+}
+
 bool _cockpitDemoTestRuntimeConfigured = false;
 
 void _ensureCockpitDemoTestRuntimeConfigured() {
