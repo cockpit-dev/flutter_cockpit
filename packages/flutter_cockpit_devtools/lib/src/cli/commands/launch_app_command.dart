@@ -100,7 +100,7 @@ final class LaunchAppCommand extends CockpitCliCommand {
 
   @override
   String get helpExample =>
-      'flutter_cockpit_devtools launch-app --project-dir examples/cockpit_demo --platform android --device-id emulator-5554 --app-json /tmp/app.json';
+      'flutter_cockpit_devtools launch-app --project-dir /abs/path/to/flutter_app --platform android --device-id emulator-5554 --app-json /tmp/app.json';
 
   @override
   String get helpWrites =>

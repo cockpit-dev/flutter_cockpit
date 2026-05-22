@@ -1,32 +1,33 @@
-import 'package:flutter_cockpit_devtools/src/mcp/verification/cockpit_sync_lab_real_verification.dart';
-import 'package:test/test.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+import '../tool/src/cockpit_demo_sync_lab_verification.dart';
 
 void main() {
   test('sync lab artifact SQL only targets verifier-created tasks', () {
     final countSql = buildSyncLabVerifierArtifactCountSql();
     final cleanupSql = buildSyncLabVerifierArtifactCleanupSql();
 
-    expect(countSql, contains("title like 'MCP sync conflict %'"));
+    expect(countSql, contains("title like 'Cockpit demo sync conflict %'"));
     expect(
       countSql,
       contains(
-        "notes = 'Created by MCP real verifier to exercise sync conflict recovery.'",
+        "notes = 'Created by cockpit_demo verifier to exercise sync conflict recovery.'",
       ),
     );
     expect(cleanupSql, contains("delete from task_sync_state"));
     expect(cleanupSql, contains("delete from tasks"));
-    expect(cleanupSql, contains("title like 'MCP sync conflict %'"));
+    expect(cleanupSql, contains("title like 'Cockpit demo sync conflict %'"));
     expect(
       cleanupSql,
       contains(
-        "notes = 'Created by MCP real verifier to exercise sync conflict recovery.'",
+        "notes = 'Created by cockpit_demo verifier to exercise sync conflict recovery.'",
       ),
     );
   });
 
   test('buildSyncLabCreateTaskBatch creates a route-aware editor flow', () {
     final commands = buildSyncLabCreateTaskBatch(
-      taskTitle: 'MCP sync conflict 42',
+      taskTitle: 'Cockpit demo sync conflict 42',
     );
 
     expect(commands, hasLength(6));
@@ -50,7 +51,7 @@ void main() {
     );
     expect(
       commands[1]['parameters'],
-      <String, Object?>{'text': 'MCP sync conflict 42'},
+      <String, Object?>{'text': 'Cockpit demo sync conflict 42'},
     );
     expect(commands[2]['commandId'], 'verify-reveal-task-notes');
     expect(commands[2]['commandType'], 'scrollUntilVisible');
@@ -162,7 +163,7 @@ void main() {
 
   test('buildSyncLabOpenConflictBatch walks into the conflict screen', () {
     final commands = buildSyncLabOpenConflictBatch(
-      taskTitle: 'MCP sync conflict 42',
+      taskTitle: 'Cockpit demo sync conflict 42',
     );
 
     expect(
@@ -185,7 +186,7 @@ void main() {
     expect(
       commands[0]['parameters'],
       <String, Object?>{
-        'text': 'MCP sync conflict 42',
+        'text': 'Cockpit demo sync conflict 42',
       },
     );
     expect(commands[1]['commandType'], 'waitFor');
@@ -193,7 +194,7 @@ void main() {
     expect(
       commands[1]['parameters'],
       <String, Object?>{
-        'text': 'MCP sync conflict 42',
+        'text': 'Cockpit demo sync conflict 42',
       },
     );
     expect(
@@ -308,7 +309,7 @@ void main() {
   test('buildSyncLabRecoveryVerificationBatch verifies the task becomes synced',
       () {
     final commands = buildSyncLabRecoveryVerificationBatch(
-      taskTitle: 'MCP sync conflict 42',
+      taskTitle: 'Cockpit demo sync conflict 42',
     );
 
     expect(
@@ -332,7 +333,7 @@ void main() {
     expect(
       commands[0]['parameters'],
       <String, Object?>{
-        'text': 'MCP sync conflict 42',
+        'text': 'Cockpit demo sync conflict 42',
       },
     );
     expect(commands[1]['commandType'], 'waitFor');
@@ -340,7 +341,7 @@ void main() {
     expect(
       commands[1]['parameters'],
       <String, Object?>{
-        'text': 'MCP sync conflict 42',
+        'text': 'Cockpit demo sync conflict 42',
       },
     );
     expect(

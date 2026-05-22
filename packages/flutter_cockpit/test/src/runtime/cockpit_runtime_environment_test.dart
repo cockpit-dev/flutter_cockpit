@@ -27,5 +27,10 @@ void main() {
     expect(environment?.platform, 'android');
     expect(environment?.flutterVersion, '3.38.9');
     expect(environment?.dartVersion, '3.6.0');
+    expect(environment?.toJson().keys, <String>[
+      'platform',
+      'flutterVersion',
+      'dartVersion',
+    ]);
   });
 }

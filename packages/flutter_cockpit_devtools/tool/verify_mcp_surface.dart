@@ -5,7 +5,6 @@ import 'dart:io';
 import 'package:flutter_cockpit_devtools/flutter_cockpit_devtools.dart';
 import 'package:path/path.dart' as p;
 import 'package:flutter_cockpit_devtools/src/mcp/core/cockpit_mcp_stdio_channel.dart';
-import 'package:flutter_cockpit_devtools/src/mcp/verification/cockpit_sync_lab_real_verification.dart';
 
 Future<void> main() async {
   final verifier = _McpSurfaceVerifier();
@@ -58,12 +57,10 @@ final class _McpSurfaceVerifier {
     final workspaceReport = <String, Object?>{};
     final targetReport = <String, Object?>{};
     final appReport = <String, Object?>{};
-    final syncLabReport = <String, Object?>{};
     report['mcp_cli_verification'] = mcpCliReport;
     report['workspace_verification'] = workspaceReport;
     report['target_verification'] = targetReport;
     report['app_verification'] = appReport;
-    report['sync_lab_verification'] = syncLabReport;
 
     final server = CockpitMcpServer.standard(
       forceRootsFallback: true,
@@ -139,24 +136,28 @@ final class _McpSurfaceVerifier {
         }
         return '${message['text'] ?? ''}';
       }).join('\n');
-      syncLabReport['promptHasHandleReuse'] = promptText.contains(
+      final promptReport = <String, Object?>{};
+      report['prompt_verification'] = promptReport;
+      promptReport['hasHandleReuse'] = promptText.contains(
         'reuse the persisted app or target handle',
       );
-      syncLabReport['promptHasBoundedSummaryGuidance'] = promptText.contains(
+      promptReport['hasBoundedSummaryGuidance'] = promptText.contains(
         'prefer bounded summary reads before full inspection',
       );
-      syncLabReport['promptHasRouteAwareRecoveryGuidance'] = promptText
+      promptReport['hasRouteAwareRecoveryGuidance'] = promptText
               .contains('do not blindly replay a non-idempotent batch') &&
           promptText.contains('re-read minimal route or state before retrying');
-      syncLabReport['promptStatus'] =
-          (syncLabReport['promptHasHandleReuse'] as bool) &&
-                  (syncLabReport['promptHasBoundedSummaryGuidance'] as bool) &&
-                  (syncLabReport['promptHasRouteAwareRecoveryGuidance'] as bool)
-              ? 'passed'
-              : 'failed';
-      syncLabReport['status'] = 'pending';
-      syncLabReport['artifactCleanup'] =
-          await _cleanupCockpitDemoSyncLabArtifacts();
+      promptReport['status'] = (promptReport['hasHandleReuse'] as bool) &&
+              (promptReport['hasBoundedSummaryGuidance'] as bool) &&
+              (promptReport['hasRouteAwareRecoveryGuidance'] as bool)
+          ? 'passed'
+          : 'failed';
+      if (promptReport['status'] != 'passed') {
+        throw StateError(
+          'MCP prompt no longer carries required AI-first loop guidance: '
+          '${jsonEncode(promptReport)}',
+        );
+      }
       report['mcp_cli_verification'] = await _verifyServeMcpCli(
         verifyDirectory.path,
       );
@@ -828,245 +829,6 @@ final class _McpSurfaceVerifier {
         appReport['wait_idle_after_restart'] as Map<String, Object?>,
       );
 
-      try {
-        final syncLabTaskTitle =
-            'MCP sync conflict ${DateTime.now().toUtc().microsecondsSinceEpoch}';
-        syncLabReport['taskTitle'] = syncLabTaskTitle;
-        syncLabReport['createTaskBatch'] = await _callTool(
-          server,
-          'run_batch',
-          <String, Object?>{
-            'appId': appId,
-            'commands':
-                buildSyncLabCreateTaskBatch(taskTitle: syncLabTaskTitle),
-            'defaultProfile': 'minimal',
-            'finalProfile': 'standard',
-            'defaultTimeoutMs': 30000,
-            'failFast': true,
-          },
-          remoteRetryAttempts: 4,
-        );
-        _requireBatchSuccess(
-          'sync_lab_create_task',
-          syncLabReport['createTaskBatch'] as Map<String, Object?>,
-          expectedCount: 6,
-        );
-        syncLabReport['postCreateRead'] = await _callTool(
-          server,
-          'read_app',
-          <String, Object?>{
-            'appId': appId,
-            'profile': 'minimal',
-          },
-        );
-        _requireCurrentRoute(
-          'sync_lab_post_create_route',
-          syncLabReport['postCreateRead'] as Map<String, Object?>,
-          expectedRoute: '/inbox',
-        );
-        syncLabReport['conflictSyncBatch'] =
-            await _runSyncLabConflictSyncSequence(
-          server,
-          appId: appId,
-        );
-        _requireBatchSuccess(
-          'sync_lab_conflict_sync_batch',
-          syncLabReport['conflictSyncBatch'] as Map<String, Object?>,
-          expectedCount: 5,
-        );
-        syncLabReport['postConflictSyncIdle'] = await _callTool(
-          server,
-          'wait_idle',
-          <String, Object?>{
-            'appId': appId,
-            'timeoutMs': 5000,
-            'quietWindowMs': 180,
-          },
-          remoteRetryAttempts: 3,
-        );
-        _requireIdle(
-          'sync_lab_post_conflict_sync_idle',
-          syncLabReport['postConflictSyncIdle'] as Map<String, Object?>,
-        );
-        syncLabReport['conflictOpenSequence'] = await _runCommandSequence(
-          server,
-          appId: appId,
-          commands: buildSyncLabOpenConflictBatch(taskTitle: syncLabTaskTitle),
-          profile: 'minimal',
-          timeoutMs: 30000,
-          remoteRetryAttempts: 3,
-        );
-        syncLabReport['postConflictOpenIdle'] = await _callTool(
-          server,
-          'wait_idle',
-          <String, Object?>{
-            'appId': appId,
-            'timeoutMs': 5000,
-            'quietWindowMs': 180,
-          },
-          remoteRetryAttempts: 3,
-        );
-        _requireIdle(
-          'sync_lab_post_conflict_open_idle',
-          syncLabReport['postConflictOpenIdle'] as Map<String, Object?>,
-        );
-        syncLabReport['postConflictOpenRead'] = await _callTool(
-          server,
-          'read_app',
-          <String, Object?>{
-            'appId': appId,
-            'profile': 'minimal',
-          },
-        );
-        _requireCurrentRoute(
-          'sync_lab_post_conflict_open_route',
-          syncLabReport['postConflictOpenRead'] as Map<String, Object?>,
-          expectedRoute: '/detail',
-        );
-        syncLabReport['openConflictResolution'] = await _callTool(
-          server,
-          'run_batch',
-          <String, Object?>{
-            'appId': appId,
-            'profile': 'minimal',
-            'commands': <Map<String, Object?>>[
-              buildSyncLabRevealConflictResolutionCommand(),
-              buildSyncLabOpenConflictResolutionCommand(),
-            ],
-          },
-          remoteRetryAttempts: 3,
-        );
-        _requireBatchSuccess(
-          'sync_lab_open_conflict_resolution',
-          syncLabReport['openConflictResolution'] as Map<String, Object?>,
-          expectedCount: 2,
-        );
-        syncLabReport['postConflictRead'] = await _callTool(
-          server,
-          'read_app',
-          <String, Object?>{
-            'appId': appId,
-            'profile': 'minimal',
-          },
-        );
-        _requireCurrentRoute(
-          'sync_lab_post_conflict_route',
-          syncLabReport['postConflictRead'] as Map<String, Object?>,
-          expectedRoute: '/sync-conflict',
-        );
-        syncLabReport['conflictInspect'] = await _callTool(
-          server,
-          'inspect_ui',
-          <String, Object?>{
-            'appId': appId,
-            'profile': 'standard',
-          },
-        );
-        if ('${(syncLabReport['conflictInspect'] as Map<String, Object?>)['routeName'] ?? ''}' !=
-            '/sync-conflict') {
-          throw StateError(
-            'sync_lab conflict inspection did not land on /sync-conflict: '
-            '${jsonEncode(syncLabReport['conflictInspect'])}',
-          );
-        }
-        syncLabReport['keepLocalResolution'] = await _callTool(
-          server,
-          'run_batch',
-          <String, Object?>{
-            'appId': appId,
-            'profile': 'minimal',
-            'commands': <Map<String, Object?>>[
-              buildSyncLabRevealKeepLocalResolutionCommand(),
-              buildSyncLabKeepLocalResolutionCommand(),
-            ],
-          },
-          remoteRetryAttempts: 3,
-        );
-        _requireBatchSuccess(
-          'sync_lab_keep_local_resolution',
-          syncLabReport['keepLocalResolution'] as Map<String, Object?>,
-          expectedCount: 2,
-        );
-        syncLabReport['postResolutionRead'] = await _callTool(
-          server,
-          'read_app',
-          <String, Object?>{
-            'appId': appId,
-            'profile': 'minimal',
-          },
-        );
-        _requireCurrentRoute(
-          'sync_lab_post_resolution_route',
-          syncLabReport['postResolutionRead'] as Map<String, Object?>,
-          expectedRoute: '/detail',
-        );
-        syncLabReport['recoverySyncBatch'] =
-            await _runSyncLabRecoverySyncSequence(
-          server,
-          appId: appId,
-        );
-        _requireBatchSuccess(
-          'sync_lab_recovery_sync_batch',
-          syncLabReport['recoverySyncBatch'] as Map<String, Object?>,
-          expectedCount: 6,
-        );
-        syncLabReport['postRecoverySyncIdle'] = await _callTool(
-          server,
-          'wait_idle',
-          <String, Object?>{
-            'appId': appId,
-            'timeoutMs': 5000,
-            'quietWindowMs': 180,
-          },
-          remoteRetryAttempts: 3,
-        );
-        _requireIdle(
-          'sync_lab_post_recovery_sync_idle',
-          syncLabReport['postRecoverySyncIdle'] as Map<String, Object?>,
-        );
-        syncLabReport['recoveryVerificationSequence'] =
-            await _runCommandSequence(
-          server,
-          appId: appId,
-          commands: buildSyncLabRecoveryVerificationBatch(
-            taskTitle: syncLabTaskTitle,
-          ),
-          profile: 'minimal',
-          timeoutMs: 30000,
-          remoteRetryAttempts: 3,
-        );
-        syncLabReport['postRecoveryRead'] = await _callTool(
-          server,
-          'read_app',
-          <String, Object?>{
-            'appId': appId,
-            'profile': 'minimal',
-          },
-        );
-        _requireCurrentRoute(
-          'sync_lab_post_recovery_route',
-          syncLabReport['postRecoveryRead'] as Map<String, Object?>,
-          expectedRoute: '/detail',
-        );
-        syncLabReport['postRecoveryInspect'] = await _callTool(
-          server,
-          'inspect_ui',
-          <String, Object?>{
-            'appId': appId,
-            'profile': 'standard',
-          },
-        );
-        syncLabReport['realFlowStatus'] = 'passed';
-        syncLabReport['status'] = (syncLabReport['promptStatus'] == 'passed' &&
-                syncLabReport['realFlowStatus'] == 'passed')
-            ? 'passed'
-            : 'failed';
-      } on StateError catch (error) {
-        syncLabReport['realFlowStatus'] = 'blocked';
-        syncLabReport['status'] = 'blocked';
-        syncLabReport['failureMessage'] = error.toString();
-      }
-
       final runScriptOutput = p.join(verifyDirectory.path, 'run_script_out');
       try {
         appReport['pre_run_script_route'] = await _ensureRoute(
@@ -1155,12 +917,6 @@ final class _McpSurfaceVerifier {
           // Keep the report from the original failure.
         }
       }
-      try {
-        syncLabReport['postRunArtifactCleanup'] =
-            await _cleanupCockpitDemoSyncLabArtifacts();
-      } on Object catch (error) {
-        syncLabReport['postRunArtifactCleanupError'] = error.toString();
-      }
     }
 
     return _VerificationReport(
@@ -1228,76 +984,6 @@ final class _McpSurfaceVerifier {
     throw StateError('Tool $name exhausted remote retry attempts.');
   }
 
-  Future<Map<String, Object?>> _cleanupCockpitDemoSyncLabArtifacts() async {
-    final home = Platform.environment['HOME'];
-    if (home == null || home.isEmpty) {
-      return <String, Object?>{
-        'status': 'skipped',
-        'reason': 'HOME environment variable is unavailable.',
-      };
-    }
-
-    final databasePath = p.join(
-      home,
-      'Library',
-      'Containers',
-      'dev.cockpit.cockpitDemo',
-      'Data',
-      'Documents',
-      'cockpit_demo.sqlite',
-    );
-    final databaseFile = File(databasePath);
-    if (!databaseFile.existsSync()) {
-      return <String, Object?>{
-        'status': 'skipped',
-        'databasePath': databasePath,
-        'reason': 'cockpit_demo sqlite database does not exist yet.',
-      };
-    }
-
-    final countResult = await Process.run(
-      'sqlite3',
-      <String>[
-        databasePath,
-        buildSyncLabVerifierArtifactCountSql(),
-      ],
-    );
-    if (countResult.exitCode != 0) {
-      throw StateError(
-        'Failed to inspect sync lab verifier artifacts: '
-        '${countResult.stderr}',
-      );
-    }
-
-    final existingCount = int.tryParse('${countResult.stdout}'.trim()) ?? 0;
-    if (existingCount == 0) {
-      return <String, Object?>{
-        'status': 'clean',
-        'databasePath': databasePath,
-        'removedTaskCount': 0,
-      };
-    }
-
-    final deleteResult = await Process.run(
-      'sqlite3',
-      <String>[
-        databasePath,
-        buildSyncLabVerifierArtifactCleanupSql(),
-      ],
-    );
-    if (deleteResult.exitCode != 0) {
-      throw StateError(
-        'Failed to remove sync lab verifier artifacts: ${deleteResult.stderr}',
-      );
-    }
-
-    return <String, Object?>{
-      'status': 'cleaned',
-      'databasePath': databasePath,
-      'removedTaskCount': existingCount,
-    };
-  }
-
   Future<Map<String, Object?>> _ensureRoute(
     CockpitMcpServer server, {
     required String appId,
@@ -1360,356 +1046,6 @@ final class _McpSurfaceVerifier {
       'route': currentRoute,
       'steps': steps,
       'state': routeState,
-    };
-  }
-
-  Future<List<Map<String, Object?>>> _runCommandSequence(
-    CockpitMcpServer server, {
-    required String appId,
-    required List<Map<String, Object?>> commands,
-    required String profile,
-    required int timeoutMs,
-    int remoteRetryAttempts = 1,
-  }) async {
-    final results = <Map<String, Object?>>[];
-    for (final command in commands) {
-      final commandId = '${command['commandId'] ?? 'unknown-command'}';
-      late final Map<String, Object?> result;
-      try {
-        result = await _callTool(
-          server,
-          'run_command',
-          <String, Object?>{
-            'appId': appId,
-            'profile': profile,
-            'timeoutMs': timeoutMs,
-            'command': command,
-          },
-          remoteRetryAttempts: remoteRetryAttempts,
-        );
-      } on StateError catch (error) {
-        throw StateError(
-          'Command sequence failed at $commandId: ${error.toString()}',
-        );
-      }
-      _requireCommandSuccess(commandId, result);
-      results.add(result);
-    }
-    return results;
-  }
-
-  Future<Map<String, Object?>> _runSyncLabConflictSyncSequence(
-    CockpitMcpServer server, {
-    required String appId,
-  }) async {
-    final commands = buildSyncLabConflictSyncBatch();
-    final results = <Map<String, Object?>>[
-      await _runCommandWithRouteFallback(
-        server,
-        appId: appId,
-        command: commands[0],
-        profile: 'minimal',
-        timeoutMs: 30000,
-        successRoute: '/settings',
-      ),
-      ...await _runCommandSequence(
-        server,
-        appId: appId,
-        commands: <Map<String, Object?>>[commands[1]],
-        profile: 'minimal',
-        timeoutMs: 30000,
-        remoteRetryAttempts: 3,
-      ),
-      ...await _runCommandWithDeferredWaitVerification(
-        server,
-        appId: appId,
-        command: commands[2],
-        waitCommand: commands[3],
-        profile: 'minimal',
-        timeoutMs: 30000,
-      ),
-      await _runCommandWithRouteFallback(
-        server,
-        appId: appId,
-        command: commands[4],
-        profile: 'minimal',
-        timeoutMs: 30000,
-        successRoute: '/inbox',
-      ),
-    ];
-    return _commandSequenceReport(results);
-  }
-
-  Future<Map<String, Object?>> _runSyncLabRecoverySyncSequence(
-    CockpitMcpServer server, {
-    required String appId,
-  }) async {
-    final commands = buildSyncLabRecoverySyncBatch();
-    final results = <Map<String, Object?>>[
-      await _runCommandWithRouteFallback(
-        server,
-        appId: appId,
-        command: commands[0],
-        profile: 'minimal',
-        timeoutMs: 30000,
-        successRoute: '/inbox',
-      ),
-      await _runCommandWithRouteFallback(
-        server,
-        appId: appId,
-        command: commands[1],
-        profile: 'minimal',
-        timeoutMs: 30000,
-        successRoute: '/settings',
-      ),
-      ...await _runCommandSequence(
-        server,
-        appId: appId,
-        commands: <Map<String, Object?>>[commands[2]],
-        profile: 'minimal',
-        timeoutMs: 30000,
-        remoteRetryAttempts: 3,
-      ),
-      ...await _runCommandWithDeferredWaitVerification(
-        server,
-        appId: appId,
-        command: commands[3],
-        waitCommand: commands[4],
-        profile: 'minimal',
-        timeoutMs: 30000,
-      ),
-      await _runCommandWithRouteFallback(
-        server,
-        appId: appId,
-        command: commands[5],
-        profile: 'minimal',
-        timeoutMs: 30000,
-        successRoute: '/inbox',
-      ),
-    ];
-    return _commandSequenceReport(results);
-  }
-
-  Future<Map<String, Object?>> _runCommandWithRouteFallback(
-    CockpitMcpServer server, {
-    required String appId,
-    required Map<String, Object?> command,
-    required String profile,
-    required int timeoutMs,
-    required String successRoute,
-  }) async {
-    final commandId = '${command['commandId'] ?? 'unknown-command'}';
-    try {
-      final result = await _callTool(
-        server,
-        'run_command',
-        <String, Object?>{
-          'appId': appId,
-          'profile': profile,
-          'timeoutMs': timeoutMs,
-          'command': command,
-        },
-      );
-      if (_commandSucceeded(result)) {
-        return result;
-      }
-      final currentRoute = await _readCurrentRoute(server, appId: appId);
-      if (_canTreatRouteAsRecovered(result, currentRoute: currentRoute) &&
-          currentRoute == successRoute) {
-        return _syntheticRecoveredCommandResult(
-          command,
-          currentRoute: currentRoute,
-          recoveryReason: 'route-already-reached',
-          originalResult: result,
-        );
-      }
-      _requireCommandSuccess(commandId, result);
-    } on StateError catch (error) {
-      if (!_isRemoteUnavailableError(error)) {
-        rethrow;
-      }
-      final currentRoute = await _readCurrentRoute(server, appId: appId);
-      if (currentRoute == successRoute) {
-        return _syntheticRecoveredCommandResult(
-          command,
-          currentRoute: currentRoute,
-          recoveryReason: 'remote-unavailable-after-success',
-          originalError: error.toString(),
-        );
-      }
-      final retryResult = await _callTool(
-        server,
-        'run_command',
-        <String, Object?>{
-          'appId': appId,
-          'profile': profile,
-          'timeoutMs': timeoutMs,
-          'command': command,
-        },
-      );
-      if (_commandSucceeded(retryResult)) {
-        return retryResult;
-      }
-      final retryRoute = await _readCurrentRoute(server, appId: appId);
-      if (_canTreatRouteAsRecovered(retryResult, currentRoute: retryRoute) &&
-          retryRoute == successRoute) {
-        return _syntheticRecoveredCommandResult(
-          command,
-          currentRoute: retryRoute,
-          recoveryReason: 'route-reached-after-single-retry',
-          originalResult: retryResult,
-          originalError: error.toString(),
-        );
-      }
-      _requireCommandSuccess(commandId, retryResult);
-    }
-    throw StateError('Command $commandId did not reach the expected route.');
-  }
-
-  Future<List<Map<String, Object?>>> _runCommandWithDeferredWaitVerification(
-    CockpitMcpServer server, {
-    required String appId,
-    required Map<String, Object?> command,
-    required Map<String, Object?> waitCommand,
-    required String profile,
-    required int timeoutMs,
-  }) async {
-    Map<String, Object?>? commandResult;
-    Object? commandError;
-    try {
-      commandResult = await _callTool(
-        server,
-        'run_command',
-        <String, Object?>{
-          'appId': appId,
-          'profile': profile,
-          'timeoutMs': timeoutMs,
-          'command': command,
-        },
-      );
-      if (!_commandSucceeded(commandResult)) {
-        commandError = StateError(jsonEncode(commandResult));
-      }
-    } on StateError catch (error) {
-      commandError = error;
-    }
-
-    late final Map<String, Object?> waitResult;
-    try {
-      waitResult = await _callTool(
-        server,
-        'run_command',
-        <String, Object?>{
-          'appId': appId,
-          'profile': profile,
-          'timeoutMs': timeoutMs,
-          'command': waitCommand,
-        },
-        remoteRetryAttempts: 3,
-      );
-      _requireCommandSuccess(
-        '${waitCommand['commandId'] ?? 'unknown-wait-command'}',
-        waitResult,
-      );
-    } on StateError catch (error) {
-      if (commandError != null) {
-        throw StateError(
-          'Deferred verification for ${command['commandId']} failed after '
-          'action error $commandError and wait error ${error.toString()}',
-        );
-      }
-      rethrow;
-    }
-
-    final normalizedCommandResult =
-        commandResult != null && _commandSucceeded(commandResult)
-            ? commandResult
-            : _syntheticRecoveredCommandResult(
-                command,
-                currentRoute: await _readCurrentRoute(server, appId: appId),
-                recoveryReason:
-                    'validated-by-${waitCommand['commandId'] ?? 'wait-command'}',
-                originalResult: commandResult,
-                originalError: commandError?.toString(),
-              );
-    return <Map<String, Object?>>[
-      normalizedCommandResult,
-      waitResult,
-    ];
-  }
-
-  Future<String> _readCurrentRoute(
-    CockpitMcpServer server, {
-    required String appId,
-  }) async {
-    final readResult = await _callTool(
-      server,
-      'read_app',
-      <String, Object?>{
-        'appId': appId,
-        'profile': 'minimal',
-      },
-      remoteRetryAttempts: 3,
-    );
-    return '${readResult['currentRouteName'] ?? ''}';
-  }
-
-  Map<String, Object?> _commandSequenceReport(
-    List<Map<String, Object?>> results,
-  ) {
-    final successCount = results.where(_commandSucceeded).length;
-    final failureCount = results.length - successCount;
-    return <String, Object?>{
-      'results': results,
-      'summary': <String, Object?>{
-        'totalCount': results.length,
-        'successCount': successCount,
-        'failureCount': failureCount,
-        'stoppedEarly': failureCount > 0,
-      },
-    };
-  }
-
-  bool _commandSucceeded(Map<String, Object?> result) {
-    final command = result['command'] as Map<Object?, Object?>?;
-    return command?['success'] == true;
-  }
-
-  bool _canTreatRouteAsRecovered(
-    Map<String, Object?> result, {
-    required String currentRoute,
-  }) {
-    final command = result['command'] as Map<Object?, Object?>?;
-    final error = command?['error'] as Map<Object?, Object?>?;
-    final errorCode = '${error?['code'] ?? ''}';
-    return currentRoute.isNotEmpty && errorCode == 'targetNotFound';
-  }
-
-  bool _isRemoteUnavailableError(StateError error) {
-    return error.toString().contains('"serviceCode":"remoteUnavailable"');
-  }
-
-  Map<String, Object?> _syntheticRecoveredCommandResult(
-    Map<String, Object?> command, {
-    required String currentRoute,
-    required String recoveryReason,
-    Map<String, Object?>? originalResult,
-    String? originalError,
-  }) {
-    return <String, Object?>{
-      'command': <String, Object?>{
-        'commandId': command['commandId'],
-        'commandType': command['commandType'],
-        'success': true,
-        'durationMs': 0,
-        'usedCaptureFallback': false,
-      },
-      'recovery': <String, Object?>{
-        'reason': recoveryReason,
-        'currentRoute': currentRoute,
-        if (originalError != null) 'originalError': originalError,
-        if (originalResult != null) 'originalResult': originalResult,
-      },
     };
   }
 
@@ -1843,41 +1179,6 @@ int   sum( int left,int right ){return left+right;}
     }
     throw StateError(
       '$label did not complete successfully: ${jsonEncode(result)}',
-    );
-  }
-
-  void _requireBatchSuccess(
-    String label,
-    Map<String, Object?> result, {
-    required int expectedCount,
-  }) {
-    final summary = result['summary'] as Map<Object?, Object?>?;
-    final totalCount = summary?['totalCount'] as int? ?? 0;
-    final successCount = summary?['successCount'] as int? ?? 0;
-    final failureCount = summary?['failureCount'] as int? ?? 0;
-    final stoppedEarly = summary?['stoppedEarly'] as bool? ?? false;
-    if (totalCount == expectedCount &&
-        successCount == expectedCount &&
-        failureCount == 0 &&
-        !stoppedEarly) {
-      return;
-    }
-    throw StateError(
-        '$label did not complete successfully: ${jsonEncode(result)}');
-  }
-
-  void _requireCurrentRoute(
-    String label,
-    Map<String, Object?> result, {
-    required String expectedRoute,
-  }) {
-    final currentRoute = '${result['currentRouteName'] ?? ''}';
-    if (currentRoute == expectedRoute) {
-      return;
-    }
-    throw StateError(
-      '$label did not resolve the expected route $expectedRoute: '
-      '${jsonEncode(result)}',
     );
   }
 

@@ -109,6 +109,27 @@ Persist `target.json` the same way you persist `app.json`: keep it around for th
 
 ## Full Verifier
 
+For fast feature development on the local machine, run the rapid verifier first:
+
+```bash
+dart run examples/cockpit_demo/tool/verify_rapid_dev.dart \
+  --output-json /tmp/cockpit_demo_rapid_dev.json
+```
+
+The rapid verifier defaults to `macos`, `ios`, and `android`. It is intentionally
+lighter than the full verifier: it launches the app, creates one high-priority
+task due today, proves the `Queue brief` summary, hot reloads, re-asserts the
+state, captures one screenshot, reads runtime errors, and stops the app.
+Use it for the normal AI edit -> reload -> assert loop before paying the cost
+of recordings, network/log reads, hot restart, and Sync Lab conflict recovery.
+
+The rapid verifier also isolates the demo database before launch on Android,
+iOS Simulator, and macOS. If it fails, inspect the output JSON before rerunning:
+`verifiedCommands` shows the last completed phase, `failureDetails` includes
+the failed command and final text previews, and `runtimeErrorPreviews` carries
+bounded Flutter runtime errors. A `Queue brief` count larger than expected is a
+state-isolation problem until those fields prove a UI bug.
+
 Run the example-local verifier:
 
 ```bash
@@ -126,7 +147,7 @@ dart run examples/cockpit_demo/tool/verify_platforms.dart \
 
 The tool now resolves `examples/cockpit_demo` as its default `--project-dir` automatically when launched through the repository-owned entrypoint.
 
-The verifier covers:
+The full verifier covers:
 
 - `launch-app`
 - `read-app`

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:flutter_cockpit_devtools/flutter_cockpit_devtools.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 
 import '../tool/src/cockpit_demo_platform_verifier.dart';
 
@@ -793,6 +794,52 @@ void main() {
     expect(result.platforms.last.platform, 'ios');
     expect(result.platforms.last.status, 'failed');
   });
+
+  test(
+    'local state cleanup clears current and legacy iOS simulator bundle ids',
+    () async {
+      final root = await Directory.systemTemp.createTemp('cockpit-ios-state-');
+      addTearDown(() async {
+        if (root.existsSync()) {
+          await root.delete(recursive: true);
+        }
+      });
+      final currentContainer = Directory(p.join(root.path, 'current'));
+      final legacyContainer = Directory(p.join(root.path, 'legacy'));
+      await currentContainer.create(recursive: true);
+      await legacyContainer.create(recursive: true);
+      await _createDatabaseArtifacts(currentContainer.path);
+      await _createDatabaseArtifacts(legacyContainer.path);
+
+      final requestedBundleIds = <String>[];
+      await cockpitDemoCleanupExampleLocalState(
+        platform: 'ios',
+        deviceId: 'ios-simulator',
+        workingDirectory: '/workspace/examples/cockpit_demo',
+        processRunner: (executable, arguments,
+            {String? workingDirectory}) async {
+          expect(executable, 'xcrun');
+          requestedBundleIds.add(arguments[3]);
+          final bundleId = arguments[3];
+          final containerPath =
+              bundleId == 'com.iota9star.fluttercockpit.cockpitdemo'
+                  ? currentContainer.path
+                  : legacyContainer.path;
+          return ProcessResult(0, 0, containerPath, '');
+        },
+      );
+
+      expect(
+        requestedBundleIds,
+        <String>[
+          'com.iota9star.fluttercockpit.cockpitdemo',
+          'dev.cockpit.cockpitDemo',
+        ],
+      );
+      expect(_databaseArtifactsExist(currentContainer.path), isFalse);
+      expect(_databaseArtifactsExist(legacyContainer.path), isFalse);
+    },
+  );
 
   test('verifier records sync lab conflict recovery evidence', () async {
     var currentRoute = '/inbox';
@@ -2050,3 +2097,24 @@ final class _FakeRecordingAdapter implements CockpitRecordingAdapter {
     return onStop();
   }
 }
+
+Future<void> _createDatabaseArtifacts(String containerPath) async {
+  final documents = Directory(p.join(containerPath, 'Documents'));
+  await documents.create(recursive: true);
+  for (final filename in _databaseArtifactFilenames) {
+    await File(p.join(documents.path, filename)).writeAsString('stale');
+  }
+}
+
+bool _databaseArtifactsExist(String containerPath) {
+  final documents = p.join(containerPath, 'Documents');
+  return _databaseArtifactFilenames.any(
+    (filename) => File(p.join(documents, filename)).existsSync(),
+  );
+}
+
+const List<String> _databaseArtifactFilenames = <String>[
+  'cockpit_demo.sqlite',
+  'cockpit_demo.sqlite-shm',
+  'cockpit_demo.sqlite-wal',
+];

@@ -125,7 +125,7 @@ Run one command:
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   run-command \
-  --command-json '{"commandId":"assert-inbox","commandType":"assertText","parameters":{"text":"Inbox"}}'
+  --command-json '{"commandId":"assert-ready","commandType":"assertText","parameters":{"text":"<expected-text>"}}'
 ```
 
 Enter text into a field:
@@ -137,7 +137,7 @@ jq -n --arg text "Draft release checklist" '{
   locator: {
     type: "TextField",
     ancestor: {
-      route: "/editor"
+      route: "<editor-route>"
     }
   },
   parameters: {
@@ -182,7 +182,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   run-batch \
   --commands-json '[
     {"commandId":"wait-1","commandType":"waitForUiIdle"},
-    {"commandId":"assert-inbox","commandType":"assertText","parameters":{"text":"Inbox"}}
+    {"commandId":"assert-ready","commandType":"assertText","parameters":{"text":"<expected-text>"}}
   ]'
 ```
 
@@ -254,15 +254,10 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --app-json /tmp/flutter_cockpit/app.json
 ```
 
-For local macOS web validation, if browser-host recording is blocked only because the desktop has not granted screen-capture permission yet, use:
-
-```bash
-cd examples/cockpit_demo
-dart run tool/verify_platforms.dart \
-  --platform web \
-  --allow-web-host-recording-prerequisite-failure \
-  --output-json /tmp/cockpit_demo_web_verification.json
-```
+For local web validation, keep browser app control, screenshots, reloads, and
+runtime-error reads strict. If browser-host recording is blocked only because
+the desktop has not granted screen-capture permission yet, classify that as an
+environment prerequisite warning and keep the app-control result separate.
 
 ## Bundle And Delivery
 

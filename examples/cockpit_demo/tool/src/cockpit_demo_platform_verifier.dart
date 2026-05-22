@@ -4,9 +4,10 @@ import 'dart:io';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:flutter_cockpit_devtools/flutter_cockpit_devtools.dart';
-import 'package:flutter_cockpit_devtools/src/mcp/verification/cockpit_sync_lab_real_verification.dart';
 import 'package:flutter_cockpit_devtools/src/platform/ios/cockpit_ios_device_connection.dart';
 import 'package:path/path.dart' as p;
+
+import 'cockpit_demo_sync_lab_verification.dart';
 
 typedef CockpitDemoPlatformDeviceProbe = Future<List<CockpitDemoHostDevice>>
     Function();
@@ -410,8 +411,9 @@ final class CockpitDemoPlatformVerifier {
     CockpitDemoPlatformVerificationRequest request,
   ) async {
     final results = <CockpitDemoPlatformVerification>[];
-    final normalizedPlatforms =
-        request.platforms.map(_normalizePlatform).toList(growable: false);
+    final normalizedPlatforms = request.platforms
+        .map(cockpitDemoNormalizeVerificationPlatform)
+        .toList(growable: false);
 
     for (var index = 0; index < normalizedPlatforms.length; index += 1) {
       final platform = normalizedPlatforms[index];
@@ -1031,7 +1033,10 @@ final class CockpitDemoPlatformVerifier {
     required CockpitDemoPlatformVerificationRequest request,
   }) async {
     final available = await _probeDevices();
-    final existing = _matchingDevice(available, platform);
+    final existing = cockpitDemoMatchingVerificationDevice(
+      devices: available,
+      platform: platform,
+    );
     if (existing != null) {
       return _ResolvedDevice(deviceId: existing.deviceId, bootstrapped: false);
     }
@@ -1060,13 +1065,7 @@ final class CockpitDemoPlatformVerifier {
         );
       case 'ios':
         final simulators = await _listIosSimulators();
-        final simulator = _selectIosSimulator(simulators);
-        if (simulator == null) {
-          throw const CockpitApplicationServiceException(
-            code: 'iosSimulatorUnavailable',
-            message: 'No available iOS simulator could be selected.',
-          );
-        }
+        final simulator = cockpitDemoSelectIosSimulator(simulators);
         if (!simulator.booted) {
           await _runProcess(
             'xcrun',
@@ -1109,7 +1108,10 @@ final class CockpitDemoPlatformVerifier {
     final deadline = _clock().add(timeout);
     while (!_clock().isAfter(deadline)) {
       final devices = await _probeDevices();
-      final device = _matchingDevice(devices, platform);
+      final device = cockpitDemoMatchingVerificationDevice(
+        devices: devices,
+        platform: platform,
+      );
       if (device != null) {
         return _ResolvedDevice(deviceId: device.deviceId, bootstrapped: true);
       }
@@ -1119,40 +1121,6 @@ final class CockpitDemoPlatformVerifier {
       code: 'deviceBootstrapTimeout',
       message: 'Timed out waiting for $platform to become available.',
       details: <String, Object?>{'platform': platform},
-    );
-  }
-
-  CockpitDemoHostDevice? _matchingDevice(
-    List<CockpitDemoHostDevice> devices,
-    String platform,
-  ) {
-    for (final device in devices) {
-      if (!device.supported || device.platform != platform) {
-        continue;
-      }
-      if (_isDesktopVerificationPlatform(platform) || device.emulator) {
-        return device;
-      }
-    }
-    return null;
-  }
-
-  CockpitDemoIosSimulator? _selectIosSimulator(
-    List<CockpitDemoIosSimulator> simulators,
-  ) {
-    final available = simulators.where((simulator) => simulator.available);
-    return available.firstWhere(
-      (simulator) => simulator.booted && simulator.isPhone,
-      orElse: () => available.firstWhere(
-        (simulator) => simulator.isPhone,
-        orElse: () => available.firstWhere(
-          (_) => true,
-          orElse: () => throw const CockpitApplicationServiceException(
-            code: 'iosSimulatorUnavailable',
-            message: 'No available iOS simulator could be selected.',
-          ),
-        ),
-      ),
     );
   }
 
@@ -1344,21 +1312,12 @@ final class CockpitDemoPlatformVerifier {
     required int sessionPort,
     required String workingDirectory,
   }) async {
-    try {
-      await _processRunner(
-        'adb',
-        <String>[
-          '-s',
-          deviceId,
-          'forward',
-          '--remove',
-          'tcp:$sessionPort',
-        ],
-        workingDirectory: workingDirectory,
-      );
-    } on Object {
-      // Best effort cleanup to avoid stale forwards across verification runs.
-    }
+    return cockpitDemoCleanupAndroidPortForward(
+      deviceId: deviceId,
+      sessionPort: sessionPort,
+      workingDirectory: workingDirectory,
+      processRunner: _processRunner,
+    );
   }
 
   Future<void> _cleanupExampleLocalState({
@@ -1366,96 +1325,25 @@ final class CockpitDemoPlatformVerifier {
     required String? deviceId,
     required String workingDirectory,
   }) async {
-    try {
-      switch (platform) {
-        case 'android':
-          if (deviceId == null || deviceId.isEmpty) {
-            return;
-          }
-          await _processRunner(
-            'adb',
-            <String>[
-              '-s',
-              deviceId,
-              'shell',
-              'run-as',
-              _androidExampleApplicationId,
-              'rm',
-              '-f',
-              'app_flutter/cockpit_demo.sqlite',
-              'app_flutter/cockpit_demo.sqlite-shm',
-              'app_flutter/cockpit_demo.sqlite-wal',
-            ],
-            workingDirectory: workingDirectory,
-          );
-        case 'ios':
-          if (deviceId == null || deviceId.isEmpty) {
-            return;
-          }
-          final containerResult = await _processRunner(
-            'xcrun',
-            <String>[
-              'simctl',
-              'get_app_container',
-              deviceId,
-              _appleExampleBundleId,
-              'data',
-            ],
-            workingDirectory: workingDirectory,
-          );
-          if (containerResult.exitCode != 0) {
-            return;
-          }
-          final containerPath = '${containerResult.stdout}'.trim();
-          if (containerPath.isEmpty) {
-            return;
-          }
-          await _deleteExampleDatabaseArtifacts(
-            p.join(containerPath, 'Documents'),
-          );
-        case 'macos':
-          final home = Platform.environment['HOME'];
-          if (home == null || home.isEmpty) {
-            return;
-          }
-          await _deleteExampleDatabaseArtifacts(
-            p.join(
-              home,
-              'Library',
-              'Containers',
-              _appleExampleBundleId,
-              'Data',
-              'Documents',
-            ),
-          );
-        case 'linux':
-        case 'web':
-        case 'windows':
-          return;
-      }
-    } on Object {
-      // Verification should stay best-effort when cleanup cannot run.
-    }
-  }
-
-  Future<void> _deleteExampleDatabaseArtifacts(String directoryPath) async {
-    final filenames = <String>[
-      'cockpit_demo.sqlite',
-      'cockpit_demo.sqlite-shm',
-      'cockpit_demo.sqlite-wal',
-    ];
-    for (final filename in filenames) {
-      final file = File(p.join(directoryPath, filename));
-      if (!file.existsSync()) {
-        continue;
-      }
-      await file.delete();
-    }
+    return cockpitDemoCleanupExampleLocalState(
+      platform: platform,
+      deviceId: deviceId,
+      workingDirectory: workingDirectory,
+      processRunner: _processRunner,
+    );
   }
 }
 
-const String _appleExampleBundleId = 'dev.cockpit.cockpitDemo';
+const String _iosExampleBundleId = 'com.iota9star.fluttercockpit.cockpitdemo';
+const String _macosExampleBundleId = 'dev.cockpit.cockpitDemo';
 const String _androidExampleApplicationId = 'dev.cockpit.cockpit_demo';
+
+const List<String> _iosExampleBundleIds = <String>[
+  _iosExampleBundleId,
+  // Keep cleanup compatible with containers created before the iOS bundle id
+  // diverged from the macOS bundle id.
+  _macosExampleBundleId,
+];
 
 Future<List<CockpitDemoHostDevice>> cockpitDemoProbeHostDevices({
   CockpitDemoProcessRunner processRunner = Process.run,
@@ -1563,6 +1451,177 @@ Future<int> cockpitDemoAllocateSessionPort({required int preferredPort}) async {
     } finally {
       await fallbackSocket.close();
     }
+  }
+}
+
+String cockpitDemoNormalizeVerificationPlatform(String platform) {
+  return switch (platform) {
+    'android' || 'ios' || 'linux' || 'macos' || 'web' || 'windows' => platform,
+    _ => throw CockpitApplicationServiceException(
+        code: 'unsupportedVerificationPlatform',
+        message:
+            'Only android, ios, linux, macos, web, and windows are supported.',
+        details: <String, Object?>{'platform': platform},
+      ),
+  };
+}
+
+CockpitDemoHostDevice? cockpitDemoMatchingVerificationDevice({
+  required List<CockpitDemoHostDevice> devices,
+  required String platform,
+}) {
+  for (final device in devices) {
+    if (!device.supported || device.platform != platform) {
+      continue;
+    }
+    if (cockpitDemoIsDesktopVerificationPlatform(platform) || device.emulator) {
+      return device;
+    }
+  }
+  return null;
+}
+
+CockpitDemoIosSimulator cockpitDemoSelectIosSimulator(
+  List<CockpitDemoIosSimulator> simulators,
+) {
+  final available = simulators.where((simulator) => simulator.available);
+  return available.firstWhere(
+    (simulator) => simulator.booted && simulator.isPhone,
+    orElse: () => available.firstWhere(
+      (simulator) => simulator.isPhone,
+      orElse: () => available.firstWhere(
+        (_) => true,
+        orElse: () => throw const CockpitApplicationServiceException(
+          code: 'iosSimulatorUnavailable',
+          message: 'No available iOS simulator could be selected.',
+        ),
+      ),
+    ),
+  );
+}
+
+bool cockpitDemoIsDesktopVerificationPlatform(String platform) {
+  return switch (platform) {
+    'linux' || 'macos' || 'web' || 'windows' => true,
+    _ => false,
+  };
+}
+
+Future<void> cockpitDemoCleanupAndroidPortForward({
+  required String deviceId,
+  required int sessionPort,
+  required String workingDirectory,
+  required CockpitDemoProcessRunner processRunner,
+}) async {
+  try {
+    await processRunner(
+      'adb',
+      <String>[
+        '-s',
+        deviceId,
+        'forward',
+        '--remove',
+        'tcp:$sessionPort',
+      ],
+      workingDirectory: workingDirectory,
+    );
+  } on Object {
+    // Best effort cleanup to avoid stale forwards across verification runs.
+  }
+}
+
+Future<void> cockpitDemoCleanupExampleLocalState({
+  required String platform,
+  required String? deviceId,
+  required String workingDirectory,
+  required CockpitDemoProcessRunner processRunner,
+}) async {
+  try {
+    switch (platform) {
+      case 'android':
+        if (deviceId == null || deviceId.isEmpty) {
+          return;
+        }
+        await processRunner(
+          'adb',
+          <String>[
+            '-s',
+            deviceId,
+            'shell',
+            'run-as',
+            _androidExampleApplicationId,
+            'rm',
+            '-f',
+            'app_flutter/cockpit_demo.sqlite',
+            'app_flutter/cockpit_demo.sqlite-shm',
+            'app_flutter/cockpit_demo.sqlite-wal',
+          ],
+          workingDirectory: workingDirectory,
+        );
+      case 'ios':
+        if (deviceId == null || deviceId.isEmpty) {
+          return;
+        }
+        for (final bundleId in _iosExampleBundleIds) {
+          final containerResult = await processRunner(
+            'xcrun',
+            <String>[
+              'simctl',
+              'get_app_container',
+              deviceId,
+              bundleId,
+              'data',
+            ],
+            workingDirectory: workingDirectory,
+          );
+          if (containerResult.exitCode != 0) {
+            continue;
+          }
+          final containerPath = '${containerResult.stdout}'.trim();
+          if (containerPath.isEmpty) {
+            continue;
+          }
+          await _deleteExampleDatabaseArtifacts(
+            p.join(containerPath, 'Documents'),
+          );
+        }
+      case 'macos':
+        final home = Platform.environment['HOME'];
+        if (home == null || home.isEmpty) {
+          return;
+        }
+        await _deleteExampleDatabaseArtifacts(
+          p.join(
+            home,
+            'Library',
+            'Containers',
+            _macosExampleBundleId,
+            'Data',
+            'Documents',
+          ),
+        );
+      case 'linux':
+      case 'web':
+      case 'windows':
+        return;
+    }
+  } on Object {
+    // Verification should stay best-effort when cleanup cannot run.
+  }
+}
+
+Future<void> _deleteExampleDatabaseArtifacts(String directoryPath) async {
+  final filenames = <String>[
+    'cockpit_demo.sqlite',
+    'cockpit_demo.sqlite-shm',
+    'cockpit_demo.sqlite-wal',
+  ];
+  for (final filename in filenames) {
+    final file = File(p.join(directoryPath, filename));
+    if (!file.existsSync()) {
+      continue;
+    }
+    await file.delete();
   }
 }
 
@@ -1813,25 +1872,6 @@ String _formatRuntimeLogLine(CockpitRuntimeEvent entry) {
     if (entry.source != null && entry.source!.isNotEmpty) entry.source!,
   ];
   return '${parts.join(' ')}: ${entry.message}';
-}
-
-String _normalizePlatform(String platform) {
-  return switch (platform) {
-    'android' || 'ios' || 'linux' || 'macos' || 'web' || 'windows' => platform,
-    _ => throw CockpitApplicationServiceException(
-        code: 'unsupportedVerificationPlatform',
-        message:
-            'Only android, ios, linux, macos, web, and windows are supported.',
-        details: <String, Object?>{'platform': platform},
-      ),
-  };
-}
-
-bool _isDesktopVerificationPlatform(String platform) {
-  return switch (platform) {
-    'linux' || 'macos' || 'web' || 'windows' => true,
-    _ => false,
-  };
 }
 
 Future<void> _defaultWait(Duration duration) => Future<void>.delayed(duration);

@@ -25,9 +25,9 @@ Target-first example:
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   launch-target \
-  --project-dir examples/cockpit_demo \
-  --platform web \
-  --device-id chrome \
+  --project-dir <project-dir> \
+  --platform <platform> \
+  --device-id <device-id> \
   --target-json /tmp/flutter_cockpit/target.json
 ```
 
@@ -50,9 +50,9 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   launch-app \
-  --project-dir examples/cockpit_demo \
-  --platform macos \
-  --device-id macos \
+  --project-dir <project-dir> \
+  --platform <platform> \
+  --device-id <device-id> \
   --app-json /tmp/flutter_cockpit/app.json
 ```
 
@@ -67,37 +67,26 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   run-command \
   --app-json /tmp/flutter_cockpit/app.json \
-  --command-json '{"commandId":"assert-inbox","commandType":"assertText","parameters":{"text":"Inbox"}}'
+  --command-json '{"commandId":"assert-ready","commandType":"assertText","parameters":{"text":"<expected-text>"}}'
 ```
 
-For this repository's demo app, finish the platform sweep with the example-local verifier:
+During active feature work, prefer a project-owned rapid verifier over a full
+release sweep. It should launch the app, drive one representative user flow,
+hot reload, assert the changed state, capture one still artifact when useful,
+read runtime errors, and stop the app. Its JSON should stay compact enough for
+an agent to read first after every failure.
 
-```bash
-cd examples/cockpit_demo
-dart run tool/verify_platforms.dart --output-json /tmp/cockpit_demo_all_platforms_verification.json
-```
+For release-grade coverage, run the heavier verifier only after the feature is
+ready to claim. That verifier should add the expensive surfaces: recordings,
+hot restart, network and log reads, target-first inspection, multi-platform
+coverage, and acceptance/delivery gates.
 
-Or from the repository root:
-
-```bash
-dart run examples/cockpit_demo/tool/verify_platforms.dart --output-json /tmp/cockpit_demo_all_platforms_verification.json
-```
-
-Without `--platform`, that command runs the local default sweep on macOS, iOS Simulator, and Android Emulator.
-The `runtime-loop` CI workflow invokes the same verifier explicitly on Linux, Windows, and web too, one platform per job.
-When the host can run desktop Linux or Windows locally, pass `--platform linux` and `--platform windows` explicitly to extend the sweep.
-It validates `run-batch`, `inspect-ui`, `wait-idle`, `read-network`, `read-errors`, `read-logs`, `inspect-surface`, screenshot capture, recording, `hot-reload`, and `hot-restart`.
-Recording is platform-aware in that sweep: macOS, Linux, Windows, and physical iOS devices use the remote recording path, web uses `browser-host`, iOS Simulator uses `simctl`, and Android Emulator uses `adb`.
-For local macOS web runs where desktop recording permission is still blocked, add `--allow-web-host-recording-prerequisite-failure` so the verifier reports a structured warning instead of failing the whole runtime loop.
-
-For release-grade MCP and target-first verification in this repository, run:
-
-```bash
-cd packages/flutter_cockpit_devtools
-dart run tool/verify_mcp_surface.dart
-```
-
-That verifier exercises the real `serve-mcp` stdio surface, workspace tooling, target-first commands, and delivery tools (`run-script`, `run-task`, `validate-task`) end to end.
+Make recording platform-aware in any verifier: desktop and physical device
+recording often depend on remote or host adapters, browser recording depends on
+host permission, simulators usually have simulator-native capture, and Android
+emulators usually use device tooling. Blocked host permissions should be
+reported as structured environment warnings when the app-control path is still
+valid.
 
 ## Expected Agent Behavior
 

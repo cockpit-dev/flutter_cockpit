@@ -205,7 +205,9 @@ final class CockpitReadTargetService {
         capabilityProfile,
       ),
       whatMatters: cockpitWhatMattersForProfile(capabilityProfile),
-      uiSummary: _staticSummaryForProfile(request.resultProfile),
+      uiSummary: cockpitInteractiveStaticSummaryForProfile(
+        request.resultProfile,
+      ),
     );
   }
 
@@ -363,31 +365,6 @@ final class CockpitReadTargetService {
       return recordingHint;
     }
     return '$base $recordingHint';
-  }
-
-  CockpitInteractiveSnapshotSummary? _staticSummaryForProfile(
-    CockpitInteractiveResultProfile profile,
-  ) {
-    if (profile.ui == CockpitInteractiveUiLevel.none) {
-      return null;
-    }
-    return CockpitInteractiveSnapshotSummary(
-      routeName: null,
-      diagnosticLevel: profile.snapshotProfile.jsonValue,
-      truncated: false,
-      visibleTargetCount: 0,
-      targetsWithCockpitIdCount: 0,
-      targetsWithTextCount: 0,
-      networkEntryCount: 0,
-      networkFailureCount: 0,
-      runtimeEntryCount: 0,
-      runtimeErrorCount: 0,
-      rebuildEntryCount: 0,
-      totalRebuildCount: 0,
-      accessibilityTargetCount: 0,
-      accessibilityTraversalCount: 0,
-      textPreviews: const <String>[],
-    );
   }
 
   static CockpitCapabilityProfile _legacyCapabilityProfile(

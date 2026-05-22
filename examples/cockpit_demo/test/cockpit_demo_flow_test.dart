@@ -10,8 +10,11 @@ import 'support/cockpit_demo_test_support.dart';
 
 void main() {
   test('ships a dedicated cockpit development entrypoint', () {
-    expect(File('cockpit/main.dart').existsSync(), isTrue);
-    expect(File('cockpit/cockpit_bootstrap.dart').existsSync(), isTrue);
+    expect(resolveCockpitDemoFile('cockpit/main.dart').existsSync(), isTrue);
+    expect(
+      resolveCockpitDemoFile('cockpit/cockpit_bootstrap.dart').existsSync(),
+      isTrue,
+    );
   });
 
   testWidgets('records a todo flow and writes a task bundle', (tester) async {

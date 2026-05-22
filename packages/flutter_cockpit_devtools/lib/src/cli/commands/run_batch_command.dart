@@ -73,7 +73,7 @@ final class RunBatchCommand extends CockpitCliCommand {
 
   @override
   String get helpShape =>
-      'commands.json = [{"commandId":"wait-1","commandType":"waitForUiIdle"},{"commandId":"assert-inbox","commandType":"assertText","parameters":{"text":"Inbox"}}]; prefer batch for short open -> edit -> save style flows. Each item may also set timeoutMs, profile, snapshotOptions, or compareAgainstSnapshotRef.';
+      'commands.json = [{"commandId":"wait-1","commandType":"waitForUiIdle"},{"commandId":"assert-ready","commandType":"assertText","parameters":{"text":"<expected-text>"}}]; prefer batch for short open -> edit -> save style flows. Each item may also set timeoutMs, profile, snapshotOptions, or compareAgainstSnapshotRef.';
 
   @override
   String get helpExample =>

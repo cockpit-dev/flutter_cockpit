@@ -154,7 +154,7 @@ final class MyAppShell extends StatelessWidget {
   Widget build(BuildContext context) {
     return FlutterCockpitApp(
       config: FlutterCockpitConfig.production(
-        initialRouteName: '/inbox',
+        initialRouteName: '/',
         remoteSession: CockpitRemoteSessionConfiguration.resolveFromEnvironment(
           fallback: const CockpitRemoteSessionConfiguration(
             enabled: true,
@@ -167,7 +167,7 @@ final class MyAppShell extends StatelessWidget {
         navigatorObservers: <NavigatorObserver>[
           FlutterCockpit.navigatorObserver,
         ],
-        initialRoute: '/inbox',
+        initialRoute: '/',
         onGenerateRoute: _buildRoute,
       ),
     );

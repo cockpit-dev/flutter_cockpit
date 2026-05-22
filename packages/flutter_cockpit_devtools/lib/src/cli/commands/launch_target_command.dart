@@ -107,7 +107,7 @@ final class LaunchTargetCommand extends CockpitCliCommand {
 
   @override
   String get helpExample =>
-      'flutter_cockpit_devtools launch-target --project-dir examples/cockpit_demo --platform web --device-id chrome --target-json /tmp/target.json --output-json /tmp/launch_target.json';
+      'flutter_cockpit_devtools launch-target --project-dir /abs/path/to/flutter_app --platform web --device-id chrome --target-json /tmp/target.json --output-json /tmp/launch_target.json';
 
   @override
   String get helpWrites =>

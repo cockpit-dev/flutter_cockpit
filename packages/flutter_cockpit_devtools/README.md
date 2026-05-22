@@ -94,7 +94,15 @@ When a command accepts both `--app-json` and `--base-url`, precedence is: explic
 `run-script` exits non-zero when the written bundle status is `failed`.
 Workspace commands default `--workspace-root` or `--parent-directory` to the current directory.
 Serialize mutation, then observation. Do not run a mutating `run-command` in parallel with the `read-app`, `inspect-ui`, or `read-network` call that depends on its result.
-When the next few steps are already known and the flow will cross a route boundary such as `/inbox -> /editor -> /inbox`, prefer one ordered `run-batch` over separate `run-command` round-trips. It cuts token cost and avoids route-transition gaps between commands.
+When the next few steps are already known and the flow will cross a route boundary such as list -> editor -> list, prefer one ordered `run-batch` over separate `run-command` round-trips. It cuts token cost and avoids route-transition gaps between commands.
+
+For AI-first development, build project-owned rapid verifiers around the same
+small loop: launch, drive one representative flow, hot reload, assert the
+changed state, capture one still artifact when useful, read runtime errors, and
+stop the app. Keep failure JSON compact enough for an agent to inspect before
+opening full snapshots or rerunning expensive validation. Useful fields are
+completed phases, failed command metadata, final route or state preview, bounded
+runtime error previews, and artifact refs.
 
 Minimal verified `run-command` shape:
 
@@ -102,7 +110,7 @@ Minimal verified `run-command` shape:
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   run-command \
   --app-json /tmp/app.json \
-  --command-json '{"commandId":"assert-inbox","commandType":"assertText","parameters":{"text":"Inbox"}}'
+  --command-json '{"commandId":"assert-ready","commandType":"assertText","parameters":{"text":"<expected-text>"}}'
 ```
 
 Verified web development loop:
@@ -110,7 +118,7 @@ Verified web development loop:
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   launch-app \
-  --project-dir examples/cockpit_demo \
+  --project-dir <project-dir> \
   --platform web \
   --device-id chrome \
   --app-json /tmp/flutter_cockpit/web_app.json
@@ -136,9 +144,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 
 On web, `launch-app` now stands up a host-side bridge on `127.0.0.1` and lets the browser app connect back over WebSocket while keeping the existing HTTP app surface (`/health`, `/snapshot`, `/commands/execute`, `/recording/*`) stable for agents.
 Host-side browser recording still depends on the desktop OS granting screen-capture permission to the browser and capture stack; when that host permission or device policy blocks capture, `stop-recording` returns a structured failure result instead of hanging the session.
-The repository `runtime-loop` workflow also runs `examples/cockpit_demo/tool/verify_platforms.dart --platform web` on Linux under `xvfb`, so screenshot, recording, hot reload, and hot restart all stay covered by a real end-to-end web job.
-For local macOS web validation, `examples/cockpit_demo/tool/verify_platforms.dart --platform web --allow-web-host-recording-prerequisite-failure` keeps the verifier strict for app control, screenshots, and reload flows while downgrading missing desktop recording permission into a structured warning.
-When you run the repository-owned verifier entrypoint from the repo root, it now resolves `examples/cockpit_demo` automatically, so `dart run examples/cockpit_demo/tool/verify_platforms.dart --platform web` works without an extra `--project-dir`.
+For project-owned web validation, keep app control, screenshots, and reload checks strict. Treat missing desktop screen-capture permission as a structured environment warning only when the app-control path still passes.
 
 Locator rules:
 

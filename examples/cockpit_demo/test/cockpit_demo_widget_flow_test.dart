@@ -1,20 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_cockpit/flutter_cockpit_flutter.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:path/path.dart' as p;
 import 'package:cockpit_demo/src/data/cockpit_demo_database.dart';
 import 'package:cockpit_demo/src/data/todo_repository.dart';
 import 'package:cockpit_demo/src/model/todo_filter.dart';
 import 'package:cockpit_demo/src/model/todo_priority.dart';
 import 'package:cockpit_demo/src/model/todo_task.dart';
 import 'package:cockpit_demo/src/ui/widgets/collection_overview_card.dart';
-import 'dart:io';
 
 import 'support/cockpit_demo_test_support.dart';
 
 void main() {
   test('keeps the production main entrypoint free of cockpit bootstrap', () {
-    final contents = _resolveExampleFile('lib/main.dart').readAsStringSync();
+    final contents = resolveCockpitDemoFile('lib/main.dart').readAsStringSync();
     expect(contents.contains('flutter_cockpit'), isFalse);
     expect(contents.contains('FlutterCockpit'), isFalse);
   });
@@ -387,6 +385,46 @@ void main() {
   );
 
   testWidgets(
+    'inbox exposes a compact queue brief for rapid validation',
+    (tester) async {
+      final database = CockpitDemoDatabase.inMemory();
+      addCockpitDemoDatabaseTearDown(tester, database);
+      final repository = TodoRepository(database);
+      await repository.createTask(
+        title: 'Ship cockpit rapid loop',
+        notes: 'Keep the summary cheap for AI validation.',
+        priority: TodoPriority.high,
+        dueAt: DateTime.now(),
+      );
+      await repository.createTask(
+        title: 'Archive finished notes',
+        priority: TodoPriority.low,
+        dueAt: DateTime.now(),
+      );
+      final completed = await repository.createTask(
+        title: 'Closed acceptance pass',
+        priority: TodoPriority.urgent,
+        dueAt: DateTime.now(),
+      );
+      await repository.setTaskCompleted(
+        taskId: completed.id,
+        isCompleted: true,
+      );
+
+      await pumpTodoApp(
+        tester,
+        controller: _testController(),
+        database: database,
+      );
+
+      expect(
+        find.textContaining('Queue brief:'),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
     'selection mode can apply a batch due date update',
     (tester) async {
       final database = CockpitDemoDatabase.inMemory();
@@ -684,33 +722,6 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.textContaining('Review runtime diagnostics'), findsOneWidget);
     },
-  );
-}
-
-File _resolveExampleFile(String relativePath) {
-  var current = Directory.current.absolute;
-  for (var depth = 0; depth < 6; depth += 1) {
-    final direct = File(p.join(current.path, relativePath));
-    if (direct.existsSync()) {
-      return direct;
-    }
-
-    final nested = File(
-      p.join(current.path, 'examples', 'cockpit_demo', relativePath),
-    );
-    if (nested.existsSync()) {
-      return nested;
-    }
-
-    final parent = current.parent;
-    if (parent.path == current.path) {
-      break;
-    }
-    current = parent;
-  }
-
-  throw StateError(
-    'Unable to resolve cockpit_demo/$relativePath from ${Directory.current.path}.',
   );
 }
 

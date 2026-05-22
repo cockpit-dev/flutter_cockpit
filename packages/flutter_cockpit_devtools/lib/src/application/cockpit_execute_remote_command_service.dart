@@ -150,18 +150,14 @@ final class CockpitExecuteRemoteCommandService {
       );
       final execution =
           await _executeCommand(resolved.baseUri, effectiveCommand);
-      final needsSnapshot =
-          request.resultProfile.ui != CockpitInteractiveUiLevel.none ||
-              request.resultProfile.diagnostics !=
-                  CockpitInteractiveDiagnosticsLevel.none ||
-              request.resultProfile.includeDelta ||
-              request.resultProfile.emitSnapshotRef ||
-              request.compareAgainstSnapshotRef != null;
-      final effectiveSnapshotOptions = needsSnapshot
-          ? request.resultProfile.resolveSnapshotOptions(
-              request.snapshotOptions ?? effectiveCommand.snapshotOptions,
-            )
-          : null;
+      final effectiveSnapshotOptions =
+          request.resultProfile.requiresPostActionSnapshotRead(
+        compareAgainstSnapshot: request.compareAgainstSnapshotRef != null,
+      )
+              ? request.resultProfile.resolveSnapshotOptions(
+                  request.snapshotOptions ?? effectiveCommand.snapshotOptions,
+                )
+              : null;
       final snapshot = effectiveSnapshotOptions == null
           ? null
           : (await cockpitReadRemoteSnapshotConsistently(
@@ -177,7 +173,7 @@ final class CockpitExecuteRemoteCommandService {
               sessionKey: sessionKey,
             );
       final snapshotRef =
-          snapshot == null || !request.resultProfile.emitSnapshotRef
+          snapshot == null || !request.resultProfile.emitsSnapshotRef
               ? null
               : _snapshotStore.put(sessionKey: sessionKey, snapshot: snapshot);
 
@@ -195,20 +191,17 @@ final class CockpitExecuteRemoteCommandService {
         ),
         whatChanged: _whatChanged(execution.result),
         whatMatters: _whatMatters(execution.result),
-        uiSummary: snapshot == null ||
-                request.resultProfile.ui != CockpitInteractiveUiLevel.summary
+        uiSummary: snapshot == null || !request.resultProfile.emitsUiSummary
             ? null
             : cockpitInteractiveSummarizeSnapshot(snapshot),
-        snapshot: request.resultProfile.ui == CockpitInteractiveUiLevel.snapshot
-            ? snapshot
-            : null,
+        snapshot: request.resultProfile.emitsInlineSnapshot ? snapshot : null,
         diagnostics: snapshot == null
             ? null
             : cockpitInteractiveDiagnosticsFromSnapshot(
                 snapshot,
                 request.resultProfile.diagnostics,
               ),
-        runtimeSteps: request.resultProfile.includeRuntimeSteps
+        runtimeSteps: request.resultProfile.emitsRuntimeSteps
             ? execution.runtimeSteps
                 .map((step) => (step.toJson()))
                 .toList(growable: false)

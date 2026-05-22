@@ -181,6 +181,32 @@ final class CockpitInteractiveSnapshotDelta {
       };
 }
 
+CockpitInteractiveSnapshotSummary? cockpitInteractiveStaticSummaryForProfile(
+  CockpitInteractiveResultProfile profile, {
+  String? routeName,
+}) {
+  if (!profile.emitsUiSummary && !profile.emitsInlineSnapshot) {
+    return null;
+  }
+  return CockpitInteractiveSnapshotSummary(
+    routeName: routeName,
+    diagnosticLevel: profile.snapshotProfile.jsonValue,
+    truncated: false,
+    visibleTargetCount: 0,
+    targetsWithCockpitIdCount: 0,
+    targetsWithTextCount: 0,
+    networkEntryCount: 0,
+    networkFailureCount: 0,
+    runtimeEntryCount: 0,
+    runtimeErrorCount: 0,
+    rebuildEntryCount: 0,
+    totalRebuildCount: 0,
+    accessibilityTargetCount: 0,
+    accessibilityTraversalCount: 0,
+    textPreviews: const <String>[],
+  );
+}
+
 CockpitInteractiveSnapshotSummary cockpitInteractiveSummarizeSnapshot(
   CockpitSnapshot snapshot,
 ) {

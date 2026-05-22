@@ -21,6 +21,19 @@ Keep each cycle small:
 5. `run-command` for one action or assertion
 6. `read-app --profile minimal` or `inspect-ui --profile inspect` only if the result is still ambiguous
 
+For project-specific rapid verifiers, keep the output small and diagnostic:
+
+- completed phases before failure
+- failed command id, command type, and command error JSON
+- final route or compact state summary after the failed batch
+- bounded runtime error previews
+- screenshot or recording artifact refs only when they exist
+
+When a feature asserts exact collection counts, isolate app state before launch
+or seed a known dataset through the app's production APIs. If a count is larger
+than expected, check persistent state cleanup and non-idempotent replay before
+changing locators or UI code.
+
 ## Target-First Quick Loop
 
 Use this branch when the target is not purely a Flutter app handle:
@@ -119,8 +132,9 @@ Do not pay delivery-grade cost on every edit. Do pay it before any user-facing c
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   launch-app \
-  --project-dir examples/cockpit_demo \
-  --platform macos
+  --project-dir <project-dir> \
+  --platform <platform> \
+  --device-id <device-id>
 ```
 
 ```bash
@@ -131,7 +145,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools hot-reload
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   run-command \
   --profile standard \
-  --command-json '{"commandId":"open-today","commandType":"tap","locator":{"text":"Today","type":"TextButton","ancestor":{"route":"/inbox"}}}'
+  --command-json '{"commandId":"open-filter","commandType":"tap","locator":{"text":"<filter-label>","type":"TextButton","ancestor":{"route":"<current-route>"}}}'
 ```
 
 ```bash
