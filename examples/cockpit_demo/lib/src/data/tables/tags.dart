@@ -14,6 +14,6 @@ class Tags extends Table {
 
   @override
   List<Set<Column<Object>>> get uniqueKeys => <Set<Column<Object>>>[
-        <Column<Object>>{name},
-      ];
+    <Column<Object>>{name},
+  ];
 }

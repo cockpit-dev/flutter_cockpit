@@ -133,12 +133,12 @@ final class CockpitMcpServer {
     CockpitLatestTaskStore? latestTaskStore,
     this.serverName = 'flutter_cockpit_devtools',
     this.serverVersion = '1.0.0',
-  })  : rootsTracker = rootsTracker ?? CockpitMcpRootsTracker(),
-        sessionRegistry = sessionRegistry ?? CockpitSessionRegistry(),
-        latestTaskStore = latestTaskStore ?? CockpitLatestTaskStore(),
-        _tools = Map<String, CockpitMcpTool>.fromEntries(
-          tools.map((tool) => MapEntry(tool.name, tool)),
-        );
+  }) : rootsTracker = rootsTracker ?? CockpitMcpRootsTracker(),
+       sessionRegistry = sessionRegistry ?? CockpitSessionRegistry(),
+       latestTaskStore = latestTaskStore ?? CockpitLatestTaskStore(),
+       _tools = Map<String, CockpitMcpTool>.fromEntries(
+         tools.map((tool) => MapEntry(tool.name, tool)),
+       );
 
   factory CockpitMcpServer.standard({
     String serverName = 'flutter_cockpit_devtools',
@@ -182,12 +182,11 @@ final class CockpitMcpServer {
     final listActiveSessionsService = CockpitListActiveSessionsService(
       registry: sessionRegistry,
     );
-    final listAppsService = CockpitListAppsService(
+    final listAppsService = CockpitListAppsService(registry: sessionRegistry);
+    final readLogsService = CockpitReadLogsService(registry: sessionRegistry);
+    final readNetworkService = CockpitReadNetworkService(
       registry: sessionRegistry,
     );
-    final readLogsService = CockpitReadLogsService(registry: sessionRegistry);
-    final readNetworkService =
-        CockpitReadNetworkService(registry: sessionRegistry);
     final readRuntimeErrorsService = CockpitReadRuntimeErrorsService(
       registry: sessionRegistry,
       latestTaskStore: latestTaskStore,
@@ -215,9 +214,9 @@ final class CockpitMcpServer {
     );
     final executeRemoteCommandBatchService =
         CockpitExecuteRemoteCommandBatchService(
-      snapshotStore: interactiveSnapshotStore,
-      sessionLock: interactiveSessionLock,
-    );
+          snapshotStore: interactiveSnapshotStore,
+          sessionLock: interactiveSessionLock,
+        );
     final readRemoteStatusService = CockpitReadRemoteStatusService(
       snapshotStore: interactiveSnapshotStore,
     );
@@ -238,8 +237,9 @@ final class CockpitMcpServer {
       launchAppService: launchAppService,
     );
     final hotReloadService = CockpitHotReloadService(registry: sessionRegistry);
-    final hotRestartService =
-        CockpitHotRestartService(registry: sessionRegistry);
+    final hotRestartService = CockpitHotRestartService(
+      registry: sessionRegistry,
+    );
     final stopAppService = CockpitStopAppService(registry: sessionRegistry);
     final readAppService = CockpitReadAppService(
       remoteStatusService: readRemoteStatusService,
@@ -374,9 +374,7 @@ final class CockpitMcpServer {
         bundleContractPath: resolvedBundleContractPath,
       ),
       CockpitWorkspaceRootsResource(
-        service: CockpitListWorkspaceRootsService(
-          rootsTracker: rootsTracker,
-        ),
+        service: CockpitListWorkspaceRootsService(rootsTracker: rootsTracker),
       ),
       CockpitAppsResource(service: listAppsService),
       CockpitAppResource(registry: sessionRegistry),
@@ -466,7 +464,8 @@ final class CockpitMcpServer {
       switch (method) {
         case 'initialize':
           return _successResponse(id, <String, Object?>{
-            'protocolVersion': ((message['params']
+            'protocolVersion':
+                ((message['params']
                         as Map<Object?, Object?>?)?['protocolVersion']
                     as String?) ??
                 '2024-11-05',
@@ -527,10 +526,10 @@ final class CockpitMcpServer {
                 .map(
                   (content) => switch (content) {
                     CockpitMcpTextResourceContents() => <String, Object?>{
-                        'uri': content.uri,
-                        'mimeType': content.mimeType,
-                        'text': content.text,
-                      },
+                      'uri': content.uri,
+                      'mimeType': content.mimeType,
+                      'text': content.text,
+                    },
                   },
                 )
                 .toList(growable: false),
@@ -629,10 +628,7 @@ final class CockpitMcpServer {
     Sink<String>? protocolLogSink,
   }) async {
     final server = createProtocolServer(
-      cockpitMcpStdioChannel(
-        input: input ?? stdin,
-        output: output ?? stdout,
-      ),
+      cockpitMcpStdioChannel(input: input ?? stdin, output: output ?? stdout),
       protocolLogSink: protocolLogSink,
     );
     await server.done;

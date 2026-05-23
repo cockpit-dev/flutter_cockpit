@@ -45,12 +45,14 @@ final class CockpitRunBatchRequest {
 }
 
 typedef CockpitRunBatchResult = CockpitExecuteRemoteCommandBatchResult;
-typedef CockpitRunBatchStartRecordingFunction
-    = Future<CockpitStartRecordingResult> Function(
-        CockpitStartRecordingRequest request);
-typedef CockpitRunBatchStopRecordingFunction
-    = Future<CockpitStopRecordingResult> Function(
-        CockpitStopRecordingRequest request);
+typedef CockpitRunBatchStartRecordingFunction =
+    Future<CockpitStartRecordingResult> Function(
+      CockpitStartRecordingRequest request,
+    );
+typedef CockpitRunBatchStopRecordingFunction =
+    Future<CockpitStopRecordingResult> Function(
+      CockpitStopRecordingRequest request,
+    );
 
 final class CockpitRunBatchService {
   CockpitRunBatchService({
@@ -61,18 +63,21 @@ final class CockpitRunBatchService {
     CockpitRunBatchStartRecordingFunction? startRecording,
     CockpitRunBatchStopRecordingFunction? stopRecording,
     CockpitSessionRegistry? registry,
-  })  : _executeService =
-            executeService ?? CockpitExecuteRemoteCommandBatchService(),
-        _appReferenceResolver = appReferenceResolver ??
-            CockpitAppReferenceResolver(registry: registry),
-        _startRecording = startRecording ??
-            (startRecordingService ??
-                    CockpitStartRecordingService(registry: registry))
-                .start,
-        _stopRecording = stopRecording ??
-            (stopRecordingService ??
-                    CockpitStopRecordingService(registry: registry))
-                .stop;
+  }) : _executeService =
+           executeService ?? CockpitExecuteRemoteCommandBatchService(),
+       _appReferenceResolver =
+           appReferenceResolver ??
+           CockpitAppReferenceResolver(registry: registry),
+       _startRecording =
+           startRecording ??
+           (startRecordingService ??
+                   CockpitStartRecordingService(registry: registry))
+               .start,
+       _stopRecording =
+           stopRecording ??
+           (stopRecordingService ??
+                   CockpitStopRecordingService(registry: registry))
+               .stop;
 
   final CockpitExecuteRemoteCommandBatchService _executeService;
   final CockpitAppReferenceResolver _appReferenceResolver;
@@ -107,7 +112,8 @@ final class CockpitRunBatchService {
           app: resolved.app,
           baseUri: resolved.app == null ? resolved.baseUri : null,
           androidDeviceId: request.androidDeviceId,
-          iosDeviceId: request.iosDeviceId ??
+          iosDeviceId:
+              request.iosDeviceId ??
               (resolved.app?.platform == 'ios' ? resolved.app?.deviceId : null),
         ),
       );
@@ -124,7 +130,8 @@ final class CockpitRunBatchService {
           app: resolved.app,
           baseUri: resolved.app == null ? resolved.baseUri : null,
           androidDeviceId: request.androidDeviceId,
-          iosDeviceId: request.iosDeviceId ??
+          iosDeviceId:
+              request.iosDeviceId ??
               (resolved.app?.platform == 'ios' ? resolved.app?.deviceId : null),
         ),
       );
@@ -142,7 +149,8 @@ final class CockpitRunBatchService {
               app: resolved.app,
               baseUri: resolved.app == null ? resolved.baseUri : null,
               androidDeviceId: request.androidDeviceId,
-              iosDeviceId: request.iosDeviceId ??
+              iosDeviceId:
+                  request.iosDeviceId ??
                   (resolved.app?.platform == 'ios'
                       ? resolved.app?.deviceId
                       : null),

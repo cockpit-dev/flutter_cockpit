@@ -7,10 +7,10 @@ import '../../cli/cockpit_control_script.dart';
 import '../cockpit_mcp_error.dart';
 import '../cockpit_mcp_tool.dart';
 
-typedef CockpitRunRemoteControlScriptFunction
-    = Future<CockpitRunRemoteControlScriptResult> Function(
-  CockpitRunRemoteControlScriptRequest request,
-);
+typedef CockpitRunRemoteControlScriptFunction =
+    Future<CockpitRunRemoteControlScriptResult> Function(
+      CockpitRunRemoteControlScriptRequest request,
+    );
 
 final class CockpitRunRemoteControlScriptTool extends CockpitMcpTool {
   CockpitRunRemoteControlScriptTool({
@@ -18,9 +18,10 @@ final class CockpitRunRemoteControlScriptTool extends CockpitMcpTool {
     CockpitSessionRegistry? registry,
     CockpitAppReferenceResolver? appReferenceResolver,
     CockpitRunRemoteControlScriptFunction? run,
-  })  : _run = run ?? (service ?? CockpitRunRemoteControlScriptService()).run,
-        _appReferenceResolver = appReferenceResolver ??
-            CockpitAppReferenceResolver(registry: registry);
+  }) : _run = run ?? (service ?? CockpitRunRemoteControlScriptService()).run,
+       _appReferenceResolver =
+           appReferenceResolver ??
+           CockpitAppReferenceResolver(registry: registry);
 
   final CockpitRunRemoteControlScriptFunction _run;
   final CockpitAppReferenceResolver _appReferenceResolver;
@@ -34,19 +35,19 @@ final class CockpitRunRemoteControlScriptTool extends CockpitMcpTool {
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
-        'type': 'object',
-        'required': <String>['script', 'outputRoot'],
-        'properties': <String, Object?>{
-          'appId': <String, Object?>{'type': 'string'},
-          'appJson': <String, Object?>{'type': 'string'},
-          'baseUrl': <String, Object?>{'type': 'string'},
-          'androidDeviceId': <String, Object?>{'type': 'string'},
-          'iosDeviceId': <String, Object?>{'type': 'string'},
-          'script': <String, Object?>{'type': 'object'},
-          'outputRoot': <String, Object?>{'type': 'string'},
-          'persistScriptPath': <String, Object?>{'type': 'string'},
-        },
-      };
+    'type': 'object',
+    'required': <String>['script', 'outputRoot'],
+    'properties': <String, Object?>{
+      'appId': <String, Object?>{'type': 'string'},
+      'appJson': <String, Object?>{'type': 'string'},
+      'baseUrl': <String, Object?>{'type': 'string'},
+      'androidDeviceId': <String, Object?>{'type': 'string'},
+      'iosDeviceId': <String, Object?>{'type': 'string'},
+      'script': <String, Object?>{'type': 'object'},
+      'outputRoot': <String, Object?>{'type': 'string'},
+      'persistScriptPath': <String, Object?>{'type': 'string'},
+    },
+  };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {
@@ -77,26 +78,34 @@ final class CockpitRunRemoteControlScriptTool extends CockpitMcpTool {
       );
       final result = await _run(
         CockpitRunRemoteControlScriptRequest(
-          platformAppId: resolved.app?.platformAppId ??
-              resolved.developmentRecord?.handle.remoteSessionHandle
+          platformAppId:
+              resolved.app?.platformAppId ??
+              resolved
+                  .developmentRecord
+                  ?.handle
+                  .remoteSessionHandle
                   ?.effectivePlatformAppId ??
               resolved.remoteRecord?.handle.effectivePlatformAppId,
-          processId: resolved.app?.processId ??
+          processId:
+              resolved.app?.processId ??
               resolved
-                  .developmentRecord?.handle.remoteSessionHandle?.processId ??
+                  .developmentRecord
+                  ?.handle
+                  .remoteSessionHandle
+                  ?.processId ??
               resolved.remoteRecord?.handle.processId,
           baseUri: resolved.baseUri,
-          sessionHandle: resolved.app?.remoteSession ??
+          sessionHandle:
+              resolved.app?.remoteSession ??
               resolved.developmentRecord?.handle.remoteSessionHandle ??
               resolved.remoteRecord?.handle,
-          androidDeviceId: cockpitReadOptionalString(
-                arguments,
-                'androidDeviceId',
-              ) ??
+          androidDeviceId:
+              cockpitReadOptionalString(arguments, 'androidDeviceId') ??
               (resolved.app?.platform == 'android'
                   ? resolved.app?.deviceId
                   : null),
-          iosDeviceId: cockpitReadOptionalString(arguments, 'iosDeviceId') ??
+          iosDeviceId:
+              cockpitReadOptionalString(arguments, 'iosDeviceId') ??
               (resolved.app?.platform == 'ios' ? resolved.app?.deviceId : null),
           portForwardingHandled: true,
           script: script,

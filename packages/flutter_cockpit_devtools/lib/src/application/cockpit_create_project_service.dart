@@ -7,10 +7,7 @@ import 'cockpit_application_service_exception.dart';
 import 'cockpit_workspace_command_result.dart';
 import 'cockpit_workspace_tooling_support.dart';
 
-enum CockpitProjectTemplate {
-  dartCli,
-  flutterApp,
-}
+enum CockpitProjectTemplate { dartCli, flutterApp }
 
 final class CockpitCreateProjectRequest {
   const CockpitCreateProjectRequest({
@@ -48,12 +45,12 @@ final class CockpitCreateProjectResult {
   final String stderr;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'projectDirectory': projectDirectory,
-        'command': command.toJson(),
-        'success': success,
-        'stdout': stdout,
-        'stderr': stderr,
-      };
+    'projectDirectory': projectDirectory,
+    'command': command.toJson(),
+    'success': success,
+    'stdout': stdout,
+    'stderr': stderr,
+  };
 }
 
 final class CockpitCreateProjectService {
@@ -61,9 +58,9 @@ final class CockpitCreateProjectService {
     CockpitProcessManager? processManager,
     CockpitFileSystem? fileSystem,
     CockpitSdkEnvironment? sdkEnvironment,
-  })  : _processManager = processManager ?? const LocalCockpitProcessManager(),
-        _fileSystem = fileSystem ?? const LocalCockpitFileSystem(),
-        _sdkEnvironment = sdkEnvironment ?? CockpitSdkEnvironment.current();
+  }) : _processManager = processManager ?? const LocalCockpitProcessManager(),
+       _fileSystem = fileSystem ?? const LocalCockpitFileSystem(),
+       _sdkEnvironment = sdkEnvironment ?? CockpitSdkEnvironment.current();
 
   final CockpitProcessManager _processManager;
   final CockpitFileSystem _fileSystem;
@@ -100,7 +97,7 @@ final class CockpitCreateProjectService {
           'create',
           if (request.organization != null) ...<String>[
             '--org',
-            request.organization!
+            request.organization!,
           ],
           if (request.platforms.isNotEmpty)
             '--platforms=${request.platforms.join(',')}',

@@ -17,14 +17,12 @@ import 'cockpit_inspect_ui_service.dart';
 import 'cockpit_interactive_result_data.dart';
 import 'cockpit_interactive_result_profile.dart';
 
-typedef CockpitInspectSurfaceFunction = Future<CockpitInspectSurfaceResult>
-    Function(
-  CockpitInspectSurfaceRequest request,
-);
-typedef CockpitInspectFlutterSurfaceFunction = Future<CockpitInspectUiResult>
-    Function(
-  CockpitInspectUiRequest request,
-);
+typedef CockpitInspectSurfaceFunction =
+    Future<CockpitInspectSurfaceResult> Function(
+      CockpitInspectSurfaceRequest request,
+    );
+typedef CockpitInspectFlutterSurfaceFunction =
+    Future<CockpitInspectUiResult> Function(CockpitInspectUiRequest request);
 
 final class CockpitInspectSurfaceRequest {
   const CockpitInspectSurfaceRequest({
@@ -84,22 +82,22 @@ final class CockpitInspectSurfaceResult {
   final CockpitSnapshotOptions? effectiveSnapshotOptions;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'target': target.toJson(),
-        'capabilityProfile': capabilityProfile.toJson(),
-        'surfaceKind': surfaceKind.name,
-        'selectedPlane': selectedPlane.name,
-        'recommendedNextStep': recommendedNextStep,
-        if (routeName != null) 'routeName': routeName,
-        'diagnosticLevel': diagnosticLevel,
-        'truncated': truncated,
-        if (uiSummary != null) 'uiSummary': uiSummary!.toJson(),
-        if (snapshot != null) 'snapshot': snapshot!.toJson(),
-        if (diagnostics != null) 'diagnostics': diagnostics,
-        if (delta != null) 'delta': delta!.toJson(),
-        if (snapshotRef != null) 'snapshotRef': snapshotRef,
-        if (effectiveSnapshotOptions != null)
-          'effectiveSnapshotOptions': effectiveSnapshotOptions!.toJson(),
-      };
+    'target': target.toJson(),
+    'capabilityProfile': capabilityProfile.toJson(),
+    'surfaceKind': surfaceKind.name,
+    'selectedPlane': selectedPlane.name,
+    'recommendedNextStep': recommendedNextStep,
+    if (routeName != null) 'routeName': routeName,
+    'diagnosticLevel': diagnosticLevel,
+    'truncated': truncated,
+    if (uiSummary != null) 'uiSummary': uiSummary!.toJson(),
+    if (snapshot != null) 'snapshot': snapshot!.toJson(),
+    if (diagnostics != null) 'diagnostics': diagnostics,
+    if (delta != null) 'delta': delta!.toJson(),
+    if (snapshotRef != null) 'snapshotRef': snapshotRef,
+    if (effectiveSnapshotOptions != null)
+      'effectiveSnapshotOptions': effectiveSnapshotOptions!.toJson(),
+  };
 }
 
 final class CockpitInspectSurfaceService {
@@ -111,14 +109,15 @@ final class CockpitInspectSurfaceService {
     CockpitPlatformDriverRegistry? platformDriverRegistry,
     CockpitCaptureStrategyResolver captureStrategyResolver =
         const CockpitCaptureStrategyResolver(),
-  })  : _inspectSurfaceOverride = inspectSurface,
-        _inspectFlutterSurface = inspectFlutterSurface ??
-            (inspectUiService ?? CockpitInspectUiService()).inspect,
-        _targetReferenceResolver =
-            targetReferenceResolver ?? CockpitTargetReferenceResolver(),
-        _platformDriverRegistry =
-            platformDriverRegistry ?? CockpitPlatformDriverRegistry(),
-        _captureStrategyResolver = captureStrategyResolver;
+  }) : _inspectSurfaceOverride = inspectSurface,
+       _inspectFlutterSurface =
+           inspectFlutterSurface ??
+           (inspectUiService ?? CockpitInspectUiService()).inspect,
+       _targetReferenceResolver =
+           targetReferenceResolver ?? CockpitTargetReferenceResolver(),
+       _platformDriverRegistry =
+           platformDriverRegistry ?? CockpitPlatformDriverRegistry(),
+       _captureStrategyResolver = captureStrategyResolver;
 
   final CockpitInspectSurfaceFunction? _inspectSurfaceOverride;
   final CockpitInspectFlutterSurfaceFunction _inspectFlutterSurface;
@@ -168,7 +167,8 @@ final class CockpitInspectSurfaceService {
       platformAppId: fallbackApp.platformAppId,
       processId: fallbackApp.processId,
       sessionHandle: fallbackApp.remoteSession,
-      androidDeviceId: request.androidDeviceId ??
+      androidDeviceId:
+          request.androidDeviceId ??
           (target.platform == 'android' ? target.deviceId : null),
       iosDeviceId: target.platform == 'ios' ? target.deviceId : null,
     );
@@ -185,13 +185,15 @@ final class CockpitInspectSurfaceService {
     if (!capture.result.success) {
       throw CockpitApplicationServiceException(
         code: 'surfaceCaptureFailed',
-        message: capture.result.error?.message ??
+        message:
+            capture.result.error?.message ??
             'Unable to capture the current target surface.',
         details: capture.result.error?.details ?? const <String, Object?>{},
       );
     }
     final artifactDescriptors = _artifactDescriptorsFromExecution(capture);
-    final snapshotRef = capture.artifactSourcePaths.values.firstOrNull ??
+    final snapshotRef =
+        capture.artifactSourcePaths.values.firstOrNull ??
         artifactDescriptors.firstOrNull?.relativePath;
     final selectedPlane = cockpitPlaneForSurface(
       cockpitForegroundSurfaceForTargetProfile(capabilityProfile),
@@ -208,8 +210,9 @@ final class CockpitInspectSurfaceService {
         request.resultProfile,
       ),
       diagnostics: <String, Object?>{
-        'capture':
-            CockpitInteractiveCommandCore.fromResult(capture.result).toJson(),
+        'capture': CockpitInteractiveCommandCore.fromResult(
+          capture.result,
+        ).toJson(),
         'artifacts': artifactDescriptors
             .map((artifact) => artifact.toJson())
             .toList(growable: false),

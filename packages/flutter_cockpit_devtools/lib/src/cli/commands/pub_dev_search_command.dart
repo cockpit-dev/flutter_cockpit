@@ -5,21 +5,20 @@ import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_workspace_cli_support.dart';
 
-typedef CockpitPubDevSearchFunction = Future<CockpitPubDevSearchResult>
-    Function(CockpitPubDevSearchRequest request);
+typedef CockpitPubDevSearchFunction =
+    Future<CockpitPubDevSearchResult> Function(
+      CockpitPubDevSearchRequest request,
+    );
 
 final class PubDevSearchCommand extends CockpitCliCommand {
   PubDevSearchCommand({
     CockpitPubDevSearchService? service,
     CockpitPubDevSearchFunction? search,
     StringSink? stdoutSink,
-  })  : _search = search ?? (service ?? CockpitPubDevSearchService()).search,
-        _stdoutSink = stdoutSink ?? stdout {
+  }) : _search = search ?? (service ?? CockpitPubDevSearchService()).search,
+       _stdoutSink = stdoutSink ?? stdout {
     argParser
-      ..addOption(
-        'query',
-        help: 'Package search query for pub.dev.',
-      )
+      ..addOption('query', help: 'Package search query for pub.dev.')
       ..addOption(
         'max-results',
         defaultsTo: '5',

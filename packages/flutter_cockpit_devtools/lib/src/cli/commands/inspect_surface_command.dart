@@ -9,24 +9,21 @@ import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
-typedef CockpitInspectSurfaceCliFunction = Future<CockpitInspectSurfaceResult>
-    Function(
-  CockpitInspectSurfaceRequest request,
-);
+typedef CockpitInspectSurfaceCliFunction =
+    Future<CockpitInspectSurfaceResult> Function(
+      CockpitInspectSurfaceRequest request,
+    );
 
 final class InspectSurfaceCommand extends CockpitCliCommand {
   InspectSurfaceCommand({
     CockpitInspectSurfaceService? service,
     CockpitInspectSurfaceCliFunction? inspect,
     StringSink? stdoutSink,
-  })  : _inspect =
-            inspect ?? (service ?? CockpitInspectSurfaceService()).inspect,
-        _stdoutSink = stdoutSink ?? stdout {
+  }) : _inspect =
+           inspect ?? (service ?? CockpitInspectSurfaceService()).inspect,
+       _stdoutSink = stdoutSink ?? stdout {
     cockpitAddAppArgs(argParser);
-    argParser.addOption(
-      'target-json',
-      help: cockpitTargetJsonOptionHelp,
-    );
+    argParser.addOption('target-json', help: cockpitTargetJsonOptionHelp);
     cockpitAddProfileArg(argParser);
     cockpitAddSnapshotOptionsArgs(argParser);
     cockpitAddCompareAgainstSnapshotRefArg(argParser);

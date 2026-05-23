@@ -40,8 +40,8 @@ void main() {
     );
     final baseUri = await tester.runAsync(() async {
       return rootState.waitForRemoteSession().timeout(
-            const Duration(seconds: 5),
-          );
+        const Duration(seconds: 5),
+      );
     });
     final remoteUri = baseUri!;
 
@@ -64,9 +64,7 @@ void main() {
     expect(health.recordingCapabilities.supportsNativeRecording, isFalse);
     expect(health.snapshot.diagnosticLevel, CockpitSnapshotProfile.live);
     expect(
-      health.snapshot.visibleTargets.any(
-        (target) => target.text == 'New task',
-      ),
+      health.snapshot.visibleTargets.any((target) => target.text == 'New task'),
       isTrue,
     );
     expect(
@@ -145,8 +143,8 @@ void main() {
       );
       final baseUri = await tester.runAsync(() async {
         return rootState.waitForRemoteSession().timeout(
-              const Duration(seconds: 5),
-            );
+          const Duration(seconds: 5),
+        );
       });
       final remoteUri = baseUri!;
 
@@ -213,8 +211,8 @@ void main() {
       );
       final baseUri = await tester.runAsync(() async {
         return rootState.waitForRemoteSession().timeout(
-              const Duration(seconds: 5),
-            );
+          const Duration(seconds: 5),
+        );
       });
       final remoteUri = baseUri!;
 
@@ -282,8 +280,8 @@ void main() {
       );
       final baseUri = await tester.runAsync(() async {
         return rootState.waitForRemoteSession().timeout(
-              const Duration(seconds: 5),
-            );
+          const Duration(seconds: 5),
+        );
       });
       final remoteUri = baseUri!;
       CockpitRemoteCommandResponse? response;
@@ -294,9 +292,7 @@ void main() {
             CockpitCommand(
               commandId: 'scroll-settings-diagnostics-$attempt',
               commandType: CockpitCommandType.scrollUntilVisible,
-              locator: const CockpitLocator(
-                text: 'Acceptance bundles',
-              ),
+              locator: const CockpitLocator(text: 'Acceptance bundles'),
               parameters: const <String, Object?>{
                 'maxScrolls': 1,
                 'viewportFraction': 0.8,
@@ -339,9 +335,7 @@ void main() {
     final secondTask = await repository.createTask(
       title: 'Remote double tap completion',
     );
-    await repository.createTask(
-      title: 'Remote delayed reorder',
-    );
+    await repository.createTask(title: 'Remote delayed reorder');
 
     await pumpTodoApp(
       tester,
@@ -362,8 +356,8 @@ void main() {
     );
     final baseUri = await tester.runAsync(() async {
       return rootState.waitForRemoteSession().timeout(
-            const Duration(seconds: 5),
-          );
+        const Duration(seconds: 5),
+      );
     });
     final remoteUri = baseUri!;
 

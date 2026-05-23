@@ -12,23 +12,24 @@ final class CockpitTaskBundleSummaryResource extends CockpitMcpResource {
   final CockpitReadTaskBundleSummaryService _service;
 
   @override
-  CockpitMcpResourceDefinition get definition =>
-      const CockpitMcpResourceDefinition.template(
-        name: 'task_bundleSummary',
-        uriTemplate: 'cockpit://task/summary{?bundleDir}',
-        description:
-            'Read a task bundle summary directly as a resource for inspection and delivery review.',
-        mimeType: 'application/json',
-        categories: <CockpitMcpFeatureCategory>[
-          CockpitMcpFeatureCategory.closedLoop,
-          CockpitMcpFeatureCategory.delivery,
-          CockpitMcpFeatureCategory.contextResources,
-        ],
-      );
+  CockpitMcpResourceDefinition
+  get definition => const CockpitMcpResourceDefinition.template(
+    name: 'task_bundleSummary',
+    uriTemplate: 'cockpit://task/summary{?bundleDir}',
+    description:
+        'Read a task bundle summary directly as a resource for inspection and delivery review.',
+    mimeType: 'application/json',
+    categories: <CockpitMcpFeatureCategory>[
+      CockpitMcpFeatureCategory.closedLoop,
+      CockpitMcpFeatureCategory.delivery,
+      CockpitMcpFeatureCategory.contextResources,
+    ],
+  );
 
   @override
   Future<CockpitMcpResourceResult?> read(
-      CockpitMcpResourceRequest request) async {
+    CockpitMcpResourceRequest request,
+  ) async {
     final uri = request.parsedUri;
     if (uri.host != 'task' || uri.path != '/summary') {
       return null;

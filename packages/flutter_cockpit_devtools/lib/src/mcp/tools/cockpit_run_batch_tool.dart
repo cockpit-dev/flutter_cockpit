@@ -4,9 +4,8 @@ import '../../application/cockpit_interactive_result_profile.dart';
 import '../../application/cockpit_run_batch_service.dart';
 import '../cockpit_mcp_tool.dart';
 
-typedef CockpitRunBatchToolFunction = Future<CockpitRunBatchResult> Function(
-  CockpitRunBatchRequest request,
-);
+typedef CockpitRunBatchToolFunction =
+    Future<CockpitRunBatchResult> Function(CockpitRunBatchRequest request);
 
 final class CockpitRunBatchTool extends CockpitMcpTool {
   CockpitRunBatchTool({
@@ -25,23 +24,23 @@ final class CockpitRunBatchTool extends CockpitMcpTool {
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
-        'type': 'object',
-        'required': <String>['commands'],
-        'properties': <String, Object?>{
-          'appId': <String, Object?>{'type': 'string'},
-          'appJson': <String, Object?>{'type': 'string'},
-          'baseUrl': <String, Object?>{'type': 'string'},
-          'androidDeviceId': <String, Object?>{'type': 'string'},
-          'iosDeviceId': <String, Object?>{'type': 'string'},
-          'commands': <String, Object?>{'type': 'array'},
-          'defaultTimeoutMs': <String, Object?>{'type': 'integer'},
-          'defaultProfile': <String, Object?>{'type': 'string'},
-          'failFast': <String, Object?>{'type': 'boolean'},
-          'recording': <String, Object?>{'type': 'object'},
-          'finalProfile': <String, Object?>{'type': 'string'},
-          'finalSnapshotOptions': <String, Object?>{'type': 'object'},
-        },
-      };
+    'type': 'object',
+    'required': <String>['commands'],
+    'properties': <String, Object?>{
+      'appId': <String, Object?>{'type': 'string'},
+      'appJson': <String, Object?>{'type': 'string'},
+      'baseUrl': <String, Object?>{'type': 'string'},
+      'androidDeviceId': <String, Object?>{'type': 'string'},
+      'iosDeviceId': <String, Object?>{'type': 'string'},
+      'commands': <String, Object?>{'type': 'array'},
+      'defaultTimeoutMs': <String, Object?>{'type': 'integer'},
+      'defaultProfile': <String, Object?>{'type': 'string'},
+      'failFast': <String, Object?>{'type': 'boolean'},
+      'recording': <String, Object?>{'type': 'object'},
+      'finalProfile': <String, Object?>{'type': 'string'},
+      'finalSnapshotOptions': <String, Object?>{'type': 'object'},
+    },
+  };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {
@@ -56,17 +55,16 @@ final class CockpitRunBatchTool extends CockpitMcpTool {
             'androidDeviceId',
           ),
           iosDeviceId: cockpitReadOptionalString(arguments, 'iosDeviceId'),
-          commands: cockpitReadRequiredObjectList(arguments, 'commands')
-              .map(_readBatchCommand)
-              .toList(growable: false),
+          commands: cockpitReadRequiredObjectList(
+            arguments,
+            'commands',
+          ).map(_readBatchCommand).toList(growable: false),
           defaultResultProfile:
               _readOptionalProfile(arguments, 'defaultProfile') ??
-                  const CockpitInteractiveResultProfile.standard(),
+              const CockpitInteractiveResultProfile.standard(),
           defaultCommandTimeout: Duration(
-            milliseconds: cockpitReadOptionalPositiveInt(
-                  arguments,
-                  'defaultTimeoutMs',
-                ) ??
+            milliseconds:
+                cockpitReadOptionalPositiveInt(arguments, 'defaultTimeoutMs') ??
                 30000,
           ),
           failFast: cockpitReadOptionalBool(arguments, 'failFast') ?? true,
@@ -111,7 +109,8 @@ final class CockpitRunBatchTool extends CockpitMcpTool {
   }
 
   CockpitInteractiveResultProfile? _readOptionalProfileFromValue(
-      Object? value) {
+    Object? value,
+  ) {
     if (value == null) {
       return null;
     }

@@ -13,42 +13,42 @@ void main() {
     () async {
       CockpitCollectRemoteSnapshotRequest? capturedRequest;
       final output = StringBuffer();
-      final commandRunner =
-          CommandRunner<int>('flutter_cockpit_devtools', 'test')
-            ..addCommand(
-              CollectRemoteSnapshotCommand(
-                stdoutSink: output,
-                collect: (request) async {
-                  capturedRequest = request;
-                  return CockpitCollectRemoteSnapshotResult(
-                    snapshot: CockpitSnapshot(
-                      routeName: '/network',
-                      diagnosticLevel: request.options.profile,
-                    ),
-                    effectiveOptions: request.options.copyWith(
-                      emitArtifactWhenLarge: false,
-                    ),
-                    warnings: const <String>[
-                      'Direct remote snapshots do not support downloadable diagnostic artifacts; falling back to inline diagnostics.',
-                    ],
-                    sessionHandle: CockpitRemoteSessionHandle(
-                      platform: 'android',
-                      deviceId: 'emulator-5554',
-                      projectDir: '/workspace/examples/cockpit_demo',
-                      target: 'lib/main.dart',
-                      appId: 'dev.cockpit.cockpit_demo',
-                      host: '127.0.0.1',
-                      hostPort: 47331,
-                      devicePort: 47331,
-                      baseUrl: 'http://127.0.0.1:47331',
-                      launchedAt: DateTime.utc(2026, 3, 22, 0, 0),
-                    ),
-                  );
-                },
-              ),
-            );
+      final commandRunner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
+        ..addCommand(
+          CollectRemoteSnapshotCommand(
+            stdoutSink: output,
+            collect: (request) async {
+              capturedRequest = request;
+              return CockpitCollectRemoteSnapshotResult(
+                snapshot: CockpitSnapshot(
+                  routeName: '/network',
+                  diagnosticLevel: request.options.profile,
+                ),
+                effectiveOptions: request.options.copyWith(
+                  emitArtifactWhenLarge: false,
+                ),
+                warnings: const <String>[
+                  'Direct remote snapshots do not support downloadable diagnostic artifacts; falling back to inline diagnostics.',
+                ],
+                sessionHandle: CockpitRemoteSessionHandle(
+                  platform: 'android',
+                  deviceId: 'emulator-5554',
+                  projectDir: '/workspace/examples/cockpit_demo',
+                  target: 'lib/main.dart',
+                  appId: 'dev.cockpit.cockpit_demo',
+                  host: '127.0.0.1',
+                  hostPort: 47331,
+                  devicePort: 47331,
+                  baseUrl: 'http://127.0.0.1:47331',
+                  launchedAt: DateTime.utc(2026, 3, 22, 0, 0),
+                ),
+              );
+            },
+          ),
+        );
 
-      final exitCode = await commandRunner.run(<String>[
+      final exitCode =
+          await commandRunner.run(<String>[
             'collect-remote-snapshot',
             '--stdout-format',
             'json',
@@ -117,24 +117,24 @@ void main() {
     () async {
       CockpitCollectRemoteSnapshotRequest? capturedRequest;
       final commandRunner =
-          CommandRunner<int>('flutter_cockpit_devtools', 'test')
-            ..addCommand(
-              CollectRemoteSnapshotCommand(
-                stdoutSink: StringBuffer(),
-                collect: (request) async {
-                  capturedRequest = request;
-                  return CockpitCollectRemoteSnapshotResult(
-                    snapshot: CockpitSnapshot(
-                      routeName: '/network',
-                      diagnosticLevel: request.options.profile,
-                    ),
-                    effectiveOptions: request.options,
-                  );
-                },
-              ),
-            );
+          CommandRunner<int>('flutter_cockpit_devtools', 'test')..addCommand(
+            CollectRemoteSnapshotCommand(
+              stdoutSink: StringBuffer(),
+              collect: (request) async {
+                capturedRequest = request;
+                return CockpitCollectRemoteSnapshotResult(
+                  snapshot: CockpitSnapshot(
+                    routeName: '/network',
+                    diagnosticLevel: request.options.profile,
+                  ),
+                  effectiveOptions: request.options,
+                );
+              },
+            ),
+          );
 
-      final exitCode = await commandRunner.run(<String>[
+      final exitCode =
+          await commandRunner.run(<String>[
             'collect-remote-snapshot',
             '--base-url',
             'http://127.0.0.1:47331',
@@ -191,24 +191,24 @@ void main() {
     () async {
       CockpitCollectRemoteSnapshotRequest? capturedRequest;
       final commandRunner =
-          CommandRunner<int>('flutter_cockpit_devtools', 'test')
-            ..addCommand(
-              CollectRemoteSnapshotCommand(
-                stdoutSink: StringBuffer(),
-                collect: (request) async {
-                  capturedRequest = request;
-                  return CockpitCollectRemoteSnapshotResult(
-                    snapshot: CockpitSnapshot(
-                      routeName: '/network',
-                      diagnosticLevel: request.options.profile,
-                    ),
-                    effectiveOptions: request.options,
-                  );
-                },
-              ),
-            );
+          CommandRunner<int>('flutter_cockpit_devtools', 'test')..addCommand(
+            CollectRemoteSnapshotCommand(
+              stdoutSink: StringBuffer(),
+              collect: (request) async {
+                capturedRequest = request;
+                return CockpitCollectRemoteSnapshotResult(
+                  snapshot: CockpitSnapshot(
+                    routeName: '/network',
+                    diagnosticLevel: request.options.profile,
+                  ),
+                  effectiveOptions: request.options,
+                );
+              },
+            ),
+          );
 
-      final exitCode = await commandRunner.run(<String>[
+      final exitCode =
+          await commandRunner.run(<String>[
             'collect-remote-snapshot',
             '--base-url',
             'http://127.0.0.1:47331',

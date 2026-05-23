@@ -10,9 +10,9 @@ final class ServeMcpCommand extends CockpitCliCommand {
     CockpitMcpServer? server,
     CockpitMcpServeFunction? serve,
     CockpitMcpServerRuntime? runtime,
-  })  : _serve = serve,
-        _server = server,
-        _runtime = runtime ?? CockpitMcpServerRuntime() {
+  }) : _serve = serve,
+       _server = server,
+       _runtime = runtime ?? CockpitMcpServerRuntime() {
     final parser = CockpitMcpServerRuntime.createArgParser();
     for (final option in parser.options.entries) {
       final name = option.key;

@@ -52,13 +52,14 @@ final class CockpitMcpResourceAdapter {
   }
 
   static ResourceContents _convertContents(
-      CockpitMcpResourceContents contents) {
+    CockpitMcpResourceContents contents,
+  ) {
     return switch (contents) {
       CockpitMcpTextResourceContents() => TextResourceContents(
-          uri: contents.uri,
-          text: contents.text,
-          mimeType: contents.mimeType,
-        ),
+        uri: contents.uri,
+        text: contents.text,
+        mimeType: contents.mimeType,
+      ),
     };
   }
 }

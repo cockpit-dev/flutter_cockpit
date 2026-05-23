@@ -7,59 +7,59 @@ import 'package:flutter_cockpit_devtools/src/mcp/cockpit_mcp_tool.dart';
 import 'package:test/test.dart';
 
 void main() {
-  test('serveStdio responds to initialize and tools/list over stdio framing',
-      () async {
-    final input = StreamController<List<int>>();
-    final output = _MemoryByteSink();
-    final server = CockpitMcpServer(
-      tools: <CockpitMcpTool>[
-        _FakeCockpitMcpTool(name: 'echo_tool'),
-      ],
-    );
+  test(
+    'serveStdio responds to initialize and tools/list over stdio framing',
+    () async {
+      final input = StreamController<List<int>>();
+      final output = _MemoryByteSink();
+      final server = CockpitMcpServer(
+        tools: <CockpitMcpTool>[_FakeCockpitMcpTool(name: 'echo_tool')],
+      );
 
-    unawaited(server.serveStdio(input: input.stream, output: output));
+      unawaited(server.serveStdio(input: input.stream, output: output));
 
-    input.add(
-      _frameFor(<String, Object?>{
-        'jsonrpc': '2.0',
-        'id': 1,
-        'method': 'initialize',
-        'params': <String, Object?>{
-          'protocolVersion': '2025-11-05',
-          'capabilities': <String, Object?>{},
-          'clientInfo': <String, Object?>{
-            'name': 'test client',
-            'version': '1.0.0',
+      input.add(
+        _frameFor(<String, Object?>{
+          'jsonrpc': '2.0',
+          'id': 1,
+          'method': 'initialize',
+          'params': <String, Object?>{
+            'protocolVersion': '2025-11-05',
+            'capabilities': <String, Object?>{},
+            'clientInfo': <String, Object?>{
+              'name': 'test client',
+              'version': '1.0.0',
+            },
           },
-        },
-      }),
-    );
-    input.add(
-      _frameFor(<String, Object?>{
-        'jsonrpc': '2.0',
-        'method': 'notifications/initialized',
-      }),
-    );
-    input.add(
-      _frameFor(<String, Object?>{
-        'jsonrpc': '2.0',
-        'id': 2,
-        'method': 'tools/list',
-        'params': <String, Object?>{},
-      }),
-    );
-    await input.close();
-    await output.done;
+        }),
+      );
+      input.add(
+        _frameFor(<String, Object?>{
+          'jsonrpc': '2.0',
+          'method': 'notifications/initialized',
+        }),
+      );
+      input.add(
+        _frameFor(<String, Object?>{
+          'jsonrpc': '2.0',
+          'id': 2,
+          'method': 'tools/list',
+          'params': <String, Object?>{},
+        }),
+      );
+      await input.close();
+      await output.done;
 
-    final payloads = _decodeFrames(output.bytes);
-    expect(payloads, hasLength(2));
-    expect(payloads.first['result'], isA<Map<String, Object?>>());
+      final payloads = _decodeFrames(output.bytes);
+      expect(payloads, hasLength(2));
+      expect(payloads.first['result'], isA<Map<String, Object?>>());
 
-    final toolsResult = payloads.last['result'] as Map<String, Object?>;
-    final tools =
-        (toolsResult['tools'] as List<Object?>).cast<Map<String, Object?>>();
-    expect(tools.single['name'], 'echo_tool');
-  });
+      final toolsResult = payloads.last['result'] as Map<String, Object?>;
+      final tools = (toolsResult['tools'] as List<Object?>)
+          .cast<Map<String, Object?>>();
+      expect(tools.single['name'], 'echo_tool');
+    },
+  );
 }
 
 final class _FakeCockpitMcpTool extends CockpitMcpTool {
@@ -73,9 +73,9 @@ final class _FakeCockpitMcpTool extends CockpitMcpTool {
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
-        'type': 'object',
-        'properties': <String, Object?>{},
-      };
+    'type': 'object',
+    'properties': <String, Object?>{},
+  };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {

@@ -9,44 +9,43 @@ import 'package:flutter_cockpit_devtools/src/session/cockpit_remote_session_hand
 import 'package:test/test.dart';
 
 void main() {
-  test('app-first idle waits return the refreshed remote session handle',
-      () async {
-    Uri? capturedBaseUri;
-    final service = CockpitWaitIdleService(
-      appReferenceResolver: CockpitAppReferenceResolver(
-        portForwarder: CockpitAndroidPortForwarder(
-          processRunner: (_, __) async => ProcessResult(
-            0,
-            0,
-            'emulator-5554 tcp:61331 tcp:47331\n',
-            '',
+  test(
+    'app-first idle waits return the refreshed remote session handle',
+    () async {
+      Uri? capturedBaseUri;
+      final service = CockpitWaitIdleService(
+        appReferenceResolver: CockpitAppReferenceResolver(
+          portForwarder: CockpitAndroidPortForwarder(
+            processRunner: (_, _) async =>
+                ProcessResult(0, 0, 'emulator-5554 tcp:61331 tcp:47331\n', ''),
+            hostPortAllocator: () async => 61331,
+            hostPortAvailabilityChecker: (_) async => false,
           ),
-          hostPortAllocator: () async => 61331,
-          hostPortAvailabilityChecker: (_) async => false,
         ),
-      ),
-      waitService: CockpitWaitRemoteUiIdleService(
-        waitForIdle: (
-          baseUri, {
-          required quietWindow,
-          required timeout,
-          required includeNetworkIdle,
-        }) async {
-          capturedBaseUri = baseUri;
-          return true;
-        },
-      ),
-    );
+        waitService: CockpitWaitRemoteUiIdleService(
+          waitForIdle:
+              (
+                baseUri, {
+                required quietWindow,
+                required timeout,
+                required includeNetworkIdle,
+              }) async {
+                capturedBaseUri = baseUri;
+                return true;
+              },
+        ),
+      );
 
-    final result = await service.wait(
-      CockpitWaitIdleRequest(app: _androidAppHandle()),
-    );
+      final result = await service.wait(
+        CockpitWaitIdleRequest(app: _androidAppHandle()),
+      );
 
-    expect(capturedBaseUri.toString(), 'http://127.0.0.1:61331');
-    expect(result.idle, isTrue);
-    expect(result.sessionHandle?.baseUrl, 'http://127.0.0.1:61331');
-    expect(result.sessionHandle?.devicePort, 47331);
-  });
+      expect(capturedBaseUri.toString(), 'http://127.0.0.1:61331');
+      expect(result.idle, isTrue);
+      expect(result.sessionHandle?.baseUrl, 'http://127.0.0.1:61331');
+      expect(result.sessionHandle?.devicePort, 47331);
+    },
+  );
 }
 
 CockpitAppHandle _androidAppHandle() {

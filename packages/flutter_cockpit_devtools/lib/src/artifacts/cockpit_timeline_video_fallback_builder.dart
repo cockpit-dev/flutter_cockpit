@@ -5,8 +5,8 @@ import 'dart:io';
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:path/path.dart' as p;
 
-typedef CockpitTimelineVideoProcessRunner = Future<ProcessResult> Function(
-    String executable, List<String> arguments);
+typedef CockpitTimelineVideoProcessRunner =
+    Future<ProcessResult> Function(String executable, List<String> arguments);
 
 final class CockpitTimelineVideoFallbackResult {
   const CockpitTimelineVideoFallbackResult({
@@ -36,8 +36,8 @@ final class DefaultCockpitTimelineVideoFallbackBuilder
   const DefaultCockpitTimelineVideoFallbackBuilder({
     String ffmpegExecutable = 'ffmpeg',
     CockpitTimelineVideoProcessRunner processRunner = Process.run,
-  })  : _ffmpegExecutable = ffmpegExecutable,
-        _processRunner = processRunner;
+  }) : _ffmpegExecutable = ffmpegExecutable,
+       _processRunner = processRunner;
 
   final String _ffmpegExecutable;
   final CockpitTimelineVideoProcessRunner _processRunner;
@@ -141,14 +141,15 @@ final class DefaultCockpitTimelineVideoFallbackBuilder
   List<_CockpitScreenshotTimelineFrame> _screenshotFramesFor(
     CockpitContextBundle bundle,
   ) {
-    final screenshotSteps = bundle.steps
-        .where(
-          (step) => step.captureRefs.any(
-            (artifact) => artifact.role == 'screenshot',
-          ),
-        )
-        .toList(growable: false)
-      ..sort((left, right) => left.observedAt.compareTo(right.observedAt));
+    final screenshotSteps =
+        bundle.steps
+            .where(
+              (step) => step.captureRefs.any(
+                (artifact) => artifact.role == 'screenshot',
+              ),
+            )
+            .toList(growable: false)
+          ..sort((left, right) => left.observedAt.compareTo(right.observedAt));
     if (screenshotSteps.isEmpty) {
       return const <_CockpitScreenshotTimelineFrame>[];
     }
@@ -175,8 +176,8 @@ final class DefaultCockpitTimelineVideoFallbackBuilder
         next: nextObservedAt,
         isAcceptance:
             step.requestedCaptureProfile == CockpitCaptureProfile.acceptance ||
-                step.requestedCaptureProfile ==
-                    CockpitCaptureProfile.nativePreferred,
+            step.requestedCaptureProfile ==
+                CockpitCaptureProfile.nativePreferred,
       );
       frames.add(
         _CockpitScreenshotTimelineFrame(

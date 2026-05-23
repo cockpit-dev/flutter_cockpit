@@ -13,11 +13,11 @@ final class CockpitAdbCaptureAdapter implements CockpitHostCaptureAdapter {
     CockpitCaptureTempFileFactory tempFileFactory =
         cockpitCreateCaptureTempFile,
     Duration timeout = const Duration(seconds: 5),
-  })  : _deviceId = deviceId,
-        _executable = executable,
-        _processStarter = processStarter,
-        _tempFileFactory = tempFileFactory,
-        _timeout = timeout;
+  }) : _deviceId = deviceId,
+       _executable = executable,
+       _processStarter = processStarter,
+       _tempFileFactory = tempFileFactory,
+       _timeout = timeout;
 
   final String _deviceId;
   final String _executable;

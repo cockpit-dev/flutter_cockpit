@@ -16,9 +16,9 @@ final class RunControlScriptCommand extends Command<int> {
     CockpitAutomationAdapter? automationAdapter,
     CockpitCaptureAdapter? captureAdapter,
     TaskRunBundleWriter writer = const TaskRunBundleWriter(),
-  })  : _automationAdapter = automationAdapter,
-        _captureAdapter = captureAdapter,
-        _writer = writer {
+  }) : _automationAdapter = automationAdapter,
+       _captureAdapter = captureAdapter,
+       _writer = writer {
     argParser
       ..addOption('script-json', help: 'Path to a JSON control script file.')
       ..addOption(

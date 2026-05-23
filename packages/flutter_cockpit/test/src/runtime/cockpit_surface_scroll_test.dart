@@ -61,9 +61,7 @@ void main() {
       );
 
       final didReveal = await surfaceState.ensureLocatorVisible(
-        const CockpitLocator(
-          text: 'Task 18',
-        ),
+        const CockpitLocator(text: 'Task 18'),
         alignment: CockpitRevealAlignment.center,
       );
       await tester.pumpAndSettle();
@@ -74,10 +72,7 @@ void main() {
       final targetRect = tester.getRect(find.text('Task 18'));
 
       expect(didReveal, isTrue);
-      expect(
-        targetRect.center.dy,
-        closeTo(viewportRect.center.dy, 40),
-      );
+      expect(targetRect.center.dy, closeTo(viewportRect.center.dy, 40));
     },
   );
 
@@ -124,9 +119,7 @@ void main() {
       );
 
       final didReveal = await surfaceState.ensureLocatorVisible(
-        const CockpitLocator(
-          text: 'Task 18',
-        ),
+        const CockpitLocator(text: 'Task 18'),
         alignment: CockpitRevealAlignment.end,
         padding: 32,
       );
@@ -138,14 +131,8 @@ void main() {
       final targetRect = tester.getRect(find.text('Task 18'));
 
       expect(didReveal, isTrue);
-      expect(
-        targetRect.bottom,
-        lessThanOrEqualTo(viewportRect.bottom - 24),
-      );
-      expect(
-        targetRect.bottom,
-        greaterThan(viewportRect.bottom - 88),
-      );
+      expect(targetRect.bottom, lessThanOrEqualTo(viewportRect.bottom - 24));
+      expect(targetRect.bottom, greaterThan(viewportRect.bottom - 88));
     },
   );
 
@@ -187,9 +174,7 @@ void main() {
       );
 
       final didReveal = await surfaceState.ensureLocatorVisible(
-        const CockpitLocator(
-          text: 'Save settings',
-        ),
+        const CockpitLocator(text: 'Save settings'),
         alignment: CockpitRevealAlignment.center,
       );
 

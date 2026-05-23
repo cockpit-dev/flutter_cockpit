@@ -10,18 +10,19 @@ void main() {
       Duration? capturedTimeout;
       bool? capturedIncludeNetworkIdle;
       final service = CockpitWaitRemoteUiIdleService(
-        waitForIdle: (
-          baseUri, {
-          required quietWindow,
-          required timeout,
-          required includeNetworkIdle,
-        }) async {
-          capturedBaseUri = baseUri;
-          capturedQuietWindow = quietWindow;
-          capturedTimeout = timeout;
-          capturedIncludeNetworkIdle = includeNetworkIdle;
-          return true;
-        },
+        waitForIdle:
+            (
+              baseUri, {
+              required quietWindow,
+              required timeout,
+              required includeNetworkIdle,
+            }) async {
+              capturedBaseUri = baseUri;
+              capturedQuietWindow = quietWindow;
+              capturedTimeout = timeout;
+              capturedIncludeNetworkIdle = includeNetworkIdle;
+              return true;
+            },
       );
 
       final result = await service.wait(
@@ -45,15 +46,16 @@ void main() {
       var attemptCount = 0;
       final waitedDurations = <Duration>[];
       final service = CockpitWaitRemoteUiIdleService(
-        waitForIdle: (
-          baseUri, {
-          required quietWindow,
-          required timeout,
-          required includeNetworkIdle,
-        }) async {
-          attemptCount += 1;
-          return attemptCount > 1;
-        },
+        waitForIdle:
+            (
+              baseUri, {
+              required quietWindow,
+              required timeout,
+              required includeNetworkIdle,
+            }) async {
+              attemptCount += 1;
+              return attemptCount > 1;
+            },
         wait: (duration) async {
           waitedDurations.add(duration);
         },

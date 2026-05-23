@@ -5,13 +5,11 @@ import 'package:test/test.dart';
 void main() {
   group('CockpitSdkEnvironment', () {
     test('resolves SDK roots into platform executables', () {
-      final environment = CockpitSdkEnvironment.fromEnvironment(
-        <String, String>{
-          'DART_ROOT': p.join('/opt', 'dart-sdk'),
-          'FLUTTER_ROOT': p.join('/opt', 'flutter'),
-        },
-        isWindows: false,
-      );
+      final environment =
+          CockpitSdkEnvironment.fromEnvironment(<String, String>{
+            'DART_ROOT': p.join('/opt', 'dart-sdk'),
+            'FLUTTER_ROOT': p.join('/opt', 'flutter'),
+          }, isWindows: false);
 
       expect(
         environment.dartExecutable,
@@ -24,15 +22,13 @@ void main() {
     });
 
     test('keeps explicit executable variables ahead of root variables', () {
-      final environment = CockpitSdkEnvironment.fromEnvironment(
-        <String, String>{
-          'DART': '/custom/dart',
-          'DART_ROOT': '/ignored/dart-sdk',
-          'FLUTTER_BIN': '/custom/flutter',
-          'FLUTTER_ROOT': '/ignored/flutter',
-        },
-        isWindows: false,
-      );
+      final environment =
+          CockpitSdkEnvironment.fromEnvironment(<String, String>{
+            'DART': '/custom/dart',
+            'DART_ROOT': '/ignored/dart-sdk',
+            'FLUTTER_BIN': '/custom/flutter',
+            'FLUTTER_ROOT': '/ignored/flutter',
+          }, isWindows: false);
 
       expect(environment.dartExecutable, '/custom/dart');
       expect(environment.flutterExecutable, '/custom/flutter');
@@ -63,10 +59,7 @@ void main() {
         isWindows: true,
       );
 
-      expect(
-        environment.dartExecutable,
-        r'C:\tools\dart-sdk\bin\dart.bat',
-      );
+      expect(environment.dartExecutable, r'C:\tools\dart-sdk\bin\dart.bat');
       expect(
         environment.flutterExecutable,
         r'C:\tools\flutter\bin\flutter.bat',

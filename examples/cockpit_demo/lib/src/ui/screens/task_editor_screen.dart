@@ -195,7 +195,8 @@ final class _TaskEditorScreenState extends State<TaskEditorScreen> {
                         controller: _titleController,
                         decoration: InputDecoration(
                           labelText: 'Task title',
-                          errorText: editorState.validationMessage ==
+                          errorText:
+                              editorState.validationMessage ==
                                   'Task title is required.'
                               ? editorState.validationMessage
                               : null,
@@ -284,13 +285,15 @@ final class _TaskEditorScreenState extends State<TaskEditorScreen> {
                             onSelected: (_) => _selectDuePreset('none'),
                           ),
                           ChoiceChip(
-                            selected: _dueAt != null &&
+                            selected:
+                                _dueAt != null &&
                                 _dueAt!.difference(DateTime.now()).inDays == 0,
                             label: const Text('Today'),
                             onSelected: (_) => _selectDuePreset('today'),
                           ),
                           ChoiceChip(
-                            selected: _dueAt != null &&
+                            selected:
+                                _dueAt != null &&
                                 _dueAt!.difference(DateTime.now()).inDays == 1,
                             label: const Text('Tomorrow'),
                             onSelected: (_) => _selectDuePreset('tomorrow'),
@@ -373,10 +376,8 @@ final class _TaskEditorScreenState extends State<TaskEditorScreen> {
                   const SizedBox(height: 24),
                   EditorialSection(
                     leadingAccentColor: colorScheme.error,
-                    backgroundColor:
-                        colorScheme.errorContainer.withAlphaFraction(
-                      0.82,
-                    ),
+                    backgroundColor: colorScheme.errorContainer
+                        .withAlphaFraction(0.82),
                     padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
                     child: Text(
                       editorState.validationMessage!,

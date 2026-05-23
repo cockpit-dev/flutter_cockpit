@@ -46,9 +46,9 @@ void main() {
       );
       final baseUri = await tester.runAsync(() async {
         return rootState.waitForRemoteSession().timeout(
-              const Duration(seconds: 5),
-              onTimeout: () => throw TimeoutException('waitForRemoteSession'),
-            );
+          const Duration(seconds: 5),
+          onTimeout: () => throw TimeoutException('waitForRemoteSession'),
+        );
       });
 
       final healthJson = await tester.runAsync(() async {
@@ -70,9 +70,7 @@ void main() {
           CockpitCommand(
             commandId: 'tap-native-open-form',
             commandType: CockpitCommandType.tap,
-            locator: const CockpitLocator(
-              key: 'native-open-form-button',
-            ),
+            locator: const CockpitLocator(key: 'native-open-form-button'),
           ).toJson(),
         );
       });
@@ -117,28 +115,32 @@ void main() {
       final rootState = tester.state<FlutterCockpitRootState>(
         find.byType(FlutterCockpitRoot),
       );
-      final baseUri = await tester.runAsync(() {
-        return rootState.waitForRemoteSession().timeout(
-          const Duration(seconds: 5),
-          onTimeout: () {
-            throw TimeoutException('waitForRemoteSession');
-          },
-        );
-      }).timeout(
-        const Duration(seconds: 5),
-        onTimeout: () {
-          throw TimeoutException('waitForRemoteSession');
-        },
-      );
+      final baseUri = await tester
+          .runAsync(() {
+            return rootState.waitForRemoteSession().timeout(
+              const Duration(seconds: 5),
+              onTimeout: () {
+                throw TimeoutException('waitForRemoteSession');
+              },
+            );
+          })
+          .timeout(
+            const Duration(seconds: 5),
+            onTimeout: () {
+              throw TimeoutException('waitForRemoteSession');
+            },
+          );
 
-      final healthJson = await tester.runAsync(() {
-        return _readJson(baseUri!.resolve('/health'));
-      }).timeout(
-        const Duration(seconds: 5),
-        onTimeout: () {
-          throw TimeoutException('health');
-        },
-      );
+      final healthJson = await tester
+          .runAsync(() {
+            return _readJson(baseUri!.resolve('/health'));
+          })
+          .timeout(
+            const Duration(seconds: 5),
+            onTimeout: () {
+              throw TimeoutException('health');
+            },
+          );
       final health = CockpitRemoteSessionStatus.fromJson(healthJson!);
       expect(health.capabilities.supportsInAppControl, isTrue);
       expect(health.snapshot.routeName, '/home');
@@ -154,23 +156,23 @@ void main() {
         ]),
       );
 
-      final responseJson = await tester.runAsync(() {
-        return _postJson(
-          baseUri!.resolve('/commands/execute'),
-          CockpitCommand(
-            commandId: 'tap-open-form',
-            commandType: CockpitCommandType.tap,
-            locator: const CockpitLocator(
-              cockpitId: 'open_form_button',
-            ),
-          ).toJson(),
-        );
-      }).timeout(
-        const Duration(seconds: 5),
-        onTimeout: () {
-          throw TimeoutException('executeCommand');
-        },
-      );
+      final responseJson = await tester
+          .runAsync(() {
+            return _postJson(
+              baseUri!.resolve('/commands/execute'),
+              CockpitCommand(
+                commandId: 'tap-open-form',
+                commandType: CockpitCommandType.tap,
+                locator: const CockpitLocator(cockpitId: 'open_form_button'),
+              ).toJson(),
+            );
+          })
+          .timeout(
+            const Duration(seconds: 5),
+            onTimeout: () {
+              throw TimeoutException('executeCommand');
+            },
+          );
       final response = CockpitRemoteCommandResponse.fromJson(responseJson!);
       final result = response.result;
 
@@ -236,9 +238,9 @@ void main() {
 
       final baseUri = await tester.runAsync(() async {
         return rootKey.currentState!.waitForRemoteSession().timeout(
-              const Duration(seconds: 5),
-              onTimeout: () => throw TimeoutException('waitForRemoteSession'),
-            );
+          const Duration(seconds: 5),
+          onTimeout: () => throw TimeoutException('waitForRemoteSession'),
+        );
       });
 
       final responseJson = await tester.runAsync(() async {
@@ -247,9 +249,7 @@ void main() {
           CockpitCommand(
             commandId: 'tap-runtime-step',
             commandType: CockpitCommandType.tap,
-            locator: const CockpitLocator(
-              key: 'runtime-step-button',
-            ),
+            locator: const CockpitLocator(key: 'runtime-step-button'),
           ).toJson(),
         );
       });
@@ -298,9 +298,9 @@ void main() {
       );
       final baseUri = await tester.runAsync(() async {
         return rootState.waitForRemoteSession().timeout(
-              const Duration(seconds: 5),
-              onTimeout: () => throw TimeoutException('waitForRemoteSession'),
-            );
+          const Duration(seconds: 5),
+          onTimeout: () => throw TimeoutException('waitForRemoteSession'),
+        );
       });
 
       final healthJson = await tester.runAsync(() async {
@@ -327,69 +327,64 @@ void main() {
     },
   );
 
-  test(
-    'remote session health output omits null fields',
-    () async {
-      final server = CockpitRemoteSessionServer(
-        configuration: const CockpitRemoteSessionConfiguration(
-          enabled: true,
-          autoStart: false,
-          port: 0,
-        ),
-        statusProvider: () async => CockpitRemoteSessionStatus(
-          sessionId: 'remote-health-compact',
+  test('remote session health output omits null fields', () async {
+    final server = CockpitRemoteSessionServer(
+      configuration: const CockpitRemoteSessionConfiguration(
+        enabled: true,
+        autoStart: false,
+        port: 0,
+      ),
+      statusProvider: () async => CockpitRemoteSessionStatus(
+        sessionId: 'remote-health-compact',
+        platform: 'android',
+        transportType: 'remoteHttp',
+        currentRouteName: null,
+        capabilities: CockpitCapabilities(
           platform: 'android',
           transportType: 'remoteHttp',
-          currentRouteName: null,
-          capabilities: CockpitCapabilities(
-            platform: 'android',
-            transportType: 'remoteHttp',
-            supportsInAppControl: true,
-            supportsFlutterViewCapture: true,
-            supportsNativeScreenCapture: false,
-            supportsHostAutomation: false,
-            supportedCommands: const <CockpitCommandType>[
-              CockpitCommandType.collectSnapshot,
-            ],
-            supportedLocatorStrategies: CockpitLocatorKind.values,
-          ),
-          recordingCapabilities: CockpitRecordingCapabilities(
-            supportsNativeRecording: false,
-            preferredAcceptanceRecordingKind: CockpitRecordingKind.nativeScreen,
-          ),
-          snapshot: CockpitSnapshot(routeName: '/home'),
+          supportsInAppControl: true,
+          supportsFlutterViewCapture: true,
+          supportsNativeScreenCapture: false,
+          supportsHostAutomation: false,
+          supportedCommands: const <CockpitCommandType>[
+            CockpitCommandType.collectSnapshot,
+          ],
+          supportedLocatorStrategies: CockpitLocatorKind.values,
         ),
-        snapshotProvider: ({required options}) async => CockpitSnapshot(
-          routeName: '/home',
-          diagnosticLevel: options.profile,
+        recordingCapabilities: CockpitRecordingCapabilities(
+          supportsNativeRecording: false,
+          preferredAcceptanceRecordingKind: CockpitRecordingKind.nativeScreen,
         ),
-        commandExecutor: (_) async => CockpitCommandExecution(
-          result: CockpitCommandResult(
-            success: true,
-            commandId: 'noop',
-            commandType: CockpitCommandType.collectSnapshot,
-            durationMs: 0,
-          ),
+        snapshot: CockpitSnapshot(routeName: '/home'),
+      ),
+      snapshotProvider: ({required options}) async =>
+          CockpitSnapshot(routeName: '/home', diagnosticLevel: options.profile),
+      commandExecutor: (_) async => CockpitCommandExecution(
+        result: CockpitCommandResult(
+          success: true,
+          commandId: 'noop',
+          commandType: CockpitCommandType.collectSnapshot,
+          durationMs: 0,
         ),
-        startRecording: (request) async => CockpitRecordingSession(
-          request: request,
-          state: CockpitRecordingState.recording,
-        ),
-        stopRecording: () async =>
-            CockpitRecordingResult(state: CockpitRecordingState.failed),
-      );
-      await server.start();
-      addTearDown(server.close);
+      ),
+      startRecording: (request) async => CockpitRecordingSession(
+        request: request,
+        state: CockpitRecordingState.recording,
+      ),
+      stopRecording: () async =>
+          CockpitRecordingResult(state: CockpitRecordingState.failed),
+    );
+    await server.start();
+    addTearDown(server.close);
 
-      final healthJson = await _readJson(server.baseUri!.resolve('/health'));
+    final healthJson = await _readJson(server.baseUri!.resolve('/health'));
 
-      expect(healthJson, isNotNull);
-      expect(healthJson['sessionId'], 'remote-health-compact');
-      expect(healthJson.containsKey('currentRouteName'), isFalse);
-      expect(healthJson.containsKey('environment'), isFalse);
-      expect(healthJson.containsKey('activeRecording'), isFalse);
-    },
-  );
+    expect(healthJson, isNotNull);
+    expect(healthJson['sessionId'], 'remote-health-compact');
+    expect(healthJson.containsKey('currentRouteName'), isFalse);
+    expect(healthJson.containsKey('environment'), isFalse);
+    expect(healthJson.containsKey('activeRecording'), isFalse);
+  });
 
   test(
     'remote snapshot endpoint forwards network diagnostic query parameters',
@@ -769,18 +764,21 @@ void main() {
 
       final downloadPath =
           ((responseJson['artifactDownloads']! as List<Object?>).single
-              as Map<Object?, Object?>)['downloadPath']! as String;
-      expect(
-        downloadPath,
-        startsWith('/cockpit/artifacts/download?path='),
-      );
+                  as Map<Object?, Object?>)['downloadPath']!
+              as String;
+      expect(downloadPath, startsWith('/cockpit/artifacts/download?path='));
       final downloadedJson = await _readJson(
         server.baseUri!.resolve(downloadPath),
       );
       final downloadedSnapshot = CockpitSnapshot.fromJson(downloadedJson);
       expect(
         downloadedSnapshot
-            .visibleTargets.single.diagnosticProperties.single.value.length,
+            .visibleTargets
+            .single
+            .diagnosticProperties
+            .single
+            .value
+            .length,
         greaterThan(20000),
       );
       expect(artifactFile.existsSync(), isTrue);
@@ -1056,40 +1054,44 @@ void main() {
       final rootState = tester.state<FlutterCockpitRootState>(
         find.byType(FlutterCockpitRoot),
       );
-      final baseUri = await tester.runAsync(() {
-        return rootState.waitForRemoteSession().timeout(
-          const Duration(seconds: 5),
-          onTimeout: () {
-            throw TimeoutException('waitForRemoteSession');
-          },
-        );
-      }).timeout(
-        const Duration(seconds: 5),
-        onTimeout: () {
-          throw TimeoutException('waitForRemoteSession');
-        },
-      );
+      final baseUri = await tester
+          .runAsync(() {
+            return rootState.waitForRemoteSession().timeout(
+              const Duration(seconds: 5),
+              onTimeout: () {
+                throw TimeoutException('waitForRemoteSession');
+              },
+            );
+          })
+          .timeout(
+            const Duration(seconds: 5),
+            onTimeout: () {
+              throw TimeoutException('waitForRemoteSession');
+            },
+          );
 
-      final responseJson = await tester.runAsync(() {
-        return _postJson(
-          baseUri!.resolve('/commands/execute'),
-          CockpitCommand(
-            commandId: 'capture-home',
-            commandType: CockpitCommandType.captureScreenshot,
-            screenshotRequest: const CockpitScreenshotRequest(
-              reason: CockpitScreenshotReason.acceptance,
-              name: 'remote-home',
-              includeSnapshot: true,
-              attachToStep: true,
-            ),
-          ).toJson(),
-        );
-      }).timeout(
-        const Duration(seconds: 5),
-        onTimeout: () {
-          throw TimeoutException('executeCaptureCommand');
-        },
-      );
+      final responseJson = await tester
+          .runAsync(() {
+            return _postJson(
+              baseUri!.resolve('/commands/execute'),
+              CockpitCommand(
+                commandId: 'capture-home',
+                commandType: CockpitCommandType.captureScreenshot,
+                screenshotRequest: const CockpitScreenshotRequest(
+                  reason: CockpitScreenshotReason.acceptance,
+                  name: 'remote-home',
+                  includeSnapshot: true,
+                  attachToStep: true,
+                ),
+              ).toJson(),
+            );
+          })
+          .timeout(
+            const Duration(seconds: 5),
+            onTimeout: () {
+              throw TimeoutException('executeCaptureCommand');
+            },
+          );
 
       final response = CockpitRemoteCommandResponse.fromJson(responseJson!);
       final result = response.result;
@@ -1186,7 +1188,8 @@ void main() {
 
       final baseUri = server.baseUri;
       expect(baseUri, isNotNull);
-      final resolvedBaseUri = baseUri ??
+      final resolvedBaseUri =
+          baseUri ??
           (throw StateError('Remote session server failed to start.'));
 
       final sessionJson = await _postJson(
@@ -1231,9 +1234,7 @@ void main() {
       );
       sourceFile.deleteSync();
       final deletedResponse = await _readBinaryResponse(
-        resolvedBaseUri.resolve(
-          response.artifactDownloads.single.downloadPath,
-        ),
+        resolvedBaseUri.resolve(response.artifactDownloads.single.downloadPath),
       );
       expect(deletedResponse.statusCode, HttpStatus.notFound);
     },
@@ -1345,86 +1346,89 @@ void main() {
     },
   );
 
-  test('remote session server stops an active recording when it closes',
-      () async {
-    var stopRecordingCount = 0;
-    final server = CockpitRemoteSessionServer(
-      configuration: const CockpitRemoteSessionConfiguration(
-        enabled: true,
-        autoStart: false,
-        port: 0,
-      ),
-      statusProvider: () async => CockpitRemoteSessionStatus(
-        sessionId: 'remote-active-recording-close',
-        platform: 'ios',
-        transportType: 'remoteHttp',
-        currentRouteName: '/home',
-        capabilities: CockpitCapabilities(
+  test(
+    'remote session server stops an active recording when it closes',
+    () async {
+      var stopRecordingCount = 0;
+      final server = CockpitRemoteSessionServer(
+        configuration: const CockpitRemoteSessionConfiguration(
+          enabled: true,
+          autoStart: false,
+          port: 0,
+        ),
+        statusProvider: () async => CockpitRemoteSessionStatus(
+          sessionId: 'remote-active-recording-close',
           platform: 'ios',
           transportType: 'remoteHttp',
-          supportsInAppControl: true,
-          supportsFlutterViewCapture: true,
-          supportsNativeScreenCapture: true,
-          supportsHostAutomation: false,
-          supportedCommands: const <CockpitCommandType>[
-            CockpitCommandType.tap,
-          ],
-          supportedLocatorStrategies: CockpitLocatorKind.values,
+          currentRouteName: '/home',
+          capabilities: CockpitCapabilities(
+            platform: 'ios',
+            transportType: 'remoteHttp',
+            supportsInAppControl: true,
+            supportsFlutterViewCapture: true,
+            supportsNativeScreenCapture: true,
+            supportsHostAutomation: false,
+            supportedCommands: const <CockpitCommandType>[
+              CockpitCommandType.tap,
+            ],
+            supportedLocatorStrategies: CockpitLocatorKind.values,
+          ),
+          recordingCapabilities: CockpitRecordingCapabilities(
+            supportsNativeRecording: true,
+            preferredAcceptanceRecordingKind: CockpitRecordingKind.nativeScreen,
+          ),
+          snapshot: CockpitSnapshot(routeName: '/home'),
         ),
-        recordingCapabilities: CockpitRecordingCapabilities(
-          supportsNativeRecording: true,
-          preferredAcceptanceRecordingKind: CockpitRecordingKind.nativeScreen,
+        snapshotProvider: ({required options}) async => CockpitSnapshot(
+          routeName: '/home',
+          diagnosticLevel: options.profile,
         ),
-        snapshot: CockpitSnapshot(routeName: '/home'),
-      ),
-      snapshotProvider: ({required options}) async => CockpitSnapshot(
-        routeName: '/home',
-        diagnosticLevel: options.profile,
-      ),
-      commandExecutor: (_) async => CockpitCommandExecution(
-        result: CockpitCommandResult(
-          success: true,
-          commandId: 'noop',
-          commandType: CockpitCommandType.tap,
-          durationMs: 0,
+        commandExecutor: (_) async => CockpitCommandExecution(
+          result: CockpitCommandResult(
+            success: true,
+            commandId: 'noop',
+            commandType: CockpitCommandType.tap,
+            durationMs: 0,
+          ),
         ),
-      ),
-      startRecording: (request) async => CockpitRecordingSession(
-        request: request,
-        state: CockpitRecordingState.recording,
-      ),
-      stopRecording: () async {
-        stopRecordingCount += 1;
-        return CockpitRecordingResult(
-          state: CockpitRecordingState.completed,
-          purpose: CockpitRecordingPurpose.acceptance,
-          recordingKind: CockpitRecordingKind.nativeScreen,
-        );
-      },
-    );
-    await server.start();
+        startRecording: (request) async => CockpitRecordingSession(
+          request: request,
+          state: CockpitRecordingState.recording,
+        ),
+        stopRecording: () async {
+          stopRecordingCount += 1;
+          return CockpitRecordingResult(
+            state: CockpitRecordingState.completed,
+            purpose: CockpitRecordingPurpose.acceptance,
+            recordingKind: CockpitRecordingKind.nativeScreen,
+          );
+        },
+      );
+      await server.start();
 
-    final baseUri = server.baseUri;
-    expect(baseUri, isNotNull);
-    final resolvedBaseUri =
-        baseUri ?? (throw StateError('Remote session server failed to start.'));
+      final baseUri = server.baseUri;
+      expect(baseUri, isNotNull);
+      final resolvedBaseUri =
+          baseUri ??
+          (throw StateError('Remote session server failed to start.'));
 
-    final sessionJson = await _postJson(
-      resolvedBaseUri.resolve('/recording/start'),
-      const <String, Object?>{
-        'purpose': 'acceptance',
-        'name': 'remote_home_acceptance',
-        'attachToStep': true,
-      },
-    );
+      final sessionJson = await _postJson(
+        resolvedBaseUri.resolve('/recording/start'),
+        const <String, Object?>{
+          'purpose': 'acceptance',
+          'name': 'remote_home_acceptance',
+          'attachToStep': true,
+        },
+      );
 
-    final session = CockpitRecordingSession.fromJson(sessionJson);
-    expect(session.state, CockpitRecordingState.recording);
+      final session = CockpitRecordingSession.fromJson(sessionJson);
+      expect(session.state, CockpitRecordingState.recording);
 
-    await server.close();
+      await server.close();
 
-    expect(stopRecordingCount, 1);
-  });
+      expect(stopRecordingCount, 1);
+    },
+  );
 }
 
 Future<Map<String, Object?>> _readJson(Uri uri) async {
@@ -1486,10 +1490,7 @@ Future<_HttpBinaryResponse> _readBinaryResponse(Uri uri) async {
 }
 
 final class _HttpBinaryResponse {
-  const _HttpBinaryResponse({
-    required this.statusCode,
-    required this.bytes,
-  });
+  const _HttpBinaryResponse({required this.statusCode, required this.bytes});
 
   final int statusCode;
   final List<int> bytes;
@@ -1501,8 +1502,8 @@ final class _FakeCockpitNativeRecording extends CockpitNativeRecording {
   _FakeCockpitNativeRecording({
     Directory? tempDirectory,
     List<int> recordingBytes = const <int>[1, 2, 3, 4],
-  })  : _tempDirectory = tempDirectory,
-        _recordingBytes = List<int>.unmodifiable(recordingBytes);
+  }) : _tempDirectory = tempDirectory,
+       _recordingBytes = List<int>.unmodifiable(recordingBytes);
 
   final Directory? _tempDirectory;
   final List<int> _recordingBytes;

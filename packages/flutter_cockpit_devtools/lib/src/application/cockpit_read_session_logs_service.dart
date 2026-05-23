@@ -26,19 +26,19 @@ final class CockpitReadSessionLogsResult {
   final bool truncated;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'developmentSessionId': developmentSessionId,
-        'logPath': logPath,
-        'lines': lines,
-        'truncated': truncated,
-      };
+    'developmentSessionId': developmentSessionId,
+    'logPath': logPath,
+    'lines': lines,
+    'truncated': truncated,
+  };
 }
 
 final class CockpitReadSessionLogsService {
   CockpitReadSessionLogsService({
     required CockpitSessionRegistry registry,
     CockpitFileSystem? fileSystem,
-  })  : _registry = registry,
-        _fileSystem = fileSystem ?? const LocalCockpitFileSystem();
+  }) : _registry = registry,
+       _fileSystem = fileSystem ?? const LocalCockpitFileSystem();
 
   final CockpitSessionRegistry _registry;
   final CockpitFileSystem _fileSystem;
@@ -80,8 +80,9 @@ final class CockpitReadSessionLogsService {
     final lines = await file.readAsLines();
     final safeMaxLines = request.maxLines <= 0 ? 200 : request.maxLines;
     final truncated = lines.length > safeMaxLines;
-    final visibleLines =
-        truncated ? lines.sublist(lines.length - safeMaxLines) : lines;
+    final visibleLines = truncated
+        ? lines.sublist(lines.length - safeMaxLines)
+        : lines;
     return CockpitReadSessionLogsResult(
       developmentSessionId: request.developmentSessionId,
       logPath: logPath,

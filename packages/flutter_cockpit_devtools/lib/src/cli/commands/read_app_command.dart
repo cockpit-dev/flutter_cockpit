@@ -9,17 +9,16 @@ import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
-typedef CockpitReadAppFunction = Future<CockpitReadAppResult> Function(
-  CockpitReadAppRequest request,
-);
+typedef CockpitReadAppFunction =
+    Future<CockpitReadAppResult> Function(CockpitReadAppRequest request);
 
 final class ReadAppCommand extends CockpitCliCommand {
   ReadAppCommand({
     CockpitReadAppService? service,
     CockpitReadAppFunction? read,
     StringSink? stdoutSink,
-  })  : _read = read ?? (service ?? CockpitReadAppService()).read,
-        _stdoutSink = stdoutSink ?? stdout {
+  }) : _read = read ?? (service ?? CockpitReadAppService()).read,
+       _stdoutSink = stdoutSink ?? stdout {
     cockpitAddAppArgs(argParser);
     cockpitAddProfileArg(
       argParser,
@@ -87,8 +86,8 @@ final class ReadAppCommand extends CockpitCliCommand {
     );
     final payload =
         resultProfile.name == CockpitInteractiveResultProfileName.minimal
-            ? cockpitCompactMinimalReadAppPayload(result.toJson())
-            : result.toJson();
+        ? cockpitCompactMinimalReadAppPayload(result.toJson())
+        : result.toJson();
     await cockpitWriteJsonPayload(
       payload: const JsonEncoder.withIndent('  ').convert(payload),
       argResults: argResults,

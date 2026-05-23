@@ -11,8 +11,8 @@ final class CockpitRecordingCapabilities {
         const <CockpitRecordingLayer>[],
     this.preferredLayer,
     List<String> recordingLimitations = const <String>[],
-  })  : supportedLayers = List.unmodifiable(supportedLayers),
-        recordingLimitations = List.unmodifiable(recordingLimitations);
+  }) : supportedLayers = List.unmodifiable(supportedLayers),
+       recordingLimitations = List.unmodifiable(recordingLimitations);
 
   final bool supportsNativeRecording;
   final CockpitRecordingKind? preferredAcceptanceRecordingKind;
@@ -26,16 +26,15 @@ final class CockpitRecordingCapabilities {
       ListEquality<CockpitRecordingLayer>();
 
   Map<String, Object?> toJson() => {
-        'supportsNativeRecording': supportsNativeRecording,
-        'preferredAcceptanceRecordingKind':
-            preferredAcceptanceRecordingKind?.name,
-        if (supportedLayers.isNotEmpty)
-          'supportedLayers': supportedLayers
-              .map((layer) => layer.jsonValue)
-              .toList(growable: false),
-        if (preferredLayer != null) 'preferredLayer': preferredLayer!.jsonValue,
-        'recordingLimitations': recordingLimitations,
-      };
+    'supportsNativeRecording': supportsNativeRecording,
+    'preferredAcceptanceRecordingKind': preferredAcceptanceRecordingKind?.name,
+    if (supportedLayers.isNotEmpty)
+      'supportedLayers': supportedLayers
+          .map((layer) => layer.jsonValue)
+          .toList(growable: false),
+    if (preferredLayer != null) 'preferredLayer': preferredLayer!.jsonValue,
+    'recordingLimitations': recordingLimitations,
+  };
 
   factory CockpitRecordingCapabilities.fromJson(Map<String, Object?> json) {
     final preferredKind = json['preferredAcceptanceRecordingKind'];
@@ -66,10 +65,7 @@ final class CockpitRecordingCapabilities {
             other.supportsNativeRecording == supportsNativeRecording &&
             other.preferredAcceptanceRecordingKind ==
                 preferredAcceptanceRecordingKind &&
-            _layerListEquality.equals(
-              other.supportedLayers,
-              supportedLayers,
-            ) &&
+            _layerListEquality.equals(other.supportedLayers, supportedLayers) &&
             other.preferredLayer == preferredLayer &&
             _stringListEquality.equals(
               other.recordingLimitations,
@@ -79,10 +75,10 @@ final class CockpitRecordingCapabilities {
 
   @override
   int get hashCode => Object.hash(
-        supportsNativeRecording,
-        preferredAcceptanceRecordingKind,
-        _layerListEquality.hash(supportedLayers),
-        preferredLayer,
-        _stringListEquality.hash(recordingLimitations),
-      );
+    supportsNativeRecording,
+    preferredAcceptanceRecordingKind,
+    _layerListEquality.hash(supportedLayers),
+    preferredLayer,
+    _stringListEquality.hash(recordingLimitations),
+  );
 }

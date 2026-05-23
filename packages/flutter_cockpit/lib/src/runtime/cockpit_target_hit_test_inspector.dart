@@ -24,14 +24,14 @@ final class CockpitTargetHitTestResult {
   final List<String> hitPath;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'hit': hit,
-        'withinTargetBounds': withinTargetBounds,
-        'position': <String, double>{'dx': position.dx, 'dy': position.dy},
-        'targetRenderObjectType': targetRenderObjectType,
-        if (matchedRenderObjectType != null)
-          'matchedRenderObjectType': matchedRenderObjectType,
-        'hitPath': hitPath,
-      };
+    'hit': hit,
+    'withinTargetBounds': withinTargetBounds,
+    'position': <String, double>{'dx': position.dx, 'dy': position.dy},
+    'targetRenderObjectType': targetRenderObjectType,
+    if (matchedRenderObjectType != null)
+      'matchedRenderObjectType': matchedRenderObjectType,
+    'hitPath': hitPath,
+  };
 }
 
 abstract final class CockpitTargetHitTestInspector {
@@ -83,7 +83,8 @@ abstract final class CockpitTargetHitTestInspector {
       return matched;
     });
     final primaryRenderObject = renderPath.isEmpty ? null : renderPath.first;
-    final hit = primaryRenderObject != null &&
+    final hit =
+        primaryRenderObject != null &&
         _belongsToTargetLineage(renderObject, primaryRenderObject);
 
     return CockpitTargetHitTestResult(

@@ -8,11 +8,11 @@ import '../development/cockpit_development_session_status.dart';
 import '../development/cockpit_development_session_supervisor_client.dart';
 import 'cockpit_compact_json.dart';
 
-typedef CockpitDevelopmentSessionReloader
-    = Future<CockpitDevelopmentSessionReloadResult> Function(
-  Uri supervisorBaseUri,
-  CockpitDevelopmentReloadMode mode,
-);
+typedef CockpitDevelopmentSessionReloader =
+    Future<CockpitDevelopmentSessionReloadResult> Function(
+      Uri supervisorBaseUri,
+      CockpitDevelopmentReloadMode mode,
+    );
 
 final class CockpitReloadDevelopmentSessionRequest {
   const CockpitReloadDevelopmentSessionRequest({
@@ -53,9 +53,10 @@ final class CockpitReloadDevelopmentSessionService {
     CockpitDevelopmentSessionReloader? reloader,
     CockpitDevelopmentSessionReferenceResolver? sessionReferenceResolver,
     CockpitDevelopmentSessionSupervisorClient? supervisorClient,
-  })  : _reloader = reloader ?? _buildDefaultReloader(supervisorClient),
-        _sessionReferenceResolver = sessionReferenceResolver ??
-            const CockpitDevelopmentSessionReferenceResolver();
+  }) : _reloader = reloader ?? _buildDefaultReloader(supervisorClient),
+       _sessionReferenceResolver =
+           sessionReferenceResolver ??
+           const CockpitDevelopmentSessionReferenceResolver();
 
   final CockpitDevelopmentSessionReloader _reloader;
   final CockpitDevelopmentSessionReferenceResolver _sessionReferenceResolver;

@@ -5,8 +5,8 @@ import 'dart:typed_data';
 import '../artifacts/cockpit_recording_keyframe_extractor.dart';
 import 'package:image/image.dart' as img;
 
-typedef CockpitArtifactValidationProcessRunner = Future<ProcessResult> Function(
-    String executable, List<String> arguments);
+typedef CockpitArtifactValidationProcessRunner =
+    Future<ProcessResult> Function(String executable, List<String> arguments);
 
 final class CockpitBundleArtifactValidationResult {
   const CockpitBundleArtifactValidationResult({
@@ -29,9 +29,9 @@ final class CockpitBundleArtifactValidator {
     String ffprobeExecutable = 'ffprobe',
     String ffmpegExecutable = 'ffmpeg',
     CockpitArtifactValidationProcessRunner processRunner = Process.run,
-  })  : _ffprobeExecutable = ffprobeExecutable,
-        _ffmpegExecutable = ffmpegExecutable,
-        _processRunner = processRunner;
+  }) : _ffprobeExecutable = ffprobeExecutable,
+       _ffmpegExecutable = ffmpegExecutable,
+       _processRunner = processRunner;
 
   final String _ffprobeExecutable;
   final String _ffmpegExecutable;
@@ -134,8 +134,8 @@ final class CockpitBundleArtifactValidator {
       final similarity = _normalizedSimilarity(screenshotImage, frameImage);
       comparisons.add(<String, Object?>{
         'source': source,
-        if (offsetSeconds != null) 'offsetSeconds': offsetSeconds,
-        if (framePath != null) 'framePath': framePath,
+        'offsetSeconds': ?offsetSeconds,
+        'framePath': ?framePath,
         'similarity': similarity,
       });
       if (bestSimilarity == null || similarity > bestSimilarity!) {
@@ -276,8 +276,9 @@ final class CockpitBundleArtifactValidator {
     if (durationMs == null || durationMs <= 0) {
       return baseOffsets;
     }
-    final maxOffsetSeconds =
-        durationMs <= 3000 ? (durationMs * 0.45) / 1000 : 1.8;
+    final maxOffsetSeconds = durationMs <= 3000
+        ? (durationMs * 0.45) / 1000
+        : 1.8;
     return baseOffsets
         .where((offsetSeconds) => offsetSeconds <= maxOffsetSeconds + 0.001)
         .toList(growable: false);
@@ -343,15 +344,17 @@ final class CockpitBundleArtifactValidator {
       );
     }
 
-    final earlyWindowEnd =
-        durationMs < 2400 ? 600 : (durationMs * 0.22).round();
+    final earlyWindowEnd = durationMs < 2400
+        ? 600
+        : (durationMs * 0.22).round();
     final hasEarlyCoverage = keyframes.any(
       (keyframe) => keyframe.offsetMs <= earlyWindowEnd,
     );
     final needsMidCoverage = durationMs >= 3000;
     final midStart = (durationMs * 0.30).round();
     final midEnd = (durationMs * 0.70).round();
-    final hasMidCoverage = !needsMidCoverage ||
+    final hasMidCoverage =
+        !needsMidCoverage ||
         keyframes.any(
           (keyframe) =>
               keyframe.offsetMs >= midStart && keyframe.offsetMs <= midEnd,
@@ -430,15 +433,15 @@ final class CockpitBundleArtifactValidator {
 
       return switch (expectedKind) {
         _ExpectedArtifactKind.screenshot => _validateScreenshotProbe(
-            path,
-            streams,
-            format,
-          ),
+          path,
+          streams,
+          format,
+        ),
         _ExpectedArtifactKind.recording => _validateRecordingProbe(
-            path,
-            streams,
-            format,
-          ),
+          path,
+          streams,
+          format,
+        ),
       };
     } on ProcessException {
       return null;
@@ -453,12 +456,12 @@ final class CockpitBundleArtifactValidator {
     Map<String, Object?> format,
   ) {
     final stream = streams.cast<Map<String, Object?>?>().firstWhere(
-          (candidate) =>
-              candidate != null &&
-              candidate['width'] is int &&
-              candidate['height'] is int,
-          orElse: () => null,
-        );
+      (candidate) =>
+          candidate != null &&
+          candidate['width'] is int &&
+          candidate['height'] is int,
+      orElse: () => null,
+    );
     if (stream == null) {
       return _invalid(
         code: 'invalidScreenshotArtifact',
@@ -502,10 +505,9 @@ final class CockpitBundleArtifactValidator {
     Map<String, Object?> format,
   ) {
     final stream = streams.cast<Map<String, Object?>?>().firstWhere(
-          (candidate) =>
-              candidate != null && candidate['codec_type'] == 'video',
-          orElse: () => null,
-        );
+      (candidate) => candidate != null && candidate['codec_type'] == 'video',
+      orElse: () => null,
+    );
     if (stream == null) {
       return _invalid(
         code: 'invalidRecordingArtifact',
@@ -647,10 +649,13 @@ final class CockpitBundleArtifactValidator {
       for (var x = 0; x < normalizedScreenshot.width; x++) {
         final screenshotPixel = normalizedScreenshot.getPixel(x, y);
         final framePixel = normalizedFrame.getPixel(x, y);
-        final screenshotLuminance =
-            screenshotPixel.luminanceNormalized.toDouble().clamp(0.0, 1.0);
-        final frameLuminance =
-            framePixel.luminanceNormalized.toDouble().clamp(0.0, 1.0);
+        final screenshotLuminance = screenshotPixel.luminanceNormalized
+            .toDouble()
+            .clamp(0.0, 1.0);
+        final frameLuminance = framePixel.luminanceNormalized.toDouble().clamp(
+          0.0,
+          1.0,
+        );
         totalDelta += (screenshotLuminance - frameLuminance).abs();
       }
     }
@@ -664,13 +669,13 @@ final class CockpitBundleArtifactValidator {
     final cropWidth = (image.width * 0.82).round().clamp(1, image.width);
     final cropHeight = (image.height * 0.72).round().clamp(1, image.height);
     final cropX = ((image.width - cropWidth) / 2).round().clamp(
-          0,
-          image.width - cropWidth,
-        );
+      0,
+      image.width - cropWidth,
+    );
     final cropY = ((image.height - cropHeight) / 2).round().clamp(
-          0,
-          image.height - cropHeight,
-        );
+      0,
+      image.height - cropHeight,
+    );
     final cropped = img.copyCrop(
       image,
       x: cropX,

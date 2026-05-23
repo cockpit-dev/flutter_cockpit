@@ -184,10 +184,7 @@ void main() {
       expect(result.selectedPlane, CockpitPlaneKind.nativeUiPlane);
       expect(result.snapshotRef, '/tmp/flutter_cockpit/macos_inspect.png');
       expect(result.recommendedNextStep, 'reviewCapture');
-      expect(
-        result.diagnostics?['artifacts'],
-        isA<List<Object?>>(),
-      );
+      expect(result.diagnostics?['artifacts'], isA<List<Object?>>());
     },
   );
 
@@ -408,23 +405,23 @@ void main() {
         platformDriverRegistry: CockpitPlatformDriverRegistry(
           drivers: <String, CockpitPlatformDriverFactory>{
             'ios': ({required String deviceId}) => _FakeEvidencePlatformDriver(
-                  platform: 'ios',
-                  capabilityProfile: CockpitCapabilityProfile(
-                    targetKind: CockpitTargetKind.flutterApp,
-                    surfaceKinds: const <CockpitSurfaceKind>{
-                      CockpitSurfaceKind.flutterSemantic,
-                      CockpitSurfaceKind.nativeUi,
-                    },
-                    actionCapabilities: const <CockpitActionCapability>{
-                      CockpitActionCapability.captureScreenshot,
-                      CockpitActionCapability.tap,
-                    },
-                    evidenceCapabilities: const <CockpitEvidenceCapability>{
-                      CockpitEvidenceCapability.flutterScreenshot,
-                      CockpitEvidenceCapability.nativeScreenshot,
-                    },
-                  ),
-                ),
+              platform: 'ios',
+              capabilityProfile: CockpitCapabilityProfile(
+                targetKind: CockpitTargetKind.flutterApp,
+                surfaceKinds: const <CockpitSurfaceKind>{
+                  CockpitSurfaceKind.flutterSemantic,
+                  CockpitSurfaceKind.nativeUi,
+                },
+                actionCapabilities: const <CockpitActionCapability>{
+                  CockpitActionCapability.captureScreenshot,
+                  CockpitActionCapability.tap,
+                },
+                evidenceCapabilities: const <CockpitEvidenceCapability>{
+                  CockpitEvidenceCapability.flutterScreenshot,
+                  CockpitEvidenceCapability.nativeScreenshot,
+                },
+              ),
+            ),
           },
         ),
         inspectFlutterSurface: (_) async => const CockpitInspectUiResult(
@@ -468,21 +465,21 @@ void main() {
         platformDriverRegistry: CockpitPlatformDriverRegistry(
           drivers: <String, CockpitPlatformDriverFactory>{
             'web': ({required String deviceId}) => _FakeEvidencePlatformDriver(
-                  platform: 'web',
-                  capabilityProfile: CockpitCapabilityProfile(
-                    targetKind: CockpitTargetKind.browserPage,
-                    surfaceKinds: const <CockpitSurfaceKind>{
-                      CockpitSurfaceKind.browserDom,
-                    },
-                    actionCapabilities: const <CockpitActionCapability>{
-                      CockpitActionCapability.tap,
-                      CockpitActionCapability.captureScreenshot,
-                    },
-                    evidenceCapabilities: const <CockpitEvidenceCapability>{
-                      CockpitEvidenceCapability.domSnapshot,
-                    },
-                  ),
-                ),
+              platform: 'web',
+              capabilityProfile: CockpitCapabilityProfile(
+                targetKind: CockpitTargetKind.browserPage,
+                surfaceKinds: const <CockpitSurfaceKind>{
+                  CockpitSurfaceKind.browserDom,
+                },
+                actionCapabilities: const <CockpitActionCapability>{
+                  CockpitActionCapability.tap,
+                  CockpitActionCapability.captureScreenshot,
+                },
+                evidenceCapabilities: const <CockpitEvidenceCapability>{
+                  CockpitEvidenceCapability.domSnapshot,
+                },
+              ),
+            ),
           },
         ),
         inspectFlutterSurface: (request) async {

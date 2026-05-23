@@ -8,15 +8,15 @@ import '../development/cockpit_development_session_reference_resolver.dart';
 import '../remote/cockpit_remote_session_client.dart';
 import 'cockpit_collect_remote_snapshot_service.dart';
 
-typedef CockpitDevelopmentProbeSnapshotCollector
-    = Future<CockpitCollectRemoteSnapshotResult> Function(
-  CockpitCollectRemoteSnapshotRequest request,
-);
-typedef CockpitDevelopmentProbeScreenshotCollector
-    = Future<CockpitDevelopmentProbeScreenshot?> Function(
-  CockpitDevelopmentSessionHandle sessionHandle,
-  CockpitDevelopmentProbeProfile profile,
-);
+typedef CockpitDevelopmentProbeSnapshotCollector =
+    Future<CockpitCollectRemoteSnapshotResult> Function(
+      CockpitCollectRemoteSnapshotRequest request,
+    );
+typedef CockpitDevelopmentProbeScreenshotCollector =
+    Future<CockpitDevelopmentProbeScreenshot?> Function(
+      CockpitDevelopmentSessionHandle sessionHandle,
+      CockpitDevelopmentProbeProfile profile,
+    );
 
 final class CockpitDevelopmentProbeScreenshot {
   const CockpitDevelopmentProbeScreenshot({
@@ -64,11 +64,11 @@ final class CockpitCollectDevelopmentProbeResult {
   final List<String> warnings;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'probe': probe.toJson(),
-        'sessionHandle': sessionHandle.toJson(),
-        'effectiveSnapshotOptions': effectiveSnapshotOptions.toJson(),
-        'warnings': warnings,
-      };
+    'probe': probe.toJson(),
+    'sessionHandle': sessionHandle.toJson(),
+    'effectiveSnapshotOptions': effectiveSnapshotOptions.toJson(),
+    'warnings': warnings,
+  };
 }
 
 final class CockpitCollectDevelopmentProbeService {
@@ -77,13 +77,15 @@ final class CockpitCollectDevelopmentProbeService {
     CockpitDevelopmentSessionReferenceResolver? sessionReferenceResolver,
     CockpitDevelopmentProbeScreenshotCollector? collectScreenshot,
     DateTime Function()? now,
-  })  : _collectRemoteSnapshot = collectRemoteSnapshot ??
-            ((request) =>
-                CockpitCollectRemoteSnapshotService().collect(request)),
-        _sessionReferenceResolver = sessionReferenceResolver ??
-            const CockpitDevelopmentSessionReferenceResolver(),
-        _collectScreenshot = collectScreenshot ?? _defaultCollectScreenshot,
-        _now = now ?? DateTime.now;
+  }) : _collectRemoteSnapshot =
+           collectRemoteSnapshot ??
+           ((request) =>
+               CockpitCollectRemoteSnapshotService().collect(request)),
+       _sessionReferenceResolver =
+           sessionReferenceResolver ??
+           const CockpitDevelopmentSessionReferenceResolver(),
+       _collectScreenshot = collectScreenshot ?? _defaultCollectScreenshot,
+       _now = now ?? DateTime.now;
 
   final CockpitDevelopmentProbeSnapshotCollector _collectRemoteSnapshot;
   final CockpitDevelopmentSessionReferenceResolver _sessionReferenceResolver;
@@ -296,21 +298,22 @@ final class CockpitCollectDevelopmentProbeService {
     }
     final commandId =
         'development-probe-screenshot-${DateTime.now().toUtc().microsecondsSinceEpoch}';
-    final response = await CockpitRemoteSessionClient(
-      baseUri: sessionHandle.baseUri,
-    ).executeDetailed(
-      CockpitCommand(
-        commandId: commandId,
-        commandType: CockpitCommandType.captureScreenshot,
-        screenshotRequest: CockpitScreenshotRequest(
-          reason: CockpitScreenshotReason.afterAction,
-          name:
-              'development_probe_${sessionHandle.developmentSessionId}_${profile.jsonValue}',
-          includeSnapshot: false,
-          attachToStep: false,
-        ),
-      ),
-    );
+    final response =
+        await CockpitRemoteSessionClient(
+          baseUri: sessionHandle.baseUri,
+        ).executeDetailed(
+          CockpitCommand(
+            commandId: commandId,
+            commandType: CockpitCommandType.captureScreenshot,
+            screenshotRequest: CockpitScreenshotRequest(
+              reason: CockpitScreenshotReason.afterAction,
+              name:
+                  'development_probe_${sessionHandle.developmentSessionId}_${profile.jsonValue}',
+              includeSnapshot: false,
+              attachToStep: false,
+            ),
+          ),
+        );
     final artifact = response.result.artifacts.firstWhere(
       (candidate) =>
           candidate.role.contains('screenshot') ||

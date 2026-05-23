@@ -9,9 +9,9 @@ final class CockpitHostPreferredCaptureAdapter
     required CockpitCaptureAdapter remoteAdapter,
     required CockpitCaptureAdapter hostAcceptanceAdapter,
     required CockpitRemoteSessionClient client,
-  })  : _remoteAdapter = remoteAdapter,
-        _hostAcceptanceAdapter = hostAcceptanceAdapter,
-        _client = client;
+  }) : _remoteAdapter = remoteAdapter,
+       _hostAcceptanceAdapter = hostAcceptanceAdapter,
+       _client = client;
 
   final CockpitCaptureAdapter _remoteAdapter;
   final CockpitCaptureAdapter _hostAcceptanceAdapter;
@@ -43,7 +43,8 @@ final class CockpitHostPreferredCaptureAdapter
 
     try {
       final snapshot = await _client.readSnapshot(
-        options: request.snapshotOptions ??
+        options:
+            request.snapshotOptions ??
             _defaultSnapshotOptionsForReason(request.reason),
       );
       return CockpitCommandExecution(

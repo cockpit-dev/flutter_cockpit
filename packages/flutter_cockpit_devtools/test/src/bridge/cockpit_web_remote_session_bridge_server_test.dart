@@ -19,9 +19,8 @@ void main() {
           await tempDir.delete(recursive: true);
         }
       });
-      final sourceFile = File(
-        '${tempDir.path}/recordings/web-acceptance.mp4',
-      )..parent.createSync(recursive: true);
+      final sourceFile = File('${tempDir.path}/recordings/web-acceptance.mp4')
+        ..parent.createSync(recursive: true);
       final startedRecordings = <CockpitRecordingRequest>[];
       var stopRecordingCount = 0;
       final server = CockpitWebRemoteSessionBridgeServer(
@@ -140,9 +139,7 @@ void main() {
         }
       });
 
-      final healthJson = await _readJson(
-        Uri.parse('${server.baseUri}/health'),
-      );
+      final healthJson = await _readJson(Uri.parse('${server.baseUri}/health'));
       expect(
         (healthJson['recordingCapabilities']
             as Map<String, Object?>)['supportsNativeRecording'],
@@ -319,150 +316,162 @@ void main() {
     },
   );
 
-  test('web bridge stops an active host recording when the server closes',
-      () async {
-    var stopRecordingCount = 0;
-    final server = CockpitWebRemoteSessionBridgeServer(
-      bindHost: '127.0.0.1',
-      bindPort: 0,
-      recordingAdapter: _FakeHostRecordingAdapter(
-        onStart: (request) async => CockpitRecordingSession(
-          request: request,
-          state: CockpitRecordingState.recording,
-        ),
-        onStop: () async {
-          stopRecordingCount += 1;
-          return CockpitRecordingResult(
-            state: CockpitRecordingState.completed,
-            purpose: CockpitRecordingPurpose.acceptance,
-            recordingKind: CockpitRecordingKind.nativeScreen,
-          );
-        },
-      ),
-    );
-    await server.start();
-
-    await _postJson(
-      server.baseUri.resolve('/recording/start'),
-      const CockpitRecordingRequest(
-        purpose: CockpitRecordingPurpose.acceptance,
-        name: 'web_acceptance',
-      ).toJson(),
-    );
-
-    await server.close();
-
-    expect(stopRecordingCount, 1);
-  });
-
-  test('web bridge reports malformed browser responses without timeout',
-      () async {
-    final server = CockpitWebRemoteSessionBridgeServer(
-      bindHost: '127.0.0.1',
-      bindPort: 0,
-      requestTimeout: const Duration(seconds: 5),
-    );
-    await server.start();
-    addTearDown(server.close);
-
-    final socket = await WebSocket.connect(server.connectUri.toString());
-    addTearDown(socket.close);
-    socket.listen((_) {
-      socket.add(
-        jsonEncode(const <String, Object?>{
-          'statusCode': 200,
-          'jsonBody': <String, Object?>{'ok': true},
-        }),
-      );
-    });
-
-    final stopwatch = Stopwatch()..start();
-    final response = await _readJsonResponse(server.baseUri.resolve('/health'));
-    stopwatch.stop();
-
-    expect(response.statusCode, HttpStatus.badGateway);
-    expect(response.body['error'], 'bridgeInvalidResponse');
-    expect(
-      response.body['message'],
-      contains('"requestId" must be a non-empty string'),
-    );
-    expect(stopwatch.elapsed, lessThan(const Duration(seconds: 2)));
-  });
-
-  test('web bridge reports unknown browser response ids without timeout',
-      () async {
-    final server = CockpitWebRemoteSessionBridgeServer(
-      bindHost: '127.0.0.1',
-      bindPort: 0,
-      requestTimeout: const Duration(seconds: 5),
-    );
-    await server.start();
-    addTearDown(server.close);
-
-    final socket = await WebSocket.connect(server.connectUri.toString());
-    addTearDown(socket.close);
-    socket.listen((_) {
-      socket.add(
-        jsonEncode(
-          const CockpitRemoteBridgeResponse(
-            requestId: 'wrong-request-id',
-            statusCode: 200,
-            jsonBody: <String, Object?>{'ok': true},
-          ).toJson(),
+  test(
+    'web bridge stops an active host recording when the server closes',
+    () async {
+      var stopRecordingCount = 0;
+      final server = CockpitWebRemoteSessionBridgeServer(
+        bindHost: '127.0.0.1',
+        bindPort: 0,
+        recordingAdapter: _FakeHostRecordingAdapter(
+          onStart: (request) async => CockpitRecordingSession(
+            request: request,
+            state: CockpitRecordingState.recording,
+          ),
+          onStop: () async {
+            stopRecordingCount += 1;
+            return CockpitRecordingResult(
+              state: CockpitRecordingState.completed,
+              purpose: CockpitRecordingPurpose.acceptance,
+              recordingKind: CockpitRecordingKind.nativeScreen,
+            );
+          },
         ),
       );
-    });
+      await server.start();
 
-    final stopwatch = Stopwatch()..start();
-    final response = await _readJsonResponse(server.baseUri.resolve('/health'));
-    stopwatch.stop();
-
-    expect(response.statusCode, HttpStatus.badGateway);
-    expect(response.body['error'], 'bridgeUnknownResponse');
-    expect(response.body['message'], contains('wrong-request-id'));
-    expect(stopwatch.elapsed, lessThan(const Duration(seconds: 2)));
-  });
-
-  test('web bridge reports invalid binary bridge responses without timeout',
-      () async {
-    final server = CockpitWebRemoteSessionBridgeServer(
-      bindHost: '127.0.0.1',
-      bindPort: 0,
-      requestTimeout: const Duration(seconds: 5),
-    );
-    await server.start();
-    addTearDown(server.close);
-
-    final socket = await WebSocket.connect(server.connectUri.toString());
-    addTearDown(socket.close);
-    socket.listen((payload) {
-      final message = CockpitRemoteBridgeRequest.fromJson(
-        Map<String, Object?>.from(
-          jsonDecode(payload as String) as Map<Object?, Object?>,
-        ),
+      await _postJson(
+        server.baseUri.resolve('/recording/start'),
+        const CockpitRecordingRequest(
+          purpose: CockpitRecordingPurpose.acceptance,
+          name: 'web_acceptance',
+        ).toJson(),
       );
-      socket.add(
-        jsonEncode(
-          CockpitRemoteBridgeResponse(
-            requestId: message.requestId,
-            statusCode: 200,
-            bytesBase64: 'not base64',
-          ).toJson(),
-        ),
+
+      await server.close();
+
+      expect(stopRecordingCount, 1);
+    },
+  );
+
+  test(
+    'web bridge reports malformed browser responses without timeout',
+    () async {
+      final server = CockpitWebRemoteSessionBridgeServer(
+        bindHost: '127.0.0.1',
+        bindPort: 0,
+        requestTimeout: const Duration(seconds: 5),
       );
-    });
+      await server.start();
+      addTearDown(server.close);
 
-    final stopwatch = Stopwatch()..start();
-    final response = await _readJsonResponse(
-      Uri.parse('${server.baseUri}/artifacts/download?path=image.png'),
-    );
-    stopwatch.stop();
+      final socket = await WebSocket.connect(server.connectUri.toString());
+      addTearDown(socket.close);
+      socket.listen((_) {
+        socket.add(
+          jsonEncode(const <String, Object?>{
+            'statusCode': 200,
+            'jsonBody': <String, Object?>{'ok': true},
+          }),
+        );
+      });
 
-    expect(response.statusCode, HttpStatus.badGateway);
-    expect(response.body['error'], 'bridgeInvalidResponse');
-    expect(response.body['message'], contains('"bytesBase64"'));
-    expect(stopwatch.elapsed, lessThan(const Duration(seconds: 2)));
-  });
+      final stopwatch = Stopwatch()..start();
+      final response = await _readJsonResponse(
+        server.baseUri.resolve('/health'),
+      );
+      stopwatch.stop();
+
+      expect(response.statusCode, HttpStatus.badGateway);
+      expect(response.body['error'], 'bridgeInvalidResponse');
+      expect(
+        response.body['message'],
+        contains('"requestId" must be a non-empty string'),
+      );
+      expect(stopwatch.elapsed, lessThan(const Duration(seconds: 2)));
+    },
+  );
+
+  test(
+    'web bridge reports unknown browser response ids without timeout',
+    () async {
+      final server = CockpitWebRemoteSessionBridgeServer(
+        bindHost: '127.0.0.1',
+        bindPort: 0,
+        requestTimeout: const Duration(seconds: 5),
+      );
+      await server.start();
+      addTearDown(server.close);
+
+      final socket = await WebSocket.connect(server.connectUri.toString());
+      addTearDown(socket.close);
+      socket.listen((_) {
+        socket.add(
+          jsonEncode(
+            const CockpitRemoteBridgeResponse(
+              requestId: 'wrong-request-id',
+              statusCode: 200,
+              jsonBody: <String, Object?>{'ok': true},
+            ).toJson(),
+          ),
+        );
+      });
+
+      final stopwatch = Stopwatch()..start();
+      final response = await _readJsonResponse(
+        server.baseUri.resolve('/health'),
+      );
+      stopwatch.stop();
+
+      expect(response.statusCode, HttpStatus.badGateway);
+      expect(response.body['error'], 'bridgeUnknownResponse');
+      expect(response.body['message'], contains('wrong-request-id'));
+      expect(stopwatch.elapsed, lessThan(const Duration(seconds: 2)));
+    },
+  );
+
+  test(
+    'web bridge reports invalid binary bridge responses without timeout',
+    () async {
+      final server = CockpitWebRemoteSessionBridgeServer(
+        bindHost: '127.0.0.1',
+        bindPort: 0,
+        requestTimeout: const Duration(seconds: 5),
+      );
+      await server.start();
+      addTearDown(server.close);
+
+      final socket = await WebSocket.connect(server.connectUri.toString());
+      addTearDown(socket.close);
+      socket.listen((payload) {
+        final message = CockpitRemoteBridgeRequest.fromJson(
+          Map<String, Object?>.from(
+            jsonDecode(payload as String) as Map<Object?, Object?>,
+          ),
+        );
+        socket.add(
+          jsonEncode(
+            CockpitRemoteBridgeResponse(
+              requestId: message.requestId,
+              statusCode: 200,
+              bytesBase64: 'not base64',
+            ).toJson(),
+          ),
+        );
+      });
+
+      final stopwatch = Stopwatch()..start();
+      final response = await _readJsonResponse(
+        Uri.parse('${server.baseUri}/artifacts/download?path=image.png'),
+      );
+      stopwatch.stop();
+
+      expect(response.statusCode, HttpStatus.badGateway);
+      expect(response.body['error'], 'bridgeInvalidResponse');
+      expect(response.body['message'], contains('"bytesBase64"'));
+      expect(stopwatch.elapsed, lessThan(const Duration(seconds: 2)));
+    },
+  );
 }
 
 final class _FakeHostRecordingAdapter implements CockpitHostRecordingAdapter {
@@ -473,7 +482,8 @@ final class _FakeHostRecordingAdapter implements CockpitHostRecordingAdapter {
 
   final Future<CockpitRecordingSession> Function(
     CockpitRecordingRequest request,
-  ) onStart;
+  )
+  onStart;
   final Future<CockpitRecordingResult> Function() onStop;
 
   @override
@@ -562,20 +572,14 @@ Future<_HttpBytesResponse> _readBytesResponse(Uri uri) async {
 }
 
 final class _HttpJsonResponse {
-  const _HttpJsonResponse({
-    required this.statusCode,
-    required this.body,
-  });
+  const _HttpJsonResponse({required this.statusCode, required this.body});
 
   final int statusCode;
   final Map<String, Object?> body;
 }
 
 final class _HttpBytesResponse {
-  const _HttpBytesResponse({
-    required this.statusCode,
-    required this.bytes,
-  });
+  const _HttpBytesResponse({required this.statusCode, required this.bytes});
 
   final int statusCode;
   final List<int> bytes;

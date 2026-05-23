@@ -31,10 +31,7 @@ void main() {
 
       expect(capturedRequest?.sessionHandlePath, '/tmp/dev-session.json');
       final structured = result['structuredContent'] as Map<String, Object?>;
-      expect(
-        structured['recommendedNextStep'],
-        'ready_for_incremental_probe',
-      );
+      expect(structured['recommendedNextStep'], 'ready_for_incremental_probe');
     },
   );
 }

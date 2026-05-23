@@ -38,10 +38,7 @@ void main() {
 
     expect(result.toolchain.name, 'flutter');
     expect(result.command.executable, 'flutter-sdk');
-    expect(
-      result.command.arguments,
-      <String>['pub', 'add', 'collection'],
-    );
+    expect(result.command.arguments, <String>['pub', 'add', 'collection']);
     expect(result.stdoutPreview, isNotNull);
     expect(result.stdoutTruncated, isTrue);
   });
@@ -85,12 +82,15 @@ final class _RecordingPubProcessManager implements CockpitProcessManager {
     return ProcessResult(
       1,
       0,
-      utf8.encode(jsonEncode(<String, Object?>{
-        'executable': executable,
-        'arguments': arguments,
-        'working_directory': workingDirectory,
-        'message': 'This output is intentionally long to exercise truncation.',
-      })),
+      utf8.encode(
+        jsonEncode(<String, Object?>{
+          'executable': executable,
+          'arguments': arguments,
+          'working_directory': workingDirectory,
+          'message':
+              'This output is intentionally long to exercise truncation.',
+        }),
+      ),
       utf8.encode(''),
     );
   }
@@ -117,11 +117,9 @@ final class _RecordingPubProcessManager implements CockpitProcessManager {
 }
 
 final class _CompletedFakeProcess implements Process {
-  _CompletedFakeProcess({
-    required String stdout,
-    String stderr = '',
-  })  : _stdout = Stream<List<int>>.value(utf8.encode(stdout)),
-        _stderr = Stream<List<int>>.value(utf8.encode(stderr));
+  _CompletedFakeProcess({required String stdout, String stderr = ''})
+    : _stdout = Stream<List<int>>.value(utf8.encode(stdout)),
+      _stderr = Stream<List<int>>.value(utf8.encode(stderr));
 
   final Stream<List<int>> _stdout;
   final Stream<List<int>> _stderr;

@@ -56,7 +56,7 @@ final class CockpitInteractionPolicy {
           recordingActionVisualDelay ?? this.recordingActionVisualDelay,
       waitForNetworkIdleDuringAcceptanceCapture:
           waitForNetworkIdleDuringAcceptanceCapture ??
-              this.waitForNetworkIdleDuringAcceptanceCapture,
+          this.waitForNetworkIdleDuringAcceptanceCapture,
       hitTestMissPolicy: hitTestMissPolicy ?? this.hitTestMissPolicy,
     );
   }
@@ -82,16 +82,16 @@ final class CockpitInteractionPolicy {
 
   @override
   int get hashCode => Object.hash(
-        targetResolveTimeout,
-        targetResolvePollInterval,
-        uiIdleQuietWindow,
-        uiIdleTimeout,
-        preActionVisualDelay,
-        recordingPreActionVisualDelay,
-        actionVisualDelay,
-        routeTransitionVisualDelay,
-        recordingActionVisualDelay,
-        waitForNetworkIdleDuringAcceptanceCapture,
-        hitTestMissPolicy,
-      );
+    targetResolveTimeout,
+    targetResolvePollInterval,
+    uiIdleQuietWindow,
+    uiIdleTimeout,
+    preActionVisualDelay,
+    recordingPreActionVisualDelay,
+    actionVisualDelay,
+    routeTransitionVisualDelay,
+    recordingActionVisualDelay,
+    waitForNetworkIdleDuringAcceptanceCapture,
+    hitTestMissPolicy,
+  );
 }

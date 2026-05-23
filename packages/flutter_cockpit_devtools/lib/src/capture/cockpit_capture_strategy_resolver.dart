@@ -10,22 +10,18 @@ import 'cockpit_macos_capture_adapter.dart';
 import 'cockpit_simctl_capture_adapter.dart';
 import 'cockpit_windows_capture_adapter.dart';
 
-typedef CockpitRemoteCaptureAdapterFactory = CockpitCaptureAdapter Function(
-    CockpitRemoteSessionClient client);
-typedef CockpitAdbCaptureAdapterFactory = CockpitCaptureAdapter Function(
-    String deviceId);
-typedef CockpitSimctlCaptureAdapterFactory = CockpitCaptureAdapter Function(
-    String deviceId);
-typedef CockpitMacosCaptureAdapterFactory = CockpitCaptureAdapter Function(
-    String appId);
-typedef CockpitWindowsCaptureAdapterFactory = CockpitCaptureAdapter Function(
-  String appId, {
-  int? processId,
-});
-typedef CockpitLinuxCaptureAdapterFactory = CockpitCaptureAdapter Function(
-  String appId, {
-  int? processId,
-});
+typedef CockpitRemoteCaptureAdapterFactory =
+    CockpitCaptureAdapter Function(CockpitRemoteSessionClient client);
+typedef CockpitAdbCaptureAdapterFactory =
+    CockpitCaptureAdapter Function(String deviceId);
+typedef CockpitSimctlCaptureAdapterFactory =
+    CockpitCaptureAdapter Function(String deviceId);
+typedef CockpitMacosCaptureAdapterFactory =
+    CockpitCaptureAdapter Function(String appId);
+typedef CockpitWindowsCaptureAdapterFactory =
+    CockpitCaptureAdapter Function(String appId, {int? processId});
+typedef CockpitLinuxCaptureAdapterFactory =
+    CockpitCaptureAdapter Function(String appId, {int? processId});
 
 final class CockpitCaptureStrategyResolver {
   const CockpitCaptureStrategyResolver({
@@ -134,19 +130,13 @@ final class CockpitCaptureStrategyResolver {
     String appId, {
     int? processId,
   }) {
-    return CockpitWindowsCaptureAdapter(
-      appId: appId,
-      processId: processId,
-    );
+    return CockpitWindowsCaptureAdapter(appId: appId, processId: processId);
   }
 
   static CockpitCaptureAdapter _defaultLinuxAdapterFactory(
     String appId, {
     int? processId,
   }) {
-    return CockpitLinuxCaptureAdapter(
-      appId: appId,
-      processId: processId,
-    );
+    return CockpitLinuxCaptureAdapter(appId: appId, processId: processId);
   }
 }

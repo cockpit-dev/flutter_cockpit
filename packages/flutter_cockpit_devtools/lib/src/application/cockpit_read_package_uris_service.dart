@@ -24,10 +24,10 @@ final class CockpitPackageUriDirectoryEntry {
   final bool isDirectory;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'path': path,
-        'name': name,
-        'isDirectory': isDirectory,
-      };
+    'path': path,
+    'name': name,
+    'isDirectory': isDirectory,
+  };
 }
 
 final class CockpitReadPackageUrisRequest {
@@ -74,24 +74,22 @@ final class CockpitReadPackageUrisResult {
   final List<CockpitPackageUriDirectoryEntry> entries;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'kind': kind.name,
-        'contentKind': contentKind.name,
-        'resolvedPath': resolvedPath,
-        'preview': preview,
-        'text': text,
-        'mediaType': mediaType,
-        'totalBytes': totalBytes,
-        'entryCount': entryCount,
-        'truncated': truncated,
-        'entries':
-            entries.map((entry) => entry.toJson()).toList(growable: false),
-      };
+    'kind': kind.name,
+    'contentKind': contentKind.name,
+    'resolvedPath': resolvedPath,
+    'preview': preview,
+    'text': text,
+    'mediaType': mediaType,
+    'totalBytes': totalBytes,
+    'entryCount': entryCount,
+    'truncated': truncated,
+    'entries': entries.map((entry) => entry.toJson()).toList(growable: false),
+  };
 }
 
 final class CockpitReadPackageUrisService {
-  CockpitReadPackageUrisService({
-    CockpitFileSystem? fileSystem,
-  }) : _fileSystem = fileSystem ?? const LocalCockpitFileSystem();
+  CockpitReadPackageUrisService({CockpitFileSystem? fileSystem})
+    : _fileSystem = fileSystem ?? const LocalCockpitFileSystem();
 
   final CockpitFileSystem _fileSystem;
 
@@ -117,12 +115,15 @@ final class CockpitReadPackageUrisService {
     }
 
     final withoutScheme = uri.substring(
-        packageRootMode ? 'package-root:'.length : 'package:'.length);
+      packageRootMode ? 'package-root:'.length : 'package:'.length,
+    );
     final separator = withoutScheme.indexOf('/');
-    final packageName =
-        separator == -1 ? withoutScheme : withoutScheme.substring(0, separator);
-    final relativePath =
-        separator == -1 ? '' : withoutScheme.substring(separator + 1);
+    final packageName = separator == -1
+        ? withoutScheme
+        : withoutScheme.substring(0, separator);
+    final relativePath = separator == -1
+        ? ''
+        : withoutScheme.substring(separator + 1);
     final package = packageConfig[packageName];
     if (package == null) {
       throw CockpitApplicationServiceException(
@@ -145,7 +146,8 @@ final class CockpitReadPackageUrisService {
         bytes: bytes,
         maxPreviewChars: request.maxPreviewChars,
       );
-      final fullText = request.includeFullText &&
+      final fullText =
+          request.includeFullText &&
               contentKind == CockpitPackageUriContentKind.text &&
               preview.truncated == false
           ? preview.preview
@@ -188,19 +190,13 @@ final class CockpitReadPackageUrisService {
     throw CockpitApplicationServiceException(
       code: 'packagePathNotFound',
       message: 'Resolved package path does not exist.',
-      details: <String, Object?>{
-        'uri': uri,
-        'resolvedPath': resolvedPath,
-      },
+      details: <String, Object?>{'uri': uri, 'resolvedPath': resolvedPath},
     );
   }
 }
 
 final class _CockpitPreviewResult {
-  const _CockpitPreviewResult({
-    required this.preview,
-    required this.truncated,
-  });
+  const _CockpitPreviewResult({required this.preview, required this.truncated});
 
   final String preview;
   final bool truncated;

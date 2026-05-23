@@ -18,11 +18,11 @@ final class CockpitInteractiveStoredSnapshot {
   final DateTime createdAt;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'ref': ref,
-        'sessionKey': sessionKey,
-        'snapshot': snapshot.toJson(),
-        'createdAt': createdAt.toUtc().toIso8601String(),
-      };
+    'ref': ref,
+    'sessionKey': sessionKey,
+    'snapshot': snapshot.toJson(),
+    'createdAt': createdAt.toUtc().toIso8601String(),
+  };
 }
 
 final class CockpitInteractiveSnapshotStore {
@@ -38,10 +38,7 @@ final class CockpitInteractiveSnapshotStore {
   final Map<String, CockpitInteractiveStoredSnapshot> _entries =
       <String, CockpitInteractiveStoredSnapshot>{};
 
-  String put({
-    required String sessionKey,
-    required CockpitSnapshot snapshot,
-  }) {
+  String put({required String sessionKey, required CockpitSnapshot snapshot}) {
     _purgeExpired();
     final timestamp = _now().toUtc();
     final ref = 'snapshot-${timestamp.microsecondsSinceEpoch}';
@@ -55,10 +52,7 @@ final class CockpitInteractiveSnapshotStore {
     return ref;
   }
 
-  CockpitInteractiveStoredSnapshot read(
-    String ref, {
-    String? sessionKey,
-  }) {
+  CockpitInteractiveStoredSnapshot read(String ref, {String? sessionKey}) {
     final entry = _entries[ref];
     if (entry == null) {
       throw CockpitApplicationServiceException(

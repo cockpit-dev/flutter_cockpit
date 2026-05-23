@@ -28,7 +28,8 @@ void main() {
         ),
       );
 
-    final exitCode = await runner.run(<String>[
+    final exitCode =
+        await runner.run(<String>[
           'start-recording',
           '--stdout-format',
           'json',
@@ -46,7 +47,9 @@ void main() {
 
     expect(exitCode, 0);
     expect(
-        capturedRequest?.iosDeviceId, '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC');
+      capturedRequest?.iosDeviceId,
+      '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+    );
     expect(capturedRequest?.recording.name, 'ios-flow');
     final decoded = jsonDecode(stdoutBuffer.toString()) as Map<String, Object?>;
     expect(decoded['recordingSession'], isA<Map<String, Object?>>());
@@ -68,7 +71,8 @@ void main() {
         ),
       );
 
-    final exitCode = await runner.run(<String>[
+    final exitCode =
+        await runner.run(<String>[
           'stop-recording',
           '--stdout-format',
           'json',
@@ -81,94 +85,105 @@ void main() {
 
     expect(exitCode, 0);
     expect(
-        capturedRequest?.iosDeviceId, '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC');
+      capturedRequest?.iosDeviceId,
+      '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+    );
     final decoded = jsonDecode(stdoutBuffer.toString()) as Map<String, Object?>;
     expect(decoded['state'], CockpitRecordingState.completed.name);
   });
 
-  test('run-batch forwards explicit iOS device ids for batch recording',
-      () async {
-    CockpitRunBatchRequest? capturedRequest;
-    final stdoutBuffer = StringBuffer();
-    final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
-      ..addCommand(
-        RunBatchCommand(
-          stdoutSink: stdoutBuffer,
-          runBatch: (request) async {
-            capturedRequest = request;
-            return const CockpitRunBatchResult(
-              results: <CockpitRunCommandResult>[],
-              summary: CockpitExecuteRemoteCommandBatchSummary(
-                totalCount: 0,
-                successCount: 0,
-                failureCount: 0,
-                stoppedEarly: false,
-              ),
-            );
-          },
-        ),
-      );
-
-    final exitCode = await runner.run(<String>[
-          'run-batch',
-          '--stdout-format',
-          'json',
-          '--base-url',
-          'http://127.0.0.1:47331',
-          '--ios-device-id',
-          '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
-          '--commands-json',
-          jsonEncode(const <Map<String, Object?>>[
-            <String, Object?>{
-              'commandId': 'wait-1',
-              'commandType': 'waitForUiIdle',
+  test(
+    'run-batch forwards explicit iOS device ids for batch recording',
+    () async {
+      CockpitRunBatchRequest? capturedRequest;
+      final stdoutBuffer = StringBuffer();
+      final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
+        ..addCommand(
+          RunBatchCommand(
+            stdoutSink: stdoutBuffer,
+            runBatch: (request) async {
+              capturedRequest = request;
+              return const CockpitRunBatchResult(
+                results: <CockpitRunCommandResult>[],
+                summary: CockpitExecuteRemoteCommandBatchSummary(
+                  totalCount: 0,
+                  successCount: 0,
+                  failureCount: 0,
+                  stoppedEarly: false,
+                ),
+              );
             },
-          ]),
-          '--recording-json',
-          jsonEncode(const <String, Object?>{
-            'purpose': 'acceptance',
-            'name': 'ios-batch',
-          }),
-        ]) ??
-        0;
+          ),
+        );
 
-    expect(exitCode, 0);
-    expect(
-        capturedRequest?.iosDeviceId, '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC');
-    expect(capturedRequest?.recording?.name, 'ios-batch');
-    final decoded = jsonDecode(stdoutBuffer.toString()) as Map<String, Object?>;
-    expect(decoded['summary'], isA<Map<String, Object?>>());
-  });
+      final exitCode =
+          await runner.run(<String>[
+            'run-batch',
+            '--stdout-format',
+            'json',
+            '--base-url',
+            'http://127.0.0.1:47331',
+            '--ios-device-id',
+            '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+            '--commands-json',
+            jsonEncode(const <Map<String, Object?>>[
+              <String, Object?>{
+                'commandId': 'wait-1',
+                'commandType': 'waitForUiIdle',
+              },
+            ]),
+            '--recording-json',
+            jsonEncode(const <String, Object?>{
+              'purpose': 'acceptance',
+              'name': 'ios-batch',
+            }),
+          ]) ??
+          0;
 
-  test('run-batch reports non-object command entries as usage errors',
-      () async {
-    final stderrBuffer = StringBuffer();
-    final runner = CockpitCommandRunner(stderrSink: stderrBuffer);
+      expect(exitCode, 0);
+      expect(
+        capturedRequest?.iosDeviceId,
+        '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+      );
+      expect(capturedRequest?.recording?.name, 'ios-batch');
+      final decoded =
+          jsonDecode(stdoutBuffer.toString()) as Map<String, Object?>;
+      expect(decoded['summary'], isA<Map<String, Object?>>());
+    },
+  );
 
-    final exitCode = await runner.run(<String>[
-      'run-batch',
-      '--base-url',
-      'http://127.0.0.1:47331',
-      '--commands-json',
-      jsonEncode(<Object?>[
-        <String, Object?>{
-          'commandId': 'wait-1',
-          'commandType': 'waitForUiIdle',
-        },
-        'not-a-command-object',
-      ]),
-    ]);
+  test(
+    'run-batch reports non-object command entries as usage errors',
+    () async {
+      final stderrBuffer = StringBuffer();
+      final runner = CockpitCommandRunner(stderrSink: stderrBuffer);
 
-    expect(exitCode, cockpitUsageExitCode);
-    final stderr = stderrBuffer.toString();
-    expect(stderr, contains('commands JSON item at index 1'));
-    final jsonLine =
-        stderr.split('\n').firstWhere((line) => line.startsWith('errorJson: '));
-    final payload = Map<String, Object?>.from(
-      jsonDecode(jsonLine.substring('errorJson: '.length))
-          as Map<Object?, Object?>,
-    );
-    expect(payload['code'], 'usage');
-    expect(payload['message'], contains('commands JSON item at index 1'));
-  });
+      final exitCode = await runner.run(<String>[
+        'run-batch',
+        '--base-url',
+        'http://127.0.0.1:47331',
+        '--commands-json',
+        jsonEncode(<Object?>[
+          <String, Object?>{
+            'commandId': 'wait-1',
+            'commandType': 'waitForUiIdle',
+          },
+          'not-a-command-object',
+        ]),
+      ]);
+
+      expect(exitCode, cockpitUsageExitCode);
+      final stderr = stderrBuffer.toString();
+      expect(stderr, contains('commands JSON item at index 1'));
+      final jsonLine = stderr
+          .split('\n')
+          .firstWhere((line) => line.startsWith('errorJson: '));
+      final payload = Map<String, Object?>.from(
+        jsonDecode(jsonLine.substring('errorJson: '.length))
+            as Map<Object?, Object?>,
+      );
+      expect(payload['code'], 'usage');
+      expect(payload['message'], contains('commands JSON item at index 1'));
+    },
+  );
 }

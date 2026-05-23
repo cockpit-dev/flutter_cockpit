@@ -17,17 +17,13 @@ import 'cockpit_remote_session_handle.dart';
 import 'cockpit_remote_session_launch_options.dart';
 import 'cockpit_windows_remote_session_launcher.dart';
 
-typedef CockpitRemoteSessionStatusReader = Future<CockpitRemoteSessionStatus>
-    Function(Uri baseUri);
+typedef CockpitRemoteSessionStatusReader =
+    Future<CockpitRemoteSessionStatus> Function(Uri baseUri);
 typedef CockpitFlutterVersionReader = Future<String> Function();
-typedef CockpitFlutterCommandRunner = Future<ProcessResult> Function(
-  String executable,
-  List<String> arguments,
-);
-typedef CockpitExecutableLookupRunner = Future<ProcessResult> Function(
-  String executable,
-  List<String> arguments,
-);
+typedef CockpitFlutterCommandRunner =
+    Future<ProcessResult> Function(String executable, List<String> arguments);
+typedef CockpitExecutableLookupRunner =
+    Future<ProcessResult> Function(String executable, List<String> arguments);
 
 abstract interface class CockpitRemoteSessionLauncher {
   Future<CockpitRemoteSessionHandle> launch(
@@ -44,16 +40,16 @@ final class CockpitPlatformRemoteSessionLauncher
     CockpitRemoteSessionLauncher? macosLauncher,
     CockpitRemoteSessionLauncher? windowsLauncher,
     CockpitRemoteSessionLauncher? linuxLauncher,
-  })  : _androidLauncher =
-            androidLauncher ?? CockpitAndroidRemoteSessionLauncher(),
-        _iosSimulatorLauncher =
-            iosLauncher ?? CockpitIosSimulatorRemoteSessionLauncher(),
-        _iosPhysicalLauncher =
-            iosPhysicalLauncher ?? CockpitIosPhysicalRemoteSessionLauncher(),
-        _macosLauncher = macosLauncher ?? CockpitMacosRemoteSessionLauncher(),
-        _windowsLauncher =
-            windowsLauncher ?? CockpitWindowsRemoteSessionLauncher(),
-        _linuxLauncher = linuxLauncher ?? CockpitLinuxRemoteSessionLauncher();
+  }) : _androidLauncher =
+           androidLauncher ?? CockpitAndroidRemoteSessionLauncher(),
+       _iosSimulatorLauncher =
+           iosLauncher ?? CockpitIosSimulatorRemoteSessionLauncher(),
+       _iosPhysicalLauncher =
+           iosPhysicalLauncher ?? CockpitIosPhysicalRemoteSessionLauncher(),
+       _macosLauncher = macosLauncher ?? CockpitMacosRemoteSessionLauncher(),
+       _windowsLauncher =
+           windowsLauncher ?? CockpitWindowsRemoteSessionLauncher(),
+       _linuxLauncher = linuxLauncher ?? CockpitLinuxRemoteSessionLauncher();
 
   final CockpitRemoteSessionLauncher _androidLauncher;
   final CockpitRemoteSessionLauncher _iosSimulatorLauncher;
@@ -82,7 +78,8 @@ final class CockpitPlatformRemoteSessionLauncher
       case 'web':
         throw const CockpitApplicationServiceException(
           code: 'unsupportedAutomationPlatform',
-          message: 'Web automation launch is not supported. Use development '
+          message:
+              'Web automation launch is not supported. Use development '
               'mode with an explicit browser device ID from list-targets.',
           details: <String, Object?>{
             'platform': 'web',
@@ -129,20 +126,19 @@ Future<String> cockpitResolveActiveFlutterExecutable({
   bool? isWindows,
 }) async {
   final defaultExecutable = cockpitFlutterExecutable(isWindows: isWindows);
-  final lookupExecutable =
-      (isWindows ?? Platform.isWindows) ? 'where' : 'which';
-  final result =
-      await processRunner(lookupExecutable, <String>[defaultExecutable]);
+  final lookupExecutable = (isWindows ?? Platform.isWindows)
+      ? 'where'
+      : 'which';
+  final result = await processRunner(lookupExecutable, <String>[
+    defaultExecutable,
+  ]);
   if (result.exitCode != 0) {
     return defaultExecutable;
   }
   final resolved = '${result.stdout}'
       .split(RegExp(r'[\r\n]+'))
       .map((line) => line.trim())
-      .firstWhere(
-        (line) => line.isNotEmpty,
-        orElse: () => defaultExecutable,
-      );
+      .firstWhere((line) => line.isNotEmpty, orElse: () => defaultExecutable);
   return resolved.isEmpty ? defaultExecutable : resolved;
 }
 
@@ -159,20 +155,19 @@ Future<String> cockpitResolveActiveDartExecutable({
   }
 
   final defaultExecutable = cockpitDartExecutable(isWindows: isWindows);
-  final lookupExecutable =
-      (isWindows ?? Platform.isWindows) ? 'where' : 'which';
-  final result =
-      await processRunner(lookupExecutable, <String>[defaultExecutable]);
+  final lookupExecutable = (isWindows ?? Platform.isWindows)
+      ? 'where'
+      : 'which';
+  final result = await processRunner(lookupExecutable, <String>[
+    defaultExecutable,
+  ]);
   if (result.exitCode != 0) {
     return defaultExecutable;
   }
   final resolved = '${result.stdout}'
       .split(RegExp(r'[\r\n]+'))
       .map((line) => line.trim())
-      .firstWhere(
-        (line) => line.isNotEmpty,
-        orElse: () => defaultExecutable,
-      );
+      .firstWhere((line) => line.isNotEmpty, orElse: () => defaultExecutable);
   return resolved.isEmpty ? defaultExecutable : resolved;
 }
 
@@ -181,13 +176,9 @@ Future<String> cockpitReadActiveFlutterVersion({
   bool? isWindows,
 }) async {
   final result = await processRunner(
-      cockpitFlutterExecutable(
-        isWindows: isWindows,
-      ),
-      <String>[
-        '--version',
-        '--machine',
-      ]);
+    cockpitFlutterExecutable(isWindows: isWindows),
+    <String>['--version', '--machine'],
+  );
   if (result.exitCode != 0) {
     throw StateError(
       'Unable to resolve Flutter version: ${result.stderr ?? result.stdout}',

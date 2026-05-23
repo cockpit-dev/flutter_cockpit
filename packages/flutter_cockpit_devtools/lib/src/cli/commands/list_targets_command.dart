@@ -6,19 +6,19 @@ import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
-typedef CockpitListTargetsFunction = Future<CockpitListTargetsResult> Function(
-    Duration timeout);
+typedef CockpitListTargetsFunction =
+    Future<CockpitListTargetsResult> Function(Duration timeout);
 
 final class ListTargetsCommand extends CockpitCliCommand {
   ListTargetsCommand({
     CockpitListTargetsService? service,
     CockpitListTargetsFunction? listTargets,
     StringSink? stdoutSink,
-  })  : _listTargets = listTargets ??
-            ((timeout) => (service ?? CockpitListTargetsService()).list(
-                  timeout: timeout,
-                )),
-        _stdoutSink = stdoutSink ?? stdout {
+  }) : _listTargets =
+           listTargets ??
+           ((timeout) =>
+               (service ?? CockpitListTargetsService()).list(timeout: timeout)),
+       _stdoutSink = stdoutSink ?? stdout {
     argParser.addOption(
       'timeout-seconds',
       help: 'Time budget for flutter devices discovery before it is aborted.',
@@ -60,11 +60,8 @@ final class ListTargetsCommand extends CockpitCliCommand {
 
   @override
   Future<int> run() async {
-    final timeoutSeconds = cockpitReadOptionalPositiveInt(
-          argResults,
-          'timeout-seconds',
-          usage,
-        ) ??
+    final timeoutSeconds =
+        cockpitReadOptionalPositiveInt(argResults, 'timeout-seconds', usage) ??
         20;
     final result = await _listTargets(Duration(seconds: timeoutSeconds));
     await cockpitWriteJsonPayload(

@@ -6,19 +6,19 @@ import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_workspace_cli_support.dart';
 
-typedef CockpitAnalyzeWorkspaceFunction = Future<CockpitWorkspaceCommandResult>
-    Function(
-  CockpitAnalyzeWorkspaceRequest request,
-);
+typedef CockpitAnalyzeWorkspaceFunction =
+    Future<CockpitWorkspaceCommandResult> Function(
+      CockpitAnalyzeWorkspaceRequest request,
+    );
 
 final class AnalyzeWorkspaceCommand extends CockpitCliCommand {
   AnalyzeWorkspaceCommand({
     CockpitAnalyzeWorkspaceService? service,
     CockpitAnalyzeWorkspaceFunction? analyze,
     StringSink? stdoutSink,
-  })  : _analyze =
-            analyze ?? (service ?? CockpitAnalyzeWorkspaceService()).analyze,
-        _stdoutSink = stdoutSink ?? stdout {
+  }) : _analyze =
+           analyze ?? (service ?? CockpitAnalyzeWorkspaceService()).analyze,
+       _stdoutSink = stdoutSink ?? stdout {
     cockpitAddWorkspaceRootOption(argParser);
     argParser.addOption(
       'timeout-seconds',

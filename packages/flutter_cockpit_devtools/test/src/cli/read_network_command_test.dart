@@ -37,7 +37,8 @@ void main() {
         ),
       );
 
-    final exitCode = await runner.run(<String>[
+    final exitCode =
+        await runner.run(<String>[
           'read-network',
           '--app-json',
           '/tmp/app.json',

@@ -23,6 +23,10 @@ It gives AI one closed loop:
 
 ## Install Packages
 
+Minimum toolchain: Flutter 3.32.0 or newer, which includes Dart 3.8.0 or newer.
+This floor keeps `flutter_test`, `dart_mcp`, and the host-side AI tooling on a
+single dependency graph without `dependency_overrides`.
+
 ```yaml
 dependencies:
   flutter_cockpit: ^1.0.0

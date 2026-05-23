@@ -144,13 +144,9 @@ void main() {
             File(p.join(tempDir.path, basename)),
         processRunner: (executable, arguments) async {
           if (executable == 'ffprobe') {
-            return ProcessResult(
-                0,
-                0,
-                '''
+            return ProcessResult(0, 0, '''
 {"format":{"duration":"2.706"},"streams":[{"codec_type":"video","nb_frames":"44"}]}
-''',
-                '');
+''', '');
           }
           throw ProcessException(executable, arguments, 'unexpected command');
         },
@@ -186,8 +182,10 @@ Future<ProcessResult> _ffprobeUnavailable(
 }
 
 Future<void> _deletePersistedSession(String deviceId) async {
-  final sanitizedDeviceId =
-      deviceId.replaceAll(RegExp(r'[^A-Za-z0-9._-]+'), '_');
+  final sanitizedDeviceId = deviceId.replaceAll(
+    RegExp(r'[^A-Za-z0-9._-]+'),
+    '_',
+  );
   final file = File(
     '${Directory.systemTemp.path}${Platform.pathSeparator}'
     'flutter_cockpit_recording_sessions${Platform.pathSeparator}'
@@ -199,14 +197,8 @@ Future<void> _deletePersistedSession(String deviceId) async {
 }
 
 final class _FakeSimctlRuntime {
-  _FakeSimctlRuntime({
-    required this.pid,
-    this.startupLine,
-    this.onStop,
-  }) : _process = _FakeSimctlProcess(
-          pid: pid,
-          startupLine: startupLine,
-        );
+  _FakeSimctlRuntime({required this.pid, this.startupLine, this.onStop})
+    : _process = _FakeSimctlProcess(pid: pid, startupLine: startupLine);
 
   final int pid;
   final String? startupLine;
@@ -245,10 +237,7 @@ final class _FakeSimctlRuntime {
 }
 
 final class _FakeSimctlProcess implements Process {
-  _FakeSimctlProcess({
-    required this.pid,
-    this.startupLine,
-  }) {
+  _FakeSimctlProcess({required this.pid, this.startupLine}) {
     if (startupLine != null) {
       scheduleMicrotask(() {
         if (!_stderrController.isClosed) {

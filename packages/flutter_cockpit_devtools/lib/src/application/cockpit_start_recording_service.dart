@@ -36,10 +36,11 @@ final class CockpitStartRecordingService {
     CockpitRecordingStrategyResolver recordingStrategyResolver =
         const CockpitRecordingStrategyResolver(),
     CockpitSessionRegistry? registry,
-  })  : _startService = startService ?? CockpitStartRemoteRecordingService(),
-        _appReferenceResolver = appReferenceResolver ??
-            CockpitAppReferenceResolver(registry: registry),
-        _recordingStrategyResolver = recordingStrategyResolver;
+  }) : _startService = startService ?? CockpitStartRemoteRecordingService(),
+       _appReferenceResolver =
+           appReferenceResolver ??
+           CockpitAppReferenceResolver(registry: registry),
+       _recordingStrategyResolver = recordingStrategyResolver;
 
   final CockpitStartRemoteRecordingService _startService;
   final CockpitAppReferenceResolver _appReferenceResolver;
@@ -66,21 +67,25 @@ final class CockpitStartRecordingService {
         recording: request.recording,
         client: CockpitRemoteSessionClient(baseUri: resolved.baseUri),
         sessionHandle: resolved.app?.remoteSession,
-        androidDeviceId: request.androidDeviceId ??
+        androidDeviceId:
+            request.androidDeviceId ??
             (resolved.app?.platform == 'android'
                 ? resolved.app?.deviceId
                 : null),
-        iosDeviceId: request.iosDeviceId ??
+        iosDeviceId:
+            request.iosDeviceId ??
             (resolved.app?.platform == 'ios' ? resolved.app?.deviceId : null),
-        platformAppId: resolved.app?.platformAppId ??
+        platformAppId:
+            resolved.app?.platformAppId ??
             resolved.app?.remoteSession?.effectivePlatformAppId,
         processId:
             resolved.app?.processId ?? resolved.app?.remoteSession?.processId,
       );
       final adapter = resolution?.adapter;
       if (adapter != null) {
-        final recordingSession =
-            await adapter.startRecording(request.recording);
+        final recordingSession = await adapter.startRecording(
+          request.recording,
+        );
         return CockpitStartRecordingResult(
           recordingSession: recordingSession,
           sessionHandle: resolved.app?.remoteSession,

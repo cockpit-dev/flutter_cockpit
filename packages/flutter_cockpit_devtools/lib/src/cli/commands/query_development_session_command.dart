@@ -5,19 +5,19 @@ import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
-typedef CockpitQueryDevelopmentSessionFunction
-    = Future<CockpitQueryDevelopmentSessionResult> Function(
-  CockpitQueryDevelopmentSessionRequest request,
-);
+typedef CockpitQueryDevelopmentSessionFunction =
+    Future<CockpitQueryDevelopmentSessionResult> Function(
+      CockpitQueryDevelopmentSessionRequest request,
+    );
 
 final class QueryDevelopmentSessionCommand extends CockpitCliCommand {
   QueryDevelopmentSessionCommand({
     CockpitQueryDevelopmentSessionService? service,
     CockpitQueryDevelopmentSessionFunction? query,
     StringSink? stdoutSink,
-  })  : _query =
-            query ?? (service ?? CockpitQueryDevelopmentSessionService()).query,
-        _stdoutSink = stdoutSink ?? stdout {
+  }) : _query =
+           query ?? (service ?? CockpitQueryDevelopmentSessionService()).query,
+       _stdoutSink = stdoutSink ?? stdout {
     argParser.addOption(
       'session-json',
       help: cockpitDevelopmentSessionJsonOptionHelp,

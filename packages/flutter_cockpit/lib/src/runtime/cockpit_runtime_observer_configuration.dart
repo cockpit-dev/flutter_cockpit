@@ -50,12 +50,12 @@ final class CockpitRuntimeObserverConfiguration {
 
   @override
   int get hashCode => Object.hash(
-        enabled,
-        captureDebugPrint,
-        capturePrint,
-        maxRetainedEvents,
-        maxMessageLength,
-        maxDetailLength,
-        maxStackTraceLines,
-      );
+    enabled,
+    captureDebugPrint,
+    capturePrint,
+    maxRetainedEvents,
+    maxMessageLength,
+    maxDetailLength,
+    maxStackTraceLines,
+  );
 }

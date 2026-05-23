@@ -83,20 +83,18 @@ final class CockpitTargetGeometry {
     final insetX = _axisInset(width, edgeInset);
     final insetY = _axisInset(height, edgeInset);
     final resolved = switch (anchor) {
-      CockpitGestureAnchor.center || CockpitGestureAnchor.textHitTestable => (
-          dx: centerX,
-          dy: centerY
-        ),
+      CockpitGestureAnchor.center ||
+      CockpitGestureAnchor.textHitTestable => (dx: centerX, dy: centerY),
       CockpitGestureAnchor.topLeft => (dx: left + insetX, dy: top + insetY),
       CockpitGestureAnchor.topRight => (dx: right - insetX, dy: top + insetY),
       CockpitGestureAnchor.bottomLeft => (
-          dx: left + insetX,
-          dy: bottom - insetY,
-        ),
+        dx: left + insetX,
+        dy: bottom - insetY,
+      ),
       CockpitGestureAnchor.bottomRight => (
-          dx: right - insetX,
-          dy: bottom - insetY,
-        ),
+        dx: right - insetX,
+        dy: bottom - insetY,
+      ),
     };
     return (
       dx: clampXToViewport(resolved.dx),
@@ -110,16 +108,16 @@ final class CockpitTargetGeometry {
   }
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'left': left,
-        'top': top,
-        'width': width,
-        'height': height,
-        'viewportLeft': viewportLeft,
-        'viewportTop': viewportTop,
-        'viewportWidth': viewportWidth,
-        'viewportHeight': viewportHeight,
-        'viewId': viewId,
-      };
+    'left': left,
+    'top': top,
+    'width': width,
+    'height': height,
+    'viewportLeft': viewportLeft,
+    'viewportTop': viewportTop,
+    'viewportWidth': viewportWidth,
+    'viewportHeight': viewportHeight,
+    'viewId': viewId,
+  };
 
   factory CockpitTargetGeometry.fromJson(Map<String, Object?> json) {
     return CockpitTargetGeometry(
@@ -152,14 +150,14 @@ final class CockpitTargetGeometry {
 
   @override
   int get hashCode => Object.hash(
-        left,
-        top,
-        width,
-        height,
-        viewportLeft,
-        viewportTop,
-        viewportWidth,
-        viewportHeight,
-        viewId,
-      );
+    left,
+    top,
+    width,
+    height,
+    viewportLeft,
+    viewportTop,
+    viewportWidth,
+    viewportHeight,
+    viewId,
+  );
 }

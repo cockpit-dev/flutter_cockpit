@@ -24,14 +24,14 @@ final class CockpitRecordingRequest {
   bool get allowsFallback => allowFallback ?? _defaultAllowsFallback();
 
   Map<String, Object?> toJson() => {
-        'purpose': purpose.name,
-        'name': name,
-        if (mode != CockpitRecordingMode.auto) 'mode': mode.jsonValue,
-        if (layer != null) 'layer': layer!.jsonValue,
-        if (allowFallback != null) 'allowFallback': allowFallback,
-        'attachToStep': attachToStep,
-        'tailStabilizationMs': tailStabilizationDelay.inMilliseconds,
-      };
+    'purpose': purpose.name,
+    'name': name,
+    if (mode != CockpitRecordingMode.auto) 'mode': mode.jsonValue,
+    if (layer != null) 'layer': layer!.jsonValue,
+    if (allowFallback != null) 'allowFallback': allowFallback,
+    'attachToStep': attachToStep,
+    'tailStabilizationMs': tailStabilizationDelay.inMilliseconds,
+  };
 
   factory CockpitRecordingRequest.fromJson(Map<String, Object?> json) {
     final purpose = CockpitRecordingPurpose.fromJson(json['purpose']);
@@ -69,14 +69,14 @@ final class CockpitRecordingRequest {
 
   @override
   int get hashCode => Object.hash(
-        purpose,
-        name,
-        mode,
-        layer,
-        allowFallback,
-        attachToStep,
-        tailStabilizationDelay,
-      );
+    purpose,
+    name,
+    mode,
+    layer,
+    allowFallback,
+    attachToStep,
+    tailStabilizationDelay,
+  );
 
   CockpitRecordingRequest copyWith({
     CockpitRecordingPurpose? purpose,

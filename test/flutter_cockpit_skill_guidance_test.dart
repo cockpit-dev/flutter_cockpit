@@ -81,8 +81,10 @@ void main() {
     expect(skill, contains('optional `details`'));
     expect(skill, contains('Do not collapse all remote failures'));
     expect(skill, contains('bridgeUnavailable'));
-    expect(skill,
-        contains('Treat `invalidPayload` as a command or option defect'));
+    expect(
+      skill,
+      contains('Treat `invalidPayload` as a command or option defect'),
+    );
     expect(skill, contains('web browser-host recording'));
     expect(skill, contains('ffmpeg startup/output evidence missing'));
     expect(skill, contains('--ios-device-id <id>'));
@@ -101,10 +103,7 @@ void main() {
         'launch-app --project-dir <dir> --platform <platform> --device-id <id>',
       ),
     );
-    expect(
-      skill,
-      contains('read-app --profile minimal'),
-    );
+    expect(skill, contains('read-app --profile minimal'));
     expect(
       skill,
       contains('run-command --command-file /tmp/flutter_cockpit/command.json'),
@@ -113,22 +112,14 @@ void main() {
       skill,
       contains('run-batch --commands-file /tmp/flutter_cockpit/commands.json'),
     );
-    expect(
-      skill,
-      contains('hot-reload'),
-    );
-    expect(
-      skill,
-      contains('read-errors --max-errors 10'),
-    );
-    expect(
-      skill,
-      contains('stop-app'),
-    );
+    expect(skill, contains('hot-reload'));
+    expect(skill, contains('read-errors --max-errors 10'));
+    expect(skill, contains('stop-app'));
     expect(
       skill,
       contains(
-          'validate-task --config-json /tmp/flutter_cockpit/validate_task.json'),
+        'validate-task --config-json /tmp/flutter_cockpit/validate_task.json',
+      ),
     );
     expect(skill, isNot(contains('--output-json')));
     expect(skill, isNot(contains('--output-ai')));
@@ -148,7 +139,9 @@ void main() {
     expect(contract, contains('caller payload or option problem'));
     expect(contract, contains('blocked_by_environment'));
     expect(
-        contract, contains('explicit Android and iOS device-id passthrough'));
+      contract,
+      contains('explicit Android and iOS device-id passthrough'),
+    );
     expect(cliReference, contains('--output'));
     expect(cliReference, contains('--output-format json'));
     expect(cliReference, isNot(contains('--output-json')));
@@ -159,10 +152,7 @@ void main() {
       cliReference,
       contains('auto-normalizes the default `flutterApp` target kind'),
     );
-    expect(
-      cliReference,
-      contains('do not need to pass `--target-kind`'),
-    );
+    expect(cliReference, contains('do not need to pass `--target-kind`'));
     expect(cliReference, contains('launch-development-session'));
     expect(cliReference, contains('collect-development-probe'));
     expect(cliReference, contains('compare-development-probe'));
@@ -182,8 +172,10 @@ void main() {
     expect(cliReference, contains('enterText'));
     expect(cliReference, contains('lastReloadSucceeded'));
     expect(cliReference, contains('start-recording'));
-    expect(cliReference,
-        contains('non-empty bytes or a non-empty source/output file'));
+    expect(
+      cliReference,
+      contains('non-empty bytes or a non-empty source/output file'),
+    );
     expect(cliReference, contains('Do not claim video recording coverage'));
     expect(
       cliReference,

@@ -8,7 +8,7 @@ abstract interface class CockpitHttpClient {
 
 final class DefaultCockpitHttpClient implements CockpitHttpClient {
   DefaultCockpitHttpClient({http.Client? client})
-      : _client = client ?? http.Client();
+    : _client = client ?? http.Client();
 
   final http.Client _client;
 

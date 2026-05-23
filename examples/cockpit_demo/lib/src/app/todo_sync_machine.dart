@@ -6,8 +6,8 @@ final class TodoSyncMachine {
   TodoSyncMachine({
     required TodoSyncGatewayClient gateway,
     DateTime Function()? clock,
-  })  : _gateway = gateway,
-        _clock = clock ?? DateTime.now;
+  }) : _gateway = gateway,
+       _clock = clock ?? DateTime.now;
 
   final TodoSyncGatewayClient _gateway;
   final DateTime Function() _clock;
@@ -45,8 +45,9 @@ final class TodoSyncRunOutcome {
   factory TodoSyncRunOutcome.fromGatewayResult(TodoSyncBatchResult result) {
     return TodoSyncRunOutcome(
       succeededTaskIds: List<String>.unmodifiable(result.succeededTaskIds),
-      retryableFailures:
-          List<TodoSyncRetryableFailure>.unmodifiable(result.retryableFailures),
+      retryableFailures: List<TodoSyncRetryableFailure>.unmodifiable(
+        result.retryableFailures,
+      ),
       conflicts: List<TodoSyncConflictEntry>.unmodifiable(result.conflicts),
     );
   }

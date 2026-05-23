@@ -88,9 +88,7 @@ void main() {
         CockpitCommand(
           commandId: 'tap-open',
           commandType: CockpitCommandType.tap,
-          locator: const CockpitLocator(
-            cockpitId: 'open_form_button',
-          ),
+          locator: const CockpitLocator(cockpitId: 'open_form_button'),
         ),
       );
 

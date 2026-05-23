@@ -55,18 +55,18 @@ final class CockpitInspectUiResult {
   final CockpitSnapshotOptions? effectiveSnapshotOptions;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        if (app != null) 'app': app!.toJson(),
-        if (routeName != null) 'routeName': routeName,
-        'diagnosticLevel': diagnosticLevel,
-        'truncated': truncated,
-        if (uiSummary != null) 'uiSummary': uiSummary!.toJson(),
-        if (snapshot != null) 'snapshot': snapshot!.toJson(),
-        if (diagnostics != null) 'diagnostics': diagnostics,
-        if (delta != null) 'delta': delta!.toJson(),
-        if (snapshotRef != null) 'snapshotRef': snapshotRef,
-        if (effectiveSnapshotOptions != null)
-          'effectiveSnapshotOptions': effectiveSnapshotOptions!.toJson(),
-      };
+    if (app != null) 'app': app!.toJson(),
+    if (routeName != null) 'routeName': routeName,
+    'diagnosticLevel': diagnosticLevel,
+    'truncated': truncated,
+    if (uiSummary != null) 'uiSummary': uiSummary!.toJson(),
+    if (snapshot != null) 'snapshot': snapshot!.toJson(),
+    if (diagnostics != null) 'diagnostics': diagnostics,
+    if (delta != null) 'delta': delta!.toJson(),
+    if (snapshotRef != null) 'snapshotRef': snapshotRef,
+    if (effectiveSnapshotOptions != null)
+      'effectiveSnapshotOptions': effectiveSnapshotOptions!.toJson(),
+  };
 }
 
 final class CockpitInspectUiService {
@@ -74,16 +74,17 @@ final class CockpitInspectUiService {
     CockpitReadRemoteSnapshotService? snapshotService,
     CockpitAppReferenceResolver? appReferenceResolver,
     CockpitSessionRegistry? registry,
-  })  : _snapshotService =
-            snapshotService ?? CockpitReadRemoteSnapshotService(),
-        _appReferenceResolver = appReferenceResolver ??
-            CockpitAppReferenceResolver(registry: registry);
+  }) : _snapshotService = snapshotService ?? CockpitReadRemoteSnapshotService(),
+       _appReferenceResolver =
+           appReferenceResolver ??
+           CockpitAppReferenceResolver(registry: registry);
 
   final CockpitReadRemoteSnapshotService _snapshotService;
   final CockpitAppReferenceResolver _appReferenceResolver;
 
   Future<CockpitInspectUiResult> inspect(
-      CockpitInspectUiRequest request) async {
+    CockpitInspectUiRequest request,
+  ) async {
     final resolved = await _appReferenceResolver.resolve(
       appId: request.appId,
       app: request.app,

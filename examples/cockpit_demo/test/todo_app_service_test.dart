@@ -92,9 +92,7 @@ void main() {
       );
       await repository.createTask(title: 'Polish release notes');
 
-      await service.loadTasks(
-        TodoFilter(tagIds: <String>{backendTag.id}),
-      );
+      await service.loadTasks(TodoFilter(tagIds: <String>{backendTag.id}));
 
       expect(
         service.availableTags.map((tag) => tag.name).toList(growable: false),
@@ -139,9 +137,7 @@ void main() {
         expect(
           (await repository.fetchTasks(
             const TodoFilter.inbox(),
-          ))
-              .map((task) => task.title)
-              .toList(growable: false),
+          )).map((task) => task.title).toList(growable: false),
           <String>['Third task', 'First task', 'Second task'],
         );
       },
@@ -179,8 +175,9 @@ void main() {
 
     test('updates the due date of multiple tasks in a single batch', () async {
       final first = await repository.createTask(title: 'First scheduled task');
-      final second =
-          await repository.createTask(title: 'Second scheduled task');
+      final second = await repository.createTask(
+        title: 'Second scheduled task',
+      );
       final third = await repository.createTask(title: 'Unchanged task');
       final tomorrow = DateTime.utc(2026, 4, 6, 17);
 
@@ -310,9 +307,9 @@ void main() {
         <String>['Keep visible'],
       );
       expect(
-        service.listState.pendingUndoTasks.map((task) => task.id).toList(
-              growable: false,
-            ),
+        service.listState.pendingUndoTasks
+            .map((task) => task.id)
+            .toList(growable: false),
         <String>[first.id, second.id],
       );
 
@@ -397,35 +394,37 @@ void main() {
       },
     );
 
-    test('can reset sync relay state back to idle after previous checks',
-        () async {
-      service = TodoAppService(
-        repository: repository,
-        syncGateway: _FakeTodoSyncGateway(),
-      );
+    test(
+      'can reset sync relay state back to idle after previous checks',
+      () async {
+        service = TodoAppService(
+          repository: repository,
+          syncGateway: _FakeTodoSyncGateway(),
+        );
 
-      await service.runSyncHealthCheck();
+        await service.runSyncHealthCheck();
 
-      expect(service.syncState.status, TodoSyncStatus.healthy);
-      expect(service.syncState.hasSuccessfulCheck, isTrue);
+        expect(service.syncState.status, TodoSyncStatus.healthy);
+        expect(service.syncState.hasSuccessfulCheck, isTrue);
 
-      service.resetSyncRelayState();
+        service.resetSyncRelayState();
 
-      expect(service.syncState.status, TodoSyncStatus.idle);
-      expect(service.syncState.headline, 'Sync relay idle');
-      expect(
-        service.syncState.detail,
-        'Run a relay check to capture request and response evidence.',
-      );
-      expect(service.syncState.endpoint, isNull);
-      expect(service.syncState.statusCode, isNull);
-      expect(service.syncState.checkedAt, isNull);
-      expect(service.syncState.hasSuccessfulCheck, isFalse);
-      expect(service.syncState.lastHealthySummary, isNull);
-      expect(service.syncState.lastHealthyEndpoint, isNull);
-      expect(service.syncState.lastHealthyStatusCode, isNull);
-      expect(service.syncState.lastHealthyCheckedAt, isNull);
-    });
+        expect(service.syncState.status, TodoSyncStatus.idle);
+        expect(service.syncState.headline, 'Sync relay idle');
+        expect(
+          service.syncState.detail,
+          'Run a relay check to capture request and response evidence.',
+        );
+        expect(service.syncState.endpoint, isNull);
+        expect(service.syncState.statusCode, isNull);
+        expect(service.syncState.checkedAt, isNull);
+        expect(service.syncState.hasSuccessfulCheck, isFalse);
+        expect(service.syncState.lastHealthySummary, isNull);
+        expect(service.syncState.lastHealthyEndpoint, isNull);
+        expect(service.syncState.lastHealthyStatusCode, isNull);
+        expect(service.syncState.lastHealthyCheckedAt, isNull);
+      },
+    );
 
     test(
       'queues local edits, surfaces pending counts, and resolves conflicts after retry',
@@ -449,9 +448,7 @@ void main() {
                   ),
                 ],
               ),
-              TodoSyncBatchResult(
-                succeededTaskIds: <String>[created.id],
-              ),
+              TodoSyncBatchResult(succeededTaskIds: <String>[created.id]),
             ],
           ),
         );
@@ -519,7 +516,7 @@ final class _FakeTodoSyncGateway implements TodoSyncGatewayClient {
 
 final class _SequenceTodoSyncGateway implements TodoSyncGatewayClient {
   _SequenceTodoSyncGateway({required List<Object> results})
-      : _results = List<Object>.from(results);
+    : _results = List<Object>.from(results);
 
   final List<Object> _results;
 
@@ -546,7 +543,7 @@ final class _SequenceTodoSyncGateway implements TodoSyncGatewayClient {
 
 final class _SequencedBatchTodoSyncGateway implements TodoSyncGatewayClient {
   _SequencedBatchTodoSyncGateway({required List<TodoSyncBatchResult> results})
-      : _results = List<TodoSyncBatchResult>.from(results);
+    : _results = List<TodoSyncBatchResult>.from(results);
 
   final List<TodoSyncBatchResult> _results;
 

@@ -4,17 +4,16 @@ import '../cockpit_mcp_tool.dart';
 import '../core/cockpit_mcp_roots_tracker.dart';
 import '../core/cockpit_mcp_workspace_tooling_support.dart';
 
-typedef CockpitPubToolFunction = Future<CockpitPubResult> Function(
-  CockpitPubRequest request,
-);
+typedef CockpitPubToolFunction =
+    Future<CockpitPubResult> Function(CockpitPubRequest request);
 
 final class CockpitPubTool extends CockpitMcpTool {
   CockpitPubTool({
     required CockpitMcpRootsTracker rootsTracker,
     CockpitPubService? service,
     CockpitPubToolFunction? run,
-  })  : _rootsTracker = rootsTracker,
-        _run = run ?? (service ?? CockpitPubService()).run;
+  }) : _rootsTracker = rootsTracker,
+       _run = run ?? (service ?? CockpitPubService()).run;
 
   final CockpitMcpRootsTracker _rootsTracker;
   final CockpitPubToolFunction _run;
@@ -28,13 +27,13 @@ final class CockpitPubTool extends CockpitMcpTool {
 
   @override
   CockpitMcpToolAnnotations get annotations => const CockpitMcpToolAnnotations(
-        readOnly: false,
-        destructive: false,
-        idempotent: false,
-        longRunning: true,
-        requiresSession: false,
-        producesBundleEvidence: false,
-      );
+    readOnly: false,
+    destructive: false,
+    idempotent: false,
+    longRunning: true,
+    requiresSession: false,
+    producesBundleEvidence: false,
+  );
 
   @override
   List<CockpitMcpFeatureCategory> get categories =>
@@ -45,29 +44,22 @@ final class CockpitPubTool extends CockpitMcpTool {
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
-        'type': 'object',
-        'required': <String>['command'],
-        'properties': <String, Object?>{
-          'workspaceRoot': <String, Object?>{'type': 'string'},
-          'command': <String, Object?>{
-            'type': 'string',
-            'enum': <String>[
-              'add',
-              'deps',
-              'get',
-              'outdated',
-              'remove',
-              'upgrade',
-            ],
-          },
-          'packages': <String, Object?>{
-            'type': 'array',
-            'items': <String, Object?>{'type': 'string'},
-          },
-          'maxOutputChars': <String, Object?>{'type': 'integer'},
-          'timeoutSeconds': <String, Object?>{'type': 'integer'},
-        },
-      };
+    'type': 'object',
+    'required': <String>['command'],
+    'properties': <String, Object?>{
+      'workspaceRoot': <String, Object?>{'type': 'string'},
+      'command': <String, Object?>{
+        'type': 'string',
+        'enum': <String>['add', 'deps', 'get', 'outdated', 'remove', 'upgrade'],
+      },
+      'packages': <String, Object?>{
+        'type': 'array',
+        'items': <String, Object?>{'type': 'string'},
+      },
+      'maxOutputChars': <String, Object?>{'type': 'integer'},
+      'timeoutSeconds': <String, Object?>{'type': 'integer'},
+    },
+  };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {
@@ -84,16 +76,12 @@ final class CockpitPubTool extends CockpitMcpTool {
           ),
           packages: cockpitReadOptionalStringList(arguments, 'packages'),
           allowedRoots: cockpitAllowedWorkspaceRootPaths(_rootsTracker),
-          maxOutputChars: cockpitReadOptionalPositiveInt(
-                arguments,
-                'maxOutputChars',
-              ) ??
+          maxOutputChars:
+              cockpitReadOptionalPositiveInt(arguments, 'maxOutputChars') ??
               1600,
           timeout: Duration(
-            seconds: cockpitReadOptionalPositiveInt(
-                  arguments,
-                  'timeoutSeconds',
-                ) ??
+            seconds:
+                cockpitReadOptionalPositiveInt(arguments, 'timeoutSeconds') ??
                 240,
           ),
         ),

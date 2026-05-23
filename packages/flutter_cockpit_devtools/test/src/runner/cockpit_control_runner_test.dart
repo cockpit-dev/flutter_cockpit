@@ -79,9 +79,7 @@ void main() {
           CockpitCommand(
             commandId: 'cmd-open',
             commandType: CockpitCommandType.tap,
-            locator: const CockpitLocator(
-              cockpitId: 'open_form_button',
-            ),
+            locator: const CockpitLocator(cockpitId: 'open_form_button'),
           ),
           CockpitCommand(
             commandId: 'cmd-capture',
@@ -171,16 +169,12 @@ void main() {
         CockpitCommand(
           commandId: 'cmd-first',
           commandType: CockpitCommandType.tap,
-          locator: const CockpitLocator(
-            cockpitId: 'open_form_button',
-          ),
+          locator: const CockpitLocator(cockpitId: 'open_form_button'),
         ),
         CockpitCommand(
           commandId: 'cmd-second',
           commandType: CockpitCommandType.tap,
-          locator: const CockpitLocator(
-            cockpitId: 'submit_button',
-          ),
+          locator: const CockpitLocator(cockpitId: 'submit_button'),
         ),
       ],
     );
@@ -251,9 +245,7 @@ void main() {
         CockpitCommand(
           commandId: 'cmd-save',
           commandType: CockpitCommandType.tap,
-          locator: const CockpitLocator(
-            text: 'Save task',
-          ),
+          locator: const CockpitLocator(text: 'Save task'),
         ),
       ],
     );
@@ -313,9 +305,7 @@ void main() {
           CockpitCommand(
             commandId: 'cmd-finish',
             commandType: CockpitCommandType.tap,
-            locator: const CockpitLocator(
-              key: 'settings-save-button',
-            ),
+            locator: const CockpitLocator(key: 'settings-save-button'),
           ),
         ],
         recording: CockpitRecordingRequest(
@@ -347,8 +337,8 @@ final class _FakeAutomationAdapter implements CockpitAutomationAdapter {
     required this.capabilities,
     Map<String, CockpitCommandResult>? resultsByCommandId,
     Map<String, CockpitCommandExecution>? executionsByCommandId,
-  })  : _resultsByCommandId = resultsByCommandId,
-        _executionsByCommandId = executionsByCommandId;
+  }) : _resultsByCommandId = resultsByCommandId,
+       _executionsByCommandId = executionsByCommandId;
 
   final CockpitCapabilities capabilities;
   final Map<String, CockpitCommandResult>? _resultsByCommandId;

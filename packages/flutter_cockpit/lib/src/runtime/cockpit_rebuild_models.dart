@@ -22,15 +22,15 @@ final class CockpitRebuildEntry {
   final String? textPreview;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'signature': signature,
-        'routeName': routeName,
-        'typeName': typeName,
-        'rebuildCount': rebuildCount,
-        'builtOnceCount': builtOnceCount,
-        if (keyValue != null) 'keyValue': keyValue,
-        if (semanticId != null) 'semanticId': semanticId,
-        if (textPreview != null) 'textPreview': textPreview,
-      };
+    'signature': signature,
+    'routeName': routeName,
+    'typeName': typeName,
+    'rebuildCount': rebuildCount,
+    'builtOnceCount': builtOnceCount,
+    if (keyValue != null) 'keyValue': keyValue,
+    if (semanticId != null) 'semanticId': semanticId,
+    if (textPreview != null) 'textPreview': textPreview,
+  };
 
   factory CockpitRebuildEntry.fromJson(Map<String, Object?> json) {
     return CockpitRebuildEntry(
@@ -61,15 +61,15 @@ final class CockpitRebuildEntry {
 
   @override
   int get hashCode => Object.hash(
-        signature,
-        routeName,
-        typeName,
-        rebuildCount,
-        builtOnceCount,
-        keyValue,
-        semanticId,
-        textPreview,
-      );
+    signature,
+    routeName,
+    typeName,
+    rebuildCount,
+    builtOnceCount,
+    keyValue,
+    semanticId,
+    textPreview,
+  );
 }
 
 final class CockpitRebuildSnapshot {
@@ -91,13 +91,12 @@ final class CockpitRebuildSnapshot {
       ListEquality<CockpitRebuildEntry>();
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'totalRebuildCount': totalRebuildCount,
-        'uniqueElementCount': uniqueElementCount,
-        'capturedEntryCount': capturedEntryCount,
-        'truncated': truncated,
-        'entries':
-            entries.map((entry) => entry.toJson()).toList(growable: false),
-      };
+    'totalRebuildCount': totalRebuildCount,
+    'uniqueElementCount': uniqueElementCount,
+    'capturedEntryCount': capturedEntryCount,
+    'truncated': truncated,
+    'entries': entries.map((entry) => entry.toJson()).toList(growable: false),
+  };
 
   factory CockpitRebuildSnapshot.fromJson(Map<String, Object?> json) {
     return CockpitRebuildSnapshot(
@@ -128,10 +127,10 @@ final class CockpitRebuildSnapshot {
 
   @override
   int get hashCode => Object.hash(
-        totalRebuildCount,
-        uniqueElementCount,
-        capturedEntryCount,
-        truncated,
-        _entryEquality.hash(entries),
-      );
+    totalRebuildCount,
+    uniqueElementCount,
+    capturedEntryCount,
+    truncated,
+    _entryEquality.hash(entries),
+  );
 }

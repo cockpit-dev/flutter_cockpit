@@ -141,19 +141,18 @@ void main() {
   });
 
   test('tracked text files do not keep TODO or FIXME markers', () {
-    final trackedFilesResult = Process.runSync(
-      'git',
-      const <String>['ls-files'],
-      workingDirectory: root,
-    );
+    final trackedFilesResult = Process.runSync('git', const <String>[
+      'ls-files',
+    ], workingDirectory: root);
 
     expect(trackedFilesResult.exitCode, 0);
 
     final offenders = <String>[];
-    for (final relativePath in (trackedFilesResult.stdout as String)
-        .split('\n')
-        .where((path) => path.trim().isNotEmpty)
-        .where(_isScannableTextFile)) {
+    for (final relativePath
+        in (trackedFilesResult.stdout as String)
+            .split('\n')
+            .where((path) => path.trim().isNotEmpty)
+            .where(_isScannableTextFile)) {
       final file = File('$root/$relativePath');
       if (!file.existsSync()) {
         continue;
@@ -170,7 +169,8 @@ void main() {
     expect(
       offenders,
       isEmpty,
-      reason: 'Tracked text files still contain TODO/FIXME markers:\n'
+      reason:
+          'Tracked text files still contain TODO/FIXME markers:\n'
           '${offenders.join('\n')}',
     );
   });

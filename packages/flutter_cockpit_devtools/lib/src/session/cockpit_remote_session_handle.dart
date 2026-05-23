@@ -48,20 +48,20 @@ final class CockpitRemoteSessionHandle {
   }
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'platform': platform,
-        'deviceId': deviceId,
-        'projectDir': projectDir,
-        'target': target,
-        'appId': appId,
-        if (platformAppId != null) 'platformAppId': platformAppId,
-        if (!platformAppIdKnown) 'platformAppIdKnown': false,
-        if (processId != null) 'processId': processId,
-        'host': host,
-        'hostPort': hostPort,
-        'devicePort': devicePort,
-        'baseUrl': baseUrl,
-        'launchedAt': launchedAt.toUtc().toIso8601String(),
-      };
+    'platform': platform,
+    'deviceId': deviceId,
+    'projectDir': projectDir,
+    'target': target,
+    'appId': appId,
+    if (platformAppId != null) 'platformAppId': platformAppId,
+    if (!platformAppIdKnown) 'platformAppIdKnown': false,
+    if (processId != null) 'processId': processId,
+    'host': host,
+    'hostPort': hostPort,
+    'devicePort': devicePort,
+    'baseUrl': baseUrl,
+    'launchedAt': launchedAt.toUtc().toIso8601String(),
+  };
 
   factory CockpitRemoteSessionHandle.fromJson(Map<String, Object?> json) {
     return CockpitRemoteSessionHandle(
@@ -104,8 +104,8 @@ final class CockpitRemoteSessionHandle {
       appId: appId ?? this.appId,
       platformAppId:
           identical(platformAppId, _cockpitUnsetRemoteSessionHandleField)
-              ? this.platformAppId
-              : platformAppId as String?,
+          ? this.platformAppId
+          : platformAppId as String?,
       platformAppIdKnown: platformAppIdKnown ?? this.platformAppIdKnown,
       processId: identical(processId, _cockpitUnsetRemoteSessionHandleField)
           ? this.processId

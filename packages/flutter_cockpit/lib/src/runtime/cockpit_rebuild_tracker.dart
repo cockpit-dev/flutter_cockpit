@@ -101,7 +101,8 @@ final class CockpitRebuildTracker {
   }
 
   CockpitRebuildEntry _resolveEntry(Element element) {
-    final routeName = cockpitResolvedElementRouteName(
+    final routeName =
+        cockpitResolvedElementRouteName(
           element,
           fallbackRouteName: _routeNameProvider(),
         ) ??
@@ -139,8 +140,8 @@ final class CockpitRebuildTracker {
   String? _keyValue(Key? key) {
     final value = switch (key) {
       ValueKey<Object?>(value: final value) => _normalizeText(
-          value?.toString(),
-        ),
+        value?.toString(),
+      ),
       ObjectKey(value: final value) => _normalizeText(value.toString()),
       _ => null,
     };

@@ -7,17 +7,16 @@ import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_workspace_cli_support.dart';
 
-typedef CockpitLspFunction = Future<CockpitLspResult> Function(
-  CockpitLspRequest request,
-);
+typedef CockpitLspFunction =
+    Future<CockpitLspResult> Function(CockpitLspRequest request);
 
 final class LspCommand extends CockpitCliCommand {
   LspCommand({
     CockpitLspService? service,
     CockpitLspFunction? invoke,
     StringSink? stdoutSink,
-  })  : _invoke = invoke ?? (service ?? CockpitLspService()).invoke,
-        _stdoutSink = stdoutSink ?? stdout {
+  }) : _invoke = invoke ?? (service ?? CockpitLspService()).invoke,
+       _stdoutSink = stdoutSink ?? stdout {
     cockpitAddWorkspaceRootOption(argParser);
     argParser
       ..addOption(
@@ -43,10 +42,7 @@ final class LspCommand extends CockpitCliCommand {
         'column',
         help: '1-based column number for position-based requests.',
       )
-      ..addOption(
-        'query',
-        help: 'Workspace symbol query string.',
-      )
+      ..addOption('query', help: 'Workspace symbol query string.')
       ..addOption(
         'max-results',
         defaultsTo: '20',
@@ -105,11 +101,7 @@ final class LspCommand extends CockpitCliCommand {
           cockpitReadRequiredStringOption(argResults, 'command', usage),
         ),
         path: cockpitReadOptionalStringOption(argResults, 'path'),
-        line: cockpitReadOptionalPositiveIntOption(
-          argResults,
-          'line',
-          usage,
-        ),
+        line: cockpitReadOptionalPositiveIntOption(argResults, 'line', usage),
         column: cockpitReadOptionalPositiveIntOption(
           argResults,
           'column',

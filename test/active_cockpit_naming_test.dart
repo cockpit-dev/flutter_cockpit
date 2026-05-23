@@ -43,8 +43,8 @@ void main() {
     for (final entry in activeRoots) {
       final target =
           FileSystemEntity.typeSync(entry) == FileSystemEntityType.file
-              ? <FileSystemEntity>[File(entry)]
-              : Directory(entry).listSync(recursive: true, followLinks: false);
+          ? <FileSystemEntity>[File(entry)]
+          : Directory(entry).listSync(recursive: true, followLinks: false);
 
       for (final entity in target) {
         if (entity is! File) {
@@ -68,7 +68,9 @@ void main() {
         if (allowedTextPatterns.any(
               (pattern) => pattern.allMatches(contents).isNotEmpty,
             ) &&
-            !forbiddenPattern.allMatches(contents).any(
+            !forbiddenPattern
+                .allMatches(contents)
+                .any(
                   (match) => !_isAllowedOccurrence(
                     contents,
                     match.start,

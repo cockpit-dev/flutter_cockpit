@@ -39,10 +39,10 @@ final class CockpitRunCommandService {
     CockpitExecuteRemoteCommandService? executeService,
     CockpitAppReferenceResolver? appReferenceResolver,
     CockpitSessionRegistry? registry,
-  })  : _executeService =
-            executeService ?? CockpitExecuteRemoteCommandService(),
-        _appReferenceResolver = appReferenceResolver ??
-            CockpitAppReferenceResolver(registry: registry);
+  }) : _executeService = executeService ?? CockpitExecuteRemoteCommandService(),
+       _appReferenceResolver =
+           appReferenceResolver ??
+           CockpitAppReferenceResolver(registry: registry);
 
   final CockpitExecuteRemoteCommandService _executeService;
   final CockpitAppReferenceResolver _appReferenceResolver;

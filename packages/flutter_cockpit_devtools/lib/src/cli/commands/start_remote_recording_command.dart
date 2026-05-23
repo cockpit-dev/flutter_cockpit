@@ -8,29 +8,26 @@ import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
-typedef CockpitStartRemoteRecordingFunction
-    = Future<CockpitStartRemoteRecordingResult> Function(
-  CockpitStartRemoteRecordingRequest request,
-);
+typedef CockpitStartRemoteRecordingFunction =
+    Future<CockpitStartRemoteRecordingResult> Function(
+      CockpitStartRemoteRecordingRequest request,
+    );
 
 final class StartRemoteRecordingCommand extends CockpitCliCommand {
   StartRemoteRecordingCommand({
     CockpitStartRemoteRecordingService? service,
     CockpitStartRemoteRecordingFunction? start,
     StringSink? stdoutSink,
-  })  : _start =
-            start ?? (service ?? CockpitStartRemoteRecordingService()).start,
-        _stdoutSink = stdoutSink ?? stdout {
+  }) : _start =
+           start ?? (service ?? CockpitStartRemoteRecordingService()).start,
+       _stdoutSink = stdoutSink ?? stdout {
     cockpitAddRemoteSessionArgs(argParser);
     argParser
       ..addOption(
         'recording-json',
         help: 'Inline JSON object that describes the recording request.',
       )
-      ..addOption(
-        'recording-file',
-        help: 'Path to a JSON recording request.',
-      );
+      ..addOption('recording-file', help: 'Path to a JSON recording request.');
   }
 
   final CockpitStartRemoteRecordingFunction _start;

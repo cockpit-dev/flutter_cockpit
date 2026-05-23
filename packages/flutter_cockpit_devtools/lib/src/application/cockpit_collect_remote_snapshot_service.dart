@@ -6,11 +6,11 @@ import 'cockpit_session_reference_resolver.dart';
 import '../session/cockpit_remote_session_handle.dart';
 import '../remote/cockpit_remote_session_client.dart';
 
-typedef CockpitRemoteSnapshotReader = Future<CockpitRemoteSnapshotResponse>
-    Function(
-  Uri baseUri,
-  CockpitSnapshotOptions options,
-);
+typedef CockpitRemoteSnapshotReader =
+    Future<CockpitRemoteSnapshotResponse> Function(
+      Uri baseUri,
+      CockpitSnapshotOptions options,
+    );
 
 final class CockpitCollectRemoteSnapshotRequest {
   const CockpitCollectRemoteSnapshotRequest({
@@ -44,20 +44,20 @@ final class CockpitCollectRemoteSnapshotResult {
   final List<String> warnings;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'snapshot': snapshot.toJson(),
-        'effectiveOptions': effectiveOptions.toJson(),
-        if (sessionHandle != null) 'sessionHandle': sessionHandle!.toJson(),
-        'warnings': warnings,
-      };
+    'snapshot': snapshot.toJson(),
+    'effectiveOptions': effectiveOptions.toJson(),
+    if (sessionHandle != null) 'sessionHandle': sessionHandle!.toJson(),
+    'warnings': warnings,
+  };
 }
 
 final class CockpitCollectRemoteSnapshotService {
   CockpitCollectRemoteSnapshotService({
     CockpitRemoteSnapshotReader? snapshotReader,
     CockpitSessionReferenceResolver? sessionReferenceResolver,
-  })  : _snapshotReader = snapshotReader,
-        _sessionReferenceResolver =
-            sessionReferenceResolver ?? CockpitSessionReferenceResolver();
+  }) : _snapshotReader = snapshotReader,
+       _sessionReferenceResolver =
+           sessionReferenceResolver ?? CockpitSessionReferenceResolver();
 
   final CockpitRemoteSnapshotReader? _snapshotReader;
   final CockpitSessionReferenceResolver _sessionReferenceResolver;

@@ -6,18 +6,18 @@ import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_workspace_cli_support.dart';
 
-typedef CockpitFormatWorkspaceFunction = Future<CockpitWorkspaceCommandResult>
-    Function(
-  CockpitFormatWorkspaceRequest request,
-);
+typedef CockpitFormatWorkspaceFunction =
+    Future<CockpitWorkspaceCommandResult> Function(
+      CockpitFormatWorkspaceRequest request,
+    );
 
 final class FormatWorkspaceCommand extends CockpitCliCommand {
   FormatWorkspaceCommand({
     CockpitFormatWorkspaceService? service,
     CockpitFormatWorkspaceFunction? format,
     StringSink? stdoutSink,
-  })  : _format = format ?? (service ?? CockpitFormatWorkspaceService()).format,
-        _stdoutSink = stdoutSink ?? stdout {
+  }) : _format = format ?? (service ?? CockpitFormatWorkspaceService()).format,
+       _stdoutSink = stdoutSink ?? stdout {
     cockpitAddWorkspaceRootOption(argParser);
     argParser.addOption(
       'timeout-seconds',

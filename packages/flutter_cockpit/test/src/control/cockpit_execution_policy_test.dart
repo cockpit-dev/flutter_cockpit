@@ -5,7 +5,8 @@ void main() {
   test('execution policy round-trips through json values', () {
     expect(
       CockpitExecutionPolicy.fromJson(
-          CockpitExecutionPolicy.preferFlutter.name),
+        CockpitExecutionPolicy.preferFlutter.name,
+      ),
       CockpitExecutionPolicy.preferFlutter,
     );
     expect(

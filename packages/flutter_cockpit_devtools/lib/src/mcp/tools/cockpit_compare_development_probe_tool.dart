@@ -1,17 +1,18 @@
 import '../../application/cockpit_compare_development_probe_service.dart';
 import '../cockpit_mcp_tool.dart';
 
-typedef CockpitCompareDevelopmentProbeToolFunction
-    = Future<CockpitCompareDevelopmentProbeResult> Function(
-  CockpitCompareDevelopmentProbeRequest request,
-);
+typedef CockpitCompareDevelopmentProbeToolFunction =
+    Future<CockpitCompareDevelopmentProbeResult> Function(
+      CockpitCompareDevelopmentProbeRequest request,
+    );
 
 final class CockpitCompareDevelopmentProbeTool extends CockpitMcpTool {
   CockpitCompareDevelopmentProbeTool({
     CockpitCompareDevelopmentProbeService? service,
     CockpitCompareDevelopmentProbeToolFunction? compare,
-  }) : _compare = compare ??
-            (service ?? const CockpitCompareDevelopmentProbeService()).compare;
+  }) : _compare =
+           compare ??
+           (service ?? const CockpitCompareDevelopmentProbeService()).compare;
 
   final CockpitCompareDevelopmentProbeToolFunction _compare;
 
@@ -24,14 +25,14 @@ final class CockpitCompareDevelopmentProbeTool extends CockpitMcpTool {
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
-        'type': 'object',
-        'properties': <String, Object?>{
-          'fromProbe': <String, Object?>{'type': 'object'},
-          'fromProbePath': <String, Object?>{'type': 'string'},
-          'toProbe': <String, Object?>{'type': 'object'},
-          'toProbePath': <String, Object?>{'type': 'string'},
-        },
-      };
+    'type': 'object',
+    'properties': <String, Object?>{
+      'fromProbe': <String, Object?>{'type': 'object'},
+      'fromProbePath': <String, Object?>{'type': 'string'},
+      'toProbe': <String, Object?>{'type': 'object'},
+      'toProbePath': <String, Object?>{'type': 'string'},
+    },
+  };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {
@@ -42,10 +43,7 @@ final class CockpitCompareDevelopmentProbeTool extends CockpitMcpTool {
             arguments,
             'fromProbe',
           ),
-          fromProbePath: cockpitReadOptionalString(
-            arguments,
-            'fromProbePath',
-          ),
+          fromProbePath: cockpitReadOptionalString(arguments, 'fromProbePath'),
           toProbe: cockpitReadOptionalDevelopmentProbe(arguments, 'toProbe'),
           toProbePath: cockpitReadOptionalString(arguments, 'toProbePath'),
         ),

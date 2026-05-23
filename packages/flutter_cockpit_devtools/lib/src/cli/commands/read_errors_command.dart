@@ -8,23 +8,23 @@ import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
-typedef CockpitReadErrorsFunction = Future<CockpitReadErrorsResult> Function(
-  CockpitReadErrorsRequest request,
-);
+typedef CockpitReadErrorsFunction =
+    Future<CockpitReadErrorsResult> Function(CockpitReadErrorsRequest request);
 
 final class ReadErrorsCommand extends CockpitCliCommand {
   ReadErrorsCommand({
     CockpitReadErrorsService? service,
     CockpitReadErrorsFunction? read,
     StringSink? stdoutSink,
-  })  : _read = read ??
-            ((service ??
-                    CockpitReadErrorsService(
-                      registry: CockpitSessionRegistry(),
-                      latestTaskStore: CockpitLatestTaskStore(),
-                    ))
-                .read),
-        _stdoutSink = stdoutSink ?? stdout {
+  }) : _read =
+           read ??
+           ((service ??
+                   CockpitReadErrorsService(
+                     registry: CockpitSessionRegistry(),
+                     latestTaskStore: CockpitLatestTaskStore(),
+                   ))
+               .read),
+       _stdoutSink = stdoutSink ?? stdout {
     cockpitAddAppArgs(argParser);
     argParser
       ..addFlag(
@@ -81,7 +81,7 @@ final class ReadErrorsCommand extends CockpitCliCommand {
   Future<int> run() async {
     final hasAppReference =
         ((cockpitResolveAppHandlePath(argResults))?.isNotEmpty ?? false) ||
-            ((argResults?['base-url'] as String?)?.isNotEmpty ?? false);
+        ((argResults?['base-url'] as String?)?.isNotEmpty ?? false);
     final result = await _read(
       CockpitReadErrorsRequest(
         appHandlePath: cockpitResolveAppHandlePath(argResults),
@@ -89,12 +89,14 @@ final class ReadErrorsCommand extends CockpitCliCommand {
         androidDeviceId: argResults?['android-device-id'] as String?,
         maxErrors:
             cockpitReadOptionalPositiveInt(argResults, 'max-errors', usage) ??
-                20,
-        includeLatestTask: hasAppReference &&
+            20,
+        includeLatestTask:
+            hasAppReference &&
                 !(argResults?.wasParsed('include-latest-task') ?? false)
             ? null
             : argResults?['include-latest-task'] as bool? ?? true,
-        includeSessions: hasAppReference &&
+        includeSessions:
+            hasAppReference &&
                 !(argResults?.wasParsed('include-sessions') ?? false)
             ? null
             : argResults?['include-sessions'] as bool? ?? true,

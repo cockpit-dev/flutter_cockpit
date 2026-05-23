@@ -26,13 +26,10 @@ void main() {
 
     expect(definition.name, 'run_closed_loop_task');
     expect(definition.enabledByDefault, isTrue);
-    expect(
-      definition.categories,
-      <CockpitMcpFeatureCategory>[
-        CockpitMcpFeatureCategory.closedLoop,
-        CockpitMcpFeatureCategory.workflowPrompts,
-      ],
-    );
+    expect(definition.categories, <CockpitMcpFeatureCategory>[
+      CockpitMcpFeatureCategory.closedLoop,
+      CockpitMcpFeatureCategory.workflowPrompts,
+    ]);
     expect(definition.arguments, hasLength(2));
     expect(definition.arguments.first.name, 'taskGoal');
     expect(definition.arguments.first.required, isTrue);

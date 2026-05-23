@@ -9,10 +9,7 @@ final class CockpitMcpResourceRequest {
 }
 
 sealed class CockpitMcpResourceContents {
-  const CockpitMcpResourceContents({
-    required this.uri,
-    this.mimeType,
-  });
+  const CockpitMcpResourceContents({required this.uri, this.mimeType});
 
   final String uri;
   final String? mimeType;
@@ -29,9 +26,7 @@ final class CockpitMcpTextResourceContents extends CockpitMcpResourceContents {
 }
 
 final class CockpitMcpResourceResult {
-  const CockpitMcpResourceResult({
-    required this.contents,
-  });
+  const CockpitMcpResourceResult({required this.contents});
 
   final List<CockpitMcpResourceContents> contents;
 }

@@ -81,18 +81,22 @@ final class FlutterCockpitConfiguration {
   }) {
     return FlutterCockpitConfiguration(
       initialRouteName: initialRouteName ?? this.initialRouteName,
-      flutterVersion:
-          clearFlutterVersion ? null : (flutterVersion ?? this.flutterVersion),
+      flutterVersion: clearFlutterVersion
+          ? null
+          : (flutterVersion ?? this.flutterVersion),
       registry: clearRegistry ? null : (registry ?? this.registry),
-      nativeCapture:
-          clearNativeCapture ? null : (nativeCapture ?? this.nativeCapture),
+      nativeCapture: clearNativeCapture
+          ? null
+          : (nativeCapture ?? this.nativeCapture),
       nativeRecording: clearNativeRecording
           ? null
           : (nativeRecording ?? this.nativeRecording),
-      remoteSession:
-          clearRemoteSession ? null : (remoteSession ?? this.remoteSession),
-      gestureDelay:
-          clearGestureDelay ? null : (gestureDelay ?? this.gestureDelay),
+      remoteSession: clearRemoteSession
+          ? null
+          : (remoteSession ?? this.remoteSession),
+      gestureDelay: clearGestureDelay
+          ? null
+          : (gestureDelay ?? this.gestureDelay),
       sessionController: clearSessionController
           ? null
           : (sessionController ?? this.sessionController),
@@ -144,20 +148,20 @@ final class FlutterCockpitConfiguration {
 
   @override
   int get hashCode => Object.hash(
-        initialRouteName,
-        flutterVersion,
-        registry,
-        nativeCapture,
-        nativeRecording,
-        remoteSession,
-        gestureDelay,
-        sessionController,
-        networkObserver,
-        httpNetworkObserver,
-        runtimeObserver,
-        runtimeObserverConfiguration,
-        interactionPolicy,
-        discoveryPolicy,
-        diagnostics,
-      );
+    initialRouteName,
+    flutterVersion,
+    registry,
+    nativeCapture,
+    nativeRecording,
+    remoteSession,
+    gestureDelay,
+    sessionController,
+    networkObserver,
+    httpNetworkObserver,
+    runtimeObserver,
+    runtimeObserverConfiguration,
+    interactionPolicy,
+    discoveryPolicy,
+    diagnostics,
+  );
 }

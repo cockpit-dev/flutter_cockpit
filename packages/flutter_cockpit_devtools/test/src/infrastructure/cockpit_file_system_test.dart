@@ -4,37 +4,41 @@ import 'package:test/test.dart';
 
 void main() {
   group('LocalCockpitFileSystem', () {
-    test('creates file and directory handles from the injected file system',
-        () {
-      final delegate = MemoryFileSystem();
-      final fileSystem = LocalCockpitFileSystem(fileSystem: delegate);
+    test(
+      'creates file and directory handles from the injected file system',
+      () {
+        final delegate = MemoryFileSystem();
+        final fileSystem = LocalCockpitFileSystem(fileSystem: delegate);
 
-      final file = fileSystem.file('/workspace/bundle/manifest.json');
-      final directory = fileSystem.directory('/workspace/bundle/screenshots');
+        final file = fileSystem.file('/workspace/bundle/manifest.json');
+        final directory = fileSystem.directory('/workspace/bundle/screenshots');
 
-      delegate.directory('/workspace/bundle').createSync(recursive: true);
-      file.writeAsStringSync('{"ok":true}');
-      directory.createSync(recursive: true);
+        delegate.directory('/workspace/bundle').createSync(recursive: true);
+        file.writeAsStringSync('{"ok":true}');
+        directory.createSync(recursive: true);
 
-      expect(
-        delegate.file('/workspace/bundle/manifest.json').readAsStringSync(),
-        '{"ok":true}',
-      );
-      expect(
-        delegate.directory('/workspace/bundle/screenshots').existsSync(),
-        isTrue,
-      );
-    });
+        expect(
+          delegate.file('/workspace/bundle/manifest.json').readAsStringSync(),
+          '{"ok":true}',
+        );
+        expect(
+          delegate.directory('/workspace/bundle/screenshots').existsSync(),
+          isTrue,
+        );
+      },
+    );
 
-    test('creates temporary directories through the injected file system',
-        () async {
-      final delegate = MemoryFileSystem();
-      final fileSystem = LocalCockpitFileSystem(fileSystem: delegate);
+    test(
+      'creates temporary directories through the injected file system',
+      () async {
+        final delegate = MemoryFileSystem();
+        final fileSystem = LocalCockpitFileSystem(fileSystem: delegate);
 
-      final tempDirectory = await fileSystem.systemTemp('cockpit-artifacts');
+        final tempDirectory = await fileSystem.systemTemp('cockpit-artifacts');
 
-      expect(tempDirectory.existsSync(), isTrue);
-      expect(tempDirectory.path, contains('cockpit-artifacts'));
-    });
+        expect(tempDirectory.existsSync(), isTrue);
+        expect(tempDirectory.path, contains('cockpit-artifacts'));
+      },
+    );
   });
 }

@@ -35,10 +35,7 @@ void main() {
         'launchedAt': '2026-03-30T00:00:00.000Z',
       },
       'commands': <Object?>[
-        <String, Object?>{
-          'commandId': 'tap-1',
-          'commandType': 'tap',
-        },
+        <String, Object?>{'commandId': 'tap-1', 'commandType': 'tap'},
       ],
       'defaultProfile': 'inspect',
       'failFast': false,

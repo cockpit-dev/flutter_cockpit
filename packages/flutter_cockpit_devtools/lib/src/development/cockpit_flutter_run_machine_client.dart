@@ -21,8 +21,8 @@ final class CockpitFlutterRunMachineClient {
     required Future<int> exitCode,
     required Future<void> Function(String payload) requestWriter,
     Future<void> Function()? closeProcess,
-  })  : _requestWriter = requestWriter,
-        _closeProcess = closeProcess {
+  }) : _requestWriter = requestWriter,
+       _closeProcess = closeProcess {
     _stdoutSubscription = stdoutLines.listen(_handleStdoutLine);
     _stderrSubscription = stderrLines.listen(_handleStderrLine);
     _exitCodeSubscription = exitCode.asStream().listen(_handleExitCode);
@@ -65,22 +65,16 @@ final class CockpitFlutterRunMachineClient {
   }) async {
     final resolvedFlutterExecutable =
         flutterExecutable ?? cockpitFlutterExecutable();
-    final process = await Process.start(
-        resolvedFlutterExecutable,
-        <String>[
-          'run',
-          '--machine',
-          '--target',
-          target,
-          '-d',
-          deviceId,
-          if (flavor != null && flavor.isNotEmpty) ...<String>[
-            '--flavor',
-            flavor
-          ],
-          ...extraArgs,
-        ],
-        workingDirectory: projectDir);
+    final process = await Process.start(resolvedFlutterExecutable, <String>[
+      'run',
+      '--machine',
+      '--target',
+      target,
+      '-d',
+      deviceId,
+      if (flavor != null && flavor.isNotEmpty) ...<String>['--flavor', flavor],
+      ...extraArgs,
+    ], workingDirectory: projectDir);
 
     return CockpitFlutterRunMachineClient(
       stdoutLines: process.stdout
@@ -109,24 +103,18 @@ final class CockpitFlutterRunMachineClient {
   }) async {
     final resolvedFlutterExecutable =
         flutterExecutable ?? cockpitFlutterExecutable();
-    final process = await Process.start(
-        resolvedFlutterExecutable,
-        <String>[
-          'attach',
-          '--machine',
-          '--target',
-          target,
-          '-d',
-          deviceId,
-          '--app-id',
-          appId,
-          if (flavor != null && flavor.isNotEmpty) ...<String>[
-            '--flavor',
-            flavor
-          ],
-          ...extraArgs,
-        ],
-        workingDirectory: projectDir);
+    final process = await Process.start(resolvedFlutterExecutable, <String>[
+      'attach',
+      '--machine',
+      '--target',
+      target,
+      '-d',
+      deviceId,
+      '--app-id',
+      appId,
+      if (flavor != null && flavor.isNotEmpty) ...<String>['--flavor', flavor],
+      ...extraArgs,
+    ], workingDirectory: projectDir);
 
     return CockpitFlutterRunMachineClient(
       stdoutLines: process.stdout
@@ -157,11 +145,8 @@ final class CockpitFlutterRunMachineClient {
     final id = _nextRequestId++;
     final completer = Completer<Object?>();
     _requestCompleters[id] = completer;
-    final payload = '[${jsonEncode(<String, Object?>{
-          'id': id,
-          'method': method,
-          'params': params
-        })}]\n';
+    final payload =
+        '[${jsonEncode(<String, Object?>{'id': id, 'method': method, 'params': params})}]\n';
     try {
       await _requestWriter(payload);
     } on Object {
@@ -275,8 +260,8 @@ final class CockpitFlutterRunMachineClient {
 
     final payload =
         decoded is List && decoded.length == 1 && decoded.first is Map
-            ? Map<String, Object?>.from(decoded.first as Map<Object?, Object?>)
-            : null;
+        ? Map<String, Object?>.from(decoded.first as Map<Object?, Object?>)
+        : null;
     if (payload == null) {
       _eventsController.add(
         CockpitFlutterRunMachineEvent(

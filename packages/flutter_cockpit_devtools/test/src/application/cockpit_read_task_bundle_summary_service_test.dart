@@ -387,16 +387,20 @@ void main() {
       expect(result.evidenceSummary['acceptanceNewNetworkFailureCount'], 0);
       expect(result.evidenceSummary['acceptanceNewRuntimeErrorCount'], 0);
       expect(result.evidenceSummary['acceptanceComparisonReady'], isFalse);
-      expect(result.gateSummary.isSatisfied(CockpitTaskGate.screenshotReady),
-          isTrue);
       expect(
-        result.gateSummary
-            .isSatisfied(CockpitTaskGate.acceptanceEvidenceReadable),
+        result.gateSummary.isSatisfied(CockpitTaskGate.screenshotReady),
+        isTrue,
+      );
+      expect(
+        result.gateSummary.isSatisfied(
+          CockpitTaskGate.acceptanceEvidenceReadable,
+        ),
         isFalse,
       );
       expect(
-        result.gateSummary
-            .failureCodesFor(CockpitTaskGate.acceptanceEvidenceReadable),
+        result.gateSummary.failureCodesFor(
+          CockpitTaskGate.acceptanceEvidenceReadable,
+        ),
         <String>['baselineEvidenceMissing', 'acceptanceDeltaMissing'],
       );
       expect(
@@ -404,8 +408,9 @@ void main() {
         isFalse,
       );
       expect(
-        result.gateSummary
-            .failureCodesFor(CockpitTaskGate.finalAssertionPassed),
+        result.gateSummary.failureCodesFor(
+          CockpitTaskGate.finalAssertionPassed,
+        ),
         <String>['runtimeErrorsDetected'],
       );
       expect(result.networkSummary, isNotNull);
@@ -879,12 +884,8 @@ void main() {
         acceptanceDeltaMcp['removedVisibleTextPreviews'],
         unorderedEquals(<String>['Draft title', 'Save draft']),
       );
-      expect(acceptanceDeltaMcp['addedSemanticIds'], <String>[
-        'publish.share',
-      ]);
-      expect(acceptanceDeltaMcp['removedSemanticIds'], <String>[
-        'draft.save',
-      ]);
+      expect(acceptanceDeltaMcp['addedSemanticIds'], <String>['publish.share']);
+      expect(acceptanceDeltaMcp['removedSemanticIds'], <String>['draft.save']);
       expect(acceptanceDeltaMcp['addedInteractiveLabels'], <String>[
         'Share result',
       ]);
@@ -1075,10 +1076,7 @@ void main() {
         result.evidenceSummary['artifactFailureCodes'],
         contains('diagnosticsArtifactRefInvalid'),
       );
-      expect(
-        result.toMcpJson()['diagnosticsArtifactPaths'],
-        isEmpty,
-      );
+      expect(result.toMcpJson()['diagnosticsArtifactPaths'], isEmpty);
     },
   );
 
@@ -1151,8 +1149,14 @@ void main() {
               'kind': CockpitRuntimeEventKind.debugLog.jsonValue,
               'severity': CockpitRuntimeEventSeverity.info.jsonValue,
               'message': 'fallback used',
-              'recordedAt':
-                  DateTime.utc(2026, 4, 11, 9, 0, 30).toIso8601String(),
+              'recordedAt': DateTime.utc(
+                2026,
+                4,
+                11,
+                9,
+                0,
+                30,
+              ).toIso8601String(),
             },
             observedAt: DateTime.utc(2026, 4, 11, 9, 0, 30),
             targetKind: CockpitTargetKind.flutterApp,
@@ -1226,12 +1230,12 @@ void main() {
       });
 
       final bundleDir = Directory(p.join(tempDir.path, 'bundle'));
-      await Directory(p.join(bundleDir.path, 'screenshots')).create(
-        recursive: true,
-      );
-      await Directory(p.join(bundleDir.path, 'recordings')).create(
-        recursive: true,
-      );
+      await Directory(
+        p.join(bundleDir.path, 'screenshots'),
+      ).create(recursive: true);
+      await Directory(
+        p.join(bundleDir.path, 'recordings'),
+      ).create(recursive: true);
       await File(p.join(bundleDir.path, 'manifest.json')).writeAsString(
         jsonEncode(
           CockpitRunManifest(
@@ -1297,13 +1301,15 @@ void main() {
         <String>['acceptanceScreenshotMissing'],
       );
       expect(
-        result.gateSummary
-            .isSatisfied(CockpitTaskGate.recordingReadyOrExplained),
+        result.gateSummary.isSatisfied(
+          CockpitTaskGate.recordingReadyOrExplained,
+        ),
         isFalse,
       );
       expect(
-        result.gateSummary
-            .failureCodesFor(CockpitTaskGate.recordingReadyOrExplained),
+        result.gateSummary.failureCodesFor(
+          CockpitTaskGate.recordingReadyOrExplained,
+        ),
         <String>['acceptanceRecordingMissing'],
       );
       expect(
@@ -1314,10 +1320,7 @@ void main() {
         result.gateSummary.isSatisfied(CockpitTaskGate.deliveryValidated),
         isFalse,
       );
-      expect(
-        result.evidenceSummary['deliveryValidated'],
-        isFalse,
-      );
+      expect(result.evidenceSummary['deliveryValidated'], isFalse);
       expect(
         result.evidenceSummary['artifactFailureCodes'],
         containsAll(<String>[
@@ -1341,15 +1344,15 @@ void main() {
       });
 
       final bundleDir = Directory(p.join(tempDir.path, 'bundle'));
-      await Directory(p.join(bundleDir.path, 'screenshots')).create(
-        recursive: true,
-      );
-      await Directory(p.join(bundleDir.path, 'recordings')).create(
-        recursive: true,
-      );
-      await Directory(p.join(bundleDir.path, 'keyframes')).create(
-        recursive: true,
-      );
+      await Directory(
+        p.join(bundleDir.path, 'screenshots'),
+      ).create(recursive: true);
+      await Directory(
+        p.join(bundleDir.path, 'recordings'),
+      ).create(recursive: true);
+      await Directory(
+        p.join(bundleDir.path, 'keyframes'),
+      ).create(recursive: true);
       await File(
         p.join(bundleDir.path, 'screenshots', 'acceptance.png'),
       ).writeAsBytes(const <int>[1, 2, 3]);
@@ -1475,12 +1478,12 @@ void main() {
       });
 
       final bundleDir = Directory(p.join(tempDir.path, 'bundle'));
-      await Directory(p.join(bundleDir.path, 'screenshots')).create(
-        recursive: true,
-      );
-      await Directory(p.join(bundleDir.path, 'recordings')).create(
-        recursive: true,
-      );
+      await Directory(
+        p.join(bundleDir.path, 'screenshots'),
+      ).create(recursive: true);
+      await Directory(
+        p.join(bundleDir.path, 'recordings'),
+      ).create(recursive: true);
       await File(
         p.join(bundleDir.path, 'screenshots', 'acceptance.png'),
       ).writeAsBytes(const <int>[1, 2, 3]);
@@ -1552,8 +1555,9 @@ void main() {
       );
 
       expect(
-        result.gateSummary
-            .isSatisfied(CockpitTaskGate.recordingReadyOrExplained),
+        result.gateSummary.isSatisfied(
+          CockpitTaskGate.recordingReadyOrExplained,
+        ),
         isTrue,
       );
       expect(
@@ -1572,10 +1576,7 @@ void main() {
         result.gateSummary.failureCodesFor(CockpitTaskGate.deliveryValidated),
         contains('recordingKeyframesMissing'),
       );
-      expect(
-        result.evidenceSummary['deliveryValidated'],
-        isFalse,
-      );
+      expect(result.evidenceSummary['deliveryValidated'], isFalse);
       expect(
         result.evidenceSummary['artifactFailureCodes'],
         contains('recordingKeyframesMissing'),
@@ -1596,15 +1597,15 @@ void main() {
       });
 
       final bundleDir = Directory(p.join(tempDir.path, 'bundle'));
-      await Directory(p.join(bundleDir.path, 'screenshots')).create(
-        recursive: true,
-      );
-      await Directory(p.join(bundleDir.path, 'recordings')).create(
-        recursive: true,
-      );
-      await Directory(p.join(bundleDir.path, 'keyframes')).create(
-        recursive: true,
-      );
+      await Directory(
+        p.join(bundleDir.path, 'screenshots'),
+      ).create(recursive: true);
+      await Directory(
+        p.join(bundleDir.path, 'recordings'),
+      ).create(recursive: true);
+      await Directory(
+        p.join(bundleDir.path, 'keyframes'),
+      ).create(recursive: true);
       await File(
         p.join(bundleDir.path, 'screenshots', 'acceptance.png'),
       ).writeAsBytes(const <int>[1, 2, 3]);
@@ -1726,12 +1727,12 @@ void main() {
       });
 
       final bundleDir = Directory(p.join(tempDir.path, 'bundle'));
-      await Directory(p.join(bundleDir.path, 'screenshots')).create(
-        recursive: true,
-      );
-      await Directory(p.join(bundleDir.path, 'recordings')).create(
-        recursive: true,
-      );
+      await Directory(
+        p.join(bundleDir.path, 'screenshots'),
+      ).create(recursive: true);
+      await Directory(
+        p.join(bundleDir.path, 'recordings'),
+      ).create(recursive: true);
       await File(
         p.join(bundleDir.path, 'screenshots', 'acceptance.png'),
       ).writeAsBytes(const <int>[1, 2, 3]);
@@ -1765,9 +1766,9 @@ void main() {
           ).toJson(),
         ),
       );
-      await File(p.join(bundleDir.path, 'handoff.json')).writeAsString(
-        jsonEncode(<String, Object?>{'status': 'completed'}),
-      );
+      await File(
+        p.join(bundleDir.path, 'handoff.json'),
+      ).writeAsString(jsonEncode(<String, Object?>{'status': 'completed'}));
       await File(p.join(bundleDir.path, 'delivery.json')).writeAsString(
         jsonEncode(<String, Object?>{
           'primaryScreenshotRef': 'screenshots/acceptance.png',
@@ -1832,12 +1833,12 @@ void main() {
       });
 
       final bundleDir = Directory(p.join(tempDir.path, 'bundle'));
-      await Directory(p.join(bundleDir.path, 'screenshots')).create(
-        recursive: true,
-      );
-      await Directory(p.join(bundleDir.path, 'recordings')).create(
-        recursive: true,
-      );
+      await Directory(
+        p.join(bundleDir.path, 'screenshots'),
+      ).create(recursive: true);
+      await Directory(
+        p.join(bundleDir.path, 'recordings'),
+      ).create(recursive: true);
       await File(
         p.join(bundleDir.path, 'screenshots', 'acceptance.png'),
       ).writeAsBytes(const <int>[1, 2, 3]);
@@ -1879,9 +1880,9 @@ void main() {
           ).toJson(),
         ),
       );
-      await File(p.join(bundleDir.path, 'handoff.json')).writeAsString(
-        jsonEncode(<String, Object?>{'status': 'completed'}),
-      );
+      await File(
+        p.join(bundleDir.path, 'handoff.json'),
+      ).writeAsString(jsonEncode(<String, Object?>{'status': 'completed'}));
       await File(p.join(bundleDir.path, 'delivery.json')).writeAsString(
         jsonEncode(<String, Object?>{
           'primaryScreenshotRef': 'screenshots/acceptance.png',

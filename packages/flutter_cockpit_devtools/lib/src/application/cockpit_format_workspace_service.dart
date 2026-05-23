@@ -21,9 +21,9 @@ final class CockpitFormatWorkspaceService {
     CockpitFileSystem? fileSystem,
     CockpitProcessManager? processManager,
     CockpitSdkEnvironment? sdkEnvironment,
-  })  : _fileSystem = fileSystem ?? const LocalCockpitFileSystem(),
-        _processManager = processManager ?? const LocalCockpitProcessManager(),
-        _sdkEnvironment = sdkEnvironment ?? CockpitSdkEnvironment.current();
+  }) : _fileSystem = fileSystem ?? const LocalCockpitFileSystem(),
+       _processManager = processManager ?? const LocalCockpitProcessManager(),
+       _sdkEnvironment = sdkEnvironment ?? CockpitSdkEnvironment.current();
 
   final CockpitFileSystem _fileSystem;
   final CockpitProcessManager _processManager;

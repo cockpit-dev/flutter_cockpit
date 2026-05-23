@@ -252,7 +252,13 @@ void main() {
 
       expect(artifactDownloadCount, 1);
       expect(
-        result.snapshot.visibleTargets.single.diagnosticProperties.single.value
+        result
+            .snapshot
+            .visibleTargets
+            .single
+            .diagnosticProperties
+            .single
+            .value
             .length,
         greaterThan(20000),
       );

@@ -52,10 +52,7 @@ void main() {
     expect(reloaded.platformAppId, 'dev.example.platform');
     expect(reloaded.processId, 4101);
     expect(reloaded.remoteSession?.toJson(), remoteSession.toJson());
-    expect(
-      reloaded.developmentSession?.toJson(),
-      developmentSession.toJson(),
-    );
+    expect(reloaded.developmentSession?.toJson(), developmentSession.toJson());
   });
 
   test('app handle copyWith can clear nullable fields', () {
@@ -117,25 +114,26 @@ void main() {
   });
 
   test(
-      'remote-session app handle omits platform app id when it is explicitly unknown',
-      () {
-    final handle = CockpitAppHandle.fromRemoteSession(
-      CockpitRemoteSessionHandle(
-        platform: 'ios',
-        deviceId: '00008110-0009341C2EF3801E',
-        projectDir: '/workspace/app',
-        target: 'cockpit/main.dart',
-        appId: 'remote-session-1',
-        platformAppIdKnown: false,
-        host: 'fd69:8f18:f0a9::1',
-        hostPort: 57331,
-        devicePort: 47331,
-        baseUrl: 'http://[fd69:8f18:f0a9::1]:57331',
-        launchedAt: DateTime.utc(2026, 4, 5),
-      ),
-    );
+    'remote-session app handle omits platform app id when it is explicitly unknown',
+    () {
+      final handle = CockpitAppHandle.fromRemoteSession(
+        CockpitRemoteSessionHandle(
+          platform: 'ios',
+          deviceId: '00008110-0009341C2EF3801E',
+          projectDir: '/workspace/app',
+          target: 'cockpit/main.dart',
+          appId: 'remote-session-1',
+          platformAppIdKnown: false,
+          host: 'fd69:8f18:f0a9::1',
+          hostPort: 57331,
+          devicePort: 47331,
+          baseUrl: 'http://[fd69:8f18:f0a9::1]:57331',
+          launchedAt: DateTime.utc(2026, 4, 5),
+        ),
+      );
 
-    expect(handle.appId, 'remote-session-1');
-    expect(handle.platformAppId, isNull);
-  });
+      expect(handle.appId, 'remote-session-1');
+      expect(handle.platformAppId, isNull);
+    },
+  );
 }

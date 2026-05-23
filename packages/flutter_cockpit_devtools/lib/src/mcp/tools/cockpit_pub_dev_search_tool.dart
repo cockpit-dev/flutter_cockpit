@@ -1,8 +1,10 @@
 import '../../application/cockpit_pub_dev_search_service.dart';
 import '../cockpit_mcp_tool.dart';
 
-typedef CockpitPubDevSearchToolFunction = Future<CockpitPubDevSearchResult>
-    Function(CockpitPubDevSearchRequest request);
+typedef CockpitPubDevSearchToolFunction =
+    Future<CockpitPubDevSearchResult> Function(
+      CockpitPubDevSearchRequest request,
+    );
 
 final class CockpitPubDevSearchTool extends CockpitMcpTool {
   CockpitPubDevSearchTool({
@@ -21,13 +23,13 @@ final class CockpitPubDevSearchTool extends CockpitMcpTool {
 
   @override
   CockpitMcpToolAnnotations get annotations => const CockpitMcpToolAnnotations(
-        readOnly: true,
-        destructive: false,
-        idempotent: true,
-        longRunning: false,
-        requiresSession: false,
-        producesBundleEvidence: false,
-      );
+    readOnly: true,
+    destructive: false,
+    idempotent: true,
+    longRunning: false,
+    requiresSession: false,
+    producesBundleEvidence: false,
+  );
 
   @override
   List<CockpitMcpFeatureCategory> get categories =>
@@ -38,14 +40,14 @@ final class CockpitPubDevSearchTool extends CockpitMcpTool {
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
-        'type': 'object',
-        'required': <String>['query'],
-        'properties': <String, Object?>{
-          'query': <String, Object?>{'type': 'string'},
-          'maxResults': <String, Object?>{'type': 'integer'},
-          'timeoutSeconds': <String, Object?>{'type': 'integer'},
-        },
-      };
+    'type': 'object',
+    'required': <String>['query'],
+    'properties': <String, Object?>{
+      'query': <String, Object?>{'type': 'string'},
+      'maxResults': <String, Object?>{'type': 'integer'},
+      'timeoutSeconds': <String, Object?>{'type': 'integer'},
+    },
+  };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {
@@ -56,10 +58,8 @@ final class CockpitPubDevSearchTool extends CockpitMcpTool {
           maxResults:
               cockpitReadOptionalPositiveInt(arguments, 'maxResults') ?? 5,
           timeout: Duration(
-            seconds: cockpitReadOptionalPositiveInt(
-                  arguments,
-                  'timeoutSeconds',
-                ) ??
+            seconds:
+                cockpitReadOptionalPositiveInt(arguments, 'timeoutSeconds') ??
                 20,
           ),
         ),

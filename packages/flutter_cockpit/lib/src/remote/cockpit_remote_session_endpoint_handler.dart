@@ -18,23 +18,22 @@ import 'cockpit_remote_session_configuration.dart';
 import 'cockpit_remote_session_status.dart';
 import 'cockpit_remote_snapshot_response.dart';
 
-typedef CockpitRemoteSessionStatusProvider = Future<CockpitRemoteSessionStatus>
-    Function();
-typedef CockpitRemoteSessionSnapshotProvider = FutureOr<CockpitSnapshot>
-    Function({
-  required CockpitSnapshotOptions options,
-});
-typedef CockpitRemoteSessionCommandExecutor = Future<CockpitCommandExecution>
-    Function(CockpitCommand command);
-typedef CockpitRemoteRuntimeStepDrainer = FutureOr<List<CockpitStepRecord>>
-    Function({required bool clear});
-typedef CockpitRemoteRecordingStarter = Future<CockpitRecordingSession>
-    Function(CockpitRecordingRequest request);
-typedef CockpitRemoteRecordingStopper = Future<CockpitRecordingResult>
-    Function();
-typedef CockpitRemoteArtifactTempFileFactory = Future<File> Function(
-  String basename,
-);
+typedef CockpitRemoteSessionStatusProvider =
+    Future<CockpitRemoteSessionStatus> Function();
+typedef CockpitRemoteSessionSnapshotProvider =
+    FutureOr<CockpitSnapshot> Function({
+      required CockpitSnapshotOptions options,
+    });
+typedef CockpitRemoteSessionCommandExecutor =
+    Future<CockpitCommandExecution> Function(CockpitCommand command);
+typedef CockpitRemoteRuntimeStepDrainer =
+    FutureOr<List<CockpitStepRecord>> Function({required bool clear});
+typedef CockpitRemoteRecordingStarter =
+    Future<CockpitRecordingSession> Function(CockpitRecordingRequest request);
+typedef CockpitRemoteRecordingStopper =
+    Future<CockpitRecordingResult> Function();
+typedef CockpitRemoteArtifactTempFileFactory =
+    Future<File> Function(String basename);
 
 final class CockpitRemoteSessionEndpointRequest {
   const CockpitRemoteSessionEndpointRequest({
@@ -61,30 +60,30 @@ final class CockpitRemoteSessionEndpointResponse {
     Map<String, Object?> body, {
     int statusCode = HttpStatus.ok,
   }) : this._(
-          statusCode: statusCode,
-          contentType: 'application/json',
-          jsonBody: body,
-        );
+         statusCode: statusCode,
+         contentType: 'application/json',
+         jsonBody: body,
+       );
 
   const CockpitRemoteSessionEndpointResponse.binary(
     List<int> bytes, {
     int statusCode = HttpStatus.ok,
     String contentType = 'application/octet-stream',
   }) : this._(
-          statusCode: statusCode,
-          contentType: contentType,
-          binaryBody: bytes,
-        );
+         statusCode: statusCode,
+         contentType: contentType,
+         binaryBody: bytes,
+       );
 
   const CockpitRemoteSessionEndpointResponse.binaryFile(
     String sourceFilePath, {
     int statusCode = HttpStatus.ok,
     String contentType = 'application/octet-stream',
   }) : this._(
-          statusCode: statusCode,
-          contentType: contentType,
-          sourceFilePath: sourceFilePath,
-        );
+         statusCode: statusCode,
+         contentType: contentType,
+         sourceFilePath: sourceFilePath,
+       );
 
   final int statusCode;
   final String contentType;
@@ -94,10 +93,7 @@ final class CockpitRemoteSessionEndpointResponse {
 }
 
 final class _RemoteArtifactEntry {
-  const _RemoteArtifactEntry({
-    this.sourceFilePath,
-    this.deleteOnClose = false,
-  });
+  const _RemoteArtifactEntry({this.sourceFilePath, this.deleteOnClose = false});
 
   final String? sourceFilePath;
   final bool deleteOnClose;
@@ -113,15 +109,15 @@ final class CockpitRemoteSessionEndpointHandler {
     required CockpitRemoteRecordingStarter startRecording,
     required CockpitRemoteRecordingStopper stopRecording,
     CockpitRemoteArtifactTempFileFactory? artifactTempFileFactory,
-  })  : _configuration = configuration,
-        _statusProvider = statusProvider,
-        _snapshotProvider = snapshotProvider,
-        _commandExecutor = commandExecutor,
-        _runtimeStepDrainer = runtimeStepDrainer,
-        _startRecording = startRecording,
-        _stopRecording = stopRecording,
-        _artifactTempFileFactory =
-            artifactTempFileFactory ?? _defaultArtifactTempFileFactory;
+  }) : _configuration = configuration,
+       _statusProvider = statusProvider,
+       _snapshotProvider = snapshotProvider,
+       _commandExecutor = commandExecutor,
+       _runtimeStepDrainer = runtimeStepDrainer,
+       _startRecording = startRecording,
+       _stopRecording = stopRecording,
+       _artifactTempFileFactory =
+           artifactTempFileFactory ?? _defaultArtifactTempFileFactory;
 
   final CockpitRemoteSessionConfiguration _configuration;
   final CockpitRemoteSessionStatusProvider _statusProvider;
@@ -208,9 +204,7 @@ final class CockpitRemoteSessionEndpointHandler {
         case ('POST', '/recording/stop'):
           final result = await _handleStopRecording();
           final response = await _recordingResponseFor(result);
-          return CockpitRemoteSessionEndpointResponse.json(
-            response.toJson(),
-          );
+          return CockpitRemoteSessionEndpointResponse.json(response.toJson());
         default:
           return const CockpitRemoteSessionEndpointResponse.json(
             <String, Object?>{
@@ -221,21 +215,15 @@ final class CockpitRemoteSessionEndpointHandler {
           );
       }
     } on FormatException catch (error) {
-      return CockpitRemoteSessionEndpointResponse.json(
-        <String, Object?>{
-          'error': 'invalidPayload',
-          'message': error.message,
-        },
-        statusCode: HttpStatus.badRequest,
-      );
+      return CockpitRemoteSessionEndpointResponse.json(<String, Object?>{
+        'error': 'invalidPayload',
+        'message': error.message,
+      }, statusCode: HttpStatus.badRequest);
     } catch (error) {
-      return CockpitRemoteSessionEndpointResponse.json(
-        <String, Object?>{
-          'error': 'serverError',
-          'message': error.toString(),
-        },
-        statusCode: HttpStatus.internalServerError,
-      );
+      return CockpitRemoteSessionEndpointResponse.json(<String, Object?>{
+        'error': 'serverError',
+        'message': error.toString(),
+      }, statusCode: HttpStatus.internalServerError);
     }
   }
 
@@ -466,7 +454,8 @@ final class CockpitRemoteSessionEndpointHandler {
       return CockpitRemoteSnapshotResponse(snapshot: snapshot);
     }
 
-    final artifactRef = snapshot.diagnosticsArtifactRef ??
+    final artifactRef =
+        snapshot.diagnosticsArtifactRef ??
         CockpitArtifactRef(
           role: 'diagnostics',
           relativePath:
@@ -475,9 +464,9 @@ final class CockpitRemoteSessionEndpointHandler {
     try {
       _downloadableArtifacts[artifactRef.relativePath] =
           await _persistArtifactBytes(
-        cockpitSanitizeRemoteArtifactBasename(artifactRef.relativePath),
-        snapshotBytes,
-      );
+            cockpitSanitizeRemoteArtifactBasename(artifactRef.relativePath),
+            snapshotBytes,
+          );
     } on Object {
       // Browsers and other constrained runtimes may not support temp-file
       // persistence for large diagnostics snapshots. Keep the session usable by
@@ -544,9 +533,7 @@ final class CockpitRemoteSessionEndpointHandler {
     if (!sourceFile.existsSync()) {
       return null;
     }
-    return _RemoteArtifactEntry(
-      sourceFilePath: sourceFile.path,
-    );
+    return _RemoteArtifactEntry(sourceFilePath: sourceFile.path);
   }
 
   CockpitRecordingResult _recordingResultForTransport(
@@ -567,10 +554,7 @@ final class CockpitRemoteSessionEndpointHandler {
     final file = await _artifactTempFileFactory(basename);
     await file.parent.create(recursive: true);
     await file.writeAsBytes(bytes, flush: true);
-    return _RemoteArtifactEntry(
-      sourceFilePath: file.path,
-      deleteOnClose: true,
-    );
+    return _RemoteArtifactEntry(sourceFilePath: file.path, deleteOnClose: true);
   }
 
   Future<CockpitRemoteSessionEndpointResponse> _artifactResponseFor(
@@ -578,48 +562,36 @@ final class CockpitRemoteSessionEndpointHandler {
   ) async {
     final relativePath = request.uri.queryParameters['path'];
     if (relativePath == null || relativePath.isEmpty) {
-      return const CockpitRemoteSessionEndpointResponse.json(
-        <String, Object?>{
-          'error': 'invalidArtifactPath',
-          'message': 'Artifact path is required.',
-        },
-        statusCode: HttpStatus.badRequest,
-      );
+      return const CockpitRemoteSessionEndpointResponse.json(<String, Object?>{
+        'error': 'invalidArtifactPath',
+        'message': 'Artifact path is required.',
+      }, statusCode: HttpStatus.badRequest);
     }
 
     final entry = _downloadableArtifacts[relativePath];
     if (entry == null) {
-      return const CockpitRemoteSessionEndpointResponse.json(
-        <String, Object?>{
-          'error': 'artifactNotFound',
-          'message': 'Unknown artifact path.',
-        },
-        statusCode: HttpStatus.notFound,
-      );
+      return const CockpitRemoteSessionEndpointResponse.json(<String, Object?>{
+        'error': 'artifactNotFound',
+        'message': 'Unknown artifact path.',
+      }, statusCode: HttpStatus.notFound);
     }
 
     final sourceFilePath = entry.sourceFilePath;
     if (sourceFilePath == null || sourceFilePath.isEmpty) {
       _downloadableArtifacts.remove(relativePath);
-      return const CockpitRemoteSessionEndpointResponse.json(
-        <String, Object?>{
-          'error': 'artifactNotFound',
-          'message': 'Artifact content is unavailable.',
-        },
-        statusCode: HttpStatus.notFound,
-      );
+      return const CockpitRemoteSessionEndpointResponse.json(<String, Object?>{
+        'error': 'artifactNotFound',
+        'message': 'Artifact content is unavailable.',
+      }, statusCode: HttpStatus.notFound);
     }
 
     final sourceFile = File(sourceFilePath);
     if (!await sourceFile.exists()) {
       _downloadableArtifacts.remove(relativePath);
-      return const CockpitRemoteSessionEndpointResponse.json(
-        <String, Object?>{
-          'error': 'artifactNotFound',
-          'message': 'Artifact file is no longer available.',
-        },
-        statusCode: HttpStatus.notFound,
-      );
+      return const CockpitRemoteSessionEndpointResponse.json(<String, Object?>{
+        'error': 'artifactNotFound',
+        'message': 'Artifact file is no longer available.',
+      }, statusCode: HttpStatus.notFound);
     }
 
     return CockpitRemoteSessionEndpointResponse.binaryFile(sourceFile.path);

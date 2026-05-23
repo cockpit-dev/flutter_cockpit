@@ -181,9 +181,7 @@ void main() {
 
       final conflicted = await repository.fetchTasks(
         const TodoFilter(
-          syncStatuses: <TodoTaskSyncStatus>{
-            TodoTaskSyncStatus.conflicted,
-          },
+          syncStatuses: <TodoTaskSyncStatus>{TodoTaskSyncStatus.conflicted},
         ),
       );
 

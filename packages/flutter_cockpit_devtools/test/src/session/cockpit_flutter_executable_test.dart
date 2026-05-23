@@ -18,19 +18,20 @@ void main() {
       isWindows: true,
       processRunner: (executable, arguments) async {
         capturedExecutable = executable;
-        return ProcessResult(0, 0, '{"frameworkVersion":"3.24.0"}', '');
+        return ProcessResult(0, 0, '{"frameworkVersion":"3.32.0"}', '');
       },
     );
 
     expect(capturedExecutable, 'flutter.bat');
-    expect(version, '3.24.0');
+    expect(version, '3.32.0');
   });
 
   test('dart executable resolver reuses the current dart process', () async {
     final resolved = await cockpitResolveActiveDartExecutable(
-      currentExecutable:
-          Platform.isWindows ? r'C:\sdk\bin\dart.bat' : '/opt/sdk/bin/dart',
-      processRunner: (_, __) async =>
+      currentExecutable: Platform.isWindows
+          ? r'C:\sdk\bin\dart.bat'
+          : '/opt/sdk/bin/dart',
+      processRunner: (_, _) async =>
           throw StateError('lookup should not be used when already on dart'),
     );
 
@@ -40,23 +41,25 @@ void main() {
     );
   });
 
-  test('dart executable resolver falls back to host lookup when needed',
-      () async {
-    String? capturedExecutable;
-    List<String>? capturedArguments;
+  test(
+    'dart executable resolver falls back to host lookup when needed',
+    () async {
+      String? capturedExecutable;
+      List<String>? capturedArguments;
 
-    final resolved = await cockpitResolveActiveDartExecutable(
-      isWindows: false,
-      currentExecutable: '/tmp/flutter_tester',
-      processRunner: (executable, arguments) async {
-        capturedExecutable = executable;
-        capturedArguments = arguments;
-        return ProcessResult(0, 0, '/opt/homebrew/bin/dart\n', '');
-      },
-    );
+      final resolved = await cockpitResolveActiveDartExecutable(
+        isWindows: false,
+        currentExecutable: '/tmp/flutter_tester',
+        processRunner: (executable, arguments) async {
+          capturedExecutable = executable;
+          capturedArguments = arguments;
+          return ProcessResult(0, 0, '/opt/homebrew/bin/dart\n', '');
+        },
+      );
 
-    expect(capturedExecutable, 'which');
-    expect(capturedArguments, <String>['dart']);
-    expect(resolved, '/opt/homebrew/bin/dart');
-  });
+      expect(capturedExecutable, 'which');
+      expect(capturedArguments, <String>['dart']);
+      expect(resolved, '/opt/homebrew/bin/dart');
+    },
+  );
 }

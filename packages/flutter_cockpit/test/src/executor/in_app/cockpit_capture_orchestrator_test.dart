@@ -30,10 +30,10 @@ void main() {
         settleBeforeObservation: () async {
           settleCount += 1;
         },
-        bestEffortWaitForUiIdle: (
-            {required bool includeNetworkIdleValue}) async {
-          includeNetworkIdle = includeNetworkIdleValue;
-        },
+        bestEffortWaitForUiIdle:
+            ({required bool includeNetworkIdleValue}) async {
+              includeNetworkIdle = includeNetworkIdleValue;
+            },
         defaultSnapshotOptionsForReason: (reason) {
           expect(reason, CockpitScreenshotReason.acceptance);
           return const CockpitSnapshotOptions.investigate();
@@ -56,10 +56,14 @@ void main() {
       expect(outcome, isNotNull);
       expect(settleCount, 2);
       expect(includeNetworkIdle, isTrue);
-      expect(capturedRequest?.snapshotOptions,
-          const CockpitSnapshotOptions.investigate());
       expect(
-          outcome!.artifacts.single.relativePath, 'screenshots/acceptance.png');
+        capturedRequest?.snapshotOptions,
+        const CockpitSnapshotOptions.investigate(),
+      );
+      expect(
+        outcome!.artifacts.single.relativePath,
+        'screenshots/acceptance.png',
+      );
       expect(
         outcome.artifactPayloads['screenshots/acceptance.png'],
         Uint8List.fromList(const <int>[137, 80, 78, 71]),
@@ -68,25 +72,26 @@ void main() {
   );
 
   test(
-      'captureAfterAction returns null when the command does not request capture',
-      () async {
-    final orchestrator = CockpitCaptureOrchestrator(
-      captureHandler: (_) async => throw UnimplementedError(),
-      postActionSettler: () async {},
-      settleBeforeObservation: () async {},
-      bestEffortWaitForUiIdle: ({required includeNetworkIdleValue}) async {},
-      defaultSnapshotOptionsForReason: (_) =>
-          const CockpitSnapshotOptions.live(),
-    );
+    'captureAfterAction returns null when the command does not request capture',
+    () async {
+      final orchestrator = CockpitCaptureOrchestrator(
+        captureHandler: (_) async => throw UnimplementedError(),
+        postActionSettler: () async {},
+        settleBeforeObservation: () async {},
+        bestEffortWaitForUiIdle: ({required includeNetworkIdleValue}) async {},
+        defaultSnapshotOptionsForReason: (_) =>
+            const CockpitSnapshotOptions.live(),
+      );
 
-    final outcome = await orchestrator.captureAfterAction(
-      CockpitCommand(
-        commandId: 'cmd-tap',
-        commandType: CockpitCommandType.tap,
-        capturePolicy: CockpitCapturePolicy.none,
-      ),
-    );
+      final outcome = await orchestrator.captureAfterAction(
+        CockpitCommand(
+          commandId: 'cmd-tap',
+          commandType: CockpitCommandType.tap,
+          capturePolicy: CockpitCapturePolicy.none,
+        ),
+      );
 
-    expect(outcome, isNull);
-  });
+      expect(outcome, isNull);
+    },
+  );
 }

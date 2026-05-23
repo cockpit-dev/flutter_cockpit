@@ -55,18 +55,18 @@ final class CockpitAnalyzeFilesDiagnostic {
   final String? documentationUrl;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'path': path,
-        'severity': severity,
-        'type': type,
-        'code': code,
-        'message': message,
-        'line': line,
-        'column': column,
-        'endLine': endLine,
-        'endColumn': endColumn,
-        if (correction != null) 'correction': correction,
-        if (documentationUrl != null) 'documentationUrl': documentationUrl,
-      };
+    'path': path,
+    'severity': severity,
+    'type': type,
+    'code': code,
+    'message': message,
+    'line': line,
+    'column': column,
+    'endLine': endLine,
+    'endColumn': endColumn,
+    if (correction != null) 'correction': correction,
+    if (documentationUrl != null) 'documentationUrl': documentationUrl,
+  };
 }
 
 final class CockpitAnalyzeFilesResult {
@@ -107,23 +107,23 @@ final class CockpitAnalyzeFilesResult {
   final bool stderrTruncated;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'workspaceRoot': workspaceRoot,
-        'toolchain': toolchain.name,
-        'paths': paths,
-        'command': command.toJson(),
-        'exitCode': exitCode,
-        'success': success,
-        'clean': clean,
-        'summary': summary,
-        'totalDiagnostics': totalDiagnostics,
-        'diagnostics': diagnostics.map((item) => item.toJson()).toList(),
-        'diagnosticsTruncated': diagnosticsTruncated,
-        'severityCounts': severityCounts,
-        if (stdoutPreview != null) 'stdoutPreview': stdoutPreview,
-        'stdoutTruncated': stdoutTruncated,
-        if (stderrPreview != null) 'stderrPreview': stderrPreview,
-        'stderrTruncated': stderrTruncated,
-      };
+    'workspaceRoot': workspaceRoot,
+    'toolchain': toolchain.name,
+    'paths': paths,
+    'command': command.toJson(),
+    'exitCode': exitCode,
+    'success': success,
+    'clean': clean,
+    'summary': summary,
+    'totalDiagnostics': totalDiagnostics,
+    'diagnostics': diagnostics.map((item) => item.toJson()).toList(),
+    'diagnosticsTruncated': diagnosticsTruncated,
+    'severityCounts': severityCounts,
+    if (stdoutPreview != null) 'stdoutPreview': stdoutPreview,
+    'stdoutTruncated': stdoutTruncated,
+    if (stderrPreview != null) 'stderrPreview': stderrPreview,
+    'stderrTruncated': stderrTruncated,
+  };
 }
 
 final class CockpitAnalyzeFilesService {
@@ -131,9 +131,9 @@ final class CockpitAnalyzeFilesService {
     CockpitFileSystem? fileSystem,
     CockpitProcessManager? processManager,
     CockpitSdkEnvironment? sdkEnvironment,
-  })  : _fileSystem = fileSystem ?? const LocalCockpitFileSystem(),
-        _processManager = processManager ?? const LocalCockpitProcessManager(),
-        _sdkEnvironment = sdkEnvironment ?? CockpitSdkEnvironment.current();
+  }) : _fileSystem = fileSystem ?? const LocalCockpitFileSystem(),
+       _processManager = processManager ?? const LocalCockpitProcessManager(),
+       _sdkEnvironment = sdkEnvironment ?? CockpitSdkEnvironment.current();
 
   final CockpitFileSystem _fileSystem;
   final CockpitProcessManager _processManager;
@@ -177,15 +177,11 @@ final class CockpitAnalyzeFilesService {
     final decoded = jsonDecode(rawJson) as Map<Object?, Object?>;
     final allDiagnostics = ((decoded['diagnostics'] as List?) ?? const [])
         .whereType<Map<Object?, Object?>>()
-        .map(
-          (item) => _diagnosticFromJson(
-            item,
-            workspaceRoot: workspaceRoot,
-          ),
-        )
+        .map((item) => _diagnosticFromJson(item, workspaceRoot: workspaceRoot))
         .toList(growable: false);
-    final displayedDiagnostics =
-        allDiagnostics.take(request.maxDiagnostics).toList(growable: false);
+    final displayedDiagnostics = allDiagnostics
+        .take(request.maxDiagnostics)
+        .toList(growable: false);
     final severityCounts = <String, int>{};
     for (final diagnostic in allDiagnostics) {
       severityCounts.update(
@@ -233,10 +229,7 @@ final class CockpitAnalyzeFilesService {
       throw CockpitApplicationServiceException(
         code: 'analysisPathNotFound',
         message: 'Analysis path does not exist.',
-        details: <String, Object?>{
-          'path': rawPath,
-          'resolvedPath': candidate,
-        },
+        details: <String, Object?>{'path': rawPath, 'resolvedPath': candidate},
       );
     }
     return candidate;
@@ -270,12 +263,15 @@ CockpitAnalyzeFilesDiagnostic _diagnosticFromJson(
   Map<Object?, Object?> json, {
   required String workspaceRoot,
 }) {
-  final location =
-      Map<Object?, Object?>.from(json['location'] as Map<Object?, Object?>);
-  final range =
-      Map<Object?, Object?>.from(location['range'] as Map<Object?, Object?>);
-  final start =
-      Map<Object?, Object?>.from(range['start'] as Map<Object?, Object?>);
+  final location = Map<Object?, Object?>.from(
+    json['location'] as Map<Object?, Object?>,
+  );
+  final range = Map<Object?, Object?>.from(
+    location['range'] as Map<Object?, Object?>,
+  );
+  final start = Map<Object?, Object?>.from(
+    range['start'] as Map<Object?, Object?>,
+  );
   final end = Map<Object?, Object?>.from(range['end'] as Map<Object?, Object?>);
   final absolutePath = p.normalize(location['file'] as String);
   final relativePath = p.relative(absolutePath, from: workspaceRoot);

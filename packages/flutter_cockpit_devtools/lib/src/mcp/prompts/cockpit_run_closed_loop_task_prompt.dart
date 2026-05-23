@@ -7,19 +7,18 @@ final class CockpitRunClosedLoopTaskPrompt extends CockpitMcpPrompt {
 
   @override
   CockpitMcpPromptDefinition get definition => const CockpitMcpPromptDefinition(
-        name: 'run_closed_loop_task',
-        description:
-            'Run a full flutter_cockpit closed-loop task with evidence.',
-        arguments: <CockpitMcpPromptArgument>[
-          CockpitMcpPromptArgument(name: 'taskGoal', required: true),
-          CockpitMcpPromptArgument(name: 'platform'),
-          CockpitMcpPromptArgument(name: 'requiresVideo'),
-        ],
-        categories: <CockpitMcpFeatureCategory>[
-          CockpitMcpFeatureCategory.closedLoop,
-          CockpitMcpFeatureCategory.workflowPrompts,
-        ],
-      );
+    name: 'run_closed_loop_task',
+    description: 'Run a full flutter_cockpit closed-loop task with evidence.',
+    arguments: <CockpitMcpPromptArgument>[
+      CockpitMcpPromptArgument(name: 'taskGoal', required: true),
+      CockpitMcpPromptArgument(name: 'platform'),
+      CockpitMcpPromptArgument(name: 'requiresVideo'),
+    ],
+    categories: <CockpitMcpFeatureCategory>[
+      CockpitMcpFeatureCategory.closedLoop,
+      CockpitMcpFeatureCategory.workflowPrompts,
+    ],
+  );
 
   @override
   Future<CockpitMcpPromptResult> build(Map<String, Object?> arguments) async {

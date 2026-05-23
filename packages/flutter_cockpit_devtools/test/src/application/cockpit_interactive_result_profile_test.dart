@@ -21,45 +21,47 @@ void main() {
       );
     });
 
-    test('centralizes profile layer decisions for all interactive services',
-        () {
-      const minimal = CockpitInteractiveResultProfile.minimal();
-      const standard = CockpitInteractiveResultProfile.standard();
-      const inspect = CockpitInteractiveResultProfile.inspect();
-      const evidence = CockpitInteractiveResultProfile.evidence();
+    test(
+      'centralizes profile layer decisions for all interactive services',
+      () {
+        const minimal = CockpitInteractiveResultProfile.minimal();
+        const standard = CockpitInteractiveResultProfile.standard();
+        const inspect = CockpitInteractiveResultProfile.inspect();
+        const evidence = CockpitInteractiveResultProfile.evidence();
 
-      expect(minimal.requiresStatusSnapshotRead, isFalse);
-      expect(minimal.requiresPostActionSnapshotRead(), isFalse);
-      expect(minimal.emitsUiSummary, isFalse);
-      expect(minimal.emitsInlineSnapshot, isFalse);
-      expect(minimal.emitsDiagnostics, isFalse);
-      expect(minimal.emitsSnapshotRef, isFalse);
-      expect(minimal.emitsRuntimeSteps, isFalse);
+        expect(minimal.requiresStatusSnapshotRead, isFalse);
+        expect(minimal.requiresPostActionSnapshotRead(), isFalse);
+        expect(minimal.emitsUiSummary, isFalse);
+        expect(minimal.emitsInlineSnapshot, isFalse);
+        expect(minimal.emitsDiagnostics, isFalse);
+        expect(minimal.emitsSnapshotRef, isFalse);
+        expect(minimal.emitsRuntimeSteps, isFalse);
 
-      expect(standard.requiresStatusSnapshotRead, isTrue);
-      expect(standard.requiresPostActionSnapshotRead(), isTrue);
-      expect(standard.emitsUiSummary, isTrue);
-      expect(standard.emitsInlineSnapshot, isFalse);
-      expect(standard.emitsDiagnostics, isFalse);
-      expect(standard.emitsSnapshotRef, isTrue);
+        expect(standard.requiresStatusSnapshotRead, isTrue);
+        expect(standard.requiresPostActionSnapshotRead(), isTrue);
+        expect(standard.emitsUiSummary, isTrue);
+        expect(standard.emitsInlineSnapshot, isFalse);
+        expect(standard.emitsDiagnostics, isFalse);
+        expect(standard.emitsSnapshotRef, isTrue);
 
-      expect(inspect.requiresStatusSnapshotRead, isTrue);
-      expect(inspect.requiresPostActionSnapshotRead(), isTrue);
-      expect(inspect.emitsUiSummary, isTrue);
-      expect(inspect.emitsDiagnostics, isTrue);
-      expect(inspect.emitsRuntimeSteps, isTrue);
+        expect(inspect.requiresStatusSnapshotRead, isTrue);
+        expect(inspect.requiresPostActionSnapshotRead(), isTrue);
+        expect(inspect.emitsUiSummary, isTrue);
+        expect(inspect.emitsDiagnostics, isTrue);
+        expect(inspect.emitsRuntimeSteps, isTrue);
 
-      expect(evidence.requiresStatusSnapshotRead, isTrue);
-      expect(evidence.requiresPostActionSnapshotRead(), isTrue);
-      expect(evidence.emitsUiSummary, isFalse);
-      expect(evidence.emitsInlineSnapshot, isTrue);
-      expect(evidence.emitsDiagnostics, isTrue);
+        expect(evidence.requiresStatusSnapshotRead, isTrue);
+        expect(evidence.requiresPostActionSnapshotRead(), isTrue);
+        expect(evidence.emitsUiSummary, isFalse);
+        expect(evidence.emitsInlineSnapshot, isTrue);
+        expect(evidence.emitsDiagnostics, isTrue);
 
-      expect(
-        minimal.requiresPostActionSnapshotRead(compareAgainstSnapshot: true),
-        isTrue,
-      );
-    });
+        expect(
+          minimal.requiresPostActionSnapshotRead(compareAgainstSnapshot: true),
+          isTrue,
+        );
+      },
+    );
 
     test('uses inspect defaults', () {
       const profile = CockpitInteractiveResultProfile.inspect();
@@ -84,18 +86,17 @@ void main() {
     });
 
     test('allows layer overrides on a preset', () {
-      final profile = CockpitInteractiveResultProfile.fromJson(
-        const <String, Object?>{
-          'profile': 'standard',
-          'ui': 'snapshot',
-          'diagnostics': 'full',
-          'artifacts': 'metadata',
-          'includeDelta': true,
-          'includeRuntimeSteps': true,
-          'emitSnapshotRef': false,
-          'snapshotProfile': 'forensic',
-        },
-      );
+      final profile =
+          CockpitInteractiveResultProfile.fromJson(const <String, Object?>{
+            'profile': 'standard',
+            'ui': 'snapshot',
+            'diagnostics': 'full',
+            'artifacts': 'metadata',
+            'includeDelta': true,
+            'includeRuntimeSteps': true,
+            'emitSnapshotRef': false,
+            'snapshotProfile': 'forensic',
+          });
 
       expect(profile.name, CockpitInteractiveResultProfileName.standard);
       expect(profile.ui, CockpitInteractiveUiLevel.snapshot);
@@ -123,9 +124,9 @@ void main() {
 
     test('rejects an unknown preset', () {
       expect(
-        () => CockpitInteractiveResultProfile.fromJson(
-          const <String, Object?>{'profile': 'mystery'},
-        ),
+        () => CockpitInteractiveResultProfile.fromJson(const <String, Object?>{
+          'profile': 'mystery',
+        }),
         throwsA(
           isA<CockpitApplicationServiceException>().having(
             (error) => error.code,
@@ -138,9 +139,9 @@ void main() {
 
     test('rejects an unknown layer value', () {
       expect(
-        () => CockpitInteractiveResultProfile.fromJson(
-          const <String, Object?>{'ui': 'verbose'},
-        ),
+        () => CockpitInteractiveResultProfile.fromJson(const <String, Object?>{
+          'ui': 'verbose',
+        }),
         throwsA(
           isA<CockpitApplicationServiceException>().having(
             (error) => error.code,

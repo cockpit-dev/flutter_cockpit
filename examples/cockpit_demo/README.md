@@ -24,6 +24,8 @@ CI extends the same verifier to `linux`, `windows`, and `web`.
 
 ## Local Setup
 
+Use Flutter 3.32.0 or newer for this repository and demo app.
+
 Bootstrap the workspace first:
 
 ```bash

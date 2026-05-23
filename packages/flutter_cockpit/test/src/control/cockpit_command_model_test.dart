@@ -20,9 +20,7 @@ void main() {
         ),
       ],
       commandType: CockpitCommandType.tap,
-      locator: const CockpitLocator(
-        cockpitId: 'submit_button',
-      ),
+      locator: const CockpitLocator(cockpitId: 'submit_button'),
       locatorResolution: const CockpitLocatorResolution(
         matchedKind: CockpitLocatorKind.cockpitId,
         matchedValue: 'submit_button',
@@ -75,9 +73,7 @@ void main() {
       locator: const CockpitLocator(
         cockpitId: 'email_field',
         fallbacks: [
-          CockpitLocator(
-            semanticId: 'email_input',
-          ),
+          CockpitLocator(semanticId: 'email_input'),
           CockpitLocator(text: 'Email'),
         ],
       ),
@@ -115,9 +111,7 @@ void main() {
     final command = CockpitCommand(
       commandId: 'cmd-gesture',
       commandType: CockpitCommandType.multiTouch,
-      locator: const CockpitLocator(
-        text: 'Canvas',
-      ),
+      locator: const CockpitLocator(text: 'Canvas'),
       parameters: <String, Object?>{
         'sequence': CockpitMultiTouchSequence(
           steps: const <CockpitMultiTouchStep>[
@@ -163,11 +157,7 @@ void main() {
       fallbacks: [
         CockpitLocator(
           semanticId: 'checkout_submit',
-          fallbacks: [
-            CockpitLocator(
-              text: 'Submit order',
-            ),
-          ],
+          fallbacks: [CockpitLocator(text: 'Submit order')],
         ),
       ],
     );
@@ -178,43 +168,43 @@ void main() {
   test('CockpitLocator supports widget key locators through json', () {
     const locator = CockpitLocator(
       key: 'task-item:42',
-      fallbacks: [
-        CockpitLocator(text: 'Review docs'),
-      ],
+      fallbacks: [CockpitLocator(text: 'Review docs')],
     );
 
     expect(CockpitLocator.fromJson(locator.toJson()), locator);
   });
 
-  test('CockpitLocator supports multi-signal AI-first locators through json',
-      () {
-    const locator = CockpitLocator(
-      text: 'Today',
-      type: 'NavigationDestinationLabel',
-      route: '/inbox',
-      path: '/scaffold/navigationbar/navigationdestinationlabel',
-      index: 1,
-      ancestor: CockpitLocator(
-        type: 'NavigationBar',
-        ancestor: CockpitLocator(type: 'Scaffold'),
-      ),
-      fallbacks: [
-        CockpitLocator(
-          semanticId: 'nav-today',
-          type: 'NavigationDestinationLabel',
+  test(
+    'CockpitLocator supports multi-signal AI-first locators through json',
+    () {
+      const locator = CockpitLocator(
+        text: 'Today',
+        type: 'NavigationDestinationLabel',
+        route: '/inbox',
+        path: '/scaffold/navigationbar/navigationdestinationlabel',
+        index: 1,
+        ancestor: CockpitLocator(
+          type: 'NavigationBar',
+          ancestor: CockpitLocator(type: 'Scaffold'),
         ),
-      ],
-    );
+        fallbacks: [
+          CockpitLocator(
+            semanticId: 'nav-today',
+            type: 'NavigationDestinationLabel',
+          ),
+        ],
+      );
 
-    expect(CockpitLocator.fromJson(locator.toJson()), locator);
-    expect(locator.signalMap, <String, String>{
-      'text': 'Today',
-      'type': 'NavigationDestinationLabel',
-      'route': '/inbox',
-      'path': '/scaffold/navigationbar/navigationdestinationlabel',
-    });
-    expect(locator.index, 1);
-  });
+      expect(CockpitLocator.fromJson(locator.toJson()), locator);
+      expect(locator.signalMap, <String, String>{
+        'text': 'Today',
+        'type': 'NavigationDestinationLabel',
+        'route': '/inbox',
+        'path': '/scaffold/navigationbar/navigationdestinationlabel',
+      });
+      expect(locator.index, 1);
+    },
+  );
 
   test('CockpitLocator rejects legacy kind/value JSON payloads', () {
     expect(

@@ -51,20 +51,22 @@ final class CockpitNativeTargetDiscovery {
 
       final candidate =
           _isRenderable(element) && _overlapsViewport(element, rootViewport)
-              ? _buildTarget(
-                  element,
-                  routeName: targetRouteName,
-                  path: path,
-                  insideActionableTarget: insideActionableTarget,
-                )
-              : null;
-      final hasMeaningfulViewportExposure = candidate == null ||
+          ? _buildTarget(
+              element,
+              routeName: targetRouteName,
+              path: path,
+              insideActionableTarget: insideActionableTarget,
+            )
+          : null;
+      final hasMeaningfulViewportExposure =
+          candidate == null ||
           _hasMeaningfulViewportExposure(
             element,
             rootViewport,
             strictVisibility: candidate.supportedCommands.isEmpty,
           );
-      final createsActionableScope = candidate != null &&
+      final createsActionableScope =
+          candidate != null &&
           hasMeaningfulViewportExposure &&
           candidate.supportedCommands.isNotEmpty;
       if (candidate != null && hasMeaningfulViewportExposure) {
@@ -270,7 +272,8 @@ final class CockpitNativeTargetDiscovery {
     final doubleTapHandler = _doubleTapHandlerForElement(element);
     final enterTextHandler = _enterTextHandlerForElement(element);
     final textInputHandler = _textInputHandlerForElement(element);
-    final hasDirectHandlers = tapHandler != null ||
+    final hasDirectHandlers =
+        tapHandler != null ||
         longPressHandler != null ||
         doubleTapHandler != null ||
         enterTextHandler != null ||
@@ -344,20 +347,20 @@ final class CockpitNativeTargetDiscovery {
         onSemanticIncrease: semantics?.actionHandler(SemanticsAction.increase),
         onSemanticDecrease: semantics?.actionHandler(SemanticsAction.decrease),
         onSemanticDismiss: semantics?.actionHandler(SemanticsAction.dismiss),
-        onSemanticEnterText: semantics == null ||
-                !semantics.supports(SemanticsAction.setText)
+        onSemanticEnterText:
+            semantics == null || !semantics.supports(SemanticsAction.setText)
             ? null
             : (text) => semantics.performAction(SemanticsAction.setText, text),
         onSemanticTextInput:
             semantics == null || !semantics.supports(SemanticsAction.setText)
-                ? null
-                : (request) {
-                    final text =
-                        request.text ?? (request.clearExisting ? '' : null);
-                    if (text != null) {
-                      semantics.performAction(SemanticsAction.setText, text);
-                    }
-                  },
+            ? null
+            : (request) {
+                final text =
+                    request.text ?? (request.clearExisting ? '' : null);
+                if (text != null) {
+                  semantics.performAction(SemanticsAction.setText, text);
+                }
+              },
         diagnosticNodeProvider: () => element,
         geometryProvider: () =>
             CockpitTargetGeometryResolver.maybeFromElement(element),
@@ -390,14 +393,10 @@ final class CockpitNativeTargetDiscovery {
       scrollableKeyValue: scrollableMetadata.keyValue,
       scrollableTypeName: scrollableMetadata.typeName,
       routeName: routeName ?? '',
-      locatorAncestors: _extractLocatorAncestors(
-        element,
-        routeName: routeName,
-      ),
+      locatorAncestors: _extractLocatorAncestors(element, routeName: routeName),
       diagnosticNodeProvider: () => element,
-      geometryProvider: () => CockpitTargetGeometryResolver.maybeFromElement(
-        element,
-      ),
+      geometryProvider: () =>
+          CockpitTargetGeometryResolver.maybeFromElement(element),
     );
   }
 
@@ -460,8 +459,9 @@ final class CockpitNativeTargetDiscovery {
       if (_shouldSkipPathElement(candidate)) {
         continue;
       }
-      final segment =
-          _locatorPathSegment(candidate.widget.runtimeType.toString());
+      final segment = _locatorPathSegment(
+        candidate.widget.runtimeType.toString(),
+      );
       if (segment == null) {
         continue;
       }
@@ -469,8 +469,9 @@ final class CockpitNativeTargetDiscovery {
     }
     final trimmedSegments = _trimMeaningfulPathSegments(segments);
     if (trimmedSegments.isEmpty) {
-      final fallback =
-          _locatorPathSegment(element.widget.runtimeType.toString());
+      final fallback = _locatorPathSegment(
+        element.widget.runtimeType.toString(),
+      );
       if (fallback == null) {
         return '/target';
       }
@@ -544,8 +545,9 @@ final class CockpitNativeTargetDiscovery {
     if (ownType != 'Scrollable') {
       return ownType;
     }
-    final pathHint =
-        _scrollableTypeNameFromPath(_locatorPathForElement(element));
+    final pathHint = _scrollableTypeNameFromPath(
+      _locatorPathForElement(element),
+    );
     return pathHint ?? ownType;
   }
 
@@ -930,8 +932,8 @@ final class CockpitNativeTargetDiscovery {
       final selectionExtent = request.selectionExtent ?? selectionBase;
       final selection = selectionBase == null
           ? (request.text != null || request.clearExisting
-              ? TextSelection.collapsed(offset: resolvedText.length)
-              : currentValue.selection)
+                ? TextSelection.collapsed(offset: resolvedText.length)
+                : currentValue.selection)
           : TextSelection(
               baseOffset: selectionBase.clamp(0, resolvedText.length),
               extentOffset: (selectionExtent ?? selectionBase).clamp(
@@ -1192,8 +1194,8 @@ final class CockpitNativeTargetDiscovery {
   String? _stableKeyValue(Key? key) {
     final value = switch (key) {
       ValueKey<Object?>(value: final value) => _normalizeText(
-          value?.toString(),
-        ),
+        value?.toString(),
+      ),
       ObjectKey(value: final value) => _normalizeText(value.toString()),
       _ => null,
     };
@@ -1321,7 +1323,8 @@ final class CockpitNativeTargetDiscovery {
   String _slugify(String value) {
     final buffer = StringBuffer();
     for (final codeUnit in value.toLowerCase().codeUnits) {
-      final isAlphaNumeric = (codeUnit >= 48 && codeUnit <= 57) ||
+      final isAlphaNumeric =
+          (codeUnit >= 48 && codeUnit <= 57) ||
           (codeUnit >= 97 && codeUnit <= 122);
       if (isAlphaNumeric) {
         buffer.writeCharCode(codeUnit);
@@ -1492,11 +1495,7 @@ final class _TargetMetadata {
 }
 
 final class _ScrollableLocatorMetadata {
-  const _ScrollableLocatorMetadata({
-    this.path,
-    this.keyValue,
-    this.typeName,
-  });
+  const _ScrollableLocatorMetadata({this.path, this.keyValue, this.typeName});
 
   final String? path;
   final String? keyValue;

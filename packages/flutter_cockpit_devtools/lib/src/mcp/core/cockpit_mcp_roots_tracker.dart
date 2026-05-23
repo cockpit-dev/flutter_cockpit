@@ -21,22 +21,21 @@ final class CockpitMcpRootsTracker {
 
   bool get clientSupportsRoots => _clientSupportsRoots;
 
-  List<Root> get effectiveRoots => List<Root>.unmodifiable(
-        fallbackActive ? _fallbackRoots : _nativeRoots,
-      );
+  List<Root> get effectiveRoots =>
+      List<Root>.unmodifiable(fallbackActive ? _fallbackRoots : _nativeRoots);
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'clientSupportsRoots': clientSupportsRoots,
-        'fallbackActive': fallbackActive,
-        'roots': effectiveRoots
-            .map(
-              (root) => <String, Object?>{
-                'uri': root.uri,
-                if (root.name != null) 'name': root.name!,
-              },
-            )
-            .toList(growable: false),
-      };
+    'clientSupportsRoots': clientSupportsRoots,
+    'fallbackActive': fallbackActive,
+    'roots': effectiveRoots
+        .map(
+          (root) => <String, Object?>{
+            'uri': root.uri,
+            if (root.name != null) 'name': root.name!,
+          },
+        )
+        .toList(growable: false),
+  };
 
   Future<void> bind({
     required bool clientSupportsRoots,
@@ -65,8 +64,9 @@ final class CockpitMcpRootsTracker {
 
     var changed = false;
     for (final root in roots) {
-      final exists =
-          _fallbackRoots.any((candidate) => candidate.uri == root.uri);
+      final exists = _fallbackRoots.any(
+        (candidate) => candidate.uri == root.uri,
+      );
       if (!exists) {
         _fallbackRoots.add(root);
         changed = true;

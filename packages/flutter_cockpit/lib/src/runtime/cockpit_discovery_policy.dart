@@ -4,16 +4,16 @@ import 'cockpit_target.dart';
 
 typedef CockpitDiscoveryElementPredicate = bool Function(Element element);
 typedef CockpitDiscoveryStringExtractor = String? Function(Element element);
-typedef CockpitTapHandlerResolver = CockpitTapHandler? Function(
-    Element element);
-typedef CockpitLongPressHandlerResolver = CockpitLongPressHandler? Function(
-    Element element);
-typedef CockpitDoubleTapHandlerResolver = CockpitDoubleTapHandler? Function(
-    Element element);
-typedef CockpitEnterTextHandlerResolver = CockpitEnterTextHandler? Function(
-    Element element);
-typedef CockpitTextInputHandlerResolver = CockpitTextInputHandler? Function(
-    Element element);
+typedef CockpitTapHandlerResolver =
+    CockpitTapHandler? Function(Element element);
+typedef CockpitLongPressHandlerResolver =
+    CockpitLongPressHandler? Function(Element element);
+typedef CockpitDoubleTapHandlerResolver =
+    CockpitDoubleTapHandler? Function(Element element);
+typedef CockpitEnterTextHandlerResolver =
+    CockpitEnterTextHandler? Function(Element element);
+typedef CockpitTextInputHandlerResolver =
+    CockpitTextInputHandler? Function(Element element);
 
 final class CockpitDiscoveryPolicy {
   const CockpitDiscoveryPolicy({

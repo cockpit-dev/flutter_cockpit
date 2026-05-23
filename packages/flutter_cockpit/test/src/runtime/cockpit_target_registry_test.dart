@@ -55,9 +55,7 @@ void main() {
       const CockpitLocator(
         cockpitId: 'missing_button',
         fallbacks: [
-          CockpitLocator(
-            semanticId: 'checkout_submit',
-          ),
+          CockpitLocator(semanticId: 'checkout_submit'),
           CockpitLocator(text: 'Submit order'),
         ],
       ),
@@ -99,9 +97,7 @@ void main() {
       final resolution = registry.resolve(
         const CockpitLocator(
           cockpitId: 'missing_button',
-          fallbacks: [
-            CockpitLocator(text: 'Continue'),
-          ],
+          fallbacks: [CockpitLocator(text: 'Continue')],
         ),
       );
 
@@ -113,10 +109,10 @@ void main() {
       );
       final candidateHints =
           (resolution.error?.details['candidateHints'] as List<Object?>?)
-                  ?.cast<Map<Object?, Object?>>()
-                  .map((entry) => Map<String, Object?>.from(entry))
-                  .toList(growable: false) ??
-              const <Map<String, Object?>>[];
+              ?.cast<Map<Object?, Object?>>()
+              .map((entry) => Map<String, Object?>.from(entry))
+              .toList(growable: false) ??
+          const <Map<String, Object?>>[];
       expect(candidateHints, hasLength(1));
       expect(candidateHints.first['text'], 'Continue');
       expect(candidateHints.first['type'], isNull);
@@ -137,23 +133,16 @@ void main() {
       );
     }
 
-    final resolution = registry.resolve(
-      const CockpitLocator(
-        text: 'Continue',
-      ),
-    );
+    final resolution = registry.resolve(const CockpitLocator(text: 'Continue'));
 
     expect(resolution.isSuccess, isFalse);
     expect(resolution.error?.code, CockpitCommandError.ambiguousTargetCode);
     expect(resolution.error?.details['candidateCount'], 16);
     final candidates =
         (resolution.error?.details['candidates'] as List<Object?>?)
-                ?.cast<String>() ??
-            const <String>[];
-    expect(
-      candidates.length,
-      CockpitTargetRegistry.candidateDetailLimit,
-    );
+            ?.cast<String>() ??
+        const <String>[];
+    expect(candidates.length, CockpitTargetRegistry.candidateDetailLimit);
     expect(candidates, isNot(contains('candidate-9')));
   });
 
@@ -188,9 +177,11 @@ void main() {
   test('caps live snapshots and prioritizes actionable keyed targets', () {
     final registry = CockpitTargetRegistry(routeName: '/inbox');
 
-    for (var index = 0;
-        index < CockpitTargetRegistry.liveSnapshotTargetLimit + 32;
-        index += 1) {
+    for (
+      var index = 0;
+      index < CockpitTargetRegistry.liveSnapshotTargetLimit + 32;
+      index += 1
+    ) {
       registry.register(
         CockpitTarget(
           registrationId: 'target-$index',
@@ -223,13 +214,13 @@ void main() {
     () {
       final registry = CockpitTargetRegistry(routeName: '/settings')
         ..discoveredTargetsProvider = () => const <CockpitTarget>[
-              CockpitTarget(
-                registrationId: 'save-settings',
-                text: 'Save settings',
-                routeName: '',
-                supportedCommands: {CockpitCommandType.tap},
-              ),
-            ];
+          CockpitTarget(
+            registrationId: 'save-settings',
+            text: 'Save settings',
+            routeName: '',
+            supportedCommands: {CockpitCommandType.tap},
+          ),
+        ];
 
       expect(registry.visibleTargets, hasLength(1));
       expect(registry.visibleTargets.single.registrationId, 'save-settings');
@@ -260,9 +251,7 @@ void main() {
     );
 
     final resolution = registry.resolve(
-      const CockpitLocator(
-        semanticId: 'Open task Gesture alpha',
-      ),
+      const CockpitLocator(semanticId: 'Open task Gesture alpha'),
     );
 
     expect(resolution.isSuccess, isTrue);
@@ -344,9 +333,7 @@ void main() {
       const CockpitLocatorResolution(
         matchedKind: CockpitLocatorKind.text,
         matchedValue: 'Task title',
-        matchedSignals: <String, String>{
-          'text': 'Task title',
-        },
+        matchedSignals: <String, String>{'text': 'Task title'},
       ),
     );
   });

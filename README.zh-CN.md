@@ -23,6 +23,10 @@
 
 ## 安装包
 
+最低工具链要求：Flutter 3.32.0 或更高版本，也就是 Dart 3.8.0 或更高版本。
+这个下限可以让 `flutter_test`、`dart_mcp` 和宿主侧 AI 工具链处在同一套可解析依赖图中，
+不需要通过 `dependency_overrides` 覆盖 Flutter SDK 的 pin。
+
 ```yaml
 dependencies:
   flutter_cockpit: ^1.0.0

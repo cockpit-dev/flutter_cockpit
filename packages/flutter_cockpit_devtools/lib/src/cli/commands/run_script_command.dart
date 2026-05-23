@@ -12,20 +12,20 @@ import '../cockpit_command_runner.dart';
 import '../cockpit_control_script.dart';
 import '../cockpit_interactive_cli_support.dart';
 
-typedef CockpitRunScriptFunction = Future<CockpitRunRemoteControlScriptResult>
-    Function(
-  CockpitRunRemoteControlScriptRequest request,
-);
+typedef CockpitRunScriptFunction =
+    Future<CockpitRunRemoteControlScriptResult> Function(
+      CockpitRunRemoteControlScriptRequest request,
+    );
 
 final class RunScriptCommand extends CockpitCliCommand {
   RunScriptCommand({
     CockpitRunRemoteControlScriptService? service,
     CockpitRunScriptFunction? runScript,
     CockpitAppReferenceResolver? appReferenceResolver,
-  })  : _runScript = runScript ??
-            (service ?? CockpitRunRemoteControlScriptService()).run,
-        _appReferenceResolver =
-            appReferenceResolver ?? CockpitAppReferenceResolver() {
+  }) : _runScript =
+           runScript ?? (service ?? CockpitRunRemoteControlScriptService()).run,
+       _appReferenceResolver =
+           appReferenceResolver ?? CockpitAppReferenceResolver() {
     cockpitAddAppArgs(argParser);
     argParser
       ..addOption('script-json', help: 'Path to a JSON control script file.')
@@ -109,15 +109,21 @@ final class RunScriptCommand extends CockpitCliCommand {
       CockpitRunRemoteControlScriptRequest(
         script: script,
         outputRoot: outputRoot,
-        platformAppId: resolved.app?.platformAppId ??
-            resolved.developmentRecord?.handle.remoteSessionHandle
+        platformAppId:
+            resolved.app?.platformAppId ??
+            resolved
+                .developmentRecord
+                ?.handle
+                .remoteSessionHandle
                 ?.effectivePlatformAppId ??
             resolved.remoteRecord?.handle.effectivePlatformAppId,
-        processId: resolved.app?.processId ??
+        processId:
+            resolved.app?.processId ??
             resolved.developmentRecord?.handle.remoteSessionHandle?.processId ??
             resolved.remoteRecord?.handle.processId,
         baseUri: resolved.baseUri,
-        sessionHandle: resolved.app?.remoteSession ??
+        sessionHandle:
+            resolved.app?.remoteSession ??
             resolved.developmentRecord?.handle.remoteSessionHandle ??
             resolved.remoteRecord?.handle,
         androidDeviceId: argResults?['android-device-id'] as String?,

@@ -37,10 +37,10 @@ final class CockpitStepRecord {
     this.usedCaptureFallback = false,
     this.degradationReason,
     List<CockpitArtifactRef> captureRefs = const [],
-  })  : actionArgs = Map.unmodifiable(actionArgs),
-        artifactRefs = List.unmodifiable(artifactRefs),
-        fallbackTrail = List.unmodifiable(fallbackTrail),
-        captureRefs = List.unmodifiable(captureRefs);
+  }) : actionArgs = Map.unmodifiable(actionArgs),
+       artifactRefs = List.unmodifiable(artifactRefs),
+       fallbackTrail = List.unmodifiable(fallbackTrail),
+       captureRefs = List.unmodifiable(captureRefs);
 
   final int index;
   final String actionType;
@@ -73,35 +73,33 @@ final class CockpitStepRecord {
       ListEquality<CockpitPlaneKind>();
 
   Map<String, Object?> toJson() => {
-        'index': index,
-        'actionType': actionType,
-        'actionArgs': actionArgs,
-        'observedAt': observedAt.toUtc().toIso8601String(),
-        if (observation != null) 'observation': observation!.toJson(),
-        if (snapshot != null) 'snapshot': snapshot!.toJson(),
-        'artifactRefs':
-            artifactRefs.map((artifact) => artifact.toJson()).toList(),
-        if (commandType != null) 'commandType': commandType!.name,
-        if (locator != null) 'locator': locator!.toJson(),
-        if (locatorResolution != null)
-          'locatorResolution': locatorResolution!.toJson(),
-        if (durationMs != null) 'durationMs': durationMs,
-        if (status != null) 'status': status!.name,
-        if (targetKind != null) 'targetKind': targetKind!.name,
-        if (executionPlane != null) 'executionPlane': executionPlane!.name,
-        if (surfaceKind != null) 'surfaceKind': surfaceKind!.name,
-        if (fallbackTrail.isNotEmpty)
-          'fallbackTrail': fallbackTrail.map((plane) => plane.name).toList(),
-        if (usedPlaneFallback) 'usedPlaneFallback': usedPlaneFallback,
-        if (requestedCaptureProfile != null)
-          'requestedCaptureProfile': requestedCaptureProfile!.name,
-        if (resolvedCaptureKind != null)
-          'resolvedCaptureKind': resolvedCaptureKind!.name,
-        'usedCaptureFallback': usedCaptureFallback,
-        if (degradationReason != null) 'degradationReason': degradationReason,
-        'captureRefs':
-            captureRefs.map((artifact) => artifact.toJson()).toList(),
-      };
+    'index': index,
+    'actionType': actionType,
+    'actionArgs': actionArgs,
+    'observedAt': observedAt.toUtc().toIso8601String(),
+    if (observation != null) 'observation': observation!.toJson(),
+    if (snapshot != null) 'snapshot': snapshot!.toJson(),
+    'artifactRefs': artifactRefs.map((artifact) => artifact.toJson()).toList(),
+    if (commandType != null) 'commandType': commandType!.name,
+    if (locator != null) 'locator': locator!.toJson(),
+    if (locatorResolution != null)
+      'locatorResolution': locatorResolution!.toJson(),
+    if (durationMs != null) 'durationMs': durationMs,
+    if (status != null) 'status': status!.name,
+    if (targetKind != null) 'targetKind': targetKind!.name,
+    if (executionPlane != null) 'executionPlane': executionPlane!.name,
+    if (surfaceKind != null) 'surfaceKind': surfaceKind!.name,
+    if (fallbackTrail.isNotEmpty)
+      'fallbackTrail': fallbackTrail.map((plane) => plane.name).toList(),
+    if (usedPlaneFallback) 'usedPlaneFallback': usedPlaneFallback,
+    if (requestedCaptureProfile != null)
+      'requestedCaptureProfile': requestedCaptureProfile!.name,
+    if (resolvedCaptureKind != null)
+      'resolvedCaptureKind': resolvedCaptureKind!.name,
+    'usedCaptureFallback': usedCaptureFallback,
+    if (degradationReason != null) 'degradationReason': degradationReason,
+    'captureRefs': captureRefs.map((artifact) => artifact.toJson()).toList(),
+  };
 
   factory CockpitStepRecord.fromJson(Map<String, Object?> json) {
     final actionArgs = Map<String, Object?>.from(
@@ -215,27 +213,27 @@ final class CockpitStepRecord {
 
   @override
   int get hashCode => Object.hashAll(<Object?>[
-        index,
-        actionType,
-        _mapEquality.hash(actionArgs),
-        observedAt,
-        observation,
-        snapshot,
-        commandType,
-        locator,
-        locatorResolution,
-        durationMs,
-        status,
-        targetKind,
-        executionPlane,
-        surfaceKind,
-        _planeListEquality.hash(fallbackTrail),
-        usedPlaneFallback,
-        requestedCaptureProfile,
-        resolvedCaptureKind,
-        usedCaptureFallback,
-        degradationReason,
-        _artifactListEquality.hash(artifactRefs),
-        _artifactListEquality.hash(captureRefs),
-      ]);
+    index,
+    actionType,
+    _mapEquality.hash(actionArgs),
+    observedAt,
+    observation,
+    snapshot,
+    commandType,
+    locator,
+    locatorResolution,
+    durationMs,
+    status,
+    targetKind,
+    executionPlane,
+    surfaceKind,
+    _planeListEquality.hash(fallbackTrail),
+    usedPlaneFallback,
+    requestedCaptureProfile,
+    resolvedCaptureKind,
+    usedCaptureFallback,
+    degradationReason,
+    _artifactListEquality.hash(artifactRefs),
+    _artifactListEquality.hash(captureRefs),
+  ]);
 }

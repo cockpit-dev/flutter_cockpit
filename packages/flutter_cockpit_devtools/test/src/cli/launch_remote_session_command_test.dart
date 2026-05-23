@@ -23,44 +23,47 @@ void main() {
 
       final outputFile = File(p.join(tempDir.path, 'sessionHandle.json'));
       final resultFile = File(p.join(tempDir.path, 'launchResult.json'));
-      final runner = CommandRunner<int>(
-        'flutter_cockpit_devtools',
-        'Host-side tooling for flutter_cockpit.',
-      )..addCommand(
-          LaunchRemoteSessionCommand(
-            service: CockpitLaunchRemoteSessionService(
-              entrypointResolver:
-                  CockpitEntrypointResolver(exists: (_) => true),
-              launcher: _FakeRemoteSessionLauncher(),
-              statusReader: (_) async => CockpitRemoteSessionStatus(
-                sessionId: 'launch-demo',
-                platform: 'android',
-                transportType: 'remoteHttp',
-                currentRouteName: '/home',
-                capabilities: CockpitCapabilities(
+      final runner =
+          CommandRunner<int>(
+            'flutter_cockpit_devtools',
+            'Host-side tooling for flutter_cockpit.',
+          )..addCommand(
+            LaunchRemoteSessionCommand(
+              service: CockpitLaunchRemoteSessionService(
+                entrypointResolver: CockpitEntrypointResolver(
+                  exists: (_) => true,
+                ),
+                launcher: _FakeRemoteSessionLauncher(),
+                statusReader: (_) async => CockpitRemoteSessionStatus(
+                  sessionId: 'launch-demo',
                   platform: 'android',
                   transportType: 'remoteHttp',
-                  supportsInAppControl: true,
-                  supportsFlutterViewCapture: true,
-                  supportsNativeScreenCapture: true,
-                  supportsHostAutomation: false,
-                  supportedCommands: <CockpitCommandType>[
-                    CockpitCommandType.tap,
-                  ],
-                  supportedLocatorStrategies: CockpitLocatorKind.values,
+                  currentRouteName: '/home',
+                  capabilities: CockpitCapabilities(
+                    platform: 'android',
+                    transportType: 'remoteHttp',
+                    supportsInAppControl: true,
+                    supportsFlutterViewCapture: true,
+                    supportsNativeScreenCapture: true,
+                    supportsHostAutomation: false,
+                    supportedCommands: <CockpitCommandType>[
+                      CockpitCommandType.tap,
+                    ],
+                    supportedLocatorStrategies: CockpitLocatorKind.values,
+                  ),
+                  recordingCapabilities: CockpitRecordingCapabilities(
+                    supportsNativeRecording: true,
+                    preferredAcceptanceRecordingKind:
+                        CockpitRecordingKind.nativeScreen,
+                  ),
+                  snapshot: CockpitSnapshot(routeName: '/home'),
                 ),
-                recordingCapabilities: CockpitRecordingCapabilities(
-                  supportsNativeRecording: true,
-                  preferredAcceptanceRecordingKind:
-                      CockpitRecordingKind.nativeScreen,
-                ),
-                snapshot: CockpitSnapshot(routeName: '/home'),
               ),
             ),
-          ),
-        );
+          );
 
-      final exitCode = await runner.run(<String>[
+      final exitCode =
+          await runner.run(<String>[
             'launch-remote-session',
             '--project-dir',
             '/workspace/examples/cockpit_demo',
@@ -92,203 +95,221 @@ void main() {
     },
   );
 
-  test('launch-remote-session accepts macos without a mobile device id',
-      () async {
-    CockpitRemoteSessionLaunchOptions? capturedOptions;
-    final output = StringBuffer();
-    final runner = CommandRunner<int>(
-      'flutter_cockpit_devtools',
-      'Host-side tooling for flutter_cockpit.',
-    )..addCommand(
-        LaunchRemoteSessionCommand(
-          stdoutSink: output,
-          service: CockpitLaunchRemoteSessionService(
-            entrypointResolver: CockpitEntrypointResolver(exists: (_) => true),
-            launcher: _CapturingRemoteSessionLauncher(
-              onLaunch: (options) => capturedOptions = options,
-            ),
-            statusReader: (_) async => CockpitRemoteSessionStatus(
-              sessionId: 'launch-demo-macos',
-              platform: 'macos',
-              transportType: 'remoteHttp',
-              currentRouteName: '/home',
-              capabilities: CockpitCapabilities(
-                platform: 'macos',
-                transportType: 'remoteHttp',
-                supportsInAppControl: true,
-                supportsFlutterViewCapture: true,
-                supportsNativeScreenCapture: true,
-                supportsHostAutomation: true,
-                supportedCommands: <CockpitCommandType>[
-                  CockpitCommandType.tap,
-                ],
-                supportedLocatorStrategies: CockpitLocatorKind.values,
+  test(
+    'launch-remote-session accepts macos without a mobile device id',
+    () async {
+      CockpitRemoteSessionLaunchOptions? capturedOptions;
+      final output = StringBuffer();
+      final runner =
+          CommandRunner<int>(
+            'flutter_cockpit_devtools',
+            'Host-side tooling for flutter_cockpit.',
+          )..addCommand(
+            LaunchRemoteSessionCommand(
+              stdoutSink: output,
+              service: CockpitLaunchRemoteSessionService(
+                entrypointResolver: CockpitEntrypointResolver(
+                  exists: (_) => true,
+                ),
+                launcher: _CapturingRemoteSessionLauncher(
+                  onLaunch: (options) => capturedOptions = options,
+                ),
+                statusReader: (_) async => CockpitRemoteSessionStatus(
+                  sessionId: 'launch-demo-macos',
+                  platform: 'macos',
+                  transportType: 'remoteHttp',
+                  currentRouteName: '/home',
+                  capabilities: CockpitCapabilities(
+                    platform: 'macos',
+                    transportType: 'remoteHttp',
+                    supportsInAppControl: true,
+                    supportsFlutterViewCapture: true,
+                    supportsNativeScreenCapture: true,
+                    supportsHostAutomation: true,
+                    supportedCommands: <CockpitCommandType>[
+                      CockpitCommandType.tap,
+                    ],
+                    supportedLocatorStrategies: CockpitLocatorKind.values,
+                  ),
+                  recordingCapabilities: CockpitRecordingCapabilities(
+                    supportsNativeRecording: true,
+                    preferredAcceptanceRecordingKind:
+                        CockpitRecordingKind.nativeScreen,
+                  ),
+                  snapshot: CockpitSnapshot(routeName: '/home'),
+                ),
               ),
-              recordingCapabilities: CockpitRecordingCapabilities(
-                supportsNativeRecording: true,
-                preferredAcceptanceRecordingKind:
-                    CockpitRecordingKind.nativeScreen,
-              ),
-              snapshot: CockpitSnapshot(routeName: '/home'),
             ),
-          ),
-        ),
+          );
+
+      final exitCode =
+          await runner.run(<String>[
+            'launch-remote-session',
+            '--stdout-format',
+            'json',
+            '--project-dir',
+            '/workspace/examples/cockpit_demo',
+            '--target',
+            'cockpit/main.dart',
+            '--platform',
+            'macos',
+          ]) ??
+          0;
+
+      expect(exitCode, 0);
+      expect(capturedOptions?.platform, 'macos');
+      expect(capturedOptions?.deviceId, 'macos');
+      final decoded = jsonDecode(output.toString()) as Map<String, Object?>;
+      expect(
+        (decoded['sessionHandle'] as Map<String, Object?>)['platform'],
+        'macos',
       );
+    },
+  );
 
-    final exitCode = await runner.run(<String>[
-          'launch-remote-session',
-          '--stdout-format',
-          'json',
-          '--project-dir',
-          '/workspace/examples/cockpit_demo',
-          '--target',
-          'cockpit/main.dart',
-          '--platform',
-          'macos',
-        ]) ??
-        0;
-
-    expect(exitCode, 0);
-    expect(capturedOptions?.platform, 'macos');
-    expect(capturedOptions?.deviceId, 'macos');
-    final decoded = jsonDecode(output.toString()) as Map<String, Object?>;
-    expect(
-      (decoded['sessionHandle'] as Map<String, Object?>)['platform'],
-      'macos',
-    );
-  });
-
-  test('launch-remote-session accepts windows without a mobile device id',
-      () async {
-    CockpitRemoteSessionLaunchOptions? capturedOptions;
-    final output = StringBuffer();
-    final runner = CommandRunner<int>(
-      'flutter_cockpit_devtools',
-      'Host-side tooling for flutter_cockpit.',
-    )..addCommand(
-        LaunchRemoteSessionCommand(
-          stdoutSink: output,
-          service: CockpitLaunchRemoteSessionService(
-            entrypointResolver: CockpitEntrypointResolver(exists: (_) => true),
-            launcher: _CapturingRemoteSessionLauncher(
-              onLaunch: (options) => capturedOptions = options,
-            ),
-            statusReader: (_) async => CockpitRemoteSessionStatus(
-              sessionId: 'launch-demo-windows',
-              platform: 'windows',
-              transportType: 'remoteHttp',
-              currentRouteName: '/home',
-              capabilities: CockpitCapabilities(
-                platform: 'windows',
-                transportType: 'remoteHttp',
-                supportsInAppControl: true,
-                supportsFlutterViewCapture: true,
-                supportsNativeScreenCapture: true,
-                supportsHostAutomation: true,
-                supportedCommands: <CockpitCommandType>[
-                  CockpitCommandType.tap,
-                ],
-                supportedLocatorStrategies: CockpitLocatorKind.values,
+  test(
+    'launch-remote-session accepts windows without a mobile device id',
+    () async {
+      CockpitRemoteSessionLaunchOptions? capturedOptions;
+      final output = StringBuffer();
+      final runner =
+          CommandRunner<int>(
+            'flutter_cockpit_devtools',
+            'Host-side tooling for flutter_cockpit.',
+          )..addCommand(
+            LaunchRemoteSessionCommand(
+              stdoutSink: output,
+              service: CockpitLaunchRemoteSessionService(
+                entrypointResolver: CockpitEntrypointResolver(
+                  exists: (_) => true,
+                ),
+                launcher: _CapturingRemoteSessionLauncher(
+                  onLaunch: (options) => capturedOptions = options,
+                ),
+                statusReader: (_) async => CockpitRemoteSessionStatus(
+                  sessionId: 'launch-demo-windows',
+                  platform: 'windows',
+                  transportType: 'remoteHttp',
+                  currentRouteName: '/home',
+                  capabilities: CockpitCapabilities(
+                    platform: 'windows',
+                    transportType: 'remoteHttp',
+                    supportsInAppControl: true,
+                    supportsFlutterViewCapture: true,
+                    supportsNativeScreenCapture: true,
+                    supportsHostAutomation: true,
+                    supportedCommands: <CockpitCommandType>[
+                      CockpitCommandType.tap,
+                    ],
+                    supportedLocatorStrategies: CockpitLocatorKind.values,
+                  ),
+                  recordingCapabilities: CockpitRecordingCapabilities(
+                    supportsNativeRecording: true,
+                    preferredAcceptanceRecordingKind:
+                        CockpitRecordingKind.nativeScreen,
+                  ),
+                  snapshot: CockpitSnapshot(routeName: '/home'),
+                ),
               ),
-              recordingCapabilities: CockpitRecordingCapabilities(
-                supportsNativeRecording: true,
-                preferredAcceptanceRecordingKind:
-                    CockpitRecordingKind.nativeScreen,
-              ),
-              snapshot: CockpitSnapshot(routeName: '/home'),
             ),
-          ),
-        ),
+          );
+
+      final exitCode =
+          await runner.run(<String>[
+            'launch-remote-session',
+            '--stdout-format',
+            'json',
+            '--project-dir',
+            '/workspace/examples/cockpit_demo',
+            '--target',
+            'cockpit/main.dart',
+            '--platform',
+            'windows',
+          ]) ??
+          0;
+
+      expect(exitCode, 0);
+      expect(capturedOptions?.platform, 'windows');
+      expect(capturedOptions?.deviceId, 'windows');
+      final decoded = jsonDecode(output.toString()) as Map<String, Object?>;
+      expect(
+        (decoded['sessionHandle'] as Map<String, Object?>)['platform'],
+        'windows',
       );
+    },
+  );
 
-    final exitCode = await runner.run(<String>[
-          'launch-remote-session',
-          '--stdout-format',
-          'json',
-          '--project-dir',
-          '/workspace/examples/cockpit_demo',
-          '--target',
-          'cockpit/main.dart',
-          '--platform',
-          'windows',
-        ]) ??
-        0;
-
-    expect(exitCode, 0);
-    expect(capturedOptions?.platform, 'windows');
-    expect(capturedOptions?.deviceId, 'windows');
-    final decoded = jsonDecode(output.toString()) as Map<String, Object?>;
-    expect(
-      (decoded['sessionHandle'] as Map<String, Object?>)['platform'],
-      'windows',
-    );
-  });
-
-  test('launch-remote-session accepts linux without a mobile device id',
-      () async {
-    CockpitRemoteSessionLaunchOptions? capturedOptions;
-    final output = StringBuffer();
-    final runner = CommandRunner<int>(
-      'flutter_cockpit_devtools',
-      'Host-side tooling for flutter_cockpit.',
-    )..addCommand(
-        LaunchRemoteSessionCommand(
-          stdoutSink: output,
-          service: CockpitLaunchRemoteSessionService(
-            entrypointResolver: CockpitEntrypointResolver(exists: (_) => true),
-            launcher: _CapturingRemoteSessionLauncher(
-              onLaunch: (options) => capturedOptions = options,
-            ),
-            statusReader: (_) async => CockpitRemoteSessionStatus(
-              sessionId: 'launch-demo-linux',
-              platform: 'linux',
-              transportType: 'remoteHttp',
-              currentRouteName: '/home',
-              capabilities: CockpitCapabilities(
-                platform: 'linux',
-                transportType: 'remoteHttp',
-                supportsInAppControl: true,
-                supportsFlutterViewCapture: true,
-                supportsNativeScreenCapture: true,
-                supportsHostAutomation: true,
-                supportedCommands: <CockpitCommandType>[
-                  CockpitCommandType.tap,
-                ],
-                supportedLocatorStrategies: CockpitLocatorKind.values,
+  test(
+    'launch-remote-session accepts linux without a mobile device id',
+    () async {
+      CockpitRemoteSessionLaunchOptions? capturedOptions;
+      final output = StringBuffer();
+      final runner =
+          CommandRunner<int>(
+            'flutter_cockpit_devtools',
+            'Host-side tooling for flutter_cockpit.',
+          )..addCommand(
+            LaunchRemoteSessionCommand(
+              stdoutSink: output,
+              service: CockpitLaunchRemoteSessionService(
+                entrypointResolver: CockpitEntrypointResolver(
+                  exists: (_) => true,
+                ),
+                launcher: _CapturingRemoteSessionLauncher(
+                  onLaunch: (options) => capturedOptions = options,
+                ),
+                statusReader: (_) async => CockpitRemoteSessionStatus(
+                  sessionId: 'launch-demo-linux',
+                  platform: 'linux',
+                  transportType: 'remoteHttp',
+                  currentRouteName: '/home',
+                  capabilities: CockpitCapabilities(
+                    platform: 'linux',
+                    transportType: 'remoteHttp',
+                    supportsInAppControl: true,
+                    supportsFlutterViewCapture: true,
+                    supportsNativeScreenCapture: true,
+                    supportsHostAutomation: true,
+                    supportedCommands: <CockpitCommandType>[
+                      CockpitCommandType.tap,
+                    ],
+                    supportedLocatorStrategies: CockpitLocatorKind.values,
+                  ),
+                  recordingCapabilities: CockpitRecordingCapabilities(
+                    supportsNativeRecording: true,
+                    preferredAcceptanceRecordingKind:
+                        CockpitRecordingKind.nativeScreen,
+                  ),
+                  snapshot: CockpitSnapshot(routeName: '/home'),
+                ),
               ),
-              recordingCapabilities: CockpitRecordingCapabilities(
-                supportsNativeRecording: true,
-                preferredAcceptanceRecordingKind:
-                    CockpitRecordingKind.nativeScreen,
-              ),
-              snapshot: CockpitSnapshot(routeName: '/home'),
             ),
-          ),
-        ),
+          );
+
+      final exitCode =
+          await runner.run(<String>[
+            'launch-remote-session',
+            '--stdout-format',
+            'json',
+            '--project-dir',
+            '/workspace/examples/cockpit_demo',
+            '--target',
+            'cockpit/main.dart',
+            '--platform',
+            'linux',
+          ]) ??
+          0;
+
+      expect(exitCode, 0);
+      expect(capturedOptions?.platform, 'linux');
+      expect(capturedOptions?.deviceId, 'linux');
+      final decoded = jsonDecode(output.toString()) as Map<String, Object?>;
+      expect(
+        (decoded['sessionHandle'] as Map<String, Object?>)['platform'],
+        'linux',
       );
-
-    final exitCode = await runner.run(<String>[
-          'launch-remote-session',
-          '--stdout-format',
-          'json',
-          '--project-dir',
-          '/workspace/examples/cockpit_demo',
-          '--target',
-          'cockpit/main.dart',
-          '--platform',
-          'linux',
-        ]) ??
-        0;
-
-    expect(exitCode, 0);
-    expect(capturedOptions?.platform, 'linux');
-    expect(capturedOptions?.deviceId, 'linux');
-    final decoded = jsonDecode(output.toString()) as Map<String, Object?>;
-    expect(
-      (decoded['sessionHandle'] as Map<String, Object?>)['platform'],
-      'linux',
-    );
-  });
+    },
+  );
 }
 
 final class _FakeRemoteSessionLauncher implements CockpitRemoteSessionLauncher {

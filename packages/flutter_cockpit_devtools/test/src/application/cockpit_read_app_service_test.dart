@@ -13,86 +13,84 @@ import 'package:flutter_cockpit_devtools/src/session/cockpit_remote_session_hand
 import 'package:test/test.dart';
 
 void main() {
-  test('read app returns refreshed remote session handles for app-first reads',
-      () async {
-    Uri? capturedBaseUri;
-    final service = CockpitReadAppService(
-      appReferenceResolver: CockpitAppReferenceResolver(
-        portForwarder: CockpitAndroidPortForwarder(
-          processRunner: (_, __) async => ProcessResult(
-            0,
-            0,
-            'emulator-5554 tcp:61331 tcp:47331\n',
-            '',
+  test(
+    'read app returns refreshed remote session handles for app-first reads',
+    () async {
+      Uri? capturedBaseUri;
+      final service = CockpitReadAppService(
+        appReferenceResolver: CockpitAppReferenceResolver(
+          portForwarder: CockpitAndroidPortForwarder(
+            processRunner: (_, _) async =>
+                ProcessResult(0, 0, 'emulator-5554 tcp:61331 tcp:47331\n', ''),
+            hostPortAllocator: () async => 61331,
+            hostPortAvailabilityChecker: (_) async => false,
           ),
-          hostPortAllocator: () async => 61331,
-          hostPortAvailabilityChecker: (_) async => false,
         ),
-      ),
-      remoteStatusService: CockpitReadRemoteStatusService(
-        readStatus: (baseUri) async {
-          capturedBaseUri = baseUri;
-          return CockpitRemoteSessionStatus(
-            sessionId: 'session-android',
-            platform: 'android',
-            transportType: 'remoteHttp',
-            currentRouteName: '/home',
-            capabilities: CockpitCapabilities(
+        remoteStatusService: CockpitReadRemoteStatusService(
+          readStatus: (baseUri) async {
+            capturedBaseUri = baseUri;
+            return CockpitRemoteSessionStatus(
+              sessionId: 'session-android',
               platform: 'android',
               transportType: 'remoteHttp',
-              supportsInAppControl: true,
-              supportsFlutterViewCapture: true,
-              supportsNativeScreenCapture: true,
-              supportsHostAutomation: false,
-              supportedCommands: const <CockpitCommandType>[
-                CockpitCommandType.tap,
-              ],
-              supportedLocatorStrategies: CockpitLocatorKind.values,
-            ),
-            recordingCapabilities: CockpitRecordingCapabilities(
-              supportsNativeRecording: true,
-              preferredAcceptanceRecordingKind:
-                  CockpitRecordingKind.nativeScreen,
-            ),
-            snapshot: CockpitSnapshot(routeName: '/home'),
-          );
-        },
-      ),
-    );
+              currentRouteName: '/home',
+              capabilities: CockpitCapabilities(
+                platform: 'android',
+                transportType: 'remoteHttp',
+                supportsInAppControl: true,
+                supportsFlutterViewCapture: true,
+                supportsNativeScreenCapture: true,
+                supportsHostAutomation: false,
+                supportedCommands: const <CockpitCommandType>[
+                  CockpitCommandType.tap,
+                ],
+                supportedLocatorStrategies: CockpitLocatorKind.values,
+              ),
+              recordingCapabilities: CockpitRecordingCapabilities(
+                supportsNativeRecording: true,
+                preferredAcceptanceRecordingKind:
+                    CockpitRecordingKind.nativeScreen,
+              ),
+              snapshot: CockpitSnapshot(routeName: '/home'),
+            );
+          },
+        ),
+      );
 
-    final result = await service.read(
-      CockpitReadAppRequest(
-        app: CockpitAppHandle(
-          appId: 'android-app',
-          mode: CockpitAppMode.automation,
-          platform: 'android',
-          deviceId: 'emulator-5554',
-          projectDir: '/workspace/app',
-          target: 'cockpit/main.dart',
-          baseUrl: 'http://127.0.0.1:57331',
-          launchedAt: DateTime.utc(2026, 5, 10),
-          remoteSession: CockpitRemoteSessionHandle(
+      final result = await service.read(
+        CockpitReadAppRequest(
+          app: CockpitAppHandle(
+            appId: 'android-app',
+            mode: CockpitAppMode.automation,
             platform: 'android',
             deviceId: 'emulator-5554',
             projectDir: '/workspace/app',
             target: 'cockpit/main.dart',
-            appId: 'android-app',
-            host: '127.0.0.1',
-            hostPort: 57331,
-            devicePort: 47331,
             baseUrl: 'http://127.0.0.1:57331',
             launchedAt: DateTime.utc(2026, 5, 10),
+            remoteSession: CockpitRemoteSessionHandle(
+              platform: 'android',
+              deviceId: 'emulator-5554',
+              projectDir: '/workspace/app',
+              target: 'cockpit/main.dart',
+              appId: 'android-app',
+              host: '127.0.0.1',
+              hostPort: 57331,
+              devicePort: 47331,
+              baseUrl: 'http://127.0.0.1:57331',
+              launchedAt: DateTime.utc(2026, 5, 10),
+            ),
           ),
+          resultProfile: const CockpitInteractiveResultProfile.minimal(),
         ),
-        resultProfile: const CockpitInteractiveResultProfile.minimal(),
-      ),
-    );
+      );
 
-    expect(capturedBaseUri.toString(), 'http://127.0.0.1:61331');
-    expect(result.app?.baseUrl, 'http://127.0.0.1:61331');
-    expect(result.app?.remoteSession?.baseUrl, 'http://127.0.0.1:61331');
-    expect(result.app?.remoteSession?.devicePort, 47331);
-  });
+      expect(capturedBaseUri.toString(), 'http://127.0.0.1:61331');
+      expect(result.app?.baseUrl, 'http://127.0.0.1:61331');
+      expect(result.app?.remoteSession?.baseUrl, 'http://127.0.0.1:61331');
+      expect(result.app?.remoteSession?.devicePort, 47331);
+    },
+  );
 
   test('read app includes selected plane and recommended next step', () async {
     final app = CockpitAppHandle(
@@ -185,7 +183,7 @@ void main() {
           ),
           snapshot: CockpitSnapshot(routeName: '/debug'),
         ),
-        readSnapshot: (_, __) async => CockpitRemoteSnapshotResponse(
+        readSnapshot: (_, _) async => CockpitRemoteSnapshotResponse(
           snapshot: CockpitSnapshot(
             routeName: '/debug',
             diagnosticLevel: CockpitSnapshotProfile.forensic,
@@ -236,23 +234,23 @@ void main() {
         platformDriverRegistry: CockpitPlatformDriverRegistry(
           drivers: <String, CockpitPlatformDriverFactory>{
             'web': ({required String deviceId}) => _FakePlatformDriver(
-                  platform: 'web',
-                  capabilityProfile: CockpitCapabilityProfile(
-                    targetKind: CockpitTargetKind.browserPage,
-                    surfaceKinds: const <CockpitSurfaceKind>{
-                      CockpitSurfaceKind.browserDom,
-                    },
-                    actionCapabilities: const <CockpitActionCapability>{
-                      CockpitActionCapability.captureScreenshot,
-                      CockpitActionCapability.startRecording,
-                      CockpitActionCapability.stopRecording,
-                    },
-                    evidenceCapabilities: const <CockpitEvidenceCapability>{
-                      CockpitEvidenceCapability.domSnapshot,
-                      CockpitEvidenceCapability.screenRecording,
-                    },
-                  ),
-                ),
+              platform: 'web',
+              capabilityProfile: CockpitCapabilityProfile(
+                targetKind: CockpitTargetKind.browserPage,
+                surfaceKinds: const <CockpitSurfaceKind>{
+                  CockpitSurfaceKind.browserDom,
+                },
+                actionCapabilities: const <CockpitActionCapability>{
+                  CockpitActionCapability.captureScreenshot,
+                  CockpitActionCapability.startRecording,
+                  CockpitActionCapability.stopRecording,
+                },
+                evidenceCapabilities: const <CockpitEvidenceCapability>{
+                  CockpitEvidenceCapability.domSnapshot,
+                  CockpitEvidenceCapability.screenRecording,
+                },
+              ),
+            ),
           },
         ),
         remoteStatusService: CockpitReadRemoteStatusService(
@@ -388,21 +386,21 @@ void main() {
         platformDriverRegistry: CockpitPlatformDriverRegistry(
           drivers: <String, CockpitPlatformDriverFactory>{
             'linux': ({required String deviceId}) => _FakePlatformDriver(
-                  platform: 'linux',
-                  capabilityProfile: CockpitCapabilityProfile(
-                    targetKind: CockpitTargetKind.desktopApp,
-                    surfaceKinds: const <CockpitSurfaceKind>{
-                      CockpitSurfaceKind.desktopWindow,
-                      CockpitSurfaceKind.hostShell,
-                    },
-                    actionCapabilities: const <CockpitActionCapability>{
-                      CockpitActionCapability.captureScreenshot,
-                    },
-                    evidenceCapabilities: const <CockpitEvidenceCapability>{
-                      CockpitEvidenceCapability.windowCapture,
-                    },
-                  ),
-                ),
+              platform: 'linux',
+              capabilityProfile: CockpitCapabilityProfile(
+                targetKind: CockpitTargetKind.desktopApp,
+                surfaceKinds: const <CockpitSurfaceKind>{
+                  CockpitSurfaceKind.desktopWindow,
+                  CockpitSurfaceKind.hostShell,
+                },
+                actionCapabilities: const <CockpitActionCapability>{
+                  CockpitActionCapability.captureScreenshot,
+                },
+                evidenceCapabilities: const <CockpitEvidenceCapability>{
+                  CockpitEvidenceCapability.windowCapture,
+                },
+              ),
+            ),
           },
         ),
         remoteStatusService: CockpitReadRemoteStatusService(
@@ -469,23 +467,23 @@ void main() {
         platformDriverRegistry: CockpitPlatformDriverRegistry(
           drivers: <String, CockpitPlatformDriverFactory>{
             'web': ({required String deviceId}) => _FakePlatformDriver(
-                  platform: 'web',
-                  capabilityProfile: CockpitCapabilityProfile(
-                    targetKind: CockpitTargetKind.browserPage,
-                    surfaceKinds: const <CockpitSurfaceKind>{
-                      CockpitSurfaceKind.browserDom,
-                    },
-                    actionCapabilities: const <CockpitActionCapability>{
-                      CockpitActionCapability.captureScreenshot,
-                    },
-                    evidenceCapabilities: const <CockpitEvidenceCapability>{
-                      CockpitEvidenceCapability.domSnapshot,
-                    },
-                    qualityFlags: const <CockpitQualityFlag>{
-                      CockpitQualityFlag.requiresBrowserDriver,
-                    },
-                  ),
-                ),
+              platform: 'web',
+              capabilityProfile: CockpitCapabilityProfile(
+                targetKind: CockpitTargetKind.browserPage,
+                surfaceKinds: const <CockpitSurfaceKind>{
+                  CockpitSurfaceKind.browserDom,
+                },
+                actionCapabilities: const <CockpitActionCapability>{
+                  CockpitActionCapability.captureScreenshot,
+                },
+                evidenceCapabilities: const <CockpitEvidenceCapability>{
+                  CockpitEvidenceCapability.domSnapshot,
+                },
+                qualityFlags: const <CockpitQualityFlag>{
+                  CockpitQualityFlag.requiresBrowserDriver,
+                },
+              ),
+            ),
           },
         ),
         remoteStatusService: CockpitReadRemoteStatusService(
@@ -525,7 +523,7 @@ void main() {
               ),
             ),
           ),
-          readSnapshot: (_, __) async => CockpitRemoteSnapshotResponse(
+          readSnapshot: (_, _) async => CockpitRemoteSnapshotResponse(
             snapshot: CockpitSnapshot(
               routeName: '/inbox',
               summary: const CockpitSnapshotSummary(
@@ -553,7 +551,9 @@ void main() {
       expect(result.uiSummary?.visibleTargetCount, 0);
       expect(result.recommendedNextStep, 'recoverBrowserVisibility');
       expect(
-          result.whatMatters, contains('no visible targets were discovered'));
+        result.whatMatters,
+        contains('no visible targets were discovered'),
+      );
       expect(result.whatMatters, contains('/inbox'));
     },
   );
@@ -575,22 +575,22 @@ void main() {
         platformDriverRegistry: CockpitPlatformDriverRegistry(
           drivers: <String, CockpitPlatformDriverFactory>{
             'macos': ({required String deviceId}) => _FakePlatformDriver(
-                  platform: 'macos',
-                  capabilityProfile: CockpitCapabilityProfile(
-                    targetKind: CockpitTargetKind.desktopApp,
-                    surfaceKinds: const <CockpitSurfaceKind>{
-                      CockpitSurfaceKind.desktopWindow,
-                      CockpitSurfaceKind.hostShell,
-                    },
-                    actionCapabilities: const <CockpitActionCapability>{
-                      CockpitActionCapability.captureScreenshot,
-                      CockpitActionCapability.runShell,
-                    },
-                    evidenceCapabilities: const <CockpitEvidenceCapability>{
-                      CockpitEvidenceCapability.windowCapture,
-                    },
-                  ),
-                ),
+              platform: 'macos',
+              capabilityProfile: CockpitCapabilityProfile(
+                targetKind: CockpitTargetKind.desktopApp,
+                surfaceKinds: const <CockpitSurfaceKind>{
+                  CockpitSurfaceKind.desktopWindow,
+                  CockpitSurfaceKind.hostShell,
+                },
+                actionCapabilities: const <CockpitActionCapability>{
+                  CockpitActionCapability.captureScreenshot,
+                  CockpitActionCapability.runShell,
+                },
+                evidenceCapabilities: const <CockpitEvidenceCapability>{
+                  CockpitEvidenceCapability.windowCapture,
+                },
+              ),
+            ),
           },
         ),
         remoteStatusService: CockpitReadRemoteStatusService(

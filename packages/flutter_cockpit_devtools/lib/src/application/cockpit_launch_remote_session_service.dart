@@ -48,9 +48,9 @@ final class CockpitLaunchRemoteSessionService {
     CockpitRemoteSessionLauncher? launcher,
     CockpitRemoteSessionStatusReader? statusReader,
     CockpitEntrypointResolver? entrypointResolver,
-  })  : _launcher = launcher ?? CockpitPlatformRemoteSessionLauncher(),
-        _statusReader = statusReader ?? cockpitReadRemoteSessionStatus,
-        _entrypointResolver = entrypointResolver ?? CockpitEntrypointResolver();
+  }) : _launcher = launcher ?? CockpitPlatformRemoteSessionLauncher(),
+       _statusReader = statusReader ?? cockpitReadRemoteSessionStatus,
+       _entrypointResolver = entrypointResolver ?? CockpitEntrypointResolver();
 
   final CockpitRemoteSessionLauncher _launcher;
   final CockpitRemoteSessionStatusReader _statusReader;

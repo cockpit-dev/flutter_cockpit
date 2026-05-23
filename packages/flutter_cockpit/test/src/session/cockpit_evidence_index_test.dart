@@ -11,29 +11,35 @@ void main() {
         observedAt: DateTime.utc(2026, 3, 30, 10, 0, 0),
         artifactRefs: const <CockpitArtifactRef>[
           CockpitArtifactRef(
-              role: 'recording', relativePath: 'recordings/run.mp4'),
+            role: 'recording',
+            relativePath: 'recordings/run.mp4',
+          ),
         ],
         requestedCaptureProfile: CockpitCaptureProfile.diagnostic,
         captureRefs: const <CockpitArtifactRef>[
           CockpitArtifactRef(
-              role: 'screenshot', relativePath: 'screenshots/baseline.png'),
+            role: 'screenshot',
+            relativePath: 'screenshots/baseline.png',
+          ),
         ],
       ),
       CockpitStepRecord(
         index: 1,
         actionType: 'capture',
-        actionArgs: const <String, Object?>{
-          'recordingPurpose': 'acceptance',
-        },
+        actionArgs: const <String, Object?>{'recordingPurpose': 'acceptance'},
         observedAt: DateTime.utc(2026, 3, 30, 10, 0, 1),
         artifactRefs: const <CockpitArtifactRef>[
           CockpitArtifactRef(
-              role: 'recording', relativePath: 'recordings/run.mp4'),
+            role: 'recording',
+            relativePath: 'recordings/run.mp4',
+          ),
         ],
         requestedCaptureProfile: CockpitCaptureProfile.acceptance,
         captureRefs: const <CockpitArtifactRef>[
           CockpitArtifactRef(
-              role: 'screenshot', relativePath: 'screenshots/acceptance.png'),
+            role: 'screenshot',
+            relativePath: 'screenshots/acceptance.png',
+          ),
         ],
       ),
     ]);

@@ -1,10 +1,10 @@
 import '../../application/cockpit_read_network_service.dart';
 import '../cockpit_mcp_tool.dart';
 
-typedef CockpitReadNetworkToolFunction = Future<CockpitReadNetworkResult>
-    Function(
-  CockpitReadNetworkRequest request,
-);
+typedef CockpitReadNetworkToolFunction =
+    Future<CockpitReadNetworkResult> Function(
+      CockpitReadNetworkRequest request,
+    );
 
 final class CockpitReadNetworkTool extends CockpitMcpTool {
   CockpitReadNetworkTool({
@@ -23,13 +23,13 @@ final class CockpitReadNetworkTool extends CockpitMcpTool {
 
   @override
   CockpitMcpToolAnnotations get annotations => const CockpitMcpToolAnnotations(
-        readOnly: true,
-        destructive: false,
-        idempotent: true,
-        longRunning: false,
-        requiresSession: false,
-        producesBundleEvidence: false,
-      );
+    readOnly: true,
+    destructive: false,
+    idempotent: true,
+    longRunning: false,
+    requiresSession: false,
+    producesBundleEvidence: false,
+  );
 
   @override
   List<CockpitMcpFeatureCategory> get categories =>
@@ -40,21 +40,21 @@ final class CockpitReadNetworkTool extends CockpitMcpTool {
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
-        'type': 'object',
-        'properties': <String, Object?>{
-          'appId': <String, Object?>{'type': 'string'},
-          'appJson': <String, Object?>{'type': 'string'},
-          'baseUrl': <String, Object?>{'type': 'string'},
-          'androidDeviceId': <String, Object?>{'type': 'string'},
-          'maxEntries': <String, Object?>{'type': 'integer'},
-          'maxEndpointSummaries': <String, Object?>{'type': 'integer'},
-          'includeEntries': <String, Object?>{'type': 'boolean'},
-          'method': <String, Object?>{'type': 'string'},
-          'uriContains': <String, Object?>{'type': 'string'},
-          'statusCodeAtLeast': <String, Object?>{'type': 'integer'},
-          'onlyFailures': <String, Object?>{'type': 'boolean'},
-        },
-      };
+    'type': 'object',
+    'properties': <String, Object?>{
+      'appId': <String, Object?>{'type': 'string'},
+      'appJson': <String, Object?>{'type': 'string'},
+      'baseUrl': <String, Object?>{'type': 'string'},
+      'androidDeviceId': <String, Object?>{'type': 'string'},
+      'maxEntries': <String, Object?>{'type': 'integer'},
+      'maxEndpointSummaries': <String, Object?>{'type': 'integer'},
+      'includeEntries': <String, Object?>{'type': 'boolean'},
+      'method': <String, Object?>{'type': 'string'},
+      'uriContains': <String, Object?>{'type': 'string'},
+      'statusCodeAtLeast': <String, Object?>{'type': 'integer'},
+      'onlyFailures': <String, Object?>{'type': 'boolean'},
+    },
+  };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {
@@ -70,7 +70,8 @@ final class CockpitReadNetworkTool extends CockpitMcpTool {
           ),
           maxEntries:
               cockpitReadOptionalPositiveInt(arguments, 'maxEntries') ?? 8,
-          maxEndpointSummaries: cockpitReadOptionalPositiveInt(
+          maxEndpointSummaries:
+              cockpitReadOptionalPositiveInt(
                 arguments,
                 'maxEndpointSummaries',
               ) ??

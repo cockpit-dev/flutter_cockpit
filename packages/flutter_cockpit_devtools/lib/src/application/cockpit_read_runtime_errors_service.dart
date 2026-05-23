@@ -25,15 +25,14 @@ final class CockpitRuntimeErrorEntry {
   final String? routeName;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'source': source,
-        'message': message,
-        if (recordedAt != null)
-          'recordedAt': recordedAt!.toUtc().toIso8601String(),
-        if (sessionId != null) 'sessionId': sessionId,
-        if (bundleDir != null) 'bundleDir': bundleDir,
-        if (kind != null) 'kind': kind,
-        if (routeName != null) 'routeName': routeName,
-      };
+    'source': source,
+    'message': message,
+    if (recordedAt != null) 'recordedAt': recordedAt!.toUtc().toIso8601String(),
+    if (sessionId != null) 'sessionId': sessionId,
+    if (bundleDir != null) 'bundleDir': bundleDir,
+    if (kind != null) 'kind': kind,
+    if (routeName != null) 'routeName': routeName,
+  };
 }
 
 final class CockpitReadRuntimeErrorsRequest {
@@ -81,12 +80,12 @@ final class CockpitReadRuntimeErrorsResult {
   bool get hasErrors => errors.isNotEmpty;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        if (appId != null) 'appId': appId,
-        if (routeName != null) 'routeName': routeName,
-        if (source != null) 'source': source,
-        'hasErrors': hasErrors,
-        'errors': errors.map((error) => error.toJson()).toList(growable: false),
-      };
+    if (appId != null) 'appId': appId,
+    if (routeName != null) 'routeName': routeName,
+    if (source != null) 'source': source,
+    'hasErrors': hasErrors,
+    'errors': errors.map((error) => error.toJson()).toList(growable: false),
+  };
 }
 
 final class CockpitReadRuntimeErrorsService {
@@ -95,14 +94,16 @@ final class CockpitReadRuntimeErrorsService {
     required CockpitLatestTaskStore latestTaskStore,
     CockpitAppReferenceResolver? appReferenceResolver,
     CockpitReadRuntimeErrorsSnapshotReader? readSnapshot,
-  })  : _registry = registry,
-        _latestTaskStore = latestTaskStore,
-        _appReferenceResolver = appReferenceResolver ??
-            CockpitAppReferenceResolver(registry: registry),
-        _readSnapshot = readSnapshot ??
-            ((baseUri, options) => CockpitRemoteSessionClient(
-                  baseUri: baseUri,
-                ).readSnapshotDetailed(options: options));
+  }) : _registry = registry,
+       _latestTaskStore = latestTaskStore,
+       _appReferenceResolver =
+           appReferenceResolver ??
+           CockpitAppReferenceResolver(registry: registry),
+       _readSnapshot =
+           readSnapshot ??
+           ((baseUri, options) => CockpitRemoteSessionClient(
+             baseUri: baseUri,
+           ).readSnapshotDetailed(options: options));
 
   final CockpitSessionRegistry _registry;
   final CockpitLatestTaskStore _latestTaskStore;
@@ -133,8 +134,7 @@ final class CockpitReadRuntimeErrorsService {
           maxRuntimeEntries: request.maxErrors <= 0 ? 20 : request.maxErrors,
           runtimeQuery: const CockpitRuntimeQuery(onlyErrors: true),
         ),
-      ))
-          .snapshot;
+      )).snapshot;
       routeName = snapshot.routeName;
       final runtime = snapshot.runtime;
       if (runtime != null) {
@@ -204,20 +204,20 @@ final class CockpitReadRuntimeErrorsService {
       routeName: routeName,
       source: request.hasAppReference
           ? (request.effectiveIncludeSessions ||
-                  request.effectiveIncludeLatestTask
-              ? 'mixed'
-              : source)
+                    request.effectiveIncludeLatestTask
+                ? 'mixed'
+                : source)
           : (request.effectiveIncludeSessions ||
-                  request.effectiveIncludeLatestTask
-              ? 'aggregate'
-              : null),
+                    request.effectiveIncludeLatestTask
+                ? 'aggregate'
+                : null),
       errors: List<CockpitRuntimeErrorEntry>.unmodifiable(errors),
     );
   }
 }
 
-typedef CockpitReadRuntimeErrorsSnapshotReader
-    = Future<CockpitRemoteSnapshotResponse> Function(
-  Uri baseUri,
-  CockpitSnapshotOptions options,
-);
+typedef CockpitReadRuntimeErrorsSnapshotReader =
+    Future<CockpitRemoteSnapshotResponse> Function(
+      Uri baseUri,
+      CockpitSnapshotOptions options,
+    );

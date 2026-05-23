@@ -190,9 +190,8 @@ void main() {
 
       final client = CockpitRemoteSessionClient(
         baseUri: Uri.parse('http://127.0.0.1:${server.port}'),
-        artifactTempFileFactory: (basename) async => File(
-          '${downloadDir.path}${Platform.pathSeparator}$basename',
-        ),
+        artifactTempFileFactory: (basename) async =>
+            File('${downloadDir.path}${Platform.pathSeparator}$basename'),
       );
 
       final status = await client.readStatus();
@@ -203,9 +202,7 @@ void main() {
         CockpitCommand(
           commandId: 'tap-open',
           commandType: CockpitCommandType.tap,
-          locator: const CockpitLocator(
-            cockpitId: 'open_form_button',
-          ),
+          locator: const CockpitLocator(cockpitId: 'open_form_button'),
         ),
       );
       final recordingSession = await client.startRecording(
@@ -266,10 +263,15 @@ void main() {
       );
       expect(recordingResult.bytes, isNull);
       expect(recordingResult.sourceFilePath, isNotNull);
-      expect(
-        await File(recordingResult.sourceFilePath!).readAsBytes(),
-        <int>[8, 6, 7, 5, 3, 0, 9],
-      );
+      expect(await File(recordingResult.sourceFilePath!).readAsBytes(), <int>[
+        8,
+        6,
+        7,
+        5,
+        3,
+        0,
+        9,
+      ]);
     },
   );
 
@@ -579,9 +581,8 @@ void main() {
 
       final client = CockpitRemoteSessionClient(
         baseUri: Uri.parse('http://127.0.0.1:${server.port}/cockpit'),
-        artifactTempFileFactory: (basename) async => File(
-          '${downloadDir.path}${Platform.pathSeparator}$basename',
-        ),
+        artifactTempFileFactory: (basename) async =>
+            File('${downloadDir.path}${Platform.pathSeparator}$basename'),
       );
 
       final status = await client.readStatus();
@@ -589,8 +590,11 @@ void main() {
 
       expect(status.sessionId, 'prefixed-session');
       expect(recording.sourceFilePath, isNotNull);
-      expect(
-          await File(recording.sourceFilePath!).readAsBytes(), <int>[9, 4, 2]);
+      expect(await File(recording.sourceFilePath!).readAsBytes(), <int>[
+        9,
+        4,
+        2,
+      ]);
       expect(
         requestedPaths,
         containsAllInOrder(<String>[
@@ -642,9 +646,7 @@ void main() {
             jsonEncode(const <String, Object?>{
               'error': 'bridgeUnavailable',
               'message': 'The browser bridge is not connected.',
-              'details': <String, Object?>{
-                'connectPath': '/cockpit/connect',
-              },
+              'details': <String, Object?>{'connectPath': '/cockpit/connect'},
             }),
           );
         await request.response.close();
@@ -670,8 +672,9 @@ void main() {
                 HttpStatus.serviceUnavailable,
               )
               .having(
-                (error) => (error.details['remoteDetails']
-                    as Map<Object?, Object?>)['connectPath'],
+                (error) =>
+                    (error.details['remoteDetails']
+                        as Map<Object?, Object?>)['connectPath'],
                 'remoteDetails.connectPath',
                 '/cockpit/connect',
               ),

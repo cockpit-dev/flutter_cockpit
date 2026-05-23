@@ -26,20 +26,20 @@ final class CockpitWindowsRecordingAdapter
     Duration stopTimeout = const Duration(seconds: 10),
     Duration finalizationPollInterval = const Duration(milliseconds: 100),
     Duration activationSettleDelay = const Duration(milliseconds: 250),
-  })  : _appId = appId,
-        _processId = processId,
-        _ffmpegExecutable = ffmpegExecutable,
-        _powershellExecutable = powershellExecutable,
-        _processStarter = processStarter,
-        _processRunner = processRunner,
-        _ffprobeProcessRunner = ffprobeProcessRunner ?? processRunner,
-        _tempFileFactory = tempFileFactory,
-        _windowResolver = windowResolver,
-        _startupTimeout = startupTimeout,
-        _startupEvidenceTimeout = startupEvidenceTimeout,
-        _stopTimeout = stopTimeout,
-        _finalizationPollInterval = finalizationPollInterval,
-        _activationSettleDelay = activationSettleDelay;
+  }) : _appId = appId,
+       _processId = processId,
+       _ffmpegExecutable = ffmpegExecutable,
+       _powershellExecutable = powershellExecutable,
+       _processStarter = processStarter,
+       _processRunner = processRunner,
+       _ffprobeProcessRunner = ffprobeProcessRunner ?? processRunner,
+       _tempFileFactory = tempFileFactory,
+       _windowResolver = windowResolver,
+       _startupTimeout = startupTimeout,
+       _startupEvidenceTimeout = startupEvidenceTimeout,
+       _stopTimeout = stopTimeout,
+       _finalizationPollInterval = finalizationPollInterval,
+       _activationSettleDelay = activationSettleDelay;
 
   final String _appId;
   final int? _processId;
@@ -124,12 +124,13 @@ final class CockpitWindowsRecordingAdapter
         .transform(utf8.decoder)
         .transform(const LineSplitter())
         .listen((line) {
-      _appendRecentStderrLine(recentStderrLines, line);
-      if (!startupCompleter.isCompleted &&
-          (line.contains('Press [q] to stop') || line.contains('Output #0'))) {
-        startupCompleter.complete();
-      }
-    });
+          _appendRecentStderrLine(recentStderrLines, line);
+          if (!startupCompleter.isCompleted &&
+              (line.contains('Press [q] to stop') ||
+                  line.contains('Output #0'))) {
+            startupCompleter.complete();
+          }
+        });
 
     try {
       await Future.any<void>(<Future<void>>[

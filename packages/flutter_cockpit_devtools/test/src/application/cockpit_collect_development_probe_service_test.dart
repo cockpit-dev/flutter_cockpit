@@ -282,7 +282,7 @@ void main() {
             ],
           );
         },
-        collectScreenshot: (_, __) async => null,
+        collectScreenshot: (_, _) async => null,
       );
 
       final result = await service.collect(

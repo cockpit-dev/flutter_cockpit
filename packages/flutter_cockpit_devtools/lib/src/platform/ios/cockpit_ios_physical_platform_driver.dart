@@ -11,8 +11,8 @@ final class CockpitIosPhysicalPlatformDriver
   CockpitIosPhysicalPlatformDriver({
     required String deviceId,
     CockpitIosPhysicalRemoteSessionLauncher? launcher,
-  })  : _deviceId = deviceId,
-        _launcher = launcher ?? CockpitIosPhysicalRemoteSessionLauncher();
+  }) : _deviceId = deviceId,
+       _launcher = launcher ?? CockpitIosPhysicalRemoteSessionLauncher();
 
   final String _deviceId;
   final CockpitIosPhysicalRemoteSessionLauncher _launcher;

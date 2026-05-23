@@ -241,10 +241,12 @@ void main() {
       ),
     );
 
-    final fastMoveTicks =
-        fastDurations.where((it) => it > Duration.zero).length;
-    final preciseMoveTicks =
-        preciseDurations.where((it) => it > Duration.zero).length;
+    final fastMoveTicks = fastDurations
+        .where((it) => it > Duration.zero)
+        .length;
+    final preciseMoveTicks = preciseDurations
+        .where((it) => it > Duration.zero)
+        .length;
 
     expect(preciseMoveTicks, greaterThan(fastMoveTicks));
   });

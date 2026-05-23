@@ -74,17 +74,17 @@ final class CockpitRuntimeEvent {
   bool get isWarning => severity == CockpitRuntimeEventSeverity.warning;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'eventId': eventId,
-        'kind': kind.jsonValue,
-        'severity': severity.jsonValue,
-        'message': message,
-        'recordedAt': recordedAt.toUtc().toIso8601String(),
-        if (routeName != null) 'routeName': routeName,
-        if (source != null) 'source': source,
-        'details': details,
-        if (stackTracePreview != null) 'stackTracePreview': stackTracePreview,
-        'stackTraceTruncated': stackTraceTruncated,
-      };
+    'eventId': eventId,
+    'kind': kind.jsonValue,
+    'severity': severity.jsonValue,
+    'message': message,
+    'recordedAt': recordedAt.toUtc().toIso8601String(),
+    if (routeName != null) 'routeName': routeName,
+    if (source != null) 'source': source,
+    'details': details,
+    if (stackTracePreview != null) 'stackTracePreview': stackTracePreview,
+    'stackTraceTruncated': stackTraceTruncated,
+  };
 
   factory CockpitRuntimeEvent.fromJson(Map<String, Object?> json) {
     return CockpitRuntimeEvent(
@@ -122,15 +122,15 @@ final class CockpitRuntimeEvent {
 
   @override
   int get hashCode => Object.hash(
-        eventId,
-        kind,
-        severity,
-        message,
-        recordedAt,
-        routeName,
-        source,
-        _mapEquality.hash(details),
-        stackTracePreview,
-        stackTraceTruncated,
-      );
+    eventId,
+    kind,
+    severity,
+    message,
+    recordedAt,
+    routeName,
+    source,
+    _mapEquality.hash(details),
+    stackTracePreview,
+    stackTraceTruncated,
+  );
 }

@@ -17,8 +17,8 @@ final class CockpitLinuxDisplayConfig {
   final String captureSize;
 }
 
-typedef CockpitLinuxDisplayConfigResolver = Future<CockpitLinuxDisplayConfig>
-    Function();
+typedef CockpitLinuxDisplayConfigResolver =
+    Future<CockpitLinuxDisplayConfig> Function();
 
 final class CockpitLinuxRecordingAdapter
     implements CockpitHostRecordingAdapter {
@@ -40,22 +40,23 @@ final class CockpitLinuxRecordingAdapter
     Duration stopTimeout = const Duration(seconds: 10),
     Duration finalizationPollInterval = const Duration(milliseconds: 100),
     Duration activationSettleDelay = const Duration(milliseconds: 250),
-  })  : _appId = appId,
-        _processId = processId,
-        _ffmpegExecutable = ffmpegExecutable,
-        _windowActivatorExecutable = windowActivatorExecutable,
-        _processStarter = processStarter,
-        _processRunner = processRunner,
-        _ffprobeProcessRunner = ffprobeProcessRunner ?? processRunner,
-        _tempFileFactory = tempFileFactory,
-        _displayConfigResolver = displayConfigResolver ??
-            (() => _resolveDisplayConfig(processRunner)),
-        _windowTargetResolver = windowTargetResolver,
-        _startupTimeout = startupTimeout,
-        _startupEvidenceTimeout = startupEvidenceTimeout,
-        _stopTimeout = stopTimeout,
-        _finalizationPollInterval = finalizationPollInterval,
-        _activationSettleDelay = activationSettleDelay;
+  }) : _appId = appId,
+       _processId = processId,
+       _ffmpegExecutable = ffmpegExecutable,
+       _windowActivatorExecutable = windowActivatorExecutable,
+       _processStarter = processStarter,
+       _processRunner = processRunner,
+       _ffprobeProcessRunner = ffprobeProcessRunner ?? processRunner,
+       _tempFileFactory = tempFileFactory,
+       _displayConfigResolver =
+           displayConfigResolver ??
+           (() => _resolveDisplayConfig(processRunner)),
+       _windowTargetResolver = windowTargetResolver,
+       _startupTimeout = startupTimeout,
+       _startupEvidenceTimeout = startupEvidenceTimeout,
+       _stopTimeout = stopTimeout,
+       _finalizationPollInterval = finalizationPollInterval,
+       _activationSettleDelay = activationSettleDelay;
 
   final String _appId;
   final int? _processId;
@@ -116,10 +117,7 @@ final class CockpitLinuxRecordingAdapter
         windowTarget.windowId,
         '-video_size',
         '${windowTarget.width}x${windowTarget.height}',
-      ] else ...<String>[
-        '-video_size',
-        displayConfig.captureSize,
-      ],
+      ] else ...<String>['-video_size', displayConfig.captureSize],
       '-i',
       windowTarget == null
           ? '${displayConfig.display}+0,0'
@@ -147,12 +145,13 @@ final class CockpitLinuxRecordingAdapter
         .transform(utf8.decoder)
         .transform(const LineSplitter())
         .listen((line) {
-      _appendRecentStderrLine(recentStderrLines, line);
-      if (!startupCompleter.isCompleted &&
-          (line.contains('Press [q] to stop') || line.contains('Output #0'))) {
-        startupCompleter.complete();
-      }
-    });
+          _appendRecentStderrLine(recentStderrLines, line);
+          if (!startupCompleter.isCompleted &&
+              (line.contains('Press [q] to stop') ||
+                  line.contains('Output #0'))) {
+            startupCompleter.complete();
+          }
+        });
 
     try {
       await Future.any<void>(<Future<void>>[
@@ -440,9 +439,9 @@ final class CockpitLinuxRecordingAdapter
 
     final xrandrResult = await processRunner('xrandr', <String>[]);
     if (xrandrResult.exitCode == 0) {
-      final match = RegExp(r'([0-9]+x[0-9]+)\s+[0-9.]+\*').firstMatch(
-        '${xrandrResult.stdout}',
-      );
+      final match = RegExp(
+        r'([0-9]+x[0-9]+)\s+[0-9.]+\*',
+      ).firstMatch('${xrandrResult.stdout}');
       if (match != null) {
         return CockpitLinuxDisplayConfig(
           display: display,
@@ -452,7 +451,8 @@ final class CockpitLinuxRecordingAdapter
     }
 
     throw StateError(
-        'Unable to resolve Linux display dimensions for $display.');
+      'Unable to resolve Linux display dimensions for $display.',
+    );
   }
 
   void _appendRecentStderrLine(List<String> buffer, String line) {
@@ -467,7 +467,8 @@ final class CockpitLinuxRecordingAdapter
   }
 
   String _buildStartupFailureMessage(List<String> recentStderrLines) {
-    const prefix = 'Linux recording did not confirm startup or produce output. '
+    const prefix =
+        'Linux recording did not confirm startup or produce output. '
         'Ensure DISPLAY points at a live X11 desktop and ffmpeg can capture the screen on this host.';
     if (recentStderrLines.isEmpty) {
       return prefix;

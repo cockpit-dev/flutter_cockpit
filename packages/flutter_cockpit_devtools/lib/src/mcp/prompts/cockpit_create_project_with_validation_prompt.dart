@@ -7,20 +7,20 @@ final class CockpitCreateProjectWithValidationPrompt extends CockpitMcpPrompt {
 
   @override
   CockpitMcpPromptDefinition get definition => const CockpitMcpPromptDefinition(
-        name: 'create_project_with_validation',
-        description:
-            'Create a new Dart or Flutter project and bring it to a clean baseline.',
-        arguments: <CockpitMcpPromptArgument>[
-          CockpitMcpPromptArgument(name: 'projectType', required: true),
-          CockpitMcpPromptArgument(name: 'projectName', required: true),
-          CockpitMcpPromptArgument(name: 'targetRoot', required: true),
-        ],
-        categories: <CockpitMcpFeatureCategory>[
-          CockpitMcpFeatureCategory.workspace,
-          CockpitMcpFeatureCategory.workflowPrompts,
-          CockpitMcpFeatureCategory.projectScaffolding,
-        ],
-      );
+    name: 'create_project_with_validation',
+    description:
+        'Create a new Dart or Flutter project and bring it to a clean baseline.',
+    arguments: <CockpitMcpPromptArgument>[
+      CockpitMcpPromptArgument(name: 'projectType', required: true),
+      CockpitMcpPromptArgument(name: 'projectName', required: true),
+      CockpitMcpPromptArgument(name: 'targetRoot', required: true),
+    ],
+    categories: <CockpitMcpFeatureCategory>[
+      CockpitMcpFeatureCategory.workspace,
+      CockpitMcpFeatureCategory.workflowPrompts,
+      CockpitMcpFeatureCategory.projectScaffolding,
+    ],
+  );
 
   @override
   Future<CockpitMcpPromptResult> build(Map<String, Object?> arguments) async {

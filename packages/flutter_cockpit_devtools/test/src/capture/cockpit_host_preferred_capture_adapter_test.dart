@@ -17,8 +17,9 @@ void main() {
       server.listen((request) async {
         request.response.headers.contentType = ContentType.json;
         if (request.uri.path == '/commands/execute') {
-          final payload = jsonDecode(await utf8.decoder.bind(request).join())
-              as Map<String, Object?>;
+          final payload =
+              jsonDecode(await utf8.decoder.bind(request).join())
+                  as Map<String, Object?>;
           expect(payload['commandType'], 'waitForUiIdle');
           waitForUiIdleCount += 1;
           request.response.write(
@@ -188,96 +189,98 @@ void main() {
     );
   });
 
-  test('falls back to remote capture when host acceptance capture fails',
-      () async {
-    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-    addTearDown(() => server.close(force: true));
-    server.listen((request) async {
-      request.response.headers.contentType = ContentType.json;
-      if (request.uri.path == '/commands/execute') {
-        request.response.write(
-          jsonEncode(
-            CockpitCommandResult(
-              success: true,
-              commandId: 'wait-for-idle',
-              commandType: CockpitCommandType.waitForUiIdle,
-              durationMs: 5,
-            ).toJson(),
-          ),
-        );
-      } else {
-        request.response.statusCode = HttpStatus.notFound;
-        request.response.write('{}');
-      }
-      await request.response.close();
-    });
-
-    final remoteAdapter = _FakeCaptureAdapter(
-      execution: CockpitCommandExecution(
-        result: CockpitCommandResult(
-          success: true,
-          commandId: 'capture',
-          commandType: CockpitCommandType.captureScreenshot,
-          durationMs: 9,
-          artifacts: const <CockpitArtifactRef>[
-            CockpitArtifactRef(
-              role: 'screenshot',
-              relativePath: 'screenshots/remote_acceptance.png',
+  test(
+    'falls back to remote capture when host acceptance capture fails',
+    () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() => server.close(force: true));
+      server.listen((request) async {
+        request.response.headers.contentType = ContentType.json;
+        if (request.uri.path == '/commands/execute') {
+          request.response.write(
+            jsonEncode(
+              CockpitCommandResult(
+                success: true,
+                commandId: 'wait-for-idle',
+                commandType: CockpitCommandType.waitForUiIdle,
+                durationMs: 5,
+              ).toJson(),
             ),
-          ],
-          requestedCaptureProfile: CockpitCaptureProfile.acceptance,
-          resolvedCaptureKind: CockpitCaptureKind.flutterView,
+          );
+        } else {
+          request.response.statusCode = HttpStatus.notFound;
+          request.response.write('{}');
+        }
+        await request.response.close();
+      });
+
+      final remoteAdapter = _FakeCaptureAdapter(
+        execution: CockpitCommandExecution(
+          result: CockpitCommandResult(
+            success: true,
+            commandId: 'capture',
+            commandType: CockpitCommandType.captureScreenshot,
+            durationMs: 9,
+            artifacts: const <CockpitArtifactRef>[
+              CockpitArtifactRef(
+                role: 'screenshot',
+                relativePath: 'screenshots/remote_acceptance.png',
+              ),
+            ],
+            requestedCaptureProfile: CockpitCaptureProfile.acceptance,
+            resolvedCaptureKind: CockpitCaptureKind.flutterView,
+          ),
+          artifactSourcePaths: const <String, String>{
+            'screenshots/remote_acceptance.png': '/tmp/remote_acceptance.png',
+          },
         ),
-        artifactSourcePaths: const <String, String>{
-          'screenshots/remote_acceptance.png': '/tmp/remote_acceptance.png',
-        },
-      ),
-    );
-    final hostAdapter = _FakeCaptureAdapter(
-      execution: CockpitCommandExecution(
-        result: CockpitCommandResult(
-          success: false,
-          commandId: 'capture',
-          commandType: CockpitCommandType.captureScreenshot,
-          durationMs: 12,
-          requestedCaptureProfile: CockpitCaptureProfile.acceptance,
-          error: CockpitCommandError.captureFailed(
-            message: 'macOS screencapture failed.',
+      );
+      final hostAdapter = _FakeCaptureAdapter(
+        execution: CockpitCommandExecution(
+          result: CockpitCommandResult(
+            success: false,
+            commandId: 'capture',
+            commandType: CockpitCommandType.captureScreenshot,
+            durationMs: 12,
+            requestedCaptureProfile: CockpitCaptureProfile.acceptance,
+            error: CockpitCommandError.captureFailed(
+              message: 'macOS screencapture failed.',
+            ),
           ),
         ),
-      ),
-    );
+      );
 
-    final adapter = CockpitHostPreferredCaptureAdapter(
-      remoteAdapter: remoteAdapter,
-      hostAcceptanceAdapter: hostAdapter,
-      client: CockpitRemoteSessionClient(
-        baseUri: Uri.parse('http://127.0.0.1:${server.port}'),
-      ),
-    );
-
-    final execution = await adapter.capture(
-      CockpitCommand(
-        commandId: 'capture',
-        commandType: CockpitCommandType.captureScreenshot,
-        screenshotRequest: const CockpitScreenshotRequest(
-          reason: CockpitScreenshotReason.acceptance,
-          name: 'acceptance',
-          includeSnapshot: false,
-          attachToStep: true,
+      final adapter = CockpitHostPreferredCaptureAdapter(
+        remoteAdapter: remoteAdapter,
+        hostAcceptanceAdapter: hostAdapter,
+        client: CockpitRemoteSessionClient(
+          baseUri: Uri.parse('http://127.0.0.1:${server.port}'),
         ),
-      ),
-    );
+      );
 
-    expect(hostAdapter.captureCount, 1);
-    expect(remoteAdapter.captureCount, 1);
-    expect(
-      execution.result.artifacts.single.relativePath,
-      'screenshots/remote_acceptance.png',
-    );
-    expect(execution.result.usedCaptureFallback, isTrue);
-    expect(execution.result.degradationReason, 'hostCaptureFailed');
-  });
+      final execution = await adapter.capture(
+        CockpitCommand(
+          commandId: 'capture',
+          commandType: CockpitCommandType.captureScreenshot,
+          screenshotRequest: const CockpitScreenshotRequest(
+            reason: CockpitScreenshotReason.acceptance,
+            name: 'acceptance',
+            includeSnapshot: false,
+            attachToStep: true,
+          ),
+        ),
+      );
+
+      expect(hostAdapter.captureCount, 1);
+      expect(remoteAdapter.captureCount, 1);
+      expect(
+        execution.result.artifacts.single.relativePath,
+        'screenshots/remote_acceptance.png',
+      );
+      expect(execution.result.usedCaptureFallback, isTrue);
+      expect(execution.result.degradationReason, 'hostCaptureFailed');
+    },
+  );
 }
 
 final class _FakeCaptureAdapter implements CockpitCaptureAdapter {

@@ -17,48 +17,46 @@ void main() {
       final capturedStarts = <Map<String, Object?>>[];
 
       final launcher = CockpitDevelopmentSessionMachineLauncher(
-        machineClientStarter: ({
-          required projectDir,
-          required target,
-          required deviceId,
-          flavor,
-          flutterExecutable,
-          extraArgs = const <String>[],
-        }) async {
-          capturedStarts.add(<String, Object?>{
-            'projectDir': projectDir,
-            'target': target,
-            'deviceId': deviceId,
-            'flavor': flavor,
-            'flutterExecutable': flutterExecutable,
-            'extraArgs': extraArgs,
-          });
-          final client = CockpitFlutterRunMachineClient(
-            stdoutLines: stdoutController.stream,
-            stderrLines: stderrController.stream,
-            exitCode: exitCode.future,
-            requestWriter: (_) async {},
-          );
-          stdoutController.add(
-            '[{"event":"app.start","params":{"appId":"machine-app-1"}}]',
-          );
-          stdoutController.add(
-            '[{"event":"app.debugPort","params":{"wsUri":"ws://127.0.0.1:34567/abcd/ws"}}]',
-          );
-          return client;
-        },
+        machineClientStarter:
+            ({
+              required projectDir,
+              required target,
+              required deviceId,
+              flavor,
+              flutterExecutable,
+              extraArgs = const <String>[],
+            }) async {
+              capturedStarts.add(<String, Object?>{
+                'projectDir': projectDir,
+                'target': target,
+                'deviceId': deviceId,
+                'flavor': flavor,
+                'flutterExecutable': flutterExecutable,
+                'extraArgs': extraArgs,
+              });
+              final client = CockpitFlutterRunMachineClient(
+                stdoutLines: stdoutController.stream,
+                stderrLines: stderrController.stream,
+                exitCode: exitCode.future,
+                requestWriter: (_) async {},
+              );
+              stdoutController.add(
+                '[{"event":"app.start","params":{"appId":"machine-app-1"}}]',
+              );
+              stdoutController.add(
+                '[{"event":"app.debugPort","params":{"wsUri":"ws://127.0.0.1:34567/abcd/ws"}}]',
+              );
+              return client;
+            },
         statusReader: (_) async => _readyStatus('android'),
         portForwarder: const _RecordingPortForwarder(58331),
-        platformAppIdResolver: ({
-          required projectDir,
-          required platform,
-          flavor,
-        }) async {
-          expect(projectDir, '/workspace/examples/cockpit_demo');
-          expect(platform, 'android');
-          expect(flavor, isNull);
-          return 'dev.example.android';
-        },
+        platformAppIdResolver:
+            ({required projectDir, required platform, flavor}) async {
+              expect(projectDir, '/workspace/examples/cockpit_demo');
+              expect(platform, 'android');
+              expect(flavor, isNull);
+              return 'dev.example.android';
+            },
         now: () => DateTime.utc(2026, 4, 4, 15),
       );
 
@@ -77,15 +75,12 @@ void main() {
       );
 
       expect(capturedStarts, hasLength(1));
-      expect(
-        capturedStarts.single['extraArgs'],
-        <String>[
-          '--dart-define=FLUTTER_COCKPIT_REMOTE_ENABLED=true',
-          '--dart-define=FLUTTER_COCKPIT_REMOTE_HOST=127.0.0.1',
-          '--dart-define=FLUTTER_COCKPIT_REMOTE_PORT=47331',
-          '--dart-define=FLUTTER_COCKPIT_FLUTTER_VERSION=3.39.0',
-        ],
-      );
+      expect(capturedStarts.single['extraArgs'], <String>[
+        '--dart-define=FLUTTER_COCKPIT_REMOTE_ENABLED=true',
+        '--dart-define=FLUTTER_COCKPIT_REMOTE_HOST=127.0.0.1',
+        '--dart-define=FLUTTER_COCKPIT_REMOTE_PORT=47331',
+        '--dart-define=FLUTTER_COCKPIT_FLUTTER_VERSION=3.39.0',
+      ]);
       expect(result.remoteSessionHandle.appId, 'machine-app-1');
       expect(result.remoteSessionHandle.platformAppId, 'dev.example.android');
       expect(
@@ -114,47 +109,45 @@ void main() {
       final capturedStarts = <Map<String, Object?>>[];
 
       final launcher = CockpitDevelopmentSessionMachineLauncher(
-        machineClientStarter: ({
-          required projectDir,
-          required target,
-          required deviceId,
-          flavor,
-          flutterExecutable,
-          extraArgs = const <String>[],
-        }) async {
-          capturedStarts.add(<String, Object?>{
-            'projectDir': projectDir,
-            'target': target,
-            'deviceId': deviceId,
-            'flavor': flavor,
-            'flutterExecutable': flutterExecutable,
-            'extraArgs': extraArgs,
-          });
-          final client = CockpitFlutterRunMachineClient(
-            stdoutLines: stdoutController.stream,
-            stderrLines: stderrController.stream,
-            exitCode: exitCode.future,
-            requestWriter: (_) async {},
-          );
-          stdoutController.add(
-            '[{"event":"app.start","params":{"appId":"machine-ios-app"}}]',
-          );
-          stdoutController.add(
-            '[{"event":"app.debugPort","params":{"wsUri":"ws://127.0.0.1:35567/ios/ws"}}]',
-          );
-          return client;
-        },
+        machineClientStarter:
+            ({
+              required projectDir,
+              required target,
+              required deviceId,
+              flavor,
+              flutterExecutable,
+              extraArgs = const <String>[],
+            }) async {
+              capturedStarts.add(<String, Object?>{
+                'projectDir': projectDir,
+                'target': target,
+                'deviceId': deviceId,
+                'flavor': flavor,
+                'flutterExecutable': flutterExecutable,
+                'extraArgs': extraArgs,
+              });
+              final client = CockpitFlutterRunMachineClient(
+                stdoutLines: stdoutController.stream,
+                stderrLines: stderrController.stream,
+                exitCode: exitCode.future,
+                requestWriter: (_) async {},
+              );
+              stdoutController.add(
+                '[{"event":"app.start","params":{"appId":"machine-ios-app"}}]',
+              );
+              stdoutController.add(
+                '[{"event":"app.debugPort","params":{"wsUri":"ws://127.0.0.1:35567/ios/ws"}}]',
+              );
+              return client;
+            },
         statusReader: (_) async => _readyStatus('ios'),
-        platformAppIdResolver: ({
-          required projectDir,
-          required platform,
-          flavor,
-        }) async {
-          expect(projectDir, '/workspace/examples/cockpit_demo');
-          expect(platform, 'ios');
-          expect(flavor, isNull);
-          return 'dev.example.ios';
-        },
+        platformAppIdResolver:
+            ({required projectDir, required platform, flavor}) async {
+              expect(projectDir, '/workspace/examples/cockpit_demo');
+              expect(platform, 'ios');
+              expect(flavor, isNull);
+              return 'dev.example.ios';
+            },
         now: () => DateTime.utc(2026, 4, 4, 16),
       );
 
@@ -173,15 +166,12 @@ void main() {
       );
 
       expect(capturedStarts, hasLength(1));
-      expect(
-        capturedStarts.single['extraArgs'],
-        <String>[
-          '--dart-define=FLUTTER_COCKPIT_REMOTE_ENABLED=true',
-          '--dart-define=FLUTTER_COCKPIT_REMOTE_HOST=0.0.0.0',
-          '--dart-define=FLUTTER_COCKPIT_REMOTE_PORT=47331',
-          '--dart-define=FLUTTER_COCKPIT_FLUTTER_VERSION=3.39.0',
-        ],
-      );
+      expect(capturedStarts.single['extraArgs'], <String>[
+        '--dart-define=FLUTTER_COCKPIT_REMOTE_ENABLED=true',
+        '--dart-define=FLUTTER_COCKPIT_REMOTE_HOST=0.0.0.0',
+        '--dart-define=FLUTTER_COCKPIT_REMOTE_PORT=47331',
+        '--dart-define=FLUTTER_COCKPIT_FLUTTER_VERSION=3.39.0',
+      ]);
       expect(result.remoteSessionHandle.appId, 'machine-ios-app');
       expect(result.remoteSessionHandle.platformAppId, 'dev.example.ios');
       expect(
@@ -207,36 +197,37 @@ void main() {
       final probedBaseUris = <Uri>[];
 
       final launcher = CockpitDevelopmentSessionMachineLauncher(
-        machineClientStarter: ({
-          required projectDir,
-          required target,
-          required deviceId,
-          flavor,
-          flutterExecutable,
-          extraArgs = const <String>[],
-        }) async {
-          capturedStarts.add(<String, Object?>{
-            'projectDir': projectDir,
-            'target': target,
-            'deviceId': deviceId,
-            'flavor': flavor,
-            'flutterExecutable': flutterExecutable,
-            'extraArgs': extraArgs,
-          });
-          final client = CockpitFlutterRunMachineClient(
-            stdoutLines: stdoutController.stream,
-            stderrLines: stderrController.stream,
-            exitCode: exitCode.future,
-            requestWriter: (_) async {},
-          );
-          stdoutController.add(
-            '[{"event":"app.start","params":{"appId":"machine-web-app"}}]',
-          );
-          stdoutController.add(
-            '[{"event":"app.debugPort","params":{"wsUri":"ws://127.0.0.1:37567/web/ws"}}]',
-          );
-          return client;
-        },
+        machineClientStarter:
+            ({
+              required projectDir,
+              required target,
+              required deviceId,
+              flavor,
+              flutterExecutable,
+              extraArgs = const <String>[],
+            }) async {
+              capturedStarts.add(<String, Object?>{
+                'projectDir': projectDir,
+                'target': target,
+                'deviceId': deviceId,
+                'flavor': flavor,
+                'flutterExecutable': flutterExecutable,
+                'extraArgs': extraArgs,
+              });
+              final client = CockpitFlutterRunMachineClient(
+                stdoutLines: stdoutController.stream,
+                stderrLines: stderrController.stream,
+                exitCode: exitCode.future,
+                requestWriter: (_) async {},
+              );
+              stdoutController.add(
+                '[{"event":"app.start","params":{"appId":"machine-web-app"}}]',
+              );
+              stdoutController.add(
+                '[{"event":"app.debugPort","params":{"wsUri":"ws://127.0.0.1:37567/web/ws"}}]',
+              );
+              return client;
+            },
         statusReader: (baseUri) async {
           probedBaseUris.add(baseUri);
           return _readyStatus('web');
@@ -259,15 +250,12 @@ void main() {
       );
 
       expect(capturedStarts, hasLength(1));
-      expect(
-        capturedStarts.single['extraArgs'],
-        <String>[
-          '--dart-define=FLUTTER_COCKPIT_REMOTE_ENABLED=true',
-          '--dart-define=FLUTTER_COCKPIT_REMOTE_HOST=127.0.0.1',
-          '--dart-define=FLUTTER_COCKPIT_REMOTE_PORT=59331',
-          '--dart-define=FLUTTER_COCKPIT_FLUTTER_VERSION=3.39.0',
-        ],
-      );
+      expect(capturedStarts.single['extraArgs'], <String>[
+        '--dart-define=FLUTTER_COCKPIT_REMOTE_ENABLED=true',
+        '--dart-define=FLUTTER_COCKPIT_REMOTE_HOST=127.0.0.1',
+        '--dart-define=FLUTTER_COCKPIT_REMOTE_PORT=59331',
+        '--dart-define=FLUTTER_COCKPIT_FLUTTER_VERSION=3.39.0',
+      ]);
       expect(probedBaseUris, <Uri>[Uri.parse('http://127.0.0.1:59331')]);
       expect(result.remoteSessionHandle.host, '127.0.0.1');
       expect(result.remoteSessionHandle.baseUrl, 'http://127.0.0.1:59331');
@@ -286,36 +274,37 @@ void main() {
     final capturedStarts = <Map<String, Object?>>[];
 
     final launcher = CockpitDevelopmentSessionMachineLauncher(
-      machineClientStarter: ({
-        required projectDir,
-        required target,
-        required deviceId,
-        flavor,
-        flutterExecutable,
-        extraArgs = const <String>[],
-      }) async {
-        capturedStarts.add(<String, Object?>{
-          'projectDir': projectDir,
-          'target': target,
-          'deviceId': deviceId,
-          'flavor': flavor,
-          'flutterExecutable': flutterExecutable,
-          'extraArgs': extraArgs,
-        });
-        final client = CockpitFlutterRunMachineClient(
-          stdoutLines: stdoutController.stream,
-          stderrLines: stderrController.stream,
-          exitCode: exitCode.future,
-          requestWriter: (_) async {},
-        );
-        stdoutController.add(
-          '[{"event":"app.start","params":{"appId":"machine-flavor-app"}}]',
-        );
-        stdoutController.add(
-          '[{"event":"app.debugPort","params":{"wsUri":"ws://127.0.0.1:38567/flavor/ws"}}]',
-        );
-        return client;
-      },
+      machineClientStarter:
+          ({
+            required projectDir,
+            required target,
+            required deviceId,
+            flavor,
+            flutterExecutable,
+            extraArgs = const <String>[],
+          }) async {
+            capturedStarts.add(<String, Object?>{
+              'projectDir': projectDir,
+              'target': target,
+              'deviceId': deviceId,
+              'flavor': flavor,
+              'flutterExecutable': flutterExecutable,
+              'extraArgs': extraArgs,
+            });
+            final client = CockpitFlutterRunMachineClient(
+              stdoutLines: stdoutController.stream,
+              stderrLines: stderrController.stream,
+              exitCode: exitCode.future,
+              requestWriter: (_) async {},
+            );
+            stdoutController.add(
+              '[{"event":"app.start","params":{"appId":"machine-flavor-app"}}]',
+            );
+            stdoutController.add(
+              '[{"event":"app.debugPort","params":{"wsUri":"ws://127.0.0.1:38567/flavor/ws"}}]',
+            );
+            return client;
+          },
       statusReader: (_) async => _readyStatus('android'),
       portForwarder: const _RecordingPortForwarder(58331),
       now: () => DateTime.utc(2026, 4, 4, 17, 30),
@@ -354,36 +343,37 @@ void main() {
       final probedBaseUris = <Uri>[];
 
       final launcher = CockpitDevelopmentSessionMachineLauncher(
-        machineClientStarter: ({
-          required projectDir,
-          required target,
-          required deviceId,
-          flavor,
-          flutterExecutable,
-          extraArgs = const <String>[],
-        }) async {
-          capturedStarts.add(<String, Object?>{
-            'projectDir': projectDir,
-            'target': target,
-            'deviceId': deviceId,
-            'flavor': flavor,
-            'flutterExecutable': flutterExecutable,
-            'extraArgs': extraArgs,
-          });
-          final client = CockpitFlutterRunMachineClient(
-            stdoutLines: stdoutController.stream,
-            stderrLines: stderrController.stream,
-            exitCode: exitCode.future,
-            requestWriter: (_) async {},
-          );
-          stdoutController.add(
-            '[{"event":"app.start","params":{"appId":"machine-ios-device-app"}}]',
-          );
-          stdoutController.add(
-            '[{"event":"app.debugPort","params":{"wsUri":"ws://127.0.0.1:36567/ios-device/ws"}}]',
-          );
-          return client;
-        },
+        machineClientStarter:
+            ({
+              required projectDir,
+              required target,
+              required deviceId,
+              flavor,
+              flutterExecutable,
+              extraArgs = const <String>[],
+            }) async {
+              capturedStarts.add(<String, Object?>{
+                'projectDir': projectDir,
+                'target': target,
+                'deviceId': deviceId,
+                'flavor': flavor,
+                'flutterExecutable': flutterExecutable,
+                'extraArgs': extraArgs,
+              });
+              final client = CockpitFlutterRunMachineClient(
+                stdoutLines: stdoutController.stream,
+                stderrLines: stderrController.stream,
+                exitCode: exitCode.future,
+                requestWriter: (_) async {},
+              );
+              stdoutController.add(
+                '[{"event":"app.start","params":{"appId":"machine-ios-device-app"}}]',
+              );
+              stdoutController.add(
+                '[{"event":"app.debugPort","params":{"wsUri":"ws://127.0.0.1:36567/ios-device/ws"}}]',
+              );
+              return client;
+            },
         statusReader: (baseUri) async {
           probedBaseUris.add(baseUri);
           return _readyStatus('ios');
@@ -413,24 +403,22 @@ void main() {
       );
 
       expect(capturedStarts, hasLength(1));
-      expect(
-        capturedStarts.single['extraArgs'],
-        <String>[
-          '--dart-define=FLUTTER_COCKPIT_REMOTE_ENABLED=true',
-          '--dart-define=FLUTTER_COCKPIT_REMOTE_HOST=::',
-          '--dart-define=FLUTTER_COCKPIT_REMOTE_PORT=47331',
-          '--dart-define=FLUTTER_COCKPIT_ENABLE_HTTP_NETWORK_OBSERVER=false',
-          '--dart-define=FLUTTER_COCKPIT_ENABLE_RUNTIME_OBSERVER=false',
-          '--dart-define=FLUTTER_COCKPIT_FLUTTER_VERSION=3.39.0',
-        ],
-      );
-      expect(
-        probedBaseUris,
-        <Uri>[Uri.parse('http://[fd69:8f18:f0a9::1]:57331')],
-      );
+      expect(capturedStarts.single['extraArgs'], <String>[
+        '--dart-define=FLUTTER_COCKPIT_REMOTE_ENABLED=true',
+        '--dart-define=FLUTTER_COCKPIT_REMOTE_HOST=::',
+        '--dart-define=FLUTTER_COCKPIT_REMOTE_PORT=47331',
+        '--dart-define=FLUTTER_COCKPIT_ENABLE_HTTP_NETWORK_OBSERVER=false',
+        '--dart-define=FLUTTER_COCKPIT_ENABLE_RUNTIME_OBSERVER=false',
+        '--dart-define=FLUTTER_COCKPIT_FLUTTER_VERSION=3.39.0',
+      ]);
+      expect(probedBaseUris, <Uri>[
+        Uri.parse('http://[fd69:8f18:f0a9::1]:57331'),
+      ]);
       expect(result.remoteSessionHandle.host, 'fd69:8f18:f0a9::1');
-      expect(result.remoteSessionHandle.baseUrl,
-          'http://[fd69:8f18:f0a9::1]:57331');
+      expect(
+        result.remoteSessionHandle.baseUrl,
+        'http://[fd69:8f18:f0a9::1]:57331',
+      );
 
       await stdoutController.close();
       await stderrController.close();
@@ -447,26 +435,27 @@ void main() {
       final exitCode = Completer<int>();
 
       final launcher = CockpitDevelopmentSessionMachineLauncher(
-        machineClientStarter: ({
-          required projectDir,
-          required target,
-          required deviceId,
-          flavor,
-          flutterExecutable,
-          extraArgs = const <String>[],
-        }) async {
-          final client = CockpitFlutterRunMachineClient(
-            stdoutLines: stdoutController.stream,
-            stderrLines: stderrController.stream,
-            exitCode: exitCode.future,
-            requestWriter: (_) async {},
-          );
-          Future<void>.microtask(() {
-            stderrController.add('Lost connection to device.');
-            exitCode.complete(1);
-          });
-          return client;
-        },
+        machineClientStarter:
+            ({
+              required projectDir,
+              required target,
+              required deviceId,
+              flavor,
+              flutterExecutable,
+              extraArgs = const <String>[],
+            }) async {
+              final client = CockpitFlutterRunMachineClient(
+                stdoutLines: stdoutController.stream,
+                stderrLines: stderrController.stream,
+                exitCode: exitCode.future,
+                requestWriter: (_) async {},
+              );
+              Future<void>.microtask(() {
+                stderrController.add('Lost connection to device.');
+                exitCode.complete(1);
+              });
+              return client;
+            },
         statusReader: (_) async => throw StateError('connection refused'),
         portForwarder: const _RecordingPortForwarder(58331),
         now: () => DateTime.utc(2026, 4, 4, 19),
@@ -508,32 +497,33 @@ void main() {
       final exitCode = Completer<int>();
 
       final launcher = CockpitDevelopmentSessionMachineLauncher(
-        machineClientStarter: ({
-          required projectDir,
-          required target,
-          required deviceId,
-          flavor,
-          flutterExecutable,
-          extraArgs = const <String>[],
-        }) async {
-          final client = CockpitFlutterRunMachineClient(
-            stdoutLines: stdoutController.stream,
-            stderrLines: stderrController.stream,
-            exitCode: exitCode.future,
-            requestWriter: (_) async {},
-          );
-          Future<void>.microtask(() {
-            stderrController.add('The Dart VM Service was not discovered.');
-            exitCode.complete(1);
-          });
-          return client;
-        },
+        machineClientStarter:
+            ({
+              required projectDir,
+              required target,
+              required deviceId,
+              flavor,
+              flutterExecutable,
+              extraArgs = const <String>[],
+            }) async {
+              final client = CockpitFlutterRunMachineClient(
+                stdoutLines: stdoutController.stream,
+                stderrLines: stderrController.stream,
+                exitCode: exitCode.future,
+                requestWriter: (_) async {},
+              );
+              Future<void>.microtask(() {
+                stderrController.add('The Dart VM Service was not discovered.');
+                exitCode.complete(1);
+              });
+              return client;
+            },
         statusReader: (_) async => _readyStatus('ios'),
         iosDeviceConnectionResolver: (_) async =>
             const CockpitIosDeviceConnection(
-          isPhysical: true,
-          tunnelIpAddress: 'fd69:8f18:f0a9::1',
-        ),
+              isPhysical: true,
+              tunnelIpAddress: 'fd69:8f18:f0a9::1',
+            ),
         now: () => DateTime.utc(2026, 4, 4, 20),
       );
 
@@ -553,8 +543,11 @@ void main() {
         ),
         throwsA(
           isA<CockpitDevelopmentSessionFallbackException>()
-              .having((error) => error.code, 'code',
-                  'iosPhysicalRemoteSessionReadyButDevelopmentAttachFailed')
+              .having(
+                (error) => error.code,
+                'code',
+                'iosPhysicalRemoteSessionReadyButDevelopmentAttachFailed',
+              )
               .having(
                 (error) => error.message,
                 'message',
@@ -578,26 +571,27 @@ void main() {
       var statusReadCount = 0;
 
       final launcher = CockpitDevelopmentSessionMachineLauncher(
-        machineClientStarter: ({
-          required projectDir,
-          required target,
-          required deviceId,
-          flavor,
-          flutterExecutable,
-          extraArgs = const <String>[],
-        }) async {
-          final client = CockpitFlutterRunMachineClient(
-            stdoutLines: stdoutController.stream,
-            stderrLines: stderrController.stream,
-            exitCode: exitCode.future,
-            requestWriter: (_) async {},
-          );
-          Future<void>.microtask(() {
-            stderrController.add('The Dart VM Service was not discovered.');
-            exitCode.complete(1);
-          });
-          return client;
-        },
+        machineClientStarter:
+            ({
+              required projectDir,
+              required target,
+              required deviceId,
+              flavor,
+              flutterExecutable,
+              extraArgs = const <String>[],
+            }) async {
+              final client = CockpitFlutterRunMachineClient(
+                stdoutLines: stdoutController.stream,
+                stderrLines: stderrController.stream,
+                exitCode: exitCode.future,
+                requestWriter: (_) async {},
+              );
+              Future<void>.microtask(() {
+                stderrController.add('The Dart VM Service was not discovered.');
+                exitCode.complete(1);
+              });
+              return client;
+            },
         statusReader: (_) async {
           statusReadCount += 1;
           if (statusReadCount < 3) {
@@ -607,9 +601,9 @@ void main() {
         },
         iosDeviceConnectionResolver: (_) async =>
             const CockpitIosDeviceConnection(
-          isPhysical: true,
-          tunnelIpAddress: 'fd69:8f18:f0a9::1',
-        ),
+              isPhysical: true,
+              tunnelIpAddress: 'fd69:8f18:f0a9::1',
+            ),
         delay: (duration) async {
           now = now.add(duration);
         },
@@ -632,8 +626,11 @@ void main() {
         ),
         throwsA(
           isA<CockpitDevelopmentSessionFallbackException>()
-              .having((error) => error.code, 'code',
-                  'iosPhysicalRemoteSessionReadyButDevelopmentAttachFailed')
+              .having(
+                (error) => error.code,
+                'code',
+                'iosPhysicalRemoteSessionReadyButDevelopmentAttachFailed',
+              )
               .having(
                 (error) => error.remoteSessionHandle?.baseUrl,
                 'baseUrl',
@@ -656,38 +653,37 @@ void main() {
       final exitCode = Completer<int>();
 
       final launcher = CockpitDevelopmentSessionMachineLauncher(
-        machineClientStarter: ({
-          required projectDir,
-          required target,
-          required deviceId,
-          flavor,
-          flutterExecutable,
-          extraArgs = const <String>[],
-        }) async {
-          final client = CockpitFlutterRunMachineClient(
-            stdoutLines: stdoutController.stream,
-            stderrLines: stderrController.stream,
-            exitCode: exitCode.future,
-            requestWriter: (_) async {},
-          );
-          Future<void>.microtask(() {
-            stderrController.add('The Dart VM Service was not discovered.');
-            exitCode.complete(1);
-          });
-          return client;
-        },
+        machineClientStarter:
+            ({
+              required projectDir,
+              required target,
+              required deviceId,
+              flavor,
+              flutterExecutable,
+              extraArgs = const <String>[],
+            }) async {
+              final client = CockpitFlutterRunMachineClient(
+                stdoutLines: stdoutController.stream,
+                stderrLines: stderrController.stream,
+                exitCode: exitCode.future,
+                requestWriter: (_) async {},
+              );
+              Future<void>.microtask(() {
+                stderrController.add('The Dart VM Service was not discovered.');
+                exitCode.complete(1);
+              });
+              return client;
+            },
         statusReader: (_) async => _readyStatus('ios'),
         iosDeviceConnectionResolver: (_) async =>
             const CockpitIosDeviceConnection(
-          isPhysical: true,
-          tunnelIpAddress: 'fd69:8f18:f0a9::1',
-        ),
-        iosFallbackAppBundlePathResolver: ({
-          required projectDir,
-          flavor,
-        }) async {
-          throw StateError('missing device app bundle');
-        },
+              isPhysical: true,
+              tunnelIpAddress: 'fd69:8f18:f0a9::1',
+            ),
+        iosFallbackAppBundlePathResolver:
+            ({required projectDir, flavor}) async {
+              throw StateError('missing device app bundle');
+            },
         now: () => DateTime.utc(2026, 4, 4, 20, 45),
       );
 
@@ -734,20 +730,20 @@ void main() {
     'development machine launcher enforces the launch timeout on a hanging remote-health probe',
     () async {
       final launcher = CockpitDevelopmentSessionMachineLauncher(
-        machineClientStarter: ({
-          required projectDir,
-          required target,
-          required deviceId,
-          flavor,
-          flutterExecutable,
-          extraArgs = const <String>[],
-        }) async =>
-            CockpitFlutterRunMachineClient(
-          stdoutLines: const Stream<String>.empty(),
-          stderrLines: const Stream<String>.empty(),
-          exitCode: Completer<int>().future,
-          requestWriter: (_) async {},
-        ),
+        machineClientStarter:
+            ({
+              required projectDir,
+              required target,
+              required deviceId,
+              flavor,
+              flutterExecutable,
+              extraArgs = const <String>[],
+            }) async => CockpitFlutterRunMachineClient(
+              stdoutLines: const Stream<String>.empty(),
+              stderrLines: const Stream<String>.empty(),
+              exitCode: Completer<int>().future,
+              requestWriter: (_) async {},
+            ),
         statusReader: (_) => Completer<CockpitRemoteSessionStatus>().future,
         portForwarder: const _RecordingPortForwarder(58331),
       );
@@ -782,20 +778,20 @@ void main() {
     'development machine launcher caps remote-health retry delays to the remaining deadline',
     () async {
       final launcher = CockpitDevelopmentSessionMachineLauncher(
-        machineClientStarter: ({
-          required projectDir,
-          required target,
-          required deviceId,
-          flavor,
-          flutterExecutable,
-          extraArgs = const <String>[],
-        }) async =>
-            CockpitFlutterRunMachineClient(
-          stdoutLines: const Stream<String>.empty(),
-          stderrLines: const Stream<String>.empty(),
-          exitCode: Completer<int>().future,
-          requestWriter: (_) async {},
-        ),
+        machineClientStarter:
+            ({
+              required projectDir,
+              required target,
+              required deviceId,
+              flavor,
+              flutterExecutable,
+              extraArgs = const <String>[],
+            }) async => CockpitFlutterRunMachineClient(
+              stdoutLines: const Stream<String>.empty(),
+              stderrLines: const Stream<String>.empty(),
+              exitCode: Completer<int>().future,
+              requestWriter: (_) async {},
+            ),
         statusReader: (_) async => throw StateError('still booting'),
         portForwarder: const _RecordingPortForwarder(58331),
       );

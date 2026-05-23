@@ -33,8 +33,9 @@ final class EditorialSection extends StatelessWidget {
       decoration: BoxDecoration(
         color: backgroundColor,
         border: Border(
-          top:
-              showTopBorder ? BorderSide(color: dividerColor) : BorderSide.none,
+          top: showTopBorder
+              ? BorderSide(color: dividerColor)
+              : BorderSide.none,
           bottom: showBottomBorder
               ? BorderSide(color: dividerColor)
               : BorderSide.none,

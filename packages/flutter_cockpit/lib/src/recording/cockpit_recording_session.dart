@@ -18,9 +18,9 @@ final class CockpitRecordingSession {
   }
 
   Map<String, Object?> toJson() => {
-        'request': request.toJson(),
-        'state': state.name,
-      };
+    'request': request.toJson(),
+    'state': state.name,
+  };
 
   factory CockpitRecordingSession.fromJson(Map<String, Object?> json) {
     return CockpitRecordingSession(

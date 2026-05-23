@@ -1,10 +1,10 @@
 import '../../application/cockpit_read_session_logs_service.dart';
 import '../cockpit_mcp_tool.dart';
 
-typedef CockpitReadSessionLogsToolFunction
-    = Future<CockpitReadSessionLogsResult> Function(
-  CockpitReadSessionLogsRequest request,
-);
+typedef CockpitReadSessionLogsToolFunction =
+    Future<CockpitReadSessionLogsResult> Function(
+      CockpitReadSessionLogsRequest request,
+    );
 
 final class CockpitReadSessionLogsTool extends CockpitMcpTool {
   CockpitReadSessionLogsTool({
@@ -23,13 +23,13 @@ final class CockpitReadSessionLogsTool extends CockpitMcpTool {
 
   @override
   CockpitMcpToolAnnotations get annotations => const CockpitMcpToolAnnotations(
-        readOnly: true,
-        destructive: false,
-        idempotent: true,
-        longRunning: false,
-        requiresSession: true,
-        producesBundleEvidence: false,
-      );
+    readOnly: true,
+    destructive: false,
+    idempotent: true,
+    longRunning: false,
+    requiresSession: true,
+    producesBundleEvidence: false,
+  );
 
   @override
   List<CockpitMcpFeatureCategory> get categories =>
@@ -41,13 +41,13 @@ final class CockpitReadSessionLogsTool extends CockpitMcpTool {
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
-        'type': 'object',
-        'required': <String>['developmentSessionId'],
-        'properties': <String, Object?>{
-          'developmentSessionId': <String, Object?>{'type': 'string'},
-          'maxLines': <String, Object?>{'type': 'integer'},
-        },
-      };
+    'type': 'object',
+    'required': <String>['developmentSessionId'],
+    'properties': <String, Object?>{
+      'developmentSessionId': <String, Object?>{'type': 'string'},
+      'maxLines': <String, Object?>{'type': 'integer'},
+    },
+  };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {

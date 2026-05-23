@@ -8,24 +8,22 @@ import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
-typedef CockpitReloadDevelopmentSessionFunction
-    = Future<CockpitReloadDevelopmentSessionResult> Function(
-  CockpitReloadDevelopmentSessionRequest request,
-);
+typedef CockpitReloadDevelopmentSessionFunction =
+    Future<CockpitReloadDevelopmentSessionResult> Function(
+      CockpitReloadDevelopmentSessionRequest request,
+    );
 
 final class ReloadDevelopmentSessionCommand extends CockpitCliCommand {
   ReloadDevelopmentSessionCommand({
     CockpitReloadDevelopmentSessionService? service,
     CockpitReloadDevelopmentSessionFunction? reload,
     StringSink? stdoutSink,
-  })  : _reload = reload ??
-            (service ?? CockpitReloadDevelopmentSessionService()).reload,
-        _stdoutSink = stdoutSink ?? stdout {
+  }) : _reload =
+           reload ??
+           (service ?? CockpitReloadDevelopmentSessionService()).reload,
+       _stdoutSink = stdoutSink ?? stdout {
     argParser
-      ..addOption(
-        'session-json',
-        help: cockpitDevelopmentSessionJsonOptionHelp,
-      )
+      ..addOption('session-json', help: cockpitDevelopmentSessionJsonOptionHelp)
       ..addOption(
         'mode',
         allowed: CockpitDevelopmentReloadMode.values

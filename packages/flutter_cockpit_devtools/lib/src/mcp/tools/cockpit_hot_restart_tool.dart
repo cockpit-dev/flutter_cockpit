@@ -1,10 +1,8 @@
 import '../../application/cockpit_hot_restart_service.dart';
 import '../cockpit_mcp_tool.dart';
 
-typedef CockpitHotRestartToolFunction = Future<CockpitHotRestartResult>
-    Function(
-  CockpitHotRestartRequest request,
-);
+typedef CockpitHotRestartToolFunction =
+    Future<CockpitHotRestartResult> Function(CockpitHotRestartRequest request);
 
 final class CockpitHotRestartTool extends CockpitMcpTool {
   CockpitHotRestartTool({
@@ -23,12 +21,12 @@ final class CockpitHotRestartTool extends CockpitMcpTool {
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
-        'type': 'object',
-        'properties': <String, Object?>{
-          'appId': <String, Object?>{'type': 'string'},
-          'appJson': <String, Object?>{'type': 'string'},
-        },
-      };
+    'type': 'object',
+    'properties': <String, Object?>{
+      'appId': <String, Object?>{'type': 'string'},
+      'appJson': <String, Object?>{'type': 'string'},
+    },
+  };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {

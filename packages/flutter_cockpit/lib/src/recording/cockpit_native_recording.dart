@@ -12,7 +12,7 @@ import 'cockpit_recording_state.dart';
 
 class CockpitNativeRecording {
   const CockpitNativeRecording({MethodChannel? channel})
-      : _channel = channel ?? const MethodChannel(_channelName);
+    : _channel = channel ?? const MethodChannel(_channelName);
 
   static const String _channelName = 'dev.cockpit.flutter_cockpit/recording';
 
@@ -36,14 +36,14 @@ class CockpitNativeRecording {
   }) async {
     final payload = await _channel
         .invokeMethod<Object?>('startRecording', <String, Object?>{
-      'purpose': request.purpose.name,
-      'name': request.name,
-      'mode': request.mode.jsonValue,
-      'layer': request.layer?.jsonValue,
-      'allowFallback': request.allowFallback,
-      'attachToStep': request.attachToStep,
-      'relativePath': cockpitRecordingRelativePathFor(request),
-    });
+          'purpose': request.purpose.name,
+          'name': request.name,
+          'mode': request.mode.jsonValue,
+          'layer': request.layer?.jsonValue,
+          'allowFallback': request.allowFallback,
+          'attachToStep': request.attachToStep,
+          'relativePath': cockpitRecordingRelativePathFor(request),
+        });
     if (payload is! Map<Object?, Object?>) {
       throw StateError('Start recording returned an invalid payload.');
     }
@@ -57,12 +57,12 @@ class CockpitNativeRecording {
   Future<CockpitRecordingResult> stopRecording({
     required CockpitRecordingSession session,
   }) async {
-    final payload =
-        await _channel.invokeMethod<Object?>('stopRecording', <String, Object?>{
-      'purpose': session.request.purpose.name,
-      'name': session.request.name,
-      'relativePath': cockpitRecordingRelativePathFor(session.request),
-    });
+    final payload = await _channel
+        .invokeMethod<Object?>('stopRecording', <String, Object?>{
+          'purpose': session.request.purpose.name,
+          'name': session.request.name,
+          'relativePath': cockpitRecordingRelativePathFor(session.request),
+        });
     if (payload is! Map<Object?, Object?>) {
       throw StateError('Stop recording returned an invalid payload.');
     }

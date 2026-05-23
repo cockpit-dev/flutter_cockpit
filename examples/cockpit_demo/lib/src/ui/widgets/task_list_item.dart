@@ -53,8 +53,8 @@ final class TaskListItem extends StatelessWidget {
         color: isSelected
             ? colorScheme.secondaryContainer.withAlphaFraction(0.42)
             : isHighlighted
-                ? colorScheme.primaryContainer.withAlphaFraction(0.48)
-                : Colors.transparent,
+            ? colorScheme.primaryContainer.withAlphaFraction(0.48)
+            : Colors.transparent,
         border: Border(
           top: BorderSide(
             color: colorScheme.outlineVariant.withAlphaFraction(0.86),
@@ -160,8 +160,8 @@ final class TaskListItem extends StatelessWidget {
                               task.notes.isNotEmpty
                                   ? task.notes
                                   : task.isCompleted
-                                      ? 'Finished and ready to archive.'
-                                      : 'Open for notes, due date, and next actions.',
+                                  ? 'Finished and ready to archive.'
+                                  : 'Open for notes, due date, and next actions.',
                               maxLines: compactMode ? 1 : 2,
                               overflow: TextOverflow.ellipsis,
                               style: subtitleStyle,
@@ -173,9 +173,7 @@ final class TaskListItem extends StatelessWidget {
                                 runSpacing: 8,
                                 children: task.tags
                                     .map(
-                                      (tag) => _TaskTagBadge(
-                                        label: tag.name,
-                                      ),
+                                      (tag) => _TaskTagBadge(label: tag.name),
                                     )
                                     .toList(growable: false),
                               ),

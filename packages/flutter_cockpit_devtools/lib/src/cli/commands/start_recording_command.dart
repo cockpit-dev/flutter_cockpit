@@ -8,18 +8,18 @@ import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
-typedef CockpitStartRecordingFunction = Future<CockpitStartRecordingResult>
-    Function(
-  CockpitStartRecordingRequest request,
-);
+typedef CockpitStartRecordingFunction =
+    Future<CockpitStartRecordingResult> Function(
+      CockpitStartRecordingRequest request,
+    );
 
 final class StartRecordingCommand extends CockpitCliCommand {
   StartRecordingCommand({
     CockpitStartRecordingService? service,
     CockpitStartRecordingFunction? start,
     StringSink? stdoutSink,
-  })  : _start = start ?? (service ?? CockpitStartRecordingService()).start,
-        _stdoutSink = stdoutSink ?? stdout {
+  }) : _start = start ?? (service ?? CockpitStartRecordingService()).start,
+       _stdoutSink = stdoutSink ?? stdout {
     cockpitAddAppArgs(argParser);
     argParser.addOption(
       'ios-device-id',

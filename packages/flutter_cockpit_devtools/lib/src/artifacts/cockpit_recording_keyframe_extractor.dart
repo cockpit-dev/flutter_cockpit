@@ -5,8 +5,8 @@ import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 
-typedef CockpitRecordingKeyframeProcessRunner = Future<ProcessResult> Function(
-    String executable, List<String> arguments);
+typedef CockpitRecordingKeyframeProcessRunner =
+    Future<ProcessResult> Function(String executable, List<String> arguments);
 
 enum CockpitRecordingKeyframeSource {
   stepCapture,
@@ -34,12 +34,12 @@ final class CockpitRecordingKeyframe {
   final String? linkedScreenshotRef;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'ref': relativePath,
-        'label': label,
-        'offsetMs': offsetMs,
-        'source': source.name,
-        'linkedScreenshotRef': linkedScreenshotRef,
-      };
+    'ref': relativePath,
+    'label': label,
+    'offsetMs': offsetMs,
+    'source': source.name,
+    'linkedScreenshotRef': linkedScreenshotRef,
+  };
 
   factory CockpitRecordingKeyframe.fromJson(Map<String, Object?> json) {
     return CockpitRecordingKeyframe(
@@ -69,12 +69,12 @@ final class CockpitRecordingCoverage {
       durationMs > 0 && hasEarlyCoverage && hasMidCoverage && hasLateCoverage;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'durationMs': durationMs,
-        'hasEarlyCoverage': hasEarlyCoverage,
-        'hasMidCoverage': hasMidCoverage,
-        'hasLateCoverage': hasLateCoverage,
-        'isReady': isReady,
-      };
+    'durationMs': durationMs,
+    'hasEarlyCoverage': hasEarlyCoverage,
+    'hasMidCoverage': hasMidCoverage,
+    'hasLateCoverage': hasLateCoverage,
+    'isReady': isReady,
+  };
 
   factory CockpitRecordingCoverage.fromJson(Map<String, Object?> json) {
     return CockpitRecordingCoverage(
@@ -115,9 +115,9 @@ final class DefaultCockpitRecordingKeyframeExtractor
     String ffprobeExecutable = 'ffprobe',
     String ffmpegExecutable = 'ffmpeg',
     CockpitRecordingKeyframeProcessRunner processRunner = Process.run,
-  })  : _ffprobeExecutable = ffprobeExecutable,
-        _ffmpegExecutable = ffmpegExecutable,
-        _processRunner = processRunner;
+  }) : _ffprobeExecutable = ffprobeExecutable,
+       _ffmpegExecutable = ffmpegExecutable,
+       _processRunner = processRunner;
 
   final String _ffprobeExecutable;
   final String _ffmpegExecutable;
@@ -175,7 +175,8 @@ final class DefaultCockpitRecordingKeyframeExtractor
     );
     try {
       for (final planned in plan) {
-        final shouldMatchAcceptanceImage = acceptanceImage != null &&
+        final shouldMatchAcceptanceImage =
+            acceptanceImage != null &&
             (planned.label == 'acceptance' ||
                 planned.source ==
                     CockpitRecordingKeyframeSource.tailConsistency);
@@ -329,17 +330,17 @@ final class DefaultCockpitRecordingKeyframeExtractor
       '-y',
       ...switch (planned.source) {
         CockpitRecordingKeyframeSource.tailConsistency => <String>[
-            '-sseof',
-            '-${_tailSeekSeconds(durationMs, planned.offsetMs)}',
-            '-i',
-            recordingPath,
-          ],
+          '-sseof',
+          '-${_tailSeekSeconds(durationMs, planned.offsetMs)}',
+          '-i',
+          recordingPath,
+        ],
         _ => <String>[
-            '-ss',
-            (planned.offsetMs / 1000).toStringAsFixed(3),
-            '-i',
-            recordingPath,
-          ],
+          '-ss',
+          (planned.offsetMs / 1000).toStringAsFixed(3),
+          '-i',
+          recordingPath,
+        ],
       },
       '-frames:v',
       '1',
@@ -358,7 +359,8 @@ final class DefaultCockpitRecordingKeyframeExtractor
     final seenOffsets = <int>{};
     final isSyntheticCoverage =
         planned.source == CockpitRecordingKeyframeSource.syntheticCoverage;
-    final isLateSensitive = planned.label == 'acceptance' ||
+    final isLateSensitive =
+        planned.label == 'acceptance' ||
         planned.label == 'tail_consistency' ||
         planned.offsetMs >= durationMs - 650;
 
@@ -501,14 +503,17 @@ final class DefaultCockpitRecordingKeyframeExtractor
     final earlyWindowEnd = _earlyCoverageWindowMs(durationMs);
 
     if (recordingStartTime != null) {
-      final screenshotSteps = steps.where((step) {
-        return step.captureRefs.any(
-          (artifact) => artifact.role == 'screenshot',
-        );
-      }).toList(growable: false)
-        ..sort(
-          (left, right) => left.observedAt.compareTo(right.observedAt),
-        );
+      final screenshotSteps =
+          steps
+              .where((step) {
+                return step.captureRefs.any(
+                  (artifact) => artifact.role == 'screenshot',
+                );
+              })
+              .toList(growable: false)
+            ..sort(
+              (left, right) => left.observedAt.compareTo(right.observedAt),
+            );
 
       for (var index = 0; index < screenshotSteps.length; index++) {
         final step = screenshotSteps[index];
@@ -522,8 +527,7 @@ final class DefaultCockpitRecordingKeyframeExtractor
             .lastOrNull;
         final label = switch (step.requestedCaptureProfile) {
           CockpitCaptureProfile.acceptance ||
-          CockpitCaptureProfile.nativePreferred =>
-            'acceptance',
+          CockpitCaptureProfile.nativePreferred => 'acceptance',
           _ when index == 0 && offsetMs <= earlyWindowEnd => 'baseline',
           _ => 'step_capture_${step.index.toString().padLeft(3, '0')}',
         };
@@ -607,7 +611,7 @@ final class DefaultCockpitRecordingKeyframeExtractor
       final existing = deduped[existingIndex];
       final shouldReplace =
           existing.source != CockpitRecordingKeyframeSource.stepCapture &&
-              candidate.source == CockpitRecordingKeyframeSource.stepCapture;
+          candidate.source == CockpitRecordingKeyframeSource.stepCapture;
       if (shouldReplace) {
         deduped[existingIndex] = candidate;
       }
@@ -643,7 +647,8 @@ final class DefaultCockpitRecordingKeyframeExtractor
     final needsMidCoverage = durationMs >= 3000;
     final midStart = (durationMs * 0.30).round();
     final midEnd = (durationMs * 0.70).round();
-    final midCoverage = !needsMidCoverage ||
+    final midCoverage =
+        !needsMidCoverage ||
         keyframes.any(
           (keyframe) =>
               keyframe.offsetMs >= midStart && keyframe.offsetMs <= midEnd,
@@ -718,13 +723,13 @@ final class DefaultCockpitRecordingKeyframeExtractor
     final cropWidth = (image.width * 0.82).round().clamp(1, image.width);
     final cropHeight = (image.height * 0.72).round().clamp(1, image.height);
     final cropX = ((image.width - cropWidth) / 2).round().clamp(
-          0,
-          image.width - cropWidth,
-        );
+      0,
+      image.width - cropWidth,
+    );
     final cropY = ((image.height - cropHeight) / 2).round().clamp(
-          0,
-          image.height - cropHeight,
-        );
+      0,
+      image.height - cropHeight,
+    );
     final cropped = img.copyCrop(
       image,
       x: cropX,

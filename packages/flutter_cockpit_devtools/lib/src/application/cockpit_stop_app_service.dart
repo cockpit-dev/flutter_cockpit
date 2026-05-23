@@ -12,13 +12,12 @@ import 'cockpit_platform_app_stopper.dart';
 import 'cockpit_session_registry.dart';
 import 'cockpit_stop_development_session_service.dart';
 
-typedef CockpitStopDevelopmentAppFunction
-    = Future<CockpitStopDevelopmentSessionResult> Function(
-  CockpitStopDevelopmentSessionRequest request,
-);
-typedef CockpitStopAutomationAppFunction = Future<void> Function(
-  CockpitAppHandle app,
-);
+typedef CockpitStopDevelopmentAppFunction =
+    Future<CockpitStopDevelopmentSessionResult> Function(
+      CockpitStopDevelopmentSessionRequest request,
+    );
+typedef CockpitStopAutomationAppFunction =
+    Future<void> Function(CockpitAppHandle app);
 typedef CockpitAppReachabilityProbe = Future<bool> Function(Uri baseUri);
 
 Future<bool> cockpitProbeAppReachability(Uri baseUri) async {
@@ -28,8 +27,9 @@ Future<bool> cockpitProbeAppReachability(Uri baseUri) async {
       final request = await client
           .getUrl(baseUri.resolve('/status'))
           .timeout(const Duration(seconds: 2));
-      final response =
-          await request.close().timeout(const Duration(seconds: 2));
+      final response = await request.close().timeout(
+        const Duration(seconds: 2),
+      );
       await response.drain<void>();
       return response.statusCode >= 200 && response.statusCode < 500;
     } finally {
@@ -41,11 +41,7 @@ Future<bool> cockpitProbeAppReachability(Uri baseUri) async {
 }
 
 final class CockpitStopAppRequest {
-  const CockpitStopAppRequest({
-    this.appId,
-    this.app,
-    this.appHandlePath,
-  });
+  const CockpitStopAppRequest({this.appId, this.app, this.appHandlePath});
 
   final String? appId;
   final CockpitAppHandle? app;
@@ -64,10 +60,10 @@ final class CockpitStopAppResult {
   final String? appJsonPath;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'app': app.toJson(),
-        'status': status.toJson(),
-        if (appJsonPath != null) 'appJsonPath': appJsonPath,
-      };
+    'app': app.toJson(),
+    'status': status.toJson(),
+    if (appJsonPath != null) 'appJsonPath': appJsonPath,
+  };
 }
 
 final class CockpitAppStopStatus {
@@ -86,12 +82,12 @@ final class CockpitAppStopStatus {
   final String? lastError;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'mode': mode.jsonValue,
-        'state': state,
-        'appReachable': appReachable,
-        'remoteSessionReachable': remoteSessionReachable,
-        if (lastError != null) 'lastError': lastError,
-      };
+    'mode': mode.jsonValue,
+    'state': state,
+    'appReachable': appReachable,
+    'remoteSessionReachable': remoteSessionReachable,
+    if (lastError != null) 'lastError': lastError,
+  };
 
   factory CockpitAppStopStatus.fromDevelopmentStatus(
     CockpitDevelopmentSessionStatus status,
@@ -128,14 +124,16 @@ final class CockpitStopAppService {
     CockpitStopDevelopmentAppFunction? stopDevelopment,
     CockpitStopAutomationAppFunction? stopAutomation,
     CockpitAppReachabilityProbe? probeReachability,
-  })  : _stopDevelopment =
-            stopDevelopment ?? _defaultStopDevelopment(stopService),
-        _stopAutomation = stopAutomation ??
-            (automationStopper ?? CockpitPlatformAppStopper()).stop,
-        _appReferenceResolver = appReferenceResolver ??
-            CockpitAppReferenceResolver(registry: registry),
-        _registry = registry,
-        _probeReachability = probeReachability ?? cockpitProbeAppReachability;
+  }) : _stopDevelopment =
+           stopDevelopment ?? _defaultStopDevelopment(stopService),
+       _stopAutomation =
+           stopAutomation ??
+           (automationStopper ?? CockpitPlatformAppStopper()).stop,
+       _appReferenceResolver =
+           appReferenceResolver ??
+           CockpitAppReferenceResolver(registry: registry),
+       _registry = registry,
+       _probeReachability = probeReachability ?? cockpitProbeAppReachability;
 
   final CockpitStopDevelopmentAppFunction _stopDevelopment;
   final CockpitStopAutomationAppFunction _stopAutomation;
@@ -160,7 +158,8 @@ final class CockpitStopAppService {
       );
       final app = CockpitAppHandle.fromDevelopmentSession(
         stopped.sessionHandle,
-        supervisorLogPath: resolved.app?.supervisorLogPath ??
+        supervisorLogPath:
+            resolved.app?.supervisorLogPath ??
             resolved.developmentRecord?.supervisorLogPath,
       );
       final appJsonPath = await _persistAppIfRequested(
@@ -174,11 +173,13 @@ final class CockpitStopAppService {
       );
     }
 
-    final automationApp = resolved.app ??
+    final automationApp =
+        resolved.app ??
         (resolved.remoteRecord == null
             ? null
             : CockpitAppHandle.fromRemoteSession(
-                resolved.remoteRecord!.handle));
+                resolved.remoteRecord!.handle,
+              ));
     if (automationApp == null) {
       throw const CockpitApplicationServiceException(
         code: 'stopAppUnavailable',
@@ -215,7 +216,8 @@ final class CockpitStopAppService {
     }
     throw CockpitApplicationServiceException(
       code: 'missingPlatformAppId',
-      message: 'stop-app requires a resolved iOS bundle identifier for '
+      message:
+          'stop-app requires a resolved iOS bundle identifier for '
           'physical-device automation sessions.',
       details: <String, Object?>{
         'platform': app.platform,

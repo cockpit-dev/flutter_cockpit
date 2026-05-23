@@ -16,8 +16,9 @@ void main() {
 
     await executor.execute(
       CockpitCommand(
-          commandId: 'cmd-assert-text',
-          commandType: CockpitCommandType.assertText),
+        commandId: 'cmd-assert-text',
+        commandType: CockpitCommandType.assertText,
+      ),
       Stopwatch()..start(),
     );
 

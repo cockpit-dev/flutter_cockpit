@@ -118,15 +118,16 @@ final class TodoRepository implements TodoRepositoryClient {
 
     final existing = await (_database.select(
       _database.tags,
-    )..where((table) => table.name.equals(normalizedName)))
-        .getSingleOrNull();
+    )..where((table) => table.name.equals(normalizedName))).getSingleOrNull();
     if (existing != null) {
       return _mapTag(existing);
     }
 
     final createdAt = DateTime.now().toUtc();
     final tagId = 'tag-${createdAt.microsecondsSinceEpoch}';
-    await _database.into(_database.tags).insert(
+    await _database
+        .into(_database.tags)
+        .insert(
           TagsCompanion.insert(
             id: tagId,
             name: normalizedName,
@@ -142,8 +143,7 @@ final class TodoRepository implements TodoRepositoryClient {
   Future<List<TodoTag>> fetchTags() async {
     final rows = await (_database.select(
       _database.tags,
-    )..orderBy([(table) => OrderingTerm.asc(table.name)]))
-        .get();
+    )..orderBy([(table) => OrderingTerm.asc(table.name)])).get();
     return rows.map(_mapTag).toList(growable: false);
   }
 
@@ -167,7 +167,9 @@ final class TodoRepository implements TodoRepositoryClient {
     final now = DateTime.now().toUtc();
     final displayOrder = await _nextDisplayOrder();
     final taskId = 'task-${now.microsecondsSinceEpoch}';
-    await _database.into(_database.tasks).insert(
+    await _database
+        .into(_database.tasks)
+        .insert(
           TasksCompanion.insert(
             id: taskId,
             title: normalizedTitle,
@@ -205,8 +207,7 @@ final class TodoRepository implements TodoRepositoryClient {
     final now = DateTime.now().toUtc();
     await (_database.update(
       _database.tasks,
-    )..where((table) => table.id.equals(taskId)))
-        .write(
+    )..where((table) => table.id.equals(taskId))).write(
       TasksCompanion(
         title: Value(normalizedTitle),
         notes: Value(notes.trim()),
@@ -226,7 +227,9 @@ final class TodoRepository implements TodoRepositoryClient {
     required bool isCompleted,
   }) async {
     await setTasksCompleted(
-        taskIds: <String>[taskId], isCompleted: isCompleted);
+      taskIds: <String>[taskId],
+      isCompleted: isCompleted,
+    );
     return (await getTask(taskId))!;
   }
 
@@ -242,8 +245,7 @@ final class TodoRepository implements TodoRepositoryClient {
     final now = DateTime.now().toUtc();
     await (_database.update(
       _database.tasks,
-    )..where((table) => table.id.isIn(normalizedIds)))
-        .write(
+    )..where((table) => table.id.isIn(normalizedIds))).write(
       TasksCompanion(
         isCompleted: Value(isCompleted),
         completedAtEpochMs: Value(
@@ -268,8 +270,7 @@ final class TodoRepository implements TodoRepositoryClient {
     final now = DateTime.now().toUtc();
     await (_database.update(
       _database.tasks,
-    )..where((table) => table.id.isIn(normalizedIds)))
-        .write(
+    )..where((table) => table.id.isIn(normalizedIds))).write(
       TasksCompanion(
         deletedAtEpochMs: Value(now.millisecondsSinceEpoch),
         updatedAtEpochMs: Value(now.millisecondsSinceEpoch),
@@ -293,8 +294,7 @@ final class TodoRepository implements TodoRepositoryClient {
     final now = DateTime.now().toUtc();
     await (_database.update(
       _database.tasks,
-    )..where((table) => table.id.isIn(normalizedIds)))
-        .write(
+    )..where((table) => table.id.isIn(normalizedIds))).write(
       TasksCompanion(
         deletedAtEpochMs: const Value(null),
         updatedAtEpochMs: Value(now.millisecondsSinceEpoch),
@@ -314,8 +314,7 @@ final class TodoRepository implements TodoRepositoryClient {
     final now = DateTime.now().toUtc();
     await (_database.update(
       _database.tasks,
-    )..where((table) => table.id.isIn(normalizedIds)))
-        .write(
+    )..where((table) => table.id.isIn(normalizedIds))).write(
       TasksCompanion(
         priority: Value(priority.storageValue),
         updatedAtEpochMs: Value(now.millisecondsSinceEpoch),
@@ -336,8 +335,7 @@ final class TodoRepository implements TodoRepositoryClient {
     final now = DateTime.now().toUtc();
     await (_database.update(
       _database.tasks,
-    )..where((table) => table.id.isIn(normalizedIds)))
-        .write(
+    )..where((table) => table.id.isIn(normalizedIds))).write(
       TasksCompanion(
         dueAtEpochMs: Value(dueAt?.toUtc().millisecondsSinceEpoch),
         updatedAtEpochMs: Value(now.millisecondsSinceEpoch),
@@ -358,8 +356,7 @@ final class TodoRepository implements TodoRepositoryClient {
     final now = DateTime.now().toUtc();
     await (_database.update(
       _database.tasks,
-    )..where((table) => table.id.isIn(normalizedIds)))
-        .write(
+    )..where((table) => table.id.isIn(normalizedIds))).write(
       TasksCompanion(
         tagIdsJson: Value(_encodeTagIds(tagIds)),
         updatedAtEpochMs: Value(now.millisecondsSinceEpoch),
@@ -478,11 +475,8 @@ final class TodoRepository implements TodoRepositoryClient {
     );
     await (_database.update(
       _database.tasks,
-    )..where((table) => table.id.equals(taskId)))
-        .write(
-      TasksCompanion(
-        updatedAtEpochMs: Value(now.millisecondsSinceEpoch),
-      ),
+    )..where((table) => table.id.equals(taskId))).write(
+      TasksCompanion(updatedAtEpochMs: Value(now.millisecondsSinceEpoch)),
     );
     return (await getTask(taskId))!;
   }
@@ -498,8 +492,7 @@ final class TodoRepository implements TodoRepositoryClient {
       for (var index = 0; index < normalizedIds.length; index += 1) {
         await (_database.update(
           _database.tasks,
-        )..where((table) => table.id.equals(normalizedIds[index])))
-            .write(
+        )..where((table) => table.id.equals(normalizedIds[index]))).write(
           TasksCompanion(
             displayOrder: Value(index),
             updatedAtEpochMs: Value(
@@ -515,8 +508,7 @@ final class TodoRepository implements TodoRepositoryClient {
   Future<TodoTask?> getTask(String taskId) async {
     final row = await (_database.select(
       _database.tasks,
-    )..where((table) => table.id.equals(taskId)))
-        .getSingleOrNull();
+    )..where((table) => table.id.equals(taskId))).getSingleOrNull();
     if (row == null) {
       return null;
     }
@@ -585,21 +577,24 @@ final class TodoRepository implements TodoRepositoryClient {
       return tasks;
     }
 
-    return tasks.where((task) {
-      final matchesTags = filter.tagIds.isEmpty ||
-          task.tagIds.any((tagId) => filter.tagIds.contains(tagId));
-      final matchesSyncStatus = filter.syncStatuses.isEmpty ||
-          filter.syncStatuses.contains(task.syncStatus);
-      return matchesTags && matchesSyncStatus;
-    }).toList(growable: false);
+    return tasks
+        .where((task) {
+          final matchesTags =
+              filter.tagIds.isEmpty ||
+              task.tagIds.any((tagId) => filter.tagIds.contains(tagId));
+          final matchesSyncStatus =
+              filter.syncStatuses.isEmpty ||
+              filter.syncStatuses.contains(task.syncStatus);
+          return matchesTags && matchesSyncStatus;
+        })
+        .toList(growable: false);
   }
 
   @override
   Future<TodoSettings> readSettings() async {
     final existing = await (_database.select(
       _database.appSettings,
-    )..where((table) => table.id.equals(1)))
-        .getSingleOrNull();
+    )..where((table) => table.id.equals(1))).getSingleOrNull();
     if (existing != null) {
       return _mapSettings(existing);
     }
@@ -611,7 +606,9 @@ final class TodoRepository implements TodoRepositoryClient {
   @override
   Future<void> saveSettings(TodoSettings settings) async {
     final now = DateTime.now().toUtc();
-    await _database.into(_database.appSettings).insertOnConflictUpdate(
+    await _database
+        .into(_database.appSettings)
+        .insertOnConflictUpdate(
           AppSettingsCompanion.insert(
             id: const Value<int>(1),
             themePreference: settings.themePreference.name,
@@ -627,8 +624,7 @@ final class TodoRepository implements TodoRepositoryClient {
     final expression = _database.tasks.displayOrder.max();
     final result = await (_database.selectOnly(
       _database.tasks,
-    )..addColumns(<Expression<Object>>[expression]))
-        .getSingle();
+    )..addColumns(<Expression<Object>>[expression])).getSingle();
     final maxValue = result.read(expression);
     return (maxValue ?? -1) + 1;
   }
@@ -659,8 +655,7 @@ final class TodoRepository implements TodoRepositoryClient {
 
     final rows = await (_database.select(
       _database.tags,
-    )..where((table) => table.id.isIn(tagIds)))
-        .get();
+    )..where((table) => table.id.isIn(tagIds))).get();
     return rows.map(_mapTag).toList(growable: false);
   }
 
@@ -670,13 +665,13 @@ final class TodoRepository implements TodoRepositoryClient {
     }
     final rows = await (_database.select(
       _database.tasks,
-    )..where((table) => table.id.isIn(taskIds)))
-        .get();
+    )..where((table) => table.id.isIn(taskIds))).get();
     final mapped = await _hydrateTasks(rows);
     final byId = <String, TodoTask>{for (final task in mapped) task.id: task};
-    return taskIds.map((taskId) => byId[taskId]).whereType<TodoTask>().toList(
-          growable: false,
-        );
+    return taskIds
+        .map((taskId) => byId[taskId])
+        .whereType<TodoTask>()
+        .toList(growable: false);
   }
 
   Future<Map<String, _TaskSyncSnapshot>> _fetchSyncSnapshots(
@@ -820,9 +815,7 @@ final class TodoRepository implements TodoRepositoryClient {
       return null;
     }
     return TodoSyncConflict.fromJson(
-      decoded.map(
-        (key, value) => MapEntry('$key', value),
-      ),
+      decoded.map((key, value) => MapEntry('$key', value)),
     );
   }
 

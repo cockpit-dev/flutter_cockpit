@@ -9,17 +9,16 @@ import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
-typedef CockpitRunBatchFunction = Future<CockpitRunBatchResult> Function(
-  CockpitRunBatchRequest request,
-);
+typedef CockpitRunBatchFunction =
+    Future<CockpitRunBatchResult> Function(CockpitRunBatchRequest request);
 
 final class RunBatchCommand extends CockpitCliCommand {
   RunBatchCommand({
     CockpitRunBatchService? service,
     CockpitRunBatchFunction? runBatch,
     StringSink? stdoutSink,
-  })  : _runBatch = runBatch ?? (service ?? CockpitRunBatchService()).run,
-        _stdoutSink = stdoutSink ?? stdout {
+  }) : _runBatch = runBatch ?? (service ?? CockpitRunBatchService()).run,
+       _stdoutSink = stdoutSink ?? stdout {
     cockpitAddAppArgs(argParser);
     argParser.addOption(
       'ios-device-id',
@@ -122,7 +121,8 @@ final class RunBatchCommand extends CockpitCliCommand {
         defaultResultProfile: cockpitReadResultProfile(argResults),
         failFast: argResults?['fail-fast'] as bool? ?? true,
         defaultCommandTimeout: Duration(
-          milliseconds: cockpitReadOptionalPositiveInt(
+          milliseconds:
+              cockpitReadOptionalPositiveInt(
                 argResults,
                 'default-timeout-ms',
                 usage,
@@ -136,8 +136,9 @@ final class RunBatchCommand extends CockpitCliCommand {
                 label: 'recording JSON',
                 usage: usage,
               ),
-        finalSnapshotProfile:
-            _readOptionalProfile(argResults?['final-profile']),
+        finalSnapshotProfile: _readOptionalProfile(
+          argResults?['final-profile'],
+        ),
         finalSnapshotOptions: finalSnapshotOptionsJson == null
             ? null
             : cockpitDecodeCliJson(

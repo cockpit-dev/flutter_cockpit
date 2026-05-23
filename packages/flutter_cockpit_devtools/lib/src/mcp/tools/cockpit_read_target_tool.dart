@@ -4,10 +4,8 @@ import '../../application/cockpit_interactive_result_profile.dart';
 import '../../application/cockpit_read_target_service.dart';
 import '../cockpit_mcp_tool.dart';
 
-typedef CockpitReadTargetToolFunction = Future<CockpitReadTargetResult>
-    Function(
-  CockpitReadTargetRequest request,
-);
+typedef CockpitReadTargetToolFunction =
+    Future<CockpitReadTargetResult> Function(CockpitReadTargetRequest request);
 
 final class CockpitReadTargetTool extends CockpitMcpTool {
   CockpitReadTargetTool({
@@ -26,16 +24,16 @@ final class CockpitReadTargetTool extends CockpitMcpTool {
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
-        'type': 'object',
-        'properties': <String, Object?>{
-          'targetJson': <String, Object?>{'type': 'string'},
-          'appJson': <String, Object?>{'type': 'string'},
-          'baseUrl': <String, Object?>{'type': 'string'},
-          'androidDeviceId': <String, Object?>{'type': 'string'},
-          'profile': <String, Object?>{'type': 'string'},
-          'snapshotOptions': <String, Object?>{'type': 'object'},
-        },
-      };
+    'type': 'object',
+    'properties': <String, Object?>{
+      'targetJson': <String, Object?>{'type': 'string'},
+      'appJson': <String, Object?>{'type': 'string'},
+      'baseUrl': <String, Object?>{'type': 'string'},
+      'androidDeviceId': <String, Object?>{'type': 'string'},
+      'profile': <String, Object?>{'type': 'string'},
+      'snapshotOptions': <String, Object?>{'type': 'object'},
+    },
+  };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {

@@ -10,9 +10,9 @@ final class CockpitRemoteArtifactDownload {
   final String downloadPath;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'artifact': artifact.toJson(),
-        'downloadPath': downloadPath,
-      };
+    'artifact': artifact.toJson(),
+    'downloadPath': downloadPath,
+  };
 
   factory CockpitRemoteArtifactDownload.fromJson(Map<String, Object?> json) {
     final artifactJson = json['artifact'] as Map<Object?, Object?>;

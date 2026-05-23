@@ -24,10 +24,10 @@ final class CockpitTargetResolutionResult {
     required CockpitLocatorResolution locatorResolution,
     List<CockpitTarget> matches = const <CockpitTarget>[],
   }) : this._(
-          target: target,
-          locatorResolution: locatorResolution,
-          matches: matches,
-        );
+         target: target,
+         locatorResolution: locatorResolution,
+         matches: matches,
+       );
 
   const CockpitTargetResolutionResult.failure({
     required CockpitCommandError error,
@@ -58,9 +58,9 @@ final class CockpitTargetRegistry {
       List.unmodifiable(_targets.values.toList(growable: false));
 
   List<CockpitTarget> get visibleTargets => List.unmodifiable(<CockpitTarget>[
-        ..._explicitVisibleTargets(),
-        ..._deduplicatedDiscoveredVisibleTargets(),
-      ]);
+    ..._explicitVisibleTargets(),
+    ..._deduplicatedDiscoveredVisibleTargets(),
+  ]);
 
   void register(CockpitTarget target) {
     _targets[target.registrationId] = target;
@@ -173,8 +173,9 @@ final class CockpitTargetRegistry {
       truncated: prioritizedTargets.length > liveSnapshotTargetLimit,
       summary: CockpitSnapshotSummary(
         visibleTargetCount: targets.length,
-        targetsWithCockpitIdCount:
-            targets.where((target) => target.cockpitId != null).length,
+        targetsWithCockpitIdCount: targets
+            .where((target) => target.cockpitId != null)
+            .length,
         targetsWithTextCount: targets
             .where((target) => target.text != null && target.text!.isNotEmpty)
             .length,
@@ -386,8 +387,9 @@ final class CockpitTargetRegistry {
   }
 
   List<CockpitTarget> _visibleTargetsFor(Iterable<CockpitTarget> targets) {
-    final visibleTargets =
-        targets.where((target) => target.isVisible).toList(growable: false);
+    final visibleTargets = targets
+        .where((target) => target.isVisible)
+        .toList(growable: false);
     final currentRouteName = routeName;
     if (currentRouteName == null || currentRouteName.isEmpty) {
       return visibleTargets;
@@ -415,11 +417,13 @@ final class CockpitTargetRegistry {
       return _discoveredVisibleTargets();
     }
 
-    return _discoveredVisibleTargets().where((discovered) {
-      return !explicitTargets.any(
-        (explicit) => _targetsOverlap(explicit, discovered),
-      );
-    }).toList(growable: false);
+    return _discoveredVisibleTargets()
+        .where((discovered) {
+          return !explicitTargets.any(
+            (explicit) => _targetsOverlap(explicit, discovered),
+          );
+        })
+        .toList(growable: false);
   }
 
   bool _targetsOverlap(CockpitTarget explicit, CockpitTarget discovered) {
@@ -481,7 +485,9 @@ final class CockpitTargetRegistry {
       });
 
     final bestScore = _matchPriorityScore(sorted.first, locator);
-    final hasTie = sorted.skip(1).any(
+    final hasTie = sorted
+        .skip(1)
+        .any(
           (candidate) => _matchPriorityScore(candidate, locator) == bestScore,
         );
     if (hasTie || bestScore <= 0) {
@@ -550,9 +556,9 @@ final class CockpitTargetRegistry {
     if (leftCompare != 0) {
       return leftCompare;
     }
-    final areaCompare = _geometryArea(leftGeometry).compareTo(
-      _geometryArea(rightGeometry),
-    );
+    final areaCompare = _geometryArea(
+      leftGeometry,
+    ).compareTo(_geometryArea(rightGeometry));
     if (areaCompare != 0) {
       return areaCompare;
     }
@@ -639,17 +645,23 @@ final class CockpitTargetRegistry {
     for (final signal in locator.signals) {
       final matched = switch (signal.kind) {
         CockpitLocatorKind.cockpitId => ancestor.cockpitId == signal.value,
-        CockpitLocatorKind.semanticId => ancestor.semanticId == signal.value ||
-            ancestor.cockpitId == signal.value,
-        CockpitLocatorKind.key => ancestor.keyValue == signal.value ||
-            ancestor.cockpitId == signal.value,
+        CockpitLocatorKind.semanticId =>
+          ancestor.semanticId == signal.value ||
+              ancestor.cockpitId == signal.value,
+        CockpitLocatorKind.key =>
+          ancestor.keyValue == signal.value ||
+              ancestor.cockpitId == signal.value,
         CockpitLocatorKind.text =>
           _matchesTextSignal(ancestor.textPreview, signal.value) ||
               _matchesTextSignal(ancestor.tooltip, signal.value),
-        CockpitLocatorKind.tooltip =>
-          _matchesTextSignal(ancestor.tooltip, signal.value),
-        CockpitLocatorKind.type =>
-          _matchesTypeSignal(ancestor.typeName, signal.value),
+        CockpitLocatorKind.tooltip => _matchesTextSignal(
+          ancestor.tooltip,
+          signal.value,
+        ),
+        CockpitLocatorKind.type => _matchesTypeSignal(
+          ancestor.typeName,
+          signal.value,
+        ),
         CockpitLocatorKind.route => ancestor.routeName == signal.value,
         CockpitLocatorKind.path => _matchesPath(ancestor.path, signal.value),
         CockpitLocatorKind.registrationId => false,

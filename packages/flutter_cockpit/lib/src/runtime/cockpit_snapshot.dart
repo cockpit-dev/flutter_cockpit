@@ -44,10 +44,10 @@ final class CockpitDiagnosticProperty {
   final CockpitDiagnosticCategory category;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'name': name,
-        'value': value,
-        'category': category.jsonValue,
-      };
+    'name': name,
+    'value': value,
+    'category': category.jsonValue,
+  };
 
   factory CockpitDiagnosticProperty.fromJson(Map<String, Object?> json) {
     return CockpitDiagnosticProperty(
@@ -86,13 +86,12 @@ final class CockpitSnapshotLayout {
   final String? constraintsSummary;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'width': width,
-        'height': height,
-        'dx': dx,
-        'dy': dy,
-        if (constraintsSummary != null)
-          'constraintsSummary': constraintsSummary,
-      };
+    'width': width,
+    'height': height,
+    'dx': dx,
+    'dy': dy,
+    if (constraintsSummary != null) 'constraintsSummary': constraintsSummary,
+  };
 
   factory CockpitSnapshotLayout.fromJson(Map<String, Object?> json) {
     return CockpitSnapshotLayout(
@@ -126,9 +125,9 @@ final class CockpitSnapshotContent {
   final String? textPreview;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        if (displayLabel != null) 'displayLabel': displayLabel,
-        if (textPreview != null) 'textPreview': textPreview,
-      };
+    if (displayLabel != null) 'displayLabel': displayLabel,
+    if (textPreview != null) 'textPreview': textPreview,
+  };
 
   factory CockpitSnapshotContent.fromJson(Map<String, Object?> json) {
     return CockpitSnapshotContent(
@@ -167,13 +166,13 @@ final class CockpitSnapshotStyle {
   final String? shadowSummary;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        if (textColor != null) 'textColor': textColor,
-        if (backgroundColor != null) 'backgroundColor': backgroundColor,
-        if (fontSize != null) 'fontSize': fontSize,
-        if (fontWeight != null) 'fontWeight': fontWeight,
-        if (borderSummary != null) 'borderSummary': borderSummary,
-        if (shadowSummary != null) 'shadowSummary': shadowSummary,
-      };
+    if (textColor != null) 'textColor': textColor,
+    if (backgroundColor != null) 'backgroundColor': backgroundColor,
+    if (fontSize != null) 'fontSize': fontSize,
+    if (fontWeight != null) 'fontWeight': fontWeight,
+    if (borderSummary != null) 'borderSummary': borderSummary,
+    if (shadowSummary != null) 'shadowSummary': shadowSummary,
+  };
 
   factory CockpitSnapshotStyle.fromJson(Map<String, Object?> json) {
     return CockpitSnapshotStyle(
@@ -200,13 +199,13 @@ final class CockpitSnapshotStyle {
 
   @override
   int get hashCode => Object.hash(
-        textColor,
-        backgroundColor,
-        fontSize,
-        fontWeight,
-        borderSummary,
-        shadowSummary,
-      );
+    textColor,
+    backgroundColor,
+    fontSize,
+    fontWeight,
+    borderSummary,
+    shadowSummary,
+  );
 }
 
 final class CockpitSnapshotAncestor {
@@ -231,15 +230,15 @@ final class CockpitSnapshotAncestor {
   final String? path;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'typeName': typeName,
-        if (cockpitId != null) 'cockpitId': cockpitId,
-        if (semanticId != null) 'semanticId': semanticId,
-        if (keyValue != null) 'keyValue': keyValue,
-        if (textPreview != null) 'textPreview': textPreview,
-        if (tooltip != null) 'tooltip': tooltip,
-        if (routeName != null) 'routeName': routeName,
-        if (path != null) 'path': path,
-      };
+    'typeName': typeName,
+    if (cockpitId != null) 'cockpitId': cockpitId,
+    if (semanticId != null) 'semanticId': semanticId,
+    if (keyValue != null) 'keyValue': keyValue,
+    if (textPreview != null) 'textPreview': textPreview,
+    if (tooltip != null) 'tooltip': tooltip,
+    if (routeName != null) 'routeName': routeName,
+    if (path != null) 'path': path,
+  };
 
   factory CockpitSnapshotAncestor.fromJson(Map<String, Object?> json) {
     return CockpitSnapshotAncestor(
@@ -270,15 +269,15 @@ final class CockpitSnapshotAncestor {
 
   @override
   int get hashCode => Object.hash(
-        typeName,
-        cockpitId,
-        semanticId,
-        keyValue,
-        textPreview,
-        tooltip,
-        routeName,
-        path,
-      );
+    typeName,
+    cockpitId,
+    semanticId,
+    keyValue,
+    textPreview,
+    tooltip,
+    routeName,
+    path,
+  );
 }
 
 final class CockpitSnapshotSummary {
@@ -303,15 +302,15 @@ final class CockpitSnapshotSummary {
   final bool accessibilitySummaryIncluded;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'visibleTargetCount': visibleTargetCount,
-        'targetsWithCockpitIdCount': targetsWithCockpitIdCount,
-        'targetsWithTextCount': targetsWithTextCount,
-        'styleDetailsIncluded': styleDetailsIncluded,
-        'diagnosticPropertiesIncluded': diagnosticPropertiesIncluded,
-        'ancestorSummariesIncluded': ancestorSummariesIncluded,
-        'rebuildSummaryIncluded': rebuildSummaryIncluded,
-        'accessibilitySummaryIncluded': accessibilitySummaryIncluded,
-      };
+    'visibleTargetCount': visibleTargetCount,
+    'targetsWithCockpitIdCount': targetsWithCockpitIdCount,
+    'targetsWithTextCount': targetsWithTextCount,
+    'styleDetailsIncluded': styleDetailsIncluded,
+    'diagnosticPropertiesIncluded': diagnosticPropertiesIncluded,
+    'ancestorSummariesIncluded': ancestorSummariesIncluded,
+    'rebuildSummaryIncluded': rebuildSummaryIncluded,
+    'accessibilitySummaryIncluded': accessibilitySummaryIncluded,
+  };
 
   factory CockpitSnapshotSummary.fromJson(Map<String, Object?> json) {
     return CockpitSnapshotSummary(
@@ -346,15 +345,15 @@ final class CockpitSnapshotSummary {
 
   @override
   int get hashCode => Object.hash(
-        visibleTargetCount,
-        targetsWithCockpitIdCount,
-        targetsWithTextCount,
-        styleDetailsIncluded,
-        diagnosticPropertiesIncluded,
-        ancestorSummariesIncluded,
-        rebuildSummaryIncluded,
-        accessibilitySummaryIncluded,
-      );
+    visibleTargetCount,
+    targetsWithCockpitIdCount,
+    targetsWithTextCount,
+    styleDetailsIncluded,
+    diagnosticPropertiesIncluded,
+    ancestorSummariesIncluded,
+    rebuildSummaryIncluded,
+    accessibilitySummaryIncluded,
+  );
 }
 
 final class CockpitSnapshotTarget {
@@ -378,9 +377,9 @@ final class CockpitSnapshotTarget {
     List<CockpitSnapshotAncestor> ancestors = const <CockpitSnapshotAncestor>[],
     List<CockpitDiagnosticProperty> diagnosticProperties =
         const <CockpitDiagnosticProperty>[],
-  })  : supportedCommands = List.unmodifiable(supportedCommands),
-        ancestors = List.unmodifiable(ancestors),
-        diagnosticProperties = List.unmodifiable(diagnosticProperties);
+  }) : supportedCommands = List.unmodifiable(supportedCommands),
+       ancestors = List.unmodifiable(ancestors),
+       diagnosticProperties = List.unmodifiable(diagnosticProperties);
 
   final String registrationId;
   final String? cockpitId;
@@ -412,29 +411,29 @@ final class CockpitSnapshotTarget {
       cockpitId ?? semanticId ?? text ?? tooltip ?? keyValue ?? typeName;
 
   Map<String, Object?> toJson() => {
-        'registrationId': registrationId,
-        if (cockpitId != null) 'cockpitId': cockpitId,
-        if (semanticId != null) 'semanticId': semanticId,
-        if (keyValue != null) 'keyValue': keyValue,
-        if (text != null) 'text': text,
-        if (tooltip != null) 'tooltip': tooltip,
-        if (typeName != null) 'typeName': typeName,
-        if (path != null) 'path': path,
-        if (scrollablePath != null) 'scrollablePath': scrollablePath,
-        if (scrollableKeyValue != null)
-          'scrollableKeyValue': scrollableKeyValue,
-        if (scrollableTypeName != null)
-          'scrollableTypeName': scrollableTypeName,
-        'routeName': routeName,
-        'supportedCommands':
-            supportedCommands.map((command) => command.name).toList(),
-        if (layout != null) 'layout': layout!.toJson(),
-        if (content != null) 'content': content!.toJson(),
-        if (style != null) 'style': style!.toJson(),
-        'ancestors': ancestors.map((ancestor) => ancestor.toJson()).toList(),
-        'diagnosticProperties':
-            diagnosticProperties.map((property) => property.toJson()).toList(),
-      };
+    'registrationId': registrationId,
+    if (cockpitId != null) 'cockpitId': cockpitId,
+    if (semanticId != null) 'semanticId': semanticId,
+    if (keyValue != null) 'keyValue': keyValue,
+    if (text != null) 'text': text,
+    if (tooltip != null) 'tooltip': tooltip,
+    if (typeName != null) 'typeName': typeName,
+    if (path != null) 'path': path,
+    if (scrollablePath != null) 'scrollablePath': scrollablePath,
+    if (scrollableKeyValue != null) 'scrollableKeyValue': scrollableKeyValue,
+    if (scrollableTypeName != null) 'scrollableTypeName': scrollableTypeName,
+    'routeName': routeName,
+    'supportedCommands': supportedCommands
+        .map((command) => command.name)
+        .toList(),
+    if (layout != null) 'layout': layout!.toJson(),
+    if (content != null) 'content': content!.toJson(),
+    if (style != null) 'style': style!.toJson(),
+    'ancestors': ancestors.map((ancestor) => ancestor.toJson()).toList(),
+    'diagnosticProperties': diagnosticProperties
+        .map((property) => property.toJson())
+        .toList(),
+  };
 
   factory CockpitSnapshotTarget.fromJson(Map<String, Object?> json) {
     final layoutJson = json['layout'] as Map<Object?, Object?>?;
@@ -522,25 +521,25 @@ final class CockpitSnapshotTarget {
 
   @override
   int get hashCode => Object.hash(
-        registrationId,
-        cockpitId,
-        semanticId,
-        keyValue,
-        text,
-        tooltip,
-        typeName,
-        path,
-        scrollablePath,
-        scrollableKeyValue,
-        scrollableTypeName,
-        routeName,
-        layout,
-        content,
-        style,
-        _ancestorListEquality.hash(ancestors),
-        _propertyListEquality.hash(diagnosticProperties),
-        _commandListEquality.hash(supportedCommands),
-      );
+    registrationId,
+    cockpitId,
+    semanticId,
+    keyValue,
+    text,
+    tooltip,
+    typeName,
+    path,
+    scrollablePath,
+    scrollableKeyValue,
+    scrollableTypeName,
+    routeName,
+    layout,
+    content,
+    style,
+    _ancestorListEquality.hash(ancestors),
+    _propertyListEquality.hash(diagnosticProperties),
+    _commandListEquality.hash(supportedCommands),
+  );
 }
 
 final class CockpitSnapshot {
@@ -573,19 +572,18 @@ final class CockpitSnapshot {
       ListEquality<CockpitSnapshotTarget>();
 
   Map<String, Object?> toJson() => {
-        if (routeName != null) 'routeName': routeName,
-        'visibleTargets':
-            visibleTargets.map((target) => target.toJson()).toList(),
-        'diagnosticLevel': diagnosticLevel.jsonValue,
-        'truncated': truncated,
-        if (diagnosticsArtifactRef != null)
-          'diagnosticsArtifactRef': diagnosticsArtifactRef!.toJson(),
-        if (summary != null) 'summary': summary!.toJson(),
-        if (network != null) 'network': network!.toJson(),
-        if (runtime != null) 'runtime': runtime!.toJson(),
-        if (rebuild != null) 'rebuild': rebuild!.toJson(),
-        if (accessibility != null) 'accessibility': accessibility!.toJson(),
-      };
+    if (routeName != null) 'routeName': routeName,
+    'visibleTargets': visibleTargets.map((target) => target.toJson()).toList(),
+    'diagnosticLevel': diagnosticLevel.jsonValue,
+    'truncated': truncated,
+    if (diagnosticsArtifactRef != null)
+      'diagnosticsArtifactRef': diagnosticsArtifactRef!.toJson(),
+    if (summary != null) 'summary': summary!.toJson(),
+    if (network != null) 'network': network!.toJson(),
+    if (runtime != null) 'runtime': runtime!.toJson(),
+    if (rebuild != null) 'rebuild': rebuild!.toJson(),
+    if (accessibility != null) 'accessibility': accessibility!.toJson(),
+  };
 
   factory CockpitSnapshot.fromJson(Map<String, Object?> json) {
     final diagnosticsArtifactJson =
@@ -688,15 +686,15 @@ final class CockpitSnapshot {
 
   @override
   int get hashCode => Object.hash(
-        routeName,
-        diagnosticLevel,
-        truncated,
-        diagnosticsArtifactRef,
-        summary,
-        network,
-        runtime,
-        rebuild,
-        accessibility,
-        _targetListEquality.hash(visibleTargets),
-      );
+    routeName,
+    diagnosticLevel,
+    truncated,
+    diagnosticsArtifactRef,
+    summary,
+    network,
+    runtime,
+    rebuild,
+    accessibility,
+    _targetListEquality.hash(visibleTargets),
+  );
 }

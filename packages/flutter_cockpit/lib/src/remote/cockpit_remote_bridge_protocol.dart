@@ -3,9 +3,8 @@ import 'dart:convert';
 
 import 'cockpit_remote_session_endpoint_handler.dart';
 
-typedef CockpitRemoteBridgeBinaryFileReader = FutureOr<List<int>> Function(
-  String sourceFilePath,
-);
+typedef CockpitRemoteBridgeBinaryFileReader =
+    FutureOr<List<int>> Function(String sourceFilePath);
 
 final class CockpitRemoteBridgeRequest {
   const CockpitRemoteBridgeRequest({
@@ -23,11 +22,11 @@ final class CockpitRemoteBridgeRequest {
   Uri get uri => Uri.parse(path);
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'requestId': requestId,
-        'method': method,
-        'path': path,
-        if (jsonBody != null) 'jsonBody': jsonBody,
-      };
+    'requestId': requestId,
+    'method': method,
+    'path': path,
+    if (jsonBody != null) 'jsonBody': jsonBody,
+  };
 
   factory CockpitRemoteBridgeRequest.fromJson(Map<String, Object?> json) {
     final jsonBody = json['jsonBody'];
@@ -84,12 +83,12 @@ final class CockpitRemoteBridgeResponse {
       bytesBase64 == null ? null : base64Decode(bytesBase64!);
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'requestId': requestId,
-        'statusCode': statusCode,
-        'contentType': contentType,
-        if (jsonBody != null) 'jsonBody': jsonBody,
-        if (bytesBase64 != null) 'bytesBase64': bytesBase64,
-      };
+    'requestId': requestId,
+    'statusCode': statusCode,
+    'contentType': contentType,
+    if (jsonBody != null) 'jsonBody': jsonBody,
+    if (bytesBase64 != null) 'bytesBase64': bytesBase64,
+  };
 
   factory CockpitRemoteBridgeResponse.fromJson(Map<String, Object?> json) {
     final jsonBody = json['jsonBody'];
@@ -159,17 +158,17 @@ final class CockpitRemoteBridgeResponse {
   }
 }
 
-typedef CockpitRemoteSessionEndpointRequestHandler
-    = Future<CockpitRemoteSessionEndpointResponse> Function(
-  CockpitRemoteSessionEndpointRequest request,
-);
+typedef CockpitRemoteSessionEndpointRequestHandler =
+    Future<CockpitRemoteSessionEndpointResponse> Function(
+      CockpitRemoteSessionEndpointRequest request,
+    );
 
 final class CockpitRemoteSessionBridgeProtocol {
   const CockpitRemoteSessionBridgeProtocol({
     required CockpitRemoteSessionEndpointRequestHandler requestHandler,
     CockpitRemoteBridgeBinaryFileReader? binaryFileReader,
-  })  : _requestHandler = requestHandler,
-        _binaryFileReader = binaryFileReader;
+  }) : _requestHandler = requestHandler,
+       _binaryFileReader = binaryFileReader;
 
   final CockpitRemoteSessionEndpointRequestHandler _requestHandler;
   final CockpitRemoteBridgeBinaryFileReader? _binaryFileReader;
@@ -205,8 +204,7 @@ final class CockpitRemoteSessionBridgeProtocol {
         (await _bridgeResponseFromEndpointResponse(
           requestId: requestId,
           response: endpointResponse,
-        ))
-            .toJson(),
+        )).toJson(),
       );
     } on FormatException catch (error) {
       return _encodeBridgeError(
@@ -259,7 +257,8 @@ final class CockpitRemoteSessionBridgeProtocol {
         statusCode: 500,
         jsonBody: <String, Object?>{
           'error': 'bridgeBinaryFileReadFailed',
-          'message': 'The bridge could not read a file-backed response: '
+          'message':
+              'The bridge could not read a file-backed response: '
               '$error',
         },
       );
@@ -282,10 +281,7 @@ final class CockpitRemoteSessionBridgeProtocol {
       CockpitRemoteBridgeResponse(
         requestId: requestId,
         statusCode: statusCode,
-        jsonBody: <String, Object?>{
-          'error': error,
-          'message': message,
-        },
+        jsonBody: <String, Object?>{'error': error, 'message': message},
       ).toJson(),
     );
   }

@@ -24,9 +24,7 @@ Widget buildCockpitDemoDevelopmentApp() {
       initialRouteName: '/inbox',
       httpNetworkObserver: !enableHttpNetworkObserver
           ? null
-          : CockpitHttpNetworkObserverConfiguration(
-              maxRetainedEntries: 80,
-            ),
+          : CockpitHttpNetworkObserverConfiguration(maxRetainedEntries: 80),
       runtimeObserverConfiguration: CockpitRuntimeObserverConfiguration(
         enabled: enableRuntimeObserver,
       ),

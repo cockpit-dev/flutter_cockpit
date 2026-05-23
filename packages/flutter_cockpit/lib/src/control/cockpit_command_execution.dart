@@ -9,13 +9,13 @@ final class CockpitCommandExecution {
     Map<String, List<int>> artifactPayloads = const <String, List<int>>{},
     Map<String, String> artifactSourcePaths = const <String, String>{},
     List<CockpitStepRecord> runtimeSteps = const <CockpitStepRecord>[],
-  })  : artifactPayloads = Map.unmodifiable(
-          artifactPayloads.map(
-            (path, bytes) => MapEntry(path, List<int>.unmodifiable(bytes)),
-          ),
-        ),
-        artifactSourcePaths = Map.unmodifiable(artifactSourcePaths),
-        runtimeSteps = List.unmodifiable(runtimeSteps);
+  }) : artifactPayloads = Map.unmodifiable(
+         artifactPayloads.map(
+           (path, bytes) => MapEntry(path, List<int>.unmodifiable(bytes)),
+         ),
+       ),
+       artifactSourcePaths = Map.unmodifiable(artifactSourcePaths),
+       runtimeSteps = List.unmodifiable(runtimeSteps);
 
   final CockpitCommandResult result;
   final Map<String, List<int>> artifactPayloads;
@@ -47,9 +47,9 @@ final class CockpitCommandExecution {
 
   @override
   int get hashCode => Object.hash(
-        result,
-        _artifactPayloadEquality.hash(artifactPayloads),
-        _artifactSourcePathEquality.hash(artifactSourcePaths),
-        _runtimeStepEquality.hash(runtimeSteps),
-      );
+    result,
+    _artifactPayloadEquality.hash(artifactPayloads),
+    _artifactSourcePathEquality.hash(artifactSourcePaths),
+    _runtimeStepEquality.hash(runtimeSteps),
+  );
 }

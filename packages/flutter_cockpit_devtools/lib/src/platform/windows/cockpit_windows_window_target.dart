@@ -2,20 +2,18 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-typedef CockpitWindowsShellRunner = Future<ProcessResult> Function(
-  String executable,
-  List<String> arguments,
-);
+typedef CockpitWindowsShellRunner =
+    Future<ProcessResult> Function(String executable, List<String> arguments);
 
-typedef CockpitWindowsWindowResolver = Future<CockpitWindowsWindowTarget>
-    Function({
-  required String appId,
-  required int? processId,
-  required String powershellExecutable,
-  required CockpitWindowsShellRunner processRunner,
-  required Duration timeout,
-  required Duration activationSettleDelay,
-});
+typedef CockpitWindowsWindowResolver =
+    Future<CockpitWindowsWindowTarget> Function({
+      required String appId,
+      required int? processId,
+      required String powershellExecutable,
+      required CockpitWindowsShellRunner processRunner,
+      required Duration timeout,
+      required Duration activationSettleDelay,
+    });
 
 final class CockpitWindowsWindowTarget {
   const CockpitWindowsWindowTarget({

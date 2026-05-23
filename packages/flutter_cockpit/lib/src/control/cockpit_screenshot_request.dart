@@ -39,13 +39,12 @@ final class CockpitScreenshotRequest {
   final CockpitSnapshotOptions? snapshotOptions;
 
   Map<String, Object?> toJson() => {
-        'reason': reason.jsonValue,
-        'name': name,
-        'includeSnapshot': includeSnapshot,
-        'attachToStep': attachToStep,
-        if (snapshotOptions != null)
-          'snapshotOptions': snapshotOptions!.toJson(),
-      };
+    'reason': reason.jsonValue,
+    'name': name,
+    'includeSnapshot': includeSnapshot,
+    'attachToStep': attachToStep,
+    if (snapshotOptions != null) 'snapshotOptions': snapshotOptions!.toJson(),
+  };
 
   factory CockpitScreenshotRequest.fromJson(Map<String, Object?> json) {
     final snapshotOptionsJson =

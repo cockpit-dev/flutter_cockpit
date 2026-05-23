@@ -4,17 +4,17 @@ import '../../application/cockpit_inspect_surface_service.dart';
 import '../../application/cockpit_interactive_result_profile.dart';
 import '../cockpit_mcp_tool.dart';
 
-typedef CockpitInspectSurfaceToolFunction = Future<CockpitInspectSurfaceResult>
-    Function(
-  CockpitInspectSurfaceRequest request,
-);
+typedef CockpitInspectSurfaceToolFunction =
+    Future<CockpitInspectSurfaceResult> Function(
+      CockpitInspectSurfaceRequest request,
+    );
 
 final class CockpitInspectSurfaceTool extends CockpitMcpTool {
   CockpitInspectSurfaceTool({
     CockpitInspectSurfaceService? service,
     CockpitInspectSurfaceToolFunction? inspect,
   }) : _inspect =
-            inspect ?? (service ?? CockpitInspectSurfaceService()).inspect;
+           inspect ?? (service ?? CockpitInspectSurfaceService()).inspect;
 
   final CockpitInspectSurfaceToolFunction _inspect;
 
@@ -27,17 +27,17 @@ final class CockpitInspectSurfaceTool extends CockpitMcpTool {
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
-        'type': 'object',
-        'properties': <String, Object?>{
-          'targetJson': <String, Object?>{'type': 'string'},
-          'appJson': <String, Object?>{'type': 'string'},
-          'baseUrl': <String, Object?>{'type': 'string'},
-          'androidDeviceId': <String, Object?>{'type': 'string'},
-          'profile': <String, Object?>{'type': 'string'},
-          'snapshotOptions': <String, Object?>{'type': 'object'},
-          'compareAgainstSnapshotRef': <String, Object?>{'type': 'string'},
-        },
-      };
+    'type': 'object',
+    'properties': <String, Object?>{
+      'targetJson': <String, Object?>{'type': 'string'},
+      'appJson': <String, Object?>{'type': 'string'},
+      'baseUrl': <String, Object?>{'type': 'string'},
+      'androidDeviceId': <String, Object?>{'type': 'string'},
+      'profile': <String, Object?>{'type': 'string'},
+      'snapshotOptions': <String, Object?>{'type': 'object'},
+      'compareAgainstSnapshotRef': <String, Object?>{'type': 'string'},
+    },
+  };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {

@@ -6,54 +6,62 @@ import 'package:flutter_cockpit_devtools/src/mcp/resources/cockpit_workspace_con
 import 'package:test/test.dart';
 
 void main() {
-  test('skill contract resource reads only the configured skill file',
-      () async {
-    final fileSystem = MemoryFileSystem();
-    fileSystem
-        .file('/workspace/docs/contracts/flutter-cockpit-skill-contract.md')
-      ..createSync(recursive: true)
-      ..writeAsStringSync('# Skill Contract');
-
-    final resource = CockpitWorkspaceSkillContractResource(
-      service: CockpitReadWorkspaceContractsService(
-        fileSystem: LocalCockpitFileSystem(fileSystem: fileSystem),
-      ),
-      skillContractPath:
+  test(
+    'skill contract resource reads only the configured skill file',
+    () async {
+      final fileSystem = MemoryFileSystem();
+      fileSystem.file(
           '/workspace/docs/contracts/flutter-cockpit-skill-contract.md',
-    );
+        )
+        ..createSync(recursive: true)
+        ..writeAsStringSync('# Skill Contract');
 
-    final result = await resource.read(
-      const CockpitMcpResourceRequest(
-          uri: 'cockpit://workspace/skill-contract'),
-    );
+      final resource = CockpitWorkspaceSkillContractResource(
+        service: CockpitReadWorkspaceContractsService(
+          fileSystem: LocalCockpitFileSystem(fileSystem: fileSystem),
+        ),
+        skillContractPath:
+            '/workspace/docs/contracts/flutter-cockpit-skill-contract.md',
+      );
 
-    expect(result, isNotNull);
-    final contents = result!.contents.single as CockpitMcpTextResourceContents;
-    expect(contents.text, '# Skill Contract');
-  });
+      final result = await resource.read(
+        const CockpitMcpResourceRequest(
+          uri: 'cockpit://workspace/skill-contract',
+        ),
+      );
 
-  test('bundle contract resource reads only the configured bundle file',
-      () async {
-    final fileSystem = MemoryFileSystem();
-    fileSystem.file('/workspace/docs/contracts/task-run-bundle.md')
-      ..createSync(recursive: true)
-      ..writeAsStringSync('# Bundle Contract');
+      expect(result, isNotNull);
+      final contents =
+          result!.contents.single as CockpitMcpTextResourceContents;
+      expect(contents.text, '# Skill Contract');
+    },
+  );
 
-    final resource = CockpitWorkspaceTaskBundleContractResource(
-      service: CockpitReadWorkspaceContractsService(
-        fileSystem: LocalCockpitFileSystem(fileSystem: fileSystem),
-      ),
-      bundleContractPath: '/workspace/docs/contracts/task-run-bundle.md',
-    );
+  test(
+    'bundle contract resource reads only the configured bundle file',
+    () async {
+      final fileSystem = MemoryFileSystem();
+      fileSystem.file('/workspace/docs/contracts/task-run-bundle.md')
+        ..createSync(recursive: true)
+        ..writeAsStringSync('# Bundle Contract');
 
-    final result = await resource.read(
-      const CockpitMcpResourceRequest(
-        uri: 'cockpit://workspace/task-bundle-contract',
-      ),
-    );
+      final resource = CockpitWorkspaceTaskBundleContractResource(
+        service: CockpitReadWorkspaceContractsService(
+          fileSystem: LocalCockpitFileSystem(fileSystem: fileSystem),
+        ),
+        bundleContractPath: '/workspace/docs/contracts/task-run-bundle.md',
+      );
 
-    expect(result, isNotNull);
-    final contents = result!.contents.single as CockpitMcpTextResourceContents;
-    expect(contents.text, '# Bundle Contract');
-  });
+      final result = await resource.read(
+        const CockpitMcpResourceRequest(
+          uri: 'cockpit://workspace/task-bundle-contract',
+        ),
+      );
+
+      expect(result, isNotNull);
+      final contents =
+          result!.contents.single as CockpitMcpTextResourceContents;
+      expect(contents.text, '# Bundle Contract');
+    },
+  );
 }

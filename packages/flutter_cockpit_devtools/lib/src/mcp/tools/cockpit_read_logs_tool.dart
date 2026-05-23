@@ -2,9 +2,8 @@ import '../../application/cockpit_read_logs_service.dart';
 import '../cockpit_mcp_error.dart';
 import '../cockpit_mcp_tool.dart';
 
-typedef CockpitReadLogsToolFunction = Future<CockpitReadLogsResult> Function(
-  CockpitReadLogsRequest request,
-);
+typedef CockpitReadLogsToolFunction =
+    Future<CockpitReadLogsResult> Function(CockpitReadLogsRequest request);
 
 final class CockpitReadLogsTool extends CockpitMcpTool {
   CockpitReadLogsTool({
@@ -23,15 +22,15 @@ final class CockpitReadLogsTool extends CockpitMcpTool {
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
-        'type': 'object',
-        'properties': <String, Object?>{
-          'appId': <String, Object?>{'type': 'string'},
-          'appJson': <String, Object?>{'type': 'string'},
-          'baseUrl': <String, Object?>{'type': 'string'},
-          'androidDeviceId': <String, Object?>{'type': 'string'},
-          'maxLines': <String, Object?>{'type': 'integer'},
-        },
-      };
+    'type': 'object',
+    'properties': <String, Object?>{
+      'appId': <String, Object?>{'type': 'string'},
+      'appJson': <String, Object?>{'type': 'string'},
+      'baseUrl': <String, Object?>{'type': 'string'},
+      'androidDeviceId': <String, Object?>{'type': 'string'},
+      'maxLines': <String, Object?>{'type': 'integer'},
+    },
+  };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {

@@ -33,8 +33,10 @@ void main() {
     expect(result.usedRipgrep, isFalse);
     expect(result.matchedPackageCount, 1);
     expect(result.totalMatches, 3);
-    expect(result.packages.single.files.single.packageUri,
-        'package:example_pkg/src/theme_data.dart');
+    expect(
+      result.packages.single.files.single.packageUri,
+      'package:example_pkg/src/theme_data.dart',
+    );
     expect(result.packages.single.files.single.matches.first.line, 1);
   });
 
@@ -76,8 +78,10 @@ void main() {
 
     expect(result.usedRipgrep, isTrue);
     expect(result.totalMatches, 1);
-    expect(result.packages.single.files.single.packageRootUri,
-        'package-root:example_pkg/lib/src/theme_data.dart');
+    expect(
+      result.packages.single.files.single.packageRootUri,
+      'package-root:example_pkg/lib/src/theme_data.dart',
+    );
   });
 }
 

@@ -4,10 +4,11 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 
 typedef CockpitUiIdleTickHandler = Future<void> Function(Duration duration);
-typedef CockpitUiIdleNetworkWaiter = Future<bool> Function({
-  required Duration quietWindow,
-  required Duration timeout,
-});
+typedef CockpitUiIdleNetworkWaiter =
+    Future<bool> Function({
+      required Duration quietWindow,
+      required Duration timeout,
+    });
 
 Future<bool> waitForCockpitUiIdle({
   required Duration quietWindow,
@@ -72,7 +73,8 @@ Future<bool> _waitForSchedulerQuiet({
   DateTime? quietSince;
   while (DateTime.now().isBefore(deadline)) {
     await Future<void>.microtask(() {});
-    final isIdle = schedulerBinding.schedulerPhase == SchedulerPhase.idle &&
+    final isIdle =
+        schedulerBinding.schedulerPhase == SchedulerPhase.idle &&
         !schedulerBinding.hasScheduledFrame;
     if (isIdle) {
       quietSince ??= DateTime.now();
@@ -104,6 +106,6 @@ Future<void> _awaitFrameIfScheduled(
 
 bool _isTestBinding(WidgetsBinding widgetsBinding) {
   return widgetsBinding.runtimeType.toString().contains(
-        'TestWidgetsFlutterBinding',
-      );
+    'TestWidgetsFlutterBinding',
+  );
 }

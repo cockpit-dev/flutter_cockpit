@@ -1,16 +1,8 @@
 import 'package:flutter/foundation.dart';
 
-enum TodoSyncConflictType {
-  remoteDelete,
-  concurrentEdit,
-  remoteMetadataChange,
-}
+enum TodoSyncConflictType { remoteDelete, concurrentEdit, remoteMetadataChange }
 
-enum TodoConflictResolution {
-  keepLocal,
-  keepRemote,
-  mergeFields,
-}
+enum TodoConflictResolution { keepLocal, keepRemote, mergeFields }
 
 @immutable
 final class TodoSyncConflict {
@@ -27,11 +19,11 @@ final class TodoSyncConflict {
   final List<String> remoteFields;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'type': type.name,
-        'summary': summary,
-        'localFields': localFields,
-        'remoteFields': remoteFields,
-      };
+    'type': type.name,
+    'summary': summary,
+    'localFields': localFields,
+    'remoteFields': remoteFields,
+  };
 
   factory TodoSyncConflict.fromJson(Map<String, Object?> json) {
     return TodoSyncConflict(
@@ -59,9 +51,9 @@ final class TodoSyncConflict {
 
   @override
   int get hashCode => Object.hash(
-        type,
-        summary,
-        Object.hashAll(localFields),
-        Object.hashAll(remoteFields),
-      );
+    type,
+    summary,
+    Object.hashAll(localFields),
+    Object.hashAll(remoteFields),
+  );
 }

@@ -8,26 +8,24 @@ import 'package:path/path.dart' as p;
 
 import 'cockpit_demo_platform_verifier.dart';
 
-typedef CockpitDemoRapidLaunchAppFunction = Future<CockpitLaunchAppResult>
-    Function(CockpitLaunchAppRequest request);
-typedef CockpitDemoRapidReadAppFunction = Future<CockpitReadAppResult> Function(
-  CockpitReadAppRequest request,
-);
-typedef CockpitDemoRapidRunBatchFunction = Future<CockpitRunBatchResult>
-    Function(CockpitRunBatchRequest request);
-typedef CockpitDemoRapidRunCommandFunction
-    = Future<CockpitExecuteRemoteCommandResult> Function(
-  CockpitRunCommandRequest request,
-);
-typedef CockpitDemoRapidWaitIdleFunction = Future<CockpitWaitIdleResult>
-    Function(CockpitWaitIdleRequest request);
-typedef CockpitDemoRapidHotReloadFunction = Future<CockpitHotReloadResult>
-    Function(CockpitHotReloadRequest request);
-typedef CockpitDemoRapidReadErrorsFunction = Future<CockpitReadErrorsResult>
-    Function(CockpitReadErrorsRequest request);
-typedef CockpitDemoRapidStopAppFunction = Future<CockpitStopAppResult> Function(
-  CockpitStopAppRequest request,
-);
+typedef CockpitDemoRapidLaunchAppFunction =
+    Future<CockpitLaunchAppResult> Function(CockpitLaunchAppRequest request);
+typedef CockpitDemoRapidReadAppFunction =
+    Future<CockpitReadAppResult> Function(CockpitReadAppRequest request);
+typedef CockpitDemoRapidRunBatchFunction =
+    Future<CockpitRunBatchResult> Function(CockpitRunBatchRequest request);
+typedef CockpitDemoRapidRunCommandFunction =
+    Future<CockpitExecuteRemoteCommandResult> Function(
+      CockpitRunCommandRequest request,
+    );
+typedef CockpitDemoRapidWaitIdleFunction =
+    Future<CockpitWaitIdleResult> Function(CockpitWaitIdleRequest request);
+typedef CockpitDemoRapidHotReloadFunction =
+    Future<CockpitHotReloadResult> Function(CockpitHotReloadRequest request);
+typedef CockpitDemoRapidReadErrorsFunction =
+    Future<CockpitReadErrorsResult> Function(CockpitReadErrorsRequest request);
+typedef CockpitDemoRapidStopAppFunction =
+    Future<CockpitStopAppResult> Function(CockpitStopAppRequest request);
 
 const List<String> cockpitDemoRapidDefaultPlatforms = <String>[
   'macos',
@@ -113,35 +111,33 @@ final class CockpitDemoRapidPlatformVerification {
   bool get success => status == 'passed';
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'platform': platform,
-        'status': status,
-        'deviceId': deviceId,
-        'bootstrappedDevice': bootstrappedDevice,
-        'outputDir': outputDir,
-        if (appJsonPath != null) 'appJsonPath': appJsonPath,
-        if (baseUrl != null) 'baseUrl': baseUrl,
-        if (initialRouteName != null) 'initialRouteName': initialRouteName,
-        if (postCreateRouteName != null)
-          'postCreateRouteName': postCreateRouteName,
-        if (postReloadRouteName != null)
-          'postReloadRouteName': postReloadRouteName,
-        if (createdTaskTitle != null) 'createdTaskTitle': createdTaskTitle,
-        if (queueBrief != null) 'queueBrief': queueBrief,
-        'hotReloadSucceeded': hotReloadSucceeded,
-        'reloadGeneration': reloadGeneration,
-        'waitIdleSucceeded': waitIdleSucceeded,
-        'runtimeErrorCount': runtimeErrorCount,
-        if (screenshotArtifactRef != null)
-          'screenshotArtifactRef': screenshotArtifactRef,
-        if (screenshotByteLength != null)
-          'screenshotByteLength': screenshotByteLength,
-        'verifiedCommands': verifiedCommands,
-        if (failureCode != null) 'failureCode': failureCode,
-        if (failureMessage != null) 'failureMessage': failureMessage,
-        if (failureDetails != null) 'failureDetails': failureDetails,
-        if (runtimeErrorPreviews.isNotEmpty)
-          'runtimeErrorPreviews': runtimeErrorPreviews,
-      };
+    'platform': platform,
+    'status': status,
+    'deviceId': deviceId,
+    'bootstrappedDevice': bootstrappedDevice,
+    'outputDir': outputDir,
+    if (appJsonPath != null) 'appJsonPath': appJsonPath,
+    if (baseUrl != null) 'baseUrl': baseUrl,
+    if (initialRouteName != null) 'initialRouteName': initialRouteName,
+    if (postCreateRouteName != null) 'postCreateRouteName': postCreateRouteName,
+    if (postReloadRouteName != null) 'postReloadRouteName': postReloadRouteName,
+    if (createdTaskTitle != null) 'createdTaskTitle': createdTaskTitle,
+    if (queueBrief != null) 'queueBrief': queueBrief,
+    'hotReloadSucceeded': hotReloadSucceeded,
+    'reloadGeneration': reloadGeneration,
+    'waitIdleSucceeded': waitIdleSucceeded,
+    'runtimeErrorCount': runtimeErrorCount,
+    if (screenshotArtifactRef != null)
+      'screenshotArtifactRef': screenshotArtifactRef,
+    if (screenshotByteLength != null)
+      'screenshotByteLength': screenshotByteLength,
+    'verifiedCommands': verifiedCommands,
+    if (failureCode != null) 'failureCode': failureCode,
+    if (failureMessage != null) 'failureMessage': failureMessage,
+    if (failureDetails != null) 'failureDetails': failureDetails,
+    if (runtimeErrorPreviews.isNotEmpty)
+      'runtimeErrorPreviews': runtimeErrorPreviews,
+  };
 }
 
 final class CockpitDemoRapidVerificationResult {
@@ -156,12 +152,12 @@ final class CockpitDemoRapidVerificationResult {
   final String recommendedNextStep;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'success': success,
-        'recommendedNextStep': recommendedNextStep,
-        'platforms': platforms
-            .map((platform) => platform.toJson())
-            .toList(growable: false),
-      };
+    'success': success,
+    'recommendedNextStep': recommendedNextStep,
+    'platforms': platforms
+        .map((platform) => platform.toJson())
+        .toList(growable: false),
+  };
 }
 
 final class CockpitDemoRapidDevVerifier {
@@ -179,25 +175,23 @@ final class CockpitDemoRapidDevVerifier {
     CockpitDemoRapidHotReloadFunction? hotReload,
     CockpitDemoRapidReadErrorsFunction? readErrors,
     CockpitDemoRapidStopAppFunction? stopApp,
-  })  : _probeDevices = probeDevices ??
-            (() => cockpitDemoProbeHostDevices(
-                  processRunner: runProcess,
-                )),
-        _listIosSimulators = listIosSimulators ??
-            (() => cockpitDemoListIosSimulators(
-                  processRunner: runProcess,
-                )),
-        _processRunner = runProcess,
-        _wait = wait ?? _defaultWait,
-        _clock = clock ?? DateTime.now,
-        _launchApp = launchApp ?? CockpitLaunchAppService().launch,
-        _readApp = readApp ?? CockpitReadAppService().read,
-        _runBatch = runBatch ?? CockpitRunBatchService().run,
-        _runCommand = runCommand ?? CockpitRunCommandService().run,
-        _waitIdle = waitIdle ?? CockpitWaitIdleService().wait,
-        _hotReload = hotReload ?? CockpitHotReloadService().reload,
-        _readErrors = readErrors ?? cockpitDemoReadErrors,
-        _stopApp = stopApp ?? CockpitStopAppService().stop;
+  }) : _probeDevices =
+           probeDevices ??
+           (() => cockpitDemoProbeHostDevices(processRunner: runProcess)),
+       _listIosSimulators =
+           listIosSimulators ??
+           (() => cockpitDemoListIosSimulators(processRunner: runProcess)),
+       _processRunner = runProcess,
+       _wait = wait ?? _defaultWait,
+       _clock = clock ?? DateTime.now,
+       _launchApp = launchApp ?? CockpitLaunchAppService().launch,
+       _readApp = readApp ?? CockpitReadAppService().read,
+       _runBatch = runBatch ?? CockpitRunBatchService().run,
+       _runCommand = runCommand ?? CockpitRunCommandService().run,
+       _waitIdle = waitIdle ?? CockpitWaitIdleService().wait,
+       _hotReload = hotReload ?? CockpitHotReloadService().reload,
+       _readErrors = readErrors ?? cockpitDemoReadErrors,
+       _stopApp = stopApp ?? CockpitStopAppService().stop;
 
   final CockpitDemoPlatformDeviceProbe _probeDevices;
   final CockpitDemoIosSimulatorProbe _listIosSimulators;
@@ -242,8 +236,9 @@ final class CockpitDemoRapidDevVerifier {
     return CockpitDemoRapidVerificationResult(
       platforms: results,
       success: success,
-      recommendedNextStep:
-          success ? 'continueRapidDevelopment' : 'inspectRapidLoopFailure',
+      recommendedNextStep: success
+          ? 'continueRapidDevelopment'
+          : 'inspectRapidLoopFailure',
     );
   }
 
@@ -588,27 +583,28 @@ final class CockpitDemoRapidDevVerifier {
           await _listIosSimulators(),
         );
         if (!simulator.booted) {
-          await _runProcess(
-            'xcrun',
-            <String>['simctl', 'boot', simulator.udid],
-            workingDirectory: request.projectDir,
-          );
+          await _runProcess('xcrun', <String>[
+            'simctl',
+            'boot',
+            simulator.udid,
+          ], workingDirectory: request.projectDir);
         }
-        await _runProcess(
-          'xcrun',
-          <String>['simctl', 'bootstatus', simulator.udid, '-b'],
-          workingDirectory: request.projectDir,
-        );
+        await _runProcess('xcrun', <String>[
+          'simctl',
+          'bootstatus',
+          simulator.udid,
+          '-b',
+        ], workingDirectory: request.projectDir);
         return _waitForDevice(
           platform: platform,
           timeout: request.deviceTimeout,
         );
       case 'android':
-        await _runProcess(
-          'flutter',
-          <String>['emulators', '--launch', request.androidEmulatorId],
-          workingDirectory: request.projectDir,
-        );
+        await _runProcess('flutter', <String>[
+          'emulators',
+          '--launch',
+          request.androidEmulatorId,
+        ], workingDirectory: request.projectDir);
         return _waitForDevice(
           platform: platform,
           timeout: request.deviceTimeout,
@@ -773,9 +769,8 @@ final class CockpitDemoRapidDevVerifier {
   ) {
     return commands
         .map(
-          (command) => CockpitRunBatchCommand(
-            command: CockpitCommand.fromJson(command),
-          ),
+          (command) =>
+              CockpitRunBatchCommand(command: CockpitCommand.fromJson(command)),
         )
         .toList(growable: false);
   }
@@ -795,8 +790,10 @@ Map<String, Object?> _finalSnapshotFailureDetails(
     if (summary != null) ...<String, Object?>{
       'finalVisibleTargetCount': summary.visibleTargetCount,
       'finalRuntimeErrorCount': summary.runtimeErrorCount,
-      'finalTextPreviews':
-          _boundedStringList(summary.textPreviews, _rapidMaxSnapshotPreviews),
+      'finalTextPreviews': _boundedStringList(
+        summary.textPreviews,
+        _rapidMaxSnapshotPreviews,
+      ),
     },
     if (snapshot.snapshotRef != null) 'finalSnapshotRef': snapshot.snapshotRef,
   };

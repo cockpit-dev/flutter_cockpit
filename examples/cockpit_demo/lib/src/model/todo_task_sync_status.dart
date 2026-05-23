@@ -1,8 +1,1 @@
-enum TodoTaskSyncStatus {
-  idle,
-  pending,
-  syncing,
-  synced,
-  failed,
-  conflicted,
-}
+enum TodoTaskSyncStatus { idle, pending, syncing, synced, failed, conflicted }

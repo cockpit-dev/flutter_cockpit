@@ -6,19 +6,18 @@ import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_workspace_cli_support.dart';
 
-typedef CockpitApplyFixesFunction = Future<CockpitWorkspaceCommandResult>
-    Function(
-  CockpitApplyWorkspaceFixesRequest request,
-);
+typedef CockpitApplyFixesFunction =
+    Future<CockpitWorkspaceCommandResult> Function(
+      CockpitApplyWorkspaceFixesRequest request,
+    );
 
 final class ApplyFixesCommand extends CockpitCliCommand {
   ApplyFixesCommand({
     CockpitApplyWorkspaceFixesService? service,
     CockpitApplyFixesFunction? apply,
     StringSink? stdoutSink,
-  })  : _apply =
-            apply ?? (service ?? CockpitApplyWorkspaceFixesService()).apply,
-        _stdoutSink = stdoutSink ?? stdout {
+  }) : _apply = apply ?? (service ?? CockpitApplyWorkspaceFixesService()).apply,
+       _stdoutSink = stdoutSink ?? stdout {
     cockpitAddWorkspaceRootOption(argParser);
     argParser.addOption(
       'timeout-seconds',

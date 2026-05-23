@@ -8,10 +8,7 @@ StreamChannel<String> cockpitLspChannel(
   StreamSink<List<int>> sink,
 ) {
   final parser = _CockpitLspParser(stream);
-  final output = _CockpitLspOutputSink(
-    sink: sink,
-    onClose: parser.close,
-  );
+  final output = _CockpitLspOutputSink(sink: sink, onClose: parser.close);
   return StreamChannel.withGuarantees(parser.stream, output);
 }
 
@@ -24,7 +21,7 @@ void _serializeLspMessage(String data, EventSink<List<int>> sink) {
 
 final class _CockpitLspParser {
   _CockpitLspParser(Stream<List<int>> input)
-      : _subscription = input.expand((chunk) => chunk).listen(null) {
+    : _subscription = input.expand((chunk) => chunk).listen(null) {
     _subscription
       ..onData(_handleByte)
       ..onDone(_controller.close);
@@ -83,8 +80,8 @@ final class _CockpitLspOutputSink implements StreamSink<String> {
   _CockpitLspOutputSink({
     required StreamSink<List<int>> sink,
     required Future<void> Function() onClose,
-  })  : _sink = sink,
-        _onClose = onClose;
+  }) : _sink = sink,
+       _onClose = onClose;
 
   final StreamSink<List<int>> _sink;
   final Future<void> Function() _onClose;

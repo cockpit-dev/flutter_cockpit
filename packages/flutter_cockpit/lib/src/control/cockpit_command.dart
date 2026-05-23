@@ -31,17 +31,16 @@ final class CockpitCommand {
       MapEquality<String, Object?>();
 
   Map<String, Object?> toJson() => {
-        'commandId': commandId,
-        'commandType': commandType.name,
-        if (locator != null) 'locator': locator!.toJson(),
-        'parameters': parameters,
-        'capturePolicy': capturePolicy.name,
-        if (timeoutMs != null) 'timeoutMs': timeoutMs,
-        if (snapshotOptions != null)
-          'snapshotOptions': snapshotOptions!.toJson(),
-        if (screenshotRequest != null)
-          'screenshotRequest': screenshotRequest!.toJson(),
-      };
+    'commandId': commandId,
+    'commandType': commandType.name,
+    if (locator != null) 'locator': locator!.toJson(),
+    'parameters': parameters,
+    'capturePolicy': capturePolicy.name,
+    if (timeoutMs != null) 'timeoutMs': timeoutMs,
+    if (snapshotOptions != null) 'snapshotOptions': snapshotOptions!.toJson(),
+    if (screenshotRequest != null)
+      'screenshotRequest': screenshotRequest!.toJson(),
+  };
 
   factory CockpitCommand.fromJson(Map<String, Object?> json) {
     final locatorJson = json['locator'] as Map<Object?, Object?>?;
@@ -115,13 +114,13 @@ final class CockpitCommand {
 
   @override
   int get hashCode => Object.hash(
-        commandId,
-        commandType,
-        locator,
-        _mapEquality.hash(parameters),
-        capturePolicy,
-        timeoutMs,
-        snapshotOptions,
-        screenshotRequest,
-      );
+    commandId,
+    commandType,
+    locator,
+    _mapEquality.hash(parameters),
+    capturePolicy,
+    timeoutMs,
+    snapshotOptions,
+    screenshotRequest,
+  );
 }

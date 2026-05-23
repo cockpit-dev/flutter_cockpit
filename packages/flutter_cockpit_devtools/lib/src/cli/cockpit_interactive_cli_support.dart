@@ -46,10 +46,7 @@ const List<String> cockpitCliStdoutFormatValues = <String>[
   'none',
 ];
 
-const List<String> cockpitCliFileOutputFormatValues = <String>[
-  'ai',
-  'json',
-];
+const List<String> cockpitCliFileOutputFormatValues = <String>['ai', 'json'];
 
 void cockpitAddOutputArgs(ArgParser parser) {
   if (!parser.options.containsKey('stdout-format')) {
@@ -81,10 +78,7 @@ void cockpitAddRemoteSessionArgs(ArgParser parser) {
       help:
           'Base URL for the running app session. Use this when you do not have session-json.',
     )
-    ..addOption(
-      'session-json',
-      help: cockpitRemoteSessionJsonOptionHelp,
-    )
+    ..addOption('session-json', help: cockpitRemoteSessionJsonOptionHelp)
     ..addOption(
       'android-device-id',
       help:
@@ -171,10 +165,7 @@ String _cockpitDefaultHandlePath(
   String? workingDirectory,
 ) {
   return p.normalize(
-    p.join(
-      workingDirectory ?? Directory.current.path,
-      relativePath,
-    ),
+    p.join(workingDirectory ?? Directory.current.path, relativePath),
   );
 }
 
@@ -189,8 +180,9 @@ String? cockpitResolveAppHandlePath(
 
   final hasBaseUrlOption =
       argResults != null && argResults.options.contains('base-url');
-  final explicitBaseUrl =
-      hasBaseUrlOption ? argResults['base-url'] as String? : null;
+  final explicitBaseUrl = hasBaseUrlOption
+      ? argResults['base-url'] as String?
+      : null;
   if (explicitBaseUrl != null && explicitBaseUrl.isNotEmpty) {
     return null;
   }
@@ -250,8 +242,9 @@ String? cockpitResolveDevelopmentSessionHandlePath(
     return explicit;
   }
 
-  final defaultPath =
-      cockpitDefaultDevelopmentSessionHandlePath(workingDirectory);
+  final defaultPath = cockpitDefaultDevelopmentSessionHandlePath(
+    workingDirectory,
+  );
   if (File(defaultPath).existsSync()) {
     return defaultPath;
   }
@@ -259,7 +252,9 @@ String? cockpitResolveDevelopmentSessionHandlePath(
 }
 
 String cockpitRequireResolvedAppHandlePath(
-    ArgResults? argResults, String usage) {
+  ArgResults? argResults,
+  String usage,
+) {
   final resolved = cockpitResolveAppHandlePath(argResults);
   if (resolved != null && resolved.isNotEmpty) {
     return resolved;
@@ -766,7 +761,8 @@ String cockpitRenderAiPayload({
     ..writeln('cockpit.v=1')
     ..writeln('command=$commandName')
     ..writeln('status=${_aiStatusFor(decoded)}');
-  final next = _readString(decoded, 'recommendedNextStep') ??
+  final next =
+      _readString(decoded, 'recommendedNextStep') ??
       _readString(decoded, 'nextStep');
   if (next != null) {
     buffer.writeln('next=$next');
@@ -855,7 +851,8 @@ Object? _decodePayloadForRendering(Object payload) {
 
 String _aiStatusFor(Object? value) {
   if (value is Map<Object?, Object?>) {
-    final explicit = _readString(value, 'status') ??
+    final explicit =
+        _readString(value, 'status') ??
         _readString(value, 'classification') ??
         _readString(value, 'state');
     if (explicit != null) {
@@ -888,13 +885,14 @@ List<String> _aiStateLines(Object? value) {
   }
   final lines = <String>[];
   _addKeyValue(
-      lines,
+    lines,
+    'route',
+    _firstString(value, const <String>[
+      'currentRouteName',
+      'routeName',
       'route',
-      _firstString(value, const <String>[
-        'currentRouteName',
-        'routeName',
-        'route',
-      ]));
+    ]),
+  );
   _addKeyValue(lines, 'appId', _readString(value, 'appId'));
   _addKeyValue(lines, 'sessionId', _readString(value, 'sessionId'));
   _addKeyValue(lines, 'platform', _readString(value, 'platform'));
@@ -913,9 +911,15 @@ List<String> _aiSummaryLines(Object? value) {
   final uiSummary = _readMap(value, 'uiSummary');
   if (uiSummary != null) {
     _addKeyValue(
-        lines, 'visibleTargets', _readNumber(uiSummary, 'visibleTargetCount'));
-    _addKeyValue(lines, 'cockpitIds',
-        _readNumber(uiSummary, 'targetsWithCockpitIdCount'));
+      lines,
+      'visibleTargets',
+      _readNumber(uiSummary, 'visibleTargetCount'),
+    );
+    _addKeyValue(
+      lines,
+      'cockpitIds',
+      _readNumber(uiSummary, 'targetsWithCockpitIdCount'),
+    );
     _addKeyValue(
       lines,
       'text',
@@ -939,16 +943,18 @@ List<String> _aiResultLines(Object? value) {
   final lines = <String>[];
   final command = _readMap(value, 'command');
   if (command != null) {
-    lines.add(_compactInlineMap(
-      command,
-      preferredKeys: const <String>[
-        'commandId',
-        'commandType',
-        'success',
-        'durationMs',
-        'usedCaptureFallback',
-      ],
-    ));
+    lines.add(
+      _compactInlineMap(
+        command,
+        preferredKeys: const <String>[
+          'commandId',
+          'commandType',
+          'success',
+          'durationMs',
+          'usedCaptureFallback',
+        ],
+      ),
+    );
   }
   final results = _readList(value, 'results');
   if (results != null) {
@@ -956,15 +962,9 @@ List<String> _aiResultLines(Object? value) {
       final item = results[index];
       if (item is Map<Object?, Object?>) {
         final itemCommand = _readMap(item, 'command') ?? item;
-        lines.add('[$index] ${_compactInlineMap(
-          itemCommand,
-          preferredKeys: const <String>[
-            'commandId',
-            'commandType',
-            'success',
-            'durationMs',
-          ],
-        )}');
+        lines.add(
+          '[$index] ${_compactInlineMap(itemCommand, preferredKeys: const <String>['commandId', 'commandType', 'success', 'durationMs'])}',
+        );
       } else {
         lines.add('[$index] ${_formatAiScalar(item)}');
       }
@@ -981,22 +981,24 @@ List<String> _aiIssueLines(Object? value) {
   final command = _readMap(value, 'command');
   final error = _readMap(value, 'error') ?? _readMap(command, 'error');
   if (error != null) {
-    lines.add(_compactInlineMap(
-      error,
-      preferredKeys: const <String>['code', 'message', 'details'],
-    ));
+    lines.add(
+      _compactInlineMap(
+        error,
+        preferredKeys: const <String>['code', 'message', 'details'],
+      ),
+    );
   }
-  final failures = _readList(value, 'validationFailures') ??
+  final failures =
+      _readList(value, 'validationFailures') ??
       _readList(value, 'failures') ??
       _readList(value, 'errors');
   if (failures != null) {
     for (var index = 0; index < failures.length; index++) {
       final failure = failures[index];
       if (failure is Map<Object?, Object?>) {
-        lines.add('[$index] ${_compactInlineMap(
-          failure,
-          preferredKeys: const <String>['code', 'message', 'path', 'severity'],
-        )}');
+        lines.add(
+          '[$index] ${_compactInlineMap(failure, preferredKeys: const <String>['code', 'message', 'path', 'severity'])}',
+        );
       } else {
         lines.add('[$index] ${_formatAiScalar(failure)}');
       }
@@ -1019,15 +1021,9 @@ List<String> _aiArtifactLines(Object? value) {
     for (var index = 0; index < artifacts.length; index++) {
       final artifact = artifacts[index];
       if (artifact is Map<Object?, Object?>) {
-        lines.add('[$index] ${_compactInlineMap(
-          artifact,
-          preferredKeys: const <String>[
-            'role',
-            'relativePath',
-            'sourcePath',
-            'byteLength',
-          ],
-        )}');
+        lines.add(
+          '[$index] ${_compactInlineMap(artifact, preferredKeys: const <String>['role', 'relativePath', 'sourcePath', 'byteLength'])}',
+        );
       }
     }
   }
@@ -1038,8 +1034,9 @@ List<String> _aiArtifactLines(Object? value) {
       if (download is Map<Object?, Object?>) {
         final artifact = _readMap(download, 'artifact');
         final role = artifact == null ? null : _readString(artifact, 'role');
-        final relativePath =
-            artifact == null ? null : _readString(artifact, 'relativePath');
+        final relativePath = artifact == null
+            ? null
+            : _readString(artifact, 'relativePath');
         final downloadPath = _readString(download, 'downloadPath');
         lines.add(
           'download[$index] role=${role ?? '?'} path=${relativePath ?? '?'} downloadPath=${downloadPath ?? '?'} deferred=true',
@@ -1049,15 +1046,17 @@ List<String> _aiArtifactLines(Object? value) {
   }
   final artifact = _readMap(value, 'artifact');
   if (artifact != null) {
-    lines.add(_compactInlineMap(
-      artifact,
-      preferredKeys: const <String>[
-        'role',
-        'relativePath',
-        'sourcePath',
-        'byteLength',
-      ],
-    ));
+    lines.add(
+      _compactInlineMap(
+        artifact,
+        preferredKeys: const <String>[
+          'role',
+          'relativePath',
+          'sourcePath',
+          'byteLength',
+        ],
+      ),
+    );
   }
   return lines;
 }
@@ -1077,7 +1076,10 @@ List<String> _aiRefLines(Object? value) {
   final sessionHandle = _readMap(value, 'sessionHandle');
   if (sessionHandle != null) {
     _addKeyValue(
-        lines, 'sessionBaseUrl', _readString(sessionHandle, 'baseUrl'));
+      lines,
+      'sessionBaseUrl',
+      _readString(sessionHandle, 'baseUrl'),
+    );
     _addKeyValue(lines, 'deviceId', _readString(sessionHandle, 'deviceId'));
   }
   return lines;

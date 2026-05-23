@@ -2,18 +2,18 @@ import '../../application/cockpit_query_remote_session_service.dart';
 import '../../application/cockpit_session_registry.dart';
 import '../cockpit_mcp_tool.dart';
 
-typedef CockpitQueryRemoteSessionFunction
-    = Future<CockpitQueryRemoteSessionResult> Function(
-  CockpitQueryRemoteSessionRequest request,
-);
+typedef CockpitQueryRemoteSessionFunction =
+    Future<CockpitQueryRemoteSessionResult> Function(
+      CockpitQueryRemoteSessionRequest request,
+    );
 
 final class CockpitQueryRemoteSessionTool extends CockpitMcpTool {
   CockpitQueryRemoteSessionTool({
     CockpitQueryRemoteSessionService? service,
     CockpitQueryRemoteSessionFunction? query,
     CockpitSessionRegistry? sessionRegistry,
-  })  : _query = query ?? (service ?? CockpitQueryRemoteSessionService()).query,
-        _sessionRegistry = sessionRegistry;
+  }) : _query = query ?? (service ?? CockpitQueryRemoteSessionService()).query,
+       _sessionRegistry = sessionRegistry;
 
   final CockpitQueryRemoteSessionFunction _query;
   final CockpitSessionRegistry? _sessionRegistry;
@@ -27,13 +27,13 @@ final class CockpitQueryRemoteSessionTool extends CockpitMcpTool {
 
   @override
   CockpitMcpToolAnnotations get annotations => const CockpitMcpToolAnnotations(
-        readOnly: true,
-        destructive: false,
-        idempotent: true,
-        longRunning: false,
-        requiresSession: true,
-        producesBundleEvidence: false,
-      );
+    readOnly: true,
+    destructive: false,
+    idempotent: true,
+    longRunning: false,
+    requiresSession: true,
+    producesBundleEvidence: false,
+  );
 
   @override
   List<CockpitMcpFeatureCategory> get categories =>
@@ -44,12 +44,12 @@ final class CockpitQueryRemoteSessionTool extends CockpitMcpTool {
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
-        'type': 'object',
-        'properties': <String, Object?>{
-          'sessionHandle': <String, Object?>{'type': 'object'},
-          'sessionHandlePath': <String, Object?>{'type': 'string'},
-        },
-      };
+    'type': 'object',
+    'properties': <String, Object?>{
+      'sessionHandle': <String, Object?>{'type': 'object'},
+      'sessionHandlePath': <String, Object?>{'type': 'string'},
+    },
+  };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {

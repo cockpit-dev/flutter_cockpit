@@ -37,7 +37,8 @@ void main() {
           ),
         );
 
-      final exitCode = await runner.run(<String>[
+      final exitCode =
+          await runner.run(<String>[
             'collect-development-probe',
             '--stdout-format',
             'json',

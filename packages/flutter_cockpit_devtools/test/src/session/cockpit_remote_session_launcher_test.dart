@@ -21,22 +21,22 @@ void main() {
       final invocations = <String>[];
       final launcher = CockpitAndroidRemoteSessionLauncher(
         flutterVersionReader: () async => '3.38.9',
-        processRunner: (executable, arguments,
-            {String? workingDirectory}) async {
-          invocations.add('$executable ${arguments.join(' ')}');
-          return ProcessResult(0, 0, '', '');
-        },
+        processRunner:
+            (executable, arguments, {String? workingDirectory}) async {
+              invocations.add('$executable ${arguments.join(' ')}');
+              return ProcessResult(0, 0, '', '');
+            },
         portForwarder: _FakeAndroidPortForwarder(forwardedHostPort: 58421),
-        buildArtifactResolver: ({
-          required String projectDir,
-          required String buildDirectory,
-          String? flavor,
-        }) async =>
-            const CockpitAndroidBuildArtifact(
-          applicationId: 'dev.cockpit.cockpit_demo',
-          apkPath:
-              '/workspace/examples/cockpit_demo/build/app/outputs/flutter-apk/app-debug.apk',
-        ),
+        buildArtifactResolver:
+            ({
+              required String projectDir,
+              required String buildDirectory,
+              String? flavor,
+            }) async => const CockpitAndroidBuildArtifact(
+              applicationId: 'dev.cockpit.cockpit_demo',
+              apkPath:
+                  '/workspace/examples/cockpit_demo/build/app/outputs/flutter-apk/app-debug.apk',
+            ),
         statusReader: (baseUri) async => CockpitRemoteSessionStatus(
           sessionId: 'android-bootstrap-session',
           platform: 'android',
@@ -101,11 +101,11 @@ void main() {
       final invocations = <String>[];
       final launcher = CockpitIosSimulatorRemoteSessionLauncher(
         flutterVersionReader: () async => '3.38.9',
-        processRunner: (executable, arguments,
-            {String? workingDirectory}) async {
-          invocations.add('$executable ${arguments.join(' ')}');
-          return ProcessResult(0, 0, '', '');
-        },
+        processRunner:
+            (executable, arguments, {String? workingDirectory}) async {
+              invocations.add('$executable ${arguments.join(' ')}');
+              return ProcessResult(0, 0, '', '');
+            },
         appBundlePathResolver: ({required projectDir, String? flavor}) async {
           expect(flavor, isNull);
           return '/workspace/examples/cockpit_demo/build/ios/iphonesimulator/Runner.app';
@@ -170,41 +170,43 @@ void main() {
     },
   );
 
-  test('iOS simulator remote session launcher times out slow build stages',
-      () async {
-    final launcher = CockpitIosSimulatorRemoteSessionLauncher(
-      flutterVersionReader: () async => '3.38.9',
-      processRunner: (executable, arguments, {String? workingDirectory}) =>
-          Completer<ProcessResult>().future,
-      appBundlePathResolver: ({required projectDir, String? flavor}) async =>
-          '/workspace/examples/cockpit_demo/build/ios/iphonesimulator/Runner.app',
-      bundleIdResolver: ({required String appBundlePath}) async =>
-          'dev.cockpit.cockpitDemo',
-      statusReader: (_) async => throw StateError('status should not be read'),
-      now: () => DateTime.utc(2026, 3, 24, 12),
-    );
+  test(
+    'iOS simulator remote session launcher times out slow build stages',
+    () async {
+      final launcher = CockpitIosSimulatorRemoteSessionLauncher(
+        flutterVersionReader: () async => '3.38.9',
+        processRunner: (executable, arguments, {String? workingDirectory}) =>
+            Completer<ProcessResult>().future,
+        appBundlePathResolver: ({required projectDir, String? flavor}) async =>
+            '/workspace/examples/cockpit_demo/build/ios/iphonesimulator/Runner.app',
+        bundleIdResolver: ({required String appBundlePath}) async =>
+            'dev.cockpit.cockpitDemo',
+        statusReader: (_) async =>
+            throw StateError('status should not be read'),
+        now: () => DateTime.utc(2026, 3, 24, 12),
+      );
 
-    expect(
-      () => launcher
-          .launch(
-            const CockpitRemoteSessionLaunchOptions(
-              projectDir: '/workspace/examples/cockpit_demo',
-              target: 'lib/main.dart',
-              platform: 'ios',
-              deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
-              sessionPort: 49321,
-              launchTimeout: Duration(milliseconds: 50),
+      expect(
+        () => launcher
+            .launch(
+              const CockpitRemoteSessionLaunchOptions(
+                projectDir: '/workspace/examples/cockpit_demo',
+                target: 'lib/main.dart',
+                platform: 'ios',
+                deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+                sessionPort: 49321,
+                launchTimeout: Duration(milliseconds: 50),
+              ),
+            )
+            .timeout(
+              const Duration(milliseconds: 120),
+              onTimeout: () =>
+                  throw StateError('launcher did not enforce build timeout'),
             ),
-          )
-          .timeout(
-            const Duration(milliseconds: 120),
-            onTimeout: () => throw StateError(
-              'launcher did not enforce build timeout',
-            ),
-          ),
-      throwsA(isA<TimeoutException>()),
-    );
-  });
+        throwsA(isA<TimeoutException>()),
+      );
+    },
+  );
 
   test(
     'iOS physical-device remote session launcher runs profile no-resident and uses the tunnel address',
@@ -212,11 +214,11 @@ void main() {
       final invocations = <String>[];
       final launcher = CockpitIosPhysicalRemoteSessionLauncher(
         flutterVersionReader: () async => '3.38.9',
-        processRunner: (executable, arguments,
-            {String? workingDirectory}) async {
-          invocations.add('$executable ${arguments.join(' ')}');
-          return ProcessResult(0, 0, '', '');
-        },
+        processRunner:
+            (executable, arguments, {String? workingDirectory}) async {
+              invocations.add('$executable ${arguments.join(' ')}');
+              return ProcessResult(0, 0, '', '');
+            },
         deviceConnectionResolver: (deviceId) async {
           expect(deviceId, '00008110-0009341C2EF3801E');
           return const CockpitIosDeviceConnection(
@@ -276,45 +278,47 @@ void main() {
     },
   );
 
-  test('iOS physical-device remote session launcher times out slow run stages',
-      () async {
-    final launcher = CockpitIosPhysicalRemoteSessionLauncher(
-      flutterVersionReader: () async => '3.38.9',
-      processRunner: (executable, arguments, {String? workingDirectory}) =>
-          Completer<ProcessResult>().future,
-      deviceConnectionResolver: (_) async => const CockpitIosDeviceConnection(
-        isPhysical: true,
-        tunnelIpAddress: 'fd69:8f18:f0a9::1',
-      ),
-      appBundlePathResolver: ({required projectDir, String? flavor}) async =>
-          '/workspace/examples/cockpit_demo/build/ios/iphoneos/Runner.app',
-      bundleIdResolver: ({required String appBundlePath}) async =>
-          'dev.cockpit.cockpitDemo',
-      statusReader: (_) async => throw StateError('status should not be read'),
-      now: () => DateTime.utc(2026, 3, 24, 12),
-    );
+  test(
+    'iOS physical-device remote session launcher times out slow run stages',
+    () async {
+      final launcher = CockpitIosPhysicalRemoteSessionLauncher(
+        flutterVersionReader: () async => '3.38.9',
+        processRunner: (executable, arguments, {String? workingDirectory}) =>
+            Completer<ProcessResult>().future,
+        deviceConnectionResolver: (_) async => const CockpitIosDeviceConnection(
+          isPhysical: true,
+          tunnelIpAddress: 'fd69:8f18:f0a9::1',
+        ),
+        appBundlePathResolver: ({required projectDir, String? flavor}) async =>
+            '/workspace/examples/cockpit_demo/build/ios/iphoneos/Runner.app',
+        bundleIdResolver: ({required String appBundlePath}) async =>
+            'dev.cockpit.cockpitDemo',
+        statusReader: (_) async =>
+            throw StateError('status should not be read'),
+        now: () => DateTime.utc(2026, 3, 24, 12),
+      );
 
-    expect(
-      () => launcher
-          .launch(
-            const CockpitRemoteSessionLaunchOptions(
-              projectDir: '/workspace/examples/cockpit_demo',
-              target: 'cockpit/main.dart',
-              platform: 'ios',
-              deviceId: '00008110-0009341C2EF3801E',
-              sessionPort: 57331,
-              launchTimeout: Duration(milliseconds: 50),
+      expect(
+        () => launcher
+            .launch(
+              const CockpitRemoteSessionLaunchOptions(
+                projectDir: '/workspace/examples/cockpit_demo',
+                target: 'cockpit/main.dart',
+                platform: 'ios',
+                deviceId: '00008110-0009341C2EF3801E',
+                sessionPort: 57331,
+                launchTimeout: Duration(milliseconds: 50),
+              ),
+            )
+            .timeout(
+              const Duration(milliseconds: 120),
+              onTimeout: () =>
+                  throw StateError('launcher did not enforce run timeout'),
             ),
-          )
-          .timeout(
-            const Duration(milliseconds: 120),
-            onTimeout: () => throw StateError(
-              'launcher did not enforce run timeout',
-            ),
-          ),
-      throwsA(isA<TimeoutException>()),
-    );
-  });
+        throwsA(isA<TimeoutException>()),
+      );
+    },
+  );
 
   test(
     'Android remote session launcher forwards flavor and resolves app id plus APK path from build metadata',
@@ -334,21 +338,20 @@ void main() {
       await outputDirectory.create(recursive: true);
       final apkPath = p.join(outputDirectory.path, 'app-staging-debug.apk');
       await File(apkPath).writeAsBytes(const <int>[1, 2, 3]);
-      await File(p.join(outputDirectory.path, 'output-metadata.json'))
-          .writeAsString(
-        '''
+      await File(
+        p.join(outputDirectory.path, 'output-metadata.json'),
+      ).writeAsString('''
 {"applicationId":"dev.example.staging","variantName":"stagingDebug","elements":[{"outputFile":"app-staging-debug.apk"}]}
-''',
-      );
+''');
 
       final invocations = <String>[];
       final launcher = CockpitAndroidRemoteSessionLauncher(
         flutterVersionReader: () async => '3.38.9',
-        processRunner: (executable, arguments,
-            {String? workingDirectory}) async {
-          invocations.add('$executable ${arguments.join(' ')}');
-          return ProcessResult(0, 0, '', '');
-        },
+        processRunner:
+            (executable, arguments, {String? workingDirectory}) async {
+              invocations.add('$executable ${arguments.join(' ')}');
+              return ProcessResult(0, 0, '', '');
+            },
         portForwarder: _FakeAndroidPortForwarder(forwardedHostPort: 58421),
         statusReader: (baseUri) async => _readyStatus('android'),
       );
@@ -371,10 +374,7 @@ void main() {
           '${cockpitFlutterExecutable()} build apk --debug --target lib/main.dart --flavor staging --dart-define=FLUTTER_COCKPIT_REMOTE_ENABLED=true --dart-define=FLUTTER_COCKPIT_REMOTE_HOST=127.0.0.1 --dart-define=FLUTTER_COCKPIT_REMOTE_PORT=47331 --dart-define=FLUTTER_COCKPIT_FLUTTER_VERSION=3.38.9',
         ),
       );
-      expect(
-        invocations,
-        contains('adb -s emulator-5554 install -r $apkPath'),
-      );
+      expect(invocations, contains('adb -s emulator-5554 install -r $apkPath'));
       expect(
         invocations,
         contains(
@@ -389,16 +389,16 @@ void main() {
       flutterVersionReader: () async => '3.38.9',
       processRunner: (executable, arguments, {String? workingDirectory}) =>
           Completer<ProcessResult>().future,
-      buildArtifactResolver: ({
-        required String projectDir,
-        required String buildDirectory,
-        String? flavor,
-      }) async =>
-          const CockpitAndroidBuildArtifact(
-        applicationId: 'dev.cockpit.cockpit_demo',
-        apkPath:
-            '/workspace/examples/cockpit_demo/build/app/outputs/flutter-apk/app-debug.apk',
-      ),
+      buildArtifactResolver:
+          ({
+            required String projectDir,
+            required String buildDirectory,
+            String? flavor,
+          }) async => const CockpitAndroidBuildArtifact(
+            applicationId: 'dev.cockpit.cockpit_demo',
+            apkPath:
+                '/workspace/examples/cockpit_demo/build/app/outputs/flutter-apk/app-debug.apk',
+          ),
       statusReader: (_) async => throw StateError('status should not be read'),
       now: () => DateTime.utc(2026, 3, 24, 12),
     );
@@ -417,9 +417,8 @@ void main() {
           )
           .timeout(
             const Duration(milliseconds: 120),
-            onTimeout: () => throw StateError(
-              'launcher did not enforce build timeout',
-            ),
+            onTimeout: () =>
+                throw StateError('launcher did not enforce build timeout'),
           ),
       throwsA(isA<TimeoutException>()),
     );
@@ -452,11 +451,11 @@ void main() {
       String? resolvedAppBundlePath;
       final launcher = CockpitIosSimulatorRemoteSessionLauncher(
         flutterVersionReader: () async => '3.38.9',
-        processRunner: (executable, arguments,
-            {String? workingDirectory}) async {
-          invocations.add('$executable ${arguments.join(' ')}');
-          return ProcessResult(0, 0, '', '');
-        },
+        processRunner:
+            (executable, arguments, {String? workingDirectory}) async {
+              invocations.add('$executable ${arguments.join(' ')}');
+              return ProcessResult(0, 0, '', '');
+            },
         bundleIdResolver: ({required String appBundlePath}) async {
           resolvedAppBundlePath = appBundlePath;
           return 'dev.cockpit.orbitStaging';
@@ -503,22 +502,12 @@ void main() {
     });
 
     final topLevelBundle = Directory(
-      p.join(
-        tempDir.path,
-        'build',
-        'ios',
-        'iphonesimulator',
-        'Runner.app',
-      ),
+      p.join(tempDir.path, 'build', 'ios', 'iphonesimulator', 'Runner.app'),
     );
     await topLevelBundle.create(recursive: true);
     await Future<void>.delayed(const Duration(milliseconds: 20));
     final nestedBundle = Directory(
-      p.join(
-        topLevelBundle.path,
-        'Frameworks',
-        'Runner Helper.app',
-      ),
+      p.join(topLevelBundle.path, 'Frameworks', 'Runner Helper.app'),
     );
     await nestedBundle.create(recursive: true);
 
@@ -559,22 +548,12 @@ void main() {
     });
 
     final topLevelBundle = Directory(
-      p.join(
-        tempDir.path,
-        'build',
-        'ios',
-        'iphoneos',
-        'Runner.app',
-      ),
+      p.join(tempDir.path, 'build', 'ios', 'iphoneos', 'Runner.app'),
     );
     await topLevelBundle.create(recursive: true);
     await Future<void>.delayed(const Duration(milliseconds: 20));
     final nestedBundle = Directory(
-      p.join(
-        topLevelBundle.path,
-        'Watch',
-        'Runner Watch.app',
-      ),
+      p.join(topLevelBundle.path, 'Watch', 'Runner Watch.app'),
     );
     await nestedBundle.create(recursive: true);
 
@@ -737,47 +716,49 @@ void main() {
     expect(handle.appId, 'dev.cockpit.cockpit_demo');
   });
 
-  test('platform launcher dispatches simulator and physical iOS separately',
-      () async {
-    var simulatorLaunchCount = 0;
-    var physicalLaunchCount = 0;
-    final launcher = CockpitPlatformRemoteSessionLauncher(
-      iosLauncher: _CapturingRemoteSessionLauncher(
-        onLaunch: (options) {
-          simulatorLaunchCount += 1;
-          expect(options.deviceId, '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC');
-        },
-      ),
-      iosPhysicalLauncher: _CapturingRemoteSessionLauncher(
-        onLaunch: (options) {
-          physicalLaunchCount += 1;
-          expect(options.deviceId, '00008110-0009341C2EF3801E');
-        },
-      ),
-    );
+  test(
+    'platform launcher dispatches simulator and physical iOS separately',
+    () async {
+      var simulatorLaunchCount = 0;
+      var physicalLaunchCount = 0;
+      final launcher = CockpitPlatformRemoteSessionLauncher(
+        iosLauncher: _CapturingRemoteSessionLauncher(
+          onLaunch: (options) {
+            simulatorLaunchCount += 1;
+            expect(options.deviceId, '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC');
+          },
+        ),
+        iosPhysicalLauncher: _CapturingRemoteSessionLauncher(
+          onLaunch: (options) {
+            physicalLaunchCount += 1;
+            expect(options.deviceId, '00008110-0009341C2EF3801E');
+          },
+        ),
+      );
 
-    await launcher.launch(
-      const CockpitRemoteSessionLaunchOptions(
-        projectDir: '/workspace/examples/cockpit_demo',
-        target: 'lib/main.dart',
-        platform: 'ios',
-        deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
-        sessionPort: 49321,
-      ),
-    );
-    await launcher.launch(
-      const CockpitRemoteSessionLaunchOptions(
-        projectDir: '/workspace/examples/cockpit_demo',
-        target: 'cockpit/main.dart',
-        platform: 'ios',
-        deviceId: '00008110-0009341C2EF3801E',
-        sessionPort: 57331,
-      ),
-    );
+      await launcher.launch(
+        const CockpitRemoteSessionLaunchOptions(
+          projectDir: '/workspace/examples/cockpit_demo',
+          target: 'lib/main.dart',
+          platform: 'ios',
+          deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+          sessionPort: 49321,
+        ),
+      );
+      await launcher.launch(
+        const CockpitRemoteSessionLaunchOptions(
+          projectDir: '/workspace/examples/cockpit_demo',
+          target: 'cockpit/main.dart',
+          platform: 'ios',
+          deviceId: '00008110-0009341C2EF3801E',
+          sessionPort: 57331,
+        ),
+      );
 
-    expect(simulatorLaunchCount, 1);
-    expect(physicalLaunchCount, 1);
-  });
+      expect(simulatorLaunchCount, 1);
+      expect(physicalLaunchCount, 1);
+    },
+  );
 
   test('platform launcher rejects unsupported web automation launches', () {
     final launcher = CockpitPlatformRemoteSessionLauncher(
@@ -811,12 +792,11 @@ void main() {
       throwsA(
         isA<CockpitApplicationServiceException>()
             .having(
-                (error) => error.code, 'code', 'unsupportedAutomationPlatform')
-            .having(
-              (error) => error.details['platform'],
-              'platform',
-              'web',
-            ),
+              (error) => error.code,
+              'code',
+              'unsupportedAutomationPlatform',
+            )
+            .having((error) => error.details['platform'], 'platform', 'web'),
       ),
     );
   });
@@ -825,16 +805,17 @@ void main() {
     'wait for remote session readiness enforces the overall timeout on a hanging probe',
     () async {
       expect(
-        () => cockpitWaitForRemoteSessionReady(
-          baseUri: Uri.parse('http://127.0.0.1:47331'),
-          timeout: const Duration(milliseconds: 50),
-          statusReader: (_) => Completer<CockpitRemoteSessionStatus>().future,
-        ).timeout(
-          const Duration(milliseconds: 120),
-          onTimeout: () => throw StateError(
-            'wait helper did not enforce probe timeout',
-          ),
-        ),
+        () =>
+            cockpitWaitForRemoteSessionReady(
+              baseUri: Uri.parse('http://127.0.0.1:47331'),
+              timeout: const Duration(milliseconds: 50),
+              statusReader: (_) =>
+                  Completer<CockpitRemoteSessionStatus>().future,
+            ).timeout(
+              const Duration(milliseconds: 120),
+              onTimeout: () =>
+                  throw StateError('wait helper did not enforce probe timeout'),
+            ),
         throwsA(isA<TimeoutException>()),
       );
     },
@@ -844,16 +825,17 @@ void main() {
     'wait for remote session readiness caps retry delays to the remaining deadline',
     () async {
       expect(
-        () => cockpitWaitForRemoteSessionReady(
-          baseUri: Uri.parse('http://127.0.0.1:47331'),
-          timeout: const Duration(milliseconds: 50),
-          statusReader: (_) async => throw StateError('still booting'),
-        ).timeout(
-          const Duration(milliseconds: 120),
-          onTimeout: () => throw StateError(
-            'wait helper slept past the remaining deadline',
-          ),
-        ),
+        () =>
+            cockpitWaitForRemoteSessionReady(
+              baseUri: Uri.parse('http://127.0.0.1:47331'),
+              timeout: const Duration(milliseconds: 50),
+              statusReader: (_) async => throw StateError('still booting'),
+            ).timeout(
+              const Duration(milliseconds: 120),
+              onTimeout: () => throw StateError(
+                'wait helper slept past the remaining deadline',
+              ),
+            ),
         throwsA(isA<TimeoutException>()),
       );
     },
@@ -898,15 +880,13 @@ final class _FakeAndroidPortForwarder extends CockpitAndroidPortForwarder {
 
 final class _CapturingRemoteSessionLauncher
     implements CockpitRemoteSessionLauncher {
-  _CapturingRemoteSessionLauncher({
-    required this.onLaunch,
-    this.handleBuilder,
-  });
+  _CapturingRemoteSessionLauncher({required this.onLaunch, this.handleBuilder});
 
   final void Function(CockpitRemoteSessionLaunchOptions options) onLaunch;
   final CockpitRemoteSessionHandle Function(
     CockpitRemoteSessionLaunchOptions options,
-  )? handleBuilder;
+  )?
+  handleBuilder;
 
   @override
   Future<CockpitRemoteSessionHandle> launch(

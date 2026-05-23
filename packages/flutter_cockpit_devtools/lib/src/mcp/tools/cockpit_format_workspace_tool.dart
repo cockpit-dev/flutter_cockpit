@@ -4,18 +4,18 @@ import '../cockpit_mcp_tool.dart';
 import '../core/cockpit_mcp_roots_tracker.dart';
 import '../core/cockpit_mcp_workspace_tooling_support.dart';
 
-typedef CockpitFormatWorkspaceToolFunction
-    = Future<CockpitWorkspaceCommandResult> Function(
-  CockpitFormatWorkspaceRequest request,
-);
+typedef CockpitFormatWorkspaceToolFunction =
+    Future<CockpitWorkspaceCommandResult> Function(
+      CockpitFormatWorkspaceRequest request,
+    );
 
 final class CockpitFormatWorkspaceTool extends CockpitMcpTool {
   CockpitFormatWorkspaceTool({
     required CockpitMcpRootsTracker rootsTracker,
     CockpitFormatWorkspaceService? service,
     CockpitFormatWorkspaceToolFunction? format,
-  })  : _rootsTracker = rootsTracker,
-        _format = format ?? (service ?? CockpitFormatWorkspaceService()).format;
+  }) : _rootsTracker = rootsTracker,
+       _format = format ?? (service ?? CockpitFormatWorkspaceService()).format;
 
   final CockpitMcpRootsTracker _rootsTracker;
   final CockpitFormatWorkspaceToolFunction _format;
@@ -28,13 +28,13 @@ final class CockpitFormatWorkspaceTool extends CockpitMcpTool {
 
   @override
   CockpitMcpToolAnnotations get annotations => const CockpitMcpToolAnnotations(
-        readOnly: false,
-        destructive: false,
-        idempotent: true,
-        longRunning: true,
-        requiresSession: false,
-        producesBundleEvidence: false,
-      );
+    readOnly: false,
+    destructive: false,
+    idempotent: true,
+    longRunning: true,
+    requiresSession: false,
+    producesBundleEvidence: false,
+  );
 
   @override
   List<CockpitMcpFeatureCategory> get categories =>
@@ -45,12 +45,12 @@ final class CockpitFormatWorkspaceTool extends CockpitMcpTool {
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
-        'type': 'object',
-        'properties': <String, Object?>{
-          'workspaceRoot': <String, Object?>{'type': 'string'},
-          'timeoutSeconds': <String, Object?>{'type': 'integer'},
-        },
-      };
+    'type': 'object',
+    'properties': <String, Object?>{
+      'workspaceRoot': <String, Object?>{'type': 'string'},
+      'timeoutSeconds': <String, Object?>{'type': 'integer'},
+    },
+  };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {
@@ -64,10 +64,8 @@ final class CockpitFormatWorkspaceTool extends CockpitMcpTool {
           workspaceRoot: workspaceRoot,
           allowedRoots: cockpitAllowedWorkspaceRootPaths(_rootsTracker),
           timeout: Duration(
-            seconds: cockpitReadOptionalPositiveInt(
-                  arguments,
-                  'timeoutSeconds',
-                ) ??
+            seconds:
+                cockpitReadOptionalPositiveInt(arguments, 'timeoutSeconds') ??
                 90,
           ),
         ),

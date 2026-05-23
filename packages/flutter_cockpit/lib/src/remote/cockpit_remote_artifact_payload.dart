@@ -12,9 +12,9 @@ final class CockpitRemoteArtifactPayload {
   final List<int> bytes;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'artifact': artifact.toJson(),
-        'bytesBase64': base64Encode(bytes),
-      };
+    'artifact': artifact.toJson(),
+    'bytesBase64': base64Encode(bytes),
+  };
 
   factory CockpitRemoteArtifactPayload.fromJson(Map<String, Object?> json) {
     final artifactJson = json['artifact'] as Map<Object?, Object?>;

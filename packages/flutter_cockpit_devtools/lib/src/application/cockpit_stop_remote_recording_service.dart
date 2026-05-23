@@ -9,9 +9,8 @@ import 'cockpit_interactive_session_lock.dart';
 import 'cockpit_recording_evidence.dart';
 import 'cockpit_session_reference_resolver.dart';
 
-typedef CockpitRemoteRecordingStopper = Future<CockpitRecordingResult> Function(
-  Uri baseUri,
-);
+typedef CockpitRemoteRecordingStopper =
+    Future<CockpitRecordingResult> Function(Uri baseUri);
 
 final class CockpitStopRemoteRecordingRequest {
   const CockpitStopRemoteRecordingRequest({
@@ -57,19 +56,19 @@ final class CockpitStopRemoteRecordingResult {
   final CockpitRemoteSessionHandle? sessionHandle;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'state': state.name,
-        if (purpose != null) 'purpose': purpose!.name,
-        if (recordingKind != null) 'recordingKind': recordingKind!.name,
-        if (requestedMode != null) 'requestedMode': requestedMode!.jsonValue,
-        if (requestedLayer != null) 'requestedLayer': requestedLayer!.jsonValue,
-        if (effectiveLayer != null) 'effectiveLayer': effectiveLayer!.jsonValue,
-        if (fallbackUsed) 'fallbackUsed': fallbackUsed,
-        if (fallbackReason != null) 'fallbackReason': fallbackReason,
-        if (artifact != null) 'artifact': artifact!.toJson(),
-        if (durationMs != null) 'durationMs': durationMs,
-        if (failureReason != null) 'failureReason': failureReason,
-        if (sessionHandle != null) 'sessionHandle': sessionHandle!.toJson(),
-      };
+    'state': state.name,
+    if (purpose != null) 'purpose': purpose!.name,
+    if (recordingKind != null) 'recordingKind': recordingKind!.name,
+    if (requestedMode != null) 'requestedMode': requestedMode!.jsonValue,
+    if (requestedLayer != null) 'requestedLayer': requestedLayer!.jsonValue,
+    if (effectiveLayer != null) 'effectiveLayer': effectiveLayer!.jsonValue,
+    if (fallbackUsed) 'fallbackUsed': fallbackUsed,
+    if (fallbackReason != null) 'fallbackReason': fallbackReason,
+    if (artifact != null) 'artifact': artifact!.toJson(),
+    if (durationMs != null) 'durationMs': durationMs,
+    if (failureReason != null) 'failureReason': failureReason,
+    if (sessionHandle != null) 'sessionHandle': sessionHandle!.toJson(),
+  };
 }
 
 final class CockpitStopRemoteRecordingService {
@@ -77,13 +76,13 @@ final class CockpitStopRemoteRecordingService {
     CockpitRemoteRecordingStopper? stopRecording,
     CockpitSessionReferenceResolver? sessionReferenceResolver,
     CockpitInteractiveSessionLock? sessionLock,
-  })  : _stopRecording = stopRecording ??
-            ((baseUri) => CockpitRemoteSessionClient(
-                  baseUri: baseUri,
-                ).stopRecording()),
-        _sessionReferenceResolver =
-            sessionReferenceResolver ?? CockpitSessionReferenceResolver(),
-        _sessionLock = sessionLock ?? CockpitInteractiveSessionLock();
+  }) : _stopRecording =
+           stopRecording ??
+           ((baseUri) =>
+               CockpitRemoteSessionClient(baseUri: baseUri).stopRecording()),
+       _sessionReferenceResolver =
+           sessionReferenceResolver ?? CockpitSessionReferenceResolver(),
+       _sessionLock = sessionLock ?? CockpitInteractiveSessionLock();
 
   final CockpitRemoteRecordingStopper _stopRecording;
   final CockpitSessionReferenceResolver _sessionReferenceResolver;

@@ -8,25 +8,23 @@ import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
-typedef CockpitCollectRemoteSnapshotFunction
-    = Future<CockpitCollectRemoteSnapshotResult> Function(
-  CockpitCollectRemoteSnapshotRequest request,
-);
+typedef CockpitCollectRemoteSnapshotFunction =
+    Future<CockpitCollectRemoteSnapshotResult> Function(
+      CockpitCollectRemoteSnapshotRequest request,
+    );
 
 final class CollectRemoteSnapshotCommand extends CockpitCliCommand {
   CollectRemoteSnapshotCommand({
     CockpitCollectRemoteSnapshotService? service,
     CockpitCollectRemoteSnapshotFunction? collect,
     StringSink? stdoutSink,
-  })  : _collect = collect ??
-            (service ?? CockpitCollectRemoteSnapshotService()).collect,
-        _stdoutSink = stdoutSink ?? stdout {
+  }) : _collect =
+           collect ??
+           (service ?? CockpitCollectRemoteSnapshotService()).collect,
+       _stdoutSink = stdoutSink ?? stdout {
     argParser
       ..addOption('base-url', help: 'Base URL for the running app session.')
-      ..addOption(
-        'session-json',
-        help: cockpitRemoteSessionJsonOptionHelp,
-      )
+      ..addOption('session-json', help: cockpitRemoteSessionJsonOptionHelp)
       ..addOption(
         'android-device-id',
         help: 'Optional Android device ID used to set up adb port forwarding.',
@@ -176,8 +174,9 @@ final class CollectRemoteSnapshotCommand extends CockpitCliCommand {
         sessionHandlePath: sessionJsonPath,
         androidDeviceId: argResults?['android-device-id'] as String?,
         options: _readSnapshotOptions(),
-        downloadDiagnosticsArtifacts:
-            _readFlag('download-diagnostics-artifacts'),
+        downloadDiagnosticsArtifacts: _readFlag(
+          'download-diagnostics-artifacts',
+        ),
       ),
     );
     await cockpitWriteJsonPayload(
@@ -203,7 +202,8 @@ final class CollectRemoteSnapshotCommand extends CockpitCliCommand {
     final networkQuery = CockpitNetworkQuery(
       method: _readOptionalString('network-method'),
       uriContains: _readOptionalString('network-uri-contains'),
-      onlyFailures: _readOptionalFlag('network-only-failures') ??
+      onlyFailures:
+          _readOptionalFlag('network-only-failures') ??
           options.networkQuery.onlyFailures,
       statusCodeAtLeast: cockpitReadOptionalHttpStatusCode(
         argResults,
@@ -212,34 +212,41 @@ final class CollectRemoteSnapshotCommand extends CockpitCliCommand {
       ),
     );
     final runtimeQuery = CockpitRuntimeQuery(
-      onlyErrors: _readOptionalFlag('runtime-only-errors') ??
+      onlyErrors:
+          _readOptionalFlag('runtime-only-errors') ??
           options.runtimeQuery.onlyErrors,
       messageContains: _readOptionalString('runtime-message-contains'),
     );
     final includeNetworkActivity =
         _readFlag('include-network-activity') || !networkQuery.isEmpty
-            ? true
-            : options.includeNetworkActivity;
+        ? true
+        : options.includeNetworkActivity;
     final includeRuntimeActivity =
         _readFlag('include-runtime-activity') || !runtimeQuery.isEmpty
-            ? true
-            : options.includeRuntimeActivity;
+        ? true
+        : options.includeRuntimeActivity;
 
     return options.copyWith(
       maxTargets: _readOptionalInt('max-targets') ?? options.maxTargets,
-      maxAncestorsPerTarget: _readOptionalInt('max-ancestors-per-target') ??
+      maxAncestorsPerTarget:
+          _readOptionalInt('max-ancestors-per-target') ??
           options.maxAncestorsPerTarget,
-      maxPropertiesPerTarget: _readOptionalInt('max-properties-per-target') ??
+      maxPropertiesPerTarget:
+          _readOptionalInt('max-properties-per-target') ??
           options.maxPropertiesPerTarget,
-      maxAccessibilityEntries: _readOptionalInt('max-accessibility-entries') ??
+      maxAccessibilityEntries:
+          _readOptionalInt('max-accessibility-entries') ??
           options.maxAccessibilityEntries,
       includeStyleDetails:
           _readFlag('include-style-details') || options.includeStyleDetails,
-      includeDiagnosticProperties: _readFlag('include-diagnostic-properties') ||
+      includeDiagnosticProperties:
+          _readFlag('include-diagnostic-properties') ||
           options.includeDiagnosticProperties,
-      includeAccessibilitySummary: _readFlag('include-accessibility-summary') ||
+      includeAccessibilitySummary:
+          _readFlag('include-accessibility-summary') ||
           options.includeAccessibilitySummary,
-      emitArtifactWhenLarge: _readFlag('emit-artifact-when-large') ||
+      emitArtifactWhenLarge:
+          _readFlag('emit-artifact-when-large') ||
           options.emitArtifactWhenLarge,
       includeNetworkActivity: includeNetworkActivity,
       maxNetworkEntries:

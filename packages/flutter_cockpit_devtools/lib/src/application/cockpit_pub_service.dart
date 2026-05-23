@@ -59,21 +59,21 @@ final class CockpitPubResult {
   final int stderrLineCount;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'workspaceRoot': workspaceRoot,
-        'toolchain': toolchain.name,
-        'pubCommand': pubCommand.name,
-        'packages': packages,
-        'command': command.toJson(),
-        'exitCode': exitCode,
-        'success': success,
-        'summary': summary,
-        if (stdoutPreview != null) 'stdoutPreview': stdoutPreview,
-        'stdoutTruncated': stdoutTruncated,
-        'stdoutLineCount': stdoutLineCount,
-        if (stderrPreview != null) 'stderrPreview': stderrPreview,
-        'stderrTruncated': stderrTruncated,
-        'stderrLineCount': stderrLineCount,
-      };
+    'workspaceRoot': workspaceRoot,
+    'toolchain': toolchain.name,
+    'pubCommand': pubCommand.name,
+    'packages': packages,
+    'command': command.toJson(),
+    'exitCode': exitCode,
+    'success': success,
+    'summary': summary,
+    if (stdoutPreview != null) 'stdoutPreview': stdoutPreview,
+    'stdoutTruncated': stdoutTruncated,
+    'stdoutLineCount': stdoutLineCount,
+    if (stderrPreview != null) 'stderrPreview': stderrPreview,
+    'stderrTruncated': stderrTruncated,
+    'stderrLineCount': stderrLineCount,
+  };
 }
 
 final class CockpitPubService {
@@ -81,9 +81,9 @@ final class CockpitPubService {
     CockpitFileSystem? fileSystem,
     CockpitProcessManager? processManager,
     CockpitSdkEnvironment? sdkEnvironment,
-  })  : _fileSystem = fileSystem ?? const LocalCockpitFileSystem(),
-        _processManager = processManager ?? const LocalCockpitProcessManager(),
-        _sdkEnvironment = sdkEnvironment ?? CockpitSdkEnvironment.current();
+  }) : _fileSystem = fileSystem ?? const LocalCockpitFileSystem(),
+       _processManager = processManager ?? const LocalCockpitProcessManager(),
+       _sdkEnvironment = sdkEnvironment ?? CockpitSdkEnvironment.current();
 
   final CockpitFileSystem _fileSystem;
   final CockpitProcessManager _processManager;
@@ -133,25 +133,19 @@ final class CockpitPubService {
     );
   }
 
-  void _validatePackages(
-    CockpitPubCommand command,
-    List<String> packages,
-  ) {
+  void _validatePackages(CockpitPubCommand command, List<String> packages) {
     final requiresPackages = switch (command) {
       CockpitPubCommand.add || CockpitPubCommand.remove => true,
       CockpitPubCommand.deps ||
       CockpitPubCommand.get ||
       CockpitPubCommand.outdated ||
-      CockpitPubCommand.upgrade =>
-        false,
+      CockpitPubCommand.upgrade => false,
     };
     if (requiresPackages && packages.isEmpty) {
       throw CockpitApplicationServiceException(
         code: 'pubPackagesRequired',
         message: 'packages is required for this pub command.',
-        details: <String, Object?>{
-          'command': command.name,
-        },
+        details: <String, Object?>{'command': command.name},
       );
     }
     if (!requiresPackages && packages.isNotEmpty) {
@@ -194,9 +188,5 @@ String _summaryFor(CockpitWorkspaceCommandResult result) {
   }
   final safeMax = maxChars < 1 ? 1 : maxChars;
   final clipped = normalized.substring(0, safeMax).trimRight();
-  return (
-    preview: '$clipped...',
-    truncated: true,
-    lineCount: lineCount,
-  );
+  return (preview: '$clipped...', truncated: true, lineCount: lineCount);
 }

@@ -111,7 +111,8 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
       timeout: timeout ?? interactionPolicy.uiIdleTimeout,
       waitTick: (duration) => Future<void>.delayed(duration),
       waitForNetworkIdle: FlutterCockpit.binding.networkObserver?.waitForIdle,
-      includeNetworkIdle: includeNetworkIdle ??
+      includeNetworkIdle:
+          includeNetworkIdle ??
           interactionPolicy.waitForNetworkIdleDuringAcceptanceCapture,
     );
   }
@@ -138,14 +139,15 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
 
     final snapshotData = effectiveRequest.includeSnapshot
         ? surfaceState.snapshot(
-            options: effectiveRequest.snapshotOptions ??
+            options:
+                effectiveRequest.snapshotOptions ??
                 _defaultSnapshotOptionsFor(effectiveRequest.reason),
           )
         : null;
 
     final prefersNativeCapture =
         effectiveProfile == CockpitCaptureProfile.acceptance ||
-            effectiveProfile == CockpitCaptureProfile.nativePreferred;
+        effectiveProfile == CockpitCaptureProfile.nativePreferred;
     if (prefersNativeCapture &&
         await FlutterCockpit.binding.queryNativeCaptureAvailability()) {
       try {
@@ -280,7 +282,8 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
   }
 
   void _syncTapFeedbackController() {
-    final shouldEnable = kDebugMode &&
+    final shouldEnable =
+        kDebugMode &&
         FlutterCockpit.binding.configuration.diagnostics.enableTapFeedback;
     if (shouldEnable) {
       _tapFeedbackController ??= CockpitTapFeedbackController();
@@ -325,52 +328,54 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
       registry: FlutterCockpit.binding.registry,
       captureHandler: captureScreenshot,
       snapshotProvider: snapshot,
-      scrollStepHandler: ({
-        required reverse,
-        required viewportFraction,
-        scrollableKey,
-        targetLocator,
-        scrollableLocator,
-        required duration,
-        required gestureProfile,
-        required continuous,
-        required postScrollEnsureVisible,
-      }) {
-        final surfaceState = _surfaceKey.currentState;
-        if (surfaceState == null) {
-          return Future<CockpitScrollStepResult>.value(
-            const CockpitScrollStepResult(didScroll: false),
-          );
-        }
-        return surfaceState.scrollByViewport(
-          reverse: reverse,
-          viewportFraction: viewportFraction,
-          scrollableKey: scrollableKey,
-          targetLocator: targetLocator,
-          scrollableLocator: scrollableLocator,
-          duration: duration,
-          gestureProfile: gestureProfile,
-          continuous: continuous,
-          postScrollEnsureVisible: postScrollEnsureVisible,
-        );
-      },
-      ensureVisibleHandler: ({
-        required locator,
-        required duration,
-        required alignment,
-        required padding,
-      }) {
-        final surfaceState = _surfaceKey.currentState;
-        if (surfaceState == null) {
-          return Future<bool>.value(false);
-        }
-        return surfaceState.ensureLocatorVisible(
-          locator,
-          duration: duration,
-          alignment: alignment,
-          padding: padding,
-        );
-      },
+      scrollStepHandler:
+          ({
+            required reverse,
+            required viewportFraction,
+            scrollableKey,
+            targetLocator,
+            scrollableLocator,
+            required duration,
+            required gestureProfile,
+            required continuous,
+            required postScrollEnsureVisible,
+          }) {
+            final surfaceState = _surfaceKey.currentState;
+            if (surfaceState == null) {
+              return Future<CockpitScrollStepResult>.value(
+                const CockpitScrollStepResult(didScroll: false),
+              );
+            }
+            return surfaceState.scrollByViewport(
+              reverse: reverse,
+              viewportFraction: viewportFraction,
+              scrollableKey: scrollableKey,
+              targetLocator: targetLocator,
+              scrollableLocator: scrollableLocator,
+              duration: duration,
+              gestureProfile: gestureProfile,
+              continuous: continuous,
+              postScrollEnsureVisible: postScrollEnsureVisible,
+            );
+          },
+      ensureVisibleHandler:
+          ({
+            required locator,
+            required duration,
+            required alignment,
+            required padding,
+          }) {
+            final surfaceState = _surfaceKey.currentState;
+            if (surfaceState == null) {
+              return Future<bool>.value(false);
+            }
+            return surfaceState.ensureLocatorVisible(
+              locator,
+              duration: duration,
+              alignment: alignment,
+              padding: padding,
+            );
+          },
       gestureHandler: (action) {
         final surfaceState = _surfaceKey.currentState;
         if (surfaceState == null) {
@@ -382,10 +387,10 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
       },
       clearNetworkActivityHandler:
           FlutterCockpit.binding.networkObserver == null
-              ? null
-              : () {
-                  FlutterCockpit.binding.networkObserver?.clear();
-                },
+          ? null
+          : () {
+              FlutterCockpit.binding.networkObserver?.clear();
+            },
       waitForNetworkIdleHandler: FlutterCockpit.binding.networkObserver == null
           ? null
           : ({required quietWindow, required timeout}) {
@@ -443,9 +448,7 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
     _remoteSessionServer = server;
   }
 
-  Future<void> _beginRemoteSessionStart({
-    bool ignoreFailure = false,
-  }) async {
+  Future<void> _beginRemoteSessionStart({bool ignoreFailure = false}) async {
     try {
       await _startRemoteSessionIfEnabled();
       _remoteSessionStartError = null;
@@ -480,10 +483,7 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
     return action();
   }
 
-  void _reportRemoteSessionStartFailure(
-    Object error,
-    StackTrace stackTrace,
-  ) {
+  void _reportRemoteSessionStartFailure(Object error, StackTrace stackTrace) {
     if (_reportedRemoteSessionStartFailure) {
       return;
     }
@@ -543,52 +543,54 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
       registry: FlutterCockpit.binding.registry,
       captureHandler: captureScreenshot,
       snapshotProvider: snapshot,
-      scrollStepHandler: ({
-        required reverse,
-        required viewportFraction,
-        scrollableKey,
-        targetLocator,
-        scrollableLocator,
-        required duration,
-        required gestureProfile,
-        required continuous,
-        required postScrollEnsureVisible,
-      }) {
-        final surfaceState = _surfaceKey.currentState;
-        if (surfaceState == null) {
-          return Future<CockpitScrollStepResult>.value(
-            const CockpitScrollStepResult(didScroll: false),
-          );
-        }
-        return surfaceState.scrollByViewport(
-          reverse: reverse,
-          viewportFraction: viewportFraction,
-          scrollableKey: scrollableKey,
-          targetLocator: targetLocator,
-          scrollableLocator: scrollableLocator,
-          duration: duration,
-          gestureProfile: gestureProfile,
-          continuous: continuous,
-          postScrollEnsureVisible: postScrollEnsureVisible,
-        );
-      },
-      ensureVisibleHandler: ({
-        required locator,
-        required duration,
-        required alignment,
-        required padding,
-      }) {
-        final surfaceState = _surfaceKey.currentState;
-        if (surfaceState == null) {
-          return Future<bool>.value(false);
-        }
-        return surfaceState.ensureLocatorVisible(
-          locator,
-          duration: duration,
-          alignment: alignment,
-          padding: padding,
-        );
-      },
+      scrollStepHandler:
+          ({
+            required reverse,
+            required viewportFraction,
+            scrollableKey,
+            targetLocator,
+            scrollableLocator,
+            required duration,
+            required gestureProfile,
+            required continuous,
+            required postScrollEnsureVisible,
+          }) {
+            final surfaceState = _surfaceKey.currentState;
+            if (surfaceState == null) {
+              return Future<CockpitScrollStepResult>.value(
+                const CockpitScrollStepResult(didScroll: false),
+              );
+            }
+            return surfaceState.scrollByViewport(
+              reverse: reverse,
+              viewportFraction: viewportFraction,
+              scrollableKey: scrollableKey,
+              targetLocator: targetLocator,
+              scrollableLocator: scrollableLocator,
+              duration: duration,
+              gestureProfile: gestureProfile,
+              continuous: continuous,
+              postScrollEnsureVisible: postScrollEnsureVisible,
+            );
+          },
+      ensureVisibleHandler:
+          ({
+            required locator,
+            required duration,
+            required alignment,
+            required padding,
+          }) {
+            final surfaceState = _surfaceKey.currentState;
+            if (surfaceState == null) {
+              return Future<bool>.value(false);
+            }
+            return surfaceState.ensureLocatorVisible(
+              locator,
+              duration: duration,
+              alignment: alignment,
+              padding: padding,
+            );
+          },
       gestureHandler: (action) {
         final surfaceState = _surfaceKey.currentState;
         if (surfaceState == null) {
@@ -606,8 +608,8 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
       transportType: 'remoteHttp',
     );
     final baseCapabilities = await executor.describeCapabilities();
-    final supportsNativeCapture =
-        await FlutterCockpit.binding.queryNativeCaptureAvailability();
+    final supportsNativeCapture = await FlutterCockpit.binding
+        .queryNativeCaptureAvailability();
     return CockpitRemoteSessionStatus(
       sessionId:
           'cockpit-$remoteSessionPlatform-${remoteSessionBaseUri?.port ?? 0}',
@@ -633,7 +635,7 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
   }
 
   Future<CockpitRecordingCapabilities>
-      _recordingCapabilitiesForRemoteSessionHealth() async {
+  _recordingCapabilitiesForRemoteSessionHealth() async {
     try {
       return await queryRecordingCapabilities();
     } on Object catch (error) {

@@ -15,8 +15,7 @@ void main() {
         return ProcessResult(0, 0, '', '');
       },
       iosDeviceProcessTerminator: CockpitIosDeviceProcessTerminator(
-        processRunner: (executable, arguments,
-            {String? workingDirectory}) async {
+        processRunner: (executable, arguments, {String? workingDirectory}) async {
           invocations.add('$executable ${arguments.join(' ')}');
           if (arguments.length >= 4 &&
               arguments[0] == 'devicectl' &&
@@ -63,38 +62,39 @@ void main() {
   });
 
   test(
-      'does not attempt physical iOS termination when platform bundle id is unknown',
-      () async {
-    final invocations = <String>[];
-    final stopper = CockpitPlatformAppStopper(
-      processRunner: (executable, arguments) async {
-        invocations.add('$executable ${arguments.join(' ')}');
-        return ProcessResult(0, 0, '', '');
-      },
-      iosDeviceProcessTerminator: CockpitIosDeviceProcessTerminator(
-        processRunner: (executable, arguments,
-            {String? workingDirectory}) async {
+    'does not attempt physical iOS termination when platform bundle id is unknown',
+    () async {
+      final invocations = <String>[];
+      final stopper = CockpitPlatformAppStopper(
+        processRunner: (executable, arguments) async {
           invocations.add('$executable ${arguments.join(' ')}');
           return ProcessResult(0, 0, '', '');
         },
-      ),
-    );
+        iosDeviceProcessTerminator: CockpitIosDeviceProcessTerminator(
+          processRunner:
+              (executable, arguments, {String? workingDirectory}) async {
+                invocations.add('$executable ${arguments.join(' ')}');
+                return ProcessResult(0, 0, '', '');
+              },
+        ),
+      );
 
-    await stopper.stop(
-      CockpitAppHandle(
-        appId: 'remote-session-1',
-        mode: CockpitAppMode.automation,
-        platform: 'ios',
-        deviceId: '00008110-0009341C2EF3801E',
-        projectDir: '/workspace/app',
-        target: 'cockpit/main.dart',
-        baseUrl: 'http://[fd69:8f18:f0a9::1]:57331',
-        launchedAt: DateTime.utc(2026, 4, 15),
-      ),
-    );
+      await stopper.stop(
+        CockpitAppHandle(
+          appId: 'remote-session-1',
+          mode: CockpitAppMode.automation,
+          platform: 'ios',
+          deviceId: '00008110-0009341C2EF3801E',
+          projectDir: '/workspace/app',
+          target: 'cockpit/main.dart',
+          baseUrl: 'http://[fd69:8f18:f0a9::1]:57331',
+          launchedAt: DateTime.utc(2026, 4, 15),
+        ),
+      );
 
-    expect(invocations, isEmpty);
-  });
+      expect(invocations, isEmpty);
+    },
+  );
 
   test('fails fast for unsupported web automation stops', () {
     final stopper = CockpitPlatformAppStopper();
@@ -115,7 +115,10 @@ void main() {
       throwsA(
         isA<CockpitApplicationServiceException>()
             .having(
-                (error) => error.code, 'code', 'unsupportedAutomationPlatform')
+              (error) => error.code,
+              'code',
+              'unsupportedAutomationPlatform',
+            )
             .having(
               (error) => error.details['operation'],
               'operation',

@@ -26,18 +26,18 @@ final class CockpitDemoApp extends StatefulWidget {
     this.database,
     this.syncGateway,
     super.key,
-  })  : initialRouteName =
-            configuration == null || configuration.initialRouteName == '/'
-                ? '/inbox'
-                : configuration.initialRouteName,
-        cockpitConfig = FlutterCockpitConfig.fromRuntimeConfiguration(
-          (configuration ?? const FlutterCockpitConfiguration()).copyWith(
-            initialRouteName:
-                configuration == null || configuration.initialRouteName == '/'
-                    ? '/inbox'
-                    : configuration.initialRouteName,
-          ),
-        );
+  }) : initialRouteName =
+           configuration == null || configuration.initialRouteName == '/'
+           ? '/inbox'
+           : configuration.initialRouteName,
+       cockpitConfig = FlutterCockpitConfig.fromRuntimeConfiguration(
+         (configuration ?? const FlutterCockpitConfiguration()).copyWith(
+           initialRouteName:
+               configuration == null || configuration.initialRouteName == '/'
+               ? '/inbox'
+               : configuration.initialRouteName,
+         ),
+       );
 
   final FlutterCockpitConfig cockpitConfig;
   final CockpitDemoDatabase? database;
@@ -53,7 +53,8 @@ final class _CockpitDemoAppState extends State<CockpitDemoApp> {
   late final CockpitDemoDatabase _database =
       widget.database ?? CockpitDemoDatabase.local();
   late final TodoRepository _repository = TodoRepository(_database);
-  late final TodoSyncGatewayClient _syncGateway = widget.syncGateway ??
+  late final TodoSyncGatewayClient _syncGateway =
+      widget.syncGateway ??
       TodoLoopbackSyncGateway(
         payloadBuilder: _buildSyncProbePayload,
         shouldSimulateFailure: () => _service.syncState.simulateFailure,
@@ -207,19 +208,13 @@ final class _CockpitDemoAppState extends State<CockpitDemoApp> {
     final activeCount = tasks.where((task) => !task.isCompleted).length;
     final completedCount = tasks.where((task) => task.isCompleted).length;
     final pendingCount = tasks
-        .where(
-          (task) => task.syncStatus == TodoTaskSyncStatus.pending,
-        )
+        .where((task) => task.syncStatus == TodoTaskSyncStatus.pending)
         .length;
     final failedCount = tasks
-        .where(
-          (task) => task.syncStatus == TodoTaskSyncStatus.failed,
-        )
+        .where((task) => task.syncStatus == TodoTaskSyncStatus.failed)
         .length;
     final conflictCount = tasks
-        .where(
-          (task) => task.syncStatus == TodoTaskSyncStatus.conflicted,
-        )
+        .where((task) => task.syncStatus == TodoTaskSyncStatus.conflicted)
         .length;
     final dueTodayCount = tasks.where((task) {
       final dueAt = task.dueAt;

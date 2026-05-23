@@ -10,10 +10,10 @@ import 'cockpit_run_task_service.dart';
 import 'cockpit_task_gate.dart';
 import 'cockpit_task_orchestration_service.dart';
 
-typedef CockpitValidateTaskFunction = Future<CockpitValidateTaskResult>
-    Function(
-  CockpitValidateTaskRequest request,
-);
+typedef CockpitValidateTaskFunction =
+    Future<CockpitValidateTaskResult> Function(
+      CockpitValidateTaskRequest request,
+    );
 
 enum CockpitValidationClassification {
   completed('completed'),
@@ -49,10 +49,10 @@ final class CockpitValidationFailure {
   final Map<String, Object?> details;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'code': code,
-        'message': message,
-        'details': details,
-      };
+    'code': code,
+    'message': message,
+    'details': details,
+  };
 }
 
 final class CockpitValidateTaskRequirements {
@@ -75,15 +75,15 @@ final class CockpitValidateTaskRequirements {
   final bool requireAcceptanceSemanticEvidence;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        if (expectedClassification != null)
-          'expectedClassification': expectedClassification!.jsonValue,
-        'requireAcceptanceMarkdown': requireAcceptanceMarkdown,
-        'requireEnvironmentSnapshot': requireEnvironmentSnapshot,
-        'requirePrimaryScreenshot': requirePrimaryScreenshot,
-        'requirePrimaryRecording': requirePrimaryRecording,
-        'requireArtifactFiles': requireArtifactFiles,
-        'requireAcceptanceSemanticEvidence': requireAcceptanceSemanticEvidence,
-      };
+    if (expectedClassification != null)
+      'expectedClassification': expectedClassification!.jsonValue,
+    'requireAcceptanceMarkdown': requireAcceptanceMarkdown,
+    'requireEnvironmentSnapshot': requireEnvironmentSnapshot,
+    'requirePrimaryScreenshot': requirePrimaryScreenshot,
+    'requirePrimaryRecording': requirePrimaryRecording,
+    'requireArtifactFiles': requireArtifactFiles,
+    'requireAcceptanceSemanticEvidence': requireAcceptanceSemanticEvidence,
+  };
 
   factory CockpitValidateTaskRequirements.fromJson(Map<String, Object?> json) {
     final expectedClassificationValue = json['expectedClassification'];
@@ -117,9 +117,9 @@ final class CockpitValidateTaskRequest {
   final CockpitValidateTaskRequirements validation;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'runTask': runTask.toJson(),
-        'validation': validation.toJson(),
-      };
+    'runTask': runTask.toJson(),
+    'validation': validation.toJson(),
+  };
 
   factory CockpitValidateTaskRequest.fromJson(Map<String, Object?> json) {
     final runTaskJson = _readRequiredObject(json, 'runTask');
@@ -153,16 +153,16 @@ final class CockpitValidateTaskResult {
   final List<String> warnings;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'classification': classification.jsonValue,
-        'recommendedNextStep': recommendedNextStep,
-        if (runTaskResult != null) 'runTaskResult': runTaskResult!.toJson(),
-        if (bundleSummary != null) 'bundleSummary': bundleSummary!.toJson(),
-        if (blockedReason != null) 'blockedReason': blockedReason,
-        if (warnings.isNotEmpty) 'warnings': warnings,
-        'validationFailures': validationFailures
-            .map((failure) => failure.toJson())
-            .toList(growable: false),
-      };
+    'classification': classification.jsonValue,
+    'recommendedNextStep': recommendedNextStep,
+    if (runTaskResult != null) 'runTaskResult': runTaskResult!.toJson(),
+    if (bundleSummary != null) 'bundleSummary': bundleSummary!.toJson(),
+    if (blockedReason != null) 'blockedReason': blockedReason,
+    if (warnings.isNotEmpty) 'warnings': warnings,
+    'validationFailures': validationFailures
+        .map((failure) => failure.toJson())
+        .toList(growable: false),
+  };
 }
 
 final class CockpitValidateTaskService {
@@ -173,15 +173,15 @@ final class CockpitValidateTaskService {
     CockpitTaskOrchestrationFunction? orchestrateTask,
     CockpitRunTaskFunction? runTask,
     CockpitBundleArtifactValidator? artifactValidator,
-  })  : _validateTaskOverride = validateTask,
-        _orchestrateTask = runTask == null && runTaskService == null
-            ? (orchestrateTask ??
-                (orchestrationService ?? CockpitTaskOrchestrationService())
-                    .orchestrate)
-            : null,
-        _runTask = runTask ?? runTaskService?.run,
-        _artifactValidator =
-            artifactValidator ?? CockpitBundleArtifactValidator();
+  }) : _validateTaskOverride = validateTask,
+       _orchestrateTask = runTask == null && runTaskService == null
+           ? (orchestrateTask ??
+                 (orchestrationService ?? CockpitTaskOrchestrationService())
+                     .orchestrate)
+           : null,
+       _runTask = runTask ?? runTaskService?.run,
+       _artifactValidator =
+           artifactValidator ?? CockpitBundleArtifactValidator();
 
   final CockpitValidateTaskFunction? _validateTaskOverride;
   final CockpitTaskOrchestrationFunction? _orchestrateTask;
@@ -321,7 +321,7 @@ final class CockpitValidateTaskService {
       final screenshotPath = bundleSummary.artifactPaths.primaryScreenshotPath;
       final screenshotReady =
           gateSummary.isSatisfied(CockpitTaskGate.screenshotReady) ||
-              _hasPrimaryScreenshotEvidence(bundleSummary);
+          _hasPrimaryScreenshotEvidence(bundleSummary);
       if (!screenshotReady) {
         failures.add(
           _gateFailure(
@@ -330,9 +330,7 @@ final class CockpitValidateTaskService {
             fallbackCode: 'primaryScreenshotMissing',
             message:
                 'A primary screenshot is required but the screenshot gate failed.',
-            details: <String, Object?>{
-              'primaryScreenshotPath': screenshotPath,
-            },
+            details: <String, Object?>{'primaryScreenshotPath': screenshotPath},
           ),
         );
       } else if (screenshotPath != null && screenshotPath.isNotEmpty) {
@@ -360,7 +358,7 @@ final class CockpitValidateTaskService {
       final recordingPath = bundleSummary.artifactPaths.primaryRecordingPath;
       final recordingReady =
           gateSummary.isSatisfied(CockpitTaskGate.recordingReadyOrExplained) ||
-              _hasPrimaryRecordingEvidence(bundleSummary);
+          _hasPrimaryRecordingEvidence(bundleSummary);
       if (!recordingReady) {
         failures.add(
           _gateFailure(
@@ -369,9 +367,7 @@ final class CockpitValidateTaskService {
             fallbackCode: 'primaryRecordingMissing',
             message:
                 'A primary recording is required but the recording gate failed.',
-            details: <String, Object?>{
-              'primaryRecordingPath': recordingPath,
-            },
+            details: <String, Object?>{'primaryRecordingPath': recordingPath},
           ),
         );
       } else if (recordingPath != null && recordingPath.isNotEmpty) {
@@ -381,9 +377,7 @@ final class CockpitValidateTaskService {
               code: 'acceptanceRecordingMissing',
               message:
                   'The primary recording is referenced but missing from the bundle.',
-              details: <String, Object?>{
-                'primaryRecordingPath': recordingPath,
-              },
+              details: <String, Object?>{'primaryRecordingPath': recordingPath},
             ),
           );
         }
@@ -514,12 +508,13 @@ final class CockpitValidateTaskService {
           }
         }
 
-        final coverageJson = bundleSummary.delivery['keyframeCoverage']
-            as Map<Object?, Object?>?;
+        final coverageJson =
+            bundleSummary.delivery['keyframeCoverage']
+                as Map<Object?, Object?>?;
         final durationMs = coverageJson == null
             ? 0
             : (Map<String, Object?>.from(coverageJson)['durationMs'] as int? ??
-                0);
+                  0);
         final failure = _validateRecordingCoverage(
           durationMs: durationMs,
           keyframes: keyframes,
@@ -701,10 +696,7 @@ final class CockpitValidateTaskService {
           CockpitValidationFailure(
             code: '${codePrefix}RefInvalid',
             message: '$fieldName entries must be non-empty strings.',
-            details: <String, Object?>{
-              'fieldName': fieldName,
-              'ref': rawRef,
-            },
+            details: <String, Object?>{'fieldName': fieldName, 'ref': rawRef},
           ),
         );
         continue;
@@ -866,15 +858,16 @@ final class CockpitValidateTaskService {
   }) {
     final prioritizedKeyframes = bundleSummary.evidence.keyframes.toList()
       ..sort(
-        (left, right) => _deliveryConsistencyPriority(
-          keyframe: left,
-          screenshotPath: screenshotPath,
-        ).compareTo(
-          _deliveryConsistencyPriority(
-            keyframe: right,
-            screenshotPath: screenshotPath,
-          ),
-        ),
+        (left, right) =>
+            _deliveryConsistencyPriority(
+              keyframe: left,
+              screenshotPath: screenshotPath,
+            ).compareTo(
+              _deliveryConsistencyPriority(
+                keyframe: right,
+                screenshotPath: screenshotPath,
+              ),
+            ),
       );
 
     final paths = <String>[];
@@ -1033,8 +1026,8 @@ final class CockpitValidateTaskService {
   }) {
     final requiresComparison =
         (bundleSummary.artifactPaths.primaryScreenshotPath?.isNotEmpty ??
-                false) ||
-            requireSemanticSignals;
+            false) ||
+        requireSemanticSignals;
     if (!requiresComparison) {
       return const <CockpitValidationFailure>[];
     }
@@ -1042,19 +1035,20 @@ final class CockpitValidateTaskService {
     final gateSummary = bundleSummary.gateSummary;
     final hasDirectComparisonEvidence =
         bundleSummary.baselineEvidence != null &&
-            bundleSummary.acceptanceEvidence != null &&
-            bundleSummary.acceptanceDelta != null;
+        bundleSummary.acceptanceEvidence != null &&
+        bundleSummary.acceptanceDelta != null;
     if (!gateSummary.isSatisfied(CockpitTaskGate.acceptanceEvidenceReadable) &&
         !hasDirectComparisonEvidence) {
       final failureCodes = gateSummary.failureCodesFor(
         CockpitTaskGate.acceptanceEvidenceReadable,
       );
-      final code = failureCodes.any(
-        (failureCode) =>
-            failureCode == 'baselineEvidenceMissing' ||
-            failureCode == 'acceptanceEvidenceMissing' ||
-            failureCode == 'acceptanceDeltaMissing',
-      )
+      final code =
+          failureCodes.any(
+            (failureCode) =>
+                failureCode == 'baselineEvidenceMissing' ||
+                failureCode == 'acceptanceEvidenceMissing' ||
+                failureCode == 'acceptanceDeltaMissing',
+          )
           ? 'acceptanceComparisonEvidenceMissing'
           : 'acceptanceComparisonEvidenceInsufficient';
       return <CockpitValidationFailure>[
@@ -1171,8 +1165,9 @@ final class CockpitValidateTaskService {
           message:
               'Execution required a fallback path, but the fallback outcome is not acceptable for delivery.',
           details: <String, Object?>{
-            'intendedPlaneWorked':
-                gateSummary.isSatisfied(CockpitTaskGate.intendedPlaneWorked),
+            'intendedPlaneWorked': gateSummary.isSatisfied(
+              CockpitTaskGate.intendedPlaneWorked,
+            ),
           },
         ),
       );
@@ -1182,10 +1177,7 @@ final class CockpitValidateTaskService {
   }
 }
 
-bool? _readOptionalBool(
-  Map<String, Object?> json,
-  String key,
-) {
+bool? _readOptionalBool(Map<String, Object?> json, String key) {
   final value = json[key];
   if (value == null) {
     return null;
@@ -1193,11 +1185,7 @@ bool? _readOptionalBool(
   if (value is bool) {
     return value;
   }
-  throw ArgumentError.value(
-    value,
-    key,
-    'Expected a boolean field.',
-  );
+  throw ArgumentError.value(value, key, 'Expected a boolean field.');
 }
 
 Map<String, Object?> _readRequiredObject(
@@ -1206,11 +1194,7 @@ Map<String, Object?> _readRequiredObject(
 ) {
   final value = _readOptionalObject(json, key);
   if (value == null) {
-    throw ArgumentError.value(
-      json,
-      key,
-      'Missing required object field.',
-    );
+    throw ArgumentError.value(json, key, 'Missing required object field.');
   }
   return value;
 }
@@ -1226,9 +1210,5 @@ Map<String, Object?>? _readOptionalObject(
   if (value is Map<Object?, Object?>) {
     return Map<String, Object?>.from(value);
   }
-  throw ArgumentError.value(
-    value,
-    key,
-    'Expected an object field.',
-  );
+  throw ArgumentError.value(value, key, 'Expected an object field.');
 }

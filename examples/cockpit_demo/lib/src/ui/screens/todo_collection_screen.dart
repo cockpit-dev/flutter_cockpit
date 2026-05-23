@@ -88,7 +88,8 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
   }
 
   TodoFilter _effectiveFilter() {
-    final completionFilter = widget.routeName == '/inbox' &&
+    final completionFilter =
+        widget.routeName == '/inbox' &&
             widget.service.settingsState.settings.showCompletedInInbox
         ? TodoCompletionFilter.all
         : widget.baseFilter.completionFilter;
@@ -108,8 +109,8 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
   }
 
   bool get _selectionMode => widget.service.listState.tasks.any(
-        (task) => _selectedTaskIds.contains(task.id),
-      );
+    (task) => _selectedTaskIds.contains(task.id),
+  );
 
   bool _canManualReorder(TodoSettings settings) {
     return widget.routeName == '/inbox' &&
@@ -215,6 +216,20 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
     });
   }
 
+  Widget _selectionActionButton({
+    required VoidCallback? onPressed,
+    required IconData icon,
+    required String label,
+  }) {
+    return OutlinedButton(
+      onPressed: onPressed,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[Icon(icon), const SizedBox(width: 8), Text(label)],
+      ),
+    );
+  }
+
   Future<void> _deleteSelectedTasks(List<TodoTask> tasks) async {
     final selectedTasks = _selectedTasks(tasks);
     if (selectedTasks.isEmpty) {
@@ -272,8 +287,10 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Text('Update priority',
-                        style: theme.textTheme.headlineSmall),
+                    Text(
+                      'Update priority',
+                      style: theme.textTheme.headlineSmall,
+                    ),
                     const SizedBox(height: 8),
                     Text(
                       'Apply one priority to ${selectedTasks.length} selected tasks.',
@@ -358,10 +375,7 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Text(
-                  'Update due date',
-                  style: theme.textTheme.headlineSmall,
-                ),
+                Text('Update due date', style: theme.textTheme.headlineSmall),
                 const SizedBox(height: 8),
                 Text(
                   'Apply one due date preset to ${selectedTasks.length} selected tasks.',
@@ -441,9 +455,8 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
-      builder: (context) => _DuplicateSelectionSheet(
-        selectedTaskCount: selectedTasks.length,
-      ),
+      builder: (context) =>
+          _DuplicateSelectionSheet(selectedTaskCount: selectedTasks.length),
     );
     if (result == null) {
       return;
@@ -571,7 +584,8 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
           (task) => !task.isCompleted,
         );
         final focusedTask = _taskById(tasks, listState.focusedTaskId);
-        final showEmptyState = !listState.isLoading &&
+        final showEmptyState =
+            !listState.isLoading &&
             listState.errorMessage == null &&
             tasks.isEmpty;
         final activeCount = tasks.where((task) => !task.isCompleted).length;
@@ -759,45 +773,41 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
                             spacing: 8,
                             runSpacing: 8,
                             children: <Widget>[
-                              OutlinedButton.icon(
+                              _selectionActionButton(
                                 onPressed: allVisibleSelected
                                     ? null
                                     : () => _selectAllFilteredTasks(tasks),
-                                icon: const Icon(Icons.done_all_rounded),
-                                label: const Text('All results'),
+                                icon: Icons.done_all_rounded,
+                                label: 'All results',
                               ),
-                              OutlinedButton.icon(
+                              _selectionActionButton(
                                 onPressed: () => _duplicateSelectedTasks(tasks),
-                                icon: const Icon(Icons.copy_all_rounded),
-                                label: const Text('Duplicate'),
+                                icon: Icons.copy_all_rounded,
+                                label: 'Duplicate',
                               ),
-                              OutlinedButton.icon(
+                              _selectionActionButton(
                                 onPressed: () => _changeSelectedPriority(tasks),
-                                icon: const Icon(Icons.flag_rounded),
-                                label: const Text('Priority'),
+                                icon: Icons.flag_rounded,
+                                label: 'Priority',
                               ),
-                              OutlinedButton.icon(
+                              _selectionActionButton(
                                 onPressed: () => _changeSelectedDueDate(tasks),
-                                icon: const Icon(Icons.event_available_rounded),
-                                label: const Text('Schedule'),
+                                icon: Icons.event_available_rounded,
+                                label: 'Schedule',
                               ),
-                              OutlinedButton.icon(
+                              _selectionActionButton(
                                 onPressed: () => _changeSelectedTags(tasks),
-                                icon: const Icon(Icons.sell_rounded),
-                                label: const Text('Tags'),
+                                icon: Icons.sell_rounded,
+                                label: 'Tags',
                               ),
-                              OutlinedButton.icon(
+                              _selectionActionButton(
                                 onPressed: () => _completeSelectedTasks(tasks),
-                                icon: Icon(
-                                  shouldCompleteSelection
-                                      ? Icons.task_alt_rounded
-                                      : Icons.undo_rounded,
-                                ),
-                                label: Text(
-                                  shouldCompleteSelection
-                                      ? 'Complete'
-                                      : 'Reopen',
-                                ),
+                                icon: shouldCompleteSelection
+                                    ? Icons.task_alt_rounded
+                                    : Icons.undo_rounded,
+                                label: shouldCompleteSelection
+                                    ? 'Complete'
+                                    : 'Reopen',
                               ),
                               FilledButton.tonalIcon(
                                 onPressed: () => _deleteSelectedTasks(tasks),
@@ -837,12 +847,13 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
                                         'LATEST UPDATE',
                                         style: theme.textTheme.labelMedium
                                             ?.copyWith(
-                                          color: colorScheme.onPrimaryContainer
-                                              .withAlphaFraction(0.72),
-                                          fontWeight: FontWeight.w800,
-                                          letterSpacing: 0.9,
-                                          height: 1,
-                                        ),
+                                              color: colorScheme
+                                                  .onPrimaryContainer
+                                                  .withAlphaFraction(0.72),
+                                              fontWeight: FontWeight.w800,
+                                              letterSpacing: 0.9,
+                                              height: 1,
+                                            ),
                                       ),
                                       const SizedBox(height: 5),
                                       Text(
@@ -851,13 +862,15 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
                                         overflow: TextOverflow.ellipsis,
                                         style: theme.textTheme.titleMedium
                                             ?.copyWith(
-                                          color: colorScheme.onPrimaryContainer,
-                                          fontWeight: FontWeight.w700,
-                                          height: 1.08,
-                                        ),
+                                              color: colorScheme
+                                                  .onPrimaryContainer,
+                                              fontWeight: FontWeight.w700,
+                                              height: 1.08,
+                                            ),
                                       ),
                                       if (focusedTask
-                                          .notes.isNotEmpty) ...<Widget>[
+                                          .notes
+                                          .isNotEmpty) ...<Widget>[
                                         const SizedBox(height: 4),
                                         Text(
                                           focusedTask.notes,
@@ -865,11 +878,11 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
                                           overflow: TextOverflow.ellipsis,
                                           style: theme.textTheme.bodySmall
                                               ?.copyWith(
-                                            color: colorScheme
-                                                .onPrimaryContainer
-                                                .withAlphaFraction(0.74),
-                                            height: 1.2,
-                                          ),
+                                                color: colorScheme
+                                                    .onPrimaryContainer
+                                                    .withAlphaFraction(0.74),
+                                                height: 1.2,
+                                              ),
                                         ),
                                       ],
                                     ],
@@ -905,11 +918,12 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
                                             tapTargetSize: MaterialTapTargetSize
                                                 .shrinkWrap,
                                             textStyle: theme
-                                                .textTheme.labelMedium
+                                                .textTheme
+                                                .labelMedium
                                                 ?.copyWith(
-                                              fontWeight: FontWeight.w700,
-                                              letterSpacing: 0.12,
-                                            ),
+                                                  fontWeight: FontWeight.w700,
+                                                  letterSpacing: 0.12,
+                                                ),
                                           ),
                                           child: Row(
                                             mainAxisSize: MainAxisSize.min,
@@ -934,9 +948,9 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
                                           splashRadius: 16,
                                           constraints:
                                               const BoxConstraints.tightFor(
-                                            width: 32,
-                                            height: 32,
-                                          ),
+                                                width: 32,
+                                                height: 32,
+                                              ),
                                           padding: EdgeInsets.zero,
                                           icon: Icon(
                                             Icons.close_rounded,
@@ -962,8 +976,12 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
                               backgroundColor: colorScheme.errorContainer
                                   .withAlphaFraction(0.88),
                               leadingAccentColor: colorScheme.error,
-                              padding:
-                                  const EdgeInsets.fromLTRB(18, 16, 18, 16),
+                              padding: const EdgeInsets.fromLTRB(
+                                18,
+                                16,
+                                18,
+                                16,
+                              ),
                               child: Row(
                                 children: <Widget>[
                                   Icon(
@@ -974,10 +992,10 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
                                   Expanded(
                                     child: Text(
                                       listState.errorMessage!,
-                                      style:
-                                          theme.textTheme.bodyMedium?.copyWith(
-                                        color: colorScheme.onErrorContainer,
-                                      ),
+                                      style: theme.textTheme.bodyMedium
+                                          ?.copyWith(
+                                            color: colorScheme.onErrorContainer,
+                                          ),
                                     ),
                                   ),
                                 ],
@@ -994,8 +1012,9 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
                             eyebrow: _eyebrowForRoute(),
                             headline: _headlineForRoute(),
                             message: _messageForRoute(),
-                            statusBanner:
-                                showEmptyState ? 'Fresh canvas' : null,
+                            statusBanner: showEmptyState
+                                ? 'Fresh canvas'
+                                : null,
                             dense: showEmptyState,
                             trailing: _OverviewActionRail(
                               modeTitle: settingsState.settings.compactMode
@@ -1282,10 +1301,7 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
       return;
     }
     final newIndex = targetIndex > oldIndex ? targetIndex + 1 : targetIndex;
-    await widget.service.reorderTasks(
-      oldIndex: oldIndex,
-      newIndex: newIndex,
-    );
+    await widget.service.reorderTasks(oldIndex: oldIndex, newIndex: newIndex);
   }
 
   TodoTask? _taskById(List<TodoTask> tasks, String? taskId) {
@@ -1440,7 +1456,8 @@ final class _SwipeToDeleteTaskRowState extends State<_SwipeToDeleteTaskRow> {
                 });
               },
               onHorizontalDragEnd: (details) {
-                final shouldDismiss = _dragOffset.abs() >= dismissThreshold ||
+                final shouldDismiss =
+                    _dragOffset.abs() >= dismissThreshold ||
                     details.primaryVelocity!.abs() >= _dismissVelocity;
                 setState(() {
                   _isDragging = false;
@@ -1504,7 +1521,7 @@ final class _ManualQueuePanel extends StatefulWidget {
   final List<TodoTask> tasks;
   final bool compactMode;
   final Future<void> Function(String draggedTaskId, int targetIndex)
-      onMoveToIndex;
+  onMoveToIndex;
 
   @override
   State<_ManualQueuePanel> createState() => _ManualQueuePanelState();
@@ -1734,10 +1751,7 @@ final class _BatchTagSheetState extends State<_BatchTagSheet> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
-                      Text(
-                        'Update tags',
-                        style: theme.textTheme.headlineSmall,
-                      ),
+                      Text('Update tags', style: theme.textTheme.headlineSmall),
                       const SizedBox(height: 8),
                       Text(
                         'Choose the shared tag set that ${widget.selectedTaskCount} selected tasks should carry.',
@@ -1770,8 +1784,9 @@ final class _BatchTagSheetState extends State<_BatchTagSheet> {
                                   ),
                                 )
                               : const Icon(Icons.add_rounded),
-                          label:
-                              Text(_isCreatingTag ? 'Creating…' : 'Create tag'),
+                          label: Text(
+                            _isCreatingTag ? 'Creating…' : 'Create tag',
+                          ),
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -1815,8 +1830,9 @@ final class _BatchTagSheetState extends State<_BatchTagSheet> {
                   FilledButton.icon(
                     onPressed: _isCreatingTag
                         ? null
-                        : () =>
-                            Navigator.of(context).pop(_orderedSelectedTagIds()),
+                        : () => Navigator.of(
+                            context,
+                          ).pop(_orderedSelectedTagIds()),
                     icon: const Icon(Icons.sell_rounded),
                     label: const Text('Apply tags'),
                   ),
@@ -2156,9 +2172,9 @@ final class _DismissBackground extends StatelessWidget {
           Text(
             label,
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: colorScheme.onErrorContainer,
-                  fontWeight: FontWeight.w800,
-                ),
+              color: colorScheme.onErrorContainer,
+              fontWeight: FontWeight.w800,
+            ),
           ),
         ],
       ),
@@ -2186,8 +2202,9 @@ final class _NavigationButton extends StatelessWidget {
     return TextButton(
       onPressed: onPressed,
       style: TextButton.styleFrom(
-        foregroundColor:
-            selected ? colorScheme.onSurface : colorScheme.onSurfaceVariant,
+        foregroundColor: selected
+            ? colorScheme.onSurface
+            : colorScheme.onSurfaceVariant,
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         shape: const RoundedRectangleBorder(),
       ),

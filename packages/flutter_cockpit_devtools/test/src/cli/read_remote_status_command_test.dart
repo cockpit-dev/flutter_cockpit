@@ -43,7 +43,8 @@ void main() {
         ),
       );
 
-    final exitCode = await runner.run(<String>[
+    final exitCode =
+        await runner.run(<String>[
           'read-remote-status',
           '--stdout-format',
           'json',

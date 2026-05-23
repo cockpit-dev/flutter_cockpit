@@ -4,9 +4,8 @@ import '../../application/cockpit_inspect_ui_service.dart';
 import '../../application/cockpit_interactive_result_profile.dart';
 import '../cockpit_mcp_tool.dart';
 
-typedef CockpitInspectUiToolFunction = Future<CockpitInspectUiResult> Function(
-  CockpitInspectUiRequest request,
-);
+typedef CockpitInspectUiToolFunction =
+    Future<CockpitInspectUiResult> Function(CockpitInspectUiRequest request);
 
 final class CockpitInspectUiTool extends CockpitMcpTool {
   CockpitInspectUiTool({
@@ -25,17 +24,17 @@ final class CockpitInspectUiTool extends CockpitMcpTool {
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
-        'type': 'object',
-        'properties': <String, Object?>{
-          'appId': <String, Object?>{'type': 'string'},
-          'appJson': <String, Object?>{'type': 'string'},
-          'baseUrl': <String, Object?>{'type': 'string'},
-          'androidDeviceId': <String, Object?>{'type': 'string'},
-          'profile': <String, Object?>{'type': 'string'},
-          'snapshotOptions': <String, Object?>{'type': 'object'},
-          'compareAgainstSnapshotRef': <String, Object?>{'type': 'string'},
-        },
-      };
+    'type': 'object',
+    'properties': <String, Object?>{
+      'appId': <String, Object?>{'type': 'string'},
+      'appJson': <String, Object?>{'type': 'string'},
+      'baseUrl': <String, Object?>{'type': 'string'},
+      'androidDeviceId': <String, Object?>{'type': 'string'},
+      'profile': <String, Object?>{'type': 'string'},
+      'snapshotOptions': <String, Object?>{'type': 'object'},
+      'compareAgainstSnapshotRef': <String, Object?>{'type': 'string'},
+    },
+  };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {

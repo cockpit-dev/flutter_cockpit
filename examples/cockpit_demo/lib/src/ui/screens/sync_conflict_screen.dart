@@ -39,13 +39,11 @@ final class _SyncConflictScreenState extends State<SyncConflictScreen> {
     }
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-          switch (resolution) {
-            TodoConflictResolution.keepLocal => 'Conflict resolved locally.',
-            TodoConflictResolution.keepRemote => 'Remote version restored.',
-            TodoConflictResolution.mergeFields => 'Conflict merged for retry.',
-          },
-        ),
+        content: Text(switch (resolution) {
+          TodoConflictResolution.keepLocal => 'Conflict resolved locally.',
+          TodoConflictResolution.keepRemote => 'Remote version restored.',
+          TodoConflictResolution.mergeFields => 'Conflict merged for retry.',
+        }),
       ),
     );
     Navigator.of(context).pop(refreshed);

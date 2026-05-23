@@ -99,10 +99,7 @@ final class PlanningSurfaceCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 12),
-                TextButton(
-                  onPressed: onResetZoom,
-                  child: const Text('Reset'),
-                ),
+                TextButton(onPressed: onResetZoom, child: const Text('Reset')),
               ],
             ),
             const SizedBox(height: 18),
@@ -210,8 +207,8 @@ final class _PlanningLane extends StatelessWidget {
                         ),
                       ]
                     : lane.tasks
-                        .map((task) => _PlanningLine(task: task))
-                        .toList(growable: false),
+                          .map((task) => _PlanningLine(task: task))
+                          .toList(growable: false),
               ),
             ),
           ],

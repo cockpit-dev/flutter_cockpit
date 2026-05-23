@@ -29,17 +29,23 @@ final class CockpitTextInputCommandExecutor {
     return switch (command.commandType) {
       CockpitCommandType.enterText => enterText(command, stopwatch),
       CockpitCommandType.focusTextInput => focusTextInput(command, stopwatch),
-      CockpitCommandType.setTextEditingValue =>
-        setTextEditingValue(command, stopwatch),
-      CockpitCommandType.sendTextInputAction =>
-        sendTextInputAction(command, stopwatch),
+      CockpitCommandType.setTextEditingValue => setTextEditingValue(
+        command,
+        stopwatch,
+      ),
+      CockpitCommandType.sendTextInputAction => sendTextInputAction(
+        command,
+        stopwatch,
+      ),
       CockpitCommandType.sendKeyEvent => sendKeyEvent(command, stopwatch),
-      CockpitCommandType.sendKeyDownEvent =>
-        sendKeyDownEvent(command, stopwatch),
+      CockpitCommandType.sendKeyDownEvent => sendKeyDownEvent(
+        command,
+        stopwatch,
+      ),
       CockpitCommandType.sendKeyUpEvent => sendKeyUpEvent(command, stopwatch),
       _ => throw UnsupportedError(
-          'Unsupported text-input command ${command.commandType.name}.',
-        ),
+        'Unsupported text-input command ${command.commandType.name}.',
+      ),
     };
   }
 }

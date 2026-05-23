@@ -33,7 +33,8 @@ final class CockpitControlPlanner {
 
     if (candidatePlanes.isEmpty) {
       throw StateError(
-          'No execution planes are available for ${intent.action.name}.');
+        'No execution planes are available for ${intent.action.name}.',
+      );
     }
 
     final orderedPlanes = _applyExecutionPolicy(
@@ -63,8 +64,9 @@ final class CockpitControlPlanner {
     CockpitIntent intent,
     CockpitCapabilityProfile capabilityProfile,
   ) {
-    if (!capabilityProfile
-        .supportsAction(_actionCapabilityFor(intent.action))) {
+    if (!capabilityProfile.supportsAction(
+      _actionCapabilityFor(intent.action),
+    )) {
       return false;
     }
     return capabilityProfile.supportsSurface(CockpitSurfaceKind.nativeUi) ||
@@ -142,12 +144,10 @@ final class CockpitControlPlanner {
       CockpitIntentAction.dismiss ||
       CockpitIntentAction.waitFor ||
       CockpitIntentAction.assertVisible ||
-      CockpitIntentAction.assertText =>
-        true,
+      CockpitIntentAction.assertText => true,
       CockpitIntentAction.captureScreenshot ||
       CockpitIntentAction.collectSnapshot ||
-      CockpitIntentAction.runShell =>
-        false,
+      CockpitIntentAction.runShell => false,
     };
   }
 
@@ -171,23 +171,20 @@ final class CockpitControlPlanner {
       CockpitIntentAction.dismiss ||
       CockpitIntentAction.waitFor ||
       CockpitIntentAction.assertVisible ||
-      CockpitIntentAction.assertText =>
-        CockpitActionCapability.tap,
+      CockpitIntentAction.assertText => CockpitActionCapability.tap,
       CockpitIntentAction.enterText ||
       CockpitIntentAction.focusTextInput ||
       CockpitIntentAction.setTextEditingValue ||
       CockpitIntentAction.sendTextInputAction ||
       CockpitIntentAction.sendKeyEvent ||
       CockpitIntentAction.sendKeyDownEvent ||
-      CockpitIntentAction.sendKeyUpEvent =>
-        CockpitActionCapability.typeText,
+      CockpitIntentAction.sendKeyUpEvent => CockpitActionCapability.typeText,
       CockpitIntentAction.captureScreenshot =>
         CockpitActionCapability.captureScreenshot,
       CockpitIntentAction.collectSnapshot ||
       CockpitIntentAction.clearNetworkActivity ||
       CockpitIntentAction.waitForNetworkIdle ||
-      CockpitIntentAction.waitForUiIdle =>
-        CockpitActionCapability.readLogs,
+      CockpitIntentAction.waitForUiIdle => CockpitActionCapability.readLogs,
       CockpitIntentAction.runShell => CockpitActionCapability.runShell,
     };
   }

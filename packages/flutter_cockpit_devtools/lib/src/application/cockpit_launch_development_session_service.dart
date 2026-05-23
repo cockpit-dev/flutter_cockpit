@@ -13,24 +13,24 @@ import '../session/cockpit_remote_session_launcher.dart';
 import 'cockpit_entrypoint_resolver.dart';
 import 'cockpit_compact_json.dart';
 
-typedef CockpitDevelopmentSessionLauncher
-    = Future<CockpitDevelopmentSessionBootstrap> Function(
-  CockpitLaunchDevelopmentSessionRequest request,
-);
-typedef CockpitSupervisorStatusReader
-    = Future<CockpitDevelopmentSessionSupervisorResponse> Function(
-  Uri supervisorBaseUri,
-);
-typedef CockpitSupervisorSpawner = Future<CockpitSpawnedDevelopmentSupervisor>
-    Function({
-  required CockpitLaunchDevelopmentSessionRequest request,
-  required String flutterVersion,
-  required String flutterExecutable,
-  required String dartExecutable,
-  required int hostPort,
-  required int supervisorPort,
-  required File supervisorLogFile,
-});
+typedef CockpitDevelopmentSessionLauncher =
+    Future<CockpitDevelopmentSessionBootstrap> Function(
+      CockpitLaunchDevelopmentSessionRequest request,
+    );
+typedef CockpitSupervisorStatusReader =
+    Future<CockpitDevelopmentSessionSupervisorResponse> Function(
+      Uri supervisorBaseUri,
+    );
+typedef CockpitSupervisorSpawner =
+    Future<CockpitSpawnedDevelopmentSupervisor> Function({
+      required CockpitLaunchDevelopmentSessionRequest request,
+      required String flutterVersion,
+      required String flutterExecutable,
+      required String dartExecutable,
+      required int hostPort,
+      required int supervisorPort,
+      required File supervisorLogFile,
+    });
 typedef CockpitDelay = Future<void> Function(Duration duration);
 
 final class CockpitLaunchDevelopmentSessionRequest {
@@ -91,17 +91,20 @@ final class CockpitLaunchDevelopmentSessionService {
         cockpitReadActiveFlutterVersion,
     Future<String> Function()? flutterExecutableReader,
     CockpitEntrypointResolver? entrypointResolver,
-  })  : _launcher = launcher ??
-            CockpitDevelopmentSessionDaemonLauncher(
-              supervisorStatusReader: (supervisorClient ??
-                      CockpitDevelopmentSessionSupervisorClient())
-                  .readStatus,
-              portForwarder: portForwarder,
-              flutterVersionReader: flutterVersionReader,
-              flutterExecutableReader: flutterExecutableReader ??
-                  cockpitResolveActiveFlutterExecutable,
-            ).launch,
-        _entrypointResolver = entrypointResolver ?? CockpitEntrypointResolver();
+  }) : _launcher =
+           launcher ??
+           CockpitDevelopmentSessionDaemonLauncher(
+             supervisorStatusReader:
+                 (supervisorClient ??
+                         CockpitDevelopmentSessionSupervisorClient())
+                     .readStatus,
+             portForwarder: portForwarder,
+             flutterVersionReader: flutterVersionReader,
+             flutterExecutableReader:
+                 flutterExecutableReader ??
+                 cockpitResolveActiveFlutterExecutable,
+           ).launch,
+       _entrypointResolver = entrypointResolver ?? CockpitEntrypointResolver();
 
   final CockpitDevelopmentSessionLauncher _launcher;
   final CockpitEntrypointResolver _entrypointResolver;
@@ -174,15 +177,15 @@ final class CockpitDevelopmentSessionDaemonLauncher {
     CockpitSupervisorSpawner? spawnSupervisor,
     Future<int> Function()? allocatePort,
     CockpitDelay? delay,
-  })  : _supervisorStatusReader = supervisorStatusReader,
-        _portForwarder = portForwarder,
-        _flutterVersionReader = flutterVersionReader,
-        _flutterExecutableReader = flutterExecutableReader,
-        _dartExecutableReader =
-            dartExecutableReader ?? cockpitResolveActiveDartExecutable,
-        _spawnSupervisor = spawnSupervisor ?? _defaultSpawnSupervisor,
-        _allocatePort = allocatePort ?? _defaultAllocatePort,
-        _delay = delay ?? Future<void>.delayed;
+  }) : _supervisorStatusReader = supervisorStatusReader,
+       _portForwarder = portForwarder,
+       _flutterVersionReader = flutterVersionReader,
+       _flutterExecutableReader = flutterExecutableReader,
+       _dartExecutableReader =
+           dartExecutableReader ?? cockpitResolveActiveDartExecutable,
+       _spawnSupervisor = spawnSupervisor ?? _defaultSpawnSupervisor,
+       _allocatePort = allocatePort ?? _defaultAllocatePort,
+       _delay = delay ?? Future<void>.delayed;
 
   final CockpitSupervisorStatusReader _supervisorStatusReader;
   final CockpitAndroidPortForwarder _portForwarder;
@@ -254,7 +257,8 @@ final class CockpitDevelopmentSessionDaemonLauncher {
           }
           if (response.status.state == CockpitDevelopmentSessionState.failed ||
               response.status.state == CockpitDevelopmentSessionState.stopped) {
-            lastFailure = _fallbackExceptionFromStatusError(
+            lastFailure =
+                _fallbackExceptionFromStatusError(
                   response.status.lastError,
                   sessionHandle: response.sessionHandle,
                 ) ??
@@ -339,10 +343,7 @@ final class CockpitDevelopmentSessionDaemonLauncher {
         '--target',
         request.target!,
         if (request.flavor case final flavor?
-            when flavor.isNotEmpty) ...<String>[
-          '--flavor',
-          flavor,
-        ],
+            when flavor.isNotEmpty) ...<String>['--flavor', flavor],
         '--platform',
         request.platform,
         '--device-id',
@@ -385,7 +386,8 @@ final class CockpitDevelopmentSessionDaemonLauncher {
   static Future<String> _resolveSupervisorEntrypoint() async {
     final packageLibUri = await Isolate.resolvePackageUri(
       Uri.parse(
-          'package:flutter_cockpit_devtools/flutter_cockpit_devtools.dart'),
+        'package:flutter_cockpit_devtools/flutter_cockpit_devtools.dart',
+      ),
     );
     if (packageLibUri == null) {
       throw StateError(
@@ -395,11 +397,7 @@ final class CockpitDevelopmentSessionDaemonLauncher {
     final libPath = p.fromUri(packageLibUri);
     final packageRoot = p.normalize(p.join(p.dirname(libPath), '..'));
     return p.normalize(
-      p.join(
-        packageRoot,
-        'bin',
-        'flutter_cockpit_development_supervisor.dart',
-      ),
+      p.join(packageRoot, 'bin', 'flutter_cockpit_development_supervisor.dart'),
     );
   }
 

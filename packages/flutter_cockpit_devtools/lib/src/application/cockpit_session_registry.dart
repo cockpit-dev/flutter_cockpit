@@ -17,11 +17,11 @@ final class CockpitDevelopmentSessionRecord {
   final String? supervisorLogPath;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'handle': handle.toJson(),
-        'status': status.toJson(),
-        'updatedAt': updatedAt.toUtc().toIso8601String(),
-        if (supervisorLogPath != null) 'supervisorLogPath': supervisorLogPath,
-      };
+    'handle': handle.toJson(),
+    'status': status.toJson(),
+    'updatedAt': updatedAt.toUtc().toIso8601String(),
+    if (supervisorLogPath != null) 'supervisorLogPath': supervisorLogPath,
+  };
 }
 
 final class CockpitRemoteSessionRecord {
@@ -38,11 +38,11 @@ final class CockpitRemoteSessionRecord {
   final DateTime updatedAt;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'handle': handle.toJson(),
-        'status': status.toJson(),
-        'recommendedNextStep': recommendedNextStep,
-        'updatedAt': updatedAt.toUtc().toIso8601String(),
-      };
+    'handle': handle.toJson(),
+    'status': status.toJson(),
+    'recommendedNextStep': recommendedNextStep,
+    'updatedAt': updatedAt.toUtc().toIso8601String(),
+  };
 }
 
 final class CockpitActiveSessionsSnapshot {
@@ -57,18 +57,18 @@ final class CockpitActiveSessionsSnapshot {
   bool get isEmpty => developmentSessions.isEmpty && remoteSessions.isEmpty;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'developmentSessions': developmentSessions
-            .map((record) => record.toJson())
-            .toList(growable: false),
-        'remoteSessions': remoteSessions
-            .map((record) => record.toJson())
-            .toList(growable: false),
-      };
+    'developmentSessions': developmentSessions
+        .map((record) => record.toJson())
+        .toList(growable: false),
+    'remoteSessions': remoteSessions
+        .map((record) => record.toJson())
+        .toList(growable: false),
+  };
 }
 
 final class CockpitSessionRegistry {
   CockpitSessionRegistry({DateTime Function()? now})
-      : _now = now ?? DateTime.now;
+    : _now = now ?? DateTime.now;
 
   final DateTime Function() _now;
   final Map<String, CockpitDevelopmentSessionRecord> _developmentSessions =
@@ -84,11 +84,11 @@ final class CockpitSessionRegistry {
     final previous = _developmentSessions[handle.developmentSessionId];
     _developmentSessions[handle.developmentSessionId] =
         CockpitDevelopmentSessionRecord(
-      handle: handle,
-      status: status,
-      updatedAt: _now().toUtc(),
-      supervisorLogPath: supervisorLogPath ?? previous?.supervisorLogPath,
-    );
+          handle: handle,
+          status: status,
+          updatedAt: _now().toUtc(),
+          supervisorLogPath: supervisorLogPath ?? previous?.supervisorLogPath,
+        );
   }
 
   void removeDevelopmentSession(String developmentSessionId) {
@@ -113,10 +113,9 @@ final class CockpitSessionRegistry {
   }
 
   CockpitActiveSessionsSnapshot snapshot() => CockpitActiveSessionsSnapshot(
-        developmentSessions:
-            _developmentSessions.values.toList(growable: false),
-        remoteSessions: _remoteSessions.values.toList(growable: false),
-      );
+    developmentSessions: _developmentSessions.values.toList(growable: false),
+    remoteSessions: _remoteSessions.values.toList(growable: false),
+  );
 
   CockpitDevelopmentSessionRecord? developmentSession(
     String developmentSessionId,

@@ -7,9 +7,8 @@ import '../core/cockpit_mcp_resource.dart';
 import '../core/cockpit_mcp_resource_definition.dart';
 
 final class CockpitAppsResource extends CockpitMcpResource {
-  const CockpitAppsResource({
-    required CockpitListAppsService service,
-  }) : _service = service;
+  const CockpitAppsResource({required CockpitListAppsService service})
+    : _service = service;
 
   final CockpitListAppsService _service;
 
@@ -47,9 +46,8 @@ final class CockpitAppsResource extends CockpitMcpResource {
 }
 
 final class CockpitAppResource extends CockpitMcpResource {
-  const CockpitAppResource({
-    required CockpitSessionRegistry registry,
-  }) : _registry = registry;
+  const CockpitAppResource({required CockpitSessionRegistry registry})
+    : _registry = registry;
 
   final CockpitSessionRegistry _registry;
 
@@ -82,7 +80,8 @@ final class CockpitAppResource extends CockpitMcpResource {
 
     final developmentRecord = _registry.developmentSessionByAppId(appId);
     final remoteRecord = _registry.remoteSessionByAppId(appId);
-    final preferDevelopment = developmentRecord != null &&
+    final preferDevelopment =
+        developmentRecord != null &&
         (remoteRecord == null ||
             !remoteRecord.updatedAt.isAfter(developmentRecord.updatedAt));
     if (preferDevelopment) {
@@ -108,17 +107,16 @@ final class CockpitAppResource extends CockpitMcpResource {
       return _textResult(request.uri, payload);
     }
 
-    return _textResult(
-      request.uri,
-      <String, Object?>{
-        'state': 'missing',
-        'appId': appId,
-      },
-    );
+    return _textResult(request.uri, <String, Object?>{
+      'state': 'missing',
+      'appId': appId,
+    });
   }
 
   CockpitMcpResourceResult _textResult(
-      String uri, Map<String, Object?> payload) {
+    String uri,
+    Map<String, Object?> payload,
+  ) {
     return CockpitMcpResourceResult(
       contents: <CockpitMcpResourceContents>[
         CockpitMcpTextResourceContents(

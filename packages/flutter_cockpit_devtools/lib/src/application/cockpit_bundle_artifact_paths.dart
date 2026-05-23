@@ -7,9 +7,9 @@ final class CockpitBundleArtifactPaths {
     this.primaryRecordingPath,
     List<String> videoAttachmentPaths = const <String>[],
     List<String> keyframePaths = const <String>[],
-  })  : attachmentPaths = List.unmodifiable(attachmentPaths),
-        videoAttachmentPaths = List.unmodifiable(videoAttachmentPaths),
-        keyframePaths = List.unmodifiable(keyframePaths);
+  }) : attachmentPaths = List.unmodifiable(attachmentPaths),
+       videoAttachmentPaths = List.unmodifiable(videoAttachmentPaths),
+       keyframePaths = List.unmodifiable(keyframePaths);
 
   final String? primaryScreenshotPath;
   final List<String> attachmentPaths;
@@ -46,14 +46,14 @@ final class CockpitBundleArtifactPaths {
   }
 
   Map<String, Object?> toJson() => <String, Object?>{
-        if (primaryScreenshotPath != null)
-          'primaryScreenshotPath': primaryScreenshotPath,
-        'attachmentPaths': attachmentPaths,
-        if (primaryRecordingPath != null)
-          'primaryRecordingPath': primaryRecordingPath,
-        'videoAttachmentPaths': videoAttachmentPaths,
-        'keyframePaths': keyframePaths,
-      };
+    if (primaryScreenshotPath != null)
+      'primaryScreenshotPath': primaryScreenshotPath,
+    'attachmentPaths': attachmentPaths,
+    if (primaryRecordingPath != null)
+      'primaryRecordingPath': primaryRecordingPath,
+    'videoAttachmentPaths': videoAttachmentPaths,
+    'keyframePaths': keyframePaths,
+  };
 
   static String? _resolvePath({
     required String bundleDir,

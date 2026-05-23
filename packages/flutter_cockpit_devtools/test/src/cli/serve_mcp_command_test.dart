@@ -9,16 +9,17 @@ import 'package:test/test.dart';
 void main() {
   test('serve-mcp starts the shared MCP server entrypoint', () async {
     var started = false;
-    final runner = CommandRunner<int>(
-      'flutter_cockpit_devtools',
-      'Host-side tooling for flutter_cockpit.',
-    )..addCommand(
-        ServeMcpCommand(
-          serve: () async {
-            started = true;
-          },
-        ),
-      );
+    final runner =
+        CommandRunner<int>(
+          'flutter_cockpit_devtools',
+          'Host-side tooling for flutter_cockpit.',
+        )..addCommand(
+          ServeMcpCommand(
+            serve: () async {
+              started = true;
+            },
+          ),
+        );
 
     final exitCode = await runner.run(<String>['serve-mcp']) ?? 0;
 
@@ -37,25 +38,27 @@ void main() {
     });
     final logPath = '${tempDir.path}/protocol.log';
 
-    final runner = CommandRunner<int>(
-      'flutter_cockpit_devtools',
-      'Host-side tooling for flutter_cockpit.',
-    )..addCommand(
-        ServeMcpCommand(
-          runtime: CockpitMcpServerRuntime(
-            serverFactory: (options) {
-              capturedOptions = options;
-              return CockpitMcpServer(tools: const []);
-            },
-            serve: (server, {protocolLogSink}) async {
-              capturedSink = protocolLogSink;
-              protocolLogSink?.add('protocol-log');
-            },
+    final runner =
+        CommandRunner<int>(
+          'flutter_cockpit_devtools',
+          'Host-side tooling for flutter_cockpit.',
+        )..addCommand(
+          ServeMcpCommand(
+            runtime: CockpitMcpServerRuntime(
+              serverFactory: (options) {
+                capturedOptions = options;
+                return CockpitMcpServer(tools: const []);
+              },
+              serve: (server, {protocolLogSink}) async {
+                capturedSink = protocolLogSink;
+                protocolLogSink?.add('protocol-log');
+              },
+            ),
           ),
-        ),
-      );
+        );
 
-    final exitCode = await runner.run(<String>[
+    final exitCode =
+        await runner.run(<String>[
           'serve-mcp',
           '--enable',
           'workspace',

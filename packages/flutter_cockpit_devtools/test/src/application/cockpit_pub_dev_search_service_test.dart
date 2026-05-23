@@ -40,38 +40,42 @@ void main() {
       result.results.single.repositoryUrl,
       'https://github.com/rrousselGit/riverpod',
     );
-    expect(
-        result.results.single.topics, <String>['state-management', 'reactive']);
+    expect(result.results.single.topics, <String>[
+      'state-management',
+      'reactive',
+    ]);
     expect(result.results.single.license, 'MIT');
     expect(result.warnings, isEmpty);
     expect(result.suggestion, isNull);
   });
 
-  test('returns suggestions and warnings for empty and partial results',
-      () async {
-    final service = CockpitPubDevSearchService(
-      httpClient: _FakeHttpClient(
-        responses: <String, String>{
-          'https://pub.dev/api/search?q=obscure+thing':
-              '{"packages":[{"package":"mystery_pkg"}]}',
-          'https://pub.dev/api/packages/mystery_pkg':
-              '{"name":"mystery_pkg","latest":{"version":"0.1.0","pubspec":{"description":"Unknown helper."}}}',
-        },
-        failingUris: <String>{
-          'https://pub.dev/api/packages/mystery_pkg/score',
-        },
-      ),
-    );
+  test(
+    'returns suggestions and warnings for empty and partial results',
+    () async {
+      final service = CockpitPubDevSearchService(
+        httpClient: _FakeHttpClient(
+          responses: <String, String>{
+            'https://pub.dev/api/search?q=obscure+thing':
+                '{"packages":[{"package":"mystery_pkg"}]}',
+            'https://pub.dev/api/packages/mystery_pkg':
+                '{"name":"mystery_pkg","latest":{"version":"0.1.0","pubspec":{"description":"Unknown helper."}}}',
+          },
+          failingUris: <String>{
+            'https://pub.dev/api/packages/mystery_pkg/score',
+          },
+        ),
+      );
 
-    final result = await service.search(
-      const CockpitPubDevSearchRequest(query: 'obscure thing'),
-    );
+      final result = await service.search(
+        const CockpitPubDevSearchRequest(query: 'obscure thing'),
+      );
 
-    expect(result.results.single.packageName, 'mystery_pkg');
-    expect(result.results.single.latestVersion, '0.1.0');
-    expect(result.warnings, isNotEmpty);
-    expect(result.suggestion, contains('Try'));
-  });
+      expect(result.results.single.packageName, 'mystery_pkg');
+      expect(result.results.single.latestVersion, '0.1.0');
+      expect(result.warnings, isNotEmpty);
+      expect(result.suggestion, contains('Try'));
+    },
+  );
 
   test('times out instead of hanging on pub.dev search', () async {
     final service = CockpitPubDevSearchService(
@@ -89,25 +93,24 @@ void main() {
     );
   });
 
-  test('uses the external fetch fallback when the default client fails',
-      () async {
-    final service = CockpitPubDevSearchService(
-      httpClient: _AlwaysFailingHttpClient(),
-      processManager: _FakeFetchProcessManager(
-        body: '{"packages":[{"package":"collection"}]}',
-      ),
-      enableProcessFallback: true,
-    );
+  test(
+    'uses the external fetch fallback when the default client fails',
+    () async {
+      final service = CockpitPubDevSearchService(
+        httpClient: _AlwaysFailingHttpClient(),
+        processManager: _FakeFetchProcessManager(
+          body: '{"packages":[{"package":"collection"}]}',
+        ),
+        enableProcessFallback: true,
+      );
 
-    final result = await service.search(
-      const CockpitPubDevSearchRequest(
-        query: 'collection',
-        maxResults: 1,
-      ),
-    );
+      final result = await service.search(
+        const CockpitPubDevSearchRequest(query: 'collection', maxResults: 1),
+      );
 
-    expect(result.results.single.packageName, 'collection');
-  });
+      expect(result.results.single.packageName, 'collection');
+    },
+  );
 }
 
 final class _FakeHttpClient implements CockpitHttpClient {

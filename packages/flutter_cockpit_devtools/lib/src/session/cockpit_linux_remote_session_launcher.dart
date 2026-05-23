@@ -8,9 +8,8 @@ import 'cockpit_remote_session_launcher.dart';
 import 'cockpit_session_path.dart';
 import 'cockpit_windows_remote_session_launcher.dart';
 
-typedef CockpitLinuxAppExecutablePathResolver = Future<String> Function({
-  required String projectDir,
-});
+typedef CockpitLinuxAppExecutablePathResolver =
+    Future<String> Function({required String projectDir});
 
 final class CockpitLinuxRemoteSessionLauncher
     implements CockpitRemoteSessionLauncher {
@@ -24,12 +23,12 @@ final class CockpitLinuxRemoteSessionLauncher
     CockpitFlutterVersionReader flutterVersionReader =
         cockpitReadActiveFlutterVersion,
     DateTime Function()? now,
-  })  : _processRunner = processRunner,
-        _appExecutablePathResolver = appExecutablePathResolver,
-        _appStarter = appStarter,
-        _statusReader = statusReader,
-        _flutterVersionReader = flutterVersionReader,
-        _now = now ?? DateTime.now;
+  }) : _processRunner = processRunner,
+       _appExecutablePathResolver = appExecutablePathResolver,
+       _appStarter = appStarter,
+       _statusReader = statusReader,
+       _flutterVersionReader = flutterVersionReader,
+       _now = now ?? DateTime.now;
 
   final CockpitWorkingDirectoryProcessRunner _processRunner;
   final CockpitLinuxAppExecutablePathResolver _appExecutablePathResolver;
@@ -107,17 +106,18 @@ final class CockpitLinuxRemoteSessionLauncher
     String? workingDirectory,
     required Duration timeout,
   }) async {
-    final result = await _processRunner(
-      executable,
-      arguments,
-      workingDirectory: workingDirectory,
-    ).timeout(
-      timeout,
-      onTimeout: () => throw TimeoutException(
-        '$executable ${arguments.join(' ')} timed out.',
-        timeout,
-      ),
-    );
+    final result =
+        await _processRunner(
+          executable,
+          arguments,
+          workingDirectory: workingDirectory,
+        ).timeout(
+          timeout,
+          onTimeout: () => throw TimeoutException(
+            '$executable ${arguments.join(' ')} timed out.',
+            timeout,
+          ),
+        );
     if (result.exitCode != 0) {
       throw StateError(
         '$executable ${arguments.join(' ')} failed: ${result.stderr ?? result.stdout}',
@@ -157,18 +157,19 @@ final class CockpitLinuxRemoteSessionLauncher
     String? workingDirectory,
     required Duration timeout,
   }) async {
-    final process = await Process.start(
-      executablePath,
-      arguments,
-      workingDirectory: workingDirectory,
-      mode: ProcessStartMode.detached,
-    ).timeout(
-      timeout,
-      onTimeout: () => throw TimeoutException(
-        'Launching $executablePath timed out.',
-        timeout,
-      ),
-    );
+    final process =
+        await Process.start(
+          executablePath,
+          arguments,
+          workingDirectory: workingDirectory,
+          mode: ProcessStartMode.detached,
+        ).timeout(
+          timeout,
+          onTimeout: () => throw TimeoutException(
+            'Launching $executablePath timed out.',
+            timeout,
+          ),
+        );
     return process.pid == 0 ? null : process.pid;
   }
 
@@ -178,14 +179,7 @@ final class CockpitLinuxRemoteSessionLauncher
     final pathContext = cockpitSessionPathContext(projectDir);
     final preferredBaseName = cockpitReadWorkspacePubspecName(projectDir);
     final outputDirectory = Directory(
-      pathContext.join(
-        projectDir,
-        'build',
-        'linux',
-        'x64',
-        'debug',
-        'bundle',
-      ),
+      pathContext.join(projectDir, 'build', 'linux', 'x64', 'debug', 'bundle'),
     );
     if (!outputDirectory.existsSync()) {
       throw StateError(
@@ -230,8 +224,9 @@ final class CockpitLinuxRemoteSessionLauncher
   static Future<String?> resolveAppBaseName({
     required String projectDir,
   }) async {
-    final executablePath =
-        await _resolveAppExecutablePath(projectDir: projectDir);
+    final executablePath = await _resolveAppExecutablePath(
+      projectDir: projectDir,
+    );
     final pathContext = cockpitSessionPathContext(executablePath);
     final baseName = pathContext.basename(executablePath).trim();
     return baseName.isEmpty ? null : baseName;

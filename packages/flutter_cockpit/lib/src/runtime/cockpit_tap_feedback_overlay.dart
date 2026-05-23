@@ -64,7 +64,8 @@ final class CockpitTapFeedbackController extends ChangeNotifier {
 
   void record(CockpitGestureAction action) {
     final geometry = action.geometry;
-    final offset = action.origin ??
+    final offset =
+        action.origin ??
         (geometry == null ? null : Offset(geometry.centerX, geometry.centerY));
     if (offset == null) {
       return;
@@ -124,13 +125,11 @@ final class _CockpitTapFeedbackMarker extends StatelessWidget {
       CockpitGestureActionType.doubleTap => const Color(0xFF7DD3FC),
       CockpitGestureActionType.drag ||
       CockpitGestureActionType.swipe ||
-      CockpitGestureActionType.fling =>
-        const Color(0xFF38BDF8),
+      CockpitGestureActionType.fling => const Color(0xFF38BDF8),
       CockpitGestureActionType.pinchZoom ||
       CockpitGestureActionType.rotate ||
       CockpitGestureActionType.panZoom ||
-      CockpitGestureActionType.multiTouch =>
-        const Color(0xFFC084FC),
+      CockpitGestureActionType.multiTouch => const Color(0xFFC084FC),
       CockpitGestureActionType.tap => const Color(0xFF99F6E4),
     };
   }

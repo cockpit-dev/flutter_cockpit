@@ -5,12 +5,13 @@ import '../session/cockpit_remote_session_handle.dart';
 import 'cockpit_interactive_session_lock.dart';
 import 'cockpit_session_reference_resolver.dart';
 
-typedef CockpitRemoteUiIdleWaiter = Future<bool> Function(
-  Uri baseUri, {
-  required Duration quietWindow,
-  required Duration timeout,
-  required bool includeNetworkIdle,
-});
+typedef CockpitRemoteUiIdleWaiter =
+    Future<bool> Function(
+      Uri baseUri, {
+      required Duration quietWindow,
+      required Duration timeout,
+      required bool includeNetworkIdle,
+    });
 typedef CockpitUiIdleBackoffWait = Future<void> Function(Duration duration);
 
 final class CockpitWaitRemoteUiIdleRequest {
@@ -51,13 +52,13 @@ final class CockpitWaitRemoteUiIdleResult {
   final CockpitRemoteSessionHandle? sessionHandle;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'idle': idle,
-        'durationMs': durationMs,
-        'quietWindowMs': quietWindowMs,
-        'timeoutMs': timeoutMs,
-        'includeNetworkIdle': includeNetworkIdle,
-        if (sessionHandle != null) 'sessionHandle': sessionHandle!.toJson(),
-      };
+    'idle': idle,
+    'durationMs': durationMs,
+    'quietWindowMs': quietWindowMs,
+    'timeoutMs': timeoutMs,
+    'includeNetworkIdle': includeNetworkIdle,
+    if (sessionHandle != null) 'sessionHandle': sessionHandle!.toJson(),
+  };
 }
 
 final class CockpitWaitRemoteUiIdleService {
@@ -66,22 +67,22 @@ final class CockpitWaitRemoteUiIdleService {
     CockpitSessionReferenceResolver? sessionReferenceResolver,
     CockpitInteractiveSessionLock? sessionLock,
     CockpitUiIdleBackoffWait? wait,
-  })  : _waitForIdle = waitForIdle ??
-            ((
-              baseUri, {
-              required quietWindow,
-              required timeout,
-              required includeNetworkIdle,
-            }) =>
-                CockpitRemoteSessionClient(baseUri: baseUri).waitForUiIdle(
-                  quietWindow: quietWindow,
-                  timeout: timeout,
-                  includeNetworkIdle: includeNetworkIdle,
-                )),
-        _sessionReferenceResolver =
-            sessionReferenceResolver ?? CockpitSessionReferenceResolver(),
-        _sessionLock = sessionLock ?? CockpitInteractiveSessionLock(),
-        _wait = wait ?? Future<void>.delayed;
+  }) : _waitForIdle =
+           waitForIdle ??
+           ((
+             baseUri, {
+             required quietWindow,
+             required timeout,
+             required includeNetworkIdle,
+           }) => CockpitRemoteSessionClient(baseUri: baseUri).waitForUiIdle(
+             quietWindow: quietWindow,
+             timeout: timeout,
+             includeNetworkIdle: includeNetworkIdle,
+           )),
+       _sessionReferenceResolver =
+           sessionReferenceResolver ?? CockpitSessionReferenceResolver(),
+       _sessionLock = sessionLock ?? CockpitInteractiveSessionLock(),
+       _wait = wait ?? Future<void>.delayed;
 
   final CockpitRemoteUiIdleWaiter _waitForIdle;
   final CockpitSessionReferenceResolver _sessionReferenceResolver;
@@ -98,28 +99,25 @@ final class CockpitWaitRemoteUiIdleService {
       androidDeviceId: request.androidDeviceId,
     );
     final stopwatch = Stopwatch()..start();
-    final idle = await _sessionLock.run(
-      resolved.baseUri.toString(),
-      () async {
-        final initial = await _waitForIdle(
-          resolved.baseUri,
-          quietWindow: request.quietWindow,
-          timeout: request.timeout,
-          includeNetworkIdle: request.includeNetworkIdle,
-        );
-        if (initial) {
-          return true;
-        }
+    final idle = await _sessionLock.run(resolved.baseUri.toString(), () async {
+      final initial = await _waitForIdle(
+        resolved.baseUri,
+        quietWindow: request.quietWindow,
+        timeout: request.timeout,
+        includeNetworkIdle: request.includeNetworkIdle,
+      );
+      if (initial) {
+        return true;
+      }
 
-        await _wait(_transientRetryDelay);
-        return _waitForIdle(
-          resolved.baseUri,
-          quietWindow: request.quietWindow,
-          timeout: _retryTimeoutFor(request.timeout),
-          includeNetworkIdle: request.includeNetworkIdle,
-        );
-      },
-    );
+      await _wait(_transientRetryDelay);
+      return _waitForIdle(
+        resolved.baseUri,
+        quietWindow: request.quietWindow,
+        timeout: _retryTimeoutFor(request.timeout),
+        includeNetworkIdle: request.includeNetworkIdle,
+      );
+    });
     stopwatch.stop();
 
     return CockpitWaitRemoteUiIdleResult(

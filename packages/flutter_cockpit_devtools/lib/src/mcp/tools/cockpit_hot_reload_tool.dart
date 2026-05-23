@@ -1,9 +1,8 @@
 import '../../application/cockpit_hot_reload_service.dart';
 import '../cockpit_mcp_tool.dart';
 
-typedef CockpitHotReloadToolFunction = Future<CockpitHotReloadResult> Function(
-  CockpitHotReloadRequest request,
-);
+typedef CockpitHotReloadToolFunction =
+    Future<CockpitHotReloadResult> Function(CockpitHotReloadRequest request);
 
 final class CockpitHotReloadTool extends CockpitMcpTool {
   CockpitHotReloadTool({
@@ -21,12 +20,12 @@ final class CockpitHotReloadTool extends CockpitMcpTool {
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
-        'type': 'object',
-        'properties': <String, Object?>{
-          'appId': <String, Object?>{'type': 'string'},
-          'appJson': <String, Object?>{'type': 'string'},
-        },
-      };
+    'type': 'object',
+    'properties': <String, Object?>{
+      'appId': <String, Object?>{'type': 'string'},
+      'appJson': <String, Object?>{'type': 'string'},
+    },
+  };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {

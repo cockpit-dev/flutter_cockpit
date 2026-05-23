@@ -1,9 +1,8 @@
 import '../../application/cockpit_stop_app_service.dart';
 import '../cockpit_mcp_tool.dart';
 
-typedef CockpitStopAppToolFunction = Future<CockpitStopAppResult> Function(
-  CockpitStopAppRequest request,
-);
+typedef CockpitStopAppToolFunction =
+    Future<CockpitStopAppResult> Function(CockpitStopAppRequest request);
 
 final class CockpitStopAppTool extends CockpitMcpTool {
   CockpitStopAppTool({
@@ -21,12 +20,12 @@ final class CockpitStopAppTool extends CockpitMcpTool {
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
-        'type': 'object',
-        'properties': <String, Object?>{
-          'appId': <String, Object?>{'type': 'string'},
-          'appJson': <String, Object?>{'type': 'string'},
-        },
-      };
+    'type': 'object',
+    'properties': <String, Object?>{
+      'appId': <String, Object?>{'type': 'string'},
+      'appJson': <String, Object?>{'type': 'string'},
+    },
+  };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {

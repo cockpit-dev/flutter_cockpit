@@ -10,10 +10,10 @@ final class CockpitEnvironment {
   final String dartVersion;
 
   Map<String, Object?> toJson() => {
-        'platform': platform,
-        'flutterVersion': flutterVersion,
-        'dartVersion': dartVersion,
-      };
+    'platform': platform,
+    'flutterVersion': flutterVersion,
+    'dartVersion': dartVersion,
+  };
 
   factory CockpitEnvironment.fromJson(Map<String, Object?> json) {
     return CockpitEnvironment(

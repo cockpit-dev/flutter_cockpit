@@ -316,25 +316,27 @@ void main() {
     },
   );
 
-  test('reports unsupported flutter-layer recording when fallback is disabled',
-      () {
-    final resolver = CockpitRecordingStrategyResolver(
-      remoteAdapterFactory: (client) => _FakeRecordingAdapter(),
-      adbAdapterFactory: (deviceId) => _FakeRecordingAdapter(),
-      simctlAdapterFactory: (deviceId) => _FakeRecordingAdapter(),
-    );
+  test(
+    'reports unsupported flutter-layer recording when fallback is disabled',
+    () {
+      final resolver = CockpitRecordingStrategyResolver(
+        remoteAdapterFactory: (client) => _FakeRecordingAdapter(),
+        adbAdapterFactory: (deviceId) => _FakeRecordingAdapter(),
+        simctlAdapterFactory: (deviceId) => _FakeRecordingAdapter(),
+      );
 
-    final resolution = resolver.resolveDetailed(
-      platform: 'ios',
-      recording: strictFlutterLayerRequest,
-      client: CockpitRemoteSessionClient(
-        baseUri: Uri.parse('http://127.0.0.1:47331'),
-      ),
-    );
+      final resolution = resolver.resolveDetailed(
+        platform: 'ios',
+        recording: strictFlutterLayerRequest,
+        client: CockpitRemoteSessionClient(
+          baseUri: Uri.parse('http://127.0.0.1:47331'),
+        ),
+      );
 
-    expect(resolution?.adapter, isNull);
-    expect(resolution?.unsupportedReason, contains('flutter'));
-  });
+      expect(resolution?.adapter, isNull);
+      expect(resolution?.unsupportedReason, contains('flutter'));
+    },
+  );
 
   test('returns null when the script does not request recording', () {
     final resolver = CockpitRecordingStrategyResolver(

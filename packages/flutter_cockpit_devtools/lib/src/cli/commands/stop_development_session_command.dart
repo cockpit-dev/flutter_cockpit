@@ -5,19 +5,18 @@ import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
-typedef CockpitStopDevelopmentSessionFunction
-    = Future<CockpitStopDevelopmentSessionResult> Function(
-  CockpitStopDevelopmentSessionRequest request,
-);
+typedef CockpitStopDevelopmentSessionFunction =
+    Future<CockpitStopDevelopmentSessionResult> Function(
+      CockpitStopDevelopmentSessionRequest request,
+    );
 
 final class StopDevelopmentSessionCommand extends CockpitCliCommand {
   StopDevelopmentSessionCommand({
     CockpitStopDevelopmentSessionService? service,
     CockpitStopDevelopmentSessionFunction? stop,
     StringSink? stdoutSink,
-  })  : _stop =
-            stop ?? (service ?? CockpitStopDevelopmentSessionService()).stop,
-        _stdoutSink = stdoutSink ?? stdout {
+  }) : _stop = stop ?? (service ?? CockpitStopDevelopmentSessionService()).stop,
+       _stdoutSink = stdoutSink ?? stdout {
     argParser.addOption(
       'session-json',
       help: cockpitDevelopmentSessionJsonOptionHelp,

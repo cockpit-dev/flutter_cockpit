@@ -2,8 +2,8 @@ import '../../application/cockpit_list_active_sessions_service.dart';
 import '../../application/cockpit_session_registry.dart';
 import '../cockpit_mcp_tool.dart';
 
-typedef CockpitListActiveSessionsToolFunction = CockpitActiveSessionsSnapshot
-    Function();
+typedef CockpitListActiveSessionsToolFunction =
+    CockpitActiveSessionsSnapshot Function();
 
 final class CockpitListActiveSessionsTool extends CockpitMcpTool {
   CockpitListActiveSessionsTool({
@@ -22,13 +22,13 @@ final class CockpitListActiveSessionsTool extends CockpitMcpTool {
 
   @override
   CockpitMcpToolAnnotations get annotations => const CockpitMcpToolAnnotations(
-        readOnly: true,
-        destructive: false,
-        idempotent: true,
-        longRunning: false,
-        requiresSession: false,
-        producesBundleEvidence: false,
-      );
+    readOnly: true,
+    destructive: false,
+    idempotent: true,
+    longRunning: false,
+    requiresSession: false,
+    producesBundleEvidence: false,
+  );
 
   @override
   List<CockpitMcpFeatureCategory> get categories =>
@@ -40,9 +40,9 @@ final class CockpitListActiveSessionsTool extends CockpitMcpTool {
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
-        'type': 'object',
-        'properties': <String, Object?>{},
-      };
+    'type': 'object',
+    'properties': <String, Object?>{},
+  };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {

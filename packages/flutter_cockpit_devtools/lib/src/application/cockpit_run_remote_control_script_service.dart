@@ -73,12 +73,12 @@ final class CockpitRunRemoteControlScriptService {
     TaskRunBundleWriter writer = const TaskRunBundleWriter(),
     CockpitReadTaskBundleSummaryService readSummaryService =
         const CockpitReadTaskBundleSummaryService(),
-  })  : _sessionReferenceResolver =
-            sessionReferenceResolver ?? CockpitSessionReferenceResolver(),
-        _captureStrategyResolver = captureStrategyResolver,
-        _recordingStrategyResolver = recordingStrategyResolver,
-        _writer = writer,
-        _readSummaryService = readSummaryService;
+  }) : _sessionReferenceResolver =
+           sessionReferenceResolver ?? CockpitSessionReferenceResolver(),
+       _captureStrategyResolver = captureStrategyResolver,
+       _recordingStrategyResolver = recordingStrategyResolver,
+       _writer = writer,
+       _readSummaryService = readSummaryService;
 
   final CockpitSessionReferenceResolver _sessionReferenceResolver;
   final CockpitCaptureStrategyResolver _captureStrategyResolver;
@@ -93,8 +93,9 @@ final class CockpitRunRemoteControlScriptService {
       baseUri: request.baseUri,
       sessionHandle: request.sessionHandle,
       sessionHandlePath: request.sessionHandlePath,
-      androidDeviceId:
-          request.portForwardingHandled ? null : request.androidDeviceId,
+      androidDeviceId: request.portForwardingHandled
+          ? null
+          : request.androidDeviceId,
     );
     await _persistScriptIfRequested(
       path: request.persistScriptPath,
@@ -115,15 +116,18 @@ final class CockpitRunRemoteControlScriptService {
     final captureAdapter = _captureStrategyResolver.resolve(
       platform: request.script.platform,
       client: client,
-      platformAppId: request.platformAppId ??
+      platformAppId:
+          request.platformAppId ??
           resolved.sessionHandle?.effectivePlatformAppId,
       processId: request.processId ?? resolved.sessionHandle?.processId,
       sessionHandle: resolved.sessionHandle,
-      androidDeviceId: request.androidDeviceId ??
+      androidDeviceId:
+          request.androidDeviceId ??
           (resolved.sessionHandle?.platform == 'android'
               ? resolved.sessionHandle?.deviceId
               : null),
-      iosDeviceId: request.iosDeviceId ??
+      iosDeviceId:
+          request.iosDeviceId ??
           (resolved.sessionHandle?.platform == 'ios'
               ? resolved.sessionHandle?.deviceId
               : null),
@@ -216,11 +220,13 @@ final class CockpitRunRemoteControlScriptService {
       recording: request.script.recording,
       client: client,
       sessionHandle: sessionHandle,
-      androidDeviceId: request.androidDeviceId ??
+      androidDeviceId:
+          request.androidDeviceId ??
           (sessionHandle?.platform == 'android'
               ? sessionHandle?.deviceId
               : null),
-      iosDeviceId: request.iosDeviceId ??
+      iosDeviceId:
+          request.iosDeviceId ??
           (sessionHandle?.platform == 'ios' ? sessionHandle?.deviceId : null),
       platformAppId:
           request.platformAppId ?? sessionHandle?.effectivePlatformAppId,

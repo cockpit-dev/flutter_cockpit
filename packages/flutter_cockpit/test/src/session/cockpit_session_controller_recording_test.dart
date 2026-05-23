@@ -131,7 +131,8 @@ void main() {
     expect(bundle.delivery['videoAttachmentRefs'], isEmpty);
     expect(
       (((bundle.delivery['readiness'] as Map<Object?, Object?>)['video']
-              as Map<Object?, Object?>)['failureCodes'] as List<Object?>)
+                  as Map<Object?, Object?>)['failureCodes']
+              as List<Object?>)
           .cast<String>(),
       const <String>['recordingFailed'],
     );

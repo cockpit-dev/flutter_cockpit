@@ -10,49 +10,55 @@ import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:test/test.dart';
 
 void main() {
-  test('read-target reuses the default latest target handle when present',
-      () async {
-    final tempDir =
-        await Directory.systemTemp.createTemp('cockpit_read_target_default');
-    final previousCurrent = Directory.current;
-    Directory.current = tempDir;
-    addTearDown(() async {
-      Directory.current = previousCurrent;
-      if (tempDir.existsSync()) {
-        await tempDir.delete(recursive: true);
-      }
-    });
-    final defaultTargetFile =
-        File(cockpitDefaultTargetHandlePath(tempDir.path));
-    await defaultTargetFile.parent.create(recursive: true);
-    await defaultTargetFile.writeAsString(jsonEncode(_targetHandle().toJson()));
-
-    CockpitReadTargetRequest? capturedRequest;
-    final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
-      ..addCommand(
-        ReadTargetCommand(
-          read: (request) async {
-            capturedRequest = request;
-            return CockpitReadTargetResult(
-              target: _targetHandle(),
-              capabilityProfile: _capabilityProfile(),
-              foregroundSurface: CockpitSurfaceKind.flutterSemantic,
-              selectedPlane: CockpitPlaneKind.flutterSemanticPlane,
-              fallbackTrail: const <CockpitPlaneKind>[],
-              recommendedNextStep: 'runNextCommand',
-            );
-          },
-        ),
+  test(
+    'read-target reuses the default latest target handle when present',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_read_target_default',
+      );
+      final previousCurrent = Directory.current;
+      Directory.current = tempDir;
+      addTearDown(() async {
+        Directory.current = previousCurrent;
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+      final defaultTargetFile = File(
+        cockpitDefaultTargetHandlePath(tempDir.path),
+      );
+      await defaultTargetFile.parent.create(recursive: true);
+      await defaultTargetFile.writeAsString(
+        jsonEncode(_targetHandle().toJson()),
       );
 
-    final exitCode = await runner.run(<String>['read-target']) ?? 0;
+      CockpitReadTargetRequest? capturedRequest;
+      final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
+        ..addCommand(
+          ReadTargetCommand(
+            read: (request) async {
+              capturedRequest = request;
+              return CockpitReadTargetResult(
+                target: _targetHandle(),
+                capabilityProfile: _capabilityProfile(),
+                foregroundSurface: CockpitSurfaceKind.flutterSemantic,
+                selectedPlane: CockpitPlaneKind.flutterSemanticPlane,
+                fallbackTrail: const <CockpitPlaneKind>[],
+                recommendedNextStep: 'runNextCommand',
+              );
+            },
+          ),
+        );
 
-    expect(exitCode, 0);
-    expect(
-      File(capturedRequest!.targetHandlePath!).resolveSymbolicLinksSync(),
-      defaultTargetFile.resolveSymbolicLinksSync(),
-    );
-  });
+      final exitCode = await runner.run(<String>['read-target']) ?? 0;
+
+      expect(exitCode, 0);
+      expect(
+        File(capturedRequest!.targetHandlePath!).resolveSymbolicLinksSync(),
+        defaultTargetFile.resolveSymbolicLinksSync(),
+      );
+    },
+  );
 
   test('read-target accepts target-json and minimal profile', () async {
     final output = StringBuffer();
@@ -82,7 +88,8 @@ void main() {
         ),
       );
 
-    final exitCode = await runner.run(<String>[
+    final exitCode =
+        await runner.run(<String>[
           'read-target',
           '--stdout-format',
           'json',
@@ -117,12 +124,8 @@ CockpitTargetHandle _targetHandle() {
 CockpitCapabilityProfile _capabilityProfile() {
   return CockpitCapabilityProfile(
     targetKind: CockpitTargetKind.flutterApp,
-    surfaceKinds: <CockpitSurfaceKind>{
-      CockpitSurfaceKind.flutterSemantic,
-    },
-    actionCapabilities: <CockpitActionCapability>{
-      CockpitActionCapability.tap,
-    },
+    surfaceKinds: <CockpitSurfaceKind>{CockpitSurfaceKind.flutterSemantic},
+    actionCapabilities: <CockpitActionCapability>{CockpitActionCapability.tap},
     evidenceCapabilities: <CockpitEvidenceCapability>{
       CockpitEvidenceCapability.flutterScreenshot,
     },

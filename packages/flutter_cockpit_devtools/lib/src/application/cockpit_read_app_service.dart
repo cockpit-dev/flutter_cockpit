@@ -71,30 +71,29 @@ final class CockpitReadAppResult {
   final CockpitSnapshotOptions? effectiveSnapshotOptions;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'sessionId': sessionId,
-        'transportType': transportType,
-        'capabilities': capabilities.toJson(),
-        'recordingCapabilities': recordingCapabilities.toJson(),
-        'selectedPlane': selectedPlane.name,
-        'fallbackTrail':
-            fallbackTrail.map((planeKind) => planeKind.name).toList(),
-        'recommendedNextStep': recommendedNextStep,
-        if (whatMatters != null) 'whatMatters': whatMatters,
-        if (app != null) 'app': app!.toJson(),
-        if (state != null) 'state': state,
-        if (lastError != null) 'lastError': lastError,
-        if (currentRouteName != null) 'currentRouteName': currentRouteName,
-        if (uiSummary != null) 'uiSummary': uiSummary!.toJson(),
-        if (snapshot != null) 'snapshot': snapshot!.toJson(),
-        if (snapshotRef != null) 'snapshotRef': snapshotRef,
-        if (artifactDownloads.isNotEmpty)
-          'artifactDownloads': artifactDownloads
-              .map((download) => download.toJson())
-              .toList(growable: false),
-        if (diagnostics != null) 'diagnostics': diagnostics,
-        if (effectiveSnapshotOptions != null)
-          'effectiveSnapshotOptions': effectiveSnapshotOptions!.toJson(),
-      };
+    'sessionId': sessionId,
+    'transportType': transportType,
+    'capabilities': capabilities.toJson(),
+    'recordingCapabilities': recordingCapabilities.toJson(),
+    'selectedPlane': selectedPlane.name,
+    'fallbackTrail': fallbackTrail.map((planeKind) => planeKind.name).toList(),
+    'recommendedNextStep': recommendedNextStep,
+    if (whatMatters != null) 'whatMatters': whatMatters,
+    if (app != null) 'app': app!.toJson(),
+    if (state != null) 'state': state,
+    if (lastError != null) 'lastError': lastError,
+    if (currentRouteName != null) 'currentRouteName': currentRouteName,
+    if (uiSummary != null) 'uiSummary': uiSummary!.toJson(),
+    if (snapshot != null) 'snapshot': snapshot!.toJson(),
+    if (snapshotRef != null) 'snapshotRef': snapshotRef,
+    if (artifactDownloads.isNotEmpty)
+      'artifactDownloads': artifactDownloads
+          .map((download) => download.toJson())
+          .toList(growable: false),
+    if (diagnostics != null) 'diagnostics': diagnostics,
+    if (effectiveSnapshotOptions != null)
+      'effectiveSnapshotOptions': effectiveSnapshotOptions!.toJson(),
+  };
 }
 
 final class CockpitReadAppService {
@@ -103,12 +102,13 @@ final class CockpitReadAppService {
     CockpitAppReferenceResolver? appReferenceResolver,
     CockpitPlatformDriverRegistry? platformDriverRegistry,
     CockpitSessionRegistry? registry,
-  })  : _remoteStatusService =
-            remoteStatusService ?? CockpitReadRemoteStatusService(),
-        _appReferenceResolver = appReferenceResolver ??
-            CockpitAppReferenceResolver(registry: registry),
-        _platformDriverRegistry =
-            platformDriverRegistry ?? CockpitPlatformDriverRegistry();
+  }) : _remoteStatusService =
+           remoteStatusService ?? CockpitReadRemoteStatusService(),
+       _appReferenceResolver =
+           appReferenceResolver ??
+           CockpitAppReferenceResolver(registry: registry),
+       _platformDriverRegistry =
+           platformDriverRegistry ?? CockpitPlatformDriverRegistry();
 
   final CockpitReadRemoteStatusService _remoteStatusService;
   final CockpitAppReferenceResolver _appReferenceResolver;
@@ -168,7 +168,8 @@ final class CockpitReadAppService {
         uiSummary: result.uiSummary,
       ),
       app: resolved.app,
-      state: resolved.developmentRecord?.status.state.jsonValue ??
+      state:
+          resolved.developmentRecord?.status.state.jsonValue ??
           resolved.remoteRecord?.recommendedNextStep,
       lastError: resolved.developmentRecord?.status.lastError,
       currentRouteName: result.currentRouteName,
@@ -185,7 +186,8 @@ final class CockpitReadAppService {
     required CockpitAppHandle? app,
     required CockpitCapabilities capabilities,
   }) async {
-    final remoteProfile = capabilities.capabilityProfile ??
+    final remoteProfile =
+        capabilities.capabilityProfile ??
         _legacyCapabilityProfile(capabilities);
     if (app == null) {
       return remoteProfile;
@@ -212,7 +214,8 @@ final class CockpitReadAppService {
     required CockpitCapabilities capabilities,
     required CockpitCapabilityProfile? capabilityProfile,
   }) {
-    final supportsHostAutomation = capabilities.supportsHostAutomation ||
+    final supportsHostAutomation =
+        capabilities.supportsHostAutomation ||
         (capabilityProfile?.supportsSurface(CockpitSurfaceKind.hostShell) ??
             false);
     return CockpitCapabilities(
@@ -232,20 +235,22 @@ final class CockpitReadAppService {
     required CockpitRecordingCapabilities recordingCapabilities,
     required CockpitCapabilityProfile? capabilityProfile,
   }) {
-    final profileSupportsRecording = capabilityProfile != null &&
+    final profileSupportsRecording =
+        capabilityProfile != null &&
         _shouldPromoteRecordingFromProfile(capabilityProfile) &&
-        capabilityProfile
-            .supportsAction(CockpitActionCapability.startRecording) &&
-        capabilityProfile
-            .supportsAction(CockpitActionCapability.stopRecording) &&
+        capabilityProfile.supportsAction(
+          CockpitActionCapability.startRecording,
+        ) &&
+        capabilityProfile.supportsAction(
+          CockpitActionCapability.stopRecording,
+        ) &&
         capabilityProfile.supportsEvidence(
           CockpitEvidenceCapability.screenRecording,
         );
-    final limitations = <String>{
-      ...recordingCapabilities.recordingLimitations,
-    };
+    final limitations = <String>{...recordingCapabilities.recordingLimitations};
     return CockpitRecordingCapabilities(
-      supportsNativeRecording: recordingCapabilities.supportsNativeRecording ||
+      supportsNativeRecording:
+          recordingCapabilities.supportsNativeRecording ||
           profileSupportsRecording,
       preferredAcceptanceRecordingKind:
           recordingCapabilities.preferredAcceptanceRecordingKind,
@@ -293,8 +298,7 @@ final class CockpitReadAppService {
       CockpitTargetKind.nativeApp ||
       CockpitTargetKind.systemSurface ||
       CockpitTargetKind.device ||
-      CockpitTargetKind.hostWorkspace =>
-        false,
+      CockpitTargetKind.hostWorkspace => false,
     };
   }
 
@@ -316,13 +320,13 @@ final class CockpitReadAppService {
   ) {
     return switch (_selectedPlaneFor(capabilities)) {
       CockpitPlaneKind.flutterSemanticPlane => <CockpitPlaneKind>[
-          CockpitPlaneKind.nativeUiPlane,
-          CockpitPlaneKind.deviceSystemPlane,
-        ],
+        CockpitPlaneKind.nativeUiPlane,
+        CockpitPlaneKind.deviceSystemPlane,
+      ],
       CockpitPlaneKind.hostPlane => const <CockpitPlaneKind>[],
       CockpitPlaneKind.nativeUiPlane => <CockpitPlaneKind>[
-          CockpitPlaneKind.deviceSystemPlane,
-        ],
+        CockpitPlaneKind.deviceSystemPlane,
+      ],
       CockpitPlaneKind.deviceSystemPlane => const <CockpitPlaneKind>[],
     };
   }
@@ -334,16 +338,16 @@ final class CockpitReadAppService {
     for (final command in capabilities.supportedCommands) {
       switch (command) {
         case CockpitCommandType.tap ||
-              CockpitCommandType.longPress ||
-              CockpitCommandType.doubleTap:
+            CockpitCommandType.longPress ||
+            CockpitCommandType.doubleTap:
           actionCapabilities.add(CockpitActionCapability.tap);
         case CockpitCommandType.enterText ||
-              CockpitCommandType.focusTextInput ||
-              CockpitCommandType.setTextEditingValue ||
-              CockpitCommandType.sendTextInputAction ||
-              CockpitCommandType.sendKeyEvent ||
-              CockpitCommandType.sendKeyDownEvent ||
-              CockpitCommandType.sendKeyUpEvent:
+            CockpitCommandType.focusTextInput ||
+            CockpitCommandType.setTextEditingValue ||
+            CockpitCommandType.sendTextInputAction ||
+            CockpitCommandType.sendKeyEvent ||
+            CockpitCommandType.sendKeyDownEvent ||
+            CockpitCommandType.sendKeyUpEvent:
           actionCapabilities.add(CockpitActionCapability.typeText);
         case CockpitCommandType.captureScreenshot:
           actionCapabilities.add(CockpitActionCapability.captureScreenshot);

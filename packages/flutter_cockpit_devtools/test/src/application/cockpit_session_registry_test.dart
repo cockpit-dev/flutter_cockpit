@@ -8,10 +8,11 @@ import 'package:test/test.dart';
 void main() {
   test('developmentSessionByAppId returns the latest updated record', () {
     final registry = CockpitSessionRegistry(
-        now: _clockFrom(<DateTime>[
-      DateTime.utc(2026, 5, 10, 10, 0, 0),
-      DateTime.utc(2026, 5, 10, 10, 5, 0),
-    ]));
+      now: _clockFrom(<DateTime>[
+        DateTime.utc(2026, 5, 10, 10, 0, 0),
+        DateTime.utc(2026, 5, 10, 10, 5, 0),
+      ]),
+    );
     registry.recordDevelopmentSession(
       handle: _developmentHandle(
         id: 'dev-1',
@@ -35,10 +36,11 @@ void main() {
 
   test('remoteSessionByAppId returns the latest updated record', () {
     final registry = CockpitSessionRegistry(
-        now: _clockFrom(<DateTime>[
-      DateTime.utc(2026, 5, 10, 10, 0, 0),
-      DateTime.utc(2026, 5, 10, 10, 5, 0),
-    ]));
+      now: _clockFrom(<DateTime>[
+        DateTime.utc(2026, 5, 10, 10, 0, 0),
+        DateTime.utc(2026, 5, 10, 10, 5, 0),
+      ]),
+    );
     registry.recordRemoteSession(
       handle: _remoteHandle(hostPort: 57331),
       status: _remoteStatus(),

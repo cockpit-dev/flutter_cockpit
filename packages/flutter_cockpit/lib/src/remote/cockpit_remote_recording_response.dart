@@ -12,11 +12,11 @@ final class CockpitRemoteRecordingResponse {
   final List<CockpitRemoteArtifactDownload> artifactDownloads;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'result': result.toJson(),
-        'artifactDownloads': artifactDownloads
-            .map((download) => download.toJson())
-            .toList(growable: false),
-      };
+    'result': result.toJson(),
+    'artifactDownloads': artifactDownloads
+        .map((download) => download.toJson())
+        .toList(growable: false),
+  };
 
   factory CockpitRemoteRecordingResponse.fromJson(Map<String, Object?> json) {
     final resultJson = json['result'] as Map<Object?, Object?>;

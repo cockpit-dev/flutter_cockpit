@@ -9,7 +9,7 @@ import 'cockpit_capture_profile.dart';
 
 final class CockpitNativeCapture {
   const CockpitNativeCapture({MethodChannel? channel})
-      : _channel = channel ?? const MethodChannel(_channelName);
+    : _channel = channel ?? const MethodChannel(_channelName);
 
   static const String _channelName = 'dev.cockpit.flutter_cockpit/capture';
 
@@ -34,10 +34,10 @@ final class CockpitNativeCapture {
   }) async {
     final payload = await _channel
         .invokeMethod<Object?>('captureAcceptanceScreenshot', <String, Object?>{
-      'name': request.name,
-      'reason': request.reason.jsonValue,
-      'profile': profile.name,
-    });
+          'name': request.name,
+          'reason': request.reason.jsonValue,
+          'profile': profile.name,
+        });
 
     if (payload is! Map<Object?, Object?>) {
       throw StateError('Native capture returned an invalid payload.');

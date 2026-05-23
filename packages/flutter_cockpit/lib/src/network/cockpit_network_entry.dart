@@ -42,24 +42,22 @@ final class CockpitNetworkEntry {
       MapEquality<String, String>();
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'requestId': requestId,
-        'method': method,
-        'uri': uri,
-        'startedAt': startedAt.toUtc().toIso8601String(),
-        'durationMs': durationMs,
-        if (statusCode != null) 'statusCode': statusCode,
-        'requestHeaders': requestHeaders,
-        'responseHeaders': responseHeaders,
-        if (requestBodyPreview != null)
-          'requestBodyPreview': requestBodyPreview,
-        if (responseBodyPreview != null)
-          'responseBodyPreview': responseBodyPreview,
-        'requestBodyBytes': requestBodyBytes,
-        'responseBodyBytes': responseBodyBytes,
-        'requestBodyTruncated': requestBodyTruncated,
-        'responseBodyTruncated': responseBodyTruncated,
-        if (error != null) 'error': error,
-      };
+    'requestId': requestId,
+    'method': method,
+    'uri': uri,
+    'startedAt': startedAt.toUtc().toIso8601String(),
+    'durationMs': durationMs,
+    if (statusCode != null) 'statusCode': statusCode,
+    'requestHeaders': requestHeaders,
+    'responseHeaders': responseHeaders,
+    if (requestBodyPreview != null) 'requestBodyPreview': requestBodyPreview,
+    if (responseBodyPreview != null) 'responseBodyPreview': responseBodyPreview,
+    'requestBodyBytes': requestBodyBytes,
+    'responseBodyBytes': responseBodyBytes,
+    'requestBodyTruncated': requestBodyTruncated,
+    'responseBodyTruncated': responseBodyTruncated,
+    if (error != null) 'error': error,
+  };
 
   factory CockpitNetworkEntry.fromJson(Map<String, Object?> json) {
     return CockpitNetworkEntry(
@@ -110,20 +108,20 @@ final class CockpitNetworkEntry {
 
   @override
   int get hashCode => Object.hash(
-        requestId,
-        method,
-        uri,
-        startedAt,
-        durationMs,
-        statusCode,
-        _mapEquality.hash(requestHeaders),
-        _mapEquality.hash(responseHeaders),
-        requestBodyPreview,
-        responseBodyPreview,
-        requestBodyBytes,
-        responseBodyBytes,
-        requestBodyTruncated,
-        responseBodyTruncated,
-        error,
-      );
+    requestId,
+    method,
+    uri,
+    startedAt,
+    durationMs,
+    statusCode,
+    _mapEquality.hash(requestHeaders),
+    _mapEquality.hash(responseHeaders),
+    requestBodyPreview,
+    responseBodyPreview,
+    requestBodyBytes,
+    responseBodyBytes,
+    requestBodyTruncated,
+    responseBodyTruncated,
+    error,
+  );
 }

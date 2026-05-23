@@ -46,25 +46,25 @@ final class CockpitRunShellResult {
   final String recommendedNextStep;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'scope': scope,
-        'command': command,
-        'exitCode': exitCode,
-        'stdout': stdout,
-        'stderr': stderr,
-        'success': success,
-        'recommendedNextStep': recommendedNextStep,
-      };
+    'scope': scope,
+    'command': command,
+    'exitCode': exitCode,
+    'stdout': stdout,
+    'stderr': stderr,
+    'success': success,
+    'recommendedNextStep': recommendedNextStep,
+  };
 }
 
-typedef CockpitShellProcessRunner = Future<ProcessResult> Function(
-  String executable,
-  List<String> arguments, {
-  String? workingDirectory,
-});
+typedef CockpitShellProcessRunner =
+    Future<ProcessResult> Function(
+      String executable,
+      List<String> arguments, {
+      String? workingDirectory,
+    });
 
-typedef CockpitRunShellFunction = Future<CockpitRunShellResult> Function(
-  CockpitRunShellRequest request,
-);
+typedef CockpitRunShellFunction =
+    Future<CockpitRunShellResult> Function(CockpitRunShellRequest request);
 
 final class CockpitRunShellService {
   CockpitRunShellService({
@@ -72,12 +72,12 @@ final class CockpitRunShellService {
     CockpitShellProcessRunner processRunner = Process.run,
     CockpitTargetReferenceResolver? targetReferenceResolver,
     CockpitPlatformDriverRegistry? platformDriverRegistry,
-  })  : _runShellOverride = runShell,
-        _processRunner = processRunner,
-        _targetReferenceResolver =
-            targetReferenceResolver ?? CockpitTargetReferenceResolver(),
-        _platformDriverRegistry =
-            platformDriverRegistry ?? CockpitPlatformDriverRegistry();
+  }) : _runShellOverride = runShell,
+       _processRunner = processRunner,
+       _targetReferenceResolver =
+           targetReferenceResolver ?? CockpitTargetReferenceResolver(),
+       _platformDriverRegistry =
+           platformDriverRegistry ?? CockpitPlatformDriverRegistry();
 
   final CockpitRunShellFunction? _runShellOverride;
   final CockpitShellProcessRunner _processRunner;
@@ -220,36 +220,26 @@ final class CockpitRunShellService {
 
     return switch (scope) {
       'android' => _ResolvedShellExecution(
-          scope: 'android',
-          executable: 'adb',
-          arguments: <String>[
-            '-s',
-            normalizedDeviceId,
-            'shell',
-            ...command,
-          ],
-          command: command,
-        ),
+        scope: 'android',
+        executable: 'adb',
+        arguments: <String>['-s', normalizedDeviceId, 'shell', ...command],
+        command: command,
+      ),
       'ios' => _ResolvedShellExecution(
-          scope: 'ios',
-          executable: 'xcrun',
-          arguments: <String>[
-            'simctl',
-            'spawn',
-            normalizedDeviceId,
-            ...command,
-          ],
-          command: command,
-        ),
-      'macos' || 'windows' || 'linux' || 'web' => _ResolvedShellExecution.host(
-          scope: scope,
-          command: command,
-        ),
+        scope: 'ios',
+        executable: 'xcrun',
+        arguments: <String>['simctl', 'spawn', normalizedDeviceId, ...command],
+        command: command,
+      ),
+      'macos' ||
+      'windows' ||
+      'linux' ||
+      'web' => _ResolvedShellExecution.host(scope: scope, command: command),
       _ => throw CockpitApplicationServiceException(
-          code: 'unsupportedPlatform',
-          message: 'run-shell does not support this platform.',
-          details: <String, Object?>{'platform': scope},
-        ),
+        code: 'unsupportedPlatform',
+        message: 'run-shell does not support this platform.',
+        details: <String, Object?>{'platform': scope},
+      ),
     };
   }
 

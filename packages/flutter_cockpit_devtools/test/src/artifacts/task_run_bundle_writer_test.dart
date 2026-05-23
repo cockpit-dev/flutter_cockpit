@@ -99,14 +99,18 @@ void main() {
       bundle: bundle,
       outputRoot: tempDir.path,
     );
-    final manifestJson = jsonDecode(
-      await File(
-        p.join(outputDir.path, 'manifest.json'),
-      ).readAsString(),
-    ) as Map<String, Object?>;
-    final handoffJson = jsonDecode(
-      await File(p.join(outputDir.path, 'handoff.json')).readAsString(),
-    ) as Map<String, Object?>;
+    final manifestJson =
+        jsonDecode(
+              await File(
+                p.join(outputDir.path, 'manifest.json'),
+              ).readAsString(),
+            )
+            as Map<String, Object?>;
+    final handoffJson =
+        jsonDecode(
+              await File(p.join(outputDir.path, 'handoff.json')).readAsString(),
+            )
+            as Map<String, Object?>;
     final acceptance = await File(
       p.join(outputDir.path, 'acceptance.md'),
     ).readAsString();
@@ -116,53 +120,60 @@ void main() {
     expect(acceptance, contains('# Acceptance'));
   });
 
-  test('uses a file-system-safe single directory for unsafe session ids',
-      () async {
-    final tempDir = await Directory.systemTemp.createTemp(
-      'cockpit_bundle_safe_name_test',
-    );
-    addTearDown(() async {
-      if (tempDir.existsSync()) {
-        await tempDir.delete(recursive: true);
-      }
-    });
+  test(
+    'uses a file-system-safe single directory for unsafe session ids',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_bundle_safe_name_test',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
 
-    final writer = TaskRunBundleWriter();
-    final bundle = CockpitContextBundle(
-      manifest: CockpitRunManifest(
-        sessionId: '../team/session:ios 17',
-        taskId: 'task-safe-name',
-        platform: 'ios',
-        status: CockpitTaskStatus.completed,
-        startedAt: DateTime.utc(2026, 3, 20, 8),
-        finishedAt: DateTime.utc(2026, 3, 20, 8, 1),
-        artifactRefs: const [],
-      ),
-      environment: const CockpitEnvironment(
-        platform: 'ios',
-        flutterVersion: '3.38.9',
-        dartVersion: '3.10.8',
-      ),
-      steps: const [],
-      observations: const [],
-      acceptanceMarkdown: '# Acceptance\n\nDone.',
-      handoff: const {'status': 'completed'},
-    );
+      final writer = TaskRunBundleWriter();
+      final bundle = CockpitContextBundle(
+        manifest: CockpitRunManifest(
+          sessionId: '../team/session:ios 17',
+          taskId: 'task-safe-name',
+          platform: 'ios',
+          status: CockpitTaskStatus.completed,
+          startedAt: DateTime.utc(2026, 3, 20, 8),
+          finishedAt: DateTime.utc(2026, 3, 20, 8, 1),
+          artifactRefs: const [],
+        ),
+        environment: const CockpitEnvironment(
+          platform: 'ios',
+          flutterVersion: '3.38.9',
+          dartVersion: '3.10.8',
+        ),
+        steps: const [],
+        observations: const [],
+        acceptanceMarkdown: '# Acceptance\n\nDone.',
+        handoff: const {'status': 'completed'},
+      );
 
-    final outputDir = await writer.writeBundle(
-      bundle: bundle,
-      outputRoot: tempDir.path,
-    );
+      final outputDir = await writer.writeBundle(
+        bundle: bundle,
+        outputRoot: tempDir.path,
+      );
 
-    expect(p.isWithin(tempDir.path, outputDir.path), isTrue);
-    expect(p.dirname(outputDir.path), tempDir.path);
-    expect(p.basename(outputDir.path), contains('team_session_ios_17'));
-    expect(
-      p.basename(outputDir.path),
-      isNot(anyOf(contains('/'), contains('..'), contains(' '), contains(':'))),
-    );
-    expect(File(p.join(outputDir.path, 'manifest.json')).existsSync(), isTrue);
-  });
+      expect(p.isWithin(tempDir.path, outputDir.path), isTrue);
+      expect(p.dirname(outputDir.path), tempDir.path);
+      expect(p.basename(outputDir.path), contains('team_session_ios_17'));
+      expect(
+        p.basename(outputDir.path),
+        isNot(
+          anyOf(contains('/'), contains('..'), contains(' '), contains(':')),
+        ),
+      );
+      expect(
+        File(p.join(outputDir.path, 'manifest.json')).existsSync(),
+        isTrue,
+      );
+    },
+  );
 
   test('writes binary artifact payloads into the bundle output', () async {
     final tempDir = await Directory.systemTemp.createTemp(
@@ -320,55 +331,57 @@ void main() {
     },
   );
 
-  test('rejects manifest artifact refs that are missing from the bundle',
-      () async {
-    final tempDir = await Directory.systemTemp.createTemp(
-      'cockpit_bundle_missing_manifest_artifact',
-    );
-    addTearDown(() async {
-      if (tempDir.existsSync()) {
-        await tempDir.delete(recursive: true);
-      }
-    });
+  test(
+    'rejects manifest artifact refs that are missing from the bundle',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_bundle_missing_manifest_artifact',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
 
-    final writer = TaskRunBundleWriter();
-    final bundle = CockpitContextBundle(
-      manifest: CockpitRunManifest(
-        sessionId: 'session-missing-manifest-artifact',
-        taskId: 'task-missing-manifest-artifact',
-        platform: 'android',
-        status: CockpitTaskStatus.completed,
-        startedAt: DateTime.utc(2026, 3, 20, 8),
-        finishedAt: DateTime.utc(2026, 3, 20, 8, 1),
-        artifactRefs: const <CockpitArtifactRef>[
-          CockpitArtifactRef(
-            role: 'screenshot',
-            relativePath: 'screenshots/missing_acceptance.png',
-          ),
-        ],
-      ),
-      environment: const CockpitEnvironment(
-        platform: 'android',
-        flutterVersion: '3.38.9',
-        dartVersion: '3.10.8',
-      ),
-      steps: const <CockpitStepRecord>[],
-      observations: const <CockpitObservation>[],
-      acceptanceMarkdown: '# Acceptance\n\nDone.',
-      handoff: const <String, Object?>{'status': 'completed'},
-    );
-
-    await expectLater(
-      writer.writeBundle(bundle: bundle, outputRoot: tempDir.path),
-      throwsA(
-        isA<StateError>().having(
-          (error) => error.message,
-          'message',
-          contains('Manifest artifact file does not exist'),
+      final writer = TaskRunBundleWriter();
+      final bundle = CockpitContextBundle(
+        manifest: CockpitRunManifest(
+          sessionId: 'session-missing-manifest-artifact',
+          taskId: 'task-missing-manifest-artifact',
+          platform: 'android',
+          status: CockpitTaskStatus.completed,
+          startedAt: DateTime.utc(2026, 3, 20, 8),
+          finishedAt: DateTime.utc(2026, 3, 20, 8, 1),
+          artifactRefs: const <CockpitArtifactRef>[
+            CockpitArtifactRef(
+              role: 'screenshot',
+              relativePath: 'screenshots/missing_acceptance.png',
+            ),
+          ],
         ),
-      ),
-    );
-  });
+        environment: const CockpitEnvironment(
+          platform: 'android',
+          flutterVersion: '3.38.9',
+          dartVersion: '3.10.8',
+        ),
+        steps: const <CockpitStepRecord>[],
+        observations: const <CockpitObservation>[],
+        acceptanceMarkdown: '# Acceptance\n\nDone.',
+        handoff: const <String, Object?>{'status': 'completed'},
+      );
+
+      await expectLater(
+        writer.writeBundle(bundle: bundle, outputRoot: tempDir.path),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            contains('Manifest artifact file does not exist'),
+          ),
+        ),
+      );
+    },
+  );
 
   test(
     'writes delivery.json with bundle-local screenshot references',
@@ -423,11 +436,13 @@ void main() {
         },
       );
 
-      final deliveryJson = jsonDecode(
-        await File(
-          p.join(outputDir.path, 'delivery.json'),
-        ).readAsString(),
-      ) as Map<String, Object?>;
+      final deliveryJson =
+          jsonDecode(
+                await File(
+                  p.join(outputDir.path, 'delivery.json'),
+                ).readAsString(),
+              )
+              as Map<String, Object?>;
 
       expect(deliveryJson['primaryScreenshotRef'], artifact.relativePath);
       expect((deliveryJson['attachmentRefs'] as List<Object?>).cast<String>(), [
@@ -436,64 +451,11 @@ void main() {
     },
   );
 
-  test('rejects delivery screenshot refs that are missing from the bundle',
-      () async {
-    final tempDir = await Directory.systemTemp.createTemp(
-      'cockpit_bundle_missing_delivery_artifact',
-    );
-    addTearDown(() async {
-      if (tempDir.existsSync()) {
-        await tempDir.delete(recursive: true);
-      }
-    });
-
-    final writer = TaskRunBundleWriter();
-    final bundle = CockpitContextBundle(
-      manifest: CockpitRunManifest(
-        sessionId: 'session-missing-delivery-artifact',
-        taskId: 'task-missing-delivery-artifact',
-        platform: 'ios',
-        status: CockpitTaskStatus.completed,
-        startedAt: DateTime.utc(2026, 3, 20, 8),
-        finishedAt: DateTime.utc(2026, 3, 20, 8, 2),
-        artifactRefs: const <CockpitArtifactRef>[],
-        nativeScreenshotCount: 1,
-        deliveryArtifactsReady: true,
-      ),
-      environment: const CockpitEnvironment(
-        platform: 'ios',
-        flutterVersion: '3.38.9',
-        dartVersion: '3.10.8',
-      ),
-      steps: const <CockpitStepRecord>[],
-      observations: const <CockpitObservation>[],
-      acceptanceMarkdown: '# Acceptance\n\nDelivered.',
-      handoff: const <String, Object?>{'status': 'completed'},
-      delivery: const <String, Object?>{
-        'summary': 'Ready for user delivery',
-        'primaryScreenshotRef': 'screenshots/missing_acceptance.png',
-        'attachmentRefs': <String>['screenshots/missing_acceptance.png'],
-        'deliveryArtifactsReady': true,
-      },
-    );
-
-    await expectLater(
-      writer.writeBundle(bundle: bundle, outputRoot: tempDir.path),
-      throwsA(
-        isA<StateError>().having(
-          (error) => error.message,
-          'message',
-          contains('Delivery artifact file does not exist'),
-        ),
-      ),
-    );
-  });
-
   test(
-    'rejects delivery keyframe refs outside keyframe artifacts',
+    'rejects delivery screenshot refs that are missing from the bundle',
     () async {
       final tempDir = await Directory.systemTemp.createTemp(
-        'cockpit_bundle_invalid_keyframe_ref',
+        'cockpit_bundle_missing_delivery_artifact',
       );
       addTearDown(() async {
         if (tempDir.existsSync()) {
@@ -501,73 +463,123 @@ void main() {
         }
       });
 
-      final writer = TaskRunBundleWriter(
-        keyframeExtractor: const _InvalidKeyframeExtractor(
-          keyframeRef: 'screenshots/not_a_keyframe.png',
-        ),
-      );
-      final recordingArtifact = const CockpitArtifactRef(
-        role: 'recording',
-        relativePath: 'recordings/home_acceptance.mp4',
-      );
-      final sourceFile = File(p.join(tempDir.path, 'temp_recording.mp4'));
-      await sourceFile.writeAsBytes(const <int>[0, 1, 2, 3, 4]);
-      final startedAt = DateTime.utc(2026, 3, 22, 6, 0, 0);
+      final writer = TaskRunBundleWriter();
       final bundle = CockpitContextBundle(
         manifest: CockpitRunManifest(
-          sessionId: 'session-invalid-keyframe-ref',
-          taskId: 'task-invalid-keyframe-ref',
-          platform: 'android',
+          sessionId: 'session-missing-delivery-artifact',
+          taskId: 'task-missing-delivery-artifact',
+          platform: 'ios',
           status: CockpitTaskStatus.completed,
-          startedAt: startedAt,
-          finishedAt: startedAt.add(const Duration(seconds: 2)),
-          artifactRefs: <CockpitArtifactRef>[recordingArtifact],
-          recordingCount: 1,
-          deliveryVideoReady: true,
+          startedAt: DateTime.utc(2026, 3, 20, 8),
+          finishedAt: DateTime.utc(2026, 3, 20, 8, 2),
+          artifactRefs: const <CockpitArtifactRef>[],
+          nativeScreenshotCount: 1,
+          deliveryArtifactsReady: true,
         ),
         environment: const CockpitEnvironment(
-          platform: 'android',
+          platform: 'ios',
           flutterVersion: '3.38.9',
           dartVersion: '3.10.8',
         ),
-        steps: <CockpitStepRecord>[
-          CockpitStepRecord(
-            index: 0,
-            actionType: 'recording_started',
-            actionArgs: const <String, Object?>{
-              'recordingPurpose': 'acceptance',
-            },
-            observedAt: startedAt,
-          ),
-        ],
+        steps: const <CockpitStepRecord>[],
         observations: const <CockpitObservation>[],
-        acceptanceMarkdown: '# Acceptance\n\nRecorded.',
+        acceptanceMarkdown: '# Acceptance\n\nDelivered.',
         handoff: const <String, Object?>{'status': 'completed'},
         delivery: const <String, Object?>{
-          'primaryRecordingRef': 'recordings/home_acceptance.mp4',
-          'videoAttachmentRefs': <String>['recordings/home_acceptance.mp4'],
-          'deliveryVideoReady': true,
+          'summary': 'Ready for user delivery',
+          'primaryScreenshotRef': 'screenshots/missing_acceptance.png',
+          'attachmentRefs': <String>['screenshots/missing_acceptance.png'],
+          'deliveryArtifactsReady': true,
         },
       );
 
       await expectLater(
-        writer.writeBundle(
-          bundle: bundle,
-          outputRoot: tempDir.path,
-          artifactSourcePaths: <String, String>{
-            recordingArtifact.relativePath: sourceFile.path,
-          },
-        ),
+        writer.writeBundle(bundle: bundle, outputRoot: tempDir.path),
         throwsA(
-          isA<ArgumentError>().having(
+          isA<StateError>().having(
             (error) => error.message,
             'message',
-            contains('Delivery keyframe refs must stay under keyframes/'),
+            contains('Delivery artifact file does not exist'),
           ),
         ),
       );
     },
   );
+
+  test('rejects delivery keyframe refs outside keyframe artifacts', () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'cockpit_bundle_invalid_keyframe_ref',
+    );
+    addTearDown(() async {
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    final writer = TaskRunBundleWriter(
+      keyframeExtractor: const _InvalidKeyframeExtractor(
+        keyframeRef: 'screenshots/not_a_keyframe.png',
+      ),
+    );
+    final recordingArtifact = const CockpitArtifactRef(
+      role: 'recording',
+      relativePath: 'recordings/home_acceptance.mp4',
+    );
+    final sourceFile = File(p.join(tempDir.path, 'temp_recording.mp4'));
+    await sourceFile.writeAsBytes(const <int>[0, 1, 2, 3, 4]);
+    final startedAt = DateTime.utc(2026, 3, 22, 6, 0, 0);
+    final bundle = CockpitContextBundle(
+      manifest: CockpitRunManifest(
+        sessionId: 'session-invalid-keyframe-ref',
+        taskId: 'task-invalid-keyframe-ref',
+        platform: 'android',
+        status: CockpitTaskStatus.completed,
+        startedAt: startedAt,
+        finishedAt: startedAt.add(const Duration(seconds: 2)),
+        artifactRefs: <CockpitArtifactRef>[recordingArtifact],
+        recordingCount: 1,
+        deliveryVideoReady: true,
+      ),
+      environment: const CockpitEnvironment(
+        platform: 'android',
+        flutterVersion: '3.38.9',
+        dartVersion: '3.10.8',
+      ),
+      steps: <CockpitStepRecord>[
+        CockpitStepRecord(
+          index: 0,
+          actionType: 'recording_started',
+          actionArgs: const <String, Object?>{'recordingPurpose': 'acceptance'},
+          observedAt: startedAt,
+        ),
+      ],
+      observations: const <CockpitObservation>[],
+      acceptanceMarkdown: '# Acceptance\n\nRecorded.',
+      handoff: const <String, Object?>{'status': 'completed'},
+      delivery: const <String, Object?>{
+        'primaryRecordingRef': 'recordings/home_acceptance.mp4',
+        'videoAttachmentRefs': <String>['recordings/home_acceptance.mp4'],
+        'deliveryVideoReady': true,
+      },
+    );
+
+    await expectLater(
+      writer.writeBundle(
+        bundle: bundle,
+        outputRoot: tempDir.path,
+        artifactSourcePaths: <String, String>{
+          recordingArtifact.relativePath: sourceFile.path,
+        },
+      ),
+      throwsA(
+        isA<ArgumentError>().having(
+          (error) => error.message,
+          'message',
+          contains('Delivery keyframe refs must stay under keyframes/'),
+        ),
+      ),
+    );
+  });
 
   test(
     'rejects delivery keyframe linked screenshot refs outside screenshot artifacts',
@@ -704,58 +716,55 @@ void main() {
     },
   );
 
-  test(
-    'rejects delivery recording refs outside recording artifacts',
-    () async {
-      final tempDir = await Directory.systemTemp.createTemp(
-        'cockpit_bundle_invalid_delivery_recording_ref',
-      );
-      addTearDown(() async {
-        if (tempDir.existsSync()) {
-          await tempDir.delete(recursive: true);
-        }
-      });
+  test('rejects delivery recording refs outside recording artifacts', () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'cockpit_bundle_invalid_delivery_recording_ref',
+    );
+    addTearDown(() async {
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
 
-      final writer = TaskRunBundleWriter();
-      final bundle = CockpitContextBundle(
-        manifest: CockpitRunManifest(
-          sessionId: 'session-invalid-delivery-recording',
-          taskId: 'task-invalid-delivery-recording',
-          platform: 'android',
-          status: CockpitTaskStatus.completed,
-          startedAt: DateTime.utc(2026, 3, 20, 8),
-          finishedAt: DateTime.utc(2026, 3, 20, 8, 2),
-          artifactRefs: const <CockpitArtifactRef>[],
-          deliveryVideoReady: true,
-        ),
-        environment: const CockpitEnvironment(
-          platform: 'android',
-          flutterVersion: '3.38.9',
-          dartVersion: '3.10.8',
-        ),
-        steps: const <CockpitStepRecord>[],
-        observations: const <CockpitObservation>[],
-        acceptanceMarkdown: '# Acceptance\n\nRecorded.',
-        handoff: const <String, Object?>{'status': 'completed'},
-        delivery: const <String, Object?>{
-          'primaryRecordingRef': 'screenshots/not_a_recording.png',
-          'videoAttachmentRefs': <String>['../outside.mp4'],
-          'deliveryVideoReady': true,
-        },
-      );
+    final writer = TaskRunBundleWriter();
+    final bundle = CockpitContextBundle(
+      manifest: CockpitRunManifest(
+        sessionId: 'session-invalid-delivery-recording',
+        taskId: 'task-invalid-delivery-recording',
+        platform: 'android',
+        status: CockpitTaskStatus.completed,
+        startedAt: DateTime.utc(2026, 3, 20, 8),
+        finishedAt: DateTime.utc(2026, 3, 20, 8, 2),
+        artifactRefs: const <CockpitArtifactRef>[],
+        deliveryVideoReady: true,
+      ),
+      environment: const CockpitEnvironment(
+        platform: 'android',
+        flutterVersion: '3.38.9',
+        dartVersion: '3.10.8',
+      ),
+      steps: const <CockpitStepRecord>[],
+      observations: const <CockpitObservation>[],
+      acceptanceMarkdown: '# Acceptance\n\nRecorded.',
+      handoff: const <String, Object?>{'status': 'completed'},
+      delivery: const <String, Object?>{
+        'primaryRecordingRef': 'screenshots/not_a_recording.png',
+        'videoAttachmentRefs': <String>['../outside.mp4'],
+        'deliveryVideoReady': true,
+      },
+    );
 
-      await expectLater(
-        writer.writeBundle(bundle: bundle, outputRoot: tempDir.path),
-        throwsA(
-          isA<ArgumentError>().having(
-            (error) => error.message,
-            'message',
-            contains('Delivery recording refs must stay under recordings/'),
-          ),
+    await expectLater(
+      writer.writeBundle(bundle: bundle, outputRoot: tempDir.path),
+      throwsA(
+        isA<ArgumentError>().having(
+          (error) => error.message,
+          'message',
+          contains('Delivery recording refs must stay under recordings/'),
         ),
-      );
-    },
-  );
+      ),
+    );
+  });
 
   test('copies recording source files into the bundle output', () async {
     final tempDir = await Directory.systemTemp.createTemp(
@@ -926,21 +935,27 @@ void main() {
         },
       );
 
-      final manifestJson = jsonDecode(
-        await File(
-          p.join(outputDir.path, 'manifest.json'),
-        ).readAsString(),
-      ) as Map<String, Object?>;
-      final deliveryJson = jsonDecode(
-        await File(
-          p.join(outputDir.path, 'delivery.json'),
-        ).readAsString(),
-      ) as Map<String, Object?>;
-      final handoffJson = jsonDecode(
-        await File(
-          p.join(outputDir.path, 'handoff.json'),
-        ).readAsString(),
-      ) as Map<String, Object?>;
+      final manifestJson =
+          jsonDecode(
+                await File(
+                  p.join(outputDir.path, 'manifest.json'),
+                ).readAsString(),
+              )
+              as Map<String, Object?>;
+      final deliveryJson =
+          jsonDecode(
+                await File(
+                  p.join(outputDir.path, 'delivery.json'),
+                ).readAsString(),
+              )
+              as Map<String, Object?>;
+      final handoffJson =
+          jsonDecode(
+                await File(
+                  p.join(outputDir.path, 'handoff.json'),
+                ).readAsString(),
+              )
+              as Map<String, Object?>;
 
       expect(manifestJson['deliveryVideoReady'], isTrue);
       expect(manifestJson['recordingCount'], 1);
@@ -1098,11 +1113,13 @@ void main() {
         },
       );
 
-      final deliveryJson = jsonDecode(
-        await File(
-          p.join(outputDir.path, 'delivery.json'),
-        ).readAsString(),
-      ) as Map<String, Object?>;
+      final deliveryJson =
+          jsonDecode(
+                await File(
+                  p.join(outputDir.path, 'delivery.json'),
+                ).readAsString(),
+              )
+              as Map<String, Object?>;
       final keyframes = (deliveryJson['keyframes'] as List<Object?>)
           .cast<Map<Object?, Object?>>();
 
@@ -1208,11 +1225,13 @@ void main() {
       },
     );
 
-    final deliveryJson = jsonDecode(
-      await File(
-        p.join(outputDir.path, 'delivery.json'),
-      ).readAsString(),
-    ) as Map<String, Object?>;
+    final deliveryJson =
+        jsonDecode(
+              await File(
+                p.join(outputDir.path, 'delivery.json'),
+              ).readAsString(),
+            )
+            as Map<String, Object?>;
     final keyframes = (deliveryJson['keyframes'] as List<Object?>)
         .cast<Map<Object?, Object?>>();
 
@@ -1358,11 +1377,13 @@ void main() {
         },
       );
 
-      final deliveryJson = jsonDecode(
-        await File(
-          p.join(outputDir.path, 'delivery.json'),
-        ).readAsString(),
-      ) as Map<String, Object?>;
+      final deliveryJson =
+          jsonDecode(
+                await File(
+                  p.join(outputDir.path, 'delivery.json'),
+                ).readAsString(),
+              )
+              as Map<String, Object?>;
       final keyframes = (deliveryJson['keyframes'] as List<Object?>)
           .cast<Map<Object?, Object?>>();
 
@@ -1466,8 +1487,9 @@ void main() {
                 }
                 return ProcessResult(0, 0, '', '');
               }
-              final bytes =
-                  outputPath.contains('baseline') ? baselinePng : acceptancePng;
+              final bytes = outputPath.contains('baseline')
+                  ? baselinePng
+                  : acceptancePng;
               await File(outputPath).writeAsBytes(bytes);
               return ProcessResult(0, 0, '', '');
             }
@@ -1576,11 +1598,13 @@ void main() {
         },
       );
 
-      final deliveryJson = jsonDecode(
-        await File(
-          p.join(outputDir.path, 'delivery.json'),
-        ).readAsString(),
-      ) as Map<String, Object?>;
+      final deliveryJson =
+          jsonDecode(
+                await File(
+                  p.join(outputDir.path, 'delivery.json'),
+                ).readAsString(),
+              )
+              as Map<String, Object?>;
       final keyframes = (deliveryJson['keyframes'] as List<Object?>)
           .cast<Map<Object?, Object?>>();
       final tailKeyframe = keyframes.firstWhere(
@@ -1684,18 +1708,22 @@ void main() {
         bundle: bundle,
         outputRoot: tempDir.path,
       );
-      final diagnosticsJson = jsonDecode(
-        File(
-          p.join(outputDir.path, diagnosticsArtifact.relativePath),
-        ).readAsStringSync(),
-      ) as Map<String, Object?>;
-      final stepsJson = jsonDecode(
-        File(p.join(outputDir.path, 'steps.json')).readAsStringSync(),
-      ) as List<Object?>;
+      final diagnosticsJson =
+          jsonDecode(
+                File(
+                  p.join(outputDir.path, diagnosticsArtifact.relativePath),
+                ).readAsStringSync(),
+              )
+              as Map<String, Object?>;
+      final stepsJson =
+          jsonDecode(
+                File(p.join(outputDir.path, 'steps.json')).readAsStringSync(),
+              )
+              as List<Object?>;
       final inlineSnapshot =
           ((stepsJson.single as Map<Object?, Object?>)['snapshot']
-                  as Map<Object?, Object?>?) ??
-              const <Object?, Object?>{};
+              as Map<Object?, Object?>?) ??
+          const <Object?, Object?>{};
 
       expect(
         File(

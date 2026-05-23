@@ -24,9 +24,7 @@ void main() {
         'connectionProperties': <String, Object?>{
           'tunnelIPAddress': 'fd69:8f18:f0a9::1',
         },
-        'hardwareProperties': <String, Object?>{
-          'reality': 'physical',
-        },
+        'hardwareProperties': <String, Object?>{'reality': 'physical'},
       },
     );
 
@@ -34,49 +32,54 @@ void main() {
     expect(connection.tunnelIpAddress, 'fd69:8f18:f0a9::1');
   });
 
-  test('probe uses a unique temp file per invocation and cleans it up',
-      () async {
-    final tempDir = await Directory.systemTemp.createTemp(
-      'cockpit_ios_device_connection_probe_test',
-    );
-    addTearDown(() async {
-      if (tempDir.existsSync()) {
-        await tempDir.delete(recursive: true);
-      }
-    });
+  test(
+    'probe uses a unique temp file per invocation and cleans it up',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_ios_device_connection_probe_test',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
 
-    final outputPaths = <String>[];
-    final probe = CockpitIosDeviceConnectionProbe(
-      tempDirectoryPathProvider: () => tempDir.path,
-      processRunner: (executable, arguments, {String? workingDirectory}) async {
-        final outputPath = arguments[arguments.indexOf('--json-output') + 1];
-        outputPaths.add(outputPath);
-        final outputFile = File(outputPath);
-        await outputFile.parent.create(recursive: true);
-        await outputFile.writeAsString(
-          jsonEncode(<String, Object?>{
-            'result': <String, Object?>{
-              'connectionProperties': <String, Object?>{
-                'tunnelIPAddress': 'fd69:8f18:f0a9::1',
-              },
-              'hardwareProperties': <String, Object?>{
-                'reality': 'physical',
-              },
+      final outputPaths = <String>[];
+      final probe = CockpitIosDeviceConnectionProbe(
+        tempDirectoryPathProvider: () => tempDir.path,
+        processRunner:
+            (executable, arguments, {String? workingDirectory}) async {
+              final outputPath =
+                  arguments[arguments.indexOf('--json-output') + 1];
+              outputPaths.add(outputPath);
+              final outputFile = File(outputPath);
+              await outputFile.parent.create(recursive: true);
+              await outputFile.writeAsString(
+                jsonEncode(<String, Object?>{
+                  'result': <String, Object?>{
+                    'connectionProperties': <String, Object?>{
+                      'tunnelIPAddress': 'fd69:8f18:f0a9::1',
+                    },
+                    'hardwareProperties': <String, Object?>{
+                      'reality': 'physical',
+                    },
+                  },
+                }),
+              );
+              return ProcessResult(0, 0, '', '');
             },
-          }),
-        );
-        return ProcessResult(0, 0, '', '');
-      },
-    );
+      );
 
-    final connections = await Future.wait(<Future<CockpitIosDeviceConnection?>>[
-      probe.probe('00008110-0009341C2EF3801E'),
-      probe.probe('00008110-0009341C2EF3801E'),
-    ]);
+      final connections =
+          await Future.wait(<Future<CockpitIosDeviceConnection?>>[
+            probe.probe('00008110-0009341C2EF3801E'),
+            probe.probe('00008110-0009341C2EF3801E'),
+          ]);
 
-    expect(connections, everyElement(isNotNull));
-    expect(outputPaths, hasLength(2));
-    expect(outputPaths[0], isNot(equals(outputPaths[1])));
-    expect(tempDir.listSync(), isEmpty);
-  });
+      expect(connections, everyElement(isNotNull));
+      expect(outputPaths, hasLength(2));
+      expect(outputPaths[0], isNot(equals(outputPaths[1])));
+      expect(tempDir.listSync(), isEmpty);
+    },
+  );
 }

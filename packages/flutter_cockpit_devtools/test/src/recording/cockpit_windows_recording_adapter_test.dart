@@ -26,25 +26,26 @@ void main() {
       final adapter = CockpitWindowsRecordingAdapter(
         appId: 'cockpit_demo',
         processId: 4101,
-        windowResolver: ({
-          required appId,
-          required processId,
-          required powershellExecutable,
-          required processRunner,
-          required timeout,
-          required activationSettleDelay,
-        }) async {
-          expect(appId, 'cockpit_demo');
-          expect(processId, 4101);
-          return const CockpitWindowsWindowTarget(
-            title: 'Cockpit Demo',
-            handle: 4242,
-            left: 120,
-            top: 48,
-            width: 900,
-            height: 640,
-          );
-        },
+        windowResolver:
+            ({
+              required appId,
+              required processId,
+              required powershellExecutable,
+              required processRunner,
+              required timeout,
+              required activationSettleDelay,
+            }) async {
+              expect(appId, 'cockpit_demo');
+              expect(processId, 4101);
+              return const CockpitWindowsWindowTarget(
+                title: 'Cockpit Demo',
+                handle: 4242,
+                left: 120,
+                top: 48,
+                width: 900,
+                height: 640,
+              );
+            },
         ffmpegExecutable: 'ffmpeg',
         powershellExecutable: 'powershell',
         processStarter: (executable, arguments) async {
@@ -93,10 +94,7 @@ void main() {
       );
       expect(File(result.sourceFilePath!).readAsStringSync(), 'windows-video');
       expect(ffmpegInvocations.single.join(' '), contains('-f gdigrab'));
-      expect(
-        ffmpegInvocations.single.join(' '),
-        contains('-i hwnd=4242'),
-      );
+      expect(ffmpegInvocations.single.join(' '), contains('-i hwnd=4242'));
       expect(ffmpegInvocations.single.join(' '), isNot(contains('title=')));
       expect(ffmpegInvocations.single.join(' '), isNot(contains('-i desktop')));
       expect(activationInvocations, isEmpty);
@@ -117,22 +115,22 @@ void main() {
 
       final adapter = CockpitWindowsRecordingAdapter(
         appId: 'cockpit_demo',
-        windowResolver: ({
-          required appId,
-          required processId,
-          required powershellExecutable,
-          required processRunner,
-          required timeout,
-          required activationSettleDelay,
-        }) async =>
-            const CockpitWindowsWindowTarget(
-          title: 'Cockpit Demo',
-          handle: 4242,
-          left: 20,
-          top: 12,
-          width: 300,
-          height: 240,
-        ),
+        windowResolver:
+            ({
+              required appId,
+              required processId,
+              required powershellExecutable,
+              required processRunner,
+              required timeout,
+              required activationSettleDelay,
+            }) async => const CockpitWindowsWindowTarget(
+              title: 'Cockpit Demo',
+              handle: 4242,
+              left: 20,
+              top: 12,
+              width: 300,
+              height: 240,
+            ),
         ffmpegExecutable: 'ffmpeg',
         powershellExecutable: 'powershell',
         processStarter: (executable, arguments) async {
@@ -147,7 +145,7 @@ void main() {
             },
           );
         },
-        processRunner: (_, __) async => ProcessResult(0, 0, '', ''),
+        processRunner: (_, _) async => ProcessResult(0, 0, '', ''),
         startupTimeout: const Duration(milliseconds: 500),
         startupEvidenceTimeout: const Duration(seconds: 2),
         stopTimeout: const Duration(seconds: 2),
@@ -171,8 +169,10 @@ void main() {
 
       expect(session.state, CockpitRecordingState.recording);
       expect(result.state, CockpitRecordingState.completed);
-      expect(File(result.sourceFilePath!).readAsStringSync(),
-          'quiet-windows-video');
+      expect(
+        File(result.sourceFilePath!).readAsStringSync(),
+        'quiet-windows-video',
+      );
     },
   );
 
@@ -181,28 +181,27 @@ void main() {
     () async {
       final adapter = CockpitWindowsRecordingAdapter(
         appId: 'cockpit_demo',
-        windowResolver: ({
-          required appId,
-          required processId,
-          required powershellExecutable,
-          required processRunner,
-          required timeout,
-          required activationSettleDelay,
-        }) async =>
-            const CockpitWindowsWindowTarget(
-          title: 'Cockpit Demo',
-          handle: 4242,
-          left: 20,
-          top: 12,
-          width: 300,
-          height: 240,
-        ),
+        windowResolver:
+            ({
+              required appId,
+              required processId,
+              required powershellExecutable,
+              required processRunner,
+              required timeout,
+              required activationSettleDelay,
+            }) async => const CockpitWindowsWindowTarget(
+              title: 'Cockpit Demo',
+              handle: 4242,
+              left: 20,
+              top: 12,
+              width: 300,
+              height: 240,
+            ),
         ffmpegExecutable: 'ffmpeg',
         powershellExecutable: 'powershell',
-        processStarter: (_, __) async => _FakeRecordingProcess(
-          onStopRequested: () async {},
-        ),
-        processRunner: (_, __) async => ProcessResult(0, 0, '', ''),
+        processStarter: (_, _) async =>
+            _FakeRecordingProcess(onStopRequested: () async {}),
+        processRunner: (_, _) async => ProcessResult(0, 0, '', ''),
         startupTimeout: const Duration(milliseconds: 500),
         startupEvidenceTimeout: const Duration(milliseconds: 200),
         stopTimeout: const Duration(seconds: 2),
@@ -233,30 +232,30 @@ void main() {
     () async {
       final adapter = CockpitWindowsRecordingAdapter(
         appId: 'cockpit_demo',
-        windowResolver: ({
-          required appId,
-          required processId,
-          required powershellExecutable,
-          required processRunner,
-          required timeout,
-          required activationSettleDelay,
-        }) async =>
-            const CockpitWindowsWindowTarget(
-          title: 'Cockpit Demo',
-          handle: 4242,
-          left: 20,
-          top: 12,
-          width: 300,
-          height: 240,
-        ),
+        windowResolver:
+            ({
+              required appId,
+              required processId,
+              required powershellExecutable,
+              required processRunner,
+              required timeout,
+              required activationSettleDelay,
+            }) async => const CockpitWindowsWindowTarget(
+              title: 'Cockpit Demo',
+              handle: 4242,
+              left: 20,
+              top: 12,
+              width: 300,
+              height: 240,
+            ),
         ffmpegExecutable: 'ffmpeg',
         powershellExecutable: 'powershell',
-        processStarter: (_, __) async => _FakeRecordingProcess(
+        processStarter: (_, _) async => _FakeRecordingProcess(
           startupLine:
               'Press [q] to stop\n[gdigrab @ 0x123] Capturing window failed',
           onStopRequested: () async {},
         ),
-        processRunner: (_, __) async => ProcessResult(0, 0, '', ''),
+        processRunner: (_, _) async => ProcessResult(0, 0, '', ''),
         startupTimeout: const Duration(seconds: 2),
         stopTimeout: const Duration(seconds: 2),
         finalizationPollInterval: const Duration(milliseconds: 10),
@@ -299,11 +298,11 @@ final class _FakeRecordingProcess implements Process {
         .transform(utf8.decoder)
         .transform(const LineSplitter())
         .listen((line) async {
-      if (line == 'q' && !_exitCodeCompleter.isCompleted) {
-        await _onStopRequested();
-        await _closeWithExitCode(0);
-      }
-    });
+          if (line == 'q' && !_exitCodeCompleter.isCompleted) {
+            await _onStopRequested();
+            await _closeWithExitCode(0);
+          }
+        });
   }
 
   final String? startupLine;

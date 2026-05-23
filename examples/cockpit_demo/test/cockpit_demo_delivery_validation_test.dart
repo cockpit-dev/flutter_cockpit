@@ -253,9 +253,11 @@ void main() {
           addedAccessibilityLabels: const <String>['Todo inbox'],
           removedAccessibilityLabels: const <String>['Task editor'],
           networkFailureDeltaCount: 0,
-          newNetworkFailureSignals: const <CockpitBundleAcceptanceNetworkSignal>[],
+          newNetworkFailureSignals:
+              const <CockpitBundleAcceptanceNetworkSignal>[],
           runtimeErrorDeltaCount: 0,
-          newRuntimeErrorSignals: const <CockpitBundleAcceptanceRuntimeSignal>[],
+          newRuntimeErrorSignals:
+              const <CockpitBundleAcceptanceRuntimeSignal>[],
           rebuildTotalDeltaCount: 0,
           rebuildUniqueElementDeltaCount: 0,
           newRebuildHotspots: const <CockpitBundleAcceptanceRebuildHotspot>[],

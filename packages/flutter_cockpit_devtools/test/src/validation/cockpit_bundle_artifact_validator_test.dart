@@ -303,8 +303,9 @@ void main() {
 
       final screenshotFile = File(p.join(tempDir.path, 'acceptance.png'));
       final recordingFile = File(p.join(tempDir.path, 'acceptance.mp4'));
-      final keyframeFile =
-          File(p.join(tempDir.path, 'acceptance_keyframe.png'));
+      final keyframeFile = File(
+        p.join(tempDir.path, 'acceptance_keyframe.png'),
+      );
       await screenshotFile.writeAsBytes(
         _encodedPng(_buildCanvasImage(0xFF184E46)),
       );
@@ -420,8 +421,9 @@ void main() {
 
       final screenshotFile = File(p.join(tempDir.path, 'acceptance.png'));
       final recordingFile = File(p.join(tempDir.path, 'acceptance.mp4'));
-      final keyframeFile =
-          File(p.join(tempDir.path, 'acceptance_keyframe.png'));
+      final keyframeFile = File(
+        p.join(tempDir.path, 'acceptance_keyframe.png'),
+      );
       await screenshotFile.writeAsBytes(_encodeHighRangePng(65535, 8192, 2048));
       await recordingFile.writeAsBytes(_validMp4Bytes);
       await keyframeFile.writeAsBytes(_encodeHighRangePng(65535, 8192, 2048));
@@ -467,15 +469,8 @@ const String _ffprobeVideoJson =
 List<int> _encodedPng(img.Image image) => img.encodePng(image);
 
 List<int> _encodeHighRangePng(int r, int g, int b) {
-  final image = img.Image(
-    width: 240,
-    height: 480,
-    format: img.Format.uint16,
-  );
-  img.fill(
-    image,
-    color: img.ColorUint16.rgb(r, g, b),
-  );
+  final image = img.Image(width: 240, height: 480, format: img.Format.uint16);
+  img.fill(image, color: img.ColorUint16.rgb(r, g, b));
   img.fillRect(
     image,
     x1: 18,

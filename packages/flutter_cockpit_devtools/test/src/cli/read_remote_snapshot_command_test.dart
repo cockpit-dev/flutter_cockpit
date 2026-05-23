@@ -25,7 +25,8 @@ void main() {
         ),
       );
 
-    final exitCode = await runner.run(<String>[
+    final exitCode =
+        await runner.run(<String>[
           'read-remote-snapshot',
           '--stdout-format',
           'json',
@@ -34,9 +35,7 @@ void main() {
           '--profile',
           'inspect',
           '--snapshot-options-json',
-          jsonEncode(const <String, Object?>{
-            'profile': 'forensic',
-          }),
+          jsonEncode(const <String, Object?>{'profile': 'forensic'}),
           '--compare-against-snapshot-ref',
           'snapshot-1',
         ]) ??
@@ -44,8 +43,10 @@ void main() {
 
     expect(exitCode, 0);
     expect(capturedRequest?.resultProfile.name.jsonValue, 'inspect');
-    expect(capturedRequest?.snapshotOptions?.profile,
-        CockpitSnapshotProfile.forensic);
+    expect(
+      capturedRequest?.snapshotOptions?.profile,
+      CockpitSnapshotProfile.forensic,
+    );
     expect(capturedRequest?.compareAgainstSnapshotRef, 'snapshot-1');
     final decoded = jsonDecode(stdoutBuffer.toString()) as Map<String, Object?>;
     expect(decoded['routeName'], '/details');

@@ -32,9 +32,7 @@ void main() {
           CockpitCommand(
             commandId: 'cmd-open',
             commandType: CockpitCommandType.tap,
-            locator: const CockpitLocator(
-              cockpitId: 'open_form_button',
-            ),
+            locator: const CockpitLocator(cockpitId: 'open_form_button'),
           ).toJson(),
           CockpitCommand(
             commandId: 'cmd-capture',
@@ -133,16 +131,20 @@ void main() {
       ).readAsBytesSync(),
       <int>[7, 8, 9],
     );
-    final stepsJson = jsonDecode(
-      await File(
-        p.join(outputDirectories.single.path, 'steps.json'),
-      ).readAsString(),
-    ) as List<Object?>;
-    final manifestJson = jsonDecode(
-      await File(
-        p.join(outputDirectories.single.path, 'manifest.json'),
-      ).readAsString(),
-    ) as Map<String, Object?>;
+    final stepsJson =
+        jsonDecode(
+              await File(
+                p.join(outputDirectories.single.path, 'steps.json'),
+              ).readAsString(),
+            )
+            as List<Object?>;
+    final manifestJson =
+        jsonDecode(
+              await File(
+                p.join(outputDirectories.single.path, 'manifest.json'),
+              ).readAsString(),
+            )
+            as Map<String, Object?>;
 
     expect(stepsJson, hasLength(2));
     expect(manifestJson['commandCount'], 2);
@@ -217,9 +219,7 @@ void main() {
             CockpitCommand(
               commandId: 'cmd-open',
               commandType: CockpitCommandType.tap,
-              locator: const CockpitLocator(
-                cockpitId: 'open_form_button',
-              ),
+              locator: const CockpitLocator(cockpitId: 'open_form_button'),
             ).toJson(),
           ],
         }),
@@ -285,9 +285,7 @@ void main() {
             CockpitCommand(
               commandId: 'cmd-open',
               commandType: CockpitCommandType.tap,
-              locator: const CockpitLocator(
-                cockpitId: 'open_form_button',
-              ),
+              locator: const CockpitLocator(cockpitId: 'open_form_button'),
             ).toJson(),
           ],
         }),

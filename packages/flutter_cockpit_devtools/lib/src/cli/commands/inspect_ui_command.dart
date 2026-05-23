@@ -8,17 +8,16 @@ import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
-typedef CockpitInspectUiFunction = Future<CockpitInspectUiResult> Function(
-  CockpitInspectUiRequest request,
-);
+typedef CockpitInspectUiFunction =
+    Future<CockpitInspectUiResult> Function(CockpitInspectUiRequest request);
 
 final class InspectUiCommand extends CockpitCliCommand {
   InspectUiCommand({
     CockpitInspectUiService? service,
     CockpitInspectUiFunction? inspect,
     StringSink? stdoutSink,
-  })  : _inspect = inspect ?? (service ?? CockpitInspectUiService()).inspect,
-        _stdoutSink = stdoutSink ?? stdout {
+  }) : _inspect = inspect ?? (service ?? CockpitInspectUiService()).inspect,
+       _stdoutSink = stdoutSink ?? stdout {
     cockpitAddAppArgs(argParser);
     cockpitAddProfileArg(argParser);
     cockpitAddSnapshotOptionsArgs(argParser);

@@ -63,7 +63,8 @@ final class CockpitObservationAssembler {
     required CockpitCommand command,
     required int stepIndex,
   }) {
-    final diagnosticsArtifactRef = snapshot.diagnosticsArtifactRef ??
+    final diagnosticsArtifactRef =
+        snapshot.diagnosticsArtifactRef ??
         _diagnosticsArtifactRefFor(
           snapshot,
           command: command,
@@ -92,7 +93,7 @@ final class CockpitObservationAssembler {
   }) {
     final shouldExternalize =
         snapshot.diagnosticLevel == CockpitSnapshotProfile.forensic ||
-            snapshot.truncated;
+        snapshot.truncated;
     if (!shouldExternalize) {
       return null;
     }

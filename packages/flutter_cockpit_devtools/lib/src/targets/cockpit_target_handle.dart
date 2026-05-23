@@ -10,14 +10,10 @@ final class CockpitTargetConnection {
 
   Uri get baseUri => Uri.parse(baseUrl);
 
-  Map<String, Object?> toJson() => <String, Object?>{
-        'baseUrl': baseUrl,
-      };
+  Map<String, Object?> toJson() => <String, Object?>{'baseUrl': baseUrl};
 
   factory CockpitTargetConnection.fromJson(Map<String, Object?> json) {
-    return CockpitTargetConnection(
-      baseUrl: json['baseUrl']! as String,
-    );
+    return CockpitTargetConnection(baseUrl: json['baseUrl']! as String);
   }
 
   @override
@@ -111,18 +107,18 @@ final class CockpitTargetHandle {
   }
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'targetId': targetId,
-        'targetKind': targetKind.name,
-        'platform': platform,
-        'deviceId': deviceId,
-        'projectDir': projectDir,
-        'target': target,
-        'connection': connection.toJson(),
-        'launchedAt': launchedAt.toUtc().toIso8601String(),
-        if (capabilityProfile != null)
-          'capabilityProfile': capabilityProfile!.toJson(),
-        'metadata': metadata,
-      };
+    'targetId': targetId,
+    'targetKind': targetKind.name,
+    'platform': platform,
+    'deviceId': deviceId,
+    'projectDir': projectDir,
+    'target': target,
+    'connection': connection.toJson(),
+    'launchedAt': launchedAt.toUtc().toIso8601String(),
+    if (capabilityProfile != null)
+      'capabilityProfile': capabilityProfile!.toJson(),
+    'metadata': metadata,
+  };
 
   factory CockpitTargetHandle.fromJson(Map<String, Object?> json) {
     final connectionJson = json['connection']! as Map<Object?, Object?>;
@@ -169,15 +165,15 @@ final class CockpitTargetHandle {
 
   @override
   int get hashCode => Object.hash(
-        targetId,
-        targetKind,
-        platform,
-        deviceId,
-        projectDir,
-        target,
-        connection,
-        launchedAt,
-        capabilityProfile,
-        _metadataEquality.hash(metadata),
-      );
+    targetId,
+    targetKind,
+    platform,
+    deviceId,
+    projectDir,
+    target,
+    connection,
+    launchedAt,
+    capabilityProfile,
+    _metadataEquality.hash(metadata),
+  );
 }

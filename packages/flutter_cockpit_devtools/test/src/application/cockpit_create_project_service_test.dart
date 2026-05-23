@@ -111,11 +111,9 @@ final class _FakeProcessManager implements CockpitProcessManager {
 }
 
 final class _CompletedFakeProcess implements Process {
-  _CompletedFakeProcess({
-    required String stdout,
-    String stderr = '',
-  })  : _stdout = Stream<List<int>>.value(utf8.encode(stdout)),
-        _stderr = Stream<List<int>>.value(utf8.encode(stderr));
+  _CompletedFakeProcess({required String stdout, String stderr = ''})
+    : _stdout = Stream<List<int>>.value(utf8.encode(stdout)),
+      _stderr = Stream<List<int>>.value(utf8.encode(stderr));
 
   final Stream<List<int>> _stdout;
   final Stream<List<int>> _stderr;

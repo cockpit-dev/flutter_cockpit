@@ -22,21 +22,23 @@ final class CockpitLinuxPlatformDriver
     bool enableDefaultCaptureAdapter = true,
     CockpitLinuxRecordingAdapter? recordingAdapter,
     bool enableDefaultRecordingAdapter = true,
-  })  : _launcher = launcher ?? CockpitLinuxRemoteSessionLauncher(),
-        _captureAdapter = captureAdapter ??
-            ((!enableDefaultCaptureAdapter || appId == null || appId.isEmpty)
-                ? null
-                : CockpitLinuxCaptureAdapter(
-                    appId: appId,
-                    processId: processId,
-                  )),
-        _recordingAdapter = recordingAdapter ??
-            ((!enableDefaultRecordingAdapter || appId == null || appId.isEmpty)
-                ? null
-                : CockpitLinuxRecordingAdapter(
-                    appId: appId,
-                    processId: processId,
-                  ));
+  }) : _launcher = launcher ?? CockpitLinuxRemoteSessionLauncher(),
+       _captureAdapter =
+           captureAdapter ??
+           ((!enableDefaultCaptureAdapter || appId == null || appId.isEmpty)
+               ? null
+               : CockpitLinuxCaptureAdapter(
+                   appId: appId,
+                   processId: processId,
+                 )),
+       _recordingAdapter =
+           recordingAdapter ??
+           ((!enableDefaultRecordingAdapter || appId == null || appId.isEmpty)
+               ? null
+               : CockpitLinuxRecordingAdapter(
+                   appId: appId,
+                   processId: processId,
+                 ));
 
   final CockpitLinuxRemoteSessionLauncher _launcher;
   final CockpitLinuxCaptureAdapter? _captureAdapter;

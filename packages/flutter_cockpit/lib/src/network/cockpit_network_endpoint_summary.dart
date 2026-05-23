@@ -23,14 +23,14 @@ final class CockpitNetworkEndpointSummary {
       MapEquality<String, Object?>();
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'method': method,
-        'uriPattern': uriPattern,
-        'requestCount': requestCount,
-        'failureCount': failureCount,
-        'averageDurationMs': averageDurationMs,
-        if (lastStatusCode != null) 'lastStatusCode': lastStatusCode,
-        if (latestUri != null) 'latestUri': latestUri,
-      };
+    'method': method,
+    'uriPattern': uriPattern,
+    'requestCount': requestCount,
+    'failureCount': failureCount,
+    'averageDurationMs': averageDurationMs,
+    if (lastStatusCode != null) 'lastStatusCode': lastStatusCode,
+    if (latestUri != null) 'latestUri': latestUri,
+  };
 
   factory CockpitNetworkEndpointSummary.fromJson(Map<String, Object?> json) {
     return CockpitNetworkEndpointSummary(

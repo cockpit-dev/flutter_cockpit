@@ -19,13 +19,13 @@ final class CockpitAdbRecordingAdapter implements CockpitHostRecordingAdapter {
         cockpitCreateRecordingTempFile,
     Duration startupTimeout = const Duration(seconds: 3),
     Duration stopTimeout = const Duration(seconds: 10),
-  })  : _deviceId = deviceId,
-        _executable = executable,
-        _processStarter = processStarter,
-        _processRunner = processRunner,
-        _tempFileFactory = tempFileFactory,
-        _startupTimeout = startupTimeout,
-        _stopTimeout = stopTimeout;
+  }) : _deviceId = deviceId,
+       _executable = executable,
+       _processStarter = processStarter,
+       _processRunner = processRunner,
+       _tempFileFactory = tempFileFactory,
+       _startupTimeout = startupTimeout,
+       _stopTimeout = stopTimeout;
 
   final String _deviceId;
   final String _executable;

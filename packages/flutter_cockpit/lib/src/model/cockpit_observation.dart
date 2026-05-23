@@ -48,20 +48,19 @@ final class CockpitObservation {
   static const ListEquality<String> _listEquality = ListEquality<String>();
 
   Map<String, Object?> toJson() => {
-        if (routeName != null) 'routeName': routeName,
-        'interactiveElements': interactiveElements,
-        if (phase != null) 'phase': phase!.name,
-        if (diagnosticLevel != null)
-          'diagnosticLevel': diagnosticLevel!.jsonValue,
-        'truncated': truncated,
-        if (diagnosticsArtifactRef != null)
-          'diagnosticsArtifactRef': diagnosticsArtifactRef!.toJson(),
-        if (summary != null) 'summary': summary!.toJson(),
-        if (targetKind != null) 'targetKind': targetKind!.name,
-        if (executionPlane != null) 'executionPlane': executionPlane!.name,
-        if (surfaceKind != null) 'surfaceKind': surfaceKind!.name,
-        if (fallbackUsed) 'fallbackUsed': fallbackUsed,
-      };
+    if (routeName != null) 'routeName': routeName,
+    'interactiveElements': interactiveElements,
+    if (phase != null) 'phase': phase!.name,
+    if (diagnosticLevel != null) 'diagnosticLevel': diagnosticLevel!.jsonValue,
+    'truncated': truncated,
+    if (diagnosticsArtifactRef != null)
+      'diagnosticsArtifactRef': diagnosticsArtifactRef!.toJson(),
+    if (summary != null) 'summary': summary!.toJson(),
+    if (targetKind != null) 'targetKind': targetKind!.name,
+    if (executionPlane != null) 'executionPlane': executionPlane!.name,
+    if (surfaceKind != null) 'surfaceKind': surfaceKind!.name,
+    if (fallbackUsed) 'fallbackUsed': fallbackUsed,
+  };
 
   factory CockpitObservation.fromJson(Map<String, Object?> json) {
     final interactiveElements =
@@ -126,16 +125,16 @@ final class CockpitObservation {
 
   @override
   int get hashCode => Object.hash(
-        routeName,
-        phase,
-        diagnosticLevel,
-        truncated,
-        diagnosticsArtifactRef,
-        summary,
-        targetKind,
-        executionPlane,
-        surfaceKind,
-        fallbackUsed,
-        _listEquality.hash(interactiveElements),
-      );
+    routeName,
+    phase,
+    diagnosticLevel,
+    truncated,
+    diagnosticsArtifactRef,
+    summary,
+    targetKind,
+    executionPlane,
+    surfaceKind,
+    fallbackUsed,
+    _listEquality.hash(interactiveElements),
+  );
 }

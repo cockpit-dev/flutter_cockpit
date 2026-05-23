@@ -36,9 +36,9 @@ final class CockpitQueryRemoteSessionService {
   CockpitQueryRemoteSessionService({
     CockpitRemoteSessionStatusReader? statusReader,
     CockpitSessionReferenceResolver? sessionReferenceResolver,
-  })  : _statusReader = statusReader ?? cockpitReadRemoteSessionStatus,
-        _sessionReferenceResolver =
-            sessionReferenceResolver ?? CockpitSessionReferenceResolver();
+  }) : _statusReader = statusReader ?? cockpitReadRemoteSessionStatus,
+       _sessionReferenceResolver =
+           sessionReferenceResolver ?? CockpitSessionReferenceResolver();
 
   final CockpitRemoteSessionStatusReader _statusReader;
   final CockpitSessionReferenceResolver _sessionReferenceResolver;

@@ -207,7 +207,10 @@ void main() {
       expect(identical(FlutterCockpit.binding, originalBinding), isTrue);
       expect(
         FlutterCockpit
-            .binding.configuration.interactionPolicy.actionVisualDelay,
+            .binding
+            .configuration
+            .interactionPolicy
+            .actionVisualDelay,
         const Duration(milliseconds: 480),
       );
       expect(

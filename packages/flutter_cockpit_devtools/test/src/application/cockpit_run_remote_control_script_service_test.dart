@@ -62,8 +62,9 @@ void main() {
               ),
             );
           case ('POST', '/commands/execute'):
-            final body = jsonDecode(await utf8.decoder.bind(request).join())
-                as Map<String, Object?>;
+            final body =
+                jsonDecode(await utf8.decoder.bind(request).join())
+                    as Map<String, Object?>;
             final command = CockpitCommand.fromJson(body);
             request.response.write(
               jsonEncode(
@@ -73,7 +74,8 @@ void main() {
                     commandId: command.commandId,
                     commandType: command.commandType,
                     durationMs: 20,
-                    artifacts: command.commandType ==
+                    artifacts:
+                        command.commandType ==
                             CockpitCommandType.captureScreenshot
                         ? const <CockpitArtifactRef>[
                             CockpitArtifactRef(
@@ -85,7 +87,8 @@ void main() {
                         : const <CockpitArtifactRef>[],
                     snapshot: CockpitSnapshot(routeName: '/done').toJson(),
                   ),
-                  artifactPayloads: command.commandType ==
+                  artifactPayloads:
+                      command.commandType ==
                           CockpitCommandType.captureScreenshot
                       ? const <CockpitRemoteArtifactPayload>[
                           CockpitRemoteArtifactPayload(
@@ -135,9 +138,7 @@ void main() {
           CockpitCommand(
             commandId: 'remote-open',
             commandType: CockpitCommandType.tap,
-            locator: const CockpitLocator(
-              cockpitId: 'open_form_button',
-            ),
+            locator: const CockpitLocator(cockpitId: 'open_form_button'),
           ),
           CockpitCommand(
             commandId: 'remote-capture',
@@ -177,8 +178,9 @@ void main() {
         p.join(result.bundleDir.path, 'screenshots', 'service_acceptance.png'),
       );
 
-      final replayJson = jsonDecode(await persistedScript.readAsString())
-          as Map<String, Object?>;
+      final replayJson =
+          jsonDecode(await persistedScript.readAsString())
+              as Map<String, Object?>;
       expect(replayJson['sessionId'], 'remote-script-session');
       expect(
         File(
@@ -393,8 +395,9 @@ void main() {
               }),
             );
           case ('POST', '/commands/execute'):
-            final body = jsonDecode(await utf8.decoder.bind(request).join())
-                as Map<String, Object?>;
+            final body =
+                jsonDecode(await utf8.decoder.bind(request).join())
+                    as Map<String, Object?>;
             final command = CockpitCommand.fromJson(body);
             request.response.write(
               jsonEncode(
@@ -458,10 +461,11 @@ void main() {
       expect(result.manifest.status, CockpitTaskStatus.completed);
       expect(
         jsonDecode(
-          await File(
-            p.join(result.bundleDir.path, 'environment.json'),
-          ).readAsString(),
-        ) as Map<String, Object?>,
+              await File(
+                p.join(result.bundleDir.path, 'environment.json'),
+              ).readAsString(),
+            )
+            as Map<String, Object?>,
         const <String, Object?>{
           'platform': 'ios',
           'flutterVersion': '3.38.9',
@@ -632,15 +636,12 @@ void main() {
       )..writeAsBytesSync(const <int>[4, 1, 0, 1]);
       final service = CockpitRunRemoteControlScriptService(
         recordingStrategyResolver: CockpitRecordingStrategyResolver(
-          remoteAdapterFactory: (_) => throw StateError(
-            'remote recording adapter should not be used',
-          ),
-          adbAdapterFactory: (_) => throw StateError(
-            'adb recording adapter should not be used',
-          ),
-          simctlAdapterFactory: (_) => throw StateError(
-            'simctl recording adapter should not be used',
-          ),
+          remoteAdapterFactory: (_) =>
+              throw StateError('remote recording adapter should not be used'),
+          adbAdapterFactory: (_) =>
+              throw StateError('adb recording adapter should not be used'),
+          simctlAdapterFactory: (_) =>
+              throw StateError('simctl recording adapter should not be used'),
           windowsAdapterFactory: (appId, {processId}) {
             capturedAppId = appId;
             capturedProcessId = processId;

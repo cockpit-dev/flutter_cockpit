@@ -108,12 +108,9 @@ void main() {
           result['structuredContent'] as Map<String, Object?>;
       expect(structuredContent['classification'], 'completed');
       expect(structuredContent['recommendedNextStep'], 'delivery_ready');
-      expect(
-        structuredContent['warnings'],
-        <String>[
-          'Automation cleanup failed after task orchestration: stop timeout.',
-        ],
-      );
+      expect(structuredContent['warnings'], <String>[
+        'Automation cleanup failed after task orchestration: stop timeout.',
+      ]);
       final bundleSummary =
           structuredContent['bundleSummary'] as Map<String, Object?>;
       expect(bundleSummary['bundleDir'], '/tmp/out/validate-task');

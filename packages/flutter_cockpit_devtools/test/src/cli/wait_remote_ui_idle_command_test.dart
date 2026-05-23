@@ -26,7 +26,8 @@ void main() {
         ),
       );
 
-    final exitCode = await runner.run(<String>[
+    final exitCode =
+        await runner.run(<String>[
           'wait-remote-ui-idle',
           '--stdout-format',
           'json',

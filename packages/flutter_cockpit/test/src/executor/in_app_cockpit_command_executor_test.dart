@@ -32,19 +32,20 @@ void main() {
           resolvedCaptureKind: CockpitCaptureKind.flutterView,
         );
       },
-      scrollStepHandler: ({
-        required reverse,
-        required viewportFraction,
-        scrollableKey,
-        targetLocator,
-        scrollableLocator,
-        required duration,
-        required gestureProfile,
-        required continuous,
-        required postScrollEnsureVisible,
-      }) async {
-        return const CockpitScrollStepResult(didScroll: true);
-      },
+      scrollStepHandler:
+          ({
+            required reverse,
+            required viewportFraction,
+            scrollableKey,
+            targetLocator,
+            scrollableLocator,
+            required duration,
+            required gestureProfile,
+            required continuous,
+            required postScrollEnsureVisible,
+          }) async {
+            return const CockpitScrollStepResult(didScroll: true);
+          },
       gestureHandler: (_) async {},
       waitForNetworkIdleHandler:
           ({required quietWindow, required timeout}) async => true,
@@ -159,9 +160,7 @@ void main() {
       CockpitCommand(
         commandId: 'cmd-tap',
         commandType: CockpitCommandType.tap,
-        locator: const CockpitLocator(
-          cockpitId: 'submit_button',
-        ),
+        locator: const CockpitLocator(cockpitId: 'submit_button'),
       ),
     );
 
@@ -204,18 +203,14 @@ void main() {
         CockpitCommand(
           commandId: 'cmd-focus',
           commandType: CockpitCommandType.focusTextInput,
-          locator: const CockpitLocator(
-            cockpitId: 'task_input',
-          ),
+          locator: const CockpitLocator(cockpitId: 'task_input'),
         ),
       );
       final actionResult = await executor.execute(
         CockpitCommand(
           commandId: 'cmd-action',
           commandType: CockpitCommandType.sendTextInputAction,
-          locator: const CockpitLocator(
-            cockpitId: 'task_input',
-          ),
+          locator: const CockpitLocator(cockpitId: 'task_input'),
           parameters: const {'inputAction': 'search'},
         ),
       );
@@ -255,9 +250,7 @@ void main() {
       CockpitCommand(
         commandId: 'cmd-editing-value',
         commandType: CockpitCommandType.setTextEditingValue,
-        locator: const CockpitLocator(
-          cockpitId: 'task_input',
-        ),
+        locator: const CockpitLocator(cockpitId: 'task_input'),
         parameters: const {
           'text': 'Search inbox',
           'selectionBase': 0,
@@ -341,18 +334,14 @@ void main() {
       CockpitCommand(
         commandId: 'cmd-increase',
         commandType: CockpitCommandType.increase,
-        locator: const CockpitLocator(
-          key: 'stepper-control',
-        ),
+        locator: const CockpitLocator(key: 'stepper-control'),
       ),
     );
     final dismissResult = await executor.execute(
       CockpitCommand(
         commandId: 'cmd-dismiss',
         commandType: CockpitCommandType.dismiss,
-        locator: const CockpitLocator(
-          key: 'stepper-control',
-        ),
+        locator: const CockpitLocator(key: 'stepper-control'),
       ),
     );
 
@@ -385,11 +374,7 @@ void main() {
         commandType: CockpitCommandType.tap,
         locator: const CockpitLocator(
           cockpitId: 'missing_button',
-          fallbacks: [
-            CockpitLocator(
-              text: 'Submit order',
-            ),
-          ],
+          fallbacks: [CockpitLocator(text: 'Submit order')],
         ),
       ),
     );
@@ -444,18 +429,14 @@ void main() {
         CockpitCommand(
           commandId: 'cmd-open-form',
           commandType: CockpitCommandType.tap,
-          locator: const CockpitLocator(
-            cockpitId: 'open_form_button',
-          ),
+          locator: const CockpitLocator(cockpitId: 'open_form_button'),
         ),
       );
       final enterTextResult = await executor.execute(
         CockpitCommand(
           commandId: 'cmd-enter-name',
           commandType: CockpitCommandType.enterText,
-          locator: const CockpitLocator(
-            cockpitId: 'name_input',
-          ),
+          locator: const CockpitLocator(cockpitId: 'name_input'),
           parameters: const {'text': 'Alice'},
         ),
       );
@@ -505,9 +486,7 @@ void main() {
         CockpitCommand(
           commandId: 'cmd-eventual-target',
           commandType: CockpitCommandType.tap,
-          locator: const CockpitLocator(
-            key: 'create-task-button',
-          ),
+          locator: const CockpitLocator(key: 'create-task-button'),
         ),
       );
 
@@ -604,9 +583,7 @@ void main() {
         CockpitCommand(
           commandId: 'cmd-paced-tap',
           commandType: CockpitCommandType.tap,
-          locator: const CockpitLocator(
-            key: 'submit-button',
-          ),
+          locator: const CockpitLocator(key: 'submit-button'),
         ),
       );
 
@@ -615,52 +592,47 @@ void main() {
     },
   );
 
-  test(
-    'waits briefly for assertText targets after async UI updates',
-    () async {
-      final registry = CockpitTargetRegistry(routeName: '/inbox');
-      var tickCount = 0;
+  test('waits briefly for assertText targets after async UI updates', () async {
+    final registry = CockpitTargetRegistry(routeName: '/inbox');
+    var tickCount = 0;
 
-      final executor = InAppCockpitCommandExecutor(
-        registry: registry,
-        postActionSettler: () async {},
-        waitTickHandler: (duration) async {
-          tickCount += 1;
-          if (tickCount == 2) {
-            registry.register(
-              const CockpitTarget(
-                registrationId: 'task-row',
-                text: 'Async saved task',
-                routeName: '/inbox',
-              ),
-            );
-          }
-        },
-        interactionPolicy: const CockpitInteractionPolicy(
-          uiIdleQuietWindow: Duration.zero,
-          uiIdleTimeout: Duration.zero,
-          targetResolveTimeout: Duration(milliseconds: 120),
-          targetResolvePollInterval: Duration(milliseconds: 10),
-          actionVisualDelay: Duration.zero,
-          routeTransitionVisualDelay: Duration.zero,
-          recordingActionVisualDelay: Duration.zero,
-        ),
-      );
+    final executor = InAppCockpitCommandExecutor(
+      registry: registry,
+      postActionSettler: () async {},
+      waitTickHandler: (duration) async {
+        tickCount += 1;
+        if (tickCount == 2) {
+          registry.register(
+            const CockpitTarget(
+              registrationId: 'task-row',
+              text: 'Async saved task',
+              routeName: '/inbox',
+            ),
+          );
+        }
+      },
+      interactionPolicy: const CockpitInteractionPolicy(
+        uiIdleQuietWindow: Duration.zero,
+        uiIdleTimeout: Duration.zero,
+        targetResolveTimeout: Duration(milliseconds: 120),
+        targetResolvePollInterval: Duration(milliseconds: 10),
+        actionVisualDelay: Duration.zero,
+        routeTransitionVisualDelay: Duration.zero,
+        recordingActionVisualDelay: Duration.zero,
+      ),
+    );
 
-      final result = await executor.execute(
-        CockpitCommand(
-          commandId: 'cmd-assert-created-task',
-          commandType: CockpitCommandType.assertText,
-          parameters: const <String, Object?>{
-            'text': 'Async saved task',
-          },
-        ),
-      );
+    final result = await executor.execute(
+      CockpitCommand(
+        commandId: 'cmd-assert-created-task',
+        commandType: CockpitCommandType.assertText,
+        parameters: const <String, Object?>{'text': 'Async saved task'},
+      ),
+    );
 
-      expect(result.success, isTrue);
-      expect(tickCount, greaterThanOrEqualTo(2));
-    },
-  );
+    expect(result.success, isTrue);
+    expect(tickCount, greaterThanOrEqualTo(2));
+  });
 
   test(
     'waits briefly for assertVisible locators after async UI updates',
@@ -743,9 +715,7 @@ void main() {
         CockpitCommand(
           commandId: 'cmd-pre-action-tap',
           commandType: CockpitCommandType.tap,
-          locator: const CockpitLocator(
-            key: 'submit-button',
-          ),
+          locator: const CockpitLocator(key: 'submit-button'),
         ),
       );
 
@@ -792,9 +762,7 @@ void main() {
         CockpitCommand(
           commandId: 'cmd-recording-pre-action',
           commandType: CockpitCommandType.tap,
-          locator: const CockpitLocator(
-            key: 'submit-button',
-          ),
+          locator: const CockpitLocator(key: 'submit-button'),
         ),
       );
 
@@ -814,9 +782,7 @@ void main() {
         CockpitCommand(
           commandId: 'cmd-missing',
           commandType: CockpitCommandType.tap,
-          locator: const CockpitLocator(
-            cockpitId: 'missing_button',
-          ),
+          locator: const CockpitLocator(cockpitId: 'missing_button'),
         ),
       );
 
@@ -825,16 +791,13 @@ void main() {
       expect(result.error?.details['visibleTargetSignals'], isNull);
       final visibleTargetHints =
           (result.error?.details['visibleTargetHints'] as List<Object?>?)
-                  ?.cast<Map<Object?, Object?>>()
-                  .map((entry) => Map<String, Object?>.from(entry))
-                  .toList(growable: false) ??
-              const <Map<String, Object?>>[];
+              ?.cast<Map<Object?, Object?>>()
+              .map((entry) => Map<String, Object?>.from(entry))
+              .toList(growable: false) ??
+          const <Map<String, Object?>>[];
       expect(visibleTargetHints, isEmpty);
       expect(result.error?.details['visibleTextCandidates'], const <Object?>[]);
-      expect(
-        result.error?.details['emptyRouteHint'],
-        contains('run-batch'),
-      );
+      expect(result.error?.details['emptyRouteHint'], contains('run-batch'));
     },
   );
 
@@ -860,10 +823,7 @@ void main() {
       expect(result.success, isFalse);
       expect(result.error?.code, CockpitCommandError.targetNotFoundCode);
       expect(result.error?.details['routeName'], '/editor');
-      expect(
-        result.error?.details['emptyRouteHint'],
-        contains('run-batch'),
-      );
+      expect(result.error?.details['emptyRouteHint'], contains('run-batch'));
     },
   );
 
@@ -894,9 +854,7 @@ void main() {
       CockpitCommand(
         commandId: 'cmd-ambiguous',
         commandType: CockpitCommandType.tap,
-        locator: const CockpitLocator(
-          text: 'Continue',
-        ),
+        locator: const CockpitLocator(text: 'Continue'),
       ),
     );
 
@@ -904,10 +862,10 @@ void main() {
     expect(result.error?.code, CockpitCommandError.ambiguousTargetCode);
     final candidateHints =
         (result.error?.details['candidateHints'] as List<Object?>?)
-                ?.cast<Map<Object?, Object?>>()
-                .map((entry) => Map<String, Object?>.from(entry))
-                .toList(growable: false) ??
-            const <Map<String, Object?>>[];
+            ?.cast<Map<Object?, Object?>>()
+            .map((entry) => Map<String, Object?>.from(entry))
+            .toList(growable: false) ??
+        const <Map<String, Object?>>[];
     expect(candidateHints, hasLength(1));
     expect(candidateHints.first['text'], 'Continue');
   });
@@ -932,9 +890,7 @@ void main() {
         CockpitCommand(
           commandId: 'cmd-input',
           commandType: CockpitCommandType.enterText,
-          locator: const CockpitLocator(
-            cockpitId: 'submit_button',
-          ),
+          locator: const CockpitLocator(cockpitId: 'submit_button'),
           parameters: const {'text': 'Alice'},
         ),
       );
@@ -1109,12 +1065,12 @@ void main() {
       Duration? capturedTimeout;
       final executor = InAppCockpitCommandExecutor(
         registry: CockpitTargetRegistry(routeName: '/checkout'),
-        waitForNetworkIdleHandler: (
-            {required quietWindow, required timeout}) async {
-          capturedQuietWindow = quietWindow;
-          capturedTimeout = timeout;
-          return true;
-        },
+        waitForNetworkIdleHandler:
+            ({required quietWindow, required timeout}) async {
+              capturedQuietWindow = quietWindow;
+              capturedTimeout = timeout;
+              return true;
+            },
       );
 
       final result = await executor.execute(
@@ -1137,12 +1093,12 @@ void main() {
     Duration? capturedTimeout;
     final executor = InAppCockpitCommandExecutor(
       registry: CockpitTargetRegistry(routeName: '/checkout'),
-      waitForNetworkIdleHandler: (
-          {required quietWindow, required timeout}) async {
-        capturedQuietWindow = quietWindow;
-        capturedTimeout = timeout;
-        return true;
-      },
+      waitForNetworkIdleHandler:
+          ({required quietWindow, required timeout}) async {
+            capturedQuietWindow = quietWindow;
+            capturedTimeout = timeout;
+            return true;
+          },
     );
 
     final result = await executor.execute(
@@ -1225,9 +1181,7 @@ void main() {
         CockpitCommand(
           commandId: 'cmd-held-drag',
           commandType: CockpitCommandType.drag,
-          locator: const CockpitLocator(
-            key: 'manual-queue-card-a',
-          ),
+          locator: const CockpitLocator(key: 'manual-queue-card-a'),
           parameters: const <String, Object?>{
             'dx': -180.0,
             'dy': 0.0,
@@ -1265,9 +1219,7 @@ void main() {
       CockpitCommand(
         commandId: 'cmd-rotate',
         commandType: CockpitCommandType.rotate,
-        locator: const CockpitLocator(
-          key: 'planning-surface-canvas',
-        ),
+        locator: const CockpitLocator(key: 'planning-surface-canvas'),
         parameters: const <String, Object?>{
           'rotationRadians': 0.35,
           'startSpan': 88.0,
@@ -1363,40 +1315,42 @@ void main() {
     expect(result.snapshot?['routeName'], '/success');
   });
 
-  test('assertVisible succeeds for the active route without target lookup',
-      () async {
-    final executor = InAppCockpitCommandExecutor(
-      registry: CockpitTargetRegistry(routeName: '/today'),
-    );
+  test(
+    'assertVisible succeeds for the active route without target lookup',
+    () async {
+      final executor = InAppCockpitCommandExecutor(
+        registry: CockpitTargetRegistry(routeName: '/today'),
+      );
 
-    final result = await executor.execute(
-      CockpitCommand(
-        commandId: 'cmd-assert-route',
-        commandType: CockpitCommandType.assertVisible,
-        locator: const CockpitLocator(
-          route: '/today',
+      final result = await executor.execute(
+        CockpitCommand(
+          commandId: 'cmd-assert-route',
+          commandType: CockpitCommandType.assertVisible,
+          locator: const CockpitLocator(route: '/today'),
         ),
-      ),
-    );
+      );
 
-    expect(result.success, isTrue);
-    expect(
-      result.locatorResolution,
-      const CockpitLocatorResolution(
-        matchedKind: CockpitLocatorKind.route,
-        matchedValue: '/today',
-      ),
-    );
-    expect(result.snapshot?['routeName'], '/today');
-  });
+      expect(result.success, isTrue);
+      expect(
+        result.locatorResolution,
+        const CockpitLocatorResolution(
+          matchedKind: CockpitLocatorKind.route,
+          matchedValue: '/today',
+        ),
+      );
+      expect(result.snapshot?['routeName'], '/today');
+    },
+  );
 
   test(
     'assertText succeeds even when the live snapshot would truncate the expected text',
     () async {
       final registry = CockpitTargetRegistry(routeName: '/success');
-      for (var index = 0;
-          index < CockpitTargetRegistry.liveSnapshotTargetLimit + 24;
-          index += 1) {
+      for (
+        var index = 0;
+        index < CockpitTargetRegistry.liveSnapshotTargetLimit + 24;
+        index += 1
+      ) {
         registry.register(
           CockpitTarget(
             registrationId: 'target-$index',
@@ -1468,9 +1422,7 @@ void main() {
       CockpitCommand(
         commandId: 'cmd-wait-for',
         commandType: CockpitCommandType.waitFor,
-        locator: const CockpitLocator(
-          cockpitId: 'success_label',
-        ),
+        locator: const CockpitLocator(cockpitId: 'success_label'),
         timeoutMs: 500,
       ),
     );
@@ -1512,9 +1464,7 @@ void main() {
         CockpitCommand(
           commandId: 'cmd-wait-for-widget',
           commandType: CockpitCommandType.waitFor,
-          locator: const CockpitLocator(
-            key: 'success-key',
-          ),
+          locator: const CockpitLocator(key: 'success-key'),
           timeoutMs: 500,
         ),
       );
@@ -1565,13 +1515,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        registry
-            .resolve(
-              const CockpitLocator(
-                key: 'task-39',
-              ),
-            )
-            .isSuccess,
+        registry.resolve(const CockpitLocator(key: 'task-39')).isSuccess,
         isFalse,
       );
 
@@ -1585,36 +1529,35 @@ void main() {
           await tester.pump();
           await tester.pump();
         },
-        scrollStepHandler: ({
-          required reverse,
-          required viewportFraction,
-          scrollableKey,
-          targetLocator,
-          scrollableLocator,
-          required duration,
-          required gestureProfile,
-          required continuous,
-          required postScrollEnsureVisible,
-        }) {
-          return surfaceState.scrollByViewport(
-            reverse: reverse,
-            viewportFraction: viewportFraction,
-            scrollableKey: scrollableKey,
-            duration: duration,
-            gestureProfile: gestureProfile,
-            continuous: continuous,
-            postScrollEnsureVisible: postScrollEnsureVisible,
-          );
-        },
+        scrollStepHandler:
+            ({
+              required reverse,
+              required viewportFraction,
+              scrollableKey,
+              targetLocator,
+              scrollableLocator,
+              required duration,
+              required gestureProfile,
+              required continuous,
+              required postScrollEnsureVisible,
+            }) {
+              return surfaceState.scrollByViewport(
+                reverse: reverse,
+                viewportFraction: viewportFraction,
+                scrollableKey: scrollableKey,
+                duration: duration,
+                gestureProfile: gestureProfile,
+                continuous: continuous,
+                postScrollEnsureVisible: postScrollEnsureVisible,
+              );
+            },
       );
 
       final result = await executor.execute(
         CockpitCommand(
           commandId: 'scroll-to-task-39',
           commandType: CockpitCommandType.scrollUntilVisible,
-          locator: const CockpitLocator(
-            key: 'task-39',
-          ),
+          locator: const CockpitLocator(key: 'task-39'),
           parameters: const <String, Object?>{
             'maxScrolls': 20,
             'viewportFraction': 0.9,
@@ -1626,13 +1569,7 @@ void main() {
       expect(result.locatorResolution?.matchedKind, CockpitLocatorKind.key);
       expect(result.locatorResolution?.matchedValue, 'task-39');
       expect(
-        registry
-            .resolve(
-              const CockpitLocator(
-                key: 'task-39',
-              ),
-            )
-            .isSuccess,
+        registry.resolve(const CockpitLocator(key: 'task-39')).isSuccess,
         isTrue,
       );
     },
@@ -1657,8 +1594,9 @@ void main() {
                     children: <Widget>[
                       const SizedBox(height: 900),
                       FilledButton(
-                        key:
-                            const ValueKey<String>('settings-debug-log-button'),
+                        key: const ValueKey<String>(
+                          'settings-debug-log-button',
+                        ),
                         onPressed: () {},
                         child: const Text('Emit debug log'),
                       ),
@@ -1683,29 +1621,30 @@ void main() {
           await tester.pump();
           await tester.pump();
         },
-        scrollStepHandler: ({
-          required reverse,
-          required viewportFraction,
-          scrollableKey,
-          targetLocator,
-          scrollableLocator,
-          required duration,
-          required gestureProfile,
-          required continuous,
-          required postScrollEnsureVisible,
-        }) {
-          return surfaceState.scrollByViewport(
-            reverse: reverse,
-            viewportFraction: viewportFraction,
-            scrollableKey: scrollableKey,
-            targetLocator: targetLocator,
-            scrollableLocator: scrollableLocator,
-            duration: duration,
-            gestureProfile: gestureProfile,
-            continuous: continuous,
-            postScrollEnsureVisible: postScrollEnsureVisible,
-          );
-        },
+        scrollStepHandler:
+            ({
+              required reverse,
+              required viewportFraction,
+              scrollableKey,
+              targetLocator,
+              scrollableLocator,
+              required duration,
+              required gestureProfile,
+              required continuous,
+              required postScrollEnsureVisible,
+            }) {
+              return surfaceState.scrollByViewport(
+                reverse: reverse,
+                viewportFraction: viewportFraction,
+                scrollableKey: scrollableKey,
+                targetLocator: targetLocator,
+                scrollableLocator: scrollableLocator,
+                duration: duration,
+                gestureProfile: gestureProfile,
+                continuous: continuous,
+                postScrollEnsureVisible: postScrollEnsureVisible,
+              );
+            },
       );
 
       final result = await executor.execute(
@@ -1808,29 +1747,30 @@ void main() {
           await tester.pump();
           await tester.pump();
         },
-        scrollStepHandler: ({
-          required reverse,
-          required viewportFraction,
-          scrollableKey,
-          targetLocator,
-          scrollableLocator,
-          required duration,
-          required gestureProfile,
-          required continuous,
-          required postScrollEnsureVisible,
-        }) {
-          return surfaceState.scrollByViewport(
-            reverse: reverse,
-            viewportFraction: viewportFraction,
-            scrollableKey: scrollableKey,
-            targetLocator: targetLocator,
-            scrollableLocator: scrollableLocator,
-            duration: duration,
-            gestureProfile: gestureProfile,
-            continuous: continuous,
-            postScrollEnsureVisible: postScrollEnsureVisible,
-          );
-        },
+        scrollStepHandler:
+            ({
+              required reverse,
+              required viewportFraction,
+              scrollableKey,
+              targetLocator,
+              scrollableLocator,
+              required duration,
+              required gestureProfile,
+              required continuous,
+              required postScrollEnsureVisible,
+            }) {
+              return surfaceState.scrollByViewport(
+                reverse: reverse,
+                viewportFraction: viewportFraction,
+                scrollableKey: scrollableKey,
+                targetLocator: targetLocator,
+                scrollableLocator: scrollableLocator,
+                duration: duration,
+                gestureProfile: gestureProfile,
+                continuous: continuous,
+                postScrollEnsureVisible: postScrollEnsureVisible,
+              );
+            },
       );
 
       final result = await executor.execute(
@@ -1915,29 +1855,30 @@ void main() {
           await tester.pump();
           await tester.pump();
         },
-        scrollStepHandler: ({
-          required reverse,
-          required viewportFraction,
-          scrollableKey,
-          targetLocator,
-          scrollableLocator,
-          required duration,
-          required gestureProfile,
-          required continuous,
-          required postScrollEnsureVisible,
-        }) {
-          return surfaceState.scrollByViewport(
-            reverse: reverse,
-            viewportFraction: viewportFraction,
-            scrollableKey: scrollableKey,
-            targetLocator: targetLocator,
-            scrollableLocator: scrollableLocator,
-            duration: duration,
-            gestureProfile: gestureProfile,
-            continuous: continuous,
-            postScrollEnsureVisible: postScrollEnsureVisible,
-          );
-        },
+        scrollStepHandler:
+            ({
+              required reverse,
+              required viewportFraction,
+              scrollableKey,
+              targetLocator,
+              scrollableLocator,
+              required duration,
+              required gestureProfile,
+              required continuous,
+              required postScrollEnsureVisible,
+            }) {
+              return surfaceState.scrollByViewport(
+                reverse: reverse,
+                viewportFraction: viewportFraction,
+                scrollableKey: scrollableKey,
+                targetLocator: targetLocator,
+                scrollableLocator: scrollableLocator,
+                duration: duration,
+                gestureProfile: gestureProfile,
+                continuous: continuous,
+                postScrollEnsureVisible: postScrollEnsureVisible,
+              );
+            },
       );
 
       final result = await executor.execute(
@@ -2012,28 +1953,27 @@ void main() {
           await tester.pump();
           await tester.pump();
         },
-        scrollStepHandler: ({
-          required reverse,
-          required viewportFraction,
-          scrollableKey,
-          targetLocator,
-          scrollableLocator,
-          required duration,
-          required gestureProfile,
-          required continuous,
-          required postScrollEnsureVisible,
-        }) async {
-          return const CockpitScrollStepResult(didScroll: false);
-        },
+        scrollStepHandler:
+            ({
+              required reverse,
+              required viewportFraction,
+              scrollableKey,
+              targetLocator,
+              scrollableLocator,
+              required duration,
+              required gestureProfile,
+              required continuous,
+              required postScrollEnsureVisible,
+            }) async {
+              return const CockpitScrollStepResult(didScroll: false);
+            },
       );
 
       final result = await executor.execute(
         CockpitCommand(
           commandId: 'scroll-passive-text-hit-owned-by-ancestor',
           commandType: CockpitCommandType.scrollUntilVisible,
-          locator: const CockpitLocator(
-            text: 'Acceptance bundles',
-          ),
+          locator: const CockpitLocator(text: 'Acceptance bundles'),
           parameters: const <String, Object?>{'maxScrolls': 1},
         ),
       );
@@ -2093,28 +2033,27 @@ void main() {
           await tester.pump();
           await tester.pump();
         },
-        scrollStepHandler: ({
-          required reverse,
-          required viewportFraction,
-          scrollableKey,
-          targetLocator,
-          scrollableLocator,
-          required duration,
-          required gestureProfile,
-          required continuous,
-          required postScrollEnsureVisible,
-        }) async {
-          return const CockpitScrollStepResult(didScroll: false);
-        },
+        scrollStepHandler:
+            ({
+              required reverse,
+              required viewportFraction,
+              scrollableKey,
+              targetLocator,
+              scrollableLocator,
+              required duration,
+              required gestureProfile,
+              required continuous,
+              required postScrollEnsureVisible,
+            }) async {
+              return const CockpitScrollStepResult(didScroll: false);
+            },
       );
 
       final result = await executor.execute(
         CockpitCommand(
           commandId: 'scroll-passive-row-text',
           commandType: CockpitCommandType.scrollUntilVisible,
-          locator: const CockpitLocator(
-            text: 'Acceptance bundles',
-          ),
+          locator: const CockpitLocator(text: 'Acceptance bundles'),
           parameters: const <String, Object?>{'maxScrolls': 1},
         ),
       );
@@ -2188,28 +2127,27 @@ void main() {
           await tester.pump();
           await tester.pump();
         },
-        scrollStepHandler: ({
-          required reverse,
-          required viewportFraction,
-          scrollableKey,
-          targetLocator,
-          scrollableLocator,
-          required duration,
-          required gestureProfile,
-          required continuous,
-          required postScrollEnsureVisible,
-        }) async {
-          return const CockpitScrollStepResult(didScroll: false);
-        },
+        scrollStepHandler:
+            ({
+              required reverse,
+              required viewportFraction,
+              scrollableKey,
+              targetLocator,
+              scrollableLocator,
+              required duration,
+              required gestureProfile,
+              required continuous,
+              required postScrollEnsureVisible,
+            }) async {
+              return const CockpitScrollStepResult(didScroll: false);
+            },
       );
 
       final result = await executor.execute(
         CockpitCommand(
           commandId: 'scroll-covered-target',
           commandType: CockpitCommandType.scrollUntilVisible,
-          locator: const CockpitLocator(
-            text: 'Acceptance bundles',
-          ),
+          locator: const CockpitLocator(text: 'Acceptance bundles'),
           parameters: const <String, Object?>{'maxScrolls': 1},
         ),
       );
@@ -2261,19 +2199,20 @@ void main() {
           await tester.pump();
           await tester.pump();
         },
-        scrollStepHandler: ({
-          required reverse,
-          required viewportFraction,
-          scrollableKey,
-          targetLocator,
-          scrollableLocator,
-          required duration,
-          required gestureProfile,
-          required continuous,
-          required postScrollEnsureVisible,
-        }) async {
-          return const CockpitScrollStepResult(didScroll: false);
-        },
+        scrollStepHandler:
+            ({
+              required reverse,
+              required viewportFraction,
+              scrollableKey,
+              targetLocator,
+              scrollableLocator,
+              required duration,
+              required gestureProfile,
+              required continuous,
+              required postScrollEnsureVisible,
+            }) async {
+              return const CockpitScrollStepResult(didScroll: false);
+            },
       );
 
       final result = await executor.execute(
@@ -2295,26 +2234,18 @@ void main() {
       expect(result.error?.code, CockpitCommandError.targetNotFoundCode);
       expect(result.error?.details['scrollAttempts'], 1);
       expect(result.error?.details['scrollsPerformed'], 0);
-      expect(
-        result.error?.details['scrollableLocator'],
-        <String, Object?>{
-          'key': 'task-list',
-          'type': 'ListView',
-          'fallbacks': <Object?>[],
-        },
-      );
+      expect(result.error?.details['scrollableLocator'], <String, Object?>{
+        'key': 'task-list',
+        'type': 'ListView',
+        'fallbacks': <Object?>[],
+      });
       final visibleScrollables =
           (result.error?.details['visibleScrollables'] as List<Object?>?)
-                  ?.cast<Map<Object?, Object?>>()
-                  .map((entry) => Map<String, Object?>.from(entry))
-                  .toList(growable: false) ??
-              const <Map<String, Object?>>[];
-      expect(
-        visibleScrollables,
-        contains(
-          containsPair('key', 'task-list'),
-        ),
-      );
+              ?.cast<Map<Object?, Object?>>()
+              .map((entry) => Map<String, Object?>.from(entry))
+              .toList(growable: false) ??
+          const <Map<String, Object?>>[];
+      expect(visibleScrollables, contains(containsPair('key', 'task-list')));
     },
   );
 
@@ -2345,38 +2276,37 @@ void main() {
         recordingActionVisualDelay: Duration(milliseconds: 90),
       ),
       isRecordingActive: () => true,
-      scrollStepHandler: ({
-        required reverse,
-        required viewportFraction,
-        scrollableKey,
-        targetLocator,
-        scrollableLocator,
-        required duration,
-        required gestureProfile,
-        required continuous,
-        required postScrollEnsureVisible,
-      }) async {
-        scrollCount += 1;
-        if (scrollCount == 1) {
-          registry.register(
-            CockpitTarget(
-              registrationId: 'task-39',
-              keyValue: 'task-39',
-              routeName: '/list',
-            ),
-          );
-        }
-        return const CockpitScrollStepResult(didScroll: true);
-      },
+      scrollStepHandler:
+          ({
+            required reverse,
+            required viewportFraction,
+            scrollableKey,
+            targetLocator,
+            scrollableLocator,
+            required duration,
+            required gestureProfile,
+            required continuous,
+            required postScrollEnsureVisible,
+          }) async {
+            scrollCount += 1;
+            if (scrollCount == 1) {
+              registry.register(
+                CockpitTarget(
+                  registrationId: 'task-39',
+                  keyValue: 'task-39',
+                  routeName: '/list',
+                ),
+              );
+            }
+            return const CockpitScrollStepResult(didScroll: true);
+          },
     );
 
     final result = await executor.execute(
       CockpitCommand(
         commandId: 'scroll-paced',
         commandType: CockpitCommandType.scrollUntilVisible,
-        locator: const CockpitLocator(
-          key: 'task-39',
-        ),
+        locator: const CockpitLocator(key: 'task-39'),
         parameters: const <String, Object?>{'maxScrolls': 3},
       ),
     );
@@ -2395,39 +2325,38 @@ void main() {
 
     final executor = InAppCockpitCommandExecutor(
       registry: registry,
-      scrollStepHandler: ({
-        required reverse,
-        required viewportFraction,
-        scrollableKey,
-        targetLocator,
-        scrollableLocator,
-        required duration,
-        required gestureProfile,
-        required continuous,
-        required postScrollEnsureVisible,
-      }) async {
-        capturedDuration = duration;
-        capturedProfile = gestureProfile;
-        capturedContinuous = continuous;
-        capturedEnsureVisible = postScrollEnsureVisible;
-        registry.register(
-          CockpitTarget(
-            registrationId: 'task-39',
-            keyValue: 'task-39',
-            routeName: '/list',
-          ),
-        );
-        return const CockpitScrollStepResult(didScroll: true);
-      },
+      scrollStepHandler:
+          ({
+            required reverse,
+            required viewportFraction,
+            scrollableKey,
+            targetLocator,
+            scrollableLocator,
+            required duration,
+            required gestureProfile,
+            required continuous,
+            required postScrollEnsureVisible,
+          }) async {
+            capturedDuration = duration;
+            capturedProfile = gestureProfile;
+            capturedContinuous = continuous;
+            capturedEnsureVisible = postScrollEnsureVisible;
+            registry.register(
+              CockpitTarget(
+                registrationId: 'task-39',
+                keyValue: 'task-39',
+                routeName: '/list',
+              ),
+            );
+            return const CockpitScrollStepResult(didScroll: true);
+          },
     );
 
     final result = await executor.execute(
       CockpitCommand(
         commandId: 'scroll-forwarding',
         commandType: CockpitCommandType.scrollUntilVisible,
-        locator: const CockpitLocator(
-          key: 'task-39',
-        ),
+        locator: const CockpitLocator(key: 'task-39'),
         parameters: const <String, Object?>{
           'durationPerStepMs': 360,
           'gestureProfile': 'precise',
@@ -2453,45 +2382,45 @@ void main() {
 
       final executor = InAppCockpitCommandExecutor(
         registry: registry,
-        scrollStepHandler: ({
-          required reverse,
-          required viewportFraction,
-          scrollableKey,
-          targetLocator,
-          scrollableLocator,
-          required duration,
-          required gestureProfile,
-          required continuous,
-          required postScrollEnsureVisible,
-        }) async {
-          return const CockpitScrollStepResult(didScroll: false);
-        },
-        ensureVisibleHandler: ({
-          required locator,
-          required duration,
-          required alignment,
-          required padding,
-        }) async {
-          capturedAlignment = alignment;
-          capturedPadding = padding;
-          registry.register(
-            CockpitTarget(
-              registrationId: 'task-39',
-              keyValue: 'task-39',
-              routeName: '/list',
-            ),
-          );
-          return true;
-        },
+        scrollStepHandler:
+            ({
+              required reverse,
+              required viewportFraction,
+              scrollableKey,
+              targetLocator,
+              scrollableLocator,
+              required duration,
+              required gestureProfile,
+              required continuous,
+              required postScrollEnsureVisible,
+            }) async {
+              return const CockpitScrollStepResult(didScroll: false);
+            },
+        ensureVisibleHandler:
+            ({
+              required locator,
+              required duration,
+              required alignment,
+              required padding,
+            }) async {
+              capturedAlignment = alignment;
+              capturedPadding = padding;
+              registry.register(
+                CockpitTarget(
+                  registrationId: 'task-39',
+                  keyValue: 'task-39',
+                  routeName: '/list',
+                ),
+              );
+              return true;
+            },
       );
 
       final result = await executor.execute(
         CockpitCommand(
           commandId: 'scroll-forward-reveal-alignment',
           commandType: CockpitCommandType.scrollUntilVisible,
-          locator: const CockpitLocator(
-            key: 'task-39',
-          ),
+          locator: const CockpitLocator(key: 'task-39'),
           parameters: const <String, Object?>{
             'revealAlignment': 'center',
             'revealPaddingPx': 36,
@@ -2521,40 +2450,38 @@ void main() {
 
       final executor = InAppCockpitCommandExecutor(
         registry: registry,
-        scrollStepHandler: ({
-          required reverse,
-          required viewportFraction,
-          scrollableKey,
-          targetLocator,
-          scrollableLocator,
-          required duration,
-          required gestureProfile,
-          required continuous,
-          required postScrollEnsureVisible,
-        }) async {
-          return const CockpitScrollStepResult(didScroll: false);
-        },
-        ensureVisibleHandler: ({
-          required locator,
-          required duration,
-          required alignment,
-          required padding,
-        }) async {
-          capturedAlignment = alignment;
-          return true;
-        },
+        scrollStepHandler:
+            ({
+              required reverse,
+              required viewportFraction,
+              scrollableKey,
+              targetLocator,
+              scrollableLocator,
+              required duration,
+              required gestureProfile,
+              required continuous,
+              required postScrollEnsureVisible,
+            }) async {
+              return const CockpitScrollStepResult(didScroll: false);
+            },
+        ensureVisibleHandler:
+            ({
+              required locator,
+              required duration,
+              required alignment,
+              required padding,
+            }) async {
+              capturedAlignment = alignment;
+              return true;
+            },
       );
 
       final result = await executor.execute(
         CockpitCommand(
           commandId: 'scroll-visible-realign',
           commandType: CockpitCommandType.scrollUntilVisible,
-          locator: const CockpitLocator(
-            key: 'task-0',
-          ),
-          parameters: const <String, Object?>{
-            'revealAlignment': 'center',
-          },
+          locator: const CockpitLocator(key: 'task-0'),
+          parameters: const <String, Object?>{'revealAlignment': 'center'},
         ),
       );
 
@@ -2611,9 +2538,7 @@ void main() {
         CockpitCommand(
           commandId: 'cmd-tap-search-input',
           commandType: CockpitCommandType.tap,
-          locator: const CockpitLocator(
-            key: 'task-search-input',
-          ),
+          locator: const CockpitLocator(key: 'task-search-input'),
         ),
       );
       await tester.pump();
@@ -2678,9 +2603,7 @@ void main() {
       CockpitCommand(
         commandId: 'cmd-hit-test-warn',
         commandType: CockpitCommandType.tap,
-        locator: const CockpitLocator(
-          key: 'occluded-target',
-        ),
+        locator: const CockpitLocator(key: 'occluded-target'),
         parameters: const <String, Object?>{'hitTestMissPolicy': 'warn'},
       ),
     );
@@ -2750,9 +2673,7 @@ void main() {
         CockpitCommand(
           commandId: 'cmd-hit-test-fail',
           commandType: CockpitCommandType.tap,
-          locator: const CockpitLocator(
-            key: 'blocked-target',
-          ),
+          locator: const CockpitLocator(key: 'blocked-target'),
           parameters: const <String, Object?>{'hitTestMissPolicy': 'fail'},
         ),
       );
@@ -2786,9 +2707,7 @@ void main() {
         CockpitCommand(
           commandId: 'cmd-rich-enter-text',
           commandType: CockpitCommandType.enterText,
-          locator: const CockpitLocator(
-            key: 'search-input',
-          ),
+          locator: const CockpitLocator(key: 'search-input'),
           parameters: const <String, Object?>{
             'text': 'Alice',
             'selectionBase': 1,
@@ -2864,9 +2783,7 @@ void main() {
         CockpitCommand(
           commandId: 'cmd-input-next',
           commandType: CockpitCommandType.enterText,
-          locator: const CockpitLocator(
-            key: 'first-input',
-          ),
+          locator: const CockpitLocator(key: 'first-input'),
           parameters: const <String, Object?>{
             'text': 'Alpha',
             'inputAction': 'next',
@@ -2894,12 +2811,12 @@ void main() {
         postActionSettler: () async {
           settled = true;
         },
-        waitForNetworkIdleHandler: (
-            {required quietWindow, required timeout}) async {
-          capturedQuietWindow = quietWindow;
-          capturedTimeout = timeout;
-          return true;
-        },
+        waitForNetworkIdleHandler:
+            ({required quietWindow, required timeout}) async {
+              capturedQuietWindow = quietWindow;
+              capturedTimeout = timeout;
+              return true;
+            },
         captureHandler: (request) async {
           expect(settled, isTrue);
           expect(
@@ -2962,7 +2879,8 @@ void main() {
             bytes: Uint8List.fromList(const <int>[137, 80, 78, 71]),
             snapshot: CockpitSnapshot(
               routeName: '/success',
-              diagnosticLevel: request.snapshotOptions?.profile ??
+              diagnosticLevel:
+                  request.snapshotOptions?.profile ??
                   CockpitSnapshotProfile.live,
             ),
           ),

@@ -49,10 +49,10 @@ final class CockpitLaunchAppResult {
   final String? supervisorLogPath;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'app': app.toJson(),
-        if (appJsonPath != null) 'appJsonPath': appJsonPath,
-        if (supervisorLogPath != null) 'supervisorLogPath': supervisorLogPath,
-      };
+    'app': app.toJson(),
+    if (appJsonPath != null) 'appJsonPath': appJsonPath,
+    if (supervisorLogPath != null) 'supervisorLogPath': supervisorLogPath,
+  };
 }
 
 final class CockpitLaunchAppService {
@@ -62,11 +62,11 @@ final class CockpitLaunchAppService {
     CockpitRemoteSessionStatusReader remoteStatusReader =
         cockpitReadRemoteSessionStatus,
     CockpitSessionRegistry? registry,
-  })  : _developmentService =
-            developmentService ?? CockpitLaunchDevelopmentSessionService(),
-        _remoteService = remoteService ?? CockpitLaunchRemoteSessionService(),
-        _remoteStatusReader = remoteStatusReader,
-        _registry = registry;
+  }) : _developmentService =
+           developmentService ?? CockpitLaunchDevelopmentSessionService(),
+       _remoteService = remoteService ?? CockpitLaunchRemoteSessionService(),
+       _remoteStatusReader = remoteStatusReader,
+       _registry = registry;
 
   final CockpitLaunchDevelopmentSessionService _developmentService;
   final CockpitLaunchRemoteSessionService _remoteService;
@@ -149,8 +149,10 @@ final class CockpitLaunchAppService {
     if (remoteSessionHandle == null) {
       return null;
     }
-    final remoteStatus =
-        await _readFallbackRemoteStatus(error, remoteSessionHandle);
+    final remoteStatus = await _readFallbackRemoteStatus(
+      error,
+      remoteSessionHandle,
+    );
     if (remoteStatus != null) {
       try {
         _registry?.recordRemoteSession(
@@ -169,10 +171,7 @@ final class CockpitLaunchAppService {
       path: request.appHandlePath,
       app: app,
     );
-    return CockpitLaunchAppResult(
-      app: app,
-      appJsonPath: appJsonPath,
-    );
+    return CockpitLaunchAppResult(app: app, appJsonPath: appJsonPath);
   }
 
   Future<CockpitRemoteSessionStatus?> _readFallbackRemoteStatus(
@@ -215,10 +214,7 @@ final class CockpitLaunchAppService {
       path: request.appHandlePath,
       app: app,
     );
-    return CockpitLaunchAppResult(
-      app: app,
-      appJsonPath: appJsonPath,
-    );
+    return CockpitLaunchAppResult(app: app, appJsonPath: appJsonPath);
   }
 
   Future<String?> _persistAppIfRequested({

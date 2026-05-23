@@ -23,8 +23,10 @@ void main() {
       ]),
     );
     expect(scope['enum'], isNot(contains('web')));
-    expect(properties.keys,
-        containsAll(<String>['targetJson', 'target', 'deviceId']));
+    expect(
+      properties.keys,
+      containsAll(<String>['targetJson', 'target', 'deviceId']),
+    );
   });
 
   test('run_shell executes host commands through the tool surface', () async {
@@ -47,32 +49,34 @@ void main() {
     expect(result['structuredContent'], isA<Map<String, Object?>>());
   });
 
-  test('run_shell forwards targetJson for target-aware shell execution',
-      () async {
-    CockpitRunShellRequest? capturedRequest;
-    final tool = CockpitRunShellTool(
-      runShell: (request) async {
-        capturedRequest = request;
-        return const CockpitRunShellResult(
-          scope: 'android',
-          command: <String>['getprop', 'ro.build.version.sdk'],
-          exitCode: 0,
-          stdout: '34',
-          stderr: '',
-          success: true,
-          recommendedNextStep: 'continue',
-        );
-      },
-    );
+  test(
+    'run_shell forwards targetJson for target-aware shell execution',
+    () async {
+      CockpitRunShellRequest? capturedRequest;
+      final tool = CockpitRunShellTool(
+        runShell: (request) async {
+          capturedRequest = request;
+          return const CockpitRunShellResult(
+            scope: 'android',
+            command: <String>['getprop', 'ro.build.version.sdk'],
+            exitCode: 0,
+            stdout: '34',
+            stderr: '',
+            success: true,
+            recommendedNextStep: 'continue',
+          );
+        },
+      );
 
-    final result = await tool.call(<String, Object?>{
-      'scope': 'target',
-      'targetJson': '/tmp/target.json',
-      'command': <String>['getprop', 'ro.build.version.sdk'],
-    });
+      final result = await tool.call(<String, Object?>{
+        'scope': 'target',
+        'targetJson': '/tmp/target.json',
+        'command': <String>['getprop', 'ro.build.version.sdk'],
+      });
 
-    expect(result['structuredContent'], isA<Map<String, Object?>>());
-    expect(capturedRequest?.scope, 'target');
-    expect(capturedRequest?.targetHandlePath, '/tmp/target.json');
-  });
+      expect(result['structuredContent'], isA<Map<String, Object?>>());
+      expect(capturedRequest?.scope, 'target');
+      expect(capturedRequest?.targetHandlePath, '/tmp/target.json');
+    },
+  );
 }

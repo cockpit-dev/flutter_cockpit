@@ -21,20 +21,18 @@ final class RunRemoteControlScriptCommand extends CockpitCliCommand {
     CockpitRecordingStrategyResolver recordingStrategyResolver =
         const CockpitRecordingStrategyResolver(),
     TaskRunBundleWriter writer = const TaskRunBundleWriter(),
-  }) : _service = service ??
-            CockpitRunRemoteControlScriptService(
-              sessionReferenceResolver: CockpitSessionReferenceResolver(
-                portForwarder: portForwarder,
-              ),
-              recordingStrategyResolver: recordingStrategyResolver,
-              writer: writer,
-            ) {
+  }) : _service =
+           service ??
+           CockpitRunRemoteControlScriptService(
+             sessionReferenceResolver: CockpitSessionReferenceResolver(
+               portForwarder: portForwarder,
+             ),
+             recordingStrategyResolver: recordingStrategyResolver,
+             writer: writer,
+           ) {
     argParser
       ..addOption('base-url', help: 'Base URL for the running app session.')
-      ..addOption(
-        'session-json',
-        help: cockpitRemoteSessionJsonOptionHelp,
-      )
+      ..addOption('session-json', help: cockpitRemoteSessionJsonOptionHelp)
       ..addOption('script-json', help: 'Path to a JSON control script file.')
       ..addOption(
         'output-root',

@@ -18,12 +18,9 @@ void main() {
       );
       final dartExecutable = await cockpitResolveActiveDartExecutable();
 
-      final result = await Process.run(
-          dartExecutable,
-          <String>[
-            fixturePath,
-          ],
-          workingDirectory: packageDir);
+      final result = await Process.run(dartExecutable, <String>[
+        fixturePath,
+      ], workingDirectory: packageDir);
 
       expect(
         result.exitCode,

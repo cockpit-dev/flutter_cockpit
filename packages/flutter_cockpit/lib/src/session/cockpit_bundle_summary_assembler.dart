@@ -17,9 +17,8 @@ import 'cockpit_session.dart';
 import 'cockpit_timestamp_provider.dart';
 
 final class CockpitBundleSummaryAssembler {
-  CockpitBundleSummaryAssembler({
-    CockpitTimestampProvider? now,
-  }) : _now = now ?? _systemNow;
+  CockpitBundleSummaryAssembler({CockpitTimestampProvider? now})
+    : _now = now ?? _systemNow;
 
   final CockpitTimestampProvider _now;
 
@@ -35,8 +34,9 @@ final class CockpitBundleSummaryAssembler {
     final executionSummary = _summarizeExecutionContext(steps);
     final recordingFailureReason = _lastRecordingFailureReason(steps);
     final networkSummary = _summarizeNetworkActivity(steps);
-    final deliveryArtifactFailureCodes =
-        _deliveryArtifactFailureCodes(evidenceIndex);
+    final deliveryArtifactFailureCodes = _deliveryArtifactFailureCodes(
+      evidenceIndex,
+    );
     final deliveryVideoFailureCodes = _deliveryVideoFailureCodes(
       evidenceIndex: evidenceIndex,
       recordingFailureReason: recordingFailureReason,
@@ -55,23 +55,25 @@ final class CockpitBundleSummaryAssembler {
     final runtimeWarningCount = runtimeSummary?.warningCount ?? 0;
     final effectiveStatus =
         status == CockpitTaskStatus.completed && runtimeErrorCount > 0
-            ? CockpitTaskStatus.failed
-            : status;
+        ? CockpitTaskStatus.failed
+        : status;
     final effectiveFailureSummary =
         effectiveStatus == CockpitTaskStatus.failed &&
-                failureSummary == null &&
-                runtimeErrorCount > 0
-            ? 'Runtime errors were captured during the task.'
-            : failureSummary;
+            failureSummary == null &&
+            runtimeErrorCount > 0
+        ? 'Runtime errors were captured during the task.'
+        : failureSummary;
     final targetReachable = session.sessionId.isNotEmpty;
     final intendedPlaneWorked = executionSummary.fallbackCount == 0;
     final postconditionsSatisfied =
         effectiveStatus != CockpitTaskStatus.failed && runtimeErrorCount == 0;
     final artifactsReady = deliveryValidated;
-    final logsCollected = networkSummary != null ||
+    final logsCollected =
+        networkSummary != null ||
         runtimeSummary != null ||
         steps.any(_hasDiagnosticsEvidence);
-    final deliveryReadable = steps.isNotEmpty ||
+    final deliveryReadable =
+        steps.isNotEmpty ||
         evidenceIndex.artifactRefs.isNotEmpty ||
         runtimeSummary != null ||
         networkSummary != null;
@@ -121,8 +123,9 @@ final class CockpitBundleSummaryAssembler {
       if (executionSummary.primaryExecutionPlane != null)
         'primaryExecutionPlane': executionSummary.primaryExecutionPlane!.name,
       if (executionSummary.planesUsed.isNotEmpty)
-        'planesUsed':
-            executionSummary.planesUsed.map((plane) => plane.name).toList(),
+        'planesUsed': executionSummary.planesUsed
+            .map((plane) => plane.name)
+            .toList(),
       if (executionSummary.surfaceKindsUsed.isNotEmpty)
         'surfaceKindsUsed': executionSummary.surfaceKindsUsed
             .map((surface) => surface.name)
@@ -186,8 +189,9 @@ final class CockpitBundleSummaryAssembler {
                 else
                   'taskFailed',
               ],
-        'artifactsReady':
-            artifactsReady ? const <String>[] : deliveryValidationFailureCodes,
+        'artifactsReady': artifactsReady
+            ? const <String>[]
+            : deliveryValidationFailureCodes,
         'logsCollected': logsCollected
             ? const <String>[]
             : const <String>['logsNotCollected'],
@@ -201,10 +205,8 @@ final class CockpitBundleSummaryAssembler {
       'runtimeEventCount': runtimeEventCount,
       'runtimeErrorCount': runtimeErrorCount,
       'runtimeWarningCount': runtimeWarningCount,
-      if (recordingFailureReason != null)
-        'recordingFailureReason': recordingFailureReason,
-      if (effectiveFailureSummary != null)
-        'failureSummary': effectiveFailureSummary,
+      'recordingFailureReason': ?recordingFailureReason,
+      'failureSummary': ?effectiveFailureSummary,
     };
 
     return CockpitContextBundle(
@@ -247,8 +249,7 @@ final class CockpitBundleSummaryAssembler {
           'video': <String, Object?>{
             'ready': evidenceIndex.deliveryVideoReady,
             'failureCodes': deliveryVideoFailureCodes,
-            if (recordingFailureReason != null)
-              'failureReason': recordingFailureReason,
+            'failureReason': ?recordingFailureReason,
           },
         },
       },
@@ -294,10 +295,12 @@ final class CockpitBundleSummaryAssembler {
     buffer.writeln('## Recording');
     if (evidenceIndex.recordingRefs.isNotEmpty) {
       buffer.writeln();
-      buffer
-          .writeln('- Acceptance video: ${evidenceIndex.recordingRefs.first}');
-      buffer
-          .writeln('- Recording count: ${evidenceIndex.recordingRefs.length}');
+      buffer.writeln(
+        '- Acceptance video: ${evidenceIndex.recordingRefs.first}',
+      );
+      buffer.writeln(
+        '- Recording count: ${evidenceIndex.recordingRefs.length}',
+      );
     } else {
       buffer.writeln();
       buffer.writeln('- Recording unavailable');
@@ -359,7 +362,8 @@ final class CockpitBundleSummaryAssembler {
   }
 
   List<String> _deliveryArtifactFailureCodes(
-      CockpitEvidenceIndex evidenceIndex) {
+    CockpitEvidenceIndex evidenceIndex,
+  ) {
     if (evidenceIndex.deliveryArtifactsReady) {
       return const <String>[];
     }
@@ -387,10 +391,7 @@ final class CockpitBundleSummaryAssembler {
     return const <String>['acceptanceRecordingMissing'];
   }
 
-  List<String> _combinedFailureCodes(
-    List<String> left,
-    List<String> right,
-  ) {
+  List<String> _combinedFailureCodes(List<String> left, List<String> right) {
     return List<String>.unmodifiable(<String>{...left, ...right});
   }
 
@@ -424,10 +425,12 @@ final class CockpitBundleSummaryAssembler {
 
     for (final step in steps) {
       targetKind ??= step.targetKind ?? step.observation?.targetKind;
-      final executionPlane = step.executionPlane ??
+      final executionPlane =
+          step.executionPlane ??
           step.observation?.executionPlane ??
           _inferExecutionPlane(step);
-      final surfaceKind = step.surfaceKind ??
+      final surfaceKind =
+          step.surfaceKind ??
           step.observation?.surfaceKind ??
           _inferSurfaceKind(step);
       addPlane(executionPlane);
@@ -458,13 +461,11 @@ final class CockpitBundleSummaryAssembler {
     return switch (_inferSurfaceKind(step)) {
       CockpitSurfaceKind.nativeUi => CockpitPlaneKind.nativeUiPlane,
       CockpitSurfaceKind.systemUi ||
-      CockpitSurfaceKind.deviceShell =>
-        CockpitPlaneKind.deviceSystemPlane,
+      CockpitSurfaceKind.deviceShell => CockpitPlaneKind.deviceSystemPlane,
       CockpitSurfaceKind.hostShell => CockpitPlaneKind.hostPlane,
       CockpitSurfaceKind.flutterSemantic ||
       CockpitSurfaceKind.desktopWindow ||
-      CockpitSurfaceKind.browserDom =>
-        CockpitPlaneKind.flutterSemanticPlane,
+      CockpitSurfaceKind.browserDom => CockpitPlaneKind.flutterSemanticPlane,
       null => null,
     };
   }
@@ -531,8 +532,9 @@ final class CockpitBundleSummaryAssembler {
         .toList(growable: false);
 
     return _CockpitAcceptanceNetworkSummary(
-      totalEntryCount:
-          totalEntryCount == 0 ? orderedEntries.length : totalEntryCount,
+      totalEntryCount: totalEntryCount == 0
+          ? orderedEntries.length
+          : totalEntryCount,
       failureCount: failureCount == 0
           ? orderedEntries.where((entry) => entry.isFailure).length
           : failureCount,
@@ -587,13 +589,16 @@ final class CockpitBundleSummaryAssembler {
 
     final orderedEntries = dedupedEvents.values.toList(growable: true)
       ..sort((left, right) => right.recordedAt.compareTo(left.recordedAt));
-    final derivedErrorCount =
-        orderedEntries.where((entry) => entry.isError).length;
-    final derivedWarningCount =
-        orderedEntries.where((entry) => entry.isWarning).length;
+    final derivedErrorCount = orderedEntries
+        .where((entry) => entry.isError)
+        .length;
+    final derivedWarningCount = orderedEntries
+        .where((entry) => entry.isWarning)
+        .length;
     return _CockpitAcceptanceRuntimeSummary(
-      totalEntryCount:
-          totalEntryCount == 0 ? orderedEntries.length : totalEntryCount,
+      totalEntryCount: totalEntryCount == 0
+          ? orderedEntries.length
+          : totalEntryCount,
       errorCount: errorCount == 0 ? derivedErrorCount : errorCount,
       warningCount: warningCount == 0 ? derivedWarningCount : warningCount,
       recentEntries: orderedEntries.take(3).toList(growable: false),

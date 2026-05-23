@@ -12,23 +12,24 @@ final class CockpitDevelopmentSessionResource extends CockpitMcpResource {
   final CockpitSessionRegistry _registry;
 
   @override
-  CockpitMcpResourceDefinition get definition =>
-      const CockpitMcpResourceDefinition.template(
-        name: 'development_session',
-        uriTemplate: 'cockpit://session/development{?developmentSessionId}',
-        description:
-            'Read a tracked development session record by developmentSessionId.',
-        mimeType: 'application/json',
-        categories: <CockpitMcpFeatureCategory>[
-          CockpitMcpFeatureCategory.closedLoop,
-          CockpitMcpFeatureCategory.sessionManagement,
-          CockpitMcpFeatureCategory.contextResources,
-        ],
-      );
+  CockpitMcpResourceDefinition
+  get definition => const CockpitMcpResourceDefinition.template(
+    name: 'development_session',
+    uriTemplate: 'cockpit://session/development{?developmentSessionId}',
+    description:
+        'Read a tracked development session record by developmentSessionId.',
+    mimeType: 'application/json',
+    categories: <CockpitMcpFeatureCategory>[
+      CockpitMcpFeatureCategory.closedLoop,
+      CockpitMcpFeatureCategory.sessionManagement,
+      CockpitMcpFeatureCategory.contextResources,
+    ],
+  );
 
   @override
   Future<CockpitMcpResourceResult?> read(
-      CockpitMcpResourceRequest request) async {
+    CockpitMcpResourceRequest request,
+  ) async {
     final uri = request.parsedUri;
     if (uri.host != 'session' || uri.path != '/development') {
       return null;

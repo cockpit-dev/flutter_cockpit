@@ -9,8 +9,8 @@ import 'cockpit_app_handle.dart';
 import 'cockpit_application_service_exception.dart';
 import 'cockpit_session_registry.dart';
 
-typedef CockpitIosDeviceConnectionReader = Future<CockpitIosDeviceConnection?>
-    Function(String deviceId);
+typedef CockpitIosDeviceConnectionReader =
+    Future<CockpitIosDeviceConnection?> Function(String deviceId);
 
 final class CockpitResolvedAppReference {
   const CockpitResolvedAppReference({
@@ -33,9 +33,9 @@ final class CockpitAppReferenceResolver {
         const CockpitAndroidPortForwarder(),
     CockpitIosDeviceConnectionReader iosDeviceConnectionReader =
         _defaultIosDeviceConnectionReader,
-  })  : _registry = registry,
-        _portForwarder = portForwarder,
-        _iosDeviceConnectionReader = iosDeviceConnectionReader;
+  }) : _registry = registry,
+       _portForwarder = portForwarder,
+       _iosDeviceConnectionReader = iosDeviceConnectionReader;
 
   final CockpitSessionRegistry? _registry;
   final CockpitAndroidPortForwarder _portForwarder;
@@ -59,10 +59,12 @@ final class CockpitAppReferenceResolver {
     if (appHandlePath != null && appHandlePath.isNotEmpty) {
       final resolvedApp = await readAppHandle(appHandlePath);
       final registry = _registry;
-      final developmentRecord =
-          registry?.developmentSessionByAppId(resolvedApp.appId);
+      final developmentRecord = registry?.developmentSessionByAppId(
+        resolvedApp.appId,
+      );
       final remoteRecord = registry?.remoteSessionByAppId(resolvedApp.appId);
-      final resolvedBaseUri = baseUri ??
+      final resolvedBaseUri =
+          baseUri ??
           await _resolvedBaseUriForApp(
             resolvedApp,
             developmentRecord: developmentRecord,
@@ -89,12 +91,14 @@ final class CockpitAppReferenceResolver {
       }
       final developmentRecord = registry.developmentSessionByAppId(appId);
       final remoteRecord = registry.remoteSessionByAppId(appId);
-      final preferRemoteRecord = remoteRecord != null &&
+      final preferRemoteRecord =
+          remoteRecord != null &&
           (developmentRecord == null ||
               remoteRecord.updatedAt.isAfter(developmentRecord.updatedAt));
       if (preferRemoteRecord) {
         final app = CockpitAppHandle.fromRemoteSession(remoteRecord.handle);
-        final resolvedBaseUri = baseUri ??
+        final resolvedBaseUri =
+            baseUri ??
             await _resolvedBaseUriForApp(
               app,
               developmentRecord: developmentRecord,
@@ -111,7 +115,8 @@ final class CockpitAppReferenceResolver {
         final app = CockpitAppHandle.fromDevelopmentSession(
           developmentRecord.handle,
         );
-        final resolvedBaseUri = baseUri ??
+        final resolvedBaseUri =
+            baseUri ??
             await _resolvedBaseUriForApp(
               app,
               developmentRecord: developmentRecord,
@@ -124,11 +129,9 @@ final class CockpitAppReferenceResolver {
       }
       if (remoteRecord != null) {
         final app = CockpitAppHandle.fromRemoteSession(remoteRecord.handle);
-        final resolvedBaseUri = baseUri ??
-            await _resolvedBaseUriForApp(
-              app,
-              remoteRecord: remoteRecord,
-            );
+        final resolvedBaseUri =
+            baseUri ??
+            await _resolvedBaseUriForApp(app, remoteRecord: remoteRecord);
         return CockpitResolvedAppReference(
           baseUri: resolvedBaseUri,
           app: _withResolvedBaseUri(app, resolvedBaseUri),
@@ -187,9 +190,7 @@ final class CockpitAppReferenceResolver {
     final normalized = Map<String, Object?>.from(decoded);
     final wrappedApp = normalized['app'];
     if (wrappedApp is Map<Object?, Object?>) {
-      return CockpitAppHandle.fromJson(
-        Map<String, Object?>.from(wrappedApp),
-      );
+      return CockpitAppHandle.fromJson(Map<String, Object?>.from(wrappedApp));
     }
     return CockpitAppHandle.fromJson(normalized);
   }

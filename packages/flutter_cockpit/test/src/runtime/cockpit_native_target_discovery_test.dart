@@ -122,10 +122,7 @@ void main() {
       find.byType(CockpitSurface),
     );
     final resolution = surfaceState.registry.resolve(
-      const CockpitLocator(
-        text: 'Task title',
-        type: 'TextField',
-      ),
+      const CockpitLocator(text: 'Task title', type: 'TextField'),
     );
 
     expect(resolution.isSuccess, isTrue);
@@ -141,8 +138,9 @@ void main() {
   testWidgets(
     'prefers the field label over a prefilled input value for text targeting',
     (tester) async {
-      final controller =
-          TextEditingController(text: 'Existing follow-up title');
+      final controller = TextEditingController(
+        text: 'Existing follow-up title',
+      );
       addTearDown(controller.dispose);
 
       await tester.pumpWidget(
@@ -169,10 +167,7 @@ void main() {
         find.byType(CockpitSurface),
       );
       final resolution = surfaceState.registry.resolve(
-        const CockpitLocator(
-          text: 'Follow-up title',
-          type: 'TextField',
-        ),
+        const CockpitLocator(text: 'Follow-up title', type: 'TextField'),
       );
 
       expect(resolution.isSuccess, isTrue);
@@ -213,9 +208,7 @@ void main() {
       find.byType(CockpitSurface),
     );
     final resolution = surfaceState.registry.resolve(
-      const CockpitLocator(
-        key: 'task-priority-urgent',
-      ),
+      const CockpitLocator(key: 'task-priority-urgent'),
     );
 
     expect(resolution.isSuccess, isTrue);
@@ -259,11 +252,7 @@ void main() {
     expect(keyedTargets.single.supportedCommands, isEmpty);
     expect(
       surfaceState.registry
-          .resolve(
-            const CockpitLocator(
-              key: 'task-row-shell',
-            ),
-          )
+          .resolve(const CockpitLocator(key: 'task-row-shell'))
           .isSuccess,
       isTrue,
     );
@@ -382,9 +371,7 @@ void main() {
       find.byType(CockpitSurface),
     );
     final resolution = surfaceState.registry.resolve(
-      const CockpitLocator(
-        key: 'task-open-alpha',
-      ),
+      const CockpitLocator(key: 'task-open-alpha'),
     );
 
     expect(resolution.isSuccess, isTrue);
@@ -506,11 +493,7 @@ void main() {
 
       expect(
         surfaceState.registry
-            .resolve(
-              const CockpitLocator(
-                text: 'Acceptance bundles',
-              ),
-            )
+            .resolve(const CockpitLocator(text: 'Acceptance bundles'))
             .isSuccess,
         isFalse,
       );

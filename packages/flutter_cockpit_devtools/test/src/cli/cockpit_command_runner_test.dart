@@ -66,8 +66,10 @@ void main() {
       stderrBuffer.toString(),
       contains('--device-id is required for android.'),
     );
-    expect(stderrBuffer.toString(),
-        contains('Usage: flutter_cockpit_devtools launch-app'));
+    expect(
+      stderrBuffer.toString(),
+      contains('Usage: flutter_cockpit_devtools launch-app'),
+    );
   });
 
   test('usage errors include machine-readable errorJson on stderr', () async {
@@ -78,8 +80,9 @@ void main() {
 
     expect(exitCode, cockpitUsageExitCode);
     final stderr = stderrBuffer.toString();
-    final jsonLine =
-        stderr.split('\n').firstWhere((line) => line.startsWith('errorJson: '));
+    final jsonLine = stderr
+        .split('\n')
+        .firstWhere((line) => line.startsWith('errorJson: '));
     final payload = Map<String, Object?>.from(
       jsonDecode(jsonLine.substring('errorJson: '.length))
           as Map<Object?, Object?>,
@@ -131,8 +134,9 @@ void main() {
     expect(exitCode, cockpitDataExitCode);
     final stderr = stderrBuffer.toString();
     expect(stderr, contains('Command JSON must decode to an object.'));
-    final jsonLine =
-        stderr.split('\n').firstWhere((line) => line.startsWith('errorJson: '));
+    final jsonLine = stderr
+        .split('\n')
+        .firstWhere((line) => line.startsWith('errorJson: '));
     final payload = Map<String, Object?>.from(
       jsonDecode(jsonLine.substring('errorJson: '.length))
           as Map<Object?, Object?>,
@@ -155,8 +159,9 @@ void main() {
     expect(exitCode, cockpitDataExitCode);
     final stderr = stderrBuffer.toString();
     expect(stderr, contains('Recording is not active.'));
-    final jsonLine =
-        stderr.split('\n').firstWhere((line) => line.startsWith('errorJson: '));
+    final jsonLine = stderr
+        .split('\n')
+        .firstWhere((line) => line.startsWith('errorJson: '));
     final payload = Map<String, Object?>.from(
       jsonDecode(jsonLine.substring('errorJson: '.length))
           as Map<Object?, Object?>,
@@ -165,113 +170,122 @@ void main() {
     expect(payload['message'], 'Recording is not active.');
   });
 
-  test('argument errors include machine-readable errorJson on stderr',
-      () async {
-    final stderrBuffer = StringBuffer();
-    final runner = CockpitCommandRunner(
-      stderrSink: stderrBuffer,
-      commands: <Command<int>>[
-        _FailingCommand(ArgumentError('Invalid output path.')),
-      ],
-    );
+  test(
+    'argument errors include machine-readable errorJson on stderr',
+    () async {
+      final stderrBuffer = StringBuffer();
+      final runner = CockpitCommandRunner(
+        stderrSink: stderrBuffer,
+        commands: <Command<int>>[
+          _FailingCommand(ArgumentError('Invalid output path.')),
+        ],
+      );
 
-    final exitCode = await runner.run(<String>['fail']);
+      final exitCode = await runner.run(<String>['fail']);
 
-    expect(exitCode, cockpitDataExitCode);
-    final stderr = stderrBuffer.toString();
-    expect(stderr, contains('Invalid output path.'));
-    final jsonLine =
-        stderr.split('\n').firstWhere((line) => line.startsWith('errorJson: '));
-    final payload = Map<String, Object?>.from(
-      jsonDecode(jsonLine.substring('errorJson: '.length))
-          as Map<Object?, Object?>,
-    );
-    expect(payload['code'], 'invalidArgument');
-    expect(payload['message'], 'Invalid output path.');
-  });
+      expect(exitCode, cockpitDataExitCode);
+      final stderr = stderrBuffer.toString();
+      expect(stderr, contains('Invalid output path.'));
+      final jsonLine = stderr
+          .split('\n')
+          .firstWhere((line) => line.startsWith('errorJson: '));
+      final payload = Map<String, Object?>.from(
+        jsonDecode(jsonLine.substring('errorJson: '.length))
+            as Map<Object?, Object?>,
+      );
+      expect(payload['code'], 'invalidArgument');
+      expect(payload['message'], 'Invalid output path.');
+    },
+  );
 
-  test('unexpected errors include bounded machine-readable errorJson on stderr',
-      () async {
-    final stderrBuffer = StringBuffer();
-    final runner = CockpitCommandRunner(
-      stderrSink: stderrBuffer,
-      commands: <Command<int>>[
-        _FailingCommand(Exception('Socket closed while reading status.')),
-      ],
-    );
+  test(
+    'unexpected errors include bounded machine-readable errorJson on stderr',
+    () async {
+      final stderrBuffer = StringBuffer();
+      final runner = CockpitCommandRunner(
+        stderrSink: stderrBuffer,
+        commands: <Command<int>>[
+          _FailingCommand(Exception('Socket closed while reading status.')),
+        ],
+      );
 
-    final exitCode = await runner.run(<String>['fail']);
+      final exitCode = await runner.run(<String>['fail']);
 
-    expect(exitCode, cockpitDataExitCode);
-    final stderr = stderrBuffer.toString();
-    expect(stderr, contains('Socket closed while reading status.'));
-    final jsonLine =
-        stderr.split('\n').firstWhere((line) => line.startsWith('errorJson: '));
-    final payload = Map<String, Object?>.from(
-      jsonDecode(jsonLine.substring('errorJson: '.length))
-          as Map<Object?, Object?>,
-    );
-    expect(payload['code'], 'internalError');
-    expect(
-        payload['message'], 'Exception: Socket closed while reading status.');
-    expect(stderr, isNot(contains('packages/flutter_cockpit_devtools/test')));
-  });
+      expect(exitCode, cockpitDataExitCode);
+      final stderr = stderrBuffer.toString();
+      expect(stderr, contains('Socket closed while reading status.'));
+      final jsonLine = stderr
+          .split('\n')
+          .firstWhere((line) => line.startsWith('errorJson: '));
+      final payload = Map<String, Object?>.from(
+        jsonDecode(jsonLine.substring('errorJson: '.length))
+            as Map<Object?, Object?>,
+      );
+      expect(payload['code'], 'internalError');
+      expect(
+        payload['message'],
+        'Exception: Socket closed while reading status.',
+      );
+      expect(stderr, isNot(contains('packages/flutter_cockpit_devtools/test')));
+    },
+  );
 
-  test('service errors include machine-readable code and details on stderr',
-      () async {
-    final stderrBuffer = StringBuffer();
-    final runner = CockpitCommandRunner(
-      stderrSink: stderrBuffer,
-      commands: <Command<int>>[
-        _FailingCommand(
-          const CockpitApplicationServiceException(
-            code: 'remoteUnavailable',
-            message: 'Remote session is temporarily unavailable.',
-            details: <String, Object?>{
-              'baseUrl': 'http://127.0.0.1:47331',
-              'method': 'GET',
-              'path': '/health',
-            },
+  test(
+    'service errors include machine-readable code and details on stderr',
+    () async {
+      final stderrBuffer = StringBuffer();
+      final runner = CockpitCommandRunner(
+        stderrSink: stderrBuffer,
+        commands: <Command<int>>[
+          _FailingCommand(
+            const CockpitApplicationServiceException(
+              code: 'remoteUnavailable',
+              message: 'Remote session is temporarily unavailable.',
+              details: <String, Object?>{
+                'baseUrl': 'http://127.0.0.1:47331',
+                'method': 'GET',
+                'path': '/health',
+              },
+            ),
           ),
-        ),
-      ],
-    );
+        ],
+      );
 
-    final exitCode = await runner.run(<String>['fail']);
+      final exitCode = await runner.run(<String>['fail']);
 
-    expect(exitCode, cockpitDataExitCode);
-    final stderr = stderrBuffer.toString();
-    expect(stderr, contains('Remote session is temporarily unavailable.'));
-    final jsonLine =
-        stderr.split('\n').firstWhere((line) => line.startsWith('errorJson: '));
-    final payload = Map<String, Object?>.from(
-      jsonDecode(jsonLine.substring('errorJson: '.length))
-          as Map<Object?, Object?>,
-    );
-    expect(payload['code'], 'remoteUnavailable');
-    expect(
-      (payload['details'] as Map<Object?, Object?>)['path'],
-      '/health',
-    );
-  });
+      expect(exitCode, cockpitDataExitCode);
+      final stderr = stderrBuffer.toString();
+      expect(stderr, contains('Remote session is temporarily unavailable.'));
+      final jsonLine = stderr
+          .split('\n')
+          .firstWhere((line) => line.startsWith('errorJson: '));
+      final payload = Map<String, Object?>.from(
+        jsonDecode(jsonLine.substring('errorJson: '.length))
+            as Map<Object?, Object?>,
+      );
+      expect(payload['code'], 'remoteUnavailable');
+      expect((payload['details'] as Map<Object?, Object?>)['path'], '/health');
+    },
+  );
 
   test('usage errorJson is emitted for invalid numeric CLI options', () async {
     final stderrBuffer = StringBuffer();
-    final exitCode = await CockpitCommandRunner(
-      stderrSink: stderrBuffer,
-    ).run(<String>[
-      'read-logs',
-      '--base-url',
-      'http://127.0.0.1:47331',
-      '--max-lines',
-      '0',
-    ]);
+    final exitCode = await CockpitCommandRunner(stderrSink: stderrBuffer).run(
+      <String>[
+        'read-logs',
+        '--base-url',
+        'http://127.0.0.1:47331',
+        '--max-lines',
+        '0',
+      ],
+    );
 
     expect(exitCode, cockpitUsageExitCode);
     final stderr = stderrBuffer.toString();
     expect(stderr, contains('--max-lines must be a positive integer.'));
-    final jsonLine =
-        stderr.split('\n').firstWhere((line) => line.startsWith('errorJson: '));
+    final jsonLine = stderr
+        .split('\n')
+        .firstWhere((line) => line.startsWith('errorJson: '));
     final payload = Map<String, Object?>.from(
       jsonDecode(jsonLine.substring('errorJson: '.length))
           as Map<Object?, Object?>,
@@ -282,21 +296,22 @@ void main() {
 
   test('usage errorJson is emitted for non-integer CLI options', () async {
     final stderrBuffer = StringBuffer();
-    final exitCode = await CockpitCommandRunner(
-      stderrSink: stderrBuffer,
-    ).run(<String>[
-      'read-logs',
-      '--base-url',
-      'http://127.0.0.1:47331',
-      '--max-lines',
-      'many',
-    ]);
+    final exitCode = await CockpitCommandRunner(stderrSink: stderrBuffer).run(
+      <String>[
+        'read-logs',
+        '--base-url',
+        'http://127.0.0.1:47331',
+        '--max-lines',
+        'many',
+      ],
+    );
 
     expect(exitCode, cockpitUsageExitCode);
     final stderr = stderrBuffer.toString();
     expect(stderr, contains('--max-lines must be an integer.'));
-    final jsonLine =
-        stderr.split('\n').firstWhere((line) => line.startsWith('errorJson: '));
+    final jsonLine = stderr
+        .split('\n')
+        .firstWhere((line) => line.startsWith('errorJson: '));
     final payload = Map<String, Object?>.from(
       jsonDecode(jsonLine.substring('errorJson: '.length))
           as Map<Object?, Object?>,
@@ -307,21 +322,22 @@ void main() {
 
   test('workspace numeric CLI options report usage for non-integers', () async {
     final stderrBuffer = StringBuffer();
-    final exitCode = await CockpitCommandRunner(
-      stderrSink: stderrBuffer,
-    ).run(<String>[
-      'analyze-files',
-      '--path',
-      'lib/main.dart',
-      '--timeout-seconds',
-      'fast',
-    ]);
+    final exitCode = await CockpitCommandRunner(stderrSink: stderrBuffer).run(
+      <String>[
+        'analyze-files',
+        '--path',
+        'lib/main.dart',
+        '--timeout-seconds',
+        'fast',
+      ],
+    );
 
     expect(exitCode, cockpitUsageExitCode);
     final stderr = stderrBuffer.toString();
     expect(stderr, contains('--timeout-seconds must be an integer.'));
-    final jsonLine =
-        stderr.split('\n').firstWhere((line) => line.startsWith('errorJson: '));
+    final jsonLine = stderr
+        .split('\n')
+        .firstWhere((line) => line.startsWith('errorJson: '));
     final payload = Map<String, Object?>.from(
       jsonDecode(jsonLine.substring('errorJson: '.length))
           as Map<Object?, Object?>,

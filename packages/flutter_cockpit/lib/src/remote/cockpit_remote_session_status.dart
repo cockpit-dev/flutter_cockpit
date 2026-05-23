@@ -28,17 +28,16 @@ final class CockpitRemoteSessionStatus {
   final CockpitRecordingSession? activeRecording;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'sessionId': sessionId,
-        'platform': platform,
-        'transportType': transportType,
-        if (currentRouteName != null) 'currentRouteName': currentRouteName,
-        'capabilities': capabilities.toJson(),
-        'recordingCapabilities': recordingCapabilities.toJson(),
-        'snapshot': snapshot.toJson(),
-        if (environment != null) 'environment': environment!.toJson(),
-        if (activeRecording != null)
-          'activeRecording': activeRecording!.toJson(),
-      };
+    'sessionId': sessionId,
+    'platform': platform,
+    'transportType': transportType,
+    if (currentRouteName != null) 'currentRouteName': currentRouteName,
+    'capabilities': capabilities.toJson(),
+    'recordingCapabilities': recordingCapabilities.toJson(),
+    'snapshot': snapshot.toJson(),
+    if (environment != null) 'environment': environment!.toJson(),
+    if (activeRecording != null) 'activeRecording': activeRecording!.toJson(),
+  };
 
   factory CockpitRemoteSessionStatus.fromJson(Map<String, Object?> json) {
     final capabilitiesJson = json['capabilities'] as Map<Object?, Object?>;
@@ -96,14 +95,14 @@ final class CockpitRemoteSessionStatus {
 
   @override
   int get hashCode => Object.hash(
-        sessionId,
-        platform,
-        transportType,
-        currentRouteName,
-        capabilities,
-        recordingCapabilities,
-        snapshot,
-        environment,
-        activeRecording,
-      );
+    sessionId,
+    platform,
+    transportType,
+    currentRouteName,
+    capabilities,
+    recordingCapabilities,
+    snapshot,
+    environment,
+    activeRecording,
+  );
 }

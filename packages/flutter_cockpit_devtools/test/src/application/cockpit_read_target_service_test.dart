@@ -10,137 +10,145 @@ import 'package:flutter_cockpit_devtools/src/targets/cockpit_target_handle.dart'
 import 'package:test/test.dart';
 
 void main() {
-  test('read target reuses flutter app reads and returns target-first summary',
-      () async {
-    final target = CockpitTargetHandle.fromAppHandle(
-      CockpitAppHandle(
-        appId: 'dev.cockpit.demo',
-        mode: CockpitAppMode.automation,
-        platform: 'android',
-        deviceId: 'emulator-5554',
+  test(
+    'read target reuses flutter app reads and returns target-first summary',
+    () async {
+      final target = CockpitTargetHandle.fromAppHandle(
+        CockpitAppHandle(
+          appId: 'dev.cockpit.demo',
+          mode: CockpitAppMode.automation,
+          platform: 'android',
+          deviceId: 'emulator-5554',
+          projectDir: '/workspace/examples/cockpit_demo',
+          target: 'cockpit/main.dart',
+          baseUrl: 'http://127.0.0.1:57331',
+          launchedAt: DateTime.utc(2026, 4, 11),
+        ),
+      );
+      final service = CockpitReadTargetService(
+        readFlutterTarget: (_) async => CockpitReadAppResult(
+          sessionId: 'session-1',
+          transportType: 'remoteHttp',
+          capabilities: CockpitCapabilities(
+            platform: 'android',
+            transportType: 'remoteHttp',
+            supportsInAppControl: true,
+            supportsFlutterViewCapture: true,
+            supportsNativeScreenCapture: true,
+            supportsHostAutomation: false,
+            supportedCommands: const <CockpitCommandType>[
+              CockpitCommandType.tap,
+            ],
+            supportedLocatorStrategies: CockpitLocatorKind.values,
+          ),
+          recordingCapabilities: CockpitRecordingCapabilities(
+            supportsNativeRecording: true,
+            preferredAcceptanceRecordingKind: CockpitRecordingKind.nativeScreen,
+          ),
+          selectedPlane: CockpitPlaneKind.flutterSemanticPlane,
+          fallbackTrail: const <CockpitPlaneKind>[
+            CockpitPlaneKind.nativeUiPlane,
+            CockpitPlaneKind.deviceSystemPlane,
+          ],
+          recommendedNextStep: 'runNextCommand',
+          currentRouteName: '/home',
+        ),
+      );
+
+      final result = await service.read(
+        CockpitReadTargetRequest(
+          target: target,
+          resultProfile: const CockpitInteractiveResultProfile.minimal(),
+        ),
+      );
+
+      expect(result.target.targetKind, CockpitTargetKind.flutterApp);
+      expect(result.foregroundSurface, CockpitSurfaceKind.flutterSemantic);
+      expect(result.selectedPlane, CockpitPlaneKind.flutterSemanticPlane);
+      expect(result.recommendedNextStep, 'runNextCommand');
+    },
+  );
+
+  test(
+    'read target supports desktop remote targets by reusing flutter reads',
+    () async {
+      final target = CockpitTargetHandle(
+        targetId: 'dev.cockpit.desktop.macos',
+        targetKind: CockpitTargetKind.desktopApp,
+        platform: 'macos',
+        deviceId: 'macos',
         projectDir: '/workspace/examples/cockpit_demo',
         target: 'cockpit/main.dart',
-        baseUrl: 'http://127.0.0.1:57331',
+        connection: const CockpitTargetConnection(
+          baseUrl: 'http://127.0.0.1:57331',
+        ),
         launchedAt: DateTime.utc(2026, 4, 11),
-      ),
-    );
-    final service = CockpitReadTargetService(
-      readFlutterTarget: (_) async => CockpitReadAppResult(
-        sessionId: 'session-1',
-        transportType: 'remoteHttp',
-        capabilities: CockpitCapabilities(
-          platform: 'android',
-          transportType: 'remoteHttp',
-          supportsInAppControl: true,
-          supportsFlutterViewCapture: true,
-          supportsNativeScreenCapture: true,
-          supportsHostAutomation: false,
-          supportedCommands: const <CockpitCommandType>[CockpitCommandType.tap],
-          supportedLocatorStrategies: CockpitLocatorKind.values,
-        ),
-        recordingCapabilities: CockpitRecordingCapabilities(
-          supportsNativeRecording: true,
-          preferredAcceptanceRecordingKind: CockpitRecordingKind.nativeScreen,
-        ),
-        selectedPlane: CockpitPlaneKind.flutterSemanticPlane,
-        fallbackTrail: const <CockpitPlaneKind>[
-          CockpitPlaneKind.nativeUiPlane,
-          CockpitPlaneKind.deviceSystemPlane,
-        ],
-        recommendedNextStep: 'runNextCommand',
-        currentRouteName: '/home',
-      ),
-    );
-
-    final result = await service.read(
-      CockpitReadTargetRequest(
-        target: target,
-        resultProfile: const CockpitInteractiveResultProfile.minimal(),
-      ),
-    );
-
-    expect(result.target.targetKind, CockpitTargetKind.flutterApp);
-    expect(result.foregroundSurface, CockpitSurfaceKind.flutterSemantic);
-    expect(result.selectedPlane, CockpitPlaneKind.flutterSemanticPlane);
-    expect(result.recommendedNextStep, 'runNextCommand');
-  });
-
-  test('read target supports desktop remote targets by reusing flutter reads',
-      () async {
-    final target = CockpitTargetHandle(
-      targetId: 'dev.cockpit.desktop.macos',
-      targetKind: CockpitTargetKind.desktopApp,
-      platform: 'macos',
-      deviceId: 'macos',
-      projectDir: '/workspace/examples/cockpit_demo',
-      target: 'cockpit/main.dart',
-      connection: const CockpitTargetConnection(
-        baseUrl: 'http://127.0.0.1:57331',
-      ),
-      launchedAt: DateTime.utc(2026, 4, 11),
-    );
-    final service = CockpitReadTargetService(
-      platformDriverRegistry: CockpitPlatformDriverRegistry(
-        drivers: <String, CockpitPlatformDriverFactory>{
-          'macos': ({required String deviceId}) => _FakePlatformDriver(
-                platform: 'macos',
-                capabilityProfile: CockpitCapabilityProfile(
-                  targetKind: CockpitTargetKind.desktopApp,
-                  surfaceKinds: const <CockpitSurfaceKind>{
-                    CockpitSurfaceKind.desktopWindow,
-                    CockpitSurfaceKind.hostShell,
-                  },
-                  actionCapabilities: const <CockpitActionCapability>{
-                    CockpitActionCapability.launchApp,
-                  },
-                  evidenceCapabilities: const <CockpitEvidenceCapability>{
-                    CockpitEvidenceCapability.windowCapture,
-                  },
-                ),
+      );
+      final service = CockpitReadTargetService(
+        platformDriverRegistry: CockpitPlatformDriverRegistry(
+          drivers: <String, CockpitPlatformDriverFactory>{
+            'macos': ({required String deviceId}) => _FakePlatformDriver(
+              platform: 'macos',
+              capabilityProfile: CockpitCapabilityProfile(
+                targetKind: CockpitTargetKind.desktopApp,
+                surfaceKinds: const <CockpitSurfaceKind>{
+                  CockpitSurfaceKind.desktopWindow,
+                  CockpitSurfaceKind.hostShell,
+                },
+                actionCapabilities: const <CockpitActionCapability>{
+                  CockpitActionCapability.launchApp,
+                },
+                evidenceCapabilities: const <CockpitEvidenceCapability>{
+                  CockpitEvidenceCapability.windowCapture,
+                },
               ),
-        },
-      ),
-      readFlutterTarget: (_) async => CockpitReadAppResult(
-        sessionId: 'desktop-session',
-        transportType: 'remoteHttp',
-        capabilities: CockpitCapabilities(
-          platform: 'macos',
+            ),
+          },
+        ),
+        readFlutterTarget: (_) async => CockpitReadAppResult(
+          sessionId: 'desktop-session',
           transportType: 'remoteHttp',
-          supportsInAppControl: true,
-          supportsFlutterViewCapture: true,
-          supportsNativeScreenCapture: true,
-          supportsHostAutomation: true,
-          supportedCommands: const <CockpitCommandType>[CockpitCommandType.tap],
-          supportedLocatorStrategies: CockpitLocatorKind.values,
+          capabilities: CockpitCapabilities(
+            platform: 'macos',
+            transportType: 'remoteHttp',
+            supportsInAppControl: true,
+            supportsFlutterViewCapture: true,
+            supportsNativeScreenCapture: true,
+            supportsHostAutomation: true,
+            supportedCommands: const <CockpitCommandType>[
+              CockpitCommandType.tap,
+            ],
+            supportedLocatorStrategies: CockpitLocatorKind.values,
+          ),
+          recordingCapabilities: CockpitRecordingCapabilities(
+            supportsNativeRecording: true,
+            preferredAcceptanceRecordingKind: CockpitRecordingKind.nativeScreen,
+          ),
+          selectedPlane: CockpitPlaneKind.flutterSemanticPlane,
+          recommendedNextStep: 'runNextCommand',
+          currentRouteName: '/desktop-home',
         ),
-        recordingCapabilities: CockpitRecordingCapabilities(
-          supportsNativeRecording: true,
-          preferredAcceptanceRecordingKind: CockpitRecordingKind.nativeScreen,
+      );
+
+      final result = await service.read(
+        CockpitReadTargetRequest(
+          target: target,
+          resultProfile: const CockpitInteractiveResultProfile.minimal(),
         ),
-        selectedPlane: CockpitPlaneKind.flutterSemanticPlane,
-        recommendedNextStep: 'runNextCommand',
-        currentRouteName: '/desktop-home',
-      ),
-    );
+      );
 
-    final result = await service.read(
-      CockpitReadTargetRequest(
-        target: target,
-        resultProfile: const CockpitInteractiveResultProfile.minimal(),
-      ),
-    );
-
-    expect(result.target.targetKind, CockpitTargetKind.desktopApp);
-    expect(
-      result.capabilityProfile.surfaceKinds,
-      containsAll(<CockpitSurfaceKind>[
-        CockpitSurfaceKind.desktopWindow,
-        CockpitSurfaceKind.flutterSemantic,
-      ]),
-    );
-    expect(result.foregroundSurface, CockpitSurfaceKind.desktopWindow);
-    expect(result.selectedPlane, CockpitPlaneKind.flutterSemanticPlane);
-  });
+      expect(result.target.targetKind, CockpitTargetKind.desktopApp);
+      expect(
+        result.capabilityProfile.surfaceKinds,
+        containsAll(<CockpitSurfaceKind>[
+          CockpitSurfaceKind.desktopWindow,
+          CockpitSurfaceKind.flutterSemantic,
+        ]),
+      );
+      expect(result.foregroundSurface, CockpitSurfaceKind.desktopWindow);
+      expect(result.selectedPlane, CockpitPlaneKind.flutterSemanticPlane);
+    },
+  );
 
   test(
     'read target recovers desktop host capability identity from nested remote session metadata',
@@ -214,62 +222,64 @@ void main() {
     },
   );
 
-  test('read target returns capability-only summaries for browser targets',
-      () async {
-    final service = CockpitReadTargetService(
-      platformDriverRegistry: CockpitPlatformDriverRegistry(
-        drivers: <String, CockpitPlatformDriverFactory>{
-          'web': ({required String deviceId}) => _FakePlatformDriver(
-                platform: 'web',
-                capabilityProfile: CockpitCapabilityProfile(
-                  targetKind: CockpitTargetKind.browserPage,
-                  surfaceKinds: const <CockpitSurfaceKind>{
-                    CockpitSurfaceKind.browserDom,
-                  },
-                  actionCapabilities: const <CockpitActionCapability>{
-                    CockpitActionCapability.tap,
-                    CockpitActionCapability.captureScreenshot,
-                    CockpitActionCapability.startRecording,
-                    CockpitActionCapability.stopRecording,
-                  },
-                  evidenceCapabilities: const <CockpitEvidenceCapability>{
-                    CockpitEvidenceCapability.domSnapshot,
-                    CockpitEvidenceCapability.screenRecording,
-                  },
-                ),
+  test(
+    'read target returns capability-only summaries for browser targets',
+    () async {
+      final service = CockpitReadTargetService(
+        platformDriverRegistry: CockpitPlatformDriverRegistry(
+          drivers: <String, CockpitPlatformDriverFactory>{
+            'web': ({required String deviceId}) => _FakePlatformDriver(
+              platform: 'web',
+              capabilityProfile: CockpitCapabilityProfile(
+                targetKind: CockpitTargetKind.browserPage,
+                surfaceKinds: const <CockpitSurfaceKind>{
+                  CockpitSurfaceKind.browserDom,
+                },
+                actionCapabilities: const <CockpitActionCapability>{
+                  CockpitActionCapability.tap,
+                  CockpitActionCapability.captureScreenshot,
+                  CockpitActionCapability.startRecording,
+                  CockpitActionCapability.stopRecording,
+                },
+                evidenceCapabilities: const <CockpitEvidenceCapability>{
+                  CockpitEvidenceCapability.domSnapshot,
+                  CockpitEvidenceCapability.screenRecording,
+                },
               ),
-        },
-      ),
-    );
-
-    final result = await service.read(
-      CockpitReadTargetRequest(
-        target: CockpitTargetHandle(
-          targetId: 'chrome-demo',
-          targetKind: CockpitTargetKind.browserPage,
-          platform: 'web',
-          deviceId: 'chrome',
-          projectDir: '/workspace/examples/cockpit_demo',
-          target: 'web',
-          connection: const CockpitTargetConnection(
-            baseUrl: 'http://127.0.0.1:57331',
-          ),
-          launchedAt: DateTime.utc(2026, 4, 11),
+            ),
+          },
         ),
-        resultProfile: const CockpitInteractiveResultProfile.minimal(),
-      ),
-    );
+      );
 
-    expect(result.target.targetKind, CockpitTargetKind.browserPage);
-    expect(result.foregroundSurface, CockpitSurfaceKind.browserDom);
-    expect(result.selectedPlane, CockpitPlaneKind.nativeUiPlane);
-    expect(result.recommendedNextStep, 'inspectSurface');
-    expect(result.currentRouteName, isNull);
-    expect(
-      result.capabilityProfile.actionCapabilities,
-      contains(CockpitActionCapability.startRecording),
-    );
-  });
+      final result = await service.read(
+        CockpitReadTargetRequest(
+          target: CockpitTargetHandle(
+            targetId: 'chrome-demo',
+            targetKind: CockpitTargetKind.browserPage,
+            platform: 'web',
+            deviceId: 'chrome',
+            projectDir: '/workspace/examples/cockpit_demo',
+            target: 'web',
+            connection: const CockpitTargetConnection(
+              baseUrl: 'http://127.0.0.1:57331',
+            ),
+            launchedAt: DateTime.utc(2026, 4, 11),
+          ),
+          resultProfile: const CockpitInteractiveResultProfile.minimal(),
+        ),
+      );
+
+      expect(result.target.targetKind, CockpitTargetKind.browserPage);
+      expect(result.foregroundSurface, CockpitSurfaceKind.browserDom);
+      expect(result.selectedPlane, CockpitPlaneKind.nativeUiPlane);
+      expect(result.recommendedNextStep, 'inspectSurface');
+      expect(result.currentRouteName, isNull);
+      expect(
+        result.capabilityProfile.actionCapabilities,
+        contains(CockpitActionCapability.startRecording),
+      );
+    },
+  );
 
   test(
     'read target reuses flutter app reads for launched browser targets that retain app metadata',
@@ -295,21 +305,21 @@ void main() {
         platformDriverRegistry: CockpitPlatformDriverRegistry(
           drivers: <String, CockpitPlatformDriverFactory>{
             'web': ({required String deviceId}) => _FakePlatformDriver(
-                  platform: 'web',
-                  capabilityProfile: CockpitCapabilityProfile(
-                    targetKind: CockpitTargetKind.browserPage,
-                    surfaceKinds: const <CockpitSurfaceKind>{
-                      CockpitSurfaceKind.browserDom,
-                    },
-                    actionCapabilities: const <CockpitActionCapability>{
-                      CockpitActionCapability.tap,
-                      CockpitActionCapability.captureScreenshot,
-                    },
-                    evidenceCapabilities: const <CockpitEvidenceCapability>{
-                      CockpitEvidenceCapability.domSnapshot,
-                    },
-                  ),
-                ),
+              platform: 'web',
+              capabilityProfile: CockpitCapabilityProfile(
+                targetKind: CockpitTargetKind.browserPage,
+                surfaceKinds: const <CockpitSurfaceKind>{
+                  CockpitSurfaceKind.browserDom,
+                },
+                actionCapabilities: const <CockpitActionCapability>{
+                  CockpitActionCapability.tap,
+                  CockpitActionCapability.captureScreenshot,
+                },
+                evidenceCapabilities: const <CockpitEvidenceCapability>{
+                  CockpitEvidenceCapability.domSnapshot,
+                },
+              ),
+            ),
           },
         ),
         readFlutterTarget: (_) async => CockpitReadAppResult(
@@ -362,37 +372,38 @@ void main() {
   test(
     'read target strips mobile recording capabilities when runtime health reports recording unavailable',
     () async {
-      final target = CockpitTargetHandle.fromAppHandle(
-        CockpitAppHandle(
-          appId: 'dev.cockpit.ios.device',
-          mode: CockpitAppMode.automation,
-          platform: 'ios',
-          deviceId: '00008110-0009341C2EF3801E',
-          projectDir: '/workspace/examples/cockpit_demo',
-          target: 'cockpit/main.dart',
-          baseUrl: 'http://127.0.0.1:57331',
-          launchedAt: DateTime.utc(2026, 4, 17),
-        ),
-      ).copyWith(
-        capabilityProfile: CockpitCapabilityProfile(
-          targetKind: CockpitTargetKind.flutterApp,
-          surfaceKinds: const <CockpitSurfaceKind>{
-            CockpitSurfaceKind.flutterSemantic,
-            CockpitSurfaceKind.nativeUi,
-          },
-          actionCapabilities: const <CockpitActionCapability>{
-            CockpitActionCapability.tap,
-            CockpitActionCapability.captureScreenshot,
-            CockpitActionCapability.startRecording,
-            CockpitActionCapability.stopRecording,
-          },
-          evidenceCapabilities: const <CockpitEvidenceCapability>{
-            CockpitEvidenceCapability.flutterScreenshot,
-            CockpitEvidenceCapability.nativeScreenshot,
-            CockpitEvidenceCapability.screenRecording,
-          },
-        ),
-      );
+      final target =
+          CockpitTargetHandle.fromAppHandle(
+            CockpitAppHandle(
+              appId: 'dev.cockpit.ios.device',
+              mode: CockpitAppMode.automation,
+              platform: 'ios',
+              deviceId: '00008110-0009341C2EF3801E',
+              projectDir: '/workspace/examples/cockpit_demo',
+              target: 'cockpit/main.dart',
+              baseUrl: 'http://127.0.0.1:57331',
+              launchedAt: DateTime.utc(2026, 4, 17),
+            ),
+          ).copyWith(
+            capabilityProfile: CockpitCapabilityProfile(
+              targetKind: CockpitTargetKind.flutterApp,
+              surfaceKinds: const <CockpitSurfaceKind>{
+                CockpitSurfaceKind.flutterSemantic,
+                CockpitSurfaceKind.nativeUi,
+              },
+              actionCapabilities: const <CockpitActionCapability>{
+                CockpitActionCapability.tap,
+                CockpitActionCapability.captureScreenshot,
+                CockpitActionCapability.startRecording,
+                CockpitActionCapability.stopRecording,
+              },
+              evidenceCapabilities: const <CockpitEvidenceCapability>{
+                CockpitEvidenceCapability.flutterScreenshot,
+                CockpitEvidenceCapability.nativeScreenshot,
+                CockpitEvidenceCapability.screenRecording,
+              },
+            ),
+          );
       final service = CockpitReadTargetService(
         readFlutterTarget: (_) async => CockpitReadAppResult(
           sessionId: 'ios-session',

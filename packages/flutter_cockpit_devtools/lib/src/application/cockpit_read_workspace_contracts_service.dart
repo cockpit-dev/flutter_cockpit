@@ -11,15 +11,14 @@ final class CockpitWorkspaceContracts {
   final CockpitWorkspaceDocument bundleContract;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'skillContract': skillContract.toJson(),
-        'bundleContract': bundleContract.toJson(),
-      };
+    'skillContract': skillContract.toJson(),
+    'bundleContract': bundleContract.toJson(),
+  };
 }
 
 final class CockpitReadWorkspaceContractsService {
-  CockpitReadWorkspaceContractsService({
-    CockpitFileSystem? fileSystem,
-  }) : _fileSystem = fileSystem ?? const LocalCockpitFileSystem();
+  CockpitReadWorkspaceContractsService({CockpitFileSystem? fileSystem})
+    : _fileSystem = fileSystem ?? const LocalCockpitFileSystem();
 
   final CockpitFileSystem _fileSystem;
 
@@ -29,10 +28,12 @@ final class CockpitReadWorkspaceContractsService {
     String bundleContractPath = 'docs/contracts/task-run-bundle.md',
   }) async {
     return CockpitWorkspaceContracts(
-      skillContract:
-          await readSkillContract(skillContractPath: skillContractPath),
-      bundleContract:
-          await readBundleContract(bundleContractPath: bundleContractPath),
+      skillContract: await readSkillContract(
+        skillContractPath: skillContractPath,
+      ),
+      bundleContract: await readBundleContract(
+        bundleContractPath: bundleContractPath,
+      ),
     );
   }
 

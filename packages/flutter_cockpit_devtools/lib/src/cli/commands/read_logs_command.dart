@@ -7,20 +7,20 @@ import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
-typedef CockpitReadLogsFunction = Future<CockpitReadLogsResult> Function(
-  CockpitReadLogsRequest request,
-);
+typedef CockpitReadLogsFunction =
+    Future<CockpitReadLogsResult> Function(CockpitReadLogsRequest request);
 
 final class ReadLogsCommand extends CockpitCliCommand {
   ReadLogsCommand({
     CockpitReadLogsService? service,
     CockpitReadLogsFunction? read,
     StringSink? stdoutSink,
-  })  : _read = read ??
-            (service ??
-                    CockpitReadLogsService(registry: CockpitSessionRegistry()))
-                .read,
-        _stdoutSink = stdoutSink ?? stdout {
+  }) : _read =
+           read ??
+           (service ??
+                   CockpitReadLogsService(registry: CockpitSessionRegistry()))
+               .read,
+       _stdoutSink = stdoutSink ?? stdout {
     cockpitAddAppArgs(argParser);
     argParser.addOption(
       'max-lines',
@@ -69,7 +69,7 @@ final class ReadLogsCommand extends CockpitCliCommand {
         androidDeviceId: argResults?['android-device-id'] as String?,
         maxLines:
             cockpitReadOptionalPositiveInt(argResults, 'max-lines', usage) ??
-                200,
+            200,
       ),
     );
     await cockpitWriteJsonPayload(

@@ -20,6 +20,9 @@ It provides:
 
 ## Install
 
+Requires Dart 3.8.0 or newer. Use a Flutter 3.32.0+ SDK when running it from a
+Flutter workspace.
+
 ```yaml
 dev_dependencies:
   flutter_cockpit_devtools: ^1.0.0

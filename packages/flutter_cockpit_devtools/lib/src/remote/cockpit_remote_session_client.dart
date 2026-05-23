@@ -8,9 +8,8 @@ import 'package:path/path.dart' as p;
 
 import '../application/cockpit_application_service_exception.dart';
 
-typedef CockpitRemoteArtifactTempFileFactory = Future<File> Function(
-  String basename,
-);
+typedef CockpitRemoteArtifactTempFileFactory =
+    Future<File> Function(String basename);
 
 final class CockpitRemoteSessionClient {
   CockpitRemoteSessionClient({
@@ -20,14 +19,14 @@ final class CockpitRemoteSessionClient {
     Duration? artifactDownloadTimeout,
     CockpitRemoteArtifactTempFileFactory? artifactTempFileFactory,
     bool downloadDiagnosticsArtifacts = false,
-  })  : _baseUri = _normalizedBaseUri(baseUri),
-        _httpClientFactory = httpClientFactory ?? HttpClient.new,
-        _requestTimeout = requestTimeout ?? const Duration(seconds: 30),
-        _artifactDownloadTimeout =
-            artifactDownloadTimeout ?? const Duration(seconds: 30),
-        _artifactTempFileFactory =
-            artifactTempFileFactory ?? _defaultArtifactTempFileFactory,
-        _downloadDiagnosticsArtifacts = downloadDiagnosticsArtifacts;
+  }) : _baseUri = _normalizedBaseUri(baseUri),
+       _httpClientFactory = httpClientFactory ?? HttpClient.new,
+       _requestTimeout = requestTimeout ?? const Duration(seconds: 30),
+       _artifactDownloadTimeout =
+           artifactDownloadTimeout ?? const Duration(seconds: 30),
+       _artifactTempFileFactory =
+           artifactTempFileFactory ?? _defaultArtifactTempFileFactory,
+       _downloadDiagnosticsArtifacts = downloadDiagnosticsArtifacts;
 
   final Uri _baseUri;
   final HttpClient Function() _httpClientFactory;
@@ -50,8 +49,7 @@ final class CockpitRemoteSessionClient {
     return (await readSnapshotDetailed(
       options: options,
       downloadDiagnosticsArtifacts: downloadDiagnosticsArtifacts,
-    ))
-        .snapshot;
+    )).snapshot;
   }
 
   Future<CockpitRemoteSnapshotResponse> readSnapshotDetailed({
@@ -66,12 +64,12 @@ final class CockpitRemoteSessionClient {
       'maxRebuildEntries': options.maxRebuildEntries.toString(),
       'maxAccessibilityEntries': options.maxAccessibilityEntries.toString(),
       'includeStyleDetails': options.includeStyleDetails.toString(),
-      'includeDiagnosticProperties':
-          options.includeDiagnosticProperties.toString(),
+      'includeDiagnosticProperties': options.includeDiagnosticProperties
+          .toString(),
       'emitArtifactWhenLarge': options.emitArtifactWhenLarge.toString(),
       'includeRebuildActivity': options.includeRebuildActivity.toString(),
-      'includeAccessibilitySummary':
-          options.includeAccessibilitySummary.toString(),
+      'includeAccessibilitySummary': options.includeAccessibilitySummary
+          .toString(),
       'includeNetworkActivity': options.includeNetworkActivity.toString(),
       'maxNetworkEntries': options.maxNetworkEntries.toString(),
       'includeRuntimeActivity': options.includeRuntimeActivity.toString(),
@@ -85,8 +83,8 @@ final class CockpitRemoteSessionClient {
       if (options.runtimeQuery.messageContains != null)
         'runtimeMessageContains': options.runtimeQuery.messageContains!,
       if (options.networkQuery.statusCodeAtLeast != null)
-        'networkStatusCodeAtLeast':
-            options.networkQuery.statusCodeAtLeast!.toString(),
+        'networkStatusCodeAtLeast': options.networkQuery.statusCodeAtLeast!
+            .toString(),
     };
     final payload = await _send(
       method: 'GET',
@@ -270,8 +268,7 @@ final class CockpitRemoteSessionClient {
           throw StateError('Remote session response must be a JSON object.');
         }
         return Map<String, Object?>.from(decoded);
-      })()
-          .timeout(
+      })().timeout(
         _requestTimeout,
         onTimeout: () {
           client.close(force: true);
@@ -281,23 +278,11 @@ final class CockpitRemoteSessionClient {
         },
       );
     } on SocketException catch (error) {
-      throw _remoteUnavailable(
-        method: method,
-        path: path,
-        error: error,
-      );
+      throw _remoteUnavailable(method: method, path: path, error: error);
     } on HttpException catch (error) {
-      throw _remoteUnavailable(
-        method: method,
-        path: path,
-        error: error,
-      );
+      throw _remoteUnavailable(method: method, path: path, error: error);
     } on TimeoutException catch (error) {
-      throw _remoteUnavailable(
-        method: method,
-        path: path,
-        error: error,
-      );
+      throw _remoteUnavailable(method: method, path: path, error: error);
     } finally {
       client.close(force: true);
     }
@@ -324,8 +309,7 @@ final class CockpitRemoteSessionClient {
           bytes.add(chunk);
         }
         return bytes.takeBytes();
-      })()
-          .timeout(
+      })().timeout(
         _artifactDownloadTimeout,
         onTimeout: () {
           client.close(force: true);
@@ -335,23 +319,11 @@ final class CockpitRemoteSessionClient {
         },
       );
     } on SocketException catch (error) {
-      throw _remoteUnavailable(
-        method: 'GET',
-        path: relativePath,
-        error: error,
-      );
+      throw _remoteUnavailable(method: 'GET', path: relativePath, error: error);
     } on HttpException catch (error) {
-      throw _remoteUnavailable(
-        method: 'GET',
-        path: relativePath,
-        error: error,
-      );
+      throw _remoteUnavailable(method: 'GET', path: relativePath, error: error);
     } on TimeoutException catch (error) {
-      throw _remoteUnavailable(
-        method: 'GET',
-        path: relativePath,
-        error: error,
-      );
+      throw _remoteUnavailable(method: 'GET', path: relativePath, error: error);
     } finally {
       client.close(force: true);
     }
@@ -393,8 +365,7 @@ final class CockpitRemoteSessionClient {
           rethrow;
         }
         return outputFile!;
-      })()
-          .timeout(
+      })().timeout(
         _artifactDownloadTimeout,
         onTimeout: () {
           client.close(force: true);
@@ -405,25 +376,13 @@ final class CockpitRemoteSessionClient {
       );
     } on SocketException catch (error) {
       await _deletePartialDownload(outputFile);
-      throw _remoteUnavailable(
-        method: 'GET',
-        path: relativePath,
-        error: error,
-      );
+      throw _remoteUnavailable(method: 'GET', path: relativePath, error: error);
     } on HttpException catch (error) {
       await _deletePartialDownload(outputFile);
-      throw _remoteUnavailable(
-        method: 'GET',
-        path: relativePath,
-        error: error,
-      );
+      throw _remoteUnavailable(method: 'GET', path: relativePath, error: error);
     } on TimeoutException catch (error) {
       await _deletePartialDownload(outputFile);
-      throw _remoteUnavailable(
-        method: 'GET',
-        path: relativePath,
-        error: error,
-      );
+      throw _remoteUnavailable(method: 'GET', path: relativePath, error: error);
     } catch (_) {
       await _deletePartialDownload(outputFile);
       rethrow;
@@ -520,8 +479,8 @@ final class CockpitRemoteSessionClient {
     return uri.path.isEmpty
         ? uri.replace(path: '/')
         : uri.path.endsWith('/')
-            ? uri
-            : uri.replace(path: '${uri.path}/');
+        ? uri
+        : uri.replace(path: '${uri.path}/');
   }
 
   Uri _resolveRemotePath(String path) {
@@ -537,7 +496,8 @@ final class CockpitRemoteSessionClient {
     final basePath = _baseUri.path.endsWith('/') && _baseUri.path.length > 1
         ? _baseUri.path.substring(0, _baseUri.path.length - 1)
         : _baseUri.path;
-    final alreadyScoped = basePath.isNotEmpty &&
+    final alreadyScoped =
+        basePath.isNotEmpty &&
         basePath != '/' &&
         (uri.path == basePath || uri.path.startsWith('$basePath/'));
     if (alreadyScoped || basePath.isEmpty || basePath == '/') {

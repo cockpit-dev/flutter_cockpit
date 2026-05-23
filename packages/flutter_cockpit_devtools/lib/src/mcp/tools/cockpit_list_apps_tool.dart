@@ -20,9 +20,9 @@ final class CockpitListAppsTool extends CockpitMcpTool {
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
-        'type': 'object',
-        'properties': <String, Object?>{},
-      };
+    'type': 'object',
+    'properties': <String, Object?>{},
+  };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {

@@ -396,8 +396,10 @@ void main() {
 
       final status = await supervisor.currentStatus();
       expect(status.state, CockpitDevelopmentSessionState.failed);
-      expect(status.lastError,
-          'Remote session did not recover to an idle ready state.');
+      expect(
+        status.lastError,
+        'Remote session did not recover to an idle ready state.',
+      );
     },
   );
 
@@ -416,10 +418,7 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       final supervisor = CockpitDevelopmentSessionSupervisor(
-        initialHandle: harness.handle.copyWith(
-          appId: '',
-          vmServiceUri: null,
-        ),
+        initialHandle: harness.handle.copyWith(appId: '', vmServiceUri: null),
         machineClient: harness.client,
         remoteReachabilityProbe: (_) async => true,
         uiIdleWaiter: (_) async => true,
@@ -614,35 +613,36 @@ void main() {
 
 final class _MachineHarness {
   _MachineHarness({CockpitRemoteSessionHandle? remoteSessionHandle})
-      : stdoutController = StreamController<String>(),
-        stderrController = StreamController<String>(),
-        exitCode = Completer<int>(),
-        writes = <String>[],
-        handle = CockpitDevelopmentSessionHandle(
-          developmentSessionId: 'dev-session-1',
-          platform: 'android',
-          deviceId: 'emulator-5554',
-          projectDir: '/workspace/examples/cockpit_demo',
-          target: 'lib/main.dart',
-          appId: 'dev.cockpit.cockpit_demo',
-          appBaseUrl: 'http://127.0.0.1:57331',
-          supervisorBaseUrl: 'http://127.0.0.1:0',
-          launchedAt: DateTime.utc(2026, 3, 23, 0, 0),
-          reloadGeneration: 1,
-          remoteSessionHandle: remoteSessionHandle ??
-              CockpitRemoteSessionHandle(
-                platform: 'android',
-                deviceId: 'emulator-5554',
-                projectDir: '/workspace/examples/cockpit_demo',
-                target: 'lib/main.dart',
-                appId: 'dev.cockpit.cockpit_demo',
-                host: '127.0.0.1',
-                hostPort: 57331,
-                devicePort: 47331,
-                baseUrl: 'http://127.0.0.1:57331',
-                launchedAt: DateTime.utc(2026, 3, 23, 0, 0),
-              ),
-        ) {
+    : stdoutController = StreamController<String>(),
+      stderrController = StreamController<String>(),
+      exitCode = Completer<int>(),
+      writes = <String>[],
+      handle = CockpitDevelopmentSessionHandle(
+        developmentSessionId: 'dev-session-1',
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        projectDir: '/workspace/examples/cockpit_demo',
+        target: 'lib/main.dart',
+        appId: 'dev.cockpit.cockpit_demo',
+        appBaseUrl: 'http://127.0.0.1:57331',
+        supervisorBaseUrl: 'http://127.0.0.1:0',
+        launchedAt: DateTime.utc(2026, 3, 23, 0, 0),
+        reloadGeneration: 1,
+        remoteSessionHandle:
+            remoteSessionHandle ??
+            CockpitRemoteSessionHandle(
+              platform: 'android',
+              deviceId: 'emulator-5554',
+              projectDir: '/workspace/examples/cockpit_demo',
+              target: 'lib/main.dart',
+              appId: 'dev.cockpit.cockpit_demo',
+              host: '127.0.0.1',
+              hostPort: 57331,
+              devicePort: 47331,
+              baseUrl: 'http://127.0.0.1:57331',
+              launchedAt: DateTime.utc(2026, 3, 23, 0, 0),
+            ),
+      ) {
     client = CockpitFlutterRunMachineClient(
       stdoutLines: stdoutController.stream,
       stderrLines: stderrController.stream,

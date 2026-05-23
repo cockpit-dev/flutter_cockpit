@@ -19,8 +19,8 @@ final class CockpitGestureEngine {
   CockpitGestureEngine({
     CockpitGestureDelay? delay,
     CockpitViewportGeometryProvider? viewportGeometryProvider,
-  })  : _delay = delay ?? _defaultDelay,
-        _viewportGeometryProvider = viewportGeometryProvider;
+  }) : _delay = delay ?? _defaultDelay,
+       _viewportGeometryProvider = viewportGeometryProvider;
 
   final CockpitGestureDelay _delay;
   final CockpitViewportGeometryProvider? _viewportGeometryProvider;
@@ -87,7 +87,8 @@ final class CockpitGestureEngine {
         await _performSwipe(
           geometry: geometry,
           origin: origin,
-          useExplicitOrigin: action.origin != null ||
+          useExplicitOrigin:
+              action.origin != null ||
               action.anchor != CockpitGestureAnchor.center,
           direction: action.direction,
           distanceFactor: action.distanceFactor,
@@ -307,32 +308,29 @@ final class CockpitGestureEngine {
     final clampedFactor = distanceFactor.clamp(0.15, 0.95);
     final distance = switch (direction) {
       AxisDirection.left ||
-      AxisDirection.right =>
-        math.max(geometry.width * clampedFactor, 96),
+      AxisDirection.right => math.max(geometry.width * clampedFactor, 96),
       AxisDirection.up ||
-      AxisDirection.down =>
-        math.max(geometry.height * clampedFactor, 96),
-    }
-        .toDouble();
+      AxisDirection.down => math.max(geometry.height * clampedFactor, 96),
+    }.toDouble();
     final start = useExplicitOrigin
         ? origin
         : switch (direction) {
             AxisDirection.left => Offset(
-                geometry.right - (geometry.width * 0.18),
-                geometry.centerY,
-              ),
+              geometry.right - (geometry.width * 0.18),
+              geometry.centerY,
+            ),
             AxisDirection.right => Offset(
-                geometry.left + (geometry.width * 0.18),
-                geometry.centerY,
-              ),
+              geometry.left + (geometry.width * 0.18),
+              geometry.centerY,
+            ),
             AxisDirection.up => Offset(
-                geometry.centerX,
-                geometry.bottom - (geometry.height * 0.18),
-              ),
+              geometry.centerX,
+              geometry.bottom - (geometry.height * 0.18),
+            ),
             AxisDirection.down => Offset(
-                geometry.centerX,
-                geometry.top + (geometry.height * 0.18),
-              ),
+              geometry.centerX,
+              geometry.top + (geometry.height * 0.18),
+            ),
           };
     final end = switch (direction) {
       AxisDirection.left => Offset(start.dx - distance, start.dy),
@@ -394,8 +392,9 @@ final class CockpitGestureEngine {
     required Duration initialHoldDuration,
   }) async {
     final clampedScale = scale.clamp(0.25, 4.0);
-    final baseSpan =
-        startSpan.clamp(12.0, geometry.shortestSide * 0.85).toDouble();
+    final baseSpan = startSpan
+        .clamp(12.0, geometry.shortestSide * 0.85)
+        .toDouble();
     final endSpan = baseSpan * clampedScale;
     await _performInterpolatedMultiPointerGesture(
       geometry: geometry,
@@ -873,9 +872,11 @@ final class CockpitGestureEngine {
     for (var step = 1; step <= moveEventCount; step += 1) {
       final targetDistance = totalLength * (step / moveEventCount);
       var traversed = 0.0;
-      for (var segmentIndex = 0;
-          segmentIndex < segmentLengths.length;
-          segmentIndex += 1) {
+      for (
+        var segmentIndex = 0;
+        segmentIndex < segmentLengths.length;
+        segmentIndex += 1
+      ) {
         final segmentLength = segmentLengths[segmentIndex];
         final nextTraversed = traversed + segmentLength;
         if (segmentIndex == segmentLengths.length - 1 ||
@@ -908,14 +909,16 @@ final class CockpitGestureEngine {
     if (requestedCount > 0) {
       return requestedCount;
     }
-    final hasExplicitSampling = (sampleHz != null && sampleHz > 0) ||
+    final hasExplicitSampling =
+        (sampleHz != null && sampleHz > 0) ||
         (frameInterval != null && frameInterval > Duration.zero);
     final rawEstimate = switch ((sampleHz, frameInterval)) {
       (final hz?, _) when hz > 0 => duration.inMicroseconds / (1000000 / hz),
       (_, final interval?) when interval > Duration.zero =>
         duration.inMicroseconds / interval.inMicroseconds,
-      _ => duration.inMicroseconds /
-          _defaultFrameIntervalFor(profile).inMicroseconds,
+      _ =>
+        duration.inMicroseconds /
+            _defaultFrameIntervalFor(profile).inMicroseconds,
     };
     final estimated = rawEstimate.ceil();
     final minimum = hasExplicitSampling
@@ -1207,7 +1210,7 @@ final class CockpitGestureEngine {
 
   static bool _isTestBinding(WidgetsBinding widgetsBinding) {
     return widgetsBinding.runtimeType.toString().contains(
-          'TestWidgetsFlutterBinding',
-        );
+      'TestWidgetsFlutterBinding',
+    );
   }
 }

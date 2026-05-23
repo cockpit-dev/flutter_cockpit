@@ -18,7 +18,8 @@ void main() {
     fileSystem.file('/workspace/app/pubspec.yaml')
       ..createSync(recursive: true)
       ..writeAsStringSync(
-          'name: app\n\ndependencies:\n  flutter:\n    sdk: flutter\n');
+        'name: app\n\ndependencies:\n  flutter:\n    sdk: flutter\n',
+      );
     final processManager = _RecordingProcessManager();
 
     final service = CockpitAnalyzeWorkspaceService(
@@ -38,51 +39,62 @@ void main() {
     expect(result.command.arguments, <String>['analyze']);
   });
 
-  test('runs format, tests, and fixes through bounded workspace commands',
-      () async {
-    final fileSystem = MemoryFileSystem();
-    fileSystem.file('/workspace/pkg/pubspec.yaml')
-      ..createSync(recursive: true)
-      ..writeAsStringSync('name: pkg\n');
-    final processManager = _RecordingProcessManager();
-    final wrappedFileSystem = LocalCockpitFileSystem(fileSystem: fileSystem);
+  test(
+    'runs format, tests, and fixes through bounded workspace commands',
+    () async {
+      final fileSystem = MemoryFileSystem();
+      fileSystem.file('/workspace/pkg/pubspec.yaml')
+        ..createSync(recursive: true)
+        ..writeAsStringSync('name: pkg\n');
+      final processManager = _RecordingProcessManager();
+      final wrappedFileSystem = LocalCockpitFileSystem(fileSystem: fileSystem);
 
-    final formatResult = await CockpitFormatWorkspaceService(
-      fileSystem: wrappedFileSystem,
-      processManager: processManager,
-      sdkEnvironment: const CockpitSdkEnvironment(
-        dartExecutable: 'dart-sdk',
-        flutterExecutable: 'flutter-sdk',
-      ),
-    ).format(
-      const CockpitFormatWorkspaceRequest(workspaceRoot: '/workspace/pkg'),
-    );
-    expect(formatResult.command.arguments, <String>['format', '.']);
+      final formatResult =
+          await CockpitFormatWorkspaceService(
+            fileSystem: wrappedFileSystem,
+            processManager: processManager,
+            sdkEnvironment: const CockpitSdkEnvironment(
+              dartExecutable: 'dart-sdk',
+              flutterExecutable: 'flutter-sdk',
+            ),
+          ).format(
+            const CockpitFormatWorkspaceRequest(
+              workspaceRoot: '/workspace/pkg',
+            ),
+          );
+      expect(formatResult.command.arguments, <String>['format', '.']);
 
-    final testResult = await CockpitRunWorkspaceTestsService(
-      fileSystem: wrappedFileSystem,
-      processManager: processManager,
-      sdkEnvironment: const CockpitSdkEnvironment(
-        dartExecutable: 'dart-sdk',
-        flutterExecutable: 'flutter-sdk',
-      ),
-    ).run(
-      const CockpitRunWorkspaceTestsRequest(workspaceRoot: '/workspace/pkg'),
-    );
-    expect(testResult.command.arguments, <String>['test']);
+      final testResult =
+          await CockpitRunWorkspaceTestsService(
+            fileSystem: wrappedFileSystem,
+            processManager: processManager,
+            sdkEnvironment: const CockpitSdkEnvironment(
+              dartExecutable: 'dart-sdk',
+              flutterExecutable: 'flutter-sdk',
+            ),
+          ).run(
+            const CockpitRunWorkspaceTestsRequest(
+              workspaceRoot: '/workspace/pkg',
+            ),
+          );
+      expect(testResult.command.arguments, <String>['test']);
 
-    final fixResult = await CockpitApplyWorkspaceFixesService(
-      fileSystem: wrappedFileSystem,
-      processManager: processManager,
-      sdkEnvironment: const CockpitSdkEnvironment(
-        dartExecutable: 'dart-sdk',
-        flutterExecutable: 'flutter-sdk',
-      ),
-    ).apply(
-      const CockpitApplyWorkspaceFixesRequest(workspaceRoot: '/workspace/pkg'),
-    );
-    expect(fixResult.command.arguments, <String>['fix', '--apply']);
-  });
+      final fixResult =
+          await CockpitApplyWorkspaceFixesService(
+            fileSystem: wrappedFileSystem,
+            processManager: processManager,
+            sdkEnvironment: const CockpitSdkEnvironment(
+              dartExecutable: 'dart-sdk',
+              flutterExecutable: 'flutter-sdk',
+            ),
+          ).apply(
+            const CockpitApplyWorkspaceFixesRequest(
+              workspaceRoot: '/workspace/pkg',
+            ),
+          );
+      expect(fixResult.command.arguments, <String>['fix', '--apply']);
+    },
+  );
 
   test('workspace commands time out instead of hanging forever', () async {
     final fileSystem = MemoryFileSystem();
@@ -217,11 +229,9 @@ final class _FakeProcess implements Process {
 }
 
 final class _CompletedFakeProcess implements Process {
-  _CompletedFakeProcess({
-    required String stdout,
-    String stderr = '',
-  })  : _stdout = Stream<List<int>>.value(utf8.encode(stdout)),
-        _stderr = Stream<List<int>>.value(utf8.encode(stderr));
+  _CompletedFakeProcess({required String stdout, String stderr = ''})
+    : _stdout = Stream<List<int>>.value(utf8.encode(stdout)),
+      _stderr = Stream<List<int>>.value(utf8.encode(stderr));
 
   final Stream<List<int>> _stdout;
   final Stream<List<int>> _stderr;

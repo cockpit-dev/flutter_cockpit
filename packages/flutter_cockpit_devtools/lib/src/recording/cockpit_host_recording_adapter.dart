@@ -8,12 +8,12 @@ import 'package:path/path.dart' as p;
 
 import '../adapters/cockpit_recording_adapter.dart';
 
-typedef CockpitRecordingProcessStarter = Future<Process> Function(
-    String executable, List<String> arguments);
-typedef CockpitRecordingProcessRunner = Future<ProcessResult> Function(
-    String executable, List<String> arguments);
-typedef CockpitRecordingTempFileFactory = Future<File> Function(
-    String basename);
+typedef CockpitRecordingProcessStarter =
+    Future<Process> Function(String executable, List<String> arguments);
+typedef CockpitRecordingProcessRunner =
+    Future<ProcessResult> Function(String executable, List<String> arguments);
+typedef CockpitRecordingTempFileFactory =
+    Future<File> Function(String basename);
 
 abstract interface class CockpitHostRecordingAdapter
     implements CockpitRecordingAdapter {}
@@ -37,8 +37,7 @@ final class CockpitHostRecordingRuntimeSession {
 }
 
 final Map<String, CockpitHostRecordingRuntimeSession>
-    _activeHostRecordingSessions =
-    <String, CockpitHostRecordingRuntimeSession>{};
+_activeHostRecordingSessions = <String, CockpitHostRecordingRuntimeSession>{};
 
 CockpitHostRecordingRuntimeSession? cockpitReadActiveHostRecordingSession(
   String key,

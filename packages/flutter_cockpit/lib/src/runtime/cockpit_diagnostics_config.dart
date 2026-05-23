@@ -20,8 +20,8 @@ final class CockpitDiagnosticsConfig {
 
   @override
   int get hashCode => Object.hash(
-        enableRebuildTracking,
-        maxTrackedRebuildEntries,
-        enableTapFeedback,
-      );
+    enableRebuildTracking,
+    maxTrackedRebuildEntries,
+    enableTapFeedback,
+  );
 }

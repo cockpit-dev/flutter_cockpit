@@ -124,10 +124,10 @@ final class CockpitCommandError {
   }
 
   Map<String, Object?> toJson() => {
-        'code': code,
-        'message': message,
-        'details': details,
-      };
+    'code': code,
+    'message': message,
+    'details': details,
+  };
 
   factory CockpitCommandError.fromJson(Map<String, Object?> json) {
     return CockpitCommandError(

@@ -23,10 +23,7 @@ void main() {
 
     final stopwatch = Stopwatch()..start();
     final execution = await router.execute(
-      CockpitCommand(
-        commandId: 'cmd-tap',
-        commandType: CockpitCommandType.tap,
-      ),
+      CockpitCommand(commandId: 'cmd-tap', commandType: CockpitCommandType.tap),
       stopwatch,
     );
 

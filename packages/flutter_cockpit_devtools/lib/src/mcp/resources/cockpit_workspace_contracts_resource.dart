@@ -27,7 +27,8 @@ final class CockpitWorkspaceSkillContractResource extends CockpitMcpResource {
 
   @override
   Future<CockpitMcpResourceResult?> read(
-      CockpitMcpResourceRequest request) async {
+    CockpitMcpResourceRequest request,
+  ) async {
     if (request.uri != definition.uri) {
       return null;
     }
@@ -71,7 +72,8 @@ final class CockpitWorkspaceTaskBundleContractResource
 
   @override
   Future<CockpitMcpResourceResult?> read(
-      CockpitMcpResourceRequest request) async {
+    CockpitMcpResourceRequest request,
+  ) async {
     if (request.uri != definition.uri) {
       return null;
     }

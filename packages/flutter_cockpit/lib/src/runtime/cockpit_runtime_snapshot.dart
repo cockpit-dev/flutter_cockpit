@@ -26,15 +26,14 @@ final class CockpitRuntimeSnapshot {
       ListEquality<CockpitRuntimeEvent>();
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'totalEntryCount': totalEntryCount,
-        'errorCount': errorCount,
-        'warningCount': warningCount,
-        'entries':
-            entries.map((entry) => entry.toJson()).toList(growable: false),
-        'capturedEntryCount': capturedEntryCount,
-        'query': query.toJson(),
-        'truncated': truncated,
-      };
+    'totalEntryCount': totalEntryCount,
+    'errorCount': errorCount,
+    'warningCount': warningCount,
+    'entries': entries.map((entry) => entry.toJson()).toList(growable: false),
+    'capturedEntryCount': capturedEntryCount,
+    'query': query.toJson(),
+    'truncated': truncated,
+  };
 
   factory CockpitRuntimeSnapshot.fromJson(Map<String, Object?> json) {
     final queryJson = json['query'] as Map<Object?, Object?>?;
@@ -72,12 +71,12 @@ final class CockpitRuntimeSnapshot {
 
   @override
   int get hashCode => Object.hash(
-        totalEntryCount,
-        errorCount,
-        warningCount,
-        _entryEquality.hash(entries),
-        capturedEntryCount,
-        query,
-        truncated,
-      );
+    totalEntryCount,
+    errorCount,
+    warningCount,
+    _entryEquality.hash(entries),
+    capturedEntryCount,
+    query,
+    truncated,
+  );
 }

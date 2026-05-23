@@ -5,7 +5,7 @@ import '../core/cockpit_mcp_workspace_tooling_support.dart';
 
 final class CockpitAddRootsTool extends CockpitMcpTool {
   CockpitAddRootsTool({required CockpitMcpRootsTracker rootsTracker})
-      : _rootsTracker = rootsTracker;
+    : _rootsTracker = rootsTracker;
 
   final CockpitMcpRootsTracker _rootsTracker;
 
@@ -18,13 +18,13 @@ final class CockpitAddRootsTool extends CockpitMcpTool {
 
   @override
   CockpitMcpToolAnnotations get annotations => const CockpitMcpToolAnnotations(
-        readOnly: false,
-        destructive: false,
-        idempotent: true,
-        longRunning: false,
-        requiresSession: false,
-        producesBundleEvidence: false,
-      );
+    readOnly: false,
+    destructive: false,
+    idempotent: true,
+    longRunning: false,
+    requiresSession: false,
+    producesBundleEvidence: false,
+  );
 
   @override
   List<CockpitMcpFeatureCategory> get categories =>
@@ -32,22 +32,22 @@ final class CockpitAddRootsTool extends CockpitMcpTool {
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
-        'type': 'object',
-        'required': <String>['roots'],
-        'properties': <String, Object?>{
-          'roots': <String, Object?>{
-            'type': 'array',
-            'items': <String, Object?>{
-              'type': 'object',
-              'required': <String>['uri'],
-              'properties': <String, Object?>{
-                'uri': <String, Object?>{'type': 'string'},
-                'name': <String, Object?>{'type': 'string'},
-              },
-            },
+    'type': 'object',
+    'required': <String>['roots'],
+    'properties': <String, Object?>{
+      'roots': <String, Object?>{
+        'type': 'array',
+        'items': <String, Object?>{
+          'type': 'object',
+          'required': <String>['uri'],
+          'properties': <String, Object?>{
+            'uri': <String, Object?>{'type': 'string'},
+            'name': <String, Object?>{'type': 'string'},
           },
         },
-      };
+      },
+    },
+  };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {

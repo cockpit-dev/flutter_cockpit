@@ -4,18 +4,18 @@ import '../cockpit_mcp_tool.dart';
 import '../core/cockpit_mcp_roots_tracker.dart';
 import '../core/cockpit_mcp_workspace_tooling_support.dart';
 
-typedef CockpitReadPackageUrisToolFunction
-    = Future<CockpitReadPackageUrisResult> Function(
-  CockpitReadPackageUrisRequest request,
-);
+typedef CockpitReadPackageUrisToolFunction =
+    Future<CockpitReadPackageUrisResult> Function(
+      CockpitReadPackageUrisRequest request,
+    );
 
 final class CockpitReadPackageUrisTool extends CockpitMcpTool {
   CockpitReadPackageUrisTool({
     required CockpitMcpRootsTracker rootsTracker,
     CockpitReadPackageUrisService? service,
     CockpitReadPackageUrisToolFunction? read,
-  })  : _rootsTracker = rootsTracker,
-        _read = read ?? (service ?? CockpitReadPackageUrisService()).read;
+  }) : _rootsTracker = rootsTracker,
+       _read = read ?? (service ?? CockpitReadPackageUrisService()).read;
 
   final CockpitMcpRootsTracker _rootsTracker;
   final CockpitReadPackageUrisToolFunction _read;
@@ -29,13 +29,13 @@ final class CockpitReadPackageUrisTool extends CockpitMcpTool {
 
   @override
   CockpitMcpToolAnnotations get annotations => const CockpitMcpToolAnnotations(
-        readOnly: true,
-        destructive: false,
-        idempotent: true,
-        longRunning: false,
-        requiresSession: false,
-        producesBundleEvidence: false,
-      );
+    readOnly: true,
+    destructive: false,
+    idempotent: true,
+    longRunning: false,
+    requiresSession: false,
+    producesBundleEvidence: false,
+  );
 
   @override
   List<CockpitMcpFeatureCategory> get categories =>
@@ -46,19 +46,19 @@ final class CockpitReadPackageUrisTool extends CockpitMcpTool {
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
-        'type': 'object',
-        'required': <String>['uris'],
-        'properties': <String, Object?>{
-          'workspaceRoot': <String, Object?>{'type': 'string'},
-          'uris': <String, Object?>{
-            'type': 'array',
-            'items': <String, Object?>{'type': 'string'},
-          },
-          'maxPreviewChars': <String, Object?>{'type': 'integer'},
-          'maxEntries': <String, Object?>{'type': 'integer'},
-          'includeFullText': <String, Object?>{'type': 'boolean'},
-        },
-      };
+    'type': 'object',
+    'required': <String>['uris'],
+    'properties': <String, Object?>{
+      'workspaceRoot': <String, Object?>{'type': 'string'},
+      'uris': <String, Object?>{
+        'type': 'array',
+        'items': <String, Object?>{'type': 'string'},
+      },
+      'maxPreviewChars': <String, Object?>{'type': 'integer'},
+      'maxEntries': <String, Object?>{'type': 'integer'},
+      'includeFullText': <String, Object?>{'type': 'boolean'},
+    },
+  };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {

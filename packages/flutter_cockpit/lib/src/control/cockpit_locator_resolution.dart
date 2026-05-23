@@ -14,10 +14,10 @@ final class CockpitLocatorResolution {
   final Map<String, String> matchedSignals;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'matchedKind': matchedKind.name,
-        'matchedValue': matchedValue,
-        if (matchedSignals.isNotEmpty) 'matchedSignals': matchedSignals,
-      };
+    'matchedKind': matchedKind.name,
+    'matchedValue': matchedValue,
+    if (matchedSignals.isNotEmpty) 'matchedSignals': matchedSignals,
+  };
 
   factory CockpitLocatorResolution.fromJson(Map<String, Object?> json) {
     final matchedSignalsJson = json['matchedSignals'] as Map<Object?, Object?>?;
@@ -48,8 +48,8 @@ final class CockpitLocatorResolution {
 
   @override
   int get hashCode => Object.hash(
-        matchedKind,
-        matchedValue,
-        const MapEquality<String, String>().hash(matchedSignals),
-      );
+    matchedKind,
+    matchedValue,
+    const MapEquality<String, String>().hash(matchedSignals),
+  );
 }

@@ -110,23 +110,15 @@ final class CockpitLocator {
   Map<String, Object?> toJson() {
     final signals = signalMap;
     return <String, Object?>{
-      if (signals[CockpitLocatorKind.cockpitId.name] case final value?)
-        'cockpitId': value,
-      if (signals[CockpitLocatorKind.semanticId.name] case final value?)
-        'semanticId': value,
-      if (signals[CockpitLocatorKind.key.name] case final value?) 'key': value,
-      if (signals[CockpitLocatorKind.text.name] case final value?)
-        'text': value,
-      if (signals[CockpitLocatorKind.tooltip.name] case final value?)
-        'tooltip': value,
-      if (signals[CockpitLocatorKind.type.name] case final value?)
-        'type': value,
-      if (signals[CockpitLocatorKind.route.name] case final value?)
-        'route': value,
-      if (signals[CockpitLocatorKind.registrationId.name] case final value?)
-        'registrationId': value,
-      if (signals[CockpitLocatorKind.path.name] case final value?)
-        'path': value,
+      'cockpitId': ?signals[CockpitLocatorKind.cockpitId.name],
+      'semanticId': ?signals[CockpitLocatorKind.semanticId.name],
+      'key': ?signals[CockpitLocatorKind.key.name],
+      'text': ?signals[CockpitLocatorKind.text.name],
+      'tooltip': ?signals[CockpitLocatorKind.tooltip.name],
+      'type': ?signals[CockpitLocatorKind.type.name],
+      'route': ?signals[CockpitLocatorKind.route.name],
+      'registrationId': ?signals[CockpitLocatorKind.registrationId.name],
+      'path': ?signals[CockpitLocatorKind.path.name],
       if (index != null) 'index': index,
       if (ancestor != null) 'ancestor': ancestor!.toJson(),
       'fallbacks': fallbacks.map((fallback) => fallback.toJson()).toList(),
@@ -178,11 +170,11 @@ final class CockpitLocator {
 
   @override
   int get hashCode => Object.hash(
-        const MapEquality<String, String>().hash(signalMap),
-        index,
-        ancestor,
-        _fallbackListEquality.hash(fallbacks),
-      );
+    const MapEquality<String, String>().hash(signalMap),
+    index,
+    ancestor,
+    _fallbackListEquality.hash(fallbacks),
+  );
 
   static String? _normalizeSignal(String? value) {
     if (value == null) {

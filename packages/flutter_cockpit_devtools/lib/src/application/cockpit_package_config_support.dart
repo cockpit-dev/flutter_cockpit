@@ -17,8 +17,9 @@ final class CockpitResolvedPackageConfigEntry {
   final String packagePath;
 
   String packageRootUriForRelativePath(String relativePath) {
-    final normalizedRelative =
-        cockpitNormalizePackageRelativePath(relativePath);
+    final normalizedRelative = cockpitNormalizePackageRelativePath(
+      relativePath,
+    );
     if (normalizedRelative.isEmpty) {
       return 'package-root:$packageName';
     }
@@ -26,8 +27,9 @@ final class CockpitResolvedPackageConfigEntry {
   }
 
   String? packageUriForRelativePath(String relativePath) {
-    final normalizedRelative =
-        cockpitNormalizePackageRelativePath(relativePath);
+    final normalizedRelative = cockpitNormalizePackageRelativePath(
+      relativePath,
+    );
     if (normalizedRelative == 'lib') {
       return 'package:$packageName';
     }

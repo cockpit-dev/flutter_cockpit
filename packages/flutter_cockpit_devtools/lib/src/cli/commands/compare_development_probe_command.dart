@@ -7,19 +7,20 @@ import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
-typedef CockpitCompareDevelopmentProbeFunction
-    = Future<CockpitCompareDevelopmentProbeResult> Function(
-  CockpitCompareDevelopmentProbeRequest request,
-);
+typedef CockpitCompareDevelopmentProbeFunction =
+    Future<CockpitCompareDevelopmentProbeResult> Function(
+      CockpitCompareDevelopmentProbeRequest request,
+    );
 
 final class CompareDevelopmentProbeCommand extends CockpitCliCommand {
   CompareDevelopmentProbeCommand({
     CockpitCompareDevelopmentProbeService? service,
     CockpitCompareDevelopmentProbeFunction? compare,
     StringSink? stdoutSink,
-  })  : _compare = compare ??
-            (service ?? const CockpitCompareDevelopmentProbeService()).compare,
-        _stdoutSink = stdoutSink ?? stdout {
+  }) : _compare =
+           compare ??
+           (service ?? const CockpitCompareDevelopmentProbeService()).compare,
+       _stdoutSink = stdoutSink ?? stdout {
     argParser
       ..addOption('from-probe-json', help: 'Baseline development probe JSON.')
       ..addOption('to-probe-json', help: 'Updated development probe JSON.');
