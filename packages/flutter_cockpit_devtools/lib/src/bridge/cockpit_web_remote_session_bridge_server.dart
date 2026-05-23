@@ -9,6 +9,10 @@ import 'cockpit_browser_recording_adapter_resolver.dart';
 import '../recording/cockpit_host_recording_adapter.dart';
 import '../development/cockpit_development_session_handle.dart';
 
+typedef CockpitBridgeArtifactTempFileFactory = Future<File> Function(
+  String basename,
+);
+
 CockpitWebRemoteSessionBridgeServer? cockpitCreateWebRemoteSessionBridgeServer({
   required CockpitDevelopmentSessionHandle handle,
 }) {
@@ -31,14 +35,17 @@ final class CockpitWebRemoteSessionBridgeServer {
     required this.bindPort,
     this.routePrefix = '',
     this.recordingAdapter,
+    CockpitBridgeArtifactTempFileFactory? artifactTempFileFactory,
     this.requestTimeout = const Duration(seconds: 30),
-  });
+  }) : _artifactTempFileFactory =
+            artifactTempFileFactory ?? _defaultBridgeArtifactTempFileFactory;
 
   final String bindHost;
   final int bindPort;
   final String routePrefix;
   final CockpitHostRecordingAdapter? recordingAdapter;
   final Duration requestTimeout;
+  final CockpitBridgeArtifactTempFileFactory _artifactTempFileFactory;
 
   HttpServer? _server;
   StreamSubscription<HttpRequest>? _requestSubscription;
@@ -67,6 +74,7 @@ final class CockpitWebRemoteSessionBridgeServer {
       scheme: 'http',
       host: bindHost,
       port: server.port,
+      path: _normalizedRoutePrefix,
     );
     _requestSubscription = server.listen(_handleRequest);
   }
@@ -78,7 +86,7 @@ final class CockpitWebRemoteSessionBridgeServer {
     await _socket?.close();
     await _requestSubscription?.cancel();
     await _server?.close(force: true);
-    _localArtifacts.clear();
+    await _deleteGeneratedArtifacts();
     _socketSubscription = null;
     _socket = null;
     _requestSubscription = null;
@@ -148,21 +156,68 @@ final class CockpitWebRemoteSessionBridgeServer {
     if (payload == null) {
       return;
     }
-    final decoded = jsonDecode('$payload');
-    if (decoded is! Map<Object?, Object?>) {
-      return;
+    try {
+      final decoded = jsonDecode('$payload');
+      if (decoded is! Map<Object?, Object?>) {
+        _completePendingWithBridgeError(
+          statusCode: HttpStatus.badGateway,
+          error: 'bridgeInvalidResponse',
+          message: 'Bridge response payload must be a JSON object.',
+        );
+        return;
+      }
+      final responseJson = Map<String, Object?>.from(decoded);
+      final rawRequestId = responseJson['requestId'];
+      if (rawRequestId is! String || rawRequestId.isEmpty) {
+        _completePendingWithBridgeError(
+          statusCode: HttpStatus.badGateway,
+          error: 'bridgeInvalidResponse',
+          message:
+              'Bridge response field "requestId" must be a non-empty string.',
+        );
+        return;
+      }
+      final response = CockpitRemoteBridgeResponse.fromJson(responseJson);
+      final completer = _pending.remove(response.requestId);
+      if (completer == null) {
+        _completePendingWithBridgeError(
+          statusCode: HttpStatus.badGateway,
+          error: 'bridgeUnknownResponse',
+          message: 'The browser bridge returned an unknown requestId: '
+              '${response.requestId}. Pending requests were failed to avoid '
+              'response misattribution.',
+        );
+        return;
+      }
+      completer.complete(response);
+    } on FormatException catch (error) {
+      _completePendingWithBridgeError(
+        statusCode: HttpStatus.badGateway,
+        error: 'bridgeInvalidResponse',
+        message: error.message,
+      );
+    } on Object catch (error) {
+      _completePendingWithBridgeError(
+        statusCode: HttpStatus.badGateway,
+        error: 'bridgeInvalidResponse',
+        message: '$error',
+      );
     }
-    final response = CockpitRemoteBridgeResponse.fromJson(
-      Map<String, Object?>.from(decoded),
-    );
-    final completer = _pending.remove(response.requestId);
-    completer?.complete(response);
   }
 
   Future<CockpitRemoteSessionEndpointResponse> _resolveResponse(
     HttpRequest request,
   ) async {
     final routePath = _routePathFor(request.uri.path);
+    if (routePath == null) {
+      return const CockpitRemoteSessionEndpointResponse.json(
+        <String, Object?>{
+          'error': 'notFound',
+          'message': 'Unsupported remote session endpoint.',
+        },
+        statusCode: HttpStatus.notFound,
+      );
+    }
     if (routePath == '/recording/start' && recordingAdapter != null) {
       return _startHostRecording(request);
     }
@@ -237,10 +292,19 @@ final class CockpitWebRemoteSessionBridgeServer {
               statusCode: response.statusCode,
             )
           : CockpitRemoteSessionEndpointResponse.binary(
-              response.binaryBody ?? const <int>[],
+              _binaryBodyFromBridgeResponse(response),
               statusCode: response.statusCode,
               contentType: response.contentType,
             );
+    } on FormatException catch (error) {
+      _pending.remove(requestId);
+      return CockpitRemoteSessionEndpointResponse.json(
+        <String, Object?>{
+          'error': 'bridgeInvalidResponse',
+          'message': error.message,
+        },
+        statusCode: HttpStatus.badGateway,
+      );
     } on TimeoutException {
       _pending.remove(requestId);
       return const CockpitRemoteSessionEndpointResponse.json(
@@ -249,6 +313,18 @@ final class CockpitWebRemoteSessionBridgeServer {
           'message': 'The browser bridge did not respond before timeout.',
         },
         statusCode: HttpStatus.gatewayTimeout,
+      );
+    }
+  }
+
+  List<int> _binaryBodyFromBridgeResponse(
+      CockpitRemoteBridgeResponse response) {
+    try {
+      return response.binaryBody ?? const <int>[];
+    } on FormatException catch (error) {
+      throw FormatException(
+        'Bridge response field "bytesBase64" must be valid base64: '
+        '${error.message}',
       );
     }
   }
@@ -335,7 +411,7 @@ final class CockpitWebRemoteSessionBridgeServer {
       final result = await adapter.stopRecording();
       _activeRecordingSession = null;
       return CockpitRemoteSessionEndpointResponse.json(
-        _hostRecordingResponseFor(result).toJson(),
+        (await _hostRecordingResponseFor(result)).toJson(),
       );
     } on StateError catch (error) {
       _activeRecordingSession = null;
@@ -358,31 +434,51 @@ final class CockpitWebRemoteSessionBridgeServer {
     }
   }
 
-  CockpitRemoteRecordingResponse _hostRecordingResponseFor(
+  Future<CockpitRemoteRecordingResponse> _hostRecordingResponseFor(
     CockpitRecordingResult result,
-  ) {
+  ) async {
     final artifact = result.artifact;
-    final artifactEntry = _artifactEntryFor(result);
-    if (artifact == null || artifactEntry == null) {
-      return CockpitRemoteRecordingResponse(result: result);
+    if (artifact == null) {
+      return CockpitRemoteRecordingResponse(
+        result: _recordingResultForTransport(result, includeArtifact: false),
+      );
+    }
+    final artifactEntry = await _artifactEntryFor(result);
+    if (artifactEntry == null) {
+      return CockpitRemoteRecordingResponse(
+        result: _recordingResultForTransport(
+          result,
+          includeArtifact: false,
+        ),
+      );
     }
     _localArtifacts[artifact.relativePath] = artifactEntry;
     return CockpitRemoteRecordingResponse(
-      result: result,
+      result: _recordingResultForTransport(result),
       artifactDownloads: <CockpitRemoteArtifactDownload>[
         CockpitRemoteArtifactDownload(
           artifact: artifact,
-          downloadPath:
-              '/artifacts/download?path=${Uri.encodeQueryComponent(artifact.relativePath)}',
+          downloadPath: _downloadPathFor(artifact.relativePath),
         ),
       ],
     );
   }
 
-  _BridgeArtifactEntry? _artifactEntryFor(CockpitRecordingResult result) {
+  Future<_BridgeArtifactEntry?> _artifactEntryFor(
+    CockpitRecordingResult result,
+  ) async {
     final bytes = result.bytes;
     if (bytes != null) {
-      return _BridgeArtifactEntry(bytes: List<int>.unmodifiable(bytes));
+      final file = await _persistArtifactBytes(
+        _sanitizeArtifactBasename(
+          result.artifact?.relativePath ?? 'recording.mp4',
+        ),
+        bytes,
+      );
+      return _BridgeArtifactEntry(
+        sourceFilePath: file.path,
+        deleteOnClose: true,
+      );
     }
     final sourceFilePath = result.sourceFilePath;
     if (sourceFilePath == null || sourceFilePath.isEmpty) {
@@ -397,6 +493,24 @@ final class CockpitWebRemoteSessionBridgeServer {
     );
   }
 
+  Future<File> _persistArtifactBytes(String basename, List<int> bytes) async {
+    final file = await _artifactTempFileFactory(basename);
+    await file.parent.create(recursive: true);
+    await file.writeAsBytes(bytes, flush: true);
+    return file;
+  }
+
+  CockpitRecordingResult _recordingResultForTransport(
+    CockpitRecordingResult result, {
+    bool includeArtifact = true,
+  }) {
+    return result.copyWith(
+      artifact: includeArtifact ? result.artifact : null,
+      bytes: null,
+      sourceFilePath: null,
+    );
+  }
+
   Future<CockpitRemoteSessionEndpointResponse?> _localArtifactResponse(
     Uri uri,
   ) async {
@@ -407,10 +521,6 @@ final class CockpitWebRemoteSessionBridgeServer {
     final entry = _localArtifacts[relativePath];
     if (entry == null) {
       return null;
-    }
-    final bytes = entry.bytes;
-    if (bytes != null) {
-      return CockpitRemoteSessionEndpointResponse.binary(bytes);
     }
     final sourceFilePath = entry.sourceFilePath;
     if (sourceFilePath == null || sourceFilePath.isEmpty) {
@@ -453,6 +563,28 @@ final class CockpitWebRemoteSessionBridgeServer {
     }
   }
 
+  Future<void> _deleteGeneratedArtifacts() async {
+    final artifacts = _localArtifacts.values.toList(growable: false);
+    _localArtifacts.clear();
+    for (final artifact in artifacts) {
+      if (!artifact.deleteOnClose) {
+        continue;
+      }
+      final sourceFilePath = artifact.sourceFilePath;
+      if (sourceFilePath == null || sourceFilePath.isEmpty) {
+        continue;
+      }
+      try {
+        final file = File(sourceFilePath);
+        if (await file.exists()) {
+          await file.delete();
+        }
+      } on Object {
+        // Best-effort cleanup only for bridge-generated artifact files.
+      }
+    }
+  }
+
   void _failPending(Object error) {
     final pending = _pending.values.toList(growable: false);
     _pending.clear();
@@ -460,6 +592,31 @@ final class CockpitWebRemoteSessionBridgeServer {
       if (!completer.isCompleted) {
         completer.completeError(error);
       }
+    }
+  }
+
+  void _completePendingWithBridgeError({
+    required int statusCode,
+    required String error,
+    required String message,
+  }) {
+    if (_pending.isEmpty) {
+      return;
+    }
+    final requestIds = _pending.keys.toList(growable: false);
+    final responseBody = <String, Object?>{
+      'error': error,
+      'message': message,
+    };
+    for (final requestId in requestIds) {
+      final completer = _pending.remove(requestId);
+      completer?.complete(
+        CockpitRemoteBridgeResponse(
+          requestId: requestId,
+          statusCode: statusCode,
+          jsonBody: responseBody,
+        ),
+      );
     }
   }
 
@@ -474,7 +631,11 @@ final class CockpitWebRemoteSessionBridgeServer {
         : withLeadingSlash;
   }
 
-  String _routePathFor(String path) {
+  String _downloadPathFor(String relativePath) {
+    return '$_normalizedRoutePrefix/artifacts/download?path=${Uri.encodeQueryComponent(relativePath)}';
+  }
+
+  String? _routePathFor(String path) {
     final prefix = _normalizedRoutePrefix;
     if (prefix.isEmpty) {
       return path;
@@ -485,7 +646,7 @@ final class CockpitWebRemoteSessionBridgeServer {
     if (path.startsWith('$prefix/')) {
       return path.substring(prefix.length);
     }
-    return path;
+    return null;
   }
 
   Future<void> _writeResponse(
@@ -518,10 +679,28 @@ final class CockpitWebRemoteSessionBridgeServer {
 }
 
 final class _BridgeArtifactEntry {
-  const _BridgeArtifactEntry({this.bytes, this.sourceFilePath});
+  const _BridgeArtifactEntry({
+    this.sourceFilePath,
+    this.deleteOnClose = false,
+  });
 
-  final List<int>? bytes;
   final String? sourceFilePath;
+  final bool deleteOnClose;
+}
+
+String _sanitizeArtifactBasename(String relativePath) {
+  final basename = relativePath.split('/').last;
+  final sanitized = basename.replaceAll(RegExp(r'[^A-Za-z0-9._-]+'), '_');
+  return sanitized.isEmpty ? 'artifact.bin' : sanitized;
+}
+
+Future<File> _defaultBridgeArtifactTempFileFactory(String basename) async {
+  return File(
+    [
+      Directory.systemTemp.path,
+      'flutter_cockpit_bridge_${DateTime.now().toUtc().microsecondsSinceEpoch}_$basename',
+    ].join(Platform.pathSeparator),
+  );
 }
 
 String _joinPath(String basePath, String segment) {

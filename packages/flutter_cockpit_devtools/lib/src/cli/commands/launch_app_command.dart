@@ -66,11 +66,6 @@ final class LaunchAppCommand extends CockpitCliCommand {
         'app-json',
         help:
             'Optional path where the normalized app handle JSON should be written.',
-      )
-      ..addOption(
-        'output-json',
-        help:
-            'Optional path where the full launch result JSON should be written.',
       );
   }
 
@@ -96,11 +91,11 @@ final class LaunchAppCommand extends CockpitCliCommand {
 
   @override
   String get helpNeeds =>
-      'project-dir and platform. Run list-targets first on a fresh machine, simulator, emulator, or browser loop; device-id is required for android, ios, and web. target is optional when cockpit/main.dart or lib/main.dart exists. Web currently launches through development mode.';
+      'project-dir defaults to the current directory and platform defaults to the host desktop platform when available. Pass --platform and --device-id for android, ios, or web. target is optional when cockpit/main.dart or lib/main.dart exists. Web currently launches through development mode.';
 
   @override
   String get helpExample =>
-      'flutter_cockpit_devtools launch-app --project-dir /abs/path/to/flutter_app --platform android --device-id emulator-5554 --app-json /tmp/app.json';
+      'flutter_cockpit_devtools launch-app --platform android --device-id emulator-5554';
 
   @override
   String get helpWrites =>
@@ -108,16 +103,26 @@ final class LaunchAppCommand extends CockpitCliCommand {
 
   @override
   Future<int> run() async {
+    final platform = cockpitReadLaunchPlatform(argResults, usage);
     final result = await _launch(
       CockpitLaunchAppRequest(
-        projectDir: _readRequiredOption('project-dir'),
+        projectDir: cockpitReadProjectDirOption(argResults),
         target: _readOptionalOption('target'),
         flavor: _readOptionalOption('flavor'),
-        platform: _readRequiredOption('platform'),
-        deviceId: _readDeviceId(),
-        sessionPort: int.parse(_readRequiredOption('session-port')),
+        platform: platform,
+        deviceId: _readDeviceId(platform),
+        sessionPort: cockpitReadRequiredPortOption(
+          argResults,
+          'session-port',
+          usage,
+        ),
         launchTimeout: Duration(
-          seconds: int.parse(_readRequiredOption('launch-timeout-seconds')),
+          seconds: cockpitReadOptionalPositiveInt(
+                argResults,
+                'launch-timeout-seconds',
+                usage,
+              ) ??
+              120,
         ),
         mode: CockpitAppMode.fromJson(_readRequiredOption('mode')),
         appHandlePath: (argResults?['app-json'] as String?) ??
@@ -132,12 +137,11 @@ final class LaunchAppCommand extends CockpitCliCommand {
     return cockpitSuccessExitCode;
   }
 
-  String _readDeviceId() {
+  String _readDeviceId(String platform) {
     final explicit = argResults?['device-id'] as String?;
     if (explicit != null && explicit.isNotEmpty) {
       return explicit;
     }
-    final platform = _readRequiredOption('platform');
     return switch (platform) {
       'macos' => 'macos',
       'windows' => 'windows',

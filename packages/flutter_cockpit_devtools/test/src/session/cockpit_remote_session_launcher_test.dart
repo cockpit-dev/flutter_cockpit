@@ -77,7 +77,7 @@ void main() {
       expect(
         invocations,
         contains(
-          '${cockpitFlutterExecutable()} build apk --debug --target lib/main.dart --dart-define=FLUTTER_PILOT_REMOTE_ENABLED=true --dart-define=FLUTTER_PILOT_REMOTE_HOST=127.0.0.1 --dart-define=FLUTTER_PILOT_REMOTE_PORT=47331 --dart-define=FLUTTER_PILOT_FLUTTER_VERSION=3.38.9',
+          '${cockpitFlutterExecutable()} build apk --debug --target lib/main.dart --dart-define=FLUTTER_COCKPIT_REMOTE_ENABLED=true --dart-define=FLUTTER_COCKPIT_REMOTE_HOST=127.0.0.1 --dart-define=FLUTTER_COCKPIT_REMOTE_PORT=47331 --dart-define=FLUTTER_COCKPIT_FLUTTER_VERSION=3.38.9',
         ),
       );
       expect(
@@ -152,7 +152,7 @@ void main() {
       expect(
         invocations,
         contains(
-          '${cockpitFlutterExecutable()} build ios --simulator --debug --no-codesign --target lib/main.dart --dart-define=FLUTTER_PILOT_REMOTE_ENABLED=true --dart-define=FLUTTER_PILOT_REMOTE_HOST=0.0.0.0 --dart-define=FLUTTER_PILOT_REMOTE_PORT=49321 --dart-define=FLUTTER_PILOT_FLUTTER_VERSION=3.38.9',
+          '${cockpitFlutterExecutable()} build ios --simulator --debug --no-codesign --target lib/main.dart --dart-define=FLUTTER_COCKPIT_REMOTE_ENABLED=true --dart-define=FLUTTER_COCKPIT_REMOTE_HOST=0.0.0.0 --dart-define=FLUTTER_COCKPIT_REMOTE_PORT=49321 --dart-define=FLUTTER_COCKPIT_FLUTTER_VERSION=3.38.9',
         ),
       );
       expect(
@@ -270,7 +270,7 @@ void main() {
       expect(
         invocations,
         contains(
-          '${cockpitFlutterExecutable()} run -d 00008110-0009341C2EF3801E --profile --no-resident --target cockpit/main.dart --dart-define=FLUTTER_PILOT_REMOTE_ENABLED=true --dart-define=FLUTTER_PILOT_REMOTE_HOST=:: --dart-define=FLUTTER_PILOT_REMOTE_PORT=57331 --dart-define=FLUTTER_COCKPIT_ENABLE_HTTP_NETWORK_OBSERVER=false --dart-define=FLUTTER_COCKPIT_ENABLE_RUNTIME_OBSERVER=false --dart-define=FLUTTER_PILOT_FLUTTER_VERSION=3.38.9',
+          '${cockpitFlutterExecutable()} run -d 00008110-0009341C2EF3801E --profile --no-resident --target cockpit/main.dart --dart-define=FLUTTER_COCKPIT_REMOTE_ENABLED=true --dart-define=FLUTTER_COCKPIT_REMOTE_HOST=:: --dart-define=FLUTTER_COCKPIT_REMOTE_PORT=57331 --dart-define=FLUTTER_COCKPIT_ENABLE_HTTP_NETWORK_OBSERVER=false --dart-define=FLUTTER_COCKPIT_ENABLE_RUNTIME_OBSERVER=false --dart-define=FLUTTER_COCKPIT_FLUTTER_VERSION=3.38.9',
         ),
       );
     },
@@ -368,7 +368,7 @@ void main() {
       expect(
         invocations,
         contains(
-          '${cockpitFlutterExecutable()} build apk --debug --target lib/main.dart --flavor staging --dart-define=FLUTTER_PILOT_REMOTE_ENABLED=true --dart-define=FLUTTER_PILOT_REMOTE_HOST=127.0.0.1 --dart-define=FLUTTER_PILOT_REMOTE_PORT=47331 --dart-define=FLUTTER_PILOT_FLUTTER_VERSION=3.38.9',
+          '${cockpitFlutterExecutable()} build apk --debug --target lib/main.dart --flavor staging --dart-define=FLUTTER_COCKPIT_REMOTE_ENABLED=true --dart-define=FLUTTER_COCKPIT_REMOTE_HOST=127.0.0.1 --dart-define=FLUTTER_COCKPIT_REMOTE_PORT=47331 --dart-define=FLUTTER_COCKPIT_FLUTTER_VERSION=3.38.9',
         ),
       );
       expect(
@@ -480,7 +480,7 @@ void main() {
       expect(
         invocations,
         contains(
-          '${cockpitFlutterExecutable()} build ios --simulator --debug --no-codesign --target lib/main.dart --flavor staging --dart-define=FLUTTER_PILOT_REMOTE_ENABLED=true --dart-define=FLUTTER_PILOT_REMOTE_HOST=0.0.0.0 --dart-define=FLUTTER_PILOT_REMOTE_PORT=49321 --dart-define=FLUTTER_PILOT_FLUTTER_VERSION=3.38.9',
+          '${cockpitFlutterExecutable()} build ios --simulator --debug --no-codesign --target lib/main.dart --flavor staging --dart-define=FLUTTER_COCKPIT_REMOTE_ENABLED=true --dart-define=FLUTTER_COCKPIT_REMOTE_HOST=0.0.0.0 --dart-define=FLUTTER_COCKPIT_REMOTE_PORT=49321 --dart-define=FLUTTER_COCKPIT_FLUTTER_VERSION=3.38.9',
         ),
       );
       expect(

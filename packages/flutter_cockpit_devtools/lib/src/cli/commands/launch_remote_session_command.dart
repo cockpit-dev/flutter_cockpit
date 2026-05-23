@@ -3,11 +3,12 @@ import 'dart:io';
 import 'package:args/command_runner.dart';
 
 import '../../application/cockpit_launch_remote_session_service.dart';
-import '../../application/cockpit_compact_json.dart';
 import '../../session/cockpit_remote_session_launcher.dart';
+import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
+import '../cockpit_interactive_cli_support.dart';
 
-final class LaunchRemoteSessionCommand extends Command<int> {
+final class LaunchRemoteSessionCommand extends CockpitCliCommand {
   LaunchRemoteSessionCommand({
     CockpitLaunchRemoteSessionService? service,
     CockpitRemoteSessionLauncher? launcher,
@@ -46,8 +47,9 @@ final class LaunchRemoteSessionCommand extends Command<int> {
         defaultsTo: '120',
       )
       ..addOption(
-        'output-json',
-        help: 'Optional path where the session handle JSON should be written.',
+        'session-json',
+        help:
+            'Optional path where the reusable remote session handle JSON should be written.',
       );
   }
 
@@ -62,27 +64,74 @@ final class LaunchRemoteSessionCommand extends Command<int> {
       'Build, install, and launch a Flutter app until its flutter_cockpit remote session is reachable.';
 
   @override
+  String get summary => 'Launch a direct remote session.';
+
+  @override
+  String get category => CockpitCliCategory.coreLoop;
+
+  @override
+  String get helpWhen =>
+      'Use for low-level remote-session loops when app-first launch-app is too opinionated.';
+
+  @override
+  String get helpNeeds =>
+      'project-dir defaults to the current directory and platform defaults to the host desktop platform when available. Pass --platform plus the required mobile device ID for android or ios.';
+
+  @override
+  String get helpExample =>
+      'flutter_cockpit_devtools launch-remote-session --platform android --android-device-id emulator-5554';
+
+  @override
+  String get helpWrites =>
+      'The command result. Use --session-json for the reusable handle, --output for the full result file, or --stdout-format json for jq.';
+
+  @override
   Future<int> run() async {
-    final platform = _readRequiredOption('platform');
+    final platform = cockpitReadLaunchPlatform(
+      argResults,
+      usage,
+      allowedPlatforms: const <String>{
+        'android',
+        'ios',
+        'macos',
+        'windows',
+        'linux',
+      },
+    );
     final result = await _service.launch(
       CockpitLaunchRemoteSessionRequest(
-        projectDir: _readRequiredOption('project-dir'),
+        projectDir: cockpitReadProjectDirOption(argResults),
         target: _readOptionalOption('target'),
         platform: platform,
         deviceId: _resolveDeviceId(platform),
-        sessionPort: int.parse(_readRequiredOption('session-port')),
-        launchTimeout: Duration(
-          seconds: int.parse(_readRequiredOption('launch-timeout-seconds')),
+        sessionPort: cockpitReadRequiredPortOption(
+          argResults,
+          'session-port',
+          usage,
         ),
-        persistHandlePath: _readOptionalOption('output-json'),
+        launchTimeout: Duration(
+          seconds: cockpitReadOptionalPositiveInt(
+                argResults,
+                'launch-timeout-seconds',
+                usage,
+              ) ??
+              120,
+        ),
+        persistHandlePath: _readOptionalOption('session-json') ??
+            cockpitDefaultRemoteSessionHandlePath(),
       ),
     );
 
-    final payload = cockpitCompactJsonText(result.sessionHandle.toJson());
-    if (result.persistedHandlePath == null) {
-      _stdoutSink.writeln(payload);
-    }
-
+    await cockpitWriteJsonPayload(
+      payload: <String, Object?>{
+        'sessionHandle': result.sessionHandle.toJson(),
+        'health': result.health.toJson(),
+        if (result.persistedHandlePath != null)
+          'persistedHandlePath': result.persistedHandlePath,
+      },
+      argResults: argResults,
+      stdoutSink: _stdoutSink,
+    );
     return cockpitSuccessExitCode;
   }
 
@@ -107,14 +156,6 @@ final class LaunchRemoteSessionCommand extends Command<int> {
         ),
       _ => throw UsageException('Unsupported platform: $platform', usage),
     };
-  }
-
-  String _readRequiredOption(String name) {
-    final value = argResults?[name] as String?;
-    if (value == null || value.isEmpty) {
-      throw UsageException('--$name is required.', usage);
-    }
-    return value;
   }
 
   String? _readOptionalOption(String name) {

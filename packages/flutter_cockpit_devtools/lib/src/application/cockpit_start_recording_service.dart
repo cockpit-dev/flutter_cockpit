@@ -81,7 +81,10 @@ final class CockpitStartRecordingService {
       if (adapter != null) {
         final recordingSession =
             await adapter.startRecording(request.recording);
-        return CockpitStartRecordingResult(recordingSession: recordingSession);
+        return CockpitStartRecordingResult(
+          recordingSession: recordingSession,
+          sessionHandle: resolved.app?.remoteSession,
+        );
       }
       if (resolution?.unsupportedReason != null) {
         throw CockpitApplicationServiceException(
@@ -98,6 +101,7 @@ final class CockpitStartRecordingService {
     return _startService.start(
       CockpitStartRemoteRecordingRequest(
         baseUri: resolved.baseUri,
+        sessionHandle: resolved.app?.remoteSession,
         recording: request.recording,
       ),
     );

@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:isolate';
 
 import 'package:flutter_cockpit_devtools/src/mcp/cockpit_mcp_server.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/cockpit_mcp_tool.dart';
@@ -28,7 +28,20 @@ void main() {
           'add_roots',
           'remove_roots',
           'list_targets',
+          'list_active_sessions',
           'launch_app',
+          'launch_remote_session',
+          'query_remote_session',
+          'read_remote_status',
+          'read_remote_snapshot',
+          'collect_remote_snapshot',
+          'launch_development_session',
+          'query_development_session',
+          'reload_development_session',
+          'collect_development_probe',
+          'compare_development_probe',
+          'read_session_logs',
+          'stop_development_session',
           'list_apps',
           'hot_reload',
           'hot_restart',
@@ -37,9 +50,14 @@ void main() {
           'inspect_ui',
           'run_command',
           'run_batch',
+          'execute_remote_command',
+          'execute_remote_command_batch',
           'wait_idle',
+          'wait_remote_ui_idle',
           'start_recording',
           'stop_recording',
+          'start_remote_recording',
+          'stop_remote_recording',
           'read_logs',
           'read_network',
           'read_errors',
@@ -82,13 +100,29 @@ void main() {
             as Map<String, Object?>)['properties'] as Map<String, Object?>)
         .keys;
     expect(readAppProperties, contains('profile'));
+    expect(readAppProperties, contains('androidDeviceId'));
     expect(readAppProperties, isNot(contains('resultProfile')));
 
     final runBatchProperties = ((byName['run_batch']!['inputSchema']
             as Map<String, Object?>)['properties'] as Map<String, Object?>)
         .keys;
-    expect(runBatchProperties,
-        containsAll(<String>['defaultProfile', 'finalProfile']));
+    expect(
+      runBatchProperties,
+      containsAll(<String>[
+        'androidDeviceId',
+        'iosDeviceId',
+        'defaultProfile',
+        'finalProfile',
+      ]),
+    );
+    final startRecordingProperties = ((byName['start_recording']!['inputSchema']
+            as Map<String, Object?>)['properties'] as Map<String, Object?>)
+        .keys;
+    expect(startRecordingProperties, contains('iosDeviceId'));
+    final stopRecordingProperties = ((byName['stop_recording']!['inputSchema']
+            as Map<String, Object?>)['properties'] as Map<String, Object?>)
+        .keys;
+    expect(stopRecordingProperties, contains('iosDeviceId'));
     expect(
       runBatchProperties,
       isNot(containsAll(
@@ -221,25 +255,52 @@ void main() {
     );
   });
 
+  test('tool descriptors always include object schema properties', () async {
+    final server = CockpitMcpServer(
+      tools: <CockpitMcpTool>[_ToolWithoutProperties()],
+    );
+
+    final listResponse = await server.handleMessage(<String, Object?>{
+      'jsonrpc': '2.0',
+      'id': 1,
+      'method': 'tools/list',
+    });
+
+    final result = listResponse?['result'] as Map<String, Object?>;
+    final tools =
+        (result['tools'] as List<Object?>).cast<Map<String, Object?>>();
+    final schema = tools.single['inputSchema'] as Map<String, Object?>;
+
+    expect(schema['type'], 'object');
+    expect(schema['properties'], <String, Object?>{});
+  });
+
+  test('standard server does not register duplicate tools', () async {
+    final server = CockpitMcpServer.standard();
+
+    final listResponse = await server.handleMessage(<String, Object?>{
+      'jsonrpc': '2.0',
+      'id': 1,
+      'method': 'tools/list',
+    });
+
+    final result = listResponse?['result'] as Map<String, Object?>;
+    final tools = (result['tools'] as List<Object?>)
+        .cast<Map<String, Object?>>()
+        .map((tool) => tool['name']! as String)
+        .toList(growable: false);
+
+    expect(tools.toSet(), hasLength(tools.length));
+  });
+
   test('standard server resolves workspace contracts from workspace roots',
       () async {
-    final currentDir = Directory.current.path;
-    final repoRoot = File(
-      p.join(
-        currentDir,
-        'docs',
-        'contracts',
-        'flutter-cockpit-skill-contract.md',
-      ),
-    ).existsSync()
-        ? currentDir
-        : p.normalize(
-            p.join(
-              currentDir,
-              '..',
-              '..',
-            ),
-          );
+    final packageUri = await Isolate.resolvePackageUri(
+      Uri.parse(
+          'package:flutter_cockpit_devtools/flutter_cockpit_devtools.dart'),
+    );
+    final packageRoot = p.dirname(p.dirname(packageUri!.toFilePath()));
+    final repoRoot = p.normalize(p.join(packageRoot, '..', '..'));
     final server = CockpitMcpServer.standard(
       workspaceRoots: <String>[repoRoot],
     );
@@ -292,5 +353,26 @@ final class _FakeCockpitMcpTool extends CockpitMcpTool {
       ],
       'structuredContent': <String, Object?>{'echoedValue': arguments['value']},
     };
+  }
+}
+
+final class _ToolWithoutProperties extends CockpitMcpTool {
+  @override
+  String get name => 'empty_schema_tool';
+
+  @override
+  String get description => 'fake';
+
+  @override
+  Map<String, Object?> get inputSchema => const <String, Object?>{
+        'type': 'object',
+      };
+
+  @override
+  Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {
+    return cockpitMcpResult(
+      text: 'ok',
+      structuredContent: const <String, Object?>{},
+    );
   }
 }

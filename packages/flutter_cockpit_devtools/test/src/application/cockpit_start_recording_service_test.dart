@@ -291,6 +291,8 @@ void main() {
         expect(remoteStartCalled, isFalse);
         expect(capturedAppId, 'dev.cockpit.cockpitDemo.host');
         expect(result.recordingSession.state, CockpitRecordingState.recording);
+        expect(result.sessionHandle?.toJson(),
+            _macosAppHandle().remoteSession?.toJson());
         expect(hostAdapter.startedRequests.single.name, 'macos-host-recording');
       },
     );

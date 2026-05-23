@@ -30,19 +30,21 @@ final class CockpitSessionReferenceResolver {
     String? androidDeviceId,
   }) async {
     if (sessionHandle != null) {
-      final resolvedBaseUri = await _resolvedBaseUriForSession(sessionHandle);
+      final resolvedBaseUri =
+          baseUri ?? await _resolvedBaseUriForSession(sessionHandle);
       return CockpitResolvedSessionReference(
         baseUri: resolvedBaseUri,
-        sessionHandle: sessionHandle,
+        sessionHandle: _withResolvedBaseUri(sessionHandle, resolvedBaseUri),
       );
     }
 
     if (sessionHandlePath != null && sessionHandlePath.isNotEmpty) {
       final resolvedHandle = await readSessionHandle(sessionHandlePath);
-      final resolvedBaseUri = await _resolvedBaseUriForSession(resolvedHandle);
+      final resolvedBaseUri =
+          baseUri ?? await _resolvedBaseUriForSession(resolvedHandle);
       return CockpitResolvedSessionReference(
         baseUri: resolvedBaseUri,
-        sessionHandle: resolvedHandle,
+        sessionHandle: _withResolvedBaseUri(resolvedHandle, resolvedBaseUri),
       );
     }
 
@@ -84,6 +86,22 @@ final class CockpitSessionReferenceResolver {
       host: '127.0.0.1',
       port: hostPort,
       path: handle.baseUri.path,
+    );
+  }
+
+  CockpitRemoteSessionHandle _withResolvedBaseUri(
+    CockpitRemoteSessionHandle handle,
+    Uri baseUri,
+  ) {
+    if (handle.baseUrl == baseUri.toString() &&
+        handle.host == baseUri.host &&
+        handle.hostPort == baseUri.port) {
+      return handle;
+    }
+    return handle.copyWith(
+      host: baseUri.host,
+      hostPort: baseUri.port,
+      baseUrl: baseUri.toString(),
     );
   }
 

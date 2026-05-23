@@ -33,11 +33,7 @@ final class CockpitRemoteSessionBridgeClient {
   bool _closing = false;
   bool _reconnectPending = false;
 
-  Uri get publicBaseUri => Uri(
-        scheme: _configuration.baseUri.scheme,
-        host: _configuration.baseUri.host,
-        port: _configuration.baseUri.port,
-      );
+  Uri get publicBaseUri => _configuration.baseUri;
 
   Future<void> start() async {
     if (_started || _closing) {

@@ -73,11 +73,6 @@ final class LaunchTargetCommand extends CockpitCliCommand {
         'target-json',
         help:
             'Optional path where the normalized target handle JSON is written. Persist this when later target-first reads must reopen the same surface.',
-      )
-      ..addOption(
-        'output-json',
-        help:
-            'Optional path where the full launch result JSON should be written. Persist this when later app-scoped commands may need the embedded .app handle.',
       );
   }
 
@@ -103,34 +98,45 @@ final class LaunchTargetCommand extends CockpitCliCommand {
 
   @override
   String get helpNeeds =>
-      'project-dir and platform. Run list-targets first on a fresh loop; device-id is required for android, ios, and web, while desktop defaults to the platform. target is optional when cockpit/main.dart or lib/main.dart exists. Persist --target-json for target-first follow-up reads, and also persist --output-json if later app-scoped commands may be needed. Web target-first loops also use development mode.';
+      'project-dir defaults to the current directory and platform defaults to the host desktop platform when available. Pass --platform and --device-id for android, ios, or web. target is optional when cockpit/main.dart or lib/main.dart exists. If --target-json is omitted, the target handle is written to the default latest_target.json path.';
 
   @override
   String get helpExample =>
-      'flutter_cockpit_devtools launch-target --project-dir /abs/path/to/flutter_app --platform web --device-id chrome --target-json /tmp/target.json --output-json /tmp/launch_target.json';
+      'flutter_cockpit_devtools launch-target --platform web --device-id chrome --output /tmp/launch_target.json --output-format json';
 
   @override
   String get helpWrites =>
-      'The command result JSON plus an optional normalized target handle at --target-json. The full launch result can also persist the embedded .app handle under .app for later extraction.';
+      'The command result JSON plus a normalized target handle at --target-json or .dart_tool/flutter_cockpit/latest_target.json. The full launch result includes the embedded .app handle for later extraction.';
 
   @override
   Future<int> run() async {
+    final platform = cockpitReadLaunchPlatform(argResults, usage);
     final result = await _launch(
       CockpitLaunchTargetRequest(
-        projectDir: _readRequiredOption('project-dir'),
+        projectDir: cockpitReadProjectDirOption(argResults),
         target: _readOptionalOption('target'),
         flavor: _readOptionalOption('flavor'),
-        platform: _readRequiredOption('platform'),
-        deviceId: _readDeviceId(),
-        sessionPort: int.parse(_readRequiredOption('session-port')),
+        platform: platform,
+        deviceId: _readDeviceId(platform),
+        sessionPort: cockpitReadRequiredPortOption(
+          argResults,
+          'session-port',
+          usage,
+        ),
         targetKind: CockpitTargetKind.fromJson(
           _readRequiredOption('target-kind'),
         ),
         mode: CockpitAppMode.fromJson(_readRequiredOption('mode')),
         launchTimeout: Duration(
-          seconds: int.parse(_readRequiredOption('launch-timeout-seconds')),
+          seconds: cockpitReadOptionalPositiveInt(
+                argResults,
+                'launch-timeout-seconds',
+                usage,
+              ) ??
+              120,
         ),
-        targetHandlePath: argResults?['target-json'] as String?,
+        targetHandlePath: _readOptionalOption('target-json') ??
+            cockpitDefaultTargetHandlePath(),
       ),
     );
     await cockpitWriteJsonPayload(
@@ -141,12 +147,11 @@ final class LaunchTargetCommand extends CockpitCliCommand {
     return cockpitSuccessExitCode;
   }
 
-  String _readDeviceId() {
+  String _readDeviceId(String platform) {
     final explicit = argResults?['device-id'] as String?;
     if (explicit != null && explicit.isNotEmpty) {
       return explicit;
     }
-    final platform = _readRequiredOption('platform');
     return switch (platform) {
       'macos' => 'macos',
       'windows' => 'windows',

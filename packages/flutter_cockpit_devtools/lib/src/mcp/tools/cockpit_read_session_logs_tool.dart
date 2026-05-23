@@ -58,7 +58,8 @@ final class CockpitReadSessionLogsTool extends CockpitMcpTool {
             arguments,
             'developmentSessionId',
           ),
-          maxLines: cockpitReadOptionalInt(arguments, 'maxLines') ?? 200,
+          maxLines:
+              cockpitReadOptionalPositiveInt(arguments, 'maxLines') ?? 200,
         ),
       );
       return cockpitMcpResult(

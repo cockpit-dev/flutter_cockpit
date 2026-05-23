@@ -5,133 +5,103 @@ description: Use when a Flutter app or adjacent browser, desktop, device, or hos
 
 # Flutter Cockpit
 
-Use this skill when source inspection is not enough and the task needs live runtime truth.
-Prefer the shipped CLI in shell-driven work. Use MCP only when the host specifically needs tool calling, roots-aware state, or the stdio server surface.
+## Overview
+
+Use this skill when source inspection is not enough and the task needs live runtime truth. Prefer the CLI in shell-driven work. Use MCP only when the host specifically needs tool calling, roots-aware state, or the stdio server.
+
 Keep context small: read this file first, then open exactly one reference doc only when the next step needs exact command syntax or payload shape.
-
-## First-Use Guardrails
-
-- Never invent command names, flags, `commandType` values, or locator keys.
-- If the exact syntax you need is not in this file, run `dart run flutter_cockpit_devtools:flutter_cockpit_devtools help <command>` before executing anything.
-- On a fresh machine or simulator loop, always start with `list-targets`. Do not guess `--device-id`.
-- MCP `launch_app` and `launch_target` mirror the CLI device rules: desktop may omit `deviceId`, but android, ios, and web still need the explicit ID from `list-targets`.
-- In one repo, prefer the implicit `.dart_tool/flutter_cockpit/latest_app.json` handle instead of repeating `--app-json` everywhere.
-- Prefer `app-first` unless you specifically need target-first surface truth. It is the lowest-friction path for reload, logs, errors, network reads, screenshots, and cleanup.
 
 ## When To Use
 
-- running a Flutter app or target and proving visible UI, route, interaction, network, logs, errors, screenshots, recordings, or acceptance bundles
-- reproducing a live bug where code-only reasoning is insufficient
-- hot reload or hot restart during implementation
-- driving adjacent browser, desktop, device, or host surfaces when the task is not purely Flutter-semantic
-- answering code-side questions that still need focused Dart or package facts before another runtime pass
+- Prove visible UI, route, interaction, network, logs, errors, screenshots, recordings, or acceptance state.
+- Reproduce a live bug where code-only reasoning is insufficient.
+- Drive adjacent browser, desktop, device, or host surfaces outside pure Flutter semantics.
+- Iterate with hot reload or hot restart during implementation.
+- Ask focused Dart/package facts before the next runtime pass.
 
 Do not use it for docs-only edits or static refactors with no runtime claim.
 
-## Default Loops
+## Quick Reference
 
-- `app-first` is the default:
-  `list-targets` -> `launch-app` -> `read-app --profile minimal` -> `run-command` or `run-batch` -> re-read the smallest surface that answers the next question -> `hot-reload` or `hot-restart` after edits -> `stop-app`
-- `target-first` is for browser, desktop, mixed-system, host-controlled, or direct surface truth:
-  `list-targets` -> `launch-target --target-json /tmp/target.json --output-json /tmp/launch_target.json` -> `read-target --target-json /tmp/target.json --profile minimal` -> `inspect-surface` only if the small read is still ambiguous
-- `code-side` is for symbols, diagnostics, and dependency truth before another runtime pass:
-  `analyze-files` -> `lsp` -> `grep-package-uris` -> workspace-wide tools only after the scoped tools stop answering the question
-- `evidence` stays minimal:
-  use `captureScreenshot` for one still proof; use `start-recording` and `stop-recording` only for motion, transition, or acceptance proof; report artifact refs or paths, not just success
+- Fresh machine: `list-targets` first. Do not guess `--device-id`; android, ios, and web need the explicit id from discovery.
+- App-first default: `launch-app` -> `read-app --profile minimal` -> `run-command` or `run-batch` -> smallest post-action read -> `hot-reload` or `hot-restart` after edits -> `stop-app`.
+- Target-first only when surface truth is not a plain app handle: `launch-target --target-json /tmp/target.json --output /tmp/launch_target.json --output-format json` -> `read-target --profile minimal` -> `inspect-surface` only if still ambiguous.
+- Persistent edit loop: `launch-development-session` -> `collect-development-probe --profile quick` -> edit -> `reload-development-session --mode hot_reload` -> collect/compare probe -> stop session.
+- Direct remote is an escape hatch: `launch-remote-session` -> `read-remote-status --profile minimal` -> `execute-remote-command` or batch -> snapshot only if needed.
+- Code-side truth: `analyze-files`, `lsp`, `grep-package-uris`, `read-package-uris`, and `pub` before workspace-wide tools.
 
-## Handle Rules
+## Copy-Ready Commands
 
-- `launch-app` always gives you the most reusable app handle path. In one repo, later app commands can usually reuse `.dart_tool/flutter_cockpit/latest_app.json` automatically.
-- `launch-target --target-json ...` persists only `target.json`. That is enough for `read-target` and `inspect-surface`, but not always enough for app-scoped commands such as `stop-app`, `hot-reload`, `hot-restart`, or `read-logs`.
-- If you choose target-first and may later need app-scoped commands, also persist `--output-json /tmp/launch_target.json`; the launch result includes the embedded app handle under `.app`. Safe extraction:
-  `jq '.app' /tmp/launch_target.json > /tmp/app.json`
-- If the task is primarily "edit -> reload -> verify inside one Flutter app", use `launch-app`, not `launch-target`.
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools list-targets
+```
 
-## Minimum Command Truth
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  launch-app --project-dir <dir> --platform <platform> --device-id <id>
+```
 
-Use these canonical forms on first contact. If you need something beyond them, open command help or the CLI reference.
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools read-app --profile minimal
+```
 
-- Discover launchable targets:
-  `dart run flutter_cockpit_devtools:flutter_cockpit_devtools list-targets`
-- App-first launch:
-  `dart run flutter_cockpit_devtools:flutter_cockpit_devtools launch-app --project-dir <dir> --platform <android|ios|macos|windows|linux|web> --device-id <id>`
-  `--device-id` is required for android, ios, and web. Desktop defaults to the platform.
-  Add `--flavor <name>` for consumer apps that do not build through the default scheme or flavor.
-- Target-first launch:
-  `dart run flutter_cockpit_devtools:flutter_cockpit_devtools launch-target --project-dir <dir> --platform <platform> --device-id <id> --target-json /tmp/target.json --output-json /tmp/launch_target.json`
-  The default `--target-kind flutterApp` auto-normalizes to `desktopApp` and `browserPage` when the platform capability profile requires it, so add `--target-kind <...>` only when you need a specific persisted kind.
-  For web, use the exact browser device ID from `list-targets` such as `chrome`; do not guess `web`, and stay on `mode: development`.
-- Lowest-cost app read:
-  `dart run flutter_cockpit_devtools:flutter_cockpit_devtools read-app --profile minimal`
-  Valid profiles are `minimal`, `standard`, `inspect`, `evidence`.
-- Lowest-cost target read:
-  `dart run flutter_cockpit_devtools:flutter_cockpit_devtools read-target --target-json /tmp/target.json --profile minimal`
-- One command:
-  `dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-command --command-file /tmp/command.json --profile standard`
-  Minimal shape:
-  `{"commandId":"tap-save","commandType":"tap","locator":{"text":"Save"}}`
-- Short ordered batch:
-  `dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-batch --commands-file /tmp/commands.json --profile minimal --final-profile standard`
-  Minimal shape:
-  `[{"commandId":"wait-1","commandType":"waitForUiIdle"},{"commandId":"assert-ready","commandType":"assertText","parameters":{"text":"<expected-text>"}}]`
-- Wait for settle:
-  `dart run flutter_cockpit_devtools:flutter_cockpit_devtools wait-idle`
-- Reload code:
-  `dart run flutter_cockpit_devtools:flutter_cockpit_devtools hot-reload`
-  `dart run flutter_cockpit_devtools:flutter_cockpit_devtools hot-restart`
-- Runtime evidence:
-  `dart run flutter_cockpit_devtools:flutter_cockpit_devtools read-network --uri-contains /api --only-failures`
-  `dart run flutter_cockpit_devtools:flutter_cockpit_devtools read-errors --max-errors 10`
-  `dart run flutter_cockpit_devtools:flutter_cockpit_devtools read-logs --max-lines 40`
-- Screenshot evidence:
-  use `run-command` with `commandType: "captureScreenshot"`
-  Minimal shape:
-  `{"commandId":"capture-acceptance","commandType":"captureScreenshot","screenshotRequest":{"reason":"acceptance","name":"acceptance","includeSnapshot":true,"attachToStep":true}}`
-- Recording evidence:
-  after `launch-app` in the same workspace, or with an explicit app handle:
-  `dart run flutter_cockpit_devtools:flutter_cockpit_devtools start-recording --app-json /tmp/app.json --recording-json '{"purpose":"acceptance","name":"acceptance","tailStabilizationMs":1400}'`
-  `dart run flutter_cockpit_devtools:flutter_cockpit_devtools stop-recording --app-json /tmp/app.json`
-- End the loop:
-  `dart run flutter_cockpit_devtools:flutter_cockpit_devtools stop-app`
-- Delivery gate:
-  `dart run flutter_cockpit_devtools:flutter_cockpit_devtools validate-task --config-json /tmp/validate_task.json`
-- Focused code-side checks:
-  `dart run flutter_cockpit_devtools:flutter_cockpit_devtools analyze-files --path lib/main.dart`
-  `dart run flutter_cockpit_devtools:flutter_cockpit_devtools lsp --command hover --path lib/main.dart --line 12 --column 8`
-  `dart run flutter_cockpit_devtools:flutter_cockpit_devtools grep-package-uris --package flutter --query ThemeData`
-- MCP server:
-  `dart run flutter_cockpit_devtools:flutter_cockpit_devtools serve-mcp`
+```bash
+mkdir -p /tmp/flutter_cockpit
+printf '%s\n' '{"commandId":"assert-ready","commandType":"assertText","parameters":{"text":"<expected-text>"}}' \
+  >/tmp/flutter_cockpit/command.json
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-command --command-file /tmp/flutter_cockpit/command.json --profile standard
+```
 
-Common `commandType` values that are safe to reach for first: `tap`, `enterText`, `assertText`, `waitForUiIdle`, `scrollUntilVisible`, `captureScreenshot`.
-Common locator keys that are safe to reach for first: `text`, `tooltip`, `semanticId`, `type`, `ancestor`, `index`, `fallbacks`. Use `key` only when the app already exposes a legitimate stable key.
+```bash
+printf '%s\n' '[{"commandId":"wait-1","commandType":"waitForUiIdle"},{"commandId":"assert-ready","commandType":"assertText","parameters":{"text":"<expected-text>"}}]' \
+  >/tmp/flutter_cockpit/commands.json
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-batch --commands-file /tmp/flutter_cockpit/commands.json --profile minimal --final-profile standard
+```
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools hot-reload
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools read-errors --max-errors 10
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools stop-app
+```
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  validate-task --config-json /tmp/flutter_cockpit/validate_task.json
+```
+
+Safe first command types: `tap`, `enterText`, `assertText`, `waitForUiIdle`, `scrollUntilVisible`, `captureScreenshot`.
+
+Safe first locator keys: `text`, `tooltip`, `semanticId`, `type`, `ancestor`, `index`, `fallbacks`. Use `key` only when the app already exposes a legitimate stable key.
 
 ## High-Value Rules
 
-- Prefer `minimal` or `standard` profiles first. Ask for one missing fact at a time.
-- Prefer compact stdout first. Use `--output-json` only when the result is too large for stdout or a later step must reopen the full payload.
-- Prefer `--command-file`, `--commands-file`, and config files once JSON stops being trivial. Do not fight shell quoting with long inline payloads.
-- After `remoteUnavailable`, a transport timeout, `hot-reload`, or `hot-restart`, re-read minimal route or state before retrying. Do not blindly replay a non-idempotent batch.
-- For custom project verifier failures, design and read a compact result first: completed phases, failed command, final route or state summary, bounded runtime error previews, and artifact refs. Open large artifacts only when the compact result cannot explain the next repair step.
-- Prefer `run-batch` for route-crossing flows such as open editor -> fill fields -> save. It is cheaper and more stable than many separate `run-command` round-trips.
-- For text inputs, tighten locators with `type` and `ancestor` when labels collide, then verify downstream saved state instead of relying on `uiSummary.textPreviews`.
-- Use screenshots for still-state proof and recordings for motion, transition, or acceptance proof. Do not record by default when one screenshot and a bounded state read already answer the question.
-- Prefer `capabilities.capabilityProfile` over legacy booleans when deciding shell, recording, browser-host, DOM, or capture behavior.
-- For code-side questions, prefer `analyze-files`, `lsp`, `grep-package-uris`, `read-package-uris`, and `pub` before workspace-wide commands.
-- Command success is not proof of product correctness. Re-read post-action state before judging success.
-- For screenshots and recordings, report artifact refs or output paths from the result. Do not just say capture succeeded.
-- On failures, report concrete status, evidence paths, and the next repair or retry step. Do not stop at prose error summary.
-- Do not assume framework-repo verifier scripts exist in a consumer app. Only run repo-owned scripts when they are actually present in the current workspace.
-- Stop apps you launched when the loop ends.
+- If syntax is unclear, run `dart run flutter_cockpit_devtools:flutter_cockpit_devtools help <command>` before guessing.
+- Prefer `app-first` unless target-first surface truth is the real question. In one repo, reuse `.dart_tool/flutter_cockpit/latest_app.json` instead of repeating `--app-json`.
+- If target-first may later need app commands, persist `--output /tmp/launch_target.json --output-format json` and extract the embedded app handle with `jq '.app' /tmp/launch_target.json > /tmp/app.json`.
+- Default stdout is AI-readable, not JSON. Use `--stdout-format json` only for `jq`; use `--output <path>` for files and add `--output-format json` only for machine-readable files.
+- Prefer file inputs: `--command-file`, `--commands-file`, and config JSON once payloads stop being trivial.
+- Start with `minimal` or `standard`; ask for one missing fact at a time before escalating to `inspect`, `evidence`, raw artifacts, or downloaded diagnostics.
+- When a CLI command exits non-zero, first read `errorJson` with `code`, `message`, and optional `details`. For non-usage failures, use that compact payload before the prose `Error:` line. Do not collapse all remote failures: `remoteUnavailable`, `bridgeUnavailable`, `artifactNotFound`, `recordingStartFailed`, and `invalidPayload` need different next actions.
+- Treat `invalidPayload` as a command or option defect. Fix the JSON shape, query parameter, profile, or locator payload before retrying.
+- After `remoteUnavailable`, a timeout, hot reload, or hot restart, re-read minimal route or state before retrying. Do not blindly replay a non-idempotent batch.
+- Prefer `run-batch` for route-crossing flows such as open editor -> fill fields -> save.
+- Use screenshots for still proof and recordings only for motion, transition, or acceptance proof. Report artifact refs or output paths, not just success.
+- Treat web browser-host recording as a host environment gate. If recording start reports ffmpeg startup/output evidence missing, record the prerequisite warning and do not claim video proof.
+- For iOS recording without `app.json`, pass `--ios-device-id <id>`. Prefer `app.json` because it carries platform, device, process, and session metadata.
+- Command success is not product proof. Re-read post-action state before judging.
+- Stop apps or sessions you launched.
 
 ## Common Mistakes
 
-- guessing `device-id`, command names, flags, or locator keys instead of using `list-targets` and `help <command>`
-- jumping straight to `inspect` or `evidence` when `minimal` or `standard` would answer the next question
-- rerunning a full validation loop after every small edit instead of using `hot-reload` plus a bounded re-read
-- treating mismatched exact-count summaries as UI flakiness before checking app state isolation, persistent storage cleanup, or non-idempotent replay
-- starting recording too early, too late, or for every routine check instead of reserving it for motion, transitions, or acceptance evidence
-- using `target.json` as if it were automatically an app handle for `stop-app`, `hot-reload`, or `read-logs`
-- treating a finished run, screenshot, or bundle as enough proof without reading post-action state or validation output
+- Guessing `device-id`, command names, flags, `commandType`, or locator keys instead of using discovery and help.
+- Rerunning full validation after every small edit instead of hot reload plus a bounded read.
+- Treating `target.json` as an app handle for `stop-app`, reload, or app-scoped recording.
+- Adding automation-only keys instead of using multi-signal locators.
+- Opening large snapshots or artifacts before summaries explain the next repair.
+- Treating a finished run, screenshot, or bundle as enough proof without post-action state or validation output.
+- Assuming framework-repo verifier scripts exist in a consumer app.
 
 ## Reference Map
 

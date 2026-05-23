@@ -238,9 +238,9 @@ final class CockpitDevelopmentSessionMachineLauncher {
     required CockpitResolvedRemoteSessionEndpoint endpoint,
   }) {
     final extraArgs = <String>[
-      '--dart-define=FLUTTER_PILOT_REMOTE_ENABLED=true',
-      '--dart-define=FLUTTER_PILOT_REMOTE_HOST=${endpoint.bindHost}',
-      '--dart-define=FLUTTER_PILOT_REMOTE_PORT=${request.sessionPort}',
+      '--dart-define=FLUTTER_COCKPIT_REMOTE_ENABLED=true',
+      '--dart-define=FLUTTER_COCKPIT_REMOTE_HOST=${endpoint.bindHost}',
+      '--dart-define=FLUTTER_COCKPIT_REMOTE_PORT=${request.sessionPort}',
     ];
     if (request.platform == 'ios' && endpoint.bindHost == '::') {
       extraArgs.addAll(const <String>[
@@ -249,7 +249,7 @@ final class CockpitDevelopmentSessionMachineLauncher {
       ]);
     }
     extraArgs.add(
-      '--dart-define=FLUTTER_PILOT_FLUTTER_VERSION=${request.flutterVersion}',
+      '--dart-define=FLUTTER_COCKPIT_FLUTTER_VERSION=${request.flutterVersion}',
     );
     return extraArgs;
   }

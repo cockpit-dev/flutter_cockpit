@@ -91,13 +91,21 @@ final class CockpitGrepPackageUrisTool extends CockpitMcpTool {
           useRegex: cockpitReadOptionalBool(arguments, 'useRegex') ?? false,
           caseSensitive:
               cockpitReadOptionalBool(arguments, 'caseSensitive') ?? false,
-          maxMatches: cockpitReadOptionalInt(arguments, 'maxMatches') ?? 60,
-          maxMatchesPerFile:
-              cockpitReadOptionalInt(arguments, 'maxMatchesPerFile') ?? 5,
+          maxMatches:
+              cockpitReadOptionalPositiveInt(arguments, 'maxMatches') ?? 60,
+          maxMatchesPerFile: cockpitReadOptionalPositiveInt(
+                arguments,
+                'maxMatchesPerFile',
+              ) ??
+              5,
           maxLineLength:
-              cockpitReadOptionalInt(arguments, 'maxLineLength') ?? 240,
+              cockpitReadOptionalPositiveInt(arguments, 'maxLineLength') ?? 240,
           timeout: Duration(
-            seconds: cockpitReadOptionalInt(arguments, 'timeoutSeconds') ?? 20,
+            seconds: cockpitReadOptionalPositiveInt(
+                  arguments,
+                  'timeoutSeconds',
+                ) ??
+                20,
           ),
         ),
       );

@@ -65,7 +65,6 @@ final class GrepPackageUrisCommand extends CockpitCliCommand {
         defaultsTo: '20',
         help: 'Maximum search time before the command fails.',
       );
-    cockpitAddWorkspaceOutputJsonOption(argParser);
   }
 
   final CockpitGrepPackageUrisFunction _grep;
@@ -94,7 +93,7 @@ final class GrepPackageUrisCommand extends CockpitCliCommand {
 
   @override
   String get helpExample =>
-      'flutter_cockpit_devtools grep-package-uris --package flutter --query ThemeData | jq -r \'.packages[0].files[0].packageUri\'';
+      'flutter_cockpit_devtools grep-package-uris --package flutter --query ThemeData --stdout-format json | jq -r \'.packages[0].files[0].packageUri\'';
 
   @override
   String get helpWrites =>
@@ -115,18 +114,27 @@ final class GrepPackageUrisCommand extends CockpitCliCommand {
         searchDir: (argResults?['search-dir'] as String?) ?? 'lib',
         useRegex: (argResults?['use-regex'] as bool?) ?? false,
         caseSensitive: (argResults?['case-sensitive'] as bool?) ?? false,
-        maxMatches:
-            cockpitReadRequiredIntOption(argResults, 'max-matches', usage),
-        maxMatchesPerFile: cockpitReadRequiredIntOption(
+        maxMatches: cockpitReadRequiredPositiveIntOption(
+          argResults,
+          'max-matches',
+          usage,
+        ),
+        maxMatchesPerFile: cockpitReadRequiredPositiveIntOption(
           argResults,
           'max-matches-per-file',
           usage,
         ),
-        maxLineLength:
-            cockpitReadRequiredIntOption(argResults, 'max-line-length', usage),
+        maxLineLength: cockpitReadRequiredPositiveIntOption(
+          argResults,
+          'max-line-length',
+          usage,
+        ),
         timeout: Duration(
-          seconds: cockpitReadRequiredIntOption(
-              argResults, 'timeout-seconds', usage),
+          seconds: cockpitReadRequiredPositiveIntOption(
+            argResults,
+            'timeout-seconds',
+            usage,
+          ),
         ),
       ),
     );

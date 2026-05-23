@@ -94,6 +94,7 @@ final class CockpitInspectUiService {
     final result = await _snapshotService.read(
       CockpitReadRemoteSnapshotRequest(
         baseUri: resolved.baseUri,
+        sessionHandle: resolved.app?.remoteSession,
         resultProfile: request.resultProfile,
         snapshotOptions: request.snapshotOptions,
         compareAgainstSnapshotRef: request.compareAgainstSnapshotRef,

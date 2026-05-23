@@ -107,7 +107,7 @@ Widget buildCockpitDevelopmentApp() {
 ```
 
 Replace `package:your_app/app_shell.dart` with whatever import already exposes the app's existing root widget or bootstrap. Do not invent a new `lib/` structure just for cockpit.
-Use `CockpitRemoteSessionConfiguration.resolveFromEnvironment(...)` or an equivalent app-owned bridge so `launch-app` can enable the remote surface through `FLUTTER_PILOT_REMOTE_*` dart-defines without rewriting production bootstrap.
+Use `CockpitRemoteSessionConfiguration.resolveFromEnvironment(...)` or an equivalent app-owned bridge so `launch-app` can enable the remote surface through `FLUTTER_COCKPIT_REMOTE_*` dart-defines without rewriting production bootstrap.
 
 ## Single-Entrypoint Alternative
 

@@ -6,11 +6,98 @@ import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:flutter_cockpit_devtools/flutter_cockpit_devtools.dart';
 import 'package:flutter_cockpit_devtools/src/cli/cockpit_interactive_cli_support.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_app_reference_resolver.dart';
+import 'package:flutter_cockpit_devtools/src/cli/commands/query_remote_session_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/read_app_command.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 void main() {
+  test(
+    'query-remote-session reuses the default latest remote session handle',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_query_remote_session_default',
+      );
+      final previousCurrent = Directory.current;
+      Directory.current = tempDir;
+      addTearDown(() async {
+        Directory.current = previousCurrent;
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final defaultHandleFile =
+          File(cockpitDefaultRemoteSessionHandlePath(tempDir.path));
+      await defaultHandleFile.parent.create(recursive: true);
+      await defaultHandleFile.writeAsString(
+        jsonEncode(
+          CockpitRemoteSessionHandle(
+            platform: 'ios',
+            deviceId: 'simulator',
+            projectDir: '/workspace/examples/cockpit_demo',
+            target: 'lib/main.dart',
+            appId: 'dev.cockpit.cockpitDemo',
+            host: '127.0.0.1',
+            hostPort: 47331,
+            devicePort: 47331,
+            baseUrl: 'http://127.0.0.1:47331',
+            launchedAt: DateTime.utc(2026, 3, 21),
+          ).toJson(),
+        ),
+      );
+
+      final output = StringBuffer();
+      final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
+        ..addCommand(
+          QueryRemoteSessionCommand(
+            stdoutSink: output,
+            service: CockpitQueryRemoteSessionService(
+              statusReader: (_) async => CockpitRemoteSessionStatus(
+                sessionId: 'default-remote-session',
+                platform: 'ios',
+                transportType: 'remoteHttp',
+                currentRouteName: '/home',
+                capabilities: CockpitCapabilities(
+                  platform: 'ios',
+                  transportType: 'remoteHttp',
+                  supportsInAppControl: true,
+                  supportsFlutterViewCapture: true,
+                  supportsNativeScreenCapture: true,
+                  supportsHostAutomation: false,
+                  supportedCommands: <CockpitCommandType>[
+                    CockpitCommandType.tap,
+                  ],
+                  supportedLocatorStrategies: CockpitLocatorKind.values,
+                ),
+                recordingCapabilities: CockpitRecordingCapabilities(
+                  supportsNativeRecording: true,
+                  preferredAcceptanceRecordingKind:
+                      CockpitRecordingKind.nativeScreen,
+                ),
+                snapshot: CockpitSnapshot(routeName: '/home'),
+              ),
+            ),
+          ),
+        );
+
+      final exitCode = await runner.run(<String>[
+            'query-remote-session',
+            '--stdout-format',
+            'json',
+          ]) ??
+          0;
+
+      expect(exitCode, 0);
+      final decoded = jsonDecode(output.toString()) as Map<String, Object?>;
+      expect(
+        (decoded['status'] as Map<String, Object?>)['sessionId'],
+        'default-remote-session',
+      );
+      expect(decoded['recommendedNextStep'], 'ready_for_commands');
+    },
+  );
+
   test('read-app writes the running app payload', () async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     final tempDir = await Directory.systemTemp.createTemp(
@@ -62,8 +149,10 @@ void main() {
       'read-app',
       '--base-url',
       'http://127.0.0.1:${server.port}',
-      '--output-json',
+      '--output',
       outputFile.path,
+      '--output-format',
+      'json',
     ]);
 
     expect(exitCode, 0);
@@ -139,8 +228,10 @@ void main() {
             'read-app',
             '--base-url',
             'http://127.0.0.1:47331',
-            '--output-json',
+            '--output',
             outputFile.path,
+            '--output-format',
+            'json',
             '--android-device-id',
             'emulator-5554',
           ]) ??
@@ -219,8 +310,10 @@ void main() {
         'read-app',
         '--app-json',
         sessionFile.path,
-        '--output-json',
+        '--output',
         outputFile.path,
+        '--output-format',
+        'json',
       ]);
 
       expect(exitCode, 0);
@@ -296,8 +389,10 @@ void main() {
       final outputFile = File(p.join(tempDir.path, 'session_status.json'));
       final exitCode = await CockpitCommandRunner().run(<String>[
         'read-app',
-        '--output-json',
+        '--output',
         outputFile.path,
+        '--output-format',
+        'json',
       ]);
 
       expect(exitCode, 0);
@@ -399,8 +494,10 @@ void main() {
         'read-app',
         '--base-url',
         'http://127.0.0.1:${explicitServer.port}',
-        '--output-json',
+        '--output',
         outputFile.path,
+        '--output-format',
+        'json',
       ]);
 
       expect(exitCode, 0);
@@ -411,7 +508,7 @@ void main() {
   );
 
   test(
-    'read-app still prefers an explicit app-json over base-url',
+    'read-app uses explicit app-json metadata with an explicit base-url connection override',
     () async {
       final appHandleServer = await HttpServer.bind(
         InternetAddress.loopbackIPv4,
@@ -477,7 +574,7 @@ void main() {
       baseUrlServer.listen(
         (request) => respond(
           request,
-          'query-explicit-base-url-ignored-demo',
+          'query-explicit-base-url-demo',
           '/base-url',
         ),
       );
@@ -503,14 +600,16 @@ void main() {
         sessionFile.path,
         '--base-url',
         'http://127.0.0.1:${baseUrlServer.port}',
-        '--output-json',
+        '--output',
         outputFile.path,
+        '--output-format',
+        'json',
       ]);
 
       expect(exitCode, 0);
       final decoded = jsonDecode(await outputFile.readAsString());
-      expect(decoded['sessionId'], 'query-explicit-app-json-demo');
-      expect(decoded['currentRouteName'], '/handle');
+      expect(decoded['sessionId'], 'query-explicit-base-url-demo');
+      expect(decoded['currentRouteName'], '/base-url');
     },
   );
 }

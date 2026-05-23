@@ -50,6 +50,8 @@ void main() {
 
       final exitCode = await commandRunner.run(<String>[
             'collect-remote-snapshot',
+            '--stdout-format',
+            'json',
             '--base-url',
             'http://127.0.0.1:47331',
             '--profile',
@@ -68,6 +70,7 @@ void main() {
             '--runtime-message-contains',
             'runtime probe',
             '--emit-artifact-when-large',
+            '--download-diagnostics-artifacts',
           ]) ??
           0;
 
@@ -90,6 +93,7 @@ void main() {
       expect(capturedRequest?.options.includeAccessibilitySummary, isTrue);
       expect(capturedRequest?.options.maxAccessibilityEntries, 5);
       expect(capturedRequest?.options.emitArtifactWhenLarge, isTrue);
+      expect(capturedRequest?.downloadDiagnosticsArtifacts, isTrue);
 
       final decoded =
           jsonDecode(output.toString().trim()) as Map<String, Object?>;
@@ -149,6 +153,74 @@ void main() {
       expect(capturedRequest?.options.networkQuery.onlyFailures, isFalse);
       expect(capturedRequest?.options.includeRuntimeActivity, isTrue);
       expect(capturedRequest?.options.runtimeQuery.onlyErrors, isFalse);
+    },
+  );
+
+  test('collect-remote-snapshot rejects negative collection limits', () async {
+    final commandRunner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
+      ..addCommand(
+        CollectRemoteSnapshotCommand(
+          stdoutSink: StringBuffer(),
+          collect: (_) async => CockpitCollectRemoteSnapshotResult(
+            snapshot: CockpitSnapshot(routeName: '/home'),
+            effectiveOptions: const CockpitSnapshotOptions(),
+          ),
+        ),
+      );
+
+    expect(
+      () => commandRunner.run(<String>[
+        'collect-remote-snapshot',
+        '--base-url',
+        'http://127.0.0.1:47331',
+        '--max-network-entries',
+        '-1',
+      ]),
+      throwsA(
+        isA<UsageException>().having(
+          (error) => error.message,
+          'message',
+          contains('--max-network-entries must be a non-negative integer.'),
+        ),
+      ),
+    );
+  });
+
+  test(
+    'collect-remote-snapshot leaves externalized diagnostics deferred by default',
+    () async {
+      CockpitCollectRemoteSnapshotRequest? capturedRequest;
+      final commandRunner =
+          CommandRunner<int>('flutter_cockpit_devtools', 'test')
+            ..addCommand(
+              CollectRemoteSnapshotCommand(
+                stdoutSink: StringBuffer(),
+                collect: (request) async {
+                  capturedRequest = request;
+                  return CockpitCollectRemoteSnapshotResult(
+                    snapshot: CockpitSnapshot(
+                      routeName: '/network',
+                      diagnosticLevel: request.options.profile,
+                    ),
+                    effectiveOptions: request.options,
+                  );
+                },
+              ),
+            );
+
+      final exitCode = await commandRunner.run(<String>[
+            'collect-remote-snapshot',
+            '--base-url',
+            'http://127.0.0.1:47331',
+            '--profile',
+            'forensic',
+            '--emit-artifact-when-large',
+          ]) ??
+          0;
+
+      expect(exitCode, 0);
+      expect(capturedRequest?.options.emitArtifactWhenLarge, isTrue);
+      expect(capturedRequest?.downloadDiagnosticsArtifacts, isFalse);
     },
   );
 }

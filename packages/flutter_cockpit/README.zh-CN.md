@@ -60,7 +60,7 @@ Widget buildCockpitDevelopmentApp() {
 }
 ```
 
-把 `package:your_app/app_shell.dart` 换成你现有应用根组件或 bootstrap 的真实 import。`launch-app` 会注入 `FLUTTER_PILOT_REMOTE_*` 这组 dart-define，所以 `resolveFromEnvironment(...)` 可以在不接管生产入口的前提下启用远程控制面。
+把 `package:your_app/app_shell.dart` 换成你现有应用根组件或 bootstrap 的真实 import。`launch-app` 会注入 `FLUTTER_COCKPIT_REMOTE_*` 这组 dart-define，所以 `resolveFromEnvironment(...)` 可以在不接管生产入口的前提下启用远程控制面。
 如果应用内部已经自己持有 `MaterialApp`，就用 `FlutterCockpitApp` 包住那层 app shell，并把 `FlutterCockpit.navigatorObserver` 接到原有 navigator 上，不要再嵌一层新的 `MaterialApp`。
 
 运行：

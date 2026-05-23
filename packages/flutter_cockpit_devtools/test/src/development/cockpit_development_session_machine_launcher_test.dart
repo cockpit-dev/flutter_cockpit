@@ -80,10 +80,10 @@ void main() {
       expect(
         capturedStarts.single['extraArgs'],
         <String>[
-          '--dart-define=FLUTTER_PILOT_REMOTE_ENABLED=true',
-          '--dart-define=FLUTTER_PILOT_REMOTE_HOST=127.0.0.1',
-          '--dart-define=FLUTTER_PILOT_REMOTE_PORT=47331',
-          '--dart-define=FLUTTER_PILOT_FLUTTER_VERSION=3.39.0',
+          '--dart-define=FLUTTER_COCKPIT_REMOTE_ENABLED=true',
+          '--dart-define=FLUTTER_COCKPIT_REMOTE_HOST=127.0.0.1',
+          '--dart-define=FLUTTER_COCKPIT_REMOTE_PORT=47331',
+          '--dart-define=FLUTTER_COCKPIT_FLUTTER_VERSION=3.39.0',
         ],
       );
       expect(result.remoteSessionHandle.appId, 'machine-app-1');
@@ -176,10 +176,10 @@ void main() {
       expect(
         capturedStarts.single['extraArgs'],
         <String>[
-          '--dart-define=FLUTTER_PILOT_REMOTE_ENABLED=true',
-          '--dart-define=FLUTTER_PILOT_REMOTE_HOST=0.0.0.0',
-          '--dart-define=FLUTTER_PILOT_REMOTE_PORT=47331',
-          '--dart-define=FLUTTER_PILOT_FLUTTER_VERSION=3.39.0',
+          '--dart-define=FLUTTER_COCKPIT_REMOTE_ENABLED=true',
+          '--dart-define=FLUTTER_COCKPIT_REMOTE_HOST=0.0.0.0',
+          '--dart-define=FLUTTER_COCKPIT_REMOTE_PORT=47331',
+          '--dart-define=FLUTTER_COCKPIT_FLUTTER_VERSION=3.39.0',
         ],
       );
       expect(result.remoteSessionHandle.appId, 'machine-ios-app');
@@ -262,10 +262,10 @@ void main() {
       expect(
         capturedStarts.single['extraArgs'],
         <String>[
-          '--dart-define=FLUTTER_PILOT_REMOTE_ENABLED=true',
-          '--dart-define=FLUTTER_PILOT_REMOTE_HOST=127.0.0.1',
-          '--dart-define=FLUTTER_PILOT_REMOTE_PORT=59331',
-          '--dart-define=FLUTTER_PILOT_FLUTTER_VERSION=3.39.0',
+          '--dart-define=FLUTTER_COCKPIT_REMOTE_ENABLED=true',
+          '--dart-define=FLUTTER_COCKPIT_REMOTE_HOST=127.0.0.1',
+          '--dart-define=FLUTTER_COCKPIT_REMOTE_PORT=59331',
+          '--dart-define=FLUTTER_COCKPIT_FLUTTER_VERSION=3.39.0',
         ],
       );
       expect(probedBaseUris, <Uri>[Uri.parse('http://127.0.0.1:59331')]);
@@ -416,12 +416,12 @@ void main() {
       expect(
         capturedStarts.single['extraArgs'],
         <String>[
-          '--dart-define=FLUTTER_PILOT_REMOTE_ENABLED=true',
-          '--dart-define=FLUTTER_PILOT_REMOTE_HOST=::',
-          '--dart-define=FLUTTER_PILOT_REMOTE_PORT=47331',
+          '--dart-define=FLUTTER_COCKPIT_REMOTE_ENABLED=true',
+          '--dart-define=FLUTTER_COCKPIT_REMOTE_HOST=::',
+          '--dart-define=FLUTTER_COCKPIT_REMOTE_PORT=47331',
           '--dart-define=FLUTTER_COCKPIT_ENABLE_HTTP_NETWORK_OBSERVER=false',
           '--dart-define=FLUTTER_COCKPIT_ENABLE_RUNTIME_OBSERVER=false',
-          '--dart-define=FLUTTER_PILOT_FLUTTER_VERSION=3.39.0',
+          '--dart-define=FLUTTER_COCKPIT_FLUTTER_VERSION=3.39.0',
         ],
       );
       expect(

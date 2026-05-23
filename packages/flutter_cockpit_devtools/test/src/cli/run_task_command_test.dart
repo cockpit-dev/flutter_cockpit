@@ -98,8 +98,10 @@ void main() {
             'run-task',
             '--config-json',
             configFile.path,
-            '--output-json',
+            '--output',
             outputFile.path,
+            '--output-format',
+            'json',
           ]) ??
           0;
 

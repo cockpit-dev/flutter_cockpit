@@ -12,7 +12,7 @@ final class CockpitMcpToolAdapter {
       name: definition.name,
       description: definition.description,
       inputSchema: ObjectSchema.fromMap(
-        Map<String, Object?>.from(definition.inputSchema),
+        cockpitNormalizeMcpInputSchema(definition.inputSchema),
       ),
       annotations: ToolAnnotations(
         destructiveHint: definition.annotations.destructive,

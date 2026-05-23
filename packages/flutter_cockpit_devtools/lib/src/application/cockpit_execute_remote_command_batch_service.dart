@@ -170,71 +170,92 @@ final class CockpitExecuteRemoteCommandBatchService {
               sessionLock: CockpitInteractiveSessionLock(),
             );
 
-      final recordingSession = startRecordingService == null
-          ? null
-          : await startRecordingService.start(
-              CockpitStartRemoteRecordingRequest(
-                baseUri: resolved.baseUri,
-                sessionHandle: resolved.sessionHandle,
-                recording: request.recording!,
-              ),
-            );
-
       final results = <CockpitExecuteRemoteCommandResult>[];
       var stoppedEarly = false;
-      for (final batchCommand in request.commands) {
-        final result = await executeService.execute(
-          CockpitExecuteRemoteCommandRequest(
-            baseUri: resolved.baseUri,
-            sessionHandle: resolved.sessionHandle,
-            command: batchCommand.command,
-            resultProfile:
-                batchCommand.resultProfile ?? request.defaultResultProfile,
-            snapshotOptions: batchCommand.snapshotOptions,
-            compareAgainstSnapshotRef: batchCommand.compareAgainstSnapshotRef,
-            defaultCommandTimeout: request.defaultCommandTimeout,
-          ),
-        );
-        results.add(result);
-        if (!result.command.success && request.failFast) {
-          stoppedEarly = true;
-          break;
-        }
-      }
+      CockpitStartRemoteRecordingResult? recordingSession;
+      CockpitStopRemoteRecordingResult? recordingResult;
+      var recordingStarted = false;
 
-      final finalSnapshot = request.finalSnapshotProfile == null
-          ? null
-          : await readSnapshotService.read(
-              CockpitReadRemoteSnapshotRequest(
-                baseUri: resolved.baseUri,
-                sessionHandle: resolved.sessionHandle,
-                resultProfile: request.finalSnapshotProfile!,
-                snapshotOptions: request.finalSnapshotOptions,
-              ),
-            );
-      final recordingResult = stopRecordingService == null
-          ? null
-          : await stopRecordingService.stop(
+      try {
+        recordingSession = startRecordingService == null
+            ? null
+            : await startRecordingService.start(
+                CockpitStartRemoteRecordingRequest(
+                  baseUri: resolved.baseUri,
+                  sessionHandle: resolved.sessionHandle,
+                  recording: request.recording!,
+                ),
+              );
+        recordingStarted = recordingSession != null;
+
+        for (final batchCommand in request.commands) {
+          final result = await executeService.execute(
+            CockpitExecuteRemoteCommandRequest(
+              baseUri: resolved.baseUri,
+              sessionHandle: resolved.sessionHandle,
+              command: batchCommand.command,
+              resultProfile:
+                  batchCommand.resultProfile ?? request.defaultResultProfile,
+              snapshotOptions: batchCommand.snapshotOptions,
+              compareAgainstSnapshotRef: batchCommand.compareAgainstSnapshotRef,
+              defaultCommandTimeout: request.defaultCommandTimeout,
+            ),
+          );
+          results.add(result);
+          if (!result.command.success && request.failFast) {
+            stoppedEarly = true;
+            break;
+          }
+        }
+
+        final finalSnapshot = request.finalSnapshotProfile == null
+            ? null
+            : await readSnapshotService.read(
+                CockpitReadRemoteSnapshotRequest(
+                  baseUri: resolved.baseUri,
+                  sessionHandle: resolved.sessionHandle,
+                  resultProfile: request.finalSnapshotProfile!,
+                  snapshotOptions: request.finalSnapshotOptions,
+                ),
+              );
+        if (stopRecordingService != null) {
+          recordingResult = await stopRecordingService.stop(
+            CockpitStopRemoteRecordingRequest(
+              baseUri: resolved.baseUri,
+              sessionHandle: resolved.sessionHandle,
+            ),
+          );
+          recordingStarted = false;
+        }
+        final successCount =
+            results.where((result) => result.command.success).length;
+        return CockpitExecuteRemoteCommandBatchResult(
+          results: results,
+          summary: CockpitExecuteRemoteCommandBatchSummary(
+            totalCount: results.length,
+            successCount: successCount,
+            failureCount: results.length - successCount,
+            stoppedEarly: stoppedEarly,
+          ),
+          recordingSession: recordingSession,
+          recordingResult: recordingResult,
+          finalSnapshot: finalSnapshot,
+          sessionHandle: resolved.sessionHandle,
+        );
+      } finally {
+        if (recordingStarted && stopRecordingService != null) {
+          try {
+            await stopRecordingService.stop(
               CockpitStopRemoteRecordingRequest(
                 baseUri: resolved.baseUri,
                 sessionHandle: resolved.sessionHandle,
               ),
             );
-      final successCount =
-          results.where((result) => result.command.success).length;
-      return CockpitExecuteRemoteCommandBatchResult(
-        results: results,
-        summary: CockpitExecuteRemoteCommandBatchSummary(
-          totalCount: results.length,
-          successCount: successCount,
-          failureCount: results.length - successCount,
-          stoppedEarly: stoppedEarly,
-        ),
-        recordingSession: recordingSession,
-        recordingResult: recordingResult,
-        finalSnapshot: finalSnapshot,
-        sessionHandle: resolved.sessionHandle,
-      );
+          } on Object {
+            // Preserve the original failure so AI agents see the real cause.
+          }
+        }
+      }
     });
   }
 }

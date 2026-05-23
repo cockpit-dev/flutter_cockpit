@@ -60,6 +60,7 @@ final class CockpitWindowsRecordingAdapter
   CockpitRecordingRequest? _request;
   File? _outputFile;
   StreamSubscription<String>? _stderrSubscription;
+  List<String>? _recentStderrLines;
   Stopwatch? _stopwatch;
 
   String get _sessionCacheKey => 'windows:${_processId ?? _appId}';
@@ -165,6 +166,7 @@ final class CockpitWindowsRecordingAdapter
     _request = request;
     _outputFile = outputFile;
     _stderrSubscription = stderrSubscription;
+    _recentStderrLines = recentStderrLines;
     _stopwatch = Stopwatch()..start();
     cockpitStoreActiveHostRecordingSession(
       _sessionCacheKey,
@@ -174,6 +176,7 @@ final class CockpitWindowsRecordingAdapter
         outputFile: outputFile,
         stderrSubscription: stderrSubscription,
         stopwatch: _stopwatch,
+        recentStderrLines: recentStderrLines,
       ),
     );
 
@@ -186,13 +189,13 @@ final class CockpitWindowsRecordingAdapter
   @override
   Future<CockpitRecordingResult> stopRecording() async {
     final session = _currentSessionState;
-    final process = session?.process;
-    final request = session?.request;
-    final outputFile = session?.outputFile;
-    final stopwatch = session?.stopwatch;
-    if (process == null || request == null || outputFile == null) {
+    if (session == null) {
       throw StateError('No active Windows recording session exists.');
     }
+    final process = session.process;
+    final request = session.request;
+    final outputFile = session.outputFile;
+    final stopwatch = session.stopwatch;
 
     try {
       final didStopGracefully = await _requestGracefulStop(process);
@@ -211,7 +214,10 @@ final class CockpitWindowsRecordingAdapter
           state: CockpitRecordingState.failed,
           purpose: request.purpose,
           recordingKind: CockpitRecordingKind.nativeScreen,
-          failureReason: 'Windows recording output file was missing or empty.',
+          failureReason: _withRecentStderr(
+            'Windows recording output file was missing or empty.',
+            session.recentStderrLines,
+          ),
         );
       }
       final finalized = await _waitForFinalizedOutput(outputFile);
@@ -220,8 +226,10 @@ final class CockpitWindowsRecordingAdapter
           state: CockpitRecordingState.failed,
           purpose: request.purpose,
           recordingKind: CockpitRecordingKind.nativeScreen,
-          failureReason:
-              'Windows recording output did not finalize to a stable duration.',
+          failureReason: _withRecentStderr(
+            'Windows recording output did not finalize to a stable duration.',
+            session.recentStderrLines,
+          ),
         );
       }
 
@@ -240,15 +248,19 @@ final class CockpitWindowsRecordingAdapter
         state: CockpitRecordingState.failed,
         purpose: request.purpose,
         recordingKind: CockpitRecordingKind.nativeScreen,
-        failureReason: 'Windows recording did not stop before timeout.',
+        failureReason: _withRecentStderr(
+          'Windows recording did not stop before timeout.',
+          session.recentStderrLines,
+        ),
       );
     } finally {
-      await session?.stderrSubscription?.cancel();
+      await session.stderrSubscription?.cancel();
       cockpitClearActiveHostRecordingSession(_sessionCacheKey);
       _process = null;
       _request = null;
       _outputFile = null;
       _stderrSubscription = null;
+      _recentStderrLines = null;
       _stopwatch = null;
     }
   }
@@ -264,6 +276,7 @@ final class CockpitWindowsRecordingAdapter
         outputFile: outputFile,
         stderrSubscription: _stderrSubscription,
         stopwatch: _stopwatch,
+        recentStderrLines: _recentStderrLines ?? const <String>[],
       );
     }
     return cockpitReadActiveHostRecordingSession(_sessionCacheKey);
@@ -358,6 +371,13 @@ final class CockpitWindowsRecordingAdapter
     const prefix =
         'Windows recording did not confirm startup or produce output. '
         'Ensure the desktop session is active and ffmpeg gdigrab can capture the screen on this host.';
+    if (recentStderrLines.isEmpty) {
+      return prefix;
+    }
+    return '$prefix Recent ffmpeg output: ${recentStderrLines.join(' | ')}';
+  }
+
+  String _withRecentStderr(String prefix, List<String> recentStderrLines) {
     if (recentStderrLines.isEmpty) {
       return prefix;
     }

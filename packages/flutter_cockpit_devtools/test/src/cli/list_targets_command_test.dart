@@ -31,11 +31,58 @@ void main() {
     final exitCode = await runner.run(const <String>['list-targets']) ?? 0;
 
     expect(exitCode, 0);
-    final decoded = jsonDecode(output.toString()) as Map<String, Object?>;
+    expect(output.toString(), contains('cockpit.v=1'));
+    expect(output.toString(), contains('command=list-targets'));
+    final jsonOutput = StringBuffer();
+    final jsonRunner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
+      ..addCommand(
+        ListTargetsCommand(
+          stdoutSink: jsonOutput,
+          listTargets: (_) async => const CockpitListTargetsResult(
+            targets: <CockpitLaunchTarget>[
+              CockpitLaunchTarget(
+                id: 'chrome',
+                name: 'Chrome',
+                platform: 'web',
+                platformType: 'web-javascript',
+                emulator: false,
+                ephemeral: false,
+                sdk: 'web',
+              ),
+            ],
+          ),
+        ),
+      );
+
+    await jsonRunner.run(const <String>[
+      'list-targets',
+      '--stdout-format',
+      'json',
+    ]);
+    final decoded = jsonDecode(jsonOutput.toString()) as Map<String, Object?>;
     final targets = decoded['targets'] as List<Object?>;
     final target = targets.single as Map<String, Object?>;
     expect(target['id'], 'chrome');
     expect(target['platform'], 'web');
     expect(target['platformType'], 'web-javascript');
+  });
+
+  test('list-targets rejects invalid timeout seconds', () async {
+    final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
+      ..addCommand(
+        ListTargetsCommand(
+          listTargets: (_) async =>
+              const CockpitListTargetsResult(targets: <CockpitLaunchTarget>[]),
+        ),
+      );
+
+    await expectLater(
+      () => runner.run(const <String>[
+        'list-targets',
+        '--timeout-seconds',
+        'abc',
+      ]),
+      throwsA(isA<UsageException>()),
+    );
   });
 }

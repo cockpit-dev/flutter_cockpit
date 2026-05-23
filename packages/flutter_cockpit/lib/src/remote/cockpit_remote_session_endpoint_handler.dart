@@ -95,12 +95,10 @@ final class CockpitRemoteSessionEndpointResponse {
 
 final class _RemoteArtifactEntry {
   const _RemoteArtifactEntry({
-    this.bytes,
     this.sourceFilePath,
     this.deleteOnClose = false,
   });
 
-  final List<int>? bytes;
   final String? sourceFilePath;
   final bool deleteOnClose;
 }
@@ -209,8 +207,9 @@ final class CockpitRemoteSessionEndpointHandler {
           return CockpitRemoteSessionEndpointResponse.json(recording.toJson());
         case ('POST', '/recording/stop'):
           final result = await _handleStopRecording();
+          final response = await _recordingResponseFor(result);
           return CockpitRemoteSessionEndpointResponse.json(
-            _recordingResponseFor(result).toJson(),
+            response.toJson(),
           );
         default:
           return const CockpitRemoteSessionEndpointResponse.json(
@@ -262,6 +261,7 @@ final class CockpitRemoteSessionEndpointHandler {
     final json = <String, Object?>{};
     final profile = queryParameters['profile'];
     if (profile != null && profile.isNotEmpty) {
+      _validateSnapshotProfileQueryValue(profile);
       json['profile'] = profile;
     }
 
@@ -272,14 +272,23 @@ final class CockpitRemoteSessionEndpointHandler {
       'maxRebuildEntries',
       'maxAccessibilityEntries',
       'maxNetworkEntries',
-      'networkStatusCodeAtLeast',
       'maxRuntimeEntries',
     ]) {
       final rawValue = queryParameters[key];
       if (rawValue == null || rawValue.isEmpty) {
         continue;
       }
-      json[key] = int.tryParse(rawValue);
+      json[key] = _parseNonNegativeQueryInt(key, rawValue);
+    }
+
+    final networkStatusCodeAtLeast =
+        queryParameters['networkStatusCodeAtLeast'];
+    if (networkStatusCodeAtLeast != null &&
+        networkStatusCodeAtLeast.isNotEmpty) {
+      json['networkStatusCodeAtLeast'] = _parseHttpStatusQueryInt(
+        'networkStatusCodeAtLeast',
+        networkStatusCodeAtLeast,
+      );
     }
 
     for (final key in <String>[
@@ -297,7 +306,7 @@ final class CockpitRemoteSessionEndpointHandler {
       if (rawValue == null || rawValue.isEmpty) {
         continue;
       }
-      json[key] = rawValue.toLowerCase() == 'true';
+      json[key] = _parseQueryBool(key, rawValue);
     }
 
     final networkQuery = <String, Object?>{};
@@ -336,7 +345,52 @@ final class CockpitRemoteSessionEndpointHandler {
     return CockpitSnapshotOptions.fromJson(json);
   }
 
-  String _routePathFor(String path) {
+  void _validateSnapshotProfileQueryValue(String value) {
+    final supported = CockpitSnapshotProfile.values
+        .map((profile) => profile.jsonValue)
+        .toSet();
+    if (supported.contains(value)) {
+      return;
+    }
+    throw FormatException(
+      'Query parameter "profile" must be one of: ${supported.join(', ')}.',
+    );
+  }
+
+  int _parseNonNegativeQueryInt(String key, String value) {
+    final parsed = int.tryParse(value);
+    if (parsed == null || parsed < 0) {
+      throw FormatException(
+        'Query parameter "$key" must be a non-negative integer.',
+      );
+    }
+    return parsed;
+  }
+
+  int _parseHttpStatusQueryInt(String key, String value) {
+    final parsed = int.tryParse(value);
+    if (parsed == null || parsed < 100 || parsed > 599) {
+      throw FormatException(
+        'Query parameter "$key" must be an HTTP status code from 100 to 599.',
+      );
+    }
+    return parsed;
+  }
+
+  bool _parseQueryBool(String key, String value) {
+    final normalized = value.toLowerCase();
+    if (normalized == 'true') {
+      return true;
+    }
+    if (normalized == 'false') {
+      return false;
+    }
+    throw FormatException(
+      'Query parameter "$key" must be either "true" or "false".',
+    );
+  }
+
+  String? _routePathFor(String path) {
     final prefix = _configuration.normalizedRoutePrefix;
     if (prefix.isEmpty) {
       return path;
@@ -347,30 +401,33 @@ final class CockpitRemoteSessionEndpointHandler {
     if (path.startsWith('$prefix/')) {
       return path.substring(prefix.length);
     }
-    return path;
+    return null;
   }
 
-  CockpitRemoteRecordingResponse _recordingResponseFor(
+  Future<CockpitRemoteRecordingResponse> _recordingResponseFor(
     CockpitRecordingResult result,
-  ) {
+  ) async {
     final artifact = result.artifact;
     if (artifact == null) {
-      return CockpitRemoteRecordingResponse(result: result);
+      return CockpitRemoteRecordingResponse(
+        result: _recordingResultForTransport(result),
+      );
     }
 
-    final artifactEntry = _artifactEntryFor(result);
+    final artifactEntry = await _artifactEntryFor(result);
     if (artifactEntry == null) {
-      return CockpitRemoteRecordingResponse(result: result);
+      return CockpitRemoteRecordingResponse(
+        result: _recordingResultForTransport(result, includeArtifact: false),
+      );
     }
 
     _downloadableArtifacts[artifact.relativePath] = artifactEntry;
     return CockpitRemoteRecordingResponse(
-      result: result,
+      result: _recordingResultForTransport(result),
       artifactDownloads: <CockpitRemoteArtifactDownload>[
         CockpitRemoteArtifactDownload(
           artifact: artifact,
-          downloadPath:
-              '/artifacts/download?path=${Uri.encodeQueryComponent(artifact.relativePath)}',
+          downloadPath: _downloadPathFor(artifact.relativePath),
         ),
       ],
     );
@@ -435,8 +492,7 @@ final class CockpitRemoteSessionEndpointHandler {
       artifactDownloads: <CockpitRemoteArtifactDownload>[
         CockpitRemoteArtifactDownload(
           artifact: artifactRef,
-          downloadPath:
-              '/artifacts/download?path=${Uri.encodeQueryComponent(artifactRef.relativePath)}',
+          downloadPath: _downloadPathFor(artifactRef.relativePath),
         ),
       ],
     );
@@ -467,10 +523,17 @@ final class CockpitRemoteSessionEndpointHandler {
     );
   }
 
-  _RemoteArtifactEntry? _artifactEntryFor(CockpitRecordingResult result) {
+  Future<_RemoteArtifactEntry?> _artifactEntryFor(
+    CockpitRecordingResult result,
+  ) async {
     final bytes = result.bytes;
     if (bytes != null) {
-      return _RemoteArtifactEntry(bytes: List<int>.unmodifiable(bytes));
+      return _persistArtifactBytes(
+        cockpitSanitizeRemoteArtifactBasename(
+          result.artifact?.relativePath ?? 'recording.mp4',
+        ),
+        bytes,
+      );
     }
 
     final sourceFilePath = result.sourceFilePath;
@@ -483,6 +546,17 @@ final class CockpitRemoteSessionEndpointHandler {
     }
     return _RemoteArtifactEntry(
       sourceFilePath: sourceFile.path,
+    );
+  }
+
+  CockpitRecordingResult _recordingResultForTransport(
+    CockpitRecordingResult result, {
+    bool includeArtifact = true,
+  }) {
+    return result.copyWith(
+      artifact: includeArtifact ? result.artifact : null,
+      bytes: null,
+      sourceFilePath: null,
     );
   }
 
@@ -524,11 +598,6 @@ final class CockpitRemoteSessionEndpointHandler {
       );
     }
 
-    final bytes = entry.bytes;
-    if (bytes != null) {
-      return CockpitRemoteSessionEndpointResponse.binary(bytes);
-    }
-
     final sourceFilePath = entry.sourceFilePath;
     if (sourceFilePath == null || sourceFilePath.isEmpty) {
       _downloadableArtifacts.remove(relativePath);
@@ -566,6 +635,12 @@ final class CockpitRemoteSessionEndpointHandler {
     } on Object {
       // Cleanup is best-effort during server shutdown.
     }
+  }
+
+  String _downloadPathFor(String relativePath) {
+    final routePrefix = _configuration.normalizedRoutePrefix;
+    final endpoint = '$routePrefix/artifacts/download';
+    return '$endpoint?path=${Uri.encodeQueryComponent(relativePath)}';
   }
 }
 

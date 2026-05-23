@@ -17,15 +17,10 @@ final class StopAppCommand extends CockpitCliCommand {
     StringSink? stdoutSink,
   })  : _stop = stop ?? (service ?? CockpitStopAppService()).stop,
         _stdoutSink = stdoutSink ?? stdout {
-    argParser
-      ..addOption(
-        'app-json',
-        help: cockpitAppJsonOptionHelp,
-      )
-      ..addOption(
-        'output-json',
-        help: cockpitPrettyOutputJsonOptionHelp,
-      );
+    argParser.addOption(
+      'app-json',
+      help: cockpitAppJsonOptionHelp,
+    );
   }
 
   final CockpitStopAppFunction _stop;

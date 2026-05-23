@@ -30,6 +30,7 @@ final class CockpitInspectUiTool extends CockpitMcpTool {
           'appId': <String, Object?>{'type': 'string'},
           'appJson': <String, Object?>{'type': 'string'},
           'baseUrl': <String, Object?>{'type': 'string'},
+          'androidDeviceId': <String, Object?>{'type': 'string'},
           'profile': <String, Object?>{'type': 'string'},
           'snapshotOptions': <String, Object?>{'type': 'object'},
           'compareAgainstSnapshotRef': <String, Object?>{'type': 'string'},
@@ -44,6 +45,10 @@ final class CockpitInspectUiTool extends CockpitMcpTool {
           appId: cockpitReadOptionalString(arguments, 'appId'),
           appHandlePath: cockpitReadOptionalString(arguments, 'appJson'),
           baseUri: _readOptionalBaseUri(arguments),
+          androidDeviceId: cockpitReadOptionalString(
+            arguments,
+            'androidDeviceId',
+          ),
           resultProfile: _readProfile(arguments),
           snapshotOptions: _readOptionalSnapshotOptions(arguments),
           compareAgainstSnapshotRef: cockpitReadOptionalString(

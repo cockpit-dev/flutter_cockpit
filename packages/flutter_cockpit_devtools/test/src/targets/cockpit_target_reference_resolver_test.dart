@@ -299,5 +299,82 @@ void main() {
       resolved.target?.connection.baseUri.toString(),
       'http://127.0.0.1:61331',
     );
+    final remoteSession =
+        resolved.target?.metadata['remoteSession'] as Map<String, Object?>?;
+    expect(remoteSession?['hostPort'], 61331);
+    expect(remoteSession?['baseUrl'], 'http://127.0.0.1:61331');
+    expect(remoteSession?['devicePort'], 47331);
   });
+
+  test(
+      'explicit baseUri overrides target handle connection while preserving target metadata',
+      () async {
+    final target = CockpitTargetHandle(
+      targetId: 'dev.example.app',
+      targetKind: CockpitTargetKind.flutterApp,
+      platform: 'android',
+      deviceId: 'emulator-5554',
+      projectDir: '/workspace/app',
+      target: 'cockpit/main.dart',
+      connection: const CockpitTargetConnection(
+        baseUrl: 'http://127.0.0.1:57331',
+      ),
+      launchedAt: DateTime.utc(2026, 5, 10),
+      metadata: const <String, Object?>{
+        'appId': 'dev.example.app',
+        'appMode': 'automation',
+        'supportsHotReload': false,
+        'platformAppId': 'dev.example.platform',
+        'processId': 4242,
+        'remoteSession': <String, Object?>{
+          'platform': 'android',
+          'deviceId': 'emulator-5554',
+          'projectDir': '/workspace/app',
+          'target': 'cockpit/main.dart',
+          'appId': 'dev.example.app',
+          'platformAppId': 'dev.example.platform',
+          'processId': 4242,
+          'host': '127.0.0.1',
+          'hostPort': 57331,
+          'devicePort': 47331,
+          'baseUrl': 'http://127.0.0.1:57331',
+          'launchedAt': '2026-05-10T00:00:00.000Z',
+        },
+      },
+    );
+
+    final resolved = await CockpitTargetReferenceResolver(
+      appReferenceResolver: CockpitAppReferenceResolver(
+        portForwarder: _FailingAndroidPortForwarder(),
+      ),
+    ).resolve(
+      target: target,
+      baseUri: Uri.parse('http://127.0.0.1:61331/cockpit'),
+    );
+
+    expect(resolved.baseUri.toString(), 'http://127.0.0.1:61331/cockpit');
+    expect(
+      resolved.target?.connection.baseUri.toString(),
+      'http://127.0.0.1:61331/cockpit',
+    );
+    expect(resolved.target?.metadata['appId'], 'dev.example.app');
+    expect(resolved.target?.metadata['platformAppId'], 'dev.example.platform');
+    expect(resolved.target?.metadata['processId'], 4242);
+    final remoteSession =
+        resolved.target?.metadata['remoteSession'] as Map<String, Object?>?;
+    expect(remoteSession?['hostPort'], 61331);
+    expect(remoteSession?['baseUrl'], 'http://127.0.0.1:61331/cockpit');
+    expect(remoteSession?['devicePort'], 47331);
+  });
+}
+
+final class _FailingAndroidPortForwarder extends CockpitAndroidPortForwarder {
+  @override
+  Future<int> ensureForwarded({
+    required String deviceId,
+    required int preferredHostPort,
+    required int devicePort,
+  }) {
+    throw StateError('explicit baseUri must not refresh adb forwarding');
+  }
 }

@@ -17,15 +17,10 @@ final class HotReloadCommand extends CockpitCliCommand {
     StringSink? stdoutSink,
   })  : _reload = reload ?? (service ?? CockpitHotReloadService()).reload,
         _stdoutSink = stdoutSink ?? stdout {
-    argParser
-      ..addOption(
-        'app-json',
-        help: cockpitAppJsonOptionHelp,
-      )
-      ..addOption(
-        'output-json',
-        help: cockpitPrettyOutputJsonOptionHelp,
-      );
+    argParser.addOption(
+      'app-json',
+      help: cockpitAppJsonOptionHelp,
+    );
   }
 
   final CockpitHotReloadFunction _reload;
@@ -53,7 +48,7 @@ final class HotReloadCommand extends CockpitCliCommand {
 
   @override
   String get helpExample =>
-      'flutter_cockpit_devtools hot-reload --app-json /tmp/app.json | jq \'{reloadGeneration: .status.reloadGeneration, lastReloadSucceeded: .status.lastReloadSucceeded, lastReloadMode: .status.lastReloadMode}\'';
+      'flutter_cockpit_devtools hot-reload --app-json /tmp/app.json --stdout-format json | jq \'{reloadGeneration: .status.reloadGeneration, lastReloadSucceeded: .status.lastReloadSucceeded, lastReloadMode: .status.lastReloadMode}\'';
 
   @override
   String get helpWrites =>

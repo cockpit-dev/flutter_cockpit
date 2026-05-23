@@ -117,6 +117,9 @@ final class RunScriptCommand extends CockpitCliCommand {
             resolved.developmentRecord?.handle.remoteSessionHandle?.processId ??
             resolved.remoteRecord?.handle.processId,
         baseUri: resolved.baseUri,
+        sessionHandle: resolved.app?.remoteSession ??
+            resolved.developmentRecord?.handle.remoteSessionHandle ??
+            resolved.remoteRecord?.handle,
         androidDeviceId: argResults?['android-device-id'] as String?,
         iosDeviceId: argResults?['ios-device-id'] as String?,
         portForwardingHandled: true,

@@ -40,6 +40,8 @@ void main() {
           '12',
           '--no-include-latest-task',
           '--no-include-sessions',
+          '--stdout-format',
+          'json',
         ]) ??
         0;
 

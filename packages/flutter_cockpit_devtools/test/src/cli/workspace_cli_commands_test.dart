@@ -44,6 +44,8 @@ void main() {
 
     final exitCode = await runner.run(<String>[
           'pub-dev-search',
+          '--stdout-format',
+          'json',
           '--query',
           'state management',
           '--max-results',
@@ -98,6 +100,8 @@ void main() {
 
     final exitCode = await runner.run(<String>[
           'pub',
+          '--stdout-format',
+          'json',
           '--command',
           'add',
           '--package',
@@ -147,6 +151,8 @@ void main() {
 
     final exitCode = await runner.run(<String>[
           'read-package-uris',
+          '--stdout-format',
+          'json',
           '--uri',
           'package:example/example.dart',
           '--uri',
@@ -233,6 +239,8 @@ void main() {
 
     final exitCode = await runner.run(<String>[
           'grep-package-uris',
+          '--stdout-format',
+          'json',
           '--package',
           'flutter',
           '--query',
@@ -287,6 +295,8 @@ void main() {
 
     final exitCode = await runner.run(<String>[
           'lsp',
+          '--stdout-format',
+          'json',
           '--command',
           'hover',
           '--path',
@@ -365,6 +375,8 @@ void main() {
 
     final exitCode = await runner.run(<String>[
           'analyze-files',
+          '--stdout-format',
+          'json',
           '--path',
           'lib/main.dart',
           '--max-diagnostics',
@@ -418,6 +430,8 @@ void main() {
 
     final exitCode = await runner.run(<String>[
           'create-project',
+          '--stdout-format',
+          'json',
           '--project-name',
           'new_app',
           '--template',

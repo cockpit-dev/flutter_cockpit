@@ -19,6 +19,11 @@ final class StopRecordingCommand extends CockpitCliCommand {
   })  : _stop = stop ?? (service ?? CockpitStopRecordingService()).stop,
         _stdoutSink = stdoutSink ?? stdout {
     cockpitAddAppArgs(argParser);
+    argParser.addOption(
+      'ios-device-id',
+      help:
+          'iOS device or simulator ID for host-side recording when app metadata is unavailable.',
+    );
   }
 
   final CockpitStopRecordingFunction _stop;
@@ -59,6 +64,7 @@ final class StopRecordingCommand extends CockpitCliCommand {
         baseUri: cockpitReadOptionalBaseUri(argResults),
         appHandlePath: cockpitResolveAppHandlePath(argResults),
         androidDeviceId: argResults?['android-device-id'] as String?,
+        iosDeviceId: argResults?['ios-device-id'] as String?,
       ),
     );
     await cockpitWriteJsonPayload(

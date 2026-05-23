@@ -198,6 +198,89 @@ void main() {
       expect(result.finalSnapshot?.routeName, '/final');
       expect(result.finalSnapshot?.snapshotRef, isNotEmpty);
     });
+
+    test('stops active recording when a batch command throws', () async {
+      var started = false;
+      var stopped = false;
+      final service = CockpitExecuteRemoteCommandBatchService(
+        startRecording: (_, request) async {
+          started = true;
+          return CockpitRecordingSession(
+            request: request,
+            state: CockpitRecordingState.recording,
+          );
+        },
+        stopRecording: (_) async {
+          stopped = true;
+          return CockpitRecordingResult(
+            state: CockpitRecordingState.completed,
+          );
+        },
+        executeCommand: (_, __) async {
+          throw StateError('command failed');
+        },
+      );
+
+      await expectLater(
+        service.execute(
+          CockpitExecuteRemoteCommandBatchRequest(
+            sessionHandle: _sessionHandle(),
+            commands: <CockpitInteractiveBatchCommand>[
+              _batchCommand('explodes'),
+            ],
+            recording: _recordingRequest(),
+          ),
+        ),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            'command failed',
+          ),
+        ),
+      );
+
+      expect(started, isTrue);
+      expect(stopped, isTrue);
+    });
+
+    test('preserves command failure when cleanup stop also fails', () async {
+      var stopAttempts = 0;
+      final service = CockpitExecuteRemoteCommandBatchService(
+        startRecording: (_, request) async => CockpitRecordingSession(
+          request: request,
+          state: CockpitRecordingState.recording,
+        ),
+        stopRecording: (_) async {
+          stopAttempts += 1;
+          throw StateError('stop failed');
+        },
+        executeCommand: (_, __) async {
+          throw StateError('original command failure');
+        },
+      );
+
+      await expectLater(
+        service.execute(
+          CockpitExecuteRemoteCommandBatchRequest(
+            sessionHandle: _sessionHandle(),
+            commands: <CockpitInteractiveBatchCommand>[
+              _batchCommand('explodes'),
+            ],
+            recording: _recordingRequest(),
+          ),
+        ),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            'original command failure',
+          ),
+        ),
+      );
+
+      expect(stopAttempts, 1);
+    });
   });
 }
 
@@ -226,5 +309,12 @@ CockpitRemoteSessionHandle _sessionHandle() {
     devicePort: 47331,
     baseUrl: 'http://127.0.0.1:47331',
     launchedAt: DateTime.utc(2026, 3, 30),
+  );
+}
+
+CockpitRecordingRequest _recordingRequest() {
+  return const CockpitRecordingRequest(
+    purpose: CockpitRecordingPurpose.acceptance,
+    name: 'batch-cleanup',
   );
 }

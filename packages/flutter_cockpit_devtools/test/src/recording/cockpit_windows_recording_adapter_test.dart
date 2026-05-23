@@ -227,6 +227,56 @@ void main() {
       );
     },
   );
+
+  test(
+    'windows recording adapter includes recent ffmpeg stderr when output is empty',
+    () async {
+      final adapter = CockpitWindowsRecordingAdapter(
+        appId: 'cockpit_demo',
+        windowResolver: ({
+          required appId,
+          required processId,
+          required powershellExecutable,
+          required processRunner,
+          required timeout,
+          required activationSettleDelay,
+        }) async =>
+            const CockpitWindowsWindowTarget(
+          title: 'Cockpit Demo',
+          handle: 4242,
+          left: 20,
+          top: 12,
+          width: 300,
+          height: 240,
+        ),
+        ffmpegExecutable: 'ffmpeg',
+        powershellExecutable: 'powershell',
+        processStarter: (_, __) async => _FakeRecordingProcess(
+          startupLine:
+              'Press [q] to stop\n[gdigrab @ 0x123] Capturing window failed',
+          onStopRequested: () async {},
+        ),
+        processRunner: (_, __) async => ProcessResult(0, 0, '', ''),
+        startupTimeout: const Duration(seconds: 2),
+        stopTimeout: const Duration(seconds: 2),
+        finalizationPollInterval: const Duration(milliseconds: 10),
+      );
+
+      final session = await adapter.startRecording(
+        const CockpitRecordingRequest(
+          purpose: CockpitRecordingPurpose.acceptance,
+          name: 'empty-windows-output-diagnostics',
+          attachToStep: true,
+        ),
+      );
+      final result = await adapter.stopRecording();
+
+      expect(session.state, CockpitRecordingState.recording);
+      expect(result.state, CockpitRecordingState.failed);
+      expect(result.failureReason, contains('Recent ffmpeg output'));
+      expect(result.failureReason, contains('Capturing window failed'));
+    },
+  );
 }
 
 final class _FakeRecordingProcess implements Process {

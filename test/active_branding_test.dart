@@ -34,6 +34,48 @@ void main() {
     expect(contract, isNot(contains('`flutter-pilot` skill')));
   });
 
+  test('active docs and launchers use flutter_cockpit dart defines', () {
+    final files = <String>[
+      'README.md',
+      'README.zh-CN.md',
+      'packages/flutter_cockpit/README.md',
+      'packages/flutter_cockpit/README.zh-CN.md',
+      'skills/flutter-cockpit/SKILL.md',
+      'skills/flutter-cockpit/examples/flutter-app-setup.md',
+      'packages/flutter_cockpit/lib/src/remote/cockpit_remote_session_configuration.dart',
+      'packages/flutter_cockpit/lib/src/runtime/cockpit_runtime_environment.dart',
+      'packages/flutter_cockpit_devtools/lib/src/development/cockpit_development_session_machine_launcher.dart',
+      'packages/flutter_cockpit_devtools/lib/src/session/cockpit_android_remote_session_launcher.dart',
+      'packages/flutter_cockpit_devtools/lib/src/session/cockpit_ios_physical_remote_session_launcher.dart',
+      'packages/flutter_cockpit_devtools/lib/src/session/cockpit_ios_simulator_remote_session_launcher.dart',
+      'packages/flutter_cockpit_devtools/lib/src/session/cockpit_linux_remote_session_launcher.dart',
+      'packages/flutter_cockpit_devtools/lib/src/session/cockpit_macos_remote_session_launcher.dart',
+      'packages/flutter_cockpit_devtools/lib/src/session/cockpit_windows_remote_session_launcher.dart',
+    ];
+
+    for (final relativePath in files) {
+      final content = File('$root/$relativePath').readAsStringSync();
+      expect(
+        content,
+        isNot(contains('FLUTTER_PILOT')),
+        reason: '$relativePath still exposes legacy dart-define branding.',
+      );
+    }
+
+    final runtimeConfig = File(
+      '$root/packages/flutter_cockpit/lib/src/remote/cockpit_remote_session_configuration.dart',
+    ).readAsStringSync();
+    expect(runtimeConfig, contains('FLUTTER_COCKPIT_REMOTE_ENABLED'));
+    expect(runtimeConfig, contains('FLUTTER_COCKPIT_REMOTE_HOST'));
+    expect(runtimeConfig, contains('FLUTTER_COCKPIT_REMOTE_PORT'));
+    expect(runtimeConfig, contains('FLUTTER_COCKPIT_REMOTE_ROUTE_PREFIX'));
+
+    final runtimeEnvironment = File(
+      '$root/packages/flutter_cockpit/lib/src/runtime/cockpit_runtime_environment.dart',
+    ).readAsStringSync();
+    expect(runtimeEnvironment, contains('FLUTTER_COCKPIT_FLUTTER_VERSION'));
+  });
+
   test('active package trees do not keep legacy flutter_pilot filenames', () {
     final packageRoots = <Directory>[
       Directory('$root/packages/flutter_cockpit'),
@@ -58,16 +100,37 @@ void main() {
     final readmeZh = File('$root/README.zh-CN.md').readAsStringSync();
 
     expect(readme, contains('app.json'));
-    expect(readme, contains('--output-json'));
+    expect(readme, contains('--output-format json'));
     expect(readme, contains('jq'));
     expect(readme, contains('--command-file'));
     expect(readme, contains('lower camel case keys'));
+    expect(readme, isNot(contains('--output-json')));
+    expect(readme, isNot(contains('--output-ai')));
 
     expect(readmeZh, contains('app.json'));
-    expect(readmeZh, contains('--output-json'));
+    expect(readmeZh, contains('--output-format json'));
     expect(readmeZh, contains('jq'));
     expect(readmeZh, contains('--command-file'));
     expect(readmeZh, contains('lower camel case'));
+    expect(readmeZh, isNot(contains('--output-json')));
+    expect(readmeZh, isNot(contains('--output-ai')));
+  });
+
+  test('devtools readmes keep output path and output format separate', () {
+    final readme = File(
+      '$root/packages/flutter_cockpit_devtools/README.md',
+    ).readAsStringSync();
+    final readmeZh = File(
+      '$root/packages/flutter_cockpit_devtools/README.zh-CN.md',
+    ).readAsStringSync();
+
+    for (final content in <String>[readme, readmeZh]) {
+      expect(content, contains('--output <path>'));
+      expect(content, contains('--output-format json'));
+      expect(content, contains('--stdout-format json'));
+      expect(content, isNot(contains('--output-json')));
+      expect(content, isNot(contains('--output-ai')));
+    }
   });
 
   test('tracked text files do not keep TODO or FIXME markers', () {

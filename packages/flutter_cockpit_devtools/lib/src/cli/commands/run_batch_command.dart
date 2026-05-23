@@ -21,6 +21,11 @@ final class RunBatchCommand extends CockpitCliCommand {
   })  : _runBatch = runBatch ?? (service ?? CockpitRunBatchService()).run,
         _stdoutSink = stdoutSink ?? stdout {
     cockpitAddAppArgs(argParser);
+    argParser.addOption(
+      'ios-device-id',
+      help:
+          'iOS device or simulator ID for host-side batch recording when app metadata is unavailable.',
+    );
     cockpitAddProfileArg(argParser);
     cockpitAddCommandsJsonArgs(argParser);
     cockpitAddCommandTimeoutArg(
@@ -112,12 +117,17 @@ final class RunBatchCommand extends CockpitCliCommand {
         baseUri: cockpitReadOptionalBaseUri(argResults),
         appHandlePath: cockpitResolveAppHandlePath(argResults),
         androidDeviceId: argResults?['android-device-id'] as String?,
+        iosDeviceId: argResults?['ios-device-id'] as String?,
         commands: commandsJson.map(_readBatchCommand).toList(growable: false),
         defaultResultProfile: cockpitReadResultProfile(argResults),
         failFast: argResults?['fail-fast'] as bool? ?? true,
         defaultCommandTimeout: Duration(
-          milliseconds:
-              cockpitReadOptionalInt(argResults, 'default-timeout-ms') ?? 30000,
+          milliseconds: cockpitReadOptionalPositiveInt(
+                argResults,
+                'default-timeout-ms',
+                usage,
+              ) ??
+              30000,
         ),
         recording: recordingJson == null
             ? null

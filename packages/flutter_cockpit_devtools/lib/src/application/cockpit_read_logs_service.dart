@@ -15,11 +15,15 @@ final class CockpitReadLogsRequest {
   const CockpitReadLogsRequest({
     this.appId,
     this.appHandlePath,
+    this.baseUri,
+    this.androidDeviceId,
     this.maxLines = 200,
   });
 
   final String? appId;
   final String? appHandlePath;
+  final Uri? baseUri;
+  final String? androidDeviceId;
   final int maxLines;
 }
 
@@ -78,11 +82,14 @@ final class CockpitReadLogsService {
     final safeMaxLines = request.maxLines <= 0 ? 200 : request.maxLines;
     final appId = request.appId;
     final resolved = (appId == null || appId.isEmpty) &&
-            (request.appHandlePath == null || request.appHandlePath!.isEmpty)
+            (request.appHandlePath == null || request.appHandlePath!.isEmpty) &&
+            request.baseUri == null
         ? null
         : await _appReferenceResolver.resolve(
             appId: appId,
             appHandlePath: request.appHandlePath,
+            baseUri: request.baseUri,
+            androidDeviceId: request.androidDeviceId,
           );
     final effectiveAppId = resolved?.app?.appId ?? appId ?? 'unknown';
     final appSnapshotResult = await _readAppSnapshotLogs(

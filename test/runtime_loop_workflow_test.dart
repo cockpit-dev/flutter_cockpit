@@ -42,6 +42,7 @@ void main() {
     expect(workflow, contains('android-runtime-loop:'));
     expect(workflow, contains('ios-runtime-loop:'));
     expect(workflow, contains('macos-runtime-loop:'));
+    expect(workflow, contains('web-runtime-loop:'));
     expect(workflow, contains('linux-runtime-loop:'));
     expect(workflow, contains('windows-runtime-loop:'));
 
@@ -59,6 +60,10 @@ void main() {
     );
     expect(
       workflow,
+      contains('dart run tool/verify_platforms.dart --platform web'),
+    );
+    expect(
+      workflow,
       contains('dart run tool/verify_platforms.dart --platform linux'),
     );
     expect(
@@ -69,5 +74,13 @@ void main() {
     expect(workflow, contains(r'STATUS=${PIPESTATUS[0]}'));
     expect(workflow, contains('xvfb-run -a dart run'));
     expect(workflow, contains('reactivecircus/android-emulator-runner@v2'));
+    expect(workflow, contains('"sync_lab_conflict_recovery"'));
+    expect(workflow, contains('assert platform["batchCommandCount"] == 29'));
+    expect(workflow, contains('assert platform["recordingOutputPath"]'));
+    expect(
+      workflow,
+      contains('assert platform["screenshotByteLength"] > 0'),
+    );
+    expect(workflow, isNot(contains('platform["batchCommandCount"] == 4')));
   });
 }

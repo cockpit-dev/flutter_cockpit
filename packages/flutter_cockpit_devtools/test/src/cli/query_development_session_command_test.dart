@@ -35,6 +35,8 @@ void main() {
 
       final exitCode = await runner.run(<String>[
             'query-development-session',
+            '--stdout-format',
+            'json',
             '--session-json',
             '/tmp/dev-session.json',
           ]) ??

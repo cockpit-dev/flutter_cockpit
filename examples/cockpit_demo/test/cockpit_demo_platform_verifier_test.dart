@@ -51,9 +51,46 @@ void main() {
     );
   });
 
+  test('artifact output paths cannot escape the verifier output root', () {
+    expect(
+      cockpitDemoResolveArtifactOutputPath(
+        outputDir: '/tmp/cockpit_demo_platforms',
+        relativePath: 'recordings/proof.mp4',
+      ),
+      p.normalize('/tmp/cockpit_demo_platforms/recordings/proof.mp4'),
+    );
+    expect(
+      () => cockpitDemoResolveArtifactOutputPath(
+        outputDir: '/tmp/cockpit_demo_platforms',
+        relativePath: '../proof.mp4',
+      ),
+      throwsA(
+        isA<CockpitApplicationServiceException>().having(
+          (error) => error.code,
+          'code',
+          'invalidArtifactPath',
+        ),
+      ),
+    );
+    expect(
+      () => cockpitDemoResolveArtifactOutputPath(
+        outputDir: '/tmp/cockpit_demo_platforms',
+        relativePath: '/tmp/proof.mp4',
+      ),
+      throwsA(
+        isA<CockpitApplicationServiceException>().having(
+          (error) => error.code,
+          'code',
+          'invalidArtifactPath',
+        ),
+      ),
+    );
+  });
+
   test(
     'verifier boots missing mobile targets and validates the development loop',
     () async {
+      final recordingFile = await _createRecordingArtifact();
       final launchedRequests = <CockpitLaunchAppRequest>[];
       final commandTypes = <CockpitCommandType>[];
       final batchRequests = <CockpitRunBatchRequest>[];
@@ -468,7 +505,7 @@ void main() {
                   relativePath: 'recordings/platform-loop.mp4',
                 ),
                 durationMs: 3200,
-                sourceFilePath: '/tmp/platform-loop.mp4',
+                sourceFilePath: recordingFile.path,
               );
             },
           );
@@ -580,6 +617,7 @@ void main() {
         CockpitCommandType.tap,
         CockpitCommandType.enterText,
         CockpitCommandType.tap,
+        CockpitCommandType.waitFor,
       ];
       expect(
         batchedCommandTypes
@@ -594,7 +632,7 @@ void main() {
           CockpitCommandType.waitFor,
         ]),
       );
-      expect(batchedCommandTypes.length, 168);
+      expect(batchedCommandTypes.length, 174);
       expect(batchRequests, hasLength(30));
       final firstBatchCommands = batchRequests.first.commands
           .map((batchCommand) => batchCommand.command)
@@ -623,6 +661,12 @@ void main() {
       expect(firstBatchCommands[5].locator?.text, 'Save task');
       expect(firstBatchCommands[5].locator?.ancestor?.route, '/editor');
       expect(firstBatchCommands[5].commandId, 'verify-save-task');
+      expect(
+        firstBatchCommands[6].commandId,
+        'verify-wait-for-inbox-route-after-save',
+      );
+      expect(firstBatchCommands[6].commandType, CockpitCommandType.waitFor);
+      expect(firstBatchCommands[6].parameters['routeName'], '/inbox');
       final syncLabBatchCommands = batchRequests[1]
           .commands
           .map((batchCommand) => batchCommand.command.commandId)
@@ -708,7 +752,7 @@ void main() {
       );
       expect(
         result.platforms.map((platform) => platform.batchCommandCount),
-        everyElement(28),
+        everyElement(29),
       );
       expect(
         result.platforms.map((platform) => platform.networkFailureCount),
@@ -725,6 +769,14 @@ void main() {
       expect(
         result.platforms.map((platform) => platform.recordingArtifactRef),
         everyElement('recordings/platform-loop.mp4'),
+      );
+      expect(
+        result.platforms.map((platform) => platform.recordingOutputPath),
+        everyElement(isNotNull),
+      );
+      expect(
+        result.platforms.map((platform) => platform.screenshotByteLength),
+        everyElement(greaterThan(0)),
       );
       expect(
         result.platforms.map((platform) => platform.recordingDriver),
@@ -842,6 +894,7 @@ void main() {
   );
 
   test('verifier records sync lab conflict recovery evidence', () async {
+    final recordingFile = await _createRecordingArtifact();
     var currentRoute = '/inbox';
     final verifier = CockpitDemoPlatformVerifier(
       probeDevices: () async => const <CockpitDemoHostDevice>[
@@ -1052,7 +1105,7 @@ void main() {
               relativePath: 'recordings/platform-loop.mp4',
             ),
             durationMs: 1600,
-            sourceFilePath: '/tmp/platform-loop.mp4',
+            sourceFilePath: recordingFile.path,
           ),
         );
       },
@@ -1107,6 +1160,7 @@ void main() {
 
   test('verifier retries transient remote unavailability during validation',
       () async {
+    final recordingFile = await _createRecordingArtifact();
     var currentRoute = '/inbox';
     var assertNewTaskAttempts = 0;
     var createBatchAttempts = 0;
@@ -1335,7 +1389,7 @@ void main() {
               relativePath: 'recordings/platform-loop.mp4',
             ),
             durationMs: 1600,
-            sourceFilePath: '/tmp/platform-loop.mp4',
+            sourceFilePath: recordingFile.path,
           ),
         );
       },
@@ -1465,9 +1519,32 @@ void main() {
               usedCaptureFallback: false,
               error: CockpitCommandError.targetNotFound(
                 message: 'Notes field is not visible.',
+                details: const <String, Object?>{
+                  'locator': <String, Object?>{'text': 'Notes'},
+                },
               ),
             ),
             artifacts: const <CockpitInteractiveArtifactDescriptor>[],
+            recommendedNextStep: 'inspect-ui-then-fix-locator',
+            selectedPlane: CockpitPlaneKind.flutterSemanticPlane,
+            whatMatters: 'The expected form field is below the fold.',
+            uiSummary: const CockpitInteractiveSnapshotSummary(
+              routeName: '/editor',
+              diagnosticLevel: 'baseline',
+              truncated: false,
+              visibleTargetCount: 9,
+              targetsWithCockpitIdCount: 4,
+              targetsWithTextCount: 7,
+              networkEntryCount: 0,
+              networkFailureCount: 0,
+              runtimeEntryCount: 0,
+              runtimeErrorCount: 0,
+              rebuildEntryCount: 0,
+              totalRebuildCount: 0,
+              accessibilityTargetCount: 9,
+              accessibilityTraversalCount: 9,
+              textPreviews: <String>['Task title', 'Save task'],
+            ),
           ),
         ],
         summary: const CockpitExecuteRemoteCommandBatchSummary(
@@ -1512,8 +1589,395 @@ void main() {
     );
 
     expect(result.success, isFalse);
-    expect(result.platforms.single.failureCode, 'exampleBatchFailed');
+    final failedPlatform = result.platforms.single;
+    expect(failedPlatform.failureCode, 'exampleBatchFailed');
+    expect(
+      failedPlatform.failureDetails,
+      containsPair('recommendedNextStep', 'inspect-ui-then-fix-locator'),
+    );
+    expect(
+      failedPlatform.failureDetails,
+      containsPair('commandId', 'verify-open-editor'),
+    );
+    expect(failedPlatform.failureDetails, containsPair('commandType', 'tap'));
+    expect(
+      failedPlatform.failureDetails,
+      containsPair('expectedCount', 7),
+    );
+    expect(
+      failedPlatform.failureDetails['error'],
+      containsPair('code', CockpitCommandError.targetNotFoundCode),
+    );
+    expect(
+      failedPlatform.failureDetails['uiSummary'],
+      containsPair('routeName', '/editor'),
+    );
+    expect(
+      failedPlatform.toJson()['failureDetails'],
+      containsPair('selectedPlane', 'flutterSemanticPlane'),
+    );
     expect(recordingStopCount, 1);
+  });
+
+  test('verifier fails when completed recording evidence is unavailable',
+      () async {
+    final verifier = CockpitDemoPlatformVerifier(
+      probeDevices: () async => const <CockpitDemoHostDevice>[
+        CockpitDemoHostDevice(
+          name: 'macOS',
+          deviceId: 'macos',
+          platform: 'macos',
+          emulator: false,
+          supported: true,
+        ),
+      ],
+      listIosSimulators: () async => const <CockpitDemoIosSimulator>[],
+      runProcess: (executable, arguments, {String? workingDirectory}) async {
+        return ProcessResult(0, 0, '', '');
+      },
+      wait: (_) async {},
+      launchApp: (request) async {
+        return CockpitLaunchAppResult(
+          app: _appForPlatform(
+            platform: request.platform,
+            deviceId: request.deviceId,
+            baseUrl: 'http://127.0.0.1:${request.sessionPort}',
+          ),
+          appJsonPath: '/tmp/${request.platform}/app.json',
+        );
+      },
+      readApp: (request) async => CockpitReadAppResult(
+        sessionId: '${request.app!.platform}-session',
+        transportType: 'remoteHttp',
+        capabilities: _capabilitiesForPlatform(request.app!.platform),
+        recordingCapabilities: CockpitRecordingCapabilities(
+          supportsNativeRecording: true,
+          preferredAcceptanceRecordingKind: CockpitRecordingKind.nativeScreen,
+        ),
+        currentRouteName: '/inbox',
+      ),
+      runCommand: (request) async => _successfulCommandResult(
+        request.command,
+        includeScreenshot:
+            request.command.commandType == CockpitCommandType.captureScreenshot,
+      ),
+      inspectUi: (_) async => const CockpitInspectUiResult(
+        routeName: '/inbox',
+        diagnosticLevel: 'investigate',
+        truncated: false,
+      ),
+      runBatch: (request) async => _successfulBatchResult(request),
+      waitIdle: (_) async => const CockpitWaitIdleResult(
+        idle: true,
+        durationMs: 120,
+        quietWindowMs: 160,
+        timeoutMs: 5000,
+        includeNetworkIdle: true,
+      ),
+      readNetwork: (_) async => _successfulNetworkResult(),
+      readErrors: (_) async => const CockpitReadErrorsResult(
+        appId: 'errors-app',
+        routeName: '/inbox',
+        source: 'app_snapshot',
+        errors: <CockpitErrorEntry>[],
+      ),
+      readLogs: (_) async => const CockpitReadLogsResult(
+        appId: 'logs-app',
+        source: 'app_snapshot',
+        available: true,
+        routeName: '/inbox',
+        lines: <String>['info runtime: missing evidence path'],
+        truncated: false,
+      ),
+      inspectSurface: (request) async => _inspectSurfaceResult(request.app!),
+      recordingAdapterResolver: ({
+        required platform,
+        required deviceId,
+        required client,
+        required recording,
+      }) {
+        return _FakeRecordingAdapter(
+          onStart: (request) async => CockpitRecordingSession(
+            request: request,
+            state: CockpitRecordingState.recording,
+          ),
+          onStop: () async => CockpitRecordingResult(
+            state: CockpitRecordingState.completed,
+            purpose: CockpitRecordingPurpose.acceptance,
+            recordingKind: CockpitRecordingKind.nativeScreen,
+            artifact: const CockpitArtifactRef(
+              role: 'recording',
+              relativePath: 'recordings/missing.mp4',
+            ),
+            durationMs: 1600,
+            sourceFilePath: '/tmp/flutter_cockpit_missing_recording.mp4',
+          ),
+        );
+      },
+      hotReload: (request) async => _successfulHotReload(request.app!),
+      hotRestart: (request) async => _successfulHotRestart(request.app!),
+      stopApp: (request) async => CockpitStopAppResult(
+        app: request.app!,
+        status: CockpitAppStopStatus.stopped(mode: request.app!.mode),
+      ),
+    );
+
+    final result = await verifier.verify(
+      const CockpitDemoPlatformVerificationRequest(
+        projectDir: '/workspace/examples/cockpit_demo',
+        platforms: <String>['macos'],
+      ),
+    );
+
+    expect(result.success, isFalse);
+    final failedPlatform = result.platforms.single;
+    expect(failedPlatform.failureCode, 'recordingArtifactUnavailable');
+    expect(
+      failedPlatform.failureDetails,
+      containsPair('artifactPath', 'recordings/missing.mp4'),
+    );
+  });
+
+  test('verifier persists inline recording bytes as evidence', () async {
+    final verifier = CockpitDemoPlatformVerifier(
+      probeDevices: () async => const <CockpitDemoHostDevice>[
+        CockpitDemoHostDevice(
+          name: 'macOS',
+          deviceId: 'macos',
+          platform: 'macos',
+          emulator: false,
+          supported: true,
+        ),
+      ],
+      listIosSimulators: () async => const <CockpitDemoIosSimulator>[],
+      runProcess: (executable, arguments, {String? workingDirectory}) async {
+        return ProcessResult(0, 0, '', '');
+      },
+      wait: (_) async {},
+      launchApp: (request) async {
+        return CockpitLaunchAppResult(
+          app: _appForPlatform(
+            platform: request.platform,
+            deviceId: request.deviceId,
+            baseUrl: 'http://127.0.0.1:${request.sessionPort}',
+          ),
+          appJsonPath: '/tmp/${request.platform}/app.json',
+        );
+      },
+      readApp: (request) async => CockpitReadAppResult(
+        sessionId: '${request.app!.platform}-session',
+        transportType: 'remoteHttp',
+        capabilities: _capabilitiesForPlatform(request.app!.platform),
+        recordingCapabilities: CockpitRecordingCapabilities(
+          supportsNativeRecording: true,
+          preferredAcceptanceRecordingKind: CockpitRecordingKind.nativeScreen,
+        ),
+        currentRouteName: '/inbox',
+      ),
+      runCommand: (request) async => _successfulCommandResult(
+        request.command,
+        includeScreenshot:
+            request.command.commandType == CockpitCommandType.captureScreenshot,
+      ),
+      inspectUi: (_) async => const CockpitInspectUiResult(
+        routeName: '/inbox',
+        diagnosticLevel: 'investigate',
+        truncated: false,
+      ),
+      runBatch: (request) async => _successfulBatchResult(request),
+      waitIdle: (_) async => const CockpitWaitIdleResult(
+        idle: true,
+        durationMs: 120,
+        quietWindowMs: 160,
+        timeoutMs: 5000,
+        includeNetworkIdle: true,
+      ),
+      readNetwork: (_) async => _successfulNetworkResult(),
+      readErrors: (_) async => const CockpitReadErrorsResult(
+        appId: 'errors-app',
+        routeName: '/inbox',
+        source: 'app_snapshot',
+        errors: <CockpitErrorEntry>[],
+      ),
+      readLogs: (_) async => const CockpitReadLogsResult(
+        appId: 'logs-app',
+        source: 'app_snapshot',
+        available: true,
+        routeName: '/inbox',
+        lines: <String>['info runtime: inline recording path'],
+        truncated: false,
+      ),
+      inspectSurface: (request) async => _inspectSurfaceResult(request.app!),
+      recordingAdapterResolver: ({
+        required platform,
+        required deviceId,
+        required client,
+        required recording,
+      }) {
+        return _FakeRecordingAdapter(
+          onStart: (request) async => CockpitRecordingSession(
+            request: request,
+            state: CockpitRecordingState.recording,
+          ),
+          onStop: () async => CockpitRecordingResult(
+            state: CockpitRecordingState.completed,
+            purpose: CockpitRecordingPurpose.acceptance,
+            recordingKind: CockpitRecordingKind.nativeScreen,
+            artifact: const CockpitArtifactRef(
+              role: 'recording',
+              relativePath: 'recordings/inline.mp4',
+            ),
+            durationMs: 1600,
+            bytes: <int>[9, 8, 7, 6],
+          ),
+        );
+      },
+      hotReload: (request) async => _successfulHotReload(request.app!),
+      hotRestart: (request) async => _successfulHotRestart(request.app!),
+      stopApp: (request) async => CockpitStopAppResult(
+        app: request.app!,
+        status: CockpitAppStopStatus.stopped(mode: request.app!.mode),
+      ),
+    );
+
+    final outputRoot =
+        await Directory.systemTemp.createTemp('cockpit_inline_recording_');
+    final result = await verifier.verify(
+      CockpitDemoPlatformVerificationRequest(
+        projectDir: '/workspace/examples/cockpit_demo',
+        platforms: const <String>['macos'],
+        outputRoot: outputRoot.path,
+      ),
+    );
+
+    expect(result.success, isTrue);
+    final platform = result.platforms.single;
+    expect(platform.recordingArtifactRef, 'recordings/inline.mp4');
+    expect(platform.recordingOutputPath, isNotNull);
+    expect(
+      File(platform.recordingOutputPath!).readAsBytesSync(),
+      <int>[9, 8, 7, 6],
+    );
+  });
+
+  test('verifier fails when screenshot evidence is empty', () async {
+    final recordingFile = await _createRecordingArtifact();
+    final verifier = CockpitDemoPlatformVerifier(
+      probeDevices: () async => const <CockpitDemoHostDevice>[
+        CockpitDemoHostDevice(
+          name: 'macOS',
+          deviceId: 'macos',
+          platform: 'macos',
+          emulator: false,
+          supported: true,
+        ),
+      ],
+      listIosSimulators: () async => const <CockpitDemoIosSimulator>[],
+      runProcess: (executable, arguments, {String? workingDirectory}) async {
+        return ProcessResult(0, 0, '', '');
+      },
+      wait: (_) async {},
+      launchApp: (request) async {
+        return CockpitLaunchAppResult(
+          app: _appForPlatform(
+            platform: request.platform,
+            deviceId: request.deviceId,
+            baseUrl: 'http://127.0.0.1:${request.sessionPort}',
+          ),
+          appJsonPath: '/tmp/${request.platform}/app.json',
+        );
+      },
+      readApp: (request) async => CockpitReadAppResult(
+        sessionId: '${request.app!.platform}-session',
+        transportType: 'remoteHttp',
+        capabilities: _capabilitiesForPlatform(request.app!.platform),
+        recordingCapabilities: CockpitRecordingCapabilities(
+          supportsNativeRecording: true,
+          preferredAcceptanceRecordingKind: CockpitRecordingKind.nativeScreen,
+        ),
+        currentRouteName: '/inbox',
+      ),
+      runCommand: (request) async => _successfulCommandResult(
+        request.command,
+        includeScreenshot:
+            request.command.commandType == CockpitCommandType.captureScreenshot,
+        screenshotByteLength: 0,
+      ),
+      inspectUi: (_) async => const CockpitInspectUiResult(
+        routeName: '/inbox',
+        diagnosticLevel: 'investigate',
+        truncated: false,
+      ),
+      runBatch: (request) async => _successfulBatchResult(request),
+      waitIdle: (_) async => const CockpitWaitIdleResult(
+        idle: true,
+        durationMs: 120,
+        quietWindowMs: 160,
+        timeoutMs: 5000,
+        includeNetworkIdle: true,
+      ),
+      readNetwork: (_) async => _successfulNetworkResult(),
+      readErrors: (_) async => const CockpitReadErrorsResult(
+        appId: 'errors-app',
+        routeName: '/inbox',
+        source: 'app_snapshot',
+        errors: <CockpitErrorEntry>[],
+      ),
+      readLogs: (_) async => const CockpitReadLogsResult(
+        appId: 'logs-app',
+        source: 'app_snapshot',
+        available: true,
+        routeName: '/inbox',
+        lines: <String>['info runtime: empty screenshot path'],
+        truncated: false,
+      ),
+      inspectSurface: (request) async => _inspectSurfaceResult(request.app!),
+      recordingAdapterResolver: ({
+        required platform,
+        required deviceId,
+        required client,
+        required recording,
+      }) {
+        return _FakeRecordingAdapter(
+          onStart: (request) async => CockpitRecordingSession(
+            request: request,
+            state: CockpitRecordingState.recording,
+          ),
+          onStop: () async => CockpitRecordingResult(
+            state: CockpitRecordingState.completed,
+            purpose: CockpitRecordingPurpose.acceptance,
+            recordingKind: CockpitRecordingKind.nativeScreen,
+            artifact: const CockpitArtifactRef(
+              role: 'recording',
+              relativePath: 'recordings/platform-loop.mp4',
+            ),
+            durationMs: 1600,
+            sourceFilePath: recordingFile.path,
+          ),
+        );
+      },
+      hotReload: (request) async => _successfulHotReload(request.app!),
+      hotRestart: (request) async => _successfulHotRestart(request.app!),
+      stopApp: (request) async => CockpitStopAppResult(
+        app: request.app!,
+        status: CockpitAppStopStatus.stopped(mode: request.app!.mode),
+      ),
+    );
+
+    final result = await verifier.verify(
+      const CockpitDemoPlatformVerificationRequest(
+        projectDir: '/workspace/examples/cockpit_demo',
+        platforms: <String>['macos'],
+      ),
+    );
+
+    expect(result.success, isFalse);
+    final failedPlatform = result.platforms.single;
+    expect(failedPlatform.failureCode, 'screenshotArtifactEmpty');
+    expect(
+      failedPlatform.failureDetails,
+      containsPair('artifactPath', 'screenshots/platform-proof.png'),
+    );
   });
 
   test(
@@ -1764,7 +2228,7 @@ void main() {
   );
 
   test(
-    'verifier can continue local web validation when host recording stop fails as a prerequisite issue',
+    'verifier fails local web validation when host recording fails after startup',
     () async {
       final verifier = CockpitDemoPlatformVerifier(
         probeDevices: () async => const <CockpitDemoHostDevice>[
@@ -1982,15 +2446,14 @@ void main() {
         ),
       );
 
-      expect(result.success, isTrue);
+      expect(result.success, isFalse);
       expect(result.platforms, hasLength(1));
       final platform = result.platforms.single;
-      expect(platform.status, 'passed');
+      expect(platform.status, 'failed');
+      expect(platform.failureCode, 'recordingStopFailed');
       expect(platform.recordingArtifactRef, isNull);
-      expect(platform.recordingDriver, 'browser-host');
-      expect(platform.warnings, hasLength(1));
       expect(
-        platform.warnings.single,
+        platform.failureDetails['failureReason'],
         contains('macOS recording did not stop before timeout.'),
       );
     },
@@ -2072,6 +2535,151 @@ CockpitAppHandle _appForPlatform({
     target: 'cockpit/main.dart',
     baseUrl: baseUrl,
     launchedAt: DateTime.utc(2026, 4, 11),
+  );
+}
+
+Future<File> _createRecordingArtifact() async {
+  final directory = await Directory.systemTemp.createTemp(
+    'cockpit_demo_recording_artifact_',
+  );
+  final file = File(p.join(directory.path, 'platform-loop.mp4'));
+  await file.writeAsBytes(<int>[1, 2, 3, 4], flush: true);
+  return file;
+}
+
+CockpitCapabilities _capabilitiesForPlatform(String platform) {
+  return CockpitCapabilities(
+    platform: platform,
+    transportType: 'remoteHttp',
+    supportsInAppControl: true,
+    supportsFlutterViewCapture: true,
+    supportsNativeScreenCapture: true,
+    supportsHostAutomation: platform == 'macos',
+    supportedCommands: const <CockpitCommandType>[
+      CockpitCommandType.tap,
+      CockpitCommandType.enterText,
+      CockpitCommandType.assertText,
+      CockpitCommandType.captureScreenshot,
+    ],
+    supportedLocatorStrategies: CockpitLocatorKind.values,
+  );
+}
+
+CockpitExecuteRemoteCommandResult _successfulCommandResult(
+  CockpitCommand command, {
+  bool includeScreenshot = false,
+  int screenshotByteLength = 1024,
+}) {
+  return CockpitExecuteRemoteCommandResult(
+    command: CockpitInteractiveCommandCore(
+      commandId: command.commandId,
+      commandType: command.commandType.name,
+      success: true,
+      durationMs: 12,
+      usedCaptureFallback: false,
+    ),
+    artifacts: includeScreenshot
+        ? <CockpitInteractiveArtifactDescriptor>[
+            CockpitInteractiveArtifactDescriptor(
+              role: 'screenshot',
+              relativePath: 'screenshots/platform-proof.png',
+              byteLength: screenshotByteLength,
+            ),
+          ]
+        : const <CockpitInteractiveArtifactDescriptor>[],
+  );
+}
+
+CockpitRunBatchResult _successfulBatchResult(CockpitRunBatchRequest request) {
+  return CockpitRunBatchResult(
+    results: request.commands
+        .map(
+          (batchCommand) => _successfulCommandResult(batchCommand.command),
+        )
+        .toList(growable: false),
+    summary: CockpitExecuteRemoteCommandBatchSummary(
+      totalCount: request.commands.length,
+      successCount: request.commands.length,
+      failureCount: 0,
+      stoppedEarly: false,
+    ),
+  );
+}
+
+CockpitReadNetworkResult _successfulNetworkResult() {
+  return CockpitReadNetworkResult(
+    appId: 'network-app',
+    source: 'app_snapshot',
+    available: true,
+    routeName: '/inbox',
+    summary: CockpitReadNetworkSummary(
+      totalEntryCount: 0,
+      failureCount: 0,
+      capturedEntryCount: 0,
+      inFlightCount: 0,
+      truncated: false,
+      query: const CockpitNetworkQuery(),
+    ),
+    endpointSummaries: const <CockpitNetworkEndpointSummary>[],
+    endpointSummariesTruncated: false,
+    recentFailures: const <CockpitNetworkEntry>[],
+  );
+}
+
+CockpitInspectSurfaceResult _inspectSurfaceResult(CockpitAppHandle app) {
+  return CockpitInspectSurfaceResult(
+    target: CockpitTargetHandle.fromAppHandle(app),
+    capabilityProfile: CockpitCapabilityProfile(
+      targetKind: CockpitTargetKind.flutterApp,
+      surfaceKinds: <CockpitSurfaceKind>{
+        CockpitSurfaceKind.flutterSemantic,
+      },
+      actionCapabilities: <CockpitActionCapability>{
+        CockpitActionCapability.tap,
+        CockpitActionCapability.typeText,
+      },
+      evidenceCapabilities: <CockpitEvidenceCapability>{
+        CockpitEvidenceCapability.flutterScreenshot,
+      },
+    ),
+    surfaceKind: CockpitSurfaceKind.flutterSemantic,
+    selectedPlane: CockpitPlaneKind.flutterSemanticPlane,
+    recommendedNextStep: 'continue',
+    routeName: '/inbox',
+    diagnosticLevel: 'inspect',
+    truncated: false,
+  );
+}
+
+CockpitHotReloadResult _successfulHotReload(CockpitAppHandle app) {
+  return CockpitHotReloadResult(
+    app: app,
+    status: CockpitDevelopmentSessionStatus(
+      developmentSessionId: '${app.platform}-session',
+      state: CockpitDevelopmentSessionState.ready,
+      appReachable: true,
+      remoteSessionReachable: true,
+      reloadGeneration: 1,
+      lastReloadMode: CockpitDevelopmentReloadMode.hotReload,
+      lastReloadSucceeded: true,
+      lastStatusAt: DateTime.utc(2026, 4, 12),
+    ),
+  );
+}
+
+CockpitHotRestartResult _successfulHotRestart(CockpitAppHandle app) {
+  return CockpitHotRestartResult(
+    app: app,
+    status: CockpitDevelopmentSessionStatus(
+      developmentSessionId: '${app.platform}-session',
+      state: CockpitDevelopmentSessionState.ready,
+      appReachable: true,
+      remoteSessionReachable: true,
+      reloadGeneration: 2,
+      lastReloadMode: CockpitDevelopmentReloadMode.hotRestart,
+      lastReloadSucceeded: true,
+      lastStatusAt: DateTime.utc(2026, 4, 12, 0, 0, 1),
+    ),
   );
 }
 

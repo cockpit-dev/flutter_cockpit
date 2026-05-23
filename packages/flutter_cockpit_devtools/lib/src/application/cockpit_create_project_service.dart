@@ -63,7 +63,7 @@ final class CockpitCreateProjectService {
     CockpitSdkEnvironment? sdkEnvironment,
   })  : _processManager = processManager ?? const LocalCockpitProcessManager(),
         _fileSystem = fileSystem ?? const LocalCockpitFileSystem(),
-        _sdkEnvironment = sdkEnvironment ?? const CockpitSdkEnvironment();
+        _sdkEnvironment = sdkEnvironment ?? CockpitSdkEnvironment.current();
 
   final CockpitProcessManager _processManager;
   final CockpitFileSystem _fileSystem;

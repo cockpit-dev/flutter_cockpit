@@ -24,13 +24,6 @@ void cockpitAddParentDirectoryOption(
   parser.addOption(optionName, help: help);
 }
 
-void cockpitAddWorkspaceOutputJsonOption(ArgParser parser) {
-  parser.addOption(
-    'output-json',
-    help: 'Optional file path where the JSON result should be written.',
-  );
-}
-
 String cockpitReadWorkspaceRoot(
   ArgResults? argResults, {
   String optionName = 'workspace-root',
@@ -79,7 +72,7 @@ int cockpitReadRequiredIntOption(
   String optionName,
   String usage,
 ) {
-  final value = cockpitReadOptionalIntOption(argResults, optionName);
+  final value = cockpitReadOptionalIntOption(argResults, optionName, usage);
   if (value == null) {
     throw UsageException('--$optionName is required.', usage);
   }
@@ -89,12 +82,44 @@ int cockpitReadRequiredIntOption(
 int? cockpitReadOptionalIntOption(
   ArgResults? argResults,
   String optionName,
+  String usage,
 ) {
   final value = cockpitReadOptionalStringOption(argResults, optionName);
   if (value == null) {
     return null;
   }
-  return int.parse(value);
+  final parsed = int.tryParse(value);
+  if (parsed != null) {
+    return parsed;
+  }
+  throw UsageException('--$optionName must be an integer.', usage);
+}
+
+int cockpitReadRequiredPositiveIntOption(
+  ArgResults? argResults,
+  String optionName,
+  String usage,
+) {
+  final value = cockpitReadRequiredIntOption(argResults, optionName, usage);
+  if (value > 0) {
+    return value;
+  }
+  throw UsageException('--$optionName must be a positive integer.', usage);
+}
+
+int? cockpitReadOptionalPositiveIntOption(
+  ArgResults? argResults,
+  String optionName,
+  String usage,
+) {
+  final value = cockpitReadOptionalIntOption(argResults, optionName, usage);
+  if (value == null) {
+    return null;
+  }
+  if (value > 0) {
+    return value;
+  }
+  throw UsageException('--$optionName must be a positive integer.', usage);
 }
 
 List<String> cockpitReadMultiStringOption(

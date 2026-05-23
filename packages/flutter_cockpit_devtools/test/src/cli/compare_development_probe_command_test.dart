@@ -38,6 +38,8 @@ void main() {
 
       final exitCode = await runner.run(<String>[
             'compare-development-probe',
+            '--stdout-format',
+            'json',
             '--from-probe-json',
             '/tmp/before.json',
             '--to-probe-json',

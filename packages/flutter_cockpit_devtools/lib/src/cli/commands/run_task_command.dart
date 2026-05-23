@@ -12,16 +12,10 @@ final class RunTaskCommand extends CockpitCliCommand {
   RunTaskCommand({CockpitRunTaskService? service, StringSink? stdoutSink})
       : _service = service ?? CockpitRunTaskService(),
         _stdoutSink = stdoutSink ?? stdout {
-    argParser
-      ..addOption(
-        'config-json',
-        help: 'Path to a JSON run-task configuration file.',
-      )
-      ..addOption(
-        'output-json',
-        help:
-            'Optional file path where the run-task result JSON should be written.',
-      );
+    argParser.addOption(
+      'config-json',
+      help: 'Path to a JSON run-task configuration file.',
+    );
   }
 
   final CockpitRunTaskService _service;
@@ -50,7 +44,7 @@ final class RunTaskCommand extends CockpitCliCommand {
 
   @override
   String get helpExample =>
-      'flutter_cockpit_devtools run-task --config-json /tmp/run_task.json | jq \'{classification,recommendedNextStep}\'';
+      'flutter_cockpit_devtools run-task --config-json /tmp/run_task.json --stdout-format json | jq \'{classification,recommendedNextStep}\'';
 
   @override
   String get helpWrites =>

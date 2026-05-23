@@ -21,19 +21,11 @@ final class ReadLogsCommand extends CockpitCliCommand {
                     CockpitReadLogsService(registry: CockpitSessionRegistry()))
                 .read,
         _stdoutSink = stdoutSink ?? stdout {
-    argParser
-      ..addOption(
-        'app-json',
-        help: cockpitAppJsonOptionHelp,
-      )
-      ..addOption(
-        'max-lines',
-        help: 'Maximum number of recent log lines to include in the result.',
-      )
-      ..addOption(
-        'output-json',
-        help: cockpitPrettyOutputJsonOptionHelp,
-      );
+    cockpitAddAppArgs(argParser);
+    argParser.addOption(
+      'max-lines',
+      help: 'Maximum number of recent log lines to include in the result.',
+    );
   }
 
   final CockpitReadLogsFunction _read;
@@ -57,7 +49,7 @@ final class ReadLogsCommand extends CockpitCliCommand {
 
   @override
   String get helpNeeds =>
-      'An app handle. In the same workspace, the default latest_app.json handle is usually enough; max-lines defaults to 200 and can be reduced to save tokens.';
+      'An app reference from --app-json or --base-url. In the same workspace, the default latest_app.json handle is usually enough; max-lines defaults to 200 and can be reduced to save tokens.';
 
   @override
   String get helpExample =>
@@ -69,11 +61,15 @@ final class ReadLogsCommand extends CockpitCliCommand {
 
   @override
   Future<int> run() async {
-    final appJson = cockpitRequireResolvedAppHandlePath(argResults, usage);
+    cockpitRequireAppReference(argResults, usage);
     final result = await _read(
       CockpitReadLogsRequest(
-        appHandlePath: appJson,
-        maxLines: cockpitReadOptionalInt(argResults, 'max-lines') ?? 200,
+        appHandlePath: cockpitResolveAppHandlePath(argResults),
+        baseUri: cockpitReadOptionalBaseUri(argResults),
+        androidDeviceId: argResults?['android-device-id'] as String?,
+        maxLines:
+            cockpitReadOptionalPositiveInt(argResults, 'max-lines', usage) ??
+                200,
       ),
     );
     await cockpitWriteJsonPayload(

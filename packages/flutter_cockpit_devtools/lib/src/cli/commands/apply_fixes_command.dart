@@ -25,7 +25,6 @@ final class ApplyFixesCommand extends CockpitCliCommand {
       defaultsTo: '180',
       help: 'Time budget for dart fix --apply.',
     );
-    cockpitAddWorkspaceOutputJsonOption(argParser);
   }
 
   final CockpitApplyFixesFunction _apply;
@@ -65,7 +64,7 @@ final class ApplyFixesCommand extends CockpitCliCommand {
       CockpitApplyWorkspaceFixesRequest(
         workspaceRoot: cockpitReadWorkspaceRoot(argResults),
         timeout: Duration(
-          seconds: cockpitReadRequiredIntOption(
+          seconds: cockpitReadRequiredPositiveIntOption(
             argResults,
             'timeout-seconds',
             usage,

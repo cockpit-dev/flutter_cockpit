@@ -27,6 +27,7 @@ final class CockpitWaitIdleTool extends CockpitMcpTool {
           'appId': <String, Object?>{'type': 'string'},
           'appJson': <String, Object?>{'type': 'string'},
           'baseUrl': <String, Object?>{'type': 'string'},
+          'androidDeviceId': <String, Object?>{'type': 'string'},
           'quietWindowMs': <String, Object?>{'type': 'integer'},
           'timeoutMs': <String, Object?>{'type': 'integer'},
           'includeNetworkIdle': <String, Object?>{'type': 'boolean'},
@@ -41,13 +42,23 @@ final class CockpitWaitIdleTool extends CockpitMcpTool {
           appId: cockpitReadOptionalString(arguments, 'appId'),
           appHandlePath: cockpitReadOptionalString(arguments, 'appJson'),
           baseUri: _readOptionalBaseUri(arguments),
+          androidDeviceId: cockpitReadOptionalString(
+            arguments,
+            'androidDeviceId',
+          ),
           quietWindow: Duration(
-            milliseconds:
-                cockpitReadOptionalInt(arguments, 'quietWindowMs') ?? 96,
+            milliseconds: cockpitReadOptionalPositiveInt(
+                  arguments,
+                  'quietWindowMs',
+                ) ??
+                96,
           ),
           timeout: Duration(
-            milliseconds:
-                cockpitReadOptionalInt(arguments, 'timeoutMs') ?? 1600,
+            milliseconds: cockpitReadOptionalPositiveInt(
+                  arguments,
+                  'timeoutMs',
+                ) ??
+                1600,
           ),
           includeNetworkIdle:
               cockpitReadOptionalBool(arguments, 'includeNetworkIdle') ?? true,

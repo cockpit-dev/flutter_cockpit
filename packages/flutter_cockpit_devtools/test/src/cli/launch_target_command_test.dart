@@ -33,6 +33,8 @@ void main() {
 
     final exitCode = await runner.run(<String>[
           'launch-target',
+          '--stdout-format',
+          'json',
           '--project-dir',
           '/workspace/examples/cockpit_demo',
           '--platform',

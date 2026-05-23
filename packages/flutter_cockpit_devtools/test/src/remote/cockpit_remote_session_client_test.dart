@@ -179,8 +179,20 @@ void main() {
         await request.response.close();
       });
 
+      final downloadDir = await Directory.systemTemp.createTemp(
+        'flutter_cockpit_remote_client_test_',
+      );
+      addTearDown(() async {
+        if (await downloadDir.exists()) {
+          await downloadDir.delete(recursive: true);
+        }
+      });
+
       final client = CockpitRemoteSessionClient(
         baseUri: Uri.parse('http://127.0.0.1:${server.port}'),
+        artifactTempFileFactory: (basename) async => File(
+          '${downloadDir.path}${Platform.pathSeparator}$basename',
+        ),
       );
 
       final status = await client.readStatus();
@@ -252,58 +264,24 @@ void main() {
         recordingResult.artifact?.relativePath,
         'recordings/demo_acceptance.mp4',
       );
-      expect(recordingResult.bytes, <int>[8, 6, 7, 5, 3, 0, 9]);
+      expect(recordingResult.bytes, isNull);
+      expect(recordingResult.sourceFilePath, isNotNull);
+      expect(
+        await File(recordingResult.sourceFilePath!).readAsBytes(),
+        <int>[8, 6, 7, 5, 3, 0, 9],
+      );
     },
   );
 
   test(
-    'remote session client downloads externalized forensic snapshot artifacts',
+    'remote session client keeps externalized forensic snapshots summarized by default',
     () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       addTearDown(() async {
         await server.close(force: true);
       });
 
-      final fullSnapshot = CockpitSnapshot(
-        routeName: '/debug',
-        diagnosticLevel: CockpitSnapshotProfile.forensic,
-        visibleTargets: <CockpitSnapshotTarget>[
-          CockpitSnapshotTarget(
-            registrationId: 'debug.sync_check',
-            keyValue: 'settings-sync-check-button',
-            text: 'Run check',
-            typeName: 'FilledButton',
-            routeName: '/debug',
-            supportedCommands: <CockpitCommandType>[CockpitCommandType.tap],
-            diagnosticProperties: <CockpitDiagnosticProperty>[
-              const CockpitDiagnosticProperty(
-                name: 'payload',
-                value: '',
-                category: CockpitDiagnosticCategory.other,
-              ),
-            ],
-          ),
-        ],
-      );
-      final inflatedSnapshot = fullSnapshot.copyWith(
-        visibleTargets: <CockpitSnapshotTarget>[
-          CockpitSnapshotTarget(
-            registrationId: 'debug.sync_check',
-            keyValue: 'settings-sync-check-button',
-            text: 'Run check',
-            typeName: 'FilledButton',
-            routeName: '/debug',
-            supportedCommands: <CockpitCommandType>[CockpitCommandType.tap],
-            diagnosticProperties: <CockpitDiagnosticProperty>[
-              CockpitDiagnosticProperty(
-                name: 'payload',
-                value: 'x' * 24000,
-                category: CockpitDiagnosticCategory.other,
-              ),
-            ],
-          ),
-        ],
-      );
+      var artifactDownloadCount = 0;
 
       server.listen((request) async {
         switch ((request.method, request.uri.path)) {
@@ -354,8 +332,35 @@ void main() {
               }),
             );
           case ('GET', '/artifacts/download'):
+            artifactDownloadCount += 1;
             request.response.headers.contentType = ContentType.json;
-            request.response.write(jsonEncode(inflatedSnapshot.toJson()));
+            request.response.write(
+              jsonEncode(
+                CockpitSnapshot(
+                  routeName: '/debug',
+                  diagnosticLevel: CockpitSnapshotProfile.forensic,
+                  visibleTargets: <CockpitSnapshotTarget>[
+                    CockpitSnapshotTarget(
+                      registrationId: 'debug.sync_check',
+                      keyValue: 'settings-sync-check-button',
+                      text: 'Run check',
+                      typeName: 'FilledButton',
+                      routeName: '/debug',
+                      supportedCommands: <CockpitCommandType>[
+                        CockpitCommandType.tap,
+                      ],
+                      diagnosticProperties: <CockpitDiagnosticProperty>[
+                        CockpitDiagnosticProperty(
+                          name: 'payload',
+                          value: 'x' * 24000,
+                          category: CockpitDiagnosticCategory.other,
+                        ),
+                      ],
+                    ),
+                  ],
+                ).toJson(),
+              ),
+            );
           default:
             request.response.statusCode = HttpStatus.notFound;
             request.response.headers.contentType = ContentType.json;
@@ -379,9 +384,220 @@ void main() {
         snapshot.diagnosticsArtifactRef?.relativePath,
         'diagnostics/remote_snapshot_debug.json',
       );
+      expect(snapshot.visibleTargets.single.diagnosticProperties, isEmpty);
+      expect(artifactDownloadCount, 0);
+    },
+  );
+
+  test(
+    'remote session client can explicitly download externalized forensic snapshot artifacts',
+    () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() async {
+        await server.close(force: true);
+      });
+
+      server.listen((request) async {
+        request.response.headers.contentType = ContentType.json;
+        switch ((request.method, request.uri.path)) {
+          case ('GET', '/snapshot'):
+            request.response.write(
+              jsonEncode(<String, Object?>{
+                'snapshot': CockpitSnapshot(
+                  routeName: '/debug',
+                  diagnosticLevel: CockpitSnapshotProfile.forensic,
+                  diagnosticsArtifactRef: const CockpitArtifactRef(
+                    role: 'diagnostics',
+                    relativePath: 'diagnostics/remote_snapshot_debug.json',
+                  ),
+                  visibleTargets: <CockpitSnapshotTarget>[
+                    CockpitSnapshotTarget(
+                      registrationId: 'debug.sync_check',
+                      keyValue: 'settings-sync-check-button',
+                      text: 'Run check',
+                      typeName: 'FilledButton',
+                      routeName: '/debug',
+                      supportedCommands: <CockpitCommandType>[
+                        CockpitCommandType.tap,
+                      ],
+                    ),
+                  ],
+                ).toJson(),
+                'artifactDownloads': const <Map<String, Object?>>[
+                  <String, Object?>{
+                    'artifact': <String, Object?>{
+                      'role': 'diagnostics',
+                      'relativePath': 'diagnostics/remote_snapshot_debug.json',
+                    },
+                    'downloadPath':
+                        '/artifacts/download?path=diagnostics%2Fremote_snapshot_debug.json',
+                  },
+                ],
+              }),
+            );
+          case ('GET', '/artifacts/download'):
+            request.response.write(
+              jsonEncode(
+                CockpitSnapshot(
+                  routeName: '/debug',
+                  diagnosticLevel: CockpitSnapshotProfile.forensic,
+                  visibleTargets: <CockpitSnapshotTarget>[
+                    CockpitSnapshotTarget(
+                      registrationId: 'debug.sync_check',
+                      keyValue: 'settings-sync-check-button',
+                      text: 'Run check',
+                      typeName: 'FilledButton',
+                      routeName: '/debug',
+                      supportedCommands: <CockpitCommandType>[
+                        CockpitCommandType.tap,
+                      ],
+                      diagnosticProperties: <CockpitDiagnosticProperty>[
+                        CockpitDiagnosticProperty(
+                          name: 'payload',
+                          value: 'x' * 24000,
+                          category: CockpitDiagnosticCategory.other,
+                        ),
+                      ],
+                    ),
+                  ],
+                ).toJson(),
+              ),
+            );
+          default:
+            request.response.statusCode = HttpStatus.notFound;
+            request.response.write(
+              jsonEncode(const <String, Object?>{'error': 'notFound'}),
+            );
+        }
+        await request.response.close();
+      });
+
+      final client = CockpitRemoteSessionClient(
+        baseUri: Uri.parse('http://127.0.0.1:${server.port}'),
+      );
+
+      final snapshot = await client.readSnapshot(
+        options: const CockpitSnapshotOptions.forensic(),
+        downloadDiagnosticsArtifacts: true,
+      );
+
+      expect(snapshot.routeName, '/debug');
+      expect(
+        snapshot.diagnosticsArtifactRef?.relativePath,
+        'diagnostics/remote_snapshot_debug.json',
+      );
       expect(
         snapshot.visibleTargets.single.diagnosticProperties.single.value.length,
         greaterThan(20000),
+      );
+    },
+  );
+
+  test(
+    'remote session client preserves base route prefix for requests and downloads',
+    () async {
+      final requestedPaths = <String>[];
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() async {
+        await server.close(force: true);
+      });
+      final downloadDir = await Directory.systemTemp.createTemp(
+        'flutter_cockpit_remote_prefix_client_test_',
+      );
+      addTearDown(() async {
+        if (await downloadDir.exists()) {
+          await downloadDir.delete(recursive: true);
+        }
+      });
+
+      server.listen((request) async {
+        requestedPaths.add(
+          request.uri.hasQuery
+              ? '${request.uri.path}?${request.uri.query}'
+              : request.uri.path,
+        );
+        request.response.headers.contentType = ContentType.json;
+        switch ((request.method, request.uri.path)) {
+          case ('GET', '/cockpit/health'):
+            request.response.write(
+              jsonEncode(
+                CockpitRemoteSessionStatus(
+                  sessionId: 'prefixed-session',
+                  platform: 'web',
+                  transportType: 'remoteHttp',
+                  currentRouteName: '/home',
+                  capabilities: CockpitCapabilities(
+                    platform: 'web',
+                    transportType: 'remoteHttp',
+                    supportsInAppControl: true,
+                    supportsFlutterViewCapture: true,
+                    supportsNativeScreenCapture: false,
+                    supportsHostAutomation: false,
+                  ),
+                  recordingCapabilities: CockpitRecordingCapabilities(
+                    supportsNativeRecording: true,
+                  ),
+                  snapshot: CockpitSnapshot(routeName: '/home'),
+                ).toJson(),
+              ),
+            );
+          case ('POST', '/cockpit/recording/stop'):
+            request.response.write(
+              jsonEncode(
+                CockpitRemoteRecordingResponse(
+                  result: CockpitRecordingResult(
+                    state: CockpitRecordingState.completed,
+                    artifact: const CockpitArtifactRef(
+                      role: 'recording',
+                      relativePath: 'recordings/prefixed.mp4',
+                    ),
+                  ),
+                  artifactDownloads: const <CockpitRemoteArtifactDownload>[
+                    CockpitRemoteArtifactDownload(
+                      artifact: CockpitArtifactRef(
+                        role: 'recording',
+                        relativePath: 'recordings/prefixed.mp4',
+                      ),
+                      downloadPath:
+                          '/cockpit/artifacts/download?path=recordings%2Fprefixed.mp4',
+                    ),
+                  ],
+                ).toJson(),
+              ),
+            );
+          case ('GET', '/cockpit/artifacts/download'):
+            request.response.headers.contentType = ContentType.binary;
+            request.response.add(const <int>[9, 4, 2]);
+          default:
+            request.response.statusCode = HttpStatus.notFound;
+            request.response.write(
+              jsonEncode(const <String, Object?>{'error': 'notFound'}),
+            );
+        }
+        await request.response.close();
+      });
+
+      final client = CockpitRemoteSessionClient(
+        baseUri: Uri.parse('http://127.0.0.1:${server.port}/cockpit'),
+        artifactTempFileFactory: (basename) async => File(
+          '${downloadDir.path}${Platform.pathSeparator}$basename',
+        ),
+      );
+
+      final status = await client.readStatus();
+      final recording = await client.stopRecording();
+
+      expect(status.sessionId, 'prefixed-session');
+      expect(recording.sourceFilePath, isNotNull);
+      expect(
+          await File(recording.sourceFilePath!).readAsBytes(), <int>[9, 4, 2]);
+      expect(
+        requestedPaths,
+        containsAllInOrder(<String>[
+          '/cockpit/health',
+          '/cockpit/recording/stop',
+          '/cockpit/artifacts/download?path=recordings%2Fprefixed.mp4',
+        ]),
       );
     },
   );
@@ -404,6 +620,200 @@ void main() {
                 (error) => error.message,
                 'message',
                 contains('temporarily unavailable'),
+              ),
+        ),
+      );
+    },
+  );
+
+  test(
+    'remote session client preserves structured HTTP error payloads',
+    () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() async {
+        await server.close(force: true);
+      });
+
+      server.listen((request) async {
+        request.response
+          ..statusCode = HttpStatus.serviceUnavailable
+          ..headers.contentType = ContentType.json
+          ..write(
+            jsonEncode(const <String, Object?>{
+              'error': 'bridgeUnavailable',
+              'message': 'The browser bridge is not connected.',
+              'details': <String, Object?>{
+                'connectPath': '/cockpit/connect',
+              },
+            }),
+          );
+        await request.response.close();
+      });
+
+      final client = CockpitRemoteSessionClient(
+        baseUri: Uri.parse('http://127.0.0.1:${server.port}/cockpit'),
+      );
+
+      await expectLater(
+        client.readStatus,
+        throwsA(
+          isA<CockpitApplicationServiceException>()
+              .having((error) => error.code, 'code', 'bridgeUnavailable')
+              .having(
+                (error) => error.message,
+                'message',
+                'The browser bridge is not connected.',
+              )
+              .having(
+                (error) => error.details['statusCode'],
+                'statusCode',
+                HttpStatus.serviceUnavailable,
+              )
+              .having(
+                (error) => (error.details['remoteDetails']
+                    as Map<Object?, Object?>)['connectPath'],
+                'remoteDetails.connectPath',
+                '/cockpit/connect',
+              ),
+        ),
+      );
+    },
+  );
+
+  test(
+    'remote session client preserves structured artifact download failures',
+    () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() async {
+        await server.close(force: true);
+      });
+
+      server.listen((request) async {
+        request.response.headers.contentType = ContentType.json;
+        switch ((request.method, request.uri.path)) {
+          case ('POST', '/recording/stop'):
+            request.response.write(
+              jsonEncode(
+                CockpitRemoteRecordingResponse(
+                  result: CockpitRecordingResult(
+                    state: CockpitRecordingState.completed,
+                    artifact: const CockpitArtifactRef(
+                      role: 'recording',
+                      relativePath: 'recordings/missing.mp4',
+                    ),
+                  ),
+                  artifactDownloads: const <CockpitRemoteArtifactDownload>[
+                    CockpitRemoteArtifactDownload(
+                      artifact: CockpitArtifactRef(
+                        role: 'recording',
+                        relativePath: 'recordings/missing.mp4',
+                      ),
+                      downloadPath:
+                          '/artifacts/download?path=recordings%2Fmissing.mp4',
+                    ),
+                  ],
+                ).toJson(),
+              ),
+            );
+          case ('GET', '/artifacts/download'):
+            request.response
+              ..statusCode = HttpStatus.notFound
+              ..write(
+                jsonEncode(const <String, Object?>{
+                  'error': 'artifactNotFound',
+                  'message': 'Artifact file is no longer available.',
+                }),
+              );
+          default:
+            request.response.statusCode = HttpStatus.notFound;
+            request.response.write(
+              jsonEncode(const <String, Object?>{'error': 'notFound'}),
+            );
+        }
+        await request.response.close();
+      });
+
+      final client = CockpitRemoteSessionClient(
+        baseUri: Uri.parse('http://127.0.0.1:${server.port}'),
+      );
+
+      await expectLater(
+        client.stopRecording,
+        throwsA(
+          isA<CockpitApplicationServiceException>()
+              .having((error) => error.code, 'code', 'artifactNotFound')
+              .having(
+                (error) => error.message,
+                'message',
+                'Artifact file is no longer available.',
+              )
+              .having(
+                (error) => error.details['path'],
+                'path',
+                '/artifacts/download?path=recordings%2Fmissing.mp4',
+              ),
+        ),
+      );
+    },
+  );
+
+  test(
+    'remote session client rejects cross-origin artifact download paths',
+    () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() async {
+        await server.close(force: true);
+      });
+
+      server.listen((request) async {
+        request.response.headers.contentType = ContentType.json;
+        switch ((request.method, request.uri.path)) {
+          case ('POST', '/recording/stop'):
+            request.response.write(
+              jsonEncode(
+                CockpitRemoteRecordingResponse(
+                  result: CockpitRecordingResult(
+                    state: CockpitRecordingState.completed,
+                    artifact: const CockpitArtifactRef(
+                      role: 'recording',
+                      relativePath: 'recordings/cross_origin.mp4',
+                    ),
+                  ),
+                  artifactDownloads: const <CockpitRemoteArtifactDownload>[
+                    CockpitRemoteArtifactDownload(
+                      artifact: CockpitArtifactRef(
+                        role: 'recording',
+                        relativePath: 'recordings/cross_origin.mp4',
+                      ),
+                      downloadPath:
+                          'http://127.0.0.1:1/artifacts/download?path=recordings%2Fcross_origin.mp4',
+                    ),
+                  ],
+                ).toJson(),
+              ),
+            );
+          default:
+            request.response.statusCode = HttpStatus.notFound;
+            request.response.write(
+              jsonEncode(const <String, Object?>{'error': 'notFound'}),
+            );
+        }
+        await request.response.close();
+      });
+
+      final client = CockpitRemoteSessionClient(
+        baseUri: Uri.parse('http://127.0.0.1:${server.port}'),
+      );
+
+      await expectLater(
+        client.stopRecording,
+        throwsA(
+          isA<CockpitApplicationServiceException>()
+              .having((error) => error.code, 'code', 'invalidArtifactUrl')
+              .having(
+                (error) => error.message,
+                'message',
+                contains('same remote session origin'),
               ),
         ),
       );

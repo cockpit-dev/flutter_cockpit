@@ -24,7 +24,6 @@ final class FormatWorkspaceCommand extends CockpitCliCommand {
       defaultsTo: '90',
       help: 'Time budget for dart format.',
     );
-    cockpitAddWorkspaceOutputJsonOption(argParser);
   }
 
   final CockpitFormatWorkspaceFunction _format;
@@ -64,7 +63,7 @@ final class FormatWorkspaceCommand extends CockpitCliCommand {
       CockpitFormatWorkspaceRequest(
         workspaceRoot: cockpitReadWorkspaceRoot(argResults),
         timeout: Duration(
-          seconds: cockpitReadRequiredIntOption(
+          seconds: cockpitReadRequiredPositiveIntOption(
             argResults,
             'timeout-seconds',
             usage,

@@ -65,8 +65,9 @@ Future<void> main(List<String> arguments) async {
       help: 'Stop after the first platform failure.',
     )
     ..addOption(
-      'output-json',
-      help: 'Optional file path where the full verification result is written.',
+      'output',
+      help:
+          'Optional file path where the full JSON verification result is written.',
     )
     ..addFlag(
       'help',
@@ -116,9 +117,9 @@ Future<void> main(List<String> arguments) async {
   final result = await verifier.verify(request);
   final jsonText = const JsonEncoder.withIndent('  ').convert(result.toJson());
 
-  final outputJson = _readOptionalString(parsed, 'output-json');
-  if (outputJson != null) {
-    final file = File(outputJson);
+  final outputPath = _readOptionalString(parsed, 'output');
+  if (outputPath != null) {
+    final file = File(outputPath);
     await file.parent.create(recursive: true);
     await file.writeAsString(jsonText);
   }

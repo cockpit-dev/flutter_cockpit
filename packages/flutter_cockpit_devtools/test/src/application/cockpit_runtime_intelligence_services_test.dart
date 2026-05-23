@@ -249,6 +249,50 @@ void main() {
     );
   });
 
+  test('reads app snapshot logs directly from a base URL', () async {
+    Uri? capturedBaseUri;
+    final result = await CockpitReadLogsService(
+      registry: CockpitSessionRegistry(),
+      readSnapshot: (baseUri, options) async {
+        capturedBaseUri = baseUri;
+        expect(options.includeRuntimeActivity, isTrue);
+        expect(options.maxRuntimeEntries, 1);
+        return CockpitRemoteSnapshotResponse(
+          snapshot: CockpitSnapshot(
+            routeName: '/direct',
+            runtime: CockpitRuntimeSnapshot(
+              totalEntryCount: 1,
+              errorCount: 0,
+              warningCount: 0,
+              entries: <CockpitRuntimeEvent>[
+                CockpitRuntimeEvent(
+                  eventId: 'runtime-1',
+                  kind: CockpitRuntimeEventKind.debugLog,
+                  severity: CockpitRuntimeEventSeverity.info,
+                  message: 'direct log',
+                  recordedAt: DateTime.utc(2026, 3, 30, 10, 0),
+                  routeName: '/direct',
+                ),
+              ],
+              capturedEntryCount: 1,
+            ),
+          ),
+        );
+      },
+    ).read(
+      CockpitReadLogsRequest(
+        baseUri: Uri.parse('http://127.0.0.1:61331/cockpit'),
+        maxLines: 1,
+      ),
+    );
+
+    expect(capturedBaseUri.toString(), 'http://127.0.0.1:61331/cockpit');
+    expect(result.appId, 'unknown');
+    expect(result.source, 'app_snapshot');
+    expect(result.routeName, '/direct');
+    expect(result.lines, <String>['info debugLog: direct log']);
+  });
+
   test('returns structured missing log state when the log file is absent',
       () async {
     final registry = CockpitSessionRegistry();

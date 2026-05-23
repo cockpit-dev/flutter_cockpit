@@ -24,7 +24,6 @@ final class RunTestsCommand extends CockpitCliCommand {
       defaultsTo: '300',
       help: 'Time budget for workspace tests.',
     );
-    cockpitAddWorkspaceOutputJsonOption(argParser);
   }
 
   final CockpitRunTestsFunction _run;
@@ -64,7 +63,7 @@ final class RunTestsCommand extends CockpitCliCommand {
       CockpitRunWorkspaceTestsRequest(
         workspaceRoot: cockpitReadWorkspaceRoot(argResults),
         timeout: Duration(
-          seconds: cockpitReadRequiredIntOption(
+          seconds: cockpitReadRequiredPositiveIntOption(
             argResults,
             'timeout-seconds',
             usage,

@@ -83,7 +83,7 @@ final class CockpitPubService {
     CockpitSdkEnvironment? sdkEnvironment,
   })  : _fileSystem = fileSystem ?? const LocalCockpitFileSystem(),
         _processManager = processManager ?? const LocalCockpitProcessManager(),
-        _sdkEnvironment = sdkEnvironment ?? const CockpitSdkEnvironment();
+        _sdkEnvironment = sdkEnvironment ?? CockpitSdkEnvironment.current();
 
   final CockpitFileSystem _fileSystem;
   final CockpitProcessManager _processManager;

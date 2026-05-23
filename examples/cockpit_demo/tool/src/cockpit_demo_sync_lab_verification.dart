@@ -84,6 +84,10 @@ List<Map<String, Object?>> buildSyncLabCreateTaskBatch({
         'ancestor': <String, Object?>{'route': '/editor'},
       },
     },
+    _waitForRouteCommand(
+      commandId: 'verify-wait-for-inbox-route-after-save',
+      routeName: '/inbox',
+    ),
   ];
 }
 

@@ -71,7 +71,7 @@ final class ReadErrorsCommand extends CockpitCliCommand {
 
   @override
   String get helpExample =>
-      'flutter_cockpit_devtools read-errors --app-json /tmp/app.json --max-errors 10 | jq \'{hasErrors,routeName,errorMessages: [.errors[].message]}\'';
+      'flutter_cockpit_devtools read-errors --app-json /tmp/app.json --max-errors 10 --stdout-format json | jq \'{hasErrors,routeName,errorMessages: [.errors[].message]}\'';
 
   @override
   String get helpWrites =>
@@ -87,7 +87,9 @@ final class ReadErrorsCommand extends CockpitCliCommand {
         appHandlePath: cockpitResolveAppHandlePath(argResults),
         baseUri: cockpitReadOptionalBaseUri(argResults),
         androidDeviceId: argResults?['android-device-id'] as String?,
-        maxErrors: cockpitReadOptionalInt(argResults, 'max-errors') ?? 20,
+        maxErrors:
+            cockpitReadOptionalPositiveInt(argResults, 'max-errors', usage) ??
+                20,
         includeLatestTask: hasAppReference &&
                 !(argResults?.wasParsed('include-latest-task') ?? false)
             ? null

@@ -8,10 +8,12 @@ import '../../application/cockpit_session_reference_resolver.dart';
 import '../../artifacts/task_run_bundle_writer.dart';
 import '../../recording/cockpit_recording_strategy_resolver.dart';
 import '../../remote/cockpit_android_port_forwarder.dart';
+import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_control_script.dart';
+import '../cockpit_interactive_cli_support.dart';
 
-final class RunRemoteControlScriptCommand extends Command<int> {
+final class RunRemoteControlScriptCommand extends CockpitCliCommand {
   RunRemoteControlScriptCommand({
     CockpitRunRemoteControlScriptService? service,
     CockpitAndroidPortForwarder portForwarder =
@@ -31,8 +33,7 @@ final class RunRemoteControlScriptCommand extends Command<int> {
       ..addOption('base-url', help: 'Base URL for the running app session.')
       ..addOption(
         'session-json',
-        help:
-            'Optional session handle JSON file emitted by launch-remote-session.',
+        help: cockpitRemoteSessionJsonOptionHelp,
       )
       ..addOption('script-json', help: 'Path to a JSON control script file.')
       ..addOption(
@@ -59,15 +60,38 @@ final class RunRemoteControlScriptCommand extends Command<int> {
       'Execute a control script against a running flutter_cockpit remote session and write a bundle.';
 
   @override
+  String get summary => 'Run remote script bundle.';
+
+  @override
+  String get category => CockpitCliCategory.delivery;
+
+  @override
+  String get helpWhen =>
+      'Use for legacy direct remote sessions when run-script app handles are unavailable.';
+
+  @override
+  String get helpNeeds =>
+      'A remote session reference from --session-json, the default latest remote session handle, or --base-url; plus control script JSON and output bundle directory.';
+
+  @override
+  String get helpExample =>
+      'flutter_cockpit_devtools run-remote-control-script --script-json /tmp/script.json --output-root /tmp/bundle';
+
+  @override
+  String get helpWrites =>
+      'A task-run bundle under --output-root; prefer run-script for app-first workflows.';
+
+  @override
   Future<int> run() async {
     final scriptJsonPath = _readRequiredOption('script-json');
     final outputRoot = _readRequiredOption('output-root');
-    final sessionJsonPath = argResults?['session-json'] as String?;
+    final sessionJsonPath = cockpitResolveRemoteSessionHandlePath(argResults);
     final baseUrl = argResults?['base-url'] as String?;
     if ((sessionJsonPath == null || sessionJsonPath.isEmpty) &&
         (baseUrl == null || baseUrl.isEmpty)) {
       throw UsageException(
-        '--base-url is required when --session-json is not provided.',
+        '--base-url is required when --session-json is not provided and '
+        '${cockpitDefaultRemoteSessionHandlePath()} does not exist.',
         usage,
       );
     }

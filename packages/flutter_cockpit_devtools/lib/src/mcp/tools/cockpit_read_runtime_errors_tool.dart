@@ -69,7 +69,8 @@ final class CockpitReadRuntimeErrorsTool extends CockpitMcpTool {
             arguments,
             'androidDeviceId',
           ),
-          maxErrors: cockpitReadOptionalInt(arguments, 'maxErrors') ?? 20,
+          maxErrors:
+              cockpitReadOptionalPositiveInt(arguments, 'maxErrors') ?? 20,
           includeLatestTask: hasAppReference &&
                   !arguments.containsKey('includeLatestTask')
               ? null

@@ -56,9 +56,9 @@ void main() {
         CockpitRemoteSessionConfiguration.resolve(
           fallback: configuration,
           defines: const <String, String>{
-            'FLUTTER_PILOT_REMOTE_HOST': '0.0.0.0',
-            'FLUTTER_PILOT_REMOTE_PORT': '49321',
-            'FLUTTER_PILOT_REMOTE_ROUTE_PREFIX': '/session',
+            'FLUTTER_COCKPIT_REMOTE_HOST': '0.0.0.0',
+            'FLUTTER_COCKPIT_REMOTE_PORT': '49321',
+            'FLUTTER_COCKPIT_REMOTE_ROUTE_PREFIX': '/session',
           },
         ),
         const CockpitRemoteSessionConfiguration(
@@ -78,8 +78,8 @@ void main() {
       expect(
         CockpitRemoteSessionConfiguration.resolve(
           defines: const <String, String>{
-            'FLUTTER_PILOT_REMOTE_ENABLED': 'true',
-            'FLUTTER_PILOT_REMOTE_PORT': '48484',
+            'FLUTTER_COCKPIT_REMOTE_ENABLED': 'true',
+            'FLUTTER_COCKPIT_REMOTE_PORT': '48484',
           },
         ),
         const CockpitRemoteSessionConfiguration(

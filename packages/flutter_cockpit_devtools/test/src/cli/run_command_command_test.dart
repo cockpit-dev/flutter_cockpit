@@ -43,6 +43,8 @@ void main() {
           }),
           '--profile',
           'minimal',
+          '--stdout-format',
+          'json',
         ]) ??
         0;
 
@@ -54,7 +56,7 @@ void main() {
     expect(stdoutBuffer.toString(), isNot(contains('\n  "')));
   });
 
-  test('run-command writes pretty json files when output-json is used',
+  test('run-command writes pretty json files when output-format json is used',
       () async {
     final tempDir =
         await Directory.systemTemp.createTemp('cockpit_run_command');
@@ -91,13 +93,15 @@ void main() {
             'commandId': 'tap-1',
             'commandType': 'tap',
           }),
-          '--output-json',
+          '--output',
           outputFile.path,
+          '--output-format',
+          'json',
         ]) ??
         0;
 
     expect(exitCode, 0);
-    expect(stdoutBuffer.toString(), isEmpty);
+    expect(stdoutBuffer.toString().trim(), 'output=${outputFile.path}');
     final written = await outputFile.readAsString();
     expect(written, contains('\n  "command"'));
     final decoded = jsonDecode(written) as Map<String, Object?>;

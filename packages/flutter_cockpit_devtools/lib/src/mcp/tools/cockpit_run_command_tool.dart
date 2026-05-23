@@ -32,6 +32,7 @@ final class CockpitRunCommandTool extends CockpitMcpTool {
           'appId': <String, Object?>{'type': 'string'},
           'appJson': <String, Object?>{'type': 'string'},
           'baseUrl': <String, Object?>{'type': 'string'},
+          'androidDeviceId': <String, Object?>{'type': 'string'},
           'command': <String, Object?>{'type': 'object'},
           'timeoutMs': <String, Object?>{'type': 'integer'},
           'profile': <String, Object?>{'type': 'string'},
@@ -48,12 +49,19 @@ final class CockpitRunCommandTool extends CockpitMcpTool {
           appId: cockpitReadOptionalString(arguments, 'appId'),
           appHandlePath: cockpitReadOptionalString(arguments, 'appJson'),
           baseUri: _readOptionalBaseUri(arguments),
+          androidDeviceId: cockpitReadOptionalString(
+            arguments,
+            'androidDeviceId',
+          ),
           command: CockpitCommand.fromJson(
             cockpitReadRequiredObject(arguments, 'command'),
           ),
           defaultCommandTimeout: Duration(
-            milliseconds:
-                cockpitReadOptionalInt(arguments, 'timeoutMs') ?? 30000,
+            milliseconds: cockpitReadOptionalPositiveInt(
+                  arguments,
+                  'timeoutMs',
+                ) ??
+                30000,
           ),
           resultProfile: _readProfile(arguments),
           snapshotOptions: _readOptionalSnapshotOptions(arguments),

@@ -89,6 +89,69 @@ int? cockpitReadOptionalInt(Map<String, Object?> arguments, String key) {
   );
 }
 
+int cockpitReadRequiredPositiveInt(
+  Map<String, Object?> arguments,
+  String key,
+) {
+  final value = _readArgumentValue(arguments, key);
+  final parsed = _readInt(value);
+  if (parsed != null && parsed > 0) {
+    return parsed;
+  }
+  throw CockpitMcpError.invalidArguments(
+    'Missing required positive integer argument.',
+    details: <String, Object?>{'argument': _publicArgumentKey(key)},
+  );
+}
+
+int? cockpitReadOptionalPositiveInt(
+  Map<String, Object?> arguments,
+  String key,
+) {
+  final value = _readArgumentValue(arguments, key);
+  if (value == null) {
+    return null;
+  }
+  final parsed = _readInt(value);
+  if (parsed != null && parsed > 0) {
+    return parsed;
+  }
+  throw CockpitMcpError.invalidArguments(
+    'Argument must be a positive integer.',
+    details: <String, Object?>{'argument': _publicArgumentKey(key)},
+  );
+}
+
+int? cockpitReadOptionalHttpStatusCode(
+  Map<String, Object?> arguments,
+  String key,
+) {
+  final value = _readArgumentValue(arguments, key);
+  if (value == null) {
+    return null;
+  }
+  final parsed = _readInt(value);
+  if (parsed != null && parsed >= 100 && parsed <= 599) {
+    return parsed;
+  }
+  throw CockpitMcpError.invalidArguments(
+    'Argument must be an HTTP status code from 100 to 599.',
+    details: <String, Object?>{'argument': _publicArgumentKey(key)},
+  );
+}
+
+int cockpitReadRequiredPort(Map<String, Object?> arguments, String key) {
+  final value = _readArgumentValue(arguments, key);
+  final parsed = _readInt(value);
+  if (parsed != null && parsed > 0 && parsed <= 65535) {
+    return parsed;
+  }
+  throw CockpitMcpError.invalidArguments(
+    'Missing required TCP port argument from 1 to 65535.',
+    details: <String, Object?>{'argument': _publicArgumentKey(key)},
+  );
+}
+
 bool? cockpitReadOptionalBool(Map<String, Object?> arguments, String key) {
   final value = _readArgumentValue(arguments, key);
   if (value == null) {
@@ -145,15 +208,19 @@ List<Map<String, Object?>> cockpitReadRequiredObjectList(
       details: <String, Object?>{'argument': _publicArgumentKey(key)},
     );
   }
-  return value.map((item) {
-    if (item is! Map<Object?, Object?>) {
-      throw CockpitMcpError.invalidArguments(
-        'List argument must contain only objects.',
-        details: <String, Object?>{'argument': _publicArgumentKey(key)},
-      );
-    }
-    return Map<String, Object?>.from(item);
-  }).toList(growable: false);
+  return <Map<String, Object?>>[
+    for (var index = 0; index < value.length; index++)
+      if (value[index] case final Map<Object?, Object?> item)
+        Map<String, Object?>.from(item)
+      else
+        throw CockpitMcpError.invalidArguments(
+          'List argument must contain only objects.',
+          details: <String, Object?>{
+            'argument': _publicArgumentKey(key),
+            'index': index,
+          },
+        ),
+  ];
 }
 
 CockpitRemoteSessionHandle? cockpitReadOptionalSessionHandle(
@@ -245,7 +312,10 @@ int? _readInt(Object? value) {
     return value;
   }
   if (value is num) {
-    return value.toInt();
+    if (value.isFinite && value == value.roundToDouble()) {
+      return value.toInt();
+    }
+    return null;
   }
   if (value is String) {
     return int.tryParse(value);

@@ -404,6 +404,62 @@ done
       );
     },
   );
+
+  test(
+    'linux recording adapter includes recent ffmpeg stderr when output is empty',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_linux_recording_adapter_empty_output_diagnostics',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final ffmpegExecutable = await _writeExecutable(
+        directory: tempDir,
+        name: 'ffmpeg',
+        body: r'''
+#!/bin/sh
+printf 'Press [q] to stop\n' >&2
+printf '[x11grab @ 0x123] Cannot open display :99\n' >&2
+while IFS= read -r line; do
+  if [ "$line" = "q" ]; then
+    exit 0
+  fi
+done
+''',
+      );
+
+      final adapter = CockpitLinuxRecordingAdapter(
+        appId: 'cockpit_demo',
+        ffmpegExecutable: ffmpegExecutable.path,
+        windowActivatorExecutable: null,
+        displayConfigResolver: () async => const CockpitLinuxDisplayConfig(
+          display: ':99',
+          captureSize: '1440x900',
+        ),
+        startupTimeout: const Duration(seconds: 2),
+        stopTimeout: const Duration(seconds: 2),
+        finalizationPollInterval: const Duration(milliseconds: 10),
+      );
+
+      final session = await adapter.startRecording(
+        const CockpitRecordingRequest(
+          purpose: CockpitRecordingPurpose.acceptance,
+          name: 'empty-linux-output-diagnostics',
+          attachToStep: true,
+        ),
+      );
+      final result = await adapter.stopRecording();
+
+      expect(session.state, CockpitRecordingState.recording);
+      expect(result.state, CockpitRecordingState.failed);
+      expect(result.failureReason, contains('Recent ffmpeg output'));
+      expect(result.failureReason, contains('Cannot open display :99'));
+    },
+  );
 }
 
 Future<File> _writeExecutable({

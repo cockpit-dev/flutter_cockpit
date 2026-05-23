@@ -260,7 +260,7 @@ Widget buildCockpitDevelopmentApp() {
 }
 ```
 
-把 `package:your_app/app_shell.dart` 替换成你现有应用根组件或 bootstrap 的真实 import。`launch-app` 会注入 `FLUTTER_PILOT_REMOTE_*` 这组 dart-define，所以 `resolveFromEnvironment(...)` 可以在不接管生产入口的前提下启用远程控制面。
+把 `package:your_app/app_shell.dart` 替换成你现有应用根组件或 bootstrap 的真实 import。`launch-app` 会注入 `FLUTTER_COCKPIT_REMOTE_*` 这组 dart-define，所以 `resolveFromEnvironment(...)` 可以在不接管生产入口的前提下启用远程控制面。
 如果现有应用内部已经自己持有 `MaterialApp`，就用 `FlutterCockpitApp` 包住那层 app shell，并把 `FlutterCockpit.navigatorObserver` 接到原来的 navigator 上，不要再嵌一层新的 `MaterialApp`。
 
 运行最小 app 闭环：
@@ -437,4 +437,4 @@ Prompts：
 
 `list_apps` 故意只在 MCP 中暴露。CLI 是无状态进程，推荐把 `app.json` 落盘并跨步骤复用，而不是依赖主机侧 app registry。
 应用交互命令使用 `timeoutMs`；workspace 工具使用 `timeoutSeconds`。
-对代码侧问题，CLI 和 MCP 暴露的是同一套 workspace intelligence；在 shell agent 里，CLI 直接配合 stdout 管道和 `jq` 往往是最低成本路径，只有后续步骤要重新打开整份结果时再加 `--output-json`。
+对代码侧问题，CLI 和 MCP 暴露的是同一套 workspace intelligence；在 shell agent 里，CLI 默认 stdout 是完整 AI 语义渲染。需要 `jq` 管道时加 `--stdout-format json`，后续步骤必须从磁盘重新打开结构化结果时使用 `--output <path> --output-format json`。

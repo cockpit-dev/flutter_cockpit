@@ -41,7 +41,6 @@ final class ReadPackageUrisCommand extends CockpitCliCommand {
         help:
             'Include full text when the file is textual and already fits inside the preview budget.',
       );
-    cockpitAddWorkspaceOutputJsonOption(argParser);
   }
 
   final CockpitReadPackageUrisFunction _read;
@@ -89,12 +88,12 @@ final class ReadPackageUrisCommand extends CockpitCliCommand {
         CockpitReadPackageUrisRequest(
           workspaceRoot: workspaceRoot,
           uri: uri,
-          maxPreviewChars: cockpitReadRequiredIntOption(
+          maxPreviewChars: cockpitReadRequiredPositiveIntOption(
             argResults,
             'max-preview-chars',
             usage,
           ),
-          maxEntries: cockpitReadRequiredIntOption(
+          maxEntries: cockpitReadRequiredPositiveIntOption(
             argResults,
             'max-entries',
             usage,

@@ -90,7 +90,7 @@ final class CockpitLspService {
               fileSystem: fileSystem ?? const LocalCockpitFileSystem(),
               processManager:
                   processManager ?? const LocalCockpitProcessManager(),
-              sdkEnvironment: sdkEnvironment ?? const CockpitSdkEnvironment(),
+              sdkEnvironment: sdkEnvironment ?? CockpitSdkEnvironment.current(),
             );
 
   final CockpitFileSystem _fileSystem;

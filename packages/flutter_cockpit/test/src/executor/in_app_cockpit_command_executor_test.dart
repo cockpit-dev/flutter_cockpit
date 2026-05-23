@@ -518,6 +518,59 @@ void main() {
   );
 
   test(
+    'waits through an empty route transition before resolving the next target',
+    () async {
+      final registry = CockpitTargetRegistry(routeName: '/editor');
+      var submittedTitle = '';
+      var tickCount = 0;
+
+      final executor = InAppCockpitCommandExecutor(
+        registry: registry,
+        postActionSettler: () async {},
+        waitTickHandler: (duration) async {
+          tickCount += 1;
+          if (tickCount == 3) {
+            registry.register(
+              CockpitTarget(
+                registrationId: 'editor.title',
+                text: 'Task title',
+                routeName: '/editor',
+                supportedCommands: const {CockpitCommandType.enterText},
+                onEnterText: (text) {
+                  submittedTitle = text;
+                },
+              ),
+            );
+          }
+        },
+        interactionPolicy: const CockpitInteractionPolicy(
+          targetResolveTimeout: Duration(milliseconds: 160),
+          targetResolvePollInterval: Duration(milliseconds: 10),
+          actionVisualDelay: Duration.zero,
+          routeTransitionVisualDelay: Duration.zero,
+          recordingActionVisualDelay: Duration.zero,
+        ),
+      );
+
+      final result = await executor.execute(
+        CockpitCommand(
+          commandId: 'cmd-enter-after-route',
+          commandType: CockpitCommandType.enterText,
+          locator: const CockpitLocator(
+            text: 'Task title',
+            ancestor: CockpitLocator(route: '/editor'),
+          ),
+          parameters: const <String, Object?>{'text': 'Release checklist'},
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(submittedTitle, 'Release checklist');
+      expect(tickCount, greaterThanOrEqualTo(3));
+    },
+  );
+
+  test(
     'adds a longer post-action pacing delay while recording is active',
     () async {
       final registry = CockpitTargetRegistry(routeName: '/checkout');
@@ -559,6 +612,98 @@ void main() {
 
       expect(result.success, isTrue);
       expect(waitedDurations, contains(const Duration(milliseconds: 140)));
+    },
+  );
+
+  test(
+    'waits briefly for assertText targets after async UI updates',
+    () async {
+      final registry = CockpitTargetRegistry(routeName: '/inbox');
+      var tickCount = 0;
+
+      final executor = InAppCockpitCommandExecutor(
+        registry: registry,
+        postActionSettler: () async {},
+        waitTickHandler: (duration) async {
+          tickCount += 1;
+          if (tickCount == 2) {
+            registry.register(
+              const CockpitTarget(
+                registrationId: 'task-row',
+                text: 'Async saved task',
+                routeName: '/inbox',
+              ),
+            );
+          }
+        },
+        interactionPolicy: const CockpitInteractionPolicy(
+          uiIdleQuietWindow: Duration.zero,
+          uiIdleTimeout: Duration.zero,
+          targetResolveTimeout: Duration(milliseconds: 120),
+          targetResolvePollInterval: Duration(milliseconds: 10),
+          actionVisualDelay: Duration.zero,
+          routeTransitionVisualDelay: Duration.zero,
+          recordingActionVisualDelay: Duration.zero,
+        ),
+      );
+
+      final result = await executor.execute(
+        CockpitCommand(
+          commandId: 'cmd-assert-created-task',
+          commandType: CockpitCommandType.assertText,
+          parameters: const <String, Object?>{
+            'text': 'Async saved task',
+          },
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(tickCount, greaterThanOrEqualTo(2));
+    },
+  );
+
+  test(
+    'waits briefly for assertVisible locators after async UI updates',
+    () async {
+      final registry = CockpitTargetRegistry(routeName: '/inbox');
+      var tickCount = 0;
+
+      final executor = InAppCockpitCommandExecutor(
+        registry: registry,
+        postActionSettler: () async {},
+        waitTickHandler: (duration) async {
+          tickCount += 1;
+          if (tickCount == 2) {
+            registry.register(
+              const CockpitTarget(
+                registrationId: 'new-row',
+                cockpitId: 'created_task_row',
+                routeName: '/inbox',
+              ),
+            );
+          }
+        },
+        interactionPolicy: const CockpitInteractionPolicy(
+          uiIdleQuietWindow: Duration.zero,
+          uiIdleTimeout: Duration.zero,
+          targetResolveTimeout: Duration(milliseconds: 120),
+          targetResolvePollInterval: Duration(milliseconds: 10),
+          actionVisualDelay: Duration.zero,
+          routeTransitionVisualDelay: Duration.zero,
+          recordingActionVisualDelay: Duration.zero,
+        ),
+      );
+
+      final result = await executor.execute(
+        CockpitCommand(
+          commandId: 'cmd-assert-created-row',
+          commandType: CockpitCommandType.assertVisible,
+          locator: const CockpitLocator(cockpitId: 'created_task_row'),
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(tickCount, greaterThanOrEqualTo(2));
     },
   );
 

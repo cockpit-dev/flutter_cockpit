@@ -1,5 +1,7 @@
 import 'package:args/command_runner.dart';
 
+import 'cockpit_interactive_cli_support.dart';
+
 final class CockpitCliCategory {
   static const String coreLoop = 'Core loop';
   static const String workspace = 'Workspace';
@@ -36,13 +38,19 @@ final class CockpitCliRootRunner extends CommandRunner<int> {
         'list-targets',
         'launch-app',
         'launch-target',
+        'launch-remote-session',
         'read-app',
         'read-target',
+        'read-remote-status',
+        'read-remote-snapshot',
         'inspect-surface',
         'run-command',
         'run-batch',
+        'execute-remote-command',
+        'execute-remote-command-batch',
         'inspect-ui',
         'wait-idle',
+        'wait-remote-ui-idle',
         'hot-reload',
         'hot-restart',
         'stop-app',
@@ -70,8 +78,28 @@ final class CockpitCliRootRunner extends CommandRunner<int> {
     buffer.writeln();
     _writeSection(
       buffer,
+      'Development sessions',
+      const <String>[
+        'launch-development-session',
+        'query-development-session',
+        'reload-development-session',
+        'collect-development-probe',
+        'compare-development-probe',
+        'stop-development-session',
+        'query-remote-session',
+        'collect-remote-snapshot',
+      ],
+    );
+    buffer.writeln();
+    _writeSection(
+      buffer,
       'Delivery',
-      const <String>['run-script', 'run-task', 'validate-task'],
+      const <String>[
+        'run-script',
+        'run-remote-control-script',
+        'run-task',
+        'validate-task',
+      ],
     );
     buffer.writeln();
     _writeSection(
@@ -83,6 +111,8 @@ final class CockpitCliRootRunner extends CommandRunner<int> {
         'read-logs',
         'start-recording',
         'stop-recording',
+        'start-remote-recording',
+        'stop-remote-recording',
       ],
     );
     buffer.writeln();
@@ -106,19 +136,19 @@ final class CockpitCliRootRunner extends CommandRunner<int> {
         '  run-command --command-file <command.json>',
         '  stop-app',
         'Target-first loop (only when target truth matters more than an app handle):',
-        '  launch-target --project-dir <dir> --platform <platform> --target-json /tmp/target.json --output-json /tmp/launch_target.json [--device-id <id when needed>]',
+        '  launch-target --project-dir <dir> --platform <platform> --target-json /tmp/target.json --output /tmp/launch_target.json --output-format json [--device-id <id when needed>]',
         '  read-target --target-json <target.json> --profile minimal',
         'Workspace loop:',
         '  analyze-files --path lib/main.dart',
-        '  grep-package-uris --package flutter --query ThemeData | jq \'.packages[0].files[0].packageUri\'',
+        '  grep-package-uris --package flutter --query ThemeData --stdout-format json | jq \'.packages[0].files[0].packageUri\'',
         '  lsp --command hover --path lib/main.dart --line 12 --column 8',
         '  pub --command get',
         'If a flag or JSON shape is unclear, run "flutter_cockpit_devtools help <command>" before guessing.',
         'launch-app auto-detects cockpit/main.dart first, then lib/main.dart.',
         'Most app-scoped commands reuse .dart_tool/flutter_cockpit/latest_app.json in the current working directory when it exists.',
-        "launch-target --target-json persists target-first state only. If later app-scoped commands are needed, recover the embedded app handle from --output-json: jq '.app' /tmp/launch_target.json > /tmp/app.json",
-        'Default JSON output goes to stdout, so short follow-up reads can use jq or other shell pipes immediately.',
-        'Use --output-json only when the result is too large for stdout or a later step needs to reopen the full payload from disk.',
+        "launch-target --target-json persists target-first state only. If later app-scoped commands are needed, persist a JSON result with --output /tmp/launch_target.json --output-format json, then recover the embedded app handle: jq '.app' /tmp/launch_target.json > /tmp/app.json",
+        'Default stdout is a full AI-readable semantic render, not JSON. Use --stdout-format json for jq or other shell pipes.',
+        'When --output writes a file, default stdout prints only output paths. Use --stdout-format ai or json to also print the payload.',
         'Prefer app-first unless target-first surface truth is the real question.',
         'Delivery loop:',
         '  run-task --config-json <task.json>',
@@ -144,6 +174,27 @@ final class CockpitCliRootRunner extends CommandRunner<int> {
 }
 
 abstract base class CockpitCliCommand extends Command<int> {
+  CockpitCliCommand() {
+    argParser
+      ..addOption(
+        'stdout-format',
+        allowed: const <String>['auto', 'ai', 'json', 'path', 'none'],
+        defaultsTo: 'auto',
+        help:
+            'Terminal output: auto=AI-readable full output unless file outputs are requested, then paths only; json=compact JSON for jq; path=file paths only; none=silent.',
+      )
+      ..addOption(
+        'output',
+        help: cockpitOutputOptionHelp,
+      )
+      ..addOption(
+        'output-format',
+        allowed: cockpitCliFileOutputFormatValues,
+        defaultsTo: 'ai',
+        help: cockpitOutputFormatOptionHelp,
+      );
+  }
+
   @override
   bool get takesArguments => false;
 

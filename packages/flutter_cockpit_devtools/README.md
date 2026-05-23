@@ -39,6 +39,13 @@ flutter_cockpit_mcp
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools serve-mcp
 ```
 
+Toolchain resolution:
+
+- Explicit executable variables win: `DART`, `DART_BIN`, `FLUTTER`, `FLUTTER_BIN`.
+- SDK root variables are supported next: `DART_ROOT`, `DART_SDK`, `FLUTTER_ROOT`, `FLUTTER_SDK`.
+- If only `FLUTTER_ROOT` or `FLUTTER_SDK` is set, Dart commands use the bundled Flutter Dart SDK.
+- If none are set, commands fall back to `dart` and `flutter` on `PATH`.
+
 Typical host setup:
 
 - Codex:
@@ -162,21 +169,22 @@ When the host is a shell agent, prefer the CLI surface plus small `jq` projectio
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   read-app \
-  --profile minimal | jq '{currentRouteName,state}'
+  --profile minimal --stdout-format json | jq '{currentRouteName,state}'
 ```
 
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   validate-task \
-  --config-json /tmp/validate_task.json | jq '{classification,recommendedNextStep,validationFailures}'
+  --config-json /tmp/validate_task.json --stdout-format json | jq '{classification,recommendedNextStep,validationFailures}'
 
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   validate-task \
   --config-json /tmp/validate_task.json \
-  --output-json /tmp/validate_task_result.json
+  --output /tmp/validate_task_result.json \
+  --output-format json
 ```
 
-JSON goes to stdout in compact form by default, so immediate follow-up reads can use `| jq` with minimal token overhead. Keep larger payloads in pretty-printed files with `--output-json` only when the response is too large for stdout or another step must reopen the full result later. Prefer `--command-file`, `--commands-file`, or `--config-json` over long inline JSON once the request body stops being trivial.
+Default stdout is the full AI-readable semantic render. Add `--stdout-format json` for immediate `jq` projections. Keep larger payloads on disk with `--output <path>`; add `--output-format json` only when a later step must reopen structured JSON. Prefer `--command-file`, `--commands-file`, or `--config-json` over long inline JSON once the request body stops being trivial.
 
 ## MCP
 

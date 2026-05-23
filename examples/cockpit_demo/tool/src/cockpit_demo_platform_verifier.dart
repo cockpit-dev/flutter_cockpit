@@ -105,6 +105,38 @@ String cockpitDemoDefaultProjectDir({
   return p.basename(candidate) == 'cockpit_demo' ? candidate : fallback;
 }
 
+String cockpitDemoResolveArtifactOutputPath({
+  required String outputDir,
+  required String relativePath,
+}) {
+  final normalizedRelativePath = p.normalize(relativePath);
+  if (normalizedRelativePath.isEmpty ||
+      normalizedRelativePath == '.' ||
+      p.isAbsolute(normalizedRelativePath)) {
+    throw CockpitApplicationServiceException(
+      code: 'invalidArtifactPath',
+      message: 'Artifact paths must be relative paths inside the output root.',
+      details: <String, Object?>{'artifactPath': relativePath},
+    );
+  }
+
+  final outputRoot = p.normalize(p.absolute(outputDir));
+  final destinationPath = p.normalize(
+    p.join(outputRoot, normalizedRelativePath),
+  );
+  if (!p.isWithin(outputRoot, destinationPath)) {
+    throw CockpitApplicationServiceException(
+      code: 'invalidArtifactPath',
+      message: 'Artifact path escapes the output root.',
+      details: <String, Object?>{
+        'artifactPath': relativePath,
+        'outputRoot': outputRoot,
+      },
+    );
+  }
+  return destinationPath;
+}
+
 final class CockpitDemoHostDevice {
   const CockpitDemoHostDevice({
     required this.name,
@@ -229,6 +261,7 @@ final class CockpitDemoPlatformVerification {
     this.baseUrl,
     this.failureCode,
     this.failureMessage,
+    this.failureDetails = const <String, Object?>{},
   });
 
   final String platform;
@@ -267,6 +300,7 @@ final class CockpitDemoPlatformVerification {
   final String? baseUrl;
   final String? failureCode;
   final String? failureMessage;
+  final Map<String, Object?> failureDetails;
 
   bool get success => status == 'passed';
 
@@ -315,6 +349,7 @@ final class CockpitDemoPlatformVerification {
         if (warnings.isNotEmpty) 'warnings': warnings,
         if (failureCode != null) 'failureCode': failureCode,
         if (failureMessage != null) 'failureMessage': failureMessage,
+        if (failureDetails.isNotEmpty) 'failureDetails': failureDetails,
       };
 }
 
@@ -593,7 +628,7 @@ final class CockpitDemoPlatformVerifier {
       _requireBatchSuccess(
         platform: platform,
         result: batchResult,
-        expectedCount: 6,
+        expectedCount: 7,
       );
       verifiedCommands.add('run-batch');
       if (recordingStarted) {
@@ -616,9 +651,9 @@ final class CockpitDemoPlatformVerifier {
           verifiedCommands.add('stop-recording');
           recordingStarted = false;
           recordingArtifactRef = recordingStop.artifact?.relativePath;
-          recordingOutputPath = await _copyArtifactToOutputDir(
-            artifact: recordingStop.artifact,
-            sourcePath: recordingStop.sourceFilePath,
+          recordingOutputPath = await _copyRequiredArtifactToOutputDir(
+            platform: platform,
+            recordingResult: recordingStop,
             outputDir: outputDir,
           );
           recordingDurationMs = recordingStop.durationMs;
@@ -874,6 +909,10 @@ final class CockpitDemoPlatformVerifier {
           details: <String, Object?>{'platform': platform},
         ),
       );
+      _requireNonEmptyScreenshotArtifact(
+        platform: platform,
+        artifact: screenshotArtifact,
+      );
       verifiedCommands.add('capture-screenshot');
 
       final hotReloadResult = await _hotReload(
@@ -987,6 +1026,8 @@ final class CockpitDemoPlatformVerifier {
         warnings: warnings,
       );
     } on Object catch (error) {
+      final serviceError =
+          error is CockpitApplicationServiceException ? error : null;
       return CockpitDemoPlatformVerification(
         platform: platform,
         status: 'failed',
@@ -995,10 +1036,9 @@ final class CockpitDemoPlatformVerifier {
         outputDir: outputDir,
         appJsonPath: appJsonPath,
         baseUrl: app?.baseUrl,
-        failureCode: error is CockpitApplicationServiceException
-            ? error.code
-            : error.runtimeType.toString(),
+        failureCode: serviceError?.code ?? error.runtimeType.toString(),
         failureMessage: '$error',
+        failureDetails: serviceError?.details ?? const <String, Object?>{},
       );
     } finally {
       if (recordingStarted && activeRecordingAdapter != null) {
@@ -1135,29 +1175,34 @@ final class CockpitDemoPlatformVerifier {
         result.results.every((entry) => entry.command.success)) {
       return;
     }
-    final failedCommand = result.results
-        .map((entry) => entry.command)
-        .firstWhere(
-          (command) => !command.success,
-          orElse: () => throw CockpitApplicationServiceException(
-            code: 'invalidBatchSummary',
-            message: 'Batch verification summary did not match expectations.',
-            details: <String, Object?>{
-              'platform': platform,
-              'totalCount': result.summary.totalCount,
-              'failureCount': result.summary.failureCount,
-              'stoppedEarly': result.summary.stoppedEarly,
-            },
-          ),
-        );
+    final failedResult = result.results.firstWhere(
+      (entry) => !entry.command.success,
+      orElse: () => throw CockpitApplicationServiceException(
+        code: 'invalidBatchSummary',
+        message: 'Batch verification summary did not match expectations.',
+        details: <String, Object?>{
+          'platform': platform,
+          'expectedCount': expectedCount,
+          'totalCount': result.summary.totalCount,
+          'failureCount': result.summary.failureCount,
+          'stoppedEarly': result.summary.stoppedEarly,
+          'completedCommands': result.results
+              .map((entry) => entry.command.commandId)
+              .toList(growable: false),
+        },
+      ),
+    );
     throw CockpitApplicationServiceException(
       code: 'exampleBatchFailed',
       message: 'A required example batch command failed.',
-      details: <String, Object?>{
-        'platform': platform,
-        'commandId': failedCommand.commandId,
-        'commandType': failedCommand.commandType,
-      },
+      details: _failedCommandDetails(
+        platform: platform,
+        expectedCount: expectedCount,
+        totalCount: result.summary.totalCount,
+        failureCount: result.summary.failureCount,
+        stoppedEarly: result.summary.stoppedEarly,
+        result: failedResult,
+      ),
     );
   }
 
@@ -1194,13 +1239,111 @@ final class CockpitDemoPlatformVerifier {
       throw CockpitApplicationServiceException(
         code: 'exampleCommandFailed',
         message: 'A required example verification command failed.',
-        details: <String, Object?>{
-          'commandId': command.commandId,
-          'commandType': command.commandType.name,
-        },
+        details: _failedCommandDetails(result: result),
       );
     }
     return result;
+  }
+
+  Map<String, Object?> _failedCommandDetails({
+    String? platform,
+    int? expectedCount,
+    int? totalCount,
+    int? failureCount,
+    bool? stoppedEarly,
+    required CockpitExecuteRemoteCommandResult result,
+  }) {
+    final command = result.command;
+    final details = <String, Object?>{
+      if (platform != null) 'platform': platform,
+      if (expectedCount != null) 'expectedCount': expectedCount,
+      if (totalCount != null) 'totalCount': totalCount,
+      if (failureCount != null) 'failureCount': failureCount,
+      if (stoppedEarly != null) 'stoppedEarly': stoppedEarly,
+      'commandId': command.commandId,
+      'commandType': command.commandType,
+      'recommendedNextStep': result.recommendedNextStep,
+      'selectedPlane': result.selectedPlane.name,
+    };
+    if (command.error != null) {
+      details['error'] = _compactJsonValue(command.error!.toJson());
+    }
+    if (command.locatorResolution != null) {
+      details['locatorResolution'] = _compactJsonValue(
+        command.locatorResolution!.toJson(),
+      );
+    }
+    if (result.fallbackTrail.isNotEmpty) {
+      details['fallbackTrail'] =
+          result.fallbackTrail.map((planeKind) => planeKind.name).toList();
+    }
+    if (result.whatChanged != null) {
+      details['whatChanged'] = _compactString(result.whatChanged!);
+    }
+    if (result.whatMatters != null) {
+      details['whatMatters'] = _compactString(result.whatMatters!);
+    }
+    if (result.uiSummary != null) {
+      details['uiSummary'] = _compactUiSummary(result.uiSummary!);
+    }
+    if (result.diagnostics != null) {
+      details['diagnostics'] = _compactJsonValue(result.diagnostics);
+    }
+    if (result.snapshotRef != null) {
+      details['snapshotRef'] = result.snapshotRef;
+    }
+    return details;
+  }
+
+  Map<String, Object?> _compactUiSummary(
+    CockpitInteractiveSnapshotSummary summary,
+  ) {
+    return <String, Object?>{
+      if (summary.routeName != null) 'routeName': summary.routeName,
+      'diagnosticLevel': summary.diagnosticLevel,
+      'truncated': summary.truncated,
+      'visibleTargetCount': summary.visibleTargetCount,
+      'targetsWithCockpitIdCount': summary.targetsWithCockpitIdCount,
+      'targetsWithTextCount': summary.targetsWithTextCount,
+      'networkFailureCount': summary.networkFailureCount,
+      'runtimeErrorCount': summary.runtimeErrorCount,
+      'accessibilityTargetCount': summary.accessibilityTargetCount,
+      'textPreviews': summary.textPreviews.take(8).toList(growable: false),
+    };
+  }
+
+  Object? _compactJsonValue(Object? value, {int depth = 0}) {
+    if (value == null || value is num || value is bool) {
+      return value;
+    }
+    if (value is String) {
+      return _compactString(value);
+    }
+    if (depth >= 3) {
+      return '<omitted>';
+    }
+    if (value is Map) {
+      final entries = value.entries.take(8);
+      return <String, Object?>{
+        for (final entry in entries)
+          '${entry.key}': _compactJsonValue(entry.value, depth: depth + 1),
+      };
+    }
+    if (value is Iterable) {
+      return value
+          .take(8)
+          .map((entry) => _compactJsonValue(entry, depth: depth + 1))
+          .toList(growable: false);
+    }
+    return _compactString('$value');
+  }
+
+  String _compactString(String value) {
+    const maxLength = 512;
+    if (value.length <= maxLength) {
+      return value;
+    }
+    return '${value.substring(0, maxLength)}...';
   }
 
   Future<CockpitExecuteRemoteCommandResult> _runCommandWithRetry(
@@ -1239,27 +1382,115 @@ final class CockpitDemoPlatformVerifier {
     throw StateError('Unreachable batch retry state.');
   }
 
-  Future<String?> _copyArtifactToOutputDir({
-    required CockpitArtifactRef? artifact,
-    required String? sourcePath,
+  Future<String> _copyRequiredArtifactToOutputDir({
+    required String platform,
+    required CockpitRecordingResult recordingResult,
     required String outputDir,
   }) async {
+    final artifact = recordingResult.artifact;
     final relativePath = artifact?.relativePath;
-    if (sourcePath == null ||
-        sourcePath.isEmpty ||
-        relativePath == null ||
-        relativePath.isEmpty) {
-      return null;
+    if (relativePath == null || relativePath.isEmpty) {
+      throw CockpitApplicationServiceException(
+        code: 'recordingArtifactUnavailable',
+        message: 'Recording completed without an artifact reference.',
+        details: <String, Object?>{
+          'platform': platform,
+        },
+      );
+    }
+    final destinationPath = cockpitDemoResolveArtifactOutputPath(
+      outputDir: outputDir,
+      relativePath: relativePath,
+    );
+    final destinationFile = File(destinationPath);
+    await destinationFile.parent.create(recursive: true);
+
+    final bytes = recordingResult.bytes;
+    if (bytes != null) {
+      if (bytes.isEmpty) {
+        throw CockpitApplicationServiceException(
+          code: 'recordingArtifactEmpty',
+          message: 'Recording artifact bytes are empty.',
+          details: <String, Object?>{
+            'platform': platform,
+            'artifactPath': relativePath,
+            'byteLength': 0,
+          },
+        );
+      }
+      await destinationFile.writeAsBytes(bytes, flush: true);
+      return p.normalize(destinationFile.path);
+    }
+
+    final sourcePath = recordingResult.sourceFilePath;
+    if (sourcePath == null || sourcePath.isEmpty) {
+      throw CockpitApplicationServiceException(
+        code: 'recordingArtifactUnavailable',
+        message: 'Recording completed without a downloadable artifact file.',
+        details: <String, Object?>{
+          'platform': platform,
+          'artifactPath': relativePath,
+        },
+      );
     }
     final sourceFile = File(sourcePath);
     if (!sourceFile.existsSync()) {
-      return null;
+      throw CockpitApplicationServiceException(
+        code: 'recordingArtifactUnavailable',
+        message: 'Recording artifact source file does not exist.',
+        details: <String, Object?>{
+          'platform': platform,
+          'artifactPath': relativePath,
+          'sourcePath': sourcePath,
+        },
+      );
     }
-    final destinationPath = p.join(outputDir, relativePath);
-    final destinationFile = File(destinationPath);
-    await destinationFile.parent.create(recursive: true);
+    final byteLength = sourceFile.lengthSync();
+    if (byteLength <= 0) {
+      throw CockpitApplicationServiceException(
+        code: 'recordingArtifactEmpty',
+        message: 'Recording artifact source file is empty.',
+        details: <String, Object?>{
+          'platform': platform,
+          'artifactPath': relativePath,
+          'sourcePath': sourcePath,
+          'byteLength': byteLength,
+        },
+      );
+    }
     await sourceFile.copy(destinationFile.path);
     return p.normalize(destinationFile.path);
+  }
+
+  void _requireNonEmptyScreenshotArtifact({
+    required String platform,
+    required CockpitInteractiveArtifactDescriptor artifact,
+  }) {
+    final byteLength = artifact.byteLength;
+    if (byteLength != null && byteLength > 0) {
+      return;
+    }
+    final sourcePath = artifact.sourcePath;
+    if (sourcePath != null && sourcePath.isNotEmpty) {
+      try {
+        final file = File(sourcePath);
+        if (file.existsSync() && file.lengthSync() > 0) {
+          return;
+        }
+      } on Object {
+        // Fall through to the structured verifier failure below.
+      }
+    }
+    throw CockpitApplicationServiceException(
+      code: 'screenshotArtifactEmpty',
+      message: 'Screenshot command did not produce non-empty evidence.',
+      details: <String, Object?>{
+        'platform': platform,
+        'artifactPath': artifact.relativePath,
+        if (byteLength != null) 'byteLength': byteLength,
+        if (sourcePath != null) 'sourcePath': sourcePath,
+      },
+    );
   }
 
   Future<ProcessResult> _runProcess(
@@ -1888,8 +2119,8 @@ bool _shouldAllowWebHostRecordingPrerequisiteFailure({
   final message = '$error';
   return message.contains('Remote session request failed: 412') ||
       message.contains('"error":"recordingStartFailed"') ||
-      message.contains('recordingStopFailed') ||
-      message.contains('did not stop before timeout') ||
+      message.contains('ffmpeg never confirmed') ||
+      message.contains('startup/output evidence') ||
       message.contains('Screen Recording permission') ||
       message.contains('desktop capture prerequisite');
 }

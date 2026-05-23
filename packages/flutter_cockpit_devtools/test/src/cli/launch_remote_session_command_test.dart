@@ -22,6 +22,7 @@ void main() {
       });
 
       final outputFile = File(p.join(tempDir.path, 'sessionHandle.json'));
+      final resultFile = File(p.join(tempDir.path, 'launchResult.json'));
       final runner = CommandRunner<int>(
         'flutter_cockpit_devtools',
         'Host-side tooling for flutter_cockpit.',
@@ -69,8 +70,12 @@ void main() {
             'android',
             '--android-device-id',
             'emulator-5554',
-            '--output-json',
+            '--session-json',
             outputFile.path,
+            '--output',
+            resultFile.path,
+            '--output-format',
+            'json',
           ]) ??
           0;
 
@@ -80,6 +85,10 @@ void main() {
       expect(decoded['platform'], 'android');
       expect(decoded['deviceId'], 'emulator-5554');
       expect(decoded['baseUrl'], 'http://127.0.0.1:58421');
+      final result =
+          jsonDecode(await resultFile.readAsString()) as Map<String, Object?>;
+      expect(result['sessionHandle'], isA<Map<String, Object?>>());
+      expect(result['health'], isA<Map<String, Object?>>());
     },
   );
 
@@ -128,6 +137,8 @@ void main() {
 
     final exitCode = await runner.run(<String>[
           'launch-remote-session',
+          '--stdout-format',
+          'json',
           '--project-dir',
           '/workspace/examples/cockpit_demo',
           '--target',
@@ -141,7 +152,10 @@ void main() {
     expect(capturedOptions?.platform, 'macos');
     expect(capturedOptions?.deviceId, 'macos');
     final decoded = jsonDecode(output.toString()) as Map<String, Object?>;
-    expect(decoded['platform'], 'macos');
+    expect(
+      (decoded['sessionHandle'] as Map<String, Object?>)['platform'],
+      'macos',
+    );
   });
 
   test('launch-remote-session accepts windows without a mobile device id',
@@ -189,6 +203,8 @@ void main() {
 
     final exitCode = await runner.run(<String>[
           'launch-remote-session',
+          '--stdout-format',
+          'json',
           '--project-dir',
           '/workspace/examples/cockpit_demo',
           '--target',
@@ -202,7 +218,10 @@ void main() {
     expect(capturedOptions?.platform, 'windows');
     expect(capturedOptions?.deviceId, 'windows');
     final decoded = jsonDecode(output.toString()) as Map<String, Object?>;
-    expect(decoded['platform'], 'windows');
+    expect(
+      (decoded['sessionHandle'] as Map<String, Object?>)['platform'],
+      'windows',
+    );
   });
 
   test('launch-remote-session accepts linux without a mobile device id',
@@ -250,6 +269,8 @@ void main() {
 
     final exitCode = await runner.run(<String>[
           'launch-remote-session',
+          '--stdout-format',
+          'json',
           '--project-dir',
           '/workspace/examples/cockpit_demo',
           '--target',
@@ -263,7 +284,10 @@ void main() {
     expect(capturedOptions?.platform, 'linux');
     expect(capturedOptions?.deviceId, 'linux');
     final decoded = jsonDecode(output.toString()) as Map<String, Object?>;
-    expect(decoded['platform'], 'linux');
+    expect(
+      (decoded['sessionHandle'] as Map<String, Object?>)['platform'],
+      'linux',
+    );
   });
 }
 

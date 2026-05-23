@@ -11,6 +11,8 @@ The skill may depend on these implemented public workflows:
 - launchable Flutter target discovery through `list-targets` / `list_targets`
 - app bootstrap through `launch-app` / `launch_app`
 - target bootstrap through `launch-target` / `launch_target`
+- direct remote session bootstrap and control through `launch-remote-session` / `launch_remote_session`, `query-remote-session` / `query_remote_session`, `read-remote-status` / `read_remote_status`, `read-remote-snapshot` / `read_remote_snapshot`, `execute-remote-command` / `execute_remote_command`, and `execute-remote-command-batch` / `execute_remote_command_batch`
+- persistent development loops through `launch-development-session` / `launch_development_session`, `query-development-session` / `query_development_session`, `reload-development-session` / `reload_development_session`, `collect-development-probe` / `collect_development_probe`, `compare-development-probe` / `compare_development_probe`, and `stop-development-session` / `stop_development_session`
 - tracked app discovery through persisted `app.json` on CLI and `list_apps` on MCP
 - bounded app reads through `read-app` / `read_app`
 - bounded target reads through `read-target` / `read_target`
@@ -24,6 +26,7 @@ The skill may depend on these implemented public workflows:
 - reload during development through `hot-reload` / `hot_reload` and `hot-restart` / `hot_restart`
 - app-centric log and error reads through `read-logs` / `read_logs` and `read-errors` / `read_errors`
 - on-demand recording through `start-recording` / `start_recording` and `stop-recording` / `stop_recording`
+- direct remote recording through `start-remote-recording` / `start_remote_recording` and `stop-remote-recording` / `stop_remote_recording`
 - bundle production through `run-script` / `run_script`
 - full closed-loop orchestration through `run-task` / `run_task`
 - final delivery validation through `validate-task` / `validate_task`
@@ -32,6 +35,10 @@ The skill may depend on these implemented public workflows:
 - multi-signal locators with `text`, `tooltip`, `semanticId`, optional stable `key`, `route`, `type`, fuzzy `path`, nested `ancestor`, and ordered `fallbacks`
 - bounded timeouts on interactive commands (`timeoutMs`) and workspace tools (`timeoutSeconds`)
 - canonical lower camel case JSON fields across CLI and MCP payloads so shell filters and prompt snippets stay stable
+- app-handle metadata preservation across CLI and MCP scripted bundle flows, so `app.json` can carry platform, device, process, and remote-session context while an explicit base URL only overrides the live connection address
+- explicit Android and iOS device-id passthrough on app-scoped recording flows, while still preferring `app.json` metadata whenever a handle is available
+- host recording prerequisite reporting for web/browser-host flows, so app control, DOM inspection, screenshots, reloads, and runtime reads can stay strict while video proof is classified separately as `blocked_by_environment` when ffmpeg cannot prove startup or output evidence
+- completed recording evidence only when an artifact is backed by non-empty bytes or a non-empty source/output file; empty or missing artifact content must be reported as failed evidence, not accepted video proof
 - plane-aware task summaries with `targetKind`, `primaryExecutionPlane`, `planesUsed`, `surfaceKindsUsed`, `fallbackCount`, and bounded delivery gates
 
 The skill may also rely on public context resources for roots, contracts, capabilities, apps, task summaries, and package reads. Treat any extra repository-specific context document as optional host configuration, not a default framework dependency.
@@ -89,6 +96,10 @@ The skill must teach token discipline:
 
 - prefer `minimal` and `standard` before `inspect` or `evidence`
 - prefer bundle summaries before raw artifact files
+- prefer inline snapshot summaries and `artifactDownloads` metadata before downloading externalized diagnostics artifacts
+- prefer CLI `errorJson.code`, `errorJson.message`, and `errorJson.details` before interpreting prose stderr when a non-usage command exits non-zero
+- preserve remote endpoint error codes such as `bridgeUnavailable`, `artifactNotFound`, `recordingStartFailed`, and `invalidPayload` so agents can choose the correct recovery path instead of treating every non-2xx response as reachability loss
+- treat `invalidPayload` as a caller payload or option problem that must be corrected before retrying
 - request one missing fact at a time instead of all diagnostics by default
 - prefer `run_shell` target scopes only when the resolved platform truthfully exposes shell control, instead of pretending every browser or system target has an attached shell
 
@@ -113,7 +124,7 @@ The skill must require explicit use of:
 
 - `completed`
 - `failed_with_evidence`
-- `blocked_by_environment`
+- `blocked_by_environment`, including host-level recording prerequisites such as missing screen-capture permission or missing ffmpeg startup/output evidence
 - `needs_more_work`
 
 ## Non-Goals

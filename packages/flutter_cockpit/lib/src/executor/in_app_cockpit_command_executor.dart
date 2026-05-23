@@ -47,6 +47,9 @@ import '../runtime/cockpit_ui_idle_waiter.dart';
 import '../runtime/cockpit_key_event_request.dart';
 import '../runtime/cockpit_text_input_request.dart';
 
+const int _defaultAssertSettleTimeoutMs = 1000;
+const Duration _assertPollInterval = Duration(milliseconds: 16);
+
 final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
   InAppCockpitCommandExecutor({
     required CockpitTargetRegistry registry,
@@ -1612,50 +1615,93 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
     CockpitCommand command,
     Stopwatch stopwatch,
   ) async {
-    final snapshot = _liveSnapshot();
+    await _settleBeforeObservation();
     final locator = command.locator;
-    if (locator != null) {
-      if (locator.kind == CockpitLocatorKind.route &&
-          snapshot.routeName == locator.value) {
+    final timeoutMs = command.timeoutMs ?? _defaultAssertSettleTimeoutMs;
+    CockpitTargetResolutionResult? lastResolution;
+
+    while (stopwatch.elapsedMilliseconds <= timeoutMs) {
+      final snapshot = _liveSnapshot();
+      if (locator != null) {
+        if (locator.kind == CockpitLocatorKind.route &&
+            snapshot.routeName == locator.value) {
+          return _successExecution(
+            command: command,
+            durationMs: stopwatch.elapsedMilliseconds,
+            locatorResolution: CockpitLocatorResolution(
+              matchedKind: CockpitLocatorKind.route,
+              matchedValue: locator.value,
+            ),
+            snapshot: snapshot.toJson(),
+          );
+        }
+        if (locator.kind == CockpitLocatorKind.text &&
+            _visibleTargetsContainText(
+              _registry.visibleTargets,
+              locator.value,
+            )) {
+          return _successExecution(
+            command: command,
+            durationMs: stopwatch.elapsedMilliseconds,
+            locatorResolution: CockpitLocatorResolution(
+              matchedKind: CockpitLocatorKind.text,
+              matchedValue: locator.value,
+            ),
+            snapshot: snapshot.toJson(),
+          );
+        }
+      }
+
+      final resolution = _resolve(command);
+      if (resolution.isSuccess) {
         return _successExecution(
           command: command,
           durationMs: stopwatch.elapsedMilliseconds,
-          locatorResolution: CockpitLocatorResolution(
-            matchedKind: CockpitLocatorKind.route,
-            matchedValue: locator.value,
-          ),
-          snapshot: snapshot.toJson(),
+          locatorResolution: resolution.locatorResolution,
+          snapshot: _liveSnapshot().toJson(),
         );
       }
-      if (locator.kind == CockpitLocatorKind.text &&
-          _visibleTargetsContainText(_registry.visibleTargets, locator.value)) {
-        return _successExecution(
+      if (resolution.error?.code == CockpitCommandError.ambiguousTargetCode) {
+        return _failureExecution(
           command: command,
           durationMs: stopwatch.elapsedMilliseconds,
-          locatorResolution: CockpitLocatorResolution(
-            matchedKind: CockpitLocatorKind.text,
-            matchedValue: locator.value,
-          ),
           snapshot: snapshot.toJson(),
+          error: resolution.error!,
         );
       }
+      lastResolution = resolution;
+      await _postActionSettler();
+      await _waitTickHandler(_assertPollInterval);
     }
 
-    final resolution = await _resolveWithRetry(command);
-    if (!resolution.isSuccess) {
+    final failureSnapshot = _liveSnapshot();
+    if (lastResolution != null && !lastResolution.isSuccess) {
       return _failureExecution(
         command: command,
         durationMs: stopwatch.elapsedMilliseconds,
-        snapshot: snapshot.toJson(),
-        error: resolution.error!,
+        snapshot: failureSnapshot.toJson(),
+        error: _withAssertionRetryDetails(
+          lastResolution.error!,
+          timeoutMs: timeoutMs,
+          visibleTargets: _registry.visibleTargets,
+        ),
       );
     }
 
-    return _successExecution(
+    return _failureExecution(
       command: command,
       durationMs: stopwatch.elapsedMilliseconds,
-      locatorResolution: resolution.locatorResolution,
-      snapshot: _liveSnapshot().toJson(),
+      snapshot: failureSnapshot.toJson(),
+      error: CockpitCommandError.assertionFailed(
+        message: 'Timed out waiting for visible target.',
+        details: <String, Object?>{
+          'timeoutMs': timeoutMs,
+          'routeName': failureSnapshot.routeName,
+          'visibleTextCandidates': _visibleTextCandidates(
+            _registry.visibleTargets,
+          ),
+        },
+      ),
     );
   }
 
@@ -1674,15 +1720,22 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
       );
     }
 
-    final snapshot = _liveSnapshot();
-    if (_visibleTargetsContainText(_registry.visibleTargets, expectedText)) {
-      return _successExecution(
-        command: command,
-        durationMs: stopwatch.elapsedMilliseconds,
-        snapshot: snapshot.toJson(),
-      );
+    await _settleBeforeObservation();
+    final timeoutMs = command.timeoutMs ?? _defaultAssertSettleTimeoutMs;
+    while (stopwatch.elapsedMilliseconds <= timeoutMs) {
+      final snapshot = _liveSnapshot();
+      if (_visibleTargetsContainText(_registry.visibleTargets, expectedText)) {
+        return _successExecution(
+          command: command,
+          durationMs: stopwatch.elapsedMilliseconds,
+          snapshot: snapshot.toJson(),
+        );
+      }
+      await _postActionSettler();
+      await _waitTickHandler(_assertPollInterval);
     }
 
+    final snapshot = _liveSnapshot();
     return _failureExecution(
       command: command,
       durationMs: stopwatch.elapsedMilliseconds,
@@ -1691,11 +1744,30 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
         message: 'Expected visible text "$expectedText" was not found.',
         details: <String, Object?>{
           'expectedText': expectedText,
+          'timeoutMs': timeoutMs,
+          'routeName': snapshot.routeName,
           'visibleTextCandidates': _visibleTextCandidates(
             _registry.visibleTargets,
           ),
         },
       ),
+    );
+  }
+
+  CockpitCommandError _withAssertionRetryDetails(
+    CockpitCommandError error, {
+    required int timeoutMs,
+    required Iterable<CockpitTarget> visibleTargets,
+  }) {
+    final details = <String, Object?>{
+      ...error.details,
+      'timeoutMs': timeoutMs,
+      'visibleTextCandidates': _visibleTextCandidates(visibleTargets),
+    };
+    return CockpitCommandError(
+      code: error.code,
+      message: error.message,
+      details: details,
     );
   }
 
@@ -3260,10 +3332,6 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
       if (routeChanged && snapshot.visibleTargets.isNotEmpty) {
         return true;
       }
-      if (routeChanged && !schedulerBinding.hasScheduledFrame) {
-        return true;
-      }
-
       if (!routeChanged &&
           !schedulerBinding.hasScheduledFrame &&
           attempt >= 1) {

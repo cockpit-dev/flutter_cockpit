@@ -1,8 +1,7 @@
 import 'dart:io';
 
-import 'package:args/command_runner.dart';
-
 import '../../application/cockpit_stop_development_session_service.dart';
+import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
@@ -11,7 +10,7 @@ typedef CockpitStopDevelopmentSessionFunction
   CockpitStopDevelopmentSessionRequest request,
 );
 
-final class StopDevelopmentSessionCommand extends Command<int> {
+final class StopDevelopmentSessionCommand extends CockpitCliCommand {
   StopDevelopmentSessionCommand({
     CockpitStopDevelopmentSessionService? service,
     CockpitStopDevelopmentSessionFunction? stop,
@@ -19,15 +18,10 @@ final class StopDevelopmentSessionCommand extends Command<int> {
   })  : _stop =
             stop ?? (service ?? CockpitStopDevelopmentSessionService()).stop,
         _stdoutSink = stdoutSink ?? stdout {
-    argParser
-      ..addOption(
-        'session-json',
-        help: 'Persisted development session handle JSON to stop.',
-      )
-      ..addOption(
-        'output-json',
-        help: 'Optional file path where the stopped payload should be written.',
-      );
+    argParser.addOption(
+      'session-json',
+      help: cockpitDevelopmentSessionJsonOptionHelp,
+    );
   }
 
   final CockpitStopDevelopmentSessionFunction _stop;
@@ -40,10 +34,34 @@ final class StopDevelopmentSessionCommand extends Command<int> {
   String get description => 'Stop a running development session supervisor.';
 
   @override
+  String get summary => 'Stop development session.';
+
+  @override
+  String get category => CockpitCliCategory.coreLoop;
+
+  @override
+  String get helpWhen =>
+      'Use at the end of a persistent development loop to stop the supervisor and app.';
+
+  @override
+  String get helpNeeds =>
+      'A development session handle from --session-json or the default latest development session handle.';
+
+  @override
+  String get helpExample => 'flutter_cockpit_devtools stop-development-session';
+
+  @override
+  String get helpWrites =>
+      'Stopped session handle and final supervisor status.';
+
+  @override
   Future<int> run() async {
     final result = await _stop(
       CockpitStopDevelopmentSessionRequest(
-        sessionHandlePath: _readRequiredOption('session-json'),
+        sessionHandlePath: cockpitRequireResolvedDevelopmentSessionHandlePath(
+          argResults,
+          usage,
+        ),
       ),
     );
     await cockpitWriteJsonPayload(
@@ -55,13 +73,5 @@ final class StopDevelopmentSessionCommand extends Command<int> {
       stdoutSink: _stdoutSink,
     );
     return cockpitSuccessExitCode;
-  }
-
-  String _readRequiredOption(String name) {
-    final value = argResults?[name] as String?;
-    if (value == null || value.isEmpty) {
-      throw UsageException('--$name is required.', usage);
-    }
-    return value;
   }
 }

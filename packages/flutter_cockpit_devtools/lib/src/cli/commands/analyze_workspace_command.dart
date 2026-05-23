@@ -25,7 +25,6 @@ final class AnalyzeWorkspaceCommand extends CockpitCliCommand {
       defaultsTo: '180',
       help: 'Time budget for workspace-wide analysis.',
     );
-    cockpitAddWorkspaceOutputJsonOption(argParser);
   }
 
   final CockpitAnalyzeWorkspaceFunction _analyze;
@@ -65,7 +64,7 @@ final class AnalyzeWorkspaceCommand extends CockpitCliCommand {
       CockpitAnalyzeWorkspaceRequest(
         workspaceRoot: cockpitReadWorkspaceRoot(argResults),
         timeout: Duration(
-          seconds: cockpitReadRequiredIntOption(
+          seconds: cockpitReadRequiredPositiveIntOption(
             argResults,
             'timeout-seconds',
             usage,

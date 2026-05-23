@@ -30,7 +30,6 @@ final class PubDevSearchCommand extends CockpitCliCommand {
         defaultsTo: '20',
         help: 'Network time budget for pub.dev lookups.',
       );
-    cockpitAddWorkspaceOutputJsonOption(argParser);
   }
 
   final CockpitPubDevSearchFunction _search;
@@ -70,13 +69,13 @@ final class PubDevSearchCommand extends CockpitCliCommand {
     final result = await _search(
       CockpitPubDevSearchRequest(
         query: cockpitReadRequiredStringOption(argResults, 'query', usage),
-        maxResults: cockpitReadRequiredIntOption(
+        maxResults: cockpitReadRequiredPositiveIntOption(
           argResults,
           'max-results',
           usage,
         ),
         timeout: Duration(
-          seconds: cockpitReadRequiredIntOption(
+          seconds: cockpitReadRequiredPositiveIntOption(
             argResults,
             'timeout-seconds',
             usage,

@@ -3,6 +3,7 @@ import 'dart:io';
 
 import '../platform/ios/cockpit_ios_device_connection.dart';
 import '../remote/cockpit_android_port_forwarder.dart';
+import '../development/cockpit_development_session_handle.dart';
 import '../session/cockpit_remote_session_handle.dart';
 import 'cockpit_app_handle.dart';
 import 'cockpit_application_service_exception.dart';
@@ -48,10 +49,10 @@ final class CockpitAppReferenceResolver {
     String? androidDeviceId,
   }) async {
     if (app != null) {
-      final baseUri = await _resolvedBaseUriForApp(app);
+      final resolvedBaseUri = baseUri ?? await _resolvedBaseUriForApp(app);
       return CockpitResolvedAppReference(
-        baseUri: baseUri,
-        app: _withResolvedBaseUri(app, baseUri),
+        baseUri: resolvedBaseUri,
+        app: _withResolvedBaseUri(app, resolvedBaseUri),
       );
     }
 
@@ -61,14 +62,15 @@ final class CockpitAppReferenceResolver {
       final developmentRecord =
           registry?.developmentSessionByAppId(resolvedApp.appId);
       final remoteRecord = registry?.remoteSessionByAppId(resolvedApp.appId);
-      final baseUri = await _resolvedBaseUriForApp(
-        resolvedApp,
-        developmentRecord: developmentRecord,
-        remoteRecord: remoteRecord,
-      );
+      final resolvedBaseUri = baseUri ??
+          await _resolvedBaseUriForApp(
+            resolvedApp,
+            developmentRecord: developmentRecord,
+            remoteRecord: remoteRecord,
+          );
       return CockpitResolvedAppReference(
-        baseUri: baseUri,
-        app: _withResolvedBaseUri(resolvedApp, baseUri),
+        baseUri: resolvedBaseUri,
+        app: _withResolvedBaseUri(resolvedApp, resolvedBaseUri),
         developmentRecord: developmentRecord,
         remoteRecord: remoteRecord,
       );
@@ -77,6 +79,9 @@ final class CockpitAppReferenceResolver {
     if (appId != null && appId.isNotEmpty) {
       final registry = _registry;
       if (registry == null) {
+        if (baseUri != null) {
+          return CockpitResolvedAppReference(baseUri: baseUri);
+        }
         throw const CockpitApplicationServiceException(
           code: 'appLookupUnavailable',
           message: 'App lookup by appId requires a session registry.',
@@ -89,14 +94,15 @@ final class CockpitAppReferenceResolver {
               remoteRecord.updatedAt.isAfter(developmentRecord.updatedAt));
       if (preferRemoteRecord) {
         final app = CockpitAppHandle.fromRemoteSession(remoteRecord.handle);
-        final baseUri = await _resolvedBaseUriForApp(
-          app,
-          developmentRecord: developmentRecord,
-          remoteRecord: remoteRecord,
-        );
+        final resolvedBaseUri = baseUri ??
+            await _resolvedBaseUriForApp(
+              app,
+              developmentRecord: developmentRecord,
+              remoteRecord: remoteRecord,
+            );
         return CockpitResolvedAppReference(
-          baseUri: baseUri,
-          app: _withResolvedBaseUri(app, baseUri),
+          baseUri: resolvedBaseUri,
+          app: _withResolvedBaseUri(app, resolvedBaseUri),
           developmentRecord: developmentRecord,
           remoteRecord: remoteRecord,
         );
@@ -105,27 +111,32 @@ final class CockpitAppReferenceResolver {
         final app = CockpitAppHandle.fromDevelopmentSession(
           developmentRecord.handle,
         );
-        final baseUri = await _resolvedBaseUriForApp(
-          app,
-          developmentRecord: developmentRecord,
-        );
+        final resolvedBaseUri = baseUri ??
+            await _resolvedBaseUriForApp(
+              app,
+              developmentRecord: developmentRecord,
+            );
         return CockpitResolvedAppReference(
-          baseUri: baseUri,
-          app: _withResolvedBaseUri(app, baseUri),
+          baseUri: resolvedBaseUri,
+          app: _withResolvedBaseUri(app, resolvedBaseUri),
           developmentRecord: developmentRecord,
         );
       }
       if (remoteRecord != null) {
         final app = CockpitAppHandle.fromRemoteSession(remoteRecord.handle);
-        final baseUri = await _resolvedBaseUriForApp(
-          app,
-          remoteRecord: remoteRecord,
-        );
+        final resolvedBaseUri = baseUri ??
+            await _resolvedBaseUriForApp(
+              app,
+              remoteRecord: remoteRecord,
+            );
         return CockpitResolvedAppReference(
-          baseUri: baseUri,
-          app: _withResolvedBaseUri(app, baseUri),
+          baseUri: resolvedBaseUri,
+          app: _withResolvedBaseUri(app, resolvedBaseUri),
           remoteRecord: remoteRecord,
         );
+      }
+      if (baseUri != null) {
+        return CockpitResolvedAppReference(baseUri: baseUri);
       }
       throw CockpitApplicationServiceException(
         code: 'unknownAppId',
@@ -276,10 +287,58 @@ final class CockpitAppReferenceResolver {
   }
 
   CockpitAppHandle _withResolvedBaseUri(CockpitAppHandle app, Uri baseUri) {
-    if (app.baseUrl == baseUri.toString()) {
+    final remoteSession = app.remoteSession;
+    final resolvedRemoteSession = remoteSession == null
+        ? null
+        : _remoteSessionWithResolvedBaseUri(remoteSession, baseUri);
+    final developmentSession = app.developmentSession;
+    final resolvedDevelopmentSession = developmentSession == null
+        ? null
+        : _developmentSessionWithResolvedBaseUri(developmentSession, baseUri);
+    if (app.baseUrl == baseUri.toString() &&
+        identical(resolvedRemoteSession, remoteSession) &&
+        identical(resolvedDevelopmentSession, developmentSession)) {
       return app;
     }
-    return app.copyWith(baseUrl: baseUri.toString());
+    return app.copyWith(
+      baseUrl: baseUri.toString(),
+      developmentSession: resolvedDevelopmentSession,
+      remoteSession: resolvedRemoteSession,
+    );
+  }
+
+  CockpitDevelopmentSessionHandle _developmentSessionWithResolvedBaseUri(
+    CockpitDevelopmentSessionHandle handle,
+    Uri baseUri,
+  ) {
+    final remoteSession = handle.remoteSessionHandle;
+    final resolvedRemoteSession = remoteSession == null
+        ? null
+        : _remoteSessionWithResolvedBaseUri(remoteSession, baseUri);
+    if (handle.appBaseUrl == baseUri.toString() &&
+        identical(resolvedRemoteSession, remoteSession)) {
+      return handle;
+    }
+    return handle.copyWith(
+      appBaseUrl: baseUri.toString(),
+      remoteSessionHandle: resolvedRemoteSession,
+    );
+  }
+
+  CockpitRemoteSessionHandle _remoteSessionWithResolvedBaseUri(
+    CockpitRemoteSessionHandle handle,
+    Uri baseUri,
+  ) {
+    if (handle.baseUrl == baseUri.toString() &&
+        handle.host == baseUri.host &&
+        handle.hostPort == baseUri.port) {
+      return handle;
+    }
+    return handle.copyWith(
+      host: baseUri.host,
+      hostPort: baseUri.port,
+      baseUrl: baseUri.toString(),
+    );
   }
 }
 

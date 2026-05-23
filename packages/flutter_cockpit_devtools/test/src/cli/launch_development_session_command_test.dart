@@ -26,6 +26,8 @@ void main() {
 
     final exitCode = await runner.run(<String>[
           'launch-development-session',
+          '--stdout-format',
+          'json',
           '--project-dir',
           '/workspace/examples/cockpit_demo',
           '--target',
@@ -34,7 +36,7 @@ void main() {
           'android',
           '--android-device-id',
           'emulator-5554',
-          '--output-json',
+          '--session-json',
           '/tmp/dev-session.json',
         ]) ??
         0;
@@ -42,6 +44,7 @@ void main() {
     expect(exitCode, 0);
     expect(capturedRequest?.projectDir, '/workspace/examples/cockpit_demo');
     expect(capturedRequest?.deviceId, 'emulator-5554');
+    expect(capturedRequest?.persistHandlePath, '/tmp/dev-session.json');
     final decoded = jsonDecode(output.toString()) as Map<String, Object?>;
     expect((decoded['status'] as Map<String, Object?>)['state'], 'ready');
     expect(
@@ -72,6 +75,8 @@ void main() {
 
     final exitCode = await runner.run(<String>[
           'launch-development-session',
+          '--stdout-format',
+          'json',
           '--project-dir',
           '/workspace/examples/cockpit_demo',
           '--target',
@@ -118,6 +123,8 @@ void main() {
 
     final exitCode = await runner.run(<String>[
           'launch-development-session',
+          '--stdout-format',
+          'json',
           '--project-dir',
           '/workspace/examples/cockpit_demo',
           '--target',
@@ -164,6 +171,8 @@ void main() {
 
     final exitCode = await runner.run(<String>[
           'launch-development-session',
+          '--stdout-format',
+          'json',
           '--project-dir',
           '/workspace/examples/cockpit_demo',
           '--target',
@@ -198,6 +207,8 @@ void main() {
 
     final exitCode = await runner.run(<String>[
           'launch-development-session',
+          '--stdout-format',
+          'json',
           '--project-dir',
           '/workspace/examples/cockpit_demo',
           '--platform',
@@ -209,7 +220,7 @@ void main() {
 
     expect(exitCode, 0);
     final decoded = jsonDecode(output.toString()) as Map<String, Object?>;
-    expect(decoded.containsKey('persisted_handle_path'), isFalse);
+    expect(decoded.containsKey('persistedHandlePath'), isFalse);
   });
 }
 

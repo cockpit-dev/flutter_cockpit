@@ -26,6 +26,8 @@ void main() {
 
     final exitCode = await runner.run(<String>[
           'run-shell',
+          '--stdout-format',
+          'json',
           '--executable',
           'dart',
           '--arg=--version',

@@ -50,10 +50,6 @@ final class RunShellCommand extends CockpitCliCommand {
       ..addMultiOption(
         'arg',
         help: 'Repeatable argument passed through to the executable.',
-      )
-      ..addOption(
-        'output-json',
-        help: 'Optional path where the shell result JSON should be written.',
       );
   }
 
@@ -79,15 +75,15 @@ final class RunShellCommand extends CockpitCliCommand {
 
   @override
   String get helpNeeds =>
-      'An executable plus either a host scope, an explicit platform scope, or --target-json when --scope target is used.';
+      'An executable plus either a host scope, an explicit platform scope, or --scope target with --target-json/default latest target handle.';
 
   @override
   String get helpShape =>
-      'Pass one --executable plus repeated --arg values. Use --scope target with --target-json for normalized target shells, or platform scopes such as android and ios when the device is already known. Browser targets do not expose a direct shell scope.';
+      'Pass one --executable plus repeated --arg values. Use --scope target with --target-json or the default latest target handle for normalized target shells, or platform scopes such as android and ios when the device is already known. Browser targets do not expose a direct shell scope.';
 
   @override
   String get helpExample =>
-      'flutter_cockpit_devtools run-shell --scope target --target-json /tmp/target.json --executable getprop --arg ro.build.version.sdk';
+      'flutter_cockpit_devtools run-shell --scope target --executable getprop --arg ro.build.version.sdk';
 
   @override
   String get helpWrites =>
@@ -100,11 +96,14 @@ final class RunShellCommand extends CockpitCliCommand {
       throw UsageException('--executable is required.', usage);
     }
     final scope = argResults?['scope'] as String? ?? 'host';
-    final targetJsonPath = argResults?['target-json'] as String?;
+    final targetJsonPath = cockpitResolveTargetHandlePath(argResults);
     if (scope == 'target' &&
         (targetJsonPath == null || targetJsonPath.isEmpty)) {
       throw UsageException(
-          '--target-json is required for target scope.', usage);
+        '--target-json is required for target scope unless '
+        '${cockpitDefaultTargetHandlePath()} exists.',
+        usage,
+      );
     }
     final args = (argResults?['arg'] as List<String>? ?? const <String>[]);
     final result = await _runShell(

@@ -6,6 +6,7 @@ import '../remote/cockpit_remote_session_client.dart';
 import '../session/cockpit_remote_session_handle.dart';
 import 'cockpit_interactive_result_data.dart';
 import 'cockpit_interactive_session_lock.dart';
+import 'cockpit_recording_evidence.dart';
 import 'cockpit_session_reference_resolver.dart';
 
 typedef CockpitRemoteRecordingStopper = Future<CockpitRecordingResult> Function(
@@ -101,9 +102,9 @@ final class CockpitStopRemoteRecordingService {
       resolved.baseUri.toString(),
       () => _stopRecording(resolved.baseUri),
     );
-    final artifactRef = recordingResult.artifact;
+    final evidence = cockpitAssessRecordingEvidence(recordingResult);
     return CockpitStopRemoteRecordingResult(
-      state: recordingResult.state,
+      state: evidence.state,
       purpose: recordingResult.purpose,
       recordingKind: recordingResult.recordingKind,
       requestedMode: recordingResult.requestedMode,
@@ -111,16 +112,9 @@ final class CockpitStopRemoteRecordingService {
       effectiveLayer: recordingResult.effectiveLayer,
       fallbackUsed: recordingResult.fallbackUsed,
       fallbackReason: recordingResult.fallbackReason,
-      artifact: artifactRef == null
-          ? null
-          : CockpitInteractiveArtifactDescriptor(
-              role: artifactRef.role,
-              relativePath: artifactRef.relativePath,
-              byteLength: recordingResult.bytes?.length,
-              sourcePath: recordingResult.sourceFilePath,
-            ),
+      artifact: evidence.artifact,
       durationMs: recordingResult.durationMs,
-      failureReason: recordingResult.failureReason,
+      failureReason: evidence.failureReason,
       sessionHandle: resolved.sessionHandle,
     );
   }

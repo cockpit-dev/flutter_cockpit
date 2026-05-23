@@ -27,6 +27,8 @@ void main() {
 
     final exitCode = await runner.run(<String>[
           'read-remote-snapshot',
+          '--stdout-format',
+          'json',
           '--base-url',
           'http://127.0.0.1:47331',
           '--profile',

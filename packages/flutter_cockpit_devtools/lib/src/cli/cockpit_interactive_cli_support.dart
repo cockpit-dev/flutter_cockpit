@@ -10,15 +10,69 @@ import '../application/cockpit_interactive_result_profile.dart';
 
 const String cockpitDefaultAppHandleRelativePath =
     '.dart_tool/flutter_cockpit/latest_app.json';
+const String cockpitDefaultTargetHandleRelativePath =
+    '.dart_tool/flutter_cockpit/latest_target.json';
+const String cockpitDefaultRemoteSessionHandleRelativePath =
+    '.dart_tool/flutter_cockpit/latest_remote_session.json';
+const String cockpitDefaultDevelopmentSessionHandleRelativePath =
+    '.dart_tool/flutter_cockpit/latest_development_session.json';
 
 const String cockpitAppJsonOptionHelp =
     'App handle JSON emitted by launch-app. If omitted, the CLI reuses '
     '$cockpitDefaultAppHandleRelativePath when it exists in the current workspace.';
+const String cockpitTargetJsonOptionHelp =
+    'Target handle JSON emitted by launch-target. If omitted, target-scoped commands reuse '
+    '$cockpitDefaultTargetHandleRelativePath when it exists in the current workspace.';
+const String cockpitRemoteSessionJsonOptionHelp =
+    'Remote session handle JSON emitted by launch-remote-session. If omitted, remote-scoped '
+    'commands reuse $cockpitDefaultRemoteSessionHandleRelativePath when it exists in the current workspace.';
+const String cockpitDevelopmentSessionJsonOptionHelp =
+    'Development session handle JSON emitted by launch-development-session. If omitted, '
+    'development-session commands reuse $cockpitDefaultDevelopmentSessionHandleRelativePath when it exists in the current workspace.';
 
-const String cockpitPrettyOutputJsonOptionHelp =
-    'Write pretty JSON to a file instead of compact stdout. Prefer stdout plus jq '
-    'for short follow-up reads; use this when the result is large or a later '
-    'step must reopen it.';
+const String cockpitOutputOptionHelp =
+    'Write the command payload to a file. Default stdout then prints only the '
+    'output path; use --output-format to choose the file format.';
+
+const String cockpitOutputFormatOptionHelp =
+    'File output format for --output. ai is the default full semantic render; '
+    'json writes pretty JSON for structured follow-up reads.';
+
+const List<String> cockpitCliStdoutFormatValues = <String>[
+  'auto',
+  'ai',
+  'json',
+  'path',
+  'none',
+];
+
+const List<String> cockpitCliFileOutputFormatValues = <String>[
+  'ai',
+  'json',
+];
+
+void cockpitAddOutputArgs(ArgParser parser) {
+  if (!parser.options.containsKey('stdout-format')) {
+    parser.addOption(
+      'stdout-format',
+      allowed: cockpitCliStdoutFormatValues,
+      defaultsTo: 'auto',
+      help:
+          'Terminal output format. auto writes AI-readable full output unless a file output is requested, then writes only file paths. Use json for jq pipelines.',
+    );
+  }
+  if (!parser.options.containsKey('output')) {
+    parser.addOption('output', help: cockpitOutputOptionHelp);
+  }
+  if (!parser.options.containsKey('output-format')) {
+    parser.addOption(
+      'output-format',
+      allowed: cockpitCliFileOutputFormatValues,
+      defaultsTo: 'ai',
+      help: cockpitOutputFormatOptionHelp,
+    );
+  }
+}
 
 void cockpitAddRemoteSessionArgs(ArgParser parser) {
   parser
@@ -29,47 +83,43 @@ void cockpitAddRemoteSessionArgs(ArgParser parser) {
     )
     ..addOption(
       'session-json',
-      help:
-          'Recommended session handle JSON file emitted by launch-remote-session.',
+      help: cockpitRemoteSessionJsonOptionHelp,
     )
     ..addOption(
       'android-device-id',
       help:
           'Android device ID for adb port forwarding when the app is not directly reachable.',
-    )
-    ..addOption(
-      'output-json',
-      help:
-          'Write pretty JSON to a file instead of compact stdout. Prefer this for larger results.',
     );
+  cockpitAddOutputArgs(parser);
 }
 
 void cockpitAddAppArgs(ArgParser parser) {
   parser
     ..addOption(
       'base-url',
-      help: 'Base URL for the running app. Use this only when you do not have '
-          'app-json and no reusable latest_app.json handle is available.',
+      help:
+          'Base URL for the running app. When used with app-json, this overrides only the current connection address and keeps app metadata from the handle.',
     )
     ..addOption('app-json', help: cockpitAppJsonOptionHelp)
     ..addOption(
       'android-device-id',
       help:
           'Android device ID for adb port forwarding when the app is not directly reachable.',
-    )
-    ..addOption('output-json', help: cockpitPrettyOutputJsonOptionHelp);
+    );
+  cockpitAddOutputArgs(parser);
 }
 
 void cockpitRequireRemoteSessionReference(
   ArgResults? argResults,
   String usage,
 ) {
-  final sessionJsonPath = argResults?['session-json'] as String?;
+  final sessionJsonPath = cockpitResolveRemoteSessionHandlePath(argResults);
   final baseUrl = argResults?['base-url'] as String?;
   if ((sessionJsonPath == null || sessionJsonPath.isEmpty) &&
       (baseUrl == null || baseUrl.isEmpty)) {
     throw UsageException(
-      '--base-url is required when --session-json is not provided.',
+      '--base-url is required when --session-json is not provided and '
+      '${cockpitDefaultRemoteSessionHandlePath()} does not exist.',
       usage,
     );
   }
@@ -89,10 +139,41 @@ void cockpitRequireAppReference(ArgResults? argResults, String usage) {
 }
 
 String cockpitDefaultAppHandlePath([String? workingDirectory]) {
+  return _cockpitDefaultHandlePath(
+    cockpitDefaultAppHandleRelativePath,
+    workingDirectory,
+  );
+}
+
+String cockpitDefaultTargetHandlePath([String? workingDirectory]) {
+  return _cockpitDefaultHandlePath(
+    cockpitDefaultTargetHandleRelativePath,
+    workingDirectory,
+  );
+}
+
+String cockpitDefaultRemoteSessionHandlePath([String? workingDirectory]) {
+  return _cockpitDefaultHandlePath(
+    cockpitDefaultRemoteSessionHandleRelativePath,
+    workingDirectory,
+  );
+}
+
+String cockpitDefaultDevelopmentSessionHandlePath([String? workingDirectory]) {
+  return _cockpitDefaultHandlePath(
+    cockpitDefaultDevelopmentSessionHandleRelativePath,
+    workingDirectory,
+  );
+}
+
+String _cockpitDefaultHandlePath(
+  String relativePath,
+  String? workingDirectory,
+) {
   return p.normalize(
     p.join(
       workingDirectory ?? Directory.current.path,
-      cockpitDefaultAppHandleRelativePath,
+      relativePath,
     ),
   );
 }
@@ -121,6 +202,62 @@ String? cockpitResolveAppHandlePath(
   return null;
 }
 
+String? cockpitResolveTargetHandlePath(
+  ArgResults? argResults, {
+  String? workingDirectory,
+}) {
+  final explicit = _readOptionIfDefined(argResults, 'target-json');
+  if (explicit != null && explicit.isNotEmpty) {
+    return explicit;
+  }
+  if (_hasExplicitOptionValue(argResults, 'base-url') ||
+      _hasExplicitOptionValue(argResults, 'app-json')) {
+    return null;
+  }
+
+  final defaultPath = cockpitDefaultTargetHandlePath(workingDirectory);
+  if (File(defaultPath).existsSync()) {
+    return defaultPath;
+  }
+  return null;
+}
+
+String? cockpitResolveRemoteSessionHandlePath(
+  ArgResults? argResults, {
+  String? workingDirectory,
+}) {
+  final explicit = _readOptionIfDefined(argResults, 'session-json');
+  if (explicit != null && explicit.isNotEmpty) {
+    return explicit;
+  }
+  if (_hasExplicitOptionValue(argResults, 'base-url')) {
+    return null;
+  }
+
+  final defaultPath = cockpitDefaultRemoteSessionHandlePath(workingDirectory);
+  if (File(defaultPath).existsSync()) {
+    return defaultPath;
+  }
+  return null;
+}
+
+String? cockpitResolveDevelopmentSessionHandlePath(
+  ArgResults? argResults, {
+  String? workingDirectory,
+}) {
+  final explicit = _readOptionIfDefined(argResults, 'session-json');
+  if (explicit != null && explicit.isNotEmpty) {
+    return explicit;
+  }
+
+  final defaultPath =
+      cockpitDefaultDevelopmentSessionHandlePath(workingDirectory);
+  if (File(defaultPath).existsSync()) {
+    return defaultPath;
+  }
+  return null;
+}
+
 String cockpitRequireResolvedAppHandlePath(
     ArgResults? argResults, String usage) {
   final resolved = cockpitResolveAppHandlePath(argResults);
@@ -131,6 +268,92 @@ String cockpitRequireResolvedAppHandlePath(
     '--app-json is required unless ${cockpitDefaultAppHandlePath()} already exists.',
     usage,
   );
+}
+
+String cockpitRequireResolvedTargetHandlePath(
+  ArgResults? argResults,
+  String usage,
+) {
+  final resolved = cockpitResolveTargetHandlePath(argResults);
+  if (resolved != null && resolved.isNotEmpty) {
+    return resolved;
+  }
+  throw UsageException(
+    '--target-json is required unless ${cockpitDefaultTargetHandlePath()} already exists.',
+    usage,
+  );
+}
+
+String cockpitRequireResolvedDevelopmentSessionHandlePath(
+  ArgResults? argResults,
+  String usage,
+) {
+  final resolved = cockpitResolveDevelopmentSessionHandlePath(argResults);
+  if (resolved != null && resolved.isNotEmpty) {
+    return resolved;
+  }
+  throw UsageException(
+    '--session-json is required unless ${cockpitDefaultDevelopmentSessionHandlePath()} already exists.',
+    usage,
+  );
+}
+
+String cockpitReadProjectDirOption(ArgResults? argResults) {
+  final explicit = _readOptionIfDefined(argResults, 'project-dir');
+  if (explicit != null && explicit.isNotEmpty) {
+    return p.normalize(explicit);
+  }
+  return p.normalize(Directory.current.path);
+}
+
+String cockpitReadLaunchPlatform(
+  ArgResults? argResults,
+  String usage, {
+  Set<String> allowedPlatforms = const <String>{
+    'android',
+    'ios',
+    'macos',
+    'windows',
+    'linux',
+    'web',
+  },
+}) {
+  final explicit = _readOptionIfDefined(argResults, 'platform');
+  final platform = explicit == null || explicit.isEmpty
+      ? _defaultHostLaunchPlatform()
+      : explicit;
+  if (platform != null && allowedPlatforms.contains(platform)) {
+    return platform;
+  }
+  throw UsageException(
+    '--platform is required on this host. Allowed values: ${allowedPlatforms.join(', ')}.',
+    usage,
+  );
+}
+
+String? _defaultHostLaunchPlatform() {
+  if (Platform.isMacOS) {
+    return 'macos';
+  }
+  if (Platform.isWindows) {
+    return 'windows';
+  }
+  if (Platform.isLinux) {
+    return 'linux';
+  }
+  return null;
+}
+
+bool _hasExplicitOptionValue(ArgResults? argResults, String name) {
+  final value = _readOptionIfDefined(argResults, name);
+  return value != null && value.isNotEmpty;
+}
+
+String? _readOptionIfDefined(ArgResults? argResults, String name) {
+  if (argResults == null || !argResults.options.contains(name)) {
+    return null;
+  }
+  return argResults[name] as String?;
 }
 
 void cockpitAddProfileArg(
@@ -306,25 +529,106 @@ Future<List<Map<String, Object?>>> cockpitReadRequiredJsonObjectList({
   if (decoded is! List<Object?>) {
     throw UsageException('$label must decode to a JSON array.', usage);
   }
-  return decoded
-      .map((item) => Map<String, Object?>.from(item! as Map<Object?, Object?>))
-      .toList(growable: false);
+  return <Map<String, Object?>>[
+    for (var index = 0; index < decoded.length; index++)
+      if (decoded[index] case final Map<Object?, Object?> item)
+        Map<String, Object?>.from(item)
+      else
+        throw UsageException(
+          '$label item at index $index must decode to a JSON object.',
+          usage,
+        ),
+  ];
 }
 
 Future<void> cockpitWriteJsonPayload({
+  String? commandName,
   required Object payload,
   required ArgResults? argResults,
   required StringSink stdoutSink,
 }) async {
-  final outputJson = argResults?['output-json'] as String?;
-  if (outputJson == null || outputJson.isEmpty) {
-    stdoutSink.writeln(_renderJsonPayload(payload, pretty: false));
-    return;
+  final effectiveCommandName = commandName ?? argResults?.name ?? 'command';
+  final outputPaths = <String, String>{};
+  final output = _readOptionalOutputOption(argResults, 'output');
+  if (output != null && output.isNotEmpty) {
+    final outputFile = File(output);
+    await outputFile.parent.create(recursive: true);
+    final outputFormat = _effectiveOutputFormat(argResults);
+    if (outputFormat == 'json') {
+      await outputFile.writeAsString(_renderJsonPayload(payload, pretty: true));
+    } else {
+      await outputFile.writeAsString(
+        cockpitRenderAiPayload(
+          commandName: effectiveCommandName,
+          payload: payload,
+        ),
+      );
+    }
+    outputPaths['output'] = outputFile.path;
   }
 
-  final outputFile = File(outputJson);
-  await outputFile.parent.create(recursive: true);
-  await outputFile.writeAsString(_renderJsonPayload(payload, pretty: true));
+  final stdoutFormat = _effectiveStdoutFormat(
+    argResults,
+    hasFileOutputs: outputPaths.isNotEmpty,
+  );
+  switch (stdoutFormat) {
+    case 'none':
+      return;
+    case 'path':
+      for (final entry in outputPaths.entries) {
+        stdoutSink.writeln('${entry.key}=${entry.value}');
+      }
+      return;
+    case 'json':
+      stdoutSink.writeln(_renderJsonPayload(payload, pretty: false));
+      return;
+    case 'ai':
+      stdoutSink.writeln(
+        cockpitRenderAiPayload(
+          commandName: effectiveCommandName,
+          payload: payload,
+        ),
+      );
+      return;
+    default:
+      stdoutSink.writeln(
+        cockpitRenderAiPayload(
+          commandName: effectiveCommandName,
+          payload: payload,
+        ),
+      );
+  }
+}
+
+String _effectiveOutputFormat(ArgResults? argResults) {
+  if (argResults == null || !argResults.options.contains('output-format')) {
+    return 'ai';
+  }
+  return argResults['output-format'] as String? ?? 'ai';
+}
+
+String? _readOptionalOutputOption(ArgResults? argResults, String name) {
+  if (argResults == null || !argResults.options.contains(name)) {
+    return null;
+  }
+  final value = argResults[name] as String?;
+  if (value == null || value.isEmpty) {
+    return null;
+  }
+  return value;
+}
+
+String _effectiveStdoutFormat(
+  ArgResults? argResults, {
+  required bool hasFileOutputs,
+}) {
+  final raw = argResults != null && argResults.options.contains('stdout-format')
+      ? argResults['stdout-format'] as String? ?? 'auto'
+      : 'auto';
+  if (raw != 'auto') {
+    return raw;
+  }
+  return hasFileOutputs ? 'path' : 'ai';
 }
 
 Uri? cockpitReadOptionalBaseUri(ArgResults? argResults) {
@@ -335,12 +639,68 @@ Uri? cockpitReadOptionalBaseUri(ArgResults? argResults) {
   return Uri.parse(baseUrl);
 }
 
-int? cockpitReadOptionalInt(ArgResults? argResults, String optionName) {
+int? cockpitReadOptionalInt(
+  ArgResults? argResults,
+  String optionName,
+  String usage,
+) {
   final value = argResults?[optionName] as String?;
   if (value == null || value.isEmpty) {
     return null;
   }
-  return int.parse(value);
+  final parsed = int.tryParse(value);
+  if (parsed != null) {
+    return parsed;
+  }
+  throw UsageException('--$optionName must be an integer.', usage);
+}
+
+int? cockpitReadOptionalPositiveInt(
+  ArgResults? argResults,
+  String optionName,
+  String usage,
+) {
+  final value = cockpitReadOptionalInt(argResults, optionName, usage);
+  if (value == null) {
+    return null;
+  }
+  if (value > 0) {
+    return value;
+  }
+  throw UsageException('--$optionName must be a positive integer.', usage);
+}
+
+int? cockpitReadOptionalHttpStatusCode(
+  ArgResults? argResults,
+  String optionName,
+  String usage,
+) {
+  final value = cockpitReadOptionalInt(argResults, optionName, usage);
+  if (value == null) {
+    return null;
+  }
+  if (value >= 100 && value <= 599) {
+    return value;
+  }
+  throw UsageException(
+    '--$optionName must be an HTTP status code from 100 to 599.',
+    usage,
+  );
+}
+
+int cockpitReadRequiredPortOption(
+  ArgResults? argResults,
+  String optionName,
+  String usage,
+) {
+  final value = cockpitReadOptionalInt(argResults, optionName, usage);
+  if (value != null && value > 0 && value <= 65535) {
+    return value;
+  }
+  throw UsageException(
+    '--$optionName must be a TCP port from 1 to 65535.',
+    usage,
+  );
 }
 
 Future<Object?> _readJsonValue({
@@ -395,6 +755,517 @@ String _renderJsonPayload(Object payload, {required bool pretty}) {
   } on FormatException {
     return payload;
   }
+}
+
+String cockpitRenderAiPayload({
+  required String commandName,
+  required Object payload,
+}) {
+  final decoded = _decodePayloadForRendering(payload);
+  final buffer = StringBuffer()
+    ..writeln('cockpit.v=1')
+    ..writeln('command=$commandName')
+    ..writeln('status=${_aiStatusFor(decoded)}');
+  final next = _readString(decoded, 'recommendedNextStep') ??
+      _readString(decoded, 'nextStep');
+  if (next != null) {
+    buffer.writeln('next=$next');
+  }
+
+  final stateLines = _aiStateLines(decoded);
+  if (stateLines.isNotEmpty) {
+    buffer.writeln();
+    buffer.writeln('state');
+    for (final line in stateLines) {
+      buffer.writeln('  $line');
+    }
+  }
+
+  final summaryLines = _aiSummaryLines(decoded);
+  if (summaryLines.isNotEmpty) {
+    buffer.writeln();
+    buffer.writeln('summary');
+    for (final line in summaryLines) {
+      buffer.writeln('  $line');
+    }
+  }
+
+  final resultLines = _aiResultLines(decoded);
+  if (resultLines.isNotEmpty) {
+    buffer.writeln();
+    buffer.writeln('results');
+    for (final line in resultLines) {
+      buffer.writeln('  $line');
+    }
+  }
+
+  final issueLines = _aiIssueLines(decoded);
+  if (issueLines.isNotEmpty) {
+    buffer.writeln();
+    buffer.writeln('issues');
+    for (final line in issueLines) {
+      buffer.writeln('  $line');
+    }
+  }
+
+  final artifactLines = _aiArtifactLines(decoded);
+  if (artifactLines.isNotEmpty) {
+    buffer.writeln();
+    buffer.writeln('artifacts');
+    for (final line in artifactLines) {
+      buffer.writeln('  $line');
+    }
+  }
+
+  final refLines = _aiRefLines(decoded);
+  if (refLines.isNotEmpty) {
+    buffer.writeln();
+    buffer.writeln('refs');
+    for (final line in refLines) {
+      buffer.writeln('  $line');
+    }
+  }
+
+  final remainingLines = _aiRemainingLines(decoded);
+  if (remainingLines.isNotEmpty) {
+    buffer.writeln();
+    buffer.writeln('data');
+    for (final line in remainingLines) {
+      buffer.writeln('  $line');
+    }
+  }
+
+  return buffer.toString().trimRight();
+}
+
+Object? _decodePayloadForRendering(Object payload) {
+  if (payload is! String) {
+    return payload;
+  }
+  final trimmed = payload.trimLeft();
+  if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+    return payload;
+  }
+  try {
+    return jsonDecode(payload);
+  } on FormatException {
+    return payload;
+  }
+}
+
+String _aiStatusFor(Object? value) {
+  if (value is Map<Object?, Object?>) {
+    final explicit = _readString(value, 'status') ??
+        _readString(value, 'classification') ??
+        _readString(value, 'state');
+    if (explicit != null) {
+      return explicit;
+    }
+    final command = value['command'];
+    if (command is Map<Object?, Object?>) {
+      final success = command['success'];
+      if (success is bool) {
+        return success ? 'ok' : 'failed';
+      }
+    }
+    final summary = value['summary'];
+    if (summary is Map<Object?, Object?>) {
+      final failedCount = summary['failedCount'] ?? summary['failureCount'];
+      if (failedCount is num && failedCount > 0) {
+        return 'failed';
+      }
+    }
+    if (value['hasErrors'] == true) {
+      return 'failed';
+    }
+  }
+  return 'ok';
+}
+
+List<String> _aiStateLines(Object? value) {
+  if (value is! Map<Object?, Object?>) {
+    return const <String>[];
+  }
+  final lines = <String>[];
+  _addKeyValue(
+      lines,
+      'route',
+      _firstString(value, const <String>[
+        'currentRouteName',
+        'routeName',
+        'route',
+      ]));
+  _addKeyValue(lines, 'appId', _readString(value, 'appId'));
+  _addKeyValue(lines, 'sessionId', _readString(value, 'sessionId'));
+  _addKeyValue(lines, 'platform', _readString(value, 'platform'));
+  _addKeyValue(lines, 'transport', _readString(value, 'transportType'));
+  _addKeyValue(lines, 'plane', _readString(value, 'selectedPlane'));
+  _addKeyValue(lines, 'diagnosticLevel', _readString(value, 'diagnosticLevel'));
+  _addKeyValue(lines, 'truncated', _readBool(value, 'truncated'));
+  return lines;
+}
+
+List<String> _aiSummaryLines(Object? value) {
+  if (value is! Map<Object?, Object?>) {
+    return const <String>[];
+  }
+  final lines = <String>[];
+  final uiSummary = _readMap(value, 'uiSummary');
+  if (uiSummary != null) {
+    _addKeyValue(
+        lines, 'visibleTargets', _readNumber(uiSummary, 'visibleTargetCount'));
+    _addKeyValue(lines, 'cockpitIds',
+        _readNumber(uiSummary, 'targetsWithCockpitIdCount'));
+    _addKeyValue(
+      lines,
+      'text',
+      _joinPreviewList(_readList(uiSummary, 'textPreviews')),
+    );
+  }
+  final summary = _readMap(value, 'summary');
+  if (summary != null) {
+    for (final key in summary.keys.whereType<String>().take(12)) {
+      _addKeyValue(lines, key, summary[key]);
+    }
+  }
+  _addKeyValue(lines, 'available', _readBool(value, 'available'));
+  return lines;
+}
+
+List<String> _aiResultLines(Object? value) {
+  if (value is! Map<Object?, Object?>) {
+    return const <String>[];
+  }
+  final lines = <String>[];
+  final command = _readMap(value, 'command');
+  if (command != null) {
+    lines.add(_compactInlineMap(
+      command,
+      preferredKeys: const <String>[
+        'commandId',
+        'commandType',
+        'success',
+        'durationMs',
+        'usedCaptureFallback',
+      ],
+    ));
+  }
+  final results = _readList(value, 'results');
+  if (results != null) {
+    for (var index = 0; index < results.length; index++) {
+      final item = results[index];
+      if (item is Map<Object?, Object?>) {
+        final itemCommand = _readMap(item, 'command') ?? item;
+        lines.add('[$index] ${_compactInlineMap(
+          itemCommand,
+          preferredKeys: const <String>[
+            'commandId',
+            'commandType',
+            'success',
+            'durationMs',
+          ],
+        )}');
+      } else {
+        lines.add('[$index] ${_formatAiScalar(item)}');
+      }
+    }
+  }
+  return lines.where((line) => line.trim().isNotEmpty).toList(growable: false);
+}
+
+List<String> _aiIssueLines(Object? value) {
+  if (value is! Map<Object?, Object?>) {
+    return const <String>[];
+  }
+  final lines = <String>[];
+  final command = _readMap(value, 'command');
+  final error = _readMap(value, 'error') ?? _readMap(command, 'error');
+  if (error != null) {
+    lines.add(_compactInlineMap(
+      error,
+      preferredKeys: const <String>['code', 'message', 'details'],
+    ));
+  }
+  final failures = _readList(value, 'validationFailures') ??
+      _readList(value, 'failures') ??
+      _readList(value, 'errors');
+  if (failures != null) {
+    for (var index = 0; index < failures.length; index++) {
+      final failure = failures[index];
+      if (failure is Map<Object?, Object?>) {
+        lines.add('[$index] ${_compactInlineMap(
+          failure,
+          preferredKeys: const <String>['code', 'message', 'path', 'severity'],
+        )}');
+      } else {
+        lines.add('[$index] ${_formatAiScalar(failure)}');
+      }
+    }
+  }
+  final lastError = _readString(value, 'lastError');
+  if (lastError != null) {
+    lines.add('lastError=${_formatAiScalar(lastError)}');
+  }
+  return lines;
+}
+
+List<String> _aiArtifactLines(Object? value) {
+  if (value is! Map<Object?, Object?>) {
+    return const <String>[];
+  }
+  final lines = <String>[];
+  final artifacts = _readList(value, 'artifacts');
+  if (artifacts != null) {
+    for (var index = 0; index < artifacts.length; index++) {
+      final artifact = artifacts[index];
+      if (artifact is Map<Object?, Object?>) {
+        lines.add('[$index] ${_compactInlineMap(
+          artifact,
+          preferredKeys: const <String>[
+            'role',
+            'relativePath',
+            'sourcePath',
+            'byteLength',
+          ],
+        )}');
+      }
+    }
+  }
+  final downloads = _readList(value, 'artifactDownloads');
+  if (downloads != null && downloads.isNotEmpty) {
+    for (var index = 0; index < downloads.length; index++) {
+      final download = downloads[index];
+      if (download is Map<Object?, Object?>) {
+        final artifact = _readMap(download, 'artifact');
+        final role = artifact == null ? null : _readString(artifact, 'role');
+        final relativePath =
+            artifact == null ? null : _readString(artifact, 'relativePath');
+        final downloadPath = _readString(download, 'downloadPath');
+        lines.add(
+          'download[$index] role=${role ?? '?'} path=${relativePath ?? '?'} downloadPath=${downloadPath ?? '?'} deferred=true',
+        );
+      }
+    }
+  }
+  final artifact = _readMap(value, 'artifact');
+  if (artifact != null) {
+    lines.add(_compactInlineMap(
+      artifact,
+      preferredKeys: const <String>[
+        'role',
+        'relativePath',
+        'sourcePath',
+        'byteLength',
+      ],
+    ));
+  }
+  return lines;
+}
+
+List<String> _aiRefLines(Object? value) {
+  if (value is! Map<Object?, Object?>) {
+    return const <String>[];
+  }
+  final lines = <String>[];
+  _addKeyValue(lines, 'snapshotRef', _readString(value, 'snapshotRef'));
+  _addKeyValue(lines, 'appJsonPath', _readString(value, 'appJsonPath'));
+  final app = _readMap(value, 'app');
+  if (app != null) {
+    _addKeyValue(lines, 'appId', _readString(app, 'appId'));
+    _addKeyValue(lines, 'baseUrl', _readString(app, 'baseUrl'));
+  }
+  final sessionHandle = _readMap(value, 'sessionHandle');
+  if (sessionHandle != null) {
+    _addKeyValue(
+        lines, 'sessionBaseUrl', _readString(sessionHandle, 'baseUrl'));
+    _addKeyValue(lines, 'deviceId', _readString(sessionHandle, 'deviceId'));
+  }
+  return lines;
+}
+
+List<String> _aiRemainingLines(Object? value) {
+  if (value is! Map<Object?, Object?>) {
+    return <String>['value=${_formatAiScalar(value)}'];
+  }
+  const handled = <String>{
+    'recommendedNextStep',
+    'nextStep',
+    'status',
+    'classification',
+    'state',
+    'currentRouteName',
+    'routeName',
+    'route',
+    'appId',
+    'sessionId',
+    'platform',
+    'transportType',
+    'selectedPlane',
+    'diagnosticLevel',
+    'truncated',
+    'uiSummary',
+    'summary',
+    'available',
+    'command',
+    'results',
+    'error',
+    'validationFailures',
+    'failures',
+    'errors',
+    'lastError',
+    'artifacts',
+    'artifactDownloads',
+    'artifact',
+    'snapshotRef',
+    'appJsonPath',
+    'app',
+    'sessionHandle',
+    'snapshot',
+  };
+  final lines = <String>[];
+  for (final entry in value.entries) {
+    final key = entry.key;
+    if (key is! String || handled.contains(key)) {
+      continue;
+    }
+    final rendered = _renderAiDataLine(key, entry.value);
+    if (rendered != null) {
+      lines.add(rendered);
+    }
+  }
+  return lines;
+}
+
+String? _renderAiDataLine(String key, Object? value) {
+  if (_isEmptyAiValue(value)) {
+    return null;
+  }
+  if (value is Map<Object?, Object?>) {
+    return '$key=${_compactInlineMap(value)}';
+  }
+  if (value is List<Object?>) {
+    return '$key=[${value.map(_formatAiScalar).join(' | ')}]';
+  }
+  return '$key=${_formatAiScalar(value)}';
+}
+
+void _addKeyValue(List<String> lines, String key, Object? value) {
+  if (_isEmptyAiValue(value)) {
+    return;
+  }
+  lines.add('$key=${_formatAiScalar(value)}');
+}
+
+bool _isEmptyAiValue(Object? value) {
+  if (value == null) {
+    return true;
+  }
+  if (value is String && value.isEmpty) {
+    return true;
+  }
+  if (value is List && value.isEmpty) {
+    return true;
+  }
+  if (value is Map && value.isEmpty) {
+    return true;
+  }
+  return false;
+}
+
+String? _firstString(Map<Object?, Object?> map, List<String> keys) {
+  for (final key in keys) {
+    final value = _readString(map, key);
+    if (value != null) {
+      return value;
+    }
+  }
+  return null;
+}
+
+Map<Object?, Object?>? _readMap(Object? value, String key) {
+  if (value is! Map<Object?, Object?>) {
+    return null;
+  }
+  final child = value[key];
+  return child is Map<Object?, Object?> ? child : null;
+}
+
+List<Object?>? _readList(Map<Object?, Object?> map, String key) {
+  final value = map[key];
+  return value is List<Object?> ? value : null;
+}
+
+String? _readString(Object? value, String key) {
+  if (value is! Map<Object?, Object?>) {
+    return null;
+  }
+  final child = value[key];
+  if (child is String && child.isNotEmpty) {
+    return child;
+  }
+  return null;
+}
+
+bool? _readBool(Map<Object?, Object?> map, String key) {
+  final value = map[key];
+  return value is bool ? value : null;
+}
+
+num? _readNumber(Map<Object?, Object?> map, String key) {
+  final value = map[key];
+  return value is num ? value : null;
+}
+
+String? _joinPreviewList(List<Object?>? values) {
+  if (values == null || values.isEmpty) {
+    return null;
+  }
+  return values.map(_formatAiScalar).join(' | ');
+}
+
+String _compactInlineMap(
+  Map<Object?, Object?> map, {
+  List<String>? preferredKeys,
+}) {
+  final keys = <String>[
+    if (preferredKeys != null)
+      for (final key in preferredKeys)
+        if (map.containsKey(key)) key,
+    for (final key in map.keys.whereType<String>())
+      if (!(preferredKeys?.contains(key) ?? false)) key,
+  ];
+  final parts = <String>[];
+  for (final key in keys) {
+    final value = map[key];
+    if (_isEmptyAiValue(value)) {
+      continue;
+    }
+    parts.add('$key=${_formatAiScalar(value)}');
+  }
+  return parts.join(' ');
+}
+
+String _formatAiScalar(Object? value) {
+  if (value == null) {
+    return 'null';
+  }
+  if (value is String) {
+    return value
+        .replaceAll('\r', r'\r')
+        .replaceAll('\n', r'\n')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+  }
+  if (value is num || value is bool) {
+    return '$value';
+  }
+  if (value is Map<Object?, Object?>) {
+    return '{${_compactInlineMap(value)}}';
+  }
+  if (value is List<Object?>) {
+    return '[${value.map(_formatAiScalar).join(' | ')}]';
+  }
+  return '$value';
 }
 
 T cockpitDecodeCliJson<T>({

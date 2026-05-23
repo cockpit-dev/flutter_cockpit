@@ -1,5 +1,7 @@
-import 'package:flutter_cockpit_devtools/src/mcp/core/cockpit_mcp_feature_category.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/core/cockpit_mcp_roots_tracker.dart';
+import 'package:flutter_cockpit_devtools/src/mcp/core/cockpit_mcp_tool_adapter.dart';
+import 'package:flutter_cockpit_devtools/src/mcp/cockpit_mcp_tool.dart';
+import 'package:dart_mcp/server.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_analyze_files_tool.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_create_project_tool.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_execute_remote_command_tool.dart';
@@ -178,4 +180,33 @@ void main() {
     expect(tool.definition.annotations.readOnly, isTrue);
     expect(tool.definition.annotations.requiresSession, isTrue);
   });
+
+  test('protocol adapter fills empty object schema properties', () {
+    final tool = _ToolWithoutProperties();
+    final protocolTool = CockpitMcpToolAdapter.protocolToolFor(tool);
+
+    expect(protocolTool.inputSchema.type, JsonType.object);
+    expect(protocolTool.inputSchema.properties, <String, Schema>{});
+  });
+}
+
+final class _ToolWithoutProperties extends CockpitMcpTool {
+  @override
+  String get name => 'empty_schema_tool';
+
+  @override
+  String get description => 'fake';
+
+  @override
+  Map<String, Object?> get inputSchema => const <String, Object?>{
+        'type': 'object',
+      };
+
+  @override
+  Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {
+    return cockpitMcpResult(
+      text: 'ok',
+      structuredContent: const <String, Object?>{},
+    );
+  }
 }

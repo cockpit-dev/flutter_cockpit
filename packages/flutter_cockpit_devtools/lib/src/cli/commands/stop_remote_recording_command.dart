@@ -1,9 +1,8 @@
 import 'dart:io';
 import 'dart:convert';
 
-import 'package:args/command_runner.dart';
-
 import '../../application/cockpit_stop_remote_recording_service.dart';
+import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
@@ -12,7 +11,7 @@ typedef CockpitStopRemoteRecordingFunction
   CockpitStopRemoteRecordingRequest request,
 );
 
-final class StopRemoteRecordingCommand extends Command<int> {
+final class StopRemoteRecordingCommand extends CockpitCliCommand {
   StopRemoteRecordingCommand({
     CockpitStopRemoteRecordingService? service,
     CockpitStopRemoteRecordingFunction? stop,
@@ -33,12 +32,34 @@ final class StopRemoteRecordingCommand extends Command<int> {
       'Stop the active on-demand remote recording session and return artifact metadata.';
 
   @override
+  String get summary => 'Stop remote recording.';
+
+  @override
+  String get category => CockpitCliCategory.evidence;
+
+  @override
+  String get helpWhen =>
+      'Use after start-remote-recording to finalize video evidence for a direct remote session.';
+
+  @override
+  String get helpNeeds =>
+      'A remote session reference with an active recording.';
+
+  @override
+  String get helpExample =>
+      'flutter_cockpit_devtools stop-remote-recording --session-json /tmp/session.json';
+
+  @override
+  String get helpWrites =>
+      'Recording result JSON with artifact descriptors, download refs, and failure reason when evidence is invalid.';
+
+  @override
   Future<int> run() async {
     cockpitRequireRemoteSessionReference(argResults, usage);
     final result = await _stop(
       CockpitStopRemoteRecordingRequest(
         baseUri: cockpitReadOptionalBaseUri(argResults),
-        sessionHandlePath: argResults?['session-json'] as String?,
+        sessionHandlePath: cockpitResolveRemoteSessionHandlePath(argResults),
         androidDeviceId: argResults?['android-device-id'] as String?,
       ),
     );

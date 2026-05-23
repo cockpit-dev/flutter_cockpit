@@ -318,6 +318,39 @@ void main() {
     );
   });
 
+  test('treats a route-only ancestor locator as a route scope', () {
+    final registry = CockpitTargetRegistry(routeName: '/editor');
+
+    registry.register(
+      const CockpitTarget(
+        registrationId: 'editor-title-input',
+        text: 'Task title',
+        routeName: '/editor',
+        supportedCommands: {CockpitCommandType.enterText},
+      ),
+    );
+
+    final resolution = registry.resolve(
+      const CockpitLocator(
+        text: 'Task title',
+        ancestor: CockpitLocator(route: '/editor'),
+      ),
+    );
+
+    expect(resolution.isSuccess, isTrue);
+    expect(resolution.target?.registrationId, 'editor-title-input');
+    expect(
+      resolution.locatorResolution,
+      const CockpitLocatorResolution(
+        matchedKind: CockpitLocatorKind.text,
+        matchedValue: 'Task title',
+        matchedSignals: <String, String>{
+          'text': 'Task title',
+        },
+      ),
+    );
+  });
+
   test('resolves duplicate matches by locator index in UI order', () {
     final registry = CockpitTargetRegistry(routeName: '/inbox');
 

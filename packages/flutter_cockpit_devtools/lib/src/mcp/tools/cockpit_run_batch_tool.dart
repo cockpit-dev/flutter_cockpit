@@ -31,6 +31,8 @@ final class CockpitRunBatchTool extends CockpitMcpTool {
           'appId': <String, Object?>{'type': 'string'},
           'appJson': <String, Object?>{'type': 'string'},
           'baseUrl': <String, Object?>{'type': 'string'},
+          'androidDeviceId': <String, Object?>{'type': 'string'},
+          'iosDeviceId': <String, Object?>{'type': 'string'},
           'commands': <String, Object?>{'type': 'array'},
           'defaultTimeoutMs': <String, Object?>{'type': 'integer'},
           'defaultProfile': <String, Object?>{'type': 'string'},
@@ -49,6 +51,11 @@ final class CockpitRunBatchTool extends CockpitMcpTool {
           appId: cockpitReadOptionalString(arguments, 'appId'),
           appHandlePath: cockpitReadOptionalString(arguments, 'appJson'),
           baseUri: _readOptionalBaseUri(arguments),
+          androidDeviceId: cockpitReadOptionalString(
+            arguments,
+            'androidDeviceId',
+          ),
+          iosDeviceId: cockpitReadOptionalString(arguments, 'iosDeviceId'),
           commands: cockpitReadRequiredObjectList(arguments, 'commands')
               .map(_readBatchCommand)
               .toList(growable: false),
@@ -56,8 +63,11 @@ final class CockpitRunBatchTool extends CockpitMcpTool {
               _readOptionalProfile(arguments, 'defaultProfile') ??
                   const CockpitInteractiveResultProfile.standard(),
           defaultCommandTimeout: Duration(
-            milliseconds:
-                cockpitReadOptionalInt(arguments, 'defaultTimeoutMs') ?? 30000,
+            milliseconds: cockpitReadOptionalPositiveInt(
+                  arguments,
+                  'defaultTimeoutMs',
+                ) ??
+                30000,
           ),
           failFast: cockpitReadOptionalBool(arguments, 'failFast') ?? true,
           recording: _readOptionalRecording(arguments),

@@ -41,7 +41,6 @@ final class PubCommand extends CockpitCliCommand {
         defaultsTo: '240',
         help: 'Time budget for the pub command.',
       );
-    cockpitAddWorkspaceOutputJsonOption(argParser);
   }
 
   final CockpitPubFunction _run;
@@ -85,13 +84,13 @@ final class PubCommand extends CockpitCliCommand {
           cockpitReadRequiredStringOption(argResults, 'command', usage),
         ),
         packages: cockpitReadMultiStringOption(argResults, 'package'),
-        maxOutputChars: cockpitReadRequiredIntOption(
+        maxOutputChars: cockpitReadRequiredPositiveIntOption(
           argResults,
           'max-output-chars',
           usage,
         ),
         timeout: Duration(
-          seconds: cockpitReadRequiredIntOption(
+          seconds: cockpitReadRequiredPositiveIntOption(
             argResults,
             'timeout-seconds',
             usage,

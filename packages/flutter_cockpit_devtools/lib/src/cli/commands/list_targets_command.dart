@@ -20,10 +20,6 @@ final class ListTargetsCommand extends CockpitCliCommand {
                 )),
         _stdoutSink = stdoutSink ?? stdout {
     argParser.addOption(
-      'output-json',
-      help: 'Write the target list JSON to a file instead of stdout.',
-    );
-    argParser.addOption(
       'timeout-seconds',
       help: 'Time budget for flutter devices discovery before it is aborted.',
       defaultsTo: '20',
@@ -52,11 +48,11 @@ final class ListTargetsCommand extends CockpitCliCommand {
 
   @override
   String get helpNeeds =>
-      'No required inputs. Default JSON goes to stdout, so a quick device choice can use jq immediately; add --output-json only when another step must reopen the full list.';
+      'No required inputs. Default stdout is AI-readable; add --stdout-format json when a quick device choice should use jq.';
 
   @override
   String get helpExample =>
-      'flutter_cockpit_devtools list-targets | jq \'.targets[] | {id,platform}\'';
+      'flutter_cockpit_devtools list-targets --stdout-format json | jq \'.targets[] | {id,platform}\'';
 
   @override
   String get helpWrites =>
@@ -64,8 +60,12 @@ final class ListTargetsCommand extends CockpitCliCommand {
 
   @override
   Future<int> run() async {
-    final timeoutSeconds =
-        int.tryParse('${argResults!['timeout-seconds'] ?? '20'}') ?? 20;
+    final timeoutSeconds = cockpitReadOptionalPositiveInt(
+          argResults,
+          'timeout-seconds',
+          usage,
+        ) ??
+        20;
     final result = await _listTargets(Duration(seconds: timeoutSeconds));
     await cockpitWriteJsonPayload(
       payload: const JsonEncoder.withIndent('  ').convert(result.toJson()),

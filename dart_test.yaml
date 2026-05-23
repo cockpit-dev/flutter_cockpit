@@ -1,0 +1,3 @@
+# Several CLI tests intentionally validate default cwd resolution. `Directory.current`
+# is process-global, so running those suites concurrently makes the test process flaky.
+concurrency: 1

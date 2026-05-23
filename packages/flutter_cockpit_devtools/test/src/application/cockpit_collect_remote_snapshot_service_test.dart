@@ -68,4 +68,194 @@ void main() {
       expect(result.warnings, isEmpty);
     },
   );
+
+  test(
+    'collect service keeps externalized diagnostics artifacts summarized by default',
+    () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() async {
+        await server.close(force: true);
+      });
+      var artifactDownloadCount = 0;
+
+      server.listen((request) async {
+        request.response.headers.contentType = ContentType.json;
+        switch ((request.method, request.uri.path)) {
+          case ('GET', '/snapshot'):
+            request.response.write(
+              jsonEncode(<String, Object?>{
+                'snapshot': CockpitSnapshot(
+                  routeName: '/debug',
+                  diagnosticLevel: CockpitSnapshotProfile.forensic,
+                  diagnosticsArtifactRef: const CockpitArtifactRef(
+                    role: 'diagnostics',
+                    relativePath: 'diagnostics/remote_snapshot_debug.json',
+                  ),
+                  visibleTargets: <CockpitSnapshotTarget>[
+                    CockpitSnapshotTarget(
+                      registrationId: 'debug.sync_check',
+                      text: 'Run check',
+                      routeName: '/debug',
+                    ),
+                  ],
+                ).toJson(),
+                'artifactDownloads': const <Map<String, Object?>>[
+                  <String, Object?>{
+                    'artifact': <String, Object?>{
+                      'role': 'diagnostics',
+                      'relativePath': 'diagnostics/remote_snapshot_debug.json',
+                    },
+                    'downloadPath':
+                        '/artifacts/download?path=diagnostics%2Fremote_snapshot_debug.json',
+                  },
+                ],
+              }),
+            );
+          case ('GET', '/artifacts/download'):
+            artifactDownloadCount += 1;
+            request.response.write(
+              jsonEncode(
+                CockpitSnapshot(
+                  routeName: '/debug',
+                  diagnosticLevel: CockpitSnapshotProfile.forensic,
+                  visibleTargets: <CockpitSnapshotTarget>[
+                    CockpitSnapshotTarget(
+                      registrationId: 'debug.sync_check',
+                      text: 'Run check',
+                      routeName: '/debug',
+                      diagnosticProperties: <CockpitDiagnosticProperty>[
+                        CockpitDiagnosticProperty(
+                          name: 'payload',
+                          value: 'x' * 24000,
+                          category: CockpitDiagnosticCategory.other,
+                        ),
+                      ],
+                    ),
+                  ],
+                ).toJson(),
+              ),
+            );
+          default:
+            request.response.statusCode = HttpStatus.notFound;
+            request.response.write(
+              jsonEncode(const <String, Object?>{'error': 'notFound'}),
+            );
+        }
+        await request.response.close();
+      });
+
+      final service = CockpitCollectRemoteSnapshotService();
+
+      final result = await service.collect(
+        CockpitCollectRemoteSnapshotRequest(
+          baseUri: Uri.parse('http://127.0.0.1:${server.port}'),
+          options: const CockpitSnapshotOptions.forensic(),
+        ),
+      );
+
+      expect(artifactDownloadCount, 0);
+      expect(
+        result.snapshot.diagnosticsArtifactRef?.relativePath,
+        'diagnostics/remote_snapshot_debug.json',
+      );
+      expect(
+        result.snapshot.visibleTargets.single.diagnosticProperties,
+        isEmpty,
+      );
+    },
+  );
+
+  test(
+    'collect service downloads externalized diagnostics artifacts only when requested',
+    () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() async {
+        await server.close(force: true);
+      });
+      var artifactDownloadCount = 0;
+
+      server.listen((request) async {
+        request.response.headers.contentType = ContentType.json;
+        switch ((request.method, request.uri.path)) {
+          case ('GET', '/snapshot'):
+            request.response.write(
+              jsonEncode(<String, Object?>{
+                'snapshot': CockpitSnapshot(
+                  routeName: '/debug',
+                  diagnosticLevel: CockpitSnapshotProfile.forensic,
+                  diagnosticsArtifactRef: const CockpitArtifactRef(
+                    role: 'diagnostics',
+                    relativePath: 'diagnostics/remote_snapshot_debug.json',
+                  ),
+                  visibleTargets: <CockpitSnapshotTarget>[
+                    CockpitSnapshotTarget(
+                      registrationId: 'debug.sync_check',
+                      text: 'Run check',
+                      routeName: '/debug',
+                    ),
+                  ],
+                ).toJson(),
+                'artifactDownloads': const <Map<String, Object?>>[
+                  <String, Object?>{
+                    'artifact': <String, Object?>{
+                      'role': 'diagnostics',
+                      'relativePath': 'diagnostics/remote_snapshot_debug.json',
+                    },
+                    'downloadPath':
+                        '/artifacts/download?path=diagnostics%2Fremote_snapshot_debug.json',
+                  },
+                ],
+              }),
+            );
+          case ('GET', '/artifacts/download'):
+            artifactDownloadCount += 1;
+            request.response.write(
+              jsonEncode(
+                CockpitSnapshot(
+                  routeName: '/debug',
+                  diagnosticLevel: CockpitSnapshotProfile.forensic,
+                  visibleTargets: <CockpitSnapshotTarget>[
+                    CockpitSnapshotTarget(
+                      registrationId: 'debug.sync_check',
+                      text: 'Run check',
+                      routeName: '/debug',
+                      diagnosticProperties: <CockpitDiagnosticProperty>[
+                        CockpitDiagnosticProperty(
+                          name: 'payload',
+                          value: 'x' * 24000,
+                          category: CockpitDiagnosticCategory.other,
+                        ),
+                      ],
+                    ),
+                  ],
+                ).toJson(),
+              ),
+            );
+          default:
+            request.response.statusCode = HttpStatus.notFound;
+            request.response.write(
+              jsonEncode(const <String, Object?>{'error': 'notFound'}),
+            );
+        }
+        await request.response.close();
+      });
+
+      final service = CockpitCollectRemoteSnapshotService();
+
+      final result = await service.collect(
+        CockpitCollectRemoteSnapshotRequest(
+          baseUri: Uri.parse('http://127.0.0.1:${server.port}'),
+          options: const CockpitSnapshotOptions.forensic(),
+          downloadDiagnosticsArtifacts: true,
+        ),
+      );
+
+      expect(artifactDownloadCount, 1);
+      expect(
+        result.snapshot.visibleTargets.single.diagnosticProperties.single.value
+            .length,
+        greaterThan(20000),
+      );
+    },
+  );
 }

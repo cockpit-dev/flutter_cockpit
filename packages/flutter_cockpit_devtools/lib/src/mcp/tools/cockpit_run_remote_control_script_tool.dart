@@ -86,11 +86,18 @@ final class CockpitRunRemoteControlScriptTool extends CockpitMcpTool {
                   .developmentRecord?.handle.remoteSessionHandle?.processId ??
               resolved.remoteRecord?.handle.processId,
           baseUri: resolved.baseUri,
+          sessionHandle: resolved.app?.remoteSession ??
+              resolved.developmentRecord?.handle.remoteSessionHandle ??
+              resolved.remoteRecord?.handle,
           androidDeviceId: cockpitReadOptionalString(
-            arguments,
-            'androidDeviceId',
-          ),
-          iosDeviceId: cockpitReadOptionalString(arguments, 'iosDeviceId'),
+                arguments,
+                'androidDeviceId',
+              ) ??
+              (resolved.app?.platform == 'android'
+                  ? resolved.app?.deviceId
+                  : null),
+          iosDeviceId: cockpitReadOptionalString(arguments, 'iosDeviceId') ??
+              (resolved.app?.platform == 'ios' ? resolved.app?.deviceId : null),
           portForwardingHandled: true,
           script: script,
           outputRoot: cockpitReadRequiredString(arguments, 'outputRoot'),

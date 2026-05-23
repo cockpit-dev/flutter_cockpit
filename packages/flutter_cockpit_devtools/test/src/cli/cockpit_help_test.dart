@@ -6,30 +6,47 @@ import 'package:flutter_cockpit_devtools/src/cli/commands/hot_reload_command.dar
 import 'package:flutter_cockpit_devtools/src/cli/commands/hot_restart_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/inspect_ui_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/inspect_surface_command.dart';
+import 'package:flutter_cockpit_devtools/src/cli/commands/collect_development_probe_command.dart';
+import 'package:flutter_cockpit_devtools/src/cli/commands/collect_remote_snapshot_command.dart';
+import 'package:flutter_cockpit_devtools/src/cli/commands/compare_development_probe_command.dart';
+import 'package:flutter_cockpit_devtools/src/cli/commands/execute_remote_command_batch_command.dart';
+import 'package:flutter_cockpit_devtools/src/cli/commands/execute_remote_command_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/launch_app_command.dart';
+import 'package:flutter_cockpit_devtools/src/cli/commands/launch_development_session_command.dart';
+import 'package:flutter_cockpit_devtools/src/cli/commands/launch_remote_session_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/launch_target_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/lsp_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/list_targets_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/pub_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/pub_dev_search_command.dart';
+import 'package:flutter_cockpit_devtools/src/cli/commands/query_development_session_command.dart';
+import 'package:flutter_cockpit_devtools/src/cli/commands/query_remote_session_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/read_app_command.dart';
+import 'package:flutter_cockpit_devtools/src/cli/commands/read_remote_snapshot_command.dart';
+import 'package:flutter_cockpit_devtools/src/cli/commands/read_remote_status_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/read_target_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/read_errors_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/read_logs_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/read_network_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/read_package_uris_command.dart';
+import 'package:flutter_cockpit_devtools/src/cli/commands/reload_development_session_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/run_batch_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/run_command_command.dart';
+import 'package:flutter_cockpit_devtools/src/cli/commands/run_remote_control_script_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/run_script_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/run_shell_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/run_task_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/run_tests_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/serve_mcp_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/start_recording_command.dart';
+import 'package:flutter_cockpit_devtools/src/cli/commands/start_remote_recording_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/stop_app_command.dart';
+import 'package:flutter_cockpit_devtools/src/cli/commands/stop_development_session_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/stop_recording_command.dart';
+import 'package:flutter_cockpit_devtools/src/cli/commands/stop_remote_recording_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/validate_task_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/wait_idle_command.dart';
+import 'package:flutter_cockpit_devtools/src/cli/commands/wait_remote_ui_idle_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/analyze_files_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/analyze_workspace_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/apply_fixes_command.dart';
@@ -56,13 +73,13 @@ void main() {
     expect(help, contains('run-command'));
     expect(help, contains('read-network'));
     expect(help, contains('run-task'));
-    expect(help, contains('Use --output-json'));
+    expect(help, contains('--output-format json'));
     expect(help, contains('If a flag or JSON shape is unclear'));
     expect(help, contains('--device-id <id for android|ios|web>'));
     expect(
         help,
         contains(
-            '--target-json /tmp/target.json --output-json /tmp/launch_target.json'));
+            '--target-json /tmp/target.json --output /tmp/launch_target.json --output-format json'));
     expect(help, contains('latest_app.json'));
     expect(help, contains("jq '.app' /tmp/launch_target.json > /tmp/app.json"));
     expect(help, contains('current directory'));
@@ -77,7 +94,9 @@ void main() {
     expect(usage, contains('android, ios, macos, windows, linux, or web'));
     expect(usage, contains('When:'));
     expect(usage, contains('App-first is the lowest-friction path'));
-    expect(usage, contains('Run list-targets first'));
+    expect(usage, contains('project-dir defaults to the current directory'));
+    expect(usage, contains('platform defaults to the host desktop platform'));
+    expect(usage, contains('Pass --platform and --device-id'));
     expect(usage, contains('--flavor'));
     expect(usage, contains('Web currently launches through development mode'));
     expect(usage, contains('Writes:'));
@@ -104,11 +123,11 @@ void main() {
     );
     expect(
       _helpForCommand(LaunchTargetCommand()),
-      contains('--output-json /tmp/launch_target.json'),
+      contains('--output /tmp/launch_target.json --output-format json'),
     );
     expect(
       _helpForCommand(LaunchTargetCommand()),
-      contains('--platform web --device-id chrome --target-json'),
+      contains('--platform web --device-id chrome --output'),
     );
     expect(
       _helpForCommand(ReadTargetCommand()),
@@ -260,6 +279,14 @@ final List<dynamic> _topLevelCommands = <dynamic>[
   ReadAppCommand(),
   LaunchTargetCommand(),
   ReadTargetCommand(),
+  LaunchRemoteSessionCommand(),
+  QueryRemoteSessionCommand(),
+  ReadRemoteStatusCommand(),
+  ReadRemoteSnapshotCommand(),
+  CollectRemoteSnapshotCommand(),
+  ExecuteRemoteCommandCommand(),
+  ExecuteRemoteCommandBatchCommand(),
+  WaitRemoteUiIdleCommand(),
   InspectUiCommand(),
   InspectSurfaceCommand(),
   RunCommandCommand(),
@@ -280,8 +307,16 @@ final List<dynamic> _topLevelCommands = <dynamic>[
   FormatWorkspaceCommand(),
   RunTestsCommand(),
   ApplyFixesCommand(),
+  LaunchDevelopmentSessionCommand(),
+  QueryDevelopmentSessionCommand(),
+  ReloadDevelopmentSessionCommand(),
+  CollectDevelopmentProbeCommand(),
+  CompareDevelopmentProbeCommand(),
+  StopDevelopmentSessionCommand(),
   StartRecordingCommand(),
   StopRecordingCommand(),
+  StartRemoteRecordingCommand(),
+  StopRemoteRecordingCommand(),
   ReadLogsCommand(),
   ReadErrorsCommand(),
   ReadNetworkCommand(),
@@ -289,6 +324,7 @@ final List<dynamic> _topLevelCommands = <dynamic>[
   ValidateTaskCommand(),
   ServeMcpCommand(),
   RunScriptCommand(),
+  RunRemoteControlScriptCommand(),
 ];
 
 Future<String> _captureHelp(List<String> args) async {
