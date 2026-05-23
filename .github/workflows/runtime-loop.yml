@@ -36,7 +36,7 @@ jobs:
 
       - name: Bootstrap workspace
         timeout-minutes: 10
-        run: dart run melos bootstrap
+        run: flutter pub get
 
       - name: Run publish readiness gates
         timeout-minutes: 20
@@ -80,7 +80,7 @@ jobs:
 
       - name: Bootstrap workspace
         timeout-minutes: 10
-        run: dart run melos bootstrap
+        run: flutter pub get
 
       - name: Run MCP surface verification
         working-directory: packages/flutter_cockpit_devtools
@@ -274,7 +274,7 @@ jobs:
 
       - name: Bootstrap workspace
         timeout-minutes: 10
-        run: dart run melos bootstrap
+        run: flutter pub get
 
       - name: Run Android devtools regression tests
         timeout-minutes: 15
@@ -400,7 +400,7 @@ jobs:
 
       - name: Bootstrap workspace
         timeout-minutes: 10
-        run: dart run melos bootstrap
+        run: flutter pub get
 
       - name: Run iOS devtools regression tests
         timeout-minutes: 15
@@ -558,7 +558,7 @@ jobs:
 
       - name: Bootstrap workspace
         timeout-minutes: 10
-        run: dart run melos bootstrap
+        run: flutter pub get
 
       - name: Run macOS devtools regression tests
         timeout-minutes: 15
@@ -689,7 +689,7 @@ jobs:
 
       - name: Bootstrap workspace
         timeout-minutes: 10
-        run: dart run melos bootstrap
+        run: flutter pub get
 
       - name: Prepare web verifier outputs
         run: |
@@ -817,7 +817,7 @@ jobs:
 
       - name: Bootstrap workspace
         timeout-minutes: 10
-        run: dart run melos bootstrap
+        run: flutter pub get
 
       - name: Run Linux desktop devtools regression tests
         timeout-minutes: 15
@@ -944,7 +944,7 @@ jobs:
 
       - name: Bootstrap workspace
         timeout-minutes: 10
-        run: dart run melos bootstrap
+        run: flutter pub get
 
       - name: Run Windows desktop devtools regression tests
         timeout-minutes: 15

@@ -5,6 +5,8 @@ import 'package:test/test.dart';
 void main() {
   final root = Directory.current.absolute.path;
   final workflowFile = File('$root/.github/workflows/runtime-loop.yml');
+  final melosConfigFile = File('$root/melos.yaml');
+  final demoReadmeFile = File('$root/examples/cockpit_demo/README.md');
   final platformVerifierFile = File(
     '$root/examples/cockpit_demo/tool/verify_platforms.dart',
   );
@@ -78,6 +80,18 @@ void main() {
     expect(workflow, contains('assert platform["recordingOutputPath"]'));
     expect(workflow, contains('assert platform["screenshotByteLength"] > 0'));
     expect(workflow, isNot(contains('platform["batchCommandCount"] == 4')));
+  });
+
+  test('runtime loop bootstrap is self-contained on clean runners', () {
+    final workflow = workflowFile.readAsStringSync();
+    final demoReadme = demoReadmeFile.readAsStringSync();
+
+    expect(melosConfigFile.existsSync(), isTrue);
+    expect(workflow, contains('flutter pub get'));
+    expect(workflow, isNot(contains('dart run melos bootstrap')));
+    expect(workflow, isNot(contains('run: melos bootstrap')));
+    expect(demoReadme, contains('flutter pub get'));
+    expect(demoReadme, isNot(contains('dart run melos bootstrap')));
   });
 
   test('runtime loop verifier scripts accept the CI output protocol', () {
