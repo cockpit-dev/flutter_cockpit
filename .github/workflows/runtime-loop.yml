@@ -314,7 +314,8 @@ jobs:
             if dart run tool/verify_platforms.dart --platform android
             --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo"
             --output-root "$OUTPUT_ROOT"
-            --output-json "$RESULT_JSON"
+            --output "$RESULT_JSON"
+            --output-format json
             --android-emulator-id "Pixel_9_Pro"
             --launch-timeout-seconds 300 >"$LOG_PATH" 2>&1;
             then cat "$LOG_PATH";
@@ -471,7 +472,8 @@ jobs:
           dart run tool/verify_platforms.dart --platform ios \
             --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo" \
             --output-root "$OUTPUT_ROOT" \
-            --output-json "$RESULT_JSON" \
+            --output "$RESULT_JSON" \
+            --output-format json \
             --launch-timeout-seconds 300 2>&1 | tee "$LOG_PATH"
 
       - name: Verify iOS runtime loop result
@@ -588,7 +590,8 @@ jobs:
           dart run tool/verify_platforms.dart --platform macos \
             --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo" \
             --output-root "$OUTPUT_ROOT" \
-            --output-json "$RESULT_JSON" \
+            --output "$RESULT_JSON" \
+            --output-format json \
             --launch-timeout-seconds 300 2>&1 | tee "$LOG_PATH"
 
       - name: Verify macOS runtime loop result
@@ -705,7 +708,8 @@ jobs:
           xvfb-run -a dart run tool/verify_platforms.dart --platform web \
             --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo" \
             --output-root "$OUTPUT_ROOT" \
-            --output-json "$RESULT_JSON" \
+            --output "$RESULT_JSON" \
+            --output-format json \
             --launch-timeout-seconds 300 2>&1 | tee "$LOG_PATH"
 
       - name: Print web verifier diagnostics
@@ -845,7 +849,8 @@ jobs:
           xvfb-run -a dart run tool/verify_platforms.dart --platform linux \
             --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo" \
             --output-root "$OUTPUT_ROOT" \
-            --output-json "$RESULT_JSON" \
+            --output "$RESULT_JSON" \
+            --output-format json \
             --launch-timeout-seconds 300 2>&1 | tee "$LOG_PATH"
 
       - name: Print Linux verifier diagnostics
@@ -979,7 +984,8 @@ jobs:
           dart run tool/verify_platforms.dart --platform windows \
             --project-dir "$PROJECT_DIR" \
             --output-root "$OUTPUT_ROOT_POSIX" \
-            --output-json "$RESULT_JSON_POSIX" \
+            --output "$RESULT_JSON_POSIX" \
+            --output-format json \
             --launch-timeout-seconds 300 2>&1 | tee "$LOG_PATH_POSIX"
 
       - name: Print Windows verifier diagnostics

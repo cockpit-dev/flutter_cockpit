@@ -5,6 +5,12 @@ import 'package:test/test.dart';
 void main() {
   final root = Directory.current.absolute.path;
   final workflowFile = File('$root/.github/workflows/runtime-loop.yml');
+  final platformVerifierFile = File(
+    '$root/examples/cockpit_demo/tool/verify_platforms.dart',
+  );
+  final rapidDevVerifierFile = File(
+    '$root/examples/cockpit_demo/tool/verify_rapid_dev.dart',
+  );
 
   test('runtime loop workflow uses full verifier coverage on every platform',
       () {
@@ -82,5 +88,24 @@ void main() {
       contains('assert platform["screenshotByteLength"] > 0'),
     );
     expect(workflow, isNot(contains('platform["batchCommandCount"] == 4')));
+  });
+
+  test('runtime loop verifier scripts accept the CI output protocol', () {
+    final workflow = workflowFile.readAsStringSync();
+    final platformVerifier = platformVerifierFile.readAsStringSync();
+    final rapidDevVerifier = rapidDevVerifierFile.readAsStringSync();
+
+    expect(workflow, contains(r'--output "$RESULT_JSON"'));
+    expect(workflow, contains(r'--output "$RESULT_JSON_POSIX"'));
+    expect(workflow, contains('--output-format json'));
+    expect(workflow, isNot(contains('--output-json')));
+
+    for (final verifier in <String>[platformVerifier, rapidDevVerifier]) {
+      expect(verifier, contains("'output'"));
+      expect(verifier, contains("'output-format'"));
+      expect(verifier, contains("allowed: const <String>['json']"));
+      expect(verifier, contains("defaultsTo: 'json'"));
+      expect(verifier, isNot(contains("'output-json'")));
+    }
   });
 }
