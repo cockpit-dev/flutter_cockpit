@@ -12,6 +12,10 @@ typedef CockpitIosDeviceConnectionProcessRunner =
 
 bool cockpitLooksLikeIosSimulatorDeviceId(String deviceId) {
   final normalized = deviceId.trim();
+  final lowercase = normalized.toLowerCase();
+  if (lowercase == 'simulator' || lowercase == 'ios-simulator') {
+    return true;
+  }
   return RegExp(
     r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
   ).hasMatch(normalized);
@@ -67,16 +71,21 @@ final class CockpitIosDeviceConnectionProbe {
     );
     final outputFile = File(p.join(outputDirectory.path, 'device.json'));
     try {
-      final result = await _processRunner('xcrun', <String>[
-        'devicectl',
-        'device',
-        'info',
-        'details',
-        '--device',
-        deviceId,
-        '--json-output',
-        outputFile.path,
-      ]);
+      final ProcessResult result;
+      try {
+        result = await _processRunner('xcrun', <String>[
+          'devicectl',
+          'device',
+          'info',
+          'details',
+          '--device',
+          deviceId,
+          '--json-output',
+          outputFile.path,
+        ]);
+      } on ProcessException {
+        return null;
+      }
       if (result.exitCode != 0 || !outputFile.existsSync()) {
         return null;
       }

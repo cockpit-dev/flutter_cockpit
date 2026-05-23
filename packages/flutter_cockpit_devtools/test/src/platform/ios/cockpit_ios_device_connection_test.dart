@@ -12,6 +12,8 @@ void main() {
       ),
       isTrue,
     );
+    expect(cockpitLooksLikeIosSimulatorDeviceId('simulator'), isTrue);
+    expect(cockpitLooksLikeIosSimulatorDeviceId('ios-simulator'), isTrue);
     expect(
       cockpitLooksLikeIosSimulatorDeviceId('00008110-0009341C2EF3801E'),
       isFalse,
@@ -82,4 +84,31 @@ void main() {
       expect(tempDir.listSync(), isEmpty);
     },
   );
+
+  test('probe returns null when devicectl is unavailable', () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'cockpit_ios_device_connection_missing_devicectl',
+    );
+    addTearDown(() async {
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    final probe = CockpitIosDeviceConnectionProbe(
+      tempDirectoryPathProvider: () => tempDir.path,
+      processRunner: (executable, arguments, {String? workingDirectory}) async {
+        throw ProcessException(
+          executable,
+          arguments,
+          'No such file or directory',
+        );
+      },
+    );
+
+    final connection = await probe.probe('00008110-0009341C2EF3801E');
+
+    expect(connection, isNull);
+    expect(tempDir.listSync(), isEmpty);
+  });
 }

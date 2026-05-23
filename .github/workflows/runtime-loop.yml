@@ -38,6 +38,12 @@ jobs:
         timeout-minutes: 10
         run: flutter pub get
 
+      - name: Install shared validation dependencies
+        timeout-minutes: 10
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
       - name: Run publish readiness gates
         timeout-minutes: 20
         run: |
