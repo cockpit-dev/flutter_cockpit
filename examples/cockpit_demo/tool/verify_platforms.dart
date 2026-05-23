@@ -69,6 +69,13 @@ Future<void> main(List<String> arguments) async {
       help:
           'Optional file path where the full JSON verification result is written.',
     )
+    ..addOption(
+      'output-format',
+      allowed: const <String>['json'],
+      defaultsTo: 'json',
+      help:
+          'File output format for --output. verify_platforms emits JSON only.',
+    )
     ..addFlag(
       'help',
       abbr: 'h',

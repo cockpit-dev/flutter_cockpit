@@ -123,6 +123,9 @@ void main() {
     final readmeZh = File(
       '$root/packages/flutter_cockpit_devtools/README.zh-CN.md',
     ).readAsStringSync();
+    final runtimeLoopWorkflow = File(
+      '$root/.github/workflows/runtime-loop.yml',
+    ).readAsStringSync();
 
     for (final content in <String>[readme, readmeZh]) {
       expect(content, contains('--output <path>'));
@@ -131,6 +134,10 @@ void main() {
       expect(content, isNot(contains('--output-json')));
       expect(content, isNot(contains('--output-ai')));
     }
+
+    expect(runtimeLoopWorkflow, contains('--output-format json'));
+    expect(runtimeLoopWorkflow, isNot(contains('--output-json')));
+    expect(runtimeLoopWorkflow, isNot(contains('--output-ai')));
   });
 
   test('tracked text files do not keep TODO or FIXME markers', () {
