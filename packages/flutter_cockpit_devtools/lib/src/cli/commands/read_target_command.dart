@@ -24,7 +24,7 @@ final class ReadTargetCommand extends CockpitCliCommand {
     cockpitAddAppArgs(argParser);
     argParser.addOption(
       'target-json',
-      help: 'Normalized target handle JSON emitted by launch-target.',
+      help: cockpitTargetJsonOptionHelp,
     );
     cockpitAddProfileArg(
       argParser,
@@ -55,11 +55,10 @@ final class ReadTargetCommand extends CockpitCliCommand {
 
   @override
   String get helpNeeds =>
-      'A target reference from --target-json, --app-json, or --base-url. Prefer --profile minimal for routine polling.';
+      'A target reference from --target-json, the default latest target handle, --app-json, or --base-url. Prefer --profile minimal for routine polling.';
 
   @override
-  String get helpExample =>
-      'flutter_cockpit_devtools read-target --target-json /tmp/target.json --profile minimal';
+  String get helpExample => 'flutter_cockpit_devtools read-target';
 
   @override
   String get helpWrites =>
@@ -77,7 +76,7 @@ final class ReadTargetCommand extends CockpitCliCommand {
     );
     final result = await _read(
       CockpitReadTargetRequest(
-        targetHandlePath: argResults?['target-json'] as String?,
+        targetHandlePath: cockpitResolveTargetHandlePath(argResults),
         appHandlePath: cockpitResolveAppHandlePath(argResults),
         baseUri: cockpitReadOptionalBaseUri(argResults),
         androidDeviceId: argResults?['android-device-id'] as String?,
@@ -104,14 +103,15 @@ final class ReadTargetCommand extends CockpitCliCommand {
   }
 
   void _requireTargetReference() {
-    final targetJsonPath = argResults?['target-json'] as String?;
+    final targetJsonPath = cockpitResolveTargetHandlePath(argResults);
     final appJsonPath = cockpitResolveAppHandlePath(argResults);
     final baseUrl = argResults?['base-url'] as String?;
     if ((targetJsonPath == null || targetJsonPath.isEmpty) &&
         (appJsonPath == null || appJsonPath.isEmpty) &&
         (baseUrl == null || baseUrl.isEmpty)) {
       throw UsageException(
-        '--target-json, --app-json, or --base-url is required.',
+        '--target-json, --app-json, or --base-url is required unless '
+        '${cockpitDefaultTargetHandlePath()} or ${cockpitDefaultAppHandlePath()} exists.',
         usage,
       );
     }

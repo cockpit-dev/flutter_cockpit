@@ -43,7 +43,10 @@ final class CockpitTargetReferenceResolver {
     String? androidDeviceId,
   }) async {
     if (target != null) {
-      final refreshed = await _refreshTargetConnection(target);
+      final refreshed = await _refreshTargetConnection(
+        target,
+        overrideBaseUri: baseUri,
+      );
       return CockpitResolvedTargetReference(
         baseUri: refreshed.baseUri,
         target: refreshed,
@@ -52,7 +55,10 @@ final class CockpitTargetReferenceResolver {
 
     if (targetHandlePath != null && targetHandlePath.isNotEmpty) {
       final resolvedTarget = await readTargetHandle(targetHandlePath);
-      final refreshed = await _refreshTargetConnection(resolvedTarget);
+      final refreshed = await _refreshTargetConnection(
+        resolvedTarget,
+        overrideBaseUri: baseUri,
+      );
       return CockpitResolvedTargetReference(
         baseUri: refreshed.baseUri,
         target: refreshed,
@@ -63,6 +69,7 @@ final class CockpitTargetReferenceResolver {
       final resolvedApp = await _appReferenceResolver.resolve(
         app: app,
         appHandlePath: appHandlePath,
+        baseUri: baseUri,
       );
       final resolvedTarget = resolvedApp.app == null
           ? null
@@ -126,11 +133,25 @@ final class CockpitTargetReferenceResolver {
   }
 
   Future<CockpitTargetHandle> _refreshTargetConnection(
-    CockpitTargetHandle target,
-  ) async {
+      CockpitTargetHandle target,
+      {Uri? overrideBaseUri}) async {
     if (target.targetKind != CockpitTargetKind.flutterApp &&
         target.targetKind != CockpitTargetKind.desktopApp) {
-      return target;
+      if (overrideBaseUri == null || overrideBaseUri == target.baseUri) {
+        return target;
+      }
+      return target.copyWith(
+        connection: CockpitTargetConnection(
+          baseUrl: overrideBaseUri.toString(),
+        ),
+      );
+    }
+    if (overrideBaseUri != null) {
+      target = target.copyWith(
+        connection: CockpitTargetConnection(
+          baseUrl: overrideBaseUri.toString(),
+        ),
+      );
     }
     final app = CockpitAppHandle(
       appId: target.metadata['appId'] as String? ?? target.targetId,
@@ -147,13 +168,100 @@ final class CockpitTargetReferenceResolver {
       processId: _targetProcessId(target),
       remoteSession: _targetRemoteSession(target),
     );
-    final resolved = await _appReferenceResolver.resolve(app: app);
-    if (resolved.baseUri == target.baseUri) {
+    final resolved = await _appReferenceResolver.resolve(
+      app: app,
+      baseUri: overrideBaseUri,
+    );
+    final refreshedApp = resolved.app;
+    final refreshedMetadata = refreshedApp == null
+        ? target.metadata
+        : _metadataWithResolvedApp(target.metadata, refreshedApp);
+    if (resolved.baseUri == target.baseUri &&
+        _metadataMapsEqual(refreshedMetadata, target.metadata)) {
       return target;
     }
     return target.copyWith(
       connection: CockpitTargetConnection(baseUrl: resolved.baseUri.toString()),
+      metadata: refreshedMetadata,
     );
+  }
+
+  Map<String, Object?> _metadataWithResolvedApp(
+    Map<String, Object?> metadata,
+    CockpitAppHandle app,
+  ) {
+    final refreshed = Map<String, Object?>.of(metadata)
+      ..['appId'] = app.appId
+      ..['appMode'] = app.mode.jsonValue
+      ..['supportsHotReload'] = app.supportsHotReload;
+    final platformAppId = app.platformAppId;
+    if (platformAppId == null) {
+      refreshed.remove('platformAppId');
+    } else {
+      refreshed['platformAppId'] = platformAppId;
+    }
+    final processId = app.processId;
+    if (processId == null) {
+      refreshed.remove('processId');
+    } else {
+      refreshed['processId'] = processId;
+    }
+    final remoteSession = app.remoteSession;
+    if (remoteSession == null) {
+      refreshed.remove('remoteSession');
+    } else {
+      refreshed['remoteSession'] = remoteSession.toJson();
+    }
+    final supervisorLogPath = app.supervisorLogPath;
+    if (supervisorLogPath == null) {
+      refreshed.remove('supervisorLogPath');
+    } else {
+      refreshed['supervisorLogPath'] = supervisorLogPath;
+    }
+    return refreshed;
+  }
+
+  bool _metadataMapsEqual(
+    Map<String, Object?> left,
+    Map<String, Object?> right,
+  ) {
+    if (left.length != right.length) {
+      return false;
+    }
+    for (final entry in left.entries) {
+      if (!right.containsKey(entry.key) ||
+          !_jsonLikeValueEquals(entry.value, right[entry.key])) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  bool _jsonLikeValueEquals(Object? left, Object? right) {
+    if (left is Map<Object?, Object?> && right is Map<Object?, Object?>) {
+      if (left.length != right.length) {
+        return false;
+      }
+      for (final entry in left.entries) {
+        if (!right.containsKey(entry.key) ||
+            !_jsonLikeValueEquals(entry.value, right[entry.key])) {
+          return false;
+        }
+      }
+      return true;
+    }
+    if (left is List<Object?> && right is List<Object?>) {
+      if (left.length != right.length) {
+        return false;
+      }
+      for (var index = 0; index < left.length; index += 1) {
+        if (!_jsonLikeValueEquals(left[index], right[index])) {
+          return false;
+        }
+      }
+      return true;
+    }
+    return left == right;
   }
 
   int? _targetProcessId(CockpitTargetHandle target) {

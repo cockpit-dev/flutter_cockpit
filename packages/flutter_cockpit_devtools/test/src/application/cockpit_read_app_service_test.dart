@@ -1,13 +1,99 @@
+import 'dart:io';
+
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_app_handle.dart';
+import 'package:flutter_cockpit_devtools/src/application/cockpit_app_reference_resolver.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_interactive_result_profile.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_read_app_service.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_read_remote_status_service.dart';
 import 'package:flutter_cockpit_devtools/src/platform/cockpit_platform_driver.dart';
 import 'package:flutter_cockpit_devtools/src/platform/cockpit_platform_driver_registry.dart';
+import 'package:flutter_cockpit_devtools/src/remote/cockpit_android_port_forwarder.dart';
+import 'package:flutter_cockpit_devtools/src/session/cockpit_remote_session_handle.dart';
 import 'package:test/test.dart';
 
 void main() {
+  test('read app returns refreshed remote session handles for app-first reads',
+      () async {
+    Uri? capturedBaseUri;
+    final service = CockpitReadAppService(
+      appReferenceResolver: CockpitAppReferenceResolver(
+        portForwarder: CockpitAndroidPortForwarder(
+          processRunner: (_, __) async => ProcessResult(
+            0,
+            0,
+            'emulator-5554 tcp:61331 tcp:47331\n',
+            '',
+          ),
+          hostPortAllocator: () async => 61331,
+          hostPortAvailabilityChecker: (_) async => false,
+        ),
+      ),
+      remoteStatusService: CockpitReadRemoteStatusService(
+        readStatus: (baseUri) async {
+          capturedBaseUri = baseUri;
+          return CockpitRemoteSessionStatus(
+            sessionId: 'session-android',
+            platform: 'android',
+            transportType: 'remoteHttp',
+            currentRouteName: '/home',
+            capabilities: CockpitCapabilities(
+              platform: 'android',
+              transportType: 'remoteHttp',
+              supportsInAppControl: true,
+              supportsFlutterViewCapture: true,
+              supportsNativeScreenCapture: true,
+              supportsHostAutomation: false,
+              supportedCommands: const <CockpitCommandType>[
+                CockpitCommandType.tap,
+              ],
+              supportedLocatorStrategies: CockpitLocatorKind.values,
+            ),
+            recordingCapabilities: CockpitRecordingCapabilities(
+              supportsNativeRecording: true,
+              preferredAcceptanceRecordingKind:
+                  CockpitRecordingKind.nativeScreen,
+            ),
+            snapshot: CockpitSnapshot(routeName: '/home'),
+          );
+        },
+      ),
+    );
+
+    final result = await service.read(
+      CockpitReadAppRequest(
+        app: CockpitAppHandle(
+          appId: 'android-app',
+          mode: CockpitAppMode.automation,
+          platform: 'android',
+          deviceId: 'emulator-5554',
+          projectDir: '/workspace/app',
+          target: 'cockpit/main.dart',
+          baseUrl: 'http://127.0.0.1:57331',
+          launchedAt: DateTime.utc(2026, 5, 10),
+          remoteSession: CockpitRemoteSessionHandle(
+            platform: 'android',
+            deviceId: 'emulator-5554',
+            projectDir: '/workspace/app',
+            target: 'cockpit/main.dart',
+            appId: 'android-app',
+            host: '127.0.0.1',
+            hostPort: 57331,
+            devicePort: 47331,
+            baseUrl: 'http://127.0.0.1:57331',
+            launchedAt: DateTime.utc(2026, 5, 10),
+          ),
+        ),
+        resultProfile: const CockpitInteractiveResultProfile.minimal(),
+      ),
+    );
+
+    expect(capturedBaseUri.toString(), 'http://127.0.0.1:61331');
+    expect(result.app?.baseUrl, 'http://127.0.0.1:61331');
+    expect(result.app?.remoteSession?.baseUrl, 'http://127.0.0.1:61331');
+    expect(result.app?.remoteSession?.devicePort, 47331);
+  });
+
   test('read app includes selected plane and recommended next step', () async {
     final app = CockpitAppHandle(
       appId: 'dev.cockpit.demo',
@@ -61,6 +147,76 @@ void main() {
     ]);
     expect(result.recommendedNextStep, 'runNextCommand');
     expect(result.toJson()['selectedPlane'], 'flutterSemanticPlane');
+  });
+
+  test('read app preserves diagnostics artifact download metadata', () async {
+    final app = CockpitAppHandle(
+      appId: 'dev.cockpit.demo',
+      mode: CockpitAppMode.automation,
+      platform: 'android',
+      deviceId: 'emulator-5554',
+      projectDir: '/workspace/examples/cockpit_demo',
+      target: 'cockpit/main.dart',
+      baseUrl: 'http://127.0.0.1:47331',
+      launchedAt: DateTime.utc(2026, 4, 11),
+    );
+    final service = CockpitReadAppService(
+      remoteStatusService: CockpitReadRemoteStatusService(
+        readStatus: (_) async => CockpitRemoteSessionStatus(
+          sessionId: 'session-1',
+          platform: 'android',
+          transportType: 'remoteHttp',
+          currentRouteName: '/debug',
+          capabilities: CockpitCapabilities(
+            platform: 'android',
+            transportType: 'remoteHttp',
+            supportsInAppControl: true,
+            supportsFlutterViewCapture: true,
+            supportsNativeScreenCapture: true,
+            supportsHostAutomation: false,
+            supportedCommands: const <CockpitCommandType>[
+              CockpitCommandType.tap,
+            ],
+            supportedLocatorStrategies: CockpitLocatorKind.values,
+          ),
+          recordingCapabilities: CockpitRecordingCapabilities(
+            supportsNativeRecording: true,
+            preferredAcceptanceRecordingKind: CockpitRecordingKind.nativeScreen,
+          ),
+          snapshot: CockpitSnapshot(routeName: '/debug'),
+        ),
+        readSnapshot: (_, __) async => CockpitRemoteSnapshotResponse(
+          snapshot: CockpitSnapshot(
+            routeName: '/debug',
+            diagnosticLevel: CockpitSnapshotProfile.forensic,
+            diagnosticsArtifactRef: const CockpitArtifactRef(
+              role: 'diagnostics',
+              relativePath: 'diagnostics/remote_snapshot_debug.json',
+            ),
+          ),
+          artifactDownloads: const <CockpitRemoteArtifactDownload>[
+            CockpitRemoteArtifactDownload(
+              artifact: CockpitArtifactRef(
+                role: 'diagnostics',
+                relativePath: 'diagnostics/remote_snapshot_debug.json',
+              ),
+              downloadPath:
+                  '/artifacts/download?path=diagnostics%2Fremote_snapshot_debug.json',
+            ),
+          ],
+        ),
+      ),
+    );
+
+    final result = await service.read(
+      CockpitReadAppRequest(
+        app: app,
+        resultProfile: const CockpitInteractiveResultProfile.evidence(),
+      ),
+    );
+
+    expect(result.artifactDownloads, hasLength(1));
+    expect(result.toJson()['artifactDownloads'], isA<List<Object?>>());
   });
 
   test(

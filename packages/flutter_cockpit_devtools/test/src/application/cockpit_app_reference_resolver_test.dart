@@ -148,6 +148,47 @@ void main() {
     },
   );
 
+  test('appId with explicit baseUri remains usable without a registry',
+      () async {
+    final resolved = await CockpitAppReferenceResolver().resolve(
+      appId: 'dev.example.app',
+      baseUri: Uri.parse('http://127.0.0.1:61331/cockpit'),
+    );
+
+    expect(resolved.baseUri.toString(), 'http://127.0.0.1:61331/cockpit');
+    expect(resolved.app, isNull);
+  });
+
+  test('appId with explicit baseUri preserves registry metadata when available',
+      () async {
+    final registry = CockpitSessionRegistry();
+    registry.recordRemoteSession(
+      handle: _remoteHandle(
+        host: '127.0.0.1',
+        hostPort: 57331,
+        devicePort: 47331,
+      ),
+      status: _remoteStatus(),
+      recommendedNextStep: 'ready',
+    );
+
+    final resolved = await CockpitAppReferenceResolver(
+      registry: registry,
+    ).resolve(
+      appId: 'dev.example.app',
+      baseUri: Uri.parse('http://127.0.0.1:61331/cockpit'),
+    );
+
+    expect(resolved.baseUri.toString(), 'http://127.0.0.1:61331/cockpit');
+    expect(resolved.app?.appId, 'dev.example.app');
+    expect(resolved.app?.baseUrl, 'http://127.0.0.1:61331/cockpit');
+    expect(
+      resolved.app?.remoteSession?.baseUrl,
+      'http://127.0.0.1:61331/cockpit',
+    );
+    expect(resolved.app?.remoteSession?.devicePort, 47331);
+  });
+
   test('android app handle path refreshes host forwarding from device port',
       () async {
     final tempDir = await Directory.systemTemp.createTemp(
@@ -197,6 +238,90 @@ void main() {
     );
 
     expect(resolved.baseUri.toString(), 'http://127.0.0.1:61331');
+    expect(resolved.app?.baseUrl, 'http://127.0.0.1:61331');
+    expect(resolved.app?.remoteSession?.host, '127.0.0.1');
+    expect(resolved.app?.remoteSession?.hostPort, 61331);
+    expect(resolved.app?.remoteSession?.baseUrl, 'http://127.0.0.1:61331');
+    expect(resolved.app?.remoteSession?.devicePort, 47331);
+  });
+
+  test('android development app handles refresh nested session URLs', () async {
+    final remoteSession = _remoteHandle(
+      host: '127.0.0.1',
+      hostPort: 57331,
+      devicePort: 47331,
+    );
+    final resolved = await CockpitAppReferenceResolver(
+      portForwarder: CockpitAndroidPortForwarder(
+        processRunner: (_, __) async => ProcessResult(
+          0,
+          0,
+          'emulator-5554 tcp:61331 tcp:47331\n',
+          '',
+        ),
+        hostPortAllocator: () async => 61331,
+        hostPortAvailabilityChecker: (_) async => false,
+      ),
+    ).resolve(
+      app: CockpitAppHandle.fromDevelopmentSession(
+        _developmentHandle(
+          developmentSessionId: 'dev-1',
+          appBaseUrl: 'http://127.0.0.1:57331',
+          remoteSessionHandle: remoteSession,
+        ),
+      ),
+    );
+
+    expect(resolved.baseUri.toString(), 'http://127.0.0.1:61331');
+    expect(resolved.app?.baseUrl, 'http://127.0.0.1:61331');
+    expect(
+      resolved.app?.developmentSession?.appBaseUrl,
+      'http://127.0.0.1:61331',
+    );
+    expect(
+      resolved.app?.developmentSession?.remoteSessionHandle?.baseUrl,
+      'http://127.0.0.1:61331',
+    );
+    expect(resolved.app?.remoteSession?.baseUrl, 'http://127.0.0.1:61331');
+  });
+
+  test(
+      'explicit baseUri overrides app handle connection while preserving app metadata',
+      () async {
+    final staleRemoteSession = _remoteHandle(
+      host: '127.0.0.1',
+      hostPort: 57331,
+      devicePort: 47331,
+    );
+    final resolved = await CockpitAppReferenceResolver().resolve(
+      app: CockpitAppHandle.fromDevelopmentSession(
+        _developmentHandle(
+          developmentSessionId: 'dev-1',
+          appBaseUrl: 'http://127.0.0.1:57331',
+          remoteSessionHandle: staleRemoteSession,
+        ),
+      ),
+      baseUri: Uri.parse('http://127.0.0.1:61331/cockpit'),
+    );
+
+    expect(resolved.baseUri.toString(), 'http://127.0.0.1:61331/cockpit');
+    expect(resolved.app?.appId, 'dev.example.app');
+    expect(resolved.app?.baseUrl, 'http://127.0.0.1:61331/cockpit');
+    expect(
+      resolved.app?.developmentSession?.appBaseUrl,
+      'http://127.0.0.1:61331/cockpit',
+    );
+    expect(
+      resolved.app?.developmentSession?.remoteSessionHandle?.baseUrl,
+      'http://127.0.0.1:61331/cockpit',
+    );
+    expect(resolved.app?.remoteSession?.host, '127.0.0.1');
+    expect(resolved.app?.remoteSession?.hostPort, 61331);
+    expect(
+      resolved.app?.remoteSession?.baseUrl,
+      'http://127.0.0.1:61331/cockpit',
+    );
+    expect(resolved.app?.remoteSession?.devicePort, 47331);
   });
 
   test('physical ios app handle path refreshes tunnel ip from device probe',
@@ -243,6 +368,10 @@ void main() {
     );
 
     expect(resolved.baseUri.toString(), 'http://[fd00::9]:57331');
+    expect(resolved.app?.baseUrl, 'http://[fd00::9]:57331');
+    expect(resolved.app?.remoteSession?.host, 'fd00::9');
+    expect(resolved.app?.remoteSession?.hostPort, 57331);
+    expect(resolved.app?.remoteSession?.baseUrl, 'http://[fd00::9]:57331');
   });
 }
 

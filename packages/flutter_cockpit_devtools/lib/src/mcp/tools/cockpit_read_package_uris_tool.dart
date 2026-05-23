@@ -76,8 +76,9 @@ final class CockpitReadPackageUrisTool extends CockpitMcpTool {
       }
       final allowedRoots = cockpitAllowedWorkspaceRootPaths(_rootsTracker);
       final maxPreviewChars =
-          cockpitReadOptionalInt(arguments, 'maxPreviewChars') ?? 1200;
-      final maxEntries = cockpitReadOptionalInt(arguments, 'maxEntries') ?? 40;
+          cockpitReadOptionalPositiveInt(arguments, 'maxPreviewChars') ?? 1200;
+      final maxEntries =
+          cockpitReadOptionalPositiveInt(arguments, 'maxEntries') ?? 40;
       final includeFullText =
           cockpitReadOptionalBool(arguments, 'includeFullText') ?? false;
       final results = <Map<String, Object?>>[];

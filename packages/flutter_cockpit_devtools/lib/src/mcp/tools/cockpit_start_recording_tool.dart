@@ -31,6 +31,8 @@ final class CockpitStartRecordingTool extends CockpitMcpTool {
           'appId': <String, Object?>{'type': 'string'},
           'appJson': <String, Object?>{'type': 'string'},
           'baseUrl': <String, Object?>{'type': 'string'},
+          'androidDeviceId': <String, Object?>{'type': 'string'},
+          'iosDeviceId': <String, Object?>{'type': 'string'},
           'recording': <String, Object?>{'type': 'object'},
         },
       };
@@ -43,6 +45,11 @@ final class CockpitStartRecordingTool extends CockpitMcpTool {
           appId: cockpitReadOptionalString(arguments, 'appId'),
           appHandlePath: cockpitReadOptionalString(arguments, 'appJson'),
           baseUri: _readOptionalBaseUri(arguments),
+          androidDeviceId: cockpitReadOptionalString(
+            arguments,
+            'androidDeviceId',
+          ),
+          iosDeviceId: cockpitReadOptionalString(arguments, 'iosDeviceId'),
           recording: CockpitRecordingRequest.fromJson(
             cockpitReadRequiredObject(arguments, 'recording'),
           ),

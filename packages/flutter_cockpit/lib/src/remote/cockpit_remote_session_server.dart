@@ -51,6 +51,7 @@ final class CockpitRemoteSessionServer {
       scheme: 'http',
       host: _configuration.host,
       port: server.port,
+      path: _configuration.normalizedRoutePrefix,
     );
     _subscription = server.listen(_handleRequest);
   }

@@ -46,6 +46,7 @@ final class CockpitReadRemoteStatusResult {
     this.uiSummary,
     this.snapshot,
     this.snapshotRef,
+    this.artifactDownloads = const <CockpitRemoteArtifactDownload>[],
     this.sessionHandle,
     this.effectiveSnapshotOptions,
   });
@@ -61,6 +62,7 @@ final class CockpitReadRemoteStatusResult {
   final CockpitInteractiveSnapshotSummary? uiSummary;
   final CockpitSnapshot? snapshot;
   final String? snapshotRef;
+  final List<CockpitRemoteArtifactDownload> artifactDownloads;
   final CockpitRemoteSessionHandle? sessionHandle;
   final CockpitSnapshotOptions? effectiveSnapshotOptions;
 
@@ -77,6 +79,10 @@ final class CockpitReadRemoteStatusResult {
         if (uiSummary != null) 'uiSummary': uiSummary!.toJson(),
         if (snapshot != null) 'snapshot': snapshot!.toJson(),
         if (snapshotRef != null) 'snapshotRef': snapshotRef,
+        if (artifactDownloads.isNotEmpty)
+          'artifactDownloads': artifactDownloads
+              .map((download) => download.toJson())
+              .toList(growable: false),
         if (sessionHandle != null) 'sessionHandle': sessionHandle!.toJson(),
         if (effectiveSnapshotOptions != null)
           'effectiveSnapshotOptions': effectiveSnapshotOptions!.toJson(),
@@ -117,14 +123,14 @@ final class CockpitReadRemoteStatusService {
             .resultProfile.requiresStatusSnapshotRead
         ? request.resultProfile.resolveSnapshotOptions(request.snapshotOptions)
         : null;
-    final snapshot = effectiveSnapshotOptions == null
-        ? status.snapshot
-        : (await cockpitReadRemoteSnapshotConsistently(
+    final snapshotResponse = effectiveSnapshotOptions == null
+        ? null
+        : await cockpitReadRemoteSnapshotConsistently(
             baseUri: resolved.baseUri,
             options: effectiveSnapshotOptions,
             readSnapshot: _readSnapshot,
-          ))
-            .snapshot;
+          );
+    final snapshot = snapshotResponse?.snapshot ?? status.snapshot;
     final snapshotRef = request.resultProfile.emitsSnapshotRef
         ? _snapshotStore.put(
             sessionKey: resolved.baseUri.toString(),
@@ -146,6 +152,8 @@ final class CockpitReadRemoteStatusService {
           : null,
       snapshot: request.resultProfile.emitsInlineSnapshot ? snapshot : null,
       snapshotRef: snapshotRef,
+      artifactDownloads: snapshotResponse?.artifactDownloads ??
+          const <CockpitRemoteArtifactDownload>[],
       sessionHandle: resolved.sessionHandle,
       effectiveSnapshotOptions: effectiveSnapshotOptions,
     );

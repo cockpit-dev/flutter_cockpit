@@ -77,6 +77,7 @@ final class CockpitLinuxRecordingAdapter
   CockpitRecordingRequest? _request;
   File? _outputFile;
   StreamSubscription<String>? _stderrSubscription;
+  List<String>? _recentStderrLines;
   Stopwatch? _stopwatch;
 
   String get _sessionCacheKey => 'linux:${_processId ?? _appId}';
@@ -188,6 +189,7 @@ final class CockpitLinuxRecordingAdapter
     _request = request;
     _outputFile = outputFile;
     _stderrSubscription = stderrSubscription;
+    _recentStderrLines = recentStderrLines;
     _stopwatch = Stopwatch()..start();
     cockpitStoreActiveHostRecordingSession(
       _sessionCacheKey,
@@ -197,6 +199,7 @@ final class CockpitLinuxRecordingAdapter
         outputFile: outputFile,
         stderrSubscription: stderrSubscription,
         stopwatch: _stopwatch,
+        recentStderrLines: recentStderrLines,
       ),
     );
 
@@ -209,13 +212,13 @@ final class CockpitLinuxRecordingAdapter
   @override
   Future<CockpitRecordingResult> stopRecording() async {
     final session = _currentSessionState;
-    final process = session?.process;
-    final request = session?.request;
-    final outputFile = session?.outputFile;
-    final stopwatch = session?.stopwatch;
-    if (process == null || request == null || outputFile == null) {
+    if (session == null) {
       throw StateError('No active Linux recording session exists.');
     }
+    final process = session.process;
+    final request = session.request;
+    final outputFile = session.outputFile;
+    final stopwatch = session.stopwatch;
 
     try {
       final didStopGracefully = await _requestGracefulStop(process);
@@ -234,7 +237,10 @@ final class CockpitLinuxRecordingAdapter
           state: CockpitRecordingState.failed,
           purpose: request.purpose,
           recordingKind: CockpitRecordingKind.nativeScreen,
-          failureReason: 'Linux recording output file was missing or empty.',
+          failureReason: _withRecentStderr(
+            'Linux recording output file was missing or empty.',
+            session.recentStderrLines,
+          ),
         );
       }
       final finalized = await _waitForFinalizedOutput(outputFile);
@@ -243,8 +249,10 @@ final class CockpitLinuxRecordingAdapter
           state: CockpitRecordingState.failed,
           purpose: request.purpose,
           recordingKind: CockpitRecordingKind.nativeScreen,
-          failureReason:
-              'Linux recording output did not finalize to a stable duration.',
+          failureReason: _withRecentStderr(
+            'Linux recording output did not finalize to a stable duration.',
+            session.recentStderrLines,
+          ),
         );
       }
 
@@ -263,15 +271,19 @@ final class CockpitLinuxRecordingAdapter
         state: CockpitRecordingState.failed,
         purpose: request.purpose,
         recordingKind: CockpitRecordingKind.nativeScreen,
-        failureReason: 'Linux recording did not stop before timeout.',
+        failureReason: _withRecentStderr(
+          'Linux recording did not stop before timeout.',
+          session.recentStderrLines,
+        ),
       );
     } finally {
-      await session?.stderrSubscription?.cancel();
+      await session.stderrSubscription?.cancel();
       cockpitClearActiveHostRecordingSession(_sessionCacheKey);
       _process = null;
       _request = null;
       _outputFile = null;
       _stderrSubscription = null;
+      _recentStderrLines = null;
       _stopwatch = null;
     }
   }
@@ -287,6 +299,7 @@ final class CockpitLinuxRecordingAdapter
         outputFile: outputFile,
         stderrSubscription: _stderrSubscription,
         stopwatch: _stopwatch,
+        recentStderrLines: _recentStderrLines ?? const <String>[],
       );
     }
     return cockpitReadActiveHostRecordingSession(_sessionCacheKey);
@@ -456,6 +469,13 @@ final class CockpitLinuxRecordingAdapter
   String _buildStartupFailureMessage(List<String> recentStderrLines) {
     const prefix = 'Linux recording did not confirm startup or produce output. '
         'Ensure DISPLAY points at a live X11 desktop and ffmpeg can capture the screen on this host.';
+    if (recentStderrLines.isEmpty) {
+      return prefix;
+    }
+    return '$prefix Recent ffmpeg output: ${recentStderrLines.join(' | ')}';
+  }
+
+  String _withRecentStderr(String prefix, List<String> recentStderrLines) {
     if (recentStderrLines.isEmpty) {
       return prefix;
     }

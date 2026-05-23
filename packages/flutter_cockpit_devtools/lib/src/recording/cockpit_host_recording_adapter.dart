@@ -25,6 +25,7 @@ final class CockpitHostRecordingRuntimeSession {
     required this.outputFile,
     required this.stderrSubscription,
     required this.stopwatch,
+    this.recentStderrLines = const <String>[],
   });
 
   final Process process;
@@ -32,6 +33,7 @@ final class CockpitHostRecordingRuntimeSession {
   final File outputFile;
   final StreamSubscription<String>? stderrSubscription;
   final Stopwatch? stopwatch;
+  final List<String> recentStderrLines;
 }
 
 final Map<String, CockpitHostRecordingRuntimeSession>

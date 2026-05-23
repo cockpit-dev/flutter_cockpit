@@ -16,10 +16,11 @@ final class CockpitRemoteSessionConfiguration {
   static const String _defaultHost = '127.0.0.1';
   static const int _defaultPort = 47331;
   static const String _defaultRoutePrefix = '';
-  static const String _enabledDefine = 'FLUTTER_PILOT_REMOTE_ENABLED';
-  static const String _hostDefine = 'FLUTTER_PILOT_REMOTE_HOST';
-  static const String _portDefine = 'FLUTTER_PILOT_REMOTE_PORT';
-  static const String _routePrefixDefine = 'FLUTTER_PILOT_REMOTE_ROUTE_PREFIX';
+  static const String _enabledDefine = 'FLUTTER_COCKPIT_REMOTE_ENABLED';
+  static const String _hostDefine = 'FLUTTER_COCKPIT_REMOTE_HOST';
+  static const String _portDefine = 'FLUTTER_COCKPIT_REMOTE_PORT';
+  static const String _routePrefixDefine =
+      'FLUTTER_COCKPIT_REMOTE_ROUTE_PREFIX';
 
   Uri get baseUri =>
       Uri(scheme: 'http', host: host, port: port, path: _normalizedRoutePrefix);

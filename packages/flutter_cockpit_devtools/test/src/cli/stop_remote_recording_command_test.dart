@@ -28,6 +28,8 @@ void main() {
 
     final exitCode = await runner.run(<String>[
           'stop-remote-recording',
+          '--stdout-format',
+          'json',
           '--base-url',
           'http://127.0.0.1:47331',
         ]) ??

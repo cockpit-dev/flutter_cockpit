@@ -58,6 +58,7 @@ void main() {
           },
           'emitArtifactWhenLarge': true,
         },
+        'downloadDiagnosticsArtifacts': true,
       });
 
       expect(capturedRequest?.sessionHandle?.toJson(), handle.toJson());
@@ -71,6 +72,7 @@ void main() {
         'runtime probe',
       );
       expect(capturedRequest?.options.emitArtifactWhenLarge, isTrue);
+      expect(capturedRequest?.downloadDiagnosticsArtifacts, isTrue);
 
       final structuredContent =
           result['structuredContent'] as Map<String, Object?>;
@@ -103,5 +105,32 @@ void main() {
         ),
       ),
     );
+  });
+
+  test('collect snapshot tool leaves diagnostics artifacts deferred by default',
+      () async {
+    CockpitCollectRemoteSnapshotRequest? capturedRequest;
+    final tool = CockpitCollectRemoteSnapshotTool(
+      collect: (request) async {
+        capturedRequest = request;
+        return CockpitCollectRemoteSnapshotResult(
+          snapshot: CockpitSnapshot(
+            routeName: '/investigate',
+            diagnosticLevel: request.options.profile,
+          ),
+          effectiveOptions: request.options,
+        );
+      },
+    );
+
+    await tool.call(const <String, Object?>{
+      'snapshotOptions': <String, Object?>{
+        'profile': 'forensic',
+        'emitArtifactWhenLarge': true,
+      },
+    });
+
+    expect(capturedRequest?.options.emitArtifactWhenLarge, isTrue);
+    expect(capturedRequest?.downloadDiagnosticsArtifacts, isFalse);
   });
 }

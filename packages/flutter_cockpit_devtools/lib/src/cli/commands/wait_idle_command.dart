@@ -76,12 +76,20 @@ final class WaitIdleCommand extends CockpitCliCommand {
         appHandlePath: cockpitResolveAppHandlePath(argResults),
         androidDeviceId: argResults?['android-device-id'] as String?,
         quietWindow: Duration(
-          milliseconds:
-              cockpitReadOptionalInt(argResults, 'quiet-window-ms') ?? 96,
+          milliseconds: cockpitReadOptionalPositiveInt(
+                argResults,
+                'quiet-window-ms',
+                usage,
+              ) ??
+              96,
         ),
         timeout: Duration(
-          milliseconds:
-              cockpitReadOptionalInt(argResults, 'timeout-ms') ?? 1600,
+          milliseconds: cockpitReadOptionalPositiveInt(
+                argResults,
+                'timeout-ms',
+                usage,
+              ) ??
+              1600,
         ),
         includeNetworkIdle:
             argResults?['include-network-idle'] as bool? ?? true,

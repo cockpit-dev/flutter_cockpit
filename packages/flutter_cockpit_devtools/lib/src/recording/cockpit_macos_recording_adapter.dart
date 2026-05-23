@@ -64,6 +64,7 @@ final class CockpitMacosRecordingAdapter
   CockpitRecordingRequest? _request;
   File? _outputFile;
   StreamSubscription<String>? _stderrSubscription;
+  List<String>? _recentStderrLines;
   Stopwatch? _stopwatch;
 
   String get _sessionCacheKey => 'macos:$_appId';
@@ -173,10 +174,7 @@ final class CockpitMacosRecordingAdapter
         timeout: _effectiveStartupEvidenceTimeout,
         pollInterval: _finalizationPollInterval,
       );
-      if (!hasOutputEvidence && _usesBrowserHostCapture) {
-        // Browser-host capture can stay silent until stop/finalization even
-        // when ffmpeg has attached successfully to the screen input.
-      } else if (!hasOutputEvidence) {
+      if (!hasOutputEvidence) {
         await stderrSubscription.cancel();
         process.kill(ProcessSignal.sigkill);
         throw StateError(
@@ -193,6 +191,7 @@ final class CockpitMacosRecordingAdapter
     _request = request;
     _outputFile = outputFile;
     _stderrSubscription = stderrSubscription;
+    _recentStderrLines = recentStderrLines;
     _stopwatch = Stopwatch()..start();
     cockpitStoreActiveHostRecordingSession(
       _sessionCacheKey,
@@ -202,6 +201,7 @@ final class CockpitMacosRecordingAdapter
         outputFile: outputFile,
         stderrSubscription: stderrSubscription,
         stopwatch: _stopwatch,
+        recentStderrLines: recentStderrLines,
       ),
     );
 
@@ -214,19 +214,29 @@ final class CockpitMacosRecordingAdapter
   @override
   Future<CockpitRecordingResult> stopRecording() async {
     final session = _currentSessionState;
-    final process = session?.process;
-    final request = session?.request;
-    final outputFile = session?.outputFile;
-    final stopwatch = session?.stopwatch;
-    if (process == null || request == null || outputFile == null) {
+    if (session == null) {
       throw StateError('No active macOS recording session exists.');
     }
+    final process = session.process;
+    final request = session.request;
+    final outputFile = session.outputFile;
+    final stopwatch = session.stopwatch;
 
     try {
       final didStopGracefully = await _requestGracefulStop(process);
       if (!didStopGracefully) {
-        process.kill(ProcessSignal.sigint);
-        await process.exitCode.timeout(_stopTimeout);
+        final didStopAfterSignal = await _requestSignalStop(process);
+        if (!didStopAfterSignal) {
+          return CockpitRecordingResult(
+            state: CockpitRecordingState.failed,
+            purpose: request.purpose,
+            recordingKind: CockpitRecordingKind.nativeScreen,
+            failureReason: _withRecentStderr(
+              'macOS recording did not stop after q, SIGINT, SIGTERM, and SIGKILL.',
+              session.recentStderrLines,
+            ),
+          );
+        }
       }
 
       final hasOutput = await cockpitWaitForNonEmptyFile(
@@ -239,7 +249,10 @@ final class CockpitMacosRecordingAdapter
           state: CockpitRecordingState.failed,
           purpose: request.purpose,
           recordingKind: CockpitRecordingKind.nativeScreen,
-          failureReason: 'macOS recording output file was missing or empty.',
+          failureReason: _withRecentStderr(
+            'macOS recording output file was missing or empty. Ensure Screen Recording permission is granted to the terminal, Dart, ffmpeg, and the browser host app.',
+            session.recentStderrLines,
+          ),
         );
       }
       final finalized = await _waitForFinalizedOutput(outputFile);
@@ -248,8 +261,10 @@ final class CockpitMacosRecordingAdapter
           state: CockpitRecordingState.failed,
           purpose: request.purpose,
           recordingKind: CockpitRecordingKind.nativeScreen,
-          failureReason:
-              'macOS recording output did not finalize to a stable duration.',
+          failureReason: _withRecentStderr(
+            'macOS recording output did not finalize to a stable duration.',
+            session.recentStderrLines,
+          ),
         );
       }
 
@@ -268,15 +283,19 @@ final class CockpitMacosRecordingAdapter
         state: CockpitRecordingState.failed,
         purpose: request.purpose,
         recordingKind: CockpitRecordingKind.nativeScreen,
-        failureReason: 'macOS recording did not stop before timeout.',
+        failureReason: _withRecentStderr(
+          'macOS recording did not stop before timeout.',
+          session.recentStderrLines,
+        ),
       );
     } finally {
-      await session?.stderrSubscription?.cancel();
+      await session.stderrSubscription?.cancel();
       cockpitClearActiveHostRecordingSession(_sessionCacheKey);
       _process = null;
       _request = null;
       _outputFile = null;
       _stderrSubscription = null;
+      _recentStderrLines = null;
       _stopwatch = null;
     }
   }
@@ -292,6 +311,7 @@ final class CockpitMacosRecordingAdapter
         outputFile: outputFile,
         stderrSubscription: _stderrSubscription,
         stopwatch: _stopwatch,
+        recentStderrLines: _recentStderrLines ?? const <String>[],
       );
     }
     return cockpitReadActiveHostRecordingSession(_sessionCacheKey);
@@ -423,11 +443,63 @@ final class CockpitMacosRecordingAdapter
     try {
       process.stdin.writeln('q');
       await process.stdin.flush();
-      await process.exitCode.timeout(_stopTimeout);
-      return true;
     } on Object {
       return false;
     }
+    return _waitForProcessExit(
+        process,
+        _stopStageTimeout(
+          const Duration(seconds: 2),
+        ));
+  }
+
+  Future<bool> _requestSignalStop(Process process) async {
+    if (await _waitForProcessExit(process, const Duration(milliseconds: 1))) {
+      return true;
+    }
+    if (process.kill(ProcessSignal.sigint) &&
+        await _waitForProcessExit(
+          process,
+          _stopStageTimeout(const Duration(seconds: 4)),
+        )) {
+      return true;
+    }
+    if (await _waitForProcessExit(process, const Duration(milliseconds: 1))) {
+      return true;
+    }
+    if (process.kill(ProcessSignal.sigterm) &&
+        await _waitForProcessExit(
+          process,
+          _stopStageTimeout(const Duration(seconds: 4)),
+        )) {
+      return true;
+    }
+    if (await _waitForProcessExit(process, const Duration(milliseconds: 1))) {
+      return true;
+    }
+    process.kill(ProcessSignal.sigkill);
+    return _waitForProcessExit(
+      process,
+      _stopStageTimeout(const Duration(seconds: 2)),
+    );
+  }
+
+  Future<bool> _waitForProcessExit(Process process, Duration timeout) async {
+    try {
+      await process.exitCode.timeout(timeout);
+      return true;
+    } on TimeoutException {
+      return false;
+    } on Object {
+      return false;
+    }
+  }
+
+  Duration _stopStageTimeout(Duration maximum) {
+    if (_stopTimeout <= Duration.zero) {
+      return maximum;
+    }
+    return _stopTimeout < maximum ? _stopTimeout : maximum;
   }
 
   Future<_CockpitRecordingTimelineProbe?> _probeRecordingTimeline(
@@ -485,6 +557,13 @@ final class CockpitMacosRecordingAdapter
     const prefix =
         'ffmpeg never confirmed macOS screen capture startup or produced output. '
         'Ensure Screen Recording permission is granted to the terminal, Dart, and ffmpeg on this host.';
+    if (recentStderrLines.isEmpty) {
+      return prefix;
+    }
+    return '$prefix Recent ffmpeg output: ${recentStderrLines.join(' | ')}';
+  }
+
+  String _withRecentStderr(String prefix, List<String> recentStderrLines) {
     if (recentStderrLines.isEmpty) {
       return prefix;
     }

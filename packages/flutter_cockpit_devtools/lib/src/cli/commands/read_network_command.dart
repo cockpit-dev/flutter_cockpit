@@ -85,7 +85,7 @@ final class ReadNetworkCommand extends CockpitCliCommand {
 
   @override
   String get helpExample =>
-      'flutter_cockpit_devtools read-network --app-json /tmp/app.json --uri-contains /api --only-failures | jq \'{routeName, failureCount: .summary.failureCount, endpoints: [.endpointSummaries[] | {uriPattern,requestCount,failureCount}]}\'';
+      'flutter_cockpit_devtools read-network --app-json /tmp/app.json --uri-contains /api --only-failures --stdout-format json | jq \'{routeName, failureCount: .summary.failureCount, endpoints: [.endpointSummaries[] | {uriPattern,requestCount,failureCount}]}\'';
 
   @override
   String get helpWrites =>
@@ -99,14 +99,23 @@ final class ReadNetworkCommand extends CockpitCliCommand {
         appHandlePath: cockpitResolveAppHandlePath(argResults),
         baseUri: cockpitReadOptionalBaseUri(argResults),
         androidDeviceId: argResults?['android-device-id'] as String?,
-        maxEntries: cockpitReadOptionalInt(argResults, 'max-entries') ?? 8,
-        maxEndpointSummaries:
-            cockpitReadOptionalInt(argResults, 'max-endpoints') ?? 8,
+        maxEntries:
+            cockpitReadOptionalPositiveInt(argResults, 'max-entries', usage) ??
+                8,
+        maxEndpointSummaries: cockpitReadOptionalPositiveInt(
+              argResults,
+              'max-endpoints',
+              usage,
+            ) ??
+            8,
         includeEntries: argResults?['include-entries'] as bool? ?? false,
         method: argResults?['method'] as String?,
         uriContains: argResults?['uri-contains'] as String?,
-        statusCodeAtLeast:
-            cockpitReadOptionalInt(argResults, 'status-code-at-least'),
+        statusCodeAtLeast: cockpitReadOptionalHttpStatusCode(
+          argResults,
+          'status-code-at-least',
+          usage,
+        ),
         onlyFailures: argResults?['only-failures'] as bool? ?? false,
       ),
     );

@@ -58,6 +58,7 @@ final class CockpitRunCommandService {
     return _executeService.execute(
       CockpitExecuteRemoteCommandRequest(
         baseUri: resolved.baseUri,
+        sessionHandle: resolved.app?.remoteSession,
         command: request.command,
         resultProfile: request.resultProfile,
         snapshotOptions: request.snapshotOptions,

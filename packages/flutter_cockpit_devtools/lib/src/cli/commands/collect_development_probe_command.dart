@@ -4,6 +4,7 @@ import 'package:args/command_runner.dart';
 
 import '../../application/cockpit_collect_development_probe_service.dart';
 import '../../development/cockpit_development_probe.dart';
+import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
@@ -12,7 +13,7 @@ typedef CockpitCollectDevelopmentProbeFunction
   CockpitCollectDevelopmentProbeRequest request,
 );
 
-final class CollectDevelopmentProbeCommand extends Command<int> {
+final class CollectDevelopmentProbeCommand extends CockpitCliCommand {
   CollectDevelopmentProbeCommand({
     CockpitCollectDevelopmentProbeService? service,
     CockpitCollectDevelopmentProbeFunction? collect,
@@ -23,10 +24,11 @@ final class CollectDevelopmentProbeCommand extends Command<int> {
     argParser
       ..addOption(
         'session-json',
-        help: 'Persisted development session handle JSON to inspect.',
+        help: cockpitDevelopmentSessionJsonOptionHelp,
       )
       ..addOption(
         'profile',
+        help: 'Probe detail level.',
         allowed: CockpitDevelopmentProbeProfile.values
             .map((value) => value.jsonValue)
             .toList(growable: false),
@@ -34,15 +36,15 @@ final class CollectDevelopmentProbeCommand extends Command<int> {
       )
       ..addOption(
         'reason',
+        help: 'Why the probe is being collected.',
         allowed: CockpitDevelopmentProbeReason.values
             .map((value) => value.jsonValue)
             .toList(growable: false),
         defaultsTo: CockpitDevelopmentProbeReason.manual.jsonValue,
       )
-      ..addOption('checkpoint')
       ..addOption(
-        'output-json',
-        help: 'Optional file path where the probe payload should be written.',
+        'checkpoint',
+        help: 'Short caller-defined checkpoint label for the probe.',
       );
   }
 
@@ -57,10 +59,35 @@ final class CollectDevelopmentProbeCommand extends Command<int> {
       'Collect a lightweight or rich development probe from the current app state.';
 
   @override
+  String get summary => 'Collect development probe.';
+
+  @override
+  String get category => CockpitCliCategory.coreLoop;
+
+  @override
+  String get helpWhen =>
+      'Use after launch or reload to capture the smallest state needed for the next repair decision.';
+
+  @override
+  String get helpNeeds =>
+      'A development session handle from --session-json or the default latest development session handle, plus optional bounded probe profile.';
+
+  @override
+  String get helpExample =>
+      'flutter_cockpit_devtools collect-development-probe --checkpoint after_reload';
+
+  @override
+  String get helpWrites =>
+      'Development probe JSON with snapshot summary, warnings, and effective snapshot options.';
+
+  @override
   Future<int> run() async {
     final result = await _collect(
       CockpitCollectDevelopmentProbeRequest(
-        sessionHandlePath: _readRequiredOption('session-json'),
+        sessionHandlePath: cockpitRequireResolvedDevelopmentSessionHandlePath(
+          argResults,
+          usage,
+        ),
         profile: CockpitDevelopmentProbeProfile.fromJson(
           _readRequiredOption('profile'),
         ),

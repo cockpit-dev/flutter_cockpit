@@ -68,14 +68,18 @@ final class CockpitReadNetworkTool extends CockpitMcpTool {
             arguments,
             'androidDeviceId',
           ),
-          maxEntries: cockpitReadOptionalInt(arguments, 'maxEntries') ?? 8,
-          maxEndpointSummaries:
-              cockpitReadOptionalInt(arguments, 'maxEndpointSummaries') ?? 8,
+          maxEntries:
+              cockpitReadOptionalPositiveInt(arguments, 'maxEntries') ?? 8,
+          maxEndpointSummaries: cockpitReadOptionalPositiveInt(
+                arguments,
+                'maxEndpointSummaries',
+              ) ??
+              8,
           includeEntries:
               cockpitReadOptionalBool(arguments, 'includeEntries') ?? false,
           method: cockpitReadOptionalString(arguments, 'method'),
           uriContains: cockpitReadOptionalString(arguments, 'uriContains'),
-          statusCodeAtLeast: cockpitReadOptionalInt(
+          statusCodeAtLeast: cockpitReadOptionalHttpStatusCode(
             arguments,
             'statusCodeAtLeast',
           ),

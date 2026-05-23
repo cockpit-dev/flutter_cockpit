@@ -113,7 +113,7 @@ For fast feature development on the local machine, run the rapid verifier first:
 
 ```bash
 dart run examples/cockpit_demo/tool/verify_rapid_dev.dart \
-  --output-json /tmp/cockpit_demo_rapid_dev.json
+  --output /tmp/cockpit_demo_rapid_dev.json
 ```
 
 The rapid verifier defaults to `macos`, `ios`, and `android`. It is intentionally
@@ -135,14 +135,14 @@ Run the example-local verifier:
 ```bash
 cd examples/cockpit_demo
 dart run tool/verify_platforms.dart \
-  --output-json /tmp/cockpit_demo_verification.json
+  --output /tmp/cockpit_demo_verification.json
 ```
 
 From the repository root you can also run:
 
 ```bash
 dart run examples/cockpit_demo/tool/verify_platforms.dart \
-  --output-json /tmp/cockpit_demo_verification.json
+  --output /tmp/cockpit_demo_verification.json
 ```
 
 The tool now resolves `examples/cockpit_demo` as its default `--project-dir` automatically when launched through the repository-owned entrypoint.
@@ -177,7 +177,7 @@ cd examples/cockpit_demo
 dart run tool/verify_platforms.dart \
   --platform web \
   --allow-web-host-recording-prerequisite-failure \
-  --output-json /tmp/cockpit_demo_web_verification.json
+  --output /tmp/cockpit_demo_web_verification.json
 ```
 
 That mode keeps the verifier strict for app control, screenshots, and reload flows while surfacing blocked browser-host recording as a structured warning.

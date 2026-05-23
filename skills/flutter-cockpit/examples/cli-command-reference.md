@@ -29,6 +29,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 ```
 
 If you omit `--app-json`, the CLI writes the reusable handle to `.dart_tool/flutter_cockpit/latest_app.json` in the current working directory and later app commands reuse it automatically.
+When both `--app-json` and `--base-url` are provided, `--app-json` supplies app identity and platform metadata while `--base-url` overrides only the live connection address.
 Add `--flavor <name>` when the app uses a non-default Android flavor or Xcode scheme.
 For web, keep `--mode development`, and use the exact browser `--device-id` reported by `list-targets`.
 
@@ -148,7 +149,7 @@ jq -n --arg text "Draft release checklist" '{
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   run-command \
   --command-file /tmp/flutter_cockpit/enter_text.json \
-  --profile standard | jq '{success: .command.success, route: .uiSummary.routeName}'
+  --profile standard --stdout-format json | jq '{success: .command.success, route: .uiSummary.routeName}'
 ```
 
 Scroll to a deep control with one locator:
@@ -172,7 +173,7 @@ jq -n '{
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   run-command \
   --command-file /tmp/flutter_cockpit/scroll_command.json \
-  --profile standard | jq '{command: .command.success, route: .uiSummary.routeName, visible: .uiSummary.visibleTargetCount}'
+  --profile standard --stdout-format json | jq '{command: .command.success, route: .uiSummary.routeName, visible: .uiSummary.visibleTargetCount}'
 ```
 
 Run a short batch:
@@ -192,6 +193,93 @@ Wait for idle:
 
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools wait-idle
+```
+
+## Persistent Development Loop
+
+Use this when one app will be edited and reloaded repeatedly. The default
+app-first loop is still cheaper for short tasks.
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  launch-development-session \
+  --project-dir /abs/path/to/flutter_app \
+  --platform macos \
+  --session-json /tmp/flutter_cockpit/dev_session.json
+```
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  collect-development-probe \
+  --session-json /tmp/flutter_cockpit/dev_session.json \
+  --profile quick \
+  --checkpoint before_edit \
+  --output /tmp/flutter_cockpit/before_probe.json \
+  --output-format json
+```
+
+After edits:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  reload-development-session \
+  --session-json /tmp/flutter_cockpit/dev_session.json \
+  --mode hot_reload
+```
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  collect-development-probe \
+  --session-json /tmp/flutter_cockpit/dev_session.json \
+  --profile quick \
+  --reason post_reload \
+  --checkpoint after_reload \
+  --output /tmp/flutter_cockpit/after_probe.json \
+  --output-format json
+```
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  compare-development-probe \
+  --from-probe-json /tmp/flutter_cockpit/before_probe.json \
+  --to-probe-json /tmp/flutter_cockpit/after_probe.json
+```
+
+Stop the persistent session when the loop ends:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  stop-development-session \
+  --session-json /tmp/flutter_cockpit/dev_session.json
+```
+
+## Direct Remote Session Loop
+
+Use this only when you intentionally want the lower-level session handle surface
+instead of the app-first `app.json` commands.
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  launch-remote-session \
+  --project-dir /abs/path/to/flutter_app \
+  --platform macos \
+  --session-json /tmp/flutter_cockpit/session.json
+```
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  read-remote-status \
+  --session-json /tmp/flutter_cockpit/session.json \
+  --profile minimal
+```
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  execute-remote-command-batch \
+  --session-json /tmp/flutter_cockpit/session.json \
+  --commands-file /tmp/flutter_cockpit/commands.json \
+  --default-profile minimal \
+  --final-snapshot-profile standard
 ```
 
 Read network after an action settles:
@@ -217,14 +305,14 @@ Hot reload or hot restart:
 
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
-  hot-reload | jq '{reloadGeneration: .status.reloadGeneration, lastReloadSucceeded: .status.lastReloadSucceeded, lastReloadMode: .status.lastReloadMode}'
+  hot-reload --stdout-format json | jq '{reloadGeneration: .status.reloadGeneration, lastReloadSucceeded: .status.lastReloadSucceeded, lastReloadMode: .status.lastReloadMode}'
 ```
 
 Then verify the changed control. If the intended copy or layout delta is still missing, relaunch once before assuming the app ignored your code edit.
 
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
-  hot-restart | jq '{reloadGeneration: .status.reloadGeneration, lastReloadSucceeded: .status.lastReloadSucceeded, lastReloadMode: .status.lastReloadMode}'
+  hot-restart --stdout-format json | jq '{reloadGeneration: .status.reloadGeneration, lastReloadSucceeded: .status.lastReloadSucceeded, lastReloadMode: .status.lastReloadMode}'
 ```
 
 Stop the app:
@@ -254,10 +342,23 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --app-json /tmp/flutter_cockpit/app.json
 ```
 
+Valid video evidence requires `state: "completed"` plus an artifact whose
+metadata proves non-empty bytes or a non-empty source/output file. If
+`stop-recording` returns `state: "failed"` with an artifact failure reason, fix
+or unblock the recorder before claiming video proof.
+
+When an iOS recording command has only `--base-url` and cannot read an
+`app.json` handle, pass `--ios-device-id <id>` so the host-side simulator or
+device adapter can select the right recorder. Prefer `app.json` when available
+because it also preserves platform app id, process id, and remote-session
+metadata.
+
 For local web validation, keep browser app control, screenshots, reloads, and
 runtime-error reads strict. If browser-host recording is blocked only because
-the desktop has not granted screen-capture permission yet, classify that as an
-environment prerequisite warning and keep the app-control result separate.
+the desktop has not granted screen-capture permission yet or ffmpeg cannot prove
+startup/output evidence, classify that as an environment prerequisite warning
+and keep the app-control result separate. Do not claim video recording coverage
+for that run unless a recording artifact and non-empty output path are returned.
 
 ## Bundle And Delivery
 
@@ -271,12 +372,17 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --output-root /tmp/flutter_cockpit/out
 ```
 
+Prefer `--app-json` for `run-script` even when `--base-url` is known. The app
+handle preserves platform, device, process, and remote-session metadata used by
+host screenshots and recordings; `--base-url` only overrides the live HTTP
+connection.
+
 Run a full task workflow:
 
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   run-task \
-  --config-json /tmp/flutter_cockpit/run_task.json | jq '{classification,recommendedNextStep}'
+  --config-json /tmp/flutter_cockpit/run_task.json --stdout-format json | jq '{classification,recommendedNextStep}'
 ```
 
 Validate a full task workflow:
@@ -284,7 +390,7 @@ Validate a full task workflow:
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   validate-task \
-  --config-json /tmp/flutter_cockpit/validate_task.json | jq '{classification,recommendedNextStep,validationFailures}'
+  --config-json /tmp/flutter_cockpit/validate_task.json --stdout-format json | jq '{classification,recommendedNextStep,validationFailures}'
 ```
 
 ## MCP
@@ -299,6 +405,13 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools serve-mcp
 - `launch-app` auto-detects `cockpit/main.dart` first, then `lib/main.dart`.
 - Default to `--profile minimal` or `standard`.
 - Escalate to `inspect` or `evidence` only when required.
+- Large forensic snapshots stay summary-first in normal reads. If a result has
+  `artifactDownloads`, inspect those paths only when the summary and
+  diagnostics ref are not enough; use `collect-remote-snapshot
+  --emit-artifact-when-large --output <path> --output-format json` to preserve deferred evidence
+  metadata, and add `--download-diagnostics-artifacts` only when you
+  intentionally need the full externalized diagnostics payload in the JSON
+  output.
 - `scrollUntilVisible` already probes between internal scroll segments. Prefer a better locator or a smaller `viewportFraction` over manual repeated blind scroll commands.
 - When `scrollUntilVisible` hits the wrong boundary first, it can recover by trying the opposite direction once. Keep explicit `reverse` for cases where you already know the target is above the current viewport.
 - After `hot-restart`, do not assume route and scroll position reset. Re-read route, then re-anchor or switch `reverse` if the target region is now above the viewport.
@@ -307,7 +420,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools serve-mcp
 - `list_apps` is MCP-only; CLI discovery is `app.json`-first.
 - For target-first CLI loops, persist `target.json` and reuse it across commands the same way you reuse `app.json`.
 - `run-script` exits non-zero when the written bundle status is `failed`.
-- Write command output to `--output-json` when a later AI step must read structured state.
+- Write command output to `--output <path> --output-format json` when a later AI step must read structured state with tools such as `jq`; otherwise `--output <path>` defaults to the AI-readable semantic render.
 - Prefer the lowest-cost public surface: in shell agents, CLI + command files + `jq` usually costs fewer tokens than reopening large payloads in model context; in tool-calling hosts, MCP is fine.
 
 For short dependent flows, prefer `run-batch` so one request carries the whole ordered chain:
@@ -317,8 +430,24 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   run-batch \
   --app-json /tmp/flutter_cockpit/app.json \
   --commands-file /tmp/flutter_cockpit/commands.json \
-  --profile minimal | jq '{summary, commandStatuses: [.results[] | {id: .command.commandId, success: .command.success}]}'
+  --profile minimal --stdout-format json | jq '{summary, commandStatuses: [.results[] | {id: .command.commandId, success: .command.success}]}'
 ```
+
+When the same short flow needs motion or acceptance video, wrap the batch with recording instead of manually pairing `start-recording` and `stop-recording`:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-batch \
+  --app-json /tmp/flutter_cockpit/app.json \
+  --commands-file /tmp/flutter_cockpit/commands.json \
+  --recording-json '{"purpose":"acceptance","name":"acceptance","tailStabilizationMs":1400}' \
+  --profile minimal \
+  --final-profile standard \
+  --stdout-format json | jq '{summary, recording: .recordingResult.artifact.relativePath, finalRoute: .finalSnapshot.routeName}'
+```
+
+For iOS batch recording without `app.json`, add `--ios-device-id <id>` for the
+same reason as manual start/stop recording.
 
 ## Pipe And jq Examples
 
@@ -328,7 +457,7 @@ Search a dependency package before opening files:
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   grep-package-uris \
   --package flutter \
-  --query ThemeData | jq '{summary, firstMatch: .packages[0].files[0].packageUri}'
+  --query ThemeData --stdout-format json | jq '{summary, firstMatch: .packages[0].files[0].packageUri}'
 ```
 
 Read only the route and state:
@@ -337,7 +466,7 @@ Read only the route and state:
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   read-app \
   --app-json /tmp/flutter_cockpit/app.json \
-  --profile minimal | jq '{sessionId,currentRouteName,state}'
+  --profile minimal --stdout-format json | jq '{sessionId,currentRouteName,state}'
 ```
 
 Extract one scalar:
@@ -346,7 +475,7 @@ Extract one scalar:
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   read-app \
   --app-json /tmp/flutter_cockpit/app.json \
-  --profile minimal | jq -r '.currentRouteName'
+  --profile minimal --stdout-format json | jq -r '.currentRouteName'
 ```
 
 Keep a larger result on disk, then read only the needed fields:
@@ -355,7 +484,8 @@ Keep a larger result on disk, then read only the needed fields:
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   validate-task \
   --config-json /tmp/flutter_cockpit/validate_task.json \
-  --output-json /tmp/flutter_cockpit/validate_task_result.json
+  --output /tmp/flutter_cockpit/validate_task_result.json \
+  --output-format json
 ```
 
 ```bash

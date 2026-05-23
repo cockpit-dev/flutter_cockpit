@@ -53,6 +53,8 @@ void main() {
           '400',
           '--only-failures',
           '--include-entries',
+          '--stdout-format',
+          'json',
         ]) ??
         0;
 

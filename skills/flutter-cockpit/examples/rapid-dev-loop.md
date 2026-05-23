@@ -109,18 +109,18 @@ Do not pay delivery-grade cost on every edit. Do pay it before any user-facing c
 ## Token-Saving Shell Patterns
 
 - Read one small state slice from the default latest-app handle:
-  `flutter_cockpit_devtools read-app --profile minimal | jq '{currentRouteName,state}'`
+  `flutter_cockpit_devtools read-app --profile minimal --stdout-format json | jq '{currentRouteName,state}'`
 - If you stay in one repo, let `launch-app` manage `.dart_tool/flutter_cockpit/latest_app.json` and stop repeating `--app-json` unless another step must reopen a named handle from elsewhere.
 - For reload status, project nested fields instead of assuming top-level booleans:
-  `flutter_cockpit_devtools hot-reload | jq '{reloadGeneration: .status.reloadGeneration, lastReloadSucceeded: .status.lastReloadSucceeded}'`
+  `flutter_cockpit_devtools hot-reload --stdout-format json | jq '{reloadGeneration: .status.reloadGeneration, lastReloadSucceeded: .status.lastReloadSucceeded}'`
 - For text input flows, verify the next control or saved state instead of expecting `textPreviews` to mirror the field contents:
   `flutter_cockpit_devtools run-command --command-file /tmp/enter_text.json --profile standard`
 - Search first, then open one dependency file:
-  `flutter_cockpit_devtools grep-package-uris --package flutter --query ThemeData | jq -r '.packages[0].files[0].packageUri'`
+  `flutter_cockpit_devtools grep-package-uris --package flutter --query ThemeData --stdout-format json | jq -r '.packages[0].files[0].packageUri'`
 - When only one branch decision matters, extract one field:
-  `flutter_cockpit_devtools read-errors --app-json /tmp/flutter_cockpit/app.json | jq '.hasErrors'`
+  `flutter_cockpit_devtools read-errors --app-json /tmp/flutter_cockpit/app.json --stdout-format json | jq '.hasErrors'`
 - Keep larger results off stdout only when a later step needs the full payload again:
-  `flutter_cockpit_devtools run-task --config-json /tmp/run_task.json --output-json /tmp/runTaskResult.json`
+  `flutter_cockpit_devtools run-task --config-json /tmp/run_task.json --output /tmp/runTaskResult.json --output-format json`
   `jq '{classification,recommendedNextStep}' /tmp/runTaskResult.json`
 - Workspace commands default to the current directory, so omit `--workspace-root` unless you are operating outside the repo you already opened.
 - Prefer file inputs over long inline JSON:

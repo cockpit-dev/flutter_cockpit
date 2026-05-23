@@ -1,11 +1,11 @@
 import 'dart:io';
 import 'dart:convert';
 
-import 'package:args/command_runner.dart';
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
 import '../../application/cockpit_execute_remote_command_batch_service.dart';
 import '../../application/cockpit_interactive_result_profile.dart';
+import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
@@ -14,7 +14,7 @@ typedef CockpitExecuteRemoteCommandBatchFunction
   CockpitExecuteRemoteCommandBatchRequest request,
 );
 
-final class ExecuteRemoteCommandBatchCommand extends Command<int> {
+final class ExecuteRemoteCommandBatchCommand extends CockpitCliCommand {
   ExecuteRemoteCommandBatchCommand({
     CockpitExecuteRemoteCommandBatchService? service,
     CockpitExecuteRemoteCommandBatchFunction? execute,
@@ -25,19 +25,40 @@ final class ExecuteRemoteCommandBatchCommand extends Command<int> {
     cockpitAddRemoteSessionArgs(argParser);
     cockpitAddProfileArg(argParser, optionName: 'default-profile');
     argParser
-      ..addOption('commands-json')
-      ..addOption('commands-file')
-      ..addFlag('fail-fast', defaultsTo: true, negatable: true)
-      ..addOption('recording-json')
-      ..addOption('recording-file')
+      ..addOption(
+        'commands-json',
+        help: 'Inline JSON array of command objects.',
+      )
+      ..addOption('commands-file', help: 'Path to a JSON command array.')
+      ..addFlag(
+        'fail-fast',
+        defaultsTo: true,
+        negatable: true,
+        help: 'Stop the batch after the first failed command.',
+      )
+      ..addOption(
+        'recording-json',
+        help: 'Inline recording request JSON for the whole batch.',
+      )
+      ..addOption(
+        'recording-file',
+        help: 'Path to recording request JSON for the whole batch.',
+      )
       ..addOption(
         'final-snapshot-profile',
         allowed: CockpitInteractiveResultProfileName.values
             .map((profile) => profile.jsonValue)
             .toList(growable: false),
+        help: 'Profile for the final post-batch snapshot.',
       )
-      ..addOption('final-snapshot-options-json')
-      ..addOption('final-snapshot-options-file');
+      ..addOption(
+        'final-snapshot-options-json',
+        help: 'Inline JSON that overrides final snapshot detail.',
+      )
+      ..addOption(
+        'final-snapshot-options-file',
+        help: 'Path to final snapshot options JSON.',
+      );
   }
 
   final CockpitExecuteRemoteCommandBatchFunction _execute;
@@ -49,6 +70,28 @@ final class ExecuteRemoteCommandBatchCommand extends Command<int> {
   @override
   String get description =>
       'Execute multiple flutter_cockpit commands in order against a live remote session.';
+
+  @override
+  String get summary => 'Run remote command batch.';
+
+  @override
+  String get category => CockpitCliCategory.coreLoop;
+
+  @override
+  String get helpWhen =>
+      'Use for short ordered remote flows where one round-trip per command would waste tokens.';
+
+  @override
+  String get helpNeeds =>
+      'A remote session reference and a bounded JSON array of command objects.';
+
+  @override
+  String get helpExample =>
+      'flutter_cockpit_devtools execute-remote-command-batch --session-json /tmp/session.json --commands-file /tmp/commands.json --default-profile minimal --final-snapshot-profile standard';
+
+  @override
+  String get helpWrites =>
+      'Layered batch result JSON with per-step summaries, final state, and optional recording metadata.';
 
   @override
   Future<int> run() async {
@@ -77,7 +120,7 @@ final class ExecuteRemoteCommandBatchCommand extends Command<int> {
     final result = await _execute(
       CockpitExecuteRemoteCommandBatchRequest(
         baseUri: cockpitReadOptionalBaseUri(argResults),
-        sessionHandlePath: argResults?['session-json'] as String?,
+        sessionHandlePath: cockpitResolveRemoteSessionHandlePath(argResults),
         androidDeviceId: argResults?['android-device-id'] as String?,
         defaultResultProfile: cockpitReadResultProfile(
           argResults,

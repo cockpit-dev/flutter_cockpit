@@ -62,7 +62,6 @@ final class LspCommand extends CockpitCliCommand {
         defaultsTo: '20',
         help: 'Time budget for the LSP request.',
       );
-    cockpitAddWorkspaceOutputJsonOption(argParser);
   }
 
   final CockpitLspFunction _invoke;
@@ -106,17 +105,29 @@ final class LspCommand extends CockpitCliCommand {
           cockpitReadRequiredStringOption(argResults, 'command', usage),
         ),
         path: cockpitReadOptionalStringOption(argResults, 'path'),
-        line: cockpitReadOptionalIntOption(argResults, 'line'),
-        column: cockpitReadOptionalIntOption(argResults, 'column'),
+        line: cockpitReadOptionalPositiveIntOption(
+          argResults,
+          'line',
+          usage,
+        ),
+        column: cockpitReadOptionalPositiveIntOption(
+          argResults,
+          'column',
+          usage,
+        ),
         query: cockpitReadOptionalStringOption(argResults, 'query'),
-        maxResults: cockpitReadRequiredIntOption(
+        maxResults: cockpitReadRequiredPositiveIntOption(
           argResults,
           'max-results',
           usage,
         ),
-        maxChars: cockpitReadRequiredIntOption(argResults, 'max-chars', usage),
+        maxChars: cockpitReadRequiredPositiveIntOption(
+          argResults,
+          'max-chars',
+          usage,
+        ),
         timeout: Duration(
-          seconds: cockpitReadRequiredIntOption(
+          seconds: cockpitReadRequiredPositiveIntOption(
             argResults,
             'timeout-seconds',
             usage,

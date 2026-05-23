@@ -84,10 +84,17 @@ final class CockpitPubTool extends CockpitMcpTool {
           ),
           packages: cockpitReadOptionalStringList(arguments, 'packages'),
           allowedRoots: cockpitAllowedWorkspaceRootPaths(_rootsTracker),
-          maxOutputChars:
-              cockpitReadOptionalInt(arguments, 'maxOutputChars') ?? 1600,
+          maxOutputChars: cockpitReadOptionalPositiveInt(
+                arguments,
+                'maxOutputChars',
+              ) ??
+              1600,
           timeout: Duration(
-            seconds: cockpitReadOptionalInt(arguments, 'timeoutSeconds') ?? 240,
+            seconds: cockpitReadOptionalPositiveInt(
+                  arguments,
+                  'timeoutSeconds',
+                ) ??
+                240,
           ),
         ),
       );

@@ -39,6 +39,13 @@ flutter_cockpit_mcp
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools serve-mcp
 ```
 
+工具链解析规则：
+
+- 显式可执行文件变量优先：`DART`、`DART_BIN`、`FLUTTER`、`FLUTTER_BIN`。
+- 其次支持 SDK 根目录变量：`DART_ROOT`、`DART_SDK`、`FLUTTER_ROOT`、`FLUTTER_SDK`。
+- 如果只设置了 `FLUTTER_ROOT` 或 `FLUTTER_SDK`，Dart 命令会使用 Flutter 内置的 Dart SDK。
+- 如果都没有设置，则回退到 `PATH` 上的 `dart` 和 `flutter`。
+
 常见宿主配置方式：
 
 - Codex：
@@ -155,21 +162,22 @@ Locator 规则：
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   read-app \
   --app-json /tmp/app.json \
-  --profile minimal | jq '{currentRouteName,state}'
+  --profile minimal --stdout-format json | jq '{currentRouteName,state}'
 ```
 
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   validate-task \
-  --config-json /tmp/validate_task.json | jq '{classification,recommendedNextStep,validationFailures}'
+  --config-json /tmp/validate_task.json --stdout-format json | jq '{classification,recommendedNextStep,validationFailures}'
 
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   validate-task \
   --config-json /tmp/validate_task.json \
-  --output-json /tmp/validate_task_result.json
+  --output /tmp/validate_task_result.json \
+  --output-format json
 ```
 
-JSON 默认会以 compact 形式直接输出到 stdout，便于立刻接 `| jq`，也更省 token。只有结果太大不适合 stdout，或者后续步骤要重新打开整份结果时，才使用 `--output-json` 生成 pretty JSON 文件；只要请求体不再是几行以内，就优先使用 `--command-file`、`--commands-file`、`--config-json`，不要把长 JSON 直接内联进命令。
+默认 stdout 是完整 AI 语义渲染；需要立刻接 `jq` 时加 `--stdout-format json`。只有后续步骤要重新打开整份结果时，才使用 `--output <path>` 写入文件；需要结构化 JSON 文件时再加 `--output-format json`。只要请求体不再是几行以内，就优先使用 `--command-file`、`--commands-file`、`--config-json`，不要把长 JSON 直接内联进命令。
 
 ## MCP
 

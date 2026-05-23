@@ -72,6 +72,46 @@ void main() {
       expect(result.uiSummary, isNull);
     });
 
+    test('preserves externalized diagnostics artifact download metadata',
+        () async {
+      final service = CockpitReadRemoteSnapshotService(
+        readSnapshot: (_, __) async => CockpitRemoteSnapshotResponse(
+          snapshot: CockpitSnapshot(
+            routeName: '/forensic',
+            diagnosticLevel: CockpitSnapshotProfile.forensic,
+            diagnosticsArtifactRef: const CockpitArtifactRef(
+              role: 'diagnostics',
+              relativePath: 'diagnostics/remote_snapshot_debug.json',
+            ),
+          ),
+          artifactDownloads: const <CockpitRemoteArtifactDownload>[
+            CockpitRemoteArtifactDownload(
+              artifact: CockpitArtifactRef(
+                role: 'diagnostics',
+                relativePath: 'diagnostics/remote_snapshot_debug.json',
+              ),
+              downloadPath:
+                  '/artifacts/download?path=diagnostics%2Fremote_snapshot_debug.json',
+            ),
+          ],
+        ),
+      );
+
+      final result = await service.read(
+        CockpitReadRemoteSnapshotRequest(
+          sessionHandle: _sessionHandle(),
+          resultProfile: const CockpitInteractiveResultProfile.evidence(),
+        ),
+      );
+
+      expect(result.snapshot?.diagnosticsArtifactRef, isNotNull);
+      expect(result.artifactDownloads, hasLength(1));
+      expect(
+        result.toJson()['artifactDownloads'],
+        isA<List<Object?>>(),
+      );
+    });
+
     test('retries transient empty snapshots before returning', () async {
       var readCount = 0;
       final service = CockpitReadRemoteSnapshotService(

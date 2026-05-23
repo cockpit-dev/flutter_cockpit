@@ -1,10 +1,16 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
+import 'package:path/path.dart' as p;
 
 import '../application/cockpit_application_service_exception.dart';
+
+typedef CockpitRemoteArtifactTempFileFactory = Future<File> Function(
+  String basename,
+);
 
 final class CockpitRemoteSessionClient {
   CockpitRemoteSessionClient({
@@ -12,16 +18,23 @@ final class CockpitRemoteSessionClient {
     HttpClient Function()? httpClientFactory,
     Duration? requestTimeout,
     Duration? artifactDownloadTimeout,
+    CockpitRemoteArtifactTempFileFactory? artifactTempFileFactory,
+    bool downloadDiagnosticsArtifacts = false,
   })  : _baseUri = _normalizedBaseUri(baseUri),
         _httpClientFactory = httpClientFactory ?? HttpClient.new,
         _requestTimeout = requestTimeout ?? const Duration(seconds: 30),
         _artifactDownloadTimeout =
-            artifactDownloadTimeout ?? const Duration(seconds: 30);
+            artifactDownloadTimeout ?? const Duration(seconds: 30),
+        _artifactTempFileFactory =
+            artifactTempFileFactory ?? _defaultArtifactTempFileFactory,
+        _downloadDiagnosticsArtifacts = downloadDiagnosticsArtifacts;
 
   final Uri _baseUri;
   final HttpClient Function() _httpClientFactory;
   final Duration _requestTimeout;
   final Duration _artifactDownloadTimeout;
+  final CockpitRemoteArtifactTempFileFactory _artifactTempFileFactory;
+  final bool _downloadDiagnosticsArtifacts;
 
   Uri get baseUri => _baseUri;
 
@@ -32,12 +45,18 @@ final class CockpitRemoteSessionClient {
 
   Future<CockpitSnapshot> readSnapshot({
     CockpitSnapshotOptions options = const CockpitSnapshotOptions.live(),
+    bool? downloadDiagnosticsArtifacts,
   }) async {
-    return (await readSnapshotDetailed(options: options)).snapshot;
+    return (await readSnapshotDetailed(
+      options: options,
+      downloadDiagnosticsArtifacts: downloadDiagnosticsArtifacts,
+    ))
+        .snapshot;
   }
 
   Future<CockpitRemoteSnapshotResponse> readSnapshotDetailed({
     CockpitSnapshotOptions options = const CockpitSnapshotOptions.live(),
+    bool? downloadDiagnosticsArtifacts,
   }) async {
     final queryParameters = <String, String>{
       'profile': options.profile.jsonValue,
@@ -82,6 +101,9 @@ final class CockpitRemoteSessionClient {
     final response = CockpitRemoteSnapshotResponse.fromJson(payload);
     final diagnosticsArtifactRef = response.snapshot.diagnosticsArtifactRef;
     if (diagnosticsArtifactRef == null) {
+      return response;
+    }
+    if (!(downloadDiagnosticsArtifacts ?? _downloadDiagnosticsArtifacts)) {
       return response;
     }
     final download = response.artifactDownloads.firstWhere(
@@ -178,21 +200,24 @@ final class CockpitRemoteSessionClient {
     );
     final response = CockpitRemoteRecordingResponse.fromJson(payload);
     final artifact = response.result.artifact;
-    final download = artifact == null
-        ? null
-        : response.artifactDownloads.firstWhere(
-            (candidate) =>
-                candidate.artifact.relativePath == artifact.relativePath,
-            orElse: () => const CockpitRemoteArtifactDownload(
-              artifact: CockpitArtifactRef(role: '', relativePath: ''),
-              downloadPath: '',
-            ),
-          );
-    if (download == null || download.downloadPath.isEmpty) {
+    if (artifact == null) {
+      return response;
+    }
+    final download = response.artifactDownloads.firstWhere(
+      (candidate) => candidate.artifact.relativePath == artifact.relativePath,
+      orElse: () => const CockpitRemoteArtifactDownload(
+        artifact: CockpitArtifactRef(role: '', relativePath: ''),
+        downloadPath: '',
+      ),
+    );
+    if (download.downloadPath.isEmpty) {
       return response;
     }
 
-    final bytes = await _download(download.downloadPath);
+    final sourceFile = await _downloadToFile(
+      download.downloadPath,
+      artifactRelativePath: artifact.relativePath,
+    );
     return CockpitRemoteRecordingResponse(
       result: CockpitRecordingResult(
         state: response.result.state,
@@ -205,8 +230,7 @@ final class CockpitRemoteSessionClient {
         fallbackReason: response.result.fallbackReason,
         artifact: response.result.artifact,
         durationMs: response.result.durationMs,
-        bytes: bytes,
-        sourceFilePath: response.result.sourceFilePath,
+        sourceFilePath: sourceFile.path,
         failureReason: response.result.failureReason,
       ),
       artifactDownloads: response.artifactDownloads,
@@ -221,7 +245,7 @@ final class CockpitRemoteSessionClient {
     final client = _httpClientFactory();
     try {
       return await (() async {
-        final request = await client.openUrl(method, _baseUri.resolve(path));
+        final request = await client.openUrl(method, _resolveRemotePath(path));
         if (body != null) {
           request.headers.contentType = ContentType.json;
           request.write(jsonEncode(body));
@@ -230,8 +254,11 @@ final class CockpitRemoteSessionClient {
         final response = await request.close();
         final payload = await utf8.decoder.bind(response).join();
         if (response.statusCode < 200 || response.statusCode >= 300) {
-          throw StateError(
-            'Remote session request failed: ${response.statusCode} $payload',
+          throw _remoteHttpError(
+            statusCode: response.statusCode,
+            method: method,
+            path: path,
+            payload: payload,
           );
         }
         if (payload.isEmpty) {
@@ -280,21 +307,23 @@ final class CockpitRemoteSessionClient {
     final client = _httpClientFactory();
     try {
       return await (() async {
-        final request = await client.getUrl(_baseUri.resolve(relativePath));
+        final request = await client.getUrl(_resolveRemotePath(relativePath));
         final response = await request.close();
         if (response.statusCode < 200 || response.statusCode >= 300) {
           final payload = await utf8.decoder.bind(response).join();
-          throw StateError(
-            'Remote session artifact download failed: ${response.statusCode} $payload',
+          throw _remoteHttpError(
+            statusCode: response.statusCode,
+            method: 'GET',
+            path: relativePath,
+            payload: payload,
           );
         }
 
-        final bytes = await response.fold<List<int>>(<int>[], (bytes, chunk) {
-          final combined = List<int>.of(bytes);
-          combined.addAll(chunk);
-          return combined;
-        });
-        return bytes;
+        final bytes = BytesBuilder(copy: false);
+        await for (final chunk in response) {
+          bytes.add(chunk);
+        }
+        return bytes.takeBytes();
       })()
           .timeout(
         _artifactDownloadTimeout,
@@ -328,6 +357,94 @@ final class CockpitRemoteSessionClient {
     }
   }
 
+  Future<File> _downloadToFile(
+    String relativePath, {
+    required String artifactRelativePath,
+  }) async {
+    final client = _httpClientFactory();
+    File? outputFile;
+    try {
+      return await (() async {
+        final request = await client.getUrl(_resolveRemotePath(relativePath));
+        final response = await request.close();
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          final payload = await utf8.decoder.bind(response).join();
+          throw _remoteHttpError(
+            statusCode: response.statusCode,
+            method: 'GET',
+            path: relativePath,
+            payload: payload,
+          );
+        }
+
+        outputFile = await _artifactTempFileFactory(
+          _sanitizeArtifactBasename(artifactRelativePath),
+        );
+        await outputFile!.parent.create(recursive: true);
+        if (await outputFile!.exists()) {
+          await outputFile!.delete();
+        }
+
+        final sink = outputFile!.openWrite();
+        try {
+          await response.pipe(sink);
+        } catch (_) {
+          await sink.close();
+          rethrow;
+        }
+        return outputFile!;
+      })()
+          .timeout(
+        _artifactDownloadTimeout,
+        onTimeout: () {
+          client.close(force: true);
+          throw TimeoutException(
+            'Remote session artifact download timed out for $relativePath.',
+          );
+        },
+      );
+    } on SocketException catch (error) {
+      await _deletePartialDownload(outputFile);
+      throw _remoteUnavailable(
+        method: 'GET',
+        path: relativePath,
+        error: error,
+      );
+    } on HttpException catch (error) {
+      await _deletePartialDownload(outputFile);
+      throw _remoteUnavailable(
+        method: 'GET',
+        path: relativePath,
+        error: error,
+      );
+    } on TimeoutException catch (error) {
+      await _deletePartialDownload(outputFile);
+      throw _remoteUnavailable(
+        method: 'GET',
+        path: relativePath,
+        error: error,
+      );
+    } catch (_) {
+      await _deletePartialDownload(outputFile);
+      rethrow;
+    } finally {
+      client.close(force: true);
+    }
+  }
+
+  Future<void> _deletePartialDownload(File? file) async {
+    if (file == null) {
+      return;
+    }
+    try {
+      if (await file.exists()) {
+        await file.delete();
+      }
+    } on Object {
+      // The caller already has the actionable transport or parse failure.
+    }
+  }
+
   CockpitApplicationServiceException _remoteUnavailable({
     required String method,
     required String path,
@@ -347,6 +464,58 @@ final class CockpitRemoteSessionClient {
     );
   }
 
+  CockpitApplicationServiceException _remoteHttpError({
+    required int statusCode,
+    required String method,
+    required String path,
+    required String payload,
+  }) {
+    final parsed = _structuredRemoteError(payload);
+    return CockpitApplicationServiceException(
+      code: parsed.code,
+      message: parsed.message,
+      details: <String, Object?>{
+        'baseUrl': _baseUri.toString(),
+        'method': method,
+        'path': path,
+        'statusCode': statusCode,
+        if (parsed.remoteDetails.isNotEmpty)
+          'remoteDetails': parsed.remoteDetails,
+        if (parsed.code == 'remoteHttpError' && payload.isNotEmpty)
+          'body': payload,
+      },
+    );
+  }
+
+  _StructuredRemoteError _structuredRemoteError(String payload) {
+    try {
+      final decoded = jsonDecode(payload);
+      if (decoded is! Map<Object?, Object?>) {
+        return _StructuredRemoteError(
+          code: 'remoteHttpError',
+          message: 'Remote session request failed.',
+        );
+      }
+      final error = decoded['error'];
+      final message = decoded['message'];
+      final details = decoded['details'];
+      return _StructuredRemoteError(
+        code: error is String && error.isNotEmpty ? error : 'remoteHttpError',
+        message: message is String && message.isNotEmpty
+            ? message
+            : 'Remote session request failed.',
+        remoteDetails: details is Map<Object?, Object?>
+            ? Map<String, Object?>.from(details)
+            : const <String, Object?>{},
+      );
+    } on FormatException {
+      return _StructuredRemoteError(
+        code: 'remoteHttpError',
+        message: 'Remote session request failed.',
+      );
+    }
+  }
+
   static Uri _normalizedBaseUri(Uri uri) {
     return uri.path.isEmpty
         ? uri.replace(path: '/')
@@ -354,4 +523,86 @@ final class CockpitRemoteSessionClient {
             ? uri
             : uri.replace(path: '${uri.path}/');
   }
+
+  Uri _resolveRemotePath(String path) {
+    final uri = Uri.parse(path);
+    if (uri.hasScheme) {
+      _validateRemoteUri(uri, originalPath: path);
+      return uri;
+    }
+    if (!path.startsWith('/')) {
+      return _baseUri.resolve(path);
+    }
+
+    final basePath = _baseUri.path.endsWith('/') && _baseUri.path.length > 1
+        ? _baseUri.path.substring(0, _baseUri.path.length - 1)
+        : _baseUri.path;
+    final alreadyScoped = basePath.isNotEmpty &&
+        basePath != '/' &&
+        (uri.path == basePath || uri.path.startsWith('$basePath/'));
+    if (alreadyScoped || basePath.isEmpty || basePath == '/') {
+      return _baseUri.replace(
+        path: uri.path,
+        query: uri.hasQuery ? uri.query : null,
+        fragment: uri.hasFragment ? uri.fragment : null,
+      );
+    }
+
+    return _baseUri.resolve(path.substring(1));
+  }
+
+  void _validateRemoteUri(Uri uri, {required String originalPath}) {
+    final basePort = _effectivePort(_baseUri);
+    final uriPort = _effectivePort(uri);
+    if (uri.scheme == _baseUri.scheme &&
+        uri.host == _baseUri.host &&
+        uriPort == basePort) {
+      return;
+    }
+    throw CockpitApplicationServiceException(
+      code: 'invalidArtifactUrl',
+      message:
+          'Remote artifact downloads must stay on the same remote session origin.',
+      details: <String, Object?>{
+        'baseUrl': _baseUri.toString(),
+        'path': originalPath,
+      },
+    );
+  }
+
+  int _effectivePort(Uri uri) {
+    if (uri.hasPort) {
+      return uri.port;
+    }
+    return switch (uri.scheme) {
+      'http' => 80,
+      'https' => 443,
+      _ => 0,
+    };
+  }
+}
+
+final class _StructuredRemoteError {
+  const _StructuredRemoteError({
+    required this.code,
+    required this.message,
+    this.remoteDetails = const <String, Object?>{},
+  });
+
+  final String code;
+  final String message;
+  final Map<String, Object?> remoteDetails;
+}
+
+Future<File> _defaultArtifactTempFileFactory(String basename) async {
+  final directory = await Directory.systemTemp.createTemp(
+    'flutter_cockpit_remote_artifact_',
+  );
+  return File(p.join(directory.path, basename));
+}
+
+String _sanitizeArtifactBasename(String relativePath) {
+  final basename = p.basename(relativePath);
+  final sanitized = basename.replaceAll(RegExp(r'[^A-Za-z0-9._-]+'), '_');
+  return sanitized.isEmpty ? 'artifact.bin' : sanitized;
 }

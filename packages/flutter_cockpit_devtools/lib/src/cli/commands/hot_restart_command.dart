@@ -17,15 +17,10 @@ final class HotRestartCommand extends CockpitCliCommand {
     StringSink? stdoutSink,
   })  : _restart = restart ?? (service ?? CockpitHotRestartService()).restart,
         _stdoutSink = stdoutSink ?? stdout {
-    argParser
-      ..addOption(
-        'app-json',
-        help: cockpitAppJsonOptionHelp,
-      )
-      ..addOption(
-        'output-json',
-        help: cockpitPrettyOutputJsonOptionHelp,
-      );
+    argParser.addOption(
+      'app-json',
+      help: cockpitAppJsonOptionHelp,
+    );
   }
 
   final CockpitHotRestartFunction _restart;
@@ -53,7 +48,7 @@ final class HotRestartCommand extends CockpitCliCommand {
 
   @override
   String get helpExample =>
-      'flutter_cockpit_devtools hot-restart --app-json /tmp/app.json | jq \'{reloadGeneration: .status.reloadGeneration, lastReloadSucceeded: .status.lastReloadSucceeded, lastReloadMode: .status.lastReloadMode}\'';
+      'flutter_cockpit_devtools hot-restart --app-json /tmp/app.json --stdout-format json | jq \'{reloadGeneration: .status.reloadGeneration, lastReloadSucceeded: .status.lastReloadSucceeded, lastReloadMode: .status.lastReloadMode}\'';
 
   @override
   String get helpWrites =>

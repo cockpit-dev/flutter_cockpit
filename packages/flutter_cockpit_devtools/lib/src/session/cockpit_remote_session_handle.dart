@@ -1,5 +1,7 @@
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
+const Object _cockpitUnsetRemoteSessionHandleField = Object();
+
 final class CockpitRemoteSessionHandle {
   const CockpitRemoteSessionHandle({
     required this.platform,
@@ -76,6 +78,43 @@ final class CockpitRemoteSessionHandle {
       devicePort: json['devicePort']! as int,
       baseUrl: json['baseUrl']! as String,
       launchedAt: DateTime.parse(json['launchedAt']! as String).toUtc(),
+    );
+  }
+
+  CockpitRemoteSessionHandle copyWith({
+    String? platform,
+    String? deviceId,
+    String? projectDir,
+    String? target,
+    String? appId,
+    Object? platformAppId = _cockpitUnsetRemoteSessionHandleField,
+    bool? platformAppIdKnown,
+    Object? processId = _cockpitUnsetRemoteSessionHandleField,
+    String? host,
+    int? hostPort,
+    int? devicePort,
+    String? baseUrl,
+    DateTime? launchedAt,
+  }) {
+    return CockpitRemoteSessionHandle(
+      platform: platform ?? this.platform,
+      deviceId: deviceId ?? this.deviceId,
+      projectDir: projectDir ?? this.projectDir,
+      target: target ?? this.target,
+      appId: appId ?? this.appId,
+      platformAppId:
+          identical(platformAppId, _cockpitUnsetRemoteSessionHandleField)
+              ? this.platformAppId
+              : platformAppId as String?,
+      platformAppIdKnown: platformAppIdKnown ?? this.platformAppIdKnown,
+      processId: identical(processId, _cockpitUnsetRemoteSessionHandleField)
+          ? this.processId
+          : processId as int?,
+      host: host ?? this.host,
+      hostPort: hostPort ?? this.hostPort,
+      devicePort: devicePort ?? this.devicePort,
+      baseUrl: baseUrl ?? this.baseUrl,
+      launchedAt: launchedAt ?? this.launchedAt,
     );
   }
 

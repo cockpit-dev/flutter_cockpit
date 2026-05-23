@@ -14,16 +14,10 @@ final class ValidateTaskCommand extends CockpitCliCommand {
     StringSink? stdoutSink,
   })  : _service = service ?? CockpitValidateTaskService(),
         _stdoutSink = stdoutSink ?? stdout {
-    argParser
-      ..addOption(
-        'config-json',
-        help: 'Path to a JSON validate-task configuration file.',
-      )
-      ..addOption(
-        'output-json',
-        help:
-            'Optional file path where the validate-task result JSON should be written.',
-      );
+    argParser.addOption(
+      'config-json',
+      help: 'Path to a JSON validate-task configuration file.',
+    );
   }
 
   final CockpitValidateTaskService _service;
@@ -52,7 +46,7 @@ final class ValidateTaskCommand extends CockpitCliCommand {
 
   @override
   String get helpExample =>
-      'flutter_cockpit_devtools validate-task --config-json /tmp/validate_task.json | jq \'{classification,recommendedNextStep,validationFailures}\'';
+      'flutter_cockpit_devtools validate-task --config-json /tmp/validate_task.json --stdout-format json | jq \'{classification,recommendedNextStep,validationFailures}\'';
 
   @override
   String get helpWrites =>

@@ -41,7 +41,6 @@ final class AnalyzeFilesCommand extends CockpitCliCommand {
         defaultsTo: '120',
         help: 'Time budget for focused analysis.',
       );
-    cockpitAddWorkspaceOutputJsonOption(argParser);
   }
 
   final CockpitAnalyzeFilesFunction _analyze;
@@ -86,18 +85,18 @@ final class AnalyzeFilesCommand extends CockpitCliCommand {
       CockpitAnalyzeFilesRequest(
         workspaceRoot: cockpitReadWorkspaceRoot(argResults),
         paths: paths,
-        maxDiagnostics: cockpitReadRequiredIntOption(
+        maxDiagnostics: cockpitReadRequiredPositiveIntOption(
           argResults,
           'max-diagnostics',
           usage,
         ),
-        maxOutputChars: cockpitReadRequiredIntOption(
+        maxOutputChars: cockpitReadRequiredPositiveIntOption(
           argResults,
           'max-output-chars',
           usage,
         ),
         timeout: Duration(
-          seconds: cockpitReadRequiredIntOption(
+          seconds: cockpitReadRequiredPositiveIntOption(
             argResults,
             'timeout-seconds',
             usage,

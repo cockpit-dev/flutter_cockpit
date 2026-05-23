@@ -59,6 +59,7 @@ final class CockpitExecuteRemoteCommandResult {
     this.runtimeSteps = const <Map<String, Object?>>[],
     this.delta,
     this.snapshotRef,
+    this.artifactDownloads = const <CockpitRemoteArtifactDownload>[],
     this.sessionHandle,
     this.effectiveSnapshotOptions,
   });
@@ -76,6 +77,7 @@ final class CockpitExecuteRemoteCommandResult {
   final List<Map<String, Object?>> runtimeSteps;
   final CockpitInteractiveSnapshotDelta? delta;
   final String? snapshotRef;
+  final List<CockpitRemoteArtifactDownload> artifactDownloads;
   final CockpitRemoteSessionHandle? sessionHandle;
   final CockpitSnapshotOptions? effectiveSnapshotOptions;
 
@@ -94,6 +96,10 @@ final class CockpitExecuteRemoteCommandResult {
         'runtimeSteps': runtimeSteps,
         if (delta != null) 'delta': delta!.toJson(),
         if (snapshotRef != null) 'snapshotRef': snapshotRef,
+        if (artifactDownloads.isNotEmpty)
+          'artifactDownloads': artifactDownloads
+              .map((download) => download.toJson())
+              .toList(growable: false),
         if (sessionHandle != null) 'sessionHandle': sessionHandle!.toJson(),
         if (effectiveSnapshotOptions != null)
           'effectiveSnapshotOptions': effectiveSnapshotOptions!.toJson(),
@@ -158,14 +164,14 @@ final class CockpitExecuteRemoteCommandService {
                   request.snapshotOptions ?? effectiveCommand.snapshotOptions,
                 )
               : null;
-      final snapshot = effectiveSnapshotOptions == null
+      final snapshotResponse = effectiveSnapshotOptions == null
           ? null
-          : (await cockpitReadRemoteSnapshotConsistently(
+          : await cockpitReadRemoteSnapshotConsistently(
               baseUri: resolved.baseUri,
               options: effectiveSnapshotOptions,
               readSnapshot: _readSnapshot,
-            ))
-              .snapshot;
+            );
+      final snapshot = snapshotResponse?.snapshot;
       final baseline = request.compareAgainstSnapshotRef == null
           ? null
           : _snapshotStore.read(
@@ -210,6 +216,8 @@ final class CockpitExecuteRemoteCommandService {
             ? null
             : cockpitInteractiveDiffSnapshots(baseline.snapshot, snapshot),
         snapshotRef: snapshotRef,
+        artifactDownloads: snapshotResponse?.artifactDownloads ??
+            const <CockpitRemoteArtifactDownload>[],
         sessionHandle: resolved.sessionHandle,
         effectiveSnapshotOptions: effectiveSnapshotOptions,
       );

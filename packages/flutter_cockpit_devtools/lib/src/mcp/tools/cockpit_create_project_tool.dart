@@ -81,7 +81,11 @@ final class CockpitCreateProjectTool extends CockpitMcpTool {
           platforms: cockpitReadOptionalStringList(arguments, 'platforms'),
           allowedRoots: cockpitAllowedWorkspaceRootPaths(_rootsTracker),
           timeout: Duration(
-            seconds: cockpitReadOptionalInt(arguments, 'timeoutSeconds') ?? 300,
+            seconds: cockpitReadOptionalPositiveInt(
+                  arguments,
+                  'timeoutSeconds',
+                ) ??
+                300,
           ),
         ),
       );

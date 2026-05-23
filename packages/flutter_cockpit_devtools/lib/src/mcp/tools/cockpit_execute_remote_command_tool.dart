@@ -71,8 +71,11 @@ final class CockpitExecuteRemoteCommandTool extends CockpitMcpTool {
             cockpitReadRequiredObject(arguments, 'command'),
           ),
           defaultCommandTimeout: Duration(
-            milliseconds:
-                cockpitReadOptionalInt(arguments, 'timeoutMs') ?? 30000,
+            milliseconds: cockpitReadOptionalPositiveInt(
+                  arguments,
+                  'timeoutMs',
+                ) ??
+                30000,
           ),
           resultProfile: _readProfile(arguments),
           snapshotOptions: _readOptionalSnapshotOptions(arguments),

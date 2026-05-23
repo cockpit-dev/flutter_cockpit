@@ -19,6 +19,7 @@ final class CockpitCollectRemoteSnapshotRequest {
     this.sessionHandlePath,
     this.androidDeviceId,
     this.options = const CockpitSnapshotOptions.live(),
+    this.downloadDiagnosticsArtifacts = false,
   });
 
   final Uri? baseUri;
@@ -26,6 +27,7 @@ final class CockpitCollectRemoteSnapshotRequest {
   final String? sessionHandlePath;
   final String? androidDeviceId;
   final CockpitSnapshotOptions options;
+  final bool downloadDiagnosticsArtifacts;
 }
 
 final class CockpitCollectRemoteSnapshotResult {
@@ -53,14 +55,11 @@ final class CockpitCollectRemoteSnapshotService {
   CockpitCollectRemoteSnapshotService({
     CockpitRemoteSnapshotReader? snapshotReader,
     CockpitSessionReferenceResolver? sessionReferenceResolver,
-  })  : _snapshotReader = snapshotReader ??
-            ((baseUri, options) => CockpitRemoteSessionClient(
-                  baseUri: baseUri,
-                ).readSnapshotDetailed(options: options)),
+  })  : _snapshotReader = snapshotReader,
         _sessionReferenceResolver =
             sessionReferenceResolver ?? CockpitSessionReferenceResolver();
 
-  final CockpitRemoteSnapshotReader _snapshotReader;
+  final CockpitRemoteSnapshotReader? _snapshotReader;
   final CockpitSessionReferenceResolver _sessionReferenceResolver;
 
   Future<CockpitCollectRemoteSnapshotResult> collect(
@@ -73,13 +72,32 @@ final class CockpitCollectRemoteSnapshotService {
       androidDeviceId: request.androidDeviceId,
     );
     final effectiveOptions = _normalizeOptions(request.options);
-    final response = await _snapshotReader(resolved.baseUri, effectiveOptions);
+    final response = await _readSnapshot(
+      resolved.baseUri,
+      effectiveOptions,
+      downloadDiagnosticsArtifacts: request.downloadDiagnosticsArtifacts,
+    );
 
     return CockpitCollectRemoteSnapshotResult(
       snapshot: response.snapshot,
       effectiveOptions: effectiveOptions,
       sessionHandle: resolved.sessionHandle,
     );
+  }
+
+  Future<CockpitRemoteSnapshotResponse> _readSnapshot(
+    Uri baseUri,
+    CockpitSnapshotOptions options, {
+    required bool downloadDiagnosticsArtifacts,
+  }) {
+    final reader = _snapshotReader;
+    if (reader != null) {
+      return reader(baseUri, options);
+    }
+    return CockpitRemoteSessionClient(
+      baseUri: baseUri,
+      downloadDiagnosticsArtifacts: downloadDiagnosticsArtifacts,
+    ).readSnapshotDetailed(options: options);
   }
 
   CockpitSnapshotOptions _normalizeOptions(CockpitSnapshotOptions options) {

@@ -5,7 +5,7 @@ import 'dart:io';
 import '../model/cockpit_environment.dart';
 
 const String _flutterCockpitFlutterVersionFromEnvironment =
-    String.fromEnvironment('FLUTTER_PILOT_FLUTTER_VERSION');
+    String.fromEnvironment('FLUTTER_COCKPIT_FLUTTER_VERSION');
 
 CockpitEnvironment? resolveCockpitRuntimeEnvironment({
   required String platform,

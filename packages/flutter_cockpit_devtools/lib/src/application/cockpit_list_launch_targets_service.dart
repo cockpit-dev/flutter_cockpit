@@ -52,7 +52,7 @@ final class CockpitListLaunchTargetsService {
     CockpitSdkEnvironment? sdkEnvironment,
     this.defaultTimeout = const Duration(seconds: 20),
   })  : _processManager = processManager ?? const LocalCockpitProcessManager(),
-        _sdkEnvironment = sdkEnvironment ?? const CockpitSdkEnvironment();
+        _sdkEnvironment = sdkEnvironment ?? CockpitSdkEnvironment.current();
 
   final CockpitProcessManager _processManager;
   final CockpitSdkEnvironment _sdkEnvironment;

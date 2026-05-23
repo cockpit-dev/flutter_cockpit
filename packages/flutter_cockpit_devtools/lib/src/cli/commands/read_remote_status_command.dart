@@ -1,10 +1,9 @@
 import 'dart:io';
 import 'dart:convert';
 
-import 'package:args/command_runner.dart';
-
 import '../../application/cockpit_interactive_result_profile.dart';
 import '../../application/cockpit_read_remote_status_service.dart';
+import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
@@ -13,7 +12,7 @@ typedef CockpitReadRemoteStatusFunction = Future<CockpitReadRemoteStatusResult>
   CockpitReadRemoteStatusRequest request,
 );
 
-final class ReadRemoteStatusCommand extends Command<int> {
+final class ReadRemoteStatusCommand extends CockpitCliCommand {
   ReadRemoteStatusCommand({
     CockpitReadRemoteStatusService? service,
     CockpitReadRemoteStatusFunction? read,
@@ -38,12 +37,34 @@ final class ReadRemoteStatusCommand extends Command<int> {
       'Read lightweight remote session status with optional richer snapshot layering.';
 
   @override
+  String get summary => 'Read remote status.';
+
+  @override
+  String get category => CockpitCliCategory.coreLoop;
+
+  @override
+  String get helpWhen =>
+      'Use before or after a remote command when minimal health and route context is enough.';
+
+  @override
+  String get helpNeeds =>
+      'Either --session-json or --base-url. Keep --profile minimal unless you need more detail.';
+
+  @override
+  String get helpExample =>
+      'flutter_cockpit_devtools read-remote-status --session-json /tmp/session.json --profile minimal';
+
+  @override
+  String get helpWrites =>
+      'Layered status JSON with compact capability, route, and optional snapshot details.';
+
+  @override
   Future<int> run() async {
     cockpitRequireRemoteSessionReference(argResults, usage);
     final result = await _read(
       CockpitReadRemoteStatusRequest(
         baseUri: cockpitReadOptionalBaseUri(argResults),
-        sessionHandlePath: argResults?['session-json'] as String?,
+        sessionHandlePath: cockpitResolveRemoteSessionHandlePath(argResults),
         androidDeviceId: argResults?['android-device-id'] as String?,
         resultProfile: cockpitReadResultProfile(
           argResults,

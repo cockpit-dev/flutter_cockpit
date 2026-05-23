@@ -2,9 +2,10 @@ import 'package:flutter_cockpit/flutter_cockpit.dart';
 
 import 'cockpit_app_handle.dart';
 import 'cockpit_app_reference_resolver.dart';
-import 'cockpit_interactive_result_data.dart';
+import 'cockpit_recording_evidence.dart';
 import '../recording/cockpit_recording_strategy_resolver.dart';
 import '../remote/cockpit_remote_session_client.dart';
+import '../session/cockpit_remote_session_handle.dart';
 import 'cockpit_session_registry.dart';
 import 'cockpit_stop_remote_recording_service.dart';
 
@@ -82,20 +83,27 @@ final class CockpitStopRecordingService {
       );
       final adapter = resolution?.adapter;
       if (adapter != null) {
-        return _toStopResult(await adapter.stopRecording());
+        return _toStopResult(
+          await adapter.stopRecording(),
+          sessionHandle: resolved.app?.remoteSession,
+        );
       }
     }
     return _stopService.stop(
-      CockpitStopRemoteRecordingRequest(baseUri: resolved.baseUri),
+      CockpitStopRemoteRecordingRequest(
+        baseUri: resolved.baseUri,
+        sessionHandle: resolved.app?.remoteSession,
+      ),
     );
   }
 
   CockpitStopRecordingResult _toStopResult(
-    CockpitRecordingResult recordingResult,
-  ) {
-    final artifactRef = recordingResult.artifact;
+    CockpitRecordingResult recordingResult, {
+    required CockpitRemoteSessionHandle? sessionHandle,
+  }) {
+    final evidence = cockpitAssessRecordingEvidence(recordingResult);
     return CockpitStopRecordingResult(
-      state: recordingResult.state,
+      state: evidence.state,
       purpose: recordingResult.purpose,
       recordingKind: recordingResult.recordingKind,
       requestedMode: recordingResult.requestedMode,
@@ -103,16 +111,10 @@ final class CockpitStopRecordingService {
       effectiveLayer: recordingResult.effectiveLayer,
       fallbackUsed: recordingResult.fallbackUsed,
       fallbackReason: recordingResult.fallbackReason,
-      artifact: artifactRef == null
-          ? null
-          : CockpitInteractiveArtifactDescriptor(
-              role: artifactRef.role,
-              relativePath: artifactRef.relativePath,
-              byteLength: recordingResult.bytes?.length,
-              sourcePath: recordingResult.sourceFilePath,
-            ),
+      artifact: evidence.artifact,
       durationMs: recordingResult.durationMs,
-      failureReason: recordingResult.failureReason,
+      failureReason: evidence.failureReason,
+      sessionHandle: sessionHandle,
     );
   }
 

@@ -76,7 +76,7 @@ final class CockpitLaunchTargetTool extends CockpitMcpTool {
           flavor: cockpitReadOptionalString(arguments, 'flavor'),
           platform: platform,
           deviceId: _readDeviceId(arguments, platform),
-          sessionPort: cockpitReadRequiredInt(arguments, 'sessionPort'),
+          sessionPort: cockpitReadRequiredPort(arguments, 'sessionPort'),
           targetKind: CockpitTargetKind.fromJson(
             cockpitReadOptionalString(arguments, 'targetKind') ??
                 CockpitTargetKind.flutterApp.name,
@@ -85,9 +85,11 @@ final class CockpitLaunchTargetTool extends CockpitMcpTool {
             cockpitReadOptionalString(arguments, 'mode') ?? 'development',
           ),
           launchTimeout: Duration(
-            seconds:
-                cockpitReadOptionalInt(arguments, 'launchTimeoutSeconds') ??
-                    120,
+            seconds: cockpitReadOptionalPositiveInt(
+                  arguments,
+                  'launchTimeoutSeconds',
+                ) ??
+                120,
           ),
           targetHandlePath: cockpitReadOptionalString(arguments, 'targetJson'),
         ),

@@ -27,6 +27,16 @@ final class CockpitMcpToolDefinition implements CockpitMcpFeatureDescriptor {
   Map<String, Object?> toDescriptor() => <String, Object?>{
         'name': name,
         'description': description,
-        'inputSchema': inputSchema,
+        'inputSchema': cockpitNormalizeMcpInputSchema(inputSchema),
       };
+}
+
+Map<String, Object?> cockpitNormalizeMcpInputSchema(
+  Map<String, Object?> schema,
+) {
+  final normalized = Map<String, Object?>.from(schema);
+  if (normalized['type'] == 'object' && normalized['properties'] == null) {
+    normalized['properties'] = const <String, Object?>{};
+  }
+  return normalized;
 }

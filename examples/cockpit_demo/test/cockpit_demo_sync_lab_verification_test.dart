@@ -30,7 +30,7 @@ void main() {
       taskTitle: 'Cockpit demo sync conflict 42',
     );
 
-    expect(commands, hasLength(6));
+    expect(commands, hasLength(7));
     expect(commands[0]['commandId'], 'verify-open-editor');
     expect(commands[0]['commandType'], 'tap');
     expect(
@@ -97,6 +97,13 @@ void main() {
         'text': 'Save task',
         'ancestor': <String, Object?>{'route': '/editor'},
       },
+    );
+    expect(commands[6]['commandId'], 'verify-wait-for-inbox-route-after-save');
+    expect(commands[6]['commandType'], 'waitFor');
+    expect(commands[6]['timeoutMs'], 12000);
+    expect(
+      commands[6]['parameters'],
+      <String, Object?>{'routeName': '/inbox'},
     );
   });
 

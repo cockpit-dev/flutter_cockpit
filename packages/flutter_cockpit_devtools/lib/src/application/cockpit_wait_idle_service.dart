@@ -50,6 +50,7 @@ final class CockpitWaitIdleService {
     return _waitService.wait(
       CockpitWaitRemoteUiIdleRequest(
         baseUri: resolved.baseUri,
+        sessionHandle: resolved.app?.remoteSession,
         quietWindow: request.quietWindow,
         timeout: request.timeout,
         includeNetworkIdle: request.includeNetworkIdle,

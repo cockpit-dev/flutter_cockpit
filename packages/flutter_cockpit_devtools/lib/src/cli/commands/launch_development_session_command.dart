@@ -2,16 +2,17 @@ import 'dart:io';
 
 import 'package:args/command_runner.dart';
 
-import '../../application/cockpit_compact_json.dart';
 import '../../application/cockpit_launch_development_session_service.dart';
+import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
+import '../cockpit_interactive_cli_support.dart';
 
 typedef CockpitLaunchDevelopmentSessionFunction
     = Future<CockpitLaunchDevelopmentSessionResult> Function(
   CockpitLaunchDevelopmentSessionRequest request,
 );
 
-final class LaunchDevelopmentSessionCommand extends Command<int> {
+final class LaunchDevelopmentSessionCommand extends CockpitCliCommand {
   LaunchDevelopmentSessionCommand({
     CockpitLaunchDevelopmentSessionService? service,
     CockpitLaunchDevelopmentSessionFunction? launch,
@@ -37,8 +38,14 @@ final class LaunchDevelopmentSessionCommand extends Command<int> {
         ],
         help: 'Target platform for the development session.',
       )
-      ..addOption('android-device-id')
-      ..addOption('ios-device-id')
+      ..addOption(
+        'android-device-id',
+        help: 'Android emulator or device ID for bootstrap.',
+      )
+      ..addOption(
+        'ios-device-id',
+        help: 'iOS Simulator device ID for bootstrap.',
+      )
       ..addOption(
         'session-port',
         defaultsTo: '47331',
@@ -51,9 +58,9 @@ final class LaunchDevelopmentSessionCommand extends Command<int> {
             'Maximum time to wait for the development session to become ready.',
       )
       ..addOption(
-        'output-json',
+        'session-json',
         help:
-            'Optional path where the development session handle JSON is written.',
+            'Optional path where the reusable development session handle JSON should be written.',
       );
   }
 
@@ -68,28 +75,75 @@ final class LaunchDevelopmentSessionCommand extends Command<int> {
       'Launch a long-lived Flutter development session that supports hot reload, probes, and final validation.';
 
   @override
+  String get summary => 'Launch development session.';
+
+  @override
+  String get category => CockpitCliCategory.coreLoop;
+
+  @override
+  String get helpWhen =>
+      'Use for longer edit-reload-probe loops where a persistent supervisor saves setup time.';
+
+  @override
+  String get helpNeeds =>
+      'project-dir defaults to the current directory and platform defaults to the host desktop platform when available. Pass --platform plus the required mobile device ID for android or ios.';
+
+  @override
+  String get helpExample =>
+      'flutter_cockpit_devtools launch-development-session --platform ios --ios-device-id <simulator-id>';
+
+  @override
+  String get helpWrites =>
+      'The command result. Use --session-json for the reusable handle, --output for the full result file, or --stdout-format json for jq.';
+
+  @override
   Future<int> run() async {
-    final platform = _readRequiredOption('platform');
+    final platform = cockpitReadLaunchPlatform(
+      argResults,
+      usage,
+      allowedPlatforms: const <String>{
+        'android',
+        'ios',
+        'macos',
+        'windows',
+        'linux',
+      },
+    );
     final result = await _launch(
       CockpitLaunchDevelopmentSessionRequest(
-        projectDir: _readRequiredOption('project-dir'),
+        projectDir: cockpitReadProjectDirOption(argResults),
         target: _readOptionalOption('target'),
         platform: platform,
         deviceId: _resolveDeviceId(platform),
-        sessionPort: int.parse(_readRequiredOption('session-port')),
-        launchTimeout: Duration(
-          seconds: int.parse(_readRequiredOption('launch-timeout-seconds')),
+        sessionPort: cockpitReadRequiredPortOption(
+          argResults,
+          'session-port',
+          usage,
         ),
-        persistHandlePath: _readOptionalOption('output-json'),
+        launchTimeout: Duration(
+          seconds: cockpitReadOptionalPositiveInt(
+                argResults,
+                'launch-timeout-seconds',
+                usage,
+              ) ??
+              120,
+        ),
+        persistHandlePath: _readOptionalOption('session-json') ??
+            cockpitDefaultDevelopmentSessionHandlePath(),
       ),
     );
 
-    _stdoutSink.writeln(
-      cockpitCompactJsonText(<String, Object?>{
+    await cockpitWriteJsonPayload(
+      payload: <String, Object?>{
         'sessionHandle': result.sessionHandle.toJson(),
         'status': result.status.toJson(),
-        'persistedHandlePath': result.persistedHandlePath,
-      }),
+        if (result.persistedHandlePath != null)
+          'persistedHandlePath': result.persistedHandlePath,
+        if (result.supervisorLogPath != null)
+          'supervisorLogPath': result.supervisorLogPath,
+      },
+      argResults: argResults,
+      stdoutSink: _stdoutSink,
     );
     return cockpitSuccessExitCode;
   }
@@ -114,14 +168,6 @@ final class LaunchDevelopmentSessionCommand extends Command<int> {
         ),
       _ => throw UsageException('Unsupported platform: $platform', usage),
     };
-  }
-
-  String _readRequiredOption(String name) {
-    final value = argResults?[name] as String?;
-    if (value == null || value.isEmpty) {
-      throw UsageException('--$name is required.', usage);
-    }
-    return value;
   }
 
   String? _readOptionalOption(String name) {

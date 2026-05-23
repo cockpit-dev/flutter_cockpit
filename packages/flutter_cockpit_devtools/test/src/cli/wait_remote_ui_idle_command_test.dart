@@ -28,6 +28,8 @@ void main() {
 
     final exitCode = await runner.run(<String>[
           'wait-remote-ui-idle',
+          '--stdout-format',
+          'json',
           '--base-url',
           'http://127.0.0.1:47331',
           '--quiet-window-ms',

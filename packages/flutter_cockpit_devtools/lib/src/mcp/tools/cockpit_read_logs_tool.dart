@@ -27,6 +27,8 @@ final class CockpitReadLogsTool extends CockpitMcpTool {
         'properties': <String, Object?>{
           'appId': <String, Object?>{'type': 'string'},
           'appJson': <String, Object?>{'type': 'string'},
+          'baseUrl': <String, Object?>{'type': 'string'},
+          'androidDeviceId': <String, Object?>{'type': 'string'},
           'maxLines': <String, Object?>{'type': 'integer'},
         },
       };
@@ -36,12 +38,14 @@ final class CockpitReadLogsTool extends CockpitMcpTool {
     try {
       final appId = cockpitReadOptionalString(arguments, 'appId');
       final appHandlePath = cockpitReadOptionalString(arguments, 'appJson');
+      final baseUri = _readOptionalBaseUri(arguments);
       if ((appId == null || appId.isEmpty) &&
-          (appHandlePath == null || appHandlePath.isEmpty)) {
+          (appHandlePath == null || appHandlePath.isEmpty) &&
+          baseUri == null) {
         throw CockpitMcpError.invalidArguments(
-          'Either appId or appJson is required.',
+          'Either appId, appJson, or baseUrl is required.',
           details: const <String, Object?>{
-            'arguments': <String>['appId', 'appJson'],
+            'arguments': <String>['appId', 'appJson', 'baseUrl'],
           },
         );
       }
@@ -49,7 +53,13 @@ final class CockpitReadLogsTool extends CockpitMcpTool {
         CockpitReadLogsRequest(
           appId: appId,
           appHandlePath: appHandlePath,
-          maxLines: cockpitReadOptionalInt(arguments, 'maxLines') ?? 200,
+          baseUri: baseUri,
+          androidDeviceId: cockpitReadOptionalString(
+            arguments,
+            'androidDeviceId',
+          ),
+          maxLines:
+              cockpitReadOptionalPositiveInt(arguments, 'maxLines') ?? 200,
         ),
       );
       return cockpitMcpResult(
@@ -59,5 +69,13 @@ final class CockpitReadLogsTool extends CockpitMcpTool {
     } on Object catch (error) {
       cockpitRethrowAsMcpError(error);
     }
+  }
+
+  Uri? _readOptionalBaseUri(Map<String, Object?> arguments) {
+    final baseUrl = cockpitReadOptionalString(arguments, 'baseUrl');
+    if (baseUrl == null || baseUrl.isEmpty) {
+      return null;
+    }
+    return Uri.parse(baseUrl);
   }
 }

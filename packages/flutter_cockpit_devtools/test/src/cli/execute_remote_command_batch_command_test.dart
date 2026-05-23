@@ -32,6 +32,8 @@ void main() {
 
     final exitCode = await runner.run(<String>[
           'execute-remote-command-batch',
+          '--stdout-format',
+          'json',
           '--base-url',
           'http://127.0.0.1:47331',
           '--commands-json',

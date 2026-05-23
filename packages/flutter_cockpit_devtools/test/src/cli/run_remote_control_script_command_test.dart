@@ -713,6 +713,20 @@ void main() {
           launchedAt: DateTime.utc(2026, 4, 17),
           platformAppId: 'cockpit_demo',
           processId: 4101,
+          remoteSession: CockpitRemoteSessionHandle(
+            platform: 'windows',
+            deviceId: 'windows',
+            projectDir: '/workspace/examples/cockpit_demo',
+            target: 'cockpit/main.dart',
+            appId: 'remote-demo-app',
+            platformAppId: 'cockpit_demo',
+            processId: 4101,
+            host: '127.0.0.1',
+            hostPort: 57331,
+            devicePort: 57331,
+            baseUrl: 'http://127.0.0.1:57331',
+            launchedAt: DateTime.utc(2026, 4, 17),
+          ),
         ).toJson(),
       ),
     );
@@ -769,6 +783,8 @@ void main() {
     expect(exitCode, 0);
     expect(capturedRequest?.platformAppId, 'cockpit_demo');
     expect(capturedRequest?.processId, 4101);
+    expect(capturedRequest?.sessionHandle?.baseUrl, 'http://127.0.0.1:57331');
+    expect(capturedRequest?.sessionHandle?.processId, 4101);
   });
 
   test('run-script returns non-zero when the written bundle is failed',

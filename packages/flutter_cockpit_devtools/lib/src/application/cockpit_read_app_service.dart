@@ -46,6 +46,7 @@ final class CockpitReadAppResult {
     this.uiSummary,
     this.snapshot,
     this.snapshotRef,
+    this.artifactDownloads = const <CockpitRemoteArtifactDownload>[],
     this.diagnostics,
     this.effectiveSnapshotOptions,
   });
@@ -65,6 +66,7 @@ final class CockpitReadAppResult {
   final CockpitInteractiveSnapshotSummary? uiSummary;
   final CockpitSnapshot? snapshot;
   final String? snapshotRef;
+  final List<CockpitRemoteArtifactDownload> artifactDownloads;
   final Map<String, Object?>? diagnostics;
   final CockpitSnapshotOptions? effectiveSnapshotOptions;
 
@@ -85,6 +87,10 @@ final class CockpitReadAppResult {
         if (uiSummary != null) 'uiSummary': uiSummary!.toJson(),
         if (snapshot != null) 'snapshot': snapshot!.toJson(),
         if (snapshotRef != null) 'snapshotRef': snapshotRef,
+        if (artifactDownloads.isNotEmpty)
+          'artifactDownloads': artifactDownloads
+              .map((download) => download.toJson())
+              .toList(growable: false),
         if (diagnostics != null) 'diagnostics': diagnostics,
         if (effectiveSnapshotOptions != null)
           'effectiveSnapshotOptions': effectiveSnapshotOptions!.toJson(),
@@ -119,6 +125,7 @@ final class CockpitReadAppService {
     final result = await _remoteStatusService.read(
       CockpitReadRemoteStatusRequest(
         baseUri: resolved.baseUri,
+        sessionHandle: resolved.app?.remoteSession,
         resultProfile: request.resultProfile,
         snapshotOptions: request.snapshotOptions,
       ),
@@ -168,6 +175,7 @@ final class CockpitReadAppService {
       uiSummary: result.uiSummary,
       snapshot: result.snapshot,
       snapshotRef: result.snapshotRef,
+      artifactDownloads: result.artifactDownloads,
       diagnostics: null,
       effectiveSnapshotOptions: result.effectiveSnapshotOptions,
     );

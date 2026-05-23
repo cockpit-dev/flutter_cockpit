@@ -9,6 +9,7 @@ void main() {
     test(
       'uses remote runtime recording for iOS apps when no host recording session is active',
       () async {
+        final sourceFile = await _recordingSourceFile('ios-native-recording');
         final nativeAdapter = _FakeRecordingAdapter(
           onStop: () async => CockpitRecordingResult(
             state: CockpitRecordingState.completed,
@@ -20,7 +21,7 @@ void main() {
               relativePath: 'recordings/ios-native-recording.mp4',
             ),
             durationMs: 2400,
-            sourceFilePath: '/tmp/ios-native-recording.mp4',
+            sourceFilePath: sourceFile.path,
           ),
         );
         final service = CockpitStopRecordingService(
@@ -53,7 +54,8 @@ void main() {
           result.artifact?.relativePath,
           'recordings/ios-native-recording.mp4',
         );
-        expect(result.artifact?.sourcePath, '/tmp/ios-native-recording.mp4');
+        expect(result.artifact?.sourcePath, sourceFile.path);
+        expect(result.artifact?.byteLength, sourceFile.lengthSync());
         expect(result.effectiveLayer, CockpitRecordingLayer.system);
       },
     );
@@ -61,6 +63,7 @@ void main() {
     test(
       'uses macOS host recording when an active host session exists for the session app id',
       () async {
+        final sourceFile = await _recordingSourceFile('macos-host-recording');
         addTearDown(() {
           cockpitClearActiveHostRecordingSession(
             'macos:dev.cockpit.cockpitDemo.session',
@@ -93,7 +96,7 @@ void main() {
               relativePath: 'recordings/macos-host-recording.mp4',
             ),
             durationMs: 3200,
-            sourceFilePath: '/tmp/macos-host-recording.mp4',
+            sourceFilePath: sourceFile.path,
           ),
         );
         final service = CockpitStopRecordingService(
@@ -128,9 +131,86 @@ void main() {
         expect(capturedAppId, 'dev.cockpit.cockpitDemo.session');
         expect(result.state, CockpitRecordingState.completed);
         expect(result.effectiveLayer, CockpitRecordingLayer.hostScreen);
+        expect(result.artifact?.byteLength, sourceFile.lengthSync());
+        expect(
+          result.sessionHandle?.toJson(),
+          _macosAppHandle().remoteSession?.toJson(),
+        );
+      },
+    );
+
+    test(
+      'marks app-aware completed recording failed when host source file is empty',
+      () async {
+        final emptySourceFile = await _recordingSourceFile(
+          'empty-macos-host-recording',
+          contents: '',
+        );
+        addTearDown(() {
+          cockpitClearActiveHostRecordingSession(
+            'macos:dev.cockpit.cockpitDemo.session',
+          );
+        });
+        cockpitStoreActiveHostRecordingSession(
+          'macos:dev.cockpit.cockpitDemo.session',
+          CockpitHostRecordingRuntimeSession(
+            process: _FakeProcess(),
+            request: const CockpitRecordingRequest(
+              purpose: CockpitRecordingPurpose.acceptance,
+              name: 'active-recording',
+            ),
+            outputFile: File('/tmp/empty-active-recording.mp4'),
+            stderrSubscription: null,
+            stopwatch: Stopwatch(),
+          ),
+        );
+        final hostAdapter = _FakeRecordingAdapter(
+          onStop: () async => CockpitRecordingResult(
+            state: CockpitRecordingState.completed,
+            purpose: CockpitRecordingPurpose.acceptance,
+            recordingKind: CockpitRecordingKind.nativeScreen,
+            effectiveLayer: CockpitRecordingLayer.hostScreen,
+            artifact: const CockpitArtifactRef(
+              role: 'recording',
+              relativePath: 'recordings/empty-macos-host-recording.mp4',
+            ),
+            durationMs: 3200,
+            sourceFilePath: emptySourceFile.path,
+          ),
+        );
+        final service = CockpitStopRecordingService(
+          recordingStrategyResolver: CockpitRecordingStrategyResolver(
+            macosAdapterFactory: (_) => hostAdapter,
+          ),
+        );
+
+        final result = await service.stop(
+          CockpitStopRecordingRequest(app: _macosAppHandle()),
+        );
+
+        expect(result.state, CockpitRecordingState.failed);
+        expect(result.artifact?.byteLength, 0);
+        expect(result.artifact?.sourcePath, emptySourceFile.path);
+        expect(result.failureReason, contains('source file is empty'));
       },
     );
   });
+}
+
+Future<File> _recordingSourceFile(
+  String name, {
+  String? contents,
+}) async {
+  final tempDir = await Directory.systemTemp.createTemp(
+    'flutter_cockpit_stop_recording_test_',
+  );
+  addTearDown(() async {
+    if (await tempDir.exists()) {
+      await tempDir.delete(recursive: true);
+    }
+  });
+  return File('${tempDir.path}${Platform.pathSeparator}$name.mp4')
+    ..writeAsStringSync(contents ?? name);
 }
 
 CockpitAppHandle _iosAppHandle() {

@@ -41,7 +41,6 @@ final class CreateProjectCommand extends CockpitCliCommand {
         defaultsTo: '300',
         help: 'Time budget for project creation.',
       );
-    cockpitAddWorkspaceOutputJsonOption(argParser);
   }
 
   final CockpitCreateProjectFunction _create;
@@ -92,7 +91,7 @@ final class CreateProjectCommand extends CockpitCliCommand {
         ),
         platforms: cockpitReadMultiStringOption(argResults, 'platform'),
         timeout: Duration(
-          seconds: cockpitReadRequiredIntOption(
+          seconds: cockpitReadRequiredPositiveIntOption(
             argResults,
             'timeout-seconds',
             usage,

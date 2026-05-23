@@ -1,10 +1,10 @@
 import 'dart:io';
 import 'dart:convert';
 
-import 'package:args/command_runner.dart';
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
 import '../../application/cockpit_execute_remote_command_service.dart';
+import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
@@ -13,7 +13,7 @@ typedef CockpitExecuteRemoteCommandFunction
   CockpitExecuteRemoteCommandRequest request,
 );
 
-final class ExecuteRemoteCommandCommand extends Command<int> {
+final class ExecuteRemoteCommandCommand extends CockpitCliCommand {
   ExecuteRemoteCommandCommand({
     CockpitExecuteRemoteCommandService? service,
     CockpitExecuteRemoteCommandFunction? execute,
@@ -24,11 +24,23 @@ final class ExecuteRemoteCommandCommand extends Command<int> {
     cockpitAddRemoteSessionArgs(argParser);
     cockpitAddProfileArg(argParser);
     argParser
-      ..addOption('command-json')
-      ..addOption('command-file')
-      ..addOption('snapshot-options-json')
-      ..addOption('snapshot-options-file')
-      ..addOption('compare-against-snapshot-ref');
+      ..addOption(
+        'command-json',
+        help: 'Inline JSON object for one command.',
+      )
+      ..addOption('command-file', help: 'Path to one command JSON object.')
+      ..addOption(
+        'snapshot-options-json',
+        help: 'Inline JSON that overrides post-command snapshot detail.',
+      )
+      ..addOption(
+        'snapshot-options-file',
+        help: 'Path to post-command snapshot options JSON.',
+      )
+      ..addOption(
+        'compare-against-snapshot-ref',
+        help: 'Existing snapshot ref used to compute a bounded delta.',
+      );
   }
 
   final CockpitExecuteRemoteCommandFunction _execute;
@@ -40,6 +52,28 @@ final class ExecuteRemoteCommandCommand extends Command<int> {
   @override
   String get description =>
       'Execute one flutter_cockpit command against a live remote session with layered interactive results.';
+
+  @override
+  String get summary => 'Run one remote command.';
+
+  @override
+  String get category => CockpitCliCategory.coreLoop;
+
+  @override
+  String get helpWhen =>
+      'Use for direct remote sessions; prefer run-command for app-first handles.';
+
+  @override
+  String get helpNeeds =>
+      'A remote session reference and one command JSON object.';
+
+  @override
+  String get helpExample =>
+      'flutter_cockpit_devtools execute-remote-command --session-json /tmp/session.json --command-file /tmp/command.json --profile standard';
+
+  @override
+  String get helpWrites =>
+      'Layered command result JSON with post-action state, artifacts, and optional deltas.';
 
   @override
   Future<int> run() async {
@@ -61,7 +95,7 @@ final class ExecuteRemoteCommandCommand extends Command<int> {
     final result = await _execute(
       CockpitExecuteRemoteCommandRequest(
         baseUri: cockpitReadOptionalBaseUri(argResults),
-        sessionHandlePath: argResults?['session-json'] as String?,
+        sessionHandlePath: cockpitResolveRemoteSessionHandlePath(argResults),
         androidDeviceId: argResults?['android-device-id'] as String?,
         command: CockpitCommand.fromJson(commandJson),
         resultProfile: cockpitReadResultProfile(argResults),

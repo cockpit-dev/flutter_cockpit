@@ -54,7 +54,7 @@ final class ReadAppCommand extends CockpitCliCommand {
 
   @override
   String get helpExample =>
-      'flutter_cockpit_devtools read-app --app-json /tmp/app.json --profile minimal | jq \'{currentRouteName,state}\'';
+      'flutter_cockpit_devtools read-app --app-json /tmp/app.json --profile minimal --stdout-format json | jq \'{currentRouteName,state}\'';
 
   @override
   String get helpWrites =>

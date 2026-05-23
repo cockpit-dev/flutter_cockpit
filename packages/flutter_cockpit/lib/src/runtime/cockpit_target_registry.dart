@@ -302,8 +302,7 @@ final class CockpitTargetRegistry {
       }
     }
     final ancestor = locator.ancestor;
-    if (ancestor != null &&
-        !_matchesAncestorChain(target.locatorAncestors, ancestor)) {
+    if (ancestor != null && !_matchesAncestorScope(target, ancestor)) {
       return false;
     }
     return true;
@@ -616,6 +615,21 @@ final class CockpitTargetRegistry {
       }
     }
     return false;
+  }
+
+  bool _matchesAncestorScope(CockpitTarget target, CockpitLocator locator) {
+    if (_matchesRouteOnlyScope(target.routeName, locator)) {
+      return true;
+    }
+    return _matchesAncestorChain(target.locatorAncestors, locator);
+  }
+
+  bool _matchesRouteOnlyScope(String routeName, CockpitLocator locator) {
+    final routeSignal = locator.signalMap[CockpitLocatorKind.route.name];
+    return routeSignal != null &&
+        routeSignal == routeName &&
+        locator.signalMap.length == 1 &&
+        locator.ancestor == null;
   }
 
   bool _matchesAncestor(

@@ -45,7 +45,7 @@ void main() {
     await Future<void>.delayed(Duration.zero);
 
     expect(createdChannels, hasLength(2));
-    expect(client.publicBaseUri.toString(), 'http://127.0.0.1:59331');
+    expect(client.publicBaseUri.toString(), 'http://127.0.0.1:59331/cockpit');
     expect(secondChannel.closeCount, 0);
   });
 }

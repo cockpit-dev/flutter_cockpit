@@ -591,6 +591,76 @@ void main() {
   );
 
   test(
+    'remote snapshot endpoint rejects invalid query parameters instead of silently defaulting',
+    () async {
+      final server = CockpitRemoteSessionServer(
+        configuration: const CockpitRemoteSessionConfiguration(
+          enabled: true,
+          autoStart: false,
+          port: 0,
+        ),
+        statusProvider: () async => CockpitRemoteSessionStatus(
+          sessionId: 'remote-invalid-query',
+          platform: 'android',
+          transportType: 'remoteHttp',
+          currentRouteName: '/home',
+          capabilities: CockpitCapabilities(
+            platform: 'android',
+            transportType: 'remoteHttp',
+            supportsInAppControl: true,
+            supportsFlutterViewCapture: true,
+            supportsNativeScreenCapture: false,
+            supportsHostAutomation: false,
+          ),
+          recordingCapabilities: CockpitRecordingCapabilities(
+            supportsNativeRecording: false,
+            preferredAcceptanceRecordingKind: CockpitRecordingKind.nativeScreen,
+          ),
+          snapshot: CockpitSnapshot(routeName: '/home'),
+        ),
+        snapshotProvider: ({required options}) async => CockpitSnapshot(
+          routeName: '/home',
+          diagnosticLevel: options.profile,
+        ),
+        commandExecutor: (_) async => CockpitCommandExecution(
+          result: CockpitCommandResult(
+            success: true,
+            commandId: 'noop',
+            commandType: CockpitCommandType.collectSnapshot,
+            durationMs: 0,
+          ),
+        ),
+        startRecording: (request) async => CockpitRecordingSession(
+          request: request,
+          state: CockpitRecordingState.recording,
+        ),
+        stopRecording: () async =>
+            CockpitRecordingResult(state: CockpitRecordingState.failed),
+      );
+      await server.start();
+      addTearDown(server.close);
+
+      for (final invalidPath in <String>[
+        '/snapshot?profile=deep',
+        '/snapshot?maxTargets=abc',
+        '/snapshot?maxNetworkEntries=-1',
+        '/snapshot?includeNetworkActivity=yes',
+      ]) {
+        final response = await _readBinaryResponse(
+          server.baseUri!.resolve(invalidPath),
+        );
+        final body = Map<String, Object?>.from(
+          jsonDecode(utf8.decode(response.bytes)) as Map<Object?, Object?>,
+        );
+
+        expect(response.statusCode, HttpStatus.badRequest);
+        expect(body['error'], 'invalidPayload');
+        expect(body['message'], contains('Query parameter'));
+      }
+    },
+  );
+
+  test(
     'remote snapshot endpoint externalizes large forensic payloads into downloadable diagnostics artifacts',
     () async {
       final tempDir = await Directory.systemTemp.createTemp(
@@ -609,6 +679,7 @@ void main() {
           enabled: true,
           autoStart: false,
           port: 0,
+          routePrefix: '/cockpit',
         ),
         statusProvider: () async => CockpitRemoteSessionStatus(
           sessionId: 'remote-forensic-snapshot',
@@ -673,10 +744,16 @@ void main() {
         artifactTempFileFactory: (_) async => artifactFile,
       );
       await server.start();
+      expect(server.baseUri?.path, '/cockpit');
+
+      final unscopedHealthResponse = await _readBinaryResponse(
+        server.baseUri!.replace(path: '/health'),
+      );
+      expect(unscopedHealthResponse.statusCode, HttpStatus.notFound);
 
       final responseJson = await _readJson(
-        server.baseUri!.resolve(
-          '/snapshot?profile=forensic&includeDiagnosticProperties=true&emitArtifactWhenLarge=true',
+        Uri.parse(
+          '${server.baseUri}/snapshot?profile=forensic&includeDiagnosticProperties=true&emitArtifactWhenLarge=true',
         ),
       );
 
@@ -693,6 +770,10 @@ void main() {
       final downloadPath =
           ((responseJson['artifactDownloads']! as List<Object?>).single
               as Map<Object?, Object?>)['downloadPath']! as String;
+      expect(
+        downloadPath,
+        startsWith('/cockpit/artifacts/download?path='),
+      );
       final downloadedJson = await _readJson(
         server.baseUri!.resolve(downloadPath),
       );
@@ -1155,6 +1236,112 @@ void main() {
         ),
       );
       expect(deletedResponse.statusCode, HttpStatus.notFound);
+    },
+  );
+
+  test(
+    'remote recording responses externalize inline bytes and omit transport-heavy fields',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_remote_recording_bytes',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+      final artifactFile = File(p.join(tempDir.path, 'recording.mp4'));
+      final server = CockpitRemoteSessionServer(
+        configuration: const CockpitRemoteSessionConfiguration(
+          enabled: true,
+          autoStart: false,
+          port: 0,
+        ),
+        statusProvider: () async => CockpitRemoteSessionStatus(
+          sessionId: 'remote-recording-bytes',
+          platform: 'ios',
+          transportType: 'remoteHttp',
+          currentRouteName: '/home',
+          capabilities: CockpitCapabilities(
+            platform: 'ios',
+            transportType: 'remoteHttp',
+            supportsInAppControl: true,
+            supportsFlutterViewCapture: true,
+            supportsNativeScreenCapture: true,
+            supportsHostAutomation: false,
+          ),
+          recordingCapabilities: CockpitRecordingCapabilities(
+            supportsNativeRecording: true,
+            preferredAcceptanceRecordingKind: CockpitRecordingKind.nativeScreen,
+          ),
+          snapshot: CockpitSnapshot(routeName: '/home'),
+        ),
+        snapshotProvider: ({required options}) async => CockpitSnapshot(
+          routeName: '/home',
+          diagnosticLevel: options.profile,
+        ),
+        commandExecutor: (_) async => CockpitCommandExecution(
+          result: CockpitCommandResult(
+            success: true,
+            commandId: 'noop',
+            commandType: CockpitCommandType.tap,
+            durationMs: 0,
+          ),
+        ),
+        startRecording: (request) async => CockpitRecordingSession(
+          request: request,
+          state: CockpitRecordingState.recording,
+        ),
+        stopRecording: () async => CockpitRecordingResult(
+          state: CockpitRecordingState.completed,
+          purpose: CockpitRecordingPurpose.acceptance,
+          recordingKind: CockpitRecordingKind.nativeScreen,
+          artifact: const CockpitArtifactRef(
+            role: 'recording',
+            relativePath: 'recordings/remote_inline_acceptance.mp4',
+          ),
+          durationMs: 900,
+          bytes: const <int>[9, 8, 7, 6],
+          sourceFilePath: '/device/private/recording.mp4',
+        ),
+        artifactTempFileFactory: (_) async => artifactFile,
+      );
+      await server.start();
+
+      await _postJson(
+        server.baseUri!.resolve('/recording/start'),
+        const <String, Object?>{
+          'purpose': 'acceptance',
+          'name': 'remote_inline_acceptance',
+        },
+      );
+
+      final resultJson = await _postJson(
+        server.baseUri!.resolve('/recording/stop'),
+        const <String, Object?>{},
+      );
+      final resultPayload = Map<String, Object?>.from(
+        resultJson['result']! as Map<Object?, Object?>,
+      );
+      final response = CockpitRemoteRecordingResponse.fromJson(resultJson);
+
+      expect(resultPayload.containsKey('bytes'), isFalse);
+      expect(resultPayload.containsKey('sourceFilePath'), isFalse);
+      expect(response.result.bytes, isNull);
+      expect(response.result.sourceFilePath, isNull);
+      expect(response.artifactDownloads, hasLength(1));
+      expect(
+        await _readBytes(
+          server.baseUri!.resolve(
+            response.artifactDownloads.single.downloadPath,
+          ),
+        ),
+        <int>[9, 8, 7, 6],
+      );
+      expect(artifactFile.existsSync(), isTrue);
+
+      await server.close();
+      expect(artifactFile.existsSync(), isFalse);
     },
   );
 

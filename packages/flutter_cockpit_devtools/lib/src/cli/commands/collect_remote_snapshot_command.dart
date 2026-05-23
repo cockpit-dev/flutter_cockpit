@@ -4,6 +4,7 @@ import 'package:args/command_runner.dart';
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
 import '../../application/cockpit_collect_remote_snapshot_service.dart';
+import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
@@ -12,7 +13,7 @@ typedef CockpitCollectRemoteSnapshotFunction
   CockpitCollectRemoteSnapshotRequest request,
 );
 
-final class CollectRemoteSnapshotCommand extends Command<int> {
+final class CollectRemoteSnapshotCommand extends CockpitCliCommand {
   CollectRemoteSnapshotCommand({
     CockpitCollectRemoteSnapshotService? service,
     CockpitCollectRemoteSnapshotFunction? collect,
@@ -24,13 +25,7 @@ final class CollectRemoteSnapshotCommand extends Command<int> {
       ..addOption('base-url', help: 'Base URL for the running app session.')
       ..addOption(
         'session-json',
-        help:
-            'Optional session handle JSON file emitted by launch-remote-session.',
-      )
-      ..addOption(
-        'output-json',
-        help:
-            'Optional file path where the snapshot payload should be written.',
+        help: cockpitRemoteSessionJsonOptionHelp,
       )
       ..addOption(
         'android-device-id',
@@ -44,10 +39,19 @@ final class CollectRemoteSnapshotCommand extends Command<int> {
             .toList(growable: false),
         defaultsTo: CockpitSnapshotProfile.live.jsonValue,
       )
-      ..addOption('max-targets')
-      ..addOption('max-ancestors-per-target')
-      ..addOption('max-properties-per-target')
-      ..addOption('max-accessibility-entries')
+      ..addOption('max-targets', help: 'Maximum visible targets to collect.')
+      ..addOption(
+        'max-ancestors-per-target',
+        help: 'Maximum ancestor chain length per target.',
+      )
+      ..addOption(
+        'max-properties-per-target',
+        help: 'Maximum diagnostic properties per target.',
+      )
+      ..addOption(
+        'max-accessibility-entries',
+        help: 'Maximum accessibility summary entries.',
+      )
       ..addFlag(
         'include-style-details',
         negatable: false,
@@ -71,6 +75,12 @@ final class CollectRemoteSnapshotCommand extends Command<int> {
             'Request artifact externalization when diagnostics grow large so remote sessions can stream full forensic snapshots through downloadable artifacts.',
       )
       ..addFlag(
+        'download-diagnostics-artifacts',
+        negatable: false,
+        help:
+            'Download externalized diagnostics artifacts into the output payload. Leave off for summary-first, token-efficient reads.',
+      )
+      ..addFlag(
         'include-network-activity',
         negatable: false,
         help: 'Include captured HTTP activity in the snapshot.',
@@ -80,11 +90,23 @@ final class CollectRemoteSnapshotCommand extends Command<int> {
         negatable: false,
         help: 'Include captured Flutter runtime errors and logs.',
       )
-      ..addOption('max-network-entries')
-      ..addOption('max-runtime-entries')
-      ..addOption('network-method')
-      ..addOption('network-uri-contains')
-      ..addOption('runtime-message-contains')
+      ..addOption(
+        'max-network-entries',
+        help: 'Maximum captured network entries to include.',
+      )
+      ..addOption(
+        'max-runtime-entries',
+        help: 'Maximum runtime entries to include.',
+      )
+      ..addOption('network-method', help: 'Filter network entries by method.')
+      ..addOption(
+        'network-uri-contains',
+        help: 'Filter network entries by URI substring.',
+      )
+      ..addOption(
+        'runtime-message-contains',
+        help: 'Filter runtime entries by message substring.',
+      )
       ..addFlag(
         'network-only-failures',
         defaultsTo: null,
@@ -96,7 +118,11 @@ final class CollectRemoteSnapshotCommand extends Command<int> {
         help:
             'Only include runtime entries classified as errors in the snapshot runtime view.',
       )
-      ..addOption('network-status-code-at-least');
+      ..addOption(
+        'network-status-code-at-least',
+        help:
+            'Filter network entries to HTTP status codes at or above this value.',
+      );
   }
 
   final CockpitCollectRemoteSnapshotFunction _collect;
@@ -110,13 +136,36 @@ final class CollectRemoteSnapshotCommand extends Command<int> {
       'Collect a remote flutter_cockpit snapshot with optional rich diagnostics and network activity.';
 
   @override
+  String get summary => 'Collect remote diagnostics.';
+
+  @override
+  String get category => CockpitCliCategory.coreLoop;
+
+  @override
+  String get helpWhen =>
+      'Use only when a layered read still lacks the diagnostic details needed for repair.';
+
+  @override
+  String get helpNeeds =>
+      'Either --session-json, the default latest remote session handle, or --base-url plus explicit bounds for any expanded collections.';
+
+  @override
+  String get helpExample =>
+      'flutter_cockpit_devtools collect-remote-snapshot --profile forensic --emit-artifact-when-large';
+
+  @override
+  String get helpWrites =>
+      'A snapshot payload with effective options, warnings, and artifact download metadata for large diagnostics.';
+
+  @override
   Future<int> run() async {
-    final sessionJsonPath = argResults?['session-json'] as String?;
+    final sessionJsonPath = cockpitResolveRemoteSessionHandlePath(argResults);
     final baseUrl = argResults?['base-url'] as String?;
     if ((sessionJsonPath == null || sessionJsonPath.isEmpty) &&
         (baseUrl == null || baseUrl.isEmpty)) {
       throw UsageException(
-        '--base-url is required when --session-json is not provided.',
+        '--base-url is required when --session-json is not provided and '
+        '${cockpitDefaultRemoteSessionHandlePath()} does not exist.',
         usage,
       );
     }
@@ -127,6 +176,8 @@ final class CollectRemoteSnapshotCommand extends Command<int> {
         sessionHandlePath: sessionJsonPath,
         androidDeviceId: argResults?['android-device-id'] as String?,
         options: _readSnapshotOptions(),
+        downloadDiagnosticsArtifacts:
+            _readFlag('download-diagnostics-artifacts'),
       ),
     );
     await cockpitWriteJsonPayload(
@@ -154,7 +205,11 @@ final class CollectRemoteSnapshotCommand extends Command<int> {
       uriContains: _readOptionalString('network-uri-contains'),
       onlyFailures: _readOptionalFlag('network-only-failures') ??
           options.networkQuery.onlyFailures,
-      statusCodeAtLeast: _readOptionalInt('network-status-code-at-least'),
+      statusCodeAtLeast: cockpitReadOptionalHttpStatusCode(
+        argResults,
+        'network-status-code-at-least',
+        usage,
+      ),
     );
     final runtimeQuery = CockpitRuntimeQuery(
       onlyErrors: _readOptionalFlag('runtime-only-errors') ??
@@ -202,7 +257,14 @@ final class CollectRemoteSnapshotCommand extends Command<int> {
     if (value == null || value.isEmpty) {
       return null;
     }
-    return int.parse(value);
+    final parsed = int.tryParse(value);
+    if (parsed == null) {
+      throw UsageException('--$name must be an integer.', usage);
+    }
+    if (parsed >= 0) {
+      return parsed;
+    }
+    throw UsageException('--$name must be a non-negative integer.', usage);
   }
 
   String? _readOptionalString(String name) {

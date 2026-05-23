@@ -4,6 +4,7 @@ import 'package:args/command_runner.dart';
 
 import '../../application/cockpit_reload_development_session_service.dart';
 import '../../development/cockpit_development_session_status.dart';
+import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
@@ -12,7 +13,7 @@ typedef CockpitReloadDevelopmentSessionFunction
   CockpitReloadDevelopmentSessionRequest request,
 );
 
-final class ReloadDevelopmentSessionCommand extends Command<int> {
+final class ReloadDevelopmentSessionCommand extends CockpitCliCommand {
   ReloadDevelopmentSessionCommand({
     CockpitReloadDevelopmentSessionService? service,
     CockpitReloadDevelopmentSessionFunction? reload,
@@ -23,7 +24,7 @@ final class ReloadDevelopmentSessionCommand extends Command<int> {
     argParser
       ..addOption(
         'session-json',
-        help: 'Persisted development session handle JSON to reload.',
+        help: cockpitDevelopmentSessionJsonOptionHelp,
       )
       ..addOption(
         'mode',
@@ -32,10 +33,6 @@ final class ReloadDevelopmentSessionCommand extends Command<int> {
             .toList(growable: false),
         defaultsTo: CockpitDevelopmentReloadMode.hotReload.jsonValue,
         help: 'Reload mode: hot_reload or hot_restart.',
-      )
-      ..addOption(
-        'output-json',
-        help: 'Optional file path where the updated payload should be written.',
       );
   }
 
@@ -50,10 +47,35 @@ final class ReloadDevelopmentSessionCommand extends Command<int> {
       'Trigger hot reload or hot restart for an existing development session.';
 
   @override
+  String get summary => 'Reload development session.';
+
+  @override
+  String get category => CockpitCliCategory.coreLoop;
+
+  @override
+  String get helpWhen =>
+      'Use immediately after code edits in a persistent development session.';
+
+  @override
+  String get helpNeeds =>
+      'A development session handle from --session-json or the default latest development session handle. Mode defaults to hot_reload.';
+
+  @override
+  String get helpExample =>
+      'flutter_cockpit_devtools reload-development-session';
+
+  @override
+  String get helpWrites =>
+      'Updated session status and persisted handle path when available.';
+
+  @override
   Future<int> run() async {
     final result = await _reload(
       CockpitReloadDevelopmentSessionRequest(
-        sessionHandlePath: _readRequiredOption('session-json'),
+        sessionHandlePath: cockpitRequireResolvedDevelopmentSessionHandlePath(
+          argResults,
+          usage,
+        ),
         mode: CockpitDevelopmentReloadMode.fromJson(
           _readRequiredOption('mode'),
         ),

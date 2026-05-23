@@ -25,7 +25,7 @@ final class InspectSurfaceCommand extends CockpitCliCommand {
     cockpitAddAppArgs(argParser);
     argParser.addOption(
       'target-json',
-      help: 'Normalized target handle JSON emitted by launch-target.',
+      help: cockpitTargetJsonOptionHelp,
     );
     cockpitAddProfileArg(argParser);
     cockpitAddSnapshotOptionsArgs(argParser);
@@ -54,11 +54,11 @@ final class InspectSurfaceCommand extends CockpitCliCommand {
 
   @override
   String get helpNeeds =>
-      'A target reference from --target-json, --app-json, or --base-url. Use inspect only when the smaller target summary still leaves uncertainty.';
+      'A target reference from --target-json, the default latest target handle, --app-json, or --base-url. Use inspect only when the smaller target summary still leaves uncertainty.';
 
   @override
   String get helpExample =>
-      'flutter_cockpit_devtools inspect-surface --target-json /tmp/target.json --profile inspect';
+      'flutter_cockpit_devtools inspect-surface --profile inspect';
 
   @override
   String get helpWrites =>
@@ -76,7 +76,7 @@ final class InspectSurfaceCommand extends CockpitCliCommand {
     );
     final result = await _inspect(
       CockpitInspectSurfaceRequest(
-        targetHandlePath: argResults?['target-json'] as String?,
+        targetHandlePath: cockpitResolveTargetHandlePath(argResults),
         appHandlePath: cockpitResolveAppHandlePath(argResults),
         baseUri: cockpitReadOptionalBaseUri(argResults),
         androidDeviceId: argResults?['android-device-id'] as String?,
@@ -102,14 +102,15 @@ final class InspectSurfaceCommand extends CockpitCliCommand {
   }
 
   void _requireTargetReference() {
-    final targetJsonPath = argResults?['target-json'] as String?;
+    final targetJsonPath = cockpitResolveTargetHandlePath(argResults);
     final appJsonPath = cockpitResolveAppHandlePath(argResults);
     final baseUrl = argResults?['base-url'] as String?;
     if ((targetJsonPath == null || targetJsonPath.isEmpty) &&
         (appJsonPath == null || appJsonPath.isEmpty) &&
         (baseUrl == null || baseUrl.isEmpty)) {
       throw UsageException(
-        '--target-json, --app-json, or --base-url is required.',
+        '--target-json, --app-json, or --base-url is required unless '
+        '${cockpitDefaultTargetHandlePath()} or ${cockpitDefaultAppHandlePath()} exists.',
         usage,
       );
     }

@@ -78,8 +78,11 @@ final class CockpitExecuteRemoteCommandBatchTool extends CockpitMcpTool {
               ) ??
               const CockpitInteractiveResultProfile.standard(),
           defaultCommandTimeout: Duration(
-            milliseconds:
-                cockpitReadOptionalInt(arguments, 'defaultTimeoutMs') ?? 30000,
+            milliseconds: cockpitReadOptionalPositiveInt(
+                  arguments,
+                  'defaultTimeoutMs',
+                ) ??
+                30000,
           ),
           failFast: cockpitReadOptionalBool(arguments, 'failFast') ?? true,
           recording: _readOptionalRecording(arguments),

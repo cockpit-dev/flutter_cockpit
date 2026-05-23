@@ -71,11 +71,13 @@ final class CockpitLaunchRemoteSessionTool extends CockpitMcpTool {
           target: cockpitReadOptionalString(arguments, 'target'),
           platform: platform,
           deviceId: cockpitReadRequiredString(arguments, 'deviceId'),
-          sessionPort: cockpitReadRequiredInt(arguments, 'sessionPort'),
+          sessionPort: cockpitReadRequiredPort(arguments, 'sessionPort'),
           launchTimeout: Duration(
-            seconds:
-                cockpitReadOptionalInt(arguments, 'launchTimeoutSeconds') ??
-                    120,
+            seconds: cockpitReadOptionalPositiveInt(
+                  arguments,
+                  'launchTimeoutSeconds',
+                ) ??
+                120,
           ),
           persistHandlePath: cockpitReadOptionalString(
             arguments,

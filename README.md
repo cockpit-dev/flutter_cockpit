@@ -216,7 +216,7 @@ Target-first flows are platform-aware and capability-truthful:
 - `run-shell` is target-aware. Use `--scope target --target-json /tmp/target.json` to bind shell execution to a normalized target, `--scope android --device-id <id>` for `adb shell`, `--scope ios --device-id <simulator-udid>` for `xcrun simctl spawn`, and desktop host-aligned scopes when the platform truthfully exposes shell control.
 
 The public surface is app-first, not session-handle-first. If you omit `--app-json`, `launch-app` writes the latest handle to `.dart_tool/flutter_cockpit/latest_app.json` in the current working directory, and follow-up app commands reuse it automatically. CLI and MCP output uses lower camel case keys.
-When a command accepts both `--app-json` and `--base-url`, precedence is: explicit `--app-json`, then explicit `--base-url`, then the implicit latest-app handle in the current working directory.
+When a command accepts both `--app-json` and `--base-url`, `--app-json` supplies app identity, platform, and recording metadata while the explicit `--base-url` overrides only the live connection address. If `--app-json` is omitted, explicit `--base-url` wins over the implicit latest-app handle in the current working directory.
 Prefer `--command-file`, `--commands-file`, and `--config-json` once a payload stops being trivial.
 `launch-app` auto-detects `cockpit/main.dart` first, then `lib/main.dart`.
 For code-side questions, prefer `analyze-files`, `lsp`, `grep-package-uris`, `read-package-uris`, and `pub` before workspace-wide commands.
@@ -261,7 +261,7 @@ Widget buildCockpitDevelopmentApp() {
 }
 ```
 
-Replace `package:your_app/app_shell.dart` with the import that already exposes your app root widget or bootstrap. `launch-app` injects the `FLUTTER_PILOT_REMOTE_*` dart-defines, so `resolveFromEnvironment(...)` enables the remote control surface without taking over the production bootstrap.
+Replace `package:your_app/app_shell.dart` with the import that already exposes your app root widget or bootstrap. `launch-app` injects the `FLUTTER_COCKPIT_REMOTE_*` dart-defines, so `resolveFromEnvironment(...)` enables the remote control surface without taking over the production bootstrap.
 If the existing app already owns `MaterialApp`, wrap that shell with `FlutterCockpitApp` and add `FlutterCockpit.navigatorObserver` to its navigator instead of nesting a second `MaterialApp`.
 
 Run a minimal app loop:
@@ -319,15 +319,30 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --command-json '{"commandId":"assert-ready","commandType":"assertText","parameters":{"text":"<expected-text>"}}'
 ```
 
-For web, the host keeps the public HTTP session surface stable and runs a `127.0.0.1` bridge that the browser app joins over WebSocket.
-`hot-reload` and `hot-restart` stay available through the development supervisor, while browser recording remains host-driven and depends on the local desktop granting screen-capture permission.
+For web, the host keeps the public HTTP session surface stable and runs a
+`127.0.0.1` bridge that the browser app joins over WebSocket. Browser DOM
+inspection, screenshots, `hot-reload`, and `hot-restart` should stay strict in
+normal development verification. Browser-host recording is a separate host
+environment gate: it depends on macOS/desktop screen-capture permission for the
+terminal, Dart, ffmpeg, and the browser host app, and it should fail at
+recording start when ffmpeg cannot prove startup or output evidence.
 
 For AI-first project validation, keep two verifier tiers:
 
 - A rapid verifier for the normal edit -> reload -> assert loop. It should launch the app, drive one representative production flow, hot reload, assert the changed state, capture one still artifact when useful, read runtime errors, and stop the app. Its JSON should stay compact: completed phases, failed command metadata, final route or state preview, bounded runtime error previews, and artifact refs.
 - A release verifier for the expensive surfaces. It should add recordings, hot restart, network and log reads, target-first inspection, multi-platform coverage, and acceptance or delivery gates.
 
-Platform-specific capture should be capability-driven rather than hard-coded: desktop and physical devices may use remote or host adapters, web may use browser-host capture, iOS simulators may use simulator-native tooling, and Android emulators may use device tooling. If a host permission blocks recording while app control still passes, report it as a structured environment warning instead of masking the app result.
+Platform-specific capture should be capability-driven rather than hard-coded:
+desktop and physical devices may use remote or host adapters, web may use
+browser-host capture when the host permission gate passes, iOS simulators may
+use simulator-native tooling, and Android emulators may use device tooling. If a
+host permission blocks recording while app control still passes, report it as a
+structured environment warning with the recorder failure reason instead of
+masking the app result.
+Treat completed recording as evidence only when the stop result includes an
+artifact backed by non-empty bytes or a non-empty source/output file; empty or
+missing artifact content is a failed evidence result, not video proof.
+When a command accepts both `app.json` and `baseUrl`, keep passing the handle whenever available: the handle carries platform, device, process, and remote-session metadata, while `baseUrl` only overrides the live HTTP connection. For iOS recording without an app handle, pass `iosDeviceId` / `--ios-device-id` so the host-side simulator or device adapter can select the right recorder.
 
 ## CLI Surface
 
@@ -353,7 +368,36 @@ Recommended commands:
 - `validate-task`
 - `serve-mcp`
 
+Advanced public commands are available when the default app-first path is not
+the smallest truthful surface:
+
+- use `launch-remote-session`, `query-remote-session`,
+  `read-remote-status`, `read-remote-snapshot`,
+  `execute-remote-command`, and `execute-remote-command-batch` for direct
+  remote-session loops
+- use `launch-development-session`, `reload-development-session`,
+  `collect-development-probe`, `compare-development-probe`, and
+  `stop-development-session` for persistent edit-reload-probe loops
+- use `start-remote-recording` and `stop-remote-recording` only when working
+  directly with a remote session instead of an app handle
+
 Use `--profile minimal|standard|inspect|evidence` to control token cost. Start small and escalate only when needed.
+When a CLI command exits non-zero, first look for `errorJson: {...}` on stderr.
+For non-usage failures, the `code`, `message`, and optional `details` fields are
+the machine-readable recovery surface for AI agents; the prose `Error:` line is
+only a human summary.
+Remote endpoint failures keep their original codes when possible, such as
+`bridgeUnavailable`, `artifactNotFound`, `recordingStartFailed`, or
+`invalidPayload`, so recovery can target the bridge, artifact transfer,
+recording prerequisite, or payload issue directly instead of retrying blindly.
+Large forensic snapshots stay summary-first in normal app and command reads. If
+the result includes `artifactDownloads`, treat those paths as deferred evidence
+and fetch or collect the full diagnostics artifact only when the summary cannot
+explain the next repair or acceptance decision.
+For `collect-remote-snapshot`, `--emit-artifact-when-large` asks the app to
+externalize oversized diagnostics, while `--download-diagnostics-artifacts`
+explicitly pulls that deferred artifact into the command output. Keep the
+download flag off unless the AI step truly needs the full forensic payload.
 `run-script` now exits non-zero when the written bundle status is `failed`.
 For dependency and source questions, prefer `analyze-files`, `lsp`, `grep-package-uris`, `read-package-uris`, and `pub` before broader workspace passes.
 
@@ -443,4 +487,4 @@ Advanced development-session and remote-session building blocks still exist in t
 
 `list_apps` is intentionally MCP-only. CLI is stateless; persist `app.json` and reuse it instead of expecting a host-side app registry.
 Interactive app commands use `timeoutMs`. Workspace tools use `timeoutSeconds`.
-For code-side work, CLI and MCP expose the same workspace intelligence. In shell agents, CLI plus compact stdout pipes such as `jq` is usually the cheapest path; add `--output-json` only when another step needs to reopen the full result.
+For code-side work, CLI and MCP expose the same workspace intelligence. In shell agents, default CLI stdout is the full AI-readable semantic render. Add `--stdout-format json` for `jq` pipelines, or `--output <path> --output-format json` when another step must reopen structured JSON from disk.

@@ -398,7 +398,7 @@ exit 0
   );
 
   test(
-    'macos recording adapter allows silent browser-host startup when ffmpeg stays running',
+    'macos recording adapter fails browser-host startup without confirmation or output evidence',
     () async {
       final tempDir = await Directory.systemTemp.createTemp(
         'cockpit_macos_browser_silent_recording_adapter',
@@ -448,28 +448,26 @@ exit 0
         startupEvidenceTimeout: const Duration(milliseconds: 100),
         stopTimeout: const Duration(seconds: 2),
         finalizationPollInterval: const Duration(milliseconds: 10),
-        ffprobeProcessRunner: (executable, arguments) async => ProcessResult(
-          0,
-          0,
-          '{"format":{"duration":"2.000"},"streams":[{"codec_type":"video","nb_frames":"40"}]}',
-          '',
-        ),
       );
 
-      final session = await adapter.startRecording(
-        const CockpitRecordingRequest(
-          purpose: CockpitRecordingPurpose.acceptance,
-          name: 'browser-host-silent-demo',
-          attachToStep: true,
+      await expectLater(
+        adapter.startRecording(
+          const CockpitRecordingRequest(
+            purpose: CockpitRecordingPurpose.acceptance,
+            name: 'browser-host-silent-demo',
+            attachToStep: true,
+          ),
         ),
-      );
-      final result = await adapter.stopRecording();
-
-      expect(session.state, CockpitRecordingState.recording);
-      expect(result.state, CockpitRecordingState.completed);
-      expect(
-        File(result.sourceFilePath!).readAsStringSync(),
-        'browser-silent-video',
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            allOf(
+              contains('never confirmed macOS screen capture startup'),
+              contains('Overriding selected pixel format'),
+            ),
+          ),
+        ),
       );
     },
   );
@@ -582,6 +580,75 @@ exit 0
       expect(
         File(secondResult.sourceFilePath!).readAsStringSync(),
         'retry-macos-video',
+      );
+    },
+  );
+
+  test(
+    'macos recording adapter includes recent ffmpeg stderr when output is empty',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_macos_recording_adapter_empty_output_diagnostics',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final ffmpegExecutable = await _writeExecutable(
+        directory: tempDir,
+        name: 'ffmpeg',
+        body: r'''
+#!/bin/sh
+if printf '%s' "$*" | grep -q -- '-list_devices true'; then
+  printf '[1] Capture screen 0\n' >&2
+  exit 0
+fi
+printf '[avfoundation @ 0x123] Input/output error while opening screen capture\n' >&2
+printf 'Press [q] to stop\n' >&2
+trap 'exit 0' INT
+while true; do
+  sleep 1
+done
+''',
+      );
+
+      final osascriptExecutable = await _writeExecutable(
+        directory: tempDir,
+        name: 'osascript',
+        body: r'''
+#!/bin/sh
+exit 0
+''',
+      );
+
+      final adapter = CockpitMacosRecordingAdapter(
+        appId: 'com.google.Chrome',
+        ffmpegExecutable: ffmpegExecutable.path,
+        osascriptExecutable: osascriptExecutable.path,
+        startupTimeout: const Duration(seconds: 2),
+        stopTimeout: const Duration(seconds: 2),
+        finalizationPollInterval: const Duration(milliseconds: 10),
+      );
+
+      final session = await adapter.startRecording(
+        const CockpitRecordingRequest(
+          purpose: CockpitRecordingPurpose.acceptance,
+          name: 'empty-output-diagnostics',
+        ),
+      );
+      final result = await adapter.stopRecording();
+
+      expect(session.state, CockpitRecordingState.recording);
+      expect(result.state, CockpitRecordingState.failed);
+      expect(
+        result.failureReason,
+        contains('Recent ffmpeg output'),
+      );
+      expect(
+        result.failureReason,
+        contains('Input/output error while opening screen capture'),
       );
     },
   );
