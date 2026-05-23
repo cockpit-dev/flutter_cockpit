@@ -14,10 +14,10 @@ final class CockpitContextBundle {
     required this.acceptanceMarkdown,
     required Map<String, Object?> handoff,
     Map<String, Object?> delivery = const <String, Object?>{},
-  })  : steps = List.unmodifiable(steps),
-        observations = List.unmodifiable(observations),
-        handoff = Map.unmodifiable(handoff),
-        delivery = Map.unmodifiable(delivery);
+  }) : steps = List.unmodifiable(steps),
+       observations = List.unmodifiable(observations),
+       handoff = Map.unmodifiable(handoff),
+       delivery = Map.unmodifiable(delivery);
 
   final CockpitRunManifest manifest;
   final CockpitEnvironment environment;
@@ -35,15 +35,16 @@ final class CockpitContextBundle {
       DeepCollectionEquality();
 
   Map<String, Object?> toJson() => {
-        'manifest': manifest.toJson(),
-        'environment': environment.toJson(),
-        'steps': steps.map((step) => step.toJson()).toList(),
-        'observations':
-            observations.map((observation) => observation.toJson()).toList(),
-        'acceptanceMarkdown': acceptanceMarkdown,
-        'handoff': handoff,
-        'delivery': delivery,
-      };
+    'manifest': manifest.toJson(),
+    'environment': environment.toJson(),
+    'steps': steps.map((step) => step.toJson()).toList(),
+    'observations': observations
+        .map((observation) => observation.toJson())
+        .toList(),
+    'acceptanceMarkdown': acceptanceMarkdown,
+    'handoff': handoff,
+    'delivery': delivery,
+  };
 
   factory CockpitContextBundle.fromJson(Map<String, Object?> json) {
     final manifestJson = Map<String, Object?>.from(
@@ -100,12 +101,12 @@ final class CockpitContextBundle {
 
   @override
   int get hashCode => Object.hash(
-        manifest,
-        environment,
-        _stepListEquality.hash(steps),
-        _observationListEquality.hash(observations),
-        acceptanceMarkdown,
-        _handoffEquality.hash(handoff),
-        _handoffEquality.hash(delivery),
-      );
+    manifest,
+    environment,
+    _stepListEquality.hash(steps),
+    _observationListEquality.hash(observations),
+    acceptanceMarkdown,
+    _handoffEquality.hash(handoff),
+    _handoffEquality.hash(delivery),
+  );
 }

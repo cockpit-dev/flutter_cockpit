@@ -17,7 +17,9 @@ void main() {
 
     await executor.execute(
       CockpitCommand(
-          commandId: 'cmd-show', commandType: CockpitCommandType.showOnScreen),
+        commandId: 'cmd-show',
+        commandType: CockpitCommandType.showOnScreen,
+      ),
       Stopwatch()..start(),
     );
 

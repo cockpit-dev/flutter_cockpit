@@ -38,9 +38,7 @@ int cockpitScoreFlavorMatchingBundlePath(String path, String? flavor) {
   return path.toLowerCase().contains(flavor.toLowerCase()) ? 100 : 0;
 }
 
-Future<String> cockpitResolveIosBundleId({
-  required String appBundlePath,
-}) {
+Future<String> cockpitResolveIosBundleId({required String appBundlePath}) {
   return cockpitResolveAppleBundleId(
     appBundlePath: appBundlePath,
     infoPlistPathSegments: const <String>['Info.plist'],
@@ -48,9 +46,7 @@ Future<String> cockpitResolveIosBundleId({
   );
 }
 
-Future<String> cockpitResolveMacosBundleId({
-  required String appBundlePath,
-}) {
+Future<String> cockpitResolveMacosBundleId({required String appBundlePath}) {
   return cockpitResolveAppleBundleId(
     appBundlePath: appBundlePath,
     infoPlistPathSegments: const <String>['Contents', 'Info.plist'],
@@ -82,22 +78,24 @@ List<Directory> _findTopLevelAppBundles({
   required Directory searchRoot,
   required p.Context pathContext,
 }) {
-  final appBundles = searchRoot
-      .listSync(recursive: true, followLinks: false)
-      .whereType<Directory>()
-      .where(
-        (entry) => pathContext.extension(entry.path).toLowerCase() == '.app',
-      )
-      .toList(growable: true)
-    ..sort((left, right) {
-      final leftPath = pathContext.normalize(left.path);
-      final rightPath = pathContext.normalize(right.path);
-      final depthCompare = leftPath.length.compareTo(rightPath.length);
-      if (depthCompare != 0) {
-        return depthCompare;
-      }
-      return leftPath.compareTo(rightPath);
-    });
+  final appBundles =
+      searchRoot
+          .listSync(recursive: true, followLinks: false)
+          .whereType<Directory>()
+          .where(
+            (entry) =>
+                pathContext.extension(entry.path).toLowerCase() == '.app',
+          )
+          .toList(growable: true)
+        ..sort((left, right) {
+          final leftPath = pathContext.normalize(left.path);
+          final rightPath = pathContext.normalize(right.path);
+          final depthCompare = leftPath.length.compareTo(rightPath.length);
+          if (depthCompare != 0) {
+            return depthCompare;
+          }
+          return leftPath.compareTo(rightPath);
+        });
 
   final topLevelBundles = <Directory>[];
   for (final bundle in appBundles) {

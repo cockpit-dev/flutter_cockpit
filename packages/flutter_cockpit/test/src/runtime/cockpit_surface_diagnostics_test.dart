@@ -81,9 +81,7 @@ void main() {
         CockpitCommand(
           commandId: 'tap-create-task',
           commandType: CockpitCommandType.tap,
-          locator: const CockpitLocator(
-            key: 'create-task-button',
-          ),
+          locator: const CockpitLocator(key: 'create-task-button'),
         ),
       );
       await tester.pump();
@@ -94,9 +92,7 @@ void main() {
         CockpitCommand(
           commandId: 'enter-task-title',
           commandType: CockpitCommandType.enterText,
-          locator: const CockpitLocator(
-            key: 'task-input',
-          ),
+          locator: const CockpitLocator(key: 'task-input'),
           parameters: const <String, Object?>{'text': 'Review pull request'},
         ),
       );
@@ -357,9 +353,7 @@ void main() {
         CockpitCommand(
           commandId: 'long-press-board',
           commandType: CockpitCommandType.longPress,
-          locator: const CockpitLocator(
-            key: 'gesture-card',
-          ),
+          locator: const CockpitLocator(key: 'gesture-card'),
         ),
       );
       await tester.pumpAndSettle();
@@ -425,8 +419,8 @@ void main() {
 
       expect(
         rootKey.currentState!.snapshot().visibleTargets.any(
-              (target) => target.keyValue == 'fab-add-task',
-            ),
+          (target) => target.keyValue == 'fab-add-task',
+        ),
         isTrue,
       );
 

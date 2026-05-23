@@ -19,12 +19,13 @@ final class CockpitIosSimulatorPlatformDriver
     CockpitIosSimulatorRemoteSessionLauncher? launcher,
     CockpitSimctlCaptureAdapter? captureAdapter,
     CockpitSimctlRecordingAdapter? recordingAdapter,
-  })  : _deviceId = deviceId,
-        _launcher = launcher ?? CockpitIosSimulatorRemoteSessionLauncher(),
-        _captureAdapter =
-            captureAdapter ?? CockpitSimctlCaptureAdapter(deviceId: deviceId),
-        _recordingAdapter = recordingAdapter ??
-            CockpitSimctlRecordingAdapter(deviceId: deviceId);
+  }) : _deviceId = deviceId,
+       _launcher = launcher ?? CockpitIosSimulatorRemoteSessionLauncher(),
+       _captureAdapter =
+           captureAdapter ?? CockpitSimctlCaptureAdapter(deviceId: deviceId),
+       _recordingAdapter =
+           recordingAdapter ??
+           CockpitSimctlRecordingAdapter(deviceId: deviceId);
 
   final String _deviceId;
   final CockpitIosSimulatorRemoteSessionLauncher _launcher;

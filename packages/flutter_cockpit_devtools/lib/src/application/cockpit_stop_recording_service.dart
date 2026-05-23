@@ -36,10 +36,11 @@ final class CockpitStopRecordingService {
     CockpitRecordingStrategyResolver recordingStrategyResolver =
         const CockpitRecordingStrategyResolver(),
     CockpitSessionRegistry? registry,
-  })  : _stopService = stopService ?? CockpitStopRemoteRecordingService(),
-        _appReferenceResolver = appReferenceResolver ??
-            CockpitAppReferenceResolver(registry: registry),
-        _recordingStrategyResolver = recordingStrategyResolver;
+  }) : _stopService = stopService ?? CockpitStopRemoteRecordingService(),
+       _appReferenceResolver =
+           appReferenceResolver ??
+           CockpitAppReferenceResolver(registry: registry),
+       _recordingStrategyResolver = recordingStrategyResolver;
 
   final CockpitStopRemoteRecordingService _stopService;
   final CockpitAppReferenceResolver _appReferenceResolver;
@@ -69,13 +70,16 @@ final class CockpitStopRecordingService {
         ),
         client: CockpitRemoteSessionClient(baseUri: resolved.baseUri),
         sessionHandle: resolved.app?.remoteSession,
-        androidDeviceId: request.androidDeviceId ??
+        androidDeviceId:
+            request.androidDeviceId ??
             (resolved.app?.platform == 'android'
                 ? resolved.app?.deviceId
                 : null),
-        iosDeviceId: request.iosDeviceId ??
+        iosDeviceId:
+            request.iosDeviceId ??
             (resolved.app?.platform == 'ios' ? resolved.app?.deviceId : null),
-        platformAppId: resolved.app?.platformAppId ??
+        platformAppId:
+            resolved.app?.platformAppId ??
             resolved.app?.remoteSession?.effectivePlatformAppId,
         processId:
             resolved.app?.processId ?? resolved.app?.remoteSession?.processId,

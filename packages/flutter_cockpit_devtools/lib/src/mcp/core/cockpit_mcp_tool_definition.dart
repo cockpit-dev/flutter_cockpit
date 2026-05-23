@@ -25,10 +25,10 @@ final class CockpitMcpToolDefinition implements CockpitMcpFeatureDescriptor {
   final bool enabledByDefault;
 
   Map<String, Object?> toDescriptor() => <String, Object?>{
-        'name': name,
-        'description': description,
-        'inputSchema': cockpitNormalizeMcpInputSchema(inputSchema),
-      };
+    'name': name,
+    'description': description,
+    'inputSchema': cockpitNormalizeMcpInputSchema(inputSchema),
+  };
 }
 
 Map<String, Object?> cockpitNormalizeMcpInputSchema(

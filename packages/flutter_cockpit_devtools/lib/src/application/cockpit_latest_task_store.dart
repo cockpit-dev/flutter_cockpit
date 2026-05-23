@@ -19,18 +19,18 @@ final class CockpitLatestTaskSnapshot {
   final CockpitReadTaskBundleSummaryResult? bundleSummary;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'recordedAt': recordedAt.toUtc().toIso8601String(),
-        'classification': classification.jsonValue,
-        'recommendedNextStep': recommendedNextStep,
-        'blockedReason': blockedReason,
-        if (warnings.isNotEmpty) 'warnings': warnings,
-        if (bundleSummary != null) 'bundleSummary': bundleSummary!.toJson(),
-      };
+    'recordedAt': recordedAt.toUtc().toIso8601String(),
+    'classification': classification.jsonValue,
+    'recommendedNextStep': recommendedNextStep,
+    'blockedReason': blockedReason,
+    if (warnings.isNotEmpty) 'warnings': warnings,
+    if (bundleSummary != null) 'bundleSummary': bundleSummary!.toJson(),
+  };
 }
 
 final class CockpitLatestTaskStore {
   CockpitLatestTaskStore({DateTime Function()? now})
-      : _now = now ?? DateTime.now;
+    : _now = now ?? DateTime.now;
 
   final DateTime Function() _now;
   CockpitLatestTaskSnapshot? _latest;

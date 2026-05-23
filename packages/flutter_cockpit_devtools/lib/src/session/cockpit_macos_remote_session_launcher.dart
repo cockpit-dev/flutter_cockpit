@@ -10,14 +10,11 @@ import 'cockpit_remote_session_launch_options.dart';
 import 'cockpit_remote_session_launcher.dart';
 import 'cockpit_session_path.dart';
 
-typedef CockpitMacosBundleIdResolver = Future<String> Function({
-  required String appBundlePath,
-});
+typedef CockpitMacosBundleIdResolver =
+    Future<String> Function({required String appBundlePath});
 
-typedef CockpitMacosAppBundlePathResolver = Future<String> Function({
-  required String projectDir,
-  String? flavor,
-});
+typedef CockpitMacosAppBundlePathResolver =
+    Future<String> Function({required String projectDir, String? flavor});
 
 final class CockpitMacosRemoteSessionLauncher
     implements CockpitRemoteSessionLauncher {
@@ -31,12 +28,12 @@ final class CockpitMacosRemoteSessionLauncher
     CockpitFlutterVersionReader flutterVersionReader =
         cockpitReadActiveFlutterVersion,
     DateTime Function()? now,
-  })  : _processRunner = processRunner,
-        _bundleIdResolver = bundleIdResolver,
-        _appBundlePathResolver = appBundlePathResolver,
-        _statusReader = statusReader,
-        _flutterVersionReader = flutterVersionReader,
-        _now = now ?? DateTime.now;
+  }) : _processRunner = processRunner,
+       _bundleIdResolver = bundleIdResolver,
+       _appBundlePathResolver = appBundlePathResolver,
+       _statusReader = statusReader,
+       _flutterVersionReader = flutterVersionReader,
+       _now = now ?? DateTime.now;
 
   final CockpitWorkingDirectoryProcessRunner _processRunner;
   final CockpitMacosBundleIdResolver _bundleIdResolver;
@@ -89,11 +86,10 @@ final class CockpitMacosRemoteSessionLauncher
       timeout: _capTimeout(_remaining(deadline), const Duration(seconds: 5)),
     );
 
-    await _runRequired(
-      'open',
-      <String>['-n', appBundlePath],
-      timeout: _remaining(deadline),
-    );
+    await _runRequired('open', <String>[
+      '-n',
+      appBundlePath,
+    ], timeout: _remaining(deadline));
 
     final baseUri = Uri.parse('http://127.0.0.1:${options.sessionPort}');
     final status = await cockpitWaitForRemoteSessionReady(
@@ -120,10 +116,10 @@ final class CockpitMacosRemoteSessionLauncher
     required Duration timeout,
   }) async {
     try {
-      await _processRunner(
-        'osascript',
-        <String>['-e', 'tell application id "$bundleId" to quit'],
-      ).timeout(timeout);
+      await _processRunner('osascript', <String>[
+        '-e',
+        'tell application id "$bundleId" to quit',
+      ]).timeout(timeout);
       await Future<void>.delayed(const Duration(milliseconds: 400));
     } on Object {
       // The app may not be running yet; launch should still continue.
@@ -136,17 +132,18 @@ final class CockpitMacosRemoteSessionLauncher
     String? workingDirectory,
     required Duration timeout,
   }) async {
-    final result = await _processRunner(
-      executable,
-      arguments,
-      workingDirectory: workingDirectory,
-    ).timeout(
-      timeout,
-      onTimeout: () => throw TimeoutException(
-        '$executable ${arguments.join(' ')} timed out.',
-        timeout,
-      ),
-    );
+    final result =
+        await _processRunner(
+          executable,
+          arguments,
+          workingDirectory: workingDirectory,
+        ).timeout(
+          timeout,
+          onTimeout: () => throw TimeoutException(
+            '$executable ${arguments.join(' ')} timed out.',
+            timeout,
+          ),
+        );
     if (result.exitCode != 0) {
       throw StateError(
         '$executable ${arguments.join(' ')} failed: ${result.stderr ?? result.stdout}',
@@ -180,9 +177,7 @@ final class CockpitMacosRemoteSessionLauncher
     );
   }
 
-  static Future<String> _resolveBundleId({
-    required String appBundlePath,
-  }) =>
+  static Future<String> _resolveBundleId({required String appBundlePath}) =>
       cockpitResolveMacosBundleId(appBundlePath: appBundlePath);
 
   static Future<String> _resolveAppBundlePath({

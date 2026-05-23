@@ -64,11 +64,9 @@ CockpitPlaneKind cockpitPlaneForSurface(CockpitSurfaceKind surfaceKind) {
     CockpitSurfaceKind.flutterSemantic => CockpitPlaneKind.flutterSemanticPlane,
     CockpitSurfaceKind.nativeUi ||
     CockpitSurfaceKind.desktopWindow ||
-    CockpitSurfaceKind.browserDom =>
-      CockpitPlaneKind.nativeUiPlane,
+    CockpitSurfaceKind.browserDom => CockpitPlaneKind.nativeUiPlane,
     CockpitSurfaceKind.systemUi ||
-    CockpitSurfaceKind.deviceShell =>
-      CockpitPlaneKind.deviceSystemPlane,
+    CockpitSurfaceKind.deviceShell => CockpitPlaneKind.deviceSystemPlane,
     CockpitSurfaceKind.hostShell => CockpitPlaneKind.hostPlane,
   };
 }
@@ -110,8 +108,9 @@ bool cockpitProfileSupportsPlane(
   CockpitPlaneKind planeKind,
 ) {
   return switch (planeKind) {
-    CockpitPlaneKind.flutterSemanticPlane =>
-      profile.supportsSurface(CockpitSurfaceKind.flutterSemantic),
+    CockpitPlaneKind.flutterSemanticPlane => profile.supportsSurface(
+      CockpitSurfaceKind.flutterSemantic,
+    ),
     CockpitPlaneKind.nativeUiPlane =>
       profile.supportsSurface(CockpitSurfaceKind.nativeUi) ||
           profile.supportsSurface(CockpitSurfaceKind.desktopWindow) ||
@@ -119,14 +118,13 @@ bool cockpitProfileSupportsPlane(
     CockpitPlaneKind.deviceSystemPlane =>
       profile.supportsSurface(CockpitSurfaceKind.systemUi) ||
           profile.supportsSurface(CockpitSurfaceKind.deviceShell),
-    CockpitPlaneKind.hostPlane =>
-      profile.supportsSurface(CockpitSurfaceKind.hostShell),
+    CockpitPlaneKind.hostPlane => profile.supportsSurface(
+      CockpitSurfaceKind.hostShell,
+    ),
   };
 }
 
-String cockpitRecommendedNextStepForProfile(
-  CockpitCapabilityProfile profile,
-) {
+String cockpitRecommendedNextStepForProfile(CockpitCapabilityProfile profile) {
   if (profile.supportsAction(CockpitActionCapability.captureScreenshot)) {
     return 'inspectSurface';
   }
@@ -146,8 +144,9 @@ String? cockpitWhatMattersForProfile(CockpitCapabilityProfile profile) {
   if (profile.qualityFlags.contains(CockpitQualityFlag.simulatorOnly)) {
     return 'This target is only supported on simulator environments.';
   }
-  if (profile.qualityFlags
-      .contains(CockpitQualityFlag.requiresForegroundWindow)) {
+  if (profile.qualityFlags.contains(
+    CockpitQualityFlag.requiresForegroundWindow,
+  )) {
     return 'This target must stay foregrounded for reliable control.';
   }
   return null;

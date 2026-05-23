@@ -20,6 +20,8 @@ It provides:
 
 ## Install
 
+Requires Flutter 3.32.0 or newer.
+
 ```yaml
 dependencies:
   flutter_cockpit: ^1.0.0

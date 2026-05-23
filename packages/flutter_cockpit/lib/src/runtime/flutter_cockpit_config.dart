@@ -171,20 +171,20 @@ final class FlutterCockpitConfig {
 
   @override
   int get hashCode => Object.hash(
-        initialRouteName,
-        flutterVersion,
-        registry,
-        nativeCapture,
-        nativeRecording,
-        remoteSession,
-        gestureDelay,
-        sessionController,
-        networkObserver,
-        httpNetworkObserver,
-        runtimeObserver,
-        runtimeObserverConfiguration,
-        interactionPolicy,
-        discoveryPolicy,
-        diagnostics,
-      );
+    initialRouteName,
+    flutterVersion,
+    registry,
+    nativeCapture,
+    nativeRecording,
+    remoteSession,
+    gestureDelay,
+    sessionController,
+    networkObserver,
+    httpNetworkObserver,
+    runtimeObserver,
+    runtimeObserverConfiguration,
+    interactionPolicy,
+    discoveryPolicy,
+    diagnostics,
+  );
 }

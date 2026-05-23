@@ -10,8 +10,8 @@ import '../cockpit_interactive_cli_support.dart';
 
 final class RunTaskCommand extends CockpitCliCommand {
   RunTaskCommand({CockpitRunTaskService? service, StringSink? stdoutSink})
-      : _service = service ?? CockpitRunTaskService(),
-        _stdoutSink = stdoutSink ?? stdout {
+    : _service = service ?? CockpitRunTaskService(),
+      _stdoutSink = stdoutSink ?? stdout {
     argParser.addOption(
       'config-json',
       help: 'Path to a JSON run-task configuration file.',

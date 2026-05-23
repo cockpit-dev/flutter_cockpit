@@ -5,8 +5,8 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import 'cockpit_remote_bridge_protocol.dart';
 import 'cockpit_remote_session_configuration.dart';
 
-typedef CockpitRemoteBridgeChannelConnector = WebSocketChannel Function(
-    Uri uri);
+typedef CockpitRemoteBridgeChannelConnector =
+    WebSocketChannel Function(Uri uri);
 
 final class CockpitRemoteSessionBridgeClient {
   CockpitRemoteSessionBridgeClient({
@@ -15,11 +15,11 @@ final class CockpitRemoteSessionBridgeClient {
     Duration reconnectDelay = const Duration(seconds: 1),
     Future<void> Function(Duration duration)? delay,
     CockpitRemoteBridgeChannelConnector? channelConnector,
-  })  : _configuration = configuration,
-        _protocol = protocol,
-        _reconnectDelay = reconnectDelay,
-        _delay = delay ?? Future<void>.delayed,
-        _channelConnector = channelConnector ?? WebSocketChannel.connect;
+  }) : _configuration = configuration,
+       _protocol = protocol,
+       _reconnectDelay = reconnectDelay,
+       _delay = delay ?? Future<void>.delayed,
+       _channelConnector = channelConnector ?? WebSocketChannel.connect;
 
   final CockpitRemoteSessionConfiguration _configuration;
   final CockpitRemoteSessionBridgeProtocol _protocol;

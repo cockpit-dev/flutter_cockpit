@@ -27,15 +27,14 @@ final class CockpitSemanticsTargetInfo {
   bool supports(SemanticsAction action) => supportedActions.contains(action);
 
   Set<CockpitCommandType> get supportedCommands => <CockpitCommandType>{
-        if (supports(SemanticsAction.tap)) CockpitCommandType.tap,
-        if (supports(SemanticsAction.longPress)) CockpitCommandType.longPress,
-        if (supports(SemanticsAction.setText)) CockpitCommandType.enterText,
-        if (supports(SemanticsAction.showOnScreen))
-          CockpitCommandType.showOnScreen,
-        if (supports(SemanticsAction.increase)) CockpitCommandType.increase,
-        if (supports(SemanticsAction.decrease)) CockpitCommandType.decrease,
-        if (supports(SemanticsAction.dismiss)) CockpitCommandType.dismiss,
-      };
+    if (supports(SemanticsAction.tap)) CockpitCommandType.tap,
+    if (supports(SemanticsAction.longPress)) CockpitCommandType.longPress,
+    if (supports(SemanticsAction.setText)) CockpitCommandType.enterText,
+    if (supports(SemanticsAction.showOnScreen)) CockpitCommandType.showOnScreen,
+    if (supports(SemanticsAction.increase)) CockpitCommandType.increase,
+    if (supports(SemanticsAction.decrease)) CockpitCommandType.decrease,
+    if (supports(SemanticsAction.dismiss)) CockpitCommandType.dismiss,
+  };
 
   VoidCallback? actionHandler(SemanticsAction action) {
     if (!supports(action)) {
@@ -90,8 +89,8 @@ SemanticsAction? cockpitResolveSemanticScrollAction({
 SemanticsNode? _resolveSemanticsNode(Element element) {
   RenderObject? renderObject = element.findRenderObject();
   SemanticsNode? result = renderObject?.debugSemantics;
-  while (
-      renderObject != null && (result == null || result.isMergedIntoParent)) {
+  while (renderObject != null &&
+      (result == null || result.isMergedIntoParent)) {
     renderObject = renderObject.parent;
     result = renderObject?.debugSemantics;
   }

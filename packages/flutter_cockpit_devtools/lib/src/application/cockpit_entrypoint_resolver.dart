@@ -12,27 +12,21 @@ String cockpitNormalizeProjectDir(String projectDir) {
 
 final class CockpitEntrypointResolver {
   CockpitEntrypointResolver({CockpitEntrypointExists? exists})
-      : _exists = exists ?? ((absolutePath) => File(absolutePath).existsSync());
+    : _exists = exists ?? ((absolutePath) => File(absolutePath).existsSync());
 
   final CockpitEntrypointExists _exists;
 
-  String resolve({
-    required String projectDir,
-    String? target,
-  }) {
+  String resolve({required String projectDir, String? target}) {
     final normalizedProjectDir = cockpitNormalizeProjectDir(projectDir);
     final requestedTarget = _normalizeTarget(target);
     if (requestedTarget != null) {
-      _ensureExists(
-        projectDir: normalizedProjectDir,
-        target: requestedTarget,
-      );
+      _ensureExists(projectDir: normalizedProjectDir, target: requestedTarget);
       return requestedTarget;
     }
 
     for (final candidate in const <String>[
       'cockpit/main.dart',
-      'lib/main.dart'
+      'lib/main.dart',
     ]) {
       if (_exists(p.join(normalizedProjectDir, candidate))) {
         return candidate;
@@ -46,20 +40,14 @@ final class CockpitEntrypointResolver {
     );
   }
 
-  void _ensureExists({
-    required String projectDir,
-    required String target,
-  }) {
+  void _ensureExists({required String projectDir, required String target}) {
     if (_exists(p.join(projectDir, target))) {
       return;
     }
     throw CockpitApplicationServiceException(
       code: 'missingTargetEntrypoint',
       message: 'Target entrypoint does not exist: $target',
-      details: <String, Object?>{
-        'projectDir': projectDir,
-        'target': target,
-      },
+      details: <String, Object?>{'projectDir': projectDir, 'target': target},
     );
   }
 

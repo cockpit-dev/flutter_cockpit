@@ -10,10 +10,10 @@ final class CockpitWorkspaceCommand {
   final String workingDirectory;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'executable': executable,
-        'arguments': arguments,
-        'workingDirectory': workingDirectory,
-      };
+    'executable': executable,
+    'arguments': arguments,
+    'workingDirectory': workingDirectory,
+  };
 }
 
 final class CockpitWorkspaceCommandResult {
@@ -32,10 +32,10 @@ final class CockpitWorkspaceCommandResult {
   bool get success => exitCode == 0;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'command': command.toJson(),
-        'exitCode': exitCode,
-        'stdout': stdout,
-        'stderr': stderr,
-        'success': success,
-      };
+    'command': command.toJson(),
+    'exitCode': exitCode,
+    'stdout': stdout,
+    'stderr': stderr,
+    'success': success,
+  };
 }

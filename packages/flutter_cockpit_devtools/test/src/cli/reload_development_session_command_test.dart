@@ -33,7 +33,8 @@ void main() {
         ),
       );
 
-    final exitCode = await runner.run(<String>[
+    final exitCode =
+        await runner.run(<String>[
           'reload-development-session',
           '--stdout-format',
           'json',

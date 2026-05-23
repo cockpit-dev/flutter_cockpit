@@ -1,10 +1,10 @@
 import '../../application/cockpit_wait_remote_ui_idle_service.dart';
 import '../cockpit_mcp_tool.dart';
 
-typedef CockpitWaitRemoteUiIdleToolFunction
-    = Future<CockpitWaitRemoteUiIdleResult> Function(
-  CockpitWaitRemoteUiIdleRequest request,
-);
+typedef CockpitWaitRemoteUiIdleToolFunction =
+    Future<CockpitWaitRemoteUiIdleResult> Function(
+      CockpitWaitRemoteUiIdleRequest request,
+    );
 
 final class CockpitWaitRemoteUiIdleTool extends CockpitMcpTool {
   CockpitWaitRemoteUiIdleTool({
@@ -23,13 +23,13 @@ final class CockpitWaitRemoteUiIdleTool extends CockpitMcpTool {
 
   @override
   CockpitMcpToolAnnotations get annotations => const CockpitMcpToolAnnotations(
-        readOnly: true,
-        destructive: false,
-        idempotent: true,
-        longRunning: false,
-        requiresSession: true,
-        producesBundleEvidence: false,
-      );
+    readOnly: true,
+    destructive: false,
+    idempotent: true,
+    longRunning: false,
+    requiresSession: true,
+    producesBundleEvidence: false,
+  );
 
   @override
   List<CockpitMcpFeatureCategory> get categories =>
@@ -40,15 +40,15 @@ final class CockpitWaitRemoteUiIdleTool extends CockpitMcpTool {
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
-        'type': 'object',
-        'properties': <String, Object?>{
-          'sessionHandle': <String, Object?>{'type': 'object'},
-          'sessionHandlePath': <String, Object?>{'type': 'string'},
-          'quietWindowMs': <String, Object?>{'type': 'integer'},
-          'timeoutMs': <String, Object?>{'type': 'integer'},
-          'includeNetworkIdle': <String, Object?>{'type': 'boolean'},
-        },
-      };
+    'type': 'object',
+    'properties': <String, Object?>{
+      'sessionHandle': <String, Object?>{'type': 'object'},
+      'sessionHandlePath': <String, Object?>{'type': 'string'},
+      'quietWindowMs': <String, Object?>{'type': 'integer'},
+      'timeoutMs': <String, Object?>{'type': 'integer'},
+      'includeNetworkIdle': <String, Object?>{'type': 'boolean'},
+    },
+  };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {
@@ -61,18 +61,13 @@ final class CockpitWaitRemoteUiIdleTool extends CockpitMcpTool {
             'sessionHandlePath',
           ),
           quietWindow: Duration(
-            milliseconds: cockpitReadOptionalPositiveInt(
-                  arguments,
-                  'quietWindowMs',
-                ) ??
+            milliseconds:
+                cockpitReadOptionalPositiveInt(arguments, 'quietWindowMs') ??
                 96,
           ),
           timeout: Duration(
-            milliseconds: cockpitReadOptionalPositiveInt(
-                  arguments,
-                  'timeoutMs',
-                ) ??
-                1600,
+            milliseconds:
+                cockpitReadOptionalPositiveInt(arguments, 'timeoutMs') ?? 1600,
           ),
           includeNetworkIdle:
               cockpitReadOptionalBool(arguments, 'includeNetworkIdle') ?? true,

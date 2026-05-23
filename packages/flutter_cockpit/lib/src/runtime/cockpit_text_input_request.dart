@@ -64,13 +64,13 @@ final class CockpitTextInputRequest {
       selectionExtent != null;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'text': text,
-        'selectionBase': selectionBase,
-        'selectionExtent': selectionExtent,
-        'inputAction': inputAction?.name,
-        'requestFocus': requestFocus,
-        'clearExisting': clearExisting,
-      };
+    'text': text,
+    'selectionBase': selectionBase,
+    'selectionExtent': selectionExtent,
+    'inputAction': inputAction?.name,
+    'requestFocus': requestFocus,
+    'clearExisting': clearExisting,
+  };
 
   factory CockpitTextInputRequest.fromJson(Map<String, Object?> json) {
     return CockpitTextInputRequest(
@@ -97,8 +97,9 @@ final class CockpitTextInputRequest {
   }) {
     return CockpitTextInputRequest(
       text: clearText ? null : (text ?? this.text),
-      selectionBase:
-          clearSelectionBase ? null : (selectionBase ?? this.selectionBase),
+      selectionBase: clearSelectionBase
+          ? null
+          : (selectionBase ?? this.selectionBase),
       selectionExtent: clearSelectionExtent
           ? null
           : (selectionExtent ?? this.selectionExtent),

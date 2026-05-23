@@ -28,21 +28,20 @@ final class CockpitNetworkSnapshot {
   static const ListEquality<CockpitNetworkEntry> _entryEquality =
       ListEquality<CockpitNetworkEntry>();
   static const ListEquality<CockpitNetworkEndpointSummary>
-      _endpointSummaryEquality = ListEquality<CockpitNetworkEndpointSummary>();
+  _endpointSummaryEquality = ListEquality<CockpitNetworkEndpointSummary>();
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'totalEntryCount': totalEntryCount,
-        'failureCount': failureCount,
-        'entries':
-            entries.map((entry) => entry.toJson()).toList(growable: false),
-        'endpointSummaries': endpointSummaries
-            .map((summary) => summary.toJson())
-            .toList(growable: false),
-        'capturedEntryCount': capturedEntryCount,
-        'inFlightCount': inFlightCount,
-        'query': query.toJson(),
-        'truncated': truncated,
-      };
+    'totalEntryCount': totalEntryCount,
+    'failureCount': failureCount,
+    'entries': entries.map((entry) => entry.toJson()).toList(growable: false),
+    'endpointSummaries': endpointSummaries
+        .map((summary) => summary.toJson())
+        .toList(growable: false),
+    'capturedEntryCount': capturedEntryCount,
+    'inFlightCount': inFlightCount,
+    'query': query.toJson(),
+    'truncated': truncated,
+  };
 
   factory CockpitNetworkSnapshot.fromJson(Map<String, Object?> json) {
     final queryJson = json['query'] as Map<Object?, Object?>?;
@@ -92,13 +91,13 @@ final class CockpitNetworkSnapshot {
 
   @override
   int get hashCode => Object.hash(
-        totalEntryCount,
-        failureCount,
-        _entryEquality.hash(entries),
-        _endpointSummaryEquality.hash(endpointSummaries),
-        capturedEntryCount,
-        inFlightCount,
-        query,
-        truncated,
-      );
+    totalEntryCount,
+    failureCount,
+    _entryEquality.hash(entries),
+    _endpointSummaryEquality.hash(endpointSummaries),
+    capturedEntryCount,
+    inFlightCount,
+    query,
+    truncated,
+  );
 }

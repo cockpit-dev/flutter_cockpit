@@ -11,17 +11,18 @@ import 'cockpit_interactive_result_profile.dart';
 import 'cockpit_interactive_snapshot_store.dart';
 import 'cockpit_session_reference_resolver.dart';
 
-typedef CockpitRemoteSnapshotDetailedReader
-    = Future<CockpitRemoteSnapshotResponse> Function(
-  Uri baseUri,
-  CockpitSnapshotOptions options,
-);
-typedef CockpitRemoteSnapshotUiIdleWaiter = Future<bool> Function(
-  Uri baseUri, {
-  required Duration quietWindow,
-  required Duration timeout,
-  required bool includeNetworkIdle,
-});
+typedef CockpitRemoteSnapshotDetailedReader =
+    Future<CockpitRemoteSnapshotResponse> Function(
+      Uri baseUri,
+      CockpitSnapshotOptions options,
+    );
+typedef CockpitRemoteSnapshotUiIdleWaiter =
+    Future<bool> Function(
+      Uri baseUri, {
+      required Duration quietWindow,
+      required Duration timeout,
+      required bool includeNetworkIdle,
+    });
 
 final class CockpitReadRemoteSnapshotRequest {
   const CockpitReadRemoteSnapshotRequest({
@@ -71,22 +72,22 @@ final class CockpitReadRemoteSnapshotResult {
   final CockpitSnapshotOptions? effectiveSnapshotOptions;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        if (routeName != null) 'routeName': routeName,
-        'diagnosticLevel': diagnosticLevel,
-        'truncated': truncated,
-        if (uiSummary != null) 'uiSummary': uiSummary!.toJson(),
-        if (snapshot != null) 'snapshot': snapshot!.toJson(),
-        if (diagnostics != null) 'diagnostics': diagnostics,
-        if (delta != null) 'delta': delta!.toJson(),
-        if (snapshotRef != null) 'snapshotRef': snapshotRef,
-        if (artifactDownloads.isNotEmpty)
-          'artifactDownloads': artifactDownloads
-              .map((download) => download.toJson())
-              .toList(growable: false),
-        if (sessionHandle != null) 'sessionHandle': sessionHandle!.toJson(),
-        if (effectiveSnapshotOptions != null)
-          'effectiveSnapshotOptions': effectiveSnapshotOptions!.toJson(),
-      };
+    if (routeName != null) 'routeName': routeName,
+    'diagnosticLevel': diagnosticLevel,
+    'truncated': truncated,
+    if (uiSummary != null) 'uiSummary': uiSummary!.toJson(),
+    if (snapshot != null) 'snapshot': snapshot!.toJson(),
+    if (diagnostics != null) 'diagnostics': diagnostics,
+    if (delta != null) 'delta': delta!.toJson(),
+    if (snapshotRef != null) 'snapshotRef': snapshotRef,
+    if (artifactDownloads.isNotEmpty)
+      'artifactDownloads': artifactDownloads
+          .map((download) => download.toJson())
+          .toList(growable: false),
+    if (sessionHandle != null) 'sessionHandle': sessionHandle!.toJson(),
+    if (effectiveSnapshotOptions != null)
+      'effectiveSnapshotOptions': effectiveSnapshotOptions!.toJson(),
+  };
 }
 
 final class CockpitReadRemoteSnapshotService {
@@ -94,13 +95,14 @@ final class CockpitReadRemoteSnapshotService {
     CockpitRemoteSnapshotDetailedReader? readSnapshot,
     CockpitSessionReferenceResolver? sessionReferenceResolver,
     CockpitInteractiveSnapshotStore? snapshotStore,
-  })  : _readSnapshot = readSnapshot ??
-            ((baseUri, options) => CockpitRemoteSessionClient(
-                  baseUri: baseUri,
-                ).readSnapshotDetailed(options: options)),
-        _sessionReferenceResolver =
-            sessionReferenceResolver ?? CockpitSessionReferenceResolver(),
-        _snapshotStore = snapshotStore ?? CockpitInteractiveSnapshotStore();
+  }) : _readSnapshot =
+           readSnapshot ??
+           ((baseUri, options) => CockpitRemoteSessionClient(
+             baseUri: baseUri,
+           ).readSnapshotDetailed(options: options)),
+       _sessionReferenceResolver =
+           sessionReferenceResolver ?? CockpitSessionReferenceResolver(),
+       _snapshotStore = snapshotStore ?? CockpitInteractiveSnapshotStore();
 
   final CockpitRemoteSnapshotDetailedReader _readSnapshot;
   final CockpitSessionReferenceResolver _sessionReferenceResolver;
@@ -115,10 +117,8 @@ final class CockpitReadRemoteSnapshotService {
       sessionHandlePath: request.sessionHandlePath,
       androidDeviceId: request.androidDeviceId,
     );
-    final effectiveSnapshotOptions =
-        request.resultProfile.resolveSnapshotOptions(
-      request.snapshotOptions,
-    );
+    final effectiveSnapshotOptions = request.resultProfile
+        .resolveSnapshotOptions(request.snapshotOptions);
     final snapshotResponse = await cockpitReadRemoteSnapshotConsistently(
       baseUri: resolved.baseUri,
       options: effectiveSnapshotOptions,

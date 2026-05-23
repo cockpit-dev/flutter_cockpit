@@ -28,12 +28,14 @@ final class CockpitLatestTaskResource extends CockpitMcpResource {
 
   @override
   Future<CockpitMcpResourceResult?> read(
-      CockpitMcpResourceRequest request) async {
+    CockpitMcpResourceRequest request,
+  ) async {
     if (request.uri != definition.uri) {
       return null;
     }
     final latest = _service.read();
-    final payload = latest?.toJson() ??
+    final payload =
+        latest?.toJson() ??
         const <String, Object?>{
           'state': 'empty',
           'message': 'No task run has been recorded in this MCP server yet.',

@@ -69,11 +69,11 @@ final class CockpitExecuteRemoteCommandBatchSummary {
   final bool stoppedEarly;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'totalCount': totalCount,
-        'successCount': successCount,
-        'failureCount': failureCount,
-        'stoppedEarly': stoppedEarly,
-      };
+    'totalCount': totalCount,
+    'successCount': successCount,
+    'failureCount': failureCount,
+    'stoppedEarly': stoppedEarly,
+  };
 }
 
 final class CockpitExecuteRemoteCommandBatchResult {
@@ -94,15 +94,14 @@ final class CockpitExecuteRemoteCommandBatchResult {
   final CockpitRemoteSessionHandle? sessionHandle;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'results': results.map((result) => result.toJson()).toList(),
-        'summary': summary.toJson(),
-        if (recordingSession != null)
-          'recordingSession': recordingSession!.toJson(),
-        if (recordingResult != null)
-          'recordingResult': recordingResult!.toJson(),
-        if (finalSnapshot != null) 'finalSnapshot': finalSnapshot!.toJson(),
-        if (sessionHandle != null) 'sessionHandle': sessionHandle!.toJson(),
-      };
+    'results': results.map((result) => result.toJson()).toList(),
+    'summary': summary.toJson(),
+    if (recordingSession != null)
+      'recordingSession': recordingSession!.toJson(),
+    if (recordingResult != null) 'recordingResult': recordingResult!.toJson(),
+    if (finalSnapshot != null) 'finalSnapshot': finalSnapshot!.toJson(),
+    if (sessionHandle != null) 'sessionHandle': sessionHandle!.toJson(),
+  };
 }
 
 final class CockpitExecuteRemoteCommandBatchService {
@@ -114,14 +113,14 @@ final class CockpitExecuteRemoteCommandBatchService {
     CockpitSessionReferenceResolver? sessionReferenceResolver,
     CockpitInteractiveSnapshotStore? snapshotStore,
     CockpitInteractiveSessionLock? sessionLock,
-  })  : _executeCommand = executeCommand,
-        _readSnapshot = readSnapshot,
-        _startRecording = startRecording,
-        _stopRecording = stopRecording,
-        _sessionReferenceResolver =
-            sessionReferenceResolver ?? CockpitSessionReferenceResolver(),
-        _snapshotStore = snapshotStore ?? CockpitInteractiveSnapshotStore(),
-        _sessionLock = sessionLock ?? CockpitInteractiveSessionLock();
+  }) : _executeCommand = executeCommand,
+       _readSnapshot = readSnapshot,
+       _startRecording = startRecording,
+       _stopRecording = stopRecording,
+       _sessionReferenceResolver =
+           sessionReferenceResolver ?? CockpitSessionReferenceResolver(),
+       _snapshotStore = snapshotStore ?? CockpitInteractiveSnapshotStore(),
+       _sessionLock = sessionLock ?? CockpitInteractiveSessionLock();
 
   final CockpitRemoteCommandExecutor? _executeCommand;
   final CockpitRemoteSnapshotDetailedReader? _readSnapshot;
@@ -227,8 +226,9 @@ final class CockpitExecuteRemoteCommandBatchService {
           );
           recordingStarted = false;
         }
-        final successCount =
-            results.where((result) => result.command.success).length;
+        final successCount = results
+            .where((result) => result.command.success)
+            .length;
         return CockpitExecuteRemoteCommandBatchResult(
           results: results,
           summary: CockpitExecuteRemoteCommandBatchSummary(

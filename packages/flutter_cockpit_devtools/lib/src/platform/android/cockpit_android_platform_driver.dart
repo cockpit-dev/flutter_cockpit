@@ -19,12 +19,12 @@ final class CockpitAndroidPlatformDriver
     CockpitAndroidRemoteSessionLauncher? launcher,
     CockpitAdbCaptureAdapter? captureAdapter,
     CockpitAdbRecordingAdapter? recordingAdapter,
-  })  : _deviceId = deviceId,
-        _launcher = launcher ?? CockpitAndroidRemoteSessionLauncher(),
-        _captureAdapter =
-            captureAdapter ?? CockpitAdbCaptureAdapter(deviceId: deviceId),
-        _recordingAdapter =
-            recordingAdapter ?? CockpitAdbRecordingAdapter(deviceId: deviceId);
+  }) : _deviceId = deviceId,
+       _launcher = launcher ?? CockpitAndroidRemoteSessionLauncher(),
+       _captureAdapter =
+           captureAdapter ?? CockpitAdbCaptureAdapter(deviceId: deviceId),
+       _recordingAdapter =
+           recordingAdapter ?? CockpitAdbRecordingAdapter(deviceId: deviceId);
 
   final String _deviceId;
   final CockpitAndroidRemoteSessionLauncher _launcher;

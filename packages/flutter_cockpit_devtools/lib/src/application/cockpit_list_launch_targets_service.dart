@@ -25,14 +25,14 @@ final class CockpitLaunchTarget {
   final String? sdk;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'id': id,
-        'name': name,
-        'platform': platform,
-        'platformType': platformType,
-        'emulator': emulator,
-        'ephemeral': ephemeral,
-        'sdk': sdk,
-      };
+    'id': id,
+    'name': name,
+    'platform': platform,
+    'platformType': platformType,
+    'emulator': emulator,
+    'ephemeral': ephemeral,
+    'sdk': sdk,
+  };
 }
 
 final class CockpitListLaunchTargetsResult {
@@ -41,9 +41,8 @@ final class CockpitListLaunchTargetsResult {
   final List<CockpitLaunchTarget> targets;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'targets':
-            targets.map((target) => target.toJson()).toList(growable: false),
-      };
+    'targets': targets.map((target) => target.toJson()).toList(growable: false),
+  };
 }
 
 final class CockpitListLaunchTargetsService {
@@ -51,8 +50,8 @@ final class CockpitListLaunchTargetsService {
     CockpitProcessManager? processManager,
     CockpitSdkEnvironment? sdkEnvironment,
     this.defaultTimeout = const Duration(seconds: 20),
-  })  : _processManager = processManager ?? const LocalCockpitProcessManager(),
-        _sdkEnvironment = sdkEnvironment ?? CockpitSdkEnvironment.current();
+  }) : _processManager = processManager ?? const LocalCockpitProcessManager(),
+       _sdkEnvironment = sdkEnvironment ?? CockpitSdkEnvironment.current();
 
   final CockpitProcessManager _processManager;
   final CockpitSdkEnvironment _sdkEnvironment;

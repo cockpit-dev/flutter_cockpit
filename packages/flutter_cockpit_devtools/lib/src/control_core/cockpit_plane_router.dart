@@ -12,8 +12,8 @@ final class CockpitPlaneRouter {
   CockpitPlaneRouter({
     Iterable<CockpitControlPlane> planes = const <CockpitControlPlane>[],
   }) : _planes = <CockpitPlaneKind, CockpitControlPlane>{
-          for (final plane in planes) plane.planeKind: plane,
-        };
+         for (final plane in planes) plane.planeKind: plane,
+       };
 
   final Map<CockpitPlaneKind, CockpitControlPlane> _planes;
 

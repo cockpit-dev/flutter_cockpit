@@ -9,19 +9,20 @@ import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
-typedef CockpitExecuteRemoteCommandBatchFunction
-    = Future<CockpitExecuteRemoteCommandBatchResult> Function(
-  CockpitExecuteRemoteCommandBatchRequest request,
-);
+typedef CockpitExecuteRemoteCommandBatchFunction =
+    Future<CockpitExecuteRemoteCommandBatchResult> Function(
+      CockpitExecuteRemoteCommandBatchRequest request,
+    );
 
 final class ExecuteRemoteCommandBatchCommand extends CockpitCliCommand {
   ExecuteRemoteCommandBatchCommand({
     CockpitExecuteRemoteCommandBatchService? service,
     CockpitExecuteRemoteCommandBatchFunction? execute,
     StringSink? stdoutSink,
-  })  : _execute = execute ??
-            (service ?? CockpitExecuteRemoteCommandBatchService()).execute,
-        _stdoutSink = stdoutSink ?? stdout {
+  }) : _execute =
+           execute ??
+           (service ?? CockpitExecuteRemoteCommandBatchService()).execute,
+       _stdoutSink = stdoutSink ?? stdout {
     cockpitAddRemoteSessionArgs(argParser);
     cockpitAddProfileArg(argParser, optionName: 'default-profile');
     argParser
@@ -147,9 +148,7 @@ final class ExecuteRemoteCommandBatchCommand extends CockpitCliCommand {
     return cockpitSuccessExitCode;
   }
 
-  CockpitInteractiveBatchCommand _readBatchCommand(
-    Map<String, Object?> json,
-  ) {
+  CockpitInteractiveBatchCommand _readBatchCommand(Map<String, Object?> json) {
     final commandJson = json['command'];
     final normalizedCommandJson = commandJson is Map<Object?, Object?>
         ? Map<String, Object?>.from(commandJson)
@@ -160,9 +159,7 @@ final class ExecuteRemoteCommandBatchCommand extends CockpitCliCommand {
       resultProfile: json['profile'] == null
           ? null
           : CockpitInteractiveResultProfile.preset(
-              CockpitInteractiveResultProfileName.fromJson(
-                json['profile'],
-              ),
+              CockpitInteractiveResultProfileName.fromJson(json['profile']),
             ),
       snapshotOptions: snapshotOptionsJson is Map<Object?, Object?>
           ? CockpitSnapshotOptions.fromJson(

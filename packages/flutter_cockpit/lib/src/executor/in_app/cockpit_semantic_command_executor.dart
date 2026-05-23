@@ -35,8 +35,8 @@ final class CockpitSemanticCommandExecutor {
       CockpitCommandType.decrease => decrease(command, stopwatch),
       CockpitCommandType.dismiss => dismiss(command, stopwatch),
       _ => throw UnsupportedError(
-          'Unsupported semantic command ${command.commandType.name}.',
-        ),
+        'Unsupported semantic command ${command.commandType.name}.',
+      ),
     };
   }
 }

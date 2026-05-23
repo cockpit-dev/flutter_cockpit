@@ -29,19 +29,17 @@ final class CockpitSdkEnvironment {
     final pathContext = p.Context(
       style: windows ? p.Style.windows : p.Style.posix,
     );
-    final flutterRoot = _readFirst(
-      environment,
-      const <String>['FLUTTER_ROOT', 'FLUTTER_SDK'],
-    );
-    final dartRoot = _readFirst(
-      environment,
-      const <String>['DART_ROOT', 'DART_SDK'],
-    );
+    final flutterRoot = _readFirst(environment, const <String>[
+      'FLUTTER_ROOT',
+      'FLUTTER_SDK',
+    ]);
+    final dartRoot = _readFirst(environment, const <String>[
+      'DART_ROOT',
+      'DART_SDK',
+    ]);
     return CockpitSdkEnvironment(
-      dartExecutable: _readFirst(
-            environment,
-            const <String>['DART', 'DART_BIN'],
-          ) ??
+      dartExecutable:
+          _readFirst(environment, const <String>['DART', 'DART_BIN']) ??
           _dartExecutableFromRoot(
             dartRoot,
             windows: windows,
@@ -53,10 +51,8 @@ final class CockpitSdkEnvironment {
             pathContext: pathContext,
           ) ??
           _defaultDartExecutable(windows),
-      flutterExecutable: _readFirst(
-            environment,
-            const <String>['FLUTTER', 'FLUTTER_BIN'],
-          ) ??
+      flutterExecutable:
+          _readFirst(environment, const <String>['FLUTTER', 'FLUTTER_BIN']) ??
           _flutterExecutableFromRoot(
             flutterRoot,
             windows: windows,

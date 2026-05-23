@@ -135,9 +135,7 @@ void main() {
       find.byType(CockpitSurface),
     );
     final resolution = surfaceState.registry.resolve(
-      const CockpitLocator(
-        text: 'Hidden action',
-      ),
+      const CockpitLocator(text: 'Hidden action'),
     );
 
     expect(resolution.isSuccess, isFalse);
@@ -162,7 +160,8 @@ void main() {
                 return true;
               }
               element.visitAncestorElements((ancestor) {
-                isBoundary = ancestor.widget.key ==
+                isBoundary =
+                    ancestor.widget.key ==
                     const ValueKey<String>('outer-scroll');
                 return !isBoundary;
               });

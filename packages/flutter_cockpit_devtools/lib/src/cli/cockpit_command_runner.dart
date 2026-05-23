@@ -63,11 +63,9 @@ const int cockpitDataExitCode = 65;
 const int cockpitNoInputExitCode = 66;
 
 final class CockpitCommandRunner {
-  CockpitCommandRunner({
-    StringSink? stderrSink,
-    List<Command<int>>? commands,
-  })  : _stderrSink = stderrSink ?? stderr,
-        _runner = CockpitCliRootRunner() {
+  CockpitCommandRunner({StringSink? stderrSink, List<Command<int>>? commands})
+    : _stderrSink = stderrSink ?? stderr,
+      _runner = CockpitCliRootRunner() {
     for (final command in commands ?? _defaultCommands()) {
       _runner.addCommand(command);
     }
@@ -85,17 +83,11 @@ final class CockpitCommandRunner {
       return await _runner.run(args) ?? cockpitSuccessExitCode;
     } on UsageException catch (error) {
       _stderrSink.writeln(error);
-      _writeErrorJson(
-        code: 'usage',
-        message: error.message,
-      );
+      _writeErrorJson(code: 'usage', message: error.message);
       return cockpitUsageExitCode;
     } on FormatException catch (error) {
       _stderrSink.writeln('Error: ${error.message}');
-      _writeErrorJson(
-        code: 'invalidInput',
-        message: error.message,
-      );
+      _writeErrorJson(code: 'invalidInput', message: error.message);
       return cockpitDataExitCode;
     } on CockpitApplicationServiceException catch (error) {
       _stderrSink.writeln('Error: ${error.message}');
@@ -107,26 +99,17 @@ final class CockpitCommandRunner {
       return cockpitDataExitCode;
     } on StateError catch (error) {
       _stderrSink.writeln('Error: ${error.message}');
-      _writeErrorJson(
-        code: 'invalidState',
-        message: error.message,
-      );
+      _writeErrorJson(code: 'invalidState', message: error.message);
       return cockpitDataExitCode;
     } on ArgumentError catch (error) {
       final message = _argumentErrorMessage(error);
       _stderrSink.writeln('Error: $message');
-      _writeErrorJson(
-        code: 'invalidArgument',
-        message: message,
-      );
+      _writeErrorJson(code: 'invalidArgument', message: message);
       return cockpitDataExitCode;
     } on Object catch (error) {
       final message = error.toString();
       _stderrSink.writeln('Error: $message');
-      _writeErrorJson(
-        code: 'internalError',
-        message: message,
-      );
+      _writeErrorJson(code: 'internalError', message: message);
       return cockpitDataExitCode;
     }
   }
@@ -145,11 +128,7 @@ final class CockpitCommandRunner {
     Map<String, Object?> details = const <String, Object?>{},
   }) {
     _stderrSink.writeln(
-      'errorJson: ${cockpitCompactJsonText(<String, Object?>{
-            'code': code,
-            'message': message,
-            if (details.isNotEmpty) 'details': details,
-          })}',
+      'errorJson: ${cockpitCompactJsonText(<String, Object?>{'code': code, 'message': message, if (details.isNotEmpty) 'details': details})}',
     );
   }
 

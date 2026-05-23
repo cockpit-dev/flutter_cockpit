@@ -21,15 +21,17 @@ final class CockpitMacosPlatformDriver
     bool enableDefaultCaptureAdapter = true,
     CockpitMacosRecordingAdapter? recordingAdapter,
     bool enableDefaultRecordingAdapter = true,
-  })  : _launcher = launcher ?? CockpitMacosRemoteSessionLauncher(),
-        _captureAdapter = captureAdapter ??
-            ((!enableDefaultCaptureAdapter || appId == null || appId.isEmpty)
-                ? null
-                : CockpitMacosCaptureAdapter(appId: appId)),
-        _recordingAdapter = recordingAdapter ??
-            ((!enableDefaultRecordingAdapter || appId == null || appId.isEmpty)
-                ? null
-                : CockpitMacosRecordingAdapter(appId: appId));
+  }) : _launcher = launcher ?? CockpitMacosRemoteSessionLauncher(),
+       _captureAdapter =
+           captureAdapter ??
+           ((!enableDefaultCaptureAdapter || appId == null || appId.isEmpty)
+               ? null
+               : CockpitMacosCaptureAdapter(appId: appId)),
+       _recordingAdapter =
+           recordingAdapter ??
+           ((!enableDefaultRecordingAdapter || appId == null || appId.isEmpty)
+               ? null
+               : CockpitMacosRecordingAdapter(appId: appId));
 
   final CockpitMacosRemoteSessionLauncher _launcher;
   final CockpitMacosCaptureAdapter? _captureAdapter;

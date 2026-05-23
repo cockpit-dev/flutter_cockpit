@@ -52,11 +52,11 @@ final class CockpitGrepPackageUrisMatch {
   final String text;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'line': line,
-        'column': column,
-        'endColumn': endColumn,
-        'text': text,
-      };
+    'line': line,
+    'column': column,
+    'endColumn': endColumn,
+    'text': text,
+  };
 }
 
 final class CockpitGrepPackageUrisFileResult {
@@ -75,14 +75,13 @@ final class CockpitGrepPackageUrisFileResult {
   final List<CockpitGrepPackageUrisMatch> matches;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'path': path,
-        'relativePath': relativePath,
-        'packageRootUri': packageRootUri,
-        if (packageUri != null) 'packageUri': packageUri,
-        'matchCount': matches.length,
-        'matches':
-            matches.map((match) => match.toJson()).toList(growable: false),
-      };
+    'path': path,
+    'relativePath': relativePath,
+    'packageRootUri': packageRootUri,
+    if (packageUri != null) 'packageUri': packageUri,
+    'matchCount': matches.length,
+    'matches': matches.map((match) => match.toJson()).toList(growable: false),
+  };
 }
 
 final class CockpitGrepPackageUrisPackageResult {
@@ -103,14 +102,14 @@ final class CockpitGrepPackageUrisPackageResult {
   final bool truncated;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'packageName': packageName,
-        if (searchRoot != null) 'searchRoot': searchRoot,
-        'fileCount': files.length,
-        'matchCount': matchCount,
-        'truncated': truncated,
-        'files': files.map((file) => file.toJson()).toList(growable: false),
-        if (error != null) 'error': error,
-      };
+    'packageName': packageName,
+    if (searchRoot != null) 'searchRoot': searchRoot,
+    'fileCount': files.length,
+    'matchCount': matchCount,
+    'truncated': truncated,
+    'files': files.map((file) => file.toJson()).toList(growable: false),
+    if (error != null) 'error': error,
+  };
 }
 
 final class CockpitGrepPackageUrisResult {
@@ -145,29 +144,30 @@ final class CockpitGrepPackageUrisResult {
   final List<String> warnings;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'workspaceRoot': workspaceRoot,
-        'query': query,
-        'searchDir': searchDir,
-        'useRegex': useRegex,
-        'caseSensitive': caseSensitive,
-        'usedRipgrep': usedRipgrep,
-        'matchedPackageCount': matchedPackageCount,
-        'matchedFileCount': matchedFileCount,
-        'totalMatches': totalMatches,
-        'truncated': truncated,
-        'summary': summary,
-        'packages':
-            packages.map((package) => package.toJson()).toList(growable: false),
-        if (warnings.isNotEmpty) 'warnings': warnings,
-      };
+    'workspaceRoot': workspaceRoot,
+    'query': query,
+    'searchDir': searchDir,
+    'useRegex': useRegex,
+    'caseSensitive': caseSensitive,
+    'usedRipgrep': usedRipgrep,
+    'matchedPackageCount': matchedPackageCount,
+    'matchedFileCount': matchedFileCount,
+    'totalMatches': totalMatches,
+    'truncated': truncated,
+    'summary': summary,
+    'packages': packages
+        .map((package) => package.toJson())
+        .toList(growable: false),
+    if (warnings.isNotEmpty) 'warnings': warnings,
+  };
 }
 
 final class CockpitGrepPackageUrisService {
   CockpitGrepPackageUrisService({
     CockpitFileSystem? fileSystem,
     CockpitProcessManager? processManager,
-  })  : _fileSystem = fileSystem ?? const LocalCockpitFileSystem(),
-        _processManager = processManager ?? const LocalCockpitProcessManager();
+  }) : _fileSystem = fileSystem ?? const LocalCockpitFileSystem(),
+       _processManager = processManager ?? const LocalCockpitProcessManager();
 
   final CockpitFileSystem _fileSystem;
   final CockpitProcessManager _processManager;
@@ -275,8 +275,9 @@ final class CockpitGrepPackageUrisService {
       );
     }
 
-    final matchedPackageCount =
-        packageResults.where((package) => package.matchCount > 0).length;
+    final matchedPackageCount = packageResults
+        .where((package) => package.matchCount > 0)
+        .length;
     final matchedFileCount = packageResults.fold<int>(0, (count, package) {
       return count + package.files.length;
     });
@@ -360,11 +361,9 @@ final class CockpitGrepPackageUrisService {
         : const Duration(seconds: 2);
     try {
       final version = await _processManager
-          .run(
-            'rg',
-            const <String>['--version'],
-            workingDirectory: workspaceRoot,
-          )
+          .run('rg', const <String>[
+            '--version',
+          ], workingDirectory: workspaceRoot)
           .timeout(versionTimeout);
       if (version.exitCode != 0) {
         return null;
@@ -375,20 +374,16 @@ final class CockpitGrepPackageUrisService {
 
     try {
       final result = await _processManager
-          .run(
-            'rg',
-            <String>[
-              '--no-config',
-              '--json',
-              if (!request.caseSensitive) '--ignore-case',
-              if (!request.useRegex) '--fixed-strings',
-              '-m',
-              '${request.maxMatchesPerFile}',
-              request.query,
-              searchRoot,
-            ],
-            workingDirectory: workspaceRoot,
-          )
+          .run('rg', <String>[
+            '--no-config',
+            '--json',
+            if (!request.caseSensitive) '--ignore-case',
+            if (!request.useRegex) '--fixed-strings',
+            '-m',
+            '${request.maxMatchesPerFile}',
+            request.query,
+            searchRoot,
+          ], workingDirectory: workspaceRoot)
           .timeout(request.timeout);
       if (result.exitCode != 0 && result.exitCode != 1) {
         return null;
@@ -437,7 +432,8 @@ final class CockpitGrepPackageUrisService {
         event['data'] as Map<Object?, Object?>? ?? const <Object?, Object?>{},
       );
       final pathData = Map<Object?, Object?>.from(
-          data['path'] as Map<Object?, Object?>? ?? const <Object?, Object?>{});
+        data['path'] as Map<Object?, Object?>? ?? const <Object?, Object?>{},
+      );
       final path = pathData['text'] as String?;
       if (path == null || path.isEmpty) {
         continue;
@@ -455,9 +451,7 @@ final class CockpitGrepPackageUrisService {
           packageUri: package.packageUriForRelativePath(relativePath),
         ),
       );
-      final rawLine = _ripgrepLineText(
-        data['lines'] as Map<Object?, Object?>?,
-      );
+      final rawLine = _ripgrepLineText(data['lines'] as Map<Object?, Object?>?);
       final submatches = ((data['submatches'] as List?) ?? const <Object?>[])
           .whereType<Map<Object?, Object?>>();
       for (final submatch in submatches) {
@@ -496,15 +490,17 @@ final class CockpitGrepPackageUrisService {
 
     return _CockpitPackageSearchOutcome(
       files: filesByPath.values
-          .map((file) => CockpitGrepPackageUrisFileResult(
-                path: file.path,
-                relativePath: file.relativePath,
-                packageRootUri: file.packageRootUri,
-                packageUri: file.packageUri,
-                matches: List<CockpitGrepPackageUrisMatch>.unmodifiable(
-                  file.matches,
-                ),
-              ))
+          .map(
+            (file) => CockpitGrepPackageUrisFileResult(
+              path: file.path,
+              relativePath: file.relativePath,
+              packageRootUri: file.packageRootUri,
+              packageUri: file.packageUri,
+              matches: List<CockpitGrepPackageUrisMatch>.unmodifiable(
+                file.matches,
+              ),
+            ),
+          )
           .toList(growable: false),
       matchCount: totalMatches,
       truncated: truncated,
@@ -596,10 +592,7 @@ final class CockpitGrepPackageUrisService {
   RegExp _buildPattern(CockpitGrepPackageUrisRequest request) {
     try {
       return request.useRegex
-          ? RegExp(
-              request.query,
-              caseSensitive: request.caseSensitive,
-            )
+          ? RegExp(request.query, caseSensitive: request.caseSensitive)
           : RegExp(
               RegExp.escape(request.query),
               caseSensitive: request.caseSensitive,
@@ -672,7 +665,8 @@ String _summaryFor({
     return 'No matches found across $requestedPackageCount package'
         '${requestedPackageCount == 1 ? '' : 's'}.';
   }
-  final summary = 'Found $totalMatches match'
+  final summary =
+      'Found $totalMatches match'
       '${totalMatches == 1 ? '' : 'es'} across $matchedFileCount file'
       '${matchedFileCount == 1 ? '' : 's'} in $matchedPackageCount package'
       '${matchedPackageCount == 1 ? '' : 's'}.';

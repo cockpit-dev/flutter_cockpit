@@ -15,17 +15,17 @@ final class CockpitRemoteSessionServer {
     required CockpitRemoteRecordingStarter startRecording,
     required CockpitRemoteRecordingStopper stopRecording,
     CockpitRemoteArtifactTempFileFactory? artifactTempFileFactory,
-  })  : _configuration = configuration,
-        _endpointHandler = CockpitRemoteSessionEndpointHandler(
-          configuration: configuration,
-          statusProvider: statusProvider,
-          snapshotProvider: snapshotProvider,
-          commandExecutor: commandExecutor,
-          runtimeStepDrainer: runtimeStepDrainer,
-          startRecording: startRecording,
-          stopRecording: stopRecording,
-          artifactTempFileFactory: artifactTempFileFactory,
-        );
+  }) : _configuration = configuration,
+       _endpointHandler = CockpitRemoteSessionEndpointHandler(
+         configuration: configuration,
+         statusProvider: statusProvider,
+         snapshotProvider: snapshotProvider,
+         commandExecutor: commandExecutor,
+         runtimeStepDrainer: runtimeStepDrainer,
+         startRecording: startRecording,
+         stopRecording: stopRecording,
+         artifactTempFileFactory: artifactTempFileFactory,
+       );
 
   final CockpitRemoteSessionConfiguration _configuration;
   final CockpitRemoteSessionEndpointHandler _endpointHandler;
@@ -87,24 +87,18 @@ final class CockpitRemoteSessionServer {
     } on FormatException catch (error) {
       await _writeResponse(
         request.response,
-        CockpitRemoteSessionEndpointResponse.json(
-          <String, Object?>{
-            'error': 'invalidPayload',
-            'message': error.message,
-          },
-          statusCode: HttpStatus.badRequest,
-        ),
+        CockpitRemoteSessionEndpointResponse.json(<String, Object?>{
+          'error': 'invalidPayload',
+          'message': error.message,
+        }, statusCode: HttpStatus.badRequest),
       );
     } catch (error) {
       await _writeResponse(
         request.response,
-        CockpitRemoteSessionEndpointResponse.json(
-          <String, Object?>{
-            'error': 'serverError',
-            'message': error.toString(),
-          },
-          statusCode: HttpStatus.internalServerError,
-        ),
+        CockpitRemoteSessionEndpointResponse.json(<String, Object?>{
+          'error': 'serverError',
+          'message': error.toString(),
+        }, statusCode: HttpStatus.internalServerError),
       );
     }
   }

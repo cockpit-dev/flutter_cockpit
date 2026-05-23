@@ -16,7 +16,7 @@ typedef CockpitRuntimeStepTimestampProvider = DateTime Function();
 
 final class CockpitRuntimeStepBuffer {
   CockpitRuntimeStepBuffer({CockpitRuntimeStepTimestampProvider? now})
-      : _now = now ?? _systemNow;
+    : _now = now ?? _systemNow;
 
   final CockpitRuntimeStepTimestampProvider _now;
   final List<CockpitStepRecord> _steps = <CockpitStepRecord>[];

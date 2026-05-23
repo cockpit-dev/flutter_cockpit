@@ -24,7 +24,8 @@ void main() {
         ),
       );
 
-    final exitCode = await runner.run(<String>[
+    final exitCode =
+        await runner.run(<String>[
           'launch-development-session',
           '--stdout-format',
           'json',
@@ -54,143 +55,152 @@ void main() {
     );
   });
 
-  test('launch-development-session accepts macos without a mobile device id',
-      () async {
-    CockpitLaunchDevelopmentSessionRequest? capturedRequest;
-    final output = StringBuffer();
-    final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
-      ..addCommand(
-        LaunchDevelopmentSessionCommand(
-          stdoutSink: output,
-          launch: (request) async {
-            capturedRequest = request;
-            return CockpitLaunchDevelopmentSessionResult(
-              sessionHandle: _macosHandle(reloadGeneration: 0),
-              status: _macosStatus(CockpitDevelopmentSessionState.ready),
-              persistedHandlePath: '/tmp/dev-session.json',
-            );
-          },
-        ),
+  test(
+    'launch-development-session accepts macos without a mobile device id',
+    () async {
+      CockpitLaunchDevelopmentSessionRequest? capturedRequest;
+      final output = StringBuffer();
+      final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
+        ..addCommand(
+          LaunchDevelopmentSessionCommand(
+            stdoutSink: output,
+            launch: (request) async {
+              capturedRequest = request;
+              return CockpitLaunchDevelopmentSessionResult(
+                sessionHandle: _macosHandle(reloadGeneration: 0),
+                status: _macosStatus(CockpitDevelopmentSessionState.ready),
+                persistedHandlePath: '/tmp/dev-session.json',
+              );
+            },
+          ),
+        );
+
+      final exitCode =
+          await runner.run(<String>[
+            'launch-development-session',
+            '--stdout-format',
+            'json',
+            '--project-dir',
+            '/workspace/examples/cockpit_demo',
+            '--target',
+            'cockpit/main.dart',
+            '--platform',
+            'macos',
+          ]) ??
+          0;
+
+      expect(exitCode, 0);
+      expect(capturedRequest?.platform, 'macos');
+      expect(capturedRequest?.deviceId, 'macos');
+      final decoded = jsonDecode(output.toString()) as Map<String, Object?>;
+      expect(
+        (decoded['sessionHandle'] as Map<String, Object?>)['platform'],
+        'macos',
       );
+    },
+  );
 
-    final exitCode = await runner.run(<String>[
-          'launch-development-session',
-          '--stdout-format',
-          'json',
-          '--project-dir',
-          '/workspace/examples/cockpit_demo',
-          '--target',
-          'cockpit/main.dart',
-          '--platform',
-          'macos',
-        ]) ??
-        0;
+  test(
+    'launch-development-session accepts windows without a mobile device id',
+    () async {
+      CockpitLaunchDevelopmentSessionRequest? capturedRequest;
+      final output = StringBuffer();
+      final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
+        ..addCommand(
+          LaunchDevelopmentSessionCommand(
+            stdoutSink: output,
+            launch: (request) async {
+              capturedRequest = request;
+              return CockpitLaunchDevelopmentSessionResult(
+                sessionHandle: _desktopHandle(
+                  platform: 'windows',
+                  deviceId: 'windows',
+                ),
+                status: _desktopStatus(
+                  sessionId: 'dev-session-windows',
+                  state: CockpitDevelopmentSessionState.ready,
+                ),
+                persistedHandlePath: '/tmp/dev-session.json',
+              );
+            },
+          ),
+        );
 
-    expect(exitCode, 0);
-    expect(capturedRequest?.platform, 'macos');
-    expect(capturedRequest?.deviceId, 'macos');
-    final decoded = jsonDecode(output.toString()) as Map<String, Object?>;
-    expect(
-      (decoded['sessionHandle'] as Map<String, Object?>)['platform'],
-      'macos',
-    );
-  });
+      final exitCode =
+          await runner.run(<String>[
+            'launch-development-session',
+            '--stdout-format',
+            'json',
+            '--project-dir',
+            '/workspace/examples/cockpit_demo',
+            '--target',
+            'cockpit/main.dart',
+            '--platform',
+            'windows',
+          ]) ??
+          0;
 
-  test('launch-development-session accepts windows without a mobile device id',
-      () async {
-    CockpitLaunchDevelopmentSessionRequest? capturedRequest;
-    final output = StringBuffer();
-    final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
-      ..addCommand(
-        LaunchDevelopmentSessionCommand(
-          stdoutSink: output,
-          launch: (request) async {
-            capturedRequest = request;
-            return CockpitLaunchDevelopmentSessionResult(
-              sessionHandle: _desktopHandle(
-                platform: 'windows',
-                deviceId: 'windows',
-              ),
-              status: _desktopStatus(
-                sessionId: 'dev-session-windows',
-                state: CockpitDevelopmentSessionState.ready,
-              ),
-              persistedHandlePath: '/tmp/dev-session.json',
-            );
-          },
-        ),
+      expect(exitCode, 0);
+      expect(capturedRequest?.platform, 'windows');
+      expect(capturedRequest?.deviceId, 'windows');
+      final decoded = jsonDecode(output.toString()) as Map<String, Object?>;
+      expect(
+        (decoded['sessionHandle'] as Map<String, Object?>)['platform'],
+        'windows',
       );
+    },
+  );
 
-    final exitCode = await runner.run(<String>[
-          'launch-development-session',
-          '--stdout-format',
-          'json',
-          '--project-dir',
-          '/workspace/examples/cockpit_demo',
-          '--target',
-          'cockpit/main.dart',
-          '--platform',
-          'windows',
-        ]) ??
-        0;
+  test(
+    'launch-development-session accepts linux without a mobile device id',
+    () async {
+      CockpitLaunchDevelopmentSessionRequest? capturedRequest;
+      final output = StringBuffer();
+      final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
+        ..addCommand(
+          LaunchDevelopmentSessionCommand(
+            stdoutSink: output,
+            launch: (request) async {
+              capturedRequest = request;
+              return CockpitLaunchDevelopmentSessionResult(
+                sessionHandle: _desktopHandle(
+                  platform: 'linux',
+                  deviceId: 'linux',
+                ),
+                status: _desktopStatus(
+                  sessionId: 'dev-session-linux',
+                  state: CockpitDevelopmentSessionState.ready,
+                ),
+                persistedHandlePath: '/tmp/dev-session.json',
+              );
+            },
+          ),
+        );
 
-    expect(exitCode, 0);
-    expect(capturedRequest?.platform, 'windows');
-    expect(capturedRequest?.deviceId, 'windows');
-    final decoded = jsonDecode(output.toString()) as Map<String, Object?>;
-    expect(
-      (decoded['sessionHandle'] as Map<String, Object?>)['platform'],
-      'windows',
-    );
-  });
+      final exitCode =
+          await runner.run(<String>[
+            'launch-development-session',
+            '--stdout-format',
+            'json',
+            '--project-dir',
+            '/workspace/examples/cockpit_demo',
+            '--target',
+            'cockpit/main.dart',
+            '--platform',
+            'linux',
+          ]) ??
+          0;
 
-  test('launch-development-session accepts linux without a mobile device id',
-      () async {
-    CockpitLaunchDevelopmentSessionRequest? capturedRequest;
-    final output = StringBuffer();
-    final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
-      ..addCommand(
-        LaunchDevelopmentSessionCommand(
-          stdoutSink: output,
-          launch: (request) async {
-            capturedRequest = request;
-            return CockpitLaunchDevelopmentSessionResult(
-              sessionHandle: _desktopHandle(
-                platform: 'linux',
-                deviceId: 'linux',
-              ),
-              status: _desktopStatus(
-                sessionId: 'dev-session-linux',
-                state: CockpitDevelopmentSessionState.ready,
-              ),
-              persistedHandlePath: '/tmp/dev-session.json',
-            );
-          },
-        ),
+      expect(exitCode, 0);
+      expect(capturedRequest?.platform, 'linux');
+      expect(capturedRequest?.deviceId, 'linux');
+      final decoded = jsonDecode(output.toString()) as Map<String, Object?>;
+      expect(
+        (decoded['sessionHandle'] as Map<String, Object?>)['platform'],
+        'linux',
       );
-
-    final exitCode = await runner.run(<String>[
-          'launch-development-session',
-          '--stdout-format',
-          'json',
-          '--project-dir',
-          '/workspace/examples/cockpit_demo',
-          '--target',
-          'cockpit/main.dart',
-          '--platform',
-          'linux',
-        ]) ??
-        0;
-
-    expect(exitCode, 0);
-    expect(capturedRequest?.platform, 'linux');
-    expect(capturedRequest?.deviceId, 'linux');
-    final decoded = jsonDecode(output.toString()) as Map<String, Object?>;
-    expect(
-      (decoded['sessionHandle'] as Map<String, Object?>)['platform'],
-      'linux',
-    );
-  });
+    },
+  );
 
   test('launch-development-session omits null fields in the payload', () async {
     final output = StringBuffer();
@@ -205,7 +215,8 @@ void main() {
         ),
       );
 
-    final exitCode = await runner.run(<String>[
+    final exitCode =
+        await runner.run(<String>[
           'launch-development-session',
           '--stdout-format',
           'json',

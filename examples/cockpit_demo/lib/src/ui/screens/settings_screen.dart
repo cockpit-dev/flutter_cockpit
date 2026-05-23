@@ -88,7 +88,8 @@ final class _SettingsScreenState extends State<SettingsScreen> {
         final theme = Theme.of(context);
         final colorScheme = theme.colorScheme;
         final syncState = widget.service.syncState;
-        final canResetSyncState = !syncState.isChecking &&
+        final canResetSyncState =
+            !syncState.isChecking &&
             (syncState.status != TodoSyncStatus.idle ||
                 syncState.hasSuccessfulCheck ||
                 syncState.endpoint != null ||
@@ -314,12 +315,12 @@ final class _SettingsScreenState extends State<SettingsScreen> {
                                     padding: const EdgeInsets.only(top: 8),
                                     child: Text(
                                       'Endpoint · $endpoint${syncState.statusCode == null ? '' : ' · HTTP ${syncState.statusCode}'}',
-                                      style:
-                                          theme.textTheme.labelMedium?.copyWith(
-                                        color: colorScheme.onSurfaceVariant,
-                                        fontWeight: FontWeight.w700,
-                                        letterSpacing: 0.4,
-                                      ),
+                                      style: theme.textTheme.labelMedium
+                                          ?.copyWith(
+                                            color: colorScheme.onSurfaceVariant,
+                                            fontWeight: FontWeight.w700,
+                                            letterSpacing: 0.4,
+                                          ),
                                     ),
                                   ),
                                 if (syncState.hasSuccessfulCheck)
@@ -333,34 +334,37 @@ final class _SettingsScreenState extends State<SettingsScreen> {
                                           'Last successful check',
                                           style: theme.textTheme.labelMedium
                                               ?.copyWith(
-                                            color: colorScheme.onSurfaceVariant,
-                                            fontWeight: FontWeight.w700,
-                                            letterSpacing: 0.4,
-                                          ),
+                                                color: colorScheme
+                                                    .onSurfaceVariant,
+                                                fontWeight: FontWeight.w700,
+                                                letterSpacing: 0.4,
+                                              ),
                                         ),
                                         const SizedBox(height: 4),
                                         Text(
                                           syncState.lastHealthySummary!,
                                           style: theme.textTheme.bodyMedium
                                               ?.copyWith(
-                                            color: colorScheme.onSurfaceVariant,
-                                            height: 1.45,
-                                          ),
+                                                color: colorScheme
+                                                    .onSurfaceVariant,
+                                                height: 1.45,
+                                              ),
                                         ),
                                         if (syncState.lastHealthyEndpoint
                                             case final endpoint?)
                                           Padding(
-                                            padding:
-                                                const EdgeInsets.only(top: 4),
+                                            padding: const EdgeInsets.only(
+                                              top: 4,
+                                            ),
                                             child: Text(
                                               'Endpoint · $endpoint${syncState.lastHealthyStatusCode == null ? '' : ' · HTTP ${syncState.lastHealthyStatusCode}'}',
                                               style: theme.textTheme.labelMedium
                                                   ?.copyWith(
-                                                color: colorScheme
-                                                    .onSurfaceVariant,
-                                                fontWeight: FontWeight.w700,
-                                                letterSpacing: 0.4,
-                                              ),
+                                                    color: colorScheme
+                                                        .onSurfaceVariant,
+                                                    fontWeight: FontWeight.w700,
+                                                    letterSpacing: 0.4,
+                                                  ),
                                             ),
                                           ),
                                       ],
@@ -378,8 +382,8 @@ final class _SettingsScreenState extends State<SettingsScreen> {
                                 FilledButton.tonal(
                                   onPressed:
                                       syncState.status == TodoSyncStatus.syncing
-                                          ? null
-                                          : widget.service.runSyncNow,
+                                      ? null
+                                      : widget.service.runSyncNow,
                                   child: const Text('Run queued sync'),
                                 ),
                                 FilledButton.tonal(
@@ -447,10 +451,8 @@ final class _SettingsScreenState extends State<SettingsScreen> {
                         decoration: BoxDecoration(
                           border: Border(
                             top: BorderSide(
-                              color:
-                                  colorScheme.outlineVariant.withAlphaFraction(
-                                0.82,
-                              ),
+                              color: colorScheme.outlineVariant
+                                  .withAlphaFraction(0.82),
                             ),
                           ),
                         ),

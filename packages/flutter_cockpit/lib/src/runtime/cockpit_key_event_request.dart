@@ -11,7 +11,8 @@ final class CockpitKeyEventRequest {
     final logical = _requireLogicalKey(json['logicalKey']);
     return CockpitKeyEventRequest(
       logicalKey: logical,
-      physicalKey: _maybePhysicalKey(json['physicalKey']) ??
+      physicalKey:
+          _maybePhysicalKey(json['physicalKey']) ??
           _maybePhysicalKey(json['logicalKey']),
       character: json['character'] as String?,
     );
@@ -22,10 +23,10 @@ final class CockpitKeyEventRequest {
   final String? character;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'logicalKey': logicalKey.debugName ?? logicalKey.keyLabel,
-        if (physicalKey != null) 'physicalKey': physicalKey!.debugName,
-        if (character != null) 'character': character,
-      };
+    'logicalKey': logicalKey.debugName ?? logicalKey.keyLabel,
+    if (physicalKey != null) 'physicalKey': physicalKey!.debugName,
+    if (character != null) 'character': character,
+  };
 
   static LogicalKeyboardKey _requireLogicalKey(Object? raw) {
     final resolved = _maybeLogicalKey(raw);

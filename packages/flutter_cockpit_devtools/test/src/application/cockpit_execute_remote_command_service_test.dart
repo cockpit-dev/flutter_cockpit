@@ -29,7 +29,7 @@ void main() {
             ),
           );
         },
-        readSnapshot: (_, __) async {
+        readSnapshot: (_, _) async {
           snapshotReads += 1;
           throw UnimplementedError('compact results should not read snapshots');
         },
@@ -96,48 +96,50 @@ void main() {
       expect(capturedCommand?.timeoutMs, 4800);
     });
 
-    test('refreshes android host forwarding before executing commands',
-        () async {
-      Uri? capturedBaseUri;
-      final service = CockpitExecuteRemoteCommandService(
-        sessionReferenceResolver: CockpitSessionReferenceResolver(
-          portForwarder: CockpitAndroidPortForwarder(
-            processRunner: (_, __) async => ProcessResult(
-              0,
-              0,
-              'emulator-5554 tcp:61331 tcp:47331\n',
-              '',
+    test(
+      'refreshes android host forwarding before executing commands',
+      () async {
+        Uri? capturedBaseUri;
+        final service = CockpitExecuteRemoteCommandService(
+          sessionReferenceResolver: CockpitSessionReferenceResolver(
+            portForwarder: CockpitAndroidPortForwarder(
+              processRunner: (_, _) async => ProcessResult(
+                0,
+                0,
+                'emulator-5554 tcp:61331 tcp:47331\n',
+                '',
+              ),
+              hostPortAllocator: () async => 61331,
+              hostPortAvailabilityChecker: (_) async => false,
             ),
-            hostPortAllocator: () async => 61331,
-            hostPortAvailabilityChecker: (_) async => false,
           ),
-        ),
-        executeCommand: (baseUri, command) async {
-          capturedBaseUri = baseUri;
-          return CockpitCommandExecution(
-            result: CockpitCommandResult(
-              success: true,
-              commandId: command.commandId,
-              commandType: command.commandType,
-              durationMs: 120,
+          executeCommand: (baseUri, command) async {
+            capturedBaseUri = baseUri;
+            return CockpitCommandExecution(
+              result: CockpitCommandResult(
+                success: true,
+                commandId: command.commandId,
+                commandType: command.commandType,
+                durationMs: 120,
+              ),
+            );
+          },
+        );
+
+        await service.execute(
+          CockpitExecuteRemoteCommandRequest(
+            sessionHandle: _androidSessionHandle(),
+            command: CockpitCommand(
+              commandId: 'tap-android-forwarded',
+              commandType: CockpitCommandType.tap,
             ),
-          );
-        },
-      );
-
-      await service.execute(
-        CockpitExecuteRemoteCommandRequest(
-          sessionHandle: _androidSessionHandle(),
-          command: CockpitCommand(
-            commandId: 'tap-android-forwarded',
-            commandType: CockpitCommandType.tap,
+            resultProfile: const CockpitInteractiveResultProfile.minimal(),
           ),
-          resultProfile: const CockpitInteractiveResultProfile.minimal(),
-        ),
-      );
+        );
 
-      expect(capturedBaseUri.toString(), 'http://127.0.0.1:61331');
-    });
+        expect(capturedBaseUri.toString(), 'http://127.0.0.1:61331');
+      },
+    );
 
     test('uses a longer inferred timeout for long scroll commands', () async {
       CockpitCommand? capturedCommand;
@@ -176,95 +178,101 @@ void main() {
       expect(capturedCommand?.timeoutMs, greaterThanOrEqualTo(8000));
     });
 
-    test('extends inferred timeout when scroll probing splits large steps',
-        () async {
-      CockpitCommand? capturedCommand;
-      final service = CockpitExecuteRemoteCommandService(
-        executeCommand: (_, command) async {
-          capturedCommand = command;
-          return CockpitCommandExecution(
-            result: CockpitCommandResult(
-              success: true,
-              commandId: command.commandId,
-              commandType: command.commandType,
-              durationMs: 50,
+    test(
+      'extends inferred timeout when scroll probing splits large steps',
+      () async {
+        CockpitCommand? capturedCommand;
+        final service = CockpitExecuteRemoteCommandService(
+          executeCommand: (_, command) async {
+            capturedCommand = command;
+            return CockpitCommandExecution(
+              result: CockpitCommandResult(
+                success: true,
+                commandId: command.commandId,
+                commandType: command.commandType,
+                durationMs: 50,
+              ),
+            );
+          },
+        );
+
+        await service.execute(
+          CockpitExecuteRemoteCommandRequest(
+            sessionHandle: _sessionHandle(),
+            command: CockpitCommand(
+              commandId: 'scroll-probe-timeout-default',
+              commandType: CockpitCommandType.scrollUntilVisible,
+              locator: const CockpitLocator(key: 'settings-sync-check-button'),
+              parameters: const <String, Object?>{
+                'maxScrolls': 6,
+                'viewportFraction': 0.8,
+              },
             ),
-          );
-        },
-      );
-
-      await service.execute(
-        CockpitExecuteRemoteCommandRequest(
-          sessionHandle: _sessionHandle(),
-          command: CockpitCommand(
-            commandId: 'scroll-probe-timeout-default',
-            commandType: CockpitCommandType.scrollUntilVisible,
-            locator: const CockpitLocator(key: 'settings-sync-check-button'),
-            parameters: const <String, Object?>{
-              'maxScrolls': 6,
-              'viewportFraction': 0.8,
-            },
+            resultProfile: const CockpitInteractiveResultProfile.minimal(),
+            defaultCommandTimeout: const Duration(seconds: 4),
           ),
-          resultProfile: const CockpitInteractiveResultProfile.minimal(),
-          defaultCommandTimeout: const Duration(seconds: 4),
-        ),
-      );
+        );
 
-      expect(capturedCommand?.timeoutMs, greaterThanOrEqualTo(12000));
-    });
+        expect(capturedCommand?.timeoutMs, greaterThanOrEqualTo(12000));
+      },
+    );
 
-    test('returns summary, diagnostics, artifact metadata, and snapshot refs',
-        () async {
-      final handle = _sessionHandle();
-      CockpitSnapshotOptions? capturedOptions;
-      final service = CockpitExecuteRemoteCommandService(
-        executeCommand: (_, command) async {
-          return CockpitCommandExecution(
-            result: CockpitCommandResult(
-              success: true,
-              commandId: command.commandId,
-              commandType: command.commandType,
-              durationMs: 240,
-              artifacts: const <CockpitArtifactRef>[
-                CockpitArtifactRef(
-                  role: 'step_screenshot',
-                  relativePath: 'artifacts/after-tap.png',
-                ),
-              ],
+    test(
+      'returns summary, diagnostics, artifact metadata, and snapshot refs',
+      () async {
+        final handle = _sessionHandle();
+        CockpitSnapshotOptions? capturedOptions;
+        final service = CockpitExecuteRemoteCommandService(
+          executeCommand: (_, command) async {
+            return CockpitCommandExecution(
+              result: CockpitCommandResult(
+                success: true,
+                commandId: command.commandId,
+                commandType: command.commandType,
+                durationMs: 240,
+                artifacts: const <CockpitArtifactRef>[
+                  CockpitArtifactRef(
+                    role: 'step_screenshot',
+                    relativePath: 'artifacts/after-tap.png',
+                  ),
+                ],
+              ),
+              artifactPayloads: <String, List<int>>{
+                'artifacts/after-tap.png': <int>[1, 2, 3, 4],
+              },
+            );
+          },
+          readSnapshot: (_, options) async {
+            capturedOptions = options;
+            return CockpitRemoteSnapshotResponse(
+              snapshot: _richSnapshot(routeName: '/details'),
+            );
+          },
+        );
+
+        final result = await service.execute(
+          CockpitExecuteRemoteCommandRequest(
+            sessionHandle: handle,
+            command: CockpitCommand(
+              commandId: 'tap-2',
+              commandType: CockpitCommandType.tap,
             ),
-            artifactPayloads: <String, List<int>>{
-              'artifacts/after-tap.png': <int>[1, 2, 3, 4],
-            },
-          );
-        },
-        readSnapshot: (_, options) async {
-          capturedOptions = options;
-          return CockpitRemoteSnapshotResponse(
-            snapshot: _richSnapshot(routeName: '/details'),
-          );
-        },
-      );
-
-      final result = await service.execute(
-        CockpitExecuteRemoteCommandRequest(
-          sessionHandle: handle,
-          command: CockpitCommand(
-            commandId: 'tap-2',
-            commandType: CockpitCommandType.tap,
+            resultProfile: const CockpitInteractiveResultProfile.inspect(),
           ),
-          resultProfile: const CockpitInteractiveResultProfile.inspect(),
-        ),
-      );
+        );
 
-      expect(capturedOptions?.profile, CockpitSnapshotProfile.investigate);
-      expect(result.uiSummary?.routeName, '/details');
-      expect(result.snapshot, isNull);
-      expect(result.diagnostics?['network'], isNotNull);
-      expect(result.artifacts.single.byteLength, 4);
-      expect(result.snapshotRef, isNotEmpty);
-      expect(result.effectiveSnapshotOptions?.profile,
-          CockpitSnapshotProfile.investigate);
-    });
+        expect(capturedOptions?.profile, CockpitSnapshotProfile.investigate);
+        expect(result.uiSummary?.routeName, '/details');
+        expect(result.snapshot, isNull);
+        expect(result.diagnostics?['network'], isNotNull);
+        expect(result.artifacts.single.byteLength, 4);
+        expect(result.snapshotRef, isNotEmpty);
+        expect(
+          result.effectiveSnapshotOptions?.profile,
+          CockpitSnapshotProfile.investigate,
+        );
+      },
+    );
 
     test('returns a full snapshot for forensic profiles', () async {
       final handle = _sessionHandle();
@@ -279,7 +287,7 @@ void main() {
             ),
           );
         },
-        readSnapshot: (_, __) async => CockpitRemoteSnapshotResponse(
+        readSnapshot: (_, _) async => CockpitRemoteSnapshotResponse(
           snapshot: _richSnapshot(routeName: '/forensic'),
         ),
       );
@@ -300,133 +308,139 @@ void main() {
       expect(result.diagnostics?['runtime'], isNotNull);
     });
 
-    test('retries transient empty post-action snapshots before summarizing',
-        () async {
-      var snapshotReads = 0;
-      final service = CockpitExecuteRemoteCommandService(
-        executeCommand: (_, command) async {
-          return CockpitCommandExecution(
-            result: CockpitCommandResult(
-              success: true,
-              commandId: command.commandId,
-              commandType: command.commandType,
-              durationMs: 80,
+    test(
+      'retries transient empty post-action snapshots before summarizing',
+      () async {
+        var snapshotReads = 0;
+        final service = CockpitExecuteRemoteCommandService(
+          executeCommand: (_, command) async {
+            return CockpitCommandExecution(
+              result: CockpitCommandResult(
+                success: true,
+                commandId: command.commandId,
+                commandType: command.commandType,
+                durationMs: 80,
+              ),
+            );
+          },
+          readSnapshot: (_, _) async {
+            snapshotReads += 1;
+            return CockpitRemoteSnapshotResponse(
+              snapshot: snapshotReads == 1
+                  ? _emptyRouteSnapshot('/inbox')
+                  : _richSnapshot(routeName: '/inbox', label: 'Create task'),
+            );
+          },
+        );
+
+        final result = await service.execute(
+          CockpitExecuteRemoteCommandRequest(
+            sessionHandle: _sessionHandle(),
+            command: CockpitCommand(
+              commandId: 'tap-after-route-change',
+              commandType: CockpitCommandType.tap,
             ),
-          );
-        },
-        readSnapshot: (_, __) async {
-          snapshotReads += 1;
-          return CockpitRemoteSnapshotResponse(
-            snapshot: snapshotReads == 1
-                ? _emptyRouteSnapshot('/inbox')
-                : _richSnapshot(routeName: '/inbox', label: 'Create task'),
-          );
-        },
-      );
-
-      final result = await service.execute(
-        CockpitExecuteRemoteCommandRequest(
-          sessionHandle: _sessionHandle(),
-          command: CockpitCommand(
-            commandId: 'tap-after-route-change',
-            commandType: CockpitCommandType.tap,
+            resultProfile: const CockpitInteractiveResultProfile.standard(),
           ),
-          resultProfile: const CockpitInteractiveResultProfile.standard(),
-        ),
-      );
+        );
 
-      expect(snapshotReads, 2);
-      expect(result.uiSummary?.routeName, '/inbox');
-      expect(result.uiSummary?.visibleTargetCount, 1);
-      expect(result.uiSummary?.textPreviews, contains('Create task'));
-    });
+        expect(snapshotReads, 2);
+        expect(result.uiSummary?.routeName, '/inbox');
+        expect(result.uiSummary?.visibleTargetCount, 1);
+        expect(result.uiSummary?.textPreviews, contains('Create task'));
+      },
+    );
 
-    test('returns refs without metadata for standard artifact profiles',
-        () async {
-      final service = CockpitExecuteRemoteCommandService(
-        executeCommand: (_, command) async {
-          return CockpitCommandExecution(
-            result: CockpitCommandResult(
-              success: true,
-              commandId: command.commandId,
-              commandType: command.commandType,
-              durationMs: 50,
-              artifacts: const <CockpitArtifactRef>[
-                CockpitArtifactRef(
-                  role: 'step_screenshot',
-                  relativePath: 'artifacts/standard.png',
-                ),
-              ],
+    test(
+      'returns refs without metadata for standard artifact profiles',
+      () async {
+        final service = CockpitExecuteRemoteCommandService(
+          executeCommand: (_, command) async {
+            return CockpitCommandExecution(
+              result: CockpitCommandResult(
+                success: true,
+                commandId: command.commandId,
+                commandType: command.commandType,
+                durationMs: 50,
+                artifacts: const <CockpitArtifactRef>[
+                  CockpitArtifactRef(
+                    role: 'step_screenshot',
+                    relativePath: 'artifacts/standard.png',
+                  ),
+                ],
+              ),
+              artifactPayloads: <String, List<int>>{
+                'artifacts/standard.png': <int>[1, 2, 3],
+              },
+              artifactSourcePaths: <String, String>{
+                'artifacts/standard.png': '/tmp/standard.png',
+              },
+            );
+          },
+          readSnapshot: (_, _) async => CockpitRemoteSnapshotResponse(
+            snapshot: _richSnapshot(routeName: '/standard'),
+          ),
+        );
+
+        final result = await service.execute(
+          CockpitExecuteRemoteCommandRequest(
+            sessionHandle: _sessionHandle(),
+            command: CockpitCommand(
+              commandId: 'tap-standard',
+              commandType: CockpitCommandType.tap,
             ),
-            artifactPayloads: <String, List<int>>{
-              'artifacts/standard.png': <int>[1, 2, 3],
-            },
-            artifactSourcePaths: <String, String>{
-              'artifacts/standard.png': '/tmp/standard.png',
-            },
-          );
-        },
-        readSnapshot: (_, __) async => CockpitRemoteSnapshotResponse(
-          snapshot: _richSnapshot(routeName: '/standard'),
-        ),
-      );
-
-      final result = await service.execute(
-        CockpitExecuteRemoteCommandRequest(
-          sessionHandle: _sessionHandle(),
-          command: CockpitCommand(
-            commandId: 'tap-standard',
-            commandType: CockpitCommandType.tap,
+            resultProfile: const CockpitInteractiveResultProfile.standard(),
           ),
-          resultProfile: const CockpitInteractiveResultProfile.standard(),
-        ),
-      );
+        );
 
-      expect(result.artifacts.single.role, 'step_screenshot');
-      expect(result.artifacts.single.relativePath, 'artifacts/standard.png');
-      expect(result.artifacts.single.byteLength, isNull);
-      expect(result.artifacts.single.sourcePath, isNull);
-    });
+        expect(result.artifacts.single.role, 'step_screenshot');
+        expect(result.artifacts.single.relativePath, 'artifacts/standard.png');
+        expect(result.artifacts.single.byteLength, isNull);
+        expect(result.artifacts.single.sourcePath, isNull);
+      },
+    );
 
-    test('filters failures-only diagnostics down to failing sections',
-        () async {
-      final service = CockpitExecuteRemoteCommandService(
-        executeCommand: (_, command) async {
-          return CockpitCommandExecution(
-            result: CockpitCommandResult(
-              success: true,
-              commandId: command.commandId,
-              commandType: command.commandType,
-              durationMs: 75,
+    test(
+      'filters failures-only diagnostics down to failing sections',
+      () async {
+        final service = CockpitExecuteRemoteCommandService(
+          executeCommand: (_, command) async {
+            return CockpitCommandExecution(
+              result: CockpitCommandResult(
+                success: true,
+                commandId: command.commandId,
+                commandType: command.commandType,
+                durationMs: 75,
+              ),
+            );
+          },
+          readSnapshot: (_, _) async => CockpitRemoteSnapshotResponse(
+            snapshot: _richSnapshot(routeName: '/failures-only'),
+          ),
+        );
+
+        final result = await service.execute(
+          CockpitExecuteRemoteCommandRequest(
+            sessionHandle: _sessionHandle(),
+            command: CockpitCommand(
+              commandId: 'tap-inspect',
+              commandType: CockpitCommandType.tap,
             ),
-          );
-        },
-        readSnapshot: (_, __) async => CockpitRemoteSnapshotResponse(
-          snapshot: _richSnapshot(routeName: '/failures-only'),
-        ),
-      );
-
-      final result = await service.execute(
-        CockpitExecuteRemoteCommandRequest(
-          sessionHandle: _sessionHandle(),
-          command: CockpitCommand(
-            commandId: 'tap-inspect',
-            commandType: CockpitCommandType.tap,
+            resultProfile: const CockpitInteractiveResultProfile.inspect(),
           ),
-          resultProfile: const CockpitInteractiveResultProfile.inspect(),
-        ),
-      );
+        );
 
-      expect(result.diagnostics?['level'], 'failures_only');
-      expect(result.diagnostics?['network'], isNotNull);
-      expect(result.diagnostics?['runtime'], isNotNull);
-      expect(result.diagnostics?.containsKey('rebuild'), isFalse);
-      expect(result.diagnostics?.containsKey('accessibility'), isFalse);
-    });
+        expect(result.diagnostics?['level'], 'failures_only');
+        expect(result.diagnostics?['network'], isNotNull);
+        expect(result.diagnostics?['runtime'], isNotNull);
+        expect(result.diagnostics?.containsKey('rebuild'), isFalse);
+        expect(result.diagnostics?.containsKey('accessibility'), isFalse);
+      },
+    );
 
     test('propagates structured application errors', () async {
       final service = CockpitExecuteRemoteCommandService(
-        executeCommand: (_, __) async {
+        executeCommand: (_, _) async {
           throw const CockpitApplicationServiceException(
             code: 'sessionUnreachable',
             message: 'Session is offline.',
@@ -466,7 +480,7 @@ void main() {
             ),
           );
         },
-        readSnapshot: (_, __) async => CockpitRemoteSnapshotResponse(
+        readSnapshot: (_, _) async => CockpitRemoteSnapshotResponse(
           snapshot: _richSnapshot(routeName: '/compare'),
         ),
       );
@@ -493,47 +507,49 @@ void main() {
       );
     });
 
-    test('includes deltas when comparing against a previous snapshot ref',
-        () async {
-      final store = CockpitInteractiveSnapshotStore();
-      final baselineRef = store.put(
-        sessionKey: _sessionHandle().baseUri.toString(),
-        snapshot: _richSnapshot(routeName: '/before', label: 'Before'),
-      );
-      final service = CockpitExecuteRemoteCommandService(
-        snapshotStore: store,
-        executeCommand: (_, command) async {
-          return CockpitCommandExecution(
-            result: CockpitCommandResult(
-              success: true,
-              commandId: command.commandId,
-              commandType: command.commandType,
-              durationMs: 95,
-            ),
-          );
-        },
-        readSnapshot: (_, __) async => CockpitRemoteSnapshotResponse(
-          snapshot: _richSnapshot(routeName: '/after', label: 'After'),
-        ),
-      );
-
-      final result = await service.execute(
-        CockpitExecuteRemoteCommandRequest(
-          sessionHandle: _sessionHandle(),
-          command: CockpitCommand(
-            commandId: 'tap-6',
-            commandType: CockpitCommandType.tap,
+    test(
+      'includes deltas when comparing against a previous snapshot ref',
+      () async {
+        final store = CockpitInteractiveSnapshotStore();
+        final baselineRef = store.put(
+          sessionKey: _sessionHandle().baseUri.toString(),
+          snapshot: _richSnapshot(routeName: '/before', label: 'Before'),
+        );
+        final service = CockpitExecuteRemoteCommandService(
+          snapshotStore: store,
+          executeCommand: (_, command) async {
+            return CockpitCommandExecution(
+              result: CockpitCommandResult(
+                success: true,
+                commandId: command.commandId,
+                commandType: command.commandType,
+                durationMs: 95,
+              ),
+            );
+          },
+          readSnapshot: (_, _) async => CockpitRemoteSnapshotResponse(
+            snapshot: _richSnapshot(routeName: '/after', label: 'After'),
           ),
-          resultProfile: const CockpitInteractiveResultProfile.inspect(),
-          compareAgainstSnapshotRef: baselineRef,
-        ),
-      );
+        );
 
-      expect(result.delta?.routeChanged, isTrue);
-      expect(result.delta?.fromRouteName, '/before');
-      expect(result.delta?.toRouteName, '/after');
-      expect(result.delta?.addedTextPreviews, contains('After'));
-    });
+        final result = await service.execute(
+          CockpitExecuteRemoteCommandRequest(
+            sessionHandle: _sessionHandle(),
+            command: CockpitCommand(
+              commandId: 'tap-6',
+              commandType: CockpitCommandType.tap,
+            ),
+            resultProfile: const CockpitInteractiveResultProfile.inspect(),
+            compareAgainstSnapshotRef: baselineRef,
+          ),
+        );
+
+        expect(result.delta?.routeChanged, isTrue);
+        expect(result.delta?.fromRouteName, '/before');
+        expect(result.delta?.toRouteName, '/after');
+        expect(result.delta?.addedTextPreviews, contains('After'));
+      },
+    );
   });
 }
 

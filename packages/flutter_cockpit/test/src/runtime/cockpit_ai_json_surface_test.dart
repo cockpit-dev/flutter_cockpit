@@ -32,8 +32,9 @@ void main() {
     expect(snapshotJson.containsKey('rebuild'), isFalse);
     expect(snapshotJson.containsKey('accessibility'), isFalse);
 
-    final targetJson = (snapshotJson['visibleTargets']! as List<Object?>).single
-        as Map<String, Object?>;
+    final targetJson =
+        (snapshotJson['visibleTargets']! as List<Object?>).single
+            as Map<String, Object?>;
     expect(targetJson.containsKey('cockpitId'), isFalse);
     expect(targetJson.containsKey('semanticId'), isFalse);
     expect(targetJson.containsKey('scrollablePath'), isFalse);
@@ -47,8 +48,9 @@ void main() {
     final layoutJson = targetJson['layout']! as Map<String, Object?>;
     expect(layoutJson.containsKey('constraintsSummary'), isFalse);
 
-    final ancestorJson = (targetJson['ancestors']! as List<Object?>).single
-        as Map<String, Object?>;
+    final ancestorJson =
+        (targetJson['ancestors']! as List<Object?>).single
+            as Map<String, Object?>;
     expect(ancestorJson.containsKey('cockpitId'), isFalse);
     expect(ancestorJson.containsKey('routeName'), isFalse);
   });

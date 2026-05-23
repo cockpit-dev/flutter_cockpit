@@ -9,17 +9,16 @@ import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
-typedef CockpitRunCommandFunction = Future<CockpitRunCommandResult> Function(
-  CockpitRunCommandRequest request,
-);
+typedef CockpitRunCommandFunction =
+    Future<CockpitRunCommandResult> Function(CockpitRunCommandRequest request);
 
 final class RunCommandCommand extends CockpitCliCommand {
   RunCommandCommand({
     CockpitRunCommandService? service,
     CockpitRunCommandFunction? runCommand,
     StringSink? stdoutSink,
-  })  : _runCommand = runCommand ?? (service ?? CockpitRunCommandService()).run,
-        _stdoutSink = stdoutSink ?? stdout {
+  }) : _runCommand = runCommand ?? (service ?? CockpitRunCommandService()).run,
+       _stdoutSink = stdoutSink ?? stdout {
     cockpitAddAppArgs(argParser);
     cockpitAddProfileArg(
       argParser,
@@ -96,11 +95,8 @@ final class RunCommandCommand extends CockpitCliCommand {
         ),
         resultProfile: cockpitReadResultProfile(argResults),
         defaultCommandTimeout: Duration(
-          milliseconds: cockpitReadOptionalPositiveInt(
-                argResults,
-                'timeout-ms',
-                usage,
-              ) ??
+          milliseconds:
+              cockpitReadOptionalPositiveInt(argResults, 'timeout-ms', usage) ??
               30000,
         ),
         snapshotOptions: snapshotOptionsJson == null

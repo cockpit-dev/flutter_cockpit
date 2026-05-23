@@ -74,20 +74,20 @@ final class CockpitDevelopmentProbe {
   final Map<String, Object?> artifacts;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'probeId': probeId,
-        'sessionId': sessionId,
-        'reloadGeneration': reloadGeneration,
-        'capturedAt': capturedAt.toUtc().toIso8601String(),
-        'reason': reason.jsonValue,
-        if (checkpoint != null) 'checkpoint': checkpoint,
-        'profile': profile.jsonValue,
-        'routeName': routeName,
-        'ui': ui,
-        'network': network,
-        'runtime': runtime,
-        'rebuild': rebuild,
-        'artifacts': artifacts,
-      };
+    'probeId': probeId,
+    'sessionId': sessionId,
+    'reloadGeneration': reloadGeneration,
+    'capturedAt': capturedAt.toUtc().toIso8601String(),
+    'reason': reason.jsonValue,
+    if (checkpoint != null) 'checkpoint': checkpoint,
+    'profile': profile.jsonValue,
+    'routeName': routeName,
+    'ui': ui,
+    'network': network,
+    'runtime': runtime,
+    'rebuild': rebuild,
+    'artifacts': artifacts,
+  };
 
   factory CockpitDevelopmentProbe.fromJson(Map<String, Object?> json) {
     return CockpitDevelopmentProbe(

@@ -15,8 +15,8 @@ final class TaskRunBundleWriter {
         const DefaultCockpitRecordingKeyframeExtractor(),
     CockpitTimelineVideoFallbackBuilder timelineVideoFallbackBuilder =
         const DefaultCockpitTimelineVideoFallbackBuilder(),
-  })  : _keyframeExtractor = keyframeExtractor,
-        _timelineVideoFallbackBuilder = timelineVideoFallbackBuilder;
+  }) : _keyframeExtractor = keyframeExtractor,
+       _timelineVideoFallbackBuilder = timelineVideoFallbackBuilder;
 
   final CockpitRecordingKeyframeExtractor _keyframeExtractor;
   final CockpitTimelineVideoFallbackBuilder _timelineVideoFallbackBuilder;
@@ -502,8 +502,8 @@ final class TaskRunBundleWriter {
         continue;
       }
 
-      artifactPayloads[candidate.relativePath] =
-          screenshotFile.readAsBytesSync();
+      artifactPayloads[candidate.relativePath] = screenshotFile
+          .readAsBytesSync();
       keyframes.add(candidate);
       keyframes.sort((left, right) => left.offsetMs.compareTo(right.offsetMs));
       coverage = _coverageForKeyframes(
@@ -515,8 +515,9 @@ final class TaskRunBundleWriter {
       }
     }
 
-    final failureReason =
-        coverage.isReady ? null : keyframeExtraction.failureReason;
+    final failureReason = coverage.isReady
+        ? null
+        : keyframeExtraction.failureReason;
     return CockpitRecordingKeyframeExtractionResult(
       keyframes: List<CockpitRecordingKeyframe>.unmodifiable(keyframes),
       artifactPayloads: Map<String, List<int>>.unmodifiable(artifactPayloads),
@@ -533,14 +534,15 @@ final class TaskRunBundleWriter {
   }) {
     final recordingBaseName = p.basenameWithoutExtension(recordingRelativePath);
     final earlyWindowEnd = _earlyCoverageWindowMs(durationMs);
-    final screenshotSteps = bundle.steps
-        .where(
-          (step) => step.captureRefs.any(
-            (artifact) => artifact.role == 'screenshot',
-          ),
-        )
-        .toList(growable: false)
-      ..sort((left, right) => left.observedAt.compareTo(right.observedAt));
+    final screenshotSteps =
+        bundle.steps
+            .where(
+              (step) => step.captureRefs.any(
+                (artifact) => artifact.role == 'screenshot',
+              ),
+            )
+            .toList(growable: false)
+          ..sort((left, right) => left.observedAt.compareTo(right.observedAt));
 
     final candidates = <CockpitRecordingKeyframe>[];
     for (var index = 0; index < screenshotSteps.length; index++) {
@@ -560,8 +562,7 @@ final class TaskRunBundleWriter {
           .clamp(0, durationMs);
       final label = switch (step.requestedCaptureProfile) {
         CockpitCaptureProfile.acceptance ||
-        CockpitCaptureProfile.nativePreferred =>
-          'acceptance',
+        CockpitCaptureProfile.nativePreferred => 'acceptance',
         _ when index == 0 && offsetMs <= earlyWindowEnd => 'baseline',
         _ => 'step_capture_${step.index.toString().padLeft(3, '0')}',
       };
@@ -713,7 +714,8 @@ final class TaskRunBundleWriter {
       'gates': <String, Object?>{
         ...gates,
         'recordingReadyOrExplained': true,
-        'deliveryValidated': (gates['screenshotReady'] as bool? ??
+        'deliveryValidated':
+            (gates['screenshotReady'] as bool? ??
                 handoff['screenshotReady'] as bool? ??
                 true) &&
             true,
@@ -770,7 +772,8 @@ final class TaskRunBundleWriter {
     final needsMidCoverage = durationMs >= 3000;
     final midStart = (durationMs * 0.30).round();
     final midEnd = (durationMs * 0.70).round();
-    final hasMidCoverage = !needsMidCoverage ||
+    final hasMidCoverage =
+        !needsMidCoverage ||
         keyframes.any(
           (keyframe) =>
               keyframe.offsetMs >= midStart && keyframe.offsetMs <= midEnd,
@@ -801,12 +804,15 @@ final class TaskRunBundleWriter {
     final lateWindowStart = durationMs - (durationMs < 2000 ? 450 : 900);
     final midStart = (durationMs * 0.30).round();
     final midEnd = (durationMs * 0.70).round();
-    final fillsEarly = !coverage.hasEarlyCoverage &&
+    final fillsEarly =
+        !coverage.hasEarlyCoverage &&
         candidate.offsetMs <= _earlyCoverageWindowMs(durationMs);
-    final fillsMid = !coverage.hasMidCoverage &&
+    final fillsMid =
+        !coverage.hasMidCoverage &&
         candidate.offsetMs >= midStart &&
         candidate.offsetMs <= midEnd;
-    final fillsLate = !coverage.hasLateCoverage &&
+    final fillsLate =
+        !coverage.hasLateCoverage &&
         (candidate.label == 'tail_consistency' ||
             candidate.offsetMs >= lateWindowStart);
     return fillsEarly || fillsMid || fillsLate;
@@ -837,7 +843,8 @@ final class TaskRunBundleWriter {
           .map((keyframe) => keyframe.toJson())
           .toList(growable: false),
       'keyframeCoverage': keyframeExtraction.coverage.toJson(),
-      'deliveryKeyframesReady': keyframeExtraction.coverage.isReady &&
+      'deliveryKeyframesReady':
+          keyframeExtraction.coverage.isReady &&
           keyframeExtraction.keyframes.isNotEmpty &&
           keyframeExtraction.failureReason == null,
       'keyframeFailureReason': keyframeExtraction.failureReason,

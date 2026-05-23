@@ -27,9 +27,9 @@ final class CockpitTargetReferenceResolver {
     CockpitAppReferenceResolver? appReferenceResolver,
     CockpitAndroidPortForwarder portForwarder =
         const CockpitAndroidPortForwarder(),
-  })  : _appReferenceResolver =
-            appReferenceResolver ?? CockpitAppReferenceResolver(),
-        _portForwarder = portForwarder;
+  }) : _appReferenceResolver =
+           appReferenceResolver ?? CockpitAppReferenceResolver(),
+       _portForwarder = portForwarder;
 
   final CockpitAppReferenceResolver _appReferenceResolver;
   final CockpitAndroidPortForwarder _portForwarder;
@@ -133,8 +133,9 @@ final class CockpitTargetReferenceResolver {
   }
 
   Future<CockpitTargetHandle> _refreshTargetConnection(
-      CockpitTargetHandle target,
-      {Uri? overrideBaseUri}) async {
+    CockpitTargetHandle target, {
+    Uri? overrideBaseUri,
+  }) async {
     if (target.targetKind != CockpitTargetKind.flutterApp &&
         target.targetKind != CockpitTargetKind.desktopApp) {
       if (overrideBaseUri == null || overrideBaseUri == target.baseUri) {
@@ -284,6 +285,7 @@ final class CockpitTargetReferenceResolver {
       return null;
     }
     return CockpitRemoteSessionHandle.fromJson(
-        Map<String, Object?>.from(value));
+      Map<String, Object?>.from(value),
+    );
   }
 }

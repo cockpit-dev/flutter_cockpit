@@ -6,21 +6,17 @@ import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
-typedef CockpitHotRestartFunction = Future<CockpitHotRestartResult> Function(
-  CockpitHotRestartRequest request,
-);
+typedef CockpitHotRestartFunction =
+    Future<CockpitHotRestartResult> Function(CockpitHotRestartRequest request);
 
 final class HotRestartCommand extends CockpitCliCommand {
   HotRestartCommand({
     CockpitHotRestartService? service,
     CockpitHotRestartFunction? restart,
     StringSink? stdoutSink,
-  })  : _restart = restart ?? (service ?? CockpitHotRestartService()).restart,
-        _stdoutSink = stdoutSink ?? stdout {
-    argParser.addOption(
-      'app-json',
-      help: cockpitAppJsonOptionHelp,
-    );
+  }) : _restart = restart ?? (service ?? CockpitHotRestartService()).restart,
+       _stdoutSink = stdoutSink ?? stdout {
+    argParser.addOption('app-json', help: cockpitAppJsonOptionHelp);
   }
 
   final CockpitHotRestartFunction _restart;
@@ -57,8 +53,9 @@ final class HotRestartCommand extends CockpitCliCommand {
   @override
   Future<int> run() async {
     final appJson = cockpitRequireResolvedAppHandlePath(argResults, usage);
-    final result =
-        await _restart(CockpitHotRestartRequest(appHandlePath: appJson));
+    final result = await _restart(
+      CockpitHotRestartRequest(appHandlePath: appJson),
+    );
     await cockpitWriteJsonPayload(
       payload: const JsonEncoder.withIndent('  ').convert(result.toJson()),
       argResults: argResults,

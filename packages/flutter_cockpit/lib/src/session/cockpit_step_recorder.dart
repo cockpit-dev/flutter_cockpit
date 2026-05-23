@@ -20,8 +20,8 @@ final class CockpitStepRecorder {
   CockpitStepRecorder({
     required CockpitTimestampProvider now,
     required CockpitObservationAssembler observationAssembler,
-  })  : _now = now,
-        _observationAssembler = observationAssembler;
+  }) : _now = now,
+       _observationAssembler = observationAssembler;
 
   final CockpitTimestampProvider _now;
   final CockpitObservationAssembler _observationAssembler;
@@ -89,8 +89,10 @@ final class CockpitStepRecorder {
       result,
       stepIndex: _steps.length,
     );
-    final observation =
-        _observationAssembler.observationFromCommandResult(result, snapshot);
+    final observation = _observationAssembler.observationFromCommandResult(
+      result,
+      snapshot,
+    );
     final executionPlane = observation?.executionPlane;
     final usedPlaneFallback =
         observation?.fallbackUsed == true || result.usedCaptureFallback;
@@ -173,12 +175,12 @@ final class CockpitStepRecorder {
     }
     return switch (executionPlane) {
       CockpitPlaneKind.nativeUiPlane => const <CockpitPlaneKind>[
-          CockpitPlaneKind.flutterSemanticPlane,
-        ],
+        CockpitPlaneKind.flutterSemanticPlane,
+      ],
       CockpitPlaneKind.deviceSystemPlane => const <CockpitPlaneKind>[
-          CockpitPlaneKind.nativeUiPlane,
-          CockpitPlaneKind.flutterSemanticPlane,
-        ],
+        CockpitPlaneKind.nativeUiPlane,
+        CockpitPlaneKind.flutterSemanticPlane,
+      ],
       _ => const <CockpitPlaneKind>[CockpitPlaneKind.flutterSemanticPlane],
     };
   }

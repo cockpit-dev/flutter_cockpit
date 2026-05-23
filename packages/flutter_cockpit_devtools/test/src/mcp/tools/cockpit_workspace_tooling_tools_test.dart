@@ -23,8 +23,9 @@ import 'package:test/test.dart';
 void main() {
   test('read_package_uris defaults to the single configured root', () async {
     final rootsTracker = CockpitMcpRootsTracker(forceFallback: true)
-      ..addFallbackRoots(
-          <Root>[Root(uri: 'file:///workspace/', name: 'workspace')]);
+      ..addFallbackRoots(<Root>[
+        Root(uri: 'file:///workspace/', name: 'workspace'),
+      ]);
     CockpitReadPackageUrisRequest? capturedRequest;
     final tool = CockpitReadPackageUrisTool(
       rootsTracker: rootsTracker,
@@ -49,41 +50,44 @@ void main() {
     expect((structured['results'] as List<Object?>), hasLength(1));
   });
 
-  test('create_project defaults parentDirectory to the single configured root',
-      () async {
-    final rootsTracker = CockpitMcpRootsTracker(forceFallback: true)
-      ..addFallbackRoots(
-          <Root>[Root(uri: 'file:///workspace/', name: 'workspace')]);
-    CockpitCreateProjectRequest? capturedRequest;
-    final tool = CockpitCreateProjectTool(
-      rootsTracker: rootsTracker,
-      create: (request) async {
-        capturedRequest = request;
-        return CockpitCreateProjectResult(
-          projectDirectory: '/workspace/new_app',
-          command: const CockpitWorkspaceCommand(
-            executable: 'flutter',
-            arguments: <String>['create', '/workspace/new_app'],
-            workingDirectory: '/workspace',
-          ),
-          success: true,
-          stdout: 'created',
-          stderr: '',
-        );
-      },
-    );
+  test(
+    'create_project defaults parentDirectory to the single configured root',
+    () async {
+      final rootsTracker = CockpitMcpRootsTracker(forceFallback: true)
+        ..addFallbackRoots(<Root>[
+          Root(uri: 'file:///workspace/', name: 'workspace'),
+        ]);
+      CockpitCreateProjectRequest? capturedRequest;
+      final tool = CockpitCreateProjectTool(
+        rootsTracker: rootsTracker,
+        create: (request) async {
+          capturedRequest = request;
+          return CockpitCreateProjectResult(
+            projectDirectory: '/workspace/new_app',
+            command: const CockpitWorkspaceCommand(
+              executable: 'flutter',
+              arguments: <String>['create', '/workspace/new_app'],
+              workingDirectory: '/workspace',
+            ),
+            success: true,
+            stdout: 'created',
+            stderr: '',
+          );
+        },
+      );
 
-    final result = await tool.call(<String, Object?>{
-      'projectName': 'new_app',
-      'template': 'flutter_app',
-    });
+      final result = await tool.call(<String, Object?>{
+        'projectName': 'new_app',
+        'template': 'flutter_app',
+      });
 
-    expect(capturedRequest?.parentDirectory, '/workspace');
-    expect(capturedRequest?.allowedRoots, <String>['/workspace']);
-    expect(capturedRequest?.timeout, const Duration(minutes: 5));
-    final structured = result['structuredContent'] as Map<String, Object?>;
-    expect(structured['projectDirectory'], '/workspace/new_app');
-  });
+      expect(capturedRequest?.parentDirectory, '/workspace');
+      expect(capturedRequest?.allowedRoots, <String>['/workspace']);
+      expect(capturedRequest?.timeout, const Duration(minutes: 5));
+      final structured = result['structuredContent'] as Map<String, Object?>;
+      expect(structured['projectDirectory'], '/workspace/new_app');
+    },
+  );
 
   test('pub_dev_search returns shaped package summaries', () async {
     final tool = CockpitPubDevSearchTool(
@@ -103,16 +107,18 @@ void main() {
       ),
     );
 
-    final result =
-        await tool.call(<String, Object?>{'query': 'state management'});
+    final result = await tool.call(<String, Object?>{
+      'query': 'state management',
+    });
     final structured = result['structuredContent'] as Map<String, Object?>;
     expect((structured['results'] as List<Object?>), hasLength(1));
   });
 
   test('grep_package_uris defaults to the single configured root', () async {
     final rootsTracker = CockpitMcpRootsTracker(forceFallback: true)
-      ..addFallbackRoots(
-          <Root>[Root(uri: 'file:///workspace/', name: 'workspace')]);
+      ..addFallbackRoots(<Root>[
+        Root(uri: 'file:///workspace/', name: 'workspace'),
+      ]);
     CockpitGrepPackageUrisRequest? capturedRequest;
     final tool = CockpitGrepPackageUrisTool(
       rootsTracker: rootsTracker,
@@ -171,101 +177,105 @@ void main() {
   });
 
   test(
-      'pub defaults to the single configured root and returns a bounded summary',
-      () async {
-    final rootsTracker = CockpitMcpRootsTracker(forceFallback: true)
-      ..addFallbackRoots(
-          <Root>[Root(uri: 'file:///workspace/', name: 'workspace')]);
-    CockpitPubRequest? capturedRequest;
-    final tool = CockpitPubTool(
-      rootsTracker: rootsTracker,
-      run: (request) async {
-        capturedRequest = request;
-        return const CockpitPubResult(
-          workspaceRoot: '/workspace',
-          toolchain: CockpitWorkspaceToolchain.dart,
-          pubCommand: CockpitPubCommand.get,
-          packages: <String>[],
-          command: CockpitWorkspaceCommand(
-            executable: 'dart',
-            arguments: <String>['pub', 'get'],
-            workingDirectory: '/workspace',
-          ),
-          exitCode: 0,
-          success: true,
-          summary: 'Got dependencies.',
-        );
-      },
-    );
-
-    final result = await tool.call(<String, Object?>{
-      'command': 'get',
-    });
-
-    expect(capturedRequest?.workspaceRoot, '/workspace');
-    expect(capturedRequest?.timeout, const Duration(minutes: 4));
-    final structured = result['structuredContent'] as Map<String, Object?>;
-    expect(structured['summary'], 'Got dependencies.');
-  });
-
-  test('analyze_files forwards bounded requests with configured roots',
-      () async {
-    final rootsTracker = CockpitMcpRootsTracker(forceFallback: true)
-      ..addFallbackRoots(
-          <Root>[Root(uri: 'file:///workspace/', name: 'workspace')]);
-    CockpitAnalyzeFilesRequest? capturedRequest;
-    final tool = CockpitAnalyzeFilesTool(
-      rootsTracker: rootsTracker,
-      analyze: (request) async {
-        capturedRequest = request;
-        return const CockpitAnalyzeFilesResult(
-          workspaceRoot: '/workspace',
-          toolchain: CockpitWorkspaceToolchain.dart,
-          paths: <String>['lib/main.dart'],
-          command: CockpitWorkspaceCommand(
-            executable: 'dart',
-            arguments: <String>['analyze', '--format=json', 'lib/main.dart'],
-            workingDirectory: '/workspace',
-          ),
-          exitCode: 2,
-          success: false,
-          clean: false,
-          summary: '1 analyzer diagnostics: 1 warning.',
-          totalDiagnostics: 1,
-          diagnostics: <CockpitAnalyzeFilesDiagnostic>[
-            CockpitAnalyzeFilesDiagnostic(
-              path: 'lib/main.dart',
-              severity: 'warning',
-              type: 'static_warning',
-              code: 'unused_import',
-              message: 'Unused import.',
-              line: 1,
-              column: 1,
-              endLine: 1,
-              endColumn: 5,
+    'pub defaults to the single configured root and returns a bounded summary',
+    () async {
+      final rootsTracker = CockpitMcpRootsTracker(forceFallback: true)
+        ..addFallbackRoots(<Root>[
+          Root(uri: 'file:///workspace/', name: 'workspace'),
+        ]);
+      CockpitPubRequest? capturedRequest;
+      final tool = CockpitPubTool(
+        rootsTracker: rootsTracker,
+        run: (request) async {
+          capturedRequest = request;
+          return const CockpitPubResult(
+            workspaceRoot: '/workspace',
+            toolchain: CockpitWorkspaceToolchain.dart,
+            pubCommand: CockpitPubCommand.get,
+            packages: <String>[],
+            command: CockpitWorkspaceCommand(
+              executable: 'dart',
+              arguments: <String>['pub', 'get'],
+              workingDirectory: '/workspace',
             ),
-          ],
-          diagnosticsTruncated: false,
-          severityCounts: <String, int>{'warning': 1},
-        );
-      },
-    );
+            exitCode: 0,
+            success: true,
+            summary: 'Got dependencies.',
+          );
+        },
+      );
 
-    final result = await tool.call(<String, Object?>{
-      'paths': <String>['lib/main.dart'],
-    });
+      final result = await tool.call(<String, Object?>{'command': 'get'});
 
-    expect(capturedRequest?.workspaceRoot, '/workspace');
-    expect(capturedRequest?.paths, <String>['lib/main.dart']);
-    expect(capturedRequest?.timeout, const Duration(minutes: 2));
-    final structured = result['structuredContent'] as Map<String, Object?>;
-    expect(structured['totalDiagnostics'], 1);
-  });
+      expect(capturedRequest?.workspaceRoot, '/workspace');
+      expect(capturedRequest?.timeout, const Duration(minutes: 4));
+      final structured = result['structuredContent'] as Map<String, Object?>;
+      expect(structured['summary'], 'Got dependencies.');
+    },
+  );
+
+  test(
+    'analyze_files forwards bounded requests with configured roots',
+    () async {
+      final rootsTracker = CockpitMcpRootsTracker(forceFallback: true)
+        ..addFallbackRoots(<Root>[
+          Root(uri: 'file:///workspace/', name: 'workspace'),
+        ]);
+      CockpitAnalyzeFilesRequest? capturedRequest;
+      final tool = CockpitAnalyzeFilesTool(
+        rootsTracker: rootsTracker,
+        analyze: (request) async {
+          capturedRequest = request;
+          return const CockpitAnalyzeFilesResult(
+            workspaceRoot: '/workspace',
+            toolchain: CockpitWorkspaceToolchain.dart,
+            paths: <String>['lib/main.dart'],
+            command: CockpitWorkspaceCommand(
+              executable: 'dart',
+              arguments: <String>['analyze', '--format=json', 'lib/main.dart'],
+              workingDirectory: '/workspace',
+            ),
+            exitCode: 2,
+            success: false,
+            clean: false,
+            summary: '1 analyzer diagnostics: 1 warning.',
+            totalDiagnostics: 1,
+            diagnostics: <CockpitAnalyzeFilesDiagnostic>[
+              CockpitAnalyzeFilesDiagnostic(
+                path: 'lib/main.dart',
+                severity: 'warning',
+                type: 'static_warning',
+                code: 'unused_import',
+                message: 'Unused import.',
+                line: 1,
+                column: 1,
+                endLine: 1,
+                endColumn: 5,
+              ),
+            ],
+            diagnosticsTruncated: false,
+            severityCounts: <String, int>{'warning': 1},
+          );
+        },
+      );
+
+      final result = await tool.call(<String, Object?>{
+        'paths': <String>['lib/main.dart'],
+      });
+
+      expect(capturedRequest?.workspaceRoot, '/workspace');
+      expect(capturedRequest?.paths, <String>['lib/main.dart']);
+      expect(capturedRequest?.timeout, const Duration(minutes: 2));
+      final structured = result['structuredContent'] as Map<String, Object?>;
+      expect(structured['totalDiagnostics'], 1);
+    },
+  );
 
   test('lsp exposes concise code intelligence results', () async {
     final rootsTracker = CockpitMcpRootsTracker(forceFallback: true)
-      ..addFallbackRoots(
-          <Root>[Root(uri: 'file:///workspace/', name: 'workspace')]);
+      ..addFallbackRoots(<Root>[
+        Root(uri: 'file:///workspace/', name: 'workspace'),
+      ]);
     CockpitLspRequest? capturedRequest;
     final tool = CockpitLspTool(
       rootsTracker: rootsTracker,

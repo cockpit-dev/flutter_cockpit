@@ -68,7 +68,7 @@ void main() {
           appReferenceResolver: CockpitAppReferenceResolver(
             registry: registry,
             portForwarder: CockpitAndroidPortForwarder(
-              processRunner: (_, __) async => ProcessResult(
+              processRunner: (_, _) async => ProcessResult(
                 0,
                 0,
                 'emulator-5554 tcp:58331 tcp:47331\n',
@@ -79,7 +79,7 @@ void main() {
             ),
           ),
           startService: CockpitStartRemoteRecordingService(
-            startRecording: (_, __) async {
+            startRecording: (_, _) async {
               remoteStartCalled = true;
               throw StateError('remote start should not be used');
             },
@@ -122,7 +122,7 @@ void main() {
         );
         final service = CockpitStartRecordingService(
           startService: CockpitStartRemoteRecordingService(
-            startRecording: (_, __) async {
+            startRecording: (_, _) async {
               remoteStartCalled = true;
               throw StateError(
                 'remote start should not be used for Android host recording',
@@ -149,7 +149,9 @@ void main() {
         expect(remoteStartCalled, isFalse);
         expect(result.recordingSession.state, CockpitRecordingState.recording);
         expect(
-            hostAdapter.startedRequests.single.name, 'android-host-recording');
+          hostAdapter.startedRequests.single.name,
+          'android-host-recording',
+        );
       },
     );
 
@@ -165,7 +167,7 @@ void main() {
         );
         final service = CockpitStartRecordingService(
           startService: CockpitStartRemoteRecordingService(
-            startRecording: (_, __) async {
+            startRecording: (_, _) async {
               remoteStartCalled = true;
               throw StateError(
                 'remote start should not be used for iOS host recording',
@@ -195,56 +197,52 @@ void main() {
       },
     );
 
-    test(
-      'uses remote native recording for iOS native mode',
-      () async {
-        var remoteStartCalled = false;
-        final nativeAdapter = _FakeRecordingAdapter(
-          onStart: (request) async => CockpitRecordingSession(
-            request: request,
-            state: CockpitRecordingState.recording,
-          ),
-        );
-        final simctlAdapter = _FakeRecordingAdapter(
-          onStart: (_) async => throw StateError(
-            'simctl should not be used for native mode',
-          ),
-        );
-        final service = CockpitStartRecordingService(
-          startService: CockpitStartRemoteRecordingService(
-            startRecording: (_, __) async {
-              remoteStartCalled = true;
-              throw StateError(
-                'remote start service should not be used when resolver selects a native adapter',
-              );
-            },
-          ),
-          recordingStrategyResolver: CockpitRecordingStrategyResolver(
-            remoteAdapterFactory: (_) => nativeAdapter,
-            adbAdapterFactory: (_) => _FakeRecordingAdapter(),
-            simctlAdapterFactory: (_) => simctlAdapter,
-          ),
-        );
+    test('uses remote native recording for iOS native mode', () async {
+      var remoteStartCalled = false;
+      final nativeAdapter = _FakeRecordingAdapter(
+        onStart: (request) async => CockpitRecordingSession(
+          request: request,
+          state: CockpitRecordingState.recording,
+        ),
+      );
+      final simctlAdapter = _FakeRecordingAdapter(
+        onStart: (_) async =>
+            throw StateError('simctl should not be used for native mode'),
+      );
+      final service = CockpitStartRecordingService(
+        startService: CockpitStartRemoteRecordingService(
+          startRecording: (_, _) async {
+            remoteStartCalled = true;
+            throw StateError(
+              'remote start service should not be used when resolver selects a native adapter',
+            );
+          },
+        ),
+        recordingStrategyResolver: CockpitRecordingStrategyResolver(
+          remoteAdapterFactory: (_) => nativeAdapter,
+          adbAdapterFactory: (_) => _FakeRecordingAdapter(),
+          simctlAdapterFactory: (_) => simctlAdapter,
+        ),
+      );
 
-        final result = await service.start(
-          CockpitStartRecordingRequest(
-            app: _iosAppHandle(),
-            recording: const CockpitRecordingRequest(
-              purpose: CockpitRecordingPurpose.acceptance,
-              name: 'ios-native-recording',
-              mode: CockpitRecordingMode.native,
-            ),
+      final result = await service.start(
+        CockpitStartRecordingRequest(
+          app: _iosAppHandle(),
+          recording: const CockpitRecordingRequest(
+            purpose: CockpitRecordingPurpose.acceptance,
+            name: 'ios-native-recording',
+            mode: CockpitRecordingMode.native,
           ),
-        );
+        ),
+      );
 
-        expect(remoteStartCalled, isFalse);
-        expect(result.recordingSession.state, CockpitRecordingState.recording);
-        expect(
-          nativeAdapter.startedRequests.single.mode,
-          CockpitRecordingMode.native,
-        );
-      },
-    );
+      expect(remoteStartCalled, isFalse);
+      expect(result.recordingSession.state, CockpitRecordingState.recording);
+      expect(
+        nativeAdapter.startedRequests.single.mode,
+        CockpitRecordingMode.native,
+      );
+    });
 
     test(
       'uses macOS host recording with the resolved platform app id for full mode',
@@ -259,7 +257,7 @@ void main() {
         );
         final service = CockpitStartRecordingService(
           startService: CockpitStartRemoteRecordingService(
-            startRecording: (_, __) async {
+            startRecording: (_, _) async {
               remoteStartCalled = true;
               throw StateError(
                 'remote start should not be used for macOS full host recording',
@@ -291,8 +289,10 @@ void main() {
         expect(remoteStartCalled, isFalse);
         expect(capturedAppId, 'dev.cockpit.cockpitDemo.host');
         expect(result.recordingSession.state, CockpitRecordingState.recording);
-        expect(result.sessionHandle?.toJson(),
-            _macosAppHandle().remoteSession?.toJson());
+        expect(
+          result.sessionHandle?.toJson(),
+          _macosAppHandle().remoteSession?.toJson(),
+        );
         expect(hostAdapter.startedRequests.single.name, 'macos-host-recording');
       },
     );
@@ -311,7 +311,7 @@ void main() {
         );
         final service = CockpitStartRecordingService(
           startService: CockpitStartRemoteRecordingService(
-            startRecording: (_, __) async {
+            startRecording: (_, _) async {
               remoteStartCalled = true;
               throw StateError(
                 'remote start should not be used for Windows host recording',
@@ -466,12 +466,12 @@ CockpitAppHandle _macosAppHandle() {
 }
 
 final class _FakeRecordingAdapter implements CockpitRecordingAdapter {
-  _FakeRecordingAdapter({
-    this.onStart,
-  });
+  _FakeRecordingAdapter({this.onStart});
 
   final Future<CockpitRecordingSession> Function(
-      CockpitRecordingRequest request)? onStart;
+    CockpitRecordingRequest request,
+  )?
+  onStart;
   final Future<CockpitRecordingResult> Function()? onStop = null;
   final List<CockpitRecordingRequest> startedRequests =
       <CockpitRecordingRequest>[];

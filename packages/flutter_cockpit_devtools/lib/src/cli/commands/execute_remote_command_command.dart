@@ -8,26 +8,23 @@ import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
-typedef CockpitExecuteRemoteCommandFunction
-    = Future<CockpitExecuteRemoteCommandResult> Function(
-  CockpitExecuteRemoteCommandRequest request,
-);
+typedef CockpitExecuteRemoteCommandFunction =
+    Future<CockpitExecuteRemoteCommandResult> Function(
+      CockpitExecuteRemoteCommandRequest request,
+    );
 
 final class ExecuteRemoteCommandCommand extends CockpitCliCommand {
   ExecuteRemoteCommandCommand({
     CockpitExecuteRemoteCommandService? service,
     CockpitExecuteRemoteCommandFunction? execute,
     StringSink? stdoutSink,
-  })  : _execute = execute ??
-            (service ?? CockpitExecuteRemoteCommandService()).execute,
-        _stdoutSink = stdoutSink ?? stdout {
+  }) : _execute =
+           execute ?? (service ?? CockpitExecuteRemoteCommandService()).execute,
+       _stdoutSink = stdoutSink ?? stdout {
     cockpitAddRemoteSessionArgs(argParser);
     cockpitAddProfileArg(argParser);
     argParser
-      ..addOption(
-        'command-json',
-        help: 'Inline JSON object for one command.',
-      )
+      ..addOption('command-json', help: 'Inline JSON object for one command.')
       ..addOption('command-file', help: 'Path to one command JSON object.')
       ..addOption(
         'snapshot-options-json',

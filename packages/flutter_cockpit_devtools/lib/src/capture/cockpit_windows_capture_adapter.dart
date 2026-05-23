@@ -18,14 +18,14 @@ final class CockpitWindowsCaptureAdapter implements CockpitHostCaptureAdapter {
         cockpitResolveWindowsWindowTarget,
     Duration timeout = const Duration(seconds: 5),
     Duration activationSettleDelay = const Duration(milliseconds: 250),
-  })  : _appId = appId,
-        _processId = processId,
-        _powershellExecutable = powershellExecutable,
-        _processRunner = processRunner,
-        _tempFileFactory = tempFileFactory,
-        _windowResolver = windowResolver,
-        _timeout = timeout,
-        _activationSettleDelay = activationSettleDelay;
+  }) : _appId = appId,
+       _processId = processId,
+       _powershellExecutable = powershellExecutable,
+       _processRunner = processRunner,
+       _tempFileFactory = tempFileFactory,
+       _windowResolver = windowResolver,
+       _timeout = timeout,
+       _activationSettleDelay = activationSettleDelay;
 
   final String _appId;
   final int? _processId;
@@ -120,10 +120,7 @@ final class CockpitWindowsCaptureAdapter implements CockpitHostCaptureAdapter {
         command: command,
         durationMs: stopwatch.elapsedMilliseconds,
         message: 'Windows host screenshot failed.',
-        details: <String, Object?>{
-          'appId': _appId,
-          'error': error.toString(),
-        },
+        details: <String, Object?>{'appId': _appId, 'error': error.toString()},
       );
     } on Object catch (error) {
       stopwatch.stop();
@@ -131,10 +128,7 @@ final class CockpitWindowsCaptureAdapter implements CockpitHostCaptureAdapter {
         command: command,
         durationMs: stopwatch.elapsedMilliseconds,
         message: 'Windows host screenshot threw an unexpected error.',
-        details: <String, Object?>{
-          'appId': _appId,
-          'error': error.toString(),
-        },
+        details: <String, Object?>{'appId': _appId, 'error': error.toString()},
       );
     }
   }

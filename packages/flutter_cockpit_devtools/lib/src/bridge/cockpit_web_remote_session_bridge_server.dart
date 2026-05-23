@@ -9,9 +9,8 @@ import 'cockpit_browser_recording_adapter_resolver.dart';
 import '../recording/cockpit_host_recording_adapter.dart';
 import '../development/cockpit_development_session_handle.dart';
 
-typedef CockpitBridgeArtifactTempFileFactory = Future<File> Function(
-  String basename,
-);
+typedef CockpitBridgeArtifactTempFileFactory =
+    Future<File> Function(String basename);
 
 CockpitWebRemoteSessionBridgeServer? cockpitCreateWebRemoteSessionBridgeServer({
   required CockpitDevelopmentSessionHandle handle,
@@ -38,7 +37,7 @@ final class CockpitWebRemoteSessionBridgeServer {
     CockpitBridgeArtifactTempFileFactory? artifactTempFileFactory,
     this.requestTimeout = const Duration(seconds: 30),
   }) : _artifactTempFileFactory =
-            artifactTempFileFactory ?? _defaultBridgeArtifactTempFileFactory;
+           artifactTempFileFactory ?? _defaultBridgeArtifactTempFileFactory;
 
   final String bindHost;
   final int bindPort;
@@ -60,9 +59,9 @@ final class CockpitWebRemoteSessionBridgeServer {
 
   Uri get baseUri => _baseUri!;
   Uri get connectUri => baseUri.replace(
-        scheme: baseUri.scheme == 'https' ? 'wss' : 'ws',
-        path: _joinPath(_normalizedRoutePrefix, 'connect'),
-      );
+    scheme: baseUri.scheme == 'https' ? 'wss' : 'ws',
+    path: _joinPath(_normalizedRoutePrefix, 'connect'),
+  );
 
   Future<void> start() async {
     if (_server != null) {
@@ -107,24 +106,18 @@ final class CockpitWebRemoteSessionBridgeServer {
     } on FormatException catch (error) {
       await _writeResponse(
         request.response,
-        CockpitRemoteSessionEndpointResponse.json(
-          <String, Object?>{
-            'error': 'invalidPayload',
-            'message': error.message,
-          },
-          statusCode: HttpStatus.badRequest,
-        ),
+        CockpitRemoteSessionEndpointResponse.json(<String, Object?>{
+          'error': 'invalidPayload',
+          'message': error.message,
+        }, statusCode: HttpStatus.badRequest),
       );
     } catch (error) {
       await _writeResponse(
         request.response,
-        CockpitRemoteSessionEndpointResponse.json(
-          <String, Object?>{
-            'error': 'serverError',
-            'message': error.toString(),
-          },
-          statusCode: HttpStatus.internalServerError,
-        ),
+        CockpitRemoteSessionEndpointResponse.json(<String, Object?>{
+          'error': 'serverError',
+          'message': error.toString(),
+        }, statusCode: HttpStatus.internalServerError),
       );
     }
   }
@@ -183,7 +176,8 @@ final class CockpitWebRemoteSessionBridgeServer {
         _completePendingWithBridgeError(
           statusCode: HttpStatus.badGateway,
           error: 'bridgeUnknownResponse',
-          message: 'The browser bridge returned an unknown requestId: '
+          message:
+              'The browser bridge returned an unknown requestId: '
               '${response.requestId}. Pending requests were failed to avoid '
               'response misattribution.',
         );
@@ -210,13 +204,10 @@ final class CockpitWebRemoteSessionBridgeServer {
   ) async {
     final routePath = _routePathFor(request.uri.path);
     if (routePath == null) {
-      return const CockpitRemoteSessionEndpointResponse.json(
-        <String, Object?>{
-          'error': 'notFound',
-          'message': 'Unsupported remote session endpoint.',
-        },
-        statusCode: HttpStatus.notFound,
-      );
+      return const CockpitRemoteSessionEndpointResponse.json(<String, Object?>{
+        'error': 'notFound',
+        'message': 'Unsupported remote session endpoint.',
+      }, statusCode: HttpStatus.notFound);
     }
     if (routePath == '/recording/start' && recordingAdapter != null) {
       return _startHostRecording(request);
@@ -246,13 +237,10 @@ final class CockpitWebRemoteSessionBridgeServer {
   ) async {
     final socket = _socket;
     if (socket == null) {
-      return const CockpitRemoteSessionEndpointResponse.json(
-        <String, Object?>{
-          'error': 'bridgeUnavailable',
-          'message': 'The browser bridge is not connected.',
-        },
-        statusCode: HttpStatus.serviceUnavailable,
-      );
+      return const CockpitRemoteSessionEndpointResponse.json(<String, Object?>{
+        'error': 'bridgeUnavailable',
+        'message': 'The browser bridge is not connected.',
+      }, statusCode: HttpStatus.serviceUnavailable);
     }
     final bodyText = await utf8.decoder.bind(request).join();
     Map<String, Object?>? jsonBody;
@@ -298,27 +286,22 @@ final class CockpitWebRemoteSessionBridgeServer {
             );
     } on FormatException catch (error) {
       _pending.remove(requestId);
-      return CockpitRemoteSessionEndpointResponse.json(
-        <String, Object?>{
-          'error': 'bridgeInvalidResponse',
-          'message': error.message,
-        },
-        statusCode: HttpStatus.badGateway,
-      );
+      return CockpitRemoteSessionEndpointResponse.json(<String, Object?>{
+        'error': 'bridgeInvalidResponse',
+        'message': error.message,
+      }, statusCode: HttpStatus.badGateway);
     } on TimeoutException {
       _pending.remove(requestId);
-      return const CockpitRemoteSessionEndpointResponse.json(
-        <String, Object?>{
-          'error': 'bridgeTimeout',
-          'message': 'The browser bridge did not respond before timeout.',
-        },
-        statusCode: HttpStatus.gatewayTimeout,
-      );
+      return const CockpitRemoteSessionEndpointResponse.json(<String, Object?>{
+        'error': 'bridgeTimeout',
+        'message': 'The browser bridge did not respond before timeout.',
+      }, statusCode: HttpStatus.gatewayTimeout);
     }
   }
 
   List<int> _binaryBodyFromBridgeResponse(
-      CockpitRemoteBridgeResponse response) {
+    CockpitRemoteBridgeResponse response,
+  ) {
     try {
       return response.binaryBody ?? const <int>[];
     } on FormatException catch (error) {
@@ -358,13 +341,10 @@ final class CockpitWebRemoteSessionBridgeServer {
   ) async {
     final adapter = recordingAdapter;
     if (adapter == null) {
-      return const CockpitRemoteSessionEndpointResponse.json(
-        <String, Object?>{
-          'error': 'recordingUnsupported',
-          'message': 'Host recording is unavailable for this bridge.',
-        },
-        statusCode: HttpStatus.notImplemented,
-      );
+      return const CockpitRemoteSessionEndpointResponse.json(<String, Object?>{
+        'error': 'recordingUnsupported',
+        'message': 'Host recording is unavailable for this bridge.',
+      }, statusCode: HttpStatus.notImplemented);
     }
     final bodyText = await utf8.decoder.bind(request).join();
     final decoded = bodyText.isEmpty
@@ -378,34 +358,25 @@ final class CockpitWebRemoteSessionBridgeServer {
       _activeRecordingSession = session;
       return CockpitRemoteSessionEndpointResponse.json(session.toJson());
     } on StateError catch (error) {
-      return CockpitRemoteSessionEndpointResponse.json(
-        <String, Object?>{
-          'error': 'recordingStartFailed',
-          'message': error.message,
-        },
-        statusCode: HttpStatus.preconditionFailed,
-      );
+      return CockpitRemoteSessionEndpointResponse.json(<String, Object?>{
+        'error': 'recordingStartFailed',
+        'message': error.message,
+      }, statusCode: HttpStatus.preconditionFailed);
     } on Object catch (error) {
-      return CockpitRemoteSessionEndpointResponse.json(
-        <String, Object?>{
-          'error': 'recordingStartFailed',
-          'message': '$error',
-        },
-        statusCode: HttpStatus.internalServerError,
-      );
+      return CockpitRemoteSessionEndpointResponse.json(<String, Object?>{
+        'error': 'recordingStartFailed',
+        'message': '$error',
+      }, statusCode: HttpStatus.internalServerError);
     }
   }
 
   Future<CockpitRemoteSessionEndpointResponse> _stopHostRecording() async {
     final adapter = recordingAdapter;
     if (adapter == null) {
-      return const CockpitRemoteSessionEndpointResponse.json(
-        <String, Object?>{
-          'error': 'recordingUnsupported',
-          'message': 'Host recording is unavailable for this bridge.',
-        },
-        statusCode: HttpStatus.notImplemented,
-      );
+      return const CockpitRemoteSessionEndpointResponse.json(<String, Object?>{
+        'error': 'recordingUnsupported',
+        'message': 'Host recording is unavailable for this bridge.',
+      }, statusCode: HttpStatus.notImplemented);
     }
     try {
       final result = await adapter.stopRecording();
@@ -415,22 +386,16 @@ final class CockpitWebRemoteSessionBridgeServer {
       );
     } on StateError catch (error) {
       _activeRecordingSession = null;
-      return CockpitRemoteSessionEndpointResponse.json(
-        <String, Object?>{
-          'error': 'recordingStopFailed',
-          'message': error.message,
-        },
-        statusCode: HttpStatus.conflict,
-      );
+      return CockpitRemoteSessionEndpointResponse.json(<String, Object?>{
+        'error': 'recordingStopFailed',
+        'message': error.message,
+      }, statusCode: HttpStatus.conflict);
     } on Object catch (error) {
       _activeRecordingSession = null;
-      return CockpitRemoteSessionEndpointResponse.json(
-        <String, Object?>{
-          'error': 'recordingStopFailed',
-          'message': '$error',
-        },
-        statusCode: HttpStatus.internalServerError,
-      );
+      return CockpitRemoteSessionEndpointResponse.json(<String, Object?>{
+        'error': 'recordingStopFailed',
+        'message': '$error',
+      }, statusCode: HttpStatus.internalServerError);
     }
   }
 
@@ -446,10 +411,7 @@ final class CockpitWebRemoteSessionBridgeServer {
     final artifactEntry = await _artifactEntryFor(result);
     if (artifactEntry == null) {
       return CockpitRemoteRecordingResponse(
-        result: _recordingResultForTransport(
-          result,
-          includeArtifact: false,
-        ),
+        result: _recordingResultForTransport(result, includeArtifact: false),
       );
     }
     _localArtifacts[artifact.relativePath] = artifactEntry;
@@ -488,9 +450,7 @@ final class CockpitWebRemoteSessionBridgeServer {
     if (!sourceFile.existsSync()) {
       return null;
     }
-    return _BridgeArtifactEntry(
-      sourceFilePath: sourceFile.path,
-    );
+    return _BridgeArtifactEntry(sourceFilePath: sourceFile.path);
   }
 
   Future<File> _persistArtifactBytes(String basename, List<int> bytes) async {
@@ -525,24 +485,18 @@ final class CockpitWebRemoteSessionBridgeServer {
     final sourceFilePath = entry.sourceFilePath;
     if (sourceFilePath == null || sourceFilePath.isEmpty) {
       _localArtifacts.remove(relativePath);
-      return const CockpitRemoteSessionEndpointResponse.json(
-        <String, Object?>{
-          'error': 'artifactNotFound',
-          'message': 'Artifact content is unavailable.',
-        },
-        statusCode: HttpStatus.notFound,
-      );
+      return const CockpitRemoteSessionEndpointResponse.json(<String, Object?>{
+        'error': 'artifactNotFound',
+        'message': 'Artifact content is unavailable.',
+      }, statusCode: HttpStatus.notFound);
     }
     final sourceFile = File(sourceFilePath);
     if (!sourceFile.existsSync()) {
       _localArtifacts.remove(relativePath);
-      return const CockpitRemoteSessionEndpointResponse.json(
-        <String, Object?>{
-          'error': 'artifactNotFound',
-          'message': 'Artifact file is no longer available.',
-        },
-        statusCode: HttpStatus.notFound,
-      );
+      return const CockpitRemoteSessionEndpointResponse.json(<String, Object?>{
+        'error': 'artifactNotFound',
+        'message': 'Artifact file is no longer available.',
+      }, statusCode: HttpStatus.notFound);
     }
     return CockpitRemoteSessionEndpointResponse.binaryFile(sourceFile.path);
   }
@@ -604,10 +558,7 @@ final class CockpitWebRemoteSessionBridgeServer {
       return;
     }
     final requestIds = _pending.keys.toList(growable: false);
-    final responseBody = <String, Object?>{
-      'error': error,
-      'message': message,
-    };
+    final responseBody = <String, Object?>{'error': error, 'message': message};
     for (final requestId in requestIds) {
       final completer = _pending.remove(requestId);
       completer?.complete(
@@ -624,8 +575,9 @@ final class CockpitWebRemoteSessionBridgeServer {
     if (routePrefix.isEmpty || routePrefix == '/') {
       return '';
     }
-    final withLeadingSlash =
-        routePrefix.startsWith('/') ? routePrefix : '/$routePrefix';
+    final withLeadingSlash = routePrefix.startsWith('/')
+        ? routePrefix
+        : '/$routePrefix';
     return withLeadingSlash.endsWith('/')
         ? withLeadingSlash.substring(0, withLeadingSlash.length - 1)
         : withLeadingSlash;
@@ -679,10 +631,7 @@ final class CockpitWebRemoteSessionBridgeServer {
 }
 
 final class _BridgeArtifactEntry {
-  const _BridgeArtifactEntry({
-    this.sourceFilePath,
-    this.deleteOnClose = false,
-  });
+  const _BridgeArtifactEntry({this.sourceFilePath, this.deleteOnClose = false});
 
   final String? sourceFilePath;
   final bool deleteOnClose;

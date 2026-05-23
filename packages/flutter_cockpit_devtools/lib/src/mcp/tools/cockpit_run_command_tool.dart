@@ -4,10 +4,8 @@ import '../../application/cockpit_interactive_result_profile.dart';
 import '../../application/cockpit_run_command_service.dart';
 import '../cockpit_mcp_tool.dart';
 
-typedef CockpitRunCommandToolFunction = Future<CockpitRunCommandResult>
-    Function(
-  CockpitRunCommandRequest request,
-);
+typedef CockpitRunCommandToolFunction =
+    Future<CockpitRunCommandResult> Function(CockpitRunCommandRequest request);
 
 final class CockpitRunCommandTool extends CockpitMcpTool {
   CockpitRunCommandTool({
@@ -26,20 +24,20 @@ final class CockpitRunCommandTool extends CockpitMcpTool {
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
-        'type': 'object',
-        'required': <String>['command'],
-        'properties': <String, Object?>{
-          'appId': <String, Object?>{'type': 'string'},
-          'appJson': <String, Object?>{'type': 'string'},
-          'baseUrl': <String, Object?>{'type': 'string'},
-          'androidDeviceId': <String, Object?>{'type': 'string'},
-          'command': <String, Object?>{'type': 'object'},
-          'timeoutMs': <String, Object?>{'type': 'integer'},
-          'profile': <String, Object?>{'type': 'string'},
-          'snapshotOptions': <String, Object?>{'type': 'object'},
-          'compareAgainstSnapshotRef': <String, Object?>{'type': 'string'},
-        },
-      };
+    'type': 'object',
+    'required': <String>['command'],
+    'properties': <String, Object?>{
+      'appId': <String, Object?>{'type': 'string'},
+      'appJson': <String, Object?>{'type': 'string'},
+      'baseUrl': <String, Object?>{'type': 'string'},
+      'androidDeviceId': <String, Object?>{'type': 'string'},
+      'command': <String, Object?>{'type': 'object'},
+      'timeoutMs': <String, Object?>{'type': 'integer'},
+      'profile': <String, Object?>{'type': 'string'},
+      'snapshotOptions': <String, Object?>{'type': 'object'},
+      'compareAgainstSnapshotRef': <String, Object?>{'type': 'string'},
+    },
+  };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {
@@ -57,11 +55,8 @@ final class CockpitRunCommandTool extends CockpitMcpTool {
             cockpitReadRequiredObject(arguments, 'command'),
           ),
           defaultCommandTimeout: Duration(
-            milliseconds: cockpitReadOptionalPositiveInt(
-                  arguments,
-                  'timeoutMs',
-                ) ??
-                30000,
+            milliseconds:
+                cockpitReadOptionalPositiveInt(arguments, 'timeoutMs') ?? 30000,
           ),
           resultProfile: _readProfile(arguments),
           snapshotOptions: _readOptionalSnapshotOptions(arguments),

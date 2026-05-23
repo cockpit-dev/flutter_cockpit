@@ -2,9 +2,8 @@ import '../../application/cockpit_run_shell_service.dart';
 import '../../targets/cockpit_target_handle.dart';
 import '../cockpit_mcp_tool.dart';
 
-typedef CockpitRunShellToolFunction = Future<CockpitRunShellResult> Function(
-  CockpitRunShellRequest request,
-);
+typedef CockpitRunShellToolFunction =
+    Future<CockpitRunShellResult> Function(CockpitRunShellRequest request);
 
 final class CockpitRunShellTool extends CockpitMcpTool {
   CockpitRunShellTool({
@@ -23,31 +22,31 @@ final class CockpitRunShellTool extends CockpitMcpTool {
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
-        'type': 'object',
-        'required': <String>['command'],
-        'properties': <String, Object?>{
-          'scope': <String, Object?>{
-            'type': 'string',
-            'enum': <String>[
-              'host',
-              'target',
-              'android',
-              'ios',
-              'macos',
-              'windows',
-              'linux',
-            ],
-          },
-          'command': <String, Object?>{
-            'type': 'array',
-            'items': <String, Object?>{'type': 'string'},
-          },
-          'workingDirectory': <String, Object?>{'type': 'string'},
-          'targetJson': <String, Object?>{'type': 'string'},
-          'deviceId': <String, Object?>{'type': 'string'},
-          'target': <String, Object?>{'type': 'object'},
-        },
-      };
+    'type': 'object',
+    'required': <String>['command'],
+    'properties': <String, Object?>{
+      'scope': <String, Object?>{
+        'type': 'string',
+        'enum': <String>[
+          'host',
+          'target',
+          'android',
+          'ios',
+          'macos',
+          'windows',
+          'linux',
+        ],
+      },
+      'command': <String, Object?>{
+        'type': 'array',
+        'items': <String, Object?>{'type': 'string'},
+      },
+      'workingDirectory': <String, Object?>{'type': 'string'},
+      'targetJson': <String, Object?>{'type': 'string'},
+      'deviceId': <String, Object?>{'type': 'string'},
+      'target': <String, Object?>{'type': 'object'},
+    },
+  };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {

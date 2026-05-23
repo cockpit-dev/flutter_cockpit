@@ -7,15 +7,15 @@ import 'cockpit_remote_session_launch_options.dart';
 import 'cockpit_remote_session_launcher.dart';
 import 'cockpit_session_path.dart';
 
-typedef CockpitWindowsAppExecutablePathResolver = Future<String> Function({
-  required String projectDir,
-});
-typedef CockpitDesktopAppStarter = Future<int?> Function({
-  required String executablePath,
-  List<String> arguments,
-  String? workingDirectory,
-  required Duration timeout,
-});
+typedef CockpitWindowsAppExecutablePathResolver =
+    Future<String> Function({required String projectDir});
+typedef CockpitDesktopAppStarter =
+    Future<int?> Function({
+      required String executablePath,
+      List<String> arguments,
+      String? workingDirectory,
+      required Duration timeout,
+    });
 
 final class CockpitWindowsRemoteSessionLauncher
     implements CockpitRemoteSessionLauncher {
@@ -29,12 +29,12 @@ final class CockpitWindowsRemoteSessionLauncher
     CockpitFlutterVersionReader flutterVersionReader =
         cockpitReadActiveFlutterVersion,
     DateTime Function()? now,
-  })  : _processRunner = processRunner,
-        _appExecutablePathResolver = appExecutablePathResolver,
-        _appStarter = appStarter,
-        _statusReader = statusReader,
-        _flutterVersionReader = flutterVersionReader,
-        _now = now ?? DateTime.now;
+  }) : _processRunner = processRunner,
+       _appExecutablePathResolver = appExecutablePathResolver,
+       _appStarter = appStarter,
+       _statusReader = statusReader,
+       _flutterVersionReader = flutterVersionReader,
+       _now = now ?? DateTime.now;
 
   final CockpitWorkingDirectoryProcessRunner _processRunner;
   final CockpitWindowsAppExecutablePathResolver _appExecutablePathResolver;
@@ -112,17 +112,18 @@ final class CockpitWindowsRemoteSessionLauncher
     String? workingDirectory,
     required Duration timeout,
   }) async {
-    final result = await _processRunner(
-      executable,
-      arguments,
-      workingDirectory: workingDirectory,
-    ).timeout(
-      timeout,
-      onTimeout: () => throw TimeoutException(
-        '$executable ${arguments.join(' ')} timed out.',
-        timeout,
-      ),
-    );
+    final result =
+        await _processRunner(
+          executable,
+          arguments,
+          workingDirectory: workingDirectory,
+        ).timeout(
+          timeout,
+          onTimeout: () => throw TimeoutException(
+            '$executable ${arguments.join(' ')} timed out.',
+            timeout,
+          ),
+        );
     if (result.exitCode != 0) {
       throw StateError(
         '$executable ${arguments.join(' ')} failed: ${result.stderr ?? result.stdout}',
@@ -162,18 +163,19 @@ final class CockpitWindowsRemoteSessionLauncher
     String? workingDirectory,
     required Duration timeout,
   }) async {
-    final process = await Process.start(
-      executablePath,
-      arguments,
-      workingDirectory: workingDirectory,
-      mode: ProcessStartMode.detached,
-    ).timeout(
-      timeout,
-      onTimeout: () => throw TimeoutException(
-        'Launching $executablePath timed out.',
-        timeout,
-      ),
-    );
+    final process =
+        await Process.start(
+          executablePath,
+          arguments,
+          workingDirectory: workingDirectory,
+          mode: ProcessStartMode.detached,
+        ).timeout(
+          timeout,
+          onTimeout: () => throw TimeoutException(
+            'Launching $executablePath timed out.',
+            timeout,
+          ),
+        );
     return process.pid == 0 ? null : process.pid;
   }
 
@@ -198,13 +200,14 @@ final class CockpitWindowsRemoteSessionLauncher
       );
     }
 
-    final executables = outputDirectory
-        .listSync()
-        .whereType<File>()
-        .map((entry) => entry.path)
-        .where((path) => path.toLowerCase().endsWith('.exe'))
-        .toList()
-      ..sort();
+    final executables =
+        outputDirectory
+            .listSync()
+            .whereType<File>()
+            .map((entry) => entry.path)
+            .where((path) => path.toLowerCase().endsWith('.exe'))
+            .toList()
+          ..sort();
     if (executables.isEmpty) {
       throw StateError(
         'Unable to locate a Windows executable in ${outputDirectory.path}.',
@@ -212,8 +215,9 @@ final class CockpitWindowsRemoteSessionLauncher
     }
     if (preferredBaseName != null && preferredBaseName.isNotEmpty) {
       for (final candidate in executables) {
-        final candidateBaseName =
-            pathContext.basenameWithoutExtension(candidate);
+        final candidateBaseName = pathContext.basenameWithoutExtension(
+          candidate,
+        );
         if (candidateBaseName == preferredBaseName) {
           return candidate;
         }
@@ -225,11 +229,13 @@ final class CockpitWindowsRemoteSessionLauncher
   static Future<String?> resolveAppBaseName({
     required String projectDir,
   }) async {
-    final executablePath =
-        await _resolveAppExecutablePath(projectDir: projectDir);
+    final executablePath = await _resolveAppExecutablePath(
+      projectDir: projectDir,
+    );
     final pathContext = cockpitSessionPathContext(executablePath);
-    final baseName =
-        pathContext.basenameWithoutExtension(executablePath).trim();
+    final baseName = pathContext
+        .basenameWithoutExtension(executablePath)
+        .trim();
     return baseName.isEmpty ? null : baseName;
   }
 }

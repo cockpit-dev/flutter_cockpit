@@ -70,26 +70,25 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
     String platform = 'flutter',
     String transportType = 'inApp',
   }) : _context = CockpitInAppCommandContext(
-          registry: registry,
-          captureHandler: captureHandler,
-          snapshotProvider:
-              snapshotProvider ?? _defaultSnapshotProvider(registry),
-          postActionSettler: postActionSettler ?? _defaultPostActionSettler,
-          scrollStepHandler: scrollStepHandler,
-          ensureVisibleHandler: ensureVisibleHandler,
-          gestureHandler: gestureHandler,
-          clearNetworkActivityHandler: clearNetworkActivityHandler,
-          waitForNetworkIdleHandler: waitForNetworkIdleHandler,
-          backNavigationHandler: backNavigationHandler,
-          hasCustomWaitTickHandler: waitTickHandler != null,
-          waitTickHandler: waitTickHandler ?? _defaultWaitTickHandler,
-          keyEventHandler: keyEventHandler ?? _defaultKeyEventHandler,
-          interactionPolicy: interactionPolicy,
-          isRecordingActive:
-              isRecordingActive ?? _defaultRecordingActivityProbe,
-          platform: platform,
-          transportType: transportType,
-        ) {
+         registry: registry,
+         captureHandler: captureHandler,
+         snapshotProvider:
+             snapshotProvider ?? _defaultSnapshotProvider(registry),
+         postActionSettler: postActionSettler ?? _defaultPostActionSettler,
+         scrollStepHandler: scrollStepHandler,
+         ensureVisibleHandler: ensureVisibleHandler,
+         gestureHandler: gestureHandler,
+         clearNetworkActivityHandler: clearNetworkActivityHandler,
+         waitForNetworkIdleHandler: waitForNetworkIdleHandler,
+         backNavigationHandler: backNavigationHandler,
+         hasCustomWaitTickHandler: waitTickHandler != null,
+         waitTickHandler: waitTickHandler ?? _defaultWaitTickHandler,
+         keyEventHandler: keyEventHandler ?? _defaultKeyEventHandler,
+         interactionPolicy: interactionPolicy,
+         isRecordingActive: isRecordingActive ?? _defaultRecordingActivityProbe,
+         platform: platform,
+         transportType: transportType,
+       ) {
     _settleCoordinator = CockpitPostActionSettleCoordinator(context: _context);
     _captureOrchestrator = CockpitCaptureOrchestrator(
       captureHandler: _context.captureHandler,
@@ -307,7 +306,8 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
           command: command,
           durationMs: stopwatch.elapsedMilliseconds,
           snapshot: _snapshotProvider(
-            options: command.snapshotOptions ??
+            options:
+                command.snapshotOptions ??
                 const CockpitSnapshotOptions.baseline(),
           ).toJson(),
         );
@@ -603,9 +603,11 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
           fallbackMs: 220,
         ),
         holdDuration: _optionalDurationParameter(command, 'holdDurationMs'),
-        touchSlopX: _doubleParameter(command, 'touchSlopX') ??
+        touchSlopX:
+            _doubleParameter(command, 'touchSlopX') ??
             cockpitDefaultDragTouchSlop,
-        touchSlopY: _doubleParameter(command, 'touchSlopY') ??
+        touchSlopY:
+            _doubleParameter(command, 'touchSlopY') ??
             cockpitDefaultDragTouchSlop,
         moveEventCount: _intParameter(command, 'moveEventCount') ?? 0,
         fallbackType: CockpitCommandType.drag,
@@ -803,8 +805,8 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
     final sequence = switch (rawSequence) {
       CockpitMultiTouchSequence() => rawSequence,
       Map<Object?, Object?>() => CockpitMultiTouchSequence.fromJson(
-          Map<String, Object?>.from(rawSequence),
-        ),
+        Map<String, Object?>.from(rawSequence),
+      ),
       _ => null,
     };
     if (sequence == null) {
@@ -860,7 +862,8 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
         _doubleParameter(command, 'viewportFraction') ?? 0.8;
     final reverse = command.parameters['reverse'] == true;
     final scrollableKey = _stringParameter(command, 'scrollableKey');
-    final scrollableLocator = _locatorParameter(command, 'scrollLocator') ??
+    final scrollableLocator =
+        _locatorParameter(command, 'scrollLocator') ??
         _locatorParameter(command, 'scrollableLocator');
     final durationPerStep = _durationFromOptionalPositiveInt(
       command,
@@ -1009,10 +1012,7 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
             }
           }
           if (!usedDirectionFallback &&
-              _shouldTryOppositeScrollDirection(
-                currentReverse,
-                scrollStep,
-              )) {
+              _shouldTryOppositeScrollDirection(currentReverse, scrollStep)) {
             usedDirectionFallback = true;
             currentReverse = !currentReverse;
             continue directionLoop;
@@ -1575,7 +1575,7 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
     Stopwatch stopwatch, {
     required CockpitCommandType requiredCommand,
     required CockpitSemanticActionHandler? Function(CockpitTarget target)
-        semanticAction,
+    semanticAction,
   }) async {
     final previousRouteName = _liveSnapshot().routeName;
     final resolution = await _resolveWithRetry(command);
@@ -1931,39 +1931,39 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
 
     return switch (fallbackType) {
       CockpitCommandType.drag => CockpitGestureAction.drag(
-          target: target,
-          origin: _startPointParameter(command),
-          anchor: _gestureAnchorParameter(command),
-          delta: delta,
-          duration: duration,
-          holdDuration: holdDuration,
-          touchSlopX: touchSlopX,
-          touchSlopY: touchSlopY,
-          moveEventCount: moveEventCount,
-          profile: profile,
-          sampleHz: sampleHz,
-          frameInterval: frameInterval,
-          initialHoldDuration: initialHoldDuration,
-          pointerDeviceKind: pointerDeviceKind,
-          buttons: _buttonsParameter(command),
-        ),
+        target: target,
+        origin: _startPointParameter(command),
+        anchor: _gestureAnchorParameter(command),
+        delta: delta,
+        duration: duration,
+        holdDuration: holdDuration,
+        touchSlopX: touchSlopX,
+        touchSlopY: touchSlopY,
+        moveEventCount: moveEventCount,
+        profile: profile,
+        sampleHz: sampleHz,
+        frameInterval: frameInterval,
+        initialHoldDuration: initialHoldDuration,
+        pointerDeviceKind: pointerDeviceKind,
+        buttons: _buttonsParameter(command),
+      ),
       CockpitCommandType.fling => CockpitGestureAction.fling(
-          target: target,
-          origin: _startPointParameter(command),
-          anchor: _gestureAnchorParameter(command),
-          delta: delta,
-          duration: duration,
-          moveEventCount: moveEventCount,
-          profile: profile,
-          sampleHz: sampleHz,
-          frameInterval: frameInterval,
-          initialHoldDuration: initialHoldDuration,
-          pointerDeviceKind: pointerDeviceKind,
-          buttons: _buttonsParameter(command),
-        ),
+        target: target,
+        origin: _startPointParameter(command),
+        anchor: _gestureAnchorParameter(command),
+        delta: delta,
+        duration: duration,
+        moveEventCount: moveEventCount,
+        profile: profile,
+        sampleHz: sampleHz,
+        frameInterval: frameInterval,
+        initialHoldDuration: initialHoldDuration,
+        pointerDeviceKind: pointerDeviceKind,
+        buttons: _buttonsParameter(command),
+      ),
       _ => throw ArgumentError(
-          'Directional gestures only support drag and fling fallbacks.',
-        ),
+        'Directional gestures only support drag and fling fallbacks.',
+      ),
     };
   }
 
@@ -1994,14 +1994,11 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
           ? null
           : CockpitTargetGeometryResolver.maybeFromTarget(target);
       final distance = switch (direction) {
-        AxisDirection.left ||
-        AxisDirection.right =>
+        AxisDirection.left || AxisDirection.right =>
           ((geometry?.width ?? 240) * distanceFactor).clamp(24, 640),
-        AxisDirection.up ||
-        AxisDirection.down =>
+        AxisDirection.up || AxisDirection.down =>
           ((geometry?.height ?? 240) * distanceFactor).clamp(24, 640),
-      }
-          .toDouble();
+      }.toDouble();
       final delta = switch (direction) {
         AxisDirection.left => Offset(-distance, 0),
         AxisDirection.right => Offset(distance, 0),
@@ -2353,7 +2350,8 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
     if (action.origin != null) {
       return action.origin;
     }
-    final geometry = action.geometry ??
+    final geometry =
+        action.geometry ??
         (target == null
             ? null
             : CockpitTargetGeometryResolver.maybeFromTarget(target));
@@ -2447,14 +2445,14 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
       return false;
     }
     return switch (requiredCommand) {
-      CockpitCommandType.enterText => target.onSemanticTextInput != null ||
-          target.onTextInput != null ||
-          target.onSemanticEnterText != null ||
-          target.onEnterText != null,
+      CockpitCommandType.enterText =>
+        target.onSemanticTextInput != null ||
+            target.onTextInput != null ||
+            target.onSemanticEnterText != null ||
+            target.onEnterText != null,
       CockpitCommandType.focusTextInput ||
       CockpitCommandType.setTextEditingValue ||
-      CockpitCommandType.sendTextInputAction =>
-        target.onTextInput != null,
+      CockpitCommandType.sendTextInputAction => target.onTextInput != null,
       _ => false,
     };
   }
@@ -2480,7 +2478,7 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
           'visibleTextCandidates': _visibleTextCandidates(
             _registry.visibleTargets,
           ).take(12).toList(growable: false),
-          if (_emptyRouteHint() case final hint?) 'emptyRouteHint': hint,
+          'emptyRouteHint': ?_emptyRouteHint(),
         },
       ),
       matches: resolution.matches,
@@ -2752,29 +2750,28 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
     final physicalKey = request.physicalKey;
     final keyData = switch (type) {
       CockpitCommandType.sendKeyEvent ||
-      CockpitCommandType.sendKeyDownEvent =>
-        ui.KeyData(
-          type: ui.KeyEventType.down,
-          physical: physicalKey?.usbHidUsage ?? 0,
-          logical: request.logicalKey.keyId,
-          timeStamp: Duration.zero,
-          character:
-              request.character ?? _fallbackCharacterFor(request.logicalKey),
-          synthesized: false,
-        ),
+      CockpitCommandType.sendKeyDownEvent => ui.KeyData(
+        type: ui.KeyEventType.down,
+        physical: physicalKey?.usbHidUsage ?? 0,
+        logical: request.logicalKey.keyId,
+        timeStamp: Duration.zero,
+        character:
+            request.character ?? _fallbackCharacterFor(request.logicalKey),
+        synthesized: false,
+      ),
       CockpitCommandType.sendKeyUpEvent => ui.KeyData(
-          type: ui.KeyEventType.up,
-          physical: physicalKey?.usbHidUsage ?? 0,
-          logical: request.logicalKey.keyId,
-          timeStamp: Duration.zero,
-          character: null,
-          synthesized: false,
-        ),
+        type: ui.KeyEventType.up,
+        physical: physicalKey?.usbHidUsage ?? 0,
+        logical: request.logicalKey.keyId,
+        timeStamp: Duration.zero,
+        character: null,
+        synthesized: false,
+      ),
       _ => throw ArgumentError.value(
-          type,
-          'type',
-          'Unsupported key event type.',
-        ),
+        type,
+        'type',
+        'Unsupported key event type.',
+      ),
     };
     final handled = dispatchKeyData(keyData);
     if (type != CockpitCommandType.sendKeyEvent) {
@@ -2829,8 +2826,7 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
     }
     final commitDelay = switch (commandType) {
       CockpitCommandType.longPress => const Duration(milliseconds: 32),
-      CockpitCommandType.tap ||
-      CockpitCommandType.doubleTap =>
+      CockpitCommandType.tap || CockpitCommandType.doubleTap =>
         kDoubleTapTimeout + const Duration(milliseconds: 32),
       _ => Duration.zero,
     };
@@ -3156,18 +3152,17 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
     final value = switch (rawValue) {
       PointerDeviceKind() => rawValue,
       String() => switch (rawValue.trim().toLowerCase()) {
-          'touch' => PointerDeviceKind.touch,
-          'mouse' => PointerDeviceKind.mouse,
-          'stylus' => PointerDeviceKind.stylus,
-          'invertedstylus' ||
-          'inverted_stylus' =>
-            PointerDeviceKind.invertedStylus,
-          'trackpad' => PointerDeviceKind.trackpad,
-          'unknown' => PointerDeviceKind.unknown,
-          _ => throw ArgumentError(
-              'deviceKind must be one of touch, mouse, stylus, invertedStylus, trackpad, or unknown.',
-            ),
-        },
+        'touch' => PointerDeviceKind.touch,
+        'mouse' => PointerDeviceKind.mouse,
+        'stylus' => PointerDeviceKind.stylus,
+        'invertedstylus' ||
+        'inverted_stylus' => PointerDeviceKind.invertedStylus,
+        'trackpad' => PointerDeviceKind.trackpad,
+        'unknown' => PointerDeviceKind.unknown,
+        _ => throw ArgumentError(
+          'deviceKind must be one of touch, mouse, stylus, invertedStylus, trackpad, or unknown.',
+        ),
+      },
       _ => throw ArgumentError('deviceKind must be a string.'),
     };
     if (value == PointerDeviceKind.trackpad && !allowTrackpad) {
@@ -3210,8 +3205,8 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
         'back' => kBackMouseButton,
         'forward' => kForwardMouseButton,
         _ => throw ArgumentError(
-            'buttons must use aliases primary, secondary, tertiary, back, or forward.',
-          ),
+          'buttons must use aliases primary, secondary, tertiary, back, or forward.',
+        ),
       };
     }
     if (mask <= 0) {
@@ -3405,8 +3400,7 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
       CockpitCommandType.increase ||
       CockpitCommandType.decrease ||
       CockpitCommandType.dismiss ||
-      CockpitCommandType.back =>
-        true,
+      CockpitCommandType.back => true,
       _ => false,
     };
     if (!isVisualMutation) {
@@ -3451,8 +3445,7 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
       CockpitCommandType.increase ||
       CockpitCommandType.decrease ||
       CockpitCommandType.dismiss ||
-      CockpitCommandType.back =>
-        true,
+      CockpitCommandType.back => true,
       _ => false,
     };
     if (!isVisualMutation && !routeChanged) {
@@ -3491,8 +3484,8 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
 
   static bool _isTestBinding(WidgetsBinding widgetsBinding) {
     return widgetsBinding.runtimeType.toString().contains(
-          'TestWidgetsFlutterBinding',
-        );
+      'TestWidgetsFlutterBinding',
+    );
   }
 
   static bool _defaultRecordingActivityProbe() => false;
@@ -3540,10 +3533,10 @@ final class _CockpitGesturePreflightResult {
   });
 
   const _CockpitGesturePreflightResult.error(CockpitCommandError error)
-      : this._(error: error);
+    : this._(error: error);
 
   const _CockpitGesturePreflightResult.warning(Map<String, Object?> warning)
-      : this._(warning: warning, degradationReason: 'hitTestMissWarning');
+    : this._(warning: warning, degradationReason: 'hitTestMissWarning');
 
   final CockpitCommandError? error;
   final Map<String, Object?>? warning;

@@ -23,11 +23,11 @@ final class CockpitNetworkQuery {
       statusCodeAtLeast == null;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        if (method != null) 'method': method,
-        if (uriContains != null) 'uriContains': uriContains,
-        'onlyFailures': onlyFailures,
-        if (statusCodeAtLeast != null) 'statusCodeAtLeast': statusCodeAtLeast,
-      };
+    if (method != null) 'method': method,
+    if (uriContains != null) 'uriContains': uriContains,
+    'onlyFailures': onlyFailures,
+    if (statusCodeAtLeast != null) 'statusCodeAtLeast': statusCodeAtLeast,
+  };
 
   factory CockpitNetworkQuery.fromJson(Map<String, Object?> json) {
     return CockpitNetworkQuery(

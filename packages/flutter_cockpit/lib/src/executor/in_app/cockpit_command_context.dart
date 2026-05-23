@@ -12,45 +12,46 @@ import '../../runtime/cockpit_snapshot.dart';
 import '../../runtime/cockpit_snapshot_options.dart';
 import '../../runtime/cockpit_target_registry.dart';
 
-typedef CockpitCaptureHandler = Future<CockpitCaptureResult> Function(
-  CockpitScreenshotRequest request,
-);
-typedef CockpitSnapshotProvider = CockpitSnapshot Function({
-  CockpitSnapshotOptions options,
-});
+typedef CockpitCaptureHandler =
+    Future<CockpitCaptureResult> Function(CockpitScreenshotRequest request);
+typedef CockpitSnapshotProvider =
+    CockpitSnapshot Function({CockpitSnapshotOptions options});
 typedef CockpitPostActionSettler = Future<void> Function();
-typedef CockpitScrollStepHandler = Future<CockpitScrollStepResult> Function({
-  required bool reverse,
-  required double viewportFraction,
-  String? scrollableKey,
-  CockpitLocator? targetLocator,
-  CockpitLocator? scrollableLocator,
-  required Duration duration,
-  required CockpitGestureProfile gestureProfile,
-  required bool continuous,
-  required bool postScrollEnsureVisible,
-});
-typedef CockpitEnsureVisibleHandler = Future<bool> Function({
-  required CockpitLocator locator,
-  required Duration duration,
-  required CockpitRevealAlignment alignment,
-  required double padding,
-});
-typedef CockpitGestureHandler = Future<void> Function(
-  CockpitGestureAction action,
-);
+typedef CockpitScrollStepHandler =
+    Future<CockpitScrollStepResult> Function({
+      required bool reverse,
+      required double viewportFraction,
+      String? scrollableKey,
+      CockpitLocator? targetLocator,
+      CockpitLocator? scrollableLocator,
+      required Duration duration,
+      required CockpitGestureProfile gestureProfile,
+      required bool continuous,
+      required bool postScrollEnsureVisible,
+    });
+typedef CockpitEnsureVisibleHandler =
+    Future<bool> Function({
+      required CockpitLocator locator,
+      required Duration duration,
+      required CockpitRevealAlignment alignment,
+      required double padding,
+    });
+typedef CockpitGestureHandler =
+    Future<void> Function(CockpitGestureAction action);
 typedef CockpitNetworkActivityClearer = void Function();
-typedef CockpitNetworkIdleWaiter = Future<bool> Function({
-  required Duration quietWindow,
-  required Duration timeout,
-});
+typedef CockpitNetworkIdleWaiter =
+    Future<bool> Function({
+      required Duration quietWindow,
+      required Duration timeout,
+    });
 typedef CockpitBackNavigationHandler = Future<bool> Function();
 typedef CockpitWaitTickHandler = Future<void> Function(Duration duration);
 typedef CockpitRecordingActivityProbe = bool Function();
-typedef CockpitKeyEventHandler = Future<bool> Function(
-  CockpitKeyEventRequest request,
-  CockpitCommandType type,
-);
+typedef CockpitKeyEventHandler =
+    Future<bool> Function(
+      CockpitKeyEventRequest request,
+      CockpitCommandType type,
+    );
 
 final class CockpitInAppCommandContext {
   CockpitInAppCommandContext({

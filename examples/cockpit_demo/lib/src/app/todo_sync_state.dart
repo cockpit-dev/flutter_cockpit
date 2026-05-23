@@ -7,7 +7,7 @@ enum TodoSyncStatus {
   syncing,
   synced,
   failed,
-  conflicted
+  conflicted,
 }
 
 @immutable
@@ -95,8 +95,9 @@ final class TodoSyncState {
       pendingTaskCount: pendingTaskCount ?? this.pendingTaskCount,
       failedTaskCount: failedTaskCount ?? this.failedTaskCount,
       conflictTaskCount: conflictTaskCount ?? this.conflictTaskCount,
-      lastRunSummary:
-          lastRunSummary == null ? this.lastRunSummary : lastRunSummary(),
+      lastRunSummary: lastRunSummary == null
+          ? this.lastRunSummary
+          : lastRunSummary(),
     );
   }
 }

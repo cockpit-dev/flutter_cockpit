@@ -15,10 +15,11 @@ import 'cockpit_interactive_snapshot_store.dart';
 import 'cockpit_read_remote_snapshot_service.dart';
 import 'cockpit_session_reference_resolver.dart';
 
-typedef CockpitRemoteCommandExecutor = Future<CockpitCommandExecution> Function(
-  Uri baseUri,
-  CockpitCommand command,
-);
+typedef CockpitRemoteCommandExecutor =
+    Future<CockpitCommandExecution> Function(
+      Uri baseUri,
+      CockpitCommand command,
+    );
 
 final class CockpitExecuteRemoteCommandRequest {
   const CockpitExecuteRemoteCommandRequest({
@@ -82,28 +83,27 @@ final class CockpitExecuteRemoteCommandResult {
   final CockpitSnapshotOptions? effectiveSnapshotOptions;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'command': command.toJson(),
-        'artifacts': artifacts.map((artifact) => artifact.toJson()).toList(),
-        'selectedPlane': selectedPlane.name,
-        'fallbackTrail':
-            fallbackTrail.map((planeKind) => planeKind.name).toList(),
-        'recommendedNextStep': recommendedNextStep,
-        if (whatChanged != null) 'whatChanged': whatChanged,
-        if (whatMatters != null) 'whatMatters': whatMatters,
-        if (uiSummary != null) 'uiSummary': uiSummary!.toJson(),
-        if (snapshot != null) 'snapshot': snapshot!.toJson(),
-        if (diagnostics != null) 'diagnostics': diagnostics,
-        'runtimeSteps': runtimeSteps,
-        if (delta != null) 'delta': delta!.toJson(),
-        if (snapshotRef != null) 'snapshotRef': snapshotRef,
-        if (artifactDownloads.isNotEmpty)
-          'artifactDownloads': artifactDownloads
-              .map((download) => download.toJson())
-              .toList(growable: false),
-        if (sessionHandle != null) 'sessionHandle': sessionHandle!.toJson(),
-        if (effectiveSnapshotOptions != null)
-          'effectiveSnapshotOptions': effectiveSnapshotOptions!.toJson(),
-      };
+    'command': command.toJson(),
+    'artifacts': artifacts.map((artifact) => artifact.toJson()).toList(),
+    'selectedPlane': selectedPlane.name,
+    'fallbackTrail': fallbackTrail.map((planeKind) => planeKind.name).toList(),
+    'recommendedNextStep': recommendedNextStep,
+    if (whatChanged != null) 'whatChanged': whatChanged,
+    if (whatMatters != null) 'whatMatters': whatMatters,
+    if (uiSummary != null) 'uiSummary': uiSummary!.toJson(),
+    if (snapshot != null) 'snapshot': snapshot!.toJson(),
+    if (diagnostics != null) 'diagnostics': diagnostics,
+    'runtimeSteps': runtimeSteps,
+    if (delta != null) 'delta': delta!.toJson(),
+    if (snapshotRef != null) 'snapshotRef': snapshotRef,
+    if (artifactDownloads.isNotEmpty)
+      'artifactDownloads': artifactDownloads
+          .map((download) => download.toJson())
+          .toList(growable: false),
+    if (sessionHandle != null) 'sessionHandle': sessionHandle!.toJson(),
+    if (effectiveSnapshotOptions != null)
+      'effectiveSnapshotOptions': effectiveSnapshotOptions!.toJson(),
+  };
 }
 
 final class CockpitExecuteRemoteCommandService {
@@ -113,19 +113,21 @@ final class CockpitExecuteRemoteCommandService {
     CockpitSessionReferenceResolver? sessionReferenceResolver,
     CockpitInteractiveSnapshotStore? snapshotStore,
     CockpitInteractiveSessionLock? sessionLock,
-  })  : _executeCommand = executeCommand ??
-            ((baseUri, command) => CockpitRemoteSessionClient(
-                  baseUri: baseUri,
-                  requestTimeout: _remoteRequestTimeoutFor(command),
-                ).executeDetailed(command)),
-        _readSnapshot = readSnapshot ??
-            ((baseUri, options) => CockpitRemoteSessionClient(
-                  baseUri: baseUri,
-                ).readSnapshotDetailed(options: options)),
-        _sessionReferenceResolver =
-            sessionReferenceResolver ?? CockpitSessionReferenceResolver(),
-        _snapshotStore = snapshotStore ?? CockpitInteractiveSnapshotStore(),
-        _sessionLock = sessionLock ?? CockpitInteractiveSessionLock();
+  }) : _executeCommand =
+           executeCommand ??
+           ((baseUri, command) => CockpitRemoteSessionClient(
+             baseUri: baseUri,
+             requestTimeout: _remoteRequestTimeoutFor(command),
+           ).executeDetailed(command)),
+       _readSnapshot =
+           readSnapshot ??
+           ((baseUri, options) => CockpitRemoteSessionClient(
+             baseUri: baseUri,
+           ).readSnapshotDetailed(options: options)),
+       _sessionReferenceResolver =
+           sessionReferenceResolver ?? CockpitSessionReferenceResolver(),
+       _snapshotStore = snapshotStore ?? CockpitInteractiveSnapshotStore(),
+       _sessionLock = sessionLock ?? CockpitInteractiveSessionLock();
 
   final CockpitRemoteCommandExecutor _executeCommand;
   final CockpitRemoteSnapshotDetailedReader _readSnapshot;
@@ -154,16 +156,18 @@ final class CockpitExecuteRemoteCommandService {
         intent: intent,
         capabilityProfile: _legacyFlutterCapabilityProfile(intent),
       );
-      final execution =
-          await _executeCommand(resolved.baseUri, effectiveCommand);
+      final execution = await _executeCommand(
+        resolved.baseUri,
+        effectiveCommand,
+      );
       final effectiveSnapshotOptions =
           request.resultProfile.requiresPostActionSnapshotRead(
-        compareAgainstSnapshot: request.compareAgainstSnapshotRef != null,
-      )
-              ? request.resultProfile.resolveSnapshotOptions(
-                  request.snapshotOptions ?? effectiveCommand.snapshotOptions,
-                )
-              : null;
+            compareAgainstSnapshot: request.compareAgainstSnapshotRef != null,
+          )
+          ? request.resultProfile.resolveSnapshotOptions(
+              request.snapshotOptions ?? effectiveCommand.snapshotOptions,
+            )
+          : null;
       final snapshotResponse = effectiveSnapshotOptions == null
           ? null
           : await cockpitReadRemoteSnapshotConsistently(
@@ -180,8 +184,8 @@ final class CockpitExecuteRemoteCommandService {
             );
       final snapshotRef =
           snapshot == null || !request.resultProfile.emitsSnapshotRef
-              ? null
-              : _snapshotStore.put(sessionKey: sessionKey, snapshot: snapshot);
+          ? null
+          : _snapshotStore.put(sessionKey: sessionKey, snapshot: snapshot);
 
       return CockpitExecuteRemoteCommandResult(
         command: CockpitInteractiveCommandCore.fromResult(execution.result),
@@ -209,14 +213,15 @@ final class CockpitExecuteRemoteCommandService {
               ),
         runtimeSteps: request.resultProfile.emitsRuntimeSteps
             ? execution.runtimeSteps
-                .map((step) => (step.toJson()))
-                .toList(growable: false)
+                  .map((step) => (step.toJson()))
+                  .toList(growable: false)
             : const <Map<String, Object?>>[],
         delta: snapshot == null || baseline == null
             ? null
             : cockpitInteractiveDiffSnapshots(baseline.snapshot, snapshot),
         snapshotRef: snapshotRef,
-        artifactDownloads: snapshotResponse?.artifactDownloads ??
+        artifactDownloads:
+            snapshotResponse?.artifactDownloads ??
             const <CockpitRemoteArtifactDownload>[],
         sessionHandle: resolved.sessionHandle,
         effectiveSnapshotOptions: effectiveSnapshotOptions,
@@ -261,7 +266,8 @@ final class CockpitExecuteRemoteCommandService {
         final durationPerStepMs =
             _positiveInt(command.parameters['durationPerStepMs']) ?? 220;
         final probeSegments = _recommendedScrollProbeSegments(command);
-        final revealRequested = command.parameters['revealAlignment'] != null ||
+        final revealRequested =
+            command.parameters['revealAlignment'] != null ||
             (_positiveNum(command.parameters['revealPadding']) ?? 0) > 0;
         final perStepBudgetMs =
             probeSegments * (durationPerStepMs + (revealRequested ? 420 : 320));
@@ -271,8 +277,8 @@ final class CockpitExecuteRemoteCommandService {
           Duration(milliseconds: stepBudgetMs + 1800),
         );
       case CockpitCommandType.waitFor ||
-            CockpitCommandType.waitForUiIdle ||
-            CockpitCommandType.waitForNetworkIdle:
+          CockpitCommandType.waitForUiIdle ||
+          CockpitCommandType.waitForNetworkIdle:
         if (parameterTimeoutMs != null) {
           recommended = _maxDuration(
             recommended,

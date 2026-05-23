@@ -44,11 +44,11 @@ void main() {
 }
 
 CockpitDevelopmentProbe _probe(String probeId) => CockpitDevelopmentProbe(
-      probeId: probeId,
-      sessionId: 'dev-session-1',
-      reloadGeneration: 1,
-      capturedAt: DateTime.utc(2026, 3, 23),
-      reason: CockpitDevelopmentProbeReason.manual,
-      profile: CockpitDevelopmentProbeProfile.quick,
-      routeName: '/home',
-    );
+  probeId: probeId,
+  sessionId: 'dev-session-1',
+  reloadGeneration: 1,
+  capturedAt: DateTime.utc(2026, 3, 23),
+  reason: CockpitDevelopmentProbeReason.manual,
+  profile: CockpitDevelopmentProbeProfile.quick,
+  routeName: '/home',
+);

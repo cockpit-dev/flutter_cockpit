@@ -26,8 +26,9 @@ final class CockpitMcpPromptAdapter {
     CockpitMcpPrompt prompt,
     GetPromptRequest request,
   ) async {
-    final result =
-        await prompt.build(request.arguments ?? const <String, Object?>{});
+    final result = await prompt.build(
+      request.arguments ?? const <String, Object?>{},
+    );
     return GetPromptResult(
       description: result.description,
       messages: result.messages

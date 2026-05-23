@@ -7,22 +7,21 @@ import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_workspace_cli_support.dart';
 
-typedef CockpitCreateProjectFunction = Future<CockpitCreateProjectResult>
-    Function(CockpitCreateProjectRequest request);
+typedef CockpitCreateProjectFunction =
+    Future<CockpitCreateProjectResult> Function(
+      CockpitCreateProjectRequest request,
+    );
 
 final class CreateProjectCommand extends CockpitCliCommand {
   CreateProjectCommand({
     CockpitCreateProjectService? service,
     CockpitCreateProjectFunction? create,
     StringSink? stdoutSink,
-  })  : _create = create ?? (service ?? CockpitCreateProjectService()).create,
-        _stdoutSink = stdoutSink ?? stdout {
+  }) : _create = create ?? (service ?? CockpitCreateProjectService()).create,
+       _stdoutSink = stdoutSink ?? stdout {
     cockpitAddParentDirectoryOption(argParser);
     argParser
-      ..addOption(
-        'project-name',
-        help: 'Directory name for the new project.',
-      )
+      ..addOption('project-name', help: 'Directory name for the new project.')
       ..addOption(
         'template',
         allowed: const <String>['dart-cli', 'flutter-app'],
@@ -80,8 +79,11 @@ final class CreateProjectCommand extends CockpitCliCommand {
     final result = await _create(
       CockpitCreateProjectRequest(
         parentDirectory: cockpitReadParentDirectory(argResults),
-        projectName:
-            cockpitReadRequiredStringOption(argResults, 'project-name', usage),
+        projectName: cockpitReadRequiredStringOption(
+          argResults,
+          'project-name',
+          usage,
+        ),
         template: _templateFromArgument(
           cockpitReadRequiredStringOption(argResults, 'template', usage),
         ),

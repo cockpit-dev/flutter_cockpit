@@ -1,17 +1,17 @@
 import '../../application/cockpit_validate_task_service.dart';
 import '../cockpit_mcp_tool.dart';
 
-typedef CockpitValidateTaskWorkflowFunction = Future<CockpitValidateTaskResult>
-    Function(
-  CockpitValidateTaskRequest request,
-);
+typedef CockpitValidateTaskWorkflowFunction =
+    Future<CockpitValidateTaskResult> Function(
+      CockpitValidateTaskRequest request,
+    );
 
 final class CockpitValidateTaskTool extends CockpitMcpTool {
   CockpitValidateTaskTool({
     CockpitValidateTaskService? service,
     CockpitValidateTaskWorkflowFunction? validateTask,
   }) : _validateTask =
-            validateTask ?? (service ?? CockpitValidateTaskService()).validate;
+           validateTask ?? (service ?? CockpitValidateTaskService()).validate;
 
   final CockpitValidateTaskWorkflowFunction _validateTask;
 
@@ -24,29 +24,27 @@ final class CockpitValidateTaskTool extends CockpitMcpTool {
 
   @override
   CockpitMcpToolAnnotations get annotations => const CockpitMcpToolAnnotations(
-        readOnly: false,
-        destructive: false,
-        idempotent: false,
-        longRunning: true,
-        requiresSession: false,
-        producesBundleEvidence: true,
-      );
+    readOnly: false,
+    destructive: false,
+    idempotent: false,
+    longRunning: true,
+    requiresSession: false,
+    producesBundleEvidence: true,
+  );
 
   @override
   List<CockpitMcpFeatureCategory> get categories =>
-      const <CockpitMcpFeatureCategory>[
-        CockpitMcpFeatureCategory.delivery,
-      ];
+      const <CockpitMcpFeatureCategory>[CockpitMcpFeatureCategory.delivery];
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
-        'type': 'object',
-        'required': <String>['runTask'],
-        'properties': <String, Object?>{
-          'runTask': <String, Object?>{'type': 'object'},
-          'validation': <String, Object?>{'type': 'object'},
-        },
-      };
+    'type': 'object',
+    'required': <String>['runTask'],
+    'properties': <String, Object?>{
+      'runTask': <String, Object?>{'type': 'object'},
+      'validation': <String, Object?>{'type': 'object'},
+    },
+  };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {

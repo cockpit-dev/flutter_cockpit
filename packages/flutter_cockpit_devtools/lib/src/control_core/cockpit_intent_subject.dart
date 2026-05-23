@@ -1,6 +1,1 @@
-enum CockpitIntentSubject {
-  app,
-  surface,
-  device,
-  host;
-}
+enum CockpitIntentSubject { app, surface, device, host }

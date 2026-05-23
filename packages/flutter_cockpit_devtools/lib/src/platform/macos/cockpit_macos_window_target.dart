@@ -2,14 +2,14 @@ import 'dart:async';
 
 import '../../capture/cockpit_host_capture_adapter.dart';
 
-typedef CockpitMacosWindowTargetResolver = Future<CockpitMacosWindowTarget>
-    Function({
-  required String appId,
-  required String osascriptExecutable,
-  required CockpitCaptureProcessRunner processRunner,
-  required Duration timeout,
-  required Duration activationSettleDelay,
-});
+typedef CockpitMacosWindowTargetResolver =
+    Future<CockpitMacosWindowTarget> Function({
+      required String appId,
+      required String osascriptExecutable,
+      required CockpitCaptureProcessRunner processRunner,
+      required Duration timeout,
+      required Duration activationSettleDelay,
+    });
 
 final class CockpitMacosWindowTarget {
   const CockpitMacosWindowTarget({

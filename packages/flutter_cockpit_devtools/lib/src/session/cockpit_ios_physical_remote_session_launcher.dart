@@ -8,20 +8,18 @@ import 'cockpit_remote_session_launch_options.dart';
 import 'cockpit_remote_session_launcher.dart';
 import 'cockpit_session_path.dart';
 
-typedef CockpitIosPhysicalProcessRunner = Future<ProcessResult> Function(
-  String executable,
-  List<String> arguments, {
-  String? workingDirectory,
-});
-typedef CockpitIosDeviceConnectionReader = Future<CockpitIosDeviceConnection?>
-    Function(String deviceId);
-typedef CockpitIosPhysicalBundleIdResolver = Future<String> Function({
-  required String appBundlePath,
-});
-typedef CockpitIosPhysicalAppBundlePathResolver = Future<String> Function({
-  required String projectDir,
-  String? flavor,
-});
+typedef CockpitIosPhysicalProcessRunner =
+    Future<ProcessResult> Function(
+      String executable,
+      List<String> arguments, {
+      String? workingDirectory,
+    });
+typedef CockpitIosDeviceConnectionReader =
+    Future<CockpitIosDeviceConnection?> Function(String deviceId);
+typedef CockpitIosPhysicalBundleIdResolver =
+    Future<String> Function({required String appBundlePath});
+typedef CockpitIosPhysicalAppBundlePathResolver =
+    Future<String> Function({required String projectDir, String? flavor});
 
 final class CockpitIosPhysicalRemoteSessionLauncher
     implements CockpitRemoteSessionLauncher {
@@ -37,13 +35,13 @@ final class CockpitIosPhysicalRemoteSessionLauncher
     CockpitFlutterVersionReader flutterVersionReader =
         cockpitReadActiveFlutterVersion,
     DateTime Function()? now,
-  })  : _processRunner = processRunner,
-        _deviceConnectionResolver = deviceConnectionResolver,
-        _bundleIdResolver = bundleIdResolver,
-        _appBundlePathResolver = appBundlePathResolver,
-        _statusReader = statusReader,
-        _flutterVersionReader = flutterVersionReader,
-        _now = now ?? DateTime.now;
+  }) : _processRunner = processRunner,
+       _deviceConnectionResolver = deviceConnectionResolver,
+       _bundleIdResolver = bundleIdResolver,
+       _appBundlePathResolver = appBundlePathResolver,
+       _statusReader = statusReader,
+       _flutterVersionReader = flutterVersionReader,
+       _now = now ?? DateTime.now;
 
   final CockpitIosPhysicalProcessRunner _processRunner;
   final CockpitIosDeviceConnectionReader _deviceConnectionResolver;
@@ -69,15 +67,14 @@ final class CockpitIosPhysicalRemoteSessionLauncher
     }
 
     final deadline = _now().add(options.launchTimeout);
-    final connection = await _deviceConnectionResolver(
-      options.deviceId,
-    ).timeout(
-      _remaining(deadline),
-      onTimeout: () => throw TimeoutException(
-        'Resolving the iOS device tunnel timed out.',
-        _remaining(deadline),
-      ),
-    );
+    final connection = await _deviceConnectionResolver(options.deviceId)
+        .timeout(
+          _remaining(deadline),
+          onTimeout: () => throw TimeoutException(
+            'Resolving the iOS device tunnel timed out.',
+            _remaining(deadline),
+          ),
+        );
     if (connection == null || !connection.hasReachableTunnel) {
       throw StateError(
         'Unable to resolve a reachable iOS device tunnel for ${options.deviceId}.',
@@ -111,25 +108,25 @@ final class CockpitIosPhysicalRemoteSessionLauncher
       timeout: _remaining(deadline),
     );
 
-    final appBundlePath = await _appBundlePathResolver(
-      projectDir: options.projectDir,
-      flavor: options.flavor,
-    ).timeout(
-      _remaining(deadline),
-      onTimeout: () => throw TimeoutException(
-        'Resolving the iOS device app bundle path timed out.',
-        _remaining(deadline),
-      ),
-    );
-    final bundleId = await _bundleIdResolver(
-      appBundlePath: appBundlePath,
-    ).timeout(
-      _remaining(deadline),
-      onTimeout: () => throw TimeoutException(
-        'Resolving the iOS device bundle identifier timed out.',
-        _remaining(deadline),
-      ),
-    );
+    final appBundlePath =
+        await _appBundlePathResolver(
+          projectDir: options.projectDir,
+          flavor: options.flavor,
+        ).timeout(
+          _remaining(deadline),
+          onTimeout: () => throw TimeoutException(
+            'Resolving the iOS device app bundle path timed out.',
+            _remaining(deadline),
+          ),
+        );
+    final bundleId = await _bundleIdResolver(appBundlePath: appBundlePath)
+        .timeout(
+          _remaining(deadline),
+          onTimeout: () => throw TimeoutException(
+            'Resolving the iOS device bundle identifier timed out.',
+            _remaining(deadline),
+          ),
+        );
     final baseUri = Uri(
       scheme: 'http',
       host: connection.tunnelIpAddress!,
@@ -160,17 +157,18 @@ final class CockpitIosPhysicalRemoteSessionLauncher
     String? workingDirectory,
     required Duration timeout,
   }) async {
-    final result = await _processRunner(
-      executable,
-      arguments,
-      workingDirectory: workingDirectory,
-    ).timeout(
-      timeout,
-      onTimeout: () => throw TimeoutException(
-        '$executable ${arguments.join(' ')} timed out.',
-        timeout,
-      ),
-    );
+    final result =
+        await _processRunner(
+          executable,
+          arguments,
+          workingDirectory: workingDirectory,
+        ).timeout(
+          timeout,
+          onTimeout: () => throw TimeoutException(
+            '$executable ${arguments.join(' ')} timed out.',
+            timeout,
+          ),
+        );
     if (result.exitCode != 0) {
       throw StateError(
         '$executable ${arguments.join(' ')} failed: ${result.stderr ?? result.stdout}',
@@ -200,9 +198,7 @@ final class CockpitIosPhysicalRemoteSessionLauncher
     );
   }
 
-  static Future<String> _resolveBundleId({
-    required String appBundlePath,
-  }) =>
+  static Future<String> _resolveBundleId({required String appBundlePath}) =>
       cockpitResolveIosBundleId(appBundlePath: appBundlePath);
 
   static Future<String> _resolveAppBundlePath({

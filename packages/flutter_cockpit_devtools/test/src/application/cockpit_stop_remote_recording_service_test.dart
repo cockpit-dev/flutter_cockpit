@@ -25,9 +25,7 @@ void main() {
       );
 
       final result = await service.stop(
-        CockpitStopRemoteRecordingRequest(
-          sessionHandle: _sessionHandle(),
-        ),
+        CockpitStopRemoteRecordingRequest(sessionHandle: _sessionHandle()),
       );
 
       expect(result.state, CockpitRecordingState.completed);
@@ -36,120 +34,118 @@ void main() {
       expect(result.artifact?.sourcePath, sourceFile.path);
     });
 
-    test('reports file size when remote recording is stored as a source path',
-        () async {
-      final sourceFile = await _recordingSourceFile('remote-recording-file');
-      final service = CockpitStopRemoteRecordingService(
-        stopRecording: (_) async => CockpitRecordingResult(
-          state: CockpitRecordingState.completed,
-          purpose: CockpitRecordingPurpose.acceptance,
-          recordingKind: CockpitRecordingKind.nativeScreen,
-          artifact: const CockpitArtifactRef(
-            role: 'recording',
-            relativePath: 'recordings/final.mp4',
+    test(
+      'reports file size when remote recording is stored as a source path',
+      () async {
+        final sourceFile = await _recordingSourceFile('remote-recording-file');
+        final service = CockpitStopRemoteRecordingService(
+          stopRecording: (_) async => CockpitRecordingResult(
+            state: CockpitRecordingState.completed,
+            purpose: CockpitRecordingPurpose.acceptance,
+            recordingKind: CockpitRecordingKind.nativeScreen,
+            artifact: const CockpitArtifactRef(
+              role: 'recording',
+              relativePath: 'recordings/final.mp4',
+            ),
+            durationMs: 1200,
+            sourceFilePath: sourceFile.path,
           ),
-          durationMs: 1200,
-          sourceFilePath: sourceFile.path,
-        ),
-      );
+        );
 
-      final result = await service.stop(
-        CockpitStopRemoteRecordingRequest(
-          sessionHandle: _sessionHandle(),
-        ),
-      );
+        final result = await service.stop(
+          CockpitStopRemoteRecordingRequest(sessionHandle: _sessionHandle()),
+        );
 
-      expect(result.artifact?.byteLength, sourceFile.lengthSync());
-      expect(result.artifact?.sourcePath, sourceFile.path);
-    });
+        expect(result.artifact?.byteLength, sourceFile.lengthSync());
+        expect(result.artifact?.sourcePath, sourceFile.path);
+      },
+    );
 
-    test('marks completed recording failed when artifact reference is missing',
-        () async {
-      final service = CockpitStopRemoteRecordingService(
-        stopRecording: (_) async => CockpitRecordingResult(
-          state: CockpitRecordingState.completed,
-          purpose: CockpitRecordingPurpose.acceptance,
-          recordingKind: CockpitRecordingKind.nativeScreen,
-          durationMs: 1200,
-        ),
-      );
-
-      final result = await service.stop(
-        CockpitStopRemoteRecordingRequest(
-          sessionHandle: _sessionHandle(),
-        ),
-      );
-
-      expect(result.state, CockpitRecordingState.failed);
-      expect(result.artifact, isNull);
-      expect(
-        result.failureReason,
-        contains('without an artifact reference'),
-      );
-    });
-
-    test('marks completed recording failed when inline bytes are empty',
-        () async {
-      final service = CockpitStopRemoteRecordingService(
-        stopRecording: (_) async => CockpitRecordingResult(
-          state: CockpitRecordingState.completed,
-          purpose: CockpitRecordingPurpose.acceptance,
-          recordingKind: CockpitRecordingKind.nativeScreen,
-          artifact: const CockpitArtifactRef(
-            role: 'recording',
-            relativePath: 'recordings/empty.mp4',
+    test(
+      'marks completed recording failed when artifact reference is missing',
+      () async {
+        final service = CockpitStopRemoteRecordingService(
+          stopRecording: (_) async => CockpitRecordingResult(
+            state: CockpitRecordingState.completed,
+            purpose: CockpitRecordingPurpose.acceptance,
+            recordingKind: CockpitRecordingKind.nativeScreen,
+            durationMs: 1200,
           ),
-          durationMs: 1200,
-          bytes: const <int>[],
-        ),
-      );
+        );
 
-      final result = await service.stop(
-        CockpitStopRemoteRecordingRequest(
-          sessionHandle: _sessionHandle(),
-        ),
-      );
+        final result = await service.stop(
+          CockpitStopRemoteRecordingRequest(sessionHandle: _sessionHandle()),
+        );
 
-      expect(result.state, CockpitRecordingState.failed);
-      expect(result.artifact?.byteLength, 0);
-      expect(result.failureReason, contains('bytes are empty'));
-    });
+        expect(result.state, CockpitRecordingState.failed);
+        expect(result.artifact, isNull);
+        expect(result.failureReason, contains('without an artifact reference'));
+      },
+    );
 
-    test('marks completed recording failed when source file is missing',
-        () async {
-      final tempDir = await Directory.systemTemp.createTemp(
-        'flutter_cockpit_missing_recording_test_',
-      );
-      addTearDown(() async {
-        if (await tempDir.exists()) {
-          await tempDir.delete(recursive: true);
-        }
-      });
-      final missingPath = '${tempDir.path}${Platform.pathSeparator}missing.mp4';
-      final service = CockpitStopRemoteRecordingService(
-        stopRecording: (_) async => CockpitRecordingResult(
-          state: CockpitRecordingState.completed,
-          purpose: CockpitRecordingPurpose.acceptance,
-          recordingKind: CockpitRecordingKind.nativeScreen,
-          artifact: const CockpitArtifactRef(
-            role: 'recording',
-            relativePath: 'recordings/missing.mp4',
+    test(
+      'marks completed recording failed when inline bytes are empty',
+      () async {
+        final service = CockpitStopRemoteRecordingService(
+          stopRecording: (_) async => CockpitRecordingResult(
+            state: CockpitRecordingState.completed,
+            purpose: CockpitRecordingPurpose.acceptance,
+            recordingKind: CockpitRecordingKind.nativeScreen,
+            artifact: const CockpitArtifactRef(
+              role: 'recording',
+              relativePath: 'recordings/empty.mp4',
+            ),
+            durationMs: 1200,
+            bytes: const <int>[],
           ),
-          durationMs: 1200,
-          sourceFilePath: missingPath,
-        ),
-      );
+        );
 
-      final result = await service.stop(
-        CockpitStopRemoteRecordingRequest(
-          sessionHandle: _sessionHandle(),
-        ),
-      );
+        final result = await service.stop(
+          CockpitStopRemoteRecordingRequest(sessionHandle: _sessionHandle()),
+        );
 
-      expect(result.state, CockpitRecordingState.failed);
-      expect(result.artifact?.sourcePath, missingPath);
-      expect(result.failureReason, contains('does not exist'));
-    });
+        expect(result.state, CockpitRecordingState.failed);
+        expect(result.artifact?.byteLength, 0);
+        expect(result.failureReason, contains('bytes are empty'));
+      },
+    );
+
+    test(
+      'marks completed recording failed when source file is missing',
+      () async {
+        final tempDir = await Directory.systemTemp.createTemp(
+          'flutter_cockpit_missing_recording_test_',
+        );
+        addTearDown(() async {
+          if (await tempDir.exists()) {
+            await tempDir.delete(recursive: true);
+          }
+        });
+        final missingPath =
+            '${tempDir.path}${Platform.pathSeparator}missing.mp4';
+        final service = CockpitStopRemoteRecordingService(
+          stopRecording: (_) async => CockpitRecordingResult(
+            state: CockpitRecordingState.completed,
+            purpose: CockpitRecordingPurpose.acceptance,
+            recordingKind: CockpitRecordingKind.nativeScreen,
+            artifact: const CockpitArtifactRef(
+              role: 'recording',
+              relativePath: 'recordings/missing.mp4',
+            ),
+            durationMs: 1200,
+            sourceFilePath: missingPath,
+          ),
+        );
+
+        final result = await service.stop(
+          CockpitStopRemoteRecordingRequest(sessionHandle: _sessionHandle()),
+        );
+
+        expect(result.state, CockpitRecordingState.failed);
+        expect(result.artifact?.sourcePath, missingPath);
+        expect(result.failureReason, contains('does not exist'));
+      },
+    );
 
     test('preserves structured failure reasons', () async {
       final service = CockpitStopRemoteRecordingService(
@@ -161,9 +157,7 @@ void main() {
       );
 
       final result = await service.stop(
-        CockpitStopRemoteRecordingRequest(
-          sessionHandle: _sessionHandle(),
-        ),
+        CockpitStopRemoteRecordingRequest(sessionHandle: _sessionHandle()),
       );
 
       expect(result.state, CockpitRecordingState.failed);

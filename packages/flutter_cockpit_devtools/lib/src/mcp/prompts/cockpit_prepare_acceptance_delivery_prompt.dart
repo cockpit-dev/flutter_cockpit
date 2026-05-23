@@ -7,14 +7,13 @@ final class CockpitPrepareAcceptanceDeliveryPrompt extends CockpitMcpPrompt {
 
   @override
   CockpitMcpPromptDefinition get definition => const CockpitMcpPromptDefinition(
-        name: 'prepare_acceptance_delivery',
-        description:
-            'Prepare validated artifacts and handoff output for delivery.',
-        categories: <CockpitMcpFeatureCategory>[
-          CockpitMcpFeatureCategory.closedLoop,
-          CockpitMcpFeatureCategory.workflowPrompts,
-        ],
-      );
+    name: 'prepare_acceptance_delivery',
+    description: 'Prepare validated artifacts and handoff output for delivery.',
+    categories: <CockpitMcpFeatureCategory>[
+      CockpitMcpFeatureCategory.closedLoop,
+      CockpitMcpFeatureCategory.workflowPrompts,
+    ],
+  );
 
   @override
   Future<CockpitMcpPromptResult> build(Map<String, Object?> arguments) async {

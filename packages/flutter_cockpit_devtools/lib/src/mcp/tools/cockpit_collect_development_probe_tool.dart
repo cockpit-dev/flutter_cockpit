@@ -2,17 +2,18 @@ import '../../application/cockpit_collect_development_probe_service.dart';
 import '../../development/cockpit_development_probe.dart';
 import '../cockpit_mcp_tool.dart';
 
-typedef CockpitCollectDevelopmentProbeToolFunction
-    = Future<CockpitCollectDevelopmentProbeResult> Function(
-  CockpitCollectDevelopmentProbeRequest request,
-);
+typedef CockpitCollectDevelopmentProbeToolFunction =
+    Future<CockpitCollectDevelopmentProbeResult> Function(
+      CockpitCollectDevelopmentProbeRequest request,
+    );
 
 final class CockpitCollectDevelopmentProbeTool extends CockpitMcpTool {
   CockpitCollectDevelopmentProbeTool({
     CockpitCollectDevelopmentProbeService? service,
     CockpitCollectDevelopmentProbeToolFunction? collect,
-  }) : _collect = collect ??
-            (service ?? CockpitCollectDevelopmentProbeService()).collect;
+  }) : _collect =
+           collect ??
+           (service ?? CockpitCollectDevelopmentProbeService()).collect;
 
   final CockpitCollectDevelopmentProbeToolFunction _collect;
 
@@ -25,25 +26,25 @@ final class CockpitCollectDevelopmentProbeTool extends CockpitMcpTool {
 
   @override
   Map<String, Object?> get inputSchema => <String, Object?>{
-        'type': 'object',
-        'properties': <String, Object?>{
-          'sessionHandle': const <String, Object?>{'type': 'object'},
-          'sessionHandlePath': const <String, Object?>{'type': 'string'},
-          'profile': <String, Object?>{
-            'type': 'string',
-            'enum': CockpitDevelopmentProbeProfile.values
-                .map((value) => value.jsonValue)
-                .toList(growable: false),
-          },
-          'reason': <String, Object?>{
-            'type': 'string',
-            'enum': CockpitDevelopmentProbeReason.values
-                .map((value) => value.jsonValue)
-                .toList(growable: false),
-          },
-          'checkpoint': const <String, Object?>{'type': 'string'},
-        },
-      };
+    'type': 'object',
+    'properties': <String, Object?>{
+      'sessionHandle': const <String, Object?>{'type': 'object'},
+      'sessionHandlePath': const <String, Object?>{'type': 'string'},
+      'profile': <String, Object?>{
+        'type': 'string',
+        'enum': CockpitDevelopmentProbeProfile.values
+            .map((value) => value.jsonValue)
+            .toList(growable: false),
+      },
+      'reason': <String, Object?>{
+        'type': 'string',
+        'enum': CockpitDevelopmentProbeReason.values
+            .map((value) => value.jsonValue)
+            .toList(growable: false),
+      },
+      'checkpoint': const <String, Object?>{'type': 'string'},
+    },
+  };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {

@@ -8,8 +8,8 @@ final class CockpitWebPlatformDriver implements CockpitPlatformDriver {
     required String deviceId,
     bool Function(String deviceId) browserRecordingSupportResolver =
         cockpitSupportsBrowserRecordingDeviceId,
-  })  : _deviceId = deviceId,
-        _browserRecordingSupportResolver = browserRecordingSupportResolver;
+  }) : _deviceId = deviceId,
+       _browserRecordingSupportResolver = browserRecordingSupportResolver;
 
   final String _deviceId;
   final bool Function(String deviceId) _browserRecordingSupportResolver;
@@ -19,13 +19,12 @@ final class CockpitWebPlatformDriver implements CockpitPlatformDriver {
 
   @override
   Future<CockpitCapabilityProfile> describeCapabilities() async {
-    final supportsBrowserRecording =
-        _browserRecordingSupportResolver(_deviceId);
+    final supportsBrowserRecording = _browserRecordingSupportResolver(
+      _deviceId,
+    );
     return CockpitCapabilityProfile(
       targetKind: CockpitTargetKind.browserPage,
-      surfaceKinds: <CockpitSurfaceKind>{
-        CockpitSurfaceKind.browserDom,
-      },
+      surfaceKinds: <CockpitSurfaceKind>{CockpitSurfaceKind.browserDom},
       actionCapabilities: <CockpitActionCapability>{
         CockpitActionCapability.tap,
         CockpitActionCapability.scroll,

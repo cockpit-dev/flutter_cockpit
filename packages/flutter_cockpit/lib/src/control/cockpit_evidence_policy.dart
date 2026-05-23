@@ -19,12 +19,12 @@ final class CockpitEvidencePolicy {
       MapEquality<String, Object?>();
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'captureBeforeAction': captureBeforeAction,
-        'captureAfterAction': captureAfterAction,
-        'captureOnFailure': captureOnFailure,
-        'attachArtifactMetadataOnly': attachArtifactMetadataOnly,
-        'escalateToDiagnosticsOnAmbiguity': escalateToDiagnosticsOnAmbiguity,
-      };
+    'captureBeforeAction': captureBeforeAction,
+    'captureAfterAction': captureAfterAction,
+    'captureOnFailure': captureOnFailure,
+    'attachArtifactMetadataOnly': attachArtifactMetadataOnly,
+    'escalateToDiagnosticsOnAmbiguity': escalateToDiagnosticsOnAmbiguity,
+  };
 
   factory CockpitEvidencePolicy.fromJson(Map<String, Object?> json) {
     return CockpitEvidencePolicy(

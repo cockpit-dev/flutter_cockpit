@@ -4,11 +4,11 @@ import '../remote/cockpit_remote_session_client.dart';
 import 'cockpit_app_reference_resolver.dart';
 import 'cockpit_session_registry.dart';
 
-typedef CockpitReadNetworkSnapshotReader = Future<CockpitRemoteSnapshotResponse>
-    Function(
-  Uri baseUri,
-  CockpitSnapshotOptions options,
-);
+typedef CockpitReadNetworkSnapshotReader =
+    Future<CockpitRemoteSnapshotResponse> Function(
+      Uri baseUri,
+      CockpitSnapshotOptions options,
+    );
 
 final class CockpitReadNetworkRequest {
   const CockpitReadNetworkRequest({
@@ -38,11 +38,11 @@ final class CockpitReadNetworkRequest {
   final int? statusCodeAtLeast;
 
   CockpitNetworkQuery get networkQuery => CockpitNetworkQuery(
-        method: method,
-        uriContains: uriContains,
-        onlyFailures: onlyFailures,
-        statusCodeAtLeast: statusCodeAtLeast,
-      );
+    method: method,
+    uriContains: uriContains,
+    onlyFailures: onlyFailures,
+    statusCodeAtLeast: statusCodeAtLeast,
+  );
 }
 
 final class CockpitReadNetworkSummary {
@@ -63,13 +63,13 @@ final class CockpitReadNetworkSummary {
   final CockpitNetworkQuery query;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'totalEntryCount': totalEntryCount,
-        'failureCount': failureCount,
-        'capturedEntryCount': capturedEntryCount,
-        'inFlightCount': inFlightCount,
-        'truncated': truncated,
-        'query': (query.toJson()),
-      };
+    'totalEntryCount': totalEntryCount,
+    'failureCount': failureCount,
+    'capturedEntryCount': capturedEntryCount,
+    'inFlightCount': inFlightCount,
+    'truncated': truncated,
+    'query': (query.toJson()),
+  };
 }
 
 final class CockpitReadNetworkResult {
@@ -96,21 +96,22 @@ final class CockpitReadNetworkResult {
   final List<CockpitNetworkEntry>? entries;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'appId': appId,
-        'source': source,
-        'available': available,
-        'routeName': routeName,
-        'summary': summary.toJson(),
-        'endpointSummaries': endpointSummaries
-            .map((summary) => (summary.toJson()))
-            .toList(growable: false),
-        'endpointSummariesTruncated': endpointSummariesTruncated,
-        'recentFailures': recentFailures
-            .map((entry) => (entry.toJson()))
-            .toList(growable: false),
-        'entries':
-            entries?.map((entry) => (entry.toJson())).toList(growable: false),
-      };
+    'appId': appId,
+    'source': source,
+    'available': available,
+    'routeName': routeName,
+    'summary': summary.toJson(),
+    'endpointSummaries': endpointSummaries
+        .map((summary) => (summary.toJson()))
+        .toList(growable: false),
+    'endpointSummariesTruncated': endpointSummariesTruncated,
+    'recentFailures': recentFailures
+        .map((entry) => (entry.toJson()))
+        .toList(growable: false),
+    'entries': entries
+        ?.map((entry) => (entry.toJson()))
+        .toList(growable: false),
+  };
 }
 
 final class CockpitReadNetworkService {
@@ -118,12 +119,14 @@ final class CockpitReadNetworkService {
     required CockpitSessionRegistry registry,
     CockpitAppReferenceResolver? appReferenceResolver,
     CockpitReadNetworkSnapshotReader? readSnapshot,
-  })  : _appReferenceResolver = appReferenceResolver ??
-            CockpitAppReferenceResolver(registry: registry),
-        _readSnapshot = readSnapshot ??
-            ((baseUri, options) => CockpitRemoteSessionClient(
-                  baseUri: baseUri,
-                ).readSnapshotDetailed(options: options));
+  }) : _appReferenceResolver =
+           appReferenceResolver ??
+           CockpitAppReferenceResolver(registry: registry),
+       _readSnapshot =
+           readSnapshot ??
+           ((baseUri, options) => CockpitRemoteSessionClient(
+             baseUri: baseUri,
+           ).readSnapshotDetailed(options: options));
 
   final CockpitAppReferenceResolver _appReferenceResolver;
   final CockpitReadNetworkSnapshotReader _readSnapshot;
@@ -145,8 +148,7 @@ final class CockpitReadNetworkService {
         maxNetworkEntries: _sanitizeMax(request.maxEntries, fallback: 8),
         networkQuery: request.networkQuery,
       ),
-    ))
-        .snapshot;
+    )).snapshot;
     final network = snapshot.network;
     if (network == null) {
       return CockpitReadNetworkResult(
@@ -169,12 +171,14 @@ final class CockpitReadNetworkService {
       );
     }
 
-    final maxEndpointSummaries =
-        _sanitizeMax(request.maxEndpointSummaries, fallback: 8);
+    final maxEndpointSummaries = _sanitizeMax(
+      request.maxEndpointSummaries,
+      fallback: 8,
+    );
     final endpointSummaries =
         network.endpointSummaries.length > maxEndpointSummaries
-            ? network.endpointSummaries.sublist(0, maxEndpointSummaries)
-            : network.endpointSummaries;
+        ? network.endpointSummaries.sublist(0, maxEndpointSummaries)
+        : network.endpointSummaries;
     final recentFailures = await _loadRecentFailures(
       baseUri: resolved.baseUri,
       request: request,
@@ -194,8 +198,9 @@ final class CockpitReadNetworkService {
         truncated: network.truncated,
         query: network.query,
       ),
-      endpointSummaries:
-          List<CockpitNetworkEndpointSummary>.unmodifiable(endpointSummaries),
+      endpointSummaries: List<CockpitNetworkEndpointSummary>.unmodifiable(
+        endpointSummaries,
+      ),
       endpointSummariesTruncated:
           network.endpointSummaries.length > endpointSummaries.length,
       recentFailures: recentFailures,
@@ -236,9 +241,9 @@ final class CockpitReadNetworkService {
           statusCodeAtLeast: request.statusCodeAtLeast,
         ),
       ),
-    ))
-        .snapshot;
-    final failureEntries = failureSnapshot.network?.entries
+    )).snapshot;
+    final failureEntries =
+        failureSnapshot.network?.entries
             .where((entry) => entry.isFailure)
             .toList(growable: false) ??
         const <CockpitNetworkEntry>[];

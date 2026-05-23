@@ -14,9 +14,7 @@ import 'package:test/test.dart';
 void main() {
   test('typed protocol server lists and calls cockpit tools', () async {
     final environment = _ProtocolTestEnvironment(
-      tools: <CockpitMcpTool>[
-        _FakeCockpitMcpTool(name: 'echo_tool'),
-      ],
+      tools: <CockpitMcpTool>[_FakeCockpitMcpTool(name: 'echo_tool')],
     );
 
     final connection = await environment.initialize();
@@ -35,50 +33,49 @@ void main() {
       result.content.single,
       isA<TextContent>().having((content) => content.text, 'text', 'hello'),
     );
-    expect(
-      result.structuredContent,
-      <String, Object?>{'echoedValue': 'hello'},
-    );
+    expect(result.structuredContent, <String, Object?>{'echoedValue': 'hello'});
 
     await environment.shutdown();
   });
 
-  test('typed protocol server emits generic progress for long-running tools',
-      () async {
-    final environment = _ProtocolTestEnvironment(
-      tools: <CockpitMcpTool>[
-        _FakeCockpitMcpTool(
-          name: 'long_task',
-          annotations: const CockpitMcpToolAnnotations(
-            readOnly: false,
-            destructive: false,
-            idempotent: false,
-            longRunning: true,
-            requiresSession: false,
-            producesBundleEvidence: true,
+  test(
+    'typed protocol server emits generic progress for long-running tools',
+    () async {
+      final environment = _ProtocolTestEnvironment(
+        tools: <CockpitMcpTool>[
+          _FakeCockpitMcpTool(
+            name: 'long_task',
+            annotations: const CockpitMcpToolAnnotations(
+              readOnly: false,
+              destructive: false,
+              idempotent: false,
+              longRunning: true,
+              requiresSession: false,
+              producesBundleEvidence: true,
+            ),
+            resultDelay: const Duration(milliseconds: 20),
           ),
-          resultDelay: const Duration(milliseconds: 20),
-        ),
-      ],
-    );
+        ],
+      );
 
-    final connection = await environment.initialize();
-    final request = CallToolRequest(
-      name: 'long_task',
-      arguments: const <String, Object?>{'value': 'done'},
-      meta: MetaWithProgressToken(progressToken: ProgressToken('task-1')),
-    );
+      final connection = await environment.initialize();
+      final request = CallToolRequest(
+        name: 'long_task',
+        arguments: const <String, Object?>{'value': 'done'},
+        meta: MetaWithProgressToken(progressToken: ProgressToken('task-1')),
+      );
 
-    expect(
-      connection.onProgress(request).map((event) => event.progress),
-      emitsInOrder(<num>[0, 100]),
-    );
+      expect(
+        connection.onProgress(request).map((event) => event.progress),
+        emitsInOrder(<num>[0, 100]),
+      );
 
-    final result = await connection.callTool(request);
-    expect(result.isError, isNot(true));
+      final result = await connection.callTool(request);
+      expect(result.isError, isNot(true));
 
-    await environment.shutdown();
-  });
+      await environment.shutdown();
+    },
+  );
 
   test('typed protocol server lists and reads resources and prompts', () async {
     final environment = _ProtocolTestEnvironment(
@@ -111,10 +108,9 @@ void main() {
     final connection = await environment.initialize();
 
     final resources = await connection.listResources();
-    expect(
-      resources.resources.map((resource) => resource.uri),
-      <String>['cockpit://workspace/skill-contract'],
-    );
+    expect(resources.resources.map((resource) => resource.uri), <String>[
+      'cockpit://workspace/skill-contract',
+    ]);
 
     final templates = await connection.listResourceTemplates();
     expect(
@@ -127,8 +123,11 @@ void main() {
     );
     expect(
       resourceResult.contents.single,
-      isA<TextResourceContents>()
-          .having((content) => content.text, 'text', '# Skill Contract'),
+      isA<TextResourceContents>().having(
+        (content) => content.text,
+        'text',
+        '# Skill Contract',
+      ),
     );
 
     final prompts = await connection.listPrompts();
@@ -145,8 +144,11 @@ void main() {
     expect(promptResult.messages, hasLength(1));
     expect(
       promptResult.messages.single.content,
-      isA<TextContent>()
-          .having((content) => content.text, 'text', contains('Ship it')),
+      isA<TextContent>().having(
+        (content) => content.text,
+        'text',
+        contains('Ship it'),
+      ),
     );
 
     await environment.shutdown();
@@ -158,10 +160,11 @@ final class _ProtocolTestEnvironment {
     required List<CockpitMcpTool> tools,
     this.resources = const <CockpitMcpResource>[],
     this.prompts = const <CockpitMcpPrompt>[],
-  })  : _client =
-            MCPClient(Implementation(name: 'test client', version: '1.0.0')),
-        _clientController = StreamController<String>(),
-        _serverController = StreamController<String>() {
+  }) : _client = MCPClient(
+         Implementation(name: 'test client', version: '1.0.0'),
+       ),
+       _clientController = StreamController<String>(),
+       _serverController = StreamController<String>() {
     final clientChannel = StreamChannel<String>.withCloseGuarantee(
       _serverController.stream,
       _clientController.sink,
@@ -209,10 +212,7 @@ final class _ProtocolTestEnvironment {
 }
 
 final class _FakeCockpitMcpResource extends CockpitMcpResource {
-  const _FakeCockpitMcpResource({
-    required this.definition,
-    required this.text,
-  });
+  const _FakeCockpitMcpResource({required this.definition, required this.text});
 
   @override
   final CockpitMcpResourceDefinition definition;
@@ -221,7 +221,8 @@ final class _FakeCockpitMcpResource extends CockpitMcpResource {
 
   @override
   Future<CockpitMcpResourceResult?> read(
-      CockpitMcpResourceRequest request) async {
+    CockpitMcpResourceRequest request,
+  ) async {
     if (!definition.isTemplate && request.uri != definition.uri) {
       return null;
     }
@@ -245,22 +246,18 @@ final class _FakeCockpitMcpPrompt extends CockpitMcpPrompt {
 
   @override
   CockpitMcpPromptDefinition get definition => const CockpitMcpPromptDefinition(
-        name: 'run_closed_loop_task',
-        description: 'Guides a closed-loop task.',
-        arguments: <CockpitMcpPromptArgument>[
-          CockpitMcpPromptArgument(name: 'taskGoal', required: true),
-        ],
-      );
+    name: 'run_closed_loop_task',
+    description: 'Guides a closed-loop task.',
+    arguments: <CockpitMcpPromptArgument>[
+      CockpitMcpPromptArgument(name: 'taskGoal', required: true),
+    ],
+  );
 
   @override
-  Future<CockpitMcpPromptResult> build(
-    Map<String, Object?> arguments,
-  ) async {
+  Future<CockpitMcpPromptResult> build(Map<String, Object?> arguments) async {
     return CockpitMcpPromptResult(
       messages: <CockpitMcpPromptMessage>[
-        CockpitMcpPromptMessage.user(
-          'Run the task: ${arguments['taskGoal']}',
-        ),
+        CockpitMcpPromptMessage.user('Run the task: ${arguments['taskGoal']}'),
       ],
     );
   }
@@ -283,20 +280,18 @@ final class _FakeCockpitMcpTool extends CockpitMcpTool {
 
   @override
   List<CockpitMcpFeatureCategory> get categories =>
-      const <CockpitMcpFeatureCategory>[
-        CockpitMcpFeatureCategory.execution,
-      ];
+      const <CockpitMcpFeatureCategory>[CockpitMcpFeatureCategory.execution];
 
   @override
   String get description => 'fake';
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
-        'type': 'object',
-        'properties': <String, Object?>{
-          'value': <String, Object?>{'type': 'string'},
-        },
-      };
+    'type': 'object',
+    'properties': <String, Object?>{
+      'value': <String, Object?>{'type': 'string'},
+    },
+  };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {

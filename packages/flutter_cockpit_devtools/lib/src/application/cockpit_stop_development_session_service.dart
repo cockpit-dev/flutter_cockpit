@@ -3,9 +3,8 @@ import '../development/cockpit_development_session_reference_resolver.dart';
 import '../development/cockpit_development_session_status.dart';
 import '../development/cockpit_development_session_supervisor_client.dart';
 
-typedef CockpitDevelopmentSessionStopper
-    = Future<CockpitDevelopmentSessionStopResult> Function(
-        Uri supervisorBaseUri);
+typedef CockpitDevelopmentSessionStopper =
+    Future<CockpitDevelopmentSessionStopResult> Function(Uri supervisorBaseUri);
 
 final class CockpitStopDevelopmentSessionRequest {
   const CockpitStopDevelopmentSessionRequest({
@@ -42,9 +41,10 @@ final class CockpitStopDevelopmentSessionService {
     CockpitDevelopmentSessionStopper? stopper,
     CockpitDevelopmentSessionReferenceResolver? sessionReferenceResolver,
     CockpitDevelopmentSessionSupervisorClient? supervisorClient,
-  })  : _stopper = stopper ?? _buildDefaultStopper(supervisorClient),
-        _sessionReferenceResolver = sessionReferenceResolver ??
-            const CockpitDevelopmentSessionReferenceResolver();
+  }) : _stopper = stopper ?? _buildDefaultStopper(supervisorClient),
+       _sessionReferenceResolver =
+           sessionReferenceResolver ??
+           const CockpitDevelopmentSessionReferenceResolver();
 
   final CockpitDevelopmentSessionStopper _stopper;
   final CockpitDevelopmentSessionReferenceResolver _sessionReferenceResolver;

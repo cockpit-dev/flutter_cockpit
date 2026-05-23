@@ -12,8 +12,8 @@ final class CockpitFallbackStep {
   final String reason;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'fromPlane': fromPlane.name,
-        'toPlane': toPlane.name,
-        'reason': reason,
-      };
+    'fromPlane': fromPlane.name,
+    'toPlane': toPlane.name,
+    'reason': reason,
+  };
 }

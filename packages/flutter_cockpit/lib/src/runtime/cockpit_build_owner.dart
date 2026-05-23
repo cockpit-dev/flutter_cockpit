@@ -1,11 +1,11 @@
 import 'package:flutter/widgets.dart' show Element, debugOnRebuildDirtyWidget;
 
-typedef CockpitDirtyWidgetCallback = void Function(
-    Element element, bool builtOnce);
+typedef CockpitDirtyWidgetCallback =
+    void Function(Element element, bool builtOnce);
 
 final class CockpitBuildOwner {
   CockpitBuildOwner({required CockpitDirtyWidgetCallback onRebuildDirtyWidget})
-      : _onRebuildDirtyWidget = onRebuildDirtyWidget;
+    : _onRebuildDirtyWidget = onRebuildDirtyWidget;
 
   final CockpitDirtyWidgetCallback _onRebuildDirtyWidget;
   CockpitDirtyWidgetCallback? _previousCallback;

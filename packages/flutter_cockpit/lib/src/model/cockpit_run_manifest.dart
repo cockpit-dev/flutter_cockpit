@@ -36,15 +36,14 @@ final class CockpitRunManifest {
     this.runtimeEventCount = 0,
     this.runtimeErrorCount = 0,
     this.runtimeWarningCount = 0,
-  })  : artifactRefs = List.unmodifiable(artifactRefs),
-        planesUsed = List.unmodifiable(planesUsed),
-        surfaceKindsUsed = List.unmodifiable(surfaceKindsUsed),
-        capabilitiesUsed = List.unmodifiable(capabilitiesUsed),
-        deliveryArtifactFailureCodes = List.unmodifiable(
-          deliveryArtifactFailureCodes,
-        ),
-        deliveryVideoFailureCodes =
-            List.unmodifiable(deliveryVideoFailureCodes);
+  }) : artifactRefs = List.unmodifiable(artifactRefs),
+       planesUsed = List.unmodifiable(planesUsed),
+       surfaceKindsUsed = List.unmodifiable(surfaceKindsUsed),
+       capabilitiesUsed = List.unmodifiable(capabilitiesUsed),
+       deliveryArtifactFailureCodes = List.unmodifiable(
+         deliveryArtifactFailureCodes,
+       ),
+       deliveryVideoFailureCodes = List.unmodifiable(deliveryVideoFailureCodes);
 
   final String sessionId;
   final String taskId;
@@ -85,41 +84,40 @@ final class CockpitRunManifest {
       ListEquality<String>();
 
   Map<String, Object?> toJson() => {
-        'sessionId': sessionId,
-        'taskId': taskId,
-        'platform': platform,
-        'status': status.name,
-        'startedAt': startedAt.toUtc().toIso8601String(),
-        if (finishedAt != null)
-          'finishedAt': finishedAt!.toUtc().toIso8601String(),
-        'artifactRefs':
-            artifactRefs.map((artifact) => artifact.toJson()).toList(),
-        if (failureSummary != null) 'failureSummary': failureSummary,
-        if (targetKind != null) 'targetKind': targetKind!.name,
-        if (primaryExecutionPlane != null)
-          'primaryExecutionPlane': primaryExecutionPlane!.name,
-        if (planesUsed.isNotEmpty)
-          'planesUsed': planesUsed.map((plane) => plane.name).toList(),
-        if (surfaceKindsUsed.isNotEmpty)
-          'surfaceKindsUsed':
-              surfaceKindsUsed.map((surface) => surface.name).toList(),
-        if (fallbackCount > 0) 'fallbackCount': fallbackCount,
-        'capabilitiesUsed': capabilitiesUsed,
-        'commandCount': commandCount,
-        'screenshotCount': screenshotCount,
-        'failureCount': failureCount,
-        'nativeScreenshotCount': nativeScreenshotCount,
-        'flutterScreenshotCount': flutterScreenshotCount,
-        'deliveryArtifactsReady': deliveryArtifactsReady,
-        'deliveryArtifactFailureCodes': deliveryArtifactFailureCodes,
-        'recordingCount': recordingCount,
-        'nativeRecordingCount': nativeRecordingCount,
-        'deliveryVideoReady': deliveryVideoReady,
-        'deliveryVideoFailureCodes': deliveryVideoFailureCodes,
-        'runtimeEventCount': runtimeEventCount,
-        'runtimeErrorCount': runtimeErrorCount,
-        'runtimeWarningCount': runtimeWarningCount,
-      };
+    'sessionId': sessionId,
+    'taskId': taskId,
+    'platform': platform,
+    'status': status.name,
+    'startedAt': startedAt.toUtc().toIso8601String(),
+    if (finishedAt != null) 'finishedAt': finishedAt!.toUtc().toIso8601String(),
+    'artifactRefs': artifactRefs.map((artifact) => artifact.toJson()).toList(),
+    if (failureSummary != null) 'failureSummary': failureSummary,
+    if (targetKind != null) 'targetKind': targetKind!.name,
+    if (primaryExecutionPlane != null)
+      'primaryExecutionPlane': primaryExecutionPlane!.name,
+    if (planesUsed.isNotEmpty)
+      'planesUsed': planesUsed.map((plane) => plane.name).toList(),
+    if (surfaceKindsUsed.isNotEmpty)
+      'surfaceKindsUsed': surfaceKindsUsed
+          .map((surface) => surface.name)
+          .toList(),
+    if (fallbackCount > 0) 'fallbackCount': fallbackCount,
+    'capabilitiesUsed': capabilitiesUsed,
+    'commandCount': commandCount,
+    'screenshotCount': screenshotCount,
+    'failureCount': failureCount,
+    'nativeScreenshotCount': nativeScreenshotCount,
+    'flutterScreenshotCount': flutterScreenshotCount,
+    'deliveryArtifactsReady': deliveryArtifactsReady,
+    'deliveryArtifactFailureCodes': deliveryArtifactFailureCodes,
+    'recordingCount': recordingCount,
+    'nativeRecordingCount': nativeRecordingCount,
+    'deliveryVideoReady': deliveryVideoReady,
+    'deliveryVideoFailureCodes': deliveryVideoFailureCodes,
+    'runtimeEventCount': runtimeEventCount,
+    'runtimeErrorCount': runtimeErrorCount,
+    'runtimeWarningCount': runtimeWarningCount,
+  };
 
   factory CockpitRunManifest.fromJson(Map<String, Object?> json) {
     final artifactRefs =
@@ -230,33 +228,33 @@ final class CockpitRunManifest {
 
   @override
   int get hashCode => Object.hashAll(<Object?>[
-        sessionId,
-        taskId,
-        platform,
-        status,
-        startedAt,
-        finishedAt,
-        failureSummary,
-        targetKind,
-        primaryExecutionPlane,
-        _planeListEquality.hash(planesUsed),
-        _surfaceListEquality.hash(surfaceKindsUsed),
-        fallbackCount,
-        commandCount,
-        screenshotCount,
-        failureCount,
-        nativeScreenshotCount,
-        flutterScreenshotCount,
-        deliveryArtifactsReady,
-        _stringListEquality.hash(deliveryArtifactFailureCodes),
-        recordingCount,
-        nativeRecordingCount,
-        deliveryVideoReady,
-        _stringListEquality.hash(deliveryVideoFailureCodes),
-        runtimeEventCount,
-        runtimeErrorCount,
-        runtimeWarningCount,
-        _stringListEquality.hash(capabilitiesUsed),
-        _artifactListEquality.hash(artifactRefs),
-      ]);
+    sessionId,
+    taskId,
+    platform,
+    status,
+    startedAt,
+    finishedAt,
+    failureSummary,
+    targetKind,
+    primaryExecutionPlane,
+    _planeListEquality.hash(planesUsed),
+    _surfaceListEquality.hash(surfaceKindsUsed),
+    fallbackCount,
+    commandCount,
+    screenshotCount,
+    failureCount,
+    nativeScreenshotCount,
+    flutterScreenshotCount,
+    deliveryArtifactsReady,
+    _stringListEquality.hash(deliveryArtifactFailureCodes),
+    recordingCount,
+    nativeRecordingCount,
+    deliveryVideoReady,
+    _stringListEquality.hash(deliveryVideoFailureCodes),
+    runtimeEventCount,
+    runtimeErrorCount,
+    runtimeWarningCount,
+    _stringListEquality.hash(capabilitiesUsed),
+    _artifactListEquality.hash(artifactRefs),
+  ]);
 }

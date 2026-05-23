@@ -40,8 +40,9 @@ final class TodoListState {
       isLoading: isLoading ?? this.isLoading,
       errorMessage: errorMessage == null ? this.errorMessage : errorMessage(),
       pendingUndoTasks: pendingUndoTasks ?? this.pendingUndoTasks,
-      focusedTaskId:
-          focusedTaskId == null ? this.focusedTaskId : focusedTaskId(),
+      focusedTaskId: focusedTaskId == null
+          ? this.focusedTaskId
+          : focusedTaskId(),
     );
   }
 }

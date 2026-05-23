@@ -7,12 +7,10 @@ import '../../model/cockpit_artifact_ref.dart';
 import '../../runtime/cockpit_snapshot_options.dart';
 import 'cockpit_command_context.dart';
 
-typedef CockpitBestEffortWaitForUiIdle = Future<void> Function({
-  required bool includeNetworkIdleValue,
-});
-typedef CockpitSnapshotOptionsForReason = CockpitSnapshotOptions Function(
-  CockpitScreenshotReason reason,
-);
+typedef CockpitBestEffortWaitForUiIdle =
+    Future<void> Function({required bool includeNetworkIdleValue});
+typedef CockpitSnapshotOptionsForReason =
+    CockpitSnapshotOptions Function(CockpitScreenshotReason reason);
 
 final class CockpitCaptureArtifacts {
   const CockpitCaptureArtifacts({
@@ -41,11 +39,11 @@ final class CockpitCaptureOrchestrator {
     required CockpitPostActionSettler settleBeforeObservation,
     required CockpitBestEffortWaitForUiIdle bestEffortWaitForUiIdle,
     required CockpitSnapshotOptionsForReason defaultSnapshotOptionsForReason,
-  })  : _captureHandler = captureHandler,
-        _postActionSettler = postActionSettler,
-        _settleBeforeObservation = settleBeforeObservation,
-        _bestEffortWaitForUiIdle = bestEffortWaitForUiIdle,
-        _defaultSnapshotOptionsForReason = defaultSnapshotOptionsForReason;
+  }) : _captureHandler = captureHandler,
+       _postActionSettler = postActionSettler,
+       _settleBeforeObservation = settleBeforeObservation,
+       _bestEffortWaitForUiIdle = bestEffortWaitForUiIdle,
+       _defaultSnapshotOptionsForReason = defaultSnapshotOptionsForReason;
 
   final CockpitCaptureHandler? _captureHandler;
   final CockpitPostActionSettler _postActionSettler;
@@ -56,8 +54,7 @@ final class CockpitCaptureOrchestrator {
   Future<CockpitCaptureArtifacts?> captureAfterAction(CockpitCommand command) {
     final shouldCapture = switch (command.capturePolicy) {
       CockpitCapturePolicy.afterAction ||
-      CockpitCapturePolicy.afterActionAndFailure =>
-        true,
+      CockpitCapturePolicy.afterActionAndFailure => true,
       CockpitCapturePolicy.none || CockpitCapturePolicy.onFailure => false,
     };
     if (!shouldCapture || _captureHandler == null) {
@@ -102,7 +99,8 @@ final class CockpitCaptureOrchestrator {
   ) async {
     final capture = await _captureHandler!(
       request.copyWith(
-        snapshotOptions: request.snapshotOptions ??
+        snapshotOptions:
+            request.snapshotOptions ??
             _defaultSnapshotOptionsForReason(request.reason),
       ),
     );

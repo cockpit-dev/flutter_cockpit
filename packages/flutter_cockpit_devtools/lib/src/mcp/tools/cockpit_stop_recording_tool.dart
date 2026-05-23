@@ -1,10 +1,10 @@
 import '../../application/cockpit_stop_recording_service.dart';
 import '../cockpit_mcp_tool.dart';
 
-typedef CockpitStopRecordingToolFunction = Future<CockpitStopRecordingResult>
-    Function(
-  CockpitStopRecordingRequest request,
-);
+typedef CockpitStopRecordingToolFunction =
+    Future<CockpitStopRecordingResult> Function(
+      CockpitStopRecordingRequest request,
+    );
 
 final class CockpitStopRecordingTool extends CockpitMcpTool {
   CockpitStopRecordingTool({
@@ -22,15 +22,15 @@ final class CockpitStopRecordingTool extends CockpitMcpTool {
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
-        'type': 'object',
-        'properties': <String, Object?>{
-          'appId': <String, Object?>{'type': 'string'},
-          'appJson': <String, Object?>{'type': 'string'},
-          'baseUrl': <String, Object?>{'type': 'string'},
-          'androidDeviceId': <String, Object?>{'type': 'string'},
-          'iosDeviceId': <String, Object?>{'type': 'string'},
-        },
-      };
+    'type': 'object',
+    'properties': <String, Object?>{
+      'appId': <String, Object?>{'type': 'string'},
+      'appJson': <String, Object?>{'type': 'string'},
+      'baseUrl': <String, Object?>{'type': 'string'},
+      'androidDeviceId': <String, Object?>{'type': 'string'},
+      'iosDeviceId': <String, Object?>{'type': 'string'},
+    },
+  };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {

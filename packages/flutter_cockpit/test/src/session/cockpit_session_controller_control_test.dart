@@ -39,9 +39,7 @@ void main() {
         ),
       ],
       commandType: CockpitCommandType.tap,
-      locator: const CockpitLocator(
-        cockpitId: 'submit_button',
-      ),
+      locator: const CockpitLocator(cockpitId: 'submit_button'),
       locatorResolution: const CockpitLocatorResolution(
         matchedKind: CockpitLocatorKind.cockpitId,
         matchedValue: 'submit_button',
@@ -98,9 +96,7 @@ void main() {
     final command = CockpitCommand(
       commandId: 'cmd-submit',
       commandType: CockpitCommandType.tap,
-      locator: const CockpitLocator(
-        cockpitId: 'submit_button',
-      ),
+      locator: const CockpitLocator(cockpitId: 'submit_button'),
     );
     final result = CockpitCommandResult(
       success: false,

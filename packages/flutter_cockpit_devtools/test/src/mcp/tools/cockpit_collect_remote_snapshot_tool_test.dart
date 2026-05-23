@@ -107,30 +107,32 @@ void main() {
     );
   });
 
-  test('collect snapshot tool leaves diagnostics artifacts deferred by default',
-      () async {
-    CockpitCollectRemoteSnapshotRequest? capturedRequest;
-    final tool = CockpitCollectRemoteSnapshotTool(
-      collect: (request) async {
-        capturedRequest = request;
-        return CockpitCollectRemoteSnapshotResult(
-          snapshot: CockpitSnapshot(
-            routeName: '/investigate',
-            diagnosticLevel: request.options.profile,
-          ),
-          effectiveOptions: request.options,
-        );
-      },
-    );
+  test(
+    'collect snapshot tool leaves diagnostics artifacts deferred by default',
+    () async {
+      CockpitCollectRemoteSnapshotRequest? capturedRequest;
+      final tool = CockpitCollectRemoteSnapshotTool(
+        collect: (request) async {
+          capturedRequest = request;
+          return CockpitCollectRemoteSnapshotResult(
+            snapshot: CockpitSnapshot(
+              routeName: '/investigate',
+              diagnosticLevel: request.options.profile,
+            ),
+            effectiveOptions: request.options,
+          );
+        },
+      );
 
-    await tool.call(const <String, Object?>{
-      'snapshotOptions': <String, Object?>{
-        'profile': 'forensic',
-        'emitArtifactWhenLarge': true,
-      },
-    });
+      await tool.call(const <String, Object?>{
+        'snapshotOptions': <String, Object?>{
+          'profile': 'forensic',
+          'emitArtifactWhenLarge': true,
+        },
+      });
 
-    expect(capturedRequest?.options.emitArtifactWhenLarge, isTrue);
-    expect(capturedRequest?.downloadDiagnosticsArtifacts, isFalse);
-  });
+      expect(capturedRequest?.options.emitArtifactWhenLarge, isTrue);
+      expect(capturedRequest?.downloadDiagnosticsArtifacts, isFalse);
+    },
+  );
 }

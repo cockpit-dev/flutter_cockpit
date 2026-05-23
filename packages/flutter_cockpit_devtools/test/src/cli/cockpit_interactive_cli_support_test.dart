@@ -31,10 +31,7 @@ void main() {
       ]);
 
       expect(
-        cockpitResolveAppHandlePath(
-          argResults,
-          workingDirectory: tempDir.path,
-        ),
+        cockpitResolveAppHandlePath(argResults, workingDirectory: tempDir.path),
         isNull,
       );
     },
@@ -60,48 +57,47 @@ void main() {
       final argResults = parser.parse(const <String>[]);
 
       expect(
-        cockpitResolveAppHandlePath(
-          argResults,
-          workingDirectory: tempDir.path,
-        ),
+        cockpitResolveAppHandlePath(argResults, workingDirectory: tempDir.path),
         defaultHandle.path,
       );
     },
   );
 
   group('cockpitWriteJsonPayload', () {
-    test('defaults stdout to AI full render when no output file is requested',
-        () async {
-      final parser = ArgParser();
-      cockpitAddOutputArgs(parser);
-      final output = StringBuffer();
+    test(
+      'defaults stdout to AI full render when no output file is requested',
+      () async {
+        final parser = ArgParser();
+        cockpitAddOutputArgs(parser);
+        final output = StringBuffer();
 
-      await cockpitWriteJsonPayload(
-        commandName: 'read-app',
-        payload: const <String, Object?>{
-          'recommendedNextStep': 'runNextCommand',
-          'currentRouteName': '/inbox',
-          'transportType': 'remoteHttp',
-          'selectedPlane': 'flutterSemanticPlane',
-          'uiSummary': <String, Object?>{
-            'visibleTargetCount': 4,
-            'textPreviews': <String>['Inbox', 'Settings', 'Save'],
+        await cockpitWriteJsonPayload(
+          commandName: 'read-app',
+          payload: const <String, Object?>{
+            'recommendedNextStep': 'runNextCommand',
+            'currentRouteName': '/inbox',
+            'transportType': 'remoteHttp',
+            'selectedPlane': 'flutterSemanticPlane',
+            'uiSummary': <String, Object?>{
+              'visibleTargetCount': 4,
+              'textPreviews': <String>['Inbox', 'Settings', 'Save'],
+            },
+            'artifactDownloads': <Object?>[],
           },
-          'artifactDownloads': <Object?>[],
-        },
-        argResults: parser.parse(const <String>[]),
-        stdoutSink: output,
-      );
+          argResults: parser.parse(const <String>[]),
+          stdoutSink: output,
+        );
 
-      final text = output.toString();
-      expect(text, contains('cockpit.v=1'));
-      expect(text, contains('command=read-app'));
-      expect(text, contains('status=ok'));
-      expect(text, contains('next=runNextCommand'));
-      expect(text, contains('route=/inbox'));
-      expect(text, contains('text=Inbox | Settings | Save'));
-      expect(() => jsonDecode(text), throwsA(isA<FormatException>()));
-    });
+        final text = output.toString();
+        expect(text, contains('cockpit.v=1'));
+        expect(text, contains('command=read-app'));
+        expect(text, contains('status=ok'));
+        expect(text, contains('next=runNextCommand'));
+        expect(text, contains('route=/inbox'));
+        expect(text, contains('text=Inbox | Settings | Save'));
+        expect(() => jsonDecode(text), throwsA(isA<FormatException>()));
+      },
+    );
 
     test('can write compact JSON to stdout for jq pipelines', () async {
       final parser = ArgParser();
@@ -110,13 +106,8 @@ void main() {
 
       await cockpitWriteJsonPayload(
         commandName: 'read-app',
-        payload: const <String, Object?>{
-          'currentRouteName': '/inbox',
-        },
-        argResults: parser.parse(const <String>[
-          '--stdout-format',
-          'json',
-        ]),
+        payload: const <String, Object?>{'currentRouteName': '/inbox'},
+        argResults: parser.parse(const <String>['--stdout-format', 'json']),
         stdoutSink: output,
       );
 
@@ -125,40 +116,39 @@ void main() {
       expect(output.toString(), isNot(contains('\n  "')));
     });
 
-    test('defaults stdout to output file paths when files are requested',
-        () async {
-      final tempDir = await Directory.systemTemp.createTemp(
-        'cockpit_cli_output_paths',
-      );
-      addTearDown(() async {
-        if (tempDir.existsSync()) {
-          await tempDir.delete(recursive: true);
-        }
-      });
-      final aiFile = File('${tempDir.path}/result.ai');
-      final parser = ArgParser();
-      cockpitAddOutputArgs(parser);
-      final output = StringBuffer();
+    test(
+      'defaults stdout to output file paths when files are requested',
+      () async {
+        final tempDir = await Directory.systemTemp.createTemp(
+          'cockpit_cli_output_paths',
+        );
+        addTearDown(() async {
+          if (tempDir.existsSync()) {
+            await tempDir.delete(recursive: true);
+          }
+        });
+        final aiFile = File('${tempDir.path}/result.ai');
+        final parser = ArgParser();
+        cockpitAddOutputArgs(parser);
+        final output = StringBuffer();
 
-      await cockpitWriteJsonPayload(
-        commandName: 'run-command',
-        payload: const <String, Object?>{
-          'command': <String, Object?>{
-            'commandId': 'tap-save',
-            'commandType': 'tap',
-            'success': true,
+        await cockpitWriteJsonPayload(
+          commandName: 'run-command',
+          payload: const <String, Object?>{
+            'command': <String, Object?>{
+              'commandId': 'tap-save',
+              'commandType': 'tap',
+              'success': true,
+            },
           },
-        },
-        argResults: parser.parse(<String>[
-          '--output',
-          aiFile.path,
-        ]),
-        stdoutSink: output,
-      );
+          argResults: parser.parse(<String>['--output', aiFile.path]),
+          stdoutSink: output,
+        );
 
-      expect(output.toString().trim(), 'output=${aiFile.path}');
-      expect(await aiFile.readAsString(), contains('command=run-command'));
-    });
+        expect(output.toString().trim(), 'output=${aiFile.path}');
+        expect(await aiFile.readAsString(), contains('command=run-command'));
+      },
+    );
 
     test('can write pretty JSON files with output-format json', () async {
       final tempDir = await Directory.systemTemp.createTemp(

@@ -32,20 +32,21 @@ final class CockpitRemoteSessionConfiguration {
       return '';
     }
 
-    final withLeadingSlash =
-        routePrefix.startsWith('/') ? routePrefix : '/$routePrefix';
+    final withLeadingSlash = routePrefix.startsWith('/')
+        ? routePrefix
+        : '/$routePrefix';
     return withLeadingSlash.endsWith('/')
         ? withLeadingSlash.substring(0, withLeadingSlash.length - 1)
         : withLeadingSlash;
   }
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'enabled': enabled,
-        'autoStart': autoStart,
-        'host': host,
-        'port': port,
-        'routePrefix': routePrefix,
-      };
+    'enabled': enabled,
+    'autoStart': autoStart,
+    'host': host,
+    'port': port,
+    'routePrefix': routePrefix,
+  };
 
   factory CockpitRemoteSessionConfiguration.fromJson(
     Map<String, Object?> json,
@@ -63,7 +64,8 @@ final class CockpitRemoteSessionConfiguration {
     CockpitRemoteSessionConfiguration? fallback,
     Map<String, String> defines = const <String, String>{},
   }) {
-    final hasAnyOverrides = defines.containsKey(_enabledDefine) ||
+    final hasAnyOverrides =
+        defines.containsKey(_enabledDefine) ||
         defines.containsKey(_hostDefine) ||
         defines.containsKey(_portDefine) ||
         defines.containsKey(_routePrefixDefine);
@@ -81,7 +83,8 @@ final class CockpitRemoteSessionConfiguration {
       autoStart: fallback?.autoStart ?? true,
       host: _readString(defines[_hostDefine]) ?? fallback?.host ?? _defaultHost,
       port: _readInt(defines[_portDefine]) ?? fallback?.port ?? _defaultPort,
-      routePrefix: _readString(defines[_routePrefixDefine]) ??
+      routePrefix:
+          _readString(defines[_routePrefixDefine]) ??
           fallback?.routePrefix ??
           _defaultRoutePrefix,
     );

@@ -22,13 +22,13 @@ final class CockpitAccessibilityEntry {
   bool get hasMeaningfulSignal => primarySignal != null;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'nodeId': nodeId,
-        if (label != null) 'label': label,
-        if (identifier != null) 'identifier': identifier,
-        if (value != null) 'value': value,
-        if (hint != null) 'hint': hint,
-        if (tooltip != null) 'tooltip': tooltip,
-      };
+    'nodeId': nodeId,
+    if (label != null) 'label': label,
+    if (identifier != null) 'identifier': identifier,
+    if (value != null) 'value': value,
+    if (hint != null) 'hint': hint,
+    if (tooltip != null) 'tooltip': tooltip,
+  };
 
   factory CockpitAccessibilityEntry.fromJson(Map<String, Object?> json) {
     return CockpitAccessibilityEntry(
@@ -73,12 +73,12 @@ final class CockpitAccessibilitySummary {
       ListEquality<CockpitAccessibilityEntry>();
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'totalAccessibleTargetCount': totalAccessibleTargetCount,
-        'traversalEntries': traversalEntries
-            .map((entry) => entry.toJson())
-            .toList(growable: false),
-        'truncated': truncated,
-      };
+    'totalAccessibleTargetCount': totalAccessibleTargetCount,
+    'traversalEntries': traversalEntries
+        .map((entry) => entry.toJson())
+        .toList(growable: false),
+    'truncated': truncated,
+  };
 
   factory CockpitAccessibilitySummary.fromJson(Map<String, Object?> json) {
     return CockpitAccessibilitySummary(
@@ -108,8 +108,8 @@ final class CockpitAccessibilitySummary {
 
   @override
   int get hashCode => Object.hash(
-        totalAccessibleTargetCount,
-        truncated,
-        _entryEquality.hash(traversalEntries),
-      );
+    totalAccessibleTargetCount,
+    truncated,
+    _entryEquality.hash(traversalEntries),
+  );
 }

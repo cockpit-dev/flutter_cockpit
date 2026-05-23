@@ -51,10 +51,8 @@ enum CockpitInteractiveDiagnosticsLevel {
   static CockpitInteractiveDiagnosticsLevel fromJson(Object? value) {
     return values.firstWhere(
       (candidate) => candidate.jsonValue == value,
-      orElse: () => throw _invalidProfile(
-        'Unsupported diagnostics layer value.',
-        value,
-      ),
+      orElse: () =>
+          throw _invalidProfile('Unsupported diagnostics layer value.', value),
     );
   }
 }
@@ -71,10 +69,8 @@ enum CockpitInteractiveArtifactLevel {
   static CockpitInteractiveArtifactLevel fromJson(Object? value) {
     return values.firstWhere(
       (candidate) => candidate.jsonValue == value,
-      orElse: () => throw _invalidProfile(
-        'Unsupported artifact layer value.',
-        value,
-      ),
+      orElse: () =>
+          throw _invalidProfile('Unsupported artifact layer value.', value),
     );
   }
 }
@@ -92,52 +88,52 @@ final class CockpitInteractiveResultProfile {
   });
 
   const CockpitInteractiveResultProfile.minimal()
-      : this(
-          name: CockpitInteractiveResultProfileName.minimal,
-          ui: CockpitInteractiveUiLevel.none,
-          diagnostics: CockpitInteractiveDiagnosticsLevel.none,
-          artifacts: CockpitInteractiveArtifactLevel.none,
-          includeDelta: false,
-          includeRuntimeSteps: false,
-          emitSnapshotRef: false,
-          snapshotProfile: CockpitSnapshotProfile.live,
-        );
+    : this(
+        name: CockpitInteractiveResultProfileName.minimal,
+        ui: CockpitInteractiveUiLevel.none,
+        diagnostics: CockpitInteractiveDiagnosticsLevel.none,
+        artifacts: CockpitInteractiveArtifactLevel.none,
+        includeDelta: false,
+        includeRuntimeSteps: false,
+        emitSnapshotRef: false,
+        snapshotProfile: CockpitSnapshotProfile.live,
+      );
 
   const CockpitInteractiveResultProfile.standard()
-      : this(
-          name: CockpitInteractiveResultProfileName.standard,
-          ui: CockpitInteractiveUiLevel.summary,
-          diagnostics: CockpitInteractiveDiagnosticsLevel.none,
-          artifacts: CockpitInteractiveArtifactLevel.refs,
-          includeDelta: false,
-          includeRuntimeSteps: false,
-          emitSnapshotRef: true,
-          snapshotProfile: CockpitSnapshotProfile.baseline,
-        );
+    : this(
+        name: CockpitInteractiveResultProfileName.standard,
+        ui: CockpitInteractiveUiLevel.summary,
+        diagnostics: CockpitInteractiveDiagnosticsLevel.none,
+        artifacts: CockpitInteractiveArtifactLevel.refs,
+        includeDelta: false,
+        includeRuntimeSteps: false,
+        emitSnapshotRef: true,
+        snapshotProfile: CockpitSnapshotProfile.baseline,
+      );
 
   const CockpitInteractiveResultProfile.inspect()
-      : this(
-          name: CockpitInteractiveResultProfileName.inspect,
-          ui: CockpitInteractiveUiLevel.summary,
-          diagnostics: CockpitInteractiveDiagnosticsLevel.failuresOnly,
-          artifacts: CockpitInteractiveArtifactLevel.metadata,
-          includeDelta: true,
-          includeRuntimeSteps: true,
-          emitSnapshotRef: true,
-          snapshotProfile: CockpitSnapshotProfile.investigate,
-        );
+    : this(
+        name: CockpitInteractiveResultProfileName.inspect,
+        ui: CockpitInteractiveUiLevel.summary,
+        diagnostics: CockpitInteractiveDiagnosticsLevel.failuresOnly,
+        artifacts: CockpitInteractiveArtifactLevel.metadata,
+        includeDelta: true,
+        includeRuntimeSteps: true,
+        emitSnapshotRef: true,
+        snapshotProfile: CockpitSnapshotProfile.investigate,
+      );
 
   const CockpitInteractiveResultProfile.evidence()
-      : this(
-          name: CockpitInteractiveResultProfileName.evidence,
-          ui: CockpitInteractiveUiLevel.snapshot,
-          diagnostics: CockpitInteractiveDiagnosticsLevel.full,
-          artifacts: CockpitInteractiveArtifactLevel.metadata,
-          includeDelta: true,
-          includeRuntimeSteps: true,
-          emitSnapshotRef: true,
-          snapshotProfile: CockpitSnapshotProfile.forensic,
-        );
+    : this(
+        name: CockpitInteractiveResultProfileName.evidence,
+        ui: CockpitInteractiveUiLevel.snapshot,
+        diagnostics: CockpitInteractiveDiagnosticsLevel.full,
+        artifacts: CockpitInteractiveArtifactLevel.metadata,
+        includeDelta: true,
+        includeRuntimeSteps: true,
+        emitSnapshotRef: true,
+        snapshotProfile: CockpitSnapshotProfile.forensic,
+      );
 
   final CockpitInteractiveResultProfileName name;
   final CockpitInteractiveUiLevel ui;
@@ -165,9 +161,7 @@ final class CockpitInteractiveResultProfile {
       snapshotProfile != CockpitSnapshotProfile.live ||
       emitsDiagnostics;
 
-  bool requiresPostActionSnapshotRead({
-    bool compareAgainstSnapshot = false,
-  }) {
+  bool requiresPostActionSnapshotRead({bool compareAgainstSnapshot = false}) {
     return ui != CockpitInteractiveUiLevel.none ||
         emitsDiagnostics ||
         includeDelta ||
@@ -197,15 +191,14 @@ final class CockpitInteractiveResultProfile {
           : CockpitInteractiveUiLevel.fromJson(json['ui']),
       diagnostics: json['diagnostics'] == null
           ? base.diagnostics
-          : CockpitInteractiveDiagnosticsLevel.fromJson(
-              json['diagnostics'],
-            ),
+          : CockpitInteractiveDiagnosticsLevel.fromJson(json['diagnostics']),
       artifacts: json['artifacts'] == null
           ? base.artifacts
           : CockpitInteractiveArtifactLevel.fromJson(json['artifacts']),
       includeDelta:
           _readOptionalBool(json, 'includeDelta') ?? base.includeDelta,
-      includeRuntimeSteps: _readOptionalBool(json, 'includeRuntimeSteps') ??
+      includeRuntimeSteps:
+          _readOptionalBool(json, 'includeRuntimeSteps') ??
           base.includeRuntimeSteps,
       emitSnapshotRef:
           _readOptionalBool(json, 'emitSnapshotRef') ?? base.emitSnapshotRef,
@@ -254,7 +247,8 @@ final class CockpitInteractiveResultProfile {
       ),
       includeStyleDetails:
           override.includeStyleDetails || base.includeStyleDetails,
-      includeDiagnosticProperties: override.includeDiagnosticProperties ||
+      includeDiagnosticProperties:
+          override.includeDiagnosticProperties ||
           base.includeDiagnosticProperties,
       emitArtifactWhenLarge:
           override.emitArtifactWhenLarge || base.emitArtifactWhenLarge,
@@ -274,9 +268,11 @@ final class CockpitInteractiveResultProfile {
         method: override.networkQuery.method ?? base.networkQuery.method,
         uriContains:
             override.networkQuery.uriContains ?? base.networkQuery.uriContains,
-        onlyFailures: override.networkQuery.onlyFailures ||
+        onlyFailures:
+            override.networkQuery.onlyFailures ||
             base.networkQuery.onlyFailures,
-        statusCodeAtLeast: override.networkQuery.statusCodeAtLeast ??
+        statusCodeAtLeast:
+            override.networkQuery.statusCodeAtLeast ??
             base.networkQuery.statusCodeAtLeast,
       ),
       includeRuntimeActivity:
@@ -288,10 +284,12 @@ final class CockpitInteractiveResultProfile {
       runtimeQuery: CockpitRuntimeQuery(
         onlyErrors:
             override.runtimeQuery.onlyErrors || base.runtimeQuery.onlyErrors,
-        messageContains: override.runtimeQuery.messageContains ??
+        messageContains:
+            override.runtimeQuery.messageContains ??
             base.runtimeQuery.messageContains,
       ),
-      includeAccessibilitySummary: override.includeAccessibilitySummary ||
+      includeAccessibilitySummary:
+          override.includeAccessibilitySummary ||
           base.includeAccessibilitySummary,
       maxAccessibilityEntries: math.max(
         override.maxAccessibilityEntries,
@@ -301,15 +299,15 @@ final class CockpitInteractiveResultProfile {
   }
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'profile': name.jsonValue,
-        'ui': ui.jsonValue,
-        'diagnostics': diagnostics.jsonValue,
-        'artifacts': artifacts.jsonValue,
-        'includeDelta': includeDelta,
-        'includeRuntimeSteps': includeRuntimeSteps,
-        'emitSnapshotRef': emitSnapshotRef,
-        'snapshotProfile': snapshotProfile.jsonValue,
-      };
+    'profile': name.jsonValue,
+    'ui': ui.jsonValue,
+    'diagnostics': diagnostics.jsonValue,
+    'artifacts': artifacts.jsonValue,
+    'includeDelta': includeDelta,
+    'includeRuntimeSteps': includeRuntimeSteps,
+    'emitSnapshotRef': emitSnapshotRef,
+    'snapshotProfile': snapshotProfile.jsonValue,
+  };
 
   static bool? _readOptionalBool(Map<String, Object?> json, String key) {
     final value = json[key];
@@ -338,45 +336,45 @@ final class CockpitInteractiveResultProfile {
 
     return switch (diagnostics) {
       CockpitInteractiveDiagnosticsLevel.none => options.copyWith(
-          includeRebuildActivity: false,
-          includeNetworkActivity: false,
-          includeRuntimeActivity: false,
-          includeAccessibilitySummary: false,
-          networkQuery: const CockpitNetworkQuery(),
-          runtimeQuery: const CockpitRuntimeQuery(),
-        ),
+        includeRebuildActivity: false,
+        includeNetworkActivity: false,
+        includeRuntimeActivity: false,
+        includeAccessibilitySummary: false,
+        networkQuery: const CockpitNetworkQuery(),
+        runtimeQuery: const CockpitRuntimeQuery(),
+      ),
       CockpitInteractiveDiagnosticsLevel.failuresOnly => options.copyWith(
-          includeNetworkActivity: true,
-          includeRuntimeActivity: true,
-          includeRebuildActivity: true,
-          includeAccessibilitySummary: true,
-          networkQuery: CockpitNetworkQuery(
-            method: options.networkQuery.method,
-            uriContains: options.networkQuery.uriContains,
-            onlyFailures: true,
-            statusCodeAtLeast: options.networkQuery.statusCodeAtLeast,
-          ),
-          runtimeQuery: CockpitRuntimeQuery(
-            onlyErrors: true,
-            messageContains: options.runtimeQuery.messageContains,
-          ),
+        includeNetworkActivity: true,
+        includeRuntimeActivity: true,
+        includeRebuildActivity: true,
+        includeAccessibilitySummary: true,
+        networkQuery: CockpitNetworkQuery(
+          method: options.networkQuery.method,
+          uriContains: options.networkQuery.uriContains,
+          onlyFailures: true,
+          statusCodeAtLeast: options.networkQuery.statusCodeAtLeast,
         ),
+        runtimeQuery: CockpitRuntimeQuery(
+          onlyErrors: true,
+          messageContains: options.runtimeQuery.messageContains,
+        ),
+      ),
       CockpitInteractiveDiagnosticsLevel.full => options.copyWith(
-          includeNetworkActivity: true,
-          includeRuntimeActivity: true,
-          includeRebuildActivity: true,
-          includeAccessibilitySummary: true,
-          networkQuery: CockpitNetworkQuery(
-            method: options.networkQuery.method,
-            uriContains: options.networkQuery.uriContains,
-            onlyFailures: false,
-            statusCodeAtLeast: options.networkQuery.statusCodeAtLeast,
-          ),
-          runtimeQuery: CockpitRuntimeQuery(
-            onlyErrors: false,
-            messageContains: options.runtimeQuery.messageContains,
-          ),
+        includeNetworkActivity: true,
+        includeRuntimeActivity: true,
+        includeRebuildActivity: true,
+        includeAccessibilitySummary: true,
+        networkQuery: CockpitNetworkQuery(
+          method: options.networkQuery.method,
+          uriContains: options.networkQuery.uriContains,
+          onlyFailures: false,
+          statusCodeAtLeast: options.networkQuery.statusCodeAtLeast,
         ),
+        runtimeQuery: CockpitRuntimeQuery(
+          onlyErrors: false,
+          messageContains: options.runtimeQuery.messageContains,
+        ),
+      ),
     };
   }
 
@@ -392,8 +390,6 @@ CockpitApplicationServiceException _invalidProfile(
   return CockpitApplicationServiceException(
     code: 'invalidInteractiveResultProfile',
     message: message,
-    details: <String, Object?>{
-      if (value != null) 'value': value.toString(),
-    },
+    details: <String, Object?>{if (value != null) 'value': value.toString()},
   );
 }

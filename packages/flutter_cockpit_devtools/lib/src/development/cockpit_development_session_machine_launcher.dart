@@ -13,29 +13,27 @@ import '../session/cockpit_remote_session_launcher.dart';
 import '../session/cockpit_session_path.dart';
 import 'cockpit_flutter_run_machine_client.dart';
 
-typedef CockpitDevelopmentMachineClientStarter
-    = Future<CockpitFlutterRunMachineClient> Function({
-  required String projectDir,
-  required String target,
-  required String deviceId,
-  String? flavor,
-  String? flutterExecutable,
-  List<String> extraArgs,
-});
-typedef CockpitIosDeviceConnectionResolver = Future<CockpitIosDeviceConnection?>
-    Function(String deviceId);
-typedef CockpitIosFallbackBundleIdResolver = Future<String> Function({
-  required String appBundlePath,
-});
-typedef CockpitIosFallbackAppBundlePathResolver = Future<String> Function({
-  required String projectDir,
-  String? flavor,
-});
-typedef CockpitPlatformAppIdResolver = Future<String?> Function({
-  required String projectDir,
-  required String platform,
-  String? flavor,
-});
+typedef CockpitDevelopmentMachineClientStarter =
+    Future<CockpitFlutterRunMachineClient> Function({
+      required String projectDir,
+      required String target,
+      required String deviceId,
+      String? flavor,
+      String? flutterExecutable,
+      List<String> extraArgs,
+    });
+typedef CockpitIosDeviceConnectionResolver =
+    Future<CockpitIosDeviceConnection?> Function(String deviceId);
+typedef CockpitIosFallbackBundleIdResolver =
+    Future<String> Function({required String appBundlePath});
+typedef CockpitIosFallbackAppBundlePathResolver =
+    Future<String> Function({required String projectDir, String? flavor});
+typedef CockpitPlatformAppIdResolver =
+    Future<String?> Function({
+      required String projectDir,
+      required String platform,
+      String? flavor,
+    });
 
 final class CockpitLaunchDevelopmentMachineSessionRequest {
   const CockpitLaunchDevelopmentMachineSessionRequest({
@@ -106,17 +104,18 @@ final class CockpitDevelopmentSessionMachineLauncher {
         cockpitResolvePlatformAppId,
     Future<void> Function(Duration duration)? delay,
     DateTime Function()? now,
-  })  : _machineClientStarter =
-            machineClientStarter ?? CockpitFlutterRunMachineClient.start,
-        _statusReader = statusReader,
-        _portForwarder = portForwarder,
-        _iosDeviceConnectionResolver = iosDeviceConnectionResolver ??
-            CockpitIosDeviceConnectionProbe().probe,
-        _iosFallbackBundleIdResolver = iosFallbackBundleIdResolver,
-        _iosFallbackAppBundlePathResolver = iosFallbackAppBundlePathResolver,
-        _platformAppIdResolver = platformAppIdResolver,
-        _delay = delay ?? Future<void>.delayed,
-        _now = now ?? DateTime.now;
+  }) : _machineClientStarter =
+           machineClientStarter ?? CockpitFlutterRunMachineClient.start,
+       _statusReader = statusReader,
+       _portForwarder = portForwarder,
+       _iosDeviceConnectionResolver =
+           iosDeviceConnectionResolver ??
+           CockpitIosDeviceConnectionProbe().probe,
+       _iosFallbackBundleIdResolver = iosFallbackBundleIdResolver,
+       _iosFallbackAppBundlePathResolver = iosFallbackAppBundlePathResolver,
+       _platformAppIdResolver = platformAppIdResolver,
+       _delay = delay ?? Future<void>.delayed,
+       _now = now ?? DateTime.now;
 
   final CockpitDevelopmentMachineClientStarter _machineClientStarter;
   final CockpitRemoteSessionStatusReader _statusReader;
@@ -124,7 +123,7 @@ final class CockpitDevelopmentSessionMachineLauncher {
   final CockpitIosDeviceConnectionResolver _iosDeviceConnectionResolver;
   final CockpitIosFallbackBundleIdResolver _iosFallbackBundleIdResolver;
   final CockpitIosFallbackAppBundlePathResolver
-      _iosFallbackAppBundlePathResolver;
+  _iosFallbackAppBundlePathResolver;
   final CockpitPlatformAppIdResolver _platformAppIdResolver;
   final Future<void> Function(Duration duration) _delay;
   final DateTime Function() _now;
@@ -133,10 +132,7 @@ final class CockpitDevelopmentSessionMachineLauncher {
     CockpitLaunchDevelopmentMachineSessionRequest request,
   ) async {
     final endpoint = await resolveRemoteSessionEndpoint(request);
-    final machineClient = await startMachineClient(
-      request,
-      endpoint: endpoint,
-    );
+    final machineClient = await startMachineClient(request, endpoint: endpoint);
     final remoteSessionHandle = await waitForRemoteSession(
       request: request,
       machineClient: machineClient,
@@ -159,10 +155,7 @@ final class CockpitDevelopmentSessionMachineLauncher {
       deviceId: request.deviceId,
       flavor: request.flavor,
       flutterExecutable: request.flutterExecutable,
-      extraArgs: _buildRemoteSessionExtraArgs(
-        request,
-        endpoint: endpoint,
-      ),
+      extraArgs: _buildRemoteSessionExtraArgs(request, endpoint: endpoint),
     );
   }
 
@@ -200,11 +193,11 @@ final class CockpitDevelopmentSessionMachineLauncher {
         }
         final remoteSessionHandle =
             await _buildPhysicalIosFallbackRemoteSessionHandle(
-          request: request,
-          endpoint: endpoint,
-          hostPort: hostPort,
-          status: status,
-        );
+              request: request,
+              endpoint: endpoint,
+              hostPort: hostPort,
+              status: status,
+            );
         throw CockpitDevelopmentSessionFallbackException(
           code: error.code,
           message: error.message,
@@ -309,7 +302,8 @@ final class CockpitDevelopmentSessionMachineLauncher {
     if (_isPhysicalIosDevice(request)) {
       throw const CockpitDevelopmentSessionFallbackException(
         code: 'iosPhysicalRemoteSessionReadyButDevelopmentAttachFailed',
-        message: 'The iOS physical-device remote session became reachable, but '
+        message:
+            'The iOS physical-device remote session became reachable, but '
             'flutter run --machine never reported app.start before timeout. '
             'Automation fallback is safe.',
       );
@@ -355,9 +349,9 @@ final class CockpitDevelopmentSessionMachineLauncher {
     final suffix = exitCode == null
         ? ''
         : diagnostics.isEmpty
-            ? ' after flutter run --machine exited (exitCode=$exitCode)'
-            : ' after flutter run --machine exited '
-                '(exitCode=$exitCode): $diagnostics';
+        ? ' after flutter run --machine exited (exitCode=$exitCode)'
+        : ' after flutter run --machine exited '
+              '(exitCode=$exitCode): $diagnostics';
     throw TimeoutException(
       'Remote session did not become ready at $baseUri$suffix.',
       deadline.difference(_now()),
@@ -378,7 +372,8 @@ final class CockpitDevelopmentSessionMachineLauncher {
     if (remoteSessionReady && _isPhysicalIosDevice(request)) {
       return CockpitDevelopmentSessionFallbackException(
         code: 'iosPhysicalRemoteSessionReadyButDevelopmentAttachFailed',
-        message: 'The iOS physical-device remote session became reachable, but '
+        message:
+            'The iOS physical-device remote session became reachable, but '
             'flutter run --machine exited before app.start '
             '(exitCode=$exitCode)$suffix. Automation fallback is safe.',
       );
@@ -390,7 +385,7 @@ final class CockpitDevelopmentSessionMachineLauncher {
   }
 
   Future<CockpitRemoteSessionHandle>
-      _buildPhysicalIosFallbackRemoteSessionHandle({
+  _buildPhysicalIosFallbackRemoteSessionHandle({
     required CockpitLaunchDevelopmentMachineSessionRequest request,
     required CockpitResolvedRemoteSessionEndpoint endpoint,
     required int hostPort,

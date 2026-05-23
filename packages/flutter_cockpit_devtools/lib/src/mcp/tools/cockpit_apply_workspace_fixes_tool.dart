@@ -4,19 +4,18 @@ import '../cockpit_mcp_tool.dart';
 import '../core/cockpit_mcp_roots_tracker.dart';
 import '../core/cockpit_mcp_workspace_tooling_support.dart';
 
-typedef CockpitApplyWorkspaceFixesToolFunction
-    = Future<CockpitWorkspaceCommandResult> Function(
-  CockpitApplyWorkspaceFixesRequest request,
-);
+typedef CockpitApplyWorkspaceFixesToolFunction =
+    Future<CockpitWorkspaceCommandResult> Function(
+      CockpitApplyWorkspaceFixesRequest request,
+    );
 
 final class CockpitApplyWorkspaceFixesTool extends CockpitMcpTool {
   CockpitApplyWorkspaceFixesTool({
     required CockpitMcpRootsTracker rootsTracker,
     CockpitApplyWorkspaceFixesService? service,
     CockpitApplyWorkspaceFixesToolFunction? apply,
-  })  : _rootsTracker = rootsTracker,
-        _apply =
-            apply ?? (service ?? CockpitApplyWorkspaceFixesService()).apply;
+  }) : _rootsTracker = rootsTracker,
+       _apply = apply ?? (service ?? CockpitApplyWorkspaceFixesService()).apply;
 
   final CockpitMcpRootsTracker _rootsTracker;
   final CockpitApplyWorkspaceFixesToolFunction _apply;
@@ -29,13 +28,13 @@ final class CockpitApplyWorkspaceFixesTool extends CockpitMcpTool {
 
   @override
   CockpitMcpToolAnnotations get annotations => const CockpitMcpToolAnnotations(
-        readOnly: false,
-        destructive: false,
-        idempotent: false,
-        longRunning: true,
-        requiresSession: false,
-        producesBundleEvidence: false,
-      );
+    readOnly: false,
+    destructive: false,
+    idempotent: false,
+    longRunning: true,
+    requiresSession: false,
+    producesBundleEvidence: false,
+  );
 
   @override
   List<CockpitMcpFeatureCategory> get categories =>
@@ -46,12 +45,12 @@ final class CockpitApplyWorkspaceFixesTool extends CockpitMcpTool {
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
-        'type': 'object',
-        'properties': <String, Object?>{
-          'workspaceRoot': <String, Object?>{'type': 'string'},
-          'timeoutSeconds': <String, Object?>{'type': 'integer'},
-        },
-      };
+    'type': 'object',
+    'properties': <String, Object?>{
+      'workspaceRoot': <String, Object?>{'type': 'string'},
+      'timeoutSeconds': <String, Object?>{'type': 'integer'},
+    },
+  };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {
@@ -65,10 +64,8 @@ final class CockpitApplyWorkspaceFixesTool extends CockpitMcpTool {
           workspaceRoot: workspaceRoot,
           allowedRoots: cockpitAllowedWorkspaceRootPaths(_rootsTracker),
           timeout: Duration(
-            seconds: cockpitReadOptionalPositiveInt(
-                  arguments,
-                  'timeoutSeconds',
-                ) ??
+            seconds:
+                cockpitReadOptionalPositiveInt(arguments, 'timeoutSeconds') ??
                 180,
           ),
         ),

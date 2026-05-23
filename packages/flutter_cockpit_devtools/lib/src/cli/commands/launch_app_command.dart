@@ -9,17 +9,16 @@ import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
-typedef CockpitLaunchAppFunction = Future<CockpitLaunchAppResult> Function(
-  CockpitLaunchAppRequest request,
-);
+typedef CockpitLaunchAppFunction =
+    Future<CockpitLaunchAppResult> Function(CockpitLaunchAppRequest request);
 
 final class LaunchAppCommand extends CockpitCliCommand {
   LaunchAppCommand({
     CockpitLaunchAppService? service,
     CockpitLaunchAppFunction? launch,
     StringSink? stdoutSink,
-  })  : _launch = launch ?? (service ?? CockpitLaunchAppService()).launch,
-        _stdoutSink = stdoutSink ?? stdout {
+  }) : _launch = launch ?? (service ?? CockpitLaunchAppService()).launch,
+       _stdoutSink = stdoutSink ?? stdout {
     argParser
       ..addOption('project-dir', help: 'Flutter project directory to launch.')
       ..addOption(
@@ -117,7 +116,8 @@ final class LaunchAppCommand extends CockpitCliCommand {
           usage,
         ),
         launchTimeout: Duration(
-          seconds: cockpitReadOptionalPositiveInt(
+          seconds:
+              cockpitReadOptionalPositiveInt(
                 argResults,
                 'launch-timeout-seconds',
                 usage,
@@ -125,7 +125,8 @@ final class LaunchAppCommand extends CockpitCliCommand {
               120,
         ),
         mode: CockpitAppMode.fromJson(_readRequiredOption('mode')),
-        appHandlePath: (argResults?['app-json'] as String?) ??
+        appHandlePath:
+            (argResults?['app-json'] as String?) ??
             cockpitDefaultAppHandlePath(),
       ),
     );
@@ -146,8 +147,10 @@ final class LaunchAppCommand extends CockpitCliCommand {
       'macos' => 'macos',
       'windows' => 'windows',
       'linux' => 'linux',
-      _ =>
-        throw UsageException('--device-id is required for $platform.', usage),
+      _ => throw UsageException(
+        '--device-id is required for $platform.',
+        usage,
+      ),
     };
   }
 

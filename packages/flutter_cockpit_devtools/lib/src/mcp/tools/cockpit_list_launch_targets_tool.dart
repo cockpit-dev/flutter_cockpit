@@ -1,17 +1,18 @@
 import '../../application/cockpit_list_launch_targets_service.dart';
 import '../cockpit_mcp_tool.dart';
 
-typedef CockpitListLaunchTargetsToolFunction
-    = Future<CockpitListLaunchTargetsResult> Function(Duration timeout);
+typedef CockpitListLaunchTargetsToolFunction =
+    Future<CockpitListLaunchTargetsResult> Function(Duration timeout);
 
 final class CockpitListLaunchTargetsTool extends CockpitMcpTool {
   CockpitListLaunchTargetsTool({
     CockpitListLaunchTargetsService? service,
     CockpitListLaunchTargetsToolFunction? listTargets,
-  }) : _listTargets = listTargets ??
-            ((timeout) => (service ?? CockpitListLaunchTargetsService()).list(
-                  timeout: timeout,
-                ));
+  }) : _listTargets =
+           listTargets ??
+           ((timeout) => (service ?? CockpitListLaunchTargetsService()).list(
+             timeout: timeout,
+           ));
 
   final CockpitListLaunchTargetsToolFunction _listTargets;
 
@@ -24,13 +25,13 @@ final class CockpitListLaunchTargetsTool extends CockpitMcpTool {
 
   @override
   CockpitMcpToolAnnotations get annotations => const CockpitMcpToolAnnotations(
-        readOnly: true,
-        destructive: false,
-        idempotent: true,
-        longRunning: false,
-        requiresSession: false,
-        producesBundleEvidence: false,
-      );
+    readOnly: true,
+    destructive: false,
+    idempotent: true,
+    longRunning: false,
+    requiresSession: false,
+    producesBundleEvidence: false,
+  );
 
   @override
   List<CockpitMcpFeatureCategory> get categories =>
@@ -41,11 +42,11 @@ final class CockpitListLaunchTargetsTool extends CockpitMcpTool {
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
-        'type': 'object',
-        'properties': <String, Object?>{
-          'timeoutSeconds': <String, Object?>{'type': 'integer'},
-        },
-      };
+    'type': 'object',
+    'properties': <String, Object?>{
+      'timeoutSeconds': <String, Object?>{'type': 'integer'},
+    },
+  };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {

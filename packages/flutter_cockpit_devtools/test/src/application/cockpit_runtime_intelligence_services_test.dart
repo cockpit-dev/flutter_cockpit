@@ -76,33 +76,35 @@ void main() {
     expect(result.targets[0].toJson()['platform'], 'macos');
   });
 
-  test('lists Flutter launch targets when process stdout is UTF-8 bytes',
-      () async {
-    final service = CockpitListLaunchTargetsService(
-      processManager: _MachineProcessManager(
-        stdoutPayload: jsonEncode(<Map<String, Object?>>[
-          <String, Object?>{
-            'id': 'macos',
-            'name': 'macOS',
-            'targetPlatform': 'darwin',
-            'isSupported': true,
-            'emulator': false,
-            'sdk': 'macos',
-          },
-        ]),
-        returnUtf8Bytes: true,
-      ),
-      sdkEnvironment: const CockpitSdkEnvironment(
-        dartExecutable: 'dart-sdk',
-        flutterExecutable: 'flutter-sdk',
-      ),
-    );
+  test(
+    'lists Flutter launch targets when process stdout is UTF-8 bytes',
+    () async {
+      final service = CockpitListLaunchTargetsService(
+        processManager: _MachineProcessManager(
+          stdoutPayload: jsonEncode(<Map<String, Object?>>[
+            <String, Object?>{
+              'id': 'macos',
+              'name': 'macOS',
+              'targetPlatform': 'darwin',
+              'isSupported': true,
+              'emulator': false,
+              'sdk': 'macos',
+            },
+          ]),
+          returnUtf8Bytes: true,
+        ),
+        sdkEnvironment: const CockpitSdkEnvironment(
+          dartExecutable: 'dart-sdk',
+          flutterExecutable: 'flutter-sdk',
+        ),
+      );
 
-    final result = await service.list();
+      final result = await service.list();
 
-    expect(result.targets, hasLength(1));
-    expect(result.targets.single.id, 'macos');
-  });
+      expect(result.targets, hasLength(1));
+      expect(result.targets.single.id, 'macos');
+    },
+  );
 
   test('list launch targets times out instead of hanging forever', () async {
     final service = CockpitListLaunchTargetsService(
@@ -140,15 +142,16 @@ void main() {
       supervisorLogPath: '/tmp/dev.log',
     );
 
-    final result = await CockpitReadSessionLogsService(
-      registry: registry,
-      fileSystem: LocalCockpitFileSystem(fileSystem: fileSystem),
-    ).read(
-      const CockpitReadSessionLogsRequest(
-        developmentSessionId: 'dev-session-1',
-        maxLines: 2,
-      ),
-    );
+    final result =
+        await CockpitReadSessionLogsService(
+          registry: registry,
+          fileSystem: LocalCockpitFileSystem(fileSystem: fileSystem),
+        ).read(
+          const CockpitReadSessionLogsRequest(
+            developmentSessionId: 'dev-session-1',
+            maxLines: 2,
+          ),
+        );
 
     expect(result.logPath, '/tmp/dev.log');
     expect(result.lines, <String>['two', 'three']);
@@ -232,59 +235,55 @@ void main() {
           ),
         );
       },
-    ).read(
-      const CockpitReadLogsRequest(appId: 'dev.example.app', maxLines: 2),
-    );
+    ).read(const CockpitReadLogsRequest(appId: 'dev.example.app', maxLines: 2));
 
     expect(result.appId, 'dev.example.app');
     expect(result.source, 'app_snapshot');
     expect(result.available, isTrue);
     expect(result.routeName, '/inbox');
-    expect(
-      result.lines,
-      <String>[
-        'info debugLog debugPrint: rendered inbox',
-        'info debugLog print: refreshed counters',
-      ],
-    );
+    expect(result.lines, <String>[
+      'info debugLog debugPrint: rendered inbox',
+      'info debugLog print: refreshed counters',
+    ]);
   });
 
   test('reads app snapshot logs directly from a base URL', () async {
     Uri? capturedBaseUri;
-    final result = await CockpitReadLogsService(
-      registry: CockpitSessionRegistry(),
-      readSnapshot: (baseUri, options) async {
-        capturedBaseUri = baseUri;
-        expect(options.includeRuntimeActivity, isTrue);
-        expect(options.maxRuntimeEntries, 1);
-        return CockpitRemoteSnapshotResponse(
-          snapshot: CockpitSnapshot(
-            routeName: '/direct',
-            runtime: CockpitRuntimeSnapshot(
-              totalEntryCount: 1,
-              errorCount: 0,
-              warningCount: 0,
-              entries: <CockpitRuntimeEvent>[
-                CockpitRuntimeEvent(
-                  eventId: 'runtime-1',
-                  kind: CockpitRuntimeEventKind.debugLog,
-                  severity: CockpitRuntimeEventSeverity.info,
-                  message: 'direct log',
-                  recordedAt: DateTime.utc(2026, 3, 30, 10, 0),
-                  routeName: '/direct',
+    final result =
+        await CockpitReadLogsService(
+          registry: CockpitSessionRegistry(),
+          readSnapshot: (baseUri, options) async {
+            capturedBaseUri = baseUri;
+            expect(options.includeRuntimeActivity, isTrue);
+            expect(options.maxRuntimeEntries, 1);
+            return CockpitRemoteSnapshotResponse(
+              snapshot: CockpitSnapshot(
+                routeName: '/direct',
+                runtime: CockpitRuntimeSnapshot(
+                  totalEntryCount: 1,
+                  errorCount: 0,
+                  warningCount: 0,
+                  entries: <CockpitRuntimeEvent>[
+                    CockpitRuntimeEvent(
+                      eventId: 'runtime-1',
+                      kind: CockpitRuntimeEventKind.debugLog,
+                      severity: CockpitRuntimeEventSeverity.info,
+                      message: 'direct log',
+                      recordedAt: DateTime.utc(2026, 3, 30, 10, 0),
+                      routeName: '/direct',
+                    ),
+                  ],
+                  capturedEntryCount: 1,
                 ),
-              ],
-              capturedEntryCount: 1,
-            ),
+              ),
+            );
+          },
+        ).read(
+          CockpitReadLogsRequest(
+            baseUri: Uri.parse('http://127.0.0.1:61331/cockpit'),
+            maxLines: 1,
           ),
         );
-      },
-    ).read(
-      CockpitReadLogsRequest(
-        baseUri: Uri.parse('http://127.0.0.1:61331/cockpit'),
-        maxLines: 1,
-      ),
-    );
 
     expect(capturedBaseUri.toString(), 'http://127.0.0.1:61331/cockpit');
     expect(result.appId, 'unknown');
@@ -293,169 +292,180 @@ void main() {
     expect(result.lines, <String>['info debugLog: direct log']);
   });
 
-  test('returns structured missing log state when the log file is absent',
-      () async {
-    final registry = CockpitSessionRegistry();
-    registry.recordDevelopmentSession(
-      handle: _developmentHandle(),
-      status: _developmentStatus(),
-      supervisorLogPath: '/tmp/missing.log',
-    );
+  test(
+    'returns structured missing log state when the log file is absent',
+    () async {
+      final registry = CockpitSessionRegistry();
+      registry.recordDevelopmentSession(
+        handle: _developmentHandle(),
+        status: _developmentStatus(),
+        supervisorLogPath: '/tmp/missing.log',
+      );
 
-    final result = await CockpitReadLogsService(
-      registry: registry,
-      fileSystem: LocalCockpitFileSystem(fileSystem: MemoryFileSystem()),
-      readSnapshot: (_, __) => throw StateError('app unavailable'),
-    ).read(
-      const CockpitReadLogsRequest(appId: 'dev.example.app', maxLines: 2),
-    );
+      final result =
+          await CockpitReadLogsService(
+            registry: registry,
+            fileSystem: LocalCockpitFileSystem(fileSystem: MemoryFileSystem()),
+            readSnapshot: (_, _) => throw StateError('app unavailable'),
+          ).read(
+            const CockpitReadLogsRequest(appId: 'dev.example.app', maxLines: 2),
+          );
 
-    expect(result.available, isFalse);
-    expect(result.missingReason, 'log_file_missing');
-    expect(result.lines, isEmpty);
-  });
+      expect(result.available, isFalse);
+      expect(result.missingReason, 'log_file_missing');
+      expect(result.lines, isEmpty);
+    },
+  );
 
-  test('resolves a lean app handle back to the registry session record',
-      () async {
-    final registry = CockpitSessionRegistry();
-    registry.recordDevelopmentSession(
-      handle: _developmentHandle(),
-      status: _developmentStatus(lastError: 'boom'),
-      supervisorLogPath: '/tmp/dev.log',
-    );
+  test(
+    'resolves a lean app handle back to the registry session record',
+    () async {
+      final registry = CockpitSessionRegistry();
+      registry.recordDevelopmentSession(
+        handle: _developmentHandle(),
+        status: _developmentStatus(lastError: 'boom'),
+        supervisorLogPath: '/tmp/dev.log',
+      );
 
-    final tempDir = await Directory.systemTemp.createTemp(
-      'cockpit_app_handle_resolver',
-    );
-    addTearDown(() async {
-      if (tempDir.existsSync()) {
-        await tempDir.delete(recursive: true);
-      }
-    });
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_app_handle_resolver',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
 
-    final appFile = File('${tempDir.path}/app.json');
-    await appFile.writeAsString(
-      jsonEncode(
-        CockpitAppHandle(
-          appId: 'dev.example.app',
-          mode: CockpitAppMode.development,
-          platform: 'android',
-          deviceId: 'emulator-5554',
-          projectDir: '/workspace/app',
-          target: 'lib/main.dart',
-          baseUrl: 'http://127.0.0.1:57331',
-          launchedAt: DateTime.utc(2026, 3, 30),
-          supervisorLogPath: '/tmp/dev.log',
-        ).toJson(),
-      ),
-    );
+      final appFile = File('${tempDir.path}/app.json');
+      await appFile.writeAsString(
+        jsonEncode(
+          CockpitAppHandle(
+            appId: 'dev.example.app',
+            mode: CockpitAppMode.development,
+            platform: 'android',
+            deviceId: 'emulator-5554',
+            projectDir: '/workspace/app',
+            target: 'lib/main.dart',
+            baseUrl: 'http://127.0.0.1:57331',
+            launchedAt: DateTime.utc(2026, 3, 30),
+            supervisorLogPath: '/tmp/dev.log',
+          ).toJson(),
+        ),
+      );
 
-    final resolved = await CockpitAppReferenceResolver(
-      registry: registry,
-    ).resolve(appHandlePath: appFile.path);
+      final resolved = await CockpitAppReferenceResolver(
+        registry: registry,
+      ).resolve(appHandlePath: appFile.path);
 
-    expect(resolved.app?.developmentSession, isNull);
-    expect(
-      resolved.developmentRecord?.handle.developmentSessionId,
-      'dev-session-1',
-    );
-  });
+      expect(resolved.app?.developmentSession, isNull);
+      expect(
+        resolved.developmentRecord?.handle.developmentSessionId,
+        'dev-session-1',
+      );
+    },
+  );
 
-  test('reconstructs development control fields from a compact app handle',
-      () async {
-    final tempDir = await Directory.systemTemp.createTemp(
-      'cockpit_compact_development_handle',
-    );
-    addTearDown(() async {
-      if (tempDir.existsSync()) {
-        await tempDir.delete(recursive: true);
-      }
-    });
+  test(
+    'reconstructs development control fields from a compact app handle',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_compact_development_handle',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
 
-    final appFile = File('${tempDir.path}/app.json');
-    await appFile.writeAsString(
-      jsonEncode(
-        CockpitAppHandle.fromDevelopmentSession(
-          _developmentHandle(),
-          supervisorLogPath: '/tmp/dev.log',
-        ).toJson(),
-      ),
-    );
+      final appFile = File('${tempDir.path}/app.json');
+      await appFile.writeAsString(
+        jsonEncode(
+          CockpitAppHandle.fromDevelopmentSession(
+            _developmentHandle(),
+            supervisorLogPath: '/tmp/dev.log',
+          ).toJson(),
+        ),
+      );
 
-    final resolved = await CockpitAppReferenceResolver().resolve(
-      appHandlePath: appFile.path,
-    );
+      final resolved = await CockpitAppReferenceResolver().resolve(
+        appHandlePath: appFile.path,
+      );
 
-    expect(
-      resolved.app?.developmentSession?.developmentSessionId,
-      'dev-session-1',
-    );
-    expect(
-      resolved.app?.developmentSession?.supervisorBaseUri.toString(),
-      'http://127.0.0.1:59331',
-    );
-  });
+      expect(
+        resolved.app?.developmentSession?.developmentSessionId,
+        'dev-session-1',
+      );
+      expect(
+        resolved.app?.developmentSession?.supervisorBaseUri.toString(),
+        'http://127.0.0.1:59331',
+      );
+    },
+  );
 
-  test('accepts a launch-app result wrapper anywhere an app handle is expected',
-      () async {
-    final tempDir = await Directory.systemTemp.createTemp(
-      'cockpit_wrapped_app_handle',
-    );
-    addTearDown(() async {
-      if (tempDir.existsSync()) {
-        await tempDir.delete(recursive: true);
-      }
-    });
+  test(
+    'accepts a launch-app result wrapper anywhere an app handle is expected',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_wrapped_app_handle',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
 
-    final appFile = File('${tempDir.path}/app.json');
-    await appFile.writeAsString(
-      jsonEncode(
-        <String, Object?>{
+      final appFile = File('${tempDir.path}/app.json');
+      await appFile.writeAsString(
+        jsonEncode(<String, Object?>{
           'app': CockpitAppHandle.fromDevelopmentSession(
             _developmentHandle(),
             supervisorLogPath: '/tmp/dev.log',
           ).toJson(),
           'appJson_path': null,
           'supervisor_log_path': '/tmp/dev.log',
-        },
-      ),
-    );
+        }),
+      );
 
-    final resolved = await CockpitAppReferenceResolver().resolve(
-      appHandlePath: appFile.path,
-    );
+      final resolved = await CockpitAppReferenceResolver().resolve(
+        appHandlePath: appFile.path,
+      );
 
-    expect(resolved.app?.appId, 'dev.example.app');
-    expect(
-      resolved.app?.developmentSession?.developmentSessionId,
-      'dev-session-1',
-    );
-  });
+      expect(resolved.app?.appId, 'dev.example.app');
+      expect(
+        resolved.app?.developmentSession?.developmentSessionId,
+        'dev-session-1',
+      );
+    },
+  );
 
-  test('preserves remote session details when reading an automation app handle',
-      () async {
-    final tempDir = await Directory.systemTemp.createTemp(
-      'cockpit_remote_app_handle',
-    );
-    addTearDown(() async {
-      if (tempDir.existsSync()) {
-        await tempDir.delete(recursive: true);
-      }
-    });
+  test(
+    'preserves remote session details when reading an automation app handle',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_remote_app_handle',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
 
-    final appFile = File('${tempDir.path}/app.json');
-    await appFile.writeAsString(
-      jsonEncode(CockpitAppHandle.fromRemoteSession(_remoteHandle()).toJson()),
-    );
+      final appFile = File('${tempDir.path}/app.json');
+      await appFile.writeAsString(
+        jsonEncode(
+          CockpitAppHandle.fromRemoteSession(_remoteHandle()).toJson(),
+        ),
+      );
 
-    final resolved = await CockpitAppReferenceResolver().resolve(
-      appHandlePath: appFile.path,
-    );
+      final resolved = await CockpitAppReferenceResolver().resolve(
+        appHandlePath: appFile.path,
+      );
 
-    expect(resolved.app?.remoteSession?.appId, 'dev.example.remote');
-    expect(resolved.app?.remoteSession?.hostPort, 57331);
-    expect(resolved.app?.platformAppId, 'dev.example.remote');
-  });
+      expect(resolved.app?.remoteSession?.appId, 'dev.example.remote');
+      expect(resolved.app?.remoteSession?.hostPort, 57331);
+      expect(resolved.app?.platformAppId, 'dev.example.remote');
+    },
+  );
 
   test('reads current app runtime errors from an app handle', () async {
     final tempDir = await Directory.systemTemp.createTemp(
@@ -483,44 +493,45 @@ void main() {
       ),
     );
 
-    final result = await CockpitReadRuntimeErrorsService(
-      registry: CockpitSessionRegistry(),
-      latestTaskStore: CockpitLatestTaskStore(),
-      readSnapshot: (baseUri, options) async {
-        expect(baseUri.toString(), 'http://127.0.0.1:57331');
-        expect(options.includeRuntimeActivity, isTrue);
-        expect(options.runtimeQuery.onlyErrors, isTrue);
-        expect(options.maxRuntimeEntries, 4);
-        return CockpitRemoteSnapshotResponse(
-          snapshot: CockpitSnapshot(
-            routeName: '/inbox',
-            diagnosticLevel: CockpitSnapshotProfile.investigate,
-            runtime: CockpitRuntimeSnapshot(
-              totalEntryCount: 1,
-              errorCount: 1,
-              warningCount: 0,
-              entries: <CockpitRuntimeEvent>[
-                CockpitRuntimeEvent(
-                  eventId: 'runtime-1',
-                  kind: CockpitRuntimeEventKind.flutterError,
-                  severity: CockpitRuntimeEventSeverity.error,
-                  message: 'setState called after dispose',
-                  recordedAt: DateTime.utc(2026, 3, 30, 10, 0),
-                  routeName: '/inbox',
+    final result =
+        await CockpitReadRuntimeErrorsService(
+          registry: CockpitSessionRegistry(),
+          latestTaskStore: CockpitLatestTaskStore(),
+          readSnapshot: (baseUri, options) async {
+            expect(baseUri.toString(), 'http://127.0.0.1:57331');
+            expect(options.includeRuntimeActivity, isTrue);
+            expect(options.runtimeQuery.onlyErrors, isTrue);
+            expect(options.maxRuntimeEntries, 4);
+            return CockpitRemoteSnapshotResponse(
+              snapshot: CockpitSnapshot(
+                routeName: '/inbox',
+                diagnosticLevel: CockpitSnapshotProfile.investigate,
+                runtime: CockpitRuntimeSnapshot(
+                  totalEntryCount: 1,
+                  errorCount: 1,
+                  warningCount: 0,
+                  entries: <CockpitRuntimeEvent>[
+                    CockpitRuntimeEvent(
+                      eventId: 'runtime-1',
+                      kind: CockpitRuntimeEventKind.flutterError,
+                      severity: CockpitRuntimeEventSeverity.error,
+                      message: 'setState called after dispose',
+                      recordedAt: DateTime.utc(2026, 3, 30, 10, 0),
+                      routeName: '/inbox',
+                    ),
+                  ],
+                  capturedEntryCount: 1,
+                  query: const CockpitRuntimeQuery(onlyErrors: true),
                 ),
-              ],
-              capturedEntryCount: 1,
-              query: const CockpitRuntimeQuery(onlyErrors: true),
-            ),
+              ),
+            );
+          },
+        ).read(
+          CockpitReadRuntimeErrorsRequest(
+            appHandlePath: appFile.path,
+            maxErrors: 4,
           ),
         );
-      },
-    ).read(
-      CockpitReadRuntimeErrorsRequest(
-        appHandlePath: appFile.path,
-        maxErrors: 4,
-      ),
-    );
 
     expect(result.appId, 'dev.example.app');
     expect(result.routeName, '/inbox');
@@ -530,180 +541,184 @@ void main() {
     expect(result.errors.single.kind, 'flutterError');
   });
 
-  test('reads app network summary with endpoint summaries and recent failures',
-      () async {
-    final tempDir = await Directory.systemTemp.createTemp(
-      'cockpit_read_network_app_handle',
-    );
-    addTearDown(() async {
-      if (tempDir.existsSync()) {
-        await tempDir.delete(recursive: true);
-      }
-    });
+  test(
+    'reads app network summary with endpoint summaries and recent failures',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_read_network_app_handle',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
 
-    final appFile = File('${tempDir.path}/app.json');
-    await appFile.writeAsString(
-      jsonEncode(
-        CockpitAppHandle(
-          appId: 'dev.example.app',
-          mode: CockpitAppMode.development,
-          platform: 'macos',
-          deviceId: 'macos',
-          projectDir: '/workspace/app',
-          target: 'cockpit/main.dart',
-          baseUrl: 'http://127.0.0.1:57331',
-          launchedAt: DateTime.utc(2026, 3, 30),
-        ).toJson(),
-      ),
-    );
+      final appFile = File('${tempDir.path}/app.json');
+      await appFile.writeAsString(
+        jsonEncode(
+          CockpitAppHandle(
+            appId: 'dev.example.app',
+            mode: CockpitAppMode.development,
+            platform: 'macos',
+            deviceId: 'macos',
+            projectDir: '/workspace/app',
+            target: 'cockpit/main.dart',
+            baseUrl: 'http://127.0.0.1:57331',
+            launchedAt: DateTime.utc(2026, 3, 30),
+          ).toJson(),
+        ),
+      );
 
-    final result = await CockpitReadNetworkService(
-      registry: CockpitSessionRegistry(),
-      readSnapshot: (baseUri, options) async {
-        expect(baseUri.toString(), 'http://127.0.0.1:57331');
-        expect(options.includeNetworkActivity, isTrue);
-        expect(options.maxNetworkEntries, 6);
-        expect(options.networkQuery.uriContains, '/api');
-        expect(options.networkQuery.onlyFailures, isFalse);
-        expect(options.networkQuery.statusCodeAtLeast, 400);
-        return CockpitRemoteSnapshotResponse(
-          snapshot: CockpitSnapshot(
-            routeName: '/inbox',
-            network: CockpitNetworkSnapshot(
-              totalEntryCount: 3,
-              failureCount: 1,
-              entries: <CockpitNetworkEntry>[
-                CockpitNetworkEntry(
-                  requestId: 'net-2',
-                  method: 'GET',
-                  uri: 'https://api.example.dev/api/messages',
-                  startedAt: DateTime.utc(2026, 3, 30, 10, 0, 1),
-                  durationMs: 90,
-                  statusCode: 503,
-                  error: 'service unavailable',
+      final result =
+          await CockpitReadNetworkService(
+            registry: CockpitSessionRegistry(),
+            readSnapshot: (baseUri, options) async {
+              expect(baseUri.toString(), 'http://127.0.0.1:57331');
+              expect(options.includeNetworkActivity, isTrue);
+              expect(options.maxNetworkEntries, 6);
+              expect(options.networkQuery.uriContains, '/api');
+              expect(options.networkQuery.onlyFailures, isFalse);
+              expect(options.networkQuery.statusCodeAtLeast, 400);
+              return CockpitRemoteSnapshotResponse(
+                snapshot: CockpitSnapshot(
+                  routeName: '/inbox',
+                  network: CockpitNetworkSnapshot(
+                    totalEntryCount: 3,
+                    failureCount: 1,
+                    entries: <CockpitNetworkEntry>[
+                      CockpitNetworkEntry(
+                        requestId: 'net-2',
+                        method: 'GET',
+                        uri: 'https://api.example.dev/api/messages',
+                        startedAt: DateTime.utc(2026, 3, 30, 10, 0, 1),
+                        durationMs: 90,
+                        statusCode: 503,
+                        error: 'service unavailable',
+                      ),
+                      CockpitNetworkEntry(
+                        requestId: 'net-3',
+                        method: 'GET',
+                        uri: 'https://api.example.dev/api/profile',
+                        startedAt: DateTime.utc(2026, 3, 30, 10, 0, 2),
+                        durationMs: 45,
+                        statusCode: 200,
+                      ),
+                    ],
+                    endpointSummaries: <CockpitNetworkEndpointSummary>[
+                      const CockpitNetworkEndpointSummary(
+                        method: 'GET',
+                        uriPattern: '/api/messages',
+                        requestCount: 2,
+                        failureCount: 1,
+                        averageDurationMs: 72,
+                        lastStatusCode: 503,
+                        latestUri: 'https://api.example.dev/api/messages',
+                      ),
+                      const CockpitNetworkEndpointSummary(
+                        method: 'GET',
+                        uriPattern: '/api/profile',
+                        requestCount: 1,
+                        failureCount: 0,
+                        averageDurationMs: 45,
+                        lastStatusCode: 200,
+                        latestUri: 'https://api.example.dev/api/profile',
+                      ),
+                    ],
+                    capturedEntryCount: 5,
+                    inFlightCount: 1,
+                    query: const CockpitNetworkQuery(
+                      uriContains: '/api',
+                      statusCodeAtLeast: 400,
+                    ),
+                    truncated: true,
+                  ),
                 ),
-                CockpitNetworkEntry(
-                  requestId: 'net-3',
-                  method: 'GET',
-                  uri: 'https://api.example.dev/api/profile',
-                  startedAt: DateTime.utc(2026, 3, 30, 10, 0, 2),
-                  durationMs: 45,
-                  statusCode: 200,
-                ),
-              ],
-              endpointSummaries: <CockpitNetworkEndpointSummary>[
-                const CockpitNetworkEndpointSummary(
-                  method: 'GET',
-                  uriPattern: '/api/messages',
-                  requestCount: 2,
-                  failureCount: 1,
-                  averageDurationMs: 72,
-                  lastStatusCode: 503,
-                  latestUri: 'https://api.example.dev/api/messages',
-                ),
-                const CockpitNetworkEndpointSummary(
-                  method: 'GET',
-                  uriPattern: '/api/profile',
-                  requestCount: 1,
-                  failureCount: 0,
-                  averageDurationMs: 45,
-                  lastStatusCode: 200,
-                  latestUri: 'https://api.example.dev/api/profile',
-                ),
-              ],
-              capturedEntryCount: 5,
-              inFlightCount: 1,
-              query: const CockpitNetworkQuery(
-                uriContains: '/api',
-                statusCodeAtLeast: 400,
-              ),
-              truncated: true,
+              );
+            },
+          ).read(
+            CockpitReadNetworkRequest(
+              appHandlePath: appFile.path,
+              maxEntries: 6,
+              maxEndpointSummaries: 1,
+              uriContains: '/api',
+              statusCodeAtLeast: 400,
             ),
-          ),
-        );
-      },
-    ).read(
-      CockpitReadNetworkRequest(
-        appHandlePath: appFile.path,
-        maxEntries: 6,
-        maxEndpointSummaries: 1,
-        uriContains: '/api',
-        statusCodeAtLeast: 400,
-      ),
-    );
+          );
 
-    expect(result.appId, 'dev.example.app');
-    expect(result.routeName, '/inbox');
-    expect(result.source, 'app_snapshot');
-    expect(result.available, isTrue);
-    expect(result.summary.totalEntryCount, 3);
-    expect(result.summary.failureCount, 1);
-    expect(result.summary.inFlightCount, 1);
-    expect(result.endpointSummaries, hasLength(1));
-    expect(result.endpointSummaries.single.uriPattern, '/api/messages');
-    expect(result.endpointSummariesTruncated, isTrue);
-    expect(result.recentFailures, hasLength(1));
-    expect(result.recentFailures.single.error, 'service unavailable');
-    expect(result.entries, isNull);
-  });
+      expect(result.appId, 'dev.example.app');
+      expect(result.routeName, '/inbox');
+      expect(result.source, 'app_snapshot');
+      expect(result.available, isTrue);
+      expect(result.summary.totalEntryCount, 3);
+      expect(result.summary.failureCount, 1);
+      expect(result.summary.inFlightCount, 1);
+      expect(result.endpointSummaries, hasLength(1));
+      expect(result.endpointSummaries.single.uriPattern, '/api/messages');
+      expect(result.endpointSummariesTruncated, isTrue);
+      expect(result.recentFailures, hasLength(1));
+      expect(result.recentFailures.single.error, 'service unavailable');
+      expect(result.entries, isNull);
+    },
+  );
 
   test('read network can include matching entries on demand', () async {
-    final result = await CockpitReadNetworkService(
-      registry: CockpitSessionRegistry(),
-      appReferenceResolver: CockpitAppReferenceResolver(),
-      readSnapshot: (baseUri, options) async {
-        expect(baseUri.toString(), 'http://127.0.0.1:57331');
-        expect(options.includeNetworkActivity, isTrue);
-        expect(options.maxNetworkEntries, 2);
-        expect(options.networkQuery.method, 'POST');
-        expect(options.networkQuery.onlyFailures, isTrue);
-        return CockpitRemoteSnapshotResponse(
-          snapshot: CockpitSnapshot(
-            routeName: '/compose',
-            network: CockpitNetworkSnapshot(
-              totalEntryCount: 1,
-              failureCount: 1,
-              entries: <CockpitNetworkEntry>[
-                CockpitNetworkEntry(
-                  requestId: 'net-9',
-                  method: 'POST',
-                  uri: 'https://api.example.dev/api/send',
-                  startedAt: DateTime.utc(2026, 3, 30, 10, 10),
-                  durationMs: 120,
-                  statusCode: 500,
-                  error: 'internal error',
-                ),
-              ],
-              endpointSummaries: const <CockpitNetworkEndpointSummary>[
-                CockpitNetworkEndpointSummary(
-                  method: 'POST',
-                  uriPattern: '/api/send',
-                  requestCount: 1,
+    final result =
+        await CockpitReadNetworkService(
+          registry: CockpitSessionRegistry(),
+          appReferenceResolver: CockpitAppReferenceResolver(),
+          readSnapshot: (baseUri, options) async {
+            expect(baseUri.toString(), 'http://127.0.0.1:57331');
+            expect(options.includeNetworkActivity, isTrue);
+            expect(options.maxNetworkEntries, 2);
+            expect(options.networkQuery.method, 'POST');
+            expect(options.networkQuery.onlyFailures, isTrue);
+            return CockpitRemoteSnapshotResponse(
+              snapshot: CockpitSnapshot(
+                routeName: '/compose',
+                network: CockpitNetworkSnapshot(
+                  totalEntryCount: 1,
                   failureCount: 1,
-                  averageDurationMs: 120,
-                  lastStatusCode: 500,
-                  latestUri: 'https://api.example.dev/api/send',
+                  entries: <CockpitNetworkEntry>[
+                    CockpitNetworkEntry(
+                      requestId: 'net-9',
+                      method: 'POST',
+                      uri: 'https://api.example.dev/api/send',
+                      startedAt: DateTime.utc(2026, 3, 30, 10, 10),
+                      durationMs: 120,
+                      statusCode: 500,
+                      error: 'internal error',
+                    ),
+                  ],
+                  endpointSummaries: const <CockpitNetworkEndpointSummary>[
+                    CockpitNetworkEndpointSummary(
+                      method: 'POST',
+                      uriPattern: '/api/send',
+                      requestCount: 1,
+                      failureCount: 1,
+                      averageDurationMs: 120,
+                      lastStatusCode: 500,
+                      latestUri: 'https://api.example.dev/api/send',
+                    ),
+                  ],
+                  capturedEntryCount: 1,
+                  inFlightCount: 0,
+                  query: const CockpitNetworkQuery(
+                    method: 'POST',
+                    onlyFailures: true,
+                  ),
                 ),
-              ],
-              capturedEntryCount: 1,
-              inFlightCount: 0,
-              query: const CockpitNetworkQuery(
-                method: 'POST',
-                onlyFailures: true,
               ),
-            ),
+            );
+          },
+        ).read(
+          CockpitReadNetworkRequest(
+            baseUri: Uri.parse('http://127.0.0.1:57331'),
+            maxEntries: 2,
+            method: 'POST',
+            onlyFailures: true,
+            includeEntries: true,
           ),
         );
-      },
-    ).read(
-      CockpitReadNetworkRequest(
-        baseUri: Uri.parse('http://127.0.0.1:57331'),
-        maxEntries: 2,
-        method: 'POST',
-        onlyFailures: true,
-        includeEntries: true,
-      ),
-    );
 
     expect(result.routeName, '/compose');
     expect(result.entries, hasLength(1));
@@ -711,94 +726,93 @@ void main() {
     expect(result.recentFailures, hasLength(1));
   });
 
-  test('read network refetches failures when summary says failures exist',
-      () async {
-    var readCount = 0;
-    final result = await CockpitReadNetworkService(
-      registry: CockpitSessionRegistry(),
-      readSnapshot: (baseUri, options) async {
-        readCount += 1;
-        if (readCount == 1) {
-          expect(options.networkQuery.onlyFailures, isFalse);
-          return CockpitRemoteSnapshotResponse(
-            snapshot: CockpitSnapshot(
-              routeName: '/inbox',
-              network: CockpitNetworkSnapshot(
-                totalEntryCount: 3,
-                failureCount: 1,
-                entries: <CockpitNetworkEntry>[
-                  CockpitNetworkEntry(
-                    requestId: 'net-3',
-                    method: 'GET',
-                    uri: 'https://api.example.dev/api/profile',
-                    startedAt: DateTime.utc(2026, 3, 30, 10, 0, 2),
-                    durationMs: 45,
-                    statusCode: 200,
+  test(
+    'read network refetches failures when summary says failures exist',
+    () async {
+      var readCount = 0;
+      final result =
+          await CockpitReadNetworkService(
+            registry: CockpitSessionRegistry(),
+            readSnapshot: (baseUri, options) async {
+              readCount += 1;
+              if (readCount == 1) {
+                expect(options.networkQuery.onlyFailures, isFalse);
+                return CockpitRemoteSnapshotResponse(
+                  snapshot: CockpitSnapshot(
+                    routeName: '/inbox',
+                    network: CockpitNetworkSnapshot(
+                      totalEntryCount: 3,
+                      failureCount: 1,
+                      entries: <CockpitNetworkEntry>[
+                        CockpitNetworkEntry(
+                          requestId: 'net-3',
+                          method: 'GET',
+                          uri: 'https://api.example.dev/api/profile',
+                          startedAt: DateTime.utc(2026, 3, 30, 10, 0, 2),
+                          durationMs: 45,
+                          statusCode: 200,
+                        ),
+                      ],
+                      endpointSummaries: const <CockpitNetworkEndpointSummary>[
+                        CockpitNetworkEndpointSummary(
+                          method: 'GET',
+                          uriPattern: '/api/messages',
+                          requestCount: 2,
+                          failureCount: 1,
+                          averageDurationMs: 72,
+                          lastStatusCode: 503,
+                          latestUri: 'https://api.example.dev/api/messages',
+                        ),
+                      ],
+                      capturedEntryCount: 3,
+                      inFlightCount: 0,
+                      query: const CockpitNetworkQuery(uriContains: '/api'),
+                    ),
                   ),
-                ],
-                endpointSummaries: const <CockpitNetworkEndpointSummary>[
-                  CockpitNetworkEndpointSummary(
-                    method: 'GET',
-                    uriPattern: '/api/messages',
-                    requestCount: 2,
+                );
+              }
+              expect(options.networkQuery.onlyFailures, isTrue);
+              return CockpitRemoteSnapshotResponse(
+                snapshot: CockpitSnapshot(
+                  routeName: '/inbox',
+                  network: CockpitNetworkSnapshot(
+                    totalEntryCount: 1,
                     failureCount: 1,
-                    averageDurationMs: 72,
-                    lastStatusCode: 503,
-                    latestUri: 'https://api.example.dev/api/messages',
+                    entries: <CockpitNetworkEntry>[
+                      CockpitNetworkEntry(
+                        requestId: 'net-2',
+                        method: 'GET',
+                        uri: 'https://api.example.dev/api/messages',
+                        startedAt: DateTime.utc(2026, 3, 30, 10, 0, 1),
+                        durationMs: 90,
+                        statusCode: 503,
+                        error: 'service unavailable',
+                      ),
+                    ],
+                    endpointSummaries: const <CockpitNetworkEndpointSummary>[],
+                    capturedEntryCount: 3,
+                    inFlightCount: 0,
+                    query: const CockpitNetworkQuery(
+                      uriContains: '/api',
+                      onlyFailures: true,
+                    ),
                   ),
-                ],
-                capturedEntryCount: 3,
-                inFlightCount: 0,
-                query: const CockpitNetworkQuery(uriContains: '/api'),
-              ),
+                ),
+              );
+            },
+          ).read(
+            CockpitReadNetworkRequest(
+              baseUri: Uri(scheme: 'http', host: '127.0.0.1', port: 57331),
+              uriContains: '/api',
             ),
           );
-        }
-        expect(options.networkQuery.onlyFailures, isTrue);
-        return CockpitRemoteSnapshotResponse(
-          snapshot: CockpitSnapshot(
-            routeName: '/inbox',
-            network: CockpitNetworkSnapshot(
-              totalEntryCount: 1,
-              failureCount: 1,
-              entries: <CockpitNetworkEntry>[
-                CockpitNetworkEntry(
-                  requestId: 'net-2',
-                  method: 'GET',
-                  uri: 'https://api.example.dev/api/messages',
-                  startedAt: DateTime.utc(2026, 3, 30, 10, 0, 1),
-                  durationMs: 90,
-                  statusCode: 503,
-                  error: 'service unavailable',
-                ),
-              ],
-              endpointSummaries: const <CockpitNetworkEndpointSummary>[],
-              capturedEntryCount: 3,
-              inFlightCount: 0,
-              query: const CockpitNetworkQuery(
-                uriContains: '/api',
-                onlyFailures: true,
-              ),
-            ),
-          ),
-        );
-      },
-    ).read(
-      CockpitReadNetworkRequest(
-        baseUri: Uri(
-          scheme: 'http',
-          host: '127.0.0.1',
-          port: 57331,
-        ),
-        uriContains: '/api',
-      ),
-    );
 
-    expect(readCount, 2);
-    expect(result.summary.failureCount, 1);
-    expect(result.recentFailures, hasLength(1));
-    expect(result.recentFailures.single.requestId, 'net-2');
-  });
+      expect(readCount, 2);
+      expect(result.summary.failureCount, 1);
+      expect(result.recentFailures, hasLength(1));
+      expect(result.recentFailures.single.requestId, 'net-2');
+    },
+  );
 
   test('combines latest task and active session runtime errors', () async {
     final registry = CockpitSessionRegistry();
@@ -888,17 +902,17 @@ final class _CompletedFakeProcess implements Process {
     required String stderrPayload,
     required int exitCodeValue,
     this.returnUtf8Bytes = false,
-  })  : stdout = Stream<List<int>>.value(
-          returnUtf8Bytes
-              ? utf8.encode(stdoutPayload)
-              : utf8.encode(stdoutPayload),
-        ),
-        stderr = Stream<List<int>>.value(
-          returnUtf8Bytes
-              ? utf8.encode(stderrPayload)
-              : utf8.encode(stderrPayload),
-        ),
-        _exitCode = Future<int>.value(exitCodeValue);
+  }) : stdout = Stream<List<int>>.value(
+         returnUtf8Bytes
+             ? utf8.encode(stdoutPayload)
+             : utf8.encode(stdoutPayload),
+       ),
+       stderr = Stream<List<int>>.value(
+         returnUtf8Bytes
+             ? utf8.encode(stderrPayload)
+             : utf8.encode(stderrPayload),
+       ),
+       _exitCode = Future<int>.value(exitCodeValue);
 
   final Future<int> _exitCode;
   final bool returnUtf8Bytes;
@@ -957,39 +971,39 @@ CockpitDevelopmentSessionHandle _developmentHandle() =>
     );
 
 CockpitRemoteSessionHandle _remoteHandle() => CockpitRemoteSessionHandle(
-      platform: 'macos',
-      deviceId: 'macos',
-      projectDir: '/workspace/app',
-      target: 'cockpit/main.dart',
-      appId: 'dev.example.remote',
-      host: '127.0.0.1',
-      hostPort: 57331,
-      devicePort: 47331,
-      baseUrl: 'http://127.0.0.1:57331',
-      launchedAt: DateTime.utc(2026, 3, 30),
-    );
+  platform: 'macos',
+  deviceId: 'macos',
+  projectDir: '/workspace/app',
+  target: 'cockpit/main.dart',
+  appId: 'dev.example.remote',
+  host: '127.0.0.1',
+  hostPort: 57331,
+  devicePort: 47331,
+  baseUrl: 'http://127.0.0.1:57331',
+  launchedAt: DateTime.utc(2026, 3, 30),
+);
 
 CockpitRemoteSessionStatus _remoteStatus() => CockpitRemoteSessionStatus(
-      sessionId: 'remote-session-1',
-      platform: 'macos',
-      transportType: 'remoteHttp',
-      currentRouteName: '/home',
-      capabilities: CockpitCapabilities(
-        platform: 'macos',
-        transportType: 'remoteHttp',
-        supportsInAppControl: true,
-        supportsFlutterViewCapture: true,
-        supportsNativeScreenCapture: true,
-        supportsHostAutomation: true,
-        supportedCommands: <CockpitCommandType>[CockpitCommandType.tap],
-        supportedLocatorStrategies: CockpitLocatorKind.values,
-      ),
-      recordingCapabilities: CockpitRecordingCapabilities(
-        supportsNativeRecording: true,
-        preferredAcceptanceRecordingKind: CockpitRecordingKind.nativeScreen,
-      ),
-      snapshot: CockpitSnapshot(routeName: '/home'),
-    );
+  sessionId: 'remote-session-1',
+  platform: 'macos',
+  transportType: 'remoteHttp',
+  currentRouteName: '/home',
+  capabilities: CockpitCapabilities(
+    platform: 'macos',
+    transportType: 'remoteHttp',
+    supportsInAppControl: true,
+    supportsFlutterViewCapture: true,
+    supportsNativeScreenCapture: true,
+    supportsHostAutomation: true,
+    supportedCommands: <CockpitCommandType>[CockpitCommandType.tap],
+    supportedLocatorStrategies: CockpitLocatorKind.values,
+  ),
+  recordingCapabilities: CockpitRecordingCapabilities(
+    supportsNativeRecording: true,
+    preferredAcceptanceRecordingKind: CockpitRecordingKind.nativeScreen,
+  ),
+  snapshot: CockpitSnapshot(routeName: '/home'),
+);
 
 CockpitDevelopmentSessionStatus _developmentStatus({String? lastError}) =>
     CockpitDevelopmentSessionStatus(

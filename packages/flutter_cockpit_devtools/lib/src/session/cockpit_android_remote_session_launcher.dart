@@ -11,18 +11,19 @@ import 'cockpit_remote_session_launcher.dart';
 import 'cockpit_session_path.dart';
 import 'package:path/path.dart' as p;
 
-typedef CockpitWorkingDirectoryProcessRunner = Future<ProcessResult> Function(
-  String executable,
-  List<String> arguments, {
-  String? workingDirectory,
-});
+typedef CockpitWorkingDirectoryProcessRunner =
+    Future<ProcessResult> Function(
+      String executable,
+      List<String> arguments, {
+      String? workingDirectory,
+    });
 
-typedef CockpitAndroidBuildArtifactResolver
-    = Future<CockpitAndroidBuildArtifact> Function({
-  required String projectDir,
-  required String buildDirectory,
-  String? flavor,
-});
+typedef CockpitAndroidBuildArtifactResolver =
+    Future<CockpitAndroidBuildArtifact> Function({
+      required String projectDir,
+      required String buildDirectory,
+      String? flavor,
+    });
 
 final class CockpitAndroidBuildArtifact {
   const CockpitAndroidBuildArtifact({
@@ -47,12 +48,12 @@ final class CockpitAndroidRemoteSessionLauncher
     CockpitFlutterVersionReader flutterVersionReader =
         cockpitReadActiveFlutterVersion,
     DateTime Function()? now,
-  })  : _processRunner = processRunner,
-        _portForwarder = portForwarder,
-        _buildArtifactResolver = buildArtifactResolver,
-        _statusReader = statusReader,
-        _flutterVersionReader = flutterVersionReader,
-        _now = now ?? DateTime.now;
+  }) : _processRunner = processRunner,
+       _portForwarder = portForwarder,
+       _buildArtifactResolver = buildArtifactResolver,
+       _statusReader = statusReader,
+       _flutterVersionReader = flutterVersionReader,
+       _now = now ?? DateTime.now;
 
   final CockpitWorkingDirectoryProcessRunner _processRunner;
   final CockpitAndroidPortForwarder _portForwarder;
@@ -97,43 +98,38 @@ final class CockpitAndroidRemoteSessionLauncher
 
     final pathContext = cockpitSessionPathContext(options.projectDir);
     final buildDirectory = pathContext.join(options.projectDir, 'build');
-    final buildArtifact = await _buildArtifactResolver(
-      projectDir: options.projectDir,
-      buildDirectory: buildDirectory,
-      flavor: options.flavor,
-    ).timeout(
-      _remaining(deadline),
-      onTimeout: () => throw TimeoutException(
-        'Resolving Android build artifacts timed out.',
-        _remaining(deadline),
-      ),
-    );
+    final buildArtifact =
+        await _buildArtifactResolver(
+          projectDir: options.projectDir,
+          buildDirectory: buildDirectory,
+          flavor: options.flavor,
+        ).timeout(
+          _remaining(deadline),
+          onTimeout: () => throw TimeoutException(
+            'Resolving Android build artifacts timed out.',
+            _remaining(deadline),
+          ),
+        );
 
-    await _runRequired(
-        'adb',
-        <String>[
-          '-s',
-          options.deviceId,
-          'install',
-          '-r',
-          buildArtifact.apkPath,
-        ],
-        timeout: _remaining(deadline));
+    await _runRequired('adb', <String>[
+      '-s',
+      options.deviceId,
+      'install',
+      '-r',
+      buildArtifact.apkPath,
+    ], timeout: _remaining(deadline));
 
-    await _runRequired(
-        'adb',
-        <String>[
-          '-s',
-          options.deviceId,
-          'shell',
-          'monkey',
-          '-p',
-          buildArtifact.applicationId,
-          '-c',
-          'android.intent.category.LAUNCHER',
-          '1',
-        ],
-        timeout: _remaining(deadline));
+    await _runRequired('adb', <String>[
+      '-s',
+      options.deviceId,
+      'shell',
+      'monkey',
+      '-p',
+      buildArtifact.applicationId,
+      '-c',
+      'android.intent.category.LAUNCHER',
+      '1',
+    ], timeout: _remaining(deadline));
 
     final hostPort = await _portForwarder
         .ensureForwarded(
@@ -174,17 +170,18 @@ final class CockpitAndroidRemoteSessionLauncher
     String? workingDirectory,
     required Duration timeout,
   }) async {
-    final result = await _processRunner(
-      executable,
-      arguments,
-      workingDirectory: workingDirectory,
-    ).timeout(
-      timeout,
-      onTimeout: () => throw TimeoutException(
-        '$executable ${arguments.join(' ')} timed out.',
-        timeout,
-      ),
-    );
+    final result =
+        await _processRunner(
+          executable,
+          arguments,
+          workingDirectory: workingDirectory,
+        ).timeout(
+          timeout,
+          onTimeout: () => throw TimeoutException(
+            '$executable ${arguments.join(' ')} timed out.',
+            timeout,
+          ),
+        );
     if (result.exitCode != 0) {
       throw StateError(
         '$executable ${arguments.join(' ')} failed: ${result.stderr ?? result.stdout}',
@@ -220,8 +217,9 @@ final class CockpitAndroidRemoteSessionLauncher
     String? flavor,
   }) async {
     final pathContext = cockpitSessionPathContext(projectDir);
-    final outputRoot =
-        Directory(pathContext.join(buildDirectory, 'app', 'outputs'));
+    final outputRoot = Directory(
+      pathContext.join(buildDirectory, 'app', 'outputs'),
+    );
     final metadataCandidates = <_AndroidBuildMetadataCandidate>[];
     if (outputRoot.existsSync()) {
       for (final entity in outputRoot.listSync(recursive: true)) {
@@ -240,14 +238,12 @@ final class CockpitAndroidRemoteSessionLauncher
       }
     }
     if (metadataCandidates.isNotEmpty) {
-      metadataCandidates.sort(
-        (left, right) {
-          if (left.score != right.score) {
-            return right.score.compareTo(left.score);
-          }
-          return right.modifiedAt.compareTo(left.modifiedAt);
-        },
-      );
+      metadataCandidates.sort((left, right) {
+        if (left.score != right.score) {
+          return right.score.compareTo(left.score);
+        }
+        return right.modifiedAt.compareTo(left.modifiedAt);
+      });
       final resolved = metadataCandidates.first;
       return CockpitAndroidBuildArtifact(
         applicationId: resolved.applicationId,
@@ -260,11 +256,11 @@ final class CockpitAndroidRemoteSessionLauncher
     );
     final apkFiles = flutterApkDirectory.existsSync()
         ? flutterApkDirectory
-            .listSync()
-            .whereType<File>()
-            .map((file) => file.path)
-            .where((path) => path.toLowerCase().endsWith('.apk'))
-            .toList(growable: false)
+              .listSync()
+              .whereType<File>()
+              .map((file) => file.path)
+              .where((path) => path.toLowerCase().endsWith('.apk'))
+              .toList(growable: false)
         : const <String>[];
     final resolvedApkPath = _pickBestApkPath(
       apkPaths: apkFiles,
@@ -285,7 +281,7 @@ final class CockpitAndroidRemoteSessionLauncher
   }
 
   static Future<_AndroidBuildMetadataCandidate?>
-      _readAndroidBuildMetadataCandidate({
+  _readAndroidBuildMetadataCandidate({
     required File file,
     required String? flavor,
     required p.Context pathContext,
@@ -312,8 +308,9 @@ final class CockpitAndroidRemoteSessionLauncher
       }
       final apkPath = pathContext.isAbsolute(outputFile)
           ? outputFile
-          : pathContext
-              .normalize(pathContext.join(file.parent.path, outputFile));
+          : pathContext.normalize(
+              pathContext.join(file.parent.path, outputFile),
+            );
       final apkFile = File(apkPath);
       if (!apkFile.existsSync()) {
         continue;
@@ -370,19 +367,20 @@ final class CockpitAndroidRemoteSessionLauncher
     if (apkPaths.isEmpty) {
       return null;
     }
-    final scored = apkPaths
-        .map(
-          (path) => MapEntry(
-            path,
-            _scoreAndroidArtifactCandidate(
-              flavor: flavor,
-              variantName: null,
-              path: path,
-            ),
-          ),
-        )
-        .toList(growable: false)
-      ..sort((left, right) => right.value.compareTo(left.value));
+    final scored =
+        apkPaths
+            .map(
+              (path) => MapEntry(
+                path,
+                _scoreAndroidArtifactCandidate(
+                  flavor: flavor,
+                  variantName: null,
+                  path: path,
+                ),
+              ),
+            )
+            .toList(growable: false)
+          ..sort((left, right) => right.value.compareTo(left.value));
     return scored.first.key;
   }
 

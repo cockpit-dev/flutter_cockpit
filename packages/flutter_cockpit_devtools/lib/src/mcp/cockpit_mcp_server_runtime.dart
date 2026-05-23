@@ -26,14 +26,14 @@ final class CockpitMcpServerRuntimeOptions {
   final String? logFilePath;
 }
 
-typedef CockpitMcpServerRuntimeFactory = CockpitMcpServer Function(
-  CockpitMcpServerRuntimeOptions options,
-);
+typedef CockpitMcpServerRuntimeFactory =
+    CockpitMcpServer Function(CockpitMcpServerRuntimeOptions options);
 
-typedef CockpitMcpServerRuntimeServe = Future<void> Function(
-  CockpitMcpServer server, {
-  Sink<String>? protocolLogSink,
-});
+typedef CockpitMcpServerRuntimeServe =
+    Future<void> Function(
+      CockpitMcpServer server, {
+      Sink<String>? protocolLogSink,
+    });
 
 abstract interface class _ClosableStringSink implements Sink<String> {
   @override
@@ -69,8 +69,8 @@ final class CockpitMcpServerRuntime {
   CockpitMcpServerRuntime({
     CockpitMcpServerRuntimeFactory? serverFactory,
     CockpitMcpServerRuntimeServe? serve,
-  })  : _serverFactory = serverFactory ?? _defaultFactory,
-        _serve = serve ?? _defaultServe;
+  }) : _serverFactory = serverFactory ?? _defaultFactory,
+       _serve = serve ?? _defaultServe;
 
   final CockpitMcpServerRuntimeFactory _serverFactory;
   final CockpitMcpServerRuntimeServe _serve;
@@ -123,9 +123,11 @@ final class CockpitMcpServerRuntime {
       workspaceRoots: List<String>.unmodifiable(
         args.multiOption('workspace-root'),
       ),
-      skillContractPath: args['skill-contract-file'] as String? ??
+      skillContractPath:
+          args['skill-contract-file'] as String? ??
           'docs/contracts/flutter-cockpit-skill-contract.md',
-      bundleContractPath: args['bundle-contract-file'] as String? ??
+      bundleContractPath:
+          args['bundle-contract-file'] as String? ??
           'docs/contracts/task-run-bundle.md',
       logFilePath: args['log-file'] as String?,
     );
@@ -137,10 +139,7 @@ final class CockpitMcpServerRuntime {
         ? null
         : await _FileProtocolLogSink.create(options.logFilePath!);
     try {
-      await _serve(
-        _serverFactory(options),
-        protocolLogSink: logSink,
-      );
+      await _serve(_serverFactory(options), protocolLogSink: logSink);
     } finally {
       await logSink?.close();
     }

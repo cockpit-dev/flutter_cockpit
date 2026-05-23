@@ -36,7 +36,8 @@ void main() {
           ),
         );
 
-      final exitCode = await runner.run(<String>[
+      final exitCode =
+          await runner.run(<String>[
             'compare-development-probe',
             '--stdout-format',
             'json',

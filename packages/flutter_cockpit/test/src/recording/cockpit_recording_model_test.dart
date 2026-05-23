@@ -12,7 +12,8 @@ void main() {
   test('CockpitRecordingLayer round-trips through json aliases', () {
     expect(
       CockpitRecordingLayer.fromJson(
-          CockpitRecordingLayer.hostScreen.jsonValue),
+        CockpitRecordingLayer.hostScreen.jsonValue,
+      ),
       CockpitRecordingLayer.hostScreen,
     );
     expect(
@@ -96,9 +97,9 @@ void main() {
   );
 
   test('CockpitRecordingRequest defaults name from purpose when omitted', () {
-    final request = CockpitRecordingRequest.fromJson(
-      <String, Object?>{'purpose': 'acceptance'},
-    );
+    final request = CockpitRecordingRequest.fromJson(<String, Object?>{
+      'purpose': 'acceptance',
+    });
 
     expect(request.purpose, CockpitRecordingPurpose.acceptance);
     expect(request.name, 'acceptance');
@@ -147,10 +148,10 @@ void main() {
         CockpitRecordingCapabilities.fromJson(capabilities.toJson()),
         capabilities,
       );
-      expect(
-        capabilities.toJson()['supportedLayers'],
-        <String>['app-window', 'host-screen'],
-      );
+      expect(capabilities.toJson()['supportedLayers'], <String>[
+        'app-window',
+        'host-screen',
+      ]);
     },
   );
 

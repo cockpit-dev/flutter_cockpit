@@ -7,18 +7,18 @@ import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_workspace_cli_support.dart';
 
-typedef CockpitReadPackageUrisFunction = Future<CockpitReadPackageUrisResult>
-    Function(
-  CockpitReadPackageUrisRequest request,
-);
+typedef CockpitReadPackageUrisFunction =
+    Future<CockpitReadPackageUrisResult> Function(
+      CockpitReadPackageUrisRequest request,
+    );
 
 final class ReadPackageUrisCommand extends CockpitCliCommand {
   ReadPackageUrisCommand({
     CockpitReadPackageUrisService? service,
     CockpitReadPackageUrisFunction? read,
     StringSink? stdoutSink,
-  })  : _read = read ?? (service ?? CockpitReadPackageUrisService()).read,
-        _stdoutSink = stdoutSink ?? stdout {
+  }) : _read = read ?? (service ?? CockpitReadPackageUrisService()).read,
+       _stdoutSink = stdoutSink ?? stdout {
     cockpitAddWorkspaceRootOption(argParser);
     argParser
       ..addMultiOption(

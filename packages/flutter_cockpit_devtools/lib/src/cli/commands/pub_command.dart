@@ -7,17 +7,16 @@ import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_workspace_cli_support.dart';
 
-typedef CockpitPubFunction = Future<CockpitPubResult> Function(
-  CockpitPubRequest request,
-);
+typedef CockpitPubFunction =
+    Future<CockpitPubResult> Function(CockpitPubRequest request);
 
 final class PubCommand extends CockpitCliCommand {
   PubCommand({
     CockpitPubService? service,
     CockpitPubFunction? run,
     StringSink? stdoutSink,
-  })  : _run = run ?? (service ?? CockpitPubService()).run,
-        _stdoutSink = stdoutSink ?? stdout {
+  }) : _run = run ?? (service ?? CockpitPubService()).run,
+       _stdoutSink = stdoutSink ?? stdout {
     cockpitAddWorkspaceRootOption(argParser);
     argParser
       ..addOption(

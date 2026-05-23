@@ -37,9 +37,8 @@ void main() {
     test('reads a richer snapshot when the profile requires it', () async {
       CockpitSnapshotOptions? capturedOptions;
       final service = CockpitReadRemoteStatusService(
-        readStatus: (_) async => _status(
-          snapshot: CockpitSnapshot(routeName: '/home'),
-        ),
+        readStatus: (_) async =>
+            _status(snapshot: CockpitSnapshot(routeName: '/home')),
         readSnapshot: (_, options) async {
           capturedOptions = options;
           return CockpitRemoteSnapshotResponse(
@@ -84,10 +83,9 @@ void main() {
 
     test('returns full snapshots for forensic reads', () async {
       final service = CockpitReadRemoteStatusService(
-        readStatus: (_) async => _status(
-          snapshot: CockpitSnapshot(routeName: '/home'),
-        ),
-        readSnapshot: (_, __) async => CockpitRemoteSnapshotResponse(
+        readStatus: (_) async =>
+            _status(snapshot: CockpitSnapshot(routeName: '/home')),
+        readSnapshot: (_, _) async => CockpitRemoteSnapshotResponse(
           snapshot: CockpitSnapshot(
             routeName: '/forensic',
             diagnosticLevel: CockpitSnapshotProfile.forensic,
@@ -109,10 +107,9 @@ void main() {
     test('retries transient empty rich snapshots for read-app flows', () async {
       var readCount = 0;
       final service = CockpitReadRemoteStatusService(
-        readStatus: (_) async => _status(
-          snapshot: CockpitSnapshot(routeName: '/settings'),
-        ),
-        readSnapshot: (_, __) async {
+        readStatus: (_) async =>
+            _status(snapshot: CockpitSnapshot(routeName: '/settings')),
+        readSnapshot: (_, _) async {
           readCount += 1;
           return CockpitRemoteSnapshotResponse(
             snapshot: readCount == 1
@@ -172,12 +169,8 @@ void main() {
       final service = CockpitReadRemoteStatusService(
         sessionReferenceResolver: CockpitSessionReferenceResolver(
           portForwarder: CockpitAndroidPortForwarder(
-            processRunner: (_, __) async => ProcessResult(
-              0,
-              0,
-              'emulator-5554 tcp:61331 tcp:47331\n',
-              '',
-            ),
+            processRunner: (_, _) async =>
+                ProcessResult(0, 0, 'emulator-5554 tcp:61331 tcp:47331\n', ''),
             hostPortAllocator: () async => 61331,
             hostPortAvailabilityChecker: (_) async => false,
           ),

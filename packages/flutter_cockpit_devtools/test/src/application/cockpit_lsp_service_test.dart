@@ -5,51 +5,56 @@ import 'package:flutter_cockpit_devtools/src/infrastructure/cockpit_file_system.
 import 'package:test/test.dart';
 
 void main() {
-  test('hover resolves relative paths and converts to 1-based output',
-      () async {
-    final fileSystem = MemoryFileSystem();
-    fileSystem.file('/workspace/pkg/lib/main.dart')
-      ..createSync(recursive: true)
-      ..writeAsStringSync('void main() {}\n');
-    final executor = _FakeLspExecutor(
-      response: <String, Object?>{
-        'contents': <String, Object?>{
-          'kind': 'markdown',
-          'value': 'Type: `void Function()`',
+  test(
+    'hover resolves relative paths and converts to 1-based output',
+    () async {
+      final fileSystem = MemoryFileSystem();
+      fileSystem.file('/workspace/pkg/lib/main.dart')
+        ..createSync(recursive: true)
+        ..writeAsStringSync('void main() {}\n');
+      final executor = _FakeLspExecutor(
+        response: <String, Object?>{
+          'contents': <String, Object?>{
+            'kind': 'markdown',
+            'value': 'Type: `void Function()`',
+          },
+          'range': <String, Object?>{
+            'start': <String, Object?>{'line': 0, 'character': 0},
+            'end': <String, Object?>{'line': 0, 'character': 4},
+          },
         },
-        'range': <String, Object?>{
-          'start': <String, Object?>{'line': 0, 'character': 0},
-          'end': <String, Object?>{'line': 0, 'character': 4},
-        },
-      },
-    );
-    final service = CockpitLspService(
-      fileSystem: LocalCockpitFileSystem(fileSystem: fileSystem),
-      executor: executor,
-    );
+      );
+      final service = CockpitLspService(
+        fileSystem: LocalCockpitFileSystem(fileSystem: fileSystem),
+        executor: executor,
+      );
 
-    final result = await service.invoke(
-      const CockpitLspRequest(
-        workspaceRoot: '/workspace/pkg',
-        command: CockpitLspCommand.hover,
-        path: 'lib/main.dart',
-        line: 1,
-        column: 1,
-      ),
-    );
+      final result = await service.invoke(
+        const CockpitLspRequest(
+          workspaceRoot: '/workspace/pkg',
+          command: CockpitLspCommand.hover,
+          path: 'lib/main.dart',
+          line: 1,
+          column: 1,
+        ),
+      );
 
-    expect(executor.method, 'textDocument/hover');
-    expect(executor.documentPath, '/workspace/pkg/lib/main.dart');
-    expect(executor.params['position'], <String, Object?>{
-      'line': 0,
-      'character': 0,
-    });
-    expect(executor.timeout, isNotNull);
-    expect(executor.timeout!, lessThanOrEqualTo(const Duration(seconds: 20)));
-    expect(executor.timeout!, greaterThan(const Duration(seconds: 19)));
-    expect(result.toJson()['found'], isTrue);
-    expect((result.toJson()['range'] as Map<String, Object?>)['startLine'], 1);
-  });
+      expect(executor.method, 'textDocument/hover');
+      expect(executor.documentPath, '/workspace/pkg/lib/main.dart');
+      expect(executor.params['position'], <String, Object?>{
+        'line': 0,
+        'character': 0,
+      });
+      expect(executor.timeout, isNotNull);
+      expect(executor.timeout!, lessThanOrEqualTo(const Duration(seconds: 20)));
+      expect(executor.timeout!, greaterThan(const Duration(seconds: 19)));
+      expect(result.toJson()['found'], isTrue);
+      expect(
+        (result.toJson()['range'] as Map<String, Object?>)['startLine'],
+        1,
+      );
+    },
+  );
 
   test('workspace symbols are bounded and normalized', () async {
     final executor = _FakeSequenceLspExecutor(
@@ -140,56 +145,60 @@ void main() {
   });
 
   test(
-      'hover reports a bounded analysis timeout when the file never becomes ready',
-      () async {
-    final fileSystem = MemoryFileSystem();
-    fileSystem.file('/workspace/pkg/lib/main.dart')
-      ..createSync(recursive: true)
-      ..writeAsStringSync('void main() {}\n');
-    final executor = _FakeSequenceLspExecutor(
-      responses: <Object?>[
-        const CockpitApplicationServiceException(
-          code: 'lspRequestFailed',
-          message: 'LSP request failed.',
-          details: <String, Object?>{
-            'method': 'textDocument/hover',
-            'error':
-                'CockpitApplicationServiceException(lspServerError): File is not being analyzed {code: -32007, data: /workspace/pkg/lib/main.dart}',
-          },
-        ),
-        const CockpitApplicationServiceException(
-          code: 'lspRequestFailed',
-          message: 'LSP request failed.',
-          details: <String, Object?>{
-            'method': 'textDocument/hover',
-            'error':
-                'CockpitApplicationServiceException(lspServerError): File is not being analyzed {code: -32007, data: /workspace/pkg/lib/main.dart}',
-          },
-        ),
-      ],
-    );
-    final service = CockpitLspService(
-      fileSystem: LocalCockpitFileSystem(fileSystem: fileSystem),
-      executor: executor,
-    );
+    'hover reports a bounded analysis timeout when the file never becomes ready',
+    () async {
+      final fileSystem = MemoryFileSystem();
+      fileSystem.file('/workspace/pkg/lib/main.dart')
+        ..createSync(recursive: true)
+        ..writeAsStringSync('void main() {}\n');
+      final executor = _FakeSequenceLspExecutor(
+        responses: <Object?>[
+          const CockpitApplicationServiceException(
+            code: 'lspRequestFailed',
+            message: 'LSP request failed.',
+            details: <String, Object?>{
+              'method': 'textDocument/hover',
+              'error':
+                  'CockpitApplicationServiceException(lspServerError): File is not being analyzed {code: -32007, data: /workspace/pkg/lib/main.dart}',
+            },
+          ),
+          const CockpitApplicationServiceException(
+            code: 'lspRequestFailed',
+            message: 'LSP request failed.',
+            details: <String, Object?>{
+              'method': 'textDocument/hover',
+              'error':
+                  'CockpitApplicationServiceException(lspServerError): File is not being analyzed {code: -32007, data: /workspace/pkg/lib/main.dart}',
+            },
+          ),
+        ],
+      );
+      final service = CockpitLspService(
+        fileSystem: LocalCockpitFileSystem(fileSystem: fileSystem),
+        executor: executor,
+      );
 
-    await expectLater(
-      () => service.invoke(
-        const CockpitLspRequest(
-          workspaceRoot: '/workspace/pkg',
-          command: CockpitLspCommand.hover,
-          path: 'lib/main.dart',
-          line: 1,
-          column: 1,
-          timeout: Duration(milliseconds: 200),
+      await expectLater(
+        () => service.invoke(
+          const CockpitLspRequest(
+            workspaceRoot: '/workspace/pkg',
+            command: CockpitLspCommand.hover,
+            path: 'lib/main.dart',
+            line: 1,
+            column: 1,
+            timeout: Duration(milliseconds: 200),
+          ),
         ),
-      ),
-      throwsA(
-        isA<CockpitApplicationServiceException>()
-            .having((error) => error.code, 'code', 'lspAnalysisTimedOut'),
-      ),
-    );
-  });
+        throwsA(
+          isA<CockpitApplicationServiceException>().having(
+            (error) => error.code,
+            'code',
+            'lspAnalysisTimedOut',
+          ),
+        ),
+      );
+    },
+  );
 }
 
 final class _FakeLspExecutor implements CockpitLspExecutor {
@@ -219,7 +228,7 @@ final class _FakeLspExecutor implements CockpitLspExecutor {
 
 final class _FakeSequenceLspExecutor implements CockpitLspExecutor {
   _FakeSequenceLspExecutor({required List<Object?> responses})
-      : _responses = List<Object?>.from(responses);
+    : _responses = List<Object?>.from(responses);
 
   final List<Object?> _responses;
   int calls = 0;

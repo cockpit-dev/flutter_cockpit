@@ -13,17 +13,14 @@ import 'cockpit_interactive_result_profile.dart';
 import 'cockpit_launch_app_service.dart';
 import 'cockpit_read_app_service.dart';
 
-typedef CockpitLaunchTargetFunction = Future<CockpitLaunchTargetResult>
-    Function(
-  CockpitLaunchTargetRequest request,
-);
-typedef CockpitLaunchFlutterAppTargetFunction = Future<CockpitLaunchAppResult>
-    Function(
-  CockpitLaunchAppRequest request,
-);
-typedef CockpitReadLaunchedAppFunction = Future<CockpitReadAppResult> Function(
-  CockpitReadAppRequest request,
-);
+typedef CockpitLaunchTargetFunction =
+    Future<CockpitLaunchTargetResult> Function(
+      CockpitLaunchTargetRequest request,
+    );
+typedef CockpitLaunchFlutterAppTargetFunction =
+    Future<CockpitLaunchAppResult> Function(CockpitLaunchAppRequest request);
+typedef CockpitReadLaunchedAppFunction =
+    Future<CockpitReadAppResult> Function(CockpitReadAppRequest request);
 
 final class CockpitLaunchTargetRequest {
   const CockpitLaunchTargetRequest({
@@ -67,13 +64,12 @@ final class CockpitLaunchTargetResult {
   final String? whatMatters;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'target': target.toJson(),
-        if (targetJsonPath != null) 'targetJsonPath': targetJsonPath,
-        if (app != null) 'app': app!.toJson(),
-        if (recommendedNextStep != null)
-          'recommendedNextStep': recommendedNextStep,
-        if (whatMatters != null) 'whatMatters': whatMatters,
-      };
+    'target': target.toJson(),
+    if (targetJsonPath != null) 'targetJsonPath': targetJsonPath,
+    if (app != null) 'app': app!.toJson(),
+    if (recommendedNextStep != null) 'recommendedNextStep': recommendedNextStep,
+    if (whatMatters != null) 'whatMatters': whatMatters,
+  };
 }
 
 final class CockpitLaunchTargetService {
@@ -84,12 +80,13 @@ final class CockpitLaunchTargetService {
     CockpitReadAppService? readAppService,
     CockpitReadLaunchedAppFunction? readApp,
     CockpitPlatformDriverRegistry? platformDriverRegistry,
-  })  : _launchTargetOverride = launchTarget,
-        _launchFlutterApp = launchFlutterApp ??
-            (launchAppService ?? CockpitLaunchAppService()).launch,
-        _readApp = readApp ?? (readAppService ?? CockpitReadAppService()).read,
-        _platformDriverRegistry =
-            platformDriverRegistry ?? CockpitPlatformDriverRegistry();
+  }) : _launchTargetOverride = launchTarget,
+       _launchFlutterApp =
+           launchFlutterApp ??
+           (launchAppService ?? CockpitLaunchAppService()).launch,
+       _readApp = readApp ?? (readAppService ?? CockpitReadAppService()).read,
+       _platformDriverRegistry =
+           platformDriverRegistry ?? CockpitPlatformDriverRegistry();
 
   final CockpitLaunchTargetFunction? _launchTargetOverride;
   final CockpitLaunchFlutterAppTargetFunction _launchFlutterApp;
@@ -284,13 +281,11 @@ final class CockpitLaunchTargetService {
     return switch (targetKind) {
       CockpitTargetKind.flutterApp ||
       CockpitTargetKind.desktopApp ||
-      CockpitTargetKind.browserPage =>
-        true,
+      CockpitTargetKind.browserPage => true,
       CockpitTargetKind.nativeApp ||
       CockpitTargetKind.systemSurface ||
       CockpitTargetKind.device ||
-      CockpitTargetKind.hostWorkspace =>
-        false,
+      CockpitTargetKind.hostWorkspace => false,
     };
   }
 }

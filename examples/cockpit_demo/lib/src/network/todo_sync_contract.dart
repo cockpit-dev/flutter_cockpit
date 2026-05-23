@@ -2,10 +2,7 @@ import '../model/todo_sync_conflict.dart';
 import '../model/todo_task.dart';
 
 final class TodoSyncBatchRequest {
-  const TodoSyncBatchRequest({
-    required this.tasks,
-    required this.triggeredAt,
-  });
+  const TodoSyncBatchRequest({required this.tasks, required this.triggeredAt});
 
   final List<TodoTask> tasks;
   final DateTime triggeredAt;
@@ -22,20 +19,14 @@ final class TodoSyncBatchRequest {
 }
 
 final class TodoSyncRetryableFailure {
-  const TodoSyncRetryableFailure({
-    required this.taskId,
-    required this.summary,
-  });
+  const TodoSyncRetryableFailure({required this.taskId, required this.summary});
 
   final String taskId;
   final String summary;
 }
 
 final class TodoSyncConflictEntry {
-  const TodoSyncConflictEntry({
-    required this.taskId,
-    required this.conflict,
-  });
+  const TodoSyncConflictEntry({required this.taskId, required this.conflict});
 
   final String taskId;
   final TodoSyncConflict conflict;

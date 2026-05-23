@@ -105,7 +105,8 @@ void main() {
           commandRequests.add(request);
           return CockpitExecuteRemoteCommandResult(
             command: _commandCore(request.command),
-            artifacts: request.command.commandType ==
+            artifacts:
+                request.command.commandType ==
                     CockpitCommandType.captureScreenshot
                 ? const <CockpitInteractiveArtifactDescriptor>[
                     CockpitInteractiveArtifactDescriptor(
@@ -169,30 +170,25 @@ void main() {
       );
 
       expect(result.success, isTrue);
-      expect(
-        result.platforms.map((platform) => platform.platform),
-        <String>['macos', 'ios', 'android'],
-      );
+      expect(result.platforms.map((platform) => platform.platform), <String>[
+        'macos',
+        'ios',
+        'android',
+      ]);
       expect(
         result.platforms.map((platform) => platform.status),
         everyElement('passed'),
       );
-      expect(
-        launchRequests.map((request) => request.deviceId),
-        <String>[
-          'macos',
-          'FC5B7D0F-B7FB-4A7A-B1B0-FF28BC289BC2',
-          'emulator-5554',
-        ],
-      );
+      expect(launchRequests.map((request) => request.deviceId), <String>[
+        'macos',
+        'FC5B7D0F-B7FB-4A7A-B1B0-FF28BC289BC2',
+        'emulator-5554',
+      ]);
       expect(
         bootCommands,
         contains('xcrun simctl boot FC5B7D0F-B7FB-4A7A-B1B0-FF28BC289BC2'),
       );
-      expect(
-        bootCommands,
-        contains('flutter emulators --launch Pixel_9_Pro'),
-      );
+      expect(bootCommands, contains('flutter emulators --launch Pixel_9_Pro'));
       expect(batchRequests, hasLength(3));
       expect(
         batchRequests.first.commands
@@ -247,19 +243,16 @@ void main() {
         result.platforms.map((platform) => platform.screenshotArtifactRef),
         everyElement('screenshots/rapid_queue_brief.png'),
       );
-      expect(
-        result.platforms.first.verifiedCommands,
-        <String>[
-          'launch-app',
-          'read-app',
-          'run-batch',
-          'wait-idle',
-          'hot-reload',
-          'assert-text',
-          'capture-screenshot',
-          'read-errors',
-        ],
-      );
+      expect(result.platforms.first.verifiedCommands, <String>[
+        'launch-app',
+        'read-app',
+        'run-batch',
+        'wait-idle',
+        'hot-reload',
+        'assert-text',
+        'capture-screenshot',
+        'read-errors',
+      ]);
     },
   );
 
@@ -420,7 +413,8 @@ void main() {
         ),
         runCommand: (request) async => CockpitExecuteRemoteCommandResult(
           command: _commandCore(request.command),
-          artifacts: request.command.commandType ==
+          artifacts:
+              request.command.commandType ==
                   CockpitCommandType.captureScreenshot
               ? const <CockpitInteractiveArtifactDescriptor>[
                   CockpitInteractiveArtifactDescriptor(

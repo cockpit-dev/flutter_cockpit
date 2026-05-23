@@ -49,7 +49,8 @@ void main() {
         ),
       );
 
-    final exitCode = await runner.run(<String>[
+    final exitCode =
+        await runner.run(<String>[
           'inspect-surface',
           '--stdout-format',
           'json',

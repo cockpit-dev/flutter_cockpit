@@ -24,26 +24,28 @@ void main() {
     expect(adapter, isA<CockpitHostPreferredCaptureAdapter>());
   });
 
-  test('uses simctl host capture when an iOS simulator device ID is provided',
-      () {
-    final remoteAdapter = _FakeCaptureAdapter();
-    final simctlAdapter = _FakeCaptureAdapter();
-    final resolver = CockpitCaptureStrategyResolver(
-      remoteAdapterFactory: (client) => remoteAdapter,
-      adbAdapterFactory: (deviceId) => _FakeCaptureAdapter(),
-      simctlAdapterFactory: (deviceId) => simctlAdapter,
-    );
+  test(
+    'uses simctl host capture when an iOS simulator device ID is provided',
+    () {
+      final remoteAdapter = _FakeCaptureAdapter();
+      final simctlAdapter = _FakeCaptureAdapter();
+      final resolver = CockpitCaptureStrategyResolver(
+        remoteAdapterFactory: (client) => remoteAdapter,
+        adbAdapterFactory: (deviceId) => _FakeCaptureAdapter(),
+        simctlAdapterFactory: (deviceId) => simctlAdapter,
+      );
 
-    final adapter = resolver.resolve(
-      platform: 'ios',
-      client: CockpitRemoteSessionClient(
-        baseUri: Uri.parse('http://127.0.0.1:47331'),
-      ),
-      iosDeviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
-    );
+      final adapter = resolver.resolve(
+        platform: 'ios',
+        client: CockpitRemoteSessionClient(
+          baseUri: Uri.parse('http://127.0.0.1:47331'),
+        ),
+        iosDeviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+      );
 
-    expect(adapter, isA<CockpitHostPreferredCaptureAdapter>());
-  });
+      expect(adapter, isA<CockpitHostPreferredCaptureAdapter>());
+    },
+  );
 
   test('uses remote capture for physical iOS device IDs', () {
     final remoteAdapter = _FakeCaptureAdapter();
@@ -96,48 +98,50 @@ void main() {
     expect(adapter, isA<CockpitHostPreferredCaptureAdapter>());
   });
 
-  test('uses host-preferred capture on windows when an app id is available',
-      () {
-    final remoteAdapter = _FakeCaptureAdapter();
-    final windowsAdapter = _FakeCaptureAdapter();
-    String? capturedAppId;
-    int? capturedProcessId;
-    final resolver = CockpitCaptureStrategyResolver(
-      remoteAdapterFactory: (client) => remoteAdapter,
-      adbAdapterFactory: (deviceId) => _FakeCaptureAdapter(),
-      simctlAdapterFactory: (deviceId) => _FakeCaptureAdapter(),
-      macosAdapterFactory: (appId) => _FakeCaptureAdapter(),
-      windowsAdapterFactory: (appId, {processId}) {
-        capturedAppId = appId;
-        capturedProcessId = processId;
-        return windowsAdapter;
-      },
-    );
+  test(
+    'uses host-preferred capture on windows when an app id is available',
+    () {
+      final remoteAdapter = _FakeCaptureAdapter();
+      final windowsAdapter = _FakeCaptureAdapter();
+      String? capturedAppId;
+      int? capturedProcessId;
+      final resolver = CockpitCaptureStrategyResolver(
+        remoteAdapterFactory: (client) => remoteAdapter,
+        adbAdapterFactory: (deviceId) => _FakeCaptureAdapter(),
+        simctlAdapterFactory: (deviceId) => _FakeCaptureAdapter(),
+        macosAdapterFactory: (appId) => _FakeCaptureAdapter(),
+        windowsAdapterFactory: (appId, {processId}) {
+          capturedAppId = appId;
+          capturedProcessId = processId;
+          return windowsAdapter;
+        },
+      );
 
-    final adapter = resolver.resolve(
-      platform: 'windows',
-      client: CockpitRemoteSessionClient(
-        baseUri: Uri.parse('http://127.0.0.1:47331'),
-      ),
-      sessionHandle: CockpitRemoteSessionHandle(
+      final adapter = resolver.resolve(
         platform: 'windows',
-        deviceId: 'windows',
-        projectDir: '/workspace/examples/cockpit_demo',
-        target: 'cockpit/main.dart',
-        appId: 'cockpit_demo',
-        processId: 4101,
-        host: '127.0.0.1',
-        hostPort: 47331,
-        devicePort: 47331,
-        baseUrl: 'http://127.0.0.1:47331',
-        launchedAt: DateTime.utc(2026, 3, 24),
-      ),
-    );
+        client: CockpitRemoteSessionClient(
+          baseUri: Uri.parse('http://127.0.0.1:47331'),
+        ),
+        sessionHandle: CockpitRemoteSessionHandle(
+          platform: 'windows',
+          deviceId: 'windows',
+          projectDir: '/workspace/examples/cockpit_demo',
+          target: 'cockpit/main.dart',
+          appId: 'cockpit_demo',
+          processId: 4101,
+          host: '127.0.0.1',
+          hostPort: 47331,
+          devicePort: 47331,
+          baseUrl: 'http://127.0.0.1:47331',
+          launchedAt: DateTime.utc(2026, 3, 24),
+        ),
+      );
 
-    expect(adapter, isA<CockpitHostPreferredCaptureAdapter>());
-    expect(capturedAppId, 'cockpit_demo');
-    expect(capturedProcessId, 4101);
-  });
+      expect(adapter, isA<CockpitHostPreferredCaptureAdapter>());
+      expect(capturedAppId, 'cockpit_demo');
+      expect(capturedProcessId, 4101);
+    },
+  );
 
   test('uses host-preferred capture on linux when an app id is available', () {
     final remoteAdapter = _FakeCaptureAdapter();

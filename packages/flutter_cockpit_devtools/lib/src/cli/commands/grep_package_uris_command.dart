@@ -7,18 +7,18 @@ import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_workspace_cli_support.dart';
 
-typedef CockpitGrepPackageUrisFunction = Future<CockpitGrepPackageUrisResult>
-    Function(
-  CockpitGrepPackageUrisRequest request,
-);
+typedef CockpitGrepPackageUrisFunction =
+    Future<CockpitGrepPackageUrisResult> Function(
+      CockpitGrepPackageUrisRequest request,
+    );
 
 final class GrepPackageUrisCommand extends CockpitCliCommand {
   GrepPackageUrisCommand({
     CockpitGrepPackageUrisService? service,
     CockpitGrepPackageUrisFunction? grep,
     StringSink? stdoutSink,
-  })  : _grep = grep ?? (service ?? CockpitGrepPackageUrisService()).grep,
-        _stdoutSink = stdoutSink ?? stdout {
+  }) : _grep = grep ?? (service ?? CockpitGrepPackageUrisService()).grep,
+       _stdoutSink = stdoutSink ?? stdout {
     cockpitAddWorkspaceRootOption(argParser);
     argParser
       ..addMultiOption(

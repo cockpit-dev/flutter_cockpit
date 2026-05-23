@@ -4,17 +4,17 @@ import '../../application/cockpit_execute_remote_command_service.dart';
 import '../../application/cockpit_interactive_result_profile.dart';
 import '../cockpit_mcp_tool.dart';
 
-typedef CockpitExecuteRemoteCommandToolFunction
-    = Future<CockpitExecuteRemoteCommandResult> Function(
-  CockpitExecuteRemoteCommandRequest request,
-);
+typedef CockpitExecuteRemoteCommandToolFunction =
+    Future<CockpitExecuteRemoteCommandResult> Function(
+      CockpitExecuteRemoteCommandRequest request,
+    );
 
 final class CockpitExecuteRemoteCommandTool extends CockpitMcpTool {
   CockpitExecuteRemoteCommandTool({
     CockpitExecuteRemoteCommandService? service,
     CockpitExecuteRemoteCommandToolFunction? execute,
-  }) : _execute = execute ??
-            (service ?? CockpitExecuteRemoteCommandService()).execute;
+  }) : _execute =
+           execute ?? (service ?? CockpitExecuteRemoteCommandService()).execute;
 
   final CockpitExecuteRemoteCommandToolFunction _execute;
 
@@ -27,13 +27,13 @@ final class CockpitExecuteRemoteCommandTool extends CockpitMcpTool {
 
   @override
   CockpitMcpToolAnnotations get annotations => const CockpitMcpToolAnnotations(
-        readOnly: false,
-        destructive: false,
-        idempotent: false,
-        longRunning: false,
-        requiresSession: true,
-        producesBundleEvidence: false,
-      );
+    readOnly: false,
+    destructive: false,
+    idempotent: false,
+    longRunning: false,
+    requiresSession: true,
+    producesBundleEvidence: false,
+  );
 
   @override
   List<CockpitMcpFeatureCategory> get categories =>
@@ -44,18 +44,18 @@ final class CockpitExecuteRemoteCommandTool extends CockpitMcpTool {
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
-        'type': 'object',
-        'required': <String>['command'],
-        'properties': <String, Object?>{
-          'sessionHandle': <String, Object?>{'type': 'object'},
-          'sessionHandlePath': <String, Object?>{'type': 'string'},
-          'command': <String, Object?>{'type': 'object'},
-          'timeoutMs': <String, Object?>{'type': 'integer'},
-          'profile': <String, Object?>{'type': 'string'},
-          'snapshotOptions': <String, Object?>{'type': 'object'},
-          'compareAgainstSnapshotRef': <String, Object?>{'type': 'string'},
-        },
-      };
+    'type': 'object',
+    'required': <String>['command'],
+    'properties': <String, Object?>{
+      'sessionHandle': <String, Object?>{'type': 'object'},
+      'sessionHandlePath': <String, Object?>{'type': 'string'},
+      'command': <String, Object?>{'type': 'object'},
+      'timeoutMs': <String, Object?>{'type': 'integer'},
+      'profile': <String, Object?>{'type': 'string'},
+      'snapshotOptions': <String, Object?>{'type': 'object'},
+      'compareAgainstSnapshotRef': <String, Object?>{'type': 'string'},
+    },
+  };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {
@@ -71,16 +71,15 @@ final class CockpitExecuteRemoteCommandTool extends CockpitMcpTool {
             cockpitReadRequiredObject(arguments, 'command'),
           ),
           defaultCommandTimeout: Duration(
-            milliseconds: cockpitReadOptionalPositiveInt(
-                  arguments,
-                  'timeoutMs',
-                ) ??
-                30000,
+            milliseconds:
+                cockpitReadOptionalPositiveInt(arguments, 'timeoutMs') ?? 30000,
           ),
           resultProfile: _readProfile(arguments),
           snapshotOptions: _readOptionalSnapshotOptions(arguments),
-          compareAgainstSnapshotRef:
-              cockpitReadOptionalString(arguments, 'compareAgainstSnapshotRef'),
+          compareAgainstSnapshotRef: cockpitReadOptionalString(
+            arguments,
+            'compareAgainstSnapshotRef',
+          ),
         ),
       );
       return cockpitMcpResult(

@@ -34,9 +34,8 @@ final class TodoSyncProbeResult {
 
 typedef TodoSyncPayloadBuilder = Future<Map<String, Object?>> Function();
 typedef TodoSyncFailurePredicate = bool Function();
-typedef TodoSyncBatchHandler = Future<TodoSyncBatchResult> Function(
-  TodoSyncBatchRequest request,
-);
+typedef TodoSyncBatchHandler =
+    Future<TodoSyncBatchResult> Function(TodoSyncBatchRequest request);
 
 final class TodoLoopbackSyncGateway implements TodoSyncGatewayClient {
   TodoLoopbackSyncGateway({
@@ -45,11 +44,11 @@ final class TodoLoopbackSyncGateway implements TodoSyncGatewayClient {
     TodoSyncFailurePredicate? shouldSimulateFailure,
     TodoSyncBatchHandler? batchHandler,
     String host = '127.0.0.1',
-  })  : _payloadBuilder = payloadBuilder,
-        _httpClientFactory = httpClientFactory ?? HttpClient.new,
-        _shouldSimulateFailure = shouldSimulateFailure,
-        _batchHandler = batchHandler,
-        _host = host;
+  }) : _payloadBuilder = payloadBuilder,
+       _httpClientFactory = httpClientFactory ?? HttpClient.new,
+       _shouldSimulateFailure = shouldSimulateFailure,
+       _batchHandler = batchHandler,
+       _host = host;
 
   final TodoSyncPayloadBuilder _payloadBuilder;
   final HttpClient Function() _httpClientFactory;
@@ -74,7 +73,8 @@ final class TodoLoopbackSyncGateway implements TodoSyncGatewayClient {
           : Map<String, Object?>.from(
               jsonDecode(payload) as Map<Object?, Object?>,
             );
-      final summary = (json['summary'] as String?) ??
+      final summary =
+          (json['summary'] as String?) ??
           'Relay responded with HTTP ${response.statusCode}.';
       return TodoSyncProbeResult(
         endpoint: endpoint,

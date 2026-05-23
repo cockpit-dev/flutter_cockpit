@@ -11,13 +11,10 @@ import 'cockpit_interactive_result_data.dart';
 import 'cockpit_interactive_result_profile.dart';
 import 'cockpit_read_app_service.dart';
 
-typedef CockpitReadTargetFunction = Future<CockpitReadTargetResult> Function(
-  CockpitReadTargetRequest request,
-);
-typedef CockpitReadFlutterTargetFunction = Future<CockpitReadAppResult>
-    Function(
-  CockpitReadAppRequest request,
-);
+typedef CockpitReadTargetFunction =
+    Future<CockpitReadTargetResult> Function(CockpitReadTargetRequest request);
+typedef CockpitReadFlutterTargetFunction =
+    Future<CockpitReadAppResult> Function(CockpitReadAppRequest request);
 
 final class CockpitReadTargetRequest {
   const CockpitReadTargetRequest({
@@ -75,23 +72,22 @@ final class CockpitReadTargetResult {
   final CockpitSnapshotOptions? effectiveSnapshotOptions;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'target': target.toJson(),
-        'capabilityProfile': capabilityProfile.toJson(),
-        'foregroundSurface': foregroundSurface.name,
-        'selectedPlane': selectedPlane.name,
-        'fallbackTrail':
-            fallbackTrail.map((planeKind) => planeKind.name).toList(),
-        'recommendedNextStep': recommendedNextStep,
-        if (whatMatters != null) 'whatMatters': whatMatters,
-        if (sessionId != null) 'sessionId': sessionId,
-        if (transportType != null) 'transportType': transportType,
-        if (currentRouteName != null) 'currentRouteName': currentRouteName,
-        if (uiSummary != null) 'uiSummary': uiSummary!.toJson(),
-        if (snapshot != null) 'snapshot': snapshot!.toJson(),
-        if (snapshotRef != null) 'snapshotRef': snapshotRef,
-        if (effectiveSnapshotOptions != null)
-          'effectiveSnapshotOptions': effectiveSnapshotOptions!.toJson(),
-      };
+    'target': target.toJson(),
+    'capabilityProfile': capabilityProfile.toJson(),
+    'foregroundSurface': foregroundSurface.name,
+    'selectedPlane': selectedPlane.name,
+    'fallbackTrail': fallbackTrail.map((planeKind) => planeKind.name).toList(),
+    'recommendedNextStep': recommendedNextStep,
+    if (whatMatters != null) 'whatMatters': whatMatters,
+    if (sessionId != null) 'sessionId': sessionId,
+    if (transportType != null) 'transportType': transportType,
+    if (currentRouteName != null) 'currentRouteName': currentRouteName,
+    if (uiSummary != null) 'uiSummary': uiSummary!.toJson(),
+    if (snapshot != null) 'snapshot': snapshot!.toJson(),
+    if (snapshotRef != null) 'snapshotRef': snapshotRef,
+    if (effectiveSnapshotOptions != null)
+      'effectiveSnapshotOptions': effectiveSnapshotOptions!.toJson(),
+  };
 }
 
 final class CockpitReadTargetService {
@@ -101,13 +97,14 @@ final class CockpitReadTargetService {
     CockpitReadFlutterTargetFunction? readFlutterTarget,
     CockpitTargetReferenceResolver? targetReferenceResolver,
     CockpitPlatformDriverRegistry? platformDriverRegistry,
-  })  : _readTargetOverride = readTarget,
-        _readFlutterTarget = readFlutterTarget ??
-            (readAppService ?? CockpitReadAppService()).read,
-        _targetReferenceResolver =
-            targetReferenceResolver ?? CockpitTargetReferenceResolver(),
-        _platformDriverRegistry =
-            platformDriverRegistry ?? CockpitPlatformDriverRegistry();
+  }) : _readTargetOverride = readTarget,
+       _readFlutterTarget =
+           readFlutterTarget ??
+           (readAppService ?? CockpitReadAppService()).read,
+       _targetReferenceResolver =
+           targetReferenceResolver ?? CockpitTargetReferenceResolver(),
+       _platformDriverRegistry =
+           platformDriverRegistry ?? CockpitPlatformDriverRegistry();
 
   final CockpitReadTargetFunction? _readTargetOverride;
   final CockpitReadFlutterTargetFunction _readFlutterTarget;
@@ -146,7 +143,8 @@ final class CockpitReadTargetService {
           snapshotOptions: request.snapshotOptions,
         ),
       );
-      final remoteProfile = appResult.capabilities.capabilityProfile ??
+      final remoteProfile =
+          appResult.capabilities.capabilityProfile ??
           _legacyCapabilityProfile(appResult.capabilities);
       final mergedCapabilityProfile = cockpitMergeTargetCapabilityProfiles(
         primary: capabilityProfile,
@@ -159,8 +157,9 @@ final class CockpitReadTargetService {
       return CockpitReadTargetResult(
         target: target.copyWith(capabilityProfile: normalizedMergedProfile),
         capabilityProfile: normalizedMergedProfile,
-        foregroundSurface:
-            cockpitForegroundSurfaceForTargetProfile(normalizedMergedProfile),
+        foregroundSurface: cockpitForegroundSurfaceForTargetProfile(
+          normalizedMergedProfile,
+        ),
         selectedPlane: appResult.selectedPlane,
         fallbackTrail: appResult.fallbackTrail.isEmpty
             ? cockpitFallbackTrailForProfile(
@@ -170,7 +169,8 @@ final class CockpitReadTargetService {
             : appResult.fallbackTrail,
         recommendedNextStep: appResult.recommendedNextStep,
         whatMatters: _whatMattersForFlutterRead(
-          base: appResult.whatMatters ??
+          base:
+              appResult.whatMatters ??
               cockpitWhatMattersForProfile(normalizedMergedProfile),
           recordingCapabilities: appResult.recordingCapabilities,
           capabilityProfile: mergedCapabilityProfile,
@@ -347,10 +347,12 @@ final class CockpitReadTargetService {
     required CockpitCapabilityProfile normalizedCapabilityProfile,
   }) {
     if (recordingCapabilities.supportsNativeRecording ||
-        !capabilityProfile
-            .supportsEvidence(CockpitEvidenceCapability.screenRecording) ||
-        normalizedCapabilityProfile
-            .supportsEvidence(CockpitEvidenceCapability.screenRecording)) {
+        !capabilityProfile.supportsEvidence(
+          CockpitEvidenceCapability.screenRecording,
+        ) ||
+        normalizedCapabilityProfile.supportsEvidence(
+          CockpitEvidenceCapability.screenRecording,
+        )) {
       return base;
     }
 
@@ -360,7 +362,7 @@ final class CockpitReadTargetService {
     final recordingHint = limitation.isEmpty
         ? 'Native recording is unavailable for this target right now.'
         : 'Native recording is unavailable for this target right now: '
-            '$limitation';
+              '$limitation';
     if (base == null || base.trim().isEmpty) {
       return recordingHint;
     }

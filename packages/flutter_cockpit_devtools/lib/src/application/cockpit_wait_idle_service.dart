@@ -32,9 +32,10 @@ final class CockpitWaitIdleService {
     CockpitWaitRemoteUiIdleService? waitService,
     CockpitAppReferenceResolver? appReferenceResolver,
     CockpitSessionRegistry? registry,
-  })  : _waitService = waitService ?? CockpitWaitRemoteUiIdleService(),
-        _appReferenceResolver = appReferenceResolver ??
-            CockpitAppReferenceResolver(registry: registry);
+  }) : _waitService = waitService ?? CockpitWaitRemoteUiIdleService(),
+       _appReferenceResolver =
+           appReferenceResolver ??
+           CockpitAppReferenceResolver(registry: registry);
 
   final CockpitWaitRemoteUiIdleService _waitService;
   final CockpitAppReferenceResolver _appReferenceResolver;

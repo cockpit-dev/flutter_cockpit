@@ -67,10 +67,8 @@ final class _TaskDetailScreenState extends State<TaskDetailScreen> {
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (context) => _CreateFollowUpSheet(
-        service: widget.service,
-        sourceTask: _task,
-      ),
+      builder: (context) =>
+          _CreateFollowUpSheet(service: widget.service, sourceTask: _task),
     );
     if (createdTask == null || !mounted) {
       return;
@@ -294,10 +292,7 @@ final class _TaskDetailScreenState extends State<TaskDetailScreen> {
 }
 
 final class _CreateFollowUpSheet extends StatefulWidget {
-  const _CreateFollowUpSheet({
-    required this.service,
-    required this.sourceTask,
-  });
+  const _CreateFollowUpSheet({required this.service, required this.sourceTask});
 
   final TodoAppService service;
   final TodoTask sourceTask;
@@ -461,19 +456,22 @@ final class _CreateFollowUpSheetState extends State<_CreateFollowUpSheet> {
                             onSelected: (_) => _selectDuePreset('none'),
                           ),
                           ChoiceChip(
-                            selected: _dueAt != null &&
+                            selected:
+                                _dueAt != null &&
                                 _dueAt!.difference(DateTime.now()).inDays == 0,
                             label: const Text('Today'),
                             onSelected: (_) => _selectDuePreset('today'),
                           ),
                           ChoiceChip(
-                            selected: _dueAt != null &&
+                            selected:
+                                _dueAt != null &&
                                 _dueAt!.difference(DateTime.now()).inDays == 1,
                             label: const Text('Tomorrow'),
                             onSelected: (_) => _selectDuePreset('tomorrow'),
                           ),
                           ChoiceChip(
-                            selected: _dueAt != null &&
+                            selected:
+                                _dueAt != null &&
                                 _dueAt!.difference(DateTime.now()).inDays >= 6,
                             label: const Text('Next week'),
                             onSelected: (_) => _selectDuePreset('nextWeek'),

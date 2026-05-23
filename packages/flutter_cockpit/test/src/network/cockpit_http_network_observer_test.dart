@@ -97,8 +97,7 @@ void main() {
         final client = HttpClient();
         final tasksResponse = await (await client.getUrl(
           Uri.parse('http://127.0.0.1:${server.port}/tasks'),
-        ))
-            .close();
+        )).close();
         await utf8.decoder.bind(tasksResponse).join();
 
         final syncRequest = await client.postUrl(

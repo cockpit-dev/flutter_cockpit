@@ -20,15 +20,16 @@ final class CockpitControlScript {
   final bool failFast;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'sessionId': sessionId,
-        'taskId': taskId,
-        'platform': platform,
-        if (environment != null) 'environment': environment!.toJson(),
-        if (recording != null) 'recording': recording!.toJson(),
-        'commands':
-            commands.map((command) => command.toJson()).toList(growable: false),
-        'failFast': failFast,
-      };
+    'sessionId': sessionId,
+    'taskId': taskId,
+    'platform': platform,
+    if (environment != null) 'environment': environment!.toJson(),
+    if (recording != null) 'recording': recording!.toJson(),
+    'commands': commands
+        .map((command) => command.toJson())
+        .toList(growable: false),
+    'failFast': failFast,
+  };
 
   factory CockpitControlScript.fromJson(Map<String, Object?> json) {
     final environmentJson = json['environment'];
@@ -74,9 +75,7 @@ final class CockpitControlScript {
         'Control script recording must be an object.',
       );
     }
-    return CockpitRecordingRequest.fromJson(
-      Map<String, Object?>.from(json),
-    );
+    return CockpitRecordingRequest.fromJson(Map<String, Object?>.from(json));
   }
 
   static String _readRequiredString(Map<String, Object?> json, String key) {

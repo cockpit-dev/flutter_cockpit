@@ -36,7 +36,8 @@ abstract final class CockpitTargetGeometryResolver {
     }
 
     final origin = renderObject.localToGlobal(Offset.zero);
-    final view = View.maybeOf(element) ??
+    final view =
+        View.maybeOf(element) ??
         WidgetsBinding.instance.platformDispatcher.implicitView;
     if (view == null) {
       return null;
@@ -70,7 +71,8 @@ abstract final class CockpitTargetGeometryResolver {
 
     final origin = renderObject.localToGlobal(Offset.zero);
     final size = renderObject.size;
-    final view = View.maybeOf(element) ??
+    final view =
+        View.maybeOf(element) ??
         WidgetsBinding.instance.platformDispatcher.implicitView;
     if (view == null) {
       return null;

@@ -6,18 +6,18 @@ import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
-typedef CockpitWaitRemoteUiIdleFunction = Future<CockpitWaitRemoteUiIdleResult>
-    Function(
-  CockpitWaitRemoteUiIdleRequest request,
-);
+typedef CockpitWaitRemoteUiIdleFunction =
+    Future<CockpitWaitRemoteUiIdleResult> Function(
+      CockpitWaitRemoteUiIdleRequest request,
+    );
 
 final class WaitRemoteUiIdleCommand extends CockpitCliCommand {
   WaitRemoteUiIdleCommand({
     CockpitWaitRemoteUiIdleService? service,
     CockpitWaitRemoteUiIdleFunction? wait,
     StringSink? stdoutSink,
-  })  : _wait = wait ?? (service ?? CockpitWaitRemoteUiIdleService()).wait,
-        _stdoutSink = stdoutSink ?? stdout {
+  }) : _wait = wait ?? (service ?? CockpitWaitRemoteUiIdleService()).wait,
+       _stdoutSink = stdoutSink ?? stdout {
     cockpitAddRemoteSessionArgs(argParser);
     argParser
       ..addOption(
@@ -76,7 +76,8 @@ final class WaitRemoteUiIdleCommand extends CockpitCliCommand {
         sessionHandlePath: cockpitResolveRemoteSessionHandlePath(argResults),
         androidDeviceId: argResults?['android-device-id'] as String?,
         quietWindow: Duration(
-          milliseconds: cockpitReadOptionalPositiveInt(
+          milliseconds:
+              cockpitReadOptionalPositiveInt(
                 argResults,
                 'quiet-window-ms',
                 usage,
@@ -84,11 +85,8 @@ final class WaitRemoteUiIdleCommand extends CockpitCliCommand {
               96,
         ),
         timeout: Duration(
-          milliseconds: cockpitReadOptionalPositiveInt(
-                argResults,
-                'timeout-ms',
-                usage,
-              ) ??
+          milliseconds:
+              cockpitReadOptionalPositiveInt(argResults, 'timeout-ms', usage) ??
               1600,
         ),
         includeNetworkIdle:

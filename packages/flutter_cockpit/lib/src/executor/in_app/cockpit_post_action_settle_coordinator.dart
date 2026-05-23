@@ -8,17 +8,16 @@ import '../../control/cockpit_command_type.dart';
 import '../../runtime/cockpit_ui_idle_waiter.dart';
 import 'cockpit_command_context.dart';
 
-typedef CockpitRouteTargetsWaiter = Future<bool> Function(
-  String? previousRouteName,
-);
+typedef CockpitRouteTargetsWaiter =
+    Future<bool> Function(String? previousRouteName);
 typedef CockpitUsesTestBindingProbe = bool Function();
 
 final class CockpitPostActionSettleCoordinator {
   CockpitPostActionSettleCoordinator({
     required CockpitInAppCommandContext context,
     CockpitUsesTestBindingProbe? usesTestBinding,
-  })  : _context = context,
-        _usesTestBinding = usesTestBinding ?? _defaultUsesTestBinding;
+  }) : _context = context,
+       _usesTestBinding = usesTestBinding ?? _defaultUsesTestBinding;
 
   final CockpitInAppCommandContext _context;
   final CockpitUsesTestBindingProbe _usesTestBinding;
@@ -85,8 +84,7 @@ final class CockpitPostActionSettleCoordinator {
     }
     final commitDelay = switch (commandType) {
       CockpitCommandType.longPress => const Duration(milliseconds: 32),
-      CockpitCommandType.tap ||
-      CockpitCommandType.doubleTap =>
+      CockpitCommandType.tap || CockpitCommandType.doubleTap =>
         kDoubleTapTimeout + const Duration(milliseconds: 32),
       _ => Duration.zero,
     };
@@ -153,8 +151,7 @@ final class CockpitPostActionSettleCoordinator {
       CockpitCommandType.increase ||
       CockpitCommandType.decrease ||
       CockpitCommandType.dismiss ||
-      CockpitCommandType.back =>
-        true,
+      CockpitCommandType.back => true,
       _ => false,
     };
     if (!isVisualMutation) {
@@ -199,8 +196,7 @@ final class CockpitPostActionSettleCoordinator {
       CockpitCommandType.increase ||
       CockpitCommandType.decrease ||
       CockpitCommandType.dismiss ||
-      CockpitCommandType.back =>
-        true,
+      CockpitCommandType.back => true,
       _ => false,
     };
     if (!isVisualMutation && !routeChanged) {
@@ -253,7 +249,7 @@ final class CockpitPostActionSettleCoordinator {
 
   static bool _isTestBinding(WidgetsBinding widgetsBinding) {
     return widgetsBinding.runtimeType.toString().contains(
-          'TestWidgetsFlutterBinding',
-        );
+      'TestWidgetsFlutterBinding',
+    );
   }
 }

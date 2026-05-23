@@ -3,19 +3,20 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
-typedef CockpitIosDeviceProcessRunner = Future<ProcessResult> Function(
-  String executable,
-  List<String> arguments, {
-  String? workingDirectory,
-});
+typedef CockpitIosDeviceProcessRunner =
+    Future<ProcessResult> Function(
+      String executable,
+      List<String> arguments, {
+      String? workingDirectory,
+    });
 
 final class CockpitIosDeviceProcessTerminator {
   CockpitIosDeviceProcessTerminator({
     CockpitIosDeviceProcessRunner processRunner = _runProcess,
     String Function()? tempDirectoryPathProvider,
-  })  : _processRunner = processRunner,
-        _tempDirectoryPathProvider =
-            tempDirectoryPathProvider ?? (() => Directory.systemTemp.path);
+  }) : _processRunner = processRunner,
+       _tempDirectoryPathProvider =
+           tempDirectoryPathProvider ?? (() => Directory.systemTemp.path);
 
   final CockpitIosDeviceProcessRunner _processRunner;
   final String Function() _tempDirectoryPathProvider;
@@ -31,20 +32,17 @@ final class CockpitIosDeviceProcessTerminator {
 
     var terminated = false;
     for (final pid in pids) {
-      final result = await _processRunner(
-        'xcrun',
-        <String>[
-          'devicectl',
-          'device',
-          'process',
-          'terminate',
-          '--device',
-          deviceId,
-          '--pid',
-          '$pid',
-          '--kill',
-        ],
-      );
+      final result = await _processRunner('xcrun', <String>[
+        'devicectl',
+        'device',
+        'process',
+        'terminate',
+        '--device',
+        deviceId,
+        '--pid',
+        '$pid',
+        '--kill',
+      ]);
       if (result.exitCode == 0) {
         terminated = true;
       }
@@ -64,19 +62,16 @@ final class CockpitIosDeviceProcessTerminator {
     final outputFile = File(p.join(outputDirectory.path, 'processes.json'));
 
     try {
-      final result = await _processRunner(
-        'xcrun',
-        <String>[
-          'devicectl',
-          'device',
-          'info',
-          'processes',
-          '--device',
-          deviceId,
-          '--json-output',
-          outputFile.path,
-        ],
-      );
+      final result = await _processRunner('xcrun', <String>[
+        'devicectl',
+        'device',
+        'info',
+        'processes',
+        '--device',
+        deviceId,
+        '--json-output',
+        outputFile.path,
+      ]);
       if (result.exitCode != 0 || !outputFile.existsSync()) {
         return const <int>[];
       }

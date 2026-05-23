@@ -13,10 +13,10 @@ final class CockpitControlRunner {
     required CockpitSessionController sessionController,
     this.failFast = true,
     this.recordingStopSettleDelay = const Duration(milliseconds: 1400),
-  })  : _automationAdapter = automationAdapter,
-        _captureAdapter = captureAdapter,
-        _recordingAdapter = recordingAdapter,
-        _sessionController = sessionController;
+  }) : _automationAdapter = automationAdapter,
+       _captureAdapter = captureAdapter,
+       _recordingAdapter = recordingAdapter,
+       _sessionController = sessionController;
 
   final CockpitAutomationAdapter _automationAdapter;
   final CockpitCaptureAdapter? _captureAdapter;
@@ -50,7 +50,8 @@ final class CockpitControlRunner {
         artifactSourcePaths.addAll(execution.artifactSourcePaths);
 
         if (failFast && !execution.result.success) {
-          failureSummary = execution.result.error?.message ??
+          failureSummary =
+              execution.result.error?.message ??
               'Command ${command.commandId} failed.';
           break;
         }

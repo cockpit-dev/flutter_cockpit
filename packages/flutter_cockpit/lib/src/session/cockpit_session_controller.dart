@@ -27,17 +27,17 @@ final class CockpitSessionController {
     required String taskId,
     required String platform,
     CockpitTimestampProvider? now,
-  })  : _session = CockpitSession(
-          sessionId: sessionId,
-          taskId: taskId,
-          platform: platform,
-          startedAt: (now ?? _systemNow)().toUtc(),
-        ),
-        _stepRecorder = CockpitStepRecorder(
-          now: now ?? _systemNow,
-          observationAssembler: const CockpitObservationAssembler(),
-        ),
-        _bundleSummaryAssembler = CockpitBundleSummaryAssembler(now: now);
+  }) : _session = CockpitSession(
+         sessionId: sessionId,
+         taskId: taskId,
+         platform: platform,
+         startedAt: (now ?? _systemNow)().toUtc(),
+       ),
+       _stepRecorder = CockpitStepRecorder(
+         now: now ?? _systemNow,
+         observationAssembler: const CockpitObservationAssembler(),
+       ),
+       _bundleSummaryAssembler = CockpitBundleSummaryAssembler(now: now);
 
   final CockpitSession _session;
   final CockpitStepRecorder _stepRecorder;

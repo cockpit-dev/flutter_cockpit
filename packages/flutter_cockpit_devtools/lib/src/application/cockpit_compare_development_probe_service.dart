@@ -31,10 +31,10 @@ final class CockpitCompareDevelopmentProbeResult {
   final CockpitDevelopmentProbeDelta delta;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'fromProbe': fromProbe.toJson(),
-        'toProbe': toProbe.toJson(),
-        'delta': delta.toJson(),
-      };
+    'fromProbe': fromProbe.toJson(),
+    'toProbe': toProbe.toJson(),
+    'delta': delta.toJson(),
+  };
 }
 
 final class CockpitCompareDevelopmentProbeService {
@@ -91,7 +91,8 @@ final class CockpitCompareDevelopmentProbeService {
         _stringList(fromProbe.ui['visualSignals']),
         _stringList(toProbe.ui['visualSignals']),
       ),
-      focusChanged: _normalizedString(fromProbe.ui['focusedTargetLabel']) !=
+      focusChanged:
+          _normalizedString(fromProbe.ui['focusedTargetLabel']) !=
           _normalizedString(toProbe.ui['focusedTargetLabel']),
       overlayChanged: !_listEquals(
         _stringList(fromProbe.ui['overlayLabels']),
@@ -103,7 +104,7 @@ final class CockpitCompareDevelopmentProbeService {
       ),
       screenshotChanged:
           _normalizedString(fromProbe.artifacts['screenshotDigest']) !=
-              _normalizedString(toProbe.artifacts['screenshotDigest']),
+          _normalizedString(toProbe.artifacts['screenshotDigest']),
       newNetworkFailures: _newItems(
         _stringList(fromProbe.network['failureSignals']),
         _stringList(toProbe.network['failureSignals']),

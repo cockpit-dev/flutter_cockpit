@@ -31,7 +31,8 @@ void main() {
         ),
       );
 
-    final exitCode = await runner.run(<String>[
+    final exitCode =
+        await runner.run(<String>[
           'launch-target',
           '--stdout-format',
           'json',

@@ -46,14 +46,15 @@ done
         appId: 'cockpit_demo',
         ffmpegExecutable: ffmpegExecutable.path,
         windowActivatorExecutable: null,
-        windowTargetResolver: ({
-          required appId,
-          required processId,
-          required processRunner,
-          required timeout,
-        }) async {
-          throw StateError('window resolution unavailable');
-        },
+        windowTargetResolver:
+            ({
+              required appId,
+              required processId,
+              required processRunner,
+              required timeout,
+            }) async {
+              throw StateError('window resolution unavailable');
+            },
         displayConfigResolver: () async => const CockpitLinuxDisplayConfig(
           display: ':99',
           captureSize: '1440x900',
@@ -162,7 +163,9 @@ done
       expect(session.state, CockpitRecordingState.recording);
       expect(result.state, CockpitRecordingState.completed);
       expect(
-          File(result.sourceFilePath!).readAsStringSync(), 'quiet-linux-video');
+        File(result.sourceFilePath!).readAsStringSync(),
+        'quiet-linux-video',
+      );
     },
   );
 
@@ -204,22 +207,23 @@ done
         processId: 5101,
         ffmpegExecutable: ffmpegExecutable.path,
         windowActivatorExecutable: 'wmctrl',
-        windowTargetResolver: ({
-          required appId,
-          required processId,
-          required processRunner,
-          required timeout,
-        }) async {
-          expect(appId, 'cockpit_demo');
-          expect(processId, 5101);
-          return const CockpitLinuxWindowTarget(
-            windowId: '0x02c00007',
-            left: 120,
-            top: 48,
-            width: 900,
-            height: 640,
-          );
-        },
+        windowTargetResolver:
+            ({
+              required appId,
+              required processId,
+              required processRunner,
+              required timeout,
+            }) async {
+              expect(appId, 'cockpit_demo');
+              expect(processId, 5101);
+              return const CockpitLinuxWindowTarget(
+                windowId: '0x02c00007',
+                left: 120,
+                top: 48,
+                width: 900,
+                height: 640,
+              );
+            },
         processRunner: (executable, arguments) async {
           activationInvocations.add('$executable ${arguments.join(' ')}');
           return ProcessResult(0, 0, '', '');
@@ -294,20 +298,21 @@ done
         processId: 5101,
         ffmpegExecutable: ffmpegExecutable.path,
         windowActivatorExecutable: null,
-        windowTargetResolver: ({
-          required appId,
-          required processId,
-          required processRunner,
-          required timeout,
-        }) async {
-          return const CockpitLinuxWindowTarget(
-            windowId: '0x02c00007',
-            left: 120,
-            top: 48,
-            width: 900,
-            height: 640,
-          );
-        },
+        windowTargetResolver:
+            ({
+              required appId,
+              required processId,
+              required processRunner,
+              required timeout,
+            }) async {
+              return const CockpitLinuxWindowTarget(
+                windowId: '0x02c00007',
+                left: 120,
+                top: 48,
+                width: 900,
+                height: 640,
+              );
+            },
         displayConfigResolver: () async => const CockpitLinuxDisplayConfig(
           display: ':99',
           captureSize: '1440x900',

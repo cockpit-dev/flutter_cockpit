@@ -2,10 +2,11 @@ import '../../control/cockpit_command.dart';
 import '../../control/cockpit_command_execution.dart';
 import '../../control/cockpit_command_type.dart';
 
-typedef CockpitInAppCommandHandler = Future<CockpitCommandExecution> Function(
-  CockpitCommand command,
-  Stopwatch stopwatch,
-);
+typedef CockpitInAppCommandHandler =
+    Future<CockpitCommandExecution> Function(
+      CockpitCommand command,
+      Stopwatch stopwatch,
+    );
 
 final class CockpitCommandRouter {
   const CockpitCommandRouter({

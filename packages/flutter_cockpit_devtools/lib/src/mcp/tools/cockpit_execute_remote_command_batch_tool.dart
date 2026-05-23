@@ -4,17 +4,18 @@ import '../../application/cockpit_execute_remote_command_batch_service.dart';
 import '../../application/cockpit_interactive_result_profile.dart';
 import '../cockpit_mcp_tool.dart';
 
-typedef CockpitExecuteRemoteCommandBatchToolFunction
-    = Future<CockpitExecuteRemoteCommandBatchResult> Function(
-  CockpitExecuteRemoteCommandBatchRequest request,
-);
+typedef CockpitExecuteRemoteCommandBatchToolFunction =
+    Future<CockpitExecuteRemoteCommandBatchResult> Function(
+      CockpitExecuteRemoteCommandBatchRequest request,
+    );
 
 final class CockpitExecuteRemoteCommandBatchTool extends CockpitMcpTool {
   CockpitExecuteRemoteCommandBatchTool({
     CockpitExecuteRemoteCommandBatchService? service,
     CockpitExecuteRemoteCommandBatchToolFunction? execute,
-  }) : _execute = execute ??
-            (service ?? CockpitExecuteRemoteCommandBatchService()).execute;
+  }) : _execute =
+           execute ??
+           (service ?? CockpitExecuteRemoteCommandBatchService()).execute;
 
   final CockpitExecuteRemoteCommandBatchToolFunction _execute;
 
@@ -27,13 +28,13 @@ final class CockpitExecuteRemoteCommandBatchTool extends CockpitMcpTool {
 
   @override
   CockpitMcpToolAnnotations get annotations => const CockpitMcpToolAnnotations(
-        readOnly: false,
-        destructive: false,
-        idempotent: false,
-        longRunning: true,
-        requiresSession: true,
-        producesBundleEvidence: false,
-      );
+    readOnly: false,
+    destructive: false,
+    idempotent: false,
+    longRunning: true,
+    requiresSession: true,
+    producesBundleEvidence: false,
+  );
 
   @override
   List<CockpitMcpFeatureCategory> get categories =>
@@ -44,20 +45,20 @@ final class CockpitExecuteRemoteCommandBatchTool extends CockpitMcpTool {
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
-        'type': 'object',
-        'required': <String>['commands'],
-        'properties': <String, Object?>{
-          'sessionHandle': <String, Object?>{'type': 'object'},
-          'sessionHandlePath': <String, Object?>{'type': 'string'},
-          'commands': <String, Object?>{'type': 'array'},
-          'defaultTimeoutMs': <String, Object?>{'type': 'integer'},
-          'defaultProfile': <String, Object?>{'type': 'string'},
-          'failFast': <String, Object?>{'type': 'boolean'},
-          'recording': <String, Object?>{'type': 'object'},
-          'finalProfile': <String, Object?>{'type': 'string'},
-          'finalSnapshotOptions': <String, Object?>{'type': 'object'},
-        },
-      };
+    'type': 'object',
+    'required': <String>['commands'],
+    'properties': <String, Object?>{
+      'sessionHandle': <String, Object?>{'type': 'object'},
+      'sessionHandlePath': <String, Object?>{'type': 'string'},
+      'commands': <String, Object?>{'type': 'array'},
+      'defaultTimeoutMs': <String, Object?>{'type': 'integer'},
+      'defaultProfile': <String, Object?>{'type': 'string'},
+      'failFast': <String, Object?>{'type': 'boolean'},
+      'recording': <String, Object?>{'type': 'object'},
+      'finalProfile': <String, Object?>{'type': 'string'},
+      'finalSnapshotOptions': <String, Object?>{'type': 'object'},
+    },
+  };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {
@@ -69,19 +70,16 @@ final class CockpitExecuteRemoteCommandBatchTool extends CockpitMcpTool {
             arguments,
             'sessionHandlePath',
           ),
-          commands: cockpitReadRequiredObjectList(arguments, 'commands')
-              .map(_readBatchCommand)
-              .toList(growable: false),
-          defaultResultProfile: _readOptionalProfile(
-                arguments,
-                'defaultProfile',
-              ) ??
+          commands: cockpitReadRequiredObjectList(
+            arguments,
+            'commands',
+          ).map(_readBatchCommand).toList(growable: false),
+          defaultResultProfile:
+              _readOptionalProfile(arguments, 'defaultProfile') ??
               const CockpitInteractiveResultProfile.standard(),
           defaultCommandTimeout: Duration(
-            milliseconds: cockpitReadOptionalPositiveInt(
-                  arguments,
-                  'defaultTimeoutMs',
-                ) ??
+            milliseconds:
+                cockpitReadOptionalPositiveInt(arguments, 'defaultTimeoutMs') ??
                 30000,
           ),
           failFast: cockpitReadOptionalBool(arguments, 'failFast') ?? true,
@@ -126,7 +124,8 @@ final class CockpitExecuteRemoteCommandBatchTool extends CockpitMcpTool {
   }
 
   CockpitInteractiveResultProfile? _readOptionalProfileFromValue(
-      Object? value) {
+    Object? value,
+  ) {
     if (value == null) {
       return null;
     }

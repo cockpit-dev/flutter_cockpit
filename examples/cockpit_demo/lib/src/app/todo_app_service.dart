@@ -20,8 +20,8 @@ final class TodoAppService extends ChangeNotifier {
   TodoAppService({
     required TodoRepositoryClient repository,
     TodoSyncGatewayClient? syncGateway,
-  })  : _repository = repository,
-        _syncGateway = syncGateway;
+  }) : _repository = repository,
+       _syncGateway = syncGateway;
 
   final TodoRepositoryClient _repository;
   final TodoSyncGatewayClient? _syncGateway;
@@ -438,10 +438,7 @@ final class TodoAppService extends ChangeNotifier {
     }
 
     try {
-      await _repository.updateTasksTags(
-        taskIds: normalizedIds,
-        tagIds: tagIds,
-      );
+      await _repository.updateTasksTags(taskIds: normalizedIds, tagIds: tagIds);
       if (_isDisposed) {
         return false;
       }
@@ -760,8 +757,8 @@ final class TodoAppService extends ChangeNotifier {
     final nextStatus = outcome.hasConflicts
         ? TodoSyncStatus.conflicted
         : outcome.hasFailures
-            ? TodoSyncStatus.failed
-            : TodoSyncStatus.synced;
+        ? TodoSyncStatus.failed
+        : TodoSyncStatus.synced;
     _syncState = _syncState.copyWith(
       status: nextStatus,
       headline: switch (nextStatus) {
@@ -873,8 +870,9 @@ final class TodoAppService extends ChangeNotifier {
         statusCode: () => result.statusCode,
         checkedAt: () => result.checkedAt,
         lastHealthySummary: isHealthy ? () => result.summary : null,
-        lastHealthyEndpoint:
-            isHealthy ? () => result.endpoint.toString() : null,
+        lastHealthyEndpoint: isHealthy
+            ? () => result.endpoint.toString()
+            : null,
         lastHealthyStatusCode: isHealthy ? () => result.statusCode : null,
         lastHealthyCheckedAt: isHealthy ? () => result.checkedAt : null,
       );

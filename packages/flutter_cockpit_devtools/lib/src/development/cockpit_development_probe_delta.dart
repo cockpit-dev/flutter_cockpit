@@ -44,27 +44,27 @@ final class CockpitDevelopmentProbeDelta {
   final String? changeSummary;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'fromProbeId': fromProbeId,
-        'toProbeId': toProbeId,
-        'reloadGenerationChanged': reloadGenerationChanged,
-        'routeChanged': routeChanged,
-        'addedVisibleText': addedVisibleText,
-        'removedVisibleText': removedVisibleText,
-        'addedSemanticIds': addedSemanticIds,
-        'removedSemanticIds': removedSemanticIds,
-        'addedInteractiveLabels': addedInteractiveLabels,
-        'removedInteractiveLabels': removedInteractiveLabels,
-        'addedVisualSignals': addedVisualSignals,
-        'removedVisualSignals': removedVisualSignals,
-        'focusChanged': focusChanged,
-        'overlayChanged': overlayChanged,
-        'visualChanged': visualChanged,
-        'screenshotChanged': screenshotChanged,
-        'newNetworkFailures': newNetworkFailures,
-        'newRuntimeErrors': newRuntimeErrors,
-        'newRebuildHotspots': newRebuildHotspots,
-        if (changeSummary != null) 'changeSummary': changeSummary,
-      };
+    'fromProbeId': fromProbeId,
+    'toProbeId': toProbeId,
+    'reloadGenerationChanged': reloadGenerationChanged,
+    'routeChanged': routeChanged,
+    'addedVisibleText': addedVisibleText,
+    'removedVisibleText': removedVisibleText,
+    'addedSemanticIds': addedSemanticIds,
+    'removedSemanticIds': removedSemanticIds,
+    'addedInteractiveLabels': addedInteractiveLabels,
+    'removedInteractiveLabels': removedInteractiveLabels,
+    'addedVisualSignals': addedVisualSignals,
+    'removedVisualSignals': removedVisualSignals,
+    'focusChanged': focusChanged,
+    'overlayChanged': overlayChanged,
+    'visualChanged': visualChanged,
+    'screenshotChanged': screenshotChanged,
+    'newNetworkFailures': newNetworkFailures,
+    'newRuntimeErrors': newRuntimeErrors,
+    'newRebuildHotspots': newRebuildHotspots,
+    if (changeSummary != null) 'changeSummary': changeSummary,
+  };
 
   factory CockpitDevelopmentProbeDelta.fromJson(Map<String, Object?> json) {
     return CockpitDevelopmentProbeDelta(

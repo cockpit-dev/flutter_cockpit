@@ -14,9 +14,9 @@ final class CockpitWorkspaceCapabilitiesResource extends CockpitMcpResource {
     required List<CockpitMcpTool> tools,
     required List<CockpitMcpResource> resources,
     required List<CockpitMcpPrompt> prompts,
-  })  : _tools = List<CockpitMcpTool>.unmodifiable(tools),
-        _resources = List<CockpitMcpResource>.unmodifiable(resources),
-        _prompts = List<CockpitMcpPrompt>.unmodifiable(prompts);
+  }) : _tools = List<CockpitMcpTool>.unmodifiable(tools),
+       _resources = List<CockpitMcpResource>.unmodifiable(resources),
+       _prompts = List<CockpitMcpPrompt>.unmodifiable(prompts);
 
   final String serverName;
   final String serverVersion;
@@ -42,7 +42,8 @@ final class CockpitWorkspaceCapabilitiesResource extends CockpitMcpResource {
 
   @override
   Future<CockpitMcpResourceResult?> read(
-      CockpitMcpResourceRequest request) async {
+    CockpitMcpResourceRequest request,
+  ) async {
     if (request.uri != definition.uri) {
       return null;
     }
@@ -61,7 +62,8 @@ final class CockpitWorkspaceCapabilitiesResource extends CockpitMcpResource {
           .toList(growable: false),
       'resources': _resources
           .where(
-              (resource) => featureConfiguration.isEnabled(resource.definition))
+            (resource) => featureConfiguration.isEnabled(resource.definition),
+          )
           .map((resource) => resource.definition.name)
           .toList(growable: false),
       'prompts': _prompts

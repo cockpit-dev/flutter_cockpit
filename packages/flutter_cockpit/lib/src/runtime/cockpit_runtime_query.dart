@@ -14,9 +14,9 @@ final class CockpitRuntimeQuery {
       (messageContains == null || messageContains!.trim().isEmpty);
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'onlyErrors': onlyErrors,
-        if (messageContains != null) 'messageContains': messageContains,
-      };
+    'onlyErrors': onlyErrors,
+    if (messageContains != null) 'messageContains': messageContains,
+  };
 
   factory CockpitRuntimeQuery.fromJson(Map<String, Object?> json) {
     return CockpitRuntimeQuery(

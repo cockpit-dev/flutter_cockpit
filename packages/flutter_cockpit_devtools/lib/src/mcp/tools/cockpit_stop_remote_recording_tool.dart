@@ -1,10 +1,10 @@
 import '../../application/cockpit_stop_remote_recording_service.dart';
 import '../cockpit_mcp_tool.dart';
 
-typedef CockpitStopRemoteRecordingToolFunction
-    = Future<CockpitStopRemoteRecordingResult> Function(
-  CockpitStopRemoteRecordingRequest request,
-);
+typedef CockpitStopRemoteRecordingToolFunction =
+    Future<CockpitStopRemoteRecordingResult> Function(
+      CockpitStopRemoteRecordingRequest request,
+    );
 
 final class CockpitStopRemoteRecordingTool extends CockpitMcpTool {
   CockpitStopRemoteRecordingTool({
@@ -23,28 +23,26 @@ final class CockpitStopRemoteRecordingTool extends CockpitMcpTool {
 
   @override
   CockpitMcpToolAnnotations get annotations => const CockpitMcpToolAnnotations(
-        readOnly: false,
-        destructive: false,
-        idempotent: false,
-        longRunning: false,
-        requiresSession: true,
-        producesBundleEvidence: false,
-      );
+    readOnly: false,
+    destructive: false,
+    idempotent: false,
+    longRunning: false,
+    requiresSession: true,
+    producesBundleEvidence: false,
+  );
 
   @override
   List<CockpitMcpFeatureCategory> get categories =>
-      const <CockpitMcpFeatureCategory>[
-        CockpitMcpFeatureCategory.execution,
-      ];
+      const <CockpitMcpFeatureCategory>[CockpitMcpFeatureCategory.execution];
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
-        'type': 'object',
-        'properties': <String, Object?>{
-          'sessionHandle': <String, Object?>{'type': 'object'},
-          'sessionHandlePath': <String, Object?>{'type': 'string'},
-        },
-      };
+    'type': 'object',
+    'properties': <String, Object?>{
+      'sessionHandle': <String, Object?>{'type': 'object'},
+      'sessionHandlePath': <String, Object?>{'type': 'string'},
+    },
+  };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {

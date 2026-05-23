@@ -192,7 +192,12 @@ void main() {
       );
       expect(
         capturedRunRequest
-            ?.script.commands.first.screenshotRequest?.snapshotOptions?.profile,
+            ?.script
+            .commands
+            .first
+            .screenshotRequest
+            ?.snapshotOptions
+            ?.profile,
         CockpitSnapshotProfile.baseline,
       );
     },
@@ -484,9 +489,9 @@ void main() {
         ),
         readSummary: (_) async =>
             throw const CockpitApplicationServiceException(
-          code: 'invalidBundleJson',
-          message: 'Bundle JSON is invalid.',
-        ),
+              code: 'invalidBundleJson',
+              message: 'Bundle JSON is invalid.',
+            ),
       );
 
       final result = await service.run(
@@ -753,10 +758,7 @@ void main() {
             'failureCount': 0,
             'targetKind': 'flutterApp',
             'primaryExecutionPlane': 'flutterSemanticPlane',
-            'planesUsed': <String>[
-              'flutterSemanticPlane',
-              'nativeUiPlane',
-            ],
+            'planesUsed': <String>['flutterSemanticPlane', 'nativeUiPlane'],
             'surfaceKindsUsed': <String>['flutterSemantic', 'nativeUi'],
             'fallbackCount': 1,
           },
@@ -808,9 +810,7 @@ CockpitControlScript _script({required String platform}) {
       CockpitCommand(
         commandId: 'tap-open',
         commandType: CockpitCommandType.tap,
-        locator: const CockpitLocator(
-          cockpitId: 'open_form_button',
-        ),
+        locator: const CockpitLocator(cockpitId: 'open_form_button'),
       ),
     ],
     failFast: true,

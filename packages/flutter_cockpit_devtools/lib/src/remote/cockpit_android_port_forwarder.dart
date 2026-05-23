@@ -2,8 +2,8 @@
 
 import 'dart:io';
 
-typedef CockpitProcessRunner = Future<ProcessResult> Function(
-    String executable, List<String> arguments);
+typedef CockpitProcessRunner =
+    Future<ProcessResult> Function(String executable, List<String> arguments);
 typedef CockpitHostPortAllocator = Future<int> Function();
 typedef CockpitHostPortAvailabilityChecker = Future<bool> Function(int port);
 
@@ -13,9 +13,9 @@ class CockpitAndroidPortForwarder {
     CockpitHostPortAllocator hostPortAllocator = _allocateHostPort,
     CockpitHostPortAvailabilityChecker hostPortAvailabilityChecker =
         _isHostPortAvailable,
-  })  : _processRunner = processRunner,
-        _hostPortAllocator = hostPortAllocator,
-        _hostPortAvailabilityChecker = hostPortAvailabilityChecker;
+  }) : _processRunner = processRunner,
+       _hostPortAllocator = hostPortAllocator,
+       _hostPortAvailabilityChecker = hostPortAvailabilityChecker;
 
   final CockpitProcessRunner _processRunner;
   final CockpitHostPortAllocator _hostPortAllocator;

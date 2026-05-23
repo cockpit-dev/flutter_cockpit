@@ -10,12 +10,10 @@ import 'cockpit_remote_session_launch_options.dart';
 import 'cockpit_remote_session_launcher.dart';
 import 'cockpit_session_path.dart';
 
-typedef CockpitIosBundleIdResolver = Future<String> Function(
-    {required String appBundlePath});
-typedef CockpitIosSimulatorAppBundlePathResolver = Future<String> Function({
-  required String projectDir,
-  String? flavor,
-});
+typedef CockpitIosBundleIdResolver =
+    Future<String> Function({required String appBundlePath});
+typedef CockpitIosSimulatorAppBundlePathResolver =
+    Future<String> Function({required String projectDir, String? flavor});
 
 final class CockpitIosSimulatorRemoteSessionLauncher
     implements CockpitRemoteSessionLauncher {
@@ -29,12 +27,12 @@ final class CockpitIosSimulatorRemoteSessionLauncher
     CockpitFlutterVersionReader flutterVersionReader =
         cockpitReadActiveFlutterVersion,
     DateTime Function()? now,
-  })  : _processRunner = processRunner,
-        _bundleIdResolver = bundleIdResolver,
-        _appBundlePathResolver = appBundlePathResolver,
-        _statusReader = statusReader,
-        _flutterVersionReader = flutterVersionReader,
-        _now = now ?? DateTime.now;
+  }) : _processRunner = processRunner,
+       _bundleIdResolver = bundleIdResolver,
+       _appBundlePathResolver = appBundlePathResolver,
+       _statusReader = statusReader,
+       _flutterVersionReader = flutterVersionReader,
+       _now = now ?? DateTime.now;
 
   final CockpitWorkingDirectoryProcessRunner _processRunner;
   final CockpitIosBundleIdResolver _bundleIdResolver;
@@ -80,44 +78,38 @@ final class CockpitIosSimulatorRemoteSessionLauncher
       timeout: _remaining(deadline),
     );
 
-    final appBundlePath = await _appBundlePathResolver(
-      projectDir: options.projectDir,
-      flavor: options.flavor,
-    ).timeout(
-      _remaining(deadline),
-      onTimeout: () => throw TimeoutException(
-        'Resolving iOS simulator app bundle path timed out.',
-        _remaining(deadline),
-      ),
-    );
-    final bundleId = await _bundleIdResolver(
-      appBundlePath: appBundlePath,
-    ).timeout(
-      _remaining(deadline),
-      onTimeout: () => throw TimeoutException(
-        'Resolving iOS simulator bundle identifier timed out.',
-        _remaining(deadline),
-      ),
-    );
+    final appBundlePath =
+        await _appBundlePathResolver(
+          projectDir: options.projectDir,
+          flavor: options.flavor,
+        ).timeout(
+          _remaining(deadline),
+          onTimeout: () => throw TimeoutException(
+            'Resolving iOS simulator app bundle path timed out.',
+            _remaining(deadline),
+          ),
+        );
+    final bundleId = await _bundleIdResolver(appBundlePath: appBundlePath)
+        .timeout(
+          _remaining(deadline),
+          onTimeout: () => throw TimeoutException(
+            'Resolving iOS simulator bundle identifier timed out.',
+            _remaining(deadline),
+          ),
+        );
 
-    await _runRequired(
-        'xcrun',
-        <String>[
-          'simctl',
-          'install',
-          options.deviceId,
-          appBundlePath,
-        ],
-        timeout: _remaining(deadline));
-    await _runRequired(
-        'xcrun',
-        <String>[
-          'simctl',
-          'launch',
-          options.deviceId,
-          bundleId,
-        ],
-        timeout: _remaining(deadline));
+    await _runRequired('xcrun', <String>[
+      'simctl',
+      'install',
+      options.deviceId,
+      appBundlePath,
+    ], timeout: _remaining(deadline));
+    await _runRequired('xcrun', <String>[
+      'simctl',
+      'launch',
+      options.deviceId,
+      bundleId,
+    ], timeout: _remaining(deadline));
 
     final baseUri = Uri.parse('http://127.0.0.1:${options.sessionPort}');
     final status = await cockpitWaitForRemoteSessionReady(
@@ -145,17 +137,18 @@ final class CockpitIosSimulatorRemoteSessionLauncher
     String? workingDirectory,
     required Duration timeout,
   }) async {
-    final result = await _processRunner(
-      executable,
-      arguments,
-      workingDirectory: workingDirectory,
-    ).timeout(
-      timeout,
-      onTimeout: () => throw TimeoutException(
-        '$executable ${arguments.join(' ')} timed out.',
-        timeout,
-      ),
-    );
+    final result =
+        await _processRunner(
+          executable,
+          arguments,
+          workingDirectory: workingDirectory,
+        ).timeout(
+          timeout,
+          onTimeout: () => throw TimeoutException(
+            '$executable ${arguments.join(' ')} timed out.',
+            timeout,
+          ),
+        );
     if (result.exitCode != 0) {
       throw StateError(
         '$executable ${arguments.join(' ')} failed: ${result.stderr ?? result.stdout}',
@@ -185,9 +178,7 @@ final class CockpitIosSimulatorRemoteSessionLauncher
     );
   }
 
-  static Future<String> _resolveBundleId({
-    required String appBundlePath,
-  }) =>
+  static Future<String> _resolveBundleId({required String appBundlePath}) =>
       cockpitResolveIosBundleId(appBundlePath: appBundlePath);
 
   static Future<String> _resolveAppBundlePath({

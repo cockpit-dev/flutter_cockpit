@@ -26,10 +26,12 @@ void main() {
       gate.complete();
       await Future.wait<void>(<Future<void>>[first, second]);
 
-      expect(
-        order,
-        <String>['first-start', 'first-end', 'second-start', 'second-end'],
-      );
+      expect(order, <String>[
+        'first-start',
+        'first-end',
+        'second-start',
+        'second-end',
+      ]);
     });
 
     test('allows different sessions to proceed independently', () async {

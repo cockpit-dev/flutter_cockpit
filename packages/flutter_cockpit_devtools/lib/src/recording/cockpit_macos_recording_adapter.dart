@@ -26,19 +26,19 @@ final class CockpitMacosRecordingAdapter
     Duration stopTimeout = const Duration(seconds: 10),
     Duration finalizationPollInterval = const Duration(milliseconds: 100),
     Duration activationSettleDelay = const Duration(milliseconds: 350),
-  })  : _appId = appId,
-        _ffmpegExecutable = ffmpegExecutable,
-        _osascriptExecutable = osascriptExecutable,
-        _processStarter = processStarter,
-        _processRunner = processRunner,
-        _ffprobeProcessRunner = ffprobeProcessRunner ?? processRunner,
-        _tempFileFactory = tempFileFactory,
-        _windowTargetResolver = windowTargetResolver,
-        _startupTimeout = startupTimeout,
-        _startupEvidenceTimeout = startupEvidenceTimeout,
-        _stopTimeout = stopTimeout,
-        _finalizationPollInterval = finalizationPollInterval,
-        _activationSettleDelay = activationSettleDelay;
+  }) : _appId = appId,
+       _ffmpegExecutable = ffmpegExecutable,
+       _osascriptExecutable = osascriptExecutable,
+       _processStarter = processStarter,
+       _processRunner = processRunner,
+       _ffprobeProcessRunner = ffprobeProcessRunner ?? processRunner,
+       _tempFileFactory = tempFileFactory,
+       _windowTargetResolver = windowTargetResolver,
+       _startupTimeout = startupTimeout,
+       _startupEvidenceTimeout = startupEvidenceTimeout,
+       _stopTimeout = stopTimeout,
+       _finalizationPollInterval = finalizationPollInterval,
+       _activationSettleDelay = activationSettleDelay;
 
   final String _appId;
   final String _ffmpegExecutable;
@@ -147,12 +147,13 @@ final class CockpitMacosRecordingAdapter
         .transform(utf8.decoder)
         .transform(const LineSplitter())
         .listen((line) {
-      _appendRecentStderrLine(recentStderrLines, line);
-      if (!startupCompleter.isCompleted &&
-          (line.contains('Press [q] to stop') || line.contains('Output #0'))) {
-        startupCompleter.complete();
-      }
-    });
+          _appendRecentStderrLine(recentStderrLines, line);
+          if (!startupCompleter.isCompleted &&
+              (line.contains('Press [q] to stop') ||
+                  line.contains('Output #0'))) {
+            startupCompleter.complete();
+          }
+        });
 
     try {
       await Future.any<void>(<Future<void>>[
@@ -177,9 +178,7 @@ final class CockpitMacosRecordingAdapter
       if (!hasOutputEvidence) {
         await stderrSubscription.cancel();
         process.kill(ProcessSignal.sigkill);
-        throw StateError(
-          _buildStartupFailureMessage(recentStderrLines),
-        );
+        throw StateError(_buildStartupFailureMessage(recentStderrLines));
       }
     } on Object {
       await stderrSubscription.cancel();
@@ -338,10 +337,7 @@ final class CockpitMacosRecordingAdapter
       '-i',
       '',
     ]);
-    final output = <String>[
-      '${result.stdout}',
-      '${result.stderr}',
-    ].join('\n');
+    final output = <String>['${result.stdout}', '${result.stderr}'].join('\n');
     final screens = _parseCaptureScreens(output);
     if (screens.isEmpty) {
       throw StateError('Unable to resolve a macOS capture screen input.');
@@ -357,8 +353,9 @@ final class CockpitMacosRecordingAdapter
       return screens.first;
     }
 
-    final screensWithBounds =
-        screens.where((screen) => screen.hasBounds).toList(growable: false);
+    final screensWithBounds = screens
+        .where((screen) => screen.hasBounds)
+        .toList(growable: false);
     if (screensWithBounds.isEmpty) {
       return screens.first;
     }
@@ -390,8 +387,10 @@ final class CockpitMacosRecordingAdapter
     }
 
     var nearestScreen = screensWithBounds.first;
-    var nearestDistance =
-        nearestScreen.squaredDistanceToPoint(centerX, centerY);
+    var nearestDistance = nearestScreen.squaredDistanceToPoint(
+      centerX,
+      centerY,
+    );
     for (final screen in screensWithBounds.skip(1)) {
       final distance = screen.squaredDistanceToPoint(centerX, centerY);
       if (distance < nearestDistance) {
@@ -447,10 +446,9 @@ final class CockpitMacosRecordingAdapter
       return false;
     }
     return _waitForProcessExit(
-        process,
-        _stopStageTimeout(
-          const Duration(seconds: 2),
-        ));
+      process,
+      _stopStageTimeout(const Duration(seconds: 2)),
+    );
   }
 
   Future<bool> _requestSignalStop(Process process) async {
@@ -572,15 +570,18 @@ final class CockpitMacosRecordingAdapter
 }
 
 List<_CockpitMacosCaptureScreen> _parseCaptureScreens(String output) {
-  return _captureScreenPattern.allMatches(output).map((match) {
-    return _CockpitMacosCaptureScreen(
-      index: int.parse(match.group(1)!),
-      width: int.tryParse(match.group(2) ?? ''),
-      height: int.tryParse(match.group(3) ?? ''),
-      left: int.tryParse(match.group(4) ?? ''),
-      top: int.tryParse(match.group(5) ?? ''),
-    );
-  }).toList(growable: false);
+  return _captureScreenPattern
+      .allMatches(output)
+      .map((match) {
+        return _CockpitMacosCaptureScreen(
+          index: int.parse(match.group(1)!),
+          width: int.tryParse(match.group(2) ?? ''),
+          height: int.tryParse(match.group(3) ?? ''),
+          left: int.tryParse(match.group(4) ?? ''),
+          top: int.tryParse(match.group(5) ?? ''),
+        );
+      })
+      .toList(growable: false);
 }
 
 final RegExp _captureScreenPattern = RegExp(
@@ -644,13 +645,13 @@ final class _CockpitMacosCaptureScreen {
     final dx = x < left!
         ? left! - x
         : x > _right
-            ? x - _right
-            : 0.0;
+        ? x - _right
+        : 0.0;
     final dy = y < top!
         ? top! - y
         : y > _bottom
-            ? y - _bottom
-            : 0.0;
+        ? y - _bottom
+        : 0.0;
     return (dx * dx) + (dy * dy);
   }
 }

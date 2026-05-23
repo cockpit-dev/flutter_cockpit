@@ -11,11 +11,7 @@ import 'cockpit_reload_development_session_service.dart';
 import 'cockpit_session_registry.dart';
 
 final class CockpitHotReloadRequest {
-  const CockpitHotReloadRequest({
-    this.appId,
-    this.app,
-    this.appHandlePath,
-  });
+  const CockpitHotReloadRequest({this.appId, this.app, this.appHandlePath});
 
   final String? appId;
   final CockpitAppHandle? app;
@@ -34,10 +30,10 @@ final class CockpitHotReloadResult {
   final String? appJsonPath;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'app': app.toJson(),
-        'status': status.toJson(),
-        if (appJsonPath != null) 'appJsonPath': appJsonPath,
-      };
+    'app': app.toJson(),
+    'status': status.toJson(),
+    if (appJsonPath != null) 'appJsonPath': appJsonPath,
+  };
 }
 
 final class CockpitHotReloadService {
@@ -45,11 +41,12 @@ final class CockpitHotReloadService {
     CockpitReloadDevelopmentSessionService? reloadService,
     CockpitAppReferenceResolver? appReferenceResolver,
     CockpitSessionRegistry? registry,
-  })  : _reloadService =
-            reloadService ?? CockpitReloadDevelopmentSessionService(),
-        _appReferenceResolver = appReferenceResolver ??
-            CockpitAppReferenceResolver(registry: registry),
-        _registry = registry;
+  }) : _reloadService =
+           reloadService ?? CockpitReloadDevelopmentSessionService(),
+       _appReferenceResolver =
+           appReferenceResolver ??
+           CockpitAppReferenceResolver(registry: registry),
+       _registry = registry;
 
   final CockpitReloadDevelopmentSessionService _reloadService;
   final CockpitAppReferenceResolver _appReferenceResolver;
@@ -82,7 +79,8 @@ final class CockpitHotReloadService {
     );
     final app = CockpitAppHandle.fromDevelopmentSession(
       reloaded.sessionHandle,
-      supervisorLogPath: resolved.app?.supervisorLogPath ??
+      supervisorLogPath:
+          resolved.app?.supervisorLogPath ??
           resolved.developmentRecord?.supervisorLogPath,
     );
     final appJsonPath = await _persistAppIfRequested(

@@ -40,32 +40,24 @@ void main() {
 
   test('argument readers do not accept snake case aliases', () {
     expect(
-      () => cockpitReadRequiredString(
-        const <String, Object?>{'bundle_dir': '/tmp/out'},
-        'bundleDir',
-      ),
+      () => cockpitReadRequiredString(const <String, Object?>{
+        'bundle_dir': '/tmp/out',
+      }, 'bundleDir'),
       throwsA(isA<CockpitMcpError>()),
     );
   });
 
   test('object-list argument errors include the invalid item index', () {
     expect(
-      () => cockpitReadRequiredObjectList(
-        const <String, Object?>{
-          'commands': <Object?>[
-            <String, Object?>{'commandId': 'wait-1'},
-            'not-an-object',
-          ],
-        },
-        'commands',
-      ),
+      () => cockpitReadRequiredObjectList(const <String, Object?>{
+        'commands': <Object?>[
+          <String, Object?>{'commandId': 'wait-1'},
+          'not-an-object',
+        ],
+      }, 'commands'),
       throwsA(
         isA<CockpitMcpError>()
-            .having(
-              (error) => error.data['argument'],
-              'argument',
-              'commands',
-            )
+            .having((error) => error.data['argument'], 'argument', 'commands')
             .having((error) => error.data['index'], 'index', 1),
       ),
     );

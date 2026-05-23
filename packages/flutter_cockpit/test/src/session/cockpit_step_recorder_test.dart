@@ -24,6 +24,8 @@ void main() {
     expect(recorder.steps.single.index, 0);
     expect(recorder.steps.single.actionType, 'tap');
     expect(
-        recorder.steps.single.observedAt, DateTime.utc(2026, 3, 30, 10, 0, 0));
+      recorder.steps.single.observedAt,
+      DateTime.utc(2026, 3, 30, 10, 0, 0),
+    );
   });
 }

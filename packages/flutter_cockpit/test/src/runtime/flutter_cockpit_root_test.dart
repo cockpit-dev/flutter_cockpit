@@ -20,14 +20,14 @@ void main() {
             navigatorObservers: [FlutterCockpit.navigatorObserver],
             routes: <String, WidgetBuilder>{
               '/': (context) => Scaffold(
-                    body: Center(
-                      child: ElevatedButton(
-                        onPressed: () =>
-                            Navigator.of(context).pushNamed('/details'),
-                        child: const Text('Open details'),
-                      ),
-                    ),
+                body: Center(
+                  child: ElevatedButton(
+                    onPressed: () =>
+                        Navigator.of(context).pushNamed('/details'),
+                    child: const Text('Open details'),
                   ),
+                ),
+              ),
               '/details': (_) =>
                   const Scaffold(body: Center(child: Text('Details'))),
             },
@@ -61,30 +61,30 @@ void main() {
             navigatorObservers: [FlutterCockpit.navigatorObserver],
             routes: <String, WidgetBuilder>{
               '/': (context) => Scaffold(
-                    body: Column(
-                      children: <Widget>[
-                        ElevatedButton(
-                          key: const ValueKey<String>('home-compose-button'),
-                          onPressed: () {},
-                          child: const Text('Compose'),
-                        ),
-                        ElevatedButton(
-                          onPressed: () =>
-                              Navigator.of(context).pushNamed('/details'),
-                          child: const Text('Open details'),
-                        ),
-                      ],
+                body: Column(
+                  children: <Widget>[
+                    ElevatedButton(
+                      key: const ValueKey<String>('home-compose-button'),
+                      onPressed: () {},
+                      child: const Text('Compose'),
                     ),
-                  ),
+                    ElevatedButton(
+                      onPressed: () =>
+                          Navigator.of(context).pushNamed('/details'),
+                      child: const Text('Open details'),
+                    ),
+                  ],
+                ),
+              ),
               '/details': (context) => Scaffold(
-                    body: Center(
-                      child: ElevatedButton(
-                        key: const ValueKey<String>('details-save-button'),
-                        onPressed: () => Navigator.of(context).pop(),
-                        child: const Text('Save'),
-                      ),
-                    ),
+                body: Center(
+                  child: ElevatedButton(
+                    key: const ValueKey<String>('details-save-button'),
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Save'),
                   ),
+                ),
+              ),
             },
           ),
         ),
@@ -93,8 +93,8 @@ void main() {
 
       expect(
         rootKey.currentState!.snapshot().visibleTargets.any(
-              (target) => target.keyValue == 'home-compose-button',
-            ),
+          (target) => target.keyValue == 'home-compose-button',
+        ),
         isTrue,
       );
 
@@ -371,14 +371,14 @@ void main() {
             navigatorObservers: [FlutterCockpit.navigatorObserver],
             routes: <String, WidgetBuilder>{
               '/': (context) => Scaffold(
-                    body: Center(
-                      child: ElevatedButton(
-                        onPressed: () =>
-                            Navigator.of(context).pushNamed('/details'),
-                        child: const Text('Open details'),
-                      ),
-                    ),
+                body: Center(
+                  child: ElevatedButton(
+                    onPressed: () =>
+                        Navigator.of(context).pushNamed('/details'),
+                    child: const Text('Open details'),
                   ),
+                ),
+              ),
               '/details': (_) =>
                   const Scaffold(body: Center(child: Text('Details'))),
             },
@@ -474,8 +474,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final observer = FlutterCockpit.binding.runtimeObserver
-          as CockpitFlutterRuntimeObserver?;
+      final observer =
+          FlutterCockpit.binding.runtimeObserver
+              as CockpitFlutterRuntimeObserver?;
       observer?.recordFlutterFrameworkError(
         FlutterErrorDetails(
           exception: StateError('runtime exploded'),

@@ -18,10 +18,7 @@ Future<void> main() async {
 }
 
 final class _VerificationReport {
-  const _VerificationReport({
-    required this.verifyRoot,
-    required this.summary,
-  });
+  const _VerificationReport({required this.verifyRoot, required this.summary});
 
   final String verifyRoot;
   final Map<String, Object?> summary;
@@ -29,24 +26,19 @@ final class _VerificationReport {
 
 final class _McpSurfaceVerifier {
   _McpSurfaceVerifier()
-      : _repoRoot = p.normalize(
-          p.join(
-            p.dirname(Platform.script.toFilePath()),
-            '..',
-            '..',
-            '..',
-          ),
-        );
+    : _repoRoot = p.normalize(
+        p.join(p.dirname(Platform.script.toFilePath()), '..', '..', '..'),
+      );
 
   final String _repoRoot;
   int _requestId = 0;
 
   Future<_VerificationReport> run() async {
-    final verifyDirectory =
-        await Directory.systemTemp.createTemp('flutter_cockpit_mcp_real.');
-    final workspaceRoot = Directory(
-      p.join(verifyDirectory.path, 'workspace'),
-    )..createSync(recursive: true);
+    final verifyDirectory = await Directory.systemTemp.createTemp(
+      'flutter_cockpit_mcp_real.',
+    );
+    final workspaceRoot = Directory(p.join(verifyDirectory.path, 'workspace'))
+      ..createSync(recursive: true);
     final report = <String, Object?>{
       'repo_root': _repoRoot,
       'verify_root': verifyDirectory.path,
@@ -82,26 +74,18 @@ final class _McpSurfaceVerifier {
       report['prompts'] = await _promptNames(server);
       report['roots'] = await _roots(server);
       report['roots_mutation'] = <String, Object?>{
-        'added': await _callTool(
-          server,
-          'add_roots',
-          <String, Object?>{
-            'roots': <Map<String, Object?>>[
-              <String, Object?>{
-                'uri': Uri.directory(extraRoot.path).toString(),
-                'name': p.basename(extraRoot.path),
-              },
-            ],
-          },
-        ),
+        'added': await _callTool(server, 'add_roots', <String, Object?>{
+          'roots': <Map<String, Object?>>[
+            <String, Object?>{
+              'uri': Uri.directory(extraRoot.path).toString(),
+              'name': p.basename(extraRoot.path),
+            },
+          ],
+        }),
         'after_add': await _roots(server),
-        'removed': await _callTool(
-          server,
-          'remove_roots',
-          <String, Object?>{
-            'uris': <String>[Uri.directory(extraRoot.path).toString()],
-          },
-        ),
+        'removed': await _callTool(server, 'remove_roots', <String, Object?>{
+          'uris': <String>[Uri.directory(extraRoot.path).toString()],
+        }),
         'after_remove': await _roots(server),
       };
 
@@ -119,23 +103,22 @@ final class _McpSurfaceVerifier {
           'cockpit://workspace/capabilities',
         ),
       };
-      final promptPreview = await _getPrompt(
-        server,
-        'run_closed_loop_task',
-        <String, Object?>{
-          'taskGoal': 'Resolve sync conflicts with evidence.',
-          'platform': 'macos',
-          'requiresVideo': true,
-        },
-      );
+      final promptPreview =
+          await _getPrompt(server, 'run_closed_loop_task', <String, Object?>{
+            'taskGoal': 'Resolve sync conflicts with evidence.',
+            'platform': 'macos',
+            'requiresVideo': true,
+          });
       report['prompts_preview'] = promptPreview;
-      final promptText = promptPreview.map((message) {
-        final content = message['content'];
-        if (content is Map<Object?, Object?>) {
-          return '${content['text'] ?? ''}';
-        }
-        return '${message['text'] ?? ''}';
-      }).join('\n');
+      final promptText = promptPreview
+          .map((message) {
+            final content = message['content'];
+            if (content is Map<Object?, Object?>) {
+              return '${content['text'] ?? ''}';
+            }
+            return '${message['text'] ?? ''}';
+          })
+          .join('\n');
       final promptReport = <String, Object?>{};
       report['prompt_verification'] = promptReport;
       promptReport['hasHandleReuse'] = promptText.contains(
@@ -144,10 +127,11 @@ final class _McpSurfaceVerifier {
       promptReport['hasBoundedSummaryGuidance'] = promptText.contains(
         'prefer bounded summary reads before full inspection',
       );
-      promptReport['hasRouteAwareRecoveryGuidance'] = promptText
-              .contains('do not blindly replay a non-idempotent batch') &&
+      promptReport['hasRouteAwareRecoveryGuidance'] =
+          promptText.contains('do not blindly replay a non-idempotent batch') &&
           promptText.contains('re-read minimal route or state before retrying');
-      promptReport['status'] = (promptReport['hasHandleReuse'] as bool) &&
+      promptReport['status'] =
+          (promptReport['hasHandleReuse'] as bool) &&
               (promptReport['hasBoundedSummaryGuidance'] as bool) &&
               (promptReport['hasRouteAwareRecoveryGuidance'] as bool)
           ? 'passed'
@@ -162,16 +146,13 @@ final class _McpSurfaceVerifier {
         verifyDirectory.path,
       );
 
-      final createdProject = await _callTool(
-        server,
-        'create_project',
-        <String, Object?>{
-          'parentDirectory': workspaceRoot.path,
-          'projectName': 'mcp_verify_project',
-          'template': 'dart_cli',
-          'timeoutSeconds': 300,
-        },
-      );
+      final createdProject =
+          await _callTool(server, 'create_project', <String, Object?>{
+            'parentDirectory': workspaceRoot.path,
+            'projectName': 'mcp_verify_project',
+            'template': 'dart_cli',
+            'timeoutSeconds': 300,
+          });
       final projectRoot = createdProject['projectDirectory']! as String;
       report['workspace_project'] = <String, Object?>{
         'project_root': projectRoot,
@@ -239,7 +220,7 @@ final class _McpSurfaceVerifier {
         <String, Object?>{
           'workspaceRoot': projectRoot,
           'uris': <String>[
-            'package:mcp_verify_project/mcp_verify_project.dart'
+            'package:mcp_verify_project/mcp_verify_project.dart',
           ],
           'includeFullText': true,
         },
@@ -267,62 +248,47 @@ final class _McpSurfaceVerifier {
           'timeoutSeconds': 20,
         },
       );
-      workspaceReport['lsp_hover'] = await _callTool(
-        server,
-        'lsp',
-        <String, Object?>{
-          'workspaceRoot': projectRoot,
-          'command': 'hover',
-          'path': 'bin/mcp_verify_project.dart',
-          'line': 4,
-          'column': 24,
-          'timeoutSeconds': 20,
-        },
-      );
-      workspaceReport['lsp_definition'] = await _callTool(
-        server,
-        'lsp',
-        <String, Object?>{
-          'workspaceRoot': projectRoot,
-          'command': 'definition',
-          'path': 'bin/mcp_verify_project.dart',
-          'line': 4,
-          'column': 24,
-          'timeoutSeconds': 20,
-        },
-      );
-      workspaceReport['lsp_signature_help'] = await _callTool(
-        server,
-        'lsp',
-        <String, Object?>{
-          'workspaceRoot': projectRoot,
-          'command': 'signature_help',
-          'path': 'bin/mcp_verify_project.dart',
-          'line': 4,
-          'column': 17,
-          'timeoutSeconds': 20,
-        },
-      );
-      workspaceReport['lsp_document_symbols'] = await _callTool(
-        server,
-        'lsp',
-        <String, Object?>{
-          'workspaceRoot': projectRoot,
-          'command': 'document_symbols',
-          'path': 'lib/mcp_verify_project.dart',
-          'timeoutSeconds': 20,
-        },
-      );
-      workspaceReport['lsp_workspace_symbols'] = await _callTool(
-        server,
-        'lsp',
-        <String, Object?>{
-          'workspaceRoot': projectRoot,
-          'command': 'workspace_symbols',
-          'query': 'describeValue',
-          'timeoutSeconds': 20,
-        },
-      );
+      workspaceReport['lsp_hover'] =
+          await _callTool(server, 'lsp', <String, Object?>{
+            'workspaceRoot': projectRoot,
+            'command': 'hover',
+            'path': 'bin/mcp_verify_project.dart',
+            'line': 4,
+            'column': 24,
+            'timeoutSeconds': 20,
+          });
+      workspaceReport['lsp_definition'] =
+          await _callTool(server, 'lsp', <String, Object?>{
+            'workspaceRoot': projectRoot,
+            'command': 'definition',
+            'path': 'bin/mcp_verify_project.dart',
+            'line': 4,
+            'column': 24,
+            'timeoutSeconds': 20,
+          });
+      workspaceReport['lsp_signature_help'] =
+          await _callTool(server, 'lsp', <String, Object?>{
+            'workspaceRoot': projectRoot,
+            'command': 'signature_help',
+            'path': 'bin/mcp_verify_project.dart',
+            'line': 4,
+            'column': 17,
+            'timeoutSeconds': 20,
+          });
+      workspaceReport['lsp_document_symbols'] =
+          await _callTool(server, 'lsp', <String, Object?>{
+            'workspaceRoot': projectRoot,
+            'command': 'document_symbols',
+            'path': 'lib/mcp_verify_project.dart',
+            'timeoutSeconds': 20,
+          });
+      workspaceReport['lsp_workspace_symbols'] =
+          await _callTool(server, 'lsp', <String, Object?>{
+            'workspaceRoot': projectRoot,
+            'command': 'workspace_symbols',
+            'query': 'describeValue',
+            'timeoutSeconds': 20,
+          });
       workspaceReport['analyze_files'] = await _callTool(
         server,
         'analyze_files',
@@ -335,10 +301,7 @@ final class _McpSurfaceVerifier {
       workspaceReport['format_workspace'] = await _callTool(
         server,
         'format_workspace',
-        <String, Object?>{
-          'workspaceRoot': projectRoot,
-          'timeoutSeconds': 90,
-        },
+        <String, Object?>{'workspaceRoot': projectRoot, 'timeoutSeconds': 90},
       );
       final formattedSource = File(
         p.join(projectRoot, 'lib', 'unformatted.dart'),
@@ -347,32 +310,23 @@ final class _McpSurfaceVerifier {
       workspaceReport['apply_fixes'] = await _callTool(
         server,
         'apply_fixes',
-        <String, Object?>{
-          'workspaceRoot': projectRoot,
-          'timeoutSeconds': 180,
-        },
+        <String, Object?>{'workspaceRoot': projectRoot, 'timeoutSeconds': 180},
       );
       workspaceReport['fixed_source'] = File(
         p.join(projectRoot, 'lib', 'fix_me.dart'),
       ).readAsStringSync();
-      File(p.join(projectRoot, 'lib', 'unused.dart')).writeAsStringSync(
-        'int cleanValue() => 1;\n',
-      );
+      File(
+        p.join(projectRoot, 'lib', 'unused.dart'),
+      ).writeAsStringSync('int cleanValue() => 1;\n');
       workspaceReport['run_tests'] = await _callTool(
         server,
         'run_tests',
-        <String, Object?>{
-          'workspaceRoot': projectRoot,
-          'timeoutSeconds': 300,
-        },
+        <String, Object?>{'workspaceRoot': projectRoot, 'timeoutSeconds': 300},
       );
       workspaceReport['analyze_workspace'] = await _callTool(
         server,
         'analyze_workspace',
-        <String, Object?>{
-          'workspaceRoot': projectRoot,
-          'timeoutSeconds': 180,
-        },
+        <String, Object?>{'workspaceRoot': projectRoot, 'timeoutSeconds': 180},
       );
       workspaceReport['pub_remove'] = await _callTool(
         server,
@@ -389,18 +343,15 @@ final class _McpSurfaceVerifier {
         'list_targets',
         const <String, Object?>{},
       );
-      final targetLaunchResult = await _callTool(
-        server,
-        'launch_target',
-        <String, Object?>{
-          'projectDir': p.join(_repoRoot, 'examples', 'cockpit_demo'),
-          'platform': 'macos',
-          'deviceId': 'macos',
-          'sessionPort': await _freePort(),
-          'launchTimeoutSeconds': 150,
-          'targetJson': targetJsonPath,
-        },
-      );
+      final targetLaunchResult =
+          await _callTool(server, 'launch_target', <String, Object?>{
+            'projectDir': p.join(_repoRoot, 'examples', 'cockpit_demo'),
+            'platform': 'macos',
+            'deviceId': 'macos',
+            'sessionPort': await _freePort(),
+            'launchTimeoutSeconds': 150,
+            'targetJson': targetJsonPath,
+          });
       targetReport['launch_target'] = targetLaunchResult;
       final launchedTarget =
           targetLaunchResult['target'] as Map<Object?, Object?>?;
@@ -427,10 +378,7 @@ final class _McpSurfaceVerifier {
       targetReport['read_target'] = await _callTool(
         server,
         'read_target',
-        <String, Object?>{
-          'targetJson': targetJsonPath,
-          'profile': 'minimal',
-        },
+        <String, Object?>{'targetJson': targetJsonPath, 'profile': 'minimal'},
       );
       final targetRead = targetReport['read_target'] as Map<String, Object?>;
       if ('${targetRead['selectedPlane'] ?? ''}' != 'flutterSemanticPlane') {
@@ -442,10 +390,7 @@ final class _McpSurfaceVerifier {
       targetReport['inspect_surface'] = await _callTool(
         server,
         'inspect_surface',
-        <String, Object?>{
-          'targetJson': targetJsonPath,
-          'profile': 'inspect',
-        },
+        <String, Object?>{'targetJson': targetJsonPath, 'profile': 'inspect'},
       );
       final inspectSurface =
           targetReport['inspect_surface'] as Map<String, Object?>;
@@ -492,18 +437,15 @@ final class _McpSurfaceVerifier {
         targetAppId = null;
       }
       final launchPort = await _freePort();
-      final launchResult = await _callTool(
-        server,
-        'launch_app',
-        <String, Object?>{
-          'projectDir': p.join(_repoRoot, 'examples', 'cockpit_demo'),
-          'platform': 'macos',
-          'deviceId': 'macos',
-          'sessionPort': launchPort,
-          'launchTimeoutSeconds': 150,
-          'appJson': appJsonPath,
-        },
-      );
+      final launchResult =
+          await _callTool(server, 'launch_app', <String, Object?>{
+            'projectDir': p.join(_repoRoot, 'examples', 'cockpit_demo'),
+            'platform': 'macos',
+            'deviceId': 'macos',
+            'sessionPort': launchPort,
+            'launchTimeoutSeconds': 150,
+            'appJson': appJsonPath,
+          });
       appId =
           ((launchResult['app'] as Map<String, Object?>)['appId'] as String?)!;
       appReport['launch_app'] = launchResult;
@@ -523,18 +465,12 @@ final class _McpSurfaceVerifier {
       appReport['read_app'] = await _callTool(
         server,
         'read_app',
-        <String, Object?>{
-          'appId': appId,
-          'profile': 'minimal',
-        },
+        <String, Object?>{'appId': appId, 'profile': 'minimal'},
       );
       final inboxInspection = await _callTool(
         server,
         'inspect_ui',
-        <String, Object?>{
-          'appId': appId,
-          'profile': 'standard',
-        },
+        <String, Object?>{'appId': appId, 'profile': 'standard'},
       );
       final inboxSnapshotRef = inboxInspection['snapshotRef'] as String?;
       appReport['inspect_ui_inbox'] = inboxInspection;
@@ -558,16 +494,12 @@ final class _McpSurfaceVerifier {
         'open_settings',
         appReport['open_settings'] as Map<String, Object?>,
       );
-      appReport['inspect_ui_settings'] = await _callTool(
-        server,
-        'inspect_ui',
-        <String, Object?>{
-          'appId': appId,
-          'profile': 'inspect',
-          if (inboxSnapshotRef != null)
-            'compareAgainstSnapshotRef': inboxSnapshotRef,
-        },
-      );
+      appReport['inspect_ui_settings'] =
+          await _callTool(server, 'inspect_ui', <String, Object?>{
+            'appId': appId,
+            'profile': 'inspect',
+            'compareAgainstSnapshotRef': ?inboxSnapshotRef,
+          });
       final settingsInspection =
           appReport['inspect_ui_settings'] as Map<String, Object?>;
       if ('${settingsInspection['routeName'] ?? ''}' != '/settings') {
@@ -607,10 +539,7 @@ final class _McpSurfaceVerifier {
         },
       );
       appReport['scroll_sync_check'] = scrollSyncCheckResult;
-      _requireCommandSuccess(
-        'scroll_sync_check',
-        scrollSyncCheckResult,
-      );
+      _requireCommandSuccess('scroll_sync_check', scrollSyncCheckResult);
 
       final tapSyncCheckResult = await _callTool(
         server,
@@ -631,16 +560,13 @@ final class _McpSurfaceVerifier {
       appReport['tap_sync_check'] = tapSyncCheckResult;
       _requireCommandSuccess('tap_sync_check', tapSyncCheckResult);
 
-      final waitIdleAfterSyncCheck = await _callTool(
-        server,
-        'wait_idle',
-        <String, Object?>{
-          'appId': appId,
-          'timeoutMs': 5000,
-          'quietWindowMs': 160,
-          'includeNetworkIdle': true,
-        },
-      );
+      final waitIdleAfterSyncCheck =
+          await _callTool(server, 'wait_idle', <String, Object?>{
+            'appId': appId,
+            'timeoutMs': 5000,
+            'quietWindowMs': 160,
+            'includeNetworkIdle': true,
+          });
       appReport['wait_idle_after_sync_check'] = waitIdleAfterSyncCheck;
       _requireIdle('wait_idle_after_sync_check', waitIdleAfterSyncCheck);
 
@@ -711,10 +637,7 @@ final class _McpSurfaceVerifier {
       appReport['read_logs'] = await _callTool(
         server,
         'read_logs',
-        <String, Object?>{
-          'appId': appId,
-          'maxLines': 40,
-        },
+        <String, Object?>{'appId': appId, 'maxLines': 40},
       );
       appReport['start_recording'] = await _callTool(
         server,
@@ -747,17 +670,12 @@ final class _McpSurfaceVerifier {
       appReport['read_errors'] = await _callTool(
         server,
         'read_errors',
-        <String, Object?>{
-          'appId': appId,
-          'maxErrors': 10,
-        },
+        <String, Object?>{'appId': appId, 'maxErrors': 10},
       );
       appReport['stop_recording'] = await _callTool(
         server,
         'stop_recording',
-        <String, Object?>{
-          'appId': appId,
-        },
+        <String, Object?>{'appId': appId},
       );
       appReport['run_batch'] = await _callTool(
         server,
@@ -788,10 +706,7 @@ final class _McpSurfaceVerifier {
       appReport['wait_idle'] = await _callTool(
         server,
         'wait_idle',
-        <String, Object?>{
-          'appId': appId,
-          'timeoutMs': 2000,
-        },
+        <String, Object?>{'appId': appId, 'timeoutMs': 2000},
       );
       appReport['hot_reload'] = await _callTool(
         server,
@@ -806,10 +721,7 @@ final class _McpSurfaceVerifier {
       appReport['read_app_after_restart'] = await _callTool(
         server,
         'read_app',
-        <String, Object?>{
-          'appId': appId,
-          'profile': 'minimal',
-        },
+        <String, Object?>{'appId': appId, 'profile': 'minimal'},
       );
       appReport['wait_idle_after_restart'] = await _callTool(
         server,
@@ -837,26 +749,21 @@ final class _McpSurfaceVerifier {
           expectedRoute: '/inbox',
           reportKeyPrefix: 'run_script',
         );
-        final runScriptResult = await _callTool(
-          server,
-          'run_script',
-          <String, Object?>{
-            'appId': appId,
-            'outputRoot': runScriptOutput,
-            'script': _scriptJson(
-              sessionId: 'mcp-run-script-session',
-              taskId: 'mcp-run-script-task',
-              screenshotName: 'mcp-run-script',
-            ),
-          },
-        );
+        final runScriptResult =
+            await _callTool(server, 'run_script', <String, Object?>{
+              'appId': appId,
+              'outputRoot': runScriptOutput,
+              'script': _scriptJson(
+                sessionId: 'mcp-run-script-session',
+                taskId: 'mcp-run-script-task',
+                screenshotName: 'mcp-run-script',
+              ),
+            });
         appReport['run_script'] = runScriptResult;
         appReport['read_task_bundle_summary'] = await _callTool(
           server,
           'read_task_bundle_summary',
-          <String, Object?>{
-            'bundleDir': runScriptResult['bundleDir'],
-          },
+          <String, Object?>{'bundleDir': runScriptResult['bundleDir']},
         );
       } on StateError catch (error) {
         appReport['run_script_error'] = error.toString();
@@ -934,7 +841,7 @@ final class _McpSurfaceVerifier {
       'jsonrpc': '2.0',
       'id': ++_requestId,
       'method': method,
-      if (params != null) 'params': params,
+      'params': ?params,
     });
     if (response == null) {
       throw StateError('MCP server returned no response for $method.');
@@ -970,15 +877,14 @@ final class _McpSurfaceVerifier {
         }
         return Map<String, Object?>.from(structured);
       } on StateError catch (error) {
-        final retryable =
-            error.toString().contains('"serviceCode":"remoteUnavailable"');
+        final retryable = error.toString().contains(
+          '"serviceCode":"remoteUnavailable"',
+        );
         final canRetry = retryable && attempt + 1 < remoteRetryAttempts;
         if (!canRetry) {
           rethrow;
         }
-        await Future<void>.delayed(
-          Duration(milliseconds: 600 * (attempt + 1)),
-        );
+        await Future<void>.delayed(Duration(milliseconds: 600 * (attempt + 1)));
       }
     }
     throw StateError('Tool $name exhausted remote retry attempts.');
@@ -990,19 +896,17 @@ final class _McpSurfaceVerifier {
     required String expectedRoute,
     required String reportKeyPrefix,
   }) async {
-    var routeState = await _callTool(
-      server,
-      'read_app',
-      <String, Object?>{
-        'appId': appId,
-        'profile': 'minimal',
-      },
-    );
+    var routeState = await _callTool(server, 'read_app', <String, Object?>{
+      'appId': appId,
+      'profile': 'minimal',
+    });
     var currentRoute = '${routeState['currentRouteName'] ?? ''}';
     final steps = <Map<String, Object?>>[];
-    for (var attempt = 0;
-        currentRoute.isNotEmpty && currentRoute != expectedRoute && attempt < 4;
-        attempt += 1) {
+    for (
+      var attempt = 0;
+      currentRoute.isNotEmpty && currentRoute != expectedRoute && attempt < 4;
+      attempt += 1
+    ) {
       final backResult = await _callTool(
         server,
         'run_command',
@@ -1026,14 +930,10 @@ final class _McpSurfaceVerifier {
         backResult,
       );
       steps.add(backResult);
-      routeState = await _callTool(
-        server,
-        'read_app',
-        <String, Object?>{
-          'appId': appId,
-          'profile': 'minimal',
-        },
-      );
+      routeState = await _callTool(server, 'read_app', <String, Object?>{
+        'appId': appId,
+        'profile': 'minimal',
+      });
       currentRoute = '${routeState['currentRouteName'] ?? ''}';
     }
     if (currentRoute != expectedRoute) {
@@ -1105,9 +1005,7 @@ final class _McpSurfaceVerifier {
     String uri,
   ) async {
     final text = await _readTextResource(server, uri);
-    return Map<String, Object?>.from(
-      jsonDecode(text) as Map<Object?, Object?>,
-    );
+    return Map<String, Object?>.from(jsonDecode(text) as Map<Object?, Object?>);
   }
 
   Future<List<Map<String, Object?>>> _getPrompt(
@@ -1231,27 +1129,25 @@ int   sum( int left,int right ){return left+right;}
       return;
     }
     throw StateError(
-        '$label did not complete successfully: ${jsonEncode(result)}');
+      '$label did not complete successfully: ${jsonEncode(result)}',
+    );
   }
 
   Future<Map<String, Object?>> _verifyServeMcpCli(String verifyRoot) async {
     final logPath = p.join(verifyRoot, 'serve_mcp_protocol.log');
-    final process = await Process.start(
-      'dart',
-      <String>[
-        'run',
-        'flutter_cockpit_devtools:flutter_cockpit_devtools',
-        'serve-mcp',
-        '--workspace-root',
-        _repoRoot,
-        '--log-file',
-        logPath,
-      ],
-      workingDirectory: _repoRoot,
-    );
+    final process = await Process.start('dart', <String>[
+      'run',
+      'flutter_cockpit_devtools:flutter_cockpit_devtools',
+      'serve-mcp',
+      '--workspace-root',
+      _repoRoot,
+      '--log-file',
+      logPath,
+    ], workingDirectory: _repoRoot);
     final stderrBuffer = StringBuffer();
-    final stderrSubscription =
-        process.stderr.transform(utf8.decoder).listen(stderrBuffer.write);
+    final stderrSubscription = process.stderr
+        .transform(utf8.decoder)
+        .listen(stderrBuffer.write);
     final channel = cockpitMcpStdioChannel(
       input: process.stdout,
       output: process.stdin,
@@ -1269,7 +1165,7 @@ int   sum( int left,int right ){return left+right;}
           'jsonrpc': '2.0',
           'id': id,
           'method': method,
-          if (params != null) 'params': params,
+          'params': ?params,
         }),
       );
       while (await responses.moveNext()) {
@@ -1288,9 +1184,7 @@ int   sum( int left,int right ){return left+right;}
         }
         final result = payload['result'];
         if (result is! Map<Object?, Object?>) {
-          throw StateError(
-            'serve-mcp $method returned an unexpected payload.',
-          );
+          throw StateError('serve-mcp $method returned an unexpected payload.');
         }
         return Map<String, Object?>.from(result);
       }

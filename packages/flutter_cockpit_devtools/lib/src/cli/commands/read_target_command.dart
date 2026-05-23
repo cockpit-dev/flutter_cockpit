@@ -10,22 +10,18 @@ import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
-typedef CockpitReadTargetCliFunction = Future<CockpitReadTargetResult> Function(
-  CockpitReadTargetRequest request,
-);
+typedef CockpitReadTargetCliFunction =
+    Future<CockpitReadTargetResult> Function(CockpitReadTargetRequest request);
 
 final class ReadTargetCommand extends CockpitCliCommand {
   ReadTargetCommand({
     CockpitReadTargetService? service,
     CockpitReadTargetCliFunction? read,
     StringSink? stdoutSink,
-  })  : _read = read ?? (service ?? CockpitReadTargetService()).read,
-        _stdoutSink = stdoutSink ?? stdout {
+  }) : _read = read ?? (service ?? CockpitReadTargetService()).read,
+       _stdoutSink = stdoutSink ?? stdout {
     cockpitAddAppArgs(argParser);
-    argParser.addOption(
-      'target-json',
-      help: cockpitTargetJsonOptionHelp,
-    );
+    argParser.addOption('target-json', help: cockpitTargetJsonOptionHelp);
     cockpitAddProfileArg(
       argParser,
       defaultProfile: CockpitInteractiveResultProfileName.minimal,

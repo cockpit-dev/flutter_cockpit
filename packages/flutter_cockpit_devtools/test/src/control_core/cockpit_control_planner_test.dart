@@ -7,9 +7,7 @@ void main() {
   test('planner prefers flutter semantic plane before device fallback', () {
     final planner = CockpitControlPlanner();
     final plan = planner.plan(
-      intent: CockpitIntent.tap(
-        locator: const CockpitLocator(text: 'Submit'),
-      ),
+      intent: CockpitIntent.tap(locator: const CockpitLocator(text: 'Submit')),
       capabilityProfile: CockpitCapabilityProfile(
         targetKind: CockpitTargetKind.flutterApp,
         surfaceKinds: <CockpitSurfaceKind>{
@@ -54,8 +52,9 @@ void main() {
     );
 
     expect(plan.selectedPlane, CockpitPlaneKind.hostPlane);
-    expect(
-        plan.candidatePlanes, <CockpitPlaneKind>[CockpitPlaneKind.hostPlane]);
+    expect(plan.candidatePlanes, <CockpitPlaneKind>[
+      CockpitPlaneKind.hostPlane,
+    ]);
     expect(plan.fallbackChain, isEmpty);
     expect(plan.requiresObservation, isFalse);
   });

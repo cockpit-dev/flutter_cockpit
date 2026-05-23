@@ -68,82 +68,81 @@ void main() {
     );
 
     expect(
-      () => CockpitSessionReferenceResolver().readSessionHandle(
-        handleFile.path,
-      ),
+      () =>
+          CockpitSessionReferenceResolver().readSessionHandle(handleFile.path),
       throwsA(isA<TypeError>()),
     );
   });
 
-  test('refreshes android forwarding when resolving a session handle',
-      () async {
-    final resolver = CockpitSessionReferenceResolver(
-      portForwarder: CockpitAndroidPortForwarder(
-        processRunner: (_, __) async => ProcessResult(
-          0,
-          0,
-          'emulator-5554 tcp:61331 tcp:47331\n',
-          '',
+  test(
+    'refreshes android forwarding when resolving a session handle',
+    () async {
+      final resolver = CockpitSessionReferenceResolver(
+        portForwarder: CockpitAndroidPortForwarder(
+          processRunner: (_, _) async =>
+              ProcessResult(0, 0, 'emulator-5554 tcp:61331 tcp:47331\n', ''),
+          hostPortAllocator: () async => 61331,
+          hostPortAvailabilityChecker: (_) async => false,
         ),
-        hostPortAllocator: () async => 61331,
-        hostPortAvailabilityChecker: (_) async => false,
-      ),
-    );
+      );
 
-    final resolved = await resolver.resolve(
-      sessionHandle: CockpitRemoteSessionHandle(
-        platform: 'android',
-        deviceId: 'emulator-5554',
-        projectDir: '/workspace/examples/cockpit_demo',
-        target: 'cockpit/main.dart',
-        appId: 'dev.cockpit.cockpit_demo',
-        host: '127.0.0.1',
-        hostPort: 58421,
-        devicePort: 47331,
-        baseUrl: 'http://127.0.0.1:58421',
-        launchedAt: DateTime.utc(2026, 3, 23),
-      ),
-    );
+      final resolved = await resolver.resolve(
+        sessionHandle: CockpitRemoteSessionHandle(
+          platform: 'android',
+          deviceId: 'emulator-5554',
+          projectDir: '/workspace/examples/cockpit_demo',
+          target: 'cockpit/main.dart',
+          appId: 'dev.cockpit.cockpit_demo',
+          host: '127.0.0.1',
+          hostPort: 58421,
+          devicePort: 47331,
+          baseUrl: 'http://127.0.0.1:58421',
+          launchedAt: DateTime.utc(2026, 3, 23),
+        ),
+      );
 
-    expect(resolved.baseUri.toString(), 'http://127.0.0.1:61331');
-    expect(resolved.sessionHandle?.host, '127.0.0.1');
-    expect(resolved.sessionHandle?.hostPort, 61331);
-    expect(resolved.sessionHandle?.baseUrl, 'http://127.0.0.1:61331');
-    expect(resolved.sessionHandle?.devicePort, 47331);
-  });
+      expect(resolved.baseUri.toString(), 'http://127.0.0.1:61331');
+      expect(resolved.sessionHandle?.host, '127.0.0.1');
+      expect(resolved.sessionHandle?.hostPort, 61331);
+      expect(resolved.sessionHandle?.baseUrl, 'http://127.0.0.1:61331');
+      expect(resolved.sessionHandle?.devicePort, 47331);
+    },
+  );
 
-  test('explicit baseUri is authoritative when paired with a session handle',
-      () async {
-    var processRunnerCalled = false;
-    final resolver = CockpitSessionReferenceResolver(
-      portForwarder: CockpitAndroidPortForwarder(
-        processRunner: (_, __) async {
-          processRunnerCalled = true;
-          return ProcessResult(0, 0, '', '');
-        },
-      ),
-    );
+  test(
+    'explicit baseUri is authoritative when paired with a session handle',
+    () async {
+      var processRunnerCalled = false;
+      final resolver = CockpitSessionReferenceResolver(
+        portForwarder: CockpitAndroidPortForwarder(
+          processRunner: (_, _) async {
+            processRunnerCalled = true;
+            return ProcessResult(0, 0, '', '');
+          },
+        ),
+      );
 
-    final resolved = await resolver.resolve(
-      baseUri: Uri.parse('http://127.0.0.1:61331/cockpit'),
-      sessionHandle: CockpitRemoteSessionHandle(
-        platform: 'android',
-        deviceId: 'emulator-5554',
-        projectDir: '/workspace/examples/cockpit_demo',
-        target: 'cockpit/main.dart',
-        appId: 'dev.cockpit.cockpit_demo',
-        host: '127.0.0.1',
-        hostPort: 58421,
-        devicePort: 47331,
-        baseUrl: 'http://127.0.0.1:58421',
-        launchedAt: DateTime.utc(2026, 3, 23),
-      ),
-    );
+      final resolved = await resolver.resolve(
+        baseUri: Uri.parse('http://127.0.0.1:61331/cockpit'),
+        sessionHandle: CockpitRemoteSessionHandle(
+          platform: 'android',
+          deviceId: 'emulator-5554',
+          projectDir: '/workspace/examples/cockpit_demo',
+          target: 'cockpit/main.dart',
+          appId: 'dev.cockpit.cockpit_demo',
+          host: '127.0.0.1',
+          hostPort: 58421,
+          devicePort: 47331,
+          baseUrl: 'http://127.0.0.1:58421',
+          launchedAt: DateTime.utc(2026, 3, 23),
+        ),
+      );
 
-    expect(processRunnerCalled, isFalse);
-    expect(resolved.baseUri.toString(), 'http://127.0.0.1:61331/cockpit');
-    expect(resolved.sessionHandle?.hostPort, 61331);
-    expect(resolved.sessionHandle?.baseUrl, 'http://127.0.0.1:61331/cockpit');
-    expect(resolved.sessionHandle?.devicePort, 47331);
-  });
+      expect(processRunnerCalled, isFalse);
+      expect(resolved.baseUri.toString(), 'http://127.0.0.1:61331/cockpit');
+      expect(resolved.sessionHandle?.hostPort, 61331);
+      expect(resolved.sessionHandle?.baseUrl, 'http://127.0.0.1:61331/cockpit');
+      expect(resolved.sessionHandle?.devicePort, 47331);
+    },
+  );
 }

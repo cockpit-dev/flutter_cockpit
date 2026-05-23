@@ -21,8 +21,8 @@ final class CockpitCommandResult {
     this.usedCaptureFallback = false,
     this.degradationReason,
     this.error,
-  })  : artifacts = List.unmodifiable(artifacts),
-        snapshot = snapshot == null ? null : Map.unmodifiable(snapshot);
+  }) : artifacts = List.unmodifiable(artifacts),
+       snapshot = snapshot == null ? null : Map.unmodifiable(snapshot);
 
   final bool success;
   final String commandId;
@@ -43,22 +43,22 @@ final class CockpitCommandResult {
       MapEquality<String, Object?>();
 
   Map<String, Object?> toJson() => {
-        'success': success,
-        'commandId': commandId,
-        'commandType': commandType.name,
-        if (locatorResolution != null)
-          'locatorResolution': locatorResolution!.toJson(),
-        'durationMs': durationMs,
-        'artifacts': artifacts.map((artifact) => artifact.toJson()).toList(),
-        if (snapshot != null) 'snapshot': snapshot,
-        if (requestedCaptureProfile != null)
-          'requestedCaptureProfile': requestedCaptureProfile!.name,
-        if (resolvedCaptureKind != null)
-          'resolvedCaptureKind': resolvedCaptureKind!.name,
-        'usedCaptureFallback': usedCaptureFallback,
-        if (degradationReason != null) 'degradationReason': degradationReason,
-        if (error != null) 'error': error!.toJson(),
-      };
+    'success': success,
+    'commandId': commandId,
+    'commandType': commandType.name,
+    if (locatorResolution != null)
+      'locatorResolution': locatorResolution!.toJson(),
+    'durationMs': durationMs,
+    'artifacts': artifacts.map((artifact) => artifact.toJson()).toList(),
+    if (snapshot != null) 'snapshot': snapshot,
+    if (requestedCaptureProfile != null)
+      'requestedCaptureProfile': requestedCaptureProfile!.name,
+    if (resolvedCaptureKind != null)
+      'resolvedCaptureKind': resolvedCaptureKind!.name,
+    'usedCaptureFallback': usedCaptureFallback,
+    if (degradationReason != null) 'degradationReason': degradationReason,
+    if (error != null) 'error': error!.toJson(),
+  };
 
   factory CockpitCommandResult.fromJson(Map<String, Object?> json) {
     final locatorResolutionJson =
@@ -85,8 +85,9 @@ final class CockpitCommandResult {
                 CockpitArtifactRef.fromJson(Map<String, Object?>.from(item)),
           )
           .toList(growable: false),
-      snapshot:
-          snapshotJson == null ? null : Map<String, Object?>.from(snapshotJson),
+      snapshot: snapshotJson == null
+          ? null
+          : Map<String, Object?>.from(snapshotJson),
       requestedCaptureProfile: requestedCaptureProfile == null
           ? null
           : CockpitCaptureProfile.fromJson(requestedCaptureProfile),
@@ -121,17 +122,17 @@ final class CockpitCommandResult {
 
   @override
   int get hashCode => Object.hash(
-        success,
-        commandId,
-        commandType,
-        locatorResolution,
-        durationMs,
-        _artifactListEquality.hash(artifacts),
-        snapshot == null ? null : _mapEquality.hash(snapshot!),
-        requestedCaptureProfile,
-        resolvedCaptureKind,
-        usedCaptureFallback,
-        degradationReason,
-        error,
-      );
+    success,
+    commandId,
+    commandType,
+    locatorResolution,
+    durationMs,
+    _artifactListEquality.hash(artifacts),
+    snapshot == null ? null : _mapEquality.hash(snapshot!),
+    requestedCaptureProfile,
+    resolvedCaptureKind,
+    usedCaptureFallback,
+    degradationReason,
+    error,
+  );
 }

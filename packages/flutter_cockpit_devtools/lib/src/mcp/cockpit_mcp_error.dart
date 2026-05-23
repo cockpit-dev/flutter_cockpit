@@ -47,10 +47,10 @@ final class CockpitMcpError implements Exception {
   }
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'code': code,
-        'message': message,
-        if (data.isNotEmpty) 'data': data,
-      };
+    'code': code,
+    'message': message,
+    if (data.isNotEmpty) 'data': data,
+  };
 
   static int _serviceCodeToMcpCode(String code) {
     switch (code) {

@@ -59,23 +59,23 @@ final class CockpitDevelopmentSessionHandle {
   Uri get supervisorBaseUri => Uri.parse(supervisorBaseUrl);
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'developmentSessionId': developmentSessionId,
-        'platform': platform,
-        'deviceId': deviceId,
-        'projectDir': projectDir,
-        'target': target,
-        'appId': appId,
-        'appBaseUrl': appBaseUrl,
-        'supervisorBaseUrl': supervisorBaseUrl,
-        'launchMode': launchMode.jsonValue,
-        if (remoteSessionHandle != null)
-          'remoteSessionHandle': remoteSessionHandle!.toJson(),
-        if (vmServiceUri != null) 'vmServiceUri': vmServiceUri!.toString(),
-        'launchedAt': launchedAt.toUtc().toIso8601String(),
-        if (lastReloadAt != null)
-          'lastReloadAt': lastReloadAt!.toUtc().toIso8601String(),
-        'reloadGeneration': reloadGeneration,
-      };
+    'developmentSessionId': developmentSessionId,
+    'platform': platform,
+    'deviceId': deviceId,
+    'projectDir': projectDir,
+    'target': target,
+    'appId': appId,
+    'appBaseUrl': appBaseUrl,
+    'supervisorBaseUrl': supervisorBaseUrl,
+    'launchMode': launchMode.jsonValue,
+    if (remoteSessionHandle != null)
+      'remoteSessionHandle': remoteSessionHandle!.toJson(),
+    if (vmServiceUri != null) 'vmServiceUri': vmServiceUri!.toString(),
+    'launchedAt': launchedAt.toUtc().toIso8601String(),
+    if (lastReloadAt != null)
+      'lastReloadAt': lastReloadAt!.toUtc().toIso8601String(),
+    'reloadGeneration': reloadGeneration,
+  };
 
   factory CockpitDevelopmentSessionHandle.fromJson(Map<String, Object?> json) {
     final remoteSessionHandleJson =
@@ -134,19 +134,22 @@ final class CockpitDevelopmentSessionHandle {
       appBaseUrl: appBaseUrl ?? this.appBaseUrl,
       supervisorBaseUrl: supervisorBaseUrl ?? this.supervisorBaseUrl,
       launchMode: launchMode ?? this.launchMode,
-      remoteSessionHandle: identical(
-              remoteSessionHandle, _cockpitUnsetDevelopmentSessionHandleField)
+      remoteSessionHandle:
+          identical(
+            remoteSessionHandle,
+            _cockpitUnsetDevelopmentSessionHandleField,
+          )
           ? this.remoteSessionHandle
           : remoteSessionHandle as CockpitRemoteSessionHandle?,
       vmServiceUri:
           identical(vmServiceUri, _cockpitUnsetDevelopmentSessionHandleField)
-              ? this.vmServiceUri
-              : vmServiceUri as Uri?,
+          ? this.vmServiceUri
+          : vmServiceUri as Uri?,
       launchedAt: launchedAt ?? this.launchedAt,
       lastReloadAt:
           identical(lastReloadAt, _cockpitUnsetDevelopmentSessionHandleField)
-              ? this.lastReloadAt
-              : lastReloadAt as DateTime?,
+          ? this.lastReloadAt
+          : lastReloadAt as DateTime?,
       reloadGeneration: reloadGeneration ?? this.reloadGeneration,
     );
   }

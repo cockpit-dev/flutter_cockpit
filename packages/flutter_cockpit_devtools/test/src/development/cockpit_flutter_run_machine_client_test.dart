@@ -193,66 +193,70 @@ void main() {
     expect(stopwatch.elapsed, lessThan(const Duration(seconds: 2)));
   });
 
-  test('fails immediately when a request is sent after the machine exits',
-      () async {
-    final stdoutController = StreamController<String>();
-    final stderrController = StreamController<String>();
-    final exitCode = Completer<int>();
+  test(
+    'fails immediately when a request is sent after the machine exits',
+    () async {
+      final stdoutController = StreamController<String>();
+      final stderrController = StreamController<String>();
+      final exitCode = Completer<int>();
 
-    final client = CockpitFlutterRunMachineClient(
-      stdoutLines: stdoutController.stream,
-      stderrLines: stderrController.stream,
-      exitCode: exitCode.future,
-      requestWriter: (_) async {},
-    );
-    addTearDown(() async {
-      await stdoutController.close();
-      await stderrController.close();
-      await client.dispose();
-    });
+      final client = CockpitFlutterRunMachineClient(
+        stdoutLines: stdoutController.stream,
+        stderrLines: stderrController.stream,
+        exitCode: exitCode.future,
+        requestWriter: (_) async {},
+      );
+      addTearDown(() async {
+        await stdoutController.close();
+        await stderrController.close();
+        await client.dispose();
+      });
 
-    stderrController.add('Lost connection to device');
-    exitCode.complete(1);
-    await Future<void>.delayed(Duration.zero);
+      stderrController.add('Lost connection to device');
+      exitCode.complete(1);
+      await Future<void>.delayed(Duration.zero);
 
-    await expectLater(
-      client.hotReload(appId: 'app-1'),
-      throwsA(
-        isA<CockpitFlutterRunMachineRequestException>().having(
-          (error) => error.message,
-          'message',
-          contains('exitCode=1'),
+      await expectLater(
+        client.hotReload(appId: 'app-1'),
+        throwsA(
+          isA<CockpitFlutterRunMachineRequestException>().having(
+            (error) => error.message,
+            'message',
+            contains('exitCode=1'),
+          ),
         ),
-      ),
-    );
-  });
+      );
+    },
+  );
 
-  test('completes request errors when the writer throws before sending',
-      () async {
-    final stdoutController = StreamController<String>();
-    final stderrController = StreamController<String>();
-    final exitCode = Completer<int>();
+  test(
+    'completes request errors when the writer throws before sending',
+    () async {
+      final stdoutController = StreamController<String>();
+      final stderrController = StreamController<String>();
+      final exitCode = Completer<int>();
 
-    final client = CockpitFlutterRunMachineClient(
-      stdoutLines: stdoutController.stream,
-      stderrLines: stderrController.stream,
-      exitCode: exitCode.future,
-      requestWriter: (_) async {
-        throw const SocketException('stdin closed');
-      },
-    );
-    addTearDown(() async {
-      await stdoutController.close();
-      await stderrController.close();
-      if (!exitCode.isCompleted) {
-        exitCode.complete(0);
-      }
-      await client.dispose();
-    });
+      final client = CockpitFlutterRunMachineClient(
+        stdoutLines: stdoutController.stream,
+        stderrLines: stderrController.stream,
+        exitCode: exitCode.future,
+        requestWriter: (_) async {
+          throw const SocketException('stdin closed');
+        },
+      );
+      addTearDown(() async {
+        await stdoutController.close();
+        await stderrController.close();
+        if (!exitCode.isCompleted) {
+          exitCode.complete(0);
+        }
+        await client.dispose();
+      });
 
-    await expectLater(
-      client.stop(appId: 'app-1'),
-      throwsA(isA<SocketException>()),
-    );
-  });
+      await expectLater(
+        client.stop(appId: 'app-1'),
+        throwsA(isA<SocketException>()),
+      );
+    },
+  );
 }

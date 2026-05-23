@@ -8,17 +8,16 @@ import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
-typedef CockpitRunShellCliFunction = Future<CockpitRunShellResult> Function(
-  CockpitRunShellRequest request,
-);
+typedef CockpitRunShellCliFunction =
+    Future<CockpitRunShellResult> Function(CockpitRunShellRequest request);
 
 final class RunShellCommand extends CockpitCliCommand {
   RunShellCommand({
     CockpitRunShellService? service,
     CockpitRunShellCliFunction? runShell,
     StringSink? stdoutSink,
-  })  : _runShell = runShell ?? (service ?? CockpitRunShellService()).run,
-        _stdoutSink = stdoutSink ?? stdout {
+  }) : _runShell = runShell ?? (service ?? CockpitRunShellService()).run,
+       _stdoutSink = stdoutSink ?? stdout {
     argParser
       ..addOption(
         'scope',

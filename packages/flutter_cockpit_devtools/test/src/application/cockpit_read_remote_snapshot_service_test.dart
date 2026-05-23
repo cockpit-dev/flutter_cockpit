@@ -53,7 +53,7 @@ void main() {
 
     test('returns full snapshots for forensic reads', () async {
       final service = CockpitReadRemoteSnapshotService(
-        readSnapshot: (_, __) async => CockpitRemoteSnapshotResponse(
+        readSnapshot: (_, _) async => CockpitRemoteSnapshotResponse(
           snapshot: CockpitSnapshot(
             routeName: '/forensic',
             diagnosticLevel: CockpitSnapshotProfile.forensic,
@@ -72,50 +72,49 @@ void main() {
       expect(result.uiSummary, isNull);
     });
 
-    test('preserves externalized diagnostics artifact download metadata',
-        () async {
-      final service = CockpitReadRemoteSnapshotService(
-        readSnapshot: (_, __) async => CockpitRemoteSnapshotResponse(
-          snapshot: CockpitSnapshot(
-            routeName: '/forensic',
-            diagnosticLevel: CockpitSnapshotProfile.forensic,
-            diagnosticsArtifactRef: const CockpitArtifactRef(
-              role: 'diagnostics',
-              relativePath: 'diagnostics/remote_snapshot_debug.json',
-            ),
-          ),
-          artifactDownloads: const <CockpitRemoteArtifactDownload>[
-            CockpitRemoteArtifactDownload(
-              artifact: CockpitArtifactRef(
+    test(
+      'preserves externalized diagnostics artifact download metadata',
+      () async {
+        final service = CockpitReadRemoteSnapshotService(
+          readSnapshot: (_, _) async => CockpitRemoteSnapshotResponse(
+            snapshot: CockpitSnapshot(
+              routeName: '/forensic',
+              diagnosticLevel: CockpitSnapshotProfile.forensic,
+              diagnosticsArtifactRef: const CockpitArtifactRef(
                 role: 'diagnostics',
                 relativePath: 'diagnostics/remote_snapshot_debug.json',
               ),
-              downloadPath:
-                  '/artifacts/download?path=diagnostics%2Fremote_snapshot_debug.json',
             ),
-          ],
-        ),
-      );
+            artifactDownloads: const <CockpitRemoteArtifactDownload>[
+              CockpitRemoteArtifactDownload(
+                artifact: CockpitArtifactRef(
+                  role: 'diagnostics',
+                  relativePath: 'diagnostics/remote_snapshot_debug.json',
+                ),
+                downloadPath:
+                    '/artifacts/download?path=diagnostics%2Fremote_snapshot_debug.json',
+              ),
+            ],
+          ),
+        );
 
-      final result = await service.read(
-        CockpitReadRemoteSnapshotRequest(
-          sessionHandle: _sessionHandle(),
-          resultProfile: const CockpitInteractiveResultProfile.evidence(),
-        ),
-      );
+        final result = await service.read(
+          CockpitReadRemoteSnapshotRequest(
+            sessionHandle: _sessionHandle(),
+            resultProfile: const CockpitInteractiveResultProfile.evidence(),
+          ),
+        );
 
-      expect(result.snapshot?.diagnosticsArtifactRef, isNotNull);
-      expect(result.artifactDownloads, hasLength(1));
-      expect(
-        result.toJson()['artifactDownloads'],
-        isA<List<Object?>>(),
-      );
-    });
+        expect(result.snapshot?.diagnosticsArtifactRef, isNotNull);
+        expect(result.artifactDownloads, hasLength(1));
+        expect(result.toJson()['artifactDownloads'], isA<List<Object?>>());
+      },
+    );
 
     test('retries transient empty snapshots before returning', () async {
       var readCount = 0;
       final service = CockpitReadRemoteSnapshotService(
-        readSnapshot: (_, __) async {
+        readSnapshot: (_, _) async {
           readCount += 1;
           return CockpitRemoteSnapshotResponse(
             snapshot: readCount == 1
@@ -180,7 +179,7 @@ void main() {
       final response = await cockpitReadRemoteSnapshotConsistently(
         baseUri: _sessionHandle().baseUri,
         options: const CockpitSnapshotOptions.forensic(),
-        readSnapshot: (_, __) async {
+        readSnapshot: (_, _) async {
           readCount += 1;
           return CockpitRemoteSnapshotResponse(
             snapshot: readCount < 4
@@ -208,18 +207,19 @@ void main() {
                   ),
           );
         },
-        waitForUiIdle: (
-          baseUri, {
-          required quietWindow,
-          required timeout,
-          required includeNetworkIdle,
-        }) async {
-          waitedBaseUri = baseUri;
-          waitedQuietWindow = quietWindow;
-          waitedTimeout = timeout;
-          waitedIncludeNetworkIdle = includeNetworkIdle;
-          return true;
-        },
+        waitForUiIdle:
+            (
+              baseUri, {
+              required quietWindow,
+              required timeout,
+              required includeNetworkIdle,
+            }) async {
+              waitedBaseUri = baseUri;
+              waitedQuietWindow = quietWindow;
+              waitedTimeout = timeout;
+              waitedIncludeNetworkIdle = includeNetworkIdle;
+              return true;
+            },
       );
 
       expect(readCount, 4);
@@ -238,7 +238,7 @@ void main() {
         final response = await cockpitReadRemoteSnapshotConsistently(
           baseUri: _sessionHandle().baseUri,
           options: const CockpitSnapshotOptions.forensic(),
-          readSnapshot: (_, __) async {
+          readSnapshot: (_, _) async {
             readCount += 1;
             return CockpitRemoteSnapshotResponse(
               snapshot: readCount < 4
@@ -266,14 +266,15 @@ void main() {
                     ),
             );
           },
-          waitForUiIdle: (
-            baseUri, {
-            required quietWindow,
-            required timeout,
-            required includeNetworkIdle,
-          }) async {
-            return false;
-          },
+          waitForUiIdle:
+              (
+                baseUri, {
+                required quietWindow,
+                required timeout,
+                required includeNetworkIdle,
+              }) async {
+                return false;
+              },
         );
 
         expect(readCount, 4);
@@ -283,7 +284,7 @@ void main() {
 
     test('filters failures-only diagnostics for inspect reads', () async {
       final service = CockpitReadRemoteSnapshotService(
-        readSnapshot: (_, __) async => CockpitRemoteSnapshotResponse(
+        readSnapshot: (_, _) async => CockpitRemoteSnapshotResponse(
           snapshot: CockpitSnapshot(
             routeName: '/inspect',
             diagnosticLevel: CockpitSnapshotProfile.investigate,
@@ -350,7 +351,7 @@ void main() {
 
     test('reports missing compare refs as structured errors', () async {
       final service = CockpitReadRemoteSnapshotService(
-        readSnapshot: (_, __) async => CockpitRemoteSnapshotResponse(
+        readSnapshot: (_, _) async => CockpitRemoteSnapshotResponse(
           snapshot: CockpitSnapshot(routeName: '/details'),
         ),
       );
@@ -389,7 +390,7 @@ void main() {
       );
       final service = CockpitReadRemoteSnapshotService(
         snapshotStore: store,
-        readSnapshot: (_, __) async => CockpitRemoteSnapshotResponse(
+        readSnapshot: (_, _) async => CockpitRemoteSnapshotResponse(
           snapshot: CockpitSnapshot(
             routeName: '/after',
             visibleTargets: <CockpitSnapshotTarget>[

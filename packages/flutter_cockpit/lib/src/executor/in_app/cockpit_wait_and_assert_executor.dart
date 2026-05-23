@@ -25,17 +25,21 @@ final class CockpitWaitAndAssertExecutor {
     Stopwatch stopwatch,
   ) {
     return switch (command.commandType) {
-      CockpitCommandType.scrollUntilVisible =>
-        scrollUntilVisible(command, stopwatch),
-      CockpitCommandType.waitForNetworkIdle =>
-        waitForNetworkIdle(command, stopwatch),
+      CockpitCommandType.scrollUntilVisible => scrollUntilVisible(
+        command,
+        stopwatch,
+      ),
+      CockpitCommandType.waitForNetworkIdle => waitForNetworkIdle(
+        command,
+        stopwatch,
+      ),
       CockpitCommandType.waitForUiIdle => waitForUiIdle(command, stopwatch),
       CockpitCommandType.assertVisible => assertVisible(command, stopwatch),
       CockpitCommandType.assertText => assertText(command, stopwatch),
       CockpitCommandType.waitFor => waitFor(command, stopwatch),
       _ => throw UnsupportedError(
-          'Unsupported wait/assert command ${command.commandType.name}.',
-        ),
+        'Unsupported wait/assert command ${command.commandType.name}.',
+      ),
     };
   }
 }

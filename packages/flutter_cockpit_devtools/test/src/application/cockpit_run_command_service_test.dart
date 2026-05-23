@@ -11,52 +11,50 @@ import 'package:flutter_cockpit_devtools/src/session/cockpit_remote_session_hand
 import 'package:test/test.dart';
 
 void main() {
-  test('app-first commands return the refreshed remote session handle',
-      () async {
-    Uri? capturedBaseUri;
-    final service = CockpitRunCommandService(
-      appReferenceResolver: CockpitAppReferenceResolver(
-        portForwarder: CockpitAndroidPortForwarder(
-          processRunner: (_, __) async => ProcessResult(
-            0,
-            0,
-            'emulator-5554 tcp:61331 tcp:47331\n',
-            '',
+  test(
+    'app-first commands return the refreshed remote session handle',
+    () async {
+      Uri? capturedBaseUri;
+      final service = CockpitRunCommandService(
+        appReferenceResolver: CockpitAppReferenceResolver(
+          portForwarder: CockpitAndroidPortForwarder(
+            processRunner: (_, _) async =>
+                ProcessResult(0, 0, 'emulator-5554 tcp:61331 tcp:47331\n', ''),
+            hostPortAllocator: () async => 61331,
+            hostPortAvailabilityChecker: (_) async => false,
           ),
-          hostPortAllocator: () async => 61331,
-          hostPortAvailabilityChecker: (_) async => false,
         ),
-      ),
-      executeService: CockpitExecuteRemoteCommandService(
-        executeCommand: (baseUri, command) async {
-          capturedBaseUri = baseUri;
-          return CockpitCommandExecution(
-            result: CockpitCommandResult(
-              success: true,
-              commandId: command.commandId,
-              commandType: command.commandType,
-              durationMs: 24,
-            ),
-          );
-        },
-      ),
-    );
-
-    final result = await service.run(
-      CockpitRunCommandRequest(
-        app: _androidAppHandle(),
-        command: CockpitCommand(
-          commandId: 'tap-save',
-          commandType: CockpitCommandType.tap,
+        executeService: CockpitExecuteRemoteCommandService(
+          executeCommand: (baseUri, command) async {
+            capturedBaseUri = baseUri;
+            return CockpitCommandExecution(
+              result: CockpitCommandResult(
+                success: true,
+                commandId: command.commandId,
+                commandType: command.commandType,
+                durationMs: 24,
+              ),
+            );
+          },
         ),
-        resultProfile: const CockpitInteractiveResultProfile.minimal(),
-      ),
-    );
+      );
 
-    expect(capturedBaseUri.toString(), 'http://127.0.0.1:61331');
-    expect(result.sessionHandle?.baseUrl, 'http://127.0.0.1:61331');
-    expect(result.sessionHandle?.devicePort, 47331);
-  });
+      final result = await service.run(
+        CockpitRunCommandRequest(
+          app: _androidAppHandle(),
+          command: CockpitCommand(
+            commandId: 'tap-save',
+            commandType: CockpitCommandType.tap,
+          ),
+          resultProfile: const CockpitInteractiveResultProfile.minimal(),
+        ),
+      );
+
+      expect(capturedBaseUri.toString(), 'http://127.0.0.1:61331');
+      expect(result.sessionHandle?.baseUrl, 'http://127.0.0.1:61331');
+      expect(result.sessionHandle?.devicePort, 47331);
+    },
+  );
 }
 
 CockpitAppHandle _androidAppHandle() {

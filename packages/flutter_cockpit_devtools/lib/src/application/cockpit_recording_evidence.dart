@@ -27,7 +27,7 @@ CockpitRecordingEvidenceAssessment cockpitAssessRecordingEvidence(
   );
   final shouldFailCompletedRecording =
       recordingResult.state == CockpitRecordingState.completed &&
-          evidenceFailure != null;
+      evidenceFailure != null;
 
   return CockpitRecordingEvidenceAssessment(
     state: shouldFailCompletedRecording
@@ -56,8 +56,9 @@ _CockpitRecordingArtifactEvidence _artifactEvidenceFor(
     return _CockpitRecordingArtifactEvidence(
       byteLength: bytes.length,
       sourcePath: _nonEmptyString(recordingResult.sourceFilePath),
-      failureReason:
-          bytes.isEmpty ? 'Recording artifact bytes are empty.' : null,
+      failureReason: bytes.isEmpty
+          ? 'Recording artifact bytes are empty.'
+          : null,
     );
   }
 
@@ -81,13 +82,15 @@ _CockpitRecordingArtifactEvidence _artifactEvidenceFor(
     return _CockpitRecordingArtifactEvidence(
       byteLength: byteLength,
       sourcePath: sourceFilePath,
-      failureReason:
-          byteLength == 0 ? 'Recording artifact source file is empty.' : null,
+      failureReason: byteLength == 0
+          ? 'Recording artifact source file is empty.'
+          : null,
     );
   } on Object catch (error) {
     return _CockpitRecordingArtifactEvidence(
       sourcePath: sourceFilePath,
-      failureReason: 'Recording artifact source file could not be inspected: '
+      failureReason:
+          'Recording artifact source file could not be inspected: '
           '$error',
     );
   }

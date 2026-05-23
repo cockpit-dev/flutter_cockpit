@@ -48,20 +48,20 @@ final class CockpitPubDevPackageSummary {
   final List<String> topics;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'packageName': packageName,
-        'latestVersion': latestVersion,
-        'description': description,
-        'publisher': publisher,
-        'grantedPoints': grantedPoints,
-        'maxPoints': maxPoints,
-        'likeCount': likeCount,
-        'popularityScore': popularityScore,
-        'homepageUrl': homepageUrl,
-        'repositoryUrl': repositoryUrl,
-        'documentationUrl': documentationUrl,
-        'license': license,
-        'topics': topics,
-      };
+    'packageName': packageName,
+    'latestVersion': latestVersion,
+    'description': description,
+    'publisher': publisher,
+    'grantedPoints': grantedPoints,
+    'maxPoints': maxPoints,
+    'likeCount': likeCount,
+    'popularityScore': popularityScore,
+    'homepageUrl': homepageUrl,
+    'repositoryUrl': repositoryUrl,
+    'documentationUrl': documentationUrl,
+    'license': license,
+    'topics': topics,
+  };
 }
 
 final class CockpitPubDevSearchResult {
@@ -76,11 +76,10 @@ final class CockpitPubDevSearchResult {
   final String? suggestion;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'results':
-            results.map((result) => result.toJson()).toList(growable: false),
-        'warnings': warnings,
-        'suggestion': suggestion,
-      };
+    'results': results.map((result) => result.toJson()).toList(growable: false),
+    'warnings': warnings,
+    'suggestion': suggestion,
+  };
 }
 
 final class CockpitPubDevSearchService {
@@ -88,9 +87,9 @@ final class CockpitPubDevSearchService {
     CockpitHttpClient? httpClient,
     CockpitProcessManager? processManager,
     bool? enableProcessFallback,
-  })  : _httpClient = httpClient ?? DefaultCockpitHttpClient(),
-        _processManager = processManager ?? const LocalCockpitProcessManager(),
-        _enableProcessFallback = enableProcessFallback ?? httpClient == null;
+  }) : _httpClient = httpClient ?? DefaultCockpitHttpClient(),
+       _processManager = processManager ?? const LocalCockpitProcessManager(),
+       _enableProcessFallback = enableProcessFallback ?? httpClient == null;
 
   final CockpitHttpClient _httpClient;
   final CockpitProcessManager _processManager;
@@ -116,12 +115,14 @@ final class CockpitPubDevSearchService {
       Map<Object?, Object?> latest = const <Object?, Object?>{};
       Map<Object?, Object?> pubspec = const <Object?, Object?>{};
       try {
-        packageJson = jsonDecode(
-          await _read(
-            Uri.https('pub.dev', '/api/packages/$packageName'),
-            timeout: request.timeout,
-          ),
-        ) as Map<Object?, Object?>;
+        packageJson =
+            jsonDecode(
+                  await _read(
+                    Uri.https('pub.dev', '/api/packages/$packageName'),
+                    timeout: request.timeout,
+                  ),
+                )
+                as Map<Object?, Object?>;
         latest = Map<Object?, Object?>.from(
           packageJson['latest'] as Map<Object?, Object?>? ??
               const <Object?, Object?>{},
@@ -135,12 +136,14 @@ final class CockpitPubDevSearchService {
       }
       Map<Object?, Object?> scoreJson = const <Object?, Object?>{};
       try {
-        scoreJson = jsonDecode(
-          await _read(
-            Uri.https('pub.dev', '/api/packages/$packageName/score'),
-            timeout: request.timeout,
-          ),
-        ) as Map<Object?, Object?>;
+        scoreJson =
+            jsonDecode(
+                  await _read(
+                    Uri.https('pub.dev', '/api/packages/$packageName/score'),
+                    timeout: request.timeout,
+                  ),
+                )
+                as Map<Object?, Object?>;
       } on Object {
         warnings.add('Package score unavailable for $packageName.');
       }
@@ -179,12 +182,11 @@ final class CockpitPubDevSearchService {
     return _readWithFallback(uri, timeout: timeout);
   }
 
-  Future<String> _readWithFallback(
-    Uri uri, {
-    required Duration timeout,
-  }) async {
+  Future<String> _readWithFallback(Uri uri, {required Duration timeout}) async {
     try {
-      return await _httpClient.read(uri).timeout(
+      return await _httpClient
+          .read(uri)
+          .timeout(
             timeout,
             onTimeout: () => throw CockpitApplicationServiceException(
               code: 'pubDevSearchTimedOut',
@@ -216,10 +218,7 @@ final class CockpitPubDevSearchService {
     }
   }
 
-  Future<String> _readViaPython(
-    Uri uri, {
-    required Duration timeout,
-  }) async {
+  Future<String> _readViaPython(Uri uri, {required Duration timeout}) async {
     final timeoutSeconds = (timeout.inMilliseconds / 1000).ceil().clamp(1, 600);
     final commands = <(String executable, List<String> arguments)>[
       (
@@ -235,10 +234,7 @@ final class CockpitPubDevSearchService {
     for (final command in commands) {
       try {
         final result = await _processManager
-            .run(
-              command.$1,
-              command.$2,
-            )
+            .run(command.$1, command.$2)
             .timeout(timeout + const Duration(seconds: 1));
         final stdout = '${result.stdout}'.trim();
         final stderr = '${result.stderr}'.trim();

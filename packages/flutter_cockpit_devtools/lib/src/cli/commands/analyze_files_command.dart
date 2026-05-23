@@ -7,18 +7,18 @@ import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_workspace_cli_support.dart';
 
-typedef CockpitAnalyzeFilesFunction = Future<CockpitAnalyzeFilesResult>
-    Function(
-  CockpitAnalyzeFilesRequest request,
-);
+typedef CockpitAnalyzeFilesFunction =
+    Future<CockpitAnalyzeFilesResult> Function(
+      CockpitAnalyzeFilesRequest request,
+    );
 
 final class AnalyzeFilesCommand extends CockpitCliCommand {
   AnalyzeFilesCommand({
     CockpitAnalyzeFilesService? service,
     CockpitAnalyzeFilesFunction? analyze,
     StringSink? stdoutSink,
-  })  : _analyze = analyze ?? (service ?? CockpitAnalyzeFilesService()).analyze,
-        _stdoutSink = stdoutSink ?? stdout {
+  }) : _analyze = analyze ?? (service ?? CockpitAnalyzeFilesService()).analyze,
+       _stdoutSink = stdoutSink ?? stdout {
     cockpitAddWorkspaceRootOption(argParser);
     argParser
       ..addMultiOption(

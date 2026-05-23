@@ -42,11 +42,11 @@ final class CockpitHttpNetworkObserverConfiguration {
 
   @override
   int get hashCode => Object.hash(
-        maxRetainedEntries,
-        maxHeaderCount,
-        maxHeaderValueLength,
-        maxBodyBytes,
-        captureHeaders,
-        captureBodies,
-      );
+    maxRetainedEntries,
+    maxHeaderCount,
+    maxHeaderValueLength,
+    maxBodyBytes,
+    captureHeaders,
+    captureBodies,
+  );
 }

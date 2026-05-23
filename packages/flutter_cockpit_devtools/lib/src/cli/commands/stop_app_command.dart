@@ -6,21 +6,17 @@ import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
-typedef CockpitStopAppFunction = Future<CockpitStopAppResult> Function(
-  CockpitStopAppRequest request,
-);
+typedef CockpitStopAppFunction =
+    Future<CockpitStopAppResult> Function(CockpitStopAppRequest request);
 
 final class StopAppCommand extends CockpitCliCommand {
   StopAppCommand({
     CockpitStopAppService? service,
     CockpitStopAppFunction? stop,
     StringSink? stdoutSink,
-  })  : _stop = stop ?? (service ?? CockpitStopAppService()).stop,
-        _stdoutSink = stdoutSink ?? stdout {
-    argParser.addOption(
-      'app-json',
-      help: cockpitAppJsonOptionHelp,
-    );
+  }) : _stop = stop ?? (service ?? CockpitStopAppService()).stop,
+       _stdoutSink = stdoutSink ?? stdout {
+    argParser.addOption('app-json', help: cockpitAppJsonOptionHelp);
   }
 
   final CockpitStopAppFunction _stop;

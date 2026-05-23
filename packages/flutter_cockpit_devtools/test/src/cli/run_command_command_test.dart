@@ -32,7 +32,8 @@ void main() {
         ),
       );
 
-    final exitCode = await runner.run(<String>[
+    final exitCode =
+        await runner.run(<String>[
           'run-command',
           '--base-url',
           'http://127.0.0.1:47331',
@@ -56,57 +57,61 @@ void main() {
     expect(stdoutBuffer.toString(), isNot(contains('\n  "')));
   });
 
-  test('run-command writes pretty json files when output-format json is used',
-      () async {
-    final tempDir =
-        await Directory.systemTemp.createTemp('cockpit_run_command');
-    addTearDown(() async {
-      if (tempDir.existsSync()) {
-        await tempDir.delete(recursive: true);
-      }
-    });
-    final outputFile = File(p.join(tempDir.path, 'result.json'));
-    final stdoutBuffer = StringBuffer();
-    final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
-      ..addCommand(
-        RunCommandCommand(
-          stdoutSink: stdoutBuffer,
-          runCommand: (_) async => CockpitRunCommandResult(
-            command: const CockpitInteractiveCommandCore(
-              commandId: 'tap-1',
-              commandType: 'tap',
-              success: true,
-              durationMs: 42,
-              usedCaptureFallback: false,
-            ),
-            artifacts: const <CockpitInteractiveArtifactDescriptor>[],
-          ),
-        ),
+  test(
+    'run-command writes pretty json files when output-format json is used',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_run_command',
       );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+      final outputFile = File(p.join(tempDir.path, 'result.json'));
+      final stdoutBuffer = StringBuffer();
+      final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
+        ..addCommand(
+          RunCommandCommand(
+            stdoutSink: stdoutBuffer,
+            runCommand: (_) async => CockpitRunCommandResult(
+              command: const CockpitInteractiveCommandCore(
+                commandId: 'tap-1',
+                commandType: 'tap',
+                success: true,
+                durationMs: 42,
+                usedCaptureFallback: false,
+              ),
+              artifacts: const <CockpitInteractiveArtifactDescriptor>[],
+            ),
+          ),
+        );
 
-    final exitCode = await runner.run(<String>[
-          'run-command',
-          '--base-url',
-          'http://127.0.0.1:47331',
-          '--command-json',
-          jsonEncode(<String, Object?>{
-            'commandId': 'tap-1',
-            'commandType': 'tap',
-          }),
-          '--output',
-          outputFile.path,
-          '--output-format',
-          'json',
-        ]) ??
-        0;
+      final exitCode =
+          await runner.run(<String>[
+            'run-command',
+            '--base-url',
+            'http://127.0.0.1:47331',
+            '--command-json',
+            jsonEncode(<String, Object?>{
+              'commandId': 'tap-1',
+              'commandType': 'tap',
+            }),
+            '--output',
+            outputFile.path,
+            '--output-format',
+            'json',
+          ]) ??
+          0;
 
-    expect(exitCode, 0);
-    expect(stdoutBuffer.toString().trim(), 'output=${outputFile.path}');
-    final written = await outputFile.readAsString();
-    expect(written, contains('\n  "command"'));
-    final decoded = jsonDecode(written) as Map<String, Object?>;
-    expect(decoded['command'], isA<Map<String, Object?>>());
-  });
+      expect(exitCode, 0);
+      expect(stdoutBuffer.toString().trim(), 'output=${outputFile.path}');
+      final written = await outputFile.readAsString();
+      expect(written, contains('\n  "command"'));
+      final decoded = jsonDecode(written) as Map<String, Object?>;
+      expect(decoded['command'], isA<Map<String, Object?>>());
+    },
+  );
 
   test('run-command reports invalid command json as a usage error', () async {
     final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')

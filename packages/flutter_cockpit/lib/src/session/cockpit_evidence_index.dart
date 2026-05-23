@@ -41,8 +41,9 @@ final class CockpitEvidenceIndex {
     final screenshotRefs = _collectArtifactPaths(steps, role: 'screenshot');
     final primaryScreenshotRef = _selectPrimaryScreenshotRef(steps);
     final recordingRefs = _collectArtifactPaths(steps, role: 'recording');
-    final primaryRecordingRef =
-        recordingRefs.isEmpty ? '' : recordingRefs.first;
+    final primaryRecordingRef = recordingRefs.isEmpty
+        ? ''
+        : recordingRefs.first;
     final screenshotCount = steps.fold<int>(
       0,
       (count, step) => count + step.captureRefs.length,

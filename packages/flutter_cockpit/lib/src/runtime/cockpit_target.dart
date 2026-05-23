@@ -9,8 +9,8 @@ typedef CockpitTapHandler = void Function();
 typedef CockpitLongPressHandler = void Function();
 typedef CockpitDoubleTapHandler = void Function();
 typedef CockpitEnterTextHandler = void Function(String text);
-typedef CockpitTextInputHandler = void Function(
-    CockpitTextInputRequest request);
+typedef CockpitTextInputHandler =
+    void Function(CockpitTextInputRequest request);
 typedef CockpitSemanticActionHandler = void Function();
 typedef CockpitDiagnosticNodeProvider = Object? Function();
 typedef CockpitTargetGeometryProvider = CockpitTargetGeometry? Function();
@@ -130,20 +130,20 @@ final class CockpitTarget {
 
   @override
   int get hashCode => Object.hash(
-        registrationId,
-        cockpitId,
-        semanticId,
-        keyValue,
-        text,
-        tooltip,
-        typeName,
-        path,
-        scrollablePath,
-        scrollableKeyValue,
-        scrollableTypeName,
-        routeName,
-        isVisible,
-        diagnosticNodeProvider,
-        _commandSetEquality.hash(supportedCommands),
-      );
+    registrationId,
+    cockpitId,
+    semanticId,
+    keyValue,
+    text,
+    tooltip,
+    typeName,
+    path,
+    scrollablePath,
+    scrollableKeyValue,
+    scrollableTypeName,
+    routeName,
+    isVisible,
+    diagnosticNodeProvider,
+    _commandSetEquality.hash(supportedCommands),
+  );
 }

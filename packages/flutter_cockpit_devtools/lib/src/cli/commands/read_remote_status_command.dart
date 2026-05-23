@@ -7,18 +7,18 @@ import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
-typedef CockpitReadRemoteStatusFunction = Future<CockpitReadRemoteStatusResult>
-    Function(
-  CockpitReadRemoteStatusRequest request,
-);
+typedef CockpitReadRemoteStatusFunction =
+    Future<CockpitReadRemoteStatusResult> Function(
+      CockpitReadRemoteStatusRequest request,
+    );
 
 final class ReadRemoteStatusCommand extends CockpitCliCommand {
   ReadRemoteStatusCommand({
     CockpitReadRemoteStatusService? service,
     CockpitReadRemoteStatusFunction? read,
     StringSink? stdoutSink,
-  })  : _read = read ?? (service ?? CockpitReadRemoteStatusService()).read,
-        _stdoutSink = stdoutSink ?? stdout {
+  }) : _read = read ?? (service ?? CockpitReadRemoteStatusService()).read,
+       _stdoutSink = stdoutSink ?? stdout {
     cockpitAddRemoteSessionArgs(argParser);
     cockpitAddProfileArg(
       argParser,

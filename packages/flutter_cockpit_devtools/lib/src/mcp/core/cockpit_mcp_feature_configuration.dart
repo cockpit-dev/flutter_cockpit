@@ -18,8 +18,9 @@ final class CockpitMcpFeatureConfiguration {
       return true;
     }
 
-    for (final category
-        in _categoriesInPrecedenceOrder(definition.categories)) {
+    for (final category in _categoriesInPrecedenceOrder(
+      definition.categories,
+    )) {
       final categoryName = category.serializedName;
       if (disabledNames.contains(categoryName)) {
         return false;

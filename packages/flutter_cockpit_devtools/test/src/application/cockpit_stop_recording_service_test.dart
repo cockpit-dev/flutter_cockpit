@@ -44,9 +44,7 @@ void main() {
         );
 
         final result = await service.stop(
-          CockpitStopRecordingRequest(
-            app: _iosAppHandle(),
-          ),
+          CockpitStopRecordingRequest(app: _iosAppHandle()),
         );
 
         expect(result.state, CockpitRecordingState.completed);
@@ -197,10 +195,7 @@ void main() {
   });
 }
 
-Future<File> _recordingSourceFile(
-  String name, {
-  String? contents,
-}) async {
+Future<File> _recordingSourceFile(String name, {String? contents}) async {
   final tempDir = await Directory.systemTemp.createTemp(
     'flutter_cockpit_stop_recording_test_',
   );
@@ -272,12 +267,12 @@ final class _FakeProcess implements Process {
 }
 
 final class _FakeRecordingAdapter implements CockpitRecordingAdapter {
-  _FakeRecordingAdapter({
-    this.onStop,
-  });
+  _FakeRecordingAdapter({this.onStop});
 
   final Future<CockpitRecordingSession> Function(
-      CockpitRecordingRequest request)? onStart = null;
+    CockpitRecordingRequest request,
+  )?
+  onStart = null;
   final Future<CockpitRecordingResult> Function()? onStop;
 
   @override

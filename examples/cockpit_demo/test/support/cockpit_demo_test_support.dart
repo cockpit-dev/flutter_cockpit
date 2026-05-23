@@ -74,9 +74,10 @@ Future<void> pumpTodoApp(
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
   });
-  final effectiveConfiguration = (configuration ??
-          const FlutterCockpitConfiguration(initialRouteName: '/inbox'))
-      .copyWith(sessionController: controller);
+  final effectiveConfiguration =
+      (configuration ??
+              const FlutterCockpitConfiguration(initialRouteName: '/inbox'))
+          .copyWith(sessionController: controller);
   await tester.pumpWidget(
     CockpitDemoApp(
       configuration: effectiveConfiguration,
@@ -111,15 +112,9 @@ Future<void> createTaskThroughUi(
 }) async {
   await tester.tap(find.text('New task'));
   await tester.pumpAndSettle();
-  await tester.enterText(
-    textFieldByLabel('Task title'),
-    title,
-  );
+  await tester.enterText(textFieldByLabel('Task title'), title);
   if (notes.isNotEmpty) {
-    await tester.enterText(
-      textFieldByLabel('Notes'),
-      notes,
-    );
+    await tester.enterText(textFieldByLabel('Notes'), notes);
   }
   if (priorityLabel != null) {
     final priorityFinder = find.widgetWithText(
@@ -147,10 +142,13 @@ Future<void> settleAfterTaskSave(WidgetTester tester) async {
   for (var attempt = 0; attempt < 12; attempt += 1) {
     final routeSettled =
         FlutterCockpit.binding.currentRouteName.value != '/editor';
-    final spinnerSettled =
-        find.byType(CircularProgressIndicator).evaluate().isEmpty;
+    final spinnerSettled = find
+        .byType(CircularProgressIndicator)
+        .evaluate()
+        .isEmpty;
     final collectionFinder = find.byType(TodoCollectionScreen);
-    final collectionSettled = collectionFinder.evaluate().isEmpty ||
+    final collectionSettled =
+        collectionFinder.evaluate().isEmpty ||
         !tester
             .state<State<TodoCollectionScreen>>(collectionFinder)
             .widget
@@ -165,10 +163,7 @@ Future<void> settleAfterTaskSave(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
-Future<void> _scrollUntilVisible(
-  WidgetTester tester,
-  Finder finder,
-) async {
+Future<void> _scrollUntilVisible(WidgetTester tester, Finder finder) async {
   await tester
       .scrollUntilVisible(
         finder,
@@ -195,19 +190,10 @@ Future<void> scrollTodoCollectionUntilVisible(
 }) async {
   final collection = find.byType(TodoCollectionScreen);
   final scrollable = collection.evaluate().isNotEmpty
-      ? find
-          .descendant(
-            of: collection,
-            matching: find.byType(Scrollable),
-          )
-          .first
+      ? find.descendant(of: collection, matching: find.byType(Scrollable)).first
       : find.byType(Scrollable).first;
   await tester
-      .scrollUntilVisible(
-        finder,
-        delta,
-        scrollable: scrollable,
-      )
+      .scrollUntilVisible(finder, delta, scrollable: scrollable)
       .timeout(const Duration(seconds: 10));
   await tester.pumpAndSettle(
     const Duration(milliseconds: 100),
@@ -227,10 +213,7 @@ Finder textFieldByLabel(String label) {
 }
 
 Finder taskRowByTitle(String title, {bool selectionMode = false}) {
-  return find.ancestor(
-    of: find.text(title),
-    matching: find.byType(InkWell),
-  );
+  return find.ancestor(of: find.text(title), matching: find.byType(InkWell));
 }
 
 Finder taskToggleByTitle(String title, {bool completed = false}) {
@@ -278,7 +261,8 @@ void recordCapture({
     actionArgs: const <String, Object?>{'target': 'root'},
     observation: CockpitObservation(
       routeName: capture.screenshot.snapshot?.routeName,
-      interactiveElements: capture.screenshot.snapshot?.visibleTargets
+      interactiveElements:
+          capture.screenshot.snapshot?.visibleTargets
               .map((target) => target.displayLabel)
               .whereType<String>()
               .toList(growable: false) ??

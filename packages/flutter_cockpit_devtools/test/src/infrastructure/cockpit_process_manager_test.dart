@@ -10,51 +10,49 @@ void main() {
   group('LocalCockpitProcessManager', () {
     test('delegates run requests to the injected ProcessManager', () async {
       final delegate = _FakeProcessManager(
-        onRun: ({
-          required String executable,
-          required List<String> arguments,
-          String? workingDirectory,
-        }) async {
-          return ProcessResult(
-            42,
-            0,
-            '$executable ${arguments.join(' ')}',
-            workingDirectory,
-          );
-        },
+        onRun:
+            ({
+              required String executable,
+              required List<String> arguments,
+              String? workingDirectory,
+            }) async {
+              return ProcessResult(
+                42,
+                0,
+                '$executable ${arguments.join(' ')}',
+                workingDirectory,
+              );
+            },
       );
       final manager = LocalCockpitProcessManager(processManager: delegate);
 
-      final result = await manager.run(
-        'flutter',
-        const ['test', '--machine'],
-        workingDirectory: '/tmp/repo',
-      );
+      final result = await manager.run('flutter', const [
+        'test',
+        '--machine',
+      ], workingDirectory: '/tmp/repo');
 
       expect(result.exitCode, 0);
       expect(result.stdout, 'flutter test --machine');
       expect(result.stderr, '/tmp/repo');
       expect(delegate.runExecutables, <String>['flutter']);
-      expect(
-        delegate.runArguments,
-        <List<String>>[
-          <String>['test', '--machine'],
-        ],
-      );
+      expect(delegate.runArguments, <List<String>>[
+        <String>['test', '--machine'],
+      ]);
       expect(delegate.runWorkingDirectories, <String?>['/tmp/repo']);
     });
 
     test('delegates start requests to the injected ProcessManager', () async {
       final process = _FakeProcess();
       final delegate = _FakeProcessManager(
-        onStart: ({
-          required String executable,
-          required List<String> arguments,
-          String? workingDirectory,
-          ProcessStartMode mode = ProcessStartMode.normal,
-        }) async {
-          return process;
-        },
+        onStart:
+            ({
+              required String executable,
+              required List<String> arguments,
+              String? workingDirectory,
+              ProcessStartMode mode = ProcessStartMode.normal,
+            }) async {
+              return process;
+            },
       );
       final manager = LocalCockpitProcessManager(processManager: delegate);
 
@@ -67,33 +65,31 @@ void main() {
 
       expect(identical(started, process), isTrue);
       expect(delegate.startExecutables, <String>['dart']);
-      expect(
-        delegate.startArguments,
-        <List<String>>[
-          <String>['run', 'tool.dart'],
-        ],
-      );
+      expect(delegate.startArguments, <List<String>>[
+        <String>['run', 'tool.dart'],
+      ]);
       expect(delegate.startWorkingDirectories, <String?>['/workspace']);
-      expect(
-        delegate.startModes,
-        <ProcessStartMode>[ProcessStartMode.detached],
-      );
+      expect(delegate.startModes, <ProcessStartMode>[
+        ProcessStartMode.detached,
+      ]);
     });
   });
 }
 
-typedef _RunHandler = Future<ProcessResult> Function({
-  required String executable,
-  required List<String> arguments,
-  String? workingDirectory,
-});
+typedef _RunHandler =
+    Future<ProcessResult> Function({
+      required String executable,
+      required List<String> arguments,
+      String? workingDirectory,
+    });
 
-typedef _StartHandler = Future<Process> Function({
-  required String executable,
-  required List<String> arguments,
-  String? workingDirectory,
-  ProcessStartMode mode,
-});
+typedef _StartHandler =
+    Future<Process> Function({
+      required String executable,
+      required List<String> arguments,
+      String? workingDirectory,
+      ProcessStartMode mode,
+    });
 
 final class _FakeProcessManager implements ProcessManager {
   _FakeProcessManager({this.onRun, this.onStart});

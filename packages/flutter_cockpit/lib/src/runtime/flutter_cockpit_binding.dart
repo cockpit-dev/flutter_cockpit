@@ -31,25 +31,27 @@ import 'cockpit_target_registry.dart';
 
 final class FlutterCockpitBinding {
   FlutterCockpitBinding(FlutterCockpitConfiguration configuration)
-      : _configuration = configuration,
-        registry = configuration.registry ??
-            CockpitTargetRegistry(routeName: configuration.initialRouteName),
-        nativeCapture =
-            configuration.nativeCapture ?? const CockpitNativeCapture(),
-        nativeRecording =
-            configuration.nativeRecording ?? const CockpitNativeRecording(),
-        sessionController = configuration.sessionController ??
-            CockpitSessionController(
-              sessionId:
-                  'runtime-${DateTime.now().toUtc().microsecondsSinceEpoch}',
-              taskId: 'runtime-session',
-              platform: defaultTargetPlatform.name,
-            ),
-        networkObserver = configuration.networkObserver ??
-            configuration.httpNetworkObserver?.buildObserver(),
-        runtimeStepBuffer = CockpitRuntimeStepBuffer(),
-        currentRouteName =
-            ValueNotifier<String>(configuration.initialRouteName) {
+    : _configuration = configuration,
+      registry =
+          configuration.registry ??
+          CockpitTargetRegistry(routeName: configuration.initialRouteName),
+      nativeCapture =
+          configuration.nativeCapture ?? const CockpitNativeCapture(),
+      nativeRecording =
+          configuration.nativeRecording ?? const CockpitNativeRecording(),
+      sessionController =
+          configuration.sessionController ??
+          CockpitSessionController(
+            sessionId:
+                'runtime-${DateTime.now().toUtc().microsecondsSinceEpoch}',
+            taskId: 'runtime-session',
+            platform: defaultTargetPlatform.name,
+          ),
+      networkObserver =
+          configuration.networkObserver ??
+          configuration.httpNetworkObserver?.buildObserver(),
+      runtimeStepBuffer = CockpitRuntimeStepBuffer(),
+      currentRouteName = ValueNotifier<String>(configuration.initialRouteName) {
     rebuildTracker = configuration.diagnostics.enableRebuildTracking
         ? CockpitRebuildTracker(
             routeNameProvider: () => currentRouteName.value,
@@ -57,7 +59,8 @@ final class FlutterCockpitBinding {
                 configuration.diagnostics.maxTrackedRebuildEntries,
           )
         : null;
-    runtimeObserver = configuration.runtimeObserver ??
+    runtimeObserver =
+        configuration.runtimeObserver ??
         (configuration.runtimeObserverConfiguration.enabled
             ? configuration.runtimeObserverConfiguration.buildObserver(
                 routeNameProvider: () => currentRouteName.value,
@@ -115,8 +118,9 @@ final class FlutterCockpitBinding {
     CockpitRecordingRequest request,
   ) async {
     final session = await nativeRecording.startRecording(request: request);
-    _activeRecordingSession =
-        session.state == CockpitRecordingState.recording ? session : null;
+    _activeRecordingSession = session.state == CockpitRecordingState.recording
+        ? session
+        : null;
     return session;
   }
 
@@ -237,7 +241,8 @@ final class FlutterCockpitBinding {
   void _reconfigureNetworkObserver(
     FlutterCockpitConfiguration nextConfiguration,
   ) {
-    final nextObserver = nextConfiguration.networkObserver ??
+    final nextObserver =
+        nextConfiguration.networkObserver ??
         nextConfiguration.httpNetworkObserver?.buildObserver();
     if (identical(networkObserver, nextObserver)) {
       return;
@@ -283,7 +288,8 @@ final class FlutterCockpitBinding {
     required CockpitDiagnosticsConfig previousDiagnostics,
     required CockpitDiagnosticsConfig nextDiagnostics,
   }) {
-    final changed = previousDiagnostics.enableRebuildTracking !=
+    final changed =
+        previousDiagnostics.enableRebuildTracking !=
             nextDiagnostics.enableRebuildTracking ||
         previousDiagnostics.maxTrackedRebuildEntries !=
             nextDiagnostics.maxTrackedRebuildEntries;
@@ -308,8 +314,8 @@ final class FlutterCockpitBinding {
     final nextRouteName = routeName == null
         ? configuration.initialRouteName
         : (routeName == '/' && configuration.initialRouteName != '/'
-            ? configuration.initialRouteName
-            : routeName);
+              ? configuration.initialRouteName
+              : routeName);
     if (currentRouteName.value == nextRouteName &&
         registry.routeName == nextRouteName) {
       return;

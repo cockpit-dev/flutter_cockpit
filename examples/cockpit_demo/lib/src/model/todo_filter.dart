@@ -18,22 +18,22 @@ final class TodoFilter {
   });
 
   const TodoFilter.inbox()
-      : query = '',
-        completionFilter = TodoCompletionFilter.active,
-        priorities = const <TodoPriority>{},
-        tagIds = const <String>{},
-        syncStatuses = const <TodoTaskSyncStatus>{},
-        includeDeleted = false,
-        onlyDueToday = false;
+    : query = '',
+      completionFilter = TodoCompletionFilter.active,
+      priorities = const <TodoPriority>{},
+      tagIds = const <String>{},
+      syncStatuses = const <TodoTaskSyncStatus>{},
+      includeDeleted = false,
+      onlyDueToday = false;
 
   const TodoFilter.completed()
-      : query = '',
-        completionFilter = TodoCompletionFilter.completed,
-        priorities = const <TodoPriority>{},
-        tagIds = const <String>{},
-        syncStatuses = const <TodoTaskSyncStatus>{},
-        includeDeleted = false,
-        onlyDueToday = false;
+    : query = '',
+      completionFilter = TodoCompletionFilter.completed,
+      priorities = const <TodoPriority>{},
+      tagIds = const <String>{},
+      syncStatuses = const <TodoTaskSyncStatus>{},
+      includeDeleted = false,
+      onlyDueToday = false;
 
   final String query;
   final TodoCompletionFilter completionFilter;
@@ -58,12 +58,12 @@ final class TodoFilter {
 
   @override
   int get hashCode => Object.hash(
-        query,
-        completionFilter,
-        Object.hashAll(priorities),
-        Object.hashAll(tagIds),
-        Object.hashAll(syncStatuses),
-        includeDeleted,
-        onlyDueToday,
-      );
+    query,
+    completionFilter,
+    Object.hashAll(priorities),
+    Object.hashAll(tagIds),
+    Object.hashAll(syncStatuses),
+    includeDeleted,
+    onlyDueToday,
+  );
 }

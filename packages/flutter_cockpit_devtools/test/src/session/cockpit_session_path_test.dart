@@ -25,11 +25,8 @@ void main() {
     );
   });
 
-  test('session path context preserves Windows separators for Windows roots',
-      () {
-    final context = cockpitSessionPathContext(
-      r'C:\workspace\cockpit_demo',
-    );
+  test('session path context preserves Windows separators for Windows roots', () {
+    final context = cockpitSessionPathContext(r'C:\workspace\cockpit_demo');
 
     expect(
       context.join(

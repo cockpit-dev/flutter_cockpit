@@ -110,8 +110,10 @@ Future<CockpitWorkspaceCommandResult> runWorkspaceCommand({
   List<String>? flutterArguments,
   Duration? timeout,
 }) async {
-  final normalizedRoot =
-      assertWorkspaceRootAllowed(workspaceRoot, allowedRoots);
+  final normalizedRoot = assertWorkspaceRootAllowed(
+    workspaceRoot,
+    allowedRoots,
+  );
   final effectiveToolchain =
       toolchain ?? detectWorkspaceToolchain(fileSystem, normalizedRoot);
   final executable = effectiveToolchain == CockpitWorkspaceToolchain.flutter

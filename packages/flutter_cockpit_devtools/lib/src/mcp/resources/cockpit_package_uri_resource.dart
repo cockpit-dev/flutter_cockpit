@@ -10,30 +10,31 @@ final class CockpitPackageUriResource extends CockpitMcpResource {
   CockpitPackageUriResource({
     required CockpitMcpRootsTracker rootsTracker,
     CockpitReadPackageUrisService? service,
-  })  : _rootsTracker = rootsTracker,
-        _service = service ?? CockpitReadPackageUrisService();
+  }) : _rootsTracker = rootsTracker,
+       _service = service ?? CockpitReadPackageUrisService();
 
   final CockpitMcpRootsTracker _rootsTracker;
   final CockpitReadPackageUrisService _service;
 
   @override
-  CockpitMcpResourceDefinition get definition =>
-      const CockpitMcpResourceDefinition.template(
-        name: 'package_uri',
-        uriTemplate: 'cockpit://package/read{?workspaceRoot,uri}',
-        description:
-            'Read a package: or package-root: URI using a workspace package_config.',
-        mimeType: 'application/json',
-        categories: <CockpitMcpFeatureCategory>[
-          CockpitMcpFeatureCategory.workspace,
-          CockpitMcpFeatureCategory.dependencyIntelligence,
-          CockpitMcpFeatureCategory.contextResources,
-        ],
-      );
+  CockpitMcpResourceDefinition
+  get definition => const CockpitMcpResourceDefinition.template(
+    name: 'package_uri',
+    uriTemplate: 'cockpit://package/read{?workspaceRoot,uri}',
+    description:
+        'Read a package: or package-root: URI using a workspace package_config.',
+    mimeType: 'application/json',
+    categories: <CockpitMcpFeatureCategory>[
+      CockpitMcpFeatureCategory.workspace,
+      CockpitMcpFeatureCategory.dependencyIntelligence,
+      CockpitMcpFeatureCategory.contextResources,
+    ],
+  );
 
   @override
   Future<CockpitMcpResourceResult?> read(
-      CockpitMcpResourceRequest request) async {
+    CockpitMcpResourceRequest request,
+  ) async {
     final uri = request.parsedUri;
     if (uri.host != 'package' || uri.path != '/read') {
       return null;

@@ -68,17 +68,16 @@ final class CockpitDevelopmentSessionStatus {
   final DateTime lastStatusAt;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'developmentSessionId': developmentSessionId,
-        'state': state.jsonValue,
-        'appReachable': appReachable,
-        'remoteSessionReachable': remoteSessionReachable,
-        'reloadGeneration': reloadGeneration,
-        if (lastReloadMode != null) 'lastReloadMode': lastReloadMode?.jsonValue,
-        if (lastReloadSucceeded != null)
-          'lastReloadSucceeded': lastReloadSucceeded,
-        if (lastError != null) 'lastError': lastError,
-        'lastStatusAt': lastStatusAt.toUtc().toIso8601String(),
-      };
+    'developmentSessionId': developmentSessionId,
+    'state': state.jsonValue,
+    'appReachable': appReachable,
+    'remoteSessionReachable': remoteSessionReachable,
+    'reloadGeneration': reloadGeneration,
+    if (lastReloadMode != null) 'lastReloadMode': lastReloadMode?.jsonValue,
+    if (lastReloadSucceeded != null) 'lastReloadSucceeded': lastReloadSucceeded,
+    if (lastError != null) 'lastError': lastError,
+    'lastStatusAt': lastStatusAt.toUtc().toIso8601String(),
+  };
 
   factory CockpitDevelopmentSessionStatus.fromJson(Map<String, Object?> json) {
     return CockpitDevelopmentSessionStatus(

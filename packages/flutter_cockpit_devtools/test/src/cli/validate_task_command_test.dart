@@ -56,59 +56,61 @@ void main() {
 
       final outputFile = File(p.join(tempDir.path, 'result.json'));
       CockpitValidateTaskRequest? capturedRequest;
-      final runner = CommandRunner<int>(
-        'flutter_cockpit_devtools',
-        'Host-side tooling for flutter_cockpit.',
-      )..addCommand(
-          ValidateTaskCommand(
-            service: CockpitValidateTaskService(
-              validateTask: (request) async {
-                capturedRequest = request;
-                return CockpitValidateTaskResult(
-                  classification: CockpitValidationClassification.completed,
-                  recommendedNextStep: 'delivery_ready',
-                  runTaskResult: CockpitRunTaskResult(
-                    classification: CockpitRunTaskClassification.completed,
+      final runner =
+          CommandRunner<int>(
+            'flutter_cockpit_devtools',
+            'Host-side tooling for flutter_cockpit.',
+          )..addCommand(
+            ValidateTaskCommand(
+              service: CockpitValidateTaskService(
+                validateTask: (request) async {
+                  capturedRequest = request;
+                  return CockpitValidateTaskResult(
+                    classification: CockpitValidationClassification.completed,
                     recommendedNextStep: 'delivery_ready',
-                  ),
-                  bundleSummary: CockpitReadTaskBundleSummaryResult(
-                    bundleDir: tempDir.path,
-                    manifest: CockpitRunManifest(
-                      sessionId: 'cli-validate-task-session',
-                      taskId: 'cli-validate-task-id',
-                      platform: 'android',
-                      status: CockpitTaskStatus.completed,
-                      startedAt: DateTime.utc(2026, 3, 21, 0, 0),
-                      finishedAt: DateTime.utc(2026, 3, 21, 0, 5),
-                      deliveryArtifactsReady: true,
+                    runTaskResult: CockpitRunTaskResult(
+                      classification: CockpitRunTaskClassification.completed,
+                      recommendedNextStep: 'delivery_ready',
                     ),
-                    handoff: const <String, Object?>{'status': 'completed'},
-                    delivery: const <String, Object?>{
-                      'primaryScreenshotRef': 'screenshots/acceptance.png',
-                    },
-                    acceptanceMarkdown: '# Acceptance',
-                    artifactPaths: CockpitBundleArtifactPaths(
-                      primaryScreenshotPath: p.join(
-                        tempDir.path,
-                        'screenshots',
-                        'acceptance.png',
+                    bundleSummary: CockpitReadTaskBundleSummaryResult(
+                      bundleDir: tempDir.path,
+                      manifest: CockpitRunManifest(
+                        sessionId: 'cli-validate-task-session',
+                        taskId: 'cli-validate-task-id',
+                        platform: 'android',
+                        status: CockpitTaskStatus.completed,
+                        startedAt: DateTime.utc(2026, 3, 21, 0, 0),
+                        finishedAt: DateTime.utc(2026, 3, 21, 0, 5),
+                        deliveryArtifactsReady: true,
                       ),
+                      handoff: const <String, Object?>{'status': 'completed'},
+                      delivery: const <String, Object?>{
+                        'primaryScreenshotRef': 'screenshots/acceptance.png',
+                      },
+                      acceptanceMarkdown: '# Acceptance',
+                      artifactPaths: CockpitBundleArtifactPaths(
+                        primaryScreenshotPath: p.join(
+                          tempDir.path,
+                          'screenshots',
+                          'acceptance.png',
+                        ),
+                      ),
+                      evidenceSummary: const <String, Object?>{
+                        'status': 'completed',
+                        'commandCount': 0,
+                        'screenshotCount': 1,
+                        'recordingCount': 0,
+                        'failureCount': 0,
+                      },
                     ),
-                    evidenceSummary: const <String, Object?>{
-                      'status': 'completed',
-                      'commandCount': 0,
-                      'screenshotCount': 1,
-                      'recordingCount': 0,
-                      'failureCount': 0,
-                    },
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
-          ),
-        );
+          );
 
-      final exitCode = await runner.run(<String>[
+      final exitCode =
+          await runner.run(<String>[
             'validate-task',
             '--config-json',
             configFile.path,

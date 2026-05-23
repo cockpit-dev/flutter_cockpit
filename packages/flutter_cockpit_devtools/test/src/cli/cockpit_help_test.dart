@@ -77,9 +77,11 @@ void main() {
     expect(help, contains('If a flag or JSON shape is unclear'));
     expect(help, contains('--device-id <id for android|ios|web>'));
     expect(
-        help,
-        contains(
-            '--target-json /tmp/target.json --output /tmp/launch_target.json --output-format json'));
+      help,
+      contains(
+        '--target-json /tmp/target.json --output /tmp/launch_target.json --output-format json',
+      ),
+    );
     expect(help, contains('latest_app.json'));
     expect(help, contains("jq '.app' /tmp/launch_target.json > /tmp/app.json"));
     expect(help, contains('current directory'));
@@ -105,18 +107,9 @@ void main() {
   });
 
   test('target-first command help explains the normalized target loop', () {
-    expect(
-      _helpForCommand(LaunchTargetCommand()),
-      contains('When:'),
-    );
-    expect(
-      _helpForCommand(LaunchTargetCommand()),
-      contains('embedded .app'),
-    );
-    expect(
-      _helpForCommand(LaunchTargetCommand()),
-      contains('--flavor'),
-    );
+    expect(_helpForCommand(LaunchTargetCommand()), contains('When:'));
+    expect(_helpForCommand(LaunchTargetCommand()), contains('embedded .app'));
+    expect(_helpForCommand(LaunchTargetCommand()), contains('--flavor'));
     expect(
       _helpForCommand(LaunchTargetCommand()),
       contains('Web target-first loops also use development mode'),
@@ -129,22 +122,10 @@ void main() {
       _helpForCommand(LaunchTargetCommand()),
       contains('--platform web --device-id chrome --output'),
     );
-    expect(
-      _helpForCommand(ReadTargetCommand()),
-      contains('Example:'),
-    );
-    expect(
-      _helpForCommand(InspectSurfaceCommand()),
-      contains('Writes:'),
-    );
-    expect(
-      _helpForCommand(RunShellCommand()),
-      contains('target-json'),
-    );
-    expect(
-      _helpForCommand(RunShellCommand()),
-      isNot(contains('web]')),
-    );
+    expect(_helpForCommand(ReadTargetCommand()), contains('Example:'));
+    expect(_helpForCommand(InspectSurfaceCommand()), contains('Writes:'));
+    expect(_helpForCommand(RunShellCommand()), contains('target-json'));
+    expect(_helpForCommand(RunShellCommand()), isNot(contains('web]')));
   });
 
   test('list-targets help describes device discovery and timeout control', () {
@@ -166,11 +147,15 @@ void main() {
     expect(usage, contains('minimal=core only'));
     expect(usage, contains('compare-against-snapshot-ref'));
     expect(
-        usage,
-        contains(
-            'text, semanticId, tooltip, type, ancestor, index, or fallbacks'));
-    expect(usage,
-        contains('use key only when the app already exposes a stable key'));
+      usage,
+      contains(
+        'text, semanticId, tooltip, type, ancestor, index, or fallbacks',
+      ),
+    );
+    expect(
+      usage,
+      contains('use key only when the app already exposes a stable key'),
+    );
   });
 
   test('run-batch help exposes whole-batch recording for evidence capture', () {
@@ -202,33 +187,31 @@ void main() {
   test('launch-app help describes explicit app-json as a replacement path', () {
     final usage = _helpForCommand(LaunchAppCommand());
 
-    expect(
-      usage,
-      contains('If --app-json is omitted'),
-    );
+    expect(usage, contains('If --app-json is omitted'));
     expect(
       usage,
       contains(
-          'When --app-json is provided, that explicit path is written instead.'),
+        'When --app-json is provided, that explicit path is written instead.',
+      ),
     );
   });
 
-  test('recording help explains when to record and how artifacts are finalized',
-      () {
-    final startUsage = _helpForCommand(StartRecordingCommand());
-    final stopUsage = _helpForCommand(StopRecordingCommand());
+  test(
+    'recording help explains when to record and how artifacts are finalized',
+    () {
+      final startUsage = _helpForCommand(StartRecordingCommand());
+      final stopUsage = _helpForCommand(StopRecordingCommand());
 
-    expect(
-      startUsage,
-      contains(
-          'Prefer a screenshot when one still state already answers the question'),
-    );
-    expect(
-      startUsage,
-      contains('stop-recording to finalize the artifact'),
-    );
-    expect(stopUsage, contains('artifact references'));
-  });
+      expect(
+        startUsage,
+        contains(
+          'Prefer a screenshot when one still state already answers the question',
+        ),
+      );
+      expect(startUsage, contains('stop-recording to finalize the artifact'));
+      expect(stopUsage, contains('artifact references'));
+    },
+  );
 
   test('every top-level command gives help text for custom options', () {
     for (final command in _topLevelCommands) {
@@ -332,7 +315,7 @@ Future<String> _captureHelp(List<String> args) async {
   await runZoned(
     () => CockpitCommandRunner().run(args),
     zoneSpecification: ZoneSpecification(
-      print: (_, __, ___, String line) {
+      print: (_, _, _, String line) {
         buffer.writeln(line);
       },
     ),

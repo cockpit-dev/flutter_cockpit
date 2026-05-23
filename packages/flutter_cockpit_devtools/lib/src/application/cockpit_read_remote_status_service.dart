@@ -11,9 +11,8 @@ import 'cockpit_interactive_snapshot_store.dart';
 import 'cockpit_read_remote_snapshot_service.dart';
 import 'cockpit_session_reference_resolver.dart';
 
-typedef CockpitRemoteStatusReader = Future<CockpitRemoteSessionStatus> Function(
-  Uri baseUri,
-);
+typedef CockpitRemoteStatusReader =
+    Future<CockpitRemoteSessionStatus> Function(Uri baseUri);
 
 final class CockpitReadRemoteStatusRequest {
   const CockpitReadRemoteStatusRequest({
@@ -67,26 +66,25 @@ final class CockpitReadRemoteStatusResult {
   final CockpitSnapshotOptions? effectiveSnapshotOptions;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'sessionId': sessionId,
-        'platform': platform,
-        'transportType': transportType,
-        if (currentRouteName != null) 'currentRouteName': currentRouteName,
-        'capabilities': capabilities.toJson(),
-        'recordingCapabilities': recordingCapabilities.toJson(),
-        if (activeRecording != null)
-          'activeRecording': activeRecording!.toJson(),
-        if (environment != null) 'environment': environment!.toJson(),
-        if (uiSummary != null) 'uiSummary': uiSummary!.toJson(),
-        if (snapshot != null) 'snapshot': snapshot!.toJson(),
-        if (snapshotRef != null) 'snapshotRef': snapshotRef,
-        if (artifactDownloads.isNotEmpty)
-          'artifactDownloads': artifactDownloads
-              .map((download) => download.toJson())
-              .toList(growable: false),
-        if (sessionHandle != null) 'sessionHandle': sessionHandle!.toJson(),
-        if (effectiveSnapshotOptions != null)
-          'effectiveSnapshotOptions': effectiveSnapshotOptions!.toJson(),
-      };
+    'sessionId': sessionId,
+    'platform': platform,
+    'transportType': transportType,
+    if (currentRouteName != null) 'currentRouteName': currentRouteName,
+    'capabilities': capabilities.toJson(),
+    'recordingCapabilities': recordingCapabilities.toJson(),
+    if (activeRecording != null) 'activeRecording': activeRecording!.toJson(),
+    if (environment != null) 'environment': environment!.toJson(),
+    if (uiSummary != null) 'uiSummary': uiSummary!.toJson(),
+    if (snapshot != null) 'snapshot': snapshot!.toJson(),
+    if (snapshotRef != null) 'snapshotRef': snapshotRef,
+    if (artifactDownloads.isNotEmpty)
+      'artifactDownloads': artifactDownloads
+          .map((download) => download.toJson())
+          .toList(growable: false),
+    if (sessionHandle != null) 'sessionHandle': sessionHandle!.toJson(),
+    if (effectiveSnapshotOptions != null)
+      'effectiveSnapshotOptions': effectiveSnapshotOptions!.toJson(),
+  };
 }
 
 final class CockpitReadRemoteStatusService {
@@ -95,14 +93,15 @@ final class CockpitReadRemoteStatusService {
     CockpitRemoteSnapshotDetailedReader? readSnapshot,
     CockpitSessionReferenceResolver? sessionReferenceResolver,
     CockpitInteractiveSnapshotStore? snapshotStore,
-  })  : _readStatus = readStatus ?? cockpitReadRemoteSessionStatus,
-        _readSnapshot = readSnapshot ??
-            ((baseUri, options) => CockpitRemoteSessionClient(
-                  baseUri: baseUri,
-                ).readSnapshotDetailed(options: options)),
-        _sessionReferenceResolver =
-            sessionReferenceResolver ?? CockpitSessionReferenceResolver(),
-        _snapshotStore = snapshotStore ?? CockpitInteractiveSnapshotStore();
+  }) : _readStatus = readStatus ?? cockpitReadRemoteSessionStatus,
+       _readSnapshot =
+           readSnapshot ??
+           ((baseUri, options) => CockpitRemoteSessionClient(
+             baseUri: baseUri,
+           ).readSnapshotDetailed(options: options)),
+       _sessionReferenceResolver =
+           sessionReferenceResolver ?? CockpitSessionReferenceResolver(),
+       _snapshotStore = snapshotStore ?? CockpitInteractiveSnapshotStore();
 
   final CockpitRemoteStatusReader _readStatus;
   final CockpitRemoteSnapshotDetailedReader _readSnapshot;
@@ -119,8 +118,8 @@ final class CockpitReadRemoteStatusService {
       androidDeviceId: request.androidDeviceId,
     );
     final status = await _readStatus(resolved.baseUri);
-    final effectiveSnapshotOptions = request
-            .resultProfile.requiresStatusSnapshotRead
+    final effectiveSnapshotOptions =
+        request.resultProfile.requiresStatusSnapshotRead
         ? request.resultProfile.resolveSnapshotOptions(request.snapshotOptions)
         : null;
     final snapshotResponse = effectiveSnapshotOptions == null
@@ -152,7 +151,8 @@ final class CockpitReadRemoteStatusService {
           : null,
       snapshot: request.resultProfile.emitsInlineSnapshot ? snapshot : null,
       snapshotRef: snapshotRef,
-      artifactDownloads: snapshotResponse?.artifactDownloads ??
+      artifactDownloads:
+          snapshotResponse?.artifactDownloads ??
           const <CockpitRemoteArtifactDownload>[],
       sessionHandle: resolved.sessionHandle,
       effectiveSnapshotOptions: effectiveSnapshotOptions,

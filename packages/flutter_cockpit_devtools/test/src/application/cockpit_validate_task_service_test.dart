@@ -319,8 +319,7 @@ void main() {
     },
   );
 
-  test('validate task surfaces runtime errors as failed_with_evidence',
-      () async {
+  test('validate task surfaces runtime errors as failed_with_evidence', () async {
     final bundleDir = await _createBundleDir(
       name: 'cockpit_validate_task_service_runtime_error',
       acceptanceMarkdown: '# Acceptance\n',
@@ -597,10 +596,9 @@ void main() {
         recordingFailure.details['gate'],
         CockpitTaskGate.recordingReadyOrExplained.name,
       );
-      expect(
-        recordingFailure.details['failureCodes'],
-        const <String>['recordingFailed'],
-      );
+      expect(recordingFailure.details['failureCodes'], const <String>[
+        'recordingFailed',
+      ]);
     },
   );
 
@@ -786,8 +784,9 @@ void main() {
             if (executable == 'ffmpeg') {
               final outputPath = arguments.last;
               await File(outputPath).parent.create(recursive: true);
-              await File(outputPath)
-                  .writeAsBytes(_structuredAcceptancePngBytes);
+              await File(
+                outputPath,
+              ).writeAsBytes(_structuredAcceptancePngBytes);
               return ProcessResult(0, 0, '', '');
             }
             throw ProcessException(
@@ -1275,8 +1274,9 @@ void main() {
             if (executable == 'ffmpeg') {
               final outputPath = arguments.last;
               await File(outputPath).parent.create(recursive: true);
-              await File(outputPath)
-                  .writeAsBytes(_structuredAcceptancePngBytes);
+              await File(
+                outputPath,
+              ).writeAsBytes(_structuredAcceptancePngBytes);
               return ProcessResult(0, 0, '', '');
             }
             throw ProcessException(
@@ -1410,8 +1410,9 @@ void main() {
             if (executable == 'ffmpeg') {
               final outputPath = arguments.last;
               await File(outputPath).parent.create(recursive: true);
-              await File(outputPath)
-                  .writeAsBytes(_structuredAcceptancePngBytes);
+              await File(
+                outputPath,
+              ).writeAsBytes(_structuredAcceptancePngBytes);
               return ProcessResult(0, 0, '', '');
             }
             throw ProcessException(
@@ -1558,8 +1559,9 @@ void main() {
             if (executable == 'ffmpeg') {
               final outputPath = arguments.last;
               await File(outputPath).parent.create(recursive: true);
-              await File(outputPath)
-                  .writeAsBytes(_structuredAcceptancePngBytes);
+              await File(
+                outputPath,
+              ).writeAsBytes(_structuredAcceptancePngBytes);
               return ProcessResult(0, 0, '', '');
             }
             throw ProcessException(
@@ -1757,8 +1759,8 @@ void main() {
           ).writeAsString('[]');
           final bundleSummary =
               await const CockpitReadTaskBundleSummaryService().read(
-            CockpitReadTaskBundleSummaryRequest(bundleDir: bundleDir.path),
-          );
+                CockpitReadTaskBundleSummaryRequest(bundleDir: bundleDir.path),
+              );
           return CockpitRunTaskResult(
             classification: CockpitRunTaskClassification.completed,
             recommendedNextStep: 'delivery_ready',
@@ -2097,8 +2099,8 @@ CockpitRunTaskResult _runTaskResult({
     if (acceptanceEvidence != null && !acceptanceEvidence.hasComparableSignals)
       'acceptanceComparableSignalsMissing',
   ];
-  final screenshotFailureCodes = deliveryArtifactFailureCodes.isNotEmpty ||
-          manifest.deliveryArtifactsReady
+  final screenshotFailureCodes =
+      deliveryArtifactFailureCodes.isNotEmpty || manifest.deliveryArtifactsReady
       ? deliveryArtifactFailureCodes
       : <String>[
           if (screenshotRelativePath == null || screenshotRelativePath.isEmpty)
@@ -2106,8 +2108,8 @@ CockpitRunTaskResult _runTaskResult({
           else
             'acceptanceScreenshotMissing',
         ];
-  final recordingFailureCodes = deliveryVideoFailureCodes.isNotEmpty ||
-          manifest.deliveryVideoReady
+  final recordingFailureCodes =
+      deliveryVideoFailureCodes.isNotEmpty || manifest.deliveryVideoReady
       ? deliveryVideoFailureCodes
       : <String>[
           if (recordingRelativePath == null || recordingRelativePath.isEmpty)
@@ -2129,7 +2131,8 @@ CockpitRunTaskResult _runTaskResult({
           taskStatus != CockpitTaskStatus.failed && runtimeErrorCount == 0,
       CockpitTaskGate.artifactsReady:
           manifest.deliveryArtifactsReady && manifest.deliveryVideoReady,
-      CockpitTaskGate.logsCollected: runtimeEventCount > 0 ||
+      CockpitTaskGate.logsCollected:
+          runtimeEventCount > 0 ||
           baselineEvidence != null ||
           acceptanceEvidence != null,
       CockpitTaskGate.deliveryReadable:
@@ -2151,10 +2154,7 @@ CockpitRunTaskResult _runTaskResult({
         CockpitTaskGate.recordingReadyOrExplained: recordingFailureCodes,
       if (!(manifest.deliveryArtifactsReady && manifest.deliveryVideoReady))
         CockpitTaskGate.deliveryValidated: <String>[
-          ...{
-            ...screenshotFailureCodes,
-            ...recordingFailureCodes,
-          },
+          ...{...screenshotFailureCodes, ...recordingFailureCodes},
         ],
       if (acceptanceEvidenceFailureCodes.isNotEmpty)
         CockpitTaskGate.acceptanceEvidenceReadable:
@@ -2171,11 +2171,9 @@ CockpitRunTaskResult _runTaskResult({
     manifest: manifest,
     handoff: <String, Object?>{'status': classification.jsonValue},
     delivery: <String, Object?>{
-      if (screenshotRelativePath != null)
-        'primaryScreenshotRef': screenshotRelativePath,
+      'primaryScreenshotRef': ?screenshotRelativePath,
       if (attachmentRefs.isNotEmpty) 'attachmentRefs': attachmentRefs,
-      if (recordingRelativePath != null)
-        'primaryRecordingRef': recordingRelativePath,
+      'primaryRecordingRef': ?recordingRelativePath,
       if (videoAttachmentRefs.isNotEmpty)
         'videoAttachmentRefs': videoAttachmentRefs,
       if (deliveryArtifactFailureCodes.isNotEmpty ||
@@ -2191,7 +2189,7 @@ CockpitRunTaskResult _runTaskResult({
           },
         },
       if (keyframes.isNotEmpty) 'keyframes': keyframes,
-      if (keyframeCoverage != null) 'keyframeCoverage': keyframeCoverage,
+      'keyframeCoverage': ?keyframeCoverage,
     },
     acceptanceMarkdown: '',
     artifactPaths: artifactPaths,
@@ -2208,8 +2206,9 @@ CockpitRunTaskResult _runTaskResult({
       if (primaryExecutionPlane != null)
         'primaryExecutionPlane': primaryExecutionPlane.name,
       'planesUsed': planesUsed.map((plane) => plane.name).toList(),
-      'surfaceKindsUsed':
-          surfaceKindsUsed.map((surface) => surface.name).toList(),
+      'surfaceKindsUsed': surfaceKindsUsed
+          .map((surface) => surface.name)
+          .toList(),
       'fallbackCount': fallbackCount,
       'keyframeCount': keyframes.length,
       'deliveryKeyframesReady': keyframeCoverage == null
@@ -2226,10 +2225,10 @@ CockpitRunTaskResult _runTaskResult({
     classification: classification,
     recommendedNextStep:
         classification == CockpitRunTaskClassification.completed
-            ? 'delivery_ready'
-            : classification == CockpitRunTaskClassification.failedWithEvidence
-                ? 'inspect_bundle'
-                : 'needs_relaunch',
+        ? 'delivery_ready'
+        : classification == CockpitRunTaskClassification.failedWithEvidence
+        ? 'inspect_bundle'
+        : 'needs_relaunch',
     bundleSummary: bundleSummary,
   );
 }
@@ -2249,7 +2248,8 @@ CockpitBundleAcceptanceEvidence _acceptanceEvidence({
     visibleSemanticIds: visibleSemanticIds,
     interactiveLabels: interactiveLabels,
     accessibilityLabels: accessibilityLabels,
-    visibleTargetCount: visibleTextPreviews.length +
+    visibleTargetCount:
+        visibleTextPreviews.length +
         visibleSemanticIds.length +
         interactiveLabels.length,
     accessibilityEntryCount: accessibilityLabels.length,

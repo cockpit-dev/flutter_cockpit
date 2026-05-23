@@ -45,51 +45,51 @@ final class CockpitSnapshotOptions {
   });
 
   const CockpitSnapshotOptions.live()
-      : this(profile: CockpitSnapshotProfile.live);
+    : this(profile: CockpitSnapshotProfile.live);
 
   const CockpitSnapshotOptions.baseline()
-      : this(
-          profile: CockpitSnapshotProfile.baseline,
-          maxTargets: 30,
-          maxAncestorsPerTarget: 1,
-          maxPropertiesPerTarget: 6,
-        );
+    : this(
+        profile: CockpitSnapshotProfile.baseline,
+        maxTargets: 30,
+        maxAncestorsPerTarget: 1,
+        maxPropertiesPerTarget: 6,
+      );
 
   const CockpitSnapshotOptions.investigate()
-      : this(
-          profile: CockpitSnapshotProfile.investigate,
-          maxTargets: 40,
-          maxAncestorsPerTarget: 3,
-          maxPropertiesPerTarget: 12,
-          includeStyleDetails: true,
-          includeDiagnosticProperties: true,
-          includeRebuildActivity: true,
-          includeNetworkActivity: true,
-          networkQuery: const CockpitNetworkQuery(onlyFailures: true),
-          includeRuntimeActivity: true,
-          runtimeQuery: const CockpitRuntimeQuery(onlyErrors: true),
-          includeAccessibilitySummary: true,
-        );
+    : this(
+        profile: CockpitSnapshotProfile.investigate,
+        maxTargets: 40,
+        maxAncestorsPerTarget: 3,
+        maxPropertiesPerTarget: 12,
+        includeStyleDetails: true,
+        includeDiagnosticProperties: true,
+        includeRebuildActivity: true,
+        includeNetworkActivity: true,
+        networkQuery: const CockpitNetworkQuery(onlyFailures: true),
+        includeRuntimeActivity: true,
+        runtimeQuery: const CockpitRuntimeQuery(onlyErrors: true),
+        includeAccessibilitySummary: true,
+      );
 
   const CockpitSnapshotOptions.forensic()
-      : this(
-          profile: CockpitSnapshotProfile.forensic,
-          maxTargets: 80,
-          maxAncestorsPerTarget: 6,
-          maxPropertiesPerTarget: 24,
-          includeStyleDetails: true,
-          includeDiagnosticProperties: true,
-          emitArtifactWhenLarge: true,
-          includeRebuildActivity: true,
-          maxRebuildEntries: 16,
-          includeNetworkActivity: true,
-          maxNetworkEntries: 20,
-          networkQuery: const CockpitNetworkQuery(onlyFailures: true),
-          includeRuntimeActivity: true,
-          maxRuntimeEntries: 20,
-          includeAccessibilitySummary: true,
-          maxAccessibilityEntries: 20,
-        );
+    : this(
+        profile: CockpitSnapshotProfile.forensic,
+        maxTargets: 80,
+        maxAncestorsPerTarget: 6,
+        maxPropertiesPerTarget: 24,
+        includeStyleDetails: true,
+        includeDiagnosticProperties: true,
+        emitArtifactWhenLarge: true,
+        includeRebuildActivity: true,
+        maxRebuildEntries: 16,
+        includeNetworkActivity: true,
+        maxNetworkEntries: 20,
+        networkQuery: const CockpitNetworkQuery(onlyFailures: true),
+        includeRuntimeActivity: true,
+        maxRuntimeEntries: 20,
+        includeAccessibilitySummary: true,
+        maxAccessibilityEntries: 20,
+      );
 
   final CockpitSnapshotProfile profile;
   final int maxTargets;
@@ -110,24 +110,24 @@ final class CockpitSnapshotOptions {
   final int maxAccessibilityEntries;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'profile': profile.jsonValue,
-        'maxTargets': maxTargets,
-        'maxAncestorsPerTarget': maxAncestorsPerTarget,
-        'maxPropertiesPerTarget': maxPropertiesPerTarget,
-        'includeStyleDetails': includeStyleDetails,
-        'includeDiagnosticProperties': includeDiagnosticProperties,
-        'emitArtifactWhenLarge': emitArtifactWhenLarge,
-        'includeRebuildActivity': includeRebuildActivity,
-        'maxRebuildEntries': maxRebuildEntries,
-        'includeNetworkActivity': includeNetworkActivity,
-        'maxNetworkEntries': maxNetworkEntries,
-        'networkQuery': networkQuery.toJson(),
-        'includeRuntimeActivity': includeRuntimeActivity,
-        'maxRuntimeEntries': maxRuntimeEntries,
-        'runtimeQuery': runtimeQuery.toJson(),
-        'includeAccessibilitySummary': includeAccessibilitySummary,
-        'maxAccessibilityEntries': maxAccessibilityEntries,
-      };
+    'profile': profile.jsonValue,
+    'maxTargets': maxTargets,
+    'maxAncestorsPerTarget': maxAncestorsPerTarget,
+    'maxPropertiesPerTarget': maxPropertiesPerTarget,
+    'includeStyleDetails': includeStyleDetails,
+    'includeDiagnosticProperties': includeDiagnosticProperties,
+    'emitArtifactWhenLarge': emitArtifactWhenLarge,
+    'includeRebuildActivity': includeRebuildActivity,
+    'maxRebuildEntries': maxRebuildEntries,
+    'includeNetworkActivity': includeNetworkActivity,
+    'maxNetworkEntries': maxNetworkEntries,
+    'networkQuery': networkQuery.toJson(),
+    'includeRuntimeActivity': includeRuntimeActivity,
+    'maxRuntimeEntries': maxRuntimeEntries,
+    'runtimeQuery': runtimeQuery.toJson(),
+    'includeAccessibilitySummary': includeAccessibilitySummary,
+    'maxAccessibilityEntries': maxAccessibilityEntries,
+  };
 
   factory CockpitSnapshotOptions.fromJson(Map<String, Object?> json) {
     final networkQueryJson = json['networkQuery'] as Map<Object?, Object?>?;
@@ -239,22 +239,22 @@ final class CockpitSnapshotOptions {
 
   @override
   int get hashCode => Object.hash(
-        profile,
-        maxTargets,
-        maxAncestorsPerTarget,
-        maxPropertiesPerTarget,
-        includeStyleDetails,
-        includeDiagnosticProperties,
-        emitArtifactWhenLarge,
-        includeRebuildActivity,
-        maxRebuildEntries,
-        includeNetworkActivity,
-        maxNetworkEntries,
-        networkQuery,
-        includeRuntimeActivity,
-        maxRuntimeEntries,
-        runtimeQuery,
-        includeAccessibilitySummary,
-        maxAccessibilityEntries,
-      );
+    profile,
+    maxTargets,
+    maxAncestorsPerTarget,
+    maxPropertiesPerTarget,
+    includeStyleDetails,
+    includeDiagnosticProperties,
+    emitArtifactWhenLarge,
+    includeRebuildActivity,
+    maxRebuildEntries,
+    includeNetworkActivity,
+    maxNetworkEntries,
+    networkQuery,
+    includeRuntimeActivity,
+    maxRuntimeEntries,
+    runtimeQuery,
+    includeAccessibilitySummary,
+    maxAccessibilityEntries,
+  );
 }

@@ -13,9 +13,9 @@ final class LaunchRemoteSessionCommand extends CockpitCliCommand {
     CockpitLaunchRemoteSessionService? service,
     CockpitRemoteSessionLauncher? launcher,
     StringSink? stdoutSink,
-  })  : _service =
-            service ?? CockpitLaunchRemoteSessionService(launcher: launcher),
-        _stdoutSink = stdoutSink ?? stdout {
+  }) : _service =
+           service ?? CockpitLaunchRemoteSessionService(launcher: launcher),
+       _stdoutSink = stdoutSink ?? stdout {
     argParser
       ..addOption('project-dir', help: 'Flutter project directory to launch.')
       ..addOption(
@@ -110,14 +110,16 @@ final class LaunchRemoteSessionCommand extends CockpitCliCommand {
           usage,
         ),
         launchTimeout: Duration(
-          seconds: cockpitReadOptionalPositiveInt(
+          seconds:
+              cockpitReadOptionalPositiveInt(
                 argResults,
                 'launch-timeout-seconds',
                 usage,
               ) ??
               120,
         ),
-        persistHandlePath: _readOptionalOption('session-json') ??
+        persistHandlePath:
+            _readOptionalOption('session-json') ??
             cockpitDefaultRemoteSessionHandlePath(),
       ),
     );
@@ -147,13 +149,13 @@ final class LaunchRemoteSessionCommand extends CockpitCliCommand {
       'windows' => 'windows',
       'linux' => 'linux',
       'android' => throw UsageException(
-          '--android-device-id is required when --platform=android.',
-          usage,
-        ),
+        '--android-device-id is required when --platform=android.',
+        usage,
+      ),
       'ios' => throw UsageException(
-          '--ios-device-id is required when --platform=ios.',
-          usage,
-        ),
+        '--ios-device-id is required when --platform=ios.',
+        usage,
+      ),
       _ => throw UsageException('Unsupported platform: $platform', usage),
     };
   }

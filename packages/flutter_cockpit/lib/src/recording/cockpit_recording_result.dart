@@ -41,20 +41,20 @@ final class CockpitRecordingResult {
   static const ListEquality<int> _byteEquality = ListEquality<int>();
 
   Map<String, Object?> toJson() => {
-        'state': state.name,
-        if (purpose != null) 'purpose': purpose!.name,
-        if (recordingKind != null) 'recordingKind': recordingKind!.name,
-        if (requestedMode != null) 'requestedMode': requestedMode!.jsonValue,
-        if (requestedLayer != null) 'requestedLayer': requestedLayer!.jsonValue,
-        if (effectiveLayer != null) 'effectiveLayer': effectiveLayer!.jsonValue,
-        if (fallbackUsed) 'fallbackUsed': fallbackUsed,
-        if (fallbackReason != null) 'fallbackReason': fallbackReason,
-        if (artifact != null) 'artifact': artifact!.toJson(),
-        if (durationMs != null) 'durationMs': durationMs,
-        if (bytes != null) 'bytes': bytes,
-        if (sourceFilePath != null) 'sourceFilePath': sourceFilePath,
-        if (failureReason != null) 'failureReason': failureReason,
-      };
+    'state': state.name,
+    if (purpose != null) 'purpose': purpose!.name,
+    if (recordingKind != null) 'recordingKind': recordingKind!.name,
+    if (requestedMode != null) 'requestedMode': requestedMode!.jsonValue,
+    if (requestedLayer != null) 'requestedLayer': requestedLayer!.jsonValue,
+    if (effectiveLayer != null) 'effectiveLayer': effectiveLayer!.jsonValue,
+    if (fallbackUsed) 'fallbackUsed': fallbackUsed,
+    if (fallbackReason != null) 'fallbackReason': fallbackReason,
+    if (artifact != null) 'artifact': artifact!.toJson(),
+    if (durationMs != null) 'durationMs': durationMs,
+    if (bytes != null) 'bytes': bytes,
+    if (sourceFilePath != null) 'sourceFilePath': sourceFilePath,
+    if (failureReason != null) 'failureReason': failureReason,
+  };
 
   factory CockpitRecordingResult.fromJson(Map<String, Object?> json) {
     final artifactJson = json['artifact'] as Map<Object?, Object?>?;
@@ -110,20 +110,20 @@ final class CockpitRecordingResult {
 
   @override
   int get hashCode => Object.hash(
-        state,
-        purpose,
-        recordingKind,
-        requestedMode,
-        requestedLayer,
-        effectiveLayer,
-        fallbackUsed,
-        fallbackReason,
-        artifact,
-        durationMs,
-        bytes == null ? null : _byteEquality.hash(bytes!),
-        sourceFilePath,
-        failureReason,
-      );
+    state,
+    purpose,
+    recordingKind,
+    requestedMode,
+    requestedLayer,
+    effectiveLayer,
+    fallbackUsed,
+    fallbackReason,
+    artifact,
+    durationMs,
+    bytes == null ? null : _byteEquality.hash(bytes!),
+    sourceFilePath,
+    failureReason,
+  );
 
   CockpitRecordingResult copyWith({
     CockpitRecordingState? state,

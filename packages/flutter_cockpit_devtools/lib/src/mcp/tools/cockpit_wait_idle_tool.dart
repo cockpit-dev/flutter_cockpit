@@ -1,9 +1,8 @@
 import '../../application/cockpit_wait_idle_service.dart';
 import '../cockpit_mcp_tool.dart';
 
-typedef CockpitWaitIdleToolFunction = Future<CockpitWaitIdleResult> Function(
-  CockpitWaitIdleRequest request,
-);
+typedef CockpitWaitIdleToolFunction =
+    Future<CockpitWaitIdleResult> Function(CockpitWaitIdleRequest request);
 
 final class CockpitWaitIdleTool extends CockpitMcpTool {
   CockpitWaitIdleTool({
@@ -22,17 +21,17 @@ final class CockpitWaitIdleTool extends CockpitMcpTool {
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
-        'type': 'object',
-        'properties': <String, Object?>{
-          'appId': <String, Object?>{'type': 'string'},
-          'appJson': <String, Object?>{'type': 'string'},
-          'baseUrl': <String, Object?>{'type': 'string'},
-          'androidDeviceId': <String, Object?>{'type': 'string'},
-          'quietWindowMs': <String, Object?>{'type': 'integer'},
-          'timeoutMs': <String, Object?>{'type': 'integer'},
-          'includeNetworkIdle': <String, Object?>{'type': 'boolean'},
-        },
-      };
+    'type': 'object',
+    'properties': <String, Object?>{
+      'appId': <String, Object?>{'type': 'string'},
+      'appJson': <String, Object?>{'type': 'string'},
+      'baseUrl': <String, Object?>{'type': 'string'},
+      'androidDeviceId': <String, Object?>{'type': 'string'},
+      'quietWindowMs': <String, Object?>{'type': 'integer'},
+      'timeoutMs': <String, Object?>{'type': 'integer'},
+      'includeNetworkIdle': <String, Object?>{'type': 'boolean'},
+    },
+  };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {
@@ -47,18 +46,13 @@ final class CockpitWaitIdleTool extends CockpitMcpTool {
             'androidDeviceId',
           ),
           quietWindow: Duration(
-            milliseconds: cockpitReadOptionalPositiveInt(
-                  arguments,
-                  'quietWindowMs',
-                ) ??
+            milliseconds:
+                cockpitReadOptionalPositiveInt(arguments, 'quietWindowMs') ??
                 96,
           ),
           timeout: Duration(
-            milliseconds: cockpitReadOptionalPositiveInt(
-                  arguments,
-                  'timeoutMs',
-                ) ??
-                1600,
+            milliseconds:
+                cockpitReadOptionalPositiveInt(arguments, 'timeoutMs') ?? 1600,
           ),
           includeNetworkIdle:
               cockpitReadOptionalBool(arguments, 'includeNetworkIdle') ?? true,

@@ -336,13 +336,13 @@ void main() {
         },
       );
 
-      final result =
-          await const CockpitCompareDevelopmentProbeService().compare(
-        CockpitCompareDevelopmentProbeRequest(
-          fromProbe: fromProbe,
-          toProbe: toProbe,
-        ),
-      );
+      final result = await const CockpitCompareDevelopmentProbeService()
+          .compare(
+            CockpitCompareDevelopmentProbeRequest(
+              fromProbe: fromProbe,
+              toProbe: toProbe,
+            ),
+          );
 
       expect(result.delta.routeChanged, isFalse);
       expect(result.delta.visualChanged, isTrue);

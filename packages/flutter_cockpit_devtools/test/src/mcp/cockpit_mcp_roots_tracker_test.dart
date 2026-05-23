@@ -12,41 +12,39 @@ void main() {
       clientSupportsRoots: false,
       readRoots: () async => const <Root>[],
     );
-    tracker.addFallbackRoots(
-      <Root>[Root(uri: 'file:///workspace', name: 'workspace')],
-    );
+    tracker.addFallbackRoots(<Root>[
+      Root(uri: 'file:///workspace', name: 'workspace'),
+    ]);
 
     expect(tracker.fallbackActive, isTrue);
     expect(tracker.effectiveRoots, hasLength(1));
     expect(tracker.effectiveRoots.single.uri, 'file:///workspace');
   });
 
-  test('refreshes native roots when the client reports roots support',
-      () async {
-    final tracker = CockpitMcpRootsTracker();
-    final controller = StreamController<void>.broadcast();
+  test(
+    'refreshes native roots when the client reports roots support',
+    () async {
+      final tracker = CockpitMcpRootsTracker();
+      final controller = StreamController<void>.broadcast();
 
-    var currentRoots = <Root>[
-      Root(uri: 'file:///workspace/a', name: 'a'),
-    ];
+      var currentRoots = <Root>[Root(uri: 'file:///workspace/a', name: 'a')];
 
-    await tracker.bind(
-      clientSupportsRoots: true,
-      readRoots: () async => currentRoots,
-      rootsChanged: controller.stream,
-    );
+      await tracker.bind(
+        clientSupportsRoots: true,
+        readRoots: () async => currentRoots,
+        rootsChanged: controller.stream,
+      );
 
-    expect(tracker.fallbackActive, isFalse);
-    expect(tracker.effectiveRoots.single.uri, 'file:///workspace/a');
+      expect(tracker.fallbackActive, isFalse);
+      expect(tracker.effectiveRoots.single.uri, 'file:///workspace/a');
 
-    currentRoots = <Root>[
-      Root(uri: 'file:///workspace/b', name: 'b'),
-    ];
-    controller.add(null);
-    await Future<void>.delayed(const Duration(milliseconds: 10));
+      currentRoots = <Root>[Root(uri: 'file:///workspace/b', name: 'b')];
+      controller.add(null);
+      await Future<void>.delayed(const Duration(milliseconds: 10));
 
-    expect(tracker.effectiveRoots.single.uri, 'file:///workspace/b');
-    await tracker.dispose();
-    await controller.close();
-  });
+      expect(tracker.effectiveRoots.single.uri, 'file:///workspace/b');
+      await tracker.dispose();
+      await controller.close();
+    },
+  );
 }

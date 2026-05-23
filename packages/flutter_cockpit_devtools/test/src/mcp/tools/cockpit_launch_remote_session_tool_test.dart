@@ -78,10 +78,7 @@ void main() {
 
       final structuredContent =
           result['structuredContent'] as Map<String, Object?>;
-      expect(
-        structuredContent['sessionHandlePath'],
-        '/tmp/sessionHandle.json',
-      );
+      expect(structuredContent['sessionHandlePath'], '/tmp/sessionHandle.json');
       expect(
         (structuredContent['health'] as Map<String, Object?>)['sessionId'],
         'launch-tool-demo',
@@ -299,59 +296,62 @@ void main() {
     );
   });
 
-  test('launch tool records remote sessions with normalized readiness state',
-      () async {
-    final registry = CockpitSessionRegistry(
-      now: () => DateTime.utc(2026, 3, 21, 0, 0, 1),
-    );
-    final tool = CockpitLaunchRemoteSessionTool(
-      sessionRegistry: registry,
-      launch: (request) async => CockpitLaunchRemoteSessionResult(
-        sessionHandle: CockpitRemoteSessionHandle(
-          platform: 'windows',
-          deviceId: 'windows',
-          projectDir: request.projectDir,
-          target: request.target ?? 'cockpit/main.dart',
-          appId: 'dev.cockpit.review_demo',
-          host: '127.0.0.1',
-          hostPort: 58421,
-          devicePort: request.sessionPort,
-          baseUrl: 'http://127.0.0.1:58421',
-          launchedAt: DateTime.utc(2026, 3, 21, 0, 0),
-        ),
-        health: CockpitRemoteSessionStatus(
-          sessionId: 'launch-tool-registry',
-          platform: 'windows',
-          transportType: 'remoteHttp',
-          currentRouteName: '/home',
-          capabilities: CockpitCapabilities(
+  test(
+    'launch tool records remote sessions with normalized readiness state',
+    () async {
+      final registry = CockpitSessionRegistry(
+        now: () => DateTime.utc(2026, 3, 21, 0, 0, 1),
+      );
+      final tool = CockpitLaunchRemoteSessionTool(
+        sessionRegistry: registry,
+        launch: (request) async => CockpitLaunchRemoteSessionResult(
+          sessionHandle: CockpitRemoteSessionHandle(
+            platform: 'windows',
+            deviceId: 'windows',
+            projectDir: request.projectDir,
+            target: request.target ?? 'cockpit/main.dart',
+            appId: 'dev.cockpit.review_demo',
+            host: '127.0.0.1',
+            hostPort: 58421,
+            devicePort: request.sessionPort,
+            baseUrl: 'http://127.0.0.1:58421',
+            launchedAt: DateTime.utc(2026, 3, 21, 0, 0),
+          ),
+          health: CockpitRemoteSessionStatus(
+            sessionId: 'launch-tool-registry',
             platform: 'windows',
             transportType: 'remoteHttp',
-            supportsInAppControl: true,
-            supportsFlutterViewCapture: true,
-            supportsNativeScreenCapture: true,
-            supportsHostAutomation: true,
-            supportedCommands: <CockpitCommandType>[CockpitCommandType.tap],
-            supportedLocatorStrategies: CockpitLocatorKind.values,
+            currentRouteName: '/home',
+            capabilities: CockpitCapabilities(
+              platform: 'windows',
+              transportType: 'remoteHttp',
+              supportsInAppControl: true,
+              supportsFlutterViewCapture: true,
+              supportsNativeScreenCapture: true,
+              supportsHostAutomation: true,
+              supportedCommands: <CockpitCommandType>[CockpitCommandType.tap],
+              supportedLocatorStrategies: CockpitLocatorKind.values,
+            ),
+            recordingCapabilities: CockpitRecordingCapabilities(
+              supportsNativeRecording: true,
+              preferredAcceptanceRecordingKind:
+                  CockpitRecordingKind.nativeScreen,
+            ),
+            snapshot: CockpitSnapshot(routeName: '/home'),
           ),
-          recordingCapabilities: CockpitRecordingCapabilities(
-            supportsNativeRecording: true,
-            preferredAcceptanceRecordingKind: CockpitRecordingKind.nativeScreen,
-          ),
-          snapshot: CockpitSnapshot(routeName: '/home'),
         ),
-      ),
-    );
+      );
 
-    await tool.call(<String, Object?>{
-      'projectDir': '/workspace/examples/cockpit_demo',
-      'platform': 'windows',
-      'deviceId': 'windows',
-      'sessionPort': 47331,
-    });
+      await tool.call(<String, Object?>{
+        'projectDir': '/workspace/examples/cockpit_demo',
+        'platform': 'windows',
+        'deviceId': 'windows',
+        'sessionPort': 47331,
+      });
 
-    final record = registry.remoteSessionByAppId('dev.cockpit.review_demo');
-    expect(record, isNotNull);
-    expect(record?.recommendedNextStep, 'ready_for_commands');
-  });
+      final record = registry.remoteSessionByAppId('dev.cockpit.review_demo');
+      expect(record, isNotNull);
+      expect(record?.recommendedNextStep, 'ready_for_commands');
+    },
+  );
 }

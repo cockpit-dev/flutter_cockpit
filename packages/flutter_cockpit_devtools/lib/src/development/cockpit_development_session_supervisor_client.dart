@@ -19,8 +19,8 @@ final class CockpitDevelopmentSessionSupervisorClient {
   CockpitDevelopmentSessionSupervisorClient({
     HttpClient Function()? httpClientFactory,
     Duration? requestTimeout,
-  })  : _httpClientFactory = httpClientFactory ?? HttpClient.new,
-        _requestTimeout = requestTimeout ?? const Duration(seconds: 120);
+  }) : _httpClientFactory = httpClientFactory ?? HttpClient.new,
+       _requestTimeout = requestTimeout ?? const Duration(seconds: 120);
 
   final HttpClient Function() _httpClientFactory;
   final Duration _requestTimeout;
@@ -103,8 +103,7 @@ final class CockpitDevelopmentSessionSupervisorClient {
           );
         }
         return Map<String, Object?>.from(decoded);
-      })()
-          .timeout(
+      })().timeout(
         _requestTimeout,
         onTimeout: () {
           client.close(force: true);

@@ -44,7 +44,8 @@ void main() {
         actionArgs: const {'target': 'home'},
         observation: CockpitObservation(
           routeName: screenshot.snapshot?.routeName,
-          interactiveElements: screenshot.snapshot?.visibleTargets
+          interactiveElements:
+              screenshot.snapshot?.visibleTargets
                   .map((target) => target.displayLabel)
                   .whereType<String>()
                   .toList(growable: false) ??

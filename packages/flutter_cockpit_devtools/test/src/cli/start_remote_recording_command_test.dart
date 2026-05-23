@@ -26,7 +26,8 @@ void main() {
         ),
       );
 
-    final exitCode = await runner.run(<String>[
+    final exitCode =
+        await runner.run(<String>[
           'start-remote-recording',
           '--stdout-format',
           'json',

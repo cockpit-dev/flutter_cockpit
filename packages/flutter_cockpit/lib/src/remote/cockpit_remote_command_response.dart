@@ -9,8 +9,8 @@ final class CockpitRemoteCommandResponse {
     List<CockpitRemoteArtifactPayload> artifactPayloads =
         const <CockpitRemoteArtifactPayload>[],
     List<CockpitStepRecord> runtimeSteps = const <CockpitStepRecord>[],
-  })  : artifactPayloads = List.unmodifiable(artifactPayloads),
-        runtimeSteps = List.unmodifiable(runtimeSteps);
+  }) : artifactPayloads = List.unmodifiable(artifactPayloads),
+       runtimeSteps = List.unmodifiable(runtimeSteps);
 
   final CockpitCommandResult result;
   final List<CockpitRemoteArtifactPayload> artifactPayloads;
@@ -47,13 +47,14 @@ final class CockpitRemoteCommandResponse {
   }
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'result': result.toJson(),
-        'artifactPayloads': artifactPayloads
-            .map((payload) => payload.toJson())
-            .toList(growable: false),
-        'runtimeSteps':
-            runtimeSteps.map((step) => step.toJson()).toList(growable: false),
-      };
+    'result': result.toJson(),
+    'artifactPayloads': artifactPayloads
+        .map((payload) => payload.toJson())
+        .toList(growable: false),
+    'runtimeSteps': runtimeSteps
+        .map((step) => step.toJson())
+        .toList(growable: false),
+  };
 
   factory CockpitRemoteCommandResponse.fromJson(Map<String, Object?> json) {
     final resultJson = json['result'] as Map<Object?, Object?>;
@@ -95,10 +96,10 @@ final class CockpitRemoteCommandResponse {
 
   @override
   int get hashCode => Object.hash(
-        result,
-        Object.hashAll(artifactPayloads),
-        Object.hashAll(runtimeSteps),
-      );
+    result,
+    Object.hashAll(artifactPayloads),
+    Object.hashAll(runtimeSteps),
+  );
 
   static bool _listEquals(
     List<CockpitRemoteArtifactPayload> left,

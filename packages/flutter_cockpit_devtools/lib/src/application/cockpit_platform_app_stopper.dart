@@ -6,18 +6,16 @@ import 'cockpit_application_service_exception.dart';
 import '../platform/ios/cockpit_ios_device_connection.dart';
 import '../platform/ios/cockpit_ios_device_process.dart';
 
-typedef CockpitPlatformStopProcessRunner = Future<ProcessResult> Function(
-  String executable,
-  List<String> arguments,
-);
+typedef CockpitPlatformStopProcessRunner =
+    Future<ProcessResult> Function(String executable, List<String> arguments);
 
 final class CockpitPlatformAppStopper {
   CockpitPlatformAppStopper({
     CockpitPlatformStopProcessRunner? processRunner,
     CockpitIosDeviceProcessTerminator? iosDeviceProcessTerminator,
-  })  : _processRunner = processRunner ?? _defaultProcessRunner,
-        _iosDeviceProcessTerminator =
-            iosDeviceProcessTerminator ?? CockpitIosDeviceProcessTerminator();
+  }) : _processRunner = processRunner ?? _defaultProcessRunner,
+       _iosDeviceProcessTerminator =
+           iosDeviceProcessTerminator ?? CockpitIosDeviceProcessTerminator();
 
   final CockpitPlatformStopProcessRunner _processRunner;
   final CockpitIosDeviceProcessTerminator _iosDeviceProcessTerminator;
@@ -65,17 +63,8 @@ final class CockpitPlatformAppStopper {
         await _bestEffortRun(
           'taskkill',
           processId == null
-              ? <String>[
-                  '/IM',
-                  '$appId.exe',
-                  '/F',
-                ]
-              : <String>[
-                  '/PID',
-                  '$processId',
-                  '/T',
-                  '/F',
-                ],
+              ? <String>['/IM', '$appId.exe', '/F']
+              : <String>['/PID', '$processId', '/T', '/F'],
         );
       case 'linux':
         await _bestEffortRun(
@@ -87,7 +76,8 @@ final class CockpitPlatformAppStopper {
       case 'web':
         throw const CockpitApplicationServiceException(
           code: 'unsupportedAutomationPlatform',
-          message: 'stop-app cannot terminate web automation sessions because '
+          message:
+              'stop-app cannot terminate web automation sessions because '
               'web launches only support development mode.',
           details: <String, Object?>{
             'platform': 'web',
@@ -98,14 +88,12 @@ final class CockpitPlatformAppStopper {
     }
   }
 
-  Future<void> _bestEffortRun(
-    String executable,
-    List<String> arguments,
-  ) async {
+  Future<void> _bestEffortRun(String executable, List<String> arguments) async {
     try {
-      await _processRunner(executable, arguments).timeout(
-        const Duration(seconds: 5),
-      );
+      await _processRunner(
+        executable,
+        arguments,
+      ).timeout(const Duration(seconds: 5));
     } on Object {
       // Reachability checks decide whether stop really succeeded.
     }
@@ -117,10 +105,7 @@ final class CockpitPlatformAppStopper {
   }) async {
     try {
       await _iosDeviceProcessTerminator
-          .terminateApp(
-            deviceId: deviceId,
-            bundleId: bundleId,
-          )
+          .terminateApp(deviceId: deviceId, bundleId: bundleId)
           .timeout(const Duration(seconds: 5));
     } on Object {
       // Reachability checks decide whether stop really succeeded.

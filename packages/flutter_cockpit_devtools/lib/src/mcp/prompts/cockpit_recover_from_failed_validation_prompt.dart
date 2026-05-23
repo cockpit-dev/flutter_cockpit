@@ -7,13 +7,13 @@ final class CockpitRecoverFromFailedValidationPrompt extends CockpitMcpPrompt {
 
   @override
   CockpitMcpPromptDefinition get definition => const CockpitMcpPromptDefinition(
-        name: 'recover_from_failed_validation',
-        description: 'Investigate a blocked or failed validation outcome.',
-        categories: <CockpitMcpFeatureCategory>[
-          CockpitMcpFeatureCategory.closedLoop,
-          CockpitMcpFeatureCategory.workflowPrompts,
-        ],
-      );
+    name: 'recover_from_failed_validation',
+    description: 'Investigate a blocked or failed validation outcome.',
+    categories: <CockpitMcpFeatureCategory>[
+      CockpitMcpFeatureCategory.closedLoop,
+      CockpitMcpFeatureCategory.workflowPrompts,
+    ],
+  );
 
   @override
   Future<CockpitMcpPromptResult> build(Map<String, Object?> arguments) async {

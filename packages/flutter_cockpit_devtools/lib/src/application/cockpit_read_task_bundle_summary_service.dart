@@ -27,16 +27,16 @@ final class CockpitBundleNetworkSummary {
   final List<CockpitNetworkEntry> failingEntries;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'totalEntryCount': totalEntryCount,
-        'failureCount': failureCount,
-        'truncated': truncated,
-        'recentEntries': recentEntries
-            .map((entry) => entry.toJson())
-            .toList(growable: false),
-        'failingEntries': failingEntries
-            .map((entry) => entry.toJson())
-            .toList(growable: false),
-      };
+    'totalEntryCount': totalEntryCount,
+    'failureCount': failureCount,
+    'truncated': truncated,
+    'recentEntries': recentEntries
+        .map((entry) => entry.toJson())
+        .toList(growable: false),
+    'failingEntries': failingEntries
+        .map((entry) => entry.toJson())
+        .toList(growable: false),
+  };
 }
 
 final class CockpitBundleRuntimeSummary {
@@ -57,16 +57,17 @@ final class CockpitBundleRuntimeSummary {
   final List<CockpitRuntimeEvent> errorEntries;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'totalEntryCount': totalEntryCount,
-        'errorCount': errorCount,
-        'warningCount': warningCount,
-        'truncated': truncated,
-        'recentEntries': recentEntries
-            .map((entry) => entry.toJson())
-            .toList(growable: false),
-        'errorEntries':
-            errorEntries.map((entry) => entry.toJson()).toList(growable: false),
-      };
+    'totalEntryCount': totalEntryCount,
+    'errorCount': errorCount,
+    'warningCount': warningCount,
+    'truncated': truncated,
+    'recentEntries': recentEntries
+        .map((entry) => entry.toJson())
+        .toList(growable: false),
+    'errorEntries': errorEntries
+        .map((entry) => entry.toJson())
+        .toList(growable: false),
+  };
 }
 
 final class CockpitBundleRebuildSummary {
@@ -83,32 +84,31 @@ final class CockpitBundleRebuildSummary {
   final List<CockpitRebuildEntry> entries;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'totalRebuildCount': totalRebuildCount,
-        'uniqueElementCount': uniqueElementCount,
-        'truncated': truncated,
-        'entries':
-            entries.map((entry) => entry.toJson()).toList(growable: false),
-      };
+    'totalRebuildCount': totalRebuildCount,
+    'uniqueElementCount': uniqueElementCount,
+    'truncated': truncated,
+    'entries': entries.map((entry) => entry.toJson()).toList(growable: false),
+  };
 
   Map<String, Object?> toMcpJson() => <String, Object?>{
-        'totalRebuildCount': totalRebuildCount,
-        'uniqueElementCount': uniqueElementCount,
-        'truncated': truncated,
-        'entries': entries
-            .map(
-              (entry) => <String, Object?>{
-                'signature': entry.signature,
-                'routeName': entry.routeName,
-                'typeName': entry.typeName,
-                'rebuildCount': entry.rebuildCount,
-                'builtOnceCount': entry.builtOnceCount,
-                'keyValue': entry.keyValue,
-                'semanticId': entry.semanticId,
-                'textPreview': entry.textPreview,
-              },
-            )
-            .toList(growable: false),
-      };
+    'totalRebuildCount': totalRebuildCount,
+    'uniqueElementCount': uniqueElementCount,
+    'truncated': truncated,
+    'entries': entries
+        .map(
+          (entry) => <String, Object?>{
+            'signature': entry.signature,
+            'routeName': entry.routeName,
+            'typeName': entry.typeName,
+            'rebuildCount': entry.rebuildCount,
+            'builtOnceCount': entry.builtOnceCount,
+            'keyValue': entry.keyValue,
+            'semanticId': entry.semanticId,
+            'textPreview': entry.textPreview,
+          },
+        )
+        .toList(growable: false),
+  };
 }
 
 final class CockpitBundleAcceptanceEvidence {
@@ -133,13 +133,13 @@ final class CockpitBundleAcceptanceEvidence {
     required this.rebuildTotalCount,
     required this.rebuildUniqueElementCount,
     required List<CockpitBundleAcceptanceRebuildHotspot> rebuildHotspots,
-  })  : visibleTextPreviews = List.unmodifiable(visibleTextPreviews),
-        visibleSemanticIds = List.unmodifiable(visibleSemanticIds),
-        interactiveLabels = List.unmodifiable(interactiveLabels),
-        accessibilityLabels = List.unmodifiable(accessibilityLabels),
-        networkFailureSignals = List.unmodifiable(networkFailureSignals),
-        runtimeErrorSignals = List.unmodifiable(runtimeErrorSignals),
-        rebuildHotspots = List.unmodifiable(rebuildHotspots);
+  }) : visibleTextPreviews = List.unmodifiable(visibleTextPreviews),
+       visibleSemanticIds = List.unmodifiable(visibleSemanticIds),
+       interactiveLabels = List.unmodifiable(interactiveLabels),
+       accessibilityLabels = List.unmodifiable(accessibilityLabels),
+       networkFailureSignals = List.unmodifiable(networkFailureSignals),
+       runtimeErrorSignals = List.unmodifiable(runtimeErrorSignals),
+       rebuildHotspots = List.unmodifiable(rebuildHotspots);
 
   final String? routeName;
   final String? diagnosticLevel;
@@ -178,62 +178,62 @@ final class CockpitBundleAcceptanceEvidence {
       rebuildTotalCount > 0;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'routeName': routeName,
-        'diagnosticLevel': diagnosticLevel,
-        'diagnosticsArtifactPath': diagnosticsArtifactPath,
-        'visibleTextPreviews': visibleTextPreviews,
-        'visibleSemanticIds': visibleSemanticIds,
-        'interactiveLabels': interactiveLabels,
-        'accessibilityLabels': accessibilityLabels,
-        'visibleTargetCount': visibleTargetCount,
-        'accessibilityEntryCount': accessibilityEntryCount,
-        'hasAccessibilitySummary': hasAccessibilitySummary,
-        'networkEntryCount': networkEntryCount,
-        'networkFailureCount': networkFailureCount,
-        'networkFailureSignals': networkFailureSignals
-            .map((signal) => signal.toJson())
-            .toList(growable: false),
-        'runtimeEntryCount': runtimeEntryCount,
-        'runtimeErrorCount': runtimeErrorCount,
-        'runtimeWarningCount': runtimeWarningCount,
-        'runtimeErrorSignals': runtimeErrorSignals
-            .map((signal) => signal.toJson())
-            .toList(growable: false),
-        'rebuildTotalCount': rebuildTotalCount,
-        'rebuildUniqueElementCount': rebuildUniqueElementCount,
-        'rebuildHotspots': rebuildHotspots
-            .map((hotspot) => hotspot.toJson())
-            .toList(growable: false),
-      };
+    'routeName': routeName,
+    'diagnosticLevel': diagnosticLevel,
+    'diagnosticsArtifactPath': diagnosticsArtifactPath,
+    'visibleTextPreviews': visibleTextPreviews,
+    'visibleSemanticIds': visibleSemanticIds,
+    'interactiveLabels': interactiveLabels,
+    'accessibilityLabels': accessibilityLabels,
+    'visibleTargetCount': visibleTargetCount,
+    'accessibilityEntryCount': accessibilityEntryCount,
+    'hasAccessibilitySummary': hasAccessibilitySummary,
+    'networkEntryCount': networkEntryCount,
+    'networkFailureCount': networkFailureCount,
+    'networkFailureSignals': networkFailureSignals
+        .map((signal) => signal.toJson())
+        .toList(growable: false),
+    'runtimeEntryCount': runtimeEntryCount,
+    'runtimeErrorCount': runtimeErrorCount,
+    'runtimeWarningCount': runtimeWarningCount,
+    'runtimeErrorSignals': runtimeErrorSignals
+        .map((signal) => signal.toJson())
+        .toList(growable: false),
+    'rebuildTotalCount': rebuildTotalCount,
+    'rebuildUniqueElementCount': rebuildUniqueElementCount,
+    'rebuildHotspots': rebuildHotspots
+        .map((hotspot) => hotspot.toJson())
+        .toList(growable: false),
+  };
 
   Map<String, Object?> toMcpJson() => <String, Object?>{
-        'routeName': routeName,
-        'diagnosticLevel': diagnosticLevel,
-        'diagnosticsArtifactPath': diagnosticsArtifactPath,
-        'visibleTextPreviews': visibleTextPreviews,
-        'visibleSemanticIds': visibleSemanticIds,
-        'interactiveLabels': interactiveLabels,
-        'accessibilityLabels': accessibilityLabels,
-        'visibleTargetCount': visibleTargetCount,
-        'accessibilityEntryCount': accessibilityEntryCount,
-        'hasAccessibilitySummary': hasAccessibilitySummary,
-        'networkEntryCount': networkEntryCount,
-        'networkFailureCount': networkFailureCount,
-        'networkFailureSignals': networkFailureSignals
-            .map((signal) => signal.toMcpJson())
-            .toList(growable: false),
-        'runtimeEntryCount': runtimeEntryCount,
-        'runtimeErrorCount': runtimeErrorCount,
-        'runtimeWarningCount': runtimeWarningCount,
-        'runtimeErrorSignals': runtimeErrorSignals
-            .map((signal) => signal.toMcpJson())
-            .toList(growable: false),
-        'rebuildTotalCount': rebuildTotalCount,
-        'rebuildUniqueElementCount': rebuildUniqueElementCount,
-        'rebuildHotspots': rebuildHotspots
-            .map((hotspot) => hotspot.toMcpJson())
-            .toList(growable: false),
-      };
+    'routeName': routeName,
+    'diagnosticLevel': diagnosticLevel,
+    'diagnosticsArtifactPath': diagnosticsArtifactPath,
+    'visibleTextPreviews': visibleTextPreviews,
+    'visibleSemanticIds': visibleSemanticIds,
+    'interactiveLabels': interactiveLabels,
+    'accessibilityLabels': accessibilityLabels,
+    'visibleTargetCount': visibleTargetCount,
+    'accessibilityEntryCount': accessibilityEntryCount,
+    'hasAccessibilitySummary': hasAccessibilitySummary,
+    'networkEntryCount': networkEntryCount,
+    'networkFailureCount': networkFailureCount,
+    'networkFailureSignals': networkFailureSignals
+        .map((signal) => signal.toMcpJson())
+        .toList(growable: false),
+    'runtimeEntryCount': runtimeEntryCount,
+    'runtimeErrorCount': runtimeErrorCount,
+    'runtimeWarningCount': runtimeWarningCount,
+    'runtimeErrorSignals': runtimeErrorSignals
+        .map((signal) => signal.toMcpJson())
+        .toList(growable: false),
+    'rebuildTotalCount': rebuildTotalCount,
+    'rebuildUniqueElementCount': rebuildUniqueElementCount,
+    'rebuildHotspots': rebuildHotspots
+        .map((hotspot) => hotspot.toMcpJson())
+        .toList(growable: false),
+  };
 }
 
 final class CockpitBundleAcceptanceDelta {
@@ -251,27 +251,27 @@ final class CockpitBundleAcceptanceDelta {
     required List<String> removedAccessibilityLabels,
     required this.networkFailureDeltaCount,
     required List<CockpitBundleAcceptanceNetworkSignal>
-        newNetworkFailureSignals,
+    newNetworkFailureSignals,
     required this.runtimeErrorDeltaCount,
     required List<CockpitBundleAcceptanceRuntimeSignal> newRuntimeErrorSignals,
     required this.rebuildTotalDeltaCount,
     required this.rebuildUniqueElementDeltaCount,
     required List<CockpitBundleAcceptanceRebuildHotspot> newRebuildHotspots,
-  })  : addedVisibleTextPreviews = List.unmodifiable(addedVisibleTextPreviews),
-        removedVisibleTextPreviews = List.unmodifiable(
-          removedVisibleTextPreviews,
-        ),
-        addedSemanticIds = List.unmodifiable(addedSemanticIds),
-        removedSemanticIds = List.unmodifiable(removedSemanticIds),
-        addedInteractiveLabels = List.unmodifiable(addedInteractiveLabels),
-        removedInteractiveLabels = List.unmodifiable(removedInteractiveLabels),
-        addedAccessibilityLabels = List.unmodifiable(addedAccessibilityLabels),
-        removedAccessibilityLabels = List.unmodifiable(
-          removedAccessibilityLabels,
-        ),
-        newNetworkFailureSignals = List.unmodifiable(newNetworkFailureSignals),
-        newRuntimeErrorSignals = List.unmodifiable(newRuntimeErrorSignals),
-        newRebuildHotspots = List.unmodifiable(newRebuildHotspots);
+  }) : addedVisibleTextPreviews = List.unmodifiable(addedVisibleTextPreviews),
+       removedVisibleTextPreviews = List.unmodifiable(
+         removedVisibleTextPreviews,
+       ),
+       addedSemanticIds = List.unmodifiable(addedSemanticIds),
+       removedSemanticIds = List.unmodifiable(removedSemanticIds),
+       addedInteractiveLabels = List.unmodifiable(addedInteractiveLabels),
+       removedInteractiveLabels = List.unmodifiable(removedInteractiveLabels),
+       addedAccessibilityLabels = List.unmodifiable(addedAccessibilityLabels),
+       removedAccessibilityLabels = List.unmodifiable(
+         removedAccessibilityLabels,
+       ),
+       newNetworkFailureSignals = List.unmodifiable(newNetworkFailureSignals),
+       newRuntimeErrorSignals = List.unmodifiable(newRuntimeErrorSignals),
+       newRebuildHotspots = List.unmodifiable(newRebuildHotspots);
 
   final String? baselineRouteName;
   final String? acceptanceRouteName;
@@ -303,60 +303,60 @@ final class CockpitBundleAcceptanceDelta {
       removedAccessibilityLabels.length;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'baselineRouteName': baselineRouteName,
-        'acceptanceRouteName': acceptanceRouteName,
-        'routeChanged': routeChanged,
-        'addedVisibleTextPreviews': addedVisibleTextPreviews,
-        'removedVisibleTextPreviews': removedVisibleTextPreviews,
-        'addedSemanticIds': addedSemanticIds,
-        'removedSemanticIds': removedSemanticIds,
-        'addedInteractiveLabels': addedInteractiveLabels,
-        'removedInteractiveLabels': removedInteractiveLabels,
-        'addedAccessibilityLabels': addedAccessibilityLabels,
-        'removedAccessibilityLabels': removedAccessibilityLabels,
-        'networkFailureDeltaCount': networkFailureDeltaCount,
-        'newNetworkFailureSignals': newNetworkFailureSignals
-            .map((signal) => signal.toJson())
-            .toList(growable: false),
-        'runtimeErrorDeltaCount': runtimeErrorDeltaCount,
-        'newRuntimeErrorSignals': newRuntimeErrorSignals
-            .map((signal) => signal.toJson())
-            .toList(growable: false),
-        'rebuildTotalDeltaCount': rebuildTotalDeltaCount,
-        'rebuildUniqueElementDeltaCount': rebuildUniqueElementDeltaCount,
-        'newRebuildHotspots': newRebuildHotspots
-            .map((hotspot) => hotspot.toJson())
-            .toList(growable: false),
-        'semanticSignalDeltaCount': semanticSignalDeltaCount,
-      };
+    'baselineRouteName': baselineRouteName,
+    'acceptanceRouteName': acceptanceRouteName,
+    'routeChanged': routeChanged,
+    'addedVisibleTextPreviews': addedVisibleTextPreviews,
+    'removedVisibleTextPreviews': removedVisibleTextPreviews,
+    'addedSemanticIds': addedSemanticIds,
+    'removedSemanticIds': removedSemanticIds,
+    'addedInteractiveLabels': addedInteractiveLabels,
+    'removedInteractiveLabels': removedInteractiveLabels,
+    'addedAccessibilityLabels': addedAccessibilityLabels,
+    'removedAccessibilityLabels': removedAccessibilityLabels,
+    'networkFailureDeltaCount': networkFailureDeltaCount,
+    'newNetworkFailureSignals': newNetworkFailureSignals
+        .map((signal) => signal.toJson())
+        .toList(growable: false),
+    'runtimeErrorDeltaCount': runtimeErrorDeltaCount,
+    'newRuntimeErrorSignals': newRuntimeErrorSignals
+        .map((signal) => signal.toJson())
+        .toList(growable: false),
+    'rebuildTotalDeltaCount': rebuildTotalDeltaCount,
+    'rebuildUniqueElementDeltaCount': rebuildUniqueElementDeltaCount,
+    'newRebuildHotspots': newRebuildHotspots
+        .map((hotspot) => hotspot.toJson())
+        .toList(growable: false),
+    'semanticSignalDeltaCount': semanticSignalDeltaCount,
+  };
 
   Map<String, Object?> toMcpJson() => <String, Object?>{
-        'baselineRouteName': baselineRouteName,
-        'acceptanceRouteName': acceptanceRouteName,
-        'routeChanged': routeChanged,
-        'addedVisibleTextPreviews': addedVisibleTextPreviews,
-        'removedVisibleTextPreviews': removedVisibleTextPreviews,
-        'addedSemanticIds': addedSemanticIds,
-        'removedSemanticIds': removedSemanticIds,
-        'addedInteractiveLabels': addedInteractiveLabels,
-        'removedInteractiveLabels': removedInteractiveLabels,
-        'addedAccessibilityLabels': addedAccessibilityLabels,
-        'removedAccessibilityLabels': removedAccessibilityLabels,
-        'networkFailureDeltaCount': networkFailureDeltaCount,
-        'newNetworkFailureSignals': newNetworkFailureSignals
-            .map((signal) => signal.toMcpJson())
-            .toList(growable: false),
-        'runtimeErrorDeltaCount': runtimeErrorDeltaCount,
-        'newRuntimeErrorSignals': newRuntimeErrorSignals
-            .map((signal) => signal.toMcpJson())
-            .toList(growable: false),
-        'rebuildTotalDeltaCount': rebuildTotalDeltaCount,
-        'rebuildUniqueElementDeltaCount': rebuildUniqueElementDeltaCount,
-        'newRebuildHotspots': newRebuildHotspots
-            .map((hotspot) => hotspot.toMcpJson())
-            .toList(growable: false),
-        'semanticSignalDeltaCount': semanticSignalDeltaCount,
-      };
+    'baselineRouteName': baselineRouteName,
+    'acceptanceRouteName': acceptanceRouteName,
+    'routeChanged': routeChanged,
+    'addedVisibleTextPreviews': addedVisibleTextPreviews,
+    'removedVisibleTextPreviews': removedVisibleTextPreviews,
+    'addedSemanticIds': addedSemanticIds,
+    'removedSemanticIds': removedSemanticIds,
+    'addedInteractiveLabels': addedInteractiveLabels,
+    'removedInteractiveLabels': removedInteractiveLabels,
+    'addedAccessibilityLabels': addedAccessibilityLabels,
+    'removedAccessibilityLabels': removedAccessibilityLabels,
+    'networkFailureDeltaCount': networkFailureDeltaCount,
+    'newNetworkFailureSignals': newNetworkFailureSignals
+        .map((signal) => signal.toMcpJson())
+        .toList(growable: false),
+    'runtimeErrorDeltaCount': runtimeErrorDeltaCount,
+    'newRuntimeErrorSignals': newRuntimeErrorSignals
+        .map((signal) => signal.toMcpJson())
+        .toList(growable: false),
+    'rebuildTotalDeltaCount': rebuildTotalDeltaCount,
+    'rebuildUniqueElementDeltaCount': rebuildUniqueElementDeltaCount,
+    'newRebuildHotspots': newRebuildHotspots
+        .map((hotspot) => hotspot.toMcpJson())
+        .toList(growable: false),
+    'semanticSignalDeltaCount': semanticSignalDeltaCount,
+  };
 }
 
 final class CockpitBundleAcceptanceNetworkSignal {
@@ -377,22 +377,22 @@ final class CockpitBundleAcceptanceNetworkSignal {
   final int durationMs;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'requestId': requestId,
-        'method': method,
-        'uri': uri,
-        'statusCode': statusCode,
-        'error': error,
-        'durationMs': durationMs,
-      };
+    'requestId': requestId,
+    'method': method,
+    'uri': uri,
+    'statusCode': statusCode,
+    'error': error,
+    'durationMs': durationMs,
+  };
 
   Map<String, Object?> toMcpJson() => <String, Object?>{
-        'requestId': requestId,
-        'method': method,
-        'uri': uri,
-        'statusCode': statusCode,
-        'error': error,
-        'durationMs': durationMs,
-      };
+    'requestId': requestId,
+    'method': method,
+    'uri': uri,
+    'statusCode': statusCode,
+    'error': error,
+    'durationMs': durationMs,
+  };
 }
 
 final class CockpitBundleAcceptanceRuntimeSignal {
@@ -409,18 +409,18 @@ final class CockpitBundleAcceptanceRuntimeSignal {
   final String message;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'eventId': eventId,
-        'kind': kind,
-        'severity': severity,
-        'message': message,
-      };
+    'eventId': eventId,
+    'kind': kind,
+    'severity': severity,
+    'message': message,
+  };
 
   Map<String, Object?> toMcpJson() => <String, Object?>{
-        'eventId': eventId,
-        'kind': kind,
-        'severity': severity,
-        'message': message,
-      };
+    'eventId': eventId,
+    'kind': kind,
+    'severity': severity,
+    'message': message,
+  };
 }
 
 final class CockpitBundleAcceptanceRebuildHotspot {
@@ -443,24 +443,24 @@ final class CockpitBundleAcceptanceRebuildHotspot {
   final String? textPreview;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'signature': signature,
-        'routeName': routeName,
-        'typeName': typeName,
-        'rebuildCount': rebuildCount,
-        'keyValue': keyValue,
-        'semanticId': semanticId,
-        'textPreview': textPreview,
-      };
+    'signature': signature,
+    'routeName': routeName,
+    'typeName': typeName,
+    'rebuildCount': rebuildCount,
+    'keyValue': keyValue,
+    'semanticId': semanticId,
+    'textPreview': textPreview,
+  };
 
   Map<String, Object?> toMcpJson() => <String, Object?>{
-        'signature': signature,
-        'routeName': routeName,
-        'typeName': typeName,
-        'rebuildCount': rebuildCount,
-        'keyValue': keyValue,
-        'semanticId': semanticId,
-        'textPreview': textPreview,
-      };
+    'signature': signature,
+    'routeName': routeName,
+    'typeName': typeName,
+    'rebuildCount': rebuildCount,
+    'keyValue': keyValue,
+    'semanticId': semanticId,
+    'textPreview': textPreview,
+  };
 }
 
 final class CockpitReadTaskBundleSummaryRequest {
@@ -486,13 +486,13 @@ final class CockpitBundleGateSummary {
       failureCodes[gate] ?? const <String>[];
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'gates': <String, Object?>{
-          for (final entry in gates.entries) entry.key.name: entry.value,
-        },
-        'failureCodes': <String, Object?>{
-          for (final entry in failureCodes.entries) entry.key.name: entry.value,
-        },
-      };
+    'gates': <String, Object?>{
+      for (final entry in gates.entries) entry.key.name: entry.value,
+    },
+    'failureCodes': <String, Object?>{
+      for (final entry in failureCodes.entries) entry.key.name: entry.value,
+    },
+  };
 
   Map<String, Object?> toMcpJson() => toJson();
 }
@@ -533,63 +533,61 @@ final class CockpitReadTaskBundleSummaryResult {
   final CockpitBundleGateSummary gateSummary;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'bundleDir': bundleDir,
-        'manifest': manifest.toJson(),
-        'handoff': handoff,
-        'delivery': delivery,
-        'acceptanceMarkdown': acceptanceMarkdown,
-        'artifactPaths': artifactPaths.toJson(),
-        'evidence': evidence.toJson(),
-        'evidenceSummary': evidenceSummary,
-        'gateSummary': gateSummary.toJson(),
-        if (baselineEvidence != null)
-          'baselineEvidence': baselineEvidence!.toJson(),
-        if (acceptanceEvidence != null)
-          'acceptanceEvidence': acceptanceEvidence!.toJson(),
-        if (acceptanceDelta != null)
-          'acceptanceDelta': acceptanceDelta!.toJson(),
-        'diagnosticsArtifactPaths': diagnosticsArtifactPaths,
-        if (networkSummary != null) 'networkSummary': networkSummary!.toJson(),
-        if (runtimeSummary != null) 'runtimeSummary': runtimeSummary!.toJson(),
-        if (rebuildSummary != null) 'rebuildSummary': rebuildSummary!.toJson(),
-      };
+    'bundleDir': bundleDir,
+    'manifest': manifest.toJson(),
+    'handoff': handoff,
+    'delivery': delivery,
+    'acceptanceMarkdown': acceptanceMarkdown,
+    'artifactPaths': artifactPaths.toJson(),
+    'evidence': evidence.toJson(),
+    'evidenceSummary': evidenceSummary,
+    'gateSummary': gateSummary.toJson(),
+    if (baselineEvidence != null)
+      'baselineEvidence': baselineEvidence!.toJson(),
+    if (acceptanceEvidence != null)
+      'acceptanceEvidence': acceptanceEvidence!.toJson(),
+    if (acceptanceDelta != null) 'acceptanceDelta': acceptanceDelta!.toJson(),
+    'diagnosticsArtifactPaths': diagnosticsArtifactPaths,
+    if (networkSummary != null) 'networkSummary': networkSummary!.toJson(),
+    if (runtimeSummary != null) 'runtimeSummary': runtimeSummary!.toJson(),
+    if (rebuildSummary != null) 'rebuildSummary': rebuildSummary!.toJson(),
+  };
 
   Map<String, Object?> toMcpJson() => <String, Object?>{
-        'bundleDir': bundleDir,
-        'manifest': manifest.toJson(),
-        'handoff': handoff,
-        'delivery': delivery,
-        'acceptanceMarkdown': acceptanceMarkdown,
-        'artifactPaths': artifactPaths.toJson(),
-        'evidence': evidence.toMcpJson(),
-        'evidenceSummary': evidenceSummary,
-        'gateSummary': gateSummary.toMcpJson(),
-        if (baselineEvidence != null)
-          'baselineEvidence': baselineEvidence!.toMcpJson(),
-        if (acceptanceEvidence != null)
-          'acceptanceEvidence': acceptanceEvidence!.toMcpJson(),
-        if (acceptanceDelta != null)
-          'acceptanceDelta': acceptanceDelta!.toMcpJson(),
-        'diagnosticsArtifactPaths': diagnosticsArtifactPaths,
-        if (networkSummary != null) 'networkSummary': networkSummary!.toJson(),
-        if (runtimeSummary != null) 'runtimeSummary': runtimeSummary!.toJson(),
-        if (rebuildSummary != null)
-          'rebuildSummary': rebuildSummary!.toMcpJson(),
-      };
+    'bundleDir': bundleDir,
+    'manifest': manifest.toJson(),
+    'handoff': handoff,
+    'delivery': delivery,
+    'acceptanceMarkdown': acceptanceMarkdown,
+    'artifactPaths': artifactPaths.toJson(),
+    'evidence': evidence.toMcpJson(),
+    'evidenceSummary': evidenceSummary,
+    'gateSummary': gateSummary.toMcpJson(),
+    if (baselineEvidence != null)
+      'baselineEvidence': baselineEvidence!.toMcpJson(),
+    if (acceptanceEvidence != null)
+      'acceptanceEvidence': acceptanceEvidence!.toMcpJson(),
+    if (acceptanceDelta != null)
+      'acceptanceDelta': acceptanceDelta!.toMcpJson(),
+    'diagnosticsArtifactPaths': diagnosticsArtifactPaths,
+    if (networkSummary != null) 'networkSummary': networkSummary!.toJson(),
+    if (runtimeSummary != null) 'runtimeSummary': runtimeSummary!.toJson(),
+    if (rebuildSummary != null) 'rebuildSummary': rebuildSummary!.toMcpJson(),
+  };
 
   CockpitBundleEvidenceView get evidence => CockpitBundleEvidenceView(
-        primaryScreenshotPath: artifactPaths.primaryScreenshotPath,
-        attachmentPaths: artifactPaths.attachmentPaths,
-        primaryRecordingPath: artifactPaths.primaryRecordingPath,
-        videoAttachmentPaths: artifactPaths.videoAttachmentPaths,
-        keyframePaths: artifactPaths.keyframePaths,
-        diagnosticsArtifactPaths: diagnosticsArtifactPaths,
-        deliveryArtifactsReady: manifest.deliveryArtifactsReady,
-        deliveryVideoReady: manifest.deliveryVideoReady,
-        deliveryKeyframesReady: delivery['deliveryKeyframesReady'] == true,
-        keyframeCoverage: _readEvidenceMap(delivery['keyframeCoverage']),
-        keyframes: _readEvidenceKeyframes(bundleDir, delivery['keyframes']),
-      );
+    primaryScreenshotPath: artifactPaths.primaryScreenshotPath,
+    attachmentPaths: artifactPaths.attachmentPaths,
+    primaryRecordingPath: artifactPaths.primaryRecordingPath,
+    videoAttachmentPaths: artifactPaths.videoAttachmentPaths,
+    keyframePaths: artifactPaths.keyframePaths,
+    diagnosticsArtifactPaths: diagnosticsArtifactPaths,
+    deliveryArtifactsReady: manifest.deliveryArtifactsReady,
+    deliveryVideoReady: manifest.deliveryVideoReady,
+    deliveryKeyframesReady: delivery['deliveryKeyframesReady'] == true,
+    keyframeCoverage: _readEvidenceMap(delivery['keyframeCoverage']),
+    keyframes: _readEvidenceKeyframes(bundleDir, delivery['keyframes']),
+  );
 
   static Map<String, Object?>? _readEvidenceMap(Object? value) {
     if (value is! Map<Object?, Object?>) {
@@ -661,11 +659,11 @@ final class CockpitBundleEvidenceView {
     required this.deliveryKeyframesReady,
     required this.keyframeCoverage,
     required List<CockpitBundleEvidenceKeyframe> keyframes,
-  })  : attachmentPaths = List.unmodifiable(attachmentPaths),
-        videoAttachmentPaths = List.unmodifiable(videoAttachmentPaths),
-        keyframePaths = List.unmodifiable(keyframePaths),
-        diagnosticsArtifactPaths = List.unmodifiable(diagnosticsArtifactPaths),
-        keyframes = List.unmodifiable(keyframes);
+  }) : attachmentPaths = List.unmodifiable(attachmentPaths),
+       videoAttachmentPaths = List.unmodifiable(videoAttachmentPaths),
+       keyframePaths = List.unmodifiable(keyframePaths),
+       diagnosticsArtifactPaths = List.unmodifiable(diagnosticsArtifactPaths),
+       keyframes = List.unmodifiable(keyframes);
 
   final String? primaryScreenshotPath;
   final List<String> attachmentPaths;
@@ -680,42 +678,42 @@ final class CockpitBundleEvidenceView {
   final List<CockpitBundleEvidenceKeyframe> keyframes;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        if (primaryScreenshotPath != null)
-          'primaryScreenshotPath': primaryScreenshotPath,
-        'attachmentPaths': attachmentPaths,
-        if (primaryRecordingPath != null)
-          'primaryRecordingPath': primaryRecordingPath,
-        'videoAttachmentPaths': videoAttachmentPaths,
-        'keyframePaths': keyframePaths,
-        'diagnosticsArtifactPaths': diagnosticsArtifactPaths,
-        'deliveryArtifactsReady': deliveryArtifactsReady,
-        'deliveryVideoReady': deliveryVideoReady,
-        'deliveryKeyframesReady': deliveryKeyframesReady,
-        'keyframeCount': keyframePaths.length,
-        if (keyframeCoverage != null) 'keyframeCoverage': keyframeCoverage,
-        'keyframes': keyframes
-            .map((keyframe) => keyframe.toJson())
-            .toList(growable: false),
-      };
+    if (primaryScreenshotPath != null)
+      'primaryScreenshotPath': primaryScreenshotPath,
+    'attachmentPaths': attachmentPaths,
+    if (primaryRecordingPath != null)
+      'primaryRecordingPath': primaryRecordingPath,
+    'videoAttachmentPaths': videoAttachmentPaths,
+    'keyframePaths': keyframePaths,
+    'diagnosticsArtifactPaths': diagnosticsArtifactPaths,
+    'deliveryArtifactsReady': deliveryArtifactsReady,
+    'deliveryVideoReady': deliveryVideoReady,
+    'deliveryKeyframesReady': deliveryKeyframesReady,
+    'keyframeCount': keyframePaths.length,
+    if (keyframeCoverage != null) 'keyframeCoverage': keyframeCoverage,
+    'keyframes': keyframes
+        .map((keyframe) => keyframe.toJson())
+        .toList(growable: false),
+  };
 
   Map<String, Object?> toMcpJson() => <String, Object?>{
-        if (primaryScreenshotPath != null)
-          'primaryScreenshotPath': primaryScreenshotPath,
-        'attachmentPaths': attachmentPaths,
-        if (primaryRecordingPath != null)
-          'primaryRecordingPath': primaryRecordingPath,
-        'videoAttachmentPaths': videoAttachmentPaths,
-        'keyframePaths': keyframePaths,
-        'diagnosticsArtifactPaths': diagnosticsArtifactPaths,
-        'deliveryArtifactsReady': deliveryArtifactsReady,
-        'deliveryVideoReady': deliveryVideoReady,
-        'deliveryKeyframesReady': deliveryKeyframesReady,
-        'keyframeCount': keyframePaths.length,
-        if (keyframeCoverage != null) 'keyframeCoverage': keyframeCoverage,
-        'keyframes': keyframes
-            .map((keyframe) => keyframe.toMcpJson())
-            .toList(growable: false),
-      };
+    if (primaryScreenshotPath != null)
+      'primaryScreenshotPath': primaryScreenshotPath,
+    'attachmentPaths': attachmentPaths,
+    if (primaryRecordingPath != null)
+      'primaryRecordingPath': primaryRecordingPath,
+    'videoAttachmentPaths': videoAttachmentPaths,
+    'keyframePaths': keyframePaths,
+    'diagnosticsArtifactPaths': diagnosticsArtifactPaths,
+    'deliveryArtifactsReady': deliveryArtifactsReady,
+    'deliveryVideoReady': deliveryVideoReady,
+    'deliveryKeyframesReady': deliveryKeyframesReady,
+    'keyframeCount': keyframePaths.length,
+    if (keyframeCoverage != null) 'keyframeCoverage': keyframeCoverage,
+    'keyframes': keyframes
+        .map((keyframe) => keyframe.toMcpJson())
+        .toList(growable: false),
+  };
 }
 
 final class CockpitBundleEvidenceKeyframe {
@@ -760,26 +758,24 @@ final class CockpitBundleEvidenceKeyframe {
   final String? linkedScreenshotPath;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'ref': ref,
-        'path': path,
-        'label': label,
-        'offsetMs': offsetMs,
-        if (linkedScreenshotRef != null)
-          'linkedScreenshotRef': linkedScreenshotRef,
-        if (linkedScreenshotPath != null)
-          'linkedScreenshotPath': linkedScreenshotPath,
-      };
+    'ref': ref,
+    'path': path,
+    'label': label,
+    'offsetMs': offsetMs,
+    if (linkedScreenshotRef != null) 'linkedScreenshotRef': linkedScreenshotRef,
+    if (linkedScreenshotPath != null)
+      'linkedScreenshotPath': linkedScreenshotPath,
+  };
 
   Map<String, Object?> toMcpJson() => <String, Object?>{
-        'ref': ref,
-        'path': path,
-        'label': label,
-        'offsetMs': offsetMs,
-        if (linkedScreenshotRef != null)
-          'linkedScreenshotRef': linkedScreenshotRef,
-        if (linkedScreenshotPath != null)
-          'linkedScreenshotPath': linkedScreenshotPath,
-      };
+    'ref': ref,
+    'path': path,
+    'label': label,
+    'offsetMs': offsetMs,
+    if (linkedScreenshotRef != null) 'linkedScreenshotRef': linkedScreenshotRef,
+    if (linkedScreenshotPath != null)
+      'linkedScreenshotPath': linkedScreenshotPath,
+  };
 }
 
 final class CockpitReadTaskBundleSummaryService {
@@ -812,11 +808,11 @@ final class CockpitReadTaskBundleSummaryService {
     final acceptanceEvidence = await _readAcceptanceEvidence(bundleDir);
     final acceptanceDelta =
         baselineEvidence == null || acceptanceEvidence == null
-            ? null
-            : _buildAcceptanceDelta(
-                baselineEvidence: baselineEvidence,
-                acceptanceEvidence: acceptanceEvidence,
-              );
+        ? null
+        : _buildAcceptanceDelta(
+            baselineEvidence: baselineEvidence,
+            acceptanceEvidence: acceptanceEvidence,
+          );
     final networkSummary = await _readNetworkSummary(bundleDir);
     final runtimeSummary = await _readRuntimeSummary(bundleDir);
     final rebuildSummary = await _readRebuildSummary(bundleDir);
@@ -853,8 +849,9 @@ final class CockpitReadTaskBundleSummaryService {
           'targetKind': executionSummary.targetKind!.name,
         if (executionSummary.primaryExecutionPlane != null)
           'primaryExecutionPlane': executionSummary.primaryExecutionPlane!.name,
-        'planesUsed':
-            executionSummary.planesUsed.map((plane) => plane.name).toList(),
+        'planesUsed': executionSummary.planesUsed
+            .map((plane) => plane.name)
+            .toList(),
         'surfaceKindsUsed': executionSummary.surfaceKindsUsed
             .map((surface) => surface.name)
             .toList(),
@@ -872,15 +869,15 @@ final class CockpitReadTaskBundleSummaryService {
         'baselineSemanticSignalCount': baselineEvidence == null
             ? 0
             : baselineEvidence.visibleTextPreviews.length +
-                baselineEvidence.visibleSemanticIds.length +
-                baselineEvidence.interactiveLabels.length +
-                baselineEvidence.accessibilityLabels.length,
+                  baselineEvidence.visibleSemanticIds.length +
+                  baselineEvidence.interactiveLabels.length +
+                  baselineEvidence.accessibilityLabels.length,
         'acceptanceSemanticSignalCount': acceptanceEvidence == null
             ? 0
             : acceptanceEvidence.visibleTextPreviews.length +
-                acceptanceEvidence.visibleSemanticIds.length +
-                acceptanceEvidence.interactiveLabels.length +
-                acceptanceEvidence.accessibilityLabels.length,
+                  acceptanceEvidence.visibleSemanticIds.length +
+                  acceptanceEvidence.interactiveLabels.length +
+                  acceptanceEvidence.accessibilityLabels.length,
         'acceptanceAccessibilityEntryCount':
             acceptanceEvidence?.accessibilityEntryCount ?? 0,
         'acceptanceInteractiveLabelCount':
@@ -918,9 +915,7 @@ final class CockpitReadTaskBundleSummaryService {
         'artifactsReady': gateSummary.isSatisfied(
           CockpitTaskGate.artifactsReady,
         ),
-        'logsCollected': gateSummary.isSatisfied(
-          CockpitTaskGate.logsCollected,
-        ),
+        'logsCollected': gateSummary.isSatisfied(CockpitTaskGate.logsCollected),
         'deliveryReadable': gateSummary.isSatisfied(
           CockpitTaskGate.deliveryReadable,
         ),
@@ -1051,9 +1046,9 @@ final class CockpitReadTaskBundleSummaryService {
           if (artifact.role == 'diagnostics') {
             final resolvedPath =
                 CockpitBundleDiagnosticsArtifactRefs.resolvePath(
-              bundleDir,
-              artifact.relativePath,
-            );
+                  bundleDir,
+                  artifact.relativePath,
+                );
             if (resolvedPath != null) {
               diagnosticsPaths.add(resolvedPath);
             }
@@ -1139,12 +1134,14 @@ final class CockpitReadTaskBundleSummaryService {
         .toList(growable: false);
 
     return CockpitBundleNetworkSummary(
-      totalEntryCount:
-          totalEntryCount == 0 ? orderedEntries.length : totalEntryCount,
+      totalEntryCount: totalEntryCount == 0
+          ? orderedEntries.length
+          : totalEntryCount,
       failureCount: failureCount == 0
           ? orderedEntries.where((entry) => entry.isFailure).length
           : failureCount,
-      truncated: truncated ||
+      truncated:
+          truncated ||
           (totalEntryCount > 0 && orderedEntries.length < totalEntryCount),
       recentEntries: orderedEntries.take(5).toList(growable: false),
       failingEntries: failingEntries,
@@ -1221,17 +1218,21 @@ final class CockpitReadTaskBundleSummaryService {
 
     final orderedEntries = dedupedEvents.values.toList(growable: true)
       ..sort((left, right) => right.recordedAt.compareTo(left.recordedAt));
-    final derivedErrorCount =
-        orderedEntries.where((entry) => entry.isError).length;
-    final derivedWarningCount =
-        orderedEntries.where((entry) => entry.isWarning).length;
+    final derivedErrorCount = orderedEntries
+        .where((entry) => entry.isError)
+        .length;
+    final derivedWarningCount = orderedEntries
+        .where((entry) => entry.isWarning)
+        .length;
 
     return CockpitBundleRuntimeSummary(
-      totalEntryCount:
-          totalEntryCount == 0 ? orderedEntries.length : totalEntryCount,
+      totalEntryCount: totalEntryCount == 0
+          ? orderedEntries.length
+          : totalEntryCount,
       errorCount: errorCount == 0 ? derivedErrorCount : errorCount,
       warningCount: warningCount == 0 ? derivedWarningCount : warningCount,
-      truncated: truncated ||
+      truncated:
+          truncated ||
           (totalEntryCount > 0 && orderedEntries.length < totalEntryCount),
       recentEntries: orderedEntries.take(5).toList(growable: false),
       errorEntries: orderedEntries
@@ -1292,9 +1293,11 @@ final class CockpitReadTaskBundleSummaryService {
               (count, entry) => count + entry.rebuildCount,
             )
           : totalRebuildCount,
-      uniqueElementCount:
-          uniqueElementCount == 0 ? orderedEntries.length : uniqueElementCount,
-      truncated: truncated ||
+      uniqueElementCount: uniqueElementCount == 0
+          ? orderedEntries.length
+          : uniqueElementCount,
+      truncated:
+          truncated ||
           (uniqueElementCount > 0 &&
               orderedEntries.length < uniqueElementCount),
       entries: orderedEntries.take(5).toList(growable: false),
@@ -1325,9 +1328,9 @@ final class CockpitReadTaskBundleSummaryService {
       }
       final diagnosticsArtifactPath =
           CockpitBundleDiagnosticsArtifactRefs.resolvePath(
-        bundleDir,
-        artifactRef.relativePath,
-      );
+            bundleDir,
+            artifactRef.relativePath,
+          );
       if (diagnosticsArtifactPath == null) {
         continue;
       }
@@ -1384,9 +1387,9 @@ final class CockpitReadTaskBundleSummaryService {
       if (diagnosticsArtifactRef != null) {
         final diagnosticsArtifactPath =
             CockpitBundleDiagnosticsArtifactRefs.resolvePath(
-          bundleDir,
-          diagnosticsArtifactRef.relativePath,
-        );
+              bundleDir,
+              diagnosticsArtifactRef.relativePath,
+            );
         if (diagnosticsArtifactPath != null) {
           final diagnosticSnapshot = await _readDiagnosticSnapshot(
             diagnosticsArtifactPath,
@@ -1402,9 +1405,9 @@ final class CockpitReadTaskBundleSummaryService {
         }
         final diagnosticsArtifactPath =
             CockpitBundleDiagnosticsArtifactRefs.resolvePath(
-          bundleDir,
-          artifact.relativePath,
-        );
+              bundleDir,
+              artifact.relativePath,
+            );
         if (diagnosticsArtifactPath == null) {
           continue;
         }
@@ -1542,73 +1545,75 @@ final class CockpitReadTaskBundleSummaryService {
       visibleTargetCount: snapshot.visibleTargets.length,
       accessibilityEntryCount:
           snapshot.accessibility?.totalAccessibleTargetCount ??
-              snapshot.accessibility?.traversalEntries.length ??
-              0,
-      hasAccessibilitySummary: snapshot.summary?.accessibilitySummaryIncluded ??
+          snapshot.accessibility?.traversalEntries.length ??
+          0,
+      hasAccessibilitySummary:
+          snapshot.summary?.accessibilitySummaryIncluded ??
           snapshot.accessibility != null,
       networkEntryCount: network == null
           ? 0
           : (network.capturedEntryCount > 0
-              ? network.capturedEntryCount
-              : network.totalEntryCount),
+                ? network.capturedEntryCount
+                : network.totalEntryCount),
       networkFailureCount: network?.failureCount ?? 0,
       networkFailureSignals: network == null
           ? const <CockpitBundleAcceptanceNetworkSignal>[]
           : network.entries
-              .where((entry) => entry.isFailure)
-              .take(3)
-              .map(
-                (entry) => CockpitBundleAcceptanceNetworkSignal(
-                  requestId: entry.requestId,
-                  method: entry.method,
-                  uri: entry.uri,
-                  statusCode: entry.statusCode,
-                  error: entry.error,
-                  durationMs: entry.durationMs,
-                ),
-              )
-              .toList(growable: false),
+                .where((entry) => entry.isFailure)
+                .take(3)
+                .map(
+                  (entry) => CockpitBundleAcceptanceNetworkSignal(
+                    requestId: entry.requestId,
+                    method: entry.method,
+                    uri: entry.uri,
+                    statusCode: entry.statusCode,
+                    error: entry.error,
+                    durationMs: entry.durationMs,
+                  ),
+                )
+                .toList(growable: false),
       runtimeEntryCount: runtime == null
           ? 0
           : (runtime.capturedEntryCount > 0
-              ? runtime.capturedEntryCount
-              : runtime.totalEntryCount),
+                ? runtime.capturedEntryCount
+                : runtime.totalEntryCount),
       runtimeErrorCount: runtime?.errorCount ?? 0,
       runtimeWarningCount: runtime?.warningCount ?? 0,
       runtimeErrorSignals: runtime == null
           ? const <CockpitBundleAcceptanceRuntimeSignal>[]
           : runtime.entries
-              .where(
-                (entry) => entry.severity == CockpitRuntimeEventSeverity.error,
-              )
-              .take(3)
-              .map(
-                (entry) => CockpitBundleAcceptanceRuntimeSignal(
-                  eventId: entry.eventId,
-                  kind: entry.kind.jsonValue,
-                  severity: entry.severity.jsonValue,
-                  message: entry.message,
-                ),
-              )
-              .toList(growable: false),
+                .where(
+                  (entry) =>
+                      entry.severity == CockpitRuntimeEventSeverity.error,
+                )
+                .take(3)
+                .map(
+                  (entry) => CockpitBundleAcceptanceRuntimeSignal(
+                    eventId: entry.eventId,
+                    kind: entry.kind.jsonValue,
+                    severity: entry.severity.jsonValue,
+                    message: entry.message,
+                  ),
+                )
+                .toList(growable: false),
       rebuildTotalCount: rebuild?.totalRebuildCount ?? 0,
       rebuildUniqueElementCount: rebuild?.uniqueElementCount ?? 0,
       rebuildHotspots: rebuild == null
           ? const <CockpitBundleAcceptanceRebuildHotspot>[]
           : rebuild.entries
-              .take(3)
-              .map(
-                (entry) => CockpitBundleAcceptanceRebuildHotspot(
-                  signature: entry.signature,
-                  routeName: entry.routeName,
-                  typeName: entry.typeName,
-                  rebuildCount: entry.rebuildCount,
-                  keyValue: entry.keyValue,
-                  semanticId: entry.semanticId,
-                  textPreview: entry.textPreview,
-                ),
-              )
-              .toList(growable: false),
+                .take(3)
+                .map(
+                  (entry) => CockpitBundleAcceptanceRebuildHotspot(
+                    signature: entry.signature,
+                    routeName: entry.routeName,
+                    typeName: entry.typeName,
+                    rebuildCount: entry.rebuildCount,
+                    keyValue: entry.keyValue,
+                    semanticId: entry.semanticId,
+                    textPreview: entry.textPreview,
+                  ),
+                )
+                .toList(growable: false),
     );
   }
 
@@ -1632,7 +1637,7 @@ final class CockpitReadTaskBundleSummaryService {
   List<String> _acceptanceAccessibilityLabels(CockpitSnapshot snapshot) {
     final explicitSummaryLabels =
         snapshot.accessibility?.traversalEntries.map(_accessibilityLabelFor) ??
-            const <String?>[];
+        const <String?>[];
     final diagnosticFallbacks = snapshot.visibleTargets.expand((target) {
       return target.diagnosticProperties
           .where(
@@ -1660,7 +1665,8 @@ final class CockpitReadTaskBundleSummaryService {
     return CockpitBundleAcceptanceDelta(
       baselineRouteName: baselineRouteName,
       acceptanceRouteName: acceptanceRouteName,
-      routeChanged: baselineRouteName != null &&
+      routeChanged:
+          baselineRouteName != null &&
           acceptanceRouteName != null &&
           baselineRouteName != acceptanceRouteName,
       addedVisibleTextPreviews: _addedItems(
@@ -1695,23 +1701,26 @@ final class CockpitReadTaskBundleSummaryService {
         baselineEvidence.accessibilityLabels,
         acceptanceEvidence.accessibilityLabels,
       ),
-      networkFailureDeltaCount: acceptanceEvidence.networkFailureCount -
+      networkFailureDeltaCount:
+          acceptanceEvidence.networkFailureCount -
           baselineEvidence.networkFailureCount,
       newNetworkFailureSignals: _newNetworkFailureSignals(
         baselineEvidence.networkFailureSignals,
         acceptanceEvidence.networkFailureSignals,
       ),
-      runtimeErrorDeltaCount: acceptanceEvidence.runtimeErrorCount -
+      runtimeErrorDeltaCount:
+          acceptanceEvidence.runtimeErrorCount -
           baselineEvidence.runtimeErrorCount,
       newRuntimeErrorSignals: _newRuntimeErrorSignals(
         baselineEvidence.runtimeErrorSignals,
         acceptanceEvidence.runtimeErrorSignals,
       ),
-      rebuildTotalDeltaCount: acceptanceEvidence.rebuildTotalCount -
+      rebuildTotalDeltaCount:
+          acceptanceEvidence.rebuildTotalCount -
           baselineEvidence.rebuildTotalCount,
       rebuildUniqueElementDeltaCount:
           acceptanceEvidence.rebuildUniqueElementCount -
-              baselineEvidence.rebuildUniqueElementCount,
+          baselineEvidence.rebuildUniqueElementCount,
       newRebuildHotspots: _newRebuildHotspots(
         baselineEvidence.rebuildHotspots,
         acceptanceEvidence.rebuildHotspots,
@@ -1784,25 +1793,30 @@ final class CockpitReadTaskBundleSummaryService {
         manifest.deliveryArtifactsReady && screenshotFailureCodes.isEmpty;
     final recordingReadyOrExplained =
         manifest.deliveryVideoReady && recordingFailureCodes.isEmpty;
-    final deliveryValidated = screenshotReady &&
+    final deliveryValidated =
+        screenshotReady &&
         recordingReadyOrExplained &&
         keyframeFailureCodes.isEmpty &&
         attachmentFailureCodes.isEmpty &&
         manifestArtifactFailureCodes.isEmpty &&
         diagnosticsArtifactFailureCodes.isEmpty;
-    final finalAssertionPassed = manifest.status != CockpitTaskStatus.failed &&
+    final finalAssertionPassed =
+        manifest.status != CockpitTaskStatus.failed &&
         manifest.runtimeErrorCount == 0;
-    final targetReachable = _readGateOverride(
+    final targetReachable =
+        _readGateOverride(
           handoff: handoff,
           gateName: CockpitTaskGate.targetReachable.name,
         ) ??
         manifest.sessionId.isNotEmpty;
-    final intendedPlaneWorked = _readGateOverride(
+    final intendedPlaneWorked =
+        _readGateOverride(
           handoff: handoff,
           gateName: CockpitTaskGate.intendedPlaneWorked.name,
         ) ??
         executionSummary.fallbackCount == 0;
-    final postconditionsSatisfied = _readGateOverride(
+    final postconditionsSatisfied =
+        _readGateOverride(
           handoff: handoff,
           gateName: CockpitTaskGate.postconditionsSatisfied.name,
         ) ??
@@ -1813,14 +1827,16 @@ final class CockpitReadTaskBundleSummaryService {
     );
     final artifactsReady =
         (handoffArtifactsReady ?? deliveryValidated) && deliveryValidated;
-    final logsCollected = _readGateOverride(
+    final logsCollected =
+        _readGateOverride(
           handoff: handoff,
           gateName: CockpitTaskGate.logsCollected.name,
         ) ??
         (diagnosticsArtifactPaths.isNotEmpty ||
             networkSummary != null ||
             runtimeSummary != null);
-    final deliveryReadable = _readGateOverride(
+    final deliveryReadable =
+        _readGateOverride(
           handoff: handoff,
           gateName: CockpitTaskGate.deliveryReadable.name,
         ) ??
@@ -1831,7 +1847,8 @@ final class CockpitReadTaskBundleSummaryService {
                 manifest.recordingCount > 0 ||
                 manifest.deliveryArtifactsReady ||
                 manifest.deliveryVideoReady));
-    final fallbackAcceptable = _readGateOverride(
+    final fallbackAcceptable =
+        _readGateOverride(
           handoff: handoff,
           gateName: CockpitTaskGate.fallbackAcceptable.name,
         ) ??
@@ -1929,7 +1946,8 @@ final class CockpitReadTaskBundleSummaryService {
           'taskFailed',
       ];
     }
-    final baselineCollected = baselineEvidence != null ||
+    final baselineCollected =
+        baselineEvidence != null ||
         manifest.screenshotCount > 0 ||
         (delivery['primaryScreenshotRef'] as String?)?.isNotEmpty == true;
     if (!baselineCollected) {
@@ -1982,9 +2000,7 @@ final class CockpitReadTaskBundleSummaryService {
     if (manifest.deliveryArtifactsReady) {
       return const <String>[];
     }
-    return <String>[
-      'acceptanceScreenshotMissing',
-    ];
+    return <String>['acceptanceScreenshotMissing'];
   }
 
   List<String> _deliveryVideoFailureCodes({
@@ -1999,12 +2015,7 @@ final class CockpitReadTaskBundleSummaryService {
     final primaryRecordingRef = delivery['primaryRecordingRef'] as String?;
     final recordingFailureReason =
         handoff['recordingFailureReason'] as String? ??
-            _readNestedString(
-              delivery,
-              'readiness',
-              'video',
-              'failureReason',
-            );
+        _readNestedString(delivery, 'readiness', 'video', 'failureReason');
     if (recordingFailureReason != null && recordingFailureReason.isNotEmpty) {
       return const <String>['recordingFailed'];
     }
@@ -2019,9 +2030,7 @@ final class CockpitReadTaskBundleSummaryService {
     if (manifest.deliveryVideoReady) {
       return const <String>[];
     }
-    return <String>[
-      'acceptanceRecordingMissing',
-    ];
+    return <String>['acceptanceRecordingMissing'];
   }
 
   List<String> _deliveryKeyframeFailureCodes({
@@ -2081,7 +2090,9 @@ final class CockpitReadTaskBundleSummaryService {
         : (Map<String, Object?>.from(coverageJson)['durationMs'] as int? ?? 0);
     final coverageResult = CockpitBundleArtifactValidator()
         .validateRecordingCoverage(
-            durationMs: durationMs, keyframes: keyframes);
+          durationMs: durationMs,
+          keyframes: keyframes,
+        );
     if (!coverageResult.isValid) {
       failureCodes.add(coverageResult.code);
     }
@@ -2236,9 +2247,7 @@ final class CockpitReadTaskBundleSummaryService {
     return List<String>.unmodifiable(failureCodes);
   }
 
-  List<String> _diagnosticsArtifactFailureCodes({
-    required String bundleDir,
-  }) {
+  List<String> _diagnosticsArtifactFailureCodes({required String bundleDir}) {
     final failureCodes = <String>{};
     for (final ref in CockpitBundleDiagnosticsArtifactRefs.readBundleRefs(
       bundleDir,
@@ -2319,10 +2328,12 @@ final class CockpitReadTaskBundleSummaryService {
 
     for (final step in steps) {
       targetKind ??= step.targetKind ?? step.observation?.targetKind;
-      final executionPlane = step.executionPlane ??
+      final executionPlane =
+          step.executionPlane ??
           step.observation?.executionPlane ??
           _inferExecutionPlane(step);
-      final surfaceKind = step.surfaceKind ??
+      final surfaceKind =
+          step.surfaceKind ??
           step.observation?.surfaceKind ??
           _inferSurfaceKind(step);
       addPlane(executionPlane);
@@ -2370,13 +2381,11 @@ final class CockpitReadTaskBundleSummaryService {
     return switch (_inferSurfaceKind(step)) {
       CockpitSurfaceKind.nativeUi => CockpitPlaneKind.nativeUiPlane,
       CockpitSurfaceKind.systemUi ||
-      CockpitSurfaceKind.deviceShell =>
-        CockpitPlaneKind.deviceSystemPlane,
+      CockpitSurfaceKind.deviceShell => CockpitPlaneKind.deviceSystemPlane,
       CockpitSurfaceKind.hostShell => CockpitPlaneKind.hostPlane,
       CockpitSurfaceKind.flutterSemantic ||
       CockpitSurfaceKind.desktopWindow ||
-      CockpitSurfaceKind.browserDom =>
-        CockpitPlaneKind.flutterSemanticPlane,
+      CockpitSurfaceKind.browserDom => CockpitPlaneKind.flutterSemanticPlane,
       null => null,
     };
   }

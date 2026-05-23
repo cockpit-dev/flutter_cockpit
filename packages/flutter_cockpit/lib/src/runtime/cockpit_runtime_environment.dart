@@ -13,7 +13,8 @@ CockpitEnvironment? resolveCockpitRuntimeEnvironment({
   String? runtimeVersion,
   String? Function()? runtimeVersionReader,
 }) {
-  final flutterVersion = _normalizeVersion(configuredFlutterVersion) ??
+  final flutterVersion =
+      _normalizeVersion(configuredFlutterVersion) ??
       _normalizeVersion(_flutterCockpitFlutterVersionFromEnvironment);
   final resolvedRuntimeVersion =
       runtimeVersion ?? _readRuntimeVersionFrom(runtimeVersionReader);

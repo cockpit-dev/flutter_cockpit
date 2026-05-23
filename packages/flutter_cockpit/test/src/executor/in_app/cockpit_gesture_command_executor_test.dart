@@ -17,7 +17,9 @@ void main() {
 
     await executor.execute(
       CockpitCommand(
-          commandId: 'cmd-rotate', commandType: CockpitCommandType.rotate),
+        commandId: 'cmd-rotate',
+        commandType: CockpitCommandType.rotate,
+      ),
       Stopwatch()..start(),
     );
 

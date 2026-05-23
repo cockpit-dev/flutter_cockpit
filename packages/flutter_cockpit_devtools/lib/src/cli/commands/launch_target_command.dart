@@ -10,18 +10,18 @@ import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
-typedef CockpitLaunchTargetCliFunction = Future<CockpitLaunchTargetResult>
-    Function(
-  CockpitLaunchTargetRequest request,
-);
+typedef CockpitLaunchTargetCliFunction =
+    Future<CockpitLaunchTargetResult> Function(
+      CockpitLaunchTargetRequest request,
+    );
 
 final class LaunchTargetCommand extends CockpitCliCommand {
   LaunchTargetCommand({
     CockpitLaunchTargetService? service,
     CockpitLaunchTargetCliFunction? launch,
     StringSink? stdoutSink,
-  })  : _launch = launch ?? (service ?? CockpitLaunchTargetService()).launch,
-        _stdoutSink = stdoutSink ?? stdout {
+  }) : _launch = launch ?? (service ?? CockpitLaunchTargetService()).launch,
+       _stdoutSink = stdoutSink ?? stdout {
     argParser
       ..addOption('project-dir', help: 'Project directory to launch from.')
       ..addOption('target', help: 'Optional Dart entrypoint.')
@@ -128,14 +128,16 @@ final class LaunchTargetCommand extends CockpitCliCommand {
         ),
         mode: CockpitAppMode.fromJson(_readRequiredOption('mode')),
         launchTimeout: Duration(
-          seconds: cockpitReadOptionalPositiveInt(
+          seconds:
+              cockpitReadOptionalPositiveInt(
                 argResults,
                 'launch-timeout-seconds',
                 usage,
               ) ??
               120,
         ),
-        targetHandlePath: _readOptionalOption('target-json') ??
+        targetHandlePath:
+            _readOptionalOption('target-json') ??
             cockpitDefaultTargetHandlePath(),
       ),
     );
@@ -156,8 +158,10 @@ final class LaunchTargetCommand extends CockpitCliCommand {
       'macos' => 'macos',
       'windows' => 'windows',
       'linux' => 'linux',
-      _ =>
-        throw UsageException('--device-id is required for $platform.', usage),
+      _ => throw UsageException(
+        '--device-id is required for $platform.',
+        usage,
+      ),
     };
   }
 

@@ -96,10 +96,7 @@ void main() {
       expect(result.isGateSatisfied(CockpitTaskGate.executionFinished), isTrue);
       expect(result.isGateSatisfied(CockpitTaskGate.bundleWritten), isTrue);
       expect(result.isGateSatisfied(CockpitTaskGate.deliveryValidated), isTrue);
-      expect(
-        result.isGateSatisfied(CockpitTaskGate.screenshotReady),
-        isTrue,
-      );
+      expect(result.isGateSatisfied(CockpitTaskGate.screenshotReady), isTrue);
       expect(
         result.isGateSatisfied(CockpitTaskGate.recordingReadyOrExplained),
         isTrue,
@@ -111,118 +108,121 @@ void main() {
     },
   );
 
-  test('orchestration stops a launched automation app after bundle read',
-      () async {
-    final bundleDir = await Directory.systemTemp.createTemp(
-      'cockpit_task_orchestration_cleanup',
-    );
-    addTearDown(() async {
-      if (bundleDir.existsSync()) {
-        await bundleDir.delete(recursive: true);
-      }
-    });
+  test(
+    'orchestration stops a launched automation app after bundle read',
+    () async {
+      final bundleDir = await Directory.systemTemp.createTemp(
+        'cockpit_task_orchestration_cleanup',
+      );
+      addTearDown(() async {
+        if (bundleDir.existsSync()) {
+          await bundleDir.delete(recursive: true);
+        }
+      });
 
-    final handle = _sessionHandle(platform: 'macos');
-    CockpitAppHandle? stoppedApp;
-    final service = CockpitTaskOrchestrationService(
-      launch: (_) async => CockpitLaunchRemoteSessionResult(
-        sessionHandle: handle,
-        health: _status(
-          sessionId: 'task-orchestration-launch-cleanup',
+      final handle = _sessionHandle(platform: 'macos');
+      CockpitAppHandle? stoppedApp;
+      final service = CockpitTaskOrchestrationService(
+        launch: (_) async => CockpitLaunchRemoteSessionResult(
+          sessionHandle: handle,
+          health: _status(
+            sessionId: 'task-orchestration-launch-cleanup',
+            platform: 'macos',
+            route: '/inbox',
+          ),
+        ),
+        query: (_) async => throw UnimplementedError(),
+        runScript: (_) async => _runScriptResult(
+          bundleDir: bundleDir,
+          handle: handle,
           platform: 'macos',
-          route: '/inbox',
+          screenshotRelativePath: 'screenshots/acceptance.png',
+          recordingRelativePath: 'recordings/acceptance.mp4',
         ),
-      ),
-      query: (_) async => throw UnimplementedError(),
-      runScript: (_) async => _runScriptResult(
-        bundleDir: bundleDir,
-        handle: handle,
-        platform: 'macos',
-        screenshotRelativePath: 'screenshots/acceptance.png',
-        recordingRelativePath: 'recordings/acceptance.mp4',
-      ),
-      readSummary: (_) async => _summary(
-        bundleDir: bundleDir,
-        platform: 'macos',
-        screenshotRelativePath: 'screenshots/acceptance.png',
-        recordingRelativePath: 'recordings/acceptance.mp4',
-        status: CockpitTaskStatus.completed,
-      ),
-      stopAutomationApp: (app) async {
-        stoppedApp = app;
-      },
-    );
-
-    final result = await service.orchestrate(
-      CockpitRunTaskRequest(
-        launch: const CockpitRunTaskLaunchRequest(
-          projectDir: '/workspace/examples/cockpit_demo',
+        readSummary: (_) async => _summary(
+          bundleDir: bundleDir,
           platform: 'macos',
-          deviceId: 'macos',
-          sessionPort: 47331,
+          screenshotRelativePath: 'screenshots/acceptance.png',
+          recordingRelativePath: 'recordings/acceptance.mp4',
+          status: CockpitTaskStatus.completed,
         ),
-        script: _script(platform: 'macos'),
-        outputRoot: bundleDir.path,
-        requirements: const CockpitRunTaskEvidenceRequirements(
-          requireScreenshotEvidence: true,
-          requireVideoEvidence: true,
-        ),
-      ),
-    );
+        stopAutomationApp: (app) async {
+          stoppedApp = app;
+        },
+      );
 
-    expect(result.classification, CockpitRunTaskClassification.completed);
-    expect(stoppedApp?.mode, CockpitAppMode.automation);
-    expect(stoppedApp?.baseUrl, handle.baseUrl);
-    expect(result.warnings, isEmpty);
-  });
+      final result = await service.orchestrate(
+        CockpitRunTaskRequest(
+          launch: const CockpitRunTaskLaunchRequest(
+            projectDir: '/workspace/examples/cockpit_demo',
+            platform: 'macos',
+            deviceId: 'macos',
+            sessionPort: 47331,
+          ),
+          script: _script(platform: 'macos'),
+          outputRoot: bundleDir.path,
+          requirements: const CockpitRunTaskEvidenceRequirements(
+            requireScreenshotEvidence: true,
+            requireVideoEvidence: true,
+          ),
+        ),
+      );
+
+      expect(result.classification, CockpitRunTaskClassification.completed);
+      expect(stoppedApp?.mode, CockpitAppMode.automation);
+      expect(stoppedApp?.baseUrl, handle.baseUrl);
+      expect(result.warnings, isEmpty);
+    },
+  );
 
   test(
-      'orchestration still stops a launched automation app when execution fails',
-      () async {
-    final handle = _sessionHandle(platform: 'macos');
-    CockpitAppHandle? stoppedApp;
-    final service = CockpitTaskOrchestrationService(
-      launch: (_) async => CockpitLaunchRemoteSessionResult(
-        sessionHandle: handle,
-        health: _status(
-          sessionId: 'task-orchestration-launch-cleanup-failed',
-          platform: 'macos',
-          route: '/inbox',
+    'orchestration still stops a launched automation app when execution fails',
+    () async {
+      final handle = _sessionHandle(platform: 'macos');
+      CockpitAppHandle? stoppedApp;
+      final service = CockpitTaskOrchestrationService(
+        launch: (_) async => CockpitLaunchRemoteSessionResult(
+          sessionHandle: handle,
+          health: _status(
+            sessionId: 'task-orchestration-launch-cleanup-failed',
+            platform: 'macos',
+            route: '/inbox',
+          ),
         ),
-      ),
-      query: (_) async => throw UnimplementedError(),
-      runScript: (_) async => throw const CockpitApplicationServiceException(
-        code: 'remoteExecutionFailed',
-        message: 'Command failed.',
-      ),
-      readSummary: (_) async => throw UnimplementedError(),
-      stopAutomationApp: (app) async {
-        stoppedApp = app;
-      },
-    );
-
-    final result = await service.orchestrate(
-      CockpitRunTaskRequest(
-        launch: const CockpitRunTaskLaunchRequest(
-          projectDir: '/workspace/examples/cockpit_demo',
-          platform: 'macos',
-          deviceId: 'macos',
-          sessionPort: 47331,
+        query: (_) async => throw UnimplementedError(),
+        runScript: (_) async => throw const CockpitApplicationServiceException(
+          code: 'remoteExecutionFailed',
+          message: 'Command failed.',
         ),
-        script: _script(platform: 'macos'),
-        outputRoot: '/tmp/out',
-      ),
-    );
+        readSummary: (_) async => throw UnimplementedError(),
+        stopAutomationApp: (app) async {
+          stoppedApp = app;
+        },
+      );
 
-    expect(
-      result.classification,
-      CockpitRunTaskClassification.blockedByEnvironment,
-    );
-    expect(result.blockedReason, 'Command failed.');
-    expect(stoppedApp?.mode, CockpitAppMode.automation);
-    expect(stoppedApp?.baseUrl, handle.baseUrl);
-    expect(result.warnings, isEmpty);
-  });
+      final result = await service.orchestrate(
+        CockpitRunTaskRequest(
+          launch: const CockpitRunTaskLaunchRequest(
+            projectDir: '/workspace/examples/cockpit_demo',
+            platform: 'macos',
+            deviceId: 'macos',
+            sessionPort: 47331,
+          ),
+          script: _script(platform: 'macos'),
+          outputRoot: '/tmp/out',
+        ),
+      );
+
+      expect(
+        result.classification,
+        CockpitRunTaskClassification.blockedByEnvironment,
+      );
+      expect(result.blockedReason, 'Command failed.');
+      expect(stoppedApp?.mode, CockpitAppMode.automation);
+      expect(stoppedApp?.baseUrl, handle.baseUrl);
+      expect(result.warnings, isEmpty);
+    },
+  );
 
   test(
     'orchestration preserves the primary result when launched app cleanup fails',
@@ -287,7 +287,8 @@ void main() {
       expect(
         result.warnings,
         contains(
-            contains('Automation cleanup failed after task orchestration')),
+          contains('Automation cleanup failed after task orchestration'),
+        ),
       );
       expect(result.warnings, contains(contains('taskkill failed')));
     },
@@ -352,9 +353,13 @@ void main() {
         isFalse,
       );
       expect(
-          result.isGateSatisfied(CockpitTaskGate.deliveryValidated), isFalse);
+        result.isGateSatisfied(CockpitTaskGate.deliveryValidated),
+        isFalse,
+      );
       expect(
-          result.isGateSatisfied(CockpitTaskGate.finalAssertionPassed), isTrue);
+        result.isGateSatisfied(CockpitTaskGate.finalAssertionPassed),
+        isTrue,
+      );
     },
   );
 
@@ -422,10 +427,8 @@ CockpitRunRemoteControlScriptResult _runScriptResult({
     ),
     handoff: const <String, Object?>{'status': 'completed'},
     delivery: <String, Object?>{
-      if (screenshotRelativePath != null)
-        'primaryScreenshotRef': screenshotRelativePath,
-      if (recordingRelativePath != null)
-        'primaryRecordingRef': recordingRelativePath,
+      'primaryScreenshotRef': ?screenshotRelativePath,
+      'primaryRecordingRef': ?recordingRelativePath,
     },
     artifactPaths: CockpitBundleArtifactPaths(
       primaryScreenshotPath: screenshotRelativePath == null
@@ -462,10 +465,8 @@ CockpitReadTaskBundleSummaryResult _summary({
     ),
     handoff: const <String, Object?>{'status': 'completed'},
     delivery: <String, Object?>{
-      if (screenshotRelativePath != null)
-        'primaryScreenshotRef': screenshotRelativePath,
-      if (recordingRelativePath != null)
-        'primaryRecordingRef': recordingRelativePath,
+      'primaryScreenshotRef': ?screenshotRelativePath,
+      'primaryRecordingRef': ?recordingRelativePath,
     },
     acceptanceMarkdown: '# Acceptance\n\n- Status: completed\n',
     artifactPaths: CockpitBundleArtifactPaths(
@@ -500,9 +501,7 @@ CockpitControlScript _script({required String platform}) {
       CockpitCommand(
         commandId: 'tap-open',
         commandType: CockpitCommandType.tap,
-        locator: const CockpitLocator(
-          cockpitId: 'open_form_button',
-        ),
+        locator: const CockpitLocator(cockpitId: 'open_form_button'),
       ),
     ],
     failFast: true,

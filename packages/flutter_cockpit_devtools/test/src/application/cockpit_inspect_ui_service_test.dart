@@ -11,46 +11,44 @@ import 'package:flutter_cockpit_devtools/src/session/cockpit_remote_session_hand
 import 'package:test/test.dart';
 
 void main() {
-  test('app-first inspection returns the refreshed remote session handle',
-      () async {
-    Uri? capturedBaseUri;
-    final service = CockpitInspectUiService(
-      appReferenceResolver: CockpitAppReferenceResolver(
-        portForwarder: CockpitAndroidPortForwarder(
-          processRunner: (_, __) async => ProcessResult(
-            0,
-            0,
-            'emulator-5554 tcp:61331 tcp:47331\n',
-            '',
+  test(
+    'app-first inspection returns the refreshed remote session handle',
+    () async {
+      Uri? capturedBaseUri;
+      final service = CockpitInspectUiService(
+        appReferenceResolver: CockpitAppReferenceResolver(
+          portForwarder: CockpitAndroidPortForwarder(
+            processRunner: (_, _) async =>
+                ProcessResult(0, 0, 'emulator-5554 tcp:61331 tcp:47331\n', ''),
+            hostPortAllocator: () async => 61331,
+            hostPortAvailabilityChecker: (_) async => false,
           ),
-          hostPortAllocator: () async => 61331,
-          hostPortAvailabilityChecker: (_) async => false,
         ),
-      ),
-      snapshotService: CockpitReadRemoteSnapshotService(
-        readSnapshot: (baseUri, options) async {
-          capturedBaseUri = baseUri;
-          return CockpitRemoteSnapshotResponse(
-            snapshot: CockpitSnapshot(
-              routeName: '/home',
-              diagnosticLevel: options.profile,
-            ),
-          );
-        },
-      ),
-    );
+        snapshotService: CockpitReadRemoteSnapshotService(
+          readSnapshot: (baseUri, options) async {
+            capturedBaseUri = baseUri;
+            return CockpitRemoteSnapshotResponse(
+              snapshot: CockpitSnapshot(
+                routeName: '/home',
+                diagnosticLevel: options.profile,
+              ),
+            );
+          },
+        ),
+      );
 
-    final result = await service.inspect(
-      CockpitInspectUiRequest(
-        app: _androidAppHandle(),
-        resultProfile: const CockpitInteractiveResultProfile.minimal(),
-      ),
-    );
+      final result = await service.inspect(
+        CockpitInspectUiRequest(
+          app: _androidAppHandle(),
+          resultProfile: const CockpitInteractiveResultProfile.minimal(),
+        ),
+      );
 
-    expect(capturedBaseUri.toString(), 'http://127.0.0.1:61331');
-    expect(result.routeName, '/home');
-    expect(result.snapshot, isNull);
-  });
+      expect(capturedBaseUri.toString(), 'http://127.0.0.1:61331');
+      expect(result.routeName, '/home');
+      expect(result.snapshot, isNull);
+    },
+  );
 }
 
 CockpitAppHandle _androidAppHandle() {

@@ -8,18 +8,18 @@ import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
-typedef CockpitReadRemoteSnapshotFunction
-    = Future<CockpitReadRemoteSnapshotResult> Function(
-  CockpitReadRemoteSnapshotRequest request,
-);
+typedef CockpitReadRemoteSnapshotFunction =
+    Future<CockpitReadRemoteSnapshotResult> Function(
+      CockpitReadRemoteSnapshotRequest request,
+    );
 
 final class ReadRemoteSnapshotCommand extends CockpitCliCommand {
   ReadRemoteSnapshotCommand({
     CockpitReadRemoteSnapshotService? service,
     CockpitReadRemoteSnapshotFunction? read,
     StringSink? stdoutSink,
-  })  : _read = read ?? (service ?? CockpitReadRemoteSnapshotService()).read,
-        _stdoutSink = stdoutSink ?? stdout {
+  }) : _read = read ?? (service ?? CockpitReadRemoteSnapshotService()).read,
+       _stdoutSink = stdoutSink ?? stdout {
     cockpitAddRemoteSessionArgs(argParser);
     cockpitAddProfileArg(argParser);
     argParser

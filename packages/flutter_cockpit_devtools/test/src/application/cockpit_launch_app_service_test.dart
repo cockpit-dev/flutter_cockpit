@@ -484,9 +484,7 @@ final class _FakeRemoteSessionLauncher implements CockpitRemoteSessionLauncher {
 
 final class _CapturingRemoteSessionLauncher
     implements CockpitRemoteSessionLauncher {
-  _CapturingRemoteSessionLauncher({
-    required this.onLaunch,
-  });
+  _CapturingRemoteSessionLauncher({required this.onLaunch});
 
   final void Function(CockpitRemoteSessionLaunchOptions options) onLaunch;
 

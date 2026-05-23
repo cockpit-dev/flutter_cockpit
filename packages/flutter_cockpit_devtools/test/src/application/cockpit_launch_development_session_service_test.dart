@@ -72,44 +72,46 @@ void main() {
     },
   );
 
-  test('launch service infers cockpit/main.dart when target is omitted',
-      () async {
-    final expectedHandle = _handle(target: 'cockpit/main.dart');
-    final expectedStatus = _readyStatus(expectedHandle);
-    final normalizedProjectDir = cockpitNormalizeProjectDir(
-      expectedHandle.projectDir,
-    );
-    final expectedEntrypointPath = p.join(
-      normalizedProjectDir,
-      'cockpit',
-      'main.dart',
-    );
+  test(
+    'launch service infers cockpit/main.dart when target is omitted',
+    () async {
+      final expectedHandle = _handle(target: 'cockpit/main.dart');
+      final expectedStatus = _readyStatus(expectedHandle);
+      final normalizedProjectDir = cockpitNormalizeProjectDir(
+        expectedHandle.projectDir,
+      );
+      final expectedEntrypointPath = p.join(
+        normalizedProjectDir,
+        'cockpit',
+        'main.dart',
+      );
 
-    final service = CockpitLaunchDevelopmentSessionService(
-      entrypointResolver: CockpitEntrypointResolver(
-        exists: (path) =>
-            p.normalize(path) == p.normalize(expectedEntrypointPath),
-      ),
-      launcher: (request) async {
-        expect(request.target, 'cockpit/main.dart');
-        return CockpitDevelopmentSessionBootstrap(
-          sessionHandle: expectedHandle,
-          status: expectedStatus,
-        );
-      },
-    );
+      final service = CockpitLaunchDevelopmentSessionService(
+        entrypointResolver: CockpitEntrypointResolver(
+          exists: (path) =>
+              p.normalize(path) == p.normalize(expectedEntrypointPath),
+        ),
+        launcher: (request) async {
+          expect(request.target, 'cockpit/main.dart');
+          return CockpitDevelopmentSessionBootstrap(
+            sessionHandle: expectedHandle,
+            status: expectedStatus,
+          );
+        },
+      );
 
-    final result = await service.launch(
-      CockpitLaunchDevelopmentSessionRequest(
-        projectDir: expectedHandle.projectDir,
-        platform: expectedHandle.platform,
-        deviceId: expectedHandle.deviceId,
-        sessionPort: 47331,
-      ),
-    );
+      final result = await service.launch(
+        CockpitLaunchDevelopmentSessionRequest(
+          projectDir: expectedHandle.projectDir,
+          platform: expectedHandle.platform,
+          deviceId: expectedHandle.deviceId,
+          sessionPort: 47331,
+        ),
+      );
 
-    expect(result.sessionHandle.target, 'cockpit/main.dart');
-  });
+      expect(result.sessionHandle.target, 'cockpit/main.dart');
+    },
+  );
 
   test(
     'daemon launcher retries by stopping only the failed spawned attempt',
@@ -165,26 +167,30 @@ void main() {
             '/opt/flutter/bin/cache/dart-sdk/bin/dart',
         allocatePort: () async => spawnCalls.isEmpty ? 60001 : 60002,
         delay: (_) async {},
-        spawnSupervisor: ({
-          required request,
-          required flutterVersion,
-          required flutterExecutable,
-          required dartExecutable,
-          required hostPort,
-          required supervisorPort,
-          required supervisorLogFile,
-        }) async {
-          expect(flutterExecutable, '/opt/flutter/bin/flutter');
-          expect(dartExecutable, '/opt/flutter/bin/cache/dart-sdk/bin/dart');
-          final baseUri = Uri.parse('http://127.0.0.1:$supervisorPort');
-          spawnCalls.add(baseUri);
-          return CockpitSpawnedDevelopmentSupervisor(
-            baseUri: baseUri,
-            stop: () async {
-              stopCalls.add(baseUri);
+        spawnSupervisor:
+            ({
+              required request,
+              required flutterVersion,
+              required flutterExecutable,
+              required dartExecutable,
+              required hostPort,
+              required supervisorPort,
+              required supervisorLogFile,
+            }) async {
+              expect(flutterExecutable, '/opt/flutter/bin/flutter');
+              expect(
+                dartExecutable,
+                '/opt/flutter/bin/cache/dart-sdk/bin/dart',
+              );
+              final baseUri = Uri.parse('http://127.0.0.1:$supervisorPort');
+              spawnCalls.add(baseUri);
+              return CockpitSpawnedDevelopmentSupervisor(
+                baseUri: baseUri,
+                stop: () async {
+                  stopCalls.add(baseUri);
+                },
+              );
             },
-          );
-        },
       );
 
       final result = await launcher.launch(
@@ -219,22 +225,23 @@ void main() {
             '/opt/flutter/bin/cache/dart-sdk/bin/dart',
         allocatePort: () async => 60011,
         delay: (_) async {},
-        spawnSupervisor: ({
-          required request,
-          required flutterVersion,
-          required flutterExecutable,
-          required dartExecutable,
-          required hostPort,
-          required supervisorPort,
-          required supervisorLogFile,
-        }) async {
-          return CockpitSpawnedDevelopmentSupervisor(
-            baseUri: Uri.parse('http://127.0.0.1:$supervisorPort'),
-            stop: () async {
-              throw StateError('Process is detached');
+        spawnSupervisor:
+            ({
+              required request,
+              required flutterVersion,
+              required flutterExecutable,
+              required dartExecutable,
+              required hostPort,
+              required supervisorPort,
+              required supervisorLogFile,
+            }) async {
+              return CockpitSpawnedDevelopmentSupervisor(
+                baseUri: Uri.parse('http://127.0.0.1:$supervisorPort'),
+                stop: () async {
+                  throw StateError('Process is detached');
+                },
+              );
             },
-          );
-        },
       );
 
       await expectLater(
@@ -266,12 +273,12 @@ void main() {
       final launcher = CockpitDevelopmentSessionDaemonLauncher(
         supervisorStatusReader: (_) async =>
             CockpitDevelopmentSessionSupervisorResponse(
-          sessionHandle: _handle(),
-          status: _readyStatus(_handle()).copyWith(
-            state: CockpitDevelopmentSessionState.failed,
-            lastError: 'flutter build failed: missing entitlement',
-          ),
-        ),
+              sessionHandle: _handle(),
+              status: _readyStatus(_handle()).copyWith(
+                state: CockpitDevelopmentSessionState.failed,
+                lastError: 'flutter build failed: missing entitlement',
+              ),
+            ),
         portForwarder: const _StubPortForwarder(57331),
         flutterVersionReader: () async => '3.39.0',
         flutterExecutableReader: () async => '/opt/flutter/bin/flutter',
@@ -279,21 +286,22 @@ void main() {
             '/opt/flutter/bin/cache/dart-sdk/bin/dart',
         allocatePort: () async => 60012,
         delay: (_) async {},
-        spawnSupervisor: ({
-          required request,
-          required flutterVersion,
-          required flutterExecutable,
-          required dartExecutable,
-          required hostPort,
-          required supervisorPort,
-          required supervisorLogFile,
-        }) async {
-          spawnCount += 1;
-          return CockpitSpawnedDevelopmentSupervisor(
-            baseUri: Uri.parse('http://127.0.0.1:$supervisorPort'),
-            stop: () async {},
-          );
-        },
+        spawnSupervisor:
+            ({
+              required request,
+              required flutterVersion,
+              required flutterExecutable,
+              required dartExecutable,
+              required hostPort,
+              required supervisorPort,
+              required supervisorLogFile,
+            }) async {
+              spawnCount += 1;
+              return CockpitSpawnedDevelopmentSupervisor(
+                baseUri: Uri.parse('http://127.0.0.1:$supervisorPort'),
+                stop: () async {},
+              );
+            },
       );
 
       await expectLater(
@@ -319,69 +327,67 @@ void main() {
     },
   );
 
-  test(
-    'daemon launcher rehydrates fallback-coded supervisor failures',
-    () async {
-      final launcher = CockpitDevelopmentSessionDaemonLauncher(
-        supervisorStatusReader: (_) async =>
-            CockpitDevelopmentSessionSupervisorResponse(
-          sessionHandle: _handle(),
-          status: _readyStatus(_handle()).copyWith(
-            state: CockpitDevelopmentSessionState.failed,
-            lastError:
-                '[iosPhysicalRemoteSessionReadyButDevelopmentAttachFailed] The remote session is ready, automation fallback is safe.',
+  test('daemon launcher rehydrates fallback-coded supervisor failures', () async {
+    final launcher = CockpitDevelopmentSessionDaemonLauncher(
+      supervisorStatusReader: (_) async =>
+          CockpitDevelopmentSessionSupervisorResponse(
+            sessionHandle: _handle(),
+            status: _readyStatus(_handle()).copyWith(
+              state: CockpitDevelopmentSessionState.failed,
+              lastError:
+                  '[iosPhysicalRemoteSessionReadyButDevelopmentAttachFailed] The remote session is ready, automation fallback is safe.',
+            ),
           ),
-        ),
-        portForwarder: const _StubPortForwarder(57331),
-        flutterVersionReader: () async => '3.39.0',
-        flutterExecutableReader: () async => '/opt/flutter/bin/flutter',
-        dartExecutableReader: () async =>
-            '/opt/flutter/bin/cache/dart-sdk/bin/dart',
-        allocatePort: () async => 60013,
-        delay: (_) async {},
-        spawnSupervisor: ({
-          required request,
-          required flutterVersion,
-          required flutterExecutable,
-          required dartExecutable,
-          required hostPort,
-          required supervisorPort,
-          required supervisorLogFile,
-        }) async {
-          return CockpitSpawnedDevelopmentSupervisor(
-            baseUri: Uri.parse('http://127.0.0.1:$supervisorPort'),
-            stop: () async {},
-          );
-        },
-      );
+      portForwarder: const _StubPortForwarder(57331),
+      flutterVersionReader: () async => '3.39.0',
+      flutterExecutableReader: () async => '/opt/flutter/bin/flutter',
+      dartExecutableReader: () async =>
+          '/opt/flutter/bin/cache/dart-sdk/bin/dart',
+      allocatePort: () async => 60013,
+      delay: (_) async {},
+      spawnSupervisor:
+          ({
+            required request,
+            required flutterVersion,
+            required flutterExecutable,
+            required dartExecutable,
+            required hostPort,
+            required supervisorPort,
+            required supervisorLogFile,
+          }) async {
+            return CockpitSpawnedDevelopmentSupervisor(
+              baseUri: Uri.parse('http://127.0.0.1:$supervisorPort'),
+              stop: () async {},
+            );
+          },
+    );
 
-      await expectLater(
-        () => launcher.launch(
-          const CockpitLaunchDevelopmentSessionRequest(
-            projectDir: '/workspace/examples/cockpit_demo',
-            target: 'lib/main.dart',
-            platform: 'ios',
-            deviceId: '00008110-0009341C2EF3801E',
-            sessionPort: 47331,
-            launchTimeout: Duration(seconds: 30),
-          ),
+    await expectLater(
+      () => launcher.launch(
+        const CockpitLaunchDevelopmentSessionRequest(
+          projectDir: '/workspace/examples/cockpit_demo',
+          target: 'lib/main.dart',
+          platform: 'ios',
+          deviceId: '00008110-0009341C2EF3801E',
+          sessionPort: 47331,
+          launchTimeout: Duration(seconds: 30),
         ),
-        throwsA(
-          isA<CockpitDevelopmentSessionFallbackException>()
-              .having(
-                (error) => error.code,
-                'code',
-                'iosPhysicalRemoteSessionReadyButDevelopmentAttachFailed',
-              )
-              .having(
-                (error) => error.remoteSessionHandle?.baseUrl,
-                'remoteSessionHandle.baseUrl',
-                _handle().remoteSessionHandle?.baseUrl,
-              ),
-        ),
-      );
-    },
-  );
+      ),
+      throwsA(
+        isA<CockpitDevelopmentSessionFallbackException>()
+            .having(
+              (error) => error.code,
+              'code',
+              'iosPhysicalRemoteSessionReadyButDevelopmentAttachFailed',
+            )
+            .having(
+              (error) => error.remoteSessionHandle?.baseUrl,
+              'remoteSessionHandle.baseUrl',
+              _handle().remoteSessionHandle?.baseUrl,
+            ),
+      ),
+    );
+  });
 
   test(
     'daemon launcher uses direct host port for macos without Android forwarding',
@@ -424,9 +430,9 @@ void main() {
       final launcher = CockpitDevelopmentSessionDaemonLauncher(
         supervisorStatusReader: (baseUri) async =>
             CockpitDevelopmentSessionSupervisorResponse(
-          sessionHandle: readyHandle,
-          status: readyStatus,
-        ),
+              sessionHandle: readyHandle,
+              status: readyStatus,
+            ),
         portForwarder: const _ThrowingPortForwarder(),
         flutterVersionReader: () async => '3.39.0',
         flutterExecutableReader: () async => '/opt/flutter/bin/flutter',
@@ -434,22 +440,23 @@ void main() {
             '/opt/flutter/bin/cache/dart-sdk/bin/dart',
         allocatePort: () async => 60003,
         delay: (_) async {},
-        spawnSupervisor: ({
-          required request,
-          required flutterVersion,
-          required flutterExecutable,
-          required dartExecutable,
-          required hostPort,
-          required supervisorPort,
-          required supervisorLogFile,
-        }) async {
-          capturedHostPort = hostPort;
-          capturedPlatform = request.platform;
-          return CockpitSpawnedDevelopmentSupervisor(
-            baseUri: Uri.parse('http://127.0.0.1:$supervisorPort'),
-            stop: () async {},
-          );
-        },
+        spawnSupervisor:
+            ({
+              required request,
+              required flutterVersion,
+              required flutterExecutable,
+              required dartExecutable,
+              required hostPort,
+              required supervisorPort,
+              required supervisorLogFile,
+            }) async {
+              capturedHostPort = hostPort;
+              capturedPlatform = request.platform;
+              return CockpitSpawnedDevelopmentSupervisor(
+                baseUri: Uri.parse('http://127.0.0.1:$supervisorPort'),
+                stop: () async {},
+              );
+            },
       );
 
       final result = await launcher.launch(
@@ -511,9 +518,9 @@ void main() {
       final launcher = CockpitDevelopmentSessionDaemonLauncher(
         supervisorStatusReader: (baseUri) async =>
             CockpitDevelopmentSessionSupervisorResponse(
-          sessionHandle: readyHandle,
-          status: readyStatus,
-        ),
+              sessionHandle: readyHandle,
+              status: readyStatus,
+            ),
         portForwarder: const _ThrowingPortForwarder(),
         flutterVersionReader: () async => '3.39.0',
         flutterExecutableReader: () async => '/opt/flutter/bin/flutter',
@@ -521,22 +528,23 @@ void main() {
             '/opt/flutter/bin/cache/dart-sdk/bin/dart',
         allocatePort: () async => 60004,
         delay: (_) async {},
-        spawnSupervisor: ({
-          required request,
-          required flutterVersion,
-          required flutterExecutable,
-          required dartExecutable,
-          required hostPort,
-          required supervisorPort,
-          required supervisorLogFile,
-        }) async {
-          capturedHostPort = hostPort;
-          capturedPlatform = request.platform;
-          return CockpitSpawnedDevelopmentSupervisor(
-            baseUri: Uri.parse('http://127.0.0.1:$supervisorPort'),
-            stop: () async {},
-          );
-        },
+        spawnSupervisor:
+            ({
+              required request,
+              required flutterVersion,
+              required flutterExecutable,
+              required dartExecutable,
+              required hostPort,
+              required supervisorPort,
+              required supervisorLogFile,
+            }) async {
+              capturedHostPort = hostPort;
+              capturedPlatform = request.platform;
+              return CockpitSpawnedDevelopmentSupervisor(
+                baseUri: Uri.parse('http://127.0.0.1:$supervisorPort'),
+                stop: () async {},
+              );
+            },
       );
 
       final result = await launcher.launch(
@@ -598,9 +606,9 @@ void main() {
       final launcher = CockpitDevelopmentSessionDaemonLauncher(
         supervisorStatusReader: (baseUri) async =>
             CockpitDevelopmentSessionSupervisorResponse(
-          sessionHandle: readyHandle,
-          status: readyStatus,
-        ),
+              sessionHandle: readyHandle,
+              status: readyStatus,
+            ),
         portForwarder: const _ThrowingPortForwarder(),
         flutterVersionReader: () async => '3.39.0',
         flutterExecutableReader: () async => '/opt/flutter/bin/flutter',
@@ -608,22 +616,23 @@ void main() {
             '/opt/flutter/bin/cache/dart-sdk/bin/dart',
         allocatePort: () async => 60005,
         delay: (_) async {},
-        spawnSupervisor: ({
-          required request,
-          required flutterVersion,
-          required flutterExecutable,
-          required dartExecutable,
-          required hostPort,
-          required supervisorPort,
-          required supervisorLogFile,
-        }) async {
-          capturedHostPort = hostPort;
-          capturedPlatform = request.platform;
-          return CockpitSpawnedDevelopmentSupervisor(
-            baseUri: Uri.parse('http://127.0.0.1:$supervisorPort'),
-            stop: () async {},
-          );
-        },
+        spawnSupervisor:
+            ({
+              required request,
+              required flutterVersion,
+              required flutterExecutable,
+              required dartExecutable,
+              required hostPort,
+              required supervisorPort,
+              required supervisorLogFile,
+            }) async {
+              capturedHostPort = hostPort;
+              capturedPlatform = request.platform;
+              return CockpitSpawnedDevelopmentSupervisor(
+                baseUri: Uri.parse('http://127.0.0.1:$supervisorPort'),
+                stop: () async {},
+              );
+            },
       );
 
       final result = await launcher.launch(

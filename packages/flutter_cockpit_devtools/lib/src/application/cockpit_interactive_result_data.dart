@@ -28,7 +28,8 @@ final class CockpitInteractiveCommandCore {
   final CockpitCommandError? error;
 
   factory CockpitInteractiveCommandCore.fromResult(
-      CockpitCommandResult result) {
+    CockpitCommandResult result,
+  ) {
     return CockpitInteractiveCommandCore(
       commandId: result.commandId,
       commandType: result.commandType.name,
@@ -44,20 +45,19 @@ final class CockpitInteractiveCommandCore {
   }
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'commandId': commandId,
-        'commandType': commandType,
-        'success': success,
-        'durationMs': durationMs,
-        if (locatorResolution != null)
-          'locatorResolution': locatorResolution!.toJson(),
-        if (requestedCaptureProfile != null)
-          'requestedCaptureProfile': requestedCaptureProfile,
-        if (resolvedCaptureKind != null)
-          'resolvedCaptureKind': resolvedCaptureKind,
-        'usedCaptureFallback': usedCaptureFallback,
-        if (degradationReason != null) 'degradationReason': degradationReason,
-        if (error != null) 'error': error!.toJson(),
-      };
+    'commandId': commandId,
+    'commandType': commandType,
+    'success': success,
+    'durationMs': durationMs,
+    if (locatorResolution != null)
+      'locatorResolution': locatorResolution!.toJson(),
+    if (requestedCaptureProfile != null)
+      'requestedCaptureProfile': requestedCaptureProfile,
+    if (resolvedCaptureKind != null) 'resolvedCaptureKind': resolvedCaptureKind,
+    'usedCaptureFallback': usedCaptureFallback,
+    if (degradationReason != null) 'degradationReason': degradationReason,
+    if (error != null) 'error': error!.toJson(),
+  };
 }
 
 final class CockpitInteractiveArtifactDescriptor {
@@ -74,10 +74,7 @@ final class CockpitInteractiveArtifactDescriptor {
   final String? sourcePath;
 
   Map<String, Object?> toJson() {
-    final json = <String, Object?>{
-      'role': role,
-      'relativePath': relativePath,
-    };
+    final json = <String, Object?>{'role': role, 'relativePath': relativePath};
     if (byteLength != null) {
       json['byteLength'] = byteLength;
     }
@@ -124,22 +121,22 @@ final class CockpitInteractiveSnapshotSummary {
   final List<String> textPreviews;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        if (routeName != null) 'routeName': routeName,
-        'diagnosticLevel': diagnosticLevel,
-        'truncated': truncated,
-        'visibleTargetCount': visibleTargetCount,
-        'targetsWithCockpitIdCount': targetsWithCockpitIdCount,
-        'targetsWithTextCount': targetsWithTextCount,
-        'networkEntryCount': networkEntryCount,
-        'networkFailureCount': networkFailureCount,
-        'runtimeEntryCount': runtimeEntryCount,
-        'runtimeErrorCount': runtimeErrorCount,
-        'rebuildEntryCount': rebuildEntryCount,
-        'totalRebuildCount': totalRebuildCount,
-        'accessibilityTargetCount': accessibilityTargetCount,
-        'accessibilityTraversalCount': accessibilityTraversalCount,
-        'textPreviews': textPreviews,
-      };
+    if (routeName != null) 'routeName': routeName,
+    'diagnosticLevel': diagnosticLevel,
+    'truncated': truncated,
+    'visibleTargetCount': visibleTargetCount,
+    'targetsWithCockpitIdCount': targetsWithCockpitIdCount,
+    'targetsWithTextCount': targetsWithTextCount,
+    'networkEntryCount': networkEntryCount,
+    'networkFailureCount': networkFailureCount,
+    'runtimeEntryCount': runtimeEntryCount,
+    'runtimeErrorCount': runtimeErrorCount,
+    'rebuildEntryCount': rebuildEntryCount,
+    'totalRebuildCount': totalRebuildCount,
+    'accessibilityTargetCount': accessibilityTargetCount,
+    'accessibilityTraversalCount': accessibilityTraversalCount,
+    'textPreviews': textPreviews,
+  };
 }
 
 final class CockpitInteractiveSnapshotDelta {
@@ -168,17 +165,17 @@ final class CockpitInteractiveSnapshotDelta {
   final List<String> removedTextPreviews;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'routeChanged': routeChanged,
-        if (fromRouteName != null) 'fromRouteName': fromRouteName,
-        if (toRouteName != null) 'toRouteName': toRouteName,
-        'visibleTargetCountDelta': visibleTargetCountDelta,
-        'targetsWithTextCountDelta': targetsWithTextCountDelta,
-        'networkFailureCountDelta': networkFailureCountDelta,
-        'runtimeErrorCountDelta': runtimeErrorCountDelta,
-        'accessibilityTargetCountDelta': accessibilityTargetCountDelta,
-        'addedTextPreviews': addedTextPreviews,
-        'removedTextPreviews': removedTextPreviews,
-      };
+    'routeChanged': routeChanged,
+    if (fromRouteName != null) 'fromRouteName': fromRouteName,
+    if (toRouteName != null) 'toRouteName': toRouteName,
+    'visibleTargetCountDelta': visibleTargetCountDelta,
+    'targetsWithTextCountDelta': targetsWithTextCountDelta,
+    'networkFailureCountDelta': networkFailureCountDelta,
+    'runtimeErrorCountDelta': runtimeErrorCountDelta,
+    'accessibilityTargetCountDelta': accessibilityTargetCountDelta,
+    'addedTextPreviews': addedTextPreviews,
+    'removedTextPreviews': removedTextPreviews,
+  };
 }
 
 CockpitInteractiveSnapshotSummary? cockpitInteractiveStaticSummaryForProfile(
@@ -223,15 +220,19 @@ CockpitInteractiveSnapshotSummary cockpitInteractiveSummarizeSnapshot(
     diagnosticLevel: snapshot.diagnosticLevel.jsonValue,
     truncated: snapshot.truncated,
     visibleTargetCount: summary?.visibleTargetCount ?? visibleTargets.length,
-    targetsWithCockpitIdCount: summary?.targetsWithCockpitIdCount ??
+    targetsWithCockpitIdCount:
+        summary?.targetsWithCockpitIdCount ??
         visibleTargets.where((target) => target.cockpitId != null).length,
-    targetsWithTextCount: summary?.targetsWithTextCount ??
+    targetsWithTextCount:
+        summary?.targetsWithTextCount ??
         visibleTargets.where((target) => (target.text ?? '').isNotEmpty).length,
-    networkEntryCount: snapshot.network?.capturedEntryCount ??
+    networkEntryCount:
+        snapshot.network?.capturedEntryCount ??
         snapshot.network?.totalEntryCount ??
         0,
     networkFailureCount: snapshot.network?.failureCount ?? 0,
-    runtimeEntryCount: snapshot.runtime?.capturedEntryCount ??
+    runtimeEntryCount:
+        snapshot.runtime?.capturedEntryCount ??
         snapshot.runtime?.totalEntryCount ??
         0,
     runtimeErrorCount: snapshot.runtime?.errorCount ?? 0,
@@ -259,13 +260,16 @@ CockpitInteractiveSnapshotDelta cockpitInteractiveDiffSnapshots(
     toRouteName: current.routeName,
     visibleTargetCountDelta:
         currentSummary.visibleTargetCount - previousSummary.visibleTargetCount,
-    targetsWithTextCountDelta: currentSummary.targetsWithTextCount -
+    targetsWithTextCountDelta:
+        currentSummary.targetsWithTextCount -
         previousSummary.targetsWithTextCount,
-    networkFailureCountDelta: currentSummary.networkFailureCount -
+    networkFailureCountDelta:
+        currentSummary.networkFailureCount -
         previousSummary.networkFailureCount,
     runtimeErrorCountDelta:
         currentSummary.runtimeErrorCount - previousSummary.runtimeErrorCount,
-    accessibilityTargetCountDelta: currentSummary.accessibilityTargetCount -
+    accessibilityTargetCountDelta:
+        currentSummary.accessibilityTargetCount -
         previousSummary.accessibilityTargetCount,
     addedTextPreviews: currentTexts.difference(previousTexts).toList()..sort(),
     removedTextPreviews: previousTexts.difference(currentTexts).toList()
@@ -280,9 +284,7 @@ Map<String, Object?>? cockpitInteractiveDiagnosticsFromSnapshot(
   if (diagnosticsLevel == CockpitInteractiveDiagnosticsLevel.none) {
     return null;
   }
-  final diagnostics = <String, Object?>{
-    'level': diagnosticsLevel.jsonValue,
-  };
+  final diagnostics = <String, Object?>{'level': diagnosticsLevel.jsonValue};
   if (diagnosticsLevel == CockpitInteractiveDiagnosticsLevel.full) {
     diagnostics['network'] = (snapshot.network?.toJson());
     diagnostics['runtime'] = (snapshot.runtime?.toJson());
@@ -331,7 +333,7 @@ Map<String, Object?>? cockpitInteractiveDiagnosticsFromSnapshot(
 }
 
 List<CockpitInteractiveArtifactDescriptor>
-    cockpitInteractiveArtifactsFromExecution(
+cockpitInteractiveArtifactsFromExecution(
   CockpitCommandExecution execution,
   CockpitInteractiveArtifactLevel artifactLevel,
 ) {

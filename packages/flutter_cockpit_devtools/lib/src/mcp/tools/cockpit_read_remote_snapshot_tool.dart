@@ -4,10 +4,10 @@ import '../../application/cockpit_interactive_result_profile.dart';
 import '../../application/cockpit_read_remote_snapshot_service.dart';
 import '../cockpit_mcp_tool.dart';
 
-typedef CockpitReadRemoteSnapshotToolFunction
-    = Future<CockpitReadRemoteSnapshotResult> Function(
-  CockpitReadRemoteSnapshotRequest request,
-);
+typedef CockpitReadRemoteSnapshotToolFunction =
+    Future<CockpitReadRemoteSnapshotResult> Function(
+      CockpitReadRemoteSnapshotRequest request,
+    );
 
 final class CockpitReadRemoteSnapshotTool extends CockpitMcpTool {
   CockpitReadRemoteSnapshotTool({
@@ -26,31 +26,29 @@ final class CockpitReadRemoteSnapshotTool extends CockpitMcpTool {
 
   @override
   CockpitMcpToolAnnotations get annotations => const CockpitMcpToolAnnotations(
-        readOnly: true,
-        destructive: false,
-        idempotent: true,
-        longRunning: false,
-        requiresSession: true,
-        producesBundleEvidence: false,
-      );
+    readOnly: true,
+    destructive: false,
+    idempotent: true,
+    longRunning: false,
+    requiresSession: true,
+    producesBundleEvidence: false,
+  );
 
   @override
   List<CockpitMcpFeatureCategory> get categories =>
-      const <CockpitMcpFeatureCategory>[
-        CockpitMcpFeatureCategory.inspection,
-      ];
+      const <CockpitMcpFeatureCategory>[CockpitMcpFeatureCategory.inspection];
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
-        'type': 'object',
-        'properties': <String, Object?>{
-          'sessionHandle': <String, Object?>{'type': 'object'},
-          'sessionHandlePath': <String, Object?>{'type': 'string'},
-          'profile': <String, Object?>{'type': 'string'},
-          'snapshotOptions': <String, Object?>{'type': 'object'},
-          'compareAgainstSnapshotRef': <String, Object?>{'type': 'string'},
-        },
-      };
+    'type': 'object',
+    'properties': <String, Object?>{
+      'sessionHandle': <String, Object?>{'type': 'object'},
+      'sessionHandlePath': <String, Object?>{'type': 'string'},
+      'profile': <String, Object?>{'type': 'string'},
+      'snapshotOptions': <String, Object?>{'type': 'object'},
+      'compareAgainstSnapshotRef': <String, Object?>{'type': 'string'},
+    },
+  };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {

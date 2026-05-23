@@ -61,11 +61,11 @@ final class CockpitLspResult {
   final Map<String, Object?> payload;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'command': _cockpitLspCommandName(command),
-        'workspaceRoot': workspaceRoot,
-        'summary': summary,
-        ...payload,
-      };
+    'command': _cockpitLspCommandName(command),
+    'workspaceRoot': workspaceRoot,
+    'summary': summary,
+    ...payload,
+  };
 }
 
 abstract interface class CockpitLspExecutor {
@@ -84,14 +84,15 @@ final class CockpitLspService {
     CockpitProcessManager? processManager,
     CockpitSdkEnvironment? sdkEnvironment,
     CockpitLspExecutor? executor,
-  })  : _fileSystem = fileSystem ?? const LocalCockpitFileSystem(),
-        _executor = executor ??
-            _LocalCockpitLspExecutor(
-              fileSystem: fileSystem ?? const LocalCockpitFileSystem(),
-              processManager:
-                  processManager ?? const LocalCockpitProcessManager(),
-              sdkEnvironment: sdkEnvironment ?? CockpitSdkEnvironment.current(),
-            );
+  }) : _fileSystem = fileSystem ?? const LocalCockpitFileSystem(),
+       _executor =
+           executor ??
+           _LocalCockpitLspExecutor(
+             fileSystem: fileSystem ?? const LocalCockpitFileSystem(),
+             processManager:
+                 processManager ?? const LocalCockpitProcessManager(),
+             sdkEnvironment: sdkEnvironment ?? CockpitSdkEnvironment.current(),
+           );
 
   final CockpitFileSystem _fileSystem;
   final CockpitLspExecutor _executor;
@@ -105,10 +106,14 @@ final class CockpitLspService {
       CockpitLspCommand.hover => _hover(workspaceRoot, request),
       CockpitLspCommand.definition => _definition(workspaceRoot, request),
       CockpitLspCommand.signatureHelp => _signatureHelp(workspaceRoot, request),
-      CockpitLspCommand.documentSymbols =>
-        _documentSymbols(workspaceRoot, request),
-      CockpitLspCommand.workspaceSymbols =>
-        _workspaceSymbols(workspaceRoot, request),
+      CockpitLspCommand.documentSymbols => _documentSymbols(
+        workspaceRoot,
+        request,
+      ),
+      CockpitLspCommand.workspaceSymbols => _workspaceSymbols(
+        workspaceRoot,
+        request,
+      ),
     };
   }
 
@@ -133,8 +138,10 @@ final class CockpitLspService {
     final json = response is Map<Object?, Object?>
         ? Map<Object?, Object?>.from(response)
         : const <Object?, Object?>{};
-    final contents =
-        _truncateText(_hoverContents(json['contents']), request.maxChars);
+    final contents = _truncateText(
+      _hoverContents(json['contents']),
+      request.maxChars,
+    );
     final range = _rangeToJson(json['range']);
     return CockpitLspResult(
       command: request.command,
@@ -147,8 +154,8 @@ final class CockpitLspService {
         'line': request.line!,
         'column': request.column!,
         'found': contents != null,
-        if (contents != null) 'contents': contents,
-        if (range != null) 'range': range,
+        'contents': ?contents,
+        'range': ?range,
       },
     );
   }
@@ -299,7 +306,7 @@ final class CockpitLspService {
   }) async {
     final stopwatch = Stopwatch()..start();
     CockpitApplicationServiceException? lastRetryableError;
-    for (var attempt = 0;; attempt++) {
+    for (var attempt = 0; ; attempt++) {
       final remaining = timeout - stopwatch.elapsed;
       if (remaining <= Duration.zero) {
         throw CockpitApplicationServiceException(
@@ -329,9 +336,7 @@ final class CockpitLspService {
         lastRetryableError = error;
       }
 
-      final delay = Duration(
-        milliseconds: math.min(1000, 150 * (attempt + 1)),
-      );
+      final delay = Duration(milliseconds: math.min(1000, 150 * (attempt + 1)));
       final boundedDelay = delay < remaining ? delay : remaining;
       if (boundedDelay > Duration.zero) {
         await Future<void>.delayed(boundedDelay);
@@ -405,10 +410,7 @@ final class CockpitLspService {
       throw CockpitApplicationServiceException(
         code: 'lspPathNotFound',
         message: 'path does not exist.',
-        details: <String, Object?>{
-          'path': rawPath,
-          'resolvedPath': candidate,
-        },
+        details: <String, Object?>{'path': rawPath, 'resolvedPath': candidate},
       );
     }
     return candidate;
@@ -423,10 +425,7 @@ final class CockpitLspService {
         message: 'line and column must both be 1-based integers.',
       );
     }
-    return <String, Object?>{
-      'line': line - 1,
-      'character': column - 1,
-    };
+    return <String, Object?>{'line': line - 1, 'character': column - 1};
   }
 
   Future<List<Map<String, Object?>>> _workspaceSymbolFallback({
@@ -446,9 +445,7 @@ final class CockpitLspService {
         documentPath: path,
         method: 'textDocument/documentSymbol',
         params: <String, Object?>{
-          'textDocument': <String, Object?>{
-            'uri': Uri.file(path).toString(),
-          },
+          'textDocument': <String, Object?>{'uri': Uri.file(path).toString()},
         },
         timeout: timeout,
       );
@@ -484,21 +481,22 @@ final class CockpitLspService {
       return const <String>[];
     }
     final queryText = query.toLowerCase();
-    final entries = root
-        .listSync(recursive: true, followLinks: false)
-        .whereType<File>()
-        .map((file) => file.path)
-        .where((path) => p.extension(path) == '.dart')
-        .where((path) => !_excludedWorkspacePath(path))
-        .toList(growable: false)
-      ..sort((left, right) {
-        final leftScore = _workspacePathPriority(left);
-        final rightScore = _workspacePathPriority(right);
-        if (leftScore != rightScore) {
-          return leftScore.compareTo(rightScore);
-        }
-        return left.compareTo(right);
-      });
+    final entries =
+        root
+            .listSync(recursive: true, followLinks: false)
+            .whereType<File>()
+            .map((file) => file.path)
+            .where((path) => p.extension(path) == '.dart')
+            .where((path) => !_excludedWorkspacePath(path))
+            .toList(growable: false)
+          ..sort((left, right) {
+            final leftScore = _workspacePathPriority(left);
+            final rightScore = _workspacePathPriority(right);
+            if (leftScore != rightScore) {
+              return leftScore.compareTo(rightScore);
+            }
+            return left.compareTo(right);
+          });
     final matched = <String>[];
     for (final path in entries) {
       final text = _fileSystem.file(path).readAsStringSync().toLowerCase();
@@ -594,8 +592,7 @@ final class _LocalCockpitLspExecutor implements CockpitLspExecutor {
             : await client.request(method: method, params: params);
         await client.shutdown();
         return response;
-      })()
-          .timeout(timeout);
+      })().timeout(timeout);
       return result;
     } on TimeoutException {
       final stderr = await stderrFuture.timeout(
@@ -642,8 +639,8 @@ final class _OneShotCockpitLspClient {
   _OneShotCockpitLspClient({
     required Stream<String> input,
     required StreamSink<String> output,
-  })  : _messages = StreamIterator<String>(input),
-        _output = output;
+  }) : _messages = StreamIterator<String>(input),
+       _output = output;
 
   final StreamIterator<String> _messages;
   final StreamSink<String> _output;
@@ -656,9 +653,7 @@ final class _OneShotCockpitLspClient {
         'processId': pid,
         'rootUri': Uri.directory(workspaceRoot).toString(),
         'capabilities': <String, Object?>{
-          'workspace': <String, Object?>{
-            'workspaceFolders': true,
-          },
+          'workspace': <String, Object?>{'workspaceFolders': true},
         },
         'workspaceFolders': <Map<String, Object?>>[
           <String, Object?>{
@@ -675,17 +670,14 @@ final class _OneShotCockpitLspClient {
     required String path,
     required String text,
   }) async {
-    notify(
-      'textDocument/didOpen',
-      <String, Object?>{
-        'textDocument': <String, Object?>{
-          'uri': Uri.file(path).toString(),
-          'languageId': 'dart',
-          'version': 1,
-          'text': text,
-        },
+    notify('textDocument/didOpen', <String, Object?>{
+      'textDocument': <String, Object?>{
+        'uri': Uri.file(path).toString(),
+        'languageId': 'dart',
+        'version': 1,
+        'text': text,
       },
-    );
+    });
   }
 
   Future<Object?> request({
@@ -694,14 +686,12 @@ final class _OneShotCockpitLspClient {
   }) async {
     final id = _nextId++;
     _output.add(
-      jsonEncode(
-        <String, Object?>{
-          'jsonrpc': '2.0',
-          'id': id,
-          'method': method,
-          'params': params,
-        },
-      ),
+      jsonEncode(<String, Object?>{
+        'jsonrpc': '2.0',
+        'id': id,
+        'method': method,
+        'params': params,
+      }),
     );
     while (await _messages.moveNext()) {
       final message = jsonDecode(_messages.current) as Map<Object?, Object?>;
@@ -736,22 +726,18 @@ final class _OneShotCockpitLspClient {
       if (_workspaceSymbolCount(result) > 0) {
         return result;
       }
-      await Future<void>.delayed(
-        Duration(milliseconds: 250 * (attempt + 1)),
-      );
+      await Future<void>.delayed(Duration(milliseconds: 250 * (attempt + 1)));
     }
     return result;
   }
 
   void notify(String method, Map<String, Object?> params) {
     _output.add(
-      jsonEncode(
-        <String, Object?>{
-          'jsonrpc': '2.0',
-          'method': method,
-          'params': params,
-        },
-      ),
+      jsonEncode(<String, Object?>{
+        'jsonrpc': '2.0',
+        'method': method,
+        'params': params,
+      }),
     );
   }
 
@@ -842,9 +828,11 @@ Map<String, Object?>? _rangeToJson(Object? raw) {
     return null;
   }
   final start = Map<Object?, Object?>.from(
-      raw['start'] as Map<Object?, Object?>? ?? const {});
+    raw['start'] as Map<Object?, Object?>? ?? const {},
+  );
   final end = Map<Object?, Object?>.from(
-      raw['end'] as Map<Object?, Object?>? ?? const {});
+    raw['end'] as Map<Object?, Object?>? ?? const {},
+  );
   return <String, Object?>{
     'startLine': (start['line'] as int? ?? 0) + 1,
     'startColumn': (start['character'] as int? ?? 0) + 1,
@@ -866,12 +854,7 @@ List<Map<String, Object?>> _definitionLocations(
   return items
       .whereType<Map<Object?, Object?>>()
       .take(maxResults)
-      .map(
-        (item) => _definitionLocation(
-          item,
-          workspaceRoot: workspaceRoot,
-        ),
-      )
+      .map((item) => _definitionLocation(item, workspaceRoot: workspaceRoot))
       .whereType<Map<String, Object?>>()
       .toList(growable: false);
 }
@@ -887,12 +870,11 @@ Map<String, Object?>? _definitionLocation(
   final rangeRaw =
       json['range'] ?? json['targetSelectionRange'] ?? json['targetRange'];
   final range = _rangeToJson(rangeRaw);
-  final path =
-      p.relative(Uri.parse(uriValue).toFilePath(), from: workspaceRoot);
-  return <String, Object?>{
-    'path': path,
-    if (range != null) ...range,
-  };
+  final path = p.relative(
+    Uri.parse(uriValue).toFilePath(),
+    from: workspaceRoot,
+  );
+  return <String, Object?>{'path': path, if (range != null) ...range};
 }
 
 List<Map<String, Object?>> _documentSymbolResults(
@@ -904,10 +886,7 @@ List<Map<String, Object?>> _documentSymbolResults(
 }) {
   final items = <Map<String, Object?>>[];
 
-  void addDocumentSymbol(
-    Map<Object?, Object?> json, {
-    String? containerName,
-  }) {
+  void addDocumentSymbol(Map<Object?, Object?> json, {String? containerName}) {
     if (items.length >= maxResults) {
       return;
     }
@@ -915,24 +894,28 @@ List<Map<String, Object?>> _documentSymbolResults(
     items.add(<String, Object?>{
       'name': '${json['name'] ?? ''}',
       'kind': _symbolKindName(json['kind'] as int?),
-      if (containerName != null) 'containerName': containerName,
+      'containerName': ?containerName,
       if (json['detail'] case final String detail when detail.trim().isNotEmpty)
         'detail': _truncateText(detail, maxChars),
       'path': p.relative(defaultPath, from: workspaceRoot),
       if (range != null) ...range,
     });
-    for (final child in ((json['children'] as List?) ?? const <Object?>[])
-        .whereType<Map<Object?, Object?>>()) {
+    for (final child
+        in ((json['children'] as List?) ?? const <Object?>[])
+            .whereType<Map<Object?, Object?>>()) {
       addDocumentSymbol(
         child,
-        containerName:
-            _joinContainerName(containerName, '${json['name'] ?? ''}'),
+        containerName: _joinContainerName(
+          containerName,
+          '${json['name'] ?? ''}',
+        ),
       );
     }
   }
 
-  for (final item in (raw as List? ?? const <Object?>[])
-      .whereType<Map<Object?, Object?>>()) {
+  for (final item
+      in (raw as List? ?? const <Object?>[])
+          .whereType<Map<Object?, Object?>>()) {
     if (item.containsKey('location')) {
       if (items.length >= maxResults) {
         break;
@@ -970,25 +953,31 @@ List<Map<String, Object?>> _workspaceSymbolResults(
       .whereType<Map<Object?, Object?>>()
       .take(maxResults)
       .map((item) {
-    final location = Map<Object?, Object?>.from(
-        item['location'] as Map<Object?, Object?>? ?? const {});
-    final uri = location['uri'] as String?;
-    final range = _rangeToJson(location['range']);
-    return <String, Object?>{
-      'name': '${item['name'] ?? ''}',
-      'kind': _symbolKindName(item['kind'] as int?),
-      if (item['containerName'] case final String containerName
-          when containerName.trim().isNotEmpty)
-        'containerName': containerName,
-      if (item['deprecated'] case final bool deprecated)
-        'deprecated': deprecated,
-      if (uri != null)
-        'path': p.relative(Uri.parse(uri).toFilePath(), from: workspaceRoot),
-      if (range != null) ...range,
-      if (item['detail'] case final String detail when detail.trim().isNotEmpty)
-        'detail': _truncateText(detail, maxChars),
-    };
-  }).toList(growable: false);
+        final location = Map<Object?, Object?>.from(
+          item['location'] as Map<Object?, Object?>? ?? const {},
+        );
+        final uri = location['uri'] as String?;
+        final range = _rangeToJson(location['range']);
+        return <String, Object?>{
+          'name': '${item['name'] ?? ''}',
+          'kind': _symbolKindName(item['kind'] as int?),
+          if (item['containerName'] case final String containerName
+              when containerName.trim().isNotEmpty)
+            'containerName': containerName,
+          if (item['deprecated'] case final bool deprecated)
+            'deprecated': deprecated,
+          if (uri != null)
+            'path': p.relative(
+              Uri.parse(uri).toFilePath(),
+              from: workspaceRoot,
+            ),
+          if (range != null) ...range,
+          if (item['detail'] case final String detail
+              when detail.trim().isNotEmpty)
+            'detail': _truncateText(detail, maxChars),
+        };
+      })
+      .toList(growable: false);
 }
 
 String _symbolKindName(int? kind) {

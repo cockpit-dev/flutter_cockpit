@@ -11,8 +11,8 @@ import 'cockpit_runtime_query.dart';
 import 'cockpit_runtime_snapshot.dart';
 
 typedef CockpitRuntimeCurrentRouteProvider = String? Function();
-typedef CockpitRuntimeCriticalEventHandler = void Function(
-    CockpitRuntimeEvent event);
+typedef CockpitRuntimeCriticalEventHandler =
+    void Function(CockpitRuntimeEvent event);
 
 final class CockpitFlutterRuntimeObserver implements CockpitRuntimeObserver {
   CockpitFlutterRuntimeObserver({
@@ -184,8 +184,9 @@ final class CockpitFlutterRuntimeObserver implements CockpitRuntimeObserver {
           if (library != null && library.isNotEmpty) 'library': library,
           if (details.context != null) 'context': '${details.context}',
         }),
-        stackTracePreview:
-            details.stack == null ? null : _formatStackTrace(details.stack!),
+        stackTracePreview: details.stack == null
+            ? null
+            : _formatStackTrace(details.stack!),
         stackTraceTruncated: details.stack == null
             ? false
             : _stackTraceWasTruncated(details.stack!),
@@ -280,8 +281,8 @@ final class CockpitFlutterRuntimeObserver implements CockpitRuntimeObserver {
         .toList(growable: false);
     final bounded =
         maxStackTraceLines <= 0 || lines.length <= maxStackTraceLines
-            ? lines
-            : lines.take(maxStackTraceLines).toList(growable: false);
+        ? lines
+        : lines.take(maxStackTraceLines).toList(growable: false);
     return bounded.join('\n');
   }
 

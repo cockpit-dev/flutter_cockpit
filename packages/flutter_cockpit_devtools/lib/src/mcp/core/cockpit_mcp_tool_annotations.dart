@@ -25,11 +25,11 @@ final class CockpitMcpToolAnnotations {
   final bool producesBundleEvidence;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'readOnly': readOnly,
-        'destructive': destructive,
-        'idempotent': idempotent,
-        'longRunning': longRunning,
-        'requiresSession': requiresSession,
-        'producesBundleEvidence': producesBundleEvidence,
-      };
+    'readOnly': readOnly,
+    'destructive': destructive,
+    'idempotent': idempotent,
+    'longRunning': longRunning,
+    'requiresSession': requiresSession,
+    'producesBundleEvidence': producesBundleEvidence,
+  };
 }

@@ -16,26 +16,25 @@ import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_validate_task_too
 import 'package:test/test.dart';
 
 void main() {
-  test('run_task exposes execution metadata and preserves descriptor shape',
-      () {
-    final tool = CockpitRunTaskTool(
-      runTask: (_) async => throw UnimplementedError(),
-    );
+  test(
+    'run_task exposes execution metadata and preserves descriptor shape',
+    () {
+      final tool = CockpitRunTaskTool(
+        runTask: (_) async => throw UnimplementedError(),
+      );
 
-    expect(tool.definition.name, 'run_task');
-    expect(
-      tool.definition.categories,
-      <CockpitMcpFeatureCategory>[
+      expect(tool.definition.name, 'run_task');
+      expect(tool.definition.categories, <CockpitMcpFeatureCategory>[
         CockpitMcpFeatureCategory.execution,
         CockpitMcpFeatureCategory.delivery,
-      ],
-    );
-    expect(tool.definition.annotations.longRunning, isTrue);
-    expect(tool.definition.annotations.producesBundleEvidence, isTrue);
-    expect(tool.definition.enabledByDefault, isTrue);
-    expect(tool.toDescriptor()['name'], 'run_task');
-    expect(tool.toDescriptor()['inputSchema'], tool.definition.inputSchema);
-  });
+      ]);
+      expect(tool.definition.annotations.longRunning, isTrue);
+      expect(tool.definition.annotations.producesBundleEvidence, isTrue);
+      expect(tool.definition.enabledByDefault, isTrue);
+      expect(tool.toDescriptor()['name'], 'run_task');
+      expect(tool.toDescriptor()['inputSchema'], tool.definition.inputSchema);
+    },
+  );
 
   test('validate_task exposes delivery metadata', () {
     final tool = CockpitValidateTaskTool(
@@ -199,8 +198,8 @@ final class _ToolWithoutProperties extends CockpitMcpTool {
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
-        'type': 'object',
-      };
+    'type': 'object',
+  };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {

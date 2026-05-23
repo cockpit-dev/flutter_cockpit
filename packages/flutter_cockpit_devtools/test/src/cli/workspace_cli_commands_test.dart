@@ -42,7 +42,8 @@ void main() {
         ),
       );
 
-    final exitCode = await runner.run(<String>[
+    final exitCode =
+        await runner.run(<String>[
           'pub-dev-search',
           '--stdout-format',
           'json',
@@ -98,7 +99,8 @@ void main() {
         ),
       );
 
-    final exitCode = await runner.run(<String>[
+    final exitCode =
+        await runner.run(<String>[
           'pub',
           '--stdout-format',
           'json',
@@ -117,145 +119,153 @@ void main() {
     expect(decoded['summary'], 'Added riverpod.');
   });
 
-  test('read-package-uris reads multiple URIs from one workspace root',
-      () async {
-    final originalCurrent = Directory.current;
-    final tempDir =
-        await Directory.systemTemp.createTemp('read_package_uris_command');
-    addTearDown(() async {
-      Directory.current = originalCurrent;
-      if (tempDir.existsSync()) {
-        await tempDir.delete(recursive: true);
-      }
-    });
-    Directory.current = tempDir;
-    final currentRoot = p.normalize(Directory.current.path);
-
-    final capturedRequests = <CockpitReadPackageUrisRequest>[];
-    final output = StringBuffer();
-    final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
-      ..addCommand(
-        ReadPackageUrisCommand(
-          stdoutSink: output,
-          read: (request) async {
-            capturedRequests.add(request);
-            return const CockpitReadPackageUrisResult(
-              kind: CockpitPackageUriEntryKind.file,
-              contentKind: CockpitPackageUriContentKind.text,
-              resolvedPath: '/deps/example/lib/example.dart',
-              preview: 'library example;',
-            );
-          },
-        ),
+  test(
+    'read-package-uris reads multiple URIs from one workspace root',
+    () async {
+      final originalCurrent = Directory.current;
+      final tempDir = await Directory.systemTemp.createTemp(
+        'read_package_uris_command',
       );
+      addTearDown(() async {
+        Directory.current = originalCurrent;
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+      Directory.current = tempDir;
+      final currentRoot = p.normalize(Directory.current.path);
 
-    final exitCode = await runner.run(<String>[
-          'read-package-uris',
-          '--stdout-format',
-          'json',
-          '--uri',
-          'package:example/example.dart',
-          '--uri',
-          'package:other/other.dart',
-        ]) ??
-        0;
+      final capturedRequests = <CockpitReadPackageUrisRequest>[];
+      final output = StringBuffer();
+      final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
+        ..addCommand(
+          ReadPackageUrisCommand(
+            stdoutSink: output,
+            read: (request) async {
+              capturedRequests.add(request);
+              return const CockpitReadPackageUrisResult(
+                kind: CockpitPackageUriEntryKind.file,
+                contentKind: CockpitPackageUriContentKind.text,
+                resolvedPath: '/deps/example/lib/example.dart',
+                preview: 'library example;',
+              );
+            },
+          ),
+        );
 
-    expect(exitCode, 0);
-    expect(capturedRequests, hasLength(2));
-    expect(
-      capturedRequests.every(
-        (request) => request.workspaceRoot == currentRoot,
-      ),
-      isTrue,
-    );
-    final decoded = jsonDecode(output.toString()) as Map<String, Object?>;
-    expect(decoded['workspaceRoot'], currentRoot);
-    expect((decoded['results'] as List<Object?>), hasLength(2));
-  });
+      final exitCode =
+          await runner.run(<String>[
+            'read-package-uris',
+            '--stdout-format',
+            'json',
+            '--uri',
+            'package:example/example.dart',
+            '--uri',
+            'package:other/other.dart',
+          ]) ??
+          0;
 
-  test('grep-package-uris defaults workspace-root to the current directory',
-      () async {
-    final originalCurrent = Directory.current;
-    final tempDir =
-        await Directory.systemTemp.createTemp('grep_package_uris_command');
-    addTearDown(() async {
-      Directory.current = originalCurrent;
-      if (tempDir.existsSync()) {
-        await tempDir.delete(recursive: true);
-      }
-    });
-    Directory.current = tempDir;
-    final currentRoot = p.normalize(Directory.current.path);
-
-    CockpitGrepPackageUrisRequest? capturedRequest;
-    final output = StringBuffer();
-    final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
-      ..addCommand(
-        GrepPackageUrisCommand(
-          stdoutSink: output,
-          grep: (request) async {
-            capturedRequest = request;
-            return const CockpitGrepPackageUrisResult(
-              workspaceRoot: '/workspace',
-              query: 'ThemeData',
-              searchDir: 'lib',
-              useRegex: false,
-              caseSensitive: false,
-              usedRipgrep: false,
-              matchedPackageCount: 1,
-              matchedFileCount: 1,
-              totalMatches: 1,
-              truncated: false,
-              summary: 'Found 1 match across 1 file in 1 package.',
-              packages: <CockpitGrepPackageUrisPackageResult>[
-                CockpitGrepPackageUrisPackageResult(
-                  packageName: 'flutter',
-                  searchRoot: '/deps/flutter/lib',
-                  matchCount: 1,
-                  files: <CockpitGrepPackageUrisFileResult>[
-                    CockpitGrepPackageUrisFileResult(
-                      path: '/deps/flutter/lib/src/material/theme_data.dart',
-                      relativePath: 'lib/src/material/theme_data.dart',
-                      packageRootUri:
-                          'package-root:flutter/lib/src/material/theme_data.dart',
-                      packageUri:
-                          'package:flutter/src/material/theme_data.dart',
-                      matches: <CockpitGrepPackageUrisMatch>[
-                        CockpitGrepPackageUrisMatch(
-                          line: 10,
-                          column: 7,
-                          endColumn: 15,
-                          text: 'class ThemeData {',
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ],
-            );
-          },
+      expect(exitCode, 0);
+      expect(capturedRequests, hasLength(2));
+      expect(
+        capturedRequests.every(
+          (request) => request.workspaceRoot == currentRoot,
         ),
+        isTrue,
       );
+      final decoded = jsonDecode(output.toString()) as Map<String, Object?>;
+      expect(decoded['workspaceRoot'], currentRoot);
+      expect((decoded['results'] as List<Object?>), hasLength(2));
+    },
+  );
 
-    final exitCode = await runner.run(<String>[
-          'grep-package-uris',
-          '--stdout-format',
-          'json',
-          '--package',
-          'flutter',
-          '--query',
-          'ThemeData',
-        ]) ??
-        0;
+  test(
+    'grep-package-uris defaults workspace-root to the current directory',
+    () async {
+      final originalCurrent = Directory.current;
+      final tempDir = await Directory.systemTemp.createTemp(
+        'grep_package_uris_command',
+      );
+      addTearDown(() async {
+        Directory.current = originalCurrent;
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+      Directory.current = tempDir;
+      final currentRoot = p.normalize(Directory.current.path);
 
-    expect(exitCode, 0);
-    expect(capturedRequest?.workspaceRoot, currentRoot);
-    expect(capturedRequest?.packageNames, <String>['flutter']);
-    expect(capturedRequest?.query, 'ThemeData');
-    final decoded = jsonDecode(output.toString()) as Map<String, Object?>;
-    expect(decoded['matchedPackageCount'], 1);
-    expect((decoded['packages'] as List<Object?>), hasLength(1));
-  });
+      CockpitGrepPackageUrisRequest? capturedRequest;
+      final output = StringBuffer();
+      final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
+        ..addCommand(
+          GrepPackageUrisCommand(
+            stdoutSink: output,
+            grep: (request) async {
+              capturedRequest = request;
+              return const CockpitGrepPackageUrisResult(
+                workspaceRoot: '/workspace',
+                query: 'ThemeData',
+                searchDir: 'lib',
+                useRegex: false,
+                caseSensitive: false,
+                usedRipgrep: false,
+                matchedPackageCount: 1,
+                matchedFileCount: 1,
+                totalMatches: 1,
+                truncated: false,
+                summary: 'Found 1 match across 1 file in 1 package.',
+                packages: <CockpitGrepPackageUrisPackageResult>[
+                  CockpitGrepPackageUrisPackageResult(
+                    packageName: 'flutter',
+                    searchRoot: '/deps/flutter/lib',
+                    matchCount: 1,
+                    files: <CockpitGrepPackageUrisFileResult>[
+                      CockpitGrepPackageUrisFileResult(
+                        path: '/deps/flutter/lib/src/material/theme_data.dart',
+                        relativePath: 'lib/src/material/theme_data.dart',
+                        packageRootUri:
+                            'package-root:flutter/lib/src/material/theme_data.dart',
+                        packageUri:
+                            'package:flutter/src/material/theme_data.dart',
+                        matches: <CockpitGrepPackageUrisMatch>[
+                          CockpitGrepPackageUrisMatch(
+                            line: 10,
+                            column: 7,
+                            endColumn: 15,
+                            text: 'class ThemeData {',
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            },
+          ),
+        );
+
+      final exitCode =
+          await runner.run(<String>[
+            'grep-package-uris',
+            '--stdout-format',
+            'json',
+            '--package',
+            'flutter',
+            '--query',
+            'ThemeData',
+          ]) ??
+          0;
+
+      expect(exitCode, 0);
+      expect(capturedRequest?.workspaceRoot, currentRoot);
+      expect(capturedRequest?.packageNames, <String>['flutter']);
+      expect(capturedRequest?.query, 'ThemeData');
+      final decoded = jsonDecode(output.toString()) as Map<String, Object?>;
+      expect(decoded['matchedPackageCount'], 1);
+      expect((decoded['packages'] as List<Object?>), hasLength(1));
+    },
+  );
 
   test('lsp defaults workspace-root to the current directory', () async {
     final originalCurrent = Directory.current;
@@ -293,7 +303,8 @@ void main() {
         ),
       );
 
-    final exitCode = await runner.run(<String>[
+    final exitCode =
+        await runner.run(<String>[
           'lsp',
           '--stdout-format',
           'json',
@@ -344,7 +355,7 @@ void main() {
                 arguments: <String>[
                   'analyze',
                   '--format=json',
-                  'lib/main.dart'
+                  'lib/main.dart',
                 ],
                 workingDirectory: '/workspace',
               ),
@@ -373,7 +384,8 @@ void main() {
         ),
       );
 
-    final exitCode = await runner.run(<String>[
+    final exitCode =
+        await runner.run(<String>[
           'analyze-files',
           '--stdout-format',
           'json',
@@ -392,57 +404,60 @@ void main() {
     expect(decoded['totalDiagnostics'], 1);
   });
 
-  test('create-project defaults parent-directory to the current directory',
-      () async {
-    final originalCurrent = Directory.current;
-    final tempDir = await Directory.systemTemp.createTemp('create_project');
-    addTearDown(() async {
-      Directory.current = originalCurrent;
-      if (tempDir.existsSync()) {
-        await tempDir.delete(recursive: true);
-      }
-    });
-    Directory.current = tempDir;
-    final currentRoot = p.normalize(Directory.current.path);
+  test(
+    'create-project defaults parent-directory to the current directory',
+    () async {
+      final originalCurrent = Directory.current;
+      final tempDir = await Directory.systemTemp.createTemp('create_project');
+      addTearDown(() async {
+        Directory.current = originalCurrent;
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+      Directory.current = tempDir;
+      final currentRoot = p.normalize(Directory.current.path);
 
-    CockpitCreateProjectRequest? capturedRequest;
-    final output = StringBuffer();
-    final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
-      ..addCommand(
-        CreateProjectCommand(
-          stdoutSink: output,
-          create: (request) async {
-            capturedRequest = request;
-            return const CockpitCreateProjectResult(
-              projectDirectory: '/workspace/new_app',
-              command: CockpitWorkspaceCommand(
-                executable: 'flutter',
-                arguments: <String>['create', '/workspace/new_app'],
-                workingDirectory: '/workspace',
-              ),
-              success: true,
-              stdout: 'created',
-              stderr: '',
-            );
-          },
-        ),
-      );
+      CockpitCreateProjectRequest? capturedRequest;
+      final output = StringBuffer();
+      final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
+        ..addCommand(
+          CreateProjectCommand(
+            stdoutSink: output,
+            create: (request) async {
+              capturedRequest = request;
+              return const CockpitCreateProjectResult(
+                projectDirectory: '/workspace/new_app',
+                command: CockpitWorkspaceCommand(
+                  executable: 'flutter',
+                  arguments: <String>['create', '/workspace/new_app'],
+                  workingDirectory: '/workspace',
+                ),
+                success: true,
+                stdout: 'created',
+                stderr: '',
+              );
+            },
+          ),
+        );
 
-    final exitCode = await runner.run(<String>[
-          'create-project',
-          '--stdout-format',
-          'json',
-          '--project-name',
-          'new_app',
-          '--template',
-          'flutter-app',
-        ]) ??
-        0;
+      final exitCode =
+          await runner.run(<String>[
+            'create-project',
+            '--stdout-format',
+            'json',
+            '--project-name',
+            'new_app',
+            '--template',
+            'flutter-app',
+          ]) ??
+          0;
 
-    expect(exitCode, 0);
-    expect(capturedRequest?.parentDirectory, currentRoot);
-    expect(capturedRequest?.template, CockpitProjectTemplate.flutterApp);
-    final decoded = jsonDecode(output.toString()) as Map<String, Object?>;
-    expect(decoded['projectDirectory'], '/workspace/new_app');
-  });
+      expect(exitCode, 0);
+      expect(capturedRequest?.parentDirectory, currentRoot);
+      expect(capturedRequest?.template, CockpitProjectTemplate.flutterApp);
+      final decoded = jsonDecode(output.toString()) as Map<String, Object?>;
+      expect(decoded['projectDirectory'], '/workspace/new_app');
+    },
+  );
 }

@@ -3,19 +3,19 @@ import '../../application/cockpit_session_registry.dart';
 import '../cockpit_mcp_error.dart';
 import '../cockpit_mcp_tool.dart';
 
-typedef CockpitLaunchRemoteSessionFunction
-    = Future<CockpitLaunchRemoteSessionResult> Function(
-  CockpitLaunchRemoteSessionRequest request,
-);
+typedef CockpitLaunchRemoteSessionFunction =
+    Future<CockpitLaunchRemoteSessionResult> Function(
+      CockpitLaunchRemoteSessionRequest request,
+    );
 
 final class CockpitLaunchRemoteSessionTool extends CockpitMcpTool {
   CockpitLaunchRemoteSessionTool({
     CockpitLaunchRemoteSessionService? service,
     CockpitLaunchRemoteSessionFunction? launch,
     CockpitSessionRegistry? sessionRegistry,
-  })  : _launch =
-            launch ?? (service ?? CockpitLaunchRemoteSessionService()).launch,
-        _sessionRegistry = sessionRegistry;
+  }) : _launch =
+           launch ?? (service ?? CockpitLaunchRemoteSessionService()).launch,
+       _sessionRegistry = sessionRegistry;
 
   final CockpitLaunchRemoteSessionFunction _launch;
   final CockpitSessionRegistry? _sessionRegistry;
@@ -29,26 +29,21 @@ final class CockpitLaunchRemoteSessionTool extends CockpitMcpTool {
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
-        'type': 'object',
-        'required': <String>[
-          'projectDir',
-          'platform',
-          'deviceId',
-          'sessionPort',
-        ],
-        'properties': <String, Object?>{
-          'projectDir': <String, Object?>{'type': 'string'},
-          'target': <String, Object?>{'type': 'string'},
-          'platform': <String, Object?>{
-            'type': 'string',
-            'enum': <String>['android', 'ios', 'macos', 'windows', 'linux'],
-          },
-          'deviceId': <String, Object?>{'type': 'string'},
-          'sessionPort': <String, Object?>{'type': 'integer'},
-          'launchTimeoutSeconds': <String, Object?>{'type': 'integer'},
-          'persistHandlePath': <String, Object?>{'type': 'string'},
-        },
-      };
+    'type': 'object',
+    'required': <String>['projectDir', 'platform', 'deviceId', 'sessionPort'],
+    'properties': <String, Object?>{
+      'projectDir': <String, Object?>{'type': 'string'},
+      'target': <String, Object?>{'type': 'string'},
+      'platform': <String, Object?>{
+        'type': 'string',
+        'enum': <String>['android', 'ios', 'macos', 'windows', 'linux'],
+      },
+      'deviceId': <String, Object?>{'type': 'string'},
+      'sessionPort': <String, Object?>{'type': 'integer'},
+      'launchTimeoutSeconds': <String, Object?>{'type': 'integer'},
+      'persistHandlePath': <String, Object?>{'type': 'string'},
+    },
+  };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {
@@ -73,7 +68,8 @@ final class CockpitLaunchRemoteSessionTool extends CockpitMcpTool {
           deviceId: cockpitReadRequiredString(arguments, 'deviceId'),
           sessionPort: cockpitReadRequiredPort(arguments, 'sessionPort'),
           launchTimeout: Duration(
-            seconds: cockpitReadOptionalPositiveInt(
+            seconds:
+                cockpitReadOptionalPositiveInt(
                   arguments,
                   'launchTimeoutSeconds',
                 ) ??

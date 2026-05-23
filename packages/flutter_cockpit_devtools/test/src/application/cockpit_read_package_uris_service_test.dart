@@ -56,7 +56,9 @@ void main() {
     expect(rootResult.contentKind, CockpitPackageUriContentKind.directory);
     expect(rootResult.entryCount, 1);
     expect(
-        rootResult.entries.single.path, '/deps/example_pkg/example/demo.dart');
+      rootResult.entries.single.path,
+      '/deps/example_pkg/example/demo.dart',
+    );
   });
 
   test('truncates large text previews and returns binary metadata', () async {

@@ -2,16 +2,16 @@ import '../../application/cockpit_run_task_service.dart';
 import '../../application/cockpit_latest_task_store.dart';
 import '../cockpit_mcp_tool.dart';
 
-typedef CockpitRunTaskOrchestrationFunction = Future<CockpitRunTaskResult>
-    Function(CockpitRunTaskRequest request);
+typedef CockpitRunTaskOrchestrationFunction =
+    Future<CockpitRunTaskResult> Function(CockpitRunTaskRequest request);
 
 final class CockpitRunTaskTool extends CockpitMcpTool {
   CockpitRunTaskTool({
     CockpitRunTaskService? service,
     CockpitRunTaskOrchestrationFunction? runTask,
     CockpitLatestTaskStore? latestTaskStore,
-  })  : _runTask = runTask ?? (service ?? CockpitRunTaskService()).run,
-        _latestTaskStore = latestTaskStore;
+  }) : _runTask = runTask ?? (service ?? CockpitRunTaskService()).run,
+       _latestTaskStore = latestTaskStore;
 
   final CockpitRunTaskOrchestrationFunction _runTask;
   final CockpitLatestTaskStore? _latestTaskStore;
@@ -25,13 +25,13 @@ final class CockpitRunTaskTool extends CockpitMcpTool {
 
   @override
   CockpitMcpToolAnnotations get annotations => const CockpitMcpToolAnnotations(
-        readOnly: false,
-        destructive: false,
-        idempotent: false,
-        longRunning: true,
-        requiresSession: false,
-        producesBundleEvidence: true,
-      );
+    readOnly: false,
+    destructive: false,
+    idempotent: false,
+    longRunning: true,
+    requiresSession: false,
+    producesBundleEvidence: true,
+  );
 
   @override
   List<CockpitMcpFeatureCategory> get categories =>
@@ -42,19 +42,19 @@ final class CockpitRunTaskTool extends CockpitMcpTool {
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
-        'type': 'object',
-        'required': <String>['script', 'outputRoot'],
-        'properties': <String, Object?>{
-          'launch': <String, Object?>{'type': 'object'},
-          'sessionHandle': <String, Object?>{'type': 'object'},
-          'sessionHandlePath': <String, Object?>{'type': 'string'},
-          'script': <String, Object?>{'type': 'object'},
-          'outputRoot': <String, Object?>{'type': 'string'},
-          'persistScriptPath': <String, Object?>{'type': 'string'},
-          'baseline': <String, Object?>{'type': 'object'},
-          'requirements': <String, Object?>{'type': 'object'},
-        },
-      };
+    'type': 'object',
+    'required': <String>['script', 'outputRoot'],
+    'properties': <String, Object?>{
+      'launch': <String, Object?>{'type': 'object'},
+      'sessionHandle': <String, Object?>{'type': 'object'},
+      'sessionHandlePath': <String, Object?>{'type': 'string'},
+      'script': <String, Object?>{'type': 'object'},
+      'outputRoot': <String, Object?>{'type': 'string'},
+      'persistScriptPath': <String, Object?>{'type': 'string'},
+      'baseline': <String, Object?>{'type': 'object'},
+      'requirements': <String, Object?>{'type': 'object'},
+    },
+  };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {

@@ -13,35 +13,35 @@ final class TaskSyncBadge extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     final (label, foreground, background) = switch (status) {
       TodoTaskSyncStatus.pending => (
-          'Pending sync',
-          colorScheme.tertiary,
-          colorScheme.tertiaryContainer,
-        ),
+        'Pending sync',
+        colorScheme.tertiary,
+        colorScheme.tertiaryContainer,
+      ),
       TodoTaskSyncStatus.failed => (
-          'Sync failed',
-          colorScheme.error,
-          colorScheme.errorContainer,
-        ),
+        'Sync failed',
+        colorScheme.error,
+        colorScheme.errorContainer,
+      ),
       TodoTaskSyncStatus.conflicted => (
-          'Conflict',
-          colorScheme.primary,
-          colorScheme.primaryContainer,
-        ),
+        'Conflict',
+        colorScheme.primary,
+        colorScheme.primaryContainer,
+      ),
       TodoTaskSyncStatus.syncing => (
-          'Syncing',
-          colorScheme.secondary,
-          colorScheme.secondaryContainer,
-        ),
+        'Syncing',
+        colorScheme.secondary,
+        colorScheme.secondaryContainer,
+      ),
       TodoTaskSyncStatus.synced => (
-          'Synced',
-          colorScheme.primary,
-          colorScheme.primaryContainer,
-        ),
+        'Synced',
+        colorScheme.primary,
+        colorScheme.primaryContainer,
+      ),
       TodoTaskSyncStatus.idle => (
-          'Idle',
-          colorScheme.onSurfaceVariant,
-          colorScheme.surfaceContainerHighest,
-        ),
+        'Idle',
+        colorScheme.onSurfaceVariant,
+        colorScheme.surfaceContainerHighest,
+      ),
     };
 
     return DecoratedBox(

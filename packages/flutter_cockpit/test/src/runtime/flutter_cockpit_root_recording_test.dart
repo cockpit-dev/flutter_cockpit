@@ -52,14 +52,14 @@ void main() {
             navigatorObservers: [FlutterCockpit.navigatorObserver],
             routes: <String, WidgetBuilder>{
               '/': (context) => Scaffold(
-                    body: Center(
-                      child: ElevatedButton(
-                        onPressed: () =>
-                            Navigator.of(context).pushNamed('/details'),
-                        child: const Text('Open details'),
-                      ),
-                    ),
+                body: Center(
+                  child: ElevatedButton(
+                    onPressed: () =>
+                        Navigator.of(context).pushNamed('/details'),
+                    child: const Text('Open details'),
                   ),
+                ),
+              ),
               '/details': (_) =>
                   const Scaffold(body: Center(child: Text('Details'))),
             },
@@ -68,8 +68,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final capabilities =
-          await rootKey.currentState!.queryRecordingCapabilities();
+      final capabilities = await rootKey.currentState!
+          .queryRecordingCapabilities();
       expect(capabilities.supportsNativeRecording, isTrue);
 
       final session = await rootKey.currentState!.startRecording(

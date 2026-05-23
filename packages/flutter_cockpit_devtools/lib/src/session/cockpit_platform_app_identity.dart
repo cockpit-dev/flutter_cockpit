@@ -6,11 +6,12 @@ import 'cockpit_linux_remote_session_launcher.dart';
 import 'cockpit_session_path.dart';
 import 'cockpit_windows_remote_session_launcher.dart';
 
-typedef CockpitPlatformAppIdResolver = Future<String?> Function({
-  required String projectDir,
-  required String platform,
-  String? flavor,
-});
+typedef CockpitPlatformAppIdResolver =
+    Future<String?> Function({
+      required String projectDir,
+      required String platform,
+      String? flavor,
+    });
 
 Future<String?> cockpitResolvePlatformAppId({
   required String projectDir,
@@ -23,15 +24,9 @@ Future<String?> cockpitResolvePlatformAppId({
         projectDir: projectDir,
       );
     case 'ios':
-      return _resolveIosPlatformAppId(
-        projectDir: projectDir,
-        flavor: flavor,
-      );
+      return _resolveIosPlatformAppId(projectDir: projectDir, flavor: flavor);
     case 'macos':
-      return _resolveMacosPlatformAppId(
-        projectDir: projectDir,
-        flavor: flavor,
-      );
+      return _resolveMacosPlatformAppId(projectDir: projectDir, flavor: flavor);
     case 'windows':
       return CockpitWindowsRemoteSessionLauncher.resolveAppBaseName(
         projectDir: projectDir,
@@ -62,8 +57,9 @@ Future<String?> _resolveIosPlatformAppId({
     pathContext: pathContext,
     platformLabel: 'iOS device',
   );
-  final bundleId =
-      await cockpitResolveIosBundleId(appBundlePath: appBundlePath);
+  final bundleId = await cockpitResolveIosBundleId(
+    appBundlePath: appBundlePath,
+  );
   final normalized = bundleId.trim();
   return normalized.isEmpty ? null : normalized;
 }
@@ -92,8 +88,9 @@ Future<String?> _resolveMacosPlatformAppId({
     pathContext: pathContext,
     platformLabel: 'macOS',
   );
-  final bundleId =
-      await cockpitResolveMacosBundleId(appBundlePath: appBundlePath);
+  final bundleId = await cockpitResolveMacosBundleId(
+    appBundlePath: appBundlePath,
+  );
   final normalized = bundleId.trim();
   return normalized.isEmpty ? null : normalized;
 }

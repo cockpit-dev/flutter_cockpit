@@ -7,21 +7,24 @@ import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
-typedef CockpitReadNetworkFunction = Future<CockpitReadNetworkResult> Function(
-  CockpitReadNetworkRequest request,
-);
+typedef CockpitReadNetworkFunction =
+    Future<CockpitReadNetworkResult> Function(
+      CockpitReadNetworkRequest request,
+    );
 
 final class ReadNetworkCommand extends CockpitCliCommand {
   ReadNetworkCommand({
     CockpitReadNetworkService? service,
     CockpitReadNetworkFunction? read,
     StringSink? stdoutSink,
-  })  : _read = read ??
-            (service ??
-                    CockpitReadNetworkService(
-                        registry: CockpitSessionRegistry()))
-                .read,
-        _stdoutSink = stdoutSink ?? stdout {
+  }) : _read =
+           read ??
+           (service ??
+                   CockpitReadNetworkService(
+                     registry: CockpitSessionRegistry(),
+                   ))
+               .read,
+       _stdoutSink = stdoutSink ?? stdout {
     cockpitAddAppArgs(argParser);
     argParser
       ..addOption(
@@ -44,10 +47,7 @@ final class ReadNetworkCommand extends CockpitCliCommand {
         'method',
         help: 'Optional HTTP method filter such as GET or POST.',
       )
-      ..addOption(
-        'uri-contains',
-        help: 'Optional URI substring filter.',
-      )
+      ..addOption('uri-contains', help: 'Optional URI substring filter.')
       ..addOption(
         'status-code-at-least',
         help: 'Optional minimum status code filter.',
@@ -101,8 +101,9 @@ final class ReadNetworkCommand extends CockpitCliCommand {
         androidDeviceId: argResults?['android-device-id'] as String?,
         maxEntries:
             cockpitReadOptionalPositiveInt(argResults, 'max-entries', usage) ??
-                8,
-        maxEndpointSummaries: cockpitReadOptionalPositiveInt(
+            8,
+        maxEndpointSummaries:
+            cockpitReadOptionalPositiveInt(
               argResults,
               'max-endpoints',
               usage,

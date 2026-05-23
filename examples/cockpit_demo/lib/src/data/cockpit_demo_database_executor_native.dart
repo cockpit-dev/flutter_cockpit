@@ -3,10 +3,7 @@ import 'package:drift/native.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 
 QueryExecutor cockpitDemoCreateLocalExecutor({required String name}) {
-  return driftDatabase(
-    name: name,
-    web: _cockpitDemoWebOptions(),
-  );
+  return driftDatabase(name: name, web: _cockpitDemoWebOptions());
 }
 
 QueryExecutor cockpitDemoCreateInMemoryExecutor({required String name}) {

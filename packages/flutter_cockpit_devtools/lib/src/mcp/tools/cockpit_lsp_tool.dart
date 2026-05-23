@@ -4,17 +4,16 @@ import '../cockpit_mcp_tool.dart';
 import '../core/cockpit_mcp_roots_tracker.dart';
 import '../core/cockpit_mcp_workspace_tooling_support.dart';
 
-typedef CockpitLspToolFunction = Future<CockpitLspResult> Function(
-  CockpitLspRequest request,
-);
+typedef CockpitLspToolFunction =
+    Future<CockpitLspResult> Function(CockpitLspRequest request);
 
 final class CockpitLspTool extends CockpitMcpTool {
   CockpitLspTool({
     required CockpitMcpRootsTracker rootsTracker,
     CockpitLspService? service,
     CockpitLspToolFunction? invoke,
-  })  : _rootsTracker = rootsTracker,
-        _invoke = invoke ?? (service ?? CockpitLspService()).invoke;
+  }) : _rootsTracker = rootsTracker,
+       _invoke = invoke ?? (service ?? CockpitLspService()).invoke;
 
   final CockpitMcpRootsTracker _rootsTracker;
   final CockpitLspToolFunction _invoke;
@@ -28,13 +27,13 @@ final class CockpitLspTool extends CockpitMcpTool {
 
   @override
   CockpitMcpToolAnnotations get annotations => const CockpitMcpToolAnnotations(
-        readOnly: true,
-        destructive: false,
-        idempotent: true,
-        longRunning: false,
-        requiresSession: false,
-        producesBundleEvidence: false,
-      );
+    readOnly: true,
+    destructive: false,
+    idempotent: true,
+    longRunning: false,
+    requiresSession: false,
+    producesBundleEvidence: false,
+  );
 
   @override
   List<CockpitMcpFeatureCategory> get categories =>
@@ -45,29 +44,29 @@ final class CockpitLspTool extends CockpitMcpTool {
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
-        'type': 'object',
-        'required': <String>['command'],
-        'properties': <String, Object?>{
-          'workspaceRoot': <String, Object?>{'type': 'string'},
-          'command': <String, Object?>{
-            'type': 'string',
-            'enum': <String>[
-              'hover',
-              'definition',
-              'signature_help',
-              'document_symbols',
-              'workspace_symbols',
-            ],
-          },
-          'path': <String, Object?>{'type': 'string'},
-          'line': <String, Object?>{'type': 'integer'},
-          'column': <String, Object?>{'type': 'integer'},
-          'query': <String, Object?>{'type': 'string'},
-          'maxResults': <String, Object?>{'type': 'integer'},
-          'maxChars': <String, Object?>{'type': 'integer'},
-          'timeoutSeconds': <String, Object?>{'type': 'integer'},
-        },
-      };
+    'type': 'object',
+    'required': <String>['command'],
+    'properties': <String, Object?>{
+      'workspaceRoot': <String, Object?>{'type': 'string'},
+      'command': <String, Object?>{
+        'type': 'string',
+        'enum': <String>[
+          'hover',
+          'definition',
+          'signature_help',
+          'document_symbols',
+          'workspace_symbols',
+        ],
+      },
+      'path': <String, Object?>{'type': 'string'},
+      'line': <String, Object?>{'type': 'integer'},
+      'column': <String, Object?>{'type': 'integer'},
+      'query': <String, Object?>{'type': 'string'},
+      'maxResults': <String, Object?>{'type': 'integer'},
+      'maxChars': <String, Object?>{'type': 'integer'},
+      'timeoutSeconds': <String, Object?>{'type': 'integer'},
+    },
+  };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {
@@ -92,10 +91,8 @@ final class CockpitLspTool extends CockpitMcpTool {
           maxChars:
               cockpitReadOptionalPositiveInt(arguments, 'maxChars') ?? 1600,
           timeout: Duration(
-            seconds: cockpitReadOptionalPositiveInt(
-                  arguments,
-                  'timeoutSeconds',
-                ) ??
+            seconds:
+                cockpitReadOptionalPositiveInt(arguments, 'timeoutSeconds') ??
                 20,
           ),
         ),
@@ -117,9 +114,9 @@ final class CockpitLspTool extends CockpitMcpTool {
       'document_symbols' => CockpitLspCommand.documentSymbols,
       'workspace_symbols' => CockpitLspCommand.workspaceSymbols,
       _ => throw CockpitMcpError.invalidArguments(
-          'command must be one of hover, definition, signature_help, document_symbols, or workspace_symbols.',
-          details: const <String, Object?>{'argument': 'command'},
-        ),
+        'command must be one of hover, definition, signature_help, document_symbols, or workspace_symbols.',
+        details: const <String, Object?>{'argument': 'command'},
+      ),
     };
   }
 }

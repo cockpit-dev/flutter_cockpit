@@ -112,12 +112,12 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
     final snapshot = options.profile == CockpitSnapshotProfile.live
         ? _registry.snapshot()
         : _diagnosticBuilder
-            .build(
-              routeName: _registry.routeName,
-              visibleTargets: _registry.visibleTargets,
-              options: options,
-            )
-            .snapshot;
+              .build(
+                routeName: _registry.routeName,
+                visibleTargets: _registry.visibleTargets,
+                options: options,
+              )
+              .snapshot;
     if (!options.includeRebuildActivity || widget.rebuildTracker == null) {
       return snapshot;
     }
@@ -137,7 +137,8 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
       request: request,
       snapshot: request.includeSnapshot
           ? snapshot(
-              options: request.snapshotOptions ??
+              options:
+                  request.snapshotOptions ??
                   const CockpitSnapshotOptions.live(),
             )
           : null,
@@ -173,8 +174,9 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
     }
 
     final binding = WidgetsBinding.instance;
-    final effectiveDuration =
-        _isTestBinding(binding) ? Duration.zero : duration;
+    final effectiveDuration = _isTestBinding(binding)
+        ? Duration.zero
+        : duration;
     final revealRequest = _resolveRevealRequest(
       match,
       alignment: alignment,
@@ -247,17 +249,18 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
       return const CockpitScrollStepResult(didScroll: false);
     }
 
-    final scrollables =
-        _discoverScrollables(rootContext as Element).where((candidate) {
-      final position = candidate.state.position;
-      if (!position.haveDimensions || position.maxScrollExtent <= 0) {
-        return false;
-      }
-      if (scrollableKey == null || scrollableKey.isEmpty) {
-        return true;
-      }
-      return candidate.keyValue == scrollableKey;
-    }).toList(growable: false);
+    final scrollables = _discoverScrollables(rootContext as Element)
+        .where((candidate) {
+          final position = candidate.state.position;
+          if (!position.haveDimensions || position.maxScrollExtent <= 0) {
+            return false;
+          }
+          if (scrollableKey == null || scrollableKey.isEmpty) {
+            return true;
+          }
+          return candidate.keyValue == scrollableKey;
+        })
+        .toList(growable: false);
     if (scrollables.isEmpty) {
       return const CockpitScrollStepResult(didScroll: false);
     }
@@ -636,28 +639,31 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
   CockpitTarget? _registryTargetForScrollableCandidate(
     _CockpitScrollableCandidate candidate,
   ) {
-    final matches = _registry.visibleTargets.where((target) {
-      if (!_matchesTypeSignal(target.typeName, candidate.typeName)) {
-        return false;
-      }
-      if (candidate.keyValue != null &&
-          candidate.keyValue!.isNotEmpty &&
-          target.keyValue != candidate.keyValue) {
-        return false;
-      }
-      if (!_matchesPath(target.path, candidate.path)) {
-        return false;
-      }
-      return true;
-    }).toList(growable: false);
+    final matches = _registry.visibleTargets
+        .where((target) {
+          if (!_matchesTypeSignal(target.typeName, candidate.typeName)) {
+            return false;
+          }
+          if (candidate.keyValue != null &&
+              candidate.keyValue!.isNotEmpty &&
+              target.keyValue != candidate.keyValue) {
+            return false;
+          }
+          if (!_matchesPath(target.path, candidate.path)) {
+            return false;
+          }
+          return true;
+        })
+        .toList(growable: false);
     if (matches.isEmpty) {
       return null;
     }
     matches.sort((left, right) {
       final leftGeometry = left.geometryProvider?.call();
       final rightGeometry = right.geometryProvider?.call();
-      final geometryCompare = (rightGeometry != null ? 1 : 0)
-          .compareTo(leftGeometry != null ? 1 : 0);
+      final geometryCompare = (rightGeometry != null ? 1 : 0).compareTo(
+        leftGeometry != null ? 1 : 0,
+      );
       if (geometryCompare != 0) {
         return geometryCompare;
       }
@@ -714,8 +720,10 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
     var score = locator.signalMap.length * 10;
     final pathSignal = locator.path;
     if (pathSignal != null) {
-      score +=
-          _pathMatchPriorityScore(_locatorPathForElement(element), pathSignal);
+      score += _pathMatchPriorityScore(
+        _locatorPathForElement(element),
+        pathSignal,
+      );
     }
     final keyValue = _stableKeyValue(element.widget.key);
     if (locator.key != null && keyValue != null) {
@@ -759,19 +767,29 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
       CockpitLocatorKind.cockpitId =>
         _stableKeyValue(element.widget.key) == value ||
             _matchesTextSignal(_elementSemanticSignal(element), value),
-      CockpitLocatorKind.semanticId =>
-        _matchesTextSignal(_elementSemanticSignal(element), value),
+      CockpitLocatorKind.semanticId => _matchesTextSignal(
+        _elementSemanticSignal(element),
+        value,
+      ),
       CockpitLocatorKind.key => _stableKeyValue(element.widget.key) == value,
-      CockpitLocatorKind.text =>
-        _matchesTextSignal(_elementTextSignal(element), value),
-      CockpitLocatorKind.tooltip =>
-        _matchesTextSignal(_elementTooltipSignal(element), value),
-      CockpitLocatorKind.type =>
-        _matchesTypeSignal(element.widget.runtimeType.toString(), value),
+      CockpitLocatorKind.text => _matchesTextSignal(
+        _elementTextSignal(element),
+        value,
+      ),
+      CockpitLocatorKind.tooltip => _matchesTextSignal(
+        _elementTooltipSignal(element),
+        value,
+      ),
+      CockpitLocatorKind.type => _matchesTypeSignal(
+        element.widget.runtimeType.toString(),
+        value,
+      ),
       CockpitLocatorKind.route => widget.routeName == value,
       CockpitLocatorKind.registrationId => false,
-      CockpitLocatorKind.path =>
-        _matchesPath(_locatorPathForElement(element), value),
+      CockpitLocatorKind.path => _matchesPath(
+        _locatorPathForElement(element),
+        value,
+      ),
     };
   }
 
@@ -803,12 +821,12 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
     final matchingScrollableCandidates = scrollableLocator == null
         ? candidates
         : candidates
-            .where(
-              (candidate) =>
-                  _scrollableLocatorMatchScore(candidate, scrollableLocator) >
-                  0,
-            )
-            .toList(growable: false);
+              .where(
+                (candidate) =>
+                    _scrollableLocatorMatchScore(candidate, scrollableLocator) >
+                    0,
+              )
+              .toList(growable: false);
     if (matchingScrollableCandidates.isEmpty) {
       return null;
     }
@@ -1036,8 +1054,9 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
     if (ownType != 'Scrollable') {
       return ownType;
     }
-    final pathHint =
-        _scrollableTypeNameFromPath(_locatorPathForElement(element));
+    final pathHint = _scrollableTypeNameFromPath(
+      _locatorPathForElement(element),
+    );
     return pathHint ?? ownType;
   }
 
@@ -1069,8 +1088,9 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
       if (_shouldSkipPathElement(candidate)) {
         continue;
       }
-      final segment =
-          _locatorPathSegment(candidate.widget.runtimeType.toString());
+      final segment = _locatorPathSegment(
+        candidate.widget.runtimeType.toString(),
+      );
       if (segment == null) {
         continue;
       }
@@ -1177,7 +1197,8 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
   String _slugify(String value) {
     final buffer = StringBuffer();
     for (final codeUnit in value.toLowerCase().codeUnits) {
-      final isAlphaNumeric = (codeUnit >= 48 && codeUnit <= 57) ||
+      final isAlphaNumeric =
+          (codeUnit >= 48 && codeUnit <= 57) ||
           (codeUnit >= 97 && codeUnit <= 122);
       if (isAlphaNumeric) {
         buffer.writeCharCode(codeUnit);
@@ -1287,18 +1308,22 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
     for (final signal in locator.signals) {
       final matched = switch (signal.kind) {
         CockpitLocatorKind.key => candidate.keyValue == signal.value,
-        CockpitLocatorKind.type =>
-          _matchesTypeSignal(candidate.typeName, signal.value),
+        CockpitLocatorKind.type => _matchesTypeSignal(
+          candidate.typeName,
+          signal.value,
+        ),
         CockpitLocatorKind.path => _matchesPath(candidate.path, signal.value),
         CockpitLocatorKind.route => widget.routeName == signal.value,
-        CockpitLocatorKind.text =>
-          _matchesTextSignal(candidate.textPreview, signal.value),
-        CockpitLocatorKind.cockpitId => candidate.keyValue == signal.value ||
-            _matchesTextSignal(candidate.textPreview, signal.value),
+        CockpitLocatorKind.text => _matchesTextSignal(
+          candidate.textPreview,
+          signal.value,
+        ),
+        CockpitLocatorKind.cockpitId =>
+          candidate.keyValue == signal.value ||
+              _matchesTextSignal(candidate.textPreview, signal.value),
         CockpitLocatorKind.semanticId ||
         CockpitLocatorKind.tooltip ||
-        CockpitLocatorKind.registrationId =>
-          false,
+        CockpitLocatorKind.registrationId => false,
       };
       if (!matched) {
         return false;
@@ -1335,7 +1360,9 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
       if (targetAncestor != null &&
           (_scrollableMatchesLocator(candidate, targetAncestor) ||
               _matchesAncestorChain(
-                  candidate.locatorAncestors, targetAncestor))) {
+                candidate.locatorAncestors,
+                targetAncestor,
+              ))) {
         score += 60;
       }
     }
@@ -1356,7 +1383,8 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
 
     var score = 0;
     var matchedSignals = 0;
-    final pathOnly = locator.signalMap.length == 1 &&
+    final pathOnly =
+        locator.signalMap.length == 1 &&
         locator.path != null &&
         locator.ancestor == null;
 
@@ -1375,8 +1403,10 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
           score += 64;
           matchedSignals += 1;
         case CockpitLocatorKind.path:
-          final pathScore =
-              _pathMatchPriorityScore(candidate.path, signal.value);
+          final pathScore = _pathMatchPriorityScore(
+            candidate.path,
+            signal.value,
+          );
           if (pathScore <= 0 && pathOnly) {
             return 0;
           }
@@ -1397,7 +1427,8 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
           score += 24;
           matchedSignals += 1;
         case CockpitLocatorKind.cockpitId:
-          final matched = candidate.keyValue == signal.value ||
+          final matched =
+              candidate.keyValue == signal.value ||
               _matchesTextSignal(candidate.textPreview, signal.value);
           if (!matched) {
             return 0;
@@ -1405,8 +1436,8 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
           score += 24;
           matchedSignals += 1;
         case CockpitLocatorKind.semanticId ||
-              CockpitLocatorKind.tooltip ||
-              CockpitLocatorKind.registrationId:
+            CockpitLocatorKind.tooltip ||
+            CockpitLocatorKind.registrationId:
           return 0;
       }
     }
@@ -1448,17 +1479,23 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
     for (final signal in locator.signals) {
       final matched = switch (signal.kind) {
         CockpitLocatorKind.cockpitId => ancestor.cockpitId == signal.value,
-        CockpitLocatorKind.semanticId => ancestor.semanticId == signal.value ||
-            ancestor.cockpitId == signal.value,
-        CockpitLocatorKind.key => ancestor.keyValue == signal.value ||
-            ancestor.cockpitId == signal.value,
+        CockpitLocatorKind.semanticId =>
+          ancestor.semanticId == signal.value ||
+              ancestor.cockpitId == signal.value,
+        CockpitLocatorKind.key =>
+          ancestor.keyValue == signal.value ||
+              ancestor.cockpitId == signal.value,
         CockpitLocatorKind.text =>
           _matchesTextSignal(ancestor.textPreview, signal.value) ||
               _matchesTextSignal(ancestor.tooltip, signal.value),
-        CockpitLocatorKind.tooltip =>
-          _matchesTextSignal(ancestor.tooltip, signal.value),
-        CockpitLocatorKind.type =>
-          _matchesTypeSignal(ancestor.typeName, signal.value),
+        CockpitLocatorKind.tooltip => _matchesTextSignal(
+          ancestor.tooltip,
+          signal.value,
+        ),
+        CockpitLocatorKind.type => _matchesTypeSignal(
+          ancestor.typeName,
+          signal.value,
+        ),
         CockpitLocatorKind.route => ancestor.routeName == signal.value,
         CockpitLocatorKind.path => _matchesPath(ancestor.path, signal.value),
         CockpitLocatorKind.registrationId => false,
@@ -1531,9 +1568,11 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
         targetSegments.length < candidateSegments.length) {
       return false;
     }
-    for (var candidateIndex = 0;
-        candidateIndex < candidateSegments.length;
-        candidateIndex += 1) {
+    for (
+      var candidateIndex = 0;
+      candidateIndex < candidateSegments.length;
+      candidateIndex += 1
+    ) {
       if (candidateSegments[candidateIndex] != targetSegments[candidateIndex]) {
         return false;
       }
@@ -1717,8 +1756,9 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
   }) async {
     final scrollableState = Scrollable.maybeOf(targetElement);
     final targetRenderObject = targetElement.findRenderObject();
-    final viewportRenderObject =
-        _resolveViewportRenderObject(targetRenderObject);
+    final viewportRenderObject = _resolveViewportRenderObject(
+      targetRenderObject,
+    );
     if (scrollableState == null ||
         targetRenderObject is! RenderBox ||
         !targetRenderObject.hasSize ||
@@ -1755,11 +1795,12 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
       CockpitRevealAlignment.center => availableExtent / 2,
       CockpitRevealAlignment.end =>
         viewportExtent - targetExtent - clampedPadding,
-      CockpitRevealAlignment.nearest => leadingEdge < clampedPadding
-          ? clampedPadding
-          : trailingEdge > viewportExtent - clampedPadding
-              ? viewportExtent - targetExtent - clampedPadding
-              : leadingEdge,
+      CockpitRevealAlignment.nearest =>
+        leadingEdge < clampedPadding
+            ? clampedPadding
+            : trailingEdge > viewportExtent - clampedPadding
+            ? viewportExtent - targetExtent - clampedPadding
+            : leadingEdge,
     };
     final viewportDelta = leadingEdge - desiredLeadingEdge;
     if (viewportDelta.abs() < 0.5) {
@@ -1772,9 +1813,9 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
     };
     final nextPixels =
         (scrollableState.position.pixels + (viewportDelta * scrollSign)).clamp(
-      scrollableState.position.minScrollExtent,
-      scrollableState.position.maxScrollExtent,
-    );
+          scrollableState.position.minScrollExtent,
+          scrollableState.position.maxScrollExtent,
+        );
     if ((nextPixels - scrollableState.position.pixels).abs() < 0.5) {
       return;
     }
@@ -1798,29 +1839,30 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
   }) {
     final scrollableState = Scrollable.maybeOf(targetElement);
     final targetRenderObject = targetElement.findRenderObject();
-    final viewportRenderObject =
-        _resolveViewportRenderObject(targetRenderObject);
+    final viewportRenderObject = _resolveViewportRenderObject(
+      targetRenderObject,
+    );
     if (targetRenderObject is! RenderBox ||
         !targetRenderObject.hasSize ||
         viewportRenderObject is! RenderBox ||
         !viewportRenderObject.hasSize) {
       return switch (alignment) {
         CockpitRevealAlignment.nearest => const _CockpitRevealRequest(
-            alignment: 1,
-            alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
-          ),
+          alignment: 1,
+          alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+        ),
         CockpitRevealAlignment.start => const _CockpitRevealRequest(
-            alignment: 0,
-            alignmentPolicy: ScrollPositionAlignmentPolicy.explicit,
-          ),
+          alignment: 0,
+          alignmentPolicy: ScrollPositionAlignmentPolicy.explicit,
+        ),
         CockpitRevealAlignment.center => const _CockpitRevealRequest(
-            alignment: 0.5,
-            alignmentPolicy: ScrollPositionAlignmentPolicy.explicit,
-          ),
+          alignment: 0.5,
+          alignmentPolicy: ScrollPositionAlignmentPolicy.explicit,
+        ),
         CockpitRevealAlignment.end => const _CockpitRevealRequest(
-            alignment: 1,
-            alignmentPolicy: ScrollPositionAlignmentPolicy.explicit,
-          ),
+          alignment: 1,
+          alignmentPolicy: ScrollPositionAlignmentPolicy.explicit,
+        ),
       };
     }
 
@@ -1847,37 +1889,38 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
       Offset.zero,
       ancestor: viewportRenderObject,
     );
-    final leadingEdge =
-        axis == Axis.vertical ? targetOrigin.dy : targetOrigin.dx;
+    final leadingEdge = axis == Axis.vertical
+        ? targetOrigin.dy
+        : targetOrigin.dx;
     final trailingEdge = leadingEdge + targetExtent;
     final paddedLeadingEdge = clampedPadding;
     final paddedTrailingEdge = viewportExtent - clampedPadding;
 
     return switch (alignment) {
       CockpitRevealAlignment.start => _CockpitRevealRequest(
-          alignment: clampedPadding / availableExtent,
-          alignmentPolicy: ScrollPositionAlignmentPolicy.explicit,
-        ),
+        alignment: clampedPadding / availableExtent,
+        alignmentPolicy: ScrollPositionAlignmentPolicy.explicit,
+      ),
       CockpitRevealAlignment.center => const _CockpitRevealRequest(
-          alignment: 0.5,
-          alignmentPolicy: ScrollPositionAlignmentPolicy.explicit,
-        ),
+        alignment: 0.5,
+        alignmentPolicy: ScrollPositionAlignmentPolicy.explicit,
+      ),
       CockpitRevealAlignment.end => _CockpitRevealRequest(
-          alignment: 1 - (clampedPadding / availableExtent),
-          alignmentPolicy: ScrollPositionAlignmentPolicy.explicit,
-        ),
+        alignment: 1 - (clampedPadding / availableExtent),
+        alignmentPolicy: ScrollPositionAlignmentPolicy.explicit,
+      ),
       CockpitRevealAlignment.nearest =>
         (leadingEdge >= paddedLeadingEdge && trailingEdge <= paddedTrailingEdge)
             ? null
             : trailingEdge > paddedTrailingEdge
-                ? _CockpitRevealRequest(
-                    alignment: 1 - (clampedPadding / availableExtent),
-                    alignmentPolicy: ScrollPositionAlignmentPolicy.explicit,
-                  )
-                : _CockpitRevealRequest(
-                    alignment: clampedPadding / availableExtent,
-                    alignmentPolicy: ScrollPositionAlignmentPolicy.explicit,
-                  ),
+            ? _CockpitRevealRequest(
+                alignment: 1 - (clampedPadding / availableExtent),
+                alignmentPolicy: ScrollPositionAlignmentPolicy.explicit,
+              )
+            : _CockpitRevealRequest(
+                alignment: clampedPadding / availableExtent,
+                alignmentPolicy: ScrollPositionAlignmentPolicy.explicit,
+              ),
     };
   }
 
@@ -1943,8 +1986,9 @@ final class _CockpitScrollableCandidate {
       cockpitResolveSemanticsTargetInfo(semanticsElement)?.hint;
 
   VoidCallback? semanticScrollActionHandler(SemanticsAction action) {
-    return cockpitResolveSemanticsTargetInfo(semanticsElement)
-            ?.actionHandler(action) ??
+    return cockpitResolveSemanticsTargetInfo(
+          semanticsElement,
+        )?.actionHandler(action) ??
         cockpitResolveSemanticsTargetInfo(element)?.actionHandler(action);
   }
 }

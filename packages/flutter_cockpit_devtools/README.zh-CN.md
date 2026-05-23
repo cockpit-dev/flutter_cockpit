@@ -20,6 +20,9 @@
 
 ## 安装
 
+需要 Dart 3.8.0 或更高版本。如果在 Flutter workspace 中运行，使用 Flutter 3.32.0+
+对应的 SDK。
+
 ```yaml
 dev_dependencies:
   flutter_cockpit_devtools: ^1.0.0

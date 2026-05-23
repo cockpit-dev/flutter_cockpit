@@ -7,19 +7,20 @@ import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
-typedef CockpitLaunchDevelopmentSessionFunction
-    = Future<CockpitLaunchDevelopmentSessionResult> Function(
-  CockpitLaunchDevelopmentSessionRequest request,
-);
+typedef CockpitLaunchDevelopmentSessionFunction =
+    Future<CockpitLaunchDevelopmentSessionResult> Function(
+      CockpitLaunchDevelopmentSessionRequest request,
+    );
 
 final class LaunchDevelopmentSessionCommand extends CockpitCliCommand {
   LaunchDevelopmentSessionCommand({
     CockpitLaunchDevelopmentSessionService? service,
     CockpitLaunchDevelopmentSessionFunction? launch,
     StringSink? stdoutSink,
-  })  : _launch = launch ??
-            (service ?? CockpitLaunchDevelopmentSessionService()).launch,
-        _stdoutSink = stdoutSink ?? stdout {
+  }) : _launch =
+           launch ??
+           (service ?? CockpitLaunchDevelopmentSessionService()).launch,
+       _stdoutSink = stdoutSink ?? stdout {
     argParser
       ..addOption('project-dir', help: 'Flutter project directory to launch.')
       ..addOption(
@@ -29,13 +30,7 @@ final class LaunchDevelopmentSessionCommand extends CockpitCliCommand {
       )
       ..addOption(
         'platform',
-        allowed: const <String>[
-          'android',
-          'ios',
-          'macos',
-          'windows',
-          'linux',
-        ],
+        allowed: const <String>['android', 'ios', 'macos', 'windows', 'linux'],
         help: 'Target platform for the development session.',
       )
       ..addOption(
@@ -121,14 +116,16 @@ final class LaunchDevelopmentSessionCommand extends CockpitCliCommand {
           usage,
         ),
         launchTimeout: Duration(
-          seconds: cockpitReadOptionalPositiveInt(
+          seconds:
+              cockpitReadOptionalPositiveInt(
                 argResults,
                 'launch-timeout-seconds',
                 usage,
               ) ??
               120,
         ),
-        persistHandlePath: _readOptionalOption('session-json') ??
+        persistHandlePath:
+            _readOptionalOption('session-json') ??
             cockpitDefaultDevelopmentSessionHandlePath(),
       ),
     );
@@ -159,13 +156,13 @@ final class LaunchDevelopmentSessionCommand extends CockpitCliCommand {
       'windows' => 'windows',
       'linux' => 'linux',
       'android' => throw UsageException(
-          '--android-device-id is required when --platform=android.',
-          usage,
-        ),
+        '--android-device-id is required when --platform=android.',
+        usage,
+      ),
       'ios' => throw UsageException(
-          '--ios-device-id is required when --platform=ios.',
-          usage,
-        ),
+        '--ios-device-id is required when --platform=ios.',
+        usage,
+      ),
       _ => throw UsageException('Unsupported platform: $platform', usage),
     };
   }

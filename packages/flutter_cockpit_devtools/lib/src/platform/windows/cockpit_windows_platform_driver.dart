@@ -22,21 +22,23 @@ final class CockpitWindowsPlatformDriver
     bool enableDefaultCaptureAdapter = true,
     CockpitWindowsRecordingAdapter? recordingAdapter,
     bool enableDefaultRecordingAdapter = true,
-  })  : _launcher = launcher ?? CockpitWindowsRemoteSessionLauncher(),
-        _captureAdapter = captureAdapter ??
-            ((!enableDefaultCaptureAdapter || appId == null || appId.isEmpty)
-                ? null
-                : CockpitWindowsCaptureAdapter(
-                    appId: appId,
-                    processId: processId,
-                  )),
-        _recordingAdapter = recordingAdapter ??
-            ((!enableDefaultRecordingAdapter || appId == null || appId.isEmpty)
-                ? null
-                : CockpitWindowsRecordingAdapter(
-                    appId: appId,
-                    processId: processId,
-                  ));
+  }) : _launcher = launcher ?? CockpitWindowsRemoteSessionLauncher(),
+       _captureAdapter =
+           captureAdapter ??
+           ((!enableDefaultCaptureAdapter || appId == null || appId.isEmpty)
+               ? null
+               : CockpitWindowsCaptureAdapter(
+                   appId: appId,
+                   processId: processId,
+                 )),
+       _recordingAdapter =
+           recordingAdapter ??
+           ((!enableDefaultRecordingAdapter || appId == null || appId.isEmpty)
+               ? null
+               : CockpitWindowsRecordingAdapter(
+                   appId: appId,
+                   processId: processId,
+                 ));
 
   final CockpitWindowsRemoteSessionLauncher _launcher;
   final CockpitWindowsCaptureAdapter? _captureAdapter;

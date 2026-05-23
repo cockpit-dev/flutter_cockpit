@@ -4,16 +4,18 @@ import '../cockpit_mcp_tool.dart';
 import '../core/cockpit_mcp_roots_tracker.dart';
 import '../core/cockpit_mcp_workspace_tooling_support.dart';
 
-typedef CockpitCreateProjectToolFunction = Future<CockpitCreateProjectResult>
-    Function(CockpitCreateProjectRequest request);
+typedef CockpitCreateProjectToolFunction =
+    Future<CockpitCreateProjectResult> Function(
+      CockpitCreateProjectRequest request,
+    );
 
 final class CockpitCreateProjectTool extends CockpitMcpTool {
   CockpitCreateProjectTool({
     required CockpitMcpRootsTracker rootsTracker,
     CockpitCreateProjectService? service,
     CockpitCreateProjectToolFunction? create,
-  })  : _rootsTracker = rootsTracker,
-        _create = create ?? (service ?? CockpitCreateProjectService()).create;
+  }) : _rootsTracker = rootsTracker,
+       _create = create ?? (service ?? CockpitCreateProjectService()).create;
 
   final CockpitMcpRootsTracker _rootsTracker;
   final CockpitCreateProjectToolFunction _create;
@@ -27,13 +29,13 @@ final class CockpitCreateProjectTool extends CockpitMcpTool {
 
   @override
   CockpitMcpToolAnnotations get annotations => const CockpitMcpToolAnnotations(
-        readOnly: false,
-        destructive: false,
-        idempotent: false,
-        longRunning: true,
-        requiresSession: false,
-        producesBundleEvidence: false,
-      );
+    readOnly: false,
+    destructive: false,
+    idempotent: false,
+    longRunning: true,
+    requiresSession: false,
+    producesBundleEvidence: false,
+  );
 
   @override
   List<CockpitMcpFeatureCategory> get categories =>
@@ -44,23 +46,23 @@ final class CockpitCreateProjectTool extends CockpitMcpTool {
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
-        'type': 'object',
-        'required': <String>['projectName', 'template'],
-        'properties': <String, Object?>{
-          'parentDirectory': <String, Object?>{'type': 'string'},
-          'projectName': <String, Object?>{'type': 'string'},
-          'template': <String, Object?>{
-            'type': 'string',
-            'enum': <String>['dart_cli', 'flutter_app'],
-          },
-          'organization': <String, Object?>{'type': 'string'},
-          'platforms': <String, Object?>{
-            'type': 'array',
-            'items': <String, Object?>{'type': 'string'},
-          },
-          'timeoutSeconds': <String, Object?>{'type': 'integer'},
-        },
-      };
+    'type': 'object',
+    'required': <String>['projectName', 'template'],
+    'properties': <String, Object?>{
+      'parentDirectory': <String, Object?>{'type': 'string'},
+      'projectName': <String, Object?>{'type': 'string'},
+      'template': <String, Object?>{
+        'type': 'string',
+        'enum': <String>['dart_cli', 'flutter_app'],
+      },
+      'organization': <String, Object?>{'type': 'string'},
+      'platforms': <String, Object?>{
+        'type': 'array',
+        'items': <String, Object?>{'type': 'string'},
+      },
+      'timeoutSeconds': <String, Object?>{'type': 'integer'},
+    },
+  };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {
@@ -81,10 +83,8 @@ final class CockpitCreateProjectTool extends CockpitMcpTool {
           platforms: cockpitReadOptionalStringList(arguments, 'platforms'),
           allowedRoots: cockpitAllowedWorkspaceRootPaths(_rootsTracker),
           timeout: Duration(
-            seconds: cockpitReadOptionalPositiveInt(
-                  arguments,
-                  'timeoutSeconds',
-                ) ??
+            seconds:
+                cockpitReadOptionalPositiveInt(arguments, 'timeoutSeconds') ??
                 300,
           ),
         ),
@@ -103,9 +103,9 @@ final class CockpitCreateProjectTool extends CockpitMcpTool {
       'dart_cli' => CockpitProjectTemplate.dartCli,
       'flutter_app' => CockpitProjectTemplate.flutterApp,
       _ => throw CockpitMcpError.invalidArguments(
-          'template must be dart_cli or flutter_app.',
-          details: const <String, Object?>{'argument': 'template'},
-        ),
+        'template must be dart_cli or flutter_app.',
+        details: const <String, Object?>{'argument': 'template'},
+      ),
     };
   }
 }

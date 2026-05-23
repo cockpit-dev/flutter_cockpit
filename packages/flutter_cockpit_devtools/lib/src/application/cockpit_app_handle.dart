@@ -14,11 +14,8 @@ enum CockpitAppMode {
   static CockpitAppMode fromJson(Object? value) {
     return values.firstWhere(
       (candidate) => candidate.jsonValue == value,
-      orElse: () => throw ArgumentError.value(
-        value,
-        'value',
-        'Unsupported app mode.',
-      ),
+      orElse: () =>
+          throw ArgumentError.value(value, 'value', 'Unsupported app mode.'),
     );
   }
 }
@@ -59,33 +56,34 @@ final class CockpitAppHandle {
   bool get supportsHotReload => mode == CockpitAppMode.development;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'appId': appId,
-        'mode': mode.jsonValue,
-        'platform': platform,
-        'deviceId': deviceId,
-        'projectDir': projectDir,
-        'target': target,
-        'baseUrl': baseUrl,
-        'launchedAt': launchedAt.toUtc().toIso8601String(),
-        if (platformAppId != null) 'platformAppId': platformAppId,
-        if (processId != null) 'processId': processId,
-        'supportsHotReload': supportsHotReload,
-        if (supervisorLogPath != null) 'supervisorLogPath': supervisorLogPath,
-        if (developmentSession != null)
-          'developmentSessionId': developmentSession!.developmentSessionId,
-        if (developmentSession != null)
-          'supervisorBaseUrl': developmentSession!.supervisorBaseUri.toString(),
-        if (developmentSession != null)
-          'reloadGeneration': developmentSession!.reloadGeneration,
-        if (developmentSession?.vmServiceUri != null)
-          'vmServiceUri': developmentSession!.vmServiceUri!.toString(),
-        if (developmentSession?.lastReloadAt != null)
-          'lastReloadAt':
-              developmentSession!.lastReloadAt!.toUtc().toIso8601String(),
-        if (developmentSession != null)
-          'developmentSession': developmentSession!.toJson(),
-        if (remoteSession != null) 'remoteSession': remoteSession!.toJson(),
-      };
+    'appId': appId,
+    'mode': mode.jsonValue,
+    'platform': platform,
+    'deviceId': deviceId,
+    'projectDir': projectDir,
+    'target': target,
+    'baseUrl': baseUrl,
+    'launchedAt': launchedAt.toUtc().toIso8601String(),
+    if (platformAppId != null) 'platformAppId': platformAppId,
+    if (processId != null) 'processId': processId,
+    'supportsHotReload': supportsHotReload,
+    if (supervisorLogPath != null) 'supervisorLogPath': supervisorLogPath,
+    if (developmentSession != null)
+      'developmentSessionId': developmentSession!.developmentSessionId,
+    if (developmentSession != null)
+      'supervisorBaseUrl': developmentSession!.supervisorBaseUri.toString(),
+    if (developmentSession != null)
+      'reloadGeneration': developmentSession!.reloadGeneration,
+    if (developmentSession?.vmServiceUri != null)
+      'vmServiceUri': developmentSession!.vmServiceUri!.toString(),
+    if (developmentSession?.lastReloadAt != null)
+      'lastReloadAt': developmentSession!.lastReloadAt!
+          .toUtc()
+          .toIso8601String(),
+    if (developmentSession != null)
+      'developmentSession': developmentSession!.toJson(),
+    if (remoteSession != null) 'remoteSession': remoteSession!.toJson(),
+  };
 
   factory CockpitAppHandle.fromJson(Map<String, Object?> json) {
     final developmentSessionJson =
@@ -118,8 +116,9 @@ final class CockpitAppHandle {
   }
 
   factory CockpitAppHandle.fromDevelopmentSession(
-      CockpitDevelopmentSessionHandle handle,
-      {String? supervisorLogPath}) {
+    CockpitDevelopmentSessionHandle handle, {
+    String? supervisorLogPath,
+  }) {
     return CockpitAppHandle(
       appId: handle.appId,
       mode: CockpitAppMode.development,
@@ -138,7 +137,8 @@ final class CockpitAppHandle {
   }
 
   factory CockpitAppHandle.fromRemoteSession(
-      CockpitRemoteSessionHandle handle) {
+    CockpitRemoteSessionHandle handle,
+  ) {
     return CockpitAppHandle(
       appId: handle.appId,
       mode: CockpitAppMode.automation,
@@ -186,12 +186,12 @@ final class CockpitAppHandle {
           : processId as int?,
       supervisorLogPath:
           identical(supervisorLogPath, _cockpitUnsetAppHandleField)
-              ? this.supervisorLogPath
-              : supervisorLogPath as String?,
+          ? this.supervisorLogPath
+          : supervisorLogPath as String?,
       developmentSession:
           identical(developmentSession, _cockpitUnsetAppHandleField)
-              ? this.developmentSession
-              : developmentSession as CockpitDevelopmentSessionHandle?,
+          ? this.developmentSession
+          : developmentSession as CockpitDevelopmentSessionHandle?,
       remoteSession: identical(remoteSession, _cockpitUnsetAppHandleField)
           ? this.remoteSession
           : remoteSession as CockpitRemoteSessionHandle?,

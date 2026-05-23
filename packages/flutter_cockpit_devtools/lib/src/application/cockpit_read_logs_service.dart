@@ -5,11 +5,11 @@ import '../remote/cockpit_remote_session_client.dart';
 import 'cockpit_app_reference_resolver.dart';
 import 'cockpit_session_registry.dart';
 
-typedef CockpitLogsSnapshotReader = Future<CockpitRemoteSnapshotResponse>
-    Function(
-  Uri baseUri,
-  CockpitSnapshotOptions options,
-);
+typedef CockpitLogsSnapshotReader =
+    Future<CockpitRemoteSnapshotResponse> Function(
+      Uri baseUri,
+      CockpitSnapshotOptions options,
+    );
 
 final class CockpitReadLogsRequest {
   const CockpitReadLogsRequest({
@@ -49,15 +49,15 @@ final class CockpitReadLogsResult {
   final String? missingReason;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'appId': appId,
-        'source': source,
-        'available': available,
-        'routeName': routeName,
-        'logPath': logPath,
-        'lines': lines,
-        'truncated': truncated,
-        'missingReason': missingReason,
-      };
+    'appId': appId,
+    'source': source,
+    'available': available,
+    'routeName': routeName,
+    'logPath': logPath,
+    'lines': lines,
+    'truncated': truncated,
+    'missingReason': missingReason,
+  };
 }
 
 final class CockpitReadLogsService {
@@ -66,13 +66,15 @@ final class CockpitReadLogsService {
     CockpitFileSystem? fileSystem,
     CockpitAppReferenceResolver? appReferenceResolver,
     CockpitLogsSnapshotReader? readSnapshot,
-  })  : _fileSystem = fileSystem ?? const LocalCockpitFileSystem(),
-        _appReferenceResolver = appReferenceResolver ??
-            CockpitAppReferenceResolver(registry: registry),
-        _readSnapshot = readSnapshot ??
-            ((baseUri, options) => CockpitRemoteSessionClient(
-                  baseUri: baseUri,
-                ).readSnapshotDetailed(options: options));
+  }) : _fileSystem = fileSystem ?? const LocalCockpitFileSystem(),
+       _appReferenceResolver =
+           appReferenceResolver ??
+           CockpitAppReferenceResolver(registry: registry),
+       _readSnapshot =
+           readSnapshot ??
+           ((baseUri, options) => CockpitRemoteSessionClient(
+             baseUri: baseUri,
+           ).readSnapshotDetailed(options: options));
 
   final CockpitFileSystem _fileSystem;
   final CockpitAppReferenceResolver _appReferenceResolver;
@@ -81,7 +83,8 @@ final class CockpitReadLogsService {
   Future<CockpitReadLogsResult> read(CockpitReadLogsRequest request) async {
     final safeMaxLines = request.maxLines <= 0 ? 200 : request.maxLines;
     final appId = request.appId;
-    final resolved = (appId == null || appId.isEmpty) &&
+    final resolved =
+        (appId == null || appId.isEmpty) &&
             (request.appHandlePath == null || request.appHandlePath!.isEmpty) &&
             request.baseUri == null
         ? null
@@ -100,7 +103,8 @@ final class CockpitReadLogsService {
     if (appSnapshotResult != null) {
       return appSnapshotResult;
     }
-    final logPath = resolved?.developmentRecord?.supervisorLogPath ??
+    final logPath =
+        resolved?.developmentRecord?.supervisorLogPath ??
         resolved?.app?.supervisorLogPath;
     if (logPath == null || logPath.isEmpty) {
       return CockpitReadLogsResult(
@@ -127,8 +131,9 @@ final class CockpitReadLogsService {
     }
     final lines = await file.readAsLines();
     final truncated = lines.length > safeMaxLines;
-    final visibleLines =
-        truncated ? lines.sublist(lines.length - safeMaxLines) : lines;
+    final visibleLines = truncated
+        ? lines.sublist(lines.length - safeMaxLines)
+        : lines;
     return CockpitReadLogsResult(
       appId: effectiveAppId,
       source: 'supervisor',
@@ -154,8 +159,7 @@ final class CockpitReadLogsService {
           includeRuntimeActivity: true,
           maxRuntimeEntries: maxLines,
         ),
-      ))
-          .snapshot;
+      )).snapshot;
       final runtime = snapshot.runtime;
       if (runtime == null) {
         return CockpitReadLogsResult(

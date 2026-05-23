@@ -13,15 +13,10 @@ void main() {
       processRunner: (executable, arguments) async {
         invocations.add('$executable ${arguments.join(' ')}');
         if (executable == 'wmctrl') {
-          return ProcessResult(
-            0,
-            0,
-            '''
+          return ProcessResult(0, 0, '''
 0x02c00007 0 5101 0 0 400 300 cockpit_demo.Cockpit-demo host First Window
 0x02c00008 0 5102 120 48 900 640 cockpit_demo.Cockpit-demo host Second Window
-''',
-            '',
-          );
+''', '');
         }
         fail('Unexpected executable: $executable');
       },
@@ -36,32 +31,29 @@ void main() {
     expect(invocations, <String>['wmctrl -lpGx']);
   });
 
-  test('falls back to Linux window metadata when no process id is available',
-      () async {
-    final target = await cockpitResolveLinuxWindowTarget(
-      appId: 'cockpit_demo',
-      processId: null,
-      processRunner: (executable, arguments) async {
-        if (executable == 'pgrep') {
-          return ProcessResult(0, 1, '', '');
-        }
-        if (executable == 'wmctrl') {
-          return ProcessResult(
-            0,
-            0,
-            '''
+  test(
+    'falls back to Linux window metadata when no process id is available',
+    () async {
+      final target = await cockpitResolveLinuxWindowTarget(
+        appId: 'cockpit_demo',
+        processId: null,
+        processRunner: (executable, arguments) async {
+          if (executable == 'pgrep') {
+            return ProcessResult(0, 1, '', '');
+          }
+          if (executable == 'wmctrl') {
+            return ProcessResult(0, 0, '''
 0x02c00008 0 5102 120 48 900 640 cockpit_demo.Cockpit-demo host Cockpit Demo
-''',
-            '',
-          );
-        }
-        fail('Unexpected executable: $executable');
-      },
-      timeout: const Duration(seconds: 1),
-    );
+''', '');
+          }
+          fail('Unexpected executable: $executable');
+        },
+        timeout: const Duration(seconds: 1),
+      );
 
-    expect(target.windowId, '0x02c00008');
-    expect(target.width, 900);
-    expect(target.height, 640);
-  });
+      expect(target.windowId, '0x02c00008');
+      expect(target.width, 900);
+      expect(target.height, 640);
+    },
+  );
 }

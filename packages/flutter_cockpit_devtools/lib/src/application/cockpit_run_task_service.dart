@@ -8,24 +8,24 @@ import 'cockpit_read_task_bundle_summary_service.dart';
 import 'cockpit_run_remote_control_script_service.dart';
 import 'cockpit_task_orchestration_service.dart';
 
-typedef CockpitLaunchTaskFunction = Future<CockpitLaunchRemoteSessionResult>
-    Function(
-  CockpitLaunchRemoteSessionRequest request,
-);
-typedef CockpitQueryTaskFunction = Future<CockpitQueryRemoteSessionResult>
-    Function(
-  CockpitQueryRemoteSessionRequest request,
-);
-typedef CockpitRunTaskScriptFunction
-    = Future<CockpitRunRemoteControlScriptResult> Function(
-  CockpitRunRemoteControlScriptRequest request,
-);
-typedef CockpitReadTaskSummaryFunction
-    = Future<CockpitReadTaskBundleSummaryResult> Function(
-  CockpitReadTaskBundleSummaryRequest request,
-);
-typedef CockpitRunTaskFunction = Future<CockpitRunTaskResult> Function(
-    CockpitRunTaskRequest request);
+typedef CockpitLaunchTaskFunction =
+    Future<CockpitLaunchRemoteSessionResult> Function(
+      CockpitLaunchRemoteSessionRequest request,
+    );
+typedef CockpitQueryTaskFunction =
+    Future<CockpitQueryRemoteSessionResult> Function(
+      CockpitQueryRemoteSessionRequest request,
+    );
+typedef CockpitRunTaskScriptFunction =
+    Future<CockpitRunRemoteControlScriptResult> Function(
+      CockpitRunRemoteControlScriptRequest request,
+    );
+typedef CockpitReadTaskSummaryFunction =
+    Future<CockpitReadTaskBundleSummaryResult> Function(
+      CockpitReadTaskBundleSummaryRequest request,
+    );
+typedef CockpitRunTaskFunction =
+    Future<CockpitRunTaskResult> Function(CockpitRunTaskRequest request);
 
 enum CockpitRunTaskClassification {
   completed('completed'),
@@ -69,14 +69,14 @@ final class CockpitRunTaskLaunchRequest {
   final String? persistHandlePath;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'projectDir': projectDir,
-        if (target != null) 'target': target,
-        'platform': platform,
-        'deviceId': deviceId,
-        'sessionPort': sessionPort,
-        'launchTimeoutSeconds': launchTimeout.inSeconds,
-        if (persistHandlePath != null) 'persistHandlePath': persistHandlePath,
-      };
+    'projectDir': projectDir,
+    if (target != null) 'target': target,
+    'platform': platform,
+    'deviceId': deviceId,
+    'sessionPort': sessionPort,
+    'launchTimeoutSeconds': launchTimeout.inSeconds,
+    if (persistHandlePath != null) 'persistHandlePath': persistHandlePath,
+  };
 
   factory CockpitRunTaskLaunchRequest.fromJson(Map<String, Object?> json) {
     return CockpitRunTaskLaunchRequest(
@@ -105,10 +105,10 @@ final class CockpitRunTaskBaselineRequest {
   final bool includeSnapshot;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'captureScreenshot': captureScreenshot,
-        'screenshotName': screenshotName,
-        'includeSnapshot': includeSnapshot,
-      };
+    'captureScreenshot': captureScreenshot,
+    'screenshotName': screenshotName,
+    'includeSnapshot': includeSnapshot,
+  };
 
   factory CockpitRunTaskBaselineRequest.fromJson(Map<String, Object?> json) {
     return CockpitRunTaskBaselineRequest(
@@ -129,9 +129,9 @@ final class CockpitRunTaskEvidenceRequirements {
   final bool requireVideoEvidence;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'requireScreenshotEvidence': requireScreenshotEvidence,
-        'requireVideoEvidence': requireVideoEvidence,
-      };
+    'requireScreenshotEvidence': requireScreenshotEvidence,
+    'requireVideoEvidence': requireVideoEvidence,
+  };
 
   factory CockpitRunTaskEvidenceRequirements.fromJson(
     Map<String, Object?> json,
@@ -167,15 +167,15 @@ final class CockpitRunTaskRequest {
   final CockpitRunTaskEvidenceRequirements requirements;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        if (launch != null) 'launch': launch!.toJson(),
-        if (sessionHandle != null) 'sessionHandle': sessionHandle!.toJson(),
-        if (sessionHandlePath != null) 'sessionHandlePath': sessionHandlePath,
-        'script': script.toJson(),
-        'outputRoot': outputRoot,
-        if (persistScriptPath != null) 'persistScriptPath': persistScriptPath,
-        'baseline': baseline.toJson(),
-        'requirements': requirements.toJson(),
-      };
+    if (launch != null) 'launch': launch!.toJson(),
+    if (sessionHandle != null) 'sessionHandle': sessionHandle!.toJson(),
+    if (sessionHandlePath != null) 'sessionHandlePath': sessionHandlePath,
+    'script': script.toJson(),
+    'outputRoot': outputRoot,
+    if (persistScriptPath != null) 'persistScriptPath': persistScriptPath,
+    'baseline': baseline.toJson(),
+    'requirements': requirements.toJson(),
+  };
 
   factory CockpitRunTaskRequest.fromJson(Map<String, Object?> json) {
     final launchJson = _readOptionalObject(json, 'launch');
@@ -225,15 +225,14 @@ final class CockpitRunTaskResult {
   final List<String> warnings;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'classification': classification.jsonValue,
-        'recommendedNextStep': recommendedNextStep,
-        if (sessionHandle != null) 'sessionHandle': sessionHandle!.toJson(),
-        if (preflightStatus != null)
-          'preflightStatus': preflightStatus!.toJson(),
-        if (blockedReason != null) 'blockedReason': blockedReason,
-        if (warnings.isNotEmpty) 'warnings': warnings,
-        if (bundleSummary != null) 'bundleSummary': bundleSummary!.toJson(),
-      };
+    'classification': classification.jsonValue,
+    'recommendedNextStep': recommendedNextStep,
+    if (sessionHandle != null) 'sessionHandle': sessionHandle!.toJson(),
+    if (preflightStatus != null) 'preflightStatus': preflightStatus!.toJson(),
+    if (blockedReason != null) 'blockedReason': blockedReason,
+    if (warnings.isNotEmpty) 'warnings': warnings,
+    if (bundleSummary != null) 'bundleSummary': bundleSummary!.toJson(),
+  };
 }
 
 final class CockpitRunTaskService {
@@ -249,20 +248,21 @@ final class CockpitRunTaskService {
     CockpitQueryTaskFunction? query,
     CockpitRunTaskScriptFunction? runScript,
     CockpitReadTaskSummaryFunction? readSummary,
-  })  : _runTaskOverride = runTask,
-        _orchestrateTask = orchestrateTask ??
-            (orchestrationService ??
-                    CockpitTaskOrchestrationService(
-                      launchService: launchService,
-                      queryService: queryService,
-                      runScriptService: runScriptService,
-                      readSummaryService: readSummaryService,
-                      launch: launch,
-                      query: query,
-                      runScript: runScript,
-                      readSummary: readSummary,
-                    ))
-                .orchestrate;
+  }) : _runTaskOverride = runTask,
+       _orchestrateTask =
+           orchestrateTask ??
+           (orchestrationService ??
+                   CockpitTaskOrchestrationService(
+                     launchService: launchService,
+                     queryService: queryService,
+                     runScriptService: runScriptService,
+                     readSummaryService: readSummaryService,
+                     launch: launch,
+                     query: query,
+                     runScript: runScript,
+                     readSummary: readSummary,
+                   ))
+               .orchestrate;
 
   final CockpitRunTaskFunction? _runTaskOverride;
   final CockpitTaskOrchestrationFunction _orchestrateTask;
@@ -285,10 +285,7 @@ final class CockpitRunTaskService {
   }
 }
 
-String _readRequiredString(
-  Map<String, Object?> json,
-  String key,
-) {
+String _readRequiredString(Map<String, Object?> json, String key) {
   final value = _readOptionalString(json, key);
   if (value == null || value.isEmpty) {
     throw CockpitApplicationServiceException(
@@ -300,10 +297,7 @@ String _readRequiredString(
   return value;
 }
 
-String? _readOptionalString(
-  Map<String, Object?> json,
-  String key,
-) {
+String? _readOptionalString(Map<String, Object?> json, String key) {
   final value = json[key];
   if (value == null) {
     return null;
@@ -318,10 +312,7 @@ String? _readOptionalString(
   );
 }
 
-int _readRequiredInt(
-  Map<String, Object?> json,
-  String key,
-) {
+int _readRequiredInt(Map<String, Object?> json, String key) {
   final value = _readOptionalInt(json, key);
   if (value == null) {
     throw CockpitApplicationServiceException(
@@ -333,10 +324,7 @@ int _readRequiredInt(
   return value;
 }
 
-int? _readOptionalInt(
-  Map<String, Object?> json,
-  String key,
-) {
+int? _readOptionalInt(Map<String, Object?> json, String key) {
   final value = json[key];
   if (value == null) {
     return null;
@@ -354,10 +342,7 @@ int? _readOptionalInt(
   );
 }
 
-bool? _readOptionalBool(
-  Map<String, Object?> json,
-  String key,
-) {
+bool? _readOptionalBool(Map<String, Object?> json, String key) {
   final value = json[key];
   if (value == null) {
     return null;

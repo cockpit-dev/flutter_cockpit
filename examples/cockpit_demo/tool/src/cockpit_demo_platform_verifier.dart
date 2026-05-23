@@ -9,68 +9,57 @@ import 'package:path/path.dart' as p;
 
 import 'cockpit_demo_sync_lab_verification.dart';
 
-typedef CockpitDemoPlatformDeviceProbe = Future<List<CockpitDemoHostDevice>>
-    Function();
-typedef CockpitDemoIosSimulatorProbe = Future<List<CockpitDemoIosSimulator>>
-    Function();
-typedef CockpitDemoProcessRunner = Future<ProcessResult> Function(
-  String executable,
-  List<String> arguments, {
-  String? workingDirectory,
-});
+typedef CockpitDemoPlatformDeviceProbe =
+    Future<List<CockpitDemoHostDevice>> Function();
+typedef CockpitDemoIosSimulatorProbe =
+    Future<List<CockpitDemoIosSimulator>> Function();
+typedef CockpitDemoProcessRunner =
+    Future<ProcessResult> Function(
+      String executable,
+      List<String> arguments, {
+      String? workingDirectory,
+    });
 typedef CockpitDemoWait = Future<void> Function(Duration duration);
 typedef CockpitDemoClock = DateTime Function();
-typedef CockpitDemoLaunchAppFunction = Future<CockpitLaunchAppResult> Function(
-  CockpitLaunchAppRequest request,
-);
-typedef CockpitDemoReadAppFunction = Future<CockpitReadAppResult> Function(
-  CockpitReadAppRequest request,
-);
-typedef CockpitDemoRunCommandFunction
-    = Future<CockpitExecuteRemoteCommandResult> Function(
-  CockpitRunCommandRequest request,
-);
-typedef CockpitDemoRunBatchFunction = Future<CockpitRunBatchResult> Function(
-  CockpitRunBatchRequest request,
-);
-typedef CockpitDemoInspectUiFunction = Future<CockpitInspectUiResult> Function(
-  CockpitInspectUiRequest request,
-);
-typedef CockpitDemoInspectSurfaceFunction = Future<CockpitInspectSurfaceResult>
-    Function(
-  CockpitInspectSurfaceRequest request,
-);
-typedef CockpitDemoWaitIdleFunction = Future<CockpitWaitIdleResult> Function(
-  CockpitWaitIdleRequest request,
-);
-typedef CockpitDemoReadNetworkFunction = Future<CockpitReadNetworkResult>
-    Function(
-  CockpitReadNetworkRequest request,
-);
-typedef CockpitDemoReadErrorsFunction = Future<CockpitReadErrorsResult>
-    Function(
-  CockpitReadErrorsRequest request,
-);
-typedef CockpitDemoReadLogsFunction = Future<CockpitReadLogsResult> Function(
-  CockpitReadLogsRequest request,
-);
-typedef CockpitDemoRecordingAdapterResolver = CockpitRecordingAdapter?
-    Function({
-  required String platform,
-  required String deviceId,
-  required CockpitRemoteSessionClient client,
-  required CockpitRecordingRequest recording,
-});
-typedef CockpitDemoHotReloadFunction = Future<CockpitHotReloadResult> Function(
-  CockpitHotReloadRequest request,
-);
-typedef CockpitDemoHotRestartFunction = Future<CockpitHotRestartResult>
-    Function(
-  CockpitHotRestartRequest request,
-);
-typedef CockpitDemoStopAppFunction = Future<CockpitStopAppResult> Function(
-  CockpitStopAppRequest request,
-);
+typedef CockpitDemoLaunchAppFunction =
+    Future<CockpitLaunchAppResult> Function(CockpitLaunchAppRequest request);
+typedef CockpitDemoReadAppFunction =
+    Future<CockpitReadAppResult> Function(CockpitReadAppRequest request);
+typedef CockpitDemoRunCommandFunction =
+    Future<CockpitExecuteRemoteCommandResult> Function(
+      CockpitRunCommandRequest request,
+    );
+typedef CockpitDemoRunBatchFunction =
+    Future<CockpitRunBatchResult> Function(CockpitRunBatchRequest request);
+typedef CockpitDemoInspectUiFunction =
+    Future<CockpitInspectUiResult> Function(CockpitInspectUiRequest request);
+typedef CockpitDemoInspectSurfaceFunction =
+    Future<CockpitInspectSurfaceResult> Function(
+      CockpitInspectSurfaceRequest request,
+    );
+typedef CockpitDemoWaitIdleFunction =
+    Future<CockpitWaitIdleResult> Function(CockpitWaitIdleRequest request);
+typedef CockpitDemoReadNetworkFunction =
+    Future<CockpitReadNetworkResult> Function(
+      CockpitReadNetworkRequest request,
+    );
+typedef CockpitDemoReadErrorsFunction =
+    Future<CockpitReadErrorsResult> Function(CockpitReadErrorsRequest request);
+typedef CockpitDemoReadLogsFunction =
+    Future<CockpitReadLogsResult> Function(CockpitReadLogsRequest request);
+typedef CockpitDemoRecordingAdapterResolver =
+    CockpitRecordingAdapter? Function({
+      required String platform,
+      required String deviceId,
+      required CockpitRemoteSessionClient client,
+      required CockpitRecordingRequest recording,
+    });
+typedef CockpitDemoHotReloadFunction =
+    Future<CockpitHotReloadResult> Function(CockpitHotReloadRequest request);
+typedef CockpitDemoHotRestartFunction =
+    Future<CockpitHotRestartResult> Function(CockpitHotRestartRequest request);
+typedef CockpitDemoStopAppFunction =
+    Future<CockpitStopAppResult> Function(CockpitStopAppRequest request);
 
 const List<String> cockpitDemoDefaultVerificationPlatforms = <String>[
   'macos',
@@ -97,10 +86,7 @@ String cockpitDemoDefaultProjectDir({
   }
 
   final candidate = p.normalize(
-    p.join(
-      p.dirname(p.normalize(scriptPath)),
-      '..',
-    ),
+    p.join(p.dirname(p.normalize(scriptPath)), '..'),
   );
   return p.basename(candidate) == 'cockpit_demo' ? candidate : fallback;
 }
@@ -153,12 +139,12 @@ final class CockpitDemoHostDevice {
   final bool supported;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'name': name,
-        'deviceId': deviceId,
-        'platform': platform,
-        'emulator': emulator,
-        'supported': supported,
-      };
+    'name': name,
+    'deviceId': deviceId,
+    'platform': platform,
+    'emulator': emulator,
+    'supported': supported,
+  };
 
   factory CockpitDemoHostDevice.fromJson(Map<String, Object?> json) {
     final rawPlatform = '${json['targetPlatform'] ?? ''}';
@@ -305,52 +291,48 @@ final class CockpitDemoPlatformVerification {
   bool get success => status == 'passed';
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'platform': platform,
-        'status': status,
-        'deviceId': deviceId,
-        'bootstrappedDevice': bootstrappedDevice,
-        'outputDir': outputDir,
-        if (appJsonPath != null) 'appJsonPath': appJsonPath,
-        if (baseUrl != null) 'baseUrl': baseUrl,
-        if (initialRouteName != null) 'initialRouteName': initialRouteName,
-        if (inspectUiRouteName != null)
-          'inspectUiRouteName': inspectUiRouteName,
-        if (postSaveRouteName != null) 'postSaveRouteName': postSaveRouteName,
-        if (postReloadRouteName != null)
-          'postReloadRouteName': postReloadRouteName,
-        if (postRestartRouteName != null)
-          'postRestartRouteName': postRestartRouteName,
-        if (inspectRouteName != null) 'inspectRouteName': inspectRouteName,
-        if (inspectPlane != null) 'inspectPlane': inspectPlane,
-        if (surfaceKind != null) 'surfaceKind': surfaceKind,
-        if (createdTaskTitle != null) 'createdTaskTitle': createdTaskTitle,
-        'hotReloadSucceeded': hotReloadSucceeded,
-        'hotRestartSucceeded': hotRestartSucceeded,
-        'reloadGeneration': reloadGeneration,
-        'waitIdleSucceeded': waitIdleSucceeded,
-        'waitIdleDurationMs': waitIdleDurationMs,
-        'batchCommandCount': batchCommandCount,
-        'networkFailureCount': networkFailureCount,
-        'runtimeErrorCount': runtimeErrorCount,
-        'logLineCount': logLineCount,
-        if (recordingArtifactRef != null)
-          'recordingArtifactRef': recordingArtifactRef,
-        if (recordingOutputPath != null)
-          'recordingOutputPath': recordingOutputPath,
-        if (recordingDurationMs != null)
-          'recordingDurationMs': recordingDurationMs,
-        if (recordingKind != null) 'recordingKind': recordingKind,
-        if (recordingDriver != null) 'recordingDriver': recordingDriver,
-        if (screenshotArtifactRef != null)
-          'screenshotArtifactRef': screenshotArtifactRef,
-        if (screenshotByteLength != null)
-          'screenshotByteLength': screenshotByteLength,
-        'verifiedCommands': verifiedCommands,
-        if (warnings.isNotEmpty) 'warnings': warnings,
-        if (failureCode != null) 'failureCode': failureCode,
-        if (failureMessage != null) 'failureMessage': failureMessage,
-        if (failureDetails.isNotEmpty) 'failureDetails': failureDetails,
-      };
+    'platform': platform,
+    'status': status,
+    'deviceId': deviceId,
+    'bootstrappedDevice': bootstrappedDevice,
+    'outputDir': outputDir,
+    if (appJsonPath != null) 'appJsonPath': appJsonPath,
+    if (baseUrl != null) 'baseUrl': baseUrl,
+    if (initialRouteName != null) 'initialRouteName': initialRouteName,
+    if (inspectUiRouteName != null) 'inspectUiRouteName': inspectUiRouteName,
+    if (postSaveRouteName != null) 'postSaveRouteName': postSaveRouteName,
+    if (postReloadRouteName != null) 'postReloadRouteName': postReloadRouteName,
+    if (postRestartRouteName != null)
+      'postRestartRouteName': postRestartRouteName,
+    if (inspectRouteName != null) 'inspectRouteName': inspectRouteName,
+    if (inspectPlane != null) 'inspectPlane': inspectPlane,
+    if (surfaceKind != null) 'surfaceKind': surfaceKind,
+    if (createdTaskTitle != null) 'createdTaskTitle': createdTaskTitle,
+    'hotReloadSucceeded': hotReloadSucceeded,
+    'hotRestartSucceeded': hotRestartSucceeded,
+    'reloadGeneration': reloadGeneration,
+    'waitIdleSucceeded': waitIdleSucceeded,
+    'waitIdleDurationMs': waitIdleDurationMs,
+    'batchCommandCount': batchCommandCount,
+    'networkFailureCount': networkFailureCount,
+    'runtimeErrorCount': runtimeErrorCount,
+    'logLineCount': logLineCount,
+    if (recordingArtifactRef != null)
+      'recordingArtifactRef': recordingArtifactRef,
+    if (recordingOutputPath != null) 'recordingOutputPath': recordingOutputPath,
+    if (recordingDurationMs != null) 'recordingDurationMs': recordingDurationMs,
+    if (recordingKind != null) 'recordingKind': recordingKind,
+    if (recordingDriver != null) 'recordingDriver': recordingDriver,
+    if (screenshotArtifactRef != null)
+      'screenshotArtifactRef': screenshotArtifactRef,
+    if (screenshotByteLength != null)
+      'screenshotByteLength': screenshotByteLength,
+    'verifiedCommands': verifiedCommands,
+    if (warnings.isNotEmpty) 'warnings': warnings,
+    if (failureCode != null) 'failureCode': failureCode,
+    if (failureMessage != null) 'failureMessage': failureMessage,
+    if (failureDetails.isNotEmpty) 'failureDetails': failureDetails,
+  };
 }
 
 final class CockpitDemoPlatformVerificationResult {
@@ -365,12 +347,12 @@ final class CockpitDemoPlatformVerificationResult {
   final String recommendedNextStep;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'success': success,
-        'recommendedNextStep': recommendedNextStep,
-        'platforms': platforms
-            .map((platform) => platform.toJson())
-            .toList(growable: false),
-      };
+    'success': success,
+    'recommendedNextStep': recommendedNextStep,
+    'platforms': platforms
+        .map((platform) => platform.toJson())
+        .toList(growable: false),
+  };
 }
 
 final class CockpitDemoPlatformVerifier {
@@ -394,33 +376,31 @@ final class CockpitDemoPlatformVerifier {
     CockpitDemoHotReloadFunction? hotReload,
     CockpitDemoHotRestartFunction? hotRestart,
     CockpitDemoStopAppFunction? stopApp,
-  })  : _probeDevices = probeDevices ??
-            (() => cockpitDemoProbeHostDevices(
-                  processRunner: runProcess,
-                )),
-        _listIosSimulators = listIosSimulators ??
-            (() => cockpitDemoListIosSimulators(
-                  processRunner: runProcess,
-                )),
-        _processRunner = runProcess,
-        _wait = wait ?? _defaultWait,
-        _clock = clock ?? DateTime.now,
-        _launchApp = launchApp ?? CockpitLaunchAppService().launch,
-        _readApp = readApp ?? CockpitReadAppService().read,
-        _runCommand = runCommand ?? CockpitRunCommandService().run,
-        _runBatch = runBatch ?? CockpitRunBatchService().run,
-        _inspectUi = inspectUi ?? CockpitInspectUiService().inspect,
-        _inspectSurface =
-            inspectSurface ?? CockpitInspectSurfaceService().inspect,
-        _waitIdle = waitIdle ?? CockpitWaitIdleService().wait,
-        _readNetwork = readNetwork ?? cockpitDemoReadNetwork,
-        _readErrors = readErrors ?? cockpitDemoReadErrors,
-        _readLogs = readLogs ?? cockpitDemoReadLogs,
-        _recordingAdapterResolver =
-            recordingAdapterResolver ?? cockpitDemoResolveRecordingAdapter,
-        _hotReload = hotReload ?? CockpitHotReloadService().reload,
-        _hotRestart = hotRestart ?? CockpitHotRestartService().restart,
-        _stopApp = stopApp ?? CockpitStopAppService().stop;
+  }) : _probeDevices =
+           probeDevices ??
+           (() => cockpitDemoProbeHostDevices(processRunner: runProcess)),
+       _listIosSimulators =
+           listIosSimulators ??
+           (() => cockpitDemoListIosSimulators(processRunner: runProcess)),
+       _processRunner = runProcess,
+       _wait = wait ?? _defaultWait,
+       _clock = clock ?? DateTime.now,
+       _launchApp = launchApp ?? CockpitLaunchAppService().launch,
+       _readApp = readApp ?? CockpitReadAppService().read,
+       _runCommand = runCommand ?? CockpitRunCommandService().run,
+       _runBatch = runBatch ?? CockpitRunBatchService().run,
+       _inspectUi = inspectUi ?? CockpitInspectUiService().inspect,
+       _inspectSurface =
+           inspectSurface ?? CockpitInspectSurfaceService().inspect,
+       _waitIdle = waitIdle ?? CockpitWaitIdleService().wait,
+       _readNetwork = readNetwork ?? cockpitDemoReadNetwork,
+       _readErrors = readErrors ?? cockpitDemoReadErrors,
+       _readLogs = readLogs ?? cockpitDemoReadLogs,
+       _recordingAdapterResolver =
+           recordingAdapterResolver ?? cockpitDemoResolveRecordingAdapter,
+       _hotReload = hotReload ?? CockpitHotReloadService().reload,
+       _hotRestart = hotRestart ?? CockpitHotRestartService().restart,
+       _stopApp = stopApp ?? CockpitStopAppService().stop;
 
   final CockpitDemoPlatformDeviceProbe _probeDevices;
   final CockpitDemoIosSimulatorProbe _listIosSimulators;
@@ -517,9 +497,7 @@ final class CockpitDemoPlatformVerifier {
       app = launchedApp;
       final resolvedAppJsonPath = launchResult.appJsonPath ?? appJsonPath;
       final appBaseUri = Uri.parse(launchedApp.baseUrl);
-      final verifiedCommands = <String>[
-        'launch-app',
-      ];
+      final verifiedCommands = <String>['launch-app'];
       final warnings = <String>[];
 
       final initialRead = await _readApp(
@@ -615,10 +593,7 @@ final class CockpitDemoPlatformVerifier {
         CockpitRunBatchRequest(
           app: launchedApp,
           commands: _batchCommandsFromJson(
-            buildSyncLabCreateTaskBatch(
-              taskTitle: taskTitle,
-              notes: taskNotes,
-            ),
+            buildSyncLabCreateTaskBatch(taskTitle: taskTitle, notes: taskNotes),
           ),
           defaultResultProfile:
               const CockpitInteractiveResultProfile.standard(),
@@ -780,8 +755,9 @@ final class CockpitDemoPlatformVerifier {
       }
       await _runRequiredCommand(
         app: launchedApp,
-        command:
-            _commandFromJson(buildSyncLabRevealKeepLocalResolutionCommand()),
+        command: _commandFromJson(
+          buildSyncLabRevealKeepLocalResolutionCommand(),
+        ),
       );
       await _runRequiredCommand(
         app: launchedApp,
@@ -1004,7 +980,8 @@ final class CockpitDemoPlatformVerifier {
         reloadGeneration: hotRestartResult.status.reloadGeneration,
         waitIdleSucceeded: waitIdleResult.idle,
         waitIdleDurationMs: waitIdleResult.durationMs,
-        batchCommandCount: batchResult.summary.totalCount +
+        batchCommandCount:
+            batchResult.summary.totalCount +
             syncLabConflictBatchResult.summary.totalCount +
             syncLabOpenConflictBatchResult.summary.totalCount +
             syncRecoveryBatchResult.summary.totalCount +
@@ -1026,8 +1003,9 @@ final class CockpitDemoPlatformVerifier {
         warnings: warnings,
       );
     } on Object catch (error) {
-      final serviceError =
-          error is CockpitApplicationServiceException ? error : null;
+      final serviceError = error is CockpitApplicationServiceException
+          ? error
+          : null;
       return CockpitDemoPlatformVerification(
         platform: platform,
         status: 'failed',
@@ -1107,27 +1085,28 @@ final class CockpitDemoPlatformVerifier {
         final simulators = await _listIosSimulators();
         final simulator = cockpitDemoSelectIosSimulator(simulators);
         if (!simulator.booted) {
-          await _runProcess(
-            'xcrun',
-            <String>['simctl', 'boot', simulator.udid],
-            workingDirectory: request.projectDir,
-          );
+          await _runProcess('xcrun', <String>[
+            'simctl',
+            'boot',
+            simulator.udid,
+          ], workingDirectory: request.projectDir);
         }
-        await _runProcess(
-          'xcrun',
-          <String>['simctl', 'bootstatus', simulator.udid, '-b'],
-          workingDirectory: request.projectDir,
-        );
+        await _runProcess('xcrun', <String>[
+          'simctl',
+          'bootstatus',
+          simulator.udid,
+          '-b',
+        ], workingDirectory: request.projectDir);
         return _waitForDevice(
           platform: platform,
           timeout: request.deviceTimeout,
         );
       case 'android':
-        await _runProcess(
-          'flutter',
-          <String>['emulators', '--launch', request.androidEmulatorId],
-          workingDirectory: request.projectDir,
-        );
+        await _runProcess('flutter', <String>[
+          'emulators',
+          '--launch',
+          request.androidEmulatorId,
+        ], workingDirectory: request.projectDir);
         return _waitForDevice(
           platform: platform,
           timeout: request.deviceTimeout,
@@ -1211,9 +1190,8 @@ final class CockpitDemoPlatformVerifier {
   ) {
     return commands
         .map(
-          (command) => CockpitRunBatchCommand(
-            command: _commandFromJson(command),
-          ),
+          (command) =>
+              CockpitRunBatchCommand(command: _commandFromJson(command)),
         )
         .toList(growable: false);
   }
@@ -1255,11 +1233,11 @@ final class CockpitDemoPlatformVerifier {
   }) {
     final command = result.command;
     final details = <String, Object?>{
-      if (platform != null) 'platform': platform,
-      if (expectedCount != null) 'expectedCount': expectedCount,
-      if (totalCount != null) 'totalCount': totalCount,
-      if (failureCount != null) 'failureCount': failureCount,
-      if (stoppedEarly != null) 'stoppedEarly': stoppedEarly,
+      'platform': ?platform,
+      'expectedCount': ?expectedCount,
+      'totalCount': ?totalCount,
+      'failureCount': ?failureCount,
+      'stoppedEarly': ?stoppedEarly,
       'commandId': command.commandId,
       'commandType': command.commandType,
       'recommendedNextStep': result.recommendedNextStep,
@@ -1274,8 +1252,9 @@ final class CockpitDemoPlatformVerifier {
       );
     }
     if (result.fallbackTrail.isNotEmpty) {
-      details['fallbackTrail'] =
-          result.fallbackTrail.map((planeKind) => planeKind.name).toList();
+      details['fallbackTrail'] = result.fallbackTrail
+          .map((planeKind) => planeKind.name)
+          .toList();
     }
     if (result.whatChanged != null) {
       details['whatChanged'] = _compactString(result.whatChanged!);
@@ -1393,9 +1372,7 @@ final class CockpitDemoPlatformVerifier {
       throw CockpitApplicationServiceException(
         code: 'recordingArtifactUnavailable',
         message: 'Recording completed without an artifact reference.',
-        details: <String, Object?>{
-          'platform': platform,
-        },
+        details: <String, Object?>{'platform': platform},
       );
     }
     final destinationPath = cockpitDemoResolveArtifactOutputPath(
@@ -1487,8 +1464,8 @@ final class CockpitDemoPlatformVerifier {
       details: <String, Object?>{
         'platform': platform,
         'artifactPath': artifact.relativePath,
-        if (byteLength != null) 'byteLength': byteLength,
-        if (sourcePath != null) 'sourcePath': sourcePath,
+        'byteLength': ?byteLength,
+        'sourcePath': ?sourcePath,
       },
     );
   }
@@ -1580,11 +1557,10 @@ Future<List<CockpitDemoHostDevice>> cockpitDemoProbeHostDevices({
   CockpitDemoProcessRunner processRunner = Process.run,
   String? workingDirectory,
 }) async {
-  final result = await processRunner(
-    'flutter',
-    const <String>['devices', '--machine'],
-    workingDirectory: workingDirectory,
-  );
+  final result = await processRunner('flutter', const <String>[
+    'devices',
+    '--machine',
+  ], workingDirectory: workingDirectory);
   if (result.exitCode != 0) {
     throw CockpitApplicationServiceException(
       code: 'deviceProbeFailed',
@@ -1605,9 +1581,8 @@ Future<List<CockpitDemoHostDevice>> cockpitDemoProbeHostDevices({
   return decoded
       .whereType<Map<Object?, Object?>>()
       .map(
-        (device) => CockpitDemoHostDevice.fromJson(
-          Map<String, Object?>.from(device),
-        ),
+        (device) =>
+            CockpitDemoHostDevice.fromJson(Map<String, Object?>.from(device)),
       )
       .toList(growable: false);
 }
@@ -1616,11 +1591,12 @@ Future<List<CockpitDemoIosSimulator>> cockpitDemoListIosSimulators({
   CockpitDemoProcessRunner processRunner = Process.run,
   String? workingDirectory,
 }) async {
-  final result = await processRunner(
-    'xcrun',
-    const <String>['simctl', 'list', 'devices', '--json'],
-    workingDirectory: workingDirectory,
-  );
+  final result = await processRunner('xcrun', const <String>[
+    'simctl',
+    'list',
+    'devices',
+    '--json',
+  ], workingDirectory: workingDirectory);
   if (result.exitCode != 0) {
     throw CockpitApplicationServiceException(
       code: 'iosSimulatorProbeFailed',
@@ -1689,11 +1665,11 @@ String cockpitDemoNormalizeVerificationPlatform(String platform) {
   return switch (platform) {
     'android' || 'ios' || 'linux' || 'macos' || 'web' || 'windows' => platform,
     _ => throw CockpitApplicationServiceException(
-        code: 'unsupportedVerificationPlatform',
-        message:
-            'Only android, ios, linux, macos, web, and windows are supported.',
-        details: <String, Object?>{'platform': platform},
-      ),
+      code: 'unsupportedVerificationPlatform',
+      message:
+          'Only android, ios, linux, macos, web, and windows are supported.',
+      details: <String, Object?>{'platform': platform},
+    ),
   };
 }
 
@@ -1745,17 +1721,13 @@ Future<void> cockpitDemoCleanupAndroidPortForward({
   required CockpitDemoProcessRunner processRunner,
 }) async {
   try {
-    await processRunner(
-      'adb',
-      <String>[
-        '-s',
-        deviceId,
-        'forward',
-        '--remove',
-        'tcp:$sessionPort',
-      ],
-      workingDirectory: workingDirectory,
-    );
+    await processRunner('adb', <String>[
+      '-s',
+      deviceId,
+      'forward',
+      '--remove',
+      'tcp:$sessionPort',
+    ], workingDirectory: workingDirectory);
   } on Object {
     // Best effort cleanup to avoid stale forwards across verification runs.
   }
@@ -1773,38 +1745,30 @@ Future<void> cockpitDemoCleanupExampleLocalState({
         if (deviceId == null || deviceId.isEmpty) {
           return;
         }
-        await processRunner(
-          'adb',
-          <String>[
-            '-s',
-            deviceId,
-            'shell',
-            'run-as',
-            _androidExampleApplicationId,
-            'rm',
-            '-f',
-            'app_flutter/cockpit_demo.sqlite',
-            'app_flutter/cockpit_demo.sqlite-shm',
-            'app_flutter/cockpit_demo.sqlite-wal',
-          ],
-          workingDirectory: workingDirectory,
-        );
+        await processRunner('adb', <String>[
+          '-s',
+          deviceId,
+          'shell',
+          'run-as',
+          _androidExampleApplicationId,
+          'rm',
+          '-f',
+          'app_flutter/cockpit_demo.sqlite',
+          'app_flutter/cockpit_demo.sqlite-shm',
+          'app_flutter/cockpit_demo.sqlite-wal',
+        ], workingDirectory: workingDirectory);
       case 'ios':
         if (deviceId == null || deviceId.isEmpty) {
           return;
         }
         for (final bundleId in _iosExampleBundleIds) {
-          final containerResult = await processRunner(
-            'xcrun',
-            <String>[
-              'simctl',
-              'get_app_container',
-              deviceId,
-              bundleId,
-              'data',
-            ],
-            workingDirectory: workingDirectory,
-          );
+          final containerResult = await processRunner('xcrun', <String>[
+            'simctl',
+            'get_app_container',
+            deviceId,
+            bundleId,
+            'data',
+          ], workingDirectory: workingDirectory);
           if (containerResult.exitCode != 0) {
             continue;
           }
@@ -1870,8 +1834,7 @@ Future<CockpitReadNetworkResult> cockpitDemoReadNetwork(
       maxNetworkEntries: request.maxEntries <= 0 ? 8 : request.maxEntries,
       networkQuery: request.networkQuery,
     ),
-  ))
-      .snapshot;
+  )).snapshot;
   final network = snapshot.network;
   if (network == null) {
     return CockpitReadNetworkResult(
@@ -1894,14 +1857,16 @@ Future<CockpitReadNetworkResult> cockpitDemoReadNetwork(
     );
   }
 
-  final maxEndpointSummaries =
-      request.maxEndpointSummaries <= 0 ? 8 : request.maxEndpointSummaries;
+  final maxEndpointSummaries = request.maxEndpointSummaries <= 0
+      ? 8
+      : request.maxEndpointSummaries;
   final endpointSummaries =
       network.endpointSummaries.length > maxEndpointSummaries
-          ? network.endpointSummaries.sublist(0, maxEndpointSummaries)
-          : network.endpointSummaries;
-  final recentFailures =
-      network.entries.where((entry) => entry.isFailure).toList(growable: false);
+      ? network.endpointSummaries.sublist(0, maxEndpointSummaries)
+      : network.endpointSummaries;
+  final recentFailures = network.entries
+      .where((entry) => entry.isFailure)
+      .toList(growable: false);
 
   return CockpitReadNetworkResult(
     appId: resolved.appId,
@@ -1916,8 +1881,9 @@ Future<CockpitReadNetworkResult> cockpitDemoReadNetwork(
       truncated: network.truncated,
       query: network.query,
     ),
-    endpointSummaries:
-        List<CockpitNetworkEndpointSummary>.unmodifiable(endpointSummaries),
+    endpointSummaries: List<CockpitNetworkEndpointSummary>.unmodifiable(
+      endpointSummaries,
+    ),
     endpointSummariesTruncated:
         network.endpointSummaries.length > endpointSummaries.length,
     recentFailures: List<CockpitNetworkEntry>.unmodifiable(recentFailures),
@@ -1942,22 +1908,21 @@ Future<CockpitReadErrorsResult> cockpitDemoReadErrors(
       maxRuntimeEntries: request.maxErrors <= 0 ? 20 : request.maxErrors,
       runtimeQuery: const CockpitRuntimeQuery(onlyErrors: true),
     ),
-  ))
-      .snapshot;
+  )).snapshot;
   final runtime = snapshot.runtime;
   final errors = runtime == null
       ? const <CockpitErrorEntry>[]
       : runtime.entries
-          .map(
-            (entry) => CockpitErrorEntry(
-              source: 'app_snapshot',
-              message: entry.message,
-              recordedAt: entry.recordedAt,
-              kind: entry.kind.jsonValue,
-              routeName: entry.routeName ?? snapshot.routeName,
-            ),
-          )
-          .toList(growable: false);
+            .map(
+              (entry) => CockpitErrorEntry(
+                source: 'app_snapshot',
+                message: entry.message,
+                recordedAt: entry.recordedAt,
+                kind: entry.kind.jsonValue,
+                routeName: entry.routeName ?? snapshot.routeName,
+              ),
+            )
+            .toList(growable: false);
   return CockpitReadErrorsResult(
     appId: resolved.appId,
     routeName: snapshot.routeName,
@@ -1981,8 +1946,7 @@ Future<CockpitReadLogsResult> cockpitDemoReadLogs(
         includeRuntimeActivity: true,
         maxRuntimeEntries: maxLines,
       ),
-    ))
-        .snapshot;
+    )).snapshot;
     final runtime = snapshot.runtime;
     return CockpitReadLogsResult(
       appId: resolved.appId,
@@ -2022,8 +1986,9 @@ Future<CockpitReadLogsResult> cockpitDemoReadLogs(
     }
     final lines = await file.readAsLines();
     final truncated = lines.length > maxLines;
-    final visibleLines =
-        truncated ? lines.sublist(lines.length - maxLines) : lines;
+    final visibleLines = truncated
+        ? lines.sublist(lines.length - maxLines)
+        : lines;
     return CockpitReadLogsResult(
       appId: resolved.appId,
       source: 'supervisor',
@@ -2056,11 +2021,12 @@ String cockpitDemoRecordingDriverForPlatform({
 }) {
   return switch (platform) {
     'android' => 'adb',
-    'ios' => deviceId != null &&
-            deviceId.isNotEmpty &&
-            cockpitLooksLikeIosSimulatorDeviceId(deviceId)
-        ? 'simctl'
-        : 'remote',
+    'ios' =>
+      deviceId != null &&
+              deviceId.isNotEmpty &&
+              cockpitLooksLikeIosSimulatorDeviceId(deviceId)
+          ? 'simctl'
+          : 'remote',
     'web' => 'browser-host',
     _ => 'remote',
   };
@@ -2138,10 +2104,7 @@ final class _ResolvedRemoteReference {
 }
 
 final class _ResolvedDevice {
-  const _ResolvedDevice({
-    required this.deviceId,
-    required this.bootstrapped,
-  });
+  const _ResolvedDevice({required this.deviceId, required this.bootstrapped});
 
   final String deviceId;
   final bool bootstrapped;

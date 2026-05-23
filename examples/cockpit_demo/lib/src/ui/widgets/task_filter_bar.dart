@@ -210,8 +210,9 @@ final class _PriorityToggle extends StatelessWidget {
       label: Text(label),
       style: TextButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 10),
-        foregroundColor:
-            selected ? colorScheme.onSurface : colorScheme.onSurfaceVariant,
+        foregroundColor: selected
+            ? colorScheme.onSurface
+            : colorScheme.onSurfaceVariant,
         shape: const RoundedRectangleBorder(),
       ),
     );

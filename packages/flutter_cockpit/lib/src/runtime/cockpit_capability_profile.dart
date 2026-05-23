@@ -15,10 +15,10 @@ final class CockpitCapabilityProfile {
     Set<CockpitEvidenceCapability> evidenceCapabilities =
         const <CockpitEvidenceCapability>{},
     Set<CockpitQualityFlag> qualityFlags = const <CockpitQualityFlag>{},
-  })  : surfaceKinds = Set.unmodifiable(surfaceKinds),
-        actionCapabilities = Set.unmodifiable(actionCapabilities),
-        evidenceCapabilities = Set.unmodifiable(evidenceCapabilities),
-        qualityFlags = Set.unmodifiable(qualityFlags);
+  }) : surfaceKinds = Set.unmodifiable(surfaceKinds),
+       actionCapabilities = Set.unmodifiable(actionCapabilities),
+       evidenceCapabilities = Set.unmodifiable(evidenceCapabilities),
+       qualityFlags = Set.unmodifiable(qualityFlags);
 
   final CockpitTargetKind targetKind;
   final Set<CockpitSurfaceKind> surfaceKinds;
@@ -48,18 +48,20 @@ final class CockpitCapabilityProfile {
   }
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'targetKind': targetKind.name,
-        'surfaceKinds':
-            surfaceKinds.map((surfaceKind) => surfaceKind.name).toList(),
-        'actionCapabilities': actionCapabilities
-            .map((actionCapability) => actionCapability.name)
-            .toList(),
-        'evidenceCapabilities': evidenceCapabilities
-            .map((evidenceCapability) => evidenceCapability.name)
-            .toList(),
-        'qualityFlags':
-            qualityFlags.map((qualityFlag) => qualityFlag.name).toList(),
-      };
+    'targetKind': targetKind.name,
+    'surfaceKinds': surfaceKinds
+        .map((surfaceKind) => surfaceKind.name)
+        .toList(),
+    'actionCapabilities': actionCapabilities
+        .map((actionCapability) => actionCapability.name)
+        .toList(),
+    'evidenceCapabilities': evidenceCapabilities
+        .map((evidenceCapability) => evidenceCapability.name)
+        .toList(),
+    'qualityFlags': qualityFlags
+        .map((qualityFlag) => qualityFlag.name)
+        .toList(),
+  };
 
   factory CockpitCapabilityProfile.fromJson(Map<String, Object?> json) {
     return CockpitCapabilityProfile(
@@ -102,10 +104,10 @@ final class CockpitCapabilityProfile {
 
   @override
   int get hashCode => Object.hash(
-        targetKind,
-        _surfaceEquality.hash(surfaceKinds),
-        _actionEquality.hash(actionCapabilities),
-        _evidenceEquality.hash(evidenceCapabilities),
-        _qualityEquality.hash(qualityFlags),
-      );
+    targetKind,
+    _surfaceEquality.hash(surfaceKinds),
+    _actionEquality.hash(actionCapabilities),
+    _evidenceEquality.hash(evidenceCapabilities),
+    _qualityEquality.hash(qualityFlags),
+  );
 }

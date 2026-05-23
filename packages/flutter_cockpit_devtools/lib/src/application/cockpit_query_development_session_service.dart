@@ -3,10 +3,10 @@ import 'package:flutter_cockpit_devtools/src/development/cockpit_development_ses
 import 'package:flutter_cockpit_devtools/src/development/cockpit_development_session_status.dart';
 import 'package:flutter_cockpit_devtools/src/development/cockpit_development_session_supervisor_client.dart';
 
-typedef CockpitDevelopmentSessionStatusReader
-    = Future<CockpitDevelopmentSessionSupervisorResponse> Function(
-  Uri supervisorBaseUri,
-);
+typedef CockpitDevelopmentSessionStatusReader =
+    Future<CockpitDevelopmentSessionSupervisorResponse> Function(
+      Uri supervisorBaseUri,
+    );
 
 final class CockpitQueryDevelopmentSessionRequest {
   const CockpitQueryDevelopmentSessionRequest({
@@ -35,11 +35,13 @@ final class CockpitQueryDevelopmentSessionService {
     CockpitDevelopmentSessionStatusReader? statusReader,
     CockpitDevelopmentSessionReferenceResolver? sessionReferenceResolver,
     CockpitDevelopmentSessionSupervisorClient? supervisorClient,
-  })  : _statusReader = statusReader ??
-            (supervisorClient ?? CockpitDevelopmentSessionSupervisorClient())
-                .readStatus,
-        _sessionReferenceResolver = sessionReferenceResolver ??
-            const CockpitDevelopmentSessionReferenceResolver();
+  }) : _statusReader =
+           statusReader ??
+           (supervisorClient ?? CockpitDevelopmentSessionSupervisorClient())
+               .readStatus,
+       _sessionReferenceResolver =
+           sessionReferenceResolver ??
+           const CockpitDevelopmentSessionReferenceResolver();
 
   final CockpitDevelopmentSessionStatusReader _statusReader;
   final CockpitDevelopmentSessionReferenceResolver _sessionReferenceResolver;
@@ -65,8 +67,7 @@ final class CockpitQueryDevelopmentSessionService {
       CockpitDevelopmentSessionState.ready => 'ready_for_incremental_probe',
       CockpitDevelopmentSessionState.starting ||
       CockpitDevelopmentSessionState.reloading ||
-      CockpitDevelopmentSessionState.restarting =>
-        'wait_for_ready',
+      CockpitDevelopmentSessionState.restarting => 'wait_for_ready',
       CockpitDevelopmentSessionState.stopped => 'launch_development_session',
       CockpitDevelopmentSessionState.failed => 'relaunch_development_session',
     };

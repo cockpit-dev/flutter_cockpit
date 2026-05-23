@@ -17,27 +17,26 @@ void main() {
     expect(contents.contains('FlutterCockpit'), isFalse);
   });
 
-  testWidgets(
-    'overview card keeps its content inset from the card edge',
-    (tester) async {
-      final database = CockpitDemoDatabase.inMemory();
-      addCockpitDemoDatabaseTearDown(tester, database);
+  testWidgets('overview card keeps its content inset from the card edge', (
+    tester,
+  ) async {
+    final database = CockpitDemoDatabase.inMemory();
+    addCockpitDemoDatabaseTearDown(tester, database);
 
-      await pumpTodoApp(
-        tester,
-        controller: _testController(),
-        database: database,
-      );
+    await pumpTodoApp(
+      tester,
+      controller: _testController(),
+      database: database,
+    );
 
-      final overviewCard = find.byType(CollectionOverviewCard).first;
-      final cardRect = tester.getRect(overviewCard);
-      final headlineRect = tester.getRect(find.text('Work queue').first);
-      final metricRect = tester.getRect(find.text('OPEN').first);
+    final overviewCard = find.byType(CollectionOverviewCard).first;
+    final cardRect = tester.getRect(overviewCard);
+    final headlineRect = tester.getRect(find.text('Work queue').first);
+    final metricRect = tester.getRect(find.text('OPEN').first);
 
-      expect(headlineRect.left - cardRect.left, greaterThanOrEqualTo(16));
-      expect(metricRect.left - cardRect.left, greaterThanOrEqualTo(16));
-    },
-  );
+    expect(headlineRect.left - cardRect.left, greaterThanOrEqualTo(16));
+    expect(metricRect.left - cardRect.left, greaterThanOrEqualTo(16));
+  });
 
   testWidgets(
     'todo app supports create, edit, complete, search, and settings flows',
@@ -121,8 +120,7 @@ void main() {
 
       final storedSettings = await (database.select(
         database.appSettings,
-      )..limit(1))
-          .getSingle();
+      )..limit(1)).getSingle();
       expect(storedSettings.compactMode, isTrue);
       expect(storedSettings.themePreference, 'dark');
     },
@@ -278,16 +276,10 @@ void main() {
         'Use a backend tag to isolate the validation path.',
       );
 
-      await scrollTodoCollectionUntilVisible(
-        tester,
-        find.text('Create tag'),
-      );
+      await scrollTodoCollectionUntilVisible(tester, find.text('Create tag'));
       await tester.tap(find.text('Create tag'));
       await tester.pumpAndSettle();
-      await tester.enterText(
-        textFieldByLabel('Tag name'),
-        'Backend',
-      );
+      await tester.enterText(textFieldByLabel('Tag name'), 'Backend');
       await tester.tap(find.text('Create tag').last);
       await tester.pumpAndSettle();
 
@@ -372,8 +364,9 @@ void main() {
       await tester.pumpAndSettle();
 
       final refreshed = <String, TodoTask>{
-        for (final task
-            in await repository.fetchTasks(const TodoFilter.inbox()))
+        for (final task in await repository.fetchTasks(
+          const TodoFilter.inbox(),
+        ))
           task.id: task,
       };
       expect(refreshed[first.id]?.priority, TodoPriority.urgent);
@@ -384,126 +377,119 @@ void main() {
     },
   );
 
-  testWidgets(
-    'inbox exposes a compact queue brief for rapid validation',
-    (tester) async {
-      final database = CockpitDemoDatabase.inMemory();
-      addCockpitDemoDatabaseTearDown(tester, database);
-      final repository = TodoRepository(database);
-      await repository.createTask(
-        title: 'Ship cockpit rapid loop',
-        notes: 'Keep the summary cheap for AI validation.',
-        priority: TodoPriority.high,
-        dueAt: DateTime.now(),
-      );
-      await repository.createTask(
-        title: 'Archive finished notes',
-        priority: TodoPriority.low,
-        dueAt: DateTime.now(),
-      );
-      final completed = await repository.createTask(
-        title: 'Closed acceptance pass',
-        priority: TodoPriority.urgent,
-        dueAt: DateTime.now(),
-      );
-      await repository.setTaskCompleted(
-        taskId: completed.id,
-        isCompleted: true,
-      );
+  testWidgets('inbox exposes a compact queue brief for rapid validation', (
+    tester,
+  ) async {
+    final database = CockpitDemoDatabase.inMemory();
+    addCockpitDemoDatabaseTearDown(tester, database);
+    final repository = TodoRepository(database);
+    await repository.createTask(
+      title: 'Ship cockpit rapid loop',
+      notes: 'Keep the summary cheap for AI validation.',
+      priority: TodoPriority.high,
+      dueAt: DateTime.now(),
+    );
+    await repository.createTask(
+      title: 'Archive finished notes',
+      priority: TodoPriority.low,
+      dueAt: DateTime.now(),
+    );
+    final completed = await repository.createTask(
+      title: 'Closed acceptance pass',
+      priority: TodoPriority.urgent,
+      dueAt: DateTime.now(),
+    );
+    await repository.setTaskCompleted(taskId: completed.id, isCompleted: true);
 
-      await pumpTodoApp(
-        tester,
-        controller: _testController(),
-        database: database,
-      );
+    await pumpTodoApp(
+      tester,
+      controller: _testController(),
+      database: database,
+    );
 
-      expect(
-        find.textContaining('Queue brief:'),
-        findsOneWidget,
-      );
-    },
-  );
+    expect(find.textContaining('Queue brief:'), findsOneWidget);
+  });
 
-  testWidgets(
-    'selection mode can apply a batch due date update',
-    (tester) async {
-      final database = CockpitDemoDatabase.inMemory();
-      addCockpitDemoDatabaseTearDown(tester, database);
-      final repository = TodoRepository(database);
-      final first = await repository.createTask(title: 'Schedule first');
-      await repository.createTask(title: 'Schedule second');
+  testWidgets('selection mode can apply a batch due date update', (
+    tester,
+  ) async {
+    final database = CockpitDemoDatabase.inMemory();
+    addCockpitDemoDatabaseTearDown(tester, database);
+    final repository = TodoRepository(database);
+    final first = await repository.createTask(title: 'Schedule first');
+    await repository.createTask(title: 'Schedule second');
 
-      await pumpTodoApp(
-        tester,
-        controller: _testController(),
-        database: database,
-      );
+    await pumpTodoApp(
+      tester,
+      controller: _testController(),
+      database: database,
+    );
 
-      await tester.longPress(taskRowByTitle(first.title));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('All results'));
-      await tester.pumpAndSettle();
+    await tester.longPress(taskRowByTitle(first.title));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('All results'));
+    await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Schedule'));
-      await tester.pumpAndSettle();
-      expect(find.text('Update due date'), findsOneWidget);
+    await tester.tap(find.text('Schedule'));
+    await tester.pumpAndSettle();
+    expect(find.text('Update due date'), findsOneWidget);
 
-      await tester.tap(find.text('Tomorrow'));
-      await tester.pumpAndSettle();
+    await tester.tap(find.text('Tomorrow'));
+    await tester.pumpAndSettle();
 
-      final refreshed = await repository.fetchTasks(const TodoFilter.inbox());
-      final dueTasks = refreshed.where((task) => task.dueAt != null).toList();
-      expect(dueTasks, hasLength(2));
-      expect(find.textContaining('selected'), findsNothing);
-    },
-  );
+    final refreshed = await repository.fetchTasks(const TodoFilter.inbox());
+    final dueTasks = refreshed.where((task) => task.dueAt != null).toList();
+    expect(dueTasks, hasLength(2));
+    expect(find.textContaining('selected'), findsNothing);
+  });
 
-  testWidgets(
-    'selection mode can create and apply a shared batch tag set',
-    (tester) async {
-      final database = CockpitDemoDatabase.inMemory();
-      addCockpitDemoDatabaseTearDown(tester, database);
-      final repository = TodoRepository(database);
-      final first = await repository.createTask(title: 'Tag first');
-      await repository.createTask(title: 'Tag second');
+  testWidgets('selection mode can create and apply a shared batch tag set', (
+    tester,
+  ) async {
+    final database = CockpitDemoDatabase.inMemory();
+    addCockpitDemoDatabaseTearDown(tester, database);
+    final repository = TodoRepository(database);
+    final first = await repository.createTask(title: 'Tag first');
+    await repository.createTask(title: 'Tag second');
 
-      await pumpTodoApp(
-        tester,
-        controller: _testController(),
-        database: database,
-      );
+    await pumpTodoApp(
+      tester,
+      controller: _testController(),
+      database: database,
+    );
 
-      await tester.longPress(taskRowByTitle(first.title));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('All results'));
-      await tester.pumpAndSettle();
+    await tester.longPress(taskRowByTitle(first.title));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('All results'));
+    await tester.pumpAndSettle();
 
-      await tester.tap(find.widgetWithText(OutlinedButton, 'Tags'));
-      await tester.pumpAndSettle();
-      expect(find.text('Update tags'), findsOneWidget);
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Tags'));
+    await tester.pumpAndSettle();
+    expect(find.text('Update tags'), findsOneWidget);
 
-      await tester.enterText(textFieldByLabel('New tag'), 'Ops');
-      await tester.tap(find.text('Create tag'));
-      await tester.pumpAndSettle();
-      expect(find.widgetWithText(FilterChip, 'Ops'), findsWidgets);
+    await tester.enterText(textFieldByLabel('New tag'), 'Ops');
+    await tester.tap(find.text('Create tag'));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(FilterChip, 'Ops'), findsWidgets);
 
-      await tester.ensureVisible(find.text('Apply tags'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Apply tags'));
-      await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Apply tags'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Apply tags'));
+    await tester.pumpAndSettle();
 
-      final refreshed = await repository.fetchTasks(const TodoFilter.inbox());
-      final taggedTasks =
-          refreshed.where((task) => task.tags.isNotEmpty).toList();
-      expect(taggedTasks, hasLength(2));
-      expect(
-        taggedTasks
-            .every((task) => task.tags.map((tag) => tag.name).contains('Ops')),
-        isTrue,
-      );
-      expect(find.textContaining('selected'), findsNothing);
-    },
-  );
+    final refreshed = await repository.fetchTasks(const TodoFilter.inbox());
+    final taggedTasks = refreshed
+        .where((task) => task.tags.isNotEmpty)
+        .toList();
+    expect(taggedTasks, hasLength(2));
+    expect(
+      taggedTasks.every(
+        (task) => task.tags.map((tag) => tag.name).contains('Ops'),
+      ),
+      isTrue,
+    );
+    expect(find.textContaining('selected'), findsNothing);
+  });
 
   testWidgets(
     'selection mode can duplicate selected tasks with a shared prefix',
@@ -581,7 +567,9 @@ void main() {
       );
 
       await scrollTodoCollectionUntilVisible(
-          tester, taskRowByTitle(source.title));
+        tester,
+        taskRowByTitle(source.title),
+      );
       await tester.tap(taskRowByTitle(source.title));
       await settleSingleTapGesture(tester);
 
@@ -605,11 +593,13 @@ void main() {
 
       expect(find.text('Verify relay tracing follow-up'), findsWidgets);
       expect(find.text('Backend'), findsWidgets);
-      final createdTasks =
-          await repository.fetchTasks(const TodoFilter.inbox());
+      final createdTasks = await repository.fetchTasks(
+        const TodoFilter.inbox(),
+      );
       expect(
-        createdTasks
-            .any((task) => task.title == 'Verify relay tracing follow-up'),
+        createdTasks.any(
+          (task) => task.title == 'Verify relay tracing follow-up',
+        ),
         isTrue,
       );
     },

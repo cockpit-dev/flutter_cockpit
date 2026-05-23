@@ -5,7 +5,7 @@ import 'cockpit_remote_session_client.dart';
 
 final class CockpitRemoteAutomationAdapter implements CockpitAutomationAdapter {
   CockpitRemoteAutomationAdapter({required CockpitRemoteSessionClient client})
-      : _client = client;
+    : _client = client;
 
   final CockpitRemoteSessionClient _client;
 

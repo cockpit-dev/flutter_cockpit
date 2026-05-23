@@ -2,19 +2,19 @@ import '../../application/cockpit_query_development_session_service.dart';
 import '../../application/cockpit_session_registry.dart';
 import '../cockpit_mcp_tool.dart';
 
-typedef CockpitQueryDevelopmentSessionToolFunction
-    = Future<CockpitQueryDevelopmentSessionResult> Function(
-  CockpitQueryDevelopmentSessionRequest request,
-);
+typedef CockpitQueryDevelopmentSessionToolFunction =
+    Future<CockpitQueryDevelopmentSessionResult> Function(
+      CockpitQueryDevelopmentSessionRequest request,
+    );
 
 final class CockpitQueryDevelopmentSessionTool extends CockpitMcpTool {
   CockpitQueryDevelopmentSessionTool({
     CockpitQueryDevelopmentSessionService? service,
     CockpitQueryDevelopmentSessionToolFunction? query,
     CockpitSessionRegistry? sessionRegistry,
-  })  : _query =
-            query ?? (service ?? CockpitQueryDevelopmentSessionService()).query,
-        _sessionRegistry = sessionRegistry;
+  }) : _query =
+           query ?? (service ?? CockpitQueryDevelopmentSessionService()).query,
+       _sessionRegistry = sessionRegistry;
 
   final CockpitQueryDevelopmentSessionToolFunction _query;
   final CockpitSessionRegistry? _sessionRegistry;
@@ -28,12 +28,12 @@ final class CockpitQueryDevelopmentSessionTool extends CockpitMcpTool {
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
-        'type': 'object',
-        'properties': <String, Object?>{
-          'sessionHandle': <String, Object?>{'type': 'object'},
-          'sessionHandlePath': <String, Object?>{'type': 'string'},
-        },
-      };
+    'type': 'object',
+    'properties': <String, Object?>{
+      'sessionHandle': <String, Object?>{'type': 'object'},
+      'sessionHandlePath': <String, Object?>{'type': 'string'},
+    },
+  };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {

@@ -15,19 +15,17 @@ final class QueryRemoteSessionCommand extends CockpitCliCommand {
     CockpitAndroidPortForwarder portForwarder =
         const CockpitAndroidPortForwarder(),
     StringSink? stdoutSink,
-  })  : _service = service ??
-            CockpitQueryRemoteSessionService(
-              sessionReferenceResolver: CockpitSessionReferenceResolver(
-                portForwarder: portForwarder,
-              ),
-            ),
-        _stdoutSink = stdoutSink ?? stdout {
+  }) : _service =
+           service ??
+           CockpitQueryRemoteSessionService(
+             sessionReferenceResolver: CockpitSessionReferenceResolver(
+               portForwarder: portForwarder,
+             ),
+           ),
+       _stdoutSink = stdoutSink ?? stdout {
     argParser
       ..addOption('base-url', help: 'Base URL for the running app session.')
-      ..addOption(
-        'session-json',
-        help: cockpitRemoteSessionJsonOptionHelp,
-      )
+      ..addOption('session-json', help: cockpitRemoteSessionJsonOptionHelp)
       ..addOption(
         'android-device-id',
         help: 'Optional Android device ID used to set up adb port forwarding.',

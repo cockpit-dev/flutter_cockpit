@@ -24,15 +24,15 @@ final class CockpitLinuxCaptureAdapter implements CockpitHostCaptureAdapter {
         cockpitResolveLinuxWindowTarget,
     Duration timeout = const Duration(seconds: 5),
     Duration activationSettleDelay = const Duration(milliseconds: 250),
-  })  : _appId = appId,
-        _processId = processId,
-        _captureExecutables = List<String>.unmodifiable(captureExecutables),
-        _windowActivatorExecutable = windowActivatorExecutable,
-        _processRunner = processRunner,
-        _tempFileFactory = tempFileFactory,
-        _windowTargetResolver = windowTargetResolver,
-        _timeout = timeout,
-        _activationSettleDelay = activationSettleDelay;
+  }) : _appId = appId,
+       _processId = processId,
+       _captureExecutables = List<String>.unmodifiable(captureExecutables),
+       _windowActivatorExecutable = windowActivatorExecutable,
+       _processRunner = processRunner,
+       _tempFileFactory = tempFileFactory,
+       _windowTargetResolver = windowTargetResolver,
+       _timeout = timeout,
+       _activationSettleDelay = activationSettleDelay;
 
   final String _appId;
   final int? _processId;
@@ -112,10 +112,7 @@ final class CockpitLinuxCaptureAdapter implements CockpitHostCaptureAdapter {
         command: command,
         durationMs: stopwatch.elapsedMilliseconds,
         message: 'Linux host screenshot failed.',
-        details: <String, Object?>{
-          'appId': _appId,
-          'error': error.toString(),
-        },
+        details: <String, Object?>{'appId': _appId, 'error': error.toString()},
       );
     } on Object catch (error) {
       stopwatch.stop();
@@ -123,10 +120,7 @@ final class CockpitLinuxCaptureAdapter implements CockpitHostCaptureAdapter {
         command: command,
         durationMs: stopwatch.elapsedMilliseconds,
         message: 'Linux host screenshot threw an unexpected error.',
-        details: <String, Object?>{
-          'appId': _appId,
-          'error': error.toString(),
-        },
+        details: <String, Object?>{'appId': _appId, 'error': error.toString()},
       );
     }
   }
@@ -212,17 +206,19 @@ final class CockpitLinuxCaptureAdapter implements CockpitHostCaptureAdapter {
   ) {
     return switch (executable) {
       'gnome-screenshot' => <String>['-w', '-f', outputPath],
-      'grim' => windowTarget == null
-          ? null
-          : <String>[
-              '-g',
-              '${windowTarget.left},${windowTarget.top} ${windowTarget.width}x${windowTarget.height}',
-              outputPath,
-            ],
+      'grim' =>
+        windowTarget == null
+            ? null
+            : <String>[
+                '-g',
+                '${windowTarget.left},${windowTarget.top} ${windowTarget.width}x${windowTarget.height}',
+                outputPath,
+              ],
       'scrot' => <String>['-u', outputPath],
-      'import' => windowTarget == null
-          ? null
-          : <String>['-window', windowTarget.windowId, outputPath],
+      'import' =>
+        windowTarget == null
+            ? null
+            : <String>['-window', windowTarget.windowId, outputPath],
       _ => <String>[outputPath],
     };
   }

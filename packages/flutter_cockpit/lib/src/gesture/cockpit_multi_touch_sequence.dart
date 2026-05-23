@@ -26,12 +26,12 @@ final class CockpitMultiTouchStep {
   final double dy;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'pointer': pointer,
-        'phase': phase.name,
-        'atMs': atMs,
-        'dx': dx,
-        'dy': dy,
-      };
+    'pointer': pointer,
+    'phase': phase.name,
+    'atMs': atMs,
+    'dx': dx,
+    'dy': dy,
+  };
 
   factory CockpitMultiTouchStep.fromJson(Map<String, Object?> json) {
     return CockpitMultiTouchStep(
@@ -67,8 +67,8 @@ final class CockpitMultiTouchSequence {
       ListEquality<CockpitMultiTouchStep>();
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'steps': steps.map((step) => step.toJson()).toList(growable: false),
-      };
+    'steps': steps.map((step) => step.toJson()).toList(growable: false),
+  };
 
   factory CockpitMultiTouchSequence.fromJson(Map<String, Object?> json) {
     return CockpitMultiTouchSequence(

@@ -63,8 +63,9 @@ void main() {
               ),
             );
           case ('POST', '/commands/execute'):
-            final body = jsonDecode(await utf8.decoder.bind(request).join())
-                as Map<String, Object?>;
+            final body =
+                jsonDecode(await utf8.decoder.bind(request).join())
+                    as Map<String, Object?>;
             final command = CockpitCommand.fromJson(body);
             request.response.write(
               jsonEncode(
@@ -74,7 +75,8 @@ void main() {
                     commandId: command.commandId,
                     commandType: command.commandType,
                     durationMs: 25,
-                    artifacts: command.commandType ==
+                    artifacts:
+                        command.commandType ==
                             CockpitCommandType.captureScreenshot
                         ? const <CockpitArtifactRef>[
                             CockpitArtifactRef(
@@ -85,7 +87,8 @@ void main() {
                         : const <CockpitArtifactRef>[],
                     snapshot: CockpitSnapshot(routeName: '/form').toJson(),
                   ),
-                  artifactPayloads: command.commandType ==
+                  artifactPayloads:
+                      command.commandType ==
                           CockpitCommandType.captureScreenshot
                       ? const <CockpitRemoteArtifactPayload>[
                           CockpitRemoteArtifactPayload(
@@ -167,9 +170,7 @@ void main() {
             CockpitCommand(
               commandId: 'remote-open',
               commandType: CockpitCommandType.tap,
-              locator: const CockpitLocator(
-                cockpitId: 'open_form_button',
-              ),
+              locator: const CockpitLocator(cockpitId: 'open_form_button'),
             ).toJson(),
             CockpitCommand(
               commandId: 'remote-capture',
@@ -228,22 +229,26 @@ void main() {
         <int>[9, 8, 7, 6],
       );
 
-      final manifestJson = jsonDecode(
-        await File(
-          p.join(outputDirectories.single.path, 'manifest.json'),
-        ).readAsString(),
-      ) as Map<String, Object?>;
+      final manifestJson =
+          jsonDecode(
+                await File(
+                  p.join(outputDirectories.single.path, 'manifest.json'),
+                ).readAsString(),
+              )
+              as Map<String, Object?>;
 
       expect(manifestJson['commandCount'], 2);
       expect(manifestJson['screenshotCount'], 1);
       expect(manifestJson['recordingCount'], 1);
       expect(manifestJson['deliveryVideoReady'], isTrue);
 
-      final deliveryJson = jsonDecode(
-        await File(
-          p.join(outputDirectories.single.path, 'delivery.json'),
-        ).readAsString(),
-      ) as Map<String, Object?>;
+      final deliveryJson =
+          jsonDecode(
+                await File(
+                  p.join(outputDirectories.single.path, 'delivery.json'),
+                ).readAsString(),
+              )
+              as Map<String, Object?>;
       expect(
         deliveryJson['primaryRecordingRef'],
         'recordings/remote-demo-acceptance.mp4',
@@ -251,107 +256,103 @@ void main() {
     },
   );
 
-  test(
-    'run-script uses the forwarded host port for Android devices',
-    () async {
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      final tempDir = await Directory.systemTemp.createTemp(
-        'cockpit_run_remote_cli_android',
-      );
-      addTearDown(() async {
-        await server.close(force: true);
-        if (tempDir.existsSync()) {
-          await tempDir.delete(recursive: true);
-        }
-      });
+  test('run-script uses the forwarded host port for Android devices', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    final tempDir = await Directory.systemTemp.createTemp(
+      'cockpit_run_remote_cli_android',
+    );
+    addTearDown(() async {
+      await server.close(force: true);
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
 
-      server.listen((request) async {
-        request.response.headers.contentType = ContentType.json;
-        switch ((request.method, request.uri.path)) {
-          case ('GET', '/health'):
-            request.response.write(
-              jsonEncode(
-                CockpitRemoteSessionStatus(
-                  sessionId: 'cli-remote-android-demo',
+    server.listen((request) async {
+      request.response.headers.contentType = ContentType.json;
+      switch ((request.method, request.uri.path)) {
+        case ('GET', '/health'):
+          request.response.write(
+            jsonEncode(
+              CockpitRemoteSessionStatus(
+                sessionId: 'cli-remote-android-demo',
+                platform: 'android',
+                transportType: 'remoteHttp',
+                currentRouteName: '/home',
+                capabilities: CockpitCapabilities(
                   platform: 'android',
                   transportType: 'remoteHttp',
-                  currentRouteName: '/home',
-                  capabilities: CockpitCapabilities(
-                    platform: 'android',
-                    transportType: 'remoteHttp',
-                    supportsInAppControl: true,
-                    supportsFlutterViewCapture: true,
-                    supportsNativeScreenCapture: true,
-                    supportsHostAutomation: false,
-                    supportedCommands: <CockpitCommandType>[
-                      CockpitCommandType.tap,
-                    ],
-                    supportedLocatorStrategies: CockpitLocatorKind.values,
-                  ),
-                  recordingCapabilities: CockpitRecordingCapabilities(
-                    supportsNativeRecording: true,
-                    preferredAcceptanceRecordingKind:
-                        CockpitRecordingKind.nativeScreen,
-                  ),
-                  snapshot: CockpitSnapshot(routeName: '/home'),
-                ).toJson(),
-              ),
-            );
-          case ('POST', '/commands/execute'):
-            final body = jsonDecode(await utf8.decoder.bind(request).join())
-                as Map<String, Object?>;
-            final command = CockpitCommand.fromJson(body);
-            request.response.write(
-              jsonEncode(
-                CockpitRemoteCommandResponse(
-                  result: CockpitCommandResult(
-                    success: true,
-                    commandId: command.commandId,
-                    commandType: command.commandType,
-                    durationMs: 20,
-                    snapshot: CockpitSnapshot(routeName: '/form').toJson(),
-                  ),
-                ).toJson(),
-              ),
-            );
-          default:
-            request.response.statusCode = HttpStatus.notFound;
-            request.response.write(
-              jsonEncode(const <String, Object?>{'error': 'notFound'}),
-            );
-        }
-        await request.response.close();
-      });
+                  supportsInAppControl: true,
+                  supportsFlutterViewCapture: true,
+                  supportsNativeScreenCapture: true,
+                  supportsHostAutomation: false,
+                  supportedCommands: <CockpitCommandType>[
+                    CockpitCommandType.tap,
+                  ],
+                  supportedLocatorStrategies: CockpitLocatorKind.values,
+                ),
+                recordingCapabilities: CockpitRecordingCapabilities(
+                  supportsNativeRecording: true,
+                  preferredAcceptanceRecordingKind:
+                      CockpitRecordingKind.nativeScreen,
+                ),
+                snapshot: CockpitSnapshot(routeName: '/home'),
+              ).toJson(),
+            ),
+          );
+        case ('POST', '/commands/execute'):
+          final body =
+              jsonDecode(await utf8.decoder.bind(request).join())
+                  as Map<String, Object?>;
+          final command = CockpitCommand.fromJson(body);
+          request.response.write(
+            jsonEncode(
+              CockpitRemoteCommandResponse(
+                result: CockpitCommandResult(
+                  success: true,
+                  commandId: command.commandId,
+                  commandType: command.commandType,
+                  durationMs: 20,
+                  snapshot: CockpitSnapshot(routeName: '/form').toJson(),
+                ),
+              ).toJson(),
+            ),
+          );
+        default:
+          request.response.statusCode = HttpStatus.notFound;
+          request.response.write(
+            jsonEncode(const <String, Object?>{'error': 'notFound'}),
+          );
+      }
+      await request.response.close();
+    });
 
-      final scriptFile = File(
-        p.join(tempDir.path, 'android_remote_script.json'),
-      );
-      await scriptFile.writeAsString(
-        jsonEncode(<String, Object?>{
-          'sessionId': 'remote-script-android-session',
-          'taskId': 'remote-script-android-task',
-          'platform': 'android',
-          'environment': const CockpitEnvironment(
-            platform: 'android',
-            flutterVersion: '3.38.9',
-            dartVersion: '3.10.8',
+    final scriptFile = File(p.join(tempDir.path, 'android_remote_script.json'));
+    await scriptFile.writeAsString(
+      jsonEncode(<String, Object?>{
+        'sessionId': 'remote-script-android-session',
+        'taskId': 'remote-script-android-task',
+        'platform': 'android',
+        'environment': const CockpitEnvironment(
+          platform: 'android',
+          flutterVersion: '3.38.9',
+          dartVersion: '3.10.8',
+        ).toJson(),
+        'commands': <Map<String, Object?>>[
+          CockpitCommand(
+            commandId: 'remote-open',
+            commandType: CockpitCommandType.tap,
+            locator: const CockpitLocator(cockpitId: 'open_form_button'),
           ).toJson(),
-          'commands': <Map<String, Object?>>[
-            CockpitCommand(
-              commandId: 'remote-open',
-              commandType: CockpitCommandType.tap,
-              locator: const CockpitLocator(
-                cockpitId: 'open_form_button',
-              ),
-            ).toJson(),
-          ],
-        }),
-      );
+        ],
+      }),
+    );
 
-      final runner = CommandRunner<int>(
-        'flutter_cockpit_devtools',
-        'Host-side tooling for flutter_cockpit.',
-      )..addCommand(
+    final runner =
+        CommandRunner<int>(
+          'flutter_cockpit_devtools',
+          'Host-side tooling for flutter_cockpit.',
+        )..addCommand(
           RunScriptCommand(
             appReferenceResolver: CockpitAppReferenceResolver(
               portForwarder: _FakeAndroidPortForwarder(
@@ -360,22 +361,22 @@ void main() {
             ),
           ),
         );
-      final exitCode = await runner.run(<String>[
-            'run-script',
-            '--base-url',
-            'http://127.0.0.1:47331',
-            '--script-json',
-            scriptFile.path,
-            '--output-root',
-            tempDir.path,
-            '--android-device-id',
-            'emulator-5554',
-          ]) ??
-          0;
+    final exitCode =
+        await runner.run(<String>[
+          'run-script',
+          '--base-url',
+          'http://127.0.0.1:47331',
+          '--script-json',
+          scriptFile.path,
+          '--output-root',
+          tempDir.path,
+          '--android-device-id',
+          'emulator-5554',
+        ]) ??
+        0;
 
-      expect(exitCode, 0);
-    },
-  );
+    expect(exitCode, 0);
+  });
 
   test(
     'run-script writes a host-recorded video without remote recording downloads',
@@ -425,8 +426,9 @@ void main() {
               ),
             );
           case ('POST', '/commands/execute'):
-            final body = jsonDecode(await utf8.decoder.bind(request).join())
-                as Map<String, Object?>;
+            final body =
+                jsonDecode(await utf8.decoder.bind(request).join())
+                    as Map<String, Object?>;
             final command = CockpitCommand.fromJson(body);
             request.response.write(
               jsonEncode(
@@ -487,36 +489,36 @@ void main() {
             CockpitCommand(
               commandId: 'remote-open',
               commandType: CockpitCommandType.tap,
-              locator: const CockpitLocator(
-                cockpitId: 'open_form_button',
-              ),
+              locator: const CockpitLocator(cockpitId: 'open_form_button'),
             ).toJson(),
           ],
         }),
       );
 
-      final runner = CommandRunner<int>(
-        'flutter_cockpit_devtools',
-        'Host-side tooling for flutter_cockpit.',
-      )..addCommand(
-          RunScriptCommand(
-            service: CockpitRunRemoteControlScriptService(
-              recordingStrategyResolver: CockpitRecordingStrategyResolver(
-                remoteAdapterFactory: (client) => throw StateError(
-                  'remote recording adapter should not be used',
-                ),
-                adbAdapterFactory: (deviceId) => throw StateError(
-                  'adb recording adapter should not be used',
-                ),
-                simctlAdapterFactory: (deviceId) =>
-                    _FakeRecordingAdapter.fromSourceFile(
-                  hostRecordingSource.path,
+      final runner =
+          CommandRunner<int>(
+            'flutter_cockpit_devtools',
+            'Host-side tooling for flutter_cockpit.',
+          )..addCommand(
+            RunScriptCommand(
+              service: CockpitRunRemoteControlScriptService(
+                recordingStrategyResolver: CockpitRecordingStrategyResolver(
+                  remoteAdapterFactory: (client) => throw StateError(
+                    'remote recording adapter should not be used',
+                  ),
+                  adbAdapterFactory: (deviceId) => throw StateError(
+                    'adb recording adapter should not be used',
+                  ),
+                  simctlAdapterFactory: (deviceId) =>
+                      _FakeRecordingAdapter.fromSourceFile(
+                        hostRecordingSource.path,
+                      ),
                 ),
               ),
             ),
-          ),
-        );
-      final exitCode = await runner.run(<String>[
+          );
+      final exitCode =
+          await runner.run(<String>[
             'run-script',
             '--base-url',
             'http://127.0.0.1:${server.port}',
@@ -555,139 +557,135 @@ void main() {
     },
   );
 
-  test(
-    'run-script can resolve its base URL from an app handle',
-    () async {
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      final tempDir = await Directory.systemTemp.createTemp(
-        'cockpit_run_remote_cli_handle',
-      );
-      addTearDown(() async {
-        await server.close(force: true);
-        if (tempDir.existsSync()) {
-          await tempDir.delete(recursive: true);
-        }
-      });
+  test('run-script can resolve its base URL from an app handle', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    final tempDir = await Directory.systemTemp.createTemp(
+      'cockpit_run_remote_cli_handle',
+    );
+    addTearDown(() async {
+      await server.close(force: true);
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
 
-      server.listen((request) async {
-        request.response.headers.contentType = ContentType.json;
-        switch ((request.method, request.uri.path)) {
-          case ('GET', '/health'):
-            request.response.write(
-              jsonEncode(
-                CockpitRemoteSessionStatus(
-                  sessionId: 'cli-session-handle-demo',
+    server.listen((request) async {
+      request.response.headers.contentType = ContentType.json;
+      switch ((request.method, request.uri.path)) {
+        case ('GET', '/health'):
+          request.response.write(
+            jsonEncode(
+              CockpitRemoteSessionStatus(
+                sessionId: 'cli-session-handle-demo',
+                platform: 'ios',
+                transportType: 'remoteHttp',
+                currentRouteName: '/home',
+                capabilities: CockpitCapabilities(
                   platform: 'ios',
                   transportType: 'remoteHttp',
-                  currentRouteName: '/home',
-                  capabilities: CockpitCapabilities(
-                    platform: 'ios',
-                    transportType: 'remoteHttp',
-                    supportsInAppControl: true,
-                    supportsFlutterViewCapture: true,
-                    supportsNativeScreenCapture: true,
-                    supportsHostAutomation: false,
-                    supportedCommands: <CockpitCommandType>[
-                      CockpitCommandType.tap,
-                    ],
-                    supportedLocatorStrategies: CockpitLocatorKind.values,
-                  ),
-                  recordingCapabilities: CockpitRecordingCapabilities(
-                    supportsNativeRecording: true,
-                    preferredAcceptanceRecordingKind:
-                        CockpitRecordingKind.nativeScreen,
-                  ),
-                  snapshot: CockpitSnapshot(routeName: '/home'),
-                ).toJson(),
-              ),
-            );
-          case ('POST', '/commands/execute'):
-            final body = jsonDecode(await utf8.decoder.bind(request).join())
-                as Map<String, Object?>;
-            final command = CockpitCommand.fromJson(body);
-            request.response.write(
-              jsonEncode(
-                CockpitRemoteCommandResponse(
-                  result: CockpitCommandResult(
-                    success: true,
-                    commandId: command.commandId,
-                    commandType: command.commandType,
-                    durationMs: 12,
-                    snapshot: CockpitSnapshot(routeName: '/done').toJson(),
-                  ),
-                ).toJson(),
-              ),
-            );
-          default:
-            request.response.statusCode = HttpStatus.notFound;
-            request.response.write(
-              jsonEncode(const <String, Object?>{'error': 'notFound'}),
-            );
-        }
-        await request.response.close();
-      });
+                  supportsInAppControl: true,
+                  supportsFlutterViewCapture: true,
+                  supportsNativeScreenCapture: true,
+                  supportsHostAutomation: false,
+                  supportedCommands: <CockpitCommandType>[
+                    CockpitCommandType.tap,
+                  ],
+                  supportedLocatorStrategies: CockpitLocatorKind.values,
+                ),
+                recordingCapabilities: CockpitRecordingCapabilities(
+                  supportsNativeRecording: true,
+                  preferredAcceptanceRecordingKind:
+                      CockpitRecordingKind.nativeScreen,
+                ),
+                snapshot: CockpitSnapshot(routeName: '/home'),
+              ).toJson(),
+            ),
+          );
+        case ('POST', '/commands/execute'):
+          final body =
+              jsonDecode(await utf8.decoder.bind(request).join())
+                  as Map<String, Object?>;
+          final command = CockpitCommand.fromJson(body);
+          request.response.write(
+            jsonEncode(
+              CockpitRemoteCommandResponse(
+                result: CockpitCommandResult(
+                  success: true,
+                  commandId: command.commandId,
+                  commandType: command.commandType,
+                  durationMs: 12,
+                  snapshot: CockpitSnapshot(routeName: '/done').toJson(),
+                ),
+              ).toJson(),
+            ),
+          );
+        default:
+          request.response.statusCode = HttpStatus.notFound;
+          request.response.write(
+            jsonEncode(const <String, Object?>{'error': 'notFound'}),
+          );
+      }
+      await request.response.close();
+    });
 
-      final sessionFile = File(p.join(tempDir.path, 'sessionHandle.json'));
-      await sessionFile.writeAsString(
-        jsonEncode(<String, Object?>{
-          'appId': 'dev.cockpit.cockpitDemo',
-          'mode': 'automation',
-          'platform': 'ios',
-          'deviceId': 'simulator',
-          'projectDir': '/workspace/examples/cockpit_demo',
-          'target': 'lib/main.dart',
-          'baseUrl': 'http://127.0.0.1:${server.port}',
-          'launchedAt': '2026-03-21T00:00:00.000Z',
-        }),
-      );
+    final sessionFile = File(p.join(tempDir.path, 'sessionHandle.json'));
+    await sessionFile.writeAsString(
+      jsonEncode(<String, Object?>{
+        'appId': 'dev.cockpit.cockpitDemo',
+        'mode': 'automation',
+        'platform': 'ios',
+        'deviceId': 'simulator',
+        'projectDir': '/workspace/examples/cockpit_demo',
+        'target': 'lib/main.dart',
+        'baseUrl': 'http://127.0.0.1:${server.port}',
+        'launchedAt': '2026-03-21T00:00:00.000Z',
+      }),
+    );
 
-      final scriptFile = File(p.join(tempDir.path, 'session_script.json'));
-      await scriptFile.writeAsString(
-        jsonEncode(<String, Object?>{
-          'sessionId': 'remote-script-handle-session',
-          'taskId': 'remote-script-handle-task',
-          'platform': 'ios',
-          'environment': const CockpitEnvironment(
-            platform: 'ios',
-            flutterVersion: '3.38.9',
-            dartVersion: '3.10.8',
+    final scriptFile = File(p.join(tempDir.path, 'session_script.json'));
+    await scriptFile.writeAsString(
+      jsonEncode(<String, Object?>{
+        'sessionId': 'remote-script-handle-session',
+        'taskId': 'remote-script-handle-task',
+        'platform': 'ios',
+        'environment': const CockpitEnvironment(
+          platform: 'ios',
+          flutterVersion: '3.38.9',
+          dartVersion: '3.10.8',
+        ).toJson(),
+        'commands': <Map<String, Object?>>[
+          CockpitCommand(
+            commandId: 'remote-open',
+            commandType: CockpitCommandType.tap,
+            locator: const CockpitLocator(cockpitId: 'open_form_button'),
           ).toJson(),
-          'commands': <Map<String, Object?>>[
-            CockpitCommand(
-              commandId: 'remote-open',
-              commandType: CockpitCommandType.tap,
-              locator: const CockpitLocator(
-                cockpitId: 'open_form_button',
-              ),
-            ).toJson(),
-          ],
-        }),
-      );
+        ],
+      }),
+    );
 
-      final exitCode = await CockpitCommandRunner().run(<String>[
-        'run-script',
-        '--app-json',
-        sessionFile.path,
-        '--script-json',
-        scriptFile.path,
-        '--output-root',
-        tempDir.path,
-      ]);
+    final exitCode = await CockpitCommandRunner().run(<String>[
+      'run-script',
+      '--app-json',
+      sessionFile.path,
+      '--script-json',
+      scriptFile.path,
+      '--output-root',
+      tempDir.path,
+    ]);
 
-      expect(exitCode, 0);
+    expect(exitCode, 0);
 
-      final outputDirectories = tempDir
-          .listSync()
-          .whereType<Directory>()
-          .where(
-            (directory) =>
-                File(p.join(directory.path, 'manifest.json')).existsSync(),
-          )
-          .toList(growable: false);
+    final outputDirectories = tempDir
+        .listSync()
+        .whereType<Directory>()
+        .where(
+          (directory) =>
+              File(p.join(directory.path, 'manifest.json')).existsSync(),
+        )
+        .toList(growable: false);
 
-      expect(outputDirectories, hasLength(1));
-    },
-  );
+    expect(outputDirectories, hasLength(1));
+  });
 
   test('run-script forwards process ids from app handles', () async {
     final tempDir = await Directory.systemTemp.createTemp(
@@ -787,84 +785,86 @@ void main() {
     expect(capturedRequest?.sessionHandle?.processId, 4101);
   });
 
-  test('run-script returns non-zero when the written bundle is failed',
-      () async {
-    final tempDir = await Directory.systemTemp.createTemp(
-      'cockpit_run_remote_cli_failed_bundle',
-    );
-    addTearDown(() async {
-      if (tempDir.existsSync()) {
-        await tempDir.delete(recursive: true);
-      }
-    });
+  test(
+    'run-script returns non-zero when the written bundle is failed',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_run_remote_cli_failed_bundle',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
 
-    final appHandleFile = File(p.join(tempDir.path, 'app.json'));
-    await appHandleFile.writeAsString(
-      jsonEncode(
-        CockpitAppHandle(
-          appId: 'remote-demo-app',
-          mode: CockpitAppMode.automation,
-          platform: 'macos',
-          deviceId: 'macos',
-          projectDir: '/workspace/examples/cockpit_demo',
-          target: 'cockpit/main.dart',
-          baseUrl: 'http://127.0.0.1:57331',
-          launchedAt: DateTime.utc(2026, 3, 30),
-          platformAppId: 'dev.cockpit.demo',
-        ).toJson(),
-      ),
-    );
-    final scriptFile = File(p.join(tempDir.path, 'remote_script.json'));
-    await scriptFile.writeAsString(
-      jsonEncode(<String, Object?>{
-        'sessionId': 'remote-script-session',
-        'taskId': 'remote-script-task',
-        'platform': 'macos',
-        'environment': const CockpitEnvironment(
-          platform: 'macos',
-          flutterVersion: '3.38.9',
-          dartVersion: '3.10.8',
-        ).toJson(),
-        'commands': <Map<String, Object?>>[],
-      }),
-    );
-
-    final bundleDir = Directory(p.join(tempDir.path, 'bundle'))
-      ..createSync(recursive: true);
-    final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
-      ..addCommand(
-        RunScriptCommand(
-          runScript: (_) async => CockpitRunRemoteControlScriptResult(
-            sessionHandle: null,
-            bundleDir: bundleDir,
-            manifest: CockpitRunManifest(
-              sessionId: 'remote-script-session',
-              taskId: 'remote-script-task',
-              platform: 'macos',
-              status: CockpitTaskStatus.failed,
-              startedAt: DateTime.utc(2026, 3, 30),
-              finishedAt: DateTime.utc(2026, 3, 30, 0, 0, 1),
-              failureSummary: 'The script assertion failed.',
-            ),
-            handoff: const <String, Object?>{},
-            delivery: const <String, Object?>{},
-            artifactPaths: CockpitBundleArtifactPaths(),
-          ),
+      final appHandleFile = File(p.join(tempDir.path, 'app.json'));
+      await appHandleFile.writeAsString(
+        jsonEncode(
+          CockpitAppHandle(
+            appId: 'remote-demo-app',
+            mode: CockpitAppMode.automation,
+            platform: 'macos',
+            deviceId: 'macos',
+            projectDir: '/workspace/examples/cockpit_demo',
+            target: 'cockpit/main.dart',
+            baseUrl: 'http://127.0.0.1:57331',
+            launchedAt: DateTime.utc(2026, 3, 30),
+            platformAppId: 'dev.cockpit.demo',
+          ).toJson(),
         ),
       );
+      final scriptFile = File(p.join(tempDir.path, 'remote_script.json'));
+      await scriptFile.writeAsString(
+        jsonEncode(<String, Object?>{
+          'sessionId': 'remote-script-session',
+          'taskId': 'remote-script-task',
+          'platform': 'macos',
+          'environment': const CockpitEnvironment(
+            platform: 'macos',
+            flutterVersion: '3.38.9',
+            dartVersion: '3.10.8',
+          ).toJson(),
+          'commands': <Map<String, Object?>>[],
+        }),
+      );
 
-    final exitCode = await _runCommandRunner(runner, [
-      'run-script',
-      '--app-json',
-      appHandleFile.path,
-      '--script-json',
-      scriptFile.path,
-      '--output-root',
-      tempDir.path,
-    ]);
+      final bundleDir = Directory(p.join(tempDir.path, 'bundle'))
+        ..createSync(recursive: true);
+      final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
+        ..addCommand(
+          RunScriptCommand(
+            runScript: (_) async => CockpitRunRemoteControlScriptResult(
+              sessionHandle: null,
+              bundleDir: bundleDir,
+              manifest: CockpitRunManifest(
+                sessionId: 'remote-script-session',
+                taskId: 'remote-script-task',
+                platform: 'macos',
+                status: CockpitTaskStatus.failed,
+                startedAt: DateTime.utc(2026, 3, 30),
+                finishedAt: DateTime.utc(2026, 3, 30, 0, 0, 1),
+                failureSummary: 'The script assertion failed.',
+              ),
+              handoff: const <String, Object?>{},
+              delivery: const <String, Object?>{},
+              artifactPaths: CockpitBundleArtifactPaths(),
+            ),
+          ),
+        );
 
-    expect(exitCode, isNonZero);
-  });
+      final exitCode = await _runCommandRunner(runner, [
+        'run-script',
+        '--app-json',
+        appHandleFile.path,
+        '--script-json',
+        scriptFile.path,
+        '--output-root',
+        tempDir.path,
+      ]);
+
+      expect(exitCode, isNonZero);
+    },
+  );
 }
 
 Future<int> _runCommandRunner(

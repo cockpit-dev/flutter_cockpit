@@ -15,18 +15,14 @@ Future<void> main() async {
 }
 
 Future<void> _compileWorker({required String projectDir}) async {
-  final result = await Process.run(
-    Platform.resolvedExecutable,
-    <String>[
-      'compile',
-      'js',
-      'web/drift_worker.dart',
-      '-O4',
-      '-o',
-      'web/drift_worker.js',
-    ],
-    workingDirectory: projectDir,
-  );
+  final result = await Process.run(Platform.resolvedExecutable, <String>[
+    'compile',
+    'js',
+    'web/drift_worker.dart',
+    '-O4',
+    '-o',
+    'web/drift_worker.js',
+  ], workingDirectory: projectDir);
   if (result.exitCode != 0) {
     throw StateError(
       'Failed to compile drift worker: ${result.stderr}\n${result.stdout}',

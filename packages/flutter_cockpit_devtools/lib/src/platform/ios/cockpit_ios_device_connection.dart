@@ -3,12 +3,12 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
-typedef CockpitIosDeviceConnectionProcessRunner = Future<ProcessResult>
-    Function(
-  String executable,
-  List<String> arguments, {
-  String? workingDirectory,
-});
+typedef CockpitIosDeviceConnectionProcessRunner =
+    Future<ProcessResult> Function(
+      String executable,
+      List<String> arguments, {
+      String? workingDirectory,
+    });
 
 bool cockpitLooksLikeIosSimulatorDeviceId(String deviceId) {
   final normalized = deviceId.trim();
@@ -39,8 +39,8 @@ final class CockpitIosDeviceConnection {
     final hardwareProperties =
         json['hardwareProperties'] as Map<Object?, Object?>?;
     final reality = '${hardwareProperties?['reality'] ?? ''}'.trim();
-    final tunnelIpAddress =
-        '${connectionProperties?['tunnelIPAddress'] ?? ''}'.trim();
+    final tunnelIpAddress = '${connectionProperties?['tunnelIPAddress'] ?? ''}'
+        .trim();
     return CockpitIosDeviceConnection(
       isPhysical: reality == 'physical',
       tunnelIpAddress: tunnelIpAddress.isEmpty ? null : tunnelIpAddress,
@@ -52,9 +52,9 @@ final class CockpitIosDeviceConnectionProbe {
   CockpitIosDeviceConnectionProbe({
     CockpitIosDeviceConnectionProcessRunner processRunner = _runProcess,
     String Function()? tempDirectoryPathProvider,
-  })  : _processRunner = processRunner,
-        _tempDirectoryPathProvider =
-            tempDirectoryPathProvider ?? (() => Directory.systemTemp.path);
+  }) : _processRunner = processRunner,
+       _tempDirectoryPathProvider =
+           tempDirectoryPathProvider ?? (() => Directory.systemTemp.path);
 
   final CockpitIosDeviceConnectionProcessRunner _processRunner;
   final String Function() _tempDirectoryPathProvider;
@@ -67,19 +67,16 @@ final class CockpitIosDeviceConnectionProbe {
     );
     final outputFile = File(p.join(outputDirectory.path, 'device.json'));
     try {
-      final result = await _processRunner(
-        'xcrun',
-        <String>[
-          'devicectl',
-          'device',
-          'info',
-          'details',
-          '--device',
-          deviceId,
-          '--json-output',
-          outputFile.path,
-        ],
-      );
+      final result = await _processRunner('xcrun', <String>[
+        'devicectl',
+        'device',
+        'info',
+        'details',
+        '--device',
+        deviceId,
+        '--json-output',
+        outputFile.path,
+      ]);
       if (result.exitCode != 0 || !outputFile.existsSync()) {
         return null;
       }

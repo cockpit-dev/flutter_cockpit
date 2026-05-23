@@ -16,10 +16,10 @@ final class CockpitCapabilities {
     List<CockpitLocatorKind> supportedLocatorStrategies =
         const <CockpitLocatorKind>[],
     this.capabilityProfile,
-  })  : supportedCommands = List.unmodifiable(supportedCommands),
-        supportedLocatorStrategies = List.unmodifiable(
-          supportedLocatorStrategies,
-        );
+  }) : supportedCommands = List.unmodifiable(supportedCommands),
+       supportedLocatorStrategies = List.unmodifiable(
+         supportedLocatorStrategies,
+       );
 
   final String platform;
   final String transportType;
@@ -37,19 +37,21 @@ final class CockpitCapabilities {
       ListEquality<CockpitLocatorKind>();
 
   Map<String, Object?> toJson() => {
-        'platform': platform,
-        'transportType': transportType,
-        'supportsInAppControl': supportsInAppControl,
-        'supportsFlutterViewCapture': supportsFlutterViewCapture,
-        'supportsNativeScreenCapture': supportsNativeScreenCapture,
-        'supportsHostAutomation': supportsHostAutomation,
-        'supportedCommands':
-            supportedCommands.map((command) => command.name).toList(),
-        'supportedLocatorStrategies':
-            supportedLocatorStrategies.map((kind) => kind.name).toList(),
-        if (capabilityProfile != null)
-          'capabilityProfile': capabilityProfile!.toJson(),
-      };
+    'platform': platform,
+    'transportType': transportType,
+    'supportsInAppControl': supportsInAppControl,
+    'supportsFlutterViewCapture': supportsFlutterViewCapture,
+    'supportsNativeScreenCapture': supportsNativeScreenCapture,
+    'supportsHostAutomation': supportsHostAutomation,
+    'supportedCommands': supportedCommands
+        .map((command) => command.name)
+        .toList(),
+    'supportedLocatorStrategies': supportedLocatorStrategies
+        .map((kind) => kind.name)
+        .toList(),
+    if (capabilityProfile != null)
+      'capabilityProfile': capabilityProfile!.toJson(),
+  };
 
   factory CockpitCapabilities.fromJson(Map<String, Object?> json) {
     final capabilityProfileJson =
@@ -101,14 +103,14 @@ final class CockpitCapabilities {
 
   @override
   int get hashCode => Object.hash(
-        platform,
-        transportType,
-        supportsInAppControl,
-        supportsFlutterViewCapture,
-        supportsNativeScreenCapture,
-        supportsHostAutomation,
-        capabilityProfile,
-        _commandListEquality.hash(supportedCommands),
-        _locatorListEquality.hash(supportedLocatorStrategies),
-      );
+    platform,
+    transportType,
+    supportsInAppControl,
+    supportsFlutterViewCapture,
+    supportsNativeScreenCapture,
+    supportsHostAutomation,
+    capabilityProfile,
+    _commandListEquality.hash(supportedCommands),
+    _locatorListEquality.hash(supportedLocatorStrategies),
+  );
 }

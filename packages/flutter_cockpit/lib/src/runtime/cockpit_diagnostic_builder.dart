@@ -36,11 +36,13 @@ final class CockpitDiagnosticBuilder {
       truncated = true;
     }
 
-    final snapshotTargets = boundedTargets.map((target) {
-      final result = _buildTarget(target, options);
-      truncated = truncated || result.truncated;
-      return result.target;
-    }).toList(growable: false);
+    final snapshotTargets = boundedTargets
+        .map((target) {
+          final result = _buildTarget(target, options);
+          truncated = truncated || result.truncated;
+          return result.target;
+        })
+        .toList(growable: false);
     final accessibility = options.includeAccessibilitySummary
         ? _buildAccessibilitySummary(
             boundedTargets,
@@ -57,8 +59,9 @@ final class CockpitDiagnosticBuilder {
         truncated: truncated,
         summary: CockpitSnapshotSummary(
           visibleTargetCount: visibleTargets.length,
-          targetsWithCockpitIdCount:
-              visibleTargets.where((target) => target.cockpitId != null).length,
+          targetsWithCockpitIdCount: visibleTargets
+              .where((target) => target.cockpitId != null)
+              .length,
           targetsWithTextCount: visibleTargets
               .where((target) => target.text != null && target.text!.isNotEmpty)
               .length,
@@ -203,12 +206,12 @@ final class CockpitDiagnosticBuilder {
         : _extractStyle(runtimeNode.element);
     final diagnosticProperties =
         runtimeNode == null || !options.includeDiagnosticProperties
-            ? const <CockpitDiagnosticProperty>[]
-            : _extractDiagnosticProperties(
-                runtimeNode,
-                maxProperties: options.maxPropertiesPerTarget,
-                onTruncated: () => truncated = true,
-              );
+        ? const <CockpitDiagnosticProperty>[]
+        : _extractDiagnosticProperties(
+            runtimeNode,
+            maxProperties: options.maxPropertiesPerTarget,
+            onTruncated: () => truncated = true,
+          );
 
     return _TargetBuildResult(
       truncated: truncated,
@@ -347,25 +350,27 @@ final class CockpitDiagnosticBuilder {
     if (widget is Container && widget.decoration is BoxDecoration) {
       final decoration = widget.decoration! as BoxDecoration;
       return CockpitSnapshotStyle(
-        backgroundColor:
-            decoration.color == null ? null : _colorHex(decoration.color!),
+        backgroundColor: decoration.color == null
+            ? null
+            : _colorHex(decoration.color!),
         borderSummary: decoration.border?.toString(),
         shadowSummary:
             decoration.boxShadow == null || decoration.boxShadow!.isEmpty
-                ? null
-                : decoration.boxShadow!.first.toString(),
+            ? null
+            : decoration.boxShadow!.first.toString(),
       );
     }
     if (widget is DecoratedBox && widget.decoration is BoxDecoration) {
       final decoration = widget.decoration as BoxDecoration;
       return CockpitSnapshotStyle(
-        backgroundColor:
-            decoration.color == null ? null : _colorHex(decoration.color!),
+        backgroundColor: decoration.color == null
+            ? null
+            : _colorHex(decoration.color!),
         borderSummary: decoration.border?.toString(),
         shadowSummary:
             decoration.boxShadow == null || decoration.boxShadow!.isEmpty
-                ? null
-                : decoration.boxShadow!.first.toString(),
+            ? null
+            : decoration.boxShadow!.first.toString(),
       );
     }
     return null;
@@ -531,8 +536,9 @@ final class CockpitDiagnosticBuilder {
     }
 
     final total = traversalEntries.length;
-    final boundedEntries =
-        traversalEntries.take(maxEntries).toList(growable: false);
+    final boundedEntries = traversalEntries
+        .take(maxEntries)
+        .toList(growable: false);
     if (total > boundedEntries.length) {
       onTruncated();
     }
@@ -545,7 +551,7 @@ final class CockpitDiagnosticBuilder {
 
   List<CockpitAccessibilityEntry> _fallbackAccessibilityEntries(
     List<({CockpitTarget target, CockpitSemanticsTargetInfo? semantics})>
-        semanticsTargets, {
+    semanticsTargets, {
     required Set<int> seenNodeIds,
   }) {
     return semanticsTargets
@@ -1000,11 +1006,11 @@ final class CockpitDiagnosticBuilder {
         .map((line) => line.trim())
         .where((line) => line.isNotEmpty)
         .fold<List<String>>(<String>[], (lines, line) {
-      if (!lines.contains(line)) {
-        lines.add(line);
-      }
-      return lines;
-    });
+          if (!lines.contains(line)) {
+            lines.add(line);
+          }
+          return lines;
+        });
     if (normalizedLines.isEmpty) {
       return null;
     }

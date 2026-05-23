@@ -18,14 +18,14 @@ final class CockpitMacosCaptureAdapter implements CockpitHostCaptureAdapter {
         cockpitResolveMacosWindowTarget,
     Duration timeout = const Duration(seconds: 5),
     Duration activationSettleDelay = const Duration(milliseconds: 250),
-  })  : _appId = appId,
-        _osascriptExecutable = osascriptExecutable,
-        _screencaptureExecutable = screencaptureExecutable,
-        _processRunner = processRunner,
-        _tempFileFactory = tempFileFactory,
-        _windowTargetResolver = windowTargetResolver,
-        _timeout = timeout,
-        _activationSettleDelay = activationSettleDelay;
+  }) : _appId = appId,
+       _osascriptExecutable = osascriptExecutable,
+       _screencaptureExecutable = screencaptureExecutable,
+       _processRunner = processRunner,
+       _tempFileFactory = tempFileFactory,
+       _windowTargetResolver = windowTargetResolver,
+       _timeout = timeout,
+       _activationSettleDelay = activationSettleDelay;
 
   final String _appId;
   final String _osascriptExecutable;
@@ -65,16 +65,13 @@ final class CockpitMacosCaptureAdapter implements CockpitHostCaptureAdapter {
         timeout: _timeout,
         activationSettleDelay: _activationSettleDelay,
       );
-      final result = await _processRunner(
-        _screencaptureExecutable,
-        <String>[
-          '-x',
-          '-o',
-          '-R',
-          '${windowTarget.left},${windowTarget.top},${windowTarget.width},${windowTarget.height}',
-          outputFile.path,
-        ],
-      ).timeout(_timeout);
+      final result = await _processRunner(_screencaptureExecutable, <String>[
+        '-x',
+        '-o',
+        '-R',
+        '${windowTarget.left},${windowTarget.top},${windowTarget.width},${windowTarget.height}',
+        outputFile.path,
+      ]).timeout(_timeout);
       stopwatch.stop();
 
       if (result.exitCode != 0) {
@@ -118,10 +115,7 @@ final class CockpitMacosCaptureAdapter implements CockpitHostCaptureAdapter {
         command: command,
         durationMs: stopwatch.elapsedMilliseconds,
         message: 'macOS host screenshot failed.',
-        details: <String, Object?>{
-          'appId': _appId,
-          'error': error.toString(),
-        },
+        details: <String, Object?>{'appId': _appId, 'error': error.toString()},
       );
     } on Object catch (error) {
       stopwatch.stop();
@@ -129,10 +123,7 @@ final class CockpitMacosCaptureAdapter implements CockpitHostCaptureAdapter {
         command: command,
         durationMs: stopwatch.elapsedMilliseconds,
         message: 'macOS screencapture threw an unexpected error.',
-        details: <String, Object?>{
-          'appId': _appId,
-          'error': error.toString(),
-        },
+        details: <String, Object?>{'appId': _appId, 'error': error.toString()},
       );
     }
   }

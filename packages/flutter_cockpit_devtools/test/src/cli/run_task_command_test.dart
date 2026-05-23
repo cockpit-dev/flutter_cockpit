@@ -55,46 +55,48 @@ void main() {
 
       final outputFile = File(p.join(tempDir.path, 'result.json'));
       CockpitRunTaskRequest? capturedRequest;
-      final runner = CommandRunner<int>(
-        'flutter_cockpit_devtools',
-        'Host-side tooling for flutter_cockpit.',
-      )..addCommand(
-          RunTaskCommand(
-            service: CockpitRunTaskService(
-              runTask: (request) async {
-                capturedRequest = request;
-                return CockpitRunTaskResult(
-                  classification: CockpitRunTaskClassification.completed,
-                  recommendedNextStep: 'delivery_ready',
-                  bundleSummary: CockpitReadTaskBundleSummaryResult(
-                    bundleDir: tempDir.path,
-                    manifest: CockpitRunManifest(
-                      sessionId: 'cli-run-task-session',
-                      taskId: 'cli-run-task-id',
-                      platform: 'android',
-                      status: CockpitTaskStatus.completed,
-                      startedAt: DateTime.utc(2026, 3, 21, 0, 0),
-                      finishedAt: DateTime.utc(2026, 3, 21, 0, 5),
+      final runner =
+          CommandRunner<int>(
+            'flutter_cockpit_devtools',
+            'Host-side tooling for flutter_cockpit.',
+          )..addCommand(
+            RunTaskCommand(
+              service: CockpitRunTaskService(
+                runTask: (request) async {
+                  capturedRequest = request;
+                  return CockpitRunTaskResult(
+                    classification: CockpitRunTaskClassification.completed,
+                    recommendedNextStep: 'delivery_ready',
+                    bundleSummary: CockpitReadTaskBundleSummaryResult(
+                      bundleDir: tempDir.path,
+                      manifest: CockpitRunManifest(
+                        sessionId: 'cli-run-task-session',
+                        taskId: 'cli-run-task-id',
+                        platform: 'android',
+                        status: CockpitTaskStatus.completed,
+                        startedAt: DateTime.utc(2026, 3, 21, 0, 0),
+                        finishedAt: DateTime.utc(2026, 3, 21, 0, 5),
+                      ),
+                      handoff: const <String, Object?>{'status': 'completed'},
+                      delivery: const <String, Object?>{},
+                      acceptanceMarkdown: '# Acceptance',
+                      artifactPaths: CockpitBundleArtifactPaths(),
+                      evidenceSummary: const <String, Object?>{
+                        'status': 'completed',
+                        'commandCount': 0,
+                        'screenshotCount': 0,
+                        'recordingCount': 0,
+                        'failureCount': 0,
+                      },
                     ),
-                    handoff: const <String, Object?>{'status': 'completed'},
-                    delivery: const <String, Object?>{},
-                    acceptanceMarkdown: '# Acceptance',
-                    artifactPaths: CockpitBundleArtifactPaths(),
-                    evidenceSummary: const <String, Object?>{
-                      'status': 'completed',
-                      'commandCount': 0,
-                      'screenshotCount': 0,
-                      'recordingCount': 0,
-                      'failureCount': 0,
-                    },
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
-          ),
-        );
+          );
 
-      final exitCode = await runner.run(<String>[
+      final exitCode =
+          await runner.run(<String>[
             'run-task',
             '--config-json',
             configFile.path,

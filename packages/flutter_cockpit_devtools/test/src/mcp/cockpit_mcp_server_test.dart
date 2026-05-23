@@ -6,79 +6,76 @@ import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 void main() {
-  test(
-    'standard server registers AI-first app and workspace tools',
-    () async {
-      final server = CockpitMcpServer.standard();
+  test('standard server registers AI-first app and workspace tools', () async {
+    final server = CockpitMcpServer.standard();
 
-      final listResponse = await server.handleMessage(<String, Object?>{
-        'jsonrpc': '2.0',
-        'id': 1,
-        'method': 'tools/list',
-      });
+    final listResponse = await server.handleMessage(<String, Object?>{
+      'jsonrpc': '2.0',
+      'id': 1,
+      'method': 'tools/list',
+    });
 
-      final result = listResponse?['result'] as Map<String, Object?>;
-      final tools = (result['tools'] as List<Object?>)
-          .cast<Map<String, Object?>>()
-          .map((tool) => tool['name'])
-          .toList(growable: false);
-      expect(
-        tools,
-        containsAll(<String>[
-          'add_roots',
-          'remove_roots',
-          'list_targets',
-          'list_active_sessions',
-          'launch_app',
-          'launch_remote_session',
-          'query_remote_session',
-          'read_remote_status',
-          'read_remote_snapshot',
-          'collect_remote_snapshot',
-          'launch_development_session',
-          'query_development_session',
-          'reload_development_session',
-          'collect_development_probe',
-          'compare_development_probe',
-          'read_session_logs',
-          'stop_development_session',
-          'list_apps',
-          'hot_reload',
-          'hot_restart',
-          'stop_app',
-          'read_app',
-          'inspect_ui',
-          'run_command',
-          'run_batch',
-          'execute_remote_command',
-          'execute_remote_command_batch',
-          'wait_idle',
-          'wait_remote_ui_idle',
-          'start_recording',
-          'stop_recording',
-          'start_remote_recording',
-          'stop_remote_recording',
-          'read_logs',
-          'read_network',
-          'read_errors',
-          'pub_dev_search',
-          'pub',
-          'read_package_uris',
-          'grep_package_uris',
-          'lsp',
-          'analyze_files',
-          'create_project',
-          'analyze_workspace',
-          'format_workspace',
-          'run_tests',
-          'apply_fixes',
-          'run_script',
-          'run_task',
-          'validate_task',
-        ]),
-      );
-    },
-  );
+    final result = listResponse?['result'] as Map<String, Object?>;
+    final tools = (result['tools'] as List<Object?>)
+        .cast<Map<String, Object?>>()
+        .map((tool) => tool['name'])
+        .toList(growable: false);
+    expect(
+      tools,
+      containsAll(<String>[
+        'add_roots',
+        'remove_roots',
+        'list_targets',
+        'list_active_sessions',
+        'launch_app',
+        'launch_remote_session',
+        'query_remote_session',
+        'read_remote_status',
+        'read_remote_snapshot',
+        'collect_remote_snapshot',
+        'launch_development_session',
+        'query_development_session',
+        'reload_development_session',
+        'collect_development_probe',
+        'compare_development_probe',
+        'read_session_logs',
+        'stop_development_session',
+        'list_apps',
+        'hot_reload',
+        'hot_restart',
+        'stop_app',
+        'read_app',
+        'inspect_ui',
+        'run_command',
+        'run_batch',
+        'execute_remote_command',
+        'execute_remote_command_batch',
+        'wait_idle',
+        'wait_remote_ui_idle',
+        'start_recording',
+        'stop_recording',
+        'start_remote_recording',
+        'stop_remote_recording',
+        'read_logs',
+        'read_network',
+        'read_errors',
+        'pub_dev_search',
+        'pub',
+        'read_package_uris',
+        'grep_package_uris',
+        'lsp',
+        'analyze_files',
+        'create_project',
+        'analyze_workspace',
+        'format_workspace',
+        'run_tests',
+        'apply_fixes',
+        'run_script',
+        'run_task',
+        'validate_task',
+      ]),
+    );
+  });
 
   test('standard server exposes concise profile parameter names', () async {
     final server = CockpitMcpServer.standard();
@@ -89,23 +86,28 @@ void main() {
       'method': 'tools/list',
     });
 
-    final tools = ((listResponse?['result'] as Map<String, Object?>)['tools']
-            as List<Object?>)
-        .cast<Map<String, Object?>>();
+    final tools =
+        ((listResponse?['result'] as Map<String, Object?>)['tools']
+                as List<Object?>)
+            .cast<Map<String, Object?>>();
     final byName = <String, Map<String, Object?>>{
       for (final tool in tools) tool['name']! as String: tool,
     };
 
-    final readAppProperties = ((byName['read_app']!['inputSchema']
-            as Map<String, Object?>)['properties'] as Map<String, Object?>)
-        .keys;
+    final readAppProperties =
+        ((byName['read_app']!['inputSchema']
+                    as Map<String, Object?>)['properties']
+                as Map<String, Object?>)
+            .keys;
     expect(readAppProperties, contains('profile'));
     expect(readAppProperties, contains('androidDeviceId'));
     expect(readAppProperties, isNot(contains('resultProfile')));
 
-    final runBatchProperties = ((byName['run_batch']!['inputSchema']
-            as Map<String, Object?>)['properties'] as Map<String, Object?>)
-        .keys;
+    final runBatchProperties =
+        ((byName['run_batch']!['inputSchema']
+                    as Map<String, Object?>)['properties']
+                as Map<String, Object?>)
+            .keys;
     expect(
       runBatchProperties,
       containsAll(<String>[
@@ -115,38 +117,48 @@ void main() {
         'finalProfile',
       ]),
     );
-    final startRecordingProperties = ((byName['start_recording']!['inputSchema']
-            as Map<String, Object?>)['properties'] as Map<String, Object?>)
-        .keys;
+    final startRecordingProperties =
+        ((byName['start_recording']!['inputSchema']
+                    as Map<String, Object?>)['properties']
+                as Map<String, Object?>)
+            .keys;
     expect(startRecordingProperties, contains('iosDeviceId'));
-    final stopRecordingProperties = ((byName['stop_recording']!['inputSchema']
-            as Map<String, Object?>)['properties'] as Map<String, Object?>)
-        .keys;
+    final stopRecordingProperties =
+        ((byName['stop_recording']!['inputSchema']
+                    as Map<String, Object?>)['properties']
+                as Map<String, Object?>)
+            .keys;
     expect(stopRecordingProperties, contains('iosDeviceId'));
     expect(
       runBatchProperties,
-      isNot(containsAll(
-          <String>['defaultResultProfile', 'finalSnapshotProfile'])),
+      isNot(
+        containsAll(<String>['defaultResultProfile', 'finalSnapshotProfile']),
+      ),
     );
   });
 
-  test('standard server exposes app-first resources with snake_case templates',
-      () async {
-    final server = CockpitMcpServer.standard();
+  test(
+    'standard server exposes app-first resources with snake_case templates',
+    () async {
+      final server = CockpitMcpServer.standard();
 
-    final fixedResourcesResponse = await server.handleMessage(<String, Object?>{
-      'jsonrpc': '2.0',
-      'id': 1,
-      'method': 'resources/list',
-    });
-    final fixedResources = ((fixedResourcesResponse?['result']
-            as Map<String, Object?>)['resources'] as List<Object?>)
-        .cast<Map<String, Object?>>();
-    final fixedNames = fixedResources
-        .map((resource) => resource['name'])
-        .toList(growable: false);
+      final fixedResourcesResponse = await server.handleMessage(
+        <String, Object?>{
+          'jsonrpc': '2.0',
+          'id': 1,
+          'method': 'resources/list',
+        },
+      );
+      final fixedResources =
+          ((fixedResourcesResponse?['result']
+                      as Map<String, Object?>)['resources']
+                  as List<Object?>)
+              .cast<Map<String, Object?>>();
+      final fixedNames = fixedResources
+          .map((resource) => resource['name'])
+          .toList(growable: false);
 
-    expect(
+      expect(
         fixedNames,
         containsAll(<String>[
           'workspace_skill_contract',
@@ -155,36 +167,40 @@ void main() {
           'apps',
           'latest_task',
           'workspace_capabilities',
-        ]));
-    expect(fixedNames, isNot(contains('workspace_goals')));
-    expect(fixedNames, isNot(contains('active_sessions')));
+        ]),
+      );
+      expect(fixedNames, isNot(contains('workspace_goals')));
+      expect(fixedNames, isNot(contains('active_sessions')));
 
-    final templateResourcesResponse = await server.handleMessage(
-      <String, Object?>{
-        'jsonrpc': '2.0',
-        'id': 2,
-        'method': 'resources/templates/list',
-      },
-    );
-    final templateResources = ((templateResourcesResponse?['result']
-            as Map<String, Object?>)['resourceTemplates'] as List<Object?>)
-        .cast<Map<String, Object?>>();
-    final templateMap = <String, String>{
-      for (final resource in templateResources)
-        resource['name']! as String: resource['uriTemplate']! as String,
-    };
+      final templateResourcesResponse = await server.handleMessage(
+        <String, Object?>{
+          'jsonrpc': '2.0',
+          'id': 2,
+          'method': 'resources/templates/list',
+        },
+      );
+      final templateResources =
+          ((templateResourcesResponse?['result']
+                      as Map<String, Object?>)['resourceTemplates']
+                  as List<Object?>)
+              .cast<Map<String, Object?>>();
+      final templateMap = <String, String>{
+        for (final resource in templateResources)
+          resource['name']! as String: resource['uriTemplate']! as String,
+      };
 
-    expect(templateMap['app'], 'cockpit://app/details{?appId}');
-    expect(
-      templateMap['task_bundleSummary'],
-      'cockpit://task/summary{?bundleDir}',
-    );
-    expect(
-      templateMap['package_uri'],
-      'cockpit://package/read{?workspaceRoot,uri}',
-    );
-    expect(templateMap.containsKey('developmentSession'), isFalse);
-  });
+      expect(templateMap['app'], 'cockpit://app/details{?appId}');
+      expect(
+        templateMap['task_bundleSummary'],
+        'cockpit://task/summary{?bundleDir}',
+      );
+      expect(
+        templateMap['package_uri'],
+        'cockpit://package/read{?workspaceRoot,uri}',
+      );
+      expect(templateMap.containsKey('developmentSession'), isFalse);
+    },
+  );
 
   test('server initializes, lists tools, and dispatches tool calls', () async {
     final server = CockpitMcpServer(
@@ -205,15 +221,12 @@ void main() {
     });
     final initializeResult =
         initializeResponse?['result'] as Map<String, Object?>;
-    expect(
-      initializeResult['capabilities'],
-      <String, Object?>{
-        'tools': <String, Object?>{},
-        'resources': <String, Object?>{},
-        'prompts': <String, Object?>{},
-        'roots': <String, Object?>{'listChanged': true},
-      },
-    );
+    expect(initializeResult['capabilities'], <String, Object?>{
+      'tools': <String, Object?>{},
+      'resources': <String, Object?>{},
+      'prompts': <String, Object?>{},
+      'roots': <String, Object?>{'listChanged': true},
+    });
 
     final listResponse = await server.handleMessage(<String, Object?>{
       'jsonrpc': '2.0',
@@ -267,8 +280,8 @@ void main() {
     });
 
     final result = listResponse?['result'] as Map<String, Object?>;
-    final tools =
-        (result['tools'] as List<Object?>).cast<Map<String, Object?>>();
+    final tools = (result['tools'] as List<Object?>)
+        .cast<Map<String, Object?>>();
     final schema = tools.single['inputSchema'] as Map<String, Object?>;
 
     expect(schema['type'], 'object');
@@ -293,39 +306,42 @@ void main() {
     expect(tools.toSet(), hasLength(tools.length));
   });
 
-  test('standard server resolves workspace contracts from workspace roots',
-      () async {
-    final packageUri = await Isolate.resolvePackageUri(
-      Uri.parse(
-          'package:flutter_cockpit_devtools/flutter_cockpit_devtools.dart'),
-    );
-    final packageRoot = p.dirname(p.dirname(packageUri!.toFilePath()));
-    final repoRoot = p.normalize(p.join(packageRoot, '..', '..'));
-    final server = CockpitMcpServer.standard(
-      workspaceRoots: <String>[repoRoot],
-    );
+  test(
+    'standard server resolves workspace contracts from workspace roots',
+    () async {
+      final packageUri = await Isolate.resolvePackageUri(
+        Uri.parse(
+          'package:flutter_cockpit_devtools/flutter_cockpit_devtools.dart',
+        ),
+      );
+      final packageRoot = p.dirname(p.dirname(packageUri!.toFilePath()));
+      final repoRoot = p.normalize(p.join(packageRoot, '..', '..'));
+      final server = CockpitMcpServer.standard(
+        workspaceRoots: <String>[repoRoot],
+      );
 
-    await server.handleMessage(<String, Object?>{
-      'jsonrpc': '2.0',
-      'id': 199,
-      'method': 'initialize',
-      'params': <String, Object?>{'protocolVersion': '2024-11-05'},
-    });
+      await server.handleMessage(<String, Object?>{
+        'jsonrpc': '2.0',
+        'id': 199,
+        'method': 'initialize',
+        'params': <String, Object?>{'protocolVersion': '2024-11-05'},
+      });
 
-    final resourceResponse = await server.handleMessage(<String, Object?>{
-      'jsonrpc': '2.0',
-      'id': 200,
-      'method': 'resources/read',
-      'params': <String, Object?>{
-        'uri': 'cockpit://workspace/skill-contract',
-      },
-    });
+      final resourceResponse = await server.handleMessage(<String, Object?>{
+        'jsonrpc': '2.0',
+        'id': 200,
+        'method': 'resources/read',
+        'params': <String, Object?>{
+          'uri': 'cockpit://workspace/skill-contract',
+        },
+      });
 
-    final result = resourceResponse?['result'] as Map<String, Object?>;
-    final contents =
-        (result['contents'] as List<Object?>).cast<Map<String, Object?>>();
-    expect('${contents.single['text']}', contains('launch-app'));
-  });
+      final result = resourceResponse?['result'] as Map<String, Object?>;
+      final contents = (result['contents'] as List<Object?>)
+          .cast<Map<String, Object?>>();
+      expect('${contents.single['text']}', contains('launch-app'));
+    },
+  );
 }
 
 final class _FakeCockpitMcpTool extends CockpitMcpTool {
@@ -339,11 +355,11 @@ final class _FakeCockpitMcpTool extends CockpitMcpTool {
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
-        'type': 'object',
-        'properties': <String, Object?>{
-          'value': <String, Object?>{'type': 'string'},
-        },
-      };
+    'type': 'object',
+    'properties': <String, Object?>{
+      'value': <String, Object?>{'type': 'string'},
+    },
+  };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {
@@ -365,8 +381,8 @@ final class _ToolWithoutProperties extends CockpitMcpTool {
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
-        'type': 'object',
-      };
+    'type': 'object',
+  };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {

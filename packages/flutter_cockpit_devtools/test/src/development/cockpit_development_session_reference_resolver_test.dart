@@ -65,10 +65,8 @@ void main() {
     );
 
     expect(
-      () =>
-          const CockpitDevelopmentSessionReferenceResolver().readSessionHandle(
-        handleFile.path,
-      ),
+      () => const CockpitDevelopmentSessionReferenceResolver()
+          .readSessionHandle(handleFile.path),
       throwsA(isA<TypeError>()),
     );
   });

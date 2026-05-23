@@ -87,12 +87,12 @@ final class CockpitIntent {
 
   @override
   int get hashCode => Object.hash(
-        intentId,
-        subject,
-        action,
-        executionPolicy,
-        evidencePolicy,
-        locator,
-        _mapEquality.hash(input),
-      );
+    intentId,
+    subject,
+    action,
+    executionPolicy,
+    evidencePolicy,
+    locator,
+    _mapEquality.hash(input),
+  );
 }

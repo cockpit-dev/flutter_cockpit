@@ -66,7 +66,9 @@ void main() {
 
     expect(CockpitCapabilities.fromJson(capabilities.toJson()), capabilities);
     expect(capabilities.toJson()['supportsInAppControl'], isTrue);
-    expect(capabilities.toJson()['capabilityProfile'],
-        isA<Map<String, Object?>>());
+    expect(
+      capabilities.toJson()['capabilityProfile'],
+      isA<Map<String, Object?>>(),
+    );
   });
 }

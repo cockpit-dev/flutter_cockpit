@@ -13,13 +13,12 @@ import 'cockpit_task_gate.dart';
 import 'cockpit_task_orchestration_result.dart';
 import 'cockpit_task_stage.dart';
 
-typedef CockpitTaskOrchestrationFunction
-    = Future<CockpitTaskOrchestrationResult> Function(
-  CockpitRunTaskRequest request,
-);
-typedef CockpitStopLaunchedAppFunction = Future<void> Function(
-  CockpitAppHandle app,
-);
+typedef CockpitTaskOrchestrationFunction =
+    Future<CockpitTaskOrchestrationResult> Function(
+      CockpitRunTaskRequest request,
+    );
+typedef CockpitStopLaunchedAppFunction =
+    Future<void> Function(CockpitAppHandle app);
 
 final class CockpitTaskOrchestrationService {
   CockpitTaskOrchestrationService({
@@ -33,17 +32,21 @@ final class CockpitTaskOrchestrationService {
     CockpitReadTaskSummaryFunction? readSummary,
     CockpitPlatformAppStopper? platformAppStopper,
     CockpitStopLaunchedAppFunction? stopAutomationApp,
-  })  : _launch = launch ??
-            (launchService ?? CockpitLaunchRemoteSessionService()).launch,
-        _query =
-            query ?? (queryService ?? CockpitQueryRemoteSessionService()).query,
-        _runScript = runScript ??
-            (runScriptService ?? CockpitRunRemoteControlScriptService()).run,
-        _readSummary = readSummary ??
-            (readSummaryService ?? const CockpitReadTaskBundleSummaryService())
-                .read,
-        _stopAutomationApp = stopAutomationApp ??
-            (platformAppStopper ?? CockpitPlatformAppStopper()).stop;
+  }) : _launch =
+           launch ??
+           (launchService ?? CockpitLaunchRemoteSessionService()).launch,
+       _query =
+           query ?? (queryService ?? CockpitQueryRemoteSessionService()).query,
+       _runScript =
+           runScript ??
+           (runScriptService ?? CockpitRunRemoteControlScriptService()).run,
+       _readSummary =
+           readSummary ??
+           (readSummaryService ?? const CockpitReadTaskBundleSummaryService())
+               .read,
+       _stopAutomationApp =
+           stopAutomationApp ??
+           (platformAppStopper ?? CockpitPlatformAppStopper()).stop;
 
   final CockpitLaunchTaskFunction _launch;
   final CockpitQueryTaskFunction _query;
@@ -118,8 +121,9 @@ final class CockpitTaskOrchestrationService {
           runResult = await _runScript(
             CockpitRunRemoteControlScriptRequest(
               sessionHandle: sessionHandle,
-              sessionHandlePath:
-                  sessionHandle == null ? request.sessionHandlePath : null,
+              sessionHandlePath: sessionHandle == null
+                  ? request.sessionHandlePath
+                  : null,
               script: script,
               outputRoot: request.outputRoot,
               persistScriptPath: request.persistScriptPath,
@@ -150,8 +154,9 @@ final class CockpitTaskOrchestrationService {
           final resolvedRunResult = runResult!;
           CockpitReadTaskBundleSummaryResult? bundleSummary;
           try {
-            bundleSummary =
-                await _readBundleSummary(resolvedRunResult.bundleDir.path);
+            bundleSummary = await _readBundleSummary(
+              resolvedRunResult.bundleDir.path,
+            );
           } on CockpitApplicationServiceException catch (error) {
             result = _blockedResult(
               request: request,
@@ -239,10 +244,7 @@ final class CockpitTaskOrchestrationService {
       classification: CockpitRunTaskClassification.blockedByEnvironment,
       recommendedNextStep: 'needs_relaunch',
       completedStages: completedStages,
-      gates: _defaultGates(
-        request,
-        sessionReachable: false,
-      ),
+      gates: _defaultGates(request, sessionReachable: false),
       sessionHandle: sessionHandle,
       preflightStatus: preflightStatus,
       blockedReason: blockedReason,
@@ -255,27 +257,30 @@ final class CockpitTaskOrchestrationService {
     required CockpitReadTaskBundleSummaryResult bundleSummary,
     required CockpitRemoteSessionHandle? sessionHandle,
   }) {
-    final screenshotReady = !request.requirements.requireScreenshotEvidence ||
+    final screenshotReady =
+        !request.requirements.requireScreenshotEvidence ||
         ((bundleSummary.artifactPaths.primaryScreenshotPath?.isNotEmpty ??
                 false) ||
             bundleSummary.manifest.deliveryArtifactsReady);
     final recordingReadyOrExplained =
         !request.requirements.requireVideoEvidence ||
-            ((bundleSummary.artifactPaths.primaryRecordingPath?.isNotEmpty ??
-                    false) ||
-                bundleSummary.manifest.deliveryVideoReady);
-    final deliveryValidated = screenshotReady &&
+        ((bundleSummary.artifactPaths.primaryRecordingPath?.isNotEmpty ??
+                false) ||
+            bundleSummary.manifest.deliveryVideoReady);
+    final deliveryValidated =
+        screenshotReady &&
         recordingReadyOrExplained &&
         (!request.requirements.requireScreenshotEvidence ||
             bundleSummary.manifest.deliveryArtifactsReady);
-    final acceptanceEvidenceReadable = bundleSummary.baselineEvidence != null &&
+    final acceptanceEvidenceReadable =
+        bundleSummary.baselineEvidence != null &&
         bundleSummary.acceptanceEvidence != null &&
         bundleSummary.acceptanceDelta != null &&
         bundleSummary.baselineEvidence!.hasComparableSignals &&
         bundleSummary.acceptanceEvidence!.hasComparableSignals;
     final finalAssertionPassed =
         bundleSummary.manifest.status != CockpitTaskStatus.failed &&
-            bundleSummary.manifest.runtimeErrorCount == 0;
+        bundleSummary.manifest.runtimeErrorCount == 0;
     final intendedPlaneWorked = _gateValueOrDefault(
       bundleSummary.gateSummary,
       CockpitTaskGate.intendedPlaneWorked,
@@ -365,7 +370,8 @@ final class CockpitTaskOrchestrationService {
       CockpitTaskGate.acceptanceEvidenceReadable: acceptanceEvidenceReadable,
       CockpitTaskGate.screenshotReady:
           screenshotReady ?? !request.requirements.requireScreenshotEvidence,
-      CockpitTaskGate.recordingReadyOrExplained: recordingReadyOrExplained ??
+      CockpitTaskGate.recordingReadyOrExplained:
+          recordingReadyOrExplained ??
           !request.requirements.requireVideoEvidence,
       CockpitTaskGate.finalAssertionPassed: finalAssertionPassed,
     };
@@ -460,13 +466,15 @@ final class CockpitTaskOrchestrationService {
   }
 
   Future<String?> _stopLaunchedApp(
-      CockpitRemoteSessionHandle? sessionHandle) async {
+    CockpitRemoteSessionHandle? sessionHandle,
+  ) async {
     if (sessionHandle == null) {
       return null;
     }
     try {
       await _stopAutomationApp(
-          CockpitAppHandle.fromRemoteSession(sessionHandle));
+        CockpitAppHandle.fromRemoteSession(sessionHandle),
+      );
       return null;
     } on Object catch (error) {
       return 'Automation cleanup failed after task orchestration: $error';

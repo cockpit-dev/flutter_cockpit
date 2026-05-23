@@ -37,10 +37,11 @@ void main() {
     );
 
     expect(result.command.executable, 'dart-sdk');
-    expect(
-      result.command.arguments,
-      <String>['analyze', '--format=json', 'lib/main.dart'],
-    );
+    expect(result.command.arguments, <String>[
+      'analyze',
+      '--format=json',
+      'lib/main.dart',
+    ]);
     expect(result.totalDiagnostics, 2);
     expect(result.diagnostics, hasLength(1));
     expect(result.diagnostics.single.path, 'lib/main.dart');
@@ -88,49 +89,39 @@ final class _RecordingAnalyzeFilesProcessManager
     return ProcessResult(
       1,
       2,
-      utf8.encode(jsonEncode(<String, Object?>{
-        'version': 1,
-        'diagnostics': <Map<String, Object?>>[
-          <String, Object?>{
-            'code': 'unused_import',
-            'severity': 'WARNING',
-            'type': 'STATIC_WARNING',
-            'location': <String, Object?>{
-              'file': '/workspace/pkg/lib/main.dart',
-              'range': <String, Object?>{
-                'start': <String, Object?>{
-                  'line': 1,
-                  'column': 8,
-                },
-                'end': <String, Object?>{
-                  'line': 1,
-                  'column': 18,
+      utf8.encode(
+        jsonEncode(<String, Object?>{
+          'version': 1,
+          'diagnostics': <Map<String, Object?>>[
+            <String, Object?>{
+              'code': 'unused_import',
+              'severity': 'WARNING',
+              'type': 'STATIC_WARNING',
+              'location': <String, Object?>{
+                'file': '/workspace/pkg/lib/main.dart',
+                'range': <String, Object?>{
+                  'start': <String, Object?>{'line': 1, 'column': 8},
+                  'end': <String, Object?>{'line': 1, 'column': 18},
                 },
               },
+              'problemMessage': 'Unused import.',
             },
-            'problemMessage': 'Unused import.',
-          },
-          <String, Object?>{
-            'code': 'dead_code',
-            'severity': 'INFO',
-            'type': 'HINT',
-            'location': <String, Object?>{
-              'file': '/workspace/pkg/lib/main.dart',
-              'range': <String, Object?>{
-                'start': <String, Object?>{
-                  'line': 3,
-                  'column': 3,
-                },
-                'end': <String, Object?>{
-                  'line': 3,
-                  'column': 9,
+            <String, Object?>{
+              'code': 'dead_code',
+              'severity': 'INFO',
+              'type': 'HINT',
+              'location': <String, Object?>{
+                'file': '/workspace/pkg/lib/main.dart',
+                'range': <String, Object?>{
+                  'start': <String, Object?>{'line': 3, 'column': 3},
+                  'end': <String, Object?>{'line': 3, 'column': 9},
                 },
               },
+              'problemMessage': 'Dead code.',
             },
-            'problemMessage': 'Dead code.',
-          },
-        ],
-      })),
+          ],
+        }),
+      ),
       utf8.encode(''),
     );
   }
@@ -182,11 +173,9 @@ final class _RecordingAnalyzeFilesProcessManager
 }
 
 final class _CompletedFakeProcess implements Process {
-  _CompletedFakeProcess({
-    required String stdout,
-    String stderr = '',
-  })  : _stdout = Stream<List<int>>.value(utf8.encode(stdout)),
-        _stderr = Stream<List<int>>.value(utf8.encode(stderr));
+  _CompletedFakeProcess({required String stdout, String stderr = ''})
+    : _stdout = Stream<List<int>>.value(utf8.encode(stdout)),
+      _stderr = Stream<List<int>>.value(utf8.encode(stderr));
 
   final Stream<List<int>> _stdout;
   final Stream<List<int>> _stderr;

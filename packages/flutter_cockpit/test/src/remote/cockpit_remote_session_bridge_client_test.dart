@@ -7,47 +7,49 @@ import 'package:test/test.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 void main() {
-  test('bridge client retries when the browser channel ready future fails',
-      () async {
-    final firstChannel = _FakeWebSocketChannel(
-      ready: Future<void>.error(StateError('connect failed')),
-    );
-    final secondChannel = _FakeWebSocketChannel(
-      ready: Future<void>.value(),
-    );
-    final createdChannels = <_FakeWebSocketChannel>[];
+  test(
+    'bridge client retries when the browser channel ready future fails',
+    () async {
+      final firstChannel = _FakeWebSocketChannel(
+        ready: Future<void>.error(StateError('connect failed')),
+      );
+      final secondChannel = _FakeWebSocketChannel(ready: Future<void>.value());
+      final createdChannels = <_FakeWebSocketChannel>[];
 
-    final client = CockpitRemoteSessionBridgeClient(
-      configuration: const CockpitRemoteSessionConfiguration(
-        enabled: true,
-        autoStart: false,
-        host: '127.0.0.1',
-        port: 59331,
-        routePrefix: '/cockpit',
-      ),
-      protocol: CockpitRemoteSessionBridgeProtocol(
-        requestHandler: (_) async {
-          throw UnimplementedError();
+      final client = CockpitRemoteSessionBridgeClient(
+        configuration: const CockpitRemoteSessionConfiguration(
+          enabled: true,
+          autoStart: false,
+          host: '127.0.0.1',
+          port: 59331,
+          routePrefix: '/cockpit',
+        ),
+        protocol: CockpitRemoteSessionBridgeProtocol(
+          requestHandler: (_) async {
+            throw UnimplementedError();
+          },
+        ),
+        reconnectDelay: Duration.zero,
+        delay: (_) async {},
+        channelConnector: (_) {
+          final channel = createdChannels.isEmpty
+              ? firstChannel
+              : secondChannel;
+          createdChannels.add(channel);
+          return channel;
         },
-      ),
-      reconnectDelay: Duration.zero,
-      delay: (_) async {},
-      channelConnector: (_) {
-        final channel = createdChannels.isEmpty ? firstChannel : secondChannel;
-        createdChannels.add(channel);
-        return channel;
-      },
-    );
-    addTearDown(client.close);
+      );
+      addTearDown(client.close);
 
-    await client.start();
-    await Future<void>.delayed(Duration.zero);
-    await Future<void>.delayed(Duration.zero);
+      await client.start();
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
 
-    expect(createdChannels, hasLength(2));
-    expect(client.publicBaseUri.toString(), 'http://127.0.0.1:59331/cockpit');
-    expect(secondChannel.closeCount, 0);
-  });
+      expect(createdChannels, hasLength(2));
+      expect(client.publicBaseUri.toString(), 'http://127.0.0.1:59331/cockpit');
+      expect(secondChannel.closeCount, 0);
+    },
+  );
 }
 
 final class _FakeWebSocketChannel implements WebSocketChannel {

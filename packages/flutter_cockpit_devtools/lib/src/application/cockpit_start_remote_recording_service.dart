@@ -7,11 +7,11 @@ import '../session/cockpit_remote_session_handle.dart';
 import 'cockpit_interactive_session_lock.dart';
 import 'cockpit_session_reference_resolver.dart';
 
-typedef CockpitRemoteRecordingStarter = Future<CockpitRecordingSession>
-    Function(
-  Uri baseUri,
-  CockpitRecordingRequest request,
-);
+typedef CockpitRemoteRecordingStarter =
+    Future<CockpitRecordingSession> Function(
+      Uri baseUri,
+      CockpitRecordingRequest request,
+    );
 
 final class CockpitStartRemoteRecordingRequest {
   const CockpitStartRemoteRecordingRequest({
@@ -39,9 +39,9 @@ final class CockpitStartRemoteRecordingResult {
   final CockpitRemoteSessionHandle? sessionHandle;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'recordingSession': recordingSession.toJson(),
-        if (sessionHandle != null) 'sessionHandle': sessionHandle!.toJson(),
-      };
+    'recordingSession': recordingSession.toJson(),
+    if (sessionHandle != null) 'sessionHandle': sessionHandle!.toJson(),
+  };
 }
 
 final class CockpitStartRemoteRecordingService {
@@ -49,13 +49,14 @@ final class CockpitStartRemoteRecordingService {
     CockpitRemoteRecordingStarter? startRecording,
     CockpitSessionReferenceResolver? sessionReferenceResolver,
     CockpitInteractiveSessionLock? sessionLock,
-  })  : _startRecording = startRecording ??
-            ((baseUri, request) => CockpitRemoteSessionClient(
-                  baseUri: baseUri,
-                ).startRecording(request)),
-        _sessionReferenceResolver =
-            sessionReferenceResolver ?? CockpitSessionReferenceResolver(),
-        _sessionLock = sessionLock ?? CockpitInteractiveSessionLock();
+  }) : _startRecording =
+           startRecording ??
+           ((baseUri, request) => CockpitRemoteSessionClient(
+             baseUri: baseUri,
+           ).startRecording(request)),
+       _sessionReferenceResolver =
+           sessionReferenceResolver ?? CockpitSessionReferenceResolver(),
+       _sessionLock = sessionLock ?? CockpitInteractiveSessionLock();
 
   final CockpitRemoteRecordingStarter _startRecording;
   final CockpitSessionReferenceResolver _sessionReferenceResolver;

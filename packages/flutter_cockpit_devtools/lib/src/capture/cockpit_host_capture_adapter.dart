@@ -7,10 +7,10 @@ import 'package:path/path.dart' as p;
 
 import '../adapters/cockpit_capture_adapter.dart';
 
-typedef CockpitCaptureProcessStarter = Future<Process> Function(
-    String executable, List<String> arguments);
-typedef CockpitCaptureProcessRunner = Future<ProcessResult> Function(
-    String executable, List<String> arguments);
+typedef CockpitCaptureProcessStarter =
+    Future<Process> Function(String executable, List<String> arguments);
+typedef CockpitCaptureProcessRunner =
+    Future<ProcessResult> Function(String executable, List<String> arguments);
 typedef CockpitCaptureTempFileFactory = Future<File> Function(String basename);
 
 abstract interface class CockpitHostCaptureAdapter

@@ -17,9 +17,9 @@ final class CockpitTaskOrchestrationResult {
     this.bundleSummary,
     this.blockedReason,
     List<String> warnings = const <String>[],
-  })  : completedStages = Set<CockpitTaskStage>.unmodifiable(completedStages),
-        gates = Map<CockpitTaskGate, bool>.unmodifiable(gates),
-        warnings = List<String>.unmodifiable(warnings);
+  }) : completedStages = Set<CockpitTaskStage>.unmodifiable(completedStages),
+       gates = Map<CockpitTaskGate, bool>.unmodifiable(gates),
+       warnings = List<String>.unmodifiable(warnings);
 
   final CockpitRunTaskClassification classification;
   final String recommendedNextStep;

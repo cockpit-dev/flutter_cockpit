@@ -3,10 +3,10 @@ import 'package:flutter_cockpit/flutter_cockpit.dart';
 import '../../application/cockpit_start_recording_service.dart';
 import '../cockpit_mcp_tool.dart';
 
-typedef CockpitStartRecordingToolFunction = Future<CockpitStartRecordingResult>
-    Function(
-  CockpitStartRecordingRequest request,
-);
+typedef CockpitStartRecordingToolFunction =
+    Future<CockpitStartRecordingResult> Function(
+      CockpitStartRecordingRequest request,
+    );
 
 final class CockpitStartRecordingTool extends CockpitMcpTool {
   CockpitStartRecordingTool({
@@ -25,17 +25,17 @@ final class CockpitStartRecordingTool extends CockpitMcpTool {
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
-        'type': 'object',
-        'required': <String>['recording'],
-        'properties': <String, Object?>{
-          'appId': <String, Object?>{'type': 'string'},
-          'appJson': <String, Object?>{'type': 'string'},
-          'baseUrl': <String, Object?>{'type': 'string'},
-          'androidDeviceId': <String, Object?>{'type': 'string'},
-          'iosDeviceId': <String, Object?>{'type': 'string'},
-          'recording': <String, Object?>{'type': 'object'},
-        },
-      };
+    'type': 'object',
+    'required': <String>['recording'],
+    'properties': <String, Object?>{
+      'appId': <String, Object?>{'type': 'string'},
+      'appJson': <String, Object?>{'type': 'string'},
+      'baseUrl': <String, Object?>{'type': 'string'},
+      'androidDeviceId': <String, Object?>{'type': 'string'},
+      'iosDeviceId': <String, Object?>{'type': 'string'},
+      'recording': <String, Object?>{'type': 'object'},
+    },
+  };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {

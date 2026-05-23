@@ -8,24 +8,22 @@ import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
 
-typedef CockpitCollectDevelopmentProbeFunction
-    = Future<CockpitCollectDevelopmentProbeResult> Function(
-  CockpitCollectDevelopmentProbeRequest request,
-);
+typedef CockpitCollectDevelopmentProbeFunction =
+    Future<CockpitCollectDevelopmentProbeResult> Function(
+      CockpitCollectDevelopmentProbeRequest request,
+    );
 
 final class CollectDevelopmentProbeCommand extends CockpitCliCommand {
   CollectDevelopmentProbeCommand({
     CockpitCollectDevelopmentProbeService? service,
     CockpitCollectDevelopmentProbeFunction? collect,
     StringSink? stdoutSink,
-  })  : _collect = collect ??
-            (service ?? CockpitCollectDevelopmentProbeService()).collect,
-        _stdoutSink = stdoutSink ?? stdout {
+  }) : _collect =
+           collect ??
+           (service ?? CockpitCollectDevelopmentProbeService()).collect,
+       _stdoutSink = stdoutSink ?? stdout {
     argParser
-      ..addOption(
-        'session-json',
-        help: cockpitDevelopmentSessionJsonOptionHelp,
-      )
+      ..addOption('session-json', help: cockpitDevelopmentSessionJsonOptionHelp)
       ..addOption(
         'profile',
         help: 'Probe detail level.',

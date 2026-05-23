@@ -7,21 +7,22 @@ import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 void main() {
-  test('macos recording adapter starts and finalizes a host recording artifact',
-      () async {
-    final tempDir = await Directory.systemTemp.createTemp(
-      'cockpit_macos_recording_adapter',
-    );
-    addTearDown(() async {
-      if (tempDir.existsSync()) {
-        await tempDir.delete(recursive: true);
-      }
-    });
+  test(
+    'macos recording adapter starts and finalizes a host recording artifact',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_macos_recording_adapter',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
 
-    final ffmpegExecutable = await _writeExecutable(
-      directory: tempDir,
-      name: 'ffmpeg',
-      body: r'''
+      final ffmpegExecutable = await _writeExecutable(
+        directory: tempDir,
+        name: 'ffmpeg',
+        body: r'''
 #!/bin/sh
 script_dir="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
 log_file="$script_dir/ffmpeg.log"
@@ -40,56 +41,57 @@ while true; do
   sleep 1
 done
 ''',
-    );
+      );
 
-    final osascriptExecutable = await _writeExecutable(
-      directory: tempDir,
-      name: 'osascript',
-      body: r'''
+      final osascriptExecutable = await _writeExecutable(
+        directory: tempDir,
+        name: 'osascript',
+        body: r'''
 #!/bin/sh
 exit 0
 ''',
-    );
+      );
 
-    final adapter = CockpitMacosRecordingAdapter(
-      appId: 'dev.cockpit.cockpitDemo',
-      ffmpegExecutable: ffmpegExecutable.path,
-      osascriptExecutable: osascriptExecutable.path,
-      startupTimeout: const Duration(seconds: 2),
-      stopTimeout: const Duration(seconds: 2),
-      finalizationPollInterval: const Duration(milliseconds: 10),
-      ffprobeProcessRunner: (executable, arguments) async => ProcessResult(
-        0,
-        0,
-        '{"format":{"duration":"2.000"},"streams":[{"codec_type":"video","nb_frames":"40"}]}',
-        '',
-      ),
-    );
+      final adapter = CockpitMacosRecordingAdapter(
+        appId: 'dev.cockpit.cockpitDemo',
+        ffmpegExecutable: ffmpegExecutable.path,
+        osascriptExecutable: osascriptExecutable.path,
+        startupTimeout: const Duration(seconds: 2),
+        stopTimeout: const Duration(seconds: 2),
+        finalizationPollInterval: const Duration(milliseconds: 10),
+        ffprobeProcessRunner: (executable, arguments) async => ProcessResult(
+          0,
+          0,
+          '{"format":{"duration":"2.000"},"streams":[{"codec_type":"video","nb_frames":"40"}]}',
+          '',
+        ),
+      );
 
-    final session = await adapter.startRecording(
-      const CockpitRecordingRequest(
-        purpose: CockpitRecordingPurpose.acceptance,
-        name: 'host-macos-demo',
-        attachToStep: true,
-      ),
-    );
-    final result = await adapter.stopRecording();
+      final session = await adapter.startRecording(
+        const CockpitRecordingRequest(
+          purpose: CockpitRecordingPurpose.acceptance,
+          name: 'host-macos-demo',
+          attachToStep: true,
+        ),
+      );
+      final result = await adapter.stopRecording();
 
-    expect(session.state, CockpitRecordingState.recording);
-    expect(result.state, CockpitRecordingState.completed);
-    expect(
-      result.artifact,
-      const CockpitArtifactRef(
-        role: 'recording',
-        relativePath: 'recordings/host-macos-demo.mp4',
-      ),
-    );
-    expect(File(result.sourceFilePath!).readAsStringSync(), 'macos-video');
-    expect(
-      File(p.join(tempDir.path, 'ffmpeg.log')).readAsStringSync(),
-      contains('-f avfoundation'),
-    );
-  });
+      expect(session.state, CockpitRecordingState.recording);
+      expect(result.state, CockpitRecordingState.completed);
+      expect(
+        result.artifact,
+        const CockpitArtifactRef(
+          role: 'recording',
+          relativePath: 'recordings/host-macos-demo.mp4',
+        ),
+      );
+      expect(File(result.sourceFilePath!).readAsStringSync(), 'macos-video');
+      expect(
+        File(p.join(tempDir.path, 'ffmpeg.log')).readAsStringSync(),
+        contains('-f avfoundation'),
+      );
+    },
+  );
 
   test(
     'macos recording adapter tolerates quiet startup when ffmpeg keeps running',
@@ -165,7 +167,9 @@ exit 0
       expect(session.state, CockpitRecordingState.recording);
       expect(result.state, CockpitRecordingState.completed);
       expect(
-          File(result.sourceFilePath!).readAsStringSync(), 'quiet-macos-video');
+        File(result.sourceFilePath!).readAsStringSync(),
+        'quiet-macos-video',
+      );
     },
   );
 
@@ -642,10 +646,7 @@ exit 0
 
       expect(session.state, CockpitRecordingState.recording);
       expect(result.state, CockpitRecordingState.failed);
-      expect(
-        result.failureReason,
-        contains('Recent ffmpeg output'),
-      );
+      expect(result.failureReason, contains('Recent ffmpeg output'));
       expect(
         result.failureReason,
         contains('Input/output error while opening screen capture'),
@@ -706,20 +707,21 @@ exit 0
         appId: 'dev.cockpit.cockpitDemo',
         ffmpegExecutable: ffmpegExecutable.path,
         osascriptExecutable: osascriptExecutable.path,
-        windowTargetResolver: ({
-          required appId,
-          required osascriptExecutable,
-          required processRunner,
-          required timeout,
-          required activationSettleDelay,
-        }) async {
-          return const CockpitMacosWindowTarget(
-            left: 1680,
-            top: 120,
-            width: 1280,
-            height: 720,
-          );
-        },
+        windowTargetResolver:
+            ({
+              required appId,
+              required osascriptExecutable,
+              required processRunner,
+              required timeout,
+              required activationSettleDelay,
+            }) async {
+              return const CockpitMacosWindowTarget(
+                left: 1680,
+                top: 120,
+                width: 1280,
+                height: 720,
+              );
+            },
         startupTimeout: const Duration(seconds: 2),
         stopTimeout: const Duration(seconds: 2),
         finalizationPollInterval: const Duration(milliseconds: 10),

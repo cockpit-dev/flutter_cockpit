@@ -14,13 +14,13 @@ import '../session/cockpit_remote_session_handle.dart';
 typedef CockpitRemoteReachabilityProbe = Future<bool> Function(Uri baseUri);
 typedef CockpitUiIdleWaiter = Future<bool> Function(Uri baseUri);
 typedef CockpitAppStopper = Future<void> Function(String appId);
-typedef CockpitMachineClientConnector = Future<CockpitFlutterRunMachineClient>
-    Function();
+typedef CockpitMachineClientConnector =
+    Future<CockpitFlutterRunMachineClient> Function();
 typedef CockpitSupervisorLogger = Future<void> Function(String message);
-typedef CockpitWebRemoteSessionBridgeServerFactory
-    = CockpitWebRemoteSessionBridgeServer? Function({
-  required CockpitDevelopmentSessionHandle handle,
-});
+typedef CockpitWebRemoteSessionBridgeServerFactory =
+    CockpitWebRemoteSessionBridgeServer? Function({
+      required CockpitDevelopmentSessionHandle handle,
+    });
 
 final class CockpitDevelopmentSessionSupervisor {
   CockpitDevelopmentSessionSupervisor({
@@ -37,28 +37,28 @@ final class CockpitDevelopmentSessionSupervisor {
     int bindPort = 0,
     Duration settleTimeout = const Duration(seconds: 30),
     Duration settlePollInterval = const Duration(milliseconds: 500),
-  })  : _handle = initialHandle,
-        _machineClient = machineClient,
-        _remoteReachabilityProbe = remoteReachabilityProbe,
-        _uiIdleWaiter = uiIdleWaiter,
-        _machineClientConnector = machineClientConnector,
-        _appStopper = appStopper,
-        _logger = logger,
-        _webBridgeServerFactory =
-            webBridgeServerFactory ?? cockpitCreateWebRemoteSessionBridgeServer,
-        _now = now ?? DateTime.now,
-        _bindAddress = bindAddress ?? InternetAddress.loopbackIPv4,
-        _bindPort = bindPort,
-        _settleTimeout = settleTimeout,
-        _settlePollInterval = settlePollInterval,
-        _status = CockpitDevelopmentSessionStatus(
-          developmentSessionId: initialHandle.developmentSessionId,
-          state: CockpitDevelopmentSessionState.starting,
-          appReachable: false,
-          remoteSessionReachable: false,
-          reloadGeneration: initialHandle.reloadGeneration,
-          lastStatusAt: (now ?? DateTime.now)().toUtc(),
-        );
+  }) : _handle = initialHandle,
+       _machineClient = machineClient,
+       _remoteReachabilityProbe = remoteReachabilityProbe,
+       _uiIdleWaiter = uiIdleWaiter,
+       _machineClientConnector = machineClientConnector,
+       _appStopper = appStopper,
+       _logger = logger,
+       _webBridgeServerFactory =
+           webBridgeServerFactory ?? cockpitCreateWebRemoteSessionBridgeServer,
+       _now = now ?? DateTime.now,
+       _bindAddress = bindAddress ?? InternetAddress.loopbackIPv4,
+       _bindPort = bindPort,
+       _settleTimeout = settleTimeout,
+       _settlePollInterval = settlePollInterval,
+       _status = CockpitDevelopmentSessionStatus(
+         developmentSessionId: initialHandle.developmentSessionId,
+         state: CockpitDevelopmentSessionState.starting,
+         appReachable: false,
+         remoteSessionReachable: false,
+         reloadGeneration: initialHandle.reloadGeneration,
+         lastStatusAt: (now ?? DateTime.now)().toUtc(),
+       );
 
   CockpitDevelopmentSessionHandle _handle;
   CockpitFlutterRunMachineClient? _machineClient;
@@ -146,8 +146,9 @@ final class CockpitDevelopmentSessionSupervisor {
   }
 
   void reportStartupFailure(Object error) {
-    final fallbackError =
-        error is CockpitDevelopmentSessionFallbackException ? error : null;
+    final fallbackError = error is CockpitDevelopmentSessionFallbackException
+        ? error
+        : null;
     final remoteSessionHandle = fallbackError?.remoteSessionHandle;
     if (remoteSessionHandle != null) {
       _handle = _handle.copyWith(
@@ -294,8 +295,8 @@ final class CockpitDevelopmentSessionSupervisor {
             state: _explicitStopRequested
                 ? CockpitDevelopmentSessionState.stopped
                 : error == null
-                    ? CockpitDevelopmentSessionState.stopped
-                    : CockpitDevelopmentSessionState.failed,
+                ? CockpitDevelopmentSessionState.stopped
+                : CockpitDevelopmentSessionState.failed,
             appReachable: false,
             remoteSessionReachable: false,
             lastError: error ?? _status.lastError,
@@ -385,8 +386,8 @@ final class CockpitDevelopmentSessionSupervisor {
         lastError: ready
             ? null
             : requireUiIdle
-                ? 'Remote session did not recover to an idle ready state.'
-                : 'Remote session did not recover to a ready state.',
+            ? 'Remote session did not recover to an idle ready state.'
+            : 'Remote session did not recover to a ready state.',
       ),
     );
     _log(
@@ -444,23 +445,25 @@ final class CockpitDevelopmentSessionSupervisor {
     if (pending != null) {
       return pending;
     }
-    final future = connector().then((client) {
-      _machineClient = client;
-      _subscribeToMachineClient(client);
-      _machineClientConnectFuture = null;
-      return client;
-    }).catchError((Object error) {
-      _machineClientConnectFuture = null;
-      if (updateStatusOnFailure) {
-        _setStatus(
-          _status.copyWith(
-            state: CockpitDevelopmentSessionState.failed,
-            lastError: '$error',
-          ),
-        );
-      }
-      throw error;
-    });
+    final future = connector()
+        .then((client) {
+          _machineClient = client;
+          _subscribeToMachineClient(client);
+          _machineClientConnectFuture = null;
+          return client;
+        })
+        .catchError((Object error) {
+          _machineClientConnectFuture = null;
+          if (updateStatusOnFailure) {
+            _setStatus(
+              _status.copyWith(
+                state: CockpitDevelopmentSessionState.failed,
+                lastError: '$error',
+              ),
+            );
+          }
+          throw error;
+        });
     _machineClientConnectFuture = future;
     return future;
   }

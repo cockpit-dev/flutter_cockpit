@@ -49,7 +49,8 @@ final class CockpitHttpNetworkObserver extends HttpOverrides
 
   @override
   HttpClient createHttpClient(SecurityContext? context) {
-    final delegate = _parentOverrides?.createHttpClient(context) ??
+    final delegate =
+        _parentOverrides?.createHttpClient(context) ??
         super.createHttpClient(context);
     return _CockpitObservedHttpClient(delegate, observer: this);
   }
@@ -196,25 +197,30 @@ final class CockpitHttpNetworkObserver extends HttpOverrides
       buckets.putIfAbsent(bucketKey, () => <CockpitNetworkEntry>[]).add(entry);
     }
 
-    final summaries = buckets.entries.map((bucket) {
-      final bucketEntries = bucket.value;
-      final latestEntry = bucketEntries.reduce((left, right) {
-        return left.startedAt.isAfter(right.startedAt) ? left : right;
-      });
-      final averageDurationMs = bucketEntries
-              .map((entry) => entry.durationMs)
-              .fold<int>(0, (total, duration) => total + duration) ~/
-          bucketEntries.length;
-      return CockpitNetworkEndpointSummary(
-        method: latestEntry.method,
-        uriPattern: _uriPatternFor(latestEntry.uri),
-        requestCount: bucketEntries.length,
-        failureCount: bucketEntries.where((entry) => entry.isFailure).length,
-        averageDurationMs: averageDurationMs,
-        lastStatusCode: latestEntry.statusCode,
-        latestUri: latestEntry.uri,
-      );
-    }).toList(growable: false);
+    final summaries = buckets.entries
+        .map((bucket) {
+          final bucketEntries = bucket.value;
+          final latestEntry = bucketEntries.reduce((left, right) {
+            return left.startedAt.isAfter(right.startedAt) ? left : right;
+          });
+          final averageDurationMs =
+              bucketEntries
+                  .map((entry) => entry.durationMs)
+                  .fold<int>(0, (total, duration) => total + duration) ~/
+              bucketEntries.length;
+          return CockpitNetworkEndpointSummary(
+            method: latestEntry.method,
+            uriPattern: _uriPatternFor(latestEntry.uri),
+            requestCount: bucketEntries.length,
+            failureCount: bucketEntries
+                .where((entry) => entry.isFailure)
+                .length,
+            averageDurationMs: averageDurationMs,
+            lastStatusCode: latestEntry.statusCode,
+            latestUri: latestEntry.uri,
+          );
+        })
+        .toList(growable: false);
 
     summaries.sort((left, right) {
       final failureCompare = right.failureCount.compareTo(left.failureCount);
@@ -320,21 +326,18 @@ final class _CockpitObservedHttpClient implements HttpClient {
   @override
   set authenticate(
     Future<bool> Function(Uri url, String scheme, String? realm)? f,
-  ) =>
-      _delegate.authenticate = f;
+  ) => _delegate.authenticate = f;
 
   @override
   set authenticateProxy(
     Future<bool> Function(String host, int port, String scheme, String? realm)?
-        f,
-  ) =>
-      _delegate.authenticateProxy = f;
+    f,
+  ) => _delegate.authenticateProxy = f;
 
   @override
   set badCertificateCallback(
     bool Function(X509Certificate cert, String host, int port)? callback,
-  ) =>
-      _delegate.badCertificateCallback = callback;
+  ) => _delegate.badCertificateCallback = callback;
 
   @override
   set findProxy(String Function(Uri url)? f) => _delegate.findProxy = f;
@@ -344,8 +347,7 @@ final class _CockpitObservedHttpClient implements HttpClient {
     Uri url,
     String realm,
     HttpClientCredentials credentials,
-  ) =>
-      _delegate.addCredentials(url, realm, credentials);
+  ) => _delegate.addCredentials(url, realm, credentials);
 
   @override
   void addProxyCredentials(
@@ -353,8 +355,7 @@ final class _CockpitObservedHttpClient implements HttpClient {
     int port,
     String realm,
     HttpClientCredentials credentials,
-  ) =>
-      _delegate.addProxyCredentials(host, port, realm, credentials);
+  ) => _delegate.addProxyCredentials(host, port, realm, credentials);
 
   @override
   void close({bool force = false}) => _delegate.close(force: force);
@@ -570,8 +571,7 @@ final class _CockpitObservedHttpClientResponse extends Stream<List<int>>
     String? method,
     Uri? url,
     bool? followLoops,
-  ]) =>
-      _delegate.redirect(method, url, followLoops ?? false);
+  ]) => _delegate.redirect(method, url, followLoops ?? false);
 
   @override
   Future<Socket> detachSocket() => _delegate.detachSocket();

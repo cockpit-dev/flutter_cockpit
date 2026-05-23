@@ -323,10 +323,7 @@ Map<String, Object?> _waitForSyncStateCommand({
   return <String, Object?>{
     'commandId': commandId,
     'commandType': 'waitFor',
-    'parameters': <String, Object?>{
-      'text': text,
-      'timeoutMs': 20000,
-    },
+    'parameters': <String, Object?>{'text': text, 'timeoutMs': 20000},
   };
 }
 

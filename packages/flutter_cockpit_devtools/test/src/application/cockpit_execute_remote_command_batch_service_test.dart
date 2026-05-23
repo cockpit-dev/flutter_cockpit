@@ -6,42 +6,45 @@ import 'package:test/test.dart';
 
 void main() {
   group('CockpitExecuteRemoteCommandBatchService', () {
-    test('executes commands in order and stops early when failFast is true',
-        () async {
-      final executed = <String>[];
-      final service = CockpitExecuteRemoteCommandBatchService(
-        executeCommand: (_, command) async {
-          executed.add(command.commandId);
-          final success = command.commandId != 'second';
-          return CockpitCommandExecution(
-            result: CockpitCommandResult(
-              success: success,
-              commandId: command.commandId,
-              commandType: command.commandType,
-              durationMs: 40,
-            ),
-          );
-        },
-      );
+    test(
+      'executes commands in order and stops early when failFast is true',
+      () async {
+        final executed = <String>[];
+        final service = CockpitExecuteRemoteCommandBatchService(
+          executeCommand: (_, command) async {
+            executed.add(command.commandId);
+            final success = command.commandId != 'second';
+            return CockpitCommandExecution(
+              result: CockpitCommandResult(
+                success: success,
+                commandId: command.commandId,
+                commandType: command.commandType,
+                durationMs: 40,
+              ),
+            );
+          },
+        );
 
-      final result = await service.execute(
-        CockpitExecuteRemoteCommandBatchRequest(
-          sessionHandle: _sessionHandle(),
-          defaultResultProfile: const CockpitInteractiveResultProfile.minimal(),
-          commands: <CockpitInteractiveBatchCommand>[
-            _batchCommand('first'),
-            _batchCommand('second'),
-            _batchCommand('third'),
-          ],
-          failFast: true,
-        ),
-      );
+        final result = await service.execute(
+          CockpitExecuteRemoteCommandBatchRequest(
+            sessionHandle: _sessionHandle(),
+            defaultResultProfile:
+                const CockpitInteractiveResultProfile.minimal(),
+            commands: <CockpitInteractiveBatchCommand>[
+              _batchCommand('first'),
+              _batchCommand('second'),
+              _batchCommand('third'),
+            ],
+            failFast: true,
+          ),
+        );
 
-      expect(executed, <String>['first', 'second']);
-      expect(result.results.length, 2);
-      expect(result.summary.stoppedEarly, isTrue);
-      expect(result.summary.failureCount, 1);
-    });
+        expect(executed, <String>['first', 'second']);
+        expect(result.results.length, 2);
+        expect(result.summary.stoppedEarly, isTrue);
+        expect(result.summary.failureCount, 1);
+      },
+    );
 
     test('continues after failures when failFast is false', () async {
       final executed = <String>[];
@@ -124,43 +127,46 @@ void main() {
       expect(result.results[1].uiSummary, isNull);
     });
 
-    test('injects the batch default timeout into commands that omit one',
-        () async {
-      final timeouts = <int?>[];
-      final service = CockpitExecuteRemoteCommandBatchService(
-        executeCommand: (_, command) async {
-          timeouts.add(command.timeoutMs);
-          return CockpitCommandExecution(
-            result: CockpitCommandResult(
-              success: true,
-              commandId: command.commandId,
-              commandType: command.commandType,
-              durationMs: 40,
-            ),
-          );
-        },
-      );
-
-      await service.execute(
-        CockpitExecuteRemoteCommandBatchRequest(
-          sessionHandle: _sessionHandle(),
-          defaultResultProfile: const CockpitInteractiveResultProfile.minimal(),
-          commands: <CockpitInteractiveBatchCommand>[
-            _batchCommand('default-timeout'),
-            CockpitInteractiveBatchCommand(
-              command: CockpitCommand(
-                commandId: 'explicit-timeout',
-                commandType: CockpitCommandType.tap,
-                timeoutMs: 9000,
+    test(
+      'injects the batch default timeout into commands that omit one',
+      () async {
+        final timeouts = <int?>[];
+        final service = CockpitExecuteRemoteCommandBatchService(
+          executeCommand: (_, command) async {
+            timeouts.add(command.timeoutMs);
+            return CockpitCommandExecution(
+              result: CockpitCommandResult(
+                success: true,
+                commandId: command.commandId,
+                commandType: command.commandType,
+                durationMs: 40,
               ),
-            ),
-          ],
-          defaultCommandTimeout: const Duration(milliseconds: 4700),
-        ),
-      );
+            );
+          },
+        );
 
-      expect(timeouts, <int?>[4700, 9000]);
-    });
+        await service.execute(
+          CockpitExecuteRemoteCommandBatchRequest(
+            sessionHandle: _sessionHandle(),
+            defaultResultProfile:
+                const CockpitInteractiveResultProfile.minimal(),
+            commands: <CockpitInteractiveBatchCommand>[
+              _batchCommand('default-timeout'),
+              CockpitInteractiveBatchCommand(
+                command: CockpitCommand(
+                  commandId: 'explicit-timeout',
+                  commandType: CockpitCommandType.tap,
+                  timeoutMs: 9000,
+                ),
+              ),
+            ],
+            defaultCommandTimeout: const Duration(milliseconds: 4700),
+          ),
+        );
+
+        expect(timeouts, <int?>[4700, 9000]);
+      },
+    );
 
     test('captures a final snapshot when requested', () async {
       final service = CockpitExecuteRemoteCommandBatchService(
@@ -187,9 +193,7 @@ void main() {
       final result = await service.execute(
         CockpitExecuteRemoteCommandBatchRequest(
           sessionHandle: _sessionHandle(),
-          commands: <CockpitInteractiveBatchCommand>[
-            _batchCommand('first'),
-          ],
+          commands: <CockpitInteractiveBatchCommand>[_batchCommand('first')],
           finalSnapshotProfile:
               const CockpitInteractiveResultProfile.standard(),
         ),
@@ -212,11 +216,9 @@ void main() {
         },
         stopRecording: (_) async {
           stopped = true;
-          return CockpitRecordingResult(
-            state: CockpitRecordingState.completed,
-          );
+          return CockpitRecordingResult(state: CockpitRecordingState.completed);
         },
-        executeCommand: (_, __) async {
+        executeCommand: (_, _) async {
           throw StateError('command failed');
         },
       );
@@ -255,7 +257,7 @@ void main() {
           stopAttempts += 1;
           throw StateError('stop failed');
         },
-        executeCommand: (_, __) async {
+        executeCommand: (_, _) async {
           throw StateError('original command failure');
         },
       );

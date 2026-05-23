@@ -11,8 +11,8 @@ final class CockpitExecutionPlan {
     required List<CockpitPlaneKind> fallbackChain,
     this.requiresEvidence = false,
     this.requiresObservation = false,
-  })  : candidatePlanes = List.unmodifiable(candidatePlanes),
-        fallbackChain = List.unmodifiable(fallbackChain);
+  }) : candidatePlanes = List.unmodifiable(candidatePlanes),
+       fallbackChain = List.unmodifiable(fallbackChain);
 
   final CockpitIntent intent;
   final CockpitPlaneKind selectedPlane;
@@ -38,11 +38,11 @@ final class CockpitExecutionPlan {
 
   @override
   int get hashCode => Object.hash(
-        intent,
-        selectedPlane,
-        _planeListEquality.hash(candidatePlanes),
-        _planeListEquality.hash(fallbackChain),
-        requiresEvidence,
-        requiresObservation,
-      );
+    intent,
+    selectedPlane,
+    _planeListEquality.hash(candidatePlanes),
+    _planeListEquality.hash(fallbackChain),
+    requiresEvidence,
+    requiresObservation,
+  );
 }

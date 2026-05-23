@@ -29,7 +29,8 @@ final class CockpitActiveSessionsResource extends CockpitMcpResource {
 
   @override
   Future<CockpitMcpResourceResult?> read(
-      CockpitMcpResourceRequest request) async {
+    CockpitMcpResourceRequest request,
+  ) async {
     if (request.uri != definition.uri) {
       return null;
     }
@@ -37,8 +38,9 @@ final class CockpitActiveSessionsResource extends CockpitMcpResource {
       contents: <CockpitMcpResourceContents>[
         CockpitMcpTextResourceContents(
           uri: request.uri,
-          text: const JsonEncoder.withIndent('  ')
-              .convert(_service.list().toJson()),
+          text: const JsonEncoder.withIndent(
+            '  ',
+          ).convert(_service.list().toJson()),
           mimeType: definition.mimeType,
         ),
       ],

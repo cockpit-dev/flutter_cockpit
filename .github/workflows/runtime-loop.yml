@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  FLUTTER_VERSION: '3.38.9'
+  FLUTTER_VERSION: '3.32.0'
 
 defaults:
   run:

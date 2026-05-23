@@ -12,8 +12,7 @@ void main() {
     '$root/examples/cockpit_demo/tool/verify_rapid_dev.dart',
   );
 
-  test('runtime loop workflow uses full verifier coverage on every platform',
-      () {
+  test('runtime loop workflow uses full verifier coverage on every platform', () {
     final workflow = workflowFile.readAsStringSync();
 
     expect(workflow, contains('macos-mcp-surface:'));
@@ -31,18 +30,12 @@ void main() {
     expect(workflow, contains('flutter pub publish --dry-run'));
     expect(workflow, contains('dart pub publish --dry-run'));
     expect(workflow, contains('dart test test'));
-    expect(
-      workflow,
-      contains('(cd packages/flutter_cockpit && flutter test)'),
-    );
+    expect(workflow, contains('(cd packages/flutter_cockpit && flutter test)'));
     expect(
       workflow,
       contains('(cd packages/flutter_cockpit_devtools && dart test)'),
     );
-    expect(
-      workflow,
-      contains('(cd examples/cockpit_demo && flutter test)'),
-    );
+    expect(workflow, contains('(cd examples/cockpit_demo && flutter test)'));
     expect(workflow, isNot(contains('run: melos run test')));
     expect(workflow, isNot(contains('run: dart run melos test')));
     expect(workflow, contains('android-runtime-loop:'));
@@ -83,10 +76,7 @@ void main() {
     expect(workflow, contains('"sync_lab_conflict_recovery"'));
     expect(workflow, contains('assert platform["batchCommandCount"] == 29'));
     expect(workflow, contains('assert platform["recordingOutputPath"]'));
-    expect(
-      workflow,
-      contains('assert platform["screenshotByteLength"] > 0'),
-    );
+    expect(workflow, contains('assert platform["screenshotByteLength"] > 0'));
     expect(workflow, isNot(contains('platform["batchCommandCount"] == 4')));
   });
 

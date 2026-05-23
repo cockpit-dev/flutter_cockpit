@@ -3,19 +3,20 @@ import '../../application/cockpit_session_registry.dart';
 import '../../development/cockpit_development_session_status.dart';
 import '../cockpit_mcp_tool.dart';
 
-typedef CockpitReloadDevelopmentSessionToolFunction
-    = Future<CockpitReloadDevelopmentSessionResult> Function(
-  CockpitReloadDevelopmentSessionRequest request,
-);
+typedef CockpitReloadDevelopmentSessionToolFunction =
+    Future<CockpitReloadDevelopmentSessionResult> Function(
+      CockpitReloadDevelopmentSessionRequest request,
+    );
 
 final class CockpitReloadDevelopmentSessionTool extends CockpitMcpTool {
   CockpitReloadDevelopmentSessionTool({
     CockpitReloadDevelopmentSessionService? service,
     CockpitReloadDevelopmentSessionToolFunction? reload,
     CockpitSessionRegistry? sessionRegistry,
-  })  : _reload = reload ??
-            (service ?? CockpitReloadDevelopmentSessionService()).reload,
-        _sessionRegistry = sessionRegistry;
+  }) : _reload =
+           reload ??
+           (service ?? CockpitReloadDevelopmentSessionService()).reload,
+       _sessionRegistry = sessionRegistry;
 
   final CockpitReloadDevelopmentSessionToolFunction _reload;
   final CockpitSessionRegistry? _sessionRegistry;
@@ -29,18 +30,18 @@ final class CockpitReloadDevelopmentSessionTool extends CockpitMcpTool {
 
   @override
   Map<String, Object?> get inputSchema => <String, Object?>{
-        'type': 'object',
-        'properties': <String, Object?>{
-          'sessionHandle': const <String, Object?>{'type': 'object'},
-          'sessionHandlePath': const <String, Object?>{'type': 'string'},
-          'mode': <String, Object?>{
-            'type': 'string',
-            'enum': CockpitDevelopmentReloadMode.values
-                .map((value) => value.jsonValue)
-                .toList(growable: false),
-          },
-        },
-      };
+    'type': 'object',
+    'properties': <String, Object?>{
+      'sessionHandle': const <String, Object?>{'type': 'object'},
+      'sessionHandlePath': const <String, Object?>{'type': 'string'},
+      'mode': <String, Object?>{
+        'type': 'string',
+        'enum': CockpitDevelopmentReloadMode.values
+            .map((value) => value.jsonValue)
+            .toList(growable: false),
+      },
+    },
+  };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {

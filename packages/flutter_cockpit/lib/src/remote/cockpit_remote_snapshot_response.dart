@@ -22,11 +22,11 @@ final class CockpitRemoteSnapshotResponse {
   }
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'snapshot': snapshot.toJson(),
-        'artifactDownloads': artifactDownloads
-            .map((download) => download.toJson())
-            .toList(growable: false),
-      };
+    'snapshot': snapshot.toJson(),
+    'artifactDownloads': artifactDownloads
+        .map((download) => download.toJson())
+        .toList(growable: false),
+  };
 
   factory CockpitRemoteSnapshotResponse.fromJson(Map<String, Object?> json) {
     final snapshotJson = json['snapshot'] as Map<Object?, Object?>;

@@ -28,20 +28,14 @@ String cockpitReadWorkspaceRoot(
   ArgResults? argResults, {
   String optionName = 'workspace-root',
 }) {
-  return _readDirectoryOption(
-    argResults,
-    optionName: optionName,
-  );
+  return _readDirectoryOption(argResults, optionName: optionName);
 }
 
 String cockpitReadParentDirectory(
   ArgResults? argResults, {
   String optionName = 'parent-directory',
 }) {
-  return _readDirectoryOption(
-    argResults,
-    optionName: optionName,
-  );
+  return _readDirectoryOption(argResults, optionName: optionName);
 }
 
 String cockpitReadRequiredStringOption(
@@ -127,9 +121,7 @@ List<String> cockpitReadMultiStringOption(
   String optionName,
 ) {
   final values = argResults?.multiOption(optionName) ?? const <String>[];
-  return List<String>.unmodifiable(
-    values.where((value) => value.isNotEmpty),
-  );
+  return List<String>.unmodifiable(values.where((value) => value.isNotEmpty));
 }
 
 Future<void> cockpitWriteWorkspacePayload({

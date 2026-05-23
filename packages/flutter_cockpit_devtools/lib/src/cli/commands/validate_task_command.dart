@@ -12,8 +12,8 @@ final class ValidateTaskCommand extends CockpitCliCommand {
   ValidateTaskCommand({
     CockpitValidateTaskService? service,
     StringSink? stdoutSink,
-  })  : _service = service ?? CockpitValidateTaskService(),
-        _stdoutSink = stdoutSink ?? stdout {
+  }) : _service = service ?? CockpitValidateTaskService(),
+       _stdoutSink = stdoutSink ?? stdout {
     argParser.addOption(
       'config-json',
       help: 'Path to a JSON validate-task configuration file.',

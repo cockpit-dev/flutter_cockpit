@@ -20,6 +20,8 @@
 
 ## 安装
 
+需要 Flutter 3.32.0 或更高版本。
+
 ```yaml
 dependencies:
   flutter_cockpit: ^1.0.0

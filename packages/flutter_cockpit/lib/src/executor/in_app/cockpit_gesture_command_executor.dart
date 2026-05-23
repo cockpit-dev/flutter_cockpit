@@ -35,8 +35,8 @@ final class CockpitGestureCommandExecutor {
       CockpitCommandType.panZoom => panZoom(command, stopwatch),
       CockpitCommandType.multiTouch => multiTouch(command, stopwatch),
       _ => throw UnsupportedError(
-          'Unsupported gesture command ${command.commandType.name}.',
-        ),
+        'Unsupported gesture command ${command.commandType.name}.',
+      ),
     };
   }
 }

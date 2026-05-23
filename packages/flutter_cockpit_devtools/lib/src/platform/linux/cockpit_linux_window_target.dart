@@ -2,13 +2,13 @@ import 'dart:async';
 
 import '../../capture/cockpit_host_capture_adapter.dart';
 
-typedef CockpitLinuxWindowTargetResolver = Future<CockpitLinuxWindowTarget>
-    Function({
-  required String appId,
-  required int? processId,
-  required CockpitCaptureProcessRunner processRunner,
-  required Duration timeout,
-});
+typedef CockpitLinuxWindowTargetResolver =
+    Future<CockpitLinuxWindowTarget> Function({
+      required String appId,
+      required int? processId,
+      required CockpitCaptureProcessRunner processRunner,
+      required Duration timeout,
+    });
 
 final class CockpitLinuxWindowTarget {
   const CockpitLinuxWindowTarget({
@@ -63,17 +63,15 @@ Future<CockpitLinuxWindowTarget> cockpitResolveLinuxWindowTarget({
         candidatePids.isNotEmpty && candidatePids.contains(parsed.pid);
     final matchesMetadata =
         parsed.windowId.toLowerCase().contains(normalizedAppId) ||
-            parsed.wmClass.toLowerCase().contains(normalizedAppId) ||
-            parsed.title.toLowerCase().contains(normalizedAppId);
+        parsed.wmClass.toLowerCase().contains(normalizedAppId) ||
+        parsed.title.toLowerCase().contains(normalizedAppId);
     if (matchesPid || (candidatePids.isEmpty && matchesMetadata)) {
       candidates.add(parsed);
     }
   }
 
   if (candidates.isEmpty) {
-    throw StateError(
-      'No visible Linux window was found for $appId.',
-    );
+    throw StateError('No visible Linux window was found for $appId.');
   }
 
   final selected = candidates.first;

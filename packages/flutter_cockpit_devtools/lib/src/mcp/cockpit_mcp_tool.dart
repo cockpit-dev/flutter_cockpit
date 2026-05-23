@@ -24,13 +24,13 @@ abstract base class CockpitMcpTool {
   bool get enabledByDefault => true;
 
   CockpitMcpToolDefinition get definition => CockpitMcpToolDefinition(
-        name: name,
-        description: description,
-        inputSchema: inputSchema,
-        annotations: annotations,
-        categories: categories,
-        enabledByDefault: enabledByDefault,
-      );
+    name: name,
+    description: description,
+    inputSchema: inputSchema,
+    annotations: annotations,
+    categories: categories,
+    enabledByDefault: enabledByDefault,
+  );
 
   Future<Map<String, Object?>> call(Map<String, Object?> arguments);
 
@@ -89,10 +89,7 @@ int? cockpitReadOptionalInt(Map<String, Object?> arguments, String key) {
   );
 }
 
-int cockpitReadRequiredPositiveInt(
-  Map<String, Object?> arguments,
-  String key,
-) {
+int cockpitReadRequiredPositiveInt(Map<String, Object?> arguments, String key) {
   final value = _readArgumentValue(arguments, key);
   final parsed = _readInt(value);
   if (parsed != null && parsed > 0) {

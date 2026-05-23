@@ -30,17 +30,17 @@ final class CockpitSimctlRecordingAdapter
     CockpitPidSignalSender pidSignalSender = Process.killPid,
     CockpitPidLivenessChecker pidLivenessChecker =
         _defaultCockpitPidLivenessChecker,
-  })  : _deviceId = deviceId,
-        _executable = executable,
-        _processStarter = processStarter,
-        _processRunner = processRunner,
-        _tempFileFactory = tempFileFactory,
-        _ffprobeExecutable = ffprobeExecutable,
-        _startupTimeout = startupTimeout,
-        _stopTimeout = stopTimeout,
-        _finalizationPollInterval = finalizationPollInterval,
-        _pidSignalSender = pidSignalSender,
-        _pidLivenessChecker = pidLivenessChecker;
+  }) : _deviceId = deviceId,
+       _executable = executable,
+       _processStarter = processStarter,
+       _processRunner = processRunner,
+       _tempFileFactory = tempFileFactory,
+       _ffprobeExecutable = ffprobeExecutable,
+       _startupTimeout = startupTimeout,
+       _stopTimeout = stopTimeout,
+       _finalizationPollInterval = finalizationPollInterval,
+       _pidSignalSender = pidSignalSender,
+       _pidLivenessChecker = pidLivenessChecker;
 
   final String _deviceId;
   final String _executable;
@@ -87,11 +87,12 @@ final class CockpitSimctlRecordingAdapter
         .transform(utf8.decoder)
         .transform(const LineSplitter())
         .listen((line) {
-      stderrBuffer.writeln(line);
-      if (!startupCompleter.isCompleted && line.contains('Recording started')) {
-        startupCompleter.complete();
-      }
-    });
+          stderrBuffer.writeln(line);
+          if (!startupCompleter.isCompleted &&
+              line.contains('Recording started')) {
+            startupCompleter.complete();
+          }
+        });
 
     try {
       await _waitForProcessStartup(
@@ -335,8 +336,8 @@ final class CockpitSimctlRecordingAdapter
     final minimumExpectedDurationMs = expectedDurationMs <= 0
         ? 800
         : expectedDurationMs < 800
-            ? expectedDurationMs
-            : (expectedDurationMs * 0.7).round().clamp(800, expectedDurationMs);
+        ? expectedDurationMs
+        : (expectedDurationMs * 0.7).round().clamp(800, expectedDurationMs);
     final deadline = DateTime.now().add(_stopTimeout);
     while (DateTime.now().isBefore(deadline)) {
       final probe = await _probeRecordingTimeline(outputFile.path);
@@ -430,8 +431,10 @@ final class CockpitSimctlRecordingAdapter
 }
 
 File _simctlSessionFile(String deviceId) {
-  final sanitizedDeviceId =
-      deviceId.replaceAll(RegExp(r'[^A-Za-z0-9._-]+'), '_');
+  final sanitizedDeviceId = deviceId.replaceAll(
+    RegExp(r'[^A-Za-z0-9._-]+'),
+    '_',
+  );
   return File(
     '${Directory.systemTemp.path}${Platform.pathSeparator}'
     'flutter_cockpit_recording_sessions${Platform.pathSeparator}'
@@ -453,15 +456,13 @@ final class _PersistedSimctlRecordingSession {
   final DateTime startedAt;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'pid': pid,
-        'request': request.toJson(),
-        'outputFilePath': outputFilePath,
-        'startedAt': startedAt.toUtc().toIso8601String(),
-      };
+    'pid': pid,
+    'request': request.toJson(),
+    'outputFilePath': outputFilePath,
+    'startedAt': startedAt.toUtc().toIso8601String(),
+  };
 
-  factory _PersistedSimctlRecordingSession.fromJson(
-    Map<String, Object?> json,
-  ) {
+  factory _PersistedSimctlRecordingSession.fromJson(Map<String, Object?> json) {
     return _PersistedSimctlRecordingSession(
       pid: json['pid']! as int,
       request: CockpitRecordingRequest.fromJson(

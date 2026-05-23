@@ -88,8 +88,9 @@ Future<void> main(List<String> args) async {
     flutterExecutable: flutterExecutable,
     flutterVersion: flutterVersion,
   );
-  final endpoint =
-      await machineLauncher.resolveRemoteSessionEndpoint(machineLaunchRequest);
+  final endpoint = await machineLauncher.resolveRemoteSessionEndpoint(
+    machineLaunchRequest,
+  );
   await writeLog('development machine launch start');
   machineClient = await machineLauncher.startMachineClient(
     machineLaunchRequest,

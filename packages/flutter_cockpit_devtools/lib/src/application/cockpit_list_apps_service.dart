@@ -29,18 +29,18 @@ final class CockpitAppSummary {
   final String? lastError;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'appId': appId,
-        'mode': mode.jsonValue,
-        'platform': platform,
-        'deviceId': deviceId,
-        'projectDir': projectDir,
-        'target': target,
-        'baseUrl': baseUrl,
-        'updatedAt': updatedAt.toUtc().toIso8601String(),
-        if (platformAppId != null) 'platformAppId': platformAppId,
-        if (state != null) 'state': state,
-        if (lastError != null) 'lastError': lastError,
-      };
+    'appId': appId,
+    'mode': mode.jsonValue,
+    'platform': platform,
+    'deviceId': deviceId,
+    'projectDir': projectDir,
+    'target': target,
+    'baseUrl': baseUrl,
+    'updatedAt': updatedAt.toUtc().toIso8601String(),
+    if (platformAppId != null) 'platformAppId': platformAppId,
+    if (state != null) 'state': state,
+    if (lastError != null) 'lastError': lastError,
+  };
 }
 
 final class CockpitListAppsResult {
@@ -49,13 +49,13 @@ final class CockpitListAppsResult {
   final List<CockpitAppSummary> apps;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'apps': apps.map((app) => app.toJson()).toList(growable: false),
-      };
+    'apps': apps.map((app) => app.toJson()).toList(growable: false),
+  };
 }
 
 final class CockpitListAppsService {
   const CockpitListAppsService({required CockpitSessionRegistry registry})
-      : _registry = registry;
+    : _registry = registry;
 
   final CockpitSessionRegistry _registry;
 
@@ -93,6 +93,7 @@ final class CockpitListAppsService {
         ),
     ];
     return CockpitListAppsResult(
-        apps: List<CockpitAppSummary>.unmodifiable(apps));
+      apps: List<CockpitAppSummary>.unmodifiable(apps),
+    );
   }
 }

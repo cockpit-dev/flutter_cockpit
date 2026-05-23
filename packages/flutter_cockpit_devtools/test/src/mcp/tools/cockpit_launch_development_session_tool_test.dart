@@ -230,29 +230,29 @@ void main() {
 }
 
 CockpitDevelopmentSessionHandle _handle() => CockpitDevelopmentSessionHandle(
-      developmentSessionId: 'dev-session-1',
-      platform: 'android',
-      deviceId: 'emulator-5554',
-      projectDir: '/workspace/examples/cockpit_demo',
-      target: 'lib/main.dart',
-      appId: 'dev.cockpit.cockpit_demo',
-      appBaseUrl: 'http://127.0.0.1:57331',
-      supervisorBaseUrl: 'http://127.0.0.1:59331',
-      remoteSessionHandle: CockpitRemoteSessionHandle(
-        platform: 'android',
-        deviceId: 'emulator-5554',
-        projectDir: '/workspace/examples/cockpit_demo',
-        target: 'lib/main.dart',
-        appId: 'dev.cockpit.cockpit_demo',
-        host: '127.0.0.1',
-        hostPort: 57331,
-        devicePort: 47331,
-        baseUrl: 'http://127.0.0.1:57331',
-        launchedAt: DateTime.utc(2026, 3, 23),
-      ),
-      launchedAt: DateTime.utc(2026, 3, 23),
-      reloadGeneration: 0,
-    );
+  developmentSessionId: 'dev-session-1',
+  platform: 'android',
+  deviceId: 'emulator-5554',
+  projectDir: '/workspace/examples/cockpit_demo',
+  target: 'lib/main.dart',
+  appId: 'dev.cockpit.cockpit_demo',
+  appBaseUrl: 'http://127.0.0.1:57331',
+  supervisorBaseUrl: 'http://127.0.0.1:59331',
+  remoteSessionHandle: CockpitRemoteSessionHandle(
+    platform: 'android',
+    deviceId: 'emulator-5554',
+    projectDir: '/workspace/examples/cockpit_demo',
+    target: 'lib/main.dart',
+    appId: 'dev.cockpit.cockpit_demo',
+    host: '127.0.0.1',
+    hostPort: 57331,
+    devicePort: 47331,
+    baseUrl: 'http://127.0.0.1:57331',
+    launchedAt: DateTime.utc(2026, 3, 23),
+  ),
+  launchedAt: DateTime.utc(2026, 3, 23),
+  reloadGeneration: 0,
+);
 
 CockpitDevelopmentSessionStatus _status(CockpitDevelopmentSessionState state) =>
     CockpitDevelopmentSessionStatus(

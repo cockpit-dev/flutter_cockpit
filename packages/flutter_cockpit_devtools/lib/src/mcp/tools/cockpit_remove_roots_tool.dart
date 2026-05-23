@@ -5,7 +5,7 @@ import '../core/cockpit_mcp_workspace_tooling_support.dart';
 
 final class CockpitRemoveRootsTool extends CockpitMcpTool {
   CockpitRemoveRootsTool({required CockpitMcpRootsTracker rootsTracker})
-      : _rootsTracker = rootsTracker;
+    : _rootsTracker = rootsTracker;
 
   final CockpitMcpRootsTracker _rootsTracker;
 
@@ -18,13 +18,13 @@ final class CockpitRemoveRootsTool extends CockpitMcpTool {
 
   @override
   CockpitMcpToolAnnotations get annotations => const CockpitMcpToolAnnotations(
-        readOnly: false,
-        destructive: false,
-        idempotent: true,
-        longRunning: false,
-        requiresSession: false,
-        producesBundleEvidence: false,
-      );
+    readOnly: false,
+    destructive: false,
+    idempotent: true,
+    longRunning: false,
+    requiresSession: false,
+    producesBundleEvidence: false,
+  );
 
   @override
   List<CockpitMcpFeatureCategory> get categories =>
@@ -32,15 +32,15 @@ final class CockpitRemoveRootsTool extends CockpitMcpTool {
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
-        'type': 'object',
-        'required': <String>['uris'],
-        'properties': <String, Object?>{
-          'uris': <String, Object?>{
-            'type': 'array',
-            'items': <String, Object?>{'type': 'string'},
-          },
-        },
-      };
+    'type': 'object',
+    'required': <String>['uris'],
+    'properties': <String, Object?>{
+      'uris': <String, Object?>{
+        'type': 'array',
+        'items': <String, Object?>{'type': 'string'},
+      },
+    },
+  };
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {
@@ -49,8 +49,9 @@ final class CockpitRemoveRootsTool extends CockpitMcpTool {
         'Fallback roots are not active for this MCP session.',
       );
     }
-    _rootsTracker
-        .removeFallbackRoots(cockpitReadOptionalStringList(arguments, 'uris'));
+    _rootsTracker.removeFallbackRoots(
+      cockpitReadOptionalStringList(arguments, 'uris'),
+    );
     return cockpitMcpResult(
       text: 'Fallback roots removed.',
       structuredContent: _rootsTracker.toJson(),

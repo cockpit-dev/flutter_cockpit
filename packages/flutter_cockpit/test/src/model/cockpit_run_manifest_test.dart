@@ -71,17 +71,14 @@ void main() {
     );
     expect(
       manifest.toJson(),
-      containsPair(
-        'planesUsed',
-        <String>['flutterSemanticPlane', 'nativeUiPlane'],
-      ),
+      containsPair('planesUsed', <String>[
+        'flutterSemanticPlane',
+        'nativeUiPlane',
+      ]),
     );
     expect(
       manifest.toJson(),
-      containsPair(
-        'surfaceKindsUsed',
-        <String>['flutterSemantic', 'nativeUi'],
-      ),
+      containsPair('surfaceKindsUsed', <String>['flutterSemantic', 'nativeUi']),
     );
     expect(manifest.toJson(), containsPair('fallbackCount', 1));
 
@@ -109,10 +106,7 @@ void main() {
 
     expect(CockpitStepRecord.fromJson(record.toJson()), record);
     expect(record.toJson(), containsPair('targetKind', 'flutterApp'));
-    expect(
-      record.toJson(),
-      containsPair('executionPlane', 'nativeUiPlane'),
-    );
+    expect(record.toJson(), containsPair('executionPlane', 'nativeUiPlane'));
     expect(record.toJson(), containsPair('surfaceKind', 'nativeUi'));
     expect(record.toJson(), containsPair('usedPlaneFallback', isTrue));
     expect(
@@ -123,9 +117,6 @@ void main() {
       record.observation!.toJson(),
       containsPair('executionPlane', 'nativeUiPlane'),
     );
-    expect(
-      record.observation!.toJson(),
-      containsPair('fallbackUsed', isTrue),
-    );
+    expect(record.observation!.toJson(), containsPair('fallbackUsed', isTrue));
   });
 }

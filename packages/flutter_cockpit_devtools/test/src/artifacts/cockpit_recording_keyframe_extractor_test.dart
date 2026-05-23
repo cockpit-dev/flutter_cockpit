@@ -505,8 +505,8 @@ void main() {
                 : arguments[arguments.indexOf('-ss') + 1];
             final shouldFail =
                 outputPath.contains('acceptance') && seekValue == '6.091' ||
-                    outputPath.contains('tail_consistency') &&
-                        seekValue == '-0.300';
+                outputPath.contains('tail_consistency') &&
+                    seekValue == '-0.300';
             if (shouldFail) {
               return ProcessResult(0, 1, '', 'seek too close to tail');
             }
@@ -646,7 +646,8 @@ void main() {
             final seekValue = arguments.contains('-sseof')
                 ? arguments[arguments.indexOf('-sseof') + 1]
                 : arguments[arguments.indexOf('-ss') + 1];
-            final shouldWrite = outputPath.contains('baseline') ||
+            final shouldWrite =
+                outputPath.contains('baseline') ||
                 outputPath.contains('acceptance') && seekValue == '2.691' ||
                 outputPath.contains('midpoint') && seekValue == '1.496' ||
                 outputPath.contains('tail_consistency') &&
@@ -783,7 +784,8 @@ void main() {
             final seekValue = isLateSeek
                 ? arguments[arguments.indexOf('-sseof') + 1]
                 : arguments[arguments.indexOf('-ss') + 1];
-            final shouldMatch = seekValue == '1.962' ||
+            final shouldMatch =
+                seekValue == '1.962' ||
                 seekValue == '1.662' ||
                 seekValue == '-0.900' ||
                 seekValue == '-0.600';

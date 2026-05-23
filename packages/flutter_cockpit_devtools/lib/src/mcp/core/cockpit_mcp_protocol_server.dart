@@ -22,20 +22,20 @@ final class CockpitMcpProtocolServer extends MCPServer
     required this.serverName,
     required this.serverVersion,
     super.protocolLogSink,
-  })  : _tools = List<CockpitMcpTool>.unmodifiable(tools),
-        _resources = List<CockpitMcpResource>.unmodifiable(resources),
-        _prompts = List<CockpitMcpPrompt>.unmodifiable(prompts),
-        _rootsTracker = rootsTracker,
-        super.fromStreamChannel(
-          implementation: Implementation(
-            name: serverName,
-            version: serverVersion,
-          ),
-          instructions:
-              'Use the resources to read workspace context, the prompts to '
-              'follow the repository workflow, and the tools to execute '
-              'flutter_cockpit sessions, task workflows, and evidence bundles.',
-        ) {
+  }) : _tools = List<CockpitMcpTool>.unmodifiable(tools),
+       _resources = List<CockpitMcpResource>.unmodifiable(resources),
+       _prompts = List<CockpitMcpPrompt>.unmodifiable(prompts),
+       _rootsTracker = rootsTracker,
+       super.fromStreamChannel(
+         implementation: Implementation(
+           name: serverName,
+           version: serverVersion,
+         ),
+         instructions:
+             'Use the resources to read workspace context, the prompts to '
+             'follow the repository workflow, and the tools to execute '
+             'flutter_cockpit sessions, task workflows, and evidence bundles.',
+       ) {
     for (final tool in _enabledTools) {
       registerTool(
         CockpitMcpToolAdapter.protocolToolFor(tool),
@@ -43,8 +43,9 @@ final class CockpitMcpProtocolServer extends MCPServer
       );
     }
     for (final resource in _enabledResources) {
-      final fixedResource =
-          CockpitMcpResourceAdapter.fixedResourceFor(resource);
+      final fixedResource = CockpitMcpResourceAdapter.fixedResourceFor(
+        resource,
+      );
       if (fixedResource != null) {
         addResource(
           fixedResource,
