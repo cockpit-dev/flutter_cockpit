@@ -264,6 +264,14 @@ void main() {
       );
 
       final tool = CockpitRunRemoteControlScriptTool(
+        appReferenceResolver: CockpitAppReferenceResolver(
+          portForwarder: CockpitAndroidPortForwarder(
+            processRunner: (_, _) async =>
+                ProcessResult(0, 0, 'emulator-5554 tcp:61331 tcp:47331\n', ''),
+            hostPortAllocator: () async => 61331,
+            hostPortAvailabilityChecker: (_) async => false,
+          ),
+        ),
         run: (request) async {
           capturedRequest = request;
           return CockpitRunRemoteControlScriptResult(
