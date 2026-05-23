@@ -29,7 +29,7 @@ Use Flutter 3.32.0 or newer for this repository and demo app.
 Bootstrap the workspace first:
 
 ```bash
-dart run melos bootstrap
+flutter pub get
 ```
 
 Host prerequisites for the full verifier:
