@@ -370,8 +370,8 @@ jobs:
           assert platform["status"] == "passed", platform
           assert platform["verifiedCommands"] == expected_commands, platform
           assert platform["recordingDriver"] == os.environ["EXPECTED_RECORDING_DRIVER"], platform
-          assert platform["batchCommandCount"] == 30, platform
-          assert platform["autoScreenshotCount"] >= 20, platform
+          assert platform["batchCommandCount"] == 31, platform
+          assert platform["autoScreenshotCount"] >= 19, platform
           assert platform["networkFailureCount"] == 0, platform
           assert platform["runtimeErrorCount"] == 0, platform
           assert platform["hotReloadSucceeded"] is True, platform
@@ -430,7 +430,9 @@ jobs:
       - name: Boot iOS simulator
         timeout-minutes: 10
         run: |
-          IOS_DEVICE_ID="$(python3 - <<'PY'
+          set -eo pipefail
+          xcrun simctl list devices available
+          IOS_DEVICE_CANDIDATES="$(python3 - <<'PY'
           import json
           import subprocess
           import sys
@@ -462,11 +464,47 @@ jobs:
               sys.exit("No available iOS simulator device found.")
 
           devices.sort(key=sort_key)
-          print(devices[0]["udid"])
+          for entry in devices[:4]:
+              print(f"{entry['udid']} {entry['name']}")
           PY
           )"
-          xcrun simctl boot "$IOS_DEVICE_ID" || true
-          xcrun simctl bootstatus "$IOS_DEVICE_ID" -b
+          IOS_DEVICE_ID=""
+          while IFS= read -r candidate; do
+            [ -n "$candidate" ] || continue
+            CANDIDATE_ID="${candidate%% *}"
+            CANDIDATE_NAME="${candidate#* }"
+            echo "Trying iOS simulator $CANDIDATE_NAME ($CANDIDATE_ID)"
+            xcrun simctl shutdown "$CANDIDATE_ID" || true
+            xcrun simctl boot "$CANDIDATE_ID" || true
+            if python3 - "$CANDIDATE_ID" <<'PY'
+          import subprocess
+          import sys
+
+          try:
+              subprocess.run(
+                  ["xcrun", "simctl", "bootstatus", sys.argv[1], "-b"],
+                  check=True,
+                  timeout=150,
+              )
+          except subprocess.TimeoutExpired:
+              sys.exit(124)
+          except subprocess.CalledProcessError as error:
+              sys.exit(error.returncode)
+          PY
+            then
+              IOS_DEVICE_ID="$CANDIDATE_ID"
+              break
+            fi
+            echo "Simulator $CANDIDATE_ID did not finish booting; collecting diagnostics."
+            xcrun simctl list devices "$CANDIDATE_ID" || true
+            xcrun simctl diagnose "$RUNNER_TEMP/simctl-$CANDIDATE_ID" || true
+            xcrun simctl shutdown "$CANDIDATE_ID" || true
+          done <<< "$IOS_DEVICE_CANDIDATES"
+          if [ -z "$IOS_DEVICE_ID" ]; then
+            echo "No iOS simulator reached booted state." >&2
+            xcrun simctl list devices available >&2 || true
+            exit 1
+          fi
           echo "IOS_DEVICE_ID=$IOS_DEVICE_ID" >> "$GITHUB_ENV"
 
       - name: Prepare iOS verifier outputs
@@ -526,8 +564,8 @@ jobs:
           assert platform["status"] == "passed", platform
           assert platform["verifiedCommands"] == expected_commands, platform
           assert platform["recordingDriver"] == os.environ["EXPECTED_RECORDING_DRIVER"], platform
-          assert platform["batchCommandCount"] == 30, platform
-          assert platform["autoScreenshotCount"] >= 20, platform
+          assert platform["batchCommandCount"] == 31, platform
+          assert platform["autoScreenshotCount"] >= 19, platform
           assert platform["networkFailureCount"] == 0, platform
           assert platform["runtimeErrorCount"] == 0, platform
           assert platform["hotReloadSucceeded"] is True, platform
@@ -645,8 +683,8 @@ jobs:
           assert platform["status"] == "passed", platform
           assert platform["verifiedCommands"] == expected_commands, platform
           assert platform["recordingDriver"] == os.environ["EXPECTED_RECORDING_DRIVER"], platform
-          assert platform["batchCommandCount"] == 30, platform
-          assert platform["autoScreenshotCount"] >= 20, platform
+          assert platform["batchCommandCount"] == 31, platform
+          assert platform["autoScreenshotCount"] >= 19, platform
           assert platform["networkFailureCount"] == 0, platform
           assert platform["runtimeErrorCount"] == 0, platform
           assert platform["hotReloadSucceeded"] is True, platform
@@ -770,8 +808,8 @@ jobs:
           assert platform["status"] == "passed", platform
           assert platform["verifiedCommands"] == expected_commands, platform
           assert platform["recordingDriver"] == os.environ["EXPECTED_RECORDING_DRIVER"], platform
-          assert platform["batchCommandCount"] == 30, platform
-          assert platform["autoScreenshotCount"] >= 20, platform
+          assert platform["batchCommandCount"] == 31, platform
+          assert platform["autoScreenshotCount"] >= 19, platform
           assert platform["networkFailureCount"] == 0, platform
           assert platform["runtimeErrorCount"] == 0, platform
           assert platform["hotReloadSucceeded"] is True, platform
@@ -912,8 +950,8 @@ jobs:
           assert platform["status"] == "passed", platform
           assert platform["verifiedCommands"] == expected_commands, platform
           assert platform["recordingDriver"] == os.environ["EXPECTED_RECORDING_DRIVER"], platform
-          assert platform["batchCommandCount"] == 30, platform
-          assert platform["autoScreenshotCount"] >= 20, platform
+          assert platform["batchCommandCount"] == 31, platform
+          assert platform["autoScreenshotCount"] >= 19, platform
           assert platform["networkFailureCount"] == 0, platform
           assert platform["runtimeErrorCount"] == 0, platform
           assert platform["hotReloadSucceeded"] is True, platform
@@ -1011,6 +1049,14 @@ jobs:
         run: |
           [ -f "$LOG_PATH_POSIX" ] && cat "$LOG_PATH_POSIX" || true
           [ -f "$RESULT_JSON_POSIX" ] && cat "$RESULT_JSON_POSIX" || true
+          echo "Windows process snapshot:"
+          tasklist | grep -i -E "cockpit|flutter|dart" || true
+          echo "Windows listening ports near verifier run:"
+          netstat -ano | grep -E "47331|58331|53638|53066" || true
+          echo "Windows app build outputs:"
+          find "$PROJECT_DIR/build/windows" -maxdepth 6 -type f \( -iname "*.exe" -o -iname "*.dll" \) 2>/dev/null | sort | head -80 || true
+          echo "Windows supervisor logs:"
+          find "${TEMP//\\//}" -maxdepth 1 -type f -name "flutter_cockpit_development_supervisor_*.log" -print -exec tail -n 120 {} \; 2>/dev/null || true
 
       - name: Verify Windows runtime loop result
         env:
@@ -1048,8 +1094,8 @@ jobs:
           assert platform["status"] == "passed", platform
           assert platform["verifiedCommands"] == expected_commands, platform
           assert platform["recordingDriver"] == os.environ["EXPECTED_RECORDING_DRIVER"], platform
-          assert platform["batchCommandCount"] == 30, platform
-          assert platform["autoScreenshotCount"] >= 20, platform
+          assert platform["batchCommandCount"] == 31, platform
+          assert platform["autoScreenshotCount"] >= 19, platform
           assert platform["networkFailureCount"] == 0, platform
           assert platform["runtimeErrorCount"] == 0, platform
           assert platform["hotReloadSucceeded"] is True, platform

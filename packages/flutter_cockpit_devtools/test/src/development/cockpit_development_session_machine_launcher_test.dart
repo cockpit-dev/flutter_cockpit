@@ -15,6 +15,7 @@ void main() {
       final stderrController = StreamController<String>();
       final exitCode = Completer<int>();
       final capturedStarts = <Map<String, Object?>>[];
+      final probedBaseUris = <Uri>[];
 
       final launcher = CockpitDevelopmentSessionMachineLauncher(
         machineClientStarter:
@@ -48,7 +49,10 @@ void main() {
               );
               return client;
             },
-        statusReader: (_) async => _readyStatus('android'),
+        statusReader: (baseUri) async {
+          probedBaseUris.add(baseUri);
+          return _readyStatus('android');
+        },
         portForwarder: const _RecordingPortForwarder(58331),
         platformAppIdResolver:
             ({required projectDir, required platform, flavor}) async {
@@ -77,10 +81,11 @@ void main() {
       expect(capturedStarts, hasLength(1));
       expect(capturedStarts.single['extraArgs'], <String>[
         '--dart-define=FLUTTER_COCKPIT_REMOTE_ENABLED=true',
-        '--dart-define=FLUTTER_COCKPIT_REMOTE_HOST=127.0.0.1',
+        '--dart-define=FLUTTER_COCKPIT_REMOTE_HOST=0.0.0.0',
         '--dart-define=FLUTTER_COCKPIT_REMOTE_PORT=47331',
         '--dart-define=FLUTTER_COCKPIT_FLUTTER_VERSION=3.39.0',
       ]);
+      expect(probedBaseUris, <Uri>[Uri.parse('http://127.0.0.1:58331')]);
       expect(result.remoteSessionHandle.appId, 'machine-app-1');
       expect(result.remoteSessionHandle.platformAppId, 'dev.example.android');
       expect(

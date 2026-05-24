@@ -88,7 +88,7 @@ final class CockpitAndroidRemoteSessionLauncher
         if (options.flavor case final flavor?
             when flavor.isNotEmpty) ...<String>['--flavor', flavor],
         '--dart-define=FLUTTER_COCKPIT_REMOTE_ENABLED=true',
-        '--dart-define=FLUTTER_COCKPIT_REMOTE_HOST=127.0.0.1',
+        '--dart-define=FLUTTER_COCKPIT_REMOTE_HOST=${cockpitRemoteBindHostForPlatform(options.platform)}',
         '--dart-define=FLUTTER_COCKPIT_REMOTE_PORT=${options.sessionPort}',
         '--dart-define=FLUTTER_COCKPIT_FLUTTER_VERSION=$flutterVersion',
       ],

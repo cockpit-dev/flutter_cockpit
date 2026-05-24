@@ -37,6 +37,10 @@ List<Map<String, Object?>> buildSyncLabCreateTaskBatch({
       commandId: 'verify-wait-for-editor-route',
       routeName: '/editor',
     ),
+    _waitForTextCommand(
+      commandId: 'verify-wait-for-editor-title-target',
+      text: 'Task title',
+    ),
     <String, Object?>{
       'commandId': 'verify-enter-task-title',
       'commandType': 'enterText',
@@ -312,11 +316,18 @@ Map<String, Object?> _waitForTaskSearchResultCommand({
   required String commandId,
   required String taskTitle,
 }) {
+  return _waitForTextCommand(commandId: commandId, text: taskTitle);
+}
+
+Map<String, Object?> _waitForTextCommand({
+  required String commandId,
+  required String text,
+}) {
   return <String, Object?>{
     'commandId': commandId,
     'commandType': 'waitFor',
     'timeoutMs': 12000,
-    'parameters': <String, Object?>{'text': taskTitle},
+    'parameters': <String, Object?>{'text': text},
   };
 }
 

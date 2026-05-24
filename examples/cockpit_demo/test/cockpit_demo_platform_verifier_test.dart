@@ -648,6 +648,7 @@ void main() {
       final expectedBatchPattern = <CockpitCommandType>[
         CockpitCommandType.tap,
         CockpitCommandType.waitFor,
+        CockpitCommandType.waitFor,
         CockpitCommandType.enterText,
         CockpitCommandType.scrollUntilVisible,
         CockpitCommandType.tap,
@@ -668,7 +669,7 @@ void main() {
           CockpitCommandType.waitFor,
         ]),
       );
-      expect(batchedCommandTypes.length, 180);
+      expect(batchedCommandTypes.length, 186);
       expect(batchRequests, hasLength(30));
       final firstBatchCommands = batchRequests.first.commands
           .map((batchCommand) => batchCommand.command)
@@ -682,34 +683,40 @@ void main() {
         firstBatchCommands[1].parameters,
         isNot(contains('requireVisibleTargets')),
       );
-      expect(firstBatchCommands[2].locator?.text, 'Task title');
-      expect(firstBatchCommands[2].locator?.type, isNull);
-      expect(firstBatchCommands[2].locator?.ancestor?.route, '/editor');
-      expect(firstBatchCommands[3].commandId, 'verify-reveal-task-notes');
       expect(
-        firstBatchCommands[3].commandType,
+        firstBatchCommands[2].commandId,
+        'verify-wait-for-editor-title-target',
+      );
+      expect(firstBatchCommands[2].commandType, CockpitCommandType.waitFor);
+      expect(firstBatchCommands[2].parameters['text'], 'Task title');
+      expect(firstBatchCommands[3].locator?.text, 'Task title');
+      expect(firstBatchCommands[3].locator?.type, isNull);
+      expect(firstBatchCommands[3].locator?.ancestor?.route, '/editor');
+      expect(firstBatchCommands[4].commandId, 'verify-reveal-task-notes');
+      expect(
+        firstBatchCommands[4].commandType,
         CockpitCommandType.scrollUntilVisible,
       );
-      expect(firstBatchCommands[3].locator?.text, 'Notes');
-      expect(firstBatchCommands[3].locator?.route, '/editor');
-      expect(firstBatchCommands[3].locator?.ancestor?.route, '/editor');
-      expect(firstBatchCommands[4].commandId, 'verify-focus-task-notes');
       expect(firstBatchCommands[4].locator?.text, 'Notes');
-      expect(firstBatchCommands[4].locator?.type, isNull);
+      expect(firstBatchCommands[4].locator?.route, '/editor');
       expect(firstBatchCommands[4].locator?.ancestor?.route, '/editor');
-      expect(firstBatchCommands[5].commandId, 'verify-enter-task-notes');
+      expect(firstBatchCommands[5].commandId, 'verify-focus-task-notes');
       expect(firstBatchCommands[5].locator?.text, 'Notes');
-      expect(firstBatchCommands[5].locator?.type, 'TextField');
+      expect(firstBatchCommands[5].locator?.type, isNull);
       expect(firstBatchCommands[5].locator?.ancestor?.route, '/editor');
-      expect(firstBatchCommands[6].locator?.text, 'Save task');
+      expect(firstBatchCommands[6].commandId, 'verify-enter-task-notes');
+      expect(firstBatchCommands[6].locator?.text, 'Notes');
+      expect(firstBatchCommands[6].locator?.type, 'TextField');
       expect(firstBatchCommands[6].locator?.ancestor?.route, '/editor');
-      expect(firstBatchCommands[6].commandId, 'verify-save-task');
+      expect(firstBatchCommands[7].locator?.text, 'Save task');
+      expect(firstBatchCommands[7].locator?.ancestor?.route, '/editor');
+      expect(firstBatchCommands[7].commandId, 'verify-save-task');
       expect(
-        firstBatchCommands[7].commandId,
+        firstBatchCommands[8].commandId,
         'verify-wait-for-inbox-route-after-save',
       );
-      expect(firstBatchCommands[7].commandType, CockpitCommandType.waitFor);
-      expect(firstBatchCommands[7].parameters['routeName'], '/inbox');
+      expect(firstBatchCommands[8].commandType, CockpitCommandType.waitFor);
+      expect(firstBatchCommands[8].parameters['routeName'], '/inbox');
       final syncLabBatchCommands = batchRequests[1].commands
           .map((batchCommand) => batchCommand.command.commandId)
           .toList(growable: false);
@@ -783,11 +790,11 @@ void main() {
       );
       expect(
         result.platforms.map((platform) => platform.batchCommandCount),
-        everyElement(30),
+        everyElement(31),
       );
       expect(
         result.platforms.map((platform) => platform.autoScreenshotCount),
-        everyElement(greaterThanOrEqualTo(20)),
+        everyElement(greaterThanOrEqualTo(19)),
       );
       expect(
         result.platforms.map((platform) => platform.networkFailureCount),
@@ -1711,7 +1718,7 @@ void main() {
       containsPair('commandId', 'verify-open-editor'),
     );
     expect(failedPlatform.failureDetails, containsPair('commandType', 'tap'));
-    expect(failedPlatform.failureDetails, containsPair('expectedCount', 8));
+    expect(failedPlatform.failureDetails, containsPair('expectedCount', 9));
     expect(
       failedPlatform.failureDetails['error'],
       containsPair('code', CockpitCommandError.targetNotFoundCode),

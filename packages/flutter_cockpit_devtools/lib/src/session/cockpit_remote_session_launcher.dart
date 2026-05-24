@@ -111,6 +111,7 @@ String cockpitDartExecutable({bool? isWindows}) {
 
 String cockpitRemoteBindHostForPlatform(String platform) {
   return switch (platform) {
+    'android' => '0.0.0.0',
     'ios' => '0.0.0.0',
     'web' => cockpitRemotePublicHostForPlatform(platform),
     _ => cockpitRemotePublicHostForPlatform(platform),
