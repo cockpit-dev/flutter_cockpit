@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:path/path.dart' as p;
 import 'package:flutter_cockpit_devtools/src/development/cockpit_flutter_run_machine_client.dart';
 import 'package:flutter_cockpit_devtools/src/development/cockpit_flutter_run_machine_event.dart';
 import 'package:test/test.dart';
@@ -145,6 +146,62 @@ void main() {
     expect(events.last.exitCode, 1);
   });
 
+  test('machine progress and daemon log messages expose params text', () async {
+    final stdoutController = StreamController<String>();
+    final stderrController = StreamController<String>();
+    final exitCode = Completer<int>();
+
+    final client = CockpitFlutterRunMachineClient(
+      stdoutLines: stdoutController.stream,
+      stderrLines: stderrController.stream,
+      exitCode: exitCode.future,
+      requestWriter: (_) async {},
+    );
+    addTearDown(() async {
+      await stdoutController.close();
+      await stderrController.close();
+      if (!exitCode.isCompleted) {
+        exitCode.complete(0);
+      }
+      await client.dispose();
+    });
+
+    final events = <CockpitFlutterRunMachineEvent>[];
+    final subscription = client.events.listen(events.add);
+    addTearDown(subscription.cancel);
+
+    stdoutController
+      ..add(
+        '[{"event":"app.progress","params":{"message":"Building Windows application..."}}]',
+      )
+      ..add(
+        '[{"event":"daemon.logMessage","params":{"level":"status","message":"Launching lib/main.dart on Windows..."}}]',
+      );
+    await Future<void>.delayed(Duration.zero);
+
+    expect(
+      events
+          .where(
+            (event) =>
+                event.kind == CockpitFlutterRunMachineEventKind.appProgress,
+          )
+          .single
+          .message,
+      'Building Windows application...',
+    );
+    expect(
+      events
+          .where(
+            (event) =>
+                event.kind ==
+                CockpitFlutterRunMachineEventKind.daemonLogMessage,
+          )
+          .single
+          .message,
+      'Launching lib/main.dart on Windows...',
+    );
+  });
+
   test('dispose runs the owned process shutdown hook', () async {
     final stdoutController = StreamController<String>();
     final stderrController = StreamController<String>();
@@ -257,6 +314,63 @@ void main() {
         client.stop(appId: 'app-1'),
         throwsA(isA<SocketException>()),
       );
+    },
+  );
+
+  test(
+    'development supervisor logs flutter run launch failures before exiting',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit-development-supervisor-bin-',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+      final logFile = File(p.join(tempDir.path, 'supervisor.log'));
+      final supervisorScript = File(
+        p.normalize(
+          p.join(
+            Directory.current.path,
+            'bin',
+            'flutter_cockpit_development_supervisor.dart',
+          ),
+        ),
+      );
+
+      final result = await Process.run(Platform.resolvedExecutable, <String>[
+        'run',
+        supervisorScript.path,
+        '--project-dir',
+        Directory.current.path,
+        '--target',
+        'lib/flutter_cockpit_devtools.dart',
+        '--platform',
+        'windows',
+        '--device-id',
+        'windows',
+        '--session-port',
+        '59331',
+        '--app-host-port',
+        '59331',
+        '--supervisor-port',
+        '59332',
+        '--flutter-executable',
+        p.join(tempDir.path, 'missing-flutter'),
+        '--log-file',
+        logFile.path,
+        '--flutter-version',
+        '3.32.0',
+        '--launch-timeout-seconds',
+        '1',
+      ], workingDirectory: Directory.current.path);
+
+      expect(result.exitCode, isNot(0));
+      final logText = await logFile.readAsString();
+      expect(logText, contains('development machine launch start'));
+      expect(logText, contains('development machine launch failed'));
+      expect(logText, contains('missing-flutter'));
     },
   );
 }

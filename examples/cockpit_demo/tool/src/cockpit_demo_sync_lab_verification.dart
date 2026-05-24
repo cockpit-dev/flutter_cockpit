@@ -339,7 +339,10 @@ Map<String, Object?> _waitForRouteCommand({
     'commandId': commandId,
     'commandType': 'waitFor',
     'timeoutMs': 12000,
-    'parameters': <String, Object?>{'routeName': routeName},
+    'parameters': <String, Object?>{
+      'routeName': routeName,
+      'requireVisibleTargets': true,
+    },
   };
 }
 

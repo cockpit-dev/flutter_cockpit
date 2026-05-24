@@ -1432,6 +1432,76 @@ void main() {
     expect(result.snapshot?['routeName'], '/success');
   });
 
+  test(
+    'waitFor can require visible targets after the route is reached',
+    () async {
+      final registry = CockpitTargetRegistry(routeName: '/inbox');
+      unawaited(
+        Future<void>.delayed(const Duration(milliseconds: 10), () {
+          registry.routeName = '/editor';
+        }),
+      );
+      unawaited(
+        Future<void>.delayed(const Duration(milliseconds: 40), () {
+          registry.register(
+            CockpitTarget(
+              registrationId: 'task-title',
+              text: 'Task title',
+              routeName: '/editor',
+            ),
+          );
+        }),
+      );
+
+      final executor = InAppCockpitCommandExecutor(registry: registry);
+      final result = await executor.execute(
+        CockpitCommand(
+          commandId: 'cmd-wait-for-editor-ready',
+          commandType: CockpitCommandType.waitFor,
+          timeoutMs: 500,
+          parameters: const {
+            'routeName': '/editor',
+            'requireVisibleTargets': true,
+          },
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(result.locatorResolution?.matchedKind, CockpitLocatorKind.route);
+      expect(result.snapshot?['routeName'], '/editor');
+      expect(
+        (result.snapshot?['visibleTargets'] as List<Object?>?) ?? const [],
+        isNotEmpty,
+      );
+    },
+  );
+
+  test(
+    'waitFor reports empty route target diagnostics when readiness times out',
+    () async {
+      final registry = CockpitTargetRegistry(routeName: '/editor');
+
+      final executor = InAppCockpitCommandExecutor(registry: registry);
+      final result = await executor.execute(
+        CockpitCommand(
+          commandId: 'cmd-wait-for-editor-targets',
+          commandType: CockpitCommandType.waitFor,
+          timeoutMs: 30,
+          parameters: const {
+            'routeName': '/editor',
+            'requireVisibleTargets': true,
+          },
+        ),
+      );
+
+      expect(result.success, isFalse);
+      expect(result.error?.code, CockpitCommandError.timeoutCode);
+      expect(result.error?.details['routeName'], '/editor');
+      expect(result.error?.details['visibleTargetCount'], 0);
+      expect(result.error?.details['emptyRouteHint'], contains('target'));
+    },
+  );
+
   testWidgets(
     'waitFor can progress under fake async when waitTickHandler pumps frames',
     (tester) async {

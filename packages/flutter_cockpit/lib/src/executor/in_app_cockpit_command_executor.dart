@@ -1787,11 +1787,14 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
         ),
       );
     }
+    final minVisibleTargets = _minVisibleTargetsForWait(command);
 
     while (stopwatch.elapsedMilliseconds <= timeoutMs) {
       final snapshot = _liveSnapshot();
       final routeName = _expectedRouteName(command);
-      if (routeName != null && snapshot.routeName == routeName) {
+      if (routeName != null &&
+          snapshot.routeName == routeName &&
+          _hasEnoughVisibleTargets(minVisibleTargets)) {
         return _successExecution(
           command: command,
           durationMs: stopwatch.elapsedMilliseconds,
@@ -1844,15 +1847,23 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
       await _waitTickHandler(const Duration(milliseconds: 16));
     }
 
+    final failureSnapshot = _liveSnapshot();
     return _failureExecution(
       command: command,
       durationMs: stopwatch.elapsedMilliseconds,
-      snapshot: _liveSnapshot().toJson(),
+      snapshot: failureSnapshot.toJson(),
       error: CockpitCommandError.timeout(
         message: 'Timed out waiting for $waitCondition.',
         details: <String, Object?>{
           'waitCondition': waitCondition,
           'timeoutMs': timeoutMs,
+          'routeName': failureSnapshot.routeName,
+          'visibleTargetCount': _registry.visibleTargets.length,
+          if (minVisibleTargets > 0) 'minVisibleTargets': minVisibleTargets,
+          'visibleTextCandidates': _visibleTextCandidates(
+            _registry.visibleTargets,
+          ).take(12).toList(growable: false),
+          'emptyRouteHint': ?_emptyRouteHint(),
         },
       ),
     );
@@ -2923,6 +2934,22 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
       return locator.value;
     }
     return null;
+  }
+
+  int _minVisibleTargetsForWait(CockpitCommand command) {
+    final explicitMin = _intParameter(command, 'minVisibleTargets');
+    if (explicitMin != null) {
+      if (explicitMin < 0) {
+        throw ArgumentError('minVisibleTargets must be zero or positive.');
+      }
+      return explicitMin;
+    }
+    return _boolParameter(command, 'requireVisibleTargets') == true ? 1 : 0;
+  }
+
+  bool _hasEnoughVisibleTargets(int minVisibleTargets) {
+    return minVisibleTargets <= 0 ||
+        _registry.visibleTargets.length >= minVisibleTargets;
   }
 
   Duration _durationParameter(

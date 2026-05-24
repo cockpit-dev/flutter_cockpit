@@ -51,6 +51,7 @@ void main() {
       workflow,
       contains('dart run tool/verify_platforms.dart --platform android'),
     );
+    expect(workflow, contains(r'--launch-timeout-seconds 600 >"$LOG_PATH"'));
     expect(
       workflow,
       contains('dart run tool/verify_platforms.dart --platform ios'),
@@ -70,6 +71,10 @@ void main() {
     expect(
       workflow,
       contains('dart run tool/verify_platforms.dart --platform windows'),
+    );
+    expect(
+      workflow,
+      contains(r'--launch-timeout-seconds 600 2>&1 | tee "$LOG_PATH_POSIX"'),
     );
     expect(workflow, contains('dart run tool/verify_mcp_surface.dart'));
     expect(workflow, contains(r'STATUS=${PIPESTATUS[0]}'));

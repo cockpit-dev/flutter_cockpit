@@ -79,7 +79,7 @@ final class CockpitDevelopmentSessionSupervisor {
   CockpitWebRemoteSessionBridgeServer? _webBridgeServer;
   StreamSubscription<CockpitFlutterRunMachineEvent>? _eventSubscription;
   StreamSubscription<HttpRequest>? _requestSubscription;
-  Future<void>? _pendingStartupSettle;
+  Future<bool>? _pendingStartupSettle;
   Future<CockpitFlutterRunMachineClient>? _machineClientConnectFuture;
   bool _explicitStopRequested = false;
   bool _controlPlaneClosed = false;
@@ -213,7 +213,15 @@ final class CockpitDevelopmentSessionSupervisor {
         case CockpitDevelopmentReloadMode.hotRestart:
           await machineClient.hotRestart(appId: appId);
       }
-      await _settleReadyState(lastReloadMode: mode, bumpGeneration: true);
+      final settled = await _settleReadyState(
+        lastReloadMode: mode,
+        bumpGeneration: true,
+      );
+      if (!settled) {
+        throw StateError(
+          _status.lastError ?? 'Remote session did not recover.',
+        );
+      }
       _log('reload completed mode=${mode.jsonValue}');
       return _status;
     } on Object catch (error) {
@@ -223,7 +231,7 @@ final class CockpitDevelopmentSessionSupervisor {
           state: CockpitDevelopmentSessionState.failed,
           lastReloadMode: mode,
           lastReloadSucceeded: false,
-          lastError: '$error',
+          lastError: error is StateError ? error.message : '$error',
         ),
       );
       rethrow;
@@ -337,11 +345,13 @@ final class CockpitDevelopmentSessionSupervisor {
     }
   }
 
-  Future<void> _settleReadyState({
+  Future<bool> _settleReadyState({
     CockpitDevelopmentReloadMode? lastReloadMode,
     required bool bumpGeneration,
   }) async {
-    final requireUiIdle = lastReloadMode == null;
+    final requireUiIdle =
+        lastReloadMode == null ||
+        lastReloadMode == CockpitDevelopmentReloadMode.hotRestart;
     _log(
       'settle begin '
       'mode=${lastReloadMode?.jsonValue ?? 'startup'} '
@@ -397,6 +407,7 @@ final class CockpitDevelopmentSessionSupervisor {
       'error=${_status.lastError ?? ''}',
     );
     _pendingStartupSettle = null;
+    return ready;
   }
 
   Future<CockpitFlutterRunMachineClient> _requireMachineClient() async {
