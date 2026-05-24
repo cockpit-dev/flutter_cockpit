@@ -187,6 +187,70 @@ void main() {
   );
 
   testWidgets(
+    'FlutterCockpitRoot does not publish a pushed route before its visible targets are ready',
+    (tester) async {
+      FlutterCockpit.initialize(
+        const FlutterCockpitConfiguration(initialRouteName: '/inbox'),
+      );
+
+      final rootKey = GlobalKey<FlutterCockpitRootState>();
+
+      await tester.pumpWidget(
+        FlutterCockpitRoot(
+          key: rootKey,
+          child: MaterialApp(
+            navigatorObservers: [FlutterCockpit.navigatorObserver],
+            initialRoute: '/inbox',
+            routes: <String, WidgetBuilder>{
+              '/inbox': (context) => Scaffold(
+                body: Center(
+                  child: FilledButton(
+                    key: const ValueKey<String>('inbox-new-task-button'),
+                    onPressed: () => Navigator.of(context).pushNamed('/editor'),
+                    child: const Text('New task'),
+                  ),
+                ),
+              ),
+              '/editor': (context) => const Scaffold(
+                body: Center(
+                  child: TextField(
+                    decoration: InputDecoration(labelText: 'Task title'),
+                  ),
+                ),
+              ),
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('New task'));
+
+      final transitionSnapshot = rootKey.currentState!.snapshot();
+      final transitionRoute = transitionSnapshot.routeName;
+      final transitionRouteReadyCount =
+          FlutterCockpit.binding.registry.routeReadyVisibleTargets.length;
+      expect(
+        transitionRoute == '/editor' && transitionRouteReadyCount == 0,
+        isFalse,
+        reason:
+            'Route names must not advance before the discoverable tree exposes current-route targets.',
+      );
+
+      await tester.pumpAndSettle();
+
+      final snapshot = rootKey.currentState!.snapshot();
+      expect(snapshot.routeName, '/editor');
+      expect(
+        FlutterCockpit.binding.registry.routeReadyVisibleTargets.any(
+          (target) => target.routeName == '/editor',
+        ),
+        isTrue,
+      );
+    },
+  );
+
+  testWidgets(
     'FlutterCockpitRoot discovers Material text fields on the current pushed route',
     (tester) async {
       FlutterCockpit.initialize(

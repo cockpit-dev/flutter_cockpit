@@ -15,17 +15,17 @@ void main() {
 
     final openSettings = script.indexOf("appReport['open_settings']");
     final waitSettings = script.indexOf('final waitIdleAfterSettings');
-    final waitRunCheck = script.indexOf('final waitRunCheckTarget');
     final inspectSettings = script.indexOf("appReport['inspect_ui_settings']");
-    final scrollSyncCheck = script.indexOf("appReport['scroll_sync_check']");
+    final scrollSyncCheck = script.indexOf('final scrollSyncCheckResult');
+    final tapSyncCheck = script.indexOf("appReport['tap_sync_check']");
 
     expect(openSettings, isNonNegative);
     expect(waitSettings, greaterThan(openSettings));
-    expect(waitRunCheck, greaterThan(waitSettings));
-    expect(inspectSettings, greaterThan(waitRunCheck));
+    expect(inspectSettings, greaterThan(waitSettings));
     expect(scrollSyncCheck, greaterThan(inspectSettings));
+    expect(tapSyncCheck, greaterThan(scrollSyncCheck));
     expect(
-      script.substring(waitSettings, waitRunCheck),
+      script.substring(waitSettings, inspectSettings),
       allOf(
         contains("'run_command'"),
         contains("'commandId': 'wait-settings-targets'"),
@@ -35,12 +35,13 @@ void main() {
       ),
     );
     expect(
-      script.substring(waitRunCheck, inspectSettings),
+      script.substring(scrollSyncCheck, tapSyncCheck),
       allOf(
         contains("'run_command'"),
-        contains("'commandId': 'wait-settings-run-check-target'"),
-        contains("'commandType': 'waitFor'"),
+        contains("'commandId': 'scroll-sync-check'"),
+        contains("'commandType': 'scrollUntilVisible'"),
         contains("'text': 'Run check'"),
+        contains("'revealAlignment': 'center'"),
       ),
     );
   });

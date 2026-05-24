@@ -96,6 +96,64 @@ void main() {
     expect(workflow, isNot(contains('platform["batchCommandCount"] == 4')));
   });
 
+  test('runtime loop command assertions track full verifier output', () {
+    final workflow = workflowFile.readAsStringSync();
+    final fullExpectedCommands = <String>[
+      'launch-app',
+      'read-app',
+      'inspect-ui',
+      'run-batch',
+      'start-recording',
+      'stop-recording',
+      'wait-idle',
+      'sync_lab_conflict_recovery',
+      'read-network',
+      'read-errors',
+      'read-logs',
+      'inspect-surface',
+      'capture-screenshot',
+      'hot-reload',
+      'hot-restart',
+    ];
+
+    for (final jobName in <String>[
+      'android-runtime-loop',
+      'ios-runtime-loop',
+      'macos-runtime-loop',
+      'linux-runtime-loop',
+      'windows-runtime-loop',
+    ]) {
+      final block = _workflowJobBlock(workflow, jobName);
+      for (final command in fullExpectedCommands) {
+        expect(
+          block,
+          contains('"$command"'),
+          reason: '$jobName must assert the verifier command "$command".',
+        );
+      }
+      expect(
+        block,
+        contains('assert platform["verifiedCommands"] == expected_commands'),
+      );
+    }
+
+    final webBlock = _workflowJobBlock(workflow, 'web-runtime-loop');
+    expect(
+      webBlock,
+      contains('fallback_suffix = ["hot-reload", "hot-restart"]'),
+    );
+    expect(webBlock, contains('assert verified_commands == expected_commands'));
+    expect(webBlock, contains('startup_fallback_commands'));
+    expect(webBlock, contains('stop_fallback_commands'));
+    for (final command in fullExpectedCommands) {
+      expect(
+        webBlock,
+        contains('"$command"'),
+        reason: 'web-runtime-loop must assert the verifier command "$command".',
+      );
+    }
+  });
+
   test('runtime loop bootstrap is self-contained on clean runners', () {
     final workflow = workflowFile.readAsStringSync();
     final demoReadme = demoReadmeFile.readAsStringSync();
@@ -139,4 +197,15 @@ void main() {
       expect(verifier, isNot(contains("'output-json'")));
     }
   });
+}
+
+String _workflowJobBlock(String workflow, String jobName) {
+  final start = workflow.indexOf('  $jobName:');
+  expect(start, isNonNegative, reason: 'Missing workflow job $jobName.');
+  final nextJob = RegExp(r'\n  [a-zA-Z0-9_-]+:\n')
+      .allMatches(workflow, start + 1)
+      .where((match) => match.start > start)
+      .map((match) => match.start)
+      .firstOrNull;
+  return workflow.substring(start, nextJob ?? workflow.length);
 }

@@ -511,26 +511,6 @@ final class _McpSurfaceVerifier {
       );
       appReport['wait_idle_after_settings'] = waitIdleAfterSettings;
       _requireCommandSuccess('wait_idle_after_settings', waitIdleAfterSettings);
-      final waitRunCheckTarget = await _callTool(
-        server,
-        'run_command',
-        <String, Object?>{
-          'appId': appId,
-          'profile': 'minimal',
-          'timeoutMs': 12000,
-          'command': <String, Object?>{
-            'commandId': 'wait-settings-run-check-target',
-            'commandType': 'waitFor',
-            'timeoutMs': 12000,
-            'parameters': <String, Object?>{'text': 'Run check'},
-          },
-        },
-      );
-      appReport['wait_settings_run_check_target'] = waitRunCheckTarget;
-      _requireCommandSuccess(
-        'wait_settings_run_check_target',
-        waitRunCheckTarget,
-      );
       appReport['inspect_ui_settings'] =
           await _callTool(server, 'inspect_ui', <String, Object?>{
             'appId': appId,

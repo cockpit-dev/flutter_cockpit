@@ -87,6 +87,7 @@ final class FlutterCockpitBinding {
   bool _isDisposed = false;
   HttpOverrides? _previousHttpOverrides;
   bool _installedGlobalNetworkOverride = false;
+  int _routeNameUpdateGeneration = 0;
 
   FlutterCockpitConfiguration get configuration => _configuration;
 
@@ -321,19 +322,14 @@ final class FlutterCockpitBinding {
       return;
     }
 
-    final schedulerPhase = SchedulerBinding.instance.schedulerPhase;
-    if (schedulerPhase == SchedulerPhase.idle ||
-        schedulerPhase == SchedulerPhase.postFrameCallbacks) {
-      _applyRouteName(nextRouteName);
-      return;
-    }
-
+    final generation = ++_routeNameUpdateGeneration;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_isDisposed) {
+      if (_isDisposed || generation != _routeNameUpdateGeneration) {
         return;
       }
       _applyRouteName(nextRouteName);
     });
+    SchedulerBinding.instance.ensureVisualUpdate();
   }
 
   void _applyRouteName(String routeName) {
