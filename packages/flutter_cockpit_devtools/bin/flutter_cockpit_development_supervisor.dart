@@ -6,6 +6,7 @@ import 'package:flutter_cockpit_devtools/src/development/cockpit_development_ses
 import 'package:flutter_cockpit_devtools/src/development/cockpit_development_session_handle.dart';
 import 'package:flutter_cockpit_devtools/src/development/cockpit_development_session_supervisor.dart';
 import 'package:flutter_cockpit_devtools/src/development/cockpit_flutter_run_machine_client.dart';
+import 'package:flutter_cockpit_devtools/src/development/cockpit_shutdown_signal_watcher.dart';
 import 'package:flutter_cockpit_devtools/src/remote/cockpit_android_port_forwarder.dart';
 import 'package:flutter_cockpit_devtools/src/remote/cockpit_remote_session_client.dart';
 import 'package:flutter_cockpit_devtools/src/session/cockpit_remote_session_handle.dart';
@@ -138,13 +139,15 @@ Future<void> main(List<String> args) async {
       settleTimeout: const Duration(seconds: 90),
     );
 
-    sigtermSubscription = await _watchShutdownSignal(
+    sigtermSubscription = await cockpitWatchShutdownSignal(
       signal: ProcessSignal.sigterm,
+      isWindows: Platform.isWindows,
       writeLog: writeLog,
       stop: supervisor.stop,
     );
-    sigintSubscription = await _watchShutdownSignal(
+    sigintSubscription = await cockpitWatchShutdownSignal(
       signal: ProcessSignal.sigint,
+      isWindows: Platform.isWindows,
       writeLog: writeLog,
       stop: supervisor.stop,
     );
@@ -202,21 +205,4 @@ Future<void> main(List<String> args) async {
     await logSink.close();
   }
   exit(exitCode);
-}
-
-Future<StreamSubscription<ProcessSignal>?> _watchShutdownSignal({
-  required ProcessSignal signal,
-  required Future<void> Function(String message) writeLog,
-  required Future<void> Function() stop,
-}) async {
-  try {
-    final subscription = signal.watch().listen((_) {
-      unawaited(stop());
-    });
-    await writeLog('shutdown signal registered signal=$signal');
-    return subscription;
-  } on UnsupportedError catch (error) {
-    await writeLog('shutdown signal unsupported signal=$signal error=$error');
-    return null;
-  }
 }

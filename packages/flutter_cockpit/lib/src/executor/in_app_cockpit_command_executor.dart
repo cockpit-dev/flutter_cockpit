@@ -1860,10 +1860,13 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
           'timeoutMs': timeoutMs,
           'routeName': failureSnapshot.routeName,
           'visibleTargetCount': _registry.visibleTargets.length,
+          'routeReadyVisibleTargetCount':
+              _registry.routeReadyVisibleTargets.length,
           if (minVisibleTargets > 0) 'minVisibleTargets': minVisibleTargets,
           'visibleTextCandidates': _visibleTextCandidates(
             _registry.visibleTargets,
           ).take(12).toList(growable: false),
+          'targetDiscoveryDiagnostics': _registry.routeDiagnostics(),
           'emptyRouteHint': ?_emptyRouteHint(),
         },
       ),
@@ -2982,7 +2985,7 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
 
   bool _hasEnoughVisibleTargets(int minVisibleTargets) {
     return minVisibleTargets <= 0 ||
-        _registry.visibleTargets.length >= minVisibleTargets;
+        _registry.routeReadyVisibleTargets.length >= minVisibleTargets;
   }
 
   Duration _durationParameter(

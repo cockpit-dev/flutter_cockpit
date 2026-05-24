@@ -187,6 +187,61 @@ void main() {
   );
 
   testWidgets(
+    'FlutterCockpitRoot discovers Material text fields on the current pushed route',
+    (tester) async {
+      FlutterCockpit.initialize(
+        const FlutterCockpitConfiguration(initialRouteName: '/inbox'),
+      );
+
+      final rootKey = GlobalKey<FlutterCockpitRootState>();
+
+      await tester.pumpWidget(
+        FlutterCockpitRoot(
+          key: rootKey,
+          child: MaterialApp(
+            navigatorObservers: [FlutterCockpit.navigatorObserver],
+            initialRoute: '/inbox',
+            routes: <String, WidgetBuilder>{
+              '/inbox': (context) => Scaffold(
+                body: Center(
+                  child: FilledButton(
+                    onPressed: () => Navigator.of(context).pushNamed('/editor'),
+                    child: const Text('New task'),
+                  ),
+                ),
+              ),
+              '/editor': (context) => const Scaffold(
+                body: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: TextField(
+                    decoration: InputDecoration(labelText: 'Task title'),
+                  ),
+                ),
+              ),
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('New task'));
+      await tester.pumpAndSettle();
+
+      final snapshot = rootKey.currentState!.snapshot();
+      expect(snapshot.routeName, '/editor');
+      expect(
+        snapshot.visibleTargets.any(
+          (target) =>
+              target.routeName == '/editor' &&
+              target.text == 'Task title' &&
+              target.supportedCommands.contains(CockpitCommandType.enterText),
+        ),
+        isTrue,
+      );
+    },
+  );
+
+  testWidgets(
     'CockpitSurface refreshes stable child target ownership after routeName changes',
     (tester) async {
       final surfaceKey = GlobalKey<CockpitSurfaceState>();

@@ -62,8 +62,42 @@ final class CockpitTargetRegistry {
     ..._deduplicatedDiscoveredVisibleTargets(),
   ]);
 
+  List<CockpitTarget> get routeReadyVisibleTargets =>
+      List.unmodifiable(<CockpitTarget>[
+        ..._explicitVisibleTargets(allowRouteFallback: false),
+        ..._deduplicatedDiscoveredVisibleTargets(allowRouteFallback: false),
+      ]);
+
   void register(CockpitTarget target) {
     _targets[target.registrationId] = target;
+  }
+
+  Map<String, Object?> routeDiagnostics({int hintLimit = 8}) {
+    final registeredTargets = _targets.values.toList(growable: false);
+    final discoveredTargets =
+        discoveredTargetsProvider?.call().toList(growable: false) ??
+        const <CockpitTarget>[];
+    final allTargets = <CockpitTarget>[
+      ...registeredTargets,
+      ...discoveredTargets,
+    ];
+
+    return <String, Object?>{
+      'currentRouteName': routeName,
+      'registeredTargetCount': registeredTargets.length,
+      'discoveredTargetCount': discoveredTargets.length,
+      'visibleTargetCount': visibleTargets.length,
+      'routeReadyVisibleTargetCount': routeReadyVisibleTargets.length,
+      'registeredRouteCounts': _routeCounts(registeredTargets),
+      'discoveredRouteCounts': _routeCounts(discoveredTargets),
+      'hiddenTargetCount': allTargets
+          .where((target) => !target.isVisible)
+          .length,
+      'targetHints': _targetHintsFor(
+        allTargets.where((target) => target.isVisible),
+        limit: hintLimit,
+      ),
+    };
   }
 
   void unregister(String registrationId) {
@@ -373,20 +407,33 @@ final class CockpitTargetRegistry {
     return compact.isEmpty ? null : compact;
   }
 
-  List<CockpitTarget> _explicitVisibleTargets() {
-    return _visibleTargetsFor(_targets.values);
+  List<CockpitTarget> _explicitVisibleTargets({
+    bool allowRouteFallback = true,
+  }) {
+    return _visibleTargetsFor(
+      _targets.values,
+      allowRouteFallback: allowRouteFallback,
+    );
   }
 
-  List<CockpitTarget> _discoveredVisibleTargets() {
+  List<CockpitTarget> _discoveredVisibleTargets({
+    bool allowRouteFallback = true,
+  }) {
     final provider = discoveredTargetsProvider;
     if (provider == null) {
       return const <CockpitTarget>[];
     }
 
-    return _visibleTargetsFor(provider());
+    return _visibleTargetsFor(
+      provider(),
+      allowRouteFallback: allowRouteFallback,
+    );
   }
 
-  List<CockpitTarget> _visibleTargetsFor(Iterable<CockpitTarget> targets) {
+  List<CockpitTarget> _visibleTargetsFor(
+    Iterable<CockpitTarget> targets, {
+    bool allowRouteFallback = true,
+  }) {
     final visibleTargets = targets
         .where((target) => target.isVisible)
         .toList(growable: false);
@@ -401,23 +448,44 @@ final class CockpitTargetRegistry {
     if (routeMatched.isNotEmpty) {
       return routeMatched;
     }
+    if (!allowRouteFallback) {
+      return const <CockpitTarget>[];
+    }
 
-    return visibleTargets
+    final unresolvedRouteTargets = visibleTargets
         .where((target) => _isUnresolvedRouteTarget(target.routeName))
         .toList(growable: false);
+    if (unresolvedRouteTargets.isNotEmpty) {
+      return unresolvedRouteTargets;
+    }
+
+    return visibleTargets;
+  }
+
+  Map<String, int> _routeCounts(Iterable<CockpitTarget> targets) {
+    final counts = <String, int>{};
+    for (final target in targets) {
+      final route = target.routeName.isEmpty ? '<empty>' : target.routeName;
+      counts[route] = (counts[route] ?? 0) + 1;
+    }
+    return counts;
   }
 
   bool _isUnresolvedRouteTarget(String routeName) {
     return routeName.isEmpty || routeName == '/';
   }
 
-  List<CockpitTarget> _deduplicatedDiscoveredVisibleTargets() {
-    final explicitTargets = _explicitVisibleTargets();
+  List<CockpitTarget> _deduplicatedDiscoveredVisibleTargets({
+    bool allowRouteFallback = true,
+  }) {
+    final explicitTargets = _explicitVisibleTargets(
+      allowRouteFallback: allowRouteFallback,
+    );
     if (explicitTargets.isEmpty) {
-      return _discoveredVisibleTargets();
+      return _discoveredVisibleTargets(allowRouteFallback: allowRouteFallback);
     }
 
-    return _discoveredVisibleTargets()
+    return _discoveredVisibleTargets(allowRouteFallback: allowRouteFallback)
         .where((discovered) {
           return !explicitTargets.any(
             (explicit) => _targetsOverlap(explicit, discovered),

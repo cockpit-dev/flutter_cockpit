@@ -228,6 +228,25 @@ void main() {
     },
   );
 
+  test(
+    'falls back to discovered targets from inactive routes when no current-route targets are discoverable',
+    () {
+      final registry = CockpitTargetRegistry(routeName: '/editor')
+        ..discoveredTargetsProvider = () => const <CockpitTarget>[
+          CockpitTarget(
+            registrationId: 'inbox-new-task',
+            text: 'New task',
+            routeName: '/inbox',
+            supportedCommands: {CockpitCommandType.tap},
+          ),
+        ];
+
+      expect(registry.visibleTargets, hasLength(1));
+      expect(registry.visibleTargets.single.registrationId, 'inbox-new-task');
+      expect(registry.snapshot().summary?.visibleTargetCount, 1);
+    },
+  );
+
   test('prefers a unique actionable keyed match over passive duplicates', () {
     final registry = CockpitTargetRegistry(routeName: '/inbox');
 

@@ -314,55 +314,50 @@ void main() {
     },
   );
 
-  test(
-    'reload succeeds once the remote session is reachable even if ui idle does not recover',
-    () async {
-      final harness = _MachineHarness();
-      addTearDown(harness.dispose);
+  test('hot reload waits for UI idle before reporting ready', () async {
+    final harness = _MachineHarness();
+    addTearDown(harness.dispose);
 
-      var now = DateTime.utc(2026, 3, 23, 3);
-      var uiIdleRecovered = true;
+    var now = DateTime.utc(2026, 3, 23, 3);
+    var uiIdleRecovered = true;
 
-      final supervisor = CockpitDevelopmentSessionSupervisor(
-        initialHandle: harness.handle,
-        machineClient: harness.client,
-        remoteReachabilityProbe: (_) async => true,
-        uiIdleWaiter: (_) async => uiIdleRecovered,
-        now: () {
-          final current = now;
-          now = now.add(const Duration(milliseconds: 250));
-          return current;
-        },
-        settleTimeout: const Duration(seconds: 2),
-        settlePollInterval: const Duration(milliseconds: 10),
-      );
-      addTearDown(supervisor.dispose);
+    final supervisor = CockpitDevelopmentSessionSupervisor(
+      initialHandle: harness.handle,
+      machineClient: harness.client,
+      remoteReachabilityProbe: (_) async => true,
+      uiIdleWaiter: (_) async => uiIdleRecovered,
+      now: () {
+        final current = now;
+        now = now.add(const Duration(milliseconds: 250));
+        return current;
+      },
+      settleTimeout: const Duration(seconds: 2),
+      settlePollInterval: const Duration(milliseconds: 10),
+    );
+    addTearDown(supervisor.dispose);
 
-      await supervisor.start();
-      harness.stdoutController.add(
-        '[{"event":"app.start","params":{"appId":"app-1"}}]',
-      );
-      harness.stdoutController.add('[{"event":"app.started","params":{}}]');
-      await supervisor.bindRemoteSession(harness.handle.remoteSessionHandle!);
-      await supervisor.waitForState(CockpitDevelopmentSessionState.ready);
+    await supervisor.start();
+    harness.stdoutController.add(
+      '[{"event":"app.start","params":{"appId":"app-1"}}]',
+    );
+    harness.stdoutController.add('[{"event":"app.started","params":{}}]');
+    await supervisor.bindRemoteSession(harness.handle.remoteSessionHandle!);
+    await supervisor.waitForState(CockpitDevelopmentSessionState.ready);
 
-      uiIdleRecovered = false;
-      final reloadFuture = supervisor.reload(
-        CockpitDevelopmentReloadMode.hotReload,
-      );
-      await Future<void>.delayed(Duration.zero);
-      expect(harness.writes.last, contains('"fullRestart":false'));
-      harness.stdoutController.add('[{"id":0,"result":{"code":0}}]');
-      final reloadedStatus = await reloadFuture;
+    uiIdleRecovered = false;
+    final reloadFuture = supervisor.reload(
+      CockpitDevelopmentReloadMode.hotReload,
+    );
+    await Future<void>.delayed(Duration.zero);
+    expect(harness.writes.last, contains('"fullRestart":false'));
+    harness.stdoutController.add('[{"id":0,"result":{"code":0}}]');
 
-      expect(reloadedStatus.state, CockpitDevelopmentSessionState.ready);
-      expect(reloadedStatus.lastReloadSucceeded, isTrue);
-      expect(
-        reloadedStatus.lastReloadMode,
-        CockpitDevelopmentReloadMode.hotReload,
-      );
-    },
-  );
+    await expectLater(reloadFuture, throwsA(isA<StateError>()));
+    final failedStatus = await supervisor.currentStatus();
+    expect(failedStatus.state, CockpitDevelopmentSessionState.failed);
+    expect(failedStatus.lastReloadSucceeded, isFalse);
+    expect(failedStatus.lastReloadMode, CockpitDevelopmentReloadMode.hotReload);
+  });
 
   test(
     'startup still requires ui idle recovery before becoming ready',
