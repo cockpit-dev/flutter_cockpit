@@ -30,56 +30,62 @@ void main() {
       taskTitle: 'Cockpit demo sync conflict 42',
     );
 
-    expect(commands, hasLength(7));
+    expect(commands, hasLength(8));
     expect(commands[0]['commandId'], 'verify-open-editor');
     expect(commands[0]['commandType'], 'tap');
     expect(commands[0]['locator'], <String, Object?>{
       'text': 'New task',
       'ancestor': <String, Object?>{'route': '/inbox'},
     });
-    expect(commands[1]['commandId'], 'verify-enter-task-title');
-    expect(commands[1]['commandType'], 'enterText');
-    expect(commands[1]['locator'], <String, Object?>{
+    expect(commands[1]['commandId'], 'verify-wait-for-editor-route');
+    expect(commands[1]['commandType'], 'waitFor');
+    expect(commands[1]['timeoutMs'], 12000);
+    expect(commands[1]['parameters'], <String, Object?>{
+      'routeName': '/editor',
+    });
+    expect(commands[2]['commandId'], 'verify-enter-task-title');
+    expect(commands[2]['commandType'], 'enterText');
+    expect(commands[2]['locator'], <String, Object?>{
       'text': 'Task title',
       'ancestor': <String, Object?>{'route': '/editor'},
     });
-    expect(commands[1]['parameters'], <String, Object?>{
+    expect(commands[2]['parameters'], <String, Object?>{
       'text': 'Cockpit demo sync conflict 42',
     });
-    expect(commands[2]['commandId'], 'verify-reveal-task-notes');
-    expect(commands[2]['commandType'], 'scrollUntilVisible');
-    expect(commands[2]['locator'], <String, Object?>{
+    expect(commands[3]['commandId'], 'verify-reveal-task-notes');
+    expect(commands[3]['commandType'], 'scrollUntilVisible');
+    expect(commands[3]['locator'], <String, Object?>{
       'text': 'Notes',
       'route': '/editor',
       'ancestor': <String, Object?>{'route': '/editor'},
     });
-    expect(commands[2]['parameters'], <String, Object?>{
+    expect(commands[3]['parameters'], <String, Object?>{
       'maxScrolls': 6,
       'viewportFraction': 0.72,
       'continuous': true,
       'durationPerStepMs': 180,
       'revealAlignment': 'center',
     });
-    expect(commands[3]['commandId'], 'verify-focus-task-notes');
-    expect(commands[3]['locator'], <String, Object?>{
+    expect(commands[4]['commandId'], 'verify-focus-task-notes');
+    expect(commands[4]['locator'], <String, Object?>{
       'text': 'Notes',
       'ancestor': <String, Object?>{'route': '/editor'},
     });
-    expect(commands[4]['commandId'], 'verify-enter-task-notes');
-    expect(commands[4]['locator'], <String, Object?>{
+    expect(commands[5]['commandId'], 'verify-enter-task-notes');
+    expect(commands[5]['locator'], <String, Object?>{
       'text': 'Notes',
       'type': 'TextField',
       'ancestor': <String, Object?>{'route': '/editor'},
     });
-    expect(commands[5]['commandId'], 'verify-save-task');
-    expect(commands[5]['locator'], <String, Object?>{
+    expect(commands[6]['commandId'], 'verify-save-task');
+    expect(commands[6]['locator'], <String, Object?>{
       'text': 'Save task',
       'ancestor': <String, Object?>{'route': '/editor'},
     });
-    expect(commands[6]['commandId'], 'verify-wait-for-inbox-route-after-save');
-    expect(commands[6]['commandType'], 'waitFor');
-    expect(commands[6]['timeoutMs'], 12000);
-    expect(commands[6]['parameters'], <String, Object?>{'routeName': '/inbox'});
+    expect(commands[7]['commandId'], 'verify-wait-for-inbox-route-after-save');
+    expect(commands[7]['commandType'], 'waitFor');
+    expect(commands[7]['timeoutMs'], 12000);
+    expect(commands[7]['parameters'], <String, Object?>{'routeName': '/inbox'});
   });
 
   test('buildSyncLabConflictSyncBatch reaches the queued sync action', () {

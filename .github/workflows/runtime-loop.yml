@@ -183,6 +183,7 @@ jobs:
               "read_app",
               "inspect_ui_inbox",
               "open_settings",
+              "wait_idle_after_settings",
               "inspect_ui_settings",
               "scroll_sync_check",
               "tap_sync_check",
@@ -363,7 +364,7 @@ jobs:
           assert platform["status"] == "passed", platform
           assert platform["verifiedCommands"] == expected_commands, platform
           assert platform["recordingDriver"] == os.environ["EXPECTED_RECORDING_DRIVER"], platform
-          assert platform["batchCommandCount"] == 29, platform
+          assert platform["batchCommandCount"] == 30, platform
           assert platform["networkFailureCount"] == 0, platform
           assert platform["runtimeErrorCount"] == 0, platform
           assert platform["hotReloadSucceeded"] is True, platform
@@ -518,7 +519,7 @@ jobs:
           assert platform["status"] == "passed", platform
           assert platform["verifiedCommands"] == expected_commands, platform
           assert platform["recordingDriver"] == os.environ["EXPECTED_RECORDING_DRIVER"], platform
-          assert platform["batchCommandCount"] == 29, platform
+          assert platform["batchCommandCount"] == 30, platform
           assert platform["networkFailureCount"] == 0, platform
           assert platform["runtimeErrorCount"] == 0, platform
           assert platform["hotReloadSucceeded"] is True, platform
@@ -636,7 +637,7 @@ jobs:
           assert platform["status"] == "passed", platform
           assert platform["verifiedCommands"] == expected_commands, platform
           assert platform["recordingDriver"] == os.environ["EXPECTED_RECORDING_DRIVER"], platform
-          assert platform["batchCommandCount"] == 29, platform
+          assert platform["batchCommandCount"] == 30, platform
           assert platform["networkFailureCount"] == 0, platform
           assert platform["runtimeErrorCount"] == 0, platform
           assert platform["hotReloadSucceeded"] is True, platform
@@ -677,7 +678,7 @@ jobs:
         timeout-minutes: 15
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg xvfb
+          sudo apt-get install -y ffmpeg x11-utils xvfb
 
       - name: Resolve Chrome executable
         timeout-minutes: 5
@@ -760,7 +761,7 @@ jobs:
           assert platform["status"] == "passed", platform
           assert platform["verifiedCommands"] == expected_commands, platform
           assert platform["recordingDriver"] == os.environ["EXPECTED_RECORDING_DRIVER"], platform
-          assert platform["batchCommandCount"] == 29, platform
+          assert platform["batchCommandCount"] == 30, platform
           assert platform["networkFailureCount"] == 0, platform
           assert platform["runtimeErrorCount"] == 0, platform
           assert platform["hotReloadSucceeded"] is True, platform
@@ -901,7 +902,7 @@ jobs:
           assert platform["status"] == "passed", platform
           assert platform["verifiedCommands"] == expected_commands, platform
           assert platform["recordingDriver"] == os.environ["EXPECTED_RECORDING_DRIVER"], platform
-          assert platform["batchCommandCount"] == 29, platform
+          assert platform["batchCommandCount"] == 30, platform
           assert platform["networkFailureCount"] == 0, platform
           assert platform["runtimeErrorCount"] == 0, platform
           assert platform["hotReloadSucceeded"] is True, platform
@@ -1036,7 +1037,7 @@ jobs:
           assert platform["status"] == "passed", platform
           assert platform["verifiedCommands"] == expected_commands, platform
           assert platform["recordingDriver"] == os.environ["EXPECTED_RECORDING_DRIVER"], platform
-          assert platform["batchCommandCount"] == 29, platform
+          assert platform["batchCommandCount"] == 30, platform
           assert platform["networkFailureCount"] == 0, platform
           assert platform["runtimeErrorCount"] == 0, platform
           assert platform["hotReloadSucceeded"] is True, platform

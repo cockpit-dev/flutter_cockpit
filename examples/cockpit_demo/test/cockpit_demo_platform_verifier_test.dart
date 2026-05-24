@@ -56,6 +56,52 @@ void main() {
     },
   );
 
+  test('host device probing uses the platform Flutter executable', () async {
+    final invocations = <String>[];
+
+    final devices = await cockpitDemoProbeHostDevices(
+      isWindows: true,
+      processRunner: (executable, arguments, {String? workingDirectory}) async {
+        invocations.add('$executable ${arguments.join(' ')}');
+        return ProcessResult(0, 0, '[]', '');
+      },
+    );
+
+    expect(devices, isEmpty);
+    expect(invocations, <String>['flutter.bat devices --machine']);
+  });
+
+  test(
+    'Android emulator launch uses the platform Flutter executable',
+    () async {
+      final invocations = <String>[];
+      final verifier = CockpitDemoPlatformVerifier(
+        probeDevices: () async => const <CockpitDemoHostDevice>[],
+        listIosSimulators: () async => const <CockpitDemoIosSimulator>[],
+        runProcess: (executable, arguments, {String? workingDirectory}) async {
+          invocations.add('$executable ${arguments.join(' ')}');
+          return ProcessResult(0, 0, '', '');
+        },
+        wait: (_) async {},
+        isWindows: true,
+      );
+
+      final result = await verifier.verify(
+        const CockpitDemoPlatformVerificationRequest(
+          projectDir: '/workspace/examples/cockpit_demo',
+          platforms: <String>['android'],
+          deviceTimeout: Duration.zero,
+        ),
+      );
+
+      expect(result.success, isFalse);
+      expect(
+        invocations,
+        contains('flutter.bat emulators --launch Pixel_9_Pro'),
+      );
+    },
+  );
+
   test('artifact output paths cannot escape the verifier output root', () {
     expect(
       cockpitDemoResolveArtifactOutputPath(
@@ -615,6 +661,7 @@ void main() {
       expect(commandTypes.length, 36);
       final expectedBatchPattern = <CockpitCommandType>[
         CockpitCommandType.tap,
+        CockpitCommandType.waitFor,
         CockpitCommandType.enterText,
         CockpitCommandType.scrollUntilVisible,
         CockpitCommandType.tap,
@@ -635,41 +682,44 @@ void main() {
           CockpitCommandType.waitFor,
         ]),
       );
-      expect(batchedCommandTypes.length, 174);
+      expect(batchedCommandTypes.length, 180);
       expect(batchRequests, hasLength(30));
       final firstBatchCommands = batchRequests.first.commands
           .map((batchCommand) => batchCommand.command)
           .toList(growable: false);
       expect(firstBatchCommands[0].locator?.text, 'New task');
       expect(firstBatchCommands[0].locator?.ancestor?.route, '/inbox');
-      expect(firstBatchCommands[1].locator?.text, 'Task title');
-      expect(firstBatchCommands[1].locator?.type, isNull);
-      expect(firstBatchCommands[1].locator?.ancestor?.route, '/editor');
-      expect(firstBatchCommands[2].commandId, 'verify-reveal-task-notes');
+      expect(firstBatchCommands[1].commandId, 'verify-wait-for-editor-route');
+      expect(firstBatchCommands[1].commandType, CockpitCommandType.waitFor);
+      expect(firstBatchCommands[1].parameters['routeName'], '/editor');
+      expect(firstBatchCommands[2].locator?.text, 'Task title');
+      expect(firstBatchCommands[2].locator?.type, isNull);
+      expect(firstBatchCommands[2].locator?.ancestor?.route, '/editor');
+      expect(firstBatchCommands[3].commandId, 'verify-reveal-task-notes');
       expect(
-        firstBatchCommands[2].commandType,
+        firstBatchCommands[3].commandType,
         CockpitCommandType.scrollUntilVisible,
       );
-      expect(firstBatchCommands[2].locator?.text, 'Notes');
-      expect(firstBatchCommands[2].locator?.route, '/editor');
-      expect(firstBatchCommands[2].locator?.ancestor?.route, '/editor');
-      expect(firstBatchCommands[3].commandId, 'verify-focus-task-notes');
       expect(firstBatchCommands[3].locator?.text, 'Notes');
-      expect(firstBatchCommands[3].locator?.type, isNull);
+      expect(firstBatchCommands[3].locator?.route, '/editor');
       expect(firstBatchCommands[3].locator?.ancestor?.route, '/editor');
-      expect(firstBatchCommands[4].commandId, 'verify-enter-task-notes');
+      expect(firstBatchCommands[4].commandId, 'verify-focus-task-notes');
       expect(firstBatchCommands[4].locator?.text, 'Notes');
-      expect(firstBatchCommands[4].locator?.type, 'TextField');
+      expect(firstBatchCommands[4].locator?.type, isNull);
       expect(firstBatchCommands[4].locator?.ancestor?.route, '/editor');
-      expect(firstBatchCommands[5].locator?.text, 'Save task');
+      expect(firstBatchCommands[5].commandId, 'verify-enter-task-notes');
+      expect(firstBatchCommands[5].locator?.text, 'Notes');
+      expect(firstBatchCommands[5].locator?.type, 'TextField');
       expect(firstBatchCommands[5].locator?.ancestor?.route, '/editor');
-      expect(firstBatchCommands[5].commandId, 'verify-save-task');
+      expect(firstBatchCommands[6].locator?.text, 'Save task');
+      expect(firstBatchCommands[6].locator?.ancestor?.route, '/editor');
+      expect(firstBatchCommands[6].commandId, 'verify-save-task');
       expect(
-        firstBatchCommands[6].commandId,
+        firstBatchCommands[7].commandId,
         'verify-wait-for-inbox-route-after-save',
       );
-      expect(firstBatchCommands[6].commandType, CockpitCommandType.waitFor);
-      expect(firstBatchCommands[6].parameters['routeName'], '/inbox');
+      expect(firstBatchCommands[7].commandType, CockpitCommandType.waitFor);
+      expect(firstBatchCommands[7].parameters['routeName'], '/inbox');
       final syncLabBatchCommands = batchRequests[1].commands
           .map((batchCommand) => batchCommand.command.commandId)
           .toList(growable: false);
@@ -743,7 +793,7 @@ void main() {
       );
       expect(
         result.platforms.map((platform) => platform.batchCommandCount),
-        everyElement(29),
+        everyElement(30),
       );
       expect(
         result.platforms.map((platform) => platform.networkFailureCount),
@@ -833,6 +883,62 @@ void main() {
     expect(result.platforms.first.failureCode, 'launchFailed');
     expect(result.platforms.last.platform, 'ios');
     expect(result.platforms.last.status, 'failed');
+  });
+
+  test('verifier includes launch supervisor diagnostics on failures', () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'cockpit-demo-platform-failure-',
+    );
+    addTearDown(() async {
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+    final supervisorLog = File(p.join(tempDir.path, 'supervisor.log'));
+    await supervisorLog.writeAsString(
+      '[2026-05-23T18:17:57Z] machine stderr Xcode build failed\n'
+      '[2026-05-23T18:17:58Z] remote launch failed error=flutter run exited\n',
+    );
+
+    final verifier = CockpitDemoPlatformVerifier(
+      probeDevices: () async => const <CockpitDemoHostDevice>[
+        CockpitDemoHostDevice(
+          name: 'iPhone 17 Pro',
+          deviceId: '43E53626-61CA-4382-B395-F661DED6625D',
+          platform: 'ios',
+          emulator: true,
+          supported: true,
+        ),
+      ],
+      listIosSimulators: () async => const <CockpitDemoIosSimulator>[],
+      runProcess: (executable, arguments, {String? workingDirectory}) async =>
+          ProcessResult(0, 0, '', ''),
+      wait: (_) async {},
+      launchApp: (request) async => throw CockpitApplicationServiceException(
+        code: 'launchFailed',
+        message: 'Unable to launch the example app.',
+        details: <String, Object?>{'supervisorLogPath': supervisorLog.path},
+      ),
+    );
+
+    final result = await verifier.verify(
+      CockpitDemoPlatformVerificationRequest(
+        projectDir: '/workspace/examples/cockpit_demo',
+        platforms: const <String>['ios'],
+        outputRoot: tempDir.path,
+      ),
+    );
+
+    final failed = result.platforms.single;
+    expect(failed.failureCode, 'launchFailed');
+    expect(
+      failed.failureDetails,
+      containsPair('supervisorLogPath', supervisorLog.path),
+    );
+    expect(
+      failed.failureDetails,
+      containsPair('supervisorLogTail', contains('Xcode build failed')),
+    );
   });
 
   test(
@@ -1594,7 +1700,7 @@ void main() {
       containsPair('commandId', 'verify-open-editor'),
     );
     expect(failedPlatform.failureDetails, containsPair('commandType', 'tap'));
-    expect(failedPlatform.failureDetails, containsPair('expectedCount', 7));
+    expect(failedPlatform.failureDetails, containsPair('expectedCount', 8));
     expect(
       failedPlatform.failureDetails['error'],
       containsPair('code', CockpitCommandError.targetNotFoundCode),

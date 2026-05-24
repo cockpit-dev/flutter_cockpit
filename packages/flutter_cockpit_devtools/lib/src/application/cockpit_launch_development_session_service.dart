@@ -212,6 +212,7 @@ final class CockpitDevelopmentSessionDaemonLauncher {
     final deadline = DateTime.now().add(request.launchTimeout);
     Object? lastFailure;
     CockpitSpawnedDevelopmentSupervisor? activeAttempt;
+    CockpitSpawnedDevelopmentSupervisor? lastAttempt;
 
     while (DateTime.now().isBefore(deadline)) {
       final supervisorPort = await _allocatePort();
@@ -233,6 +234,7 @@ final class CockpitDevelopmentSessionDaemonLauncher {
         supervisorLogFile: supervisorLogFile,
       );
       activeAttempt = attempt;
+      lastAttempt = attempt;
 
       final remaining = deadline.difference(DateTime.now());
       final attemptTimeout = remaining;
@@ -284,12 +286,22 @@ final class CockpitDevelopmentSessionDaemonLauncher {
         if (lastFailure is CockpitDevelopmentSessionFallbackException) {
           throw lastFailure;
         }
-        throw StateError('Development session startup failed: $lastFailure');
+        throw StateError(
+          await _startupFailureMessageWithDiagnostics(
+            'Development session startup failed: $lastFailure',
+            attempt,
+          ),
+        );
       }
       if (!shouldRetryAttempt &&
           lastFailure != null &&
           !_isTransientStartupFailure(lastFailure)) {
-        throw StateError('Development session startup failed: $lastFailure');
+        throw StateError(
+          await _startupFailureMessageWithDiagnostics(
+            'Development session startup failed: $lastFailure',
+            attempt,
+          ),
+        );
       }
       if (DateTime.now().isBefore(deadline)) {
         await _delay(const Duration(seconds: 1));
@@ -304,7 +316,10 @@ final class CockpitDevelopmentSessionDaemonLauncher {
     }
     if (lastFailure != null) {
       throw StateError(
-        'Development session did not become ready before timeout: $lastFailure',
+        await _startupFailureMessageWithDiagnostics(
+          'Development session did not become ready before timeout: $lastFailure',
+          activeAttempt ?? lastAttempt,
+        ),
       );
     }
     throw TimeoutException(
@@ -428,6 +443,36 @@ final class CockpitDevelopmentSessionDaemonLauncher {
         return priorFailure;
       }
       return error;
+    }
+  }
+
+  Future<String> _startupFailureMessageWithDiagnostics(
+    String message,
+    CockpitSpawnedDevelopmentSupervisor? attempt,
+  ) async {
+    final logPath = attempt?.logPath;
+    if (logPath == null || logPath.isEmpty) {
+      return message;
+    }
+    final tail = await _readSupervisorLogTail(logPath, maxLines: 80);
+    if (tail == null || tail.isEmpty) {
+      return '$message {supervisorLogPath: $logPath}';
+    }
+    return '$message {supervisorLogPath: $logPath, supervisorLogTail: $tail}';
+  }
+
+  Future<String?> _readSupervisorLogTail(
+    String path, {
+    required int maxLines,
+  }) async {
+    try {
+      final lines = await File(path).readAsLines();
+      final tail = lines.length <= maxLines
+          ? lines
+          : lines.sublist(lines.length - maxLines);
+      return tail.join('\n');
+    } on Object {
+      return null;
     }
   }
 }
