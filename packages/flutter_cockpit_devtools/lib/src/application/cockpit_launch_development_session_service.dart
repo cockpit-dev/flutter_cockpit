@@ -211,6 +211,7 @@ final class CockpitDevelopmentSessionDaemonLauncher {
         : request.sessionPort;
     final deadline = DateTime.now().add(request.launchTimeout);
     Object? lastFailure;
+    CockpitDevelopmentSessionSupervisorResponse? lastSupervisorResponse;
     CockpitSpawnedDevelopmentSupervisor? activeAttempt;
     CockpitSpawnedDevelopmentSupervisor? lastAttempt;
 
@@ -245,6 +246,7 @@ final class CockpitDevelopmentSessionDaemonLauncher {
       while (DateTime.now().isBefore(attemptDeadline)) {
         try {
           final response = await _supervisorStatusReader(attempt.baseUri);
+          lastSupervisorResponse = response;
           if (response.status.state == CockpitDevelopmentSessionState.ready) {
             return CockpitDevelopmentSessionBootstrap(
               sessionHandle: response.sessionHandle,
@@ -275,6 +277,15 @@ final class CockpitDevelopmentSessionDaemonLauncher {
           lastFailure = error;
         }
         await _delay(const Duration(milliseconds: 500));
+      }
+
+      if (lastSupervisorResponse != null &&
+          lastFailure == null &&
+          !permanentStartupFailure &&
+          !shouldRetryAttempt) {
+        lastFailure = StateError(
+          'last supervisor status ${_formatSupervisorStatus(lastSupervisorResponse.status)}',
+        );
       }
 
       lastFailure = await _stopAttempt(
@@ -323,7 +334,10 @@ final class CockpitDevelopmentSessionDaemonLauncher {
       );
     }
     throw TimeoutException(
-      'Development session did not become ready before timeout.',
+      await _startupFailureMessageWithDiagnostics(
+        'Development session did not become ready before timeout.',
+        activeAttempt ?? lastAttempt,
+      ),
       request.launchTimeout,
     );
   }
@@ -474,6 +488,16 @@ final class CockpitDevelopmentSessionDaemonLauncher {
     } on Object {
       return null;
     }
+  }
+
+  static String _formatSupervisorStatus(
+    CockpitDevelopmentSessionStatus status,
+  ) {
+    return 'state=${status.state.jsonValue} '
+        'appReachable=${status.appReachable} '
+        'remoteSessionReachable=${status.remoteSessionReachable} '
+        'reloadGeneration=${status.reloadGeneration}'
+        '${status.lastError == null ? '' : ' lastError=${status.lastError}'}';
   }
 }
 

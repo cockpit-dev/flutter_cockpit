@@ -402,10 +402,10 @@ exit 0
   );
 
   test(
-    'macos recording adapter fails browser-host startup without confirmation or output evidence',
+    'macos recording adapter accepts avfoundation pixel-format negotiation as browser-host startup evidence',
     () async {
       final tempDir = await Directory.systemTemp.createTemp(
-        'cockpit_macos_browser_silent_recording_adapter',
+        'cockpit_macos_browser_pixel_format_recording_adapter',
       );
       addTearDown(() async {
         if (tempDir.existsSync()) {
@@ -428,7 +428,7 @@ for arg in "$@"; do
   output_path="$arg"
 done
 printf '[avfoundation @ 0xc78808000] Overriding selected pixel format to use uyvy422 instead.\n' >&2
-trap 'printf "browser-silent-video" > "$output_path"; exit 0' INT
+trap 'printf "browser-pixel-format-video" > "$output_path"; exit 0' INT
 while true; do
   sleep 1
 done
@@ -448,30 +448,32 @@ exit 0
         appId: 'com.google.Chrome',
         ffmpegExecutable: ffmpegExecutable.path,
         osascriptExecutable: osascriptExecutable.path,
-        startupTimeout: const Duration(milliseconds: 200),
+        startupTimeout: const Duration(seconds: 2),
         startupEvidenceTimeout: const Duration(milliseconds: 100),
         stopTimeout: const Duration(seconds: 2),
         finalizationPollInterval: const Duration(milliseconds: 10),
+        ffprobeProcessRunner: (executable, arguments) async => ProcessResult(
+          0,
+          0,
+          '{"format":{"duration":"2.000"},"streams":[{"codec_type":"video","nb_frames":"40"}]}',
+          '',
+        ),
       );
 
-      await expectLater(
-        adapter.startRecording(
-          const CockpitRecordingRequest(
-            purpose: CockpitRecordingPurpose.acceptance,
-            name: 'browser-host-silent-demo',
-            attachToStep: true,
-          ),
+      final session = await adapter.startRecording(
+        const CockpitRecordingRequest(
+          purpose: CockpitRecordingPurpose.acceptance,
+          name: 'browser-host-pixel-format-demo',
+          attachToStep: true,
         ),
-        throwsA(
-          isA<StateError>().having(
-            (error) => error.message,
-            'message',
-            allOf(
-              contains('never confirmed macOS screen capture startup'),
-              contains('Overriding selected pixel format'),
-            ),
-          ),
-        ),
+      );
+      final result = await adapter.stopRecording();
+
+      expect(session.state, CockpitRecordingState.recording);
+      expect(result.state, CockpitRecordingState.completed);
+      expect(
+        File(result.sourceFilePath!).readAsStringSync(),
+        'browser-pixel-format-video',
       );
     },
   );

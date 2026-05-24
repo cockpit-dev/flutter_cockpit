@@ -895,11 +895,10 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
         await _postActionSettler();
         await _settleBeforeObservation();
       }
-      return _successExecution(
+      return _buildSuccessWithOptionalCapture(
         command: command,
         durationMs: stopwatch.elapsedMilliseconds,
-        locatorResolution: initialSatisfied,
-        snapshot: _liveSnapshot().toJson(),
+        resolution: _scrollResolutionSuccess(initialSatisfied),
       );
     }
 
@@ -923,11 +922,10 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
         await _postActionSettler();
         await _settleBeforeObservation();
       }
-      return _successExecution(
+      return _buildSuccessWithOptionalCapture(
         command: command,
         durationMs: stopwatch.elapsedMilliseconds,
-        locatorResolution: resolution.locatorResolution,
-        snapshot: _liveSnapshot().toJson(),
+        resolution: resolution,
       );
     }
 
@@ -947,11 +945,10 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
           ? await _resolveWithRetry(command, attempts: 2)
           : _resolve(command);
       if (resolution.isSuccess) {
-        return _successExecution(
+        return _buildSuccessWithOptionalCapture(
           command: command,
           durationMs: stopwatch.elapsedMilliseconds,
-          locatorResolution: resolution.locatorResolution,
-          snapshot: _liveSnapshot().toJson(),
+          resolution: resolution,
         );
       }
     }
@@ -985,21 +982,19 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
           );
           final satisfied = _scrollLocatorResolution(command);
           if (satisfied != null) {
-            return _successExecution(
+            return _buildSuccessWithOptionalCapture(
               command: command,
               durationMs: stopwatch.elapsedMilliseconds,
-              locatorResolution: satisfied,
-              snapshot: _liveSnapshot().toJson(),
+              resolution: _scrollResolutionSuccess(satisfied),
             );
           }
           if (allowsGenericResolution) {
             resolution = await _resolveWithRetry(command, attempts: 2);
             if (resolution.isSuccess) {
-              return _successExecution(
+              return _buildSuccessWithOptionalCapture(
                 command: command,
                 durationMs: stopwatch.elapsedMilliseconds,
-                locatorResolution: resolution.locatorResolution,
-                snapshot: _liveSnapshot().toJson(),
+                resolution: resolution,
               );
             }
             if (resolution.error?.code ==
@@ -1031,11 +1026,10 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
 
         final satisfied = _scrollLocatorResolution(command);
         if (satisfied != null) {
-          return _successExecution(
+          return _buildSuccessWithOptionalCapture(
             command: command,
             durationMs: stopwatch.elapsedMilliseconds,
-            locatorResolution: satisfied,
-            snapshot: _liveSnapshot().toJson(),
+            resolution: _scrollResolutionSuccess(satisfied),
           );
         }
 
@@ -1043,11 +1037,10 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
             ? await _resolveWithRetry(command, attempts: 2)
             : _resolve(command);
         if (allowsGenericResolution && resolution.isSuccess) {
-          return _successExecution(
+          return _buildSuccessWithOptionalCapture(
             command: command,
             durationMs: stopwatch.elapsedMilliseconds,
-            locatorResolution: resolution.locatorResolution,
-            snapshot: _liveSnapshot().toJson(),
+            resolution: resolution,
           );
         }
         if (await _attemptEnsureVisible(
@@ -1066,11 +1059,10 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
               ? await _resolveWithRetry(command, attempts: 2)
               : _resolve(command);
           if (resolution.isSuccess) {
-            return _successExecution(
+            return _buildSuccessWithOptionalCapture(
               command: command,
               durationMs: stopwatch.elapsedMilliseconds,
-              locatorResolution: resolution.locatorResolution,
-              snapshot: _liveSnapshot().toJson(),
+              resolution: resolution,
             );
           }
         }
@@ -2930,6 +2922,18 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
     return null;
   }
 
+  CockpitTargetResolutionResult _scrollResolutionSuccess(
+    CockpitLocatorResolution locatorResolution,
+  ) {
+    return CockpitTargetResolutionResult.success(
+      target: const CockpitTarget(
+        registrationId: 'scroll-until-visible-satisfied',
+        routeName: '',
+      ),
+      locatorResolution: locatorResolution,
+    );
+  }
+
   bool _allowsGenericScrollResolution(CockpitLocator locator) {
     return switch (locator.kind) {
       CockpitLocatorKind.text || CockpitLocatorKind.route => false,
@@ -3381,11 +3385,11 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
     } on Object {
       return false;
     }
-    if (_isTestBinding(widgetsBinding)) {
+    if (_isTestBinding(widgetsBinding) && !_hasCustomWaitTickHandler) {
       return false;
     }
 
-    for (var attempt = 0; attempt < 8; attempt += 1) {
+    for (var attempt = 0; attempt < 25; attempt += 1) {
       await Future<void>.microtask(() {});
       if (schedulerBinding.schedulerPhase != SchedulerPhase.idle ||
           schedulerBinding.hasScheduledFrame) {
@@ -3394,19 +3398,17 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
 
       final snapshot = _liveSnapshot();
       final routeChanged = snapshot.routeName != previousRouteName;
-      if (routeChanged && snapshot.visibleTargets.isNotEmpty) {
+      if (routeChanged && _registry.routeReadyVisibleTargets.isNotEmpty) {
         return true;
       }
-      if (!routeChanged &&
-          !schedulerBinding.hasScheduledFrame &&
-          attempt >= 1) {
+      if (!routeChanged && !schedulerBinding.hasScheduledFrame) {
         return false;
       }
 
       if (schedulerBinding.hasScheduledFrame) {
         await _awaitFrameIfScheduled(schedulerBinding, widgetsBinding);
       } else {
-        await Future<void>.delayed(const Duration(milliseconds: 16));
+        await _waitTickHandler(const Duration(milliseconds: 16));
       }
     }
     return _liveSnapshot().routeName != previousRouteName;

@@ -416,6 +416,86 @@ void main() {
     },
   );
 
+  test(
+    'daemon launcher reports the last supervisor state and log tail when startup times out',
+    () async {
+      final stuckHandle = _handle().copyWith(
+        supervisorBaseUrl: 'http://127.0.0.1:60015',
+      );
+      final stuckStatus = _readyStatus(stuckHandle).copyWith(
+        state: CockpitDevelopmentSessionState.starting,
+        appReachable: false,
+        remoteSessionReachable: false,
+        lastError: null,
+      );
+
+      final launcher = CockpitDevelopmentSessionDaemonLauncher(
+        supervisorStatusReader: (_) async =>
+            CockpitDevelopmentSessionSupervisorResponse(
+              sessionHandle: stuckHandle,
+              status: stuckStatus,
+            ),
+        portForwarder: const _StubPortForwarder(57331),
+        flutterVersionReader: () async => '3.39.0',
+        flutterExecutableReader: () async => '/opt/flutter/bin/flutter',
+        dartExecutableReader: () async =>
+            '/opt/flutter/bin/cache/dart-sdk/bin/dart',
+        allocatePort: () async => 60015,
+        delay: (_) => Future<void>.delayed(const Duration(milliseconds: 10)),
+        spawnSupervisor:
+            ({
+              required request,
+              required flutterVersion,
+              required flutterExecutable,
+              required dartExecutable,
+              required hostPort,
+              required supervisorPort,
+              required supervisorLogFile,
+            }) async {
+              await supervisorLogFile.writeAsString(
+                '[2026-05-24T11:37:24Z] machine progress Running Xcode build...\n',
+              );
+              return CockpitSpawnedDevelopmentSupervisor(
+                baseUri: Uri.parse('http://127.0.0.1:$supervisorPort'),
+                stop: () async {},
+                logPath: supervisorLogFile.path,
+              );
+            },
+      );
+
+      await expectLater(
+        () => launcher.launch(
+          const CockpitLaunchDevelopmentSessionRequest(
+            projectDir: '/workspace/examples/cockpit_demo',
+            target: 'cockpit/main.dart',
+            platform: 'ios',
+            deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+            sessionPort: 47331,
+            launchTimeout: Duration(milliseconds: 60),
+          ),
+        ),
+        throwsA(
+          isA<StateError>()
+              .having(
+                (error) => error.message,
+                'message',
+                contains('last supervisor status state=starting'),
+              )
+              .having(
+                (error) => error.message,
+                'message',
+                contains('appReachable=false'),
+              )
+              .having(
+                (error) => error.message,
+                'message',
+                contains('Running Xcode build'),
+              ),
+        ),
+      );
+    },
+  );
+
   test('daemon launcher rehydrates fallback-coded supervisor failures', () async {
     final launcher = CockpitDevelopmentSessionDaemonLauncher(
       supervisorStatusReader: (_) async =>

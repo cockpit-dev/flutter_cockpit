@@ -401,6 +401,63 @@ void main() {
     );
 
     test(
+      'persists metadata-profile artifact payloads so evidence can be exported',
+      () async {
+        final tempDir = await Directory.systemTemp.createTemp(
+          'cockpit_command_evidence_',
+        );
+        addTearDown(() async {
+          if (await tempDir.exists()) {
+            await tempDir.delete(recursive: true);
+          }
+        });
+
+        final service = CockpitExecuteRemoteCommandService(
+          artifactTempFileFactory: (relativePath) async {
+            return File('${tempDir.path}/$relativePath');
+          },
+          executeCommand: (_, command) async {
+            return CockpitCommandExecution(
+              result: CockpitCommandResult(
+                success: true,
+                commandId: command.commandId,
+                commandType: command.commandType,
+                durationMs: 50,
+                artifacts: const <CockpitArtifactRef>[
+                  CockpitArtifactRef(
+                    role: 'screenshot',
+                    relativePath: 'screenshots/after-tap.png',
+                  ),
+                ],
+              ),
+              artifactPayloads: <String, List<int>>{
+                'screenshots/after-tap.png': <int>[137, 80, 78, 71],
+              },
+            );
+          },
+          readSnapshot: (_, _) async => CockpitRemoteSnapshotResponse(
+            snapshot: _richSnapshot(routeName: '/standard'),
+          ),
+        );
+
+        final result = await service.execute(
+          CockpitExecuteRemoteCommandRequest(
+            sessionHandle: _sessionHandle(),
+            command: CockpitCommand(
+              commandId: 'tap-persisted-evidence',
+              commandType: CockpitCommandType.tap,
+            ),
+            resultProfile: const CockpitInteractiveResultProfile.inspect(),
+          ),
+        );
+
+        final sourcePath = result.artifacts.single.sourcePath;
+        expect(sourcePath, isNotNull);
+        expect(File(sourcePath!).readAsBytesSync(), <int>[137, 80, 78, 71]);
+      },
+    );
+
+    test(
       'filters failures-only diagnostics down to failing sections',
       () async {
         final service = CockpitExecuteRemoteCommandService(

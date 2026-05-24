@@ -60,6 +60,10 @@ typedef CockpitDemoHotRestartFunction =
     Future<CockpitHotRestartResult> Function(CockpitHotRestartRequest request);
 typedef CockpitDemoStopAppFunction =
     Future<CockpitStopAppResult> Function(CockpitStopAppRequest request);
+typedef CockpitDemoTimelineRecordingProcessRunner =
+    Future<ProcessResult> Function(String executable, List<String> arguments);
+typedef CockpitDemoVerificationProgressSink =
+    void Function(CockpitDemoVerificationProgressEvent event);
 
 const List<String> cockpitDemoDefaultVerificationPlatforms = <String>[
   'macos',
@@ -78,6 +82,43 @@ const List<String> cockpitDemoSupportedVerificationPlatforms = <String>[
 
 const int cockpitDemoExpectedBatchCommandCount = 31;
 const int cockpitDemoMinimumAutoScreenshotCount = 19;
+const CockpitInteractiveResultProfile _artifactEvidenceProfile =
+    CockpitInteractiveResultProfile(
+      name: CockpitInteractiveResultProfileName.standard,
+      ui: CockpitInteractiveUiLevel.summary,
+      diagnostics: CockpitInteractiveDiagnosticsLevel.none,
+      artifacts: CockpitInteractiveArtifactLevel.metadata,
+      includeDelta: false,
+      includeRuntimeSteps: false,
+      emitSnapshotRef: true,
+      snapshotProfile: CockpitSnapshotProfile.baseline,
+    );
+
+final class CockpitDemoVerificationProgressEvent {
+  const CockpitDemoVerificationProgressEvent({
+    required this.platform,
+    required this.stage,
+    required this.message,
+    required this.timestamp,
+  });
+
+  final String platform;
+  final String stage;
+  final String message;
+  final DateTime timestamp;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'platform': platform,
+    'stage': stage,
+    'message': message,
+    'timestamp': timestamp.toUtc().toIso8601String(),
+  };
+
+  String toAiLine() {
+    return '[${timestamp.toUtc().toIso8601String()}] '
+        'platform=$platform stage=$stage $message';
+  }
+}
 
 String cockpitDemoDefaultProjectDir({
   required String currentDirectory,
@@ -198,6 +239,7 @@ final class CockpitDemoPlatformVerificationRequest {
     this.androidEmulatorId = 'Pixel_9_Pro',
     this.allowWebHostRecordingPrerequisiteFailure = false,
     this.failFast = false,
+    this.progressSink,
   });
 
   final String projectDir;
@@ -210,6 +252,7 @@ final class CockpitDemoPlatformVerificationRequest {
   final String androidEmulatorId;
   final bool allowWebHostRecordingPrerequisiteFailure;
   final bool failFast;
+  final CockpitDemoVerificationProgressSink? progressSink;
 }
 
 final class CockpitDemoPlatformVerification {
@@ -236,6 +279,7 @@ final class CockpitDemoPlatformVerification {
     this.waitIdleDurationMs = 0,
     this.batchCommandCount = 0,
     this.autoScreenshotCount = 0,
+    this.exportedScreenshotCount = 0,
     this.networkFailureCount = 0,
     this.runtimeErrorCount = 0,
     this.logLineCount = 0,
@@ -245,6 +289,7 @@ final class CockpitDemoPlatformVerification {
     this.recordingKind,
     this.recordingDriver,
     this.screenshotArtifactRef,
+    this.screenshotOutputPath,
     this.screenshotByteLength,
     this.verifiedCommands = const <String>[],
     this.warnings = const <String>[],
@@ -276,6 +321,7 @@ final class CockpitDemoPlatformVerification {
   final int waitIdleDurationMs;
   final int batchCommandCount;
   final int autoScreenshotCount;
+  final int exportedScreenshotCount;
   final int networkFailureCount;
   final int runtimeErrorCount;
   final int logLineCount;
@@ -285,6 +331,7 @@ final class CockpitDemoPlatformVerification {
   final String? recordingKind;
   final String? recordingDriver;
   final String? screenshotArtifactRef;
+  final String? screenshotOutputPath;
   final int? screenshotByteLength;
   final List<String> verifiedCommands;
   final List<String> warnings;
@@ -320,6 +367,7 @@ final class CockpitDemoPlatformVerification {
     'waitIdleDurationMs': waitIdleDurationMs,
     'batchCommandCount': batchCommandCount,
     'autoScreenshotCount': autoScreenshotCount,
+    'exportedScreenshotCount': exportedScreenshotCount,
     'networkFailureCount': networkFailureCount,
     'runtimeErrorCount': runtimeErrorCount,
     'logLineCount': logLineCount,
@@ -331,6 +379,8 @@ final class CockpitDemoPlatformVerification {
     if (recordingDriver != null) 'recordingDriver': recordingDriver,
     if (screenshotArtifactRef != null)
       'screenshotArtifactRef': screenshotArtifactRef,
+    if (screenshotOutputPath != null)
+      'screenshotOutputPath': screenshotOutputPath,
     if (screenshotByteLength != null)
       'screenshotByteLength': screenshotByteLength,
     'verifiedCommands': verifiedCommands,
@@ -382,6 +432,7 @@ final class CockpitDemoPlatformVerifier {
     CockpitDemoHotReloadFunction? hotReload,
     CockpitDemoHotRestartFunction? hotRestart,
     CockpitDemoStopAppFunction? stopApp,
+    CockpitDemoTimelineRecordingProcessRunner? timelineRecordingProcessRunner,
     bool? isWindows,
   }) : _probeDevices =
            probeDevices ??
@@ -411,6 +462,8 @@ final class CockpitDemoPlatformVerifier {
        _hotReload = hotReload ?? CockpitHotReloadService().reload,
        _hotRestart = hotRestart ?? CockpitHotRestartService().restart,
        _stopApp = stopApp ?? CockpitStopAppService().stop,
+       _timelineRecordingProcessRunner =
+           timelineRecordingProcessRunner ?? Process.run,
        _isWindows = isWindows ?? Platform.isWindows;
 
   final CockpitDemoPlatformDeviceProbe _probeDevices;
@@ -432,6 +485,8 @@ final class CockpitDemoPlatformVerifier {
   final CockpitDemoHotReloadFunction _hotReload;
   final CockpitDemoHotRestartFunction _hotRestart;
   final CockpitDemoStopAppFunction _stopApp;
+  final CockpitDemoTimelineRecordingProcessRunner
+  _timelineRecordingProcessRunner;
   final bool _isWindows;
 
   Future<CockpitDemoPlatformVerificationResult> verify(
@@ -482,18 +537,43 @@ final class CockpitDemoPlatformVerifier {
 
     try {
       await Directory(outputDir).create(recursive: true);
+      _reportProgress(
+        request: request,
+        platform: platform,
+        stage: 'device',
+        message: 'resolving verification target',
+      );
       final resolvedDevice = await _ensureDeviceForPlatform(
         platform: platform,
         request: request,
       );
       deviceId = resolvedDevice.deviceId;
       bootstrappedDevice = resolvedDevice.bootstrapped;
+      _reportProgress(
+        request: request,
+        platform: platform,
+        stage: 'device',
+        message: 'using deviceId=$deviceId bootstrapped=$bootstrappedDevice',
+      );
+      _reportProgress(
+        request: request,
+        platform: platform,
+        stage: 'cleanup',
+        message: 'clearing example local state',
+      );
       await _cleanupExampleLocalState(
         platform: platform,
         deviceId: deviceId,
         workingDirectory: request.projectDir,
       );
 
+      _reportProgress(
+        request: request,
+        platform: platform,
+        stage: 'launch',
+        message:
+            'starting Flutter development session timeout=${request.launchTimeout.inSeconds}s',
+      );
       final launchResult = await _launchApp(
         CockpitLaunchAppRequest(
           projectDir: request.projectDir,
@@ -512,6 +592,13 @@ final class CockpitDemoPlatformVerifier {
       final verifiedCommands = <String>['launch-app'];
       final warnings = <String>[];
       var autoScreenshotCount = 0;
+      var exportedScreenshotCount = 0;
+      _reportProgress(
+        request: request,
+        platform: platform,
+        stage: 'launch',
+        message: 'app ready baseUrl=${launchedApp.baseUrl}',
+      );
 
       final initialRead = await _readAppWithRetry(
         CockpitReadAppRequest(
@@ -574,7 +661,16 @@ final class CockpitDemoPlatformVerifier {
       String? recordingOutputPath;
       int? recordingDurationMs;
       String? recordingKind;
+      var recordingFallbackUsed = false;
+      Object? recordingFallbackReason;
       activeRecordingAdapter = recordingAdapter;
+      _reportProgress(
+        request: request,
+        platform: platform,
+        stage: 'recording',
+        message:
+            'starting recording driver=${cockpitDemoRecordingDriverForPlatform(platform: platform, deviceId: deviceId)}',
+      );
       try {
         final recordingStart = await recordingAdapter.startRecording(
           recordingRequest,
@@ -598,8 +694,9 @@ final class CockpitDemoPlatformVerifier {
         )) {
           rethrow;
         }
+        recordingFallbackReason = error;
         warnings.add(
-          'Web host recording was skipped because the local desktop capture prerequisite is not available: $error',
+          'Web host recording could not be started on this machine; a timeline recording will be synthesized from exported key-step screenshots: $error',
         );
       }
       final batchResult = await _runBatchWithRetry(
@@ -608,8 +705,7 @@ final class CockpitDemoPlatformVerifier {
           commands: _batchCommandsFromJson(
             buildSyncLabCreateTaskBatch(taskTitle: taskTitle, notes: taskNotes),
           ),
-          defaultResultProfile:
-              const CockpitInteractiveResultProfile.standard(),
+          defaultResultProfile: _artifactEvidenceProfile,
           failFast: true,
         ),
       );
@@ -619,7 +715,19 @@ final class CockpitDemoPlatformVerifier {
         expectedCount: 9,
       );
       autoScreenshotCount += _autoScreenshotCount(batchResult);
+      exportedScreenshotCount += await _exportScreenshotArtifacts(
+        platform: platform,
+        result: batchResult,
+        outputDir: outputDir,
+      );
       verifiedCommands.add('run-batch');
+      _reportProgress(
+        request: request,
+        platform: platform,
+        stage: 'commands',
+        message:
+            'created sync task commands=${batchResult.summary.totalCount} autoScreenshots=$autoScreenshotCount exportedScreenshots=$exportedScreenshotCount',
+      );
       if (recordingStarted) {
         verifiedCommands.add('start-recording');
       }
@@ -655,8 +763,24 @@ final class CockpitDemoPlatformVerifier {
           )) {
             rethrow;
           }
+          final timelineRecording = await _buildTimelineRecordingFallback(
+            platform: platform,
+            outputDir: outputDir,
+            recordingName: recordingRequest.name,
+          );
+          if (timelineRecording == null) {
+            rethrow;
+          }
+          recordingStarted = false;
+          recordingFallbackUsed = true;
+          recordingArtifactRef = timelineRecording.relativePath;
+          recordingOutputPath = timelineRecording.outputPath;
+          recordingDurationMs = timelineRecording.durationMs;
+          recordingKind = timelineRecording.kind;
+          verifiedCommands.add('stop-recording');
+          verifiedCommands.add('timeline-recording-fallback');
           warnings.add(
-            'Web host recording could not be finalized on this machine: $error',
+            'Web host recording could not be finalized on this machine; synthesized a timeline recording from exported key-step screenshots: $error',
           );
         }
       }
@@ -704,8 +828,7 @@ final class CockpitDemoPlatformVerifier {
         CockpitRunBatchRequest(
           app: launchedApp,
           commands: _batchCommandsFromJson(buildSyncLabConflictSyncBatch()),
-          defaultResultProfile:
-              const CockpitInteractiveResultProfile.standard(),
+          defaultResultProfile: _artifactEvidenceProfile,
           failFast: true,
         ),
       );
@@ -715,6 +838,18 @@ final class CockpitDemoPlatformVerifier {
         expectedCount: 5,
       );
       autoScreenshotCount += _autoScreenshotCount(syncLabConflictBatchResult);
+      exportedScreenshotCount += await _exportScreenshotArtifacts(
+        platform: platform,
+        result: syncLabConflictBatchResult,
+        outputDir: outputDir,
+      );
+      _reportProgress(
+        request: request,
+        platform: platform,
+        stage: 'commands',
+        message:
+            'simulated sync conflict autoScreenshots=$autoScreenshotCount exportedScreenshots=$exportedScreenshotCount',
+      );
       final postConflictSyncIdleResult = await _waitIdle(
         CockpitWaitIdleRequest(
           app: launchedApp,
@@ -741,8 +876,7 @@ final class CockpitDemoPlatformVerifier {
             buildSyncLabRevealConflictResolutionCommand(),
             buildSyncLabOpenConflictResolutionCommand(),
           ]),
-          defaultResultProfile:
-              const CockpitInteractiveResultProfile.standard(),
+          defaultResultProfile: _artifactEvidenceProfile,
           failFast: true,
         ),
       );
@@ -753,6 +887,18 @@ final class CockpitDemoPlatformVerifier {
       );
       autoScreenshotCount += _autoScreenshotCount(
         syncLabOpenConflictBatchResult,
+      );
+      exportedScreenshotCount += await _exportScreenshotArtifacts(
+        platform: platform,
+        result: syncLabOpenConflictBatchResult,
+        outputDir: outputDir,
+      );
+      _reportProgress(
+        request: request,
+        platform: platform,
+        stage: 'commands',
+        message:
+            'opened conflict workflow autoScreenshots=$autoScreenshotCount exportedScreenshots=$exportedScreenshotCount',
       );
       final inspectResult = await _inspectSurface(
         CockpitInspectSurfaceRequest(
@@ -776,21 +922,32 @@ final class CockpitDemoPlatformVerifier {
         command: _commandFromJson(
           buildSyncLabRevealKeepLocalResolutionCommand(),
         ),
+        resultProfile: _artifactEvidenceProfile,
       );
       autoScreenshotCount += _autoScreenshotCountFromResult(
         revealKeepLocalResult,
       );
+      exportedScreenshotCount += await _exportScreenshotArtifactsFromResult(
+        platform: platform,
+        result: revealKeepLocalResult,
+        outputDir: outputDir,
+      );
       final keepLocalResult = await _runRequiredCommand(
         app: launchedApp,
         command: _commandFromJson(buildSyncLabKeepLocalResolutionCommand()),
+        resultProfile: _artifactEvidenceProfile,
       );
       autoScreenshotCount += _autoScreenshotCountFromResult(keepLocalResult);
+      exportedScreenshotCount += await _exportScreenshotArtifactsFromResult(
+        platform: platform,
+        result: keepLocalResult,
+        outputDir: outputDir,
+      );
       final syncRecoveryBatchResult = await _runBatchWithRetry(
         CockpitRunBatchRequest(
           app: launchedApp,
           commands: _batchCommandsFromJson(buildSyncLabRecoverySyncBatch()),
-          defaultResultProfile:
-              const CockpitInteractiveResultProfile.standard(),
+          defaultResultProfile: _artifactEvidenceProfile,
           failFast: true,
         ),
       );
@@ -800,14 +957,18 @@ final class CockpitDemoPlatformVerifier {
         expectedCount: 6,
       );
       autoScreenshotCount += _autoScreenshotCount(syncRecoveryBatchResult);
+      exportedScreenshotCount += await _exportScreenshotArtifacts(
+        platform: platform,
+        result: syncRecoveryBatchResult,
+        outputDir: outputDir,
+      );
       final syncRecoveryVerificationBatchResult = await _runBatchWithRetry(
         CockpitRunBatchRequest(
           app: launchedApp,
           commands: _batchCommandsFromJson(
             buildSyncLabRecoveryVerificationBatch(taskTitle: taskTitle),
           ),
-          defaultResultProfile:
-              const CockpitInteractiveResultProfile.standard(),
+          defaultResultProfile: _artifactEvidenceProfile,
           failFast: true,
         ),
       );
@@ -819,6 +980,11 @@ final class CockpitDemoPlatformVerifier {
       autoScreenshotCount += _autoScreenshotCount(
         syncRecoveryVerificationBatchResult,
       );
+      exportedScreenshotCount += await _exportScreenshotArtifacts(
+        platform: platform,
+        result: syncRecoveryVerificationBatchResult,
+        outputDir: outputDir,
+      );
       final returnFromDetailResult = await _runRequiredCommand(
         app: launchedApp,
         command: CockpitCommand(
@@ -829,9 +995,22 @@ final class CockpitDemoPlatformVerifier {
             ancestor: CockpitLocator(route: '/detail'),
           ),
         ),
+        resultProfile: _artifactEvidenceProfile,
       );
       autoScreenshotCount += _autoScreenshotCountFromResult(
         returnFromDetailResult,
+      );
+      exportedScreenshotCount += await _exportScreenshotArtifactsFromResult(
+        platform: platform,
+        result: returnFromDetailResult,
+        outputDir: outputDir,
+      );
+      _reportProgress(
+        request: request,
+        platform: platform,
+        stage: 'commands',
+        message:
+            'verified sync recovery autoScreenshots=$autoScreenshotCount exportedScreenshots=$exportedScreenshotCount',
       );
       if (autoScreenshotCount < cockpitDemoMinimumAutoScreenshotCount) {
         throw CockpitApplicationServiceException(
@@ -842,6 +1021,18 @@ final class CockpitDemoPlatformVerifier {
             'platform': platform,
             'autoScreenshotCount': autoScreenshotCount,
             'minimumAutoScreenshotCount': cockpitDemoMinimumAutoScreenshotCount,
+          },
+        );
+      }
+      if (exportedScreenshotCount < autoScreenshotCount) {
+        throw CockpitApplicationServiceException(
+          code: 'autoScreenshotArtifactsMissing',
+          message:
+              'Verifier produced automatic screenshots that were not exported to output artifacts.',
+          details: <String, Object?>{
+            'platform': platform,
+            'autoScreenshotCount': autoScreenshotCount,
+            'exportedScreenshotCount': exportedScreenshotCount,
           },
         );
       }
@@ -930,7 +1121,48 @@ final class CockpitDemoPlatformVerifier {
         platform: platform,
         artifact: screenshotArtifact,
       );
+      final screenshotOutputPath = await _exportScreenshotArtifact(
+        platform: platform,
+        artifact: screenshotArtifact,
+        outputDir: outputDir,
+      );
       verifiedCommands.add('capture-screenshot');
+      _reportProgress(
+        request: request,
+        platform: platform,
+        stage: 'artifacts',
+        message:
+            'exported screenshots=$exportedScreenshotCount explicitScreenshot=$screenshotOutputPath',
+      );
+
+      if (recordingFallbackReason != null) {
+        final timelineRecording = await _buildTimelineRecordingFallback(
+          platform: platform,
+          outputDir: outputDir,
+          recordingName: recordingRequest.name,
+        );
+        if (timelineRecording == null) {
+          throw CockpitApplicationServiceException(
+            code: 'recordingFallbackFailed',
+            message:
+                'Web host recording failed and screenshot timeline fallback could not be produced.',
+            details: <String, Object?>{
+              'platform': platform,
+              'reason': '$recordingFallbackReason',
+              'outputDir': outputDir,
+            },
+          );
+        }
+        recordingFallbackUsed = true;
+        recordingArtifactRef = timelineRecording.relativePath;
+        recordingOutputPath = timelineRecording.outputPath;
+        recordingDurationMs = timelineRecording.durationMs;
+        recordingKind = timelineRecording.kind;
+        verifiedCommands.add('timeline-recording-fallback');
+        warnings.add(
+          'Synthesized a timeline recording from exported key-step screenshots after web host recording startup failed.',
+        );
+      }
 
       final hotReloadResult = await _hotReload(
         CockpitHotReloadRequest(app: launchedApp),
@@ -946,6 +1178,13 @@ final class CockpitDemoPlatformVerifier {
         );
       }
       verifiedCommands.add('hot-reload');
+      _reportProgress(
+        request: request,
+        platform: platform,
+        stage: 'reload',
+        message:
+            'hot reload succeeded generation=${hotReloadResult.status.reloadGeneration}',
+      );
 
       final postReloadRead = await _readAppWithRetry(
         CockpitReadAppRequest(
@@ -985,6 +1224,13 @@ final class CockpitDemoPlatformVerifier {
         );
       }
       verifiedCommands.add('hot-restart');
+      _reportProgress(
+        request: request,
+        platform: platform,
+        stage: 'reload',
+        message:
+            'hot restart succeeded generation=${hotRestartResult.status.reloadGeneration}',
+      );
       final postRestartRead = await _readAppWithRetry(
         CockpitReadAppRequest(
           app: hotRestartResult.app,
@@ -1028,6 +1274,7 @@ final class CockpitDemoPlatformVerifier {
             syncRecoveryBatchResult.summary.totalCount +
             syncRecoveryVerificationBatchResult.summary.totalCount,
         autoScreenshotCount: autoScreenshotCount,
+        exportedScreenshotCount: exportedScreenshotCount,
         networkFailureCount: networkResult.summary.failureCount,
         runtimeErrorCount: errorsResult.errors.length,
         logLineCount: logsResult.lines.length,
@@ -1035,16 +1282,25 @@ final class CockpitDemoPlatformVerifier {
         recordingOutputPath: recordingOutputPath,
         recordingDurationMs: recordingDurationMs,
         recordingKind: recordingKind,
-        recordingDriver: cockpitDemoRecordingDriverForPlatform(
-          platform: platform,
-          deviceId: deviceId,
-        ),
+        recordingDriver: recordingFallbackUsed
+            ? 'browser-host-fallback'
+            : cockpitDemoRecordingDriverForPlatform(
+                platform: platform,
+                deviceId: deviceId,
+              ),
         screenshotArtifactRef: screenshotArtifact.relativePath,
+        screenshotOutputPath: screenshotOutputPath,
         screenshotByteLength: screenshotArtifact.byteLength,
         verifiedCommands: verifiedCommands,
         warnings: warnings,
       );
     } on Object catch (error) {
+      _reportProgress(
+        request: request,
+        platform: platform,
+        stage: 'failed',
+        message: '$error',
+      );
       final serviceError = error is CockpitApplicationServiceException
           ? error
           : null;
@@ -1089,6 +1345,22 @@ final class CockpitDemoPlatformVerifier {
         );
       }
     }
+  }
+
+  void _reportProgress({
+    required CockpitDemoPlatformVerificationRequest request,
+    required String platform,
+    required String stage,
+    required String message,
+  }) {
+    request.progressSink?.call(
+      CockpitDemoVerificationProgressEvent(
+        platform: platform,
+        stage: stage,
+        message: message,
+        timestamp: _clock().toUtc(),
+      ),
+    );
   }
 
   Future<_ResolvedDevice> _ensureDeviceForPlatform({
@@ -1252,9 +1524,73 @@ final class CockpitDemoPlatformVerifier {
     if (!cockpitCommandTypeIsAiEvidenceKeyOperation(commandType)) {
       return 0;
     }
-    return result.artifacts
+    final screenshotCount = result.artifacts
         .where((artifact) => artifact.role == 'screenshot')
         .length;
+    if (screenshotCount == 0) {
+      throw CockpitApplicationServiceException(
+        code: 'autoScreenshotArtifactMissing',
+        message:
+            'AI evidence key operation did not produce an automatic screenshot artifact.',
+        details: <String, Object?>{
+          'commandId': result.command.commandId,
+          'commandType': result.command.commandType,
+        },
+      );
+    }
+    return screenshotCount;
+  }
+
+  Future<int> _exportScreenshotArtifacts({
+    required String platform,
+    required CockpitRunBatchResult result,
+    required String outputDir,
+  }) async {
+    var exportedCount = 0;
+    for (final entry in result.results) {
+      exportedCount += await _exportScreenshotArtifactsFromResult(
+        platform: platform,
+        result: entry,
+        outputDir: outputDir,
+      );
+    }
+    return exportedCount;
+  }
+
+  Future<int> _exportScreenshotArtifactsFromResult({
+    required String platform,
+    required CockpitExecuteRemoteCommandResult result,
+    required String outputDir,
+  }) async {
+    final commandType = CockpitCommandType.fromJson(result.command.commandType);
+    if (!cockpitCommandTypeIsAiEvidenceKeyOperation(commandType)) {
+      return 0;
+    }
+    final screenshotArtifacts = result.artifacts
+        .where((artifact) => artifact.role == 'screenshot')
+        .toList(growable: false);
+    if (screenshotArtifacts.isEmpty) {
+      throw CockpitApplicationServiceException(
+        code: 'autoScreenshotArtifactMissing',
+        message:
+            'AI evidence key operation did not include an exportable screenshot artifact.',
+        details: <String, Object?>{
+          'platform': platform,
+          'commandId': result.command.commandId,
+          'commandType': result.command.commandType,
+        },
+      );
+    }
+    var exportedCount = 0;
+    for (final artifact in screenshotArtifacts) {
+      await _exportScreenshotArtifact(
+        platform: platform,
+        artifact: artifact,
+        outputDir: outputDir,
+      );
+      exportedCount += 1;
+    }
+    return exportedCount;
   }
 
   CockpitCommand _commandFromJson(Map<String, Object?> command) {
@@ -1514,6 +1850,158 @@ final class CockpitDemoPlatformVerifier {
         },
       );
     }
+    await sourceFile.copy(destinationFile.path);
+    return p.normalize(destinationFile.path);
+  }
+
+  Future<_TimelineRecordingFallback?> _buildTimelineRecordingFallback({
+    required String platform,
+    required String outputDir,
+    required String recordingName,
+  }) async {
+    if (platform != 'web') {
+      return null;
+    }
+    final screenshotsDir = Directory(p.join(outputDir, 'screenshots'));
+    if (!screenshotsDir.existsSync()) {
+      return null;
+    }
+    final screenshots =
+        screenshotsDir
+            .listSync(recursive: true)
+            .whereType<File>()
+            .where((file) => p.extension(file.path).toLowerCase() == '.png')
+            .toList(growable: false)
+          ..sort((left, right) => left.path.compareTo(right.path));
+    if (screenshots.isEmpty) {
+      return null;
+    }
+
+    final workingDirectory = await Directory.systemTemp.createTemp(
+      'cockpit_demo_timeline_recording_',
+    );
+    try {
+      final framesDirectory = Directory(p.join(workingDirectory.path, 'frames'))
+        ..createSync(recursive: true);
+      var frameIndex = 0;
+      for (final screenshot in screenshots) {
+        for (var copyIndex = 0; copyIndex < 8; copyIndex += 1) {
+          final framePath = p.join(
+            framesDirectory.path,
+            'frame_${frameIndex.toString().padLeft(4, '0')}.png',
+          );
+          await screenshot.copy(framePath);
+          frameIndex += 1;
+        }
+      }
+      if (frameIndex == 0) {
+        return null;
+      }
+
+      final relativePath =
+          'recordings/${_sanitizeTimelineRecordingName(recordingName)}_timeline_fallback.mp4';
+      final outputPath = cockpitDemoResolveArtifactOutputPath(
+        outputDir: outputDir,
+        relativePath: relativePath,
+      );
+      final outputFile = File(outputPath);
+      await outputFile.parent.create(recursive: true);
+      if (outputFile.existsSync()) {
+        outputFile.deleteSync();
+      }
+
+      final result = await _timelineRecordingProcessRunner('ffmpeg', <String>[
+        '-y',
+        '-framerate',
+        '8',
+        '-i',
+        p.join(framesDirectory.path, 'frame_%04d.png'),
+        '-vf',
+        'scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p',
+        '-c:v',
+        'libx264',
+        '-movflags',
+        '+faststart',
+        outputFile.path,
+      ]);
+      if (result.exitCode != 0 ||
+          !outputFile.existsSync() ||
+          outputFile.lengthSync() <= 0) {
+        return null;
+      }
+
+      return _TimelineRecordingFallback(
+        relativePath: relativePath,
+        outputPath: p.normalize(outputFile.path),
+        durationMs: screenshots.length * 1000,
+        kind: 'timelineScreenshotFallback',
+      );
+    } finally {
+      if (workingDirectory.existsSync()) {
+        await workingDirectory.delete(recursive: true);
+      }
+    }
+  }
+
+  String _sanitizeTimelineRecordingName(String value) {
+    final sanitized = value
+        .trim()
+        .replaceAll(RegExp(r'[^A-Za-z0-9._-]+'), '_')
+        .replaceAll(RegExp(r'^_+|_+$'), '');
+    return sanitized.isEmpty ? 'recording' : sanitized;
+  }
+
+  Future<String> _exportScreenshotArtifact({
+    required String platform,
+    required CockpitInteractiveArtifactDescriptor artifact,
+    required String outputDir,
+  }) async {
+    _requireNonEmptyScreenshotArtifact(platform: platform, artifact: artifact);
+    final sourcePath = artifact.sourcePath;
+    if (sourcePath == null || sourcePath.isEmpty) {
+      throw CockpitApplicationServiceException(
+        code: 'screenshotArtifactUnavailable',
+        message: 'Screenshot evidence did not include a source file path.',
+        details: <String, Object?>{
+          'platform': platform,
+          'artifactPath': artifact.relativePath,
+          'byteLength': ?artifact.byteLength,
+        },
+      );
+    }
+
+    final sourceFile = File(sourcePath);
+    if (!sourceFile.existsSync()) {
+      throw CockpitApplicationServiceException(
+        code: 'screenshotArtifactUnavailable',
+        message: 'Screenshot artifact source file does not exist.',
+        details: <String, Object?>{
+          'platform': platform,
+          'artifactPath': artifact.relativePath,
+          'sourcePath': sourcePath,
+        },
+      );
+    }
+    final byteLength = sourceFile.lengthSync();
+    if (byteLength <= 0) {
+      throw CockpitApplicationServiceException(
+        code: 'screenshotArtifactEmpty',
+        message: 'Screenshot artifact source file is empty.',
+        details: <String, Object?>{
+          'platform': platform,
+          'artifactPath': artifact.relativePath,
+          'sourcePath': sourcePath,
+          'byteLength': byteLength,
+        },
+      );
+    }
+
+    final destinationPath = cockpitDemoResolveArtifactOutputPath(
+      outputDir: outputDir,
+      relativePath: artifact.relativePath,
+    );
+    final destinationFile = File(destinationPath);
+    await destinationFile.parent.create(recursive: true);
     await sourceFile.copy(destinationFile.path);
     return p.normalize(destinationFile.path);
   }
@@ -2192,16 +2680,31 @@ bool _shouldAllowWebHostRecordingPrerequisiteFailure({
   required CockpitDemoPlatformVerificationRequest request,
   required Object error,
 }) {
-  if (platform != 'web' || !request.allowWebHostRecordingPrerequisiteFailure) {
+  if (platform != 'web') {
     return false;
+  }
+
+  if (error is CockpitApplicationServiceException) {
+    final statusCode = error.details['statusCode'];
+    if (error.code == 'recordingStartFailed' && statusCode == 412) {
+      return true;
+    }
+    if (error.code == 'recordingStopFailed') {
+      return true;
+    }
   }
 
   final message = '$error';
   return message.contains('Remote session request failed: 412') ||
+      message.contains(
+        'CockpitApplicationServiceException(recordingStartFailed)',
+      ) ||
       message.contains('"error":"recordingStartFailed"') ||
+      message.contains('recordingStopFailed') ||
       message.contains('ffmpeg never confirmed') ||
       message.contains('startup/output evidence') ||
       message.contains('Screen Recording permission') ||
+      message.contains('recording output file was missing or empty') ||
       message.contains('desktop capture prerequisite');
 }
 
@@ -2215,6 +2718,20 @@ final class _ResolvedRemoteReference {
   final String appId;
   final CockpitAppHandle? app;
   final CockpitRemoteSessionClient client;
+}
+
+final class _TimelineRecordingFallback {
+  const _TimelineRecordingFallback({
+    required this.relativePath,
+    required this.outputPath,
+    required this.durationMs,
+    required this.kind,
+  });
+
+  final String relativePath;
+  final String outputPath;
+  final int durationMs;
+  final String kind;
 }
 
 final class _ResolvedDevice {

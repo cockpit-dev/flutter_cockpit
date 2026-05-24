@@ -1593,6 +1593,70 @@ void main() {
   );
 
   testWidgets(
+    'tap stabilization waits for route-ready targets instead of inactive fallback targets',
+    (tester) async {
+      final registry = CockpitTargetRegistry(routeName: '/inbox');
+      var tickCount = 0;
+      registry.discoveredTargetsProvider = () => <CockpitTarget>[
+        const CockpitTarget(
+          registrationId: 'inbox-new-task',
+          text: 'New task',
+          routeName: '/inbox',
+          supportedCommands: {CockpitCommandType.tap},
+        ),
+        if (tickCount >= 3)
+          const CockpitTarget(
+            registrationId: 'editor-title',
+            text: 'Task title',
+            routeName: '/editor',
+          ),
+      ];
+      registry.register(
+        CockpitTarget(
+          registrationId: 'open-editor',
+          text: 'New task',
+          routeName: '/inbox',
+          supportedCommands: const {CockpitCommandType.tap},
+          onTap: () {
+            registry.routeName = '/editor';
+          },
+        ),
+      );
+
+      await tester.pumpWidget(
+        const Directionality(
+          textDirection: TextDirection.ltr,
+          child: SizedBox.shrink(),
+        ),
+      );
+
+      final executor = InAppCockpitCommandExecutor(
+        registry: registry,
+        waitTickHandler: (duration) async {
+          tickCount += 1;
+        },
+      );
+      final result = await executor.execute(
+        CockpitCommand(
+          commandId: 'open-editor',
+          commandType: CockpitCommandType.tap,
+          locator: const CockpitLocator(text: 'New task'),
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(tickCount, greaterThanOrEqualTo(3));
+      expect(result.snapshot?['routeName'], '/editor');
+      expect(
+        ((result.snapshot?['visibleTargets'] as List<Object?>?) ?? const [])
+            .cast<Map<Object?, Object?>>()
+            .any((target) => target['routeName'] == '/editor'),
+        isTrue,
+      );
+    },
+  );
+
+  testWidgets(
     'waitFor can progress under fake async when waitTickHandler pumps frames',
     (tester) async {
       final registry = CockpitTargetRegistry(routeName: '/form');
@@ -1734,6 +1798,121 @@ void main() {
       );
     },
   );
+
+  testWidgets('scrollUntilVisible includes after-action screenshot evidence', (
+    tester,
+  ) async {
+    final registry = CockpitTargetRegistry(routeName: '/list');
+    var capturedRequestName = '';
+
+    await tester.pumpWidget(
+      WidgetsApp(
+        color: const Color(0xFFFFFFFF),
+        builder: (context, child) {
+          return CockpitSurface(
+            routeName: '/list',
+            registry: registry,
+            child: Material(
+              child: Directionality(
+                textDirection: TextDirection.ltr,
+                child: ListView.builder(
+                  itemCount: 30,
+                  itemBuilder: (context, index) {
+                    return SizedBox(
+                      height: 96,
+                      child: ListTile(
+                        key: ValueKey<String>('evidence-task-$index'),
+                        onTap: () {},
+                        title: Text('Evidence Task $index'),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final surfaceState = tester.state<CockpitSurfaceState>(
+      find.byType(CockpitSurface),
+    );
+    final executor = InAppCockpitCommandExecutor(
+      registry: registry,
+      snapshotProvider: surfaceState.snapshot,
+      captureHandler: (request) async {
+        capturedRequestName = request.name;
+        return CockpitCaptureResult(
+          screenshot: CockpitCapturedScreenshot(
+            artifact: CockpitArtifactRef(
+              role: 'screenshot',
+              relativePath: 'screenshots/${request.name}.png',
+            ),
+            bytes: Uint8List.fromList(const <int>[137, 80, 78, 71]),
+            snapshot: surfaceState.snapshot(),
+          ),
+          requestedProfile: CockpitCaptureProfile.acceptance,
+          resolvedCaptureKind: CockpitCaptureKind.flutterView,
+        );
+      },
+      postActionSettler: () async {
+        await tester.pump();
+        await tester.pump();
+      },
+      scrollStepHandler:
+          ({
+            required reverse,
+            required viewportFraction,
+            scrollableKey,
+            targetLocator,
+            scrollableLocator,
+            required duration,
+            required gestureProfile,
+            required continuous,
+            required postScrollEnsureVisible,
+          }) {
+            return surfaceState.scrollByViewport(
+              reverse: reverse,
+              viewportFraction: viewportFraction,
+              scrollableKey: scrollableKey,
+              duration: duration,
+              gestureProfile: gestureProfile,
+              continuous: continuous,
+              postScrollEnsureVisible: postScrollEnsureVisible,
+            );
+          },
+    );
+
+    final result = await executor.execute(
+      CockpitCommand(
+        commandId: 'scroll-evidence-task-29',
+        commandType: CockpitCommandType.scrollUntilVisible,
+        locator: const CockpitLocator(key: 'evidence-task-29'),
+        capturePolicy: CockpitCapturePolicy.afterAction,
+        captureFailurePolicy: CockpitCaptureFailurePolicy.degradeCommand,
+        screenshotRequest: const CockpitScreenshotRequest(
+          reason: CockpitScreenshotReason.afterAction,
+          name: 'scroll-evidence-task-29',
+          includeSnapshot: true,
+          attachToStep: true,
+          snapshotOptions: CockpitSnapshotOptions.live(),
+        ),
+        parameters: const <String, Object?>{
+          'maxScrolls': 20,
+          'viewportFraction': 0.9,
+        },
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(capturedRequestName, 'scroll-evidence-task-29');
+    expect(result.artifacts.map((artifact) => artifact.relativePath), [
+      'screenshots/scroll-evidence-task-29.png',
+    ]);
+    expect(result.resolvedCaptureKind, CockpitCaptureKind.flutterView);
+  });
 
   testWidgets(
     'scrollUntilVisible succeeds when a keyed target becomes visible on the final scrollable viewport',

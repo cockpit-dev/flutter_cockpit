@@ -7,6 +7,8 @@ import 'package:path/path.dart' as p;
 
 import '../tool/src/cockpit_demo_platform_verifier.dart';
 
+var _screenshotArtifactSequence = 0;
+
 void main() {
   test(
     'default project dir resolves cockpit_demo when invoked from repo root',
@@ -55,6 +57,27 @@ void main() {
       );
     },
   );
+
+  test('iOS host does not declare a missing SceneDelegate', () {
+    final iosRunnerDir =
+        Directory.current.path.endsWith('examples/cockpit_demo')
+        ? p.join(Directory.current.path, 'ios', 'Runner')
+        : p.join(
+            Directory.current.path,
+            'examples',
+            'cockpit_demo',
+            'ios',
+            'Runner',
+          );
+    final infoPlist = File(p.join(iosRunnerDir, 'Info.plist'));
+
+    expect(infoPlist.existsSync(), isTrue);
+    final contents = infoPlist.readAsStringSync();
+
+    expect(contents, isNot(contains('UIApplicationSceneManifest')));
+    expect(contents, isNot(contains('UISceneDelegateClassName')));
+    expect(contents, isNot(contains('FlutterSceneDelegate')));
+  });
 
   test('host device probing uses the platform Flutter executable', () async {
     final invocations = <String>[];
@@ -797,6 +820,10 @@ void main() {
         everyElement(greaterThanOrEqualTo(19)),
       );
       expect(
+        result.platforms.map((platform) => platform.exportedScreenshotCount),
+        everyElement(greaterThanOrEqualTo(19)),
+      );
+      expect(
         result.platforms.map((platform) => platform.networkFailureCount),
         everyElement(0),
       );
@@ -819,6 +846,10 @@ void main() {
       expect(
         result.platforms.map((platform) => platform.screenshotByteLength),
         everyElement(greaterThan(0)),
+      );
+      expect(
+        result.platforms.map((platform) => platform.screenshotOutputPath),
+        everyElement(isNotNull),
       );
       expect(
         result.platforms.map((platform) => platform.recordingDriver),
@@ -845,6 +876,51 @@ void main() {
         'hot-reload',
         'hot-restart',
       ]);
+    },
+  );
+
+  test(
+    'verifier emits AI-readable progress events for long platform runs',
+    () async {
+      final progressEvents = <CockpitDemoVerificationProgressEvent>[];
+
+      final verifier = CockpitDemoPlatformVerifier(
+        probeDevices: () async => const <CockpitDemoHostDevice>[
+          CockpitDemoHostDevice(
+            name: 'macOS',
+            deviceId: 'macos',
+            platform: 'macos',
+            emulator: false,
+            supported: true,
+          ),
+        ],
+        launchApp: (_) async => throw StateError('simulated launch stall'),
+        clock: () => DateTime.utc(2026, 5, 24, 12),
+      );
+
+      final result = await verifier.verify(
+        CockpitDemoPlatformVerificationRequest(
+          projectDir: '/workspace/examples/cockpit_demo',
+          platforms: const <String>['macos'],
+          progressSink: progressEvents.add,
+        ),
+      );
+
+      expect(result.success, isFalse);
+      expect(progressEvents.map((event) => event.stage), <String>[
+        'device',
+        'device',
+        'cleanup',
+        'launch',
+        'failed',
+      ]);
+      expect(result.platforms.single.failureMessage, contains('launch stall'));
+      expect(progressEvents.first.toAiLine(), contains('platform=macos'));
+      expect(progressEvents.first.toAiLine(), contains('stage=device'));
+      expect(
+        progressEvents.last.toAiLine(),
+        contains('simulated launch stall'),
+      );
     },
   );
 
@@ -1466,6 +1542,11 @@ void main() {
           app: request.app!,
           status: CockpitAppStopStatus.stopped(mode: request.app!.mode),
         ),
+        timelineRecordingProcessRunner: (executable, arguments) async {
+          final outputPath = arguments.last;
+          await File(outputPath).writeAsBytes(<int>[1, 2, 3, 4], flush: true);
+          return ProcessResult(0, 0, '', '');
+        },
       );
 
       final result = await verifier.verify(
@@ -1772,12 +1853,8 @@ void main() {
           ),
           currentRouteName: '/inbox',
         ),
-        runCommand: (request) async => _successfulCommandResult(
-          request.command,
-          includeScreenshot:
-              request.command.commandType ==
-              CockpitCommandType.captureScreenshot,
-        ),
+        runCommand: (request) async =>
+            _successfulCommandResult(request.command),
         inspectUi: (_) async => const CockpitInspectUiResult(
           routeName: '/inbox',
           diagnosticLevel: 'investigate',
@@ -1893,11 +1970,7 @@ void main() {
         ),
         currentRouteName: '/inbox',
       ),
-      runCommand: (request) async => _successfulCommandResult(
-        request.command,
-        includeScreenshot:
-            request.command.commandType == CockpitCommandType.captureScreenshot,
-      ),
+      runCommand: (request) async => _successfulCommandResult(request.command),
       inspectUi: (_) async => const CockpitInspectUiResult(
         routeName: '/inbox',
         diagnosticLevel: 'investigate',
@@ -1983,6 +2056,143 @@ void main() {
     ]);
   });
 
+  test('verifier exports automatic key-step screenshots as files', () async {
+    final recordingFile = await _createRecordingArtifact();
+    final verifier = CockpitDemoPlatformVerifier(
+      probeDevices: () async => const <CockpitDemoHostDevice>[
+        CockpitDemoHostDevice(
+          name: 'macOS',
+          deviceId: 'macos',
+          platform: 'macos',
+          emulator: false,
+          supported: true,
+        ),
+      ],
+      listIosSimulators: () async => const <CockpitDemoIosSimulator>[],
+      runProcess: (executable, arguments, {String? workingDirectory}) async {
+        return ProcessResult(0, 0, '', '');
+      },
+      wait: (_) async {},
+      launchApp: (request) async {
+        return CockpitLaunchAppResult(
+          app: _appForPlatform(
+            platform: request.platform,
+            deviceId: request.deviceId,
+            baseUrl: 'http://127.0.0.1:${request.sessionPort}',
+          ),
+          appJsonPath: '/tmp/${request.platform}/app.json',
+        );
+      },
+      readApp: (request) async => CockpitReadAppResult(
+        sessionId: '${request.app!.platform}-session',
+        transportType: 'remoteHttp',
+        capabilities: _capabilitiesForPlatform(request.app!.platform),
+        recordingCapabilities: CockpitRecordingCapabilities(
+          supportsNativeRecording: true,
+          preferredAcceptanceRecordingKind: CockpitRecordingKind.nativeScreen,
+        ),
+        currentRouteName: '/inbox',
+      ),
+      runCommand: (request) async => _successfulCommandResult(request.command),
+      inspectUi: (_) async => const CockpitInspectUiResult(
+        routeName: '/inbox',
+        diagnosticLevel: 'investigate',
+        truncated: false,
+      ),
+      runBatch: (request) async => _successfulBatchResult(request),
+      waitIdle: (_) async => const CockpitWaitIdleResult(
+        idle: true,
+        durationMs: 120,
+        quietWindowMs: 160,
+        timeoutMs: 5000,
+        includeNetworkIdle: true,
+      ),
+      readNetwork: (_) async => _successfulNetworkResult(),
+      readErrors: (_) async => const CockpitReadErrorsResult(
+        appId: 'errors-app',
+        routeName: '/inbox',
+        source: 'app_snapshot',
+        errors: <CockpitErrorEntry>[],
+      ),
+      readLogs: (_) async => const CockpitReadLogsResult(
+        appId: 'logs-app',
+        source: 'app_snapshot',
+        available: true,
+        routeName: '/inbox',
+        lines: <String>['info runtime: key screenshots exported'],
+        truncated: false,
+      ),
+      inspectSurface: (request) async => _inspectSurfaceResult(request.app!),
+      recordingAdapterResolver:
+          ({
+            required platform,
+            required deviceId,
+            required client,
+            required recording,
+          }) {
+            return _FakeRecordingAdapter(
+              onStart: (request) async => CockpitRecordingSession(
+                request: request,
+                state: CockpitRecordingState.recording,
+              ),
+              onStop: () async => CockpitRecordingResult(
+                state: CockpitRecordingState.completed,
+                purpose: CockpitRecordingPurpose.acceptance,
+                recordingKind: CockpitRecordingKind.nativeScreen,
+                artifact: const CockpitArtifactRef(
+                  role: 'recording',
+                  relativePath: 'recordings/platform-loop.mp4',
+                ),
+                durationMs: 1600,
+                sourceFilePath: recordingFile.path,
+              ),
+            );
+          },
+      hotReload: (request) async => _successfulHotReload(request.app!),
+      hotRestart: (request) async => _successfulHotRestart(request.app!),
+      stopApp: (request) async => CockpitStopAppResult(
+        app: request.app!,
+        status: CockpitAppStopStatus.stopped(mode: request.app!.mode),
+      ),
+    );
+
+    final outputRoot = await Directory.systemTemp.createTemp(
+      'cockpit_key_screenshots_',
+    );
+    addTearDown(() async {
+      if (await outputRoot.exists()) {
+        await outputRoot.delete(recursive: true);
+      }
+    });
+
+    final result = await verifier.verify(
+      CockpitDemoPlatformVerificationRequest(
+        projectDir: '/workspace/examples/cockpit_demo',
+        platforms: const <String>['macos'],
+        outputRoot: outputRoot.path,
+      ),
+    );
+
+    expect(result.success, isTrue);
+    final platform = result.platforms.single;
+    expect(platform.exportedScreenshotCount, platform.autoScreenshotCount);
+    expect(platform.screenshotOutputPath, isNotNull);
+    final screenshotsDir = Directory(p.join(platform.outputDir, 'screenshots'));
+    final screenshotFiles = screenshotsDir
+        .listSync(recursive: true)
+        .whereType<File>()
+        .where((file) => p.extension(file.path) == '.png')
+        .toList(growable: false);
+    expect(screenshotFiles, hasLength(platform.autoScreenshotCount + 1));
+    expect(
+      screenshotFiles.map((file) => p.basename(file.path)),
+      contains('platform-proof.png'),
+    );
+    for (final screenshot in screenshotFiles) {
+      expect(screenshot.lengthSync(), greaterThan(0));
+    }
+  });
+
   test('verifier fails when screenshot evidence is empty', () async {
     final recordingFile = await _createRecordingArtifact();
     final verifier = CockpitDemoPlatformVerifier(
@@ -2020,12 +2230,8 @@ void main() {
         ),
         currentRouteName: '/inbox',
       ),
-      runCommand: (request) async => _successfulCommandResult(
-        request.command,
-        includeScreenshot:
-            request.command.commandType == CockpitCommandType.captureScreenshot,
-        screenshotByteLength: 0,
-      ),
+      runCommand: (request) async =>
+          _successfulCommandResult(request.command, screenshotByteLength: 0),
       inspectUi: (_) async => const CockpitInspectUiResult(
         routeName: '/inbox',
         diagnosticLevel: 'investigate',
@@ -2100,13 +2306,159 @@ void main() {
     expect(failedPlatform.failureCode, 'screenshotArtifactEmpty');
     expect(
       failedPlatform.failureDetails,
-      containsPair('artifactPath', 'screenshots/platform-proof.png'),
+      containsPair(
+        'artifactPath',
+        startsWith('screenshots/verify-reveal-keep-local-resolution_'),
+      ),
     );
   });
 
   test(
+    'verifier fails when a key operation omits screenshot evidence',
+    () async {
+      final recordingFile = await _createRecordingArtifact();
+      final verifier = CockpitDemoPlatformVerifier(
+        probeDevices: () async => const <CockpitDemoHostDevice>[
+          CockpitDemoHostDevice(
+            name: 'macOS',
+            deviceId: 'macos',
+            platform: 'macos',
+            emulator: false,
+            supported: true,
+          ),
+        ],
+        listIosSimulators: () async => const <CockpitDemoIosSimulator>[],
+        runProcess: (executable, arguments, {String? workingDirectory}) async {
+          return ProcessResult(0, 0, '', '');
+        },
+        wait: (_) async {},
+        launchApp: (request) async {
+          return CockpitLaunchAppResult(
+            app: _appForPlatform(
+              platform: request.platform,
+              deviceId: request.deviceId,
+              baseUrl: 'http://127.0.0.1:${request.sessionPort}',
+            ),
+            appJsonPath: '/tmp/${request.platform}/app.json',
+          );
+        },
+        readApp: (request) async => CockpitReadAppResult(
+          sessionId: '${request.app!.platform}-session',
+          transportType: 'remoteHttp',
+          capabilities: _capabilitiesForPlatform(request.app!.platform),
+          recordingCapabilities: CockpitRecordingCapabilities(
+            supportsNativeRecording: true,
+            preferredAcceptanceRecordingKind: CockpitRecordingKind.nativeScreen,
+          ),
+          currentRouteName: '/inbox',
+        ),
+        runCommand: (request) async =>
+            _successfulCommandResult(request.command),
+        inspectUi: (_) async => const CockpitInspectUiResult(
+          routeName: '/inbox',
+          diagnosticLevel: 'investigate',
+          truncated: false,
+        ),
+        runBatch: (request) async => CockpitRunBatchResult(
+          results: request.commands
+              .map(
+                (batchCommand) => _successfulCommandResult(
+                  batchCommand.command,
+                  includeScreenshot: false,
+                ),
+              )
+              .toList(growable: false),
+          summary: CockpitExecuteRemoteCommandBatchSummary(
+            totalCount: request.commands.length,
+            successCount: request.commands.length,
+            failureCount: 0,
+            stoppedEarly: false,
+          ),
+        ),
+        waitIdle: (_) async => const CockpitWaitIdleResult(
+          idle: true,
+          durationMs: 120,
+          quietWindowMs: 160,
+          timeoutMs: 5000,
+          includeNetworkIdle: true,
+        ),
+        readNetwork: (_) async => _successfulNetworkResult(),
+        readErrors: (_) async => const CockpitReadErrorsResult(
+          appId: 'errors-app',
+          routeName: '/inbox',
+          source: 'app_snapshot',
+          errors: <CockpitErrorEntry>[],
+        ),
+        readLogs: (_) async => const CockpitReadLogsResult(
+          appId: 'logs-app',
+          source: 'app_snapshot',
+          available: true,
+          routeName: '/inbox',
+          lines: <String>['info runtime: missing key screenshot path'],
+          truncated: false,
+        ),
+        inspectSurface: (request) async => _inspectSurfaceResult(request.app!),
+        recordingAdapterResolver:
+            ({
+              required platform,
+              required deviceId,
+              required client,
+              required recording,
+            }) {
+              return _FakeRecordingAdapter(
+                onStart: (request) async => CockpitRecordingSession(
+                  request: request,
+                  state: CockpitRecordingState.recording,
+                ),
+                onStop: () async => CockpitRecordingResult(
+                  state: CockpitRecordingState.completed,
+                  purpose: CockpitRecordingPurpose.acceptance,
+                  recordingKind: CockpitRecordingKind.nativeScreen,
+                  artifact: const CockpitArtifactRef(
+                    role: 'recording',
+                    relativePath: 'recordings/platform-loop.mp4',
+                  ),
+                  durationMs: 1600,
+                  sourceFilePath: recordingFile.path,
+                ),
+              );
+            },
+        hotReload: (request) async => _successfulHotReload(request.app!),
+        hotRestart: (request) async => _successfulHotRestart(request.app!),
+        stopApp: (request) async => CockpitStopAppResult(
+          app: request.app!,
+          status: CockpitAppStopStatus.stopped(mode: request.app!.mode),
+        ),
+      );
+
+      final result = await verifier.verify(
+        const CockpitDemoPlatformVerificationRequest(
+          projectDir: '/workspace/examples/cockpit_demo',
+          platforms: <String>['macos'],
+        ),
+      );
+
+      expect(result.success, isFalse);
+      final failedPlatform = result.platforms.single;
+      expect(failedPlatform.failureCode, 'autoScreenshotArtifactMissing');
+      expect(
+        failedPlatform.failureDetails,
+        containsPair('commandId', 'verify-open-editor'),
+      );
+    },
+  );
+
+  test(
     'verifier can continue local web validation when host recording prerequisites are explicitly allowed to fail',
     () async {
+      final outputRoot = await Directory.systemTemp.createTemp(
+        'cockpit_web_start_fallback_',
+      );
+      addTearDown(() async {
+        if (await outputRoot.exists()) {
+          await outputRoot.delete(recursive: true);
+        }
+      });
       final verifier = CockpitDemoPlatformVerifier(
         probeDevices: () async => const <CockpitDemoHostDevice>[
           CockpitDemoHostDevice(
@@ -2243,8 +2595,10 @@ void main() {
             }) {
               return _FakeRecordingAdapter(
                 onStart: (_) async {
-                  throw StateError(
-                    'Remote session request failed: 412 {"error":"recordingStartFailed","message":"Screen Recording permission is missing."}',
+                  throw const CockpitApplicationServiceException(
+                    code: 'recordingStartFailed',
+                    message: 'Screen Recording permission is missing.',
+                    details: <String, Object?>{'statusCode': 412},
                   );
                 },
                 onStop: () async =>
@@ -2281,12 +2635,19 @@ void main() {
           app: request.app!,
           status: CockpitAppStopStatus.stopped(mode: request.app!.mode),
         ),
+        timelineRecordingProcessRunner: (executable, arguments) async {
+          expect(executable, 'ffmpeg');
+          final outputPath = arguments.last;
+          await File(outputPath).writeAsBytes(<int>[1, 2, 3, 4], flush: true);
+          return ProcessResult(0, 0, '', '');
+        },
       );
 
       final result = await verifier.verify(
-        const CockpitDemoPlatformVerificationRequest(
+        CockpitDemoPlatformVerificationRequest(
           projectDir: '/workspace/examples/cockpit_demo',
-          platforms: <String>['web'],
+          platforms: const <String>['web'],
+          outputRoot: outputRoot.path,
           allowWebHostRecordingPrerequisiteFailure: true,
         ),
       );
@@ -2295,8 +2656,14 @@ void main() {
       expect(result.platforms, hasLength(1));
       final platform = result.platforms.single;
       expect(platform.status, 'passed');
-      expect(platform.recordingArtifactRef, isNull);
-      expect(platform.recordingDriver, 'browser-host');
+      expect(
+        platform.recordingArtifactRef,
+        'recordings/verify_web_loop_timeline_fallback.mp4',
+      );
+      expect(platform.recordingOutputPath, isNotNull);
+      expect(File(platform.recordingOutputPath!).existsSync(), isTrue);
+      expect(platform.recordingDriver, 'browser-host-fallback');
+      expect(platform.recordingKind, 'timelineScreenshotFallback');
       expect(platform.verifiedCommands, <String>[
         'launch-app',
         'read-app',
@@ -2309,20 +2676,35 @@ void main() {
         'read-logs',
         'inspect-surface',
         'capture-screenshot',
+        'timeline-recording-fallback',
         'hot-reload',
         'hot-restart',
       ]);
-      expect(platform.warnings, hasLength(1));
+      expect(platform.exportedScreenshotCount, platform.autoScreenshotCount);
+      expect(platform.screenshotOutputPath, isNotNull);
+      expect(platform.warnings, hasLength(2));
       expect(
-        platform.warnings.single,
+        platform.warnings.first,
         contains('Screen Recording permission is missing.'),
+      );
+      expect(
+        platform.warnings.last,
+        contains('Synthesized a timeline recording'),
       );
     },
   );
 
   test(
-    'verifier fails local web validation when host recording fails after startup',
+    'verifier synthesizes a web timeline recording when host recording fails after startup',
     () async {
+      final outputRoot = await Directory.systemTemp.createTemp(
+        'cockpit_web_timeline_fallback_',
+      );
+      addTearDown(() async {
+        if (await outputRoot.exists()) {
+          await outputRoot.delete(recursive: true);
+        }
+      });
       final verifier = CockpitDemoPlatformVerifier(
         probeDevices: () async => const <CockpitDemoHostDevice>[
           CockpitDemoHostDevice(
@@ -2377,48 +2759,11 @@ void main() {
           diagnosticLevel: 'investigate',
           truncated: false,
         ),
-        runCommand: (request) async => CockpitExecuteRemoteCommandResult(
-          command: CockpitInteractiveCommandCore(
-            commandId: request.command.commandId,
-            commandType: request.command.commandType.name,
-            success: true,
-            durationMs: 10,
-            usedCaptureFallback: false,
-          ),
-          artifacts:
-              request.command.commandType ==
-                  CockpitCommandType.captureScreenshot
-              ? const <CockpitInteractiveArtifactDescriptor>[
-                  CockpitInteractiveArtifactDescriptor(
-                    role: 'screenshot',
-                    relativePath: 'screenshots/web-warning-proof.png',
-                    byteLength: 512,
-                  ),
-                ]
-              : const <CockpitInteractiveArtifactDescriptor>[],
+        runCommand: (request) async => _successfulCommandResult(
+          request.command,
+          screenshotByteLength: 512,
         ),
-        runBatch: (request) async => CockpitRunBatchResult(
-          results: request.commands
-              .map(
-                (batchCommand) => CockpitExecuteRemoteCommandResult(
-                  command: CockpitInteractiveCommandCore(
-                    commandId: batchCommand.command.commandId,
-                    commandType: batchCommand.command.commandType.name,
-                    success: true,
-                    durationMs: 10,
-                    usedCaptureFallback: false,
-                  ),
-                  artifacts: const <CockpitInteractiveArtifactDescriptor>[],
-                ),
-              )
-              .toList(growable: false),
-          summary: CockpitExecuteRemoteCommandBatchSummary(
-            totalCount: request.commands.length,
-            successCount: request.commands.length,
-            failureCount: 0,
-            stoppedEarly: false,
-          ),
-        ),
+        runBatch: (request) async => _successfulBatchResult(request),
         waitIdle: (_) async => const CockpitWaitIdleResult(
           idle: true,
           durationMs: 120,
@@ -2531,24 +2876,48 @@ void main() {
           app: request.app!,
           status: CockpitAppStopStatus.stopped(mode: request.app!.mode),
         ),
+        timelineRecordingProcessRunner: (executable, arguments) async {
+          expect(executable, 'ffmpeg');
+          final outputPath = arguments.last;
+          await File(outputPath).writeAsBytes(<int>[1, 2, 3, 4], flush: true);
+          return ProcessResult(0, 0, '', '');
+        },
       );
 
       final result = await verifier.verify(
-        const CockpitDemoPlatformVerificationRequest(
+        CockpitDemoPlatformVerificationRequest(
           projectDir: '/workspace/examples/cockpit_demo',
-          platforms: <String>['web'],
+          platforms: const <String>['web'],
+          outputRoot: outputRoot.path,
           allowWebHostRecordingPrerequisiteFailure: true,
         ),
       );
 
-      expect(result.success, isFalse);
+      expect(result.success, isTrue);
       expect(result.platforms, hasLength(1));
       final platform = result.platforms.single;
-      expect(platform.status, 'failed');
-      expect(platform.failureCode, 'recordingStopFailed');
-      expect(platform.recordingArtifactRef, isNull);
+      expect(platform.status, 'passed');
       expect(
-        platform.failureDetails['failureReason'],
+        platform.recordingArtifactRef,
+        'recordings/verify_web_loop_timeline_fallback.mp4',
+      );
+      expect(platform.recordingOutputPath, isNotNull);
+      expect(File(platform.recordingOutputPath!).existsSync(), isTrue);
+      expect(platform.recordingDriver, 'browser-host-fallback');
+      expect(platform.recordingKind, 'timelineScreenshotFallback');
+      expect(platform.exportedScreenshotCount, platform.autoScreenshotCount);
+      expect(platform.verifiedCommands, contains('stop-recording'));
+      final screenshotsDir = Directory(
+        p.join(platform.outputDir, 'screenshots'),
+      );
+      final screenshotFiles = screenshotsDir
+          .listSync(recursive: true)
+          .whereType<File>()
+          .where((file) => p.extension(file.path) == '.png')
+          .toList(growable: false);
+      expect(screenshotFiles, hasLength(platform.autoScreenshotCount + 1));
+      expect(
+        platform.warnings.single,
         contains('macOS recording did not stop before timeout.'),
       );
     },
@@ -2666,9 +3035,29 @@ CockpitCapabilities _capabilitiesForPlatform(String platform) {
 
 CockpitExecuteRemoteCommandResult _successfulCommandResult(
   CockpitCommand command, {
-  bool includeScreenshot = false,
+  bool? includeScreenshot,
   int screenshotByteLength = 1024,
 }) {
+  final shouldIncludeScreenshot =
+      includeScreenshot ??
+      (command.commandType == CockpitCommandType.captureScreenshot ||
+          cockpitCommandTypeIsAiEvidenceKeyOperation(command.commandType));
+  final screenshotRelativePath = shouldIncludeScreenshot
+      ? _screenshotRelativePathFor(command)
+      : null;
+  final screenshotArtifact = shouldIncludeScreenshot
+      ? CockpitInteractiveArtifactDescriptor(
+          role: 'screenshot',
+          relativePath: screenshotRelativePath!,
+          byteLength: screenshotByteLength,
+          sourcePath: screenshotByteLength <= 0
+              ? null
+              : _writeScreenshotArtifactFor(
+                  relativePath: screenshotRelativePath,
+                  byteLength: screenshotByteLength,
+                ),
+        )
+      : null;
   return CockpitExecuteRemoteCommandResult(
     command: CockpitInteractiveCommandCore(
       commandId: command.commandId,
@@ -2677,16 +3066,34 @@ CockpitExecuteRemoteCommandResult _successfulCommandResult(
       durationMs: 12,
       usedCaptureFallback: false,
     ),
-    artifacts: includeScreenshot
-        ? <CockpitInteractiveArtifactDescriptor>[
-            CockpitInteractiveArtifactDescriptor(
-              role: 'screenshot',
-              relativePath: 'screenshots/platform-proof.png',
-              byteLength: screenshotByteLength,
-            ),
-          ]
-        : const <CockpitInteractiveArtifactDescriptor>[],
+    artifacts: screenshotArtifact == null
+        ? const <CockpitInteractiveArtifactDescriptor>[]
+        : <CockpitInteractiveArtifactDescriptor>[screenshotArtifact],
   );
+}
+
+String _screenshotRelativePathFor(CockpitCommand command) {
+  if (command.commandType == CockpitCommandType.captureScreenshot) {
+    return 'screenshots/platform-proof.png';
+  }
+  _screenshotArtifactSequence += 1;
+  final sanitized = command.commandId
+      .replaceAll(RegExp(r'[^A-Za-z0-9._-]+'), '_')
+      .replaceAll(RegExp(r'^_+|_+$'), '');
+  final stem = sanitized.isEmpty ? 'command' : sanitized;
+  return 'screenshots/${stem}_$_screenshotArtifactSequence.png';
+}
+
+String _writeScreenshotArtifactFor({
+  required String relativePath,
+  required int byteLength,
+}) {
+  final directory = Directory.systemTemp.createTempSync(
+    'cockpit_demo_screenshot_artifact_',
+  );
+  final file = File(p.join(directory.path, p.basename(relativePath)));
+  file.writeAsBytesSync(List<int>.filled(byteLength, 1), flush: true);
+  return file.path;
 }
 
 CockpitRunBatchResult _successfulBatchResult(CockpitRunBatchRequest request) {
