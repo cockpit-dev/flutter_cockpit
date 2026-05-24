@@ -3385,6 +3385,8 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
     } on Object {
       return false;
     }
+    final testBindingWithCustomTick =
+        _isTestBinding(widgetsBinding) && _hasCustomWaitTickHandler;
     if (_isTestBinding(widgetsBinding) && !_hasCustomWaitTickHandler) {
       return false;
     }
@@ -3393,7 +3395,11 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
       await Future<void>.microtask(() {});
       if (schedulerBinding.schedulerPhase != SchedulerPhase.idle ||
           schedulerBinding.hasScheduledFrame) {
-        await _awaitFrameIfScheduled(schedulerBinding, widgetsBinding);
+        if (testBindingWithCustomTick && schedulerBinding.hasScheduledFrame) {
+          await _waitTickHandler(const Duration(milliseconds: 16));
+        } else {
+          await _awaitFrameIfScheduled(schedulerBinding, widgetsBinding);
+        }
       }
 
       final snapshot = _liveSnapshot();
@@ -3406,7 +3412,11 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
       }
 
       if (schedulerBinding.hasScheduledFrame) {
-        await _awaitFrameIfScheduled(schedulerBinding, widgetsBinding);
+        if (testBindingWithCustomTick) {
+          await _waitTickHandler(const Duration(milliseconds: 16));
+        } else {
+          await _awaitFrameIfScheduled(schedulerBinding, widgetsBinding);
+        }
       } else {
         await _waitTickHandler(const Duration(milliseconds: 16));
       }

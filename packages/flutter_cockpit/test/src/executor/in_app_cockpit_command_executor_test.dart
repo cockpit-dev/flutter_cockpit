@@ -1700,6 +1700,67 @@ void main() {
   );
 
   testWidgets(
+    'tap drives scheduled route frames under flutter_test before waiting for route targets',
+    (tester) async {
+      final registry = CockpitTargetRegistry(routeName: '/inbox');
+
+      await tester.pumpWidget(
+        const Directionality(
+          textDirection: TextDirection.ltr,
+          child: SizedBox.shrink(),
+        ),
+      );
+
+      registry.register(
+        CockpitTarget(
+          registrationId: 'open-editor',
+          text: 'Open editor',
+          routeName: '/inbox',
+          supportedCommands: const {CockpitCommandType.tap},
+          onTap: () {
+            registry.routeName = '/editor';
+            registry.register(
+              const CockpitTarget(
+                registrationId: 'editor-ready',
+                keyValue: 'editor-ready',
+                routeName: '/editor',
+              ),
+            );
+            WidgetsBinding.instance.scheduleFrame();
+          },
+        ),
+      );
+
+      var tickCount = 0;
+      final executor = InAppCockpitCommandExecutor(
+        registry: registry,
+        waitTickHandler: (duration) async {
+          tickCount += 1;
+          await tester.pump(duration);
+        },
+        interactionPolicy: const CockpitInteractionPolicy(
+          preActionVisualDelay: Duration.zero,
+          actionVisualDelay: Duration.zero,
+          routeTransitionVisualDelay: Duration.zero,
+          recordingActionVisualDelay: Duration.zero,
+        ),
+      );
+
+      final result = await executor.execute(
+        CockpitCommand(
+          commandId: 'open-editor',
+          commandType: CockpitCommandType.tap,
+          locator: const CockpitLocator(text: 'Open editor'),
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(tickCount, greaterThanOrEqualTo(1));
+      expect(result.snapshot?['routeName'], '/editor');
+    },
+  );
+
+  testWidgets(
     'scrollUntilVisible discovers a lazily built target after scrolling',
     (tester) async {
       final registry = CockpitTargetRegistry(routeName: '/list');
