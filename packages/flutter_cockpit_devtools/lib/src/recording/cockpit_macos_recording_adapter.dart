@@ -149,8 +149,7 @@ final class CockpitMacosRecordingAdapter
         .listen((line) {
           _appendRecentStderrLine(recentStderrLines, line);
           if (!startupCompleter.isCompleted &&
-              (line.contains('Press [q] to stop') ||
-                  line.contains('Output #0'))) {
+              _isStartupConfirmationLine(line)) {
             startupCompleter.complete();
           }
         });
@@ -559,6 +558,12 @@ final class CockpitMacosRecordingAdapter
       return prefix;
     }
     return '$prefix Recent ffmpeg output: ${recentStderrLines.join(' | ')}';
+  }
+
+  bool _isStartupConfirmationLine(String line) {
+    return line.contains('Press [q] to stop') ||
+        line.contains('Output #0') ||
+        line.contains('Overriding selected pixel format');
   }
 
   String _withRecentStderr(String prefix, List<String> recentStderrLines) {

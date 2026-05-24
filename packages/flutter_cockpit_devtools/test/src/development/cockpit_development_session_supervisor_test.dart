@@ -314,17 +314,21 @@ void main() {
     },
   );
 
-  test('hot reload waits for UI idle before reporting ready', () async {
+  test('hot reload reports ready after remote reachability recovers', () async {
     final harness = _MachineHarness();
     addTearDown(harness.dispose);
 
     var now = DateTime.utc(2026, 3, 23, 3);
+    var remoteChecks = 0;
     var uiIdleRecovered = true;
 
     final supervisor = CockpitDevelopmentSessionSupervisor(
       initialHandle: harness.handle,
       machineClient: harness.client,
-      remoteReachabilityProbe: (_) async => true,
+      remoteReachabilityProbe: (_) async {
+        remoteChecks += 1;
+        return true;
+      },
       uiIdleWaiter: (_) async => uiIdleRecovered,
       now: () {
         final current = now;
@@ -352,11 +356,14 @@ void main() {
     expect(harness.writes.last, contains('"fullRestart":false'));
     harness.stdoutController.add('[{"id":0,"result":{"code":0}}]');
 
-    await expectLater(reloadFuture, throwsA(isA<StateError>()));
-    final failedStatus = await supervisor.currentStatus();
-    expect(failedStatus.state, CockpitDevelopmentSessionState.failed);
-    expect(failedStatus.lastReloadSucceeded, isFalse);
-    expect(failedStatus.lastReloadMode, CockpitDevelopmentReloadMode.hotReload);
+    final reloadedStatus = await reloadFuture;
+    expect(reloadedStatus.state, CockpitDevelopmentSessionState.ready);
+    expect(reloadedStatus.lastReloadSucceeded, isTrue);
+    expect(remoteChecks, greaterThanOrEqualTo(2));
+    expect(
+      reloadedStatus.lastReloadMode,
+      CockpitDevelopmentReloadMode.hotReload,
+    );
   });
 
   test(
@@ -442,6 +449,75 @@ void main() {
       expect(status.lastReloadSucceeded, isFalse);
       expect(status.lastReloadMode, CockpitDevelopmentReloadMode.hotRestart);
       expect(status.lastError, contains('idle ready state'));
+    },
+  );
+
+  test(
+    'web hot restart reports ready after remote reachability recovers',
+    () async {
+      final harness = _MachineHarness(
+        remoteSessionHandle: CockpitRemoteSessionHandle(
+          platform: 'web',
+          deviceId: 'chrome',
+          projectDir: '/workspace/examples/cockpit_demo',
+          target: 'lib/main.dart',
+          appId: 'dev.cockpit.cockpit_demo',
+          host: '127.0.0.1',
+          hostPort: 57331,
+          devicePort: 57331,
+          baseUrl: 'http://127.0.0.1:57331',
+          launchedAt: DateTime.utc(2026, 3, 23, 0, 0),
+        ),
+      );
+      addTearDown(harness.dispose);
+
+      var now = DateTime.utc(2026, 3, 23, 3);
+      var remoteChecks = 0;
+      var uiIdleRecovered = true;
+      final supervisor = CockpitDevelopmentSessionSupervisor(
+        initialHandle: harness.handle.copyWith(
+          platform: 'web',
+          deviceId: 'chrome',
+        ),
+        machineClient: harness.client,
+        remoteReachabilityProbe: (_) async {
+          remoteChecks += 1;
+          return true;
+        },
+        uiIdleWaiter: (_) async => uiIdleRecovered,
+        now: () {
+          final current = now;
+          now = now.add(const Duration(milliseconds: 250));
+          return current;
+        },
+        settleTimeout: const Duration(seconds: 2),
+        settlePollInterval: const Duration(milliseconds: 10),
+      );
+      addTearDown(supervisor.dispose);
+
+      await supervisor.start();
+      harness.stdoutController.add(
+        '[{"event":"app.start","params":{"appId":"app-1"}}]',
+      );
+      harness.stdoutController.add('[{"event":"app.started","params":{}}]');
+      await supervisor.waitForState(CockpitDevelopmentSessionState.ready);
+
+      uiIdleRecovered = false;
+      final reloadFuture = supervisor.reload(
+        CockpitDevelopmentReloadMode.hotRestart,
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(harness.writes.last, contains('"fullRestart":true'));
+      harness.stdoutController.add('[{"id":0,"result":{"code":0}}]');
+
+      final reloadedStatus = await reloadFuture;
+      expect(reloadedStatus.state, CockpitDevelopmentSessionState.ready);
+      expect(reloadedStatus.lastReloadSucceeded, isTrue);
+      expect(
+        reloadedStatus.lastReloadMode,
+        CockpitDevelopmentReloadMode.hotRestart,
+      );
+      expect(remoteChecks, greaterThanOrEqualTo(2));
     },
   );
 

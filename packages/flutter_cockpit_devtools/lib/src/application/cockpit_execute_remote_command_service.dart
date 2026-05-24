@@ -1,6 +1,9 @@
 export 'cockpit_application_service_exception.dart';
 
+import 'dart:io';
+
 import 'package:flutter_cockpit/flutter_cockpit.dart';
+import 'package:path/path.dart' as p;
 
 import '../control_core/cockpit_control_planner.dart';
 import '../control_core/cockpit_execution_plan.dart';
@@ -21,6 +24,8 @@ typedef CockpitRemoteCommandExecutor =
       Uri baseUri,
       CockpitCommand command,
     );
+typedef CockpitCommandArtifactTempFileFactory =
+    Future<File> Function(String relativePath);
 
 final class CockpitExecuteRemoteCommandRequest {
   const CockpitExecuteRemoteCommandRequest({
@@ -114,6 +119,7 @@ final class CockpitExecuteRemoteCommandService {
     CockpitSessionReferenceResolver? sessionReferenceResolver,
     CockpitInteractiveSnapshotStore? snapshotStore,
     CockpitInteractiveSessionLock? sessionLock,
+    CockpitCommandArtifactTempFileFactory? artifactTempFileFactory,
   }) : _executeCommand =
            executeCommand ??
            ((baseUri, command) => CockpitRemoteSessionClient(
@@ -128,13 +134,16 @@ final class CockpitExecuteRemoteCommandService {
        _sessionReferenceResolver =
            sessionReferenceResolver ?? CockpitSessionReferenceResolver(),
        _snapshotStore = snapshotStore ?? CockpitInteractiveSnapshotStore(),
-       _sessionLock = sessionLock ?? CockpitInteractiveSessionLock();
+       _sessionLock = sessionLock ?? CockpitInteractiveSessionLock(),
+       _artifactTempFileFactory =
+           artifactTempFileFactory ?? _defaultCommandArtifactTempFileFactory;
 
   final CockpitRemoteCommandExecutor _executeCommand;
   final CockpitRemoteSnapshotDetailedReader _readSnapshot;
   final CockpitSessionReferenceResolver _sessionReferenceResolver;
   final CockpitInteractiveSnapshotStore _snapshotStore;
   final CockpitInteractiveSessionLock _sessionLock;
+  final CockpitCommandArtifactTempFileFactory _artifactTempFileFactory;
 
   Future<CockpitExecuteRemoteCommandResult> execute(
     CockpitExecuteRemoteCommandRequest request,
@@ -160,6 +169,10 @@ final class CockpitExecuteRemoteCommandService {
       final execution = await _executeCommand(
         resolved.baseUri,
         effectiveCommand,
+      );
+      final evidenceExecution = await _withPersistedMetadataArtifacts(
+        execution,
+        request.resultProfile.artifacts,
       );
       final effectiveSnapshotOptions =
           request.resultProfile.requiresPostActionSnapshotRead(
@@ -189,9 +202,11 @@ final class CockpitExecuteRemoteCommandService {
           : _snapshotStore.put(sessionKey: sessionKey, snapshot: snapshot);
 
       return CockpitExecuteRemoteCommandResult(
-        command: CockpitInteractiveCommandCore.fromResult(execution.result),
+        command: CockpitInteractiveCommandCore.fromResult(
+          evidenceExecution.result,
+        ),
         artifacts: cockpitInteractiveArtifactsFromExecution(
-          execution,
+          evidenceExecution,
           request.resultProfile.artifacts,
         ),
         selectedPlane: executionPlan.selectedPlane,
@@ -200,8 +215,8 @@ final class CockpitExecuteRemoteCommandService {
           execution: execution,
           executionPlan: executionPlan,
         ),
-        whatChanged: _whatChanged(execution.result),
-        whatMatters: _whatMatters(execution.result),
+        whatChanged: _whatChanged(evidenceExecution.result),
+        whatMatters: _whatMatters(evidenceExecution.result),
         uiSummary: snapshot == null || !request.resultProfile.emitsUiSummary
             ? null
             : cockpitInteractiveSummarizeSnapshot(snapshot),
@@ -213,7 +228,7 @@ final class CockpitExecuteRemoteCommandService {
                 request.resultProfile.diagnostics,
               ),
         runtimeSteps: request.resultProfile.emitsRuntimeSteps
-            ? execution.runtimeSteps
+            ? evidenceExecution.runtimeSteps
                   .map((step) => (step.toJson()))
                   .toList(growable: false)
             : const <Map<String, Object?>>[],
@@ -228,6 +243,43 @@ final class CockpitExecuteRemoteCommandService {
         effectiveSnapshotOptions: effectiveSnapshotOptions,
       );
     });
+  }
+
+  Future<CockpitCommandExecution> _withPersistedMetadataArtifacts(
+    CockpitCommandExecution execution,
+    CockpitInteractiveArtifactLevel artifactLevel,
+  ) async {
+    if (artifactLevel != CockpitInteractiveArtifactLevel.metadata ||
+        execution.artifactPayloads.isEmpty) {
+      return execution;
+    }
+
+    final artifactSourcePaths = <String, String>{
+      ...execution.artifactSourcePaths,
+    };
+    for (final entry in execution.artifactPayloads.entries) {
+      if (artifactSourcePaths.containsKey(entry.key)) {
+        continue;
+      }
+      final bytes = entry.value;
+      if (bytes.isEmpty) {
+        continue;
+      }
+      final file = await _artifactTempFileFactory(entry.key);
+      await file.parent.create(recursive: true);
+      if (await file.exists()) {
+        await file.delete();
+      }
+      await file.writeAsBytes(bytes, flush: true);
+      artifactSourcePaths[entry.key] = file.path;
+    }
+
+    return CockpitCommandExecution(
+      result: execution.result,
+      artifactPayloads: execution.artifactPayloads,
+      artifactSourcePaths: artifactSourcePaths,
+      runtimeSteps: execution.runtimeSteps,
+    );
   }
 
   static CockpitCommand _withDefaultTimeout(
@@ -391,4 +443,20 @@ final class CockpitExecuteRemoteCommandService {
     }
     return null;
   }
+}
+
+Future<File> _defaultCommandArtifactTempFileFactory(String relativePath) async {
+  final directory = await Directory.systemTemp.createTemp(
+    'flutter_cockpit_command_artifacts_',
+  );
+  final basename = p.basename(relativePath);
+  final safeBasename = basename
+      .replaceAll(RegExp(r'[^A-Za-z0-9._-]+'), '_')
+      .replaceAll(RegExp(r'^_+|_+$'), '');
+  return File(
+    p.join(
+      directory.path,
+      safeBasename.isEmpty ? 'artifact.bin' : safeBasename,
+    ),
+  );
 }

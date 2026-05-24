@@ -358,7 +358,10 @@ final class CockpitDevelopmentSessionSupervisor {
     CockpitDevelopmentReloadMode? lastReloadMode,
     required bool bumpGeneration,
   }) async {
-    const requireUiIdle = true;
+    final requireUiIdle =
+        lastReloadMode == null ||
+        (lastReloadMode != CockpitDevelopmentReloadMode.hotReload &&
+            _handle.platform != 'web');
     _log(
       'settle begin '
       'mode=${lastReloadMode?.jsonValue ?? 'startup'} '
@@ -368,19 +371,25 @@ final class CockpitDevelopmentSessionSupervisor {
     var remoteReachable = false;
     var uiIdle = false;
     var ready = false;
+    var stableRemoteReachableChecks = 0;
 
     while (!ready && _now().isBefore(deadline)) {
       remoteReachable = await _runSettleProbe(
         label: 'remote_reachability',
         probe: () => _remoteReachabilityProbe(_handle.baseUri),
       );
+      stableRemoteReachableChecks = remoteReachable
+          ? stableRemoteReachableChecks + 1
+          : 0;
       uiIdle = remoteReachable
           ? await _runSettleProbe(
               label: 'ui_idle',
               probe: () => _uiIdleWaiter(_handle.baseUri),
             )
           : false;
-      ready = remoteReachable && (uiIdle || !requireUiIdle);
+      ready =
+          remoteReachable &&
+          (requireUiIdle ? uiIdle : stableRemoteReachableChecks >= 2);
       if (!ready) {
         await Future<void>.delayed(_settlePollInterval);
       }

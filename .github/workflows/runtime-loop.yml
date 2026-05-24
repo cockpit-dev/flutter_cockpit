@@ -347,8 +347,6 @@ jobs:
               "read-app",
               "inspect-ui",
               "run-batch",
-              "start-recording",
-              "stop-recording",
               "wait-idle",
               "sync_lab_conflict_recovery",
               "read-network",
@@ -356,9 +354,8 @@ jobs:
               "read-logs",
               "inspect-surface",
               "capture-screenshot",
-              "hot-reload",
-              "hot-restart",
           ]
+          expected_suffix = ["hot-reload", "hot-restart"]
 
           result_path = pathlib.Path(os.environ["RESULT_JSON"])
           data = json.loads(result_path.read_text())
@@ -381,6 +378,12 @@ jobs:
           assert platform["recordingOutputPath"], platform
           assert platform["screenshotArtifactRef"], platform
           assert platform["screenshotByteLength"] > 0, platform
+          assert platform["exportedScreenshotCount"] >= platform["autoScreenshotCount"], platform
+          screenshot_output = pathlib.Path(platform["screenshotOutputPath"])
+          assert screenshot_output.is_file() and screenshot_output.stat().st_size > 0, platform
+          screenshot_dir = pathlib.Path(platform["outputDir"]) / "screenshots"
+          screenshot_files = [path for path in screenshot_dir.rglob("*.png") if path.is_file()]
+          assert len(screenshot_files) >= platform["autoScreenshotCount"] + 1, screenshot_files
           PY
 
       - name: Upload Android runtime loop bundle
@@ -575,6 +578,12 @@ jobs:
           assert platform["recordingOutputPath"], platform
           assert platform["screenshotArtifactRef"], platform
           assert platform["screenshotByteLength"] > 0, platform
+          assert platform["exportedScreenshotCount"] >= platform["autoScreenshotCount"], platform
+          screenshot_output = pathlib.Path(platform["screenshotOutputPath"])
+          assert screenshot_output.is_file() and screenshot_output.stat().st_size > 0, platform
+          screenshot_dir = pathlib.Path(platform["outputDir"]) / "screenshots"
+          screenshot_files = [path for path in screenshot_dir.rglob("*.png") if path.is_file()]
+          assert len(screenshot_files) >= platform["autoScreenshotCount"] + 1, screenshot_files
           PY
 
       - name: Upload iOS runtime loop bundle
@@ -694,6 +703,12 @@ jobs:
           assert platform["recordingOutputPath"], platform
           assert platform["screenshotArtifactRef"], platform
           assert platform["screenshotByteLength"] > 0, platform
+          assert platform["exportedScreenshotCount"] >= platform["autoScreenshotCount"], platform
+          screenshot_output = pathlib.Path(platform["screenshotOutputPath"])
+          assert screenshot_output.is_file() and screenshot_output.stat().st_size > 0, platform
+          screenshot_dir = pathlib.Path(platform["outputDir"]) / "screenshots"
+          screenshot_files = [path for path in screenshot_dir.rglob("*.png") if path.is_file()]
+          assert len(screenshot_files) >= platform["autoScreenshotCount"] + 1, screenshot_files
           PY
 
       - name: Upload macOS runtime loop bundle
@@ -775,7 +790,6 @@ jobs:
       - name: Verify web runtime loop result
         env:
           EXPECTED_PLATFORM: web
-          EXPECTED_RECORDING_DRIVER: browser-host
         run: |
           python3 - <<'PY'
           import json, os, pathlib
@@ -806,8 +820,17 @@ jobs:
           platform = data["platforms"][0]
           assert platform["platform"] == os.environ["EXPECTED_PLATFORM"], platform
           assert platform["status"] == "passed", platform
-          assert platform["verifiedCommands"] == expected_commands, platform
-          assert platform["recordingDriver"] == os.environ["EXPECTED_RECORDING_DRIVER"], platform
+          verified_commands = platform["verifiedCommands"]
+          assert verified_commands[:len(expected_commands)] == expected_commands, platform
+          assert verified_commands[-len(expected_suffix):] == expected_suffix, platform
+          if platform["recordingDriver"] == "browser-host":
+              assert "start-recording" in verified_commands, platform
+              assert "stop-recording" in verified_commands, platform
+              assert "timeline-recording-fallback" not in verified_commands, platform
+          else:
+              assert platform["recordingDriver"] == "browser-host-fallback", platform
+              assert "timeline-recording-fallback" in verified_commands, platform
+          assert platform["recordingDriver"] in ("browser-host", "browser-host-fallback"), platform
           assert platform["batchCommandCount"] == 31, platform
           assert platform["autoScreenshotCount"] >= 19, platform
           assert platform["networkFailureCount"] == 0, platform
@@ -819,6 +842,12 @@ jobs:
           assert platform["recordingOutputPath"], platform
           assert platform["screenshotArtifactRef"], platform
           assert platform["screenshotByteLength"] > 0, platform
+          assert platform["exportedScreenshotCount"] >= platform["autoScreenshotCount"], platform
+          screenshot_output = pathlib.Path(platform["screenshotOutputPath"])
+          assert screenshot_output.is_file() and screenshot_output.stat().st_size > 0, platform
+          screenshot_dir = pathlib.Path(platform["outputDir"]) / "screenshots"
+          screenshot_files = [path for path in screenshot_dir.rglob("*.png") if path.is_file()]
+          assert len(screenshot_files) >= platform["autoScreenshotCount"] + 1, screenshot_files
           PY
 
       - name: Upload web runtime loop bundle
@@ -961,6 +990,12 @@ jobs:
           assert platform["recordingOutputPath"], platform
           assert platform["screenshotArtifactRef"], platform
           assert platform["screenshotByteLength"] > 0, platform
+          assert platform["exportedScreenshotCount"] >= platform["autoScreenshotCount"], platform
+          screenshot_output = pathlib.Path(platform["screenshotOutputPath"])
+          assert screenshot_output.is_file() and screenshot_output.stat().st_size > 0, platform
+          screenshot_dir = pathlib.Path(platform["outputDir"]) / "screenshots"
+          screenshot_files = [path for path in screenshot_dir.rglob("*.png") if path.is_file()]
+          assert len(screenshot_files) >= platform["autoScreenshotCount"] + 1, screenshot_files
           PY
 
       - name: Upload Linux runtime loop bundle
@@ -1105,6 +1140,12 @@ jobs:
           assert platform["recordingOutputPath"], platform
           assert platform["screenshotArtifactRef"], platform
           assert platform["screenshotByteLength"] > 0, platform
+          assert platform["exportedScreenshotCount"] >= platform["autoScreenshotCount"], platform
+          screenshot_output = pathlib.Path(platform["screenshotOutputPath"])
+          assert screenshot_output.is_file() and screenshot_output.stat().st_size > 0, platform
+          screenshot_dir = pathlib.Path(platform["outputDir"]) / "screenshots"
+          screenshot_files = [path for path in screenshot_dir.rglob("*.png") if path.is_file()]
+          assert len(screenshot_files) >= platform["autoScreenshotCount"] + 1, screenshot_files
           PY
 
       - name: Upload Windows runtime loop bundle

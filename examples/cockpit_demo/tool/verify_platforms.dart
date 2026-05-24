@@ -118,6 +118,7 @@ Future<void> main(List<String> arguments) async {
     allowWebHostRecordingPrerequisiteFailure:
         parsed['allow-web-host-recording-prerequisite-failure'] as bool,
     failFast: parsed['fail-fast'] as bool,
+    progressSink: (event) => stderr.writeln(event.toAiLine()),
   );
 
   final verifier = CockpitDemoPlatformVerifier();
@@ -129,9 +130,10 @@ Future<void> main(List<String> arguments) async {
     final file = File(outputPath);
     await file.parent.create(recursive: true);
     await file.writeAsString(jsonText);
+    stdout.writeln('output=${file.path}');
+  } else {
+    stdout.writeln(jsonText);
   }
-
-  stdout.writeln(jsonText);
   exitCode = result.success ? 0 : 1;
 }
 
