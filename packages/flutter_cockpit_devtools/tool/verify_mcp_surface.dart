@@ -494,6 +494,15 @@ final class _McpSurfaceVerifier {
         'open_settings',
         appReport['open_settings'] as Map<String, Object?>,
       );
+      final waitIdleAfterSettings =
+          await _callTool(server, 'wait_idle', <String, Object?>{
+            'appId': appId,
+            'timeoutMs': 5000,
+            'quietWindowMs': 160,
+            'includeNetworkIdle': true,
+          });
+      appReport['wait_idle_after_settings'] = waitIdleAfterSettings;
+      _requireIdle('wait_idle_after_settings', waitIdleAfterSettings);
       appReport['inspect_ui_settings'] =
           await _callTool(server, 'inspect_ui', <String, Object?>{
             'appId': appId,

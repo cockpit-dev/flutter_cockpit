@@ -33,6 +33,10 @@ List<Map<String, Object?>> buildSyncLabCreateTaskBatch({
         'ancestor': <String, Object?>{'route': '/inbox'},
       },
     },
+    _waitForRouteCommand(
+      commandId: 'verify-wait-for-editor-route',
+      routeName: '/editor',
+    ),
     <String, Object?>{
       'commandId': 'verify-enter-task-title',
       'commandType': 'enterText',

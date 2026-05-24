@@ -76,7 +76,7 @@ void main() {
     expect(workflow, contains('xvfb-run -a dart run'));
     expect(workflow, contains('reactivecircus/android-emulator-runner@v2'));
     expect(workflow, contains('"sync_lab_conflict_recovery"'));
-    expect(workflow, contains('assert platform["batchCommandCount"] == 29'));
+    expect(workflow, contains('assert platform["batchCommandCount"] == 30'));
     expect(workflow, contains('assert platform["recordingOutputPath"]'));
     expect(workflow, contains('assert platform["screenshotByteLength"] > 0'));
     expect(workflow, isNot(contains('platform["batchCommandCount"] == 4')));
@@ -92,6 +92,19 @@ void main() {
     expect(workflow, isNot(contains('run: melos bootstrap')));
     expect(demoReadme, contains('flutter pub get'));
     expect(demoReadme, isNot(contains('dart run melos bootstrap')));
+  });
+
+  test('web runtime loop installs X11 utilities required by host recording', () {
+    final workflow = workflowFile.readAsStringSync();
+
+    final webDependenciesStep = RegExp(
+      r'Install web validation dependencies[\s\S]*?sudo apt-get install -y ([^\n]+)',
+    ).firstMatch(workflow);
+
+    expect(webDependenciesStep, isNotNull);
+    expect(webDependenciesStep!.group(1), contains('ffmpeg'));
+    expect(webDependenciesStep.group(1), contains('x11-utils'));
+    expect(webDependenciesStep.group(1), contains('xvfb'));
   });
 
   test('runtime loop verifier scripts accept the CI output protocol', () {

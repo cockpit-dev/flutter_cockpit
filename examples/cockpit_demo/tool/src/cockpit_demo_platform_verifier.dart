@@ -376,9 +376,13 @@ final class CockpitDemoPlatformVerifier {
     CockpitDemoHotReloadFunction? hotReload,
     CockpitDemoHotRestartFunction? hotRestart,
     CockpitDemoStopAppFunction? stopApp,
+    bool? isWindows,
   }) : _probeDevices =
            probeDevices ??
-           (() => cockpitDemoProbeHostDevices(processRunner: runProcess)),
+           (() => cockpitDemoProbeHostDevices(
+             processRunner: runProcess,
+             isWindows: isWindows,
+           )),
        _listIosSimulators =
            listIosSimulators ??
            (() => cockpitDemoListIosSimulators(processRunner: runProcess)),
@@ -400,7 +404,8 @@ final class CockpitDemoPlatformVerifier {
            recordingAdapterResolver ?? cockpitDemoResolveRecordingAdapter,
        _hotReload = hotReload ?? CockpitHotReloadService().reload,
        _hotRestart = hotRestart ?? CockpitHotRestartService().restart,
-       _stopApp = stopApp ?? CockpitStopAppService().stop;
+       _stopApp = stopApp ?? CockpitStopAppService().stop,
+       _isWindows = isWindows ?? Platform.isWindows;
 
   final CockpitDemoPlatformDeviceProbe _probeDevices;
   final CockpitDemoIosSimulatorProbe _listIosSimulators;
@@ -421,6 +426,7 @@ final class CockpitDemoPlatformVerifier {
   final CockpitDemoHotReloadFunction _hotReload;
   final CockpitDemoHotRestartFunction _hotRestart;
   final CockpitDemoStopAppFunction _stopApp;
+  final bool _isWindows;
 
   Future<CockpitDemoPlatformVerificationResult> verify(
     CockpitDemoPlatformVerificationRequest request,
@@ -603,7 +609,7 @@ final class CockpitDemoPlatformVerifier {
       _requireBatchSuccess(
         platform: platform,
         result: batchResult,
-        expectedCount: 7,
+        expectedCount: 8,
       );
       verifiedCommands.add('run-batch');
       if (recordingStarted) {
@@ -1016,7 +1022,9 @@ final class CockpitDemoPlatformVerifier {
         baseUrl: app?.baseUrl,
         failureCode: serviceError?.code ?? error.runtimeType.toString(),
         failureMessage: '$error',
-        failureDetails: serviceError?.details ?? const <String, Object?>{},
+        failureDetails: await _failureDetailsWithDiagnostics(
+          serviceError?.details,
+        ),
       );
     } finally {
       if (recordingStarted && activeRecordingAdapter != null) {
@@ -1102,11 +1110,11 @@ final class CockpitDemoPlatformVerifier {
           timeout: request.deviceTimeout,
         );
       case 'android':
-        await _runProcess('flutter', <String>[
-          'emulators',
-          '--launch',
-          request.androidEmulatorId,
-        ], workingDirectory: request.projectDir);
+        await _runProcess(
+          cockpitFlutterExecutable(isWindows: _isWindows),
+          <String>['emulators', '--launch', request.androidEmulatorId],
+          workingDirectory: request.projectDir,
+        );
         return _waitForDevice(
           platform: platform,
           timeout: request.deviceTimeout,
@@ -1540,6 +1548,32 @@ final class CockpitDemoPlatformVerifier {
       processRunner: _processRunner,
     );
   }
+
+  Future<Map<String, Object?>> _failureDetailsWithDiagnostics(
+    Map<String, Object?>? details,
+  ) async {
+    final merged = <String, Object?>{...?details};
+    final logPath = merged['supervisorLogPath'];
+    if (logPath is String && logPath.isNotEmpty) {
+      final tail = await _readTextTail(logPath, maxLines: 80);
+      if (tail != null && tail.isNotEmpty) {
+        merged['supervisorLogTail'] = tail;
+      }
+    }
+    return merged;
+  }
+
+  Future<String?> _readTextTail(String path, {required int maxLines}) async {
+    try {
+      final lines = await File(path).readAsLines();
+      final tail = lines.length <= maxLines
+          ? lines
+          : lines.sublist(lines.length - maxLines);
+      return tail.join('\n');
+    } on Object {
+      return null;
+    }
+  }
 }
 
 const String _iosExampleBundleId = 'com.iota9star.fluttercockpit.cockpitdemo';
@@ -1556,11 +1590,13 @@ const List<String> _iosExampleBundleIds = <String>[
 Future<List<CockpitDemoHostDevice>> cockpitDemoProbeHostDevices({
   CockpitDemoProcessRunner processRunner = Process.run,
   String? workingDirectory,
+  bool? isWindows,
 }) async {
-  final result = await processRunner('flutter', const <String>[
-    'devices',
-    '--machine',
-  ], workingDirectory: workingDirectory);
+  final result = await processRunner(
+    cockpitFlutterExecutable(isWindows: isWindows),
+    const <String>['devices', '--machine'],
+    workingDirectory: workingDirectory,
+  );
   if (result.exitCode != 0) {
     throw CockpitApplicationServiceException(
       code: 'deviceProbeFailed',
