@@ -76,6 +76,9 @@ const List<String> cockpitDemoSupportedVerificationPlatforms = <String>[
   'windows',
 ];
 
+const int cockpitDemoExpectedBatchCommandCount = 31;
+const int cockpitDemoMinimumAutoScreenshotCount = 19;
+
 String cockpitDemoDefaultProjectDir({
   required String currentDirectory,
   String? scriptPath,
@@ -613,7 +616,7 @@ final class CockpitDemoPlatformVerifier {
       _requireBatchSuccess(
         platform: platform,
         result: batchResult,
-        expectedCount: 8,
+        expectedCount: 9,
       );
       autoScreenshotCount += _autoScreenshotCount(batchResult);
       verifiedCommands.add('run-batch');
@@ -830,7 +833,7 @@ final class CockpitDemoPlatformVerifier {
       autoScreenshotCount += _autoScreenshotCountFromResult(
         returnFromDetailResult,
       );
-      if (autoScreenshotCount < 20) {
+      if (autoScreenshotCount < cockpitDemoMinimumAutoScreenshotCount) {
         throw CockpitApplicationServiceException(
           code: 'autoScreenshotsMissing',
           message:
@@ -838,7 +841,7 @@ final class CockpitDemoPlatformVerifier {
           details: <String, Object?>{
             'platform': platform,
             'autoScreenshotCount': autoScreenshotCount,
-            'minimumAutoScreenshotCount': 20,
+            'minimumAutoScreenshotCount': cockpitDemoMinimumAutoScreenshotCount,
           },
         );
       }

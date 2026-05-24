@@ -8,7 +8,9 @@ import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 void main() {
-  test('web remote session helpers use explicit IPv4 loopback endpoints', () {
+  test('remote session helpers choose host-reachable bind endpoints', () {
+    expect(cockpitRemoteBindHostForPlatform('android'), '0.0.0.0');
+    expect(cockpitRemotePublicHostForPlatform('android'), '127.0.0.1');
     expect(cockpitRemoteBindHostForPlatform('web'), '127.0.0.1');
     expect(cockpitRemotePublicHostForPlatform('web'), '127.0.0.1');
     expect(cockpitRemoteBindHostForPlatform('ios'), '0.0.0.0');
@@ -77,7 +79,7 @@ void main() {
       expect(
         invocations,
         contains(
-          '${cockpitFlutterExecutable()} build apk --debug --target lib/main.dart --dart-define=FLUTTER_COCKPIT_REMOTE_ENABLED=true --dart-define=FLUTTER_COCKPIT_REMOTE_HOST=127.0.0.1 --dart-define=FLUTTER_COCKPIT_REMOTE_PORT=47331 --dart-define=FLUTTER_COCKPIT_FLUTTER_VERSION=3.38.9',
+          '${cockpitFlutterExecutable()} build apk --debug --target lib/main.dart --dart-define=FLUTTER_COCKPIT_REMOTE_ENABLED=true --dart-define=FLUTTER_COCKPIT_REMOTE_HOST=0.0.0.0 --dart-define=FLUTTER_COCKPIT_REMOTE_PORT=47331 --dart-define=FLUTTER_COCKPIT_FLUTTER_VERSION=3.38.9',
         ),
       );
       expect(
@@ -371,7 +373,7 @@ void main() {
       expect(
         invocations,
         contains(
-          '${cockpitFlutterExecutable()} build apk --debug --target lib/main.dart --flavor staging --dart-define=FLUTTER_COCKPIT_REMOTE_ENABLED=true --dart-define=FLUTTER_COCKPIT_REMOTE_HOST=127.0.0.1 --dart-define=FLUTTER_COCKPIT_REMOTE_PORT=47331 --dart-define=FLUTTER_COCKPIT_FLUTTER_VERSION=3.38.9',
+          '${cockpitFlutterExecutable()} build apk --debug --target lib/main.dart --flavor staging --dart-define=FLUTTER_COCKPIT_REMOTE_ENABLED=true --dart-define=FLUTTER_COCKPIT_REMOTE_HOST=0.0.0.0 --dart-define=FLUTTER_COCKPIT_REMOTE_PORT=47331 --dart-define=FLUTTER_COCKPIT_FLUTTER_VERSION=3.38.9',
         ),
       );
       expect(invocations, contains('adb -s emulator-5554 install -r $apkPath'));

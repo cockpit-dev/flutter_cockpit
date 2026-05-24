@@ -101,6 +101,11 @@ Future<void> main(List<String> args) async {
     final endpoint = await machineLauncher.resolveRemoteSessionEndpoint(
       machineLaunchRequest,
     );
+    await writeLog(
+      'resolved remote endpoint bind_host=${endpoint.bindHost} '
+      'public_host=${endpoint.publicHost} session_port=$sessionPort '
+      'app_host_port=$appHostPort',
+    );
     final supervisor = CockpitDevelopmentSessionSupervisor(
       initialHandle: developmentHandle,
       machineClient: null,
@@ -140,14 +145,25 @@ Future<void> main(List<String> args) async {
       unawaited(supervisor.stop());
     });
 
+    await writeLog('control plane start requested');
     await supervisor.start();
+    await writeLog(
+      'control plane ready base_url='
+      '${(await supervisor.currentHandle()).supervisorBaseUrl}',
+    );
     unawaited(() async {
       try {
         await writeLog('development machine launch start');
+        await writeLog(
+          'development machine launch args '
+          'bind_host=${endpoint.bindHost} public_host=${endpoint.publicHost} '
+          'device_id=$deviceId session_port=$sessionPort',
+        );
         machineClient = await machineLauncher.startMachineClient(
           machineLaunchRequest,
           endpoint: endpoint,
         );
+        await writeLog('development machine client started');
         supervisor.bindMachineClient(machineClient!);
         remoteHandle = await machineLauncher.waitForRemoteSession(
           request: machineLaunchRequest,
@@ -159,12 +175,13 @@ Future<void> main(List<String> args) async {
           'base_url=${remoteHandle!.baseUrl}',
         );
         await supervisor.bindRemoteSession(remoteHandle!);
-      } on Object catch (error) {
+      } on Object catch (error, stackTrace) {
         if (machineClient == null) {
           await writeLog('development machine launch failed error=$error');
         } else {
           await writeLog('remote launch failed error=$error');
         }
+        await writeLog('remote launch stack_trace=$stackTrace');
         supervisor.reportStartupFailure(error);
       }
     }());

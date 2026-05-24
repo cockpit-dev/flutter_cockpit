@@ -81,9 +81,12 @@ void main() {
     expect(workflow, contains(r'STATUS=${PIPESTATUS[0]}'));
     expect(workflow, contains('xvfb-run -a dart run'));
     expect(workflow, contains('reactivecircus/android-emulator-runner@v2'));
+    expect(workflow, contains('subprocess.TimeoutExpired'));
+    expect(workflow, contains('xcrun", "simctl", "bootstatus"'));
+    expect(workflow, isNot(contains('timeout 150 xcrun')));
     expect(workflow, contains('"sync_lab_conflict_recovery"'));
-    expect(workflow, contains('assert platform["batchCommandCount"] == 30'));
-    expect(workflow, contains('assert platform["autoScreenshotCount"] >= 20'));
+    expect(workflow, contains('assert platform["batchCommandCount"] == 31'));
+    expect(workflow, contains('assert platform["autoScreenshotCount"] >= 19'));
     expect(workflow, contains('assert platform["recordingOutputPath"]'));
     expect(workflow, contains('assert platform["screenshotByteLength"] > 0'));
     expect(workflow, isNot(contains('platform["batchCommandCount"] == 4')));

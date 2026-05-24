@@ -266,84 +266,94 @@ void main() {
     },
   );
 
-  test(
-    'daemon launcher appends supervisor log tails to startup failures',
-    () async {
-      final tempDir = await Directory.systemTemp.createTemp(
-        'cockpit-development-supervisor-log-',
-      );
-      addTearDown(() async {
-        if (tempDir.existsSync()) {
-          await tempDir.delete(recursive: true);
-        }
-      });
-      final supervisorLog = File(p.join(tempDir.path, 'supervisor.log'));
-      await supervisorLog.writeAsString(
-        '[2026-05-23T18:17:57Z] machine stderr Xcode build failed\n'
-        '[2026-05-23T18:17:58Z] remote launch failed error=flutter run exited\n',
-      );
+  test('daemon launcher appends supervisor log tails to startup failures', () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'cockpit-development-supervisor-log-',
+    );
+    addTearDown(() async {
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+    final supervisorLog = File(p.join(tempDir.path, 'supervisor.log'));
+    await supervisorLog.writeAsString(
+      '[2026-05-23T18:17:57Z] machine stderr Xcode build failed\n'
+      '[2026-05-23T18:17:57Z] resolved remote endpoint bind_host=127.0.0.1 public_host=127.0.0.1 session_port=47331 app_host_port=47331\n'
+      '[2026-05-23T18:17:58Z] control plane ready base_url=http://127.0.0.1:60014\n'
+      '[2026-05-23T18:17:58Z] development machine client started\n'
+      '[2026-05-23T18:17:58Z] remote launch failed error=flutter run exited\n',
+    );
 
-      final launcher = CockpitDevelopmentSessionDaemonLauncher(
-        supervisorStatusReader: (_) async =>
-            CockpitDevelopmentSessionSupervisorResponse(
-              sessionHandle: _handle(),
-              status: _readyStatus(_handle()).copyWith(
-                state: CockpitDevelopmentSessionState.failed,
-                lastError: 'flutter run exited with code 1',
-              ),
+    final launcher = CockpitDevelopmentSessionDaemonLauncher(
+      supervisorStatusReader: (_) async =>
+          CockpitDevelopmentSessionSupervisorResponse(
+            sessionHandle: _handle(),
+            status: _readyStatus(_handle()).copyWith(
+              state: CockpitDevelopmentSessionState.failed,
+              lastError: 'flutter run exited with code 1',
             ),
-        portForwarder: const _StubPortForwarder(57331),
-        flutterVersionReader: () async => '3.39.0',
-        flutterExecutableReader: () async => '/opt/flutter/bin/flutter',
-        dartExecutableReader: () async =>
-            '/opt/flutter/bin/cache/dart-sdk/bin/dart',
-        allocatePort: () async => 60014,
-        delay: (_) async {},
-        spawnSupervisor:
-            ({
-              required request,
-              required flutterVersion,
-              required flutterExecutable,
-              required dartExecutable,
-              required hostPort,
-              required supervisorPort,
-              required supervisorLogFile,
-            }) async {
-              return CockpitSpawnedDevelopmentSupervisor(
-                baseUri: Uri.parse('http://127.0.0.1:$supervisorPort'),
-                stop: () async {},
-                logPath: supervisorLog.path,
-              );
-            },
-      );
-
-      await expectLater(
-        () => launcher.launch(
-          const CockpitLaunchDevelopmentSessionRequest(
-            projectDir: '/workspace/examples/cockpit_demo',
-            target: 'lib/main.dart',
-            platform: 'ios',
-            deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
-            sessionPort: 47331,
-            launchTimeout: Duration(seconds: 30),
           ),
+      portForwarder: const _StubPortForwarder(57331),
+      flutterVersionReader: () async => '3.39.0',
+      flutterExecutableReader: () async => '/opt/flutter/bin/flutter',
+      dartExecutableReader: () async =>
+          '/opt/flutter/bin/cache/dart-sdk/bin/dart',
+      allocatePort: () async => 60014,
+      delay: (_) async {},
+      spawnSupervisor:
+          ({
+            required request,
+            required flutterVersion,
+            required flutterExecutable,
+            required dartExecutable,
+            required hostPort,
+            required supervisorPort,
+            required supervisorLogFile,
+          }) async {
+            return CockpitSpawnedDevelopmentSupervisor(
+              baseUri: Uri.parse('http://127.0.0.1:$supervisorPort'),
+              stop: () async {},
+              logPath: supervisorLog.path,
+            );
+          },
+    );
+
+    await expectLater(
+      () => launcher.launch(
+        const CockpitLaunchDevelopmentSessionRequest(
+          projectDir: '/workspace/examples/cockpit_demo',
+          target: 'lib/main.dart',
+          platform: 'ios',
+          deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+          sessionPort: 47331,
+          launchTimeout: Duration(seconds: 30),
         ),
-        throwsA(
-          isA<StateError>()
-              .having(
-                (error) => error.message,
-                'message',
-                contains('supervisorLogPath'),
-              )
-              .having(
-                (error) => error.message,
-                'message',
-                contains('Xcode build failed'),
-              ),
-        ),
-      );
-    },
-  );
+      ),
+      throwsA(
+        isA<StateError>()
+            .having(
+              (error) => error.message,
+              'message',
+              contains('supervisorLogPath'),
+            )
+            .having(
+              (error) => error.message,
+              'message',
+              contains('Xcode build failed'),
+            )
+            .having(
+              (error) => error.message,
+              'message',
+              contains('resolved remote endpoint bind_host=127.0.0.1'),
+            )
+            .having(
+              (error) => error.message,
+              'message',
+              contains('development machine client started'),
+            ),
+      ),
+    );
+  });
 
   test(
     'daemon launcher fails fast when supervisor reports a permanent startup error',
