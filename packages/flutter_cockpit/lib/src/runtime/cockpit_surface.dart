@@ -1943,6 +1943,7 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
 
     return _CockpitSurfaceScope(
       state: this,
+      routeName: widget.routeName,
       child: RepaintBoundary(key: _boundaryKey, child: widget.child),
     );
   }
@@ -1994,13 +1995,18 @@ final class _CockpitScrollableCandidate {
 }
 
 final class _CockpitSurfaceScope extends InheritedWidget {
-  const _CockpitSurfaceScope({required this.state, required super.child});
+  const _CockpitSurfaceScope({
+    required this.state,
+    required this.routeName,
+    required super.child,
+  });
 
   final CockpitSurfaceState state;
+  final String routeName;
 
   @override
   bool updateShouldNotify(_CockpitSurfaceScope oldWidget) {
-    return oldWidget.state != state;
+    return oldWidget.state != state || oldWidget.routeName != routeName;
   }
 }
 

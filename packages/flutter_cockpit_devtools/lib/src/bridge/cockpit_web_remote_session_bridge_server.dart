@@ -273,7 +273,9 @@ final class CockpitWebRemoteSessionBridgeServer {
     );
 
     try {
-      final response = await completer.future.timeout(requestTimeout);
+      final response = await completer.future.timeout(
+        _forwardTimeoutFor(request, jsonBody),
+      );
       return response.jsonBody != null
           ? CockpitRemoteSessionEndpointResponse.json(
               response.jsonBody!,
@@ -297,6 +299,22 @@ final class CockpitWebRemoteSessionBridgeServer {
         'message': 'The browser bridge did not respond before timeout.',
       }, statusCode: HttpStatus.gatewayTimeout);
     }
+  }
+
+  Duration _forwardTimeoutFor(
+    HttpRequest request,
+    Map<String, Object?>? jsonBody,
+  ) {
+    if (_routePathFor(request.uri.path) != '/commands/execute') {
+      return requestTimeout;
+    }
+    final commandTimeout = _positiveDurationFromMillis(jsonBody?['timeoutMs']);
+    if (commandTimeout == null) {
+      return requestTimeout;
+    }
+    const commandBridgeBuffer = Duration(seconds: 3);
+    final timeout = commandTimeout + commandBridgeBuffer;
+    return timeout > requestTimeout ? timeout : requestTimeout;
   }
 
   List<int> _binaryBodyFromBridgeResponse(
@@ -657,6 +675,13 @@ String _joinPath(String basePath, String segment) {
     return '/$segment';
   }
   return '$basePath/$segment';
+}
+
+Duration? _positiveDurationFromMillis(Object? value) {
+  if (value is! int || value <= 0) {
+    return null;
+  }
+  return Duration(milliseconds: value);
 }
 
 Object? _compactJsonValue(Object? value) {

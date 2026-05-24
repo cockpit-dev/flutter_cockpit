@@ -396,6 +396,61 @@ void main() {
   );
 
   test(
+    'web bridge honors command timeoutMs before timing out command execution',
+    () async {
+      final server = CockpitWebRemoteSessionBridgeServer(
+        bindHost: '127.0.0.1',
+        bindPort: 0,
+        requestTimeout: const Duration(milliseconds: 50),
+      );
+      await server.start();
+      addTearDown(server.close);
+
+      final socket = await WebSocket.connect(server.connectUri.toString());
+      addTearDown(socket.close);
+      socket.listen((payload) async {
+        final message = CockpitRemoteBridgeRequest.fromJson(
+          Map<String, Object?>.from(
+            jsonDecode(payload as String) as Map<Object?, Object?>,
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 120));
+        socket.add(
+          jsonEncode(
+            CockpitRemoteBridgeResponse(
+              requestId: message.requestId,
+              statusCode: 200,
+              jsonBody: <String, Object?>{
+                'result': CockpitCommandResult(
+                  success: true,
+                  commandId: 'slow-wait',
+                  commandType: CockpitCommandType.waitFor,
+                  durationMs: 120,
+                ).toJson(),
+              },
+            ).toJson(),
+          ),
+        );
+      });
+
+      final response = await _postJsonResponse(
+        server.baseUri.resolve('/commands/execute'),
+        CockpitCommand(
+          commandId: 'slow-wait',
+          commandType: CockpitCommandType.waitFor,
+          timeoutMs: 500,
+        ).toJson(),
+      );
+
+      expect(response.statusCode, HttpStatus.ok);
+      expect(
+        ((response.body['result'] as Map<String, Object?>)['success']) as bool,
+        isTrue,
+      );
+    },
+  );
+
+  test(
     'web bridge reports malformed browser responses without timeout',
     () async {
       final server = CockpitWebRemoteSessionBridgeServer(

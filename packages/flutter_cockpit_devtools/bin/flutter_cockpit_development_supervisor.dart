@@ -138,12 +138,16 @@ Future<void> main(List<String> args) async {
       settleTimeout: const Duration(seconds: 90),
     );
 
-    sigtermSubscription = ProcessSignal.sigterm.watch().listen((_) {
-      unawaited(supervisor.stop());
-    });
-    sigintSubscription = ProcessSignal.sigint.watch().listen((_) {
-      unawaited(supervisor.stop());
-    });
+    sigtermSubscription = await _watchShutdownSignal(
+      signal: ProcessSignal.sigterm,
+      writeLog: writeLog,
+      stop: supervisor.stop,
+    );
+    sigintSubscription = await _watchShutdownSignal(
+      signal: ProcessSignal.sigint,
+      writeLog: writeLog,
+      stop: supervisor.stop,
+    );
 
     await writeLog('control plane start requested');
     await supervisor.start();
@@ -198,4 +202,21 @@ Future<void> main(List<String> args) async {
     await logSink.close();
   }
   exit(exitCode);
+}
+
+Future<StreamSubscription<ProcessSignal>?> _watchShutdownSignal({
+  required ProcessSignal signal,
+  required Future<void> Function(String message) writeLog,
+  required Future<void> Function() stop,
+}) async {
+  try {
+    final subscription = signal.watch().listen((_) {
+      unawaited(stop());
+    });
+    await writeLog('shutdown signal registered signal=$signal');
+    return subscription;
+  } on UnsupportedError catch (error) {
+    await writeLog('shutdown signal unsupported signal=$signal error=$error');
+    return null;
+  }
 }

@@ -526,7 +526,7 @@ jobs:
             --output-root "$OUTPUT_ROOT" \
             --output "$RESULT_JSON" \
             --output-format json \
-            --launch-timeout-seconds 600 2>&1 | tee "$LOG_PATH"
+            --launch-timeout-seconds 1200 2>&1 | tee "$LOG_PATH"
 
       - name: Verify iOS runtime loop result
         env:

@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  tearDown(FlutterCockpit.dispose);
+
   testWidgets(
     'FlutterCockpitRoot tracks route changes from the navigator observer',
     (tester) async {
@@ -133,6 +135,100 @@ void main() {
         ),
         isFalse,
       );
+    },
+  );
+
+  testWidgets(
+    'FlutterCockpitRoot refreshes target route ownership after pushed routes mount',
+    (tester) async {
+      FlutterCockpit.initialize(
+        const FlutterCockpitConfiguration(initialRouteName: '/'),
+      );
+
+      final rootKey = GlobalKey<FlutterCockpitRootState>();
+
+      await tester.pumpWidget(
+        FlutterCockpitRoot(
+          key: rootKey,
+          child: MaterialApp(
+            navigatorObservers: [FlutterCockpit.navigatorObserver],
+            initialRoute: '/inbox',
+            routes: <String, WidgetBuilder>{
+              '/inbox': (context) => Scaffold(
+                body: ElevatedButton(
+                  onPressed: () => Navigator.of(context).pushNamed('/details'),
+                  child: const Text('Open details'),
+                ),
+              ),
+              '/details': (context) => const Scaffold(
+                body: CockpitTargetNode(
+                  registrationId: 'details-title',
+                  text: 'Details title',
+                  child: Text('Details title'),
+                ),
+              ),
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Open details'));
+      await tester.pump();
+
+      expect(rootKey.currentState!.snapshot().routeName, '/details');
+      expect(
+        rootKey.currentState!.snapshot().visibleTargets.any(
+          (target) => target.text == 'Details title',
+        ),
+        isTrue,
+      );
+    },
+  );
+
+  testWidgets(
+    'CockpitSurface refreshes stable child target ownership after routeName changes',
+    (tester) async {
+      final surfaceKey = GlobalKey<CockpitSurfaceState>();
+      final routeName = ValueNotifier<String>('/inbox');
+      addTearDown(routeName.dispose);
+
+      await tester.pumpWidget(
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: ValueListenableBuilder<String>(
+            valueListenable: routeName,
+            child: const CockpitTargetNode(
+              registrationId: 'stable-title-target',
+              text: 'Task title',
+              child: Text('Task title'),
+            ),
+            builder: (context, route, child) {
+              return CockpitSurface(
+                key: surfaceKey,
+                routeName: route,
+                child: child!,
+              );
+            },
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(surfaceKey.currentState!.snapshot().routeName, '/inbox');
+      expect(
+        surfaceKey.currentState!.snapshot().visibleTargets.single.routeName,
+        '/inbox',
+      );
+
+      routeName.value = '/editor';
+      await tester.pump();
+
+      final snapshot = surfaceKey.currentState!.snapshot();
+      expect(snapshot.routeName, '/editor');
+      expect(snapshot.visibleTargets, hasLength(1));
+      expect(snapshot.visibleTargets.single.text, 'Task title');
+      expect(snapshot.visibleTargets.single.routeName, '/editor');
     },
   );
 
