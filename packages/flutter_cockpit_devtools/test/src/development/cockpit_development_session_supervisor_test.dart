@@ -445,6 +445,47 @@ void main() {
     },
   );
 
+  test('settle recovery caps a single blocked probe attempt', () async {
+    final harness = _MachineHarness();
+    addTearDown(harness.dispose);
+
+    var now = DateTime.utc(2026, 3, 23, 3);
+    var uiIdleAttempts = 0;
+    final firstBlockedAttempt = Completer<bool>();
+    final supervisor = CockpitDevelopmentSessionSupervisor(
+      initialHandle: harness.handle,
+      machineClient: harness.client,
+      remoteReachabilityProbe: (_) async => true,
+      uiIdleWaiter: (_) {
+        uiIdleAttempts += 1;
+        if (uiIdleAttempts == 1) {
+          return firstBlockedAttempt.future;
+        }
+        return Future<bool>.value(true);
+      },
+      now: () {
+        final current = now;
+        now = now.add(const Duration(milliseconds: 250));
+        return current;
+      },
+      settleTimeout: const Duration(seconds: 2),
+      settlePollInterval: const Duration(milliseconds: 10),
+      settleProbeTimeout: const Duration(milliseconds: 25),
+    );
+    addTearDown(supervisor.dispose);
+
+    await supervisor.start();
+    harness.stdoutController.add(
+      '[{"event":"app.start","params":{"appId":"app-1"}}]',
+    );
+    harness.stdoutController.add('[{"event":"app.started","params":{}}]');
+
+    await supervisor.waitForState(CockpitDevelopmentSessionState.ready);
+
+    expect(uiIdleAttempts, greaterThanOrEqualTo(2));
+    expect(firstBlockedAttempt.isCompleted, isFalse);
+  });
+
   test(
     'supervisor syncs cached machine app state when the machine client emitted before subscription',
     () async {

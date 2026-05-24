@@ -1476,6 +1476,59 @@ void main() {
     },
   );
 
+  test('waitFor route waits for route-ready targets by default', () async {
+    final registry = CockpitTargetRegistry(routeName: '/editor');
+    unawaited(
+      Future<void>.delayed(const Duration(milliseconds: 40), () {
+        registry.register(
+          CockpitTarget(
+            registrationId: 'task-title',
+            text: 'Task title',
+            routeName: '/editor',
+          ),
+        );
+      }),
+    );
+
+    final executor = InAppCockpitCommandExecutor(registry: registry);
+    final result = await executor.execute(
+      CockpitCommand(
+        commandId: 'cmd-wait-for-editor-default-ready',
+        commandType: CockpitCommandType.waitFor,
+        timeoutMs: 500,
+        parameters: const {'routeName': '/editor'},
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.locatorResolution?.matchedKind, CockpitLocatorKind.route);
+    expect(
+      (result.snapshot?['visibleTargets'] as List<Object?>?) ?? const [],
+      isNotEmpty,
+    );
+  });
+
+  test('waitFor route can explicitly skip target readiness', () async {
+    final registry = CockpitTargetRegistry(routeName: '/editor');
+
+    final executor = InAppCockpitCommandExecutor(registry: registry);
+    final result = await executor.execute(
+      CockpitCommand(
+        commandId: 'cmd-wait-for-editor-route-state-only',
+        commandType: CockpitCommandType.waitFor,
+        timeoutMs: 30,
+        parameters: const {
+          'routeName': '/editor',
+          'requireVisibleTargets': false,
+        },
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.locatorResolution?.matchedKind, CockpitLocatorKind.route);
+    expect((result.snapshot?['visibleTargets'] as List<Object?>?) ?? [], []);
+  });
+
   test(
     'waitFor reports empty route target diagnostics when readiness times out',
     () async {

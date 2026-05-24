@@ -37,6 +37,7 @@ final class CockpitDevelopmentSessionSupervisor {
     int bindPort = 0,
     Duration settleTimeout = const Duration(seconds: 30),
     Duration settlePollInterval = const Duration(milliseconds: 500),
+    Duration settleProbeTimeout = const Duration(seconds: 2),
   }) : _handle = initialHandle,
        _machineClient = machineClient,
        _remoteReachabilityProbe = remoteReachabilityProbe,
@@ -51,6 +52,7 @@ final class CockpitDevelopmentSessionSupervisor {
        _bindPort = bindPort,
        _settleTimeout = settleTimeout,
        _settlePollInterval = settlePollInterval,
+       _settleProbeTimeout = settleProbeTimeout,
        _status = CockpitDevelopmentSessionStatus(
          developmentSessionId: initialHandle.developmentSessionId,
          state: CockpitDevelopmentSessionState.starting,
@@ -73,6 +75,7 @@ final class CockpitDevelopmentSessionSupervisor {
   final int _bindPort;
   final Duration _settleTimeout;
   final Duration _settlePollInterval;
+  final Duration _settleProbeTimeout;
   CockpitDevelopmentSessionStatus _status;
   final Completer<void> _doneCompleter = Completer<void>();
   HttpServer? _server;
@@ -367,8 +370,16 @@ final class CockpitDevelopmentSessionSupervisor {
     var ready = false;
 
     while (!ready && _now().isBefore(deadline)) {
-      remoteReachable = await _remoteReachabilityProbe(_handle.baseUri);
-      uiIdle = remoteReachable ? await _uiIdleWaiter(_handle.baseUri) : false;
+      remoteReachable = await _runSettleProbe(
+        label: 'remote_reachability',
+        probe: () => _remoteReachabilityProbe(_handle.baseUri),
+      );
+      uiIdle = remoteReachable
+          ? await _runSettleProbe(
+              label: 'ui_idle',
+              probe: () => _uiIdleWaiter(_handle.baseUri),
+            )
+          : false;
       ready = remoteReachable && (uiIdle || !requireUiIdle);
       if (!ready) {
         await Future<void>.delayed(_settlePollInterval);
@@ -404,6 +415,24 @@ final class CockpitDevelopmentSessionSupervisor {
     );
     _pendingStartupSettle = null;
     return ready;
+  }
+
+  Future<bool> _runSettleProbe({
+    required String label,
+    required Future<bool> Function() probe,
+  }) async {
+    try {
+      return await probe().timeout(_settleProbeTimeout);
+    } on TimeoutException {
+      _log(
+        'settle probe timeout label=$label '
+        'timeout_ms=${_settleProbeTimeout.inMilliseconds}',
+      );
+      return false;
+    } on Object catch (error) {
+      _log('settle probe failed label=$label error=$error');
+      return false;
+    }
   }
 
   Future<CockpitFlutterRunMachineClient> _requireMachineClient() async {

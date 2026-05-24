@@ -2980,7 +2980,14 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
       }
       return explicitMin;
     }
-    return _boolParameter(command, 'requireVisibleTargets') == true ? 1 : 0;
+    final explicitTargetReadiness = _boolParameter(
+      command,
+      'requireVisibleTargets',
+    );
+    if (explicitTargetReadiness != null) {
+      return explicitTargetReadiness ? 1 : 0;
+    }
+    return _expectedRouteName(command) == null ? 0 : 1;
   }
 
   bool _hasEnoughVisibleTargets(int minVisibleTargets) {
