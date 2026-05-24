@@ -692,6 +692,7 @@ void main() {
       expect(firstBatchCommands[1].commandId, 'verify-wait-for-editor-route');
       expect(firstBatchCommands[1].commandType, CockpitCommandType.waitFor);
       expect(firstBatchCommands[1].parameters['routeName'], '/editor');
+      expect(firstBatchCommands[1].parameters['requireVisibleTargets'], isTrue);
       expect(firstBatchCommands[2].locator?.text, 'Task title');
       expect(firstBatchCommands[2].locator?.type, isNull);
       expect(firstBatchCommands[2].locator?.ancestor?.route, '/editor');

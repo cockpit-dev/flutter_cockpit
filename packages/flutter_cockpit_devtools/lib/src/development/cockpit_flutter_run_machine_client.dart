@@ -345,8 +345,20 @@ final class CockpitFlutterRunMachineClient {
         kind: _kindForEventName(eventName),
         eventName: eventName,
         params: params,
+        message: _messageForEvent(eventName, params),
       ),
     );
+  }
+
+  String? _messageForEvent(String eventName, Map<String, Object?>? params) {
+    if (params == null) {
+      return null;
+    }
+    return switch (eventName) {
+      'app.progress' || 'daemon.logMessage' => params['message'] as String?,
+      'app.stop' => params['error'] as String?,
+      _ => null,
+    };
   }
 
   void _handleStderrLine(String line) {

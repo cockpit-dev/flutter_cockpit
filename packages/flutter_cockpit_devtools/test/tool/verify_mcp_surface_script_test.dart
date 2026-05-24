@@ -25,9 +25,11 @@ void main() {
     expect(
       script.substring(waitSettings, inspectSettings),
       allOf(
-        contains("'wait_idle'"),
-        contains("'includeNetworkIdle': true"),
-        contains("'quietWindowMs': 160"),
+        contains("'run_command'"),
+        contains("'commandId': 'wait-settings-targets'"),
+        contains("'commandType': 'waitFor'"),
+        contains("'routeName': '/settings'"),
+        contains("'requireVisibleTargets': true"),
       ),
     );
   });

@@ -404,6 +404,53 @@ void main() {
   );
 
   test(
+    'hot restart requires ui idle recovery before reporting ready',
+    () async {
+      final harness = _MachineHarness();
+      addTearDown(harness.dispose);
+
+      var now = DateTime.utc(2026, 3, 23, 3);
+      var uiIdleRecovered = true;
+      final supervisor = CockpitDevelopmentSessionSupervisor(
+        initialHandle: harness.handle,
+        machineClient: harness.client,
+        remoteReachabilityProbe: (_) async => true,
+        uiIdleWaiter: (_) async => uiIdleRecovered,
+        now: () {
+          final current = now;
+          now = now.add(const Duration(milliseconds: 250));
+          return current;
+        },
+        settleTimeout: const Duration(seconds: 2),
+        settlePollInterval: const Duration(milliseconds: 10),
+      );
+      addTearDown(supervisor.dispose);
+
+      await supervisor.start();
+      harness.stdoutController.add(
+        '[{"event":"app.start","params":{"appId":"app-1"}}]',
+      );
+      harness.stdoutController.add('[{"event":"app.started","params":{}}]');
+      await supervisor.waitForState(CockpitDevelopmentSessionState.ready);
+
+      uiIdleRecovered = false;
+      final reloadFuture = supervisor.reload(
+        CockpitDevelopmentReloadMode.hotRestart,
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(harness.writes.last, contains('"fullRestart":true'));
+      harness.stdoutController.add('[{"id":0,"result":{"code":0}}]');
+
+      await expectLater(reloadFuture, throwsA(isA<StateError>()));
+      final status = await supervisor.currentStatus();
+      expect(status.state, CockpitDevelopmentSessionState.failed);
+      expect(status.lastReloadSucceeded, isFalse);
+      expect(status.lastReloadMode, CockpitDevelopmentReloadMode.hotRestart);
+      expect(status.lastError, contains('idle ready state'));
+    },
+  );
+
+  test(
     'supervisor syncs cached machine app state when the machine client emitted before subscription',
     () async {
       final harness = _MachineHarness();

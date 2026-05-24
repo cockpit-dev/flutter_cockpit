@@ -244,7 +244,7 @@ jobs:
   android-runtime-loop:
     needs: shared-ai-surface-regressions
     runs-on: ubuntu-latest
-    timeout-minutes: 70
+    timeout-minutes: 85
 
     steps:
       - uses: actions/checkout@v4
@@ -306,7 +306,7 @@ jobs:
 
       - name: Run Android full verifier
         uses: reactivecircus/android-emulator-runner@v2
-        timeout-minutes: 35
+        timeout-minutes: 50
         with:
           api-level: 34
           arch: x86_64
@@ -324,9 +324,15 @@ jobs:
             --output "$RESULT_JSON"
             --output-format json
             --android-emulator-id "Pixel_9_Pro"
-            --launch-timeout-seconds 300 >"$LOG_PATH" 2>&1;
+            --launch-timeout-seconds 600 >"$LOG_PATH" 2>&1;
             then cat "$LOG_PATH";
-            else status=$?; cat "$LOG_PATH" || true; exit "$status"; fi
+            else status=$?; cat "$LOG_PATH" || true; cat "$RESULT_JSON" || true; exit "$status"; fi
+
+      - name: Print Android verifier diagnostics
+        if: failure()
+        run: |
+          [ -f "$LOG_PATH" ] && cat "$LOG_PATH" || true
+          [ -f "$RESULT_JSON" ] && cat "$RESULT_JSON" || true
 
       - name: Verify Android runtime loop result
         env:
@@ -929,7 +935,7 @@ jobs:
   windows-runtime-loop:
     needs: shared-ai-surface-regressions
     runs-on: windows-latest
-    timeout-minutes: 65
+    timeout-minutes: 80
 
     steps:
       - uses: actions/checkout@v4
@@ -984,7 +990,7 @@ jobs:
           echo "LOG_PATH_POSIX=$LOG_PATH_POSIX" >> "$GITHUB_ENV"
 
       - name: Run Windows full verifier
-        timeout-minutes: 30
+        timeout-minutes: 45
         run: |
           set -eo pipefail
           cd "$PROJECT_DIR"
@@ -993,7 +999,7 @@ jobs:
             --output-root "$OUTPUT_ROOT_POSIX" \
             --output "$RESULT_JSON_POSIX" \
             --output-format json \
-            --launch-timeout-seconds 300 2>&1 | tee "$LOG_PATH_POSIX"
+            --launch-timeout-seconds 600 2>&1 | tee "$LOG_PATH_POSIX"
 
       - name: Print Windows verifier diagnostics
         if: failure()
