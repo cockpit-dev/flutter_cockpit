@@ -58,6 +58,10 @@ void main() {
     );
     expect(
       workflow,
+      contains(r'--launch-timeout-seconds 1200 2>&1 | tee "$LOG_PATH"'),
+    );
+    expect(
+      workflow,
       contains('dart run tool/verify_platforms.dart --platform macos'),
     );
     expect(

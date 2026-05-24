@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:path/path.dart' as p;
 import 'package:flutter_cockpit_devtools/src/development/cockpit_development_session_status.dart';
@@ -331,13 +332,12 @@ void main() {
         }
       });
       final logFile = File(p.join(tempDir.path, 'supervisor.log'));
+      final packageRoot = await _resolveDevtoolsPackageRoot();
       final supervisorScript = File(
-        p.normalize(
-          p.join(
-            Directory.current.path,
-            'bin',
-            'flutter_cockpit_development_supervisor.dart',
-          ),
+        p.join(
+          packageRoot,
+          'bin',
+          'flutter_cockpit_development_supervisor.dart',
         ),
       );
       final sessionPort = await _allocateLoopbackPort();
@@ -362,7 +362,7 @@ void main() {
         'run',
         supervisorScript.path,
         '--project-dir',
-        Directory.current.path,
+        packageRoot,
         '--target',
         'lib/flutter_cockpit_devtools.dart',
         '--platform',
@@ -383,7 +383,7 @@ void main() {
         '3.32.0',
         '--launch-timeout-seconds',
         '1',
-      ], workingDirectory: Directory.current.path);
+      ], workingDirectory: packageRoot);
       unawaited(process.stdout.drain<void>());
       unawaited(process.stderr.drain<void>());
 
@@ -416,6 +416,16 @@ Future<int> _allocateLoopbackPort() async {
   } finally {
     await socket.close();
   }
+}
+
+Future<String> _resolveDevtoolsPackageRoot() async {
+  final packageLibUri = await Isolate.resolvePackageUri(
+    Uri.parse('package:flutter_cockpit_devtools/flutter_cockpit_devtools.dart'),
+  );
+  if (packageLibUri == null) {
+    throw StateError('Unable to resolve flutter_cockpit_devtools package URI.');
+  }
+  return p.normalize(p.join(p.dirname(p.fromUri(packageLibUri)), '..'));
 }
 
 Future<CockpitDevelopmentSessionSupervisorResponse> _waitForSupervisorFailure(
