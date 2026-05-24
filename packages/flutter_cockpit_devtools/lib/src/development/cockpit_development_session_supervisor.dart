@@ -355,9 +355,7 @@ final class CockpitDevelopmentSessionSupervisor {
     CockpitDevelopmentReloadMode? lastReloadMode,
     required bool bumpGeneration,
   }) async {
-    final requireUiIdle =
-        lastReloadMode == null ||
-        lastReloadMode == CockpitDevelopmentReloadMode.hotRestart;
+    const requireUiIdle = true;
     _log(
       'settle begin '
       'mode=${lastReloadMode?.jsonValue ?? 'startup'} '
@@ -377,12 +375,6 @@ final class CockpitDevelopmentSessionSupervisor {
       }
     }
 
-    if (ready && !requireUiIdle && !uiIdle) {
-      _log(
-        'settle accepted remote recovery without ui idle '
-        'mode=${lastReloadMode.jsonValue}',
-      );
-    }
     if (bumpGeneration && ready) {
       _handle = _handle.copyWith(
         reloadGeneration: _handle.reloadGeneration + 1,
@@ -401,9 +393,7 @@ final class CockpitDevelopmentSessionSupervisor {
         lastReloadSucceeded: ready,
         lastError: ready
             ? null
-            : requireUiIdle
-            ? 'Remote session did not recover to an idle ready state.'
-            : 'Remote session did not recover to a ready state.',
+            : 'Remote session did not recover to an idle ready state.',
       ),
     );
     _log(

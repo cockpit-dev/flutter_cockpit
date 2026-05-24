@@ -58,7 +58,7 @@ void main() {
     );
     expect(
       workflow,
-      contains(r'--launch-timeout-seconds 1200 2>&1 | tee "$LOG_PATH"'),
+      contains(r'--launch-timeout-seconds 2400 2>&1 | tee "$LOG_PATH"'),
     );
     expect(
       workflow,

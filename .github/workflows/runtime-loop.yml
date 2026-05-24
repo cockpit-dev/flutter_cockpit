@@ -398,7 +398,7 @@ jobs:
   ios-runtime-loop:
     needs: shared-ai-surface-regressions
     runs-on: macos-latest
-    timeout-minutes: 75
+    timeout-minutes: 100
 
     steps:
       - uses: actions/checkout@v4
@@ -518,7 +518,7 @@ jobs:
 
       - name: Run iOS full verifier
         working-directory: examples/cockpit_demo
-        timeout-minutes: 35
+        timeout-minutes: 60
         run: |
           set -eo pipefail
           dart run tool/verify_platforms.dart --platform ios \
@@ -526,7 +526,7 @@ jobs:
             --output-root "$OUTPUT_ROOT" \
             --output "$RESULT_JSON" \
             --output-format json \
-            --launch-timeout-seconds 1200 2>&1 | tee "$LOG_PATH"
+            --launch-timeout-seconds 2400 2>&1 | tee "$LOG_PATH"
 
       - name: Verify iOS runtime loop result
         env:

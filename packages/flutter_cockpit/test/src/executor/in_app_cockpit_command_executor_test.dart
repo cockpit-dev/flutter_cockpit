@@ -1499,6 +1499,43 @@ void main() {
       expect(result.error?.details['routeName'], '/editor');
       expect(result.error?.details['visibleTargetCount'], 0);
       expect(result.error?.details['emptyRouteHint'], contains('target'));
+      expect(
+        result.error?.details['targetDiscoveryDiagnostics'],
+        containsPair('currentRouteName', '/editor'),
+      );
+    },
+  );
+
+  test(
+    'waitFor route readiness ignores targets discovered only on another route',
+    () async {
+      final registry = CockpitTargetRegistry(routeName: '/editor')
+        ..discoveredTargetsProvider = () => const <CockpitTarget>[
+          CockpitTarget(
+            registrationId: 'inbox-new-task',
+            text: 'New task',
+            routeName: '/inbox',
+            supportedCommands: {CockpitCommandType.tap},
+          ),
+        ];
+
+      final executor = InAppCockpitCommandExecutor(registry: registry);
+      final result = await executor.execute(
+        CockpitCommand(
+          commandId: 'cmd-wait-for-editor-strict-targets',
+          commandType: CockpitCommandType.waitFor,
+          timeoutMs: 30,
+          parameters: const {
+            'routeName': '/editor',
+            'requireVisibleTargets': true,
+          },
+        ),
+      );
+
+      expect(result.success, isFalse);
+      expect(result.error?.code, CockpitCommandError.timeoutCode);
+      expect(result.error?.details['visibleTargetCount'], 1);
+      expect(result.error?.details['routeReadyVisibleTargetCount'], 0);
     },
   );
 
