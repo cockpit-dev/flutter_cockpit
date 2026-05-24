@@ -5,6 +5,7 @@ export 'src/capture/cockpit_capture_kind.dart';
 export 'src/capture/cockpit_capture_profile.dart';
 export 'src/capture/cockpit_captured_screenshot.dart';
 export 'src/capture/cockpit_capture_result.dart';
+export 'src/control/cockpit_capture_failure_policy.dart';
 export 'src/control/cockpit_capture_policy.dart';
 export 'src/control/cockpit_command.dart';
 export 'src/control/cockpit_command_execution.dart';

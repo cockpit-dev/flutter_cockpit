@@ -79,6 +79,7 @@ void main() {
       ),
       parameters: const {'text': 'cockpit@example.com'},
       capturePolicy: CockpitCapturePolicy.afterActionAndFailure,
+      captureFailurePolicy: CockpitCaptureFailurePolicy.degradeCommand,
       timeoutMs: 3000,
       snapshotOptions: const CockpitSnapshotOptions(
         profile: CockpitSnapshotProfile.investigate,

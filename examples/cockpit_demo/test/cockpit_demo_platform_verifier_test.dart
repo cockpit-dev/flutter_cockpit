@@ -400,25 +400,14 @@ void main() {
         },
         runCommand: (request) async {
           commandTypes.add(request.command.commandType);
-          return CockpitExecuteRemoteCommandResult(
-            command: CockpitInteractiveCommandCore(
-              commandId: request.command.commandId,
-              commandType: request.command.commandType.name,
-              success: true,
-              durationMs: 12,
-              usedCaptureFallback: false,
-            ),
-            artifacts:
+          return _successfulCommandResult(
+            request.command,
+            includeScreenshot:
                 request.command.commandType ==
-                    CockpitCommandType.captureScreenshot
-                ? const <CockpitInteractiveArtifactDescriptor>[
-                    CockpitInteractiveArtifactDescriptor(
-                      role: 'screenshot',
-                      relativePath: 'screenshots/platform-proof.png',
-                      byteLength: 1024,
-                    ),
-                  ]
-                : const <CockpitInteractiveArtifactDescriptor>[],
+                    CockpitCommandType.captureScreenshot ||
+                cockpitCommandTypeIsAiEvidenceKeyOperation(
+                  request.command.commandType,
+                ),
           );
         },
         inspectSurface: (request) async {
@@ -461,15 +450,12 @@ void main() {
           return CockpitRunBatchResult(
             results: request.commands
                 .map(
-                  (batchCommand) => CockpitExecuteRemoteCommandResult(
-                    command: CockpitInteractiveCommandCore(
-                      commandId: batchCommand.command.commandId,
-                      commandType: batchCommand.command.commandType.name,
-                      success: true,
-                      durationMs: 12,
-                      usedCaptureFallback: false,
-                    ),
-                    artifacts: const <CockpitInteractiveArtifactDescriptor>[],
+                  (batchCommand) => _successfulCommandResult(
+                    batchCommand.command,
+                    includeScreenshot:
+                        cockpitCommandTypeIsAiEvidenceKeyOperation(
+                          batchCommand.command.commandType,
+                        ),
                   ),
                 )
                 .toList(growable: false),
@@ -692,7 +678,10 @@ void main() {
       expect(firstBatchCommands[1].commandId, 'verify-wait-for-editor-route');
       expect(firstBatchCommands[1].commandType, CockpitCommandType.waitFor);
       expect(firstBatchCommands[1].parameters['routeName'], '/editor');
-      expect(firstBatchCommands[1].parameters['requireVisibleTargets'], isTrue);
+      expect(
+        firstBatchCommands[1].parameters,
+        isNot(contains('requireVisibleTargets')),
+      );
       expect(firstBatchCommands[2].locator?.text, 'Task title');
       expect(firstBatchCommands[2].locator?.type, isNull);
       expect(firstBatchCommands[2].locator?.ancestor?.route, '/editor');
@@ -795,6 +784,10 @@ void main() {
       expect(
         result.platforms.map((platform) => platform.batchCommandCount),
         everyElement(30),
+      );
+      expect(
+        result.platforms.map((platform) => platform.autoScreenshotCount),
+        everyElement(greaterThanOrEqualTo(20)),
       );
       expect(
         result.platforms.map((platform) => platform.networkFailureCount),
@@ -1047,25 +1040,14 @@ void main() {
             'verify-return-from-detail-after-recovery') {
           currentRoute = '/inbox';
         }
-        return CockpitExecuteRemoteCommandResult(
-          command: CockpitInteractiveCommandCore(
-            commandId: request.command.commandId,
-            commandType: request.command.commandType.name,
-            success: true,
-            durationMs: 12,
-            usedCaptureFallback: false,
-          ),
-          artifacts:
+        return _successfulCommandResult(
+          request.command,
+          includeScreenshot:
               request.command.commandType ==
-                  CockpitCommandType.captureScreenshot
-              ? const <CockpitInteractiveArtifactDescriptor>[
-                  CockpitInteractiveArtifactDescriptor(
-                    role: 'screenshot',
-                    relativePath: 'screenshots/platform-proof.png',
-                    byteLength: 1024,
-                  ),
-                ]
-              : const <CockpitInteractiveArtifactDescriptor>[],
+                  CockpitCommandType.captureScreenshot ||
+              cockpitCommandTypeIsAiEvidenceKeyOperation(
+                request.command.commandType,
+              ),
         );
       },
       runBatch: (request) async {
@@ -1086,28 +1068,7 @@ void main() {
               currentRoute = '/sync-conflict';
           }
         }
-        return CockpitRunBatchResult(
-          results: request.commands
-              .map(
-                (batchCommand) => CockpitExecuteRemoteCommandResult(
-                  command: CockpitInteractiveCommandCore(
-                    commandId: batchCommand.command.commandId,
-                    commandType: batchCommand.command.commandType.name,
-                    success: true,
-                    durationMs: 12,
-                    usedCaptureFallback: false,
-                  ),
-                  artifacts: const <CockpitInteractiveArtifactDescriptor>[],
-                ),
-              )
-              .toList(growable: false),
-          summary: CockpitExecuteRemoteCommandBatchSummary(
-            totalCount: request.commands.length,
-            successCount: request.commands.length,
-            failureCount: 0,
-            stoppedEarly: false,
-          ),
-        );
+        return _successfulBatchResult(request);
       },
       inspectUi: (request) async {
         return CockpitInspectUiResult(
@@ -1257,6 +1218,7 @@ void main() {
     () async {
       final recordingFile = await _createRecordingArtifact();
       var currentRoute = '/inbox';
+      var readAppAttempts = 0;
       var assertNewTaskAttempts = 0;
       var createBatchAttempts = 0;
       final verifier = CockpitDemoPlatformVerifier(
@@ -1285,6 +1247,13 @@ void main() {
           );
         },
         readApp: (request) async {
+          readAppAttempts += 1;
+          if (readAppAttempts == 1) {
+            throw const CockpitApplicationServiceException(
+              code: 'remoteUnavailable',
+              message: 'Remote session is temporarily unavailable.',
+            );
+          }
           final app = request.app!;
           return CockpitReadAppResult(
             sessionId: '${app.platform}-session',
@@ -1329,25 +1298,14 @@ void main() {
               'verify-return-from-detail-after-recovery') {
             currentRoute = '/inbox';
           }
-          return CockpitExecuteRemoteCommandResult(
-            command: CockpitInteractiveCommandCore(
-              commandId: request.command.commandId,
-              commandType: request.command.commandType.name,
-              success: true,
-              durationMs: 12,
-              usedCaptureFallback: false,
-            ),
-            artifacts:
+          return _successfulCommandResult(
+            request.command,
+            includeScreenshot:
                 request.command.commandType ==
-                    CockpitCommandType.captureScreenshot
-                ? const <CockpitInteractiveArtifactDescriptor>[
-                    CockpitInteractiveArtifactDescriptor(
-                      role: 'screenshot',
-                      relativePath: 'screenshots/platform-proof.png',
-                      byteLength: 1024,
-                    ),
-                  ]
-                : const <CockpitInteractiveArtifactDescriptor>[],
+                    CockpitCommandType.captureScreenshot ||
+                cockpitCommandTypeIsAiEvidenceKeyOperation(
+                  request.command.commandType,
+                ),
           );
         },
         runBatch: (request) async {
@@ -1379,28 +1337,7 @@ void main() {
                 currentRoute = '/sync-conflict';
             }
           }
-          return CockpitRunBatchResult(
-            results: request.commands
-                .map(
-                  (batchCommand) => CockpitExecuteRemoteCommandResult(
-                    command: CockpitInteractiveCommandCore(
-                      commandId: batchCommand.command.commandId,
-                      commandType: batchCommand.command.commandType.name,
-                      success: true,
-                      durationMs: 12,
-                      usedCaptureFallback: false,
-                    ),
-                    artifacts: const <CockpitInteractiveArtifactDescriptor>[],
-                  ),
-                )
-                .toList(growable: false),
-            summary: CockpitExecuteRemoteCommandBatchSummary(
-              totalCount: request.commands.length,
-              successCount: request.commands.length,
-              failureCount: 0,
-              stoppedEarly: false,
-            ),
-          );
+          return _successfulBatchResult(request);
         },
         inspectUi: (request) async => CockpitInspectUiResult(
           routeName: currentRoute,
@@ -1533,8 +1470,81 @@ void main() {
       );
 
       expect(result.success, isTrue);
+      expect(readAppAttempts, greaterThan(1));
       expect(assertNewTaskAttempts, 2);
       expect(createBatchAttempts, 2);
+    },
+  );
+
+  test(
+    'verifier attaches supervisor diagnostics to post-launch remote failures',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit-post-launch-diagnostics-',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+      final supervisorLog = File(p.join(tempDir.path, 'supervisor.log'));
+      await supervisorLog.writeAsString(
+        '[2026-05-24T04:24:55Z] bound remote session app_id=web-demo\n'
+        '[2026-05-24T04:25:06Z] bridge request timed out path=/health\n',
+      );
+
+      final verifier = CockpitDemoPlatformVerifier(
+        probeDevices: () async => const <CockpitDemoHostDevice>[
+          CockpitDemoHostDevice(
+            name: 'Chrome',
+            deviceId: 'chrome',
+            platform: 'web',
+            emulator: false,
+            supported: true,
+          ),
+        ],
+        listIosSimulators: () async => const <CockpitDemoIosSimulator>[],
+        runProcess: (executable, arguments, {String? workingDirectory}) async =>
+            ProcessResult(0, 0, '', ''),
+        wait: (_) async {},
+        launchApp: (request) async => CockpitLaunchAppResult(
+          app: _appForPlatform(
+            platform: request.platform,
+            deviceId: request.deviceId,
+            baseUrl: 'http://127.0.0.1:${request.sessionPort}',
+          ).copyWith(supervisorLogPath: supervisorLog.path),
+          appJsonPath: p.join(tempDir.path, 'app.json'),
+          supervisorLogPath: supervisorLog.path,
+        ),
+        readApp: (_) async => throw const CockpitApplicationServiceException(
+          code: 'remoteUnavailable',
+          message: 'Remote session is temporarily unavailable.',
+          details: <String, Object?>{'path': '/health'},
+        ),
+        stopApp: (request) async => CockpitStopAppResult(
+          app: request.app!,
+          status: CockpitAppStopStatus.stopped(mode: request.app!.mode),
+        ),
+      );
+
+      final result = await verifier.verify(
+        CockpitDemoPlatformVerificationRequest(
+          projectDir: '/workspace/examples/cockpit_demo',
+          platforms: const <String>['web'],
+          outputRoot: tempDir.path,
+        ),
+      );
+
+      final failed = result.platforms.single;
+      expect(failed.failureCode, 'remoteUnavailable');
+      expect(
+        failed.failureDetails,
+        containsPair('supervisorLogPath', supervisorLog.path),
+      );
+      expect(
+        failed.failureDetails,
+        containsPair('supervisorLogTail', contains('bridge request timed out')),
+      );
     },
   );
 
@@ -2144,48 +2154,17 @@ void main() {
           diagnosticLevel: 'investigate',
           truncated: false,
         ),
-        runCommand: (request) async => CockpitExecuteRemoteCommandResult(
-          command: CockpitInteractiveCommandCore(
-            commandId: request.command.commandId,
-            commandType: request.command.commandType.name,
-            success: true,
-            durationMs: 10,
-            usedCaptureFallback: false,
-          ),
-          artifacts:
+        runCommand: (request) async => _successfulCommandResult(
+          request.command,
+          includeScreenshot:
               request.command.commandType ==
-                  CockpitCommandType.captureScreenshot
-              ? const <CockpitInteractiveArtifactDescriptor>[
-                  CockpitInteractiveArtifactDescriptor(
-                    role: 'screenshot',
-                    relativePath: 'screenshots/web-warning-proof.png',
-                    byteLength: 512,
-                  ),
-                ]
-              : const <CockpitInteractiveArtifactDescriptor>[],
+                  CockpitCommandType.captureScreenshot ||
+              cockpitCommandTypeIsAiEvidenceKeyOperation(
+                request.command.commandType,
+              ),
+          screenshotByteLength: 512,
         ),
-        runBatch: (request) async => CockpitRunBatchResult(
-          results: request.commands
-              .map(
-                (batchCommand) => CockpitExecuteRemoteCommandResult(
-                  command: CockpitInteractiveCommandCore(
-                    commandId: batchCommand.command.commandId,
-                    commandType: batchCommand.command.commandType.name,
-                    success: true,
-                    durationMs: 10,
-                    usedCaptureFallback: false,
-                  ),
-                  artifacts: const <CockpitInteractiveArtifactDescriptor>[],
-                ),
-              )
-              .toList(growable: false),
-          summary: CockpitExecuteRemoteCommandBatchSummary(
-            totalCount: request.commands.length,
-            successCount: request.commands.length,
-            failureCount: 0,
-            stoppedEarly: false,
-          ),
-        ),
+        runBatch: (request) async => _successfulBatchResult(request),
         waitIdle: (_) async => const CockpitWaitIdleResult(
           idle: true,
           durationMs: 120,
@@ -2706,7 +2685,14 @@ CockpitExecuteRemoteCommandResult _successfulCommandResult(
 CockpitRunBatchResult _successfulBatchResult(CockpitRunBatchRequest request) {
   return CockpitRunBatchResult(
     results: request.commands
-        .map((batchCommand) => _successfulCommandResult(batchCommand.command))
+        .map(
+          (batchCommand) => _successfulCommandResult(
+            batchCommand.command,
+            includeScreenshot: cockpitCommandTypeIsAiEvidenceKeyOperation(
+              batchCommand.command.commandType,
+            ),
+          ),
+        )
         .toList(growable: false),
     summary: CockpitExecuteRemoteCommandBatchSummary(
       totalCount: request.commands.length,

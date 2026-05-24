@@ -133,7 +133,7 @@ The steps file records every action emitted by `CockpitSessionController`. Each 
 - optional `degradationReason`
 - optional `captureRefs`
 
-Control and capture flows should record structured command metadata instead of flattening everything into free-form logs. `captureRefs` is reserved for screenshot evidence associated with that step.
+Control and capture flows should record structured command metadata instead of flattening everything into free-form logs. `captureRefs` is reserved for screenshot evidence associated with that step. AI-default command execution adds best-effort `after_action` screenshots for key mutating operations; these captures use `captureFailurePolicy: degradeCommand` so the original successful action can still be recorded with `usedCaptureFallback` and `degradationReason` if evidence capture fails.
 When a step snapshot reaches `forensic` detail or needs truncation, the inline `snapshot` in `steps.json` should stay summarized and point to a full `diagnostics/*.json` payload through `diagnosticsArtifactRef`.
 
 ### `observations.json`

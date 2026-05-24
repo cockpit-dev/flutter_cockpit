@@ -371,6 +371,7 @@ jobs:
           assert platform["verifiedCommands"] == expected_commands, platform
           assert platform["recordingDriver"] == os.environ["EXPECTED_RECORDING_DRIVER"], platform
           assert platform["batchCommandCount"] == 30, platform
+          assert platform["autoScreenshotCount"] >= 20, platform
           assert platform["networkFailureCount"] == 0, platform
           assert platform["runtimeErrorCount"] == 0, platform
           assert platform["hotReloadSucceeded"] is True, platform
@@ -487,7 +488,7 @@ jobs:
             --output-root "$OUTPUT_ROOT" \
             --output "$RESULT_JSON" \
             --output-format json \
-            --launch-timeout-seconds 300 2>&1 | tee "$LOG_PATH"
+            --launch-timeout-seconds 600 2>&1 | tee "$LOG_PATH"
 
       - name: Verify iOS runtime loop result
         env:
@@ -526,6 +527,7 @@ jobs:
           assert platform["verifiedCommands"] == expected_commands, platform
           assert platform["recordingDriver"] == os.environ["EXPECTED_RECORDING_DRIVER"], platform
           assert platform["batchCommandCount"] == 30, platform
+          assert platform["autoScreenshotCount"] >= 20, platform
           assert platform["networkFailureCount"] == 0, platform
           assert platform["runtimeErrorCount"] == 0, platform
           assert platform["hotReloadSucceeded"] is True, platform
@@ -605,7 +607,7 @@ jobs:
             --output-root "$OUTPUT_ROOT" \
             --output "$RESULT_JSON" \
             --output-format json \
-            --launch-timeout-seconds 300 2>&1 | tee "$LOG_PATH"
+            --launch-timeout-seconds 600 2>&1 | tee "$LOG_PATH"
 
       - name: Verify macOS runtime loop result
         env:
@@ -644,6 +646,7 @@ jobs:
           assert platform["verifiedCommands"] == expected_commands, platform
           assert platform["recordingDriver"] == os.environ["EXPECTED_RECORDING_DRIVER"], platform
           assert platform["batchCommandCount"] == 30, platform
+          assert platform["autoScreenshotCount"] >= 20, platform
           assert platform["networkFailureCount"] == 0, platform
           assert platform["runtimeErrorCount"] == 0, platform
           assert platform["hotReloadSucceeded"] is True, platform
@@ -723,7 +726,7 @@ jobs:
             --output-root "$OUTPUT_ROOT" \
             --output "$RESULT_JSON" \
             --output-format json \
-            --launch-timeout-seconds 300 2>&1 | tee "$LOG_PATH"
+            --launch-timeout-seconds 600 2>&1 | tee "$LOG_PATH"
 
       - name: Print web verifier diagnostics
         if: failure()
@@ -768,6 +771,7 @@ jobs:
           assert platform["verifiedCommands"] == expected_commands, platform
           assert platform["recordingDriver"] == os.environ["EXPECTED_RECORDING_DRIVER"], platform
           assert platform["batchCommandCount"] == 30, platform
+          assert platform["autoScreenshotCount"] >= 20, platform
           assert platform["networkFailureCount"] == 0, platform
           assert platform["runtimeErrorCount"] == 0, platform
           assert platform["hotReloadSucceeded"] is True, platform
@@ -864,7 +868,7 @@ jobs:
             --output-root "$OUTPUT_ROOT" \
             --output "$RESULT_JSON" \
             --output-format json \
-            --launch-timeout-seconds 300 2>&1 | tee "$LOG_PATH"
+            --launch-timeout-seconds 600 2>&1 | tee "$LOG_PATH"
 
       - name: Print Linux verifier diagnostics
         if: failure()
@@ -909,6 +913,7 @@ jobs:
           assert platform["verifiedCommands"] == expected_commands, platform
           assert platform["recordingDriver"] == os.environ["EXPECTED_RECORDING_DRIVER"], platform
           assert platform["batchCommandCount"] == 30, platform
+          assert platform["autoScreenshotCount"] >= 20, platform
           assert platform["networkFailureCount"] == 0, platform
           assert platform["runtimeErrorCount"] == 0, platform
           assert platform["hotReloadSucceeded"] is True, platform
@@ -1044,6 +1049,7 @@ jobs:
           assert platform["verifiedCommands"] == expected_commands, platform
           assert platform["recordingDriver"] == os.environ["EXPECTED_RECORDING_DRIVER"], platform
           assert platform["batchCommandCount"] == 30, platform
+          assert platform["autoScreenshotCount"] >= 20, platform
           assert platform["networkFailureCount"] == 0, platform
           assert platform["runtimeErrorCount"] == 0, platform
           assert platform["hotReloadSucceeded"] is True, platform

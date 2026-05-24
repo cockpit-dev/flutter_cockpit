@@ -168,6 +168,170 @@ void main() {
       },
     );
 
+    test(
+      'defaults key mutating commands to after-action screenshot capture',
+      () async {
+        final capturedCommands = <CockpitCommand>[];
+        final service = CockpitExecuteRemoteCommandBatchService(
+          executeCommand: (_, command) async {
+            capturedCommands.add(command);
+            return CockpitCommandExecution(
+              result: CockpitCommandResult(
+                success: true,
+                commandId: command.commandId,
+                commandType: command.commandType,
+                durationMs: 40,
+              ),
+            );
+          },
+        );
+
+        await service.execute(
+          CockpitExecuteRemoteCommandBatchRequest(
+            sessionHandle: _sessionHandle(),
+            defaultResultProfile:
+                const CockpitInteractiveResultProfile.minimal(),
+            commands: <CockpitInteractiveBatchCommand>[
+              _batchCommand('tap-save'),
+              CockpitInteractiveBatchCommand(
+                command: CockpitCommand(
+                  commandId: 'type-title',
+                  commandType: CockpitCommandType.enterText,
+                  parameters: const <String, Object?>{'text': 'Draft'},
+                ),
+              ),
+              CockpitInteractiveBatchCommand(
+                command: CockpitCommand(
+                  commandId: 'assert-saved',
+                  commandType: CockpitCommandType.assertText,
+                  parameters: const <String, Object?>{'text': 'Saved'},
+                ),
+              ),
+            ],
+          ),
+        );
+
+        expect(capturedCommands.map((command) => command.commandId), <String>[
+          'tap-save',
+          'type-title',
+          'assert-saved',
+        ]);
+        expect(
+          capturedCommands[0].capturePolicy,
+          CockpitCapturePolicy.afterAction,
+        );
+        expect(
+          capturedCommands[0].captureFailurePolicy,
+          CockpitCaptureFailurePolicy.degradeCommand,
+        );
+        expect(
+          capturedCommands[0].screenshotRequest?.toJson(),
+          <String, Object?>{
+            'reason': 'after_action',
+            'name': 'tap-save',
+            'includeSnapshot': true,
+            'attachToStep': true,
+            'snapshotOptions': const CockpitSnapshotOptions.live().toJson(),
+          },
+        );
+        expect(
+          capturedCommands[1].capturePolicy,
+          CockpitCapturePolicy.afterAction,
+        );
+        expect(
+          capturedCommands[1].captureFailurePolicy,
+          CockpitCaptureFailurePolicy.degradeCommand,
+        );
+        expect(capturedCommands[1].screenshotRequest?.name, 'type-title');
+        expect(capturedCommands[2].capturePolicy, CockpitCapturePolicy.none);
+        expect(
+          capturedCommands[2].captureFailurePolicy,
+          CockpitCaptureFailurePolicy.failCommand,
+        );
+        expect(capturedCommands[2].screenshotRequest, isNull);
+      },
+    );
+
+    test('preserves explicit capture policy and screenshot requests', () async {
+      final capturedCommands = <CockpitCommand>[];
+      final service = CockpitExecuteRemoteCommandBatchService(
+        executeCommand: (_, command) async {
+          capturedCommands.add(command);
+          return CockpitCommandExecution(
+            result: CockpitCommandResult(
+              success: true,
+              commandId: command.commandId,
+              commandType: command.commandType,
+              durationMs: 40,
+            ),
+          );
+        },
+      );
+
+      await service.execute(
+        CockpitExecuteRemoteCommandBatchRequest(
+          sessionHandle: _sessionHandle(),
+          defaultResultProfile: const CockpitInteractiveResultProfile.minimal(),
+          commands: <CockpitInteractiveBatchCommand>[
+            CockpitInteractiveBatchCommand(
+              command: CockpitCommand(
+                commandId: 'tap-no-capture',
+                commandType: CockpitCommandType.tap,
+                capturePolicy: CockpitCapturePolicy.onFailure,
+              ),
+            ),
+            CockpitInteractiveBatchCommand(
+              command: CockpitCommand(
+                commandId: 'tap-custom-capture',
+                commandType: CockpitCommandType.tap,
+                screenshotRequest: const CockpitScreenshotRequest(
+                  reason: CockpitScreenshotReason.acceptance,
+                  name: 'custom',
+                  includeSnapshot: false,
+                  attachToStep: true,
+                ),
+              ),
+            ),
+            CockpitInteractiveBatchCommand(
+              command: CockpitCommand(
+                commandId: 'capture-explicit',
+                commandType: CockpitCommandType.captureScreenshot,
+                screenshotRequest: const CockpitScreenshotRequest(
+                  reason: CockpitScreenshotReason.acceptance,
+                  name: 'explicit',
+                  includeSnapshot: true,
+                  attachToStep: true,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+
+      expect(capturedCommands, hasLength(3));
+      expect(capturedCommands[0].capturePolicy, CockpitCapturePolicy.onFailure);
+      expect(capturedCommands[0].screenshotRequest, isNull);
+      expect(
+        capturedCommands[1].capturePolicy,
+        CockpitCapturePolicy.afterAction,
+      );
+      expect(
+        capturedCommands[1].captureFailurePolicy,
+        CockpitCaptureFailurePolicy.degradeCommand,
+      );
+      expect(capturedCommands[1].screenshotRequest?.name, 'custom');
+      expect(
+        capturedCommands[1].screenshotRequest?.reason,
+        CockpitScreenshotReason.acceptance,
+      );
+      expect(
+        capturedCommands[2].commandType,
+        CockpitCommandType.captureScreenshot,
+      );
+      expect(capturedCommands[2].capturePolicy, CockpitCapturePolicy.none);
+      expect(capturedCommands[2].screenshotRequest?.name, 'explicit');
+    });
+
     test('captures a final snapshot when requested', () async {
       final service = CockpitExecuteRemoteCommandBatchService(
         executeCommand: (_, command) async {

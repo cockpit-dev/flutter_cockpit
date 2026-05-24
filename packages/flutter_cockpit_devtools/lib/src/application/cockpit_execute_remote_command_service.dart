@@ -8,6 +8,7 @@ import '../control_core/cockpit_intent.dart';
 import '../control_core/cockpit_intent_action.dart';
 import '../remote/cockpit_remote_session_client.dart';
 import '../session/cockpit_remote_session_handle.dart';
+import 'cockpit_command_evidence_defaults.dart';
 import 'cockpit_interactive_result_data.dart';
 import 'cockpit_interactive_result_profile.dart';
 import 'cockpit_interactive_session_lock.dart';
@@ -148,7 +149,7 @@ final class CockpitExecuteRemoteCommandService {
 
     return _sessionLock.run(sessionKey, () async {
       final effectiveCommand = _withDefaultTimeout(
-        request.command,
+        cockpitCommandWithAiEvidenceDefaults(request.command),
         defaultTimeout: request.defaultCommandTimeout,
       );
       final intent = CockpitIntent.fromCommand(effectiveCommand);

@@ -2932,6 +2932,52 @@ void main() {
     },
   );
 
+  test('auto after-action capture failure does not fail the command', () async {
+    final registry = CockpitTargetRegistry(routeName: '/editor');
+    var tapCount = 0;
+    registry.register(
+      CockpitTarget(
+        registrationId: 'save-button',
+        keyValue: 'save-button',
+        routeName: '/editor',
+        supportedCommands: const {CockpitCommandType.tap},
+        onTap: () {
+          tapCount += 1;
+        },
+      ),
+    );
+    final executor = InAppCockpitCommandExecutor(
+      registry: registry,
+      captureHandler: (_) async {
+        throw StateError('screenshot surface unavailable');
+      },
+    );
+
+    final result = await executor.execute(
+      CockpitCommand(
+        commandId: 'cmd-save',
+        commandType: CockpitCommandType.tap,
+        locator: const CockpitLocator(key: 'save-button'),
+        capturePolicy: CockpitCapturePolicy.afterAction,
+        captureFailurePolicy: CockpitCaptureFailurePolicy.degradeCommand,
+        screenshotRequest: const CockpitScreenshotRequest(
+          reason: CockpitScreenshotReason.afterAction,
+          name: 'cmd-save',
+          includeSnapshot: true,
+          attachToStep: true,
+          snapshotOptions: CockpitSnapshotOptions.live(),
+        ),
+      ),
+    );
+
+    expect(tapCount, 1);
+    expect(result.success, isTrue);
+    expect(result.artifacts, isEmpty);
+    expect(result.usedCaptureFallback, isTrue);
+    expect(result.degradationReason, contains('afterActionCaptureFailed'));
+    expect(result.error, isNull);
+  });
+
   test('captureScreenshot forwards explicit snapshot options', () async {
     final executor = InAppCockpitCommandExecutor(
       registry: CockpitTargetRegistry(routeName: '/success'),

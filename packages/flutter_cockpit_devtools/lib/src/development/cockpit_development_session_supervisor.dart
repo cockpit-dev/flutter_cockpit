@@ -145,6 +145,12 @@ final class CockpitDevelopmentSessionSupervisor {
     _beginStartupRecovery();
   }
 
+  void bindMachineClient(CockpitFlutterRunMachineClient machineClient) {
+    _machineClient = machineClient;
+    _subscribeToMachineClient(machineClient);
+    _log('bound machine client');
+  }
+
   void reportStartupFailure(Object error) {
     final fallbackError = error is CockpitDevelopmentSessionFallbackException
         ? error

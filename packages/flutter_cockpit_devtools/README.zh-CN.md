@@ -103,6 +103,10 @@ CLI JSON 输出使用 lower camel case keys。
 `run-script` 写出的 bundle 只要状态是 `failed`，命令就会非零退出。
 workspace 命令默认把 `--workspace-root` 或 `--parent-directory` 视为当前目录。
 当后续几步已经明确，而且流程会跨路由，比如列表 -> 编辑 -> 列表，优先用一次有序的 `run-batch`，不要拆成多次 `run-command` 往返。这样更省 token，也更能避开路由切换窗口期的状态抖动。
+`run-command`、`run-batch` 和 `run-script` 会默认给关键变更命令附加
+best-effort 的 action 后截图，并挂到对应 command step 上。tap、文本输入、
+滚动、拖拽、返回导航等操作不需要额外写截图 JSON 就能留下关键帧证据。
+最终验收截图或必须命名的严格证明，仍然使用显式 `captureScreenshot`。
 
 AI-first 开发时，建议把项目自己的快速 verifier 收敛成同一个小闭环：启动应用、驱动一个代表性流程、hot reload、验证变更后的状态、必要时采集一张截图、读取 runtime errors、停止应用。失败 JSON 应该小到 AI 能先读完再决定是否打开完整 snapshot 或重跑昂贵验证。建议字段包括已完成阶段、失败命令元数据、最终路由或状态预览、有界 runtime error 预览和 artifact 引用。
 

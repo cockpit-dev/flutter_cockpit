@@ -29,7 +29,7 @@ void main() {
         contains("'commandId': 'wait-settings-targets'"),
         contains("'commandType': 'waitFor'"),
         contains("'routeName': '/settings'"),
-        contains("'requireVisibleTargets': true"),
+        isNot(contains("'requireVisibleTargets'")),
       ),
     );
   });

@@ -76,12 +76,14 @@ void main() {
       workflow,
       contains(r'--launch-timeout-seconds 600 2>&1 | tee "$LOG_PATH_POSIX"'),
     );
+    expect(workflow, isNot(contains('--launch-timeout-seconds 300')));
     expect(workflow, contains('dart run tool/verify_mcp_surface.dart'));
     expect(workflow, contains(r'STATUS=${PIPESTATUS[0]}'));
     expect(workflow, contains('xvfb-run -a dart run'));
     expect(workflow, contains('reactivecircus/android-emulator-runner@v2'));
     expect(workflow, contains('"sync_lab_conflict_recovery"'));
     expect(workflow, contains('assert platform["batchCommandCount"] == 30'));
+    expect(workflow, contains('assert platform["autoScreenshotCount"] >= 20'));
     expect(workflow, contains('assert platform["recordingOutputPath"]'));
     expect(workflow, contains('assert platform["screenshotByteLength"] > 0'));
     expect(workflow, isNot(contains('platform["batchCommandCount"] == 4')));

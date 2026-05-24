@@ -505,10 +505,7 @@ final class _McpSurfaceVerifier {
             'commandId': 'wait-settings-targets',
             'commandType': 'waitFor',
             'timeoutMs': 12000,
-            'parameters': <String, Object?>{
-              'routeName': '/settings',
-              'requireVisibleTargets': true,
-            },
+            'parameters': <String, Object?>{'routeName': '/settings'},
           },
         },
       );

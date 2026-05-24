@@ -101,19 +101,9 @@ Future<void> main(List<String> args) async {
     final endpoint = await machineLauncher.resolveRemoteSessionEndpoint(
       machineLaunchRequest,
     );
-    await writeLog('development machine launch start');
-    try {
-      machineClient = await machineLauncher.startMachineClient(
-        machineLaunchRequest,
-        endpoint: endpoint,
-      );
-    } on Object catch (error) {
-      await writeLog('development machine launch failed error=$error');
-      rethrow;
-    }
     final supervisor = CockpitDevelopmentSessionSupervisor(
       initialHandle: developmentHandle,
-      machineClient: machineClient,
+      machineClient: null,
       remoteReachabilityProbe: (baseUri) async {
         if (platform == 'android') {
           await portForwarder.ensureForwarded(
@@ -153,6 +143,12 @@ Future<void> main(List<String> args) async {
     await supervisor.start();
     unawaited(() async {
       try {
+        await writeLog('development machine launch start');
+        machineClient = await machineLauncher.startMachineClient(
+          machineLaunchRequest,
+          endpoint: endpoint,
+        );
+        supervisor.bindMachineClient(machineClient!);
         remoteHandle = await machineLauncher.waitForRemoteSession(
           request: machineLaunchRequest,
           machineClient: machineClient!,
@@ -164,7 +160,11 @@ Future<void> main(List<String> args) async {
         );
         await supervisor.bindRemoteSession(remoteHandle!);
       } on Object catch (error) {
-        await writeLog('remote launch failed error=$error');
+        if (machineClient == null) {
+          await writeLog('development machine launch failed error=$error');
+        } else {
+          await writeLog('remote launch failed error=$error');
+        }
         supervisor.reportStartupFailure(error);
       }
     }());

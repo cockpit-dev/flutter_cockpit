@@ -13,6 +13,7 @@ export 'src/adapters/cockpit_recording_adapter.dart';
 export 'src/application/cockpit_application_service_exception.dart';
 export 'src/application/cockpit_bundle_artifact_paths.dart';
 export 'src/application/cockpit_app_handle.dart';
+export 'src/application/cockpit_command_evidence_defaults.dart';
 export 'src/application/cockpit_entrypoint_resolver.dart';
 export 'src/application/cockpit_apply_fixes_service.dart';
 export 'src/application/cockpit_create_project_service.dart';
