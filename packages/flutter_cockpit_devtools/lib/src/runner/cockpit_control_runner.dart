@@ -3,6 +3,7 @@ import 'package:flutter_cockpit/flutter_cockpit.dart';
 import '../adapters/cockpit_automation_adapter.dart';
 import '../adapters/cockpit_capture_adapter.dart';
 import '../adapters/cockpit_recording_adapter.dart';
+import '../application/cockpit_command_evidence_defaults.dart';
 import 'cockpit_control_run_result.dart';
 
 final class CockpitControlRunner {
@@ -42,7 +43,8 @@ final class CockpitControlRunner {
     }
 
     try {
-      for (final command in commands) {
+      for (final rawCommand in commands) {
+        final command = cockpitCommandWithAiEvidenceDefaults(rawCommand);
         final execution = await _execute(command);
         _sessionController.importStepRecords(execution.runtimeSteps);
         _sessionController.recordCommandResult(command, execution.result);

@@ -232,6 +232,7 @@ final class CockpitDemoPlatformVerification {
     this.waitIdleSucceeded = false,
     this.waitIdleDurationMs = 0,
     this.batchCommandCount = 0,
+    this.autoScreenshotCount = 0,
     this.networkFailureCount = 0,
     this.runtimeErrorCount = 0,
     this.logLineCount = 0,
@@ -271,6 +272,7 @@ final class CockpitDemoPlatformVerification {
   final bool waitIdleSucceeded;
   final int waitIdleDurationMs;
   final int batchCommandCount;
+  final int autoScreenshotCount;
   final int networkFailureCount;
   final int runtimeErrorCount;
   final int logLineCount;
@@ -314,6 +316,7 @@ final class CockpitDemoPlatformVerification {
     'waitIdleSucceeded': waitIdleSucceeded,
     'waitIdleDurationMs': waitIdleDurationMs,
     'batchCommandCount': batchCommandCount,
+    'autoScreenshotCount': autoScreenshotCount,
     'networkFailureCount': networkFailureCount,
     'runtimeErrorCount': runtimeErrorCount,
     'logLineCount': logLineCount,
@@ -505,8 +508,9 @@ final class CockpitDemoPlatformVerifier {
       final appBaseUri = Uri.parse(launchedApp.baseUrl);
       final verifiedCommands = <String>['launch-app'];
       final warnings = <String>[];
+      var autoScreenshotCount = 0;
 
-      final initialRead = await _readApp(
+      final initialRead = await _readAppWithRetry(
         CockpitReadAppRequest(
           app: launchedApp,
           resultProfile: const CockpitInteractiveResultProfile.minimal(),
@@ -611,6 +615,7 @@ final class CockpitDemoPlatformVerifier {
         result: batchResult,
         expectedCount: 8,
       );
+      autoScreenshotCount += _autoScreenshotCount(batchResult);
       verifiedCommands.add('run-batch');
       if (recordingStarted) {
         verifiedCommands.add('start-recording');
@@ -672,7 +677,7 @@ final class CockpitDemoPlatformVerifier {
       }
       verifiedCommands.add('wait-idle');
 
-      final postSaveRead = await _readApp(
+      final postSaveRead = await _readAppWithRetry(
         CockpitReadAppRequest(
           app: launchedApp,
           resultProfile: const CockpitInteractiveResultProfile.minimal(),
@@ -706,6 +711,7 @@ final class CockpitDemoPlatformVerifier {
         result: syncLabConflictBatchResult,
         expectedCount: 5,
       );
+      autoScreenshotCount += _autoScreenshotCount(syncLabConflictBatchResult);
       final postConflictSyncIdleResult = await _waitIdle(
         CockpitWaitIdleRequest(
           app: launchedApp,
@@ -742,6 +748,9 @@ final class CockpitDemoPlatformVerifier {
         result: syncLabOpenConflictBatchResult,
         expectedCount: 6,
       );
+      autoScreenshotCount += _autoScreenshotCount(
+        syncLabOpenConflictBatchResult,
+      );
       final inspectResult = await _inspectSurface(
         CockpitInspectSurfaceRequest(
           app: launchedApp,
@@ -759,16 +768,20 @@ final class CockpitDemoPlatformVerifier {
           },
         );
       }
-      await _runRequiredCommand(
+      final revealKeepLocalResult = await _runRequiredCommand(
         app: launchedApp,
         command: _commandFromJson(
           buildSyncLabRevealKeepLocalResolutionCommand(),
         ),
       );
-      await _runRequiredCommand(
+      autoScreenshotCount += _autoScreenshotCountFromResult(
+        revealKeepLocalResult,
+      );
+      final keepLocalResult = await _runRequiredCommand(
         app: launchedApp,
         command: _commandFromJson(buildSyncLabKeepLocalResolutionCommand()),
       );
+      autoScreenshotCount += _autoScreenshotCountFromResult(keepLocalResult);
       final syncRecoveryBatchResult = await _runBatchWithRetry(
         CockpitRunBatchRequest(
           app: launchedApp,
@@ -783,6 +796,7 @@ final class CockpitDemoPlatformVerifier {
         result: syncRecoveryBatchResult,
         expectedCount: 6,
       );
+      autoScreenshotCount += _autoScreenshotCount(syncRecoveryBatchResult);
       final syncRecoveryVerificationBatchResult = await _runBatchWithRetry(
         CockpitRunBatchRequest(
           app: launchedApp,
@@ -799,7 +813,10 @@ final class CockpitDemoPlatformVerifier {
         result: syncRecoveryVerificationBatchResult,
         expectedCount: 5,
       );
-      await _runRequiredCommand(
+      autoScreenshotCount += _autoScreenshotCount(
+        syncRecoveryVerificationBatchResult,
+      );
+      final returnFromDetailResult = await _runRequiredCommand(
         app: launchedApp,
         command: CockpitCommand(
           commandId: 'verify-return-from-detail-after-recovery',
@@ -810,6 +827,21 @@ final class CockpitDemoPlatformVerifier {
           ),
         ),
       );
+      autoScreenshotCount += _autoScreenshotCountFromResult(
+        returnFromDetailResult,
+      );
+      if (autoScreenshotCount < 20) {
+        throw CockpitApplicationServiceException(
+          code: 'autoScreenshotsMissing',
+          message:
+              'Verifier did not produce enough automatic key-operation screenshots.',
+          details: <String, Object?>{
+            'platform': platform,
+            'autoScreenshotCount': autoScreenshotCount,
+            'minimumAutoScreenshotCount': 20,
+          },
+        );
+      }
       verifiedCommands.add('sync_lab_conflict_recovery');
       final networkResult = await _readNetwork(
         CockpitReadNetworkRequest(
@@ -912,7 +944,7 @@ final class CockpitDemoPlatformVerifier {
       }
       verifiedCommands.add('hot-reload');
 
-      final postReloadRead = await _readApp(
+      final postReloadRead = await _readAppWithRetry(
         CockpitReadAppRequest(
           app: launchedApp,
           resultProfile: const CockpitInteractiveResultProfile.minimal(),
@@ -950,7 +982,7 @@ final class CockpitDemoPlatformVerifier {
         );
       }
       verifiedCommands.add('hot-restart');
-      final postRestartRead = await _readApp(
+      final postRestartRead = await _readAppWithRetry(
         CockpitReadAppRequest(
           app: hotRestartResult.app,
           resultProfile: const CockpitInteractiveResultProfile.minimal(),
@@ -992,6 +1024,7 @@ final class CockpitDemoPlatformVerifier {
             syncLabOpenConflictBatchResult.summary.totalCount +
             syncRecoveryBatchResult.summary.totalCount +
             syncRecoveryVerificationBatchResult.summary.totalCount,
+        autoScreenshotCount: autoScreenshotCount,
         networkFailureCount: networkResult.summary.failureCount,
         runtimeErrorCount: errorsResult.errors.length,
         logLineCount: logsResult.lines.length,
@@ -1024,6 +1057,7 @@ final class CockpitDemoPlatformVerifier {
         failureMessage: '$error',
         failureDetails: await _failureDetailsWithDiagnostics(
           serviceError?.details,
+          app: app,
         ),
       );
     } finally {
@@ -1204,6 +1238,22 @@ final class CockpitDemoPlatformVerifier {
         .toList(growable: false);
   }
 
+  int _autoScreenshotCount(CockpitRunBatchResult result) {
+    return result.results.fold<int>(0, (count, entry) {
+      return count + _autoScreenshotCountFromResult(entry);
+    });
+  }
+
+  int _autoScreenshotCountFromResult(CockpitExecuteRemoteCommandResult result) {
+    final commandType = CockpitCommandType.fromJson(result.command.commandType);
+    if (!cockpitCommandTypeIsAiEvidenceKeyOperation(commandType)) {
+      return 0;
+    }
+    return result.artifacts
+        .where((artifact) => artifact.role == 'screenshot')
+        .length;
+  }
+
   CockpitCommand _commandFromJson(Map<String, Object?> command) {
     return CockpitCommand.fromJson(command);
   }
@@ -1349,6 +1399,24 @@ final class CockpitDemoPlatformVerifier {
       }
     }
     throw StateError('Unreachable command retry state.');
+  }
+
+  Future<CockpitReadAppResult> _readAppWithRetry(
+    CockpitReadAppRequest request,
+  ) async {
+    for (var attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        return await _readApp(request);
+      } on CockpitApplicationServiceException catch (error) {
+        final shouldRetry =
+            error.code == 'remoteUnavailable' && attempt + 1 < 2;
+        if (!shouldRetry) {
+          rethrow;
+        }
+        await _wait(Duration(milliseconds: 400 * (attempt + 1)));
+      }
+    }
+    throw StateError('Unreachable read-app retry state.');
   }
 
   Future<CockpitRunBatchResult> _runBatchWithRetry(
@@ -1550,9 +1618,16 @@ final class CockpitDemoPlatformVerifier {
   }
 
   Future<Map<String, Object?>> _failureDetailsWithDiagnostics(
-    Map<String, Object?>? details,
-  ) async {
+    Map<String, Object?>? details, {
+    CockpitAppHandle? app,
+  }) async {
     final merged = <String, Object?>{...?details};
+    final appLogPath = app?.supervisorLogPath;
+    if (appLogPath != null &&
+        appLogPath.isNotEmpty &&
+        merged['supervisorLogPath'] is! String) {
+      merged['supervisorLogPath'] = appLogPath;
+    }
     final logPath = merged['supervisorLogPath'];
     if (logPath is String && logPath.isNotEmpty) {
       final tail = await _readTextTail(logPath, maxLines: 80);

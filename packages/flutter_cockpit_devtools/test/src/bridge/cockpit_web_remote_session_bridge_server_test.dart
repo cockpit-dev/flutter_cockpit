@@ -354,6 +354,47 @@ void main() {
     },
   );
 
+  test('web bridge default timeout leaves remote client headroom', () {
+    final server = CockpitWebRemoteSessionBridgeServer(
+      bindHost: '127.0.0.1',
+      bindPort: 0,
+    );
+
+    expect(server.requestTimeout, const Duration(seconds: 20));
+    expect(server.requestTimeout, lessThan(const Duration(seconds: 30)));
+  });
+
+  test(
+    'web bridge returns a structured timeout when the browser is unresponsive',
+    () async {
+      final server = CockpitWebRemoteSessionBridgeServer(
+        bindHost: '127.0.0.1',
+        bindPort: 0,
+        requestTimeout: const Duration(milliseconds: 50),
+      );
+      await server.start();
+      addTearDown(server.close);
+
+      final socket = await WebSocket.connect(server.connectUri.toString());
+      addTearDown(socket.close);
+      socket.listen((_) {});
+
+      final stopwatch = Stopwatch()..start();
+      final response = await _readJsonResponse(
+        server.baseUri.resolve('/health'),
+      );
+      stopwatch.stop();
+
+      expect(response.statusCode, HttpStatus.gatewayTimeout);
+      expect(response.body['error'], 'bridgeTimeout');
+      expect(
+        response.body['message'],
+        contains('browser bridge did not respond'),
+      );
+      expect(stopwatch.elapsed, lessThan(const Duration(seconds: 2)));
+    },
+  );
+
   test(
     'web bridge reports malformed browser responses without timeout',
     () async {

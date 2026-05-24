@@ -35,7 +35,7 @@ final class CockpitWebRemoteSessionBridgeServer {
     this.routePrefix = '',
     this.recordingAdapter,
     CockpitBridgeArtifactTempFileFactory? artifactTempFileFactory,
-    this.requestTimeout = const Duration(seconds: 30),
+    this.requestTimeout = const Duration(seconds: 20),
   }) : _artifactTempFileFactory =
            artifactTempFileFactory ?? _defaultBridgeArtifactTempFileFactory;
 

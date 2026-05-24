@@ -1,6 +1,7 @@
 import 'package:collection/collection.dart';
 
 import '../runtime/cockpit_snapshot_options.dart';
+import 'cockpit_capture_failure_policy.dart';
 import 'cockpit_capture_policy.dart';
 import 'cockpit_command_type.dart';
 import 'cockpit_locator.dart';
@@ -13,6 +14,7 @@ final class CockpitCommand {
     this.locator,
     Map<String, Object?> parameters = const <String, Object?>{},
     this.capturePolicy = CockpitCapturePolicy.none,
+    this.captureFailurePolicy = CockpitCaptureFailurePolicy.failCommand,
     this.timeoutMs,
     this.snapshotOptions,
     this.screenshotRequest,
@@ -23,6 +25,7 @@ final class CockpitCommand {
   final CockpitLocator? locator;
   final Map<String, Object?> parameters;
   final CockpitCapturePolicy capturePolicy;
+  final CockpitCaptureFailurePolicy captureFailurePolicy;
   final int? timeoutMs;
   final CockpitSnapshotOptions? snapshotOptions;
   final CockpitScreenshotRequest? screenshotRequest;
@@ -36,6 +39,8 @@ final class CockpitCommand {
     if (locator != null) 'locator': locator!.toJson(),
     'parameters': parameters,
     'capturePolicy': capturePolicy.name,
+    if (captureFailurePolicy != CockpitCaptureFailurePolicy.failCommand)
+      'captureFailurePolicy': captureFailurePolicy.name,
     if (timeoutMs != null) 'timeoutMs': timeoutMs,
     if (snapshotOptions != null) 'snapshotOptions': snapshotOptions!.toJson(),
     if (screenshotRequest != null)
@@ -62,6 +67,9 @@ final class CockpitCommand {
       capturePolicy: json['capturePolicy'] == null
           ? CockpitCapturePolicy.none
           : CockpitCapturePolicy.fromJson(json['capturePolicy']),
+      captureFailurePolicy: json['captureFailurePolicy'] == null
+          ? CockpitCaptureFailurePolicy.failCommand
+          : CockpitCaptureFailurePolicy.fromJson(json['captureFailurePolicy']),
       timeoutMs: json['timeoutMs'] as int?,
       snapshotOptions: snapshotOptionsJson == null
           ? null
@@ -82,6 +90,7 @@ final class CockpitCommand {
     CockpitLocator? locator,
     Map<String, Object?>? parameters,
     CockpitCapturePolicy? capturePolicy,
+    CockpitCaptureFailurePolicy? captureFailurePolicy,
     int? timeoutMs,
     CockpitSnapshotOptions? snapshotOptions,
     CockpitScreenshotRequest? screenshotRequest,
@@ -92,6 +101,7 @@ final class CockpitCommand {
       locator: locator ?? this.locator,
       parameters: parameters ?? this.parameters,
       capturePolicy: capturePolicy ?? this.capturePolicy,
+      captureFailurePolicy: captureFailurePolicy ?? this.captureFailurePolicy,
       timeoutMs: timeoutMs ?? this.timeoutMs,
       snapshotOptions: snapshotOptions ?? this.snapshotOptions,
       screenshotRequest: screenshotRequest ?? this.screenshotRequest,
@@ -107,6 +117,7 @@ final class CockpitCommand {
             other.locator == locator &&
             _mapEquality.equals(other.parameters, parameters) &&
             other.capturePolicy == capturePolicy &&
+            other.captureFailurePolicy == captureFailurePolicy &&
             other.timeoutMs == timeoutMs &&
             other.snapshotOptions == snapshotOptions &&
             other.screenshotRequest == screenshotRequest;
@@ -119,6 +130,7 @@ final class CockpitCommand {
     locator,
     _mapEquality.hash(parameters),
     capturePolicy,
+    captureFailurePolicy,
     timeoutMs,
     snapshotOptions,
     screenshotRequest,

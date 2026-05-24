@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
+import 'package:flutter_cockpit_devtools/src/development/cockpit_development_session_status.dart';
+import 'package:flutter_cockpit_devtools/src/development/cockpit_development_session_supervisor_client.dart';
 import 'package:flutter_cockpit_devtools/src/development/cockpit_flutter_run_machine_client.dart';
 import 'package:flutter_cockpit_devtools/src/development/cockpit_flutter_run_machine_event.dart';
 import 'package:test/test.dart';
@@ -318,7 +320,7 @@ void main() {
   );
 
   test(
-    'development supervisor logs flutter run launch failures before exiting',
+    'development supervisor exposes flutter run launch failures through the control plane',
     () async {
       final tempDir = await Directory.systemTemp.createTemp(
         'cockpit-development-supervisor-bin-',
@@ -338,8 +340,25 @@ void main() {
           ),
         ),
       );
+      final sessionPort = await _allocateLoopbackPort();
+      final supervisorPort = await _allocateLoopbackPort();
 
-      final result = await Process.run(Platform.resolvedExecutable, <String>[
+      Process? process;
+      addTearDown(() async {
+        final running = process;
+        if (running == null) {
+          return;
+        }
+        running.kill(ProcessSignal.sigterm);
+        try {
+          await running.exitCode.timeout(const Duration(seconds: 2));
+        } on TimeoutException {
+          running.kill(ProcessSignal.sigkill);
+          await running.exitCode.timeout(const Duration(seconds: 2));
+        }
+      });
+
+      process = await Process.start(Platform.resolvedExecutable, <String>[
         'run',
         supervisorScript.path,
         '--project-dir',
@@ -351,11 +370,11 @@ void main() {
         '--device-id',
         'windows',
         '--session-port',
-        '59331',
+        '$sessionPort',
         '--app-host-port',
-        '59331',
+        '$sessionPort',
         '--supervisor-port',
-        '59332',
+        '$supervisorPort',
         '--flutter-executable',
         p.join(tempDir.path, 'missing-flutter'),
         '--log-file',
@@ -365,12 +384,60 @@ void main() {
         '--launch-timeout-seconds',
         '1',
       ], workingDirectory: Directory.current.path);
+      unawaited(process.stdout.drain<void>());
+      unawaited(process.stderr.drain<void>());
 
-      expect(result.exitCode, isNot(0));
+      final baseUri = Uri(
+        scheme: 'http',
+        host: '127.0.0.1',
+        port: supervisorPort,
+      );
+      final response = await _waitForSupervisorFailure(baseUri);
+      expect(response.status.state, CockpitDevelopmentSessionState.failed);
+      expect(response.status.lastError, contains('missing-flutter'));
+
       final logText = await logFile.readAsString();
       expect(logText, contains('development machine launch start'));
       expect(logText, contains('development machine launch failed'));
       expect(logText, contains('missing-flutter'));
+
+      final stopped = await CockpitDevelopmentSessionSupervisorClient().stop(
+        baseUri,
+      );
+      expect(stopped.status.state, CockpitDevelopmentSessionState.stopped);
     },
+  );
+}
+
+Future<int> _allocateLoopbackPort() async {
+  final socket = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+  try {
+    return socket.port;
+  } finally {
+    await socket.close();
+  }
+}
+
+Future<CockpitDevelopmentSessionSupervisorResponse> _waitForSupervisorFailure(
+  Uri baseUri,
+) async {
+  final client = CockpitDevelopmentSessionSupervisorClient(
+    requestTimeout: const Duration(seconds: 2),
+  );
+  final deadline = DateTime.now().add(const Duration(seconds: 10));
+  Object? lastFailure;
+  while (DateTime.now().isBefore(deadline)) {
+    try {
+      final response = await client.readStatus(baseUri);
+      if (response.status.state == CockpitDevelopmentSessionState.failed) {
+        return response;
+      }
+    } on Object catch (error) {
+      lastFailure = error;
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+  }
+  throw TimeoutException(
+    'Development supervisor did not report failed startup: $lastFailure',
   );
 }

@@ -117,6 +117,108 @@ void main() {
     },
   );
 
+  test('applies AI evidence defaults before executing key commands', () async {
+    final adapter = _FakeAutomationAdapter(
+      capabilities: CockpitCapabilities(
+        platform: 'android',
+        transportType: 'remoteHttp',
+        supportsInAppControl: true,
+        supportsFlutterViewCapture: true,
+        supportsNativeScreenCapture: false,
+        supportsHostAutomation: false,
+        supportedCommands: const [
+          CockpitCommandType.tap,
+          CockpitCommandType.assertText,
+        ],
+        supportedLocatorStrategies: const [CockpitLocatorKind.cockpitId],
+      ),
+      resultsByCommandId: <String, CockpitCommandResult>{
+        'cmd-open': CockpitCommandResult(
+          success: true,
+          commandId: 'cmd-open',
+          commandType: CockpitCommandType.tap,
+          durationMs: 12,
+          artifacts: const [
+            CockpitArtifactRef(
+              role: 'screenshot',
+              relativePath: 'screenshots/cmd-open_afterAction.png',
+            ),
+          ],
+          requestedCaptureProfile: CockpitCaptureProfile.flutterPreferred,
+          resolvedCaptureKind: CockpitCaptureKind.flutterView,
+        ),
+        'cmd-assert': CockpitCommandResult(
+          success: true,
+          commandId: 'cmd-assert',
+          commandType: CockpitCommandType.assertText,
+          durationMs: 8,
+        ),
+      },
+    );
+    final runner = CockpitControlRunner(
+      automationAdapter: adapter,
+      sessionController: CockpitSessionController(
+        sessionId: 'runner-evidence-defaults',
+        taskId: 'runner-evidence-defaults-task',
+        platform: 'android',
+        now: () => DateTime.utc(2026, 3, 24, 12),
+      ),
+    );
+
+    final runResult = await runner.run(
+      environment: const CockpitEnvironment(
+        platform: 'android',
+        flutterVersion: '3.38.9',
+        dartVersion: '3.10.8',
+      ),
+      commands: <CockpitCommand>[
+        CockpitCommand(
+          commandId: 'cmd-open',
+          commandType: CockpitCommandType.tap,
+          locator: const CockpitLocator(cockpitId: 'open_form_button'),
+        ),
+        CockpitCommand(
+          commandId: 'cmd-assert',
+          commandType: CockpitCommandType.assertText,
+          parameters: const <String, Object?>{'text': 'Ready'},
+        ),
+      ],
+    );
+
+    expect(adapter.executedCommands, hasLength(2));
+    expect(
+      adapter.executedCommands.first.capturePolicy,
+      CockpitCapturePolicy.afterAction,
+    );
+    expect(
+      adapter.executedCommands.first.captureFailurePolicy,
+      CockpitCaptureFailurePolicy.degradeCommand,
+    );
+    expect(
+      adapter.executedCommands.first.screenshotRequest?.toJson(),
+      <String, Object?>{
+        'reason': 'after_action',
+        'name': 'cmd-open',
+        'includeSnapshot': true,
+        'attachToStep': true,
+        'snapshotOptions': const CockpitSnapshotOptions.live().toJson(),
+      },
+    );
+    expect(
+      adapter.executedCommands.last.capturePolicy,
+      CockpitCapturePolicy.none,
+    );
+    expect(
+      adapter.executedCommands.last.captureFailurePolicy,
+      CockpitCaptureFailurePolicy.failCommand,
+    );
+    expect(runResult.bundle.manifest.screenshotCount, 1);
+    expect(
+      runResult.bundle.steps.first.captureRefs.single.relativePath,
+      'screenshots/cmd-open_afterAction.png',
+    );
+  });
+
   test('stops on the first hard failure when failFast is enabled', () async {
     final adapter = _FakeAutomationAdapter(
       capabilities: CockpitCapabilities(
@@ -344,6 +446,7 @@ final class _FakeAutomationAdapter implements CockpitAutomationAdapter {
   final Map<String, CockpitCommandResult>? _resultsByCommandId;
   final Map<String, CockpitCommandExecution>? _executionsByCommandId;
   final List<String> executedCommandIds = <String>[];
+  final List<CockpitCommand> executedCommands = <CockpitCommand>[];
   int describeCapabilitiesCallCount = 0;
 
   @override
@@ -355,6 +458,7 @@ final class _FakeAutomationAdapter implements CockpitAutomationAdapter {
   @override
   Future<CockpitCommandExecution> execute(CockpitCommand command) async {
     executedCommandIds.add(command.commandId);
+    executedCommands.add(command);
     final execution = _executionsByCommandId?[command.commandId];
     if (execution != null) {
       return execution;

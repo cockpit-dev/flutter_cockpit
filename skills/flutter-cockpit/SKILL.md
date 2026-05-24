@@ -83,6 +83,7 @@ Safe first locator keys: `text`, `tooltip`, `semanticId`, `type`, `ancestor`, `i
 - Default stdout is AI-readable, not JSON. Use `--stdout-format json` only for `jq`; use `--output <path>` for files and add `--output-format json` only for machine-readable files.
 - Prefer file inputs: `--command-file`, `--commands-file`, and config JSON once payloads stop being trivial.
 - Start with `minimal` or `standard`; ask for one missing fact at a time before escalating to `inspect`, `evidence`, raw artifacts, or downloaded diagnostics.
+- `run-command`, `run-batch`, and `run-script` automatically attach best-effort after-action screenshots to key mutating commands such as tap, text input, scroll, drag, and back. Keep explicit `captureScreenshot` for final acceptance or named proof shots.
 - When a CLI command exits non-zero, first read `errorJson` with `code`, `message`, and optional `details`. For non-usage failures, use that compact payload before the prose `Error:` line. Do not collapse all remote failures: `remoteUnavailable`, `bridgeUnavailable`, `artifactNotFound`, `recordingStartFailed`, and `invalidPayload` need different next actions.
 - Treat `invalidPayload` as a command or option defect. Fix the JSON shape, query parameter, profile, or locator payload before retrying.
 - After `remoteUnavailable`, a timeout, hot reload, or hot restart, re-read minimal route or state before retrying. Do not blindly replay a non-idempotent batch.

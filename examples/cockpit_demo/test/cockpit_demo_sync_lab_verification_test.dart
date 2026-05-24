@@ -42,7 +42,6 @@ void main() {
     expect(commands[1]['timeoutMs'], 12000);
     expect(commands[1]['parameters'], <String, Object?>{
       'routeName': '/editor',
-      'requireVisibleTargets': true,
     });
     expect(commands[2]['commandId'], 'verify-enter-task-title');
     expect(commands[2]['commandType'], 'enterText');
@@ -86,10 +85,7 @@ void main() {
     expect(commands[7]['commandId'], 'verify-wait-for-inbox-route-after-save');
     expect(commands[7]['commandType'], 'waitFor');
     expect(commands[7]['timeoutMs'], 12000);
-    expect(commands[7]['parameters'], <String, Object?>{
-      'routeName': '/inbox',
-      'requireVisibleTargets': true,
-    });
+    expect(commands[7]['parameters'], <String, Object?>{'routeName': '/inbox'});
   });
 
   test('buildSyncLabConflictSyncBatch reaches the queued sync action', () {
@@ -174,7 +170,6 @@ void main() {
     expect(commands[3]['timeoutMs'], 12000);
     expect(commands[3]['parameters'], <String, Object?>{
       'routeName': '/detail',
-      'requireVisibleTargets': true,
     });
   });
 
@@ -293,7 +288,6 @@ void main() {
       expect(commands[3]['timeoutMs'], 12000);
       expect(commands[3]['parameters'], <String, Object?>{
         'routeName': '/detail',
-        'requireVisibleTargets': true,
       });
       expect(commands[4]['commandType'], 'assertText');
       expect(commands[4]['parameters'], <String, Object?>{

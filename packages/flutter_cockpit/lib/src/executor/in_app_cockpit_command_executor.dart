@@ -10,6 +10,7 @@ import 'package:flutter/widgets.dart';
 
 import '../capture/cockpit_capture_kind.dart';
 import '../capture/cockpit_capture_profile.dart';
+import '../control/cockpit_capture_failure_policy.dart';
 import '../control/cockpit_command.dart';
 import '../control/cockpit_command_execution.dart';
 import '../control/cockpit_command_result.dart';
@@ -2626,7 +2627,26 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
       _liveSnapshot().toJson(),
       warnings,
     );
-    final capture = await _captureOrchestrator.captureAfterAction(command);
+    final CockpitCaptureArtifacts? capture;
+    try {
+      capture = await _captureOrchestrator.captureAfterAction(command);
+    } on Object catch (error) {
+      if (command.captureFailurePolicy ==
+          CockpitCaptureFailurePolicy.failCommand) {
+        rethrow;
+      }
+      return _successExecution(
+        command: command,
+        durationMs: durationMs,
+        locatorResolution: resolution?.locatorResolution,
+        snapshot: snapshot,
+        usedCaptureFallback: true,
+        degradationReason: _mergeDegradationReasons(
+          degradationReason,
+          'afterActionCaptureFailed: $error',
+        ),
+      );
+    }
     if (capture == null) {
       return _successExecution(
         command: command,
@@ -2649,9 +2669,22 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
       requestedCaptureProfile: capture.requestedCaptureProfile,
       resolvedCaptureKind: capture.resolvedCaptureKind,
       usedCaptureFallback: capture.usedCaptureFallback,
-      degradationReason: degradationReason ?? capture.degradationReason,
+      degradationReason: _mergeDegradationReasons(
+        degradationReason,
+        capture.degradationReason,
+      ),
       artifactPayloads: capture.artifactPayloads,
     );
+  }
+
+  String? _mergeDegradationReasons(String? primary, String? secondary) {
+    if (primary == null || primary.isEmpty) {
+      return secondary;
+    }
+    if (secondary == null || secondary.isEmpty || primary == secondary) {
+      return primary;
+    }
+    return '$primary; $secondary';
   }
 
   CockpitCommandExecution _successExecution({

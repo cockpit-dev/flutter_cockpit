@@ -105,6 +105,11 @@ When a command accepts both `--app-json` and `--base-url`, precedence is: explic
 Workspace commands default `--workspace-root` or `--parent-directory` to the current directory.
 Serialize mutation, then observation. Do not run a mutating `run-command` in parallel with the `read-app`, `inspect-ui`, or `read-network` call that depends on its result.
 When the next few steps are already known and the flow will cross a route boundary such as list -> editor -> list, prefer one ordered `run-batch` over separate `run-command` round-trips. It cuts token cost and avoids route-transition gaps between commands.
+`run-command`, `run-batch`, and `run-script` default key mutating commands to
+best-effort after-action screenshots attached to the command step. This gives
+agents key-frame evidence for taps, text input, scrolls, drags, and back
+navigation without adding per-command JSON. Use an explicit `captureScreenshot`
+command for final acceptance or any named proof artifact that must be strict.
 
 For AI-first development, build project-owned rapid verifiers around the same
 small loop: launch, drive one representative flow, hot reload, assert the
