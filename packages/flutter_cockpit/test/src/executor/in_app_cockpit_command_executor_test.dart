@@ -1760,6 +1760,305 @@ void main() {
     },
   );
 
+  testWidgets('tap waits for async direct handlers before reporting success', (
+    tester,
+  ) async {
+    final registry = CockpitTargetRegistry(routeName: '/inbox');
+
+    await tester.pumpWidget(
+      const Directionality(
+        textDirection: TextDirection.ltr,
+        child: SizedBox.shrink(),
+      ),
+    );
+
+    registry.register(
+      CockpitTarget(
+        registrationId: 'open-editor',
+        text: 'Open editor',
+        routeName: '/inbox',
+        supportedCommands: const {CockpitCommandType.tap},
+        onTap: () async {
+          await Future<void>.delayed(const Duration(milliseconds: 32));
+          registry.routeName = '/editor';
+          registry.register(
+            const CockpitTarget(
+              registrationId: 'editor-ready',
+              text: 'Editor ready',
+              routeName: '/editor',
+            ),
+          );
+        },
+      ),
+    );
+
+    final executor = InAppCockpitCommandExecutor(
+      registry: registry,
+      waitTickHandler: tester.pump,
+      interactionPolicy: const CockpitInteractionPolicy(
+        preActionVisualDelay: Duration.zero,
+        actionVisualDelay: Duration.zero,
+        routeTransitionVisualDelay: Duration.zero,
+        recordingActionVisualDelay: Duration.zero,
+      ),
+    );
+
+    final result = await executor.execute(
+      CockpitCommand(
+        commandId: 'open-editor',
+        commandType: CockpitCommandType.tap,
+        locator: const CockpitLocator(text: 'Open editor'),
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.snapshot?['routeName'], '/editor');
+    expect(
+      ((result.snapshot?['visibleTargets'] as List<Object?>?) ?? const [])
+          .cast<Map<Object?, Object?>>()
+          .any(
+            (target) =>
+                target['routeName'] == '/editor' &&
+                target['text'] == 'Editor ready',
+          ),
+      isTrue,
+    );
+  });
+
+  testWidgets(
+    'tap continues after a visible commit when an async handler represents a route lifetime',
+    (tester) async {
+      final registry = CockpitTargetRegistry(routeName: '/inbox');
+      final routeLifetime = Completer<void>();
+
+      await tester.pumpWidget(
+        const Directionality(
+          textDirection: TextDirection.ltr,
+          child: SizedBox.shrink(),
+        ),
+      );
+
+      registry.register(
+        CockpitTarget(
+          registrationId: 'open-editor',
+          text: 'Open editor',
+          routeName: '/inbox',
+          supportedCommands: const {CockpitCommandType.tap},
+          onTap: () async {
+            registry.routeName = '/editor';
+            registry.register(
+              const CockpitTarget(
+                registrationId: 'editor-ready',
+                text: 'Editor ready',
+                routeName: '/editor',
+              ),
+            );
+            await routeLifetime.future;
+          },
+        ),
+      );
+
+      final executor = InAppCockpitCommandExecutor(
+        registry: registry,
+        waitTickHandler: tester.pump,
+        interactionPolicy: const CockpitInteractionPolicy(
+          preActionVisualDelay: Duration.zero,
+          actionCommitTimeout: Duration(milliseconds: 400),
+          actionVisualDelay: Duration.zero,
+          routeTransitionVisualDelay: Duration.zero,
+          recordingActionVisualDelay: Duration.zero,
+        ),
+      );
+
+      final result = await executor.execute(
+        CockpitCommand(
+          commandId: 'open-editor',
+          commandType: CockpitCommandType.tap,
+          locator: const CockpitLocator(text: 'Open editor'),
+        ),
+      );
+      addTearDown(routeLifetime.complete);
+
+      expect(result.success, isTrue);
+      expect(routeLifetime.isCompleted, isFalse);
+      expect(result.snapshot?['routeName'], '/editor');
+      expect(
+        (result.snapshot?['warnings'] as List<Object?>?) ?? const <Object?>[],
+        isEmpty,
+      );
+    },
+  );
+
+  testWidgets(
+    'tap forwards async handler failures that happen before a visible commit',
+    (tester) async {
+      final registry = CockpitTargetRegistry(routeName: '/inbox');
+
+      await tester.pumpWidget(
+        const Directionality(
+          textDirection: TextDirection.ltr,
+          child: SizedBox.shrink(),
+        ),
+      );
+
+      registry.register(
+        CockpitTarget(
+          registrationId: 'open-editor',
+          text: 'Open editor',
+          routeName: '/inbox',
+          supportedCommands: const {CockpitCommandType.tap},
+          onTap: () async {
+            await Future<void>.delayed(const Duration(milliseconds: 16));
+            throw StateError('save failed');
+          },
+        ),
+      );
+
+      final executor = InAppCockpitCommandExecutor(
+        registry: registry,
+        waitTickHandler: tester.pump,
+        interactionPolicy: const CockpitInteractionPolicy(
+          preActionVisualDelay: Duration.zero,
+          actionCommitTimeout: Duration(milliseconds: 400),
+          actionVisualDelay: Duration.zero,
+          routeTransitionVisualDelay: Duration.zero,
+          recordingActionVisualDelay: Duration.zero,
+        ),
+      );
+
+      final result = await executor.execute(
+        CockpitCommand(
+          commandId: 'open-editor',
+          commandType: CockpitCommandType.tap,
+          locator: const CockpitLocator(text: 'Open editor'),
+        ),
+      );
+
+      expect(result.success, isFalse);
+      expect(
+        result.error?.code,
+        CockpitCommandError.gestureExecutionFailedCode,
+      );
+      expect(result.error?.message, contains('save failed'));
+    },
+  );
+
+  testWidgets(
+    'tap on discovered Material controls commits route pushes before reporting success',
+    (tester) async {
+      FlutterCockpit.initialize(
+        const FlutterCockpitConfiguration(initialRouteName: '/inbox'),
+      );
+      addTearDown(FlutterCockpit.dispose);
+
+      final rootKey = GlobalKey<FlutterCockpitRootState>();
+
+      await tester.pumpWidget(
+        FlutterCockpitRoot(
+          key: rootKey,
+          child: MaterialApp(
+            navigatorObservers: <NavigatorObserver>[
+              FlutterCockpit.navigatorObserver,
+            ],
+            initialRoute: '/inbox',
+            routes: <String, WidgetBuilder>{
+              '/inbox': (context) => Scaffold(
+                appBar: AppBar(
+                  actions: <Widget>[
+                    IconButton(
+                      tooltip: 'Settings',
+                      onPressed: () async {
+                        await Navigator.of(context).pushNamed('/settings');
+                      },
+                      icon: const Icon(Icons.settings),
+                    ),
+                  ],
+                ),
+                body: Center(
+                  child: TextButton.icon(
+                    onPressed: () async {
+                      await Navigator.of(context).pushNamed('/editor');
+                    },
+                    icon: const Icon(Icons.add),
+                    label: const Text('New task'),
+                  ),
+                ),
+              ),
+              '/editor': (context) => Scaffold(
+                appBar: AppBar(),
+                body: const TextField(
+                  decoration: InputDecoration(labelText: 'Task title'),
+                ),
+              ),
+              '/settings': (context) =>
+                  const Scaffold(body: Text('Sync settings')),
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final executor = InAppCockpitCommandExecutor(
+        registry: FlutterCockpit.binding.registry,
+        snapshotProvider: rootKey.currentState!.snapshot,
+        gestureHandler: rootKey.currentState!.performGesture,
+        waitTickHandler: tester.pump,
+        interactionPolicy: const CockpitInteractionPolicy(
+          preActionVisualDelay: Duration.zero,
+          actionVisualDelay: Duration.zero,
+          routeTransitionVisualDelay: Duration.zero,
+          recordingActionVisualDelay: Duration.zero,
+        ),
+      );
+
+      final openEditor = await executor.execute(
+        CockpitCommand(
+          commandId: 'open-editor',
+          commandType: CockpitCommandType.tap,
+          locator: const CockpitLocator(text: 'New task', route: '/inbox'),
+        ),
+      );
+
+      expect(openEditor.success, isTrue);
+      expect(openEditor.snapshot?['routeName'], '/editor');
+      expect(
+        ((openEditor.snapshot?['visibleTargets'] as List<Object?>?) ?? const [])
+            .cast<Map<Object?, Object?>>()
+            .any(
+              (target) =>
+                  target['routeName'] == '/editor' &&
+                  target['text'] == 'Task title',
+            ),
+        isTrue,
+      );
+
+      await tester.tap(find.byTooltip('Back'));
+      await tester.pumpAndSettle();
+
+      final openSettings = await executor.execute(
+        CockpitCommand(
+          commandId: 'open-settings',
+          commandType: CockpitCommandType.tap,
+          locator: const CockpitLocator(tooltip: 'Settings', route: '/inbox'),
+        ),
+      );
+
+      expect(openSettings.success, isTrue);
+      expect(openSettings.snapshot?['routeName'], '/settings');
+      expect(
+        ((openSettings.snapshot?['visibleTargets'] as List<Object?>?) ??
+                const [])
+            .cast<Map<Object?, Object?>>()
+            .any(
+              (target) =>
+                  target['routeName'] == '/settings' &&
+                  target['text'] == 'Sync settings',
+            ),
+        isTrue,
+      );
+    },
+  );
+
   testWidgets(
     'scrollUntilVisible discovers a lazily built target after scrolling',
     (tester) async {

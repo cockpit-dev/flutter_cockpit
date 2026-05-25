@@ -8,6 +8,7 @@ final class CockpitInteractionPolicy {
     this.uiIdleTimeout = const Duration(milliseconds: 1600),
     this.preActionVisualDelay = const Duration(milliseconds: 40),
     this.recordingPreActionVisualDelay = const Duration(milliseconds: 120),
+    this.actionCommitTimeout = const Duration(milliseconds: 1200),
     this.actionVisualDelay = const Duration(milliseconds: 48),
     this.routeTransitionVisualDelay = const Duration(milliseconds: 96),
     this.recordingActionVisualDelay = const Duration(milliseconds: 160),
@@ -21,6 +22,7 @@ final class CockpitInteractionPolicy {
   final Duration uiIdleTimeout;
   final Duration preActionVisualDelay;
   final Duration recordingPreActionVisualDelay;
+  final Duration actionCommitTimeout;
   final Duration actionVisualDelay;
   final Duration routeTransitionVisualDelay;
   final Duration recordingActionVisualDelay;
@@ -34,6 +36,7 @@ final class CockpitInteractionPolicy {
     Duration? uiIdleTimeout,
     Duration? preActionVisualDelay,
     Duration? recordingPreActionVisualDelay,
+    Duration? actionCommitTimeout,
     Duration? actionVisualDelay,
     Duration? routeTransitionVisualDelay,
     Duration? recordingActionVisualDelay,
@@ -49,6 +52,7 @@ final class CockpitInteractionPolicy {
       preActionVisualDelay: preActionVisualDelay ?? this.preActionVisualDelay,
       recordingPreActionVisualDelay:
           recordingPreActionVisualDelay ?? this.recordingPreActionVisualDelay,
+      actionCommitTimeout: actionCommitTimeout ?? this.actionCommitTimeout,
       actionVisualDelay: actionVisualDelay ?? this.actionVisualDelay,
       routeTransitionVisualDelay:
           routeTransitionVisualDelay ?? this.routeTransitionVisualDelay,
@@ -72,6 +76,7 @@ final class CockpitInteractionPolicy {
             other.preActionVisualDelay == preActionVisualDelay &&
             other.recordingPreActionVisualDelay ==
                 recordingPreActionVisualDelay &&
+            other.actionCommitTimeout == actionCommitTimeout &&
             other.actionVisualDelay == actionVisualDelay &&
             other.routeTransitionVisualDelay == routeTransitionVisualDelay &&
             other.recordingActionVisualDelay == recordingActionVisualDelay &&
@@ -88,6 +93,7 @@ final class CockpitInteractionPolicy {
     uiIdleTimeout,
     preActionVisualDelay,
     recordingPreActionVisualDelay,
+    actionCommitTimeout,
     actionVisualDelay,
     routeTransitionVisualDelay,
     recordingActionVisualDelay,

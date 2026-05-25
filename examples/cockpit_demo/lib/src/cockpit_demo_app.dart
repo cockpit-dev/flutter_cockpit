@@ -49,7 +49,7 @@ final class CockpitDemoApp extends StatefulWidget {
 }
 
 final class _CockpitDemoAppState extends State<CockpitDemoApp> {
-  final _AppNavigatorObserver _navigatorObserver = _AppNavigatorObserver();
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   late final CockpitDemoDatabase _database =
       widget.database ?? CockpitDemoDatabase.local();
   late final TodoRepository _repository = TodoRepository(_database);
@@ -90,12 +90,12 @@ final class _CockpitDemoAppState extends State<CockpitDemoApp> {
           config: widget.cockpitConfig,
           child: MaterialApp(
             title: 'Orbit Todo',
+            navigatorKey: _navigatorKey,
             theme: _buildTheme(Brightness.light),
             darkTheme: _buildTheme(Brightness.dark),
             themeMode: _themeModeFor(_service.settingsState.settings),
             navigatorObservers: <NavigatorObserver>[
               FlutterCockpit.navigatorObserver,
-              _navigatorObserver,
             ],
             initialRoute: widget.initialRouteName,
             onGenerateRoute: _buildRoute,
@@ -167,7 +167,7 @@ final class _CockpitDemoAppState extends State<CockpitDemoApp> {
   }
 
   Future<String?> _openEditor() async {
-    final result = await _navigatorObserver.navigator!.pushNamed('/editor');
+    final result = await _navigatorState.pushNamed('/editor');
     if (result is String && result.isNotEmpty) {
       return result;
     }
@@ -175,16 +175,16 @@ final class _CockpitDemoAppState extends State<CockpitDemoApp> {
   }
 
   Future<TodoTask?> _editTask(TodoTask task) async {
-    await _navigatorObserver.navigator!.pushNamed('/editor', arguments: task);
+    await _navigatorState.pushNamed('/editor', arguments: task);
     return _repository.getTask(task.id);
   }
 
   Future<void> _openTask(TodoTask task) {
-    return _navigatorObserver.navigator!.pushNamed('/detail', arguments: task);
+    return _navigatorState.pushNamed('/detail', arguments: task);
   }
 
   Future<void> _openSettings() {
-    return _navigatorObserver.navigator!.pushNamed('/settings');
+    return _navigatorState.pushNamed('/settings');
   }
 
   void _navigateFromIndex(int index) {
@@ -196,7 +196,15 @@ final class _CockpitDemoAppState extends State<CockpitDemoApp> {
     if (FlutterCockpit.binding.currentRouteName.value == routeName) {
       return;
     }
-    _navigatorObserver.navigator!.pushReplacementNamed(routeName);
+    _navigatorState.pushReplacementNamed(routeName);
+  }
+
+  NavigatorState get _navigatorState {
+    final state = _navigatorKey.currentState;
+    if (state == null) {
+      throw StateError('CockpitDemoApp navigator is not mounted.');
+    }
+    return state;
   }
 
   Future<Map<String, Object?>> _buildSyncProbePayload() async {
@@ -260,5 +268,3 @@ final class _CockpitDemoAppState extends State<CockpitDemoApp> {
     };
   }
 }
-
-final class _AppNavigatorObserver extends NavigatorObserver {}

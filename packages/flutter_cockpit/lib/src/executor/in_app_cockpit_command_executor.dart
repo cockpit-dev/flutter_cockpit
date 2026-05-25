@@ -350,7 +350,17 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
     if (target.supportedCommands.contains(CockpitCommandType.tap) &&
         target.onTap != null) {
       await _prepareForAction(command, commandType: CockpitCommandType.tap);
-      target.onTap!.call();
+      final commit = await _invokeActionAndAwaitCommit(
+        command: command,
+        action: target.onTap!,
+        previousRouteName: previousRouteName,
+        commandType: CockpitCommandType.tap,
+        stopwatch: stopwatch,
+        resolution: resolution,
+      );
+      if (commit.failure != null) {
+        return commit.failure!;
+      }
       await _stabilizeAfterAction(
         previousRouteName,
         commandType: CockpitCommandType.tap,
@@ -360,12 +370,23 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
         command: command,
         resolution: resolution,
         durationMs: stopwatch.elapsedMilliseconds,
+        warnings: commit.warnings,
       );
     }
     if (target.supportedCommands.contains(CockpitCommandType.tap) &&
         target.onSemanticTap != null) {
       await _prepareForAction(command, commandType: CockpitCommandType.tap);
-      target.onSemanticTap!.call();
+      final commit = await _invokeActionAndAwaitCommit(
+        command: command,
+        action: target.onSemanticTap!,
+        previousRouteName: previousRouteName,
+        commandType: CockpitCommandType.tap,
+        stopwatch: stopwatch,
+        resolution: resolution,
+      );
+      if (commit.failure != null) {
+        return commit.failure!;
+      }
       await _stabilizeAfterAction(
         previousRouteName,
         commandType: CockpitCommandType.tap,
@@ -374,6 +395,7 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
         command: command,
         resolution: resolution,
         durationMs: stopwatch.elapsedMilliseconds,
+        warnings: commit.warnings,
       );
     }
     if (_gestureHandler != null) {
@@ -450,7 +472,17 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
         command,
         commandType: CockpitCommandType.longPress,
       );
-      target.onSemanticLongPress!.call();
+      final commit = await _invokeActionAndAwaitCommit(
+        command: command,
+        action: target.onSemanticLongPress!,
+        previousRouteName: previousRouteName,
+        commandType: CockpitCommandType.longPress,
+        stopwatch: stopwatch,
+        resolution: resolution,
+      );
+      if (commit.failure != null) {
+        return commit.failure!;
+      }
       await _stabilizeAfterAction(
         previousRouteName,
         commandType: CockpitCommandType.longPress,
@@ -459,6 +491,7 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
         command: command,
         resolution: resolution,
         durationMs: stopwatch.elapsedMilliseconds,
+        warnings: commit.warnings,
       );
     }
     if (target.supportedCommands.contains(CockpitCommandType.longPress) &&
@@ -467,7 +500,17 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
         command,
         commandType: CockpitCommandType.longPress,
       );
-      target.onLongPress!.call();
+      final commit = await _invokeActionAndAwaitCommit(
+        command: command,
+        action: target.onLongPress!,
+        previousRouteName: previousRouteName,
+        commandType: CockpitCommandType.longPress,
+        stopwatch: stopwatch,
+        resolution: resolution,
+      );
+      if (commit.failure != null) {
+        return commit.failure!;
+      }
       await _stabilizeAfterAction(
         previousRouteName,
         commandType: CockpitCommandType.longPress,
@@ -476,6 +519,7 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
         command: command,
         resolution: resolution,
         durationMs: stopwatch.elapsedMilliseconds,
+        warnings: commit.warnings,
       );
     }
     return _executeResolvedGesture(
@@ -546,7 +590,17 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
         command,
         commandType: CockpitCommandType.doubleTap,
       );
-      target.onDoubleTap!.call();
+      final commit = await _invokeActionAndAwaitCommit(
+        command: command,
+        action: target.onDoubleTap!,
+        previousRouteName: previousRouteName,
+        commandType: CockpitCommandType.doubleTap,
+        stopwatch: stopwatch,
+        resolution: resolution,
+      );
+      if (commit.failure != null) {
+        return commit.failure!;
+      }
       await _stabilizeAfterAction(
         previousRouteName,
         commandType: CockpitCommandType.doubleTap,
@@ -555,6 +609,7 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
         command: command,
         resolution: resolution,
         durationMs: stopwatch.elapsedMilliseconds,
+        warnings: commit.warnings,
       );
     }
     return _executeResolvedGesture(
@@ -1396,14 +1451,43 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
     final semanticEnterText = resolvedTarget.onSemanticEnterText;
     final enterText = resolvedTarget.onEnterText;
     await _prepareForAction(command, commandType: CockpitCommandType.enterText);
+    late final _ActionCommitResult commit;
     if (semanticTextInput != null) {
-      semanticTextInput(request);
+      commit = await _invokeActionAndAwaitCommit(
+        command: command,
+        action: () => semanticTextInput(request),
+        previousRouteName: previousRouteName,
+        commandType: CockpitCommandType.enterText,
+        stopwatch: stopwatch,
+        resolution: resolution,
+      );
     } else if (textInput != null) {
-      textInput(request);
+      commit = await _invokeActionAndAwaitCommit(
+        command: command,
+        action: () => textInput(request),
+        previousRouteName: previousRouteName,
+        commandType: CockpitCommandType.enterText,
+        stopwatch: stopwatch,
+        resolution: resolution,
+      );
     } else if (request.text != null && semanticEnterText != null) {
-      semanticEnterText(request.text!);
+      commit = await _invokeActionAndAwaitCommit(
+        command: command,
+        action: () => semanticEnterText(request.text!),
+        previousRouteName: previousRouteName,
+        commandType: CockpitCommandType.enterText,
+        stopwatch: stopwatch,
+        resolution: resolution,
+      );
     } else if (request.text != null && enterText != null) {
-      enterText.call(request.text!);
+      commit = await _invokeActionAndAwaitCommit(
+        command: command,
+        action: () => enterText.call(request.text!),
+        previousRouteName: previousRouteName,
+        commandType: CockpitCommandType.enterText,
+        stopwatch: stopwatch,
+        resolution: resolution,
+      );
     } else {
       return _unsupportedExecution(
         command: command,
@@ -1411,12 +1495,16 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
         target: resolvedTarget,
       );
     }
+    if (commit.failure != null) {
+      return commit.failure!;
+    }
     await _stabilizeAfterAction(previousRouteName);
 
     return _buildSuccessWithOptionalCapture(
       command: command,
       resolution: resolution,
       durationMs: stopwatch.elapsedMilliseconds,
+      warnings: commit.warnings,
     );
   }
 
@@ -1518,7 +1606,17 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
     }
 
     await _prepareForAction(command, commandType: requiredCommand);
-    resolvedTarget.onTextInput!.call(request);
+    final commit = await _invokeActionAndAwaitCommit(
+      command: command,
+      action: () => resolvedTarget.onTextInput!.call(request),
+      previousRouteName: previousRouteName,
+      commandType: requiredCommand,
+      stopwatch: stopwatch,
+      resolution: resolution,
+    );
+    if (commit.failure != null) {
+      return commit.failure!;
+    }
     await _stabilizeAfterAction(
       previousRouteName,
       commandType: requiredCommand,
@@ -1527,6 +1625,7 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
       command: command,
       resolution: resolution,
       durationMs: stopwatch.elapsedMilliseconds,
+      warnings: commit.warnings,
     );
   }
 
@@ -1592,7 +1691,17 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
     }
 
     await _prepareForAction(command, commandType: requiredCommand);
-    action.call();
+    final commit = await _invokeActionAndAwaitCommit(
+      command: command,
+      action: action,
+      previousRouteName: previousRouteName,
+      commandType: requiredCommand,
+      stopwatch: stopwatch,
+      resolution: resolution,
+    );
+    if (commit.failure != null) {
+      return commit.failure!;
+    }
     await _stabilizeAfterAction(
       previousRouteName,
       commandType: requiredCommand,
@@ -1601,6 +1710,7 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
       command: command,
       resolution: resolution,
       durationMs: stopwatch.elapsedMilliseconds,
+      warnings: commit.warnings,
     );
   }
 
@@ -2848,6 +2958,173 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
     );
   }
 
+  Future<_ActionCommitResult> _invokeActionAndAwaitCommit({
+    required CockpitCommand command,
+    required FutureOr<void> Function() action,
+    required String? previousRouteName,
+    required CockpitCommandType commandType,
+    required Stopwatch stopwatch,
+    CockpitTargetResolutionResult? resolution,
+  }) async {
+    final beforeActionFingerprint = _actionCommitFingerprint(_liveSnapshot());
+    FutureOr<void> result;
+    try {
+      result = action();
+    } on Object catch (error) {
+      return _ActionCommitResult.failure(
+        _actionFailureExecution(
+          command: command,
+          commandType: commandType,
+          durationMs: stopwatch.elapsedMilliseconds,
+          resolution: resolution,
+          error: error,
+        ),
+      );
+    }
+    if (result is! Future<void>) {
+      return const _ActionCommitResult();
+    }
+
+    Object? actionError;
+    var actionCompleted = false;
+    var waitingForActionCompletion = true;
+    unawaited(
+      result.then(
+        (_) {
+          actionCompleted = true;
+        },
+        onError: (Object error, StackTrace stackTrace) {
+          if (!waitingForActionCompletion) {
+            Zone.current.handleUncaughtError(error, stackTrace);
+            return;
+          }
+          actionError = error;
+          actionCompleted = true;
+        },
+      ),
+    );
+
+    final commitTimeout = _interactionPolicy.actionCommitTimeout;
+    final bool committed;
+    try {
+      committed = await _waitForActionCommit(
+        previousRouteName,
+        () => actionCompleted,
+        beforeActionFingerprint: beforeActionFingerprint,
+        timeout: commitTimeout,
+      );
+    } finally {
+      waitingForActionCompletion = false;
+    }
+    if (actionError case final error?) {
+      return _ActionCommitResult.failure(
+        _actionFailureExecution(
+          command: command,
+          commandType: commandType,
+          durationMs: stopwatch.elapsedMilliseconds,
+          resolution: resolution,
+          error: error,
+        ),
+      );
+    }
+    if (committed) {
+      return const _ActionCommitResult();
+    }
+    return _ActionCommitResult(
+      warnings: <Map<String, Object?>>[
+        <String, Object?>{
+          'code': 'asyncActionStillRunning',
+          'message':
+              'The action callback returned a Future that did not complete before the UI commit window elapsed. '
+              'The command continued after collecting a stable UI snapshot; use an explicit waitFor/assert command for business completion.',
+          'details': <String, Object?>{
+            'commandType': commandType.name,
+            'timeoutMs': commitTimeout.inMilliseconds,
+            'previousRouteName': ?previousRouteName,
+            'routeName': _liveSnapshot().routeName,
+          },
+        },
+      ],
+    );
+  }
+
+  CockpitCommandExecution _actionFailureExecution({
+    required CockpitCommand command,
+    required CockpitCommandType commandType,
+    required int durationMs,
+    required Object error,
+    CockpitTargetResolutionResult? resolution,
+  }) {
+    return _failureExecution(
+      command: command,
+      durationMs: durationMs,
+      locatorResolution: resolution?.locatorResolution,
+      snapshot: _liveSnapshot().toJson(),
+      error: CockpitCommandError.gestureExecutionFailed(
+        message: 'Action callback for ${commandType.name} failed: $error',
+        details: <String, Object?>{
+          'commandType': commandType.name,
+          if (command.locator != null) 'locator': command.locator!.toJson(),
+        },
+      ),
+    );
+  }
+
+  Future<bool> _waitForActionCommit(
+    String? previousRouteName,
+    bool Function() actionCompleted, {
+    required String beforeActionFingerprint,
+    required Duration timeout,
+  }) async {
+    if (timeout <= Duration.zero) {
+      return true;
+    }
+    final deadline = DateTime.now().add(timeout);
+    while (DateTime.now().isBefore(deadline)) {
+      if (actionCompleted()) {
+        return true;
+      }
+      await _waitTickHandler(const Duration(milliseconds: 16));
+      if (actionCompleted()) {
+        return true;
+      }
+      final snapshot = _liveSnapshot();
+      if (previousRouteName != null &&
+          snapshot.routeName != previousRouteName &&
+          _registry.routeReadyVisibleTargets.isNotEmpty) {
+        return true;
+      }
+      if (_actionCommitFingerprint(snapshot) != beforeActionFingerprint) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  String _actionCommitFingerprint(CockpitSnapshot snapshot) {
+    final targets =
+        snapshot.visibleTargets
+            .map(
+              (target) => <String?>[
+                target.routeName,
+                target.registrationId,
+                target.cockpitId,
+                target.semanticId,
+                target.keyValue,
+                target.text,
+                target.tooltip,
+                target.typeName,
+                target.path,
+              ].whereType<String>().join('\u001f'),
+            )
+            .toList(growable: false)
+          ..sort();
+    return <String?>[
+      snapshot.routeName,
+      targets.join('\u001e'),
+    ].whereType<String>().join('\u001d');
+  }
+
   Future<void> _waitForGestureCommit(CockpitCommandType? commandType) async {
     if (commandType != CockpitCommandType.tap &&
         commandType != CockpitCommandType.doubleTap &&
@@ -3623,4 +3900,17 @@ final class _CockpitGesturePreflightResult {
   final CockpitCommandError? error;
   final Map<String, Object?>? warning;
   final String? degradationReason;
+}
+
+final class _ActionCommitResult {
+  const _ActionCommitResult({
+    this.warnings = const <Map<String, Object?>>[],
+    this.failure,
+  });
+
+  const _ActionCommitResult.failure(CockpitCommandExecution failure)
+    : this(warnings: const <Map<String, Object?>>[], failure: failure);
+
+  final List<Map<String, Object?>> warnings;
+  final CockpitCommandExecution? failure;
 }

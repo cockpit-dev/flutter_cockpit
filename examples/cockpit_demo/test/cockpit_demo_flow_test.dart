@@ -131,4 +131,96 @@ void main() {
     expect(bundle.manifest.status, CockpitTaskStatus.failed);
     expect(bundle.steps, isNotEmpty);
   });
+
+  testWidgets(
+    'keeps programmatic navigation stable across service-driven rebuilds',
+    (tester) async {
+      final database = CockpitDemoDatabase.inMemory();
+      addCockpitDemoDatabaseTearDown(tester, database);
+
+      await tester.pumpWidget(
+        CockpitDemoApp(
+          configuration: const FlutterCockpitConfiguration(
+            initialRouteName: '/inbox',
+          ),
+          database: database,
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
+
+      await tester.tap(find.text('New task'));
+      await tester.pumpAndSettle();
+
+      expect(FlutterCockpit.binding.currentRouteName.value, '/editor');
+      expect(textFieldByLabel('Task title'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Back'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Settings'));
+      await tester.pumpAndSettle();
+
+      expect(FlutterCockpit.binding.currentRouteName.value, '/settings');
+      expect(find.text('Settings'), findsWidgets);
+    },
+  );
+
+  testWidgets(
+    'executes AI-style Cockpit commands through discovered controls',
+    (tester) async {
+      final database = CockpitDemoDatabase.inMemory();
+      addCockpitDemoDatabaseTearDown(tester, database);
+
+      await tester.pumpWidget(
+        CockpitDemoApp(
+          configuration: const FlutterCockpitConfiguration(
+            initialRouteName: '/inbox',
+          ),
+          database: database,
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
+
+      final executor = InAppCockpitCommandExecutor(
+        registry: FlutterCockpit.binding.registry,
+        waitTickHandler: tester.pump,
+        interactionPolicy: const CockpitInteractionPolicy(
+          preActionVisualDelay: Duration.zero,
+          actionVisualDelay: Duration.zero,
+          routeTransitionVisualDelay: Duration.zero,
+          recordingActionVisualDelay: Duration.zero,
+        ),
+      );
+
+      final openEditor = await executor.execute(
+        CockpitCommand(
+          commandId: 'test-open-editor',
+          commandType: CockpitCommandType.tap,
+          locator: const CockpitLocator(text: 'New task', route: '/inbox'),
+        ),
+      );
+
+      expect(openEditor.success, isTrue);
+      expect(openEditor.snapshot?['routeName'], '/editor');
+      expect(textFieldByLabel('Task title'), findsOneWidget);
+
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Back').first);
+      await tester.pumpAndSettle();
+
+      final openSettings = await executor.execute(
+        CockpitCommand(
+          commandId: 'test-open-settings',
+          commandType: CockpitCommandType.tap,
+          locator: const CockpitLocator(tooltip: 'Settings', route: '/inbox'),
+        ),
+      );
+
+      expect(openSettings.success, isTrue);
+      expect(openSettings.snapshot?['routeName'], '/settings');
+      expect(find.text('Settings'), findsWidgets);
+    },
+  );
 }
