@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:collection/collection.dart';
 
 import '../control/cockpit_command_type.dart';
@@ -5,13 +7,13 @@ import 'cockpit_snapshot.dart';
 import 'cockpit_target_geometry.dart';
 import 'cockpit_text_input_request.dart';
 
-typedef CockpitTapHandler = void Function();
-typedef CockpitLongPressHandler = void Function();
-typedef CockpitDoubleTapHandler = void Function();
-typedef CockpitEnterTextHandler = void Function(String text);
+typedef CockpitTapHandler = FutureOr<void> Function();
+typedef CockpitLongPressHandler = FutureOr<void> Function();
+typedef CockpitDoubleTapHandler = FutureOr<void> Function();
+typedef CockpitEnterTextHandler = FutureOr<void> Function(String text);
 typedef CockpitTextInputHandler =
-    void Function(CockpitTextInputRequest request);
-typedef CockpitSemanticActionHandler = void Function();
+    FutureOr<void> Function(CockpitTextInputRequest request);
+typedef CockpitSemanticActionHandler = FutureOr<void> Function();
 typedef CockpitDiagnosticNodeProvider = Object? Function();
 typedef CockpitTargetGeometryProvider = CockpitTargetGeometry? Function();
 

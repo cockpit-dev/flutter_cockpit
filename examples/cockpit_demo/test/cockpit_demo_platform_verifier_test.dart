@@ -1712,42 +1712,65 @@ void main() {
             command: CockpitInteractiveCommandCore(
               commandId: request.commands.first.command.commandId,
               commandType: request.commands.first.command.commandType.name,
-              success: false,
-              durationMs: 12,
+              success: true,
+              durationMs: 18,
               usedCaptureFallback: false,
-              error: CockpitCommandError.targetNotFound(
-                message: 'Notes field is not visible.',
+            ),
+            artifacts: const <CockpitInteractiveArtifactDescriptor>[
+              CockpitInteractiveArtifactDescriptor(
+                role: 'screenshot',
+                relativePath: 'screenshots/verify-open-editor.png',
+                byteLength: 2048,
+              ),
+            ],
+            whatChanged: 'Command verify-open-editor completed successfully.',
+            snapshot: CockpitSnapshot(
+              routeName: '/inbox',
+              visibleTargets: const <CockpitSnapshotTarget>[],
+            ),
+            snapshotRef: 'snapshot-open-editor',
+          ),
+          CockpitExecuteRemoteCommandResult(
+            command: CockpitInteractiveCommandCore(
+              commandId: request.commands[1].command.commandId,
+              commandType: request.commands[1].command.commandType.name,
+              success: false,
+              durationMs: 12000,
+              usedCaptureFallback: false,
+              error: CockpitCommandError.timeout(
+                message: 'Timed out waiting for route "/editor".',
                 details: const <String, Object?>{
-                  'locator': <String, Object?>{'text': 'Notes'},
+                  'routeName': '/inbox',
+                  'visibleTextCandidates': <String>['New task', 'Settings'],
                 },
               ),
             ),
             artifacts: const <CockpitInteractiveArtifactDescriptor>[],
             recommendedNextStep: 'inspect-ui-then-fix-locator',
             selectedPlane: CockpitPlaneKind.flutterSemanticPlane,
-            whatMatters: 'The expected form field is below the fold.',
+            whatMatters: 'Timed out waiting for route "/editor".',
             uiSummary: const CockpitInteractiveSnapshotSummary(
-              routeName: '/editor',
+              routeName: '/inbox',
               diagnosticLevel: 'baseline',
               truncated: false,
-              visibleTargetCount: 9,
-              targetsWithCockpitIdCount: 4,
-              targetsWithTextCount: 7,
+              visibleTargetCount: 8,
+              targetsWithCockpitIdCount: 0,
+              targetsWithTextCount: 8,
               networkEntryCount: 0,
               networkFailureCount: 0,
               runtimeEntryCount: 0,
               runtimeErrorCount: 0,
               rebuildEntryCount: 0,
               totalRebuildCount: 0,
-              accessibilityTargetCount: 9,
-              accessibilityTraversalCount: 9,
-              textPreviews: <String>['Task title', 'Save task'],
+              accessibilityTargetCount: 8,
+              accessibilityTraversalCount: 8,
+              textPreviews: <String>['New task', 'Settings'],
             ),
           ),
         ],
         summary: const CockpitExecuteRemoteCommandBatchSummary(
-          totalCount: 1,
-          successCount: 0,
+          totalCount: 2,
+          successCount: 1,
           failureCount: 1,
           stoppedEarly: true,
         ),
@@ -1796,18 +1819,38 @@ void main() {
     );
     expect(
       failedPlatform.failureDetails,
-      containsPair('commandId', 'verify-open-editor'),
+      containsPair('commandId', 'verify-wait-for-editor-route'),
     );
-    expect(failedPlatform.failureDetails, containsPair('commandType', 'tap'));
+    expect(
+      failedPlatform.failureDetails,
+      containsPair('commandType', 'waitFor'),
+    );
     expect(failedPlatform.failureDetails, containsPair('expectedCount', 9));
     expect(
       failedPlatform.failureDetails['error'],
-      containsPair('code', CockpitCommandError.targetNotFoundCode),
+      containsPair('code', CockpitCommandError.timeoutCode),
     );
     expect(
       failedPlatform.failureDetails['uiSummary'],
-      containsPair('routeName', '/editor'),
+      containsPair('routeName', '/inbox'),
     );
+    final completedTrail =
+        (failedPlatform.failureDetails['completedCommandTrail']
+                as List<Object?>)
+            .cast<Map<Object?, Object?>>();
+    expect(completedTrail, hasLength(2));
+    expect(completedTrail.first['commandId'], 'verify-open-editor');
+    expect(completedTrail.first['success'], isTrue);
+    expect(completedTrail.first['routeName'], '/inbox');
+    expect(completedTrail.first['snapshotRef'], 'snapshot-open-editor');
+    expect(
+      completedTrail.first['artifacts'],
+      contains(
+        containsPair('relativePath', 'screenshots/verify-open-editor.png'),
+      ),
+    );
+    expect(completedTrail.last['commandId'], 'verify-wait-for-editor-route');
+    expect(completedTrail.last['success'], isFalse);
     expect(
       failedPlatform.toJson()['failureDetails'],
       containsPair('selectedPlane', 'flutterSemanticPlane'),

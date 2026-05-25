@@ -1498,6 +1498,7 @@ final class CockpitDemoPlatformVerifier {
         failureCount: result.summary.failureCount,
         stoppedEarly: result.summary.stoppedEarly,
         result: failedResult,
+        completedResults: result.results,
       ),
     );
   }
@@ -1627,6 +1628,8 @@ final class CockpitDemoPlatformVerifier {
     int? failureCount,
     bool? stoppedEarly,
     required CockpitExecuteRemoteCommandResult result,
+    List<CockpitExecuteRemoteCommandResult> completedResults =
+        const <CockpitExecuteRemoteCommandResult>[],
   }) {
     final command = result.command;
     final details = <String, Object?>{
@@ -1668,7 +1671,46 @@ final class CockpitDemoPlatformVerifier {
     if (result.snapshotRef != null) {
       details['snapshotRef'] = result.snapshotRef;
     }
+    if (completedResults.isNotEmpty) {
+      details['completedCommandTrail'] = completedResults
+          .map(_compactCompletedCommand)
+          .toList(growable: false);
+    }
     return details;
+  }
+
+  Map<String, Object?> _compactCompletedCommand(
+    CockpitExecuteRemoteCommandResult result,
+  ) {
+    final command = result.command;
+    final snapshot = result.snapshot;
+    return <String, Object?>{
+      'commandId': command.commandId,
+      'commandType': command.commandType,
+      'success': command.success,
+      'durationMs': command.durationMs,
+      if (snapshot?.routeName != null) 'routeName': snapshot!.routeName,
+      if (command.locatorResolution != null)
+        'locatorResolution': _compactJsonValue(
+          command.locatorResolution!.toJson(),
+        ),
+      if (command.error != null)
+        'error': _compactJsonValue(command.error!.toJson()),
+      if (result.whatChanged != null)
+        'whatChanged': _compactString(result.whatChanged!),
+      if (result.whatMatters != null)
+        'whatMatters': _compactString(result.whatMatters!),
+      if (result.snapshotRef != null) 'snapshotRef': result.snapshotRef,
+      if (result.artifacts.isNotEmpty)
+        'artifacts': result.artifacts
+            .map(
+              (artifact) => <String, Object?>{
+                'role': artifact.role,
+                'relativePath': artifact.relativePath,
+              },
+            )
+            .toList(growable: false),
+    };
   }
 
   Map<String, Object?> _compactUiSummary(
