@@ -272,8 +272,7 @@ final class CockpitExecuteRemoteCommandService {
     CockpitCommandExecution execution,
     CockpitInteractiveArtifactLevel artifactLevel,
   ) async {
-    if (artifactLevel != CockpitInteractiveArtifactLevel.metadata ||
-        execution.artifactPayloads.isEmpty) {
+    if (artifactLevel != CockpitInteractiveArtifactLevel.metadata) {
       return execution;
     }
 
@@ -297,12 +296,51 @@ final class CockpitExecuteRemoteCommandService {
       artifactSourcePaths[entry.key] = file.path;
     }
 
-    return CockpitCommandExecution(
+    final persisted = CockpitCommandExecution(
       result: execution.result,
       artifactPayloads: execution.artifactPayloads,
       artifactSourcePaths: artifactSourcePaths,
       runtimeSteps: execution.runtimeSteps,
     );
+    _requireMetadataArtifactEvidence(persisted);
+    return persisted;
+  }
+
+  void _requireMetadataArtifactEvidence(CockpitCommandExecution execution) {
+    for (final artifact in execution.result.artifacts) {
+      if (!_isRequiredEvidenceArtifact(artifact)) {
+        continue;
+      }
+      final payload = execution.artifactPayloads[artifact.relativePath];
+      if (payload != null && payload.isNotEmpty) {
+        continue;
+      }
+      final sourcePath = execution.artifactSourcePaths[artifact.relativePath];
+      if (sourcePath != null && sourcePath.isNotEmpty) {
+        try {
+          final file = File(sourcePath);
+          if (file.existsSync() && file.lengthSync() > 0) {
+            continue;
+          }
+        } on Object {
+          // Fall through to a structured failure below.
+        }
+      }
+
+      throw CockpitApplicationServiceException(
+        code: 'requiredArtifactEvidenceMissing',
+        message:
+            'Command result declared required screenshot evidence without non-empty bytes or a readable source file.',
+        details: <String, Object?>{
+          'commandId': execution.result.commandId,
+          'commandType': execution.result.commandType.name,
+          'artifactRole': artifact.role,
+          'artifactPath': artifact.relativePath,
+          if (sourcePath != null && sourcePath.isNotEmpty)
+            'sourcePath': sourcePath,
+        },
+      );
+    }
   }
 
   static CockpitCommand _withDefaultTimeout(
@@ -395,6 +433,10 @@ final class CockpitExecuteRemoteCommandService {
 
   static Duration _maxDuration(Duration left, Duration right) {
     return left >= right ? left : right;
+  }
+
+  static bool _isRequiredEvidenceArtifact(CockpitArtifactRef artifact) {
+    return artifact.role == 'screenshot' || artifact.role == 'step_screenshot';
   }
 
   static CockpitCapabilityProfile _legacyFlutterCapabilityProfile(

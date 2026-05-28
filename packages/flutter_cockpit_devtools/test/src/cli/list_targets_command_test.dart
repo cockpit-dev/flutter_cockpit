@@ -6,6 +6,25 @@ import 'package:flutter_cockpit_devtools/src/cli/commands/list_targets_command.d
 import 'package:test/test.dart';
 
 void main() {
+  test('list-targets defaults to a CI-safe discovery timeout', () async {
+    Duration? capturedTimeout;
+    final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
+      ..addCommand(
+        ListTargetsCommand(
+          listTargets: (timeout) async {
+            capturedTimeout = timeout;
+            return const CockpitListTargetsResult(
+              targets: <CockpitLaunchTarget>[],
+            );
+          },
+        ),
+      );
+
+    await runner.run(const <String>['list-targets']);
+
+    expect(capturedTimeout, const Duration(seconds: 60));
+  });
+
   test('list-targets writes launchable id and normalized platform', () async {
     final output = StringBuffer();
     final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')

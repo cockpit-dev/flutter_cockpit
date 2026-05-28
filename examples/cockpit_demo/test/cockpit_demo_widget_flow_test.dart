@@ -204,6 +204,15 @@ void main() {
       expect(
         snapshot.visibleTargets.any(
           (target) =>
+              target.keyValue == 'open-task-editor-action' &&
+              target.text == 'New task' &&
+              target.supportedCommands.contains(CockpitCommandType.tap),
+        ),
+        isTrue,
+      );
+      expect(
+        snapshot.visibleTargets.any(
+          (target) =>
               target.text == 'New task' ||
               target.text == 'Search title or notes' ||
               target.text == 'Snapshot return guard',

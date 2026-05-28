@@ -207,6 +207,33 @@ void main() {
       expect(fileFailure.jsonBody?['error'], 'bridgeBinaryFileReadFailed');
       expect(fileFailure.jsonBody?['message'], contains('file disappeared'));
 
+      final emptyFileProtocol = CockpitRemoteSessionBridgeProtocol(
+        requestHandler: (_) async {
+          return const CockpitRemoteSessionEndpointResponse.binaryFile(
+            '/tmp/empty.png',
+          );
+        },
+        binaryFileReader: (_) => const <int>[],
+      );
+
+      final emptyFileText = await emptyFileProtocol.handleRawMessage(
+        jsonEncode(
+          const CockpitRemoteBridgeRequest(
+            requestId: 'req-empty-file',
+            method: 'GET',
+            path: '/artifacts/download?path=screenshots%2Fempty.png',
+          ).toJson(),
+        ),
+      );
+      final emptyFile = CockpitRemoteBridgeResponse.fromJson(
+        Map<String, Object?>.from(
+          jsonDecode(emptyFileText) as Map<Object?, Object?>,
+        ),
+      );
+      expect(emptyFile.requestId, 'req-empty-file');
+      expect(emptyFile.statusCode, 500);
+      expect(emptyFile.jsonBody?['error'], 'bridgeBinaryFileEmpty');
+
       final invalidMessageText = await handlerFailureProtocol.handleRawMessage(
         jsonEncode(const <Object?>['not', 'a', 'request']),
       );

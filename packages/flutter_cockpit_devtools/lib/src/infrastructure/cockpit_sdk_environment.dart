@@ -86,7 +86,9 @@ String? _dartExecutableFromRoot(
   if (dartRoot == null) {
     return null;
   }
-  return pathContext.join(dartRoot, 'bin', _defaultDartExecutable(windows));
+  return pathContext.normalize(
+    pathContext.join(dartRoot, 'bin', _defaultDartExecutable(windows)),
+  );
 }
 
 String? _flutterBundledDartExecutable(
@@ -97,13 +99,15 @@ String? _flutterBundledDartExecutable(
   if (flutterRoot == null) {
     return null;
   }
-  return pathContext.join(
-    flutterRoot,
-    'bin',
-    'cache',
-    'dart-sdk',
-    'bin',
-    _defaultDartExecutable(windows),
+  return pathContext.normalize(
+    pathContext.join(
+      flutterRoot,
+      'bin',
+      'cache',
+      'dart-sdk',
+      'bin',
+      _defaultDartExecutable(windows),
+    ),
   );
 }
 
@@ -115,9 +119,7 @@ String? _flutterExecutableFromRoot(
   if (flutterRoot == null) {
     return null;
   }
-  return pathContext.join(
-    flutterRoot,
-    'bin',
-    _defaultFlutterExecutable(windows),
+  return pathContext.normalize(
+    pathContext.join(flutterRoot, 'bin', _defaultFlutterExecutable(windows)),
   );
 }

@@ -94,4 +94,46 @@ void main() {
       expect(outcome, isNull);
     },
   );
+
+  test('captureExplicit rejects empty screenshot evidence', () async {
+    final orchestrator = CockpitCaptureOrchestrator(
+      captureHandler: (_) async => CockpitCaptureResult(
+        screenshot: CockpitCapturedScreenshot(
+          artifact: const CockpitArtifactRef(
+            role: 'screenshot',
+            relativePath: 'screenshots/empty.png',
+          ),
+          bytes: Uint8List(0),
+        ),
+        requestedProfile: CockpitCaptureProfile.acceptance,
+        resolvedCaptureKind: CockpitCaptureKind.flutterView,
+      ),
+      postActionSettler: () async {},
+      settleBeforeObservation: () async {},
+      bestEffortWaitForUiIdle: ({required includeNetworkIdleValue}) async {},
+      defaultSnapshotOptionsForReason: (_) =>
+          const CockpitSnapshotOptions.live(),
+    );
+
+    await expectLater(
+      orchestrator.captureExplicit(
+        CockpitCommand(
+          commandId: 'cmd-capture-empty',
+          commandType: CockpitCommandType.captureScreenshot,
+          screenshotRequest: const CockpitScreenshotRequest(
+            reason: CockpitScreenshotReason.acceptance,
+            name: 'empty',
+          ),
+        ),
+        waitForNetworkIdleDuringAcceptanceCapture: true,
+      ),
+      throwsA(
+        isA<StateError>().having(
+          (error) => error.message,
+          'message',
+          contains('empty artifact'),
+        ),
+      ),
+    );
+  });
 }

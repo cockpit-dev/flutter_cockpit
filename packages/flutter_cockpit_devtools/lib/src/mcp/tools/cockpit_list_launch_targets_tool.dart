@@ -52,7 +52,7 @@ final class CockpitListLaunchTargetsTool extends CockpitMcpTool {
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {
     try {
       final timeoutSeconds =
-          cockpitReadOptionalPositiveInt(arguments, 'timeoutSeconds') ?? 20;
+          cockpitReadOptionalPositiveInt(arguments, 'timeoutSeconds') ?? 60;
       final result = await _listTargets(Duration(seconds: timeoutSeconds));
       return cockpitMcpResult(
         text: 'Launch targets loaded.',

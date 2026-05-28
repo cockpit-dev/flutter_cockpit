@@ -3,6 +3,22 @@ import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_list_launch_targe
 import 'package:test/test.dart';
 
 void main() {
+  test('list_targets defaults to a CI-safe discovery timeout', () async {
+    Duration? capturedTimeout;
+    final tool = CockpitListLaunchTargetsTool(
+      listTargets: (timeout) async {
+        capturedTimeout = timeout;
+        return const CockpitListLaunchTargetsResult(
+          targets: <CockpitLaunchTarget>[],
+        );
+      },
+    );
+
+    await tool.call(const <String, Object?>{});
+
+    expect(capturedTimeout, const Duration(seconds: 60));
+  });
+
   test(
     'list_targets exposes normalized launch platform in structured content',
     () async {

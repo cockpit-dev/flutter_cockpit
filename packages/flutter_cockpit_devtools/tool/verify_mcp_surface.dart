@@ -341,7 +341,7 @@ final class _McpSurfaceVerifier {
       appReport['list_targets'] = await _callTool(
         server,
         'list_targets',
-        const <String, Object?>{},
+        const <String, Object?>{'timeoutSeconds': 90},
       );
       final targetLaunchResult =
           await _callTool(server, 'launch_target', <String, Object?>{
@@ -1236,7 +1236,7 @@ int   sum( int left,int right ){return left+right;}
       final resources = await rpc('resources/list');
       final targets = await rpc('tools/call', <String, Object?>{
         'name': 'list_targets',
-        'arguments': const <String, Object?>{},
+        'arguments': const <String, Object?>{'timeoutSeconds': 90},
       });
 
       final toolNames =

@@ -66,6 +66,25 @@ void main() {
       );
     });
 
+    test('normalizes Windows Flutter SDK roots with forward slashes', () {
+      final environment =
+          CockpitSdkEnvironment.fromEnvironment(<String, String>{
+            'FLUTTER_ROOT':
+                r'C:/hostedtoolcache/windows/flutter/stable-3.32.0-x64/flutter',
+          }, isWindows: true);
+
+      expect(
+        environment.dartExecutable,
+        r'C:\hostedtoolcache\windows\flutter\stable-3.32.0-x64\flutter\bin\cache\dart-sdk\bin\dart.bat',
+      );
+      expect(
+        environment.flutterExecutable,
+        r'C:\hostedtoolcache\windows\flutter\stable-3.32.0-x64\flutter\bin\flutter.bat',
+      );
+      expect(environment.dartExecutable, isNot(contains('/')));
+      expect(environment.flutterExecutable, isNot(contains('/')));
+    });
+
     test('current resolves from the supplied process environment', () {
       final environment = CockpitSdkEnvironment.current(
         environment: <String, String>{

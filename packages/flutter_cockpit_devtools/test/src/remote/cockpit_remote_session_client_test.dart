@@ -856,6 +856,92 @@ void main() {
   );
 
   test(
+    'remote session client rejects empty downloaded command artifacts',
+    () async {
+      final downloadDir = await Directory.systemTemp.createTemp(
+        'flutter_cockpit_empty_command_artifact_',
+      );
+      addTearDown(() async {
+        if (await downloadDir.exists()) {
+          await downloadDir.delete(recursive: true);
+        }
+      });
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() async {
+        await server.close(force: true);
+      });
+
+      server.listen((request) async {
+        request.response.headers.contentType = ContentType.json;
+        switch ((request.method, request.uri.path)) {
+          case ('POST', '/commands/execute'):
+            request.response.write(
+              jsonEncode(
+                CockpitRemoteCommandResponse(
+                  result: CockpitCommandResult(
+                    success: true,
+                    commandId: 'tap-empty-screenshot',
+                    commandType: CockpitCommandType.tap,
+                    durationMs: 12,
+                    artifacts: const <CockpitArtifactRef>[
+                      CockpitArtifactRef(
+                        role: 'screenshot',
+                        relativePath: 'screenshots/empty.png',
+                      ),
+                    ],
+                  ),
+                  artifactDownloads: const <CockpitRemoteArtifactDownload>[
+                    CockpitRemoteArtifactDownload(
+                      artifact: CockpitArtifactRef(
+                        role: 'screenshot',
+                        relativePath: 'screenshots/empty.png',
+                      ),
+                      downloadPath:
+                          '/artifacts/download?path=screenshots%2Fempty.png',
+                    ),
+                  ],
+                ).toJson(),
+              ),
+            );
+          case ('GET', '/artifacts/download'):
+            request.response.headers.contentType = ContentType.binary;
+          default:
+            request.response.statusCode = HttpStatus.notFound;
+            request.response.write(
+              jsonEncode(const <String, Object?>{'error': 'notFound'}),
+            );
+        }
+        await request.response.close();
+      });
+
+      final client = CockpitRemoteSessionClient(
+        baseUri: Uri.parse('http://127.0.0.1:${server.port}'),
+        artifactTempFileFactory: (basename) async =>
+            File('${downloadDir.path}${Platform.pathSeparator}$basename'),
+      );
+
+      await expectLater(
+        () => client.executeDetailed(
+          CockpitCommand(
+            commandId: 'tap-empty-screenshot',
+            commandType: CockpitCommandType.tap,
+          ),
+        ),
+        throwsA(
+          isA<CockpitApplicationServiceException>()
+              .having((error) => error.code, 'code', 'artifactDownloadEmpty')
+              .having(
+                (error) => error.details['artifactPath'],
+                'artifactPath',
+                'screenshots/empty.png',
+              ),
+        ),
+      );
+      expect(downloadDir.listSync(), isEmpty);
+    },
+  );
+
+  test(
     'remote session client rejects cross-origin artifact download paths',
     () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);

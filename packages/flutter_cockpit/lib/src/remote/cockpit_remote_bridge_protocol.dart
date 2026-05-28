@@ -263,6 +263,17 @@ final class CockpitRemoteSessionBridgeProtocol {
         },
       );
     }
+    if (bytes.isEmpty) {
+      return CockpitRemoteBridgeResponse(
+        requestId: requestId,
+        statusCode: 500,
+        jsonBody: <String, Object?>{
+          'error': 'bridgeBinaryFileEmpty',
+          'message':
+              'The bridge read an empty file-backed response: $sourceFilePath',
+        },
+      );
+    }
     return CockpitRemoteBridgeResponse(
       requestId: requestId,
       statusCode: response.statusCode,

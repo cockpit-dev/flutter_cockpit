@@ -104,11 +104,18 @@ final class CockpitCaptureOrchestrator {
             _defaultSnapshotOptionsForReason(request.reason),
       ),
     );
+    final bytes = capture.screenshot.bytes;
+    if (bytes.isEmpty) {
+      throw StateError(
+        'Screenshot capture produced an empty artifact for '
+        '${capture.screenshot.artifact.relativePath}.',
+      );
+    }
 
     return CockpitCaptureArtifacts(
       artifacts: <CockpitArtifactRef>[capture.screenshot.artifact],
       artifactPayloads: <String, List<int>>{
-        capture.screenshot.artifact.relativePath: capture.screenshot.bytes,
+        capture.screenshot.artifact.relativePath: bytes,
       },
       snapshot: capture.screenshot.snapshot?.toJson(),
       requestedCaptureProfile: capture.requestedProfile,

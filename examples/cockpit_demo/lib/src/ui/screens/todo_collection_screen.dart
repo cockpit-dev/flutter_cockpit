@@ -632,6 +632,7 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
               Padding(
                 padding: const EdgeInsetsDirectional.only(end: 4),
                 child: TextButton.icon(
+                  key: const ValueKey<String>('open-task-editor-action'),
                   onPressed: _openEditor,
                   icon: const Icon(Icons.add_rounded, size: 18),
                   label: const Text('New task'),

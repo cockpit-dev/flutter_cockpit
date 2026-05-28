@@ -404,6 +404,17 @@ final class CockpitRemoteSessionClient {
           await sink.close();
           rethrow;
         }
+        if (await outputFile!.length() <= 0) {
+          throw CockpitApplicationServiceException(
+            code: 'artifactDownloadEmpty',
+            message: 'Remote session artifact download produced an empty file.',
+            details: <String, Object?>{
+              'baseUrl': _baseUri.toString(),
+              'path': relativePath,
+              'artifactPath': artifactRelativePath,
+            },
+          );
+        }
         return outputFile!;
       })().timeout(
         _artifactDownloadTimeout,

@@ -34,8 +34,23 @@ void main() {
     expect(commands[0]['commandId'], 'verify-open-editor');
     expect(commands[0]['commandType'], 'tap');
     expect(commands[0]['locator'], <String, Object?>{
+      'key': 'open-task-editor-action',
       'text': 'New task',
+      'type': 'TextButton',
+      'route': '/inbox',
       'ancestor': <String, Object?>{'route': '/inbox'},
+      'fallbacks': <Map<String, Object?>>[
+        <String, Object?>{
+          'text': 'Create task',
+          'type': 'FilledButton',
+          'route': '/inbox',
+          'ancestor': <String, Object?>{'route': '/inbox'},
+        },
+        <String, Object?>{
+          'text': 'New task',
+          'ancestor': <String, Object?>{'route': '/inbox'},
+        },
+      ],
     });
     expect(commands[1]['commandId'], 'verify-wait-for-editor-route');
     expect(commands[1]['commandType'], 'waitFor');

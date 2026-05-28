@@ -29,8 +29,23 @@ List<Map<String, Object?>> buildSyncLabCreateTaskBatch({
       'commandId': 'verify-open-editor',
       'commandType': 'tap',
       'locator': <String, Object?>{
+        'key': 'open-task-editor-action',
         'text': 'New task',
+        'type': 'TextButton',
+        'route': '/inbox',
         'ancestor': <String, Object?>{'route': '/inbox'},
+        'fallbacks': <Map<String, Object?>>[
+          <String, Object?>{
+            'text': 'Create task',
+            'type': 'FilledButton',
+            'route': '/inbox',
+            'ancestor': <String, Object?>{'route': '/inbox'},
+          },
+          <String, Object?>{
+            'text': 'New task',
+            'ancestor': <String, Object?>{'route': '/inbox'},
+          },
+        ],
       },
     },
     _waitForRouteCommand(

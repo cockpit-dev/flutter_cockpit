@@ -12,6 +12,7 @@ Future<ProcessResult> cockpitRunProcessWithTimeout(
     executable,
     arguments,
     workingDirectory: workingDirectory,
+    runInShell: cockpitShouldRunExecutableInShell(executable),
   );
   final stdoutFuture = process.stdout.fold<List<int>>(
     <int>[],
@@ -41,6 +42,14 @@ Future<ProcessResult> cockpitRunProcessWithTimeout(
       timeout,
     );
   }
+}
+
+bool cockpitShouldRunExecutableInShell(String executable) {
+  if (!Platform.isWindows) {
+    return false;
+  }
+  final lower = executable.toLowerCase();
+  return lower.endsWith('.bat') || lower.endsWith('.cmd');
 }
 
 Future<ProcessResult> cockpitRunShortProcess(

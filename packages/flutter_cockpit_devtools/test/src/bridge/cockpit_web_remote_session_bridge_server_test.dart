@@ -350,6 +350,71 @@ void main() {
     },
   );
 
+  test('web bridge rejects empty required command artifact payloads', () async {
+    final server = CockpitWebRemoteSessionBridgeServer(
+      bindHost: '127.0.0.1',
+      bindPort: 0,
+    );
+    await server.start();
+    addTearDown(server.close);
+
+    final socket = await WebSocket.connect(server.connectUri.toString());
+    addTearDown(socket.close);
+    socket.listen((payload) {
+      final message = CockpitRemoteBridgeRequest.fromJson(
+        Map<String, Object?>.from(
+          jsonDecode(payload as String) as Map<Object?, Object?>,
+        ),
+      );
+      socket.add(
+        jsonEncode(
+          CockpitRemoteBridgeResponse(
+            requestId: message.requestId,
+            statusCode: 200,
+            jsonBody: <String, Object?>{
+              'result': CockpitCommandResult(
+                success: true,
+                commandId: 'tap-open',
+                commandType: CockpitCommandType.tap,
+                durationMs: 12,
+                artifacts: const <CockpitArtifactRef>[
+                  CockpitArtifactRef(
+                    role: 'screenshot',
+                    relativePath: 'screenshots/empty.png',
+                  ),
+                ],
+              ).toJson(),
+              'artifactPayloads': <Object?>[
+                const CockpitRemoteArtifactPayload(
+                  artifact: CockpitArtifactRef(
+                    role: 'screenshot',
+                    relativePath: 'screenshots/empty.png',
+                  ),
+                  bytes: <int>[],
+                ).toJson(),
+              ],
+            },
+          ).toJson(),
+        ),
+      );
+    });
+
+    final response = await _postJsonResponse(
+      server.baseUri.resolve('/commands/execute'),
+      CockpitCommand(
+        commandId: 'tap-open',
+        commandType: CockpitCommandType.tap,
+      ).toJson(),
+    );
+
+    expect(response.statusCode, HttpStatus.internalServerError);
+    expect(response.body['error'], 'artifactPayloadEmpty');
+    expect(
+      (response.body['details'] as Map<Object?, Object?>)['artifactPath'],
+      'screenshots/empty.png',
+    );
+  });
+
   test(
     'web bridge stops an active host recording when the server closes',
     () async {

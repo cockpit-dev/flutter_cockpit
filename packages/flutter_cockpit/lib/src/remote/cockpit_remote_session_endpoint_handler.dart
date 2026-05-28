@@ -101,6 +101,16 @@ final class _RemoteArtifactEntry {
   final bool deleteOnClose;
 }
 
+final class _CommandArtifactRegistration {
+  const _CommandArtifactRegistration({
+    required this.downloads,
+    required this.inlinePayloads,
+  });
+
+  final List<CockpitRemoteArtifactDownload> downloads;
+  final Map<String, List<int>> inlinePayloads;
+}
+
 final class CockpitRemoteSessionEndpointHandler {
   CockpitRemoteSessionEndpointHandler({
     required CockpitRemoteSessionConfiguration configuration,
@@ -195,18 +205,22 @@ final class CockpitRemoteSessionEndpointHandler {
           await _drainRuntimeSteps(clear: true);
           final execution = await _commandExecutor(command);
           final runtimeSteps = await _drainRuntimeSteps(clear: true);
-          final artifactDownloads = await _registerCommandArtifacts(execution);
+          final artifactRegistration = await _registerCommandArtifacts(
+            execution,
+          );
           final responsePayload = CockpitRemoteCommandResponse.fromExecution(
             CockpitCommandExecution(
               result: execution.result,
+              artifactPayloads: artifactRegistration.inlinePayloads,
               runtimeSteps: <CockpitStepRecord>[
                 ...execution.runtimeSteps,
                 ...runtimeSteps,
               ],
             ),
           ).toJson();
-          if (artifactDownloads.isNotEmpty) {
-            responsePayload['artifactDownloads'] = artifactDownloads
+          if (artifactRegistration.downloads.isNotEmpty) {
+            responsePayload['artifactDownloads'] = artifactRegistration
+                .downloads
                 .map((download) => download.toJson())
                 .toList(growable: false);
           }
@@ -419,16 +433,17 @@ final class CockpitRemoteSessionEndpointHandler {
     return null;
   }
 
-  Future<List<CockpitRemoteArtifactDownload>> _registerCommandArtifacts(
+  Future<_CommandArtifactRegistration> _registerCommandArtifacts(
     CockpitCommandExecution execution,
   ) async {
     final downloads = <CockpitRemoteArtifactDownload>[];
+    final inlinePayloads = <String, List<int>>{};
     for (final artifact in execution.result.artifacts) {
       final sourceFilePath =
           execution.artifactSourcePaths[artifact.relativePath];
       if (sourceFilePath != null && sourceFilePath.isNotEmpty) {
         final sourceFile = File(sourceFilePath);
-        if (sourceFile.existsSync()) {
+        if (sourceFile.existsSync() && sourceFile.lengthSync() > 0) {
           _downloadableArtifacts[artifact.relativePath] = _RemoteArtifactEntry(
             sourceFilePath: sourceFile.path,
           );
@@ -444,6 +459,13 @@ final class CockpitRemoteSessionEndpointHandler {
 
       final bytes = execution.artifactPayloads[artifact.relativePath];
       if (bytes == null || bytes.isEmpty) {
+        if (artifact.role == 'screenshot' ||
+            artifact.role == 'step_screenshot') {
+          throw StateError(
+            'Command ${execution.result.commandId} produced an empty artifact '
+            '${artifact.relativePath}.',
+          );
+        }
         continue;
       }
       try {
@@ -453,8 +475,10 @@ final class CockpitRemoteSessionEndpointHandler {
               bytes,
             );
       } on Object {
-        // Constrained runtimes may not support temp-file persistence. The
-        // command result remains useful through artifact refs and snapshots.
+        // Constrained runtimes, especially web, may not support temp-file
+        // persistence. Preserve evidence inline so the caller can externalize
+        // it instead of returning a dangling artifact reference.
+        inlinePayloads[artifact.relativePath] = bytes;
         continue;
       }
       downloads.add(
@@ -464,7 +488,10 @@ final class CockpitRemoteSessionEndpointHandler {
         ),
       );
     }
-    return downloads;
+    return _CommandArtifactRegistration(
+      downloads: downloads,
+      inlinePayloads: inlinePayloads,
+    );
   }
 
   Future<CockpitRemoteRecordingResponse> _recordingResponseFor(
