@@ -199,9 +199,8 @@ void main() {
       <String, Object?>{
         'reason': 'after_action',
         'name': 'cmd-open',
-        'includeSnapshot': true,
+        'includeSnapshot': false,
         'attachToStep': true,
-        'snapshotOptions': const CockpitSnapshotOptions.live().toJson(),
       },
     );
     expect(

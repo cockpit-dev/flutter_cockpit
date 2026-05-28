@@ -13,9 +13,8 @@ CockpitCommand cockpitCommandWithAiEvidenceDefaults(CockpitCommand command) {
         CockpitScreenshotRequest(
           reason: CockpitScreenshotReason.afterAction,
           name: command.commandId,
-          includeSnapshot: true,
+          includeSnapshot: false,
           attachToStep: true,
-          snapshotOptions: const CockpitSnapshotOptions.live(),
         ),
   );
 }

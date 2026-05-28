@@ -1152,7 +1152,8 @@ int   sum( int left,int right ){return left+right;}
 
   Future<Map<String, Object?>> _verifyServeMcpCli(String verifyRoot) async {
     final logPath = p.join(verifyRoot, 'serve_mcp_protocol.log');
-    final process = await Process.start('dart', <String>[
+    final dartExecutable = Platform.resolvedExecutable;
+    final process = await Process.start(dartExecutable, <String>[
       'run',
       'flutter_cockpit_devtools:flutter_cockpit_devtools',
       'serve-mcp',
@@ -1205,7 +1206,15 @@ int   sum( int left,int right ){return left+right;}
         }
         return Map<String, Object?>.from(result);
       }
-      throw StateError('serve-mcp closed before responding to $method.');
+      throw StateError(
+        await _serveMcpFailureMessage(
+          method: method,
+          dartExecutable: dartExecutable,
+          process: process,
+          stderr: stderrBuffer.toString(),
+          logPath: logPath,
+        ),
+      );
     }
 
     try {
@@ -1243,6 +1252,7 @@ int   sum( int left,int right ){return left+right;}
 
       return <String, Object?>{
         'logPath': logPath,
+        'dartExecutable': dartExecutable,
         'initialize': initialize,
         'toolNames': toolNames,
         'resourceNames':
@@ -1271,6 +1281,42 @@ int   sum( int left,int right ){return left+right;}
           ..writeAsStringSync(stderrBuffer.toString());
       }
     }
+  }
+
+  Future<String> _serveMcpFailureMessage({
+    required String method,
+    required String dartExecutable,
+    required Process process,
+    required String stderr,
+    required String logPath,
+  }) async {
+    int? exitCode;
+    try {
+      exitCode = await process.exitCode.timeout(
+        const Duration(milliseconds: 100),
+      );
+    } on TimeoutException {
+      exitCode = null;
+    }
+    final protocolLog = File(logPath);
+    final protocolLogPreview = protocolLog.existsSync()
+        ? _trimDiagnostic(protocolLog.readAsStringSync())
+        : '<missing>';
+    final stderrPreview = stderr.trim().isEmpty
+        ? '<empty>'
+        : _trimDiagnostic(stderr.trim());
+    final exitCodeText = exitCode == null ? '<still-running>' : '$exitCode';
+    return 'serve-mcp closed before responding to $method. '
+        'dartExecutable=$dartExecutable exitCode=$exitCodeText '
+        'stderr=$stderrPreview protocolLog=$logPath '
+        'protocolLogPreview=$protocolLogPreview';
+  }
+
+  String _trimDiagnostic(String value, {int maxLength = 4000}) {
+    if (value.length <= maxLength) {
+      return value;
+    }
+    return '${value.substring(0, maxLength)}...<truncated>';
   }
 
   Map<String, Object?> _scriptJson({

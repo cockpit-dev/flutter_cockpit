@@ -413,6 +413,7 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
     final endpointHandler = CockpitRemoteSessionEndpointHandler(
       configuration: configuration,
       statusProvider: _buildRemoteSessionStatus,
+      readyProvider: _buildRemoteSessionReady,
       snapshotProvider: ({required options}) => snapshot(options: options),
       commandExecutor: executor.executeWithArtifacts,
       runtimeStepDrainer: ({required clear}) {
@@ -436,6 +437,7 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
     final server = CockpitRemoteSessionServer(
       configuration: configuration,
       statusProvider: _buildRemoteSessionStatus,
+      readyProvider: _buildRemoteSessionReady,
       snapshotProvider: ({required options}) => snapshot(options: options),
       commandExecutor: executor.executeWithArtifacts,
       runtimeStepDrainer: ({required clear}) {
@@ -446,6 +448,15 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
     );
     await server.start();
     _remoteSessionServer = server;
+  }
+
+  Map<String, Object?> _buildRemoteSessionReady() {
+    final surfaceMounted = _surfaceKey.currentState != null;
+    return <String, Object?>{
+      'ready': surfaceMounted,
+      'currentRouteName': FlutterCockpit.binding.currentRouteName.value,
+      'supportsInAppControl': surfaceMounted,
+    };
   }
 
   Future<void> _beginRemoteSessionStart({bool ignoreFailure = false}) async {

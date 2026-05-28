@@ -692,7 +692,7 @@ void main() {
           CockpitCommandType.waitFor,
         ]),
       );
-      expect(batchedCommandTypes.length, 186);
+      expect(batchedCommandTypes.length, 192);
       expect(batchRequests, hasLength(30));
       final firstBatchCommands = batchRequests.first.commands
           .map((batchCommand) => batchCommand.command)
@@ -765,6 +765,7 @@ void main() {
           .map((batchCommand) => batchCommand.command.commandId)
           .toList(growable: false);
       expect(syncLabRecoveryCommands, <String>[
+        'verify-wait-for-detail-route-after-conflict-resolution',
         'verify-return-from-detail',
         'verify-open-sync-settings',
         'verify-scroll-run-queued-sync',
@@ -813,7 +814,7 @@ void main() {
       );
       expect(
         result.platforms.map((platform) => platform.batchCommandCount),
-        everyElement(31),
+        everyElement(32),
       );
       expect(
         result.platforms.map((platform) => platform.autoScreenshotCount),
@@ -1016,6 +1017,26 @@ void main() {
       failed.failureDetails,
       containsPair('supervisorLogTail', contains('Xcode build failed')),
     );
+  });
+
+  test('local state cleanup resets Android app data before launch', () async {
+    final invocations = <String>[];
+
+    await cockpitDemoCleanupExampleLocalState(
+      platform: 'android',
+      deviceId: 'emulator-5554',
+      workingDirectory: '/workspace/examples/cockpit_demo',
+      processRunner: (executable, arguments, {String? workingDirectory}) async {
+        invocations.add('$executable ${arguments.join(' ')}');
+        return ProcessResult(0, 0, '', '');
+      },
+    );
+
+    expect(invocations, <String>[
+      'adb -s emulator-5554 shell am force-stop dev.cockpit.cockpit_demo',
+      'adb -s emulator-5554 shell pm clear dev.cockpit.cockpit_demo',
+      'adb -s emulator-5554 shell run-as dev.cockpit.cockpit_demo rm -f app_flutter/cockpit_demo.sqlite app_flutter/cockpit_demo.sqlite-shm app_flutter/cockpit_demo.sqlite-wal',
+    ]);
   });
 
   test(
@@ -1392,16 +1413,10 @@ void main() {
           );
         },
         runBatch: (request) async {
-          if (request.commands.isNotEmpty &&
-              request.commands.first.command.commandId ==
-                  'verify-open-editor') {
+          if (request.commands.any(
+            (command) => command.command.commandId == 'verify-open-editor',
+          )) {
             createBatchAttempts += 1;
-            if (createBatchAttempts == 1) {
-              throw const CockpitApplicationServiceException(
-                code: 'remoteUnavailable',
-                message: 'Remote session is temporarily unavailable.',
-              );
-            }
           }
           for (final batchCommand in request.commands) {
             switch (batchCommand.command.commandId) {
@@ -1560,7 +1575,7 @@ void main() {
       expect(result.success, isTrue);
       expect(readAppAttempts, greaterThan(1));
       expect(assertNewTaskAttempts, 2);
-      expect(createBatchAttempts, 2);
+      expect(createBatchAttempts, 1);
     },
   );
 
@@ -1635,6 +1650,105 @@ void main() {
       );
     },
   );
+
+  test('verifier does not retry side-effecting command batches', () async {
+    var batchAttempts = 0;
+    final verifier = CockpitDemoPlatformVerifier(
+      probeDevices: () async => const <CockpitDemoHostDevice>[
+        CockpitDemoHostDevice(
+          name: 'macOS',
+          deviceId: 'macos',
+          platform: 'macos',
+          emulator: false,
+          supported: true,
+        ),
+      ],
+      listIosSimulators: () async => const <CockpitDemoIosSimulator>[],
+      runProcess: (executable, arguments, {String? workingDirectory}) async =>
+          ProcessResult(0, 0, '', ''),
+      wait: (_) async {},
+      launchApp: (request) async => CockpitLaunchAppResult(
+        app: _appForPlatform(
+          platform: request.platform,
+          deviceId: request.deviceId,
+          baseUrl: 'http://127.0.0.1:${request.sessionPort}',
+        ),
+        appJsonPath: '/tmp/${request.platform}/app.json',
+      ),
+      readApp: (request) async {
+        final app = request.app!;
+        return CockpitReadAppResult(
+          sessionId: '${app.platform}-session',
+          transportType: 'remoteHttp',
+          capabilities: CockpitCapabilities(
+            platform: app.platform,
+            transportType: 'remoteHttp',
+            supportsInAppControl: true,
+            supportsFlutterViewCapture: true,
+            supportsNativeScreenCapture: true,
+            supportsHostAutomation: true,
+            supportedCommands: const <CockpitCommandType>[
+              CockpitCommandType.tap,
+              CockpitCommandType.enterText,
+              CockpitCommandType.assertText,
+            ],
+            supportedLocatorStrategies: CockpitLocatorKind.values,
+          ),
+          recordingCapabilities: CockpitRecordingCapabilities(
+            supportsNativeRecording: true,
+            preferredAcceptanceRecordingKind: CockpitRecordingKind.nativeScreen,
+          ),
+          currentRouteName: '/inbox',
+        );
+      },
+      runCommand: (request) async => _successfulCommandResult(request.command),
+      inspectUi: (request) async => const CockpitInspectUiResult(
+        routeName: '/inbox',
+        diagnosticLevel: 'investigate',
+        truncated: false,
+      ),
+      runBatch: (_) async {
+        batchAttempts += 1;
+        throw const CockpitApplicationServiceException(
+          code: 'remoteUnavailable',
+          message: 'Remote session is temporarily unavailable.',
+        );
+      },
+      recordingAdapterResolver:
+          ({
+            required platform,
+            required deviceId,
+            required client,
+            required recording,
+          }) {
+            return _FakeRecordingAdapter(
+              onStart: (request) async => CockpitRecordingSession(
+                request: request,
+                state: CockpitRecordingState.recording,
+              ),
+              onStop: () async => CockpitRecordingResult(
+                state: CockpitRecordingState.completed,
+                purpose: CockpitRecordingPurpose.acceptance,
+              ),
+            );
+          },
+      stopApp: (request) async => CockpitStopAppResult(
+        app: request.app!,
+        status: CockpitAppStopStatus.stopped(mode: request.app!.mode),
+      ),
+    );
+
+    final result = await verifier.verify(
+      const CockpitDemoPlatformVerificationRequest(
+        projectDir: '/workspace/examples/cockpit_demo',
+        platforms: <String>['macos'],
+      ),
+    );
+
+    expect(result.success, isFalse);
+    expect(batchAttempts, 1);
+    expect(result.platforms.single.failureCode, 'remoteUnavailable');
+  });
 
   test('verifier stops an active recording when a later step fails', () async {
     var recordingStopCount = 0;

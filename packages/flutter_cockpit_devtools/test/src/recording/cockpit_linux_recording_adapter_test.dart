@@ -181,7 +181,6 @@ done
         }
       });
 
-      final activationInvocations = <String>[];
       final ffmpegExecutable = await _writeExecutable(
         directory: tempDir,
         name: 'ffmpeg',
@@ -201,12 +200,22 @@ while IFS= read -r line; do
 done
 ''',
       );
+      final wmctrlExecutable = await _writeExecutable(
+        directory: tempDir,
+        name: 'wmctrl',
+        body: r'''
+#!/bin/sh
+script_dir="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
+printf '%s\n' "$*" > "$script_dir/wmctrl.log"
+exit 0
+''',
+      );
 
       final adapter = CockpitLinuxRecordingAdapter(
         appId: 'cockpit_demo',
         processId: 5101,
         ffmpegExecutable: ffmpegExecutable.path,
-        windowActivatorExecutable: 'wmctrl',
+        windowActivatorExecutable: wmctrlExecutable.path,
         windowTargetResolver:
             ({
               required appId,
@@ -224,10 +233,6 @@ done
                 height: 640,
               );
             },
-        processRunner: (executable, arguments) async {
-          activationInvocations.add('$executable ${arguments.join(' ')}');
-          return ProcessResult(0, 0, '', '');
-        },
         displayConfigResolver: () async => const CockpitLinuxDisplayConfig(
           display: ':99',
           captureSize: '1440x900',
@@ -254,7 +259,10 @@ done
 
       expect(session.state, CockpitRecordingState.recording);
       expect(result.state, CockpitRecordingState.completed);
-      expect(activationInvocations.single, 'wmctrl -ia 0x02c00007');
+      expect(
+        File(p.join(tempDir.path, 'wmctrl.log')).readAsStringSync().trim(),
+        '-ia 0x02c00007',
+      );
     },
   );
 
@@ -352,7 +360,7 @@ done
   );
 
   test(
-    'linux recording adapter fails fast when ffmpeg never confirms startup or produces output',
+    'linux recording adapter fails fast without leaking a timed-out activation process',
     () async {
       final tempDir = await Directory.systemTemp.createTemp(
         'cockpit_linux_recording_adapter_startup_failure',
@@ -368,8 +376,12 @@ done
         name: 'ffmpeg',
         body: r'''
 #!/bin/sh
-if printf '%s' "$*" | grep -q -- 'wmctrl'; then
-  exit 0
+script_dir="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
+if [ "$1" = "-xa" ]; then
+  printf '%s\n' "$$" > "$script_dir/activation.pid"
+  while true; do
+    sleep 1
+  done
 fi
 while true; do
   sleep 1
@@ -406,6 +418,18 @@ done
             contains('Linux recording did not confirm startup'),
           ),
         ),
+      );
+
+      final activationPidFile = File(p.join(tempDir.path, 'activation.pid'));
+      expect(activationPidFile.existsSync(), isTrue);
+      final activationPid = int.parse(activationPidFile.readAsStringSync());
+      addTearDown(() async {
+        await _killProcessIfAlive(activationPid);
+      });
+      expect(
+        await _isProcessAlive(activationPid),
+        isFalse,
+        reason: 'Timed-out activation command must not survive startRecording.',
       );
     },
   );
@@ -476,4 +500,16 @@ Future<File> _writeExecutable({
   await file.writeAsString(body);
   await Process.run('chmod', <String>['+x', file.path]);
   return file;
+}
+
+Future<bool> _isProcessAlive(int pid) async {
+  final result = await Process.run('/bin/kill', <String>['-0', '$pid']);
+  return result.exitCode == 0;
+}
+
+Future<void> _killProcessIfAlive(int pid) async {
+  if (!await _isProcessAlive(pid)) {
+    return;
+  }
+  await Process.run('/bin/kill', <String>['-KILL', '$pid']);
 }

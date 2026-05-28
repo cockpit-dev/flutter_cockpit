@@ -22,4 +22,18 @@ final class CockpitDiscoveryEngine {
       allowInactiveRouteFallback: allowInactiveRouteFallback,
     );
   }
+
+  bool hasDiscoverableTarget({
+    required BuildContext rootContext,
+    required String? routeName,
+    List<CockpitTarget> explicitTargets = const <CockpitTarget>[],
+    bool allowInactiveRouteFallback = false,
+  }) {
+    return CockpitNativeTargetDiscovery(policy: policy).hasTarget(
+      rootContext: rootContext,
+      routeName: routeName,
+      explicitTargets: explicitTargets,
+      allowInactiveRouteFallback: allowInactiveRouteFallback,
+    );
+  }
 }

@@ -6,6 +6,7 @@ import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:flutter_cockpit/flutter_cockpit_remote_bridge.dart';
 
 import 'cockpit_browser_recording_adapter_resolver.dart';
+import '../remote/cockpit_remote_command_timeout_budget.dart';
 import '../recording/cockpit_host_recording_adapter.dart';
 import '../development/cockpit_development_session_handle.dart';
 
@@ -229,6 +230,12 @@ final class CockpitWebRemoteSessionBridgeServer {
         statusCode: proxied.statusCode,
       );
     }
+    if (routePath == '/commands/execute' && proxied.jsonBody != null) {
+      return CockpitRemoteSessionEndpointResponse.json(
+        await _externalizedCommandResponseBody(proxied.jsonBody!),
+        statusCode: proxied.statusCode,
+      );
+    }
     return proxied;
   }
 
@@ -308,12 +315,10 @@ final class CockpitWebRemoteSessionBridgeServer {
     if (_routePathFor(request.uri.path) != '/commands/execute') {
       return requestTimeout;
     }
-    final commandTimeout = _positiveDurationFromMillis(jsonBody?['timeoutMs']);
-    if (commandTimeout == null) {
-      return requestTimeout;
-    }
-    const commandBridgeBuffer = Duration(seconds: 3);
-    final timeout = commandTimeout + commandBridgeBuffer;
+    final timeout = cockpitRemoteCommandTransportTimeoutForJson(
+      jsonBody,
+      minimumTimeout: requestTimeout,
+    );
     return timeout > requestTimeout ? timeout : requestTimeout;
   }
 
@@ -352,6 +357,47 @@ final class CockpitWebRemoteSessionBridgeServer {
       next.remove('activeRecording');
     }
     return next;
+  }
+
+  Future<Map<String, Object?>> _externalizedCommandResponseBody(
+    Map<String, Object?> body,
+  ) async {
+    if (!body.containsKey('result')) {
+      return body;
+    }
+    final response = CockpitRemoteCommandResponse.fromJson(body);
+    if (response.artifactPayloads.isEmpty) {
+      return body;
+    }
+    final downloads = <CockpitRemoteArtifactDownload>[
+      ...response.artifactDownloads,
+    ];
+    for (final payload in response.artifactPayloads) {
+      final relativePath = payload.artifact.relativePath;
+      if (relativePath.isEmpty || payload.bytes.isEmpty) {
+        continue;
+      }
+      final file = await _persistArtifactBytes(
+        _sanitizeArtifactBasename(relativePath),
+        payload.bytes,
+      );
+      _localArtifacts[relativePath] = _BridgeArtifactEntry(
+        sourceFilePath: file.path,
+        deleteOnClose: true,
+      );
+      downloads.add(
+        CockpitRemoteArtifactDownload(
+          artifact: payload.artifact,
+          downloadPath: _downloadPathFor(relativePath),
+        ),
+      );
+    }
+
+    return CockpitRemoteCommandResponse(
+      result: response.result,
+      runtimeSteps: response.runtimeSteps,
+      artifactDownloads: downloads,
+    ).toJson();
   }
 
   Future<CockpitRemoteSessionEndpointResponse> _startHostRecording(
@@ -675,13 +721,6 @@ String _joinPath(String basePath, String segment) {
     return '/$segment';
   }
   return '$basePath/$segment';
-}
-
-Duration? _positiveDurationFromMillis(Object? value) {
-  if (value is! int || value <= 0) {
-    return null;
-  }
-  return Duration(milliseconds: value);
 }
 
 Object? _compactJsonValue(Object? value) {

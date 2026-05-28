@@ -4,10 +4,56 @@ import 'dart:io';
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:flutter_cockpit_devtools/flutter_cockpit_devtools.dart';
 import 'package:flutter_cockpit_devtools/src/platform/ios/cockpit_ios_device_connection.dart';
+import 'package:flutter_cockpit_devtools/src/session/cockpit_session_process_runner.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 void main() {
+  test(
+    'killable session process runner terminates a timed-out process',
+    () async {
+      if (Platform.isWindows) {
+        return;
+      }
+
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_remote_session_runner_timeout',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final executable = File(p.join(tempDir.path, 'hang.sh'));
+      await executable.writeAsString('''
+#!/bin/sh
+printf '%s\\n' "\$\$" > "${p.join(tempDir.path, 'process.pid')}"
+while true; do
+  sleep 1
+done
+''');
+      await Process.run('chmod', <String>['+x', executable.path]);
+
+      await expectLater(
+        cockpitRunProcessWithTimeout(
+          executable.path,
+          const <String>[],
+          timeout: const Duration(seconds: 2),
+        ),
+        throwsA(isA<TimeoutException>()),
+      );
+
+      final pidFile = File(p.join(tempDir.path, 'process.pid'));
+      expect(pidFile.existsSync(), isTrue);
+      final pid = int.parse(pidFile.readAsStringSync());
+      addTearDown(() async {
+        await _killProcessIfAlive(pid);
+      });
+      expect(await _isProcessAlive(pid), isFalse);
+    },
+  );
+
   test('remote session helpers choose host-reachable bind endpoints', () {
     expect(cockpitRemoteBindHostForPlatform('android'), '0.0.0.0');
     expect(cockpitRemotePublicHostForPlatform('android'), '127.0.0.1');
@@ -98,6 +144,60 @@ void main() {
   );
 
   test(
+    'Android launcher reads Flutter version from the configured executable',
+    () async {
+      final invocations = <String>[];
+      final launcher = CockpitAndroidRemoteSessionLauncher(
+        flutterVersionReader: () async =>
+            throw StateError('legacy version reader should not be used'),
+        processRunner:
+            (executable, arguments, {String? workingDirectory}) async {
+              invocations.add('$executable ${arguments.join(' ')}');
+              if (executable == '/opt/flutter/bin/flutter' &&
+                  arguments.join(' ') == '--version --machine') {
+                return ProcessResult(0, 0, '{"frameworkVersion":"3.32.0"}', '');
+              }
+              return ProcessResult(0, 0, '', '');
+            },
+        portForwarder: _FakeAndroidPortForwarder(forwardedHostPort: 58421),
+        buildArtifactResolver:
+            ({
+              required String projectDir,
+              required String buildDirectory,
+              String? flavor,
+            }) async => const CockpitAndroidBuildArtifact(
+              applicationId: 'dev.cockpit.cockpit_demo',
+              apkPath:
+                  '/workspace/examples/cockpit_demo/build/app/outputs/flutter-apk/app-debug.apk',
+            ),
+        statusReader: (baseUri) async => _readyStatus('android'),
+      );
+
+      await launcher.launch(
+        const CockpitRemoteSessionLaunchOptions(
+          projectDir: '/workspace/examples/cockpit_demo',
+          target: 'lib/main.dart',
+          platform: 'android',
+          deviceId: 'emulator-5554',
+          sessionPort: 47331,
+          flutterExecutable: '/opt/flutter/bin/flutter',
+        ),
+      );
+
+      expect(
+        invocations,
+        contains('/opt/flutter/bin/flutter --version --machine'),
+      );
+      expect(
+        invocations,
+        contains(
+          '/opt/flutter/bin/flutter build apk --debug --target lib/main.dart --dart-define=FLUTTER_COCKPIT_REMOTE_ENABLED=true --dart-define=FLUTTER_COCKPIT_REMOTE_HOST=0.0.0.0 --dart-define=FLUTTER_COCKPIT_REMOTE_PORT=47331 --dart-define=FLUTTER_COCKPIT_FLUTTER_VERSION=3.32.0',
+        ),
+      );
+    },
+  );
+
+  test(
     'iOS simulator remote session launcher builds, launches, and returns a handle',
     () async {
       final invocations = <String>[];
@@ -173,6 +273,54 @@ void main() {
   );
 
   test(
+    'iOS simulator launcher reads Flutter version from the configured executable',
+    () async {
+      final invocations = <String>[];
+      final launcher = CockpitIosSimulatorRemoteSessionLauncher(
+        flutterVersionReader: () async =>
+            throw StateError('legacy version reader should not be used'),
+        processRunner:
+            (executable, arguments, {String? workingDirectory}) async {
+              invocations.add('$executable ${arguments.join(' ')}');
+              if (executable == '/opt/flutter/bin/flutter' &&
+                  arguments.join(' ') == '--version --machine') {
+                return ProcessResult(0, 0, '{"frameworkVersion":"3.32.0"}', '');
+              }
+              return ProcessResult(0, 0, '', '');
+            },
+        appBundlePathResolver: ({required projectDir, String? flavor}) async {
+          return '/workspace/examples/cockpit_demo/build/ios/iphonesimulator/Runner.app';
+        },
+        bundleIdResolver: ({required String appBundlePath}) async =>
+            'dev.cockpit.cockpitDemo',
+        statusReader: (baseUri) async => _readyStatus('ios'),
+      );
+
+      await launcher.launch(
+        const CockpitRemoteSessionLaunchOptions(
+          projectDir: '/workspace/examples/cockpit_demo',
+          target: 'lib/main.dart',
+          platform: 'ios',
+          deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+          sessionPort: 49321,
+          flutterExecutable: '/opt/flutter/bin/flutter',
+        ),
+      );
+
+      expect(
+        invocations,
+        contains('/opt/flutter/bin/flutter --version --machine'),
+      );
+      expect(
+        invocations,
+        contains(
+          '/opt/flutter/bin/flutter build ios --simulator --debug --no-codesign --target lib/main.dart --dart-define=FLUTTER_COCKPIT_REMOTE_ENABLED=true --dart-define=FLUTTER_COCKPIT_REMOTE_HOST=0.0.0.0 --dart-define=FLUTTER_COCKPIT_REMOTE_PORT=49321 --dart-define=FLUTTER_COCKPIT_FLUTTER_VERSION=3.32.0',
+        ),
+      );
+    },
+  );
+
+  test(
     'iOS simulator remote session launcher times out slow build stages',
     () async {
       final launcher = CockpitIosSimulatorRemoteSessionLauncher(
@@ -206,6 +354,58 @@ void main() {
                   throw StateError('launcher did not enforce build timeout'),
             ),
         throwsA(isA<TimeoutException>()),
+      );
+    },
+  );
+
+  test(
+    'iOS physical launcher reads Flutter version from the configured executable',
+    () async {
+      final invocations = <String>[];
+      final launcher = CockpitIosPhysicalRemoteSessionLauncher(
+        flutterVersionReader: () async =>
+            throw StateError('legacy version reader should not be used'),
+        processRunner:
+            (executable, arguments, {String? workingDirectory}) async {
+              invocations.add('$executable ${arguments.join(' ')}');
+              if (executable == '/opt/flutter/bin/flutter' &&
+                  arguments.join(' ') == '--version --machine') {
+                return ProcessResult(0, 0, '{"frameworkVersion":"3.32.0"}', '');
+              }
+              return ProcessResult(0, 0, '', '');
+            },
+        deviceConnectionResolver: (_) async => const CockpitIosDeviceConnection(
+          isPhysical: true,
+          tunnelIpAddress: 'fd69:8f18:f0a9::1',
+        ),
+        appBundlePathResolver: ({required projectDir, String? flavor}) async {
+          return '/workspace/examples/cockpit_demo/build/ios/iphoneos/Runner.app';
+        },
+        bundleIdResolver: ({required String appBundlePath}) async =>
+            'dev.cockpit.cockpitDemo',
+        statusReader: (baseUri) async => _readyStatus('ios'),
+      );
+
+      await launcher.launch(
+        const CockpitRemoteSessionLaunchOptions(
+          projectDir: '/workspace/examples/cockpit_demo',
+          target: 'cockpit/main.dart',
+          platform: 'ios',
+          deviceId: '00008110-0009341C2EF3801E',
+          sessionPort: 57331,
+          flutterExecutable: '/opt/flutter/bin/flutter',
+        ),
+      );
+
+      expect(
+        invocations,
+        contains('/opt/flutter/bin/flutter --version --machine'),
+      );
+      expect(
+        invocations,
+        contains(
+          '/opt/flutter/bin/flutter run -d 00008110-0009341C2EF3801E --profile --no-resident --target cockpit/main.dart --dart-define=FLUTTER_COCKPIT_REMOTE_ENABLED=true --dart-define=FLUTTER_COCKPIT_REMOTE_HOST=:: --dart-define=FLUTTER_COCKPIT_REMOTE_PORT=57331 --dart-define=FLUTTER_COCKPIT_ENABLE_HTTP_NETWORK_OBSERVER=false --dart-define=FLUTTER_COCKPIT_ENABLE_RUNTIME_OBSERVER=false --dart-define=FLUTTER_COCKPIT_FLUTTER_VERSION=3.32.0',
+        ),
       );
     },
   );
@@ -909,4 +1109,16 @@ final class _CapturingRemoteSessionLauncher
           launchedAt: DateTime.utc(2026, 3, 24),
         );
   }
+}
+
+Future<bool> _isProcessAlive(int pid) async {
+  final result = await Process.run('/bin/kill', <String>['-0', '$pid']);
+  return result.exitCode == 0;
+}
+
+Future<void> _killProcessIfAlive(int pid) async {
+  if (!await _isProcessAlive(pid)) {
+    return;
+  }
+  await Process.run('/bin/kill', <String>['-KILL', '$pid']);
 }

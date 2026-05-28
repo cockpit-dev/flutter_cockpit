@@ -26,6 +26,48 @@ void main() {
     expect(version, '3.32.0');
   });
 
+  test('launch version resolver prefers explicit version', () async {
+    final version = await cockpitResolveFlutterVersionForLaunch(
+      flutterExecutable: '/opt/flutter/bin/flutter',
+      explicitFlutterVersion: '3.31.0',
+      legacyFlutterVersionReader: () async =>
+          throw StateError('legacy reader should not be used'),
+      flutterVersionForExecutableReader: (_) async =>
+          throw StateError('executable reader should not be used'),
+    );
+
+    expect(version, '3.31.0');
+  });
+
+  test(
+    'launch version resolver reads from the configured executable',
+    () async {
+      String? capturedExecutable;
+
+      final version = await cockpitResolveFlutterVersionForLaunch(
+        flutterExecutable: '/opt/flutter/bin/flutter',
+        flutterVersionForExecutableReader: (flutterExecutable) async {
+          capturedExecutable = flutterExecutable;
+          return '3.32.0';
+        },
+      );
+
+      expect(capturedExecutable, '/opt/flutter/bin/flutter');
+      expect(version, '3.32.0');
+    },
+  );
+
+  test('launch version resolver keeps legacy reader when provided', () async {
+    final version = await cockpitResolveFlutterVersionForLaunch(
+      flutterExecutable: 'flutter',
+      legacyFlutterVersionReader: () async => '3.38.9',
+      flutterVersionForExecutableReader: (_) async =>
+          throw StateError('executable reader should not be used'),
+    );
+
+    expect(version, '3.38.9');
+  });
+
   test('dart executable resolver reuses the current dart process', () async {
     final resolved = await cockpitResolveActiveDartExecutable(
       currentExecutable: Platform.isWindows

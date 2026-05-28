@@ -88,6 +88,75 @@ void main() {
     },
   );
 
+  test(
+    'windows launcher reads Flutter version from the configured executable',
+    () async {
+      final buildInvocations = <String>[];
+      final launcher = CockpitWindowsRemoteSessionLauncher(
+        flutterVersionReader: () async =>
+            throw StateError('legacy version reader should not be used'),
+        processRunner:
+            (executable, arguments, {String? workingDirectory}) async {
+              buildInvocations.add('$executable ${arguments.join(' ')}');
+              if (executable == r'C:\flutter\bin\flutter.bat' &&
+                  arguments.join(' ') == '--version --machine') {
+                return ProcessResult(0, 0, '{"frameworkVersion":"3.32.0"}', '');
+              }
+              return ProcessResult(0, 0, '', '');
+            },
+        appExecutablePathResolver: ({required String projectDir}) async =>
+            '$projectDir/build/windows/x64/runner/Debug/cockpit_demo.exe',
+        appStarter:
+            ({
+              required String executablePath,
+              List<String> arguments = const <String>[],
+              String? workingDirectory,
+              required Duration timeout,
+            }) async => 4101,
+        statusReader: (baseUri) async => CockpitRemoteSessionStatus(
+          sessionId: 'windows-sdk-session',
+          platform: 'windows',
+          transportType: 'remoteHttp',
+          currentRouteName: '/home',
+          capabilities: CockpitCapabilities(
+            platform: 'windows',
+            transportType: 'remoteHttp',
+            supportsInAppControl: true,
+            supportsFlutterViewCapture: true,
+            supportsNativeScreenCapture: true,
+            supportsHostAutomation: true,
+          ),
+          recordingCapabilities: CockpitRecordingCapabilities(
+            supportsNativeRecording: true,
+          ),
+          snapshot: CockpitSnapshot(routeName: '/home'),
+        ),
+      );
+
+      await launcher.launch(
+        const CockpitRemoteSessionLaunchOptions(
+          projectDir: r'C:\workspace\cockpit_demo',
+          target: 'cockpit/main.dart',
+          platform: 'windows',
+          deviceId: 'windows',
+          sessionPort: 47331,
+          flutterExecutable: r'C:\flutter\bin\flutter.bat',
+        ),
+      );
+
+      expect(
+        buildInvocations,
+        contains(r'C:\flutter\bin\flutter.bat --version --machine'),
+      );
+      expect(
+        buildInvocations,
+        contains(
+          r'C:\flutter\bin\flutter.bat build windows --debug --target cockpit/main.dart --dart-define=FLUTTER_COCKPIT_REMOTE_ENABLED=true --dart-define=FLUTTER_COCKPIT_REMOTE_HOST=127.0.0.1 --dart-define=FLUTTER_COCKPIT_REMOTE_PORT=47331 --dart-define=FLUTTER_COCKPIT_FLUTTER_VERSION=3.32.0',
+        ),
+      );
+    },
+  );
+
   test('windows remote session launcher times out slow build stages', () async {
     final launcher = CockpitWindowsRemoteSessionLauncher(
       flutterVersionReader: () async => '3.38.9',

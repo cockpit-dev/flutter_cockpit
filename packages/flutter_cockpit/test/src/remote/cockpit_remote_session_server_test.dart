@@ -51,11 +51,11 @@ void main() {
         );
       });
 
-      final healthJson = await tester.runAsync(() async {
-        return _readJson(baseUri!.resolve('/health'));
+      final snapshotJson = await tester.runAsync(() async {
+        return _readJson(baseUri!.resolve('/snapshot'));
       });
-      final health = CockpitRemoteSessionStatus.fromJson(healthJson!);
-      final nativeButton = health.snapshot.visibleTargets.firstWhere(
+      final snapshot = CockpitSnapshot.fromJson(snapshotJson!);
+      final nativeButton = snapshot.visibleTargets.firstWhere(
         (target) => target.keyValue == 'native-open-form-button',
       );
 
@@ -83,6 +83,65 @@ void main() {
       expect(rootState.snapshot().routeName, '/form');
     },
   );
+
+  testWidgets('remote session health returns compact live app state', (
+    tester,
+  ) async {
+    final controller = CockpitSessionController(
+      sessionId: 'remote-health-lightweight-session',
+      taskId: 'remote-health-lightweight-task',
+      platform: 'android',
+    );
+    final registry = CockpitTargetRegistry(routeName: '/home');
+
+    await tester.pumpWidget(
+      _RemoteNativeDiscoveryTestApp(
+        controller: controller,
+        registry: registry,
+        configuration: FlutterCockpitConfiguration(
+          initialRouteName: '/home',
+          remoteSession: const CockpitRemoteSessionConfiguration(
+            enabled: true,
+            autoStart: false,
+            port: 0,
+          ),
+          nativeRecording: _FakeCockpitNativeRecording(),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    final rootState = tester.state<FlutterCockpitRootState>(
+      find.byType(FlutterCockpitRoot),
+    );
+    final baseUri = await tester.runAsync(() async {
+      return rootState.waitForRemoteSession().timeout(
+        const Duration(seconds: 5),
+        onTimeout: () => throw TimeoutException('waitForRemoteSession'),
+      );
+    });
+
+    final healthJson = await tester.runAsync(() async {
+      return _readJson(baseUri!.resolve('/health'));
+    });
+    final health = CockpitRemoteSessionStatus.fromJson(healthJson!);
+
+    expect(health.snapshot.routeName, '/home');
+    expect(health.snapshot.diagnosticLevel, CockpitSnapshotProfile.live);
+    expect(health.snapshot.visibleTargets, isNotEmpty);
+    expect(
+      health.snapshot.visibleTargets.any(
+        (target) => target.keyValue == 'native-open-form-button',
+      ),
+      isTrue,
+    );
+    expect(
+      health.snapshot.visibleTargets.any((target) => target.layout != null),
+      isFalse,
+    );
+    expect(health.snapshot.network, isNull);
+  });
 
   testWidgets(
     'remote session health and command execution expose live app state',
@@ -384,6 +443,99 @@ void main() {
     expect(healthJson.containsKey('currentRouteName'), isFalse);
     expect(healthJson.containsKey('environment'), isFalse);
     expect(healthJson.containsKey('activeRecording'), isFalse);
+  });
+
+  test('remote session ping avoids heavyweight status construction', () async {
+    var statusCalls = 0;
+    final server = CockpitRemoteSessionServer(
+      configuration: const CockpitRemoteSessionConfiguration(
+        enabled: true,
+        autoStart: false,
+        port: 0,
+        routePrefix: '/cockpit',
+      ),
+      statusProvider: () async {
+        statusCalls += 1;
+        throw StateError('status should not be used for ping');
+      },
+      snapshotProvider: ({required options}) async =>
+          CockpitSnapshot(routeName: '/home', diagnosticLevel: options.profile),
+      commandExecutor: (_) async => CockpitCommandExecution(
+        result: CockpitCommandResult(
+          success: true,
+          commandId: 'noop',
+          commandType: CockpitCommandType.collectSnapshot,
+          durationMs: 0,
+        ),
+      ),
+      startRecording: (request) async => CockpitRecordingSession(
+        request: request,
+        state: CockpitRecordingState.recording,
+      ),
+      stopRecording: () async =>
+          CockpitRecordingResult(state: CockpitRecordingState.failed),
+    );
+    await server.start();
+    addTearDown(server.close);
+
+    final pingJson = await _readJson(Uri.parse('${server.baseUri}/ping'));
+
+    expect(pingJson['ok'], isTrue);
+    expect(pingJson['transportType'], 'remoteHttp');
+    expect(pingJson['routePrefix'], '/cockpit');
+    expect(statusCalls, 0);
+  });
+
+  test('remote session ready avoids heavyweight status construction', () async {
+    var statusCalls = 0;
+    var readyCalls = 0;
+    final server = CockpitRemoteSessionServer(
+      configuration: const CockpitRemoteSessionConfiguration(
+        enabled: true,
+        autoStart: false,
+        port: 0,
+        routePrefix: '/cockpit',
+      ),
+      statusProvider: () async {
+        statusCalls += 1;
+        throw StateError('status should not be used for readiness');
+      },
+      readyProvider: () {
+        readyCalls += 1;
+        return const <String, Object?>{
+          'ready': true,
+          'currentRouteName': '/home',
+          'supportsInAppControl': true,
+        };
+      },
+      snapshotProvider: ({required options}) async =>
+          CockpitSnapshot(routeName: '/home', diagnosticLevel: options.profile),
+      commandExecutor: (_) async => CockpitCommandExecution(
+        result: CockpitCommandResult(
+          success: true,
+          commandId: 'noop',
+          commandType: CockpitCommandType.collectSnapshot,
+          durationMs: 0,
+        ),
+      ),
+      startRecording: (request) async => CockpitRecordingSession(
+        request: request,
+        state: CockpitRecordingState.recording,
+      ),
+      stopRecording: () async =>
+          CockpitRecordingResult(state: CockpitRecordingState.failed),
+    );
+    await server.start();
+    addTearDown(server.close);
+
+    final readyJson = await _readJson(Uri.parse('${server.baseUri}/ready'));
+
+    expect(readyJson['ok'], isTrue);
+    expect(readyJson['ready'], isTrue);
+    expect(readyJson['currentRouteName'], '/home');
+    expect(readyJson['transportType'], 'remoteHttp');
+    expect(statusCalls, 0);
+    expect(readyCalls, 1);
   });
 
   test(
@@ -1101,11 +1253,23 @@ void main() {
       expect(result.resolvedCaptureKind, CockpitCaptureKind.flutterView);
       expect(result.usedCaptureFallback, isFalse);
       expect(result.degradationReason, isNull);
-      expect(response.artifactPayloads.single.bytes, isNotEmpty);
+      expect(response.artifactPayloads, isEmpty);
+      expect(response.artifactDownloads, hasLength(1));
       expect(
         result.artifacts.single.relativePath,
         allOf(startsWith('screenshots/'), endsWith('.png')),
       );
+      expect(
+        response.artifactDownloads.single.artifact.relativePath,
+        result.artifacts.single.relativePath,
+      );
+      final downloadedBytes = await tester.runAsync(() {
+        return _readBytes(
+          baseUri!.resolve(response.artifactDownloads.single.downloadPath),
+        );
+      });
+      expect(downloadedBytes, isNotNull);
+      expect(downloadedBytes, isNotEmpty);
     },
   );
 
@@ -1572,13 +1736,7 @@ final class _RemoteTestApp extends StatelessWidget {
     required this.configuration,
   }) {
     FlutterCockpit.initialize(
-      FlutterCockpitConfiguration(
-        initialRouteName: configuration.initialRouteName,
-        registry: configuration.registry ?? registry,
-        nativeCapture: configuration.nativeCapture,
-        nativeRecording: configuration.nativeRecording,
-        remoteSession: configuration.remoteSession,
-      ),
+      configuration.copyWith(registry: configuration.registry ?? registry),
     );
   }
 
@@ -1606,13 +1764,7 @@ final class _RemoteNativeDiscoveryTestApp extends StatelessWidget {
     required this.configuration,
   }) {
     FlutterCockpit.initialize(
-      FlutterCockpitConfiguration(
-        initialRouteName: configuration.initialRouteName,
-        registry: configuration.registry ?? registry,
-        nativeCapture: configuration.nativeCapture,
-        nativeRecording: configuration.nativeRecording,
-        remoteSession: configuration.remoteSession,
-      ),
+      configuration.copyWith(registry: configuration.registry ?? registry),
     );
   }
 

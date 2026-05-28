@@ -87,6 +87,75 @@ void main() {
     },
   );
 
+  test(
+    'linux launcher reads Flutter version from the configured executable',
+    () async {
+      final buildInvocations = <String>[];
+      final launcher = CockpitLinuxRemoteSessionLauncher(
+        flutterVersionReader: () async =>
+            throw StateError('legacy version reader should not be used'),
+        processRunner:
+            (executable, arguments, {String? workingDirectory}) async {
+              buildInvocations.add('$executable ${arguments.join(' ')}');
+              if (executable == '/opt/flutter/bin/flutter' &&
+                  arguments.join(' ') == '--version --machine') {
+                return ProcessResult(0, 0, '{"frameworkVersion":"3.32.0"}', '');
+              }
+              return ProcessResult(0, 0, '', '');
+            },
+        appExecutablePathResolver: ({required String projectDir}) async =>
+            '$projectDir/build/linux/x64/debug/bundle/cockpit_demo',
+        appStarter:
+            ({
+              required String executablePath,
+              List<String> arguments = const <String>[],
+              String? workingDirectory,
+              required Duration timeout,
+            }) async => 5101,
+        statusReader: (baseUri) async => CockpitRemoteSessionStatus(
+          sessionId: 'linux-sdk-session',
+          platform: 'linux',
+          transportType: 'remoteHttp',
+          currentRouteName: '/home',
+          capabilities: CockpitCapabilities(
+            platform: 'linux',
+            transportType: 'remoteHttp',
+            supportsInAppControl: true,
+            supportsFlutterViewCapture: true,
+            supportsNativeScreenCapture: true,
+            supportsHostAutomation: true,
+          ),
+          recordingCapabilities: CockpitRecordingCapabilities(
+            supportsNativeRecording: true,
+          ),
+          snapshot: CockpitSnapshot(routeName: '/home'),
+        ),
+      );
+
+      await launcher.launch(
+        const CockpitRemoteSessionLaunchOptions(
+          projectDir: '/workspace/examples/cockpit_demo',
+          target: 'cockpit/main.dart',
+          platform: 'linux',
+          deviceId: 'linux',
+          sessionPort: 47331,
+          flutterExecutable: '/opt/flutter/bin/flutter',
+        ),
+      );
+
+      expect(
+        buildInvocations,
+        contains('/opt/flutter/bin/flutter --version --machine'),
+      );
+      expect(
+        buildInvocations,
+        contains(
+          '/opt/flutter/bin/flutter build linux --debug --target cockpit/main.dart --dart-define=FLUTTER_COCKPIT_REMOTE_ENABLED=true --dart-define=FLUTTER_COCKPIT_REMOTE_HOST=127.0.0.1 --dart-define=FLUTTER_COCKPIT_REMOTE_PORT=47331 --dart-define=FLUTTER_COCKPIT_FLUTTER_VERSION=3.32.0',
+        ),
+      );
+    },
+  );
+
   test('linux remote session launcher times out slow build stages', () async {
     final launcher = CockpitLinuxRemoteSessionLauncher(
       flutterVersionReader: () async => '3.38.9',

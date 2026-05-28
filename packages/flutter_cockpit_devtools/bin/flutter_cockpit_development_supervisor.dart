@@ -119,17 +119,21 @@ Future<void> main(List<String> args) async {
           );
         }
         try {
-          await CockpitRemoteSessionClient(baseUri: baseUri).readStatus();
-          return true;
+          return await CockpitRemoteSessionClient(baseUri: baseUri).ping();
         } on Object {
           return false;
         }
       },
-      uiIdleWaiter: (baseUri) async {
+      remoteControlReadinessProbe: (baseUri) async {
+        if (platform == 'android') {
+          await portForwarder.ensureForwarded(
+            deviceId: deviceId,
+            preferredHostPort: appHostPort,
+            devicePort: sessionPort,
+          );
+        }
         try {
-          return await CockpitRemoteSessionClient(
-            baseUri: baseUri,
-          ).waitForUiIdle();
+          return await CockpitRemoteSessionClient(baseUri: baseUri).ready();
         } on Object {
           return false;
         }

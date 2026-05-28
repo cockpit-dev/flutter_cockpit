@@ -592,6 +592,45 @@ void main() {
     },
   );
 
+  test('command timeout is a hard boundary around action settling', () async {
+    final registry = CockpitTargetRegistry(routeName: '/inbox');
+    registry.register(
+      CockpitTarget(
+        registrationId: 'search',
+        text: 'Search title or notes',
+        routeName: '/inbox',
+        supportedCommands: const <CockpitCommandType>{
+          CockpitCommandType.enterText,
+        },
+        onEnterText: (_) {},
+      ),
+    );
+    final blockedSettler = Completer<void>();
+    final executor = InAppCockpitCommandExecutor(
+      registry: registry,
+      postActionSettler: () => blockedSettler.future,
+      waitTickHandler: (_) async {},
+    );
+
+    final result = await executor
+        .execute(
+          CockpitCommand(
+            commandId: 'enter-text-blocked-settler',
+            commandType: CockpitCommandType.enterText,
+            locator: const CockpitLocator(text: 'Search title or notes'),
+            parameters: const <String, Object?>{'text': 'query'},
+            timeoutMs: 30,
+          ),
+        )
+        .timeout(const Duration(milliseconds: 500));
+
+    expect(result.success, isFalse);
+    expect(result.error?.code, CockpitCommandError.timeoutCode);
+    expect(result.error?.details['commandId'], 'enter-text-blocked-settler');
+    expect(result.error?.details['commandType'], 'enterText');
+    expect(result.error?.details['routeName'], '/inbox');
+  });
+
   test('waits briefly for assertText targets after async UI updates', () async {
     final registry = CockpitTargetRegistry(routeName: '/inbox');
     var tickCount = 0;
@@ -961,6 +1000,145 @@ void main() {
 
       expect(result.success, isTrue);
       expect(capturedText, 'Investigate Android notes input');
+    },
+  );
+
+  test(
+    'enterText prefers direct text input before semantics setText by default',
+    () async {
+      final registry = CockpitTargetRegistry(routeName: '/editor');
+      String? directText;
+      String? semanticText;
+
+      registry.register(
+        CockpitTarget(
+          registrationId: 'title-input',
+          text: 'Task title',
+          routeName: '/editor',
+          supportedCommands: const {CockpitCommandType.enterText},
+          onTextInput: (request) {
+            directText = request.text;
+          },
+          onSemanticTextInput: (request) {
+            semanticText = request.text;
+          },
+        ),
+      );
+
+      final executor = InAppCockpitCommandExecutor(registry: registry);
+      final result = await executor.execute(
+        CockpitCommand(
+          commandId: 'cmd-title',
+          commandType: CockpitCommandType.enterText,
+          locator: const CockpitLocator(text: 'Task title'),
+          parameters: const {'text': 'Release checklist'},
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(directText, 'Release checklist');
+      expect(semanticText, isNull);
+    },
+  );
+
+  test(
+    'tap uses direct activation for ordinary actionable targets by default',
+    () async {
+      final registry = CockpitTargetRegistry(routeName: '/editor');
+      var tapCount = 0;
+      var gestureCount = 0;
+
+      registry.register(
+        CockpitTarget(
+          registrationId: 'save-task',
+          text: 'Save task',
+          routeName: '/editor',
+          supportedCommands: const {CockpitCommandType.tap},
+          onTap: () {
+            tapCount += 1;
+          },
+          geometryProvider: () => const CockpitTargetGeometry(
+            left: 20,
+            top: 720,
+            width: 220,
+            height: 48,
+            viewportLeft: 0,
+            viewportTop: 0,
+            viewportWidth: 430,
+            viewportHeight: 800,
+            viewId: 1,
+          ),
+        ),
+      );
+
+      final executor = InAppCockpitCommandExecutor(
+        registry: registry,
+        gestureHandler: (_) async {
+          gestureCount += 1;
+        },
+      );
+      final result = await executor.execute(
+        CockpitCommand(
+          commandId: 'cmd-save',
+          commandType: CockpitCommandType.tap,
+          locator: const CockpitLocator(text: 'Save task'),
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(tapCount, 1);
+      expect(gestureCount, 0);
+    },
+  );
+
+  test(
+    'tap can opt into gesture activation when pointer semantics matter',
+    () async {
+      final registry = CockpitTargetRegistry(routeName: '/editor');
+      var tapCount = 0;
+      var gestureCount = 0;
+
+      registry.register(
+        CockpitTarget(
+          registrationId: 'save-task',
+          text: 'Save task',
+          routeName: '/editor',
+          supportedCommands: const {CockpitCommandType.tap},
+          onTap: () {
+            tapCount += 1;
+          },
+          geometryProvider: () => const CockpitTargetGeometry(
+            left: 20,
+            top: 720,
+            width: 220,
+            height: 48,
+            viewportLeft: 0,
+            viewportTop: 0,
+            viewportWidth: 430,
+            viewportHeight: 800,
+            viewId: 1,
+          ),
+        ),
+      );
+
+      final executor = InAppCockpitCommandExecutor(
+        registry: registry,
+        gestureHandler: (_) async {
+          gestureCount += 1;
+        },
+      );
+      final result = await executor.execute(
+        CockpitCommand(
+          commandId: 'cmd-save',
+          commandType: CockpitCommandType.tap,
+          locator: const CockpitLocator(text: 'Save task'),
+          parameters: const {'activation': 'gesture'},
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(tapCount, 0);
+      expect(gestureCount, 1);
     },
   );
 
@@ -1508,6 +1686,34 @@ void main() {
     );
   });
 
+  test(
+    'waitFor command timeout bounds a blocked post-action settler',
+    () async {
+      final registry = CockpitTargetRegistry(routeName: '/inbox');
+      final blockedSettler = Completer<void>();
+      final executor = InAppCockpitCommandExecutor(
+        registry: registry,
+        postActionSettler: () => blockedSettler.future,
+        waitTickHandler: (_) async {},
+      );
+
+      final result = await executor
+          .execute(
+            CockpitCommand(
+              commandId: 'wait-for-blocked-settler',
+              commandType: CockpitCommandType.waitFor,
+              parameters: const <String, Object?>{'routeName': '/detail'},
+              timeoutMs: 30,
+            ),
+          )
+          .timeout(const Duration(milliseconds: 500));
+
+      expect(result.success, isFalse);
+      expect(result.error?.code, CockpitCommandError.timeoutCode);
+      expect(result.error?.details['routeName'], '/inbox');
+    },
+  );
+
   test('waitFor route can explicitly skip target readiness', () async {
     final registry = CockpitTargetRegistry(routeName: '/editor');
 
@@ -1890,6 +2096,137 @@ void main() {
   );
 
   testWidgets(
+    'tap action commit waits use lightweight route state before the final snapshot',
+    (tester) async {
+      final registry = CockpitTargetRegistry(routeName: '/inbox');
+      final routeLifetime = Completer<void>();
+      var snapshotCalls = 0;
+
+      await tester.pumpWidget(
+        const Directionality(
+          textDirection: TextDirection.ltr,
+          child: SizedBox.shrink(),
+        ),
+      );
+
+      registry.register(
+        CockpitTarget(
+          registrationId: 'open-editor',
+          text: 'Open editor',
+          routeName: '/inbox',
+          supportedCommands: const {CockpitCommandType.tap},
+          onTap: () async {
+            registry.routeName = '/editor';
+            registry.register(
+              const CockpitTarget(
+                registrationId: 'editor-ready',
+                text: 'Editor ready',
+                routeName: '/editor',
+              ),
+            );
+            await routeLifetime.future;
+          },
+        ),
+      );
+
+      final executor = InAppCockpitCommandExecutor(
+        registry: registry,
+        snapshotProvider: ({options = const CockpitSnapshotOptions()}) {
+          snapshotCalls += 1;
+          return registry.snapshot();
+        },
+        waitTickHandler: tester.pump,
+        interactionPolicy: const CockpitInteractionPolicy(
+          preActionVisualDelay: Duration.zero,
+          actionCommitTimeout: Duration(milliseconds: 400),
+          actionVisualDelay: Duration.zero,
+          routeTransitionVisualDelay: Duration.zero,
+          recordingActionVisualDelay: Duration.zero,
+        ),
+      );
+
+      final result = await executor.execute(
+        CockpitCommand(
+          commandId: 'open-editor',
+          commandType: CockpitCommandType.tap,
+          locator: const CockpitLocator(text: 'Open editor'),
+        ),
+      );
+      addTearDown(routeLifetime.complete);
+
+      expect(result.success, isTrue);
+      expect(result.snapshot?['routeName'], '/editor');
+      expect(snapshotCalls, 1);
+    },
+  );
+
+  testWidgets('tap route stabilization bounds discovered target probes', (
+    tester,
+  ) async {
+    final registry = CockpitTargetRegistry(routeName: '/inbox');
+    final routeLifetime = Completer<void>();
+    var discoveryCalls = 0;
+
+    await tester.pumpWidget(
+      const Directionality(
+        textDirection: TextDirection.ltr,
+        child: SizedBox.shrink(),
+      ),
+    );
+
+    registry.discoveredTargetsProvider = () {
+      discoveryCalls += 1;
+      if (registry.routeName != '/editor') {
+        return const <CockpitTarget>[];
+      }
+      return const <CockpitTarget>[
+        CockpitTarget(
+          registrationId: 'editor-ready',
+          text: 'Editor ready',
+          routeName: '/editor',
+        ),
+      ];
+    };
+    registry.register(
+      CockpitTarget(
+        registrationId: 'open-editor',
+        text: 'Open editor',
+        routeName: '/inbox',
+        supportedCommands: const {CockpitCommandType.tap},
+        onTap: () async {
+          registry.routeName = '/editor';
+          await routeLifetime.future;
+        },
+      ),
+    );
+
+    final executor = InAppCockpitCommandExecutor(
+      registry: registry,
+      waitTickHandler: tester.pump,
+      interactionPolicy: const CockpitInteractionPolicy(
+        preActionVisualDelay: Duration.zero,
+        actionCommitTimeout: Duration(milliseconds: 400),
+        actionVisualDelay: Duration.zero,
+        routeTransitionVisualDelay: Duration.zero,
+        recordingActionVisualDelay: Duration.zero,
+      ),
+    );
+
+    final result = await executor.execute(
+      CockpitCommand(
+        commandId: 'open-editor',
+        commandType: CockpitCommandType.tap,
+        locator: const CockpitLocator(text: 'Open editor'),
+      ),
+    );
+    addTearDown(routeLifetime.complete);
+
+    expect(result.success, isTrue);
+    expect(result.snapshot?['routeName'], '/editor');
+    expect(discoveryCalls, lessThanOrEqualTo(3));
+  });
+
+  testWidgets(
     'tap forwards async handler failures that happen before a visible commit',
     (tester) async {
       final registry = CockpitTargetRegistry(routeName: '/inbox');
@@ -2056,6 +2393,153 @@ void main() {
             ),
         isTrue,
       );
+    },
+  );
+
+  testWidgets(
+    'tap on a route-lifetime Material button reports the pushed route before success',
+    (tester) async {
+      FlutterCockpit.initialize(
+        const FlutterCockpitConfiguration(initialRouteName: '/inbox'),
+      );
+      addTearDown(FlutterCockpit.dispose);
+
+      final rootKey = GlobalKey<FlutterCockpitRootState>();
+      final navigatorKey = GlobalKey<NavigatorState>();
+      var refreshAfterEditor = 0;
+
+      await tester.pumpWidget(
+        FlutterCockpitRoot(
+          key: rootKey,
+          child: MaterialApp(
+            navigatorKey: navigatorKey,
+            navigatorObservers: <NavigatorObserver>[
+              FlutterCockpit.navigatorObserver,
+            ],
+            initialRoute: '/inbox',
+            routes: <String, WidgetBuilder>{
+              '/inbox': (context) => Scaffold(
+                appBar: AppBar(
+                  actions: <Widget>[
+                    TextButton.icon(
+                      onPressed: () async {
+                        await navigatorKey.currentState!.pushNamed('/editor');
+                        refreshAfterEditor += 1;
+                      },
+                      icon: const Icon(Icons.add),
+                      label: const Text('New task'),
+                    ),
+                  ],
+                ),
+                body: const Text('Inbox ready'),
+              ),
+              '/editor': (context) => const Scaffold(
+                body: TextField(
+                  decoration: InputDecoration(labelText: 'Task title'),
+                ),
+              ),
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final executor = InAppCockpitCommandExecutor(
+        registry: FlutterCockpit.binding.registry,
+        snapshotProvider: rootKey.currentState!.snapshot,
+        gestureHandler: rootKey.currentState!.performGesture,
+        waitTickHandler: tester.pump,
+        interactionPolicy: const CockpitInteractionPolicy(
+          preActionVisualDelay: Duration.zero,
+          actionVisualDelay: Duration.zero,
+          routeTransitionVisualDelay: Duration.zero,
+          recordingActionVisualDelay: Duration.zero,
+        ),
+      );
+
+      final result = await executor.execute(
+        CockpitCommand(
+          commandId: 'open-editor',
+          commandType: CockpitCommandType.tap,
+          locator: const CockpitLocator(text: 'New task'),
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(result.snapshot?['routeName'], '/editor');
+      expect(refreshAfterEditor, 0);
+    },
+  );
+
+  testWidgets(
+    'tap uses the real gesture pipeline for discovered Material controls',
+    (tester) async {
+      FlutterCockpit.initialize(
+        const FlutterCockpitConfiguration(initialRouteName: '/inbox'),
+      );
+      addTearDown(FlutterCockpit.dispose);
+
+      final rootKey = GlobalKey<FlutterCockpitRootState>();
+      var sawPointerDown = false;
+
+      await tester.pumpWidget(
+        FlutterCockpitRoot(
+          key: rootKey,
+          child: MaterialApp(
+            navigatorObservers: <NavigatorObserver>[
+              FlutterCockpit.navigatorObserver,
+            ],
+            initialRoute: '/inbox',
+            routes: <String, WidgetBuilder>{
+              '/inbox': (context) => Scaffold(
+                body: Center(
+                  child: Listener(
+                    onPointerDown: (_) {
+                      sawPointerDown = true;
+                    },
+                    child: TextButton(
+                      onPressed: () {
+                        if (sawPointerDown) {
+                          Navigator.of(context).pushNamed('/editor');
+                        }
+                      },
+                      child: const Text('New task'),
+                    ),
+                  ),
+                ),
+              ),
+              '/editor': (context) =>
+                  const Scaffold(body: Text('Editor ready')),
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final executor = InAppCockpitCommandExecutor(
+        registry: FlutterCockpit.binding.registry,
+        snapshotProvider: rootKey.currentState!.snapshot,
+        gestureHandler: rootKey.currentState!.performGesture,
+        waitTickHandler: tester.pump,
+        interactionPolicy: const CockpitInteractionPolicy(
+          preActionVisualDelay: Duration.zero,
+          actionVisualDelay: Duration.zero,
+          routeTransitionVisualDelay: Duration.zero,
+          recordingActionVisualDelay: Duration.zero,
+        ),
+      );
+
+      final result = await executor.execute(
+        CockpitCommand(
+          commandId: 'open-editor',
+          commandType: CockpitCommandType.tap,
+          locator: const CockpitLocator(text: 'New task'),
+          parameters: const <String, Object?>{'activation': 'gesture'},
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(sawPointerDown, isTrue);
     },
   );
 

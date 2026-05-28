@@ -111,7 +111,22 @@ void main() {
                       commandId: 'tap-open',
                       commandType: CockpitCommandType.tap,
                       durationMs: 12,
+                      artifacts: const <CockpitArtifactRef>[
+                        CockpitArtifactRef(
+                          role: 'screenshot',
+                          relativePath: 'browser/screenshot.png',
+                        ),
+                      ],
                     ).toJson(),
+                    'artifactPayloads': <Object?>[
+                      const CockpitRemoteArtifactPayload(
+                        artifact: CockpitArtifactRef(
+                          role: 'screenshot',
+                          relativePath: 'browser/screenshot.png',
+                        ),
+                        bytes: <int>[1, 2, 3, 4],
+                      ).toJson(),
+                    ],
                   },
                 ).toJson(),
               ),
@@ -181,6 +196,21 @@ void main() {
         ((commandJson['result'] as Map<String, Object?>)['success']) as bool,
         isTrue,
       );
+      expect(commandJson['artifactPayloads'], isEmpty);
+      final commandDownloads =
+          (commandJson['artifactDownloads'] as List<Object?>)
+              .cast<Map<Object?, Object?>>();
+      expect(commandDownloads, hasLength(1));
+      final commandDownloadPath =
+          commandDownloads.single['downloadPath']! as String;
+      expect(
+        commandDownloadPath,
+        startsWith('/cockpit/artifacts/download?path='),
+      );
+      final commandArtifactBytes = await _readBytes(
+        server.baseUri.resolve(commandDownloadPath),
+      );
+      expect(commandArtifactBytes, <int>[1, 2, 3, 4]);
 
       final stopJson = await _postJson(
         Uri.parse('${server.baseUri}/recording/stop'),
@@ -203,12 +233,16 @@ void main() {
       );
       expect(deletedResponse.statusCode, HttpStatus.notFound);
 
-      final browserArtifactBytes = await _readBytes(
+      final missingBrowserProxyArtifact = await _readBytesResponse(
         Uri.parse(
-          '${server.baseUri}/artifacts/download?path=browser%2Fscreenshot.png',
+          '${server.baseUri}/artifacts/download?path=browser%2Fproxied.png',
         ),
       );
-      expect(utf8.decode(browserArtifactBytes), 'browser-artifact');
+      expect(missingBrowserProxyArtifact.statusCode, HttpStatus.ok);
+      expect(
+        utf8.decode(missingBrowserProxyArtifact.bytes),
+        'browser-artifact',
+      );
     },
   );
 

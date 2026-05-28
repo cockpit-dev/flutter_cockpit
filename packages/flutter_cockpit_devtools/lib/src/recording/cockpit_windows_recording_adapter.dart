@@ -144,7 +144,7 @@ final class CockpitWindowsRecordingAdapter
     } on TimeoutException {
       if (processExited) {
         await stderrSubscription.cancel();
-        process.kill(ProcessSignal.sigkill);
+        await cockpitKillRecordingProcess(process);
         rethrow;
       }
       final hasOutputEvidence = await cockpitWaitForNonEmptyFile(
@@ -154,12 +154,12 @@ final class CockpitWindowsRecordingAdapter
       );
       if (!hasOutputEvidence) {
         await stderrSubscription.cancel();
-        process.kill(ProcessSignal.sigkill);
+        await cockpitKillRecordingProcess(process);
         throw StateError(_buildStartupFailureMessage(recentStderrLines));
       }
     } on Object {
       await stderrSubscription.cancel();
-      process.kill(ProcessSignal.sigkill);
+      await cockpitKillRecordingProcess(process);
       rethrow;
     }
 
@@ -201,8 +201,11 @@ final class CockpitWindowsRecordingAdapter
     try {
       final didStopGracefully = await _requestGracefulStop(process);
       if (!didStopGracefully) {
-        process.kill(ProcessSignal.sigterm);
-        await process.exitCode.timeout(_stopTimeout);
+        await cockpitKillRecordingProcess(
+          process,
+          signal: ProcessSignal.sigterm,
+          waitTimeout: _stopTimeout,
+        );
       }
 
       final hasOutput = await cockpitWaitForNonEmptyFile(
@@ -244,7 +247,7 @@ final class CockpitWindowsRecordingAdapter
         sourceFilePath: outputFile.path,
       );
     } on TimeoutException {
-      process.kill(ProcessSignal.sigkill);
+      await cockpitKillRecordingProcess(process, waitTimeout: _stopTimeout);
       return CockpitRecordingResult(
         state: CockpitRecordingState.failed,
         purpose: request.purpose,
@@ -287,11 +290,10 @@ final class CockpitWindowsRecordingAdapter
     try {
       process.stdin.writeln('q');
       await process.stdin.flush();
-      await process.exitCode.timeout(_stopTimeout);
-      return true;
     } on Object {
       return false;
     }
+    return cockpitWaitForRecordingProcessExit(process, timeout: _stopTimeout);
   }
 
   Future<bool> _waitForFinalizedOutput(File outputFile) async {

@@ -209,6 +209,58 @@ void main() {
     );
   });
 
+  test('reuses discovered targets during a single registry snapshot', () {
+    var discoveryCalls = 0;
+    final registry = CockpitTargetRegistry(routeName: '/inbox')
+      ..discoveredTargetsProvider = () {
+        discoveryCalls += 1;
+        return const <CockpitTarget>[
+          CockpitTarget(
+            registrationId: 'new-task',
+            keyValue: 'fab-add-task',
+            text: 'New task',
+            routeName: '/inbox',
+            supportedCommands: {CockpitCommandType.tap},
+          ),
+        ];
+      };
+
+    final snapshot = registry.snapshot();
+
+    expect(snapshot.visibleTargets, hasLength(1));
+    expect(snapshot.summary?.visibleTargetCount, 1);
+    expect(snapshot.summary?.targetsWithTextCount, 1);
+    expect(discoveryCalls, 1);
+  });
+
+  test('reuses discovered targets while resolving fallback locator chains', () {
+    var discoveryCalls = 0;
+    final registry = CockpitTargetRegistry(routeName: '/inbox')
+      ..discoveredTargetsProvider = () {
+        discoveryCalls += 1;
+        return const <CockpitTarget>[
+          CockpitTarget(
+            registrationId: 'new-task',
+            keyValue: 'fab-add-task',
+            text: 'New task',
+            routeName: '/inbox',
+            supportedCommands: {CockpitCommandType.tap},
+          ),
+        ];
+      };
+
+    final resolution = registry.resolve(
+      const CockpitLocator(
+        cockpitId: 'missing',
+        fallbacks: <CockpitLocator>[CockpitLocator(text: 'New task')],
+      ),
+    );
+
+    expect(resolution.isSuccess, isTrue);
+    expect(resolution.target?.registrationId, 'new-task');
+    expect(discoveryCalls, 1);
+  });
+
   test(
     'falls back to unresolved discovered targets when route filtering would otherwise empty the visible surface',
     () {

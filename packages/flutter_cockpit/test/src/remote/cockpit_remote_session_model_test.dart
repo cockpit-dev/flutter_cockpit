@@ -256,4 +256,36 @@ void main() {
       );
     },
   );
+
+  test(
+    'CockpitRemoteCommandResponse ignores orphaned inline artifact payloads',
+    () {
+      final response = CockpitRemoteCommandResponse.fromExecution(
+        CockpitCommandExecution(
+          result: CockpitCommandResult(
+            success: true,
+            commandId: 'capture-home',
+            commandType: CockpitCommandType.captureScreenshot,
+            durationMs: 18,
+            artifacts: const <CockpitArtifactRef>[
+              CockpitArtifactRef(
+                role: 'screenshot',
+                relativePath: 'screenshots/home_acceptance.png',
+              ),
+            ],
+          ),
+          artifactPayloads: const <String, List<int>>{
+            'screenshots/home_acceptance.png': <int>[137, 80, 78, 71],
+            'screenshots/orphaned.png': <int>[1, 2, 3],
+          },
+        ),
+      );
+
+      expect(response.artifactPayloads, hasLength(1));
+      expect(
+        response.artifactPayloads.single.artifact.relativePath,
+        'screenshots/home_acceptance.png',
+      );
+    },
+  );
 }

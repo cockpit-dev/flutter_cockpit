@@ -6,6 +6,7 @@ import 'package:flutter_cockpit_devtools/src/application/cockpit_interactive_res
 import 'package:flutter_cockpit_devtools/src/application/cockpit_interactive_snapshot_store.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_session_reference_resolver.dart';
 import 'package:flutter_cockpit_devtools/src/remote/cockpit_android_port_forwarder.dart';
+import 'package:flutter_cockpit_devtools/src/remote/cockpit_remote_command_timeout_budget.dart';
 import 'package:flutter_cockpit_devtools/src/session/cockpit_remote_session_handle.dart';
 import 'package:test/test.dart';
 
@@ -95,6 +96,71 @@ void main() {
 
       expect(capturedCommand?.timeoutMs, 4800);
     });
+
+    test(
+      'defaults AI key-step captures to screenshots while reading structured UI separately',
+      () async {
+        CockpitCommand? capturedCommand;
+        var snapshotReads = 0;
+        final service = CockpitExecuteRemoteCommandService(
+          executeCommand: (_, command) async {
+            capturedCommand = command;
+            return CockpitCommandExecution(
+              result: CockpitCommandResult(
+                success: true,
+                commandId: command.commandId,
+                commandType: command.commandType,
+                durationMs: 50,
+                artifacts: const <CockpitArtifactRef>[
+                  CockpitArtifactRef(
+                    role: 'screenshot',
+                    relativePath: 'screenshots/tap-save.png',
+                  ),
+                ],
+              ),
+              artifactPayloads: <String, List<int>>{
+                'screenshots/tap-save.png': <int>[137, 80, 78, 71],
+              },
+            );
+          },
+          readSnapshot: (_, _) async {
+            snapshotReads += 1;
+            return CockpitRemoteSnapshotResponse(
+              snapshot: _richSnapshot(routeName: '/saved', label: 'Saved'),
+            );
+          },
+        );
+
+        final result = await service.execute(
+          CockpitExecuteRemoteCommandRequest(
+            sessionHandle: _sessionHandle(),
+            command: CockpitCommand(
+              commandId: 'tap-save',
+              commandType: CockpitCommandType.tap,
+            ),
+            resultProfile: const CockpitInteractiveResultProfile.standard(),
+          ),
+        );
+
+        expect(
+          capturedCommand?.capturePolicy,
+          CockpitCapturePolicy.afterAction,
+        );
+        expect(
+          capturedCommand?.captureFailurePolicy,
+          CockpitCaptureFailurePolicy.degradeCommand,
+        );
+        expect(capturedCommand?.screenshotRequest?.includeSnapshot, isFalse);
+        expect(capturedCommand?.screenshotRequest?.snapshotOptions, isNull);
+        expect(
+          result.artifacts.single.relativePath,
+          'screenshots/tap-save.png',
+        );
+        expect(snapshotReads, 1);
+        expect(result.uiSummary?.routeName, '/saved');
+        expect(result.snapshotRef, isNotEmpty);
+      },
+    );
 
     test(
       'refreshes android host forwarding before executing commands',
@@ -216,6 +282,67 @@ void main() {
         expect(capturedCommand?.timeoutMs, greaterThanOrEqualTo(12000));
       },
     );
+
+    test(
+      'remote command transport timeout leaves headroom for AI evidence',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        addTearDown(() async {
+          await server.close(force: true);
+        });
+        server.listen((request) async {
+          if (request.method == 'POST' &&
+              request.uri.path == '/commands/execute') {
+            await Future<void>.delayed(const Duration(milliseconds: 6500));
+            request.response.headers.contentType = ContentType.json;
+            request.response.write(
+              '{"result":{"success":true,"commandId":"slow-tap",'
+              '"commandType":"tap","durationMs":200}}',
+            );
+            await request.response.close();
+            return;
+          }
+          request.response.statusCode = HttpStatus.notFound;
+          await request.response.close();
+        });
+
+        final service = CockpitExecuteRemoteCommandService();
+        final result = await service.execute(
+          CockpitExecuteRemoteCommandRequest(
+            baseUri: Uri.parse('http://127.0.0.1:${server.port}'),
+            command: CockpitCommand(
+              commandId: 'slow-tap',
+              commandType: CockpitCommandType.tap,
+              timeoutMs: 100,
+            ),
+            resultProfile: const CockpitInteractiveResultProfile.minimal(),
+          ),
+        );
+
+        expect(result.command.success, isTrue);
+      },
+    );
+
+    test('remote command transport budget accounts for evidence recovery', () {
+      final plain = cockpitRemoteCommandTransportTimeoutForCommand(
+        CockpitCommand(
+          commandId: 'plain',
+          commandType: CockpitCommandType.assertText,
+          timeoutMs: 100,
+        ),
+      );
+      final evidence = cockpitRemoteCommandTransportTimeoutForCommand(
+        CockpitCommand(
+          commandId: 'evidence',
+          commandType: CockpitCommandType.tap,
+          capturePolicy: CockpitCapturePolicy.afterAction,
+          timeoutMs: 30000,
+        ),
+      );
+
+      expect(plain, const Duration(seconds: 15));
+      expect(evidence, const Duration(seconds: 45));
+    });
 
     test(
       'returns summary, diagnostics, artifact metadata, and snapshot refs',
@@ -458,6 +585,60 @@ void main() {
     );
 
     test(
+      'keeps downloaded command artifacts as file metadata without inline payloads',
+      () async {
+        final tempDir = await Directory.systemTemp.createTemp(
+          'cockpit_downloaded_evidence_',
+        );
+        addTearDown(() async {
+          if (await tempDir.exists()) {
+            await tempDir.delete(recursive: true);
+          }
+        });
+        final sourceFile = File('${tempDir.path}/after-tap.png')
+          ..writeAsBytesSync(<int>[137, 80, 78, 71]);
+        final service = CockpitExecuteRemoteCommandService(
+          executeCommand: (_, command) async {
+            return CockpitCommandExecution(
+              result: CockpitCommandResult(
+                success: true,
+                commandId: command.commandId,
+                commandType: command.commandType,
+                durationMs: 50,
+                artifacts: const <CockpitArtifactRef>[
+                  CockpitArtifactRef(
+                    role: 'screenshot',
+                    relativePath: 'screenshots/after-tap.png',
+                  ),
+                ],
+              ),
+              artifactSourcePaths: <String, String>{
+                'screenshots/after-tap.png': sourceFile.path,
+              },
+            );
+          },
+          readSnapshot: (_, _) async => CockpitRemoteSnapshotResponse(
+            snapshot: _richSnapshot(routeName: '/standard'),
+          ),
+        );
+
+        final result = await service.execute(
+          CockpitExecuteRemoteCommandRequest(
+            sessionHandle: _sessionHandle(),
+            command: CockpitCommand(
+              commandId: 'tap-downloaded-evidence',
+              commandType: CockpitCommandType.tap,
+            ),
+            resultProfile: const CockpitInteractiveResultProfile.inspect(),
+          ),
+        );
+
+        expect(result.artifacts.single.byteLength, 4);
+        expect(result.artifacts.single.sourcePath, sourceFile.path);
+      },
+    );
+
+    test(
       'filters failures-only diagnostics down to failing sections',
       () async {
         final service = CockpitExecuteRemoteCommandService(
@@ -495,12 +676,13 @@ void main() {
       },
     );
 
-    test('propagates structured application errors', () async {
+    test('adds command context to structured remote command errors', () async {
       final service = CockpitExecuteRemoteCommandService(
         executeCommand: (_, _) async {
           throw const CockpitApplicationServiceException(
-            code: 'sessionUnreachable',
+            code: 'remoteUnavailable',
             message: 'Session is offline.',
+            details: <String, Object?>{'path': '/commands/execute'},
           );
         },
       );
@@ -516,11 +698,23 @@ void main() {
           ),
         ),
         throwsA(
-          isA<CockpitApplicationServiceException>().having(
-            (error) => error.code,
-            'code',
-            'sessionUnreachable',
-          ),
+          isA<CockpitApplicationServiceException>()
+              .having((error) => error.code, 'code', 'remoteUnavailable')
+              .having(
+                (error) => error.details['commandId'],
+                'commandId',
+                'tap-4',
+              )
+              .having(
+                (error) => error.details['commandType'],
+                'commandType',
+                'tap',
+              )
+              .having(
+                (error) => error.details['path'],
+                'path',
+                '/commands/execute',
+              ),
         ),
       );
     });

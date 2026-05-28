@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
 import 'cockpit_interactive_result_profile.dart';
@@ -346,7 +348,7 @@ cockpitInteractiveArtifactsFromExecution(
           role: artifact.role,
           relativePath: artifact.relativePath,
           byteLength: artifactLevel == CockpitInteractiveArtifactLevel.metadata
-              ? execution.artifactPayloads[artifact.relativePath]?.length
+              ? _artifactByteLength(execution, artifact.relativePath)
               : null,
           sourcePath: artifactLevel == CockpitInteractiveArtifactLevel.metadata
               ? execution.artifactSourcePaths[artifact.relativePath]
@@ -354,4 +356,24 @@ cockpitInteractiveArtifactsFromExecution(
         ),
       )
       .toList(growable: false);
+}
+
+int? _artifactByteLength(
+  CockpitCommandExecution execution,
+  String relativePath,
+) {
+  final payload = execution.artifactPayloads[relativePath];
+  if (payload != null) {
+    return payload.length;
+  }
+  final sourcePath = execution.artifactSourcePaths[relativePath];
+  if (sourcePath == null || sourcePath.isEmpty) {
+    return null;
+  }
+  try {
+    final file = File(sourcePath);
+    return file.existsSync() ? file.lengthSync() : null;
+  } on Object {
+    return null;
+  }
 }

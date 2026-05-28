@@ -45,4 +45,18 @@ void main() {
       ),
     );
   });
+
+  test('MCP surface verifier reuses the current Dart executable', () {
+    final packageRelativeScript = File('tool/verify_mcp_surface.dart');
+    final repoRelativeScript = File(
+      'packages/flutter_cockpit_devtools/tool/verify_mcp_surface.dart',
+    );
+    final scriptFile = packageRelativeScript.existsSync()
+        ? packageRelativeScript
+        : repoRelativeScript;
+    final script = scriptFile.readAsStringSync();
+
+    expect(script, contains('Platform.resolvedExecutable'));
+    expect(script, isNot(contains("Process.start('dart'")));
+  });
 }

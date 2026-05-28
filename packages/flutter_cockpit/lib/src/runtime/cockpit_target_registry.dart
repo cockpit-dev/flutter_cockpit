@@ -10,6 +10,8 @@ import 'cockpit_target.dart';
 import 'cockpit_target_geometry.dart';
 
 typedef CockpitDiscoveredTargetsProvider = List<CockpitTarget> Function();
+typedef CockpitDiscoveredTargetsReadinessProbe =
+    bool Function({bool allowRouteFallback, String? routeName});
 
 final class CockpitTargetResolutionResult {
   const CockpitTargetResolutionResult._({
@@ -53,51 +55,70 @@ final class CockpitTargetRegistry {
 
   String? routeName;
   CockpitDiscoveredTargetsProvider? discoveredTargetsProvider;
+  CockpitDiscoveredTargetsReadinessProbe? discoveredTargetsReadinessProbe;
+  int _discoveryCacheDepth = 0;
+  List<CockpitTarget>? _cachedDiscoveredTargets;
 
   List<CockpitTarget> get registeredTargets =>
       List.unmodifiable(_targets.values.toList(growable: false));
 
-  List<CockpitTarget> get visibleTargets => List.unmodifiable(<CockpitTarget>[
-    ..._explicitVisibleTargets(),
-    ..._deduplicatedDiscoveredVisibleTargets(),
-  ]);
+  List<CockpitTarget> get visibleTargets => _withDiscoveryCache(() {
+    return List.unmodifiable(<CockpitTarget>[
+      ..._explicitVisibleTargets(),
+      ..._deduplicatedDiscoveredVisibleTargets(),
+    ]);
+  });
 
-  List<CockpitTarget> get routeReadyVisibleTargets =>
-      List.unmodifiable(<CockpitTarget>[
-        ..._explicitVisibleTargets(allowRouteFallback: false),
-        ..._deduplicatedDiscoveredVisibleTargets(allowRouteFallback: false),
-      ]);
+  List<CockpitTarget> get routeReadyVisibleTargets => _withDiscoveryCache(() {
+    return List.unmodifiable(<CockpitTarget>[
+      ..._explicitVisibleTargets(allowRouteFallback: false),
+      ..._deduplicatedDiscoveredVisibleTargets(allowRouteFallback: false),
+    ]);
+  });
+
+  bool get hasRouteReadyVisibleTargets {
+    return _withDiscoveryCache(() {
+      if (_explicitVisibleTargets(allowRouteFallback: false).isNotEmpty) {
+        return true;
+      }
+      final probe = discoveredTargetsReadinessProbe;
+      if (probe != null) {
+        return probe(allowRouteFallback: false, routeName: routeName);
+      }
+      return _discoveredVisibleTargets(allowRouteFallback: false).isNotEmpty;
+    });
+  }
 
   void register(CockpitTarget target) {
     _targets[target.registrationId] = target;
   }
 
   Map<String, Object?> routeDiagnostics({int hintLimit = 8}) {
-    final registeredTargets = _targets.values.toList(growable: false);
-    final discoveredTargets =
-        discoveredTargetsProvider?.call().toList(growable: false) ??
-        const <CockpitTarget>[];
-    final allTargets = <CockpitTarget>[
-      ...registeredTargets,
-      ...discoveredTargets,
-    ];
+    return _withDiscoveryCache(() {
+      final registeredTargets = _targets.values.toList(growable: false);
+      final discoveredTargets = _discoveredTargets();
+      final allTargets = <CockpitTarget>[
+        ...registeredTargets,
+        ...discoveredTargets,
+      ];
 
-    return <String, Object?>{
-      'currentRouteName': routeName,
-      'registeredTargetCount': registeredTargets.length,
-      'discoveredTargetCount': discoveredTargets.length,
-      'visibleTargetCount': visibleTargets.length,
-      'routeReadyVisibleTargetCount': routeReadyVisibleTargets.length,
-      'registeredRouteCounts': _routeCounts(registeredTargets),
-      'discoveredRouteCounts': _routeCounts(discoveredTargets),
-      'hiddenTargetCount': allTargets
-          .where((target) => !target.isVisible)
-          .length,
-      'targetHints': _targetHintsFor(
-        allTargets.where((target) => target.isVisible),
-        limit: hintLimit,
-      ),
-    };
+      return <String, Object?>{
+        'currentRouteName': routeName,
+        'registeredTargetCount': registeredTargets.length,
+        'discoveredTargetCount': discoveredTargets.length,
+        'visibleTargetCount': visibleTargets.length,
+        'routeReadyVisibleTargetCount': routeReadyVisibleTargets.length,
+        'registeredRouteCounts': _routeCounts(registeredTargets),
+        'discoveredRouteCounts': _routeCounts(discoveredTargets),
+        'hiddenTargetCount': allTargets
+            .where((target) => !target.isVisible)
+            .length,
+        'targetHints': _targetHintsFor(
+          allTargets.where((target) => target.isVisible),
+          limit: hintLimit,
+        ),
+      };
+    });
   }
 
   void unregister(String registrationId) {
@@ -105,27 +126,67 @@ final class CockpitTargetRegistry {
   }
 
   CockpitTargetResolutionResult resolve(CockpitLocator locator) {
-    for (final candidate in _flatten(locator)) {
-      final matches = visibleTargets
-          .where((target) => _matches(target, candidate))
-          .toList(growable: false);
+    return _withDiscoveryCache(() {
+      for (final candidate in _flatten(locator)) {
+        final matches = visibleTargets
+            .where((target) => _matches(target, candidate))
+            .toList(growable: false);
 
-      if (matches.isEmpty) {
-        continue;
-      }
+        if (matches.isEmpty) {
+          continue;
+        }
 
-      if (candidate.index != null) {
-        final indexedMatch = _selectIndexedMatch(matches, candidate);
-        if (indexedMatch == null) {
+        if (candidate.index != null) {
+          final indexedMatch = _selectIndexedMatch(matches, candidate);
+          if (indexedMatch == null) {
+            final orderedMatches = _orderedMatches(matches, candidate);
+            return CockpitTargetResolutionResult.failure(
+              error: CockpitCommandError.targetNotFound(
+                message:
+                    'No matched target exists at the requested locator index.',
+                details: <String, Object?>{
+                  'requestedLocator': candidate.toJson(),
+                  'matchedCount': matches.length,
+                  'requestedIndex': candidate.index,
+                  'candidateCount': orderedMatches.length,
+                  'candidates': _candidateIdsFor(orderedMatches),
+                  'candidateHints': _targetHintsFor(orderedMatches),
+                },
+              ),
+              matches: matches,
+            );
+          }
+          return CockpitTargetResolutionResult.success(
+            target: indexedMatch,
+            locatorResolution: CockpitLocatorResolution(
+              matchedKind: candidate.kind,
+              matchedValue: candidate.value,
+              matchedSignals: _matchedSignals(candidate),
+            ),
+            matches: matches,
+          );
+        }
+
+        if (matches.length > 1) {
           final orderedMatches = _orderedMatches(matches, candidate);
+          final preferredMatch = _selectPreferredMatch(matches, candidate);
+          if (preferredMatch != null) {
+            return CockpitTargetResolutionResult.success(
+              target: preferredMatch,
+              locatorResolution: CockpitLocatorResolution(
+                matchedKind: candidate.kind,
+                matchedValue: candidate.value,
+                matchedSignals: _matchedSignals(candidate),
+              ),
+              matches: matches,
+            );
+          }
           return CockpitTargetResolutionResult.failure(
-            error: CockpitCommandError.targetNotFound(
-              message:
-                  'No matched target exists at the requested locator index.',
+            error: CockpitCommandError.ambiguousTarget(
+              message: 'Multiple targets matched ${candidate.kind.name}.',
               details: <String, Object?>{
-                'requestedLocator': candidate.toJson(),
-                'matchedCount': matches.length,
-                'requestedIndex': candidate.index,
+                'matchedKind': candidate.kind.name,
+                'matchedValue': candidate.value,
                 'candidateCount': orderedMatches.length,
                 'candidates': _candidateIdsFor(orderedMatches),
                 'candidateHints': _targetHintsFor(orderedMatches),
@@ -134,8 +195,9 @@ final class CockpitTargetRegistry {
             matches: matches,
           );
         }
+
         return CockpitTargetResolutionResult.success(
-          target: indexedMatch,
+          target: matches.single,
           locatorResolution: CockpitLocatorResolution(
             matchedKind: candidate.kind,
             matchedValue: candidate.value,
@@ -145,81 +207,67 @@ final class CockpitTargetRegistry {
         );
       }
 
-      if (matches.length > 1) {
-        final orderedMatches = _orderedMatches(matches, candidate);
-        final preferredMatch = _selectPreferredMatch(matches, candidate);
-        if (preferredMatch != null) {
-          return CockpitTargetResolutionResult.success(
-            target: preferredMatch,
-            locatorResolution: CockpitLocatorResolution(
-              matchedKind: candidate.kind,
-              matchedValue: candidate.value,
-              matchedSignals: _matchedSignals(candidate),
-            ),
-            matches: matches,
-          );
-        }
-        return CockpitTargetResolutionResult.failure(
-          error: CockpitCommandError.ambiguousTarget(
-            message: 'Multiple targets matched ${candidate.kind.name}.',
-            details: <String, Object?>{
-              'matchedKind': candidate.kind.name,
-              'matchedValue': candidate.value,
-              'candidateCount': orderedMatches.length,
-              'candidates': _candidateIdsFor(orderedMatches),
-              'candidateHints': _targetHintsFor(orderedMatches),
-            },
-          ),
-          matches: matches,
-        );
-      }
-
-      return CockpitTargetResolutionResult.success(
-        target: matches.single,
-        locatorResolution: CockpitLocatorResolution(
-          matchedKind: candidate.kind,
-          matchedValue: candidate.value,
-          matchedSignals: _matchedSignals(candidate),
+      return CockpitTargetResolutionResult.failure(
+        error: CockpitCommandError.targetNotFound(
+          message: 'No visible target matched the requested locator chain.',
+          details: <String, Object?>{'requestedLocator': locator.toJson()},
         ),
-        matches: matches,
       );
-    }
-
-    return CockpitTargetResolutionResult.failure(
-      error: CockpitCommandError.targetNotFound(
-        message: 'No visible target matched the requested locator chain.',
-        details: <String, Object?>{'requestedLocator': locator.toJson()},
-      ),
-    );
+    });
   }
 
   CockpitSnapshot snapshot() {
-    final targets = visibleTargets;
-    final prioritizedTargets = _prioritizeForLiveSnapshot(targets);
-    final truncatedTargets = prioritizedTargets
-        .take(liveSnapshotTargetLimit)
-        .map((target) => target.toSnapshotTarget())
-        .toList(growable: false);
+    return _withDiscoveryCache(() {
+      final targets = visibleTargets;
+      final prioritizedTargets = _prioritizeForLiveSnapshot(targets);
+      final truncatedTargets = prioritizedTargets
+          .take(liveSnapshotTargetLimit)
+          .map((target) => target.toSnapshotTarget())
+          .toList(growable: false);
 
-    return CockpitSnapshot(
-      routeName: routeName,
-      visibleTargets: truncatedTargets,
-      truncated: prioritizedTargets.length > liveSnapshotTargetLimit,
-      summary: CockpitSnapshotSummary(
-        visibleTargetCount: targets.length,
-        targetsWithCockpitIdCount: targets
-            .where((target) => target.cockpitId != null)
-            .length,
-        targetsWithTextCount: targets
-            .where((target) => target.text != null && target.text!.isNotEmpty)
-            .length,
-        styleDetailsIncluded: false,
-        diagnosticPropertiesIncluded: false,
-        ancestorSummariesIncluded: false,
-        rebuildSummaryIncluded: false,
-        accessibilitySummaryIncluded: false,
-      ),
-    );
+      return CockpitSnapshot(
+        routeName: routeName,
+        visibleTargets: truncatedTargets,
+        truncated: prioritizedTargets.length > liveSnapshotTargetLimit,
+        summary: CockpitSnapshotSummary(
+          visibleTargetCount: targets.length,
+          targetsWithCockpitIdCount: targets
+              .where((target) => target.cockpitId != null)
+              .length,
+          targetsWithTextCount: targets
+              .where((target) => target.text != null && target.text!.isNotEmpty)
+              .length,
+          styleDetailsIncluded: false,
+          diagnosticPropertiesIncluded: false,
+          ancestorSummariesIncluded: false,
+          rebuildSummaryIncluded: false,
+          accessibilitySummaryIncluded: false,
+        ),
+      );
+    });
+  }
+
+  T _withDiscoveryCache<T>(T Function() action) {
+    _discoveryCacheDepth += 1;
+    try {
+      return action();
+    } finally {
+      _discoveryCacheDepth -= 1;
+      if (_discoveryCacheDepth == 0) {
+        _cachedDiscoveredTargets = null;
+      }
+    }
+  }
+
+  List<CockpitTarget> _discoveredTargets() {
+    final provider = discoveredTargetsProvider;
+    if (provider == null) {
+      return const <CockpitTarget>[];
+    }
+    if (_discoveryCacheDepth > 0) {
+      return _cachedDiscoveredTargets ??= provider().toList(growable: false);
+    }
+    return provider().toList(growable: false);
   }
 
   List<CockpitTarget> _prioritizeForLiveSnapshot(List<CockpitTarget> targets) {
@@ -419,13 +467,8 @@ final class CockpitTargetRegistry {
   List<CockpitTarget> _discoveredVisibleTargets({
     bool allowRouteFallback = true,
   }) {
-    final provider = discoveredTargetsProvider;
-    if (provider == null) {
-      return const <CockpitTarget>[];
-    }
-
     return _visibleTargetsFor(
-      provider(),
+      _discoveredTargets(),
       allowRouteFallback: allowRouteFallback,
     );
   }

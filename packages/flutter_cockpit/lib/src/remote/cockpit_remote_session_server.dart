@@ -9,6 +9,7 @@ final class CockpitRemoteSessionServer {
   CockpitRemoteSessionServer({
     required CockpitRemoteSessionConfiguration configuration,
     required CockpitRemoteSessionStatusProvider statusProvider,
+    CockpitRemoteSessionReadyProvider? readyProvider,
     required CockpitRemoteSessionSnapshotProvider snapshotProvider,
     required CockpitRemoteSessionCommandExecutor commandExecutor,
     CockpitRemoteRuntimeStepDrainer? runtimeStepDrainer,
@@ -19,6 +20,7 @@ final class CockpitRemoteSessionServer {
        _endpointHandler = CockpitRemoteSessionEndpointHandler(
          configuration: configuration,
          statusProvider: statusProvider,
+         readyProvider: readyProvider,
          snapshotProvider: snapshotProvider,
          commandExecutor: commandExecutor,
          runtimeStepDrainer: runtimeStepDrainer,

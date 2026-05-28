@@ -165,7 +165,7 @@ final class CockpitLinuxRecordingAdapter
     } on TimeoutException {
       if (processExited) {
         await stderrSubscription.cancel();
-        process.kill(ProcessSignal.sigkill);
+        await cockpitKillRecordingProcess(process);
         rethrow;
       }
       final hasOutputEvidence = await cockpitWaitForNonEmptyFile(
@@ -175,12 +175,12 @@ final class CockpitLinuxRecordingAdapter
       );
       if (!hasOutputEvidence) {
         await stderrSubscription.cancel();
-        process.kill(ProcessSignal.sigkill);
+        await cockpitKillRecordingProcess(process);
         throw StateError(_buildStartupFailureMessage(recentStderrLines));
       }
     } on Object {
       await stderrSubscription.cancel();
-      process.kill(ProcessSignal.sigkill);
+      await cockpitKillRecordingProcess(process);
       rethrow;
     }
 
@@ -222,8 +222,11 @@ final class CockpitLinuxRecordingAdapter
     try {
       final didStopGracefully = await _requestGracefulStop(process);
       if (!didStopGracefully) {
-        process.kill(ProcessSignal.sigterm);
-        await process.exitCode.timeout(_stopTimeout);
+        await cockpitKillRecordingProcess(
+          process,
+          signal: ProcessSignal.sigterm,
+          waitTimeout: _stopTimeout,
+        );
       }
 
       final hasOutput = await cockpitWaitForNonEmptyFile(
@@ -265,7 +268,7 @@ final class CockpitLinuxRecordingAdapter
         sourceFilePath: outputFile.path,
       );
     } on TimeoutException {
-      process.kill(ProcessSignal.sigkill);
+      await cockpitKillRecordingProcess(process, waitTimeout: _stopTimeout);
       return CockpitRecordingResult(
         state: CockpitRecordingState.failed,
         purpose: request.purpose,
@@ -324,19 +327,27 @@ final class CockpitLinuxRecordingAdapter
     if (executable == null || executable.isEmpty) {
       return;
     }
+    Process? process;
     try {
       final arguments = windowTarget == null
           ? <String>['-xa', _appId]
           : <String>['-ia', windowTarget.windowId];
-      final result = await _processRunner(
-        executable,
-        arguments,
-      ).timeout(_startupTimeout);
-      if (result.exitCode == 0 && _activationSettleDelay > Duration.zero) {
+      process = await _processStarter(executable, arguments);
+      unawaited(process.stdout.drain<void>());
+      unawaited(process.stderr.drain<void>());
+      final exitCode = await process.exitCode.timeout(_startupTimeout);
+      if (exitCode == 0 && _activationSettleDelay > Duration.zero) {
         await Future<void>.delayed(_activationSettleDelay);
+      }
+    } on TimeoutException {
+      if (process != null) {
+        await cockpitKillRecordingProcess(process);
       }
     } on Object {
       // Activation is best-effort only on Linux hosts.
+      if (process != null) {
+        await cockpitKillRecordingProcess(process);
+      }
     }
   }
 
@@ -344,11 +355,10 @@ final class CockpitLinuxRecordingAdapter
     try {
       process.stdin.writeln('q');
       await process.stdin.flush();
-      await process.exitCode.timeout(_stopTimeout);
-      return true;
     } on Object {
       return false;
     }
+    return cockpitWaitForRecordingProcessExit(process, timeout: _stopTimeout);
   }
 
   Future<bool> _waitForFinalizedOutput(File outputFile) async {

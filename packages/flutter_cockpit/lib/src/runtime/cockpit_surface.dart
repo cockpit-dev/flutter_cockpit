@@ -88,6 +88,7 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
     super.initState();
     _semanticsHandle = SemanticsBinding.instance.ensureSemantics();
     _registry.discoveredTargetsProvider = _discoverNativeTargets;
+    _registry.discoveredTargetsReadinessProbe = _hasDiscoveredNativeTarget;
   }
 
   @override
@@ -102,6 +103,7 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
   @override
   void dispose() {
     _registry.discoveredTargetsProvider = null;
+    _registry.discoveredTargetsReadinessProbe = null;
     _semanticsHandle?.dispose();
     super.dispose();
   }
@@ -221,6 +223,22 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
       routeName: _registry.routeName,
       explicitTargets: _registry.registeredTargets,
       allowInactiveRouteFallback: true,
+    );
+  }
+
+  bool _hasDiscoveredNativeTarget({
+    bool allowRouteFallback = true,
+    String? routeName,
+  }) {
+    final rootContext = _boundaryKey.currentContext;
+    if (rootContext == null) {
+      return false;
+    }
+    return _discoveryEngine.hasDiscoverableTarget(
+      rootContext: rootContext,
+      routeName: routeName ?? _registry.routeName,
+      explicitTargets: _registry.registeredTargets,
+      allowInactiveRouteFallback: allowRouteFallback,
     );
   }
 

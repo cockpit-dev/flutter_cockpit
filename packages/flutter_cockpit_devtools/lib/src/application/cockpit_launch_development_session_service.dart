@@ -8,6 +8,7 @@ import '../development/cockpit_development_session_handle.dart';
 import '../development/cockpit_development_session_machine_launcher.dart';
 import '../development/cockpit_development_session_status.dart';
 import '../development/cockpit_development_session_supervisor_client.dart';
+import '../infrastructure/cockpit_sdk_environment.dart';
 import '../remote/cockpit_android_port_forwarder.dart';
 import '../session/cockpit_remote_session_launcher.dart';
 import 'cockpit_entrypoint_resolver.dart';
@@ -85,24 +86,44 @@ final class CockpitLaunchDevelopmentSessionService {
   CockpitLaunchDevelopmentSessionService({
     CockpitDevelopmentSessionLauncher? launcher,
     CockpitDevelopmentSessionSupervisorClient? supervisorClient,
+    CockpitSupervisorStatusReader? supervisorStatusReader,
     CockpitAndroidPortForwarder portForwarder =
         const CockpitAndroidPortForwarder(),
-    CockpitFlutterVersionReader flutterVersionReader =
-        cockpitReadActiveFlutterVersion,
+    CockpitFlutterVersionReader? flutterVersionReader,
+    CockpitFlutterExecutableVersionReader flutterVersionForExecutableReader =
+        cockpitReadFlutterVersion,
     Future<String> Function()? flutterExecutableReader,
+    Future<String> Function()? dartExecutableReader,
+    CockpitSdkEnvironment? sdkEnvironment,
     CockpitEntrypointResolver? entrypointResolver,
+    CockpitSupervisorSpawner? spawnSupervisor,
+    Future<int> Function()? allocatePort,
+    CockpitDelay? delay,
   }) : _launcher =
            launcher ??
            CockpitDevelopmentSessionDaemonLauncher(
              supervisorStatusReader:
+                 supervisorStatusReader ??
                  (supervisorClient ??
                          CockpitDevelopmentSessionSupervisorClient())
                      .readStatus,
              portForwarder: portForwarder,
              flutterVersionReader: flutterVersionReader,
+             flutterVersionForExecutableReader:
+                 flutterVersionForExecutableReader,
              flutterExecutableReader:
                  flutterExecutableReader ??
-                 cockpitResolveActiveFlutterExecutable,
+                 (() async =>
+                     (sdkEnvironment ?? CockpitSdkEnvironment.current())
+                         .flutterExecutable),
+             dartExecutableReader:
+                 dartExecutableReader ??
+                 (() async =>
+                     (sdkEnvironment ?? CockpitSdkEnvironment.current())
+                         .dartExecutable),
+             spawnSupervisor: spawnSupervisor,
+             allocatePort: allocatePort,
+             delay: delay,
            ).launch,
        _entrypointResolver = entrypointResolver ?? CockpitEntrypointResolver();
 
@@ -171,7 +192,9 @@ final class CockpitDevelopmentSessionDaemonLauncher {
   CockpitDevelopmentSessionDaemonLauncher({
     required CockpitSupervisorStatusReader supervisorStatusReader,
     required CockpitAndroidPortForwarder portForwarder,
-    required CockpitFlutterVersionReader flutterVersionReader,
+    CockpitFlutterVersionReader? flutterVersionReader,
+    CockpitFlutterExecutableVersionReader flutterVersionForExecutableReader =
+        cockpitReadFlutterVersion,
     required Future<String> Function() flutterExecutableReader,
     Future<String> Function()? dartExecutableReader,
     CockpitSupervisorSpawner? spawnSupervisor,
@@ -180,6 +203,7 @@ final class CockpitDevelopmentSessionDaemonLauncher {
   }) : _supervisorStatusReader = supervisorStatusReader,
        _portForwarder = portForwarder,
        _flutterVersionReader = flutterVersionReader,
+       _flutterVersionForExecutableReader = flutterVersionForExecutableReader,
        _flutterExecutableReader = flutterExecutableReader,
        _dartExecutableReader =
            dartExecutableReader ?? cockpitResolveActiveDartExecutable,
@@ -189,7 +213,9 @@ final class CockpitDevelopmentSessionDaemonLauncher {
 
   final CockpitSupervisorStatusReader _supervisorStatusReader;
   final CockpitAndroidPortForwarder _portForwarder;
-  final CockpitFlutterVersionReader _flutterVersionReader;
+  final CockpitFlutterVersionReader? _flutterVersionReader;
+  final CockpitFlutterExecutableVersionReader
+  _flutterVersionForExecutableReader;
   final Future<String> Function() _flutterExecutableReader;
   final Future<String> Function() _dartExecutableReader;
   final CockpitSupervisorSpawner _spawnSupervisor;
@@ -199,8 +225,12 @@ final class CockpitDevelopmentSessionDaemonLauncher {
   Future<CockpitDevelopmentSessionBootstrap> launch(
     CockpitLaunchDevelopmentSessionRequest request,
   ) async {
-    final flutterVersion = await _flutterVersionReader();
     final flutterExecutable = await _flutterExecutableReader();
+    final flutterVersion = await cockpitResolveFlutterVersionForLaunch(
+      flutterExecutable: flutterExecutable,
+      legacyFlutterVersionReader: _flutterVersionReader,
+      flutterVersionForExecutableReader: _flutterVersionForExecutableReader,
+    );
     final dartExecutable = await _dartExecutableReader();
     final hostPort = request.platform == 'android'
         ? await _portForwarder.ensureForwarded(

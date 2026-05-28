@@ -229,9 +229,8 @@ void main() {
           <String, Object?>{
             'reason': 'after_action',
             'name': 'tap-save',
-            'includeSnapshot': true,
+            'includeSnapshot': false,
             'attachToStep': true,
-            'snapshotOptions': const CockpitSnapshotOptions.live().toJson(),
           },
         );
         expect(
