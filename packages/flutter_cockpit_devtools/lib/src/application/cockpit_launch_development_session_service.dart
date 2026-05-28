@@ -10,6 +10,7 @@ import '../development/cockpit_development_session_status.dart';
 import '../development/cockpit_development_session_supervisor_client.dart';
 import '../infrastructure/cockpit_sdk_environment.dart';
 import '../remote/cockpit_android_port_forwarder.dart';
+import '../session/cockpit_session_process_runner.dart';
 import '../session/cockpit_remote_session_launcher.dart';
 import 'cockpit_entrypoint_resolver.dart';
 import 'cockpit_compact_json.dart';
@@ -424,6 +425,7 @@ final class CockpitDevelopmentSessionDaemonLauncher {
       ],
       workingDirectory: request.projectDir,
       mode: ProcessStartMode.detached,
+      runInShell: cockpitShouldRunExecutableInShell(dartExecutable),
     );
     final baseUri = Uri(
       scheme: 'http',

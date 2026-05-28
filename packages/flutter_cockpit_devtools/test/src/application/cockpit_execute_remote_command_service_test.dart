@@ -585,6 +585,59 @@ void main() {
     );
 
     test(
+      'rejects metadata-profile screenshot refs without downloadable evidence',
+      () async {
+        final service = CockpitExecuteRemoteCommandService(
+          executeCommand: (_, command) async {
+            return CockpitCommandExecution(
+              result: CockpitCommandResult(
+                success: true,
+                commandId: command.commandId,
+                commandType: command.commandType,
+                durationMs: 50,
+                artifacts: const <CockpitArtifactRef>[
+                  CockpitArtifactRef(
+                    role: 'screenshot',
+                    relativePath: 'screenshots/missing-evidence.png',
+                  ),
+                ],
+              ),
+            );
+          },
+          readSnapshot: (_, _) async => CockpitRemoteSnapshotResponse(
+            snapshot: _richSnapshot(routeName: '/standard'),
+          ),
+        );
+
+        await expectLater(
+          () => service.execute(
+            CockpitExecuteRemoteCommandRequest(
+              sessionHandle: _sessionHandle(),
+              command: CockpitCommand(
+                commandId: 'tap-missing-evidence',
+                commandType: CockpitCommandType.tap,
+              ),
+              resultProfile: const CockpitInteractiveResultProfile.inspect(),
+            ),
+          ),
+          throwsA(
+            isA<CockpitApplicationServiceException>()
+                .having(
+                  (error) => error.code,
+                  'code',
+                  'requiredArtifactEvidenceMissing',
+                )
+                .having(
+                  (error) => error.details['artifactPath'],
+                  'artifactPath',
+                  'screenshots/missing-evidence.png',
+                ),
+          ),
+        );
+      },
+    );
+
+    test(
       'keeps downloaded command artifacts as file metadata without inline payloads',
       () async {
         final tempDir = await Directory.systemTemp.createTemp(

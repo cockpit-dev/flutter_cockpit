@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import '../session/cockpit_remote_session_launcher.dart';
+import '../session/cockpit_session_process_runner.dart';
 import 'cockpit_flutter_run_machine_event.dart';
 
 final class CockpitFlutterRunMachineRequestException implements Exception {
@@ -65,16 +66,24 @@ final class CockpitFlutterRunMachineClient {
   }) async {
     final resolvedFlutterExecutable =
         flutterExecutable ?? cockpitFlutterExecutable();
-    final process = await Process.start(resolvedFlutterExecutable, <String>[
-      'run',
-      '--machine',
-      '--target',
-      target,
-      '-d',
-      deviceId,
-      if (flavor != null && flavor.isNotEmpty) ...<String>['--flavor', flavor],
-      ...extraArgs,
-    ], workingDirectory: projectDir);
+    final process = await Process.start(
+      resolvedFlutterExecutable,
+      <String>[
+        'run',
+        '--machine',
+        '--target',
+        target,
+        '-d',
+        deviceId,
+        if (flavor != null && flavor.isNotEmpty) ...<String>[
+          '--flavor',
+          flavor,
+        ],
+        ...extraArgs,
+      ],
+      workingDirectory: projectDir,
+      runInShell: cockpitShouldRunExecutableInShell(resolvedFlutterExecutable),
+    );
 
     return CockpitFlutterRunMachineClient(
       stdoutLines: process.stdout
@@ -103,18 +112,26 @@ final class CockpitFlutterRunMachineClient {
   }) async {
     final resolvedFlutterExecutable =
         flutterExecutable ?? cockpitFlutterExecutable();
-    final process = await Process.start(resolvedFlutterExecutable, <String>[
-      'attach',
-      '--machine',
-      '--target',
-      target,
-      '-d',
-      deviceId,
-      '--app-id',
-      appId,
-      if (flavor != null && flavor.isNotEmpty) ...<String>['--flavor', flavor],
-      ...extraArgs,
-    ], workingDirectory: projectDir);
+    final process = await Process.start(
+      resolvedFlutterExecutable,
+      <String>[
+        'attach',
+        '--machine',
+        '--target',
+        target,
+        '-d',
+        deviceId,
+        '--app-id',
+        appId,
+        if (flavor != null && flavor.isNotEmpty) ...<String>[
+          '--flavor',
+          flavor,
+        ],
+        ...extraArgs,
+      ],
+      workingDirectory: projectDir,
+      runInShell: cockpitShouldRunExecutableInShell(resolvedFlutterExecutable),
+    );
 
     return CockpitFlutterRunMachineClient(
       stdoutLines: process.stdout

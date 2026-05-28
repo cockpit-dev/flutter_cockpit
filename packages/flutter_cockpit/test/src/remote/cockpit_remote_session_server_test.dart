@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_cockpit/flutter_cockpit_flutter.dart';
+import 'package:flutter_cockpit/src/remote/cockpit_remote_session_endpoint_handler.dart';
 import 'package:flutter_cockpit/src/remote/cockpit_remote_session_server.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -12,6 +13,89 @@ import 'package:path/path.dart' as p;
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   tearDown(FlutterCockpit.dispose);
+
+  test(
+    'remote endpoint keeps inline screenshot evidence when artifact persistence is unavailable',
+    () async {
+      final handler = CockpitRemoteSessionEndpointHandler(
+        configuration: const CockpitRemoteSessionConfiguration(
+          enabled: true,
+          autoStart: false,
+          port: 0,
+        ),
+        statusProvider: () async => CockpitRemoteSessionStatus(
+          sessionId: 'inline-evidence-session',
+          platform: 'web',
+          transportType: 'remoteBridge',
+          currentRouteName: '/home',
+          capabilities: CockpitCapabilities(
+            platform: 'web',
+            transportType: 'remoteBridge',
+            supportsInAppControl: true,
+            supportsFlutterViewCapture: true,
+            supportsNativeScreenCapture: false,
+            supportsHostAutomation: false,
+          ),
+          recordingCapabilities: CockpitRecordingCapabilities(
+            supportsNativeRecording: false,
+          ),
+          snapshot: CockpitSnapshot(routeName: '/home'),
+        ),
+        snapshotProvider: ({required options}) async =>
+            CockpitSnapshot(routeName: '/home'),
+        commandExecutor: (command) async => CockpitCommandExecution(
+          result: CockpitCommandResult(
+            success: true,
+            commandId: command.commandId,
+            commandType: command.commandType,
+            durationMs: 12,
+            artifacts: const <CockpitArtifactRef>[
+              CockpitArtifactRef(
+                role: 'screenshot',
+                relativePath: 'screenshots/inline.png',
+              ),
+            ],
+          ),
+          artifactPayloads: const <String, List<int>>{
+            'screenshots/inline.png': <int>[137, 80, 78, 71],
+          },
+        ),
+        startRecording: (_) async => throw StateError('unused'),
+        stopRecording: () async => throw StateError('unused'),
+        artifactTempFileFactory: (_) async {
+          throw UnsupportedError('web cannot persist local artifact files');
+        },
+      );
+
+      final response = await handler.handle(
+        CockpitRemoteSessionEndpointRequest(
+          method: 'POST',
+          uri: Uri.parse('/commands/execute'),
+          jsonBody: CockpitCommand(
+            commandId: 'capture-inline',
+            commandType: CockpitCommandType.captureScreenshot,
+          ).toJson(),
+        ),
+      );
+      final payload = response.jsonBody!;
+      final commandResponse = CockpitRemoteCommandResponse.fromJson(payload);
+
+      expect(response.statusCode, HttpStatus.ok);
+      expect(commandResponse.result.success, isTrue);
+      expect(commandResponse.artifactDownloads, isEmpty);
+      expect(commandResponse.artifactPayloads, hasLength(1));
+      expect(
+        commandResponse.artifactPayloads.single.artifact.relativePath,
+        'screenshots/inline.png',
+      );
+      expect(commandResponse.artifactPayloads.single.bytes, <int>[
+        137,
+        80,
+        78,
+        71,
+      ]);
+    },
+  );
 
   testWidgets(
     'remote session executes commands against native-discovered widgets',

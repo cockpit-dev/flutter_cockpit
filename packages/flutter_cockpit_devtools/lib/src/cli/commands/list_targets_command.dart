@@ -22,7 +22,7 @@ final class ListTargetsCommand extends CockpitCliCommand {
     argParser.addOption(
       'timeout-seconds',
       help: 'Time budget for flutter devices discovery before it is aborted.',
-      defaultsTo: '20',
+      defaultsTo: '60',
     );
   }
 
@@ -62,7 +62,7 @@ final class ListTargetsCommand extends CockpitCliCommand {
   Future<int> run() async {
     final timeoutSeconds =
         cockpitReadOptionalPositiveInt(argResults, 'timeout-seconds', usage) ??
-        20;
+        60;
     final result = await _listTargets(Duration(seconds: timeoutSeconds));
     await cockpitWriteJsonPayload(
       payload: const JsonEncoder.withIndent('  ').convert(result.toJson()),

@@ -43,12 +43,20 @@ final class FlutterViewCapture {
       throw StateError('Failed to encode CockpitSurface capture as PNG.');
     }
 
+    final bytes = byteData.buffer.asUint8List(
+      byteData.offsetInBytes,
+      byteData.lengthInBytes,
+    );
+    if (bytes.isEmpty) {
+      throw StateError('CockpitSurface capture encoded an empty PNG.');
+    }
+
     return CockpitCapturedScreenshot(
       artifact: CockpitArtifactRef(
         role: 'screenshot',
         relativePath: cockpitScreenshotRelativePathFor(request),
       ),
-      bytes: byteData.buffer.asUint8List(),
+      bytes: bytes,
       snapshot: snapshot,
     );
   }

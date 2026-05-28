@@ -231,10 +231,7 @@ final class CockpitWebRemoteSessionBridgeServer {
       );
     }
     if (routePath == '/commands/execute' && proxied.jsonBody != null) {
-      return CockpitRemoteSessionEndpointResponse.json(
-        await _externalizedCommandResponseBody(proxied.jsonBody!),
-        statusCode: proxied.statusCode,
-      );
+      return _externalizedCommandResponse(proxied);
     }
     return proxied;
   }
@@ -359,22 +356,37 @@ final class CockpitWebRemoteSessionBridgeServer {
     return next;
   }
 
-  Future<Map<String, Object?>> _externalizedCommandResponseBody(
-    Map<String, Object?> body,
+  Future<CockpitRemoteSessionEndpointResponse> _externalizedCommandResponse(
+    CockpitRemoteSessionEndpointResponse endpointResponse,
   ) async {
+    final body = endpointResponse.jsonBody!;
     if (!body.containsKey('result')) {
-      return body;
+      return endpointResponse;
     }
     final response = CockpitRemoteCommandResponse.fromJson(body);
     if (response.artifactPayloads.isEmpty) {
-      return body;
+      return endpointResponse;
     }
     final downloads = <CockpitRemoteArtifactDownload>[
       ...response.artifactDownloads,
     ];
     for (final payload in response.artifactPayloads) {
       final relativePath = payload.artifact.relativePath;
-      if (relativePath.isEmpty || payload.bytes.isEmpty) {
+      if (relativePath.isEmpty) {
+        continue;
+      }
+      if (payload.bytes.isEmpty) {
+        if (_isRequiredEvidenceArtifact(payload.artifact)) {
+          return CockpitRemoteSessionEndpointResponse.json(<String, Object?>{
+            'error': 'artifactPayloadEmpty',
+            'message':
+                'Browser command returned an empty required evidence artifact.',
+            'details': <String, Object?>{
+              'artifactPath': relativePath,
+              'artifactRole': payload.artifact.role,
+            },
+          }, statusCode: HttpStatus.internalServerError);
+        }
         continue;
       }
       final file = await _persistArtifactBytes(
@@ -393,11 +405,14 @@ final class CockpitWebRemoteSessionBridgeServer {
       );
     }
 
-    return CockpitRemoteCommandResponse(
-      result: response.result,
-      runtimeSteps: response.runtimeSteps,
-      artifactDownloads: downloads,
-    ).toJson();
+    return CockpitRemoteSessionEndpointResponse.json(
+      CockpitRemoteCommandResponse(
+        result: response.result,
+        runtimeSteps: response.runtimeSteps,
+        artifactDownloads: downloads,
+      ).toJson(),
+      statusCode: endpointResponse.statusCode,
+    );
   }
 
   Future<CockpitRemoteSessionEndpointResponse> _startHostRecording(
@@ -692,6 +707,10 @@ final class CockpitWebRemoteSessionBridgeServer {
     }
     await response.close();
   }
+}
+
+bool _isRequiredEvidenceArtifact(CockpitArtifactRef artifact) {
+  return artifact.role == 'screenshot' || artifact.role == 'step_screenshot';
 }
 
 final class _BridgeArtifactEntry {

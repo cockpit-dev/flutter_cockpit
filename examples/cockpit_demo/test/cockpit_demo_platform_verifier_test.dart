@@ -697,7 +697,10 @@ void main() {
       final firstBatchCommands = batchRequests.first.commands
           .map((batchCommand) => batchCommand.command)
           .toList(growable: false);
+      expect(firstBatchCommands[0].locator?.key, 'open-task-editor-action');
       expect(firstBatchCommands[0].locator?.text, 'New task');
+      expect(firstBatchCommands[0].locator?.type, 'TextButton');
+      expect(firstBatchCommands[0].locator?.route, '/inbox');
       expect(firstBatchCommands[0].locator?.ancestor?.route, '/inbox');
       expect(firstBatchCommands[1].commandId, 'verify-wait-for-editor-route');
       expect(firstBatchCommands[1].commandType, CockpitCommandType.waitFor);
