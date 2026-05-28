@@ -126,3 +126,28 @@ Future<bool> cockpitWaitForStableFile(
   }
   return lastLength == file.lengthSync();
 }
+
+Future<bool> cockpitWaitForRecordingProcessExit(
+  Process process, {
+  required Duration timeout,
+}) async {
+  try {
+    await process.exitCode.timeout(timeout);
+    return true;
+  } on Object {
+    return false;
+  }
+}
+
+Future<bool> cockpitKillRecordingProcess(
+  Process process, {
+  ProcessSignal signal = ProcessSignal.sigkill,
+  Duration waitTimeout = const Duration(seconds: 2),
+}) async {
+  try {
+    process.kill(signal);
+  } on Object {
+    // The process may already have exited or the platform may reject a signal.
+  }
+  return cockpitWaitForRecordingProcessExit(process, timeout: waitTimeout);
+}

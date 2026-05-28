@@ -91,6 +91,100 @@ final class CockpitNativeTargetDiscovery {
     return _deduplicateDiscoveredTargets(discoveredTargets);
   }
 
+  bool hasTarget({
+    required BuildContext rootContext,
+    required String? routeName,
+    List<CockpitTarget> explicitTargets = const <CockpitTarget>[],
+    bool allowInactiveRouteFallback = false,
+  }) {
+    final rootElement = rootContext as Element;
+    final rootViewport = _viewportBoundsFor(rootElement);
+    final explicitElements = explicitTargets
+        .map((target) => target.diagnosticNodeProvider?.call())
+        .whereType<Element>()
+        .toList(growable: false);
+    var found = false;
+
+    void visit(Element element, String path, bool insideActionableTarget) {
+      if (found ||
+          !element.mounted ||
+          policy.ignoresSubtree(element) ||
+          !cockpitIsVisibleInRuntimeTree(
+            element,
+            ignoreCurrentRoute: allowInactiveRouteFallback,
+          ) ||
+          _isCoveredByExplicitTarget(element, explicitElements)) {
+        return;
+      }
+
+      final targetRouteName = cockpitResolvedElementRouteName(
+        element,
+        fallbackRouteName: routeName,
+      );
+      final candidateRouteMatches = _matchesDiscoveryRoute(
+        targetRouteName,
+        routeName: routeName,
+        allowInactiveRouteFallback: allowInactiveRouteFallback,
+      );
+      final candidate =
+          candidateRouteMatches &&
+              _isRenderable(element) &&
+              _overlapsViewport(element, rootViewport)
+          ? _buildTarget(
+              element,
+              routeName: targetRouteName,
+              path: path,
+              insideActionableTarget: insideActionableTarget,
+            )
+          : null;
+      final hasMeaningfulViewportExposure =
+          candidate == null ||
+          _hasMeaningfulViewportExposure(
+            element,
+            rootViewport,
+            strictVisibility: candidate.supportedCommands.isEmpty,
+          );
+      final createsActionableScope =
+          candidate != null &&
+          hasMeaningfulViewportExposure &&
+          candidate.supportedCommands.isNotEmpty;
+      if (candidate != null && hasMeaningfulViewportExposure) {
+        found = true;
+        return;
+      }
+      if (policy.stopsTraversal(element)) {
+        return;
+      }
+
+      var childIndex = 0;
+      element.visitChildElements((child) {
+        visit(
+          child,
+          '$path.$childIndex',
+          insideActionableTarget || createsActionableScope,
+        );
+        childIndex += 1;
+      });
+    }
+
+    visit(rootElement, 'root', false);
+    return found;
+  }
+
+  bool _matchesDiscoveryRoute(
+    String? targetRouteName, {
+    required String? routeName,
+    required bool allowInactiveRouteFallback,
+  }) {
+    if (allowInactiveRouteFallback) {
+      return true;
+    }
+    if (routeName == null || routeName.isEmpty) {
+      return true;
+    }
+    return targetRouteName == routeName;
+  }
+
   List<CockpitTarget> _deduplicateDiscoveredTargets(
     List<CockpitTarget> targets,
   ) {
@@ -1317,7 +1411,13 @@ final class CockpitNativeTargetDiscovery {
     final routeSegment = _slugify(routeName ?? 'unknown');
     final typeSegment = _slugify(typeName);
     final labelSegment = _slugify(bestLabel ?? typeName);
-    return 'native.$routeSegment.$typeSegment.$labelSegment.$path';
+    final readable = <String>[
+      'native',
+      _boundedSegment(routeSegment, maxLength: 18),
+      _boundedSegment(typeSegment, maxLength: 24),
+      _boundedSegment(labelSegment, maxLength: 24),
+    ].join('.');
+    return '$readable.${_stableHashHex('$routeName|$typeName|$bestLabel|$path')}';
   }
 
   String _slugify(String value) {
@@ -1336,6 +1436,22 @@ final class CockpitNativeTargetDiscovery {
     }
     final slug = buffer.toString().replaceAll(RegExp(r'-+$'), '');
     return slug.isEmpty ? 'value' : slug;
+  }
+
+  String _boundedSegment(String value, {required int maxLength}) {
+    if (value.length <= maxLength) {
+      return value;
+    }
+    return value.substring(0, maxLength).replaceAll(RegExp(r'-+$'), '');
+  }
+
+  String _stableHashHex(String value) {
+    var hash = 0x811c9dc5;
+    for (final codeUnit in value.codeUnits) {
+      hash ^= codeUnit;
+      hash = (hash * 0x01000193) & 0xffffffff;
+    }
+    return hash.toRadixString(16).padLeft(8, '0');
   }
 
   String? _firstNonEmpty(List<String?> candidates) {

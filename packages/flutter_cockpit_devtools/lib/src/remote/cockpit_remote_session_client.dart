@@ -42,6 +42,18 @@ final class CockpitRemoteSessionClient {
     return CockpitRemoteSessionStatus.fromJson(payload);
   }
 
+  Future<bool> ping() async {
+    final payload = await _send(method: 'GET', path: '/ping');
+    return payload['ok'] == true;
+  }
+
+  Future<bool> ready() async {
+    final payload = await _send(method: 'GET', path: '/ready');
+    return payload['ok'] == true &&
+        payload['ready'] != false &&
+        payload['supportsInAppControl'] != false;
+  }
+
   Future<CockpitSnapshot> readSnapshot({
     CockpitSnapshotOptions options = const CockpitSnapshotOptions.live(),
     bool? downloadDiagnosticsArtifacts,
@@ -168,7 +180,17 @@ final class CockpitRemoteSessionClient {
       body: command.toJson(),
     );
     if (payload.containsKey('result')) {
-      return CockpitRemoteCommandResponse.fromJson(payload).toExecution();
+      final response = CockpitRemoteCommandResponse.fromJson(payload);
+      final artifactSourcePaths = await _downloadCommandArtifacts(response);
+      return CockpitCommandExecution(
+        result: response.result,
+        artifactPayloads: <String, List<int>>{
+          for (final payload in response.artifactPayloads)
+            payload.artifact.relativePath: payload.bytes,
+        },
+        artifactSourcePaths: artifactSourcePaths,
+        runtimeSteps: response.runtimeSteps,
+      );
     }
     return CockpitCommandExecution(
       result: CockpitCommandResult.fromJson(payload),
@@ -233,6 +255,24 @@ final class CockpitRemoteSessionClient {
       ),
       artifactDownloads: response.artifactDownloads,
     );
+  }
+
+  Future<Map<String, String>> _downloadCommandArtifacts(
+    CockpitRemoteCommandResponse response,
+  ) async {
+    final sourcePaths = <String, String>{};
+    for (final download in response.artifactDownloads) {
+      final relativePath = download.artifact.relativePath;
+      if (relativePath.isEmpty || download.downloadPath.isEmpty) {
+        continue;
+      }
+      final sourceFile = await _downloadToFile(
+        download.downloadPath,
+        artifactRelativePath: relativePath,
+      );
+      sourcePaths[relativePath] = sourceFile.path;
+    }
+    return sourcePaths;
   }
 
   Future<Map<String, Object?>> _send({

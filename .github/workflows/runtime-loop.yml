@@ -370,7 +370,7 @@ jobs:
           assert platform["status"] == "passed", platform
           assert platform["verifiedCommands"] == expected_commands, platform
           assert platform["recordingDriver"] == os.environ["EXPECTED_RECORDING_DRIVER"], platform
-          assert platform["batchCommandCount"] == 31, platform
+          assert platform["batchCommandCount"] == 32, platform
           assert platform["autoScreenshotCount"] >= 19, platform
           assert platform["networkFailureCount"] == 0, platform
           assert platform["runtimeErrorCount"] == 0, platform
@@ -570,7 +570,7 @@ jobs:
           assert platform["status"] == "passed", platform
           assert platform["verifiedCommands"] == expected_commands, platform
           assert platform["recordingDriver"] == os.environ["EXPECTED_RECORDING_DRIVER"], platform
-          assert platform["batchCommandCount"] == 31, platform
+          assert platform["batchCommandCount"] == 32, platform
           assert platform["autoScreenshotCount"] >= 19, platform
           assert platform["networkFailureCount"] == 0, platform
           assert platform["runtimeErrorCount"] == 0, platform
@@ -695,7 +695,7 @@ jobs:
           assert platform["status"] == "passed", platform
           assert platform["verifiedCommands"] == expected_commands, platform
           assert platform["recordingDriver"] == os.environ["EXPECTED_RECORDING_DRIVER"], platform
-          assert platform["batchCommandCount"] == 31, platform
+          assert platform["batchCommandCount"] == 32, platform
           assert platform["autoScreenshotCount"] >= 19, platform
           assert platform["networkFailureCount"] == 0, platform
           assert platform["runtimeErrorCount"] == 0, platform
@@ -851,7 +851,7 @@ jobs:
                   stop_fallback_commands,
               ), platform
           assert platform["recordingDriver"] in ("browser-host", "browser-host-fallback"), platform
-          assert platform["batchCommandCount"] == 31, platform
+          assert platform["batchCommandCount"] == 32, platform
           assert platform["autoScreenshotCount"] >= 19, platform
           assert platform["networkFailureCount"] == 0, platform
           assert platform["runtimeErrorCount"] == 0, platform
@@ -999,7 +999,7 @@ jobs:
           assert platform["status"] == "passed", platform
           assert platform["verifiedCommands"] == expected_commands, platform
           assert platform["recordingDriver"] == os.environ["EXPECTED_RECORDING_DRIVER"], platform
-          assert platform["batchCommandCount"] == 31, platform
+          assert platform["batchCommandCount"] == 32, platform
           assert platform["autoScreenshotCount"] >= 19, platform
           assert platform["networkFailureCount"] == 0, platform
           assert platform["runtimeErrorCount"] == 0, platform
@@ -1149,7 +1149,7 @@ jobs:
           assert platform["status"] == "passed", platform
           assert platform["verifiedCommands"] == expected_commands, platform
           assert platform["recordingDriver"] == os.environ["EXPECTED_RECORDING_DRIVER"], platform
-          assert platform["batchCommandCount"] == 31, platform
+          assert platform["batchCommandCount"] == 32, platform
           assert platform["autoScreenshotCount"] >= 19, platform
           assert platform["networkFailureCount"] == 0, platform
           assert platform["runtimeErrorCount"] == 0, platform

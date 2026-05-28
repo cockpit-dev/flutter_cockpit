@@ -12,7 +12,7 @@ import '../application/cockpit_compact_json.dart';
 import '../session/cockpit_remote_session_handle.dart';
 
 typedef CockpitRemoteReachabilityProbe = Future<bool> Function(Uri baseUri);
-typedef CockpitUiIdleWaiter = Future<bool> Function(Uri baseUri);
+typedef CockpitRemoteControlReadinessProbe = Future<bool> Function(Uri baseUri);
 typedef CockpitAppStopper = Future<void> Function(String appId);
 typedef CockpitMachineClientConnector =
     Future<CockpitFlutterRunMachineClient> Function();
@@ -27,7 +27,7 @@ final class CockpitDevelopmentSessionSupervisor {
     required CockpitDevelopmentSessionHandle initialHandle,
     required CockpitFlutterRunMachineClient? machineClient,
     required CockpitRemoteReachabilityProbe remoteReachabilityProbe,
-    required CockpitUiIdleWaiter uiIdleWaiter,
+    CockpitRemoteControlReadinessProbe? remoteControlReadinessProbe,
     CockpitMachineClientConnector? machineClientConnector,
     CockpitAppStopper? appStopper,
     CockpitSupervisorLogger? logger,
@@ -41,7 +41,8 @@ final class CockpitDevelopmentSessionSupervisor {
   }) : _handle = initialHandle,
        _machineClient = machineClient,
        _remoteReachabilityProbe = remoteReachabilityProbe,
-       _uiIdleWaiter = uiIdleWaiter,
+       _remoteControlReadinessProbe =
+           remoteControlReadinessProbe ?? remoteReachabilityProbe,
        _machineClientConnector = machineClientConnector,
        _appStopper = appStopper,
        _logger = logger,
@@ -65,7 +66,7 @@ final class CockpitDevelopmentSessionSupervisor {
   CockpitDevelopmentSessionHandle _handle;
   CockpitFlutterRunMachineClient? _machineClient;
   final CockpitRemoteReachabilityProbe _remoteReachabilityProbe;
-  final CockpitUiIdleWaiter _uiIdleWaiter;
+  final CockpitRemoteControlReadinessProbe _remoteControlReadinessProbe;
   final CockpitMachineClientConnector? _machineClientConnector;
   final CockpitAppStopper? _appStopper;
   final CockpitSupervisorLogger? _logger;
@@ -358,10 +359,6 @@ final class CockpitDevelopmentSessionSupervisor {
     CockpitDevelopmentReloadMode? lastReloadMode,
     required bool bumpGeneration,
   }) async {
-    final requireUiIdle =
-        lastReloadMode == null ||
-        (lastReloadMode != CockpitDevelopmentReloadMode.hotReload &&
-            _handle.platform != 'web');
     _log(
       'settle begin '
       'mode=${lastReloadMode?.jsonValue ?? 'startup'} '
@@ -369,9 +366,10 @@ final class CockpitDevelopmentSessionSupervisor {
     );
     final deadline = _now().add(_settleTimeout);
     var remoteReachable = false;
-    var uiIdle = false;
+    var remoteControlReady = false;
     var ready = false;
     var stableRemoteReachableChecks = 0;
+    var stableRemoteControlReadyChecks = 0;
 
     while (!ready && _now().isBefore(deadline)) {
       remoteReachable = await _runSettleProbe(
@@ -381,15 +379,18 @@ final class CockpitDevelopmentSessionSupervisor {
       stableRemoteReachableChecks = remoteReachable
           ? stableRemoteReachableChecks + 1
           : 0;
-      uiIdle = remoteReachable
+      remoteControlReady = remoteReachable
           ? await _runSettleProbe(
-              label: 'ui_idle',
-              probe: () => _uiIdleWaiter(_handle.baseUri),
+              label: 'remote_control_readiness',
+              probe: () => _remoteControlReadinessProbe(_handle.baseUri),
             )
           : false;
+      stableRemoteControlReadyChecks = remoteReachable && remoteControlReady
+          ? stableRemoteControlReadyChecks + 1
+          : 0;
       ready =
-          remoteReachable &&
-          (requireUiIdle ? uiIdle : stableRemoteReachableChecks >= 2);
+          stableRemoteReachableChecks >= 2 &&
+          stableRemoteControlReadyChecks >= 2;
       if (!ready) {
         await Future<void>.delayed(_settlePollInterval);
       }
@@ -413,13 +414,16 @@ final class CockpitDevelopmentSessionSupervisor {
         lastReloadSucceeded: ready,
         lastError: ready
             ? null
-            : 'Remote session did not recover to an idle ready state.',
+            : remoteReachable && !remoteControlReady
+            ? 'Remote session is reachable but cockpit control readiness did not recover.'
+            : 'Remote session did not recover to a reachable ready state.',
       ),
     );
     _log(
       'settle end state=${_status.state.jsonValue} '
       'app_reachable=${_status.appReachable} '
       'remote_reachable=${_status.remoteSessionReachable} '
+      'control_ready=$remoteControlReady '
       'error=${_status.lastError ?? ''}',
     );
     _pendingStartupSettle = null;

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:path/path.dart' as p;
 
+import '../infrastructure/cockpit_sdk_environment.dart';
 import '../session/cockpit_remote_session_handle.dart';
 import '../session/cockpit_remote_session_launch_options.dart';
 import '../session/cockpit_remote_session_launcher.dart';
@@ -47,13 +48,21 @@ final class CockpitLaunchRemoteSessionService {
   CockpitLaunchRemoteSessionService({
     CockpitRemoteSessionLauncher? launcher,
     CockpitRemoteSessionStatusReader? statusReader,
+    CockpitSdkEnvironment? sdkEnvironment,
+    CockpitFlutterExecutableVersionReader flutterVersionForExecutableReader =
+        cockpitReadFlutterVersion,
     CockpitEntrypointResolver? entrypointResolver,
   }) : _launcher = launcher ?? CockpitPlatformRemoteSessionLauncher(),
        _statusReader = statusReader ?? cockpitReadRemoteSessionStatus,
+       _sdkEnvironment = sdkEnvironment ?? CockpitSdkEnvironment.current(),
+       _flutterVersionForExecutableReader = flutterVersionForExecutableReader,
        _entrypointResolver = entrypointResolver ?? CockpitEntrypointResolver();
 
   final CockpitRemoteSessionLauncher _launcher;
   final CockpitRemoteSessionStatusReader _statusReader;
+  final CockpitSdkEnvironment _sdkEnvironment;
+  final CockpitFlutterExecutableVersionReader
+  _flutterVersionForExecutableReader;
   final CockpitEntrypointResolver _entrypointResolver;
 
   Future<CockpitLaunchRemoteSessionResult> launch(
@@ -64,6 +73,10 @@ final class CockpitLaunchRemoteSessionService {
       projectDir: normalizedProjectDir,
       target: request.target,
     );
+    final flutterExecutable = _sdkEnvironment.flutterExecutable;
+    final flutterVersion = await _flutterVersionForExecutableReader(
+      flutterExecutable,
+    );
     final sessionHandle = await _launcher.launch(
       CockpitRemoteSessionLaunchOptions(
         projectDir: normalizedProjectDir,
@@ -73,6 +86,8 @@ final class CockpitLaunchRemoteSessionService {
         sessionPort: request.sessionPort,
         flavor: request.flavor,
         launchTimeout: request.launchTimeout,
+        flutterExecutable: flutterExecutable,
+        flutterVersion: flutterVersion,
       ),
     );
     final health = await _statusReader(sessionHandle.baseUri);

@@ -1,6 +1,7 @@
 import '../control/cockpit_command_execution.dart';
 import '../control/cockpit_command_result.dart';
 import '../model/cockpit_step_record.dart';
+import 'cockpit_remote_artifact_download.dart';
 import 'cockpit_remote_artifact_payload.dart';
 
 final class CockpitRemoteCommandResponse {
@@ -9,24 +10,31 @@ final class CockpitRemoteCommandResponse {
     List<CockpitRemoteArtifactPayload> artifactPayloads =
         const <CockpitRemoteArtifactPayload>[],
     List<CockpitStepRecord> runtimeSteps = const <CockpitStepRecord>[],
+    List<CockpitRemoteArtifactDownload> artifactDownloads =
+        const <CockpitRemoteArtifactDownload>[],
   }) : artifactPayloads = List.unmodifiable(artifactPayloads),
-       runtimeSteps = List.unmodifiable(runtimeSteps);
+       runtimeSteps = List.unmodifiable(runtimeSteps),
+       artifactDownloads = List.unmodifiable(artifactDownloads);
 
   final CockpitCommandResult result;
   final List<CockpitRemoteArtifactPayload> artifactPayloads;
   final List<CockpitStepRecord> runtimeSteps;
+  final List<CockpitRemoteArtifactDownload> artifactDownloads;
 
   factory CockpitRemoteCommandResponse.fromExecution(
     CockpitCommandExecution execution,
   ) {
+    final artifactsByPath = {
+      for (final artifact in execution.result.artifacts)
+        artifact.relativePath: artifact,
+    };
     return CockpitRemoteCommandResponse(
       result: execution.result,
       artifactPayloads: execution.artifactPayloads.entries
+          .where((entry) => artifactsByPath.containsKey(entry.key))
           .map(
             (entry) => CockpitRemoteArtifactPayload(
-              artifact: execution.result.artifacts.firstWhere(
-                (artifact) => artifact.relativePath == entry.key,
-              ),
+              artifact: artifactsByPath[entry.key]!,
               bytes: entry.value,
             ),
           )
@@ -54,6 +62,10 @@ final class CockpitRemoteCommandResponse {
     'runtimeSteps': runtimeSteps
         .map((step) => step.toJson())
         .toList(growable: false),
+    if (artifactDownloads.isNotEmpty)
+      'artifactDownloads': artifactDownloads
+          .map((download) => download.toJson())
+          .toList(growable: false),
   };
 
   factory CockpitRemoteCommandResponse.fromJson(Map<String, Object?> json) {
@@ -62,6 +74,8 @@ final class CockpitRemoteCommandResponse {
         json['artifactPayloads'] as List<Object?>? ?? const <Object?>[];
     final runtimeStepsJson =
         json['runtimeSteps'] as List<Object?>? ?? const <Object?>[];
+    final downloadsJson =
+        json['artifactDownloads'] as List<Object?>? ?? const <Object?>[];
 
     return CockpitRemoteCommandResponse(
       result: CockpitCommandResult.fromJson(
@@ -82,6 +96,14 @@ final class CockpitRemoteCommandResponse {
                 CockpitStepRecord.fromJson(Map<String, Object?>.from(step)),
           )
           .toList(growable: false),
+      artifactDownloads: downloadsJson
+          .cast<Map<Object?, Object?>>()
+          .map(
+            (download) => CockpitRemoteArtifactDownload.fromJson(
+              Map<String, Object?>.from(download),
+            ),
+          )
+          .toList(growable: false),
     );
   }
 
@@ -91,7 +113,8 @@ final class CockpitRemoteCommandResponse {
         other is CockpitRemoteCommandResponse &&
             other.result == result &&
             _listEquals(other.artifactPayloads, artifactPayloads) &&
-            _stepListEquals(other.runtimeSteps, runtimeSteps);
+            _stepListEquals(other.runtimeSteps, runtimeSteps) &&
+            _downloadListEquals(other.artifactDownloads, artifactDownloads);
   }
 
   @override
@@ -99,6 +122,7 @@ final class CockpitRemoteCommandResponse {
     result,
     Object.hashAll(artifactPayloads),
     Object.hashAll(runtimeSteps),
+    Object.hashAll(artifactDownloads),
   );
 
   static bool _listEquals(
@@ -119,6 +143,21 @@ final class CockpitRemoteCommandResponse {
   static bool _stepListEquals(
     List<CockpitStepRecord> left,
     List<CockpitStepRecord> right,
+  ) {
+    if (left.length != right.length) {
+      return false;
+    }
+    for (var index = 0; index < left.length; index += 1) {
+      if (left[index] != right[index]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  static bool _downloadListEquals(
+    List<CockpitRemoteArtifactDownload> left,
+    List<CockpitRemoteArtifactDownload> right,
   ) {
     if (left.length != right.length) {
       return false;

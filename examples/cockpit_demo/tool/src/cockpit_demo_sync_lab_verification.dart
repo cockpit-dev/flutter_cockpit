@@ -201,6 +201,10 @@ Map<String, Object?> buildSyncLabRevealKeepLocalResolutionCommand() {
 
 List<Map<String, Object?>> buildSyncLabRecoverySyncBatch() {
   return <Map<String, Object?>>[
+    _waitForRouteCommand(
+      commandId: 'verify-wait-for-detail-route-after-conflict-resolution',
+      routeName: '/detail',
+    ),
     <String, Object?>{
       'commandId': 'verify-return-from-detail',
       'commandType': 'tap',

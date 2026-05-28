@@ -222,6 +222,39 @@ void main() {
     expect(selected, isTrue);
   });
 
+  testWidgets('generates compact stable registration ids for native targets', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      CockpitSurface(
+        routeName: '/inbox',
+        child: MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: ElevatedButton(
+                key: const ValueKey<String>('fab-add-task'),
+                onPressed: () {},
+                child: const Text('New task'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final surfaceState = tester.state<CockpitSurfaceState>(
+      find.byType(CockpitSurface),
+    );
+    final target = surfaceState.registry.visibleTargets.singleWhere(
+      (target) => target.keyValue == 'fab-add-task',
+    );
+
+    expect(target.registrationId, startsWith('native.inbox.elevatedbutton.'));
+    expect(target.registrationId, isNot(contains('root.')));
+    expect(target.registrationId.length, lessThanOrEqualTo(72));
+  });
+
   testWidgets('does not leak ancestor keys onto actionable descendants', (
     tester,
   ) async {
@@ -291,6 +324,70 @@ void main() {
       contains(CockpitCommandType.tap),
     );
   });
+
+  testWidgets(
+    'hasDiscoverableTarget uses the same visibility rules as discovery',
+    (tester) async {
+      await tester.pumpWidget(
+        CockpitSurface(
+          routeName: '/inbox',
+          child: MaterialApp(
+            home: Scaffold(
+              floatingActionButton: FloatingActionButton.extended(
+                key: const ValueKey<String>('fab-add-task'),
+                onPressed: () {},
+                label: const Text('New task'),
+              ),
+              body: const SizedBox.expand(),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final surfaceState = tester.state<CockpitSurfaceState>(
+        find.byType(CockpitSurface),
+      );
+
+      expect(surfaceState.registry.visibleTargets, isNotEmpty);
+      expect(surfaceState.registry.hasRouteReadyVisibleTargets, isTrue);
+    },
+  );
+
+  testWidgets(
+    'hasDiscoverableTarget excludes inactive route fallback targets',
+    (tester) async {
+      await tester.pumpWidget(
+        CockpitSurface(
+          routeName: '/editor',
+          child: MaterialApp(
+            initialRoute: '/inbox',
+            routes: <String, WidgetBuilder>{
+              '/inbox': (context) => Scaffold(
+                floatingActionButton: FloatingActionButton.extended(
+                  key: const ValueKey<String>('fab-add-task'),
+                  onPressed: () {},
+                  label: const Text('New task'),
+                ),
+                body: const SizedBox.expand(),
+              ),
+              '/editor': (context) => const Scaffold(body: Text('Editor')),
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final surfaceState = tester.state<CockpitSurfaceState>(
+        find.byType(CockpitSurface),
+      );
+      surfaceState.registry.routeName = '/editor';
+
+      expect(surfaceState.registry.visibleTargets, isNotEmpty);
+      expect(surfaceState.registry.routeReadyVisibleTargets, isEmpty);
+      expect(surfaceState.registry.hasRouteReadyVisibleTargets, isFalse);
+    },
+  );
 
   testWidgets('inherits semantic labels onto actionable descendants', (
     tester,

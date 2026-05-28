@@ -9,6 +9,7 @@ import '../control_core/cockpit_control_planner.dart';
 import '../control_core/cockpit_execution_plan.dart';
 import '../control_core/cockpit_intent.dart';
 import '../control_core/cockpit_intent_action.dart';
+import '../remote/cockpit_remote_command_timeout_budget.dart';
 import '../remote/cockpit_remote_session_client.dart';
 import '../session/cockpit_remote_session_handle.dart';
 import 'cockpit_command_evidence_defaults.dart';
@@ -124,7 +125,9 @@ final class CockpitExecuteRemoteCommandService {
            executeCommand ??
            ((baseUri, command) => CockpitRemoteSessionClient(
              baseUri: baseUri,
-             requestTimeout: _remoteRequestTimeoutFor(command),
+             requestTimeout: cockpitRemoteCommandTransportTimeoutForCommand(
+               command,
+             ),
            ).executeDetailed(command)),
        _readSnapshot =
            readSnapshot ??
@@ -166,7 +169,7 @@ final class CockpitExecuteRemoteCommandService {
         intent: intent,
         capabilityProfile: _legacyFlutterCapabilityProfile(intent),
       );
-      final execution = await _executeCommand(
+      final execution = await _executeCommandWithContext(
         resolved.baseUri,
         effectiveCommand,
       );
@@ -245,6 +248,26 @@ final class CockpitExecuteRemoteCommandService {
     });
   }
 
+  Future<CockpitCommandExecution> _executeCommandWithContext(
+    Uri baseUri,
+    CockpitCommand command,
+  ) async {
+    try {
+      return await _executeCommand(baseUri, command);
+    } on CockpitApplicationServiceException catch (error) {
+      throw CockpitApplicationServiceException(
+        code: error.code,
+        message: error.message,
+        details: <String, Object?>{
+          ...error.details,
+          'commandId': command.commandId,
+          'commandType': command.commandType.name,
+          if (command.timeoutMs != null) 'timeoutMs': command.timeoutMs,
+        },
+      );
+    }
+  }
+
   Future<CockpitCommandExecution> _withPersistedMetadataArtifacts(
     CockpitCommandExecution execution,
     CockpitInteractiveArtifactLevel artifactLevel,
@@ -294,17 +317,6 @@ final class CockpitExecuteRemoteCommandService {
       defaultTimeout: defaultTimeout,
     );
     return command.copyWith(timeoutMs: recommendedTimeout.inMilliseconds);
-  }
-
-  static Duration _remoteRequestTimeoutFor(CockpitCommand command) {
-    const requestBuffer = Duration(seconds: 3);
-    const minimumTimeout = Duration(seconds: 6);
-    final commandTimeout = Duration(
-      milliseconds:
-          command.timeoutMs ?? const Duration(seconds: 4).inMilliseconds,
-    );
-    final timeout = commandTimeout + requestBuffer;
-    return timeout < minimumTimeout ? minimumTimeout : timeout;
   }
 
   static Duration _recommendedCommandTimeout(

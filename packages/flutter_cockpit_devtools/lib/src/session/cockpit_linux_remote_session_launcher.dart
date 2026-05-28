@@ -5,6 +5,7 @@ import 'cockpit_android_remote_session_launcher.dart';
 import 'cockpit_remote_session_handle.dart';
 import 'cockpit_remote_session_launch_options.dart';
 import 'cockpit_remote_session_launcher.dart';
+import 'cockpit_session_process_runner.dart';
 import 'cockpit_session_path.dart';
 import 'cockpit_windows_remote_session_launcher.dart';
 
@@ -14,7 +15,7 @@ typedef CockpitLinuxAppExecutablePathResolver =
 final class CockpitLinuxRemoteSessionLauncher
     implements CockpitRemoteSessionLauncher {
   CockpitLinuxRemoteSessionLauncher({
-    CockpitWorkingDirectoryProcessRunner processRunner = _runProcess,
+    CockpitWorkingDirectoryProcessRunner? processRunner,
     CockpitLinuxAppExecutablePathResolver appExecutablePathResolver =
         _resolveAppExecutablePath,
     CockpitDesktopAppStarter appStarter = _startDetachedProcess,
@@ -22,19 +23,31 @@ final class CockpitLinuxRemoteSessionLauncher
         cockpitReadRemoteSessionStatus,
     CockpitFlutterVersionReader flutterVersionReader =
         cockpitReadActiveFlutterVersion,
+    CockpitFlutterExecutableVersionReader? flutterVersionForExecutableReader,
     DateTime Function()? now,
-  }) : _processRunner = processRunner,
+  }) : _processRunner = processRunner ?? _runProcess,
+       _useKillableProcessRunner = processRunner == null,
        _appExecutablePathResolver = appExecutablePathResolver,
        _appStarter = appStarter,
        _statusReader = statusReader,
        _flutterVersionReader = flutterVersionReader,
+       _flutterVersionForExecutableReader =
+           flutterVersionForExecutableReader ??
+           ((flutterExecutable) => cockpitReadFlutterVersion(
+             flutterExecutable,
+             processRunner: (executable, arguments) =>
+                 (processRunner ?? _runProcess)(executable, arguments),
+           )),
        _now = now ?? DateTime.now;
 
   final CockpitWorkingDirectoryProcessRunner _processRunner;
+  final bool _useKillableProcessRunner;
   final CockpitLinuxAppExecutablePathResolver _appExecutablePathResolver;
   final CockpitDesktopAppStarter _appStarter;
   final CockpitRemoteSessionStatusReader _statusReader;
   final CockpitFlutterVersionReader _flutterVersionReader;
+  final CockpitFlutterExecutableVersionReader
+  _flutterVersionForExecutableReader;
   final DateTime Function() _now;
 
   @override
@@ -48,10 +61,16 @@ final class CockpitLinuxRemoteSessionLauncher
     }
 
     final deadline = _now().add(options.launchTimeout);
-    final flutterVersion =
-        options.flutterVersion ?? await _flutterVersionReader();
     final flutterExecutable =
         options.flutterExecutable ?? cockpitFlutterExecutable();
+    final flutterVersion = await cockpitResolveFlutterVersionForLaunch(
+      flutterExecutable: flutterExecutable,
+      explicitFlutterVersion: options.flutterVersion,
+      legacyFlutterVersionReader: options.flutterExecutable == null
+          ? _flutterVersionReader
+          : null,
+      flutterVersionForExecutableReader: _flutterVersionForExecutableReader,
+    );
     await _runRequired(
       flutterExecutable,
       <String>[
@@ -106,18 +125,24 @@ final class CockpitLinuxRemoteSessionLauncher
     String? workingDirectory,
     required Duration timeout,
   }) async {
-    final result =
-        await _processRunner(
-          executable,
-          arguments,
-          workingDirectory: workingDirectory,
-        ).timeout(
-          timeout,
-          onTimeout: () => throw TimeoutException(
-            '$executable ${arguments.join(' ')} timed out.',
+    final result = _useKillableProcessRunner
+        ? await cockpitRunProcessWithTimeout(
+            executable,
+            arguments,
+            workingDirectory: workingDirectory,
+            timeout: timeout,
+          )
+        : await _processRunner(
+            executable,
+            arguments,
+            workingDirectory: workingDirectory,
+          ).timeout(
             timeout,
-          ),
-        );
+            onTimeout: () => throw TimeoutException(
+              '$executable ${arguments.join(' ')} timed out.',
+              timeout,
+            ),
+          );
     if (result.exitCode != 0) {
       throw StateError(
         '$executable ${arguments.join(' ')} failed: ${result.stderr ?? result.stdout}',
@@ -144,7 +169,7 @@ final class CockpitLinuxRemoteSessionLauncher
     List<String> arguments, {
     String? workingDirectory,
   }) {
-    return Process.run(
+    return cockpitRunShortProcess(
       executable,
       arguments,
       workingDirectory: workingDirectory,

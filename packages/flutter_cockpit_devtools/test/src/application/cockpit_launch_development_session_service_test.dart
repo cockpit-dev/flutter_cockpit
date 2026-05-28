@@ -7,6 +7,7 @@ import 'package:flutter_cockpit_devtools/src/development/cockpit_development_ses
 import 'package:flutter_cockpit_devtools/src/development/cockpit_development_session_machine_launcher.dart';
 import 'package:flutter_cockpit_devtools/src/development/cockpit_development_session_status.dart';
 import 'package:flutter_cockpit_devtools/src/development/cockpit_development_session_supervisor_client.dart';
+import 'package:flutter_cockpit_devtools/src/infrastructure/cockpit_sdk_environment.dart';
 import 'package:flutter_cockpit_devtools/src/remote/cockpit_android_port_forwarder.dart';
 import 'package:flutter_cockpit_devtools/src/session/cockpit_remote_session_handle.dart';
 import 'package:path/path.dart' as p;
@@ -110,6 +111,73 @@ void main() {
       );
 
       expect(result.sessionHandle.target, 'cockpit/main.dart');
+    },
+  );
+
+  test(
+    'launch service passes the configured SDK executables to the daemon launcher',
+    () async {
+      CockpitLaunchDevelopmentSessionRequest? capturedRequest;
+      String? versionExecutable;
+
+      final service = CockpitLaunchDevelopmentSessionService(
+        sdkEnvironment: const CockpitSdkEnvironment(
+          dartExecutable: '/opt/flutter/bin/cache/dart-sdk/bin/dart',
+          flutterExecutable: '/opt/flutter/bin/flutter',
+        ),
+        flutterVersionForExecutableReader: (executable) async {
+          versionExecutable = executable;
+          return '3.32.0';
+        },
+        entrypointResolver: CockpitEntrypointResolver(exists: (_) => true),
+        supervisorStatusReader: (_) async =>
+            CockpitDevelopmentSessionSupervisorResponse(
+              sessionHandle: _handle().copyWith(
+                platform: 'macos',
+                deviceId: 'macos',
+                supervisorBaseUrl: 'http://127.0.0.1:60021',
+              ),
+              status: _readyStatus(_handle()),
+            ),
+        spawnSupervisor:
+            ({
+              required request,
+              required flutterVersion,
+              required flutterExecutable,
+              required dartExecutable,
+              required hostPort,
+              required supervisorPort,
+              required supervisorLogFile,
+            }) async {
+              capturedRequest = request;
+              expect(flutterVersion, '3.32.0');
+              expect(flutterExecutable, '/opt/flutter/bin/flutter');
+              expect(
+                dartExecutable,
+                '/opt/flutter/bin/cache/dart-sdk/bin/dart',
+              );
+              return CockpitSpawnedDevelopmentSupervisor(
+                baseUri: Uri.parse('http://127.0.0.1:$supervisorPort'),
+                stop: () async {},
+              );
+            },
+        allocatePort: () async => 60021,
+        delay: (_) async {},
+      );
+
+      await service.launch(
+        CockpitLaunchDevelopmentSessionRequest(
+          projectDir: '/workspace/examples/cockpit_demo',
+          target: 'lib/main.dart',
+          platform: 'macos',
+          deviceId: 'macos',
+          sessionPort: 47331,
+          launchTimeout: const Duration(seconds: 1),
+        ),
+      );
+
+      expect(capturedRequest?.platform, 'macos');
+      expect(versionExecutable, '/opt/flutter/bin/flutter');
     },
   );
 

@@ -115,13 +115,14 @@ void main() {
                     ),
                     snapshot: CockpitSnapshot(routeName: '/form').toJson(),
                   ),
-                  artifactPayloads: const <CockpitRemoteArtifactPayload>[
-                    CockpitRemoteArtifactPayload(
+                  artifactDownloads: const <CockpitRemoteArtifactDownload>[
+                    CockpitRemoteArtifactDownload(
                       artifact: CockpitArtifactRef(
                         role: 'screenshot',
                         relativePath: 'screenshots/form_after_action.png',
                       ),
-                      bytes: <int>[1, 2, 3, 4],
+                      downloadPath:
+                          '/artifacts/download?path=screenshots%2Fform_after_action.png',
                     ),
                   ],
                 ).toJson(),
@@ -252,9 +253,16 @@ void main() {
       expect(snapshot.diagnosticLevel, CockpitSnapshotProfile.investigate);
       expect(snapshot.runtime?.errorCount, 1);
       expect(execution.result.success, isTrue);
+      expect(execution.artifactPayloads, isEmpty);
       expect(
-        execution.artifactPayloads['screenshots/form_after_action.png'],
-        <int>[1, 2, 3, 4],
+        execution.artifactSourcePaths.keys,
+        contains('screenshots/form_after_action.png'),
+      );
+      expect(
+        await File(
+          execution.artifactSourcePaths['screenshots/form_after_action.png']!,
+        ).readAsBytes(),
+        <int>[8, 6, 7, 5, 3, 0, 9],
       );
       expect(recordingSession.state, CockpitRecordingState.recording);
       expect(
@@ -274,6 +282,93 @@ void main() {
       ]);
     },
   );
+
+  test('remote session client pings the lightweight endpoint', () async {
+    final requestedPaths = <String>[];
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() async {
+      await server.close(force: true);
+    });
+
+    server.listen((request) async {
+      requestedPaths.add(request.uri.toString());
+      request.response.headers.contentType = ContentType.json;
+      switch ((request.method, request.uri.path)) {
+        case ('GET', '/cockpit/ping'):
+          request.response.write(
+            jsonEncode(const <String, Object?>{
+              'ok': true,
+              'transportType': 'remoteHttp',
+              'routePrefix': '/cockpit',
+            }),
+          );
+        case ('GET', '/cockpit/health'):
+          request.response.statusCode = HttpStatus.internalServerError;
+          request.response.write(
+            jsonEncode(const <String, Object?>{
+              'error': 'heavyHealthShouldNotBeUsed',
+            }),
+          );
+        default:
+          request.response.statusCode = HttpStatus.notFound;
+          request.response.write(
+            jsonEncode(const <String, Object?>{'error': 'notFound'}),
+          );
+      }
+      await request.response.close();
+    });
+
+    final client = CockpitRemoteSessionClient(
+      baseUri: Uri.parse('http://127.0.0.1:${server.port}/cockpit'),
+    );
+
+    expect(await client.ping(), isTrue);
+    expect(requestedPaths, <String>['/cockpit/ping']);
+  });
+
+  test('remote session client checks lightweight control readiness', () async {
+    final requestedPaths = <String>[];
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() async {
+      await server.close(force: true);
+    });
+
+    server.listen((request) async {
+      requestedPaths.add(request.uri.toString());
+      request.response.headers.contentType = ContentType.json;
+      switch ((request.method, request.uri.path)) {
+        case ('GET', '/cockpit/ready'):
+          request.response.write(
+            jsonEncode(const <String, Object?>{
+              'ok': true,
+              'ready': true,
+              'supportsInAppControl': true,
+              'currentRouteName': '/inbox',
+            }),
+          );
+        case ('GET', '/cockpit/health'):
+          request.response.statusCode = HttpStatus.internalServerError;
+          request.response.write(
+            jsonEncode(const <String, Object?>{
+              'error': 'heavyHealthShouldNotBeUsed',
+            }),
+          );
+        default:
+          request.response.statusCode = HttpStatus.notFound;
+          request.response.write(
+            jsonEncode(const <String, Object?>{'error': 'notFound'}),
+          );
+      }
+      await request.response.close();
+    });
+
+    final client = CockpitRemoteSessionClient(
+      baseUri: Uri.parse('http://127.0.0.1:${server.port}/cockpit'),
+    );
+
+    expect(await client.ready(), isTrue);
+    expect(requestedPaths, <String>['/cockpit/ready']);
+  });
 
   test(
     'remote session client keeps externalized forensic snapshots summarized by default',

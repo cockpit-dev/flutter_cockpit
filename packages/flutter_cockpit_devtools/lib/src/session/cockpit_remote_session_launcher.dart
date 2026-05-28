@@ -20,6 +20,8 @@ import 'cockpit_windows_remote_session_launcher.dart';
 typedef CockpitRemoteSessionStatusReader =
     Future<CockpitRemoteSessionStatus> Function(Uri baseUri);
 typedef CockpitFlutterVersionReader = Future<String> Function();
+typedef CockpitFlutterExecutableVersionReader =
+    Future<String> Function(String flutterExecutable);
 typedef CockpitFlutterCommandRunner =
     Future<ProcessResult> Function(String executable, List<String> arguments);
 typedef CockpitExecutableLookupRunner =
@@ -176,10 +178,20 @@ Future<String> cockpitReadActiveFlutterVersion({
   CockpitFlutterCommandRunner processRunner = Process.run,
   bool? isWindows,
 }) async {
-  final result = await processRunner(
+  return cockpitReadFlutterVersion(
     cockpitFlutterExecutable(isWindows: isWindows),
-    <String>['--version', '--machine'],
+    processRunner: processRunner,
   );
+}
+
+Future<String> cockpitReadFlutterVersion(
+  String flutterExecutable, {
+  CockpitFlutterCommandRunner processRunner = Process.run,
+}) async {
+  final result = await processRunner(flutterExecutable, <String>[
+    '--version',
+    '--machine',
+  ]);
   if (result.exitCode != 0) {
     throw StateError(
       'Unable to resolve Flutter version: ${result.stderr ?? result.stdout}',
@@ -199,6 +211,22 @@ Future<String> cockpitReadActiveFlutterVersion({
   }
 
   return frameworkVersion.trim();
+}
+
+Future<String> cockpitResolveFlutterVersionForLaunch({
+  required String flutterExecutable,
+  String? explicitFlutterVersion,
+  CockpitFlutterVersionReader? legacyFlutterVersionReader,
+  CockpitFlutterExecutableVersionReader flutterVersionForExecutableReader =
+      cockpitReadFlutterVersion,
+}) async {
+  if (explicitFlutterVersion != null && explicitFlutterVersion.isNotEmpty) {
+    return explicitFlutterVersion;
+  }
+  if (legacyFlutterVersionReader != null) {
+    return legacyFlutterVersionReader();
+  }
+  return flutterVersionForExecutableReader(flutterExecutable);
 }
 
 Future<CockpitRemoteSessionStatus> cockpitWaitForRemoteSessionReady({

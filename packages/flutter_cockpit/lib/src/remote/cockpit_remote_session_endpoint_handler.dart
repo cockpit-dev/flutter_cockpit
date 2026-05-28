@@ -20,6 +20,8 @@ import 'cockpit_remote_snapshot_response.dart';
 
 typedef CockpitRemoteSessionStatusProvider =
     Future<CockpitRemoteSessionStatus> Function();
+typedef CockpitRemoteSessionReadyProvider =
+    FutureOr<Map<String, Object?>> Function();
 typedef CockpitRemoteSessionSnapshotProvider =
     FutureOr<CockpitSnapshot> Function({
       required CockpitSnapshotOptions options,
@@ -103,6 +105,7 @@ final class CockpitRemoteSessionEndpointHandler {
   CockpitRemoteSessionEndpointHandler({
     required CockpitRemoteSessionConfiguration configuration,
     required CockpitRemoteSessionStatusProvider statusProvider,
+    CockpitRemoteSessionReadyProvider? readyProvider,
     required CockpitRemoteSessionSnapshotProvider snapshotProvider,
     required CockpitRemoteSessionCommandExecutor commandExecutor,
     CockpitRemoteRuntimeStepDrainer? runtimeStepDrainer,
@@ -111,6 +114,7 @@ final class CockpitRemoteSessionEndpointHandler {
     CockpitRemoteArtifactTempFileFactory? artifactTempFileFactory,
   }) : _configuration = configuration,
        _statusProvider = statusProvider,
+       _readyProvider = readyProvider,
        _snapshotProvider = snapshotProvider,
        _commandExecutor = commandExecutor,
        _runtimeStepDrainer = runtimeStepDrainer,
@@ -121,6 +125,7 @@ final class CockpitRemoteSessionEndpointHandler {
 
   final CockpitRemoteSessionConfiguration _configuration;
   final CockpitRemoteSessionStatusProvider _statusProvider;
+  final CockpitRemoteSessionReadyProvider? _readyProvider;
   final CockpitRemoteSessionSnapshotProvider _snapshotProvider;
   final CockpitRemoteSessionCommandExecutor _commandExecutor;
   final CockpitRemoteRuntimeStepDrainer? _runtimeStepDrainer;
@@ -159,6 +164,12 @@ final class CockpitRemoteSessionEndpointHandler {
     try {
       final routePath = _routePathFor(request.uri.path);
       switch ((request.method, routePath)) {
+        case ('GET', '/ping'):
+          return CockpitRemoteSessionEndpointResponse.json(_pingPayload());
+        case ('GET', '/ready'):
+          return CockpitRemoteSessionEndpointResponse.json(
+            await _readyPayload(),
+          );
         case ('GET', '/health'):
           return CockpitRemoteSessionEndpointResponse.json(
             (await _statusProvider()).toJson(),
@@ -184,17 +195,21 @@ final class CockpitRemoteSessionEndpointHandler {
           await _drainRuntimeSteps(clear: true);
           final execution = await _commandExecutor(command);
           final runtimeSteps = await _drainRuntimeSteps(clear: true);
+          final artifactDownloads = await _registerCommandArtifacts(execution);
           final responsePayload = CockpitRemoteCommandResponse.fromExecution(
             CockpitCommandExecution(
               result: execution.result,
-              artifactPayloads: execution.artifactPayloads,
-              artifactSourcePaths: execution.artifactSourcePaths,
               runtimeSteps: <CockpitStepRecord>[
                 ...execution.runtimeSteps,
                 ...runtimeSteps,
               ],
             ),
           ).toJson();
+          if (artifactDownloads.isNotEmpty) {
+            responsePayload['artifactDownloads'] = artifactDownloads
+                .map((download) => download.toJson())
+                .toList(growable: false);
+          }
           return CockpitRemoteSessionEndpointResponse.json(responsePayload);
         case ('POST', '/recording/start'):
           final recording = await _handleStartRecording(
@@ -226,6 +241,18 @@ final class CockpitRemoteSessionEndpointHandler {
       }, statusCode: HttpStatus.internalServerError);
     }
   }
+
+  Map<String, Object?> _pingPayload() => <String, Object?>{
+    'ok': true,
+    'protocolVersion': 1,
+    'transportType': 'remoteHttp',
+    'routePrefix': _configuration.normalizedRoutePrefix,
+  };
+
+  Future<Map<String, Object?>> _readyPayload() async => <String, Object?>{
+    ..._pingPayload(),
+    ...?await _readyProvider?.call(),
+  };
 
   Future<List<CockpitStepRecord>> _drainRuntimeSteps({
     required bool clear,
@@ -390,6 +417,54 @@ final class CockpitRemoteSessionEndpointHandler {
       return path.substring(prefix.length);
     }
     return null;
+  }
+
+  Future<List<CockpitRemoteArtifactDownload>> _registerCommandArtifacts(
+    CockpitCommandExecution execution,
+  ) async {
+    final downloads = <CockpitRemoteArtifactDownload>[];
+    for (final artifact in execution.result.artifacts) {
+      final sourceFilePath =
+          execution.artifactSourcePaths[artifact.relativePath];
+      if (sourceFilePath != null && sourceFilePath.isNotEmpty) {
+        final sourceFile = File(sourceFilePath);
+        if (sourceFile.existsSync()) {
+          _downloadableArtifacts[artifact.relativePath] = _RemoteArtifactEntry(
+            sourceFilePath: sourceFile.path,
+          );
+          downloads.add(
+            CockpitRemoteArtifactDownload(
+              artifact: artifact,
+              downloadPath: _downloadPathFor(artifact.relativePath),
+            ),
+          );
+          continue;
+        }
+      }
+
+      final bytes = execution.artifactPayloads[artifact.relativePath];
+      if (bytes == null || bytes.isEmpty) {
+        continue;
+      }
+      try {
+        _downloadableArtifacts[artifact.relativePath] =
+            await _persistArtifactBytes(
+              cockpitSanitizeRemoteArtifactBasename(artifact.relativePath),
+              bytes,
+            );
+      } on Object {
+        // Constrained runtimes may not support temp-file persistence. The
+        // command result remains useful through artifact refs and snapshots.
+        continue;
+      }
+      downloads.add(
+        CockpitRemoteArtifactDownload(
+          artifact: artifact,
+          downloadPath: _downloadPathFor(artifact.relativePath),
+        ),
+      );
+    }
+    return downloads;
   }
 
   Future<CockpitRemoteRecordingResponse> _recordingResponseFor(

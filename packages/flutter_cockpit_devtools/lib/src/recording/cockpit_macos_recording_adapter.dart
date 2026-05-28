@@ -166,7 +166,7 @@ final class CockpitMacosRecordingAdapter
     } on TimeoutException {
       if (processExited) {
         await stderrSubscription.cancel();
-        process.kill(ProcessSignal.sigkill);
+        await cockpitKillRecordingProcess(process);
         rethrow;
       }
       final hasOutputEvidence = await cockpitWaitForNonEmptyFile(
@@ -176,12 +176,12 @@ final class CockpitMacosRecordingAdapter
       );
       if (!hasOutputEvidence) {
         await stderrSubscription.cancel();
-        process.kill(ProcessSignal.sigkill);
+        await cockpitKillRecordingProcess(process);
         throw StateError(_buildStartupFailureMessage(recentStderrLines));
       }
     } on Object {
       await stderrSubscription.cancel();
-      process.kill(ProcessSignal.sigkill);
+      await cockpitKillRecordingProcess(process);
       rethrow;
     }
 
@@ -276,7 +276,7 @@ final class CockpitMacosRecordingAdapter
         sourceFilePath: outputFile.path,
       );
     } on TimeoutException {
-      process.kill(ProcessSignal.sigkill);
+      await cockpitKillRecordingProcess(process, waitTimeout: _stopTimeout);
       return CockpitRecordingResult(
         state: CockpitRecordingState.failed,
         purpose: request.purpose,

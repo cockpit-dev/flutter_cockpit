@@ -80,7 +80,7 @@ const List<String> cockpitDemoSupportedVerificationPlatforms = <String>[
   'windows',
 ];
 
-const int cockpitDemoExpectedBatchCommandCount = 31;
+const int cockpitDemoExpectedBatchCommandCount = 32;
 const int cockpitDemoMinimumAutoScreenshotCount = 19;
 const CockpitInteractiveResultProfile _artifactEvidenceProfile =
     CockpitInteractiveResultProfile(
@@ -954,7 +954,7 @@ final class CockpitDemoPlatformVerifier {
       _requireBatchSuccess(
         platform: platform,
         result: syncRecoveryBatchResult,
-        expectedCount: 6,
+        expectedCount: 7,
       );
       autoScreenshotCount += _autoScreenshotCount(syncRecoveryBatchResult);
       exportedScreenshotCount += await _exportScreenshotArtifacts(
@@ -1803,19 +1803,7 @@ final class CockpitDemoPlatformVerifier {
   Future<CockpitRunBatchResult> _runBatchWithRetry(
     CockpitRunBatchRequest request,
   ) async {
-    for (var attempt = 0; attempt < 2; attempt += 1) {
-      try {
-        return await _runBatch(request);
-      } on CockpitApplicationServiceException catch (error) {
-        final shouldRetry =
-            error.code == 'remoteUnavailable' && attempt + 1 < 2;
-        if (!shouldRetry) {
-          rethrow;
-        }
-        await _wait(Duration(milliseconds: 400 * (attempt + 1)));
-      }
-    }
-    throw StateError('Unreachable batch retry state.');
+    return _runBatch(request);
   }
 
   Future<String> _copyRequiredArtifactToOutputDir({
@@ -2389,6 +2377,22 @@ Future<void> cockpitDemoCleanupExampleLocalState({
         if (deviceId == null || deviceId.isEmpty) {
           return;
         }
+        await processRunner('adb', <String>[
+          '-s',
+          deviceId,
+          'shell',
+          'am',
+          'force-stop',
+          _androidExampleApplicationId,
+        ], workingDirectory: workingDirectory);
+        await processRunner('adb', <String>[
+          '-s',
+          deviceId,
+          'shell',
+          'pm',
+          'clear',
+          _androidExampleApplicationId,
+        ], workingDirectory: workingDirectory);
         await processRunner('adb', <String>[
           '-s',
           deviceId,

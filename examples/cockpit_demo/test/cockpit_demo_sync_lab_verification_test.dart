@@ -228,6 +228,7 @@ void main() {
       expect(
         commands.map((command) => command['commandId']).toList(growable: false),
         <String>[
+          'verify-wait-for-detail-route-after-conflict-resolution',
           'verify-return-from-detail',
           'verify-open-sync-settings',
           'verify-scroll-run-queued-sync',
@@ -236,17 +237,22 @@ void main() {
           'verify-close-settings',
         ],
       );
-      expect(commands[0]['commandType'], 'tap');
-      expect(commands[0]['locator'], <String, Object?>{
+      expect(commands[0]['commandType'], 'waitFor');
+      expect(commands[0]['timeoutMs'], 12000);
+      expect(commands[0]['parameters'], <String, Object?>{
+        'routeName': '/detail',
+      });
+      expect(commands[1]['commandType'], 'tap');
+      expect(commands[1]['locator'], <String, Object?>{
         'tooltip': 'Back',
         'ancestor': <String, Object?>{'route': '/detail'},
       });
-      expect(commands[2]['locator'], <String, Object?>{
+      expect(commands[3]['locator'], <String, Object?>{
         'text': 'Run queued sync',
         'route': '/settings',
         'ancestor': <String, Object?>{'route': '/settings'},
       });
-      expect(commands[2]['parameters'], <String, Object?>{
+      expect(commands[3]['parameters'], <String, Object?>{
         'maxScrolls': 10,
         'viewportFraction': 0.82,
         'continuous': true,
@@ -258,12 +264,12 @@ void main() {
           'route': '/settings',
         },
       });
-      expect(commands[3]['locator'], <String, Object?>{
+      expect(commands[4]['locator'], <String, Object?>{
         'text': 'Run queued sync',
         'ancestor': <String, Object?>{'route': '/settings'},
       });
-      expect(commands[4]['commandType'], 'waitFor');
-      expect(commands[4]['parameters'], <String, Object?>{
+      expect(commands[5]['commandType'], 'waitFor');
+      expect(commands[5]['parameters'], <String, Object?>{
         'text': 'Sync complete',
         'timeoutMs': 20000,
       });
