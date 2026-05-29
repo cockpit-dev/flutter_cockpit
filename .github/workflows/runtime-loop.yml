@@ -1114,47 +1114,79 @@ jobs:
           find "$PROJECT_DIR/build/windows" -maxdepth 6 -type f \( -iname "*.exe" -o -iname "*.dll" \) 2>/dev/null | sort | head -80 || true
           echo "Windows supervisor logs:"
           mkdir -p "$SUPERVISOR_LOG_DIR"
-          SUPERVISOR_LOG_CANDIDATES="$SUPERVISOR_LOG_DIR/candidates.txt"
-          : > "$SUPERVISOR_LOG_CANDIDATES"
-          if [ -f "$RESULT_JSON_POSIX" ]; then
-            python - <<'PY' >> "$SUPERVISOR_LOG_CANDIDATES" || true
-          import json, os, pathlib
+          python - <<'PY' || true
+          import json
+          import os
+          import pathlib
+          import shutil
 
           result_path = pathlib.Path(os.environ["RESULT_JSON_POSIX"])
-          data = json.loads(result_path.read_text())
+          output_dir = pathlib.Path(os.environ["SUPERVISOR_LOG_DIR"])
+          output_dir.mkdir(parents=True, exist_ok=True)
 
-          def walk(value):
-              if isinstance(value, dict):
-                  path = value.get("supervisorLogPath")
-                  if isinstance(path, str) and path:
-                      print(path.replace("\\", "/"))
-                  for child in value.values():
-                      walk(child)
-              elif isinstance(value, list):
-                  for child in value:
-                      walk(child)
+          candidates = []
 
-          walk(data)
+          def add_candidate(path):
+              if isinstance(path, str) and path:
+                  candidates.append(pathlib.Path(path))
+
+          if result_path.is_file():
+              try:
+                  data = json.loads(result_path.read_text())
+              except Exception as error:
+                  print(f"Unable to parse verifier result json: {error}")
+              else:
+                  def walk(value):
+                      if isinstance(value, dict):
+                          add_candidate(value.get("supervisorLogPath"))
+                          for child in value.values():
+                              walk(child)
+                      elif isinstance(value, list):
+                          for child in value:
+                              walk(child)
+
+                  walk(data)
+
+          candidate_dirs = []
+          for key in ("RUNNER_TEMP", "TEMP", "TMP"):
+              value = os.environ.get(key)
+              if value:
+                  candidate_dirs.append(pathlib.Path(value))
+          local_app_data = os.environ.get("LOCALAPPDATA")
+          if local_app_data:
+              candidate_dirs.append(pathlib.Path(local_app_data) / "Temp")
+
+          for directory in candidate_dirs:
+              if directory.is_dir():
+                  candidates.extend(
+                      directory.glob("flutter_cockpit_development_supervisor_*.log")
+                  )
+
+          seen = set()
+          copied = []
+          for candidate in candidates:
+              key = str(candidate)
+              if key in seen:
+                  continue
+              seen.add(key)
+              if not candidate.exists():
+                  print(f"supervisorLogPath not found: {candidate}")
+                  continue
+              destination = output_dir / candidate.name
+              shutil.copy2(candidate, destination)
+              copied.append(destination)
+              print(f"copied supervisor log: {candidate} -> {destination}")
+              try:
+                  lines = destination.read_text(errors="replace").splitlines()
+              except Exception as error:
+                  print(f"Unable to read supervisor log {destination}: {error}")
+                  continue
+              print(f"--- tail {destination} ---")
+              print("\n".join(lines[-120:]))
+
+          if not copied:
+              print("No flutter_cockpit_development_supervisor_*.log files were found.")
           PY
-          fi
-          for candidate in "${RUNNER_TEMP//\\//}" "${TEMP//\\//}" "${TMP//\\//}" "${LOCALAPPDATA//\\//}/Temp"; do
-            [ -n "$candidate" ] || continue
-            [ -d "$candidate" ] || continue
-            find "$candidate" -maxdepth 1 -type f -name "flutter_cockpit_development_supervisor_*.log" \
-              -print \
-              -exec cp {} "$SUPERVISOR_LOG_DIR/" \; \
-              -exec tail -n 120 {} \; 2>/dev/null || true
-          done
-          while IFS= read -r candidate; do
-            [ -n "$candidate" ] || continue
-            if [ -f "$candidate" ]; then
-              echo "$candidate"
-              cp "$candidate" "$SUPERVISOR_LOG_DIR/" || true
-              tail -n 120 "$candidate" || true
-            else
-              echo "supervisorLogPath not found: $candidate"
-            fi
-          done < "$SUPERVISOR_LOG_CANDIDATES"
 
       - name: Verify Windows runtime loop result
         env:

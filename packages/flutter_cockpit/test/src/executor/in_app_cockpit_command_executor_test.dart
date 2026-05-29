@@ -1041,52 +1041,171 @@ void main() {
     },
   );
 
-  test('tap uses gesture activation by default when available', () async {
-    final registry = CockpitTargetRegistry(routeName: '/editor');
-    var tapCount = 0;
-    var gestureCount = 0;
+  test(
+    'tap uses direct activation by default for reliable AI control',
+    () async {
+      final registry = CockpitTargetRegistry(routeName: '/editor');
+      var tapCount = 0;
+      var gestureCount = 0;
 
-    registry.register(
-      CockpitTarget(
-        registrationId: 'save-task',
-        text: 'Save task',
-        routeName: '/editor',
-        supportedCommands: const {CockpitCommandType.tap},
-        onTap: () {
-          tapCount += 1;
-        },
-        geometryProvider: () => const CockpitTargetGeometry(
-          left: 20,
-          top: 720,
-          width: 220,
-          height: 48,
-          viewportLeft: 0,
-          viewportTop: 0,
-          viewportWidth: 430,
-          viewportHeight: 800,
-          viewId: 1,
+      registry.register(
+        CockpitTarget(
+          registrationId: 'save-task',
+          text: 'Save task',
+          routeName: '/editor',
+          supportedCommands: const {CockpitCommandType.tap},
+          onTap: () {
+            tapCount += 1;
+          },
+          geometryProvider: () => const CockpitTargetGeometry(
+            left: 20,
+            top: 720,
+            width: 220,
+            height: 48,
+            viewportLeft: 0,
+            viewportTop: 0,
+            viewportWidth: 430,
+            viewportHeight: 800,
+            viewId: 1,
+          ),
         ),
-      ),
-    );
+      );
 
-    final executor = InAppCockpitCommandExecutor(
-      registry: registry,
-      gestureHandler: (_) async {
-        gestureCount += 1;
-      },
-    );
-    final result = await executor.execute(
-      CockpitCommand(
-        commandId: 'cmd-save',
-        commandType: CockpitCommandType.tap,
-        locator: const CockpitLocator(text: 'Save task'),
-      ),
-    );
+      final executor = InAppCockpitCommandExecutor(
+        registry: registry,
+        gestureHandler: (_) async {
+          gestureCount += 1;
+        },
+      );
+      final result = await executor.execute(
+        CockpitCommand(
+          commandId: 'cmd-save',
+          commandType: CockpitCommandType.tap,
+          locator: const CockpitLocator(text: 'Save task'),
+        ),
+      );
 
-    expect(result.success, isTrue);
-    expect(tapCount, 0);
-    expect(gestureCount, 1);
-  });
+      expect(result.success, isTrue);
+      expect(tapCount, 1);
+      expect(gestureCount, 0);
+    },
+  );
+
+  test(
+    'tap auto activation prefers route-committing direct callback over gesture',
+    () async {
+      final registry = CockpitTargetRegistry(routeName: '/inbox');
+      var tapCount = 0;
+      var gestureCount = 0;
+
+      registry.register(
+        CockpitTarget(
+          registrationId: 'open-editor',
+          text: 'New task',
+          routeName: '/inbox',
+          supportedCommands: const {CockpitCommandType.tap},
+          onTap: () {
+            tapCount += 1;
+            registry.routeName = '/editor';
+          },
+          geometryProvider: () => const CockpitTargetGeometry(
+            left: 20,
+            top: 720,
+            width: 220,
+            height: 48,
+            viewportLeft: 0,
+            viewportTop: 0,
+            viewportWidth: 430,
+            viewportHeight: 800,
+            viewId: 1,
+          ),
+        ),
+      );
+      registry.register(
+        const CockpitTarget(
+          registrationId: 'editor-ready',
+          text: 'Editor ready',
+          routeName: '/editor',
+        ),
+      );
+
+      final executor = InAppCockpitCommandExecutor(
+        registry: registry,
+        gestureHandler: (_) async {
+          gestureCount += 1;
+        },
+        interactionPolicy: const CockpitInteractionPolicy(
+          actionCommitTimeout: Duration(milliseconds: 40),
+          routeTransitionVisualDelay: Duration.zero,
+        ),
+      );
+
+      final result = await executor.execute(
+        CockpitCommand(
+          commandId: 'open-editor',
+          commandType: CockpitCommandType.tap,
+          locator: const CockpitLocator(text: 'New task', route: '/inbox'),
+          parameters: const <String, Object?>{'expectedRouteName': '/editor'},
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(tapCount, 1);
+      expect(gestureCount, 0);
+      expect(registry.routeName, '/editor');
+    },
+  );
+
+  test(
+    'tap gesture activation skips direct callbacks for registered targets',
+    () async {
+      final registry = CockpitTargetRegistry(routeName: '/editor');
+      var tapCount = 0;
+      var gestureCount = 0;
+
+      registry.register(
+        CockpitTarget(
+          registrationId: 'save-task',
+          text: 'Save task',
+          routeName: '/editor',
+          supportedCommands: const {CockpitCommandType.tap},
+          onTap: () {
+            tapCount += 1;
+          },
+          geometryProvider: () => const CockpitTargetGeometry(
+            left: 20,
+            top: 720,
+            width: 220,
+            height: 48,
+            viewportLeft: 0,
+            viewportTop: 0,
+            viewportWidth: 430,
+            viewportHeight: 800,
+            viewId: 1,
+          ),
+        ),
+      );
+
+      final executor = InAppCockpitCommandExecutor(
+        registry: registry,
+        gestureHandler: (_) async {
+          gestureCount += 1;
+        },
+      );
+      final result = await executor.execute(
+        CockpitCommand(
+          commandId: 'cmd-save',
+          commandType: CockpitCommandType.tap,
+          locator: const CockpitLocator(text: 'Save task'),
+          parameters: const <String, Object?>{'activation': 'gesture'},
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(tapCount, 0);
+      expect(gestureCount, 1);
+    },
+  );
 
   test(
     'tap can opt into direct activation when callback semantics are desired',
