@@ -30,6 +30,7 @@ void main() {
         contains("'commandId': 'open-settings'"),
         contains("'commandType': 'tap'"),
         contains("'expectedRouteName': '/settings'"),
+        contains("'routeTimeoutMs': 3000"),
       ),
     );
     expect(

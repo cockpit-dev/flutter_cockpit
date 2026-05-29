@@ -193,6 +193,7 @@ When driving the demo through `read-app` or `read-target`:
 - use `recordingCapabilities.recordingLimitations` to detect host prerequisites or capture scope constraints before starting a recording
 - use `syncStatus`, `pendingTaskCount`, `failedTaskCount`, and `conflictTaskCount` as the summary-first sync health view before opening heavier inspections
 - when the next few actions are already known and the flow will cross routes such as `/inbox -> /editor -> /inbox`, prefer one `run-batch` instead of multiple `run-command` calls; this is both lower-token and more stable for short editor or settings loops
+- for CI or recording-backed route-changing taps, set both `expectedRouteName` and a small explicit `routeTimeoutMs`, then follow with `waitFor routeName` before editing route-scoped fields
 
 The example now also ships a repository-owned Sync Lab workflow covering:
 
