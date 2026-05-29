@@ -1820,12 +1820,12 @@ final class CockpitDemoPlatformVerifier {
   Future<CockpitReadAppResult> _readAppWithRetry(
     CockpitReadAppRequest request,
   ) async {
-    for (var attempt = 0; attempt < 2; attempt += 1) {
+    for (var attempt = 0; attempt < 5; attempt += 1) {
       try {
         return await _readApp(request);
       } on CockpitApplicationServiceException catch (error) {
         final shouldRetry =
-            error.code == 'remoteUnavailable' && attempt + 1 < 2;
+            error.code == 'remoteUnavailable' && attempt + 1 < 5;
         if (!shouldRetry) {
           rethrow;
         }

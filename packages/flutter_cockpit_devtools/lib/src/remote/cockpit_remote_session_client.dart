@@ -292,6 +292,18 @@ final class CockpitRemoteSessionClient {
         final response = await request.close();
         final payload = await utf8.decoder.bind(response).join();
         if (response.statusCode < 200 || response.statusCode >= 300) {
+          final remoteError = _structuredRemoteError(payload);
+          if (_isTransientRemoteHttpError(remoteError.code)) {
+            throw _remoteUnavailable(
+              method: method,
+              path: path,
+              error: StateError(remoteError.message),
+              remoteCode: remoteError.code,
+              remoteMessage: remoteError.message,
+              remoteDetails: remoteError.remoteDetails,
+              statusCode: response.statusCode,
+            );
+          }
           throw _remoteHttpError(
             statusCode: response.statusCode,
             method: method,
@@ -459,6 +471,10 @@ final class CockpitRemoteSessionClient {
     required String method,
     required String path,
     required Object error,
+    String? remoteCode,
+    String? remoteMessage,
+    Map<String, Object?>? remoteDetails,
+    int? statusCode,
   }) {
     return CockpitApplicationServiceException(
       code: 'remoteUnavailable',
@@ -470,8 +486,16 @@ final class CockpitRemoteSessionClient {
         'path': path,
         'errorType': error.runtimeType.toString(),
         'cause': error.toString(),
+        'remoteCode': ?remoteCode,
+        'remoteMessage': ?remoteMessage,
+        'remoteDetails': ?remoteDetails,
+        'statusCode': ?statusCode,
       },
     );
+  }
+
+  bool _isTransientRemoteHttpError(String code) {
+    return code == 'bridgeUnavailable' || code == 'bridgeTimeout';
   }
 
   CockpitApplicationServiceException _remoteHttpError({

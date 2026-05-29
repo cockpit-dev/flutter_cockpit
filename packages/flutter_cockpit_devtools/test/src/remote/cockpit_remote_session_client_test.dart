@@ -755,10 +755,15 @@ void main() {
         client.readStatus,
         throwsA(
           isA<CockpitApplicationServiceException>()
-              .having((error) => error.code, 'code', 'bridgeUnavailable')
+              .having((error) => error.code, 'code', 'remoteUnavailable')
               .having(
-                (error) => error.message,
-                'message',
+                (error) => error.details['remoteCode'],
+                'remoteCode',
+                'bridgeUnavailable',
+              )
+              .having(
+                (error) => error.details['remoteMessage'],
+                'remoteMessage',
                 'The browser bridge is not connected.',
               )
               .having(
@@ -772,6 +777,51 @@ void main() {
                         as Map<Object?, Object?>)['connectPath'],
                 'remoteDetails.connectPath',
                 '/cockpit/connect',
+              ),
+        ),
+      );
+    },
+  );
+
+  test(
+    'remote session client treats bridge timeouts as retryable unavailability',
+    () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() async {
+        await server.close(force: true);
+      });
+
+      server.listen((request) async {
+        request.response
+          ..statusCode = HttpStatus.gatewayTimeout
+          ..headers.contentType = ContentType.json
+          ..write(
+            jsonEncode(const <String, Object?>{
+              'error': 'bridgeTimeout',
+              'message': 'The browser bridge did not respond before timeout.',
+            }),
+          );
+        await request.response.close();
+      });
+
+      final client = CockpitRemoteSessionClient(
+        baseUri: Uri.parse('http://127.0.0.1:${server.port}/cockpit'),
+      );
+
+      await expectLater(
+        client.readStatus,
+        throwsA(
+          isA<CockpitApplicationServiceException>()
+              .having((error) => error.code, 'code', 'remoteUnavailable')
+              .having(
+                (error) => error.details['remoteCode'],
+                'remoteCode',
+                'bridgeTimeout',
+              )
+              .having(
+                (error) => error.details['statusCode'],
+                'statusCode',
+                HttpStatus.gatewayTimeout,
               ),
         ),
       );

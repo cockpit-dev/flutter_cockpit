@@ -101,10 +101,10 @@ void main() {
     final windowsBlock = _workflowJobBlock(workflow, 'windows-runtime-loop');
 
     expect(windowsBlock, contains('SUPERVISOR_LOG_DIR='));
-    expect(windowsBlock, contains(r'${RUNNER_TEMP//\\//}'));
-    expect(windowsBlock, contains(r'${TEMP//\\//}'));
-    expect(windowsBlock, contains(r'${TMP//\\//}'));
-    expect(windowsBlock, contains(r'${LOCALAPPDATA//\\//}/Temp'));
+    expect(windowsBlock, contains('import shutil'));
+    expect(windowsBlock, contains('candidate_dirs'));
+    expect(windowsBlock, contains('RUNNER_TEMP'));
+    expect(windowsBlock, contains('LOCALAPPDATA'));
     expect(
       windowsBlock,
       contains('flutter_cockpit_development_supervisor_*.log'),
@@ -114,9 +114,9 @@ void main() {
       contains('pathlib.Path(os.environ["RESULT_JSON_POSIX"])'),
     );
     expect(windowsBlock, contains('supervisorLogPath'));
-    expect(windowsBlock, contains('SUPERVISOR_LOG_CANDIDATES'));
-    expect(windowsBlock, contains(r'cp {} "$SUPERVISOR_LOG_DIR/"'));
-    expect(windowsBlock, contains(r'cp "$candidate" "$SUPERVISOR_LOG_DIR/"'));
+    expect(windowsBlock, contains('shutil.copy2'));
+    expect(windowsBlock, contains('candidate.exists()'));
+    expect(windowsBlock, contains('supervisorLogPath not found'));
     expect(windowsBlock, contains(r'${{ env.SUPERVISOR_LOG_DIR }}'));
   });
 

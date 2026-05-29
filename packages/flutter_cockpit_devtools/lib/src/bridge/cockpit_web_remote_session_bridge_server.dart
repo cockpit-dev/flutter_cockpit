@@ -309,7 +309,14 @@ final class CockpitWebRemoteSessionBridgeServer {
     HttpRequest request,
     Map<String, Object?>? jsonBody,
   ) {
-    if (_routePathFor(request.uri.path) != '/commands/execute') {
+    final routePath = _routePathFor(request.uri.path);
+    if (routePath != '/commands/execute') {
+      if (routePath == '/health' ||
+          routePath == '/ready' ||
+          routePath == '/ping') {
+        final probeTimeout = const Duration(seconds: 5);
+        return requestTimeout < probeTimeout ? requestTimeout : probeTimeout;
+      }
       return requestTimeout;
     }
     final timeout = cockpitRemoteCommandTransportTimeoutForJson(

@@ -1416,7 +1416,7 @@ void main() {
         },
         readApp: (request) async {
           readAppAttempts += 1;
-          if (readAppAttempts == 1) {
+          if (readAppAttempts <= 3) {
             throw const CockpitApplicationServiceException(
               code: 'remoteUnavailable',
               message: 'Remote session is temporarily unavailable.',
@@ -1637,7 +1637,7 @@ void main() {
       );
 
       expect(result.success, isTrue);
-      expect(readAppAttempts, greaterThan(1));
+      expect(readAppAttempts, greaterThanOrEqualTo(4));
       expect(assertNewTaskAttempts, 2);
       expect(createBatchAttempts, 1);
     },

@@ -334,6 +334,85 @@ void main() {
     },
   );
 
+  test(
+    'daemon launcher retries transient failed supervisor status before timeout',
+    () async {
+      final firstBaseUri = Uri.parse('http://127.0.0.1:60021');
+      final secondBaseUri = Uri.parse('http://127.0.0.1:60022');
+      final spawnCalls = <Uri>[];
+      final stopCalls = <Uri>[];
+      final readyHandle = _handle().copyWith(
+        supervisorBaseUrl: secondBaseUri.toString(),
+      );
+
+      final launcher = CockpitDevelopmentSessionDaemonLauncher(
+        supervisorStatusReader: (baseUri) async {
+          if (baseUri == firstBaseUri) {
+            return CockpitDevelopmentSessionSupervisorResponse(
+              sessionHandle: _handle().copyWith(
+                supervisorBaseUrl: firstBaseUri.toString(),
+              ),
+              status: _readyStatus(_handle()).copyWith(
+                state: CockpitDevelopmentSessionState.failed,
+                appReachable: false,
+                remoteSessionReachable: false,
+                lastError:
+                    'SocketException: The remote computer refused the network connection. '
+                    '(OS Error: The remote computer refused the network connection., errno = 1225)',
+              ),
+            );
+          }
+          return CockpitDevelopmentSessionSupervisorResponse(
+            sessionHandle: readyHandle,
+            status: _readyStatus(readyHandle),
+          );
+        },
+        portForwarder: const _StubPortForwarder(57331),
+        flutterVersionReader: () async => '3.39.0',
+        flutterExecutableReader: () async => '/opt/flutter/bin/flutter',
+        dartExecutableReader: () async =>
+            '/opt/flutter/bin/cache/dart-sdk/bin/dart',
+        allocatePort: () async => spawnCalls.isEmpty ? 60021 : 60022,
+        delay: (_) async {},
+        spawnSupervisor:
+            ({
+              required request,
+              required flutterVersion,
+              required flutterExecutable,
+              required dartExecutable,
+              required hostPort,
+              required supervisorPort,
+              required supervisorLogFile,
+            }) async {
+              final baseUri = Uri.parse('http://127.0.0.1:$supervisorPort');
+              spawnCalls.add(baseUri);
+              return CockpitSpawnedDevelopmentSupervisor(
+                baseUri: baseUri,
+                stop: () async {
+                  stopCalls.add(baseUri);
+                },
+              );
+            },
+      );
+
+      final result = await launcher.launch(
+        const CockpitLaunchDevelopmentSessionRequest(
+          projectDir: '/workspace/examples/cockpit_demo',
+          target: 'lib/main.dart',
+          platform: 'windows',
+          deviceId: 'windows',
+          sessionPort: 47331,
+          launchTimeout: Duration(seconds: 5),
+        ),
+      );
+
+      expect(spawnCalls, orderedEquals(<Uri>[firstBaseUri, secondBaseUri]));
+      expect(stopCalls, orderedEquals(<Uri>[firstBaseUri]));
+      expect(result.sessionHandle.supervisorBaseUri, secondBaseUri);
+      expect(result.status.state, CockpitDevelopmentSessionState.ready);
+    },
+  );
+
   test('daemon launcher appends supervisor log tails to startup failures', () async {
     final tempDir = await Directory.systemTemp.createTemp(
       'cockpit-development-supervisor-log-',

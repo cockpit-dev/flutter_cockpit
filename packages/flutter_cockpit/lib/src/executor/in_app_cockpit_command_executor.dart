@@ -420,8 +420,7 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
         ),
       );
     }
-    if (activation == _TapActivation.gesture ||
-        activation == _TapActivation.auto) {
+    if (activation == _TapActivation.gesture) {
       final gestureResult = await _executeGestureAction(
         command: command,
         stopwatch: stopwatch,
@@ -437,20 +436,16 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
       if (gestureResult != null) {
         return gestureResult;
       }
-      if (activation == _TapActivation.auto) {
-        // Fall back to framework callbacks when no gesture engine is installed.
-      } else {
-        return _failureExecution(
-          command: command,
-          durationMs: stopwatch.elapsedMilliseconds,
-          locatorResolution: resolution.locatorResolution,
-          error: CockpitCommandError.unsupportedCapability(
-            message:
-                'Gesture activation is not available for this executor. Use the default activation or provide a gesture handler.',
-            details: <String, Object?>{'activation': activation.name},
-          ),
-        );
-      }
+      return _failureExecution(
+        command: command,
+        durationMs: stopwatch.elapsedMilliseconds,
+        locatorResolution: resolution.locatorResolution,
+        error: CockpitCommandError.unsupportedCapability(
+          message:
+              'Gesture activation is not available for this executor. Use the default activation or provide a gesture handler.',
+          details: <String, Object?>{'activation': activation.name},
+        ),
+      );
     }
     if (activation != _TapActivation.semantic &&
         target.supportedCommands.contains(CockpitCommandType.tap) &&

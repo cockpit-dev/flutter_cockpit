@@ -292,16 +292,25 @@ final class CockpitDevelopmentSessionDaemonLauncher {
           }
           if (response.status.state == CockpitDevelopmentSessionState.failed ||
               response.status.state == CockpitDevelopmentSessionState.stopped) {
-            lastFailure =
-                _fallbackExceptionFromStatusError(
-                  response.status.lastError,
-                  sessionHandle: response.sessionHandle,
-                ) ??
-                StateError(
-                  response.status.lastError ??
-                      'Development supervisor entered ${response.status.state.jsonValue}.',
-                );
-            permanentStartupFailure = true;
+            final fallbackFailure = _fallbackExceptionFromStatusError(
+              response.status.lastError,
+              sessionHandle: response.sessionHandle,
+            );
+            if (fallbackFailure != null) {
+              lastFailure = fallbackFailure;
+              permanentStartupFailure = true;
+              break;
+            }
+            final statusFailure = StateError(
+              response.status.lastError ??
+                  'Development supervisor entered ${response.status.state.jsonValue}.',
+            );
+            lastFailure = statusFailure;
+            if (_isTransientStartupFailure(statusFailure)) {
+              shouldRetryAttempt = true;
+            } else {
+              permanentStartupFailure = true;
+            }
             break;
           }
         } on Object catch (error) {
@@ -472,6 +481,7 @@ final class CockpitDevelopmentSessionDaemonLauncher {
   static bool _isTransientStartupFailure(Object failure) {
     final message = '$failure'.toLowerCase();
     return message.contains('connection refused') ||
+        message.contains('refused the network connection') ||
         message.contains('connection closed') ||
         message.contains('connection reset') ||
         message.contains('timed out');
