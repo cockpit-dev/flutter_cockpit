@@ -176,6 +176,7 @@ void main() {
       final service = CockpitLspService(
         fileSystem: LocalCockpitFileSystem(fileSystem: fileSystem),
         executor: executor,
+        analysisRetryDelay: (_) async {},
       );
 
       await expectLater(
@@ -197,6 +198,55 @@ void main() {
           ),
         ),
       );
+    },
+  );
+
+  test(
+    'hover does not issue another request when retry delay exhausts the budget',
+    () async {
+      final fileSystem = MemoryFileSystem();
+      fileSystem.file('/workspace/pkg/lib/main.dart')
+        ..createSync(recursive: true)
+        ..writeAsStringSync('void main() {}\n');
+      final executor = _FakeSequenceLspExecutor(
+        responses: <Object?>[
+          const CockpitApplicationServiceException(
+            code: 'lspRequestFailed',
+            message: 'LSP request failed.',
+            details: <String, Object?>{
+              'method': 'textDocument/hover',
+              'error':
+                  'CockpitApplicationServiceException(lspServerError): File is not being analyzed {code: -32007, data: /workspace/pkg/lib/main.dart}',
+            },
+          ),
+        ],
+      );
+      final service = CockpitLspService(
+        fileSystem: LocalCockpitFileSystem(fileSystem: fileSystem),
+        executor: executor,
+        analysisRetryDelay: (_) async {},
+      );
+
+      await expectLater(
+        () => service.invoke(
+          const CockpitLspRequest(
+            workspaceRoot: '/workspace/pkg',
+            command: CockpitLspCommand.hover,
+            path: 'lib/main.dart',
+            line: 1,
+            column: 1,
+            timeout: Duration(milliseconds: 100),
+          ),
+        ),
+        throwsA(
+          isA<CockpitApplicationServiceException>().having(
+            (error) => error.code,
+            'code',
+            'lspAnalysisTimedOut',
+          ),
+        ),
+      );
+      expect(executor.calls, 1);
     },
   );
 }

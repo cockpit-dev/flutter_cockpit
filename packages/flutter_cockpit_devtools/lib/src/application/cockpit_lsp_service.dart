@@ -84,7 +84,10 @@ final class CockpitLspService {
     CockpitProcessManager? processManager,
     CockpitSdkEnvironment? sdkEnvironment,
     CockpitLspExecutor? executor,
+    Future<void> Function(Duration delay)? analysisRetryDelay,
   }) : _fileSystem = fileSystem ?? const LocalCockpitFileSystem(),
+       _analysisRetryDelay =
+           analysisRetryDelay ?? ((delay) => Future<void>.delayed(delay)),
        _executor =
            executor ??
            _LocalCockpitLspExecutor(
@@ -96,6 +99,7 @@ final class CockpitLspService {
 
   final CockpitFileSystem _fileSystem;
   final CockpitLspExecutor _executor;
+  final Future<void> Function(Duration delay) _analysisRetryDelay;
 
   Future<CockpitLspResult> invoke(CockpitLspRequest request) async {
     final workspaceRoot = assertWorkspaceRootAllowed(
@@ -309,16 +313,12 @@ final class CockpitLspService {
     for (var attempt = 0; ; attempt++) {
       final remaining = timeout - stopwatch.elapsed;
       if (remaining <= Duration.zero) {
-        throw CockpitApplicationServiceException(
-          code: 'lspAnalysisTimedOut',
-          message: 'LSP document analysis did not become ready before timeout.',
-          details: <String, Object?>{
-            'method': method,
-            'path': p.relative(documentPath, from: workspaceRoot),
-            'timeoutMs': timeout.inMilliseconds,
-            if (lastRetryableError != null)
-              'lastError': lastRetryableError.toString(),
-          },
+        _throwAnalysisTimedOut(
+          workspaceRoot: workspaceRoot,
+          documentPath: documentPath,
+          method: method,
+          timeout: timeout,
+          lastRetryableError: lastRetryableError,
         );
       }
       try {
@@ -336,12 +336,52 @@ final class CockpitLspService {
         lastRetryableError = error;
       }
 
+      final retryRemaining = timeout - stopwatch.elapsed;
+      if (retryRemaining <= Duration.zero) {
+        _throwAnalysisTimedOut(
+          workspaceRoot: workspaceRoot,
+          documentPath: documentPath,
+          method: method,
+          timeout: timeout,
+          lastRetryableError: lastRetryableError,
+        );
+      }
       final delay = Duration(milliseconds: math.min(1000, 150 * (attempt + 1)));
-      final boundedDelay = delay < remaining ? delay : remaining;
+      if (delay >= retryRemaining) {
+        await _analysisRetryDelay(retryRemaining);
+        _throwAnalysisTimedOut(
+          workspaceRoot: workspaceRoot,
+          documentPath: documentPath,
+          method: method,
+          timeout: timeout,
+          lastRetryableError: lastRetryableError,
+        );
+      }
+      final boundedDelay = delay < retryRemaining ? delay : retryRemaining;
       if (boundedDelay > Duration.zero) {
-        await Future<void>.delayed(boundedDelay);
+        await _analysisRetryDelay(boundedDelay);
       }
     }
+  }
+
+  Never _throwAnalysisTimedOut({
+    required String workspaceRoot,
+    required String documentPath,
+    required String method,
+    required Duration timeout,
+    required CockpitApplicationServiceException? lastRetryableError,
+  }) {
+    throw CockpitApplicationServiceException(
+      code: 'lspAnalysisTimedOut',
+      message: 'LSP document analysis did not become ready before timeout.',
+      details: <String, Object?>{
+        'method': method,
+        'path': p.relative(documentPath, from: workspaceRoot),
+        'timeoutMs': timeout.inMilliseconds,
+        if (lastRetryableError != null)
+          'lastError': lastRetryableError.toString(),
+      },
+    );
   }
 
   Future<CockpitLspResult> _workspaceSymbols(
