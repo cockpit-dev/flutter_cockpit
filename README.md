@@ -226,6 +226,7 @@ Prefer `--command-file`, `--commands-file`, and `--config-json` once a payload s
 For code-side questions, prefer `analyze-files`, `lsp`, `grep-package-uris`, `read-package-uris`, and `pub` before workspace-wide commands.
 Serialize mutation, then observation. Do not parallelize `run-command` with the `read-app`, `inspect-ui`, or `read-network` step that depends on its side effects.
 When the next few mutations are already known and the flow will cross route boundaries such as list -> editor -> list, prefer one ordered `run-batch` over separate `run-command` round-trips to reduce token cost and avoid transition gaps between commands.
+For route-changing `tap`, include `parameters.expectedRouteName`; add `parameters.routeTimeoutMs` only when the route transition is intentionally slow. `timeoutMs` is the hard command ceiling, not the default route wait.
 When an app summary already exposes bounded workflow counters or state fields, prefer those fields before reopening a heavier inspection payload.
 
 Locators are multi-signal. Start with `text`, `tooltip`, or `semanticId`. Use `key` only when the app already exposes a legitimate stable key for product reasons, then add `route`, `type`, `path`, nested `ancestor`, or short `fallbacks` only when needed. `path` matching is fuzzy and ignores noise such as `body`, `slivers`, and numeric indexes.

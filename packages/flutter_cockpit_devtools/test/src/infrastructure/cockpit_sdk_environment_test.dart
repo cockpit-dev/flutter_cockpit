@@ -59,7 +59,7 @@ void main() {
         isWindows: true,
       );
 
-      expect(environment.dartExecutable, r'C:\tools\dart-sdk\bin\dart.bat');
+      expect(environment.dartExecutable, r'C:\tools\dart-sdk\bin\dart.exe');
       expect(
         environment.flutterExecutable,
         r'C:\tools\flutter\bin\flutter.bat',
@@ -75,7 +75,7 @@ void main() {
 
       expect(
         environment.dartExecutable,
-        r'C:\hostedtoolcache\windows\flutter\stable-3.32.0-x64\flutter\bin\cache\dart-sdk\bin\dart.bat',
+        r'C:\hostedtoolcache\windows\flutter\stable-3.32.0-x64\flutter\bin\cache\dart-sdk\bin\dart.exe',
       );
       expect(
         environment.flutterExecutable,

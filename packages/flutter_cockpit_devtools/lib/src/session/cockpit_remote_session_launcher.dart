@@ -108,7 +108,7 @@ String cockpitFlutterExecutable({bool? isWindows}) {
 }
 
 String cockpitDartExecutable({bool? isWindows}) {
-  return (isWindows ?? Platform.isWindows) ? 'dart.bat' : 'dart';
+  return (isWindows ?? Platform.isWindows) ? 'dart.exe' : 'dart';
 }
 
 String cockpitRemoteBindHostForPlatform(String platform) {
@@ -150,17 +150,23 @@ Future<String> cockpitResolveActiveDartExecutable({
   bool? isWindows,
   String? currentExecutable,
 }) async {
+  final windows = isWindows ?? Platform.isWindows;
+  final pathContext = p.Context(
+    style: windows ? p.Style.windows : p.Style.posix,
+  );
   final resolvedCurrentExecutable =
       currentExecutable ?? Platform.resolvedExecutable;
-  final currentBasename = p.basename(resolvedCurrentExecutable).toLowerCase();
-  if (currentBasename == 'dart' || currentBasename == 'dart.bat') {
+  final currentBasename = pathContext
+      .basename(resolvedCurrentExecutable)
+      .toLowerCase();
+  if (currentBasename == 'dart' ||
+      currentBasename == 'dart.exe' ||
+      currentBasename == 'dart.bat') {
     return resolvedCurrentExecutable;
   }
 
-  final defaultExecutable = cockpitDartExecutable(isWindows: isWindows);
-  final lookupExecutable = (isWindows ?? Platform.isWindows)
-      ? 'where'
-      : 'which';
+  final defaultExecutable = cockpitDartExecutable(isWindows: windows);
+  final lookupExecutable = windows ? 'where' : 'which';
   final result = await processRunner(lookupExecutable, <String>[
     defaultExecutable,
   ]);

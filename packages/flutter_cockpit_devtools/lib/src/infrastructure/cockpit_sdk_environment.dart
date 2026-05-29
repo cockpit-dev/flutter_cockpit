@@ -73,7 +73,7 @@ String? _readFirst(Map<String, String> environment, List<String> keys) {
   return null;
 }
 
-String _defaultDartExecutable(bool windows) => windows ? 'dart.bat' : 'dart';
+String _defaultDartExecutable(bool windows) => windows ? 'dart.exe' : 'dart';
 
 String _defaultFlutterExecutable(bool windows) =>
     windows ? 'flutter.bat' : 'flutter';
