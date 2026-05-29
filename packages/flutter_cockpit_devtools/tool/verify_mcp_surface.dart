@@ -14,7 +14,15 @@ Future<void> main() async {
     ..writeAsStringSync(
       const JsonEncoder.withIndent('  ').convert(report.summary),
     );
+  if (report.summary['success'] == false) {
+    stderr.writeln(
+      'MCP surface verification failed: ${report.summary['failure']}',
+    );
+  }
   stdout.writeln(reportFile.path);
+  if (report.summary['success'] == false) {
+    exitCode = 1;
+  }
 }
 
 final class _VerificationReport {
@@ -812,6 +820,14 @@ final class _McpSurfaceVerifier {
           screenshotName: 'mcp-validate-task',
         ),
       );
+      report['success'] = true;
+    } catch (error, stackTrace) {
+      report['success'] = false;
+      report['failure'] = <String, Object?>{
+        'error': error.toString(),
+        'type': error.runtimeType.toString(),
+        'stackTrace': stackTrace.toString(),
+      };
     } finally {
       if (targetAppId != null) {
         try {

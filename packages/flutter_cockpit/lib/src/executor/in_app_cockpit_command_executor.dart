@@ -472,8 +472,26 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
         commandType: CockpitCommandType.tap,
         durationMs: stopwatch.elapsedMilliseconds,
         resolution: resolution,
+        timeoutOverride:
+            _autoGestureFallbackEligible(
+              command: command,
+              activation: activation,
+              previousRouteName: previousRouteName,
+            )
+            ? _interactionPolicy.actionCommitTimeout
+            : null,
       );
       if (routeExpectationFailure != null) {
+        final fallback = await _tryAutoGestureFallback(
+          command: command,
+          stopwatch: stopwatch,
+          resolution: resolution,
+          previousRouteName: previousRouteName,
+          failedActivation: 'direct',
+        );
+        if (fallback != null) {
+          return fallback;
+        }
         return routeExpectationFailure;
       }
 
@@ -509,8 +527,26 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
         commandType: CockpitCommandType.tap,
         durationMs: stopwatch.elapsedMilliseconds,
         resolution: resolution,
+        timeoutOverride:
+            _autoGestureFallbackEligible(
+              command: command,
+              activation: activation,
+              previousRouteName: previousRouteName,
+            )
+            ? _interactionPolicy.actionCommitTimeout
+            : null,
       );
       if (routeExpectationFailure != null) {
+        final fallback = await _tryAutoGestureFallback(
+          command: command,
+          stopwatch: stopwatch,
+          resolution: resolution,
+          previousRouteName: previousRouteName,
+          failedActivation: 'semantic',
+        );
+        if (fallback != null) {
+          return fallback;
+        }
         return routeExpectationFailure;
       }
       return _buildSuccessWithOptionalCapture(
@@ -541,6 +577,58 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
       command: command,
       durationMs: stopwatch.elapsedMilliseconds,
       target: target,
+    );
+  }
+
+  bool _autoGestureFallbackEligible({
+    required CockpitCommand command,
+    required _TapActivation activation,
+    required String? previousRouteName,
+  }) {
+    return activation == _TapActivation.auto &&
+        _gestureHandler != null &&
+        _expectedRouteName(command) != null &&
+        previousRouteName != null &&
+        _currentRouteName() == previousRouteName;
+  }
+
+  Future<CockpitCommandExecution?> _tryAutoGestureFallback({
+    required CockpitCommand command,
+    required Stopwatch stopwatch,
+    required CockpitTargetResolutionResult resolution,
+    required String? previousRouteName,
+    required String failedActivation,
+  }) {
+    if (!_autoGestureFallbackEligible(
+      command: command,
+      activation: _TapActivation.auto,
+      previousRouteName: previousRouteName,
+    )) {
+      return Future<CockpitCommandExecution?>.value();
+    }
+    return _executeGestureAction(
+      command: command,
+      stopwatch: stopwatch,
+      resolution: resolution,
+      action: CockpitGestureAction.tap(
+        target: resolution.target,
+        anchor: _gestureAnchorParameter(command),
+        pointerDeviceKind: _pointerDeviceKindParameter(command),
+        buttons: _buttonsParameter(command),
+      ),
+      previousRouteName: previousRouteName,
+      warnings: <Map<String, Object?>>[
+        <String, Object?>{
+          'code': 'autoActivationGestureFallback',
+          'message':
+              'Auto activation fell back to a user-like gesture because the first activation path did not reach the expected route.',
+          'details': <String, Object?>{
+            'failedActivation': failedActivation,
+            'expectedRouteName': _expectedRouteName(command),
+            'routeName': _currentRouteName(),
+          },
+        },
+      ],
     );
   }
 
@@ -2491,6 +2579,7 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
     required CockpitGestureAction action,
     required String? previousRouteName,
     CockpitTargetResolutionResult? resolution,
+    List<Map<String, Object?>> warnings = const <Map<String, Object?>>[],
   }) async {
     final gestureHandler = _gestureHandler;
     if (gestureHandler == null) {
@@ -2569,9 +2658,10 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
       resolution: resolution,
       durationMs: stopwatch.elapsedMilliseconds,
       degradationReason: preflight?.degradationReason,
-      warnings: preflight?.warning == null
-          ? const []
-          : <Map<String, Object?>>[preflight!.warning!],
+      warnings: <Map<String, Object?>>[
+        ...warnings,
+        if (preflight?.warning != null) preflight!.warning!,
+      ],
     );
   }
 
@@ -3276,16 +3366,18 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
     required CockpitCommandType commandType,
     required int durationMs,
     CockpitTargetResolutionResult? resolution,
+    Duration? timeoutOverride,
   }) async {
     final routeName = _expectedRouteName(command);
     if (routeName == null) {
       return null;
     }
+    final timeout = timeoutOverride ?? _actionExpectationTimeout(command);
     final minVisibleTargets = _minVisibleTargetsForWait(command);
     final reached = await _waitForExpectedRouteTargets(
       routeName,
       minVisibleTargets: minVisibleTargets,
-      timeout: _actionExpectationTimeout(command),
+      timeout: timeout,
     );
     if (reached) {
       return null;
@@ -3307,7 +3399,7 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
           'routeReadyVisibleTargetCount':
               _registry.routeReadyVisibleTargets.length,
           'visibleTargetCount': _registry.visibleTargets.length,
-          'timeoutMs': _actionExpectationTimeout(command).inMilliseconds,
+          'timeoutMs': timeout.inMilliseconds,
           'visibleTextCandidates': _visibleTextCandidates(
             _registry.visibleTargets,
           ),

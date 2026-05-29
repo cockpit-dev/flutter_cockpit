@@ -89,10 +89,10 @@ void main() {
     expect(demoPubspec, contains('drift_dev: ">=2.29.0 <2.30.0"'));
     expect(demoPubspec, contains('sqlite3: ">=2.9.4 <3.0.0"'));
     expect(demoPubspec, contains('sqlite3_flutter_libs: ">=0.5.42 <0.6.0"'));
-    expect(workspacePubspec, contains('test: 1.25.15'));
-    expect(runtimePubspec, contains('test: 1.25.15'));
-    expect(devtoolsPubspec, contains('test: 1.25.15'));
-    expect(demoPubspec, contains('test: 1.25.15'));
+    expect(workspacePubspec, contains("test: '>=1.25.15 <2.0.0'"));
+    expect(runtimePubspec, contains("test: '>=1.25.15 <2.0.0'"));
+    expect(devtoolsPubspec, contains("test: '>=1.25.15 <2.0.0'"));
+    expect(demoPubspec, contains("test: '>=1.25.15 <2.0.0'"));
   });
 
   test('package readmes teach flutter_cockpit installation and usage', () {

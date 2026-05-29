@@ -93,7 +93,11 @@ jobs:
         timeout-minutes: 45
         run: |
           MCP_VERIFY_LOG="$RUNNER_TEMP/flutter_cockpit_mcp_surface.log"
+          MCP_SUPERVISOR_LOG_DIR="$RUNNER_TEMP/flutter_cockpit_mcp_supervisor_logs"
+          mkdir -p "$MCP_SUPERVISOR_LOG_DIR"
           echo "MCP_VERIFY_LOG=$MCP_VERIFY_LOG" >> "$GITHUB_ENV"
+          echo "MCP_SUPERVISOR_LOG_DIR=$MCP_SUPERVISOR_LOG_DIR" >> "$GITHUB_ENV"
+          export FLUTTER_COCKPIT_SUPERVISOR_LOG_DIR="$MCP_SUPERVISOR_LOG_DIR"
           set +e
           set -o pipefail
           dart run tool/verify_mcp_surface.dart 2>&1 | tee "$MCP_VERIFY_LOG"
@@ -240,6 +244,7 @@ jobs:
             ${{ env.MCP_VERIFY_ROOT }}
             ${{ env.MCP_VERIFY_JSON }}
             ${{ env.MCP_VERIFY_LOG }}
+            ${{ env.MCP_SUPERVISOR_LOG_DIR }}
 
   android-runtime-loop:
     needs: shared-ai-surface-regressions
@@ -1080,6 +1085,8 @@ jobs:
           RESULT_JSON_POSIX="${RESULT_JSON//\\//}"
           LOG_PATH_POSIX="${LOG_PATH//\\//}"
           SUPERVISOR_LOG_DIR="$OUTPUT_ROOT_POSIX/windows-supervisor-logs"
+          SUPERVISOR_LIVE_LOG_DIR="$OUTPUT_ROOT_POSIX/windows-supervisor-live"
+          mkdir -p "$SUPERVISOR_LIVE_LOG_DIR"
           echo "OUTPUT_ROOT=$OUTPUT_ROOT" >> "$GITHUB_ENV"
           echo "RESULT_JSON=$RESULT_JSON" >> "$GITHUB_ENV"
           echo "LOG_PATH=$LOG_PATH" >> "$GITHUB_ENV"
@@ -1088,6 +1095,8 @@ jobs:
           echo "RESULT_JSON_POSIX=$RESULT_JSON_POSIX" >> "$GITHUB_ENV"
           echo "LOG_PATH_POSIX=$LOG_PATH_POSIX" >> "$GITHUB_ENV"
           echo "SUPERVISOR_LOG_DIR=$SUPERVISOR_LOG_DIR" >> "$GITHUB_ENV"
+          echo "SUPERVISOR_LIVE_LOG_DIR=$SUPERVISOR_LIVE_LOG_DIR" >> "$GITHUB_ENV"
+          echo "FLUTTER_COCKPIT_SUPERVISOR_LOG_DIR=$SUPERVISOR_LIVE_LOG_DIR" >> "$GITHUB_ENV"
 
       - name: Run Windows full verifier
         timeout-minutes: 45
@@ -1148,6 +1157,9 @@ jobs:
                   walk(data)
 
           candidate_dirs = []
+          live_log_dir = os.environ.get("SUPERVISOR_LIVE_LOG_DIR")
+          if live_log_dir:
+              candidate_dirs.append(pathlib.Path(live_log_dir))
           for key in ("RUNNER_TEMP", "TEMP", "TMP"):
               value = os.environ.get(key)
               if value:

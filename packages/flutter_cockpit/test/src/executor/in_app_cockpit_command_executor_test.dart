@@ -2307,6 +2307,245 @@ void main() {
   );
 
   testWidgets(
+    'tap returns committed route before the outer command timeout when the route callback stays pending',
+    (tester) async {
+      final registry = CockpitTargetRegistry(routeName: '/inbox');
+      final routeLifetime = Completer<void>();
+
+      await tester.pumpWidget(
+        const Directionality(
+          textDirection: TextDirection.ltr,
+          child: SizedBox.shrink(),
+        ),
+      );
+
+      registry.register(
+        CockpitTarget(
+          registrationId: 'open-settings',
+          tooltip: 'Settings',
+          routeName: '/inbox',
+          supportedCommands: const {CockpitCommandType.tap},
+          onTap: () async {
+            registry.routeName = '/settings';
+            registry.register(
+              const CockpitTarget(
+                registrationId: 'sync-settings',
+                text: 'Sync settings',
+                routeName: '/settings',
+              ),
+            );
+            await routeLifetime.future;
+          },
+        ),
+      );
+
+      final executor = InAppCockpitCommandExecutor(
+        registry: registry,
+        waitTickHandler: tester.pump,
+        interactionPolicy: const CockpitInteractionPolicy(
+          preActionVisualDelay: Duration.zero,
+          actionCommitTimeout: Duration(milliseconds: 40),
+          actionVisualDelay: Duration.zero,
+          routeTransitionVisualDelay: Duration.zero,
+          recordingActionVisualDelay: Duration.zero,
+        ),
+      );
+
+      final result = await executor.execute(
+        CockpitCommand(
+          commandId: 'open-settings',
+          commandType: CockpitCommandType.tap,
+          timeoutMs: 80,
+          locator: const CockpitLocator(tooltip: 'Settings', route: '/inbox'),
+          parameters: const <String, Object?>{'expectedRouteName': '/settings'},
+        ),
+      );
+      addTearDown(routeLifetime.complete);
+
+      expect(result.success, isTrue);
+      expect(routeLifetime.isCompleted, isFalse);
+      expect(result.snapshot?['routeName'], '/settings');
+      expect(
+        ((result.snapshot?['visibleTargets'] as List<Object?>?) ?? const [])
+            .cast<Map<Object?, Object?>>()
+            .any(
+              (target) =>
+                  target['routeName'] == '/settings' &&
+                  target['text'] == 'Sync settings',
+            ),
+        isTrue,
+      );
+    },
+  );
+
+  testWidgets(
+    'tap on discovered async IconButton opens the expected route without completing the route lifetime future',
+    (tester) async {
+      FlutterCockpit.initialize(
+        const FlutterCockpitConfiguration(initialRouteName: '/inbox'),
+      );
+      addTearDown(FlutterCockpit.dispose);
+
+      final rootKey = GlobalKey<FlutterCockpitRootState>();
+      final navigatorKey = GlobalKey<NavigatorState>();
+      var settingsReturned = false;
+
+      Future<void> openSettings() async {
+        await navigatorKey.currentState!.pushNamed('/settings');
+        settingsReturned = true;
+      }
+
+      await tester.pumpWidget(
+        FlutterCockpitRoot(
+          key: rootKey,
+          child: MaterialApp(
+            navigatorKey: navigatorKey,
+            navigatorObservers: <NavigatorObserver>[
+              FlutterCockpit.navigatorObserver,
+            ],
+            initialRoute: '/inbox',
+            routes: <String, WidgetBuilder>{
+              '/inbox': (context) => Scaffold(
+                appBar: AppBar(
+                  actions: <Widget>[
+                    IconButton(
+                      tooltip: 'Settings',
+                      onPressed: openSettings,
+                      icon: const Icon(Icons.tune),
+                    ),
+                  ],
+                ),
+                body: const Text('Inbox ready'),
+              ),
+              '/settings': (context) =>
+                  const Scaffold(body: Text('Sync settings')),
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final executor = InAppCockpitCommandExecutor(
+        registry: FlutterCockpit.binding.registry,
+        snapshotProvider: rootKey.currentState!.snapshot,
+        gestureHandler: rootKey.currentState!.performGesture,
+        waitTickHandler: tester.pump,
+        interactionPolicy: const CockpitInteractionPolicy(
+          preActionVisualDelay: Duration.zero,
+          actionVisualDelay: Duration.zero,
+          routeTransitionVisualDelay: Duration.zero,
+          recordingActionVisualDelay: Duration.zero,
+        ),
+      );
+
+      final result = await executor.execute(
+        CockpitCommand(
+          commandId: 'open-settings',
+          commandType: CockpitCommandType.tap,
+          timeoutMs: 30000,
+          locator: const CockpitLocator(tooltip: 'Settings', route: '/inbox'),
+          parameters: const <String, Object?>{'expectedRouteName': '/settings'},
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(settingsReturned, isFalse);
+      expect(result.snapshot?['routeName'], '/settings');
+      expect(
+        ((result.snapshot?['visibleTargets'] as List<Object?>?) ?? const [])
+            .cast<Map<Object?, Object?>>()
+            .any(
+              (target) =>
+                  target['routeName'] == '/settings' &&
+                  target['text'] == 'Sync settings',
+            ),
+        isTrue,
+      );
+    },
+  );
+
+  testWidgets(
+    'tap auto falls back to gesture when direct activation does not reach the expected route',
+    (tester) async {
+      final registry = CockpitTargetRegistry(routeName: '/inbox');
+      var directTapCount = 0;
+      var gestureTapCount = 0;
+
+      await tester.pumpWidget(
+        const Directionality(
+          textDirection: TextDirection.ltr,
+          child: SizedBox.shrink(),
+        ),
+      );
+
+      registry.register(
+        CockpitTarget(
+          registrationId: 'open-settings',
+          tooltip: 'Settings',
+          routeName: '/inbox',
+          supportedCommands: const {CockpitCommandType.tap},
+          onTap: () {
+            directTapCount += 1;
+          },
+        ),
+      );
+
+      final executor = InAppCockpitCommandExecutor(
+        registry: registry,
+        waitTickHandler: tester.pump,
+        gestureHandler: (_) async {
+          gestureTapCount += 1;
+          registry.routeName = '/settings';
+          registry.register(
+            const CockpitTarget(
+              registrationId: 'sync-settings',
+              text: 'Sync settings',
+              routeName: '/settings',
+            ),
+          );
+        },
+        interactionPolicy: const CockpitInteractionPolicy(
+          preActionVisualDelay: Duration.zero,
+          actionCommitTimeout: Duration(milliseconds: 40),
+          actionVisualDelay: Duration.zero,
+          routeTransitionVisualDelay: Duration.zero,
+          recordingActionVisualDelay: Duration.zero,
+        ),
+      );
+
+      final result = await executor.execute(
+        CockpitCommand(
+          commandId: 'open-settings',
+          commandType: CockpitCommandType.tap,
+          locator: const CockpitLocator(tooltip: 'Settings', route: '/inbox'),
+          parameters: const <String, Object?>{'expectedRouteName': '/settings'},
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(directTapCount, 1);
+      expect(gestureTapCount, 1);
+      expect(result.snapshot?['routeName'], '/settings');
+      expect(
+        ((result.snapshot?['warnings'] as List<Object?>?) ?? const [])
+            .cast<Map<Object?, Object?>>()
+            .map((warning) => warning['code']),
+        contains('autoActivationGestureFallback'),
+      );
+      expect(
+        ((result.snapshot?['visibleTargets'] as List<Object?>?) ?? const [])
+            .cast<Map<Object?, Object?>>()
+            .any(
+              (target) =>
+                  target['routeName'] == '/settings' &&
+                  target['text'] == 'Sync settings',
+            ),
+        isTrue,
+      );
+    },
+  );
+
+  testWidgets(
     'tap action commit waits use lightweight route state before the final snapshot',
     (tester) async {
       final registry = CockpitTargetRegistry(routeName: '/inbox');
@@ -2587,7 +2826,9 @@ void main() {
         CockpitCommand(
           commandId: 'open-settings',
           commandType: CockpitCommandType.tap,
+          timeoutMs: 30000,
           locator: const CockpitLocator(tooltip: 'Settings', route: '/inbox'),
+          parameters: const <String, Object?>{'expectedRouteName': '/settings'},
         ),
       );
 

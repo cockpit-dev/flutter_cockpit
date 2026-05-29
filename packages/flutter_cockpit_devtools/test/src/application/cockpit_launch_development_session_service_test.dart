@@ -182,6 +182,70 @@ void main() {
   );
 
   test(
+    'daemon launcher writes supervisor logs under the configured directory',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit-supervisor-log-dir-',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+      String? capturedLogPath;
+
+      final launcher = CockpitDevelopmentSessionDaemonLauncher(
+        supervisorStatusReader: (_) async =>
+            CockpitDevelopmentSessionSupervisorResponse(
+              sessionHandle: _handle().copyWith(
+                supervisorBaseUrl: 'http://127.0.0.1:60031',
+              ),
+              status: _readyStatus(_handle()),
+            ),
+        portForwarder: const _StubPortForwarder(57331),
+        flutterVersionReader: () async => '3.32.0',
+        flutterExecutableReader: () async => '/opt/flutter/bin/flutter',
+        dartExecutableReader: () async =>
+            '/opt/flutter/bin/cache/dart-sdk/bin/dart',
+        supervisorLogDirectoryReader: () => tempDir.path,
+        allocatePort: () async => 60031,
+        delay: (_) async {},
+        spawnSupervisor:
+            ({
+              required request,
+              required flutterVersion,
+              required flutterExecutable,
+              required dartExecutable,
+              required hostPort,
+              required supervisorPort,
+              required supervisorLogFile,
+            }) async {
+              capturedLogPath = supervisorLogFile.path;
+              return CockpitSpawnedDevelopmentSupervisor(
+                baseUri: Uri.parse('http://127.0.0.1:$supervisorPort'),
+                stop: () async {},
+                logPath: supervisorLogFile.path,
+              );
+            },
+      );
+
+      final result = await launcher.launch(
+        const CockpitLaunchDevelopmentSessionRequest(
+          projectDir: '/workspace/examples/cockpit_demo',
+          target: 'cockpit/main.dart',
+          platform: 'windows',
+          deviceId: 'windows',
+          sessionPort: 47331,
+          launchTimeout: Duration(seconds: 1),
+        ),
+      );
+
+      expect(capturedLogPath, startsWith(tempDir.path));
+      expect(result.supervisorLogPath, capturedLogPath);
+    },
+  );
+
+  test(
     'daemon launcher retries by stopping only the failed spawned attempt',
     () async {
       final statusesByBaseUri =
