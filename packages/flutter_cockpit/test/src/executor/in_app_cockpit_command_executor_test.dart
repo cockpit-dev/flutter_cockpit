@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_cockpit/flutter_cockpit_flutter.dart';
@@ -1436,6 +1437,144 @@ void main() {
       expect(gestureCount, 1);
     },
   );
+
+  test(
+    'tap gesture activation defaults to mouse on desktop platforms',
+    () async {
+      final registry = CockpitTargetRegistry(routeName: '/editor');
+      final actions = <CockpitGestureAction>[];
+
+      registry.register(
+        CockpitTarget(
+          registrationId: 'save-task',
+          text: 'Save task',
+          routeName: '/editor',
+          supportedCommands: const {CockpitCommandType.tap},
+          geometryProvider: () => const CockpitTargetGeometry(
+            left: 20,
+            top: 720,
+            width: 220,
+            height: 48,
+            viewportLeft: 0,
+            viewportTop: 0,
+            viewportWidth: 430,
+            viewportHeight: 800,
+            viewId: 1,
+          ),
+        ),
+      );
+
+      final executor = InAppCockpitCommandExecutor(
+        registry: registry,
+        platform: 'macos',
+        gestureHandler: (action) async {
+          actions.add(action);
+        },
+      );
+      final result = await executor.execute(
+        CockpitCommand(
+          commandId: 'cmd-save',
+          commandType: CockpitCommandType.tap,
+          locator: const CockpitLocator(text: 'Save task'),
+          parameters: const <String, Object?>{'activation': 'gesture'},
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(actions.single.pointerDeviceKind, PointerDeviceKind.mouse);
+    },
+  );
+
+  test('tap gesture activation keeps touch as the mobile default', () async {
+    final registry = CockpitTargetRegistry(routeName: '/editor');
+    final actions = <CockpitGestureAction>[];
+
+    registry.register(
+      CockpitTarget(
+        registrationId: 'save-task',
+        text: 'Save task',
+        routeName: '/editor',
+        supportedCommands: const {CockpitCommandType.tap},
+        geometryProvider: () => const CockpitTargetGeometry(
+          left: 20,
+          top: 720,
+          width: 220,
+          height: 48,
+          viewportLeft: 0,
+          viewportTop: 0,
+          viewportWidth: 430,
+          viewportHeight: 800,
+          viewId: 1,
+        ),
+      ),
+    );
+
+    final executor = InAppCockpitCommandExecutor(
+      registry: registry,
+      platform: 'android',
+      gestureHandler: (action) async {
+        actions.add(action);
+      },
+    );
+    final result = await executor.execute(
+      CockpitCommand(
+        commandId: 'cmd-save',
+        commandType: CockpitCommandType.tap,
+        locator: const CockpitLocator(text: 'Save task'),
+        parameters: const <String, Object?>{'activation': 'gesture'},
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(actions.single.pointerDeviceKind, PointerDeviceKind.touch);
+  });
+
+  test('tap gesture activation honors explicit deviceKind', () async {
+    final registry = CockpitTargetRegistry(routeName: '/editor');
+    final actions = <CockpitGestureAction>[];
+
+    registry.register(
+      CockpitTarget(
+        registrationId: 'save-task',
+        text: 'Save task',
+        routeName: '/editor',
+        supportedCommands: const {CockpitCommandType.tap},
+        geometryProvider: () => const CockpitTargetGeometry(
+          left: 20,
+          top: 720,
+          width: 220,
+          height: 48,
+          viewportLeft: 0,
+          viewportTop: 0,
+          viewportWidth: 430,
+          viewportHeight: 800,
+          viewId: 1,
+        ),
+      ),
+    );
+
+    final executor = InAppCockpitCommandExecutor(
+      registry: registry,
+      platform: 'macos',
+      gestureHandler: (action) async {
+        actions.add(action);
+      },
+    );
+    final result = await executor.execute(
+      CockpitCommand(
+        commandId: 'cmd-save',
+        commandType: CockpitCommandType.tap,
+        locator: const CockpitLocator(text: 'Save task'),
+        parameters: const <String, Object?>{
+          'activation': 'gesture',
+          'deviceKind': 'touch',
+        },
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(actions.single.pointerDeviceKind, PointerDeviceKind.touch);
+  });
 
   test('longPress requires a locator', () async {
     final executor = InAppCockpitCommandExecutor(

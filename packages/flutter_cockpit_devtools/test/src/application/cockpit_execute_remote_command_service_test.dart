@@ -334,6 +334,10 @@ void main() {
           CockpitCapturePolicy.afterAction,
         );
         expect(capturedCommand?.timeoutMs, greaterThan(30000));
+        expect(
+          cockpitRemoteCommandTransportTimeoutForCommand(capturedCommand!),
+          greaterThan(const Duration(seconds: 45)),
+        );
       },
     );
 
