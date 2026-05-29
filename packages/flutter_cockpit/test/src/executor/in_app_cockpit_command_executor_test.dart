@@ -3432,6 +3432,131 @@ void main() {
     },
   );
 
+  testWidgets(
+    'scrollUntilVisible reaches a bottom text target using stable scrollable signals',
+    (tester) async {
+      final registry = CockpitTargetRegistry(routeName: '/audit');
+
+      await tester.pumpWidget(
+        WidgetsApp(
+          color: const Color(0xFFFFFFFF),
+          builder: (context, child) {
+            return SizedBox(
+              width: 390,
+              height: 520,
+              child: CockpitSurface(
+                routeName: '/audit',
+                registry: registry,
+                child: Material(
+                  child: Directionality(
+                    textDirection: TextDirection.ltr,
+                    child: ListView(
+                      padding: const EdgeInsets.fromLTRB(20, 18, 20, 120),
+                      children: <Widget>[
+                        const SizedBox(
+                          height: 760,
+                          child: Text(
+                            'Top content with enough height to keep the '
+                            'primary action off screen before scrolling.',
+                          ),
+                        ),
+                        const Text('ACTIONS'),
+                        const SizedBox(height: 10),
+                        const Text('Review actions'),
+                        const SizedBox(height: 18),
+                        Row(
+                          children: <Widget>[
+                            Expanded(
+                              child: FilledButton.tonal(
+                                onPressed: () {},
+                                child: const Text('Submit audit'),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: FilledButton.tonal(
+                                onPressed: () {},
+                                child: const Text('Archive audit'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final surfaceState = tester.state<CockpitSurfaceState>(
+        find.byType(CockpitSurface),
+      );
+      final executor = InAppCockpitCommandExecutor(
+        registry: registry,
+        snapshotProvider: surfaceState.snapshot,
+        postActionSettler: () async {
+          await tester.pump();
+          await tester.pump();
+        },
+        scrollStepHandler:
+            ({
+              required reverse,
+              required viewportFraction,
+              scrollableKey,
+              targetLocator,
+              scrollableLocator,
+              required duration,
+              required gestureProfile,
+              required continuous,
+              required postScrollEnsureVisible,
+            }) {
+              return surfaceState.scrollByViewport(
+                reverse: reverse,
+                viewportFraction: viewportFraction,
+                scrollableKey: scrollableKey,
+                targetLocator: targetLocator,
+                scrollableLocator: scrollableLocator,
+                duration: duration,
+                gestureProfile: gestureProfile,
+                continuous: continuous,
+                postScrollEnsureVisible: postScrollEnsureVisible,
+              );
+            },
+      );
+
+      final result = await executor.execute(
+        CockpitCommand(
+          commandId: 'scroll-submit-audit',
+          commandType: CockpitCommandType.scrollUntilVisible,
+          locator: const CockpitLocator(
+            text: 'Submit audit',
+            route: '/audit',
+            ancestor: CockpitLocator(route: '/audit'),
+          ),
+          parameters: const <String, Object?>{
+            'maxScrolls': 10,
+            'viewportFraction': 0.82,
+            'continuous': true,
+            'durationPerStepMs': 220,
+            'revealAlignment': 'center',
+            'scrollableLocator': <String, Object?>{
+              'type': 'ListView',
+              'route': '/audit',
+            },
+          },
+        ),
+      );
+
+      expect(result.success, isTrue, reason: result.error?.toJson().toString());
+      expect(result.locatorResolution?.matchedKind, CockpitLocatorKind.text);
+      expect(result.locatorResolution?.matchedValue, 'Submit audit');
+    },
+  );
+
   testWidgets('scrollUntilVisible applies visual pacing between scroll steps', (
     tester,
   ) async {

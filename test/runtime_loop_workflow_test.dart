@@ -96,6 +96,23 @@ void main() {
     expect(workflow, isNot(contains('platform["batchCommandCount"] == 4')));
   });
 
+  test('windows runtime loop uploads real supervisor logs on failure', () {
+    final workflow = workflowFile.readAsStringSync();
+    final windowsBlock = _workflowJobBlock(workflow, 'windows-runtime-loop');
+
+    expect(windowsBlock, contains('SUPERVISOR_LOG_DIR='));
+    expect(windowsBlock, contains(r'${RUNNER_TEMP//\\//}'));
+    expect(windowsBlock, contains(r'${TEMP//\\//}'));
+    expect(windowsBlock, contains(r'${TMP//\\//}'));
+    expect(windowsBlock, contains(r'${LOCALAPPDATA//\\//}/Temp'));
+    expect(
+      windowsBlock,
+      contains('flutter_cockpit_development_supervisor_*.log'),
+    );
+    expect(windowsBlock, contains(r'cp {} "$SUPERVISOR_LOG_DIR/"'));
+    expect(windowsBlock, contains(r'${{ env.SUPERVISOR_LOG_DIR }}'));
+  });
+
   test('runtime loop command assertions track full verifier output', () {
     final workflow = workflowFile.readAsStringSync();
     final fullExpectedCommands = <String>[

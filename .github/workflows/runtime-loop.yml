@@ -1079,6 +1079,7 @@ jobs:
           OUTPUT_ROOT_POSIX="${OUTPUT_ROOT//\\//}"
           RESULT_JSON_POSIX="${RESULT_JSON//\\//}"
           LOG_PATH_POSIX="${LOG_PATH//\\//}"
+          SUPERVISOR_LOG_DIR="$OUTPUT_ROOT_POSIX/windows-supervisor-logs"
           echo "OUTPUT_ROOT=$OUTPUT_ROOT" >> "$GITHUB_ENV"
           echo "RESULT_JSON=$RESULT_JSON" >> "$GITHUB_ENV"
           echo "LOG_PATH=$LOG_PATH" >> "$GITHUB_ENV"
@@ -1086,6 +1087,7 @@ jobs:
           echo "OUTPUT_ROOT_POSIX=$OUTPUT_ROOT_POSIX" >> "$GITHUB_ENV"
           echo "RESULT_JSON_POSIX=$RESULT_JSON_POSIX" >> "$GITHUB_ENV"
           echo "LOG_PATH_POSIX=$LOG_PATH_POSIX" >> "$GITHUB_ENV"
+          echo "SUPERVISOR_LOG_DIR=$SUPERVISOR_LOG_DIR" >> "$GITHUB_ENV"
 
       - name: Run Windows full verifier
         timeout-minutes: 45
@@ -1111,7 +1113,15 @@ jobs:
           echo "Windows app build outputs:"
           find "$PROJECT_DIR/build/windows" -maxdepth 6 -type f \( -iname "*.exe" -o -iname "*.dll" \) 2>/dev/null | sort | head -80 || true
           echo "Windows supervisor logs:"
-          find "${TEMP//\\//}" -maxdepth 1 -type f -name "flutter_cockpit_development_supervisor_*.log" -print -exec tail -n 120 {} \; 2>/dev/null || true
+          mkdir -p "$SUPERVISOR_LOG_DIR"
+          for candidate in "${RUNNER_TEMP//\\//}" "${TEMP//\\//}" "${TMP//\\//}" "${LOCALAPPDATA//\\//}/Temp"; do
+            [ -n "$candidate" ] || continue
+            [ -d "$candidate" ] || continue
+            find "$candidate" -maxdepth 1 -type f -name "flutter_cockpit_development_supervisor_*.log" \
+              -print \
+              -exec cp {} "$SUPERVISOR_LOG_DIR/" \; \
+              -exec tail -n 120 {} \; 2>/dev/null || true
+          done
 
       - name: Verify Windows runtime loop result
         env:
@@ -1179,3 +1189,4 @@ jobs:
             ${{ env.OUTPUT_ROOT }}
             ${{ env.RESULT_JSON }}
             ${{ env.LOG_PATH }}
+            ${{ env.SUPERVISOR_LOG_DIR }}

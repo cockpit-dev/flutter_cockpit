@@ -548,7 +548,6 @@ final class _McpSurfaceVerifier {
               'revealAlignment': 'center',
               'scrollableLocator': <String, Object?>{
                 'type': 'ListView',
-                'path': 'scaffold.body/list_view.slivers/0',
                 'route': '/settings',
               },
             },
@@ -622,7 +621,6 @@ final class _McpSurfaceVerifier {
               'revealAlignment': 'center',
               'scrollableLocator': <String, Object?>{
                 'type': 'ListView',
-                'path': 'scaffold.body/list_view.slivers/0',
                 'route': '/settings',
               },
             },

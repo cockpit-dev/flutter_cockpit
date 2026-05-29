@@ -709,10 +709,11 @@ final class CockpitDemoPlatformVerifier {
           failFast: true,
         ),
       );
-      _requireBatchSuccess(
+      await _requireBatchSuccess(
         platform: platform,
         result: batchResult,
         expectedCount: 9,
+        outputDir: outputDir,
       );
       autoScreenshotCount += _autoScreenshotCount(batchResult);
       exportedScreenshotCount += await _exportScreenshotArtifacts(
@@ -832,10 +833,11 @@ final class CockpitDemoPlatformVerifier {
           failFast: true,
         ),
       );
-      _requireBatchSuccess(
+      await _requireBatchSuccess(
         platform: platform,
         result: syncLabConflictBatchResult,
         expectedCount: 5,
+        outputDir: outputDir,
       );
       autoScreenshotCount += _autoScreenshotCount(syncLabConflictBatchResult);
       exportedScreenshotCount += await _exportScreenshotArtifacts(
@@ -880,10 +882,11 @@ final class CockpitDemoPlatformVerifier {
           failFast: true,
         ),
       );
-      _requireBatchSuccess(
+      await _requireBatchSuccess(
         platform: platform,
         result: syncLabOpenConflictBatchResult,
         expectedCount: 6,
+        outputDir: outputDir,
       );
       autoScreenshotCount += _autoScreenshotCount(
         syncLabOpenConflictBatchResult,
@@ -951,10 +954,11 @@ final class CockpitDemoPlatformVerifier {
           failFast: true,
         ),
       );
-      _requireBatchSuccess(
+      await _requireBatchSuccess(
         platform: platform,
         result: syncRecoveryBatchResult,
         expectedCount: 7,
+        outputDir: outputDir,
       );
       autoScreenshotCount += _autoScreenshotCount(syncRecoveryBatchResult);
       exportedScreenshotCount += await _exportScreenshotArtifacts(
@@ -972,10 +976,11 @@ final class CockpitDemoPlatformVerifier {
           failFast: true,
         ),
       );
-      _requireBatchSuccess(
+      await _requireBatchSuccess(
         platform: platform,
         result: syncRecoveryVerificationBatchResult,
         expectedCount: 5,
+        outputDir: outputDir,
       );
       autoScreenshotCount += _autoScreenshotCount(
         syncRecoveryVerificationBatchResult,
@@ -1317,6 +1322,7 @@ final class CockpitDemoPlatformVerifier {
         failureDetails: await _failureDetailsWithDiagnostics(
           serviceError?.details,
           app: app,
+          errorMessage: '$error',
         ),
       );
     } finally {
@@ -1460,11 +1466,12 @@ final class CockpitDemoPlatformVerifier {
     );
   }
 
-  void _requireBatchSuccess({
+  Future<void> _requireBatchSuccess({
     required String platform,
     required CockpitRunBatchResult result,
     required int expectedCount,
-  }) {
+    required String outputDir,
+  }) async {
     if (result.summary.failureCount == 0 &&
         !result.summary.stoppedEarly &&
         result.summary.totalCount == expectedCount &&
@@ -1488,6 +1495,11 @@ final class CockpitDemoPlatformVerifier {
         },
       ),
     );
+    await _preserveFailureScreenshotArtifacts(
+      platform: platform,
+      results: result.results,
+      outputDir: outputDir,
+    );
     throw CockpitApplicationServiceException(
       code: 'exampleBatchFailed',
       message: 'A required example batch command failed.',
@@ -1501,6 +1513,29 @@ final class CockpitDemoPlatformVerifier {
         completedResults: result.results,
       ),
     );
+  }
+
+  Future<void> _preserveFailureScreenshotArtifacts({
+    required String platform,
+    required List<CockpitExecuteRemoteCommandResult> results,
+    required String outputDir,
+  }) async {
+    for (final result in results) {
+      for (final artifact in result.artifacts) {
+        if (artifact.role != 'screenshot') {
+          continue;
+        }
+        try {
+          await _exportScreenshotArtifact(
+            platform: platform,
+            artifact: artifact,
+            outputDir: outputDir,
+          );
+        } on Object {
+          // Preserve the original verifier failure; diagnostic export is best effort.
+        }
+      }
+    }
   }
 
   List<CockpitRunBatchCommand> _batchCommandsFromJson(
@@ -2141,6 +2176,7 @@ final class CockpitDemoPlatformVerifier {
   Future<Map<String, Object?>> _failureDetailsWithDiagnostics(
     Map<String, Object?>? details, {
     CockpitAppHandle? app,
+    String? errorMessage,
   }) async {
     final merged = <String, Object?>{...?details};
     final appLogPath = app?.supervisorLogPath;
@@ -2148,6 +2184,12 @@ final class CockpitDemoPlatformVerifier {
         appLogPath.isNotEmpty &&
         merged['supervisorLogPath'] is! String) {
       merged['supervisorLogPath'] = appLogPath;
+    }
+    final messageLogPath = _extractSupervisorLogPath(errorMessage);
+    if (messageLogPath != null &&
+        messageLogPath.isNotEmpty &&
+        merged['supervisorLogPath'] is! String) {
+      merged['supervisorLogPath'] = messageLogPath;
     }
     final logPath = merged['supervisorLogPath'];
     if (logPath is String && logPath.isNotEmpty) {
@@ -2157,6 +2199,55 @@ final class CockpitDemoPlatformVerifier {
       }
     }
     return merged;
+  }
+
+  String? _extractSupervisorLogPath(String? message) {
+    if (message == null || message.isEmpty) {
+      return null;
+    }
+    final marker = 'supervisorLogPath:';
+    final markerIndex = message.indexOf(marker);
+    if (markerIndex < 0) {
+      return null;
+    }
+    final valueStart = markerIndex + marker.length;
+    final rest = message.substring(valueStart).trimLeft();
+    if (rest.isEmpty) {
+      return null;
+    }
+    final delimiters = <String>[
+      ', supervisorLogTail:',
+      ', lastSupervisorStatus:',
+      '}',
+      '\n',
+      '\r',
+    ];
+    var valueEnd = rest.length;
+    for (final delimiter in delimiters) {
+      final delimiterIndex = rest.indexOf(delimiter);
+      if (delimiterIndex >= 0 && delimiterIndex < valueEnd) {
+        valueEnd = delimiterIndex;
+      }
+    }
+    final extracted = _trimWrappingQuotes(rest.substring(0, valueEnd).trim());
+    return extracted.isEmpty ? null : extracted;
+  }
+
+  String _trimWrappingQuotes(String value) {
+    var trimmed = value;
+    while (trimmed.isNotEmpty &&
+        (trimmed.startsWith('`') ||
+            trimmed.startsWith('"') ||
+            trimmed.startsWith("'"))) {
+      trimmed = trimmed.substring(1).trimLeft();
+    }
+    while (trimmed.isNotEmpty &&
+        (trimmed.endsWith('`') ||
+            trimmed.endsWith('"') ||
+            trimmed.endsWith("'"))) {
+      trimmed = trimmed.substring(0, trimmed.length - 1).trimRight();
+    }
+    return trimmed;
   }
 
   Future<String?> _readTextTail(String path, {required int maxLines}) async {
