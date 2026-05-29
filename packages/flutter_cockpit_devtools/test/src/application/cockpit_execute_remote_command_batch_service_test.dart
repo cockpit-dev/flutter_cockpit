@@ -1,6 +1,7 @@
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_execute_remote_command_batch_service.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_interactive_result_profile.dart';
+import 'package:flutter_cockpit_devtools/src/remote/cockpit_remote_command_timeout_budget.dart';
 import 'package:flutter_cockpit_devtools/src/session/cockpit_remote_session_handle.dart';
 import 'package:test/test.dart';
 
@@ -250,6 +251,63 @@ void main() {
         expect(capturedCommands[2].screenshotRequest, isNull);
       },
     );
+
+    test('budgets complex AI-evidence scrolling inside batches', () async {
+      CockpitCommand? capturedCommand;
+      final service = CockpitExecuteRemoteCommandBatchService(
+        executeCommand: (_, command) async {
+          capturedCommand = command;
+          return CockpitCommandExecution(
+            result: CockpitCommandResult(
+              success: true,
+              commandId: command.commandId,
+              commandType: command.commandType,
+              durationMs: 40,
+            ),
+          );
+        },
+      );
+
+      await service.execute(
+        CockpitExecuteRemoteCommandBatchRequest(
+          sessionHandle: _sessionHandle(),
+          defaultResultProfile: const CockpitInteractiveResultProfile.minimal(),
+          commands: <CockpitInteractiveBatchCommand>[
+            CockpitInteractiveBatchCommand(
+              command: CockpitCommand(
+                commandId: 'verify-scroll-run-queued-sync',
+                commandType: CockpitCommandType.scrollUntilVisible,
+                locator: CockpitLocator(
+                  text: 'Run queued sync',
+                  route: '/settings',
+                  ancestor: CockpitLocator(route: '/settings'),
+                ),
+                parameters: <String, Object?>{
+                  'maxScrolls': 10,
+                  'viewportFraction': 0.82,
+                  'continuous': true,
+                  'durationPerStepMs': 220,
+                  'revealAlignment': 'center',
+                  'scrollableLocator': <String, Object?>{
+                    'type': 'ListView',
+                    'path': 'scaffold.body/list_view.slivers/0',
+                    'route': '/settings',
+                  },
+                },
+              ),
+            ),
+          ],
+        ),
+      );
+
+      expect(capturedCommand, isNotNull);
+      expect(capturedCommand!.capturePolicy, CockpitCapturePolicy.afterAction);
+      expect(capturedCommand!.timeoutMs, greaterThan(30000));
+      expect(
+        cockpitRemoteCommandTransportTimeoutForCommand(capturedCommand!),
+        greaterThan(const Duration(seconds: 45)),
+      );
+    });
 
     test('preserves explicit capture policy and screenshot requests', () async {
       final capturedCommands = <CockpitCommand>[];

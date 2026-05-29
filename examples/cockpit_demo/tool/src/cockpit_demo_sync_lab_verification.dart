@@ -246,9 +246,11 @@ List<Map<String, Object?>> buildSyncLabRecoverySyncBatch() {
       },
       'parameters': _routeChangeParameters('/settings'),
     },
-    _scrollRunQueuedSyncCommand(),
+    _scrollRunQueuedSyncCommand(
+      commandId: 'verify-scroll-run-queued-sync-after-recovery',
+    ),
     <String, Object?>{
-      'commandId': 'verify-run-queued-sync',
+      'commandId': 'verify-run-queued-sync-after-recovery',
       'commandType': 'tap',
       'locator': <String, Object?>{
         'text': 'Run queued sync',
@@ -398,9 +400,11 @@ String _syncLabVerifierWhereClause() {
   return "title like '$escapedPrefix%' and notes = '$escapedNotes'";
 }
 
-Map<String, Object?> _scrollRunQueuedSyncCommand() {
+Map<String, Object?> _scrollRunQueuedSyncCommand({
+  String commandId = 'verify-scroll-run-queued-sync',
+}) {
   return <String, Object?>{
-    'commandId': 'verify-scroll-run-queued-sync',
+    'commandId': commandId,
     'commandType': 'scrollUntilVisible',
     'locator': <String, Object?>{
       'text': 'Run queued sync',

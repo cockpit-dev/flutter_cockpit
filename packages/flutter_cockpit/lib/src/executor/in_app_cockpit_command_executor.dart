@@ -3902,7 +3902,7 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
   }) {
     final rawValue = command.parameters['deviceKind'];
     if (rawValue == null) {
-      return PointerDeviceKind.touch;
+      return _defaultPointerDeviceKindForPlatform();
     }
     final value = switch (rawValue) {
       PointerDeviceKind() => rawValue,
@@ -3926,6 +3926,22 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
       );
     }
     return value;
+  }
+
+  PointerDeviceKind _defaultPointerDeviceKindForPlatform() {
+    final normalized = _platform.toLowerCase().replaceAll(
+      RegExp(r'[^a-z0-9]+'),
+      '',
+    );
+    return switch (normalized) {
+      'macos' ||
+      'darwin' ||
+      'windows' ||
+      'linux' ||
+      'web' ||
+      'chrome' => PointerDeviceKind.mouse,
+      _ => PointerDeviceKind.touch,
+    };
   }
 
   int _buttonsParameter(CockpitCommand command) {
