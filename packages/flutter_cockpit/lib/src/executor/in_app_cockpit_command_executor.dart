@@ -301,6 +301,7 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
     required int timeoutMs,
   }) {
     final snapshot = _liveSnapshot();
+    final expectedRouteName = _expectedRouteName(command);
     return _failureExecution(
       command: command,
       durationMs: durationMs,
@@ -312,6 +313,7 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
           'commandId': command.commandId,
           'commandType': command.commandType.name,
           'timeoutMs': timeoutMs,
+          'expectedRouteName': ?expectedRouteName,
           'routeName': snapshot.routeName,
           'visibleTargetCount': _registry.visibleTargets.length,
           'routeReadyVisibleTargetCount':
@@ -377,7 +379,7 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
     CockpitCommand command,
     Stopwatch stopwatch,
   ) async {
-    final previousRouteName = _currentRouteName();
+    var previousRouteName = _currentRouteName();
     final coordinateOrigin = _pointParameter(command);
     if (command.locator == null && coordinateOrigin != null) {
       return _executeResolvedGesture(
@@ -403,6 +405,13 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
     }
 
     final target = resolution.target!;
+    if (previousRouteName == null || previousRouteName.isEmpty) {
+      previousRouteName = _currentRouteName();
+    }
+    if ((previousRouteName == null || previousRouteName.isEmpty) &&
+        target.routeName.isNotEmpty) {
+      previousRouteName = target.routeName;
+    }
     late final _TapActivation activation;
     try {
       activation = _tapActivationParameter(command);
@@ -585,11 +594,13 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
     required _TapActivation activation,
     required String? previousRouteName,
   }) {
+    final currentRouteName = _currentRouteName();
     return activation == _TapActivation.auto &&
         _gestureHandler != null &&
         _expectedRouteName(command) != null &&
-        previousRouteName != null &&
-        _currentRouteName() == previousRouteName;
+        (previousRouteName == null ||
+            currentRouteName == null ||
+            currentRouteName == previousRouteName);
   }
 
   Future<CockpitCommandExecution?> _tryAutoGestureFallback({
@@ -3412,9 +3423,12 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
   }
 
   Duration _actionExpectationTimeout(CockpitCommand command) {
-    final explicitTimeoutMs = command.timeoutMs;
-    if (explicitTimeoutMs != null) {
-      return Duration(milliseconds: explicitTimeoutMs);
+    final explicitRouteTimeoutMs =
+        _intParameter(command, 'routeTimeoutMs') ??
+        _intParameter(command, 'expectedRouteTimeoutMs') ??
+        _intParameter(command, 'actionExpectationTimeoutMs');
+    if (explicitRouteTimeoutMs != null && explicitRouteTimeoutMs > 0) {
+      return Duration(milliseconds: explicitRouteTimeoutMs);
     }
     return _interactionPolicy.actionCommitTimeout;
   }

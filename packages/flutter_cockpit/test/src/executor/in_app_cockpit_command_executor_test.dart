@@ -1303,6 +1303,90 @@ void main() {
   });
 
   test(
+    'tap route expectation timeout stays separate from hard timeout',
+    () async {
+      final registry = CockpitTargetRegistry(routeName: '/inbox');
+
+      registry.register(
+        CockpitTarget(
+          registrationId: 'open-editor',
+          text: 'New task',
+          routeName: '/inbox',
+          supportedCommands: const {CockpitCommandType.tap},
+          onTap: () {},
+        ),
+      );
+
+      final executor = InAppCockpitCommandExecutor(
+        registry: registry,
+        interactionPolicy: const CockpitInteractionPolicy(
+          actionCommitTimeout: Duration(milliseconds: 40),
+          routeTransitionVisualDelay: Duration.zero,
+        ),
+      );
+
+      final result = await executor.execute(
+        CockpitCommand(
+          commandId: 'open-editor',
+          commandType: CockpitCommandType.tap,
+          timeoutMs: 30000,
+          locator: const CockpitLocator(text: 'New task', route: '/inbox'),
+          parameters: const <String, Object?>{'expectedRouteName': '/editor'},
+        ),
+      );
+
+      expect(result.success, isFalse);
+      expect(
+        result.error?.message,
+        'Timed out waiting for route "/editor" after tap.',
+      );
+      expect(result.error?.details, containsPair('timeoutMs', 40));
+      expect(
+        result.error?.details,
+        containsPair('expectedRouteName', '/editor'),
+      );
+    },
+  );
+
+  test('tap route expectation accepts explicit routeTimeoutMs', () async {
+    final registry = CockpitTargetRegistry(routeName: '/inbox');
+
+    registry.register(
+      CockpitTarget(
+        registrationId: 'open-editor',
+        text: 'New task',
+        routeName: '/inbox',
+        supportedCommands: const {CockpitCommandType.tap},
+        onTap: () {},
+      ),
+    );
+
+    final executor = InAppCockpitCommandExecutor(
+      registry: registry,
+      interactionPolicy: const CockpitInteractionPolicy(
+        actionCommitTimeout: Duration(milliseconds: 40),
+        routeTransitionVisualDelay: Duration.zero,
+      ),
+    );
+
+    final result = await executor.execute(
+      CockpitCommand(
+        commandId: 'open-editor',
+        commandType: CockpitCommandType.tap,
+        timeoutMs: 30000,
+        locator: const CockpitLocator(text: 'New task', route: '/inbox'),
+        parameters: const <String, Object?>{
+          'expectedRouteName': '/editor',
+          'routeTimeoutMs': 80,
+        },
+      ),
+    );
+
+    expect(result.success, isFalse);
+    expect(result.error?.details, containsPair('timeoutMs', 80));
+  });
+
+  test(
     'tap can opt into gesture activation when pointer semantics matter',
     () async {
       final registry = CockpitTargetRegistry(routeName: '/editor');
@@ -2517,6 +2601,7 @@ void main() {
         CockpitCommand(
           commandId: 'open-settings',
           commandType: CockpitCommandType.tap,
+          timeoutMs: 30000,
           locator: const CockpitLocator(tooltip: 'Settings', route: '/inbox'),
           parameters: const <String, Object?>{'expectedRouteName': '/settings'},
         ),

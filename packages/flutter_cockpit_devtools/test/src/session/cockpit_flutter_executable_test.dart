@@ -7,7 +7,7 @@ void main() {
   test('flutter executable resolves by host platform', () {
     expect(cockpitFlutterExecutable(isWindows: true), 'flutter.bat');
     expect(cockpitFlutterExecutable(isWindows: false), 'flutter');
-    expect(cockpitDartExecutable(isWindows: true), 'dart.bat');
+    expect(cockpitDartExecutable(isWindows: true), 'dart.exe');
     expect(cockpitDartExecutable(isWindows: false), 'dart');
   });
 
@@ -81,6 +81,17 @@ void main() {
       resolved,
       Platform.isWindows ? r'C:\sdk\bin\dart.bat' : '/opt/sdk/bin/dart',
     );
+  });
+
+  test('dart executable resolver accepts native Windows dart.exe', () async {
+    final resolved = await cockpitResolveActiveDartExecutable(
+      isWindows: true,
+      currentExecutable: r'C:\sdk\bin\dart.exe',
+      processRunner: (_, _) async =>
+          throw StateError('lookup should not be used for dart.exe'),
+    );
+
+    expect(resolved, r'C:\sdk\bin\dart.exe');
   });
 
   test(
