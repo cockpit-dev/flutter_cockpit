@@ -47,6 +47,7 @@ List<Map<String, Object?>> buildSyncLabCreateTaskBatch({
           },
         ],
       },
+      'parameters': <String, Object?>{'expectedRouteName': '/editor'},
     },
     _waitForRouteCommand(
       commandId: 'verify-wait-for-editor-route',
@@ -123,6 +124,7 @@ List<Map<String, Object?>> buildSyncLabConflictSyncBatch() {
         'tooltip': 'Settings',
         'ancestor': <String, Object?>{'route': '/inbox'},
       },
+      'parameters': <String, Object?>{'expectedRouteName': '/settings'},
     },
     _scrollRunQueuedSyncCommand(),
     <String, Object?>{

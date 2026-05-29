@@ -284,6 +284,60 @@ void main() {
     );
 
     test(
+      'budgets complex AI-evidence scrolling beyond the default request timeout',
+      () async {
+        CockpitCommand? capturedCommand;
+        final service = CockpitExecuteRemoteCommandService(
+          executeCommand: (_, command) async {
+            capturedCommand = command;
+            return CockpitCommandExecution(
+              result: CockpitCommandResult(
+                success: true,
+                commandId: command.commandId,
+                commandType: command.commandType,
+                durationMs: 50,
+              ),
+            );
+          },
+        );
+
+        await service.execute(
+          CockpitExecuteRemoteCommandRequest(
+            sessionHandle: _sessionHandle(),
+            command: CockpitCommand(
+              commandId: 'verify-scroll-run-queued-sync',
+              commandType: CockpitCommandType.scrollUntilVisible,
+              locator: const CockpitLocator(
+                text: 'Run queued sync',
+                route: '/settings',
+                ancestor: CockpitLocator(route: '/settings'),
+              ),
+              parameters: const <String, Object?>{
+                'maxScrolls': 10,
+                'viewportFraction': 0.82,
+                'continuous': true,
+                'durationPerStepMs': 220,
+                'revealAlignment': 'center',
+                'scrollableLocator': <String, Object?>{
+                  'type': 'ListView',
+                  'path': 'scaffold.body/list_view.slivers/0',
+                  'route': '/settings',
+                },
+              },
+            ),
+            resultProfile: const CockpitInteractiveResultProfile.minimal(),
+          ),
+        );
+
+        expect(
+          capturedCommand?.capturePolicy,
+          CockpitCapturePolicy.afterAction,
+        );
+        expect(capturedCommand?.timeoutMs, greaterThan(30000));
+      },
+    );
+
+    test(
       'remote command transport timeout leaves headroom for AI evidence',
       () async {
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);

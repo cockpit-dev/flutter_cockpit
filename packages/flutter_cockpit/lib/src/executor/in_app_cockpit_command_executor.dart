@@ -420,7 +420,8 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
         ),
       );
     }
-    if (activation == _TapActivation.gesture) {
+    if (activation == _TapActivation.gesture ||
+        activation == _TapActivation.auto) {
       final gestureResult = await _executeGestureAction(
         command: command,
         stopwatch: stopwatch,
@@ -436,16 +437,20 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
       if (gestureResult != null) {
         return gestureResult;
       }
-      return _failureExecution(
-        command: command,
-        durationMs: stopwatch.elapsedMilliseconds,
-        locatorResolution: resolution.locatorResolution,
-        error: CockpitCommandError.unsupportedCapability(
-          message:
-              'Gesture activation is not available for this executor. Use the default activation or provide a gesture handler.',
-          details: <String, Object?>{'activation': activation.name},
-        ),
-      );
+      if (activation == _TapActivation.auto) {
+        // Fall back to framework callbacks when no gesture engine is installed.
+      } else {
+        return _failureExecution(
+          command: command,
+          durationMs: stopwatch.elapsedMilliseconds,
+          locatorResolution: resolution.locatorResolution,
+          error: CockpitCommandError.unsupportedCapability(
+            message:
+                'Gesture activation is not available for this executor. Use the default activation or provide a gesture handler.',
+            details: <String, Object?>{'activation': activation.name},
+          ),
+        );
+      }
     }
     if (activation != _TapActivation.semantic &&
         target.supportedCommands.contains(CockpitCommandType.tap) &&
@@ -467,6 +472,15 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
         commandType: CockpitCommandType.tap,
         routeAlreadyCommitted: commit.routeCommitted,
       );
+      final routeExpectationFailure = await _validateExpectedRouteAfterAction(
+        command: command,
+        commandType: CockpitCommandType.tap,
+        durationMs: stopwatch.elapsedMilliseconds,
+        resolution: resolution,
+      );
+      if (routeExpectationFailure != null) {
+        return routeExpectationFailure;
+      }
 
       return _buildSuccessWithOptionalCapture(
         command: command,
@@ -495,6 +509,15 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
         commandType: CockpitCommandType.tap,
         routeAlreadyCommitted: commit.routeCommitted,
       );
+      final routeExpectationFailure = await _validateExpectedRouteAfterAction(
+        command: command,
+        commandType: CockpitCommandType.tap,
+        durationMs: stopwatch.elapsedMilliseconds,
+        resolution: resolution,
+      );
+      if (routeExpectationFailure != null) {
+        return routeExpectationFailure;
+      }
       return _buildSuccessWithOptionalCapture(
         command: command,
         resolution: resolution,
@@ -2537,6 +2560,15 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
       previousRouteName,
       commandType: command.commandType,
     );
+    final routeExpectationFailure = await _validateExpectedRouteAfterAction(
+      command: command,
+      commandType: command.commandType,
+      durationMs: stopwatch.elapsedMilliseconds,
+      resolution: resolution,
+    );
+    if (routeExpectationFailure != null) {
+      return routeExpectationFailure;
+    }
     return _buildSuccessWithOptionalCapture(
       command: command,
       resolution: resolution,
@@ -3244,6 +3276,62 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
     return _ActionCommitOutcome.timedOut;
   }
 
+  Future<CockpitCommandExecution?> _validateExpectedRouteAfterAction({
+    required CockpitCommand command,
+    required CockpitCommandType commandType,
+    required int durationMs,
+    CockpitTargetResolutionResult? resolution,
+  }) async {
+    final routeName = _expectedRouteName(command);
+    if (routeName == null) {
+      return null;
+    }
+    final minVisibleTargets = _minVisibleTargetsForWait(command);
+    final reached = await _waitForExpectedRouteTargets(
+      routeName,
+      minVisibleTargets: minVisibleTargets,
+      timeout: _actionExpectationTimeout(command),
+    );
+    if (reached) {
+      return null;
+    }
+    final snapshot = _liveSnapshot();
+    return _failureExecution(
+      command: command,
+      durationMs: durationMs,
+      locatorResolution: resolution?.locatorResolution,
+      snapshot: snapshot.toJson(),
+      error: CockpitCommandError.timeout(
+        message:
+            'Timed out waiting for route "$routeName" after ${commandType.name}.',
+        details: <String, Object?>{
+          'commandType': commandType.name,
+          'expectedRouteName': routeName,
+          'routeName': snapshot.routeName,
+          'minVisibleTargets': minVisibleTargets,
+          'routeReadyVisibleTargetCount':
+              _registry.routeReadyVisibleTargets.length,
+          'visibleTargetCount': _registry.visibleTargets.length,
+          'timeoutMs': _actionExpectationTimeout(command).inMilliseconds,
+          'visibleTextCandidates': _visibleTextCandidates(
+            _registry.visibleTargets,
+          ),
+          'targetDiscoveryDiagnostics': _registry.routeDiagnostics(
+            hintLimit: 6,
+          ),
+        },
+      ),
+    );
+  }
+
+  Duration _actionExpectationTimeout(CockpitCommand command) {
+    final explicitTimeoutMs = command.timeoutMs;
+    if (explicitTimeoutMs != null) {
+      return Duration(milliseconds: explicitTimeoutMs);
+    }
+    return _interactionPolicy.actionCommitTimeout;
+  }
+
   String _actionCommitFingerprint() {
     final targets =
         _registry.registeredTargets
@@ -3386,7 +3474,10 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
 
   String? _expectedRouteName(CockpitCommand command) {
     final value =
-        command.parameters['routeName'] ?? command.parameters['route'];
+        command.parameters['expectedRouteName'] ??
+        command.parameters['expectedRoute'] ??
+        command.parameters['routeName'] ??
+        command.parameters['route'];
     if (value is String && value.isNotEmpty) {
       return value;
     }
@@ -3418,6 +3509,52 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
   bool _hasEnoughVisibleTargets(int minVisibleTargets) {
     return minVisibleTargets <= 0 ||
         _registry.routeReadyVisibleTargets.length >= minVisibleTargets;
+  }
+
+  Future<bool> _waitForExpectedRouteTargets(
+    String routeName, {
+    required int minVisibleTargets,
+    required Duration timeout,
+  }) async {
+    if (_currentRouteName() == routeName &&
+        _hasEnoughVisibleTargets(minVisibleTargets)) {
+      return true;
+    }
+    if (timeout <= Duration.zero) {
+      return false;
+    }
+
+    SchedulerBinding schedulerBinding;
+    WidgetsBinding widgetsBinding;
+    try {
+      schedulerBinding = SchedulerBinding.instance;
+      widgetsBinding = WidgetsBinding.instance;
+    } on Object {
+      return false;
+    }
+
+    final deadline = DateTime.now().add(timeout);
+    final testBindingWithCustomTick =
+        _isTestBinding(widgetsBinding) && _hasCustomWaitTickHandler;
+    while (DateTime.now().isBefore(deadline)) {
+      await Future<void>.microtask(() {});
+      if (schedulerBinding.schedulerPhase != SchedulerPhase.idle ||
+          schedulerBinding.hasScheduledFrame) {
+        if (testBindingWithCustomTick && schedulerBinding.hasScheduledFrame) {
+          await _waitTickHandler(const Duration(milliseconds: 16));
+        } else {
+          await _awaitFrameIfScheduled(schedulerBinding, widgetsBinding);
+        }
+      }
+      if (_currentRouteName() == routeName &&
+          _hasEnoughVisibleTargets(minVisibleTargets)) {
+        return true;
+      }
+      await _waitTickHandler(const Duration(milliseconds: 16));
+    }
+
+    return _currentRouteName() == routeName &&
+        _hasEnoughVisibleTargets(minVisibleTargets);
   }
 
   Duration _durationParameter(

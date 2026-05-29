@@ -702,6 +702,7 @@ void main() {
       expect(firstBatchCommands[0].locator?.type, 'TextButton');
       expect(firstBatchCommands[0].locator?.route, '/inbox');
       expect(firstBatchCommands[0].locator?.ancestor?.route, '/inbox');
+      expect(firstBatchCommands[0].parameters['expectedRouteName'], '/editor');
       expect(firstBatchCommands[1].commandId, 'verify-wait-for-editor-route');
       expect(firstBatchCommands[1].commandType, CockpitCommandType.waitFor);
       expect(firstBatchCommands[1].parameters['routeName'], '/editor');

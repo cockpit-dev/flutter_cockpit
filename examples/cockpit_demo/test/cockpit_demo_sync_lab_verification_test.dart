@@ -52,6 +52,9 @@ void main() {
         },
       ],
     });
+    expect(commands[0]['parameters'], <String, Object?>{
+      'expectedRouteName': '/editor',
+    });
     expect(commands[1]['commandId'], 'verify-wait-for-editor-route');
     expect(commands[1]['commandType'], 'waitFor');
     expect(commands[1]['timeoutMs'], 12000);
@@ -140,6 +143,9 @@ void main() {
     expect(commands[0]['locator'], <String, Object?>{
       'tooltip': 'Settings',
       'ancestor': <String, Object?>{'route': '/inbox'},
+    });
+    expect(commands[0]['parameters'], <String, Object?>{
+      'expectedRouteName': '/settings',
     });
     expect(commands[1]['commandType'], 'scrollUntilVisible');
     expect(commands[1]['locator'], <String, Object?>{
