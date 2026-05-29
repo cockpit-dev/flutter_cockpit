@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 
@@ -33,6 +34,7 @@ typedef CockpitSupervisorSpawner =
       required int supervisorPort,
       required File supervisorLogFile,
     });
+typedef CockpitSupervisorLogDirectoryReader = String? Function();
 typedef CockpitDelay = Future<void> Function(Duration duration);
 
 final class CockpitLaunchDevelopmentSessionRequest {
@@ -199,6 +201,7 @@ final class CockpitDevelopmentSessionDaemonLauncher {
     required Future<String> Function() flutterExecutableReader,
     Future<String> Function()? dartExecutableReader,
     CockpitSupervisorSpawner? spawnSupervisor,
+    CockpitSupervisorLogDirectoryReader? supervisorLogDirectoryReader,
     Future<int> Function()? allocatePort,
     CockpitDelay? delay,
   }) : _supervisorStatusReader = supervisorStatusReader,
@@ -209,6 +212,8 @@ final class CockpitDevelopmentSessionDaemonLauncher {
        _dartExecutableReader =
            dartExecutableReader ?? cockpitResolveActiveDartExecutable,
        _spawnSupervisor = spawnSupervisor ?? _defaultSpawnSupervisor,
+       _supervisorLogDirectoryReader =
+           supervisorLogDirectoryReader ?? _defaultSupervisorLogDirectory,
        _allocatePort = allocatePort ?? _defaultAllocatePort,
        _delay = delay ?? Future<void>.delayed;
 
@@ -220,6 +225,7 @@ final class CockpitDevelopmentSessionDaemonLauncher {
   final Future<String> Function() _flutterExecutableReader;
   final Future<String> Function() _dartExecutableReader;
   final CockpitSupervisorSpawner _spawnSupervisor;
+  final CockpitSupervisorLogDirectoryReader _supervisorLogDirectoryReader;
   final Future<int> Function() _allocatePort;
   final CockpitDelay _delay;
 
@@ -248,9 +254,13 @@ final class CockpitDevelopmentSessionDaemonLauncher {
 
     while (DateTime.now().isBefore(deadline)) {
       final supervisorPort = await _allocatePort();
+      final supervisorLogDirectory =
+          _supervisorLogDirectoryReader()?.trim() ?? '';
       final supervisorLogFile = File(
         p.join(
-          Directory.systemTemp.path,
+          supervisorLogDirectory.isEmpty
+              ? Directory.systemTemp.path
+              : supervisorLogDirectory,
           'flutter_cockpit_development_supervisor_$supervisorPort.log',
         ),
       );
@@ -391,6 +401,16 @@ final class CockpitDevelopmentSessionDaemonLauncher {
     }
   }
 
+  static String _defaultSupervisorLogDirectory() {
+    final configured = Platform
+        .environment['FLUTTER_COCKPIT_SUPERVISOR_LOG_DIR']
+        ?.trim();
+    if (configured != null && configured.isNotEmpty) {
+      return configured;
+    }
+    return Directory.systemTemp.path;
+  }
+
   static Future<CockpitSpawnedDevelopmentSupervisor> _defaultSpawnSupervisor({
     required CockpitLaunchDevelopmentSessionRequest request,
     required String flutterVersion,
@@ -401,6 +421,7 @@ final class CockpitDevelopmentSessionDaemonLauncher {
     required File supervisorLogFile,
   }) async {
     await supervisorLogFile.parent.create(recursive: true);
+    await supervisorLogFile.create(recursive: true);
     final supervisorEntrypoint = await _resolveSupervisorEntrypoint();
     final process = await Process.start(
       dartExecutable,
@@ -433,8 +454,18 @@ final class CockpitDevelopmentSessionDaemonLauncher {
         request.launchTimeout.inSeconds.toString(),
       ],
       workingDirectory: request.projectDir,
-      mode: ProcessStartMode.detached,
+      mode: ProcessStartMode.detachedWithStdio,
       runInShell: cockpitShouldRunExecutableInShell(dartExecutable),
+    );
+    final stdoutSubscription = _pipeSupervisorBootstrapOutput(
+      process.stdout,
+      supervisorLogFile,
+      label: 'supervisor stdout',
+    );
+    final stderrSubscription = _pipeSupervisorBootstrapOutput(
+      process.stderr,
+      supervisorLogFile,
+      label: 'supervisor stderr',
     );
     final baseUri = Uri(
       scheme: 'http',
@@ -448,9 +479,57 @@ final class CockpitDevelopmentSessionDaemonLauncher {
         await Future<void>.delayed(const Duration(milliseconds: 500));
         process.kill(ProcessSignal.sigkill);
         await Future<void>.delayed(const Duration(milliseconds: 200));
+        await _cancelSupervisorBootstrapOutput(stdoutSubscription);
+        await _cancelSupervisorBootstrapOutput(stderrSubscription);
       },
       logPath: p.normalize(supervisorLogFile.path),
     );
+  }
+
+  static StreamSubscription<String> _pipeSupervisorBootstrapOutput(
+    Stream<List<int>> stream,
+    File supervisorLogFile, {
+    required String label,
+  }) {
+    return stream
+        .transform(utf8.decoder)
+        .transform(const LineSplitter())
+        .listen((line) {
+          unawaited(
+            _appendSupervisorBootstrapOutput(
+              supervisorLogFile,
+              label: label,
+              line: line,
+            ),
+          );
+        });
+  }
+
+  static Future<void> _appendSupervisorBootstrapOutput(
+    File supervisorLogFile, {
+    required String label,
+    required String line,
+  }) async {
+    try {
+      await supervisorLogFile.writeAsString(
+        '[${DateTime.now().toUtc().toIso8601String()}] $label $line\n',
+        mode: FileMode.append,
+        flush: true,
+      );
+    } on Object {
+      // The child supervisor writes to the same diagnostic file. Losing a
+      // bootstrap line is preferable to making shutdown or launch fail.
+    }
+  }
+
+  static Future<void> _cancelSupervisorBootstrapOutput(
+    StreamSubscription<String> subscription,
+  ) async {
+    try {
+      await subscription.cancel().timeout(const Duration(milliseconds: 200));
+    } on Object {
+      // Best-effort diagnostic stream cleanup only.
+    }
   }
 
   static Future<String> _resolveSupervisorEntrypoint() async {
