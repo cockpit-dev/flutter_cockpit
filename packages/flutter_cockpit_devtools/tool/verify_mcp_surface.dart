@@ -495,7 +495,10 @@ final class _McpSurfaceVerifier {
               'tooltip': 'Settings',
               'route': '/inbox',
             },
-            'parameters': <String, Object?>{'expectedRouteName': '/settings'},
+            'parameters': <String, Object?>{
+              'expectedRouteName': '/settings',
+              'routeTimeoutMs': 3000,
+            },
           },
         },
       );

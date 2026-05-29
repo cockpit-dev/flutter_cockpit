@@ -54,6 +54,7 @@ void main() {
     });
     expect(commands[0]['parameters'], <String, Object?>{
       'expectedRouteName': '/editor',
+      'routeTimeoutMs': 3000,
     });
     expect(commands[1]['commandId'], 'verify-wait-for-editor-route');
     expect(commands[1]['commandType'], 'waitFor');
@@ -104,6 +105,10 @@ void main() {
       'text': 'Save task',
       'ancestor': <String, Object?>{'route': '/editor'},
     });
+    expect(commands[7]['parameters'], <String, Object?>{
+      'expectedRouteName': '/inbox',
+      'routeTimeoutMs': 3000,
+    });
     expect(commands[8]['commandId'], 'verify-wait-for-inbox-route-after-save');
     expect(commands[8]['commandType'], 'waitFor');
     expect(commands[8]['timeoutMs'], 12000);
@@ -146,6 +151,7 @@ void main() {
     });
     expect(commands[0]['parameters'], <String, Object?>{
       'expectedRouteName': '/settings',
+      'routeTimeoutMs': 3000,
     });
     expect(commands[1]['commandType'], 'scrollUntilVisible');
     expect(commands[1]['locator'], <String, Object?>{
@@ -208,6 +214,10 @@ void main() {
       'type': 'TextButton',
       'ancestor': <String, Object?>{'route': '/inbox'},
     });
+    expect(commands[2]['parameters'], <String, Object?>{
+      'expectedRouteName': '/detail',
+      'routeTimeoutMs': 3000,
+    });
     expect(commands[3]['commandType'], 'waitFor');
     expect(commands[3]['timeoutMs'], 12000);
     expect(commands[3]['parameters'], <String, Object?>{
@@ -223,6 +233,10 @@ void main() {
     expect(command['locator'], <String, Object?>{
       'text': 'Resolve conflict',
       'ancestor': <String, Object?>{'route': '/detail'},
+    });
+    expect(command['parameters'], <String, Object?>{
+      'expectedRouteName': '/sync-conflict',
+      'routeTimeoutMs': 3000,
     });
   });
 
@@ -267,6 +281,14 @@ void main() {
       expect(commands[1]['locator'], <String, Object?>{
         'tooltip': 'Back',
         'ancestor': <String, Object?>{'route': '/detail'},
+      });
+      expect(commands[1]['parameters'], <String, Object?>{
+        'expectedRouteName': '/inbox',
+        'routeTimeoutMs': 3000,
+      });
+      expect(commands[2]['parameters'], <String, Object?>{
+        'expectedRouteName': '/settings',
+        'routeTimeoutMs': 3000,
       });
       expect(commands[3]['locator'], <String, Object?>{
         'text': 'Run queued sync',
@@ -332,6 +354,10 @@ void main() {
         'type': 'TextButton',
         'ancestor': <String, Object?>{'route': '/inbox'},
       });
+      expect(commands[2]['parameters'], <String, Object?>{
+        'expectedRouteName': '/detail',
+        'routeTimeoutMs': 3000,
+      });
       expect(commands[3]['commandType'], 'waitFor');
       expect(commands[3]['timeoutMs'], 12000);
       expect(commands[3]['parameters'], <String, Object?>{
@@ -358,4 +384,19 @@ void main() {
       });
     },
   );
+
+  test('buildSyncLabKeepLocalResolutionCommand waits for detail route', () {
+    final command = buildSyncLabKeepLocalResolutionCommand();
+
+    expect(command['commandId'], 'verify-keep-local-resolution');
+    expect(command['commandType'], 'tap');
+    expect(command['locator'], <String, Object?>{
+      'text': 'Keep local',
+      'ancestor': <String, Object?>{'route': '/sync-conflict'},
+    });
+    expect(command['parameters'], <String, Object?>{
+      'expectedRouteName': '/detail',
+      'routeTimeoutMs': 3000,
+    });
+  });
 }

@@ -1,6 +1,7 @@
 const String syncLabVerifierTaskTitlePrefix = 'Cockpit demo sync conflict ';
 const String syncLabVerifierTaskNotes =
     'Created by cockpit_demo verifier to exercise sync conflict recovery.';
+const int _syncLabRouteTimeoutMs = 3000;
 
 String buildSyncLabVerifierArtifactCountSql() {
   return 'select count(*) from tasks where ${_syncLabVerifierWhereClause()};';
@@ -47,7 +48,7 @@ List<Map<String, Object?>> buildSyncLabCreateTaskBatch({
           },
         ],
       },
-      'parameters': <String, Object?>{'expectedRouteName': '/editor'},
+      'parameters': _routeChangeParameters('/editor'),
     },
     _waitForRouteCommand(
       commandId: 'verify-wait-for-editor-route',
@@ -107,6 +108,7 @@ List<Map<String, Object?>> buildSyncLabCreateTaskBatch({
         'text': 'Save task',
         'ancestor': <String, Object?>{'route': '/editor'},
       },
+      'parameters': _routeChangeParameters('/inbox'),
     },
     _waitForRouteCommand(
       commandId: 'verify-wait-for-inbox-route-after-save',
@@ -124,7 +126,7 @@ List<Map<String, Object?>> buildSyncLabConflictSyncBatch() {
         'tooltip': 'Settings',
         'ancestor': <String, Object?>{'route': '/inbox'},
       },
-      'parameters': <String, Object?>{'expectedRouteName': '/settings'},
+      'parameters': _routeChangeParameters('/settings'),
     },
     _scrollRunQueuedSyncCommand(),
     <String, Object?>{
@@ -146,6 +148,7 @@ List<Map<String, Object?>> buildSyncLabConflictSyncBatch() {
         'tooltip': 'Back',
         'ancestor': <String, Object?>{'route': '/settings'},
       },
+      'parameters': _routeChangeParameters('/inbox'),
     },
   ];
 }
@@ -170,6 +173,7 @@ List<Map<String, Object?>> buildSyncLabOpenConflictBatch({
         'type': 'TextButton',
         'ancestor': <String, Object?>{'route': '/inbox'},
       },
+      'parameters': _routeChangeParameters('/detail'),
     },
     _waitForRouteCommand(
       commandId: 'verify-wait-for-detail-route',
@@ -186,6 +190,7 @@ Map<String, Object?> buildSyncLabOpenConflictResolutionCommand() {
       'text': 'Resolve conflict',
       'ancestor': <String, Object?>{'route': '/detail'},
     },
+    'parameters': _routeChangeParameters('/sync-conflict'),
   };
 }
 
@@ -205,6 +210,7 @@ Map<String, Object?> buildSyncLabKeepLocalResolutionCommand() {
       'text': 'Keep local',
       'ancestor': <String, Object?>{'route': '/sync-conflict'},
     },
+    'parameters': _routeChangeParameters('/detail'),
   };
 }
 
@@ -229,6 +235,7 @@ List<Map<String, Object?>> buildSyncLabRecoverySyncBatch() {
         'tooltip': 'Back',
         'ancestor': <String, Object?>{'route': '/detail'},
       },
+      'parameters': _routeChangeParameters('/inbox'),
     },
     <String, Object?>{
       'commandId': 'verify-open-sync-settings',
@@ -237,6 +244,7 @@ List<Map<String, Object?>> buildSyncLabRecoverySyncBatch() {
         'tooltip': 'Settings',
         'ancestor': <String, Object?>{'route': '/inbox'},
       },
+      'parameters': _routeChangeParameters('/settings'),
     },
     _scrollRunQueuedSyncCommand(),
     <String, Object?>{
@@ -258,6 +266,7 @@ List<Map<String, Object?>> buildSyncLabRecoverySyncBatch() {
         'tooltip': 'Back',
         'ancestor': <String, Object?>{'route': '/settings'},
       },
+      'parameters': _routeChangeParameters('/inbox'),
     },
   ];
 }
@@ -282,6 +291,7 @@ List<Map<String, Object?>> buildSyncLabRecoveryVerificationBatch({
         'type': 'TextButton',
         'ancestor': <String, Object?>{'route': '/inbox'},
       },
+      'parameters': _routeChangeParameters('/detail'),
     },
     _waitForRouteCommand(
       commandId: 'verify-wait-for-detail-route-after-recovery',
@@ -372,6 +382,13 @@ Map<String, Object?> _waitForRouteCommand({
     'commandType': 'waitFor',
     'timeoutMs': 12000,
     'parameters': <String, Object?>{'routeName': routeName},
+  };
+}
+
+Map<String, Object?> _routeChangeParameters(String routeName) {
+  return <String, Object?>{
+    'expectedRouteName': routeName,
+    'routeTimeoutMs': _syncLabRouteTimeoutMs,
   };
 }
 

@@ -703,6 +703,7 @@ void main() {
       expect(firstBatchCommands[0].locator?.route, '/inbox');
       expect(firstBatchCommands[0].locator?.ancestor?.route, '/inbox');
       expect(firstBatchCommands[0].parameters['expectedRouteName'], '/editor');
+      expect(firstBatchCommands[0].parameters['routeTimeoutMs'], 3000);
       expect(firstBatchCommands[1].commandId, 'verify-wait-for-editor-route');
       expect(firstBatchCommands[1].commandType, CockpitCommandType.waitFor);
       expect(firstBatchCommands[1].parameters['routeName'], '/editor');
@@ -738,6 +739,8 @@ void main() {
       expect(firstBatchCommands[7].locator?.text, 'Save task');
       expect(firstBatchCommands[7].locator?.ancestor?.route, '/editor');
       expect(firstBatchCommands[7].commandId, 'verify-save-task');
+      expect(firstBatchCommands[7].parameters['expectedRouteName'], '/inbox');
+      expect(firstBatchCommands[7].parameters['routeTimeoutMs'], 3000);
       expect(
         firstBatchCommands[8].commandId,
         'verify-wait-for-inbox-route-after-save',
