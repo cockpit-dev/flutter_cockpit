@@ -775,8 +775,8 @@ void main() {
         'verify-wait-for-detail-route-after-conflict-resolution',
         'verify-return-from-detail',
         'verify-open-sync-settings',
-        'verify-scroll-run-queued-sync',
-        'verify-run-queued-sync',
+        'verify-scroll-run-queued-sync-after-recovery',
+        'verify-run-queued-sync-after-recovery',
         'verify-wait-for-synced-state',
         'verify-close-settings',
       ]);
