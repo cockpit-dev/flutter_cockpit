@@ -34,15 +34,44 @@ void main() {
         isNot(contains("'requireVisibleTargets'")),
       ),
     );
+    final scrollSyncCheckBlock = script.substring(
+      scrollSyncCheck,
+      tapSyncCheck,
+    );
     expect(
-      script.substring(scrollSyncCheck, tapSyncCheck),
+      scrollSyncCheckBlock,
       allOf(
         contains("'run_command'"),
         contains("'commandId': 'scroll-sync-check'"),
         contains("'commandType': 'scrollUntilVisible'"),
         contains("'text': 'Run check'"),
         contains("'revealAlignment': 'center'"),
+        contains("'type': 'ListView'"),
       ),
+    );
+    expect(scrollSyncCheckBlock, contains("'route': '/settings'"));
+    expect(
+      scrollSyncCheckBlock,
+      isNot(contains("'path': 'scaffold.body/list_view")),
+    );
+    final scrollDebugLog = script.indexOf('final scrollDebugLogResult');
+    final tapDebugLog = script.indexOf("appReport['tap_debug_log']");
+    expect(scrollDebugLog, greaterThan(tapSyncCheck));
+    expect(tapDebugLog, greaterThan(scrollDebugLog));
+    final scrollDebugLogBlock = script.substring(scrollDebugLog, tapDebugLog);
+    expect(
+      scrollDebugLogBlock,
+      allOf(
+        contains("'commandId': 'scroll-debug-log'"),
+        contains("'commandType': 'scrollUntilVisible'"),
+        contains("'text': 'Emit debug log'"),
+        contains("'type': 'ListView'"),
+      ),
+    );
+    expect(scrollDebugLogBlock, contains("'route': '/settings'"));
+    expect(
+      scrollDebugLogBlock,
+      isNot(contains("'path': 'scaffold.body/list_view")),
     );
   });
 

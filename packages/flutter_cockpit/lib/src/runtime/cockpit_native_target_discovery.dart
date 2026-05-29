@@ -385,7 +385,7 @@ final class CockpitNativeTargetDiscovery {
       },
       if (semantics != null) ...semantics.supportedCommands,
     };
-    final typeName = element.widget.runtimeType.toString();
+    final typeName = _publicTypeNameForWidget(element.widget);
 
     if (insideActionableTarget) {
       return null;
@@ -1378,6 +1378,67 @@ final class CockpitNativeTargetDiscovery {
       return _normalizeText(widget.properties.tooltip);
     }
     return null;
+  }
+
+  String _publicTypeNameForWidget(Widget widget) {
+    if (widget is TextButton) {
+      return 'TextButton';
+    }
+    if (widget is ElevatedButton) {
+      return 'ElevatedButton';
+    }
+    if (widget is FilledButton) {
+      return 'FilledButton';
+    }
+    if (widget is OutlinedButton) {
+      return 'OutlinedButton';
+    }
+    if (widget is ButtonStyleButton) {
+      return 'ButtonStyleButton';
+    }
+    if (widget is IconButton) {
+      return 'IconButton';
+    }
+    if (widget is FloatingActionButton) {
+      return 'FloatingActionButton';
+    }
+    if (widget is ListTile) {
+      return 'ListTile';
+    }
+    if (widget is ActionChip) {
+      return 'ActionChip';
+    }
+    if (widget is ChoiceChip) {
+      return 'ChoiceChip';
+    }
+    if (widget is FilterChip) {
+      return 'FilterChip';
+    }
+    if (widget is InputChip) {
+      return 'InputChip';
+    }
+    if (widget is CheckboxListTile) {
+      return 'CheckboxListTile';
+    }
+    if (widget is Checkbox) {
+      return 'Checkbox';
+    }
+    if (widget is SwitchListTile) {
+      return 'SwitchListTile';
+    }
+    if (widget is Switch) {
+      return 'Switch';
+    }
+    if (widget is TextField) {
+      return 'TextField';
+    }
+    if (widget is TextFormField) {
+      return 'TextFormField';
+    }
+    if (widget is EditableText) {
+      return 'EditableText';
+    }
+    return widget.runtimeType.toString();
   }
 
   String? _collectDescendantText(Element element) {

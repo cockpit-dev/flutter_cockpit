@@ -1022,6 +1022,66 @@ void main() {
     );
   });
 
+  test(
+    'verifier extracts supervisor diagnostics from unstructured launch failures',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit-demo-platform-unstructured-failure-',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+      final supervisorLog = File(p.join(tempDir.path, 'supervisor.log'));
+      await supervisorLog.writeAsString(
+        '[2026-05-29T03:55:14Z] machine progress Building Windows application...\n'
+        '[2026-05-29T03:56:12Z] machine stderr Windows toolchain failed\n',
+      );
+
+      final verifier = CockpitDemoPlatformVerifier(
+        probeDevices: () async => const <CockpitDemoHostDevice>[
+          CockpitDemoHostDevice(
+            name: 'Windows',
+            deviceId: 'windows',
+            platform: 'windows',
+            emulator: false,
+            supported: true,
+          ),
+        ],
+        listIosSimulators: () async => const <CockpitDemoIosSimulator>[],
+        runProcess: (executable, arguments, {String? workingDirectory}) async {
+          return ProcessResult(0, 0, '', '');
+        },
+        wait: (_) async {},
+        launchApp: (_) async => throw StateError(
+          'Development session startup failed: SocketException: '
+          'The remote computer refused the network connection. '
+          '{supervisorLogPath: ${supervisorLog.path}}',
+        ),
+      );
+
+      final result = await verifier.verify(
+        CockpitDemoPlatformVerificationRequest(
+          projectDir: '/workspace/examples/cockpit_demo',
+          platforms: const <String>['windows'],
+          outputRoot: tempDir.path,
+        ),
+      );
+
+      final failed = result.platforms.single;
+      expect(failed.failureCode, 'StateError');
+      expect(
+        failed.failureDetails,
+        containsPair('supervisorLogPath', supervisorLog.path),
+      );
+      expect(
+        failed.failureDetails,
+        containsPair('supervisorLogTail', contains('Windows toolchain failed')),
+      );
+    },
+  );
+
   test('local state cleanup resets Android app data before launch', () async {
     final invocations = <String>[];
 
@@ -1755,6 +1815,21 @@ void main() {
 
   test('verifier stops an active recording when a later step fails', () async {
     var recordingStopCount = 0;
+    final failureScreenshot = File(
+      p.join(
+        Directory.systemTemp.createTempSync('cockpit_failure_screenshot_').path,
+        'verify-open-editor.png',
+      ),
+    );
+    failureScreenshot
+      ..createSync(recursive: true)
+      ..writeAsBytesSync(<int>[137, 80, 78, 71, 13, 10, 26, 10]);
+    addTearDown(() {
+      final parent = failureScreenshot.parent;
+      if (parent.existsSync()) {
+        parent.deleteSync(recursive: true);
+      }
+    });
     final verifier = CockpitDemoPlatformVerifier(
       probeDevices: () async => const <CockpitDemoHostDevice>[
         CockpitDemoHostDevice(
@@ -1833,11 +1908,12 @@ void main() {
               durationMs: 18,
               usedCaptureFallback: false,
             ),
-            artifacts: const <CockpitInteractiveArtifactDescriptor>[
+            artifacts: <CockpitInteractiveArtifactDescriptor>[
               CockpitInteractiveArtifactDescriptor(
                 role: 'screenshot',
                 relativePath: 'screenshots/verify-open-editor.png',
                 byteLength: 2048,
+                sourcePath: failureScreenshot.path,
               ),
             ],
             whatChanged: 'Command verify-open-editor completed successfully.',
@@ -1973,6 +2049,11 @@ void main() {
       containsPair('selectedPlane', 'flutterSemanticPlane'),
     );
     expect(recordingStopCount, 1);
+    final exportedFailureScreenshot = File(
+      p.join(failedPlatform.outputDir, 'screenshots', 'verify-open-editor.png'),
+    );
+    expect(exportedFailureScreenshot.existsSync(), isTrue);
+    expect(exportedFailureScreenshot.lengthSync(), greaterThan(0));
   });
 
   test(

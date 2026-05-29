@@ -222,6 +222,59 @@ void main() {
     expect(selected, isTrue);
   });
 
+  testWidgets(
+    'resolves TextButton.icon with the public TextButton type signal',
+    (tester) async {
+      var openedEditor = false;
+
+      await tester.pumpWidget(
+        CockpitSurface(
+          routeName: '/inbox',
+          child: MaterialApp(
+            home: Scaffold(
+              appBar: AppBar(
+                actions: <Widget>[
+                  TextButton.icon(
+                    key: const ValueKey<String>('open-task-editor-action'),
+                    onPressed: () {
+                      openedEditor = true;
+                    },
+                    icon: const Icon(Icons.add),
+                    label: const Text('New task'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final surfaceState = tester.state<CockpitSurfaceState>(
+        find.byType(CockpitSurface),
+      );
+      final resolution = surfaceState.registry.resolve(
+        const CockpitLocator(
+          key: 'open-task-editor-action',
+          text: 'New task',
+          type: 'TextButton',
+          route: '/inbox',
+          ancestor: CockpitLocator(route: '/inbox'),
+        ),
+      );
+
+      expect(resolution.isSuccess, isTrue, reason: resolution.error?.message);
+      final target = resolution.target;
+      expect(target, isNotNull);
+      expect(target!.supportedCommands, contains(CockpitCommandType.tap));
+
+      target.onTap?.call();
+      await tester.pump();
+
+      expect(openedEditor, isTrue);
+    },
+  );
+
   testWidgets('generates compact stable registration ids for native targets', (
     tester,
   ) async {
