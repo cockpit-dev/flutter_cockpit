@@ -365,19 +365,9 @@ final class CockpitExecuteRemoteCommandService {
     final parameterTimeoutMs = _positiveInt(command.parameters['timeoutMs']);
     switch (command.commandType) {
       case CockpitCommandType.scrollUntilVisible:
-        final maxScrolls = _positiveInt(command.parameters['maxScrolls']) ?? 12;
-        final durationPerStepMs =
-            _positiveInt(command.parameters['durationPerStepMs']) ?? 220;
-        final probeSegments = _recommendedScrollProbeSegments(command);
-        final revealRequested =
-            command.parameters['revealAlignment'] != null ||
-            (_positiveNum(command.parameters['revealPadding']) ?? 0) > 0;
-        final perStepBudgetMs =
-            probeSegments * (durationPerStepMs + (revealRequested ? 420 : 320));
-        final stepBudgetMs = maxScrolls * perStepBudgetMs;
         recommended = _maxDuration(
           recommended,
-          Duration(milliseconds: stepBudgetMs + 1800),
+          _recommendedScrollUntilVisibleTimeout(command),
         );
       case CockpitCommandType.waitFor ||
           CockpitCommandType.waitForUiIdle ||
@@ -397,6 +387,34 @@ final class CockpitExecuteRemoteCommandService {
         }
     }
     return recommended;
+  }
+
+  static Duration _recommendedScrollUntilVisibleTimeout(
+    CockpitCommand command,
+  ) {
+    final maxScrolls = _positiveInt(command.parameters['maxScrolls']) ?? 12;
+    final durationPerStepMs =
+        _positiveInt(command.parameters['durationPerStepMs']) ?? 220;
+    final probeSegments = _recommendedScrollProbeSegments(command);
+    final revealRequested =
+        command.parameters['revealAlignment'] != null ||
+        (_positiveNum(command.parameters['revealPadding']) ?? 0) > 0 ||
+        (_positiveNum(command.parameters['revealPaddingPx']) ?? 0) > 0;
+    final continuous = command.parameters['continuous'] == true;
+    final carriesEvidence = cockpitRemoteCommandCarriesEvidence(command);
+
+    final perProbeBudgetMs = durationPerStepMs + (revealRequested ? 420 : 320);
+    final perStepBudgetMs =
+        probeSegments * perProbeBudgetMs + (continuous ? 500 : 0);
+    final stepBudgetMs = maxScrolls * perStepBudgetMs;
+    final revealBudgetMs = revealRequested ? maxScrolls * 350 : 0;
+    final evidenceBudgetMs = carriesEvidence
+        ? 4500 + (command.screenshotRequest?.includeSnapshot == true ? 1800 : 0)
+        : 0;
+
+    return Duration(
+      milliseconds: stepBudgetMs + revealBudgetMs + evidenceBudgetMs + 1800,
+    );
   }
 
   static int? _positiveInt(Object? value) {

@@ -109,7 +109,14 @@ void main() {
       windowsBlock,
       contains('flutter_cockpit_development_supervisor_*.log'),
     );
+    expect(
+      windowsBlock,
+      contains('pathlib.Path(os.environ["RESULT_JSON_POSIX"])'),
+    );
+    expect(windowsBlock, contains('supervisorLogPath'));
+    expect(windowsBlock, contains('SUPERVISOR_LOG_CANDIDATES'));
     expect(windowsBlock, contains(r'cp {} "$SUPERVISOR_LOG_DIR/"'));
+    expect(windowsBlock, contains(r'cp "$candidate" "$SUPERVISOR_LOG_DIR/"'));
     expect(windowsBlock, contains(r'${{ env.SUPERVISOR_LOG_DIR }}'));
   });
 

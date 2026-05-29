@@ -25,6 +25,14 @@ void main() {
     expect(scrollSyncCheck, greaterThan(inspectSettings));
     expect(tapSyncCheck, greaterThan(scrollSyncCheck));
     expect(
+      script.substring(openSettings, waitSettings),
+      allOf(
+        contains("'commandId': 'open-settings'"),
+        contains("'commandType': 'tap'"),
+        contains("'expectedRouteName': '/settings'"),
+      ),
+    );
+    expect(
       script.substring(waitSettings, inspectSettings),
       allOf(
         contains("'run_command'"),

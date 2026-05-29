@@ -1041,8 +1041,55 @@ void main() {
     },
   );
 
+  test('tap uses gesture activation by default when available', () async {
+    final registry = CockpitTargetRegistry(routeName: '/editor');
+    var tapCount = 0;
+    var gestureCount = 0;
+
+    registry.register(
+      CockpitTarget(
+        registrationId: 'save-task',
+        text: 'Save task',
+        routeName: '/editor',
+        supportedCommands: const {CockpitCommandType.tap},
+        onTap: () {
+          tapCount += 1;
+        },
+        geometryProvider: () => const CockpitTargetGeometry(
+          left: 20,
+          top: 720,
+          width: 220,
+          height: 48,
+          viewportLeft: 0,
+          viewportTop: 0,
+          viewportWidth: 430,
+          viewportHeight: 800,
+          viewId: 1,
+        ),
+      ),
+    );
+
+    final executor = InAppCockpitCommandExecutor(
+      registry: registry,
+      gestureHandler: (_) async {
+        gestureCount += 1;
+      },
+    );
+    final result = await executor.execute(
+      CockpitCommand(
+        commandId: 'cmd-save',
+        commandType: CockpitCommandType.tap,
+        locator: const CockpitLocator(text: 'Save task'),
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(tapCount, 0);
+    expect(gestureCount, 1);
+  });
+
   test(
-    'tap uses direct activation for ordinary actionable targets by default',
+    'tap can opt into direct activation when callback semantics are desired',
     () async {
       final registry = CockpitTargetRegistry(routeName: '/editor');
       var tapCount = 0;
@@ -1082,6 +1129,7 @@ void main() {
           commandId: 'cmd-save',
           commandType: CockpitCommandType.tap,
           locator: const CockpitLocator(text: 'Save task'),
+          parameters: const <String, Object?>{'activation': 'direct'},
         ),
       );
 
@@ -1090,6 +1138,50 @@ void main() {
       expect(gestureCount, 0);
     },
   );
+
+  test('tap fails when an expected route is not reached', () async {
+    final registry = CockpitTargetRegistry(routeName: '/inbox');
+    var tapCount = 0;
+
+    registry.register(
+      CockpitTarget(
+        registrationId: 'open-editor',
+        text: 'New task',
+        routeName: '/inbox',
+        supportedCommands: const {CockpitCommandType.tap},
+        onTap: () {
+          tapCount += 1;
+        },
+      ),
+    );
+
+    final executor = InAppCockpitCommandExecutor(
+      registry: registry,
+      interactionPolicy: const CockpitInteractionPolicy(
+        actionCommitTimeout: Duration(milliseconds: 40),
+        routeTransitionVisualDelay: Duration.zero,
+      ),
+    );
+
+    final result = await executor.execute(
+      CockpitCommand(
+        commandId: 'open-editor',
+        commandType: CockpitCommandType.tap,
+        locator: const CockpitLocator(text: 'New task', route: '/inbox'),
+        parameters: const <String, Object?>{'expectedRouteName': '/editor'},
+      ),
+    );
+
+    expect(tapCount, 1);
+    expect(result.success, isFalse);
+    expect(result.error?.code, CockpitCommandError.timeoutCode);
+    expect(
+      result.error?.message,
+      'Timed out waiting for route "/editor" after tap.',
+    );
+    expect(result.error?.details, containsPair('expectedRouteName', '/editor'));
+    expect(result.error?.details, containsPair('routeName', '/inbox'));
+  });
 
   test(
     'tap can opt into gesture activation when pointer semantics matter',

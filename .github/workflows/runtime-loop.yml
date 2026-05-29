@@ -1114,6 +1114,29 @@ jobs:
           find "$PROJECT_DIR/build/windows" -maxdepth 6 -type f \( -iname "*.exe" -o -iname "*.dll" \) 2>/dev/null | sort | head -80 || true
           echo "Windows supervisor logs:"
           mkdir -p "$SUPERVISOR_LOG_DIR"
+          SUPERVISOR_LOG_CANDIDATES="$SUPERVISOR_LOG_DIR/candidates.txt"
+          : > "$SUPERVISOR_LOG_CANDIDATES"
+          if [ -f "$RESULT_JSON_POSIX" ]; then
+            python - <<'PY' >> "$SUPERVISOR_LOG_CANDIDATES" || true
+          import json, os, pathlib
+
+          result_path = pathlib.Path(os.environ["RESULT_JSON_POSIX"])
+          data = json.loads(result_path.read_text())
+
+          def walk(value):
+              if isinstance(value, dict):
+                  path = value.get("supervisorLogPath")
+                  if isinstance(path, str) and path:
+                      print(path.replace("\\", "/"))
+                  for child in value.values():
+                      walk(child)
+              elif isinstance(value, list):
+                  for child in value:
+                      walk(child)
+
+          walk(data)
+          PY
+          fi
           for candidate in "${RUNNER_TEMP//\\//}" "${TEMP//\\//}" "${TMP//\\//}" "${LOCALAPPDATA//\\//}/Temp"; do
             [ -n "$candidate" ] || continue
             [ -d "$candidate" ] || continue
@@ -1122,6 +1145,16 @@ jobs:
               -exec cp {} "$SUPERVISOR_LOG_DIR/" \; \
               -exec tail -n 120 {} \; 2>/dev/null || true
           done
+          while IFS= read -r candidate; do
+            [ -n "$candidate" ] || continue
+            if [ -f "$candidate" ]; then
+              echo "$candidate"
+              cp "$candidate" "$SUPERVISOR_LOG_DIR/" || true
+              tail -n 120 "$candidate" || true
+            else
+              echo "supervisorLogPath not found: $candidate"
+            fi
+          done < "$SUPERVISOR_LOG_CANDIDATES"
 
       - name: Verify Windows runtime loop result
         env:
