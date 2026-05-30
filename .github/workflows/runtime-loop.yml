@@ -664,6 +664,12 @@ jobs:
             --output-format json \
             --launch-timeout-seconds 600 2>&1 | tee "$LOG_PATH"
 
+      - name: Print macOS verifier diagnostics
+        if: failure()
+        run: |
+          [ -f "$LOG_PATH" ] && cat "$LOG_PATH" || true
+          [ -f "$RESULT_JSON" ] && cat "$RESULT_JSON" || true
+
       - name: Verify macOS runtime loop result
         env:
           EXPECTED_PLATFORM: macos
