@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
+import 'cockpit_session_process_runner.dart';
 import 'cockpit_session_path.dart';
 
 String cockpitSelectBestAppBundlePath({
@@ -60,11 +61,15 @@ Future<String> cockpitResolveAppleBundleId({
   required String platformLabel,
 }) async {
   final pathContext = cockpitSessionPathContext(appBundlePath);
-  final result = await Process.run('/usr/libexec/PlistBuddy', <String>[
-    '-c',
-    'Print :CFBundleIdentifier',
-    pathContext.joinAll(<String>[appBundlePath, ...infoPlistPathSegments]),
-  ]);
+  final result = await cockpitRunProcessWithTimeout(
+    '/usr/libexec/PlistBuddy',
+    <String>[
+      '-c',
+      'Print :CFBundleIdentifier',
+      pathContext.joinAll(<String>[appBundlePath, ...infoPlistPathSegments]),
+    ],
+    timeout: const Duration(seconds: 5),
+  );
   if (result.exitCode != 0) {
     throw StateError(
       'Unable to resolve $platformLabel bundle identifier from '

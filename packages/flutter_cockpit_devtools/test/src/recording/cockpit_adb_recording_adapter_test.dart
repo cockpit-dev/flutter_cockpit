@@ -208,7 +208,11 @@ exit 1
       final log = File(p.join(tempDir.path, 'adb.log')).readAsStringSync();
 
       expect(session.state, CockpitRecordingState.recording);
-      expect(result.state, CockpitRecordingState.completed);
+      expect(
+        result.state,
+        CockpitRecordingState.completed,
+        reason: result.failureReason,
+      );
       expect(File(result.sourceFilePath!).readAsStringSync(), 'adb-video');
       expect(log, contains('-s emulator-5554 shell pidof screenrecord'));
       expect(log, contains('-s emulator-5554 shell ps -A'));

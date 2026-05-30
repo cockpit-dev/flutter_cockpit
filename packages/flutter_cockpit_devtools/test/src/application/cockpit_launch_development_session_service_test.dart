@@ -344,6 +344,64 @@ void main() {
   );
 
   test(
+    'daemon launcher releases successful spawned supervisor without stopping it',
+    () async {
+      var releaseCalls = 0;
+      var stopCalls = 0;
+
+      final launcher = CockpitDevelopmentSessionDaemonLauncher(
+        supervisorStatusReader: (_) async =>
+            CockpitDevelopmentSessionSupervisorResponse(
+              sessionHandle: _handle(),
+              status: _readyStatus(_handle()),
+            ),
+        portForwarder: const _StubPortForwarder(57331),
+        flutterVersionReader: () async => '3.39.0',
+        flutterExecutableReader: () async => '/opt/flutter/bin/flutter',
+        dartExecutableReader: () async =>
+            '/opt/flutter/bin/cache/dart-sdk/bin/dart',
+        allocatePort: () async => 60041,
+        delay: (_) async {},
+        spawnSupervisor:
+            ({
+              required request,
+              required flutterVersion,
+              required flutterExecutable,
+              required dartExecutable,
+              required hostPort,
+              required supervisorPort,
+              required supervisorLogFile,
+            }) async {
+              return CockpitSpawnedDevelopmentSupervisor(
+                baseUri: Uri.parse('http://127.0.0.1:$supervisorPort'),
+                stop: () async {
+                  stopCalls += 1;
+                },
+                release: () async {
+                  releaseCalls += 1;
+                },
+              );
+            },
+      );
+
+      final result = await launcher.launch(
+        const CockpitLaunchDevelopmentSessionRequest(
+          projectDir: '/workspace/examples/cockpit_demo',
+          target: 'lib/main.dart',
+          platform: 'macos',
+          deviceId: 'macos',
+          sessionPort: 47331,
+          launchTimeout: Duration(seconds: 5),
+        ),
+      );
+
+      expect(result.status.state, CockpitDevelopmentSessionState.ready);
+      expect(releaseCalls, 1);
+      expect(stopCalls, 0);
+    },
+  );
+
+  test(
     'daemon launcher preserves the original startup failure when stop throws for a detached process',
     () async {
       final launcher = CockpitDevelopmentSessionDaemonLauncher(

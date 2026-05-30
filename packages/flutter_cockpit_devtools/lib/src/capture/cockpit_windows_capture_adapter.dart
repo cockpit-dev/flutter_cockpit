@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
 import '../platform/windows/cockpit_windows_window_target.dart';
+import '../session/cockpit_session_process_runner.dart';
 import 'cockpit_host_capture_adapter.dart';
 
 final class CockpitWindowsCaptureAdapter implements CockpitHostCaptureAdapter {
@@ -11,7 +12,7 @@ final class CockpitWindowsCaptureAdapter implements CockpitHostCaptureAdapter {
     required String appId,
     int? processId,
     String powershellExecutable = 'powershell',
-    CockpitCaptureProcessRunner processRunner = Process.run,
+    CockpitCaptureProcessRunner? processRunner,
     CockpitCaptureTempFileFactory tempFileFactory =
         cockpitCreateCaptureTempFile,
     CockpitWindowsWindowResolver windowResolver =
@@ -30,7 +31,7 @@ final class CockpitWindowsCaptureAdapter implements CockpitHostCaptureAdapter {
   final String _appId;
   final int? _processId;
   final String _powershellExecutable;
-  final CockpitCaptureProcessRunner _processRunner;
+  final CockpitCaptureProcessRunner? _processRunner;
   final CockpitCaptureTempFileFactory _tempFileFactory;
   final CockpitWindowsWindowResolver _windowResolver;
   final Duration _timeout;
@@ -62,11 +63,11 @@ final class CockpitWindowsCaptureAdapter implements CockpitHostCaptureAdapter {
         appId: _appId,
         processId: _processId,
         powershellExecutable: _powershellExecutable,
-        processRunner: _processRunner,
+        processRunner: _runProcess,
         timeout: _timeout,
         activationSettleDelay: _activationSettleDelay,
       );
-      final result = await _processRunner(_powershellExecutable, <String>[
+      final result = await _runProcess(_powershellExecutable, <String>[
         '-NoProfile',
         '-NonInteractive',
         '-Command',
@@ -76,7 +77,7 @@ final class CockpitWindowsCaptureAdapter implements CockpitHostCaptureAdapter {
         windowTarget.top.toString(),
         windowTarget.width.toString(),
         windowTarget.height.toString(),
-      ]).timeout(_timeout);
+      ]);
       stopwatch.stop();
 
       if (result.exitCode != 0) {
@@ -151,4 +152,16 @@ $bitmap.Save($outputPath, [System.Drawing.Imaging.ImageFormat]::Png)
 $graphics.Dispose()
 $bitmap.Dispose()
 ''';
+
+  Future<ProcessResult> _runProcess(String executable, List<String> arguments) {
+    final injected = _processRunner;
+    if (injected != null) {
+      return injected(executable, arguments).timeout(_timeout);
+    }
+    return cockpitRunProcessWithTimeout(
+      executable,
+      arguments,
+      timeout: _timeout,
+    );
+  }
 }

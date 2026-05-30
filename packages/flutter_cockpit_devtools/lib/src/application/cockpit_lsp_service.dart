@@ -7,6 +7,7 @@ import 'package:file/file.dart';
 import 'package:path/path.dart' as p;
 
 import '../infrastructure/cockpit_file_system.dart';
+import '../infrastructure/cockpit_process_output_collector.dart';
 import '../infrastructure/cockpit_process_manager.dart';
 import '../infrastructure/cockpit_sdk_environment.dart';
 import 'cockpit_application_service_exception.dart';
@@ -614,7 +615,7 @@ final class _LocalCockpitLspExecutor implements CockpitLspExecutor {
       const <String>['language-server', '--protocol', 'lsp'],
       workingDirectory: workspaceRoot,
     );
-    final stderrFuture = process.stderr.transform(utf8.decoder).join();
+    final stderrCollector = CockpitProcessOutputCollector(process.stderr);
     final channel = cockpitLspChannel(process.stdout, process.stdin);
     final client = _OneShotCockpitLspClient(
       input: channel.stream,
@@ -635,10 +636,7 @@ final class _LocalCockpitLspExecutor implements CockpitLspExecutor {
       })().timeout(timeout);
       return result;
     } on TimeoutException {
-      final stderr = await stderrFuture.timeout(
-        const Duration(milliseconds: 200),
-        onTimeout: () => '',
-      );
+      final stderr = await stderrCollector.collectText();
       throw CockpitApplicationServiceException(
         code: 'lspRequestTimedOut',
         message: 'LSP request timed out.',
@@ -649,10 +647,7 @@ final class _LocalCockpitLspExecutor implements CockpitLspExecutor {
         },
       );
     } on Object catch (error) {
-      final stderr = await stderrFuture.timeout(
-        const Duration(milliseconds: 200),
-        onTimeout: () => '',
-      );
+      final stderr = await stderrCollector.collectText();
       throw CockpitApplicationServiceException(
         code: 'lspRequestFailed',
         message: 'LSP request failed.',
@@ -663,14 +658,57 @@ final class _LocalCockpitLspExecutor implements CockpitLspExecutor {
         },
       );
     } finally {
-      await client.dispose();
-      if (process.pid != 0) {
-        process.kill();
-      }
-      await process.exitCode.timeout(
-        const Duration(seconds: 2),
-        onTimeout: () => -1,
-      );
+      await _closeLspClientWithinTimeout(client);
+      await _terminateLspProcess(process);
+      await _closeLspClientWithinTimeout(client);
+      await stderrCollector.cancel();
+    }
+  }
+
+  Future<void> _closeLspClientWithinTimeout(
+    _OneShotCockpitLspClient client,
+  ) async {
+    try {
+      await client.dispose().timeout(const Duration(milliseconds: 200));
+    } on Object {
+      // LSP stream shutdown is best-effort; process termination below is the
+      // authority for short-command cleanup.
+    }
+  }
+
+  Future<void> _terminateLspProcess(Process process) async {
+    if (process.pid == 0) {
+      return;
+    }
+    try {
+      process.kill(ProcessSignal.sigterm);
+    } on Object {
+      // The process may already be gone.
+    }
+    final exitedAfterTerm = await _waitForLspExit(
+      process,
+      timeout: const Duration(milliseconds: 500),
+    );
+    if (exitedAfterTerm) {
+      return;
+    }
+    try {
+      process.kill(ProcessSignal.sigkill);
+    } on Object {
+      // The process may already be gone.
+    }
+    await _waitForLspExit(process, timeout: const Duration(seconds: 2));
+  }
+
+  Future<bool> _waitForLspExit(
+    Process process, {
+    required Duration timeout,
+  }) async {
+    try {
+      await process.exitCode.timeout(timeout);
+      return true;
+    } on Object {
+      return false;
     }
   }
 }
@@ -685,6 +723,7 @@ final class _OneShotCockpitLspClient {
   final StreamIterator<String> _messages;
   final StreamSink<String> _output;
   int _nextId = 1;
+  bool _disposed = false;
 
   Future<void> initialize({required String workspaceRoot}) async {
     await request(
@@ -792,6 +831,10 @@ final class _OneShotCockpitLspClient {
   }
 
   Future<void> dispose() async {
+    if (_disposed) {
+      return;
+    }
+    _disposed = true;
     await _messages.cancel();
     await _output.close();
   }

@@ -62,29 +62,32 @@ final class CockpitStopRecordingService {
       iosDeviceId: request.iosDeviceId,
     );
     if (platform != null) {
-      final resolution = _recordingStrategyResolver.resolveDetailed(
-        platform: platform,
-        recording: const CockpitRecordingRequest(
-          purpose: CockpitRecordingPurpose.acceptance,
-          name: 'active-recording',
-        ),
-        client: CockpitRemoteSessionClient(baseUri: resolved.baseUri),
-        sessionHandle: resolved.app?.remoteSession,
-        androidDeviceId:
-            request.androidDeviceId ??
-            (resolved.app?.platform == 'android'
-                ? resolved.app?.deviceId
-                : null),
-        iosDeviceId:
-            request.iosDeviceId ??
-            (resolved.app?.platform == 'ios' ? resolved.app?.deviceId : null),
-        platformAppId:
-            resolved.app?.platformAppId ??
-            resolved.app?.remoteSession?.effectivePlatformAppId,
-        processId:
-            resolved.app?.processId ?? resolved.app?.remoteSession?.processId,
-        preferActiveHostSession: true,
-      );
+      final resolution = await _recordingStrategyResolver
+          .resolveDetailedForStop(
+            platform: platform,
+            recording: const CockpitRecordingRequest(
+              purpose: CockpitRecordingPurpose.acceptance,
+              name: 'active-recording',
+            ),
+            client: CockpitRemoteSessionClient(baseUri: resolved.baseUri),
+            sessionHandle: resolved.app?.remoteSession,
+            androidDeviceId:
+                request.androidDeviceId ??
+                (resolved.app?.platform == 'android'
+                    ? resolved.app?.deviceId
+                    : null),
+            iosDeviceId:
+                request.iosDeviceId ??
+                (resolved.app?.platform == 'ios'
+                    ? resolved.app?.deviceId
+                    : null),
+            platformAppId:
+                resolved.app?.platformAppId ??
+                resolved.app?.remoteSession?.effectivePlatformAppId,
+            processId:
+                resolved.app?.processId ??
+                resolved.app?.remoteSession?.processId,
+          );
       final adapter = resolution?.adapter;
       if (adapter != null) {
         return _toStopResult(

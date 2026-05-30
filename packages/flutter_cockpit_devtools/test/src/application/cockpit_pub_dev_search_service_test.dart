@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter_cockpit_devtools/src/application/cockpit_application_service_exception.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_pub_dev_search_service.dart';
 import 'package:flutter_cockpit_devtools/src/infrastructure/cockpit_http_client.dart';
 import 'package:flutter_cockpit_devtools/src/infrastructure/cockpit_process_manager.dart';
@@ -111,6 +112,37 @@ void main() {
       expect(result.results.single.packageName, 'collection');
     },
   );
+
+  test('external fetch fallback kills timed-out helper processes', () async {
+    final processManager = _HangingFetchProcessManager();
+    final service = CockpitPubDevSearchService(
+      httpClient: _AlwaysFailingHttpClient(),
+      processManager: processManager,
+      enableProcessFallback: true,
+    );
+
+    await expectLater(
+      service.search(
+        const CockpitPubDevSearchRequest(
+          query: 'collection',
+          timeout: Duration(milliseconds: 20),
+        ),
+      ),
+      throwsA(
+        isA<CockpitApplicationServiceException>().having(
+          (error) => error.code,
+          'code',
+          'pubDevSearchFailed',
+        ),
+      ),
+    );
+    expect(
+      processManager.processes.any(
+        (process) => process.killSignals.contains(ProcessSignal.sigkill),
+      ),
+      isTrue,
+    );
+  });
 }
 
 final class _FakeHttpClient implements CockpitHttpClient {
@@ -159,17 +191,7 @@ final class _FakeFetchProcessManager implements CockpitProcessManager {
 
   final String body;
 
-  @override
-  Future<ProcessResult> run(
-    String executable,
-    List<String> arguments, {
-    String? workingDirectory,
-    Map<String, String>? environment,
-    bool includeParentEnvironment = true,
-    bool runInShell = false,
-    Encoding? stdoutEncoding,
-    Encoding? stderrEncoding,
-  }) async {
+  ProcessResult _resultFor(List<String> arguments) {
     if (arguments.length < 3 ||
         !arguments.first.startsWith('-') ||
         !arguments[2].contains('pub.dev')) {
@@ -195,6 +217,20 @@ final class _FakeFetchProcessManager implements CockpitProcessManager {
   }
 
   @override
+  Future<ProcessResult> run(
+    String executable,
+    List<String> arguments, {
+    String? workingDirectory,
+    Map<String, String>? environment,
+    bool includeParentEnvironment = true,
+    bool runInShell = false,
+    Encoding? stdoutEncoding,
+    Encoding? stderrEncoding,
+  }) async {
+    return _resultFor(arguments);
+  }
+
+  @override
   Future<Process> start(
     String executable,
     List<String> arguments, {
@@ -203,7 +239,117 @@ final class _FakeFetchProcessManager implements CockpitProcessManager {
     bool includeParentEnvironment = true,
     bool runInShell = false,
     ProcessStartMode mode = ProcessStartMode.normal,
+  }) async {
+    final result = _resultFor(arguments);
+    return _CompletedFetchProcess(
+      stdout: '${result.stdout}',
+      stderr: '${result.stderr}',
+      exitCode: result.exitCode,
+    );
+  }
+}
+
+final class _CompletedFetchProcess implements Process {
+  _CompletedFetchProcess({
+    required String stdout,
+    required String stderr,
+    required int exitCode,
+  }) : _stdout = Stream<List<int>>.value(utf8.encode(stdout)),
+       _stderr = Stream<List<int>>.value(utf8.encode(stderr)),
+       _exitCode = Future<int>.value(exitCode);
+
+  final Stream<List<int>> _stdout;
+  final Stream<List<int>> _stderr;
+  final Future<int> _exitCode;
+
+  @override
+  Future<int> get exitCode => _exitCode;
+
+  @override
+  int get pid => 1;
+
+  @override
+  IOSink get stdin => throw UnsupportedError('stdin is not used in tests');
+
+  @override
+  Stream<List<int>> get stderr => _stderr;
+
+  @override
+  Stream<List<int>> get stdout => _stdout;
+
+  @override
+  bool kill([ProcessSignal signal = ProcessSignal.sigterm]) => true;
+}
+
+final class _HangingFetchProcessManager implements CockpitProcessManager {
+  final List<_HangingProcess> processes = <_HangingProcess>[];
+
+  @override
+  Future<ProcessResult> run(
+    String executable,
+    List<String> arguments, {
+    String? workingDirectory,
+    Map<String, String>? environment,
+    bool includeParentEnvironment = true,
+    bool runInShell = false,
+    Encoding? stdoutEncoding,
+    Encoding? stderrEncoding,
   }) {
-    throw UnimplementedError();
+    return Completer<ProcessResult>().future;
+  }
+
+  @override
+  Future<Process> start(
+    String executable,
+    List<String> arguments, {
+    String? workingDirectory,
+    Map<String, String>? environment,
+    bool includeParentEnvironment = true,
+    bool runInShell = false,
+    ProcessStartMode mode = ProcessStartMode.normal,
+  }) async {
+    final process = _HangingProcess();
+    processes.add(process);
+    return process;
+  }
+}
+
+final class _HangingProcess implements Process {
+  final StreamController<List<int>> _stdoutController =
+      StreamController<List<int>>();
+  final StreamController<List<int>> _stderrController =
+      StreamController<List<int>>();
+  final StreamController<List<int>> _stdinController =
+      StreamController<List<int>>();
+  final List<ProcessSignal> killSignals = <ProcessSignal>[];
+
+  @override
+  Future<int> get exitCode => Completer<int>().future;
+
+  @override
+  int get pid => 1;
+
+  @override
+  IOSink get stdin => IOSink(_stdinController.sink);
+
+  @override
+  Stream<List<int>> get stderr => _stderrController.stream;
+
+  @override
+  Stream<List<int>> get stdout => _stdoutController.stream;
+
+  @override
+  bool kill([ProcessSignal signal = ProcessSignal.sigterm]) {
+    killSignals.add(signal);
+    if (!_stdoutController.isClosed) {
+      unawaited(_stdoutController.close());
+    }
+    if (!_stderrController.isClosed) {
+      unawaited(_stderrController.close());
+    }
+    if (!_stdinController.isClosed) {
+      unawaited(_stdinController.close());
+    }
+    return true;
   }
 }

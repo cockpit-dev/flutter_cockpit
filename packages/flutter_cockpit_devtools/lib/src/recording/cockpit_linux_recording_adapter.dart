@@ -27,8 +27,9 @@ final class CockpitLinuxRecordingAdapter
     int? processId,
     String ffmpegExecutable = 'ffmpeg',
     String? windowActivatorExecutable = 'wmctrl',
-    CockpitRecordingProcessStarter processStarter = Process.start,
-    CockpitRecordingProcessRunner processRunner = Process.run,
+    CockpitRecordingProcessStarter processStarter =
+        cockpitStartDetachedRecordingProcess,
+    CockpitRecordingProcessRunner? processRunner,
     CockpitRecordingProcessRunner? ffprobeProcessRunner,
     CockpitRecordingTempFileFactory tempFileFactory =
         cockpitCreateRecordingTempFile,
@@ -36,10 +37,14 @@ final class CockpitLinuxRecordingAdapter
     CockpitLinuxWindowTargetResolver windowTargetResolver =
         cockpitResolveLinuxWindowTarget,
     Duration startupTimeout = const Duration(seconds: 12),
+    Duration commandTimeout = cockpitDefaultRecordingCommandTimeout,
     Duration startupEvidenceTimeout = const Duration(seconds: 2),
     Duration stopTimeout = const Duration(seconds: 10),
     Duration finalizationPollInterval = const Duration(milliseconds: 100),
     Duration activationSettleDelay = const Duration(milliseconds: 250),
+    CockpitPidSignalSender pidSignalSender = Process.killPid,
+    CockpitPidLivenessChecker pidLivenessChecker =
+        cockpitDefaultPidLivenessChecker,
   }) : _appId = appId,
        _processId = processId,
        _ffmpegExecutable = ffmpegExecutable,
@@ -53,26 +58,32 @@ final class CockpitLinuxRecordingAdapter
            (() => _resolveDisplayConfig(processRunner)),
        _windowTargetResolver = windowTargetResolver,
        _startupTimeout = startupTimeout,
+       _commandTimeout = commandTimeout,
        _startupEvidenceTimeout = startupEvidenceTimeout,
        _stopTimeout = stopTimeout,
        _finalizationPollInterval = finalizationPollInterval,
-       _activationSettleDelay = activationSettleDelay;
+       _activationSettleDelay = activationSettleDelay,
+       _pidSignalSender = pidSignalSender,
+       _pidLivenessChecker = pidLivenessChecker;
 
   final String _appId;
   final int? _processId;
   final String _ffmpegExecutable;
   final String? _windowActivatorExecutable;
   final CockpitRecordingProcessStarter _processStarter;
-  final CockpitRecordingProcessRunner _processRunner;
-  final CockpitRecordingProcessRunner _ffprobeProcessRunner;
+  final CockpitRecordingProcessRunner? _processRunner;
+  final CockpitRecordingProcessRunner? _ffprobeProcessRunner;
   final CockpitRecordingTempFileFactory _tempFileFactory;
   final CockpitLinuxDisplayConfigResolver _displayConfigResolver;
   final CockpitLinuxWindowTargetResolver _windowTargetResolver;
   final Duration _startupTimeout;
+  final Duration _commandTimeout;
   final Duration _startupEvidenceTimeout;
   final Duration _stopTimeout;
   final Duration _finalizationPollInterval;
   final Duration _activationSettleDelay;
+  final CockpitPidSignalSender _pidSignalSender;
+  final CockpitPidLivenessChecker _pidLivenessChecker;
 
   Process? _process;
   CockpitRecordingRequest? _request;
@@ -80,6 +91,7 @@ final class CockpitLinuxRecordingAdapter
   StreamSubscription<String>? _stderrSubscription;
   List<String>? _recentStderrLines;
   Stopwatch? _stopwatch;
+  DateTime? _startedAt;
 
   String get _sessionCacheKey => 'linux:${_processId ?? _appId}';
 
@@ -87,8 +99,7 @@ final class CockpitLinuxRecordingAdapter
   Future<CockpitRecordingSession> startRecording(
     CockpitRecordingRequest request,
   ) async {
-    if (_process != null ||
-        cockpitReadActiveHostRecordingSession(_sessionCacheKey) != null) {
+    if (_process != null || await _restoreableSessionExists()) {
       throw StateError('A Linux recording is already active.');
     }
 
@@ -131,49 +142,23 @@ final class CockpitLinuxRecordingAdapter
       outputFile.path,
     ]);
 
-    unawaited(process.stdout.drain<void>());
+    final stdoutSubscription = process.stdout.listen((_) {});
 
-    final startupCompleter = Completer<void>();
     final recentStderrLines = <String>[];
-    var processExited = false;
-    unawaited(
-      process.exitCode.then((_) {
-        processExited = true;
-      }),
-    );
     final stderrSubscription = process.stderr
         .transform(utf8.decoder)
         .transform(const LineSplitter())
         .listen((line) {
           _appendRecentStderrLine(recentStderrLines, line);
-          if (!startupCompleter.isCompleted &&
-              (line.contains('Press [q] to stop') ||
-                  line.contains('Output #0'))) {
-            startupCompleter.complete();
-          }
         });
 
     try {
-      await Future.any<void>(<Future<void>>[
-        startupCompleter.future,
-        process.exitCode.then((exitCode) {
-          throw StateError(
-            'ffmpeg exited before startup (exitCode=$exitCode).',
-          );
-        }),
-      ]).timeout(_startupTimeout);
-    } on TimeoutException {
-      if (processExited) {
-        await stderrSubscription.cancel();
-        await cockpitKillRecordingProcess(process);
-        rethrow;
-      }
-      final hasOutputEvidence = await cockpitWaitForNonEmptyFile(
-        outputFile,
-        timeout: _startupEvidenceTimeout,
-        pollInterval: _finalizationPollInterval,
+      final started = await _waitForDetachedStartup(
+        pid: process.pid,
+        outputFile: outputFile,
+        recentStderrLines: recentStderrLines,
       );
-      if (!hasOutputEvidence) {
+      if (!started) {
         await stderrSubscription.cancel();
         await cockpitKillRecordingProcess(process);
         throw StateError(_buildStartupFailureMessage(recentStderrLines));
@@ -184,20 +169,44 @@ final class CockpitLinuxRecordingAdapter
       rethrow;
     }
 
+    final startedAt = DateTime.now().toUtc();
+    final stderrLogFile = cockpitHostRecordingSessionPaths(
+      _sessionCacheKey,
+    ).stderrLogFile;
+    await stderrLogFile.parent.create(recursive: true);
+    await stderrLogFile.writeAsString(
+      recentStderrLines.isEmpty ? '' : '${recentStderrLines.join('\n')}\n',
+      flush: true,
+    );
+    await cockpitPersistHostRecordingSession(
+      _sessionCacheKey,
+      CockpitHostRecordingPersistedSession(
+        pid: process.pid,
+        request: request,
+        outputFilePath: outputFile.path,
+        startedAt: startedAt,
+        stderrLogPath: stderrLogFile.path,
+      ),
+    );
+    await cockpitCancelRecordingSubscription(stdoutSubscription);
+    await cockpitCancelRecordingSubscription(stderrSubscription);
+
     _process = process;
     _request = request;
     _outputFile = outputFile;
-    _stderrSubscription = stderrSubscription;
+    _stderrSubscription = null;
     _recentStderrLines = recentStderrLines;
     _stopwatch = Stopwatch()..start();
+    _startedAt = startedAt;
     cockpitStoreActiveHostRecordingSession(
       _sessionCacheKey,
       CockpitHostRecordingRuntimeSession(
         process: process,
         request: request,
         outputFile: outputFile,
-        stderrSubscription: stderrSubscription,
+        stderrSubscription: null,
         stopwatch: _stopwatch,
+        startedAt: startedAt,
         recentStderrLines: recentStderrLines,
       ),
     );
@@ -212,7 +221,13 @@ final class CockpitLinuxRecordingAdapter
   Future<CockpitRecordingResult> stopRecording() async {
     final session = _currentSessionState;
     if (session == null) {
-      throw StateError('No active Linux recording session exists.');
+      final persistedSession = cockpitReadPersistedHostRecordingSession(
+        _sessionCacheKey,
+      );
+      if (persistedSession == null) {
+        throw StateError('No active Linux recording session exists.');
+      }
+      return _stopPersistedRecording(persistedSession);
     }
     final process = session.process;
     final request = session.request;
@@ -221,11 +236,17 @@ final class CockpitLinuxRecordingAdapter
 
     try {
       final didStopGracefully = await _requestGracefulStop(process);
-      if (!didStopGracefully) {
-        await cockpitKillRecordingProcess(
-          process,
-          signal: ProcessSignal.sigterm,
-          waitTimeout: _stopTimeout,
+      final didStopAfterSignal =
+          didStopGracefully || await _requestPidSignalStop(process.pid);
+      if (!didStopAfterSignal) {
+        return CockpitRecordingResult(
+          state: CockpitRecordingState.failed,
+          purpose: request.purpose,
+          recordingKind: CockpitRecordingKind.nativeScreen,
+          failureReason: _withRecentStderr(
+            'Linux recording did not stop after SIGINT, SIGTERM, and SIGKILL.',
+            session.recentStderrLines,
+          ),
         );
       }
 
@@ -259,12 +280,13 @@ final class CockpitLinuxRecordingAdapter
       }
 
       stopwatch?.stop();
+      cockpitClearPersistedHostRecordingSession(_sessionCacheKey);
       return CockpitRecordingResult(
         state: CockpitRecordingState.completed,
         purpose: request.purpose,
         recordingKind: CockpitRecordingKind.nativeScreen,
         artifact: cockpitRecordingArtifactForName(request.name),
-        durationMs: stopwatch?.elapsedMilliseconds,
+        durationMs: stopwatch?.elapsedMilliseconds ?? _durationMs(session),
         sourceFilePath: outputFile.path,
       );
     } on TimeoutException {
@@ -281,12 +303,14 @@ final class CockpitLinuxRecordingAdapter
     } finally {
       await session.stderrSubscription?.cancel();
       cockpitClearActiveHostRecordingSession(_sessionCacheKey);
+      cockpitClearPersistedHostRecordingSession(_sessionCacheKey);
       _process = null;
       _request = null;
       _outputFile = null;
       _stderrSubscription = null;
       _recentStderrLines = null;
       _stopwatch = null;
+      _startedAt = null;
     }
   }
 
@@ -301,10 +325,165 @@ final class CockpitLinuxRecordingAdapter
         outputFile: outputFile,
         stderrSubscription: _stderrSubscription,
         stopwatch: _stopwatch,
+        startedAt: _startedAt,
         recentStderrLines: _recentStderrLines ?? const <String>[],
       );
     }
     return cockpitReadActiveHostRecordingSession(_sessionCacheKey);
+  }
+
+  Future<CockpitRecordingResult> _stopPersistedRecording(
+    CockpitHostRecordingPersistedSession session,
+  ) async {
+    final outputFile = File(session.outputFilePath);
+    final recentStderrLines = cockpitRecentHostRecordingStderrLines(session);
+    try {
+      final didStopAfterSignal = await _requestPidSignalStop(session.pid);
+      if (!didStopAfterSignal) {
+        return CockpitRecordingResult(
+          state: CockpitRecordingState.failed,
+          purpose: session.request.purpose,
+          recordingKind: CockpitRecordingKind.nativeScreen,
+          failureReason: _withRecentStderr(
+            'Linux recording did not stop after SIGINT, SIGTERM, and SIGKILL.',
+            recentStderrLines,
+          ),
+        );
+      }
+      return await _finalizeStoppedRecording(
+        request: session.request,
+        outputFile: outputFile,
+        durationMs: DateTime.now()
+            .toUtc()
+            .difference(session.startedAt)
+            .inMilliseconds,
+        recentStderrLines: recentStderrLines,
+      );
+    } on TimeoutException {
+      await cockpitSignalRecordingPid(
+        session.pid,
+        ProcessSignal.sigkill,
+        signalSender: _pidSignalSender,
+        livenessChecker: _pidLivenessChecker,
+        waitTimeout: _stopTimeout,
+        pollInterval: _finalizationPollInterval,
+      );
+      return CockpitRecordingResult(
+        state: CockpitRecordingState.failed,
+        purpose: session.request.purpose,
+        recordingKind: CockpitRecordingKind.nativeScreen,
+        failureReason: _withRecentStderr(
+          'Linux recording did not stop before timeout.',
+          recentStderrLines,
+        ),
+      );
+    } finally {
+      cockpitClearActiveHostRecordingSession(_sessionCacheKey);
+    }
+  }
+
+  Future<CockpitRecordingResult> _finalizeStoppedRecording({
+    required CockpitRecordingRequest request,
+    required File outputFile,
+    required int durationMs,
+    required List<String> recentStderrLines,
+  }) async {
+    final hasOutput = await cockpitWaitForNonEmptyFile(
+      outputFile,
+      timeout: _stopTimeout,
+      pollInterval: _finalizationPollInterval,
+    );
+    if (!hasOutput) {
+      return CockpitRecordingResult(
+        state: CockpitRecordingState.failed,
+        purpose: request.purpose,
+        recordingKind: CockpitRecordingKind.nativeScreen,
+        failureReason: _withRecentStderr(
+          'Linux recording output file was missing or empty.',
+          recentStderrLines,
+        ),
+      );
+    }
+    final finalized = await _waitForFinalizedOutput(outputFile);
+    if (!finalized) {
+      return CockpitRecordingResult(
+        state: CockpitRecordingState.failed,
+        purpose: request.purpose,
+        recordingKind: CockpitRecordingKind.nativeScreen,
+        failureReason: _withRecentStderr(
+          'Linux recording output did not finalize to a stable duration.',
+          recentStderrLines,
+        ),
+      );
+    }
+    return CockpitRecordingResult(
+      state: CockpitRecordingState.completed,
+      purpose: request.purpose,
+      recordingKind: CockpitRecordingKind.nativeScreen,
+      artifact: cockpitRecordingArtifactForName(request.name),
+      durationMs: durationMs,
+      sourceFilePath: outputFile.path,
+    );
+  }
+
+  Future<bool> _requestPidSignalStop(int pid) async {
+    if (!await _pidLivenessChecker(pid)) {
+      return true;
+    }
+    if (await cockpitSignalRecordingPid(
+      pid,
+      ProcessSignal.sigint,
+      signalSender: _pidSignalSender,
+      livenessChecker: _pidLivenessChecker,
+      waitTimeout: _stopTimeout,
+      pollInterval: _finalizationPollInterval,
+    )) {
+      return true;
+    }
+    if (await cockpitSignalRecordingPid(
+      pid,
+      ProcessSignal.sigterm,
+      signalSender: _pidSignalSender,
+      livenessChecker: _pidLivenessChecker,
+      waitTimeout: _stopTimeout,
+      pollInterval: _finalizationPollInterval,
+    )) {
+      return true;
+    }
+    return cockpitSignalRecordingPid(
+      pid,
+      ProcessSignal.sigkill,
+      signalSender: _pidSignalSender,
+      livenessChecker: _pidLivenessChecker,
+      waitTimeout: _stopTimeout,
+      pollInterval: _finalizationPollInterval,
+    );
+  }
+
+  Future<bool> _restoreableSessionExists() async {
+    final runtime = cockpitReadActiveHostRecordingSession(_sessionCacheKey);
+    if (runtime != null) {
+      return true;
+    }
+    final persisted = cockpitReadPersistedHostRecordingSession(
+      _sessionCacheKey,
+    );
+    if (persisted == null) {
+      return false;
+    }
+    if (await _pidLivenessChecker(persisted.pid)) {
+      return true;
+    }
+    cockpitClearPersistedHostRecordingSession(_sessionCacheKey);
+    return false;
+  }
+
+  int? _durationMs(CockpitHostRecordingRuntimeSession session) {
+    final startedAt = session.startedAt;
+    if (startedAt == null) {
+      return null;
+    }
+    return DateTime.now().toUtc().difference(startedAt).inMilliseconds;
   }
 
   Future<CockpitLinuxWindowTarget?> _tryResolveWindowTarget() async {
@@ -312,8 +491,9 @@ final class CockpitLinuxRecordingAdapter
       return await _windowTargetResolver(
         appId: _appId,
         processId: _processId,
-        processRunner: _processRunner,
-        timeout: _startupTimeout,
+        processRunner: (executable, arguments) =>
+            _runProcess(executable, arguments, timeout: _commandTimeout),
+        timeout: _commandTimeout,
       );
     } on Object {
       return null;
@@ -327,38 +507,21 @@ final class CockpitLinuxRecordingAdapter
     if (executable == null || executable.isEmpty) {
       return;
     }
-    Process? process;
     try {
       final arguments = windowTarget == null
           ? <String>['-xa', _appId]
           : <String>['-ia', windowTarget.windowId];
-      process = await _processStarter(executable, arguments);
-      unawaited(process.stdout.drain<void>());
-      unawaited(process.stderr.drain<void>());
-      final exitCode = await process.exitCode.timeout(_startupTimeout);
-      if (exitCode == 0 && _activationSettleDelay > Duration.zero) {
+      final result = await _runProcess(
+        executable,
+        arguments,
+        timeout: _commandTimeout,
+      );
+      if (result.exitCode == 0 && _activationSettleDelay > Duration.zero) {
         await Future<void>.delayed(_activationSettleDelay);
-      }
-    } on TimeoutException {
-      if (process != null) {
-        await cockpitKillRecordingProcess(process);
       }
     } on Object {
       // Activation is best-effort only on Linux hosts.
-      if (process != null) {
-        await cockpitKillRecordingProcess(process);
-      }
     }
-  }
-
-  Future<bool> _requestGracefulStop(Process process) async {
-    try {
-      process.stdin.writeln('q');
-      await process.stdin.flush();
-    } on Object {
-      return false;
-    }
-    return cockpitWaitForRecordingProcessExit(process, timeout: _stopTimeout);
   }
 
   Future<bool> _waitForFinalizedOutput(File outputFile) async {
@@ -388,7 +551,7 @@ final class CockpitLinuxRecordingAdapter
     String path,
   ) async {
     try {
-      final result = await _ffprobeProcessRunner('ffprobe', <String>[
+      final result = await _runFfprobeProcess('ffprobe', <String>[
         '-v',
         'error',
         '-print_format',
@@ -396,7 +559,7 @@ final class CockpitLinuxRecordingAdapter
         '-show_streams',
         '-show_format',
         path,
-      ]);
+      ], timeout: _stopStageTimeout(const Duration(seconds: 3)));
       if (result.exitCode != 0) {
         return null;
       }
@@ -425,7 +588,7 @@ final class CockpitLinuxRecordingAdapter
   }
 
   static Future<CockpitLinuxDisplayConfig> _resolveDisplayConfig(
-    CockpitRecordingProcessRunner processRunner,
+    CockpitRecordingProcessRunner? processRunner,
   ) async {
     final display = Platform.environment['DISPLAY'];
     if (display == null || display.isEmpty) {
@@ -434,7 +597,11 @@ final class CockpitLinuxRecordingAdapter
       );
     }
 
-    final xdpyinfoResult = await processRunner('xdpyinfo', <String>[]);
+    final xdpyinfoResult = await _runDisplayProbeProcess(
+      processRunner,
+      'xdpyinfo',
+      const <String>[],
+    );
     if (xdpyinfoResult.exitCode == 0) {
       final match = RegExp(
         r'dimensions:\s+([0-9]+x[0-9]+)\s+pixels',
@@ -447,7 +614,11 @@ final class CockpitLinuxRecordingAdapter
       }
     }
 
-    final xrandrResult = await processRunner('xrandr', <String>[]);
+    final xrandrResult = await _runDisplayProbeProcess(
+      processRunner,
+      'xrandr',
+      const <String>[],
+    );
     if (xrandrResult.exitCode == 0) {
       final match = RegExp(
         r'([0-9]+x[0-9]+)\s+[0-9.]+\*',
@@ -492,6 +663,114 @@ final class CockpitLinuxRecordingAdapter
     }
     return '$prefix Recent ffmpeg output: ${recentStderrLines.join(' | ')}';
   }
+
+  Future<bool> _waitForDetachedStartup({
+    required int pid,
+    required File outputFile,
+    required List<String> recentStderrLines,
+  }) async {
+    final deadline = DateTime.now().add(_startupTimeout);
+    while (DateTime.now().isBefore(deadline)) {
+      if (_hasStartupConfirmation(recentStderrLines)) {
+        return true;
+      }
+      if (outputFile.existsSync() && outputFile.lengthSync() > 0) {
+        return true;
+      }
+      await Future<void>.delayed(_finalizationPollInterval);
+    }
+    if (_hasStartupConfirmation(recentStderrLines)) {
+      return true;
+    }
+    if (outputFile.existsSync() && outputFile.lengthSync() > 0) {
+      return true;
+    }
+    if (!await _pidLivenessChecker(pid)) {
+      return false;
+    }
+    return cockpitWaitForNonEmptyFile(
+      outputFile,
+      timeout: _startupEvidenceTimeout,
+      pollInterval: _finalizationPollInterval,
+    );
+  }
+
+  bool _hasStartupConfirmation(List<String> recentStderrLines) {
+    return recentStderrLines.any(
+      (line) =>
+          line.contains('Press [q] to stop') || line.contains('Output #0'),
+    );
+  }
+
+  Future<bool> _requestGracefulStop(Process process) async {
+    try {
+      process.stdin.writeln('q');
+      await process.stdin.flush();
+    } on Object {
+      return false;
+    }
+    return cockpitWaitForRecordingProcessOrPidExit(
+      process,
+      timeout: _stopTimeout,
+      livenessChecker: _pidLivenessChecker,
+      pollInterval: _finalizationPollInterval,
+    );
+  }
+
+  Duration _stopStageTimeout(Duration maximum) {
+    if (_stopTimeout <= Duration.zero) {
+      return maximum;
+    }
+    return _stopTimeout < maximum ? _stopTimeout : maximum;
+  }
+
+  Future<ProcessResult> _runProcess(
+    String executable,
+    List<String> arguments, {
+    required Duration timeout,
+  }) {
+    final injected = _processRunner;
+    if (injected != null) {
+      return injected(executable, arguments).timeout(timeout);
+    }
+    return cockpitRunRecordingProcessWithTimeout(
+      executable,
+      arguments,
+      timeout: timeout,
+    );
+  }
+
+  Future<ProcessResult> _runFfprobeProcess(
+    String executable,
+    List<String> arguments, {
+    required Duration timeout,
+  }) {
+    final injected = _ffprobeProcessRunner;
+    if (injected != null) {
+      return injected(executable, arguments).timeout(timeout);
+    }
+    return cockpitRunRecordingProcessWithTimeout(
+      executable,
+      arguments,
+      timeout: timeout,
+    );
+  }
+}
+
+Future<ProcessResult> _runDisplayProbeProcess(
+  CockpitRecordingProcessRunner? processRunner,
+  String executable,
+  List<String> arguments,
+) {
+  final injected = processRunner;
+  if (injected != null) {
+    return injected(executable, arguments).timeout(const Duration(seconds: 3));
+  }
+  return cockpitRunRecordingProcessWithTimeout(
+    executable,
+    arguments,
+    timeout: const Duration(seconds: 3),
+  );
 }
 
 final class _CockpitRecordingTimelineProbe {

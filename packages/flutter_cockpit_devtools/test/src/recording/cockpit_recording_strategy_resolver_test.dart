@@ -409,6 +409,56 @@ void main() {
       expect(resolution?.effectiveLayer, CockpitRecordingLayer.hostScreen);
     },
   );
+
+  test(
+    'falls back to remote stop when a persisted macOS host recording session is stale',
+    () async {
+      const sessionKey = 'macos:dev.cockpit.staleHost';
+      addTearDown(() {
+        cockpitClearPersistedHostRecordingSession(sessionKey);
+      });
+      await cockpitPersistHostRecordingSession(
+        sessionKey,
+        CockpitHostRecordingPersistedSession(
+          pid: 999999,
+          request: autoRequest,
+          outputFilePath: '/tmp/stale-host-recording.mp4',
+          startedAt: DateTime.utc(2026, 4, 13),
+        ),
+      );
+
+      final resolver = CockpitRecordingStrategyResolver(
+        remoteAdapterFactory: (client) => _FakeRecordingAdapter(),
+        adbAdapterFactory: (deviceId) => _FakeRecordingAdapter(),
+        simctlAdapterFactory: (deviceId) => _FakeRecordingAdapter(),
+        macosAdapterFactory: (appId) => _FakeRecordingAdapter(),
+      );
+
+      final resolution = await resolver.resolveDetailedForStop(
+        platform: 'macos',
+        recording: autoRequest,
+        client: CockpitRemoteSessionClient(
+          baseUri: Uri.parse('http://127.0.0.1:47331'),
+        ),
+        sessionHandle: CockpitRemoteSessionHandle(
+          platform: 'macos',
+          deviceId: 'macos',
+          projectDir: '/workspace/examples/cockpit_demo',
+          target: 'cockpit/main.dart',
+          appId: 'dev.cockpit.staleHost',
+          host: '127.0.0.1',
+          hostPort: 47331,
+          devicePort: 47331,
+          baseUrl: 'http://127.0.0.1:47331',
+          launchedAt: DateTime.utc(2026, 4, 13),
+        ),
+      );
+
+      expect(resolution?.implementation, 'remote');
+      expect(resolution?.effectiveLayer, CockpitRecordingLayer.appWindow);
+      expect(cockpitReadPersistedHostRecordingSession(sessionKey), isNull);
+    },
+  );
 }
 
 final class _FakeRecordingAdapter implements CockpitRecordingAdapter {

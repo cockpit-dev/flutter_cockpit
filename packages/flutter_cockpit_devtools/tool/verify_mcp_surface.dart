@@ -1284,20 +1284,73 @@ int   sum( int left,int right ){return left+right;}
         ),
       };
     } finally {
-      await channel.sink.close();
-      await responses.cancel();
-      await stderrSubscription.cancel();
-      if (process.kill()) {
-        await process.exitCode;
-      } else {
-        await process.exitCode.timeout(const Duration(seconds: 5));
-      }
+      await _closeServeMcpSink(channel.sink);
+      await _cancelServeMcpResponses(responses);
+      await _cancelServeMcpStderr(stderrSubscription);
+      await _terminateServeMcpProcess(process);
       if (stderrBuffer.isNotEmpty) {
         final stderrPath = p.join(verifyRoot, 'serve_mcp_stderr.log');
         File(stderrPath)
           ..createSync(recursive: true)
           ..writeAsStringSync(stderrBuffer.toString());
       }
+    }
+  }
+
+  Future<void> _closeServeMcpSink(StreamSink<String> sink) async {
+    try {
+      await sink.close().timeout(const Duration(seconds: 1));
+    } on Object {
+      // Protocol cleanup must not block the verifier.
+    }
+  }
+
+  Future<void> _cancelServeMcpResponses(
+    StreamIterator<String> responses,
+  ) async {
+    try {
+      await responses.cancel().timeout(const Duration(seconds: 1));
+    } on Object {
+      // The process termination below is authoritative.
+    }
+  }
+
+  Future<void> _cancelServeMcpStderr(
+    StreamSubscription<String> subscription,
+  ) async {
+    try {
+      await subscription.cancel().timeout(const Duration(seconds: 1));
+    } on Object {
+      // Stderr is diagnostic; it must not keep the verifier alive.
+    }
+  }
+
+  Future<void> _terminateServeMcpProcess(Process process) async {
+    if (process.pid == 0) {
+      return;
+    }
+    try {
+      process.kill(ProcessSignal.sigterm);
+    } on Object {
+      // The process may already be gone.
+    }
+    if (await _waitForServeMcpExit(process, const Duration(seconds: 2))) {
+      return;
+    }
+    try {
+      process.kill(ProcessSignal.sigkill);
+    } on Object {
+      // The process may already be gone.
+    }
+    await _waitForServeMcpExit(process, const Duration(seconds: 5));
+  }
+
+  Future<bool> _waitForServeMcpExit(Process process, Duration timeout) async {
+    try {
+      await process.exitCode.timeout(timeout);
+      return true;
+    } on Object {
+      return false;
     }
   }
 

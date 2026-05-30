@@ -97,6 +97,66 @@ void main() {
     },
   );
 
+  test(
+    'remote endpoint returns a command timeout result when command execution stalls',
+    () async {
+      final handler = CockpitRemoteSessionEndpointHandler(
+        configuration: const CockpitRemoteSessionConfiguration(
+          enabled: true,
+          autoStart: false,
+          port: 0,
+        ),
+        statusProvider: () async => CockpitRemoteSessionStatus(
+          sessionId: 'timeout-session',
+          platform: 'macos',
+          transportType: 'remoteHttp',
+          currentRouteName: '/home',
+          capabilities: CockpitCapabilities(
+            platform: 'macos',
+            transportType: 'remoteHttp',
+            supportsInAppControl: true,
+            supportsFlutterViewCapture: true,
+            supportsNativeScreenCapture: true,
+            supportsHostAutomation: true,
+          ),
+          recordingCapabilities: CockpitRecordingCapabilities(
+            supportsNativeRecording: true,
+          ),
+          snapshot: CockpitSnapshot(routeName: '/home'),
+        ),
+        snapshotProvider: ({required options}) async =>
+            CockpitSnapshot(routeName: '/home'),
+        commandExecutor: (_) => Completer<CockpitCommandExecution>().future,
+        startRecording: (_) async => throw StateError('unused'),
+        stopRecording: () async => throw StateError('unused'),
+      );
+
+      final response = await handler
+          .handle(
+            CockpitRemoteSessionEndpointRequest(
+              method: 'POST',
+              uri: Uri.parse('/commands/execute'),
+              jsonBody: CockpitCommand(
+                commandId: 'stalling-command',
+                commandType: CockpitCommandType.tap,
+                timeoutMs: 50,
+              ).toJson(),
+            ),
+          )
+          .timeout(const Duration(seconds: 1));
+      final commandResponse = CockpitRemoteCommandResponse.fromJson(
+        response.jsonBody!,
+      );
+      final result = commandResponse.result;
+
+      expect(response.statusCode, HttpStatus.ok);
+      expect(result.success, isFalse);
+      expect(result.commandId, 'stalling-command');
+      expect(result.error?.code, CockpitCommandError.timeoutCode);
+      expect(result.error?.details['timeoutMs'], 50);
+    },
+  );
+
   testWidgets(
     'remote session executes commands against native-discovered widgets',
     (tester) async {

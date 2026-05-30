@@ -1,7 +1,12 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:file/memory.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_application_service_exception.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_lsp_service.dart';
 import 'package:flutter_cockpit_devtools/src/infrastructure/cockpit_file_system.dart';
+import 'package:flutter_cockpit_devtools/src/infrastructure/cockpit_process_manager.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -249,6 +254,46 @@ void main() {
       expect(executor.calls, 1);
     },
   );
+
+  test(
+    'local LSP executor escalates to SIGKILL when the language server ignores shutdown',
+    () async {
+      final fileSystem = MemoryFileSystem();
+      fileSystem.file('/workspace/pkg/lib/main.dart')
+        ..createSync(recursive: true)
+        ..writeAsStringSync('void main() {}\n');
+      final process = _HangingLspProcess();
+      final service = CockpitLspService(
+        fileSystem: LocalCockpitFileSystem(fileSystem: fileSystem),
+        processManager: _SingleProcessManager(process),
+      );
+
+      await expectLater(
+        () => service.invoke(
+          const CockpitLspRequest(
+            workspaceRoot: '/workspace/pkg',
+            command: CockpitLspCommand.hover,
+            path: 'lib/main.dart',
+            line: 1,
+            column: 1,
+            timeout: Duration(milliseconds: 50),
+          ),
+        ),
+        throwsA(
+          isA<CockpitApplicationServiceException>().having(
+            (error) => error.code,
+            'code',
+            'lspRequestTimedOut',
+          ),
+        ),
+      );
+
+      expect(process.killSignals, <ProcessSignal>[
+        ProcessSignal.sigterm,
+        ProcessSignal.sigkill,
+      ]);
+    },
+  );
 }
 
 final class _FakeLspExecutor implements CockpitLspExecutor {
@@ -300,5 +345,78 @@ final class _FakeSequenceLspExecutor implements CockpitLspExecutor {
       throw response;
     }
     return response;
+  }
+}
+
+final class _SingleProcessManager implements CockpitProcessManager {
+  const _SingleProcessManager(this.process);
+
+  final Process process;
+
+  @override
+  Future<ProcessResult> run(
+    String executable,
+    List<String> arguments, {
+    String? workingDirectory,
+    Map<String, String>? environment,
+    bool includeParentEnvironment = true,
+    bool runInShell = false,
+    Encoding? stdoutEncoding,
+    Encoding? stderrEncoding,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Process> start(
+    String executable,
+    List<String> arguments, {
+    String? workingDirectory,
+    Map<String, String>? environment,
+    bool includeParentEnvironment = true,
+    bool runInShell = false,
+    ProcessStartMode mode = ProcessStartMode.normal,
+  }) async {
+    return process;
+  }
+}
+
+final class _HangingLspProcess implements Process {
+  final StreamController<List<int>> _stdoutController =
+      StreamController<List<int>>();
+  final StreamController<List<int>> _stderrController =
+      StreamController<List<int>>();
+  final StreamController<List<int>> _stdinController =
+      StreamController<List<int>>();
+  final Completer<int> _exitCodeCompleter = Completer<int>();
+  final List<ProcessSignal> killSignals = <ProcessSignal>[];
+
+  late final IOSink _stdin = IOSink(_stdinController.sink);
+
+  @override
+  int get pid => 64001;
+
+  @override
+  IOSink get stdin => _stdin;
+
+  @override
+  Stream<List<int>> get stdout => _stdoutController.stream;
+
+  @override
+  Stream<List<int>> get stderr => _stderrController.stream;
+
+  @override
+  Future<int> get exitCode => _exitCodeCompleter.future;
+
+  @override
+  bool kill([ProcessSignal signal = ProcessSignal.sigterm]) {
+    killSignals.add(signal);
+    if (signal == ProcessSignal.sigkill && !_exitCodeCompleter.isCompleted) {
+      _exitCodeCompleter.complete(-9);
+      unawaited(_stdoutController.close());
+      unawaited(_stderrController.close());
+      unawaited(_stdinController.close());
+    }
+    return true;
   }
 }

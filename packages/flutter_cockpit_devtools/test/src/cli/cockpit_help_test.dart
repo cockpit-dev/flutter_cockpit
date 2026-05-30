@@ -88,6 +88,29 @@ void main() {
     expect(help, contains('current directory'));
   });
 
+  test('help coverage matches the registered top-level commands', () {
+    final registered = CockpitCommandRunner().commands.keys
+        .where((name) => name != 'help')
+        .toList(growable: false);
+    final covered = _topLevelCommands
+        .map<String>((command) => command.name as String)
+        .toList(growable: false);
+
+    expect(covered, registered);
+    expect(covered.toSet(), hasLength(covered.length));
+
+    final rootUsage = CockpitCommandRunner().usage;
+    for (final commandName in registered) {
+      expect(
+        RegExp(
+          '(^|\\n)  ${RegExp.escape(commandName)}\\s+',
+        ).hasMatch(rootUsage),
+        isTrue,
+        reason: '$commandName should be visible from root help.',
+      );
+    }
+  });
+
   test('launch-app help explains required inputs and emitted handle', () {
     final usage = _helpForCommand(LaunchAppCommand());
 
@@ -104,6 +127,10 @@ void main() {
     expect(usage, contains('Web currently launches through development mode'));
     expect(usage, contains('Writes:'));
     expect(usage, contains('app.json'));
+    expect(usage, contains('returns after the app is ready'));
+    expect(usage, contains('development supervisor keeps logs'));
+    expect(usage, contains('reload'));
+    expect(usage, contains('stop control alive in the background'));
     expect(usage, contains('Example:'));
   });
 
@@ -310,9 +337,7 @@ void main() {
 final List<dynamic> _topLevelCommands = <dynamic>[
   ListTargetsCommand(),
   LaunchAppCommand(),
-  ReadAppCommand(),
   LaunchTargetCommand(),
-  ReadTargetCommand(),
   LaunchRemoteSessionCommand(),
   QueryRemoteSessionCommand(),
   ReadRemoteStatusCommand(),
@@ -321,6 +346,8 @@ final List<dynamic> _topLevelCommands = <dynamic>[
   ExecuteRemoteCommandCommand(),
   ExecuteRemoteCommandBatchCommand(),
   WaitRemoteUiIdleCommand(),
+  ReadAppCommand(),
+  ReadTargetCommand(),
   InspectUiCommand(),
   InspectSurfaceCommand(),
   RunCommandCommand(),
@@ -352,8 +379,8 @@ final List<dynamic> _topLevelCommands = <dynamic>[
   StartRemoteRecordingCommand(),
   StopRemoteRecordingCommand(),
   ReadLogsCommand(),
-  ReadErrorsCommand(),
   ReadNetworkCommand(),
+  ReadErrorsCommand(),
   ReadTaskBundleSummaryCommand(),
   RunTaskCommand(),
   ValidateTaskCommand(),

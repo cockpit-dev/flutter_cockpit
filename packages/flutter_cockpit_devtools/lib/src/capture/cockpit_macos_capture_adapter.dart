@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
 import '../platform/macos/cockpit_macos_window_target.dart';
+import '../session/cockpit_session_process_runner.dart';
 import 'cockpit_host_capture_adapter.dart';
 
 final class CockpitMacosCaptureAdapter implements CockpitHostCaptureAdapter {
@@ -11,7 +12,7 @@ final class CockpitMacosCaptureAdapter implements CockpitHostCaptureAdapter {
     required String appId,
     String osascriptExecutable = 'osascript',
     String screencaptureExecutable = 'screencapture',
-    CockpitCaptureProcessRunner processRunner = Process.run,
+    CockpitCaptureProcessRunner? processRunner,
     CockpitCaptureTempFileFactory tempFileFactory =
         cockpitCreateCaptureTempFile,
     CockpitMacosWindowTargetResolver windowTargetResolver =
@@ -30,7 +31,7 @@ final class CockpitMacosCaptureAdapter implements CockpitHostCaptureAdapter {
   final String _appId;
   final String _osascriptExecutable;
   final String _screencaptureExecutable;
-  final CockpitCaptureProcessRunner _processRunner;
+  final CockpitCaptureProcessRunner? _processRunner;
   final CockpitCaptureTempFileFactory _tempFileFactory;
   final CockpitMacosWindowTargetResolver _windowTargetResolver;
   final Duration _timeout;
@@ -61,17 +62,17 @@ final class CockpitMacosCaptureAdapter implements CockpitHostCaptureAdapter {
       final windowTarget = await _windowTargetResolver(
         appId: _appId,
         osascriptExecutable: _osascriptExecutable,
-        processRunner: _processRunner,
+        processRunner: _runProcess,
         timeout: _timeout,
         activationSettleDelay: _activationSettleDelay,
       );
-      final result = await _processRunner(_screencaptureExecutable, <String>[
+      final result = await _runProcess(_screencaptureExecutable, <String>[
         '-x',
         '-o',
         '-R',
         '${windowTarget.left},${windowTarget.top},${windowTarget.width},${windowTarget.height}',
         outputFile.path,
-      ]).timeout(_timeout);
+      ]);
       stopwatch.stop();
 
       if (result.exitCode != 0) {
@@ -126,5 +127,17 @@ final class CockpitMacosCaptureAdapter implements CockpitHostCaptureAdapter {
         details: <String, Object?>{'appId': _appId, 'error': error.toString()},
       );
     }
+  }
+
+  Future<ProcessResult> _runProcess(String executable, List<String> arguments) {
+    final injected = _processRunner;
+    if (injected != null) {
+      return injected(executable, arguments).timeout(_timeout);
+    }
+    return cockpitRunProcessWithTimeout(
+      executable,
+      arguments,
+      timeout: _timeout,
+    );
   }
 }

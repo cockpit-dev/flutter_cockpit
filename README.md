@@ -218,8 +218,10 @@ Target-first flows are platform-aware and capability-truthful:
 - `read-target` stays summary-first. App-backed Flutter and desktop targets may reuse remote Flutter summaries, while browser or direct system targets fall back to capability-only summaries when no live semantic plane exists.
 - `inspect-surface` prefers the foreground surface for the resolved target. Flutter apps inspect the semantic plane; desktop Flutter targets try remote semantic inspection first and fall back to native/window capture only when that semantic path is unavailable; direct system targets stay capability/capture-first.
 - `run-shell` is target-aware. Use `--scope target --target-json /tmp/target.json` to bind shell execution to a normalized target, `--scope android --device-id <id>` for `adb shell`, `--scope ios --device-id <simulator-udid>` for `xcrun simctl spawn`, and desktop host-aligned scopes when the platform truthfully exposes shell control.
+- `run-shell` is bounded and killable by default. Keep the default timeout for quick probes; pass `--timeout-seconds <n>` only for known-slow shell work.
 
 The public surface is app-first, not session-handle-first. If you omit `--app-json`, `launch-app` writes the latest handle to `.dart_tool/flutter_cockpit/latest_app.json` in the current working directory, and follow-up app commands reuse it automatically. CLI and MCP output uses lower camel case keys.
+`launch-app` is designed as a short command: it waits until the app is ready, writes the reusable handle, and exits. In development mode, a background supervisor keeps `flutter run --machine`, logs, reload, restart, and stop control alive. Agents should not shell-background `launch-app`; use the returned handle with the follow-up commands.
 When a command accepts both `--app-json` and `--base-url`, `--app-json` supplies app identity, platform, and recording metadata while the explicit `--base-url` overrides only the live connection address. If `--app-json` is omitted, explicit `--base-url` wins over the implicit latest-app handle in the current working directory.
 Prefer `--command-file`, `--commands-file`, and `--config-json` once a payload stops being trivial.
 `launch-app` auto-detects `cockpit/main.dart` first, then `lib/main.dart`.
@@ -229,7 +231,7 @@ When the next few mutations are already known and the flow will cross route boun
 For route-changing `tap`, include `parameters.expectedRouteName`; add `parameters.routeTimeoutMs` for CI, recording, simulator, or other acceptance flows where runner latency is expected. `timeoutMs` is the hard command ceiling, not the default route wait. For critical route crossings, follow the tap with `waitFor` on `parameters.routeName`.
 When an app summary already exposes bounded workflow counters or state fields, prefer those fields before reopening a heavier inspection payload.
 
-Locators are multi-signal. Start with `text`, `tooltip`, or `semanticId`. Use `key` only when the app already exposes a legitimate stable key for product reasons, then add `route`, `type`, `path`, nested `ancestor`, or short `fallbacks` only when needed. `path` matching is fuzzy and ignores noise such as `body`, `slivers`, and numeric indexes.
+Locators are multi-signal. Start with `text`, `tooltip`, or `semanticId`. Use `key` only when the app already exposes a legitimate stable key for product reasons, then add `route`, `type`, `path`, nested `ancestor`, or short `fallbacks` only when needed. Avoid short repeated action words such as `Open`, `Edit`, or `Save` as the only signal; prefer the full accessible label surfaced by `read-app` / `inspect-ui` plus `route` or `ancestor`. `path` matching is fuzzy and ignores noise such as `body`, `slivers`, and numeric indexes.
 
 ## Quick Start
 

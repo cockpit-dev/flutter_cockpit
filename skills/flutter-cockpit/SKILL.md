@@ -79,12 +79,15 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 
 Safe first command types: `tap`, `enterText`, `assertText`, `waitForUiIdle`, `scrollUntilVisible`, `captureScreenshot`.
 
-Safe first locator keys: `text`, `tooltip`, `semanticId`, `type`, `ancestor`, `index`, `fallbacks`. Use `key` only when the app already exposes a legitimate stable key.
+Safe first locator keys: `text`, `tooltip`, `semanticId`, `type`, `ancestor`, `index`, `fallbacks`. Do not set `type: Text` for button labels; use text alone first, or the inspected control type. Use `key` only when the app already exposes a legitimate stable key.
+For repeated labels such as `Open` or `Save`, prefer the full accessible text plus `route` or `ancestor`; otherwise add a row/card ancestor or fallback.
 
 ## High-Value Rules
 
 - If syntax is unclear, run `dart run flutter_cockpit_devtools:flutter_cockpit_devtools help <command>` before guessing.
 - Prefer `app-first` unless target-first surface truth is the real question. In one repo, reuse `.dart_tool/flutter_cockpit/latest_app.json` instead of repeating `--app-json`.
+- Do not shell-background `launch-app`. It returns after the app is ready; the background supervisor keeps logs, hot reload, hot restart, and `stop-app` control alive.
+- `run-shell` is bounded and killable by default. Keep the default timeout for quick probes; add `--timeout-seconds <n>` only for known-slow host, adb, or simctl work.
 - If target-first may later need app commands, persist `--output /tmp/launch_target.json --output-format json` and extract the embedded app handle with `jq '.app' /tmp/launch_target.json > /tmp/app.json`.
 - Default stdout is AI-readable, not JSON. For `run-task`, `validate-task`, and CLI `read-task-bundle-summary` / MCP `read_task_bundle_summary`, read the default `issues` and `bundle` sections first; they are tuned to expose `issueEvidence`, bundle paths, key counts, and gate failures without dumping the full `bundleSummary`. Use `--stdout-format json` only for `jq`; use `--output <path>` for files and add `--output-format json` only for machine-readable files.
 - Prefer file inputs: `--command-file`, `--commands-file`, and config JSON once payloads stop being trivial.
@@ -109,6 +112,7 @@ Safe first locator keys: `text`, `tooltip`, `semanticId`, `type`, `ancestor`, `i
 - Rerunning full validation after every small edit instead of hot reload plus a bounded read.
 - Treating `target.json` as an app handle for `stop-app`, reload, or app-scoped recording.
 - Adding automation-only keys instead of using multi-signal locators.
+- Treating stale iOS PCH cache as a framework bug. If Xcode says `FlutterAppDelegate.h has been modified`, run `flutter clean` in the app and relaunch once.
 - Opening large snapshots or artifacts before summaries explain the next repair.
 - Treating a finished run, screenshot, or bundle as enough proof without post-action state or validation output.
 - Assuming framework-repo verifier scripts exist in a consumer app.

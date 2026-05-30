@@ -4,6 +4,8 @@ import 'dart:io';
 
 import '../control/cockpit_command.dart';
 import '../control/cockpit_command_execution.dart';
+import '../control/cockpit_command_result.dart';
+import '../errors/cockpit_command_error.dart';
 import '../model/cockpit_artifact_ref.dart';
 import '../model/cockpit_artifact_naming.dart';
 import '../model/cockpit_step_record.dart';
@@ -37,6 +39,9 @@ typedef CockpitRemoteRecordingStopper =
     Future<CockpitRecordingResult> Function();
 typedef CockpitRemoteArtifactTempFileFactory =
     Future<File> Function(String basename);
+
+const Duration _defaultCommandExecutionTimeout = Duration(seconds: 30);
+const Duration _commandExecutionTimeoutGrace = Duration(milliseconds: 250);
 
 final class CockpitRemoteSessionEndpointRequest {
   const CockpitRemoteSessionEndpointRequest({
@@ -204,7 +209,7 @@ final class CockpitRemoteSessionEndpointHandler {
         case ('POST', '/commands/execute'):
           final command = CockpitCommand.fromJson(request.jsonBody);
           await _drainRuntimeSteps(clear: true);
-          final execution = await _commandExecutor(command);
+          final execution = await _executeCommandWithinBudget(command);
           final runtimeSteps = await _drainRuntimeSteps(clear: true);
           final artifactRegistration = await _registerCommandArtifacts(
             execution,
@@ -255,6 +260,42 @@ final class CockpitRemoteSessionEndpointHandler {
         'message': error.toString(),
       }, statusCode: HttpStatus.internalServerError);
     }
+  }
+
+  Future<CockpitCommandExecution> _executeCommandWithinBudget(
+    CockpitCommand command,
+  ) async {
+    final declaredTimeout = _declaredCommandExecutionTimeout(command);
+    final enforcedTimeout = declaredTimeout + _commandExecutionTimeoutGrace;
+    try {
+      return await _commandExecutor(command).timeout(enforcedTimeout);
+    } on TimeoutException {
+      return CockpitCommandExecution(
+        result: CockpitCommandResult(
+          success: false,
+          commandId: command.commandId,
+          commandType: command.commandType,
+          durationMs: declaredTimeout.inMilliseconds,
+          error: CockpitCommandError.timeout(
+            message:
+                'Command execution timed out before the remote endpoint could return a result.',
+            details: <String, Object?>{
+              'timeoutMs': declaredTimeout.inMilliseconds,
+              'enforcedTimeoutMs': enforcedTimeout.inMilliseconds,
+              'remoteEndpoint': true,
+            },
+          ),
+        ),
+      );
+    }
+  }
+
+  Duration _declaredCommandExecutionTimeout(CockpitCommand command) {
+    final timeoutMs = command.timeoutMs;
+    if (timeoutMs != null && timeoutMs > 0) {
+      return Duration(milliseconds: timeoutMs);
+    }
+    return _defaultCommandExecutionTimeout;
   }
 
   Map<String, Object?> _pingPayload() => <String, Object?>{

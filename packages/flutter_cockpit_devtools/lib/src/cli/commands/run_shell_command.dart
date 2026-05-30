@@ -45,6 +45,12 @@ final class RunShellCommand extends CockpitCliCommand {
         'working-directory',
         help: 'Host working directory for host-aligned shell execution.',
       )
+      ..addOption(
+        'timeout-seconds',
+        defaultsTo: '30',
+        help:
+            'Maximum time to wait before killing the shell process. Increase only for intentionally long host or device commands.',
+      )
       ..addOption('executable', help: 'Executable or entry command to run.')
       ..addMultiOption(
         'arg',
@@ -78,7 +84,7 @@ final class RunShellCommand extends CockpitCliCommand {
 
   @override
   String get helpShape =>
-      'Pass one --executable plus repeated --arg values. Use --scope target with --target-json or the default latest target handle for normalized target shells, or platform scopes such as android and ios when the device is already known. Browser targets do not expose a direct shell scope.';
+      'Pass one --executable plus repeated --arg values. Use --scope target with --target-json or the default latest target handle for normalized target shells, or platform scopes such as android and ios when the device is already known. Browser targets do not expose a direct shell scope. Every run-shell call is bounded by --timeout-seconds and kills the process on timeout.';
 
   @override
   String get helpExample =>
@@ -112,6 +118,15 @@ final class RunShellCommand extends CockpitCliCommand {
         targetHandlePath: targetJsonPath,
         deviceId: argResults?['device-id'] as String?,
         workingDirectory: argResults?['working-directory'] as String?,
+        timeout: Duration(
+          seconds:
+              cockpitReadOptionalPositiveInt(
+                argResults,
+                'timeout-seconds',
+                usage,
+              ) ??
+              30,
+        ),
       ),
     );
     await cockpitWriteJsonPayload(

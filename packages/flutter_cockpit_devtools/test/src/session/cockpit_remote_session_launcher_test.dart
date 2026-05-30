@@ -54,6 +54,57 @@ done
     },
   );
 
+  test(
+    'killable session process runner does not wait for inherited stdio pipes',
+    () async {
+      if (Platform.isWindows) {
+        return;
+      }
+
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_remote_session_runner_inherited_stdio',
+      );
+      addTearDown(() async {
+        final pidFile = File(p.join(tempDir.path, 'child.pid'));
+        if (pidFile.existsSync()) {
+          final pid = int.tryParse(pidFile.readAsStringSync().trim());
+          if (pid != null) {
+            await _killProcessIfAlive(pid);
+          }
+        }
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final executable = File(p.join(tempDir.path, 'spawn-child.sh'));
+      await executable.writeAsString(r'''
+#!/bin/sh
+(
+  while true; do
+    sleep 10
+  done
+) &
+printf '%s\n' "$!" > "$1"
+printf 'ready\n'
+exit 0
+''');
+      await Process.run('chmod', <String>['+x', executable.path]);
+
+      final stopwatch = Stopwatch()..start();
+      final result = await cockpitRunProcessWithTimeout(
+        executable.path,
+        <String>[p.join(tempDir.path, 'child.pid')],
+        timeout: const Duration(seconds: 5),
+      );
+      stopwatch.stop();
+
+      expect(result.exitCode, 0);
+      expect(result.stdout, contains('ready'));
+      expect(stopwatch.elapsed, lessThan(const Duration(seconds: 1)));
+    },
+  );
+
   test('remote session helpers choose host-reachable bind endpoints', () {
     expect(cockpitRemoteBindHostForPlatform('android'), '0.0.0.0');
     expect(cockpitRemotePublicHostForPlatform('android'), '127.0.0.1');

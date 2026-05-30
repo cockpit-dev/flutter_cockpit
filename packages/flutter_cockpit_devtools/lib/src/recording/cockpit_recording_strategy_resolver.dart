@@ -94,9 +94,76 @@ final class CockpitRecordingStrategyResolver {
       processId: processId,
       preferActiveHostSession: preferActiveHostSession,
     );
+    return _resolveFromCandidates(
+      platform: normalizedPlatform,
+      recording: recording,
+      candidates: candidates,
+      preferActiveHostSession: preferActiveHostSession,
+    );
+  }
+
+  Future<CockpitRecordingStrategyResolution?> resolveDetailedForStop({
+    required String platform,
+    required CockpitRecordingRequest? recording,
+    required CockpitRemoteSessionClient client,
+    CockpitRemoteSessionHandle? sessionHandle,
+    String? androidDeviceId,
+    String? iosDeviceId,
+    String? platformAppId,
+    int? processId,
+  }) async {
+    if (recording == null) {
+      return null;
+    }
+
+    final normalizedPlatform = platform.trim().toLowerCase();
+    final candidates = _orderedStopCandidates(
+      platform: normalizedPlatform,
+      client: client,
+      sessionHandle: sessionHandle,
+      androidDeviceId: androidDeviceId,
+      iosDeviceId: iosDeviceId,
+      platformAppId: platformAppId,
+      processId: processId,
+    );
+    final activeSessionCandidate = await _preferredLiveActiveSessionCandidate(
+      candidates,
+    );
+    if (activeSessionCandidate != null) {
+      final desiredLayer =
+          recording.layer ??
+          _preferredLayerForMode(normalizedPlatform, recording.mode);
+      final effectiveLayer = activeSessionCandidate.layer;
+      final fallbackUsed =
+          desiredLayer != null && effectiveLayer != desiredLayer;
+      return _buildResolution(
+        candidate: activeSessionCandidate,
+        request: recording,
+        effectiveLayer: effectiveLayer,
+        fallbackUsed: fallbackUsed,
+        fallbackReason: fallbackUsed
+            ? 'An active host recording session is already running. '
+                  'Reusing ${effectiveLayer.jsonValue} to stop the active host recording.'
+            : null,
+      );
+    }
+
+    return _resolveFromCandidates(
+      platform: normalizedPlatform,
+      recording: recording,
+      candidates: candidates,
+      preferActiveHostSession: true,
+    );
+  }
+
+  CockpitRecordingStrategyResolution _resolveFromCandidates({
+    required String platform,
+    required CockpitRecordingRequest recording,
+    required List<_RecordingCandidate> candidates,
+    required bool preferActiveHostSession,
+  }) {
     final desiredLayer =
-        recording.layer ??
-        _preferredLayerForMode(normalizedPlatform, recording.mode);
+        recording.layer ?? _preferredLayerForMode(platform, recording.mode);
 
     final preferredActiveSessionCandidate = _preferredActiveSessionCandidate(
       candidates,
@@ -136,7 +203,7 @@ final class CockpitRecordingStrategyResolver {
           requestedLayer: recording.layer,
           fallbackUsed: false,
           unsupportedReason:
-              'Recording layer ${desiredLayer.jsonValue} is unavailable on $normalizedPlatform.',
+              'Recording layer ${desiredLayer.jsonValue} is unavailable on $platform.',
         );
       }
     } else if (!recording.allowsFallback) {
@@ -146,7 +213,7 @@ final class CockpitRecordingStrategyResolver {
         requestedLayer: recording.layer,
         fallbackUsed: false,
         unsupportedReason:
-            'Recording mode ${recording.mode.jsonValue} is unavailable on $normalizedPlatform.',
+            'Recording mode ${recording.mode.jsonValue} is unavailable on $platform.',
       );
     }
 
@@ -156,8 +223,7 @@ final class CockpitRecordingStrategyResolver {
         requestedMode: recording.mode,
         requestedLayer: recording.layer,
         fallbackUsed: false,
-        unsupportedReason:
-            'No recording strategy is available for $normalizedPlatform.',
+        unsupportedReason: 'No recording strategy is available for $platform.',
       );
     }
 
@@ -170,8 +236,8 @@ final class CockpitRecordingStrategyResolver {
       effectiveLayer: fallbackCandidate.layer,
       fallbackUsed: true,
       fallbackReason: desiredLayer == null
-          ? 'Recording mode ${recording.mode.jsonValue} is unavailable on $normalizedPlatform. Falling back to ${fallbackCandidate.layer.jsonValue}.'
-          : 'Recording layer ${desiredLayer.jsonValue} is unavailable on $normalizedPlatform. Falling back to ${fallbackCandidate.layer.jsonValue}.',
+          ? 'Recording mode ${recording.mode.jsonValue} is unavailable on $platform. Falling back to ${fallbackCandidate.layer.jsonValue}.'
+          : 'Recording layer ${desiredLayer.jsonValue} is unavailable on $platform. Falling back to ${fallbackCandidate.layer.jsonValue}.',
     );
   }
 
@@ -189,6 +255,21 @@ final class CockpitRecordingStrategyResolver {
       return null;
     }
     return candidate;
+  }
+
+  Future<_RecordingCandidate?> _preferredLiveActiveSessionCandidate(
+    List<_RecordingCandidate> candidates,
+  ) async {
+    for (final candidate in candidates) {
+      final checker = candidate.liveSessionChecker;
+      if (checker == null) {
+        continue;
+      }
+      if (await checker()) {
+        return candidate;
+      }
+    }
+    return null;
   }
 
   CockpitRecordingStrategyResolution _buildResolution({
@@ -313,6 +394,76 @@ final class CockpitRecordingStrategyResolver {
     }
   }
 
+  List<_RecordingCandidate> _orderedStopCandidates({
+    required String platform,
+    required CockpitRemoteSessionClient client,
+    required CockpitRemoteSessionHandle? sessionHandle,
+    required String? androidDeviceId,
+    required String? iosDeviceId,
+    required String? platformAppId,
+    required int? processId,
+  }) {
+    final remote = _RecordingCandidate(
+      implementation: 'remote',
+      layer: _remoteLayerForPlatform(platform),
+      factory: () => remoteAdapterFactory(client),
+    );
+    switch (platform) {
+      case 'android':
+        final host = (androidDeviceId == null || androidDeviceId.isEmpty)
+            ? null
+            : _RecordingCandidate(
+                implementation: 'adb',
+                layer: CockpitRecordingLayer.system,
+                factory: () => adbAdapterFactory(androidDeviceId),
+                sessionKey: 'adb:$androidDeviceId',
+                liveSessionChecker: () =>
+                    cockpitHasLiveAdbRecordingSession(androidDeviceId),
+              );
+        return <_RecordingCandidate>[remote, ?host];
+      case 'ios':
+        final simulatorDeviceId =
+            (iosDeviceId == null ||
+                iosDeviceId.isEmpty ||
+                !cockpitLooksLikeIosSimulatorDeviceId(iosDeviceId))
+            ? null
+            : iosDeviceId;
+        final host = (simulatorDeviceId == null || simulatorDeviceId.isEmpty)
+            ? null
+            : _RecordingCandidate(
+                implementation: 'simctl',
+                layer: CockpitRecordingLayer.system,
+                factory: () => simctlAdapterFactory(simulatorDeviceId),
+                sessionKey: 'simctl:$simulatorDeviceId',
+                liveSessionChecker: () =>
+                    cockpitHasLiveSimctlRecordingSession(simulatorDeviceId),
+              );
+        return <_RecordingCandidate>[remote, ?host];
+      case 'macos':
+        final host = _desktopHostCandidate(
+          platform: platform,
+          appId: platformAppId ?? sessionHandle?.effectivePlatformAppId,
+        );
+        return <_RecordingCandidate>[remote, ?host];
+      case 'windows':
+        final host = _desktopHostCandidate(
+          platform: platform,
+          appId: platformAppId ?? sessionHandle?.effectivePlatformAppId,
+          processId: processId ?? sessionHandle?.processId,
+        );
+        return <_RecordingCandidate>[remote, ?host];
+      case 'linux':
+        final host = _desktopHostCandidate(
+          platform: platform,
+          appId: platformAppId ?? sessionHandle?.effectivePlatformAppId,
+          processId: processId ?? sessionHandle?.processId,
+        );
+        return <_RecordingCandidate>[remote, ?host];
+      default:
+        return <_RecordingCandidate>[remote];
+    }
+  }
+
   _RecordingCandidate? _desktopHostCandidate({
     required String platform,
     required String? appId,
@@ -327,6 +478,8 @@ final class CockpitRecordingStrategyResolver {
         layer: CockpitRecordingLayer.hostScreen,
         factory: () => macosAdapterFactory(appId),
         sessionKey: 'macos:$appId',
+        liveSessionChecker: () =>
+            cockpitHasLiveHostRecordingSession('macos:$appId'),
       ),
       'windows' => _RecordingCandidate(
         implementation: 'windowsHost',
@@ -337,6 +490,13 @@ final class CockpitRecordingStrategyResolver {
           appId: appId,
           processId: processId,
         ),
+        liveSessionChecker: () => cockpitHasLiveHostRecordingSession(
+          _desktopHostSessionKey(
+            platform: platform,
+            appId: appId,
+            processId: processId,
+          ),
+        ),
       ),
       'linux' => _RecordingCandidate(
         implementation: 'linuxHost',
@@ -346,6 +506,13 @@ final class CockpitRecordingStrategyResolver {
           platform: platform,
           appId: appId,
           processId: processId,
+        ),
+        liveSessionChecker: () => cockpitHasLiveHostRecordingSession(
+          _desktopHostSessionKey(
+            platform: platform,
+            appId: appId,
+            processId: processId,
+          ),
         ),
       ),
       _ => null,
@@ -520,12 +687,14 @@ final class _RecordingCandidate {
     required this.layer,
     required this.factory,
     this.sessionKey,
+    this.liveSessionChecker,
   });
 
   final String implementation;
   final CockpitRecordingLayer layer;
   final CockpitRecordingAdapter Function() factory;
   final String? sessionKey;
+  final Future<bool> Function()? liveSessionChecker;
 }
 
 final class _PolicyAwareRecordingAdapter implements CockpitRecordingAdapter {

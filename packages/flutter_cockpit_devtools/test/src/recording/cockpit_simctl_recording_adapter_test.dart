@@ -169,6 +169,69 @@ void main() {
       );
     },
   );
+
+  test(
+    'simctl adapter can stop an active recording after the adapter instance is recreated',
+    () async {
+      const deviceId = 'simulator-recreated';
+      await _deletePersistedSession(deviceId);
+      addTearDown(() => _deletePersistedSession(deviceId));
+
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_simctl_recording_recreated',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final runtime = _FakeSimctlRuntime(
+        pid: 4401,
+        startupLine: 'Recording started',
+        onStop: (outputPath) async {
+          File(outputPath).writeAsStringSync('simctl-recreated-video');
+        },
+      );
+
+      CockpitSimctlRecordingAdapter buildAdapter() {
+        return CockpitSimctlRecordingAdapter(
+          deviceId: deviceId,
+          processStarter: runtime.start,
+          pidSignalSender: runtime.sendSignal,
+          pidLivenessChecker: runtime.isRunning,
+          tempFileFactory: (basename) async =>
+              File(p.join(tempDir.path, basename)),
+          processRunner: _ffprobeUnavailable,
+          startupTimeout: const Duration(seconds: 1),
+          stopTimeout: const Duration(seconds: 2),
+          finalizationPollInterval: const Duration(milliseconds: 10),
+        );
+      }
+
+      final startedAdapter = buildAdapter();
+      await startedAdapter.startRecording(
+        const CockpitRecordingRequest(
+          purpose: CockpitRecordingPurpose.acceptance,
+          name: 'host-simctl-recreated',
+          attachToStep: true,
+        ),
+      );
+
+      final stoppedAdapter = buildAdapter();
+      final result = await stoppedAdapter.stopRecording();
+
+      expect(
+        result.state,
+        CockpitRecordingState.completed,
+        reason: result.failureReason,
+      );
+      expect(
+        File(result.sourceFilePath!).readAsStringSync(),
+        'simctl-recreated-video',
+      );
+    },
+  );
 }
 
 Future<ProcessResult> _ffprobeUnavailable(
