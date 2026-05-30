@@ -35,6 +35,7 @@ export 'src/application/cockpit_interactive_result_data.dart';
 export 'src/application/cockpit_interactive_result_profile.dart';
 export 'src/application/cockpit_interactive_session_lock.dart';
 export 'src/application/cockpit_interactive_snapshot_store.dart';
+export 'src/application/cockpit_issue_evidence_builder.dart';
 export 'src/application/cockpit_launch_app_service.dart';
 export 'src/application/cockpit_launch_target_service.dart';
 export 'src/application/cockpit_launch_development_session_service.dart';

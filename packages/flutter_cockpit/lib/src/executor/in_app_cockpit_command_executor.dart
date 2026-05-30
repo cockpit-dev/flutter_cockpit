@@ -56,6 +56,16 @@ enum _TapActivation { auto, direct, semantic, gesture }
 
 enum _ActionCommitOutcome { actionCompleted, uiCommitted, timedOut }
 
+enum _ActionActivationPath {
+  direct,
+  semantic,
+  gesture,
+  directTextInput,
+  directEnterText,
+  semanticTextInput,
+  semanticEnterText,
+}
+
 final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
   InAppCockpitCommandExecutor({
     required CockpitTargetRegistry registry,
@@ -467,6 +477,7 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
         commandType: CockpitCommandType.tap,
         stopwatch: stopwatch,
         resolution: resolution,
+        activationPath: _ActionActivationPath.direct,
       );
       if (commit.failure != null) {
         return commit.failure!;
@@ -481,6 +492,8 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
         commandType: CockpitCommandType.tap,
         durationMs: stopwatch.elapsedMilliseconds,
         resolution: resolution,
+        activationPath: _ActionActivationPath.direct,
+        actionDiagnostics: commit.diagnostics,
         timeoutOverride:
             _autoGestureFallbackEligible(
               command: command,
@@ -522,6 +535,7 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
         commandType: CockpitCommandType.tap,
         stopwatch: stopwatch,
         resolution: resolution,
+        activationPath: _ActionActivationPath.semantic,
       );
       if (commit.failure != null) {
         return commit.failure!;
@@ -536,6 +550,8 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
         commandType: CockpitCommandType.tap,
         durationMs: stopwatch.elapsedMilliseconds,
         resolution: resolution,
+        activationPath: _ActionActivationPath.semantic,
+        actionDiagnostics: commit.diagnostics,
         timeoutOverride:
             _autoGestureFallbackEligible(
               command: command,
@@ -700,6 +716,7 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
         commandType: CockpitCommandType.longPress,
         stopwatch: stopwatch,
         resolution: resolution,
+        activationPath: _ActionActivationPath.semantic,
       );
       if (commit.failure != null) {
         return commit.failure!;
@@ -729,6 +746,7 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
         commandType: CockpitCommandType.longPress,
         stopwatch: stopwatch,
         resolution: resolution,
+        activationPath: _ActionActivationPath.direct,
       );
       if (commit.failure != null) {
         return commit.failure!;
@@ -820,6 +838,7 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
         commandType: CockpitCommandType.doubleTap,
         stopwatch: stopwatch,
         resolution: resolution,
+        activationPath: _ActionActivationPath.direct,
       );
       if (commit.failure != null) {
         return commit.failure!;
@@ -1684,6 +1703,7 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
         commandType: CockpitCommandType.enterText,
         stopwatch: stopwatch,
         resolution: resolution,
+        activationPath: _ActionActivationPath.directTextInput,
       );
     } else if (request.text != null && enterText != null) {
       commit = await _invokeActionAndAwaitCommit(
@@ -1693,6 +1713,7 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
         commandType: CockpitCommandType.enterText,
         stopwatch: stopwatch,
         resolution: resolution,
+        activationPath: _ActionActivationPath.directEnterText,
       );
     } else if (semanticTextInput != null) {
       commit = await _invokeActionAndAwaitCommit(
@@ -1702,6 +1723,7 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
         commandType: CockpitCommandType.enterText,
         stopwatch: stopwatch,
         resolution: resolution,
+        activationPath: _ActionActivationPath.semanticTextInput,
       );
     } else if (request.text != null && semanticEnterText != null) {
       commit = await _invokeActionAndAwaitCommit(
@@ -1711,6 +1733,7 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
         commandType: CockpitCommandType.enterText,
         stopwatch: stopwatch,
         resolution: resolution,
+        activationPath: _ActionActivationPath.semanticEnterText,
       );
     } else {
       return _unsupportedExecution(
@@ -1841,6 +1864,7 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
       commandType: requiredCommand,
       stopwatch: stopwatch,
       resolution: resolution,
+      activationPath: _ActionActivationPath.directTextInput,
     );
     if (commit.failure != null) {
       return commit.failure!;
@@ -1927,6 +1951,7 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
       commandType: requiredCommand,
       stopwatch: stopwatch,
       resolution: resolution,
+      activationPath: _ActionActivationPath.semantic,
     );
     if (commit.failure != null) {
       return commit.failure!;
@@ -2660,6 +2685,7 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
       commandType: command.commandType,
       durationMs: stopwatch.elapsedMilliseconds,
       resolution: resolution,
+      activationPath: _ActionActivationPath.gesture,
     );
     if (routeExpectationFailure != null) {
       return routeExpectationFailure;
@@ -3091,6 +3117,12 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
     List<CockpitArtifactRef> artifacts = const <CockpitArtifactRef>[],
     Map<String, Object?>? snapshot,
   }) {
+    final enrichedError = _enrichFailureError(
+      command: command,
+      durationMs: durationMs,
+      error: error,
+      snapshot: snapshot,
+    );
     return CockpitCommandExecution(
       result: CockpitCommandResult(
         success: false,
@@ -3100,7 +3132,7 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
         durationMs: durationMs,
         artifacts: artifacts,
         snapshot: snapshot,
-        error: error,
+        error: enrichedError,
       ),
     );
   }
@@ -3227,9 +3259,11 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
     required String? previousRouteName,
     required CockpitCommandType commandType,
     required Stopwatch stopwatch,
+    required _ActionActivationPath activationPath,
     CockpitTargetResolutionResult? resolution,
   }) async {
     final beforeActionFingerprint = _actionCommitFingerprint();
+    final routeNameBeforeAction = _currentRouteName();
     FutureOr<void> result;
     try {
       result = action();
@@ -3245,7 +3279,21 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
       );
     }
     if (result is! Future<void>) {
-      return const _ActionCommitResult();
+      return _ActionCommitResult(
+        diagnostics: _actionDiagnostics(
+          command: command,
+          commandType: commandType,
+          activationPath: activationPath,
+          resolution: resolution,
+          previousRouteName: previousRouteName,
+          routeNameBeforeAction: routeNameBeforeAction,
+          beforeActionFingerprint: beforeActionFingerprint,
+          actionReturnedFuture: false,
+          actionCompleted: true,
+          commitOutcome: _ActionCommitOutcome.actionCompleted,
+          routeCommitted: _routeChangedFrom(previousRouteName),
+        ),
+      );
     }
 
     Object? actionError;
@@ -3294,9 +3342,37 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
     }
     if (commitOutcome == _ActionCommitOutcome.actionCompleted ||
         commitOutcome == _ActionCommitOutcome.uiCommitted) {
-      return _ActionCommitResult(routeCommitted: routeCommitted);
+      return _ActionCommitResult(
+        routeCommitted: routeCommitted,
+        diagnostics: _actionDiagnostics(
+          command: command,
+          commandType: commandType,
+          activationPath: activationPath,
+          resolution: resolution,
+          previousRouteName: previousRouteName,
+          routeNameBeforeAction: routeNameBeforeAction,
+          beforeActionFingerprint: beforeActionFingerprint,
+          actionReturnedFuture: true,
+          actionCompleted: actionCompleted,
+          commitOutcome: commitOutcome,
+          routeCommitted: routeCommitted,
+        ),
+      );
     }
     return _ActionCommitResult(
+      diagnostics: _actionDiagnostics(
+        command: command,
+        commandType: commandType,
+        activationPath: activationPath,
+        resolution: resolution,
+        previousRouteName: previousRouteName,
+        routeNameBeforeAction: routeNameBeforeAction,
+        beforeActionFingerprint: beforeActionFingerprint,
+        actionReturnedFuture: true,
+        actionCompleted: actionCompleted,
+        commitOutcome: commitOutcome,
+        routeCommitted: routeCommitted,
+      ),
       warnings: <Map<String, Object?>>[
         <String, Object?>{
           'code': 'asyncActionStillRunning',
@@ -3377,6 +3453,8 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
     required CockpitCommandType commandType,
     required int durationMs,
     CockpitTargetResolutionResult? resolution,
+    _ActionActivationPath? activationPath,
+    Map<String, Object?>? actionDiagnostics,
     Duration? timeoutOverride,
   }) async {
     final routeName = _expectedRouteName(command);
@@ -3417,6 +3495,17 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
           'targetDiscoveryDiagnostics': _registry.routeDiagnostics(
             hintLimit: 6,
           ),
+          'failureDiagnostics': _failureDiagnostics(
+            command: command,
+            commandType: commandType,
+            expectedRouteName: routeName,
+            durationMs: durationMs,
+            timeout: timeout,
+            snapshot: snapshot,
+            resolution: resolution,
+            activationPath: activationPath,
+            actionDiagnostics: actionDiagnostics,
+          ),
         },
       ),
     );
@@ -3431,6 +3520,181 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
       return Duration(milliseconds: explicitRouteTimeoutMs);
     }
     return _interactionPolicy.actionCommitTimeout;
+  }
+
+  Map<String, Object?> _failureDiagnostics({
+    required CockpitCommand command,
+    required CockpitCommandType commandType,
+    required String? expectedRouteName,
+    required int durationMs,
+    required Duration timeout,
+    required CockpitSnapshot snapshot,
+    CockpitTargetResolutionResult? resolution,
+    _ActionActivationPath? activationPath,
+    Map<String, Object?>? actionDiagnostics,
+  }) {
+    final diagnostics = <String, Object?>{
+      'schemaVersion': 1,
+      'platform': _platform,
+      'transportType': _transportType,
+      'commandId': command.commandId,
+      'commandType': commandType.name,
+      'errorCode': CockpitCommandError.timeoutCode,
+      if (command.locator != null) 'locator': command.locator!.toJson(),
+      'expectedRouteName': ?expectedRouteName,
+      'routeName': snapshot.routeName,
+      'durationMs': durationMs,
+      'timeoutMs': timeout.inMilliseconds,
+      'visibleTargetCount': _registry.visibleTargets.length,
+      'routeReadyVisibleTargetCount': _registry.routeReadyVisibleTargets.length,
+      'visibleTextCandidates': _visibleTextCandidates(
+        _registry.visibleTargets,
+      ).take(12).toList(growable: false),
+      'targetDiscoveryDiagnostics': _registry.routeDiagnostics(hintLimit: 6),
+      if (resolution?.locatorResolution != null)
+        'locatorResolution': resolution!.locatorResolution!.toJson(),
+      if (resolution?.target != null)
+        'resolvedTarget': _diagnosticTargetSummary(resolution!.target!),
+      'attemptedActivation':
+          actionDiagnostics?['activation'] ?? activationPath?.name,
+      ...?actionDiagnostics,
+    };
+    diagnostics['recommendedNextStep'] = _recommendedNextStepForFailure(
+      commandType: commandType,
+      expectedRouteName: expectedRouteName,
+      diagnostics: diagnostics,
+    );
+    return diagnostics;
+  }
+
+  Map<String, Object?> _actionDiagnostics({
+    required CockpitCommand command,
+    required CockpitCommandType commandType,
+    required _ActionActivationPath activationPath,
+    required String? previousRouteName,
+    required String? routeNameBeforeAction,
+    required String beforeActionFingerprint,
+    required bool actionReturnedFuture,
+    required bool actionCompleted,
+    required _ActionCommitOutcome commitOutcome,
+    required bool routeCommitted,
+    CockpitTargetResolutionResult? resolution,
+  }) {
+    final routeNameAfterAction = _currentRouteName();
+    final afterActionFingerprint = _actionCommitFingerprint();
+    return <String, Object?>{
+      'activation': activationPath.name,
+      'previousRouteName': ?previousRouteName,
+      'routeNameBeforeAction': ?routeNameBeforeAction,
+      'routeName': routeNameAfterAction,
+      'routeChanged':
+          previousRouteName != null &&
+          routeNameAfterAction != previousRouteName,
+      'routeCommitted': routeCommitted,
+      'uiFingerprintChanged': afterActionFingerprint != beforeActionFingerprint,
+      'actionReturnedFuture': actionReturnedFuture,
+      'actionCompleted': actionCompleted,
+      'commitOutcome': commitOutcome.name,
+      if (resolution?.target != null)
+        'resolvedTarget': _diagnosticTargetSummary(resolution!.target!),
+      if (command.locator != null) 'locator': command.locator!.toJson(),
+      'commandType': commandType.name,
+    };
+  }
+
+  Map<String, Object?> _diagnosticTargetSummary(CockpitTarget target) {
+    final geometry = CockpitTargetGeometryResolver.maybeFromTarget(target);
+    return <String, Object?>{
+      'registrationId': target.registrationId,
+      if (target.cockpitId != null) 'cockpitId': target.cockpitId,
+      if (target.semanticId != null) 'semanticId': target.semanticId,
+      if (target.keyValue != null) 'key': target.keyValue,
+      if (target.text != null) 'text': target.text,
+      if (target.tooltip != null) 'tooltip': target.tooltip,
+      if (target.typeName != null) 'type': target.typeName,
+      if (target.path != null) 'path': target.path,
+      if (target.routeName.isNotEmpty) 'route': target.routeName,
+      if (target.supportedCommands.isNotEmpty)
+        'supportedCommands': target.supportedCommands
+            .map((command) => command.name)
+            .toList(growable: false),
+      'isVisible': target.isVisible,
+      'hasDirectTap': target.onTap != null,
+      'hasSemanticTap': target.onSemanticTap != null,
+      'hasGestureGeometry': geometry != null,
+      if (geometry != null) 'geometry': geometry.toJson(),
+    };
+  }
+
+  String _recommendedNextStepForFailure({
+    required CockpitCommandType commandType,
+    required String? expectedRouteName,
+    required Map<String, Object?> diagnostics,
+  }) {
+    if (expectedRouteName != null &&
+        diagnostics['routeChanged'] == false &&
+        diagnostics['uiFingerprintChanged'] == false) {
+      return 'The target was resolved but the $commandType activation did not change route or UI state. Inspect activation, focus, and hit-test diagnostics; retry with gesture activation only if direct/semantic activation is proven not to fire.';
+    }
+    if (expectedRouteName != null &&
+        diagnostics['routeName'] == expectedRouteName &&
+        diagnostics['routeReadyVisibleTargetCount'] == 0) {
+      return 'The route was reached but no route-ready targets were discovered. Inspect snapshot diagnostics for route binding or target discovery gaps.';
+    }
+    return 'Inspect failureDiagnostics before changing timeouts or platform-specific behavior.';
+  }
+
+  CockpitCommandError _enrichFailureError({
+    required CockpitCommand command,
+    required int durationMs,
+    required CockpitCommandError error,
+    Map<String, Object?>? snapshot,
+  }) {
+    if (error.details.containsKey('failureDiagnostics')) {
+      return error;
+    }
+    return CockpitCommandError(
+      code: error.code,
+      message: error.message,
+      details: <String, Object?>{
+        ...error.details,
+        'failureDiagnostics': _basicFailureDiagnostics(
+          command: command,
+          durationMs: durationMs,
+          error: error,
+          snapshot: snapshot,
+        ),
+      },
+    );
+  }
+
+  Map<String, Object?> _basicFailureDiagnostics({
+    required CockpitCommand command,
+    required int durationMs,
+    required CockpitCommandError error,
+    Map<String, Object?>? snapshot,
+  }) {
+    final routeName = snapshot?['routeName'] as String? ?? _currentRouteName();
+    return <String, Object?>{
+      'schemaVersion': 1,
+      'platform': _platform,
+      'transportType': _transportType,
+      'commandId': command.commandId,
+      'commandType': command.commandType.name,
+      'errorCode': error.code,
+      'errorMessage': error.message,
+      if (command.locator != null) 'locator': command.locator!.toJson(),
+      'routeName': routeName,
+      'durationMs': durationMs,
+      'visibleTargetCount': _registry.visibleTargets.length,
+      'routeReadyVisibleTargetCount': _registry.routeReadyVisibleTargets.length,
+      'visibleTextCandidates': _visibleTextCandidates(
+        _registry.visibleTargets,
+      ).take(12).toList(growable: false),
+      'targetDiscoveryDiagnostics': _registry.routeDiagnostics(hintLimit: 6),
+      'recommendedNextStep':
+          'Inspect failureDiagnostics and existing error details before retrying or changing locators, timeouts, or platform-specific behavior.',
+    };
   }
 
   String _actionCommitFingerprint() {
@@ -4362,6 +4626,7 @@ final class _ActionCommitResult {
     this.warnings = const <Map<String, Object?>>[],
     this.failure,
     this.routeCommitted = false,
+    this.diagnostics = const <String, Object?>{},
   });
 
   const _ActionCommitResult.failure(CockpitCommandExecution failure)
@@ -4369,9 +4634,11 @@ final class _ActionCommitResult {
         warnings: const <Map<String, Object?>>[],
         failure: failure,
         routeCommitted: false,
+        diagnostics: const <String, Object?>{},
       );
 
   final List<Map<String, Object?>> warnings;
   final CockpitCommandExecution? failure;
   final bool routeCommitted;
+  final Map<String, Object?> diagnostics;
 }

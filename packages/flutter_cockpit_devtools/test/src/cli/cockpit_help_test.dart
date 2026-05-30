@@ -166,6 +166,44 @@ void main() {
     expect(usage, contains('optional recording metadata'));
   });
 
+  test('delivery task help defaults to AI-readable output', () {
+    final runTaskUsage = _helpForCommand(RunTaskCommand());
+    final validateTaskUsage = _helpForCommand(ValidateTaskCommand());
+
+    expect(
+      runTaskUsage,
+      contains('flutter_cockpit_devtools run-task --config-json'),
+    );
+    expect(
+      runTaskUsage,
+      isNot(
+        contains(
+          'run-task --config-json /tmp/run_task.json --stdout-format json',
+        ),
+      ),
+    );
+    expect(
+      runTaskUsage,
+      contains('compact AI-readable issues and bundle sections'),
+    );
+    expect(
+      validateTaskUsage,
+      contains('flutter_cockpit_devtools validate-task --config-json'),
+    );
+    expect(
+      validateTaskUsage,
+      isNot(
+        contains(
+          'validate-task --config-json /tmp/validate_task.json --stdout-format json',
+        ),
+      ),
+    );
+    expect(
+      validateTaskUsage,
+      contains('compact AI-readable issues and bundle sections'),
+    );
+  });
+
   test('app-scoped command help explains default latest_app.json reuse', () {
     final usages = <String>[
       _helpForCommand(ReadAppCommand()),

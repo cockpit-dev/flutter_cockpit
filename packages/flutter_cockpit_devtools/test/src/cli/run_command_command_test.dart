@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 
 import 'package:args/command_runner.dart';
 import 'package:flutter_cockpit_devtools/flutter_cockpit_devtools.dart';
+import 'package:flutter_cockpit_devtools/src/cli/cockpit_interactive_cli_support.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/run_command_command.dart';
 import 'package:test/test.dart';
 
@@ -112,6 +113,146 @@ void main() {
       expect(decoded['command'], isA<Map<String, Object?>>());
     },
   );
+
+  test('AI renderer prioritizes compact issue evidence', () {
+    final rendered = cockpitRenderAiPayload(
+      commandName: 'read-task-bundle-summary',
+      payload: <String, Object?>{
+        'status': 'failed',
+        'issueEvidence': <String, Object?>{
+          'schemaVersion': 1,
+          'status': 'failed',
+          'failureSummary': 'Expected route /editor was not reached.',
+          'recommendedNextStep': 'inspect_issue_evidence',
+          'issueKinds': <String>[
+            'commandFailure',
+            'runtimeError',
+            'artifactIssue',
+            'gateFailure',
+          ],
+          'failedCommands': <Object?>[
+            <String, Object?>{
+              'commandId': 'open-editor',
+              'commandType': 'tap',
+              'errorCode': 'timeout',
+              'routeName': '/inbox',
+              'expectedRouteName': '/editor',
+              'diagnosticsArtifactPath':
+                  '/tmp/bundle/diagnostics/step_000_open_editor.json',
+            },
+          ],
+          'runtimeIssues': <Object?>[
+            <String, Object?>{
+              'kind': 'flutterError',
+              'severity': 'error',
+              'message': 'Navigator push failed',
+            },
+          ],
+          'artifactIssues': <Object?>[
+            <String, Object?>{
+              'code': 'diagnosticsArtifactUnreadable',
+              'path': '/tmp/bundle/diagnostics/step_000_open_editor.json',
+            },
+          ],
+          'gateFailures': <Object?>[
+            <String, Object?>{
+              'gate': 'finalAssertionPassed',
+              'failureCodes': <String>['runtimeErrorsDetected'],
+            },
+          ],
+          'evidencePaths': <String, Object?>{
+            'primaryScreenshotPath': '/tmp/bundle/screenshots/after_tap.png',
+            'diagnosticsArtifactPaths': <String>[
+              '/tmp/bundle/diagnostics/step_000_open_editor.json',
+            ],
+          },
+        },
+      },
+    );
+
+    expect(rendered, contains('issues'));
+    expect(rendered, contains('issueEvidence status=failed'));
+    expect(rendered, contains('failedCommand[0] commandId=open-editor'));
+    expect(rendered, contains('runtimeIssue[0] kind=flutterError'));
+    expect(
+      rendered,
+      contains('artifactIssue[0] code=diagnosticsArtifactUnreadable'),
+    );
+    expect(rendered, contains('gateFailure[0] gate=finalAssertionPassed'));
+    expect(rendered, contains('evidencePaths screenshot='));
+    expect(rendered, isNot(contains('\n  issueEvidence={')));
+  });
+
+  test('AI renderer promotes nested bundle issue evidence', () {
+    final rendered = cockpitRenderAiPayload(
+      commandName: 'run-task',
+      payload: <String, Object?>{
+        'classification': 'failed',
+        'recommendedNextStep': 'inspect_issue_evidence',
+        'bundleSummary': <String, Object?>{
+          'bundleDir': '/tmp/bundle',
+          'issueEvidence': <String, Object?>{
+            'schemaVersion': 1,
+            'status': 'failed',
+            'recommendedNextStep': 'inspect_issue_evidence',
+            'issueKinds': <String>['commandFailure'],
+            'failedCommands': <Object?>[
+              <String, Object?>{
+                'commandId': 'save-form',
+                'commandType': 'tap',
+                'errorCode': 'timeout',
+              },
+            ],
+          },
+        },
+      },
+    );
+
+    expect(rendered, contains('issues'));
+    expect(rendered, contains('issueEvidence status=failed'));
+    expect(rendered, contains('failedCommand[0] commandId=save-form'));
+    expect(rendered, isNot(contains('bundleSummary=')));
+    expect(rendered, isNot(contains('issueEvidence={')));
+  });
+
+  test('AI renderer preserves compact bundle summary context', () {
+    final rendered = cockpitRenderAiPayload(
+      commandName: 'run-task',
+      payload: <String, Object?>{
+        'classification': 'completed',
+        'recommendedNextStep': 'delivery_ready',
+        'bundleSummary': <String, Object?>{
+          'bundleDir': '/tmp/bundle',
+          'manifest': <String, Object?>{
+            'sessionId': 'session-1',
+            'taskId': 'task-1',
+            'platform': 'ios',
+            'status': 'completed',
+          },
+          'evidenceSummary': <String, Object?>{
+            'commandCount': 6,
+            'screenshotCount': 3,
+            'recordingCount': 1,
+            'failureCount': 0,
+          },
+          'artifactPaths': <String, Object?>{
+            'primaryScreenshotPath': '/tmp/bundle/screenshots/acceptance.png',
+            'primaryRecordingPath': '/tmp/bundle/recordings/acceptance.mp4',
+          },
+        },
+      },
+    );
+
+    expect(rendered, contains('bundle dir=/tmp/bundle'));
+    expect(rendered, contains('sessionId=session-1'));
+    expect(rendered, contains('platform=ios'));
+    expect(rendered, contains('commands=6'));
+    expect(rendered, contains('screenshots=3'));
+    expect(rendered, contains('recordings=1'));
+    expect(rendered, contains('primaryScreenshot='));
+    expect(rendered, contains('primaryRecording='));
+    expect(rendered, isNot(contains('bundleSummary=')));
+  });
 
   test('run-command reports invalid command json as a usage error', () async {
     final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')

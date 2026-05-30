@@ -6,6 +6,7 @@ import '../control/cockpit_command_status.dart';
 import '../control/cockpit_command_type.dart';
 import '../control/cockpit_locator.dart';
 import '../control/cockpit_locator_resolution.dart';
+import '../errors/cockpit_command_error.dart';
 import '../model/cockpit_artifact_ref.dart';
 import '../model/cockpit_observation.dart';
 import '../model/cockpit_step_record.dart';
@@ -39,6 +40,7 @@ final class CockpitStepRecorder {
     CockpitCommandType? commandType,
     CockpitLocator? locator,
     CockpitLocatorResolution? locatorResolution,
+    CockpitCommandError? commandError,
     int? durationMs,
     CockpitCommandStatus? status,
     CockpitTargetKind? targetKind,
@@ -64,6 +66,7 @@ final class CockpitStepRecorder {
         commandType: commandType,
         locator: locator,
         locatorResolution: locatorResolution,
+        commandError: commandError,
         durationMs: durationMs,
         status: status,
         targetKind: targetKind,
@@ -113,6 +116,7 @@ final class CockpitStepRecorder {
       commandType: command.commandType,
       locator: command.locator,
       locatorResolution: result.locatorResolution,
+      commandError: result.error,
       durationMs: result.durationMs,
       status: result.success
           ? CockpitCommandStatus.succeeded
@@ -149,6 +153,7 @@ final class CockpitStepRecorder {
           commandType: step.commandType,
           locator: step.locator,
           locatorResolution: step.locatorResolution,
+          commandError: step.commandError,
           durationMs: step.durationMs,
           status: step.status,
           targetKind: step.targetKind,

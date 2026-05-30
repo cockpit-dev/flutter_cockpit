@@ -120,6 +120,84 @@ void main() {
     expect(acceptance, contains('# Acceptance'));
   });
 
+  test('writes issue evidence for failed task bundles', () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'cockpit_bundle_issue_evidence_test',
+    );
+    addTearDown(() async {
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    final writer = TaskRunBundleWriter();
+    final bundle = CockpitContextBundle(
+      manifest: CockpitRunManifest(
+        sessionId: 'session-issue',
+        taskId: 'task-issue',
+        platform: 'macos',
+        status: CockpitTaskStatus.failed,
+        startedAt: DateTime.utc(2026, 5, 30, 8),
+        finishedAt: DateTime.utc(2026, 5, 30, 8, 1),
+        failureSummary: 'Expected route /editor was not reached.',
+        commandCount: 1,
+        failureCount: 1,
+      ),
+      environment: const CockpitEnvironment(
+        platform: 'macos',
+        flutterVersion: '3.32.0',
+        dartVersion: '3.8.0',
+      ),
+      steps: <CockpitStepRecord>[
+        CockpitStepRecord(
+          index: 0,
+          actionType: 'tap',
+          actionArgs: const <String, Object?>{
+            'commandId': 'open-editor',
+            'expectedRouteName': '/editor',
+          },
+          observedAt: DateTime.utc(2026, 5, 30, 8),
+          commandType: CockpitCommandType.tap,
+          status: CockpitCommandStatus.failed,
+          commandError: CockpitCommandError.timeout(
+            message: 'Expected route /editor was not reached.',
+            details: const <String, Object?>{
+              'failureDiagnostics': <String, Object?>{
+                'schemaVersion': 1,
+                'commandId': 'open-editor',
+                'routeName': '/inbox',
+                'expectedRouteName': '/editor',
+                'routeChanged': false,
+              },
+            },
+          ),
+        ),
+      ],
+      observations: const [],
+      acceptanceMarkdown: '# Acceptance\n\nNeeds follow-up.',
+      handoff: const <String, Object?>{
+        'status': 'failed',
+        'failureSummary': 'Expected route /editor was not reached.',
+      },
+    );
+
+    final outputDir = await writer.writeBundle(
+      bundle: bundle,
+      outputRoot: tempDir.path,
+    );
+
+    final issueFile = File(p.join(outputDir.path, 'issue_evidence.json'));
+    expect(issueFile.existsSync(), isTrue);
+    final issueEvidence =
+        jsonDecode(await issueFile.readAsString()) as Map<String, Object?>;
+    expect(issueEvidence['schemaVersion'], 1);
+    expect(issueEvidence['status'], 'failed');
+    expect(issueEvidence['recommendedNextStep'], 'inspect_issue_evidence');
+    final failedCommands = issueEvidence['failedCommands'] as List<Object?>;
+    expect(failedCommands, hasLength(1));
+    expect(failedCommands.single, containsPair('commandId', 'open-editor'));
+  });
+
   test(
     'uses a file-system-safe single directory for unsafe session ids',
     () async {

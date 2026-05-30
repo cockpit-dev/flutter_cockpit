@@ -9,6 +9,7 @@ import '../validation/cockpit_bundle_artifact_validator.dart';
 import 'cockpit_application_service_exception.dart';
 import 'cockpit_bundle_artifact_paths.dart';
 import 'cockpit_bundle_diagnostics_artifact_refs.dart';
+import 'cockpit_issue_evidence_builder.dart';
 import 'cockpit_task_gate.dart';
 
 final class CockpitBundleNetworkSummary {
@@ -514,6 +515,7 @@ final class CockpitReadTaskBundleSummaryResult {
     this.runtimeSummary,
     this.rebuildSummary,
     this.gateSummary = const CockpitBundleGateSummary(),
+    this.issueEvidence = const <String, Object?>{},
   });
 
   final String bundleDir;
@@ -531,6 +533,7 @@ final class CockpitReadTaskBundleSummaryResult {
   final CockpitBundleRuntimeSummary? runtimeSummary;
   final CockpitBundleRebuildSummary? rebuildSummary;
   final CockpitBundleGateSummary gateSummary;
+  final Map<String, Object?> issueEvidence;
 
   Map<String, Object?> toJson() => <String, Object?>{
     'bundleDir': bundleDir,
@@ -542,6 +545,7 @@ final class CockpitReadTaskBundleSummaryResult {
     'evidence': evidence.toJson(),
     'evidenceSummary': evidenceSummary,
     'gateSummary': gateSummary.toJson(),
+    if (issueEvidence.isNotEmpty) 'issueEvidence': issueEvidence,
     if (baselineEvidence != null)
       'baselineEvidence': baselineEvidence!.toJson(),
     if (acceptanceEvidence != null)
@@ -563,6 +567,7 @@ final class CockpitReadTaskBundleSummaryResult {
     'evidence': evidence.toMcpJson(),
     'evidenceSummary': evidenceSummary,
     'gateSummary': gateSummary.toMcpJson(),
+    if (issueEvidence.isNotEmpty) 'issueEvidence': issueEvidence,
     if (baselineEvidence != null)
       'baselineEvidence': baselineEvidence!.toMcpJson(),
     if (acceptanceEvidence != null)
@@ -831,6 +836,15 @@ final class CockpitReadTaskBundleSummaryService {
       networkSummary: networkSummary,
       runtimeSummary: runtimeSummary,
     );
+    final issueEvidence = await const CockpitIssueEvidenceBuilder()
+        .buildFromBundleDir(
+          bundleDir: bundleDir,
+          manifest: manifest,
+          handoff: handoff,
+          delivery: delivery,
+          artifactPaths: artifactPaths,
+          diagnosticsArtifactPaths: diagnosticsArtifactPaths,
+        );
 
     return CockpitReadTaskBundleSummaryResult(
       bundleDir: bundleDir,
@@ -977,6 +991,7 @@ final class CockpitReadTaskBundleSummaryService {
       runtimeSummary: runtimeSummary,
       rebuildSummary: rebuildSummary,
       gateSummary: gateSummary,
+      issueEvidence: issueEvidence,
     );
   }
 
@@ -2522,15 +2537,21 @@ final class CockpitReadTaskBundleSummaryService {
     if (!file.existsSync()) {
       return null;
     }
-    final decoded = jsonDecode(await file.readAsString());
-    if (decoded is! Map<Object?, Object?>) {
-      throw CockpitApplicationServiceException(
-        code: 'invalidBundleJson',
-        message: 'Diagnostic snapshot JSON must decode to an object.',
-        details: <String, Object?>{'path': path},
-      );
+    try {
+      final decoded = jsonDecode(await file.readAsString());
+      if (decoded is! Map<Object?, Object?>) {
+        return null;
+      }
+      return CockpitSnapshot.fromJson(Map<String, Object?>.from(decoded));
+    } on FormatException {
+      return null;
+    } on IOException {
+      return null;
+    } on ArgumentError {
+      return null;
+    } on TypeError {
+      return null;
     }
-    return CockpitSnapshot.fromJson(Map<String, Object?>.from(decoded));
   }
 
   CockpitRuntimeEvent? _runtimeEventFromStep(CockpitStepRecord step) {

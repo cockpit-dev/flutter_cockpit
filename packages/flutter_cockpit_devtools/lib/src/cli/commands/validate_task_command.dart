@@ -46,11 +46,11 @@ final class ValidateTaskCommand extends CockpitCliCommand {
 
   @override
   String get helpExample =>
-      'flutter_cockpit_devtools validate-task --config-json /tmp/validate_task.json --stdout-format json | jq \'{classification,recommendedNextStep,validationFailures}\'';
+      'flutter_cockpit_devtools validate-task --config-json /tmp/validate_task.json';
 
   @override
   String get helpWrites =>
-      'A structured result with run_task output, validation status, failures, and delivery guidance.';
+      'A structured result with run_task output, validation status, failures, and delivery guidance. Default stdout includes compact AI-readable issues and bundle sections; add --stdout-format json only for jq pipelines.';
 
   @override
   Future<int> run() async {

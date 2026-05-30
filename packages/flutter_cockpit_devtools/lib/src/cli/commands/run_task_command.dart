@@ -44,11 +44,11 @@ final class RunTaskCommand extends CockpitCliCommand {
 
   @override
   String get helpExample =>
-      'flutter_cockpit_devtools run-task --config-json /tmp/run_task.json --stdout-format json | jq \'{classification,recommendedNextStep}\'';
+      'flutter_cockpit_devtools run-task --config-json /tmp/run_task.json';
 
   @override
   String get helpWrites =>
-      'A structured result with classification, recommendedNextStep, and bundleSummary.';
+      'A structured result with classification, recommendedNextStep, and bundleSummary. Default stdout includes compact AI-readable issues and bundle sections; add --stdout-format json only for jq pipelines.';
 
   @override
   Future<int> run() async {

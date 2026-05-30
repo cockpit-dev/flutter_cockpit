@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import '../application/cockpit_bundle_artifact_paths.dart';
 import '../application/cockpit_bundle_diagnostics_artifact_refs.dart';
 import '../application/cockpit_compact_json.dart';
+import '../application/cockpit_issue_evidence_builder.dart';
 import 'cockpit_recording_keyframe_extractor.dart';
 import 'cockpit_timeline_video_fallback_builder.dart';
 
@@ -149,6 +150,12 @@ final class TaskRunBundleWriter {
     File(
       p.join(outputDirectory.path, 'acceptance.md'),
     ).writeAsStringSync(finalizedAcceptanceMarkdown);
+    await const CockpitIssueEvidenceBuilder().writeBundleIssueEvidence(
+      bundleDir: outputDirectory.path,
+      manifest: manifest,
+      handoff: finalizedHandoff,
+      delivery: finalizedDelivery,
+    );
     await _cleanupTimelineVideoFallback(timelineVideoFallback);
 
     return outputDirectory;
