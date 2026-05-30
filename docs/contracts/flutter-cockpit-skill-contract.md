@@ -30,7 +30,7 @@ The skill may depend on these implemented public workflows:
 - bundle production through `run-script` / `run_script`
 - full closed-loop orchestration through `run-task` / `run_task`
 - final delivery validation through `validate-task` / `validate_task`
-- task bundle summary reads through `read_task_bundle_summary`
+- task bundle summary reads through CLI `read-task-bundle-summary` and MCP `read_task_bundle_summary`
 - workspace intelligence through `pub_dev_search`, `pub`, `grep_package_uris`, `read_package_uris`, `lsp`, `analyze_files`, `create_project`, `analyze_workspace`, `format_workspace`, `run_tests`, and `apply_fixes`
 - multi-signal locators with `text`, `tooltip`, `semanticId`, optional stable `key`, `route`, `type`, fuzzy `path`, nested `ancestor`, and ordered `fallbacks`
 - bounded timeouts on interactive commands (`timeoutMs`) and workspace tools (`timeoutSeconds`)

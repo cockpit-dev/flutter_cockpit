@@ -71,6 +71,11 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   validate-task --config-json /tmp/flutter_cockpit/validate_task.json
 ```
 
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  read-task-bundle-summary --bundle-dir /tmp/flutter_cockpit/bundle
+```
+
 Safe first command types: `tap`, `enterText`, `assertText`, `waitForUiIdle`, `scrollUntilVisible`, `captureScreenshot`.
 
 Safe first locator keys: `text`, `tooltip`, `semanticId`, `type`, `ancestor`, `index`, `fallbacks`. Use `key` only when the app already exposes a legitimate stable key.
@@ -80,14 +85,14 @@ Safe first locator keys: `text`, `tooltip`, `semanticId`, `type`, `ancestor`, `i
 - If syntax is unclear, run `dart run flutter_cockpit_devtools:flutter_cockpit_devtools help <command>` before guessing.
 - Prefer `app-first` unless target-first surface truth is the real question. In one repo, reuse `.dart_tool/flutter_cockpit/latest_app.json` instead of repeating `--app-json`.
 - If target-first may later need app commands, persist `--output /tmp/launch_target.json --output-format json` and extract the embedded app handle with `jq '.app' /tmp/launch_target.json > /tmp/app.json`.
-- Default stdout is AI-readable, not JSON. For `run-task`, `validate-task`, and `read-task-bundle-summary`, read the default `issues` and `bundle` sections first; they are tuned to expose `issueEvidence`, bundle paths, key counts, and gate failures without dumping the full `bundleSummary`. Use `--stdout-format json` only for `jq`; use `--output <path>` for files and add `--output-format json` only for machine-readable files.
+- Default stdout is AI-readable, not JSON. For `run-task`, `validate-task`, and CLI `read-task-bundle-summary` / MCP `read_task_bundle_summary`, read the default `issues` and `bundle` sections first; they are tuned to expose `issueEvidence`, bundle paths, key counts, and gate failures without dumping the full `bundleSummary`. Use `--stdout-format json` only for `jq`; use `--output <path>` for files and add `--output-format json` only for machine-readable files.
 - Prefer file inputs: `--command-file`, `--commands-file`, and config JSON once payloads stop being trivial.
 - Start with `minimal` or `standard`; ask for one missing fact at a time before escalating to `inspect`, `evidence`, raw artifacts, or downloaded diagnostics.
 - For route-changing taps, include `parameters.expectedRouteName`. Add `parameters.routeTimeoutMs` for CI, recording, simulator, or acceptance flows where runner latency is expected; `timeoutMs` is only the hard command ceiling. Follow critical route crossings with `waitFor` on `parameters.routeName`.
 - `run-command`, `run-batch`, and `run-script` automatically attach best-effort after-action screenshots to key mutating commands such as tap, text input, scroll, drag, and back. Keep explicit `captureScreenshot` for final acceptance or named proof shots.
 - When a CLI command exits non-zero, first read `errorJson` with `code`, `message`, and optional `details`. For non-usage failures, use that compact payload before the prose `Error:` line. Do not collapse all remote failures: `remoteUnavailable`, `bridgeUnavailable`, `artifactNotFound`, `recordingStartFailed`, and `invalidPayload` need different next actions.
 - Before changing a locator, timeout, platform branch, or retry strategy, inspect `errorJson.details.failureDiagnostics` when present. It is the root-cause packet: route, visible targets, target discovery diagnostics, resolved target summary, activation path, action completion, route change, and UI fingerprint change.
-- For bundle-backed failures, read the default AI `issues` section, then `issueEvidence` from `read-task-bundle-summary`, `run-task`, or `validate-task` JSON only if structured filtering is needed. The persisted fallback is `<bundleDir>/issue_evidence.json`; use its `failedCommands`, `runtimeIssues`, `networkIssues`, `artifactIssues`, `gateFailures`, and `evidencePaths` to decide the next smallest read. Treat `diagnosticsArtifactMissing` and `diagnosticsArtifactUnreadable` as evidence collection issues before guessing platform or locator fixes.
+- For bundle-backed failures, read the default AI `issues` section, then `issueEvidence` from CLI `read-task-bundle-summary`, MCP `read_task_bundle_summary`, `run-task`, or `validate-task` JSON only if structured filtering is needed. The persisted fallback is `<bundleDir>/issue_evidence.json`; use its `failedCommands`, `runtimeIssues`, `networkIssues`, `artifactIssues`, `gateFailures`, and `evidencePaths` to decide the next smallest read. Treat `diagnosticsArtifactMissing` and `diagnosticsArtifactUnreadable` as evidence collection issues before guessing platform or locator fixes.
 - Treat `invalidPayload` as a command or option defect. Fix the JSON shape, query parameter, profile, or locator payload before retrying.
 - After `remoteUnavailable`, a timeout, hot reload, or hot restart, re-read minimal route or state before retrying. Do not blindly replay a non-idempotent batch.
 - Prefer `run-batch` for route-crossing flows such as open editor -> fill fields -> save.

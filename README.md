@@ -210,7 +210,7 @@ For target-first and non-Flutter/system work:
 1. `launch-target`
 2. `read-target --profile minimal`
 3. `inspect-surface`, `run-shell`, or the existing app/batch commands when the target resolves to a Flutter app
-4. `read_task_bundle_summary` or `validate-task` to review `targetKind`, `primaryExecutionPlane`, `planesUsed`, `surfaceKindsUsed`, `fallbackCount`, and fallback gates before claiming success
+4. CLI `read-task-bundle-summary`, MCP `read_task_bundle_summary`, or `validate-task` to review `targetKind`, `primaryExecutionPlane`, `planesUsed`, `surfaceKindsUsed`, `fallbackCount`, and fallback gates before claiming success
 
 Target-first flows are platform-aware and capability-truthful:
 

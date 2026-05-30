@@ -36,7 +36,7 @@ Use `--output <path>` when another step needs to reopen the full payload from di
 - `manifest.json`
 - `handoff.json`
 - `delivery.json`
-- `gateSummary` or `read_task_bundle_summary` output when available
+- `gateSummary`, CLI `read-task-bundle-summary`, or MCP `read_task_bundle_summary` output when available
 - bundle summary evidence paths
 - validation failures when present
 

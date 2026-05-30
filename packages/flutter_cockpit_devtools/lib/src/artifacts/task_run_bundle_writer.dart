@@ -6,7 +6,7 @@ import 'package:path/path.dart' as p;
 import '../application/cockpit_bundle_artifact_paths.dart';
 import '../application/cockpit_bundle_diagnostics_artifact_refs.dart';
 import '../application/cockpit_compact_json.dart';
-import '../application/cockpit_issue_evidence_builder.dart';
+import '../application/cockpit_read_task_bundle_summary_service.dart';
 import 'cockpit_recording_keyframe_extractor.dart';
 import 'cockpit_timeline_video_fallback_builder.dart';
 
@@ -150,15 +150,23 @@ final class TaskRunBundleWriter {
     File(
       p.join(outputDirectory.path, 'acceptance.md'),
     ).writeAsStringSync(finalizedAcceptanceMarkdown);
-    await const CockpitIssueEvidenceBuilder().writeBundleIssueEvidence(
-      bundleDir: outputDirectory.path,
-      manifest: manifest,
-      handoff: finalizedHandoff,
-      delivery: finalizedDelivery,
-    );
-    await _cleanupTimelineVideoFallback(timelineVideoFallback);
+    try {
+      await _writeBundleIssueEvidence(outputDirectory);
+    } finally {
+      await _cleanupTimelineVideoFallback(timelineVideoFallback);
+    }
 
     return outputDirectory;
+  }
+
+  Future<void> _writeBundleIssueEvidence(Directory outputDirectory) async {
+    final summary = await const CockpitReadTaskBundleSummaryService().read(
+      CockpitReadTaskBundleSummaryRequest(bundleDir: outputDirectory.path),
+    );
+    _writeJson(
+      p.join(outputDirectory.path, 'issue_evidence.json'),
+      summary.issueEvidence,
+    );
   }
 
   void _writeJson(String path, Object payload) {
@@ -539,7 +547,6 @@ final class TaskRunBundleWriter {
     required int durationMs,
     required String recordingRelativePath,
   }) {
-    final recordingBaseName = p.basenameWithoutExtension(recordingRelativePath);
     final earlyWindowEnd = _earlyCoverageWindowMs(durationMs);
     final screenshotSteps =
         bundle.steps
@@ -575,8 +582,11 @@ final class TaskRunBundleWriter {
       };
       candidates.add(
         CockpitRecordingKeyframe(
-          relativePath:
-              'keyframes/${recordingBaseName}_${label}_${offsetMs.toString().padLeft(5, '0')}.png',
+          relativePath: cockpitRecordingKeyframeRelativePathFor(
+            recordingRelativePath: recordingRelativePath,
+            label: label,
+            offsetMs: offsetMs,
+          ),
           label: label,
           offsetMs: offsetMs,
           source: CockpitRecordingKeyframeSource.stepCapture,
@@ -598,8 +608,11 @@ final class TaskRunBundleWriter {
       }
       candidates.add(
         CockpitRecordingKeyframe(
-          relativePath:
-              'keyframes/${recordingBaseName}_midpoint_${midpointOffset.toString().padLeft(5, '0')}.png',
+          relativePath: cockpitRecordingKeyframeRelativePathFor(
+            recordingRelativePath: recordingRelativePath,
+            label: 'midpoint',
+            offsetMs: midpointOffset,
+          ),
           label: 'midpoint',
           offsetMs: midpointOffset,
           source: CockpitRecordingKeyframeSource.stepCapture,
@@ -1028,23 +1041,11 @@ final class TaskRunBundleWriter {
   }
 
   String _directoryNameFor(CockpitRunManifest manifest) {
-    final safeTimestamp = manifest.startedAt
-        .toUtc()
-        .toIso8601String()
-        .replaceAll(':', '-')
-        .replaceAll('.', '_');
-    final safeSessionId = _sanitizePathToken(
+    final safeTimestamp = cockpitSortableTimestampToken(manifest.startedAt);
+    final safeSessionId = cockpitSanitizeArtifactNameToken(
       manifest.sessionId,
       fallback: 'session',
     );
     return '${safeTimestamp}_$safeSessionId';
-  }
-
-  String _sanitizePathToken(String value, {required String fallback}) {
-    final sanitized = value
-        .replaceAll(RegExp(r'[^A-Za-z0-9._-]+'), '_')
-        .replaceAll(RegExp(r'_+'), '_')
-        .replaceAll(RegExp(r'^[._-]+|[._-]+$'), '');
-    return sanitized.isEmpty ? fallback : sanitized;
   }
 }

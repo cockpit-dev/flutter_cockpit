@@ -844,6 +844,7 @@ final class CockpitReadTaskBundleSummaryService {
           delivery: delivery,
           artifactPaths: artifactPaths,
           diagnosticsArtifactPaths: diagnosticsArtifactPaths,
+          gateSummary: gateSummary.toJson(),
         );
 
     return CockpitReadTaskBundleSummaryResult(

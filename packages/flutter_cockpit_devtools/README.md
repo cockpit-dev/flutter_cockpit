@@ -6,7 +6,7 @@
 [![Runtime Loop](https://github.com/cockpit-dev/flutter_cockpit/actions/workflows/runtime-loop.yml/badge.svg)](https://github.com/cockpit-dev/flutter_cockpit/actions/workflows/runtime-loop.yml)
 [![License](https://img.shields.io/github/license/cockpit-dev/flutter_cockpit)](https://github.com/cockpit-dev/flutter_cockpit/blob/main/packages/flutter_cockpit_devtools/LICENSE)
 
-[简体中文](README.zh-CN.md)
+[简体中文](https://github.com/cockpit-dev/flutter_cockpit/blob/main/packages/flutter_cockpit_devtools/README.zh-CN.md)
 
 `flutter_cockpit_devtools` is the host-side package for `flutter_cockpit`.
 
@@ -87,7 +87,7 @@ Target-first loop when the agent needs direct system or non-Flutter control:
 1. `launch-target`
 2. `read-target --profile minimal`
 3. `inspect-surface` or `run-shell` when the resolved platform truthfully exposes shell control
-4. `read_task_bundle_summary` or `validate-task`
+4. `read-task-bundle-summary` or `validate-task` for bundle-backed delivery review
 
 Recommended code-side loop:
 
@@ -193,6 +193,14 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --output-format json
 ```
 
+Review an existing task-run bundle without reopening large raw artifacts:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  read-task-bundle-summary \
+  --bundle-dir /tmp/flutter_cockpit/out/20260530T060304005006Z_session-1
+```
+
 Default stdout is the full AI-readable semantic render. Add `--stdout-format json` for immediate `jq` projections. Keep larger payloads on disk with `--output <path>`; add `--output-format json` only when a later step must reopen structured JSON. Prefer `--command-file`, `--commands-file`, or `--config-json` over long inline JSON once the request body stops being trivial.
 
 ## MCP
@@ -262,13 +270,14 @@ Resources and prompts are also exposed for contracts, capabilities, task summari
 - Interactive app commands accept `timeoutMs`. Workspace tools accept `timeoutSeconds`. Keep the default unless the task is known to be slow.
 - `pub_dev_search` uses a bounded network path and a local Python fallback when direct TLS fetches fail on the host.
 - Advanced low-level session services still exist in the Dart API, but the recommended public loop is app-first.
-- `read_task_bundle_summary` and `validate-task` now expose plane-aware delivery state, including `targetKind`, `primaryExecutionPlane`, `planesUsed`, `surfaceKindsUsed`, `fallbackCount`, and bounded fallback gates.
+- CLI `read-task-bundle-summary`, MCP `read_task_bundle_summary`, and `validate-task` expose plane-aware delivery state, including `targetKind`, `primaryExecutionPlane`, `planesUsed`, `surfaceKindsUsed`, `fallbackCount`, and bounded fallback gates.
 
 ## Verification
 
-Release-grade MCP verification:
+Repository-only MCP verification from a source checkout:
 
 ```bash
+cd packages/flutter_cockpit_devtools
 dart run tool/verify_mcp_surface.dart
 ```
 

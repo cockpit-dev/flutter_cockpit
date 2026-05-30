@@ -32,6 +32,7 @@ import 'commands/read_errors_command.dart';
 import 'commands/read_logs_command.dart';
 import 'commands/read_network_command.dart';
 import 'commands/read_package_uris_command.dart';
+import 'commands/read_task_bundle_summary_command.dart';
 import 'commands/reload_development_session_command.dart';
 import 'commands/run_batch_command.dart';
 import 'commands/run_command_command.dart';
@@ -180,6 +181,7 @@ final class CockpitCommandRunner {
       ReadLogsCommand(),
       ReadNetworkCommand(),
       ReadErrorsCommand(),
+      ReadTaskBundleSummaryCommand(),
       RunTaskCommand(),
       ValidateTaskCommand(),
       ServeMcpCommand(),

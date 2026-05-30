@@ -7,3 +7,4 @@
 - Added in-app control, gesture, wait/assert, capture, and recording primitives
 - Added rich runtime snapshots, network observation, and runtime event observation
 - Added remote session server and shared bundle/domain models
+- Added sortable, readable artifact naming helpers for screenshots, diagnostics, and task-run bundles

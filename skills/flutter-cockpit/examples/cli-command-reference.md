@@ -393,6 +393,14 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --config-json /tmp/flutter_cockpit/validate_task.json
 ```
 
+Read the compact delivery summary from an existing bundle:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  read-task-bundle-summary \
+  --bundle-dir /tmp/flutter_cockpit/out/20260530T060304005006Z_session-1
+```
+
 Default stdout is the AI-readable result. Use `--stdout-format json | jq ...`
 only when a shell pipeline needs structured filtering.
 

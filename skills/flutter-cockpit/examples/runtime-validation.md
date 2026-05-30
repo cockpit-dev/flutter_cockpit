@@ -16,7 +16,7 @@ When the task is not purely Flutter UI, switch to:
 1. `launch-target`
 2. `read-target --profile minimal`
 3. `inspect-surface` or `run-shell`
-4. `read_task_bundle_summary` or `validate-task`
+4. CLI `read-task-bundle-summary`, MCP `read_task_bundle_summary`, or `validate-task`
 
 Use `run-shell` only when the resolved target truthfully exposes shell control. Browser targets stay `read-target` and `inspect-surface` first; any browser prerequisite checks should use host shell scope instead of a browser device shell.
 

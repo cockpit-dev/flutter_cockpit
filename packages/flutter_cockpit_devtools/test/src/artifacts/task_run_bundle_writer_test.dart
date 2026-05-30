@@ -46,6 +46,7 @@ void main() {
       outputRoot: tempDir.path,
     );
 
+    expect(p.basename(outputDir.path), '20260320T080000000000Z_session-001');
     expect(File(p.join(outputDir.path, 'manifest.json')).existsSync(), isTrue);
     expect(
       File(p.join(outputDir.path, 'environment.json')).existsSync(),
@@ -60,6 +61,57 @@ void main() {
       Directory(p.join(outputDir.path, 'recordings')).existsSync(),
       isTrue,
     );
+  });
+
+  test('task-run directory names sort lexically by start time', () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'cockpit_bundle_sortable_name_test',
+    );
+    addTearDown(() async {
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    final writer = TaskRunBundleWriter();
+    Future<String> writeStartedAt(DateTime startedAt, String sessionId) async {
+      final outputDir = await writer.writeBundle(
+        bundle: CockpitContextBundle(
+          manifest: CockpitRunManifest(
+            sessionId: sessionId,
+            taskId: 'task-sortable-name',
+            platform: 'android',
+            status: CockpitTaskStatus.completed,
+            startedAt: startedAt,
+            finishedAt: startedAt.add(const Duration(seconds: 1)),
+            artifactRefs: const [],
+          ),
+          environment: const CockpitEnvironment(
+            platform: 'android',
+            flutterVersion: '3.32.0',
+            dartVersion: '3.8.0',
+          ),
+          steps: const [],
+          observations: const [],
+          acceptanceMarkdown: '# Acceptance\n\nDone.',
+          handoff: const {'status': 'completed'},
+        ),
+        outputRoot: tempDir.path,
+      );
+      return p.basename(outputDir.path);
+    }
+
+    final names = <String>[
+      await writeStartedAt(DateTime.utc(2026, 3, 20, 8, 0, 0, 0, 1), 'late'),
+      await writeStartedAt(DateTime.utc(2026, 3, 20, 8), 'first'),
+      await writeStartedAt(DateTime.utc(2026, 3, 20, 8, 0, 1), 'last'),
+    ];
+
+    expect(names.toList()..sort(), <String>[
+      '20260320T080000000000Z_first',
+      '20260320T080000000001Z_late',
+      '20260320T080001000000Z_last',
+    ]);
   });
 
   test('writes expected manifest, handoff, and acceptance content', () async {
@@ -184,6 +236,9 @@ void main() {
     final outputDir = await writer.writeBundle(
       bundle: bundle,
       outputRoot: tempDir.path,
+      artifactPayloads: const <String, List<int>>{
+        'screenshots/acceptance.png': <int>[137, 80, 78, 71],
+      },
     );
 
     final issueFile = File(p.join(outputDir.path, 'issue_evidence.json'));
@@ -196,6 +251,76 @@ void main() {
     final failedCommands = issueEvidence['failedCommands'] as List<Object?>;
     expect(failedCommands, hasLength(1));
     expect(failedCommands.single, containsPair('commandId', 'open-editor'));
+  });
+
+  test('writes issue evidence for derived delivery gate failures', () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'cockpit_bundle_derived_gate_issue_evidence_test',
+    );
+    addTearDown(() async {
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    final writer = TaskRunBundleWriter();
+    final bundle = CockpitContextBundle(
+      manifest: CockpitRunManifest(
+        sessionId: 'session-derived-gate',
+        taskId: 'task-derived-gate',
+        platform: 'macos',
+        status: CockpitTaskStatus.completed,
+        startedAt: DateTime.utc(2026, 5, 30, 8),
+        finishedAt: DateTime.utc(2026, 5, 30, 8, 1),
+        artifactRefs: const <CockpitArtifactRef>[
+          CockpitArtifactRef(
+            role: 'screenshot',
+            relativePath: 'screenshots/acceptance.png',
+          ),
+        ],
+        commandCount: 1,
+        screenshotCount: 1,
+        deliveryArtifactsReady: true,
+        recordingCount: 0,
+        deliveryVideoReady: false,
+      ),
+      environment: const CockpitEnvironment(
+        platform: 'macos',
+        flutterVersion: '3.32.0',
+        dartVersion: '3.8.0',
+      ),
+      steps: const [],
+      observations: const [],
+      acceptanceMarkdown: '# Acceptance\n\nScreenshot only.',
+      handoff: const <String, Object?>{'status': 'completed'},
+    );
+
+    final outputDir = await writer.writeBundle(
+      bundle: bundle,
+      outputRoot: tempDir.path,
+      artifactPayloads: const <String, List<int>>{
+        'screenshots/acceptance.png': <int>[137, 80, 78, 71],
+      },
+    );
+
+    final issueFile = File(p.join(outputDir.path, 'issue_evidence.json'));
+    final issueEvidence =
+        jsonDecode(await issueFile.readAsString()) as Map<String, Object?>;
+
+    expect(issueEvidence['status'], 'completed');
+    expect(issueEvidence['recommendedNextStep'], 'inspect_issue_evidence');
+    expect(issueEvidence['issueKinds'], contains('gateFailure'));
+    final gateFailures = issueEvidence['gateFailures'] as List<Object?>;
+    expect(
+      gateFailures,
+      contains(
+        allOf(
+          isA<Map<String, Object?>>(),
+          containsPair('gate', 'recordingReadyOrExplained'),
+          containsPair('failureCodes', <String>['primaryRecordingMissing']),
+        ),
+      ),
+    );
   });
 
   test(
@@ -1214,6 +1339,10 @@ void main() {
         keyframes.map((keyframe) => keyframe['label']),
         containsAll(<Object?>['baseline', 'midpoint', 'tail_consistency']),
       );
+      expect(
+        keyframes.map((keyframe) => keyframe['ref'] as String).toList()..sort(),
+        keyframes.map((keyframe) => keyframe['ref'] as String).toList(),
+      );
       final midpoint = keyframes.firstWhere(
         (keyframe) => keyframe['label'] == 'midpoint',
       );
@@ -1329,6 +1458,153 @@ void main() {
       isTrue,
     );
   });
+
+  test(
+    'persists issue evidence for failed recording keyframe coverage',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_bundle_keyframe_issue_evidence',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final writer = TaskRunBundleWriter(
+        keyframeExtractor: const _InsufficientRecordingKeyframeExtractor(),
+      );
+      const recordingArtifact = CockpitArtifactRef(
+        role: 'recording',
+        relativePath: 'recordings/home_acceptance.mp4',
+      );
+      const screenshotArtifact = CockpitArtifactRef(
+        role: 'screenshot',
+        relativePath: 'screenshots/home_acceptance.png',
+      );
+      final sourceFile = File(p.join(tempDir.path, 'temp_recording.mp4'));
+      await sourceFile.writeAsBytes(const <int>[0, 1, 2, 3, 4]);
+      final startedAt = DateTime.utc(2026, 3, 22, 6);
+
+      final bundle = CockpitContextBundle(
+        manifest: CockpitRunManifest(
+          sessionId: 'session-keyframe-issue',
+          taskId: 'task-keyframe-issue',
+          platform: 'android',
+          status: CockpitTaskStatus.completed,
+          startedAt: startedAt,
+          finishedAt: startedAt.add(const Duration(seconds: 8)),
+          artifactRefs: const <CockpitArtifactRef>[
+            screenshotArtifact,
+            recordingArtifact,
+          ],
+          screenshotCount: 1,
+          recordingCount: 1,
+          nativeRecordingCount: 1,
+          deliveryArtifactsReady: true,
+          deliveryVideoReady: true,
+        ),
+        environment: const CockpitEnvironment(
+          platform: 'android',
+          flutterVersion: '3.32.0',
+          dartVersion: '3.8.0',
+        ),
+        steps: <CockpitStepRecord>[
+          CockpitStepRecord(
+            index: 0,
+            actionType: 'recording_started',
+            actionArgs: const <String, Object?>{
+              'recordingPurpose': 'acceptance',
+              'recordingState': 'recording',
+            },
+            observedAt: startedAt,
+          ),
+          CockpitStepRecord(
+            index: 1,
+            actionType: 'captureScreenshot',
+            actionArgs: const <String, Object?>{
+              'commandId': 'acceptance_capture',
+            },
+            observedAt: startedAt.add(const Duration(seconds: 7)),
+            requestedCaptureProfile: CockpitCaptureProfile.acceptance,
+            artifactRefs: const <CockpitArtifactRef>[screenshotArtifact],
+            captureRefs: const <CockpitArtifactRef>[screenshotArtifact],
+          ),
+          CockpitStepRecord(
+            index: 2,
+            actionType: 'recording_stopped',
+            actionArgs: const <String, Object?>{
+              'recordingPurpose': 'acceptance',
+              'recordingState': 'completed',
+              'recordingDurationMs': 8000,
+            },
+            observedAt: startedAt.add(const Duration(seconds: 8)),
+            artifactRefs: const <CockpitArtifactRef>[recordingArtifact],
+          ),
+        ],
+        observations: const [],
+        acceptanceMarkdown: '# Acceptance\n\nRecorded.',
+        handoff: const <String, Object?>{'status': 'completed'},
+        delivery: const <String, Object?>{
+          'primaryScreenshotRef': 'screenshots/home_acceptance.png',
+          'attachmentRefs': <String>['screenshots/home_acceptance.png'],
+          'deliveryArtifactsReady': true,
+          'primaryRecordingRef': 'recordings/home_acceptance.mp4',
+          'videoAttachmentRefs': <String>['recordings/home_acceptance.mp4'],
+          'deliveryVideoReady': true,
+        },
+      );
+
+      final outputDir = await writer.writeBundle(
+        bundle: bundle,
+        outputRoot: tempDir.path,
+        artifactSourcePaths: <String, String>{
+          recordingArtifact.relativePath: sourceFile.path,
+        },
+        artifactPayloads: const <String, List<int>>{
+          'screenshots/home_acceptance.png': <int>[137, 80, 78, 71],
+        },
+      );
+
+      final issueEvidence =
+          jsonDecode(
+                await File(
+                  p.join(outputDir.path, 'issue_evidence.json'),
+                ).readAsString(),
+              )
+              as Map<String, Object?>;
+
+      expect(issueEvidence['recommendedNextStep'], 'inspect_issue_evidence');
+      expect(issueEvidence['issueKinds'], contains('gateFailure'));
+      final gateFailures = issueEvidence['gateFailures'] as List<Object?>;
+      expect(
+        gateFailures,
+        contains(
+          allOf(
+            isA<Map<String, Object?>>(),
+            containsPair('gate', 'artifactsReady'),
+            containsPair(
+              'failureCodes',
+              contains('recordingCoverageInsufficient'),
+            ),
+          ),
+        ),
+      );
+      expect(
+        gateFailures,
+        contains(
+          allOf(
+            isA<Map<String, Object?>>(),
+            containsPair('gate', 'deliveryValidated'),
+            containsPair(
+              'failureCodes',
+              contains('recordingCoverageInsufficient'),
+            ),
+          ),
+        ),
+      );
+    },
+  );
 
   test(
     'supplements sparse recording keyframes with baseline and acceptance screenshots',
@@ -1989,6 +2265,39 @@ final class _SparseRecordingKeyframeExtractor
       },
       coverage: const CockpitRecordingCoverage(
         durationMs: 3269,
+        hasEarlyCoverage: false,
+        hasMidCoverage: false,
+        hasLateCoverage: true,
+      ),
+    );
+  }
+}
+
+final class _InsufficientRecordingKeyframeExtractor
+    implements CockpitRecordingKeyframeExtractor {
+  const _InsufficientRecordingKeyframeExtractor();
+
+  @override
+  Future<CockpitRecordingKeyframeExtractionResult> extract({
+    required String recordingPath,
+    required String recordingRelativePath,
+    required List<CockpitStepRecord> steps,
+    String? bundleDirectoryPath,
+  }) async {
+    return const CockpitRecordingKeyframeExtractionResult(
+      keyframes: <CockpitRecordingKeyframe>[
+        CockpitRecordingKeyframe(
+          relativePath: 'keyframes/home_acceptance_tail.png',
+          label: 'tail_consistency',
+          offsetMs: 7600,
+          source: CockpitRecordingKeyframeSource.tailConsistency,
+        ),
+      ],
+      artifactPayloads: <String, List<int>>{
+        'keyframes/home_acceptance_tail.png': <int>[137, 80, 78, 71],
+      },
+      coverage: CockpitRecordingCoverage(
+        durationMs: 8000,
         hasEarlyCoverage: false,
         hasMidCoverage: false,
         hasLateCoverage: true,
