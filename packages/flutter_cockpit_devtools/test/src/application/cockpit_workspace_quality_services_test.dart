@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:async';
+import 'dart:isolate';
 
 import 'package:file/memory.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_analyze_workspace_service.dart';
@@ -13,14 +14,21 @@ import 'package:flutter_cockpit_devtools/src/infrastructure/cockpit_sdk_environm
 import 'package:test/test.dart';
 
 void main() {
-  test('workspace process helper does not keep an unbounded run branch', () {
-    final source = File(
-      'packages/flutter_cockpit_devtools/lib/src/application/cockpit_workspace_tooling_support.dart',
-    ).readAsStringSync();
+  test(
+    'workspace process helper does not keep an unbounded run branch',
+    () async {
+      final sourceUri = await Isolate.resolvePackageUri(
+        Uri.parse(
+          'package:flutter_cockpit_devtools/src/application/cockpit_workspace_tooling_support.dart',
+        ),
+      );
+      expect(sourceUri, isNotNull);
+      final source = File.fromUri(sourceUri!).readAsStringSync();
 
-    expect(source, isNot(contains('if (timeout == null)')));
-    expect(source, isNot(contains('processManager.run(')));
-  });
+      expect(source, isNot(contains('if (timeout == null)')));
+      expect(source, isNot(contains('processManager.run(')));
+    },
+  );
 
   test('uses flutter analyze for flutter workspaces', () async {
     final fileSystem = MemoryFileSystem();
