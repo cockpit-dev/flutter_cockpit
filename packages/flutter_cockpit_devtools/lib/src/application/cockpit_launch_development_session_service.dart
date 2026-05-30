@@ -183,11 +183,13 @@ final class CockpitSpawnedDevelopmentSupervisor {
   const CockpitSpawnedDevelopmentSupervisor({
     required this.baseUri,
     required this.stop,
+    this.release,
     this.logPath,
   });
 
   final Uri baseUri;
   final Future<void> Function() stop;
+  final Future<void> Function()? release;
   final String? logPath;
 }
 
@@ -289,6 +291,8 @@ final class CockpitDevelopmentSessionDaemonLauncher {
           final response = await _supervisorStatusReader(attempt.baseUri);
           lastSupervisorResponse = response;
           if (response.status.state == CockpitDevelopmentSessionState.ready) {
+            await _releaseAttempt(attempt);
+            activeAttempt = null;
             return CockpitDevelopmentSessionBootstrap(
               sessionHandle: response.sessionHandle,
               status: response.status,
@@ -338,10 +342,7 @@ final class CockpitDevelopmentSessionDaemonLauncher {
         );
       }
 
-      lastFailure = await _stopAttempt(
-        activeAttempt,
-        priorFailure: lastFailure,
-      );
+      lastFailure = await _stopAttempt(attempt, priorFailure: lastFailure);
       activeAttempt = null;
       if (permanentStartupFailure) {
         if (lastFailure is CockpitDevelopmentSessionFallbackException) {
@@ -467,6 +468,16 @@ final class CockpitDevelopmentSessionDaemonLauncher {
       supervisorLogFile,
       label: 'supervisor stderr',
     );
+    var bootstrapOutputReleased = false;
+    Future<void> releaseBootstrapOutput() async {
+      if (bootstrapOutputReleased) {
+        return;
+      }
+      bootstrapOutputReleased = true;
+      await _cancelSupervisorBootstrapOutput(stdoutSubscription);
+      await _cancelSupervisorBootstrapOutput(stderrSubscription);
+    }
+
     final baseUri = Uri(
       scheme: 'http',
       host: '127.0.0.1',
@@ -479,9 +490,9 @@ final class CockpitDevelopmentSessionDaemonLauncher {
         await Future<void>.delayed(const Duration(milliseconds: 500));
         process.kill(ProcessSignal.sigkill);
         await Future<void>.delayed(const Duration(milliseconds: 200));
-        await _cancelSupervisorBootstrapOutput(stdoutSubscription);
-        await _cancelSupervisorBootstrapOutput(stderrSubscription);
+        await releaseBootstrapOutput();
       },
+      release: releaseBootstrapOutput,
       logPath: p.normalize(supervisorLogFile.path),
     );
   }
@@ -578,6 +589,18 @@ final class CockpitDevelopmentSessionDaemonLauncher {
         return priorFailure;
       }
       return error;
+    }
+  }
+
+  Future<void> _releaseAttempt(
+    CockpitSpawnedDevelopmentSupervisor attempt,
+  ) async {
+    try {
+      await attempt.release?.call().timeout(const Duration(milliseconds: 500));
+    } on Object {
+      // Releasing only detaches parent-side bootstrap diagnostics. The
+      // supervisor is already ready, so a release failure must not break the
+      // reusable app handle returned to the agent.
     }
   }
 

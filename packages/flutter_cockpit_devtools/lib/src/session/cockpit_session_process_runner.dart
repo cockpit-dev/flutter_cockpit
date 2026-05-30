@@ -1,6 +1,7 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
+
+import '../infrastructure/cockpit_process_output_collector.dart';
 
 Future<ProcessResult> cockpitRunProcessWithTimeout(
   String executable,
@@ -14,29 +15,26 @@ Future<ProcessResult> cockpitRunProcessWithTimeout(
     workingDirectory: workingDirectory,
     runInShell: cockpitShouldRunExecutableInShell(executable),
   );
-  final stdoutFuture = process.stdout.fold<List<int>>(
-    <int>[],
-    (buffer, chunk) => buffer..addAll(chunk),
-  );
-  final stderrFuture = process.stderr.fold<List<int>>(
-    <int>[],
-    (buffer, chunk) => buffer..addAll(chunk),
-  );
+  final stdoutCollector = CockpitProcessOutputCollector(process.stdout);
+  final stderrCollector = CockpitProcessOutputCollector(process.stderr);
 
   try {
     final exitCode = await process.exitCode.timeout(timeout);
-    return ProcessResult(
-      process.pid,
-      exitCode,
-      _decodeProcessOutput(await stdoutFuture),
-      _decodeProcessOutput(await stderrFuture),
-    );
+    final output = await Future.wait(<Future<String>>[
+      stdoutCollector.collectText(),
+      stderrCollector.collectText(),
+    ]);
+    return ProcessResult(process.pid, exitCode, output[0], output[1]);
   } on TimeoutException {
     await _killProcessTree(process);
     await process.exitCode.timeout(
       const Duration(seconds: 2),
       onTimeout: () => -1,
     );
+    await Future.wait(<Future<void>>[
+      stdoutCollector.cancel(),
+      stderrCollector.cancel(),
+    ]);
     throw TimeoutException(
       '$executable ${arguments.join(' ')} timed out.',
       timeout,
@@ -65,18 +63,10 @@ Future<ProcessResult> cockpitRunShortProcess(
   );
 }
 
-String _decodeProcessOutput(List<int> bytes) {
-  try {
-    return systemEncoding.decode(bytes);
-  } on FormatException {
-    return utf8.decode(bytes, allowMalformed: true);
-  }
-}
-
 Future<void> _killProcessTree(Process process) async {
   if (Platform.isWindows) {
     try {
-      await Process.run('taskkill', <String>[
+      await _runKillHelperProcess('taskkill', <String>[
         '/PID',
         '${process.pid}',
         '/T',
@@ -102,7 +92,10 @@ Future<void> _killProcessTree(Process process) async {
 
 Future<List<int>> _collectProcessDescendants(int parentPid) async {
   try {
-    final result = await Process.run('pgrep', <String>['-P', '$parentPid']);
+    final result = await _runKillHelperProcess('pgrep', <String>[
+      '-P',
+      '$parentPid',
+    ]);
     if (result.exitCode != 0) {
       return const <int>[];
     }
@@ -119,5 +112,34 @@ Future<List<int>> _collectProcessDescendants(int parentPid) async {
     return descendants;
   } on Object {
     return const <int>[];
+  }
+}
+
+Future<ProcessResult> _runKillHelperProcess(
+  String executable,
+  List<String> arguments,
+) async {
+  final process = await Process.start(executable, arguments);
+  final stdoutCollector = CockpitProcessOutputCollector(process.stdout);
+  final stderrCollector = CockpitProcessOutputCollector(process.stderr);
+  try {
+    final exitCode = await process.exitCode.timeout(const Duration(seconds: 1));
+    final output = await Future.wait(<Future<String>>[
+      stdoutCollector.collectText(),
+      stderrCollector.collectText(),
+    ]);
+    return ProcessResult(process.pid, exitCode, output[0], output[1]);
+  } on Object {
+    process.kill(ProcessSignal.sigkill);
+    await process.exitCode.timeout(
+      const Duration(milliseconds: 200),
+      onTimeout: () => -1,
+    );
+    return ProcessResult(process.pid, -1, '', '');
+  } finally {
+    await Future.wait(<Future<void>>[
+      stdoutCollector.cancel(),
+      stderrCollector.cancel(),
+    ]);
   }
 }

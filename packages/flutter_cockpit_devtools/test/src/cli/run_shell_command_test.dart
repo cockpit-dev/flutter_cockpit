@@ -83,4 +83,41 @@ void main() {
       expect(capturedRequest?.targetHandlePath, '/tmp/target.json');
     },
   );
+
+  test('run-shell forwards the explicit timeout budget', () async {
+    final output = StringBuffer();
+    CockpitRunShellRequest? capturedRequest;
+    final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
+      ..addCommand(
+        RunShellCommand(
+          stdoutSink: output,
+          runShell: (request) async {
+            capturedRequest = request;
+            return const CockpitRunShellResult(
+              scope: 'host',
+              command: <String>['dart', '--version'],
+              exitCode: 0,
+              stdout: 'Dart SDK version: 3.10.8',
+              stderr: '',
+              success: true,
+              recommendedNextStep: 'continue',
+            );
+          },
+        ),
+      );
+
+    final exitCode =
+        await runner.run(<String>[
+          'run-shell',
+          '--timeout-seconds',
+          '7',
+          '--executable',
+          'dart',
+          '--arg=--version',
+        ]) ??
+        0;
+
+    expect(exitCode, 0);
+    expect(capturedRequest?.timeout, const Duration(seconds: 7));
+  });
 }

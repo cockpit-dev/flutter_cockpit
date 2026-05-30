@@ -150,9 +150,35 @@ final class CockpitStopAppService {
     final developmentHandle =
         resolved.app?.developmentSession ?? resolved.developmentRecord?.handle;
     if (developmentHandle != null) {
-      final stopped = await _stopDevelopment(
-        CockpitStopDevelopmentSessionRequest(sessionHandle: developmentHandle),
-      );
+      final fallbackApp =
+          resolved.app ??
+          CockpitAppHandle.fromDevelopmentSession(
+            developmentHandle,
+            supervisorLogPath: resolved.developmentRecord?.supervisorLogPath,
+          );
+      CockpitStopDevelopmentSessionResult stopped;
+      try {
+        stopped = await _stopDevelopment(
+          CockpitStopDevelopmentSessionRequest(
+            sessionHandle: developmentHandle,
+          ),
+        );
+      } on Object catch (error) {
+        await _bestEffortStopDevelopmentPlatformApp(fallbackApp);
+        final status = await _waitUntilStopped(
+          fallbackApp,
+          lastError: error.toString(),
+        );
+        final appJsonPath = await _persistAppIfRequested(
+          path: request.appHandlePath,
+          app: fallbackApp,
+        );
+        return CockpitStopAppResult(
+          app: fallbackApp,
+          status: status,
+          appJsonPath: appJsonPath,
+        );
+      }
       _registry?.removeDevelopmentSession(
         stopped.sessionHandle.developmentSessionId,
       );
@@ -162,6 +188,7 @@ final class CockpitStopAppService {
             resolved.app?.supervisorLogPath ??
             resolved.developmentRecord?.supervisorLogPath,
       );
+      await _bestEffortStopDevelopmentPlatformApp(app);
       final appJsonPath = await _persistAppIfRequested(
         path: request.appHandlePath,
         app: app,
@@ -205,6 +232,20 @@ final class CockpitStopAppService {
     );
   }
 
+  Future<void> _bestEffortStopDevelopmentPlatformApp(
+    CockpitAppHandle app,
+  ) async {
+    if (app.platform == 'web') {
+      return;
+    }
+    try {
+      await _stopAutomation(app).timeout(const Duration(seconds: 5));
+    } on Object {
+      // The supervisor stop result remains the authoritative development
+      // status; this only cleans up platform processes that outlive flutter run.
+    }
+  }
+
   void _validateAutomationStopSupport(CockpitAppHandle app) {
     if (app.platform != 'ios' ||
         cockpitLooksLikeIosSimulatorDeviceId(app.deviceId)) {
@@ -240,12 +281,18 @@ final class CockpitStopAppService {
     return p.normalize(file.path);
   }
 
-  Future<CockpitAppStopStatus> _waitUntilStopped(CockpitAppHandle app) async {
+  Future<CockpitAppStopStatus> _waitUntilStopped(
+    CockpitAppHandle app, {
+    String? lastError,
+  }) async {
     final deadline = DateTime.now().add(const Duration(seconds: 5));
     while (DateTime.now().isBefore(deadline)) {
       final reachable = await _probeReachability(app.baseUri);
       if (!reachable) {
-        return CockpitAppStopStatus.stopped(mode: app.mode);
+        return CockpitAppStopStatus.stopped(
+          mode: app.mode,
+          lastError: lastError,
+        );
       }
       await Future<void>.delayed(const Duration(milliseconds: 250));
     }

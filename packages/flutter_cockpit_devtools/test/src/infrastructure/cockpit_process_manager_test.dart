@@ -74,6 +74,39 @@ void main() {
       ]);
     });
   });
+
+  group('cockpitRunManagedProcessWithTimeout', () {
+    test('kills timed out processes and preserves captured output', () async {
+      final process = _HangingProcess(stdout: 'started\n');
+      final delegate = _FakeProcessManager(
+        onStart:
+            ({
+              required String executable,
+              required List<String> arguments,
+              String? workingDirectory,
+              ProcessStartMode mode = ProcessStartMode.normal,
+            }) async {
+              return process;
+            },
+      );
+      final manager = LocalCockpitProcessManager(processManager: delegate);
+
+      await expectLater(
+        () => cockpitRunManagedProcessWithTimeout(
+          manager,
+          'tool',
+          const <String>['wait'],
+          timeout: const Duration(milliseconds: 20),
+        ),
+        throwsA(
+          isA<CockpitManagedProcessTimeoutException>()
+              .having((error) => error.executable, 'executable', 'tool')
+              .having((error) => error.stdout, 'stdout', contains('started')),
+        ),
+      );
+      expect(process.killSignals, contains(ProcessSignal.sigkill));
+    });
+  });
 }
 
 typedef _RunHandler =
@@ -177,4 +210,54 @@ final class _FakeProcess implements Process {
 
   @override
   bool kill([ProcessSignal signal = ProcessSignal.sigterm]) => true;
+}
+
+final class _HangingProcess implements Process {
+  _HangingProcess({required String stdout})
+    : _stdoutController = StreamController<List<int>>(),
+      _stderrController = StreamController<List<int>>() {
+    scheduleMicrotask(() {
+      _stdoutController.add(utf8.encode(stdout));
+    });
+  }
+
+  final StreamController<List<int>> _stdoutController;
+  final StreamController<List<int>> _stderrController;
+  final StreamController<List<int>> _stdinController =
+      StreamController<List<int>>();
+  final Completer<int> _exitCode = Completer<int>();
+  final List<ProcessSignal> killSignals = <ProcessSignal>[];
+
+  @override
+  Future<int> get exitCode => _exitCode.future;
+
+  @override
+  int get pid => 1;
+
+  @override
+  IOSink get stdin => IOSink(_stdinController.sink);
+
+  @override
+  Stream<List<int>> get stderr => _stderrController.stream;
+
+  @override
+  Stream<List<int>> get stdout => _stdoutController.stream;
+
+  @override
+  bool kill([ProcessSignal signal = ProcessSignal.sigterm]) {
+    killSignals.add(signal);
+    if (!_exitCode.isCompleted) {
+      _exitCode.complete(-1);
+    }
+    if (!_stdoutController.isClosed) {
+      unawaited(_stdoutController.close());
+    }
+    if (!_stderrController.isClosed) {
+      unawaited(_stderrController.close());
+    }
+    if (!_stdinController.isClosed) {
+      unawaited(_stdinController.close());
+    }
+    return true;
+  }
 }

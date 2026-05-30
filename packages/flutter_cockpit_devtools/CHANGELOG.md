@@ -10,3 +10,7 @@
 - Added sortable task-run bundle names, screenshot names, and recording keyframe paths for chronological artifact review
 - Added host-side screenshot and recording adapters with validation and keyframe extraction
 - Added remote session launchers for Android emulators and iOS Simulators
+- Fixed development `launch-app` so it returns after readiness while the background supervisor keeps logs, reload, restart, and stop control alive
+- Fixed `run-shell` and host recorder helper commands so short CLI/MCP calls are bounded, killable, and do not inherit recording startup timeouts
+- Fixed stale development `stop-app` cleanup so platform app processes are stopped even when the supervisor is already unreachable
+- Fixed the real MCP surface verifier so `serve-mcp` shutdown cleanup is bounded and cannot hang the validation run

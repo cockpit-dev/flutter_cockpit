@@ -76,10 +76,10 @@ final class LaunchAppCommand extends CockpitCliCommand {
 
   @override
   String get description =>
-      'Launch one Flutter app and write a normalized app handle.';
+      'Launch one Flutter app, leave its supervisor in the background, and write a normalized app handle.';
 
   @override
-  String get summary => 'Start one app and write app.json.';
+  String get summary => 'Start one app, return when ready, and write app.json.';
 
   @override
   String get category => CockpitCliCategory.coreLoop;
@@ -98,7 +98,7 @@ final class LaunchAppCommand extends CockpitCliCommand {
 
   @override
   String get helpWrites =>
-      'The command result JSON. If --app-json is omitted, launch-app writes the reusable app handle to .dart_tool/flutter_cockpit/latest_app.json in the current workspace. When --app-json is provided, that explicit path is written instead.';
+      'The command result JSON. If --app-json is omitted, launch-app writes the reusable app handle to .dart_tool/flutter_cockpit/latest_app.json in the current workspace. When --app-json is provided, that explicit path is written instead. The command returns after the app is ready; the development supervisor keeps logs, reload, and stop control alive in the background.';
 
   @override
   Future<int> run() async {

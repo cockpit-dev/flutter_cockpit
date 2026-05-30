@@ -13,6 +13,15 @@ import 'package:flutter_cockpit_devtools/src/infrastructure/cockpit_sdk_environm
 import 'package:test/test.dart';
 
 void main() {
+  test('workspace process helper does not keep an unbounded run branch', () {
+    final source = File(
+      'packages/flutter_cockpit_devtools/lib/src/application/cockpit_workspace_tooling_support.dart',
+    ).readAsStringSync();
+
+    expect(source, isNot(contains('if (timeout == null)')));
+    expect(source, isNot(contains('processManager.run(')));
+  });
+
   test('uses flutter analyze for flutter workspaces', () async {
     final fileSystem = MemoryFileSystem();
     fileSystem.file('/workspace/app/pubspec.yaml')
@@ -121,6 +130,39 @@ void main() {
       throwsA(isA<Exception>()),
     );
   });
+
+  test(
+    'workspace commands return after exit when stdout remains inherited',
+    () async {
+      final fileSystem = MemoryFileSystem();
+      fileSystem.file('/workspace/pkg/pubspec.yaml')
+        ..createSync(recursive: true)
+        ..writeAsStringSync('name: pkg\n');
+      final processManager = _OpenOutputProcessManager();
+      addTearDown(processManager.dispose);
+
+      final service = CockpitFormatWorkspaceService(
+        fileSystem: LocalCockpitFileSystem(fileSystem: fileSystem),
+        processManager: processManager,
+        sdkEnvironment: const CockpitSdkEnvironment(
+          dartExecutable: 'dart-sdk',
+          flutterExecutable: 'flutter-sdk',
+        ),
+      );
+
+      final result = await service
+          .format(
+            const CockpitFormatWorkspaceRequest(
+              workspaceRoot: '/workspace/pkg',
+              timeout: Duration(seconds: 2),
+            ),
+          )
+          .timeout(const Duration(milliseconds: 500));
+
+      expect(result.exitCode, 0);
+      expect(result.stdout, contains('formatted'));
+    },
+  );
 }
 
 final class _RecordingProcessManager implements CockpitProcessManager {
@@ -193,6 +235,91 @@ final class _HangingProcessManager implements CockpitProcessManager {
     ProcessStartMode mode = ProcessStartMode.normal,
   }) async {
     return _FakeProcess();
+  }
+}
+
+final class _OpenOutputProcessManager implements CockpitProcessManager {
+  _OpenOutputProcessManager();
+
+  _OpenOutputProcess? process;
+
+  @override
+  Future<ProcessResult> run(
+    String executable,
+    List<String> arguments, {
+    String? workingDirectory,
+    Map<String, String>? environment,
+    bool includeParentEnvironment = true,
+    bool runInShell = false,
+    Encoding? stdoutEncoding,
+    Encoding? stderrEncoding,
+  }) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Process> start(
+    String executable,
+    List<String> arguments, {
+    String? workingDirectory,
+    Map<String, String>? environment,
+    bool includeParentEnvironment = true,
+    bool runInShell = false,
+    ProcessStartMode mode = ProcessStartMode.normal,
+  }) async {
+    return process = _OpenOutputProcess(stdout: 'formatted\n');
+  }
+
+  Future<void> dispose() async {
+    await process?.close();
+  }
+}
+
+final class _OpenOutputProcess implements Process {
+  _OpenOutputProcess({required String stdout})
+    : _stdoutController = StreamController<List<int>>(),
+      _stderrController = StreamController<List<int>>() {
+    scheduleMicrotask(() {
+      _stdoutController.add(utf8.encode(stdout));
+    });
+  }
+
+  final StreamController<List<int>> _stdoutController;
+  final StreamController<List<int>> _stderrController;
+  final StreamController<List<int>> _stdinController =
+      StreamController<List<int>>();
+
+  @override
+  Future<int> get exitCode => Future<int>.value(0);
+
+  @override
+  int get pid => 1;
+
+  @override
+  IOSink get stdin => IOSink(_stdinController.sink);
+
+  @override
+  Stream<List<int>> get stderr => _stderrController.stream;
+
+  @override
+  Stream<List<int>> get stdout => _stdoutController.stream;
+
+  @override
+  bool kill([ProcessSignal signal = ProcessSignal.sigterm]) {
+    unawaited(close());
+    return true;
+  }
+
+  Future<void> close() async {
+    if (!_stdoutController.isClosed) {
+      unawaited(_stdoutController.close());
+    }
+    if (!_stderrController.isClosed) {
+      unawaited(_stderrController.close());
+    }
+    if (!_stdinController.isClosed) {
+      unawaited(_stdinController.close());
+    }
   }
 }
 

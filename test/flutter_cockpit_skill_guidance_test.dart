@@ -72,6 +72,7 @@ void main() {
     expect(skill, contains('jq'));
     expect(skill, contains('captureScreenshot'));
     expect(skill, contains('artifact refs or output paths'));
+    expect(skill, contains('Do not set `type: Text` for button labels'));
     expect(skill, contains('Do not blindly replay a non-idempotent batch'));
     expect(skill, contains('re-read minimal route or state before retrying'));
     expect(skill, contains('Prefer `run-batch` for route-crossing flows'));
@@ -104,6 +105,10 @@ void main() {
       ),
     );
     expect(skill, contains('read-app --profile minimal'));
+    expect(skill, contains('Do not shell-background `launch-app`'));
+    expect(skill, contains('It returns after the app is ready'));
+    expect(skill, contains('background supervisor keeps logs'));
+    expect(skill, contains('FlutterAppDelegate.h has been modified'));
     expect(
       skill,
       contains('run-command --command-file /tmp/flutter_cockpit/command.json'),
@@ -194,6 +199,11 @@ void main() {
     expect(cliReference, contains('--ios-device-id <id>'));
     expect(rapidLoop, contains('jq'));
     expect(rapidLoop, contains('app.json'));
+    expect(
+      rapidLoop,
+      contains('Do not run `launch-app` with shell backgrounding'),
+    );
+    expect(rapidLoop, contains('leaves a supervisor behind for logs'));
     expect(rapidLoop, contains('grep-package-uris'));
     expect(rapidLoop, contains('textPreviews'));
     expect(rapidLoop, contains('remoteUnavailable'));

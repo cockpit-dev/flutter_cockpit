@@ -398,6 +398,7 @@ done
           captureSize: '1440x900',
         ),
         startupTimeout: const Duration(milliseconds: 500),
+        commandTimeout: const Duration(milliseconds: 500),
         startupEvidenceTimeout: const Duration(milliseconds: 200),
         stopTimeout: const Duration(seconds: 2),
         finalizationPollInterval: const Duration(milliseconds: 10),

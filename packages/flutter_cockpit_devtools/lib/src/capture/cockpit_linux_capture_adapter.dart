@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
 import '../platform/linux/cockpit_linux_window_target.dart';
+import '../session/cockpit_session_process_runner.dart';
 import 'cockpit_host_capture_adapter.dart';
 
 final class CockpitLinuxCaptureAdapter implements CockpitHostCaptureAdapter {
@@ -17,7 +18,7 @@ final class CockpitLinuxCaptureAdapter implements CockpitHostCaptureAdapter {
       'import',
     ],
     String? windowActivatorExecutable = 'wmctrl',
-    CockpitCaptureProcessRunner processRunner = Process.run,
+    CockpitCaptureProcessRunner? processRunner,
     CockpitCaptureTempFileFactory tempFileFactory =
         cockpitCreateCaptureTempFile,
     CockpitLinuxWindowTargetResolver windowTargetResolver =
@@ -38,7 +39,7 @@ final class CockpitLinuxCaptureAdapter implements CockpitHostCaptureAdapter {
   final int? _processId;
   final List<String> _captureExecutables;
   final String? _windowActivatorExecutable;
-  final CockpitCaptureProcessRunner _processRunner;
+  final CockpitCaptureProcessRunner? _processRunner;
   final CockpitCaptureTempFileFactory _tempFileFactory;
   final CockpitLinuxWindowTargetResolver _windowTargetResolver;
   final Duration _timeout;
@@ -130,7 +131,7 @@ final class CockpitLinuxCaptureAdapter implements CockpitHostCaptureAdapter {
       return await _windowTargetResolver(
         appId: _appId,
         processId: _processId,
-        processRunner: _processRunner,
+        processRunner: _runProcess,
         timeout: _timeout,
       );
     } on Object {
@@ -149,10 +150,7 @@ final class CockpitLinuxCaptureAdapter implements CockpitHostCaptureAdapter {
       final arguments = windowTarget == null
           ? <String>['-xa', _appId]
           : <String>['-ia', windowTarget.windowId];
-      final result = await _processRunner(
-        executable,
-        arguments,
-      ).timeout(_timeout);
+      final result = await _runProcess(executable, arguments);
       if (result.exitCode == 0 && _activationSettleDelay > Duration.zero) {
         await Future<void>.delayed(_activationSettleDelay);
       }
@@ -179,10 +177,7 @@ final class CockpitLinuxCaptureAdapter implements CockpitHostCaptureAdapter {
           );
           continue;
         }
-        final result = await _processRunner(
-          executable,
-          arguments,
-        ).timeout(_timeout);
+        final result = await _runProcess(executable, arguments);
         if (result.exitCode == 0) {
           return result;
         }
@@ -221,5 +216,17 @@ final class CockpitLinuxCaptureAdapter implements CockpitHostCaptureAdapter {
             : <String>['-window', windowTarget.windowId, outputPath],
       _ => <String>[outputPath],
     };
+  }
+
+  Future<ProcessResult> _runProcess(String executable, List<String> arguments) {
+    final injected = _processRunner;
+    if (injected != null) {
+      return injected(executable, arguments).timeout(_timeout);
+    }
+    return cockpitRunProcessWithTimeout(
+      executable,
+      arguments,
+      timeout: _timeout,
+    );
   }
 }

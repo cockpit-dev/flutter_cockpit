@@ -102,12 +102,15 @@ Recommended code-side loop:
 
 CLI JSON output uses lower camel case keys.
 If `launch-app` omits `--app-json`, it persists the current app handle at `.dart_tool/flutter_cockpit/latest_app.json` in the working directory and later app commands reuse it automatically.
+`launch-app` is intentionally a short command: it waits for the app to become ready, writes the handle, and exits. In development mode, a background supervisor keeps `flutter run --machine`, logs, hot reload, hot restart, and `stop-app` control alive, so agents should not run `launch-app` with shell backgrounding.
+`run-shell` is bounded and killable by default. Keep the default timeout for quick probes; pass `--timeout-seconds <n>` only for known-slow shell work.
 When a command accepts both `--app-json` and `--base-url`, precedence is: explicit `--app-json`, then explicit `--base-url`, then the implicit `.dart_tool/flutter_cockpit/latest_app.json` handle in the current working directory.
 `launch-app` auto-detects `cockpit/main.dart` first, then `lib/main.dart`.
 `run-script` exits non-zero when the written bundle status is `failed`.
 Workspace commands default `--workspace-root` or `--parent-directory` to the current directory.
 Serialize mutation, then observation. Do not run a mutating `run-command` in parallel with the `read-app`, `inspect-ui`, or `read-network` call that depends on its result.
 When the next few steps are already known and the flow will cross a route boundary such as list -> editor -> list, prefer one ordered `run-batch` over separate `run-command` round-trips. It cuts token cost and avoids route-transition gaps between commands.
+Use product-specific locator signals. Short repeated action labels such as `Open`, `Edit`, or `Save` are fine as fallbacks, but they should not be the only signal when multiple rows or cards can expose the same word. Prefer the full accessible label from `read-app` / `inspect-ui`, then add `route`, `type`, or `ancestor` only as needed.
 For route-changing `tap` commands, set `parameters.expectedRouteName`. Add `parameters.routeTimeoutMs` for CI, recording, simulator, or other acceptance flows where runner latency is expected; `timeoutMs` remains the hard command ceiling. Follow critical route crossings with `waitFor` on `parameters.routeName`.
 `run-command`, `run-batch`, and `run-script` default key mutating commands to
 best-effort after-action screenshots attached to the command step. This gives

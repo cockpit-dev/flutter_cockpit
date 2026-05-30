@@ -21,6 +21,10 @@ Keep each cycle small:
 5. `run-command` for one action or assertion
 6. `read-app --profile minimal` or `inspect-ui --profile inspect` only if the result is still ambiguous
 
+Do not run `launch-app` with shell backgrounding. It returns after readiness
+and leaves a supervisor behind for logs, hot reload, hot restart, and
+`stop-app`.
+
 For project-specific rapid verifiers, keep the output small and diagnostic:
 
 - completed phases before failure
@@ -92,6 +96,7 @@ For desktop Flutter targets, prefer semantic inspection when the remote path is 
 
 - Keep default timeouts unless the step is known to be slow.
 - Raise `timeoutMs` for long scrolls, waits, or slow environment transitions.
+- Keep `run-shell` on its default bounded timeout for quick probes; raise `--timeout-seconds` only for known-slow host, adb, or simctl commands.
 - If a mutating step times out, do not blindly replay the whole batch. Re-read minimal route or state first so you know whether the original action already committed.
 - If a deep target keeps slipping under sticky headers or footers, lower `viewportFraction` to `0.35`-`0.55` before escalating to `inspect-ui`.
 - After `hot-restart`, re-read route and consider one explicit `wait-idle` or a larger `timeoutMs` for the first deep interaction instead of assuming the session is immediately stable.

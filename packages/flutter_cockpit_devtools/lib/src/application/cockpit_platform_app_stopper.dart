@@ -5,6 +5,7 @@ import 'cockpit_app_handle.dart';
 import 'cockpit_application_service_exception.dart';
 import '../platform/ios/cockpit_ios_device_connection.dart';
 import '../platform/ios/cockpit_ios_device_process.dart';
+import '../session/cockpit_session_process_runner.dart';
 
 typedef CockpitPlatformStopProcessRunner =
     Future<ProcessResult> Function(String executable, List<String> arguments);
@@ -37,6 +38,7 @@ final class CockpitPlatformAppStopper {
           'force-stop',
           appId,
         ]);
+        await _bestEffortRemoveAndroidForward(app);
       case 'ios':
         if (cockpitLooksLikeIosSimulatorDeviceId(app.deviceId)) {
           await _bestEffortRun('xcrun', <String>[
@@ -88,6 +90,20 @@ final class CockpitPlatformAppStopper {
     }
   }
 
+  Future<void> _bestEffortRemoveAndroidForward(CockpitAppHandle app) async {
+    final hostPort = app.baseUri.port;
+    if (hostPort <= 0) {
+      return;
+    }
+    await _bestEffortRun('adb', <String>[
+      '-s',
+      app.deviceId,
+      'forward',
+      '--remove',
+      'tcp:$hostPort',
+    ]);
+  }
+
   Future<void> _bestEffortRun(String executable, List<String> arguments) async {
     try {
       await _processRunner(
@@ -116,6 +132,10 @@ final class CockpitPlatformAppStopper {
     String executable,
     List<String> arguments,
   ) {
-    return Process.run(executable, arguments);
+    return cockpitRunProcessWithTimeout(
+      executable,
+      arguments,
+      timeout: const Duration(seconds: 5),
+    );
   }
 }

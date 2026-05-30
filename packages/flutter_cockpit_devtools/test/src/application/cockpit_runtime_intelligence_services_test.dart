@@ -106,6 +106,40 @@ void main() {
     },
   );
 
+  test(
+    'lists launch targets when stdout stays open after flutter devices exits',
+    () async {
+      final processManager = _MachineProcessManager(
+        stdoutPayload: jsonEncode(<Map<String, Object?>>[
+          <String, Object?>{
+            'id': 'chrome',
+            'name': 'Chrome',
+            'targetPlatform': 'web-javascript',
+            'isSupported': true,
+            'emulator': false,
+            'sdk': 'web',
+          },
+        ]),
+        keepOutputOpenAfterExit: true,
+      );
+      addTearDown(processManager.dispose);
+      final service = CockpitListLaunchTargetsService(
+        processManager: processManager,
+        sdkEnvironment: const CockpitSdkEnvironment(
+          dartExecutable: 'dart-sdk',
+          flutterExecutable: 'flutter-sdk',
+        ),
+      );
+
+      final result = await service
+          .list(timeout: const Duration(seconds: 2))
+          .timeout(const Duration(milliseconds: 500));
+
+      expect(result.targets, hasLength(1));
+      expect(result.targets.single.id, 'chrome');
+    },
+  );
+
   test('list launch targets times out instead of hanging forever', () async {
     final service = CockpitListLaunchTargetsService(
       processManager: _MachineProcessManager(
@@ -849,11 +883,14 @@ final class _MachineProcessManager implements CockpitProcessManager {
     required this.stdoutPayload,
     this.returnUtf8Bytes = false,
     this.hangOnStart = false,
+    this.keepOutputOpenAfterExit = false,
   });
 
   final String stdoutPayload;
   final bool returnUtf8Bytes;
   final bool hangOnStart;
+  final bool keepOutputOpenAfterExit;
+  _OpenOutputFakeProcess? openOutputProcess;
 
   @override
   Future<ProcessResult> run(
@@ -887,12 +924,23 @@ final class _MachineProcessManager implements CockpitProcessManager {
     if (hangOnStart) {
       return _HangingFakeProcess();
     }
+    if (keepOutputOpenAfterExit) {
+      return openOutputProcess = _OpenOutputFakeProcess(
+        stdoutPayload: stdoutPayload,
+        stderrPayload: '',
+        exitCodeValue: 0,
+      );
+    }
     return _CompletedFakeProcess(
       stdoutPayload: stdoutPayload,
       stderrPayload: '',
       exitCodeValue: 0,
       returnUtf8Bytes: returnUtf8Bytes,
     );
+  }
+
+  Future<void> dispose() async {
+    await openOutputProcess?.close();
   }
 }
 
@@ -954,6 +1002,57 @@ final class _HangingFakeProcess implements Process {
 
   @override
   IOSink get stdin => throw UnsupportedError('stdin is not used in tests');
+}
+
+final class _OpenOutputFakeProcess implements Process {
+  _OpenOutputFakeProcess({
+    required String stdoutPayload,
+    required String stderrPayload,
+    required int exitCodeValue,
+  }) : _stdoutController = StreamController<List<int>>(),
+       _stderrController = StreamController<List<int>>(),
+       _exitCode = Future<int>.value(exitCodeValue) {
+    scheduleMicrotask(() {
+      _stdoutController.add(utf8.encode(stdoutPayload));
+      if (stderrPayload.isNotEmpty) {
+        _stderrController.add(utf8.encode(stderrPayload));
+      }
+    });
+  }
+
+  final StreamController<List<int>> _stdoutController;
+  final StreamController<List<int>> _stderrController;
+  final Future<int> _exitCode;
+
+  @override
+  Future<int> get exitCode => _exitCode;
+
+  @override
+  Stream<List<int>> get stdout => _stdoutController.stream;
+
+  @override
+  Stream<List<int>> get stderr => _stderrController.stream;
+
+  @override
+  int get pid => 1;
+
+  @override
+  bool kill([ProcessSignal signal = ProcessSignal.sigterm]) {
+    unawaited(close());
+    return true;
+  }
+
+  @override
+  IOSink get stdin => throw UnsupportedError('stdin is not used in tests');
+
+  Future<void> close() async {
+    if (!_stdoutController.isClosed) {
+      unawaited(_stdoutController.close());
+    }
+    if (!_stderrController.isClosed) {
+      unawaited(_stderrController.close());
+    }
+  }
 }
 
 CockpitDevelopmentSessionHandle _developmentHandle() =>

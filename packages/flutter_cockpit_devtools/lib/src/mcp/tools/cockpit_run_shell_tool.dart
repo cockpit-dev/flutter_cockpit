@@ -21,6 +21,16 @@ final class CockpitRunShellTool extends CockpitMcpTool {
       'Run a shell command against a host or target-aware shell scope.';
 
   @override
+  CockpitMcpToolAnnotations get annotations => const CockpitMcpToolAnnotations(
+    readOnly: false,
+    destructive: false,
+    idempotent: false,
+    longRunning: true,
+    requiresSession: false,
+    producesBundleEvidence: false,
+  );
+
+  @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
     'type': 'object',
     'required': <String>['command'],
@@ -44,6 +54,11 @@ final class CockpitRunShellTool extends CockpitMcpTool {
       'workingDirectory': <String, Object?>{'type': 'string'},
       'targetJson': <String, Object?>{'type': 'string'},
       'deviceId': <String, Object?>{'type': 'string'},
+      'timeoutSeconds': <String, Object?>{
+        'type': 'integer',
+        'description':
+            'Maximum time to wait before killing the shell process. Defaults to 30.',
+      },
       'target': <String, Object?>{'type': 'object'},
     },
   };
@@ -65,6 +80,11 @@ final class CockpitRunShellTool extends CockpitMcpTool {
           workingDirectory: cockpitReadOptionalString(
             arguments,
             'workingDirectory',
+          ),
+          timeout: Duration(
+            seconds:
+                cockpitReadOptionalPositiveInt(arguments, 'timeoutSeconds') ??
+                30,
           ),
         ),
       );

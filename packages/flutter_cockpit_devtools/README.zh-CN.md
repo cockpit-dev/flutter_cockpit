@@ -101,6 +101,9 @@ target-first 闭环：
 5. 只有问题已经不再是局部修改时，才升级到 `run-tests` 或 `analyze-workspace`
 
 CLI JSON 输出使用 lower camel case keys。
+如果 `launch-app` 省略 `--app-json`，它会把当前 app handle 写到工作目录里的 `.dart_tool/flutter_cockpit/latest_app.json`，后续 app 命令会自动复用。
+`launch-app` 按短命令设计：等待应用 ready、写出 handle，然后退出。development 模式下后台 supervisor 会继续维护 `flutter run --machine`、日志、hot reload、hot restart 和 `stop-app` 控制，所以 agent 不需要也不应该用 shell 后台方式运行 `launch-app`。
+`run-shell` 默认有超时并会杀掉超时进程。快速探测保持默认值；只有明确知道 host、adb 或 simctl 命令较慢时才传 `--timeout-seconds <n>`。
 如果命令同时支持 `--app-json` 和 `--base-url`，优先级是：显式 `--app-json`，然后显式 `--base-url`，最后才是当前工作目录里的隐式 `.dart_tool/flutter_cockpit/latest_app.json`。
 `launch-app` 会先自动探测 `cockpit/main.dart`，找不到再退回 `lib/main.dart`。
 `run-script` 写出的 bundle 只要状态是 `failed`，命令就会非零退出。

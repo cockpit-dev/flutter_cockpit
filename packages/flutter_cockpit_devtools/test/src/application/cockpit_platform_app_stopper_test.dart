@@ -7,6 +7,41 @@ import 'package:flutter_cockpit_devtools/src/platform/ios/cockpit_ios_device_pro
 import 'package:test/test.dart';
 
 void main() {
+  test('android stop removes the adb host port forward', () async {
+    final invocations = <String>[];
+    final stopper = CockpitPlatformAppStopper(
+      processRunner: (executable, arguments) async {
+        invocations.add('$executable ${arguments.join(' ')}');
+        return ProcessResult(0, 0, '', '');
+      },
+    );
+
+    await stopper.stop(
+      CockpitAppHandle(
+        appId: 'dev.cockpit.cockpit_demo',
+        mode: CockpitAppMode.development,
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        projectDir: '/workspace/app',
+        target: 'cockpit/main.dart',
+        baseUrl: 'http://127.0.0.1:57331',
+        launchedAt: DateTime.utc(2026, 5, 30),
+        platformAppId: 'dev.cockpit.cockpit_demo',
+      ),
+    );
+
+    expect(
+      invocations,
+      contains(
+        'adb -s emulator-5554 shell am force-stop dev.cockpit.cockpit_demo',
+      ),
+    );
+    expect(
+      invocations,
+      contains('adb -s emulator-5554 forward --remove tcp:57331'),
+    );
+  });
+
   test('uses devicectl termination for physical iOS apps', () async {
     final invocations = <String>[];
     final stopper = CockpitPlatformAppStopper(

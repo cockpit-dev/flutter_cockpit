@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
+import '../../session/cockpit_session_process_runner.dart';
+
 typedef CockpitIosDeviceProcessRunner =
     Future<ProcessResult> Function(
       String executable,
@@ -164,10 +166,11 @@ final class CockpitIosDeviceProcessTerminator {
     List<String> arguments, {
     String? workingDirectory,
   }) {
-    return Process.run(
+    return cockpitRunProcessWithTimeout(
       executable,
       arguments,
       workingDirectory: workingDirectory,
+      timeout: const Duration(seconds: 15),
     );
   }
 }

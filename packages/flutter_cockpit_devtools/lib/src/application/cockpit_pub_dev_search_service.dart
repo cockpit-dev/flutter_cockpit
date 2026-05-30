@@ -233,9 +233,12 @@ final class CockpitPubDevSearchService {
     Object? lastError;
     for (final command in commands) {
       try {
-        final result = await _processManager
-            .run(command.$1, command.$2)
-            .timeout(timeout + const Duration(seconds: 1));
+        final result = await cockpitRunManagedProcessWithTimeout(
+          _processManager,
+          command.$1,
+          command.$2,
+          timeout: timeout + const Duration(seconds: 1),
+        );
         final stdout = '${result.stdout}'.trim();
         final stderr = '${result.stderr}'.trim();
         if (result.exitCode == 0 && stdout.isNotEmpty) {

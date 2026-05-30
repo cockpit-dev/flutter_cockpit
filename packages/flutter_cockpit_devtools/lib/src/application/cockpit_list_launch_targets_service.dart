@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import '../infrastructure/cockpit_process_output_collector.dart';
 import '../infrastructure/cockpit_process_manager.dart';
 import '../infrastructure/cockpit_sdk_environment.dart';
 import 'cockpit_application_service_exception.dart';
@@ -63,8 +64,8 @@ final class CockpitListLaunchTargetsService {
       _sdkEnvironment.flutterExecutable,
       const <String>['devices', '--machine'],
     );
-    final stdoutFuture = process.stdout.transform(utf8.decoder).join();
-    final stderrFuture = process.stderr.transform(utf8.decoder).join();
+    final stdoutCollector = CockpitProcessOutputCollector(process.stdout);
+    final stderrCollector = CockpitProcessOutputCollector(process.stderr);
     final exitCode = await process.exitCode.timeout(
       effectiveTimeout,
       onTimeout: () {
@@ -72,14 +73,12 @@ final class CockpitListLaunchTargetsService {
         return -1;
       },
     );
-    final stdout = await stdoutFuture.timeout(
-      const Duration(milliseconds: 200),
-      onTimeout: () => '',
-    );
-    final stderr = await stderrFuture.timeout(
-      const Duration(milliseconds: 200),
-      onTimeout: () => '',
-    );
+    final output = await Future.wait(<Future<String>>[
+      stdoutCollector.collectText(),
+      stderrCollector.collectText(),
+    ]);
+    final stdout = output[0];
+    final stderr = output[1];
 
     if (exitCode == -1) {
       throw CockpitApplicationServiceException(

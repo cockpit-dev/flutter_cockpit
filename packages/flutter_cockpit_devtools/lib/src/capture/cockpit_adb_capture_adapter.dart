@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
+import '../infrastructure/cockpit_process_output_collector.dart';
 import 'cockpit_host_capture_adapter.dart';
 
 final class CockpitAdbCaptureAdapter implements CockpitHostCaptureAdapter {
@@ -54,16 +55,29 @@ final class CockpitAdbCaptureAdapter implements CockpitHostCaptureAdapter {
       '-p',
     ]);
     final sink = outputFile.openWrite();
-    final stderr = StringBuffer();
+    final stdoutDone = Completer<void>();
+    final stdoutSubscription = process.stdout.listen(
+      sink.add,
+      onError: (Object error, StackTrace stackTrace) {
+        if (!stdoutDone.isCompleted) {
+          stdoutDone.completeError(error, stackTrace);
+        }
+      },
+      onDone: () {
+        if (!stdoutDone.isCompleted) {
+          stdoutDone.complete();
+        }
+      },
+      cancelOnError: true,
+    );
+    final stderrCollector = CockpitProcessOutputCollector(process.stderr);
 
     try {
-      await process.stdout.pipe(sink);
-      stderr.write(
-        await process.stderr.transform(SystemEncoding().decoder).join(),
-      );
       final exitCode = await process.exitCode.timeout(_timeout);
-      await sink.flush();
-      await sink.close();
+      await _waitForCaptureStream(stdoutDone.future);
+      await _cancelCaptureSubscription(stdoutSubscription);
+      final stderr = await stderrCollector.collectText();
+      await _closeCaptureSink(sink);
       stopwatch.stop();
 
       if (exitCode != 0) {
@@ -74,7 +88,7 @@ final class CockpitAdbCaptureAdapter implements CockpitHostCaptureAdapter {
           details: <String, Object?>{
             'deviceId': _deviceId,
             'exitCode': exitCode,
-            'stderr': stderr.toString().trim(),
+            'stderr': stderr.trim(),
           },
         );
       }
@@ -95,7 +109,9 @@ final class CockpitAdbCaptureAdapter implements CockpitHostCaptureAdapter {
       );
     } on TimeoutException {
       process.kill(ProcessSignal.sigkill);
-      await sink.close();
+      await _cancelCaptureSubscription(stdoutSubscription);
+      await stderrCollector.cancel();
+      await _closeCaptureSink(sink);
       stopwatch.stop();
       return cockpitFailedCaptureExecution(
         command: command,
@@ -105,7 +121,9 @@ final class CockpitAdbCaptureAdapter implements CockpitHostCaptureAdapter {
       );
     } on Object catch (error) {
       process.kill(ProcessSignal.sigkill);
-      await sink.close();
+      await _cancelCaptureSubscription(stdoutSubscription);
+      await stderrCollector.cancel();
+      await _closeCaptureSink(sink);
       stopwatch.stop();
       return cockpitFailedCaptureExecution(
         command: command,
@@ -117,5 +135,36 @@ final class CockpitAdbCaptureAdapter implements CockpitHostCaptureAdapter {
         },
       );
     }
+  }
+}
+
+Future<void> _waitForCaptureStream(Future<void> done) async {
+  try {
+    await done.timeout(const Duration(milliseconds: 200));
+  } on TimeoutException {
+    // The screencap process exited; inherited stdout must not block capture.
+  }
+}
+
+Future<void> _cancelCaptureSubscription(
+  StreamSubscription<List<int>> subscription,
+) async {
+  try {
+    await subscription.cancel().timeout(const Duration(milliseconds: 200));
+  } on Object {
+    // Best-effort process stream cleanup only.
+  }
+}
+
+Future<void> _closeCaptureSink(IOSink sink) async {
+  try {
+    await sink.flush().timeout(const Duration(milliseconds: 200));
+  } on Object {
+    // The failure result below is more useful than a sink cleanup error.
+  }
+  try {
+    await sink.close().timeout(const Duration(milliseconds: 200));
+  } on Object {
+    // The temp file may already be closed after a stream error.
   }
 }

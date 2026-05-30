@@ -50,6 +50,115 @@ void main() {
   );
 
   test(
+    'stop app best-effort stops platform process for development apps',
+    () async {
+      final launchedAt = DateTime.utc(2026, 3, 30);
+      final remoteSession = CockpitRemoteSessionHandle(
+        platform: 'macos',
+        deviceId: 'macos',
+        projectDir: '/workspace/examples/cockpit_demo',
+        target: 'cockpit/main.dart',
+        appId: 'remote-dev-session',
+        platformAppId: 'dev.cockpit.demo',
+        host: '127.0.0.1',
+        hostPort: 57331,
+        devicePort: 57331,
+        baseUrl: 'http://127.0.0.1:57331',
+        launchedAt: launchedAt,
+      );
+      final handle = CockpitDevelopmentSessionHandle(
+        developmentSessionId: 'dev-session-1',
+        platform: 'macos',
+        deviceId: 'macos',
+        projectDir: '/workspace/examples/cockpit_demo',
+        target: 'cockpit/main.dart',
+        appId: 'dev.cockpit.demo',
+        appBaseUrl: 'http://127.0.0.1:57331',
+        supervisorBaseUrl: 'http://127.0.0.1:59331',
+        launchedAt: launchedAt,
+        reloadGeneration: 0,
+        remoteSessionHandle: remoteSession,
+      );
+      final app = CockpitAppHandle.fromDevelopmentSession(handle);
+      CockpitAppHandle? stoppedPlatformApp;
+
+      final service = CockpitStopAppService(
+        stopDevelopment: (request) async {
+          return CockpitStopDevelopmentSessionResult(
+            sessionHandle: handle,
+            status: CockpitDevelopmentSessionStatus(
+              developmentSessionId: handle.developmentSessionId,
+              state: CockpitDevelopmentSessionState.stopped,
+              appReachable: false,
+              remoteSessionReachable: false,
+              reloadGeneration: handle.reloadGeneration,
+              lastStatusAt: DateTime.utc(2026, 3, 30, 0, 1),
+            ),
+          );
+        },
+        stopAutomation: (resolvedApp) async {
+          stoppedPlatformApp = resolvedApp;
+        },
+      );
+
+      await service.stop(CockpitStopAppRequest(app: app));
+
+      expect(stoppedPlatformApp?.platform, 'macos');
+      expect(stoppedPlatformApp?.platformAppId, 'dev.cockpit.demo');
+    },
+  );
+
+  test(
+    'stop app cleans platform process when development supervisor is stale',
+    () async {
+      final launchedAt = DateTime.utc(2026, 3, 30);
+      final handle = CockpitDevelopmentSessionHandle(
+        developmentSessionId: 'dev-session-1',
+        platform: 'macos',
+        deviceId: 'macos',
+        projectDir: '/workspace/examples/cockpit_demo',
+        target: 'cockpit/main.dart',
+        appId: 'dev.cockpit.demo',
+        appBaseUrl: 'http://127.0.0.1:57331',
+        supervisorBaseUrl: 'http://127.0.0.1:59331',
+        launchedAt: launchedAt,
+        reloadGeneration: 0,
+        remoteSessionHandle: CockpitRemoteSessionHandle(
+          platform: 'macos',
+          deviceId: 'macos',
+          projectDir: '/workspace/examples/cockpit_demo',
+          target: 'cockpit/main.dart',
+          appId: 'remote-dev-session',
+          platformAppId: 'dev.cockpit.demo',
+          host: '127.0.0.1',
+          hostPort: 57331,
+          devicePort: 57331,
+          baseUrl: 'http://127.0.0.1:57331',
+          launchedAt: launchedAt,
+        ),
+      );
+      final app = CockpitAppHandle.fromDevelopmentSession(handle);
+      CockpitAppHandle? stoppedPlatformApp;
+
+      final service = CockpitStopAppService(
+        stopDevelopment: (_) async {
+          throw StateError('supervisor unavailable');
+        },
+        stopAutomation: (resolvedApp) async {
+          stoppedPlatformApp = resolvedApp;
+        },
+        probeReachability: (_) async => false,
+      );
+
+      final result = await service.stop(CockpitStopAppRequest(app: app));
+
+      expect(stoppedPlatformApp?.platformAppId, 'dev.cockpit.demo');
+      expect(result.status.state, 'stopped');
+      expect(result.status.lastError, contains('supervisor unavailable'));
+    },
+  );
+
+  test(
     'stop app stops automation apps through the automation stop path',
     () async {
       final app = CockpitAppHandle(

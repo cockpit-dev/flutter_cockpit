@@ -97,4 +97,23 @@ void main() {
     expect(script, contains('Platform.resolvedExecutable'));
     expect(script, isNot(contains("Process.start('dart'")));
   });
+
+  test('MCP surface verifier bounds serve-mcp shutdown cleanup', () {
+    final packageRelativeScript = File('tool/verify_mcp_surface.dart');
+    final repoRelativeScript = File(
+      'packages/flutter_cockpit_devtools/tool/verify_mcp_surface.dart',
+    );
+    final scriptFile = packageRelativeScript.existsSync()
+        ? packageRelativeScript
+        : repoRelativeScript;
+    final script = scriptFile.readAsStringSync();
+
+    expect(script, contains('Future<void> _terminateServeMcpProcess'));
+    expect(script, contains('ProcessSignal.sigterm'));
+    expect(script, contains('ProcessSignal.sigkill'));
+    expect(
+      script,
+      isNot(contains('if (process.kill()) {\n        await process.exitCode;')),
+    );
+  });
 }

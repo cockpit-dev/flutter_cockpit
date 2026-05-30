@@ -3,13 +3,14 @@ import 'dart:io';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
+import '../session/cockpit_session_process_runner.dart';
 import 'cockpit_host_capture_adapter.dart';
 
 final class CockpitSimctlCaptureAdapter implements CockpitHostCaptureAdapter {
   CockpitSimctlCaptureAdapter({
     required String deviceId,
     String executable = 'xcrun',
-    CockpitCaptureProcessRunner processRunner = Process.run,
+    CockpitCaptureProcessRunner? processRunner,
     CockpitCaptureTempFileFactory tempFileFactory =
         cockpitCreateCaptureTempFile,
     Duration timeout = const Duration(seconds: 5),
@@ -21,7 +22,7 @@ final class CockpitSimctlCaptureAdapter implements CockpitHostCaptureAdapter {
 
   final String _deviceId;
   final String _executable;
-  final CockpitCaptureProcessRunner _processRunner;
+  final CockpitCaptureProcessRunner? _processRunner;
   final CockpitCaptureTempFileFactory _tempFileFactory;
   final Duration _timeout;
 
@@ -47,13 +48,13 @@ final class CockpitSimctlCaptureAdapter implements CockpitHostCaptureAdapter {
     }
 
     try {
-      final result = await _processRunner(_executable, <String>[
+      final result = await _runProcess(_executable, <String>[
         'simctl',
         'io',
         _deviceId,
         'screenshot',
         outputFile.path,
-      ]).timeout(_timeout);
+      ]);
       stopwatch.stop();
 
       if (result.exitCode != 0) {
@@ -103,5 +104,17 @@ final class CockpitSimctlCaptureAdapter implements CockpitHostCaptureAdapter {
         },
       );
     }
+  }
+
+  Future<ProcessResult> _runProcess(String executable, List<String> arguments) {
+    final injected = _processRunner;
+    if (injected != null) {
+      return injected(executable, arguments).timeout(_timeout);
+    }
+    return cockpitRunProcessWithTimeout(
+      executable,
+      arguments,
+      timeout: _timeout,
+    );
   }
 }

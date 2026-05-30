@@ -25,7 +25,12 @@ void main() {
     expect(scope['enum'], isNot(contains('web')));
     expect(
       properties.keys,
-      containsAll(<String>['targetJson', 'target', 'deviceId']),
+      containsAll(<String>[
+        'targetJson',
+        'target',
+        'deviceId',
+        'timeoutSeconds',
+      ]),
     );
   });
 
@@ -79,4 +84,29 @@ void main() {
       expect(capturedRequest?.targetHandlePath, '/tmp/target.json');
     },
   );
+
+  test('run_shell forwards timeoutSeconds to the service request', () async {
+    CockpitRunShellRequest? capturedRequest;
+    final tool = CockpitRunShellTool(
+      runShell: (request) async {
+        capturedRequest = request;
+        return const CockpitRunShellResult(
+          scope: 'host',
+          command: <String>['dart', '--version'],
+          exitCode: 0,
+          stdout: 'Dart SDK version: 3.10.8',
+          stderr: '',
+          success: true,
+          recommendedNextStep: 'continue',
+        );
+      },
+    );
+
+    await tool.call(<String, Object?>{
+      'command': <String>['dart', '--version'],
+      'timeoutSeconds': 7,
+    });
+
+    expect(capturedRequest?.timeout, const Duration(seconds: 7));
+  });
 }

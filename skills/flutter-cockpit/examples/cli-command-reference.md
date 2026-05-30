@@ -32,6 +32,9 @@ If you omit `--app-json`, the CLI writes the reusable handle to `.dart_tool/flut
 When both `--app-json` and `--base-url` are provided, `--app-json` supplies app identity and platform metadata while `--base-url` overrides only the live connection address.
 Add `--flavor <name>` when the app uses a non-default Android flavor or Xcode scheme.
 For web, keep `--mode development`, and use the exact browser `--device-id` reported by `list-targets`.
+Do not append `&` or otherwise background this command. It returns after the
+app is ready; the supervisor continues in the background for logs, reloads, and
+`stop-app`.
 
 Read lightweight state:
 
@@ -88,6 +91,8 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --target-json /tmp/flutter_cockpit/target.json \
   --executable pwd
 ```
+
+`run-shell` has a bounded default timeout and kills timed-out processes. Add `--timeout-seconds <n>` only when the shell action is known to be slow.
 
 Run platform-explicit shells when you already know the device:
 

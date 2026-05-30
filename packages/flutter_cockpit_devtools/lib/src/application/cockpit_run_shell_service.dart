@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
+import '../infrastructure/cockpit_process_manager.dart';
 import '../platform/cockpit_platform_driver_registry.dart';
 import '../targets/cockpit_target_capability_support.dart';
 import '../targets/cockpit_target_handle.dart';
@@ -16,6 +18,7 @@ final class CockpitRunShellRequest {
     this.target,
     this.targetHandlePath,
     this.deviceId,
+    this.timeout = const Duration(seconds: 30),
   });
 
   final List<String> command;
@@ -24,6 +27,7 @@ final class CockpitRunShellRequest {
   final CockpitTargetHandle? target;
   final String? targetHandlePath;
   final String? deviceId;
+  final Duration timeout;
 }
 
 final class CockpitRunShellResult {
@@ -56,31 +60,24 @@ final class CockpitRunShellResult {
   };
 }
 
-typedef CockpitShellProcessRunner =
-    Future<ProcessResult> Function(
-      String executable,
-      List<String> arguments, {
-      String? workingDirectory,
-    });
-
 typedef CockpitRunShellFunction =
     Future<CockpitRunShellResult> Function(CockpitRunShellRequest request);
 
 final class CockpitRunShellService {
   CockpitRunShellService({
     CockpitRunShellFunction? runShell,
-    CockpitShellProcessRunner processRunner = Process.run,
+    CockpitProcessManager? processManager,
     CockpitTargetReferenceResolver? targetReferenceResolver,
     CockpitPlatformDriverRegistry? platformDriverRegistry,
   }) : _runShellOverride = runShell,
-       _processRunner = processRunner,
+       _processManager = processManager ?? const LocalCockpitProcessManager(),
        _targetReferenceResolver =
            targetReferenceResolver ?? CockpitTargetReferenceResolver(),
        _platformDriverRegistry =
            platformDriverRegistry ?? CockpitPlatformDriverRegistry();
 
   final CockpitRunShellFunction? _runShellOverride;
-  final CockpitShellProcessRunner _processRunner;
+  final CockpitProcessManager _processManager;
   final CockpitTargetReferenceResolver _targetReferenceResolver;
   final CockpitPlatformDriverRegistry _platformDriverRegistry;
 
@@ -99,11 +96,40 @@ final class CockpitRunShellService {
     }
 
     final execution = await _resolveExecution(request);
-    final result = await _processRunner(
-      execution.executable,
-      execution.arguments,
-      workingDirectory: request.workingDirectory,
-    );
+    final ProcessResult result;
+    try {
+      result = await cockpitRunManagedProcessWithTimeout(
+        _processManager,
+        execution.executable,
+        execution.arguments,
+        workingDirectory: request.workingDirectory,
+        timeout: request.timeout,
+      );
+    } on CockpitManagedProcessTimeoutException catch (error) {
+      throw CockpitApplicationServiceException(
+        code: 'shellCommandTimedOut',
+        message: 'Shell command timed out.',
+        details: <String, Object?>{
+          'scope': execution.scope,
+          'command': execution.command,
+          'timeoutMs': request.timeout.inMilliseconds,
+          if (error.stdout.trim().isNotEmpty)
+            'stdoutPreview': _outputPreview(error.stdout),
+          if (error.stderr.trim().isNotEmpty)
+            'stderrPreview': _outputPreview(error.stderr),
+        },
+      );
+    } on TimeoutException catch (error) {
+      throw CockpitApplicationServiceException(
+        code: 'shellCommandTimedOut',
+        message: 'Shell command timed out.',
+        details: <String, Object?>{
+          'scope': execution.scope,
+          'command': execution.command,
+          'timeoutMs': (error.duration ?? request.timeout).inMilliseconds,
+        },
+      );
+    }
     final stdoutText = '${result.stdout}'.trimRight();
     final stderrText = '${result.stderr}'.trimRight();
     final success = result.exitCode == 0;
@@ -252,6 +278,14 @@ final class CockpitRunShellService {
       _ => null,
     };
   }
+}
+
+String _outputPreview(String output, {int maxChars = 800}) {
+  final normalized = output.trim();
+  if (normalized.length <= maxChars) {
+    return normalized;
+  }
+  return '${normalized.substring(0, maxChars).trimRight()}...';
 }
 
 final class _ResolvedShellExecution {

@@ -360,11 +360,13 @@ final class CockpitGrepPackageUrisService {
         ? request.timeout
         : const Duration(seconds: 2);
     try {
-      final version = await _processManager
-          .run('rg', const <String>[
-            '--version',
-          ], workingDirectory: workspaceRoot)
-          .timeout(versionTimeout);
+      final version = await cockpitRunManagedProcessWithTimeout(
+        _processManager,
+        'rg',
+        const <String>['--version'],
+        workingDirectory: workspaceRoot,
+        timeout: versionTimeout,
+      );
       if (version.exitCode != 0) {
         return null;
       }
@@ -373,18 +375,22 @@ final class CockpitGrepPackageUrisService {
     }
 
     try {
-      final result = await _processManager
-          .run('rg', <String>[
-            '--no-config',
-            '--json',
-            if (!request.caseSensitive) '--ignore-case',
-            if (!request.useRegex) '--fixed-strings',
-            '-m',
-            '${request.maxMatchesPerFile}',
-            request.query,
-            searchRoot,
-          ], workingDirectory: workspaceRoot)
-          .timeout(request.timeout);
+      final result = await cockpitRunManagedProcessWithTimeout(
+        _processManager,
+        'rg',
+        <String>[
+          '--no-config',
+          '--json',
+          if (!request.caseSensitive) '--ignore-case',
+          if (!request.useRegex) '--fixed-strings',
+          '-m',
+          '${request.maxMatchesPerFile}',
+          request.query,
+          searchRoot,
+        ],
+        workingDirectory: workspaceRoot,
+        timeout: request.timeout,
+      );
       if (result.exitCode != 0 && result.exitCode != 1) {
         return null;
       }

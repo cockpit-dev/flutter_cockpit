@@ -10,8 +10,34 @@ bool cockpitHasActiveSimctlRecordingSession(String deviceId) {
   return _simctlSessionFile(deviceId).existsSync();
 }
 
-typedef CockpitPidSignalSender = bool Function(int pid, ProcessSignal signal);
-typedef CockpitPidLivenessChecker = Future<bool> Function(int pid);
+Future<bool> cockpitHasLiveSimctlRecordingSession(
+  String deviceId, {
+  CockpitPidLivenessChecker pidLivenessChecker =
+      cockpitDefaultPidLivenessChecker,
+}) async {
+  final file = _simctlSessionFile(deviceId);
+  if (!file.existsSync()) {
+    return false;
+  }
+  try {
+    final decoded = jsonDecode(await file.readAsString());
+    if (decoded is! Map<Object?, Object?>) {
+      await _deleteSimctlSessionFile(file);
+      return false;
+    }
+    final persisted = _PersistedSimctlRecordingSession.fromJson(
+      Map<String, Object?>.from(decoded),
+    );
+    if (await pidLivenessChecker(persisted.pid)) {
+      return true;
+    }
+    await _deleteSimctlSessionFile(file);
+    return false;
+  } on Object {
+    await _deleteSimctlSessionFile(file);
+    return false;
+  }
+}
 
 final class CockpitSimctlRecordingAdapter
     implements CockpitHostRecordingAdapter {
@@ -20,7 +46,7 @@ final class CockpitSimctlRecordingAdapter
     String executable = 'xcrun',
     CockpitRecordingProcessStarter processStarter =
         _startDetachedRecordingProcess,
-    CockpitRecordingProcessRunner processRunner = Process.run,
+    CockpitRecordingProcessRunner? processRunner,
     CockpitRecordingTempFileFactory tempFileFactory =
         cockpitCreateRecordingTempFile,
     String ffprobeExecutable = 'ffprobe',
@@ -29,7 +55,7 @@ final class CockpitSimctlRecordingAdapter
     Duration finalizationPollInterval = const Duration(milliseconds: 100),
     CockpitPidSignalSender pidSignalSender = Process.killPid,
     CockpitPidLivenessChecker pidLivenessChecker =
-        _defaultCockpitPidLivenessChecker,
+        cockpitDefaultPidLivenessChecker,
   }) : _deviceId = deviceId,
        _executable = executable,
        _processStarter = processStarter,
@@ -45,7 +71,7 @@ final class CockpitSimctlRecordingAdapter
   final String _deviceId;
   final String _executable;
   final CockpitRecordingProcessStarter _processStarter;
-  final CockpitRecordingProcessRunner _processRunner;
+  final CockpitRecordingProcessRunner? _processRunner;
   final CockpitRecordingTempFileFactory _tempFileFactory;
   final String _ffprobeExecutable;
   final Duration _startupTimeout;
@@ -103,7 +129,8 @@ final class CockpitSimctlRecordingAdapter
     } on Object {
       await stdoutSubscription.cancel();
       await stderrSubscription.cancel();
-      process.kill(ProcessSignal.sigkill);
+      _pidSignalSender(process.pid, ProcessSignal.sigkill);
+      await _waitForProcessExit(process.pid);
       rethrow;
     }
 
@@ -299,10 +326,7 @@ final class CockpitSimctlRecordingAdapter
   }
 
   Future<void> _clearPersistedSession() async {
-    final file = _sessionFile;
-    if (file.existsSync()) {
-      await file.delete();
-    }
+    await _deleteSimctlSessionFile(_sessionFile);
   }
 
   Future<bool> _waitForProcessExit(int pid) async {
@@ -371,7 +395,7 @@ final class CockpitSimctlRecordingAdapter
     String path,
   ) async {
     try {
-      final result = await _processRunner(_ffprobeExecutable, <String>[
+      final result = await _runProcess(_ffprobeExecutable, <String>[
         '-v',
         'error',
         '-print_format',
@@ -379,7 +403,7 @@ final class CockpitSimctlRecordingAdapter
         '-show_streams',
         '-show_format',
         path,
-      ]);
+      ], timeout: _stopStageTimeout(const Duration(seconds: 3)));
       if (result.exitCode != 0) {
         return null;
       }
@@ -427,6 +451,29 @@ final class CockpitSimctlRecordingAdapter
     } on ProcessException {
       return null;
     }
+  }
+
+  Future<ProcessResult> _runProcess(
+    String executable,
+    List<String> arguments, {
+    required Duration timeout,
+  }) {
+    final injected = _processRunner;
+    if (injected != null) {
+      return injected(executable, arguments).timeout(timeout);
+    }
+    return cockpitRunRecordingProcessWithTimeout(
+      executable,
+      arguments,
+      timeout: timeout,
+    );
+  }
+
+  Duration _stopStageTimeout(Duration maximum) {
+    if (_stopTimeout <= Duration.zero) {
+      return maximum;
+    }
+    return _stopTimeout < maximum ? _stopTimeout : maximum;
   }
 }
 
@@ -485,30 +532,14 @@ Future<Process> _startDetachedRecordingProcess(
   );
 }
 
-Future<bool> _defaultCockpitPidLivenessChecker(int pid) async {
+Future<void> _deleteSimctlSessionFile(File file) async {
+  if (!file.existsSync()) {
+    return;
+  }
   try {
-    final signalResult = await Process.run('/bin/kill', <String>['-0', '$pid']);
-    if (signalResult.exitCode != 0) {
-      return false;
-    }
-
-    final statResult = await Process.run('/bin/ps', <String>[
-      '-o',
-      'stat=',
-      '-p',
-      '$pid',
-    ]);
-    if (statResult.exitCode != 0) {
-      return true;
-    }
-
-    final state = '${statResult.stdout}'.trimLeft();
-    if (state.isEmpty) {
-      return false;
-    }
-    return !state.startsWith('Z');
-  } on ProcessException {
-    return false;
+    await file.delete();
+  } on Object {
+    // Best-effort stale session cleanup.
   }
 }
 
