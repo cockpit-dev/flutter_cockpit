@@ -120,6 +120,30 @@ void main() {
     expect(windowsBlock, contains(r'${{ env.SUPERVISOR_LOG_DIR }}'));
   });
 
+  test('desktop runtime loops print verifier diagnostics on failure', () {
+    final workflow = workflowFile.readAsStringSync();
+
+    for (final jobName in <String>[
+      'macos-runtime-loop',
+      'web-runtime-loop',
+      'linux-runtime-loop',
+    ]) {
+      final block = _workflowJobBlock(workflow, jobName);
+      expect(
+        block,
+        contains(
+          'Print ${_workflowPlatformLabel(jobName)} verifier diagnostics',
+        ),
+        reason: '$jobName must expose verifier diagnostics in the failed log.',
+      );
+      expect(block, contains(r'[ -f "$LOG_PATH" ] && cat "$LOG_PATH" || true'));
+      expect(
+        block,
+        contains(r'[ -f "$RESULT_JSON" ] && cat "$RESULT_JSON" || true'),
+      );
+    }
+  });
+
   test('runtime loop command assertions track full verifier output', () {
     final workflow = workflowFile.readAsStringSync();
     final fullExpectedCommands = <String>[
@@ -232,4 +256,13 @@ String _workflowJobBlock(String workflow, String jobName) {
       .map((match) => match.start)
       .firstOrNull;
   return workflow.substring(start, nextJob ?? workflow.length);
+}
+
+String _workflowPlatformLabel(String jobName) {
+  return switch (jobName) {
+    'macos-runtime-loop' => 'macOS',
+    'web-runtime-loop' => 'web',
+    'linux-runtime-loop' => 'Linux',
+    _ => throw ArgumentError.value(jobName, 'jobName', 'Unsupported job'),
+  };
 }
