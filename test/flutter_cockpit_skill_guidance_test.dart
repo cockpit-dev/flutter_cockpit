@@ -121,6 +121,13 @@ void main() {
         'validate-task --config-json /tmp/flutter_cockpit/validate_task.json',
       ),
     );
+    expect(
+      skill,
+      contains(
+        'read-task-bundle-summary --bundle-dir /tmp/flutter_cockpit/bundle',
+      ),
+    );
+    expect(skill, contains('MCP `read_task_bundle_summary`'));
     expect(skill, isNot(contains('--output-json')));
     expect(skill, isNot(contains('--output-ai')));
     expect(contract, contains('non-idempotent batch'));
@@ -181,6 +188,8 @@ void main() {
       cliReference,
       contains('unblock the recorder before claiming video proof'),
     );
+    expect(cliReference, contains('read-task-bundle-summary'));
+    expect(cliReference, contains('--bundle-dir /tmp/flutter_cockpit/out/'));
     expect(cliReference, contains('--app-json /tmp/flutter_cockpit/app.json'));
     expect(cliReference, contains('--ios-device-id <id>'));
     expect(rapidLoop, contains('jq'));

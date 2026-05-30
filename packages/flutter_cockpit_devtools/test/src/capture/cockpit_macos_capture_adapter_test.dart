@@ -77,7 +77,11 @@ printf 'png-data' > "$last_arg"
       expect(execution.result.success, isTrue);
       expect(
         execution.result.artifacts.single.relativePath,
-        contains('screenshots/macos_acceptance_acceptance_'),
+        matches(
+          RegExp(
+            r'^screenshots/\d{8}T\d{12}Z_macos_acceptance_acceptance\.png$',
+          ),
+        ),
       );
       expect(execution.artifactSourcePaths, isNotEmpty);
       final sourcePath = execution.artifactSourcePaths.values.single;

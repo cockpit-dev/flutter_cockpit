@@ -72,7 +72,11 @@ void main() {
       expect(execution.result.success, isTrue);
       expect(
         execution.result.artifacts.single.relativePath,
-        contains('screenshots/linux_acceptance_acceptance_'),
+        matches(
+          RegExp(
+            r'^screenshots/\d{8}T\d{12}Z_linux_acceptance_acceptance\.png$',
+          ),
+        ),
       );
       expect(outputFile.readAsStringSync(), 'png-data');
       expect(invocations.first, contains('wmctrl -ia 0x02c00007'));

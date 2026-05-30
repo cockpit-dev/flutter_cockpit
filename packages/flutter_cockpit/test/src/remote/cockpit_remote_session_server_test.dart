@@ -996,6 +996,10 @@ void main() {
         ),
       );
       expect(snapshot.diagnosticsArtifactRef, isNotNull);
+      expect(
+        snapshot.diagnosticsArtifactRef!.relativePath,
+        matches(RegExp(r'^diagnostics/\d{8}T\d{12}Z_remote_snapshot\.json$')),
+      );
       expect(snapshot.visibleTargets.single.diagnosticProperties, isEmpty);
 
       final downloadPath =

@@ -6,7 +6,6 @@ import 'package:path/path.dart' as p;
 
 import 'cockpit_bundle_artifact_paths.dart';
 import 'cockpit_bundle_diagnostics_artifact_refs.dart';
-import 'cockpit_compact_json.dart';
 
 final class CockpitIssueEvidenceBuilder {
   const CockpitIssueEvidenceBuilder();
@@ -18,6 +17,7 @@ final class CockpitIssueEvidenceBuilder {
     required Map<String, Object?> delivery,
     required CockpitBundleArtifactPaths artifactPaths,
     required List<String> diagnosticsArtifactPaths,
+    Map<String, Object?>? gateSummary,
   }) async {
     final steps = await _readSteps(bundleDir);
     final snapshots = await _readSnapshots(
@@ -34,6 +34,7 @@ final class CockpitIssueEvidenceBuilder {
       diagnosticsArtifactPaths: diagnosticsArtifactPaths,
       steps: steps,
       snapshots: snapshots,
+      gateSummary: gateSummary,
     );
   }
 
@@ -46,11 +47,31 @@ final class CockpitIssueEvidenceBuilder {
     required List<String> diagnosticsArtifactPaths,
     required List<CockpitStepRecord> steps,
     required List<CockpitSnapshot> snapshots,
+    Map<String, Object?>? gateSummary,
   }) {
     final failedCommands = _failedCommands(bundleDir: bundleDir, steps: steps);
     final runtimeIssues = _runtimeIssues(steps: steps, snapshots: snapshots);
     final networkIssues = _networkIssues(snapshots);
-    final gateFailures = _gateFailures(handoff);
+    final gateFailures = _gateFailures(
+      handoff: handoff,
+      gateSummary: gateSummary,
+    );
+    final deliveryVideoFailureCodes = _deliveryVideoFailureCodes(
+      manifest: manifest,
+      delivery: delivery,
+      artifactPaths: artifactPaths,
+    );
+    final effectiveGateFailures = <Map<String, Object?>>[
+      ...gateFailures,
+      if (deliveryVideoFailureCodes.isNotEmpty &&
+          !gateFailures.any(
+            (failure) => failure['gate'] == 'recordingReadyOrExplained',
+          ))
+        <String, Object?>{
+          'gate': 'recordingReadyOrExplained',
+          'failureCodes': deliveryVideoFailureCodes,
+        },
+    ];
     final artifactIssues = _artifactIssues(
       bundleDir: bundleDir,
       manifest: manifest,
@@ -62,7 +83,7 @@ final class CockpitIssueEvidenceBuilder {
       if (failedCommands.isNotEmpty) 'commandFailure',
       if (runtimeIssues.isNotEmpty) 'runtimeError',
       if (networkIssues.isNotEmpty) 'networkFailure',
-      if (gateFailures.isNotEmpty) 'gateFailure',
+      if (effectiveGateFailures.isNotEmpty) 'gateFailure',
       if (artifactIssues.isNotEmpty) 'artifactIssue',
     ];
     final recommendedNextStep = _recommendedNextStep(
@@ -70,7 +91,7 @@ final class CockpitIssueEvidenceBuilder {
       runtimeIssues: runtimeIssues,
       networkIssues: networkIssues,
       artifactIssues: artifactIssues,
-      gateFailures: gateFailures,
+      gateFailures: effectiveGateFailures,
       status: manifest.status.name,
     );
 
@@ -102,7 +123,7 @@ final class CockpitIssueEvidenceBuilder {
       'runtimeIssues': runtimeIssues,
       'networkIssues': networkIssues,
       'artifactIssues': artifactIssues,
-      'gateFailures': gateFailures,
+      'gateFailures': effectiveGateFailures,
       'evidencePaths': <String, Object?>{
         if (artifactPaths.primaryScreenshotPath != null)
           'primaryScreenshotPath': artifactPaths.primaryScreenshotPath,
@@ -114,32 +135,6 @@ final class CockpitIssueEvidenceBuilder {
         'diagnosticsArtifactPaths': diagnosticsArtifactPaths,
       },
     };
-  }
-
-  Future<void> writeBundleIssueEvidence({
-    required String bundleDir,
-    required CockpitRunManifest manifest,
-    required Map<String, Object?> handoff,
-    required Map<String, Object?> delivery,
-  }) async {
-    final artifactPaths = CockpitBundleArtifactPaths.fromDelivery(
-      bundleDir: bundleDir,
-      delivery: delivery,
-    );
-    final diagnosticsArtifactPaths = await _readDiagnosticsArtifactPaths(
-      bundleDir,
-    );
-    final issueEvidence = await buildFromBundleDir(
-      bundleDir: bundleDir,
-      manifest: manifest,
-      handoff: handoff,
-      delivery: delivery,
-      artifactPaths: artifactPaths,
-      diagnosticsArtifactPaths: diagnosticsArtifactPaths,
-    );
-    await File(
-      p.join(bundleDir, 'issue_evidence.json'),
-    ).writeAsString(cockpitPrettyJsonText(issueEvidence));
   }
 
   Future<List<CockpitStepRecord>> _readSteps(String bundleDir) async {
@@ -157,36 +152,6 @@ final class CockpitIssueEvidenceBuilder {
           (item) => CockpitStepRecord.fromJson(Map<String, Object?>.from(item)),
         )
         .toList(growable: false);
-  }
-
-  Future<List<String>> _readDiagnosticsArtifactPaths(String bundleDir) async {
-    final paths = <String>{};
-    final steps = await _readSteps(bundleDir);
-    for (final step in steps) {
-      final ref = step.snapshot?.diagnosticsArtifactRef;
-      if (ref != null) {
-        final resolved = CockpitBundleDiagnosticsArtifactRefs.resolvePath(
-          bundleDir,
-          ref.relativePath,
-        );
-        if (resolved != null) {
-          paths.add(resolved);
-        }
-      }
-      for (final artifact in step.artifactRefs) {
-        if (artifact.role != 'diagnostics') {
-          continue;
-        }
-        final resolved = CockpitBundleDiagnosticsArtifactRefs.resolvePath(
-          bundleDir,
-          artifact.relativePath,
-        );
-        if (resolved != null) {
-          paths.add(resolved);
-        }
-      }
-    }
-    return paths.toList(growable: false);
   }
 
   Future<List<CockpitSnapshot>> _readSnapshots({
@@ -486,6 +451,30 @@ final class CockpitIssueEvidenceBuilder {
     return issues.take(8).toList(growable: false);
   }
 
+  List<String> _deliveryVideoFailureCodes({
+    required CockpitRunManifest manifest,
+    required Map<String, Object?> delivery,
+    required CockpitBundleArtifactPaths artifactPaths,
+  }) {
+    if (manifest.deliveryVideoReady &&
+        manifest.deliveryVideoFailureCodes.isEmpty) {
+      return const <String>[];
+    }
+    if (manifest.deliveryVideoFailureCodes.isNotEmpty) {
+      return manifest.deliveryVideoFailureCodes;
+    }
+    final primaryRecordingRef = delivery['primaryRecordingRef'] as String?;
+    if (primaryRecordingRef == null || primaryRecordingRef.isEmpty) {
+      return const <String>['primaryRecordingMissing'];
+    }
+    final primaryRecordingPath = artifactPaths.primaryRecordingPath;
+    if (primaryRecordingPath == null ||
+        !File(primaryRecordingPath).existsSync()) {
+      return const <String>['acceptanceRecordingMissing'];
+    }
+    return const <String>[];
+  }
+
   Iterable<Map<String, Object?>> _deliveryAttachmentIssues({
     required String bundleDir,
     required Map<String, Object?> delivery,
@@ -584,17 +573,26 @@ final class CockpitIssueEvidenceBuilder {
     }
   }
 
-  List<Map<String, Object?>> _gateFailures(Map<String, Object?> handoff) {
+  List<Map<String, Object?>> _gateFailures({
+    required Map<String, Object?> handoff,
+    Map<String, Object?>? gateSummary,
+  }) {
     final failures = <Map<String, Object?>>[];
-    final gates = _readMap(handoff['gates']);
-    final failureCodes = _readMap(handoff['gateFailureCodes']);
-    for (final entry in gates?.entries ?? const <MapEntry<String, Object?>>[]) {
+    final gates = <String, Object?>{
+      ...?_readMap(handoff['gates']),
+      ...?_readMap(gateSummary?['gates']),
+    };
+    final failureCodes = <String, Object?>{
+      ...?_readMap(handoff['gateFailureCodes']),
+      ...?_readMap(gateSummary?['failureCodes']),
+    };
+    for (final entry in gates.entries) {
       if (entry.value != false) {
         continue;
       }
       failures.add(<String, Object?>{
         'gate': entry.key,
-        'failureCodes': _readStringList(failureCodes?[entry.key]),
+        'failureCodes': _readStringList(failureCodes[entry.key]),
       });
     }
     return failures.take(12).toList(growable: false);

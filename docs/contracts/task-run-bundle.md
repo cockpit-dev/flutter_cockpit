@@ -12,7 +12,7 @@ Remote session bootstrap metadata is intentionally outside this contract. A host
 
 The bundle directory is the durable source of truth. Later tooling may expose a bounded summary view derived from the bundle, but that summary is a consumer surface, not a second persistence format.
 
-The current repository exposes this through `read_task_bundle_summary`, which may derive:
+The current repository exposes this through CLI `read-task-bundle-summary` and MCP `read_task_bundle_summary`, which may derive:
 
 - `evidence`
 - `evidenceSummary`
@@ -271,6 +271,9 @@ Machine-readable troubleshooting packet intended for AI-first recovery. The curr
 - Recording files belong in `recordings/`
 - Recording-derived keyframes belong in `keyframes/`
 - Rich diagnostic snapshot files belong in `diagnostics/`
+- Framework-generated bundle directories and screenshot artifact names must start with a fixed-width UTC token formatted as `YYYYMMDDTHHMMSSffffffZ`, for example `20260530T060304005006Z`. This keeps filenames readable, portable, and lexically sortable by time.
+- Framework-generated recording keyframe names must start with an eight-digit recording offset token such as `00004800ms_`. This keeps `keyframes/` directory listings in timeline order while preserving the semantic label after the offset.
+- User-supplied recording artifact names may remain semantic-name-first because those files are usually final delivery media; chronological ordering is already supplied by the enclosing task-run bundle directory.
 - `artifactRefs.relativePath` values must point to files under those directories using bundle-relative paths
 - Bundle writers must create `screenshots/` and `recordings/` even when they are empty so downstream tooling can rely on a stable layout
 - When binary artifact payloads are available, writers should persist them at the referenced relative paths inside the bundle directory

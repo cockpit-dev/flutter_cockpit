@@ -109,6 +109,24 @@ abstract interface class CockpitRecordingKeyframeExtractor {
   });
 }
 
+String cockpitRecordingKeyframeRelativePathFor({
+  required String recordingRelativePath,
+  required String label,
+  required int offsetMs,
+}) {
+  final recordingBaseName = cockpitSanitizeArtifactNameToken(
+    p.basenameWithoutExtension(recordingRelativePath),
+    fallback: 'recording',
+  );
+  final safeLabel = cockpitSanitizeArtifactNameToken(
+    label,
+    fallback: 'keyframe',
+    lowercase: true,
+  );
+  final safeOffsetMs = offsetMs < 0 ? 0 : offsetMs;
+  return 'keyframes/${safeOffsetMs.toString().padLeft(8, '0')}ms_${recordingBaseName}_$safeLabel.png';
+}
+
 final class DefaultCockpitRecordingKeyframeExtractor
     implements CockpitRecordingKeyframeExtractor {
   const DefaultCockpitRecordingKeyframeExtractor({
@@ -484,7 +502,6 @@ final class DefaultCockpitRecordingKeyframeExtractor
     required int durationMs,
   }) {
     final candidates = <_PlannedKeyframe>[];
-    final recordingBaseName = p.basenameWithoutExtension(recordingRelativePath);
     final recordingStarted = steps.firstWhere(
       (step) => step.actionType == 'recording_started',
       orElse: () => steps.firstWhere(
@@ -533,8 +550,11 @@ final class DefaultCockpitRecordingKeyframeExtractor
         };
         candidates.add(
           _PlannedKeyframe(
-            path:
-                'keyframes/${recordingBaseName}_${label}_${offsetMs.toString().padLeft(5, '0')}.png',
+            path: cockpitRecordingKeyframeRelativePathFor(
+              recordingRelativePath: recordingRelativePath,
+              label: label,
+              offsetMs: offsetMs,
+            ),
             label: label,
             offsetMs: offsetMs,
             source: CockpitRecordingKeyframeSource.stepCapture,
@@ -548,8 +568,11 @@ final class DefaultCockpitRecordingKeyframeExtractor
       final baselineOffset = (durationMs * 0.12).round().clamp(0, durationMs);
       candidates.add(
         _PlannedKeyframe(
-          path:
-              'keyframes/${recordingBaseName}_baseline_${baselineOffset.toString().padLeft(5, '0')}.png',
+          path: cockpitRecordingKeyframeRelativePathFor(
+            recordingRelativePath: recordingRelativePath,
+            label: 'baseline',
+            offsetMs: baselineOffset,
+          ),
           label: 'baseline',
           offsetMs: baselineOffset,
           source: CockpitRecordingKeyframeSource.syntheticCoverage,
@@ -561,8 +584,11 @@ final class DefaultCockpitRecordingKeyframeExtractor
       final midpointOffset = (durationMs * 0.5).round();
       candidates.add(
         _PlannedKeyframe(
-          path:
-              'keyframes/${recordingBaseName}_midpoint_${midpointOffset.toString().padLeft(5, '0')}.png',
+          path: cockpitRecordingKeyframeRelativePathFor(
+            recordingRelativePath: recordingRelativePath,
+            label: 'midpoint',
+            offsetMs: midpointOffset,
+          ),
           label: 'midpoint',
           offsetMs: midpointOffset,
           source: CockpitRecordingKeyframeSource.syntheticCoverage,
@@ -574,8 +600,11 @@ final class DefaultCockpitRecordingKeyframeExtractor
       final acceptanceOffset = (durationMs * 0.82).round().clamp(0, durationMs);
       candidates.add(
         _PlannedKeyframe(
-          path:
-              'keyframes/${recordingBaseName}_acceptance_${acceptanceOffset.toString().padLeft(5, '0')}.png',
+          path: cockpitRecordingKeyframeRelativePathFor(
+            recordingRelativePath: recordingRelativePath,
+            label: 'acceptance',
+            offsetMs: acceptanceOffset,
+          ),
           label: 'acceptance',
           offsetMs: acceptanceOffset,
           source: CockpitRecordingKeyframeSource.syntheticCoverage,
@@ -588,8 +617,11 @@ final class DefaultCockpitRecordingKeyframeExtractor
         : durationMs - 600;
     candidates.add(
       _PlannedKeyframe(
-        path:
-            'keyframes/${recordingBaseName}_tail_consistency_${tailOffset.toString().padLeft(5, '0')}.png',
+        path: cockpitRecordingKeyframeRelativePathFor(
+          recordingRelativePath: recordingRelativePath,
+          label: 'tail_consistency',
+          offsetMs: tailOffset,
+        ),
         label: 'tail_consistency',
         offsetMs: tailOffset,
         source: CockpitRecordingKeyframeSource.tailConsistency,

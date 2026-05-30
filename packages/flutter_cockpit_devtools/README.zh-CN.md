@@ -6,7 +6,7 @@
 [![Runtime Loop](https://github.com/cockpit-dev/flutter_cockpit/actions/workflows/runtime-loop.yml/badge.svg)](https://github.com/cockpit-dev/flutter_cockpit/actions/workflows/runtime-loop.yml)
 [![License](https://img.shields.io/github/license/cockpit-dev/flutter_cockpit)](https://github.com/cockpit-dev/flutter_cockpit/blob/main/packages/flutter_cockpit_devtools/LICENSE)
 
-[English](README.md)
+[English](https://github.com/cockpit-dev/flutter_cockpit/blob/main/packages/flutter_cockpit_devtools/README.md)
 
 `flutter_cockpit_devtools` 是 `flutter_cockpit` 的宿主侧工具包。
 
@@ -87,7 +87,7 @@ target-first 闭环：
 1. `launch-target`
 2. `read-target --profile minimal`
 3. `inspect-surface`，或者在目标平台真实暴露 shell 能力时再用 `run-shell`
-4. `read_task_bundle_summary` 或 `validate-task`
+4. 使用 `read-task-bundle-summary` 或 `validate-task` 做 bundle 交付审查
 
 推荐代码侧闭环：
 
@@ -184,6 +184,14 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --output-format json
 ```
 
+读取已有 task-run bundle 时，不需要先打开大型原始 artifact：
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  read-task-bundle-summary \
+  --bundle-dir /tmp/flutter_cockpit/out/20260530T060304005006Z_session-1
+```
+
 默认 stdout 是完整 AI 语义渲染；需要立刻接 `jq` 时加 `--stdout-format json`。只有后续步骤要重新打开整份结果时，才使用 `--output <path>` 写入文件；需要结构化 JSON 文件时再加 `--output-format json`。只要请求体不再是几行以内，就优先使用 `--command-file`、`--commands-file`、`--config-json`，不要把长 JSON 直接内联进命令。
 
 ## MCP
@@ -253,13 +261,14 @@ workspace 工具：
 - 应用交互命令使用 `timeoutMs`；workspace 工具使用 `timeoutSeconds`。除非明确知道任务会很慢，否则先用默认值。
 - `pub_dev_search` 走有界网络请求；宿主机直连 TLS 不稳定时，会退回本地 Python fetch。
 - 更底层的 session service 仍保留在 Dart API 中，但推荐公开主工作流已经切到 app-first。
-- `read_task_bundle_summary` 与 `validate-task` 现在会暴露 plane-aware 交付状态，包括 `targetKind`、`primaryExecutionPlane`、`planesUsed`、`surfaceKindsUsed`、`fallbackCount` 和 fallback gates。
+- CLI `read-task-bundle-summary`、MCP `read_task_bundle_summary` 与 `validate-task` 会暴露 plane-aware 交付状态，包括 `targetKind`、`primaryExecutionPlane`、`planesUsed`、`surfaceKindsUsed`、`fallbackCount` 和 fallback gates。
 
 ## 验证
 
-发布级 MCP 验证：
+源码仓库内的 MCP 发布级验证：
 
 ```bash
+cd packages/flutter_cockpit_devtools
 dart run tool/verify_mcp_surface.dart
 ```
 

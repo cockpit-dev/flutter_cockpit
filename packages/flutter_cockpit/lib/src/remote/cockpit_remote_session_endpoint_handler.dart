@@ -5,6 +5,7 @@ import 'dart:io';
 import '../control/cockpit_command.dart';
 import '../control/cockpit_command_execution.dart';
 import '../model/cockpit_artifact_ref.dart';
+import '../model/cockpit_artifact_naming.dart';
 import '../model/cockpit_step_record.dart';
 import '../recording/cockpit_recording_request.dart';
 import '../recording/cockpit_recording_result.dart';
@@ -561,7 +562,7 @@ final class CockpitRemoteSessionEndpointHandler {
         CockpitArtifactRef(
           role: 'diagnostics',
           relativePath:
-              'diagnostics/remote_snapshot_${DateTime.now().toUtc().microsecondsSinceEpoch}.json',
+              'diagnostics/${cockpitSortableTimestampToken(DateTime.now())}_remote_snapshot.json',
         );
     try {
       _downloadableArtifacts[artifactRef.relativePath] =
@@ -722,7 +723,7 @@ Future<File> _defaultArtifactTempFileFactory(String basename) async {
   final safeBasename = basename.isEmpty ? 'artifact.bin' : basename;
   final path = [
     Directory.systemTemp.path,
-    'flutter_cockpit_remote_${DateTime.now().toUtc().microsecondsSinceEpoch}_$safeBasename',
+    '${cockpitSortableTimestampToken(DateTime.now())}_flutter_cockpit_remote_$safeBasename',
   ].join(Platform.pathSeparator);
   return File(path);
 }

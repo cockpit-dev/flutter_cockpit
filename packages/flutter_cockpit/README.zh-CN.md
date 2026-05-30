@@ -6,7 +6,7 @@
 [![Runtime Loop](https://github.com/cockpit-dev/flutter_cockpit/actions/workflows/runtime-loop.yml/badge.svg)](https://github.com/cockpit-dev/flutter_cockpit/actions/workflows/runtime-loop.yml)
 [![License](https://img.shields.io/github/license/cockpit-dev/flutter_cockpit)](https://github.com/cockpit-dev/flutter_cockpit/blob/main/packages/flutter_cockpit/LICENSE)
 
-[English](README.md)
+[English](https://github.com/cockpit-dev/flutter_cockpit/blob/main/packages/flutter_cockpit/README.md)
 
 `flutter_cockpit` 是面向 AI 驱动 Flutter 开发的应用内运行时。
 

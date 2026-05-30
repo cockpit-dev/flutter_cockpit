@@ -82,6 +82,10 @@ void main() {
     );
     expect(workflow, isNot(contains('--launch-timeout-seconds 300')));
     expect(workflow, contains('dart run tool/verify_mcp_surface.dart'));
+    expect(
+      workflow,
+      contains('working-directory: packages/flutter_cockpit_devtools'),
+    );
     expect(workflow, contains(r'STATUS=${PIPESTATUS[0]}'));
     expect(workflow, contains('xvfb-run -a dart run'));
     expect(workflow, contains('reactivecircus/android-emulator-runner@v2'));

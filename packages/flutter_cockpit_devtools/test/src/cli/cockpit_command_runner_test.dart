@@ -44,6 +44,7 @@ void main() {
         'wait-remote-ui-idle',
         'start-remote-recording',
         'stop-remote-recording',
+        'read-task-bundle-summary',
         'launch-development-session',
         'query-development-session',
         'reload-development-session',

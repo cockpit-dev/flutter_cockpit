@@ -82,6 +82,7 @@ final class CockpitCliRootRunner extends CommandRunner<int> {
     _writeSection(buffer, 'Delivery', const <String>[
       'run-script',
       'run-remote-control-script',
+      'read-task-bundle-summary',
       'run-task',
       'validate-task',
     ]);
@@ -132,8 +133,9 @@ final class CockpitCliRootRunner extends CommandRunner<int> {
     'Prefer app-first unless target-first surface truth is the real question.',
     'Delivery loop:',
     '  run-task --config-json <task.json>',
+    '  read-task-bundle-summary --bundle-dir <bundle_dir>',
     '  validate-task --config-json <validate_task.json>',
-    'Delivery: run-script writes a bundle from a running app. run-task and validate-task launch, execute, classify, and validate end to end.',
+    'Delivery: run-script writes a bundle from a running app. read-task-bundle-summary is the low-token bundle review path. run-task and validate-task launch, execute, classify, and validate end to end.',
     'Workspace commands default --workspace-root or --parent-directory to the current directory.',
   ].join('\n');
 

@@ -867,6 +867,14 @@ String _aiStatusFor(Object? value) {
     if (explicit != null) {
       return explicit;
     }
+    final bundleSummary = _bundleSummaryMapForAi(value);
+    final bundleStatus = _readNestedString(bundleSummary, const <String>[
+      'manifest',
+      'status',
+    ]);
+    if (bundleStatus != null) {
+      return bundleStatus;
+    }
     final command = value['command'];
     if (command is Map<Object?, Object?>) {
       final success = command['success'];
@@ -1178,7 +1186,7 @@ List<String> _aiBundleLines(Object? value) {
   if (value is! Map<Object?, Object?>) {
     return const <String>[];
   }
-  final bundleSummary = _readMap(value, 'bundleSummary');
+  final bundleSummary = _bundleSummaryMapForAi(value);
   if (bundleSummary == null) {
     return const <String>[];
   }
@@ -1262,6 +1270,19 @@ List<String> _aiBundleLines(Object? value) {
   return lines;
 }
 
+Map<Object?, Object?>? _bundleSummaryMapForAi(Map<Object?, Object?> value) {
+  final nested = _readMap(value, 'bundleSummary');
+  if (nested != null) {
+    return nested;
+  }
+  if (_readString(value, 'bundleDir') != null &&
+      _readMap(value, 'manifest') != null &&
+      _readMap(value, 'evidenceSummary') != null) {
+    return value;
+  }
+  return null;
+}
+
 List<String> _aiRefLines(Object? value) {
   if (value is! Map<Object?, Object?>) {
     return const <String>[];
@@ -1290,7 +1311,7 @@ List<String> _aiRemainingLines(Object? value) {
   if (value is! Map<Object?, Object?>) {
     return <String>['value=${_formatAiScalar(value)}'];
   }
-  const handled = <String>{
+  final handled = <String>{
     'recommendedNextStep',
     'nextStep',
     'status',
@@ -1327,6 +1348,26 @@ List<String> _aiRemainingLines(Object? value) {
     'snapshot',
     'bundleSummary',
   };
+  if (_bundleSummaryMapForAi(value) == value) {
+    handled.addAll(const <String>[
+      'bundleDir',
+      'manifest',
+      'handoff',
+      'delivery',
+      'acceptanceMarkdown',
+      'artifactPaths',
+      'evidence',
+      'evidenceSummary',
+      'gateSummary',
+      'baselineEvidence',
+      'acceptanceEvidence',
+      'acceptanceDelta',
+      'diagnosticsArtifactPaths',
+      'networkSummary',
+      'runtimeSummary',
+      'rebuildSummary',
+    ]);
+  }
   final lines = <String>[];
   for (final entry in value.entries) {
     final key = entry.key;
@@ -1419,6 +1460,20 @@ Map<Object?, Object?>? _readNestedMap(
     cursor = _readMap(cursor, key);
   }
   return cursor;
+}
+
+String? _readNestedString(Map<Object?, Object?>? map, List<String> path) {
+  if (map == null || path.isEmpty) {
+    return null;
+  }
+  Map<Object?, Object?>? cursor = map;
+  for (var index = 0; index < path.length - 1; index++) {
+    if (cursor == null) {
+      return null;
+    }
+    cursor = _readMap(cursor, path[index]);
+  }
+  return _readString(cursor, path.last);
 }
 
 String? _readString(Object? value, String key) {

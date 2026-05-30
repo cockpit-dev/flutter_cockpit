@@ -737,7 +737,7 @@ Future<File> _defaultBridgeArtifactTempFileFactory(String basename) async {
   return File(
     [
       Directory.systemTemp.path,
-      'flutter_cockpit_bridge_${DateTime.now().toUtc().microsecondsSinceEpoch}_$basename',
+      '${cockpitSortableTimestampToken(DateTime.now())}_flutter_cockpit_bridge_$basename',
     ].join(Platform.pathSeparator),
   );
 }

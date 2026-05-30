@@ -47,6 +47,21 @@ void main() {
       '.github/workflows/runtime-loop.yml',
     ).readAsStringSync();
 
+    expect(
+      workspacePubspec,
+      contains('uses-material-design: true'),
+      reason:
+          'Flutter tests may use the workspace pubspec as the primary manifest; '
+          'it must opt into Material Icons when the cockpit_demo workspace '
+          'package does.',
+    );
+    expect(
+      runtimePubspec,
+      contains('uses-material-design: true'),
+      reason:
+          'Runtime package widget tests use Material Icons and may treat '
+          'workspace packages as dependencies during asset assembly.',
+    );
     for (final pubspec in <String>[
       workspacePubspec,
       runtimePubspec,
@@ -136,6 +151,8 @@ void main() {
       contains('dart run flutter_cockpit_devtools:flutter_cockpit_devtools'),
     );
     expect(devtoolsReadme, contains('serve-mcp'));
+    expect(devtoolsReadme, contains('read-task-bundle-summary'));
+    expect(devtoolsReadme, contains('read_task_bundle_summary'));
     expect(devtoolsReadme, isNot(contains('flutter_pilot_devtools')));
     expect(devtoolsReadme, isNot(contains('flutter_pilot')));
 
@@ -148,6 +165,61 @@ void main() {
       devtoolsReadmeZh,
       contains('flutter_cockpit_devtools: ^$devtoolsVersion'),
     );
+  });
+
+  test('published package readme language links target repository files', () {
+    final runtimeReadme = File(
+      'packages/flutter_cockpit/README.md',
+    ).readAsStringSync();
+    final runtimeReadmeZh = File(
+      'packages/flutter_cockpit/README.zh-CN.md',
+    ).readAsStringSync();
+    final devtoolsReadme = File(
+      'packages/flutter_cockpit_devtools/README.md',
+    ).readAsStringSync();
+    final devtoolsReadmeZh = File(
+      'packages/flutter_cockpit_devtools/README.zh-CN.md',
+    ).readAsStringSync();
+
+    expect(runtimeReadme, isNot(contains('](README.zh-CN.md)')));
+    expect(devtoolsReadme, isNot(contains('](README.zh-CN.md)')));
+    expect(runtimeReadmeZh, isNot(contains('](README.md)')));
+    expect(devtoolsReadmeZh, isNot(contains('](README.md)')));
+
+    expect(
+      runtimeReadme,
+      contains(
+        'https://github.com/cockpit-dev/flutter_cockpit/blob/main/packages/flutter_cockpit/README.zh-CN.md',
+      ),
+    );
+    expect(
+      devtoolsReadme,
+      contains(
+        'https://github.com/cockpit-dev/flutter_cockpit/blob/main/packages/flutter_cockpit_devtools/README.zh-CN.md',
+      ),
+    );
+    expect(
+      runtimeReadmeZh,
+      contains(
+        'https://github.com/cockpit-dev/flutter_cockpit/blob/main/packages/flutter_cockpit/README.md',
+      ),
+    );
+    expect(
+      devtoolsReadmeZh,
+      contains(
+        'https://github.com/cockpit-dev/flutter_cockpit/blob/main/packages/flutter_cockpit_devtools/README.md',
+      ),
+    );
+  });
+
+  test('published packages exclude local-only editor metadata', () {
+    for (final packageDir in <String>[
+      'packages/flutter_cockpit',
+      'packages/flutter_cockpit_devtools',
+    ]) {
+      final pubignore = File('$packageDir/.pubignore').readAsStringSync();
+      expect(pubignore, contains('*.iml'));
+    }
   });
 }
 

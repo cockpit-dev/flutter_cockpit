@@ -126,6 +126,16 @@ void main() {
         result.artifactPayloads.keys,
         everyElement(startsWith('keyframes/')),
       );
+      expect(
+        result.artifactPayloads.keys,
+        everyElement(
+          matches(RegExp(r'^keyframes/\d{8}ms_acceptance_[a-z0-9_]+\.png$')),
+        ),
+      );
+      expect(
+        result.artifactPayloads.keys.toList()..sort(),
+        result.artifactPayloads.keys.toList(),
+      );
       expect(result.coverage.hasEarlyCoverage, isTrue);
       expect(result.coverage.hasMidCoverage, isTrue);
       expect(result.coverage.hasLateCoverage, isTrue);
@@ -237,7 +247,7 @@ void main() {
       expect(result.coverage.isReady, isTrue);
       expect(
         result.artifactPayloads.keys,
-        contains('keyframes/acceptance_tail_consistency_04800.png'),
+        contains('keyframes/00004800ms_acceptance_tail_consistency.png'),
       );
     },
   );

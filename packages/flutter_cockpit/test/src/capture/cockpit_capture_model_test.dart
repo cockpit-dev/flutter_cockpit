@@ -42,6 +42,24 @@ void main() {
     expect(CockpitCommandResult.fromJson(result.toJson()), result);
   });
 
+  test(
+    'cockpitScreenshotRelativePathFor emits sorted readable screenshot paths',
+    () {
+      final path = cockpitScreenshotRelativePathFor(
+        const CockpitScreenshotRequest(
+          reason: CockpitScreenshotReason.acceptance,
+          name: '../Home Screen',
+        ),
+        now: DateTime.utc(2026, 5, 30, 6, 3, 4, 5, 6),
+      );
+
+      expect(
+        path,
+        'screenshots/20260530T060304005006Z_home_screen_acceptance.png',
+      );
+    },
+  );
+
   test('CockpitRunManifest preserves delivery metadata', () {
     final manifest = CockpitRunManifest(
       sessionId: 'session-acceptance',
@@ -85,6 +103,10 @@ void main() {
       );
 
       expect(capture.artifact.relativePath, contains('screenshots/'));
+      expect(
+        capture.artifact.relativePath,
+        matches(RegExp(r'^screenshots/\d{8}T\d{12}Z_home_acceptance\.png$')),
+      );
       expect(capture.snapshot?.routeName, '/home');
       expect(capture.bytes, <int>[137, 80, 78, 71]);
     },

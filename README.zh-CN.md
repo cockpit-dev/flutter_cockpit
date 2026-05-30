@@ -210,7 +210,7 @@ target-first 或非 Flutter / 系统直控场景：
 1. `launch-target`
 2. `read-target --profile minimal`
 3. 需要时使用 `inspect-surface`、`run-shell`，或者在目标解析成 Flutter 应用后继续走现有 app/batch 命令
-4. 在最终声明前，用 `read_task_bundle_summary` 或 `validate-task` 读取 `targetKind`、`primaryExecutionPlane`、`planesUsed`、`surfaceKindsUsed`、`fallbackCount` 和 fallback gates
+4. 在最终声明前，用 CLI `read-task-bundle-summary`、MCP `read_task_bundle_summary` 或 `validate-task` 读取 `targetKind`、`primaryExecutionPlane`、`planesUsed`、`surfaceKindsUsed`、`fallbackCount` 和 fallback gates
 
 target-first 流程现在会按平台真实能力工作，而不是假装所有目标都是同一种 Flutter app：
 

@@ -29,6 +29,7 @@ import 'package:flutter_cockpit_devtools/src/cli/commands/read_errors_command.da
 import 'package:flutter_cockpit_devtools/src/cli/commands/read_logs_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/read_network_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/read_package_uris_command.dart';
+import 'package:flutter_cockpit_devtools/src/cli/commands/read_task_bundle_summary_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/reload_development_session_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/run_batch_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/run_command_command.dart';
@@ -169,6 +170,7 @@ void main() {
   test('delivery task help defaults to AI-readable output', () {
     final runTaskUsage = _helpForCommand(RunTaskCommand());
     final validateTaskUsage = _helpForCommand(ValidateTaskCommand());
+    final readBundleUsage = _helpForCommand(ReadTaskBundleSummaryCommand());
 
     expect(
       runTaskUsage,
@@ -201,6 +203,17 @@ void main() {
     expect(
       validateTaskUsage,
       contains('compact AI-readable issues and bundle sections'),
+    );
+    expect(
+      readBundleUsage,
+      contains(
+        'flutter_cockpit_devtools read-task-bundle-summary --bundle-dir',
+      ),
+    );
+    expect(readBundleUsage, contains('compact AI-readable summary by default'));
+    expect(
+      readBundleUsage,
+      contains('lower camel case JSON with --stdout-format json'),
     );
   });
 
@@ -341,6 +354,7 @@ final List<dynamic> _topLevelCommands = <dynamic>[
   ReadLogsCommand(),
   ReadErrorsCommand(),
   ReadNetworkCommand(),
+  ReadTaskBundleSummaryCommand(),
   RunTaskCommand(),
   ValidateTaskCommand(),
   ServeMcpCommand(),

@@ -67,7 +67,11 @@ void main() {
       expect(execution.result.success, isTrue);
       expect(
         execution.result.artifacts.single.relativePath,
-        contains('screenshots/windows_acceptance_acceptance_'),
+        matches(
+          RegExp(
+            r'^screenshots/\d{8}T\d{12}Z_windows_acceptance_acceptance\.png$',
+          ),
+        ),
       );
       expect(execution.artifactSourcePaths, isNotEmpty);
       expect(outputFile.readAsStringSync(), 'png-data');

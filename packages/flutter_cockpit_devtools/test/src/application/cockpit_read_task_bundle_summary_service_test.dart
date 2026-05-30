@@ -660,6 +660,114 @@ void main() {
   );
 
   test(
+    'issue evidence reflects derived gate failures when handoff omits gates',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_read_task_bundle_summary_service_derived_gate_issues',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final bundleDir = Directory(p.join(tempDir.path, 'bundle'));
+      await Directory(
+        p.join(bundleDir.path, 'screenshots'),
+      ).create(recursive: true);
+      await Directory(
+        p.join(bundleDir.path, 'recordings'),
+      ).create(recursive: true);
+      await Directory(
+        p.join(bundleDir.path, 'diagnostics'),
+      ).create(recursive: true);
+      await File(
+        p.join(bundleDir.path, 'screenshots', 'acceptance.png'),
+      ).writeAsBytes(const <int>[1, 2, 3]);
+      await File(p.join(bundleDir.path, 'manifest.json')).writeAsString(
+        jsonEncode(
+          CockpitRunManifest(
+            sessionId: 'derived-gate-session',
+            taskId: 'derived-gate-task',
+            platform: 'macos',
+            status: CockpitTaskStatus.completed,
+            startedAt: DateTime.utc(2026, 5, 30),
+            finishedAt: DateTime.utc(2026, 5, 30, 0, 0, 1),
+            artifactRefs: const <CockpitArtifactRef>[
+              CockpitArtifactRef(
+                role: 'screenshot',
+                relativePath: 'screenshots/acceptance.png',
+              ),
+            ],
+            commandCount: 1,
+            screenshotCount: 1,
+            recordingCount: 0,
+            failureCount: 0,
+            deliveryArtifactsReady: true,
+            deliveryVideoReady: false,
+          ).toJson(),
+        ),
+      );
+      await File(p.join(bundleDir.path, 'handoff.json')).writeAsString(
+        jsonEncode(<String, Object?>{
+          'status': 'completed',
+          'commandCount': 1,
+          'screenshotCount': 1,
+          'recordingCount': 0,
+        }),
+      );
+      await File(p.join(bundleDir.path, 'delivery.json')).writeAsString(
+        jsonEncode(<String, Object?>{
+          'primaryScreenshotRef': 'screenshots/acceptance.png',
+          'attachmentRefs': <String>['screenshots/acceptance.png'],
+          'deliveryArtifactsReady': true,
+          'deliveryVideoReady': false,
+          'deliveryKeyframesReady': false,
+        }),
+      );
+      await File(
+        p.join(bundleDir.path, 'acceptance.md'),
+      ).writeAsString('# Acceptance\n\n- Status: completed\n');
+      await File(p.join(bundleDir.path, 'steps.json')).writeAsString('[]');
+      await File(
+        p.join(bundleDir.path, 'observations.json'),
+      ).writeAsString('[]');
+
+      final result = await const CockpitReadTaskBundleSummaryService().read(
+        CockpitReadTaskBundleSummaryRequest(bundleDir: bundleDir.path),
+      );
+
+      expect(
+        result.gateSummary.isSatisfied(CockpitTaskGate.screenshotReady),
+        isTrue,
+      );
+      expect(
+        result.gateSummary.isSatisfied(
+          CockpitTaskGate.recordingReadyOrExplained,
+        ),
+        isFalse,
+      );
+      expect(
+        result.issueEvidence['recommendedNextStep'],
+        'inspect_issue_evidence',
+      );
+      expect(result.issueEvidence['issueKinds'], contains('gateFailure'));
+      final gateFailures =
+          result.issueEvidence['gateFailures'] as List<Object?>;
+      expect(
+        gateFailures,
+        contains(
+          allOf(
+            isA<Map<String, Object?>>(),
+            containsPair('gate', 'recordingReadyOrExplained'),
+            containsPair('failureCodes', <String>['primaryRecordingMissing']),
+          ),
+        ),
+      );
+    },
+  );
+
+  test(
     'read bundle summary returns baseline evidence and acceptance delta for AI comparison',
     () async {
       final tempDir = await Directory.systemTemp.createTemp(
