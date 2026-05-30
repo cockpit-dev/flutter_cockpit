@@ -52,17 +52,19 @@ void main() {
           'recordingState': 'starting',
         },
       );
-      final session = await rootState.startRecording(
-        const CockpitRecordingRequest(
-          purpose: CockpitRecordingPurpose.acceptance,
-          name: 'todo_acceptance',
-          attachToStep: true,
-        ),
-      );
+      final session = await tester.runAsync(() {
+        return rootState.startRecording(
+          const CockpitRecordingRequest(
+            purpose: CockpitRecordingPurpose.acceptance,
+            name: 'todo_acceptance',
+            attachToStep: true,
+          ),
+        );
+      });
       controller.recordStep(
         actionType: 'recording_started',
         actionArgs: <String, Object?>{
-          'recordingName': session.request.name,
+          'recordingName': session!.request.name,
           'recordingPurpose': session.request.purpose.name,
           'recordingState': session.state.name,
         },
@@ -76,13 +78,13 @@ void main() {
         dueLabel: 'Tomorrow',
       );
 
-      final result = await rootState.stopRecording();
+      final result = await tester.runAsync(rootState.stopRecording);
       controller.recordStep(
         actionType: 'recording_stopped',
         actionArgs: <String, Object?>{
           'recordingName': session.request.name,
           'recordingPurpose': session.request.purpose.name,
-          'recordingState': result.state.name,
+          'recordingState': result!.state.name,
           'recordingDurationMs': result.durationMs,
         },
         artifactRefs: result.artifact == null
@@ -99,20 +101,22 @@ void main() {
         capabilitiesUsed: const <String>['nativeRecording'],
       );
 
-      final writtenBundle = await buildTestBundleWriter().writeBundle(
-        bundle: bundle,
-        outputRoot: outputDirectory.path,
-        artifactSourcePaths: <String, String>{
-          result.artifact!.relativePath: result.sourceFilePath!,
-        },
-      );
+      final writtenBundle = await tester.runAsync(() {
+        return buildTestBundleWriter().writeBundle(
+          bundle: bundle,
+          outputRoot: outputDirectory.path,
+          artifactSourcePaths: <String, String>{
+            result.artifact!.relativePath: result.sourceFilePath!,
+          },
+        );
+      });
 
       expect(find.text('Record Todo acceptance'), findsWidgets);
       expect(bundle.manifest.recordingCount, 1);
       expect(bundle.manifest.deliveryVideoReady, isTrue);
       expect(
         File(
-          p.join(writtenBundle.path, 'recordings', 'todo_acceptance.mp4'),
+          p.join(writtenBundle!.path, 'recordings', 'todo_acceptance.mp4'),
         ).readAsBytesSync(),
         validMp4Bytes,
       );
