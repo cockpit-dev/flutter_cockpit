@@ -410,6 +410,10 @@ only when a shell pipeline needs structured filtering.
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools serve-mcp
 ```
 
+When an MCP host already supplies roots but the task needs an adjacent repo,
+call `add_roots`; manual roots merge with native roots instead of replacing
+them.
+
 ## Notes
 
 - Persist `app.json` and reuse it across commands.

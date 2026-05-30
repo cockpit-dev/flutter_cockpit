@@ -97,7 +97,7 @@ final class CockpitMcpServerRuntime {
       ..addMultiOption(
         'workspace-root',
         help:
-            'Seed one or more workspace roots for fallback mode before the MCP client sends roots.',
+            'Seed one or more manual workspace roots before the MCP client sends roots. Manual roots merge with client roots.',
       )
       ..addOption(
         'skill-contract-file',

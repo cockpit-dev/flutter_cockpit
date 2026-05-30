@@ -21,8 +21,15 @@ final class CockpitMcpRootsTracker {
 
   bool get clientSupportsRoots => _clientSupportsRoots;
 
-  List<Root> get effectiveRoots =>
-      List<Root>.unmodifiable(fallbackActive ? _fallbackRoots : _nativeRoots);
+  List<Root> get effectiveRoots {
+    final roots = fallbackActive
+        ? _fallbackRoots
+        : _nativeRoots.followedBy(_fallbackRoots);
+    final seenUris = <String>{};
+    return List<Root>.unmodifiable(
+      roots.where((root) => seenUris.add(root.uri)),
+    );
+  }
 
   Map<String, Object?> toJson() => <String, Object?>{
     'clientSupportsRoots': clientSupportsRoots,
@@ -58,10 +65,6 @@ final class CockpitMcpRootsTracker {
   }
 
   void addFallbackRoots(Iterable<Root> roots) {
-    if (!fallbackActive) {
-      throw StateError('Fallback roots are not active.');
-    }
-
     var changed = false;
     for (final root in roots) {
       final exists = _fallbackRoots.any(
@@ -78,10 +81,6 @@ final class CockpitMcpRootsTracker {
   }
 
   void removeFallbackRoots(Iterable<String> uris) {
-    if (!fallbackActive) {
-      throw StateError('Fallback roots are not active.');
-    }
-
     final before = _fallbackRoots.length;
     _fallbackRoots.removeWhere((root) => uris.contains(root.uri));
     if (_fallbackRoots.length != before) {

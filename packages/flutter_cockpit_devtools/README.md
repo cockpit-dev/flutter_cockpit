@@ -47,7 +47,7 @@ Toolchain resolution:
 - Explicit executable variables win: `DART`, `DART_BIN`, `FLUTTER`, `FLUTTER_BIN`.
 - SDK root variables are supported next: `DART_ROOT`, `DART_SDK`, `FLUTTER_ROOT`, `FLUTTER_SDK`.
 - If only `FLUTTER_ROOT` or `FLUTTER_SDK` is set, Dart commands use the bundled Flutter Dart SDK.
-- If none are set, commands fall back to `dart` and `flutter` on `PATH`.
+- If none are set, Dart commands prefer the current Dart SDK executable before falling back to `dart` on `PATH`; Flutter commands prefer the Flutter SDK around the current bundled Dart executable before falling back to `flutter` on `PATH`.
 
 Typical host setup:
 
@@ -65,6 +65,9 @@ Typical host setup:
 For the fuller host-specific setup guide, see the repository README section:
 
 - [Configure MCP In Mainstream Agents](https://github.com/cockpit-dev/flutter_cockpit#configure-mcp-in-mainstream-agents)
+
+A copyable generic MCP config is also shipped at
+[`example/mcp_config.json`](https://github.com/cockpit-dev/flutter_cockpit/blob/main/packages/flutter_cockpit_devtools/example/mcp_config.json).
 
 ## CLI
 

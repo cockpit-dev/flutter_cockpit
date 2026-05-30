@@ -98,5 +98,46 @@ void main() {
         p.join('/opt', 'flutter', 'bin', 'flutter'),
       );
     });
+
+    test('falls back to the current Dart SDK executable before PATH dart', () {
+      final environment = CockpitSdkEnvironment.fromEnvironment(
+        const <String, String>{},
+        currentResolvedExecutable: p.join('/opt', 'dart-sdk', 'bin', 'dart'),
+        isWindows: false,
+      );
+
+      expect(
+        environment.dartExecutable,
+        p.join('/opt', 'dart-sdk', 'bin', 'dart'),
+      );
+    });
+
+    test(
+      'falls back to Flutter root around current Dart SDK when available',
+      () {
+        final environment = CockpitSdkEnvironment.fromEnvironment(
+          const <String, String>{},
+          currentResolvedExecutable: p.join(
+            '/opt',
+            'flutter',
+            'bin',
+            'cache',
+            'dart-sdk',
+            'bin',
+            'dart',
+          ),
+          isWindows: false,
+        );
+
+        expect(
+          environment.dartExecutable,
+          p.join('/opt', 'flutter', 'bin', 'cache', 'dart-sdk', 'bin', 'dart'),
+        );
+        expect(
+          environment.flutterExecutable,
+          p.join('/opt', 'flutter', 'bin', 'flutter'),
+        );
+      },
+    );
   });
 }
