@@ -29,6 +29,7 @@ Do not use it for docs-only edits or static refactors with no runtime claim.
 - Persistent edit loop: `launch-development-session` -> `collect-development-probe --profile quick` -> edit -> `reload-development-session --mode hot_reload` -> collect/compare probe -> stop session.
 - Direct remote is an escape hatch: `launch-remote-session` -> `read-remote-status --profile minimal` -> `execute-remote-command` or batch -> snapshot only if needed.
 - Code-side truth: `analyze-files`, `lsp`, `grep-package-uris`, `read-package-uris`, and `pub` before workspace-wide tools.
+- MCP roots: when an MCP host already provides roots but the task needs an adjacent repo or linked package, call `add_roots`; manual roots merge with native roots.
 
 ## Copy-Ready Commands
 

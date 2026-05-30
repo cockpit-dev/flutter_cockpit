@@ -37,6 +37,23 @@ MCP:
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools serve-mcp
 ```
 
+Generic config:
+
+```json
+{
+  "mcpServers": {
+    "flutter-cockpit": {
+      "command": "dart",
+      "args": [
+        "run",
+        "flutter_cockpit_devtools:flutter_cockpit_devtools",
+        "serve-mcp"
+      ]
+    }
+  }
+}
+```
+
 ## Host Guidance
 
 - persist `app.json` and reuse it
@@ -47,3 +64,4 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools serve-mcp
 - use `run-command` and `run-batch` for active debugging
 - use `run-task` and `validate-task` for final delivery work
 - prefer the shipped public workspace surfaces: CLI inside shell agents, MCP when the host specifically needs tool calling or roots-aware server state
+- use MCP `add_roots` when a task must inspect an adjacent repo or linked package; manual roots merge with host-provided roots instead of replacing them

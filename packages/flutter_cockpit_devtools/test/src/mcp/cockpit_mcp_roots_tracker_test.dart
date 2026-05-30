@@ -22,7 +22,7 @@ void main() {
   });
 
   test(
-    'refreshes native roots when the client reports roots support',
+    'combines native roots with manual roots when the client reports roots support',
     () async {
       final tracker = CockpitMcpRootsTracker();
       final controller = StreamController<void>.broadcast();
@@ -37,14 +37,45 @@ void main() {
 
       expect(tracker.fallbackActive, isFalse);
       expect(tracker.effectiveRoots.single.uri, 'file:///workspace/a');
+      tracker.addFallbackRoots(<Root>[
+        Root(uri: 'file:///workspace/manual', name: 'manual'),
+      ]);
+      expect(tracker.effectiveRoots.map((root) => root.uri), <String>[
+        'file:///workspace/a',
+        'file:///workspace/manual',
+      ]);
 
       currentRoots = <Root>[Root(uri: 'file:///workspace/b', name: 'b')];
       controller.add(null);
       await Future<void>.delayed(const Duration(milliseconds: 10));
 
-      expect(tracker.effectiveRoots.single.uri, 'file:///workspace/b');
+      expect(tracker.effectiveRoots.map((root) => root.uri), <String>[
+        'file:///workspace/b',
+        'file:///workspace/manual',
+      ]);
       await tracker.dispose();
       await controller.close();
     },
   );
+
+  test('deduplicates manual roots against native roots by uri', () async {
+    final tracker = CockpitMcpRootsTracker();
+
+    await tracker.bind(
+      clientSupportsRoots: true,
+      readRoots: () async => <Root>[
+        Root(uri: 'file:///workspace', name: 'native'),
+      ],
+    );
+    tracker.addFallbackRoots(<Root>[
+      Root(uri: 'file:///workspace', name: 'manual'),
+      Root(uri: 'file:///workspace/extra', name: 'extra'),
+    ]);
+
+    expect(tracker.effectiveRoots.map((root) => root.uri), <String>[
+      'file:///workspace',
+      'file:///workspace/extra',
+    ]);
+    await tracker.dispose();
+  });
 }

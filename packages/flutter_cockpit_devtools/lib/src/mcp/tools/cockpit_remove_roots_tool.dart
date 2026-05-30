@@ -1,4 +1,3 @@
-import '../cockpit_mcp_error.dart';
 import '../cockpit_mcp_tool.dart';
 import '../core/cockpit_mcp_roots_tracker.dart';
 import '../core/cockpit_mcp_workspace_tooling_support.dart';
@@ -14,7 +13,7 @@ final class CockpitRemoveRootsTool extends CockpitMcpTool {
 
   @override
   String get description =>
-      'Remove fallback project roots previously registered through add_roots.';
+      'Remove manual project roots previously registered through add_roots.';
 
   @override
   CockpitMcpToolAnnotations get annotations => const CockpitMcpToolAnnotations(
@@ -44,16 +43,11 @@ final class CockpitRemoveRootsTool extends CockpitMcpTool {
 
   @override
   Future<Map<String, Object?>> call(Map<String, Object?> arguments) async {
-    if (!_rootsTracker.fallbackActive) {
-      throw CockpitMcpError.invalidArguments(
-        'Fallback roots are not active for this MCP session.',
-      );
-    }
     _rootsTracker.removeFallbackRoots(
       cockpitReadOptionalStringList(arguments, 'uris'),
     );
     return cockpitMcpResult(
-      text: 'Fallback roots removed.',
+      text: 'Manual roots removed.',
       structuredContent: _rootsTracker.toJson(),
     );
   }

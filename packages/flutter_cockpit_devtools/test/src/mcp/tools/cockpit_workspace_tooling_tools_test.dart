@@ -310,23 +310,33 @@ void main() {
     expect(structured['found'], isTrue);
   });
 
-  test('add_roots and remove_roots mutate fallback roots', () async {
-    final rootsTracker = CockpitMcpRootsTracker(forceFallback: true);
-    final addTool = CockpitAddRootsTool(rootsTracker: rootsTracker);
-    final removeTool = CockpitRemoveRootsTool(rootsTracker: rootsTracker);
+  test(
+    'add_roots and remove_roots mutate manual roots in native mode',
+    () async {
+      final rootsTracker = CockpitMcpRootsTracker();
+      await rootsTracker.bind(
+        clientSupportsRoots: true,
+        readRoots: () async => <Root>[Root(uri: 'file:///native/')],
+      );
+      final addTool = CockpitAddRootsTool(rootsTracker: rootsTracker);
+      final removeTool = CockpitRemoveRootsTool(rootsTracker: rootsTracker);
 
-    await addTool.call(<String, Object?>{
-      'roots': <Map<String, Object?>>[
-        <String, Object?>{'uri': 'file:///workspace/'},
-      ],
-    });
-    expect(rootsTracker.effectiveRoots.map((root) => root.uri), <String>[
-      'file:///workspace/',
-    ]);
+      await addTool.call(<String, Object?>{
+        'roots': <Map<String, Object?>>[
+          <String, Object?>{'uri': 'file:///workspace/'},
+        ],
+      });
+      expect(rootsTracker.effectiveRoots.map((root) => root.uri), <String>[
+        'file:///native/',
+        'file:///workspace/',
+      ]);
 
-    await removeTool.call(<String, Object?>{
-      'uris': <String>['file:///workspace/'],
-    });
-    expect(rootsTracker.effectiveRoots, isEmpty);
-  });
+      await removeTool.call(<String, Object?>{
+        'uris': <String>['file:///workspace/'],
+      });
+      expect(rootsTracker.effectiveRoots.map((root) => root.uri), <String>[
+        'file:///native/',
+      ]);
+    },
+  );
 }

@@ -221,6 +221,22 @@ void main() {
       expect(pubignore, contains('*.iml'));
     }
   });
+
+  test('devtools package ships a copyable MCP config example', () {
+    final example = File(
+      'packages/flutter_cockpit_devtools/example/mcp_config.json',
+    );
+    expect(example.existsSync(), isTrue);
+    expect(
+      example.readAsStringSync(),
+      allOf(
+        contains('"mcpServers"'),
+        contains('"flutter-cockpit"'),
+        contains('"command": "dart"'),
+        contains('"serve-mcp"'),
+      ),
+    );
+  });
 }
 
 String _readPackageVersion(String packageDir) {

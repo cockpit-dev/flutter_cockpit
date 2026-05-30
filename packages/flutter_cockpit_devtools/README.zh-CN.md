@@ -47,7 +47,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools serve-mcp
 - 显式可执行文件变量优先：`DART`、`DART_BIN`、`FLUTTER`、`FLUTTER_BIN`。
 - 其次支持 SDK 根目录变量：`DART_ROOT`、`DART_SDK`、`FLUTTER_ROOT`、`FLUTTER_SDK`。
 - 如果只设置了 `FLUTTER_ROOT` 或 `FLUTTER_SDK`，Dart 命令会使用 Flutter 内置的 Dart SDK。
-- 如果都没有设置，则回退到 `PATH` 上的 `dart` 和 `flutter`。
+- 如果都没有设置，Dart 命令会先使用当前 Dart SDK 的可执行文件，再回退到 `PATH` 上的 `dart`；Flutter 命令会先尝试当前内置 Dart 所在的 Flutter SDK，再回退到 `PATH` 上的 `flutter`。
 
 常见宿主配置方式：
 
@@ -65,6 +65,9 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools serve-mcp
 更完整的宿主侧配置说明，见仓库根 README：
 
 - [主流 Agent 的 MCP 配置](https://github.com/cockpit-dev/flutter_cockpit/blob/main/README.zh-CN.md#主流-agent-的-mcp-配置)
+
+包内也包含一份可直接复制的通用 MCP 配置：
+[`example/mcp_config.json`](https://github.com/cockpit-dev/flutter_cockpit/blob/main/packages/flutter_cockpit_devtools/example/mcp_config.json)。
 
 ## CLI
 
