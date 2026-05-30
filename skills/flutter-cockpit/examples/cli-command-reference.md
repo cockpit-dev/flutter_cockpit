@@ -382,7 +382,7 @@ Run a full task workflow:
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   run-task \
-  --config-json /tmp/flutter_cockpit/run_task.json --stdout-format json | jq '{classification,recommendedNextStep}'
+  --config-json /tmp/flutter_cockpit/run_task.json
 ```
 
 Validate a full task workflow:
@@ -390,8 +390,11 @@ Validate a full task workflow:
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   validate-task \
-  --config-json /tmp/flutter_cockpit/validate_task.json --stdout-format json | jq '{classification,recommendedNextStep,validationFailures}'
+  --config-json /tmp/flutter_cockpit/validate_task.json
 ```
+
+Default stdout is the AI-readable result. Use `--stdout-format json | jq ...`
+only when a shell pipeline needs structured filtering.
 
 ## MCP
 

@@ -6,6 +6,8 @@ This contract is the stable handoff boundary between app instrumentation, host-s
 
 Remote session bootstrap metadata is intentionally outside this contract. A host-side launcher may emit a separate session-handle JSON file before any task-run exists; later CLI commands can reuse that handle to reach the running app and produce a bundle that follows the contract below.
 
+`issue_evidence.json` is the first troubleshooting entry point for failed or degraded bundles. It is intentionally compact and reconstructible from the standard bundle files. Later AI agents should read it before opening full step logs, screenshots, recordings, or large diagnostics snapshots.
+
 ## AI-Facing Summary Layer
 
 The bundle directory is the durable source of truth. Later tooling may expose a bounded summary view derived from the bundle, but that summary is a consumer surface, not a second persistence format.
@@ -15,6 +17,7 @@ The current repository exposes this through `read_task_bundle_summary`, which ma
 - `evidence`
 - `evidenceSummary`
 - `gateSummary`
+- `issueEvidence`
 - `baselineEvidence`
 - `acceptanceEvidence`
 - `acceptanceDelta`
@@ -54,6 +57,7 @@ Every bundle directory must contain:
 - `acceptance.md`
 - `handoff.json`
 - `delivery.json`
+- `issue_evidence.json`
 - `screenshots/`
 - `recordings/`
 - `keyframes/` when recording-derived delivery frames are emitted
@@ -120,6 +124,7 @@ The steps file records every action emitted by `CockpitSessionController`. Each 
 - optional `commandType`
 - optional `locator`
 - optional `locatorResolution`
+- optional `commandError`
 - optional `durationMs`
 - optional `status`
 - optional `targetKind`
@@ -134,6 +139,7 @@ The steps file records every action emitted by `CockpitSessionController`. Each 
 - optional `captureRefs`
 
 Control and capture flows should record structured command metadata instead of flattening everything into free-form logs. `captureRefs` is reserved for screenshot evidence associated with that step. AI-default command execution adds best-effort `after_action` screenshots for key mutating operations; these captures use `captureFailurePolicy: degradeCommand` so the original successful action can still be recorded with `usedCaptureFallback` and `degradationReason` if evidence capture fails.
+Failed command steps should preserve `commandError`, including `details.failureDiagnostics` when available, so a later bundle reader can distinguish locator failures, activation failures, route failures, UI-stability failures, runtime errors, and environment failures without guessing.
 When a step snapshot reaches `forensic` detail or needs truncation, the inline `snapshot` in `steps.json` should stay summarized and point to a full `diagnostics/*.json` payload through `diagnosticsArtifactRef`.
 
 ### `observations.json`
@@ -235,6 +241,29 @@ Machine-readable delivery summary intended for later sender integrations. The cu
 `delivery.json` must only reference files that already exist inside the bundle. It is a handoff layer for delivery tooling, not a second artifact store.
 Each `keyframes` entry must include a bundle-relative `ref`, a semantic `label`, an `offsetMs`, and the extraction `source`.
 The optional `readiness` object should explain screenshot and video delivery state using bounded booleans and failure codes so a later AI agent can distinguish “ready”, “missing”, and “degraded but understood” states without reopening the full step log.
+
+### `issue_evidence.json`
+
+Machine-readable troubleshooting packet intended for AI-first recovery. The current implementation includes:
+
+- `schemaVersion`
+- `bundleDir`
+- `sessionId`
+- `taskId`
+- `platform`
+- `status`
+- optional `failureSummary`
+- `recommendedNextStep`
+- `issueKinds`
+- `counts`
+- `failedCommands`
+- `runtimeIssues`
+- `networkIssues`
+- `artifactIssues`
+- `gateFailures`
+- `evidencePaths`
+
+`failedCommands` must include the command ID, type, route, expected route, locator, error code, error message, `failureDiagnostics` when present, and any diagnostics artifact path that can explain the failure. `runtimeIssues` and `networkIssues` are bounded previews, not full logs. `artifactIssues` must report missing or unreadable evidence files, including diagnostics artifacts, without making the whole summary unreadable. `evidencePaths` points to the smallest useful persisted artifacts so AI can defer opening large files until the compact packet no longer explains the next repair.
 
 ## Artifact Placement Rules
 

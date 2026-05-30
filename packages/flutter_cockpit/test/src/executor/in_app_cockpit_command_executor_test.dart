@@ -838,6 +838,18 @@ void main() {
       expect(visibleTargetHints, isEmpty);
       expect(result.error?.details['visibleTextCandidates'], const <Object?>[]);
       expect(result.error?.details['emptyRouteHint'], contains('run-batch'));
+      final diagnostics =
+          result.error?.details['failureDiagnostics'] as Map<Object?, Object?>?;
+      expect(diagnostics, isNotNull);
+      expect(diagnostics, containsPair('schemaVersion', 1));
+      expect(diagnostics, containsPair('commandId', 'cmd-missing'));
+      expect(diagnostics, containsPair('commandType', 'tap'));
+      expect(diagnostics, containsPair('errorCode', 'targetNotFound'));
+      expect(diagnostics, containsPair('routeName', '/checkout'));
+      expect(diagnostics, containsPair('visibleTargetCount', 0));
+      final diagnosticLocator =
+          diagnostics!['locator'] as Map<Object?, Object?>;
+      expect(diagnosticLocator, containsPair('cockpitId', 'missing_button'));
     },
   );
 
@@ -1302,6 +1314,100 @@ void main() {
     expect(result.error?.details, containsPair('expectedRouteName', '/editor'));
     expect(result.error?.details, containsPair('routeName', '/inbox'));
   });
+
+  test(
+    'tap route failures include action diagnostics for root cause analysis',
+    () async {
+      final registry = CockpitTargetRegistry(routeName: '/inbox');
+      var tapCount = 0;
+
+      registry.register(
+        CockpitTarget(
+          registrationId: 'open-editor',
+          keyValue: 'open-task-editor-action',
+          text: 'New task',
+          typeName: 'TextButton',
+          routeName: '/inbox',
+          supportedCommands: const {CockpitCommandType.tap},
+          onTap: () {
+            tapCount += 1;
+          },
+          geometryProvider: () => const CockpitTargetGeometry(
+            left: 24,
+            top: 48,
+            width: 128,
+            height: 44,
+            viewportLeft: 0,
+            viewportTop: 0,
+            viewportWidth: 800,
+            viewportHeight: 600,
+            viewId: 1,
+          ),
+        ),
+      );
+
+      final executor = InAppCockpitCommandExecutor(
+        registry: registry,
+        platform: 'macos',
+        transportType: 'remoteSession',
+        interactionPolicy: const CockpitInteractionPolicy(
+          actionCommitTimeout: Duration(milliseconds: 40),
+          routeTransitionVisualDelay: Duration.zero,
+        ),
+      );
+
+      final result = await executor.execute(
+        CockpitCommand(
+          commandId: 'verify-open-editor',
+          commandType: CockpitCommandType.tap,
+          locator: const CockpitLocator(
+            key: 'open-task-editor-action',
+            text: 'New task',
+            type: 'TextButton',
+            route: '/inbox',
+          ),
+          parameters: const <String, Object?>{'expectedRouteName': '/editor'},
+        ),
+      );
+
+      expect(tapCount, 1);
+      expect(result.success, isFalse);
+      final details = result.error!.details;
+      final diagnostics =
+          details['failureDiagnostics'] as Map<Object?, Object?>?;
+      expect(diagnostics, isNotNull);
+      expect(diagnostics, containsPair('schemaVersion', 1));
+      expect(diagnostics, containsPair('platform', 'macos'));
+      expect(diagnostics, containsPair('transportType', 'remoteSession'));
+      expect(diagnostics, containsPair('commandId', 'verify-open-editor'));
+      expect(diagnostics, containsPair('commandType', 'tap'));
+      expect(diagnostics, containsPair('expectedRouteName', '/editor'));
+      expect(diagnostics, containsPair('previousRouteName', '/inbox'));
+      expect(diagnostics, containsPair('routeName', '/inbox'));
+      expect(diagnostics, containsPair('routeChanged', false));
+      expect(diagnostics, containsPair('uiFingerprintChanged', false));
+      expect(diagnostics, containsPair('attemptedActivation', 'direct'));
+      expect(diagnostics, containsPair('resolvedTarget', isA<Map>()));
+      final resolvedTarget =
+          diagnostics!['resolvedTarget'] as Map<Object?, Object?>;
+      expect(resolvedTarget, containsPair('registrationId', 'open-editor'));
+      expect(resolvedTarget, containsPair('key', 'open-task-editor-action'));
+      expect(resolvedTarget, containsPair('text', 'New task'));
+      expect(resolvedTarget, containsPair('type', 'TextButton'));
+      expect(resolvedTarget, containsPair('route', '/inbox'));
+      expect(
+        resolvedTarget['supportedCommands'] as List<Object?>,
+        contains('tap'),
+      );
+      expect(resolvedTarget, containsPair('hasDirectTap', true));
+      expect(resolvedTarget, containsPair('hasSemanticTap', false));
+      expect(resolvedTarget, containsPair('geometry', isA<Map>()));
+      expect(diagnostics['visibleTextCandidates'] as List<Object?>, [
+        'New task',
+      ]);
+      expect(diagnostics['recommendedNextStep'], contains('activation'));
+    },
+  );
 
   test(
     'tap route expectation timeout stays separate from hard timeout',

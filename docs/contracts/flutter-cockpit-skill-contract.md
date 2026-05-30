@@ -96,8 +96,10 @@ The skill must teach token discipline:
 
 - prefer `minimal` and `standard` before `inspect` or `evidence`
 - prefer bundle summaries before raw artifact files
+- prefer bundle `issueEvidence` or `<bundleDir>/issue_evidence.json` before raw `steps.json`, full diagnostics snapshots, screenshots, recordings, or CI log spelunking; it is the first problem-collection packet for failed commands, runtime errors, network failures, artifact issues, gate failures, and evidence paths
 - prefer inline snapshot summaries and `artifactDownloads` metadata before downloading externalized diagnostics artifacts
 - prefer CLI `errorJson.code`, `errorJson.message`, and `errorJson.details` before interpreting prose stderr when a non-usage command exits non-zero
+- prefer `errorJson.details.failureDiagnostics` before guessing fixes for interaction or route failures; this packet must be treated as the first root-cause source for resolved target, activation path, action completion, route changes, UI fingerprint changes, visible targets, and target discovery diagnostics
 - preserve remote endpoint error codes such as `bridgeUnavailable`, `artifactNotFound`, `recordingStartFailed`, and `invalidPayload` so agents can choose the correct recovery path instead of treating every non-2xx response as reachability loss
 - treat `invalidPayload` as a caller payload or option problem that must be corrected before retrying
 - request one missing fact at a time instead of all diagnostics by default

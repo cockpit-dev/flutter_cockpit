@@ -6,6 +6,7 @@ import '../control/cockpit_command_status.dart';
 import '../control/cockpit_command_type.dart';
 import '../control/cockpit_locator.dart';
 import '../control/cockpit_locator_resolution.dart';
+import '../errors/cockpit_command_error.dart';
 import '../runtime/cockpit_plane_kind.dart';
 import '../runtime/cockpit_snapshot.dart';
 import '../runtime/cockpit_surface_kind.dart';
@@ -25,6 +26,7 @@ final class CockpitStepRecord {
     this.commandType,
     this.locator,
     this.locatorResolution,
+    this.commandError,
     this.durationMs,
     this.status,
     this.targetKind,
@@ -52,6 +54,7 @@ final class CockpitStepRecord {
   final CockpitCommandType? commandType;
   final CockpitLocator? locator;
   final CockpitLocatorResolution? locatorResolution;
+  final CockpitCommandError? commandError;
   final int? durationMs;
   final CockpitCommandStatus? status;
   final CockpitTargetKind? targetKind;
@@ -84,6 +87,7 @@ final class CockpitStepRecord {
     if (locator != null) 'locator': locator!.toJson(),
     if (locatorResolution != null)
       'locatorResolution': locatorResolution!.toJson(),
+    if (commandError != null) 'commandError': commandError!.toJson(),
     if (durationMs != null) 'durationMs': durationMs,
     if (status != null) 'status': status!.name,
     if (targetKind != null) 'targetKind': targetKind!.name,
@@ -119,6 +123,7 @@ final class CockpitStepRecord {
     final locatorJson = json['locator'] as Map<Object?, Object?>?;
     final locatorResolutionJson =
         json['locatorResolution'] as Map<Object?, Object?>?;
+    final commandErrorJson = json['commandError'] as Map<Object?, Object?>?;
     final captureRefs =
         (json['captureRefs'] as List<Object?>? ?? const <Object?>[])
             .cast<Map<Object?, Object?>>()
@@ -152,6 +157,11 @@ final class CockpitStepRecord {
           ? null
           : CockpitLocatorResolution.fromJson(
               Map<String, Object?>.from(locatorResolutionJson),
+            ),
+      commandError: commandErrorJson == null
+          ? null
+          : CockpitCommandError.fromJson(
+              Map<String, Object?>.from(commandErrorJson),
             ),
       durationMs: json['durationMs'] as int?,
       status: json['status'] == null
@@ -196,6 +206,7 @@ final class CockpitStepRecord {
             other.commandType == commandType &&
             other.locator == locator &&
             other.locatorResolution == locatorResolution &&
+            other.commandError == commandError &&
             other.durationMs == durationMs &&
             other.status == status &&
             other.targetKind == targetKind &&
@@ -222,6 +233,7 @@ final class CockpitStepRecord {
     commandType,
     locator,
     locatorResolution,
+    commandError,
     durationMs,
     status,
     targetKind,

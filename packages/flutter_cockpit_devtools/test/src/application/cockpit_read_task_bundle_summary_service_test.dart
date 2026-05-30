@@ -1817,6 +1817,13 @@ void main() {
           'deliveryVideoAttachmentRefInvalid',
         ]),
       );
+      expect(
+        result.issueEvidence['artifactIssues'],
+        containsAll(<Object?>[
+          containsPair('code', 'deliveryAttachmentRefInvalid'),
+          containsPair('code', 'deliveryVideoAttachmentRefInvalid'),
+        ]),
+      );
     },
   );
 
@@ -1924,6 +1931,623 @@ void main() {
           'manifestArtifactRefInvalid',
           'manifestArtifactMissing',
         ]),
+      );
+      expect(
+        result.issueEvidence['artifactIssues'],
+        containsAll(<Object?>[
+          containsPair('code', 'manifestArtifactRefInvalid'),
+          containsPair('code', 'manifestArtifactMissing'),
+        ]),
+      );
+    },
+  );
+
+  test(
+    'read bundle summary returns compact issue evidence for failed bundles',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_read_task_bundle_issue_evidence',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final bundleDir = Directory(p.join(tempDir.path, 'bundle'));
+      await Directory(
+        p.join(bundleDir.path, 'screenshots'),
+      ).create(recursive: true);
+      await Directory(
+        p.join(bundleDir.path, 'recordings'),
+      ).create(recursive: true);
+      await Directory(
+        p.join(bundleDir.path, 'diagnostics'),
+      ).create(recursive: true);
+      await File(
+        p.join(bundleDir.path, 'screenshots', 'after_tap.png'),
+      ).writeAsBytes(const <int>[137, 80, 78, 71]);
+      await File(
+        p.join(bundleDir.path, 'diagnostics', 'step_000_open_editor.json'),
+      ).writeAsString(
+        jsonEncode(<String, Object?>{
+          'routeName': '/inbox',
+          'diagnosticLevel': 'forensic',
+          'truncated': true,
+          'visibleTargets': <Object?>[
+            <String, Object?>{
+              'registrationId': 'open-editor',
+              'text': 'New task',
+              'semanticId': 'open.task',
+              'typeName': 'TextButton',
+              'routeName': '/inbox',
+              'supportedCommands': <String>['tap'],
+            },
+          ],
+          'summary': <String, Object?>{
+            'visibleTargetCount': 1,
+            'targetsWithCockpitIdCount': 0,
+            'targetsWithTextCount': 1,
+            'styleDetailsIncluded': false,
+            'diagnosticPropertiesIncluded': false,
+            'ancestorSummariesIncluded': false,
+            'rebuildSummaryIncluded': false,
+            'accessibilitySummaryIncluded': false,
+          },
+          'network': <String, Object?>{
+            'totalEntryCount': 1,
+            'failureCount': 1,
+            'capturedEntryCount': 1,
+            'truncated': false,
+            'entries': <Object?>[
+              CockpitNetworkEntry(
+                requestId: 'net-save',
+                method: 'POST',
+                uri: 'https://api.example.dev/tasks',
+                startedAt: DateTime.utc(2026, 5, 30, 1, 2),
+                durationMs: 480,
+                statusCode: 500,
+                error: 'serverError',
+              ).toJson(),
+            ],
+          },
+          'runtime': <String, Object?>{
+            'totalEntryCount': 1,
+            'errorCount': 1,
+            'warningCount': 0,
+            'capturedEntryCount': 1,
+            'truncated': false,
+            'entries': <Object?>[
+              CockpitRuntimeEvent(
+                eventId: 'runtime-route',
+                kind: CockpitRuntimeEventKind.flutterError,
+                severity: CockpitRuntimeEventSeverity.error,
+                message: 'Navigator push failed',
+                recordedAt: DateTime.utc(2026, 5, 30, 1, 3),
+                routeName: '/inbox',
+              ).toJson(),
+            ],
+          },
+        }),
+      );
+      await File(p.join(bundleDir.path, 'manifest.json')).writeAsString(
+        jsonEncode(
+          CockpitRunManifest(
+            sessionId: 'issue-session',
+            taskId: 'issue-task',
+            platform: 'macos',
+            status: CockpitTaskStatus.failed,
+            startedAt: DateTime.utc(2026, 5, 30, 1),
+            finishedAt: DateTime.utc(2026, 5, 30, 1, 4),
+            artifactRefs: const <CockpitArtifactRef>[
+              CockpitArtifactRef(
+                role: 'screenshot',
+                relativePath: 'screenshots/after_tap.png',
+              ),
+              CockpitArtifactRef(
+                role: 'diagnostics',
+                relativePath: 'diagnostics/step_000_open_editor.json',
+              ),
+            ],
+            failureSummary: 'Expected route /editor was not reached.',
+            commandCount: 1,
+            screenshotCount: 1,
+            failureCount: 1,
+            runtimeEventCount: 1,
+            runtimeErrorCount: 1,
+            deliveryArtifactsReady: true,
+          ).toJson(),
+        ),
+      );
+      await File(p.join(bundleDir.path, 'handoff.json')).writeAsString(
+        jsonEncode(<String, Object?>{
+          'status': 'failed',
+          'failureSummary': 'Expected route /editor was not reached.',
+          'runtimeErrorCount': 1,
+          'gates': <String, Object?>{
+            'targetReachable': true,
+            'postconditionsSatisfied': false,
+            'logsCollected': true,
+          },
+          'gateFailureCodes': <String, Object?>{
+            'postconditionsSatisfied': <String>['taskFailed'],
+          },
+        }),
+      );
+      await File(p.join(bundleDir.path, 'delivery.json')).writeAsString(
+        jsonEncode(<String, Object?>{
+          'primaryScreenshotRef': 'screenshots/after_tap.png',
+          'attachmentRefs': <String>['screenshots/after_tap.png'],
+          'deliveryArtifactsReady': true,
+        }),
+      );
+      await File(
+        p.join(bundleDir.path, 'acceptance.md'),
+      ).writeAsString('# Acceptance\n\n- Status: failed\n');
+      await File(p.join(bundleDir.path, 'steps.json')).writeAsString(
+        jsonEncode(<Object?>[
+          CockpitStepRecord(
+            index: 0,
+            actionType: 'tap',
+            actionArgs: const <String, Object?>{
+              'commandId': 'open-editor',
+              'expectedRouteName': '/editor',
+            },
+            observedAt: DateTime.utc(2026, 5, 30, 1, 2),
+            artifactRefs: const <CockpitArtifactRef>[
+              CockpitArtifactRef(
+                role: 'screenshot',
+                relativePath: 'screenshots/after_tap.png',
+              ),
+              CockpitArtifactRef(
+                role: 'diagnostics',
+                relativePath: 'diagnostics/step_000_open_editor.json',
+              ),
+            ],
+            commandType: CockpitCommandType.tap,
+            locator: const CockpitLocator(
+              key: 'open-task-editor-action',
+              text: 'New task',
+              route: '/inbox',
+            ),
+            durationMs: 1250,
+            status: CockpitCommandStatus.failed,
+            commandError: CockpitCommandError.timeout(
+              message: 'Expected route /editor was not reached.',
+              details: const <String, Object?>{
+                'failureDiagnostics': <String, Object?>{
+                  'schemaVersion': 1,
+                  'platform': 'macos',
+                  'commandId': 'open-editor',
+                  'commandType': 'tap',
+                  'expectedRouteName': '/editor',
+                  'routeName': '/inbox',
+                  'routeChanged': false,
+                  'uiFingerprintChanged': false,
+                  'attemptedActivation': 'direct',
+                  'resolvedTarget': <String, Object?>{
+                    'registrationId': 'open-editor',
+                    'text': 'New task',
+                    'hasDirectTap': true,
+                    'hasGestureGeometry': true,
+                  },
+                },
+              },
+            ),
+            snapshot: CockpitSnapshot(
+              routeName: '/inbox',
+              diagnosticLevel: CockpitSnapshotProfile.forensic,
+              truncated: true,
+              diagnosticsArtifactRef: const CockpitArtifactRef(
+                role: 'diagnostics',
+                relativePath: 'diagnostics/step_000_open_editor.json',
+              ),
+              network: CockpitNetworkSnapshot(
+                totalEntryCount: 1,
+                failureCount: 1,
+                capturedEntryCount: 1,
+                entries: <CockpitNetworkEntry>[
+                  CockpitNetworkEntry(
+                    requestId: 'net-save',
+                    method: 'POST',
+                    uri: 'https://api.example.dev/tasks',
+                    startedAt: DateTime.utc(2026, 5, 30, 1, 2),
+                    durationMs: 480,
+                    statusCode: 500,
+                    error: 'serverError',
+                  ),
+                ],
+              ),
+              runtime: CockpitRuntimeSnapshot(
+                totalEntryCount: 1,
+                errorCount: 1,
+                warningCount: 0,
+                capturedEntryCount: 1,
+                entries: <CockpitRuntimeEvent>[
+                  CockpitRuntimeEvent(
+                    eventId: 'runtime-route',
+                    kind: CockpitRuntimeEventKind.flutterError,
+                    severity: CockpitRuntimeEventSeverity.error,
+                    message: 'Navigator push failed',
+                    recordedAt: DateTime.utc(2026, 5, 30, 1, 3),
+                    routeName: '/inbox',
+                  ),
+                ],
+              ),
+            ),
+          ).toJson(),
+        ]),
+      );
+      await File(p.join(bundleDir.path, 'observations.json')).writeAsString(
+        jsonEncode(<Object?>[
+          CockpitObservation(
+            routeName: '/inbox',
+            phase: CockpitObservationPhase.failure,
+            diagnosticLevel: CockpitSnapshotProfile.forensic,
+            truncated: true,
+            diagnosticsArtifactRef: const CockpitArtifactRef(
+              role: 'diagnostics',
+              relativePath: 'diagnostics/step_000_open_editor.json',
+            ),
+          ).toJson(),
+        ]),
+      );
+
+      final service = CockpitReadTaskBundleSummaryService();
+      final result = await service.read(
+        CockpitReadTaskBundleSummaryRequest(bundleDir: bundleDir.path),
+      );
+
+      final issueEvidence = result.issueEvidence;
+      expect(issueEvidence['schemaVersion'], 1);
+      expect(issueEvidence['status'], 'failed');
+      expect(issueEvidence['failureSummary'], contains('/editor'));
+      expect(issueEvidence['bundleDir'], bundleDir.path);
+      expect(issueEvidence['recommendedNextStep'], 'inspect_issue_evidence');
+
+      final failedCommands = issueEvidence['failedCommands'] as List<Object?>;
+      expect(failedCommands, hasLength(1));
+      final failedCommand = failedCommands.single as Map<Object?, Object?>;
+      expect(failedCommand['commandId'], 'open-editor');
+      expect(failedCommand['commandType'], 'tap');
+      expect(failedCommand['routeName'], '/inbox');
+      expect(failedCommand['expectedRouteName'], '/editor');
+      expect(failedCommand['errorCode'], 'timeout');
+      expect(failedCommand['failureDiagnostics'], isA<Map>());
+      expect(
+        failedCommand['artifactRefs'],
+        contains('screenshots/after_tap.png'),
+      );
+      expect(
+        failedCommand['diagnosticsArtifactPath'],
+        p.join(bundleDir.path, 'diagnostics', 'step_000_open_editor.json'),
+      );
+
+      final runtimeIssues = issueEvidence['runtimeIssues'] as List<Object?>;
+      expect(runtimeIssues, hasLength(1));
+      expect(
+        runtimeIssues.single,
+        containsPair('message', 'Navigator push failed'),
+      );
+
+      final networkIssues = issueEvidence['networkIssues'] as List<Object?>;
+      expect(networkIssues, hasLength(1));
+      expect(networkIssues.single, containsPair('statusCode', 500));
+
+      final evidencePaths =
+          issueEvidence['evidencePaths'] as Map<Object?, Object?>;
+      expect(
+        evidencePaths['primaryScreenshotPath'],
+        p.join(bundleDir.path, 'screenshots', 'after_tap.png'),
+      );
+      expect(evidencePaths['diagnosticsArtifactPaths'], <String>[
+        p.join(bundleDir.path, 'diagnostics', 'step_000_open_editor.json'),
+      ]);
+    },
+  );
+
+  test(
+    'read bundle summary keeps issue evidence when diagnostics artifacts are corrupt',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_read_task_bundle_corrupt_diagnostics',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final bundleDir = Directory(p.join(tempDir.path, 'bundle'));
+      await Directory(
+        p.join(bundleDir.path, 'screenshots'),
+      ).create(recursive: true);
+      await Directory(
+        p.join(bundleDir.path, 'recordings'),
+      ).create(recursive: true);
+      await Directory(
+        p.join(bundleDir.path, 'diagnostics'),
+      ).create(recursive: true);
+      await File(
+        p.join(bundleDir.path, 'screenshots', 'failure.png'),
+      ).writeAsBytes(const <int>[137, 80, 78, 71]);
+      await File(
+        p.join(bundleDir.path, 'diagnostics', 'failure_snapshot.json'),
+      ).writeAsString('{not-json');
+      await File(p.join(bundleDir.path, 'manifest.json')).writeAsString(
+        jsonEncode(
+          CockpitRunManifest(
+            sessionId: 'corrupt-diagnostics-session',
+            taskId: 'corrupt-diagnostics-task',
+            platform: 'macos',
+            status: CockpitTaskStatus.failed,
+            startedAt: DateTime.utc(2026, 5, 30, 2),
+            finishedAt: DateTime.utc(2026, 5, 30, 2, 1),
+            artifactRefs: const <CockpitArtifactRef>[
+              CockpitArtifactRef(
+                role: 'screenshot',
+                relativePath: 'screenshots/failure.png',
+              ),
+              CockpitArtifactRef(
+                role: 'diagnostics',
+                relativePath: 'diagnostics/failure_snapshot.json',
+              ),
+            ],
+            failureSummary: 'Command open-editor failed.',
+            commandCount: 1,
+            screenshotCount: 1,
+            failureCount: 1,
+            deliveryArtifactsReady: true,
+          ).toJson(),
+        ),
+      );
+      await File(p.join(bundleDir.path, 'handoff.json')).writeAsString(
+        jsonEncode(<String, Object?>{
+          'status': 'failed',
+          'failureSummary': 'Command open-editor failed.',
+        }),
+      );
+      await File(p.join(bundleDir.path, 'delivery.json')).writeAsString(
+        jsonEncode(<String, Object?>{
+          'primaryScreenshotRef': 'screenshots/failure.png',
+          'attachmentRefs': <String>['screenshots/failure.png'],
+          'deliveryArtifactsReady': true,
+        }),
+      );
+      await File(
+        p.join(bundleDir.path, 'acceptance.md'),
+      ).writeAsString('# Acceptance\n\n- Status: failed\n');
+      await File(p.join(bundleDir.path, 'steps.json')).writeAsString(
+        jsonEncode(<Object?>[
+          CockpitStepRecord(
+            index: 0,
+            actionType: 'tap',
+            actionArgs: const <String, Object?>{'commandId': 'open-editor'},
+            observedAt: DateTime.utc(2026, 5, 30, 2),
+            artifactRefs: const <CockpitArtifactRef>[
+              CockpitArtifactRef(
+                role: 'screenshot',
+                relativePath: 'screenshots/failure.png',
+              ),
+              CockpitArtifactRef(
+                role: 'diagnostics',
+                relativePath: 'diagnostics/failure_snapshot.json',
+              ),
+            ],
+            commandType: CockpitCommandType.tap,
+            durationMs: 1000,
+            status: CockpitCommandStatus.failed,
+            commandError: CockpitCommandError.timeout(
+              message: 'Command open-editor failed.',
+              details: const <String, Object?>{
+                'failureDiagnostics': <String, Object?>{
+                  'schemaVersion': 1,
+                  'commandId': 'open-editor',
+                  'commandType': 'tap',
+                  'routeName': '/inbox',
+                },
+              },
+            ),
+            snapshot: CockpitSnapshot(
+              routeName: '/inbox',
+              diagnosticLevel: CockpitSnapshotProfile.forensic,
+              truncated: true,
+              diagnosticsArtifactRef: const CockpitArtifactRef(
+                role: 'diagnostics',
+                relativePath: 'diagnostics/failure_snapshot.json',
+              ),
+            ),
+          ).toJson(),
+        ]),
+      );
+      await File(p.join(bundleDir.path, 'observations.json')).writeAsString(
+        jsonEncode(<Object?>[
+          CockpitObservation(
+            routeName: '/inbox',
+            phase: CockpitObservationPhase.failure,
+            diagnosticLevel: CockpitSnapshotProfile.forensic,
+            truncated: true,
+            diagnosticsArtifactRef: const CockpitArtifactRef(
+              role: 'diagnostics',
+              relativePath: 'diagnostics/failure_snapshot.json',
+            ),
+          ).toJson(),
+        ]),
+      );
+
+      final result = await const CockpitReadTaskBundleSummaryService().read(
+        CockpitReadTaskBundleSummaryRequest(bundleDir: bundleDir.path),
+      );
+
+      expect(
+        result.issueEvidence['recommendedNextStep'],
+        'inspect_issue_evidence',
+      );
+      final artifactIssues =
+          result.issueEvidence['artifactIssues'] as List<Object?>;
+      expect(
+        artifactIssues,
+        contains(
+          allOf(
+            containsPair('code', 'diagnosticsArtifactUnreadable'),
+            containsPair(
+              'path',
+              p.join(bundleDir.path, 'diagnostics', 'failure_snapshot.json'),
+            ),
+          ),
+        ),
+      );
+    },
+  );
+
+  test(
+    'read bundle summary keeps issue evidence when diagnostics artifacts are invalid snapshots',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_read_task_bundle_invalid_diagnostics_snapshot',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final bundleDir = Directory(p.join(tempDir.path, 'bundle'));
+      await Directory(
+        p.join(bundleDir.path, 'screenshots'),
+      ).create(recursive: true);
+      await Directory(
+        p.join(bundleDir.path, 'recordings'),
+      ).create(recursive: true);
+      await Directory(
+        p.join(bundleDir.path, 'diagnostics'),
+      ).create(recursive: true);
+      await File(
+        p.join(bundleDir.path, 'screenshots', 'failure.png'),
+      ).writeAsBytes(const <int>[137, 80, 78, 71]);
+      await File(
+        p.join(bundleDir.path, 'diagnostics', 'failure_snapshot.json'),
+      ).writeAsString(
+        jsonEncode(<String, Object?>{
+          'routeName': '/inbox',
+          'diagnosticLevel': 'unsupported-profile',
+          'visibleTargets': <Object?>[],
+        }),
+      );
+      await File(p.join(bundleDir.path, 'manifest.json')).writeAsString(
+        jsonEncode(
+          CockpitRunManifest(
+            sessionId: 'invalid-diagnostics-session',
+            taskId: 'invalid-diagnostics-task',
+            platform: 'macos',
+            status: CockpitTaskStatus.failed,
+            startedAt: DateTime.utc(2026, 5, 30, 3),
+            finishedAt: DateTime.utc(2026, 5, 30, 3, 1),
+            artifactRefs: const <CockpitArtifactRef>[
+              CockpitArtifactRef(
+                role: 'screenshot',
+                relativePath: 'screenshots/failure.png',
+              ),
+              CockpitArtifactRef(
+                role: 'diagnostics',
+                relativePath: 'diagnostics/failure_snapshot.json',
+              ),
+            ],
+            failureSummary: 'Command open-editor failed.',
+            commandCount: 1,
+            screenshotCount: 1,
+            failureCount: 1,
+            deliveryArtifactsReady: true,
+          ).toJson(),
+        ),
+      );
+      await File(p.join(bundleDir.path, 'handoff.json')).writeAsString(
+        jsonEncode(<String, Object?>{
+          'status': 'failed',
+          'failureSummary': 'Command open-editor failed.',
+        }),
+      );
+      await File(p.join(bundleDir.path, 'delivery.json')).writeAsString(
+        jsonEncode(<String, Object?>{
+          'primaryScreenshotRef': 'screenshots/failure.png',
+          'attachmentRefs': <String>['screenshots/failure.png'],
+          'deliveryArtifactsReady': true,
+        }),
+      );
+      await File(
+        p.join(bundleDir.path, 'acceptance.md'),
+      ).writeAsString('# Acceptance\n\n- Status: failed\n');
+      await File(p.join(bundleDir.path, 'steps.json')).writeAsString(
+        jsonEncode(<Object?>[
+          CockpitStepRecord(
+            index: 0,
+            actionType: 'tap',
+            actionArgs: const <String, Object?>{'commandId': 'open-editor'},
+            observedAt: DateTime.utc(2026, 5, 30, 3),
+            artifactRefs: const <CockpitArtifactRef>[
+              CockpitArtifactRef(
+                role: 'diagnostics',
+                relativePath: 'diagnostics/failure_snapshot.json',
+              ),
+            ],
+            commandType: CockpitCommandType.tap,
+            durationMs: 1000,
+            status: CockpitCommandStatus.failed,
+            commandError: CockpitCommandError.timeout(
+              message: 'Command open-editor failed.',
+              details: const <String, Object?>{
+                'failureDiagnostics': <String, Object?>{
+                  'schemaVersion': 1,
+                  'commandId': 'open-editor',
+                  'commandType': 'tap',
+                  'routeName': '/inbox',
+                },
+              },
+            ),
+            snapshot: CockpitSnapshot(
+              routeName: '/inbox',
+              diagnosticLevel: CockpitSnapshotProfile.forensic,
+              truncated: true,
+              diagnosticsArtifactRef: const CockpitArtifactRef(
+                role: 'diagnostics',
+                relativePath: 'diagnostics/failure_snapshot.json',
+              ),
+            ),
+          ).toJson(),
+        ]),
+      );
+      await File(p.join(bundleDir.path, 'observations.json')).writeAsString(
+        jsonEncode(<Object?>[
+          CockpitObservation(
+            routeName: '/inbox',
+            phase: CockpitObservationPhase.failure,
+            diagnosticLevel: CockpitSnapshotProfile.forensic,
+            truncated: true,
+            diagnosticsArtifactRef: const CockpitArtifactRef(
+              role: 'diagnostics',
+              relativePath: 'diagnostics/failure_snapshot.json',
+            ),
+          ).toJson(),
+        ]),
+      );
+
+      final result = await const CockpitReadTaskBundleSummaryService().read(
+        CockpitReadTaskBundleSummaryRequest(bundleDir: bundleDir.path),
+      );
+
+      final artifactIssues =
+          result.issueEvidence['artifactIssues'] as List<Object?>;
+      expect(
+        artifactIssues,
+        contains(
+          allOf(
+            containsPair('code', 'diagnosticsArtifactUnreadable'),
+            containsPair(
+              'path',
+              p.join(bundleDir.path, 'diagnostics', 'failure_snapshot.json'),
+            ),
+          ),
+        ),
       );
     },
   );

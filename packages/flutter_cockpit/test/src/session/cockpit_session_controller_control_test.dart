@@ -155,6 +155,79 @@ void main() {
     expect(bundle.manifest.failureCount, 1);
   });
 
+  test('recordCommandResult preserves command error diagnostics in steps', () {
+    final timestamps = <DateTime>[
+      DateTime.utc(2026, 5, 30, 9, 10, 0),
+      DateTime.utc(2026, 5, 30, 9, 10, 1),
+      DateTime.utc(2026, 5, 30, 9, 10, 2),
+    ].iterator;
+
+    DateTime nextTimestamp() {
+      final didMove = timestamps.moveNext();
+      if (!didMove) {
+        throw StateError('No more timestamps available.');
+      }
+      return timestamps.current;
+    }
+
+    final controller = CockpitSessionController(
+      sessionId: 'session-command-error',
+      taskId: 'task-command-error',
+      platform: 'macos',
+      now: nextTimestamp,
+    );
+    final command = CockpitCommand(
+      commandId: 'open-editor',
+      commandType: CockpitCommandType.tap,
+      locator: const CockpitLocator(key: 'open-task-editor-action'),
+      parameters: const <String, Object?>{'expectedRouteName': '/editor'},
+    );
+    final error = CockpitCommandError.timeout(
+      message: 'Expected route /editor was not reached.',
+      details: const <String, Object?>{
+        'failureDiagnostics': <String, Object?>{
+          'schemaVersion': 1,
+          'commandId': 'open-editor',
+          'commandType': 'tap',
+          'platform': 'macos',
+          'expectedRouteName': '/editor',
+          'routeName': '/inbox',
+          'routeChanged': false,
+          'uiFingerprintChanged': false,
+          'attemptedActivation': 'direct',
+        },
+      },
+    );
+    final result = CockpitCommandResult(
+      success: false,
+      commandId: 'open-editor',
+      commandType: CockpitCommandType.tap,
+      durationMs: 1250,
+      snapshot: const <String, Object?>{
+        'routeName': '/inbox',
+        'visibleTargets': <Object?>[],
+      },
+      error: error,
+    );
+
+    controller.recordCommandResult(command, result);
+
+    final bundle = controller.finishWithFailure(
+      environment: const CockpitEnvironment(
+        platform: 'macos',
+        flutterVersion: '3.32.0',
+        dartVersion: '3.8.0',
+      ),
+      failureSummary: 'Expected route /editor was not reached.',
+    );
+
+    expect(bundle.steps.single.commandError, error);
+    final stepJson = bundle.steps.single.toJson();
+    expect(stepJson['commandError'], error.toJson());
+    final restoredStep = CockpitStepRecord.fromJson(stepJson);
+    expect(restoredStep.commandError, error);
+  });
+
   test(
     'recordCommandResult assigns diagnostics artifacts for forensic snapshots',
     () {

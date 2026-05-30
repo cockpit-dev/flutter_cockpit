@@ -9,6 +9,7 @@ import '../control/cockpit_command_result.dart';
 import '../control/cockpit_command_type.dart';
 import '../control/cockpit_locator.dart';
 import '../control/cockpit_locator_resolution.dart';
+import '../errors/cockpit_command_error.dart';
 import '../model/cockpit_artifact_ref.dart';
 import '../model/cockpit_environment.dart';
 import '../model/cockpit_observation.dart';
@@ -55,6 +56,7 @@ final class CockpitSessionController {
     CockpitCommandType? commandType,
     CockpitLocator? locator,
     CockpitLocatorResolution? locatorResolution,
+    CockpitCommandError? commandError,
     int? durationMs,
     CockpitCommandStatus? status,
     CockpitCaptureProfile? requestedCaptureProfile,
@@ -73,6 +75,7 @@ final class CockpitSessionController {
       commandType: commandType,
       locator: locator,
       locatorResolution: locatorResolution,
+      commandError: commandError,
       durationMs: durationMs,
       status: status,
       requestedCaptureProfile: requestedCaptureProfile,

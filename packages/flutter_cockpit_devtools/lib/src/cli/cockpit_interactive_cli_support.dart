@@ -813,6 +813,15 @@ String cockpitRenderAiPayload({
     }
   }
 
+  final bundleLines = _aiBundleLines(decoded);
+  if (bundleLines.isNotEmpty) {
+    buffer.writeln();
+    buffer.writeln('bundle');
+    for (final line in bundleLines) {
+      buffer.writeln('  $line');
+    }
+  }
+
   final refLines = _aiRefLines(decoded);
   if (refLines.isNotEmpty) {
     buffer.writeln();
@@ -978,6 +987,17 @@ List<String> _aiIssueLines(Object? value) {
     return const <String>[];
   }
   final lines = <String>[];
+  final issueEvidence = _readMap(value, 'issueEvidence');
+  if (issueEvidence != null) {
+    _addIssueEvidenceLines(lines, issueEvidence);
+  }
+  final bundleIssueEvidence = _readNestedMap(value, const <String>[
+    'bundleSummary',
+    'issueEvidence',
+  ]);
+  if (bundleIssueEvidence != null && bundleIssueEvidence != issueEvidence) {
+    _addIssueEvidenceLines(lines, bundleIssueEvidence);
+  }
   final command = _readMap(value, 'command');
   final error = _readMap(value, 'error') ?? _readMap(command, 'error');
   if (error != null) {
@@ -1009,6 +1029,99 @@ List<String> _aiIssueLines(Object? value) {
     lines.add('lastError=${_formatAiScalar(lastError)}');
   }
   return lines;
+}
+
+void _addIssueEvidenceLines(
+  List<String> lines,
+  Map<Object?, Object?> issueEvidence,
+) {
+  final issueKinds = _readList(issueEvidence, 'issueKinds');
+  final failureSummary = _readString(issueEvidence, 'failureSummary');
+  final recommendedNextStep = _readString(issueEvidence, 'recommendedNextStep');
+  lines.add(
+    'issueEvidence status=${_readString(issueEvidence, 'status') ?? '?'} kinds=${_joinPreviewList(issueKinds) ?? '-'} next=${recommendedNextStep ?? '-'}',
+  );
+  if (failureSummary != null) {
+    lines.add('failureSummary=${_formatAiScalar(failureSummary)}');
+  }
+
+  final failedCommands = _readList(issueEvidence, 'failedCommands');
+  if (failedCommands != null) {
+    for (var index = 0; index < failedCommands.length && index < 3; index++) {
+      final failedCommand = failedCommands[index];
+      if (failedCommand is Map<Object?, Object?>) {
+        lines.add(
+          'failedCommand[$index] ${_compactInlineMap(failedCommand, preferredKeys: const <String>['commandId', 'commandType', 'errorCode', 'routeName', 'expectedRouteName', 'durationMs', 'diagnosticsArtifactPath'])}',
+        );
+      }
+    }
+  }
+
+  final runtimeIssues = _readList(issueEvidence, 'runtimeIssues');
+  if (runtimeIssues != null) {
+    for (var index = 0; index < runtimeIssues.length && index < 2; index++) {
+      final runtimeIssue = runtimeIssues[index];
+      if (runtimeIssue is Map<Object?, Object?>) {
+        lines.add(
+          'runtimeIssue[$index] ${_compactInlineMap(runtimeIssue, preferredKeys: const <String>['kind', 'severity', 'message', 'routeName'])}',
+        );
+      }
+    }
+  }
+
+  final networkIssues = _readList(issueEvidence, 'networkIssues');
+  if (networkIssues != null) {
+    for (var index = 0; index < networkIssues.length && index < 2; index++) {
+      final networkIssue = networkIssues[index];
+      if (networkIssue is Map<Object?, Object?>) {
+        lines.add(
+          'networkIssue[$index] ${_compactInlineMap(networkIssue, preferredKeys: const <String>['method', 'uri', 'statusCode', 'error', 'durationMs'])}',
+        );
+      }
+    }
+  }
+
+  final artifactIssues = _readList(issueEvidence, 'artifactIssues');
+  if (artifactIssues != null) {
+    for (var index = 0; index < artifactIssues.length && index < 2; index++) {
+      final artifactIssue = artifactIssues[index];
+      if (artifactIssue is Map<Object?, Object?>) {
+        lines.add(
+          'artifactIssue[$index] ${_compactInlineMap(artifactIssue, preferredKeys: const <String>['code', 'path'])}',
+        );
+      }
+    }
+  }
+
+  final gateFailures = _readList(issueEvidence, 'gateFailures');
+  if (gateFailures != null) {
+    for (var index = 0; index < gateFailures.length && index < 2; index++) {
+      final gateFailure = gateFailures[index];
+      if (gateFailure is Map<Object?, Object?>) {
+        lines.add(
+          'gateFailure[$index] ${_compactInlineMap(gateFailure, preferredKeys: const <String>['gate', 'failureCodes'])}',
+        );
+      }
+    }
+  }
+
+  final evidencePaths = _readMap(issueEvidence, 'evidencePaths');
+  if (evidencePaths != null) {
+    final primaryScreenshotPath = _readString(
+      evidencePaths,
+      'primaryScreenshotPath',
+    );
+    final diagnosticsArtifactPaths = _readList(
+      evidencePaths,
+      'diagnosticsArtifactPaths',
+    );
+    if (primaryScreenshotPath != null ||
+        (diagnosticsArtifactPaths?.isNotEmpty ?? false)) {
+      lines.add(
+        'evidencePaths screenshot=${primaryScreenshotPath ?? '-'} diagnostics=${_joinPreviewList(diagnosticsArtifactPaths) ?? '-'}',
+      );
+    }
+  }
 }
 
 List<String> _aiArtifactLines(Object? value) {
@@ -1058,6 +1171,94 @@ List<String> _aiArtifactLines(Object? value) {
       ),
     );
   }
+  return lines;
+}
+
+List<String> _aiBundleLines(Object? value) {
+  if (value is! Map<Object?, Object?>) {
+    return const <String>[];
+  }
+  final bundleSummary = _readMap(value, 'bundleSummary');
+  if (bundleSummary == null) {
+    return const <String>[];
+  }
+  final lines = <String>[];
+  final manifest = _readMap(bundleSummary, 'manifest');
+  final evidenceSummary = _readMap(bundleSummary, 'evidenceSummary');
+  final artifactPaths = _readMap(bundleSummary, 'artifactPaths');
+  final evidence = _readMap(bundleSummary, 'evidence');
+  final gateSummary = _readMap(bundleSummary, 'gateSummary');
+
+  final summaryParts = <String>[];
+  _addInlinePart(summaryParts, 'dir', _readString(bundleSummary, 'bundleDir'));
+  _addInlinePart(summaryParts, 'sessionId', _readString(manifest, 'sessionId'));
+  _addInlinePart(summaryParts, 'taskId', _readString(manifest, 'taskId'));
+  _addInlinePart(summaryParts, 'platform', _readString(manifest, 'platform'));
+  _addInlinePart(summaryParts, 'status', _readString(manifest, 'status'));
+  if (summaryParts.isNotEmpty) {
+    lines.add('bundle ${summaryParts.join(' ')}');
+  }
+
+  final countParts = <String>[];
+  _addInlinePart(
+    countParts,
+    'commands',
+    _readNullableNumber(evidenceSummary, 'commandCount'),
+  );
+  _addInlinePart(
+    countParts,
+    'failures',
+    _readNullableNumber(evidenceSummary, 'failureCount'),
+  );
+  _addInlinePart(
+    countParts,
+    'screenshots',
+    _readNullableNumber(evidenceSummary, 'screenshotCount'),
+  );
+  _addInlinePart(
+    countParts,
+    'recordings',
+    _readNullableNumber(evidenceSummary, 'recordingCount'),
+  );
+  _addInlinePart(
+    countParts,
+    'keyframes',
+    _readNullableNumber(evidenceSummary, 'keyframeCount'),
+  );
+  if (countParts.isNotEmpty) {
+    lines.add('counts ${countParts.join(' ')}');
+  }
+
+  final pathParts = <String>[];
+  _addInlinePart(
+    pathParts,
+    'primaryScreenshot',
+    _readString(artifactPaths, 'primaryScreenshotPath') ??
+        _readString(evidence, 'primaryScreenshotPath'),
+  );
+  _addInlinePart(
+    pathParts,
+    'primaryRecording',
+    _readString(artifactPaths, 'primaryRecordingPath') ??
+        _readString(evidence, 'primaryRecordingPath'),
+  );
+  if (pathParts.isNotEmpty) {
+    lines.add('paths ${pathParts.join(' ')}');
+  }
+
+  final gates = _readMap(gateSummary, 'gates');
+  if (gates != null) {
+    final failedGateNames = gates.entries
+        .where((entry) => entry.value == false)
+        .map((entry) => entry.key)
+        .whereType<String>()
+        .take(6)
+        .toList(growable: false);
+    if (failedGateNames.isNotEmpty) {
+      lines.add('failedGates=${failedGateNames.join('|')}');
+    }
+  }
+
   return lines;
 }
 
@@ -1115,6 +1316,7 @@ List<String> _aiRemainingLines(Object? value) {
     'failures',
     'errors',
     'lastError',
+    'issueEvidence',
     'artifacts',
     'artifactDownloads',
     'artifact',
@@ -1123,6 +1325,7 @@ List<String> _aiRemainingLines(Object? value) {
     'app',
     'sessionHandle',
     'snapshot',
+    'bundleSummary',
   };
   final lines = <String>[];
   for (final entry in value.entries) {
@@ -1156,6 +1359,13 @@ void _addKeyValue(List<String> lines, String key, Object? value) {
     return;
   }
   lines.add('$key=${_formatAiScalar(value)}');
+}
+
+void _addInlinePart(List<String> parts, String key, Object? value) {
+  if (_isEmptyAiValue(value)) {
+    return;
+  }
+  parts.add('$key=${_formatAiScalar(value)}');
 }
 
 bool _isEmptyAiValue(Object? value) {
@@ -1197,6 +1407,20 @@ List<Object?>? _readList(Map<Object?, Object?> map, String key) {
   return value is List<Object?> ? value : null;
 }
 
+Map<Object?, Object?>? _readNestedMap(
+  Map<Object?, Object?> map,
+  List<String> path,
+) {
+  Map<Object?, Object?>? cursor = map;
+  for (final key in path) {
+    if (cursor == null) {
+      return null;
+    }
+    cursor = _readMap(cursor, key);
+  }
+  return cursor;
+}
+
 String? _readString(Object? value, String key) {
   if (value is! Map<Object?, Object?>) {
     return null;
@@ -1216,6 +1440,13 @@ bool? _readBool(Map<Object?, Object?> map, String key) {
 num? _readNumber(Map<Object?, Object?> map, String key) {
   final value = map[key];
   return value is num ? value : null;
+}
+
+num? _readNullableNumber(Map<Object?, Object?>? map, String key) {
+  if (map == null) {
+    return null;
+  }
+  return _readNumber(map, key);
 }
 
 String? _joinPreviewList(List<Object?>? values) {

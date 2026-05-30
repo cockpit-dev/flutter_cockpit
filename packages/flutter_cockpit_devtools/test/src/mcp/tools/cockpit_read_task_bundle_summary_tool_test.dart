@@ -99,6 +99,17 @@ void main() {
               warningCount: 1,
               truncated: false,
             ),
+            issueEvidence: const <String, Object?>{
+              'schemaVersion': 1,
+              'status': 'failed',
+              'recommendedNextStep': 'inspect_issue_evidence',
+              'failedCommands': <Object?>[
+                <String, Object?>{
+                  'commandId': 'open-editor',
+                  'errorCode': 'timeout',
+                },
+              ],
+            },
           );
         },
       );
@@ -119,6 +130,13 @@ void main() {
         (structuredContent['runtimeSummary']
             as Map<String, Object?>)['errorCount'],
         1,
+      );
+      final issueEvidence =
+          structuredContent['issueEvidence'] as Map<String, Object?>;
+      expect(issueEvidence['recommendedNextStep'], 'inspect_issue_evidence');
+      expect(
+        (issueEvidence['failedCommands'] as List<Object?>).single,
+        containsPair('commandId', 'open-editor'),
       );
       expect(structuredContent['diagnosticsArtifactPaths'], <String>[
         p.join(bundleDir.path, 'diagnostics', 'acceptance_snapshot.json'),
