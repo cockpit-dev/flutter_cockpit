@@ -239,9 +239,12 @@ Future<CockpitRemoteSessionStatus> cockpitWaitForRemoteSessionReady({
   required Uri baseUri,
   required Duration timeout,
   required CockpitRemoteSessionStatusReader statusReader,
+  String? expectedSessionId,
+  String? expectedPlatform,
   Duration pollInterval = const Duration(milliseconds: 500),
 }) async {
   final deadline = DateTime.now().add(timeout);
+  String? lastRejectedStatus;
 
   while (true) {
     final remaining = deadline.difference(DateTime.now());
@@ -249,20 +252,52 @@ Future<CockpitRemoteSessionStatus> cockpitWaitForRemoteSessionReady({
       break;
     }
     try {
-      return await statusReader(baseUri).timeout(remaining);
-    } on Object {
-      final retryDelay = deadline.difference(DateTime.now());
-      if (retryDelay <= Duration.zero) {
-        break;
+      final status = await statusReader(baseUri).timeout(remaining);
+      if (_remoteSessionStatusMatches(
+        status,
+        expectedSessionId: expectedSessionId,
+        expectedPlatform: expectedPlatform,
+      )) {
+        return status;
       }
-      await Future<void>.delayed(
-        retryDelay < pollInterval ? retryDelay : pollInterval,
-      );
+      lastRejectedStatus =
+          'sessionId=${status.sessionId}, expectedSessionId=${expectedSessionId ?? ''}, '
+          'platform=${status.platform}, expectedPlatform=${expectedPlatform ?? ''}';
+    } on Object {
+      // Keep polling until the new app exposes its remote endpoint.
     }
+    final retryDelay = deadline.difference(DateTime.now());
+    if (retryDelay <= Duration.zero) {
+      break;
+    }
+    await Future<void>.delayed(
+      retryDelay < pollInterval ? retryDelay : pollInterval,
+    );
   }
 
   throw TimeoutException(
-    'Remote session did not become ready at $baseUri.',
+    'Remote session did not become ready at $baseUri'
+    '${lastRejectedStatus == null ? '' : ' (last rejected health: $lastRejectedStatus)'}.',
     timeout,
   );
+}
+
+bool _remoteSessionStatusMatches(
+  CockpitRemoteSessionStatus status, {
+  required String? expectedSessionId,
+  required String? expectedPlatform,
+}) {
+  final normalizedExpectedSessionId = expectedSessionId?.trim();
+  if (normalizedExpectedSessionId != null &&
+      normalizedExpectedSessionId.isNotEmpty &&
+      status.sessionId != normalizedExpectedSessionId) {
+    return false;
+  }
+  final normalizedExpectedPlatform = expectedPlatform?.trim().toLowerCase();
+  if (normalizedExpectedPlatform != null &&
+      normalizedExpectedPlatform.isNotEmpty &&
+      status.platform.trim().toLowerCase() != normalizedExpectedPlatform) {
+    return false;
+  }
+  return true;
 }

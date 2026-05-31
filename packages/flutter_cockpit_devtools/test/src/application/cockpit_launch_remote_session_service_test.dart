@@ -215,6 +215,7 @@ void main() {
     expect(versionExecutable, '/opt/flutter/bin/flutter');
     expect(capturedOptions?.flutterExecutable, '/opt/flutter/bin/flutter');
     expect(capturedOptions?.flutterVersion, '3.32.0');
+    expect(capturedOptions?.launchId, startsWith('remote-macos-'));
   });
 }
 

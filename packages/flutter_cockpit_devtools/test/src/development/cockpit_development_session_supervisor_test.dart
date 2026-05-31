@@ -521,9 +521,9 @@ void main() {
           target: 'lib/main.dart',
           appId: 'dev.cockpit.cockpit_demo',
           host: '127.0.0.1',
-          hostPort: 57331,
-          devicePort: 57331,
-          baseUrl: 'http://127.0.0.1:57331',
+          hostPort: 0,
+          devicePort: 0,
+          baseUrl: 'http://127.0.0.1:0',
           launchedAt: DateTime.utc(2026, 3, 23, 0, 0),
         ),
       );
@@ -535,6 +535,7 @@ void main() {
         initialHandle: harness.handle.copyWith(
           platform: 'web',
           deviceId: 'chrome',
+          appBaseUrl: 'http://127.0.0.1:0',
         ),
         machineClient: harness.client,
         remoteReachabilityProbe: (_) async {

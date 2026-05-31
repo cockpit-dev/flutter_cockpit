@@ -118,7 +118,7 @@ void main() {
                   ),
                 ],
               ),
-              artifactPayloads: <String, List<int>>{
+              artifactPayloads: const <String, List<int>>{
                 'screenshots/tap-save.png': <int>[137, 80, 78, 71],
               },
             );
@@ -422,7 +422,7 @@ void main() {
                   ),
                 ],
               ),
-              artifactPayloads: <String, List<int>>{
+              artifactPayloads: const <String, List<int>>{
                 'artifacts/after-tap.png': <int>[1, 2, 3, 4],
               },
             );
@@ -615,7 +615,7 @@ void main() {
                   ),
                 ],
               ),
-              artifactPayloads: <String, List<int>>{
+              artifactPayloads: const <String, List<int>>{
                 'screenshots/after-tap.png': <int>[137, 80, 78, 71],
               },
             );

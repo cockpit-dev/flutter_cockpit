@@ -612,7 +612,7 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
                 Text(
-                  'ORBIT TODO',
+                  'SUPER COCKPIT',
                   style: theme.textTheme.labelMedium?.copyWith(
                     color: colorScheme.onSurfaceVariant,
                     fontWeight: FontWeight.w800,

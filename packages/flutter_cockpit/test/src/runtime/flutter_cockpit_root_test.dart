@@ -573,6 +573,7 @@ void main() {
             autoStart: false,
             host: '127.0.0.1',
             port: 0,
+            launchId: 'launch-root-1',
           ),
         ),
       );
@@ -611,6 +612,7 @@ void main() {
           status.toJson()['environment'] as Map<String, Object?>?;
 
       expect(environmentJson, isNotNull);
+      expect(status.sessionId, 'launch-root-1');
       expect(environmentJson?['platform'], 'android');
       expect(environmentJson?['flutterVersion'], '3.38.9');
       expect(environmentJson?['dartVersion'], isA<String>());

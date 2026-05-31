@@ -9,6 +9,7 @@ final class CockpitRemoteSessionLaunchOptions {
     this.launchTimeout = const Duration(seconds: 120),
     this.flutterVersion,
     this.flutterExecutable,
+    this.launchId,
   });
 
   final String projectDir;
@@ -20,4 +21,5 @@ final class CockpitRemoteSessionLaunchOptions {
   final Duration launchTimeout;
   final String? flutterVersion;
   final String? flutterExecutable;
+  final String? launchId;
 }

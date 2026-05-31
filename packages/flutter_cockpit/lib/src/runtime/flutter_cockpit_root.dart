@@ -621,9 +621,17 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
     final baseCapabilities = await executor.describeCapabilities();
     final supportsNativeCapture = await FlutterCockpit.binding
         .queryNativeCaptureAvailability();
+    final configuredLaunchId = FlutterCockpit
+        .binding
+        .configuration
+        .remoteSession
+        ?.launchId
+        .trim();
+    final sessionId = configuredLaunchId == null || configuredLaunchId.isEmpty
+        ? 'cockpit-$remoteSessionPlatform-${remoteSessionBaseUri?.port ?? 0}'
+        : configuredLaunchId;
     return CockpitRemoteSessionStatus(
-      sessionId:
-          'cockpit-$remoteSessionPlatform-${remoteSessionBaseUri?.port ?? 0}',
+      sessionId: sessionId,
       platform: remoteSessionPlatform,
       transportType: 'remoteHttp',
       currentRouteName: currentRouteName,

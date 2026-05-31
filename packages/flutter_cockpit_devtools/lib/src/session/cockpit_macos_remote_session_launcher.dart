@@ -89,6 +89,8 @@ final class CockpitMacosRemoteSessionLauncher
         '--dart-define=FLUTTER_COCKPIT_REMOTE_ENABLED=true',
         '--dart-define=FLUTTER_COCKPIT_REMOTE_HOST=127.0.0.1',
         '--dart-define=FLUTTER_COCKPIT_REMOTE_PORT=${options.sessionPort}',
+        if (options.launchId case final launchId? when launchId.isNotEmpty)
+          '--dart-define=FLUTTER_COCKPIT_REMOTE_LAUNCH_ID=$launchId',
         '--dart-define=FLUTTER_COCKPIT_FLUTTER_VERSION=$flutterVersion',
       ],
       workingDirectory: options.projectDir,
@@ -115,6 +117,8 @@ final class CockpitMacosRemoteSessionLauncher
       baseUri: baseUri,
       timeout: _remaining(deadline),
       statusReader: _statusReader,
+      expectedSessionId: options.launchId,
+      expectedPlatform: options.platform,
     );
 
     return CockpitRemoteSessionHandle.fromRemoteStatus(

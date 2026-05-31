@@ -81,11 +81,11 @@ final class CaptureScreenshotCommand extends CockpitCliCommand {
 
   @override
   String get helpShape =>
-      'capture-screenshot --name <proof-name> --reason acceptance. Add --include-snapshot only when semantic state must travel with the image.';
+      'capture-screenshot --name <proof-name> --reason acceptance --profile inspect. Add --include-snapshot only when semantic state must travel with the image.';
 
   @override
   String get helpExample =>
-      'flutter_cockpit_devtools capture-screenshot --name acceptance --profile standard';
+      'flutter_cockpit_devtools capture-screenshot --name acceptance --profile inspect';
 
   @override
   String get helpWrites =>

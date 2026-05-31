@@ -89,7 +89,7 @@ final class _CockpitDemoAppState extends State<CockpitDemoApp> {
         return FlutterCockpitApp(
           config: widget.cockpitConfig,
           child: MaterialApp(
-            title: 'Orbit Todo',
+            title: 'Super Cockpit',
             navigatorKey: _navigatorKey,
             theme: _buildTheme(Brightness.light),
             darkTheme: _buildTheme(Brightness.dark),
@@ -97,7 +97,11 @@ final class _CockpitDemoAppState extends State<CockpitDemoApp> {
             navigatorObservers: <NavigatorObserver>[
               FlutterCockpit.navigatorObserver,
             ],
-            initialRoute: widget.initialRouteName,
+            onGenerateInitialRoutes: (initialRoute) {
+              return <Route<dynamic>>[
+                _buildRoute(RouteSettings(name: widget.initialRouteName)),
+              ];
+            },
             onGenerateRoute: _buildRoute,
           ),
         );

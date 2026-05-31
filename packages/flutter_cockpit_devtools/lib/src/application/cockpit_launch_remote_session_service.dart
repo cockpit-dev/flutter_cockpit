@@ -88,6 +88,7 @@ final class CockpitLaunchRemoteSessionService {
         launchTimeout: request.launchTimeout,
         flutterExecutable: flutterExecutable,
         flutterVersion: flutterVersion,
+        launchId: _newRemoteLaunchId(request.platform),
       ),
     );
     final health = await _statusReader(sessionHandle.baseUri);
@@ -116,4 +117,9 @@ final class CockpitLaunchRemoteSessionService {
     await file.writeAsString(cockpitPrettyJsonText(handle.toJson()));
     return p.normalize(file.path);
   }
+}
+
+String _newRemoteLaunchId(String platform) {
+  final timestamp = DateTime.now().toUtc().microsecondsSinceEpoch;
+  return 'remote-$platform-$timestamp';
 }

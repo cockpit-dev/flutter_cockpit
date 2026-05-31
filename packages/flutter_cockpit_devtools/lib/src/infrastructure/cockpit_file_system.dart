@@ -1,7 +1,10 @@
 import 'package:file/file.dart';
 import 'package:file/local.dart';
+import 'package:path/path.dart' as p;
 
 abstract interface class CockpitFileSystem {
+  p.Context get pathContext;
+
   File file(String path);
 
   Directory directory(String path);
@@ -17,6 +20,9 @@ final class LocalCockpitFileSystem implements CockpitFileSystem {
   }) : _fileSystem = fileSystem;
 
   final FileSystem _fileSystem;
+
+  @override
+  p.Context get pathContext => _fileSystem.path;
 
   @override
   Directory directory(String path) => _fileSystem.directory(path);

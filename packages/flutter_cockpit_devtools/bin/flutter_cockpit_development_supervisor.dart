@@ -91,13 +91,14 @@ Future<void> main(List<String> args) async {
       launchTimeout: launchTimeout,
       flutterExecutable: flutterExecutable,
       flutterVersion: flutterVersion,
+      launchId: developmentHandle.developmentSessionId,
     );
     await writeLog(
       'boot project_dir=$projectDir target=$target platform=$platform '
       'flavor=${flavor ?? ''} '
       'device_id=$deviceId app_host_port=$appHostPort '
       'supervisor_port=$supervisorPort flutter_executable=$flutterExecutable '
-      'flutter_version=$flutterVersion',
+      'flutter_version=$flutterVersion launch_id=${developmentHandle.developmentSessionId}',
     );
     final endpoint = await machineLauncher.resolveRemoteSessionEndpoint(
       machineLaunchRequest,

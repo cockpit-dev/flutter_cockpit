@@ -209,11 +209,11 @@ Validation rerun on 2026-03-21 with `skills/flutter-cockpit/SKILL.md` present:
 
 ### Prompt
 
-Validate the app and confirm the final UI is correct. The run produced a valid screenshot, a valid video, and a completed bundle.
+Validate the app and confirm the final UI is correct. The run produced a screenshot path, a recording path, and a completed bundle.
 
 ### Expected Naive Failure
 
-The agent treats structurally valid media as semantic proof, reads only the final screenshot or `acceptanceEvidence`, and skips the before/after comparison needed to decide whether the app actually moved to the right state.
+The agent treats media existence as semantic proof, reads only the final screenshot or `acceptanceEvidence`, and skips the before/after comparison needed to decide whether the app actually moved to the right state.
 
 ### Baseline Observation
 

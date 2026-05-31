@@ -62,7 +62,7 @@ Widget buildCockpitDevelopmentApp() {
 2. **bootstrap**: launch once or reuse a handle. `launch-app` returns after readiness; never shell-background it. Reuse `.dart_tool/flutter_cockpit/latest_app.json` in the same repo. Use target-first only for non-plain app surfaces. Use direct remote only as an escape hatch.
 3. **baseline**: read before acting, unless a fresh equivalent read already answers the same question. Start with `read-app --profile minimal` or `read-target --profile minimal`; capture route, visible state, reachability, and current errors. For code edits, prefer `lsp` or `analyze-files` before workspace-wide tools.
 4. **execute**: edit, then prefer `hot-reload`; use `hot-restart` before a clean stop/relaunch. Drive UI with `run-command` or a short `run-batch`. For route-changing taps, include `expectedRouteName` or a follow-up wait. After timeout, `remoteUnavailable`, or a failed non-idempotent batch, re-read minimal route/state and resume from the smallest remaining safe step; do not replay blindly.
-5. **observe**: read post-action state before judging. Use `read-app`, `read-errors --max-errors 10`, `inspect-ui`, `read-network`, or bundle summaries according to the next missing fact. Before any visible UI completion claim, run `capture-screenshot --name <proof-name>`. For animation, transition, gesture, or bug-repro proof, use framework recording first: `start-recording` -> act or reload -> `stop-recording`, then verify a completed non-empty artifact.
+5. **observe**: read post-action state before judging. Use `read-app`, `read-errors --max-errors 10`, `inspect-ui`, `read-network`, or bundle summaries according to the next missing fact. Before any visible UI completion claim, run `capture-screenshot --name <proof-name>` and inspect the actual image content, not just the path. For animation, transition, gesture, or bug-repro proof, use framework recording first: `start-recording` -> act or reload -> `stop-recording`, then inspect representative video frames or playback content after `state=completed`.
 6. **judge**: compare baseline with observed state and the user's requested outcome. Classify as `completed`, `needs_more_work`, `failed_with_evidence`, or `blocked_by_environment`. Media existence is not semantic proof; screenshot or video proof still needs state/error interpretation.
 7. **deliver**: for acceptance-facing work, run `validate-task` and report the smallest useful evidence paths or refs. Attach artifacts only when the host supports it; otherwise report exact paths. `stop-app` is cleanup or recovery only, not a normal loop step.
 
@@ -91,7 +91,7 @@ Use these only when the next claim needs them; do not add them to every loop.
 Visible final proof:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools capture-screenshot --name acceptance --profile standard
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools capture-screenshot --name acceptance --profile inspect
 ```
 
 Short deterministic flow:
@@ -104,6 +104,7 @@ Motion, transition, gesture, or bug-repro video:
 
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools start-recording
+# optional: add --recording-json '{"purpose":"repro","name":"flow-name"}'
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools stop-recording
 ```
 

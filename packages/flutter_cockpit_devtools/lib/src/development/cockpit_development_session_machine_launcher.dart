@@ -47,6 +47,7 @@ final class CockpitLaunchDevelopmentMachineSessionRequest {
     required this.flutterVersion,
     this.flavor,
     this.flutterExecutable,
+    this.launchId,
   });
 
   final String projectDir;
@@ -59,6 +60,7 @@ final class CockpitLaunchDevelopmentMachineSessionRequest {
   final String flutterVersion;
   final String? flavor;
   final String? flutterExecutable;
+  final String? launchId;
 }
 
 final class CockpitLaunchDevelopmentMachineSessionResult {
@@ -174,38 +176,51 @@ final class CockpitDevelopmentSessionMachineLauncher {
     final publicHost = endpoint.publicHost;
     final baseUri = Uri(scheme: 'http', host: publicHost, port: hostPort);
     final deadline = _now().add(request.launchTimeout);
-    final status = await _waitForRemoteStatus(
-      request: request,
-      machineClient: machineClient,
-      baseUri: baseUri,
-      deadline: deadline,
-    );
-    final appId = await (() async {
-      try {
-        return await _waitForMachineAppId(
-          request: request,
-          machineClient: machineClient,
-          deadline: deadline,
-        );
-      } on CockpitDevelopmentSessionFallbackException catch (error) {
-        if (!_isPhysicalIosDevice(request)) {
-          rethrow;
+    late final CockpitRemoteSessionStatus status;
+    late final String appId;
+    if (_isPhysicalIosDevice(request)) {
+      status = await _waitForRemoteStatus(
+        request: request,
+        machineClient: machineClient,
+        baseUri: baseUri,
+        deadline: deadline,
+      );
+      appId = await (() async {
+        try {
+          return await _waitForMachineAppId(
+            request: request,
+            machineClient: machineClient,
+            deadline: deadline,
+          );
+        } on CockpitDevelopmentSessionFallbackException catch (error) {
+          final remoteSessionHandle =
+              await _buildPhysicalIosFallbackRemoteSessionHandle(
+                request: request,
+                endpoint: endpoint,
+                hostPort: hostPort,
+                status: status,
+              );
+          throw CockpitDevelopmentSessionFallbackException(
+            code: error.code,
+            message: error.message,
+            remoteSessionHandle: remoteSessionHandle,
+            remoteStatus: status,
+          );
         }
-        final remoteSessionHandle =
-            await _buildPhysicalIosFallbackRemoteSessionHandle(
-              request: request,
-              endpoint: endpoint,
-              hostPort: hostPort,
-              status: status,
-            );
-        throw CockpitDevelopmentSessionFallbackException(
-          code: error.code,
-          message: error.message,
-          remoteSessionHandle: remoteSessionHandle,
-          remoteStatus: status,
-        );
-      }
-    })();
+      })();
+    } else {
+      appId = await _waitForMachineAppId(
+        request: request,
+        machineClient: machineClient,
+        deadline: deadline,
+      );
+      status = await _waitForRemoteStatus(
+        request: request,
+        machineClient: machineClient,
+        baseUri: baseUri,
+        deadline: deadline,
+      );
+    }
     final platformAppId = await _resolvePlatformAppId(
       request: request,
       status: status,
@@ -234,6 +249,8 @@ final class CockpitDevelopmentSessionMachineLauncher {
       '--dart-define=FLUTTER_COCKPIT_REMOTE_ENABLED=true',
       '--dart-define=FLUTTER_COCKPIT_REMOTE_HOST=${endpoint.bindHost}',
       '--dart-define=FLUTTER_COCKPIT_REMOTE_PORT=${request.sessionPort}',
+      if (request.launchId case final launchId? when launchId.isNotEmpty)
+        '--dart-define=FLUTTER_COCKPIT_REMOTE_LAUNCH_ID=$launchId',
     ];
     if (request.platform == 'ios' && endpoint.bindHost == '::') {
       extraArgs.addAll(const <String>[
@@ -321,13 +338,21 @@ final class CockpitDevelopmentSessionMachineLauncher {
     required DateTime deadline,
     Duration pollInterval = const Duration(milliseconds: 500),
   }) async {
+    String? lastRejectedStatus;
     while (true) {
       final remaining = deadline.difference(_now());
       if (remaining <= Duration.zero) {
         break;
       }
       try {
-        return await _statusReader(baseUri).timeout(remaining);
+        final status = await _statusReader(baseUri).timeout(remaining);
+        if (_remoteStatusMatchesRequest(request: request, status: status)) {
+          return status;
+        }
+        lastRejectedStatus =
+            'platform=${status.platform}, expected=${request.platform}, '
+            'sessionId=${status.sessionId}, '
+            'expectedSessionId=${request.launchId ?? ''}';
       } on Object {
         final exitError = _machineExitError(
           request: request,
@@ -337,12 +362,20 @@ final class CockpitDevelopmentSessionMachineLauncher {
         if (exitError != null && !_isPhysicalIosDevice(request)) {
           throw exitError;
         }
-        final retryDelay = deadline.difference(_now());
-        if (retryDelay <= Duration.zero) {
-          break;
-        }
-        await _delay(retryDelay < pollInterval ? retryDelay : pollInterval);
       }
+      final exitError = _machineExitError(
+        request: request,
+        machineClient: machineClient,
+        remoteSessionReady: false,
+      );
+      if (exitError != null && !_isPhysicalIosDevice(request)) {
+        throw exitError;
+      }
+      final retryDelay = deadline.difference(_now());
+      if (retryDelay <= Duration.zero) {
+        break;
+      }
+      await _delay(retryDelay < pollInterval ? retryDelay : pollInterval);
     }
     final exitCode = machineClient.lastExitCode;
     final diagnostics = machineClient.recentDiagnosticSummary;
@@ -353,9 +386,24 @@ final class CockpitDevelopmentSessionMachineLauncher {
         : ' after flutter run --machine exited '
               '(exitCode=$exitCode): $diagnostics';
     throw TimeoutException(
-      'Remote session did not become ready at $baseUri$suffix.',
+      'Remote session did not become ready at $baseUri$suffix'
+      '${lastRejectedStatus == null ? '' : ' (last rejected health: $lastRejectedStatus)'}.',
       deadline.difference(_now()),
     );
+  }
+
+  bool _remoteStatusMatchesRequest({
+    required CockpitLaunchDevelopmentMachineSessionRequest request,
+    required CockpitRemoteSessionStatus status,
+  }) {
+    final expectedLaunchId = request.launchId?.trim();
+    if (expectedLaunchId != null &&
+        expectedLaunchId.isNotEmpty &&
+        status.sessionId != expectedLaunchId) {
+      return false;
+    }
+    return status.platform.trim().toLowerCase() ==
+        request.platform.trim().toLowerCase();
   }
 
   Object? _machineExitError({

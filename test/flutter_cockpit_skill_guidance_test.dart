@@ -177,7 +177,8 @@ void main() {
     expect(skill, contains('`stop-app` is cleanup or recovery only'));
     expect(skill, contains('not a normal loop step'));
     expect(skill, contains('framework recording first'));
-    expect(skill, contains('verify a completed non-empty artifact'));
+    expect(skill, contains('inspect the actual image content'));
+    expect(skill, contains('inspect representative video frames'));
     expect(skill, contains('run `capture-screenshot --name <proof-name>`'));
     expect(skill, contains('Do not set `type: Text` for button labels'));
     expect(skill, contains('do not replay blindly'));

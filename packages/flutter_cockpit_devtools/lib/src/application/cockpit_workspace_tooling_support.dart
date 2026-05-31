@@ -17,7 +17,9 @@ CockpitWorkspaceToolchain detectWorkspaceToolchain(
   CockpitFileSystem fileSystem,
   String workspaceRoot,
 ) {
-  final pubspec = fileSystem.file(p.join(workspaceRoot, 'pubspec.yaml'));
+  final pubspec = fileSystem.file(
+    fileSystem.pathContext.join(workspaceRoot, 'pubspec.yaml'),
+  );
   if (pubspec.existsSync()) {
     final content = pubspec.readAsStringSync();
     if (content.contains('sdk: flutter') || content.contains('\nflutter:')) {
@@ -45,17 +47,19 @@ List<String> cockpitPathsFromRootUris(Iterable<String> uris) {
 
 String assertWorkspaceRootAllowed(
   String candidatePath,
-  List<String> allowedRoots,
-) {
-  final normalizedCandidate = p.normalize(candidatePath);
+  List<String> allowedRoots, {
+  p.Context? pathContext,
+}) {
+  final context = pathContext ?? p.context;
+  final normalizedCandidate = context.normalize(candidatePath);
   if (allowedRoots.isEmpty) {
     return normalizedCandidate;
   }
 
   final allowed = allowedRoots.any((root) {
-    final normalizedRoot = p.normalize(root);
+    final normalizedRoot = context.normalize(root);
     return normalizedCandidate == normalizedRoot ||
-        p.isWithin(normalizedRoot, normalizedCandidate);
+        context.isWithin(normalizedRoot, normalizedCandidate);
   });
   if (!allowed) {
     throw CockpitApplicationServiceException(
@@ -114,6 +118,7 @@ Future<CockpitWorkspaceCommandResult> runWorkspaceCommand({
   final normalizedRoot = assertWorkspaceRootAllowed(
     workspaceRoot,
     allowedRoots,
+    pathContext: fileSystem.pathContext,
   );
   final effectiveToolchain =
       toolchain ?? detectWorkspaceToolchain(fileSystem, normalizedRoot);

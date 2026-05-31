@@ -1093,11 +1093,38 @@ exit 0
       );
     },
   );
+
+  test(
+    'wait for remote session readiness rejects stale launch ids before returning',
+    () async {
+      var reads = 0;
+
+      final status = await cockpitWaitForRemoteSessionReady(
+        baseUri: Uri.parse('http://127.0.0.1:47331'),
+        timeout: const Duration(seconds: 1),
+        expectedSessionId: 'new-session',
+        expectedPlatform: 'macos',
+        statusReader: (_) async {
+          reads += 1;
+          if (reads == 1) {
+            return _readyStatus('macos', sessionId: 'old-session');
+          }
+          return _readyStatus('macos', sessionId: 'new-session');
+        },
+      );
+
+      expect(reads, 2);
+      expect(status.sessionId, 'new-session');
+    },
+  );
 }
 
-CockpitRemoteSessionStatus _readyStatus(String platform) {
+CockpitRemoteSessionStatus _readyStatus(
+  String platform, {
+  String sessionId = 'remote-session-1',
+}) {
   return CockpitRemoteSessionStatus(
-    sessionId: 'remote-session-1',
+    sessionId: sessionId,
     platform: platform,
     transportType: 'remoteHttp',
     currentRouteName: '/inbox',

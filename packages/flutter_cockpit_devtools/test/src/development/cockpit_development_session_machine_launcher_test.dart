@@ -272,6 +272,86 @@ void main() {
     },
   );
 
+  test(
+    'rejects stale same-platform remote health when launch id does not match',
+    () async {
+      final stdoutController = StreamController<String>();
+      final stderrController = StreamController<String>();
+      final exitCode = Completer<int>();
+      List<String>? capturedExtraArgs;
+      var statusReadCount = 0;
+
+      final launcher = CockpitDevelopmentSessionMachineLauncher(
+        machineClientStarter:
+            ({
+              required projectDir,
+              required target,
+              required deviceId,
+              flavor,
+              flutterExecutable,
+              extraArgs = const <String>[],
+            }) async {
+              capturedExtraArgs = extraArgs;
+              Future<void>.microtask(() {
+                stdoutController.add(
+                  '[{"event":"app.start","params":{"appId":"machine-macos-app"}}]',
+                );
+              });
+              return CockpitFlutterRunMachineClient(
+                stdoutLines: stdoutController.stream,
+                stderrLines: stderrController.stream,
+                exitCode: exitCode.future,
+                requestWriter: (_) async {},
+              );
+            },
+        statusReader: (_) async {
+          statusReadCount += 1;
+          if (statusReadCount == 1) {
+            return _readyStatus('macos', sessionId: 'old-macos-session');
+          }
+          return _readyStatus('macos', sessionId: 'launch-macos-1');
+        },
+        platformAppIdResolver:
+            ({required projectDir, required platform, flavor}) async {
+              expect(platform, 'macos');
+              return 'dev.example.macos';
+            },
+        now: () => DateTime.utc(2026, 4, 4, 17, 15),
+      );
+
+      final result = await launcher.launch(
+        const CockpitLaunchDevelopmentMachineSessionRequest(
+          projectDir: '/workspace/examples/cockpit_demo',
+          target: 'cockpit/main.dart',
+          platform: 'macos',
+          deviceId: 'macos',
+          sessionPort: 57331,
+          hostPort: 57331,
+          launchTimeout: Duration(seconds: 10),
+          flutterVersion: '3.39.0',
+          flutterExecutable: '/opt/flutter/bin/flutter',
+          launchId: 'launch-macos-1',
+        ),
+      );
+
+      expect(statusReadCount, 2);
+      expect(
+        capturedExtraArgs,
+        contains(
+          '--dart-define=FLUTTER_COCKPIT_REMOTE_LAUNCH_ID=launch-macos-1',
+        ),
+      );
+      expect(result.remoteSessionHandle.appId, 'machine-macos-app');
+      expect(result.remoteSessionHandle.platform, 'macos');
+      expect(result.remoteSessionHandle.platformAppId, 'dev.example.macos');
+
+      await stdoutController.close();
+      await stderrController.close();
+      exitCode.complete(0);
+      await result.machineClient.dispose();
+    },
+  );
+
   test('passes flavor through the development machine launch', () async {
     final stdoutController = StreamController<String>();
     final stderrController = StreamController<String>();
@@ -846,9 +926,12 @@ final class _RecordingPortForwarder extends CockpitAndroidPortForwarder {
   }
 }
 
-CockpitRemoteSessionStatus _readyStatus(String platform) {
+CockpitRemoteSessionStatus _readyStatus(
+  String platform, {
+  String sessionId = 'remote-session-1',
+}) {
   return CockpitRemoteSessionStatus(
-    sessionId: 'remote-session-1',
+    sessionId: sessionId,
     platform: platform,
     transportType: 'http',
     currentRouteName: '/inbox',

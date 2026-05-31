@@ -11,6 +11,7 @@ void main() {
         host: '127.0.0.1',
         port: 47331,
         routePrefix: '/cockpit',
+        launchId: 'launch-1',
       );
 
       expect(
@@ -59,6 +60,7 @@ void main() {
             'FLUTTER_COCKPIT_REMOTE_HOST': '0.0.0.0',
             'FLUTTER_COCKPIT_REMOTE_PORT': '49321',
             'FLUTTER_COCKPIT_REMOTE_ROUTE_PREFIX': '/session',
+            'FLUTTER_COCKPIT_REMOTE_LAUNCH_ID': 'launch-override',
           },
         ),
         const CockpitRemoteSessionConfiguration(
@@ -67,6 +69,7 @@ void main() {
           host: '0.0.0.0',
           port: 49321,
           routePrefix: '/session',
+          launchId: 'launch-override',
         ),
       );
     },

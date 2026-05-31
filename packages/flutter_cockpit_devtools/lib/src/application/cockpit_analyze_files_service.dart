@@ -152,18 +152,25 @@ final class CockpitAnalyzeFilesService {
     final workspaceRoot = assertWorkspaceRootAllowed(
       request.workspaceRoot,
       request.allowedRoots,
+      pathContext: _fileSystem.pathContext,
     );
     final resolvedPaths = request.paths
         .map((path) => _resolveWorkspacePath(workspaceRoot, path))
         .toList(growable: false);
     final relativePaths = resolvedPaths
-        .map((path) => p.relative(path, from: workspaceRoot))
+        .map(
+          (path) => _fileSystem.pathContext.relative(path, from: workspaceRoot),
+        )
         .toList(growable: false);
     final toolchain = detectWorkspaceToolchain(_fileSystem, workspaceRoot);
     final executable = toolchain == CockpitWorkspaceToolchain.flutter
         ? _sdkEnvironment.flutterExecutable
         : _sdkEnvironment.dartExecutable;
-    final arguments = <String>['analyze', '--format=json', ...relativePaths];
+    final arguments = <String>[
+      'analyze',
+      if (toolchain == CockpitWorkspaceToolchain.flutter) '--no-pub',
+      ...relativePaths,
+    ];
     final commandResult = await runWorkspaceProcess(
       processManager: _processManager,
       executable: executable,
@@ -173,12 +180,24 @@ final class CockpitAnalyzeFilesService {
     );
     final stdout = commandResult.stdout;
     final stderr = commandResult.stderr;
-    final rawJson = _pickAnalyzerJson(stdout, stderr);
-    final decoded = jsonDecode(rawJson) as Map<Object?, Object?>;
-    final allDiagnostics = ((decoded['diagnostics'] as List?) ?? const [])
-        .whereType<Map<Object?, Object?>>()
-        .map((item) => _diagnosticFromJson(item, workspaceRoot: workspaceRoot))
-        .toList(growable: false);
+    final allDiagnostics = _diagnosticsFromAnalyzerOutput(
+      stdout: stdout,
+      stderr: stderr,
+      workspaceRoot: workspaceRoot,
+      pathContext: _fileSystem.pathContext,
+    );
+    if (!commandResult.success && allDiagnostics.isEmpty) {
+      throw CockpitApplicationServiceException(
+        code: 'analyzerDiagnosticsUnavailable',
+        message: 'Analyzer failed without parsable diagnostics.',
+        details: <String, Object?>{
+          'command': commandResult.command.toJson(),
+          'exitCode': commandResult.exitCode,
+          'stdoutPreview': _preview(stdout, maxChars: 400),
+          'stderrPreview': _preview(stderr, maxChars: 400),
+        },
+      );
+    }
     final displayedDiagnostics = allDiagnostics
         .take(request.maxDiagnostics)
         .toList(growable: false);
@@ -219,10 +238,15 @@ final class CockpitAnalyzeFilesService {
   }
 
   String _resolveWorkspacePath(String workspaceRoot, String rawPath) {
-    final candidate = p.normalize(
-      p.isAbsolute(rawPath) ? rawPath : p.join(workspaceRoot, rawPath),
+    final pathContext = _fileSystem.pathContext;
+    final candidate = pathContext.normalize(
+      pathContext.isAbsolute(rawPath)
+          ? rawPath
+          : pathContext.join(workspaceRoot, rawPath),
     );
-    assertWorkspaceRootAllowed(candidate, <String>[workspaceRoot]);
+    assertWorkspaceRootAllowed(candidate, <String>[
+      workspaceRoot,
+    ], pathContext: pathContext);
     final file = _fileSystem.file(candidate);
     final directory = _fileSystem.directory(candidate);
     if (!file.existsSync() && !directory.existsSync()) {
@@ -236,7 +260,34 @@ final class CockpitAnalyzeFilesService {
   }
 }
 
-String _pickAnalyzerJson(String stdout, String stderr) {
+List<CockpitAnalyzeFilesDiagnostic> _diagnosticsFromAnalyzerOutput({
+  required String stdout,
+  required String stderr,
+  required String workspaceRoot,
+  required p.Context pathContext,
+}) {
+  final rawJson = _tryPickAnalyzerJson(stdout, stderr);
+  if (rawJson != null) {
+    final decoded = jsonDecode(rawJson) as Map<Object?, Object?>;
+    return ((decoded['diagnostics'] as List?) ?? const [])
+        .whereType<Map<Object?, Object?>>()
+        .map(
+          (item) => _diagnosticFromJson(
+            item,
+            workspaceRoot: workspaceRoot,
+            pathContext: pathContext,
+          ),
+        )
+        .toList(growable: false);
+  }
+  return _diagnosticsFromText(
+    '$stdout\n$stderr',
+    workspaceRoot: workspaceRoot,
+    pathContext: pathContext,
+  );
+}
+
+String? _tryPickAnalyzerJson(String stdout, String stderr) {
   final normalizedStdout = stdout.trim();
   if (normalizedStdout.startsWith('{')) {
     return normalizedStdout;
@@ -245,23 +296,13 @@ String _pickAnalyzerJson(String stdout, String stderr) {
   if (normalizedStderr.startsWith('{')) {
     return normalizedStderr;
   }
-  throw CockpitApplicationServiceException(
-    code: 'analyzerJsonMissing',
-    message: 'Analyzer output did not contain JSON diagnostics.',
-    details: <String, Object?>{
-      'stdoutPreview': normalizedStdout.length > 400
-          ? '${normalizedStdout.substring(0, 400)}...'
-          : normalizedStdout,
-      'stderrPreview': normalizedStderr.length > 400
-          ? '${normalizedStderr.substring(0, 400)}...'
-          : normalizedStderr,
-    },
-  );
+  return null;
 }
 
 CockpitAnalyzeFilesDiagnostic _diagnosticFromJson(
   Map<Object?, Object?> json, {
   required String workspaceRoot,
+  required p.Context pathContext,
 }) {
   final location = Map<Object?, Object?>.from(
     json['location'] as Map<Object?, Object?>,
@@ -273,8 +314,8 @@ CockpitAnalyzeFilesDiagnostic _diagnosticFromJson(
     range['start'] as Map<Object?, Object?>,
   );
   final end = Map<Object?, Object?>.from(range['end'] as Map<Object?, Object?>);
-  final absolutePath = p.normalize(location['file'] as String);
-  final relativePath = p.relative(absolutePath, from: workspaceRoot);
+  final absolutePath = pathContext.normalize(location['file'] as String);
+  final relativePath = pathContext.relative(absolutePath, from: workspaceRoot);
   return CockpitAnalyzeFilesDiagnostic(
     path: relativePath,
     severity: _normalizeEnumValue('${json['severity'] ?? 'unknown'}'),
@@ -289,6 +330,139 @@ CockpitAnalyzeFilesDiagnostic _diagnosticFromJson(
     documentationUrl: json['documentation'] as String?,
   );
 }
+
+List<CockpitAnalyzeFilesDiagnostic> _diagnosticsFromText(
+  String output, {
+  required String workspaceRoot,
+  required p.Context pathContext,
+}) {
+  return const LineSplitter()
+      .convert(output)
+      .map(_stripAnsi)
+      .map(
+        (line) => _diagnosticFromTextLine(
+          line,
+          workspaceRoot: workspaceRoot,
+          pathContext: pathContext,
+        ),
+      )
+      .nonNulls
+      .toList(growable: false);
+}
+
+CockpitAnalyzeFilesDiagnostic? _diagnosticFromTextLine(
+  String line, {
+  required String workspaceRoot,
+  required p.Context pathContext,
+}) {
+  final normalizedLine = line.trim();
+  if (normalizedLine.isEmpty) {
+    return null;
+  }
+  final bulletParts = normalizedLine.split(RegExp(r'\s+•\s+'));
+  if (bulletParts.length >= 4) {
+    final severity = _normalizeAnalyzerSeverity(bulletParts.first);
+    final code = bulletParts.last.trim();
+    final location = _parseAnalyzerLocation(
+      bulletParts[bulletParts.length - 2],
+      workspaceRoot: workspaceRoot,
+      pathContext: pathContext,
+    );
+    if (severity != null && location != null && code.isNotEmpty) {
+      return CockpitAnalyzeFilesDiagnostic(
+        path: location.path,
+        severity: severity,
+        type: severity,
+        code: code,
+        message: bulletParts.sublist(1, bulletParts.length - 2).join(' • '),
+        line: location.line,
+        column: location.column,
+        endLine: location.line,
+        endColumn: location.column,
+      );
+    }
+  }
+
+  final dashParts = normalizedLine.split(RegExp(r'\s+-\s+'));
+  if (dashParts.length >= 4) {
+    final severity = _normalizeAnalyzerSeverity(dashParts.first);
+    final location = _parseAnalyzerLocation(
+      dashParts[1],
+      workspaceRoot: workspaceRoot,
+      pathContext: pathContext,
+    );
+    final code = dashParts.last.trim();
+    if (severity != null && location != null && code.isNotEmpty) {
+      return CockpitAnalyzeFilesDiagnostic(
+        path: location.path,
+        severity: severity,
+        type: severity,
+        code: code,
+        message: dashParts.sublist(2, dashParts.length - 1).join(' - '),
+        line: location.line,
+        column: location.column,
+        endLine: location.line,
+        endColumn: location.column,
+      );
+    }
+  }
+
+  return null;
+}
+
+({String path, int line, int column})? _parseAnalyzerLocation(
+  String rawLocation, {
+  required String workspaceRoot,
+  required p.Context pathContext,
+}) {
+  final match = RegExp(r'^(.*):(\d+):(\d+)$').firstMatch(rawLocation.trim());
+  if (match == null) {
+    return null;
+  }
+  final rawPath = match.group(1)?.trim();
+  if (rawPath == null || rawPath.isEmpty) {
+    return null;
+  }
+  return (
+    path: _relativeAnalyzerPath(
+      rawPath,
+      workspaceRoot: workspaceRoot,
+      pathContext: pathContext,
+    ),
+    line: int.parse(match.group(2)!),
+    column: int.parse(match.group(3)!),
+  );
+}
+
+String _relativeAnalyzerPath(
+  String rawPath, {
+  required String workspaceRoot,
+  required p.Context pathContext,
+}) {
+  final normalizedPath = pathContext.normalize(rawPath);
+  if (!pathContext.isAbsolute(normalizedPath)) {
+    return normalizedPath;
+  }
+  final normalizedRoot = pathContext.normalize(workspaceRoot);
+  if (normalizedPath == normalizedRoot ||
+      pathContext.isWithin(normalizedRoot, normalizedPath)) {
+    return pathContext.relative(normalizedPath, from: normalizedRoot);
+  }
+  return normalizedPath;
+}
+
+String? _normalizeAnalyzerSeverity(String rawSeverity) {
+  final severity = rawSeverity.trim().split(RegExp(r'\s+')).last.toLowerCase();
+  return switch (severity) {
+    'error' => 'error',
+    'warning' => 'warning',
+    'info' => 'info',
+    _ => null,
+  };
+}
+
+String _stripAnsi(String value) =>
+    value.replaceAll(RegExp('\x1B\\[[0-?]*[ -/]*[@-~]'), '');
 
 String _normalizeEnumValue(String value) {
   if (value.isEmpty) {
@@ -320,6 +494,14 @@ String _analysisSummary(
     return '${diagnostics.length} analyzer diagnostics.';
   }
   return '${diagnostics.length} analyzer diagnostics: ${fragments.join(', ')}.';
+}
+
+String _preview(String output, {required int maxChars}) {
+  final normalized = output.trim();
+  if (normalized.length <= maxChars) {
+    return normalized;
+  }
+  return '${normalized.substring(0, maxChars).trimRight()}...';
 }
 
 ({String? preview, bool truncated}) _analyzerExcerpt(

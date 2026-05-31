@@ -232,7 +232,7 @@ void main() {
             paths: <String>['lib/main.dart'],
             command: CockpitWorkspaceCommand(
               executable: 'dart',
-              arguments: <String>['analyze', '--format=json', 'lib/main.dart'],
+              arguments: <String>['analyze', 'lib/main.dart'],
               workingDirectory: '/workspace',
             ),
             exitCode: 2,
