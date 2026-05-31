@@ -7,25 +7,60 @@ void main() {
 
   String readRepoFile(String path) => File('$root/$path').readAsStringSync();
 
+  bool isSkillName(String value) {
+    return value.codeUnits.every((unit) {
+      return (unit >= 48 && unit <= 57) ||
+          (unit >= 65 && unit <= 90) ||
+          (unit >= 97 && unit <= 122) ||
+          unit == 45;
+    });
+  }
+
+  List<String> exampleReferencePaths(String skill) {
+    final refs = <String>[];
+    var offset = 0;
+    while (true) {
+      final linkStart = skill.indexOf('](examples/', offset);
+      if (linkStart == -1) {
+        return refs;
+      }
+      final pathStart = linkStart + 2;
+      final pathEnd = skill.indexOf(')', pathStart);
+      if (pathEnd == -1) {
+        return refs;
+      }
+      final path = skill.substring(pathStart, pathEnd);
+      if (path.endsWith('.md')) {
+        refs.add(path);
+      }
+      offset = pathEnd + 1;
+    }
+  }
+
   test('flutter-cockpit skill follows writing-skills structure rules', () {
     final skill = readRepoFile('skills/flutter-cockpit/SKILL.md');
     final pressureScenarios = readRepoFile(
       'skills/flutter-cockpit/pressure-scenarios.md',
     );
-    final wordCount = skill.split(RegExp(r'\s+')).where((word) {
+    final normalizedSkill = skill
+        .replaceAll('\n', ' ')
+        .replaceAll('\r', ' ')
+        .replaceAll('\t', ' ');
+    final wordCount = normalizedSkill.split(' ').where((word) {
       return word.trim().isNotEmpty;
     }).length;
 
-    final frontmatterMatch = RegExp(
-      r'^---\n(?<body>.*?)\n---\n',
-      dotAll: true,
-    ).firstMatch(skill);
-    expect(frontmatterMatch, isNotNull);
-    expect(frontmatterMatch!.group(0)!.length, lessThanOrEqualTo(1024));
-    final frontmatter = frontmatterMatch.namedGroup('body')!.split('\n');
+    expect(skill.startsWith('---\n'), isTrue);
+    final frontmatterEnd = skill.indexOf('\n---\n', 4);
+    expect(frontmatterEnd, greaterThan(0));
+    expect(
+      skill.substring(0, frontmatterEnd + '\n---\n'.length).length,
+      lessThanOrEqualTo(1024),
+    );
+    final frontmatter = skill.substring(4, frontmatterEnd).split('\n');
     expect(frontmatter, hasLength(2));
     expect(frontmatter[0], equals('name: flutter-cockpit'));
-    expect('flutter-cockpit', matches(RegExp(r'^[a-zA-Z0-9-]+$')));
+    expect(isSkillName('flutter-cockpit'), isTrue);
     expect(frontmatter[1], startsWith('description: Use when '));
     expect(
       frontmatter[1],
@@ -34,10 +69,12 @@ void main() {
 
     expect(skill, contains('## Overview'));
     expect(skill, contains('## When To Use'));
+    expect(skill, contains('## First-Time App Wiring'));
     expect(skill, contains('## Stage Protocol'));
-    expect(skill, contains('## Default Command Pack'));
+    expect(skill, contains('## Fast Command Pack'));
+    expect(skill, contains('## Escalation Commands'));
     expect(skill, contains('## Common Mistakes'));
-    expect(wordCount, lessThanOrEqualTo(1300));
+    expect(wordCount, lessThanOrEqualTo(1400));
     expect(skill, isNot(contains('@/')));
     expect(skill, isNot(contains('@skills')));
     expect(skill, isNot(contains('@superpowers')));
@@ -83,7 +120,11 @@ void main() {
     }
     expect(contract, contains('rapid development validation'));
     expect(contract, contains('cheapest live loop'));
+    expect(contract, contains('main skill must be self-contained'));
+    expect(contract, contains('reference files are optional deep dives'));
     expect(contract, contains('not reward running extra recording'));
+    expect(contract, contains('capture-screenshot'));
+    expect(contract, contains('capture_screenshot'));
     expect(contract, contains('when they do not improve the decision'));
     expect(contract, contains('small edit can be complete'));
     expect(contract, contains('platform-discovery-first'));
@@ -115,6 +156,14 @@ void main() {
     expect(skill, contains('launch once or reuse a handle'));
     expect(skill, contains('never shell-background it'));
     expect(skill, contains('.dart_tool/flutter_cockpit/latest_app.json'));
+    expect(skill, contains('add `cockpit/main.dart`'));
+    expect(skill, contains('keep the production entrypoint intact'));
+    expect(skill, contains('FlutterCockpitApp'));
+    expect(skill, contains('FlutterCockpit.navigatorObserver'));
+    expect(
+      skill,
+      contains('CockpitRemoteSessionConfiguration.resolveFromEnvironment'),
+    );
     expect(skill, contains('read before acting'));
     expect(
       skill,
@@ -129,7 +178,7 @@ void main() {
     expect(skill, contains('not a normal loop step'));
     expect(skill, contains('framework recording first'));
     expect(skill, contains('verify a completed non-empty artifact'));
-    expect(skill, contains('run a named `captureScreenshot`'));
+    expect(skill, contains('run `capture-screenshot --name <proof-name>`'));
     expect(skill, contains('Do not set `type: Text` for button labels'));
     expect(skill, contains('do not replay blindly'));
     expect(skill, contains('resume from the smallest remaining safe step'));
@@ -186,9 +235,11 @@ void main() {
       ),
     );
     expect(skill, contains('read-app --profile minimal'));
+    expect(skill, contains('analyze-files --path <changed-file>'));
     expect(skill, contains('hot-reload'));
     expect(skill, contains('read-errors --max-errors 10'));
     expect(skill, contains('run-command --command-file'));
+    expect(skill, contains('capture-screenshot --name acceptance'));
     expect(skill, contains('run-batch --commands-file'));
     expect(skill, contains('start-recording'));
     expect(skill, contains('stop-recording'));
@@ -199,11 +250,30 @@ void main() {
     expect(skill, isNot(contains('--output-json')));
     expect(skill, isNot(contains('--output-ai')));
 
+    final fastStart = skill.indexOf('## Fast Command Pack');
+    final escalationStart = skill.indexOf('## Escalation Commands');
+    expect(fastStart, isNonNegative);
+    expect(escalationStart, greaterThan(fastStart));
+    final fastSection = skill.substring(fastStart, escalationStart);
+    final escalationSection = skill.substring(escalationStart);
+    expect(fastSection, contains('run-command --command-file'));
+    expect(fastSection, isNot(contains('start-recording')));
+    expect(fastSection, isNot(contains('validate-task --config-json')));
+    expect(escalationSection, contains('run-batch --commands-file'));
+    expect(escalationSection, contains('start-recording'));
+    expect(escalationSection, contains('stop-recording'));
+    expect(escalationSection, contains('validate-task --config-json'));
+    expect(
+      escalationSection,
+      contains('Use these only when the next claim needs them'),
+    );
+
     expect(cliReference, contains('--output'));
     expect(cliReference, contains('--output-format json'));
     expect(cliReference, contains('--stdout-format json'));
     expect(cliReference, contains('launch-development-session'));
     expect(cliReference, contains('execute-remote-command-batch'));
+    expect(cliReference, contains('capture-screenshot'));
     expect(cliReference, contains('read-task-bundle-summary'));
     expect(cliReference, contains('start-recording'));
     expect(cliReference, contains('stop-recording'));
@@ -223,7 +293,10 @@ void main() {
       contains('Do not run `launch-app` with shell backgrounding'),
     );
     expect(rapidLoop, contains('Do not call `stop-app` after every loop'));
-    expect(rapidLoop, contains('final explicit `captureScreenshot`'));
+    expect(
+      rapidLoop,
+      contains('final explicit `capture-screenshot --name <proof-name>`'),
+    );
     expect(
       rapidLoop,
       contains('use framework recording before external screen tools'),
@@ -336,10 +409,7 @@ void main() {
     );
 
     final skill = docsByName['${skillDir.path}/SKILL.md']!;
-    for (final match in RegExp(
-      r'\]\((examples/[^)]+\.md)\)',
-    ).allMatches(skill)) {
-      final relativePath = match.group(1)!;
+    for (final relativePath in exampleReferencePaths(skill)) {
       expect(
         File('${skillDir.path}/$relativePath').existsSync(),
         isTrue,

@@ -52,6 +52,7 @@ void main() {
         'compare-development-probe',
         'stop-development-session',
         'run-remote-control-script',
+        'capture-screenshot',
       ]),
     );
   });

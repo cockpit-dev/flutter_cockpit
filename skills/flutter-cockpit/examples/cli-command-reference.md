@@ -204,6 +204,15 @@ Wait for idle:
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools wait-idle
 ```
 
+Capture final visible proof without writing command JSON:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  capture-screenshot \
+  --name acceptance \
+  --profile standard
+```
+
 ## Persistent Development Loop
 
 Use this when one app will be edited and reloaded repeatedly. The default

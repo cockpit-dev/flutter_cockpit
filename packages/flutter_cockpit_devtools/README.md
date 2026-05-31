@@ -115,8 +115,8 @@ For route-changing `tap` commands, set `parameters.expectedRouteName`. Add `para
 `run-command`, `run-batch`, and `run-script` default key mutating commands to
 best-effort after-action screenshots attached to the command step. This gives
 agents key-frame evidence for taps, text input, scrolls, drags, and back
-navigation without adding per-command JSON. Use an explicit `captureScreenshot`
-command for final acceptance or any named proof artifact that must be strict.
+navigation without adding per-command JSON. Use `capture-screenshot` for final
+acceptance or any named proof artifact that must be strict.
 
 For AI-first development, build project-owned rapid verifiers around the same
 small loop: launch, drive one representative flow, hot reload, assert the

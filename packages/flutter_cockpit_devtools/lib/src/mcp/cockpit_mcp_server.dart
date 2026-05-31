@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import 'package:stream_channel/stream_channel.dart';
 
 import '../application/cockpit_latest_task_store.dart';
+import '../application/cockpit_capture_screenshot_service.dart';
 import '../application/cockpit_collect_development_probe_service.dart';
 import '../application/cockpit_compare_development_probe_service.dart';
 import '../application/cockpit_launch_app_service.dart';
@@ -68,6 +69,7 @@ import 'tools/cockpit_add_roots_tool.dart';
 import 'tools/cockpit_analyze_files_tool.dart';
 import 'tools/cockpit_analyze_workspace_tool.dart';
 import 'tools/cockpit_apply_workspace_fixes_tool.dart';
+import 'tools/cockpit_capture_screenshot_tool.dart';
 import 'tools/cockpit_collect_development_probe_tool.dart';
 import 'tools/cockpit_collect_remote_snapshot_tool.dart';
 import 'tools/cockpit_compare_development_probe_tool.dart';
@@ -259,6 +261,9 @@ final class CockpitMcpServer {
       executeService: executeRemoteCommandService,
       registry: sessionRegistry,
     );
+    final captureScreenshotService = CockpitCaptureScreenshotService(
+      runCommandService: runCommandService,
+    );
     final waitIdleService = CockpitWaitIdleService(
       waitService: waitRemoteUiIdleService,
       registry: sessionRegistry,
@@ -328,6 +333,7 @@ final class CockpitMcpServer {
       CockpitInspectUiTool(service: inspectUiService),
       CockpitInspectSurfaceTool(service: inspectSurfaceService),
       CockpitRunCommandTool(service: runCommandService),
+      CockpitCaptureScreenshotTool(service: captureScreenshotService),
       CockpitRunBatchTool(service: runBatchService),
       CockpitExecuteRemoteCommandTool(service: executeRemoteCommandService),
       CockpitExecuteRemoteCommandBatchTool(

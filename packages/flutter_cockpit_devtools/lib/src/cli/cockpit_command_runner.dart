@@ -5,6 +5,7 @@ import 'package:args/command_runner.dart';
 import '../application/cockpit_application_service_exception.dart';
 import '../application/cockpit_compact_json.dart';
 import 'cockpit_cli_help.dart';
+import 'commands/capture_screenshot_command.dart';
 import 'commands/hot_reload_command.dart';
 import 'commands/hot_restart_command.dart';
 import 'commands/inspect_ui_command.dart';
@@ -151,6 +152,7 @@ final class CockpitCommandRunner {
       InspectUiCommand(),
       InspectSurfaceCommand(),
       RunCommandCommand(),
+      CaptureScreenshotCommand(),
       RunBatchCommand(),
       RunShellCommand(),
       HotReloadCommand(),

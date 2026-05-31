@@ -19,6 +19,7 @@ The skill may depend on these implemented public workflows:
 - richer UI investigation through `inspect-ui` / `inspect_ui`
 - surface-oriented investigation through `inspect-surface` / `inspect_surface`
 - single-command control through `run-command` / `run_command`
+- named screenshot capture through `capture-screenshot` / `capture_screenshot`
 - multi-command control through `run-batch` / `run_batch`
 - direct host and target-aware shell execution through `run-shell` / `run_shell`
 - wait gating through `wait-idle` / `wait_idle`
@@ -55,7 +56,7 @@ The skill must enforce this order:
 6. `judge`
 7. `deliver`
 
-The stages are evidence gates, not a fixed command quota. The default path must optimize for rapid development validation: use the cheapest live loop that answers the user's question, reuse fresh valid evidence, and escalate only when the current layer cannot reduce the remaining uncertainty. The skill must not reward running extra recording, evidence profiles, bundle validation, or raw artifact reads when they do not improve the decision.
+The stages are evidence gates, not a fixed command quota. The default path must optimize for rapid development validation: use the cheapest live loop that answers the user's question, reuse fresh valid evidence, and escalate only when the current layer cannot reduce the remaining uncertainty. The main skill must be self-contained for the core app-wiring, launch, edit, reload, observe, evidence, and delivery loop; reference files are optional deep dives, not prerequisites for basic usage. The skill must not reward running extra recording, evidence profiles, bundle validation, or raw artifact reads when they do not improve the decision.
 
 The skill must be platform-discovery-first. Platform and device ids must come from `list-targets`, MCP target discovery, or an explicit user-provided target, then platform capabilities must be read from returned metadata before choosing recording, shell, browser, simulator, emulator, or desktop behavior.
 

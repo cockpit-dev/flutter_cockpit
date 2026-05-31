@@ -10,6 +10,7 @@ import 'package:flutter_cockpit_devtools/src/application/cockpit_stop_recording_
 import 'package:flutter_cockpit_devtools/src/application/cockpit_wait_idle_service.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/cockpit_mcp_error.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/cockpit_mcp_tool.dart';
+import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_capture_screenshot_tool.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_inspect_ui_tool.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_read_app_tool.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_run_batch_tool.dart';
@@ -114,6 +115,16 @@ void main() {
       'command': <String, Object?>{'commandId': 'tap-1', 'commandType': 'tap'},
     });
 
+    await CockpitCaptureScreenshotTool(
+      capture: (request) async {
+        expect(request.androidDeviceId, 'emulator-5554');
+        expect(request.name, 'acceptance');
+        expect(request.reason, CockpitScreenshotReason.acceptance);
+        seen.add('capture_screenshot');
+        return _commandResult();
+      },
+    ).call(<String, Object?>{..._baseArguments(), 'name': 'acceptance'});
+
     await CockpitRunBatchTool(
       runBatch: (request) async {
         expect(request.androidDeviceId, 'emulator-5554');
@@ -190,6 +201,7 @@ void main() {
     expect(seen, <String>[
       'read_app',
       'run_command',
+      'capture_screenshot',
       'run_batch',
       'inspect_ui',
       'wait_idle',
