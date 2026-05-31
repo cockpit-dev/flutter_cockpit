@@ -12,6 +12,12 @@ typedef CockpitRecordingProcessStarter =
     Future<Process> Function(String executable, List<String> arguments);
 typedef CockpitRecordingProcessRunner =
     Future<ProcessResult> Function(String executable, List<String> arguments);
+typedef CockpitRecordingTimedProcessRunner =
+    Future<ProcessResult> Function(
+      String executable,
+      List<String> arguments, {
+      required Duration timeout,
+    });
 typedef CockpitRecordingTempFileFactory =
     Future<File> Function(String basename);
 typedef CockpitPidSignalSender = bool Function(int pid, ProcessSignal signal);
@@ -391,42 +397,57 @@ Future<bool> cockpitSignalRecordingPid(
   );
 }
 
-Future<bool> cockpitDefaultPidLivenessChecker(int pid) async {
+Future<bool> cockpitDefaultPidLivenessChecker(
+  int pid, {
+  CockpitRecordingTimedProcessRunner runProcess =
+      cockpitRunRecordingProcessWithTimeout,
+}) async {
   if (pid <= 0) {
     return false;
   }
   if (Platform.isWindows) {
     try {
-      final result = await cockpitRunRecordingProcessWithTimeout(
-        'tasklist',
-        <String>['/FI', 'PID eq $pid', '/FO', 'CSV', '/NH'],
-        timeout: const Duration(seconds: 2),
-      );
+      final result = await runProcess('tasklist', <String>[
+        '/FI',
+        'PID eq $pid',
+        '/FO',
+        'CSV',
+        '/NH',
+      ], timeout: const Duration(seconds: 2));
       if (result.exitCode != 0) {
         return false;
       }
       return '${result.stdout}'.contains('"$pid"') ||
           '${result.stdout}'.contains(',$pid,') ||
           '${result.stdout}'.contains(' $pid ');
+    } on TimeoutException {
+      return true;
     } on Object {
       return false;
     }
   }
+  ProcessResult signalResult;
   try {
-    final signalResult = await cockpitRunRecordingProcessWithTimeout(
-      '/bin/kill',
-      <String>['-0', '$pid'],
-      timeout: const Duration(seconds: 2),
-    );
-    if (signalResult.exitCode != 0) {
-      return false;
-    }
+    signalResult = await runProcess('/bin/kill', <String>[
+      '-0',
+      '$pid',
+    ], timeout: const Duration(seconds: 2));
+  } on TimeoutException {
+    return true;
+  } on Object {
+    return false;
+  }
+  if (signalResult.exitCode != 0) {
+    return false;
+  }
 
-    final statResult = await cockpitRunRecordingProcessWithTimeout(
-      '/bin/ps',
-      <String>['-o', 'stat=', '-p', '$pid'],
-      timeout: const Duration(seconds: 2),
-    );
+  try {
+    final statResult = await runProcess('/bin/ps', <String>[
+      '-o',
+      'stat=',
+      '-p',
+      '$pid',
+    ], timeout: const Duration(seconds: 2));
     if (statResult.exitCode != 0) {
       return true;
     }
@@ -436,8 +457,10 @@ Future<bool> cockpitDefaultPidLivenessChecker(int pid) async {
       return false;
     }
     return !state.startsWith('Z');
-  } on ProcessException {
-    return false;
+  } on TimeoutException {
+    return true;
+  } on Object {
+    return true;
   }
 }
 
