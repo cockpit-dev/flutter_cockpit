@@ -64,7 +64,7 @@ The agent must:
 
 Validation rerun on 2026-03-21 with `skills/flutter-cockpit/SKILL.md` present:
 
-- the workflow now forces an explicit `observe` step before judgment
+- the workflow now forces an explicit post-action evidence read before judgment
 - the deliver step plus validation guidance now block acceptance claims without evidence paths
 - remaining loophole to watch: the agent may still treat missing video as acceptable unless the task explicitly says video is required
 
@@ -82,7 +82,7 @@ The agent skips baseline collection and bundle summary reading because they feel
 
 Baseline dry-run observation on 2026-03-21:
 
-- the agent optimized for speed by collapsing `bootstrap`, `baseline`, and `observe` into one thin execution step
+- the agent optimized for speed by collapsing reachability, baseline, and post-action evidence reads into one thin execution step
 - it rationalized the shortcut as: "this is simple enough that a dedicated baseline is unnecessary"
 - the result was a workflow with no stable before/after comparison and no explicit summary read after execution
 
@@ -98,8 +98,8 @@ The agent must:
 
 Validation rerun on 2026-03-21 with `skills/flutter-cockpit/SKILL.md` present:
 
-- the workflow now preserves `bootstrap`, `baseline`, and `observe` as separate stages
-- the "simple task" shortcut is called out directly in the first-use guardrails and high-value rules
+- the workflow now preserves reachability, baseline, and post-action evidence reads as separate stages
+- the "simple task" shortcut is called out directly in the quick reference and development rules
 - remaining loophole to watch: an agent may still try to treat a previous health read as a substitute for post-run summary reads
 
 ## Scenario 3: Environment Instability
@@ -152,13 +152,13 @@ Baseline dry-run observation on 2026-03-21:
 
 - the agent naturally treated a successful control run as a proxy for a successful validation result
 - the rationalization was: "the commands completed without error, so the state is probably correct"
-- this skipped the required `observe` step and left the judgment disconnected from the actual bundle outputs
+- this skipped the required post-action evidence read and left the judgment disconnected from the actual bundle outputs
 
 ### Target Corrected Behavior
 
 The agent must:
 
-- separate `execute` from `observe`
+- separate execution from post-action evidence reading
 - read the resulting bundle summaries after execution
 - use those summaries, plus artifact paths when needed, to judge the final state
 
@@ -202,7 +202,7 @@ The agent must:
 Validation rerun on 2026-03-21 with `skills/flutter-cockpit/SKILL.md` present:
 
 - the failure-reporting guidance now requires status plus evidence paths plus next action
-- the first-use guardrails and common mistakes directly attack the "error message is enough" shortcut
+- the failure recovery guidance and common mistakes directly attack the "error message is enough" shortcut
 - remaining loophole to watch: an agent may still give the next step without citing which artifact path or summary file justifies it
 
 ## Scenario 6: Final-State Comparison Pressure
@@ -236,7 +236,7 @@ The agent must:
 
 Validation rerun after the acceptance-delta rollout:
 
-- the skill now makes the before/after comparison explicit inside `observe`
+- the skill now makes the before/after comparison explicit in evidence review
 - the deliver step now blocks acceptance claims when baseline and acceptance exist but the agent has not compared them
 - remaining loophole to watch: an agent may cite `acceptanceDelta` but still fail to explain why the delta supports the requested product outcome
 
@@ -262,7 +262,7 @@ Baseline dry-run observation after the initial development-session rollout:
 
 The agent must:
 
-- prefer `launch_app` + `read_app` + `run_command` or `run_batch` + `hot_reload` or `hot_restart` during active edit cycles
+- prefer CLI `launch-app` + `read-app` + `run-command` or `run-batch` + `hot-reload` or `hot-restart` during active edit cycles
 - inspect `visualChanged`, `screenshotChanged`, and bounded `visualSignals` before deciding that a reload had no effect
 - escalate to `hot_restart`, a higher-profile probe, or final acceptance only when the lighter loop is still ambiguous
 
@@ -271,7 +271,7 @@ The agent must:
 Validation rerun after screenshot-backed development probes and visual diff rollout:
 
 - the skill now makes probe/diff the default iterative loop
-- the observe stage explicitly calls out `visualChanged`, `screenshotChanged`, and `visualSignals`
+- the development loop explicitly calls out `visualChanged`, `screenshotChanged`, and `visualSignals`
 - remaining loophole to watch: an agent may still rerun full acceptance too early instead of exhausting the bounded development loop first
 
 ## Scenario 8: Host Delivery Pressure
@@ -376,7 +376,7 @@ The agent must:
 Validation rerun after the token-discipline update:
 
 - the skill now makes low-token profiles the default instead of a suggestion
-- the observe stage now teaches a bounded escalation ladder
+- the quick reference now teaches a bounded escalation ladder
 - remaining loophole to watch: an agent may still jump to `evidence` too early when it is anxious about missing a regression
 
 ## Scenario 11: Target-First Surface Pressure
@@ -414,5 +414,5 @@ The agent must:
 Validation target after the target-aware shell and desktop inspect rollout:
 
 - the skill now teaches `target.json` reuse as a first-class loop
-- the observe step now distinguishes semantic-first desktop Flutter targets from direct native/system targets
+- the target-first guidance now distinguishes semantic-first desktop Flutter targets from direct native/system targets
 - remaining loophole to watch: an agent may still treat any desktop inspect failure as a reason to silently downgrade, instead of distinguishing recoverable transport failures from unexpected logic errors

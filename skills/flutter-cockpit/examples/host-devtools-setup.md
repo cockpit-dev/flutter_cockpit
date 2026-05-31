@@ -27,6 +27,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools read-target --help
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools inspect-surface --help
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-shell --help
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-command --help
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools read-task-bundle-summary --help
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-task --help
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools validate-task --help
 ```

@@ -20,10 +20,17 @@ Keep each cycle small:
 4. `hot-reload`
 5. `run-command` for one action or assertion
 6. `read-app --profile minimal` or `inspect-ui --profile inspect` only if the result is still ambiguous
+7. `read-errors --max-errors 10`
+8. final explicit `captureScreenshot` before claiming visible UI completion
 
 Do not run `launch-app` with shell backgrounding. It returns after readiness
 and leaves a supervisor behind for logs, hot reload, hot restart, and
 `stop-app`.
+
+Do not call `stop-app` after every loop. Keep the app alive while more edits
+are likely; stop only when the user asks, when ending your launched session,
+when the app or supervisor is stuck, when hot restart cannot recover, or when
+a clean rebuild/relaunch is needed.
 
 For project-specific rapid verifiers, keep the output small and diagnostic:
 
@@ -52,11 +59,11 @@ For desktop Flutter targets, prefer semantic inspection when the remote path is 
 
 ## Code-Side Shortcuts
 
-- Use `analyze_files` before `analyze_workspace` when the change is local.
+- Use CLI `analyze-files` or MCP `analyze_files` before workspace-wide analysis when the change is local.
 - Use `lsp` for hover, definition, signature help, or symbols instead of opening large files blindly.
 - Use `grep-package-uris` before `read-package-uris` when you only know the symbol, string, or API fragment inside a dependency.
 - Use `pub` for bounded dependency edits.
-- Use `pub_dev_search` before adding a package you do not know well.
+- Use CLI `pub-dev-search` or MCP `pub_dev_search` before adding a package you do not know well.
 - Keep command JSON in files when it grows beyond a few lines.
 
 ## Runtime Escalation Rules
@@ -76,6 +83,7 @@ For desktop Flutter targets, prefer semantic inspection when the remote path is 
 - Use `run-batch` only for short deterministic sequences that do not need mid-step reasoning.
 - If the next 3-8 mutations are already obvious and order-dependent, prefer `run-batch` to amortize round-trips.
 - Key mutating commands already produce best-effort after-action screenshot refs. Add explicit `captureScreenshot` only for final acceptance or a named proof point.
+- If motion, transition, or acceptance video is part of the claim, wrap the final deterministic batch with `--recording-json` and verify the returned recording is completed with a non-empty artifact before reporting video proof.
 - If a mutating or route-changing step hits `remoteUnavailable`, re-read minimal route or state before retrying.
 - If the route already advanced, resume from the smallest remaining step instead of replaying the whole sequence.
 - Prefer `read-network` over `inspect-ui` when the uncertainty is purely about HTTP traffic.
@@ -101,7 +109,7 @@ For desktop Flutter targets, prefer semantic inspection when the remote path is 
 - If a deep target keeps slipping under sticky headers or footers, lower `viewportFraction` to `0.35`-`0.55` before escalating to `inspect-ui`.
 - After `hot-restart`, re-read route and consider one explicit `wait-idle` or a larger `timeoutMs` for the first deep interaction instead of assuming the session is immediately stable.
 - Treat hot reload success as transport-level success, not proof that your literal, layout, or banner copy changed. Re-read the changed control, then relaunch once if the intended delta is still missing.
-- Raise `timeoutSeconds` for `pub`, `analyze_files`, `run_tests`, or project creation only when needed.
+- Raise command timeout budgets for `pub`, `analyze-files`/`analyze_files`, `run-tests`/`run_tests`, or project creation only when needed.
 - If a command times out, inspect whether the environment is blocked before retrying with a larger budget.
 
 ## Verification Ladder
@@ -163,6 +171,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools read-app --profile mi
 - keep the latest app handle and reuse it instead of relaunching
 - in one workspace, prefer the default latest-app handle over repeating `--app-json`
 - prefer hot reload over restart when state preservation helps
+- use `stop-app` as cleanup or recovery, not as a mandatory iteration step
 - ask for one missing fact per cycle
 - avoid reading full snapshots unless the smaller profile failed to answer the question
 - avoid bundle generation until the feature is ready for a completion claim

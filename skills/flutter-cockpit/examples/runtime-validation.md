@@ -73,8 +73,10 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 During active feature work, prefer a project-owned rapid verifier over a full
 release sweep. It should launch the app, drive one representative user flow,
 hot reload, assert the changed state, capture one still artifact when useful,
-read runtime errors, and stop the app. Its JSON should stay compact enough for
-an agent to read first after every failure.
+read runtime errors, and keep the app alive while more edits are likely. Stop
+only for cleanup, a user request, a stuck supervisor, a failed hot restart, or a
+clean rebuild/relaunch. Its JSON should stay compact enough for an agent to
+read first after every failure.
 
 For release-grade coverage, run the heavier verifier only after the feature is
 ready to claim. That verifier should add the expensive surfaces: recordings,
@@ -91,6 +93,7 @@ valid.
 ## Expected Agent Behavior
 
 - keep `app.json`
+- keep the app alive across edit loops unless cleanup or recovery requires `stop-app`
 - let `launch-app` auto-detect `cockpit/main.dart` before spelling out a target
 - start with the smallest useful profile
 - do not trust command success without a follow-up read
