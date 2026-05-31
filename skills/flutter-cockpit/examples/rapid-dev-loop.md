@@ -14,14 +14,15 @@ Keep each cycle small:
 
 ## Fastest Useful Loop
 
-1. `launch-app`
-2. `read-app --profile minimal`
-3. edit code
-4. `hot-reload`
-5. `run-command` for one action or assertion
-6. `read-app --profile minimal` or `inspect-ui --profile inspect` only if the result is still ambiguous
-7. `read-errors --max-errors 10`
-8. final explicit `captureScreenshot` before claiming visible UI completion
+1. `list-targets` if platform/device is unknown
+2. `launch-app`
+3. `read-app --profile minimal`
+4. edit code
+5. `hot-reload`
+6. `run-command` for one action or assertion
+7. `read-app --profile minimal` or `inspect-ui --profile inspect` only if the result is still ambiguous
+8. `read-errors --max-errors 10`
+9. final explicit `captureScreenshot` before claiming visible UI completion
 
 Do not run `launch-app` with shell backgrounding. It returns after readiness
 and leaves a supervisor behind for logs, hot reload, hot restart, and
@@ -56,6 +57,7 @@ Use this branch when the target is not purely a Flutter app handle:
 5. `run-shell` only when the resolved platform truthfully exposes shell control
 
 For desktop Flutter targets, prefer semantic inspection when the remote path is reachable. Fall back to native/window evidence only when that semantic path is unavailable.
+For Android, iOS, Web, Linux, Windows, and macOS, choose commands from discovered capabilities instead of the host OS you are currently running on.
 
 ## Code-Side Shortcuts
 
