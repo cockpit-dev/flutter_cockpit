@@ -175,13 +175,7 @@ void main() {
           ),
         );
       },
-    ).call(<String, Object?>{
-      ..._baseArguments(),
-      'recording': <String, Object?>{
-        'purpose': 'acceptance',
-        'name': 'android-flow',
-      },
-    });
+    ).call(_baseArguments());
 
     await CockpitStopRecordingTool(
       stop: (request) async {

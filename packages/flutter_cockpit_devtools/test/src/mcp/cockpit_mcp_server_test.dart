@@ -128,6 +128,10 @@ void main() {
                 as Map<String, Object?>)
             .keys;
     expect(startRecordingProperties, contains('iosDeviceId'));
+    expect(
+      (byName['start_recording']!['inputSchema'] as Map<String, Object?>),
+      isNot(containsPair('required', contains('recording'))),
+    );
     final stopRecordingProperties =
         ((byName['stop_recording']!['inputSchema']
                     as Map<String, Object?>)['properties']

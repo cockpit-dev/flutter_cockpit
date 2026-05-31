@@ -93,6 +93,7 @@ final class CockpitLaunchAppService {
           deviceId: request.deviceId,
           sessionPort: request.sessionPort,
           launchTimeout: request.launchTimeout,
+          persistAppHandlePath: request.appHandlePath,
         ),
       );
       _registry?.recordDevelopmentSession(
@@ -100,17 +101,9 @@ final class CockpitLaunchAppService {
         status: result.status,
         supervisorLogPath: result.supervisorLogPath,
       );
-      final app = CockpitAppHandle.fromDevelopmentSession(
-        result.sessionHandle,
-        supervisorLogPath: result.supervisorLogPath,
-      );
-      final appJsonPath = await _persistAppIfRequested(
-        path: request.appHandlePath,
-        app: app,
-      );
       return CockpitLaunchAppResult(
-        app: app,
-        appJsonPath: appJsonPath,
+        app: result.app,
+        appJsonPath: result.appJsonPath,
         supervisorLogPath: result.supervisorLogPath,
       );
     } on Object catch (error) {

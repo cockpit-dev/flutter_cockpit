@@ -26,11 +26,17 @@ void main() {
         'platform': 'android',
         'deviceId': 'emulator-5554',
         'sessionPort': 47331,
+        'persistAppHandlePath': '/tmp/latest_app.json',
       });
 
       expect(capturedRequest?.platform, 'android');
+      expect(capturedRequest?.persistAppHandlePath, '/tmp/latest_app.json');
       final structured = result['structuredContent'] as Map<String, Object?>;
       expect((structured['status'] as Map<String, Object?>)['state'], 'ready');
+      expect(
+        (structured['app'] as Map<String, Object?>)['mode'],
+        'development',
+      );
     },
   );
 

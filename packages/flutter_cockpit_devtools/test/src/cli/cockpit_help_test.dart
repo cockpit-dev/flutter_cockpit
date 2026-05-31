@@ -203,6 +203,19 @@ void main() {
     expect(usage, contains('optional recording metadata'));
   });
 
+  test('development session help exposes app handle recording path', () {
+    final usage = _helpForCommand(LaunchDevelopmentSessionCommand());
+
+    expect(usage, contains('--app-json'));
+    expect(
+      usage,
+      contains('recording commands stay in the flutter_cockpit flow'),
+    );
+    expect(usage, contains('run-batch --recording-json'));
+    expect(usage, contains('start-recording'));
+    expect(usage, contains('stop-recording'));
+  });
+
   test('delivery task help defaults to AI-readable output', () {
     final runTaskUsage = _helpForCommand(RunTaskCommand());
     final validateTaskUsage = _helpForCommand(ValidateTaskCommand());
@@ -295,6 +308,14 @@ void main() {
           'Prefer a screenshot when one still state already answers the question',
         ),
       );
+      expect(
+        startUsage,
+        contains(
+          'Omit --recording-json for the default repro development recording',
+        ),
+      );
+      expect(startUsage, contains('Default recording = repro auto mode'));
+      expect(startUsage, contains('flutter_cockpit_devtools start-recording'));
       expect(startUsage, contains('stop-recording to finalize the artifact'));
       expect(stopUsage, contains('artifact references'));
     },

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import '../development/cockpit_development_session_handle.dart';
 import '../development/cockpit_development_session_reference_resolver.dart';
 import '../development/cockpit_development_session_status.dart';
@@ -56,7 +58,27 @@ final class CockpitStopDevelopmentSessionService {
       sessionHandle: request.sessionHandle,
       sessionHandlePath: request.sessionHandlePath,
     );
-    final stopped = await _stopper(resolved.supervisorBaseUri);
+    late final CockpitDevelopmentSessionStopResult stopped;
+    try {
+      stopped = await _stopper(resolved.supervisorBaseUri);
+    } on SocketException catch (error) {
+      final handle = resolved.sessionHandle;
+      if (handle == null) {
+        rethrow;
+      }
+      stopped = CockpitDevelopmentSessionStopResult(
+        sessionHandle: handle,
+        status: CockpitDevelopmentSessionStatus(
+          developmentSessionId: handle.developmentSessionId,
+          state: CockpitDevelopmentSessionState.stopped,
+          appReachable: false,
+          remoteSessionReachable: false,
+          reloadGeneration: handle.reloadGeneration,
+          lastError: error.toString(),
+          lastStatusAt: DateTime.now().toUtc(),
+        ),
+      );
+    }
     return CockpitStopDevelopmentSessionResult(
       sessionHandle: stopped.sessionHandle,
       status: stopped.status,

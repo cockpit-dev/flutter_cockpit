@@ -74,6 +74,59 @@ void main() {
   );
 
   test(
+    'launch service persists an app handle for app-scoped recording commands',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_launch_development_session_app_handle',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final expectedHandle = _handle();
+      final expectedStatus = _readyStatus(expectedHandle);
+      final appHandleFile = File(p.join(tempDir.path, 'latest_app.json'));
+      final service = CockpitLaunchDevelopmentSessionService(
+        entrypointResolver: CockpitEntrypointResolver(exists: (_) => true),
+        launcher: (_) async => CockpitDevelopmentSessionBootstrap(
+          sessionHandle: expectedHandle,
+          status: expectedStatus,
+          supervisorLogPath: '/tmp/dev-supervisor.log',
+        ),
+      );
+
+      final result = await service.launch(
+        CockpitLaunchDevelopmentSessionRequest(
+          projectDir: expectedHandle.projectDir,
+          target: expectedHandle.target,
+          platform: expectedHandle.platform,
+          deviceId: expectedHandle.deviceId,
+          sessionPort: 47331,
+          persistAppHandlePath: appHandleFile.path,
+        ),
+      );
+
+      expect(result.appJsonPath, appHandleFile.path);
+      expect(result.app.mode.jsonValue, 'development');
+      expect(result.app.remoteSession, isNotNull);
+      expect(appHandleFile.existsSync(), isTrue);
+
+      final persistedJson =
+          jsonDecode(await appHandleFile.readAsString())
+              as Map<String, Object?>;
+      expect(persistedJson['mode'], 'development');
+      expect(persistedJson['platform'], expectedHandle.platform);
+      expect(persistedJson['deviceId'], expectedHandle.deviceId);
+      expect(persistedJson['baseUrl'], expectedHandle.appBaseUrl);
+      expect(persistedJson['supervisorLogPath'], '/tmp/dev-supervisor.log');
+      expect(persistedJson['developmentSession'], isA<Map<String, Object?>>());
+      expect(persistedJson['remoteSession'], isA<Map<String, Object?>>());
+    },
+  );
+
+  test(
     'launch service infers cockpit/main.dart when target is omitted',
     () async {
       final expectedHandle = _handle(target: 'cockpit/main.dart');

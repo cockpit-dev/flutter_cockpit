@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:args/command_runner.dart';
 import 'package:flutter_cockpit_devtools/flutter_cockpit_devtools.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/launch_development_session_command.dart';
+import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 void main() {
@@ -54,6 +56,63 @@ void main() {
       'dev-session-1',
     );
   });
+
+  test(
+    'launch-development-session writes a reusable app handle for recording commands',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_launch_dev_session_cli',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+      final appJson = p.join(tempDir.path, 'latest_app.json');
+      final sessionJson = p.join(tempDir.path, 'latest_dev_session.json');
+      CockpitLaunchDevelopmentSessionRequest? capturedRequest;
+      final output = StringBuffer();
+      final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
+        ..addCommand(
+          LaunchDevelopmentSessionCommand(
+            stdoutSink: output,
+            launch: (request) async {
+              capturedRequest = request;
+              return CockpitLaunchDevelopmentSessionResult(
+                sessionHandle: _handle(reloadGeneration: 0),
+                status: _status(CockpitDevelopmentSessionState.ready),
+                persistedHandlePath: sessionJson,
+                appJsonPath: appJson,
+              );
+            },
+          ),
+        );
+
+      final exitCode =
+          await runner.run(<String>[
+            'launch-development-session',
+            '--stdout-format',
+            'json',
+            '--project-dir',
+            '/workspace/examples/cockpit_demo',
+            '--platform',
+            'android',
+            '--android-device-id',
+            'emulator-5554',
+            '--session-json',
+            sessionJson,
+            '--app-json',
+            appJson,
+          ]) ??
+          0;
+
+      expect(exitCode, 0);
+      expect(capturedRequest?.persistAppHandlePath, appJson);
+      final decoded = jsonDecode(output.toString()) as Map<String, Object?>;
+      expect(decoded['appJsonPath'], appJson);
+      expect((decoded['app'] as Map<String, Object?>)['mode'], 'development');
+    },
+  );
 
   test(
     'launch-development-session accepts macos without a mobile device id',

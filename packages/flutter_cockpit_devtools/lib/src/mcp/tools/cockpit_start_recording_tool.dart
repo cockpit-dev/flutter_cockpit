@@ -1,5 +1,6 @@
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
+import '../../application/cockpit_default_recording_request.dart';
 import '../../application/cockpit_start_recording_service.dart';
 import '../cockpit_mcp_tool.dart';
 
@@ -21,12 +22,11 @@ final class CockpitStartRecordingTool extends CockpitMcpTool {
 
   @override
   String get description =>
-      'Start an on-demand recording session for a running app.';
+      'Start an on-demand recording session for a running app. Omit recording for the default development repro capture.';
 
   @override
   Map<String, Object?> get inputSchema => const <String, Object?>{
     'type': 'object',
-    'required': <String>['recording'],
     'properties': <String, Object?>{
       'appId': <String, Object?>{'type': 'string'},
       'appJson': <String, Object?>{'type': 'string'},
@@ -50,9 +50,7 @@ final class CockpitStartRecordingTool extends CockpitMcpTool {
             'androidDeviceId',
           ),
           iosDeviceId: cockpitReadOptionalString(arguments, 'iosDeviceId'),
-          recording: CockpitRecordingRequest.fromJson(
-            cockpitReadRequiredObject(arguments, 'recording'),
-          ),
+          recording: _readRecording(arguments),
         ),
       );
       return cockpitMcpResult(
@@ -70,5 +68,13 @@ final class CockpitStartRecordingTool extends CockpitMcpTool {
       return null;
     }
     return Uri.parse(baseUrl);
+  }
+
+  CockpitRecordingRequest _readRecording(Map<String, Object?> arguments) {
+    final recordingJson = cockpitReadOptionalObject(arguments, 'recording');
+    if (recordingJson == null) {
+      return cockpitDefaultDevelopmentRecordingRequest();
+    }
+    return CockpitRecordingRequest.fromJson(recordingJson);
   }
 }

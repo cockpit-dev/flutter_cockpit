@@ -210,8 +210,12 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   launch-development-session \
   --project-dir /abs/path/to/flutter_app \
   --platform macos \
-  --session-json /tmp/flutter_cockpit/dev_session.json
+  --session-json /tmp/flutter_cockpit/dev_session.json \
+  --app-json /tmp/flutter_cockpit/app.json
 ```
+
+`launch-development-session` also writes an app handle. Use that handle for
+app-scoped recording commands instead of external screen-recording tools.
 
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
@@ -328,16 +332,18 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools stop-app
 
 ## Recording
 
-Assumes a prior `launch-app` in the same workspace, or an explicit reusable app handle.
+Assumes a prior `launch-app` or `launch-development-session` in the same workspace, or an explicit reusable app handle.
 
 Start recording:
 
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
-  start-recording \
-  --app-json /tmp/flutter_cockpit/app.json \
-  --recording-json '{"purpose":"acceptance","tailStabilizationMs":1400}'
+  start-recording
 ```
+
+The default request is a repro recording with auto mode, a sortable filename,
+and a 1400 ms tail. Add `--recording-json` only for acceptance evidence, full
+screen capture, or strict layer/fallback control.
 
 Stop recording:
 
@@ -357,6 +363,15 @@ When an iOS recording command has only `--base-url` and cannot read an
 device adapter can select the right recorder. Prefer `app.json` when available
 because it also preserves platform app id, process id, and remote-session
 metadata.
+
+For development-loop recording, do not leave flutter_cockpit for `simctl`,
+QuickTime, Chrome DevTools, or shell screen capture until framework recording
+has failed with a concrete `recordingStrategyUnavailable`,
+`recordingStartFailed`, or environment-prerequisite message. Use
+bare `start-recording` before the risky edit/reload/interaction window and
+`stop-recording` immediately after the proof point, or use
+`run-batch --recording-json` when the whole flow is deterministic or needs
+explicit acceptance/full recording options.
 
 For local web validation, keep browser app control, screenshots, reloads, and
 runtime-error reads strict. If browser-host recording is blocked only because

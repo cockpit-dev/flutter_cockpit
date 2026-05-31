@@ -53,6 +53,30 @@ void main() {
       expect(result.status.state, CockpitDevelopmentSessionState.stopped);
     },
   );
+
+  test(
+    'stop service treats an unreachable supervisor as an already stopped session',
+    () async {
+      final handle = _handle();
+      final service = CockpitStopDevelopmentSessionService(
+        stopper: (_) async => throw SocketException(
+          'Connection refused',
+          address: InternetAddress.loopbackIPv4,
+          port: 59421,
+        ),
+      );
+
+      final result = await service.stop(
+        CockpitStopDevelopmentSessionRequest(sessionHandle: handle),
+      );
+
+      expect(result.sessionHandle.toJson(), handle.toJson());
+      expect(result.status.state, CockpitDevelopmentSessionState.stopped);
+      expect(result.status.appReachable, isFalse);
+      expect(result.status.remoteSessionReachable, isFalse);
+      expect(result.status.lastError, contains('Connection refused'));
+    },
+  );
 }
 
 CockpitDevelopmentSessionHandle _handle() {
