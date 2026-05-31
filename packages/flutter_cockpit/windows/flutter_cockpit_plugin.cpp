@@ -45,7 +45,8 @@ constexpr char kCaptureChannelName[] = "dev.cockpit.flutter_cockpit/capture";
 constexpr char kRecordingChannelName[] =
     "dev.cockpit.flutter_cockpit/recording";
 constexpr uint32_t kRecordingFrameRate = 15;
-constexpr auto kRecordingStartupTimeout = std::chrono::seconds(5);
+constexpr auto kRecordingStartupTimeout = std::chrono::seconds(20);
+constexpr auto kRecordingStartupCancelTimeout = std::chrono::seconds(2);
 constexpr auto kRecordingStopTimeout = std::chrono::seconds(10);
 
 struct WindowFrame {
@@ -63,6 +64,23 @@ struct RecordingRunResult {
   bool success = false;
   std::string failure_reason;
   int captured_frame_count = 0;
+};
+
+struct RecordingWorkerState {
+  RecordingWorkerState(HWND window_handle,
+                       std::filesystem::path artifact_path,
+                       int frame_width,
+                       int frame_height)
+      : hwnd(window_handle),
+        output_path(std::move(artifact_path)),
+        width(frame_width),
+        height(frame_height) {}
+
+  HWND hwnd = nullptr;
+  std::filesystem::path output_path;
+  int width = 0;
+  int height = 0;
+  std::atomic<bool> stop_requested{false};
 };
 
 std::wstring Utf8ToWide(const std::string& value) {
@@ -99,6 +117,15 @@ std::string HrToString(HRESULT hr) {
   std::ostringstream buffer;
   buffer << "HRESULT 0x" << std::hex << static_cast<unsigned long>(hr);
   return buffer.str();
+}
+
+std::string RecordingStartupTimeoutMessage() {
+  const auto timeout_seconds = std::chrono::duration_cast<std::chrono::seconds>(
+                                   kRecordingStartupTimeout)
+                                   .count();
+  return "Native Windows recorder startup timed out after " +
+         std::to_string(timeout_seconds) +
+         "s while initializing Media Foundation and the sink writer.";
 }
 
 std::optional<std::string> GetStringArgument(const EncodableValue* arguments,
@@ -452,6 +479,11 @@ class FlutterCockpitWindowRecorder {
   FlutterCockpitWindowRecorder(HWND hwnd, std::filesystem::path output_path)
       : hwnd_(hwnd), output_path_(std::move(output_path)) {}
 
+  ~FlutterCockpitWindowRecorder() {
+    RequestStop();
+    DetachRecordingThread();
+  }
+
   bool Start(std::string* failure_reason) {
     RECT rect{};
     if (!GetClientRect(hwnd_, &rect)) {
@@ -459,36 +491,42 @@ class FlutterCockpitWindowRecorder {
       return false;
     }
 
-    width_ = EvenDimension(rect.right - rect.left);
-    height_ = EvenDimension(rect.bottom - rect.top);
-    if (width_ <= 0 || height_ <= 0) {
+    const int width = EvenDimension(rect.right - rect.left);
+    const int height = EvenDimension(rect.bottom - rect.top);
+    if (width <= 0 || height <= 0) {
       *failure_reason = "The Flutter window is not ready for recording.";
       return false;
     }
 
-    stop_requested_.store(false);
+    state_ = std::make_shared<RecordingWorkerState>(hwnd_, output_path_, width,
+                                                    height);
     std::promise<RecordingStartStatus> ready_promise;
     auto ready_future = ready_promise.get_future();
-    run_future_ = std::async(std::launch::async,
-                             [this, promise = std::move(ready_promise)]() mutable {
-                               return Run(std::move(promise));
-                             });
+    std::promise<RecordingRunResult> run_promise;
+    run_future_ = run_promise.get_future();
+    run_thread_ = std::thread(
+        [state = state_, ready = std::move(ready_promise),
+         done = std::move(run_promise)]() mutable {
+          done.set_value(Run(state, std::move(ready)));
+        });
 
     if (ready_future.wait_for(kRecordingStartupTimeout) !=
         std::future_status::ready) {
-      stop_requested_.store(true);
-      if (run_future_.valid()) {
-        run_future_.wait();
+      RequestStop();
+      if (run_future_.valid() &&
+          run_future_.wait_for(kRecordingStartupCancelTimeout) ==
+              std::future_status::ready) {
+        JoinRecordingThread();
+      } else {
+        DetachRecordingThread();
       }
-      *failure_reason = "Native Windows recorder startup timed out.";
+      *failure_reason = RecordingStartupTimeoutMessage();
       return false;
     }
 
     RecordingStartStatus ready = ready_future.get();
     if (!ready.success) {
-      if (run_future_.valid()) {
-        run_future_.wait();
-      }
+      JoinRecordingThread();
       *failure_reason = ready.failure_reason;
       return false;
     }
@@ -497,7 +535,7 @@ class FlutterCockpitWindowRecorder {
   }
 
   RecordingRunResult Stop() {
-    stop_requested_.store(true);
+    RequestStop();
     if (!run_future_.valid()) {
       return RecordingRunResult{
           false, "recordingNotActive", 0,
@@ -505,17 +543,39 @@ class FlutterCockpitWindowRecorder {
     }
     if (run_future_.wait_for(kRecordingStopTimeout) !=
         std::future_status::ready) {
+      DetachRecordingThread();
       return RecordingRunResult{
           false, "recordingFinalizeTimeout", 0,
       };
     }
+    JoinRecordingThread();
     return run_future_.get();
   }
 
   const std::filesystem::path& output_path() const { return output_path_; }
 
  private:
-  RecordingRunResult Run(std::promise<RecordingStartStatus> ready_promise) {
+  void RequestStop() {
+    if (state_ != nullptr) {
+      state_->stop_requested.store(true);
+    }
+  }
+
+  void JoinRecordingThread() {
+    if (run_thread_.joinable()) {
+      run_thread_.join();
+    }
+  }
+
+  void DetachRecordingThread() {
+    if (run_thread_.joinable()) {
+      run_thread_.detach();
+    }
+  }
+
+  static RecordingRunResult Run(
+      std::shared_ptr<RecordingWorkerState> state,
+      std::promise<RecordingStartStatus> ready_promise) {
     HRESULT coinit = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
     const bool must_uninitialize =
         SUCCEEDED(coinit) || coinit == RPC_E_CHANGED_MODE;
@@ -529,10 +589,21 @@ class FlutterCockpitWindowRecorder {
       return RecordingRunResult{false, "MFStartup failed", 0};
     }
 
+    if (state->stop_requested.load()) {
+      ready_promise.set_value(
+          RecordingStartStatus{false, "recordingStartupCancelled"});
+      MFShutdown();
+      if (must_uninitialize && coinit != RPC_E_CHANGED_MODE) {
+        CoUninitialize();
+      }
+      return RecordingRunResult{false, "recordingStartupCancelled", 0};
+    }
+
     ComPtr<IMFSinkWriter> writer;
     DWORD stream_index = 0;
-    hr = CreateVideoWriter(output_path_.wstring(), static_cast<uint32_t>(width_),
-                           static_cast<uint32_t>(height_), &writer,
+    hr = CreateVideoWriter(state->output_path.wstring(),
+                           static_cast<uint32_t>(state->width),
+                           static_cast<uint32_t>(state->height), &writer,
                            &stream_index);
     if (FAILED(hr)) {
       ready_promise.set_value(RecordingStartStatus{
@@ -544,15 +615,25 @@ class FlutterCockpitWindowRecorder {
       return RecordingRunResult{false, "CreateVideoWriter failed", 0};
     }
 
+    if (state->stop_requested.load()) {
+      ready_promise.set_value(
+          RecordingStartStatus{false, "recordingStartupCancelled"});
+      MFShutdown();
+      if (must_uninitialize && coinit != RPC_E_CHANGED_MODE) {
+        CoUninitialize();
+      }
+      return RecordingRunResult{false, "recordingStartupCancelled", 0};
+    }
+
     ready_promise.set_value(RecordingStartStatus{true, ""});
 
     RecordingRunResult run_result{true, "", 0};
     int64_t frame_index = 0;
     auto next_tick = std::chrono::steady_clock::now();
 
-    while (!stop_requested_.load()) {
+    while (!state->stop_requested.load()) {
       WindowFrame frame;
-      if (CaptureWindowFrame(hwnd_, width_, height_, &frame,
+      if (CaptureWindowFrame(state->hwnd, state->width, state->height, &frame,
                              &run_result.failure_reason)) {
         hr = WriteVideoFrame(writer.Get(), stream_index, frame, frame_index++);
         if (FAILED(hr)) {
@@ -572,7 +653,8 @@ class FlutterCockpitWindowRecorder {
 
     WindowFrame final_frame;
     if (run_result.success &&
-        CaptureWindowFrame(hwnd_, width_, height_, &final_frame, nullptr)) {
+        CaptureWindowFrame(state->hwnd, state->width, state->height,
+                           &final_frame, nullptr)) {
       hr = WriteVideoFrame(writer.Get(), stream_index, final_frame, frame_index++);
       if (SUCCEEDED(hr)) {
         run_result.captured_frame_count += 1;
@@ -592,7 +674,7 @@ class FlutterCockpitWindowRecorder {
     }
 
     if (run_result.success &&
-        !WaitForNonEmptyFile(output_path_, std::chrono::seconds(2))) {
+        !WaitForNonEmptyFile(state->output_path, std::chrono::seconds(2))) {
       run_result.success = false;
       run_result.failure_reason = "recordingOutputMissing";
     }
@@ -606,10 +688,9 @@ class FlutterCockpitWindowRecorder {
 
   HWND hwnd_;
   std::filesystem::path output_path_;
-  int width_ = 0;
-  int height_ = 0;
-  std::atomic<bool> stop_requested_{false};
+  std::shared_ptr<RecordingWorkerState> state_;
   std::future<RecordingRunResult> run_future_;
+  std::thread run_thread_;
 };
 
 void FlutterCockpitPlugin::RegisterWithRegistrar(
