@@ -8,6 +8,13 @@ import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 void main() {
+  test('simctl default stop timeout covers slow CI finalization windows', () {
+    expect(
+      cockpitDefaultSimctlRecordingStopTimeout,
+      greaterThanOrEqualTo(const Duration(seconds: 30)),
+    );
+  });
+
   test(
     'simctl adapter accepts a running recorder even when no startup banner is emitted',
     () async {
@@ -94,6 +101,7 @@ void main() {
         tempFileFactory: (basename) async =>
             File(p.join(tempDir.path, basename)),
         processRunner: _ffprobeUnavailable,
+        stopTimeout: const Duration(milliseconds: 200),
         finalizationPollInterval: const Duration(milliseconds: 10),
       );
 
@@ -169,6 +177,105 @@ void main() {
       );
     },
   );
+
+  test('simctl adapter waits for configured graceful stop', () async {
+    const deviceId = 'simulator-slow-stop';
+    await _deletePersistedSession(deviceId);
+    addTearDown(() => _deletePersistedSession(deviceId));
+
+    final tempDir = await Directory.systemTemp.createTemp(
+      'cockpit_simctl_recording_slow_stop',
+    );
+    addTearDown(() async {
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    final runtime = _FakeSimctlRuntime(
+      pid: 4451,
+      startupLine: 'Recording started',
+      onStop: (outputPath) async {
+        await Future<void>.delayed(const Duration(milliseconds: 80));
+        File(outputPath).writeAsStringSync('simctl-slow-stop-video');
+      },
+    );
+
+    final adapter = CockpitSimctlRecordingAdapter(
+      deviceId: deviceId,
+      processStarter: runtime.start,
+      pidSignalSender: runtime.sendSignal,
+      pidLivenessChecker: runtime.isRunning,
+      tempFileFactory: (basename) async => File(p.join(tempDir.path, basename)),
+      processRunner: _ffprobeUnavailable,
+      stopTimeout: const Duration(milliseconds: 300),
+      finalizationPollInterval: const Duration(milliseconds: 10),
+    );
+
+    await adapter.startRecording(
+      const CockpitRecordingRequest(
+        purpose: CockpitRecordingPurpose.acceptance,
+        name: 'host-simctl-slow-stop',
+        attachToStep: true,
+      ),
+    );
+    final result = await adapter.stopRecording();
+
+    expect(
+      result.state,
+      CockpitRecordingState.completed,
+      reason: result.failureReason,
+    );
+    expect(
+      File(result.sourceFilePath!).readAsStringSync(),
+      'simctl-slow-stop-video',
+    );
+  });
+
+  test('simctl adapter reports the configured stop timeout', () async {
+    const deviceId = 'simulator-stop-timeout';
+    await _deletePersistedSession(deviceId);
+    addTearDown(() => _deletePersistedSession(deviceId));
+
+    final tempDir = await Directory.systemTemp.createTemp(
+      'cockpit_simctl_recording_stop_timeout',
+    );
+    addTearDown(() async {
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    final runtime = _FakeSimctlRuntime(
+      pid: 4461,
+      startupLine: 'Recording started',
+      ignoreSigint: true,
+    );
+
+    final adapter = CockpitSimctlRecordingAdapter(
+      deviceId: deviceId,
+      processStarter: runtime.start,
+      pidSignalSender: runtime.sendSignal,
+      pidLivenessChecker: runtime.isRunning,
+      tempFileFactory: (basename) async => File(p.join(tempDir.path, basename)),
+      processRunner: _ffprobeUnavailable,
+      stopTimeout: const Duration(milliseconds: 60),
+      finalizationPollInterval: const Duration(milliseconds: 10),
+    );
+
+    await adapter.startRecording(
+      const CockpitRecordingRequest(
+        purpose: CockpitRecordingPurpose.acceptance,
+        name: 'host-simctl-timeout',
+        attachToStep: true,
+      ),
+    );
+    final result = await adapter.stopRecording();
+
+    expect(result.state, CockpitRecordingState.failed);
+    expect(result.failureReason, contains('60ms'));
+    expect(runtime.receivedSignals, contains(ProcessSignal.sigkill));
+  });
 
   test(
     'simctl adapter can stop an active recording after the adapter instance is recreated',
@@ -260,13 +367,19 @@ Future<void> _deletePersistedSession(String deviceId) async {
 }
 
 final class _FakeSimctlRuntime {
-  _FakeSimctlRuntime({required this.pid, this.startupLine, this.onStop})
-    : _process = _FakeSimctlProcess(pid: pid, startupLine: startupLine);
+  _FakeSimctlRuntime({
+    required this.pid,
+    this.startupLine,
+    this.onStop,
+    this.ignoreSigint = false,
+  }) : _process = _FakeSimctlProcess(pid: pid, startupLine: startupLine);
 
   final int pid;
   final String? startupLine;
   final Future<void> Function(String outputPath)? onStop;
+  final bool ignoreSigint;
   final _FakeSimctlProcess _process;
+  final List<ProcessSignal> receivedSignals = <ProcessSignal>[];
   bool _running = true;
   String? _outputPath;
 
@@ -278,6 +391,10 @@ final class _FakeSimctlRuntime {
   bool sendSignal(int targetPid, ProcessSignal signal) {
     if (targetPid != pid || !_running) {
       return false;
+    }
+    receivedSignals.add(signal);
+    if (signal == ProcessSignal.sigint && ignoreSigint) {
+      return true;
     }
     if (signal == ProcessSignal.sigint &&
         _outputPath != null &&

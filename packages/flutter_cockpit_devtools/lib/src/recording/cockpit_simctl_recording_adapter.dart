@@ -6,6 +6,8 @@ import 'package:flutter_cockpit/flutter_cockpit.dart';
 
 import 'cockpit_host_recording_adapter.dart';
 
+const Duration cockpitDefaultSimctlRecordingStopTimeout = Duration(seconds: 45);
+
 bool cockpitHasActiveSimctlRecordingSession(String deviceId) {
   return _simctlSessionFile(deviceId).existsSync();
 }
@@ -51,7 +53,7 @@ final class CockpitSimctlRecordingAdapter
         cockpitCreateRecordingTempFile,
     String ffprobeExecutable = 'ffprobe',
     Duration startupTimeout = const Duration(seconds: 5),
-    Duration stopTimeout = const Duration(seconds: 10),
+    Duration stopTimeout = cockpitDefaultSimctlRecordingStopTimeout,
     Duration finalizationPollInterval = const Duration(milliseconds: 100),
     CockpitPidSignalSender pidSignalSender = Process.killPid,
     CockpitPidLivenessChecker pidLivenessChecker =
@@ -130,7 +132,10 @@ final class CockpitSimctlRecordingAdapter
       await stdoutSubscription.cancel();
       await stderrSubscription.cancel();
       _pidSignalSender(process.pid, ProcessSignal.sigkill);
-      await _waitForProcessExit(process.pid);
+      await _waitForProcessExit(
+        process.pid,
+        timeout: _stopStageTimeout(const Duration(seconds: 2)),
+      );
       rethrow;
     }
 
@@ -160,15 +165,13 @@ final class CockpitSimctlRecordingAdapter
     }
 
     try {
-      _pidSignalSender(persistedSession.pid, ProcessSignal.sigint);
-      final exited = await _waitForProcessExit(persistedSession.pid);
+      final exited = await _requestGracefulStop(persistedSession.pid);
       if (!exited) {
-        _pidSignalSender(persistedSession.pid, ProcessSignal.sigkill);
         return CockpitRecordingResult(
           state: CockpitRecordingState.failed,
           purpose: persistedSession.request.purpose,
           recordingKind: CockpitRecordingKind.nativeScreen,
-          failureReason: 'simctl recording did not stop before timeout.',
+          failureReason: _stopTimeoutFailureReason,
         );
       }
       return await _finalizeStoppedRecording(
@@ -184,7 +187,7 @@ final class CockpitSimctlRecordingAdapter
         state: CockpitRecordingState.failed,
         purpose: persistedSession.request.purpose,
         recordingKind: CockpitRecordingKind.nativeScreen,
-        failureReason: 'simctl recording did not stop before timeout.',
+        failureReason: _stopTimeoutFailureReason,
       );
     } finally {
       await _clearActiveSession();
@@ -329,8 +332,9 @@ final class CockpitSimctlRecordingAdapter
     await _deleteSimctlSessionFile(_sessionFile);
   }
 
-  Future<bool> _waitForProcessExit(int pid) async {
-    final deadline = DateTime.now().add(_stopTimeout);
+  Future<bool> _waitForProcessExit(int pid, {Duration? timeout}) async {
+    final effectiveTimeout = timeout ?? _stopTimeout;
+    final deadline = DateTime.now().add(effectiveTimeout);
     while (DateTime.now().isBefore(deadline)) {
       if (!await _isProcessRunning(pid)) {
         return true;
@@ -338,6 +342,33 @@ final class CockpitSimctlRecordingAdapter
       await Future<void>.delayed(_finalizationPollInterval);
     }
     return !await _isProcessRunning(pid);
+  }
+
+  Future<bool> _requestGracefulStop(int pid) async {
+    final stopped = await cockpitSignalRecordingPid(
+      pid,
+      ProcessSignal.sigint,
+      signalSender: _pidSignalSender,
+      livenessChecker: _pidLivenessChecker,
+      waitTimeout: _stopTimeout,
+      pollInterval: _finalizationPollInterval,
+    );
+    if (stopped) {
+      return true;
+    }
+
+    try {
+      _pidSignalSender(pid, ProcessSignal.sigkill);
+    } on Object {
+      // The process may already be gone; the liveness check below is final.
+    }
+    await cockpitWaitForPidExit(
+      pid,
+      timeout: _stopStageTimeout(const Duration(seconds: 2)),
+      livenessChecker: _pidLivenessChecker,
+      pollInterval: _finalizationPollInterval,
+    );
+    return false;
   }
 
   Future<bool> _isProcessRunning(int pid) async {
@@ -475,6 +506,11 @@ final class CockpitSimctlRecordingAdapter
     }
     return _stopTimeout < maximum ? _stopTimeout : maximum;
   }
+
+  String get _stopTimeoutFailureReason {
+    return 'simctl recording did not stop within '
+        '${_formatDuration(_stopTimeout)} after SIGINT.';
+  }
 }
 
 File _simctlSessionFile(String deviceId) {
@@ -551,4 +587,12 @@ final class _CockpitRecordingTimelineProbe {
 
   final int durationMs;
   final int? frameCount;
+}
+
+String _formatDuration(Duration duration) {
+  final milliseconds = duration.inMilliseconds;
+  if (milliseconds < 1000 || milliseconds % 1000 != 0) {
+    return '${milliseconds}ms';
+  }
+  return '${duration.inSeconds}s';
 }
