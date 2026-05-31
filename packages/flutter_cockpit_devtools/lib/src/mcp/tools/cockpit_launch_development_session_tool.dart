@@ -43,6 +43,7 @@ final class CockpitLaunchDevelopmentSessionTool extends CockpitMcpTool {
       'sessionPort': <String, Object?>{'type': 'integer'},
       'launchTimeoutSeconds': <String, Object?>{'type': 'integer'},
       'persistHandlePath': <String, Object?>{'type': 'string'},
+      'persistAppHandlePath': <String, Object?>{'type': 'string'},
     },
   };
 
@@ -79,6 +80,10 @@ final class CockpitLaunchDevelopmentSessionTool extends CockpitMcpTool {
             arguments,
             'persistHandlePath',
           ),
+          persistAppHandlePath: cockpitReadOptionalString(
+            arguments,
+            'persistAppHandlePath',
+          ),
         ),
       );
       _sessionRegistry?.recordDevelopmentSession(
@@ -90,8 +95,10 @@ final class CockpitLaunchDevelopmentSessionTool extends CockpitMcpTool {
         text: 'Development session launched and ready.',
         structuredContent: <String, Object?>{
           'sessionHandle': result.sessionHandle.toJson(),
+          'app': result.app.toJson(),
           'status': result.status.toJson(),
           'sessionHandlePath': result.persistedHandlePath,
+          'appJsonPath': result.appJsonPath,
           'supervisorLogPath': result.supervisorLogPath,
         },
       );

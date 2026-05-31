@@ -56,6 +56,11 @@ final class LaunchDevelopmentSessionCommand extends CockpitCliCommand {
         'session-json',
         help:
             'Optional path where the reusable development session handle JSON should be written.',
+      )
+      ..addOption(
+        'app-json',
+        help:
+            'Optional path where the app handle JSON should be written for app-scoped commands such as start-recording, stop-recording, and run-batch --recording-json.',
       );
   }
 
@@ -67,7 +72,7 @@ final class LaunchDevelopmentSessionCommand extends CockpitCliCommand {
 
   @override
   String get description =>
-      'Launch a long-lived Flutter development session that supports hot reload, probes, and final validation.';
+      'Launch a long-lived Flutter development session that supports hot reload, probes, recording, and final validation.';
 
   @override
   String get summary => 'Launch development session.';
@@ -77,7 +82,7 @@ final class LaunchDevelopmentSessionCommand extends CockpitCliCommand {
 
   @override
   String get helpWhen =>
-      'Use for longer edit-reload-probe loops where a persistent supervisor saves setup time.';
+      'Use for longer edit-reload-probe loops where a persistent supervisor saves setup time. It also writes an app handle so recording commands stay in the flutter_cockpit flow.';
 
   @override
   String get helpNeeds =>
@@ -85,11 +90,11 @@ final class LaunchDevelopmentSessionCommand extends CockpitCliCommand {
 
   @override
   String get helpExample =>
-      'flutter_cockpit_devtools launch-development-session --platform ios --ios-device-id <simulator-id>';
+      'flutter_cockpit_devtools launch-development-session --platform ios --ios-device-id <simulator-id> --app-json /tmp/app.json';
 
   @override
   String get helpWrites =>
-      'The command result. Use --session-json for the reusable handle, --output for the full result file, or --stdout-format json for jq.';
+      'The command result plus app metadata. Use --session-json for reload/probe commands and --app-json for start-recording, stop-recording, run-batch --recording-json, screenshots, logs, and errors.';
 
   @override
   Future<int> run() async {
@@ -127,15 +132,19 @@ final class LaunchDevelopmentSessionCommand extends CockpitCliCommand {
         persistHandlePath:
             _readOptionalOption('session-json') ??
             cockpitDefaultDevelopmentSessionHandlePath(),
+        persistAppHandlePath:
+            _readOptionalOption('app-json') ?? cockpitDefaultAppHandlePath(),
       ),
     );
 
     await cockpitWriteJsonPayload(
       payload: <String, Object?>{
         'sessionHandle': result.sessionHandle.toJson(),
+        'app': result.app.toJson(),
         'status': result.status.toJson(),
         if (result.persistedHandlePath != null)
           'persistedHandlePath': result.persistedHandlePath,
+        if (result.appJsonPath != null) 'appJsonPath': result.appJsonPath,
         if (result.supervisorLogPath != null)
           'supervisorLogPath': result.supervisorLogPath,
       },

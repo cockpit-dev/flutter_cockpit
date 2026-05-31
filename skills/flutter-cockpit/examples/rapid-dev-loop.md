@@ -83,7 +83,7 @@ For desktop Flutter targets, prefer semantic inspection when the remote path is 
 - Use `run-batch` only for short deterministic sequences that do not need mid-step reasoning.
 - If the next 3-8 mutations are already obvious and order-dependent, prefer `run-batch` to amortize round-trips.
 - Key mutating commands already produce best-effort after-action screenshot refs. Add explicit `captureScreenshot` only for final acceptance or a named proof point.
-- If motion, transition, or acceptance video is part of the claim, wrap the final deterministic batch with `--recording-json` and verify the returned recording is completed with a non-empty artifact before reporting video proof.
+- If motion, transition, or acceptance video is part of the claim, use framework recording before external screen tools. Use bare `start-recording` -> interact/reload -> `stop-recording` for an open-ended development window. Wrap a final deterministic acceptance batch with `run-batch --recording-json` only when explicit acceptance/full options are needed. Verify the returned recording is completed with a non-empty artifact before reporting video proof.
 - If a mutating or route-changing step hits `remoteUnavailable`, re-read minimal route or state before retrying.
 - If the route already advanced, resume from the smallest remaining step instead of replaying the whole sequence.
 - Prefer `read-network` over `inspect-ui` when the uncertainty is purely about HTTP traffic.

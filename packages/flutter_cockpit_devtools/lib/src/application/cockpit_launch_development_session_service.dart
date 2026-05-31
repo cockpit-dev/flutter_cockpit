@@ -13,6 +13,7 @@ import '../infrastructure/cockpit_sdk_environment.dart';
 import '../remote/cockpit_android_port_forwarder.dart';
 import '../session/cockpit_session_process_runner.dart';
 import '../session/cockpit_remote_session_launcher.dart';
+import 'cockpit_app_handle.dart';
 import 'cockpit_entrypoint_resolver.dart';
 import 'cockpit_compact_json.dart';
 
@@ -47,6 +48,7 @@ final class CockpitLaunchDevelopmentSessionRequest {
     this.flavor,
     this.launchTimeout = const Duration(seconds: 120),
     this.persistHandlePath,
+    this.persistAppHandlePath,
   });
 
   final String projectDir;
@@ -57,6 +59,7 @@ final class CockpitLaunchDevelopmentSessionRequest {
   final int sessionPort;
   final Duration launchTimeout;
   final String? persistHandlePath;
+  final String? persistAppHandlePath;
 }
 
 final class CockpitDevelopmentSessionBootstrap {
@@ -72,16 +75,25 @@ final class CockpitDevelopmentSessionBootstrap {
 }
 
 final class CockpitLaunchDevelopmentSessionResult {
-  const CockpitLaunchDevelopmentSessionResult({
+  CockpitLaunchDevelopmentSessionResult({
     required this.sessionHandle,
     required this.status,
+    CockpitAppHandle? app,
     this.persistedHandlePath,
+    this.appJsonPath,
     this.supervisorLogPath,
-  });
+  }) : app =
+           app ??
+           CockpitAppHandle.fromDevelopmentSession(
+             sessionHandle,
+             supervisorLogPath: supervisorLogPath,
+           );
 
   final CockpitDevelopmentSessionHandle sessionHandle;
   final CockpitDevelopmentSessionStatus status;
+  final CockpitAppHandle app;
   final String? persistedHandlePath;
+  final String? appJsonPath;
   final String? supervisorLogPath;
 }
 
@@ -149,17 +161,28 @@ final class CockpitLaunchDevelopmentSessionService {
       sessionPort: request.sessionPort,
       launchTimeout: request.launchTimeout,
       persistHandlePath: request.persistHandlePath,
+      persistAppHandlePath: request.persistAppHandlePath,
     );
     final bootstrap = await _launcher(resolvedRequest);
     final persistedHandlePath = await _persistHandleIfRequested(
       path: resolvedRequest.persistHandlePath,
       handle: bootstrap.sessionHandle,
     );
+    final app = CockpitAppHandle.fromDevelopmentSession(
+      bootstrap.sessionHandle,
+      supervisorLogPath: bootstrap.supervisorLogPath,
+    );
+    final appJsonPath = await _persistAppIfRequested(
+      path: resolvedRequest.persistAppHandlePath,
+      app: app,
+    );
 
     return CockpitLaunchDevelopmentSessionResult(
       sessionHandle: bootstrap.sessionHandle,
       status: bootstrap.status,
+      app: app,
       persistedHandlePath: persistedHandlePath,
+      appJsonPath: appJsonPath,
       supervisorLogPath: bootstrap.supervisorLogPath,
     );
   }
@@ -175,6 +198,20 @@ final class CockpitLaunchDevelopmentSessionService {
     final file = File(path);
     await file.parent.create(recursive: true);
     await file.writeAsString(cockpitPrettyJsonText(handle.toJson()));
+    return p.normalize(file.path);
+  }
+
+  Future<String?> _persistAppIfRequested({
+    required String? path,
+    required CockpitAppHandle app,
+  }) async {
+    if (path == null || path.isEmpty) {
+      return null;
+    }
+
+    final file = File(path);
+    await file.parent.create(recursive: true);
+    await file.writeAsString(cockpitPrettyJsonText(app.toJson()));
     return p.normalize(file.path);
   }
 }

@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
+import '../../application/cockpit_default_recording_request.dart';
 import '../../application/cockpit_start_recording_service.dart';
 import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
@@ -46,19 +47,18 @@ final class StartRecordingCommand extends CockpitCliCommand {
 
   @override
   String get helpWhen =>
-      'Capture motion, transition, or acceptance proof around a risky flow. Prefer a screenshot when one still state already answers the question.';
+      'Capture motion, transition, or development proof around a risky flow. Prefer a screenshot when one still state already answers the question.';
 
   @override
   String get helpNeeds =>
-      'An app reference plus a recording JSON object from --recording-json or --recording-file.';
+      'An app reference. Omit --recording-json for the default repro development recording; pass --recording-json or --recording-file for acceptance, full-screen, or strict layer control.';
 
   @override
   String get helpShape =>
-      'recording.json = {"purpose":"acceptance","name":"acceptance","tailStabilizationMs":1400}; purpose accepts acceptance or repro, and diagnostic/debug/investigation map to repro.';
+      'Default recording = repro auto mode with a sortable name. Optional recording.json = {"purpose":"acceptance","name":"acceptance","tailStabilizationMs":1400}; purpose accepts acceptance or repro.';
 
   @override
-  String get helpExample =>
-      'flutter_cockpit_devtools start-recording --app-json /tmp/app.json --recording-file /tmp/recording.json';
+  String get helpExample => 'flutter_cockpit_devtools start-recording';
 
   @override
   String get helpWrites =>
@@ -67,7 +67,7 @@ final class StartRecordingCommand extends CockpitCliCommand {
   @override
   Future<int> run() async {
     cockpitRequireAppReference(argResults, usage);
-    final recordingJson = await cockpitReadRequiredJsonObject(
+    final recordingJson = await cockpitReadOptionalJsonObject(
       argResults: argResults,
       inlineOption: 'recording-json',
       fileOption: 'recording-file',
@@ -80,11 +80,13 @@ final class StartRecordingCommand extends CockpitCliCommand {
         appHandlePath: cockpitResolveAppHandlePath(argResults),
         androidDeviceId: argResults?['android-device-id'] as String?,
         iosDeviceId: argResults?['ios-device-id'] as String?,
-        recording: cockpitDecodeCliJson(
-          decode: () => CockpitRecordingRequest.fromJson(recordingJson),
-          label: 'recording JSON',
-          usage: usage,
-        ),
+        recording: recordingJson == null
+            ? cockpitDefaultDevelopmentRecordingRequest()
+            : cockpitDecodeCliJson(
+                decode: () => CockpitRecordingRequest.fromJson(recordingJson),
+                label: 'recording JSON',
+                usage: usage,
+              ),
       ),
     );
     await cockpitWriteJsonPayload(

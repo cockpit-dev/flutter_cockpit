@@ -9,6 +9,54 @@ import 'package:flutter_cockpit_devtools/src/cli/commands/stop_recording_command
 import 'package:test/test.dart';
 
 void main() {
+  test(
+    'start-recording defaults to an AI-first development recording request',
+    () async {
+      CockpitStartRecordingRequest? capturedRequest;
+      final stdoutBuffer = StringBuffer();
+      final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
+        ..addCommand(
+          StartRecordingCommand(
+            stdoutSink: stdoutBuffer,
+            start: (request) async {
+              capturedRequest = request;
+              return CockpitStartRecordingResult(
+                recordingSession: CockpitRecordingSession(
+                  request: request.recording,
+                  state: CockpitRecordingState.recording,
+                ),
+              );
+            },
+          ),
+        );
+
+      final exitCode =
+          await runner.run(<String>[
+            'start-recording',
+            '--stdout-format',
+            'json',
+            '--base-url',
+            'http://127.0.0.1:47331',
+          ]) ??
+          0;
+
+      expect(exitCode, 0);
+      expect(capturedRequest?.recording.purpose, CockpitRecordingPurpose.repro);
+      expect(capturedRequest?.recording.mode, CockpitRecordingMode.auto);
+      expect(
+        capturedRequest?.recording.tailStabilizationDelay.inMilliseconds,
+        1400,
+      );
+      expect(
+        capturedRequest?.recording.name,
+        matches(RegExp(r'^\d{8}T\d{12}Z_development-recording$')),
+      );
+      final decoded =
+          jsonDecode(stdoutBuffer.toString()) as Map<String, Object?>;
+      expect(decoded['recordingSession'], isA<Map<String, Object?>>());
+    },
+  );
+
   test('start-recording forwards explicit iOS device ids', () async {
     CockpitStartRecordingRequest? capturedRequest;
     final stdoutBuffer = StringBuffer();

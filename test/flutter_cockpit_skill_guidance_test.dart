@@ -82,7 +82,18 @@ void main() {
       skill,
       contains('key mutating commands auto-attach best-effort screenshots'),
     );
-    expect(skill, contains('verify a completed non-empty artifact'));
+    expect(skill, contains('Verify a completed non-empty artifact'));
+    expect(
+      skill,
+      contains('For development recording, stay inside flutter_cockpit'),
+    );
+    expect(
+      skill,
+      contains('start-recording` -> interact/reload -> `stop-recording'),
+    );
+    expect(skill, contains('flutter_cockpit_devtools start-recording'));
+    expect(skill, contains('flutter_cockpit_devtools stop-recording'));
+    expect(skill, contains('Do not use external screen-recording tools'));
     expect(skill, contains('Persistent sessions'));
     expect(skill, contains('Direct remote is an escape hatch'));
     expect(skill, contains('help <command>'));
@@ -203,6 +214,15 @@ void main() {
     expect(cliReference, contains('start-recording'));
     expect(
       cliReference,
+      contains('launch-development-session` also writes an app handle'),
+    );
+    expect(
+      cliReference,
+      contains('instead of external screen-recording tools'),
+    );
+    expect(cliReference, contains('QuickTime'));
+    expect(
+      cliReference,
       contains('non-empty bytes or a non-empty source/output file'),
     );
     expect(cliReference, contains('Do not claim video recording coverage'));
@@ -226,9 +246,12 @@ void main() {
     expect(rapidLoop, contains('grep-package-uris'));
     expect(rapidLoop, contains('textPreviews'));
     expect(rapidLoop, contains('final explicit `captureScreenshot`'));
+    expect(rapidLoop, contains('run-batch --recording-json'));
+    expect(rapidLoop, contains('start-recording` -> interact/reload'));
+    expect(rapidLoop, contains('stop-recording'));
     expect(
       rapidLoop,
-      contains('wrap the final deterministic batch with `--recording-json`'),
+      contains('use framework recording before external screen tools'),
     );
     expect(rapidLoop, contains('completed with a non-empty artifact'));
     expect(rapidLoop, contains('remoteUnavailable'));
@@ -296,6 +319,7 @@ void main() {
       runtimeValidation,
       isNot(contains('read runtime errors, and stop the app')),
     );
+    expect(runtimeValidation, contains('use flutter_cockpit recording first'));
 
     final cliReference =
         docsByName['${skillDir.path}/examples/cli-command-reference.md']!;
