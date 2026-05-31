@@ -416,3 +416,40 @@ Validation target after the target-aware shell and desktop inspect rollout:
 - the skill now teaches `target.json` reuse as a first-class loop
 - the target-first guidance now distinguishes semantic-first desktop Flutter targets from direct native/system targets
 - remaining loophole to watch: an agent may still treat any desktop inspect failure as a reason to silently downgrade, instead of distinguishing recoverable transport failures from unexpected logic errors
+
+## Scenario 12: Random Command Picker Pressure
+
+### Prompt
+
+Use Flutter Cockpit to implement and verify a small product change quickly.
+
+### Expected Naive Failure
+
+The agent reads the skill, searches for a command that sounds relevant, runs it, and treats that isolated command result as progress. It behaves like a random command picker instead of following a staged AI development protocol.
+
+### Baseline Observation
+
+Baseline observation after repeated real usage:
+
+- the agent often jumped straight to `run-command`, `captureScreenshot`, or an external tool without proving the app was reachable
+- it skipped baseline because the command list looked self-contained
+- it reported success from command completion without a separate observe and judge stage
+- it opened reference files as a substitute for deciding the next missing runtime fact
+
+### Target Corrected Behavior
+
+The agent must:
+
+- walk `assess -> bootstrap -> baseline -> execute -> observe -> judge -> deliver` in order
+- use the command pack only inside the current stage
+- open example references only for exact syntax or payload shape
+- collect post-action state, errors, and evidence before any completion claim
+
+### Post-Skill Validation
+
+Validation target after the stage-protocol rewrite:
+
+- the main skill now states that Flutter Cockpit is not a command catalog
+- the seven-stage protocol appears before the command pack
+- common mistakes call out random command picking directly
+- remaining loophole to watch: an agent may name the stages in prose but still skip a concrete baseline or post-action read under time pressure

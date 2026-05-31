@@ -110,8 +110,9 @@ After installation:
    - `SKILL.md`
    - `examples/`
    - `pressure-scenarios.md`
-4. Do not assume the skill is active until the host has restarted or rescanned skills.
-5. If the host still does not discover the skill, verify that you chose the correct skill-discovery directory for that host.
+4. Confirm any symlink resolves to this repository's `skills/flutter-cockpit/` directory, not an older checkout or a deleted path.
+5. Do not assume the skill is active until the host has restarted or rescanned skills.
+6. If the host still does not discover the skill, verify that you chose the correct skill-discovery directory for that host.
 
 ## Boundary
 
