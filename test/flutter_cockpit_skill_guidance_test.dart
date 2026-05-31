@@ -62,29 +62,52 @@ void main() {
       '$root/skills/flutter-cockpit/examples/rapid-dev-loop.md',
     ).readAsStringSync();
 
-    expect(skill, contains('High-Value Rules'));
+    expect(skill, contains('## Development Rules'));
+    expect(skill, contains('## Failure Recovery'));
+    expect(skill, contains('## Other Surfaces'));
     expect(skill, contains('Copy-Ready Commands'));
-    expect(skill, contains('app-first'));
-    expect(skill, contains('Persistent edit loop'));
+    expect(skill, contains('App-first by default'));
+    expect(skill, contains('Default app flow: `launch-app`'));
+    expect(skill, contains('Keep app alive for next edit'));
+    expect(skill, contains('`stop-app` is cleanup or recovery'));
+    expect(skill, contains('not a loop step'));
+    expect(skill, contains('when `hot-restart` cannot recover'));
+    expect(skill, contains('clean rebuild/relaunch'));
+    expect(
+      skill,
+      contains('named `captureScreenshot` before UI completion claim'),
+    );
+    expect(skill, contains('Evidence:'));
+    expect(
+      skill,
+      contains('key mutating commands auto-attach best-effort screenshots'),
+    );
+    expect(skill, contains('verify a completed non-empty artifact'));
+    expect(skill, contains('Persistent sessions'));
     expect(skill, contains('Direct remote is an escape hatch'));
     expect(skill, contains('help <command>'));
     expect(skill, contains('.dart_tool/flutter_cockpit/latest_app.json'));
     expect(skill, contains('jq'));
     expect(skill, contains('captureScreenshot'));
     expect(skill, contains('artifact refs or output paths'));
+    expect(
+      skill,
+      contains('Do not wait until the final response to collect evidence'),
+    );
+    expect(skill, contains('run one named `captureScreenshot`'));
     expect(skill, contains('Do not set `type: Text` for button labels'));
     expect(skill, contains('Do not blindly replay a non-idempotent batch'));
-    expect(skill, contains('re-read minimal route or state before retrying'));
+    expect(skill, contains('re-read minimal route/state first'));
     expect(skill, contains('Prefer `run-batch` for route-crossing flows'));
     expect(skill, contains('errorJson'));
-    expect(skill, contains('`code`, `message`, and optional `details`'));
-    expect(skill, contains('non-usage failures'));
+    expect(skill, contains('errorJson.code'));
+    expect(skill, contains('errorJson.message'));
     expect(skill, contains('optional `details`'));
-    expect(skill, contains('Do not collapse all remote failures'));
+    expect(skill, contains('Differentiate `remoteUnavailable`'));
     expect(skill, contains('bridgeUnavailable'));
     expect(
       skill,
-      contains('Treat `invalidPayload` as a command or option defect'),
+      contains('Treat `invalidPayload` as a caller command/option defect'),
     );
     expect(skill, contains('web browser-host recording'));
     expect(skill, contains('ffmpeg startup/output evidence missing'));
@@ -106,8 +129,8 @@ void main() {
     );
     expect(skill, contains('read-app --profile minimal'));
     expect(skill, contains('Do not shell-background `launch-app`'));
-    expect(skill, contains('It returns after the app is ready'));
-    expect(skill, contains('background supervisor keeps logs'));
+    expect(skill, contains('It returns after readiness'));
+    expect(skill, contains('supervisor keeps logs'));
     expect(skill, contains('FlutterAppDelegate.h has been modified'));
     expect(
       skill,
@@ -124,12 +147,6 @@ void main() {
       skill,
       contains(
         'validate-task --config-json /tmp/flutter_cockpit/validate_task.json',
-      ),
-    );
-    expect(
-      skill,
-      contains(
-        'read-task-bundle-summary --bundle-dir /tmp/flutter_cockpit/bundle',
       ),
     );
     expect(skill, contains('MCP `read_task_bundle_summary`'));
@@ -204,10 +221,116 @@ void main() {
       contains('Do not run `launch-app` with shell backgrounding'),
     );
     expect(rapidLoop, contains('leaves a supervisor behind for logs'));
+    expect(rapidLoop, contains('Do not call `stop-app` after every loop'));
+    expect(rapidLoop, contains('use `stop-app` as cleanup or recovery'));
     expect(rapidLoop, contains('grep-package-uris'));
     expect(rapidLoop, contains('textPreviews'));
+    expect(rapidLoop, contains('final explicit `captureScreenshot`'));
+    expect(
+      rapidLoop,
+      contains('wrap the final deterministic batch with `--recording-json`'),
+    );
+    expect(rapidLoop, contains('completed with a non-empty artifact'));
     expect(rapidLoop, contains('remoteUnavailable'));
     expect(rapidLoop, contains('smallest remaining step'));
     expect(rapidLoop, contains('Do not parallelize'));
+  });
+
+  test('flutter-cockpit skill references stay consistent', () {
+    final skillDir = Directory('$root/skills/flutter-cockpit');
+    final skillFiles =
+        skillDir
+            .listSync(recursive: true)
+            .whereType<File>()
+            .where((file) => file.path.endsWith('.md'))
+            .toList()
+          ..sort((a, b) => a.path.compareTo(b.path));
+    final docsByName = <String, String>{
+      for (final file in skillFiles) file.path: file.readAsStringSync(),
+    };
+    final allDocs = docsByName.values.join('\n');
+
+    expect(skillFiles.map((file) => file.path), contains(endsWith('SKILL.md')));
+    expect(
+      skillFiles.map((file) => file.path),
+      contains(endsWith('INSTALL.md')),
+    );
+    expect(
+      skillFiles.map((file) => file.path),
+      contains(endsWith('pressure-scenarios.md')),
+    );
+
+    final skill = docsByName['${skillDir.path}/SKILL.md']!;
+    for (final match in RegExp(
+      r'\]\((examples/[^)]+\.md)\)',
+    ).allMatches(skill)) {
+      final relativePath = match.group(1)!;
+      expect(
+        File('${skillDir.path}/$relativePath').existsSync(),
+        isTrue,
+        reason: 'SKILL.md references missing file $relativePath',
+      );
+    }
+
+    expect(allDocs, isNot(contains('--output-json')));
+    expect(allDocs, isNot(contains('--output-ai')));
+    expect(allDocs, isNot(contains('@/')));
+    expect(allDocs, isNot(contains('@superpowers')));
+    expect(allDocs, isNot(contains('High-Value Rules')));
+    expect(allDocs, isNot(contains('first-use guardrails')));
+    expect(allDocs, isNot(contains('observe step')));
+    expect(allDocs, isNot(contains('observe stage')));
+    expect(allDocs, isNot(contains('bootstrap, baseline, and observe')));
+
+    final runtimeValidation =
+        docsByName['${skillDir.path}/examples/runtime-validation.md']!;
+    expect(
+      runtimeValidation,
+      contains('keep the app alive while more edits are likely'),
+    );
+    expect(
+      runtimeValidation,
+      contains('cleanup or recovery requires `stop-app`'),
+    );
+    expect(
+      runtimeValidation,
+      isNot(contains('read runtime errors, and stop the app')),
+    );
+
+    final cliReference =
+        docsByName['${skillDir.path}/examples/cli-command-reference.md']!;
+    expect(cliReference, contains('Stop the app only for cleanup or recovery'));
+    expect(
+      cliReference,
+      contains(
+        'CLI app recovery is `app.json` or `.dart_tool/flutter_cockpit/latest_app.json` first',
+      ),
+    );
+
+    final rapidLoop =
+        docsByName['${skillDir.path}/examples/rapid-dev-loop.md']!;
+    expect(rapidLoop, contains('CLI `analyze-files` or MCP `analyze_files`'));
+    expect(rapidLoop, contains('CLI `pub-dev-search` or MCP `pub_dev_search`'));
+    expect(rapidLoop, contains('`run-tests`/`run_tests`'));
+
+    final install = docsByName['${skillDir.path}/INSTALL.md']!;
+    expect(install, contains('Do not assume the current agent is Codex'));
+    expect(install, contains('symlink'));
+    expect(install, contains('Restart the AI host'));
+
+    final pressureScenarios =
+        docsByName['${skillDir.path}/pressure-scenarios.md']!;
+    expect(
+      pressureScenarios,
+      contains('post-action evidence read before judgment'),
+    );
+    expect(
+      pressureScenarios,
+      contains('CLI `launch-app` + `read-app` + `run-command`'),
+    );
+    expect(
+      pressureScenarios,
+      contains('quick reference and development rules'),
+    );
   });
 }

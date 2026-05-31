@@ -72,6 +72,15 @@ void main() {
     expect(help, contains('pub'));
     expect(help, contains('grep-package-uris'));
     expect(help, contains('run-command'));
+    expect(help, contains('hot-reload'));
+    expect(help, contains('read-errors --max-errors 10'));
+    expect(help, contains('Use stop-app for cleanup or recovery only'));
+    expect(
+      help,
+      isNot(
+        contains('  run-command --command-file <command.json>\n  stop-app'),
+      ),
+    );
     expect(help, contains('read-network'));
     expect(help, contains('run-task'));
     expect(help, contains('--output-format json'));

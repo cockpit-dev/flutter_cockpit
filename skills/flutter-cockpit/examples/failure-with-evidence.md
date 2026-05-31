@@ -48,7 +48,4 @@ explain the next repair step.
 - for interaction failures, prove whether the target was not found, activation
   did not fire, route did not change, UI did not change, or route target
   discovery stayed empty before changing timeouts or platform-specific code
-- state what should happen next:
-  - relaunch or repair the environment
-  - fix the app behavior and rerun
-  - gather missing evidence and rerun acceptance
+- state whether the next action is to relaunch/repair the environment, fix app behavior and rerun, or gather missing evidence and rerun acceptance

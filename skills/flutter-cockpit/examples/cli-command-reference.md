@@ -320,7 +320,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   hot-restart --stdout-format json | jq '{reloadGeneration: .status.reloadGeneration, lastReloadSucceeded: .status.lastReloadSucceeded, lastReloadMode: .status.lastReloadMode}'
 ```
 
-Stop the app:
+Stop the app only for cleanup or recovery:
 
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools stop-app
@@ -437,7 +437,7 @@ them.
 - After `hot-restart`, do not assume route and scroll position reset. Re-read route, then re-anchor or switch `reverse` if the target region is now above the viewport.
 - `enterText` success does not guarantee that `uiSummary.textPreviews` will echo the entered value. Prefer validating the next visible control, route change, or saved list state.
 - When a locator returns `ambiguousTarget`, prefer adding `index`, `ancestor`, or `type` before changing any app code.
-- `list_apps` is MCP-only; CLI discovery is `app.json`-first.
+- `list_apps` is MCP-only. CLI app recovery is `app.json` or `.dart_tool/flutter_cockpit/latest_app.json` first; target discovery is `list-targets`.
 - For target-first CLI loops, persist `target.json` and reuse it across commands the same way you reuse `app.json`.
 - `run-script` exits non-zero when the written bundle status is `failed`.
 - Write command output to `--output <path> --output-format json` when a later AI step must read structured state with tools such as `jq`; otherwise `--output <path>` defaults to the AI-readable semantic render.
