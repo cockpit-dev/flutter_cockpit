@@ -27,6 +27,7 @@ void main() {
         'analyze_files',
         'analyze_workspace',
         'apply_fixes',
+        'capture_screenshot',
         'collect_development_probe',
         'collect_remote_snapshot',
         'compare_development_probe',

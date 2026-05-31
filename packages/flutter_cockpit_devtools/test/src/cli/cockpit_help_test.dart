@@ -6,6 +6,7 @@ import 'package:flutter_cockpit_devtools/src/cli/commands/hot_reload_command.dar
 import 'package:flutter_cockpit_devtools/src/cli/commands/hot_restart_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/inspect_ui_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/inspect_surface_command.dart';
+import 'package:flutter_cockpit_devtools/src/cli/commands/capture_screenshot_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/collect_development_probe_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/collect_remote_snapshot_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/compare_development_probe_command.dart';
@@ -72,6 +73,7 @@ void main() {
     expect(help, contains('pub'));
     expect(help, contains('grep-package-uris'));
     expect(help, contains('run-command'));
+    expect(help, contains('capture-screenshot'));
     expect(help, contains('hot-reload'));
     expect(help, contains('read-errors --max-errors 10'));
     expect(help, contains('Use stop-app for cleanup or recovery only'));
@@ -381,6 +383,7 @@ final List<dynamic> _topLevelCommands = <dynamic>[
   InspectUiCommand(),
   InspectSurfaceCommand(),
   RunCommandCommand(),
+  CaptureScreenshotCommand(),
   RunBatchCommand(),
   RunShellCommand(),
   HotReloadCommand(),

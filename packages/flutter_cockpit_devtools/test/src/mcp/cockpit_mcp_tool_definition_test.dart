@@ -3,6 +3,7 @@ import 'package:flutter_cockpit_devtools/src/mcp/core/cockpit_mcp_tool_adapter.d
 import 'package:flutter_cockpit_devtools/src/mcp/cockpit_mcp_tool.dart';
 import 'package:dart_mcp/server.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_analyze_files_tool.dart';
+import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_capture_screenshot_tool.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_create_project_tool.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_execute_remote_command_tool.dart';
 import 'package:flutter_cockpit_devtools/src/mcp/tools/cockpit_grep_package_uris_tool.dart';
@@ -178,6 +179,20 @@ void main() {
     ]);
     expect(tool.definition.annotations.readOnly, isTrue);
     expect(tool.definition.annotations.requiresSession, isTrue);
+  });
+
+  test('capture_screenshot is a concise evidence command', () {
+    final tool = CockpitCaptureScreenshotTool(
+      capture: (_) async => throw UnimplementedError(),
+    );
+
+    expect(tool.definition.name, 'capture_screenshot');
+    expect(tool.definition.categories, <CockpitMcpFeatureCategory>[
+      CockpitMcpFeatureCategory.execution,
+      CockpitMcpFeatureCategory.inspection,
+    ]);
+    expect(tool.definition.annotations.readOnly, isFalse);
+    expect(tool.definition.annotations.longRunning, isFalse);
   });
 
   test('protocol adapter fills empty object schema properties', () {

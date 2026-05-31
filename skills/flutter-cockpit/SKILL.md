@@ -24,17 +24,49 @@ These stages are decision gates, not a fixed command script or command quota. Sa
 
 Do not use for docs-only edits or static refactors with no runtime claim.
 
+## First-Time App Wiring
+
+If the app is not controllable yet, add the runtime package and a dev entrypoint before runtime validation:
+
+1. add `flutter_cockpit` to the Flutter app package and run `flutter pub get`
+2. keep the production entrypoint intact
+3. add `cockpit/main.dart` that imports the existing app root
+4. wrap the root with `FlutterCockpitApp` or `FlutterCockpit.runApp`
+5. add `FlutterCockpit.navigatorObserver` to the app navigator
+6. enable `CockpitRemoteSessionConfiguration.resolveFromEnvironment(...)`
+
+Minimal `cockpit/main.dart` shape:
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter_cockpit/flutter_cockpit_flutter.dart';
+
+void main() => runApp(buildCockpitDevelopmentApp());
+
+Widget buildCockpitDevelopmentApp() {
+  return FlutterCockpitApp(
+    config: FlutterCockpitConfig.production(
+      remoteSession: CockpitRemoteSessionConfiguration.resolveFromEnvironment(),
+    ),
+    child: MaterialApp(
+      navigatorObservers: <NavigatorObserver>[FlutterCockpit.navigatorObserver],
+      home: const ExistingAppRoot(),
+    ),
+  );
+}
+```
+
 ## Stage Protocol
 
 1. **assess**: decide the smallest truthful surface. Default to app-first. If platform or device is unknown, run `list-targets` and use the returned platform, device id, and capability metadata. Do not guess device ids, command names, payload keys, or locator types.
 2. **bootstrap**: launch once or reuse a handle. `launch-app` returns after readiness; never shell-background it. Reuse `.dart_tool/flutter_cockpit/latest_app.json` in the same repo. Use target-first only for non-plain app surfaces. Use direct remote only as an escape hatch.
 3. **baseline**: read before acting, unless a fresh equivalent read already answers the same question. Start with `read-app --profile minimal` or `read-target --profile minimal`; capture route, visible state, reachability, and current errors. For code edits, prefer `lsp` or `analyze-files` before workspace-wide tools.
 4. **execute**: edit, then prefer `hot-reload`; use `hot-restart` before a clean stop/relaunch. Drive UI with `run-command` or a short `run-batch`. For route-changing taps, include `expectedRouteName` or a follow-up wait. After timeout, `remoteUnavailable`, or a failed non-idempotent batch, re-read minimal route/state and resume from the smallest remaining safe step; do not replay blindly.
-5. **observe**: read post-action state before judging. Use `read-app`, `read-errors --max-errors 10`, `inspect-ui`, `read-network`, or bundle summaries according to the next missing fact. Before any visible UI completion claim, run a named `captureScreenshot`. For animation, transition, gesture, or bug-repro proof, use framework recording first: `start-recording` -> act or reload -> `stop-recording`, then verify a completed non-empty artifact.
+5. **observe**: read post-action state before judging. Use `read-app`, `read-errors --max-errors 10`, `inspect-ui`, `read-network`, or bundle summaries according to the next missing fact. Before any visible UI completion claim, run `capture-screenshot --name <proof-name>`. For animation, transition, gesture, or bug-repro proof, use framework recording first: `start-recording` -> act or reload -> `stop-recording`, then verify a completed non-empty artifact.
 6. **judge**: compare baseline with observed state and the user's requested outcome. Classify as `completed`, `needs_more_work`, `failed_with_evidence`, or `blocked_by_environment`. Media existence is not semantic proof; screenshot or video proof still needs state/error interpretation.
 7. **deliver**: for acceptance-facing work, run `validate-task` and report the smallest useful evidence paths or refs. Attach artifacts only when the host supports it; otherwise report exact paths. `stop-app` is cleanup or recovery only, not a normal loop step.
 
-## Default Command Pack
+## Fast Command Pack
 
 Use default AI-readable stdout. Add `--stdout-format json` only for `jq`. Add `--output <path>` for file output; terminal output should then only need the produced path. Use `--output-format json` only for machine-readable files.
 
@@ -42,6 +74,7 @@ Use default AI-readable stdout. Add `--stdout-format json` only for `jq`. Add `-
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools list-targets
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools launch-app --project-dir <dir> --platform <platform> --device-id <id>
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools read-app --profile minimal
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools analyze-files --path <changed-file>
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools hot-reload
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools read-errors --max-errors 10
 ```
@@ -51,14 +84,32 @@ printf '%s\n' '{"commandId":"assert-ready","commandType":"assertText","parameter
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-command --command-file /tmp/flutter_cockpit_command.json --profile standard
 ```
 
+## Escalation Commands
+
+Use these only when the next claim needs them; do not add them to every loop.
+
+Visible final proof:
+
 ```bash
-printf '%s\n' '[{"commandId":"wait","commandType":"waitForUiIdle"},{"commandId":"acceptance-shot","commandType":"captureScreenshot","screenshotRequest":{"reason":"acceptance","name":"acceptance","includeSnapshot":true,"attachToStep":true}}]' >/tmp/flutter_cockpit_batch.json
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-batch --commands-file /tmp/flutter_cockpit_batch.json --profile evidence
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools capture-screenshot --name acceptance --profile standard
 ```
+
+Short deterministic flow:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-batch --commands-file /tmp/flutter_cockpit_batch.json --profile standard
+```
+
+Motion, transition, gesture, or bug-repro video:
 
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools start-recording
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools stop-recording
+```
+
+Acceptance, release readiness, or artifact-backed handoff:
+
+```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools validate-task --config-json /tmp/flutter_cockpit_validate_task.json
 ```
 
