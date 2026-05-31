@@ -21,10 +21,9 @@ When the task is not purely Flutter UI, switch to:
 
 Use `run-shell` only when the resolved target truthfully exposes shell control. Browser targets stay `read-target` and `inspect-surface` first; any browser prerequisite checks should use host shell scope instead of a browser device shell.
 
-Platform-specific behavior must come from discovered target metadata, not the
-developer's current host. Desktop, web, simulator, emulator, and physical
-device targets expose different recording, shell, browser, and native-surface
-capabilities.
+Read platform-specific behavior from discovered target metadata. Desktop, web,
+simulator, emulator, and physical device targets expose different recording,
+shell, browser, and native-surface capabilities.
 
 Target-first example:
 

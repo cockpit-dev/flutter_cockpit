@@ -16,10 +16,9 @@ List available targets:
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools list-targets
 ```
 
-Choose `--platform` and `--device-id` from `list-targets`. Do not copy a
-macOS example onto Android, iOS, Web, Linux, or Windows. Web device ids are
-browser ids such as the discovered Chrome target; Android and iOS ids are the
-reported emulator, simulator, or physical device ids.
+Choose `--platform` and `--device-id` from `list-targets`. Keep placeholders
+in copied commands until discovery returns real values. Web ids are browser ids;
+mobile ids are the reported emulator, simulator, or physical device ids.
 
 Launch an app:
 

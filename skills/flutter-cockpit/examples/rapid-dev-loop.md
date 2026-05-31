@@ -57,7 +57,7 @@ Use this branch when the target is not purely a Flutter app handle:
 5. `run-shell` only when the resolved platform truthfully exposes shell control
 
 For desktop Flutter targets, prefer semantic inspection when the remote path is reachable. Fall back to native/window evidence only when that semantic path is unavailable.
-For Android, iOS, Web, Linux, Windows, and macOS, choose commands from discovered capabilities instead of the host OS you are currently running on.
+Choose shell, recording, browser, and native-surface commands from discovered capabilities.
 
 ## Code-Side Shortcuts
 
