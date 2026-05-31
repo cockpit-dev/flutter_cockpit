@@ -8,6 +8,13 @@ import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 void main() {
+  test('simctl default startup timeout allows first-frame evidence', () {
+    expect(
+      cockpitDefaultSimctlRecordingStartupTimeout,
+      greaterThanOrEqualTo(const Duration(seconds: 10)),
+    );
+  });
+
   test('simctl default stop timeout covers slow CI finalization windows', () {
     expect(
       cockpitDefaultSimctlRecordingStopTimeout,
@@ -15,62 +22,47 @@ void main() {
     );
   });
 
-  test(
-    'simctl adapter accepts a running recorder even when no startup banner is emitted',
-    () async {
-      const deviceId = 'simulator-no-banner';
-      await _deletePersistedSession(deviceId);
-      addTearDown(() => _deletePersistedSession(deviceId));
+  test('simctl adapter requires startup evidence before recording', () async {
+    const deviceId = 'simulator-no-banner';
+    await _deletePersistedSession(deviceId);
+    addTearDown(() => _deletePersistedSession(deviceId));
 
-      final tempDir = await Directory.systemTemp.createTemp(
-        'cockpit_simctl_recording_no_banner',
-      );
-      addTearDown(() async {
-        if (tempDir.existsSync()) {
-          await tempDir.delete(recursive: true);
-        }
-      });
+    final tempDir = await Directory.systemTemp.createTemp(
+      'cockpit_simctl_recording_no_banner',
+    );
+    addTearDown(() async {
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
 
-      final runtime = _FakeSimctlRuntime(
-        pid: 4101,
-        onStop: (outputPath) async {
-          File(outputPath).writeAsStringSync('simctl-video-no-banner');
-        },
-      );
+    final runtime = _FakeSimctlRuntime(pid: 4101);
 
-      final adapter = CockpitSimctlRecordingAdapter(
-        deviceId: deviceId,
-        processStarter: runtime.start,
-        pidSignalSender: runtime.sendSignal,
-        pidLivenessChecker: runtime.isRunning,
-        tempFileFactory: (basename) async =>
-            File(p.join(tempDir.path, basename)),
-        processRunner: _ffprobeUnavailable,
-        startupTimeout: const Duration(seconds: 1),
-        finalizationPollInterval: const Duration(milliseconds: 10),
-      );
+    final adapter = CockpitSimctlRecordingAdapter(
+      deviceId: deviceId,
+      processStarter: runtime.start,
+      pidSignalSender: runtime.sendSignal,
+      pidLivenessChecker: runtime.isRunning,
+      tempFileFactory: (basename) async => File(p.join(tempDir.path, basename)),
+      processRunner: _ffprobeUnavailable,
+      startupTimeout: const Duration(milliseconds: 80),
+      stopTimeout: const Duration(milliseconds: 80),
+      finalizationPollInterval: const Duration(milliseconds: 10),
+    );
 
-      final session = await adapter.startRecording(
+    await expectLater(
+      adapter.startRecording(
         const CockpitRecordingRequest(
           purpose: CockpitRecordingPurpose.acceptance,
           name: 'host-simctl-no-banner',
           attachToStep: true,
         ),
-      );
-      final result = await adapter.stopRecording();
-
-      expect(session.state, CockpitRecordingState.recording);
-      expect(
-        result.state,
-        CockpitRecordingState.completed,
-        reason: result.failureReason,
-      );
-      expect(
-        File(result.sourceFilePath!).readAsStringSync(),
-        'simctl-video-no-banner',
-      );
-    },
-  );
+      ),
+      throwsA(isA<TimeoutException>()),
+    );
+    expect(runtime.receivedSignals, contains(ProcessSignal.sigkill));
+    expect(cockpitHasActiveSimctlRecordingSession(deviceId), isFalse);
+  });
 
   test(
     'simctl adapter fails when the recording output file is missing',
@@ -116,6 +108,7 @@ void main() {
 
       expect(result.state, CockpitRecordingState.failed);
       expect(result.failureReason, contains('output'));
+      expect(runtime.lastArguments, contains('--codec=h264'));
     },
   );
 
@@ -381,9 +374,11 @@ final class _FakeSimctlRuntime {
   final _FakeSimctlProcess _process;
   final List<ProcessSignal> receivedSignals = <ProcessSignal>[];
   bool _running = true;
+  List<String> lastArguments = const <String>[];
   String? _outputPath;
 
   Future<Process> start(String executable, List<String> arguments) async {
+    lastArguments = List<String>.of(arguments);
     _outputPath = arguments.last;
     return _process;
   }

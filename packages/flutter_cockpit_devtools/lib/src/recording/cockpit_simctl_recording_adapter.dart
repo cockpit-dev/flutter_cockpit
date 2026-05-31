@@ -6,6 +6,9 @@ import 'package:flutter_cockpit/flutter_cockpit.dart';
 
 import 'cockpit_host_recording_adapter.dart';
 
+const Duration cockpitDefaultSimctlRecordingStartupTimeout = Duration(
+  seconds: 15,
+);
 const Duration cockpitDefaultSimctlRecordingStopTimeout = Duration(seconds: 45);
 
 bool cockpitHasActiveSimctlRecordingSession(String deviceId) {
@@ -52,7 +55,7 @@ final class CockpitSimctlRecordingAdapter
     CockpitRecordingTempFileFactory tempFileFactory =
         cockpitCreateRecordingTempFile,
     String ffprobeExecutable = 'ffprobe',
-    Duration startupTimeout = const Duration(seconds: 5),
+    Duration startupTimeout = cockpitDefaultSimctlRecordingStartupTimeout,
     Duration stopTimeout = cockpitDefaultSimctlRecordingStopTimeout,
     Duration finalizationPollInterval = const Duration(milliseconds: 100),
     CockpitPidSignalSender pidSignalSender = Process.killPid,
@@ -103,6 +106,7 @@ final class CockpitSimctlRecordingAdapter
       'io',
       _deviceId,
       'recordVideo',
+      '--codec=h264',
       '--force',
       outputFile.path,
     ]);
@@ -242,8 +246,6 @@ final class CockpitSimctlRecordingAdapter
     required StringBuffer stderrBuffer,
   }) async {
     final deadline = DateTime.now().add(_startupTimeout);
-    const stableRunningWindow = Duration(milliseconds: 750);
-    DateTime? runningSince;
     while (DateTime.now().isBefore(deadline)) {
       if (startupCompleter.isCompleted) {
         return;
@@ -257,14 +259,6 @@ final class CockpitSimctlRecordingAdapter
         );
       }
 
-      runningSince ??= DateTime.now();
-      await Future<void>.delayed(Duration.zero);
-      if (startupCompleter.isCompleted) {
-        return;
-      }
-      if (DateTime.now().difference(runningSince) >= stableRunningWindow) {
-        return;
-      }
       await Future<void>.delayed(const Duration(milliseconds: 100));
     }
 
@@ -273,7 +267,11 @@ final class CockpitSimctlRecordingAdapter
     }
 
     if (await _isProcessRunning(process.pid)) {
-      return;
+      throw TimeoutException(
+        'simctl recordVideo did not confirm startup within '
+        '${_formatDuration(_startupTimeout)}: '
+        '${stderrBuffer.toString().trim()}',
+      );
     }
     final exitCode = await process.exitCode;
 
