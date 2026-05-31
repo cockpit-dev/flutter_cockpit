@@ -87,8 +87,11 @@ void main() {
     expect(contract, contains('when they do not improve the decision'));
     expect(contract, contains('small edit can be complete'));
     expect(contract, contains('platform-discovery-first'));
-    expect(contract, contains('macOS, Windows, Linux, Android, iOS, and Web'));
-    expect(contract, contains('must not teach macOS-only command examples'));
+    expect(contract, contains('Platform and device ids must come from'));
+    expect(
+      contract,
+      contains('platform capabilities must be read from returned metadata'),
+    );
 
     expect(skill, contains('Default to app-first'));
     expect(skill, contains('Default to rapid development validation'));
@@ -135,16 +138,18 @@ void main() {
     expect(skill, contains('Every command should reduce uncertainty'));
     expect(
       skill,
-      contains(
-        'support macOS, Windows, Linux, Android, iOS, and Web by discovery',
-      ),
+      contains('use the returned platform, device id, and capability metadata'),
     );
-    expect(skill, contains('Use platform placeholders in copied commands'));
-    expect(skill, contains('web ids are browser ids'));
     expect(
       skill,
       contains(
-        'Android and iOS require the discovered emulator, simulator, or device id',
+        'Keep platform and device placeholders until `list-targets` returns real values',
+      ),
+    );
+    expect(
+      skill,
+      contains(
+        'read capabilities before choosing shell, recording, browser, or native paths',
       ),
     );
     expect(
@@ -206,16 +211,10 @@ void main() {
       cliReference,
       contains('Choose `--platform` and `--device-id` from `list-targets`'),
     );
-    expect(
-      cliReference,
-      contains('macOS example onto Android, iOS, Web, Linux, or Windows'),
-    );
+    expect(cliReference, contains('Keep placeholders'));
+    expect(cliReference, contains('discovery returns real values'));
     expect(cliReference, contains('--platform <platform-from-list-targets>'));
     expect(cliReference, contains('--device-id <device-id-from-list-targets>'));
-    expect(
-      cliReference,
-      isNot(contains('--platform macos \\\n  --device-id macos')),
-    );
     expect(cliReference, isNot(contains('--output-json')));
     expect(cliReference, isNot(contains('--output-ai')));
 
@@ -235,7 +234,7 @@ void main() {
     expect(
       rapidLoop,
       contains(
-        'choose commands from discovered capabilities instead of the host OS',
+        'Choose shell, recording, browser, and native-surface commands from discovered capabilities',
       ),
     );
     expect(
@@ -265,7 +264,7 @@ void main() {
     expect(
       runtimeValidation,
       contains(
-        'Platform-specific behavior must come from discovered target metadata',
+        'Read platform-specific behavior from discovered target metadata',
       ),
     );
     expect(
@@ -390,7 +389,7 @@ void main() {
       pressureScenarios,
       contains('running heavy evidence just because it exists'),
     );
-    expect(pressureScenarios, contains('Cross-Platform Bias Pressure'));
+    expect(pressureScenarios, contains('Platform Discovery Pressure'));
     expect(
       pressureScenarios,
       contains(
@@ -405,9 +404,7 @@ void main() {
     );
     expect(
       pressureScenarios,
-      contains(
-        'CLI reference examples no longer teach macOS as the default launch example',
-      ),
+      contains('CLI reference launch examples use discovered placeholders'),
     );
   });
 }

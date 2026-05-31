@@ -490,37 +490,37 @@ Validation target after the rapid-development rewrite:
 - the contract now states that stages are evidence gates rather than a command quota
 - remaining loophole to watch: an agent may under-validate acceptance-facing work by mislabeling it as a small development edit
 
-## Scenario 14: Cross-Platform Bias Pressure
+## Scenario 14: Platform Discovery Pressure
 
 ### Prompt
 
-Use Flutter Cockpit on a non-macOS target such as Android, iOS, Web, Windows, or Linux, then verify it quickly.
+Use Flutter Cockpit on a target whose platform and device id are not known yet, then verify it quickly.
 
 ### Expected Naive Failure
 
-The agent copies a macOS launch example, assumes the local host platform is the target platform, or reuses a device id that only makes sense for the current machine.
+The agent skips discovery and reuses a stale platform/device pair from memory or from an unrelated example.
 
 ### Baseline Observation
 
-Baseline observation after reviewing the platform-first rewrite:
+Baseline observation after reviewing platform-first guidance:
 
-- the agent tended to treat macOS examples as universal
-- it skipped `list-targets` and hardcoded a platform/device pair from the docs
-- it missed browser ids, simulator ids, emulator ids, and desktop-specific target ids
+- the agent treated platform and device ids as obvious
+- it skipped `list-targets` and hardcoded a platform/device pair
+- it missed browser ids, simulator ids, emulator ids, and desktop target ids
 
 ### Target Corrected Behavior
 
 The agent must:
 
 - start with `list-targets` whenever the platform or device id is unknown
-- copy platform and device ids from discovered metadata, not from a macOS example
+- copy platform and device ids from discovered metadata
 - choose shell, recording, or inspection paths from the target's actual capability profile
 
 ### Post-Skill Validation
 
-Validation target after the cross-platform rewrite:
+Validation target after the platform-discovery rewrite:
 
 - the main skill now explicitly says platform discovery comes from `list-targets`
 - copied commands use placeholders until real platform and device ids are known
-- CLI reference examples no longer teach macOS as the default launch example
+- CLI reference launch examples use discovered placeholders
 - remaining loophole to watch: an agent may still discover the right platform but ignore the capability profile that comes with it

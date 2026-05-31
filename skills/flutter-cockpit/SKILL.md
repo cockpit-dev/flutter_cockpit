@@ -26,7 +26,7 @@ Do not use for docs-only edits or static refactors with no runtime claim.
 
 ## Stage Protocol
 
-1. **assess**: decide the smallest truthful surface. Default to app-first. If platform or device is unknown, run `list-targets`; support macOS, Windows, Linux, Android, iOS, and Web by discovery, not by hardcoded host assumptions. Do not guess device ids, command names, payload keys, or locator types.
+1. **assess**: decide the smallest truthful surface. Default to app-first. If platform or device is unknown, run `list-targets` and use the returned platform, device id, and capability metadata. Do not guess device ids, command names, payload keys, or locator types.
 2. **bootstrap**: launch once or reuse a handle. `launch-app` returns after readiness; never shell-background it. Reuse `.dart_tool/flutter_cockpit/latest_app.json` in the same repo. Use target-first only for non-plain app surfaces. Use direct remote only as an escape hatch.
 3. **baseline**: read before acting, unless a fresh equivalent read already answers the same question. Start with `read-app --profile minimal` or `read-target --profile minimal`; capture route, visible state, reachability, and current errors. For code edits, prefer `lsp` or `analyze-files` before workspace-wide tools.
 4. **execute**: edit, then prefer `hot-reload`; use `hot-restart` before a clean stop/relaunch. Drive UI with `run-command` or a short `run-batch`. For route-changing taps, include `expectedRouteName` or a follow-up wait. After timeout, `remoteUnavailable`, or a failed non-idempotent batch, re-read minimal route/state and resume from the smallest remaining safe step; do not replay blindly.
@@ -68,7 +68,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools validate-task --confi
 - Use `minimal -> standard -> inspect -> evidence`; escalate only when the current layer cannot answer the next question.
 - Be flexible on commands, strict on proof. A tiny text edit may only need analyze, hot reload, minimal read, and errors; an acceptance flow may need batch, recording, and validation.
 - Every command should reduce uncertainty for the current task. Do not run recording, evidence profiles, bundle validation, or raw artifact reads just because they exist.
-- Use platform placeholders in copied commands until `list-targets` returns real values. Desktop ids are not always `macos`; web ids are browser ids; Android and iOS require the discovered emulator, simulator, or device id.
+- Keep platform and device placeholders until `list-targets` returns real values; read capabilities before choosing shell, recording, browser, or native paths.
 - Prefer file inputs: `--command-file`, `--commands-file`, and config JSON. Inline JSON only when tiny.
 - Safe command types: `tap`, `enterText`, `assertText`, `waitForUiIdle`, `scrollUntilVisible`, `captureScreenshot`.
 - Safe locator keys: `text`, `tooltip`, `semanticId`, `type`, `ancestor`, `index`, `fallbacks`. Do not set `type: Text` for button labels; use text alone or the inspected control type.
