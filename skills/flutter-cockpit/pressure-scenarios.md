@@ -489,3 +489,38 @@ Validation target after the rapid-development rewrite:
 - development defaults now forbid running heavy evidence just because it exists
 - the contract now states that stages are evidence gates rather than a command quota
 - remaining loophole to watch: an agent may under-validate acceptance-facing work by mislabeling it as a small development edit
+
+## Scenario 14: Cross-Platform Bias Pressure
+
+### Prompt
+
+Use Flutter Cockpit on a non-macOS target such as Android, iOS, Web, Windows, or Linux, then verify it quickly.
+
+### Expected Naive Failure
+
+The agent copies a macOS launch example, assumes the local host platform is the target platform, or reuses a device id that only makes sense for the current machine.
+
+### Baseline Observation
+
+Baseline observation after reviewing the platform-first rewrite:
+
+- the agent tended to treat macOS examples as universal
+- it skipped `list-targets` and hardcoded a platform/device pair from the docs
+- it missed browser ids, simulator ids, emulator ids, and desktop-specific target ids
+
+### Target Corrected Behavior
+
+The agent must:
+
+- start with `list-targets` whenever the platform or device id is unknown
+- copy platform and device ids from discovered metadata, not from a macOS example
+- choose shell, recording, or inspection paths from the target's actual capability profile
+
+### Post-Skill Validation
+
+Validation target after the cross-platform rewrite:
+
+- the main skill now explicitly says platform discovery comes from `list-targets`
+- copied commands use placeholders until real platform and device ids are known
+- CLI reference examples no longer teach macOS as the default launch example
+- remaining loophole to watch: an agent may still discover the right platform but ignore the capability profile that comes with it

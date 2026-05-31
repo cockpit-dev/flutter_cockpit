@@ -4,12 +4,13 @@ Use this pattern when the task needs live app evidence. Default to the fastest l
 
 ## Recommended Flow
 
-1. `launch-app`
-2. `read-app --profile minimal`
-3. `run-command` or `run-batch`
-4. `inspect-ui`, `read-network`, `read-errors`, `read-logs`, or `wait-idle` only when needed
-5. `hot-reload` or `hot-restart` during active development
-6. repeat until correct
+1. `list-targets` if the platform or device id is not already known
+2. `launch-app`
+3. `read-app --profile minimal`
+4. `run-command` or `run-batch`
+5. `inspect-ui`, `read-network`, `read-errors`, `read-logs`, or `wait-idle` only when needed
+6. `hot-reload` or `hot-restart` during active development
+7. repeat until correct
 
 When the task is not purely Flutter UI, switch to:
 
@@ -19,6 +20,11 @@ When the task is not purely Flutter UI, switch to:
 4. CLI `read-task-bundle-summary`, MCP `read_task_bundle_summary`, or `validate-task` only for an existing bundle or acceptance-facing claim
 
 Use `run-shell` only when the resolved target truthfully exposes shell control. Browser targets stay `read-target` and `inspect-surface` first; any browser prerequisite checks should use host shell scope instead of a browser device shell.
+
+Platform-specific behavior must come from discovered target metadata, not the
+developer's current host. Desktop, web, simulator, emulator, and physical
+device targets expose different recording, shell, browser, and native-surface
+capabilities.
 
 Target-first example:
 

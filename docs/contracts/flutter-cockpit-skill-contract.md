@@ -57,6 +57,8 @@ The skill must enforce this order:
 
 The stages are evidence gates, not a fixed command quota. The default path must optimize for rapid development validation: use the cheapest live loop that answers the user's question, reuse fresh valid evidence, and escalate only when the current layer cannot reduce the remaining uncertainty. The skill must not reward running extra recording, evidence profiles, bundle validation, or raw artifact reads when they do not improve the decision.
 
+The skill must be platform-discovery-first. It may name macOS, Windows, Linux, Android, iOS, and Web capabilities, but it must not teach macOS-only command examples as the default for all hosts. Platform and device ids must come from `list-targets`, MCP target discovery, or an explicit user-provided target, then platform-specific capabilities must be read from the returned metadata before choosing recording, shell, browser, simulator, emulator, or desktop behavior.
+
 ### `bootstrap`
 
 The agent must launch or reuse an app and persist `app.json` when possible.

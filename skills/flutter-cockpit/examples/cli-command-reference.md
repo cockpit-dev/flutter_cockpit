@@ -16,14 +16,19 @@ List available targets:
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools list-targets
 ```
 
+Choose `--platform` and `--device-id` from `list-targets`. Do not copy a
+macOS example onto Android, iOS, Web, Linux, or Windows. Web device ids are
+browser ids such as the discovered Chrome target; Android and iOS ids are the
+reported emulator, simulator, or physical device ids.
+
 Launch an app:
 
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   launch-app \
   --project-dir /abs/path/to/flutter_app \
-  --platform macos \
-  --device-id macos \
+  --platform <platform-from-list-targets> \
+  --device-id <device-id-from-list-targets> \
   --session-port 57331 \
   --mode development
 ```
@@ -55,8 +60,8 @@ Launch a normalized target and persist `target.json`:
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   launch-target \
   --project-dir /abs/path/to/flutter_app \
-  --platform macos \
-  --device-id macos \
+  --platform <platform-from-list-targets> \
+  --device-id <device-id-from-list-targets> \
   --session-port 57331 \
   --target-json /tmp/flutter_cockpit/target.json
 ```
@@ -209,7 +214,8 @@ app-first loop is still cheaper for short tasks.
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   launch-development-session \
   --project-dir /abs/path/to/flutter_app \
-  --platform macos \
+  --platform <platform-from-list-targets> \
+  --device-id <device-id-from-list-targets> \
   --session-json /tmp/flutter_cockpit/dev_session.json \
   --app-json /tmp/flutter_cockpit/app.json
 ```
@@ -271,7 +277,8 @@ instead of the app-first `app.json` commands.
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   launch-remote-session \
   --project-dir /abs/path/to/flutter_app \
-  --platform macos \
+  --platform <platform-from-list-targets> \
+  --device-id <device-id-from-list-targets> \
   --session-json /tmp/flutter_cockpit/session.json
 ```
 
