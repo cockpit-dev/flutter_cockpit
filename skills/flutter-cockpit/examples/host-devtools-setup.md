@@ -16,6 +16,7 @@ dart pub get
 ## Recommended Host Usage
 
 For most hosts, prefer the shipped CLI or MCP server instead of calling low-level Dart services directly.
+Default to the low-cost public surface that answers the current task. Do not expose or invoke delivery workflows as the normal edit loop.
 
 CLI:
 
@@ -63,6 +64,6 @@ Generic config:
 - prefer `read-app` before taking heavier snapshots
 - prefer `read-target` plus `inspect-surface` before reaching for shell control on browser or mixed system targets
 - use `run-command` and `run-batch` for active debugging
-- use `run-task` and `validate-task` for final delivery work
+- use `run-task` and `validate-task` only for final delivery, acceptance, release readiness, or artifact-backed handoff
 - prefer the shipped public workspace surfaces: CLI inside shell agents, MCP when the host specifically needs tool calling or roots-aware server state
 - use MCP `add_roots` when a task must inspect an adjacent repo or linked package; manual roots merge with host-provided roots instead of replacing them

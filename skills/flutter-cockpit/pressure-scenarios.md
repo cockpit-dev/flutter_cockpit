@@ -453,3 +453,39 @@ Validation target after the stage-protocol rewrite:
 - the seven-stage protocol appears before the command pack
 - common mistakes call out random command picking directly
 - remaining loophole to watch: an agent may name the stages in prose but still skip a concrete baseline or post-action read under time pressure
+
+## Scenario 13: Over-Validation Pressure
+
+### Prompt
+
+You made a small UI copy, spacing, or color change. Verify it quickly and keep token usage low.
+
+### Expected Naive Failure
+
+The agent treats production-grade verification as maximum verification, then runs recording, evidence profiles, bundle validation, or raw artifact reads even though the task only needed a fast development proof.
+
+### Baseline Observation
+
+Baseline observation after adding strict stage gates:
+
+- the agent understood that proof was required, but overcorrected by running too much proof for small edits
+- it used expensive evidence as a substitute for deciding what uncertainty remained
+- it spent tokens and time without improving confidence in the specific change
+
+### Target Corrected Behavior
+
+The agent must:
+
+- default to rapid development validation
+- satisfy each stage with the cheapest evidence that answers the user's question
+- stop once baseline, hot reload, post-action state, errors, and any required final screenshot are sufficient
+- escalate to recording, bundle validation, or raw artifacts only when they reduce a concrete remaining uncertainty
+
+### Post-Skill Validation
+
+Validation target after the rapid-development rewrite:
+
+- the main skill now says to prove the current change with the cheapest live loop, then stop
+- development defaults now forbid running heavy evidence just because it exists
+- the contract now states that stages are evidence gates rather than a command quota
+- remaining loophole to watch: an agent may under-validate acceptance-facing work by mislabeling it as a small development edit

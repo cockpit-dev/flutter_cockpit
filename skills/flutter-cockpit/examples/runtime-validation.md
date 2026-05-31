@@ -1,6 +1,6 @@
 # Runtime Validation Example
 
-Use this pattern when the task needs live app evidence.
+Use this pattern when the task needs live app evidence. Default to the fastest loop that answers the current question; this is not a release checklist for every edit.
 
 ## Recommended Flow
 
@@ -16,7 +16,7 @@ When the task is not purely Flutter UI, switch to:
 1. `launch-target`
 2. `read-target --profile minimal`
 3. `inspect-surface` or `run-shell`
-4. CLI `read-task-bundle-summary`, MCP `read_task_bundle_summary`, or `validate-task`
+4. CLI `read-task-bundle-summary`, MCP `read_task_bundle_summary`, or `validate-task` only for an existing bundle or acceptance-facing claim
 
 Use `run-shell` only when the resolved target truthfully exposes shell control. Browser targets stay `read-target` and `inspect-surface` first; any browser prerequisite checks should use host shell scope instead of a browser device shell.
 
@@ -77,6 +77,10 @@ read runtime errors, and keep the app alive while more edits are likely. Stop
 only for cleanup, a user request, a stuck supervisor, a failed hot restart, or a
 clean rebuild/relaunch. Its JSON should stay compact enough for an agent to
 read first after every failure.
+
+Do not add recordings, full snapshots, target-first inspection, or bundle
+validation to that rapid verifier unless they reduce a concrete remaining
+uncertainty for the current change.
 
 For release-grade coverage, run the heavier verifier only after the feature is
 ready to claim. That verifier should add the expensive surfaces: recordings,

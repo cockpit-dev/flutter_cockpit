@@ -55,6 +55,8 @@ The skill must enforce this order:
 6. `judge`
 7. `deliver`
 
+The stages are evidence gates, not a fixed command quota. The default path must optimize for rapid development validation: use the cheapest live loop that answers the user's question, reuse fresh valid evidence, and escalate only when the current layer cannot reduce the remaining uncertainty. The skill must not reward running extra recording, evidence profiles, bundle validation, or raw artifact reads when they do not improve the decision.
+
 ### `bootstrap`
 
 The agent must launch or reuse an app and persist `app.json` when possible.
@@ -84,6 +86,7 @@ The agent must prefer `run_command` and short `run_batch` loops during active de
 The skill must teach route-aware recovery for `remoteUnavailable`, transport timeouts, or reconnect windows that happen after a mutating or route-changing step. In that situation the agent must re-read minimal route or state before retrying, resume from the smallest remaining step, and must not blindly replay a non-idempotent batch.
 
 The skill must not teach full bundle orchestration as the default loop for every small change.
+The skill must teach that a small edit can be complete after focused static checks, hot reload, a minimal post-action read, current errors, and final visible evidence when applicable.
 
 ### `observe`
 

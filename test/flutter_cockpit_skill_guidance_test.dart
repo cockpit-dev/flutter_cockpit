@@ -81,12 +81,41 @@ void main() {
     for (final stage in stages) {
       expect(contract, contains('`$stage`'));
     }
+    expect(contract, contains('rapid development validation'));
+    expect(contract, contains('cheapest live loop'));
+    expect(contract, contains('not reward running extra recording'));
+    expect(contract, contains('when they do not improve the decision'));
+    expect(contract, contains('small edit can be complete'));
 
     expect(skill, contains('Default to app-first'));
+    expect(skill, contains('Default to rapid development validation'));
+    expect(skill, contains('cheapest live loop that answers the user'));
+    expect(skill, contains('then stop'));
+    expect(
+      skill,
+      contains('decision gates, not a fixed command script or command quota'),
+    );
+    expect(
+      skill,
+      contains('Satisfy each gate with the smallest fresh evidence available'),
+    );
+    expect(skill, contains('skip irrelevant commands'));
+    expect(
+      skill,
+      contains(
+        'choose CLI, MCP, app-first, target-first, persistent-session, or bundle flows',
+      ),
+    );
     expect(skill, contains('launch once or reuse a handle'));
     expect(skill, contains('never shell-background it'));
     expect(skill, contains('.dart_tool/flutter_cockpit/latest_app.json'));
     expect(skill, contains('read before acting'));
+    expect(
+      skill,
+      contains(
+        'unless a fresh equivalent read already answers the same question',
+      ),
+    );
     expect(skill, contains('read post-action state before judging'));
     expect(skill, contains('Command success is not product proof'));
     expect(skill, contains('Media existence is not semantic proof'));
@@ -98,6 +127,15 @@ void main() {
     expect(skill, contains('Do not set `type: Text` for button labels'));
     expect(skill, contains('do not replay blindly'));
     expect(skill, contains('resume from the smallest remaining safe step'));
+    expect(skill, contains('Be flexible on commands, strict on proof'));
+    expect(skill, contains('Fast path for most edits'));
+    expect(skill, contains('Every command should reduce uncertainty'));
+    expect(
+      skill,
+      contains(
+        'Do not run recording, evidence profiles, bundle validation, or raw artifact reads just because they exist',
+      ),
+    );
   });
 
   test('flutter-cockpit skill keeps commands minimal and copy-ready', () {
@@ -107,6 +145,15 @@ void main() {
     );
     final rapidLoop = readRepoFile(
       'skills/flutter-cockpit/examples/rapid-dev-loop.md',
+    );
+    final runtimeValidation = readRepoFile(
+      'skills/flutter-cockpit/examples/runtime-validation.md',
+    );
+    final acceptanceDelivery = readRepoFile(
+      'skills/flutter-cockpit/examples/acceptance-delivery.md',
+    );
+    final hostSetup = readRepoFile(
+      'skills/flutter-cockpit/examples/host-devtools-setup.md',
     );
 
     expect(skill, contains('list-targets'));
@@ -153,6 +200,66 @@ void main() {
     );
     expect(rapidLoop, contains('remoteUnavailable'));
     expect(rapidLoop, contains('smallest remaining step'));
+    expect(
+      rapidLoop,
+      contains('Before claiming delivery, release readiness, or acceptance'),
+    );
+    expect(
+      rapidLoop,
+      contains('specifically requires delivery, release readiness, acceptance'),
+    );
+    expect(
+      rapidLoop,
+      contains(
+        'avoid bundle generation until the feature is ready for delivery, acceptance, release, or artifact-backed handoff',
+      ),
+    );
+    expect(
+      runtimeValidation,
+      contains('fastest loop that answers the current question'),
+    );
+    expect(
+      runtimeValidation,
+      contains('not a release checklist for every edit'),
+    );
+    expect(
+      runtimeValidation,
+      contains('only for an existing bundle or acceptance-facing claim'),
+    );
+    expect(
+      runtimeValidation,
+      contains(
+        'Do not add recordings, full snapshots, target-first inspection, or bundle',
+      ),
+    );
+    expect(
+      runtimeValidation,
+      contains('unless they reduce a concrete remaining'),
+    );
+    expect(
+      acceptanceDelivery,
+      contains('Do not use it for ordinary edit -> reload -> verify loops'),
+    );
+    expect(
+      acceptanceDelivery,
+      contains('confirm this is acceptance-facing work'),
+    );
+    expect(acceptanceDelivery, contains('smallest useful artifact paths'));
+    expect(
+      acceptanceDelivery,
+      contains('return to the rapid loop instead of manufacturing extra'),
+    );
+    expect(acceptanceDelivery, contains('artifacts.'));
+    expect(
+      hostSetup,
+      contains('low-cost public surface that answers the current task'),
+    );
+    expect(
+      hostSetup,
+      contains(
+        'Do not expose or invoke delivery workflows as the normal edit loop',
+      ),
+    );
   });
 
   test('flutter-cockpit skill references stay consistent', () {
@@ -227,5 +334,11 @@ void main() {
       contains('CLI `launch-app` + `read-app` + `run-command`'),
     );
     expect(pressureScenarios, contains('random command picker'));
+    expect(pressureScenarios, contains('Over-Validation Pressure'));
+    expect(pressureScenarios, contains('cheapest live loop'));
+    expect(
+      pressureScenarios,
+      contains('running heavy evidence just because it exists'),
+    );
   });
 }
