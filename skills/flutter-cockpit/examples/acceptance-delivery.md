@@ -1,14 +1,15 @@
 # Acceptance Delivery Example
 
-Use this pattern when the task must end with bundle-backed evidence.
+Use this pattern when the task must end with bundle-backed evidence. Do not use it for ordinary edit -> reload -> verify loops; use rapid development validation until the user asks for acceptance, delivery, release readiness, or artifact-backed handoff.
 
 ## Recommended Flow
 
-1. reuse a running app via `app.json`
-2. execute `run-script` if the app is already running
-3. use `run-task` if the tool should own the whole loop
-4. use `validate-task` before claiming completion
-5. report artifact paths from the resulting bundle summary
+1. confirm this is acceptance-facing work, not a small development check
+2. reuse a running app via `app.json`
+3. execute `run-script` if the app is already running
+4. use `run-task` if the tool should own the whole loop
+5. use `validate-task` before claiming completion
+6. report only the smallest useful artifact paths from the resulting bundle summary
 
 ## Example
 
@@ -41,3 +42,7 @@ Use `--output <path>` when another step needs to reopen the full payload from di
 - validation failures when present
 
 The agent must not call the task complete until the validated bundle explains the final state and names the relevant screenshot or recording artifacts.
+
+If validation shows that no bundle-backed proof was required for the user's
+actual request, return to the rapid loop instead of manufacturing extra
+artifacts.

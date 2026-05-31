@@ -116,9 +116,9 @@ For desktop Flutter targets, prefer semantic inspection when the remote path is 
 
 - During development: `run-command` -> `read-app`
 - Before claiming a fix: `inspect-ui` or `read-errors` if needed
-- Before claiming delivery readiness: `run-script`, `run-task`, or `validate-task`
+- Before claiming delivery, release readiness, or acceptance: `run-script`, `run-task`, or `validate-task`
 
-Do not pay delivery-grade cost on every edit. Do pay it before any user-facing completion claim.
+Do not pay delivery-grade cost on every edit. Do pay it when the user-facing claim specifically requires delivery, release readiness, acceptance, or artifact-backed handoff.
 
 ## Token-Saving Shell Patterns
 
@@ -174,4 +174,4 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools read-app --profile mi
 - use `stop-app` as cleanup or recovery, not as a mandatory iteration step
 - ask for one missing fact per cycle
 - avoid reading full snapshots unless the smaller profile failed to answer the question
-- avoid bundle generation until the feature is ready for a completion claim
+- avoid bundle generation until the feature is ready for delivery, acceptance, release, or artifact-backed handoff

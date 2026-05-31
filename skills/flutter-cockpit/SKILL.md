@@ -7,11 +7,13 @@ description: Use when a Flutter app or adjacent browser, desktop, device, or hos
 
 ## Overview
 
-Flutter Cockpit is an AI development loop, not a screenshot tool or command catalog. For every runtime claim, follow the stages in order:
+Flutter Cockpit is an AI development loop, not a screenshot tool or command catalog. Default to rapid development validation: prove the current change with the cheapest live loop that answers the user's question, then stop. For every runtime claim, follow the evidence gates in order:
 
 `assess -> bootstrap -> baseline -> execute -> observe -> judge -> deliver`
 
 Command success is not product proof. A command that exits 0 only proves command acceptance. Product correctness requires post-action state, errors, and evidence.
+
+These stages are decision gates, not a fixed command script or command quota. Satisfy each gate with the smallest fresh evidence available; skip irrelevant commands, reuse valid handles and recent reads, and choose CLI, MCP, app-first, target-first, persistent-session, or bundle flows according to the task.
 
 ## When To Use
 
@@ -26,7 +28,7 @@ Do not use for docs-only edits or static refactors with no runtime claim.
 
 1. **assess**: decide the smallest truthful surface. Default to app-first. If device is unknown, run `list-targets`. Do not guess device ids, command names, payload keys, or locator types.
 2. **bootstrap**: launch once or reuse a handle. `launch-app` returns after readiness; never shell-background it. Reuse `.dart_tool/flutter_cockpit/latest_app.json` in the same repo. Use target-first only for non-plain app surfaces. Use direct remote only as an escape hatch.
-3. **baseline**: read before acting. Start with `read-app --profile minimal` or `read-target --profile minimal`; capture route, visible state, reachability, and current errors. For code edits, prefer `lsp` or `analyze-files` before workspace-wide tools.
+3. **baseline**: read before acting, unless a fresh equivalent read already answers the same question. Start with `read-app --profile minimal` or `read-target --profile minimal`; capture route, visible state, reachability, and current errors. For code edits, prefer `lsp` or `analyze-files` before workspace-wide tools.
 4. **execute**: edit, then prefer `hot-reload`; use `hot-restart` before a clean stop/relaunch. Drive UI with `run-command` or a short `run-batch`. For route-changing taps, include `expectedRouteName` or a follow-up wait. After timeout, `remoteUnavailable`, or a failed non-idempotent batch, re-read minimal route/state and resume from the smallest remaining safe step; do not replay blindly.
 5. **observe**: read post-action state before judging. Use `read-app`, `read-errors --max-errors 10`, `inspect-ui`, `read-network`, or bundle summaries according to the next missing fact. Before any visible UI completion claim, run a named `captureScreenshot`. For animation, transition, gesture, or bug-repro proof, use framework recording first: `start-recording` -> act or reload -> `stop-recording`, then verify a completed non-empty artifact.
 6. **judge**: compare baseline with observed state and the user's requested outcome. Classify as `completed`, `needs_more_work`, `failed_with_evidence`, or `blocked_by_environment`. Media existence is not semantic proof; screenshot or video proof still needs state/error interpretation.
@@ -62,7 +64,10 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools validate-task --confi
 
 ## Development Defaults
 
+- Fast path for most edits: reuse or launch app -> `read-app --profile minimal` -> edit -> `hot-reload` -> smallest post-action read -> `read-errors --max-errors 10` -> one named screenshot only for visible UI claims.
 - Use `minimal -> standard -> inspect -> evidence`; escalate only when the current layer cannot answer the next question.
+- Be flexible on commands, strict on proof. A tiny text edit may only need analyze, hot reload, minimal read, and errors; an acceptance flow may need batch, recording, and validation.
+- Every command should reduce uncertainty for the current task. Do not run recording, evidence profiles, bundle validation, or raw artifact reads just because they exist.
 - Prefer file inputs: `--command-file`, `--commands-file`, and config JSON. Inline JSON only when tiny.
 - Safe command types: `tap`, `enterText`, `assertText`, `waitForUiIdle`, `scrollUntilVisible`, `captureScreenshot`.
 - Safe locator keys: `text`, `tooltip`, `semanticId`, `type`, `ancestor`, `index`, `fallbacks`. Do not set `type: Text` for button labels; use text alone or the inspected control type.

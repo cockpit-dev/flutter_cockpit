@@ -333,6 +333,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools stop-app
 ## Recording
 
 Assumes a prior `launch-app` or `launch-development-session` in the same workspace, or an explicit reusable app handle.
+Use recording only when motion, transition, repro timing, or acceptance video is part of the current proof. For static copy, spacing, color, route, or error checks, prefer hot reload plus minimal reads and a still screenshot when visible proof is needed.
 
 Start recording:
 
@@ -382,6 +383,8 @@ for that run unless a recording artifact and non-empty output path are returned.
 
 ## Bundle And Delivery
 
+Use this section for acceptance, release readiness, or artifact-backed handoff. It is not the default loop for small edits.
+
 Run a script against a running app:
 
 ```bash
@@ -423,6 +426,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 
 Default stdout is the AI-readable result. Use `--stdout-format json | jq ...`
 only when a shell pipeline needs structured filtering.
+For ordinary development, stop at the rapid loop once the post-action state, current errors, and any required named screenshot answer the user's question.
 
 ## MCP
 
@@ -438,6 +442,7 @@ them.
 
 - Persist `app.json` and reuse it across commands.
 - `launch-app` auto-detects `cockpit/main.dart` first, then `lib/main.dart`.
+- Default to rapid development validation: ask the runtime for the smallest fact that reduces current uncertainty, then stop.
 - Default to `--profile minimal` or `standard`.
 - Escalate to `inspect` or `evidence` only when required.
 - Large forensic snapshots stay summary-first in normal reads. If a result has
