@@ -25,6 +25,7 @@ import 'package:flutter_cockpit_devtools/src/cli/commands/query_remote_session_c
 import 'package:flutter_cockpit_devtools/src/cli/commands/read_app_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/read_remote_snapshot_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/read_remote_status_command.dart';
+import 'package:flutter_cockpit_devtools/src/cli/commands/read_system_capabilities_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/read_target_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/read_errors_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/read_logs_command.dart';
@@ -37,6 +38,7 @@ import 'package:flutter_cockpit_devtools/src/cli/commands/run_command_command.da
 import 'package:flutter_cockpit_devtools/src/cli/commands/run_remote_control_script_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/run_script_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/run_shell_command.dart';
+import 'package:flutter_cockpit_devtools/src/cli/commands/run_system_action_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/run_task_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/run_tests_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/serve_mcp_command.dart';
@@ -375,6 +377,7 @@ final List<dynamic> _topLevelCommands = <dynamic>[
   ReadRemoteStatusCommand(),
   ReadRemoteSnapshotCommand(),
   CollectRemoteSnapshotCommand(),
+  ReadSystemCapabilitiesCommand(),
   ExecuteRemoteCommandCommand(),
   ExecuteRemoteCommandBatchCommand(),
   WaitRemoteUiIdleCommand(),
@@ -385,6 +388,7 @@ final List<dynamic> _topLevelCommands = <dynamic>[
   RunCommandCommand(),
   CaptureScreenshotCommand(),
   RunBatchCommand(),
+  RunSystemActionCommand(),
   RunShellCommand(),
   HotReloadCommand(),
   HotRestartCommand(),

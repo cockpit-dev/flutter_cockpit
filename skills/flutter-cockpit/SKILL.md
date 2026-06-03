@@ -19,10 +19,6 @@ These stages are decision gates, not a fixed command script or command quota. Sa
 
 - Live UI, route, interaction, network, log, screenshot, recording, or acceptance proof is needed.
 - A Flutter app, web surface, desktop window, simulator, emulator, device, or host surface must be controlled.
-- You are iterating with hot reload or hot restart.
-- Static code review is insufficient to decide whether the app works.
-
-Do not use for docs-only edits or static refactors with no runtime claim.
 
 ## First-Time App Wiring
 
@@ -108,6 +104,13 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools start-recording
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools stop-recording
 ```
 
+Native/system or non-Flutter surface after Flutter semantics cannot answer it:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools read-system-capabilities --platform <platform> [--device-id <device-or-simulator-id>] [--app-id <app-id>] [--process-id <pid>]
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-system-action --platform <platform> [--device-id <device-or-simulator-id>] [--app-id <app-id>] [--process-id <pid>] --action <available-action>
+```
+
 Acceptance, release readiness, or artifact-backed handoff:
 
 ```bash
@@ -121,16 +124,15 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools validate-task --confi
 - Be flexible on commands, strict on proof. A tiny text edit may only need analyze, hot reload, minimal read, and errors; an acceptance flow may need batch, recording, and validation.
 - Every command should reduce uncertainty for the current task. Do not run recording, evidence profiles, bundle validation, or raw artifact reads just because they exist.
 - Keep platform and device placeholders until `list-targets` returns real values; read capabilities before choosing shell, recording, browser, or native paths.
-- Prefer file inputs: `--command-file`, `--commands-file`, and config JSON. Inline JSON only when tiny.
+- Prefer file inputs: `--command-file`, `--commands-file`, and config JSON.
 - Safe command types: `tap`, `enterText`, `assertText`, `waitForUiIdle`, `scrollUntilVisible`, `captureScreenshot`.
 - Safe locator keys: `text`, `tooltip`, `semanticId`, `type`, `ancestor`, `index`, `fallbacks`. Do not set `type: Text` for button labels; use text alone or the inspected control type.
-- For repeated labels, combine accessible text with `route` or `ancestor`.
 - Use auto screenshots as debugging breadcrumbs, not final proof. Use an explicit named screenshot for final visible proof.
 - Keep the app alive while more edits are likely. Stop only when the user asks, the session is stuck, `hot-restart` cannot recover, or a clean rebuild/relaunch is required.
 
 ## Failure Recovery
 
-- If syntax is unclear, run `help <command>` or open one reference file for exact payload shape. Do not open every example by default.
+- If syntax is unclear, run `help <command>` or open one reference file.
 - On non-zero exit, read `errorJson.code`, `errorJson.message`, and `details` before prose stderr. Treat `invalidPayload` as caller JSON/option error, not app failure.
 - Use `failureDiagnostics` before changing locators, timeouts, route waits, or retry strategy.
 - For bundles, read default AI summaries, `read-task-bundle-summary`, and `issueEvidence` before raw snapshots, videos, screenshots, or CI logs.
@@ -139,6 +141,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools validate-task --confi
 ## Other Surfaces
 
 - Target-first: `launch-target --target-json <file>` -> `read-target --profile minimal` -> `inspect-surface` only when needed.
+- Native/System Control Plane: `read-system-capabilities` first, then `run-system-action` only for actions reported as `available`; always read post-action state after system actions.
 - Persistent development: `launch-development-session` -> `collect-development-probe --profile quick` -> edit -> `reload-development-session --mode hot_reload` -> collect or compare probe. Use the app handle for screenshots and recording.
 - MCP is equivalent to CLI when the host provides it. Use roots-aware MCP for adjacent packages, persisted app discovery, or task-bundle summary reads.
 - Code-side facts before broad tools: `grep-package-uris`, `read-package-uris`, `pub`, `lsp`, `analyze-files`, `run-tests`.

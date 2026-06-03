@@ -270,16 +270,19 @@ final class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   const SizedBox(height: 10),
                   Text('Status', style: theme.textTheme.headlineSmall),
                   const SizedBox(height: 10),
-                  CheckboxListTile(
-                    value: _task.isCompleted,
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Completed'),
-                    subtitle: Text(
-                      _task.isCompleted
-                          ? 'This task is archived as finished work.'
-                          : 'Mark this once the outcome is stable and reviewable.',
+                  Material(
+                    color: Colors.transparent,
+                    child: CheckboxListTile(
+                      value: _task.isCompleted,
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Completed'),
+                      subtitle: Text(
+                        _task.isCompleted
+                            ? 'This task is archived as finished work.'
+                            : 'Mark this once the outcome is stable and reviewable.',
+                      ),
+                      onChanged: (value) => _toggleCompleted(value ?? false),
                     ),
-                    onChanged: (value) => _toggleCompleted(value ?? false),
                   ),
                 ],
               ),
@@ -417,31 +420,37 @@ final class _CreateFollowUpSheetState extends State<_CreateFollowUpSheet> {
                         ),
                       ),
                       const SizedBox(height: 18),
-                      SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('Carry notes'),
-                        subtitle: const Text(
-                          'Preserve implementation context and handoff details.',
+                      Material(
+                        color: Colors.transparent,
+                        child: SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('Carry notes'),
+                          subtitle: const Text(
+                            'Preserve implementation context and handoff details.',
+                          ),
+                          value: _carryNotes,
+                          onChanged: (value) {
+                            setState(() {
+                              _carryNotes = value;
+                            });
+                          },
                         ),
-                        value: _carryNotes,
-                        onChanged: (value) {
-                          setState(() {
-                            _carryNotes = value;
-                          });
-                        },
                       ),
-                      SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('Carry tags'),
-                        subtitle: const Text(
-                          'Keep domain ownership such as backend or design.',
+                      Material(
+                        color: Colors.transparent,
+                        child: SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('Carry tags'),
+                          subtitle: const Text(
+                            'Keep domain ownership such as backend or design.',
+                          ),
+                          value: _carryTags,
+                          onChanged: (value) {
+                            setState(() {
+                              _carryTags = value;
+                            });
+                          },
                         ),
-                        value: _carryTags,
-                        onChanged: (value) {
-                          setState(() {
-                            _carryTags = value;
-                          });
-                        },
                       ),
                       const SizedBox(height: 10),
                       Text('Due date', style: theme.textTheme.titleSmall),

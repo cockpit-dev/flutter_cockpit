@@ -122,6 +122,73 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 For desktop Flutter targets, `inspect-surface` can reuse remote semantic inspection when it is reachable and fall back to native/window capture only when that semantic path is unavailable.
 Browser targets do not expose a direct device shell. For web work, stay on `inspect-surface` and app or target reads, or use `run-shell --scope host` only for host-side browser prerequisites and tooling.
 
+## Native/System Control Plane
+
+Use this only when Flutter semantic commands cannot control the required native UI, system dialog, device shell, desktop window, or non-Flutter surface. Read capabilities first and run only actions reported as `available`.
+
+Read exact platform capabilities:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  read-system-capabilities \
+  --platform <platform-from-list-targets> \
+  --device-id <device-id-from-list-targets>
+```
+
+For desktop window evidence, add the app/window context from launch metadata:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  read-system-capabilities \
+  --platform macos \
+  --app-id <platform-app-id>
+```
+
+On Windows and Linux, use `--app-id <platform-app-id>` or
+`--process-id <pid>` according to the returned launch metadata.
+
+Run a short Android system tap:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform android \
+  --device-id emulator-5554 \
+  --action tap \
+  --x 120 \
+  --y 240
+```
+
+Capture a native/system screenshot to a real file:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform android \
+  --device-id emulator-5554 \
+  --action captureScreenshot \
+  --name system-proof \
+  --output-path /tmp/flutter_cockpit/system-proof.png
+```
+
+Record a native/system flow without blocking the agent:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform android \
+  --device-id emulator-5554 \
+  --action startRecording \
+  --name system-flow
+
+# drive the system/native flow, then stop
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform android \
+  --device-id emulator-5554 \
+  --action stopRecording
+```
+
 Inspect richer UI state:
 
 ```bash

@@ -957,7 +957,7 @@ Map<String, Object?>? _definitionLocation(
     Uri.parse(uriValue).toFilePath(),
     from: workspaceRoot,
   );
-  return <String, Object?>{'path': path, if (range != null) ...range};
+  return <String, Object?>{'path': path, ...?range};
 }
 
 List<Map<String, Object?>> _documentSymbolResults(
@@ -981,7 +981,7 @@ List<Map<String, Object?>> _documentSymbolResults(
       if (json['detail'] case final String detail when detail.trim().isNotEmpty)
         'detail': _truncateText(detail, maxChars),
       'path': p.relative(defaultPath, from: workspaceRoot),
-      if (range != null) ...range,
+      ...?range,
     });
     for (final child
         in ((json['children'] as List?) ?? const <Object?>[])
@@ -1017,7 +1017,7 @@ List<Map<String, Object?>> _documentSymbolResults(
         'path': uri == null
             ? p.relative(defaultPath, from: workspaceRoot)
             : p.relative(Uri.parse(uri).toFilePath(), from: workspaceRoot),
-        if (range != null) ...range,
+        ...?range,
       });
     } else {
       addDocumentSymbol(item);
@@ -1054,7 +1054,7 @@ List<Map<String, Object?>> _workspaceSymbolResults(
               Uri.parse(uri).toFilePath(),
               from: workspaceRoot,
             ),
-          if (range != null) ...range,
+          ...?range,
           if (item['detail'] case final String detail
               when detail.trim().isNotEmpty)
             'detail': _truncateText(detail, maxChars),

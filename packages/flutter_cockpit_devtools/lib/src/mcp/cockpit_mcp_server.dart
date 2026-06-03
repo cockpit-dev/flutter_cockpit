@@ -48,6 +48,8 @@ import '../application/cockpit_stop_recording_service.dart';
 import '../application/cockpit_stop_remote_recording_service.dart';
 import '../application/cockpit_wait_idle_service.dart';
 import '../application/cockpit_wait_remote_ui_idle_service.dart';
+import '../system_control/cockpit_system_control_action_service.dart';
+import '../system_control/cockpit_system_control_service.dart';
 import 'core/cockpit_mcp_protocol_server.dart';
 import 'core/cockpit_mcp_prompt.dart';
 import 'core/cockpit_mcp_resource.dart';
@@ -103,12 +105,14 @@ import 'tools/cockpit_read_remote_snapshot_tool.dart';
 import 'tools/cockpit_read_remote_status_tool.dart';
 import 'tools/cockpit_read_runtime_errors_tool.dart';
 import 'tools/cockpit_read_session_logs_tool.dart';
+import 'tools/cockpit_read_system_capabilities_tool.dart';
 import 'tools/cockpit_read_task_bundle_summary_tool.dart';
 import 'tools/cockpit_remove_roots_tool.dart';
 import 'tools/cockpit_reload_development_session_tool.dart';
 import 'tools/cockpit_run_batch_tool.dart';
 import 'tools/cockpit_run_command_tool.dart';
 import 'tools/cockpit_run_shell_tool.dart';
+import 'tools/cockpit_run_system_action_tool.dart';
 import 'tools/cockpit_run_workspace_tests_tool.dart';
 import 'tools/cockpit_run_remote_control_script_tool.dart';
 import 'tools/cockpit_run_task_tool.dart';
@@ -283,6 +287,10 @@ final class CockpitMcpServer {
       registry: sessionRegistry,
     );
     final runShellService = CockpitRunShellService();
+    const systemControlService = CockpitSystemControlService();
+    final systemControlActionService = CockpitSystemControlActionService(
+      systemControlService: systemControlService,
+    );
     final tools = <CockpitMcpTool>[
       CockpitAddRootsTool(rootsTracker: rootsTracker),
       CockpitRemoveRootsTool(rootsTracker: rootsTracker),
@@ -339,6 +347,8 @@ final class CockpitMcpServer {
       CockpitExecuteRemoteCommandBatchTool(
         service: executeRemoteCommandBatchService,
       ),
+      CockpitReadSystemCapabilitiesTool(service: systemControlService),
+      CockpitRunSystemActionTool(service: systemControlActionService),
       CockpitRunShellTool(service: runShellService),
       CockpitWaitIdleTool(service: waitIdleService),
       CockpitWaitRemoteUiIdleTool(service: waitRemoteUiIdleService),

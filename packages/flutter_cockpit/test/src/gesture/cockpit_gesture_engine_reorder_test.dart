@@ -26,7 +26,7 @@ void main() {
                     reorderEndIndex = index;
                   },
                   itemCount: orderedLabels.length,
-                  onReorder: (oldIndex, newIndex) {
+                  onReorderItem: (oldIndex, newIndex) {
                     final item = orderedLabels.removeAt(oldIndex);
                     orderedLabels.insert(newIndex, item);
                   },

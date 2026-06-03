@@ -300,15 +300,18 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
                     ),
                     const SizedBox(height: 16),
                     ...TodoPriority.values.map(
-                      (priority) => ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(_prioritySheetTitle(priority)),
-                        subtitle: Text(_prioritySheetSubtitle(priority)),
-                        trailing: Icon(
-                          Icons.flag_rounded,
-                          color: _priorityColor(colorScheme, priority),
+                      (priority) => Material(
+                        color: Colors.transparent,
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(_prioritySheetTitle(priority)),
+                          subtitle: Text(_prioritySheetSubtitle(priority)),
+                          trailing: Icon(
+                            Icons.flag_rounded,
+                            color: _priorityColor(colorScheme, priority),
+                          ),
+                          onTap: () => Navigator.of(context).pop(priority),
                         ),
-                        onTap: () => Navigator.of(context).pop(priority),
                       ),
                     ),
                   ],
@@ -385,17 +388,20 @@ final class _TodoCollectionScreenState extends State<TodoCollectionScreen> {
                 ),
                 const SizedBox(height: 16),
                 ...presets.map(
-                  (preset) => ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(preset.label),
-                    subtitle: Text(preset.detail),
-                    trailing: Icon(
-                      preset.dueAt == null
-                          ? Icons.event_busy_rounded
-                          : Icons.event_available_rounded,
-                      color: colorScheme.primary,
+                  (preset) => Material(
+                    color: Colors.transparent,
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(preset.label),
+                      subtitle: Text(preset.detail),
+                      trailing: Icon(
+                        preset.dueAt == null
+                            ? Icons.event_busy_rounded
+                            : Icons.event_available_rounded,
+                        color: colorScheme.primary,
+                      ),
+                      onTap: () => Navigator.of(context).pop(preset.dueAt),
                     ),
-                    onTap: () => Navigator.of(context).pop(preset.dueAt),
                   ),
                 ),
               ],
@@ -1954,44 +1960,53 @@ final class _DuplicateSelectionSheetState
                         ),
                       ),
                       const SizedBox(height: 18),
-                      SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('Carry notes'),
-                        subtitle: const Text(
-                          'Keep implementation context and handoff detail.',
+                      Material(
+                        color: Colors.transparent,
+                        child: SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('Carry notes'),
+                          subtitle: const Text(
+                            'Keep implementation context and handoff detail.',
+                          ),
+                          value: _carryNotes,
+                          onChanged: (value) {
+                            setState(() {
+                              _carryNotes = value;
+                            });
+                          },
                         ),
-                        value: _carryNotes,
-                        onChanged: (value) {
-                          setState(() {
-                            _carryNotes = value;
-                          });
-                        },
                       ),
-                      SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('Carry due date'),
-                        subtitle: const Text(
-                          'Preserve schedule pressure from the source tasks.',
+                      Material(
+                        color: Colors.transparent,
+                        child: SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('Carry due date'),
+                          subtitle: const Text(
+                            'Preserve schedule pressure from the source tasks.',
+                          ),
+                          value: _carryDueDate,
+                          onChanged: (value) {
+                            setState(() {
+                              _carryDueDate = value;
+                            });
+                          },
                         ),
-                        value: _carryDueDate,
-                        onChanged: (value) {
-                          setState(() {
-                            _carryDueDate = value;
-                          });
-                        },
                       ),
-                      SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('Carry tags'),
-                        subtitle: const Text(
-                          'Keep shared ownership markers such as backend or design.',
+                      Material(
+                        color: Colors.transparent,
+                        child: SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('Carry tags'),
+                          subtitle: const Text(
+                            'Keep shared ownership markers such as backend or design.',
+                          ),
+                          value: _carryTags,
+                          onChanged: (value) {
+                            setState(() {
+                              _carryTags = value;
+                            });
+                          },
                         ),
-                        value: _carryTags,
-                        onChanged: (value) {
-                          setState(() {
-                            _carryTags = value;
-                          });
-                        },
                       ),
                     ],
                   ),

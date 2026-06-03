@@ -116,6 +116,34 @@ void main() {
       expect(output.toString(), isNot(contains('\n  "')));
     });
 
+    test('renders top-level action failures as failed with issues', () async {
+      final parser = ArgParser();
+      cockpitAddOutputArgs(parser);
+      final output = StringBuffer();
+
+      await cockpitWriteJsonPayload(
+        commandName: 'run-system-action',
+        payload: const <String, Object?>{
+          'success': false,
+          'recommendedNextStep': 'inspectShellFailure',
+          'platform': 'android',
+          'action': 'tap',
+          'errorCode': 'systemActionProcessFailed',
+          'errorMessage': 'Unable to start process',
+        },
+        argResults: parser.parse(const <String>[]),
+        stdoutSink: output,
+      );
+
+      final text = output.toString();
+      expect(text, contains('status=failed'));
+      expect(text, contains('next=inspectShellFailure'));
+      expect(text, contains('platform=android'));
+      expect(text, contains('action=tap'));
+      expect(text, contains('errorCode=systemActionProcessFailed'));
+      expect(text, contains('errorMessage=Unable to start process'));
+    });
+
     test(
       'defaults stdout to output file paths when files are requested',
       () async {

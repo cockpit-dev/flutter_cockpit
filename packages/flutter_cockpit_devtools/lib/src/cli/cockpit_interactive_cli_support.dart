@@ -867,6 +867,10 @@ String _aiStatusFor(Object? value) {
     if (explicit != null) {
       return explicit;
     }
+    final success = value['success'];
+    if (success is bool) {
+      return success ? 'ok' : 'failed';
+    }
     final bundleSummary = _bundleSummaryMapForAi(value);
     final bundleStatus = _readNestedString(bundleSummary, const <String>[
       'manifest',
@@ -911,10 +915,21 @@ List<String> _aiStateLines(Object? value) {
     ]),
   );
   _addKeyValue(lines, 'appId', _readString(value, 'appId'));
+  _addKeyValue(lines, 'processId', value['processId']);
   _addKeyValue(lines, 'sessionId', _readString(value, 'sessionId'));
   _addKeyValue(lines, 'platform', _readString(value, 'platform'));
+  _addKeyValue(lines, 'deviceId', _readString(value, 'deviceId'));
+  _addKeyValue(lines, 'adapter', _readString(value, 'adapter'));
+  _addKeyValue(lines, 'action', _readString(value, 'action'));
+  _addKeyValue(lines, 'availability', _readString(value, 'availability'));
   _addKeyValue(lines, 'transport', _readString(value, 'transportType'));
   _addKeyValue(lines, 'plane', _readString(value, 'selectedPlane'));
+  _addKeyValue(lines, 'preferredPlane', _readString(value, 'preferredPlane'));
+  _addKeyValue(
+    lines,
+    'fallbackOrder',
+    _joinPreviewList(_readList(value, 'fallbackOrder')),
+  );
   _addKeyValue(lines, 'diagnosticLevel', _readString(value, 'diagnosticLevel'));
   _addKeyValue(lines, 'truncated', _readBool(value, 'truncated'));
   return lines;
@@ -949,6 +964,21 @@ List<String> _aiSummaryLines(Object? value) {
       _addKeyValue(lines, key, summary[key]);
     }
   }
+  _addKeyValue(
+    lines,
+    'availableActions',
+    _joinPreviewList(_readList(value, 'availableActions')),
+  );
+  _addKeyValue(
+    lines,
+    'blockedActions',
+    _joinPreviewList(_readList(value, 'blockedActions')),
+  );
+  _addKeyValue(
+    lines,
+    'unsupportedActions',
+    _joinPreviewList(_readList(value, 'unsupportedActions')),
+  );
   _addKeyValue(lines, 'available', _readBool(value, 'available'));
   return lines;
 }
@@ -1035,6 +1065,14 @@ List<String> _aiIssueLines(Object? value) {
   final lastError = _readString(value, 'lastError');
   if (lastError != null) {
     lines.add('lastError=${_formatAiScalar(lastError)}');
+  }
+  final errorCode = _readString(value, 'errorCode');
+  final errorMessage = _readString(value, 'errorMessage');
+  if (errorCode != null || errorMessage != null) {
+    final parts = <String>[];
+    _addInlinePart(parts, 'errorCode', errorCode);
+    _addInlinePart(parts, 'errorMessage', errorMessage);
+    lines.add(parts.join(' '));
   }
   return lines;
 }
@@ -1321,6 +1359,7 @@ List<String> _aiRemainingLines(Object? value) {
     'routeName',
     'route',
     'appId',
+    'processId',
     'sessionId',
     'platform',
     'transportType',
@@ -1329,7 +1368,10 @@ List<String> _aiRemainingLines(Object? value) {
     'truncated',
     'uiSummary',
     'summary',
+    'success',
     'available',
+    'action',
+    'availability',
     'command',
     'results',
     'error',
@@ -1337,6 +1379,8 @@ List<String> _aiRemainingLines(Object? value) {
     'failures',
     'errors',
     'lastError',
+    'errorCode',
+    'errorMessage',
     'issueEvidence',
     'artifacts',
     'artifactDownloads',

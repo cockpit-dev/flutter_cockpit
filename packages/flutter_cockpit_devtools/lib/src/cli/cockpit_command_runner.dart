@@ -28,6 +28,7 @@ import 'commands/query_development_session_command.dart';
 import 'commands/query_remote_session_command.dart';
 import 'commands/read_remote_snapshot_command.dart';
 import 'commands/read_remote_status_command.dart';
+import 'commands/read_system_capabilities_command.dart';
 import 'commands/read_target_command.dart';
 import 'commands/read_errors_command.dart';
 import 'commands/read_logs_command.dart';
@@ -40,6 +41,7 @@ import 'commands/run_command_command.dart';
 import 'commands/run_remote_control_script_command.dart';
 import 'commands/run_shell_command.dart';
 import 'commands/run_script_command.dart';
+import 'commands/run_system_action_command.dart';
 import 'commands/run_task_command.dart';
 import 'commands/run_tests_command.dart';
 import 'commands/serve_mcp_command.dart';
@@ -144,6 +146,7 @@ final class CockpitCommandRunner {
       ReadRemoteStatusCommand(),
       ReadRemoteSnapshotCommand(),
       CollectRemoteSnapshotCommand(),
+      ReadSystemCapabilitiesCommand(),
       ExecuteRemoteCommandCommand(),
       ExecuteRemoteCommandBatchCommand(),
       WaitRemoteUiIdleCommand(),
@@ -154,6 +157,7 @@ final class CockpitCommandRunner {
       RunCommandCommand(),
       CaptureScreenshotCommand(),
       RunBatchCommand(),
+      RunSystemActionCommand(),
       RunShellCommand(),
       HotReloadCommand(),
       HotRestartCommand(),
