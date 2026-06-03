@@ -150,6 +150,14 @@ final class CockpitDevelopmentSessionSupervisor {
   }
 
   void bindMachineClient(CockpitFlutterRunMachineClient machineClient) {
+    if (identical(_machineClient, machineClient)) {
+      return;
+    }
+    final previousSubscription = _eventSubscription;
+    if (previousSubscription != null) {
+      _eventSubscription = null;
+      unawaited(previousSubscription.cancel());
+    }
     _machineClient = machineClient;
     _subscribeToMachineClient(machineClient);
     _log('bound machine client');
@@ -308,6 +316,19 @@ final class CockpitDevelopmentSessionSupervisor {
       case CockpitFlutterRunMachineEventKind.appStop:
         final error = event.params?['error'] as String?;
         _log('machine event app.stop error=${error ?? ''}');
+        if (!_explicitStopRequested &&
+            _status.state == CockpitDevelopmentSessionState.starting &&
+            _handle.remoteSessionHandle == null) {
+          _setStatus(
+            _status.copyWith(
+              state: CockpitDevelopmentSessionState.starting,
+              appReachable: false,
+              remoteSessionReachable: false,
+              lastError: error ?? _status.lastError,
+            ),
+          );
+          break;
+        }
         _setStatus(
           _status.copyWith(
             state: _explicitStopRequested
@@ -325,6 +346,22 @@ final class CockpitDevelopmentSessionSupervisor {
         _setStatus(_status.copyWith(lastError: event.message));
       case CockpitFlutterRunMachineEventKind.processExit:
         _log('machine exit code=${event.exitCode?.toString() ?? ''}');
+        final exitError = event.exitCode == null
+            ? _status.lastError
+            : 'flutter run exited with code ${event.exitCode}';
+        if (!_explicitStopRequested &&
+            _status.state == CockpitDevelopmentSessionState.starting &&
+            _handle.remoteSessionHandle == null) {
+          _setStatus(
+            _status.copyWith(
+              state: CockpitDevelopmentSessionState.starting,
+              appReachable: false,
+              remoteSessionReachable: false,
+              lastError: exitError,
+            ),
+          );
+          break;
+        }
         _setStatus(
           _status.copyWith(
             state: _explicitStopRequested
@@ -332,9 +369,7 @@ final class CockpitDevelopmentSessionSupervisor {
                 : CockpitDevelopmentSessionState.failed,
             appReachable: false,
             remoteSessionReachable: false,
-            lastError: event.exitCode == null
-                ? _status.lastError
-                : 'flutter run exited with code ${event.exitCode}',
+            lastError: exitError,
           ),
         );
       case CockpitFlutterRunMachineEventKind.daemonConnected:

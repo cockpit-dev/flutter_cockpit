@@ -726,6 +726,34 @@ void main() {
   );
 
   test(
+    'waitForUiIdle uses the supplied idle timeout as the transport bound',
+    () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() async {
+        await server.close(force: true);
+      });
+      server.listen((request) {
+        // Keep the request open. waitForUiIdle must not wait for the default
+        // client request timeout before allowing host-side fallbacks.
+      });
+
+      final client = CockpitRemoteSessionClient(
+        baseUri: Uri.parse('http://127.0.0.1:${server.port}'),
+        requestTimeout: const Duration(seconds: 30),
+      );
+      final stopwatch = Stopwatch()..start();
+
+      final idle = await client.waitForUiIdle(
+        timeout: const Duration(milliseconds: 40),
+      );
+      stopwatch.stop();
+
+      expect(idle, isFalse);
+      expect(stopwatch.elapsed, lessThan(const Duration(seconds: 2)));
+    },
+  );
+
+  test(
     'remote session client preserves structured HTTP error payloads',
     () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);

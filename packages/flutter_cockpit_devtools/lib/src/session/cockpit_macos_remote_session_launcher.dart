@@ -76,7 +76,7 @@ final class CockpitMacosRemoteSessionLauncher
           : null,
       flutterVersionForExecutableReader: _flutterVersionForExecutableReader,
     );
-    await _runRequired(
+    await _runMacosBuildWithCacheRecovery(
       flutterExecutable,
       <String>[
         'build',
@@ -94,7 +94,7 @@ final class CockpitMacosRemoteSessionLauncher
         '--dart-define=FLUTTER_COCKPIT_FLUTTER_VERSION=$flutterVersion',
       ],
       workingDirectory: options.projectDir,
-      timeout: _remaining(deadline),
+      deadline: deadline,
     );
 
     final appBundlePath = await _appBundlePathResolver(
@@ -155,29 +155,111 @@ final class CockpitMacosRemoteSessionLauncher
     String? workingDirectory,
     required Duration timeout,
   }) async {
-    final result = _useKillableProcessRunner
-        ? await cockpitRunProcessWithTimeout(
-            executable,
-            arguments,
-            workingDirectory: workingDirectory,
-            timeout: timeout,
-          )
-        : await _processRunner(
-            executable,
-            arguments,
-            workingDirectory: workingDirectory,
-          ).timeout(
-            timeout,
-            onTimeout: () => throw TimeoutException(
-              '$executable ${arguments.join(' ')} timed out.',
-              timeout,
-            ),
-          );
+    final result = await _runProcessResult(
+      executable,
+      arguments,
+      workingDirectory: workingDirectory,
+      timeout: timeout,
+    );
     if (result.exitCode != 0) {
-      throw StateError(
-        '$executable ${arguments.join(' ')} failed: ${result.stderr ?? result.stdout}',
+      throw _failedProcessStateError(executable, arguments, result);
+    }
+  }
+
+  Future<void> _runMacosBuildWithCacheRecovery(
+    String flutterExecutable,
+    List<String> buildArguments, {
+    required String workingDirectory,
+    required DateTime deadline,
+  }) async {
+    final firstResult = await _runProcessResult(
+      flutterExecutable,
+      buildArguments,
+      workingDirectory: workingDirectory,
+      timeout: _remaining(deadline),
+    );
+    if (firstResult.exitCode == 0) {
+      return;
+    }
+    final firstOutput = _processOutputText(firstResult);
+    if (!_isRecoverableMacosBuildCacheFailure(firstOutput)) {
+      throw _failedProcessStateError(
+        flutterExecutable,
+        buildArguments,
+        firstResult,
       );
     }
+
+    await _runRequired(
+      flutterExecutable,
+      const <String>['clean'],
+      workingDirectory: workingDirectory,
+      timeout: _capTimeout(_remaining(deadline), const Duration(minutes: 2)),
+    );
+    final retryResult = await _runProcessResult(
+      flutterExecutable,
+      buildArguments,
+      workingDirectory: workingDirectory,
+      timeout: _remaining(deadline),
+    );
+    if (retryResult.exitCode != 0) {
+      throw _failedProcessStateError(
+        flutterExecutable,
+        buildArguments,
+        retryResult,
+      );
+    }
+  }
+
+  Future<ProcessResult> _runProcessResult(
+    String executable,
+    List<String> arguments, {
+    String? workingDirectory,
+    required Duration timeout,
+  }) {
+    if (_useKillableProcessRunner) {
+      return cockpitRunProcessWithTimeout(
+        executable,
+        arguments,
+        workingDirectory: workingDirectory,
+        timeout: timeout,
+      );
+    }
+    return _processRunner(
+      executable,
+      arguments,
+      workingDirectory: workingDirectory,
+    ).timeout(
+      timeout,
+      onTimeout: () => throw TimeoutException(
+        '$executable ${arguments.join(' ')} timed out.',
+        timeout,
+      ),
+    );
+  }
+
+  StateError _failedProcessStateError(
+    String executable,
+    List<String> arguments,
+    ProcessResult result,
+  ) {
+    return StateError(
+      '$executable ${arguments.join(' ')} failed: ${_processOutputText(result)}',
+    );
+  }
+
+  String _processOutputText(ProcessResult result) {
+    final stderrText = '${result.stderr}'.trim();
+    if (stderrText.isNotEmpty) {
+      return stderrText;
+    }
+    return '${result.stdout}'.trim();
+  }
+
+  bool _isRecoverableMacosBuildCacheFailure(String output) {
+    return output.contains('has been modified since the module file') ||
+        output.contains('SwiftExplicitPrecompiledModules') ||
+        output.contains('explicit-swift-module-map-file');
   }
 
   Duration _remaining(DateTime deadline) {

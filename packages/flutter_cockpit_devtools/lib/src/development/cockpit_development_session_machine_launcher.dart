@@ -10,6 +10,7 @@ import '../session/cockpit_apple_bundle_support.dart';
 import '../session/cockpit_platform_app_identity.dart';
 import '../session/cockpit_remote_session_handle.dart';
 import '../session/cockpit_remote_session_launcher.dart';
+import '../session/cockpit_session_process_runner.dart';
 import '../session/cockpit_session_path.dart';
 import 'cockpit_flutter_run_machine_client.dart';
 
@@ -21,6 +22,15 @@ typedef CockpitDevelopmentMachineClientStarter =
       String? flavor,
       String? flutterExecutable,
       List<String> extraArgs,
+    });
+typedef CockpitDevelopmentMachineClientStarted =
+    FutureOr<void> Function(CockpitFlutterRunMachineClient machineClient);
+typedef CockpitDevelopmentRecoveryProcessRunner =
+    Future<ProcessResult> Function(
+      String executable,
+      List<String> arguments, {
+      String? workingDirectory,
+      required Duration timeout,
     });
 typedef CockpitIosDeviceConnectionResolver =
     Future<CockpitIosDeviceConnection?> Function(String deviceId);
@@ -93,6 +103,7 @@ final class CockpitDevelopmentSessionFallbackException implements Exception {
 final class CockpitDevelopmentSessionMachineLauncher {
   CockpitDevelopmentSessionMachineLauncher({
     CockpitDevelopmentMachineClientStarter? machineClientStarter,
+    CockpitDevelopmentRecoveryProcessRunner? recoveryProcessRunner,
     CockpitRemoteSessionStatusReader statusReader =
         cockpitReadRemoteSessionStatus,
     CockpitAndroidPortForwarder portForwarder =
@@ -108,6 +119,7 @@ final class CockpitDevelopmentSessionMachineLauncher {
     DateTime Function()? now,
   }) : _machineClientStarter =
            machineClientStarter ?? CockpitFlutterRunMachineClient.start,
+       _recoveryProcessRunner = recoveryProcessRunner ?? _runRecoveryProcess,
        _statusReader = statusReader,
        _portForwarder = portForwarder,
        _iosDeviceConnectionResolver =
@@ -120,6 +132,7 @@ final class CockpitDevelopmentSessionMachineLauncher {
        _now = now ?? DateTime.now;
 
   final CockpitDevelopmentMachineClientStarter _machineClientStarter;
+  final CockpitDevelopmentRecoveryProcessRunner _recoveryProcessRunner;
   final CockpitRemoteSessionStatusReader _statusReader;
   final CockpitAndroidPortForwarder _portForwarder;
   final CockpitIosDeviceConnectionResolver _iosDeviceConnectionResolver;
@@ -132,19 +145,81 @@ final class CockpitDevelopmentSessionMachineLauncher {
 
   Future<CockpitLaunchDevelopmentMachineSessionResult> launch(
     CockpitLaunchDevelopmentMachineSessionRequest request,
-  ) async {
-    final endpoint = await resolveRemoteSessionEndpoint(request);
-    final machineClient = await startMachineClient(request, endpoint: endpoint);
-    final remoteSessionHandle = await waitForRemoteSession(
-      request: request,
-      machineClient: machineClient,
-      endpoint: endpoint,
-    );
+  ) {
+    return launchWithLifecycle(request);
+  }
 
-    return CockpitLaunchDevelopmentMachineSessionResult(
-      machineClient: machineClient,
-      remoteSessionHandle: remoteSessionHandle,
+  Future<CockpitLaunchDevelopmentMachineSessionResult> launchWithLifecycle(
+    CockpitLaunchDevelopmentMachineSessionRequest request, {
+    CockpitResolvedRemoteSessionEndpoint? endpoint,
+    CockpitDevelopmentMachineClientStarted? onMachineClientStarted,
+  }) async {
+    final resolvedEndpoint =
+        endpoint ?? await resolveRemoteSessionEndpoint(request);
+    final deadline = _now().add(request.launchTimeout);
+    var attemptedMacosCacheRecovery = false;
+
+    while (true) {
+      final machineClient = await startMachineClient(
+        request,
+        endpoint: resolvedEndpoint,
+      );
+      try {
+        await onMachineClientStarted?.call(machineClient);
+        final remoteSessionHandle = await waitForRemoteSession(
+          request: request,
+          machineClient: machineClient,
+          endpoint: resolvedEndpoint,
+          deadline: deadline,
+        );
+
+        return CockpitLaunchDevelopmentMachineSessionResult(
+          machineClient: machineClient,
+          remoteSessionHandle: remoteSessionHandle,
+        );
+      } on Object catch (error) {
+        final canRecover =
+            !attemptedMacosCacheRecovery &&
+            _isRecoverableMacosDevelopmentCacheFailure(
+              request: request,
+              error: error,
+              machineClient: machineClient,
+            );
+        if (!canRecover) {
+          await machineClient.dispose();
+          rethrow;
+        }
+        attemptedMacosCacheRecovery = true;
+        await machineClient.dispose();
+        await _runMacosDevelopmentClean(
+          request,
+          timeout: _capTimeout(
+            _remaining(deadline),
+            const Duration(minutes: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _runMacosDevelopmentClean(
+    CockpitLaunchDevelopmentMachineSessionRequest request, {
+    required Duration timeout,
+  }) async {
+    final flutterExecutable =
+        request.flutterExecutable ?? cockpitFlutterExecutable();
+    final result = await _recoveryProcessRunner(
+      flutterExecutable,
+      const <String>['clean'],
+      workingDirectory: request.projectDir,
+      timeout: timeout,
     );
+    if (result.exitCode != 0) {
+      throw StateError(
+        '$flutterExecutable clean failed while recovering macOS Swift module '
+        'cache: ${_processOutputText(result)}',
+      );
+    }
   }
 
   Future<CockpitFlutterRunMachineClient> startMachineClient(
@@ -165,6 +240,7 @@ final class CockpitDevelopmentSessionMachineLauncher {
     required CockpitLaunchDevelopmentMachineSessionRequest request,
     required CockpitFlutterRunMachineClient machineClient,
     required CockpitResolvedRemoteSessionEndpoint endpoint,
+    DateTime? deadline,
   }) async {
     final hostPort = request.platform == 'android'
         ? await _portForwarder.ensureForwarded(
@@ -175,7 +251,7 @@ final class CockpitDevelopmentSessionMachineLauncher {
         : request.hostPort;
     final publicHost = endpoint.publicHost;
     final baseUri = Uri(scheme: 'http', host: publicHost, port: hostPort);
-    final deadline = _now().add(request.launchTimeout);
+    final effectiveDeadline = deadline ?? _now().add(request.launchTimeout);
     late final CockpitRemoteSessionStatus status;
     late final String appId;
     if (_isPhysicalIosDevice(request)) {
@@ -183,14 +259,14 @@ final class CockpitDevelopmentSessionMachineLauncher {
         request: request,
         machineClient: machineClient,
         baseUri: baseUri,
-        deadline: deadline,
+        deadline: effectiveDeadline,
       );
       appId = await (() async {
         try {
           return await _waitForMachineAppId(
             request: request,
             machineClient: machineClient,
-            deadline: deadline,
+            deadline: effectiveDeadline,
           );
         } on CockpitDevelopmentSessionFallbackException catch (error) {
           final remoteSessionHandle =
@@ -212,13 +288,13 @@ final class CockpitDevelopmentSessionMachineLauncher {
       appId = await _waitForMachineAppId(
         request: request,
         machineClient: machineClient,
-        deadline: deadline,
+        deadline: effectiveDeadline,
       );
       status = await _waitForRemoteStatus(
         request: request,
         machineClient: machineClient,
         baseUri: baseUri,
-        deadline: deadline,
+        deadline: effectiveDeadline,
       );
     }
     final platformAppId = await _resolvePlatformAppId(
@@ -501,6 +577,63 @@ final class CockpitDevelopmentSessionMachineLauncher {
   ) {
     return request.platform == 'ios' &&
         !cockpitLooksLikeIosSimulatorDeviceId(request.deviceId);
+  }
+
+  bool _isRecoverableMacosDevelopmentCacheFailure({
+    required CockpitLaunchDevelopmentMachineSessionRequest request,
+    required Object error,
+    required CockpitFlutterRunMachineClient machineClient,
+  }) {
+    if (request.platform != 'macos') {
+      return false;
+    }
+    final text = <String>[
+      '$error',
+      machineClient.recentDiagnosticSummary,
+    ].where((value) => value.trim().isNotEmpty).join('\n');
+    return _isRecoverableMacosSwiftModuleCacheFailure(text);
+  }
+
+  bool _isRecoverableMacosSwiftModuleCacheFailure(String output) {
+    return output.contains('has been modified since the module file') ||
+        output.contains('SwiftExplicitPrecompiledModules') ||
+        output.contains('explicit-swift-module-map-file');
+  }
+
+  String _processOutputText(ProcessResult result) {
+    final stderrText = '${result.stderr}'.trim();
+    if (stderrText.isNotEmpty) {
+      return stderrText;
+    }
+    return '${result.stdout}'.trim();
+  }
+
+  Duration _remaining(DateTime deadline) {
+    final remaining = deadline.difference(_now());
+    if (remaining <= Duration.zero) {
+      throw TimeoutException(
+        'Development session launch timed out before macOS cache recovery could start.',
+      );
+    }
+    return remaining;
+  }
+
+  Duration _capTimeout(Duration value, Duration max) {
+    return value < max ? value : max;
+  }
+
+  static Future<ProcessResult> _runRecoveryProcess(
+    String executable,
+    List<String> arguments, {
+    String? workingDirectory,
+    required Duration timeout,
+  }) {
+    return cockpitRunProcessWithTimeout(
+      executable,
+      arguments,
+      workingDirectory: workingDirectory,
+      timeout: timeout,
+    );
   }
 }
 

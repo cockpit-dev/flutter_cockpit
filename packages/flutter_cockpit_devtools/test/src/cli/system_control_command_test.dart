@@ -71,7 +71,11 @@ void main() {
       expect(output.toString(), contains('appId=dev.cockpit.example'));
       expect(output.toString(), contains('processId=4242'));
       expect(output.toString(), contains('next=preferFlutterSemanticPlane'));
-      expect(output.toString(), contains('availableActions=[tap]'));
+      expect(output.toString(), contains('availableActions=tap'));
+      expect(
+        output.toString(),
+        contains('[0] action=tap availability=available'),
+      );
     },
   );
 

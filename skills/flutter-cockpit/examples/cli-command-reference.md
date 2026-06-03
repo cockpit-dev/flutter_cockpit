@@ -147,6 +147,23 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 On Windows and Linux, use `--app-id <platform-app-id>` or
 `--process-id <pid>` according to the returned launch metadata.
 
+Drive a desktop native/system control after reading capabilities:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform macos \
+  --app-id <bundle-id> \
+  --action activateWindow
+
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform macos \
+  --action tap \
+  --x 120 \
+  --y 240
+```
+
 Run a short Android system tap:
 
 ```bash
@@ -157,6 +174,36 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --action tap \
   --x 120 \
   --y 240
+```
+
+Bring an Android app to the foreground when the package id is known:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform android \
+  --device-id emulator-5554 \
+  --app-id <android-package-id> \
+  --action activateWindow
+```
+
+iOS simulator app activation and permission setup:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform ios \
+  --device-id <ios-simulator-udid> \
+  --app-id <ios-bundle-id> \
+  --action activateWindow
+
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform ios \
+  --device-id <ios-simulator-udid> \
+  --app-id <ios-bundle-id> \
+  --action grantPermission \
+  --permission photos
 ```
 
 Capture a native/system screenshot to a real file:
@@ -186,7 +233,8 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   run-system-action \
   --platform android \
   --device-id emulator-5554 \
-  --action stopRecording
+  --action stopRecording \
+  --output-path /tmp/flutter_cockpit/system-flow.mp4
 ```
 
 Inspect richer UI state:

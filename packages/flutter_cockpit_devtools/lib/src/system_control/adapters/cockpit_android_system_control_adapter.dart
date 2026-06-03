@@ -80,6 +80,13 @@ final class CockpitAndroidSystemControlAdapter
           requires: <String>['adb', 'device id'],
         ),
         CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.activateWindow,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: availability,
+          strategy: 'adb.shell.monkey.launcher',
+          requires: <String>['adb', 'device id', 'package id'],
+        ),
+        CockpitSystemControlCapability(
           action: CockpitSystemControlAction.dismissSystemDialog,
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
@@ -228,6 +235,20 @@ final class CockpitAndroidSystemControlAdapter
           'adb',
           adbShell(const <String>['input', 'keyevent', 'KEYCODE_HOME']),
         ),
+      CockpitSystemControlAction.activateWindow => _packageCommand(
+        request,
+        (packageId) => CockpitResolvedSystemControlCommand(
+          'adb',
+          adbShell(<String>[
+            'monkey',
+            '-p',
+            packageId,
+            '-c',
+            'android.intent.category.LAUNCHER',
+            '1',
+          ]),
+        ),
+      ),
       CockpitSystemControlAction.openUrl => cockpitTextCommand(
         request,
         'url',
@@ -292,10 +313,6 @@ final class CockpitAndroidSystemControlAdapter
           ...command,
         ]),
       ),
-      _ => CockpitResolvedSystemControlCommand.error(
-        code: 'unsupportedSystemAction',
-        message: '${request.action.name} is not executable through adb.',
-      ),
     };
   }
 
@@ -307,19 +324,39 @@ final class CockpitAndroidSystemControlAdapter
     )
     factory,
   ) {
-    final packageId = request.parameters['packageId'] as String?;
+    final packageId = _readPackageId(request);
     final permission = request.parameters['permission'] as String?;
     if (packageId == null ||
-        packageId.isEmpty ||
+        packageId.trim().isEmpty ||
         permission == null ||
-        permission.isEmpty) {
+        permission.trim().isEmpty) {
       return const CockpitResolvedSystemControlCommand.error(
         code: 'missingSystemActionParameter',
         message:
-            'grantPermission requires packageId and permission parameters.',
+            'grantPermission requires --app-id or packageId plus permission.',
       );
     }
-    return factory(packageId, permission);
+    return factory(packageId.trim(), permission.trim());
+  }
+
+  CockpitResolvedSystemControlCommand _packageCommand(
+    CockpitSystemControlActionRequest request,
+    CockpitResolvedSystemControlCommand Function(String packageId) factory,
+  ) {
+    final packageId = _readPackageId(request);
+    if (packageId == null || packageId.trim().isEmpty) {
+      return CockpitResolvedSystemControlCommand.error(
+        code: 'missingSystemActionParameter',
+        message: '${request.action.name} requires --app-id or packageId.',
+      );
+    }
+    return factory(packageId.trim());
+  }
+
+  String? _readPackageId(CockpitSystemControlActionRequest request) {
+    return request.appId ??
+        (request.parameters['packageId'] as String?) ??
+        (request.parameters['appId'] as String?);
   }
 
   String _escapeAdbText(String text) {

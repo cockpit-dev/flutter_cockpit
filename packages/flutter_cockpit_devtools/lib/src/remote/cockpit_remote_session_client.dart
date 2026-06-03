@@ -142,8 +142,14 @@ final class CockpitRemoteSessionClient {
     return response.copyWith(snapshot: fullSnapshot);
   }
 
-  Future<CockpitCommandResult> execute(CockpitCommand command) async {
-    return (await executeDetailed(command)).result;
+  Future<CockpitCommandResult> execute(
+    CockpitCommand command, {
+    Duration? requestTimeout,
+  }) async {
+    return (await executeDetailed(
+      command,
+      requestTimeout: requestTimeout,
+    )).result;
   }
 
   Future<bool> waitForUiIdle({
@@ -164,6 +170,7 @@ final class CockpitRemoteSessionClient {
           },
           timeoutMs: timeout.inMilliseconds,
         ),
+        requestTimeout: timeout + const Duration(milliseconds: 250),
       );
       return result.success;
     } on Object {
@@ -172,12 +179,14 @@ final class CockpitRemoteSessionClient {
   }
 
   Future<CockpitCommandExecution> executeDetailed(
-    CockpitCommand command,
-  ) async {
+    CockpitCommand command, {
+    Duration? requestTimeout,
+  }) async {
     final payload = await _send(
       method: 'POST',
       path: '/commands/execute',
       body: command.toJson(),
+      requestTimeout: requestTimeout,
     );
     if (payload.containsKey('result')) {
       final response = CockpitRemoteCommandResponse.fromJson(payload);
@@ -279,6 +288,7 @@ final class CockpitRemoteSessionClient {
     required String method,
     required String path,
     Map<String, Object?>? body,
+    Duration? requestTimeout,
   }) async {
     final client = _httpClientFactory();
     try {
@@ -321,7 +331,7 @@ final class CockpitRemoteSessionClient {
         }
         return Map<String, Object?>.from(decoded);
       })().timeout(
-        _requestTimeout,
+        requestTimeout ?? _requestTimeout,
         onTimeout: () {
           client.close(force: true);
           throw TimeoutException(

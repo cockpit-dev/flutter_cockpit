@@ -124,6 +124,146 @@ void main() {
     ]);
   });
 
+  test('android activateWindow launches package through adb monkey', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        appId: 'dev.cockpit.example',
+        action: CockpitSystemControlAction.activateWindow,
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command, <String>[
+      'adb',
+      '-s',
+      'emulator-5554',
+      'shell',
+      'monkey',
+      '-p',
+      'dev.cockpit.example',
+      '-c',
+      'android.intent.category.LAUNCHER',
+      '1',
+    ]);
+  });
+
+  test('android grantPermission accepts appId as the package id', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        appId: 'dev.cockpit.example',
+        action: CockpitSystemControlAction.grantPermission,
+        parameters: <String, Object?>{
+          'permission': 'android.permission.CAMERA',
+        },
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command, <String>[
+      'adb',
+      '-s',
+      'emulator-5554',
+      'shell',
+      'pm',
+      'grant',
+      'dev.cockpit.example',
+      'android.permission.CAMERA',
+    ]);
+  });
+
+  test('ios simulator activateWindow launches app through simctl', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'ios',
+        deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+        appId: 'dev.cockpit.example',
+        action: CockpitSystemControlAction.activateWindow,
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command, <String>[
+      'xcrun',
+      'simctl',
+      'launch',
+      '--terminate-running-process',
+      '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+      'dev.cockpit.example',
+    ]);
+  });
+
+  test('ios simulator grantPermission uses simctl privacy grant', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'ios',
+        deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+        appId: 'dev.cockpit.example',
+        action: CockpitSystemControlAction.grantPermission,
+        parameters: <String, Object?>{'permission': 'photos'},
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command, <String>[
+      'xcrun',
+      'simctl',
+      'privacy',
+      '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+      'grant',
+      'photos',
+      'dev.cockpit.example',
+    ]);
+  });
+
+  test('ios simulator readSystemState lists device JSON', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'ios',
+        deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+        action: CockpitSystemControlAction.readSystemState,
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command, <String>[
+      'xcrun',
+      'simctl',
+      'list',
+      '-j',
+      'devices',
+      '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+    ]);
+  });
+
   test('timed out command returns structured action failure', () async {
     final service = CockpitSystemControlActionService(
       processManager: _HangingProcessManager(),
@@ -242,6 +382,27 @@ void main() {
   });
 
   test(
+    'captureScreenshot fails when an adapter reports success without a source file',
+    () async {
+      final service = CockpitSystemControlActionService(
+        captureAdapterFactory: (_) => const _MissingArtifactCaptureAdapter(),
+      );
+
+      final result = await service.run(
+        const CockpitSystemControlActionRequest(
+          platform: 'android',
+          deviceId: 'emulator-5554',
+          action: CockpitSystemControlAction.captureScreenshot,
+        ),
+      );
+
+      expect(result.success, isFalse);
+      expect(result.errorCode, 'systemCaptureMissingArtifact');
+      expect(result.recommendedNextStep, 'inspectCaptureFailure');
+    },
+  );
+
+  test(
     'startRecording starts adapter session without spawning process',
     () async {
       final processManager = _FakeProcessManager();
@@ -294,6 +455,115 @@ void main() {
     expect(result.recordingResult?['state'], 'completed');
     expect(processManager.starts, isEmpty);
   });
+
+  test(
+    'stopRecording copies completed video to requested output path',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_system_recording_output_test_',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+      final sourceFile = File('${tempDir.path}/source.mp4');
+      await sourceFile.writeAsBytes(<int>[0, 0, 0, 24, 102, 116, 121, 112]);
+      final outputFile = File('${tempDir.path}/copied.mp4');
+      final service = CockpitSystemControlActionService(
+        recordingAdapterFactory: (_) =>
+            _FakeRecordingAdapter(sourceFilePath: sourceFile.path),
+      );
+
+      final result = await service.run(
+        CockpitSystemControlActionRequest(
+          platform: 'android',
+          deviceId: 'emulator-5554',
+          action: CockpitSystemControlAction.stopRecording,
+          parameters: <String, Object?>{'outputPath': outputFile.path},
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(result.sourceFilePath, outputFile.path);
+      expect(result.recordingResult?['sourceFilePath'], outputFile.path);
+      expect(await outputFile.readAsBytes(), <int>[
+        0,
+        0,
+        0,
+        24,
+        102,
+        116,
+        121,
+        112,
+      ]);
+    },
+  );
+
+  test(
+    'stopRecording accepts an output path that already is the source path',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_system_recording_same_output_test_',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+      final sourceFile = File('${tempDir.path}/source.mp4');
+      await sourceFile.writeAsBytes(<int>[0, 0, 0, 24, 102, 116, 116, 121]);
+      final service = CockpitSystemControlActionService(
+        recordingAdapterFactory: (_) =>
+            _FakeRecordingAdapter(sourceFilePath: sourceFile.path),
+      );
+
+      final result = await service.run(
+        CockpitSystemControlActionRequest(
+          platform: 'android',
+          deviceId: 'emulator-5554',
+          action: CockpitSystemControlAction.stopRecording,
+          parameters: <String, Object?>{'outputPath': sourceFile.path},
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(result.sourceFilePath, sourceFile.path);
+      expect(await sourceFile.readAsBytes(), <int>[
+        0,
+        0,
+        0,
+        24,
+        102,
+        116,
+        116,
+        121,
+      ]);
+    },
+  );
+
+  test(
+    'stopRecording fails when an adapter reports completion without a source file',
+    () async {
+      final service = CockpitSystemControlActionService(
+        recordingAdapterFactory: (_) =>
+            _FakeRecordingAdapter(sourceFilePath: null),
+      );
+
+      final result = await service.run(
+        const CockpitSystemControlActionRequest(
+          platform: 'android',
+          deviceId: 'emulator-5554',
+          action: CockpitSystemControlAction.stopRecording,
+        ),
+      );
+
+      expect(result.success, isFalse);
+      expect(result.errorCode, 'systemRecordingMissingArtifact');
+      expect(result.recommendedNextStep, 'inspectRecordingFailure');
+      expect(result.recordingResult?['state'], 'completed');
+    },
+  );
 
   test('stopRecording adapter failure returns structured result', () async {
     final service = CockpitSystemControlActionService(
@@ -351,7 +621,26 @@ final class _FailingCaptureAdapter implements CockpitCaptureAdapter {
   }
 }
 
+final class _MissingArtifactCaptureAdapter implements CockpitCaptureAdapter {
+  const _MissingArtifactCaptureAdapter();
+
+  @override
+  Future<CockpitCommandExecution> capture(CockpitCommand command) async {
+    return CockpitCommandExecution(
+      result: CockpitCommandResult(
+        success: true,
+        commandId: command.commandId,
+        commandType: command.commandType,
+        durationMs: 12,
+      ),
+    );
+  }
+}
+
 final class _FakeRecordingAdapter implements CockpitRecordingAdapter {
+  _FakeRecordingAdapter({this.sourceFilePath = '/tmp/system-recording.mp4'});
+
+  final String? sourceFilePath;
   CockpitRecordingRequest? startedRequest;
 
   @override
@@ -377,7 +666,7 @@ final class _FakeRecordingAdapter implements CockpitRecordingAdapter {
         relativePath: 'recordings/system-recording.mp4',
       ),
       durationMs: 1200,
-      sourceFilePath: '/tmp/system-recording.mp4',
+      sourceFilePath: sourceFilePath,
     );
   }
 }

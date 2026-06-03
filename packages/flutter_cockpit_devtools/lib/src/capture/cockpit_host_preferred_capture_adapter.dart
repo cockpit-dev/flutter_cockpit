@@ -9,13 +9,16 @@ final class CockpitHostPreferredCaptureAdapter
     required CockpitCaptureAdapter remoteAdapter,
     required CockpitCaptureAdapter hostAcceptanceAdapter,
     required CockpitRemoteSessionClient client,
+    Duration preCaptureIdleTimeout = const Duration(milliseconds: 600),
   }) : _remoteAdapter = remoteAdapter,
        _hostAcceptanceAdapter = hostAcceptanceAdapter,
-       _client = client;
+       _client = client,
+       _preCaptureIdleTimeout = preCaptureIdleTimeout;
 
   final CockpitCaptureAdapter _remoteAdapter;
   final CockpitCaptureAdapter _hostAcceptanceAdapter;
   final CockpitRemoteSessionClient _client;
+  final Duration _preCaptureIdleTimeout;
 
   @override
   Future<CockpitCommandExecution> capture(CockpitCommand command) async {
@@ -25,7 +28,7 @@ final class CockpitHostPreferredCaptureAdapter
       return _remoteAdapter.capture(command);
     }
 
-    await _client.waitForUiIdle();
+    await _client.waitForUiIdle(timeout: _preCaptureIdleTimeout);
     final execution = await _hostAcceptanceAdapter.capture(command);
     if (!execution.result.success) {
       final fallbackExecution = await _remoteAdapter.capture(command);

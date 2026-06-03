@@ -171,17 +171,23 @@ Future<void> main(List<String> args) async {
           'bind_host=${endpoint.bindHost} public_host=${endpoint.publicHost} '
           'device_id=$deviceId session_port=$sessionPort',
         );
-        machineClient = await machineLauncher.startMachineClient(
+        var machineClientStartCount = 0;
+        final launchResult = await machineLauncher.launchWithLifecycle(
           machineLaunchRequest,
           endpoint: endpoint,
+          onMachineClientStarted: (client) async {
+            machineClientStartCount += 1;
+            machineClient = client;
+            await writeLog(
+              machineClientStartCount == 1
+                  ? 'development machine client started'
+                  : 'development machine client restarted after macOS cache recovery',
+            );
+            supervisor.bindMachineClient(client);
+          },
         );
-        await writeLog('development machine client started');
-        supervisor.bindMachineClient(machineClient!);
-        remoteHandle = await machineLauncher.waitForRemoteSession(
-          request: machineLaunchRequest,
-          machineClient: machineClient!,
-          endpoint: endpoint,
-        );
+        machineClient = launchResult.machineClient;
+        remoteHandle = launchResult.remoteSessionHandle;
         await writeLog(
           'development machine ready app_id=${remoteHandle!.appId} '
           'base_url=${remoteHandle!.baseUrl}',

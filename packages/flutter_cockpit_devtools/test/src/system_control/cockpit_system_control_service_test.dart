@@ -100,6 +100,70 @@ void main() {
     },
   );
 
+  test('ios simulator profile exposes real simctl system controls', () async {
+    final service = CockpitSystemControlService();
+
+    final result = await service.describe(
+      const CockpitSystemControlDescribeRequest(
+        platform: 'ios',
+        deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+        appId: 'dev.cockpit.example',
+      ),
+    );
+
+    expect(result.profile.adapter, 'ios.simctl+xctest');
+    expect(
+      result.profile.availableActions,
+      containsAll(<CockpitSystemControlAction>[
+        CockpitSystemControlAction.activateWindow,
+        CockpitSystemControlAction.grantPermission,
+        CockpitSystemControlAction.openUrl,
+        CockpitSystemControlAction.captureScreenshot,
+        CockpitSystemControlAction.startRecording,
+        CockpitSystemControlAction.stopRecording,
+        CockpitSystemControlAction.readSystemState,
+        CockpitSystemControlAction.runShell,
+      ]),
+    );
+    expect(
+      result.profile.blockedActions,
+      containsAll(<CockpitSystemControlAction>[
+        CockpitSystemControlAction.tap,
+        CockpitSystemControlAction.typeText,
+        CockpitSystemControlAction.dismissSystemDialog,
+        CockpitSystemControlAction.readUiTree,
+      ]),
+    );
+    expect(
+      result.profile.unsupportedActions,
+      containsAll(<CockpitSystemControlAction>[
+        CockpitSystemControlAction.pressBack,
+        CockpitSystemControlAction.pressHome,
+      ]),
+    );
+  });
+
+  test('ios booted simulator alias exposes simctl controls', () async {
+    final service = CockpitSystemControlService();
+
+    final result = await service.describe(
+      const CockpitSystemControlDescribeRequest(
+        platform: 'ios',
+        deviceId: 'booted',
+      ),
+    );
+
+    expect(result.profile.adapter, 'ios.simctl+xctest');
+    expect(
+      result.profile.availableActions,
+      contains(CockpitSystemControlAction.openUrl),
+    );
+    expect(
+      result.profile.availableActions,
+      contains(CockpitSystemControlAction.readSystemState),
+    );
+  });
+
   test('unknown platform reports unsupported capability profile', () async {
     final service = CockpitSystemControlService();
 
@@ -130,13 +194,16 @@ void main() {
 
       expect(result.profile.adapter, 'browser.dom+host-recording');
       expect(result.profile.availableActions, isEmpty);
-      expect(result.profile.blockedActions, <CockpitSystemControlAction>[
-        CockpitSystemControlAction.tap,
-        CockpitSystemControlAction.typeText,
-        CockpitSystemControlAction.captureScreenshot,
-        CockpitSystemControlAction.startRecording,
-        CockpitSystemControlAction.stopRecording,
-      ]);
+      expect(
+        result.profile.blockedActions,
+        containsAll(<CockpitSystemControlAction>[
+          CockpitSystemControlAction.tap,
+          CockpitSystemControlAction.typeText,
+          CockpitSystemControlAction.captureScreenshot,
+          CockpitSystemControlAction.startRecording,
+          CockpitSystemControlAction.stopRecording,
+        ]),
+      );
       expect(
         result.profile
             .capabilityFor(CockpitSystemControlAction.captureScreenshot)
@@ -153,6 +220,14 @@ void main() {
 
       final withoutTarget = await service.describe(
         const CockpitSystemControlDescribeRequest(platform: 'macos'),
+      );
+      expect(
+        withoutTarget.profile.availableActions,
+        contains(CockpitSystemControlAction.tap),
+      );
+      expect(
+        withoutTarget.profile.blockedActions,
+        contains(CockpitSystemControlAction.typeText),
       );
       expect(
         withoutTarget.profile.blockedActions,
@@ -173,6 +248,14 @@ void main() {
       expect(withTarget.profile.appId, 'dev.cockpit.example');
       expect(
         withTarget.profile.availableActions,
+        contains(CockpitSystemControlAction.typeText),
+      );
+      expect(
+        withTarget.profile.availableActions,
+        contains(CockpitSystemControlAction.activateWindow),
+      );
+      expect(
+        withTarget.profile.availableActions,
         contains(CockpitSystemControlAction.captureScreenshot),
       );
       expect(
@@ -182,6 +265,48 @@ void main() {
       expect(
         withTarget.profile.availableActions,
         contains(CockpitSystemControlAction.stopRecording),
+      );
+      expect(
+        withTarget.profile
+            .capabilityFor(CockpitSystemControlAction.openUrl)
+            ?.requires,
+        <String>['open'],
+      );
+      expect(
+        withTarget.profile
+            .capabilityFor(CockpitSystemControlAction.tap)
+            ?.requires,
+        contains('Accessibility permission'),
+      );
+      expect(
+        withTarget.profile
+            .capabilityFor(CockpitSystemControlAction.captureScreenshot)
+            ?.requires,
+        contains('screencapture'),
+      );
+      expect(
+        withTarget.profile
+            .capabilityFor(CockpitSystemControlAction.captureScreenshot)
+            ?.requires,
+        contains('Screen Recording permission'),
+      );
+      expect(
+        withTarget.profile
+            .capabilityFor(CockpitSystemControlAction.captureScreenshot)
+            ?.requires,
+        isNot(contains('Accessibility permission')),
+      );
+      expect(
+        withTarget.profile
+            .capabilityFor(CockpitSystemControlAction.readUiTree)
+            ?.requires,
+        contains('Accessibility tree dump helper'),
+      );
+      expect(
+        withTarget.profile
+            .capabilityFor(CockpitSystemControlAction.readUiTree)
+            ?.requires,
+        isNot(contains('Screen Recording permission')),
       );
 
       final macosProcessOnly = await service.describe(
@@ -204,6 +329,27 @@ void main() {
       expect(
         windowsProcessOnly.profile.availableActions,
         contains(CockpitSystemControlAction.captureScreenshot),
+      );
+
+      final linuxWithTarget = await service.describe(
+        const CockpitSystemControlDescribeRequest(
+          platform: 'linux',
+          appId: 'dev.cockpit.example',
+        ),
+      );
+      expect(
+        linuxWithTarget.profile
+            .capabilityFor(CockpitSystemControlAction.tap)
+            ?.requires,
+        containsAll(<String>['xdotool', 'X11 DISPLAY']),
+      );
+      expect(
+        linuxWithTarget.profile
+            .capabilityFor(CockpitSystemControlAction.captureScreenshot)
+            ?.requires,
+        contains(
+          'one screenshot tool: gnome-screenshot, grim, scrot, or import',
+        ),
       );
     },
   );
@@ -241,6 +387,12 @@ void main() {
         final request = CockpitSystemControlActionRequest(
           platform: entry.platform,
           deviceId: entry.deviceId,
+          appId:
+              entry.platform == 'macos' ||
+                  entry.platform == 'windows' ||
+                  entry.platform == 'linux'
+              ? 'dev.cockpit.example'
+              : null,
           action: capability.action,
           parameters: _validParametersFor(capability.action),
         );
@@ -254,6 +406,78 @@ void main() {
         );
         expect(command.executable, isNot(isEmpty));
       }
+    }
+  });
+
+  test(
+    'parameter-scoped actions remain available for action-time payloads',
+    () {
+      const registry = CockpitSystemControlRegistry();
+
+      final androidProfile = registry
+          .resolve('android')
+          .describe(
+            const CockpitSystemControlTargetContext(deviceId: 'emulator-5554'),
+          );
+      expect(
+        androidProfile
+            .capabilityFor(CockpitSystemControlAction.activateWindow)
+            ?.availability,
+        CockpitSystemControlAvailability.available,
+      );
+
+      final iosProfile = registry
+          .resolve('ios')
+          .describe(
+            const CockpitSystemControlTargetContext(deviceId: 'booted'),
+          );
+      expect(
+        iosProfile
+            .capabilityFor(CockpitSystemControlAction.activateWindow)
+            ?.availability,
+        CockpitSystemControlAvailability.available,
+      );
+      expect(
+        iosProfile
+            .capabilityFor(CockpitSystemControlAction.grantPermission)
+            ?.availability,
+        CockpitSystemControlAvailability.available,
+      );
+    },
+  );
+
+  test('every platform profile declares every system action explicitly', () {
+    const registry = CockpitSystemControlRegistry();
+    for (final entry in <({String platform, String deviceId, String? appId})>[
+      (platform: 'android', deviceId: 'emulator-5554', appId: null),
+      (
+        platform: 'ios',
+        deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+        appId: 'dev.cockpit.example',
+      ),
+      (platform: 'macos', deviceId: 'host', appId: 'dev.cockpit.example'),
+      (platform: 'windows', deviceId: 'host', appId: 'dev.cockpit.example'),
+      (platform: 'linux', deviceId: 'host', appId: 'dev.cockpit.example'),
+      (platform: 'web', deviceId: 'chrome', appId: null),
+      (platform: 'freebsd', deviceId: 'host', appId: null),
+    ]) {
+      final profile = registry
+          .resolve(entry.platform)
+          .describe(
+            CockpitSystemControlTargetContext(
+              deviceId: entry.deviceId,
+              appId: entry.appId,
+            ),
+          );
+      final declaredActions = profile.capabilities
+          .map((capability) => capability.action)
+          .toSet();
+
+      expect(
+        declaredActions,
+        CockpitSystemControlAction.values.toSet(),
+        reason: '${entry.platform} capability matrix must be exhaustive.',
+      );
     }
   });
 }
@@ -304,9 +528,11 @@ Map<String, Object?> _validParametersFor(CockpitSystemControlAction action) {
     },
     CockpitSystemControlAction.pressBack ||
     CockpitSystemControlAction.pressHome ||
-    CockpitSystemControlAction.activateWindow ||
     CockpitSystemControlAction.dismissSystemDialog ||
     CockpitSystemControlAction.readUiTree ||
     CockpitSystemControlAction.readSystemState => const <String, Object?>{},
+    CockpitSystemControlAction.activateWindow => const <String, Object?>{
+      'packageId': 'dev.cockpit.example',
+    },
   };
 }

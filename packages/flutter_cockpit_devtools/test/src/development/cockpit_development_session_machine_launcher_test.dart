@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:flutter_cockpit_devtools/src/development/cockpit_development_session_machine_launcher.dart';
@@ -348,6 +349,115 @@ void main() {
       await stdoutController.close();
       await stderrController.close();
       exitCode.complete(0);
+      await result.machineClient.dispose();
+    },
+  );
+
+  test(
+    'macos development launch cleans and restarts once for stale Swift module cache failures',
+    () async {
+      final stdoutControllers = <StreamController<String>>[];
+      final stderrControllers = <StreamController<String>>[];
+      final exitCodes = <Completer<int>>[];
+      final startAttempts = <String>[];
+      final boundClients = <CockpitFlutterRunMachineClient>[];
+      final cleanInvocations = <String>[];
+
+      final launcher = CockpitDevelopmentSessionMachineLauncher(
+        machineClientStarter:
+            ({
+              required projectDir,
+              required target,
+              required deviceId,
+              flavor,
+              flutterExecutable,
+              extraArgs = const <String>[],
+            }) async {
+              startAttempts.add('$projectDir|$target|$deviceId');
+              final stdoutController = StreamController<String>();
+              final stderrController = StreamController<String>();
+              final exitCode = Completer<int>();
+              stdoutControllers.add(stdoutController);
+              stderrControllers.add(stderrController);
+              exitCodes.add(exitCode);
+              final client = CockpitFlutterRunMachineClient(
+                stdoutLines: stdoutController.stream,
+                stderrLines: stderrController.stream,
+                exitCode: exitCode.future,
+                requestWriter: (_) async {},
+              );
+              if (startAttempts.length == 1) {
+                Future<void>.microtask(() {
+                  stderrController.add(
+                    "file 'FlutterPluginRegistrarMacOS.h' has been modified since the module file 'flutter_cockpit.pcm' was built",
+                  );
+                  exitCode.complete(1);
+                });
+              } else {
+                Future<void>.microtask(() {
+                  stdoutController.add(
+                    '[{"event":"app.start","params":{"appId":"machine-macos-app"}}]',
+                  );
+                  stdoutController.add(
+                    '[{"event":"app.debugPort","params":{"wsUri":"ws://127.0.0.1:37567/macos/ws"}}]',
+                  );
+                });
+              }
+              return client;
+            },
+        recoveryProcessRunner:
+            (
+              executable,
+              arguments, {
+              workingDirectory,
+              required timeout,
+            }) async {
+              cleanInvocations.add(
+                '$executable ${arguments.join(' ')} cwd=$workingDirectory',
+              );
+              return ProcessResult(321, 0, '', '');
+            },
+        statusReader: (_) async => _readyStatus('macos'),
+        platformAppIdResolver:
+            ({required projectDir, required platform, flavor}) async {
+              expect(platform, 'macos');
+              return 'dev.example.macos';
+            },
+        now: () => DateTime.utc(2026, 4, 4, 17, 20),
+      );
+
+      final result = await launcher.launchWithLifecycle(
+        const CockpitLaunchDevelopmentMachineSessionRequest(
+          projectDir: '/workspace/examples/cockpit_demo',
+          target: 'cockpit/main.dart',
+          platform: 'macos',
+          deviceId: 'macos',
+          sessionPort: 57331,
+          hostPort: 57331,
+          launchTimeout: Duration(seconds: 30),
+          flutterVersion: '3.39.0',
+          flutterExecutable: '/opt/flutter/bin/flutter',
+        ),
+        onMachineClientStarted: boundClients.add,
+      );
+
+      expect(startAttempts, hasLength(2));
+      expect(boundClients, hasLength(2));
+      expect(cleanInvocations, <String>[
+        '/opt/flutter/bin/flutter clean cwd=/workspace/examples/cockpit_demo',
+      ]);
+      expect(result.remoteSessionHandle.appId, 'machine-macos-app');
+      expect(result.remoteSessionHandle.platformAppId, 'dev.example.macos');
+
+      for (final controller in stdoutControllers) {
+        await controller.close();
+      }
+      for (final controller in stderrControllers) {
+        await controller.close();
+      }
+      if (!exitCodes.last.isCompleted) {
+        exitCodes.last.complete(0);
+      }
       await result.machineClient.dispose();
     },
   );

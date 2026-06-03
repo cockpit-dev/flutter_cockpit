@@ -111,6 +111,8 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools read-system-capabilit
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-system-action --platform <platform> [--device-id <device-or-simulator-id>] [--app-id <app-id>] [--process-id <pid>] --action <available-action>
 ```
 
+Desktop coordinates (`tap`, `longPress`, `drag`) use screen pixels. Targeted actions need `--app-id` or `--process-id` when capabilities require it. The capability matrix is exhaustive: if an action is not `available`, use its requirement, fallback, or return `blocked_by_environment`. For video: start, drive, then `stopRecording --output-path <file>`.
+
 Acceptance, release readiness, or artifact-backed handoff:
 
 ```bash
@@ -122,12 +124,11 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools validate-task --confi
 - Fast path for most edits: reuse or launch app -> `read-app --profile minimal` -> edit -> `hot-reload` -> smallest post-action read -> `read-errors --max-errors 10` -> one named screenshot only for visible UI claims.
 - Use `minimal -> standard -> inspect -> evidence`; escalate only when the current layer cannot answer the next question.
 - Be flexible on commands, strict on proof. A tiny text edit may only need analyze, hot reload, minimal read, and errors; an acceptance flow may need batch, recording, and validation.
-- Every command should reduce uncertainty for the current task. Do not run recording, evidence profiles, bundle validation, or raw artifact reads just because they exist.
+- Every command should reduce uncertainty. Do not run recording, evidence profiles, bundle validation, or raw artifact reads just because they exist.
 - Keep platform and device placeholders until `list-targets` returns real values; read capabilities before choosing shell, recording, browser, or native paths.
 - Prefer file inputs: `--command-file`, `--commands-file`, and config JSON.
 - Safe command types: `tap`, `enterText`, `assertText`, `waitForUiIdle`, `scrollUntilVisible`, `captureScreenshot`.
 - Safe locator keys: `text`, `tooltip`, `semanticId`, `type`, `ancestor`, `index`, `fallbacks`. Do not set `type: Text` for button labels; use text alone or the inspected control type.
-- Use auto screenshots as debugging breadcrumbs, not final proof. Use an explicit named screenshot for final visible proof.
 - Keep the app alive while more edits are likely. Stop only when the user asks, the session is stuck, `hot-restart` cannot recover, or a clean rebuild/relaunch is required.
 
 ## Failure Recovery

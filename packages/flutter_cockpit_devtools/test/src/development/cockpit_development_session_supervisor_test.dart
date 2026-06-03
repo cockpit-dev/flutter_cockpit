@@ -647,6 +647,59 @@ void main() {
   );
 
   test(
+    'supervisor allows a startup machine client to be replaced after a recoverable launch exit',
+    () async {
+      final firstHarness = _MachineHarness();
+      final secondHarness = _MachineHarness();
+      addTearDown(firstHarness.dispose);
+      addTearDown(secondHarness.dispose);
+
+      var remoteChecks = 0;
+      final supervisor = CockpitDevelopmentSessionSupervisor(
+        initialHandle: firstHarness.handle.copyWith(
+          appId: '',
+          remoteSessionHandle: null,
+        ),
+        machineClient: null,
+        remoteReachabilityProbe: (_) async {
+          remoteChecks += 1;
+          return true;
+        },
+        now: () => DateTime.utc(2026, 3, 23, 3, 30),
+        settleTimeout: const Duration(seconds: 2),
+        settlePollInterval: const Duration(milliseconds: 10),
+      );
+      addTearDown(supervisor.dispose);
+
+      await supervisor.start();
+      supervisor.bindMachineClient(firstHarness.client);
+      firstHarness.stderrController.add(
+        "file 'FlutterPluginRegistrarMacOS.h' has been modified since the module file 'flutter_cockpit.pcm' was built",
+      );
+      firstHarness.stdoutController.add('[{"event":"app.stop","params":{}}]');
+      firstHarness.exitCode.complete(1);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      final interimStatus = await supervisor.currentStatus();
+      expect(interimStatus.state, CockpitDevelopmentSessionState.starting);
+      expect(interimStatus.lastError, contains('flutter run exited'));
+
+      supervisor.bindMachineClient(secondHarness.client);
+      secondHarness.stdoutController.add(
+        '[{"event":"app.start","params":{"appId":"recovered-app"}}]',
+      );
+      await supervisor.bindRemoteSession(
+        secondHarness.handle.remoteSessionHandle!,
+      );
+      await supervisor.waitForState(CockpitDevelopmentSessionState.ready);
+
+      final currentHandle = await supervisor.currentHandle();
+      expect(currentHandle.appId, 'recovered-app');
+      expect(remoteChecks, greaterThanOrEqualTo(2));
+    },
+  );
+
+  test(
     'reload updates generation and stop shuts down the control plane',
     () async {
       final harness = _MachineHarness();

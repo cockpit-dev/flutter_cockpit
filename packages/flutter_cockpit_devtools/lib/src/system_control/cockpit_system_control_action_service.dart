@@ -230,13 +230,32 @@ final class CockpitSystemControlActionService {
       final sourcePath = artifact == null
           ? null
           : execution.artifactSourcePaths[artifact.relativePath];
+      if (result.success && (sourcePath == null || sourcePath.isEmpty)) {
+        return CockpitSystemControlActionResult(
+          platform: request.platform,
+          deviceId: request.deviceId,
+          appId: request.appId,
+          processId: request.processId,
+          action: request.action,
+          availability: capability.availability,
+          success: false,
+          recommendedNextStep: 'inspectCaptureFailure',
+          errorCode: 'systemCaptureMissingArtifact',
+          errorMessage:
+              'Capture adapter reported success without a source artifact path.',
+          strategy: capability.strategy,
+          requires: capability.requires,
+          limitations: capability.limitations,
+          artifact: artifact?.toJson(),
+        );
+      }
       final outputPath = _readOptionalString(request.parameters, 'outputPath');
       String? finalSourcePath = sourcePath;
       if (result.success && sourcePath != null && outputPath != null) {
-        final outputFile = File(outputPath);
-        await outputFile.parent.create(recursive: true);
-        await File(sourcePath).copy(outputFile.path);
-        finalSourcePath = outputFile.path;
+        finalSourcePath = await _copyArtifactToOutputPath(
+          sourcePath: sourcePath,
+          outputPath: outputPath,
+        );
       }
 
       return CockpitSystemControlActionResult(
@@ -357,6 +376,34 @@ final class CockpitSystemControlActionService {
     try {
       final recordingResult = await adapter.stopRecording();
       final success = recordingResult.state == CockpitRecordingState.completed;
+      var finalSourcePath = recordingResult.sourceFilePath;
+      if (success && (finalSourcePath == null || finalSourcePath.isEmpty)) {
+        return CockpitSystemControlActionResult(
+          platform: request.platform,
+          deviceId: request.deviceId,
+          appId: request.appId,
+          processId: request.processId,
+          action: request.action,
+          availability: capability.availability,
+          success: false,
+          recommendedNextStep: 'inspectRecordingFailure',
+          errorCode: 'systemRecordingMissingArtifact',
+          errorMessage:
+              'Recording adapter reported completion without a source file path.',
+          strategy: capability.strategy,
+          requires: capability.requires,
+          limitations: capability.limitations,
+          artifact: recordingResult.artifact?.toJson(),
+          recordingResult: recordingResult.toJson(),
+        );
+      }
+      final outputPath = _readOptionalString(request.parameters, 'outputPath');
+      if (success && finalSourcePath != null && outputPath != null) {
+        finalSourcePath = await _copyArtifactToOutputPath(
+          sourcePath: finalSourcePath,
+          outputPath: outputPath,
+        );
+      }
       return CockpitSystemControlActionResult(
         platform: request.platform,
         deviceId: request.deviceId,
@@ -374,8 +421,12 @@ final class CockpitSystemControlActionService {
         requires: capability.requires,
         limitations: capability.limitations,
         artifact: recordingResult.artifact?.toJson(),
-        sourceFilePath: recordingResult.sourceFilePath,
-        recordingResult: recordingResult.toJson(),
+        sourceFilePath: finalSourcePath,
+        recordingResult: finalSourcePath == recordingResult.sourceFilePath
+            ? recordingResult.toJson()
+            : recordingResult
+                  .copyWith(sourceFilePath: finalSourcePath)
+                  .toJson(),
       );
     } on Object catch (error) {
       return CockpitSystemControlActionResult(
@@ -508,6 +559,20 @@ String? _readOptionalString(Map<String, Object?> parameters, String key) {
   }
   final text = '$value'.trim();
   return text.isEmpty ? null : text;
+}
+
+Future<String> _copyArtifactToOutputPath({
+  required String sourcePath,
+  required String outputPath,
+}) async {
+  final outputFile = File(outputPath);
+  await outputFile.parent.create(recursive: true);
+  final sourceFile = File(sourcePath);
+  if (sourceFile.absolute.path == outputFile.absolute.path) {
+    return outputFile.path;
+  }
+  await sourceFile.copy(outputFile.path);
+  return outputFile.path;
 }
 
 String _describeSystemControlError(Object error) {

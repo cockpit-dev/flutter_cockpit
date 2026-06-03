@@ -9,7 +9,10 @@ In-app runtime primitives for AI-driven Flutter development workflows.
   s.license          = { :file => '../LICENSE' }
   s.author           = { 'cockpit-dev' => 'dev@cockpit.dev' }
   s.source           = { :path => '.' }
-  s.source_files     = 'Classes/**/*'
+  s.source_files     = 'flutter_cockpit/Sources/flutter_cockpit/**/*.swift'
+  s.resource_bundles = {
+    'flutter_cockpit_privacy' => ['flutter_cockpit/Sources/flutter_cockpit/PrivacyInfo.xcprivacy']
+  }
   s.dependency 'FlutterMacOS'
   s.platform = :osx, '10.14'
   s.swift_version = '5.0'

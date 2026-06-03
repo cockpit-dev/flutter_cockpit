@@ -9,7 +9,10 @@ Native acceptance screenshot support for flutter_cockpit.
   s.license          = { :file => '../LICENSE' }
   s.author           = { 'cockpit-dev' => 'devnull@example.com' }
   s.source           = { :path => '.' }
-  s.source_files = 'Classes/**/*'
+  s.source_files = 'flutter_cockpit/Sources/flutter_cockpit/**/*.swift'
+  s.resource_bundles = {
+    'flutter_cockpit_privacy' => ['flutter_cockpit/Sources/flutter_cockpit/PrivacyInfo.xcprivacy']
+  }
   s.dependency 'Flutter'
   s.platform = :ios, '13.0'
   s.pod_target_xcconfig = {

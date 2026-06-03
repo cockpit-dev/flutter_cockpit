@@ -23,10 +23,10 @@ void main() {
       '$root/packages/flutter_cockpit/android/src/main/kotlin/dev/cockpit/flutter_cockpit/FlutterCockpitPlugin.kt',
     );
     final iosPlugin = File(
-      '$root/packages/flutter_cockpit/ios/Classes/FlutterCockpitPlugin.swift',
+      '$root/packages/flutter_cockpit/ios/flutter_cockpit/Sources/flutter_cockpit/FlutterCockpitPlugin.swift',
     );
     final macosPlugin = File(
-      '$root/packages/flutter_cockpit/macos/Classes/FlutterCockpitPlugin.swift',
+      '$root/packages/flutter_cockpit/macos/flutter_cockpit/Sources/flutter_cockpit/FlutterCockpitPlugin.swift',
     );
     final linuxPlugin = File(
       '$root/packages/flutter_cockpit/linux/flutter_cockpit_plugin.cc',
@@ -62,11 +62,28 @@ void main() {
     final manifest = File(
       '$root/packages/flutter_cockpit/android/src/main/AndroidManifest.xml',
     ).readAsStringSync();
+    final androidGradle = File(
+      '$root/packages/flutter_cockpit/android/build.gradle',
+    ).readAsStringSync();
+    final iosPackage = File(
+      '$root/packages/flutter_cockpit/ios/flutter_cockpit/Package.swift',
+    ).readAsStringSync();
+    final macosPackage = File(
+      '$root/packages/flutter_cockpit/macos/flutter_cockpit/Package.swift',
+    ).readAsStringSync();
 
     expect(podspec, contains("s.name             = 'flutter_cockpit'"));
     expect(podspec, contains('flutter_cockpit.'));
+    expect(podspec, contains('flutter_cockpit/Sources/flutter_cockpit'));
     expect(macosPodspec, contains("s.name             = 'flutter_cockpit'"));
     expect(macosPodspec, contains('flutter_cockpit'));
+    expect(macosPodspec, contains('flutter_cockpit/Sources/flutter_cockpit'));
+    expect(iosPackage, contains('name: "flutter_cockpit"'));
+    expect(iosPackage, contains('.iOS("13.0")'));
+    expect(macosPackage, contains('name: "flutter_cockpit"'));
+    expect(macosPackage, contains('.macOS("10.15")'));
     expect(manifest, contains('package="dev.cockpit.flutter_cockpit"'));
+    expect(androidGradle, contains('agpMajor < 9'));
+    expect(androidGradle, contains('compilerOptions'));
   });
 }

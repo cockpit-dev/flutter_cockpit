@@ -641,7 +641,10 @@ jobs:
             test/src/capture/cockpit_macos_capture_adapter_test.dart \
             test/src/capture/cockpit_capture_strategy_resolver_test.dart \
             test/src/recording/cockpit_macos_recording_adapter_test.dart \
-            test/src/recording/cockpit_recording_strategy_resolver_test.dart
+            test/src/recording/cockpit_recording_strategy_resolver_test.dart \
+            test/src/system_control/cockpit_system_control_profile_test.dart \
+            test/src/system_control/cockpit_system_control_service_test.dart \
+            test/src/system_control/cockpit_system_control_action_service_test.dart
 
       - name: Prepare macOS verifier outputs
         run: |
@@ -945,7 +948,10 @@ jobs:
             test/src/capture/cockpit_linux_capture_adapter_test.dart \
             test/src/capture/cockpit_capture_strategy_resolver_test.dart \
             test/src/recording/cockpit_linux_recording_adapter_test.dart \
-            test/src/recording/cockpit_recording_strategy_resolver_test.dart
+            test/src/recording/cockpit_recording_strategy_resolver_test.dart \
+            test/src/system_control/cockpit_system_control_profile_test.dart \
+            test/src/system_control/cockpit_system_control_service_test.dart \
+            test/src/system_control/cockpit_system_control_action_service_test.dart
 
       - name: Prepare Linux verifier outputs
         run: |
@@ -1079,7 +1085,10 @@ jobs:
             test/src/capture/cockpit_windows_capture_adapter_test.dart \
             test/src/capture/cockpit_capture_strategy_resolver_test.dart \
             test/src/recording/cockpit_windows_recording_adapter_test.dart \
-            test/src/recording/cockpit_recording_strategy_resolver_test.dart
+            test/src/recording/cockpit_recording_strategy_resolver_test.dart \
+            test/src/system_control/cockpit_system_control_profile_test.dart \
+            test/src/system_control/cockpit_system_control_service_test.dart \
+            test/src/system_control/cockpit_system_control_action_service_test.dart
 
       - name: Prepare Windows verifier outputs
         run: |

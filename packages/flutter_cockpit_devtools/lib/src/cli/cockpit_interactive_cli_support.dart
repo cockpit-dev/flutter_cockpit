@@ -786,6 +786,15 @@ String cockpitRenderAiPayload({
     }
   }
 
+  final capabilityLines = _aiCapabilityLines(decoded);
+  if (capabilityLines.isNotEmpty) {
+    buffer.writeln();
+    buffer.writeln('capabilities');
+    for (final line in capabilityLines) {
+      buffer.writeln('  $line');
+    }
+  }
+
   final resultLines = _aiResultLines(decoded);
   if (resultLines.isNotEmpty) {
     buffer.writeln();
@@ -983,6 +992,28 @@ List<String> _aiSummaryLines(Object? value) {
   return lines;
 }
 
+List<String> _aiCapabilityLines(Object? value) {
+  if (value is! Map<Object?, Object?>) {
+    return const <String>[];
+  }
+  final capabilities = _readList(value, 'capabilities');
+  if (capabilities == null || capabilities.isEmpty) {
+    return const <String>[];
+  }
+  final lines = <String>[];
+  for (var index = 0; index < capabilities.length; index++) {
+    final capability = capabilities[index];
+    if (capability is Map<Object?, Object?>) {
+      lines.add(
+        '[$index] ${_compactInlineMap(capability, preferredKeys: const <String>['action', 'availability', 'plane', 'strategy', 'requires', 'limitations', 'fallbackActions'])}',
+      );
+    } else {
+      lines.add('[$index] ${_formatAiScalar(capability)}');
+    }
+  }
+  return lines;
+}
+
 List<String> _aiResultLines(Object? value) {
   if (value is! Map<Object?, Object?>) {
     return const <String>[];
@@ -1003,6 +1034,13 @@ List<String> _aiResultLines(Object? value) {
       ),
     );
   }
+  final commandList = _readList(value, 'command');
+  if (commandList != null) {
+    lines.add('command=${_formatAiScalar(commandList)}');
+  } else {
+    _addKeyValue(lines, 'command', _readString(value, 'command'));
+  }
+  _addKeyValue(lines, 'exitCode', _readNumber(value, 'exitCode'));
   final results = _readList(value, 'results');
   if (results != null) {
     for (var index = 0; index < results.length; index++) {
@@ -1362,17 +1400,26 @@ List<String> _aiRemainingLines(Object? value) {
     'processId',
     'sessionId',
     'platform',
+    'deviceId',
+    'adapter',
     'transportType',
     'selectedPlane',
+    'preferredPlane',
+    'fallbackOrder',
     'diagnosticLevel',
     'truncated',
     'uiSummary',
     'summary',
+    'availableActions',
+    'blockedActions',
+    'unsupportedActions',
+    'capabilities',
     'success',
     'available',
     'action',
     'availability',
     'command',
+    'exitCode',
     'results',
     'error',
     'validationFailures',

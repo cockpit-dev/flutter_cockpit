@@ -146,6 +146,70 @@ void main() {
     },
   );
 
+  test(
+    'macos launcher cleans and retries once for stale Swift module cache failures',
+    () async {
+      final invocations = <String>[];
+      var buildCount = 0;
+      final launcher = CockpitMacosRemoteSessionLauncher(
+        flutterVersionReader: () async => '3.44.0',
+        processRunner: (executable, arguments, {String? workingDirectory}) async {
+          invocations.add('$executable ${arguments.join(' ')}');
+          if (arguments.length >= 2 &&
+              arguments[0] == 'build' &&
+              arguments[1] == 'macos') {
+            buildCount += 1;
+            if (buildCount == 1) {
+              return ProcessResult(
+                0,
+                1,
+                '',
+                "file 'FlutterPluginRegistrarMacOS.h' has been modified since the module file 'flutter_cockpit.pcm' was built",
+              );
+            }
+          }
+          return ProcessResult(0, 0, '', '');
+        },
+        appBundlePathResolver:
+            ({required String projectDir, String? flavor}) async =>
+                '$projectDir/build/macos/Build/Products/Debug/cockpit_demo.app',
+        bundleIdResolver: ({required String appBundlePath}) async =>
+            'dev.cockpit.cockpitDemo',
+        statusReader: (baseUri) async => CockpitRemoteSessionStatus(
+          sessionId: 'macos-cache-retry-session',
+          platform: 'macos',
+          transportType: 'remoteHttp',
+          currentRouteName: '/home',
+          capabilities: CockpitCapabilities(
+            platform: 'macos',
+            transportType: 'remoteHttp',
+            supportsInAppControl: true,
+            supportsFlutterViewCapture: true,
+            supportsNativeScreenCapture: true,
+            supportsHostAutomation: true,
+          ),
+          recordingCapabilities: CockpitRecordingCapabilities(
+            supportsNativeRecording: true,
+          ),
+          snapshot: CockpitSnapshot(routeName: '/home'),
+        ),
+      );
+
+      await launcher.launch(
+        const CockpitRemoteSessionLaunchOptions(
+          projectDir: '/workspace/examples/cockpit_demo',
+          target: 'cockpit/main.dart',
+          platform: 'macos',
+          deviceId: 'macos',
+          sessionPort: 47331,
+        ),
+      );
+
+      expect(buildCount, 2);
+      expect(invocations, contains('flutter clean'));
+    },
+  );
+
   test('macos remote session launcher times out slow build stages', () async {
     final launcher = CockpitMacosRemoteSessionLauncher(
       flutterVersionReader: () async => '3.38.9',

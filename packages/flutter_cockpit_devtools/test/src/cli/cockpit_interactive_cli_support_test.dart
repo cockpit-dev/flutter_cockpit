@@ -145,6 +145,123 @@ void main() {
     });
 
     test(
+      'renders system action command arrays in the results section',
+      () async {
+        final parser = ArgParser();
+        cockpitAddOutputArgs(parser);
+        final output = StringBuffer();
+
+        await cockpitWriteJsonPayload(
+          commandName: 'run-system-action',
+          payload: const <String, Object?>{
+            'success': true,
+            'recommendedNextStep': 'readPostActionState',
+            'platform': 'android',
+            'action': 'tap',
+            'command': <String>[
+              'adb',
+              '-s',
+              'emulator-5554',
+              'shell',
+              'input',
+              'tap',
+              '42',
+              '88',
+            ],
+            'exitCode': 0,
+          },
+          argResults: parser.parse(const <String>[]),
+          stdoutSink: output,
+        );
+
+        final text = output.toString();
+        expect(text, contains('results'));
+        expect(
+          text,
+          contains(
+            'command=[adb | -s | emulator-5554 | shell | input | tap | 42 | 88]',
+          ),
+        );
+        expect(text, contains('exitCode=0'));
+      },
+    );
+
+    test(
+      'renders system evidence source paths and recording results by default',
+      () async {
+        final parser = ArgParser();
+        cockpitAddOutputArgs(parser);
+        final output = StringBuffer();
+
+        await cockpitWriteJsonPayload(
+          commandName: 'run-system-action',
+          payload: const <String, Object?>{
+            'success': true,
+            'recommendedNextStep': 'readPostActionState',
+            'platform': 'android',
+            'action': 'stopRecording',
+            'sourceFilePath': '/tmp/system-flow.mp4',
+            'recordingResult': <String, Object?>{
+              'state': 'completed',
+              'recordingKind': 'nativeScreen',
+              'sourceFilePath': '/tmp/system-flow.mp4',
+            },
+          },
+          argResults: parser.parse(const <String>[]),
+          stdoutSink: output,
+        );
+
+        final text = output.toString();
+        expect(text, contains('sourceFilePath=/tmp/system-flow.mp4'));
+        expect(text, contains('recordingResult='));
+        expect(text, contains('state=completed'));
+        expect(text, contains('recordingKind=nativeScreen'));
+      },
+    );
+
+    test('renders capability matrices as readable full rows', () async {
+      final parser = ArgParser();
+      cockpitAddOutputArgs(parser);
+      final output = StringBuffer();
+
+      await cockpitWriteJsonPayload(
+        commandName: 'read-system-capabilities',
+        payload: const <String, Object?>{
+          'platform': 'macos',
+          'adapter': 'macos.accessibility+screencapture',
+          'preferredPlane': 'flutterSemanticPlane',
+          'availableActions': <String>['tap'],
+          'blockedActions': <String>['readUiTree'],
+          'capabilities': <Object?>[
+            <String, Object?>{
+              'action': 'tap',
+              'availability': 'available',
+              'plane': 'deviceSystemPlane',
+              'strategy': 'Accessibility API + CGEvent',
+              'requires': <String>['Accessibility permission'],
+            },
+            <String, Object?>{
+              'action': 'readUiTree',
+              'availability': 'blocked',
+              'plane': 'nativeUiPlane',
+              'strategy': 'accessibility-tree-dumper',
+              'requires': <String>['Accessibility tree dump helper'],
+            },
+          ],
+        },
+        argResults: parser.parse(const <String>[]),
+        stdoutSink: output,
+      );
+
+      final text = output.toString();
+      expect(text, contains('\ncapabilities\n'));
+      expect(text, contains('[0] action=tap availability=available'));
+      expect(text, contains('[1] action=readUiTree availability=blocked'));
+      expect(text, isNot(contains('\ndata\n  capabilities=')));
+      expect(text, isNot(contains('\ndata\n  adapter=')));
+    });
+
+    test(
       'defaults stdout to output file paths when files are requested',
       () async {
         final tempDir = await Directory.systemTemp.createTemp(
