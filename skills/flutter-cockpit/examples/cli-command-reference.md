@@ -229,6 +229,27 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --action setLocation \
   --latitude 37.3349 \
   --longitude -122.009
+
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform android \
+  --device-id emulator-5554 \
+  --action setOrientation \
+  --orientation landscape
+
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform android \
+  --device-id emulator-5554 \
+  --action setNetworkSpeed \
+  --network-speed full
+
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform android \
+  --device-id emulator-5554 \
+  --action setNetworkDelay \
+  --network-delay none
 ```
 
 iOS simulator app activation and permission setup:
@@ -274,6 +295,24 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --action setLocation \
   --latitude 37.3349 \
   --longitude -122.009
+
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform ios \
+  --device-id <ios-simulator-udid> \
+  --action setStatusBar \
+  --time 09:41 \
+  --data-network wifi \
+  --wifi-mode active \
+  --wifi-bars 3 \
+  --battery-state charged \
+  --battery-level 100
+
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform ios \
+  --device-id <ios-simulator-udid> \
+  --action clearStatusBar
 ```
 
 Use iOS simulator clipboard when a native paste flow needs setup:
@@ -300,6 +339,31 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   run-system-action \
   --platform macos \
   --action readSystemState
+```
+
+Read process/window context before choosing a native target:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform android \
+  --device-id emulator-5554 \
+  --action readProcessList
+
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform macos \
+  --action readWindows
+
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform windows \
+  --action readWindows
+
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform linux \
+  --action readWindows
 ```
 
 Read a bounded native desktop accessibility tree when Flutter semantics cannot see the target:

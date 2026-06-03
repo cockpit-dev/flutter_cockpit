@@ -1439,23 +1439,25 @@ final class CockpitDemoPlatformVerifier {
         .toList(growable: false);
     final verifiedActions = <String>[];
 
-    if (profile.availableActions.contains(
-      CockpitSystemControlAction.readSystemState,
-    )) {
+    Future<CockpitSystemControlActionResult> runAndRequireSuccess({
+      required CockpitSystemControlAction action,
+      Map<String, Object?> parameters = const <String, Object?>{},
+    }) async {
       final result = await _runSystemAction(
         CockpitSystemControlActionRequest(
           platform: platform,
           deviceId: deviceId,
           appId: app.platformAppId,
           processId: app.processId,
-          action: CockpitSystemControlAction.readSystemState,
+          action: action,
+          parameters: parameters,
           timeout: const Duration(seconds: 15),
         ),
       );
       if (!result.success) {
         throw CockpitApplicationServiceException(
           code: 'systemControlActionFailed',
-          message: 'System readSystemState action failed during verification.',
+          message: 'System ${action.name} action failed during verification.',
           details: <String, Object?>{
             'platform': platform,
             'action': result.action.name,
@@ -1467,7 +1469,68 @@ final class CockpitDemoPlatformVerifier {
           },
         );
       }
-      verifiedActions.add(CockpitSystemControlAction.readSystemState.name);
+      verifiedActions.add(action.name);
+      return result;
+    }
+
+    if (profile.availableActions.contains(
+      CockpitSystemControlAction.readSystemState,
+    )) {
+      await runAndRequireSuccess(
+        action: CockpitSystemControlAction.readSystemState,
+      );
+    }
+
+    if (profile.availableActions.contains(
+      CockpitSystemControlAction.readProcessList,
+    )) {
+      await runAndRequireSuccess(
+        action: CockpitSystemControlAction.readProcessList,
+      );
+    }
+
+    if (platform == 'android') {
+      if (profile.availableActions.contains(
+        CockpitSystemControlAction.setNetworkSpeed,
+      )) {
+        await runAndRequireSuccess(
+          action: CockpitSystemControlAction.setNetworkSpeed,
+          parameters: const <String, Object?>{'networkSpeed': 'full'},
+        );
+      }
+      if (profile.availableActions.contains(
+        CockpitSystemControlAction.setNetworkDelay,
+      )) {
+        await runAndRequireSuccess(
+          action: CockpitSystemControlAction.setNetworkDelay,
+          parameters: const <String, Object?>{'networkDelay': 'none'},
+        );
+      }
+    }
+
+    if (platform == 'ios') {
+      if (profile.availableActions.contains(
+        CockpitSystemControlAction.setStatusBar,
+      )) {
+        await runAndRequireSuccess(
+          action: CockpitSystemControlAction.setStatusBar,
+          parameters: const <String, Object?>{
+            'time': '09:41',
+            'dataNetwork': 'wifi',
+            'wifiMode': 'active',
+            'wifiBars': 3,
+            'batteryState': 'charged',
+            'batteryLevel': 100,
+          },
+        );
+      }
+      if (profile.availableActions.contains(
+        CockpitSystemControlAction.clearStatusBar,
+      )) {
+        await runAndRequireSuccess(
+          action: CockpitSystemControlAction.clearStatusBar,
+        );
+      }
     }
 
     if (platform == 'ios' &&
@@ -1479,30 +1542,10 @@ final class CockpitDemoPlatformVerifier {
         )) {
       final clipboardText =
           'flutter_cockpit_${platform}_${_clock().toUtc().microsecondsSinceEpoch}';
-      final setResult = await _runSystemAction(
-        CockpitSystemControlActionRequest(
-          platform: platform,
-          deviceId: deviceId,
-          appId: app.platformAppId,
-          processId: app.processId,
-          action: CockpitSystemControlAction.setClipboard,
-          parameters: <String, Object?>{'text': clipboardText},
-          timeout: const Duration(seconds: 15),
-        ),
+      await runAndRequireSuccess(
+        action: CockpitSystemControlAction.setClipboard,
+        parameters: <String, Object?>{'text': clipboardText},
       );
-      if (!setResult.success) {
-        throw CockpitApplicationServiceException(
-          code: 'systemControlActionFailed',
-          message: 'System setClipboard action failed during verification.',
-          details: <String, Object?>{
-            'platform': platform,
-            'action': setResult.action.name,
-            'errorCode': setResult.errorCode,
-            'errorMessage': setResult.errorMessage,
-          },
-        );
-      }
-      verifiedActions.add(CockpitSystemControlAction.setClipboard.name);
 
       final getResult = await _runSystemAction(
         CockpitSystemControlActionRequest(

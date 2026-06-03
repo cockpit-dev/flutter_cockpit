@@ -74,6 +74,79 @@ final class RunSystemActionCommand extends CockpitCliCommand {
       ..addOption('latitude', help: 'Latitude for setLocation.')
       ..addOption('longitude', help: 'Longitude for setLocation.')
       ..addOption('altitude', help: 'Optional altitude for setLocation.')
+      ..addOption(
+        'orientation',
+        allowed: const <String>[
+          'portrait',
+          'landscape',
+          'reversePortrait',
+          'reverseLandscape',
+          'auto',
+        ],
+        help: 'Orientation for setOrientation.',
+      )
+      ..addOption(
+        'network-speed',
+        allowed: const <String>[
+          'gsm',
+          'hscsd',
+          'gprs',
+          'edge',
+          'umts',
+          'hsdpa',
+          'lte',
+          'evdo',
+          'full',
+        ],
+        help: 'Android emulator network speed for setNetworkSpeed.',
+      )
+      ..addOption(
+        'network-delay',
+        allowed: const <String>['gprs', 'edge', 'umts', 'none'],
+        help: 'Android emulator network delay for setNetworkDelay.',
+      )
+      ..addOption('time', help: 'iOS simulator status bar time override.')
+      ..addOption(
+        'data-network',
+        allowed: const <String>[
+          'hide',
+          'wifi',
+          '3g',
+          '4g',
+          'lte',
+          'lte-a',
+          'lte+',
+          '5g',
+          '5g+',
+          '5g-uwb',
+          '5g-uc',
+        ],
+        help: 'iOS simulator status bar dataNetwork override.',
+      )
+      ..addOption(
+        'wifi-mode',
+        allowed: const <String>['searching', 'failed', 'active'],
+        help: 'iOS simulator status bar wifiMode override.',
+      )
+      ..addOption('wifi-bars', help: 'iOS simulator Wi-Fi bars, 0-3.')
+      ..addOption(
+        'cellular-mode',
+        allowed: const <String>[
+          'notSupported',
+          'searching',
+          'failed',
+          'active',
+        ],
+        help: 'iOS simulator status bar cellularMode override.',
+      )
+      ..addOption('cellular-bars', help: 'iOS simulator cellular bars, 0-4.')
+      ..addOption('operator-name', help: 'iOS simulator carrier name override.')
+      ..addOption(
+        'battery-state',
+        allowed: const <String>['charging', 'charged', 'discharging'],
+        help: 'iOS simulator status bar batteryState override.',
+      )
+      ..addOption('battery-level', help: 'iOS simulator battery level, 0-100.')
       ..addOption('max-depth', help: 'Maximum tree depth for readUiTree.')
       ..addOption('max-nodes', help: 'Maximum tree nodes for readUiTree.')
       ..addOption('package-id', help: 'Package id for grantPermission.')
@@ -134,7 +207,7 @@ final class RunSystemActionCommand extends CockpitCliCommand {
 
   @override
   String get helpShape =>
-      'Prefer explicit flags for common actions: --x/--y for tap, --text for typeText or setClipboard, --key for pressKey, --url for openUrl, --output-path for capture/recording, repeated --arg for runShell. Use --parameters-json only for less common payloads.';
+      'Prefer explicit flags for common actions: --x/--y for tap, --text for typeText or setClipboard, --key for pressKey, --url for openUrl, --appearance, --content-size, --orientation, --network-speed, --network-delay, --time/--battery-level for iOS status bar, --output-path for capture/recording, repeated --arg for runShell. Use --parameters-json only for less common payloads.';
 
   @override
   String get helpExample =>
@@ -225,6 +298,18 @@ final class RunSystemActionCommand extends CockpitCliCommand {
     addString('latitude', 'latitude');
     addString('longitude', 'longitude');
     addString('altitude', 'altitude');
+    addString('orientation', 'orientation');
+    addString('network-speed', 'networkSpeed');
+    addString('network-delay', 'networkDelay');
+    addString('time', 'time');
+    addString('data-network', 'dataNetwork');
+    addString('wifi-mode', 'wifiMode');
+    addInt('wifi-bars', 'wifiBars');
+    addString('cellular-mode', 'cellularMode');
+    addInt('cellular-bars', 'cellularBars');
+    addString('operator-name', 'operatorName');
+    addString('battery-state', 'batteryState');
+    addInt('battery-level', 'batteryLevel');
     addInt('max-depth', 'maxDepth');
     addInt('max-nodes', 'maxNodes');
     addString('package-id', 'packageId');

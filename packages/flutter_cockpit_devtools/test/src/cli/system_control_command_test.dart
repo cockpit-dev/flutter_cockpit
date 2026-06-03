@@ -285,6 +285,30 @@ void main() {
           '-122.009',
           '--altitude',
           '15',
+          '--orientation',
+          'landscape',
+          '--network-speed',
+          'full',
+          '--network-delay',
+          'none',
+          '--time',
+          '09:41',
+          '--data-network',
+          'wifi',
+          '--wifi-mode',
+          'active',
+          '--wifi-bars',
+          '3',
+          '--cellular-mode',
+          'notSupported',
+          '--cellular-bars',
+          '0',
+          '--operator-name',
+          'Cockpit',
+          '--battery-state',
+          'charged',
+          '--battery-level',
+          '100',
           '--max-depth',
           '3',
           '--max-nodes',
@@ -300,6 +324,18 @@ void main() {
     expect(capturedRequest?.parameters['latitude'], '37.3349');
     expect(capturedRequest?.parameters['longitude'], '-122.009');
     expect(capturedRequest?.parameters['altitude'], '15');
+    expect(capturedRequest?.parameters['orientation'], 'landscape');
+    expect(capturedRequest?.parameters['networkSpeed'], 'full');
+    expect(capturedRequest?.parameters['networkDelay'], 'none');
+    expect(capturedRequest?.parameters['time'], '09:41');
+    expect(capturedRequest?.parameters['dataNetwork'], 'wifi');
+    expect(capturedRequest?.parameters['wifiMode'], 'active');
+    expect(capturedRequest?.parameters['wifiBars'], 3);
+    expect(capturedRequest?.parameters['cellularMode'], 'notSupported');
+    expect(capturedRequest?.parameters['cellularBars'], 0);
+    expect(capturedRequest?.parameters['operatorName'], 'Cockpit');
+    expect(capturedRequest?.parameters['batteryState'], 'charged');
+    expect(capturedRequest?.parameters['batteryLevel'], 100);
     expect(capturedRequest?.parameters['maxDepth'], 3);
     expect(capturedRequest?.parameters['maxNodes'], 40);
   });

@@ -389,7 +389,9 @@ the smallest truthful surface:
   `stop-development-session` for persistent edit-reload-probe loops
 - use `read-system-capabilities` before `run-system-action` for native UI,
   system dialogs, host windows, simulator state, device location, appearance,
-  content size, screenshots, recordings, and bounded native UI tree reads
+  content size, orientation, emulator network speed/delay, simulator status
+  bars, screenshots, recordings, process/window reads, and bounded native UI
+  tree reads
 - use `start-remote-recording` and `stop-remote-recording` only when working
   directly with a remote session instead of an app handle
 

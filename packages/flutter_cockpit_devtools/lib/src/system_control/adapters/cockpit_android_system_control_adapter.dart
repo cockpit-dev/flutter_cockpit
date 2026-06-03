@@ -164,6 +164,54 @@ final class CockpitAndroidSystemControlAdapter
             'adb emu geo fix is emulator-only; physical devices require app-specific mock-location setup.',
           ],
         ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.setOrientation,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: availability,
+          strategy: 'adb.shell.settings.user_rotation',
+          requires: <String>['adb', 'device id', 'orientation'],
+          limitations: <String>[
+            'Changes the device-wide rotation setting; use auto to restore sensor rotation.',
+          ],
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.setNetworkSpeed,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: emulatorAvailability,
+          strategy: 'adb.emu.network.speed',
+          requires: <String>['adb', 'Android emulator id', 'network speed'],
+          limitations: <String>[
+            'Android emulator console network speed is emulator-only.',
+          ],
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.setNetworkDelay,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: emulatorAvailability,
+          strategy: 'adb.emu.network.delay',
+          requires: <String>['adb', 'Android emulator id', 'network delay'],
+          limitations: <String>[
+            'Android emulator console network delay is emulator-only.',
+          ],
+        ),
+        const CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.setStatusBar,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: CockpitSystemControlAvailability.unsupported,
+          strategy: 'android-no-stable-status-bar-override',
+          limitations: <String>[
+            'Android does not expose a stable adb status bar override equivalent to iOS simulator status_bar.',
+          ],
+        ),
+        const CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.clearStatusBar,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: CockpitSystemControlAvailability.unsupported,
+          strategy: 'android-no-stable-status-bar-override',
+          limitations: <String>[
+            'Android does not expose a stable adb status bar override equivalent to iOS simulator status_bar.',
+          ],
+        ),
         const CockpitSystemControlCapability(
           action: CockpitSystemControlAction.setClipboard,
           plane: CockpitPlaneKind.deviceSystemPlane,
@@ -215,6 +263,20 @@ final class CockpitAndroidSystemControlAdapter
           plane: CockpitPlaneKind.nativeUiPlane,
           availability: availability,
           strategy: 'adb.shell.uiautomator.dump',
+          requires: <String>['adb', 'device id'],
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.readProcessList,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: availability,
+          strategy: 'adb.shell.ps',
+          requires: <String>['adb', 'device id'],
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.readWindows,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: availability,
+          strategy: 'adb.shell.dumpsys.window.windows',
           requires: <String>['adb', 'device id'],
         ),
         CockpitSystemControlCapability(
@@ -404,6 +466,42 @@ final class CockpitAndroidSystemControlAdapter
           if (altitude != null) _formatCoordinate(altitude),
         ]);
       }),
+      CockpitSystemControlAction.setOrientation =>
+        _androidSetOrientationCommand(
+          request,
+          (script) => CockpitResolvedSystemControlCommand(
+            'adb',
+            adbShell(<String>['sh', '-c', script]),
+          ),
+        ),
+      CockpitSystemControlAction.setNetworkSpeed =>
+        _androidEmulatorNetworkCommand(
+          request,
+          deviceId: deviceId,
+          parameterName: 'networkSpeed',
+          commandName: 'speed',
+          allowedValues: const <String>[
+            'gsm',
+            'hscsd',
+            'gprs',
+            'edge',
+            'umts',
+            'hsdpa',
+            'lte',
+            'evdo',
+            'full',
+          ],
+        ),
+      CockpitSystemControlAction.setNetworkDelay =>
+        _androidEmulatorNetworkCommand(
+          request,
+          deviceId: deviceId,
+          parameterName: 'networkDelay',
+          commandName: 'delay',
+          allowedValues: const <String>['gprs', 'edge', 'umts', 'none'],
+        ),
+      CockpitSystemControlAction.setStatusBar ||
+      CockpitSystemControlAction.clearStatusBar => _unsupportedCommand(request),
       CockpitSystemControlAction.setClipboard ||
       CockpitSystemControlAction
           .getClipboard => const CockpitResolvedSystemControlCommand.error(
@@ -446,6 +544,16 @@ final class CockpitAndroidSystemControlAdapter
             'uiautomator dump /sdcard/window.xml >/dev/null && cat /sdcard/window.xml && rm /sdcard/window.xml',
           ]),
         ),
+      CockpitSystemControlAction.readProcessList =>
+        CockpitResolvedSystemControlCommand(
+          'adb',
+          adbShell(const <String>['ps', '-A']),
+        ),
+      CockpitSystemControlAction.readWindows =>
+        CockpitResolvedSystemControlCommand(
+          'adb',
+          adbShell(const <String>['dumpsys', 'window', 'windows']),
+        ),
       CockpitSystemControlAction.readSystemState =>
         CockpitResolvedSystemControlCommand(
           'adb',
@@ -461,6 +569,15 @@ final class CockpitAndroidSystemControlAdapter
         ]),
       ),
     };
+  }
+
+  CockpitResolvedSystemControlCommand _unsupportedCommand(
+    CockpitSystemControlActionRequest request,
+  ) {
+    return CockpitResolvedSystemControlCommand.error(
+      code: 'unsupportedSystemAction',
+      message: '${request.action.name} is not executable on Android.',
+    );
   }
 
   CockpitResolvedSystemControlCommand _grantPermissionCommand(
@@ -566,6 +683,84 @@ final class CockpitAndroidSystemControlAdapter
       );
     }
     return factory(_formatDecimal(fontScale));
+  }
+
+  CockpitResolvedSystemControlCommand _androidSetOrientationCommand(
+    CockpitSystemControlActionRequest request,
+    CockpitResolvedSystemControlCommand Function(String script) factory,
+  ) {
+    final raw = request.parameters['orientation'] as String?;
+    if (raw == null || raw.trim().isEmpty) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'missingSystemActionParameter',
+        message: 'setOrientation requires an orientation parameter.',
+      );
+    }
+    final normalized = raw.trim().toLowerCase();
+    if (normalized == 'auto' || normalized == 'sensor') {
+      return factory('settings put system accelerometer_rotation 1');
+    }
+    final rotation = switch (normalized) {
+      'portrait' => 0,
+      'landscape' => 1,
+      'reverseportrait' ||
+      'reverse-portrait' ||
+      'upsidedown' ||
+      'upside-down' => 2,
+      'reverselandscape' || 'reverse-landscape' => 3,
+      _ => null,
+    };
+    if (rotation == null) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'invalidSystemActionParameter',
+        message:
+            'setOrientation requires portrait, landscape, reversePortrait, reverseLandscape, or auto.',
+      );
+    }
+    return factory(
+      'settings put system accelerometer_rotation 0 && settings put system user_rotation $rotation',
+    );
+  }
+
+  CockpitResolvedSystemControlCommand _androidEmulatorNetworkCommand(
+    CockpitSystemControlActionRequest request, {
+    required String deviceId,
+    required String parameterName,
+    required String commandName,
+    required List<String> allowedValues,
+  }) {
+    if (!deviceId.startsWith('emulator-')) {
+      return CockpitResolvedSystemControlCommand.error(
+        code: 'systemActionBlocked',
+        message: 'Android $commandName is available only for emulator-* ids.',
+      );
+    }
+    final raw =
+        request.parameters[parameterName] ??
+        request.parameters[commandName] ??
+        request.parameters['value'];
+    if (raw == null || '$raw'.trim().isEmpty) {
+      return CockpitResolvedSystemControlCommand.error(
+        code: 'missingSystemActionParameter',
+        message: '${request.action.name} requires a $parameterName parameter.',
+      );
+    }
+    final value = '$raw'.trim().toLowerCase();
+    if (!allowedValues.contains(value)) {
+      return CockpitResolvedSystemControlCommand.error(
+        code: 'invalidSystemActionParameter',
+        message:
+            '${request.action.name} requires one of ${allowedValues.join(", ")}.',
+      );
+    }
+    return CockpitResolvedSystemControlCommand('adb', <String>[
+      '-s',
+      deviceId,
+      'emu',
+      'network',
+      commandName,
+      value,
+    ]);
   }
 
   double? _androidFontScaleForContentSize(String value) {

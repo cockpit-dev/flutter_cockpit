@@ -108,6 +108,31 @@ final class CockpitDesktopSystemControlAdapter
           'desktop-no-global-simulated-location',
           'Desktop hosts do not expose a stable app-scoped simulated location API.',
         ),
+        _unsupported(
+          CockpitSystemControlAction.setOrientation,
+          'desktop-no-app-scoped-orientation',
+          'Desktop hosts do not expose a stable app-scoped orientation API.',
+        ),
+        _hostBlocked(
+          CockpitSystemControlAction.setNetworkSpeed,
+          _setNetworkSpeedStrategy,
+          requires: _networkConditionRequires,
+        ),
+        _hostBlocked(
+          CockpitSystemControlAction.setNetworkDelay,
+          _setNetworkDelayStrategy,
+          requires: _networkConditionRequires,
+        ),
+        _unsupported(
+          CockpitSystemControlAction.setStatusBar,
+          'desktop-no-status-bar-override',
+          'Desktop platforms do not expose an iOS-simulator-style status bar override.',
+        ),
+        _unsupported(
+          CockpitSystemControlAction.clearStatusBar,
+          'desktop-no-status-bar-override',
+          'Desktop platforms do not expose an iOS-simulator-style status bar override.',
+        ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.setClipboard,
           plane: CockpitPlaneKind.hostPlane,
@@ -141,6 +166,22 @@ final class CockpitDesktopSystemControlAdapter
           extraRequires: const <String>['active recording session'],
         ),
         _uiTreeCapability(hasInputTarget: hasInputTarget),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.readProcessList,
+          plane: CockpitPlaneKind.hostPlane,
+          availability: CockpitSystemControlAvailability.available,
+          strategy: _processListStrategy,
+          requires: _processListRequires,
+          limitations: limitations,
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.readWindows,
+          plane: CockpitPlaneKind.nativeUiPlane,
+          availability: CockpitSystemControlAvailability.available,
+          strategy: _windowListStrategy,
+          requires: _windowListRequires,
+          limitations: limitations,
+        ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.readSystemState,
           plane: CockpitPlaneKind.hostPlane,
@@ -250,6 +291,42 @@ final class CockpitDesktopSystemControlAdapter
     };
   }
 
+  String get _setNetworkSpeedStrategy {
+    return switch (platform) {
+      'macos' => 'network-link-conditioner-or-pf',
+      'windows' => 'qos-policy-or-network-emulator',
+      'linux' => 'tc-netem',
+      _ => 'host.network.speed',
+    };
+  }
+
+  String get _setNetworkDelayStrategy {
+    return switch (platform) {
+      'macos' => 'network-link-conditioner-or-pf',
+      'windows' => 'qos-policy-or-network-emulator',
+      'linux' => 'tc-netem',
+      _ => 'host.network.delay',
+    };
+  }
+
+  String get _processListStrategy {
+    return switch (platform) {
+      'macos' => 'ps.process-list',
+      'windows' => 'powershell.get-process',
+      'linux' => 'ps.process-list',
+      _ => 'host.process-list',
+    };
+  }
+
+  String get _windowListStrategy {
+    return switch (platform) {
+      'macos' => 'system-events.visible-windows',
+      'windows' => 'powershell.main-window-list',
+      'linux' => 'wmctrl-or-xdotool.window-list',
+      _ => 'host.window-list',
+    };
+  }
+
   String get _systemStateStrategy {
     return switch (platform) {
       'macos' => 'sw_vers+uname',
@@ -315,6 +392,41 @@ final class CockpitDesktopSystemControlAdapter
       'windows' => const <String>['explicit user approval'],
       'linux' => const <String>['desktop-specific font scaling tooling'],
       _ => const <String>['host accessibility tooling'],
+    };
+  }
+
+  List<String> get _networkConditionRequires {
+    return switch (platform) {
+      'macos' => const <String>[
+        'explicit user approval',
+        'host network shaping tooling',
+      ],
+      'windows' => const <String>[
+        'explicit user approval',
+        'administrator network tooling',
+      ],
+      'linux' => const <String>[
+        'explicit user approval',
+        'tc/netem privileges',
+      ],
+      _ => const <String>['host network shaping tooling'],
+    };
+  }
+
+  List<String> get _processListRequires {
+    return switch (platform) {
+      'macos' || 'linux' => const <String>['ps'],
+      'windows' => const <String>['PowerShell'],
+      _ => const <String>['host process listing tool'],
+    };
+  }
+
+  List<String> get _windowListRequires {
+    return switch (platform) {
+      'macos' => const <String>['Automation permission for System Events'],
+      'windows' => const <String>['PowerShell'],
+      'linux' => const <String>['wmctrl or xdotool', 'desktop session'],
+      _ => const <String>['host window listing tool'],
     };
   }
 
@@ -452,6 +564,14 @@ final class CockpitDesktopSystemControlAdapter
         _macosReadUiTreeScript,
         _uiTreeReadLimits(request),
       ),
+      CockpitSystemControlAction.readProcessList =>
+        CockpitResolvedSystemControlCommand('ps', const <String>[
+          '-axo',
+          'pid=,ppid=,comm=',
+        ]),
+      CockpitSystemControlAction.readWindows => _macosJxa(const <String>[
+        _macosReadWindowsScript,
+      ]),
       CockpitSystemControlAction.setClipboard => cockpitTextCommand(
         request,
         'text',
@@ -577,6 +697,20 @@ final class CockpitDesktopSystemControlAdapter
       CockpitSystemControlAction.readUiTree => _windowsReadUiTreeCommand(
         request,
       ),
+      CockpitSystemControlAction.readProcessList =>
+        CockpitResolvedSystemControlCommand('powershell', const <String>[
+          '-NoProfile',
+          '-NonInteractive',
+          '-Command',
+          r'Get-Process | Select-Object Id,ProcessName,MainWindowTitle,MainWindowHandle | ConvertTo-Json -Compress',
+        ]),
+      CockpitSystemControlAction.readWindows =>
+        CockpitResolvedSystemControlCommand('powershell', const <String>[
+          '-NoProfile',
+          '-NonInteractive',
+          '-Command',
+          r'Get-Process | Where-Object { $_.MainWindowHandle -ne 0 -and $_.MainWindowTitle } | Sort-Object Id | Select-Object Id,ProcessName,MainWindowTitle,MainWindowHandle | ConvertTo-Json -Compress',
+        ]),
       CockpitSystemControlAction.setClipboard => cockpitTextCommand(
         request,
         'text',
@@ -717,6 +851,17 @@ final class CockpitDesktopSystemControlAdapter
           message:
               'Linux readUiTree requires an AT-SPI tree dump helper for the active desktop session.',
         ),
+      CockpitSystemControlAction.readProcessList =>
+        CockpitResolvedSystemControlCommand('ps', const <String>[
+          '-axo',
+          'pid=,ppid=,comm=',
+        ]),
+      CockpitSystemControlAction.readWindows =>
+        CockpitResolvedSystemControlCommand('sh', const <String>[
+          '-c',
+          _linuxReadWindowsScript,
+          'flutter_cockpit_linux_windows',
+        ]),
       CockpitSystemControlAction.setClipboard => cockpitTextCommand(
         request,
         'text',
@@ -1263,6 +1408,54 @@ function run(argv) {
 }
 ''';
 
+  static const String _macosReadWindowsScript = r'''
+function run() {
+  const systemEvents = Application('System Events')
+  const processes = systemEvents.applicationProcesses.whose({ visible: true })()
+  const windows = []
+  function readString(factory) {
+    try {
+      const value = factory()
+      if (value === undefined || value === null) return undefined
+      const text = String(value)
+      return text.length === 0 ? undefined : text
+    } catch (_) {
+      return undefined
+    }
+  }
+  function readFrame(window) {
+    try {
+      const position = window.position()
+      const size = window.size()
+      return { x: Number(position[0]), y: Number(position[1]), width: Number(size[0]), height: Number(size[1]) }
+    } catch (_) {
+      return undefined
+    }
+  }
+  for (let i = 0; i < processes.length; i += 1) {
+    const process = processes[i]
+    let processWindows = []
+    try {
+      processWindows = process.windows()
+    } catch (_) {
+      processWindows = []
+    }
+    for (let j = 0; j < processWindows.length; j += 1) {
+      const window = processWindows[j]
+      const item = {
+        processName: readString(() => process.name()),
+        processId: Number(process.unixId()),
+        title: readString(() => window.title()) || readString(() => window.name())
+      }
+      const frame = readFrame(window)
+      if (frame) item.frame = frame
+      windows.push(item)
+    }
+  }
+  return JSON.stringify({ platform: 'macos', windows })
+}
+''';
+
   static const String _windowsInputScript = r'''
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
@@ -1514,6 +1707,21 @@ else
   exit 65
 fi
 ''';
+
+  static const String _linuxReadWindowsScript = r'''
+if command -v wmctrl >/dev/null 2>&1; then
+  exec wmctrl -lp
+elif command -v xdotool >/dev/null 2>&1; then
+  ids="$(xdotool search --onlyvisible --name "" 2>/dev/null || true)"
+  for id in $ids; do
+    name="$(xdotool getwindowname "$id" 2>/dev/null || true)"
+    pid="$(xdotool getwindowpid "$id" 2>/dev/null || true)"
+    printf "%s %s %s\n" "$id" "$pid" "$name"
+  done
+else
+  exit 65
+fi
+''';
 }
 
 final class CockpitWebSystemControlAdapter
@@ -1652,6 +1860,45 @@ final class CockpitWebSystemControlAdapter
           ],
         ),
         CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.setOrientation,
+          plane: CockpitPlaneKind.hostPlane,
+          availability: CockpitSystemControlAvailability.blocked,
+          strategy: 'browser.viewport-or-orientation-emulation',
+          requires: <String>['browser driver or bridge'],
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.setNetworkSpeed,
+          plane: CockpitPlaneKind.hostPlane,
+          availability: CockpitSystemControlAvailability.blocked,
+          strategy: 'browser.context.route-or-cdp-network-emulation',
+          requires: <String>['browser driver or bridge'],
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.setNetworkDelay,
+          plane: CockpitPlaneKind.hostPlane,
+          availability: CockpitSystemControlAvailability.blocked,
+          strategy: 'browser.context.route-or-cdp-network-emulation',
+          requires: <String>['browser driver or bridge'],
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.setStatusBar,
+          plane: CockpitPlaneKind.hostPlane,
+          availability: CockpitSystemControlAvailability.unsupported,
+          strategy: 'browser-no-system-status-bar',
+          limitations: <String>[
+            'Browsers do not expose an app-scoped system status bar override.',
+          ],
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.clearStatusBar,
+          plane: CockpitPlaneKind.hostPlane,
+          availability: CockpitSystemControlAvailability.unsupported,
+          strategy: 'browser-no-system-status-bar',
+          limitations: <String>[
+            'Browsers do not expose an app-scoped system status bar override.',
+          ],
+        ),
+        CockpitSystemControlCapability(
           action: CockpitSystemControlAction.setClipboard,
           plane: CockpitPlaneKind.hostPlane,
           availability: CockpitSystemControlAvailability.blocked,
@@ -1701,6 +1948,22 @@ final class CockpitWebSystemControlAdapter
           plane: CockpitPlaneKind.nativeUiPlane,
           availability: CockpitSystemControlAvailability.blocked,
           strategy: 'browser.accessibility.snapshot',
+          requires: <String>['browser driver or bridge'],
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.readProcessList,
+          plane: CockpitPlaneKind.hostPlane,
+          availability: CockpitSystemControlAvailability.unsupported,
+          strategy: 'browser-no-process-list',
+          limitations: <String>[
+            'Browser pages do not expose host process lists; use host target tools.',
+          ],
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.readWindows,
+          plane: CockpitPlaneKind.hostPlane,
+          availability: CockpitSystemControlAvailability.blocked,
+          strategy: 'browser.context.pages',
           requires: <String>['browser driver or bridge'],
         ),
         CockpitSystemControlCapability(

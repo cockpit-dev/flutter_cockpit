@@ -98,7 +98,9 @@ surface:
 1. `read-system-capabilities --platform <platform> ...`
 2. run only actions reported as `available` with `run-system-action`
 3. use direct flags for common setup: `--appearance`, `--content-size`,
-   `--font-scale`, `--latitude/--longitude`, and `--max-depth/--max-nodes`
+   `--font-scale`, `--latitude/--longitude`, `--orientation`,
+   `--network-speed`, `--network-delay`, status-bar flags, and
+   `--max-depth/--max-nodes`
 4. read post-action app, target, or system state before judging the result
 
 Recommended code-side loop:

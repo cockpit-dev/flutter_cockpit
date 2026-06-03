@@ -174,6 +174,51 @@ final class CockpitIosSystemControlAdapter
             ],
           ),
           const CockpitSystemControlCapability(
+            action: CockpitSystemControlAction.setOrientation,
+            plane: CockpitPlaneKind.nativeUiPlane,
+            availability: CockpitSystemControlAvailability.blocked,
+            strategy: 'xctest.device.orientation',
+            requires: <String>['XCTest/WebDriverAgent runner'],
+          ),
+          const CockpitSystemControlCapability(
+            action: CockpitSystemControlAction.setNetworkSpeed,
+            plane: CockpitPlaneKind.deviceSystemPlane,
+            availability: CockpitSystemControlAvailability.blocked,
+            strategy: 'network-link-conditioner-or-host-proxy',
+            requires: <String>[
+              'Network Link Conditioner or host proxy tooling',
+            ],
+            limitations: <String>[
+              'simctl status_bar can change network icons but not real network transport.',
+            ],
+          ),
+          const CockpitSystemControlCapability(
+            action: CockpitSystemControlAction.setNetworkDelay,
+            plane: CockpitPlaneKind.deviceSystemPlane,
+            availability: CockpitSystemControlAvailability.blocked,
+            strategy: 'network-link-conditioner-or-host-proxy',
+            requires: <String>[
+              'Network Link Conditioner or host proxy tooling',
+            ],
+            limitations: <String>[
+              'simctl status_bar can change network icons but not real network transport.',
+            ],
+          ),
+          const CockpitSystemControlCapability(
+            action: CockpitSystemControlAction.setStatusBar,
+            plane: CockpitPlaneKind.deviceSystemPlane,
+            availability: CockpitSystemControlAvailability.available,
+            strategy: 'xcrun.simctl.status_bar.override',
+            requires: <String>['xcrun', 'simulator device id'],
+          ),
+          const CockpitSystemControlCapability(
+            action: CockpitSystemControlAction.clearStatusBar,
+            plane: CockpitPlaneKind.deviceSystemPlane,
+            availability: CockpitSystemControlAvailability.available,
+            strategy: 'xcrun.simctl.status_bar.clear',
+            requires: <String>['xcrun', 'simulator device id'],
+          ),
+          const CockpitSystemControlCapability(
             action: CockpitSystemControlAction.setClipboard,
             plane: CockpitPlaneKind.deviceSystemPlane,
             availability: CockpitSystemControlAvailability.available,
@@ -218,6 +263,22 @@ final class CockpitIosSystemControlAdapter
             availability: CockpitSystemControlAvailability.blocked,
             strategy: 'xctest.webdriveragent.tree',
             requires: <String>['XCTest/WebDriverAgent runner'],
+          ),
+          CockpitSystemControlCapability(
+            action: CockpitSystemControlAction.readProcessList,
+            plane: CockpitPlaneKind.deviceSystemPlane,
+            availability: CockpitSystemControlAvailability.available,
+            strategy: 'xcrun.simctl.spawn.ps',
+            requires: <String>['xcrun', 'simulator device id'],
+          ),
+          const CockpitSystemControlCapability(
+            action: CockpitSystemControlAction.readWindows,
+            plane: CockpitPlaneKind.deviceSystemPlane,
+            availability: CockpitSystemControlAvailability.unsupported,
+            strategy: 'ios-no-window-manager',
+            limitations: <String>[
+              'iOS simulator does not expose app windows through a stable simctl API.',
+            ],
           ),
           CockpitSystemControlCapability(
             action: CockpitSystemControlAction.readSystemState,
@@ -363,6 +424,45 @@ final class CockpitIosSystemControlAdapter
           ],
         ),
         CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.setOrientation,
+          plane: CockpitPlaneKind.nativeUiPlane,
+          availability: CockpitSystemControlAvailability.blocked,
+          strategy: 'xctest.device.orientation',
+          requires: <String>['developer-signed XCTest/WebDriverAgent runner'],
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.setNetworkSpeed,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: CockpitSystemControlAvailability.blocked,
+          strategy: 'developer-device-network-conditioning',
+          requires: <String>[
+            'developer signing and network conditioning tooling',
+          ],
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.setNetworkDelay,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: CockpitSystemControlAvailability.blocked,
+          strategy: 'developer-device-network-conditioning',
+          requires: <String>[
+            'developer signing and network conditioning tooling',
+          ],
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.setStatusBar,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: CockpitSystemControlAvailability.blocked,
+          strategy: 'developer-device-status-bar',
+          requires: <String>['developer-signed XCTest/WebDriverAgent runner'],
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.clearStatusBar,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: CockpitSystemControlAvailability.blocked,
+          strategy: 'developer-device-status-bar.clear',
+          requires: <String>['developer-signed XCTest/WebDriverAgent runner'],
+        ),
+        CockpitSystemControlCapability(
           action: CockpitSystemControlAction.setClipboard,
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: CockpitSystemControlAvailability.blocked,
@@ -405,6 +505,24 @@ final class CockpitIosSystemControlAdapter
           availability: CockpitSystemControlAvailability.blocked,
           strategy: 'xctest.webdriveragent.tree',
           requires: <String>['developer-signed XCTest/WebDriverAgent runner'],
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.readProcessList,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: CockpitSystemControlAvailability.blocked,
+          strategy: 'developer-device-process-list',
+          requires: <String>[
+            'developer signing and device diagnostics tooling',
+          ],
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.readWindows,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: CockpitSystemControlAvailability.unsupported,
+          strategy: 'ios-no-window-manager',
+          limitations: <String>[
+            'iOS does not expose app windows through a stable public device API.',
+          ],
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.readSystemState,
@@ -513,6 +631,23 @@ final class CockpitIosSystemControlAdapter
           ]);
         },
       ),
+      CockpitSystemControlAction.setStatusBar => _iosSetStatusBarCommand(
+        request,
+        (args) => CockpitResolvedSystemControlCommand('xcrun', <String>[
+          'simctl',
+          'status_bar',
+          deviceId,
+          'override',
+          ...args,
+        ]),
+      ),
+      CockpitSystemControlAction.clearStatusBar =>
+        CockpitResolvedSystemControlCommand('xcrun', <String>[
+          'simctl',
+          'status_bar',
+          deviceId,
+          'clear',
+        ]),
       CockpitSystemControlAction.setClipboard => cockpitTextCommand(
         request,
         'text',
@@ -563,6 +698,14 @@ final class CockpitIosSystemControlAdapter
           ...command,
         ]),
       ),
+      CockpitSystemControlAction.readProcessList =>
+        CockpitResolvedSystemControlCommand('xcrun', <String>[
+          'simctl',
+          'spawn',
+          deviceId,
+          'ps',
+          '-A',
+        ]),
       CockpitSystemControlAction.readSystemState =>
         CockpitResolvedSystemControlCommand('xcrun', <String>[
           'simctl',
@@ -614,6 +757,59 @@ final class CockpitIosSystemControlAdapter
       );
     }
     return factory(appId.trim(), service.trim());
+  }
+
+  CockpitResolvedSystemControlCommand _iosSetStatusBarCommand(
+    CockpitSystemControlActionRequest request,
+    CockpitResolvedSystemControlCommand Function(List<String> args) factory,
+  ) {
+    final args = <String>[];
+    String? errorMessage;
+    void addString(String parameterName, String flagName) {
+      final raw = request.parameters[parameterName] as String?;
+      if (raw != null && raw.trim().isNotEmpty) {
+        args.addAll(<String>['--$flagName', raw.trim()]);
+      }
+    }
+
+    void addInt(String parameterName, String flagName, int min, int max) {
+      final value = cockpitReadSystemControlInt(
+        request.parameters,
+        parameterName,
+      );
+      if (value == null) {
+        return;
+      }
+      if (value < min || value > max) {
+        errorMessage = '$parameterName must be between $min and $max.';
+        return;
+      }
+      args.addAll(<String>['--$flagName', '$value']);
+    }
+
+    addString('time', 'time');
+    addString('dataNetwork', 'dataNetwork');
+    addString('wifiMode', 'wifiMode');
+    addInt('wifiBars', 'wifiBars', 0, 3);
+    addString('cellularMode', 'cellularMode');
+    addInt('cellularBars', 'cellularBars', 0, 4);
+    addString('operatorName', 'operatorName');
+    addString('batteryState', 'batteryState');
+    addInt('batteryLevel', 'batteryLevel', 0, 100);
+    if (errorMessage != null) {
+      return CockpitResolvedSystemControlCommand.error(
+        code: 'invalidSystemActionParameter',
+        message: errorMessage!,
+      );
+    }
+    if (args.isEmpty) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'missingSystemActionParameter',
+        message:
+            'setStatusBar requires at least one status bar parameter such as time, dataNetwork, wifiBars, or batteryLevel.',
+      );
+    }
+    return factory(args);
   }
 
   String? _readAppId(CockpitSystemControlActionRequest request) {

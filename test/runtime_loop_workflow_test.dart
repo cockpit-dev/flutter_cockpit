@@ -169,6 +169,7 @@ void main() {
       'inspect-ui',
       'read-system-capabilities',
       'run-system-action:readSystemState',
+      'run-system-action:readProcessList',
       'run-batch',
       'start-recording',
       'stop-recording',
@@ -188,6 +189,9 @@ void main() {
       'inspect-ui',
       'read-system-capabilities',
       'run-system-action:readSystemState',
+      'run-system-action:readProcessList',
+      'run-system-action:setStatusBar',
+      'run-system-action:clearStatusBar',
       'run-system-action:setClipboard',
       'run-system-action:getClipboard',
       'run-batch',
@@ -248,8 +252,33 @@ void main() {
       );
       expect(
         block,
-        contains('platform["systemVerifiedActions"] == ["readSystemState"]'),
+        contains('"readProcessList" in platform["systemAvailableActions"]'),
       );
+      if (jobName == 'android-runtime-loop') {
+        expect(block, contains('"run-system-action:setNetworkSpeed"'));
+        expect(block, contains('"run-system-action:setNetworkDelay"'));
+        expect(
+          block,
+          contains('"setNetworkSpeed" in platform["systemAvailableActions"]'),
+        );
+        expect(
+          block,
+          contains('"setNetworkDelay" in platform["systemAvailableActions"]'),
+        );
+        expect(
+          block,
+          contains(
+            'platform["systemVerifiedActions"] == ["readSystemState", "readProcessList", "setNetworkSpeed", "setNetworkDelay"]',
+          ),
+        );
+      } else {
+        expect(
+          block,
+          contains(
+            'platform["systemVerifiedActions"] == ["readSystemState", "readProcessList"]',
+          ),
+        );
+      }
     }
 
     final iosBlock = _workflowJobBlock(workflow, 'ios-runtime-loop');
@@ -263,8 +292,20 @@ void main() {
     expect(iosBlock, contains('ios.simctl+xctest'));
     expect(
       iosBlock,
+      contains('"readProcessList" in platform["systemAvailableActions"]'),
+    );
+    expect(
+      iosBlock,
+      contains('"setStatusBar" in platform["systemAvailableActions"]'),
+    );
+    expect(
+      iosBlock,
+      contains('"clearStatusBar" in platform["systemAvailableActions"]'),
+    );
+    expect(
+      iosBlock,
       contains(
-        'platform["systemVerifiedActions"] == ["readSystemState", "setClipboard", "getClipboard"]',
+        'platform["systemVerifiedActions"] == ["readSystemState", "readProcessList", "setStatusBar", "clearStatusBar", "setClipboard", "getClipboard"]',
       ),
     );
 

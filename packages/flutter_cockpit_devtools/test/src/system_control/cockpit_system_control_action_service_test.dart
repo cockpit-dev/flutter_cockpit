@@ -330,6 +330,112 @@ void main() {
     ]);
   });
 
+  test('android setOrientation locks device rotation', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        action: CockpitSystemControlAction.setOrientation,
+        parameters: <String, Object?>{'orientation': 'landscape'},
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command, <String>[
+      'adb',
+      '-s',
+      'emulator-5554',
+      'shell',
+      'sh',
+      '-c',
+      'settings put system accelerometer_rotation 0 && settings put system user_rotation 1',
+    ]);
+  });
+
+  test('android setNetworkSpeed uses the emulator console', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        action: CockpitSystemControlAction.setNetworkSpeed,
+        parameters: <String, Object?>{'networkSpeed': 'full'},
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command, <String>[
+      'adb',
+      '-s',
+      'emulator-5554',
+      'emu',
+      'network',
+      'speed',
+      'full',
+    ]);
+  });
+
+  test('android setNetworkDelay uses the emulator console', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        action: CockpitSystemControlAction.setNetworkDelay,
+        parameters: <String, Object?>{'networkDelay': 'none'},
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command, <String>[
+      'adb',
+      '-s',
+      'emulator-5554',
+      'emu',
+      'network',
+      'delay',
+      'none',
+    ]);
+  });
+
+  test('android readProcessList uses adb ps', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        action: CockpitSystemControlAction.readProcessList,
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command, <String>[
+      'adb',
+      '-s',
+      'emulator-5554',
+      'shell',
+      'ps',
+      '-A',
+    ]);
+  });
+
   test('ios simulator activateWindow launches app through simctl', () async {
     final processManager = _FakeProcessManager();
     final service = CockpitSystemControlActionService(
@@ -564,6 +670,102 @@ void main() {
     ]);
   });
 
+  test(
+    'ios simulator setStatusBar overrides deterministic status data',
+    () async {
+      final processManager = _FakeProcessManager();
+      final service = CockpitSystemControlActionService(
+        processManager: processManager,
+      );
+
+      final result = await service.run(
+        const CockpitSystemControlActionRequest(
+          platform: 'ios',
+          deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+          action: CockpitSystemControlAction.setStatusBar,
+          parameters: <String, Object?>{
+            'time': '09:41',
+            'dataNetwork': 'wifi',
+            'wifiMode': 'active',
+            'wifiBars': 3,
+            'batteryState': 'charged',
+            'batteryLevel': 100,
+          },
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(result.command, <String>[
+        'xcrun',
+        'simctl',
+        'status_bar',
+        '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+        'override',
+        '--time',
+        '09:41',
+        '--dataNetwork',
+        'wifi',
+        '--wifiMode',
+        'active',
+        '--wifiBars',
+        '3',
+        '--batteryState',
+        'charged',
+        '--batteryLevel',
+        '100',
+      ]);
+    },
+  );
+
+  test('ios simulator clearStatusBar clears status overrides', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'ios',
+        deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+        action: CockpitSystemControlAction.clearStatusBar,
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command, <String>[
+      'xcrun',
+      'simctl',
+      'status_bar',
+      '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+      'clear',
+    ]);
+  });
+
+  test('ios simulator readProcessList uses simctl spawn ps', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'ios',
+        deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+        action: CockpitSystemControlAction.readProcessList,
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command, <String>[
+      'xcrun',
+      'simctl',
+      'spawn',
+      '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+      'ps',
+      '-A',
+    ]);
+  });
+
   test('macos setClipboard writes through pbcopy without app target', () async {
     final processManager = _FakeProcessManager();
     final service = CockpitSystemControlActionService(
@@ -617,6 +819,44 @@ void main() {
     ]);
   });
 
+  test('macos readProcessList uses ps', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'macos',
+        action: CockpitSystemControlAction.readProcessList,
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command, <String>['ps', '-axo', 'pid=,ppid=,comm=']);
+  });
+
+  test('macos readWindows uses a bounded System Events window list', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'macos',
+        action: CockpitSystemControlAction.readWindows,
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command[0], 'osascript');
+    expect(
+      result.command,
+      containsAllInOrder(<String>['-l', 'JavaScript', '-e']),
+    );
+  });
+
   test('windows readUiTree uses bounded UI Automation tree dump', () async {
     final processManager = _FakeProcessManager();
     final service = CockpitSystemControlActionService(
@@ -642,6 +882,26 @@ void main() {
       '3',
       '30',
     ]);
+  });
+
+  test('windows readWindows uses visible process windows', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'windows',
+        action: CockpitSystemControlAction.readWindows,
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command[0], 'powershell');
+    expect(result.command, contains('-NoProfile'));
+    expect(result.command, contains('-NonInteractive'));
+    expect(result.command.last, contains('MainWindowTitle'));
   });
 
   test('linux pressKey targets a window with xdotool key', () async {
@@ -674,6 +934,26 @@ void main() {
       'key',
       'Escape',
     ]);
+  });
+
+  test('linux readWindows uses wmctrl or xdotool fallback', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'linux',
+        action: CockpitSystemControlAction.readWindows,
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command[0], 'sh');
+    expect(result.command[1], '-c');
+    expect(result.command[2], contains('wmctrl -lp'));
+    expect(result.command[2], contains('xdotool search --onlyvisible'));
   });
 
   test('timed out command returns structured action failure', () async {

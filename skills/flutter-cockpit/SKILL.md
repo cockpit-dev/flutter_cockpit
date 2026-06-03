@@ -111,7 +111,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools read-system-capabilit
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-system-action --platform <platform> [--device-id <device-or-simulator-id>] [--app-id <app-id>] [--process-id <pid>] --action <available-action>
 ```
 
-Desktop coordinates use screen pixels. Targeted actions need `--app-id` or `--process-id`. If an action is not `available`, follow its requirement/fallback or report `blocked_by_environment`. Common flags: `--appearance`, `--content-size`, `--font-scale`, `--latitude/--longitude`, `--max-depth/--max-nodes`.
+Desktop coordinates use screen pixels. Targeted actions need `--app-id` or `--process-id`. If an action is not `available`, follow its requirement/fallback or report `blocked_by_environment`. Common flags: `--appearance`, `--content-size`, `--font-scale`, `--latitude/--longitude`, `--orientation`, `--network-speed`, `--network-delay`, `--time`, `--battery-level`, `--max-depth/--max-nodes`.
 
 Acceptance, release readiness, or artifact-backed handoff:
 

@@ -885,11 +885,23 @@ void main() {
       expect(
         result.platforms.map((platform) => platform.systemVerifiedActions),
         <List<String>>[
-          <String>['readSystemState'],
-          <String>['readSystemState', 'setClipboard', 'getClipboard'],
-          <String>['readSystemState'],
-          <String>['readSystemState'],
-          <String>['readSystemState'],
+          <String>['readSystemState', 'readProcessList'],
+          <String>[
+            'readSystemState',
+            'readProcessList',
+            'setStatusBar',
+            'clearStatusBar',
+            'setClipboard',
+            'getClipboard',
+          ],
+          <String>[
+            'readSystemState',
+            'readProcessList',
+            'setNetworkSpeed',
+            'setNetworkDelay',
+          ],
+          <String>['readSystemState', 'readProcessList'],
+          <String>['readSystemState', 'readProcessList'],
           <String>[],
         ],
       );
@@ -897,12 +909,21 @@ void main() {
         systemActionRequests.map((request) => request.action.name),
         <String>[
           'readSystemState',
+          'readProcessList',
           'readSystemState',
+          'readProcessList',
+          'setStatusBar',
+          'clearStatusBar',
           'setClipboard',
           'getClipboard',
           'readSystemState',
+          'readProcessList',
+          'setNetworkSpeed',
+          'setNetworkDelay',
           'readSystemState',
+          'readProcessList',
           'readSystemState',
+          'readProcessList',
         ],
       );
       expect(
@@ -915,6 +936,7 @@ void main() {
         'inspect-ui',
         'read-system-capabilities',
         'run-system-action:readSystemState',
+        'run-system-action:readProcessList',
         'run-batch',
         'start-recording',
         'stop-recording',
@@ -3553,6 +3575,8 @@ Future<CockpitSystemControlActionResult> _fakeRunSystemAction(
     stdout = _fakeSystemClipboardText ?? '';
   } else if (request.action == CockpitSystemControlAction.readSystemState) {
     stdout = 'fake ${request.platform} system state';
+  } else if (request.action == CockpitSystemControlAction.readProcessList) {
+    stdout = 'fake ${request.platform} process list';
   }
 
   return CockpitSystemControlActionResult(

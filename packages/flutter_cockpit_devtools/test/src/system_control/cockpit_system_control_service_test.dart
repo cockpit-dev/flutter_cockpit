@@ -43,6 +43,10 @@ void main() {
         CockpitSystemControlAction.setAppearance,
         CockpitSystemControlAction.setContentSize,
         CockpitSystemControlAction.setLocation,
+        CockpitSystemControlAction.setOrientation,
+        CockpitSystemControlAction.setNetworkSpeed,
+        CockpitSystemControlAction.setNetworkDelay,
+        CockpitSystemControlAction.readProcessList,
       ]),
     );
     expect(
@@ -144,12 +148,15 @@ void main() {
         CockpitSystemControlAction.setAppearance,
         CockpitSystemControlAction.setContentSize,
         CockpitSystemControlAction.setLocation,
+        CockpitSystemControlAction.setStatusBar,
+        CockpitSystemControlAction.clearStatusBar,
         CockpitSystemControlAction.setClipboard,
         CockpitSystemControlAction.getClipboard,
         CockpitSystemControlAction.terminateApp,
         CockpitSystemControlAction.captureScreenshot,
         CockpitSystemControlAction.startRecording,
         CockpitSystemControlAction.stopRecording,
+        CockpitSystemControlAction.readProcessList,
         CockpitSystemControlAction.readSystemState,
         CockpitSystemControlAction.runShell,
       ]),
@@ -160,6 +167,9 @@ void main() {
         CockpitSystemControlAction.tap,
         CockpitSystemControlAction.typeText,
         CockpitSystemControlAction.pressKey,
+        CockpitSystemControlAction.setOrientation,
+        CockpitSystemControlAction.setNetworkSpeed,
+        CockpitSystemControlAction.setNetworkDelay,
         CockpitSystemControlAction.dismissSystemDialog,
         CockpitSystemControlAction.readUiTree,
       ]),
@@ -291,6 +301,8 @@ void main() {
           CockpitSystemControlAction.readUiTree,
           CockpitSystemControlAction.setClipboard,
           CockpitSystemControlAction.getClipboard,
+          CockpitSystemControlAction.readProcessList,
+          CockpitSystemControlAction.readWindows,
           CockpitSystemControlAction.terminateApp,
         ]),
       );
@@ -374,6 +386,10 @@ void main() {
         windowsProcessOnly.profile.availableActions,
         contains(CockpitSystemControlAction.readUiTree),
       );
+      expect(
+        windowsProcessOnly.profile.availableActions,
+        contains(CockpitSystemControlAction.readWindows),
+      );
 
       final linuxWithTarget = await service.describe(
         const CockpitSystemControlDescribeRequest(
@@ -398,6 +414,13 @@ void main() {
       expect(
         linuxWithTarget.profile.blockedActions,
         contains(CockpitSystemControlAction.readUiTree),
+      );
+      expect(
+        linuxWithTarget.profile.availableActions,
+        containsAll(<CockpitSystemControlAction>[
+          CockpitSystemControlAction.readProcessList,
+          CockpitSystemControlAction.readWindows,
+        ]),
       );
     },
   );
@@ -584,6 +607,23 @@ Map<String, Object?> _validParametersFor(CockpitSystemControlAction action) {
       'latitude': 37.3349,
       'longitude': -122.009,
     },
+    CockpitSystemControlAction.setOrientation => const <String, Object?>{
+      'orientation': 'landscape',
+    },
+    CockpitSystemControlAction.setNetworkSpeed => const <String, Object?>{
+      'networkSpeed': 'full',
+    },
+    CockpitSystemControlAction.setNetworkDelay => const <String, Object?>{
+      'networkDelay': 'none',
+    },
+    CockpitSystemControlAction.setStatusBar => const <String, Object?>{
+      'time': '09:41',
+      'dataNetwork': 'wifi',
+      'wifiMode': 'active',
+      'wifiBars': 3,
+      'batteryState': 'charged',
+      'batteryLevel': 100,
+    },
     CockpitSystemControlAction.captureScreenshot => const <String, Object?>{
       'outputPath': '/tmp/cockpit-system-screenshot.png',
     },
@@ -598,6 +638,9 @@ Map<String, Object?> _validParametersFor(CockpitSystemControlAction action) {
     CockpitSystemControlAction.pressHome ||
     CockpitSystemControlAction.dismissSystemDialog ||
     CockpitSystemControlAction.readUiTree ||
+    CockpitSystemControlAction.readProcessList ||
+    CockpitSystemControlAction.readWindows ||
+    CockpitSystemControlAction.clearStatusBar ||
     CockpitSystemControlAction.readSystemState => const <String, Object?>{},
     CockpitSystemControlAction.activateWindow => const <String, Object?>{
       'packageId': 'dev.cockpit.example',
