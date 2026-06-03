@@ -26,7 +26,11 @@ void main() {
                     reorderEndIndex = index;
                   },
                   itemCount: orderedLabels.length,
-                  onReorderItem: (oldIndex, newIndex) {
+                  // ignore: deprecated_member_use
+                  onReorder: (oldIndex, newIndex) {
+                    if (oldIndex < newIndex) {
+                      newIndex -= 1;
+                    }
                     final item = orderedLabels.removeAt(oldIndex);
                     orderedLabels.insert(newIndex, item);
                   },
