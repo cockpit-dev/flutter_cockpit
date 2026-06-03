@@ -268,7 +268,7 @@ final class CockpitIosSystemControlAdapter
             action: CockpitSystemControlAction.readProcessList,
             plane: CockpitPlaneKind.deviceSystemPlane,
             availability: CockpitSystemControlAvailability.available,
-            strategy: 'xcrun.simctl.spawn.ps',
+            strategy: 'xcrun.simctl.spawn.bin-ps',
             requires: <String>['xcrun', 'simulator device id'],
           ),
           const CockpitSystemControlCapability(
@@ -703,7 +703,7 @@ final class CockpitIosSystemControlAdapter
           'simctl',
           'spawn',
           deviceId,
-          'ps',
+          '/bin/ps',
           '-A',
         ]),
       CockpitSystemControlAction.readSystemState =>

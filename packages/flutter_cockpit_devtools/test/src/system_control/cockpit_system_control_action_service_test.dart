@@ -741,7 +741,7 @@ void main() {
     ]);
   });
 
-  test('ios simulator readProcessList uses simctl spawn ps', () async {
+  test('ios simulator readProcessList uses simctl spawn /bin/ps', () async {
     final processManager = _FakeProcessManager();
     final service = CockpitSystemControlActionService(
       processManager: processManager,
@@ -761,7 +761,7 @@ void main() {
       'simctl',
       'spawn',
       '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
-      'ps',
+      '/bin/ps',
       '-A',
     ]);
   });
