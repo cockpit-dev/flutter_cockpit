@@ -185,6 +185,151 @@ void main() {
     ]);
   });
 
+  test('android pressKey sends adb keyevent', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        action: CockpitSystemControlAction.pressKey,
+        parameters: <String, Object?>{'key': 'KEYCODE_ENTER'},
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command, <String>[
+      'adb',
+      '-s',
+      'emulator-5554',
+      'shell',
+      'input',
+      'keyevent',
+      'KEYCODE_ENTER',
+    ]);
+  });
+
+  test('android terminateApp force-stops the package', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        appId: 'dev.cockpit.example',
+        action: CockpitSystemControlAction.terminateApp,
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command, <String>[
+      'adb',
+      '-s',
+      'emulator-5554',
+      'shell',
+      'am',
+      'force-stop',
+      'dev.cockpit.example',
+    ]);
+  });
+
+  test(
+    'android setAppearance maps dark mode to UiModeManager night yes',
+    () async {
+      final processManager = _FakeProcessManager();
+      final service = CockpitSystemControlActionService(
+        processManager: processManager,
+      );
+
+      final result = await service.run(
+        const CockpitSystemControlActionRequest(
+          platform: 'android',
+          deviceId: 'emulator-5554',
+          action: CockpitSystemControlAction.setAppearance,
+          parameters: <String, Object?>{'appearance': 'dark'},
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(result.command, <String>[
+        'adb',
+        '-s',
+        'emulator-5554',
+        'shell',
+        'cmd',
+        'uimode',
+        'night',
+        'yes',
+      ]);
+    },
+  );
+
+  test('android setContentSize maps content token to font scale', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        action: CockpitSystemControlAction.setContentSize,
+        parameters: <String, Object?>{'contentSize': 'accessibility-large'},
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command, <String>[
+      'adb',
+      '-s',
+      'emulator-5554',
+      'shell',
+      'settings',
+      'put',
+      'system',
+      'font_scale',
+      '1.8',
+    ]);
+  });
+
+  test('android setLocation sends emulator geo fix in lon lat order', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        action: CockpitSystemControlAction.setLocation,
+        parameters: <String, Object?>{
+          'latitude': 37.3349,
+          'longitude': -122.009,
+        },
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command, <String>[
+      'adb',
+      '-s',
+      'emulator-5554',
+      'emu',
+      'geo',
+      'fix',
+      '-122.009',
+      '37.3349',
+    ]);
+  });
+
   test('ios simulator activateWindow launches app through simctl', () async {
     final processManager = _FakeProcessManager();
     final service = CockpitSystemControlActionService(
@@ -261,6 +406,273 @@ void main() {
       '-j',
       'devices',
       '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+    ]);
+  });
+
+  test('ios simulator setClipboard writes through simctl pbcopy', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'ios',
+        deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+        action: CockpitSystemControlAction.setClipboard,
+        parameters: <String, Object?>{'text': 'hello clipboard'},
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command, <String>[
+      'sh',
+      '-c',
+      r'printf "%s" "$2" | xcrun simctl pbcopy "$1"',
+      'flutter_cockpit_ios_clipboard',
+      '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+      'hello clipboard',
+    ]);
+  });
+
+  test('ios simulator getClipboard reads through simctl pbpaste', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'ios',
+        deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+        action: CockpitSystemControlAction.getClipboard,
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command, <String>[
+      'xcrun',
+      'simctl',
+      'pbpaste',
+      '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+    ]);
+  });
+
+  test('ios simulator terminateApp uses simctl terminate', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'ios',
+        deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+        appId: 'dev.cockpit.example',
+        action: CockpitSystemControlAction.terminateApp,
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command, <String>[
+      'xcrun',
+      'simctl',
+      'terminate',
+      '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+      'dev.cockpit.example',
+    ]);
+  });
+
+  test('ios simulator setAppearance uses simctl ui appearance', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'ios',
+        deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+        action: CockpitSystemControlAction.setAppearance,
+        parameters: <String, Object?>{'appearance': 'dark'},
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command, <String>[
+      'xcrun',
+      'simctl',
+      'ui',
+      '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+      'appearance',
+      'dark',
+    ]);
+  });
+
+  test('ios simulator setContentSize uses simctl ui content_size', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'ios',
+        deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+        action: CockpitSystemControlAction.setContentSize,
+        parameters: <String, Object?>{'contentSize': 'accessibility-large'},
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command, <String>[
+      'xcrun',
+      'simctl',
+      'ui',
+      '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+      'content_size',
+      'accessibility-large',
+    ]);
+  });
+
+  test('ios simulator setLocation uses simctl location set', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'ios',
+        deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+        action: CockpitSystemControlAction.setLocation,
+        parameters: <String, Object?>{
+          'latitude': 37.3349,
+          'longitude': -122.009,
+        },
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command, <String>[
+      'xcrun',
+      'simctl',
+      'location',
+      '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+      'set',
+      '37.3349,-122.009',
+    ]);
+  });
+
+  test('macos setClipboard writes through pbcopy without app target', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'macos',
+        action: CockpitSystemControlAction.setClipboard,
+        parameters: <String, Object?>{'text': 'hello clipboard'},
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command, <String>[
+      'sh',
+      '-c',
+      r'printf "%s" "$1" | pbcopy',
+      'flutter_cockpit_macos_clipboard',
+      'hello clipboard',
+    ]);
+  });
+
+  test('macos readUiTree uses bounded System Events tree dump', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'macos',
+        appId: 'dev.cockpit.example',
+        action: CockpitSystemControlAction.readUiTree,
+        parameters: <String, Object?>{'maxDepth': 2, 'maxNodes': 20},
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command[0], 'osascript');
+    expect(
+      result.command,
+      containsAllInOrder(<String>['-l', 'JavaScript', '-e']),
+    );
+    expect(result.command.sublist(result.command.length - 4), <String>[
+      'appId',
+      'dev.cockpit.example',
+      '2',
+      '20',
+    ]);
+  });
+
+  test('windows readUiTree uses bounded UI Automation tree dump', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'windows',
+        processId: 4242,
+        action: CockpitSystemControlAction.readUiTree,
+        parameters: <String, Object?>{'maxDepth': 3, 'maxNodes': 30},
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command[0], 'powershell');
+    expect(result.command, contains('-NoProfile'));
+    expect(result.command, contains('-NonInteractive'));
+    expect(result.command.sublist(result.command.length - 4), <String>[
+      'processId',
+      '4242',
+      '3',
+      '30',
+    ]);
+  });
+
+  test('linux pressKey targets a window with xdotool key', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'linux',
+        appId: 'dev.cockpit.example',
+        action: CockpitSystemControlAction.pressKey,
+        parameters: <String, Object?>{'key': 'Escape'},
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command, hasLength(8));
+    expect(result.command[0], 'sh');
+    expect(result.command[1], '-c');
+    expect(
+      result.command[2],
+      contains(r'exec xdotool windowactivate --sync "$window_id" "$@"'),
+    );
+    expect(result.command.sublist(3), <String>[
+      'flutter_cockpit_linux_input',
+      'appId',
+      'dev.cockpit.example',
+      'key',
+      'Escape',
     ]);
   });
 

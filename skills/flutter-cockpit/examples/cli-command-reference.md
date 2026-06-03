@@ -187,6 +187,50 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --action activateWindow
 ```
 
+Send an Android key event or terminate the app when a clean relaunch is needed:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform android \
+  --device-id emulator-5554 \
+  --action pressKey \
+  --key enter
+
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform android \
+  --device-id emulator-5554 \
+  --app-id <android-package-id> \
+  --action terminateApp
+```
+
+Set Android emulator development environment state:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform android \
+  --device-id emulator-5554 \
+  --action setAppearance \
+  --appearance dark
+
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform android \
+  --device-id emulator-5554 \
+  --action setContentSize \
+  --content-size accessibility-large
+
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform android \
+  --device-id emulator-5554 \
+  --action setLocation \
+  --latitude 37.3349 \
+  --longitude -122.009
+```
+
 iOS simulator app activation and permission setup:
 
 ```bash
@@ -204,6 +248,78 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --app-id <ios-bundle-id> \
   --action grantPermission \
   --permission photos
+```
+
+Set iOS simulator appearance, content size, or location for responsive and permission-sensitive flows:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform ios \
+  --device-id <ios-simulator-udid> \
+  --action setAppearance \
+  --appearance dark
+
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform ios \
+  --device-id <ios-simulator-udid> \
+  --action setContentSize \
+  --content-size accessibility-large
+
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform ios \
+  --device-id <ios-simulator-udid> \
+  --action setLocation \
+  --latitude 37.3349 \
+  --longitude -122.009
+```
+
+Use iOS simulator clipboard when a native paste flow needs setup:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform ios \
+  --device-id <ios-simulator-udid> \
+  --action setClipboard \
+  --text "value to paste"
+
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform ios \
+  --device-id <ios-simulator-udid> \
+  --action getClipboard
+```
+
+Read host/device system state as a low-token capability smoke check:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform macos \
+  --action readSystemState
+```
+
+Read a bounded native desktop accessibility tree when Flutter semantics cannot see the target:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform macos \
+  --app-id <bundle-id> \
+  --action readUiTree \
+  --max-depth 4 \
+  --max-nodes 120
+
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform windows \
+  --process-id <pid> \
+  --action readUiTree \
+  --max-depth 4 \
+  --max-nodes 120
 ```
 
 Capture a native/system screenshot to a real file:

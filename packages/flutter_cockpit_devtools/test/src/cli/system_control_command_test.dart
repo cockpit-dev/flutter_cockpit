@@ -200,4 +200,107 @@ void main() {
     expect(decoded['success'], isTrue);
     expect(decoded['recommendedNextStep'], 'readPostActionState');
   });
+
+  test('run-system-action forwards key payload without JSON', () async {
+    final output = StringBuffer();
+    CockpitSystemControlActionRequest? capturedRequest;
+    final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
+      ..addCommand(
+        RunSystemActionCommand(
+          stdoutSink: output,
+          runAction: (request) async {
+            capturedRequest = request;
+            return const CockpitSystemControlActionResult(
+              platform: 'android',
+              deviceId: 'emulator-5554',
+              action: CockpitSystemControlAction.pressKey,
+              availability: CockpitSystemControlAvailability.available,
+              success: true,
+              recommendedNextStep: 'readPostActionState',
+            );
+          },
+        ),
+      );
+
+    final exitCode =
+        await runner.run(const <String>[
+          'run-system-action',
+          '--platform',
+          'android',
+          '--device-id',
+          'emulator-5554',
+          '--action',
+          'pressKey',
+          '--key',
+          'KEYCODE_ENTER',
+        ]) ??
+        0;
+
+    expect(exitCode, 0);
+    expect(capturedRequest?.action, CockpitSystemControlAction.pressKey);
+    expect(capturedRequest?.parameters['key'], 'KEYCODE_ENTER');
+    expect(output.toString(), contains('status=ok'));
+    expect(output.toString(), contains('action=pressKey'));
+  });
+
+  test('run-system-action forwards environment payload without JSON', () async {
+    final output = StringBuffer();
+    CockpitSystemControlActionRequest? capturedRequest;
+    final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
+      ..addCommand(
+        RunSystemActionCommand(
+          stdoutSink: output,
+          runAction: (request) async {
+            capturedRequest = request;
+            return const CockpitSystemControlActionResult(
+              platform: 'ios',
+              deviceId: 'booted',
+              action: CockpitSystemControlAction.setLocation,
+              availability: CockpitSystemControlAvailability.available,
+              success: true,
+              recommendedNextStep: 'readPostActionState',
+            );
+          },
+        ),
+      );
+
+    final exitCode =
+        await runner.run(const <String>[
+          'run-system-action',
+          '--platform',
+          'ios',
+          '--device-id',
+          'booted',
+          '--action',
+          'setLocation',
+          '--appearance',
+          'dark',
+          '--content-size',
+          'accessibility-large',
+          '--font-scale',
+          '1.8',
+          '--latitude',
+          '37.3349',
+          '--longitude',
+          '-122.009',
+          '--altitude',
+          '15',
+          '--max-depth',
+          '3',
+          '--max-nodes',
+          '40',
+        ]) ??
+        0;
+
+    expect(exitCode, 0);
+    expect(capturedRequest?.action, CockpitSystemControlAction.setLocation);
+    expect(capturedRequest?.parameters['appearance'], 'dark');
+    expect(capturedRequest?.parameters['contentSize'], 'accessibility-large');
+    expect(capturedRequest?.parameters['fontScale'], '1.8');
+    expect(capturedRequest?.parameters['latitude'], '37.3349');
+    expect(capturedRequest?.parameters['longitude'], '-122.009');
+    expect(capturedRequest?.parameters['altitude'], '15');
+    expect(capturedRequest?.parameters['maxDepth'], 3);
+    expect(capturedRequest?.parameters['maxNodes'], 40);
+  });
 }

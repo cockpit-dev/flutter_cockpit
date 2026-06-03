@@ -94,4 +94,25 @@ void main() {
     final structured = result['structuredContent'] as Map<String, Object?>;
     expect(structured['success'], isTrue);
   });
+
+  test('run_system_action is annotated as potentially destructive', () {
+    final tool = CockpitRunSystemActionTool();
+
+    expect(tool.annotations.readOnly, isFalse);
+    expect(tool.annotations.destructive, isTrue);
+  });
+
+  test('run_system_action schema exposes every system action', () {
+    final tool = CockpitRunSystemActionTool();
+
+    final properties = tool.inputSchema['properties']! as Map<String, Object?>;
+    final action = properties['action']! as Map<String, Object?>;
+
+    expect(
+      action['enum'],
+      CockpitSystemControlAction.values
+          .map((action) => action.name)
+          .toList(growable: false),
+    );
+  });
 }

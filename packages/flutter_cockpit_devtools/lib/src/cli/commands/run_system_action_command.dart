@@ -54,8 +54,28 @@ final class RunSystemActionCommand extends CockpitCliCommand {
       ..addOption('end-x', help: 'End X coordinate for drag.')
       ..addOption('end-y', help: 'End Y coordinate for drag.')
       ..addOption('duration-ms', help: 'Gesture duration in milliseconds.')
-      ..addOption('text', help: 'Text for typeText.')
+      ..addOption('text', help: 'Text for typeText or setClipboard.')
+      ..addOption('key', help: 'Key name for pressKey.')
       ..addOption('url', help: 'URL for openUrl.')
+      ..addOption(
+        'appearance',
+        allowed: const <String>['light', 'dark', 'auto'],
+        help: 'Appearance mode for setAppearance.',
+      )
+      ..addOption(
+        'content-size',
+        help:
+            'Content size token for setContentSize, for example large or accessibility-large.',
+      )
+      ..addOption(
+        'font-scale',
+        help: 'Android font scale for setContentSize, for example 1.3.',
+      )
+      ..addOption('latitude', help: 'Latitude for setLocation.')
+      ..addOption('longitude', help: 'Longitude for setLocation.')
+      ..addOption('altitude', help: 'Optional altitude for setLocation.')
+      ..addOption('max-depth', help: 'Maximum tree depth for readUiTree.')
+      ..addOption('max-nodes', help: 'Maximum tree nodes for readUiTree.')
       ..addOption('package-id', help: 'Package id for grantPermission.')
       ..addOption('permission', help: 'Permission name for grantPermission.')
       ..addOption('output-path', help: 'Output path for screenshot or video.')
@@ -114,7 +134,7 @@ final class RunSystemActionCommand extends CockpitCliCommand {
 
   @override
   String get helpShape =>
-      'Prefer explicit flags for common actions: --x/--y for tap, --text for typeText, --url for openUrl, --output-path for capture/recording, repeated --arg for runShell. Use --parameters-json only for less common payloads.';
+      'Prefer explicit flags for common actions: --x/--y for tap, --text for typeText or setClipboard, --key for pressKey, --url for openUrl, --output-path for capture/recording, repeated --arg for runShell. Use --parameters-json only for less common payloads.';
 
   @override
   String get helpExample =>
@@ -197,7 +217,16 @@ final class RunSystemActionCommand extends CockpitCliCommand {
     addInt('end-y', 'endY');
     addInt('duration-ms', 'durationMs');
     addString('text', 'text');
+    addString('key', 'key');
     addString('url', 'url');
+    addString('appearance', 'appearance');
+    addString('content-size', 'contentSize');
+    addString('font-scale', 'fontScale');
+    addString('latitude', 'latitude');
+    addString('longitude', 'longitude');
+    addString('altitude', 'altitude');
+    addInt('max-depth', 'maxDepth');
+    addInt('max-nodes', 'maxNodes');
     addString('package-id', 'packageId');
     addString('permission', 'permission');
     addString('output-path', 'outputPath');

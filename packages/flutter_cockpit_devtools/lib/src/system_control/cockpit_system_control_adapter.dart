@@ -42,6 +42,20 @@ int? cockpitReadSystemControlInt(Map<String, Object?> parameters, String key) {
   return null;
 }
 
+double? cockpitReadSystemControlDouble(
+  Map<String, Object?> parameters,
+  String key,
+) {
+  final value = parameters[key];
+  if (value is num) {
+    return value.toDouble();
+  }
+  if (value is String) {
+    return double.tryParse(value);
+  }
+  return null;
+}
+
 CockpitResolvedSystemControlCommand cockpitCoordinateCommand(
   CockpitSystemControlActionRequest request,
   CockpitResolvedSystemControlCommand Function(int x, int y) factory,
@@ -114,6 +128,42 @@ CockpitResolvedSystemControlCommand cockpitShellCommand(
     );
   }
   return factory(command);
+}
+
+CockpitResolvedSystemControlCommand cockpitLocationCommand(
+  CockpitSystemControlActionRequest request,
+  CockpitResolvedSystemControlCommand Function(
+    double latitude,
+    double longitude,
+    double? altitude,
+  )
+  factory,
+) {
+  final latitude =
+      cockpitReadSystemControlDouble(request.parameters, 'latitude') ??
+      cockpitReadSystemControlDouble(request.parameters, 'lat');
+  final longitude =
+      cockpitReadSystemControlDouble(request.parameters, 'longitude') ??
+      cockpitReadSystemControlDouble(request.parameters, 'lon') ??
+      cockpitReadSystemControlDouble(request.parameters, 'lng');
+  final altitude = cockpitReadSystemControlDouble(
+    request.parameters,
+    'altitude',
+  );
+  if (latitude == null || longitude == null) {
+    return const CockpitResolvedSystemControlCommand.error(
+      code: 'missingSystemActionParameter',
+      message: 'setLocation requires latitude and longitude parameters.',
+    );
+  }
+  if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+    return const CockpitResolvedSystemControlCommand.error(
+      code: 'invalidSystemActionParameter',
+      message:
+          'setLocation latitude must be between -90 and 90 and longitude between -180 and 180.',
+    );
+  }
+  return factory(latitude, longitude, altitude);
 }
 
 bool cockpitHasSystemControlWindowTarget({

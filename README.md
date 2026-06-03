@@ -361,6 +361,8 @@ Recommended commands:
 - `inspect-ui`
 - `run-command`
 - `run-batch`
+- `read-system-capabilities`
+- `run-system-action`
 - `read-network`
 - `wait-idle`
 - `hot-reload`
@@ -385,6 +387,9 @@ the smallest truthful surface:
 - use `launch-development-session`, `reload-development-session`,
   `collect-development-probe`, `compare-development-probe`, and
   `stop-development-session` for persistent edit-reload-probe loops
+- use `read-system-capabilities` before `run-system-action` for native UI,
+  system dialogs, host windows, simulator state, device location, appearance,
+  content size, screenshots, recordings, and bounded native UI tree reads
 - use `start-remote-recording` and `stop-remote-recording` only when working
   directly with a remote session instead of an app handle
 
@@ -425,6 +430,8 @@ Core tools:
 - `inspect_ui`
 - `run_command`
 - `run_batch`
+- `read_system_capabilities`
+- `run_system_action`
 - `wait_idle`
 - `hot_reload`
 - `hot_restart`

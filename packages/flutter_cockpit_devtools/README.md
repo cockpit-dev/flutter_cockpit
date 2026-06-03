@@ -92,6 +92,15 @@ Target-first loop when the agent needs direct system or non-Flutter control:
 3. `inspect-surface` or `run-shell` when the resolved platform truthfully exposes shell control
 4. `read-task-bundle-summary` or `validate-task` for bundle-backed delivery review
 
+Native/System Control Plane when Flutter semantics cannot control the required
+surface:
+
+1. `read-system-capabilities --platform <platform> ...`
+2. run only actions reported as `available` with `run-system-action`
+3. use direct flags for common setup: `--appearance`, `--content-size`,
+   `--font-scale`, `--latitude/--longitude`, and `--max-depth/--max-nodes`
+4. read post-action app, target, or system state before judging the result
+
 Recommended code-side loop:
 
 1. `analyze-files --path ...`
@@ -227,6 +236,8 @@ Core tools:
 - `inspect_surface`
 - `run_command`
 - `run_batch`
+- `read_system_capabilities`
+- `run_system_action`
 - `run_shell`
 - `wait_idle`
 - `hot_reload`

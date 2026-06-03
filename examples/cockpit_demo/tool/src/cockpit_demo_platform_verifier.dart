@@ -62,6 +62,14 @@ typedef CockpitDemoStopAppFunction =
     Future<CockpitStopAppResult> Function(CockpitStopAppRequest request);
 typedef CockpitDemoTimelineRecordingProcessRunner =
     Future<ProcessResult> Function(String executable, List<String> arguments);
+typedef CockpitDemoSystemControlDescribeFunction =
+    Future<CockpitSystemControlDescribeResult> Function(
+      CockpitSystemControlDescribeRequest request,
+    );
+typedef CockpitDemoSystemControlRunActionFunction =
+    Future<CockpitSystemControlActionResult> Function(
+      CockpitSystemControlActionRequest request,
+    );
 typedef CockpitDemoVerificationProgressSink =
     void Function(CockpitDemoVerificationProgressEvent event);
 
@@ -291,6 +299,9 @@ final class CockpitDemoPlatformVerification {
     this.screenshotArtifactRef,
     this.screenshotOutputPath,
     this.screenshotByteLength,
+    this.systemControlAdapter,
+    this.systemAvailableActions = const <String>[],
+    this.systemVerifiedActions = const <String>[],
     this.verifiedCommands = const <String>[],
     this.warnings = const <String>[],
     this.baseUrl,
@@ -333,6 +344,9 @@ final class CockpitDemoPlatformVerification {
   final String? screenshotArtifactRef;
   final String? screenshotOutputPath;
   final int? screenshotByteLength;
+  final String? systemControlAdapter;
+  final List<String> systemAvailableActions;
+  final List<String> systemVerifiedActions;
   final List<String> verifiedCommands;
   final List<String> warnings;
   final String? baseUrl;
@@ -383,6 +397,12 @@ final class CockpitDemoPlatformVerification {
       'screenshotOutputPath': screenshotOutputPath,
     if (screenshotByteLength != null)
       'screenshotByteLength': screenshotByteLength,
+    if (systemControlAdapter != null)
+      'systemControlAdapter': systemControlAdapter,
+    if (systemAvailableActions.isNotEmpty)
+      'systemAvailableActions': systemAvailableActions,
+    if (systemVerifiedActions.isNotEmpty)
+      'systemVerifiedActions': systemVerifiedActions,
     'verifiedCommands': verifiedCommands,
     if (warnings.isNotEmpty) 'warnings': warnings,
     if (failureCode != null) 'failureCode': failureCode,
@@ -433,6 +453,8 @@ final class CockpitDemoPlatformVerifier {
     CockpitDemoHotRestartFunction? hotRestart,
     CockpitDemoStopAppFunction? stopApp,
     CockpitDemoTimelineRecordingProcessRunner? timelineRecordingProcessRunner,
+    CockpitDemoSystemControlDescribeFunction? describeSystemControl,
+    CockpitDemoSystemControlRunActionFunction? runSystemAction,
     bool? isWindows,
   }) : _probeDevices =
            probeDevices ??
@@ -464,6 +486,11 @@ final class CockpitDemoPlatformVerifier {
        _stopApp = stopApp ?? CockpitStopAppService().stop,
        _timelineRecordingProcessRunner =
            timelineRecordingProcessRunner ?? Process.run,
+       _describeSystemControl =
+           describeSystemControl ??
+           const CockpitSystemControlService().describe,
+       _runSystemAction =
+           runSystemAction ?? CockpitSystemControlActionService().run,
        _isWindows = isWindows ?? Platform.isWindows;
 
   final CockpitDemoPlatformDeviceProbe _probeDevices;
@@ -487,6 +514,8 @@ final class CockpitDemoPlatformVerifier {
   final CockpitDemoStopAppFunction _stopApp;
   final CockpitDemoTimelineRecordingProcessRunner
   _timelineRecordingProcessRunner;
+  final CockpitDemoSystemControlDescribeFunction _describeSystemControl;
+  final CockpitDemoSystemControlRunActionFunction _runSystemAction;
   final bool _isWindows;
 
   Future<CockpitDemoPlatformVerificationResult> verify(
@@ -626,6 +655,18 @@ final class CockpitDemoPlatformVerifier {
         platform: platform,
       );
       verifiedCommands.add('inspect-ui');
+      final systemControl = await _verifySystemControlPlane(
+        platform: platform,
+        deviceId: deviceId,
+        app: launchedApp,
+        request: request,
+      );
+      verifiedCommands.add('read-system-capabilities');
+      verifiedCommands.addAll(
+        systemControl.verifiedActions.map(
+          (action) => 'run-system-action:$action',
+        ),
+      );
 
       final taskTitle =
           'Platform sync conflict ${platform}_${_clock().toUtc().microsecondsSinceEpoch}';
@@ -1296,6 +1337,9 @@ final class CockpitDemoPlatformVerifier {
         screenshotArtifactRef: screenshotArtifact.relativePath,
         screenshotOutputPath: screenshotOutputPath,
         screenshotByteLength: screenshotArtifact.byteLength,
+        systemControlAdapter: systemControl.adapter,
+        systemAvailableActions: systemControl.availableActions,
+        systemVerifiedActions: systemControl.verifiedActions,
         verifiedCommands: verifiedCommands,
         warnings: warnings,
       );
@@ -1366,6 +1410,151 @@ final class CockpitDemoPlatformVerifier {
         message: message,
         timestamp: _clock().toUtc(),
       ),
+    );
+  }
+
+  Future<_SystemControlVerification> _verifySystemControlPlane({
+    required String platform,
+    required String deviceId,
+    required CockpitAppHandle app,
+    required CockpitDemoPlatformVerificationRequest request,
+  }) async {
+    _reportProgress(
+      request: request,
+      platform: platform,
+      stage: 'system-control',
+      message: 'reading system capability matrix',
+    );
+    final describe = await _describeSystemControl(
+      CockpitSystemControlDescribeRequest(
+        platform: platform,
+        deviceId: deviceId,
+        appId: app.platformAppId,
+        processId: app.processId,
+      ),
+    );
+    final profile = describe.profile;
+    final availableActions = profile.availableActions
+        .map((action) => action.name)
+        .toList(growable: false);
+    final verifiedActions = <String>[];
+
+    if (profile.availableActions.contains(
+      CockpitSystemControlAction.readSystemState,
+    )) {
+      final result = await _runSystemAction(
+        CockpitSystemControlActionRequest(
+          platform: platform,
+          deviceId: deviceId,
+          appId: app.platformAppId,
+          processId: app.processId,
+          action: CockpitSystemControlAction.readSystemState,
+          timeout: const Duration(seconds: 15),
+        ),
+      );
+      if (!result.success) {
+        throw CockpitApplicationServiceException(
+          code: 'systemControlActionFailed',
+          message: 'System readSystemState action failed during verification.',
+          details: <String, Object?>{
+            'platform': platform,
+            'action': result.action.name,
+            'errorCode': result.errorCode,
+            'errorMessage': result.errorMessage,
+            'availability': result.availability.name,
+            'requires': result.requires,
+            'limitations': result.limitations,
+          },
+        );
+      }
+      verifiedActions.add(CockpitSystemControlAction.readSystemState.name);
+    }
+
+    if (platform == 'ios' &&
+        profile.availableActions.contains(
+          CockpitSystemControlAction.setClipboard,
+        ) &&
+        profile.availableActions.contains(
+          CockpitSystemControlAction.getClipboard,
+        )) {
+      final clipboardText =
+          'flutter_cockpit_${platform}_${_clock().toUtc().microsecondsSinceEpoch}';
+      final setResult = await _runSystemAction(
+        CockpitSystemControlActionRequest(
+          platform: platform,
+          deviceId: deviceId,
+          appId: app.platformAppId,
+          processId: app.processId,
+          action: CockpitSystemControlAction.setClipboard,
+          parameters: <String, Object?>{'text': clipboardText},
+          timeout: const Duration(seconds: 15),
+        ),
+      );
+      if (!setResult.success) {
+        throw CockpitApplicationServiceException(
+          code: 'systemControlActionFailed',
+          message: 'System setClipboard action failed during verification.',
+          details: <String, Object?>{
+            'platform': platform,
+            'action': setResult.action.name,
+            'errorCode': setResult.errorCode,
+            'errorMessage': setResult.errorMessage,
+          },
+        );
+      }
+      verifiedActions.add(CockpitSystemControlAction.setClipboard.name);
+
+      final getResult = await _runSystemAction(
+        CockpitSystemControlActionRequest(
+          platform: platform,
+          deviceId: deviceId,
+          appId: app.platformAppId,
+          processId: app.processId,
+          action: CockpitSystemControlAction.getClipboard,
+          timeout: const Duration(seconds: 15),
+        ),
+      );
+      if (!getResult.success || (getResult.stdout ?? '') != clipboardText) {
+        throw CockpitApplicationServiceException(
+          code: 'systemControlActionFailed',
+          message: 'System getClipboard action failed during verification.',
+          details: <String, Object?>{
+            'platform': platform,
+            'action': getResult.action.name,
+            'errorCode': getResult.errorCode,
+            'errorMessage': getResult.errorMessage,
+            'stdout': getResult.stdout,
+          },
+        );
+      }
+      verifiedActions.add(CockpitSystemControlAction.getClipboard.name);
+    }
+
+    if (availableActions.isEmpty && platform != 'web') {
+      throw CockpitApplicationServiceException(
+        code: 'systemControlUnavailable',
+        message: 'No system control actions were available for platform.',
+        details: <String, Object?>{
+          'platform': platform,
+          'adapter': profile.adapter,
+          'blockedActions': profile.blockedActions
+              .map((action) => action.name)
+              .toList(growable: false),
+        },
+      );
+    }
+
+    _reportProgress(
+      request: request,
+      platform: platform,
+      stage: 'system-control',
+      message:
+          'adapter=${profile.adapter} available=${availableActions.length} verified=${verifiedActions.join(",")}',
+    );
+    return _SystemControlVerification(
+      adapter: profile.adapter,
+      availableActions: availableActions,
+      verifiedActions: List<String>.unmodifiable(verifiedActions),
     );
   }
 
@@ -2869,6 +3058,18 @@ final class _TimelineRecordingFallback {
   final String outputPath;
   final int durationMs;
   final String kind;
+}
+
+final class _SystemControlVerification {
+  const _SystemControlVerification({
+    required this.adapter,
+    required this.availableActions,
+    required this.verifiedActions,
+  });
+
+  final String adapter;
+  final List<String> availableActions;
+  final List<String> verifiedActions;
 }
 
 final class _ResolvedDevice {

@@ -56,6 +56,10 @@ final class CockpitDesktopSystemControlAdapter
           hasInputTarget: hasInputTarget,
         ),
         _targetedInputCapability(
+          CockpitSystemControlAction.pressKey,
+          hasInputTarget: hasInputTarget,
+        ),
+        _targetedInputCapability(
           CockpitSystemControlAction.pressBack,
           hasInputTarget: hasInputTarget,
         ),
@@ -66,6 +70,10 @@ final class CockpitDesktopSystemControlAdapter
         ),
         _targetedInputCapability(
           CockpitSystemControlAction.activateWindow,
+          hasInputTarget: hasInputTarget,
+        ),
+        _targetedInputCapability(
+          CockpitSystemControlAction.terminateApp,
           hasInputTarget: hasInputTarget,
         ),
         _targetedInputCapability(
@@ -85,6 +93,37 @@ final class CockpitDesktopSystemControlAdapter
           requires: _openUrlRequires,
           limitations: limitations,
         ),
+        _hostBlocked(
+          CockpitSystemControlAction.setAppearance,
+          _setAppearanceStrategy,
+          requires: _appearanceRequires,
+        ),
+        _hostBlocked(
+          CockpitSystemControlAction.setContentSize,
+          _setContentSizeStrategy,
+          requires: _contentSizeRequires,
+        ),
+        _unsupported(
+          CockpitSystemControlAction.setLocation,
+          'desktop-no-global-simulated-location',
+          'Desktop hosts do not expose a stable app-scoped simulated location API.',
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.setClipboard,
+          plane: CockpitPlaneKind.hostPlane,
+          availability: CockpitSystemControlAvailability.available,
+          strategy: _setClipboardStrategy,
+          requires: _clipboardRequires,
+          limitations: limitations,
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.getClipboard,
+          plane: CockpitPlaneKind.hostPlane,
+          availability: CockpitSystemControlAvailability.available,
+          strategy: _getClipboardStrategy,
+          requires: _clipboardRequires,
+          limitations: limitations,
+        ),
         _evidenceCapability(
           CockpitSystemControlAction.captureScreenshot,
           screenshotStrategy,
@@ -101,7 +140,7 @@ final class CockpitDesktopSystemControlAdapter
           hasWindowTarget: hasEvidenceTarget,
           extraRequires: const <String>['active recording session'],
         ),
-        _blocked(CockpitSystemControlAction.readUiTree, _uiTreeStrategy),
+        _uiTreeCapability(hasInputTarget: hasInputTarget),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.readSystemState,
           plane: CockpitPlaneKind.hostPlane,
@@ -146,6 +185,35 @@ final class CockpitDesktopSystemControlAdapter
     };
   }
 
+  String get _setClipboardStrategy {
+    return switch (platform) {
+      'macos' => 'pbcopy',
+      'windows' => 'powershell.set-clipboard',
+      'linux' => 'wl-copy|xclip|xsel',
+      _ => 'host.set-clipboard',
+    };
+  }
+
+  String get _getClipboardStrategy {
+    return switch (platform) {
+      'macos' => 'pbpaste',
+      'windows' => 'powershell.get-clipboard',
+      'linux' => 'wl-paste|xclip|xsel',
+      _ => 'host.get-clipboard',
+    };
+  }
+
+  List<String> get _clipboardRequires {
+    return switch (platform) {
+      'macos' => const <String>['pbcopy', 'pbpaste'],
+      'windows' => const <String>['PowerShell'],
+      'linux' => const <String>[
+        'one clipboard tool: wl-copy/wl-paste, xclip, or xsel',
+      ],
+      _ => const <String>['host clipboard tool'],
+    };
+  }
+
   List<String> get _openUrlRequires {
     return switch (platform) {
       'macos' => const <String>['open'],
@@ -161,6 +229,24 @@ final class CockpitDesktopSystemControlAdapter
       'windows' => 'UIAutomation tree walker',
       'linux' => 'AT-SPI tree walker',
       _ => 'native accessibility tree',
+    };
+  }
+
+  String get _setAppearanceStrategy {
+    return switch (platform) {
+      'macos' => 'system-events.appearance-preferences',
+      'windows' => 'registry.apps-use-light-theme',
+      'linux' => 'gsettings.gtk-theme',
+      _ => 'host.appearance',
+    };
+  }
+
+  String get _setContentSizeStrategy {
+    return switch (platform) {
+      'macos' => 'host-accessibility-display-settings',
+      'windows' => 'host-text-scale-settings',
+      'linux' => 'desktop-font-scaling-settings',
+      _ => 'host.content-size',
     };
   }
 
@@ -206,11 +292,29 @@ final class CockpitDesktopSystemControlAdapter
     return switch (platform) {
       'macos' => const <String>[
         'Accessibility permission',
-        'Accessibility tree dump helper',
+        'Automation permission for System Events',
       ],
-      'windows' => const <String>['UI Automation tree dump helper'],
+      'windows' => const <String>['PowerShell', 'UI Automation'],
       'linux' => const <String>['AT-SPI tree dump helper'],
       _ => const <String>['native accessibility tree helper'],
+    };
+  }
+
+  List<String> get _appearanceRequires {
+    return switch (platform) {
+      'macos' => const <String>['explicit user approval'],
+      'windows' => const <String>['explicit user approval'],
+      'linux' => const <String>['desktop-specific theme tooling'],
+      _ => const <String>['host appearance tooling'],
+    };
+  }
+
+  List<String> get _contentSizeRequires {
+    return switch (platform) {
+      'macos' => const <String>['explicit user approval'],
+      'windows' => const <String>['explicit user approval'],
+      'linux' => const <String>['desktop-specific font scaling tooling'],
+      _ => const <String>['host accessibility tooling'],
     };
   }
 
@@ -315,6 +419,15 @@ final class CockpitDesktopSystemControlAdapter
           <String>[text],
         ),
       ),
+      CockpitSystemControlAction.pressKey => cockpitTextCommand(
+        request,
+        'key',
+        (key) => _macosAppleScriptWithTarget(
+          request,
+          _macosPressKeyScript,
+          <String>[key],
+        ),
+      ),
       CockpitSystemControlAction.pressBack => _macosAppleScriptWithTarget(
         request,
         _macosPressBackScript,
@@ -323,6 +436,10 @@ final class CockpitDesktopSystemControlAdapter
         request,
         _macosActivateTargetScript,
       ),
+      CockpitSystemControlAction.terminateApp => _macosAppleScriptWithTarget(
+        request,
+        _macosTerminateTargetScript,
+      ),
       CockpitSystemControlAction.dismissSystemDialog =>
         _macosAppleScriptWithTarget(request, _macosPressBackScript),
       CockpitSystemControlAction.openUrl => cockpitTextCommand(
@@ -330,6 +447,23 @@ final class CockpitDesktopSystemControlAdapter
         'url',
         (url) => CockpitResolvedSystemControlCommand('open', <String>[url]),
       ),
+      CockpitSystemControlAction.readUiTree => _macosJxaWithTarget(
+        request,
+        _macosReadUiTreeScript,
+        _uiTreeReadLimits(request),
+      ),
+      CockpitSystemControlAction.setClipboard => cockpitTextCommand(
+        request,
+        'text',
+        (text) => CockpitResolvedSystemControlCommand('sh', <String>[
+          '-c',
+          r'printf "%s" "$1" | pbcopy',
+          'flutter_cockpit_macos_clipboard',
+          text,
+        ]),
+      ),
+      CockpitSystemControlAction.getClipboard =>
+        CockpitResolvedSystemControlCommand('pbpaste', const <String>[]),
       CockpitSystemControlAction.readSystemState =>
         CockpitResolvedSystemControlCommand('sh', const <String>[
           '-c',
@@ -401,6 +535,16 @@ final class CockpitDesktopSystemControlAdapter
           text,
         ]),
       ),
+      CockpitSystemControlAction.pressKey => cockpitTextCommand(
+        request,
+        'key',
+        (key) => _windowsInput(<String>[
+          'pressKey',
+          request.appId ?? '',
+          request.processId?.toString() ?? '',
+          key,
+        ]),
+      ),
       CockpitSystemControlAction.pressBack => _windowsInput(<String>[
         'pressBack',
         request.appId ?? '',
@@ -411,6 +555,9 @@ final class CockpitDesktopSystemControlAdapter
         request.appId ?? '',
         request.processId?.toString() ?? '',
       ]),
+      CockpitSystemControlAction.terminateApp => _windowsTerminateCommand(
+        request,
+      ),
       CockpitSystemControlAction.dismissSystemDialog => _windowsInput(<String>[
         'pressBack',
         request.appId ?? '',
@@ -427,6 +574,27 @@ final class CockpitDesktopSystemControlAdapter
           url,
         ]),
       ),
+      CockpitSystemControlAction.readUiTree => _windowsReadUiTreeCommand(
+        request,
+      ),
+      CockpitSystemControlAction.setClipboard => cockpitTextCommand(
+        request,
+        'text',
+        (text) => CockpitResolvedSystemControlCommand('powershell', <String>[
+          '-NoProfile',
+          '-NonInteractive',
+          '-Command',
+          r'Set-Clipboard -Value $args[0]',
+          text,
+        ]),
+      ),
+      CockpitSystemControlAction.getClipboard =>
+        CockpitResolvedSystemControlCommand('powershell', const <String>[
+          '-NoProfile',
+          '-NonInteractive',
+          '-Command',
+          r'Get-Clipboard -Raw',
+        ]),
       CockpitSystemControlAction.readSystemState =>
         CockpitResolvedSystemControlCommand('powershell', const <String>[
           '-NoProfile',
@@ -515,6 +683,14 @@ final class CockpitDesktopSystemControlAdapter
           text,
         ]),
       ),
+      CockpitSystemControlAction.pressKey => cockpitTextCommand(
+        request,
+        'key',
+        (key) => _linuxTargetedXdotool(request, <String>[
+          'key',
+          _normalizeDesktopKeyForXdotool(key),
+        ]),
+      ),
       CockpitSystemControlAction.pressBack => _linuxTargetedXdotool(
         request,
         const <String>['key', 'Escape'],
@@ -522,6 +698,9 @@ final class CockpitDesktopSystemControlAdapter
       CockpitSystemControlAction.activateWindow => _linuxTargetedXdotool(
         request,
         const <String>[],
+      ),
+      CockpitSystemControlAction.terminateApp => _linuxTerminateCommand(
+        request,
       ),
       CockpitSystemControlAction.dismissSystemDialog => _linuxTargetedXdotool(
         request,
@@ -532,6 +711,28 @@ final class CockpitDesktopSystemControlAdapter
         'url',
         (url) => CockpitResolvedSystemControlCommand('xdg-open', <String>[url]),
       ),
+      CockpitSystemControlAction.readUiTree =>
+        const CockpitResolvedSystemControlCommand.error(
+          code: 'systemActionBlocked',
+          message:
+              'Linux readUiTree requires an AT-SPI tree dump helper for the active desktop session.',
+        ),
+      CockpitSystemControlAction.setClipboard => cockpitTextCommand(
+        request,
+        'text',
+        (text) => CockpitResolvedSystemControlCommand('sh', <String>[
+          '-c',
+          _linuxSetClipboardScript,
+          'flutter_cockpit_linux_clipboard',
+          text,
+        ]),
+      ),
+      CockpitSystemControlAction.getClipboard =>
+        CockpitResolvedSystemControlCommand('sh', const <String>[
+          '-c',
+          _linuxGetClipboardScript,
+          'flutter_cockpit_linux_clipboard',
+        ]),
       CockpitSystemControlAction.readSystemState =>
         CockpitResolvedSystemControlCommand('sh', const <String>[
           '-c',
@@ -565,6 +766,28 @@ final class CockpitDesktopSystemControlAdapter
     ]);
   }
 
+  CockpitResolvedSystemControlCommand _macosJxaWithTarget(
+    CockpitSystemControlActionRequest request,
+    String script,
+    List<String> extraArgs,
+  ) {
+    final target = _targetArgs(request);
+    if (target == null) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'missingSystemActionTarget',
+        message: 'This macOS action requires --app-id or --process-id.',
+      );
+    }
+    return CockpitResolvedSystemControlCommand('osascript', <String>[
+      '-l',
+      'JavaScript',
+      '-e',
+      script,
+      ...target,
+      ...extraArgs,
+    ]);
+  }
+
   CockpitResolvedSystemControlCommand _macosAppleScriptWithTarget(
     CockpitSystemControlActionRequest request,
     String script, [
@@ -595,6 +818,45 @@ final class CockpitDesktopSystemControlAdapter
     ]);
   }
 
+  CockpitResolvedSystemControlCommand _windowsTerminateCommand(
+    CockpitSystemControlActionRequest request,
+  ) {
+    final target = _targetArgs(request);
+    if (target == null) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'missingSystemActionTarget',
+        message: 'This Windows action requires --app-id or --process-id.',
+      );
+    }
+    return CockpitResolvedSystemControlCommand('powershell', <String>[
+      '-NoProfile',
+      '-NonInteractive',
+      '-Command',
+      _windowsTerminateScript,
+      ...target,
+    ]);
+  }
+
+  CockpitResolvedSystemControlCommand _windowsReadUiTreeCommand(
+    CockpitSystemControlActionRequest request,
+  ) {
+    final target = _targetArgs(request);
+    if (target == null) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'missingSystemActionTarget',
+        message: 'This Windows action requires --app-id or --process-id.',
+      );
+    }
+    return CockpitResolvedSystemControlCommand('powershell', <String>[
+      '-NoProfile',
+      '-NonInteractive',
+      '-Command',
+      _windowsReadUiTreeScript,
+      ...target,
+      ..._uiTreeReadLimits(request),
+    ]);
+  }
+
   CockpitResolvedSystemControlCommand _linuxTargetedXdotool(
     CockpitSystemControlActionRequest request,
     List<String> xdotoolArgs,
@@ -615,6 +877,37 @@ final class CockpitDesktopSystemControlAdapter
     ]);
   }
 
+  CockpitResolvedSystemControlCommand _linuxTerminateCommand(
+    CockpitSystemControlActionRequest request,
+  ) {
+    final target = _targetArgs(request);
+    if (target == null) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'missingSystemActionTarget',
+        message: 'This Linux action requires --app-id or --process-id.',
+      );
+    }
+    return CockpitResolvedSystemControlCommand('sh', <String>[
+      '-c',
+      _linuxTerminateScript,
+      'flutter_cockpit_linux_terminate',
+      ...target,
+    ]);
+  }
+
+  String _normalizeDesktopKeyForXdotool(String key) {
+    final trimmed = key.trim();
+    return switch (trimmed.toLowerCase()) {
+      'enter' || 'return' => 'Return',
+      'escape' || 'esc' => 'Escape',
+      'tab' => 'Tab',
+      'backspace' => 'BackSpace',
+      'delete' => 'Delete',
+      'space' => 'space',
+      _ => trimmed,
+    };
+  }
+
   List<String>? _targetArgs(CockpitSystemControlActionRequest request) {
     final appId = request.appId?.trim();
     final processId = request.processId;
@@ -625,6 +918,14 @@ final class CockpitDesktopSystemControlAdapter
       return <String>['appId', appId];
     }
     return null;
+  }
+
+  List<String> _uiTreeReadLimits(CockpitSystemControlActionRequest request) {
+    final maxDepth =
+        cockpitReadSystemControlInt(request.parameters, 'maxDepth') ?? 4;
+    final maxNodes =
+        cockpitReadSystemControlInt(request.parameters, 'maxNodes') ?? 120;
+    return <String>['$maxDepth', '$maxNodes'];
   }
 
   CockpitResolvedSystemControlCommand _unsupportedCommand(
@@ -671,26 +972,35 @@ final class CockpitDesktopSystemControlAdapter
     );
   }
 
-  CockpitSystemControlCapability _blocked(
+  CockpitSystemControlCapability _hostBlocked(
     CockpitSystemControlAction action,
     String strategy, {
-    List<String> extraRequires = const <String>[],
+    required List<String> requires,
   }) {
     return CockpitSystemControlCapability(
       action: action,
-      plane:
-          action == CockpitSystemControlAction.captureScreenshot ||
-              action == CockpitSystemControlAction.startRecording ||
-              action == CockpitSystemControlAction.stopRecording
-          ? CockpitPlaneKind.hostPlane
-          : CockpitPlaneKind.nativeUiPlane,
+      plane: CockpitPlaneKind.hostPlane,
       availability: CockpitSystemControlAvailability.blocked,
       strategy: strategy,
+      requires: requires,
+      limitations: limitations,
+    );
+  }
+
+  CockpitSystemControlCapability _uiTreeCapability({
+    required bool hasInputTarget,
+  }) {
+    final isSupported = platform == 'macos' || platform == 'windows';
+    return CockpitSystemControlCapability(
+      action: CockpitSystemControlAction.readUiTree,
+      plane: CockpitPlaneKind.nativeUiPlane,
+      availability: isSupported && hasInputTarget
+          ? CockpitSystemControlAvailability.available
+          : CockpitSystemControlAvailability.blocked,
+      strategy: _uiTreeStrategy,
       requires: <String>[
-        ...(action == CockpitSystemControlAction.readUiTree
-            ? _uiTreeRequires
-            : requires),
-        ...extraRequires,
+        ..._uiTreeRequires,
+        if (!hasInputTarget) 'app id or process id',
       ],
       limitations: limitations,
     );
@@ -796,6 +1106,37 @@ on run argv
 end run
 ''';
 
+  static const String _macosPressKeyScript = r'''
+on run argv
+  set targetKind to item 1 of argv
+  set targetValue to item 2 of argv
+  set keyValue to item 3 of argv
+  if targetKind is "appId" then
+    tell application id targetValue to activate
+  else
+    tell application "System Events"
+      set frontmost of first application process whose unix id is (targetValue as integer) to true
+    end tell
+  end if
+  set normalizedKey to do shell script "printf %s " & quoted form of keyValue & " | tr '[:upper:]' '[:lower:]'"
+  tell application "System Events"
+    if normalizedKey is "enter" or normalizedKey is "return" then
+      key code 36
+    else if normalizedKey is "escape" or normalizedKey is "esc" then
+      key code 53
+    else if normalizedKey is "tab" then
+      key code 48
+    else if normalizedKey is "backspace" or normalizedKey is "delete" then
+      key code 51
+    else if normalizedKey is "space" then
+      key code 49
+    else
+      keystroke keyValue
+    end if
+  end tell
+end run
+''';
+
   static const String _macosPressBackScript = r'''
 on run argv
   set targetKind to item 1 of argv
@@ -809,6 +1150,117 @@ on run argv
   end if
   tell application "System Events" to key code 53
 end run
+''';
+
+  static const String _macosTerminateTargetScript = r'''
+on run argv
+  set targetKind to item 1 of argv
+  set targetValue to item 2 of argv
+  if targetKind is "appId" then
+    tell application id targetValue to quit
+  else
+    do shell script "kill -TERM " & quoted form of targetValue
+  end if
+end run
+''';
+
+  static const String _macosReadUiTreeScript = r'''
+function run(argv) {
+  const targetKind = argv[0]
+  const targetValue = argv[1]
+  const maxDepth = Math.max(0, Number(argv[2] || '4'))
+  const maxNodes = Math.max(1, Number(argv[3] || '120'))
+  const systemEvents = Application('System Events')
+  let process = null
+  if (targetKind === 'appId') {
+    const app = Application(targetValue)
+    app.activate()
+    delay(0.2)
+    const appName = app.name()
+    const matches = systemEvents.applicationProcesses.whose({ name: appName })()
+    process = matches.length > 0 ? matches[0] : null
+  } else {
+    const pid = Number(targetValue)
+    const matches = systemEvents.applicationProcesses.whose({ unixId: pid })()
+    process = matches.length > 0 ? matches[0] : null
+  }
+  if (!process) {
+    throw new Error(`No macOS accessibility process found for ${targetKind}:${targetValue}`)
+  }
+
+  let nodeCount = 0
+  function readString(factory) {
+    try {
+      const value = factory()
+      if (value === undefined || value === null) return undefined
+      const text = String(value)
+      return text.length === 0 ? undefined : text
+    } catch (_) {
+      return undefined
+    }
+  }
+  function readFrame(element) {
+    try {
+      const position = element.position()
+      const size = element.size()
+      return { x: Number(position[0]), y: Number(position[1]), width: Number(size[0]), height: Number(size[1]) }
+    } catch (_) {
+      return undefined
+    }
+  }
+  function readChildren(element) {
+    try {
+      return element.uiElements()
+    } catch (_) {
+      return []
+    }
+  }
+  function readNode(element, depth) {
+    if (nodeCount >= maxNodes) return null
+    nodeCount += 1
+    const node = {}
+    const role = readString(() => element.role())
+    const subrole = readString(() => element.subrole())
+    const title = readString(() => element.title())
+    const name = readString(() => element.name())
+    const description = readString(() => element.description())
+    const value = readString(() => element.value())
+    const frame = readFrame(element)
+    if (role) node.role = role
+    if (subrole) node.subrole = subrole
+    if (title) node.title = title
+    if (name && name !== title) node.name = name
+    if (description && description !== title && description !== name) node.description = description
+    if (value) node.value = value
+    if (frame) node.frame = frame
+    if (depth < maxDepth && nodeCount < maxNodes) {
+      const children = []
+      const rawChildren = readChildren(element)
+      for (let i = 0; i < rawChildren.length && nodeCount < maxNodes; i += 1) {
+        const child = readNode(rawChildren[i], depth + 1)
+        if (child) children.push(child)
+      }
+      if (children.length > 0) node.children = children
+    }
+    return node
+  }
+
+  const windows = []
+  const rawWindows = process.windows()
+  for (let i = 0; i < rawWindows.length && nodeCount < maxNodes; i += 1) {
+    const windowNode = readNode(rawWindows[i], 0)
+    if (windowNode) windows.push(windowNode)
+  }
+  return JSON.stringify({
+    platform: 'macos',
+    target: { kind: targetKind, value: targetValue },
+    maxDepth,
+    maxNodes,
+    nodeCount,
+    truncated: nodeCount >= maxNodes,
+    windows
+  })
+}
 ''';
 
   static const String _windowsInputScript = r'''
@@ -865,6 +1317,19 @@ function Click-At($x, $y, $holdMs) {
 function Escape-SendKeys([string]$value) {
   return $value.Replace('{', '{{}').Replace('}', '{}}').Replace('+', '{+}').Replace('^', '{^}').Replace('%', '{%}').Replace('~', '{~}').Replace('(', '{(}').Replace(')', '{)}').Replace('[', '{[}').Replace(']', '{]}')
 }
+function Convert-Key([string]$value) {
+  switch ($value.ToLowerInvariant()) {
+    'enter' { return '{ENTER}' }
+    'return' { return '{ENTER}' }
+    'escape' { return '{ESC}' }
+    'esc' { return '{ESC}' }
+    'tab' { return '{TAB}' }
+    'backspace' { return '{BACKSPACE}' }
+    'delete' { return '{DELETE}' }
+    'space' { return ' ' }
+    default { return (Escape-SendKeys $value) }
+  }
+}
 switch ($action) {
   'activateWindow' { Activate-Target }
   'tap' { Click-At ([int]$args[3]) ([int]$args[4]) 50 }
@@ -885,11 +1350,113 @@ switch ($action) {
     Activate-Target
     [System.Windows.Forms.SendKeys]::SendWait((Escape-SendKeys $args[3]))
   }
+  'pressKey' {
+    Activate-Target
+    [System.Windows.Forms.SendKeys]::SendWait((Convert-Key $args[3]))
+  }
   'pressBack' {
     Activate-Target
     [System.Windows.Forms.SendKeys]::SendWait('{ESC}')
   }
   default { throw "Unsupported cockpit input action: $action" }
+}
+''';
+
+  static const String _windowsReadUiTreeScript = r'''
+Add-Type -AssemblyName UIAutomationClient
+Add-Type -AssemblyName UIAutomationTypes
+$targetKind = $args[0]
+$targetValue = $args[1]
+$maxDepth = [Math]::Max(0, [int]$args[2])
+$maxNodes = [Math]::Max(1, [int]$args[3])
+if ($targetKind -eq 'processId') {
+  $process = Get-Process -Id ([int]$targetValue) -ErrorAction Stop |
+    Where-Object { $_.MainWindowHandle -ne 0 } |
+    Select-Object -First 1
+} elseif ($targetKind -eq 'appId') {
+  $process = Get-Process -Name $targetValue -ErrorAction Stop |
+    Where-Object { $_.MainWindowHandle -ne 0 } |
+    Sort-Object -Property Id -Descending |
+    Select-Object -First 1
+} else {
+  throw "Unsupported target kind: $targetKind"
+}
+if ($null -eq $process) {
+  throw "No visible Windows window was found for $targetKind $targetValue."
+}
+$root = [System.Windows.Automation.AutomationElement]::FromHandle([IntPtr]$process.MainWindowHandle)
+if ($null -eq $root) {
+  throw "UI Automation could not resolve the target window."
+}
+$script:nodeCount = 0
+function Read-Bounds($element) {
+  try {
+    $rect = $element.Current.BoundingRectangle
+    if ($rect.Width -le 0 -or $rect.Height -le 0) { return $null }
+    return @{
+      x = [int]$rect.X
+      y = [int]$rect.Y
+      width = [int]$rect.Width
+      height = [int]$rect.Height
+    }
+  } catch {
+    return $null
+  }
+}
+function Read-Node($element, [int]$depth) {
+  if ($script:nodeCount -ge $maxNodes) { return $null }
+  $script:nodeCount += 1
+  $controlType = ''
+  try { $controlType = $element.Current.ControlType.ProgrammaticName -replace '^ControlType\.', '' } catch {}
+  $node = [ordered]@{}
+  if (-not [string]::IsNullOrWhiteSpace($controlType)) { $node.controlType = $controlType }
+  if (-not [string]::IsNullOrWhiteSpace($element.Current.Name)) { $node.name = $element.Current.Name }
+  if (-not [string]::IsNullOrWhiteSpace($element.Current.AutomationId)) { $node.automationId = $element.Current.AutomationId }
+  if (-not [string]::IsNullOrWhiteSpace($element.Current.ClassName)) { $node.className = $element.Current.ClassName }
+  $bounds = Read-Bounds $element
+  if ($null -ne $bounds) { $node.frame = $bounds }
+  if ($depth -lt $maxDepth -and $script:nodeCount -lt $maxNodes) {
+    $children = @()
+    try {
+      $rawChildren = $element.FindAll(
+        [System.Windows.Automation.TreeScope]::Children,
+        [System.Windows.Automation.Condition]::TrueCondition
+      )
+      foreach ($childElement in $rawChildren) {
+        if ($script:nodeCount -ge $maxNodes) { break }
+        $child = Read-Node $childElement ($depth + 1)
+        if ($null -ne $child) { $children += $child }
+      }
+    } catch {}
+    if ($children.Count -gt 0) { $node.children = $children }
+  }
+  return $node
+}
+$tree = Read-Node $root 0
+[pscustomobject]@{
+  platform = 'windows'
+  target = @{
+    kind = $targetKind
+    value = $targetValue
+    processId = $process.Id
+  }
+  maxDepth = $maxDepth
+  maxNodes = $maxNodes
+  nodeCount = $script:nodeCount
+  truncated = ($script:nodeCount -ge $maxNodes)
+  tree = $tree
+} | ConvertTo-Json -Depth 64 -Compress
+''';
+
+  static const String _windowsTerminateScript = r'''
+$targetKind = $args[0]
+$targetValue = $args[1]
+if ($targetKind -eq 'processId') {
+  Stop-Process -Id ([int]$targetValue) -Force
+} elseif ($targetKind -eq 'appId') {
+  Get-Process -Name $targetValue -ErrorAction Stop | Stop-Process -Force
+} else {
+  throw "Unsupported target kind: $targetKind"
 }
 ''';
 
@@ -910,6 +1477,42 @@ if [ "$#" -eq 0 ]; then
   exec xdotool windowactivate --sync "$window_id"
 fi
 exec xdotool windowactivate --sync "$window_id" "$@"
+''';
+
+  static const String _linuxTerminateScript = r'''
+target_kind="$1"
+target_value="$2"
+if [ "$target_kind" = "processId" ]; then
+  exec kill -TERM "$target_value"
+elif [ "$target_kind" = "appId" ]; then
+  exec pkill -TERM -f "$target_value"
+fi
+exit 64
+''';
+
+  static const String _linuxSetClipboardScript = r'''
+text="$1"
+if command -v wl-copy >/dev/null 2>&1; then
+  printf "%s" "$text" | wl-copy
+elif command -v xclip >/dev/null 2>&1; then
+  printf "%s" "$text" | xclip -selection clipboard
+elif command -v xsel >/dev/null 2>&1; then
+  printf "%s" "$text" | xsel --clipboard --input
+else
+  exit 65
+fi
+''';
+
+  static const String _linuxGetClipboardScript = r'''
+if command -v wl-paste >/dev/null 2>&1; then
+  wl-paste --no-newline
+elif command -v xclip >/dev/null 2>&1; then
+  xclip -selection clipboard -out
+elif command -v xsel >/dev/null 2>&1; then
+  xsel --clipboard --output
+else
+  exit 65
+fi
 ''';
 }
 
@@ -967,6 +1570,13 @@ final class CockpitWebSystemControlAdapter
           requires: <String>['browser driver or bridge'],
         ),
         CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.pressKey,
+          plane: CockpitPlaneKind.nativeUiPlane,
+          availability: CockpitSystemControlAvailability.blocked,
+          strategy: 'browser.keyboard.press',
+          requires: <String>['browser driver or bridge'],
+        ),
+        CockpitSystemControlCapability(
           action: CockpitSystemControlAction.pressBack,
           plane: CockpitPlaneKind.hostPlane,
           availability: CockpitSystemControlAvailability.blocked,
@@ -990,6 +1600,13 @@ final class CockpitWebSystemControlAdapter
           requires: <String>['browser driver or bridge'],
         ),
         CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.terminateApp,
+          plane: CockpitPlaneKind.hostPlane,
+          availability: CockpitSystemControlAvailability.blocked,
+          strategy: 'browser.context.close',
+          requires: <String>['browser driver or bridge'],
+        ),
+        CockpitSystemControlCapability(
           action: CockpitSystemControlAction.dismissSystemDialog,
           plane: CockpitPlaneKind.nativeUiPlane,
           availability: CockpitSystemControlAvailability.blocked,
@@ -1009,6 +1626,50 @@ final class CockpitWebSystemControlAdapter
           availability: CockpitSystemControlAvailability.blocked,
           strategy: 'browser.page.goto',
           requires: <String>['browser driver or bridge'],
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.setAppearance,
+          plane: CockpitPlaneKind.hostPlane,
+          availability: CockpitSystemControlAvailability.blocked,
+          strategy: 'browser.context.emulateMedia',
+          requires: <String>['browser driver or bridge'],
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.setContentSize,
+          plane: CockpitPlaneKind.hostPlane,
+          availability: CockpitSystemControlAvailability.blocked,
+          strategy: 'browser.viewport-or-accessibility-emulation',
+          requires: <String>['browser driver or bridge'],
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.setLocation,
+          plane: CockpitPlaneKind.hostPlane,
+          availability: CockpitSystemControlAvailability.blocked,
+          strategy: 'browser.context.geolocation',
+          requires: <String>[
+            'browser driver or bridge',
+            'geolocation permission',
+          ],
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.setClipboard,
+          plane: CockpitPlaneKind.hostPlane,
+          availability: CockpitSystemControlAvailability.blocked,
+          strategy: 'browser.clipboard.writeText',
+          requires: <String>[
+            'browser driver or bridge',
+            'clipboard permission',
+          ],
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.getClipboard,
+          plane: CockpitPlaneKind.hostPlane,
+          availability: CockpitSystemControlAvailability.blocked,
+          strategy: 'browser.clipboard.readText',
+          requires: <String>[
+            'browser driver or bridge',
+            'clipboard permission',
+          ],
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.captureScreenshot,

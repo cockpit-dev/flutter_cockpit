@@ -72,6 +72,16 @@ final class CockpitIosSystemControlAdapter
             ],
           ),
           const CockpitSystemControlCapability(
+            action: CockpitSystemControlAction.pressKey,
+            plane: CockpitPlaneKind.nativeUiPlane,
+            availability: CockpitSystemControlAvailability.blocked,
+            strategy: 'xctest.webdriveragent.key',
+            requires: <String>[
+              'booted simulator',
+              'XCTest/WebDriverAgent runner',
+            ],
+          ),
+          const CockpitSystemControlCapability(
             action: CockpitSystemControlAction.pressBack,
             plane: CockpitPlaneKind.deviceSystemPlane,
             availability: CockpitSystemControlAvailability.unsupported,
@@ -94,6 +104,13 @@ final class CockpitIosSystemControlAdapter
             plane: CockpitPlaneKind.deviceSystemPlane,
             availability: CockpitSystemControlAvailability.available,
             strategy: 'xcrun.simctl.launch',
+            requires: <String>['xcrun', 'simulator device id', 'app id'],
+          ),
+          CockpitSystemControlCapability(
+            action: CockpitSystemControlAction.terminateApp,
+            plane: CockpitPlaneKind.deviceSystemPlane,
+            availability: CockpitSystemControlAvailability.available,
+            strategy: 'xcrun.simctl.terminate',
             requires: <String>['xcrun', 'simulator device id', 'app id'],
           ),
           const CockpitSystemControlCapability(
@@ -120,6 +137,54 @@ final class CockpitIosSystemControlAdapter
             plane: CockpitPlaneKind.deviceSystemPlane,
             availability: CockpitSystemControlAvailability.available,
             strategy: 'xcrun.simctl.openurl',
+            requires: <String>['xcrun', 'simulator device id'],
+          ),
+          const CockpitSystemControlCapability(
+            action: CockpitSystemControlAction.setAppearance,
+            plane: CockpitPlaneKind.deviceSystemPlane,
+            availability: CockpitSystemControlAvailability.available,
+            strategy: 'xcrun.simctl.ui.appearance',
+            requires: <String>[
+              'xcrun',
+              'simulator device id',
+              'appearance mode',
+            ],
+          ),
+          const CockpitSystemControlCapability(
+            action: CockpitSystemControlAction.setContentSize,
+            plane: CockpitPlaneKind.deviceSystemPlane,
+            availability: CockpitSystemControlAvailability.available,
+            strategy: 'xcrun.simctl.ui.content_size',
+            requires: <String>[
+              'xcrun',
+              'simulator device id',
+              'content size category',
+            ],
+          ),
+          const CockpitSystemControlCapability(
+            action: CockpitSystemControlAction.setLocation,
+            plane: CockpitPlaneKind.deviceSystemPlane,
+            availability: CockpitSystemControlAvailability.available,
+            strategy: 'xcrun.simctl.location.set',
+            requires: <String>[
+              'xcrun',
+              'simulator device id',
+              'latitude',
+              'longitude',
+            ],
+          ),
+          const CockpitSystemControlCapability(
+            action: CockpitSystemControlAction.setClipboard,
+            plane: CockpitPlaneKind.deviceSystemPlane,
+            availability: CockpitSystemControlAvailability.available,
+            strategy: 'xcrun.simctl.pbcopy',
+            requires: <String>['xcrun', 'simulator device id'],
+          ),
+          const CockpitSystemControlCapability(
+            action: CockpitSystemControlAction.getClipboard,
+            plane: CockpitPlaneKind.deviceSystemPlane,
+            availability: CockpitSystemControlAvailability.available,
+            strategy: 'xcrun.simctl.pbpaste',
             requires: <String>['xcrun', 'simulator device id'],
           ),
           CockpitSystemControlCapability(
@@ -213,6 +278,13 @@ final class CockpitIosSystemControlAdapter
           requires: <String>['developer-signed XCTest/WebDriverAgent runner'],
         ),
         CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.pressKey,
+          plane: CockpitPlaneKind.nativeUiPlane,
+          availability: CockpitSystemControlAvailability.blocked,
+          strategy: 'xctest.webdriveragent.key',
+          requires: <String>['developer-signed XCTest/WebDriverAgent runner'],
+        ),
+        CockpitSystemControlCapability(
           action: CockpitSystemControlAction.pressBack,
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: CockpitSystemControlAvailability.unsupported,
@@ -236,6 +308,13 @@ final class CockpitIosSystemControlAdapter
           requires: <String>['developer signing and device launch tooling'],
         ),
         CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.terminateApp,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: CockpitSystemControlAvailability.blocked,
+          strategy: 'developer-device-terminate',
+          requires: <String>['developer signing and device process tooling'],
+        ),
+        CockpitSystemControlCapability(
           action: CockpitSystemControlAction.dismissSystemDialog,
           plane: CockpitPlaneKind.nativeUiPlane,
           availability: CockpitSystemControlAvailability.blocked,
@@ -257,6 +336,45 @@ final class CockpitIosSystemControlAdapter
           availability: CockpitSystemControlAvailability.blocked,
           strategy: 'developer-device-open-url',
           requires: <String>['developer signing and device URL tooling'],
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.setAppearance,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: CockpitSystemControlAvailability.blocked,
+          strategy: 'developer-device-appearance',
+          requires: <String>['developer signing and device appearance tooling'],
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.setContentSize,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: CockpitSystemControlAvailability.blocked,
+          strategy: 'developer-device-content-size',
+          requires: <String>[
+            'developer signing and device accessibility tooling',
+          ],
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.setLocation,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: CockpitSystemControlAvailability.blocked,
+          strategy: 'developer-device-location',
+          requires: <String>[
+            'developer signing and location simulation tooling',
+          ],
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.setClipboard,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: CockpitSystemControlAvailability.blocked,
+          strategy: 'developer-device-pasteboard',
+          requires: <String>['developer signing and device pasteboard tooling'],
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.getClipboard,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: CockpitSystemControlAvailability.blocked,
+          strategy: 'developer-device-pasteboard',
+          requires: <String>['developer signing and device pasteboard tooling'],
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.captureScreenshot,
@@ -339,6 +457,15 @@ final class CockpitIosSystemControlAdapter
           appId,
         ]),
       ),
+      CockpitSystemControlAction.terminateApp => _appScopedCommand(
+        request,
+        (appId) => CockpitResolvedSystemControlCommand('xcrun', <String>[
+          'simctl',
+          'terminate',
+          deviceId,
+          appId,
+        ]),
+      ),
       CockpitSystemControlAction.openUrl => cockpitTextCommand(
         request,
         'url',
@@ -349,6 +476,60 @@ final class CockpitIosSystemControlAdapter
           url,
         ]),
       ),
+      CockpitSystemControlAction.setAppearance => cockpitTextCommand(
+        request,
+        'appearance',
+        (appearance) => _iosSetAppearanceCommand(
+          appearance,
+          (mode) => CockpitResolvedSystemControlCommand('xcrun', <String>[
+            'simctl',
+            'ui',
+            deviceId,
+            'appearance',
+            mode,
+          ]),
+        ),
+      ),
+      CockpitSystemControlAction.setContentSize => cockpitTextCommand(
+        request,
+        'contentSize',
+        (contentSize) => CockpitResolvedSystemControlCommand('xcrun', <String>[
+          'simctl',
+          'ui',
+          deviceId,
+          'content_size',
+          contentSize,
+        ]),
+      ),
+      CockpitSystemControlAction.setLocation => cockpitLocationCommand(
+        request,
+        (latitude, longitude, altitude) {
+          return CockpitResolvedSystemControlCommand('xcrun', <String>[
+            'simctl',
+            'location',
+            deviceId,
+            'set',
+            '${_formatCoordinate(latitude)},${_formatCoordinate(longitude)}',
+          ]);
+        },
+      ),
+      CockpitSystemControlAction.setClipboard => cockpitTextCommand(
+        request,
+        'text',
+        (text) => CockpitResolvedSystemControlCommand('sh', <String>[
+          '-c',
+          r'printf "%s" "$2" | xcrun simctl pbcopy "$1"',
+          'flutter_cockpit_ios_clipboard',
+          deviceId,
+          text,
+        ]),
+      ),
+      CockpitSystemControlAction.getClipboard =>
+        CockpitResolvedSystemControlCommand('xcrun', <String>[
+          'simctl',
+          'pbpaste',
+          deviceId,
+        ]),
       CockpitSystemControlAction.captureScreenshot => cockpitTextCommand(
         request,
         'outputPath',
@@ -439,6 +620,31 @@ final class CockpitIosSystemControlAdapter
     return request.appId ??
         (request.parameters['appId'] as String?) ??
         (request.parameters['packageId'] as String?);
+  }
+
+  CockpitResolvedSystemControlCommand _iosSetAppearanceCommand(
+    String appearance,
+    CockpitResolvedSystemControlCommand Function(String mode) factory,
+  ) {
+    final mode = switch (appearance.trim().toLowerCase()) {
+      'dark' || 'night' => 'dark',
+      'light' || 'day' => 'light',
+      _ => null,
+    };
+    if (mode == null) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'invalidSystemActionParameter',
+        message: 'setAppearance requires appearance light or dark on iOS.',
+      );
+    }
+    return factory(mode);
+  }
+
+  String _formatCoordinate(double value) {
+    final text = value.toStringAsFixed(6);
+    return text
+        .replaceFirst(RegExp(r'0+$'), '')
+        .replaceFirst(RegExp(r'\.$'), '');
   }
 
   bool _looksLikeIosSimulatorDeviceId(String? deviceId) {

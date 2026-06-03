@@ -31,7 +31,30 @@ void main() {
     );
     expect(
       result.profile.availableActions,
+      contains(CockpitSystemControlAction.pressKey),
+    );
+    expect(
+      result.profile.availableActions,
+      contains(CockpitSystemControlAction.terminateApp),
+    );
+    expect(
+      result.profile.availableActions,
+      containsAll(<CockpitSystemControlAction>[
+        CockpitSystemControlAction.setAppearance,
+        CockpitSystemControlAction.setContentSize,
+        CockpitSystemControlAction.setLocation,
+      ]),
+    );
+    expect(
+      result.profile.availableActions,
       contains(CockpitSystemControlAction.captureScreenshot),
+    );
+    expect(
+      result.profile.blockedActions,
+      containsAll(<CockpitSystemControlAction>[
+        CockpitSystemControlAction.setClipboard,
+        CockpitSystemControlAction.getClipboard,
+      ]),
     );
     expect(
       result.profile
@@ -118,6 +141,12 @@ void main() {
         CockpitSystemControlAction.activateWindow,
         CockpitSystemControlAction.grantPermission,
         CockpitSystemControlAction.openUrl,
+        CockpitSystemControlAction.setAppearance,
+        CockpitSystemControlAction.setContentSize,
+        CockpitSystemControlAction.setLocation,
+        CockpitSystemControlAction.setClipboard,
+        CockpitSystemControlAction.getClipboard,
+        CockpitSystemControlAction.terminateApp,
         CockpitSystemControlAction.captureScreenshot,
         CockpitSystemControlAction.startRecording,
         CockpitSystemControlAction.stopRecording,
@@ -130,6 +159,7 @@ void main() {
       containsAll(<CockpitSystemControlAction>[
         CockpitSystemControlAction.tap,
         CockpitSystemControlAction.typeText,
+        CockpitSystemControlAction.pressKey,
         CockpitSystemControlAction.dismissSystemDialog,
         CockpitSystemControlAction.readUiTree,
       ]),
@@ -256,6 +286,16 @@ void main() {
       );
       expect(
         withTarget.profile.availableActions,
+        containsAll(<CockpitSystemControlAction>[
+          CockpitSystemControlAction.pressKey,
+          CockpitSystemControlAction.readUiTree,
+          CockpitSystemControlAction.setClipboard,
+          CockpitSystemControlAction.getClipboard,
+          CockpitSystemControlAction.terminateApp,
+        ]),
+      );
+      expect(
+        withTarget.profile.availableActions,
         contains(CockpitSystemControlAction.captureScreenshot),
       );
       expect(
@@ -300,7 +340,7 @@ void main() {
         withTarget.profile
             .capabilityFor(CockpitSystemControlAction.readUiTree)
             ?.requires,
-        contains('Accessibility tree dump helper'),
+        contains('Automation permission for System Events'),
       );
       expect(
         withTarget.profile
@@ -330,6 +370,10 @@ void main() {
         windowsProcessOnly.profile.availableActions,
         contains(CockpitSystemControlAction.captureScreenshot),
       );
+      expect(
+        windowsProcessOnly.profile.availableActions,
+        contains(CockpitSystemControlAction.readUiTree),
+      );
 
       final linuxWithTarget = await service.describe(
         const CockpitSystemControlDescribeRequest(
@@ -350,6 +394,10 @@ void main() {
         contains(
           'one screenshot tool: gnome-screenshot, grim, scrot, or import',
         ),
+      );
+      expect(
+        linuxWithTarget.profile.blockedActions,
+        contains(CockpitSystemControlAction.readUiTree),
       );
     },
   );
@@ -509,12 +557,32 @@ Map<String, Object?> _validParametersFor(CockpitSystemControlAction action) {
     CockpitSystemControlAction.typeText => const <String, Object?>{
       'text': 'hello',
     },
+    CockpitSystemControlAction.pressKey => const <String, Object?>{
+      'key': 'enter',
+    },
+    CockpitSystemControlAction.setClipboard => const <String, Object?>{
+      'text': 'hello clipboard',
+    },
+    CockpitSystemControlAction.getClipboard => const <String, Object?>{},
+    CockpitSystemControlAction.terminateApp => const <String, Object?>{
+      'packageId': 'dev.cockpit.example',
+    },
     CockpitSystemControlAction.grantPermission => const <String, Object?>{
       'packageId': 'dev.cockpit.example',
       'permission': 'android.permission.CAMERA',
     },
     CockpitSystemControlAction.openUrl => const <String, Object?>{
       'url': 'https://example.com',
+    },
+    CockpitSystemControlAction.setAppearance => const <String, Object?>{
+      'appearance': 'dark',
+    },
+    CockpitSystemControlAction.setContentSize => const <String, Object?>{
+      'contentSize': 'accessibility-large',
+    },
+    CockpitSystemControlAction.setLocation => const <String, Object?>{
+      'latitude': 37.3349,
+      'longitude': -122.009,
     },
     CockpitSystemControlAction.captureScreenshot => const <String, Object?>{
       'outputPath': '/tmp/cockpit-system-screenshot.png',

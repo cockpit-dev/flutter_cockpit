@@ -20,7 +20,7 @@ final class CockpitRunSystemActionTool extends CockpitMcpTool {
   @override
   CockpitMcpToolAnnotations get annotations => const CockpitMcpToolAnnotations(
     readOnly: false,
-    destructive: false,
+    destructive: true,
     idempotent: false,
     longRunning: false,
     requiresSession: false,
@@ -28,7 +28,7 @@ final class CockpitRunSystemActionTool extends CockpitMcpTool {
   );
 
   @override
-  Map<String, Object?> get inputSchema => const <String, Object?>{
+  Map<String, Object?> get inputSchema => <String, Object?>{
     'type': 'object',
     'required': <String>['platform', 'action'],
     'properties': <String, Object?>{
@@ -41,24 +41,9 @@ final class CockpitRunSystemActionTool extends CockpitMcpTool {
       'processId': <String, Object?>{'type': 'integer'},
       'action': <String, Object?>{
         'type': 'string',
-        'enum': <String>[
-          'tap',
-          'longPress',
-          'drag',
-          'typeText',
-          'pressBack',
-          'pressHome',
-          'activateWindow',
-          'dismissSystemDialog',
-          'grantPermission',
-          'openUrl',
-          'captureScreenshot',
-          'startRecording',
-          'stopRecording',
-          'readUiTree',
-          'readSystemState',
-          'runShell',
-        ],
+        'enum': CockpitSystemControlAction.values
+            .map((action) => action.name)
+            .toList(growable: false),
       },
       'parameters': <String, Object?>{'type': 'object'},
       'timeoutSeconds': <String, Object?>{'type': 'integer'},

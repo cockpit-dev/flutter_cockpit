@@ -137,6 +137,8 @@ jobs:
 
           assert "launch_app" in mcp_cli["toolNames"], mcp_cli
           assert "launch_target" in mcp_cli["toolNames"], mcp_cli
+          assert "read_system_capabilities" in mcp_cli["toolNames"], mcp_cli
+          assert "run_system_action" in mcp_cli["toolNames"], mcp_cli
           assert "validate_task" in mcp_cli["toolNames"], mcp_cli
 
           for key in (
@@ -182,6 +184,8 @@ jobs:
               "list_targets",
               "launch_app",
               "list_apps",
+              "read_system_capabilities",
+              "run_system_action_read_system_state",
               "apps_resource",
               "app_resource",
               "read_app",
@@ -217,6 +221,10 @@ jobs:
 
           assert app["validate_task"]["classification"] == "completed", app["validate_task"]
           assert app["runTask"]["classification"] == "completed", app["runTask"]
+          assert app["read_system_capabilities"]["adapter"] == "macos.accessibility+screencapture", app["read_system_capabilities"]
+          assert "readSystemState" in app["read_system_capabilities"]["availableActions"], app["read_system_capabilities"]
+          assert app["run_system_action_read_system_state"]["success"] is True, app["run_system_action_read_system_state"]
+          assert app["run_system_action_read_system_state"]["action"] == "readSystemState", app["run_system_action_read_system_state"]
           assert app["read_network"]["summary"]["failureCount"] == 0, app["read_network"]
           assert app["read_errors"]["errors"], app["read_errors"]
           assert app["stop_recording"]["artifact"]["relativePath"], app["stop_recording"]
@@ -343,6 +351,7 @@ jobs:
         env:
           EXPECTED_PLATFORM: android
           EXPECTED_RECORDING_DRIVER: adb
+          EXPECTED_SYSTEM_CONTROL_ADAPTER: android.adb
         run: |
           python3 - <<'PY'
           import json, os, pathlib
@@ -351,6 +360,8 @@ jobs:
               "launch-app",
               "read-app",
               "inspect-ui",
+              "read-system-capabilities",
+              "run-system-action:readSystemState",
               "run-batch",
               "start-recording",
               "stop-recording",
@@ -374,6 +385,9 @@ jobs:
           assert platform["platform"] == os.environ["EXPECTED_PLATFORM"], platform
           assert platform["status"] == "passed", platform
           assert platform["verifiedCommands"] == expected_commands, platform
+          assert platform["systemControlAdapter"] == os.environ["EXPECTED_SYSTEM_CONTROL_ADAPTER"], platform
+          assert "readSystemState" in platform["systemAvailableActions"], platform
+          assert platform["systemVerifiedActions"] == ["readSystemState"], platform
           assert platform["recordingDriver"] == os.environ["EXPECTED_RECORDING_DRIVER"], platform
           assert platform["batchCommandCount"] == 32, platform
           assert platform["autoScreenshotCount"] >= 19, platform
@@ -543,6 +557,7 @@ jobs:
         env:
           EXPECTED_PLATFORM: ios
           EXPECTED_RECORDING_DRIVER: simctl
+          EXPECTED_SYSTEM_CONTROL_ADAPTER: ios.simctl+xctest
         run: |
           python3 - <<'PY'
           import json, os, pathlib
@@ -551,6 +566,10 @@ jobs:
               "launch-app",
               "read-app",
               "inspect-ui",
+              "read-system-capabilities",
+              "run-system-action:readSystemState",
+              "run-system-action:setClipboard",
+              "run-system-action:getClipboard",
               "run-batch",
               "start-recording",
               "stop-recording",
@@ -574,6 +593,11 @@ jobs:
           assert platform["platform"] == os.environ["EXPECTED_PLATFORM"], platform
           assert platform["status"] == "passed", platform
           assert platform["verifiedCommands"] == expected_commands, platform
+          assert platform["systemControlAdapter"] == os.environ["EXPECTED_SYSTEM_CONTROL_ADAPTER"], platform
+          assert "readSystemState" in platform["systemAvailableActions"], platform
+          assert "setClipboard" in platform["systemAvailableActions"], platform
+          assert "getClipboard" in platform["systemAvailableActions"], platform
+          assert platform["systemVerifiedActions"] == ["readSystemState", "setClipboard", "getClipboard"], platform
           assert platform["recordingDriver"] == os.environ["EXPECTED_RECORDING_DRIVER"], platform
           assert platform["batchCommandCount"] == 32, platform
           assert platform["autoScreenshotCount"] >= 19, platform
@@ -677,6 +701,7 @@ jobs:
         env:
           EXPECTED_PLATFORM: macos
           EXPECTED_RECORDING_DRIVER: remote
+          EXPECTED_SYSTEM_CONTROL_ADAPTER: macos.accessibility+screencapture
         run: |
           python3 - <<'PY'
           import json, os, pathlib
@@ -685,6 +710,8 @@ jobs:
               "launch-app",
               "read-app",
               "inspect-ui",
+              "read-system-capabilities",
+              "run-system-action:readSystemState",
               "run-batch",
               "start-recording",
               "stop-recording",
@@ -708,6 +735,9 @@ jobs:
           assert platform["platform"] == os.environ["EXPECTED_PLATFORM"], platform
           assert platform["status"] == "passed", platform
           assert platform["verifiedCommands"] == expected_commands, platform
+          assert platform["systemControlAdapter"] == os.environ["EXPECTED_SYSTEM_CONTROL_ADAPTER"], platform
+          assert "readSystemState" in platform["systemAvailableActions"], platform
+          assert platform["systemVerifiedActions"] == ["readSystemState"], platform
           assert platform["recordingDriver"] == os.environ["EXPECTED_RECORDING_DRIVER"], platform
           assert platform["batchCommandCount"] == 32, platform
           assert platform["autoScreenshotCount"] >= 19, platform
@@ -815,6 +845,7 @@ jobs:
               "launch-app",
               "read-app",
               "inspect-ui",
+              "read-system-capabilities",
               "run-batch",
               "start-recording",
               "stop-recording",
@@ -852,6 +883,9 @@ jobs:
           platform = data["platforms"][0]
           assert platform["platform"] == os.environ["EXPECTED_PLATFORM"], platform
           assert platform["status"] == "passed", platform
+          assert platform["systemControlAdapter"] == "browser.dom+host-recording", platform
+          assert platform.get("systemAvailableActions", []) == [], platform
+          assert platform.get("systemVerifiedActions", []) == [], platform
           verified_commands = platform["verifiedCommands"]
           if platform["recordingDriver"] == "browser-host":
               assert verified_commands == expected_commands, platform
@@ -984,6 +1018,7 @@ jobs:
         env:
           EXPECTED_PLATFORM: linux
           EXPECTED_RECORDING_DRIVER: remote
+          EXPECTED_SYSTEM_CONTROL_ADAPTER: linux.at-spi+x11+portal
         run: |
           python3 - <<'PY'
           import json, os, pathlib
@@ -992,6 +1027,8 @@ jobs:
               "launch-app",
               "read-app",
               "inspect-ui",
+              "read-system-capabilities",
+              "run-system-action:readSystemState",
               "run-batch",
               "start-recording",
               "stop-recording",
@@ -1015,6 +1052,9 @@ jobs:
           assert platform["platform"] == os.environ["EXPECTED_PLATFORM"], platform
           assert platform["status"] == "passed", platform
           assert platform["verifiedCommands"] == expected_commands, platform
+          assert platform["systemControlAdapter"] == os.environ["EXPECTED_SYSTEM_CONTROL_ADAPTER"], platform
+          assert "readSystemState" in platform["systemAvailableActions"], platform
+          assert platform["systemVerifiedActions"] == ["readSystemState"], platform
           assert platform["recordingDriver"] == os.environ["EXPECTED_RECORDING_DRIVER"], platform
           assert platform["batchCommandCount"] == 32, platform
           assert platform["autoScreenshotCount"] >= 19, platform
@@ -1219,6 +1259,7 @@ jobs:
         env:
           EXPECTED_PLATFORM: windows
           EXPECTED_RECORDING_DRIVER: remote
+          EXPECTED_SYSTEM_CONTROL_ADAPTER: windows.uia+sendinput
         run: |
           python - <<'PY'
           import json, os, pathlib
@@ -1227,6 +1268,8 @@ jobs:
               "launch-app",
               "read-app",
               "inspect-ui",
+              "read-system-capabilities",
+              "run-system-action:readSystemState",
               "run-batch",
               "start-recording",
               "stop-recording",
@@ -1250,6 +1293,9 @@ jobs:
           assert platform["platform"] == os.environ["EXPECTED_PLATFORM"], platform
           assert platform["status"] == "passed", platform
           assert platform["verifiedCommands"] == expected_commands, platform
+          assert platform["systemControlAdapter"] == os.environ["EXPECTED_SYSTEM_CONTROL_ADAPTER"], platform
+          assert "readSystemState" in platform["systemAvailableActions"], platform
+          assert platform["systemVerifiedActions"] == ["readSystemState"], platform
           assert platform["recordingDriver"] == os.environ["EXPECTED_RECORDING_DRIVER"], platform
           assert platform["batchCommandCount"] == 32, platform
           assert platform["autoScreenshotCount"] >= 19, platform

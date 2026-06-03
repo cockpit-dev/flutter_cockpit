@@ -454,9 +454,50 @@ final class _McpSurfaceVerifier {
             'launchTimeoutSeconds': 150,
             'appJson': appJsonPath,
           });
-      appId =
-          ((launchResult['app'] as Map<String, Object?>)['appId'] as String?)!;
+      final launchedApp = Map<String, Object?>.from(
+        launchResult['app']! as Map<Object?, Object?>,
+      );
+      appId = launchedApp['appId']! as String;
+      final platformAppId = launchedApp['platformAppId'] as String?;
+      final processId = launchedApp['processId'] as int?;
       appReport['launch_app'] = launchResult;
+      final systemCapabilities =
+          await _callTool(server, 'read_system_capabilities', <String, Object?>{
+            'platform': 'macos',
+            'deviceId': 'macos',
+            'appId': ?platformAppId,
+            'processId': ?processId,
+          });
+      appReport['read_system_capabilities'] = systemCapabilities;
+      final availableSystemActions =
+          (systemCapabilities['availableActions'] as List<Object?>?)
+              ?.cast<String>() ??
+          const <String>[];
+      if (systemCapabilities['adapter'] !=
+              'macos.accessibility+screencapture' ||
+          !availableSystemActions.contains('readSystemState')) {
+        throw StateError(
+          'MCP read_system_capabilities did not expose macOS system state: '
+          '${jsonEncode(systemCapabilities)}',
+        );
+      }
+      final systemStateResult =
+          await _callTool(server, 'run_system_action', <String, Object?>{
+            'platform': 'macos',
+            'deviceId': 'macos',
+            'appId': ?platformAppId,
+            'processId': ?processId,
+            'action': 'readSystemState',
+            'timeoutSeconds': 15,
+          });
+      appReport['run_system_action_read_system_state'] = systemStateResult;
+      if (systemStateResult['success'] != true ||
+          systemStateResult['action'] != 'readSystemState') {
+        throw StateError(
+          'MCP run_system_action readSystemState failed: '
+          '${jsonEncode(systemStateResult)}',
+        );
+      }
       appReport['list_apps'] = await _callTool(
         server,
         'list_apps',
@@ -1264,6 +1305,8 @@ int   sum( int left,int right ){return left+right;}
               .toList(growable: false);
       if (!toolNames.contains('launch_app') ||
           !toolNames.contains('launch_target') ||
+          !toolNames.contains('read_system_capabilities') ||
+          !toolNames.contains('run_system_action') ||
           !toolNames.contains('validate_task')) {
         throw StateError('serve-mcp did not expose the expected tool surface.');
       }

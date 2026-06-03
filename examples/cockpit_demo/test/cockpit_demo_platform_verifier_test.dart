@@ -99,6 +99,8 @@ void main() {
     () async {
       final invocations = <String>[];
       final verifier = CockpitDemoPlatformVerifier(
+        describeSystemControl: _fakeDescribeSystemControl,
+        runSystemAction: _fakeRunSystemAction,
         probeDevices: () async => const <CockpitDemoHostDevice>[],
         listIosSimulators: () async => const <CockpitDemoIosSimulator>[],
         runProcess: (executable, arguments, {String? workingDirectory}) async {
@@ -178,6 +180,7 @@ void main() {
       final readLogsRequests = <CockpitReadLogsRequest>[];
       final recordingResolverPlatforms = <String>[];
       final recordingRequests = <CockpitRecordingRequest>[];
+      final systemActionRequests = <CockpitSystemControlActionRequest>[];
       var recordingStopCount = 0;
       final hotRestartRequests = <CockpitHotRestartRequest>[];
       final stopRequests = <CockpitStopAppRequest>[];
@@ -610,6 +613,11 @@ void main() {
             status: CockpitAppStopStatus.stopped(mode: request.app!.mode),
           );
         },
+        describeSystemControl: _fakeDescribeSystemControl,
+        runSystemAction: (request) async {
+          systemActionRequests.add(request);
+          return _fakeRunSystemAction(request);
+        },
       );
 
       final result = await verifier.verify(
@@ -864,6 +872,40 @@ void main() {
         <String>['remote', 'simctl', 'adb', 'remote', 'remote', 'browser-host'],
       );
       expect(
+        result.platforms.map((platform) => platform.systemControlAdapter),
+        <String>[
+          'macos.accessibility+screencapture',
+          'ios.simctl+xctest',
+          'android.adb',
+          'linux.at-spi+x11+portal',
+          'windows.uia+sendinput',
+          'browser.dom+host-recording',
+        ],
+      );
+      expect(
+        result.platforms.map((platform) => platform.systemVerifiedActions),
+        <List<String>>[
+          <String>['readSystemState'],
+          <String>['readSystemState', 'setClipboard', 'getClipboard'],
+          <String>['readSystemState'],
+          <String>['readSystemState'],
+          <String>['readSystemState'],
+          <String>[],
+        ],
+      );
+      expect(
+        systemActionRequests.map((request) => request.action.name),
+        <String>[
+          'readSystemState',
+          'readSystemState',
+          'setClipboard',
+          'getClipboard',
+          'readSystemState',
+          'readSystemState',
+          'readSystemState',
+        ],
+      );
+      expect(
         result.platforms.map((platform) => platform.screenshotArtifactRef),
         everyElement(startsWith('screenshots/')),
       );
@@ -871,6 +913,8 @@ void main() {
         'launch-app',
         'read-app',
         'inspect-ui',
+        'read-system-capabilities',
+        'run-system-action:readSystemState',
         'run-batch',
         'start-recording',
         'stop-recording',
@@ -1044,6 +1088,8 @@ void main() {
       );
 
       final verifier = CockpitDemoPlatformVerifier(
+        describeSystemControl: _fakeDescribeSystemControl,
+        runSystemAction: _fakeRunSystemAction,
         probeDevices: () async => const <CockpitDemoHostDevice>[
           CockpitDemoHostDevice(
             name: 'Windows',
@@ -1153,6 +1199,8 @@ void main() {
     final recordingFile = await _createRecordingArtifact();
     var currentRoute = '/inbox';
     final verifier = CockpitDemoPlatformVerifier(
+      describeSystemControl: _fakeDescribeSystemControl,
+      runSystemAction: _fakeRunSystemAction,
       probeDevices: () async => const <CockpitDemoHostDevice>[
         CockpitDemoHostDevice(
           name: 'macOS',
@@ -1393,6 +1441,8 @@ void main() {
       var assertNewTaskAttempts = 0;
       var createBatchAttempts = 0;
       final verifier = CockpitDemoPlatformVerifier(
+        describeSystemControl: _fakeDescribeSystemControl,
+        runSystemAction: _fakeRunSystemAction,
         probeDevices: () async => const <CockpitDemoHostDevice>[
           CockpitDemoHostDevice(
             name: 'macOS',
@@ -1721,6 +1771,8 @@ void main() {
   test('verifier does not retry side-effecting command batches', () async {
     var batchAttempts = 0;
     final verifier = CockpitDemoPlatformVerifier(
+      describeSystemControl: _fakeDescribeSystemControl,
+      runSystemAction: _fakeRunSystemAction,
       probeDevices: () async => const <CockpitDemoHostDevice>[
         CockpitDemoHostDevice(
           name: 'macOS',
@@ -1835,6 +1887,8 @@ void main() {
       }
     });
     final verifier = CockpitDemoPlatformVerifier(
+      describeSystemControl: _fakeDescribeSystemControl,
+      runSystemAction: _fakeRunSystemAction,
       probeDevices: () async => const <CockpitDemoHostDevice>[
         CockpitDemoHostDevice(
           name: 'macOS',
@@ -2064,6 +2118,8 @@ void main() {
     'verifier fails when completed recording evidence is unavailable',
     () async {
       final verifier = CockpitDemoPlatformVerifier(
+        describeSystemControl: _fakeDescribeSystemControl,
+        runSystemAction: _fakeRunSystemAction,
         probeDevices: () async => const <CockpitDemoHostDevice>[
           CockpitDemoHostDevice(
             name: 'macOS',
@@ -2181,6 +2237,8 @@ void main() {
 
   test('verifier persists inline recording bytes as evidence', () async {
     final verifier = CockpitDemoPlatformVerifier(
+      describeSystemControl: _fakeDescribeSystemControl,
+      runSystemAction: _fakeRunSystemAction,
       probeDevices: () async => const <CockpitDemoHostDevice>[
         CockpitDemoHostDevice(
           name: 'macOS',
@@ -2304,6 +2362,8 @@ void main() {
   test('verifier exports automatic key-step screenshots as files', () async {
     final recordingFile = await _createRecordingArtifact();
     final verifier = CockpitDemoPlatformVerifier(
+      describeSystemControl: _fakeDescribeSystemControl,
+      runSystemAction: _fakeRunSystemAction,
       probeDevices: () async => const <CockpitDemoHostDevice>[
         CockpitDemoHostDevice(
           name: 'macOS',
@@ -2441,6 +2501,8 @@ void main() {
   test('verifier fails when screenshot evidence is empty', () async {
     final recordingFile = await _createRecordingArtifact();
     final verifier = CockpitDemoPlatformVerifier(
+      describeSystemControl: _fakeDescribeSystemControl,
+      runSystemAction: _fakeRunSystemAction,
       probeDevices: () async => const <CockpitDemoHostDevice>[
         CockpitDemoHostDevice(
           name: 'macOS',
@@ -2563,6 +2625,8 @@ void main() {
     () async {
       final recordingFile = await _createRecordingArtifact();
       final verifier = CockpitDemoPlatformVerifier(
+        describeSystemControl: _fakeDescribeSystemControl,
+        runSystemAction: _fakeRunSystemAction,
         probeDevices: () async => const <CockpitDemoHostDevice>[
           CockpitDemoHostDevice(
             name: 'macOS',
@@ -2705,6 +2769,8 @@ void main() {
         }
       });
       final verifier = CockpitDemoPlatformVerifier(
+        describeSystemControl: _fakeDescribeSystemControl,
+        runSystemAction: _fakeRunSystemAction,
         probeDevices: () async => const <CockpitDemoHostDevice>[
           CockpitDemoHostDevice(
             name: 'Chrome',
@@ -2913,6 +2979,7 @@ void main() {
         'launch-app',
         'read-app',
         'inspect-ui',
+        'read-system-capabilities',
         'run-batch',
         'wait-idle',
         'sync_lab_conflict_recovery',
@@ -2951,6 +3018,8 @@ void main() {
         }
       });
       final verifier = CockpitDemoPlatformVerifier(
+        describeSystemControl: _fakeDescribeSystemControl,
+        runSystemAction: _fakeRunSystemAction,
         probeDevices: () async => const <CockpitDemoHostDevice>[
           CockpitDemoHostDevice(
             name: 'Chrome',
@@ -3434,6 +3503,72 @@ CockpitHotRestartResult _successfulHotRestart(CockpitAppHandle app) {
       lastReloadSucceeded: true,
       lastStatusAt: DateTime.utc(2026, 4, 12, 0, 0, 1),
     ),
+  );
+}
+
+String? _fakeSystemClipboardText;
+
+Future<CockpitSystemControlDescribeResult> _fakeDescribeSystemControl(
+  CockpitSystemControlDescribeRequest request,
+) {
+  return const CockpitSystemControlService().describe(request);
+}
+
+Future<CockpitSystemControlActionResult> _fakeRunSystemAction(
+  CockpitSystemControlActionRequest request,
+) async {
+  final describe = await _fakeDescribeSystemControl(
+    CockpitSystemControlDescribeRequest(
+      platform: request.platform,
+      deviceId: request.deviceId,
+      appId: request.appId,
+      processId: request.processId,
+    ),
+  );
+  final capability = describe.profile.capabilityFor(request.action);
+  final availability =
+      capability?.availability ?? CockpitSystemControlAvailability.unsupported;
+  if (availability != CockpitSystemControlAvailability.available) {
+    return CockpitSystemControlActionResult(
+      platform: request.platform,
+      deviceId: request.deviceId,
+      appId: request.appId,
+      processId: request.processId,
+      action: request.action,
+      availability: availability,
+      success: false,
+      recommendedNextStep: 'readSystemCapabilities',
+      errorCode: 'systemActionNotAvailable',
+      errorMessage: '${request.action.name} is not available in this test.',
+      strategy: capability?.strategy,
+      requires: capability?.requires ?? const <String>[],
+      limitations: capability?.limitations ?? const <String>[],
+    );
+  }
+
+  String? stdout;
+  if (request.action == CockpitSystemControlAction.setClipboard) {
+    _fakeSystemClipboardText = request.parameters['text'] as String?;
+  } else if (request.action == CockpitSystemControlAction.getClipboard) {
+    stdout = _fakeSystemClipboardText ?? '';
+  } else if (request.action == CockpitSystemControlAction.readSystemState) {
+    stdout = 'fake ${request.platform} system state';
+  }
+
+  return CockpitSystemControlActionResult(
+    platform: request.platform,
+    deviceId: request.deviceId,
+    appId: request.appId,
+    processId: request.processId,
+    action: request.action,
+    availability: availability,
+    success: true,
+    command: <String>['fake-system-control', request.action.name],
+    stdout: stdout,
+    recommendedNextStep: 'readPostActionState',
+    strategy: capability?.strategy,
+    requires: capability?.requires ?? const <String>[],
+    limitations: capability?.limitations ?? const <String>[],
   );
 }
 

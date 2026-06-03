@@ -84,6 +84,19 @@ void main() {
     expect(workflow, contains('dart run tool/verify_mcp_surface.dart'));
     expect(
       workflow,
+      contains('"read_system_capabilities" in mcp_cli["toolNames"]'),
+    );
+    expect(workflow, contains('"run_system_action" in mcp_cli["toolNames"]'));
+    expect(workflow, contains('"read_system_capabilities",'));
+    expect(workflow, contains('"run_system_action_read_system_state",'));
+    expect(
+      workflow,
+      contains(
+        'app["run_system_action_read_system_state"]["action"] == "readSystemState"',
+      ),
+    );
+    expect(
+      workflow,
       contains('working-directory: packages/flutter_cockpit_devtools'),
     );
     expect(workflow, contains(r'STATUS=${PIPESTATUS[0]}'));
@@ -150,10 +163,51 @@ void main() {
 
   test('runtime loop command assertions track full verifier output', () {
     final workflow = workflowFile.readAsStringSync();
-    final fullExpectedCommands = <String>[
+    final commonExpectedCommands = <String>[
       'launch-app',
       'read-app',
       'inspect-ui',
+      'read-system-capabilities',
+      'run-system-action:readSystemState',
+      'run-batch',
+      'start-recording',
+      'stop-recording',
+      'wait-idle',
+      'sync_lab_conflict_recovery',
+      'read-network',
+      'read-errors',
+      'read-logs',
+      'inspect-surface',
+      'capture-screenshot',
+      'hot-reload',
+      'hot-restart',
+    ];
+    final iosExpectedCommands = <String>[
+      'launch-app',
+      'read-app',
+      'inspect-ui',
+      'read-system-capabilities',
+      'run-system-action:readSystemState',
+      'run-system-action:setClipboard',
+      'run-system-action:getClipboard',
+      'run-batch',
+      'start-recording',
+      'stop-recording',
+      'wait-idle',
+      'sync_lab_conflict_recovery',
+      'read-network',
+      'read-errors',
+      'read-logs',
+      'inspect-surface',
+      'capture-screenshot',
+      'hot-reload',
+      'hot-restart',
+    ];
+    final webExpectedCommands = <String>[
+      'launch-app',
+      'read-app',
+      'inspect-ui',
+      'read-system-capabilities',
       'run-batch',
       'start-recording',
       'stop-recording',
@@ -170,13 +224,12 @@ void main() {
 
     for (final jobName in <String>[
       'android-runtime-loop',
-      'ios-runtime-loop',
       'macos-runtime-loop',
       'linux-runtime-loop',
       'windows-runtime-loop',
     ]) {
       final block = _workflowJobBlock(workflow, jobName);
-      for (final command in fullExpectedCommands) {
+      for (final command in commonExpectedCommands) {
         expect(
           block,
           contains('"$command"'),
@@ -187,7 +240,33 @@ void main() {
         block,
         contains('assert platform["verifiedCommands"] == expected_commands'),
       );
+      expect(block, contains('EXPECTED_SYSTEM_CONTROL_ADAPTER'));
+      expect(block, contains('platform["systemControlAdapter"]'));
+      expect(
+        block,
+        contains('"readSystemState" in platform["systemAvailableActions"]'),
+      );
+      expect(
+        block,
+        contains('platform["systemVerifiedActions"] == ["readSystemState"]'),
+      );
     }
+
+    final iosBlock = _workflowJobBlock(workflow, 'ios-runtime-loop');
+    for (final command in iosExpectedCommands) {
+      expect(
+        iosBlock,
+        contains('"$command"'),
+        reason: 'ios-runtime-loop must assert the verifier command "$command".',
+      );
+    }
+    expect(iosBlock, contains('ios.simctl+xctest'));
+    expect(
+      iosBlock,
+      contains(
+        'platform["systemVerifiedActions"] == ["readSystemState", "setClipboard", "getClipboard"]',
+      ),
+    );
 
     final webBlock = _workflowJobBlock(workflow, 'web-runtime-loop');
     expect(
@@ -197,7 +276,16 @@ void main() {
     expect(webBlock, contains('assert verified_commands == expected_commands'));
     expect(webBlock, contains('startup_fallback_commands'));
     expect(webBlock, contains('stop_fallback_commands'));
-    for (final command in fullExpectedCommands) {
+    expect(webBlock, contains('platform["systemControlAdapter"]'));
+    expect(
+      webBlock,
+      contains('platform.get("systemAvailableActions", []) == []'),
+    );
+    expect(
+      webBlock,
+      contains('platform.get("systemVerifiedActions", []) == []'),
+    );
+    for (final command in webExpectedCommands) {
       expect(
         webBlock,
         contains('"$command"'),
