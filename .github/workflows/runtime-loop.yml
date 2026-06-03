@@ -27,7 +27,7 @@ jobs:
     timeout-minutes: 40
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: subosito/flutter-action@v2
         with:
@@ -70,7 +70,7 @@ jobs:
     timeout-minutes: 90
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: subosito/flutter-action@v2
         with:
@@ -243,7 +243,7 @@ jobs:
 
       - name: Upload MCP surface artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: macos-mcp-surface
           retention-days: 14
@@ -260,9 +260,9 @@ jobs:
     timeout-minutes: 85
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -416,7 +416,7 @@ jobs:
 
       - name: Upload Android runtime loop bundle
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: android-runtime-loop-bundle
           retention-days: 14
@@ -432,7 +432,7 @@ jobs:
     timeout-minutes: 100
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: subosito/flutter-action@v2
         with:
@@ -632,7 +632,7 @@ jobs:
 
       - name: Upload iOS runtime loop bundle
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ios-runtime-loop-bundle
           retention-days: 14
@@ -648,7 +648,7 @@ jobs:
     timeout-minutes: 60
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: subosito/flutter-action@v2
         with:
@@ -774,7 +774,7 @@ jobs:
 
       - name: Upload macOS runtime loop bundle
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: macos-runtime-loop-bundle
           retention-days: 14
@@ -790,7 +790,7 @@ jobs:
     timeout-minutes: 60
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: subosito/flutter-action@v2
         with:
@@ -934,7 +934,7 @@ jobs:
 
       - name: Upload web runtime loop bundle
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: web-runtime-loop-bundle
           retention-days: 14
@@ -950,7 +950,7 @@ jobs:
     timeout-minutes: 60
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: subosito/flutter-action@v2
         with:
@@ -1093,7 +1093,7 @@ jobs:
 
       - name: Upload Linux runtime loop bundle
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: linux-runtime-loop-bundle
           retention-days: 14
@@ -1109,7 +1109,7 @@ jobs:
     timeout-minutes: 80
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: subosito/flutter-action@v2
         with:
@@ -1336,7 +1336,7 @@ jobs:
 
       - name: Upload Windows runtime loop bundle
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: windows-runtime-loop-bundle
           retention-days: 14
