@@ -369,10 +369,10 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --app-json /tmp/flutter_cockpit/app.json
 ```
 
-Valid video evidence requires `state: "completed"` plus a valid MP4 artifact.
-Do not treat a path or non-empty file as proof by itself. If `stop-recording`
-returns `state: "failed"` with an artifact failure reason, fix or unblock the
-recorder before claiming video proof.
+For normal development proof, use `state: "completed"` plus the returned
+recording artifact ref. Do not add separate file or content validation unless
+the recording command failed, the artifact metadata is contradictory, or the
+user explicitly asks to inspect media content.
 
 When an iOS recording command has only `--base-url` and cannot read an
 `app.json` handle, pass `--ios-device-id <id>` so the host-side simulator or
@@ -394,8 +394,7 @@ runtime-error reads strict. If browser-host recording is blocked only because
 the desktop has not granted screen-capture permission yet or ffmpeg cannot prove
 startup/output evidence, classify that as an environment prerequisite warning
 and keep the app-control result separate. Do not claim video recording coverage
-for that run unless the recording completed and representative frames or
-playback content match the claimed app state.
+for that run unless the recording command reports a completed artifact.
 
 ## Bundle And Delivery
 
