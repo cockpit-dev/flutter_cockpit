@@ -161,6 +161,21 @@ final class RunSystemActionCommand extends CockpitCliCommand {
         allowed: const <String>['acceptance', 'repro'],
         help: 'Recording purpose for startRecording.',
       )
+      ..addOption(
+        'mode',
+        allowed: const <String>['auto', 'cheap', 'native', 'full'],
+        help: 'Recording mode for startRecording.',
+      )
+      ..addOption(
+        'layer',
+        allowed: const <String>[
+          'flutter',
+          'app-window',
+          'host-screen',
+          'system',
+        ],
+        help: 'Recording layer for startRecording.',
+      )
       ..addMultiOption('arg', help: 'Repeatable command argument for runShell.')
       ..addOption(
         'parameters-json',
@@ -207,7 +222,7 @@ final class RunSystemActionCommand extends CockpitCliCommand {
 
   @override
   String get helpShape =>
-      'Prefer explicit flags for common actions: --x/--y for tap, --text for typeText or setClipboard, --key for pressKey, --url for openUrl, --appearance, --content-size, --orientation, --network-speed, --network-delay, --time/--battery-level for iOS status bar, --output-path for capture/recording, repeated --arg for runShell. Use --parameters-json only for less common payloads.';
+      'Prefer explicit flags for common actions: --x/--y for tap, --text for typeText or setClipboard, --key for pressKey, --url for openUrl, --appearance, --content-size, --orientation, --network-speed, --network-delay, --time/--battery-level for iOS status bar, --name/--output-path/--purpose/--mode/--layer for capture and recording, repeated --arg for runShell. Use --parameters-json only for less common payloads.';
 
   @override
   String get helpExample =>
@@ -317,6 +332,8 @@ final class RunSystemActionCommand extends CockpitCliCommand {
     addString('output-path', 'outputPath');
     addString('name', 'name');
     addString('purpose', 'purpose');
+    addString('mode', 'mode');
+    addString('layer', 'layer');
     final args = argResults?['arg'] as List<String>? ?? const <String>[];
     if (args.isNotEmpty) {
       parameters['command'] = args;

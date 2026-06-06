@@ -97,11 +97,18 @@ surface:
 
 1. `read-system-capabilities --platform <platform> ...`
 2. run only actions reported as `available` with `run-system-action`
-3. use direct flags for common setup: `--appearance`, `--content-size`,
+3. use the returned `parameters` contract instead of guessing payload keys
+4. use direct flags for common setup: `--appearance`, `--content-size`,
    `--font-scale`, `--latitude/--longitude`, `--orientation`,
    `--network-speed`, `--network-delay`, status-bar flags, and
-   `--max-depth/--max-nodes`
-4. read post-action app, target, or system state before judging the result
+   `--max-depth/--max-nodes`; use `--name`, `--purpose`, `--mode`, `--layer`,
+   and `--output-path` for system screenshots and recordings
+5. read post-action app, target, or system state before judging the result
+
+Default AI-readable capability rows include compact parameter metadata such as
+`parameters=[x*:integer | wifiBars:integer[0..3] | appearance*:string(light|dark)]`.
+JSON output includes the same contract as structured `parameters` entries with
+`required`, `valueType`, `allowedValues`, `minimum`, and `maximum`.
 
 Recommended code-side loop:
 

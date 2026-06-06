@@ -118,6 +118,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools read-system-capabilit
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-system-action --platform <platform> [--device-id <device-or-simulator-id>] [--app-id <app-id>] [--process-id <pid>] --action <available-action>
 ```
 
+Use `parameters=[name*:type[range](allowed|values)]` for payloads; `*` means required. Do not guess payload keys.
 Desktop coordinates use screen pixels. Targeted actions need `--app-id` or `--process-id`. If an action is not `available`, follow its requirement/fallback or report `blocked_by_environment`.
 
 Acceptance, release readiness, or artifact-backed handoff:
@@ -149,7 +150,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools validate-task --confi
 ## Other Surfaces
 
 - Target-first: `launch-target --target-json <file>` -> `read-target --profile minimal` -> `inspect-surface` only when needed.
-- Native/System Control Plane: `read-system-capabilities` first, then `run-system-action` only for actions reported as `available`; always read post-action state after system actions.
+- Native/System Control Plane: `read-system-capabilities` first, then `run-system-action` only for actions reported as `available` using the returned `parameters` contract; always read post-action state after system actions.
 - Persistent development: `launch-development-session` -> `collect-development-probe --profile quick` -> edit -> `reload-development-session --mode hot_reload` -> collect or compare probe. Use the app handle for screenshots and recording.
 - MCP is equivalent to CLI when the host provides it. Use roots-aware MCP for adjacent packages, persisted app discovery, or task-bundle summary reads.
 - Code-side facts before broad tools: `grep-package-uris`, `read-package-uris`, `pub`, `lsp`, `analyze-files`, `run-tests`.

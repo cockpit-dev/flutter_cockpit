@@ -133,6 +133,16 @@ void main() {
       contract,
       contains('platform capabilities must be read from returned metadata'),
     );
+    expect(
+      contract.toLowerCase(),
+      contains(
+        'action parameter contracts must be read from returned metadata',
+      ),
+    );
+    expect(
+      contract,
+      contains('parameters=[name*:type[range](allowed|values)]'),
+    );
 
     expect(skill, contains('Default to app-first'));
     expect(skill, contains('Default to rapid development validation'));
@@ -204,6 +214,8 @@ void main() {
         'read capabilities before choosing shell, recording, browser, or native paths',
       ),
     );
+    expect(skill, contains('parameters=[name*:type[range](allowed|values)]'));
+    expect(skill, contains('Do not guess payload keys'));
     expect(
       skill,
       contains(
@@ -288,6 +300,8 @@ void main() {
     expect(cliReference, contains('discovery returns real values'));
     expect(cliReference, contains('--platform <platform-from-list-targets>'));
     expect(cliReference, contains('--device-id <device-id-from-list-targets>'));
+    expect(cliReference, contains('parameters=[x*:integer'));
+    expect(cliReference, contains('capabilities[].parameters[]'));
     expect(cliReference, isNot(contains('--output-json')));
     expect(cliReference, isNot(contains('--output-ai')));
 

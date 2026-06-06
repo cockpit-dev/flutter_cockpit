@@ -2,6 +2,7 @@ import 'package:flutter_cockpit/flutter_cockpit.dart';
 
 import '../cockpit_system_control_action.dart';
 import '../cockpit_system_control_adapter.dart';
+import '../cockpit_system_control_parameters.dart';
 import '../cockpit_system_control_profile.dart';
 
 final class CockpitAndroidSystemControlAdapter
@@ -45,6 +46,7 @@ final class CockpitAndroidSystemControlAdapter
           strategy: 'adb.shell.input.tap',
           requires: <String>['adb', 'device id'],
           limitations: <String>['coordinate input has no semantic locator'],
+          parameters: CockpitSystemControlParameterSets.coordinate,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.longPress,
@@ -53,6 +55,7 @@ final class CockpitAndroidSystemControlAdapter
           strategy: 'adb.shell.input.swipe.hold',
           requires: <String>['adb', 'device id'],
           limitations: <String>['coordinate input has no semantic locator'],
+          parameters: CockpitSystemControlParameterSets.longPress,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.drag,
@@ -60,6 +63,7 @@ final class CockpitAndroidSystemControlAdapter
           availability: availability,
           strategy: 'adb.shell.input.swipe',
           requires: <String>['adb', 'device id'],
+          parameters: CockpitSystemControlParameterSets.drag,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.typeText,
@@ -68,6 +72,7 @@ final class CockpitAndroidSystemControlAdapter
           strategy: 'adb.shell.input.text',
           requires: <String>['adb', 'device id'],
           limitations: <String>['text must be escaped for adb input'],
+          parameters: CockpitSystemControlParameterSets.text,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.pressKey,
@@ -75,6 +80,7 @@ final class CockpitAndroidSystemControlAdapter
           availability: availability,
           strategy: 'adb.shell.input.keyevent',
           requires: <String>['adb', 'device id', 'key name'],
+          parameters: CockpitSystemControlParameterSets.key,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.pressBack,
@@ -96,6 +102,7 @@ final class CockpitAndroidSystemControlAdapter
           availability: availability,
           strategy: 'adb.shell.monkey.launcher',
           requires: <String>['adb', 'device id', 'package id'],
+          parameters: CockpitSystemControlParameterSets.androidApp,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.terminateApp,
@@ -103,6 +110,7 @@ final class CockpitAndroidSystemControlAdapter
           availability: availability,
           strategy: 'adb.shell.am.force-stop',
           requires: <String>['adb', 'device id', 'package id'],
+          parameters: CockpitSystemControlParameterSets.androidApp,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.dismissSystemDialog,
@@ -121,6 +129,7 @@ final class CockpitAndroidSystemControlAdapter
           availability: availability,
           strategy: 'adb.shell.pm.grant',
           requires: <String>['adb', 'package id', 'permission name'],
+          parameters: CockpitSystemControlParameterSets.androidGrantPermission,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.openUrl,
@@ -128,6 +137,7 @@ final class CockpitAndroidSystemControlAdapter
           availability: availability,
           strategy: 'adb.shell.am.start.VIEW',
           requires: <String>['adb', 'device id'],
+          parameters: CockpitSystemControlParameterSets.url,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.setAppearance,
@@ -138,6 +148,7 @@ final class CockpitAndroidSystemControlAdapter
           limitations: <String>[
             'Uses Android UiModeManager night mode; OEM behavior can vary.',
           ],
+          parameters: CockpitSystemControlParameterSets.androidAppearance,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.setContentSize,
@@ -148,6 +159,7 @@ final class CockpitAndroidSystemControlAdapter
           limitations: <String>[
             'Applies the system font scale and can affect all apps on the device.',
           ],
+          parameters: CockpitSystemControlParameterSets.androidContentSize,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.setLocation,
@@ -163,6 +175,7 @@ final class CockpitAndroidSystemControlAdapter
           limitations: <String>[
             'adb emu geo fix is emulator-only; physical devices require app-specific mock-location setup.',
           ],
+          parameters: CockpitSystemControlParameterSets.location,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.setOrientation,
@@ -173,6 +186,7 @@ final class CockpitAndroidSystemControlAdapter
           limitations: <String>[
             'Changes the device-wide rotation setting; use auto to restore sensor rotation.',
           ],
+          parameters: CockpitSystemControlParameterSets.androidOrientation,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.setNetworkSpeed,
@@ -183,6 +197,7 @@ final class CockpitAndroidSystemControlAdapter
           limitations: <String>[
             'Android emulator console network speed is emulator-only.',
           ],
+          parameters: CockpitSystemControlParameterSets.androidNetworkSpeed,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.setNetworkDelay,
@@ -193,6 +208,7 @@ final class CockpitAndroidSystemControlAdapter
           limitations: <String>[
             'Android emulator console network delay is emulator-only.',
           ],
+          parameters: CockpitSystemControlParameterSets.androidNetworkDelay,
         ),
         const CockpitSystemControlCapability(
           action: CockpitSystemControlAction.setStatusBar,
@@ -242,6 +258,7 @@ final class CockpitAndroidSystemControlAdapter
           availability: availability,
           strategy: 'adb.exec-out.screencap',
           requires: <String>['adb', 'device id'],
+          parameters: CockpitSystemControlParameterSets.screenshot,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.startRecording,
@@ -250,6 +267,7 @@ final class CockpitAndroidSystemControlAdapter
           strategy: 'adb.shell.screenrecord',
           requires: <String>['adb', 'device id'],
           limitations: <String>['Android screenrecord has duration limits'],
+          parameters: CockpitSystemControlParameterSets.startRecording,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.stopRecording,
@@ -257,6 +275,7 @@ final class CockpitAndroidSystemControlAdapter
           availability: availability,
           strategy: 'adb.shell.screenrecord.stop-and-pull',
           requires: <String>['adb', 'device id', 'active recording session'],
+          parameters: CockpitSystemControlParameterSets.stopRecording,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.readUiTree,
@@ -292,6 +311,7 @@ final class CockpitAndroidSystemControlAdapter
           availability: availability,
           strategy: 'adb.shell',
           requires: <String>['adb', 'device id'],
+          parameters: CockpitSystemControlParameterSets.shellCommand,
         ),
       ],
     );

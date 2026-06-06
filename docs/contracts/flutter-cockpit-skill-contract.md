@@ -22,6 +22,8 @@ The skill may depend on these implemented public workflows:
 - named screenshot capture through `capture-screenshot` / `capture_screenshot`
 - multi-command control through `run-batch` / `run_batch`
 - direct host and target-aware shell execution through `run-shell` / `run_shell`
+- Native/System Control Plane discovery through `read-system-capabilities` / `read_system_capabilities`
+- bounded Native/System Control Plane actions through `run-system-action` / `run_system_action`
 - wait gating through `wait-idle` / `wait_idle`
 - network investigation through `read-network` / `read_network`
 - reload during development through `hot-reload` / `hot_reload` and `hot-restart` / `hot_restart`
@@ -41,6 +43,7 @@ The skill may depend on these implemented public workflows:
 - host recording prerequisite reporting for web/browser-host flows, so app control, DOM inspection, screenshots, reloads, and runtime reads can stay strict while video proof is classified separately as `blocked_by_environment` when ffmpeg cannot prove startup or output evidence
 - completed recording evidence only when an artifact is backed by non-empty bytes or a non-empty source/output file; empty or missing artifact content must be reported as failed evidence, not accepted video proof
 - plane-aware task summaries with `targetKind`, `primaryExecutionPlane`, `planesUsed`, `surfaceKindsUsed`, `fallbackCount`, and bounded delivery gates
+- structured system-control action parameters in capability metadata, including `required`, `valueType`, `allowedValues`, `minimum`, and `maximum`; default AI-readable output may compact them as `parameters=[name*:type[range](allowed|values)]`
 
 The skill may also rely on public context resources for roots, contracts, capabilities, apps, task summaries, and package reads. Treat any extra repository-specific context document as optional host configuration, not a default framework dependency.
 
@@ -58,7 +61,7 @@ The skill must enforce this order:
 
 The stages are evidence gates, not a fixed command quota. The default path must optimize for rapid development validation: use the cheapest live loop that answers the user's question, reuse fresh valid evidence, and escalate only when the current layer cannot reduce the remaining uncertainty. The main skill must be self-contained for the core app-wiring, launch, edit, reload, observe, evidence, and delivery loop; reference files are optional deep dives, not prerequisites for basic usage. The skill must not reward running extra recording, evidence profiles, bundle validation, or raw artifact reads when they do not improve the decision.
 
-The skill must be platform-discovery-first. Platform and device ids must come from `list-targets`, MCP target discovery, or an explicit user-provided target, then platform capabilities must be read from returned metadata before choosing recording, shell, browser, simulator, emulator, or desktop behavior.
+The skill must be platform-discovery-first. Platform and device ids must come from `list-targets`, MCP target discovery, or an explicit user-provided target, then platform capabilities must be read from returned metadata. Action parameter contracts must be read from returned metadata before choosing recording, shell, browser, simulator, emulator, or desktop behavior.
 
 ### `bootstrap`
 

@@ -48,6 +48,91 @@ enum CockpitSystemControlAvailability {
   }
 }
 
+enum CockpitSystemControlParameterType {
+  string,
+  integer,
+  number,
+  boolean,
+  stringList;
+
+  static CockpitSystemControlParameterType fromJson(Object? json) {
+    return values.byName(json! as String);
+  }
+}
+
+final class CockpitSystemControlParameter {
+  const CockpitSystemControlParameter({
+    required this.name,
+    required this.valueType,
+    this.required = false,
+    this.allowedValues = const <String>[],
+    this.minimum,
+    this.maximum,
+    this.description,
+  });
+
+  final String name;
+  final CockpitSystemControlParameterType valueType;
+  final bool required;
+  final List<String> allowedValues;
+  final num? minimum;
+  final num? maximum;
+  final String? description;
+
+  static const ListEquality<String> _stringListEquality =
+      ListEquality<String>();
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'name': name,
+    'required': required,
+    'valueType': valueType.name,
+    if (allowedValues.isNotEmpty) 'allowedValues': allowedValues,
+    if (minimum != null) 'minimum': minimum,
+    if (maximum != null) 'maximum': maximum,
+    if (description != null && description!.isNotEmpty)
+      'description': description,
+  };
+
+  factory CockpitSystemControlParameter.fromJson(Map<String, Object?> json) {
+    return CockpitSystemControlParameter(
+      name: json['name']! as String,
+      required: json['required'] as bool? ?? false,
+      valueType: CockpitSystemControlParameterType.fromJson(json['valueType']),
+      allowedValues:
+          (json['allowedValues'] as List<Object?>? ?? const <Object?>[])
+              .cast<String>()
+              .toList(growable: false),
+      minimum: json['minimum'] as num?,
+      maximum: json['maximum'] as num?,
+      description: json['description'] as String?,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is CockpitSystemControlParameter &&
+            other.name == name &&
+            other.valueType == valueType &&
+            other.required == required &&
+            _stringListEquality.equals(other.allowedValues, allowedValues) &&
+            other.minimum == minimum &&
+            other.maximum == maximum &&
+            other.description == description;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    name,
+    valueType,
+    required,
+    _stringListEquality.hash(allowedValues),
+    minimum,
+    maximum,
+    description,
+  );
+}
+
 final class CockpitSystemControlCapability {
   const CockpitSystemControlCapability({
     required this.action,
@@ -56,6 +141,7 @@ final class CockpitSystemControlCapability {
     required this.strategy,
     this.requires = const <String>[],
     this.limitations = const <String>[],
+    this.parameters = const <CockpitSystemControlParameter>[],
     this.fallbackActions = const <CockpitSystemControlAction>[],
   });
 
@@ -65,10 +151,13 @@ final class CockpitSystemControlCapability {
   final String strategy;
   final List<String> requires;
   final List<String> limitations;
+  final List<CockpitSystemControlParameter> parameters;
   final List<CockpitSystemControlAction> fallbackActions;
 
   static const ListEquality<String> _stringListEquality =
       ListEquality<String>();
+  static const ListEquality<CockpitSystemControlParameter>
+  _parameterListEquality = ListEquality<CockpitSystemControlParameter>();
   static const ListEquality<CockpitSystemControlAction> _actionListEquality =
       ListEquality<CockpitSystemControlAction>();
 
@@ -79,6 +168,10 @@ final class CockpitSystemControlCapability {
     'strategy': strategy,
     if (requires.isNotEmpty) 'requires': requires,
     if (limitations.isNotEmpty) 'limitations': limitations,
+    if (parameters.isNotEmpty)
+      'parameters': parameters
+          .map((parameter) => parameter.toJson())
+          .toList(growable: false),
     if (fallbackActions.isNotEmpty)
       'fallbackActions': fallbackActions
           .map((action) => action.name)
@@ -99,6 +192,13 @@ final class CockpitSystemControlCapability {
       limitations: (json['limitations'] as List<Object?>? ?? const <Object?>[])
           .cast<String>()
           .toList(growable: false),
+      parameters: (json['parameters'] as List<Object?>? ?? const <Object?>[])
+          .map((value) {
+            return CockpitSystemControlParameter.fromJson(
+              (value as Map<Object?, Object?>).cast<String, Object?>(),
+            );
+          })
+          .toList(growable: false),
       fallbackActions:
           (json['fallbackActions'] as List<Object?>? ?? const <Object?>[])
               .map(CockpitSystemControlAction.fromJson)
@@ -116,6 +216,7 @@ final class CockpitSystemControlCapability {
             other.strategy == strategy &&
             _stringListEquality.equals(other.requires, requires) &&
             _stringListEquality.equals(other.limitations, limitations) &&
+            _parameterListEquality.equals(other.parameters, parameters) &&
             _actionListEquality.equals(other.fallbackActions, fallbackActions);
   }
 
@@ -127,6 +228,7 @@ final class CockpitSystemControlCapability {
     strategy,
     _stringListEquality.hash(requires),
     _stringListEquality.hash(limitations),
+    _parameterListEquality.hash(parameters),
     _actionListEquality.hash(fallbackActions),
   );
 }

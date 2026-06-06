@@ -313,6 +313,16 @@ void main() {
           '3',
           '--max-nodes',
           '40',
+          '--name',
+          'system-flow',
+          '--purpose',
+          'repro',
+          '--mode',
+          'native',
+          '--layer',
+          'system',
+          '--output-path',
+          '/tmp/system-flow.mp4',
         ]) ??
         0;
 
@@ -338,5 +348,10 @@ void main() {
     expect(capturedRequest?.parameters['batteryLevel'], 100);
     expect(capturedRequest?.parameters['maxDepth'], 3);
     expect(capturedRequest?.parameters['maxNodes'], 40);
+    expect(capturedRequest?.parameters['name'], 'system-flow');
+    expect(capturedRequest?.parameters['purpose'], 'repro');
+    expect(capturedRequest?.parameters['mode'], 'native');
+    expect(capturedRequest?.parameters['layer'], 'system');
+    expect(capturedRequest?.parameters['outputPath'], '/tmp/system-flow.mp4');
   });
 }

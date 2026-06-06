@@ -1004,14 +1004,51 @@ List<String> _aiCapabilityLines(Object? value) {
   for (var index = 0; index < capabilities.length; index++) {
     final capability = capabilities[index];
     if (capability is Map<Object?, Object?>) {
+      final normalizedCapability = Map<Object?, Object?>.of(capability);
+      final parameters = _readList(normalizedCapability, 'parameters');
+      final renderedParameters = _renderSystemControlParameters(parameters);
+      if (renderedParameters != null) {
+        normalizedCapability['parameters'] = renderedParameters;
+      }
       lines.add(
-        '[$index] ${_compactInlineMap(capability, preferredKeys: const <String>['action', 'availability', 'plane', 'strategy', 'requires', 'limitations', 'fallbackActions'])}',
+        '[$index] ${_compactInlineMap(normalizedCapability, preferredKeys: const <String>['action', 'availability', 'plane', 'strategy', 'parameters', 'requires', 'limitations', 'fallbackActions'])}',
       );
     } else {
       lines.add('[$index] ${_formatAiScalar(capability)}');
     }
   }
   return lines;
+}
+
+String? _renderSystemControlParameters(List<Object?>? parameters) {
+  if (parameters == null || parameters.isEmpty) {
+    return null;
+  }
+  final rendered = <String>[];
+  for (final parameter in parameters) {
+    if (parameter is! Map<Object?, Object?>) {
+      rendered.add(_formatAiScalar(parameter));
+      continue;
+    }
+    final name = _readString(parameter, 'name');
+    final valueType = _readString(parameter, 'valueType');
+    if (name == null || valueType == null) {
+      rendered.add(_compactInlineMap(parameter));
+      continue;
+    }
+    final requiredMarker = _readBool(parameter, 'required') == true ? '*' : '';
+    final allowedValues = _readList(parameter, 'allowedValues');
+    final allowedText = allowedValues == null || allowedValues.isEmpty
+        ? ''
+        : '(${allowedValues.map(_formatAiScalar).join('|')})';
+    final minimum = _readNumber(parameter, 'minimum');
+    final maximum = _readNumber(parameter, 'maximum');
+    final rangeText = minimum == null && maximum == null
+        ? ''
+        : '[${minimum?.toString() ?? ''}..${maximum?.toString() ?? ''}]';
+    rendered.add('$name$requiredMarker:$valueType$rangeText$allowedText');
+  }
+  return '[${rendered.join(' | ')}]';
 }
 
 List<String> _aiResultLines(Object? value) {

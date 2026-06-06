@@ -125,6 +125,7 @@ Browser targets do not expose a direct device shell. For web work, stay on `insp
 ## Native/System Control Plane
 
 Use this only when Flutter semantic commands cannot control the required native UI, system dialog, device shell, desktop window, or non-Flutter surface. Read capabilities first and run only actions reported as `available`.
+Capability rows include compact action payload contracts such as `parameters=[x*:integer | wifiBars:integer[0..3] | appearance*:string(light|dark)]`; `*` means required. Use those returned parameter names, ranges, and allowed values instead of guessing JSON keys or flags.
 
 Read exact platform capabilities:
 
@@ -146,6 +147,17 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 
 On Windows and Linux, use `--app-id <platform-app-id>` or
 `--process-id <pid>` according to the returned launch metadata.
+
+For shell pipelines, `--stdout-format json` exposes the same contract as structured
+`capabilities[].parameters[]` entries:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  read-system-capabilities \
+  --platform ios \
+  --device-id <ios-simulator-udid> \
+  --stdout-format json | jq '.capabilities[] | select(.action=="setStatusBar") | .parameters'
+```
 
 Drive a desktop native/system control after reading capabilities:
 
@@ -406,7 +418,10 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --platform android \
   --device-id emulator-5554 \
   --action startRecording \
-  --name system-flow
+  --name system-flow \
+  --purpose repro \
+  --mode native \
+  --layer system
 
 # drive the system/native flow, then stop
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \

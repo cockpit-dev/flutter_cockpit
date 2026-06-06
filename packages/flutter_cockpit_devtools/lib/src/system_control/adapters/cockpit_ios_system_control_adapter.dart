@@ -2,6 +2,7 @@ import 'package:flutter_cockpit/flutter_cockpit.dart';
 
 import '../cockpit_system_control_action.dart';
 import '../cockpit_system_control_adapter.dart';
+import '../cockpit_system_control_parameters.dart';
 import '../cockpit_system_control_profile.dart';
 
 final class CockpitIosSystemControlAdapter
@@ -40,6 +41,7 @@ final class CockpitIosSystemControlAdapter
               'booted simulator',
               'XCTest/WebDriverAgent runner',
             ],
+            parameters: CockpitSystemControlParameterSets.coordinate,
           ),
           const CockpitSystemControlCapability(
             action: CockpitSystemControlAction.longPress,
@@ -50,6 +52,7 @@ final class CockpitIosSystemControlAdapter
               'booted simulator',
               'XCTest/WebDriverAgent runner',
             ],
+            parameters: CockpitSystemControlParameterSets.longPress,
           ),
           const CockpitSystemControlCapability(
             action: CockpitSystemControlAction.drag,
@@ -60,6 +63,7 @@ final class CockpitIosSystemControlAdapter
               'booted simulator',
               'XCTest/WebDriverAgent runner',
             ],
+            parameters: CockpitSystemControlParameterSets.drag,
           ),
           const CockpitSystemControlCapability(
             action: CockpitSystemControlAction.typeText,
@@ -70,6 +74,7 @@ final class CockpitIosSystemControlAdapter
               'booted simulator',
               'XCTest/WebDriverAgent runner',
             ],
+            parameters: CockpitSystemControlParameterSets.text,
           ),
           const CockpitSystemControlCapability(
             action: CockpitSystemControlAction.pressKey,
@@ -80,6 +85,7 @@ final class CockpitIosSystemControlAdapter
               'booted simulator',
               'XCTest/WebDriverAgent runner',
             ],
+            parameters: CockpitSystemControlParameterSets.key,
           ),
           const CockpitSystemControlCapability(
             action: CockpitSystemControlAction.pressBack,
@@ -105,6 +111,7 @@ final class CockpitIosSystemControlAdapter
             availability: CockpitSystemControlAvailability.available,
             strategy: 'xcrun.simctl.launch',
             requires: <String>['xcrun', 'simulator device id', 'app id'],
+            parameters: CockpitSystemControlParameterSets.iosApp,
           ),
           CockpitSystemControlCapability(
             action: CockpitSystemControlAction.terminateApp,
@@ -112,6 +119,7 @@ final class CockpitIosSystemControlAdapter
             availability: CockpitSystemControlAvailability.available,
             strategy: 'xcrun.simctl.terminate',
             requires: <String>['xcrun', 'simulator device id', 'app id'],
+            parameters: CockpitSystemControlParameterSets.iosApp,
           ),
           const CockpitSystemControlCapability(
             action: CockpitSystemControlAction.dismissSystemDialog,
@@ -131,6 +139,7 @@ final class CockpitIosSystemControlAdapter
               'privacy service',
               'app id',
             ],
+            parameters: CockpitSystemControlParameterSets.iosGrantPermission,
           ),
           const CockpitSystemControlCapability(
             action: CockpitSystemControlAction.openUrl,
@@ -138,6 +147,7 @@ final class CockpitIosSystemControlAdapter
             availability: CockpitSystemControlAvailability.available,
             strategy: 'xcrun.simctl.openurl',
             requires: <String>['xcrun', 'simulator device id'],
+            parameters: CockpitSystemControlParameterSets.url,
           ),
           const CockpitSystemControlCapability(
             action: CockpitSystemControlAction.setAppearance,
@@ -149,6 +159,7 @@ final class CockpitIosSystemControlAdapter
               'simulator device id',
               'appearance mode',
             ],
+            parameters: CockpitSystemControlParameterSets.iosAppearance,
           ),
           const CockpitSystemControlCapability(
             action: CockpitSystemControlAction.setContentSize,
@@ -160,6 +171,7 @@ final class CockpitIosSystemControlAdapter
               'simulator device id',
               'content size category',
             ],
+            parameters: CockpitSystemControlParameterSets.iosContentSize,
           ),
           const CockpitSystemControlCapability(
             action: CockpitSystemControlAction.setLocation,
@@ -172,6 +184,7 @@ final class CockpitIosSystemControlAdapter
               'latitude',
               'longitude',
             ],
+            parameters: CockpitSystemControlParameterSets.location,
           ),
           const CockpitSystemControlCapability(
             action: CockpitSystemControlAction.setOrientation,
@@ -179,6 +192,7 @@ final class CockpitIosSystemControlAdapter
             availability: CockpitSystemControlAvailability.blocked,
             strategy: 'xctest.device.orientation',
             requires: <String>['XCTest/WebDriverAgent runner'],
+            parameters: CockpitSystemControlParameterSets.iosOrientation,
           ),
           const CockpitSystemControlCapability(
             action: CockpitSystemControlAction.setNetworkSpeed,
@@ -210,6 +224,7 @@ final class CockpitIosSystemControlAdapter
             availability: CockpitSystemControlAvailability.available,
             strategy: 'xcrun.simctl.status_bar.override',
             requires: <String>['xcrun', 'simulator device id'],
+            parameters: CockpitSystemControlParameterSets.iosStatusBar,
           ),
           const CockpitSystemControlCapability(
             action: CockpitSystemControlAction.clearStatusBar,
@@ -224,6 +239,7 @@ final class CockpitIosSystemControlAdapter
             availability: CockpitSystemControlAvailability.available,
             strategy: 'xcrun.simctl.pbcopy',
             requires: <String>['xcrun', 'simulator device id'],
+            parameters: CockpitSystemControlParameterSets.text,
           ),
           const CockpitSystemControlCapability(
             action: CockpitSystemControlAction.getClipboard,
@@ -238,6 +254,7 @@ final class CockpitIosSystemControlAdapter
             availability: CockpitSystemControlAvailability.available,
             strategy: 'xcrun.simctl.io.screenshot',
             requires: <String>['xcrun', 'booted simulator'],
+            parameters: CockpitSystemControlParameterSets.screenshot,
           ),
           CockpitSystemControlCapability(
             action: CockpitSystemControlAction.startRecording,
@@ -245,6 +262,7 @@ final class CockpitIosSystemControlAdapter
             availability: CockpitSystemControlAvailability.available,
             strategy: 'xcrun.simctl.io.recordVideo',
             requires: <String>['xcrun', 'booted simulator'],
+            parameters: CockpitSystemControlParameterSets.startRecording,
           ),
           CockpitSystemControlCapability(
             action: CockpitSystemControlAction.stopRecording,
@@ -256,6 +274,7 @@ final class CockpitIosSystemControlAdapter
               'booted simulator',
               'active recording session',
             ],
+            parameters: CockpitSystemControlParameterSets.stopRecording,
           ),
           CockpitSystemControlCapability(
             action: CockpitSystemControlAction.readUiTree,
@@ -263,6 +282,7 @@ final class CockpitIosSystemControlAdapter
             availability: CockpitSystemControlAvailability.blocked,
             strategy: 'xctest.webdriveragent.tree',
             requires: <String>['XCTest/WebDriverAgent runner'],
+            parameters: CockpitSystemControlParameterSets.readUiTree,
           ),
           CockpitSystemControlCapability(
             action: CockpitSystemControlAction.readProcessList,
@@ -293,6 +313,7 @@ final class CockpitIosSystemControlAdapter
             availability: CockpitSystemControlAvailability.available,
             strategy: 'xcrun.simctl.spawn',
             requires: <String>['xcrun', 'simulator device id'],
+            parameters: CockpitSystemControlParameterSets.shellCommand,
           ),
         ],
       );
@@ -316,6 +337,7 @@ final class CockpitIosSystemControlAdapter
           availability: CockpitSystemControlAvailability.blocked,
           strategy: 'xctest.webdriveragent',
           requires: <String>['developer-signed XCTest/WebDriverAgent runner'],
+          parameters: CockpitSystemControlParameterSets.coordinate,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.longPress,
@@ -323,6 +345,7 @@ final class CockpitIosSystemControlAdapter
           availability: CockpitSystemControlAvailability.blocked,
           strategy: 'xctest.webdriveragent',
           requires: <String>['developer-signed XCTest/WebDriverAgent runner'],
+          parameters: CockpitSystemControlParameterSets.longPress,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.drag,
@@ -330,6 +353,7 @@ final class CockpitIosSystemControlAdapter
           availability: CockpitSystemControlAvailability.blocked,
           strategy: 'xctest.webdriveragent',
           requires: <String>['developer-signed XCTest/WebDriverAgent runner'],
+          parameters: CockpitSystemControlParameterSets.drag,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.typeText,
@@ -337,6 +361,7 @@ final class CockpitIosSystemControlAdapter
           availability: CockpitSystemControlAvailability.blocked,
           strategy: 'xctest.webdriveragent',
           requires: <String>['developer-signed XCTest/WebDriverAgent runner'],
+          parameters: CockpitSystemControlParameterSets.text,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.pressKey,
@@ -344,6 +369,7 @@ final class CockpitIosSystemControlAdapter
           availability: CockpitSystemControlAvailability.blocked,
           strategy: 'xctest.webdriveragent.key',
           requires: <String>['developer-signed XCTest/WebDriverAgent runner'],
+          parameters: CockpitSystemControlParameterSets.key,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.pressBack,
@@ -367,6 +393,7 @@ final class CockpitIosSystemControlAdapter
           availability: CockpitSystemControlAvailability.blocked,
           strategy: 'developer-device-launch',
           requires: <String>['developer signing and device launch tooling'],
+          parameters: CockpitSystemControlParameterSets.iosApp,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.terminateApp,
@@ -374,6 +401,7 @@ final class CockpitIosSystemControlAdapter
           availability: CockpitSystemControlAvailability.blocked,
           strategy: 'developer-device-terminate',
           requires: <String>['developer signing and device process tooling'],
+          parameters: CockpitSystemControlParameterSets.iosApp,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.dismissSystemDialog,
@@ -390,6 +418,7 @@ final class CockpitIosSystemControlAdapter
           requires: <String>[
             'developer signing and app-specific permission flow',
           ],
+          parameters: CockpitSystemControlParameterSets.iosGrantPermission,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.openUrl,
@@ -397,6 +426,7 @@ final class CockpitIosSystemControlAdapter
           availability: CockpitSystemControlAvailability.blocked,
           strategy: 'developer-device-open-url',
           requires: <String>['developer signing and device URL tooling'],
+          parameters: CockpitSystemControlParameterSets.url,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.setAppearance,
@@ -404,6 +434,7 @@ final class CockpitIosSystemControlAdapter
           availability: CockpitSystemControlAvailability.blocked,
           strategy: 'developer-device-appearance',
           requires: <String>['developer signing and device appearance tooling'],
+          parameters: CockpitSystemControlParameterSets.iosAppearance,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.setContentSize,
@@ -413,6 +444,7 @@ final class CockpitIosSystemControlAdapter
           requires: <String>[
             'developer signing and device accessibility tooling',
           ],
+          parameters: CockpitSystemControlParameterSets.iosContentSize,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.setLocation,
@@ -422,6 +454,7 @@ final class CockpitIosSystemControlAdapter
           requires: <String>[
             'developer signing and location simulation tooling',
           ],
+          parameters: CockpitSystemControlParameterSets.location,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.setOrientation,
@@ -429,6 +462,7 @@ final class CockpitIosSystemControlAdapter
           availability: CockpitSystemControlAvailability.blocked,
           strategy: 'xctest.device.orientation',
           requires: <String>['developer-signed XCTest/WebDriverAgent runner'],
+          parameters: CockpitSystemControlParameterSets.iosOrientation,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.setNetworkSpeed,
@@ -454,6 +488,7 @@ final class CockpitIosSystemControlAdapter
           availability: CockpitSystemControlAvailability.blocked,
           strategy: 'developer-device-status-bar',
           requires: <String>['developer-signed XCTest/WebDriverAgent runner'],
+          parameters: CockpitSystemControlParameterSets.iosStatusBar,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.clearStatusBar,
@@ -468,6 +503,7 @@ final class CockpitIosSystemControlAdapter
           availability: CockpitSystemControlAvailability.blocked,
           strategy: 'developer-device-pasteboard',
           requires: <String>['developer signing and device pasteboard tooling'],
+          parameters: CockpitSystemControlParameterSets.text,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.getClipboard,
@@ -482,6 +518,7 @@ final class CockpitIosSystemControlAdapter
           availability: CockpitSystemControlAvailability.blocked,
           strategy: 'developer-device-capture',
           requires: <String>['developer signing and device capture tooling'],
+          parameters: CockpitSystemControlParameterSets.screenshot,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.startRecording,
@@ -489,6 +526,7 @@ final class CockpitIosSystemControlAdapter
           availability: CockpitSystemControlAvailability.blocked,
           strategy: 'developer-device-recording',
           requires: <String>['developer signing and device capture tooling'],
+          parameters: CockpitSystemControlParameterSets.startRecording,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.stopRecording,
@@ -498,6 +536,7 @@ final class CockpitIosSystemControlAdapter
           requires: <String>[
             'developer signing and active device capture tooling',
           ],
+          parameters: CockpitSystemControlParameterSets.stopRecording,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.readUiTree,
@@ -505,6 +544,7 @@ final class CockpitIosSystemControlAdapter
           availability: CockpitSystemControlAvailability.blocked,
           strategy: 'xctest.webdriveragent.tree',
           requires: <String>['developer-signed XCTest/WebDriverAgent runner'],
+          parameters: CockpitSystemControlParameterSets.readUiTree,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.readProcessList,

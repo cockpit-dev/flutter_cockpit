@@ -2,6 +2,7 @@ import 'package:flutter_cockpit/flutter_cockpit.dart';
 
 import '../cockpit_system_control_action.dart';
 import '../cockpit_system_control_adapter.dart';
+import '../cockpit_system_control_parameters.dart';
 import '../cockpit_system_control_profile.dart';
 
 final class CockpitDesktopSystemControlAdapter
@@ -92,6 +93,7 @@ final class CockpitDesktopSystemControlAdapter
           strategy: _openUrlStrategy,
           requires: _openUrlRequires,
           limitations: limitations,
+          parameters: CockpitSystemControlParameterSets.url,
         ),
         _hostBlocked(
           CockpitSystemControlAction.setAppearance,
@@ -140,6 +142,7 @@ final class CockpitDesktopSystemControlAdapter
           strategy: _setClipboardStrategy,
           requires: _clipboardRequires,
           limitations: limitations,
+          parameters: CockpitSystemControlParameterSets.text,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.getClipboard,
@@ -197,6 +200,7 @@ final class CockpitDesktopSystemControlAdapter
           strategy: 'host.shell',
           requires: _shellRequires,
           limitations: limitations,
+          parameters: CockpitSystemControlParameterSets.shellCommand,
         ),
       ],
     );
@@ -1095,6 +1099,13 @@ final class CockpitDesktopSystemControlAdapter
         ...limitations,
         'coordinate input has no semantic locator',
       ],
+      parameters: switch (action) {
+        CockpitSystemControlAction.longPress =>
+          CockpitSystemControlParameterSets.longPress,
+        CockpitSystemControlAction.drag =>
+          CockpitSystemControlParameterSets.drag,
+        _ => CockpitSystemControlParameterSets.coordinate,
+      },
     );
   }
 
@@ -1114,6 +1125,13 @@ final class CockpitDesktopSystemControlAdapter
         if (!hasInputTarget) 'app id or process id',
       ],
       limitations: limitations,
+      parameters: switch (action) {
+        CockpitSystemControlAction.typeText =>
+          CockpitSystemControlParameterSets.text,
+        CockpitSystemControlAction.pressKey =>
+          CockpitSystemControlParameterSets.key,
+        _ => const <CockpitSystemControlParameter>[],
+      },
     );
   }
 
@@ -1129,6 +1147,17 @@ final class CockpitDesktopSystemControlAdapter
       strategy: strategy,
       requires: requires,
       limitations: limitations,
+      parameters: switch (action) {
+        CockpitSystemControlAction.setAppearance =>
+          CockpitSystemControlParameterSets.hostAppearance,
+        CockpitSystemControlAction.setContentSize =>
+          CockpitSystemControlParameterSets.hostContentSize,
+        CockpitSystemControlAction.setNetworkSpeed =>
+          CockpitSystemControlParameterSets.hostNetworkSpeed,
+        CockpitSystemControlAction.setNetworkDelay =>
+          CockpitSystemControlParameterSets.hostNetworkDelay,
+        _ => const <CockpitSystemControlParameter>[],
+      },
     );
   }
 
@@ -1148,6 +1177,7 @@ final class CockpitDesktopSystemControlAdapter
         if (!hasInputTarget) 'app id or process id',
       ],
       limitations: limitations,
+      parameters: CockpitSystemControlParameterSets.readUiTree,
     );
   }
 
@@ -1186,6 +1216,15 @@ final class CockpitDesktopSystemControlAdapter
         ...extraRequires,
       ],
       limitations: limitations,
+      parameters: switch (action) {
+        CockpitSystemControlAction.captureScreenshot =>
+          CockpitSystemControlParameterSets.screenshot,
+        CockpitSystemControlAction.startRecording =>
+          CockpitSystemControlParameterSets.startRecording,
+        CockpitSystemControlAction.stopRecording =>
+          CockpitSystemControlParameterSets.stopRecording,
+        _ => const <CockpitSystemControlParameter>[],
+      },
     );
   }
 
@@ -1755,6 +1794,7 @@ final class CockpitWebSystemControlAdapter
           availability: CockpitSystemControlAvailability.blocked,
           strategy: 'browser.dom.click',
           requires: <String>['browser driver or bridge'],
+          parameters: CockpitSystemControlParameterSets.coordinate,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.longPress,
@@ -1762,6 +1802,7 @@ final class CockpitWebSystemControlAdapter
           availability: CockpitSystemControlAvailability.blocked,
           strategy: 'browser.dom.pointer.longPress',
           requires: <String>['browser driver or bridge'],
+          parameters: CockpitSystemControlParameterSets.longPress,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.drag,
@@ -1769,6 +1810,7 @@ final class CockpitWebSystemControlAdapter
           availability: CockpitSystemControlAvailability.blocked,
           strategy: 'browser.dom.pointer.drag',
           requires: <String>['browser driver or bridge'],
+          parameters: CockpitSystemControlParameterSets.drag,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.typeText,
@@ -1776,6 +1818,7 @@ final class CockpitWebSystemControlAdapter
           availability: CockpitSystemControlAvailability.blocked,
           strategy: 'browser.dom.input',
           requires: <String>['browser driver or bridge'],
+          parameters: CockpitSystemControlParameterSets.text,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.pressKey,
@@ -1783,6 +1826,7 @@ final class CockpitWebSystemControlAdapter
           availability: CockpitSystemControlAvailability.blocked,
           strategy: 'browser.keyboard.press',
           requires: <String>['browser driver or bridge'],
+          parameters: CockpitSystemControlParameterSets.key,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.pressBack,
@@ -1827,6 +1871,7 @@ final class CockpitWebSystemControlAdapter
           availability: CockpitSystemControlAvailability.blocked,
           strategy: 'browser.context.permissions',
           requires: <String>['browser driver or bridge'],
+          parameters: CockpitSystemControlParameterSets.browserGrantPermission,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.openUrl,
@@ -1834,6 +1879,7 @@ final class CockpitWebSystemControlAdapter
           availability: CockpitSystemControlAvailability.blocked,
           strategy: 'browser.page.goto',
           requires: <String>['browser driver or bridge'],
+          parameters: CockpitSystemControlParameterSets.url,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.setAppearance,
@@ -1841,6 +1887,7 @@ final class CockpitWebSystemControlAdapter
           availability: CockpitSystemControlAvailability.blocked,
           strategy: 'browser.context.emulateMedia',
           requires: <String>['browser driver or bridge'],
+          parameters: CockpitSystemControlParameterSets.hostAppearance,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.setContentSize,
@@ -1848,6 +1895,7 @@ final class CockpitWebSystemControlAdapter
           availability: CockpitSystemControlAvailability.blocked,
           strategy: 'browser.viewport-or-accessibility-emulation',
           requires: <String>['browser driver or bridge'],
+          parameters: CockpitSystemControlParameterSets.hostContentSize,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.setLocation,
@@ -1858,6 +1906,7 @@ final class CockpitWebSystemControlAdapter
             'browser driver or bridge',
             'geolocation permission',
           ],
+          parameters: CockpitSystemControlParameterSets.location,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.setOrientation,
@@ -1865,6 +1914,7 @@ final class CockpitWebSystemControlAdapter
           availability: CockpitSystemControlAvailability.blocked,
           strategy: 'browser.viewport-or-orientation-emulation',
           requires: <String>['browser driver or bridge'],
+          parameters: CockpitSystemControlParameterSets.browserOrientation,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.setNetworkSpeed,
@@ -1872,6 +1922,7 @@ final class CockpitWebSystemControlAdapter
           availability: CockpitSystemControlAvailability.blocked,
           strategy: 'browser.context.route-or-cdp-network-emulation',
           requires: <String>['browser driver or bridge'],
+          parameters: CockpitSystemControlParameterSets.hostNetworkSpeed,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.setNetworkDelay,
@@ -1879,6 +1930,7 @@ final class CockpitWebSystemControlAdapter
           availability: CockpitSystemControlAvailability.blocked,
           strategy: 'browser.context.route-or-cdp-network-emulation',
           requires: <String>['browser driver or bridge'],
+          parameters: CockpitSystemControlParameterSets.hostNetworkDelay,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.setStatusBar,
@@ -1907,6 +1959,7 @@ final class CockpitWebSystemControlAdapter
             'browser driver or bridge',
             'clipboard permission',
           ],
+          parameters: CockpitSystemControlParameterSets.text,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.getClipboard,
@@ -1924,6 +1977,7 @@ final class CockpitWebSystemControlAdapter
           availability: CockpitSystemControlAvailability.blocked,
           strategy: 'browser.screenshot',
           requires: <String>['browser driver or bridge'],
+          parameters: CockpitSystemControlParameterSets.screenshot,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.startRecording,
@@ -1931,6 +1985,7 @@ final class CockpitWebSystemControlAdapter
           availability: CockpitSystemControlAvailability.blocked,
           strategy: 'browser-host-recording',
           requires: <String>['ffmpeg', 'host screen capture permission'],
+          parameters: CockpitSystemControlParameterSets.startRecording,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.stopRecording,
@@ -1942,6 +1997,7 @@ final class CockpitWebSystemControlAdapter
             'host screen capture permission',
             'active recording session',
           ],
+          parameters: CockpitSystemControlParameterSets.stopRecording,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.readUiTree,
@@ -1949,6 +2005,7 @@ final class CockpitWebSystemControlAdapter
           availability: CockpitSystemControlAvailability.blocked,
           strategy: 'browser.accessibility.snapshot',
           requires: <String>['browser driver or bridge'],
+          parameters: CockpitSystemControlParameterSets.readUiTree,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.readProcessList,

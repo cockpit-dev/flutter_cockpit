@@ -92,6 +92,20 @@ target-first 闭环：
 3. `inspect-surface`，或者在目标平台真实暴露 shell 能力时再用 `run-shell`
 4. 使用 `read-task-bundle-summary` 或 `validate-task` 做 bundle 交付审查
 
+Flutter 语义无法控制原生 UI、系统弹窗、设备 shell、桌面窗口或非 Flutter
+surface 时，使用 Native/System Control Plane：
+
+1. `read-system-capabilities --platform <platform> ...`
+2. 只对返回为 `available` 的 action 调用 `run-system-action`
+3. 按返回的 `parameters` 合约传参，不要猜 payload key
+4. 常见设置优先用直接参数：`--appearance`、`--content-size`、`--font-scale`、`--latitude/--longitude`、`--orientation`、`--network-speed`、`--network-delay`、status-bar 参数和 `--max-depth/--max-nodes`；系统截图/录屏使用 `--name`、`--purpose`、`--mode`、`--layer` 和 `--output-path`
+5. 操作后读取 app、target 或 system state，再判断结果
+
+默认 AI-readable 能力行会包含紧凑参数信息，例如
+`parameters=[x*:integer | wifiBars:integer[0..3] | appearance*:string(light|dark)]`。
+JSON 输出会用结构化 `parameters` 条目暴露同一合约，包括 `required`、`valueType`、
+`allowedValues`、`minimum` 和 `maximum`。
+
 推荐代码侧闭环：
 
 1. `analyze-files --path ...`

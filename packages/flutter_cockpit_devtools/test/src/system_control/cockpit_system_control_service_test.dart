@@ -517,6 +517,132 @@ void main() {
     },
   );
 
+  test('platform capability profiles expose action parameter metadata', () {
+    const registry = CockpitSystemControlRegistry();
+
+    final android = registry
+        .resolve('android')
+        .describe(
+          const CockpitSystemControlTargetContext(deviceId: 'emulator-5554'),
+        );
+    expect(
+      _parameter(android, CockpitSystemControlAction.tap, 'x')?.valueType,
+      CockpitSystemControlParameterType.integer,
+    );
+    expect(
+      _parameter(android, CockpitSystemControlAction.tap, 'x')?.required,
+      isTrue,
+    );
+    expect(
+      _parameter(
+        android,
+        CockpitSystemControlAction.setAppearance,
+        'appearance',
+      )?.allowedValues,
+      <String>['light', 'dark', 'auto'],
+    );
+    expect(
+      _parameter(
+        android,
+        CockpitSystemControlAction.setNetworkSpeed,
+        'networkSpeed',
+      )?.allowedValues,
+      containsAll(<String>['gsm', 'lte', 'full']),
+    );
+    expect(
+      android.capabilityFor(CockpitSystemControlAction.readUiTree)?.parameters,
+      isEmpty,
+      reason:
+          'Android uiautomator dump does not consume maxDepth/maxNodes; do not advertise inert parameters.',
+    );
+
+    final ios = registry
+        .resolve('ios')
+        .describe(const CockpitSystemControlTargetContext(deviceId: 'booted'));
+    expect(
+      _parameter(
+        ios,
+        CockpitSystemControlAction.setAppearance,
+        'appearance',
+      )?.allowedValues,
+      <String>['light', 'dark'],
+    );
+    expect(
+      _parameter(
+        ios,
+        CockpitSystemControlAction.setAppearance,
+        'appearance',
+      )?.allowedValues,
+      isNot(contains('auto')),
+    );
+    expect(
+      _parameter(
+        ios,
+        CockpitSystemControlAction.setStatusBar,
+        'dataNetwork',
+      )?.allowedValues,
+      containsAll(<String>['wifi', 'lte', '5g']),
+    );
+    expect(
+      _parameter(
+        ios,
+        CockpitSystemControlAction.setStatusBar,
+        'wifiBars',
+      )?.minimum,
+      0,
+    );
+    expect(
+      _parameter(
+        ios,
+        CockpitSystemControlAction.setStatusBar,
+        'wifiBars',
+      )?.maximum,
+      3,
+    );
+
+    final macos = registry
+        .resolve('macos')
+        .describe(
+          const CockpitSystemControlTargetContext(appId: 'dev.cockpit.example'),
+        );
+    expect(
+      _parameter(macos, CockpitSystemControlAction.typeText, 'text')?.required,
+      isTrue,
+    );
+    expect(
+      _parameter(
+        macos,
+        CockpitSystemControlAction.readUiTree,
+        'maxDepth',
+      )?.valueType,
+      CockpitSystemControlParameterType.integer,
+    );
+    expect(
+      _parameter(
+        macos,
+        CockpitSystemControlAction.captureScreenshot,
+        'name',
+      )?.valueType,
+      CockpitSystemControlParameterType.string,
+    );
+    expect(
+      _parameter(
+        macos,
+        CockpitSystemControlAction.runShell,
+        'command',
+      )?.valueType,
+      CockpitSystemControlParameterType.stringList,
+    );
+
+    final web = registry
+        .resolve('web')
+        .describe(const CockpitSystemControlTargetContext(deviceId: 'chrome'));
+    expect(
+      _parameter(web, CockpitSystemControlAction.tap, 'x')?.required,
+      isTrue,
+    );
+  });
+
   test('every platform profile declares every system action explicitly', () {
     const registry = CockpitSystemControlRegistry();
     for (final entry in <({String platform, String deviceId, String? appId})>[
@@ -560,6 +686,22 @@ bool _isEvidenceAction(CockpitSystemControlAction action) {
     CockpitSystemControlAction.stopRecording => true,
     _ => false,
   };
+}
+
+CockpitSystemControlParameter? _parameter(
+  CockpitSystemControlProfile profile,
+  CockpitSystemControlAction action,
+  String name,
+) {
+  final parameters =
+      profile.capabilityFor(action)?.parameters ??
+      const <CockpitSystemControlParameter>[];
+  for (final parameter in parameters) {
+    if (parameter.name == name) {
+      return parameter;
+    }
+  }
+  return null;
 }
 
 Map<String, Object?> _validParametersFor(CockpitSystemControlAction action) {

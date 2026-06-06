@@ -239,6 +239,24 @@ void main() {
               'plane': 'deviceSystemPlane',
               'strategy': 'Accessibility API + CGEvent',
               'requires': <String>['Accessibility permission'],
+              'parameters': <Object?>[
+                <String, Object?>{
+                  'name': 'x',
+                  'required': true,
+                  'valueType': 'integer',
+                },
+                <String, Object?>{
+                  'name': 'y',
+                  'required': true,
+                  'valueType': 'integer',
+                },
+                <String, Object?>{
+                  'name': 'wifiBars',
+                  'valueType': 'integer',
+                  'minimum': 0,
+                  'maximum': 3,
+                },
+              ],
             },
             <String, Object?>{
               'action': 'readUiTree',
@@ -256,6 +274,12 @@ void main() {
       final text = output.toString();
       expect(text, contains('\ncapabilities\n'));
       expect(text, contains('[0] action=tap availability=available'));
+      expect(
+        text,
+        contains(
+          'parameters=[x*:integer | y*:integer | wifiBars:integer[0..3]]',
+        ),
+      );
       expect(text, contains('[1] action=readUiTree availability=blocked'));
       expect(text, isNot(contains('\ndata\n  capabilities=')));
       expect(text, isNot(contains('\ndata\n  adapter=')));
