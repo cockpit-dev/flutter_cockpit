@@ -107,9 +107,7 @@ final class CockpitSystemControlActionService {
       return _notExecutable(
         request,
         availability: capability.availability,
-        recommendedNextStep: command.errorCode == 'missingSystemActionParameter'
-            ? 'fixActionPayload'
-            : 'unsupportedSystemAction',
+        recommendedNextStep: _recommendedNextStepForCommandError(command),
         errorCode: command.errorCode,
         errorMessage: command.errorMessage,
         strategy: capability.strategy,
@@ -473,6 +471,17 @@ final class CockpitSystemControlActionService {
       limitations: limitations,
     );
   }
+}
+
+String _recommendedNextStepForCommandError(
+  CockpitResolvedSystemControlCommand command,
+) {
+  return switch (command.errorCode) {
+    'missingSystemActionParameter' ||
+    'invalidSystemActionParameter' ||
+    'missingSystemActionTarget' => 'fixActionPayload',
+    _ => 'unsupportedSystemAction',
+  };
 }
 
 CockpitCaptureAdapter? _defaultCaptureAdapterFor(

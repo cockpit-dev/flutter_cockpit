@@ -341,9 +341,9 @@ final class CockpitAndroidSystemControlAdapter
           adbShell(<String>['input', 'tap', '$x', '$y']),
         ),
       ),
-      CockpitSystemControlAction.longPress => cockpitCoordinateCommand(
+      CockpitSystemControlAction.longPress => cockpitLongPressCommand(
         request,
-        (x, y) => CockpitResolvedSystemControlCommand(
+        (x, y, durationMs) => CockpitResolvedSystemControlCommand(
           'adb',
           adbShell(<String>[
             'input',
@@ -352,7 +352,7 @@ final class CockpitAndroidSystemControlAdapter
             '$y',
             '$x',
             '$y',
-            '${cockpitReadSystemControlInt(request.parameters, 'durationMs') ?? 800}',
+            '$durationMs',
           ]),
         ),
       ),

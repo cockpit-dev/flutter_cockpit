@@ -813,18 +813,21 @@ final class CockpitIosSystemControlAdapter
     }
 
     void addInt(String parameterName, String flagName, int min, int max) {
-      final value = cockpitReadSystemControlInt(
+      final value = cockpitReadSystemControlIntParameter(
         request.parameters,
         parameterName,
+        minimum: min,
+        maximum: max,
       );
-      if (value == null) {
+      if (!value.isPresent) {
         return;
       }
-      if (value < min || value > max) {
-        errorMessage = '$parameterName must be between $min and $max.';
+      if (value.isInvalid) {
+        errorMessage =
+            '$parameterName must be an integer between $min and $max.';
         return;
       }
-      args.addAll(<String>['--$flagName', '$value']);
+      args.addAll(<String>['--$flagName', '${value.value}']);
     }
 
     addString('time', 'time');

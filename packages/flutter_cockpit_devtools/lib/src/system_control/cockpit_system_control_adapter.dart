@@ -28,18 +28,67 @@ final class CockpitSystemControlTargetContext {
       cockpitHasSystemControlWindowTarget(appId: appId, processId: processId);
 }
 
-int? cockpitReadSystemControlInt(Map<String, Object?> parameters, String key) {
+CockpitSystemControlIntParameter cockpitReadSystemControlIntParameter(
+  Map<String, Object?> parameters,
+  String key, {
+  int? minimum,
+  int? maximum,
+}) {
+  if (!parameters.containsKey(key)) {
+    return const CockpitSystemControlIntParameter.absent();
+  }
   final value = parameters[key];
   if (value is int) {
-    return value;
+    return _validatedSystemControlInt(value, minimum, maximum);
   }
   if (value is num) {
-    return value.toInt();
+    if (value.isFinite && value == value.truncateToDouble()) {
+      return _validatedSystemControlInt(value.toInt(), minimum, maximum);
+    }
+    return CockpitSystemControlIntParameter.invalid();
   }
   if (value is String) {
-    return int.tryParse(value);
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      return const CockpitSystemControlIntParameter.absent();
+    }
+    final parsed = int.tryParse(trimmed);
+    if (parsed != null) {
+      return _validatedSystemControlInt(parsed, minimum, maximum);
+    }
+    return CockpitSystemControlIntParameter.invalid();
   }
-  return null;
+  return CockpitSystemControlIntParameter.invalid();
+}
+
+CockpitSystemControlIntParameter _validatedSystemControlInt(
+  int value,
+  int? minimum,
+  int? maximum,
+) {
+  if (minimum != null && value < minimum) {
+    return CockpitSystemControlIntParameter.invalid();
+  }
+  if (maximum != null && value > maximum) {
+    return CockpitSystemControlIntParameter.invalid();
+  }
+  return CockpitSystemControlIntParameter.valid(value);
+}
+
+final class CockpitSystemControlIntParameter {
+  const CockpitSystemControlIntParameter._(this.value, this.isPresent);
+
+  const CockpitSystemControlIntParameter.absent() : this._(null, false);
+
+  const CockpitSystemControlIntParameter.invalid() : this._(null, true);
+
+  const CockpitSystemControlIntParameter.valid(int value) : this._(value, true);
+
+  final int? value;
+  final bool isPresent;
+
+  bool get isValid => value != null;
+  bool get isInvalid => isPresent && value == null;
 }
 
 double? cockpitReadSystemControlDouble(
@@ -60,15 +109,49 @@ CockpitResolvedSystemControlCommand cockpitCoordinateCommand(
   CockpitSystemControlActionRequest request,
   CockpitResolvedSystemControlCommand Function(int x, int y) factory,
 ) {
-  final x = cockpitReadSystemControlInt(request.parameters, 'x');
-  final y = cockpitReadSystemControlInt(request.parameters, 'y');
-  if (x == null || y == null) {
+  final x = cockpitReadSystemControlIntParameter(request.parameters, 'x');
+  final y = cockpitReadSystemControlIntParameter(request.parameters, 'y');
+  if (x.isInvalid || y.isInvalid) {
+    return CockpitResolvedSystemControlCommand.error(
+      code: 'invalidSystemActionParameter',
+      message: '${request.action.name} requires integer x and y parameters.',
+    );
+  }
+  if (!x.isValid || !y.isValid) {
     return CockpitResolvedSystemControlCommand.error(
       code: 'missingSystemActionParameter',
       message: '${request.action.name} requires integer x and y parameters.',
     );
   }
-  return factory(x, y);
+  return factory(x.value!, y.value!);
+}
+
+CockpitResolvedSystemControlCommand cockpitLongPressCommand(
+  CockpitSystemControlActionRequest request,
+  CockpitResolvedSystemControlCommand Function(int x, int y, int durationMs)
+  factory,
+) {
+  final x = cockpitReadSystemControlIntParameter(request.parameters, 'x');
+  final y = cockpitReadSystemControlIntParameter(request.parameters, 'y');
+  final durationMs = cockpitReadSystemControlIntParameter(
+    request.parameters,
+    'durationMs',
+    minimum: 1,
+  );
+  if (x.isInvalid || y.isInvalid || durationMs.isInvalid) {
+    return CockpitResolvedSystemControlCommand.error(
+      code: 'invalidSystemActionParameter',
+      message:
+          '${request.action.name} requires integer x, y, and positive durationMs parameters.',
+    );
+  }
+  if (!x.isValid || !y.isValid) {
+    return CockpitResolvedSystemControlCommand.error(
+      code: 'missingSystemActionParameter',
+      message: '${request.action.name} requires integer x and y parameters.',
+    );
+  }
+  return factory(x.value!, y.value!, durationMs.value ?? 800);
 }
 
 CockpitResolvedSystemControlCommand cockpitDragCommand(
@@ -82,20 +165,46 @@ CockpitResolvedSystemControlCommand cockpitDragCommand(
   )
   factory,
 ) {
-  final startX = cockpitReadSystemControlInt(request.parameters, 'startX');
-  final startY = cockpitReadSystemControlInt(request.parameters, 'startY');
-  final endX = cockpitReadSystemControlInt(request.parameters, 'endX');
-  final endY = cockpitReadSystemControlInt(request.parameters, 'endY');
-  final durationMs =
-      cockpitReadSystemControlInt(request.parameters, 'durationMs') ?? 300;
-  if (startX == null || startY == null || endX == null || endY == null) {
+  final startX = cockpitReadSystemControlIntParameter(
+    request.parameters,
+    'startX',
+  );
+  final startY = cockpitReadSystemControlIntParameter(
+    request.parameters,
+    'startY',
+  );
+  final endX = cockpitReadSystemControlIntParameter(request.parameters, 'endX');
+  final endY = cockpitReadSystemControlIntParameter(request.parameters, 'endY');
+  final durationMs = cockpitReadSystemControlIntParameter(
+    request.parameters,
+    'durationMs',
+    minimum: 1,
+  );
+  if (startX.isInvalid ||
+      startY.isInvalid ||
+      endX.isInvalid ||
+      endY.isInvalid ||
+      durationMs.isInvalid) {
+    return const CockpitResolvedSystemControlCommand.error(
+      code: 'invalidSystemActionParameter',
+      message:
+          'drag requires integer startX, startY, endX, endY, and positive durationMs parameters.',
+    );
+  }
+  if (!startX.isValid || !startY.isValid || !endX.isValid || !endY.isValid) {
     return const CockpitResolvedSystemControlCommand.error(
       code: 'missingSystemActionParameter',
       message:
           'drag requires integer startX, startY, endX, and endY parameters.',
     );
   }
-  return factory(startX, startY, endX, endY, durationMs);
+  return factory(
+    startX.value!,
+    startY.value!,
+    endX.value!,
+    endY.value!,
+    durationMs.value ?? 300,
+  );
 }
 
 CockpitResolvedSystemControlCommand cockpitTextCommand(

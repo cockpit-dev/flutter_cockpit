@@ -98,6 +98,141 @@ void main() {
     expect(processManager.starts, isEmpty);
   });
 
+  test('fractional integer parameters fail before spawning process', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        action: CockpitSystemControlAction.tap,
+        parameters: <String, Object?>{'x': 42.7, 'y': 88},
+      ),
+    );
+
+    expect(result.success, isFalse);
+    expect(result.errorCode, 'invalidSystemActionParameter');
+    expect(result.recommendedNextStep, 'fixActionPayload');
+    expect(processManager.starts, isEmpty);
+  });
+
+  test('fractional longPress duration fails before spawning process', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        action: CockpitSystemControlAction.longPress,
+        parameters: <String, Object?>{'x': 42, 'y': 88, 'durationMs': 1.5},
+      ),
+    );
+
+    expect(result.success, isFalse);
+    expect(result.errorCode, 'invalidSystemActionParameter');
+    expect(result.recommendedNextStep, 'fixActionPayload');
+    expect(processManager.starts, isEmpty);
+  });
+
+  test('non-positive drag duration fails before spawning process', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        action: CockpitSystemControlAction.drag,
+        parameters: <String, Object?>{
+          'startX': 10,
+          'startY': 20,
+          'endX': 30,
+          'endY': 40,
+          'durationMs': 0,
+        },
+      ),
+    );
+
+    expect(result.success, isFalse);
+    expect(result.errorCode, 'invalidSystemActionParameter');
+    expect(result.recommendedNextStep, 'fixActionPayload');
+    expect(processManager.starts, isEmpty);
+  });
+
+  test(
+    'invalid optional integer parameters do not fall back to defaults',
+    () async {
+      final processManager = _FakeProcessManager();
+      final service = CockpitSystemControlActionService(
+        processManager: processManager,
+      );
+
+      final result = await service.run(
+        const CockpitSystemControlActionRequest(
+          platform: 'macos',
+          appId: 'dev.cockpit.example',
+          action: CockpitSystemControlAction.readUiTree,
+          parameters: <String, Object?>{'maxDepth': 'deep', 'maxNodes': 20},
+        ),
+      );
+
+      expect(result.success, isFalse);
+      expect(result.errorCode, 'invalidSystemActionParameter');
+      expect(result.recommendedNextStep, 'fixActionPayload');
+      expect(processManager.starts, isEmpty);
+    },
+  );
+
+  test('readUiTree enforces positive integer limits', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'windows',
+        processId: 4242,
+        action: CockpitSystemControlAction.readUiTree,
+        parameters: <String, Object?>{'maxDepth': 0, 'maxNodes': 20},
+      ),
+    );
+
+    expect(result.success, isFalse);
+    expect(result.errorCode, 'invalidSystemActionParameter');
+    expect(result.recommendedNextStep, 'fixActionPayload');
+    expect(processManager.starts, isEmpty);
+  });
+
+  test('ios status bar rejects invalid integer overrides', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'ios',
+        deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+        action: CockpitSystemControlAction.setStatusBar,
+        parameters: <String, Object?>{'time': '09:41', 'wifiBars': 1.5},
+      ),
+    );
+
+    expect(result.success, isFalse);
+    expect(result.errorCode, 'invalidSystemActionParameter');
+    expect(result.recommendedNextStep, 'fixActionPayload');
+    expect(processManager.starts, isEmpty);
+  });
+
   test('android readUiTree cats a dumped XML tree', () async {
     final processManager = _FakeProcessManager();
     final service = CockpitSystemControlActionService(

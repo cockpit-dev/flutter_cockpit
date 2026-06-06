@@ -497,16 +497,16 @@ final class CockpitDesktopSystemControlAdapter
           '0',
         ]),
       ),
-      CockpitSystemControlAction.longPress => cockpitCoordinateCommand(
+      CockpitSystemControlAction.longPress => cockpitLongPressCommand(
         request,
-        (x, y) => _macosJxa(<String>[
+        (x, y, durationMs) => _macosJxa(<String>[
           _macosMouseScript,
           'longPress',
           '$x',
           '$y',
           '$x',
           '$y',
-          '${cockpitReadSystemControlInt(request.parameters, 'durationMs') ?? 800}',
+          '$durationMs',
         ]),
       ),
       CockpitSystemControlAction.drag => cockpitDragCommand(request, (
@@ -563,11 +563,7 @@ final class CockpitDesktopSystemControlAdapter
         'url',
         (url) => CockpitResolvedSystemControlCommand('open', <String>[url]),
       ),
-      CockpitSystemControlAction.readUiTree => _macosJxaWithTarget(
-        request,
-        _macosReadUiTreeScript,
-        _uiTreeReadLimits(request),
-      ),
+      CockpitSystemControlAction.readUiTree => _macosReadUiTreeCommand(request),
       CockpitSystemControlAction.readProcessList =>
         CockpitResolvedSystemControlCommand('ps', const <String>[
           '-axo',
@@ -620,15 +616,15 @@ final class CockpitDesktopSystemControlAdapter
         request,
         (x, y) => _windowsInput(<String>['tap', '', '', '$x', '$y']),
       ),
-      CockpitSystemControlAction.longPress => cockpitCoordinateCommand(
+      CockpitSystemControlAction.longPress => cockpitLongPressCommand(
         request,
-        (x, y) => _windowsInput(<String>[
+        (x, y, durationMs) => _windowsInput(<String>[
           'longPress',
           '',
           '',
           '$x',
           '$y',
-          '${cockpitReadSystemControlInt(request.parameters, 'durationMs') ?? 800}',
+          '$durationMs',
         ]),
       ),
       CockpitSystemControlAction.drag => cockpitDragCommand(request, (
@@ -773,19 +769,20 @@ final class CockpitDesktopSystemControlAdapter
           '1',
         ]),
       ),
-      CockpitSystemControlAction.longPress => cockpitCoordinateCommand(
+      CockpitSystemControlAction.longPress => cockpitLongPressCommand(
         request,
-        (x, y) => CockpitResolvedSystemControlCommand('xdotool', <String>[
-          'mousemove',
-          '$x',
-          '$y',
-          'mousedown',
-          '1',
-          'sleep',
-          '${(cockpitReadSystemControlInt(request.parameters, 'durationMs') ?? 800) / 1000.0}',
-          'mouseup',
-          '1',
-        ]),
+        (x, y, durationMs) =>
+            CockpitResolvedSystemControlCommand('xdotool', <String>[
+              'mousemove',
+              '$x',
+              '$y',
+              'mousedown',
+              '1',
+              'sleep',
+              '${durationMs / 1000.0}',
+              'mouseup',
+              '1',
+            ]),
       ),
       CockpitSystemControlAction.drag => cockpitDragCommand(request, (
         startX,
@@ -915,6 +912,16 @@ final class CockpitDesktopSystemControlAdapter
     ]);
   }
 
+  CockpitResolvedSystemControlCommand _macosReadUiTreeCommand(
+    CockpitSystemControlActionRequest request,
+  ) {
+    final limits = _uiTreeReadLimits(request);
+    if (limits.error != null) {
+      return limits.error!;
+    }
+    return _macosJxaWithTarget(request, _macosReadUiTreeScript, limits.values);
+  }
+
   CockpitResolvedSystemControlCommand _macosJxaWithTarget(
     CockpitSystemControlActionRequest request,
     String script,
@@ -996,13 +1003,17 @@ final class CockpitDesktopSystemControlAdapter
         message: 'This Windows action requires --app-id or --process-id.',
       );
     }
+    final limits = _uiTreeReadLimits(request);
+    if (limits.error != null) {
+      return limits.error!;
+    }
     return CockpitResolvedSystemControlCommand('powershell', <String>[
       '-NoProfile',
       '-NonInteractive',
       '-Command',
       _windowsReadUiTreeScript,
       ...target,
-      ..._uiTreeReadLimits(request),
+      ...limits.values,
     ]);
   }
 
@@ -1069,12 +1080,32 @@ final class CockpitDesktopSystemControlAdapter
     return null;
   }
 
-  List<String> _uiTreeReadLimits(CockpitSystemControlActionRequest request) {
-    final maxDepth =
-        cockpitReadSystemControlInt(request.parameters, 'maxDepth') ?? 4;
-    final maxNodes =
-        cockpitReadSystemControlInt(request.parameters, 'maxNodes') ?? 120;
-    return <String>['$maxDepth', '$maxNodes'];
+  _UiTreeReadLimits _uiTreeReadLimits(
+    CockpitSystemControlActionRequest request,
+  ) {
+    final maxDepth = cockpitReadSystemControlIntParameter(
+      request.parameters,
+      'maxDepth',
+      minimum: 1,
+    );
+    final maxNodes = cockpitReadSystemControlIntParameter(
+      request.parameters,
+      'maxNodes',
+      minimum: 1,
+    );
+    if (maxDepth.isInvalid || maxNodes.isInvalid) {
+      return const _UiTreeReadLimits.error(
+        CockpitResolvedSystemControlCommand.error(
+          code: 'invalidSystemActionParameter',
+          message:
+              'readUiTree requires positive integer maxDepth and maxNodes parameters.',
+        ),
+      );
+    }
+    return _UiTreeReadLimits.values(<String>[
+      '${maxDepth.value ?? 4}',
+      '${maxNodes.value ?? 120}',
+    ]);
   }
 
   CockpitResolvedSystemControlCommand _unsupportedCommand(
@@ -2101,4 +2132,13 @@ final class CockpitUnsupportedSystemControlAdapter
       message: 'No system control adapter for $platform.',
     );
   }
+}
+
+final class _UiTreeReadLimits {
+  const _UiTreeReadLimits.values(this.values) : error = null;
+
+  const _UiTreeReadLimits.error(this.error) : values = const <String>[];
+
+  final List<String> values;
+  final CockpitResolvedSystemControlCommand? error;
 }
