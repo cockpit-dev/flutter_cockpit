@@ -609,18 +609,25 @@ final class CockpitAndroidSystemControlAdapter
     factory,
   ) {
     final packageId = _readPackageId(request);
-    final permission = request.parameters['permission'] as String?;
-    if (packageId == null ||
-        packageId.trim().isEmpty ||
-        permission == null ||
-        permission.trim().isEmpty) {
+    final permission = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'permission',
+    );
+    if (packageId.isInvalid || permission.isInvalid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'invalidSystemActionParameter',
+        message:
+            'grantPermission requires string packageId/appId and permission parameters.',
+      );
+    }
+    if (!packageId.isValid || !permission.isValid) {
       return const CockpitResolvedSystemControlCommand.error(
         code: 'missingSystemActionParameter',
         message:
             'grantPermission requires --app-id or packageId plus permission.',
       );
     }
-    return factory(packageId.trim(), permission.trim());
+    return factory(packageId.value!, permission.value!);
   }
 
   CockpitResolvedSystemControlCommand _packageCommand(
@@ -628,19 +635,32 @@ final class CockpitAndroidSystemControlAdapter
     CockpitResolvedSystemControlCommand Function(String packageId) factory,
   ) {
     final packageId = _readPackageId(request);
-    if (packageId == null || packageId.trim().isEmpty) {
+    if (packageId.isInvalid) {
+      return CockpitResolvedSystemControlCommand.error(
+        code: 'invalidSystemActionParameter',
+        message: '${request.action.name} requires a string packageId or appId.',
+      );
+    }
+    if (!packageId.isValid) {
       return CockpitResolvedSystemControlCommand.error(
         code: 'missingSystemActionParameter',
         message: '${request.action.name} requires --app-id or packageId.',
       );
     }
-    return factory(packageId.trim());
+    return factory(packageId.value!);
   }
 
-  String? _readPackageId(CockpitSystemControlActionRequest request) {
-    return request.appId ??
-        (request.parameters['packageId'] as String?) ??
-        (request.parameters['appId'] as String?);
+  CockpitSystemControlStringParameter _readPackageId(
+    CockpitSystemControlActionRequest request,
+  ) {
+    final appId = request.appId?.trim();
+    if (appId != null && appId.isNotEmpty) {
+      return CockpitSystemControlStringParameter.valid(appId);
+    }
+    return cockpitReadFirstSystemControlStringParameter(
+      request.parameters,
+      const <String>['packageId', 'appId'],
+    );
   }
 
   String _normalizeAndroidKey(String key) {
@@ -709,14 +729,23 @@ final class CockpitAndroidSystemControlAdapter
     CockpitSystemControlActionRequest request,
     CockpitResolvedSystemControlCommand Function(String script) factory,
   ) {
-    final raw = request.parameters['orientation'] as String?;
-    if (raw == null || raw.trim().isEmpty) {
+    final raw = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'orientation',
+    );
+    if (raw.isInvalid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'invalidSystemActionParameter',
+        message: 'setOrientation requires a string orientation parameter.',
+      );
+    }
+    if (!raw.isValid) {
       return const CockpitResolvedSystemControlCommand.error(
         code: 'missingSystemActionParameter',
         message: 'setOrientation requires an orientation parameter.',
       );
     }
-    final normalized = raw.trim().toLowerCase();
+    final normalized = raw.value!.toLowerCase();
     if (normalized == 'auto' || normalized == 'sensor') {
       return factory('settings put system accelerometer_rotation 1');
     }

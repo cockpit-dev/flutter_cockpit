@@ -91,6 +91,67 @@ final class CockpitSystemControlIntParameter {
   bool get isInvalid => isPresent && value == null;
 }
 
+CockpitSystemControlStringParameter cockpitReadSystemControlStringParameter(
+  Map<String, Object?> parameters,
+  String key, {
+  List<String> allowedValues = const <String>[],
+  bool trim = true,
+}) {
+  if (!parameters.containsKey(key)) {
+    return const CockpitSystemControlStringParameter.absent();
+  }
+  final value = parameters[key];
+  if (value is! String) {
+    return const CockpitSystemControlStringParameter.invalid();
+  }
+  final normalized = trim ? value.trim() : value;
+  if (normalized.isEmpty) {
+    return const CockpitSystemControlStringParameter.absent();
+  }
+  if (allowedValues.isNotEmpty && !allowedValues.contains(normalized)) {
+    return const CockpitSystemControlStringParameter.invalid();
+  }
+  return CockpitSystemControlStringParameter.valid(normalized);
+}
+
+CockpitSystemControlStringParameter
+cockpitReadFirstSystemControlStringParameter(
+  Map<String, Object?> parameters,
+  List<String> keys, {
+  List<String> allowedValues = const <String>[],
+  bool trim = true,
+}) {
+  for (final key in keys) {
+    final value = cockpitReadSystemControlStringParameter(
+      parameters,
+      key,
+      allowedValues: allowedValues,
+      trim: trim,
+    );
+    if (value.isPresent) {
+      return value;
+    }
+  }
+  return const CockpitSystemControlStringParameter.absent();
+}
+
+final class CockpitSystemControlStringParameter {
+  const CockpitSystemControlStringParameter._(this.value, this.isPresent);
+
+  const CockpitSystemControlStringParameter.absent() : this._(null, false);
+
+  const CockpitSystemControlStringParameter.invalid() : this._(null, true);
+
+  const CockpitSystemControlStringParameter.valid(String value)
+    : this._(value, true);
+
+  final String? value;
+  final bool isPresent;
+
+  bool get isValid => value != null;
+  bool get isInvalid => isPresent && value == null;
+}
+
 double? cockpitReadSystemControlDouble(
   Map<String, Object?> parameters,
   String key,
@@ -210,16 +271,30 @@ CockpitResolvedSystemControlCommand cockpitDragCommand(
 CockpitResolvedSystemControlCommand cockpitTextCommand(
   CockpitSystemControlActionRequest request,
   String parameterName,
-  CockpitResolvedSystemControlCommand Function(String value) factory,
-) {
-  final value = request.parameters[parameterName] as String?;
-  if (value == null || value.isEmpty) {
+  CockpitResolvedSystemControlCommand Function(String value) factory, {
+  bool trim = false,
+  List<String> allowedValues = const <String>[],
+}) {
+  final value = cockpitReadSystemControlStringParameter(
+    request.parameters,
+    parameterName,
+    trim: trim,
+    allowedValues: allowedValues,
+  );
+  if (value.isInvalid) {
+    return CockpitResolvedSystemControlCommand.error(
+      code: 'invalidSystemActionParameter',
+      message:
+          '${request.action.name} requires a valid $parameterName parameter.',
+    );
+  }
+  if (!value.isValid) {
     return CockpitResolvedSystemControlCommand.error(
       code: 'missingSystemActionParameter',
       message: '${request.action.name} requires a $parameterName parameter.',
     );
   }
-  return factory(value);
+  return factory(value.value!);
 }
 
 CockpitResolvedSystemControlCommand cockpitShellCommand(

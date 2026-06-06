@@ -465,7 +465,7 @@ void main() {
               ? 'dev.cockpit.example'
               : null,
           action: capability.action,
-          parameters: _validParametersFor(capability.action),
+          parameters: _validParametersFor(capability),
         );
         final command = adapter.resolveCommand(request);
 
@@ -704,7 +704,52 @@ CockpitSystemControlParameter? _parameter(
   return null;
 }
 
-Map<String, Object?> _validParametersFor(CockpitSystemControlAction action) {
+Map<String, Object?> _validParametersFor(
+  CockpitSystemControlCapability capability,
+) {
+  final parameters = <String, Object?>{
+    ..._fallbackParametersFor(capability.action),
+  };
+  for (final parameter in capability.parameters) {
+    parameters[parameter.name] = _sampleValueFor(parameter);
+  }
+  return parameters;
+}
+
+Object? _sampleValueFor(CockpitSystemControlParameter parameter) {
+  if (parameter.allowedValues.isNotEmpty) {
+    return parameter.allowedValues.first;
+  }
+  return switch (parameter.valueType) {
+    CockpitSystemControlParameterType.string => _sampleStringFor(
+      parameter.name,
+    ),
+    CockpitSystemControlParameterType.integer =>
+      (parameter.minimum ?? 1).toInt(),
+    CockpitSystemControlParameterType.number =>
+      (parameter.minimum ?? 1).toDouble(),
+    CockpitSystemControlParameterType.boolean => true,
+    CockpitSystemControlParameterType.stringList => <String>['echo', 'ok'],
+  };
+}
+
+String _sampleStringFor(String parameterName) {
+  return switch (parameterName) {
+    'text' => 'hello',
+    'key' => 'enter',
+    'url' => 'https://example.com',
+    'appId' || 'packageId' => 'dev.cockpit.example',
+    'permission' => 'android.permission.CAMERA',
+    'time' => '09:41',
+    'operatorName' => 'Cockpit',
+    'outputPath' => '/tmp/cockpit-system-screenshot.png',
+    'name' => 'system-recording',
+    'command' => 'echo',
+    _ => 'value',
+  };
+}
+
+Map<String, Object?> _fallbackParametersFor(CockpitSystemControlAction action) {
   return switch (action) {
     CockpitSystemControlAction.tap => const <String, Object?>{'x': 10, 'y': 20},
     CockpitSystemControlAction.longPress => const <String, Object?>{

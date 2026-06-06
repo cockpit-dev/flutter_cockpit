@@ -1,5 +1,75 @@
 import 'cockpit_system_control_profile.dart';
 
+final class CockpitSystemControlAllowedValues {
+  const CockpitSystemControlAllowedValues._();
+
+  static const iosPrivacyServices = <String>[
+    'all',
+    'calendar',
+    'contacts-limited',
+    'contacts',
+    'location',
+    'location-always',
+    'photos-add',
+    'photos',
+    'media-library',
+    'microphone',
+    'motion',
+    'reminders',
+    'siri',
+  ];
+
+  static const iosContentSizeCategories = <String>[
+    'extra-small',
+    'small',
+    'medium',
+    'large',
+    'extra-large',
+    'extra-extra-large',
+    'extra-extra-extra-large',
+    'accessibility-medium',
+    'accessibility-large',
+    'accessibility-extra-large',
+    'accessibility-extra-extra-large',
+    'accessibility-extra-extra-extra-large',
+    'increment',
+    'decrement',
+  ];
+
+  static const iosStatusBarDataNetworks = <String>[
+    'hide',
+    'wifi',
+    '3g',
+    '4g',
+    'lte',
+    'lte-a',
+    'lte+',
+    '5g',
+    '5g+',
+    '5g-uwb',
+    '5g-uc',
+  ];
+
+  static const iosStatusBarWifiModes = <String>[
+    'searching',
+    'failed',
+    'active',
+  ];
+
+  static const iosStatusBarCellularModes = <String>[
+    'notSupported',
+    'searching',
+    'failed',
+    'active',
+  ];
+
+  static const iosStatusBarBatteryStates = <String>[
+    'charging',
+    'charged',
+    'discharging',
+  ];
+}
+
 final class CockpitSystemControlParameterSets {
   const CockpitSystemControlParameterSets._();
 
@@ -119,21 +189,7 @@ final class CockpitSystemControlParameterSets {
       name: 'permission',
       valueType: CockpitSystemControlParameterType.string,
       required: true,
-      allowedValues: <String>[
-        'all',
-        'calendar',
-        'contacts-limited',
-        'contacts',
-        'location',
-        'location-always',
-        'photos-add',
-        'photos',
-        'media-library',
-        'microphone',
-        'motion',
-        'reminders',
-        'siri',
-      ],
+      allowedValues: CockpitSystemControlAllowedValues.iosPrivacyServices,
       description: 'simctl privacy service; service is also accepted.',
     ),
   ];
@@ -196,22 +252,7 @@ final class CockpitSystemControlParameterSets {
       name: 'contentSize',
       valueType: CockpitSystemControlParameterType.string,
       required: true,
-      allowedValues: <String>[
-        'extra-small',
-        'small',
-        'medium',
-        'large',
-        'extra-large',
-        'extra-extra-large',
-        'extra-extra-extra-large',
-        'accessibility-medium',
-        'accessibility-large',
-        'accessibility-extra-large',
-        'accessibility-extra-extra-large',
-        'accessibility-extra-extra-extra-large',
-        'increment',
-        'decrement',
-      ],
+      allowedValues: CockpitSystemControlAllowedValues.iosContentSizeCategories,
     ),
   ];
 
@@ -347,24 +388,12 @@ final class CockpitSystemControlParameterSets {
     CockpitSystemControlParameter(
       name: 'dataNetwork',
       valueType: CockpitSystemControlParameterType.string,
-      allowedValues: <String>[
-        'hide',
-        'wifi',
-        '3g',
-        '4g',
-        'lte',
-        'lte-a',
-        'lte+',
-        '5g',
-        '5g+',
-        '5g-uwb',
-        '5g-uc',
-      ],
+      allowedValues: CockpitSystemControlAllowedValues.iosStatusBarDataNetworks,
     ),
     CockpitSystemControlParameter(
       name: 'wifiMode',
       valueType: CockpitSystemControlParameterType.string,
-      allowedValues: <String>['searching', 'failed', 'active'],
+      allowedValues: CockpitSystemControlAllowedValues.iosStatusBarWifiModes,
     ),
     CockpitSystemControlParameter(
       name: 'wifiBars',
@@ -376,7 +405,8 @@ final class CockpitSystemControlParameterSets {
     CockpitSystemControlParameter(
       name: 'cellularMode',
       valueType: CockpitSystemControlParameterType.string,
-      allowedValues: <String>['notSupported', 'searching', 'failed', 'active'],
+      allowedValues:
+          CockpitSystemControlAllowedValues.iosStatusBarCellularModes,
     ),
     CockpitSystemControlParameter(
       name: 'cellularBars',
@@ -392,7 +422,8 @@ final class CockpitSystemControlParameterSets {
     CockpitSystemControlParameter(
       name: 'batteryState',
       valueType: CockpitSystemControlParameterType.string,
-      allowedValues: <String>['charging', 'charged', 'discharging'],
+      allowedValues:
+          CockpitSystemControlAllowedValues.iosStatusBarBatteryStates,
     ),
     CockpitSystemControlParameter(
       name: 'batteryLevel',

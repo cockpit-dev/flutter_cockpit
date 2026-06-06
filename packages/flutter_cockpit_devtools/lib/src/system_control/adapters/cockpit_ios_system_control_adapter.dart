@@ -647,6 +647,8 @@ final class CockpitIosSystemControlAdapter
             mode,
           ]),
         ),
+        trim: true,
+        allowedValues: const <String>['light', 'dark'],
       ),
       CockpitSystemControlAction.setContentSize => cockpitTextCommand(
         request,
@@ -658,6 +660,9 @@ final class CockpitIosSystemControlAdapter
           'content_size',
           contentSize,
         ]),
+        trim: true,
+        allowedValues:
+            CockpitSystemControlAllowedValues.iosContentSizeCategories,
       ),
       CockpitSystemControlAction.setLocation => cockpitLocationCommand(
         request,
@@ -766,13 +771,19 @@ final class CockpitIosSystemControlAdapter
     CockpitResolvedSystemControlCommand Function(String appId) factory,
   ) {
     final appId = _readAppId(request);
-    if (appId == null || appId.trim().isEmpty) {
+    if (appId.isInvalid) {
+      return CockpitResolvedSystemControlCommand.error(
+        code: 'invalidSystemActionParameter',
+        message: '${request.action.name} requires a string appId.',
+      );
+    }
+    if (!appId.isValid) {
       return CockpitResolvedSystemControlCommand.error(
         code: 'missingSystemActionParameter',
         message: '${request.action.name} requires --app-id or appId.',
       );
     }
-    return factory(appId.trim());
+    return factory(appId.value!);
   }
 
   CockpitResolvedSystemControlCommand _permissionCommand(
@@ -781,22 +792,44 @@ final class CockpitIosSystemControlAdapter
     factory,
   ) {
     final appId = _readAppId(request);
-    if (appId == null || appId.trim().isEmpty) {
+    if (appId.isInvalid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'invalidSystemActionParameter',
+        message: 'grantPermission requires a string appId.',
+      );
+    }
+    if (!appId.isValid) {
       return const CockpitResolvedSystemControlCommand.error(
         code: 'missingSystemActionParameter',
         message: 'grantPermission requires --app-id or appId.',
       );
     }
-    final service =
-        request.parameters['permission'] as String? ??
-        request.parameters['service'] as String?;
-    if (service == null || service.trim().isEmpty) {
+    final permission = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'permission',
+      allowedValues: CockpitSystemControlAllowedValues.iosPrivacyServices,
+    );
+    final service = permission.isPresent
+        ? permission
+        : cockpitReadSystemControlStringParameter(
+            request.parameters,
+            'service',
+            allowedValues: CockpitSystemControlAllowedValues.iosPrivacyServices,
+          );
+    if (service.isInvalid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'invalidSystemActionParameter',
+        message:
+            'grantPermission requires a valid iOS simulator privacy service.',
+      );
+    }
+    if (!service.isValid) {
       return const CockpitResolvedSystemControlCommand.error(
         code: 'missingSystemActionParameter',
         message: 'grantPermission requires a permission or service parameter.',
       );
     }
-    return factory(appId.trim(), service.trim());
+    return factory(appId.value!, service.value!);
   }
 
   CockpitResolvedSystemControlCommand _iosSetStatusBarCommand(
@@ -805,11 +838,24 @@ final class CockpitIosSystemControlAdapter
   ) {
     final args = <String>[];
     String? errorMessage;
-    void addString(String parameterName, String flagName) {
-      final raw = request.parameters[parameterName] as String?;
-      if (raw != null && raw.trim().isNotEmpty) {
-        args.addAll(<String>['--$flagName', raw.trim()]);
+    void addString(
+      String parameterName,
+      String flagName, {
+      List<String> allowedValues = const <String>[],
+    }) {
+      final value = cockpitReadSystemControlStringParameter(
+        request.parameters,
+        parameterName,
+        allowedValues: allowedValues,
+      );
+      if (!value.isPresent) {
+        return;
       }
+      if (value.isInvalid) {
+        errorMessage = '$parameterName has an unsupported value.';
+        return;
+      }
+      args.addAll(<String>['--$flagName', value.value!]);
     }
 
     void addInt(String parameterName, String flagName, int min, int max) {
@@ -831,13 +877,31 @@ final class CockpitIosSystemControlAdapter
     }
 
     addString('time', 'time');
-    addString('dataNetwork', 'dataNetwork');
-    addString('wifiMode', 'wifiMode');
+    addString(
+      'dataNetwork',
+      'dataNetwork',
+      allowedValues: CockpitSystemControlAllowedValues.iosStatusBarDataNetworks,
+    );
+    addString(
+      'wifiMode',
+      'wifiMode',
+      allowedValues: CockpitSystemControlAllowedValues.iosStatusBarWifiModes,
+    );
     addInt('wifiBars', 'wifiBars', 0, 3);
-    addString('cellularMode', 'cellularMode');
+    addString(
+      'cellularMode',
+      'cellularMode',
+      allowedValues:
+          CockpitSystemControlAllowedValues.iosStatusBarCellularModes,
+    );
     addInt('cellularBars', 'cellularBars', 0, 4);
     addString('operatorName', 'operatorName');
-    addString('batteryState', 'batteryState');
+    addString(
+      'batteryState',
+      'batteryState',
+      allowedValues:
+          CockpitSystemControlAllowedValues.iosStatusBarBatteryStates,
+    );
     addInt('batteryLevel', 'batteryLevel', 0, 100);
     if (errorMessage != null) {
       return CockpitResolvedSystemControlCommand.error(
@@ -855,10 +919,17 @@ final class CockpitIosSystemControlAdapter
     return factory(args);
   }
 
-  String? _readAppId(CockpitSystemControlActionRequest request) {
-    return request.appId ??
-        (request.parameters['appId'] as String?) ??
-        (request.parameters['packageId'] as String?);
+  CockpitSystemControlStringParameter _readAppId(
+    CockpitSystemControlActionRequest request,
+  ) {
+    final appId = request.appId?.trim();
+    if (appId != null && appId.isNotEmpty) {
+      return CockpitSystemControlStringParameter.valid(appId);
+    }
+    return cockpitReadFirstSystemControlStringParameter(
+      request.parameters,
+      const <String>['appId', 'packageId'],
+    );
   }
 
   CockpitResolvedSystemControlCommand _iosSetAppearanceCommand(

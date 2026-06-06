@@ -119,6 +119,112 @@ void main() {
     expect(processManager.starts, isEmpty);
   });
 
+  test('non-string text parameters fail before spawning process', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        action: CockpitSystemControlAction.pressKey,
+        parameters: <String, Object?>{'key': 13},
+      ),
+    );
+
+    expect(result.success, isFalse);
+    expect(result.errorCode, 'invalidSystemActionParameter');
+    expect(result.recommendedNextStep, 'fixActionPayload');
+    expect(processManager.starts, isEmpty);
+  });
+
+  test('android grantPermission rejects non-string permission', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        appId: 'dev.cockpit.example',
+        action: CockpitSystemControlAction.grantPermission,
+        parameters: <String, Object?>{'permission': 42},
+      ),
+    );
+
+    expect(result.success, isFalse);
+    expect(result.errorCode, 'invalidSystemActionParameter');
+    expect(result.recommendedNextStep, 'fixActionPayload');
+    expect(processManager.starts, isEmpty);
+  });
+
+  test('android setOrientation rejects non-string orientation', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        action: CockpitSystemControlAction.setOrientation,
+        parameters: <String, Object?>{'orientation': 1},
+      ),
+    );
+
+    expect(result.success, isFalse);
+    expect(result.errorCode, 'invalidSystemActionParameter');
+    expect(result.recommendedNextStep, 'fixActionPayload');
+    expect(processManager.starts, isEmpty);
+  });
+
+  test('android package aliases reject non-string values', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        action: CockpitSystemControlAction.activateWindow,
+        parameters: <String, Object?>{'packageId': 123},
+      ),
+    );
+
+    expect(result.success, isFalse);
+    expect(result.errorCode, 'invalidSystemActionParameter');
+    expect(result.recommendedNextStep, 'fixActionPayload');
+    expect(processManager.starts, isEmpty);
+  });
+
+  test('ios app aliases reject non-string values', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'ios',
+        deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+        action: CockpitSystemControlAction.activateWindow,
+        parameters: <String, Object?>{'appId': 123},
+      ),
+    );
+
+    expect(result.success, isFalse);
+    expect(result.errorCode, 'invalidSystemActionParameter');
+    expect(result.recommendedNextStep, 'fixActionPayload');
+    expect(processManager.starts, isEmpty);
+  });
+
   test('fractional longPress duration fails before spawning process', () async {
     final processManager = _FakeProcessManager();
     final service = CockpitSystemControlActionService(
@@ -224,6 +330,73 @@ void main() {
         deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
         action: CockpitSystemControlAction.setStatusBar,
         parameters: <String, Object?>{'time': '09:41', 'wifiBars': 1.5},
+      ),
+    );
+
+    expect(result.success, isFalse);
+    expect(result.errorCode, 'invalidSystemActionParameter');
+    expect(result.recommendedNextStep, 'fixActionPayload');
+    expect(processManager.starts, isEmpty);
+  });
+
+  test('ios grantPermission rejects unsupported privacy services', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'ios',
+        deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+        appId: 'dev.cockpit.example',
+        action: CockpitSystemControlAction.grantPermission,
+        parameters: <String, Object?>{'permission': 'camera'},
+      ),
+    );
+
+    expect(result.success, isFalse);
+    expect(result.errorCode, 'invalidSystemActionParameter');
+    expect(result.recommendedNextStep, 'fixActionPayload');
+    expect(processManager.starts, isEmpty);
+  });
+
+  test('ios setContentSize rejects unsupported categories', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'ios',
+        deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+        action: CockpitSystemControlAction.setContentSize,
+        parameters: <String, Object?>{'contentSize': 'huge'},
+      ),
+    );
+
+    expect(result.success, isFalse);
+    expect(result.errorCode, 'invalidSystemActionParameter');
+    expect(result.recommendedNextStep, 'fixActionPayload');
+    expect(processManager.starts, isEmpty);
+  });
+
+  test('ios status bar rejects unsupported string overrides', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'ios',
+        deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+        action: CockpitSystemControlAction.setStatusBar,
+        parameters: <String, Object?>{
+          'time': '09:41',
+          'dataNetwork': 'bluetooth',
+        },
       ),
     );
 
