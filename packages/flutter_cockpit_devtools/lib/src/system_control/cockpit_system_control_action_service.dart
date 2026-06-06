@@ -15,6 +15,8 @@ import '../recording/cockpit_linux_recording_adapter.dart';
 import '../recording/cockpit_macos_recording_adapter.dart';
 import '../recording/cockpit_simctl_recording_adapter.dart';
 import '../recording/cockpit_windows_recording_adapter.dart';
+import 'cockpit_system_control_adapter.dart';
+import 'cockpit_system_control_parameters.dart';
 import 'cockpit_system_control_service.dart';
 
 export 'cockpit_system_control_action.dart';
@@ -194,6 +196,21 @@ final class CockpitSystemControlActionService {
     CockpitSystemControlProfile profile,
     CockpitSystemControlCapability capability,
   ) async {
+    final name = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'name',
+    );
+    final outputPath = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'outputPath',
+    );
+    if (name.isInvalid || outputPath.isInvalid) {
+      return _invalidEvidencePayload(
+        request,
+        capability,
+        'captureScreenshot accepts string name and outputPath parameters.',
+      );
+    }
     final adapter = _captureAdapterFactory(request);
     if (adapter == null) {
       return _notExecutable(
@@ -210,16 +227,13 @@ final class CockpitSystemControlActionService {
     }
 
     try {
-      final name =
-          _readOptionalString(request.parameters, 'name') ??
-          'system-screenshot';
       final execution = await adapter.capture(
         CockpitCommand(
           commandId: 'system-capture-screenshot',
           commandType: CockpitCommandType.captureScreenshot,
           screenshotRequest: CockpitScreenshotRequest(
             reason: CockpitScreenshotReason.acceptance,
-            name: name,
+            name: name.value ?? 'system-screenshot',
           ),
         ),
       );
@@ -247,12 +261,11 @@ final class CockpitSystemControlActionService {
           artifact: artifact?.toJson(),
         );
       }
-      final outputPath = _readOptionalString(request.parameters, 'outputPath');
       String? finalSourcePath = sourcePath;
-      if (result.success && sourcePath != null && outputPath != null) {
+      if (result.success && sourcePath != null && outputPath.value != null) {
         finalSourcePath = await _copyArtifactToOutputPath(
           sourcePath: sourcePath,
-          outputPath: outputPath,
+          outputPath: outputPath.value!,
         );
       }
 
@@ -299,6 +312,16 @@ final class CockpitSystemControlActionService {
     CockpitSystemControlProfile profile,
     CockpitSystemControlCapability capability,
   ) async {
+    final recordingRequest = _recordingRequestFromParameters(
+      request.parameters,
+    );
+    if (recordingRequest == null) {
+      return _invalidEvidencePayload(
+        request,
+        capability,
+        'startRecording accepts string name, purpose, mode, and layer parameters declared by system capabilities.',
+      );
+    }
     final adapter = _recordingAdapterFactory(request);
     if (adapter == null) {
       return _notExecutable(
@@ -315,9 +338,7 @@ final class CockpitSystemControlActionService {
     }
 
     try {
-      final recordingSession = await adapter.startRecording(
-        _recordingRequestFromParameters(request.parameters),
-      );
+      final recordingSession = await adapter.startRecording(recordingRequest);
       return CockpitSystemControlActionResult(
         platform: request.platform,
         deviceId: request.deviceId,
@@ -356,6 +377,17 @@ final class CockpitSystemControlActionService {
     CockpitSystemControlProfile profile,
     CockpitSystemControlCapability capability,
   ) async {
+    final outputPath = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'outputPath',
+    );
+    if (outputPath.isInvalid) {
+      return _invalidEvidencePayload(
+        request,
+        capability,
+        'stopRecording accepts a string outputPath parameter.',
+      );
+    }
     final adapter = _recordingAdapterFactory(request);
     if (adapter == null) {
       return _notExecutable(
@@ -395,11 +427,10 @@ final class CockpitSystemControlActionService {
           recordingResult: recordingResult.toJson(),
         );
       }
-      final outputPath = _readOptionalString(request.parameters, 'outputPath');
-      if (success && finalSourcePath != null && outputPath != null) {
+      if (success && finalSourcePath != null && outputPath.value != null) {
         finalSourcePath = await _copyArtifactToOutputPath(
           sourcePath: finalSourcePath,
-          outputPath: outputPath,
+          outputPath: outputPath.value!,
         );
       }
       return CockpitSystemControlActionResult(
@@ -473,6 +504,28 @@ final class CockpitSystemControlActionService {
   }
 }
 
+CockpitSystemControlActionResult _invalidEvidencePayload(
+  CockpitSystemControlActionRequest request,
+  CockpitSystemControlCapability capability,
+  String message,
+) {
+  return CockpitSystemControlActionResult(
+    platform: request.platform,
+    deviceId: request.deviceId,
+    appId: request.appId,
+    processId: request.processId,
+    action: request.action,
+    availability: capability.availability,
+    success: false,
+    recommendedNextStep: 'fixActionPayload',
+    errorCode: 'invalidSystemActionParameter',
+    errorMessage: message,
+    strategy: capability.strategy,
+    requires: capability.requires,
+    limitations: capability.limitations,
+  );
+}
+
 String _recommendedNextStepForCommandError(
   CockpitResolvedSystemControlCommand command,
 ) {
@@ -543,31 +596,47 @@ String? _windowAppIdFor(CockpitSystemControlActionRequest request) {
   return processId == null ? null : 'pid-$processId';
 }
 
-CockpitRecordingRequest _recordingRequestFromParameters(
+CockpitRecordingRequest? _recordingRequestFromParameters(
   Map<String, Object?> parameters,
 ) {
+  final purpose = cockpitReadSystemControlStringParameter(
+    parameters,
+    'purpose',
+    allowedValues: _allowedRecordingValues('purpose'),
+  );
+  final name = cockpitReadSystemControlStringParameter(parameters, 'name');
+  final mode = cockpitReadSystemControlStringParameter(
+    parameters,
+    'mode',
+    allowedValues: _allowedRecordingValues('mode'),
+  );
+  final layer = cockpitReadSystemControlStringParameter(
+    parameters,
+    'layer',
+    allowedValues: _allowedRecordingValues('layer'),
+  );
+  if (purpose.isInvalid ||
+      name.isInvalid ||
+      mode.isInvalid ||
+      layer.isInvalid) {
+    return null;
+  }
   return CockpitRecordingRequest(
-    purpose: CockpitRecordingPurpose.fromJson(
-      _readOptionalString(parameters, 'purpose') ?? 'acceptance',
-    ),
-    name: _readOptionalString(parameters, 'name') ?? 'system-recording',
-    mode: parameters['mode'] == null
-        ? CockpitRecordingMode.native
-        : CockpitRecordingMode.fromJson(parameters['mode']),
-    layer: parameters['layer'] == null
-        ? CockpitRecordingLayer.system
-        : CockpitRecordingLayer.fromJson(parameters['layer']),
+    purpose: CockpitRecordingPurpose.fromJson(purpose.value ?? 'acceptance'),
+    name: name.value ?? 'system-recording',
+    mode: CockpitRecordingMode.fromJson(mode.value ?? 'native'),
+    layer: CockpitRecordingLayer.fromJson(layer.value ?? 'system'),
     allowFallback: false,
   );
 }
 
-String? _readOptionalString(Map<String, Object?> parameters, String key) {
-  final value = parameters[key];
-  if (value == null) {
-    return null;
+List<String> _allowedRecordingValues(String name) {
+  for (final parameter in CockpitSystemControlParameterSets.startRecording) {
+    if (parameter.name == name) {
+      return parameter.allowedValues;
+    }
   }
-  final text = '$value'.trim();
-  return text.isEmpty ? null : text;
+  return const <String>[];
 }
 
 Future<String> _copyArtifactToOutputPath({

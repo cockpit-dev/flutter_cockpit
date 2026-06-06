@@ -152,18 +152,130 @@ final class CockpitSystemControlStringParameter {
   bool get isInvalid => isPresent && value == null;
 }
 
-double? cockpitReadSystemControlDouble(
+CockpitSystemControlStringListParameter
+cockpitReadSystemControlStringListParameter(
   Map<String, Object?> parameters,
   String key,
 ) {
+  if (!parameters.containsKey(key)) {
+    return const CockpitSystemControlStringListParameter.absent();
+  }
+  final value = parameters[key];
+  if (value is! List) {
+    return const CockpitSystemControlStringListParameter.invalid();
+  }
+  if (value.isEmpty) {
+    return const CockpitSystemControlStringListParameter.absent();
+  }
+  final strings = <String>[];
+  for (final item in value) {
+    if (item is! String) {
+      return const CockpitSystemControlStringListParameter.invalid();
+    }
+    strings.add(item);
+  }
+  return CockpitSystemControlStringListParameter.valid(
+    List<String>.unmodifiable(strings),
+  );
+}
+
+final class CockpitSystemControlStringListParameter {
+  const CockpitSystemControlStringListParameter._(this.value, this.isPresent);
+
+  const CockpitSystemControlStringListParameter.absent() : this._(null, false);
+
+  const CockpitSystemControlStringListParameter.invalid() : this._(null, true);
+
+  const CockpitSystemControlStringListParameter.valid(List<String> value)
+    : this._(value, true);
+
+  final List<String>? value;
+  final bool isPresent;
+
+  bool get isValid => value != null;
+  bool get isInvalid => isPresent && value == null;
+}
+
+CockpitSystemControlDoubleParameter cockpitReadSystemControlDoubleParameter(
+  Map<String, Object?> parameters,
+  String key, {
+  double? minimum,
+  double? maximum,
+}) {
+  if (!parameters.containsKey(key)) {
+    return const CockpitSystemControlDoubleParameter.absent();
+  }
   final value = parameters[key];
   if (value is num) {
-    return value.toDouble();
+    return _validatedSystemControlDouble(value.toDouble(), minimum, maximum);
   }
   if (value is String) {
-    return double.tryParse(value);
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      return const CockpitSystemControlDoubleParameter.absent();
+    }
+    final parsed = double.tryParse(trimmed);
+    if (parsed != null) {
+      return _validatedSystemControlDouble(parsed, minimum, maximum);
+    }
+    return const CockpitSystemControlDoubleParameter.invalid();
   }
-  return null;
+  return const CockpitSystemControlDoubleParameter.invalid();
+}
+
+CockpitSystemControlDoubleParameter
+cockpitReadFirstSystemControlDoubleParameter(
+  Map<String, Object?> parameters,
+  List<String> keys, {
+  double? minimum,
+  double? maximum,
+}) {
+  for (final key in keys) {
+    final value = cockpitReadSystemControlDoubleParameter(
+      parameters,
+      key,
+      minimum: minimum,
+      maximum: maximum,
+    );
+    if (value.isPresent) {
+      return value;
+    }
+  }
+  return const CockpitSystemControlDoubleParameter.absent();
+}
+
+CockpitSystemControlDoubleParameter _validatedSystemControlDouble(
+  double value,
+  double? minimum,
+  double? maximum,
+) {
+  if (!value.isFinite) {
+    return const CockpitSystemControlDoubleParameter.invalid();
+  }
+  if (minimum != null && value < minimum) {
+    return const CockpitSystemControlDoubleParameter.invalid();
+  }
+  if (maximum != null && value > maximum) {
+    return const CockpitSystemControlDoubleParameter.invalid();
+  }
+  return CockpitSystemControlDoubleParameter.valid(value);
+}
+
+final class CockpitSystemControlDoubleParameter {
+  const CockpitSystemControlDoubleParameter._(this.value, this.isPresent);
+
+  const CockpitSystemControlDoubleParameter.absent() : this._(null, false);
+
+  const CockpitSystemControlDoubleParameter.invalid() : this._(null, true);
+
+  const CockpitSystemControlDoubleParameter.valid(double value)
+    : this._(value, true);
+
+  final double? value;
+  final bool isPresent;
+
+  bool get isValid => value != null;
+  bool get isInvalid => isPresent && value == null;
 }
 
 CockpitResolvedSystemControlCommand cockpitCoordinateCommand(
@@ -301,17 +413,23 @@ CockpitResolvedSystemControlCommand cockpitShellCommand(
   CockpitSystemControlActionRequest request,
   CockpitResolvedSystemControlCommand Function(List<String> command) factory,
 ) {
-  final raw = request.parameters['command'];
-  final command = raw is List<Object?>
-      ? raw.map((value) => '$value').where((value) => value.isNotEmpty).toList()
-      : const <String>[];
-  if (command.isEmpty) {
+  final command = cockpitReadSystemControlStringListParameter(
+    request.parameters,
+    'command',
+  );
+  if (command.isInvalid) {
+    return const CockpitResolvedSystemControlCommand.error(
+      code: 'invalidSystemActionParameter',
+      message: 'runShell requires command to be an array of strings.',
+    );
+  }
+  if (!command.isValid || command.value!.first.trim().isEmpty) {
     return const CockpitResolvedSystemControlCommand.error(
       code: 'missingSystemActionParameter',
       message: 'runShell requires a command array parameter.',
     );
   }
-  return factory(command);
+  return factory(command.value!);
 }
 
 CockpitResolvedSystemControlCommand cockpitLocationCommand(
@@ -323,31 +441,36 @@ CockpitResolvedSystemControlCommand cockpitLocationCommand(
   )
   factory,
 ) {
-  final latitude =
-      cockpitReadSystemControlDouble(request.parameters, 'latitude') ??
-      cockpitReadSystemControlDouble(request.parameters, 'lat');
-  final longitude =
-      cockpitReadSystemControlDouble(request.parameters, 'longitude') ??
-      cockpitReadSystemControlDouble(request.parameters, 'lon') ??
-      cockpitReadSystemControlDouble(request.parameters, 'lng');
-  final altitude = cockpitReadSystemControlDouble(
+  final latitude = cockpitReadFirstSystemControlDoubleParameter(
+    request.parameters,
+    const <String>['latitude', 'lat'],
+    minimum: -90,
+    maximum: 90,
+  );
+  final longitude = cockpitReadFirstSystemControlDoubleParameter(
+    request.parameters,
+    const <String>['longitude', 'lon', 'lng'],
+    minimum: -180,
+    maximum: 180,
+  );
+  final altitude = cockpitReadSystemControlDoubleParameter(
     request.parameters,
     'altitude',
   );
-  if (latitude == null || longitude == null) {
-    return const CockpitResolvedSystemControlCommand.error(
-      code: 'missingSystemActionParameter',
-      message: 'setLocation requires latitude and longitude parameters.',
-    );
-  }
-  if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+  if (latitude.isInvalid || longitude.isInvalid || altitude.isInvalid) {
     return const CockpitResolvedSystemControlCommand.error(
       code: 'invalidSystemActionParameter',
       message:
           'setLocation latitude must be between -90 and 90 and longitude between -180 and 180.',
     );
   }
-  return factory(latitude, longitude, altitude);
+  if (!latitude.isValid || !longitude.isValid) {
+    return const CockpitResolvedSystemControlCommand.error(
+      code: 'missingSystemActionParameter',
+      message: 'setLocation requires latitude and longitude parameters.',
+    );
+  }
+  return factory(latitude.value!, longitude.value!, altitude.value);
 }
 
 bool cockpitHasSystemControlWindowTarget({

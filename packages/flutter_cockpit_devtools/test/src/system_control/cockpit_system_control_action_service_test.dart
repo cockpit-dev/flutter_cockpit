@@ -140,6 +140,50 @@ void main() {
     expect(processManager.starts, isEmpty);
   });
 
+  test('runShell rejects non-list command parameters', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        action: CockpitSystemControlAction.runShell,
+        parameters: <String, Object?>{'command': 'echo ok'},
+      ),
+    );
+
+    expect(result.success, isFalse);
+    expect(result.errorCode, 'invalidSystemActionParameter');
+    expect(result.recommendedNextStep, 'fixActionPayload');
+    expect(processManager.starts, isEmpty);
+  });
+
+  test('runShell rejects non-string command entries', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        action: CockpitSystemControlAction.runShell,
+        parameters: <String, Object?>{
+          'command': <Object?>['echo', 1],
+        },
+      ),
+    );
+
+    expect(result.success, isFalse);
+    expect(result.errorCode, 'invalidSystemActionParameter');
+    expect(result.recommendedNextStep, 'fixActionPayload');
+    expect(processManager.starts, isEmpty);
+  });
+
   test('android grantPermission rejects non-string permission', () async {
     final processManager = _FakeProcessManager();
     final service = CockpitSystemControlActionService(
@@ -396,6 +440,30 @@ void main() {
         parameters: <String, Object?>{
           'time': '09:41',
           'dataNetwork': 'bluetooth',
+        },
+      ),
+    );
+
+    expect(result.success, isFalse);
+    expect(result.errorCode, 'invalidSystemActionParameter');
+    expect(result.recommendedNextStep, 'fixActionPayload');
+    expect(processManager.starts, isEmpty);
+  });
+
+  test('setLocation rejects non-numeric coordinates', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        action: CockpitSystemControlAction.setLocation,
+        parameters: <String, Object?>{
+          'latitude': 'north',
+          'longitude': -122.009,
         },
       ),
     );
@@ -1362,6 +1430,56 @@ void main() {
     },
   );
 
+  test(
+    'captureScreenshot rejects non-string name before adapter capture',
+    () async {
+      final captureAdapter = _CountingCaptureAdapter();
+      final service = CockpitSystemControlActionService(
+        captureAdapterFactory: (_) => captureAdapter,
+      );
+
+      final result = await service.run(
+        const CockpitSystemControlActionRequest(
+          platform: 'android',
+          deviceId: 'emulator-5554',
+          action: CockpitSystemControlAction.captureScreenshot,
+          parameters: <String, Object?>{'name': 123},
+        ),
+      );
+
+      expect(result.success, isFalse);
+      expect(result.errorCode, 'invalidSystemActionParameter');
+      expect(result.recommendedNextStep, 'fixActionPayload');
+      expect(captureAdapter.captureCalls, 0);
+    },
+  );
+
+  test(
+    'captureScreenshot rejects non-string outputPath before adapter capture',
+    () async {
+      final captureAdapter = _CountingCaptureAdapter();
+      final service = CockpitSystemControlActionService(
+        captureAdapterFactory: (_) => captureAdapter,
+      );
+
+      final result = await service.run(
+        const CockpitSystemControlActionRequest(
+          platform: 'android',
+          deviceId: 'emulator-5554',
+          action: CockpitSystemControlAction.captureScreenshot,
+          parameters: <String, Object?>{
+            'outputPath': <String>['out.png'],
+          },
+        ),
+      );
+
+      expect(result.success, isFalse);
+      expect(result.errorCode, 'invalidSystemActionParameter');
+      expect(result.recommendedNextStep, 'fixActionPayload');
+      expect(captureAdapter.captureCalls, 0);
+    },
+  );
+
   test('captureScreenshot adapter failure returns structured result', () async {
     final service = CockpitSystemControlActionService(
       captureAdapterFactory: (_) => const _FailingCaptureAdapter(),
@@ -1433,6 +1551,90 @@ void main() {
     },
   );
 
+  test('startRecording rejects non-string name before adapter start', () async {
+    final recordingAdapter = _FakeRecordingAdapter();
+    final service = CockpitSystemControlActionService(
+      recordingAdapterFactory: (_) => recordingAdapter,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        action: CockpitSystemControlAction.startRecording,
+        parameters: <String, Object?>{'name': 123},
+      ),
+    );
+
+    expect(result.success, isFalse);
+    expect(result.errorCode, 'invalidSystemActionParameter');
+    expect(result.recommendedNextStep, 'fixActionPayload');
+    expect(recordingAdapter.startedRequest, isNull);
+  });
+
+  test('startRecording rejects unsupported recording mode', () async {
+    final recordingAdapter = _FakeRecordingAdapter();
+    final service = CockpitSystemControlActionService(
+      recordingAdapterFactory: (_) => recordingAdapter,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        action: CockpitSystemControlAction.startRecording,
+        parameters: <String, Object?>{'mode': 'cinematic'},
+      ),
+    );
+
+    expect(result.success, isFalse);
+    expect(result.errorCode, 'invalidSystemActionParameter');
+    expect(result.recommendedNextStep, 'fixActionPayload');
+    expect(recordingAdapter.startedRequest, isNull);
+  });
+
+  test('startRecording rejects purpose aliases outside metadata', () async {
+    final recordingAdapter = _FakeRecordingAdapter();
+    final service = CockpitSystemControlActionService(
+      recordingAdapterFactory: (_) => recordingAdapter,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        action: CockpitSystemControlAction.startRecording,
+        parameters: <String, Object?>{'purpose': 'debug'},
+      ),
+    );
+
+    expect(result.success, isFalse);
+    expect(result.errorCode, 'invalidSystemActionParameter');
+    expect(result.recommendedNextStep, 'fixActionPayload');
+    expect(recordingAdapter.startedRequest, isNull);
+  });
+
+  test('startRecording rejects layer aliases outside metadata', () async {
+    final recordingAdapter = _FakeRecordingAdapter();
+    final service = CockpitSystemControlActionService(
+      recordingAdapterFactory: (_) => recordingAdapter,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        action: CockpitSystemControlAction.startRecording,
+        parameters: <String, Object?>{'layer': 'appWindow'},
+      ),
+    );
+
+    expect(result.success, isFalse);
+    expect(result.errorCode, 'invalidSystemActionParameter');
+    expect(result.recommendedNextStep, 'fixActionPayload');
+    expect(recordingAdapter.startedRequest, isNull);
+  });
+
   test('stopRecording returns completed adapter artifact', () async {
     final processManager = _FakeProcessManager();
     final recordingAdapter = _FakeRecordingAdapter();
@@ -1455,6 +1657,30 @@ void main() {
     expect(result.recordingResult?['state'], 'completed');
     expect(processManager.starts, isEmpty);
   });
+
+  test(
+    'stopRecording rejects non-string outputPath before adapter stop',
+    () async {
+      final recordingAdapter = _FakeRecordingAdapter();
+      final service = CockpitSystemControlActionService(
+        recordingAdapterFactory: (_) => recordingAdapter,
+      );
+
+      final result = await service.run(
+        const CockpitSystemControlActionRequest(
+          platform: 'android',
+          deviceId: 'emulator-5554',
+          action: CockpitSystemControlAction.stopRecording,
+          parameters: <String, Object?>{'outputPath': 42},
+        ),
+      );
+
+      expect(result.success, isFalse);
+      expect(result.errorCode, 'invalidSystemActionParameter');
+      expect(result.recommendedNextStep, 'fixActionPayload');
+      expect(recordingAdapter.stopCalls, 0);
+    },
+  );
 
   test(
     'stopRecording copies completed video to requested output path',
@@ -1585,6 +1811,16 @@ void main() {
   });
 }
 
+final class _CountingCaptureAdapter implements CockpitCaptureAdapter {
+  int captureCalls = 0;
+
+  @override
+  Future<CockpitCommandExecution> capture(CockpitCommand command) {
+    captureCalls += 1;
+    throw StateError('Capture should not be called for invalid payload.');
+  }
+}
+
 final class _FakeCaptureAdapter implements CockpitCaptureAdapter {
   const _FakeCaptureAdapter(this.sourceFile);
 
@@ -1642,6 +1878,7 @@ final class _FakeRecordingAdapter implements CockpitRecordingAdapter {
 
   final String? sourceFilePath;
   CockpitRecordingRequest? startedRequest;
+  int stopCalls = 0;
 
   @override
   Future<CockpitRecordingSession> startRecording(
@@ -1656,6 +1893,7 @@ final class _FakeRecordingAdapter implements CockpitRecordingAdapter {
 
   @override
   Future<CockpitRecordingResult> stopRecording() async {
+    stopCalls += 1;
     return CockpitRecordingResult(
       state: CockpitRecordingState.completed,
       purpose: CockpitRecordingPurpose.acceptance,
