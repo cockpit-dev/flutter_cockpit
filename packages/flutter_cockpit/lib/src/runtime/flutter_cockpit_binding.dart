@@ -51,7 +51,9 @@ final class FlutterCockpitBinding {
           configuration.networkObserver ??
           configuration.httpNetworkObserver?.buildObserver(),
       runtimeStepBuffer = CockpitRuntimeStepBuffer(),
-      currentRouteName = ValueNotifier<String>(configuration.initialRouteName) {
+      currentRouteName = ValueNotifier<String>(
+        _normalizeConfiguredRouteName(configuration.initialRouteName),
+      ) {
     rebuildTracker = configuration.diagnostics.enableRebuildTracking
         ? CockpitRebuildTracker(
             routeNameProvider: () => currentRouteName.value,
@@ -69,7 +71,9 @@ final class FlutterCockpitBinding {
             : null);
     _installNetworkOverridesIfEnabled();
     navigatorObserver = _FlutterCockpitNavigatorObserver(_setRouteName);
-    registry.routeName = configuration.initialRouteName;
+    registry.routeName = _normalizeConfiguredRouteName(
+      configuration.initialRouteName,
+    );
   }
 
   FlutterCockpitConfiguration _configuration;
@@ -169,9 +173,15 @@ final class FlutterCockpitBinding {
         previousConfiguration.runtimeObserverConfiguration;
     final previousDiagnostics = previousConfiguration.diagnostics;
 
-    if (currentRouteName.value == previousConfiguration.initialRouteName &&
-        nextConfiguration.initialRouteName != currentRouteName.value) {
-      _applyRouteName(nextConfiguration.initialRouteName);
+    final previousInitialRouteName = _normalizeConfiguredRouteName(
+      previousConfiguration.initialRouteName,
+    );
+    final nextInitialRouteName = _normalizeConfiguredRouteName(
+      nextConfiguration.initialRouteName,
+    );
+    if (currentRouteName.value == previousInitialRouteName &&
+        nextInitialRouteName != currentRouteName.value) {
+      _applyRouteName(nextInitialRouteName);
     }
 
     _reconfigureNetworkObserver(nextConfiguration);
@@ -311,12 +321,7 @@ final class FlutterCockpitBinding {
     if (_isDisposed) {
       return;
     }
-    final routeName = route?.settings.name;
-    final nextRouteName = routeName == null
-        ? configuration.initialRouteName
-        : (routeName == '/' && configuration.initialRouteName != '/'
-              ? configuration.initialRouteName
-              : routeName);
+    final nextRouteName = _normalizeObservedRouteName(route?.settings.name);
     if (currentRouteName.value == nextRouteName &&
         registry.routeName == nextRouteName) {
       return;
@@ -344,11 +349,31 @@ final class FlutterCockpitBinding {
     if (_isDisposed) {
       return;
     }
-    final normalized = routeName.trim().isEmpty
-        ? configuration.initialRouteName
-        : routeName;
     _routeNameUpdateGeneration++;
-    _applyRouteName(normalized);
+    _applyRouteName(_normalizeExplicitRouteName(routeName));
+  }
+
+  String _normalizeObservedRouteName(String? routeName) {
+    final initialRouteName = _normalizeConfiguredRouteName(
+      configuration.initialRouteName,
+    );
+    if (routeName == null) {
+      return initialRouteName;
+    }
+    final trimmedRouteName = routeName.trim();
+    if (trimmedRouteName.isEmpty) {
+      return initialRouteName;
+    }
+    return trimmedRouteName == '/' && initialRouteName != '/'
+        ? initialRouteName
+        : trimmedRouteName;
+  }
+
+  String _normalizeExplicitRouteName(String routeName) {
+    final trimmedRouteName = routeName.trim();
+    return trimmedRouteName.isEmpty
+        ? _normalizeConfiguredRouteName(configuration.initialRouteName)
+        : trimmedRouteName;
   }
 
   void _recordCriticalRuntimeEvent(CockpitRuntimeEvent event) {
@@ -396,6 +421,11 @@ String _recordingProbeFailureMessage(Object error) {
     StateError(:final message) => message,
     _ => '$error',
   };
+}
+
+String _normalizeConfiguredRouteName(String routeName) {
+  final trimmedRouteName = routeName.trim();
+  return trimmedRouteName.isEmpty ? '/' : trimmedRouteName;
 }
 
 final class _FlutterCockpitNavigatorObserver extends NavigatorObserver {

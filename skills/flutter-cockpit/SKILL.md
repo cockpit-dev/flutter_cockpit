@@ -7,13 +7,13 @@ description: Use when a Flutter app or adjacent browser, desktop, device, or hos
 
 ## Overview
 
-Flutter Cockpit is an AI development loop, not a screenshot tool or command catalog. Default to rapid development validation: prove the current change with the cheapest live loop that answers the user's question, then stop. For every runtime claim, follow the evidence gates in order:
+Flutter Cockpit is an AI development loop, not a screenshot tool or command catalog. Default to rapid development validation: prove the current change with the cheapest live loop that answers the user, then stop. For runtime claims, follow:
 
 `assess -> bootstrap -> baseline -> execute -> observe -> judge -> deliver`
 
-Command success is not product proof. A command that exits 0 only proves command acceptance. Product correctness requires post-action state, errors, and evidence.
+Command success is not product proof; it only proves command acceptance. Product correctness needs post-action state, errors, and evidence.
 
-These stages are decision gates, not a fixed command script or command quota. Satisfy each gate with the smallest fresh evidence available; skip irrelevant commands, reuse valid handles and recent reads, and choose CLI, MCP, app-first, target-first, persistent-session, or bundle flows according to the task.
+These stages are decision gates, not a fixed command script or command quota. Satisfy each gate with the smallest fresh evidence available; skip irrelevant commands, reuse handles/recent reads, and choose CLI, MCP, app-first, target-first, persistent-session, or bundle flows according to the task.
 
 ## When To Use
 
@@ -21,8 +21,6 @@ These stages are decision gates, not a fixed command script or command quota. Sa
 - A Flutter app, web surface, desktop window, simulator, emulator, device, or host surface must be controlled.
 
 ## First-Time App Wiring
-
-If the app is not controllable yet, add the runtime package and a dev entrypoint before runtime validation:
 
 1. add `flutter_cockpit` to the Flutter app package and run `flutter pub get`; prefer `dev_dependencies` when only the cockpit entrypoint imports it
 2. keep the production entrypoint intact
@@ -54,24 +52,21 @@ Widget buildCockpitDevelopmentApp() {
 }
 ```
 
-This minimal example creates a cockpit-owned `MaterialApp`. If the app already
-owns `MaterialApp`, `GoRouter`, or another router, do not patch production
-`lib/`; wrap the existing root from `cockpit/main.dart` and keep any
-`setCurrentRouteName(...)` bridge in that cockpit layer.
+This creates a cockpit-owned `MaterialApp`. If the app already owns `MaterialApp`, `GoRouter`, or another router, do not patch production `lib/`; wrap the existing root from `cockpit/main.dart` and keep any `setCurrentRouteName(...)` bridge in that cockpit layer.
 
 ## Stage Protocol
 
-1. **assess**: decide the smallest truthful surface. Default to app-first. If platform or device is unknown, run `list-targets` and use the returned platform, device id, and capability metadata. Do not guess device ids, command names, payload keys, or locator types.
-2. **bootstrap**: launch once or reuse a handle. `launch-app` returns after readiness; never shell-background it. Reuse `.dart_tool/flutter_cockpit/latest_app.json` in the same repo. Use target-first only for non-plain app surfaces. Use direct remote only as an escape hatch.
-3. **baseline**: read before acting, unless a fresh equivalent read already answers the same question. Start with `read-app --profile minimal` or `read-target --profile minimal`; capture route, visible state, reachability, and current errors. For code edits, prefer `lsp` or `analyze-files` before workspace-wide tools.
-4. **execute**: edit, then prefer `hot-reload`; use `hot-restart` before a clean stop/relaunch. Drive UI with `run-command` or a short `run-batch`. For route-changing taps, put `locator` at the command top level and include `expectedRouteName` in `parameters`, or add a follow-up wait. After timeout, `remoteUnavailable`, or a failed non-idempotent batch, re-read minimal route/state and resume from the smallest remaining safe step; do not replay blindly.
-5. **observe**: read post-action state before judging. Use `read-app`, `read-errors --max-errors 10`, `inspect-ui`, `read-network`, or bundle summaries according to the next missing fact. Before any visible UI completion claim, run `capture-screenshot --name <proof-name>` when a visual artifact is useful. For animation, transition, gesture, or bug-repro proof, use framework recording first: `start-recording` -> act or reload -> `stop-recording`, then use the completed recording artifact as evidence.
-6. **judge**: compare baseline with observed state and the user's requested outcome. Classify as `completed`, `needs_more_work`, `failed_with_evidence`, or `blocked_by_environment`. Do not open screenshots, videos, or raw artifacts unless the content is the unresolved question, the artifact looks wrong, or the user asks.
-7. **deliver**: for acceptance-facing work, run `validate-task` and report the smallest useful evidence paths or refs. Attach artifacts only when the host supports it; otherwise report exact paths. `stop-app` is cleanup or recovery only, not a normal loop step.
+1. **assess**: decide the smallest truthful surface. Default to app-first. If platform/device is unknown, run `list-targets` and use the returned platform, device id, and capability metadata. Do not guess ids, commands, payload keys, or locator types.
+2. **bootstrap**: launch once or reuse a handle. `launch-app` returns after readiness; never shell-background it. Reuse `.dart_tool/flutter_cockpit/latest_app.json`. Use target-first only for non-plain app surfaces; direct remote is an escape hatch.
+3. **baseline**: read before acting, unless a fresh equivalent read already answers the same question. Start with `read-app --profile minimal` or `read-target --profile minimal`; capture route, visible state, reachability, and current errors. For edits, prefer `lsp` or `analyze-files`.
+4. **execute**: edit, then prefer `hot-reload`; use `hot-restart` before clean stop/relaunch. Drive UI with `run-command` or short `run-batch`. For route-changing taps, put `locator` at command top level and include `expectedRouteName` in `parameters`, or add a wait. After timeout, `remoteUnavailable`, or failed non-idempotent batch, re-read minimal state and resume from the smallest remaining safe step; do not replay blindly.
+5. **observe**: read post-action state before judging. Use `read-app`, `read-errors --max-errors 10`, `inspect-ui`, `read-network`, or bundle summaries for the next missing fact. Before visible UI completion claims, run `capture-screenshot --name <proof-name>` when useful. For animation, transition, gesture, or bug repro, use framework recording first: `start-recording` -> act/reload -> `stop-recording`.
+6. **judge**: compare baseline, observed state, and requested outcome. Classify as `completed`, `needs_more_work`, `failed_with_evidence`, or `blocked_by_environment`. Do not open screenshots, videos, or raw artifacts unless the content is the unresolved question, the artifact looks wrong, or the user asks.
+7. **deliver**: for acceptance-facing work, run `validate-task` and report the smallest useful evidence paths or refs. `stop-app` is cleanup or recovery only, not a normal loop step.
 
 ## Fast Command Pack
 
-Use default AI-readable stdout. Add `--stdout-format json` only for `jq`. Add `--output <path>` for file output; terminal output should then only need the produced path. Use `--output-format json` only for machine-readable files.
+Use default AI-readable stdout. Add `--stdout-format json` only for `jq`; add `--output <path>` for file output, and `--output-format json` only for machine-readable files.
 
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools list-targets
@@ -123,7 +118,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools read-system-capabilit
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-system-action --platform <platform> [--device-id <device-or-simulator-id>] [--app-id <app-id>] [--process-id <pid>] --action <available-action>
 ```
 
-Desktop coordinates use screen pixels. Targeted actions need `--app-id` or `--process-id`. If an action is not `available`, follow its requirement/fallback or report `blocked_by_environment`. Common flags: `--appearance`, `--content-size`, `--font-scale`, `--latitude/--longitude`, `--orientation`, `--network-speed`, `--network-delay`, `--time`, `--battery-level`, `--max-depth/--max-nodes`.
+Desktop coordinates use screen pixels. Targeted actions need `--app-id` or `--process-id`. If an action is not `available`, follow its requirement/fallback or report `blocked_by_environment`.
 
 Acceptance, release readiness, or artifact-backed handoff:
 
@@ -133,23 +128,23 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools validate-task --confi
 
 ## Development Defaults
 
-- Fast path for most edits: reuse or launch app -> `read-app --profile minimal` -> edit -> `hot-reload` -> smallest post-action read -> `read-errors --max-errors 10` -> one named screenshot only for visible UI claims.
+- Fast path for most edits: reuse or launch app -> `read-app --profile minimal` -> edit -> `hot-reload` -> smallest post-action read -> `read-errors --max-errors 10` -> one screenshot only for visible UI claims.
 - Use `minimal -> standard -> inspect -> evidence`; escalate only when the current layer cannot answer the next question.
-- Be flexible on commands, strict on proof. A tiny text edit may only need analyze, hot reload, minimal read, and errors; an acceptance flow may need batch, recording, and validation.
+- Be flexible on commands, strict on proof. A tiny edit may only need analyze, hot reload, minimal read, and errors; acceptance may need batch, recording, and validation.
 - Every command should reduce uncertainty. Do not run recording, evidence profiles, bundle validation, or raw artifact reads just because they exist.
 - Keep platform and device placeholders until `list-targets` returns real values; read capabilities before choosing shell, recording, browser, or native paths.
 - Prefer file inputs: `--command-file`, `--commands-file`, and config JSON.
 - Safe command types: `tap`, `enterText`, `assertText`, `waitForUiIdle`, `scrollUntilVisible`, `captureScreenshot`.
-- Safe locator keys: `text`, `tooltip`, `semanticId`, `type`, `ancestor`, `index`, `fallbacks`. Do not set `type: Text` for button labels; use text alone or the inspected control type.
+- Safe locator keys: `text`, `tooltip`, `semanticId`, `type`, `ancestor`, `index`, `fallbacks`. Do not set `type: Text` for button labels.
 - Keep the app alive while more edits are likely. Stop only when the user asks, the session is stuck, `hot-restart` cannot recover, or a clean rebuild/relaunch is required.
 
 ## Failure Recovery
 
 - If syntax is unclear, run `help <command>` or open one reference file.
-- On non-zero exit, read `errorJson.code`, `errorJson.message`, and `details` before prose stderr. Treat `invalidPayload` as caller JSON/option error, not app failure.
+- On non-zero exit, read `errorJson.code`, `errorJson.message`, and `details` before prose stderr.
 - Use `failureDiagnostics` before changing locators, timeouts, route waits, or retry strategy.
 - For bundles, read default AI summaries, `read-task-bundle-summary`, and `issueEvidence` before raw snapshots, videos, screenshots, or CI logs.
-- Classify missing ffmpeg, missing screen-capture permission, simulator/device unavailability, and missing recording startup/output evidence as `blocked_by_environment` unless app evidence proves otherwise.
+- Classify missing ffmpeg, screen-capture permission, simulator/device, or recording startup/output evidence as `blocked_by_environment` unless app evidence proves otherwise.
 
 ## Other Surfaces
 

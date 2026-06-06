@@ -102,12 +102,67 @@ void main() {
       );
       await tester.pump();
 
-      FlutterCockpit.setCurrentRouteName('/settings');
+      FlutterCockpit.setCurrentRouteName(' /settings ');
 
       expect(FlutterCockpit.binding.currentRouteName.value, '/settings');
       expect(FlutterCockpit.binding.registry.routeName, '/settings');
+
+      FlutterCockpit.setCurrentRouteName('   ');
+
+      expect(FlutterCockpit.binding.currentRouteName.value, '/');
+      expect(FlutterCockpit.binding.registry.routeName, '/');
     },
   );
+
+  testWidgets(
+    'FlutterCockpit.setCurrentRouteName preserves an explicit root route',
+    (tester) async {
+      await tester.pumpWidget(
+        const Directionality(
+          textDirection: TextDirection.ltr,
+          child: FlutterCockpitApp(
+            config: FlutterCockpitConfig(initialRouteName: '/inbox'),
+            child: SizedBox.shrink(),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      FlutterCockpit.setCurrentRouteName('/');
+
+      expect(FlutterCockpit.binding.currentRouteName.value, '/');
+      expect(FlutterCockpit.binding.registry.routeName, '/');
+    },
+  );
+
+  testWidgets('FlutterCockpit.navigatorObserver normalizes route names', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: FlutterCockpitApp(
+          config: const FlutterCockpitConfig(initialRouteName: '/'),
+          child: MaterialApp(
+            navigatorObservers: <NavigatorObserver>[
+              FlutterCockpit.navigatorObserver,
+            ],
+            routes: <String, WidgetBuilder>{
+              '/': (_) => _RoutePushButton(routeName: ' /details '),
+              ' /details ': (_) => const Text('Details'),
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.text('Open details'));
+    await tester.pumpAndSettle();
+
+    expect(FlutterCockpit.binding.currentRouteName.value, '/details');
+    expect(FlutterCockpit.binding.registry.routeName, '/details');
+  });
 
   testWidgets(
     'FlutterCockpitApp ignores deferred route updates after the runtime is disposed',
@@ -298,6 +353,20 @@ final class _NavigatorProbeApp extends StatelessWidget {
     return MaterialApp(
       navigatorObservers: <NavigatorObserver>[FlutterCockpit.navigatorObserver],
       home: const SizedBox.shrink(),
+    );
+  }
+}
+
+final class _RoutePushButton extends StatelessWidget {
+  const _RoutePushButton({required this.routeName});
+
+  final String routeName;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton(
+      onPressed: () => Navigator.of(context).pushNamed(routeName),
+      child: const Text('Open details'),
     );
   }
 }

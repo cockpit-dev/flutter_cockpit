@@ -20,6 +20,7 @@ void main() {
 
   test('supported Flutter floor matches package, tooling, and CI bounds', () {
     final workspacePubspec = File('pubspec.yaml').readAsStringSync();
+    final workspaceLockfile = File('pubspec.lock').readAsStringSync();
     final runtimePubspec = File(
       'packages/flutter_cockpit/pubspec.yaml',
     ).readAsStringSync();
@@ -75,6 +76,11 @@ void main() {
     }
     expect(runtimePubspec, contains("flutter: '>=3.32.0'"));
     expect(demoPubspec, contains("flutter: '>=3.32.0'"));
+    if (Platform.version.startsWith('3.8.')) {
+      expect(workspaceLockfile, contains('dart: ">=3.8.0 <4.0.0"'));
+      expect(workspaceLockfile, contains('flutter: ">=3.32.0"'));
+      expect(workspaceLockfile, isNot(contains('>=3.10.0-0')));
+    }
     expect(runtimeLoop, contains("FLUTTER_VERSION: '3.32.0'"));
     expect(rootReadme, contains('Flutter 3.32.0'));
     expect(rootReadme, contains('Dart 3.8.0'));
