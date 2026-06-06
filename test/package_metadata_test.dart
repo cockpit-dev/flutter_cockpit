@@ -167,6 +167,48 @@ void main() {
     );
   });
 
+  test('setup docs keep cockpit wiring outside production lib code', () {
+    final rootReadme = File('README.md').readAsStringSync();
+    final runtimeReadme = File(
+      'packages/flutter_cockpit/README.md',
+    ).readAsStringSync();
+    final skill = File('skills/flutter-cockpit/SKILL.md').readAsStringSync();
+    final setupExample = File(
+      'skills/flutter-cockpit/examples/flutter-app-setup.md',
+    ).readAsStringSync();
+
+    for (final document in <String>[
+      rootReadme,
+      runtimeReadme,
+      skill,
+      setupExample,
+    ]) {
+      expect(
+        document,
+        contains(
+          'Do not add `flutter_cockpit` imports to production `lib/` code',
+        ),
+      );
+    }
+  });
+
+  test('agent command docs show top-level locators for tap commands', () {
+    final skill = File('skills/flutter-cockpit/SKILL.md').readAsStringSync();
+    final cliReference = File(
+      'skills/flutter-cockpit/examples/cli-command-reference.md',
+    ).readAsStringSync();
+    const tapWithLocator =
+        '{"commandId":"tap-settings","commandType":"tap","locator":{"text":"Settings"}';
+
+    for (final document in <String>[skill, cliReference]) {
+      expect(document, contains(tapWithLocator));
+      expect(
+        document,
+        isNot(contains('"commandType":"tap","parameters":{"text"')),
+      );
+    }
+  });
+
   test('published package readme language links target repository files', () {
     final runtimeReadme = File(
       'packages/flutter_cockpit/README.md',

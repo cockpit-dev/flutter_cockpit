@@ -333,6 +333,7 @@ The agent must:
 
 - keep the existing production bootstrap untouched
 - place cockpit wiring under `cockpit/`
+- Do not add `flutter_cockpit` imports to production `lib/` code
 - describe imports in terms of "the existing app root widget or bootstrap" instead of assuming a fixed `lib/` layout
 - only recommend a single-entry alternative when the app explicitly wants that tradeoff
 

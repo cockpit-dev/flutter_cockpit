@@ -235,6 +235,63 @@ void main() {
   );
 
   test(
+    'launch service remaps the iOS simulator session port when the preferred host port is occupied',
+    () async {
+      CockpitLaunchDevelopmentSessionRequest? capturedRequest;
+      final remoteSessionHandle = CockpitRemoteSessionHandle(
+        platform: 'ios',
+        deviceId: 'FC5B7D0F-B7FB-4A7A-B1B0-FF28BC289BC2',
+        projectDir: '/workspace/examples/cockpit_demo',
+        target: 'cockpit/main.dart',
+        appId: 'dev.cockpit.cockpit_demo',
+        host: '127.0.0.1',
+        hostPort: 59331,
+        devicePort: 59331,
+        baseUrl: 'http://127.0.0.1:59331',
+        launchedAt: DateTime.utc(2026, 3, 21, 0, 0),
+      );
+
+      final service = CockpitLaunchDevelopmentSessionService(
+        entrypointResolver: CockpitEntrypointResolver(exists: (_) => true),
+        launcher: (request) async {
+          capturedRequest = request;
+          return CockpitDevelopmentSessionBootstrap(
+            sessionHandle: _handle().copyWith(
+              platform: 'ios',
+              deviceId: 'FC5B7D0F-B7FB-4A7A-B1B0-FF28BC289BC2',
+              appBaseUrl: 'http://127.0.0.1:59331',
+              remoteSessionHandle: remoteSessionHandle,
+            ),
+            status: _readyStatus(
+              _handle().copyWith(
+                platform: 'ios',
+                deviceId: 'FC5B7D0F-B7FB-4A7A-B1B0-FF28BC289BC2',
+                appBaseUrl: 'http://127.0.0.1:59331',
+                remoteSessionHandle: remoteSessionHandle,
+              ),
+            ),
+          );
+        },
+        sessionPortAvailabilityChecker: (_) async => false,
+        sessionPortAllocator: () async => 59331,
+      );
+
+      final result = await service.launch(
+        CockpitLaunchDevelopmentSessionRequest(
+          projectDir: '/workspace/examples/cockpit_demo',
+          platform: 'ios',
+          deviceId: 'FC5B7D0F-B7FB-4A7A-B1B0-FF28BC289BC2',
+          sessionPort: 57331,
+        ),
+      );
+
+      expect(capturedRequest?.sessionPort, 59331);
+      expect(result.sessionHandle.remoteSessionHandle?.devicePort, 59331);
+      expect(result.app.baseUrl, 'http://127.0.0.1:59331');
+    },
+  );
+
+  test(
     'daemon launcher writes supervisor logs under the configured directory',
     () async {
       final tempDir = await Directory.systemTemp.createTemp(
@@ -735,6 +792,92 @@ void main() {
         ),
       );
       expect(spawnCount, 1);
+    },
+  );
+
+  test(
+    'daemon launcher fails fast when supervisor logs a bootstrap failure before control plane readiness',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit-development-supervisor-bootstrap-failure-',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      var spawnCount = 0;
+      var delayCalls = 0;
+      final launcher = CockpitDevelopmentSessionDaemonLauncher(
+        supervisorStatusReader: (_) async {
+          throw StateError('connection refused');
+        },
+        portForwarder: const _StubPortForwarder(57331),
+        flutterVersionReader: () async => '3.39.0',
+        flutterExecutableReader: () async => '/opt/flutter/bin/flutter',
+        dartExecutableReader: () async =>
+            '/opt/flutter/bin/cache/dart-sdk/bin/dart',
+        supervisorLogDirectoryReader: () => tempDir.path,
+        allocatePort: () async => 60016,
+        delay: (_) async {
+          delayCalls += 1;
+        },
+        spawnSupervisor:
+            ({
+              required request,
+              required flutterVersion,
+              required flutterExecutable,
+              required dartExecutable,
+              required hostPort,
+              required supervisorPort,
+              required supervisorLogFile,
+            }) async {
+              spawnCount += 1;
+              await supervisorLogFile.writeAsString(
+                '[2026-06-06T04:47:35Z] development supervisor failed '
+                'error=Bad state: Unable to resolve a reachable iOS tunnel address for device 00008110-0009341C2EF3801E.\n',
+              );
+              return CockpitSpawnedDevelopmentSupervisor(
+                baseUri: Uri.parse('http://127.0.0.1:$supervisorPort'),
+                stop: () async {},
+                logPath: supervisorLogFile.path,
+              );
+            },
+      );
+
+      await expectLater(
+        () => launcher.launch(
+          const CockpitLaunchDevelopmentSessionRequest(
+            projectDir: '/workspace/examples/cockpit_demo',
+            target: 'cockpit/main.dart',
+            platform: 'ios',
+            deviceId: '00008110-0009341C2EF3801E',
+            sessionPort: 47331,
+            launchTimeout: Duration(milliseconds: 80),
+          ),
+        ),
+        throwsA(
+          isA<StateError>()
+              .having(
+                (error) => error.message,
+                'message',
+                contains('Development supervisor failed before readiness'),
+              )
+              .having(
+                (error) => error.message,
+                'message',
+                contains('Unable to resolve a reachable iOS tunnel address'),
+              )
+              .having(
+                (error) => error.message,
+                'message',
+                isNot(contains('did not become ready before timeout')),
+              ),
+        ),
+      );
+      expect(spawnCount, 1);
+      expect(delayCalls, lessThanOrEqualTo(1));
     },
   );
 

@@ -36,6 +36,8 @@ abstract final class FlutterCockpit {
     return _binding ?? initialize();
   }
 
+  static bool get isInitialized => _binding != null;
+
   static FlutterCockpitBinding bootstrap([
     FlutterCockpitConfig config = const FlutterCockpitConfig.production(),
   ]) {
@@ -74,6 +76,10 @@ abstract final class FlutterCockpit {
 
   static widgets.NavigatorObserver get navigatorObserver =>
       binding.navigatorObserver;
+
+  static void setCurrentRouteName(String routeName) {
+    binding.setCurrentRouteName(routeName);
+  }
 
   static void recordStep({
     required String actionType,

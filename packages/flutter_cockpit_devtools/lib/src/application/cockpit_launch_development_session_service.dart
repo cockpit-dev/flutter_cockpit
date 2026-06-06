@@ -11,6 +11,7 @@ import '../development/cockpit_development_session_status.dart';
 import '../development/cockpit_development_session_supervisor_client.dart';
 import '../infrastructure/cockpit_sdk_environment.dart';
 import '../remote/cockpit_android_port_forwarder.dart';
+import '../remote/cockpit_local_session_port_resolver.dart';
 import '../session/cockpit_session_process_runner.dart';
 import '../session/cockpit_remote_session_launcher.dart';
 import 'cockpit_app_handle.dart';
@@ -113,6 +114,9 @@ final class CockpitLaunchDevelopmentSessionService {
     CockpitEntrypointResolver? entrypointResolver,
     CockpitSupervisorSpawner? spawnSupervisor,
     Future<int> Function()? allocatePort,
+    CockpitHostPortAllocator sessionPortAllocator = cockpitAllocateHostPort,
+    CockpitHostPortAvailabilityChecker sessionPortAvailabilityChecker =
+        cockpitIsHostPortAvailable,
     CockpitDelay? delay,
   }) : _launcher =
            launcher ??
@@ -140,15 +144,26 @@ final class CockpitLaunchDevelopmentSessionService {
              allocatePort: allocatePort,
              delay: delay,
            ).launch,
-       _entrypointResolver = entrypointResolver ?? CockpitEntrypointResolver();
+       _entrypointResolver = entrypointResolver ?? CockpitEntrypointResolver(),
+       _sessionPortAllocator = sessionPortAllocator,
+       _sessionPortAvailabilityChecker = sessionPortAvailabilityChecker;
 
   final CockpitDevelopmentSessionLauncher _launcher;
   final CockpitEntrypointResolver _entrypointResolver;
+  final CockpitHostPortAllocator _sessionPortAllocator;
+  final CockpitHostPortAvailabilityChecker _sessionPortAvailabilityChecker;
 
   Future<CockpitLaunchDevelopmentSessionResult> launch(
     CockpitLaunchDevelopmentSessionRequest request,
   ) async {
     final normalizedProjectDir = cockpitNormalizeProjectDir(request.projectDir);
+    final resolvedSessionPort = await cockpitResolveLocalSessionPort(
+      platform: request.platform,
+      deviceId: request.deviceId,
+      preferredPort: request.sessionPort,
+      portAllocator: _sessionPortAllocator,
+      portAvailabilityChecker: _sessionPortAvailabilityChecker,
+    );
     final resolvedRequest = CockpitLaunchDevelopmentSessionRequest(
       projectDir: normalizedProjectDir,
       target: _entrypointResolver.resolve(
@@ -158,7 +173,7 @@ final class CockpitLaunchDevelopmentSessionService {
       flavor: request.flavor,
       platform: request.platform,
       deviceId: request.deviceId,
-      sessionPort: request.sessionPort,
+      sessionPort: resolvedSessionPort,
       launchTimeout: request.launchTimeout,
       persistHandlePath: request.persistHandlePath,
       persistAppHandlePath: request.persistAppHandlePath,
@@ -366,6 +381,12 @@ final class CockpitDevelopmentSessionDaemonLauncher {
           }
         } on Object catch (error) {
           lastFailure = error;
+        }
+        final bootstrapFailure = await _readSupervisorBootstrapFailure(attempt);
+        if (bootstrapFailure != null) {
+          lastFailure = StateError(bootstrapFailure);
+          permanentStartupFailure = true;
+          break;
         }
         await _delay(const Duration(milliseconds: 500));
       }
@@ -669,6 +690,33 @@ final class CockpitDevelopmentSessionDaemonLauncher {
     } on Object {
       return null;
     }
+  }
+
+  Future<String?> _readSupervisorBootstrapFailure(
+    CockpitSpawnedDevelopmentSupervisor attempt,
+  ) async {
+    final logPath = attempt.logPath;
+    if (logPath == null || logPath.isEmpty) {
+      return null;
+    }
+    try {
+      final lines = await File(logPath).readAsLines();
+      const marker = 'development supervisor failed error=';
+      for (final line in lines.reversed) {
+        final markerIndex = line.indexOf(marker);
+        if (markerIndex < 0) {
+          continue;
+        }
+        final message = line.substring(markerIndex + marker.length).trim();
+        if (message.isEmpty) {
+          return 'Development supervisor failed before readiness.';
+        }
+        return 'Development supervisor failed before readiness: $message';
+      }
+    } on Object {
+      return null;
+    }
+    return null;
   }
 
   static String _formatSupervisorStatus(

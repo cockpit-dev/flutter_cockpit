@@ -82,7 +82,7 @@ final class CockpitLaunchAppTool extends CockpitMcpTool {
                   arguments,
                   'launchTimeoutSeconds',
                 ) ??
-                120,
+                600,
           ),
           appHandlePath: cockpitReadOptionalString(arguments, 'appJson'),
         ),

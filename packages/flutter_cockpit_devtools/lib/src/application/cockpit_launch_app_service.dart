@@ -1,8 +1,10 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:path/path.dart' as p;
 
+import 'cockpit_entrypoint_resolver.dart';
 import '../platform/ios/cockpit_ios_device_connection.dart';
 import '../development/cockpit_development_session_machine_launcher.dart';
 import '../session/cockpit_remote_session_handle.dart';
@@ -12,6 +14,10 @@ import 'cockpit_compact_json.dart';
 import 'cockpit_launch_development_session_service.dart';
 import 'cockpit_launch_remote_session_service.dart';
 import 'cockpit_session_registry.dart';
+import 'cockpit_stop_app_service.dart';
+
+typedef CockpitExistingDesktopAppStopper =
+    Future<void> Function(CockpitAppHandle app);
 
 final class CockpitLaunchAppRequest {
   const CockpitLaunchAppRequest({
@@ -22,7 +28,7 @@ final class CockpitLaunchAppRequest {
     this.target,
     this.flavor,
     this.mode = CockpitAppMode.development,
-    this.launchTimeout = const Duration(seconds: 120),
+    this.launchTimeout = const Duration(seconds: 600),
     this.appHandlePath,
   });
 
@@ -62,18 +68,23 @@ final class CockpitLaunchAppService {
     CockpitRemoteSessionStatusReader remoteStatusReader =
         cockpitReadRemoteSessionStatus,
     CockpitSessionRegistry? registry,
+    CockpitExistingDesktopAppStopper? stopExistingDesktopApp,
   }) : _developmentService =
            developmentService ?? CockpitLaunchDevelopmentSessionService(),
        _remoteService = remoteService ?? CockpitLaunchRemoteSessionService(),
        _remoteStatusReader = remoteStatusReader,
-       _registry = registry;
+       _registry = registry,
+       _stopExistingDesktopApp =
+           stopExistingDesktopApp ?? _defaultStopExistingDesktopApp;
 
   final CockpitLaunchDevelopmentSessionService _developmentService;
   final CockpitLaunchRemoteSessionService _remoteService;
   final CockpitRemoteSessionStatusReader _remoteStatusReader;
   final CockpitSessionRegistry? _registry;
+  final CockpitExistingDesktopAppStopper _stopExistingDesktopApp;
 
   Future<CockpitLaunchAppResult> launch(CockpitLaunchAppRequest request) async {
+    await _maybeStopExistingDesktopApp(request);
     return switch (request.mode) {
       CockpitAppMode.development => _launchDevelopment(request),
       CockpitAppMode.automation => _launchAutomation(request),
@@ -221,5 +232,69 @@ final class CockpitLaunchAppService {
     await file.parent.create(recursive: true);
     await file.writeAsString(cockpitPrettyJsonText(app.toJson()));
     return p.normalize(file.path);
+  }
+
+  Future<void> _maybeStopExistingDesktopApp(
+    CockpitLaunchAppRequest request,
+  ) async {
+    if (!_isDesktopSingleInstancePlatform(request.platform)) {
+      return;
+    }
+    final appHandlePath = request.appHandlePath;
+    if (appHandlePath == null || appHandlePath.trim().isEmpty) {
+      return;
+    }
+
+    final existingApp = await _readPersistedAppHandle(appHandlePath);
+    if (existingApp == null ||
+        !_shouldStopExistingDesktopApp(
+          existingApp: existingApp,
+          request: request,
+        )) {
+      return;
+    }
+
+    await _stopExistingDesktopApp(existingApp);
+  }
+
+  bool _shouldStopExistingDesktopApp({
+    required CockpitAppHandle existingApp,
+    required CockpitLaunchAppRequest request,
+  }) {
+    return existingApp.platform == request.platform &&
+        existingApp.deviceId == request.deviceId &&
+        p.equals(
+          cockpitNormalizeProjectDir(existingApp.projectDir),
+          cockpitNormalizeProjectDir(request.projectDir),
+        );
+  }
+
+  Future<CockpitAppHandle?> _readPersistedAppHandle(
+    String appHandlePath,
+  ) async {
+    final file = File(appHandlePath);
+    if (!await file.exists()) {
+      return null;
+    }
+
+    try {
+      final decoded = jsonDecode(await file.readAsString());
+      if (decoded is! Map<Object?, Object?>) {
+        return null;
+      }
+      return CockpitAppHandle.fromJson(Map<String, Object?>.from(decoded));
+    } on Object {
+      return null;
+    }
+  }
+
+  bool _isDesktopSingleInstancePlatform(String platform) {
+    return platform == 'macos' || platform == 'windows' || platform == 'linux';
+  }
+
+  static Future<void> _defaultStopExistingDesktopApp(
+    CockpitAppHandle app,
+  ) async {
+    await CockpitStopAppService().stop(CockpitStopAppRequest(app: app));
   }
 }

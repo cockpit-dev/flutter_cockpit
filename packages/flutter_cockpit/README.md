@@ -27,9 +27,13 @@ dependencies:
   flutter_cockpit: ^1.0.0
 ```
 
+If only `cockpit/main.dart` imports the runtime, prefer putting
+`flutter_cockpit` under `dev_dependencies`. Use production `dependencies` only
+for an explicit shared-entrypoint or shipped-runtime integration.
+
 ## Recommended Integration
 
-Keep the normal production entrypoint unchanged and add `cockpit/main.dart`:
+Keep the normal production entrypoint unchanged and add `cockpit/main.dart`. Do not add `flutter_cockpit` imports to production `lib/` code.
 
 ```dart
 import 'package:flutter/material.dart';
@@ -63,7 +67,7 @@ Widget buildCockpitDevelopmentApp() {
 ```
 
 Replace `package:your_app/app_shell.dart` with the import that already exposes your app root widget or bootstrap. `launch-app` injects the `FLUTTER_COCKPIT_REMOTE_*` dart-defines, so `resolveFromEnvironment(...)` enables the remote surface without taking over the production bootstrap.
-If your app already owns `MaterialApp`, wrap that shell with `FlutterCockpitApp` and add `FlutterCockpit.navigatorObserver` there instead of nesting a second `MaterialApp`.
+Only wire `FlutterCockpit.navigatorObserver` inside a navigator created by the cockpit entrypoint, or in a shared entrypoint the host explicitly accepts. If your production app already owns `MaterialApp`, `GoRouter`, or another router, wrap the existing root with `FlutterCockpitApp` from `cockpit/main.dart` and keep route synchronization in that cockpit layer, for example by listening to the app router and calling `FlutterCockpit.setCurrentRouteName(...)`.
 
 Run it with:
 

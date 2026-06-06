@@ -5,6 +5,20 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   tearDown(FlutterCockpit.dispose);
 
+  test('FlutterCockpit.isInitialized reflects runtime lifecycle', () {
+    expect(FlutterCockpit.isInitialized, isFalse);
+
+    FlutterCockpit.ensureInitialized(
+      const FlutterCockpitConfig(initialRouteName: '/ready'),
+    );
+
+    expect(FlutterCockpit.isInitialized, isTrue);
+
+    FlutterCockpit.dispose();
+
+    expect(FlutterCockpit.isInitialized, isFalse);
+  });
+
   testWidgets(
     'FlutterCockpitApp provisions the runtime and renders through the cockpit root',
     (tester) async {
@@ -71,6 +85,27 @@ void main() {
 
       expect(identical(FlutterCockpit.binding, originalBinding), isTrue);
       expect(FlutterCockpit.binding.registry.routeName, '/inbox');
+    },
+  );
+
+  testWidgets(
+    'FlutterCockpit.setCurrentRouteName synchronizes the runtime route',
+    (tester) async {
+      await tester.pumpWidget(
+        const Directionality(
+          textDirection: TextDirection.ltr,
+          child: FlutterCockpitApp(
+            config: FlutterCockpitConfig(initialRouteName: '/'),
+            child: SizedBox.shrink(),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      FlutterCockpit.setCurrentRouteName('/settings');
+
+      expect(FlutterCockpit.binding.currentRouteName.value, '/settings');
+      expect(FlutterCockpit.binding.registry.routeName, '/settings');
     },
   );
 

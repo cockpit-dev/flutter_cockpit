@@ -48,7 +48,7 @@ final class LaunchAppCommand extends CockpitCliCommand {
       )
       ..addOption(
         'launch-timeout-seconds',
-        defaultsTo: '120',
+        defaultsTo: '600',
         help:
             'Total time budget for build, launch, and ready checks. Increase this on cold builds or slower CI hosts.',
       )
@@ -122,7 +122,7 @@ final class LaunchAppCommand extends CockpitCliCommand {
                 'launch-timeout-seconds',
                 usage,
               ) ??
-              120,
+              600,
         ),
         mode: CockpitAppMode.fromJson(_readRequiredOption('mode')),
         appHandlePath:

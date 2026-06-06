@@ -340,6 +340,17 @@ final class FlutterCockpitBinding {
     registry.routeName = routeName;
   }
 
+  void setCurrentRouteName(String routeName) {
+    if (_isDisposed) {
+      return;
+    }
+    final normalized = routeName.trim().isEmpty
+        ? configuration.initialRouteName
+        : routeName;
+    _routeNameUpdateGeneration++;
+    _applyRouteName(normalized);
+  }
+
   void _recordCriticalRuntimeEvent(CockpitRuntimeEvent event) {
     final observation = CockpitObservation(
       routeName: event.routeName,

@@ -4,27 +4,28 @@ Use this pattern when the task is not just "run the app" but "make this Flutter 
 
 ## Example Flow
 
-1. Add the `flutter_cockpit` dependency to the app package.
+1. Add the `flutter_cockpit` package to the app package; prefer `dev_dependencies` when only the cockpit entrypoint imports it.
 2. Run `flutter pub get`.
 3. Keep the app's existing production entrypoint unchanged.
 4. Add a cockpit development entrypoint under `cockpit/main.dart`.
-5. Add `FlutterCockpit.navigatorObserver` to the app navigator.
-6. Enable remote session configuration in debug/dev environments.
-7. Keep rebuild tracking and tap feedback explicitly debug-only.
+5. Keep all Cockpit imports and wiring under `cockpit/`. Do not add `flutter_cockpit` imports to production `lib/` code.
+6. Add `FlutterCockpit.navigatorObserver` only to a navigator created by the cockpit entrypoint, or bridge app-owned routers from `cockpit/` with `FlutterCockpit.setCurrentRouteName(...)`.
+7. Enable remote session configuration in debug/dev environments.
+8. Keep rebuild tracking and tap feedback explicitly debug-only.
 
 ## Dependency
 
-From pub:
+From pub for the non-intrusive `cockpit/` entrypoint pattern:
 
 ```yaml
-dependencies:
+dev_dependencies:
   flutter_cockpit: ^1.0.0
 ```
 
 Or directly from Git:
 
 ```yaml
-dependencies:
+dev_dependencies:
   flutter_cockpit:
     git:
       url: https://github.com/cockpit-dev/flutter_cockpit.git
@@ -50,6 +51,7 @@ cockpit/
 - the existing production entrypoint stays production-owned, wherever the app already keeps it
 - `cockpit/main.dart` becomes the AI development entrypoint
 - `cockpit/cockpit_bootstrap.dart` stays thin and only owns cockpit wiring
+- Do not add `flutter_cockpit` imports to production `lib/` code
 - do not mirror or rewrite the user's internal `lib/` layout just to add cockpit
 
 ## Cockpit Development Entrypoint
@@ -107,11 +109,12 @@ Widget buildCockpitDevelopmentApp() {
 ```
 
 Replace `package:your_app/app_shell.dart` with whatever import already exposes the app's existing root widget or bootstrap. Do not invent a new `lib/` structure just for cockpit.
+The `navigatorObservers` snippet is only for a navigator created by this cockpit bootstrap. If the app already owns `MaterialApp`, `GoRouter`, or another router, keep the app code unchanged and add a thin route bridge in `cockpit/` that calls `FlutterCockpit.setCurrentRouteName(...)`.
 Use `CockpitRemoteSessionConfiguration.resolveFromEnvironment(...)` or an equivalent app-owned bridge so `launch-app` can enable the remote surface through `FLUTTER_COCKPIT_REMOTE_*` dart-defines without rewriting production bootstrap.
 
 ## Single-Entrypoint Alternative
 
-If the app explicitly wants one shared entrypoint instead of a dedicated `cockpit/` directory, this is the smallest supported bootstrap:
+If the app explicitly wants one shared entrypoint instead of a dedicated `cockpit/` directory, this is the smallest supported bootstrap. This is an opt-in tradeoff, not the default non-intrusive setup:
 
 ```dart
 import 'package:flutter/material.dart';
@@ -141,7 +144,7 @@ Future<void> main() async {
 
 ## App-Wrapped Bootstrap
 
-For real apps that already own service initialization, state, or theme composition, prefer wrapping the app tree with `FlutterCockpitApp`:
+For real apps that already own service initialization, state, or theme composition, keep this wrapper in `cockpit/` and import the existing app root:
 
 ```dart
 import 'package:flutter/material.dart';
@@ -201,7 +204,8 @@ final config = FlutterCockpitConfig.production(
 - prefer a dedicated `cockpit/main.dart` development entrypoint when the app should keep its existing production path untouched
 - do not assume the user's production bootstrap lives at `lib/main.dart` or under any fixed `lib/` subpath
 - prefer `FlutterCockpit.runApp(...)` for simple roots and `FlutterCockpitApp(...)` for existing app shells
-- wire `FlutterCockpit.navigatorObserver` into the navigator instead of inventing a parallel route tracker
+- Do not add `flutter_cockpit` imports to production `lib/` code
+- wire `FlutterCockpit.navigatorObserver` only into a cockpit-owned navigator, or use a cockpit-owned `setCurrentRouteName(...)` bridge for app-owned routers
 - use `CockpitRemoteSessionConfiguration.resolveFromEnvironment(...)` or an equivalent app-owned bridge so host launchers can enable control without editing production config
 - keep remote-session enablement and debug diagnostics explicit
 - treat direct `FlutterCockpitRoot` composition as an advanced escape hatch, not the default recommendation

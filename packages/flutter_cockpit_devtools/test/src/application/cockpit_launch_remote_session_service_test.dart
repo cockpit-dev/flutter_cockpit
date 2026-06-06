@@ -217,6 +217,67 @@ void main() {
     expect(capturedOptions?.flutterVersion, '3.32.0');
     expect(capturedOptions?.launchId, startsWith('remote-macos-'));
   });
+
+  test(
+    'launch service remaps the iOS simulator session port when the preferred host port is occupied',
+    () async {
+      CockpitRemoteSessionLaunchOptions? capturedOptions;
+      final expectedHandle = CockpitRemoteSessionHandle(
+        platform: 'ios',
+        deviceId: 'FC5B7D0F-B7FB-4A7A-B1B0-FF28BC289BC2',
+        projectDir: '/workspace/examples/cockpit_demo',
+        target: 'cockpit/main.dart',
+        appId: 'dev.cockpit.cockpit_demo',
+        host: '127.0.0.1',
+        hostPort: 59331,
+        devicePort: 59331,
+        baseUrl: 'http://127.0.0.1:59331',
+        launchedAt: DateTime.utc(2026, 3, 21, 0, 0),
+      );
+
+      final service = CockpitLaunchRemoteSessionService(
+        entrypointResolver: CockpitEntrypointResolver(exists: (_) => true),
+        launcher: _CapturingRemoteSessionLauncher(
+          handle: expectedHandle,
+          onLaunch: (options) {
+            capturedOptions = options;
+          },
+        ),
+        statusReader: (_) async => CockpitRemoteSessionStatus(
+          sessionId: 'remote-ios-sim',
+          platform: 'ios',
+          transportType: 'remoteHttp',
+          currentRouteName: '/',
+          capabilities: CockpitCapabilities(
+            platform: 'ios',
+            transportType: 'remoteHttp',
+            supportsInAppControl: true,
+            supportsFlutterViewCapture: true,
+            supportsNativeScreenCapture: true,
+            supportsHostAutomation: false,
+          ),
+          recordingCapabilities: CockpitRecordingCapabilities(
+            supportsNativeRecording: true,
+          ),
+          snapshot: CockpitSnapshot(routeName: '/'),
+        ),
+        sessionPortAvailabilityChecker: (_) async => false,
+        sessionPortAllocator: () async => 59331,
+      );
+
+      final result = await service.launch(
+        const CockpitLaunchRemoteSessionRequest(
+          projectDir: '/workspace/examples/cockpit_demo',
+          platform: 'ios',
+          deviceId: 'FC5B7D0F-B7FB-4A7A-B1B0-FF28BC289BC2',
+          sessionPort: 57331,
+        ),
+      );
+
+      expect(capturedOptions?.sessionPort, 59331);
+      expect(result.sessionHandle.baseUrl, 'http://127.0.0.1:59331');
+    },
+  );
 }
 
 final class _FakeRemoteSessionLauncher implements CockpitRemoteSessionLauncher {

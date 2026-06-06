@@ -433,6 +433,15 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --command-json '{"commandId":"assert-ready","commandType":"assertText","parameters":{"text":"<expected-text>"}}'
 ```
 
+Tap a route-changing control with a top-level locator:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-command \
+  --command-json '{"commandId":"tap-settings","commandType":"tap","locator":{"text":"Settings"},"parameters":{"expectedRouteName":"/settings","routeTimeoutMs":5000}}' \
+  --profile standard
+```
+
 Enter text into a field:
 
 ```bash

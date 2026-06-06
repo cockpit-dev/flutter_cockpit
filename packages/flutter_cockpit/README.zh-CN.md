@@ -27,9 +27,13 @@ dependencies:
   flutter_cockpit: ^1.0.0
 ```
 
+如果只有 `cockpit/main.dart` import runtime，优先把 `flutter_cockpit`
+放到 `dev_dependencies`。只有宿主明确选择共享入口，或需要把 runtime
+作为正式发布集成的一部分时，才放到生产 `dependencies`。
+
 ## 推荐接入方式
 
-保留正常生产入口不动，新增 `cockpit/main.dart`：
+保留正常生产入口不动，新增 `cockpit/main.dart`。不要把 `flutter_cockpit` import 加到生产 `lib/` 代码里。
 
 ```dart
 import 'package:flutter/material.dart';
@@ -63,7 +67,7 @@ Widget buildCockpitDevelopmentApp() {
 ```
 
 把 `package:your_app/app_shell.dart` 换成你现有应用根组件或 bootstrap 的真实 import。`launch-app` 会注入 `FLUTTER_COCKPIT_REMOTE_*` 这组 dart-define，所以 `resolveFromEnvironment(...)` 可以在不接管生产入口的前提下启用远程控制面。
-如果应用内部已经自己持有 `MaterialApp`，就用 `FlutterCockpitApp` 包住那层 app shell，并把 `FlutterCockpit.navigatorObserver` 接到原有 navigator 上，不要再嵌一层新的 `MaterialApp`。
+只有 cockpit 入口自己创建 navigator，或者宿主明确接受共享入口时，才把 `FlutterCockpit.navigatorObserver` 接进去。如果生产应用已经自己持有 `MaterialApp`、`GoRouter` 或其他 router，就在 `cockpit/main.dart` 里用 `FlutterCockpitApp` 包住现有根组件，并把 route 同步留在 cockpit 层，例如监听 app router 后调用 `FlutterCockpit.setCurrentRouteName(...)`。
 
 运行：
 

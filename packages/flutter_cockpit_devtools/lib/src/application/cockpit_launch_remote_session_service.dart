@@ -4,6 +4,8 @@ import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:path/path.dart' as p;
 
 import '../infrastructure/cockpit_sdk_environment.dart';
+import '../remote/cockpit_android_port_forwarder.dart';
+import '../remote/cockpit_local_session_port_resolver.dart';
 import '../session/cockpit_remote_session_handle.dart';
 import '../session/cockpit_remote_session_launch_options.dart';
 import '../session/cockpit_remote_session_launcher.dart';
@@ -52,11 +54,16 @@ final class CockpitLaunchRemoteSessionService {
     CockpitFlutterExecutableVersionReader flutterVersionForExecutableReader =
         cockpitReadFlutterVersion,
     CockpitEntrypointResolver? entrypointResolver,
+    CockpitHostPortAllocator sessionPortAllocator = cockpitAllocateHostPort,
+    CockpitHostPortAvailabilityChecker sessionPortAvailabilityChecker =
+        cockpitIsHostPortAvailable,
   }) : _launcher = launcher ?? CockpitPlatformRemoteSessionLauncher(),
        _statusReader = statusReader ?? cockpitReadRemoteSessionStatus,
        _sdkEnvironment = sdkEnvironment ?? CockpitSdkEnvironment.current(),
        _flutterVersionForExecutableReader = flutterVersionForExecutableReader,
-       _entrypointResolver = entrypointResolver ?? CockpitEntrypointResolver();
+       _entrypointResolver = entrypointResolver ?? CockpitEntrypointResolver(),
+       _sessionPortAllocator = sessionPortAllocator,
+       _sessionPortAvailabilityChecker = sessionPortAvailabilityChecker;
 
   final CockpitRemoteSessionLauncher _launcher;
   final CockpitRemoteSessionStatusReader _statusReader;
@@ -64,6 +71,8 @@ final class CockpitLaunchRemoteSessionService {
   final CockpitFlutterExecutableVersionReader
   _flutterVersionForExecutableReader;
   final CockpitEntrypointResolver _entrypointResolver;
+  final CockpitHostPortAllocator _sessionPortAllocator;
+  final CockpitHostPortAvailabilityChecker _sessionPortAvailabilityChecker;
 
   Future<CockpitLaunchRemoteSessionResult> launch(
     CockpitLaunchRemoteSessionRequest request,
@@ -72,6 +81,13 @@ final class CockpitLaunchRemoteSessionService {
     final resolvedTarget = _entrypointResolver.resolve(
       projectDir: normalizedProjectDir,
       target: request.target,
+    );
+    final resolvedSessionPort = await cockpitResolveLocalSessionPort(
+      platform: request.platform,
+      deviceId: request.deviceId,
+      preferredPort: request.sessionPort,
+      portAllocator: _sessionPortAllocator,
+      portAvailabilityChecker: _sessionPortAvailabilityChecker,
     );
     final flutterExecutable = _sdkEnvironment.flutterExecutable;
     final flutterVersion = await _flutterVersionForExecutableReader(
@@ -83,7 +99,7 @@ final class CockpitLaunchRemoteSessionService {
         target: resolvedTarget,
         platform: request.platform,
         deviceId: request.deviceId,
-        sessionPort: request.sessionPort,
+        sessionPort: resolvedSessionPort,
         flavor: request.flavor,
         launchTimeout: request.launchTimeout,
         flutterExecutable: flutterExecutable,

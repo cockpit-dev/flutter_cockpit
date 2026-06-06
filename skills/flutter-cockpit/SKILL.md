@@ -24,12 +24,14 @@ These stages are decision gates, not a fixed command script or command quota. Sa
 
 If the app is not controllable yet, add the runtime package and a dev entrypoint before runtime validation:
 
-1. add `flutter_cockpit` to the Flutter app package and run `flutter pub get`
+1. add `flutter_cockpit` to the Flutter app package and run `flutter pub get`; prefer `dev_dependencies` when only the cockpit entrypoint imports it
 2. keep the production entrypoint intact
 3. add `cockpit/main.dart` that imports the existing app root
 4. wrap the root with `FlutterCockpitApp` or `FlutterCockpit.runApp`
-5. add `FlutterCockpit.navigatorObserver` to the app navigator
-6. enable `CockpitRemoteSessionConfiguration.resolveFromEnvironment(...)`
+5. keep Cockpit wiring under `cockpit/`; Do not add `flutter_cockpit` imports to production `lib/` code
+6. add `FlutterCockpit.navigatorObserver` only to a navigator created by the cockpit entrypoint or to a shared entrypoint the host explicitly accepts
+7. for app-owned routers such as `GoRouter`, keep route sync in `cockpit/` by listening to the router and calling `FlutterCockpit.setCurrentRouteName(...)`
+8. enable `CockpitRemoteSessionConfiguration.resolveFromEnvironment(...)`
 
 Minimal `cockpit/main.dart` shape:
 
@@ -52,12 +54,17 @@ Widget buildCockpitDevelopmentApp() {
 }
 ```
 
+This minimal example creates a cockpit-owned `MaterialApp`. If the app already
+owns `MaterialApp`, `GoRouter`, or another router, do not patch production
+`lib/`; wrap the existing root from `cockpit/main.dart` and keep any
+`setCurrentRouteName(...)` bridge in that cockpit layer.
+
 ## Stage Protocol
 
 1. **assess**: decide the smallest truthful surface. Default to app-first. If platform or device is unknown, run `list-targets` and use the returned platform, device id, and capability metadata. Do not guess device ids, command names, payload keys, or locator types.
 2. **bootstrap**: launch once or reuse a handle. `launch-app` returns after readiness; never shell-background it. Reuse `.dart_tool/flutter_cockpit/latest_app.json` in the same repo. Use target-first only for non-plain app surfaces. Use direct remote only as an escape hatch.
 3. **baseline**: read before acting, unless a fresh equivalent read already answers the same question. Start with `read-app --profile minimal` or `read-target --profile minimal`; capture route, visible state, reachability, and current errors. For code edits, prefer `lsp` or `analyze-files` before workspace-wide tools.
-4. **execute**: edit, then prefer `hot-reload`; use `hot-restart` before a clean stop/relaunch. Drive UI with `run-command` or a short `run-batch`. For route-changing taps, include `expectedRouteName` or a follow-up wait. After timeout, `remoteUnavailable`, or a failed non-idempotent batch, re-read minimal route/state and resume from the smallest remaining safe step; do not replay blindly.
+4. **execute**: edit, then prefer `hot-reload`; use `hot-restart` before a clean stop/relaunch. Drive UI with `run-command` or a short `run-batch`. For route-changing taps, put `locator` at the command top level and include `expectedRouteName` in `parameters`, or add a follow-up wait. After timeout, `remoteUnavailable`, or a failed non-idempotent batch, re-read minimal route/state and resume from the smallest remaining safe step; do not replay blindly.
 5. **observe**: read post-action state before judging. Use `read-app`, `read-errors --max-errors 10`, `inspect-ui`, `read-network`, or bundle summaries according to the next missing fact. Before any visible UI completion claim, run `capture-screenshot --name <proof-name>` when a visual artifact is useful. For animation, transition, gesture, or bug-repro proof, use framework recording first: `start-recording` -> act or reload -> `stop-recording`, then use the completed recording artifact as evidence.
 6. **judge**: compare baseline with observed state and the user's requested outcome. Classify as `completed`, `needs_more_work`, `failed_with_evidence`, or `blocked_by_environment`. Do not open screenshots, videos, or raw artifacts unless the content is the unresolved question, the artifact looks wrong, or the user asks.
 7. **deliver**: for acceptance-facing work, run `validate-task` and report the smallest useful evidence paths or refs. Attach artifacts only when the host supports it; otherwise report exact paths. `stop-app` is cleanup or recovery only, not a normal loop step.
@@ -77,6 +84,11 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools read-errors --max-err
 
 ```bash
 printf '%s\n' '{"commandId":"assert-ready","commandType":"assertText","parameters":{"text":"<expected-text>"}}' >/tmp/flutter_cockpit_command.json
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-command --command-file /tmp/flutter_cockpit_command.json --profile standard
+```
+
+```bash
+printf '%s\n' '{"commandId":"tap-settings","commandType":"tap","locator":{"text":"Settings"},"parameters":{"expectedRouteName":"/settings","routeTimeoutMs":5000}}' >/tmp/flutter_cockpit_command.json
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-command --command-file /tmp/flutter_cockpit_command.json --profile standard
 ```
 
