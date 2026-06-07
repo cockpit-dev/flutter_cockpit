@@ -223,27 +223,6 @@ CockpitSystemControlDoubleParameter cockpitReadSystemControlDoubleParameter(
   return const CockpitSystemControlDoubleParameter.invalid();
 }
 
-CockpitSystemControlDoubleParameter
-cockpitReadFirstSystemControlDoubleParameter(
-  Map<String, Object?> parameters,
-  List<String> keys, {
-  double? minimum,
-  double? maximum,
-}) {
-  for (final key in keys) {
-    final value = cockpitReadSystemControlDoubleParameter(
-      parameters,
-      key,
-      minimum: minimum,
-      maximum: maximum,
-    );
-    if (value.isPresent) {
-      return value;
-    }
-  }
-  return const CockpitSystemControlDoubleParameter.absent();
-}
-
 CockpitSystemControlDoubleParameter _validatedSystemControlDouble(
   double value,
   double? minimum,
@@ -441,15 +420,15 @@ CockpitResolvedSystemControlCommand cockpitLocationCommand(
   )
   factory,
 ) {
-  final latitude = cockpitReadFirstSystemControlDoubleParameter(
+  final latitude = cockpitReadSystemControlDoubleParameter(
     request.parameters,
-    const <String>['latitude', 'lat'],
+    'latitude',
     minimum: -90,
     maximum: 90,
   );
-  final longitude = cockpitReadFirstSystemControlDoubleParameter(
+  final longitude = cockpitReadSystemControlDoubleParameter(
     request.parameters,
-    const <String>['longitude', 'lon', 'lng'],
+    'longitude',
     minimum: -180,
     maximum: 180,
   );

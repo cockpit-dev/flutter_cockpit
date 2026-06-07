@@ -149,7 +149,11 @@ final class RunSystemActionCommand extends CockpitCliCommand {
       ..addOption('battery-level', help: 'iOS simulator battery level, 0-100.')
       ..addOption('max-depth', help: 'Maximum tree depth for readUiTree.')
       ..addOption('max-nodes', help: 'Maximum tree nodes for readUiTree.')
-      ..addOption('package-id', help: 'Package id for grantPermission.')
+      ..addOption(
+        'package-id',
+        help:
+            'Android package id for app-scoped actions; use --app-id for iOS bundle ids and desktop targets.',
+      )
       ..addOption('permission', help: 'Permission name for grantPermission.')
       ..addOption('output-path', help: 'Output path for screenshot or video.')
       ..addOption(

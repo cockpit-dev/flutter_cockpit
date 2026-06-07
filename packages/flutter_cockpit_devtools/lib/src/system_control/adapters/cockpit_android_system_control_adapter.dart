@@ -659,7 +659,7 @@ final class CockpitAndroidSystemControlAdapter
     }
     return cockpitReadFirstSystemControlStringParameter(
       request.parameters,
-      const <String>['packageId', 'appId'],
+      const <String>['packageId'],
     );
   }
 
@@ -686,9 +686,9 @@ final class CockpitAndroidSystemControlAdapter
     CockpitResolvedSystemControlCommand Function(String mode) factory,
   ) {
     final mode = switch (appearance.trim().toLowerCase()) {
-      'dark' || 'night' => 'yes',
-      'light' || 'day' => 'no',
-      'auto' || 'system' => 'auto',
+      'dark' => 'yes',
+      'light' => 'no',
+      'auto' => 'auto',
       _ => null,
     };
     if (mode == null) {
@@ -704,18 +704,33 @@ final class CockpitAndroidSystemControlAdapter
     CockpitSystemControlActionRequest request,
     CockpitResolvedSystemControlCommand Function(String fontScale) factory,
   ) {
-    final raw =
-        request.parameters['fontScale'] ?? request.parameters['contentSize'];
-    if (raw == null || '$raw'.trim().isEmpty) {
+    final fontScaleParameter = cockpitReadSystemControlDoubleParameter(
+      request.parameters,
+      'fontScale',
+      minimum: 0.5,
+      maximum: 3.5,
+    );
+    final contentSizeParameter = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'contentSize',
+    );
+    if (fontScaleParameter.isInvalid || contentSizeParameter.isInvalid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'invalidSystemActionParameter',
+        message:
+            'setContentSize requires a known content size token or font scale between 0.5 and 3.5.',
+      );
+    }
+    if (!fontScaleParameter.isValid && !contentSizeParameter.isValid) {
       return const CockpitResolvedSystemControlCommand.error(
         code: 'missingSystemActionParameter',
         message: 'setContentSize requires contentSize or fontScale parameter.',
       );
     }
-    final value = '$raw'.trim();
-    final numeric = double.tryParse(value);
-    final fontScale = numeric ?? _androidFontScaleForContentSize(value);
-    if (fontScale == null || fontScale < 0.5 || fontScale > 3.5) {
+    final fontScale =
+        fontScaleParameter.value ??
+        _androidFontScaleForContentSize(contentSizeParameter.value!);
+    if (fontScale == null) {
       return const CockpitResolvedSystemControlCommand.error(
         code: 'invalidSystemActionParameter',
         message:
@@ -745,18 +760,15 @@ final class CockpitAndroidSystemControlAdapter
         message: 'setOrientation requires an orientation parameter.',
       );
     }
-    final normalized = raw.value!.toLowerCase();
-    if (normalized == 'auto' || normalized == 'sensor') {
+    final orientation = raw.value!;
+    if (orientation == 'auto') {
       return factory('settings put system accelerometer_rotation 1');
     }
-    final rotation = switch (normalized) {
+    final rotation = switch (orientation) {
       'portrait' => 0,
       'landscape' => 1,
-      'reverseportrait' ||
-      'reverse-portrait' ||
-      'upsidedown' ||
-      'upside-down' => 2,
-      'reverselandscape' || 'reverse-landscape' => 3,
+      'reversePortrait' => 2,
+      'reverseLandscape' => 3,
       _ => null,
     };
     if (rotation == null) {
@@ -784,22 +796,22 @@ final class CockpitAndroidSystemControlAdapter
         message: 'Android $commandName is available only for emulator-* ids.',
       );
     }
-    final raw =
-        request.parameters[parameterName] ??
-        request.parameters[commandName] ??
-        request.parameters['value'];
-    if (raw == null || '$raw'.trim().isEmpty) {
-      return CockpitResolvedSystemControlCommand.error(
-        code: 'missingSystemActionParameter',
-        message: '${request.action.name} requires a $parameterName parameter.',
-      );
-    }
-    final value = '$raw'.trim().toLowerCase();
-    if (!allowedValues.contains(value)) {
+    final value = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      parameterName,
+      allowedValues: allowedValues,
+    );
+    if (value.isInvalid) {
       return CockpitResolvedSystemControlCommand.error(
         code: 'invalidSystemActionParameter',
         message:
             '${request.action.name} requires one of ${allowedValues.join(", ")}.',
+      );
+    }
+    if (!value.isValid) {
+      return CockpitResolvedSystemControlCommand.error(
+        code: 'missingSystemActionParameter',
+        message: '${request.action.name} requires a $parameterName parameter.',
       );
     }
     return CockpitResolvedSystemControlCommand('adb', <String>[
@@ -808,7 +820,7 @@ final class CockpitAndroidSystemControlAdapter
       'emu',
       'network',
       commandName,
-      value,
+      value.value!,
     ]);
   }
 

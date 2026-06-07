@@ -190,7 +190,7 @@ final class CockpitSystemControlParameterSets {
       valueType: CockpitSystemControlParameterType.string,
       required: true,
       allowedValues: CockpitSystemControlAllowedValues.iosPrivacyServices,
-      description: 'simctl privacy service; service is also accepted.',
+      description: 'simctl privacy service.',
     ),
   ];
 

@@ -804,18 +804,11 @@ final class CockpitIosSystemControlAdapter
         message: 'grantPermission requires --app-id or appId.',
       );
     }
-    final permission = cockpitReadSystemControlStringParameter(
+    final service = cockpitReadSystemControlStringParameter(
       request.parameters,
       'permission',
       allowedValues: CockpitSystemControlAllowedValues.iosPrivacyServices,
     );
-    final service = permission.isPresent
-        ? permission
-        : cockpitReadSystemControlStringParameter(
-            request.parameters,
-            'service',
-            allowedValues: CockpitSystemControlAllowedValues.iosPrivacyServices,
-          );
     if (service.isInvalid) {
       return const CockpitResolvedSystemControlCommand.error(
         code: 'invalidSystemActionParameter',
@@ -928,7 +921,7 @@ final class CockpitIosSystemControlAdapter
     }
     return cockpitReadFirstSystemControlStringParameter(
       request.parameters,
-      const <String>['appId', 'packageId'],
+      const <String>['appId'],
     );
   }
 
@@ -937,8 +930,8 @@ final class CockpitIosSystemControlAdapter
     CockpitResolvedSystemControlCommand Function(String mode) factory,
   ) {
     final mode = switch (appearance.trim().toLowerCase()) {
-      'dark' || 'night' => 'dark',
-      'light' || 'day' => 'light',
+      'dark' => 'dark',
+      'light' => 'light',
       _ => null,
     };
     if (mode == null) {

@@ -269,6 +269,27 @@ void main() {
     expect(processManager.starts, isEmpty);
   });
 
+  test('ios app payload rejects undeclared packageId aliases', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'ios',
+        deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+        action: CockpitSystemControlAction.activateWindow,
+        parameters: <String, Object?>{'packageId': 'dev.cockpit.example'},
+      ),
+    );
+
+    expect(result.success, isFalse);
+    expect(result.errorCode, 'invalidSystemActionParameter');
+    expect(result.recommendedNextStep, 'fixActionPayload');
+    expect(processManager.starts, isEmpty);
+  });
+
   test('fractional longPress duration fails before spawning process', () async {
     final processManager = _FakeProcessManager();
     final service = CockpitSystemControlActionService(
@@ -405,6 +426,28 @@ void main() {
     expect(processManager.starts, isEmpty);
   });
 
+  test('ios grantPermission rejects undeclared service aliases', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'ios',
+        deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+        appId: 'dev.cockpit.example',
+        action: CockpitSystemControlAction.grantPermission,
+        parameters: <String, Object?>{'service': 'photos'},
+      ),
+    );
+
+    expect(result.success, isFalse);
+    expect(result.errorCode, 'invalidSystemActionParameter');
+    expect(result.recommendedNextStep, 'fixActionPayload');
+    expect(processManager.starts, isEmpty);
+  });
+
   test('ios setContentSize rejects unsupported categories', () async {
     final processManager = _FakeProcessManager();
     final service = CockpitSystemControlActionService(
@@ -465,6 +508,48 @@ void main() {
           'latitude': 'north',
           'longitude': -122.009,
         },
+      ),
+    );
+
+    expect(result.success, isFalse);
+    expect(result.errorCode, 'invalidSystemActionParameter');
+    expect(result.recommendedNextStep, 'fixActionPayload');
+    expect(processManager.starts, isEmpty);
+  });
+
+  test('setLocation rejects undeclared coordinate aliases', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        action: CockpitSystemControlAction.setLocation,
+        parameters: <String, Object?>{'lat': 37.3349, 'lng': -122.009},
+      ),
+    );
+
+    expect(result.success, isFalse);
+    expect(result.errorCode, 'invalidSystemActionParameter');
+    expect(result.recommendedNextStep, 'fixActionPayload');
+    expect(processManager.starts, isEmpty);
+  });
+
+  test('android setContentSize rejects numeric contentSize payloads', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        action: CockpitSystemControlAction.setContentSize,
+        parameters: <String, Object?>{'contentSize': 1.3},
       ),
     );
 
@@ -646,6 +731,48 @@ void main() {
     },
   );
 
+  test('android setAppearance rejects undeclared night aliases', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        action: CockpitSystemControlAction.setAppearance,
+        parameters: <String, Object?>{'appearance': 'night'},
+      ),
+    );
+
+    expect(result.success, isFalse);
+    expect(result.errorCode, 'invalidSystemActionParameter');
+    expect(result.recommendedNextStep, 'fixActionPayload');
+    expect(processManager.starts, isEmpty);
+  });
+
+  test('android setAppearance rejects undeclared system aliases', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        action: CockpitSystemControlAction.setAppearance,
+        parameters: <String, Object?>{'appearance': 'system'},
+      ),
+    );
+
+    expect(result.success, isFalse);
+    expect(result.errorCode, 'invalidSystemActionParameter');
+    expect(result.recommendedNextStep, 'fixActionPayload');
+    expect(processManager.starts, isEmpty);
+  });
+
   test('android setContentSize maps content token to font scale', () async {
     final processManager = _FakeProcessManager();
     final service = CockpitSystemControlActionService(
@@ -733,6 +860,48 @@ void main() {
     ]);
   });
 
+  test('android setOrientation rejects undeclared sensor aliases', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        action: CockpitSystemControlAction.setOrientation,
+        parameters: <String, Object?>{'orientation': 'sensor'},
+      ),
+    );
+
+    expect(result.success, isFalse);
+    expect(result.errorCode, 'invalidSystemActionParameter');
+    expect(result.recommendedNextStep, 'fixActionPayload');
+    expect(processManager.starts, isEmpty);
+  });
+
+  test('android setOrientation rejects undeclared hyphen aliases', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        action: CockpitSystemControlAction.setOrientation,
+        parameters: <String, Object?>{'orientation': 'reverse-portrait'},
+      ),
+    );
+
+    expect(result.success, isFalse);
+    expect(result.errorCode, 'invalidSystemActionParameter');
+    expect(result.recommendedNextStep, 'fixActionPayload');
+    expect(processManager.starts, isEmpty);
+  });
+
   test('android setNetworkSpeed uses the emulator console', () async {
     final processManager = _FakeProcessManager();
     final service = CockpitSystemControlActionService(
@@ -760,6 +929,27 @@ void main() {
     ]);
   });
 
+  test('android setNetworkSpeed rejects undeclared speed aliases', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        action: CockpitSystemControlAction.setNetworkSpeed,
+        parameters: <String, Object?>{'speed': 'full'},
+      ),
+    );
+
+    expect(result.success, isFalse);
+    expect(result.errorCode, 'invalidSystemActionParameter');
+    expect(result.recommendedNextStep, 'fixActionPayload');
+    expect(processManager.starts, isEmpty);
+  });
+
   test('android setNetworkDelay uses the emulator console', () async {
     final processManager = _FakeProcessManager();
     final service = CockpitSystemControlActionService(
@@ -785,6 +975,27 @@ void main() {
       'delay',
       'none',
     ]);
+  });
+
+  test('android setNetworkDelay rejects undeclared value aliases', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        action: CockpitSystemControlAction.setNetworkDelay,
+        parameters: <String, Object?>{'value': 'none'},
+      ),
+    );
+
+    expect(result.success, isFalse);
+    expect(result.errorCode, 'invalidSystemActionParameter');
+    expect(result.recommendedNextStep, 'fixActionPayload');
+    expect(processManager.starts, isEmpty);
   });
 
   test('android readProcessList uses adb ps', () async {
@@ -990,6 +1201,30 @@ void main() {
       'dark',
     ]);
   });
+
+  test(
+    'ios simulator setAppearance rejects undeclared night aliases',
+    () async {
+      final processManager = _FakeProcessManager();
+      final service = CockpitSystemControlActionService(
+        processManager: processManager,
+      );
+
+      final result = await service.run(
+        const CockpitSystemControlActionRequest(
+          platform: 'ios',
+          deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+          action: CockpitSystemControlAction.setAppearance,
+          parameters: <String, Object?>{'appearance': 'night'},
+        ),
+      );
+
+      expect(result.success, isFalse);
+      expect(result.errorCode, 'invalidSystemActionParameter');
+      expect(result.recommendedNextStep, 'fixActionPayload');
+      expect(processManager.starts, isEmpty);
+    },
+  );
 
   test('ios simulator setContentSize uses simctl ui content_size', () async {
     final processManager = _FakeProcessManager();

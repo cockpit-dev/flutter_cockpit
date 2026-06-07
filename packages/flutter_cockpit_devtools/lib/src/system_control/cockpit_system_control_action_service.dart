@@ -93,6 +93,10 @@ final class CockpitSystemControlActionService {
         limitations: capability.limitations,
       );
     }
+    final payloadError = _validateDeclaredPayload(request, capability);
+    if (payloadError != null) {
+      return payloadError;
+    }
 
     if (request.action == CockpitSystemControlAction.captureScreenshot) {
       return _captureScreenshot(request, profile, capability);
@@ -189,6 +193,49 @@ final class CockpitSystemControlActionService {
           ? null
           : 'System action command exited with $exitCode.',
     );
+  }
+
+  CockpitSystemControlActionResult? _validateDeclaredPayload(
+    CockpitSystemControlActionRequest request,
+    CockpitSystemControlCapability capability,
+  ) {
+    final parametersByName = <String, CockpitSystemControlParameter>{
+      for (final parameter in capability.parameters) parameter.name: parameter,
+    };
+    for (final entry in request.parameters.entries) {
+      final parameter = parametersByName[entry.key];
+      if (parameter == null) {
+        return _notExecutable(
+          request,
+          availability: capability.availability,
+          recommendedNextStep: 'fixActionPayload',
+          errorCode: 'invalidSystemActionParameter',
+          errorMessage:
+              '${request.action.name} does not accept parameter ${entry.key}. Use read-system-capabilities parameters.',
+          strategy: capability.strategy,
+          requires: capability.requires,
+          limitations: capability.limitations,
+        );
+      }
+      final errorMessage = _validateSystemControlAllowedValue(
+        request.action,
+        parameter,
+        entry.value,
+      );
+      if (errorMessage != null) {
+        return _notExecutable(
+          request,
+          availability: capability.availability,
+          recommendedNextStep: 'fixActionPayload',
+          errorCode: 'invalidSystemActionParameter',
+          errorMessage: errorMessage,
+          strategy: capability.strategy,
+          requires: capability.requires,
+          limitations: capability.limitations,
+        );
+      }
+    }
+    return null;
   }
 
   Future<CockpitSystemControlActionResult> _captureScreenshot(
@@ -524,6 +571,27 @@ CockpitSystemControlActionResult _invalidEvidencePayload(
     requires: capability.requires,
     limitations: capability.limitations,
   );
+}
+
+String? _validateSystemControlAllowedValue(
+  CockpitSystemControlAction action,
+  CockpitSystemControlParameter parameter,
+  Object? value,
+) {
+  if (parameter.allowedValues.isEmpty) {
+    return null;
+  }
+  if (value is! String) {
+    return '${action.name} requires ${parameter.name} to be one of ${parameter.allowedValues.join(", ")}.';
+  }
+  final normalized = value.trim();
+  if (normalized.isEmpty) {
+    return null;
+  }
+  if (!parameter.allowedValues.contains(normalized)) {
+    return '${action.name} requires ${parameter.name} to be one of ${parameter.allowedValues.join(", ")}.';
+  }
+  return null;
 }
 
 String _recommendedNextStepForCommandError(
