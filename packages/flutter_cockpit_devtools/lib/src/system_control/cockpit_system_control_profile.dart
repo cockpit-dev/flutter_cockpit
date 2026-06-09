@@ -292,7 +292,10 @@ final class CockpitSystemControlCapability {
             other.plane == plane &&
             other.availability == availability &&
             other.strategy == strategy &&
-            _stringListEquality.equals(other.groups, groups) &&
+            _stringListEquality.equals(
+              other.effectiveGroups,
+              effectiveGroups,
+            ) &&
             _stringListEquality.equals(other.requires, requires) &&
             _stringListEquality.equals(other.limitations, limitations) &&
             _parameterListEquality.equals(other.parameters, parameters) &&
@@ -305,7 +308,7 @@ final class CockpitSystemControlCapability {
     plane,
     availability,
     strategy,
-    _stringListEquality.hash(groups),
+    _stringListEquality.hash(effectiveGroups),
     _stringListEquality.hash(requires),
     _stringListEquality.hash(limitations),
     _parameterListEquality.hash(parameters),
