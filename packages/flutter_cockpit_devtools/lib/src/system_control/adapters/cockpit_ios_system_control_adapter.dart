@@ -144,6 +144,38 @@ final class CockpitIosSystemControlAdapter
             parameters: CockpitSystemControlParameterSets.iosApp,
           ),
           CockpitSystemControlCapability(
+            action: CockpitSystemControlAction.installApp,
+            plane: CockpitPlaneKind.deviceSystemPlane,
+            availability: CockpitSystemControlAvailability.available,
+            strategy: 'xcrun.simctl.install',
+            requires: <String>['xcrun', 'simulator device id', '.app path'],
+            parameters: CockpitSystemControlParameterSets.installApp,
+          ),
+          CockpitSystemControlCapability(
+            action: CockpitSystemControlAction.uninstallApp,
+            plane: CockpitPlaneKind.deviceSystemPlane,
+            availability: CockpitSystemControlAvailability.available,
+            strategy: 'xcrun.simctl.uninstall',
+            requires: <String>['xcrun', 'simulator device id', 'app id'],
+            parameters: CockpitSystemControlParameterSets.uninstallApp,
+          ),
+          CockpitSystemControlCapability(
+            action: CockpitSystemControlAction.clearAppData,
+            plane: CockpitPlaneKind.deviceSystemPlane,
+            availability: CockpitSystemControlAvailability.available,
+            strategy: 'xcrun.simctl.privacy.reset+app-container-delete',
+            requires: <String>[
+              'xcrun',
+              'simulator device id',
+              'app id',
+              'installed app data container',
+            ],
+            limitations: <String>[
+              'Deletes the app data container contents while preserving the installed app bundle.',
+            ],
+            parameters: CockpitSystemControlParameterSets.iosApp,
+          ),
+          CockpitSystemControlCapability(
             action: CockpitSystemControlAction.dismissSystemDialog,
             plane: CockpitPlaneKind.nativeUiPlane,
             availability: wdaAvailability,
@@ -174,6 +206,29 @@ final class CockpitIosSystemControlAdapter
             ],
             limitations: <String>['simctl privacy may terminate the app'],
             parameters: CockpitSystemControlParameterSets.iosGrantPermission,
+          ),
+          CockpitSystemControlCapability(
+            action: CockpitSystemControlAction.revokePermission,
+            plane: CockpitPlaneKind.deviceSystemPlane,
+            availability: CockpitSystemControlAvailability.available,
+            strategy: 'xcrun.simctl.privacy.revoke',
+            requires: <String>[
+              'xcrun',
+              'simulator device id',
+              'privacy service',
+              'app id',
+            ],
+            limitations: <String>['simctl privacy may terminate the app'],
+            parameters: CockpitSystemControlParameterSets.iosRevokePermission,
+          ),
+          CockpitSystemControlCapability(
+            action: CockpitSystemControlAction.resetPermission,
+            plane: CockpitPlaneKind.deviceSystemPlane,
+            availability: CockpitSystemControlAvailability.available,
+            strategy: 'xcrun.simctl.privacy.reset',
+            requires: <String>['xcrun', 'simulator device id'],
+            limitations: <String>['simctl privacy may terminate the app'],
+            parameters: CockpitSystemControlParameterSets.iosResetPermission,
           ),
           const CockpitSystemControlCapability(
             action: CockpitSystemControlAction.openUrl,
@@ -349,6 +404,48 @@ final class CockpitIosSystemControlAdapter
             requires: <String>['xcrun', 'simulator device id'],
           ),
           CockpitSystemControlCapability(
+            action: CockpitSystemControlAction.pushFile,
+            plane: CockpitPlaneKind.deviceSystemPlane,
+            availability: CockpitSystemControlAvailability.available,
+            strategy: 'xcrun.simctl.get_app_container+cp',
+            requires: <String>[
+              'xcrun',
+              'simulator device id',
+              'app id',
+              'host file path',
+              'app data container path',
+            ],
+            limitations: <String>[
+              'iOS simulator file transfer is app-container scoped; destinationPath is relative to the app data container unless absolute.',
+            ],
+            parameters: CockpitSystemControlParameterSets.fileTransfer,
+          ),
+          CockpitSystemControlCapability(
+            action: CockpitSystemControlAction.pullFile,
+            plane: CockpitPlaneKind.deviceSystemPlane,
+            availability: CockpitSystemControlAvailability.available,
+            strategy: 'xcrun.simctl.get_app_container+cp',
+            requires: <String>[
+              'xcrun',
+              'simulator device id',
+              'app id',
+              'app data container path',
+              'host destination path',
+            ],
+            limitations: <String>[
+              'iOS simulator file transfer is app-container scoped; sourcePath is relative to the app data container unless absolute.',
+            ],
+            parameters: CockpitSystemControlParameterSets.fileTransfer,
+          ),
+          const CockpitSystemControlCapability(
+            action: CockpitSystemControlAction.addMedia,
+            plane: CockpitPlaneKind.deviceSystemPlane,
+            availability: CockpitSystemControlAvailability.available,
+            strategy: 'xcrun.simctl.addmedia',
+            requires: <String>['xcrun', 'simulator device id', 'media path'],
+            parameters: CockpitSystemControlParameterSets.iosAddMedia,
+          ),
+          CockpitSystemControlCapability(
             action: CockpitSystemControlAction.captureScreenshot,
             plane: CockpitPlaneKind.deviceSystemPlane,
             availability: CockpitSystemControlAvailability.available,
@@ -406,6 +503,24 @@ final class CockpitIosSystemControlAdapter
             availability: CockpitSystemControlAvailability.available,
             strategy: 'xcrun.simctl.list.devices',
             requires: <String>['xcrun', 'simulator device id'],
+          ),
+          CockpitSystemControlCapability(
+            action: CockpitSystemControlAction.readDeviceInfo,
+            plane: CockpitPlaneKind.deviceSystemPlane,
+            availability: CockpitSystemControlAvailability.available,
+            strategy: 'xcrun.simctl.list+appinfo+ui',
+            requires: <String>['xcrun', 'simulator device id'],
+            parameters: CockpitSystemControlParameterSets.iosApp,
+          ),
+          CockpitSystemControlCapability(
+            action: CockpitSystemControlAction.readNotificationState,
+            plane: CockpitPlaneKind.deviceSystemPlane,
+            availability: CockpitSystemControlAvailability.blocked,
+            strategy: 'ios-simulator-notification-database',
+            requires: <String>['app notification assertions or WDA UI tree'],
+            limitations: <String>[
+              'simctl does not expose delivered notification state through a stable public command.',
+            ],
           ),
           CockpitSystemControlCapability(
             action: CockpitSystemControlAction.runShell,
@@ -799,6 +914,23 @@ final class CockpitIosSystemControlAdapter
           appId,
         ]),
       ),
+      CockpitSystemControlAction.installApp => _iosInstallAppCommand(
+        request,
+        deviceId,
+      ),
+      CockpitSystemControlAction.uninstallApp => _appScopedCommand(
+        request,
+        (appId) => CockpitResolvedSystemControlCommand('xcrun', <String>[
+          'simctl',
+          'uninstall',
+          deviceId,
+          appId,
+        ]),
+      ),
+      CockpitSystemControlAction.clearAppData => _iosClearAppDataCommand(
+        request,
+        deviceId,
+      ),
       CockpitSystemControlAction.tap => _wdaCommand(
         request,
         CockpitIosWdaAction.tap,
@@ -943,17 +1075,15 @@ final class CockpitIosSystemControlAdapter
       CockpitSystemControlAction.postNotification =>
         _iosPostNotificationCommand(
           request,
-          (appId, payloadJson) => CockpitResolvedSystemControlCommand(
-            'sh',
-            <String>[
-              '-c',
-              r'printf "%s" "$3" | xcrun simctl push "$1" "$2" -',
-              'flutter_cockpit_ios_push',
-              deviceId,
-              appId,
-              payloadJson,
-            ],
-          ),
+          (appId, payloadJson) =>
+              CockpitResolvedSystemControlCommand('sh', <String>[
+                '-c',
+                r'printf "%s" "$3" | xcrun simctl push "$1" "$2" -',
+                'flutter_cockpit_ios_push',
+                deviceId,
+                appId,
+                payloadJson,
+              ]),
         ),
       CockpitSystemControlAction.setClipboard => cockpitTextCommand(
         request,
@@ -985,10 +1115,23 @@ final class CockpitIosSystemControlAdapter
       ),
       CockpitSystemControlAction.grantPermission => _permissionCommand(
         request,
-        (appId, service) => CockpitResolvedSystemControlCommand(
+        actionName: 'grantPermission',
+        factory: (appId, service) => CockpitResolvedSystemControlCommand(
           'xcrun',
           <String>['simctl', 'privacy', deviceId, 'grant', service, appId],
         ),
+      ),
+      CockpitSystemControlAction.revokePermission => _permissionCommand(
+        request,
+        actionName: 'revokePermission',
+        factory: (appId, service) => CockpitResolvedSystemControlCommand(
+          'xcrun',
+          <String>['simctl', 'privacy', deviceId, 'revoke', service, appId],
+        ),
+      ),
+      CockpitSystemControlAction.resetPermission => _iosResetPermissionCommand(
+        request,
+        deviceId,
       ),
       CockpitSystemControlAction.startRecording ||
       CockpitSystemControlAction.stopRecording =>
@@ -996,6 +1139,20 @@ final class CockpitIosSystemControlAdapter
           code: 'systemEvidenceAction',
           message: 'Recording actions are executed through recording adapters.',
         ),
+      CockpitSystemControlAction.pushFile => _iosContainerFileCommand(
+        request,
+        deviceId,
+        mode: _IosContainerFileMode.push,
+      ),
+      CockpitSystemControlAction.pullFile => _iosContainerFileCommand(
+        request,
+        deviceId,
+        mode: _IosContainerFileMode.pull,
+      ),
+      CockpitSystemControlAction.addMedia => _iosAddMediaCommand(
+        request,
+        deviceId,
+      ),
       CockpitSystemControlAction.runShell => cockpitShellCommand(
         request,
         (command) => CockpitResolvedSystemControlCommand('xcrun', <String>[
@@ -1021,6 +1178,16 @@ final class CockpitIosSystemControlAdapter
           'devices',
           deviceId,
         ]),
+      CockpitSystemControlAction.readDeviceInfo => _iosReadDeviceInfoCommand(
+        request,
+        deviceId,
+      ),
+      CockpitSystemControlAction.readNotificationState =>
+        const CockpitResolvedSystemControlCommand.error(
+          code: 'systemActionBlocked',
+          message:
+              'iOS simulator delivered notification state has no stable public simctl command.',
+        ),
       _ => const CockpitResolvedSystemControlCommand.error(
         code: 'systemActionBlocked',
         message: 'This iOS action requires XCTest/WebDriverAgent.',
@@ -1070,10 +1237,7 @@ final class CockpitIosSystemControlAdapter
         processId: request.processId,
         metadata: request.metadata,
         action: request.action,
-        parameters: <String, Object?>{
-          ...request.parameters,
-          'name': name,
-        },
+        parameters: <String, Object?>{...request.parameters, 'name': name},
         timeout: request.timeout,
       ),
       CockpitIosWdaAction.pressButton,
@@ -1100,6 +1264,194 @@ final class CockpitIosSystemControlAdapter
     return factory(appId.value!);
   }
 
+  CockpitResolvedSystemControlCommand _iosInstallAppCommand(
+    CockpitSystemControlActionRequest request,
+    String deviceId,
+  ) {
+    final appPath = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'appPath',
+    );
+    final grantPermissions = cockpitReadSystemControlBoolParameter(
+      request.parameters,
+      'grantPermissions',
+    );
+    if (appPath.isInvalid || grantPermissions.isInvalid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'invalidSystemActionParameter',
+        message:
+            'installApp requires string appPath and optional boolean grantPermissions parameters.',
+      );
+    }
+    if (!appPath.isValid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'missingSystemActionParameter',
+        message: 'installApp requires an appPath parameter.',
+      );
+    }
+    return CockpitResolvedSystemControlCommand('xcrun', <String>[
+      'simctl',
+      'install',
+      deviceId,
+      appPath.value!,
+    ]);
+  }
+
+  CockpitResolvedSystemControlCommand _iosClearAppDataCommand(
+    CockpitSystemControlActionRequest request,
+    String deviceId,
+  ) {
+    final appId = _readAppId(request);
+    if (appId.isInvalid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'invalidSystemActionParameter',
+        message: 'clearAppData requires a string appId.',
+      );
+    }
+    if (!appId.isValid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'missingSystemActionParameter',
+        message: 'clearAppData requires --app-id or appId.',
+      );
+    }
+    return CockpitResolvedSystemControlCommand('sh', <String>[
+      '-c',
+      r'container="$(xcrun simctl get_app_container "$1" "$2" data)" && find "$container" -mindepth 1 -maxdepth 1 -exec rm -rf {} + && xcrun simctl privacy "$1" reset all "$2"',
+      'flutter_cockpit_ios_clear_app_data',
+      deviceId,
+      appId.value!,
+    ]);
+  }
+
+  CockpitResolvedSystemControlCommand _iosResetPermissionCommand(
+    CockpitSystemControlActionRequest request,
+    String deviceId,
+  ) {
+    final appId = _readAppId(request);
+    final service = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'permission',
+      allowedValues: CockpitSystemControlAllowedValues.iosPrivacyServices,
+    );
+    if (appId.isInvalid || service.isInvalid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'invalidSystemActionParameter',
+        message:
+            'resetPermission requires optional string appId and valid iOS simulator privacy service.',
+      );
+    }
+    final resolvedService = service.value ?? 'all';
+    return CockpitResolvedSystemControlCommand('xcrun', <String>[
+      'simctl',
+      'privacy',
+      deviceId,
+      'reset',
+      resolvedService,
+      if (appId.isValid) appId.value!,
+    ]);
+  }
+
+  CockpitResolvedSystemControlCommand _iosContainerFileCommand(
+    CockpitSystemControlActionRequest request,
+    String deviceId, {
+    required _IosContainerFileMode mode,
+  }) {
+    final appId = _readAppId(request);
+    final sourcePath = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'sourcePath',
+    );
+    final destinationPath = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'destinationPath',
+    );
+    if (appId.isInvalid || sourcePath.isInvalid || destinationPath.isInvalid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'invalidSystemActionParameter',
+        message:
+            'iOS file transfer requires string appId, sourcePath, and destinationPath parameters.',
+      );
+    }
+    if (!appId.isValid || !sourcePath.isValid || !destinationPath.isValid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'missingSystemActionParameter',
+        message:
+            'iOS file transfer requires --app-id or appId plus sourcePath and destinationPath.',
+      );
+    }
+    final script = mode == _IosContainerFileMode.push
+        ? r'container="$(xcrun simctl get_app_container "$1" "$2" data)" && destination="$4"; case "$destination" in /*) target="$destination" ;; *) target="$container/$destination" ;; esac && mkdir -p "$(dirname "$target")" && cp -R "$3" "$target"'
+        : r'container="$(xcrun simctl get_app_container "$1" "$2" data)" && source="$3"; case "$source" in /*) input="$source" ;; *) input="$container/$source" ;; esac && mkdir -p "$(dirname "$4")" && cp -R "$input" "$4"';
+    return CockpitResolvedSystemControlCommand('sh', <String>[
+      '-c',
+      script,
+      'flutter_cockpit_ios_container_file',
+      deviceId,
+      appId.value!,
+      sourcePath.value!,
+      destinationPath.value!,
+    ]);
+  }
+
+  CockpitResolvedSystemControlCommand _iosAddMediaCommand(
+    CockpitSystemControlActionRequest request,
+    String deviceId,
+  ) {
+    final sourcePath = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'sourcePath',
+    );
+    final destinationPath = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'destinationPath',
+    );
+    if (sourcePath.isInvalid || destinationPath.isInvalid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'invalidSystemActionParameter',
+        message:
+            'addMedia requires string sourcePath and optional destinationPath parameters.',
+      );
+    }
+    if (!sourcePath.isValid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'missingSystemActionParameter',
+        message: 'addMedia requires a sourcePath parameter.',
+      );
+    }
+    if (destinationPath.isValid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'unsupportedSystemActionParameter',
+        message: 'iOS addMedia does not use destinationPath.',
+      );
+    }
+    return CockpitResolvedSystemControlCommand('xcrun', <String>[
+      'simctl',
+      'addmedia',
+      deviceId,
+      sourcePath.value!,
+    ]);
+  }
+
+  CockpitResolvedSystemControlCommand _iosReadDeviceInfoCommand(
+    CockpitSystemControlActionRequest request,
+    String deviceId,
+  ) {
+    final appId = _readAppId(request);
+    if (appId.isInvalid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'invalidSystemActionParameter',
+        message: 'readDeviceInfo requires optional string appId.',
+      );
+    }
+    return CockpitResolvedSystemControlCommand('sh', <String>[
+      '-c',
+      r'xcrun simctl list -j devices "$1"; xcrun simctl spawn "$1" defaults read NSGlobalDomain AppleInterfaceStyle 2>/dev/null || true; xcrun simctl spawn "$1" defaults read NSGlobalDomain AppleContentSizeCategory 2>/dev/null || true; if [ -n "$2" ]; then xcrun simctl appinfo "$1" "$2"; fi',
+      'flutter_cockpit_ios_device_info',
+      deviceId,
+      appId.value ?? '',
+    ]);
+  }
+
   CockpitResolvedSystemControlCommand _iosOpenSystemSettingsCommand(
     CockpitSystemControlActionRequest request,
     CockpitResolvedSystemControlCommand Function(String url) factory,
@@ -1123,7 +1475,10 @@ final class CockpitIosSystemControlAdapter
 
   CockpitResolvedSystemControlCommand _iosPostNotificationCommand(
     CockpitSystemControlActionRequest request,
-    CockpitResolvedSystemControlCommand Function(String appId, String payloadJson)
+    CockpitResolvedSystemControlCommand Function(
+      String appId,
+      String payloadJson,
+    )
     factory,
   ) {
     final appId = _readAppId(request);
@@ -1163,7 +1518,8 @@ final class CockpitIosSystemControlAdapter
     if (title.isInvalid || body.isInvalid) {
       return const CockpitResolvedSystemControlCommand.error(
         code: 'invalidSystemActionParameter',
-        message: 'postNotification accepts string title, body, and payloadJson.',
+        message:
+            'postNotification accepts string title, body, and payloadJson.',
       );
     }
     if (!title.isValid && !body.isValid) {
@@ -1172,25 +1528,32 @@ final class CockpitIosSystemControlAdapter
         message: 'postNotification requires payloadJson, title, or body.',
       );
     }
-    return factory(appId.value!, _iosNotificationPayloadJson(title.value, body.value));
+    return factory(
+      appId.value!,
+      _iosNotificationPayloadJson(title.value, body.value),
+    );
   }
 
   CockpitResolvedSystemControlCommand _permissionCommand(
-    CockpitSystemControlActionRequest request,
-    CockpitResolvedSystemControlCommand Function(String appId, String service)
+    CockpitSystemControlActionRequest request, {
+    required String actionName,
+    required CockpitResolvedSystemControlCommand Function(
+      String appId,
+      String service,
+    )
     factory,
-  ) {
+  }) {
     final appId = _readAppId(request);
     if (appId.isInvalid) {
-      return const CockpitResolvedSystemControlCommand.error(
+      return CockpitResolvedSystemControlCommand.error(
         code: 'invalidSystemActionParameter',
-        message: 'grantPermission requires a string appId.',
+        message: '$actionName requires a string appId.',
       );
     }
     if (!appId.isValid) {
-      return const CockpitResolvedSystemControlCommand.error(
+      return CockpitResolvedSystemControlCommand.error(
         code: 'missingSystemActionParameter',
-        message: 'grantPermission requires --app-id or appId.',
+        message: '$actionName requires --app-id or appId.',
       );
     }
     final service = cockpitReadSystemControlStringParameter(
@@ -1199,16 +1562,15 @@ final class CockpitIosSystemControlAdapter
       allowedValues: CockpitSystemControlAllowedValues.iosPrivacyServices,
     );
     if (service.isInvalid) {
-      return const CockpitResolvedSystemControlCommand.error(
+      return CockpitResolvedSystemControlCommand.error(
         code: 'invalidSystemActionParameter',
-        message:
-            'grantPermission requires a valid iOS simulator privacy service.',
+        message: '$actionName requires a valid iOS simulator privacy service.',
       );
     }
     if (!service.isValid) {
-      return const CockpitResolvedSystemControlCommand.error(
+      return CockpitResolvedSystemControlCommand.error(
         code: 'missingSystemActionParameter',
-        message: 'grantPermission requires a permission or service parameter.',
+        message: '$actionName requires a permission or service parameter.',
       );
     }
     return factory(appId.value!, service.value!);
@@ -1398,3 +1760,5 @@ final class CockpitIosSystemControlAdapter
     return const <String>['booted simulator', 'WebDriverAgent endpoint'];
   }
 }
+
+enum _IosContainerFileMode { push, pull }

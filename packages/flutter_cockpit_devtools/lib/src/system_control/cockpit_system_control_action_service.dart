@@ -309,6 +309,23 @@ final class CockpitSystemControlActionService {
           limitations: capability.limitations,
         );
       }
+      final typeErrorMessage = _validateSystemControlValueType(
+        request.action,
+        parameter,
+        entry.value,
+      );
+      if (typeErrorMessage != null) {
+        return _notExecutable(
+          request,
+          availability: capability.availability,
+          recommendedNextStep: 'fixActionPayload',
+          errorCode: 'invalidSystemActionParameter',
+          errorMessage: typeErrorMessage,
+          strategy: capability.strategy,
+          requires: capability.requires,
+          limitations: capability.limitations,
+        );
+      }
     }
     return null;
   }
@@ -669,6 +686,37 @@ String? _validateSystemControlAllowedValue(
   return null;
 }
 
+String? _validateSystemControlValueType(
+  CockpitSystemControlAction action,
+  CockpitSystemControlParameter parameter,
+  Object? value,
+) {
+  if (value == null) {
+    return null;
+  }
+  return switch (parameter.valueType) {
+    CockpitSystemControlParameterType.string when value is! String =>
+      '${action.name} requires ${parameter.name} to be a string.',
+    CockpitSystemControlParameterType.boolean
+        when value is! bool &&
+            !(value is String &&
+                _parseSystemControlBoolLiteral(value) != null) =>
+      '${action.name} requires ${parameter.name} to be a boolean.',
+    CockpitSystemControlParameterType.stringList when value is! List =>
+      '${action.name} requires ${parameter.name} to be an array of strings.',
+    _ => null,
+  };
+}
+
+bool? _parseSystemControlBoolLiteral(String value) {
+  final normalized = value.trim().toLowerCase();
+  return switch (normalized) {
+    'true' || 'yes' || '1' => true,
+    'false' || 'no' || '0' => false,
+    _ => null,
+  };
+}
+
 String _recommendedNextStepForCommandError(
   CockpitResolvedSystemControlCommand command,
 ) {
@@ -682,7 +730,12 @@ String _recommendedNextStepForCommandError(
 
 String _recommendedNextStepAfterSuccess(CockpitSystemControlAction action) {
   return switch (action) {
-    CockpitSystemControlAction.grantPermission => 'relaunchAppThenReadState',
+    CockpitSystemControlAction.grantPermission ||
+    CockpitSystemControlAction.revokePermission ||
+    CockpitSystemControlAction.resetPermission ||
+    CockpitSystemControlAction.clearAppData ||
+    CockpitSystemControlAction.installApp ||
+    CockpitSystemControlAction.uninstallApp => 'relaunchAppThenReadState',
     _ => 'readPostActionState',
   };
 }
@@ -692,7 +745,10 @@ List<String> _limitationsAfterSuccess({
   required bool success,
   required List<String> limitations,
 }) {
-  if (!success || action != CockpitSystemControlAction.grantPermission) {
+  if (!success ||
+      (action != CockpitSystemControlAction.grantPermission &&
+          action != CockpitSystemControlAction.revokePermission &&
+          action != CockpitSystemControlAction.resetPermission)) {
     return limitations;
   }
   return <String>{

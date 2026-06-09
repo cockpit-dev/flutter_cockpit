@@ -364,10 +364,10 @@ AI-first 项目验证建议分两层：
 当默认 app-first 路径不是最小真实表面时，可以使用高级公共命令：
 
 - 使用 `launch-target`、`read-target`、`inspect-surface` 和 `run-shell` 处理 target-first、非 Flutter 表面、系统 shell 或宿主窗口探测
-- 使用 `read-system-capabilities` 后再调用 `run-system-action`，处理原生 UI、系统弹窗、宿主窗口、模拟器状态、截图、录屏、进程/窗口读取等能力
+- 使用 `read-system-capabilities` 后再调用 `run-system-action`，处理原生 UI、系统弹窗、宿主窗口、模拟器状态、应用安装/卸载/清数据、权限授权/撤销/重置、文件/媒体准备、截图、录屏、进程/窗口/设备/通知读取等能力
 - 使用 `start-remote-recording` 和 `stop-remote-recording` 只应发生在直接操作 remote session，而不是 app handle 时
 
-面向模拟器优先的开发，system plane 会按真实能力暴露。Android Emulator 走 `adb`：原生坐标、按键、Back/Home、音量键、权限授权、应用设置、外观、字号、定位、旋转、emulator 网络条件、通知栏、快捷设置、截图、录屏、UI tree、进程/窗口/状态读取、shell，以及 UIAutomator 辅助的 `dismissSystemDialog --decision accept|dismiss`。iOS Simulator 走 `simctl`：应用生命周期、隐私权限、URL、Settings、外观、内容字号、定位、status bar 覆盖、剪贴板、模拟 APNS push、截图、录屏、进程/状态读取，以及 `simctl spawn` shell。iOS 原生 UI 和系统弹窗控制在 WebDriverAgent 可达时启用。没有稳定公开 API 的模拟器能力，例如 iOS 模拟器音量键、展开通知中心、展开控制中心、清空全部通知，会报告为 `unsupported` 或 `blocked`，不会伪装成可用。
+面向模拟器优先的开发，system plane 会按真实能力暴露。Android Emulator 走 `adb`：原生坐标、按键、Back/Home、音量键、应用安装/卸载/启动/终止/清数据、权限授权/撤销/重置、应用设置、外观、字号、定位、旋转、emulator 网络条件、通知栏、快捷设置、文件 push/pull、媒体导入、截图、录屏、UI tree、进程/窗口/设备/系统状态读取、通知状态读取、shell，以及 UIAutomator 辅助的 `dismissSystemDialog --decision accept|dismiss`。iOS Simulator 走 `simctl`：应用生命周期、隐私权限授权/撤销/重置、URL、Settings、外观、内容字号、定位、status bar 覆盖、剪贴板、模拟 APNS push、应用安装/卸载/清数据、app container 文件传输、媒体导入、截图、录屏、进程/设备/状态读取，以及 `simctl spawn` shell。iOS 原生 UI 和系统弹窗控制在 WebDriverAgent 可达时启用。没有稳定公开 API 的模拟器能力，例如 iOS 模拟器音量键、展开通知中心、展开控制中心、清空全部通知，会报告为 `unsupported` 或 `blocked`，不会伪装成可用。JSON capability 输出还会暴露 `actionGroups`，调用方可以不写死平台列表，也能发现权限、通知、文件、媒体、证据、设备状态和检查类动作。
 
 ## MCP 公共面
 

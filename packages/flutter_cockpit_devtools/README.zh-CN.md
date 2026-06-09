@@ -98,15 +98,15 @@ surface 时，使用 Native/System Control Plane：
 1. `read-system-capabilities --platform <platform> ...`
 2. 只对返回为 `available` 的 action 调用 `run-system-action`
 3. 按返回的 `parameters` 合约传参，不要猜 payload key
-4. 常见设置优先用直接参数：`--appearance`、`--content-size`、`--font-scale`、`--latitude/--longitude`、`--orientation`、`--network-speed`、`--network-delay`、status-bar 参数和 `--max-depth/--max-nodes`；系统截图/录屏使用 `--name`、`--purpose`、`--mode`、`--layer` 和 `--output-path`
+4. 常见设置优先用直接参数：`--appearance`、`--content-size`、`--font-scale`、`--latitude/--longitude`、`--orientation`、`--network-speed`、`--network-delay`、status-bar 参数和 `--max-depth/--max-nodes`；应用/包与文件/媒体准备使用 `--app-path`、`--grant-permissions`、`--keep-data`、`--source-path` 和 `--destination-path`；系统截图/录屏使用 `--name`、`--purpose`、`--mode`、`--layer` 和 `--output-path`
 5. 操作后读取 app、target 或 system state，再判断结果
 
 当当前工作区存在 `.dart_tool/flutter_cockpit/latest_app.json` 时，system 命令会复用其中的 platform、device id、process id 和 platform app id。iOS 模拟器权限优先使用 `grantPermission`，它走稳定的 `simctl privacy grant`。如果 Flutter 语义和 `simctl` 都无法控制 iOS 模拟器原生 UI 或系统弹窗，可以单独启动 WebDriverAgent。iOS 模拟器会默认探测 `http://127.0.0.1:8100`；只有使用自定义 endpoint 时才需要传 `--wda-url` 或设置 `FLUTTER_COCKPIT_IOS_WDA_URL`。endpoint 不可达时原生动作仍保持 blocked；endpoint 可达时，`tap`、`longPress`、`drag`、`typeText`、`pressKey`、`dismissSystemDialog`、`setOrientation` 和 `readUiTree` 可以返回为 `available` 并通过 `run-system-action` 执行。
 
 模拟器支持坚持按真实能力暴露：
 
-- Android Emulator 通过 `adb` 支持原生 tap/drag/text/key、Back/Home、音量键、应用启动/终止、权限授权、URL/系统设置入口、外观、字号、定位、旋转、emulator 网络速度/延迟、通知栏、快捷设置、收起系统 UI、shell 通知、截图、录屏、UI tree、进程/窗口/系统状态读取和有界 shell 命令。`dismissSystemDialog --decision accept|dismiss` 会先用 UIAutomator 匹配常见 Android 权限/系统弹窗按钮；`dismiss` 找不到时可以回退 Back。
-- iOS Simulator 通过 `simctl` 支持应用启动/终止、隐私权限授权、URL 和 Settings 入口、外观、内容字号、定位、status bar 覆盖、剪贴板、模拟 APNS push、截图、录屏、进程读取、模拟器状态读取和有界 `simctl spawn` 命令。
+- Android Emulator 通过 `adb` 支持原生 tap/drag/text/key、Back/Home、音量键、应用安装/卸载/启动/终止/清数据、权限授权/撤销/重置、URL/系统设置入口、外观、字号、定位、旋转、emulator 网络速度/延迟、通知栏、快捷设置、收起系统 UI、shell 通知、文件 push/pull、媒体导入并触发扫描、截图、录屏、UI tree、进程/窗口/系统状态读取、设备信息读取、通知状态读取和有界 shell 命令。`dismissSystemDialog --decision accept|dismiss` 会先用 UIAutomator 匹配常见 Android 权限/系统弹窗按钮；`dismiss` 找不到时可以回退 Back。
+- iOS Simulator 通过 `simctl` 支持应用安装/卸载/启动/终止/清数据、隐私权限授权/撤销/重置、URL 和 Settings 入口、外观、内容字号、定位、status bar 覆盖、剪贴板、模拟 APNS push、app container push/pull、媒体导入、截图、录屏、进程读取、模拟器/设备信息读取和有界 `simctl spawn` 命令。
 - iOS Simulator 原生 UI 动作需要可达的 WebDriverAgent endpoint：tap、long press、drag、文本/按键输入、Home、关闭键盘、系统弹窗 accept/dismiss、旋转和原生 UI tree 读取。
 - iOS Simulator 音量键、展开通知中心、展开控制中心、清空全部通知没有稳定公开的 `simctl`/XCTest 模拟器 API。因此这些动作会保持 `unsupported` 或 `blocked`，不会伪装成可自动化。需要时按返回的 fallback、已知几何坐标的 WDA 手势或应用内断言处理。
 
@@ -114,6 +114,7 @@ surface 时，使用 Native/System Control Plane：
 `parameters=[x*:integer | wifiBars:integer[0..3] | appearance*:string(light|dark)]`。
 JSON 输出会用结构化 `parameters` 条目暴露同一合约，包括 `required`、`valueType`、
 `allowedValues`、`minimum` 和 `maximum`。
+JSON 还会包含 `actionGroups`，方便 agent 不写死平台动作名，也能发现权限、通知、文件、媒体、证据、设备状态和检查类能力。
 
 推荐代码侧闭环：
 

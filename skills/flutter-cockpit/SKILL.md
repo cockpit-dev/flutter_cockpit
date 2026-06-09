@@ -91,7 +91,10 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-system-action [--
 Use `parameters=[name*:type[range](allowed|values)]` for payloads; `*` means required. Do not guess payload keys.
 Both commands reuse `.dart_tool/flutter_cockpit/latest_app.json` by default, including platform, device id, process id, and platform app id when available. On iOS simulator, prefer deterministic `grantPermission`; use WebDriverAgent only when Flutter semantics and simctl cannot control native UI or dialogs. Cockpit probes `http://127.0.0.1:8100` unless `--wda-url` or `FLUTTER_COCKPIT_IOS_WDA_URL` is set; native iOS simulator actions stay blocked unless WDA is reachable.
 For `dismissSystemDialog`, use `--decision accept` for the primary action or `--decision dismiss` for the cancel/deny action; omit it to accept.
-Android Emulator uses adb and iOS Simulator uses simctl/WDA; trust only actions reported as `available`, and keep unsupported simulator features blocked rather than faking automation.
+Use `actionGroups` in JSON output to find permission, notification, file, media, evidence, device-state, and inspection actions without hard-coding platform lists.
+Android Emulator uses adb for app install/uninstall/data clear, permission grant/revoke/reset, system settings, volume, orientation, emulator networking, notifications, file push/pull, media import, screenshots, recording, UI tree, device info, notification state, and bounded shell.
+iOS Simulator uses simctl for app install/uninstall/data clear, privacy grant/revoke/reset, status bar, pasteboard, app-container file transfer, media import, screenshots, recording, device info, and bounded `simctl spawn`; WDA is only for native UI, keyboard, orientation, and system dialog control.
+Trust only actions reported as `available`, and keep unsupported simulator features blocked rather than faking automation.
 Desktop coordinates use screen pixels. For desktop target actions, macOS host screenshots/recordings need `--app-id`; Windows/Linux can use `--app-id` or `--process-id`. If an action is not `available`, follow its requirement/fallback or report `blocked_by_environment`.
 
 Acceptance, release readiness, or artifact-backed handoff:

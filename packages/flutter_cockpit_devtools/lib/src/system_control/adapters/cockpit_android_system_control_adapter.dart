@@ -134,6 +134,33 @@ final class CockpitAndroidSystemControlAdapter
           parameters: CockpitSystemControlParameterSets.androidApp,
         ),
         CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.installApp,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: availability,
+          strategy: 'adb.install',
+          requires: <String>['adb', 'device id', 'apk path'],
+          parameters: CockpitSystemControlParameterSets.installApp,
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.uninstallApp,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: availability,
+          strategy: 'adb.uninstall',
+          requires: <String>['adb', 'device id', 'package id'],
+          parameters: CockpitSystemControlParameterSets.uninstallApp,
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.clearAppData,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: availability,
+          strategy: 'adb.shell.pm.clear',
+          requires: <String>['adb', 'device id', 'package id'],
+          limitations: <String>[
+            'Clears all app data and cache on the emulator/device.',
+          ],
+          parameters: CockpitSystemControlParameterSets.androidApp,
+        ),
+        CockpitSystemControlCapability(
           action: CockpitSystemControlAction.dismissSystemDialog,
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
@@ -167,6 +194,25 @@ final class CockpitAndroidSystemControlAdapter
           strategy: 'adb.shell.pm.grant',
           requires: <String>['adb', 'package id', 'permission name'],
           parameters: CockpitSystemControlParameterSets.androidGrantPermission,
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.revokePermission,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: availability,
+          strategy: 'adb.shell.pm.revoke',
+          requires: <String>['adb', 'package id', 'permission name'],
+          parameters: CockpitSystemControlParameterSets.androidRevokePermission,
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.resetPermission,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: availability,
+          strategy: 'adb.shell.pm.reset-permissions-or-revoke',
+          requires: <String>['adb', 'package id'],
+          limitations: <String>[
+            'When permission is omitted, pm reset-permissions support depends on Android API level. Prefer explicit permission for deterministic app-scoped reset.',
+          ],
+          parameters: CockpitSystemControlParameterSets.androidResetPermission,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.openUrl,
@@ -343,6 +389,30 @@ final class CockpitAndroidSystemControlAdapter
           ],
         ),
         CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.pushFile,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: availability,
+          strategy: 'adb.push',
+          requires: <String>['adb', 'device id'],
+          parameters: CockpitSystemControlParameterSets.fileTransfer,
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.pullFile,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: availability,
+          strategy: 'adb.pull',
+          requires: <String>['adb', 'device id'],
+          parameters: CockpitSystemControlParameterSets.fileTransfer,
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.addMedia,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: availability,
+          strategy: 'adb.push+media-scan',
+          requires: <String>['adb', 'device id'],
+          parameters: CockpitSystemControlParameterSets.androidAddMedia,
+        ),
+        CockpitSystemControlCapability(
           action: CockpitSystemControlAction.captureScreenshot,
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
@@ -393,6 +463,20 @@ final class CockpitAndroidSystemControlAdapter
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.shell.dumpsys',
+          requires: <String>['adb', 'device id'],
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.readDeviceInfo,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: availability,
+          strategy: 'adb.shell.getprop+wm+settings',
+          requires: <String>['adb', 'device id'],
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.readNotificationState,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: availability,
+          strategy: 'adb.shell.dumpsys.notification',
           requires: <String>['adb', 'device id'],
         ),
         CockpitSystemControlCapability(
@@ -526,6 +610,21 @@ final class CockpitAndroidSystemControlAdapter
         (packageId) => CockpitResolvedSystemControlCommand(
           'adb',
           adbShell(<String>['am', 'force-stop', packageId]),
+        ),
+      ),
+      CockpitSystemControlAction.installApp => _androidInstallAppCommand(
+        request,
+        deviceId,
+      ),
+      CockpitSystemControlAction.uninstallApp => _androidUninstallAppCommand(
+        request,
+        deviceId,
+      ),
+      CockpitSystemControlAction.clearAppData => _packageCommand(
+        request,
+        (packageId) => CockpitResolvedSystemControlCommand(
+          'adb',
+          adbShell(<String>['pm', 'clear', packageId]),
         ),
       ),
       CockpitSystemControlAction.openUrl => cockpitTextCommand(
@@ -666,6 +765,24 @@ final class CockpitAndroidSystemControlAdapter
         message:
             'Android clipboard actions require app instrumentation or an API-specific clipboard helper.',
       ),
+      CockpitSystemControlAction.pushFile => _fileTransferCommand(
+        request,
+        (sourcePath, destinationPath) => CockpitResolvedSystemControlCommand(
+          'adb',
+          <String>['-s', deviceId, 'push', sourcePath, destinationPath],
+        ),
+      ),
+      CockpitSystemControlAction.pullFile => _fileTransferCommand(
+        request,
+        (sourcePath, destinationPath) => CockpitResolvedSystemControlCommand(
+          'adb',
+          <String>['-s', deviceId, 'pull', sourcePath, destinationPath],
+        ),
+      ),
+      CockpitSystemControlAction.addMedia => _androidAddMediaCommand(
+        request,
+        deviceId,
+      ),
       CockpitSystemControlAction.grantPermission => _grantPermissionCommand(
         request,
         (packageId, permission) => CockpitResolvedSystemControlCommand(
@@ -673,6 +790,26 @@ final class CockpitAndroidSystemControlAdapter
           adbShell(<String>['pm', 'grant', packageId, permission]),
         ),
       ),
+      CockpitSystemControlAction.revokePermission => _grantPermissionCommand(
+        request,
+        (packageId, permission) => CockpitResolvedSystemControlCommand(
+          'adb',
+          adbShell(<String>['pm', 'revoke', packageId, permission]),
+        ),
+      ),
+      CockpitSystemControlAction.resetPermission =>
+        _androidResetPermissionCommand(
+          request,
+          (packageId, permission) => CockpitResolvedSystemControlCommand(
+            'adb',
+            adbShell(<String>[
+              if (permission == null) ...<String>[
+                'pm',
+                'reset-permissions',
+              ] else ...<String>['pm', 'revoke', packageId, permission],
+            ]),
+          ),
+        ),
       CockpitSystemControlAction.dismissSystemDialog =>
         _androidDismissSystemDialogCommand(
           request,
@@ -723,6 +860,20 @@ final class CockpitAndroidSystemControlAdapter
         CockpitResolvedSystemControlCommand(
           'adb',
           adbShell(const <String>['dumpsys', 'window']),
+        ),
+      CockpitSystemControlAction.readDeviceInfo =>
+        CockpitResolvedSystemControlCommand(
+          'adb',
+          adbShell(const <String>[
+            'sh',
+            '-c',
+            'printf "serial=" && getprop ro.serialno; printf "model=" && getprop ro.product.model; printf "sdk=" && getprop ro.build.version.sdk; printf "release=" && getprop ro.build.version.release; wm size; wm density; settings get system font_scale; settings get secure default_input_method; dumpsys input_method | grep -E "mInputShown|InputShown" | head -n 5 || true',
+          ]),
+        ),
+      CockpitSystemControlAction.readNotificationState =>
+        CockpitResolvedSystemControlCommand(
+          'adb',
+          adbShell(const <String>['dumpsys', 'notification']),
         ),
       CockpitSystemControlAction.runShell => cockpitShellCommand(
         request,
@@ -775,6 +926,171 @@ final class CockpitAndroidSystemControlAdapter
     return factory(packageId.value!, permission.value!);
   }
 
+  CockpitResolvedSystemControlCommand _androidResetPermissionCommand(
+    CockpitSystemControlActionRequest request,
+    CockpitResolvedSystemControlCommand Function(
+      String packageId,
+      String? permission,
+    )
+    factory,
+  ) {
+    final packageId = _readPackageId(request);
+    final permission = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'permission',
+    );
+    if (packageId.isInvalid || permission.isInvalid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'invalidSystemActionParameter',
+        message:
+            'resetPermission requires string packageId/appId and optional permission parameters.',
+      );
+    }
+    if (!packageId.isValid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'missingSystemActionParameter',
+        message: 'resetPermission requires --app-id or packageId.',
+      );
+    }
+    return factory(packageId.value!, permission.value);
+  }
+
+  CockpitResolvedSystemControlCommand _androidInstallAppCommand(
+    CockpitSystemControlActionRequest request,
+    String deviceId,
+  ) {
+    final appPath = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'appPath',
+    );
+    final grantPermissions = cockpitReadSystemControlBoolParameter(
+      request.parameters,
+      'grantPermissions',
+    );
+    if (appPath.isInvalid || grantPermissions.isInvalid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'invalidSystemActionParameter',
+        message:
+            'installApp requires string appPath and optional boolean grantPermissions parameters.',
+      );
+    }
+    if (!appPath.isValid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'missingSystemActionParameter',
+        message: 'installApp requires an appPath parameter.',
+      );
+    }
+    return CockpitResolvedSystemControlCommand('adb', <String>[
+      '-s',
+      deviceId,
+      'install',
+      '-r',
+      if (grantPermissions.value == true) '-g',
+      appPath.value!,
+    ]);
+  }
+
+  CockpitResolvedSystemControlCommand _androidUninstallAppCommand(
+    CockpitSystemControlActionRequest request,
+    String deviceId,
+  ) {
+    final packageId = _readPackageId(request);
+    final keepData = cockpitReadSystemControlBoolParameter(
+      request.parameters,
+      'keepData',
+    );
+    if (packageId.isInvalid || keepData.isInvalid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'invalidSystemActionParameter',
+        message:
+            'uninstallApp requires string packageId/appId and optional boolean keepData parameters.',
+      );
+    }
+    if (!packageId.isValid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'missingSystemActionParameter',
+        message: 'uninstallApp requires --app-id or packageId.',
+      );
+    }
+    return CockpitResolvedSystemControlCommand('adb', <String>[
+      '-s',
+      deviceId,
+      'uninstall',
+      if (keepData.value == true) '-k',
+      packageId.value!,
+    ]);
+  }
+
+  CockpitResolvedSystemControlCommand _fileTransferCommand(
+    CockpitSystemControlActionRequest request,
+    CockpitResolvedSystemControlCommand Function(
+      String sourcePath,
+      String destinationPath,
+    )
+    factory,
+  ) {
+    final sourcePath = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'sourcePath',
+    );
+    final destinationPath = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'destinationPath',
+    );
+    if (sourcePath.isInvalid || destinationPath.isInvalid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'invalidSystemActionParameter',
+        message:
+            'File transfer actions require string sourcePath and destinationPath parameters.',
+      );
+    }
+    if (!sourcePath.isValid || !destinationPath.isValid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'missingSystemActionParameter',
+        message:
+            'File transfer actions require sourcePath and destinationPath parameters.',
+      );
+    }
+    return factory(sourcePath.value!, destinationPath.value!);
+  }
+
+  CockpitResolvedSystemControlCommand _androidAddMediaCommand(
+    CockpitSystemControlActionRequest request,
+    String deviceId,
+  ) {
+    final sourcePath = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'sourcePath',
+    );
+    final destinationPath = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'destinationPath',
+    );
+    if (sourcePath.isInvalid || destinationPath.isInvalid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'invalidSystemActionParameter',
+        message:
+            'addMedia requires string sourcePath and optional destinationPath parameters.',
+      );
+    }
+    if (!sourcePath.isValid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'missingSystemActionParameter',
+        message: 'addMedia requires a sourcePath parameter.',
+      );
+    }
+    final target =
+        destinationPath.value ?? _defaultAndroidMediaPath(sourcePath.value!);
+    return CockpitResolvedSystemControlCommand('sh', <String>[
+      '-c',
+      r'adb -s "$1" push "$2" "$3" && adb -s "$1" shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d "file://$3"',
+      'flutter_cockpit_android_add_media',
+      deviceId,
+      sourcePath.value!,
+      target,
+    ]);
+  }
+
   CockpitResolvedSystemControlCommand _androidOpenSystemSettingsCommand(
     CockpitSystemControlActionRequest request,
     CockpitResolvedSystemControlCommand Function(String settingsAction) factory,
@@ -783,11 +1099,38 @@ final class CockpitAndroidSystemControlAdapter
       request.parameters,
       'settingsAction',
     );
-    if (value.isInvalid) {
+    final packageId = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'packageId',
+    );
+    if (value.isInvalid || packageId.isInvalid) {
       return const CockpitResolvedSystemControlCommand.error(
         code: 'invalidSystemActionParameter',
-        message: 'openSystemSettings requires a string settingsAction.',
+        message:
+            'openSystemSettings requires string settingsAction and optional packageId parameters.',
       );
+    }
+    if (value.value == 'android.settings.APPLICATION_DETAILS_SETTINGS' ||
+        packageId.isValid) {
+      final appPackageId = packageId.value ?? request.appId?.trim();
+      if (appPackageId == null || appPackageId.isEmpty) {
+        return const CockpitResolvedSystemControlCommand.error(
+          code: 'missingSystemActionParameter',
+          message:
+              'Application details settings require --app-id or packageId.',
+        );
+      }
+      return CockpitResolvedSystemControlCommand('adb', <String>[
+        '-s',
+        request.deviceId!,
+        'shell',
+        'am',
+        'start',
+        '-a',
+        'android.settings.APPLICATION_DETAILS_SETTINGS',
+        '-d',
+        'package:$appPackageId',
+      ]);
     }
     return factory(value.value ?? 'android.settings.SETTINGS');
   }
@@ -1119,6 +1462,18 @@ input tap "\$x" "\$y"
   }
 
   String _formatCoordinate(double value) => _formatDecimal(value);
+
+  String _defaultAndroidMediaPath(String sourcePath) {
+    final normalized = sourcePath.replaceAll('\\', '/');
+    final lastSlash = normalized.lastIndexOf('/');
+    final fileName = lastSlash == -1
+        ? normalized
+        : normalized.substring(lastSlash + 1);
+    final safeName = fileName.trim().isEmpty
+        ? 'flutter_cockpit_media'
+        : fileName;
+    return '/sdcard/Download/$safeName';
+  }
 
   String _formatDecimal(double value) {
     final text = value.toStringAsFixed(6);

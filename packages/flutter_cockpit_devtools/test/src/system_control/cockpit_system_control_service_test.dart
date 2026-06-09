@@ -899,6 +899,9 @@ String _sampleStringFor(String parameterName) {
     'time' => '09:41',
     'operatorName' => 'Cockpit',
     'outputPath' => '/tmp/cockpit-system-screenshot.png',
+    'appPath' => '/tmp/cockpit-app.apk',
+    'sourcePath' => '/tmp/cockpit-source.dat',
+    'destinationPath' => '/tmp/cockpit-destination.dat',
     'name' => 'system-recording',
     'command' => 'echo',
     _ => 'value',
@@ -926,14 +929,53 @@ Map<String, Object?> _fallbackParametersFor(CockpitSystemControlAction action) {
     CockpitSystemControlAction.pressKey => const <String, Object?>{
       'key': 'enter',
     },
+    CockpitSystemControlAction.pressBack ||
+    CockpitSystemControlAction.pressHome ||
+    CockpitSystemControlAction.pressVolumeUp ||
+    CockpitSystemControlAction.pressVolumeDown ||
+    CockpitSystemControlAction.pressVolumeMute ||
+    CockpitSystemControlAction.dismissSystemDialog ||
+    CockpitSystemControlAction.dismissKeyboard ||
+    CockpitSystemControlAction.clearStatusBar ||
+    CockpitSystemControlAction.expandNotifications ||
+    CockpitSystemControlAction.expandQuickSettings ||
+    CockpitSystemControlAction.collapseSystemUi ||
+    CockpitSystemControlAction.clearNotifications ||
+    CockpitSystemControlAction.readUiTree ||
+    CockpitSystemControlAction.readProcessList ||
+    CockpitSystemControlAction.readWindows ||
+    CockpitSystemControlAction.readSystemState ||
+    CockpitSystemControlAction.readDeviceInfo ||
+    CockpitSystemControlAction.readNotificationState =>
+      const <String, Object?>{},
+    CockpitSystemControlAction.activateWindow ||
+    CockpitSystemControlAction.terminateApp => const <String, Object?>{
+      'packageId': 'dev.cockpit.example',
+    },
     CockpitSystemControlAction.setClipboard => const <String, Object?>{
       'text': 'hello clipboard',
     },
     CockpitSystemControlAction.getClipboard => const <String, Object?>{},
-    CockpitSystemControlAction.terminateApp => const <String, Object?>{
+    CockpitSystemControlAction.installApp => const <String, Object?>{
+      'appPath': '/tmp/cockpit-app.apk',
+      'grantPermissions': true,
+    },
+    CockpitSystemControlAction.uninstallApp => const <String, Object?>{
+      'packageId': 'dev.cockpit.example',
+      'keepData': false,
+    },
+    CockpitSystemControlAction.clearAppData => const <String, Object?>{
       'packageId': 'dev.cockpit.example',
     },
     CockpitSystemControlAction.grantPermission => const <String, Object?>{
+      'packageId': 'dev.cockpit.example',
+      'permission': 'android.permission.CAMERA',
+    },
+    CockpitSystemControlAction.revokePermission => const <String, Object?>{
+      'packageId': 'dev.cockpit.example',
+      'permission': 'android.permission.CAMERA',
+    },
+    CockpitSystemControlAction.resetPermission => const <String, Object?>{
       'packageId': 'dev.cockpit.example',
       'permission': 'android.permission.CAMERA',
     },
@@ -975,6 +1017,17 @@ Map<String, Object?> _fallbackParametersFor(CockpitSystemControlAction action) {
       'body': 'Model is ready',
       'tag': 'model-download',
     },
+    CockpitSystemControlAction.pushFile => const <String, Object?>{
+      'sourcePath': '/tmp/cockpit-source.dat',
+      'destinationPath': '/tmp/cockpit-destination.dat',
+    },
+    CockpitSystemControlAction.pullFile => const <String, Object?>{
+      'sourcePath': '/tmp/cockpit-source.dat',
+      'destinationPath': '/tmp/cockpit-destination.dat',
+    },
+    CockpitSystemControlAction.addMedia => const <String, Object?>{
+      'sourcePath': '/tmp/cockpit-media.png',
+    },
     CockpitSystemControlAction.captureScreenshot => const <String, Object?>{
       'outputPath': '/tmp/cockpit-system-screenshot.png',
     },
@@ -984,25 +1037,6 @@ Map<String, Object?> _fallbackParametersFor(CockpitSystemControlAction action) {
     CockpitSystemControlAction.stopRecording => const <String, Object?>{},
     CockpitSystemControlAction.runShell => const <String, Object?>{
       'command': <String>['echo', 'ok'],
-    },
-    CockpitSystemControlAction.pressBack ||
-    CockpitSystemControlAction.pressHome ||
-    CockpitSystemControlAction.pressVolumeUp ||
-    CockpitSystemControlAction.pressVolumeDown ||
-    CockpitSystemControlAction.pressVolumeMute ||
-    CockpitSystemControlAction.dismissSystemDialog ||
-    CockpitSystemControlAction.dismissKeyboard ||
-    CockpitSystemControlAction.expandNotifications ||
-    CockpitSystemControlAction.expandQuickSettings ||
-    CockpitSystemControlAction.collapseSystemUi ||
-    CockpitSystemControlAction.clearNotifications ||
-    CockpitSystemControlAction.readUiTree ||
-    CockpitSystemControlAction.readProcessList ||
-    CockpitSystemControlAction.readWindows ||
-    CockpitSystemControlAction.clearStatusBar ||
-    CockpitSystemControlAction.readSystemState => const <String, Object?>{},
-    CockpitSystemControlAction.activateWindow => const <String, Object?>{
-      'packageId': 'dev.cockpit.example',
     },
   };
 }

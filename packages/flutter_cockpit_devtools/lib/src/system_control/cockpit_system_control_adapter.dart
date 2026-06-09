@@ -198,6 +198,49 @@ final class CockpitSystemControlStringListParameter {
   bool get isInvalid => isPresent && value == null;
 }
 
+CockpitSystemControlBoolParameter cockpitReadSystemControlBoolParameter(
+  Map<String, Object?> parameters,
+  String key,
+) {
+  if (!parameters.containsKey(key)) {
+    return const CockpitSystemControlBoolParameter.absent();
+  }
+  final value = parameters[key];
+  if (value is bool) {
+    return CockpitSystemControlBoolParameter.valid(value);
+  }
+  if (value is String) {
+    final normalized = value.trim().toLowerCase();
+    if (normalized.isEmpty) {
+      return const CockpitSystemControlBoolParameter.absent();
+    }
+    if (normalized == 'true' || normalized == 'yes' || normalized == '1') {
+      return const CockpitSystemControlBoolParameter.valid(true);
+    }
+    if (normalized == 'false' || normalized == 'no' || normalized == '0') {
+      return const CockpitSystemControlBoolParameter.valid(false);
+    }
+  }
+  return const CockpitSystemControlBoolParameter.invalid();
+}
+
+final class CockpitSystemControlBoolParameter {
+  const CockpitSystemControlBoolParameter._(this.value, this.isPresent);
+
+  const CockpitSystemControlBoolParameter.absent() : this._(null, false);
+
+  const CockpitSystemControlBoolParameter.invalid() : this._(null, true);
+
+  const CockpitSystemControlBoolParameter.valid(bool value)
+    : this._(value, true);
+
+  final bool? value;
+  final bool isPresent;
+
+  bool get isValid => value != null;
+  bool get isInvalid => isPresent && value == null;
+}
+
 CockpitSystemControlDoubleParameter cockpitReadSystemControlDoubleParameter(
   Map<String, Object?> parameters,
   String key, {

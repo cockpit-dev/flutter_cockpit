@@ -172,7 +172,31 @@ final class RunSystemActionCommand extends CockpitCliCommand {
         help:
             'Android package id for app-scoped actions; use --app-id for iOS bundle ids and desktop targets.',
       )
+      ..addOption(
+        'app-path',
+        help: 'Host path to an app package for installApp.',
+      )
+      ..addFlag(
+        'grant-permissions',
+        negatable: false,
+        help: 'Grant runtime permissions during Android installApp.',
+      )
+      ..addFlag(
+        'keep-data',
+        negatable: false,
+        help: 'Keep app data during Android uninstallApp.',
+      )
       ..addOption('permission', help: 'Permission name for grantPermission.')
+      ..addOption(
+        'source-path',
+        help:
+            'Source path for pushFile, pullFile, or addMedia. For iOS file transfer, relative paths are app data container scoped.',
+      )
+      ..addOption(
+        'destination-path',
+        help:
+            'Destination path for pushFile or pullFile. For iOS file transfer, relative paths are app data container scoped.',
+      )
       ..addOption('title', help: 'Notification title for postNotification.')
       ..addOption('body', help: 'Notification body for postNotification.')
       ..addOption('tag', help: 'Notification tag for postNotification.')
@@ -406,7 +430,16 @@ final class RunSystemActionCommand extends CockpitCliCommand {
     addInt('max-depth', 'maxDepth');
     addInt('max-nodes', 'maxNodes');
     addString('package-id', 'packageId');
+    addString('app-path', 'appPath');
+    if (argResults?['grant-permissions'] == true) {
+      parameters['grantPermissions'] = true;
+    }
+    if (argResults?['keep-data'] == true) {
+      parameters['keepData'] = true;
+    }
     addString('permission', 'permission');
+    addString('source-path', 'sourcePath');
+    addString('destination-path', 'destinationPath');
     addString('title', 'title');
     addString('body', 'body');
     addString('tag', 'tag');

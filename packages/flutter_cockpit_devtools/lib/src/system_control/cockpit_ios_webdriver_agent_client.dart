@@ -297,8 +297,10 @@ final class CockpitIosWebDriverAgentClient {
           return 'dismissKeyboard';
         case CockpitIosWdaAction.pressButton:
           final name = _requiredString(command.parameters, 'name');
-          final durationMs =
-              _optionalPositiveInt(command.parameters, 'durationMs');
+          final durationMs = _optionalPositiveInt(
+            command.parameters,
+            'durationMs',
+          );
           await _postSession(
             client,
             session,

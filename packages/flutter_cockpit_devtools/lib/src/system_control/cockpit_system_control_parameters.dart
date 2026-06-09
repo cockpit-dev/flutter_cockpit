@@ -194,6 +194,40 @@ final class CockpitSystemControlParameterSets {
     ),
   ];
 
+  static const installApp = <CockpitSystemControlParameter>[
+    CockpitSystemControlParameter(
+      name: 'appPath',
+      valueType: CockpitSystemControlParameterType.string,
+      required: true,
+      description:
+          'Host path to an Android APK, iOS .app bundle, or platform package.',
+    ),
+    CockpitSystemControlParameter(
+      name: 'grantPermissions',
+      valueType: CockpitSystemControlParameterType.boolean,
+      description:
+          'Android only: pass -g to grant runtime permissions during install.',
+    ),
+  ];
+
+  static const uninstallApp = <CockpitSystemControlParameter>[
+    CockpitSystemControlParameter(
+      name: 'packageId',
+      valueType: CockpitSystemControlParameterType.string,
+      description: 'Android package id; top-level appId is also accepted.',
+    ),
+    CockpitSystemControlParameter(
+      name: 'appId',
+      valueType: CockpitSystemControlParameterType.string,
+      description: 'iOS bundle id; top-level appId is also accepted.',
+    ),
+    CockpitSystemControlParameter(
+      name: 'keepData',
+      valueType: CockpitSystemControlParameterType.boolean,
+      description: 'Android only: keep data and cache directories.',
+    ),
+  ];
+
   static const iosNotification = <CockpitSystemControlParameter>[
     CockpitSystemControlParameter(
       name: 'title',
@@ -248,6 +282,20 @@ final class CockpitSystemControlParameterSets {
     ),
   ];
 
+  static const androidRevokePermission = <CockpitSystemControlParameter>[
+    ...androidGrantPermission,
+  ];
+
+  static const androidResetPermission = <CockpitSystemControlParameter>[
+    ...androidApp,
+    CockpitSystemControlParameter(
+      name: 'permission',
+      valueType: CockpitSystemControlParameterType.string,
+      description:
+          'Optional Android permission name. When omitted, app permissions are reset with pm reset-permissions when supported.',
+    ),
+  ];
+
   static const iosGrantPermission = <CockpitSystemControlParameter>[
     ...iosApp,
     CockpitSystemControlParameter(
@@ -256,6 +304,20 @@ final class CockpitSystemControlParameterSets {
       required: true,
       allowedValues: CockpitSystemControlAllowedValues.iosPrivacyServices,
       description: 'simctl privacy service.',
+    ),
+  ];
+
+  static const iosRevokePermission = <CockpitSystemControlParameter>[
+    ...iosGrantPermission,
+  ];
+
+  static const iosResetPermission = <CockpitSystemControlParameter>[
+    ...iosApp,
+    CockpitSystemControlParameter(
+      name: 'permission',
+      valueType: CockpitSystemControlParameterType.string,
+      allowedValues: CockpitSystemControlAllowedValues.iosPrivacyServices,
+      description: 'simctl privacy service to reset; default all when omitted.',
     ),
   ];
 
@@ -543,6 +605,43 @@ final class CockpitSystemControlParameterSets {
       name: 'outputPath',
       valueType: CockpitSystemControlParameterType.string,
       description: 'Optional path to copy the completed recording to.',
+    ),
+  ];
+
+  static const fileTransfer = <CockpitSystemControlParameter>[
+    CockpitSystemControlParameter(
+      name: 'sourcePath',
+      valueType: CockpitSystemControlParameterType.string,
+      required: true,
+      description:
+          'Source path. For pushFile, this is a host path; for pullFile, this is a device path.',
+    ),
+    CockpitSystemControlParameter(
+      name: 'destinationPath',
+      valueType: CockpitSystemControlParameterType.string,
+      required: true,
+      description:
+          'Destination path. For pushFile, this is a device path; for pullFile, this is a host path.',
+    ),
+  ];
+
+  static const iosAddMedia = <CockpitSystemControlParameter>[
+    CockpitSystemControlParameter(
+      name: 'sourcePath',
+      valueType: CockpitSystemControlParameterType.string,
+      required: true,
+      description:
+          'Host media file path to add to simulator media library or Android MediaStore scan path.',
+    ),
+  ];
+
+  static const androidAddMedia = <CockpitSystemControlParameter>[
+    ...iosAddMedia,
+    CockpitSystemControlParameter(
+      name: 'destinationPath',
+      valueType: CockpitSystemControlParameterType.string,
+      description:
+          'Android only: device destination path before scanning media. Defaults to /sdcard/Download/<filename>.',
     ),
   ];
 

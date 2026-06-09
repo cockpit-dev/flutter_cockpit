@@ -101,8 +101,10 @@ surface:
 4. use direct flags for common setup: `--appearance`, `--content-size`,
    `--font-scale`, `--latitude/--longitude`, `--orientation`,
    `--network-speed`, `--network-delay`, status-bar flags, and
-   `--max-depth/--max-nodes`; use `--name`, `--purpose`, `--mode`, `--layer`,
-   and `--output-path` for system screenshots and recordings
+   `--max-depth/--max-nodes`; use `--app-path`, `--grant-permissions`,
+   `--keep-data`, `--source-path`, and `--destination-path` for app/package
+   and file/media setup; use `--name`, `--purpose`, `--mode`, `--layer`, and
+   `--output-path` for system screenshots and recordings
 5. read post-action app, target, or system state before judging the result
 
 When `.dart_tool/flutter_cockpit/latest_app.json` exists, system commands reuse
@@ -120,17 +122,20 @@ available and executed with `run-system-action`.
 Simulator support is intentionally capability-truthful:
 
 - Android emulator uses `adb` for native tap/drag/text/key input, Back/Home,
-  volume keys, app launch/terminate, permission grants, URL/settings entry,
-  appearance, text scale, location, orientation, emulator network speed/delay,
-  notification shade, quick settings, system UI collapse, shell notifications,
-  screenshots, recordings, UI tree dumps, process/window/state reads, and
-  bounded shell commands. `dismissSystemDialog --decision accept|dismiss`
-  first tries common Android permission/system dialog buttons with UIAutomator;
-  `dismiss` can fall back to Back.
-- iOS simulator uses `simctl` for app launch/terminate, privacy grants, URL and
-  Settings entry, appearance, content size, location, status bar overrides,
-  pasteboard, simulated APNS pushes, screenshots, recordings, process reads,
-  simulator state reads, and bounded `simctl spawn` commands.
+  volume keys, app install/uninstall/launch/terminate/data clear, permission
+  grant/revoke/reset, URL/settings entry, appearance, text scale, location,
+  orientation, emulator network speed/delay, notification shade, quick settings,
+  system UI collapse, shell notifications, file push/pull, media import with
+  media scanning, screenshots, recordings, UI tree dumps, process/window/system
+  state reads, device info reads, notification state reads, and bounded shell
+  commands. `dismissSystemDialog --decision accept|dismiss` first tries common
+  Android permission/system dialog buttons with UIAutomator; `dismiss` can fall
+  back to Back.
+- iOS simulator uses `simctl` for app install/uninstall/launch/terminate/data
+  clear, privacy grant/revoke/reset, URL and Settings entry, appearance, content
+  size, location, status bar overrides, pasteboard, simulated APNS pushes, app
+  container push/pull, media import, screenshots, recordings, process reads,
+  simulator/device info reads, and bounded `simctl spawn` commands.
 - iOS simulator native UI actions require a reachable WebDriverAgent endpoint:
   tap, long press, drag, text/key input, Home, keyboard dismissal, system dialog
   accept/dismiss, orientation, and native UI tree reads.
@@ -144,6 +149,9 @@ Default AI-readable capability rows include compact parameter metadata such as
 `parameters=[x*:integer | wifiBars:integer[0..3] | appearance*:string(light|dark)]`.
 JSON output includes the same contract as structured `parameters` entries with
 `required`, `valueType`, `allowedValues`, `minimum`, and `maximum`.
+It also includes `actionGroups`, so agents can discover all available
+permission, notification, file, media, evidence, device-state, and inspection
+actions without hard-coding platform-specific action names.
 
 Recommended code-side loop:
 

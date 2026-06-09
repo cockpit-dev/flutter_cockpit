@@ -769,6 +769,66 @@ void main() {
     ]);
   });
 
+  test('android revokePermission uses adb pm revoke', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        appId: 'dev.cockpit.example',
+        action: CockpitSystemControlAction.revokePermission,
+        parameters: <String, Object?>{
+          'permission': 'android.permission.CAMERA',
+        },
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command, <String>[
+      'adb',
+      '-s',
+      'emulator-5554',
+      'shell',
+      'pm',
+      'revoke',
+      'dev.cockpit.example',
+      'android.permission.CAMERA',
+    ]);
+  });
+
+  test('android pushFile uses adb push', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        action: CockpitSystemControlAction.pushFile,
+        parameters: <String, Object?>{
+          'sourcePath': '/tmp/input.wav',
+          'destinationPath': '/sdcard/Download/input.wav',
+        },
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command, <String>[
+      'adb',
+      '-s',
+      'emulator-5554',
+      'push',
+      '/tmp/input.wav',
+      '/sdcard/Download/input.wav',
+    ]);
+  });
+
   test('android pressKey sends adb keyevent', () async {
     final processManager = _FakeProcessManager();
     final service = CockpitSystemControlActionService(
@@ -1390,6 +1450,58 @@ void main() {
       'grant',
       'photos',
       'dev.cockpit.example',
+    ]);
+  });
+
+  test('ios simulator resetPermission resets app privacy', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'ios',
+        deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+        appId: 'dev.cockpit.example',
+        action: CockpitSystemControlAction.resetPermission,
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command, <String>[
+      'xcrun',
+      'simctl',
+      'privacy',
+      '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+      'reset',
+      'all',
+      'dev.cockpit.example',
+    ]);
+  });
+
+  test('ios simulator installApp uses simctl install', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'ios',
+        deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+        action: CockpitSystemControlAction.installApp,
+        parameters: <String, Object?>{'appPath': '/tmp/Runner.app'},
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command, <String>[
+      'xcrun',
+      'simctl',
+      'install',
+      '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+      '/tmp/Runner.app',
     ]);
   });
 

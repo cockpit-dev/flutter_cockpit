@@ -395,24 +395,32 @@ the smallest truthful surface:
 - use `read-system-capabilities` before `run-system-action` for native UI,
   system dialogs, host windows, simulator state, device location, appearance,
   content size, orientation, emulator network speed/delay, simulator status
-  bars, screenshots, recordings, process/window reads, and bounded native UI
-  tree reads
+  bars, app install/uninstall/data clear, permission grant/revoke/reset,
+  file/media setup, screenshots, recordings, process/window/device/notification
+  reads, and bounded native UI tree reads
 - use `start-remote-recording` and `stop-remote-recording` only when working
   directly with a remote session instead of an app handle
 
 For simulator-first development, the system plane is explicit about what can be
 automated. Android emulator support is adb-backed: native coordinates, keys,
-Back/Home, volume keys, permission grants, app settings, appearance, text scale,
-location, orientation, emulator network conditions, notification shade, quick
-settings, screenshots, recordings, UI tree, process/window/state reads, shell,
-and UIAutomator-assisted `dismissSystemDialog --decision accept|dismiss`.
-iOS simulator support is simctl-backed for app lifecycle, privacy, URLs,
-Settings, appearance, content size, location, status bar overrides, pasteboard,
-simulated APNS push, screenshot, recording, process/state reads, and shell via
-`simctl spawn`. iOS native UI and system dialog control uses WebDriverAgent when
-reachable. Simulator features with no stable public API, such as iOS simulator
-volume keys, Notification Center expansion, Control Center expansion, and
-clear-all-notifications, are reported as `unsupported` or `blocked`.
+Back/Home, volume keys, app install/uninstall/lifecycle/data clear, permission
+grant/revoke/reset, app settings, appearance, text scale, location, orientation,
+emulator network conditions, notification shade, quick settings, file push/pull,
+media import, screenshots, recordings, UI tree, process/window/device/system
+state reads, notification state reads, shell, and UIAutomator-assisted
+`dismissSystemDialog --decision accept|dismiss`.
+iOS simulator support is simctl-backed for app lifecycle, privacy grant/revoke
+/reset, URLs, Settings, appearance, content size, location, status bar
+overrides, pasteboard, simulated APNS push, app install/uninstall/data clear,
+app-container file transfer, media import, screenshot, recording,
+process/device/state reads, and shell via `simctl spawn`. iOS native UI and
+system dialog control uses WebDriverAgent when reachable. Simulator features
+with no stable public API, such as iOS simulator volume keys, Notification
+Center expansion, Control Center expansion, and clear-all-notifications, are
+reported as `unsupported` or `blocked`. JSON capability output also exposes
+`actionGroups` so callers can discover permission, notification, file, media,
+evidence, device-state, and inspection actions without hard-coding
+per-platform lists.
 
 Use `--profile minimal|standard|inspect|evidence` to control token cost. Start small and escalate only when needed.
 When a CLI command exits non-zero, first look for `errorJson: {...}` on stderr.

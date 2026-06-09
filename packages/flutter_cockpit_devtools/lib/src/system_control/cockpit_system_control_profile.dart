@@ -14,9 +14,14 @@ enum CockpitSystemControlAction {
   pressVolumeMute,
   activateWindow,
   terminateApp,
+  installApp,
+  uninstallApp,
+  clearAppData,
   dismissSystemDialog,
   dismissKeyboard,
   grantPermission,
+  revokePermission,
+  resetPermission,
   openUrl,
   openSystemSettings,
   setAppearance,
@@ -34,6 +39,9 @@ enum CockpitSystemControlAction {
   clearNotifications,
   setClipboard,
   getClipboard,
+  pushFile,
+  pullFile,
+  addMedia,
   captureScreenshot,
   startRecording,
   stopRecording,
@@ -41,6 +49,8 @@ enum CockpitSystemControlAction {
   readProcessList,
   readWindows,
   readSystemState,
+  readDeviceInfo,
+  readNotificationState,
   runShell;
 
   static CockpitSystemControlAction fromJson(Object? json) {
@@ -68,6 +78,51 @@ enum CockpitSystemControlParameterType {
   static CockpitSystemControlParameterType fromJson(Object? json) {
     return values.byName(json! as String);
   }
+}
+
+final class CockpitSystemControlGroups {
+  const CockpitSystemControlGroups._();
+
+  static const input = 'input';
+  static const lifecycle = 'lifecycle';
+  static const permissions = 'permissions';
+  static const nativeDialog = 'nativeDialog';
+  static const navigation = 'navigation';
+  static const settings = 'settings';
+  static const deviceState = 'deviceState';
+  static const network = 'network';
+  static const systemUi = 'systemUi';
+  static const notifications = 'notifications';
+  static const clipboard = 'clipboard';
+  static const files = 'files';
+  static const media = 'media';
+  static const evidence = 'evidence';
+  static const inspection = 'inspection';
+  static const shell = 'shell';
+}
+
+List<CockpitSystemControlCapability> cockpitCompleteSystemControlCapabilities(
+  List<CockpitSystemControlCapability> capabilities, {
+  required CockpitPlaneKind plane,
+  required CockpitSystemControlAvailability availability,
+  required String strategy,
+  List<String> requires = const <String>[],
+  List<String> limitations = const <String>[],
+}) {
+  final declared = capabilities.map((capability) => capability.action).toSet();
+  return <CockpitSystemControlCapability>[
+    ...capabilities,
+    for (final action in CockpitSystemControlAction.values)
+      if (!declared.contains(action))
+        CockpitSystemControlCapability(
+          action: action,
+          plane: plane,
+          availability: availability,
+          strategy: strategy,
+          requires: requires,
+          limitations: limitations,
+        ),
+  ];
 }
 
 final class CockpitSystemControlParameter {
@@ -149,6 +204,7 @@ final class CockpitSystemControlCapability {
     required this.plane,
     required this.availability,
     required this.strategy,
+    this.groups = const <String>[],
     this.requires = const <String>[],
     this.limitations = const <String>[],
     this.parameters = const <CockpitSystemControlParameter>[],
@@ -159,10 +215,18 @@ final class CockpitSystemControlCapability {
   final CockpitPlaneKind plane;
   final CockpitSystemControlAvailability availability;
   final String strategy;
+  final List<String> groups;
   final List<String> requires;
   final List<String> limitations;
   final List<CockpitSystemControlParameter> parameters;
   final List<CockpitSystemControlAction> fallbackActions;
+
+  List<String> get effectiveGroups {
+    if (groups.isNotEmpty) {
+      return groups;
+    }
+    return _defaultGroupsForAction(action);
+  }
 
   static const ListEquality<String> _stringListEquality =
       ListEquality<String>();
@@ -176,6 +240,7 @@ final class CockpitSystemControlCapability {
     'plane': plane.name,
     'availability': availability.name,
     'strategy': strategy,
+    if (effectiveGroups.isNotEmpty) 'groups': effectiveGroups,
     if (requires.isNotEmpty) 'requires': requires,
     if (limitations.isNotEmpty) 'limitations': limitations,
     if (parameters.isNotEmpty)
@@ -196,6 +261,9 @@ final class CockpitSystemControlCapability {
         json['availability'],
       ),
       strategy: json['strategy']! as String,
+      groups: (json['groups'] as List<Object?>? ?? const <Object?>[])
+          .cast<String>()
+          .toList(growable: false),
       requires: (json['requires'] as List<Object?>? ?? const <Object?>[])
           .cast<String>()
           .toList(growable: false),
@@ -224,6 +292,7 @@ final class CockpitSystemControlCapability {
             other.plane == plane &&
             other.availability == availability &&
             other.strategy == strategy &&
+            _stringListEquality.equals(other.groups, groups) &&
             _stringListEquality.equals(other.requires, requires) &&
             _stringListEquality.equals(other.limitations, limitations) &&
             _parameterListEquality.equals(other.parameters, parameters) &&
@@ -236,6 +305,7 @@ final class CockpitSystemControlCapability {
     plane,
     availability,
     strategy,
+    _stringListEquality.hash(groups),
     _stringListEquality.hash(requires),
     _stringListEquality.hash(limitations),
     _parameterListEquality.hash(parameters),
@@ -314,10 +384,36 @@ final class CockpitSystemControlProfile {
     'unsupportedActions': unsupportedActions
         .map((action) => action.name)
         .toList(growable: false),
+    'actionGroups': actionGroups,
     'capabilities': capabilities
         .map((capability) => capability.toJson())
         .toList(growable: false),
   };
+
+  Map<String, Object?> get actionGroups {
+    final groups = <String, Map<String, List<String>>>{};
+    for (final capability in capabilities) {
+      for (final group in capability.effectiveGroups) {
+        final bucket = groups.putIfAbsent(
+          group,
+          () => <String, List<String>>{
+            'available': <String>[],
+            'blocked': <String>[],
+            'unsupported': <String>[],
+          },
+        );
+        bucket[capability.availability.name]!.add(capability.action.name);
+      }
+    }
+
+    return <String, Object?>{
+      for (final entry in groups.entries)
+        entry.key: <String, Object?>{
+          for (final bucket in entry.value.entries)
+            if (bucket.value.isNotEmpty) bucket.key: bucket.value,
+        },
+    };
+  }
 
   List<CockpitSystemControlAction> _actionsFor(
     CockpitSystemControlAvailability availability,
@@ -355,4 +451,102 @@ final class CockpitSystemControlProfile {
     _capabilityListEquality.hash(capabilities),
     recommendedNextStep,
   );
+}
+
+List<String> _defaultGroupsForAction(CockpitSystemControlAction action) {
+  return switch (action) {
+    CockpitSystemControlAction.tap ||
+    CockpitSystemControlAction.longPress ||
+    CockpitSystemControlAction.drag ||
+    CockpitSystemControlAction.typeText ||
+    CockpitSystemControlAction.pressKey => const <String>[
+      CockpitSystemControlGroups.input,
+    ],
+    CockpitSystemControlAction.pressBack ||
+    CockpitSystemControlAction.pressHome => const <String>[
+      CockpitSystemControlGroups.input,
+      CockpitSystemControlGroups.navigation,
+    ],
+    CockpitSystemControlAction.pressVolumeUp ||
+    CockpitSystemControlAction.pressVolumeDown ||
+    CockpitSystemControlAction.pressVolumeMute => const <String>[
+      CockpitSystemControlGroups.deviceState,
+    ],
+    CockpitSystemControlAction.activateWindow ||
+    CockpitSystemControlAction.terminateApp ||
+    CockpitSystemControlAction.installApp ||
+    CockpitSystemControlAction.uninstallApp ||
+    CockpitSystemControlAction.clearAppData => const <String>[
+      CockpitSystemControlGroups.lifecycle,
+    ],
+    CockpitSystemControlAction.dismissSystemDialog => const <String>[
+      CockpitSystemControlGroups.nativeDialog,
+      CockpitSystemControlGroups.permissions,
+    ],
+    CockpitSystemControlAction.dismissKeyboard => const <String>[
+      CockpitSystemControlGroups.input,
+      CockpitSystemControlGroups.nativeDialog,
+    ],
+    CockpitSystemControlAction.grantPermission ||
+    CockpitSystemControlAction.revokePermission ||
+    CockpitSystemControlAction.resetPermission => const <String>[
+      CockpitSystemControlGroups.permissions,
+    ],
+    CockpitSystemControlAction.openUrl => const <String>[
+      CockpitSystemControlGroups.navigation,
+    ],
+    CockpitSystemControlAction.openSystemSettings ||
+    CockpitSystemControlAction.setAppearance ||
+    CockpitSystemControlAction.setContentSize => const <String>[
+      CockpitSystemControlGroups.settings,
+    ],
+    CockpitSystemControlAction.setLocation ||
+    CockpitSystemControlAction.setOrientation ||
+    CockpitSystemControlAction.setStatusBar ||
+    CockpitSystemControlAction.clearStatusBar => const <String>[
+      CockpitSystemControlGroups.deviceState,
+    ],
+    CockpitSystemControlAction.setNetworkSpeed ||
+    CockpitSystemControlAction.setNetworkDelay => const <String>[
+      CockpitSystemControlGroups.network,
+    ],
+    CockpitSystemControlAction.expandNotifications ||
+    CockpitSystemControlAction.postNotification ||
+    CockpitSystemControlAction.clearNotifications ||
+    CockpitSystemControlAction.readNotificationState => const <String>[
+      CockpitSystemControlGroups.notifications,
+      CockpitSystemControlGroups.systemUi,
+    ],
+    CockpitSystemControlAction.expandQuickSettings ||
+    CockpitSystemControlAction.collapseSystemUi => const <String>[
+      CockpitSystemControlGroups.systemUi,
+    ],
+    CockpitSystemControlAction.setClipboard ||
+    CockpitSystemControlAction.getClipboard => const <String>[
+      CockpitSystemControlGroups.clipboard,
+    ],
+    CockpitSystemControlAction.pushFile ||
+    CockpitSystemControlAction.pullFile => const <String>[
+      CockpitSystemControlGroups.files,
+    ],
+    CockpitSystemControlAction.addMedia => const <String>[
+      CockpitSystemControlGroups.files,
+      CockpitSystemControlGroups.media,
+    ],
+    CockpitSystemControlAction.captureScreenshot ||
+    CockpitSystemControlAction.startRecording ||
+    CockpitSystemControlAction.stopRecording => const <String>[
+      CockpitSystemControlGroups.evidence,
+    ],
+    CockpitSystemControlAction.readUiTree ||
+    CockpitSystemControlAction.readProcessList ||
+    CockpitSystemControlAction.readWindows ||
+    CockpitSystemControlAction.readSystemState ||
+    CockpitSystemControlAction.readDeviceInfo => const <String>[
+      CockpitSystemControlGroups.inspection,
+    ],
+    CockpitSystemControlAction.runShell => const <String>[
+      CockpitSystemControlGroups.shell,
+    ],
+  };
 }
