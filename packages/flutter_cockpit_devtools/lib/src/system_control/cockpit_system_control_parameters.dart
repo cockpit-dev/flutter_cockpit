@@ -149,11 +149,76 @@ final class CockpitSystemControlParameterSets {
     ),
   ];
 
+  static const systemDialogDecision = <CockpitSystemControlParameter>[
+    CockpitSystemControlParameter(
+      name: 'decision',
+      valueType: CockpitSystemControlParameterType.string,
+      allowedValues: <String>['accept', 'dismiss'],
+      description:
+          'System dialog decision. accept taps the primary action; dismiss taps the cancel/deny action when available.',
+    ),
+  ];
+
   static const url = <CockpitSystemControlParameter>[
     CockpitSystemControlParameter(
       name: 'url',
       valueType: CockpitSystemControlParameterType.string,
       required: true,
+    ),
+  ];
+
+  static const systemSettings = <CockpitSystemControlParameter>[
+    CockpitSystemControlParameter(
+      name: 'settingsAction',
+      valueType: CockpitSystemControlParameterType.string,
+      description:
+          'Platform settings action. Android example: android.settings.APPLICATION_DETAILS_SETTINGS. iOS ignores this and opens Settings.',
+    ),
+  ];
+
+  static const androidNotification = <CockpitSystemControlParameter>[
+    CockpitSystemControlParameter(
+      name: 'title',
+      valueType: CockpitSystemControlParameterType.string,
+      description: 'Notification title.',
+    ),
+    CockpitSystemControlParameter(
+      name: 'body',
+      valueType: CockpitSystemControlParameterType.string,
+      description: 'Notification body text.',
+    ),
+    CockpitSystemControlParameter(
+      name: 'tag',
+      valueType: CockpitSystemControlParameterType.string,
+      description: 'Stable notification tag; default is flutter-cockpit.',
+    ),
+  ];
+
+  static const iosNotification = <CockpitSystemControlParameter>[
+    CockpitSystemControlParameter(
+      name: 'title',
+      valueType: CockpitSystemControlParameterType.string,
+      description: 'Notification title used to build an APNS alert payload.',
+    ),
+    CockpitSystemControlParameter(
+      name: 'body',
+      valueType: CockpitSystemControlParameterType.string,
+      description: 'Notification body used to build an APNS alert payload.',
+    ),
+    CockpitSystemControlParameter(
+      name: 'payloadJson',
+      valueType: CockpitSystemControlParameterType.string,
+      description:
+          'Full simulated APNS payload JSON. When present, title/body are ignored.',
+    ),
+  ];
+
+  static const notification = <CockpitSystemControlParameter>[
+    ...androidNotification,
+    CockpitSystemControlParameter(
+      name: 'payloadJson',
+      valueType: CockpitSystemControlParameterType.string,
+      description: 'Platform notification payload JSON when supported.',
     ),
   ];
 

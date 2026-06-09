@@ -49,6 +49,16 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 ```
 
 `read-app --profile standard` is still summary-only. It is good for `textPreviews` and counts, but not for a full target inventory.
+`read-app` output includes focus state in `uiSummary.focus` and, on inline snapshot profiles, `snapshot.focus`. If `textInputFocus` is true and the keyboard blocks controls, dismiss it without a locator:
+
+```bash
+printf '%s\n' '{"commandId":"dismiss-keyboard","commandType":"dismissKeyboard"}' >/tmp/flutter_cockpit_command.json
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-command \
+  --command-file /tmp/flutter_cockpit_command.json \
+  --profile standard
+```
+
 For platform-specific powers such as browser DOM access, host shell automation, or browser-host recording, prefer `capabilities.capabilityProfile` over the older top-level booleans.
 
 ## Target-First Surface Loop
@@ -136,6 +146,8 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --device-id <device-id-from-list-targets>
 ```
 
+When `.dart_tool/flutter_cockpit/latest_app.json` exists in the current workspace, `read-system-capabilities` and `run-system-action` reuse its platform, device id, process id, and platform app id. Keep explicit flags only when overriding the current app.
+
 For desktop window evidence, add the app/window context from launch metadata:
 
 ```bash
@@ -157,6 +169,29 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --platform ios \
   --device-id <ios-simulator-udid> \
   --stdout-format json | jq '.capabilities[] | select(.action=="setStatusBar") | .parameters'
+```
+
+For iOS simulator permissions, prefer deterministic `simctl` privacy setup:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --action grantPermission \
+  --permission microphone
+```
+
+For iOS simulator native UI or system dialogs that Flutter semantics and `simctl` cannot handle, start WebDriverAgent separately. Cockpit probes the common local simulator endpoint `http://127.0.0.1:8100` when no endpoint is supplied. Use `--wda-url` or `FLUTTER_COCKPIT_IOS_WDA_URL` for a custom endpoint. Native iOS simulator actions remain blocked unless the endpoint is reachable.
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  read-system-capabilities \
+  --platform ios \
+  --device-id <ios-simulator-udid>
+
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --action dismissSystemDialog \
+  --decision accept
 ```
 
 Drive a desktop native/system control after reading capabilities:
@@ -217,6 +252,42 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --action terminateApp
 ```
 
+Handle Android emulator system UI and permission dialogs after reading
+capabilities:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform android \
+  --device-id emulator-5554 \
+  --action dismissSystemDialog \
+  --decision accept
+
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform android \
+  --device-id emulator-5554 \
+  --action pressVolumeUp
+
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform android \
+  --device-id emulator-5554 \
+  --action expandNotifications
+
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform android \
+  --device-id emulator-5554 \
+  --action expandQuickSettings
+
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform android \
+  --device-id emulator-5554 \
+  --action collapseSystemUi
+```
+
 Set Android emulator development environment state:
 
 ```bash
@@ -264,6 +335,33 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --network-delay none
 ```
 
+Open Android system settings or post a shell notification when the workflow
+needs native system state:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform android \
+  --device-id emulator-5554 \
+  --action openSystemSettings
+
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform android \
+  --device-id emulator-5554 \
+  --action openSystemSettings \
+  --settings-action android.settings.APPLICATION_DETAILS_SETTINGS
+
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform android \
+  --device-id emulator-5554 \
+  --action postNotification \
+  --title "Download complete" \
+  --body "Model is ready" \
+  --tag model-download
+```
+
 iOS simulator app activation and permission setup:
 
 ```bash
@@ -281,6 +379,25 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --app-id <ios-bundle-id> \
   --action grantPermission \
   --permission photos
+```
+
+Open iOS simulator Settings or send a simulated APNS push:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform ios \
+  --device-id <ios-simulator-udid> \
+  --action openSystemSettings
+
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform ios \
+  --device-id <ios-simulator-udid> \
+  --app-id <ios-bundle-id> \
+  --action postNotification \
+  --title "Download complete" \
+  --body "Model is ready"
 ```
 
 Set iOS simulator appearance, content size, or location for responsive and permission-sensitive flows:
@@ -410,6 +527,36 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --output-path /tmp/flutter_cockpit/system-proof.png
 ```
 
+Desktop evidence uses the same action contract. macOS host screenshots and
+recordings need the app bundle id; Windows and Linux can target either the app
+id or a process id from launch metadata:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform macos \
+  --app-id <bundle-id> \
+  --action captureScreenshot \
+  --name desktop-proof \
+  --output-path /tmp/flutter_cockpit/desktop-proof.png
+
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform windows \
+  --process-id <pid> \
+  --action captureScreenshot \
+  --name desktop-proof \
+  --output-path /tmp/flutter_cockpit/desktop-proof.png
+
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform linux \
+  --process-id <pid> \
+  --action captureScreenshot \
+  --name desktop-proof \
+  --output-path /tmp/flutter_cockpit/desktop-proof.png
+```
+
 Record a native/system flow without blocking the agent:
 
 ```bash
@@ -430,6 +577,27 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --device-id emulator-5554 \
   --action stopRecording \
   --output-path /tmp/flutter_cockpit/system-flow.mp4
+```
+
+For desktop system recording, keep the same target context on start and stop:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform windows \
+  --process-id <pid> \
+  --action startRecording \
+  --name desktop-flow \
+  --purpose repro \
+  --mode native \
+  --layer system
+
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform windows \
+  --process-id <pid> \
+  --action stopRecording \
+  --output-path /tmp/flutter_cockpit/desktop-flow.mp4
 ```
 
 Inspect richer UI state:

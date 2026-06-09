@@ -16,6 +16,7 @@ import '../recording/cockpit_macos_recording_adapter.dart';
 import '../recording/cockpit_simctl_recording_adapter.dart';
 import '../recording/cockpit_windows_recording_adapter.dart';
 import 'cockpit_system_control_adapter.dart';
+import 'cockpit_ios_webdriver_agent_client.dart';
 import 'cockpit_system_control_parameters.dart';
 import 'cockpit_system_control_service.dart';
 
@@ -32,6 +33,11 @@ typedef CockpitSystemControlRecordingAdapterFactory =
     CockpitRecordingAdapter? Function(
       CockpitSystemControlActionRequest request,
     );
+typedef CockpitIosWdaRunner =
+    Future<String> Function(
+      CockpitIosWdaCommand command, {
+      required Duration timeout,
+    });
 
 final class CockpitSystemControlActionService {
   CockpitSystemControlActionService({
@@ -41,6 +47,7 @@ final class CockpitSystemControlActionService {
     CockpitSystemControlService? systemControlService,
     CockpitSystemControlCaptureAdapterFactory? captureAdapterFactory,
     CockpitSystemControlRecordingAdapterFactory? recordingAdapterFactory,
+    CockpitIosWdaRunner? iosWdaRunner,
   }) : _processManager = processManager ?? const LocalCockpitProcessManager(),
        _registry = registry,
        _systemControlService =
@@ -49,13 +56,15 @@ final class CockpitSystemControlActionService {
        _captureAdapterFactory =
            captureAdapterFactory ?? _defaultCaptureAdapterFor,
        _recordingAdapterFactory =
-           recordingAdapterFactory ?? _defaultRecordingAdapterFor;
+           recordingAdapterFactory ?? _defaultRecordingAdapterFor,
+       _iosWdaRunner = iosWdaRunner ?? CockpitIosWebDriverAgentClient().run;
 
   final CockpitProcessManager _processManager;
   final CockpitSystemControlRegistry _registry;
   final CockpitSystemControlService _systemControlService;
   final CockpitSystemControlCaptureAdapterFactory _captureAdapterFactory;
   final CockpitSystemControlRecordingAdapterFactory _recordingAdapterFactory;
+  final CockpitIosWdaRunner _iosWdaRunner;
 
   Future<CockpitSystemControlActionResult> run(
     CockpitSystemControlActionRequest request,
@@ -66,6 +75,7 @@ final class CockpitSystemControlActionService {
         deviceId: request.deviceId,
         appId: request.appId,
         processId: request.processId,
+        metadata: request.metadata,
       ),
     );
     final profile = describe.profile;
@@ -108,7 +118,19 @@ final class CockpitSystemControlActionService {
       return _stopRecording(request, profile, capability);
     }
 
-    final command = _registry.resolve(request.platform).resolveCommand(request);
+    final commandRequest = CockpitSystemControlActionRequest(
+      platform: request.platform,
+      deviceId: request.deviceId,
+      appId: request.appId,
+      processId: request.processId,
+      metadata: describe.metadata,
+      action: request.action,
+      parameters: request.parameters,
+      timeout: request.timeout,
+    );
+    final command = _registry
+        .resolve(request.platform)
+        .resolveCommand(commandRequest);
     if (command.hasError) {
       return _notExecutable(
         request,
@@ -120,6 +142,10 @@ final class CockpitSystemControlActionService {
         requires: capability.requires,
         limitations: capability.limitations,
       );
+    }
+
+    if (command.executable == cockpitIosWdaCommandExecutable) {
+      return _runIosWebDriverAgentCommand(request, capability, command);
     }
 
     final ProcessResult processResult;
@@ -183,16 +209,65 @@ final class CockpitSystemControlActionService {
       stdout: '${processResult.stdout}'.trimRight(),
       stderr: '${processResult.stderr}'.trimRight(),
       recommendedNextStep: success
-          ? 'readPostActionState'
+          ? _recommendedNextStepAfterSuccess(request.action)
           : 'inspectShellFailure',
       strategy: capability.strategy,
       requires: capability.requires,
-      limitations: capability.limitations,
+      limitations: _limitationsAfterSuccess(
+        action: request.action,
+        success: success,
+        limitations: capability.limitations,
+      ),
       errorCode: success ? null : 'systemActionFailed',
       errorMessage: success
           ? null
           : 'System action command exited with $exitCode.',
     );
+  }
+
+  Future<CockpitSystemControlActionResult> _runIosWebDriverAgentCommand(
+    CockpitSystemControlActionRequest request,
+    CockpitSystemControlCapability capability,
+    CockpitResolvedSystemControlCommand command,
+  ) async {
+    try {
+      final stdout = await _iosWdaRunner(
+        CockpitIosWebDriverAgentClient.commandFromArguments(command.arguments),
+        timeout: request.timeout,
+      );
+      return CockpitSystemControlActionResult(
+        platform: request.platform,
+        deviceId: request.deviceId,
+        appId: request.appId,
+        processId: request.processId,
+        action: request.action,
+        availability: capability.availability,
+        success: true,
+        command: <String>[command.executable!, ...command.arguments],
+        stdout: stdout,
+        recommendedNextStep: 'readPostActionState',
+        strategy: capability.strategy,
+        requires: capability.requires,
+        limitations: capability.limitations,
+      );
+    } on Object catch (error) {
+      return CockpitSystemControlActionResult(
+        platform: request.platform,
+        deviceId: request.deviceId,
+        appId: request.appId,
+        processId: request.processId,
+        action: request.action,
+        availability: capability.availability,
+        success: false,
+        command: <String>[command.executable!, ...command.arguments],
+        recommendedNextStep: 'inspectWebDriverAgentFailure',
+        strategy: capability.strategy,
+        requires: capability.requires,
+        limitations: capability.limitations,
+        errorCode: 'webDriverAgentActionFailed',
+        errorMessage: _describeSystemControlError(error),
+      );
+    }
   }
 
   CockpitSystemControlActionResult? _validateDeclaredPayload(
@@ -603,6 +678,27 @@ String _recommendedNextStepForCommandError(
     'missingSystemActionTarget' => 'fixActionPayload',
     _ => 'unsupportedSystemAction',
   };
+}
+
+String _recommendedNextStepAfterSuccess(CockpitSystemControlAction action) {
+  return switch (action) {
+    CockpitSystemControlAction.grantPermission => 'relaunchAppThenReadState',
+    _ => 'readPostActionState',
+  };
+}
+
+List<String> _limitationsAfterSuccess({
+  required CockpitSystemControlAction action,
+  required bool success,
+  required List<String> limitations,
+}) {
+  if (!success || action != CockpitSystemControlAction.grantPermission) {
+    return limitations;
+  }
+  return <String>{
+    ...limitations,
+    'simctl privacy may terminate the app',
+  }.toList(growable: false);
 }
 
 CockpitCaptureAdapter? _defaultCaptureAdapterFor(

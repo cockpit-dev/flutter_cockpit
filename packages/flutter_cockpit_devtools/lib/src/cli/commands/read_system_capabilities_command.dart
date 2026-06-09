@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import '../../application/cockpit_app_handle.dart';
+import '../../session/cockpit_platform_app_identity.dart';
 import '../../system_control/cockpit_system_control_service.dart';
 import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
@@ -37,12 +39,18 @@ final class ReadSystemCapabilitiesCommand extends CockpitCliCommand {
       ..addOption(
         'app-id',
         help:
-            'Platform app id or bundle id for window-scoped desktop evidence capabilities.',
+            'Platform app id or bundle id for app/window-scoped capabilities; required for macOS host screenshots and recordings.',
       )
       ..addOption(
         'process-id',
         help:
-            'Process id for window-scoped desktop evidence capabilities when app id is ambiguous.',
+            'Windows/Linux process id for window-scoped capabilities when app id is ambiguous.',
+      )
+      ..addOption('app-json', help: cockpitAppJsonOptionHelp)
+      ..addOption(
+        'wda-url',
+        help:
+            'iOS simulator WebDriverAgent endpoint for native UI and system dialog control. Defaults to FLUTTER_COCKPIT_IOS_WDA_URL or probes http://127.0.0.1:8100.',
       );
     cockpitAddOutputArgs(argParser);
   }
@@ -85,19 +93,21 @@ final class ReadSystemCapabilitiesCommand extends CockpitCliCommand {
 
   @override
   Future<int> run() async {
+    final app = _readDefaultAppHandle();
     final platform =
         argResults?['platform'] as String? ??
+        app?.platform ??
         cockpitReadLaunchPlatform(argResults, usage);
+    final appId = await _resolveAppId(app, platform);
     final result = await _describe(
       CockpitSystemControlDescribeRequest(
         platform: platform,
-        deviceId: argResults?['device-id'] as String?,
-        appId: argResults?['app-id'] as String?,
-        processId: cockpitReadOptionalPositiveInt(
-          argResults,
-          'process-id',
-          usage,
-        ),
+        deviceId: argResults?['device-id'] as String? ?? app?.deviceId,
+        appId: appId,
+        processId:
+            cockpitReadOptionalPositiveInt(argResults, 'process-id', usage) ??
+            app?.processId,
+        metadata: _readMetadata(),
       ),
     );
     await cockpitWriteJsonPayload(
@@ -106,5 +116,53 @@ final class ReadSystemCapabilitiesCommand extends CockpitCliCommand {
       stdoutSink: _stdoutSink,
     );
     return cockpitSuccessExitCode;
+  }
+
+  CockpitAppHandle? _readDefaultAppHandle() {
+    final path = cockpitResolveAppHandlePath(argResults);
+    if (path == null || path.isEmpty) {
+      return null;
+    }
+    try {
+      final decoded = jsonDecode(File(path).readAsStringSync());
+      if (decoded is Map<Object?, Object?>) {
+        return CockpitAppHandle.fromJson(decoded.cast<String, Object?>());
+      }
+    } on Object {
+      return null;
+    }
+    return null;
+  }
+
+  Future<String?> _resolveAppId(CockpitAppHandle? app, String platform) async {
+    final explicit = argResults?['app-id'] as String?;
+    if (explicit != null && explicit.trim().isNotEmpty) {
+      return explicit.trim();
+    }
+    final appPlatformId = app?.platformAppId?.trim();
+    if (appPlatformId != null && appPlatformId.isNotEmpty) {
+      return appPlatformId;
+    }
+    if (app == null) {
+      return null;
+    }
+    try {
+      return await cockpitResolvePlatformAppId(
+        projectDir: app.projectDir,
+        platform: platform,
+      );
+    } on Object {
+      return null;
+    }
+  }
+
+  Map<String, Object?> _readMetadata() {
+    final wdaUrl =
+        argResults?['wda-url'] as String? ??
+        Platform.environment['FLUTTER_COCKPIT_IOS_WDA_URL'];
+    if (wdaUrl == null || wdaUrl.trim().isEmpty) {
+      return const <String, Object?>{};
+    }
+    return <String, Object?>{'wdaUrl': wdaUrl.trim()};
   }
 }

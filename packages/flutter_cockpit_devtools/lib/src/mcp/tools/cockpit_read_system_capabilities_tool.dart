@@ -38,6 +38,11 @@ final class CockpitReadSystemCapabilitiesTool extends CockpitMcpTool {
       'deviceId': <String, Object?>{'type': 'string'},
       'appId': <String, Object?>{'type': 'string'},
       'processId': <String, Object?>{'type': 'integer'},
+      'wdaUrl': <String, Object?>{
+        'type': 'string',
+        'description':
+            'iOS simulator WebDriverAgent endpoint for native UI and system dialog control.',
+      },
     },
   };
 
@@ -50,6 +55,7 @@ final class CockpitReadSystemCapabilitiesTool extends CockpitMcpTool {
           deviceId: cockpitReadOptionalString(arguments, 'deviceId'),
           appId: cockpitReadOptionalString(arguments, 'appId'),
           processId: cockpitReadOptionalPositiveInt(arguments, 'processId'),
+          metadata: _readMetadata(arguments),
         ),
       );
       return cockpitMcpResult(
@@ -59,5 +65,13 @@ final class CockpitReadSystemCapabilitiesTool extends CockpitMcpTool {
     } on Object catch (error) {
       cockpitRethrowAsMcpError(error);
     }
+  }
+
+  Map<String, Object?> _readMetadata(Map<String, Object?> arguments) {
+    final wdaUrl = cockpitReadOptionalString(arguments, 'wdaUrl');
+    if (wdaUrl == null) {
+      return const <String, Object?>{};
+    }
+    return <String, Object?>{'wdaUrl': wdaUrl};
   }
 }

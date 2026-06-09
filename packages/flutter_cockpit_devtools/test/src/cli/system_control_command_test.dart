@@ -1,10 +1,12 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:args/command_runner.dart';
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/read_system_capabilities_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/run_system_action_command.dart';
 import 'package:flutter_cockpit_devtools/src/system_control/cockpit_system_control_service.dart';
+import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 void main() {
@@ -201,6 +203,83 @@ void main() {
     expect(decoded['recommendedNextStep'], 'readPostActionState');
   });
 
+  test(
+    'run-system-action reuses the default app handle and forwards WebDriverAgent metadata',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_system_command_default_app_',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+      final appHandleFile = File(
+        p.join(
+          tempDir.path,
+          '.dart_tool',
+          'flutter_cockpit',
+          'latest_app.json',
+        ),
+      );
+      await appHandleFile.parent.create(recursive: true);
+      await appHandleFile.writeAsString(
+        jsonEncode(<String, Object?>{
+          'appId': 'remote-session-1',
+          'mode': 'development',
+          'platform': 'ios',
+          'deviceId': '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+          'projectDir': tempDir.path,
+          'target': 'cockpit/main.dart',
+          'baseUrl': 'http://127.0.0.1:57331',
+          'launchedAt': '2026-06-09T00:00:00.000Z',
+          'platformAppId': 'dev.cockpit.example',
+        }),
+      );
+      final output = StringBuffer();
+      CockpitSystemControlActionRequest? capturedRequest;
+      final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
+        ..addCommand(
+          RunSystemActionCommand(
+            stdoutSink: output,
+            runAction: (request) async {
+              capturedRequest = request;
+              return const CockpitSystemControlActionResult(
+                platform: 'ios',
+                deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+                appId: 'dev.cockpit.example',
+                action: CockpitSystemControlAction.dismissSystemDialog,
+                availability: CockpitSystemControlAvailability.available,
+                success: true,
+                recommendedNextStep: 'readPostActionState',
+              );
+            },
+          ),
+        );
+      final previousDirectory = Directory.current;
+      Directory.current = tempDir;
+      addTearDown(() {
+        Directory.current = previousDirectory;
+      });
+
+      final exitCode =
+          await runner.run(const <String>[
+            'run-system-action',
+            '--action',
+            'dismissSystemDialog',
+            '--wda-url',
+            'http://127.0.0.1:8100',
+          ]) ??
+          0;
+
+      expect(exitCode, 0);
+      expect(capturedRequest?.platform, 'ios');
+      expect(capturedRequest?.deviceId, '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC');
+      expect(capturedRequest?.appId, 'dev.cockpit.example');
+      expect(capturedRequest?.metadata['wdaUrl'], 'http://127.0.0.1:8100');
+    },
+  );
+
   test('run-system-action forwards key payload without JSON', () async {
     final output = StringBuffer();
     CockpitSystemControlActionRequest? capturedRequest;
@@ -233,12 +312,15 @@ void main() {
           'pressKey',
           '--key',
           'KEYCODE_ENTER',
+          '--decision',
+          'dismiss',
         ]) ??
         0;
 
     expect(exitCode, 0);
     expect(capturedRequest?.action, CockpitSystemControlAction.pressKey);
     expect(capturedRequest?.parameters['key'], 'KEYCODE_ENTER');
+    expect(capturedRequest?.parameters['decision'], 'dismiss');
     expect(output.toString(), contains('status=ok'));
     expect(output.toString(), contains('action=pressKey'));
   });
@@ -273,6 +355,8 @@ void main() {
           'booted',
           '--action',
           'setLocation',
+          '--settings-action',
+          'android.settings.SETTINGS',
           '--appearance',
           'dark',
           '--content-size',
@@ -309,6 +393,14 @@ void main() {
           'charged',
           '--battery-level',
           '100',
+          '--title',
+          'Download complete',
+          '--body',
+          'Model is ready',
+          '--tag',
+          'model-download',
+          '--payload-json',
+          '{"aps":{"alert":"Ready"}}',
           '--max-depth',
           '3',
           '--max-nodes',
@@ -329,6 +421,10 @@ void main() {
     expect(exitCode, 0);
     expect(capturedRequest?.action, CockpitSystemControlAction.setLocation);
     expect(capturedRequest?.parameters['appearance'], 'dark');
+    expect(
+      capturedRequest?.parameters['settingsAction'],
+      'android.settings.SETTINGS',
+    );
     expect(capturedRequest?.parameters['contentSize'], 'accessibility-large');
     expect(capturedRequest?.parameters['fontScale'], '1.8');
     expect(capturedRequest?.parameters['latitude'], '37.3349');
@@ -346,6 +442,13 @@ void main() {
     expect(capturedRequest?.parameters['operatorName'], 'Cockpit');
     expect(capturedRequest?.parameters['batteryState'], 'charged');
     expect(capturedRequest?.parameters['batteryLevel'], 100);
+    expect(capturedRequest?.parameters['title'], 'Download complete');
+    expect(capturedRequest?.parameters['body'], 'Model is ready');
+    expect(capturedRequest?.parameters['tag'], 'model-download');
+    expect(
+      capturedRequest?.parameters['payloadJson'],
+      '{"aps":{"alert":"Ready"}}',
+    );
     expect(capturedRequest?.parameters['maxDepth'], 3);
     expect(capturedRequest?.parameters['maxNodes'], 40);
     expect(capturedRequest?.parameters['name'], 'system-flow');

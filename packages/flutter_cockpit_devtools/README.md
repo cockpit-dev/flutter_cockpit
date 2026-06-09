@@ -105,6 +105,41 @@ surface:
    and `--output-path` for system screenshots and recordings
 5. read post-action app, target, or system state before judging the result
 
+When `.dart_tool/flutter_cockpit/latest_app.json` exists, system commands reuse
+its platform, device id, process id, and platform app id. iOS simulator
+permissions should prefer `grantPermission`, which uses deterministic
+`simctl privacy grant`. For iOS simulator native UI or system dialogs that
+Flutter semantics and `simctl` cannot handle, run WebDriverAgent separately.
+Cockpit probes `http://127.0.0.1:8100` by default for iOS simulator sessions;
+pass `--wda-url` or set `FLUTTER_COCKPIT_IOS_WDA_URL` only for a custom
+endpoint. Native actions stay blocked unless the endpoint is reachable. When it
+is reachable, `tap`, `longPress`, `drag`, `typeText`, `pressKey`,
+`dismissSystemDialog`, `setOrientation`, and `readUiTree` can be reported as
+available and executed with `run-system-action`.
+
+Simulator support is intentionally capability-truthful:
+
+- Android emulator uses `adb` for native tap/drag/text/key input, Back/Home,
+  volume keys, app launch/terminate, permission grants, URL/settings entry,
+  appearance, text scale, location, orientation, emulator network speed/delay,
+  notification shade, quick settings, system UI collapse, shell notifications,
+  screenshots, recordings, UI tree dumps, process/window/state reads, and
+  bounded shell commands. `dismissSystemDialog --decision accept|dismiss`
+  first tries common Android permission/system dialog buttons with UIAutomator;
+  `dismiss` can fall back to Back.
+- iOS simulator uses `simctl` for app launch/terminate, privacy grants, URL and
+  Settings entry, appearance, content size, location, status bar overrides,
+  pasteboard, simulated APNS pushes, screenshots, recordings, process reads,
+  simulator state reads, and bounded `simctl spawn` commands.
+- iOS simulator native UI actions require a reachable WebDriverAgent endpoint:
+  tap, long press, drag, text/key input, Home, keyboard dismissal, system dialog
+  accept/dismiss, orientation, and native UI tree reads.
+- iOS simulator volume keys, notification-center expansion, Control Center
+  expansion, and clear-all-notifications have no stable public `simctl`/XCTest
+  simulator API. They remain `unsupported` or `blocked` instead of pretending to
+  be automated. Use returned fallbacks, WDA coordinate gestures where geometry
+  is known, or app-level assertions.
+
 Default AI-readable capability rows include compact parameter metadata such as
 `parameters=[x*:integer | wifiBars:integer[0..3] | appearance*:string(light|dark)]`.
 JSON output includes the same contract as structured `parameters` entries with
@@ -128,6 +163,7 @@ When a command accepts both `--app-json` and `--base-url`, precedence is: explic
 Workspace commands default `--workspace-root` or `--parent-directory` to the current directory.
 Serialize mutation, then observation. Do not run a mutating `run-command` in parallel with the `read-app`, `inspect-ui`, or `read-network` call that depends on its result.
 When the next few steps are already known and the flow will cross a route boundary such as list -> editor -> list, prefer one ordered `run-batch` over separate `run-command` round-trips. It cuts token cost and avoids route-transition gaps between commands.
+`read-app` and snapshots expose focus state. When `uiSummary.focus.isTextInputFocus` is true or a software keyboard covers the next target, run `dismissKeyboard` as a locator-free command before scrolling or tapping again.
 Use product-specific locator signals. Short repeated action labels such as `Open`, `Edit`, or `Save` are fine as fallbacks, but they should not be the only signal when multiple rows or cards can expose the same word. Prefer the full accessible label from `read-app` / `inspect-ui`, then add `route`, `type`, or `ancestor` only as needed.
 For route-changing `tap` commands, set `parameters.expectedRouteName`. Add `parameters.routeTimeoutMs` for CI, recording, simulator, or other acceptance flows where runner latency is expected; `timeoutMs` remains the hard command ceiling. Follow critical route crossings with `waitFor` on `parameters.routeName`.
 `run-command`, `run-batch`, and `run-script` default key mutating commands to
@@ -233,7 +269,7 @@ Default stdout is the full AI-readable semantic render. Add `--stdout-format jso
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools serve-mcp
 ```
 
-Core tools:
+Recommended app and target tools:
 
 - `list_targets`
 - `launch_app`
@@ -245,6 +281,7 @@ Core tools:
 - `inspect_surface`
 - `run_command`
 - `run_batch`
+- `capture_screenshot`
 - `read_system_capabilities`
 - `run_system_action`
 - `run_shell`
@@ -262,8 +299,34 @@ Core tools:
 - `run_task`
 - `validate_task`
 
-Workspace tools:
+Advanced remote-session tools:
 
+- `list_active_sessions`
+- `launch_remote_session`
+- `query_remote_session`
+- `read_remote_status`
+- `read_remote_snapshot`
+- `collect_remote_snapshot`
+- `execute_remote_command`
+- `execute_remote_command_batch`
+- `wait_remote_ui_idle`
+- `start_remote_recording`
+- `stop_remote_recording`
+
+Development-session tools:
+
+- `launch_development_session`
+- `query_development_session`
+- `reload_development_session`
+- `collect_development_probe`
+- `compare_development_probe`
+- `read_session_logs`
+- `stop_development_session`
+
+Workspace and roots tools:
+
+- `add_roots`
+- `remove_roots`
 - `pub_dev_search`
 - `pub`
 - `grep_package_uris`

@@ -97,6 +97,27 @@ final class CockpitAndroidSystemControlAdapter
           requires: <String>['adb', 'device id'],
         ),
         CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.pressVolumeUp,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: availability,
+          strategy: 'adb.shell.input.keyevent.KEYCODE_VOLUME_UP',
+          requires: <String>['adb', 'device id'],
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.pressVolumeDown,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: availability,
+          strategy: 'adb.shell.input.keyevent.KEYCODE_VOLUME_DOWN',
+          requires: <String>['adb', 'device id'],
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.pressVolumeMute,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: availability,
+          strategy: 'adb.shell.input.keyevent.KEYCODE_VOLUME_MUTE',
+          requires: <String>['adb', 'device id'],
+        ),
+        CockpitSystemControlCapability(
           action: CockpitSystemControlAction.activateWindow,
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
@@ -116,9 +137,25 @@ final class CockpitAndroidSystemControlAdapter
           action: CockpitSystemControlAction.dismissSystemDialog,
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
-          strategy: 'adb.uiautomator-or-keyevent',
+          strategy: 'adb.uiautomator.permission-button',
           requires: <String>['adb', 'device id'],
-          limitations: <String>['dialog text varies by Android version'],
+          limitations: <String>[
+            'Matches common Android permission and system dialog button ids/text; custom OEM dialogs may still require coordinate or semantic fallback.',
+          ],
+          parameters: CockpitSystemControlParameterSets.systemDialogDecision,
+          fallbackActions: <CockpitSystemControlAction>[
+            CockpitSystemControlAction.pressBack,
+          ],
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.dismissKeyboard,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: availability,
+          strategy: 'adb.shell.input.keyevent.KEYCODE_BACK',
+          requires: <String>['adb', 'device id'],
+          limitations: <String>[
+            'Back dismisses the current IME when it is visible; otherwise it may navigate back.',
+          ],
           fallbackActions: <CockpitSystemControlAction>[
             CockpitSystemControlAction.pressBack,
           ],
@@ -138,6 +175,17 @@ final class CockpitAndroidSystemControlAdapter
           strategy: 'adb.shell.am.start.VIEW',
           requires: <String>['adb', 'device id'],
           parameters: CockpitSystemControlParameterSets.url,
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.openSystemSettings,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: availability,
+          strategy: 'adb.shell.am.start.android.settings.SETTINGS',
+          requires: <String>['adb', 'device id'],
+          parameters: CockpitSystemControlParameterSets.systemSettings,
+          limitations: <String>[
+            'Use settingsAction for a custom android.settings.* action; default opens the main Settings app.',
+          ],
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.setAppearance,
@@ -226,6 +274,48 @@ final class CockpitAndroidSystemControlAdapter
           strategy: 'android-no-stable-status-bar-override',
           limitations: <String>[
             'Android does not expose a stable adb status bar override equivalent to iOS simulator status_bar.',
+          ],
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.expandNotifications,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: availability,
+          strategy: 'adb.shell.cmd.statusbar.expand-notifications',
+          requires: <String>['adb', 'device id'],
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.expandQuickSettings,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: availability,
+          strategy: 'adb.shell.cmd.statusbar.expand-settings',
+          requires: <String>['adb', 'device id'],
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.collapseSystemUi,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: availability,
+          strategy: 'adb.shell.cmd.statusbar.collapse',
+          requires: <String>['adb', 'device id'],
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.postNotification,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: availability,
+          strategy: 'adb.shell.cmd.notification.post',
+          requires: <String>['adb', 'device id'],
+          limitations: <String>[
+            'Posts from the Android shell package; use app notification flows to validate production notification handling.',
+          ],
+          parameters: CockpitSystemControlParameterSets.androidNotification,
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.clearNotifications,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: availability,
+          strategy: 'adb.shell.cmd.statusbar.collapse',
+          requires: <String>['adb', 'device id'],
+          limitations: <String>[
+            'Android shell has no stable public clear-all-notifications command; this collapses system UI after notification assertions.',
           ],
         ),
         const CockpitSystemControlCapability(
@@ -402,6 +492,21 @@ final class CockpitAndroidSystemControlAdapter
           'adb',
           adbShell(const <String>['input', 'keyevent', 'KEYCODE_HOME']),
         ),
+      CockpitSystemControlAction.pressVolumeUp =>
+        CockpitResolvedSystemControlCommand(
+          'adb',
+          adbShell(const <String>['input', 'keyevent', 'KEYCODE_VOLUME_UP']),
+        ),
+      CockpitSystemControlAction.pressVolumeDown =>
+        CockpitResolvedSystemControlCommand(
+          'adb',
+          adbShell(const <String>['input', 'keyevent', 'KEYCODE_VOLUME_DOWN']),
+        ),
+      CockpitSystemControlAction.pressVolumeMute =>
+        CockpitResolvedSystemControlCommand(
+          'adb',
+          adbShell(const <String>['input', 'keyevent', 'KEYCODE_VOLUME_MUTE']),
+        ),
       CockpitSystemControlAction.activateWindow => _packageCommand(
         request,
         (packageId) => CockpitResolvedSystemControlCommand(
@@ -438,6 +543,14 @@ final class CockpitAndroidSystemControlAdapter
           ]),
         ),
       ),
+      CockpitSystemControlAction.openSystemSettings =>
+        _androidOpenSystemSettingsCommand(
+          request,
+          (settingsAction) => CockpitResolvedSystemControlCommand(
+            'adb',
+            adbShell(<String>['am', 'start', '-a', settingsAction]),
+          ),
+        ),
       CockpitSystemControlAction.setAppearance => cockpitTextCommand(
         request,
         'appearance',
@@ -522,6 +635,30 @@ final class CockpitAndroidSystemControlAdapter
         ),
       CockpitSystemControlAction.setStatusBar ||
       CockpitSystemControlAction.clearStatusBar => _unsupportedCommand(request),
+      CockpitSystemControlAction.expandNotifications =>
+        CockpitResolvedSystemControlCommand(
+          'adb',
+          adbShell(const <String>['cmd', 'statusbar', 'expand-notifications']),
+        ),
+      CockpitSystemControlAction.expandQuickSettings =>
+        CockpitResolvedSystemControlCommand(
+          'adb',
+          adbShell(const <String>['cmd', 'statusbar', 'expand-settings']),
+        ),
+      CockpitSystemControlAction.collapseSystemUi ||
+      CockpitSystemControlAction.clearNotifications =>
+        CockpitResolvedSystemControlCommand(
+          'adb',
+          adbShell(const <String>['cmd', 'statusbar', 'collapse']),
+        ),
+      CockpitSystemControlAction.postNotification =>
+        _androidPostNotificationCommand(
+          request,
+          (args) => CockpitResolvedSystemControlCommand(
+            'adb',
+            adbShell(<String>['cmd', 'notification', 'post', ...args]),
+          ),
+        ),
       CockpitSystemControlAction.setClipboard ||
       CockpitSystemControlAction
           .getClipboard => const CockpitResolvedSystemControlCommand.error(
@@ -537,6 +674,14 @@ final class CockpitAndroidSystemControlAdapter
         ),
       ),
       CockpitSystemControlAction.dismissSystemDialog =>
+        _androidDismissSystemDialogCommand(
+          request,
+          (script) => CockpitResolvedSystemControlCommand(
+            'adb',
+            adbShell(<String>['sh', '-c', script]),
+          ),
+        ),
+      CockpitSystemControlAction.dismissKeyboard =>
         CockpitResolvedSystemControlCommand(
           'adb',
           adbShell(const <String>['input', 'keyevent', 'KEYCODE_BACK']),
@@ -628,6 +773,138 @@ final class CockpitAndroidSystemControlAdapter
       );
     }
     return factory(packageId.value!, permission.value!);
+  }
+
+  CockpitResolvedSystemControlCommand _androidOpenSystemSettingsCommand(
+    CockpitSystemControlActionRequest request,
+    CockpitResolvedSystemControlCommand Function(String settingsAction) factory,
+  ) {
+    final value = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'settingsAction',
+    );
+    if (value.isInvalid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'invalidSystemActionParameter',
+        message: 'openSystemSettings requires a string settingsAction.',
+      );
+    }
+    return factory(value.value ?? 'android.settings.SETTINGS');
+  }
+
+  CockpitResolvedSystemControlCommand _androidPostNotificationCommand(
+    CockpitSystemControlActionRequest request,
+    CockpitResolvedSystemControlCommand Function(List<String> args) factory,
+  ) {
+    final payloadJson = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'payloadJson',
+    );
+    if (payloadJson.isPresent) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'unsupportedSystemActionParameter',
+        message:
+            'Android postNotification does not accept payloadJson; use title and body.',
+      );
+    }
+    final title = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'title',
+    );
+    final body = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'body',
+    );
+    final tag = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'tag',
+    );
+    if (title.isInvalid || body.isInvalid || tag.isInvalid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'invalidSystemActionParameter',
+        message: 'postNotification accepts string title, body, and tag.',
+      );
+    }
+    final notificationBody = body.value ?? title.value;
+    if (notificationBody == null || notificationBody.trim().isEmpty) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'missingSystemActionParameter',
+        message: 'postNotification requires title or body.',
+      );
+    }
+    return factory(<String>[
+      if (title.value != null) ...<String>['--title', title.value!],
+      tag.value ?? 'flutter-cockpit',
+      notificationBody,
+    ]);
+  }
+
+  CockpitResolvedSystemControlCommand _androidDismissSystemDialogCommand(
+    CockpitSystemControlActionRequest request,
+    CockpitResolvedSystemControlCommand Function(String script) factory,
+  ) {
+    final decision = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'decision',
+      allowedValues: const <String>['accept', 'dismiss'],
+    );
+    if (decision.isInvalid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'invalidSystemActionParameter',
+        message:
+            'dismissSystemDialog decision must be accept or dismiss when provided.',
+      );
+    }
+    final mode = decision.value ?? 'accept';
+    return factory(_androidDismissSystemDialogScript(mode));
+  }
+
+  String _androidDismissSystemDialogScript(String decision) {
+    final buttonSpecs = decision == 'dismiss'
+        ? const <String>[
+            'resource-id="com.android.permissioncontroller:id/permission_deny_button"',
+            'resource-id="com.android.packageinstaller:id/permission_deny_button"',
+            'text="Deny"',
+            'text="DENY"',
+            'text="Don\\u2019t allow"',
+            'text="Cancel"',
+            'text="CANCEL"',
+          ]
+        : const <String>[
+            'resource-id="com.android.permissioncontroller:id/permission_allow_button"',
+            'resource-id="com.android.permissioncontroller:id/permission_allow_foreground_only_button"',
+            'resource-id="com.android.permissioncontroller:id/permission_allow_one_time_button"',
+            'resource-id="com.android.packageinstaller:id/permission_allow_button"',
+            'text="Allow"',
+            'text="ALLOW"',
+            'text="While using the app"',
+            'text="Only this time"',
+            'text="OK"',
+          ];
+    final patterns = buttonSpecs.map((spec) => "  -e '$spec'").join(' ');
+    final notFoundFallback = decision == 'dismiss'
+        ? 'input keyevent KEYCODE_BACK'
+        : 'echo "flutter_cockpit: no matching Android system dialog accept button" >&2; exit 2';
+    return '''
+set -e
+dump="/sdcard/flutter_cockpit_window.xml"
+uiautomator dump "\$dump" >/dev/null
+match=\$(grep -E $patterns "\$dump" | head -n 1 || true)
+rm -f "\$dump"
+if [ -z "\$match" ]; then
+  $notFoundFallback
+  exit \$?
+fi
+bounds=\$(printf "%s" "\$match" | sed -n 's/.*bounds="\\[\\([0-9][0-9]*\\),\\([0-9][0-9]*\\)\\]\\[\\([0-9][0-9]*\\),\\([0-9][0-9]*\\)\\]".*/\\1 \\2 \\3 \\4/p')
+if [ -z "\$bounds" ]; then
+  echo "flutter_cockpit: Android system dialog button had no bounds" >&2
+  exit 2
+fi
+set -- \$bounds
+x=\$(( (\$1 + \$3) / 2 ))
+y=\$(( (\$2 + \$4) / 2 ))
+input tap "\$x" "\$y"
+''';
   }
 
   CockpitResolvedSystemControlCommand _packageCommand(

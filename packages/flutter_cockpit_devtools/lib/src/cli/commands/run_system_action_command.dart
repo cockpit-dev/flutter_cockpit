@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:args/command_runner.dart';
 
+import '../../application/cockpit_app_handle.dart';
+import '../../session/cockpit_platform_app_identity.dart';
 import '../../system_control/cockpit_system_control_action_service.dart';
 import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
@@ -33,12 +35,18 @@ final class RunSystemActionCommand extends CockpitCliCommand {
       ..addOption(
         'app-id',
         help:
-            'Platform app id or bundle id for window-scoped desktop evidence actions.',
+            'Platform app id or bundle id for app/window-scoped actions; required for macOS host screenshots and recordings.',
       )
       ..addOption(
         'process-id',
         help:
-            'Process id for window-scoped desktop evidence actions when app id is ambiguous.',
+            'Windows/Linux process id for window-scoped actions when app id is ambiguous.',
+      )
+      ..addOption('app-json', help: cockpitAppJsonOptionHelp)
+      ..addOption(
+        'wda-url',
+        help:
+            'iOS simulator WebDriverAgent endpoint for native UI and system dialog control. Defaults to FLUTTER_COCKPIT_IOS_WDA_URL or probes http://127.0.0.1:8100.',
       )
       ..addOption(
         'action',
@@ -56,7 +64,17 @@ final class RunSystemActionCommand extends CockpitCliCommand {
       ..addOption('duration-ms', help: 'Gesture duration in milliseconds.')
       ..addOption('text', help: 'Text for typeText or setClipboard.')
       ..addOption('key', help: 'Key name for pressKey.')
+      ..addOption(
+        'decision',
+        allowed: const <String>['accept', 'dismiss'],
+        help: 'System dialog decision for dismissSystemDialog.',
+      )
       ..addOption('url', help: 'URL for openUrl.')
+      ..addOption(
+        'settings-action',
+        help:
+            'Platform settings action for openSystemSettings. Android default: android.settings.SETTINGS. iOS default: App-Prefs:.',
+      )
       ..addOption(
         'appearance',
         allowed: const <String>['light', 'dark', 'auto'],
@@ -155,6 +173,10 @@ final class RunSystemActionCommand extends CockpitCliCommand {
             'Android package id for app-scoped actions; use --app-id for iOS bundle ids and desktop targets.',
       )
       ..addOption('permission', help: 'Permission name for grantPermission.')
+      ..addOption('title', help: 'Notification title for postNotification.')
+      ..addOption('body', help: 'Notification body for postNotification.')
+      ..addOption('tag', help: 'Notification tag for postNotification.')
+      ..addOption('payload-json', help: 'Platform notification payload JSON.')
       ..addOption('output-path', help: 'Output path for screenshot or video.')
       ..addOption(
         'name',
@@ -226,7 +248,7 @@ final class RunSystemActionCommand extends CockpitCliCommand {
 
   @override
   String get helpShape =>
-      'Prefer explicit flags for common actions: --x/--y for tap, --text for typeText or setClipboard, --key for pressKey, --url for openUrl, --appearance, --content-size, --orientation, --network-speed, --network-delay, --time/--battery-level for iOS status bar, --name/--output-path/--purpose/--mode/--layer for capture and recording, repeated --arg for runShell. Use --parameters-json only for less common payloads.';
+      'Prefer explicit flags for common actions: --x/--y for tap, --text for typeText or setClipboard, --key for pressKey, --url for openUrl, --settings-action for openSystemSettings, --appearance, --content-size, --orientation, --network-speed, --network-delay, --time/--battery-level for iOS status bar, --title/--body/--tag or --payload-json for postNotification, --name/--output-path/--purpose/--mode/--layer for capture and recording, repeated --arg for runShell. Use --parameters-json only for less common payloads.';
 
   @override
   String get helpExample =>
@@ -238,24 +260,26 @@ final class RunSystemActionCommand extends CockpitCliCommand {
 
   @override
   Future<int> run() async {
+    final app = _readDefaultAppHandle();
     final platform =
         argResults?['platform'] as String? ??
+        app?.platform ??
         cockpitReadLaunchPlatform(argResults, usage);
     final actionValue = argResults?['action'] as String?;
     if (actionValue == null || actionValue.isEmpty) {
       throw UsageException('--action is required.', usage);
     }
     final parameters = await _readParameters();
+    final appId = await _resolveAppId(app, platform);
     final result = await _runAction(
       CockpitSystemControlActionRequest(
         platform: platform,
-        deviceId: argResults?['device-id'] as String?,
-        appId: argResults?['app-id'] as String?,
-        processId: cockpitReadOptionalPositiveInt(
-          argResults,
-          'process-id',
-          usage,
-        ),
+        deviceId: argResults?['device-id'] as String? ?? app?.deviceId,
+        appId: appId,
+        processId:
+            cockpitReadOptionalPositiveInt(argResults, 'process-id', usage) ??
+            app?.processId,
+        metadata: _readMetadata(),
         action: CockpitSystemControlAction.fromJson(actionValue),
         parameters: parameters,
         timeout: Duration(
@@ -275,6 +299,54 @@ final class RunSystemActionCommand extends CockpitCliCommand {
       stdoutSink: _stdoutSink,
     );
     return cockpitSuccessExitCode;
+  }
+
+  CockpitAppHandle? _readDefaultAppHandle() {
+    final path = cockpitResolveAppHandlePath(argResults);
+    if (path == null || path.isEmpty) {
+      return null;
+    }
+    try {
+      final decoded = jsonDecode(File(path).readAsStringSync());
+      if (decoded is Map<Object?, Object?>) {
+        return CockpitAppHandle.fromJson(decoded.cast<String, Object?>());
+      }
+    } on Object {
+      return null;
+    }
+    return null;
+  }
+
+  Future<String?> _resolveAppId(CockpitAppHandle? app, String platform) async {
+    final explicit = argResults?['app-id'] as String?;
+    if (explicit != null && explicit.trim().isNotEmpty) {
+      return explicit.trim();
+    }
+    final appPlatformId = app?.platformAppId?.trim();
+    if (appPlatformId != null && appPlatformId.isNotEmpty) {
+      return appPlatformId;
+    }
+    if (app == null) {
+      return null;
+    }
+    try {
+      return await cockpitResolvePlatformAppId(
+        projectDir: app.projectDir,
+        platform: platform,
+      );
+    } on Object {
+      return null;
+    }
+  }
+
+  Map<String, Object?> _readMetadata() {
+    final wdaUrl =
+        argResults?['wda-url'] as String? ??
+        Platform.environment['FLUTTER_COCKPIT_IOS_WDA_URL'];
+    if (wdaUrl == null || wdaUrl.trim().isEmpty) {
+      return const <String, Object?>{};
+    }
+    return <String, Object?>{'wdaUrl': wdaUrl.trim()};
   }
 
   Future<Map<String, Object?>> _readParameters() async {
@@ -310,7 +382,9 @@ final class RunSystemActionCommand extends CockpitCliCommand {
     addInt('duration-ms', 'durationMs');
     addString('text', 'text');
     addString('key', 'key');
+    addString('decision', 'decision');
     addString('url', 'url');
+    addString('settings-action', 'settingsAction');
     addString('appearance', 'appearance');
     addString('content-size', 'contentSize');
     addString('font-scale', 'fontScale');
@@ -333,6 +407,10 @@ final class RunSystemActionCommand extends CockpitCliCommand {
     addInt('max-nodes', 'maxNodes');
     addString('package-id', 'packageId');
     addString('permission', 'permission');
+    addString('title', 'title');
+    addString('body', 'body');
+    addString('tag', 'tag');
+    addString('payload-json', 'payloadJson');
     addString('output-path', 'outputPath');
     addString('name', 'name');
     addString('purpose', 'purpose');

@@ -39,6 +39,11 @@ final class CockpitRunSystemActionTool extends CockpitMcpTool {
       'deviceId': <String, Object?>{'type': 'string'},
       'appId': <String, Object?>{'type': 'string'},
       'processId': <String, Object?>{'type': 'integer'},
+      'wdaUrl': <String, Object?>{
+        'type': 'string',
+        'description':
+            'iOS simulator WebDriverAgent endpoint for native UI and system dialog control.',
+      },
       'action': <String, Object?>{
         'type': 'string',
         'enum': CockpitSystemControlAction.values
@@ -59,6 +64,7 @@ final class CockpitRunSystemActionTool extends CockpitMcpTool {
           deviceId: cockpitReadOptionalString(arguments, 'deviceId'),
           appId: cockpitReadOptionalString(arguments, 'appId'),
           processId: cockpitReadOptionalPositiveInt(arguments, 'processId'),
+          metadata: _readMetadata(arguments),
           action: CockpitSystemControlAction.fromJson(
             cockpitReadRequiredString(arguments, 'action'),
           ),
@@ -81,5 +87,13 @@ final class CockpitRunSystemActionTool extends CockpitMcpTool {
     } on Object catch (error) {
       cockpitRethrowAsMcpError(error);
     }
+  }
+
+  Map<String, Object?> _readMetadata(Map<String, Object?> arguments) {
+    final wdaUrl = cockpitReadOptionalString(arguments, 'wdaUrl');
+    if (wdaUrl == null) {
+      return const <String, Object?>{};
+    }
+    return <String, Object?>{'wdaUrl': wdaUrl};
   }
 }

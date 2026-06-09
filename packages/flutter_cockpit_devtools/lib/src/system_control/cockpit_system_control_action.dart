@@ -7,6 +7,7 @@ final class CockpitSystemControlActionRequest {
     this.deviceId,
     this.appId,
     this.processId,
+    this.metadata = const <String, Object?>{},
     this.parameters = const <String, Object?>{},
     this.timeout = const Duration(seconds: 15),
   });
@@ -15,6 +16,7 @@ final class CockpitSystemControlActionRequest {
   final String? deviceId;
   final String? appId;
   final int? processId;
+  final Map<String, Object?> metadata;
   final CockpitSystemControlAction action;
   final Map<String, Object?> parameters;
   final Duration timeout;

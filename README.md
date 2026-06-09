@@ -233,6 +233,7 @@ For code-side questions, prefer `analyze-files`, `lsp`, `grep-package-uris`, `re
 Serialize mutation, then observation. Do not parallelize `run-command` with the `read-app`, `inspect-ui`, or `read-network` step that depends on its side effects.
 When the next few mutations are already known and the flow will cross route boundaries such as list -> editor -> list, prefer one ordered `run-batch` over separate `run-command` round-trips to reduce token cost and avoid transition gaps between commands.
 For route-changing `tap`, include `parameters.expectedRouteName`; add `parameters.routeTimeoutMs` for CI, recording, simulator, or other acceptance flows where runner latency is expected. `timeoutMs` is the hard command ceiling, not the default route wait. For critical route crossings, follow the tap with `waitFor` on `parameters.routeName`.
+`read-app` and snapshots include focus state. When `uiSummary.focus.isTextInputFocus` is true or a software keyboard covers the next control, run a locator-free `dismissKeyboard` command before scrolling or tapping again.
 When an app summary already exposes bounded workflow counters or state fields, prefer those fields before reopening a heavier inspection payload.
 
 Locators are multi-signal. Start with `text`, `tooltip`, or `semanticId`. Use `key` only when the app already exposes a legitimate stable key for product reasons, then add `route`, `type`, `path`, nested `ancestor`, or short `fallbacks` only when needed. Avoid short repeated action words such as `Open`, `Edit`, or `Save` as the only signal; prefer the full accessible label surfaced by `read-app` / `inspect-ui` plus `route` or `ancestor`. `path` matching is fuzzy and ignores noise such as `body`, `slivers`, and numeric indexes.
@@ -399,6 +400,20 @@ the smallest truthful surface:
 - use `start-remote-recording` and `stop-remote-recording` only when working
   directly with a remote session instead of an app handle
 
+For simulator-first development, the system plane is explicit about what can be
+automated. Android emulator support is adb-backed: native coordinates, keys,
+Back/Home, volume keys, permission grants, app settings, appearance, text scale,
+location, orientation, emulator network conditions, notification shade, quick
+settings, screenshots, recordings, UI tree, process/window/state reads, shell,
+and UIAutomator-assisted `dismissSystemDialog --decision accept|dismiss`.
+iOS simulator support is simctl-backed for app lifecycle, privacy, URLs,
+Settings, appearance, content size, location, status bar overrides, pasteboard,
+simulated APNS push, screenshot, recording, process/state reads, and shell via
+`simctl spawn`. iOS native UI and system dialog control uses WebDriverAgent when
+reachable. Simulator features with no stable public API, such as iOS simulator
+volume keys, Notification Center expansion, Control Center expansion, and
+clear-all-notifications, are reported as `unsupported` or `blocked`.
+
 Use `--profile minimal|standard|inspect|evidence` to control token cost. Start small and escalate only when needed.
 When a CLI command exits non-zero, first look for `errorJson: {...}` on stderr.
 For non-usage failures, the `code`, `message`, and optional `details` fields are
@@ -427,17 +442,22 @@ Start MCP over stdio:
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools serve-mcp
 ```
 
-Core tools:
+Recommended app and target tools:
 
 - `list_targets`
 - `launch_app`
+- `launch_target`
 - `list_apps`
 - `read_app`
+- `read_target`
 - `inspect_ui`
+- `inspect_surface`
 - `run_command`
 - `run_batch`
+- `capture_screenshot`
 - `read_system_capabilities`
 - `run_system_action`
+- `run_shell`
 - `wait_idle`
 - `hot_reload`
 - `hot_restart`
@@ -452,8 +472,34 @@ Core tools:
 - `run_task`
 - `validate_task`
 
-Workspace tools:
+Advanced remote-session tools:
 
+- `list_active_sessions`
+- `launch_remote_session`
+- `query_remote_session`
+- `read_remote_status`
+- `read_remote_snapshot`
+- `collect_remote_snapshot`
+- `execute_remote_command`
+- `execute_remote_command_batch`
+- `wait_remote_ui_idle`
+- `start_remote_recording`
+- `stop_remote_recording`
+
+Development-session tools:
+
+- `launch_development_session`
+- `query_development_session`
+- `reload_development_session`
+- `collect_development_probe`
+- `compare_development_probe`
+- `read_session_logs`
+- `stop_development_session`
+
+Workspace and roots tools:
+
+- `add_roots`
+- `remove_roots`
 - `pub_dev_search`
 - `pub`
 - `grep_package_uris`

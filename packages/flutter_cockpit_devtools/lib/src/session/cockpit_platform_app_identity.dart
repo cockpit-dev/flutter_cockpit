@@ -45,23 +45,30 @@ Future<String?> _resolveIosPlatformAppId({
   required String? flavor,
 }) async {
   final pathContext = cockpitSessionPathContext(projectDir);
-  final buildDirectory = Directory(
-    pathContext.join(projectDir, 'build', 'ios', 'iphoneos'),
-  );
-  if (!buildDirectory.existsSync()) {
-    return null;
+  for (final outputName in const <String>['iphonesimulator', 'iphoneos']) {
+    final buildDirectory = Directory(
+      pathContext.join(projectDir, 'build', 'ios', outputName),
+    );
+    if (!buildDirectory.existsSync()) {
+      continue;
+    }
+    final appBundlePath = cockpitSelectBestAppBundlePath(
+      searchRoot: buildDirectory,
+      flavor: flavor,
+      pathContext: pathContext,
+      platformLabel: outputName == 'iphonesimulator'
+          ? 'iOS simulator'
+          : 'iOS device',
+    );
+    final bundleId = await cockpitResolveIosBundleId(
+      appBundlePath: appBundlePath,
+    );
+    final normalized = bundleId.trim();
+    if (normalized.isNotEmpty) {
+      return normalized;
+    }
   }
-  final appBundlePath = cockpitSelectBestAppBundlePath(
-    searchRoot: buildDirectory,
-    flavor: flavor,
-    pathContext: pathContext,
-    platformLabel: 'iOS device',
-  );
-  final bundleId = await cockpitResolveIosBundleId(
-    appBundlePath: appBundlePath,
-  );
-  final normalized = bundleId.trim();
-  return normalized.isEmpty ? null : normalized;
+  return null;
 }
 
 Future<String?> _resolveMacosPlatformAppId({

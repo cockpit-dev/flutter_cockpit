@@ -69,6 +69,21 @@ final class CockpitDesktopSystemControlAdapter
           'mobile-home-key',
           'Desktop platforms do not have a stable app-scoped Home action.',
         ),
+        _unsupported(
+          CockpitSystemControlAction.pressVolumeUp,
+          'mobile-volume-key',
+          'Desktop host volume keys are global and not safe for app-scoped automation.',
+        ),
+        _unsupported(
+          CockpitSystemControlAction.pressVolumeDown,
+          'mobile-volume-key',
+          'Desktop host volume keys are global and not safe for app-scoped automation.',
+        ),
+        _unsupported(
+          CockpitSystemControlAction.pressVolumeMute,
+          'mobile-volume-key',
+          'Desktop host volume keys are global and not safe for app-scoped automation.',
+        ),
         _targetedInputCapability(
           CockpitSystemControlAction.activateWindow,
           hasInputTarget: hasInputTarget,
@@ -80,6 +95,11 @@ final class CockpitDesktopSystemControlAdapter
         _targetedInputCapability(
           CockpitSystemControlAction.dismissSystemDialog,
           hasInputTarget: hasInputTarget,
+        ),
+        _hostBlocked(
+          CockpitSystemControlAction.dismissKeyboard,
+          'desktop-keyboard-dismiss',
+          requires: const <String>['app-specific focus control'],
         ),
         _unsupported(
           CockpitSystemControlAction.grantPermission,
@@ -94,6 +114,11 @@ final class CockpitDesktopSystemControlAdapter
           requires: _openUrlRequires,
           limitations: limitations,
           parameters: CockpitSystemControlParameterSets.url,
+        ),
+        _hostBlocked(
+          CockpitSystemControlAction.openSystemSettings,
+          'desktop-system-settings',
+          requires: const <String>['OS-specific settings URL or automation'],
         ),
         _hostBlocked(
           CockpitSystemControlAction.setAppearance,
@@ -134,6 +159,31 @@ final class CockpitDesktopSystemControlAdapter
           CockpitSystemControlAction.clearStatusBar,
           'desktop-no-status-bar-override',
           'Desktop platforms do not expose an iOS-simulator-style status bar override.',
+        ),
+        _unsupported(
+          CockpitSystemControlAction.expandNotifications,
+          'desktop-notification-center',
+          'Desktop notification centers are host-global and not safely app-scoped.',
+        ),
+        _unsupported(
+          CockpitSystemControlAction.expandQuickSettings,
+          'desktop-quick-settings',
+          'Desktop quick settings are host-global and not safely app-scoped.',
+        ),
+        _unsupported(
+          CockpitSystemControlAction.collapseSystemUi,
+          'desktop-system-ui',
+          'Desktop system UI collapse is host-global and not safely app-scoped.',
+        ),
+        _hostBlocked(
+          CockpitSystemControlAction.postNotification,
+          'desktop-notification-injection',
+          requires: const <String>['app-specific notification helper'],
+        ),
+        _hostBlocked(
+          CockpitSystemControlAction.clearNotifications,
+          'desktop-notification-center',
+          requires: const <String>['OS-specific notification center control'],
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.setClipboard,
@@ -1243,7 +1293,7 @@ final class CockpitDesktopSystemControlAdapter
         ...(action == CockpitSystemControlAction.captureScreenshot
             ? _screenshotRequires
             : _recordingRequires),
-        if (!hasWindowTarget) 'app id or process id',
+        if (!hasWindowTarget) _evidenceTargetRequirement,
         ...extraRequires,
       ],
       limitations: limitations,
@@ -1257,6 +1307,13 @@ final class CockpitDesktopSystemControlAdapter
         _ => const <CockpitSystemControlParameter>[],
       },
     );
+  }
+
+  String get _evidenceTargetRequirement {
+    if (platform == 'macos') {
+      return 'app id';
+    }
+    return 'app id or process id';
   }
 
   static const String _macosMouseScript = r'''
@@ -1876,6 +1933,33 @@ final class CockpitWebSystemControlAdapter
           ],
         ),
         CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.pressVolumeUp,
+          plane: CockpitPlaneKind.hostPlane,
+          availability: CockpitSystemControlAvailability.unsupported,
+          strategy: 'browser-no-volume-key',
+          limitations: <String>[
+            'Browsers cannot safely change host volume from an app-scoped automation bridge.',
+          ],
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.pressVolumeDown,
+          plane: CockpitPlaneKind.hostPlane,
+          availability: CockpitSystemControlAvailability.unsupported,
+          strategy: 'browser-no-volume-key',
+          limitations: <String>[
+            'Browsers cannot safely change host volume from an app-scoped automation bridge.',
+          ],
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.pressVolumeMute,
+          plane: CockpitPlaneKind.hostPlane,
+          availability: CockpitSystemControlAvailability.unsupported,
+          strategy: 'browser-no-volume-key',
+          limitations: <String>[
+            'Browsers cannot safely change host volume from an app-scoped automation bridge.',
+          ],
+        ),
+        CockpitSystemControlCapability(
           action: CockpitSystemControlAction.activateWindow,
           plane: CockpitPlaneKind.hostPlane,
           availability: CockpitSystemControlAvailability.blocked,
@@ -1897,6 +1981,13 @@ final class CockpitWebSystemControlAdapter
           requires: <String>['browser driver or bridge'],
         ),
         CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.dismissKeyboard,
+          plane: CockpitPlaneKind.nativeUiPlane,
+          availability: CockpitSystemControlAvailability.blocked,
+          strategy: 'browser.keyboard.escape-or-blur',
+          requires: <String>['browser driver or bridge'],
+        ),
+        CockpitSystemControlCapability(
           action: CockpitSystemControlAction.grantPermission,
           plane: CockpitPlaneKind.hostPlane,
           availability: CockpitSystemControlAvailability.blocked,
@@ -1911,6 +2002,15 @@ final class CockpitWebSystemControlAdapter
           strategy: 'browser.page.goto',
           requires: <String>['browser driver or bridge'],
           parameters: CockpitSystemControlParameterSets.url,
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.openSystemSettings,
+          plane: CockpitPlaneKind.hostPlane,
+          availability: CockpitSystemControlAvailability.unsupported,
+          strategy: 'browser-no-system-settings',
+          limitations: <String>[
+            'Browsers do not expose app-scoped system settings.',
+          ],
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.setAppearance,
@@ -1979,6 +2079,53 @@ final class CockpitWebSystemControlAdapter
           strategy: 'browser-no-system-status-bar',
           limitations: <String>[
             'Browsers do not expose an app-scoped system status bar override.',
+          ],
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.expandNotifications,
+          plane: CockpitPlaneKind.hostPlane,
+          availability: CockpitSystemControlAvailability.unsupported,
+          strategy: 'browser-no-notification-center',
+          limitations: <String>[
+            'Browsers do not expose the host notification center to page automation.',
+          ],
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.expandQuickSettings,
+          plane: CockpitPlaneKind.hostPlane,
+          availability: CockpitSystemControlAvailability.unsupported,
+          strategy: 'browser-no-quick-settings',
+          limitations: <String>[
+            'Browsers do not expose host quick settings to page automation.',
+          ],
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.collapseSystemUi,
+          plane: CockpitPlaneKind.hostPlane,
+          availability: CockpitSystemControlAvailability.unsupported,
+          strategy: 'browser-no-system-ui',
+          limitations: <String>[
+            'Browsers do not expose host system UI panels to page automation.',
+          ],
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.postNotification,
+          plane: CockpitPlaneKind.hostPlane,
+          availability: CockpitSystemControlAvailability.blocked,
+          strategy: 'browser-notification-api',
+          requires: <String>[
+            'browser driver or bridge',
+            'notification permission',
+          ],
+          parameters: CockpitSystemControlParameterSets.notification,
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.clearNotifications,
+          plane: CockpitPlaneKind.hostPlane,
+          availability: CockpitSystemControlAvailability.unsupported,
+          strategy: 'browser-no-notification-clear',
+          limitations: <String>[
+            'Browsers cannot clear delivered host notifications through page automation.',
           ],
         ),
         CockpitSystemControlCapability(

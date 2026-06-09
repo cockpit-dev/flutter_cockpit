@@ -325,6 +325,22 @@ void main() {
     },
   );
 
+  test(
+    'system control help distinguishes macOS app id from Windows/Linux process id targets',
+    () {
+      final readUsage = _helpForCommand(ReadSystemCapabilitiesCommand());
+      final runUsage = _helpForCommand(RunSystemActionCommand());
+
+      for (final usage in <String>[readUsage, runUsage]) {
+        expect(
+          usage,
+          contains('required for macOS host screenshots and recordings'),
+        );
+        expect(usage, contains('Windows/Linux process id for window-scoped'));
+      }
+    },
+  );
+
   test('every top-level command gives help text for custom options', () {
     for (final command in _topLevelCommands) {
       for (final option in command.argParser.options.entries) {

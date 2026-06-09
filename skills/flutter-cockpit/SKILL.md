@@ -13,7 +13,7 @@ Flutter Cockpit is an AI development loop, not a screenshot tool or command cata
 
 Command success is not product proof; it only proves command acceptance. Product correctness needs post-action state, errors, and evidence.
 
-These stages are decision gates, not a fixed command script or command quota. Satisfy each gate with the smallest fresh evidence available; skip irrelevant commands, reuse handles/recent reads, and choose CLI, MCP, app-first, target-first, persistent-session, or bundle flows according to the task.
+These stages are decision gates, not a fixed command script or command quota. Satisfy each gate with the smallest fresh evidence available; skip irrelevant commands, reuse recent reads, and choose CLI, MCP, app-first, target-first, persistent-session, or bundle flows.
 
 ## When To Use
 
@@ -22,47 +22,17 @@ These stages are decision gates, not a fixed command script or command quota. Sa
 
 ## First-Time App Wiring
 
-1. add `flutter_cockpit` to the Flutter app package and run `flutter pub get`; prefer `dev_dependencies` when only the cockpit entrypoint imports it
-2. keep the production entrypoint intact
-3. add `cockpit/main.dart` that imports the existing app root
-4. wrap the root with `FlutterCockpitApp` or `FlutterCockpit.runApp`
-5. keep Cockpit wiring under `cockpit/`; Do not add `flutter_cockpit` imports to production `lib/` code
-6. add `FlutterCockpit.navigatorObserver` only to a navigator created by the cockpit entrypoint or to a shared entrypoint the host explicitly accepts
-7. for app-owned routers such as `GoRouter`, keep route sync in `cockpit/` by listening to the router and calling `FlutterCockpit.setCurrentRouteName(...)`
-8. enable `CockpitRemoteSessionConfiguration.resolveFromEnvironment(...)`
-
-Minimal `cockpit/main.dart` shape:
-
-```dart
-import 'package:flutter/material.dart';
-import 'package:flutter_cockpit/flutter_cockpit_flutter.dart';
-
-void main() => runApp(buildCockpitDevelopmentApp());
-
-Widget buildCockpitDevelopmentApp() {
-  return FlutterCockpitApp(
-    config: FlutterCockpitConfig.production(
-      remoteSession: CockpitRemoteSessionConfiguration.resolveFromEnvironment(),
-    ),
-    child: MaterialApp(
-      navigatorObservers: <NavigatorObserver>[FlutterCockpit.navigatorObserver],
-      home: const ExistingAppRoot(),
-    ),
-  );
-}
-```
-
-This creates a cockpit-owned `MaterialApp`. If the app already owns `MaterialApp`, `GoRouter`, or another router, do not patch production `lib/`; wrap the existing root from `cockpit/main.dart` and keep any `setCurrentRouteName(...)` bridge in that cockpit layer.
+Add `flutter_cockpit`, add `cockpit/main.dart`, and keep the production entrypoint intact. Keep imports and route sync in `cockpit/`: wrap the app with `FlutterCockpitApp` or `FlutterCockpit.runApp`, register `FlutterCockpit.navigatorObserver` only in the cockpit-owned navigator, and enable `CockpitRemoteSessionConfiguration.resolveFromEnvironment(...)`. For app-owned routers such as `GoRouter`, listen in the cockpit layer and call `FlutterCockpit.setCurrentRouteName(...)`; do not patch production `lib/` unless the host explicitly accepts it.
 
 ## Stage Protocol
 
 1. **assess**: decide the smallest truthful surface. Default to app-first. If platform/device is unknown, run `list-targets` and use the returned platform, device id, and capability metadata. Do not guess ids, commands, payload keys, or locator types.
-2. **bootstrap**: launch once or reuse a handle. `launch-app` returns after readiness; never shell-background it. Reuse `.dart_tool/flutter_cockpit/latest_app.json`. Use target-first only for non-plain app surfaces; direct remote is an escape hatch.
-3. **baseline**: read before acting, unless a fresh equivalent read already answers the same question. Start with `read-app --profile minimal` or `read-target --profile minimal`; capture route, visible state, reachability, and current errors. For edits, prefer `lsp` or `analyze-files`.
-4. **execute**: edit, then prefer `hot-reload`; use `hot-restart` before clean stop/relaunch. Drive UI with `run-command` or short `run-batch`. For route-changing taps, put `locator` at command top level and include `expectedRouteName` in `parameters`, or add a wait. After timeout, `remoteUnavailable`, or failed non-idempotent batch, re-read minimal state and resume from the smallest remaining safe step; do not replay blindly.
-5. **observe**: read post-action state before judging. Use `read-app`, `read-errors --max-errors 10`, `inspect-ui`, `read-network`, or bundle summaries for the next missing fact. Before visible UI completion claims, run `capture-screenshot --name <proof-name>` when useful. For animation, transition, gesture, or bug repro, use framework recording first: `start-recording` -> act/reload -> `stop-recording`.
-6. **judge**: compare baseline, observed state, and requested outcome. Classify as `completed`, `needs_more_work`, `failed_with_evidence`, or `blocked_by_environment`. Do not open screenshots, videos, or raw artifacts unless the content is the unresolved question, the artifact looks wrong, or the user asks.
-7. **deliver**: for acceptance-facing work, run `validate-task` and report the smallest useful evidence paths or refs. `stop-app` is cleanup or recovery only, not a normal loop step.
+2. **bootstrap**: launch once or reuse a handle. `launch-app` returns after readiness; never shell-background it. Reuse `.dart_tool/flutter_cockpit/latest_app.json`. Use target-first only for non-plain app surfaces.
+3. **baseline**: read before acting, unless a fresh equivalent read already answers the same question. Start with `read-app --profile minimal` or `read-target --profile minimal`; capture route, visible state, reachability, and current errors.
+4. **execute**: edit, prefer `hot-reload`, and drive UI with `run-command` or short `run-batch`. For route-changing taps, include `expectedRouteName` in `parameters`. After timeout, `remoteUnavailable`, or failed non-idempotent batch, re-read minimal state and resume from the smallest remaining safe step; do not replay blindly.
+5. **observe**: read post-action state before judging. Use `read-app`, `read-errors --max-errors 10`, `inspect-ui`, `read-network`, or summaries. If focus blocks controls, run global `dismissKeyboard`. For visible UI claims, run `capture-screenshot --name <proof-name>` when useful. For animation, transition, gesture, or bug repro, use framework recording first.
+6. **judge**: compare baseline, observed state, and outcome. Do not open screenshots, videos, or raw artifacts unless the content is the unresolved question, the artifact looks wrong, or the user asks.
+7. **deliver**: for acceptance work, run `validate-task` and report the smallest useful evidence. `stop-app` is cleanup or recovery only, not a normal loop step.
 
 ## Fast Command Pack
 
@@ -114,12 +84,15 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools stop-recording
 Native/system or non-Flutter surface after Flutter semantics cannot answer it:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools read-system-capabilities --platform <platform> [--device-id <device-or-simulator-id>] [--app-id <app-id>] [--process-id <pid>]
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-system-action --platform <platform> [--device-id <device-or-simulator-id>] [--app-id <app-id>] [--process-id <pid>] --action <available-action>
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools read-system-capabilities [--platform <platform>] [--device-id <device-or-simulator-id>] [--app-id <app-id>] [--process-id <pid>] [--wda-url http://127.0.0.1:8100]
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-system-action [--platform <platform>] [--device-id <device-or-simulator-id>] [--app-id <app-id>] [--process-id <pid>] [--wda-url http://127.0.0.1:8100] --action <available-action>
 ```
 
 Use `parameters=[name*:type[range](allowed|values)]` for payloads; `*` means required. Do not guess payload keys.
-Desktop coordinates use screen pixels. Targeted actions need `--app-id` or `--process-id`. If an action is not `available`, follow its requirement/fallback or report `blocked_by_environment`.
+Both commands reuse `.dart_tool/flutter_cockpit/latest_app.json` by default, including platform, device id, process id, and platform app id when available. On iOS simulator, prefer deterministic `grantPermission`; use WebDriverAgent only when Flutter semantics and simctl cannot control native UI or dialogs. Cockpit probes `http://127.0.0.1:8100` unless `--wda-url` or `FLUTTER_COCKPIT_IOS_WDA_URL` is set; native iOS simulator actions stay blocked unless WDA is reachable.
+For `dismissSystemDialog`, use `--decision accept` for the primary action or `--decision dismiss` for the cancel/deny action; omit it to accept.
+Android Emulator uses adb and iOS Simulator uses simctl/WDA; trust only actions reported as `available`, and keep unsupported simulator features blocked rather than faking automation.
+Desktop coordinates use screen pixels. For desktop target actions, macOS host screenshots/recordings need `--app-id`; Windows/Linux can use `--app-id` or `--process-id`. If an action is not `available`, follow its requirement/fallback or report `blocked_by_environment`.
 
 Acceptance, release readiness, or artifact-backed handoff:
 
@@ -130,12 +103,12 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools validate-task --confi
 ## Development Defaults
 
 - Fast path for most edits: reuse or launch app -> `read-app --profile minimal` -> edit -> `hot-reload` -> smallest post-action read -> `read-errors --max-errors 10` -> one screenshot only for visible UI claims.
-- Use `minimal -> standard -> inspect -> evidence`; escalate only when the current layer cannot answer the next question.
-- Be flexible on commands, strict on proof. A tiny edit may only need analyze, hot reload, minimal read, and errors; acceptance may need batch, recording, and validation.
+- Use `minimal -> standard -> inspect -> evidence`; escalate only when needed.
+- Be flexible on commands, strict on proof.
 - Every command should reduce uncertainty. Do not run recording, evidence profiles, bundle validation, or raw artifact reads just because they exist.
 - Keep platform and device placeholders until `list-targets` returns real values; read capabilities before choosing shell, recording, browser, or native paths.
 - Prefer file inputs: `--command-file`, `--commands-file`, and config JSON.
-- Safe command types: `tap`, `enterText`, `assertText`, `waitForUiIdle`, `scrollUntilVisible`, `captureScreenshot`.
+- Safe commands: `tap`, `enterText`, `dismissKeyboard`, `assertText`, `scrollUntilVisible`.
 - Safe locator keys: `text`, `tooltip`, `semanticId`, `type`, `ancestor`, `index`, `fallbacks`. Do not set `type: Text` for button labels.
 - Keep the app alive while more edits are likely. Stop only when the user asks, the session is stuck, `hot-restart` cannot recover, or a clean rebuild/relaunch is required.
 
@@ -150,7 +123,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools validate-task --confi
 ## Other Surfaces
 
 - Target-first: `launch-target --target-json <file>` -> `read-target --profile minimal` -> `inspect-surface` only when needed.
-- Native/System Control Plane: `read-system-capabilities` first, then `run-system-action` only for actions reported as `available` using the returned `parameters` contract; always read post-action state after system actions.
+- Native/System Control Plane: `read-system-capabilities` first, then `run-system-action` only for actions reported as `available` using the returned `parameters` contract; reuse the current app handle when present; always read post-action state after system actions.
 - Persistent development: `launch-development-session` -> `collect-development-probe --profile quick` -> edit -> `reload-development-session --mode hot_reload` -> collect or compare probe. Use the app handle for screenshots and recording.
 - MCP is equivalent to CLI when the host provides it. Use roots-aware MCP for adjacent packages, persisted app discovery, or task-bundle summary reads.
 - Code-side facts before broad tools: `grep-package-uris`, `read-package-uris`, `pub`, `lsp`, `analyze-files`, `run-tests`.

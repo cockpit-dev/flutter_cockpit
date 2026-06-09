@@ -18,11 +18,13 @@ final class CockpitSystemControlTargetContext {
     this.deviceId,
     this.appId,
     this.processId,
+    this.metadata = const <String, Object?>{},
   });
 
   final String? deviceId;
   final String? appId;
   final int? processId;
+  final Map<String, Object?> metadata;
 
   bool get hasWindowTarget =>
       cockpitHasSystemControlWindowTarget(appId: appId, processId: processId);

@@ -46,6 +46,13 @@ void main() {
         CockpitSystemControlAction.setOrientation,
         CockpitSystemControlAction.setNetworkSpeed,
         CockpitSystemControlAction.setNetworkDelay,
+        CockpitSystemControlAction.pressVolumeUp,
+        CockpitSystemControlAction.dismissKeyboard,
+        CockpitSystemControlAction.expandNotifications,
+        CockpitSystemControlAction.expandQuickSettings,
+        CockpitSystemControlAction.collapseSystemUi,
+        CockpitSystemControlAction.postNotification,
+        CockpitSystemControlAction.clearNotifications,
         CockpitSystemControlAction.readProcessList,
       ]),
     );
@@ -145,11 +152,13 @@ void main() {
         CockpitSystemControlAction.activateWindow,
         CockpitSystemControlAction.grantPermission,
         CockpitSystemControlAction.openUrl,
+        CockpitSystemControlAction.openSystemSettings,
         CockpitSystemControlAction.setAppearance,
         CockpitSystemControlAction.setContentSize,
         CockpitSystemControlAction.setLocation,
         CockpitSystemControlAction.setStatusBar,
         CockpitSystemControlAction.clearStatusBar,
+        CockpitSystemControlAction.postNotification,
         CockpitSystemControlAction.setClipboard,
         CockpitSystemControlAction.getClipboard,
         CockpitSystemControlAction.terminateApp,
@@ -165,12 +174,17 @@ void main() {
       result.profile.blockedActions,
       containsAll(<CockpitSystemControlAction>[
         CockpitSystemControlAction.tap,
+        CockpitSystemControlAction.pressHome,
         CockpitSystemControlAction.typeText,
         CockpitSystemControlAction.pressKey,
         CockpitSystemControlAction.setOrientation,
         CockpitSystemControlAction.setNetworkSpeed,
         CockpitSystemControlAction.setNetworkDelay,
         CockpitSystemControlAction.dismissSystemDialog,
+        CockpitSystemControlAction.dismissKeyboard,
+        CockpitSystemControlAction.expandNotifications,
+        CockpitSystemControlAction.expandQuickSettings,
+        CockpitSystemControlAction.collapseSystemUi,
         CockpitSystemControlAction.readUiTree,
       ]),
     );
@@ -178,7 +192,10 @@ void main() {
       result.profile.unsupportedActions,
       containsAll(<CockpitSystemControlAction>[
         CockpitSystemControlAction.pressBack,
-        CockpitSystemControlAction.pressHome,
+        CockpitSystemControlAction.pressVolumeUp,
+        CockpitSystemControlAction.pressVolumeDown,
+        CockpitSystemControlAction.pressVolumeMute,
+        CockpitSystemControlAction.clearNotifications,
       ]),
     );
   });
@@ -202,6 +219,118 @@ void main() {
       result.profile.availableActions,
       contains(CockpitSystemControlAction.readSystemState),
     );
+  });
+
+  test(
+    'ios simulator profile enables native actions when a WebDriverAgent endpoint is supplied',
+    () async {
+      final service = CockpitSystemControlService(
+        iosWdaEndpointProbe: (_, {required timeout}) async => true,
+      );
+
+      final result = await service.describe(
+        const CockpitSystemControlDescribeRequest(
+          platform: 'ios',
+          deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+          metadata: <String, Object?>{'wdaUrl': 'http://127.0.0.1:8100'},
+        ),
+      );
+
+      expect(
+        result.profile.availableActions,
+        containsAll(<CockpitSystemControlAction>[
+          CockpitSystemControlAction.tap,
+          CockpitSystemControlAction.drag,
+          CockpitSystemControlAction.typeText,
+          CockpitSystemControlAction.pressKey,
+          CockpitSystemControlAction.pressHome,
+          CockpitSystemControlAction.dismissSystemDialog,
+          CockpitSystemControlAction.dismissKeyboard,
+          CockpitSystemControlAction.collapseSystemUi,
+          CockpitSystemControlAction.setOrientation,
+          CockpitSystemControlAction.readUiTree,
+        ]),
+      );
+      expect(
+        result.profile.capabilityFor(CockpitSystemControlAction.tap)?.strategy,
+        'webdriveragent.w3c.actions.tap',
+      );
+    },
+  );
+
+  test(
+    'ios simulator keeps native actions blocked when WebDriverAgent is unreachable',
+    () async {
+      final service = CockpitSystemControlService(
+        iosWdaEndpointProbe: (_, {required timeout}) async => false,
+      );
+
+      final result = await service.describe(
+        const CockpitSystemControlDescribeRequest(
+          platform: 'ios',
+          deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+          metadata: <String, Object?>{'wdaUrl': 'http://127.0.0.1:8100'},
+        ),
+      );
+
+      expect(
+        result.profile.blockedActions,
+        contains(CockpitSystemControlAction.tap),
+      );
+      expect(
+        result.profile.capabilityFor(CockpitSystemControlAction.tap)?.requires,
+        contains('reachable WebDriverAgent endpoint'),
+      );
+    },
+  );
+
+  test(
+    'ios simulator auto-discovers a reachable local WebDriverAgent endpoint',
+    () async {
+      final probedUris = <Uri>[];
+      final service = CockpitSystemControlService(
+        iosWdaEndpointProbe: (uri, {required timeout}) async {
+          probedUris.add(uri);
+          return uri == Uri.parse('http://127.0.0.1:8100');
+        },
+      );
+
+      final result = await service.describe(
+        const CockpitSystemControlDescribeRequest(
+          platform: 'ios',
+          deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+        ),
+      );
+
+      expect(probedUris, contains(Uri.parse('http://127.0.0.1:8100')));
+      expect(
+        result.profile.availableActions,
+        contains(CockpitSystemControlAction.dismissSystemDialog),
+      );
+      expect(
+        result.profile.capabilityFor(CockpitSystemControlAction.tap)?.requires,
+        contains('WebDriverAgent endpoint'),
+      );
+    },
+  );
+
+  test('WebDriverAgent auto-discovery only runs for iOS', () async {
+    var probeCount = 0;
+    final service = CockpitSystemControlService(
+      iosWdaEndpointProbe: (_, {required timeout}) async {
+        probeCount += 1;
+        return true;
+      },
+    );
+
+    await service.describe(
+      const CockpitSystemControlDescribeRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+      ),
+    );
+
+    expect(probeCount, 0);
   });
 
   test('unknown platform reports unsupported capability profile', () async {
@@ -371,6 +500,18 @@ void main() {
         macosProcessOnly.profile.blockedActions,
         contains(CockpitSystemControlAction.captureScreenshot),
       );
+      expect(
+        macosProcessOnly.profile
+            .capabilityFor(CockpitSystemControlAction.captureScreenshot)
+            ?.requires,
+        contains('app id'),
+      );
+      expect(
+        macosProcessOnly.profile
+            .capabilityFor(CockpitSystemControlAction.captureScreenshot)
+            ?.requires,
+        isNot(contains('app id or process id')),
+      );
 
       final windowsProcessOnly = await service.describe(
         const CockpitSystemControlDescribeRequest(
@@ -441,6 +582,7 @@ void main() {
           deviceId: entry.deviceId,
           appId:
               entry.platform == 'macos' ||
+                  entry.platform == 'ios' ||
                   entry.platform == 'windows' ||
                   entry.platform == 'linux'
               ? 'dev.cockpit.example'
@@ -460,6 +602,7 @@ void main() {
           deviceId: entry.deviceId,
           appId:
               entry.platform == 'macos' ||
+                  entry.platform == 'ios' ||
                   entry.platform == 'windows' ||
                   entry.platform == 'linux'
               ? 'dev.cockpit.example'
@@ -559,6 +702,14 @@ void main() {
     final ios = registry
         .resolve('ios')
         .describe(const CockpitSystemControlTargetContext(deviceId: 'booted'));
+    expect(
+      _parameter(
+        ios,
+        CockpitSystemControlAction.dismissSystemDialog,
+        'decision',
+      )?.allowedValues,
+      <String>['accept', 'dismiss'],
+    );
     expect(
       _parameter(
         ios,
@@ -738,8 +889,13 @@ String _sampleStringFor(String parameterName) {
     'text' => 'hello',
     'key' => 'enter',
     'url' => 'https://example.com',
+    'settingsAction' => 'android.settings.SETTINGS',
     'appId' || 'packageId' => 'dev.cockpit.example',
     'permission' => 'android.permission.CAMERA',
+    'title' => 'Download complete',
+    'body' => 'Model is ready',
+    'tag' => 'model-download',
+    'payloadJson' => '{"aps":{"alert":"Ready"}}',
     'time' => '09:41',
     'operatorName' => 'Cockpit',
     'outputPath' => '/tmp/cockpit-system-screenshot.png',
@@ -784,6 +940,9 @@ Map<String, Object?> _fallbackParametersFor(CockpitSystemControlAction action) {
     CockpitSystemControlAction.openUrl => const <String, Object?>{
       'url': 'https://example.com',
     },
+    CockpitSystemControlAction.openSystemSettings => const <String, Object?>{
+      'settingsAction': 'android.settings.SETTINGS',
+    },
     CockpitSystemControlAction.setAppearance => const <String, Object?>{
       'appearance': 'dark',
     },
@@ -811,6 +970,11 @@ Map<String, Object?> _fallbackParametersFor(CockpitSystemControlAction action) {
       'batteryState': 'charged',
       'batteryLevel': 100,
     },
+    CockpitSystemControlAction.postNotification => const <String, Object?>{
+      'title': 'Download complete',
+      'body': 'Model is ready',
+      'tag': 'model-download',
+    },
     CockpitSystemControlAction.captureScreenshot => const <String, Object?>{
       'outputPath': '/tmp/cockpit-system-screenshot.png',
     },
@@ -823,7 +987,15 @@ Map<String, Object?> _fallbackParametersFor(CockpitSystemControlAction action) {
     },
     CockpitSystemControlAction.pressBack ||
     CockpitSystemControlAction.pressHome ||
+    CockpitSystemControlAction.pressVolumeUp ||
+    CockpitSystemControlAction.pressVolumeDown ||
+    CockpitSystemControlAction.pressVolumeMute ||
     CockpitSystemControlAction.dismissSystemDialog ||
+    CockpitSystemControlAction.dismissKeyboard ||
+    CockpitSystemControlAction.expandNotifications ||
+    CockpitSystemControlAction.expandQuickSettings ||
+    CockpitSystemControlAction.collapseSystemUi ||
+    CockpitSystemControlAction.clearNotifications ||
     CockpitSystemControlAction.readUiTree ||
     CockpitSystemControlAction.readProcessList ||
     CockpitSystemControlAction.readWindows ||

@@ -302,6 +302,22 @@ void main() {
     expect(cliReference, contains('--device-id <device-id-from-list-targets>'));
     expect(cliReference, contains('parameters=[x*:integer'));
     expect(cliReference, contains('capabilities[].parameters[]'));
+    expect(
+      cliReference,
+      contains('macOS host screenshots and\nrecordings need the app bundle id'),
+    );
+    expect(
+      cliReference,
+      contains(
+        'Windows and Linux can target either the app\nid or a process id from launch metadata',
+      ),
+    );
+    expect(cliReference, contains('--platform windows'));
+    expect(cliReference, contains('--process-id <pid>'));
+    expect(
+      cliReference,
+      contains('For desktop system recording, keep the same target context'),
+    );
     expect(cliReference, isNot(contains('--output-json')));
     expect(cliReference, isNot(contains('--output-ai')));
 

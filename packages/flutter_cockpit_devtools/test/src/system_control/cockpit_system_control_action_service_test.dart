@@ -6,7 +6,9 @@ import 'package:flutter_cockpit_devtools/src/infrastructure/cockpit_process_mana
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:flutter_cockpit_devtools/src/adapters/cockpit_capture_adapter.dart';
 import 'package:flutter_cockpit_devtools/src/adapters/cockpit_recording_adapter.dart';
+import 'package:flutter_cockpit_devtools/src/system_control/cockpit_ios_webdriver_agent_client.dart';
 import 'package:flutter_cockpit_devtools/src/system_control/cockpit_system_control_action_service.dart';
+import 'package:flutter_cockpit_devtools/src/system_control/cockpit_system_control_service.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -76,6 +78,127 @@ void main() {
       expect(processManager.starts, isEmpty);
     },
   );
+
+  test('ios simulator native tap executes through WebDriverAgent', () async {
+    final processManager = _FakeProcessManager();
+    CockpitIosWdaCommand? capturedCommand;
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+      systemControlService: CockpitSystemControlService(
+        iosWdaEndpointProbe: (_, {required timeout}) async => true,
+      ),
+      iosWdaRunner: (command, {required timeout}) async {
+        capturedCommand = command;
+        return 'tap x=42 y=88';
+      },
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'ios',
+        deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+        metadata: <String, Object?>{'wdaUrl': 'http://127.0.0.1:8100'},
+        action: CockpitSystemControlAction.tap,
+        parameters: <String, Object?>{'x': 42, 'y': 88},
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.availability, CockpitSystemControlAvailability.available);
+    expect(result.stdout, 'tap x=42 y=88');
+    expect(capturedCommand?.baseUri, Uri.parse('http://127.0.0.1:8100'));
+    expect(capturedCommand?.action, CockpitIosWdaAction.tap);
+    expect(capturedCommand?.parameters['x'], 42);
+    expect(processManager.starts, isEmpty);
+  });
+
+  test(
+    'ios simulator native action uses auto-discovered WebDriverAgent endpoint',
+    () async {
+      final processManager = _FakeProcessManager();
+      CockpitIosWdaCommand? capturedCommand;
+      final service = CockpitSystemControlActionService(
+        processManager: processManager,
+        systemControlService: CockpitSystemControlService(
+          iosWdaEndpointProbe: (uri, {required timeout}) async =>
+              uri == Uri.parse('http://127.0.0.1:8100'),
+        ),
+        iosWdaRunner: (command, {required timeout}) async {
+          capturedCommand = command;
+          return 'dismissSystemDialog mode=accept';
+        },
+      );
+
+      final result = await service.run(
+        const CockpitSystemControlActionRequest(
+          platform: 'ios',
+          deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+          action: CockpitSystemControlAction.dismissSystemDialog,
+          parameters: <String, Object?>{'decision': 'dismiss'},
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(result.availability, CockpitSystemControlAvailability.available);
+      expect(capturedCommand?.baseUri, Uri.parse('http://127.0.0.1:8100'));
+      expect(capturedCommand?.action, CockpitIosWdaAction.dismissSystemDialog);
+      expect(capturedCommand?.parameters['decision'], 'dismiss');
+      expect(processManager.starts, isEmpty);
+    },
+  );
+
+  test(
+    'ios simulator dismissKeyboard executes through WebDriverAgent',
+    () async {
+      CockpitIosWdaCommand? capturedCommand;
+      final service = CockpitSystemControlActionService(
+        systemControlService: CockpitSystemControlService(
+          iosWdaEndpointProbe: (_, {required timeout}) async => true,
+        ),
+        iosWdaRunner: (command, {required timeout}) async {
+          capturedCommand = command;
+          return 'dismissKeyboard';
+        },
+      );
+
+      final result = await service.run(
+        const CockpitSystemControlActionRequest(
+          platform: 'ios',
+          deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+          metadata: <String, Object?>{'wdaUrl': 'http://127.0.0.1:8100'},
+          action: CockpitSystemControlAction.dismissKeyboard,
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(capturedCommand?.action, CockpitIosWdaAction.dismissKeyboard);
+    },
+  );
+
+  test('ios simulator pressHome executes through WebDriverAgent', () async {
+    CockpitIosWdaCommand? capturedCommand;
+    final service = CockpitSystemControlActionService(
+      systemControlService: CockpitSystemControlService(
+        iosWdaEndpointProbe: (_, {required timeout}) async => true,
+      ),
+      iosWdaRunner: (command, {required timeout}) async {
+        capturedCommand = command;
+        return 'pressHome';
+      },
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'ios',
+        deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+        metadata: <String, Object?>{'wdaUrl': 'http://127.0.0.1:8100'},
+        action: CockpitSystemControlAction.pressHome,
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(capturedCommand?.action, CockpitIosWdaAction.pressHome);
+  });
 
   test('missing required parameters fail before spawning process', () async {
     final processManager = _FakeProcessManager();
@@ -802,6 +925,194 @@ void main() {
     ]);
   });
 
+  test('android pressVolumeUp sends the hardware volume key', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        action: CockpitSystemControlAction.pressVolumeUp,
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command, <String>[
+      'adb',
+      '-s',
+      'emulator-5554',
+      'shell',
+      'input',
+      'keyevent',
+      'KEYCODE_VOLUME_UP',
+    ]);
+  });
+
+  test(
+    'android dismissSystemDialog accepts common system permission buttons',
+    () async {
+      final processManager = _FakeProcessManager();
+      final service = CockpitSystemControlActionService(
+        processManager: processManager,
+      );
+
+      final result = await service.run(
+        const CockpitSystemControlActionRequest(
+          platform: 'android',
+          deviceId: 'emulator-5554',
+          action: CockpitSystemControlAction.dismissSystemDialog,
+          parameters: <String, Object?>{'decision': 'accept'},
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(result.command.take(5), <String>[
+        'adb',
+        '-s',
+        'emulator-5554',
+        'shell',
+        'sh',
+      ]);
+      final script = result.command.last;
+      expect(script, contains('uiautomator dump'));
+      expect(
+        script,
+        contains('com.android.permissioncontroller:id/permission_allow_button'),
+      );
+      expect(script, contains(r'input tap "$x" "$y"'));
+    },
+  );
+
+  test(
+    'android dismissSystemDialog dismisses or backs out of dialogs',
+    () async {
+      final processManager = _FakeProcessManager();
+      final service = CockpitSystemControlActionService(
+        processManager: processManager,
+      );
+
+      final result = await service.run(
+        const CockpitSystemControlActionRequest(
+          platform: 'android',
+          deviceId: 'emulator-5554',
+          action: CockpitSystemControlAction.dismissSystemDialog,
+          parameters: <String, Object?>{'decision': 'dismiss'},
+        ),
+      );
+
+      expect(result.success, isTrue);
+      final script = result.command.last;
+      expect(
+        script,
+        contains('com.android.permissioncontroller:id/permission_deny_button'),
+      );
+      expect(script, contains('input keyevent KEYCODE_BACK'));
+    },
+  );
+
+  test('android dismissSystemDialog rejects invalid decisions', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        action: CockpitSystemControlAction.dismissSystemDialog,
+        parameters: <String, Object?>{'decision': 'maybe'},
+      ),
+    );
+
+    expect(result.success, isFalse);
+    expect(result.errorCode, 'invalidSystemActionParameter');
+    expect(processManager.starts, isEmpty);
+  });
+
+  test('android expandNotifications opens the notification shade', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        action: CockpitSystemControlAction.expandNotifications,
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command, <String>[
+      'adb',
+      '-s',
+      'emulator-5554',
+      'shell',
+      'cmd',
+      'statusbar',
+      'expand-notifications',
+    ]);
+  });
+
+  test('android postNotification uses cmd notification post', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        action: CockpitSystemControlAction.postNotification,
+        parameters: <String, Object?>{
+          'title': 'Download complete',
+          'body': 'Model is ready',
+          'tag': 'model-download',
+        },
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command, <String>[
+      'adb',
+      '-s',
+      'emulator-5554',
+      'shell',
+      'cmd',
+      'notification',
+      'post',
+      '--title',
+      'Download complete',
+      'model-download',
+      'Model is ready',
+    ]);
+  });
+
+  test('android postNotification rejects empty payloads', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        action: CockpitSystemControlAction.postNotification,
+      ),
+    );
+
+    expect(result.success, isFalse);
+    expect(result.errorCode, 'missingSystemActionParameter');
+    expect(processManager.starts, isEmpty);
+  });
+
   test('android setLocation sends emulator geo fix in lon lat order', () async {
     final processManager = _FakeProcessManager();
     final service = CockpitSystemControlActionService(
@@ -1066,6 +1377,11 @@ void main() {
     );
 
     expect(result.success, isTrue);
+    expect(result.recommendedNextStep, 'relaunchAppThenReadState');
+    expect(
+      result.limitations,
+      contains('simctl privacy may terminate the app'),
+    );
     expect(result.command, <String>[
       'xcrun',
       'simctl',
@@ -1280,6 +1596,64 @@ void main() {
       '37.3349,-122.009',
     ]);
   });
+
+  test('ios simulator openSystemSettings uses App-Prefs by default', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'ios',
+        deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+        action: CockpitSystemControlAction.openSystemSettings,
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command, <String>[
+      'xcrun',
+      'simctl',
+      'openurl',
+      '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+      'App-Prefs:',
+    ]);
+  });
+
+  test(
+    'ios simulator postNotification pipes APNS payload to simctl push',
+    () async {
+      final processManager = _FakeProcessManager();
+      final service = CockpitSystemControlActionService(
+        processManager: processManager,
+      );
+
+      final result = await service.run(
+        const CockpitSystemControlActionRequest(
+          platform: 'ios',
+          deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+          appId: 'dev.cockpit.example',
+          action: CockpitSystemControlAction.postNotification,
+          parameters: <String, Object?>{
+            'title': 'Download complete',
+            'body': 'Model is ready',
+          },
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(result.command, <String>[
+        'sh',
+        '-c',
+        r'printf "%s" "$3" | xcrun simctl push "$1" "$2" -',
+        'flutter_cockpit_ios_push',
+        '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+        'dev.cockpit.example',
+        '{"aps":{"alert":{"title":"Download complete","body":"Model is ready"}}}',
+      ]);
+    },
+  );
 
   test(
     'ios simulator setStatusBar overrides deterministic status data',
