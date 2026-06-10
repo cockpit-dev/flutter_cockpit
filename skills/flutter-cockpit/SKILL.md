@@ -7,30 +7,30 @@ description: Use when a Flutter app or adjacent browser, desktop, device, or hos
 
 ## Overview
 
-Flutter Cockpit is an AI development loop, not a screenshot tool or command catalog. Default to rapid development validation: prove the current change with the cheapest live loop that answers the user, then stop. For runtime claims, follow:
+Flutter Cockpit is an AI loop, not a screenshot tool or command catalog. Default to rapid development validation: prove the current change with the cheapest live loop that answers the user, then stop. Claims follow:
 
 `assess -> bootstrap -> baseline -> execute -> observe -> judge -> deliver`
 
-Command success is not product proof; it only proves command acceptance. Product correctness needs post-action state, errors, and evidence.
+Command success is not product proof; prove state, errors, and evidence.
 
-These stages are decision gates, not a fixed command script or command quota. Satisfy each gate with the smallest fresh evidence available; skip irrelevant commands, reuse recent reads, and choose CLI, MCP, app-first, target-first, persistent-session, or bundle flows.
+These stages are decision gates, not a fixed command script or command quota. Satisfy each gate with the smallest fresh evidence available; skip irrelevant commands; choose CLI, MCP, app-first, target-first, persistent-session, or bundle flows.
 
 ## When To Use
 
 - Live UI, route, interaction, network, log, screenshot, recording, or acceptance proof is needed.
-- A Flutter app, web surface, desktop window, simulator, emulator, device, or host surface must be controlled.
+- A Flutter app, web surface, desktop window, simulator, emulator, device, or host needs control.
 
 ## First-Time App Wiring
 
-Add `flutter_cockpit`, add `cockpit/main.dart`, and keep the production entrypoint intact. Keep imports and route sync in `cockpit/`: wrap the app with `FlutterCockpitApp` or `FlutterCockpit.runApp`, register `FlutterCockpit.navigatorObserver` only in the cockpit-owned navigator, and enable `CockpitRemoteSessionConfiguration.resolveFromEnvironment(...)`. For app-owned routers such as `GoRouter`, listen in the cockpit layer and call `FlutterCockpit.setCurrentRouteName(...)`; do not patch production `lib/` unless the host explicitly accepts it.
+Add `flutter_cockpit`, add `cockpit/main.dart`, and keep the production entrypoint intact. In `cockpit/`, wrap with `FlutterCockpitApp` or `FlutterCockpit.runApp`, register `FlutterCockpit.navigatorObserver` only in the cockpit-owned navigator, and enable `CockpitRemoteSessionConfiguration.resolveFromEnvironment(...)`. For app-owned routers such as `GoRouter`, listen in cockpit and call `FlutterCockpit.setCurrentRouteName(...)`; do not patch production `lib/` unless accepted.
 
 ## Stage Protocol
 
-1. **assess**: decide the smallest truthful surface. Default to app-first. If platform/device is unknown, run `list-targets` and use the returned platform, device id, and capability metadata. Do not guess ids, commands, payload keys, or locator types.
-2. **bootstrap**: launch once or reuse a handle. `launch-app` returns after readiness; never shell-background it. Reuse `.dart_tool/flutter_cockpit/latest_app.json`. Use target-first only for non-plain app surfaces.
-3. **baseline**: read before acting, unless a fresh equivalent read already answers the same question. Start with `read-app --profile minimal` or `read-target --profile minimal`; capture route, visible state, reachability, and current errors.
-4. **execute**: edit, prefer `hot-reload`, and drive UI with `run-command` or short `run-batch`. For route-changing taps, include `expectedRouteName` in `parameters`. After timeout, `remoteUnavailable`, or failed non-idempotent batch, re-read minimal state and resume from the smallest remaining safe step; do not replay blindly.
-5. **observe**: read post-action state before judging. Use `read-app`, `read-errors --max-errors 10`, `inspect-ui`, `read-network`, or summaries. If focus blocks controls, run global `dismissKeyboard`. For visible UI claims, run `capture-screenshot --name <proof-name>` when useful. For animation, transition, gesture, or bug repro, use framework recording first.
+1. **assess**: choose the smallest truthful surface. Default to app-first. If platform/device is unknown, run `list-targets` and use the returned platform, device id, and capability metadata. Do not guess ids, commands, payload keys, or locator types.
+2. **bootstrap**: launch once or reuse a handle. `launch-app` returns after readiness; never shell-background it. Reuse `.dart_tool/flutter_cockpit/latest_app.json`. Use target-first only for non-plain surfaces.
+3. **baseline**: read before acting, unless a fresh equivalent read already answers the same question. Start with `read-app --profile minimal` or `read-target --profile minimal`; capture route, visible state, reachability, and errors.
+4. **execute**: edit, prefer `hot-reload`, and drive UI with `run-command` or short `run-batch`. For route changes, include `expectedRouteName`. After timeout, `remoteUnavailable`, or failed non-idempotent batch, re-read minimal state and resume from the smallest remaining safe step; do not replay blindly.
+5. **observe**: read post-action state before judging. Use `read-app`, `read-errors --max-errors 10`, `inspect-ui`, or `read-network`. If focus blocks controls, run `dismissKeyboard`. For visible UI claims, run `capture-screenshot --name <proof-name>`. For animation, transition, gesture, or bug repro, use framework recording first.
 6. **judge**: compare baseline, observed state, and outcome. Do not open screenshots, videos, or raw artifacts unless the content is the unresolved question, the artifact looks wrong, or the user asks.
 7. **deliver**: for acceptance work, run `validate-task` and report the smallest useful evidence. `stop-app` is cleanup or recovery only, not a normal loop step.
 
@@ -88,14 +88,14 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools read-system-capabilit
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-system-action [--platform <platform>] [--device-id <device-or-simulator-id>] [--app-id <app-id>] [--process-id <pid>] [--wda-url http://127.0.0.1:8100] --action <available-action>
 ```
 
-Use `parameters=[name*:type[range](allowed|values)]` for payloads; `*` means required. Do not guess payload keys.
-Both commands reuse `.dart_tool/flutter_cockpit/latest_app.json` by default, including platform, device id, process id, and platform app id when available. On iOS simulator, prefer deterministic `grantPermission`; use WebDriverAgent only when Flutter semantics and simctl cannot control native UI, system dialogs, keyboard/focus, orientation, notification taps, Notification Center, or Control Center. Cockpit probes `http://127.0.0.1:8100` unless `--wda-url` or `FLUTTER_COCKPIT_IOS_WDA_URL` is set; WDA-backed iOS simulator actions stay blocked unless WDA is reachable.
-If `run-system-action` returns `invalidSystemActionParameter` or `missingSystemActionParameter`, do not retry with guessed aliases. Re-run `read-system-capabilities`, copy the declared lower-camel-case parameter names, required markers, allowed values, and numeric ranges, then send only that payload.
+Use `parameters=[name*:type[range](allowed|values)]`; `*` means required. Do not guess payload keys.
+Both commands reuse `.dart_tool/flutter_cockpit/latest_app.json` by default. On iOS simulator, prefer `grantPermission`; use WebDriverAgent only when Flutter semantics and simctl cannot control native UI, system dialogs, keyboard/focus, orientation, notification taps, Notification Center, or Control Center. Cockpit probes `http://127.0.0.1:8100` unless configured; WDA actions stay blocked unless reachable.
+If `run-system-action` returns `invalidSystemActionParameter` or `missingSystemActionParameter`, re-run `read-system-capabilities`, copy the declared lower-camel-case parameter names, required markers, allowed values, and numeric ranges, then send only that payload.
 For `dismissSystemDialog`, use `--decision accept` for the primary action or `--decision dismiss` for the cancel/deny action; omit it to accept.
-For native blockers that stop app-first validation, prefer `resolveBlockers` over hand-rolled coordinate retries: it handles common system dialogs, keyboard dismissal, system UI collapse, and app recovery when the action is reported as `available`. Use `preparePermissions` to batch grant, revoke, or reset declared app permissions before a flow. Use `stabilizeForScreenshot` before visual proof when keyboard, system UI, orientation, appearance, or status bar state could make screenshots noisy. Use `readFocusState` when the question is whether the keyboard/focus is blocking a control. Use `tapNotification` with `title`, `body`, `tag`, or `text` to validate delivered notification taps, then read app state and errors.
+For native blockers, prefer `resolveBlockers` when available. Use `preparePermissions`, `stabilizeForScreenshot`, `readFocusState`, and `tapNotification` with `title`, `body`, `tag`, or `text`; then read app state and errors.
 Use `actionGroups` in JSON output to find permission, notification, file, media, evidence, device-state, and inspection actions without hard-coding platform lists.
-Android Emulator uses adb for app install/uninstall/data clear, permission grant/revoke/reset, system settings, volume keys, orientation, emulator networking, notifications, notification taps, app recovery, blocker resolution, file push/pull, media import, screenshots, recording, UI tree, focus/IME state, device info, notification state, and bounded shell.
-iOS Simulator uses simctl for app install/uninstall/data clear, privacy grant/revoke/reset, status bar, pasteboard, app-container file transfer, media import, app recovery, screenshots, recording, device info, and bounded `simctl spawn`; WDA covers native UI, keyboard/focus state, orientation, Notification Center, Control Center, notification taps, and system dialog/blocker control. iOS simulator volume keys and clearing delivered notifications remain unsupported by public stable APIs, so keep them blocked instead of faking automation.
+Android Emulator uses adb for input, lifecycle, permissions, settings, volume, orientation, emulator networking, notifications/taps, recovery, blockers, files/media, evidence, UI tree, focus/IME, state, and bounded shell.
+iOS Simulator uses simctl for lifecycle, privacy, status bar, pasteboard, app-container files, media, recovery, evidence, device info, and bounded `simctl spawn`; WDA covers native UI, keyboard/focus state, orientation, Notification Center, Control Center, notification taps, and system dialog/blocker control. iOS simulator volume keys and clearing delivered notifications remain unsupported by public stable APIs, so keep them blocked instead of faking automation.
 `activateWindow` is non-destructive on iOS Simulator and should not terminate an existing Flutter debug or hot-reload session; use `terminateApp` only when a restart is intentional.
 Trust only actions reported as `available`, and keep unsupported simulator features blocked rather than faking automation.
 Desktop coordinates use screen pixels. For desktop target actions, macOS host screenshots/recordings need `--app-id`; Windows/Linux can use `--app-id` or `--process-id`. If an action is not `available`, follow its requirement/fallback or report `blocked_by_environment`.
@@ -108,14 +108,14 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools validate-task --confi
 
 ## Development Defaults
 
-- Fast path for most edits: reuse or launch app -> `read-app --profile minimal` -> edit -> `hot-reload` -> smallest post-action read -> `read-errors --max-errors 10` -> one screenshot only for visible UI claims.
+- Fast path for most edits: reuse or launch app -> `read-app --profile minimal` -> edit -> `hot-reload` -> smallest post-action read -> `read-errors --max-errors 10` -> screenshot only for visible UI claims.
 - Use `minimal -> standard -> inspect -> evidence`; escalate only when needed.
 - Be flexible on commands, strict on proof.
 - Every command should reduce uncertainty. Do not run recording, evidence profiles, bundle validation, or raw artifact reads just because they exist.
 - Keep platform and device placeholders until `list-targets` returns real values; read capabilities before choosing shell, recording, browser, or native paths.
 - Prefer file inputs: `--command-file`, `--commands-file`, and config JSON.
 - Safe commands: `tap`, `enterText`, `dismissKeyboard`, `assertText`, `scrollUntilVisible`.
-- Safe locator keys: `text`, `tooltip`, `semanticId`, `type`, `ancestor`, `index`, `fallbacks`. Do not set `type: Text` for button labels.
+- Safe locator keys: `text`, `tooltip`, `semanticId`, `type`, `ancestor`, `index`, `fallbacks`; Do not set `type: Text` for button labels.
 - Keep the app alive while more edits are likely. Stop only when the user asks, the session is stuck, `hot-restart` cannot recover, or a clean rebuild/relaunch is required.
 
 ## Failure Recovery
@@ -123,8 +123,8 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools validate-task --confi
 - If syntax is unclear, run `help <command>` or open one reference file.
 - On non-zero exit, read `errorJson.code`, `errorJson.message`, and `details` before prose stderr.
 - Use `failureDiagnostics` before changing locators, timeouts, route waits, or retry strategy.
-- For bundles, read default AI summaries, `read-task-bundle-summary`, and `issueEvidence` before raw snapshots, videos, screenshots, or CI logs.
-- Classify missing ffmpeg, screen-capture permission, simulator/device, or recording startup/output evidence as `blocked_by_environment` unless app evidence proves otherwise.
+- For bundles, read AI summaries, `read-task-bundle-summary`, and `issueEvidence` before raw artifacts.
+- Classify missing ffmpeg, capture permission, simulator/device, or recording evidence as `blocked_by_environment` unless app evidence proves otherwise.
 
 ## Other Surfaces
 
@@ -132,7 +132,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools validate-task --confi
 - Native/System Control Plane: `read-system-capabilities` first, then `run-system-action` only for actions reported as `available` using the returned `parameters` contract; reuse the current app handle when present; always read post-action state after system actions.
 - Persistent development: `launch-development-session` -> `collect-development-probe --profile quick` -> edit -> `reload-development-session --mode hot_reload` -> collect or compare probe. Use the app handle for screenshots and recording.
 - MCP is equivalent to CLI when the host provides it. Use roots-aware MCP for adjacent packages, persisted app discovery, or task-bundle summary reads.
-- Code-side facts before broad tools: `grep-package-uris`, `read-package-uris`, `pub`, `lsp`, `analyze-files`, `run-tests`.
+- Code facts before broad tools: `grep-package-uris`, `read-package-uris`, `pub`, `lsp`, `analyze-files`, `run-tests`.
 
 ## Common Mistakes
 
@@ -145,10 +145,4 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools validate-task --confi
 
 ## Reference Map
 
-- exact CLI syntax and payload shapes: [`examples/cli-command-reference.md`](examples/cli-command-reference.md)
-- shortest edit -> reload -> verify loop: [`examples/rapid-dev-loop.md`](examples/rapid-dev-loop.md)
-- first-day new app integration: [`examples/flutter-app-setup.md`](examples/flutter-app-setup.md)
-- host CLI and MCP setup: [`examples/host-devtools-setup.md`](examples/host-devtools-setup.md)
-- runtime and release validation: [`examples/runtime-validation.md`](examples/runtime-validation.md)
-- acceptance bundles and delivery evidence: [`examples/acceptance-delivery.md`](examples/acceptance-delivery.md)
-- failure reporting with evidence: [`examples/failure-with-evidence.md`](examples/failure-with-evidence.md)
+Deep dives: [`examples/cli-command-reference.md`](examples/cli-command-reference.md), [`examples/rapid-dev-loop.md`](examples/rapid-dev-loop.md), [`examples/flutter-app-setup.md`](examples/flutter-app-setup.md), [`examples/host-devtools-setup.md`](examples/host-devtools-setup.md), [`examples/runtime-validation.md`](examples/runtime-validation.md), [`examples/acceptance-delivery.md`](examples/acceptance-delivery.md), [`examples/failure-with-evidence.md`](examples/failure-with-evidence.md).
