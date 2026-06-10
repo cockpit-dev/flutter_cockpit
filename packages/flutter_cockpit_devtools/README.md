@@ -107,6 +107,16 @@ surface:
    `--output-path` for system screenshots and recordings
 5. read post-action app, target, or system state before judging the result
 
+Use scene-level macros for real debugging blockers instead of composing many
+low-level actions by hand: `resolveBlockers` handles common dialogs, keyboard
+and system UI blockers, and app recovery; `preparePermissions` batches
+permission grant/revoke/reset; `recoverToApp` brings the app foreground without
+killing data; `tapNotification` expands the notification surface, matches
+title/body/tag/text, and taps the notification; `stabilizeForScreenshot`
+collapses noisy system state, dismisses keyboard when available, fixes
+orientation/appearance/status bar where supported, and recovers the app;
+`readFocusState` reports keyboard/focus state for blocker diagnosis.
+
 When `.dart_tool/flutter_cockpit/latest_app.json` exists, system commands reuse
 its platform, device id, process id, and platform app id. iOS simulator
 permissions should prefer `grantPermission`, which uses deterministic
@@ -116,7 +126,9 @@ Cockpit probes `http://127.0.0.1:8100` by default for iOS simulator sessions;
 pass `--wda-url` or set `FLUTTER_COCKPIT_IOS_WDA_URL` only for a custom
 endpoint. Native actions stay blocked unless the endpoint is reachable. When it
 is reachable, `tap`, `longPress`, `drag`, `typeText`, `pressKey`,
-`dismissSystemDialog`, `setOrientation`, and `readUiTree` can be reported as
+`dismissSystemDialog`, `dismissKeyboard`, `expandNotifications`,
+`expandQuickSettings`, `collapseSystemUi`, `tapNotification`, `resolveBlockers`,
+`setOrientation`, `readFocusState`, and `readUiTree` can be reported as
 available and executed with `run-system-action`.
 
 Simulator support is intentionally capability-truthful:
@@ -130,7 +142,8 @@ Simulator support is intentionally capability-truthful:
   state reads, device info reads, notification state reads, and bounded shell
   commands. `dismissSystemDialog --decision accept|dismiss` first tries common
   Android permission/system dialog buttons with UIAutomator; `dismiss` can fall
-  back to Back.
+  back to Back. Notification taps use notification expansion plus UIAutomator
+  text matching.
 - iOS simulator uses `simctl` for app install/uninstall/launch/terminate/data
   clear, privacy grant/revoke/reset, URL and Settings entry, appearance, content
   size, location, status bar overrides, pasteboard, simulated APNS pushes, app
@@ -138,12 +151,12 @@ Simulator support is intentionally capability-truthful:
   simulator/device info reads, and bounded `simctl spawn` commands.
 - iOS simulator native UI actions require a reachable WebDriverAgent endpoint:
   tap, long press, drag, text/key input, Home, keyboard dismissal, system dialog
-  accept/dismiss, orientation, and native UI tree reads.
-- iOS simulator volume keys, notification-center expansion, Control Center
-  expansion, and clear-all-notifications have no stable public `simctl`/XCTest
-  simulator API. They remain `unsupported` or `blocked` instead of pretending to
-  be automated. Use returned fallbacks, WDA coordinate gestures where geometry
-  is known, or app-level assertions.
+  accept/dismiss, notification center, Control Center, notification taps,
+  orientation, focus reads, and native UI tree reads.
+- iOS simulator volume keys and clear-all-notifications have no stable public
+  `simctl`/XCTest simulator API. They remain `unsupported` or `blocked` instead
+  of pretending to be automated. Use returned fallbacks, WDA-backed actions when
+  available, or app-level assertions.
 
 Default AI-readable capability rows include compact parameter metadata such as
 `parameters=[x*:integer | wifiBars:integer[0..3] | appearance*:string(light|dark)]`.
