@@ -34,6 +34,7 @@ import '../gesture/cockpit_gesture_profile.dart';
 import '../gesture/cockpit_multi_touch_sequence.dart';
 import '../model/cockpit_artifact_ref.dart';
 import '../runtime/cockpit_capabilities.dart';
+import '../runtime/cockpit_focus_snapshot_builder.dart';
 import '../runtime/cockpit_hit_test_miss_policy.dart';
 import '../runtime/cockpit_interaction_policy.dart';
 import '../runtime/cockpit_reveal_alignment.dart';
@@ -231,6 +232,7 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
       CockpitCommandType.increase,
       CockpitCommandType.decrease,
       CockpitCommandType.dismiss,
+      CockpitCommandType.dismissKeyboard,
       CockpitCommandType.longPress,
       CockpitCommandType.doubleTap,
       if (_gestureHandler != null) ...<CockpitCommandType>{
@@ -367,6 +369,7 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
       CockpitCommandType.increase: _semanticCommandExecutor.execute,
       CockpitCommandType.decrease: _semanticCommandExecutor.execute,
       CockpitCommandType.dismiss: _semanticCommandExecutor.execute,
+      CockpitCommandType.dismissKeyboard: _executeDismissKeyboard,
       CockpitCommandType.assertVisible: _waitAndAssertExecutor.execute,
       CockpitCommandType.assertText: _waitAndAssertExecutor.execute,
       CockpitCommandType.waitFor: _waitAndAssertExecutor.execute,
@@ -1514,6 +1517,53 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
       command: command,
       durationMs: stopwatch.elapsedMilliseconds,
       snapshot: _liveSnapshot().toJson(),
+    );
+  }
+
+  Future<CockpitCommandExecution> _executeDismissKeyboard(
+    CockpitCommand command,
+    Stopwatch stopwatch,
+  ) async {
+    final focusBefore = cockpitBuildFocusSnapshot();
+    FocusManager.instance.primaryFocus?.unfocus();
+    await Future<void>.microtask(() {});
+
+    Object? hideError;
+    try {
+      await SystemChannels.textInput.invokeMethod<void>('TextInput.hide');
+    } on Object catch (error) {
+      hideError = error;
+    }
+
+    await _postActionSettler();
+    await _settleBeforeObservation();
+
+    final warnings = <Map<String, Object?>>[
+      if (hideError != null)
+        <String, Object?>{
+          'code': 'textInputHideFailed',
+          'message':
+              'Focus was cleared, but the platform text input hide call failed.',
+          'details': <String, Object?>{'error': '$hideError'},
+        },
+    ];
+
+    return _successExecution(
+      command: command,
+      durationMs: stopwatch.elapsedMilliseconds,
+      snapshot: _appendWarningsToSnapshot(_liveSnapshot().toJson(), [
+        <String, Object?>{
+          'code': 'keyboardDismissed',
+          'message': 'Primary focus was cleared and text input was hidden.',
+          'details': <String, Object?>{
+            'hadPrimaryFocus': focusBefore.hasPrimaryFocus,
+            if (focusBefore.primaryFocusLabel != null)
+              'primaryFocusLabel': focusBefore.primaryFocusLabel,
+            'wasTextInputFocus': focusBefore.isTextInputFocus,
+          },
+        },
+        ...warnings,
+      ]),
     );
   }
 
@@ -4579,7 +4629,8 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
   static CockpitSnapshotProvider _defaultSnapshotProvider(
     CockpitTargetRegistry registry,
   ) {
-    return ({options = const CockpitSnapshotOptions()}) => registry.snapshot();
+    return ({options = const CockpitSnapshotOptions()}) =>
+        registry.snapshot().copyWith(focus: cockpitBuildFocusSnapshot());
   }
 
   CockpitSnapshot _liveSnapshot() {

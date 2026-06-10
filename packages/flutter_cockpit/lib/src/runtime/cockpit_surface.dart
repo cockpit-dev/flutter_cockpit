@@ -11,6 +11,7 @@ import '../gesture/cockpit_gesture_action.dart';
 import '../gesture/cockpit_gesture_profile.dart';
 import 'cockpit_discovery_engine.dart';
 import 'cockpit_discovery_policy.dart';
+import 'cockpit_focus_snapshot_builder.dart';
 import 'cockpit_rebuild_tracker.dart';
 import 'cockpit_reveal_alignment.dart';
 import 'cockpit_tap_feedback_overlay.dart';
@@ -121,9 +122,10 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
               )
               .snapshot;
     if (!options.includeRebuildActivity || widget.rebuildTracker == null) {
-      return snapshot;
+      return snapshot.copyWith(focus: cockpitBuildFocusSnapshot());
     }
     return snapshot.copyWith(
+      focus: cockpitBuildFocusSnapshot(),
       rebuild: widget.rebuildTracker!.snapshot(
         maxEntries: options.maxRebuildEntries,
       ),

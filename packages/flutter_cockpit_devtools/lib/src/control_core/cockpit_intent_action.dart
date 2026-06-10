@@ -27,6 +27,7 @@ enum CockpitIntentAction {
   increase,
   decrease,
   dismiss,
+  dismissKeyboard,
   captureScreenshot,
   collectSnapshot,
   waitFor,
@@ -68,6 +69,7 @@ enum CockpitIntentAction {
       CockpitCommandType.increase => CockpitIntentAction.increase,
       CockpitCommandType.decrease => CockpitIntentAction.decrease,
       CockpitCommandType.dismiss => CockpitIntentAction.dismiss,
+      CockpitCommandType.dismissKeyboard => CockpitIntentAction.dismissKeyboard,
       CockpitCommandType.captureScreenshot =>
         CockpitIntentAction.captureScreenshot,
       CockpitCommandType.collectSnapshot => CockpitIntentAction.collectSnapshot,

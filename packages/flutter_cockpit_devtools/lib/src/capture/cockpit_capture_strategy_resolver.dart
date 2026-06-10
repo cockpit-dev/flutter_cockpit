@@ -69,8 +69,11 @@ final class CockpitCaptureStrategyResolver {
         client: client,
       );
     }
-    final resolvedAppId =
-        platformAppId ?? sessionHandle?.effectivePlatformAppId;
+    final resolvedAppId = _hostAppIdFor(
+      platform: platform,
+      platformAppId: platformAppId ?? sessionHandle?.effectivePlatformAppId,
+      processId: processId ?? sessionHandle?.processId,
+    );
     final resolvedProcessId = processId ?? sessionHandle?.processId;
     if (platform == 'macos' &&
         resolvedAppId != null &&
@@ -106,6 +109,21 @@ final class CockpitCaptureStrategyResolver {
       );
     }
     return remoteAdapter;
+  }
+
+  String? _hostAppIdFor({
+    required String platform,
+    required String? platformAppId,
+    required int? processId,
+  }) {
+    final trimmed = platformAppId?.trim();
+    if (trimmed != null && trimmed.isNotEmpty) {
+      return trimmed;
+    }
+    if ((platform == 'windows' || platform == 'linux') && processId != null) {
+      return 'pid-$processId';
+    }
+    return null;
   }
 
   static CockpitCaptureAdapter _defaultRemoteAdapterFactory(

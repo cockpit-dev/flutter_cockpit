@@ -69,6 +69,7 @@ void main() {
         CockpitCommandType.increase,
         CockpitCommandType.decrease,
         CockpitCommandType.dismiss,
+        CockpitCommandType.dismissKeyboard,
         CockpitCommandType.focusTextInput,
         CockpitCommandType.setTextEditingValue,
         CockpitCommandType.sendTextInputAction,
@@ -89,6 +90,48 @@ void main() {
         CockpitCommandType.captureScreenshot,
       ]),
     );
+  });
+
+  testWidgets('dismissKeyboard clears the primary focus globally', (
+    tester,
+  ) async {
+    final focusNode = FocusNode(debugLabel: 'search-field');
+    addTearDown(focusNode.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: TextField(
+            focusNode: focusNode,
+            decoration: const InputDecoration(labelText: 'Search'),
+          ),
+        ),
+      ),
+    );
+
+    focusNode.requestFocus();
+    await tester.pump();
+    expect(focusNode.hasFocus, isTrue);
+
+    final executor = InAppCockpitCommandExecutor(
+      registry: CockpitTargetRegistry(routeName: '/search'),
+    );
+    final result = await executor.execute(
+      CockpitCommand(
+        commandId: 'dismiss-keyboard',
+        commandType: CockpitCommandType.dismissKeyboard,
+      ),
+    );
+    await tester.pump();
+
+    expect(result.success, isTrue);
+    expect(result.snapshot?['focus'], isA<Map<String, Object?>>());
+    expect(focusNode.hasFocus, isFalse);
+    final focus = result.snapshot!['focus']! as Map<String, Object?>;
+    expect(focus['isTextInputFocus'], isFalse);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
   });
 
   test(

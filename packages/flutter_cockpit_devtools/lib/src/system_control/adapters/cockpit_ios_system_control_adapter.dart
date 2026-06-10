@@ -133,6 +133,9 @@ final class CockpitIosSystemControlAdapter
             availability: CockpitSystemControlAvailability.available,
             strategy: 'xcrun.simctl.launch',
             requires: <String>['xcrun', 'simulator device id', 'app id'],
+            limitations: <String>[
+              'Brings the app to the foreground without terminating an existing debug or hot-reload session.',
+            ],
             parameters: CockpitSystemControlParameterSets.iosApp,
           ),
           CockpitSystemControlCapability(
@@ -229,6 +232,28 @@ final class CockpitIosSystemControlAdapter
             requires: <String>['xcrun', 'simulator device id'],
             limitations: <String>['simctl privacy may terminate the app'],
             parameters: CockpitSystemControlParameterSets.iosResetPermission,
+          ),
+          CockpitSystemControlCapability(
+            action: CockpitSystemControlAction.preparePermissions,
+            plane: CockpitPlaneKind.deviceSystemPlane,
+            availability: CockpitSystemControlAvailability.available,
+            strategy: 'macro.simctl.privacy+recover',
+            requires: <String>[
+              'xcrun',
+              'simulator device id',
+              'privacy services',
+              'app id',
+            ],
+            limitations: <String>[
+              'Runs simctl privacy grant, revoke, or reset for each service; simctl privacy may terminate the app.',
+            ],
+            parameters: CockpitSystemControlParameterSets.preparePermissions,
+            fallbackActions: <CockpitSystemControlAction>[
+              CockpitSystemControlAction.grantPermission,
+              CockpitSystemControlAction.revokePermission,
+              CockpitSystemControlAction.resetPermission,
+              CockpitSystemControlAction.recoverToApp,
+            ],
           ),
           const CockpitSystemControlCapability(
             action: CockpitSystemControlAction.openUrl,
@@ -333,34 +358,40 @@ final class CockpitIosSystemControlAdapter
             strategy: 'xcrun.simctl.status_bar.clear',
             requires: <String>['xcrun', 'simulator device id'],
           ),
-          const CockpitSystemControlCapability(
+          CockpitSystemControlCapability(
             action: CockpitSystemControlAction.expandNotifications,
-            plane: CockpitPlaneKind.deviceSystemPlane,
-            availability: CockpitSystemControlAvailability.blocked,
-            strategy: 'ios-simulator-notification-center',
-            requires: <String>['manual simulator notification-center gesture'],
+            plane: CockpitPlaneKind.nativeUiPlane,
+            availability: wdaAvailability,
+            strategy: 'webdriveragent.notification-center.drag',
+            requires: wdaRequires,
             limitations: <String>[
-              'simctl has no stable notification-center expansion command; use Flutter assertions, WDA coordinate gestures, or screenshots when needed.',
+              'simctl has no stable notification-center expansion command; WebDriverAgent uses a top-edge drag that depends on simulator geometry.',
+            ],
+            fallbackActions: <CockpitSystemControlAction>[
+              CockpitSystemControlAction.drag,
             ],
           ),
-          const CockpitSystemControlCapability(
+          CockpitSystemControlCapability(
             action: CockpitSystemControlAction.expandQuickSettings,
-            plane: CockpitPlaneKind.deviceSystemPlane,
-            availability: CockpitSystemControlAvailability.blocked,
-            strategy: 'ios-simulator-control-center',
-            requires: <String>['manual simulator control-center gesture'],
+            plane: CockpitPlaneKind.nativeUiPlane,
+            availability: wdaAvailability,
+            strategy: 'webdriveragent.control-center.drag',
+            requires: wdaRequires,
             limitations: <String>[
-              'simctl has no stable Control Center expansion command; use WDA coordinate gestures when a concrete simulator geometry is known.',
+              'simctl has no stable Control Center expansion command; WebDriverAgent uses a top-edge drag that depends on simulator geometry.',
+            ],
+            fallbackActions: <CockpitSystemControlAction>[
+              CockpitSystemControlAction.drag,
             ],
           ),
           CockpitSystemControlCapability(
             action: CockpitSystemControlAction.collapseSystemUi,
             plane: CockpitPlaneKind.nativeUiPlane,
             availability: wdaAvailability,
-            strategy: 'webdriveragent.homescreen-or-tap',
+            strategy: 'webdriveragent.system-ui-collapse-gesture',
             requires: wdaRequires,
             limitations: <String>[
-              'Uses Home as the safest native escape; prefer Flutter semantics for app-owned overlays.',
+              'Uses a bottom-edge upward gesture to dismiss notification center or control center without intentionally leaving the app.',
             ],
           ),
           CockpitSystemControlCapability(
@@ -386,6 +417,69 @@ final class CockpitIosSystemControlAdapter
             strategy: 'simctl-no-clear-notifications',
             limitations: <String>[
               'simctl does not expose a stable clear-delivered-notifications command.',
+            ],
+          ),
+          CockpitSystemControlCapability(
+            action: CockpitSystemControlAction.tapNotification,
+            plane: CockpitPlaneKind.nativeUiPlane,
+            availability: wdaAvailability,
+            strategy: 'webdriveragent.notification-center.tap-text',
+            requires: wdaRequires,
+            limitations: <String>[
+              'Uses WebDriverAgent source and coordinate taps after opening Notification Center; exact behavior depends on simulator geometry and delivered notification visibility.',
+            ],
+            parameters: CockpitSystemControlParameterSets.tapNotification,
+            fallbackActions: <CockpitSystemControlAction>[
+              CockpitSystemControlAction.drag,
+              CockpitSystemControlAction.tap,
+            ],
+          ),
+          CockpitSystemControlCapability(
+            action: CockpitSystemControlAction.recoverToApp,
+            plane: CockpitPlaneKind.deviceSystemPlane,
+            availability: CockpitSystemControlAvailability.available,
+            strategy: 'xcrun.simctl.launch',
+            requires: <String>['xcrun', 'simulator device id', 'app id'],
+            limitations: <String>[
+              'Brings the app to the foreground without terminating an existing Flutter debug or hot-reload session.',
+            ],
+            parameters: CockpitSystemControlParameterSets.recoverToApp,
+          ),
+          CockpitSystemControlCapability(
+            action: CockpitSystemControlAction.resolveBlockers,
+            plane: CockpitPlaneKind.nativeUiPlane,
+            availability: wdaAvailability,
+            strategy: 'webdriveragent.alert+keyboard+simctl.launch',
+            requires: <String>[...wdaRequires, 'app id'],
+            limitations: <String>[
+              'Handles common alerts and keyboard blockers before restoring the app; privacy grants should still prefer simctl privacy for deterministic setup.',
+            ],
+            parameters: CockpitSystemControlParameterSets.resolveBlockers,
+            fallbackActions: <CockpitSystemControlAction>[
+              CockpitSystemControlAction.dismissSystemDialog,
+              CockpitSystemControlAction.dismissKeyboard,
+              CockpitSystemControlAction.recoverToApp,
+            ],
+          ),
+          CockpitSystemControlCapability(
+            action: CockpitSystemControlAction.stabilizeForScreenshot,
+            plane: CockpitPlaneKind.deviceSystemPlane,
+            availability: CockpitSystemControlAvailability.available,
+            strategy: 'macro.simctl+xctest.stabilize-screenshot',
+            requires: <String>['xcrun', 'simulator device id'],
+            limitations: <String>[
+              'Uses simctl for deterministic status bar, appearance, and app recovery; WDA-only steps such as keyboard dismissal, system UI collapse, and orientation are skipped unless WebDriverAgent is reachable.',
+            ],
+            parameters:
+                CockpitSystemControlParameterSets.stabilizeForScreenshot,
+            fallbackActions: <CockpitSystemControlAction>[
+              CockpitSystemControlAction.dismissKeyboard,
+              CockpitSystemControlAction.collapseSystemUi,
+              CockpitSystemControlAction.setOrientation,
+              CockpitSystemControlAction.setAppearance,
+              CockpitSystemControlAction.setStatusBar,
+              CockpitSystemControlAction.clearStatusBar,
+              CockpitSystemControlAction.recoverToApp,
             ],
           ),
           const CockpitSystemControlCapability(
@@ -511,6 +605,13 @@ final class CockpitIosSystemControlAdapter
             strategy: 'xcrun.simctl.list+appinfo+ui',
             requires: <String>['xcrun', 'simulator device id'],
             parameters: CockpitSystemControlParameterSets.iosApp,
+          ),
+          CockpitSystemControlCapability(
+            action: CockpitSystemControlAction.readFocusState,
+            plane: CockpitPlaneKind.nativeUiPlane,
+            availability: wdaAvailability,
+            strategy: 'webdriveragent.keyboard+source',
+            requires: wdaRequires,
           ),
           CockpitSystemControlCapability(
             action: CockpitSystemControlAction.readNotificationState,
@@ -667,6 +768,16 @@ final class CockpitIosSystemControlAdapter
           parameters: CockpitSystemControlParameterSets.iosGrantPermission,
         ),
         CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.preparePermissions,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: CockpitSystemControlAvailability.blocked,
+          strategy: 'developer-device-permission-flow',
+          requires: <String>[
+            'developer signing and app-specific permission flow',
+          ],
+          parameters: CockpitSystemControlParameterSets.preparePermissions,
+        ),
+        CockpitSystemControlCapability(
           action: CockpitSystemControlAction.openUrl,
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: CockpitSystemControlAvailability.blocked,
@@ -788,6 +899,38 @@ final class CockpitIosSystemControlAdapter
           requires: <String>['developer-signed XCTest/WebDriverAgent runner'],
         ),
         CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.tapNotification,
+          plane: CockpitPlaneKind.nativeUiPlane,
+          availability: CockpitSystemControlAvailability.blocked,
+          strategy: 'xctest.notification-center.tap-text',
+          requires: <String>['developer-signed XCTest/WebDriverAgent runner'],
+          parameters: CockpitSystemControlParameterSets.tapNotification,
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.recoverToApp,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: CockpitSystemControlAvailability.blocked,
+          strategy: 'developer-device-launch',
+          requires: <String>['developer signing and device launch tooling'],
+          parameters: CockpitSystemControlParameterSets.recoverToApp,
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.resolveBlockers,
+          plane: CockpitPlaneKind.nativeUiPlane,
+          availability: CockpitSystemControlAvailability.blocked,
+          strategy: 'xctest.alert+keyboard+launch',
+          requires: <String>['developer-signed XCTest/WebDriverAgent runner'],
+          parameters: CockpitSystemControlParameterSets.resolveBlockers,
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.stabilizeForScreenshot,
+          plane: CockpitPlaneKind.nativeUiPlane,
+          availability: CockpitSystemControlAvailability.blocked,
+          strategy: 'xctest.stabilize-screenshot',
+          requires: <String>['developer-signed XCTest/WebDriverAgent runner'],
+          parameters: CockpitSystemControlParameterSets.stabilizeForScreenshot,
+        ),
+        CockpitSystemControlCapability(
           action: CockpitSystemControlAction.setClipboard,
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: CockpitSystemControlAvailability.blocked,
@@ -864,6 +1007,13 @@ final class CockpitIosSystemControlAdapter
           ],
         ),
         CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.readFocusState,
+          plane: CockpitPlaneKind.nativeUiPlane,
+          availability: CockpitSystemControlAvailability.blocked,
+          strategy: 'xctest.keyboard+source',
+          requires: <String>['developer-signed XCTest/WebDriverAgent runner'],
+        ),
+        CockpitSystemControlCapability(
           action: CockpitSystemControlAction.runShell,
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: CockpitSystemControlAvailability.unsupported,
@@ -900,7 +1050,6 @@ final class CockpitIosSystemControlAdapter
         (appId) => CockpitResolvedSystemControlCommand('xcrun', <String>[
           'simctl',
           'launch',
-          '--terminate-running-process',
           deviceId,
           appId,
         ]),
@@ -1063,15 +1212,43 @@ final class CockpitIosSystemControlAdapter
           deviceId,
           'clear',
         ]),
-      CockpitSystemControlAction.expandNotifications ||
-      CockpitSystemControlAction.expandQuickSettings ||
       CockpitSystemControlAction.clearNotifications => _unsupportedCommand(
         request,
       ),
+      CockpitSystemControlAction.expandQuickSettings => _wdaCommand(
+        request,
+        CockpitIosWdaAction.expandQuickSettings,
+      ),
+      CockpitSystemControlAction.expandNotifications => _wdaCommand(
+        request,
+        CockpitIosWdaAction.expandNotifications,
+      ),
       CockpitSystemControlAction.collapseSystemUi => _wdaCommand(
         request,
-        CockpitIosWdaAction.pressHome,
+        CockpitIosWdaAction.collapseSystemUi,
       ),
+      CockpitSystemControlAction.tapNotification => _wdaCommand(
+        request,
+        CockpitIosWdaAction.tapNotification,
+      ),
+      CockpitSystemControlAction.recoverToApp => _appScopedCommand(
+        request,
+        (appId) => CockpitResolvedSystemControlCommand('xcrun', <String>[
+          'simctl',
+          'launch',
+          deviceId,
+          appId,
+        ]),
+      ),
+      CockpitSystemControlAction.resolveBlockers => _iosResolveBlockersCommand(
+        request,
+      ),
+      CockpitSystemControlAction.preparePermissions ||
+      CockpitSystemControlAction.stabilizeForScreenshot =>
+        const CockpitResolvedSystemControlCommand.error(
+          code: 'systemMacroAction',
+          message: 'Macro actions are executed through the action service.',
+        ),
       CockpitSystemControlAction.postNotification =>
         _iosPostNotificationCommand(
           request,
@@ -1182,6 +1359,10 @@ final class CockpitIosSystemControlAdapter
         request,
         deviceId,
       ),
+      CockpitSystemControlAction.readFocusState => _wdaCommand(
+        request,
+        CockpitIosWdaAction.readFocusState,
+      ),
       CockpitSystemControlAction.readNotificationState =>
         const CockpitResolvedSystemControlCommand.error(
           code: 'systemActionBlocked',
@@ -1222,6 +1403,53 @@ final class CockpitIosSystemControlAdapter
     return CockpitResolvedSystemControlCommand.error(
       code: 'unsupportedSystemAction',
       message: '${request.action.name} is not executable on iOS simulator.',
+    );
+  }
+
+  CockpitResolvedSystemControlCommand _iosResolveBlockersCommand(
+    CockpitSystemControlActionRequest request,
+  ) {
+    final appId = _readAppId(request);
+    final decision = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'decision',
+      allowedValues: const <String>['accept', 'dismiss'],
+    );
+    final dismissKeyboard = cockpitReadSystemControlBoolParameter(
+      request.parameters,
+      'dismissKeyboard',
+    );
+    if (appId.isInvalid || decision.isInvalid || dismissKeyboard.isInvalid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'invalidSystemActionParameter',
+        message:
+            'resolveBlockers requires string appId plus optional decision and dismissKeyboard parameters.',
+      );
+    }
+    if (!appId.isValid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'missingSystemActionParameter',
+        message: 'resolveBlockers requires --app-id or appId.',
+      );
+    }
+    return _wdaCommand(
+      CockpitSystemControlActionRequest(
+        platform: request.platform,
+        deviceId: request.deviceId,
+        appId: request.appId,
+        processId: request.processId,
+        metadata: request.metadata,
+        action: request.action,
+        parameters: <String, Object?>{
+          ...request.parameters,
+          'appId': appId.value!,
+          if (request.deviceId != null) 'deviceId': request.deviceId,
+          if (decision.value != null) 'decision': decision.value,
+          'dismissKeyboard': dismissKeyboard.value ?? true,
+        },
+        timeout: request.timeout,
+      ),
+      CockpitIosWdaAction.resolveBlockers,
     );
   }
 

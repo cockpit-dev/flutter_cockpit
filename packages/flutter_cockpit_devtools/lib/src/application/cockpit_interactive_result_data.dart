@@ -104,6 +104,7 @@ final class CockpitInteractiveSnapshotSummary {
     required this.accessibilityTargetCount,
     required this.accessibilityTraversalCount,
     required this.textPreviews,
+    this.focus,
   });
 
   final String? routeName;
@@ -121,6 +122,7 @@ final class CockpitInteractiveSnapshotSummary {
   final int accessibilityTargetCount;
   final int accessibilityTraversalCount;
   final List<String> textPreviews;
+  final CockpitFocusSnapshot? focus;
 
   Map<String, Object?> toJson() => <String, Object?>{
     if (routeName != null) 'routeName': routeName,
@@ -138,6 +140,7 @@ final class CockpitInteractiveSnapshotSummary {
     'accessibilityTargetCount': accessibilityTargetCount,
     'accessibilityTraversalCount': accessibilityTraversalCount,
     'textPreviews': textPreviews,
+    if (focus != null) 'focus': focus!.toJson(),
   };
 }
 
@@ -203,6 +206,7 @@ CockpitInteractiveSnapshotSummary? cockpitInteractiveStaticSummaryForProfile(
     accessibilityTargetCount: 0,
     accessibilityTraversalCount: 0,
     textPreviews: const <String>[],
+    focus: null,
   );
 }
 
@@ -245,6 +249,7 @@ CockpitInteractiveSnapshotSummary cockpitInteractiveSummarizeSnapshot(
     accessibilityTraversalCount:
         snapshot.accessibility?.traversalEntries.length ?? 0,
     textPreviews: textPreviews,
+    focus: snapshot.focus,
   );
 }
 

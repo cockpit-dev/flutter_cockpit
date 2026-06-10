@@ -180,7 +180,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --permission microphone
 ```
 
-For iOS simulator native UI or system dialogs that Flutter semantics and `simctl` cannot handle, start WebDriverAgent separately. Cockpit probes the common local simulator endpoint `http://127.0.0.1:8100` when no endpoint is supplied. Use `--wda-url` or `FLUTTER_COCKPIT_IOS_WDA_URL` for a custom endpoint. Native iOS simulator actions remain blocked unless the endpoint is reachable.
+For iOS simulator native UI, system dialogs, keyboard/focus, Notification Center, Control Center, or notification tap-through that Flutter semantics and `simctl` cannot handle, start WebDriverAgent separately. Cockpit probes the common local simulator endpoint `http://127.0.0.1:8100` when no endpoint is supplied. Use `--wda-url` or `FLUTTER_COCKPIT_IOS_WDA_URL` for a custom endpoint. WDA-backed iOS simulator actions remain blocked unless the endpoint is reachable. iOS simulator volume keys and clear-all delivered notifications are intentionally unsupported because public stable simulator APIs do not expose them.
 
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
@@ -192,6 +192,66 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   run-system-action \
   --action dismissSystemDialog \
   --decision accept
+```
+
+Recover from common native blockers before continuing app-first validation:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --action readFocusState
+
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --action resolveBlockers \
+  --decision accept
+
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --action recoverToApp
+```
+
+Prepare app permissions in one capability-checked macro before a flow:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --action preparePermissions \
+  --parameters-json '{"permissions":["microphone","speech"],"mode":"grant"}'
+```
+
+Stabilize native/system state before visual proof:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --action stabilizeForScreenshot \
+  --parameters-json '{"dismissKeyboard":true,"collapseSystemUi":true,"orientation":"portrait","statusBar":"stable"}'
+```
+
+Validate notification delivery and tap-through without manual intervention:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --action tapNotification \
+  --parameters-json '{"title":"Download complete"}'
+```
+
+Open or close system panels when they block a flow:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --action expandNotifications
+
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --action expandQuickSettings
+
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --action collapseSystemUi
 ```
 
 Drive a desktop native/system control after reading capabilities:

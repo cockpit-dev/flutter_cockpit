@@ -345,6 +345,7 @@ final class CockpitReadAppService {
             CockpitCommandType.focusTextInput ||
             CockpitCommandType.setTextEditingValue ||
             CockpitCommandType.sendTextInputAction ||
+            CockpitCommandType.dismissKeyboard ||
             CockpitCommandType.sendKeyEvent ||
             CockpitCommandType.sendKeyDownEvent ||
             CockpitCommandType.sendKeyUpEvent:

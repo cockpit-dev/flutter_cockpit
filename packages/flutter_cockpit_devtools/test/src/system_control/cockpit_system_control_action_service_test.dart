@@ -19,7 +19,7 @@ void main() {
     );
 
     final result = await service.run(
-      const CockpitSystemControlActionRequest(
+      CockpitSystemControlActionRequest(
         platform: 'android',
         deviceId: 'emulator-5554',
         action: CockpitSystemControlAction.tap,
@@ -94,7 +94,7 @@ void main() {
     );
 
     final result = await service.run(
-      const CockpitSystemControlActionRequest(
+      CockpitSystemControlActionRequest(
         platform: 'ios',
         deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
         metadata: <String, Object?>{'wdaUrl': 'http://127.0.0.1:8100'},
@@ -175,6 +175,108 @@ void main() {
     },
   );
 
+  test(
+    'ios simulator preparePermissions grants services and recovers app',
+    () async {
+      final processManager = _FakeProcessManager();
+      final service = CockpitSystemControlActionService(
+        processManager: processManager,
+      );
+
+      final result = await service.run(
+        const CockpitSystemControlActionRequest(
+          platform: 'ios',
+          deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+          appId: 'dev.cockpit.example',
+          action: CockpitSystemControlAction.preparePermissions,
+          parameters: <String, Object?>{
+            'permissions': <String>['microphone', 'photos'],
+          },
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(result.recommendedNextStep, 'readPostActionState');
+      expect(
+        processManager.starts.map((start) => start.arguments),
+        containsAll(<List<String>>[
+          <String>[
+            'simctl',
+            'privacy',
+            '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+            'grant',
+            'microphone',
+            'dev.cockpit.example',
+          ],
+          <String>[
+            'simctl',
+            'privacy',
+            '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+            'grant',
+            'photos',
+            'dev.cockpit.example',
+          ],
+          <String>[
+            'simctl',
+            'launch',
+            '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+            'dev.cockpit.example',
+          ],
+        ]),
+      );
+    },
+  );
+
+  test(
+    'ios simulator stabilizeForScreenshot skips WDA-only blockers when WDA is unavailable',
+    () async {
+      final processManager = _FakeProcessManager();
+      final service = CockpitSystemControlActionService(
+        processManager: processManager,
+        systemControlService: CockpitSystemControlService(
+          iosWdaEndpointProbe: (_, {required timeout}) async => false,
+        ),
+      );
+
+      final result = await service.run(
+        const CockpitSystemControlActionRequest(
+          platform: 'ios',
+          deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+          appId: 'dev.cockpit.example',
+          action: CockpitSystemControlAction.stabilizeForScreenshot,
+          parameters: <String, Object?>{
+            'statusBar': 'stable',
+            'appearance': 'dark',
+          },
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(result.limitations.join('\n'), contains('dismissKeyboard'));
+      final commands = processManager.starts
+          .map((start) => '${start.executable} ${start.arguments.join(' ')}')
+          .join('\n');
+      expect(
+        commands,
+        contains(
+          'simctl ui 6FD25DED-11E9-4AE9-B4B5-EDF4601981DC appearance dark',
+        ),
+      );
+      expect(
+        commands,
+        contains(
+          'simctl status_bar 6FD25DED-11E9-4AE9-B4B5-EDF4601981DC override',
+        ),
+      );
+      expect(
+        commands,
+        contains(
+          'simctl launch 6FD25DED-11E9-4AE9-B4B5-EDF4601981DC dev.cockpit.example',
+        ),
+      );
+    },
+  );
+
   test('ios simulator pressHome executes through WebDriverAgent', () async {
     CockpitIosWdaCommand? capturedCommand;
     final service = CockpitSystemControlActionService(
@@ -188,7 +290,7 @@ void main() {
     );
 
     final result = await service.run(
-      const CockpitSystemControlActionRequest(
+      CockpitSystemControlActionRequest(
         platform: 'ios',
         deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
         metadata: <String, Object?>{'wdaUrl': 'http://127.0.0.1:8100'},
@@ -200,6 +302,47 @@ void main() {
     expect(capturedCommand?.action, CockpitIosWdaAction.pressHome);
   });
 
+  test(
+    'ios simulator system shade actions execute through WebDriverAgent gestures',
+    () async {
+      final capturedActions = <CockpitIosWdaAction>[];
+      final service = CockpitSystemControlActionService(
+        systemControlService: CockpitSystemControlService(
+          iosWdaEndpointProbe: (_, {required timeout}) async => true,
+        ),
+        iosWdaRunner: (command, {required timeout}) async {
+          capturedActions.add(command.action);
+          return command.action.name;
+        },
+      );
+
+      for (final action in <CockpitSystemControlAction>[
+        CockpitSystemControlAction.expandNotifications,
+        CockpitSystemControlAction.expandQuickSettings,
+        CockpitSystemControlAction.collapseSystemUi,
+      ]) {
+        final result = await service.run(
+          CockpitSystemControlActionRequest(
+            platform: 'ios',
+            deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+            metadata: const <String, Object?>{
+              'wdaUrl': 'http://127.0.0.1:8100',
+            },
+            action: action,
+          ),
+        );
+
+        expect(result.success, isTrue);
+      }
+
+      expect(capturedActions, <CockpitIosWdaAction>[
+        CockpitIosWdaAction.expandNotifications,
+        CockpitIosWdaAction.expandQuickSettings,
+        CockpitIosWdaAction.collapseSystemUi,
+      ]);
+    },
+  );
+
   test('missing required parameters fail before spawning process', () async {
     final processManager = _FakeProcessManager();
     final service = CockpitSystemControlActionService(
@@ -207,7 +350,7 @@ void main() {
     );
 
     final result = await service.run(
-      const CockpitSystemControlActionRequest(
+      CockpitSystemControlActionRequest(
         platform: 'android',
         deviceId: 'emulator-5554',
         action: CockpitSystemControlAction.tap,
@@ -221,6 +364,31 @@ void main() {
     expect(processManager.starts, isEmpty);
   });
 
+  test(
+    'empty required string parameters fail before spawning process',
+    () async {
+      final processManager = _FakeProcessManager();
+      final service = CockpitSystemControlActionService(
+        processManager: processManager,
+      );
+
+      final result = await service.run(
+        const CockpitSystemControlActionRequest(
+          platform: 'ios',
+          deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+          appId: 'dev.cockpit.example',
+          action: CockpitSystemControlAction.grantPermission,
+          parameters: <String, Object?>{'permission': '   '},
+        ),
+      );
+
+      expect(result.success, isFalse);
+      expect(result.errorCode, 'missingSystemActionParameter');
+      expect(result.recommendedNextStep, 'fixActionPayload');
+      expect(processManager.starts, isEmpty);
+    },
+  );
+
   test('fractional integer parameters fail before spawning process', () async {
     final processManager = _FakeProcessManager();
     final service = CockpitSystemControlActionService(
@@ -233,6 +401,27 @@ void main() {
         deviceId: 'emulator-5554',
         action: CockpitSystemControlAction.tap,
         parameters: <String, Object?>{'x': 42.7, 'y': 88},
+      ),
+    );
+
+    expect(result.success, isFalse);
+    expect(result.errorCode, 'invalidSystemActionParameter');
+    expect(result.recommendedNextStep, 'fixActionPayload');
+    expect(processManager.starts, isEmpty);
+  });
+
+  test('bounded integer parameters reject out-of-range values early', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'ios',
+        deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+        action: CockpitSystemControlAction.setStatusBar,
+        parameters: <String, Object?>{'batteryLevel': 101},
       ),
     );
 
@@ -283,6 +472,30 @@ void main() {
     expect(result.recommendedNextStep, 'fixActionPayload');
     expect(processManager.starts, isEmpty);
   });
+
+  test(
+    'runShell rejects empty command arrays before spawning process',
+    () async {
+      final processManager = _FakeProcessManager();
+      final service = CockpitSystemControlActionService(
+        processManager: processManager,
+      );
+
+      final result = await service.run(
+        const CockpitSystemControlActionRequest(
+          platform: 'android',
+          deviceId: 'emulator-5554',
+          action: CockpitSystemControlAction.runShell,
+          parameters: <String, Object?>{'command': <String>[]},
+        ),
+      );
+
+      expect(result.success, isFalse);
+      expect(result.errorCode, 'missingSystemActionParameter');
+      expect(result.recommendedNextStep, 'fixActionPayload');
+      expect(processManager.starts, isEmpty);
+    },
+  );
 
   test('runShell rejects non-string command entries', () async {
     final processManager = _FakeProcessManager();
@@ -1173,6 +1386,206 @@ void main() {
     expect(processManager.starts, isEmpty);
   });
 
+  test(
+    'android tapNotification expands notifications and taps matching text',
+    () async {
+      final processManager = _FakeProcessManager();
+      final service = CockpitSystemControlActionService(
+        processManager: processManager,
+      );
+
+      final result = await service.run(
+        const CockpitSystemControlActionRequest(
+          platform: 'android',
+          deviceId: 'emulator-5554',
+          action: CockpitSystemControlAction.tapNotification,
+          parameters: <String, Object?>{'title': 'Download complete'},
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(result.command.take(5), <String>[
+        'adb',
+        '-s',
+        'emulator-5554',
+        'shell',
+        'sh',
+      ]);
+      expect(result.command[5], '-c');
+      expect(result.command[6], contains('cmd statusbar expand-notifications'));
+    },
+  );
+
+  test(
+    'android recoverToApp collapses system UI and relaunches package',
+    () async {
+      final processManager = _FakeProcessManager();
+      final service = CockpitSystemControlActionService(
+        processManager: processManager,
+      );
+
+      final result = await service.run(
+        const CockpitSystemControlActionRequest(
+          platform: 'android',
+          deviceId: 'emulator-5554',
+          appId: 'dev.cockpit.example',
+          action: CockpitSystemControlAction.recoverToApp,
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(result.command.take(5), <String>[
+        'adb',
+        '-s',
+        'emulator-5554',
+        'shell',
+        'sh',
+      ]);
+      expect(result.command[5], '-c');
+      expect(result.command[6], contains('cmd statusbar collapse'));
+    },
+  );
+
+  test(
+    'android resolveBlockers accepts dialogs and restores app focus',
+    () async {
+      final processManager = _FakeProcessManager();
+      final service = CockpitSystemControlActionService(
+        processManager: processManager,
+      );
+
+      final result = await service.run(
+        const CockpitSystemControlActionRequest(
+          platform: 'android',
+          deviceId: 'emulator-5554',
+          appId: 'dev.cockpit.example',
+          action: CockpitSystemControlAction.resolveBlockers,
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(result.command.take(5), <String>[
+        'adb',
+        '-s',
+        'emulator-5554',
+        'shell',
+        'sh',
+      ]);
+      expect(result.command[5], '-c');
+      expect(
+        result.command[6],
+        allOf(
+          contains('uiautomator dump'),
+          contains('cmd statusbar collapse'),
+          contains('monkey -p'),
+          contains('dev.cockpit.example'),
+        ),
+      );
+    },
+  );
+
+  test(
+    'android preparePermissions grants each permission and recovers app',
+    () async {
+      final processManager = _FakeProcessManager();
+      final service = CockpitSystemControlActionService(
+        processManager: processManager,
+      );
+
+      final result = await service.run(
+        const CockpitSystemControlActionRequest(
+          platform: 'android',
+          deviceId: 'emulator-5554',
+          appId: 'dev.cockpit.example',
+          action: CockpitSystemControlAction.preparePermissions,
+          parameters: <String, Object?>{
+            'permissions': <String>[
+              'android.permission.CAMERA',
+              'android.permission.RECORD_AUDIO',
+            ],
+          },
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(result.recommendedNextStep, 'readPostActionState');
+      final payload = jsonDecode(result.stdout!) as Map<String, Object?>;
+      final steps = payload['steps']! as List<Object?>;
+      expect(steps, hasLength(3));
+      expect(
+        processManager.starts.map((start) => start.arguments.join(' ')),
+        containsAll(<String>[
+          '-s emulator-5554 shell pm grant dev.cockpit.example android.permission.CAMERA',
+          '-s emulator-5554 shell pm grant dev.cockpit.example android.permission.RECORD_AUDIO',
+        ]),
+      );
+      expect(
+        processManager.starts.last.arguments.join(' '),
+        contains('monkey -p'),
+      );
+    },
+  );
+
+  test(
+    'android stabilizeForScreenshot runs available stabilization steps',
+    () async {
+      final processManager = _FakeProcessManager();
+      final service = CockpitSystemControlActionService(
+        processManager: processManager,
+      );
+
+      final result = await service.run(
+        const CockpitSystemControlActionRequest(
+          platform: 'android',
+          deviceId: 'emulator-5554',
+          appId: 'dev.cockpit.example',
+          action: CockpitSystemControlAction.stabilizeForScreenshot,
+          parameters: <String, Object?>{
+            'orientation': 'portrait',
+            'appearance': 'dark',
+          },
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(result.recommendedNextStep, 'captureScreenshot');
+      final commands = processManager.starts
+          .map((start) => start.arguments.join(' '))
+          .join('\n');
+      expect(commands, contains('input keyevent KEYCODE_BACK'));
+      expect(commands, contains('cmd statusbar collapse'));
+      expect(commands, contains('user_rotation 0'));
+      expect(commands, contains('cmd uimode night yes'));
+      expect(commands, contains('monkey -p'));
+    },
+  );
+
+  test('android readFocusState reports windows and IME state', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        action: CockpitSystemControlAction.readFocusState,
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command.take(5), <String>[
+      'adb',
+      '-s',
+      'emulator-5554',
+      'shell',
+      'sh',
+    ]);
+    expect(result.command[5], '-c');
+    expect(result.command[6], contains('dumpsys input_method'));
+  });
+
   test('android setLocation sends emulator geo fix in lon lat order', () async {
     final processManager = _FakeProcessManager();
     final service = CockpitSystemControlActionService(
@@ -1394,31 +1807,33 @@ void main() {
     ]);
   });
 
-  test('ios simulator activateWindow launches app through simctl', () async {
-    final processManager = _FakeProcessManager();
-    final service = CockpitSystemControlActionService(
-      processManager: processManager,
-    );
+  test(
+    'ios simulator activateWindow brings app forward without killing debug session',
+    () async {
+      final processManager = _FakeProcessManager();
+      final service = CockpitSystemControlActionService(
+        processManager: processManager,
+      );
 
-    final result = await service.run(
-      const CockpitSystemControlActionRequest(
-        platform: 'ios',
-        deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
-        appId: 'dev.cockpit.example',
-        action: CockpitSystemControlAction.activateWindow,
-      ),
-    );
+      final result = await service.run(
+        const CockpitSystemControlActionRequest(
+          platform: 'ios',
+          deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+          appId: 'dev.cockpit.example',
+          action: CockpitSystemControlAction.activateWindow,
+        ),
+      );
 
-    expect(result.success, isTrue);
-    expect(result.command, <String>[
-      'xcrun',
-      'simctl',
-      'launch',
-      '--terminate-running-process',
-      '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
-      'dev.cockpit.example',
-    ]);
-  });
+      expect(result.success, isTrue);
+      expect(result.command, <String>[
+        'xcrun',
+        'simctl',
+        'launch',
+        '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+        'dev.cockpit.example',
+      ]);
+    },
+  );
 
   test('ios simulator grantPermission uses simctl privacy grant', () async {
     final processManager = _FakeProcessManager();

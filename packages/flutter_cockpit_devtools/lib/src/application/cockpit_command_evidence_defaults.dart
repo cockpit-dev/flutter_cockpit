@@ -67,7 +67,8 @@ bool _isKeyOperation(CockpitCommandType commandType) {
     CockpitCommandType.showOnScreen ||
     CockpitCommandType.increase ||
     CockpitCommandType.decrease ||
-    CockpitCommandType.dismiss => true,
+    CockpitCommandType.dismiss ||
+    CockpitCommandType.dismissKeyboard => true,
     CockpitCommandType.clearNetworkActivity ||
     CockpitCommandType.waitForNetworkIdle ||
     CockpitCommandType.waitForUiIdle ||

@@ -469,31 +469,37 @@ final class CockpitRecordingStrategyResolver {
     required String? appId,
     int? processId,
   }) {
-    if (appId == null || appId.isEmpty) {
+    final resolvedAppId = _desktopHostAppId(
+      platform: platform,
+      appId: appId,
+      processId: processId,
+    );
+    if (resolvedAppId == null || resolvedAppId.isEmpty) {
       return null;
     }
     final hostCandidate = switch (platform) {
       'macos' => _RecordingCandidate(
         implementation: 'macosHost',
         layer: CockpitRecordingLayer.hostScreen,
-        factory: () => macosAdapterFactory(appId),
-        sessionKey: 'macos:$appId',
+        factory: () => macosAdapterFactory(resolvedAppId),
+        sessionKey: 'macos:$resolvedAppId',
         liveSessionChecker: () =>
-            cockpitHasLiveHostRecordingSession('macos:$appId'),
+            cockpitHasLiveHostRecordingSession('macos:$resolvedAppId'),
       ),
       'windows' => _RecordingCandidate(
         implementation: 'windowsHost',
         layer: CockpitRecordingLayer.hostScreen,
-        factory: () => windowsAdapterFactory(appId, processId: processId),
+        factory: () =>
+            windowsAdapterFactory(resolvedAppId, processId: processId),
         sessionKey: _desktopHostSessionKey(
           platform: platform,
-          appId: appId,
+          appId: resolvedAppId,
           processId: processId,
         ),
         liveSessionChecker: () => cockpitHasLiveHostRecordingSession(
           _desktopHostSessionKey(
             platform: platform,
-            appId: appId,
+            appId: resolvedAppId,
             processId: processId,
           ),
         ),
@@ -501,16 +507,16 @@ final class CockpitRecordingStrategyResolver {
       'linux' => _RecordingCandidate(
         implementation: 'linuxHost',
         layer: CockpitRecordingLayer.hostScreen,
-        factory: () => linuxAdapterFactory(appId, processId: processId),
+        factory: () => linuxAdapterFactory(resolvedAppId, processId: processId),
         sessionKey: _desktopHostSessionKey(
           platform: platform,
-          appId: appId,
+          appId: resolvedAppId,
           processId: processId,
         ),
         liveSessionChecker: () => cockpitHasLiveHostRecordingSession(
           _desktopHostSessionKey(
             platform: platform,
-            appId: appId,
+            appId: resolvedAppId,
             processId: processId,
           ),
         ),
@@ -518,6 +524,21 @@ final class CockpitRecordingStrategyResolver {
       _ => null,
     };
     return hostCandidate;
+  }
+
+  String? _desktopHostAppId({
+    required String platform,
+    required String? appId,
+    required int? processId,
+  }) {
+    final trimmed = appId?.trim();
+    if (trimmed != null && trimmed.isNotEmpty) {
+      return trimmed;
+    }
+    if ((platform == 'windows' || platform == 'linux') && processId != null) {
+      return 'pid-$processId';
+    }
+    return null;
   }
 
   String _desktopHostSessionKey({

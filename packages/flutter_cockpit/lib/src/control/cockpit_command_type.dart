@@ -25,6 +25,7 @@ enum CockpitCommandType {
   increase,
   decrease,
   dismiss,
+  dismissKeyboard,
   waitFor,
   assertVisible,
   assertText,

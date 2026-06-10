@@ -143,6 +143,51 @@ void main() {
     },
   );
 
+  test(
+    'uses host-preferred capture on windows when only a process id is available',
+    () {
+      final remoteAdapter = _FakeCaptureAdapter();
+      final windowsAdapter = _FakeCaptureAdapter();
+      String? capturedAppId;
+      int? capturedProcessId;
+      final resolver = CockpitCaptureStrategyResolver(
+        remoteAdapterFactory: (client) => remoteAdapter,
+        adbAdapterFactory: (deviceId) => _FakeCaptureAdapter(),
+        simctlAdapterFactory: (deviceId) => _FakeCaptureAdapter(),
+        windowsAdapterFactory: (appId, {processId}) {
+          capturedAppId = appId;
+          capturedProcessId = processId;
+          return windowsAdapter;
+        },
+      );
+
+      final adapter = resolver.resolve(
+        platform: 'windows',
+        client: CockpitRemoteSessionClient(
+          baseUri: Uri.parse('http://127.0.0.1:47331'),
+        ),
+        sessionHandle: CockpitRemoteSessionHandle(
+          platform: 'windows',
+          deviceId: 'windows',
+          projectDir: '/workspace/examples/cockpit_demo',
+          target: 'cockpit/main.dart',
+          appId: 'app-with-unknown-platform-id',
+          platformAppIdKnown: false,
+          processId: 4101,
+          host: '127.0.0.1',
+          hostPort: 47331,
+          devicePort: 47331,
+          baseUrl: 'http://127.0.0.1:47331',
+          launchedAt: DateTime.utc(2026, 3, 24),
+        ),
+      );
+
+      expect(adapter, isA<CockpitHostPreferredCaptureAdapter>());
+      expect(capturedAppId, 'pid-4101');
+      expect(capturedProcessId, 4101);
+    },
+  );
+
   test('uses host-preferred capture on linux when an app id is available', () {
     final remoteAdapter = _FakeCaptureAdapter();
     final linuxAdapter = _FakeCaptureAdapter();
@@ -184,6 +229,51 @@ void main() {
     expect(capturedAppId, 'cockpit_demo');
     expect(capturedProcessId, 5101);
   });
+
+  test(
+    'uses host-preferred capture on linux when only a process id is available',
+    () {
+      final remoteAdapter = _FakeCaptureAdapter();
+      final linuxAdapter = _FakeCaptureAdapter();
+      String? capturedAppId;
+      int? capturedProcessId;
+      final resolver = CockpitCaptureStrategyResolver(
+        remoteAdapterFactory: (client) => remoteAdapter,
+        adbAdapterFactory: (deviceId) => _FakeCaptureAdapter(),
+        simctlAdapterFactory: (deviceId) => _FakeCaptureAdapter(),
+        linuxAdapterFactory: (appId, {processId}) {
+          capturedAppId = appId;
+          capturedProcessId = processId;
+          return linuxAdapter;
+        },
+      );
+
+      final adapter = resolver.resolve(
+        platform: 'linux',
+        client: CockpitRemoteSessionClient(
+          baseUri: Uri.parse('http://127.0.0.1:47331'),
+        ),
+        sessionHandle: CockpitRemoteSessionHandle(
+          platform: 'linux',
+          deviceId: 'linux',
+          projectDir: '/workspace/examples/cockpit_demo',
+          target: 'cockpit/main.dart',
+          appId: 'app-with-unknown-platform-id',
+          platformAppIdKnown: false,
+          processId: 5101,
+          host: '127.0.0.1',
+          hostPort: 47331,
+          devicePort: 47331,
+          baseUrl: 'http://127.0.0.1:47331',
+          launchedAt: DateTime.utc(2026, 3, 24),
+        ),
+      );
+
+      expect(adapter, isA<CockpitHostPreferredCaptureAdapter>());
+      expect(capturedAppId, 'pid-5101');
+      expect(capturedProcessId, 5101);
+    },
+  );
 
   test('falls back to remote capture when no host context is available', () {
     final remoteAdapter = _FakeCaptureAdapter();

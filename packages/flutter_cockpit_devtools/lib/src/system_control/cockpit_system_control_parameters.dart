@@ -256,6 +256,137 @@ final class CockpitSystemControlParameterSets {
     ),
   ];
 
+  static const tapNotification = <CockpitSystemControlParameter>[
+    CockpitSystemControlParameter(
+      name: 'title',
+      valueType: CockpitSystemControlParameterType.string,
+      description: 'Notification title or visible text to match.',
+    ),
+    CockpitSystemControlParameter(
+      name: 'body',
+      valueType: CockpitSystemControlParameterType.string,
+      description: 'Notification body or secondary visible text to match.',
+    ),
+    CockpitSystemControlParameter(
+      name: 'tag',
+      valueType: CockpitSystemControlParameterType.string,
+      description:
+          'Stable notification tag when the platform exposes it; Android uses it as an optional match hint.',
+    ),
+    CockpitSystemControlParameter(
+      name: 'text',
+      valueType: CockpitSystemControlParameterType.string,
+      description: 'Generic visible text to match when title/body are unknown.',
+    ),
+  ];
+
+  static const recoverToApp = <CockpitSystemControlParameter>[
+    CockpitSystemControlParameter(
+      name: 'packageId',
+      valueType: CockpitSystemControlParameterType.string,
+      description: 'Android package id; top-level appId is also accepted.',
+    ),
+    CockpitSystemControlParameter(
+      name: 'appId',
+      valueType: CockpitSystemControlParameterType.string,
+      description: 'iOS bundle id; top-level appId is also accepted.',
+    ),
+  ];
+
+  static const resolveBlockers = <CockpitSystemControlParameter>[
+    ...recoverToApp,
+    CockpitSystemControlParameter(
+      name: 'decision',
+      valueType: CockpitSystemControlParameterType.string,
+      allowedValues: <String>['accept', 'dismiss'],
+      description:
+          'Preferred system dialog decision before recovering the app; default is accept.',
+    ),
+    CockpitSystemControlParameter(
+      name: 'dismissKeyboard',
+      valueType: CockpitSystemControlParameterType.boolean,
+      description:
+          'Whether to dismiss the keyboard before app recovery. Defaults to true.',
+    ),
+  ];
+
+  static const preparePermissions = <CockpitSystemControlParameter>[
+    ...recoverToApp,
+    CockpitSystemControlParameter(
+      name: 'permissions',
+      valueType: CockpitSystemControlParameterType.stringList,
+      required: true,
+      description:
+          'Permission names to prepare. Android uses runtime permission constants; iOS uses simctl privacy services.',
+    ),
+    CockpitSystemControlParameter(
+      name: 'mode',
+      valueType: CockpitSystemControlParameterType.string,
+      allowedValues: <String>['grant', 'revoke', 'reset'],
+      description: 'Permission operation to apply to each permission.',
+    ),
+    CockpitSystemControlParameter(
+      name: 'recover',
+      valueType: CockpitSystemControlParameterType.boolean,
+      description:
+          'Whether to bring the app back to foreground after preparing permissions. Defaults to true.',
+    ),
+  ];
+
+  static const stabilizeForScreenshot = <CockpitSystemControlParameter>[
+    ...recoverToApp,
+    CockpitSystemControlParameter(
+      name: 'dismissKeyboard',
+      valueType: CockpitSystemControlParameterType.boolean,
+      description:
+          'Whether to dismiss the native keyboard before capturing evidence. Defaults to true.',
+    ),
+    CockpitSystemControlParameter(
+      name: 'collapseSystemUi',
+      valueType: CockpitSystemControlParameterType.boolean,
+      description:
+          'Whether to collapse notification, control, or quick settings surfaces. Defaults to true.',
+    ),
+    CockpitSystemControlParameter(
+      name: 'recover',
+      valueType: CockpitSystemControlParameterType.boolean,
+      description:
+          'Whether to bring the app back to foreground after stabilizing. Defaults to true.',
+    ),
+    CockpitSystemControlParameter(
+      name: 'orientation',
+      valueType: CockpitSystemControlParameterType.string,
+      allowedValues: <String>[
+        'portrait',
+        'landscape',
+        'reversePortrait',
+        'reverseLandscape',
+        'auto',
+      ],
+      description:
+          'Optional orientation to apply before screenshot evidence. iOS simulator requires WebDriverAgent and does not support auto.',
+    ),
+    CockpitSystemControlParameter(
+      name: 'statusBar',
+      valueType: CockpitSystemControlParameterType.string,
+      allowedValues: <String>['default', 'clear', 'stable'],
+      description:
+          'iOS simulator status bar handling. default leaves it unchanged, clear removes overrides, stable sets deterministic screenshot values.',
+    ),
+    CockpitSystemControlParameter(
+      name: 'time',
+      valueType: CockpitSystemControlParameterType.string,
+      description: 'Fixed iOS simulator status bar time when statusBar=stable.',
+    ),
+    CockpitSystemControlParameter(
+      name: 'appearance',
+      valueType: CockpitSystemControlParameterType.string,
+      allowedValues: <String>['light', 'dark', 'auto'],
+      description:
+          'Optional appearance mode to apply before screenshot evidence. iOS supports light/dark; Android also supports auto.',
+    ),
+  ];
+
   static const androidApp = <CockpitSystemControlParameter>[
     CockpitSystemControlParameter(
       name: 'packageId',

@@ -22,6 +22,7 @@ enum CockpitSystemControlAction {
   grantPermission,
   revokePermission,
   resetPermission,
+  preparePermissions,
   openUrl,
   openSystemSettings,
   setAppearance,
@@ -37,6 +38,10 @@ enum CockpitSystemControlAction {
   collapseSystemUi,
   postNotification,
   clearNotifications,
+  tapNotification,
+  recoverToApp,
+  resolveBlockers,
+  stabilizeForScreenshot,
   setClipboard,
   getClipboard,
   pushFile,
@@ -50,6 +55,7 @@ enum CockpitSystemControlAction {
   readWindows,
   readSystemState,
   readDeviceInfo,
+  readFocusState,
   readNotificationState,
   runShell;
 
@@ -492,7 +498,8 @@ List<String> _defaultGroupsForAction(CockpitSystemControlAction action) {
     ],
     CockpitSystemControlAction.grantPermission ||
     CockpitSystemControlAction.revokePermission ||
-    CockpitSystemControlAction.resetPermission => const <String>[
+    CockpitSystemControlAction.resetPermission ||
+    CockpitSystemControlAction.preparePermissions => const <String>[
       CockpitSystemControlGroups.permissions,
     ],
     CockpitSystemControlAction.openUrl => const <String>[
@@ -516,13 +523,18 @@ List<String> _defaultGroupsForAction(CockpitSystemControlAction action) {
     CockpitSystemControlAction.expandNotifications ||
     CockpitSystemControlAction.postNotification ||
     CockpitSystemControlAction.clearNotifications ||
+    CockpitSystemControlAction.tapNotification ||
     CockpitSystemControlAction.readNotificationState => const <String>[
       CockpitSystemControlGroups.notifications,
       CockpitSystemControlGroups.systemUi,
     ],
     CockpitSystemControlAction.expandQuickSettings ||
-    CockpitSystemControlAction.collapseSystemUi => const <String>[
+    CockpitSystemControlAction.collapseSystemUi ||
+    CockpitSystemControlAction.recoverToApp ||
+    CockpitSystemControlAction.resolveBlockers ||
+    CockpitSystemControlAction.stabilizeForScreenshot => const <String>[
       CockpitSystemControlGroups.systemUi,
+      CockpitSystemControlGroups.navigation,
     ],
     CockpitSystemControlAction.setClipboard ||
     CockpitSystemControlAction.getClipboard => const <String>[
@@ -545,7 +557,8 @@ List<String> _defaultGroupsForAction(CockpitSystemControlAction action) {
     CockpitSystemControlAction.readProcessList ||
     CockpitSystemControlAction.readWindows ||
     CockpitSystemControlAction.readSystemState ||
-    CockpitSystemControlAction.readDeviceInfo => const <String>[
+    CockpitSystemControlAction.readDeviceInfo ||
+    CockpitSystemControlAction.readFocusState => const <String>[
       CockpitSystemControlGroups.inspection,
     ],
     CockpitSystemControlAction.runShell => const <String>[

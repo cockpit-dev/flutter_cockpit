@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
@@ -348,6 +349,125 @@ final class CockpitIosWebDriverAgentClient {
             timeout: timeout,
           );
           return response.body;
+        case CockpitIosWdaAction.readFocusState:
+          final keyboardResponse = await _getSessionOrNull(
+            client,
+            session,
+            'wda/keyboard/isShown',
+            timeout: timeout,
+          );
+          final sourceResponse = await _getSessionOrNull(
+            client,
+            session,
+            'source',
+            timeout: timeout,
+          );
+          return jsonEncode(<String, Object?>{
+            'keyboardVisible': _readWdaBooleanValue(keyboardResponse?.body),
+            if (sourceResponse != null)
+              'sourcePreview': _trimForDiagnostics(sourceResponse.body),
+          });
+        case CockpitIosWdaAction.expandNotifications:
+          final size = await _readWindowSize(client, session, timeout: timeout);
+          await _dragPoint(
+            client,
+            session,
+            start: _WdaPoint((size.width * 0.5).round(), 2),
+            end: _WdaPoint(
+              (size.width * 0.5).round(),
+              (size.height * 0.62).round(),
+            ),
+            durationMs: 450,
+            id: 'cockpit-notification-center-drag',
+            timeout: timeout,
+          );
+          return 'expandNotifications width=${size.width} height=${size.height}';
+        case CockpitIosWdaAction.expandQuickSettings:
+          final size = await _readWindowSize(client, session, timeout: timeout);
+          await _dragPoint(
+            client,
+            session,
+            start: _WdaPoint((size.width * 0.92).round(), 2),
+            end: _WdaPoint(
+              (size.width * 0.92).round(),
+              (size.height * 0.62).round(),
+            ),
+            durationMs: 450,
+            id: 'cockpit-control-center-drag',
+            timeout: timeout,
+          );
+          return 'expandQuickSettings width=${size.width} height=${size.height}';
+        case CockpitIosWdaAction.collapseSystemUi:
+          final size = await _readWindowSize(client, session, timeout: timeout);
+          await _dragPoint(
+            client,
+            session,
+            start: _WdaPoint(
+              (size.width * 0.5).round(),
+              (size.height * 0.90).round(),
+            ),
+            end: _WdaPoint(
+              (size.width * 0.5).round(),
+              (size.height * 0.18).round(),
+            ),
+            durationMs: 350,
+            id: 'cockpit-system-ui-collapse-drag',
+            timeout: timeout,
+          );
+          return 'collapseSystemUi width=${size.width} height=${size.height}';
+        case CockpitIosWdaAction.tapNotification:
+          final matchText = _notificationMatchText(command.parameters);
+          await _openNotificationCenter(client, session, timeout: timeout);
+          final sourceResponse = await _getSession(
+            client,
+            session,
+            'source',
+            timeout: timeout,
+          );
+          final source = _extractWdaSourceValue(sourceResponse.body);
+          final point = _findXmlNodeCenterForText(source, matchText);
+          if (point == null) {
+            throw StateError(
+              'WebDriverAgent source did not contain notification text "$matchText".',
+            );
+          }
+          await _tapPoint(client, session, point, timeout: timeout);
+          return 'tapNotification text=$matchText x=${point.x} y=${point.y}';
+        case CockpitIosWdaAction.resolveBlockers:
+          final decision =
+              _optionalString(command.parameters, 'decision') ?? 'accept';
+          final dismissKeyboard =
+              _optionalBool(command.parameters, 'dismissKeyboard') ?? true;
+          await _dismissAlertIfPresent(
+            client,
+            session,
+            decision: decision,
+            timeout: timeout,
+          );
+          if (dismissKeyboard) {
+            await _postSessionOrNull(
+              client,
+              session,
+              'wda/keyboard/dismiss',
+              const <String, Object?>{},
+              timeout: timeout,
+            );
+          }
+          final appId = _requiredString(command.parameters, 'appId');
+          final deviceId =
+              _optionalString(command.parameters, 'deviceId') ?? 'booted';
+          final launchOutput = await Process.run('xcrun', <String>[
+            'simctl',
+            'launch',
+            deviceId,
+            appId,
+          ]).timeout(timeout);
+          if (launchOutput.exitCode != 0) {
+            throw StateError(
+              'Failed to relaunch iOS simulator app $appId: ${launchOutput.stderr}',
+            );
+          }
+          return 'resolveBlockers appId=$appId decision=$decision';
       }
     });
   }
@@ -397,6 +517,39 @@ final class CockpitIosWebDriverAgentClient {
         .timeout(timeout);
     _ensureSuccess(response, 'run WebDriverAgent $path');
     return response;
+  }
+
+  Future<http.Response?> _getSessionOrNull(
+    http.Client client,
+    CockpitIosWdaSession session,
+    String path, {
+    required Duration timeout,
+  }) async {
+    try {
+      return await _getSession(client, session, path, timeout: timeout);
+    } on Object {
+      return null;
+    }
+  }
+
+  Future<http.Response?> _postSessionOrNull(
+    http.Client client,
+    CockpitIosWdaSession session,
+    String path,
+    Map<String, Object?> payload, {
+    required Duration timeout,
+  }) async {
+    try {
+      return await _postSession(
+        client,
+        session,
+        path,
+        payload,
+        timeout: timeout,
+      );
+    } on Object {
+      return null;
+    }
   }
 
   Uri _resolve(Uri baseUri, String path) {
@@ -469,6 +622,222 @@ final class CockpitIosWebDriverAgentClient {
       throw StateError('WebDriverAgent command requires string $key.');
     }
     return value.value;
+  }
+
+  bool? _optionalBool(Map<String, Object?> parameters, String key) {
+    final value = cockpitReadSystemControlBoolParameter(parameters, key);
+    if (value.isInvalid) {
+      throw StateError('WebDriverAgent command requires boolean $key.');
+    }
+    return value.value;
+  }
+
+  String _notificationMatchText(Map<String, Object?> parameters) {
+    final text = _optionalString(parameters, 'text');
+    final title = _optionalString(parameters, 'title');
+    final body = _optionalString(parameters, 'body');
+    final tag = _optionalString(parameters, 'tag');
+    final value = text ?? title ?? body ?? tag;
+    if (value == null || value.trim().isEmpty) {
+      throw StateError(
+        'WebDriverAgent tapNotification requires text, title, body, or tag.',
+      );
+    }
+    return value;
+  }
+
+  Future<void> _openNotificationCenter(
+    http.Client client,
+    CockpitIosWdaSession session, {
+    required Duration timeout,
+  }) async {
+    final size = await _readWindowSize(client, session, timeout: timeout);
+    await _dragPoint(
+      client,
+      session,
+      start: _WdaPoint((size.width * 0.5).round(), 2),
+      end: _WdaPoint((size.width * 0.5).round(), (size.height * 0.62).round()),
+      durationMs: 450,
+      id: 'cockpit-notification-drag',
+      timeout: timeout,
+    );
+  }
+
+  Future<void> _dragPoint(
+    http.Client client,
+    CockpitIosWdaSession session, {
+    required _WdaPoint start,
+    required _WdaPoint end,
+    required int durationMs,
+    required String id,
+    required Duration timeout,
+  }) async {
+    await _postSession(client, session, 'actions', <String, Object?>{
+      'actions': <Object?>[
+        <String, Object?>{
+          'type': 'pointer',
+          'id': id,
+          'parameters': <String, Object?>{'pointerType': 'touch'},
+          'actions': <Object?>[
+            <String, Object?>{
+              'type': 'pointerMove',
+              'duration': 0,
+              'origin': 'viewport',
+              'x': start.x,
+              'y': start.y,
+            },
+            <String, Object?>{'type': 'pointerDown', 'button': 0},
+            <String, Object?>{
+              'type': 'pointerMove',
+              'duration': durationMs,
+              'origin': 'viewport',
+              'x': end.x,
+              'y': end.y,
+            },
+            <String, Object?>{'type': 'pointerUp', 'button': 0},
+          ],
+        },
+      ],
+    }, timeout: timeout);
+  }
+
+  Future<void> _tapPoint(
+    http.Client client,
+    CockpitIosWdaSession session,
+    _WdaPoint point, {
+    required Duration timeout,
+  }) async {
+    await _postSession(client, session, 'actions', <String, Object?>{
+      'actions': <Object?>[
+        <String, Object?>{
+          'type': 'pointer',
+          'id': 'cockpit-notification-tap',
+          'parameters': <String, Object?>{'pointerType': 'touch'},
+          'actions': <Object?>[
+            <String, Object?>{
+              'type': 'pointerMove',
+              'duration': 0,
+              'origin': 'viewport',
+              'x': point.x,
+              'y': point.y,
+            },
+            <String, Object?>{'type': 'pointerDown', 'button': 0},
+            <String, Object?>{'type': 'pointerUp', 'button': 0},
+          ],
+        },
+      ],
+    }, timeout: timeout);
+  }
+
+  Future<void> _dismissAlertIfPresent(
+    http.Client client,
+    CockpitIosWdaSession session, {
+    required String decision,
+    required Duration timeout,
+  }) async {
+    final endpoint = switch (decision) {
+      'dismiss' || 'cancel' || 'deny' => 'alert/dismiss',
+      _ => 'alert/accept',
+    };
+    await _postSessionOrNull(
+      client,
+      session,
+      endpoint,
+      const <String, Object?>{},
+      timeout: timeout,
+    );
+  }
+
+  bool? _readWdaBooleanValue(String? body) {
+    if (body == null || body.trim().isEmpty) {
+      return null;
+    }
+    try {
+      final decoded = _decodeObject(body);
+      final value = decoded['value'];
+      return value is bool ? value : null;
+    } on Object {
+      return null;
+    }
+  }
+
+  String _extractWdaSourceValue(String body) {
+    final decoded = _decodeObject(body);
+    final value = decoded['value'];
+    return value is String ? value : jsonEncode(value);
+  }
+
+  Future<_WdaSize> _readWindowSize(
+    http.Client client,
+    CockpitIosWdaSession session, {
+    required Duration timeout,
+  }) async {
+    final response = await _getSession(
+      client,
+      session,
+      'window/size',
+      timeout: timeout,
+    );
+    final decoded = _decodeObject(response.body);
+    final value = decoded['value'];
+    if (value is Map<Object?, Object?>) {
+      final width = _readNumber(value['width'])?.round();
+      final height = _readNumber(value['height'])?.round();
+      if (width != null && height != null && width > 0 && height > 0) {
+        return _WdaSize(width, height);
+      }
+    }
+    throw StateError(
+      'WebDriverAgent window size response did not include positive width and height.',
+    );
+  }
+
+  num? _readNumber(Object? value) {
+    if (value is num) {
+      return value;
+    }
+    if (value is String) {
+      return num.tryParse(value);
+    }
+    return null;
+  }
+
+  _WdaPoint? _findXmlNodeCenterForText(String source, String text) {
+    final normalized = text.trim();
+    if (normalized.isEmpty) {
+      return null;
+    }
+    for (final match in RegExp(r'<[^>]+>').allMatches(source)) {
+      final node = match.group(0)!;
+      if (!node.contains(normalized)) {
+        continue;
+      }
+      final x = _readDoubleAttribute(node, 'x');
+      final y = _readDoubleAttribute(node, 'y');
+      final width = _readDoubleAttribute(node, 'width');
+      final height = _readDoubleAttribute(node, 'height');
+      if (x == null || y == null || width == null || height == null) {
+        continue;
+      }
+      return _WdaPoint((x + width / 2).round(), (y + height / 2).round());
+    }
+    return null;
+  }
+
+  double? _readDoubleAttribute(String node, String name) {
+    final match = RegExp('$name="([^"]+)"').firstMatch(node);
+    if (match == null) {
+      return null;
+    }
+    return double.tryParse(match.group(1)!);
+  }
+
+  String _trimForDiagnostics(String value) {
+    final normalized = value.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (normalized.length <= 1000) {
+      return normalized;
+    }
+    return '${normalized.substring(0, 1000)}...';
   }
 
   List<Object?> _keyboardActions(String text) {
@@ -546,4 +915,24 @@ enum CockpitIosWdaAction {
   setOrientation,
   readUiTree,
   readDeviceInfo,
+  readFocusState,
+  expandNotifications,
+  expandQuickSettings,
+  collapseSystemUi,
+  tapNotification,
+  resolveBlockers,
+}
+
+final class _WdaSize {
+  const _WdaSize(this.width, this.height);
+
+  final int width;
+  final int height;
+}
+
+final class _WdaPoint {
+  const _WdaPoint(this.x, this.y);
+
+  final int x;
+  final int y;
 }

@@ -76,6 +76,14 @@ void main() {
         rebuildSummaryIncluded: true,
         accessibilitySummaryIncluded: true,
       ),
+      focus: const CockpitFocusSnapshot(
+        hasPrimaryFocus: true,
+        primaryFocusDebugLabel: 'search-field',
+        primaryFocusWidgetType: 'TextField',
+        primaryFocusElementType: 'StatefulElement',
+        primaryFocusLabel: 'Search',
+        isTextInputFocus: true,
+      ),
       rebuild: const CockpitRebuildSnapshot(
         totalRebuildCount: 8,
         uniqueElementCount: 2,
@@ -150,6 +158,9 @@ void main() {
       CockpitDiagnosticCategory.spacing,
     );
     expect(roundTrip.summary?.ancestorSummariesIncluded, isTrue);
+    expect(roundTrip.focus?.hasPrimaryFocus, isTrue);
+    expect(roundTrip.focus?.primaryFocusLabel, 'Search');
+    expect(roundTrip.focus?.isTextInputFocus, isTrue);
     expect(
       roundTrip.diagnosticsArtifactRef?.relativePath,
       'diagnostics/step-001.json',

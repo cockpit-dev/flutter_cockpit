@@ -923,6 +923,17 @@ List<String> _aiStateLines(Object? value) {
       'route',
     ]),
   );
+  final focus = _readFocusMap(value);
+  if (focus != null) {
+    _addKeyValue(lines, 'focus', _readString(focus, 'primaryFocusLabel'));
+    _addKeyValue(
+      lines,
+      'focusWidget',
+      _readString(focus, 'primaryFocusWidgetType'),
+    );
+    _addKeyValue(lines, 'hasPrimaryFocus', _readBool(focus, 'hasPrimaryFocus'));
+    _addKeyValue(lines, 'textInputFocus', _readBool(focus, 'isTextInputFocus'));
+  }
   _addKeyValue(lines, 'appId', _readString(value, 'appId'));
   _addKeyValue(lines, 'processId', value['processId']);
   _addKeyValue(lines, 'sessionId', _readString(value, 'sessionId'));
@@ -1723,4 +1734,21 @@ Map<String, Object?> cockpitCompactMinimalReadAppPayload(
   }
 
   return compacted;
+}
+
+Map<Object?, Object?>? _readFocusMap(Map<Object?, Object?> value) {
+  final focus = _readMap(value, 'focus');
+  if (focus != null) {
+    return focus;
+  }
+  final uiSummary = _readMap(value, 'uiSummary');
+  final summaryFocus = uiSummary == null ? null : _readMap(uiSummary, 'focus');
+  if (summaryFocus != null) {
+    return summaryFocus;
+  }
+  final snapshot = _readMap(value, 'snapshot');
+  if (snapshot == null) {
+    return null;
+  }
+  return _readMap(snapshot, 'focus');
 }

@@ -272,7 +272,7 @@ final class RunSystemActionCommand extends CockpitCliCommand {
 
   @override
   String get helpShape =>
-      'Prefer explicit flags for common actions: --x/--y for tap, --text for typeText or setClipboard, --key for pressKey, --url for openUrl, --settings-action for openSystemSettings, --appearance, --content-size, --orientation, --network-speed, --network-delay, --time/--battery-level for iOS status bar, --title/--body/--tag or --payload-json for postNotification, --name/--output-path/--purpose/--mode/--layer for capture and recording, repeated --arg for runShell. Use --parameters-json only for less common payloads.';
+      'Prefer explicit flags for common actions: --x/--y for tap, --text for typeText/setClipboard/tapNotification, --key for pressKey, --url for openUrl, --settings-action for openSystemSettings, --appearance, --content-size, --orientation, --network-speed, --network-delay, --time/--battery-level for iOS status bar, --title/--body/--tag or --payload-json for postNotification and tapNotification, --decision for dismissSystemDialog or resolveBlockers, --name/--output-path/--purpose/--mode/--layer for capture and recording, repeated --arg for runShell. Use --parameters-json for blocker recovery, notification tap, or less common payloads.';
 
   @override
   String get helpExample =>

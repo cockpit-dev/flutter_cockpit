@@ -187,11 +187,16 @@ final class CockpitCollectDevelopmentProbeService {
             .where((target) => target.supportedCommands.isNotEmpty)
             .map(_preferredInteractiveLabel),
       ),
-      'focusedTargetLabel': _firstNonEmpty(
-        snapshot.visibleTargets
-            .where(_targetLooksFocused)
-            .map((target) => target.displayLabel),
-      ),
+      'focusedTargetLabel':
+          snapshot.focus?.primaryFocusLabel ??
+          _firstNonEmpty(
+            snapshot.visibleTargets
+                .where(_targetLooksFocused)
+                .map((target) => target.displayLabel),
+          ),
+      'hasPrimaryFocus': snapshot.focus?.hasPrimaryFocus ?? false,
+      'focusedWidgetType': snapshot.focus?.primaryFocusWidgetType,
+      'hasTextInputFocus': snapshot.focus?.isTextInputFocus ?? false,
       'overlayLabels': _uniqueNonEmpty(
         snapshot.visibleTargets
             .where(_targetLooksLikeOverlay)

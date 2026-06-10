@@ -215,6 +215,23 @@ final class CockpitAndroidSystemControlAdapter
           parameters: CockpitSystemControlParameterSets.androidResetPermission,
         ),
         CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.preparePermissions,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: availability,
+          strategy: 'macro.adb.permissions+recover',
+          requires: <String>['adb', 'device id', 'package id'],
+          limitations: <String>[
+            'Executes grant, revoke, or reset for each declared permission and can restore app focus afterwards.',
+          ],
+          parameters: CockpitSystemControlParameterSets.preparePermissions,
+          fallbackActions: <CockpitSystemControlAction>[
+            CockpitSystemControlAction.grantPermission,
+            CockpitSystemControlAction.revokePermission,
+            CockpitSystemControlAction.resetPermission,
+            CockpitSystemControlAction.recoverToApp,
+          ],
+        ),
+        CockpitSystemControlCapability(
           action: CockpitSystemControlAction.openUrl,
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
@@ -364,6 +381,66 @@ final class CockpitAndroidSystemControlAdapter
             'Android shell has no stable public clear-all-notifications command; this collapses system UI after notification assertions.',
           ],
         ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.tapNotification,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: availability,
+          strategy: 'adb.statusbar.expand+uiautomator.notification-tap',
+          requires: <String>['adb', 'device id', 'visible notification text'],
+          limitations: <String>[
+            'Matches visible notification text after expanding the shade; OEM notification layouts may require coordinate fallback.',
+          ],
+          parameters: CockpitSystemControlParameterSets.tapNotification,
+          fallbackActions: <CockpitSystemControlAction>[
+            CockpitSystemControlAction.expandNotifications,
+            CockpitSystemControlAction.tap,
+          ],
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.recoverToApp,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: availability,
+          strategy: 'adb.statusbar.collapse+monkey.launcher',
+          requires: <String>['adb', 'device id', 'package id'],
+          limitations: <String>[
+            'Brings the app launcher activity forward without clearing app data or killing the process.',
+          ],
+          parameters: CockpitSystemControlParameterSets.recoverToApp,
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.resolveBlockers,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: availability,
+          strategy: 'adb.dismiss-dialog+keyboard+statusbar+recover-app',
+          requires: <String>['adb', 'device id', 'package id'],
+          limitations: <String>[
+            'Handles common permission dialogs, IME focus, and notification shade blockers before restoring the app.',
+          ],
+          parameters: CockpitSystemControlParameterSets.resolveBlockers,
+          fallbackActions: <CockpitSystemControlAction>[
+            CockpitSystemControlAction.dismissSystemDialog,
+            CockpitSystemControlAction.dismissKeyboard,
+            CockpitSystemControlAction.recoverToApp,
+          ],
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.stabilizeForScreenshot,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: availability,
+          strategy: 'macro.adb.stabilize-screenshot',
+          requires: <String>['adb', 'device id'],
+          limitations: <String>[
+            'Executes available keyboard, system UI, orientation, appearance, and app recovery actions before screenshot evidence.',
+          ],
+          parameters: CockpitSystemControlParameterSets.stabilizeForScreenshot,
+          fallbackActions: <CockpitSystemControlAction>[
+            CockpitSystemControlAction.dismissKeyboard,
+            CockpitSystemControlAction.collapseSystemUi,
+            CockpitSystemControlAction.setOrientation,
+            CockpitSystemControlAction.setAppearance,
+            CockpitSystemControlAction.recoverToApp,
+          ],
+        ),
         const CockpitSystemControlCapability(
           action: CockpitSystemControlAction.setClipboard,
           plane: CockpitPlaneKind.deviceSystemPlane,
@@ -470,6 +547,13 @@ final class CockpitAndroidSystemControlAdapter
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.shell.getprop+wm+settings',
+          requires: <String>['adb', 'device id'],
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.readFocusState,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: availability,
+          strategy: 'adb.shell.dumpsys.window+input_method',
           requires: <String>['adb', 'device id'],
         ),
         CockpitSystemControlCapability(
@@ -750,6 +834,35 @@ final class CockpitAndroidSystemControlAdapter
           'adb',
           adbShell(const <String>['cmd', 'statusbar', 'collapse']),
         ),
+      CockpitSystemControlAction.tapNotification =>
+        _androidTapNotificationCommand(
+          request,
+          (script) => CockpitResolvedSystemControlCommand(
+            'adb',
+            adbShell(<String>['sh', '-c', script]),
+          ),
+        ),
+      CockpitSystemControlAction.recoverToApp => _packageCommand(
+        request,
+        (packageId) => CockpitResolvedSystemControlCommand(
+          'adb',
+          adbShell(<String>['sh', '-c', _androidRecoverToAppScript(packageId)]),
+        ),
+      ),
+      CockpitSystemControlAction.resolveBlockers =>
+        _androidResolveBlockersCommand(
+          request,
+          (script) => CockpitResolvedSystemControlCommand(
+            'adb',
+            adbShell(<String>['sh', '-c', script]),
+          ),
+        ),
+      CockpitSystemControlAction.preparePermissions ||
+      CockpitSystemControlAction.stabilizeForScreenshot =>
+        const CockpitResolvedSystemControlCommand.error(
+          code: 'systemMacroAction',
+          message: 'Macro actions are executed through the action service.',
+        ),
       CockpitSystemControlAction.postNotification =>
         _androidPostNotificationCommand(
           request,
@@ -868,6 +981,15 @@ final class CockpitAndroidSystemControlAdapter
             'sh',
             '-c',
             'printf "serial=" && getprop ro.serialno; printf "model=" && getprop ro.product.model; printf "sdk=" && getprop ro.build.version.sdk; printf "release=" && getprop ro.build.version.release; wm size; wm density; settings get system font_scale; settings get secure default_input_method; dumpsys input_method | grep -E "mInputShown|InputShown" | head -n 5 || true',
+          ]),
+        ),
+      CockpitSystemControlAction.readFocusState =>
+        CockpitResolvedSystemControlCommand(
+          'adb',
+          adbShell(const <String>[
+            'sh',
+            '-c',
+            'printf "windowFocus=\\n"; dumpsys window windows | grep -E "mCurrentFocus|mFocusedApp|mInputMethodTarget" | head -n 20 || true; printf "\\ninputMethod=\\n"; dumpsys input_method | grep -E "mInputShown|InputShown|mServedView|mCurrentFocus|mCurMethodId" | head -n 40 || true',
           ]),
         ),
       CockpitSystemControlAction.readNotificationState =>
@@ -1202,6 +1324,82 @@ final class CockpitAndroidSystemControlAdapter
     return factory(_androidDismissSystemDialogScript(mode));
   }
 
+  CockpitResolvedSystemControlCommand _androidTapNotificationCommand(
+    CockpitSystemControlActionRequest request,
+    CockpitResolvedSystemControlCommand Function(String script) factory,
+  ) {
+    final title = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'title',
+    );
+    final body = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'body',
+    );
+    final tag = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'tag',
+    );
+    final text = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'text',
+    );
+    if (title.isInvalid || body.isInvalid || tag.isInvalid || text.isInvalid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'invalidSystemActionParameter',
+        message:
+            'tapNotification accepts string title, body, tag, and text parameters.',
+      );
+    }
+    final matchText = text.value ?? title.value ?? body.value ?? tag.value;
+    if (matchText == null || matchText.trim().isEmpty) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'missingSystemActionParameter',
+        message:
+            'tapNotification requires title, body, tag, or text to match the delivered notification.',
+      );
+    }
+    return factory(_androidTapNotificationScript(matchText));
+  }
+
+  CockpitResolvedSystemControlCommand _androidResolveBlockersCommand(
+    CockpitSystemControlActionRequest request,
+    CockpitResolvedSystemControlCommand Function(String script) factory,
+  ) {
+    final packageId = _readPackageId(request);
+    final decision = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'decision',
+      allowedValues: const <String>['accept', 'dismiss'],
+    );
+    final dismissKeyboard = cockpitReadSystemControlBoolParameter(
+      request.parameters,
+      'dismissKeyboard',
+    );
+    if (packageId.isInvalid ||
+        decision.isInvalid ||
+        dismissKeyboard.isInvalid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'invalidSystemActionParameter',
+        message:
+            'resolveBlockers requires string packageId/appId plus optional decision and dismissKeyboard parameters.',
+      );
+    }
+    if (!packageId.isValid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'missingSystemActionParameter',
+        message: 'resolveBlockers requires --app-id or packageId.',
+      );
+    }
+    return factory(
+      _androidResolveBlockersScript(
+        packageId.value!,
+        decision.value ?? 'accept',
+        dismissKeyboard: dismissKeyboard.value ?? true,
+      ),
+    );
+  }
+
   String _androidDismissSystemDialogScript(String decision) {
     final buttonSpecs = decision == 'dismiss'
         ? const <String>[
@@ -1247,6 +1445,63 @@ set -- \$bounds
 x=\$(( (\$1 + \$3) / 2 ))
 y=\$(( (\$2 + \$4) / 2 ))
 input tap "\$x" "\$y"
+''';
+  }
+
+  String _androidTapNotificationScript(String matchText) {
+    final quotedMatch = _shellSingleQuoted(matchText);
+    return '''
+set -e
+cmd statusbar expand-notifications >/dev/null 2>&1 || true
+sleep 0.4
+dump="/sdcard/flutter_cockpit_notification.xml"
+uiautomator dump "\$dump" >/dev/null
+match=\$(grep -F $quotedMatch "\$dump" | head -n 1 || true)
+if [ -z "\$match" ]; then
+  rm -f "\$dump"
+  echo "flutter_cockpit: no notification text matched $quotedMatch" >&2
+  exit 2
+fi
+bounds=\$(printf "%s" "\$match" | sed -n 's/.*bounds="\\[\\([0-9][0-9]*\\),\\([0-9][0-9]*\\)\\]\\[\\([0-9][0-9]*\\),\\([0-9][0-9]*\\)\\]".*/\\1 \\2 \\3 \\4/p')
+rm -f "\$dump"
+if [ -z "\$bounds" ]; then
+  echo "flutter_cockpit: matched notification node had no bounds" >&2
+  exit 2
+fi
+set -- \$bounds
+x=\$(( (\$1 + \$3) / 2 ))
+y=\$(( (\$2 + \$4) / 2 ))
+input tap "\$x" "\$y"
+''';
+  }
+
+  String _androidRecoverToAppScript(String packageId) {
+    final quotedPackage = _shellSingleQuoted(packageId);
+    return '''
+set -e
+cmd statusbar collapse >/dev/null 2>&1 || true
+monkey -p $quotedPackage -c android.intent.category.LAUNCHER 1 >/dev/null
+''';
+  }
+
+  String _androidResolveBlockersScript(
+    String packageId,
+    String decision, {
+    required bool dismissKeyboard,
+  }) {
+    final quotedPackage = _shellSingleQuoted(packageId);
+    final dialogScript = _androidDismissSystemDialogScript(decision);
+    return '''
+set +e
+(
+$dialogScript
+) >/dev/null 2>&1
+if [ "$dismissKeyboard" = "true" ]; then
+  input keyevent KEYCODE_BACK >/dev/null 2>&1 || true
+fi
+cmd statusbar collapse >/dev/null 2>&1 || true
+monkey -p $quotedPackage -c android.intent.category.LAUNCHER 1 >/dev/null
+exit 0
 ''';
   }
 
@@ -1488,5 +1743,9 @@ input tap "\$x" "\$y"
         .replaceAll(' ', '%s')
         .replaceAll('"', r'\"')
         .replaceAll("'", r"\'");
+  }
+
+  String _shellSingleQuoted(String value) {
+    return "'${value.replaceAll("'", r"""'"'"'""")}'";
   }
 }

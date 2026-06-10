@@ -82,6 +82,14 @@ void main() {
               'visibleTargetCount': 4,
               'textPreviews': <String>['Inbox', 'Settings', 'Save'],
             },
+            'snapshot': <String, Object?>{
+              'focus': <String, Object?>{
+                'hasPrimaryFocus': true,
+                'primaryFocusLabel': 'Search',
+                'primaryFocusWidgetType': 'TextField',
+                'isTextInputFocus': true,
+              },
+            },
             'artifactDownloads': <Object?>[],
           },
           argResults: parser.parse(const <String>[]),
@@ -95,6 +103,8 @@ void main() {
         expect(text, contains('next=runNextCommand'));
         expect(text, contains('route=/inbox'));
         expect(text, contains('text=Inbox | Settings | Save'));
+        expect(text, contains('focus=Search'));
+        expect(text, contains('textInputFocus=true'));
         expect(() => jsonDecode(text), throwsA(isA<FormatException>()));
       },
     );

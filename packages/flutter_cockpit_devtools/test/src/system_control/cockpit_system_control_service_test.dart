@@ -57,6 +57,29 @@ void main() {
       ]),
     );
     expect(
+      result.profile.availableActions.map((action) => action.name),
+      containsAll(<String>[
+        'tapNotification',
+        'recoverToApp',
+        'resolveBlockers',
+        'readFocusState',
+        'preparePermissions',
+        'stabilizeForScreenshot',
+      ]),
+    );
+    expect(
+      result.profile
+          .capabilityFor(CockpitSystemControlAction.preparePermissions)
+          ?.effectiveGroups,
+      contains('permissions'),
+    );
+    expect(
+      result.profile
+          .capabilityFor(CockpitSystemControlAction.stabilizeForScreenshot)
+          ?.effectiveGroups,
+      containsAll(<String>['systemUi', 'navigation']),
+    );
+    expect(
       result.profile.availableActions,
       contains(CockpitSystemControlAction.captureScreenshot),
     );
@@ -146,6 +169,14 @@ void main() {
     );
 
     expect(result.profile.adapter, 'ios.simctl+xctest');
+    expect(
+      result.profile
+          .capabilityFor(CockpitSystemControlAction.activateWindow)
+          ?.limitations,
+      contains(
+        'Brings the app to the foreground without terminating an existing debug or hot-reload session.',
+      ),
+    );
     expect(
       result.profile.availableActions,
       containsAll(<CockpitSystemControlAction>[
@@ -246,9 +277,22 @@ void main() {
           CockpitSystemControlAction.pressHome,
           CockpitSystemControlAction.dismissSystemDialog,
           CockpitSystemControlAction.dismissKeyboard,
+          CockpitSystemControlAction.expandNotifications,
+          CockpitSystemControlAction.expandQuickSettings,
           CockpitSystemControlAction.collapseSystemUi,
           CockpitSystemControlAction.setOrientation,
           CockpitSystemControlAction.readUiTree,
+        ]),
+      );
+      expect(
+        result.profile.availableActions.map((action) => action.name),
+        containsAll(<String>[
+          'tapNotification',
+          'recoverToApp',
+          'resolveBlockers',
+          'readFocusState',
+          'preparePermissions',
+          'stabilizeForScreenshot',
         ]),
       );
       expect(
@@ -281,6 +325,58 @@ void main() {
         result.profile.capabilityFor(CockpitSystemControlAction.tap)?.requires,
         contains('reachable WebDriverAgent endpoint'),
       );
+    },
+  );
+
+  test(
+    'android readFocusState is advertised as a parameterless inspection action',
+    () async {
+      final service = CockpitSystemControlService();
+
+      final result = await service.describe(
+        const CockpitSystemControlDescribeRequest(
+          platform: 'android',
+          deviceId: 'emulator-5554',
+        ),
+      );
+
+      final capability = result.profile.capabilityFor(
+        CockpitSystemControlAction.readFocusState,
+      );
+      expect(
+        capability?.availability,
+        CockpitSystemControlAvailability.available,
+      );
+      expect(capability?.groups, isEmpty);
+      expect(capability?.effectiveGroups, contains('inspection'));
+      expect(capability?.parameters, isEmpty);
+    },
+  );
+
+  test(
+    'ios simulator readFocusState is advertised as a parameterless inspection action',
+    () async {
+      final service = CockpitSystemControlService(
+        iosWdaEndpointProbe: (_, {required timeout}) async => true,
+      );
+
+      final result = await service.describe(
+        const CockpitSystemControlDescribeRequest(
+          platform: 'ios',
+          deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+          metadata: <String, Object?>{'wdaUrl': 'http://127.0.0.1:8100'},
+        ),
+      );
+
+      final capability = result.profile.capabilityFor(
+        CockpitSystemControlAction.readFocusState,
+      );
+      expect(
+        capability?.availability,
+        CockpitSystemControlAvailability.available,
+      );
+      expect(capability?.effectiveGroups, contains('inspection'));
+      expect(capability?.parameters, isEmpty);
     },
   );
 
@@ -594,7 +690,7 @@ void main() {
             capability.availability ==
             CockpitSystemControlAvailability.available,
       )) {
-        if (_isEvidenceAction(capability.action)) {
+        if (_isServiceLevelAction(capability.action)) {
           continue;
         }
         final request = CockpitSystemControlActionRequest(
@@ -839,6 +935,14 @@ bool _isEvidenceAction(CockpitSystemControlAction action) {
   };
 }
 
+bool _isServiceLevelAction(CockpitSystemControlAction action) {
+  return switch (action) {
+    CockpitSystemControlAction.preparePermissions ||
+    CockpitSystemControlAction.stabilizeForScreenshot => true,
+    _ => _isEvidenceAction(action),
+  };
+}
+
 CockpitSystemControlParameter? _parameter(
   CockpitSystemControlProfile profile,
   CockpitSystemControlAction action,
@@ -941,6 +1045,7 @@ Map<String, Object?> _fallbackParametersFor(CockpitSystemControlAction action) {
     CockpitSystemControlAction.expandQuickSettings ||
     CockpitSystemControlAction.collapseSystemUi ||
     CockpitSystemControlAction.clearNotifications ||
+    CockpitSystemControlAction.readFocusState ||
     CockpitSystemControlAction.readUiTree ||
     CockpitSystemControlAction.readProcessList ||
     CockpitSystemControlAction.readWindows ||
@@ -948,6 +1053,12 @@ Map<String, Object?> _fallbackParametersFor(CockpitSystemControlAction action) {
     CockpitSystemControlAction.readDeviceInfo ||
     CockpitSystemControlAction.readNotificationState =>
       const <String, Object?>{},
+    CockpitSystemControlAction.preparePermissions => const <String, Object?>{
+      'packageId': 'dev.cockpit.example',
+      'permissions': <String>['android.permission.CAMERA'],
+    },
+    CockpitSystemControlAction.stabilizeForScreenshot =>
+      const <String, Object?>{'packageId': 'dev.cockpit.example'},
     CockpitSystemControlAction.activateWindow ||
     CockpitSystemControlAction.terminateApp => const <String, Object?>{
       'packageId': 'dev.cockpit.example',
@@ -1016,6 +1127,13 @@ Map<String, Object?> _fallbackParametersFor(CockpitSystemControlAction action) {
       'title': 'Download complete',
       'body': 'Model is ready',
       'tag': 'model-download',
+    },
+    CockpitSystemControlAction.tapNotification => const <String, Object?>{
+      'title': 'Download complete',
+    },
+    CockpitSystemControlAction.recoverToApp ||
+    CockpitSystemControlAction.resolveBlockers => const <String, Object?>{
+      'packageId': 'dev.cockpit.example',
     },
     CockpitSystemControlAction.pushFile => const <String, Object?>{
       'sourcePath': '/tmp/cockpit-source.dat',

@@ -397,7 +397,9 @@ the smallest truthful surface:
   content size, orientation, emulator network speed/delay, simulator status
   bars, app install/uninstall/data clear, permission grant/revoke/reset,
   file/media setup, screenshots, recordings, process/window/device/notification
-  reads, and bounded native UI tree reads
+  reads, bounded native UI tree reads, and flow macros such as
+  `resolveBlockers`, `preparePermissions`, `recoverToApp`, `tapNotification`,
+  `readFocusState`, and `stabilizeForScreenshot`
 - use `start-remote-recording` and `stop-remote-recording` only when working
   directly with a remote session instead of an app handle
 
@@ -408,13 +410,21 @@ grant/revoke/reset, app settings, appearance, text scale, location, orientation,
 emulator network conditions, notification shade, quick settings, file push/pull,
 media import, screenshots, recordings, UI tree, process/window/device/system
 state reads, notification state reads, shell, and UIAutomator-assisted
-`dismissSystemDialog --decision accept|dismiss`.
+`dismissSystemDialog --decision accept|dismiss`. The Android adapter also
+backs the macro actions for blocker resolution, permission preparation,
+notification tap-through, app recovery, focus reads, and screenshot
+stabilization.
 iOS simulator support is simctl-backed for app lifecycle, privacy grant/revoke
 /reset, URLs, Settings, appearance, content size, location, status bar
 overrides, pasteboard, simulated APNS push, app install/uninstall/data clear,
 app-container file transfer, media import, screenshot, recording,
 process/device/state reads, and shell via `simctl spawn`. iOS native UI and
-system dialog control uses WebDriverAgent when reachable. Simulator features
+system dialog control uses WebDriverAgent when reachable. The iOS simulator
+macros combine simctl and WDA according to reported availability, so unavailable
+WDA-only steps are reported as skipped or blocked instead of faked. iOS simulator
+`activateWindow` brings the app foreground without terminating an existing
+Flutter debug or hot-reload session; use `terminateApp` only when a restart is
+intentional. Simulator features
 with no stable public API, such as iOS simulator volume keys, Notification
 Center expansion, Control Center expansion, and clear-all-notifications, are
 reported as `unsupported` or `blocked`. JSON capability output also exposes

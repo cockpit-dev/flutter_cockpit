@@ -142,6 +142,7 @@ final class CockpitControlPlanner {
       CockpitIntentAction.increase ||
       CockpitIntentAction.decrease ||
       CockpitIntentAction.dismiss ||
+      CockpitIntentAction.dismissKeyboard ||
       CockpitIntentAction.waitFor ||
       CockpitIntentAction.assertVisible ||
       CockpitIntentAction.assertText => true,
@@ -176,6 +177,7 @@ final class CockpitControlPlanner {
       CockpitIntentAction.focusTextInput ||
       CockpitIntentAction.setTextEditingValue ||
       CockpitIntentAction.sendTextInputAction ||
+      CockpitIntentAction.dismissKeyboard ||
       CockpitIntentAction.sendKeyEvent ||
       CockpitIntentAction.sendKeyDownEvent ||
       CockpitIntentAction.sendKeyUpEvent => CockpitActionCapability.typeText,

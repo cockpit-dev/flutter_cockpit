@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
@@ -117,6 +118,12 @@ final class CockpitSystemControlActionService {
     if (request.action == CockpitSystemControlAction.stopRecording) {
       return _stopRecording(request, profile, capability);
     }
+    if (request.action == CockpitSystemControlAction.preparePermissions) {
+      return _preparePermissions(request, profile, capability);
+    }
+    if (request.action == CockpitSystemControlAction.stabilizeForScreenshot) {
+      return _stabilizeForScreenshot(request, profile, capability);
+    }
 
     final commandRequest = CockpitSystemControlActionRequest(
       platform: request.platform,
@@ -225,6 +232,257 @@ final class CockpitSystemControlActionService {
     );
   }
 
+  Future<CockpitSystemControlActionResult> _preparePermissions(
+    CockpitSystemControlActionRequest request,
+    CockpitSystemControlProfile profile,
+    CockpitSystemControlCapability capability,
+  ) async {
+    final permissions = cockpitReadSystemControlStringListParameter(
+      request.parameters,
+      'permissions',
+    );
+    final mode = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'mode',
+      allowedValues: const <String>['grant', 'revoke', 'reset'],
+    );
+    final recover = cockpitReadSystemControlBoolParameter(
+      request.parameters,
+      'recover',
+    );
+    final appId = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'appId',
+    );
+    final packageId = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'packageId',
+    );
+    if (permissions.isInvalid ||
+        mode.isInvalid ||
+        recover.isInvalid ||
+        appId.isInvalid ||
+        packageId.isInvalid) {
+      return _invalidEvidencePayload(
+        request,
+        capability,
+        'preparePermissions accepts permissions, mode, recover, appId, and packageId parameters declared by system capabilities.',
+      );
+    }
+    if (!permissions.isValid || permissions.value!.isEmpty) {
+      return _notExecutable(
+        request,
+        availability: capability.availability,
+        recommendedNextStep: 'fixActionPayload',
+        errorCode: 'missingSystemActionParameter',
+        errorMessage: 'preparePermissions requires at least one permission.',
+        strategy: capability.strategy,
+        requires: capability.requires,
+        limitations: capability.limitations,
+      );
+    }
+
+    final normalizedMode = mode.value ?? 'grant';
+    final permissionAction = switch (normalizedMode) {
+      'grant' => CockpitSystemControlAction.grantPermission,
+      'revoke' => CockpitSystemControlAction.revokePermission,
+      'reset' => CockpitSystemControlAction.resetPermission,
+      _ => CockpitSystemControlAction.grantPermission,
+    };
+    final steps = <_SystemMacroStep>[];
+    for (final permission in permissions.value!) {
+      final trimmed = permission.trim();
+      if (trimmed.isEmpty) {
+        continue;
+      }
+      steps.add(
+        _SystemMacroStep(
+          action: permissionAction,
+          parameters: <String, Object?>{
+            ..._macroTargetParameters(request),
+            'permission': trimmed,
+          },
+          label: '${permissionAction.name}:$trimmed',
+        ),
+      );
+    }
+    if (steps.isEmpty) {
+      return _notExecutable(
+        request,
+        availability: capability.availability,
+        recommendedNextStep: 'fixActionPayload',
+        errorCode: 'missingSystemActionParameter',
+        errorMessage: 'preparePermissions requires non-empty permissions.',
+        strategy: capability.strategy,
+        requires: capability.requires,
+        limitations: capability.limitations,
+      );
+    }
+    if (recover.value ?? true) {
+      steps.add(
+        _SystemMacroStep(
+          action: CockpitSystemControlAction.recoverToApp,
+          parameters: _macroTargetParameters(request),
+        ),
+      );
+    }
+    return _runMacroSteps(
+      request,
+      profile,
+      capability,
+      steps: steps,
+      recommendedNextStepOnSuccess: 'readPostActionState',
+    );
+  }
+
+  Future<CockpitSystemControlActionResult> _stabilizeForScreenshot(
+    CockpitSystemControlActionRequest request,
+    CockpitSystemControlProfile profile,
+    CockpitSystemControlCapability capability,
+  ) async {
+    final dismissKeyboard = cockpitReadSystemControlBoolParameter(
+      request.parameters,
+      'dismissKeyboard',
+    );
+    final collapseSystemUi = cockpitReadSystemControlBoolParameter(
+      request.parameters,
+      'collapseSystemUi',
+    );
+    final recover = cockpitReadSystemControlBoolParameter(
+      request.parameters,
+      'recover',
+    );
+    final orientation = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'orientation',
+      allowedValues: const <String>[
+        'portrait',
+        'landscape',
+        'reversePortrait',
+        'reverseLandscape',
+        'auto',
+      ],
+    );
+    final statusBar = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'statusBar',
+      allowedValues: const <String>['default', 'clear', 'stable'],
+    );
+    final time = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'time',
+    );
+    final appearance = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'appearance',
+      allowedValues: const <String>['light', 'dark', 'auto'],
+    );
+    final appId = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'appId',
+    );
+    final packageId = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'packageId',
+    );
+    if (dismissKeyboard.isInvalid ||
+        collapseSystemUi.isInvalid ||
+        recover.isInvalid ||
+        orientation.isInvalid ||
+        statusBar.isInvalid ||
+        time.isInvalid ||
+        appearance.isInvalid ||
+        appId.isInvalid ||
+        packageId.isInvalid) {
+      return _invalidEvidencePayload(
+        request,
+        capability,
+        'stabilizeForScreenshot accepts dismissKeyboard, collapseSystemUi, recover, orientation, statusBar, time, appearance, appId, and packageId parameters declared by system capabilities.',
+      );
+    }
+
+    final steps = <_SystemMacroStep>[];
+    if (dismissKeyboard.value ?? true) {
+      steps.add(
+        const _SystemMacroStep(
+          action: CockpitSystemControlAction.dismissKeyboard,
+          optional: true,
+        ),
+      );
+    }
+    if (collapseSystemUi.value ?? true) {
+      steps.add(
+        const _SystemMacroStep(
+          action: CockpitSystemControlAction.collapseSystemUi,
+          optional: true,
+        ),
+      );
+    }
+    if (orientation.value != null) {
+      steps.add(
+        _SystemMacroStep(
+          action: CockpitSystemControlAction.setOrientation,
+          parameters: <String, Object?>{'orientation': orientation.value},
+          optional: true,
+        ),
+      );
+    }
+    if (appearance.value != null) {
+      steps.add(
+        _SystemMacroStep(
+          action: CockpitSystemControlAction.setAppearance,
+          parameters: <String, Object?>{'appearance': appearance.value},
+          optional: true,
+        ),
+      );
+    }
+    switch (statusBar.value) {
+      case 'clear':
+        steps.add(
+          const _SystemMacroStep(
+            action: CockpitSystemControlAction.clearStatusBar,
+            optional: true,
+          ),
+        );
+      case 'stable':
+        steps.add(
+          _SystemMacroStep(
+            action: CockpitSystemControlAction.setStatusBar,
+            parameters: <String, Object?>{
+              'time': time.value ?? '9:41',
+              'dataNetwork': 'wifi',
+              'wifiMode': 'active',
+              'wifiBars': 3,
+              'cellularMode': 'active',
+              'cellularBars': 4,
+              'batteryState': 'charged',
+              'batteryLevel': 100,
+            },
+            optional: true,
+          ),
+        );
+      case 'default':
+      case null:
+        break;
+    }
+    if (recover.value ?? true) {
+      steps.add(
+        _SystemMacroStep(
+          action: CockpitSystemControlAction.recoverToApp,
+          parameters: _macroTargetParameters(request),
+          optional: true,
+        ),
+      );
+    }
+    return _runMacroSteps(
+      request,
+      profile,
+      capability,
+      steps: steps,
+      recommendedNextStepOnSuccess: 'captureScreenshot',
+    );
+  }
+
   Future<CockpitSystemControlActionResult> _runIosWebDriverAgentCommand(
     CockpitSystemControlActionRequest request,
     CockpitSystemControlCapability capability,
@@ -292,6 +550,23 @@ final class CockpitSystemControlActionService {
           limitations: capability.limitations,
         );
       }
+      final typeErrorMessage = _validateSystemControlValueType(
+        request.action,
+        parameter,
+        entry.value,
+      );
+      if (typeErrorMessage != null) {
+        return _notExecutable(
+          request,
+          availability: capability.availability,
+          recommendedNextStep: 'fixActionPayload',
+          errorCode: 'invalidSystemActionParameter',
+          errorMessage: typeErrorMessage,
+          strategy: capability.strategy,
+          requires: capability.requires,
+          limitations: capability.limitations,
+        );
+      }
       final errorMessage = _validateSystemControlAllowedValue(
         request.action,
         parameter,
@@ -309,18 +584,22 @@ final class CockpitSystemControlActionService {
           limitations: capability.limitations,
         );
       }
-      final typeErrorMessage = _validateSystemControlValueType(
-        request.action,
+    }
+    for (final parameter in capability.parameters) {
+      if (!parameter.required) {
+        continue;
+      }
+      if (_isSystemControlParameterAbsent(
+        request.parameters[parameter.name],
         parameter,
-        entry.value,
-      );
-      if (typeErrorMessage != null) {
+      )) {
         return _notExecutable(
           request,
           availability: capability.availability,
           recommendedNextStep: 'fixActionPayload',
-          errorCode: 'invalidSystemActionParameter',
-          errorMessage: typeErrorMessage,
+          errorCode: 'missingSystemActionParameter',
+          errorMessage:
+              '${request.action.name} requires ${parameter.name}. Use read-system-capabilities parameters.',
           strategy: capability.strategy,
           requires: capability.requires,
           limitations: capability.limitations,
@@ -641,6 +920,240 @@ final class CockpitSystemControlActionService {
       limitations: limitations,
     );
   }
+
+  Future<CockpitSystemControlActionResult> _runMacroSteps(
+    CockpitSystemControlActionRequest request,
+    CockpitSystemControlProfile profile,
+    CockpitSystemControlCapability capability, {
+    required List<_SystemMacroStep> steps,
+    required String recommendedNextStepOnSuccess,
+  }) async {
+    final stepResults = <Map<String, Object?>>[];
+    var success = true;
+    String? errorCode;
+    String? errorMessage;
+    for (final step in steps) {
+      final stepCapability = profile.capabilityFor(step.action);
+      if (stepCapability == null ||
+          stepCapability.availability !=
+              CockpitSystemControlAvailability.available) {
+        final availability =
+            stepCapability?.availability ??
+            CockpitSystemControlAvailability.unsupported;
+        final skipped = <String, Object?>{
+          'label': step.label ?? step.action.name,
+          'action': step.action.name,
+          'availability': availability.name,
+          'success': step.optional,
+          'skipped': true,
+          if (stepCapability != null) 'strategy': stepCapability.strategy,
+          if (stepCapability?.requires.isNotEmpty ?? false)
+            'requires': stepCapability!.requires,
+          if (stepCapability?.limitations.isNotEmpty ?? false)
+            'limitations': stepCapability!.limitations,
+        };
+        stepResults.add(skipped);
+        if (!step.optional) {
+          success = false;
+          errorCode = 'systemMacroStepNotAvailable';
+          errorMessage =
+              '${step.action.name} is ${availability.name} on ${profile.platform}.';
+          break;
+        }
+        continue;
+      }
+      final subRequest = CockpitSystemControlActionRequest(
+        platform: request.platform,
+        deviceId: request.deviceId,
+        appId: request.appId,
+        processId: request.processId,
+        metadata: request.metadata,
+        action: step.action,
+        parameters: <String, Object?>{...step.parameters},
+        timeout: request.timeout,
+      );
+      final payloadError = _validateDeclaredPayload(subRequest, stepCapability);
+      if (payloadError != null) {
+        stepResults.add(<String, Object?>{
+          'label': step.label ?? step.action.name,
+          'action': step.action.name,
+          'availability': stepCapability.availability.name,
+          'success': false,
+          'errorCode': payloadError.errorCode,
+          'errorMessage': payloadError.errorMessage,
+        });
+        success = false;
+        errorCode = payloadError.errorCode;
+        errorMessage = payloadError.errorMessage;
+        break;
+      }
+      final command = _registry
+          .resolve(request.platform)
+          .resolveCommand(subRequest);
+      if (command.hasError) {
+        stepResults.add(<String, Object?>{
+          'label': step.label ?? step.action.name,
+          'action': step.action.name,
+          'availability': stepCapability.availability.name,
+          'success': false,
+          'errorCode': command.errorCode,
+          'errorMessage': command.errorMessage,
+        });
+        success = false;
+        errorCode = command.errorCode;
+        errorMessage = command.errorMessage;
+        break;
+      }
+      final stepResult = await _runResolvedCommand(
+        subRequest,
+        stepCapability,
+        command,
+      );
+      stepResults.add(<String, Object?>{
+        'label': step.label ?? step.action.name,
+        'action': step.action.name,
+        'availability': stepResult.availability.name,
+        'success': stepResult.success,
+        if (stepResult.strategy != null) 'strategy': stepResult.strategy,
+        if (stepResult.command.isNotEmpty) 'command': stepResult.command,
+        if (stepResult.exitCode != null) 'exitCode': stepResult.exitCode,
+        if (stepResult.stdout != null && stepResult.stdout!.isNotEmpty)
+          'stdout': stepResult.stdout,
+        if (stepResult.stderr != null && stepResult.stderr!.isNotEmpty)
+          'stderr': stepResult.stderr,
+        if (stepResult.errorCode != null) 'errorCode': stepResult.errorCode,
+        if (stepResult.errorMessage != null)
+          'errorMessage': stepResult.errorMessage,
+      });
+      if (!stepResult.success) {
+        success = false;
+        errorCode = stepResult.errorCode ?? 'systemMacroStepFailed';
+        errorMessage =
+            stepResult.errorMessage ??
+            '${step.action.name} failed during ${request.action.name}.';
+        break;
+      }
+    }
+    return CockpitSystemControlActionResult(
+      platform: request.platform,
+      deviceId: request.deviceId,
+      appId: request.appId,
+      processId: request.processId,
+      action: request.action,
+      availability: capability.availability,
+      success: success,
+      stdout: const JsonEncoder.withIndent(
+        '  ',
+      ).convert(<String, Object?>{'steps': stepResults}),
+      recommendedNextStep: success
+          ? recommendedNextStepOnSuccess
+          : 'inspectSystemMacroFailure',
+      strategy: capability.strategy,
+      requires: capability.requires,
+      limitations: _macroLimitations(capability.limitations, stepResults),
+      errorCode: success ? null : errorCode,
+      errorMessage: success ? null : errorMessage,
+    );
+  }
+
+  Future<CockpitSystemControlActionResult> _runResolvedCommand(
+    CockpitSystemControlActionRequest request,
+    CockpitSystemControlCapability capability,
+    CockpitResolvedSystemControlCommand command,
+  ) async {
+    if (command.executable == cockpitIosWdaCommandExecutable) {
+      return _runIosWebDriverAgentCommand(request, capability, command);
+    }
+    final ProcessResult processResult;
+    try {
+      processResult = await cockpitRunManagedProcessWithTimeout(
+        _processManager,
+        command.executable!,
+        command.arguments,
+        timeout: request.timeout,
+      );
+    } on CockpitManagedProcessTimeoutException catch (error) {
+      return CockpitSystemControlActionResult(
+        platform: request.platform,
+        deviceId: request.deviceId,
+        appId: request.appId,
+        processId: request.processId,
+        action: request.action,
+        availability: capability.availability,
+        success: false,
+        command: <String>[command.executable!, ...command.arguments],
+        stdout: error.stdout.trimRight(),
+        stderr: error.stderr.trimRight(),
+        recommendedNextStep: 'inspectShellFailure',
+        strategy: capability.strategy,
+        requires: capability.requires,
+        limitations: capability.limitations,
+        errorCode: 'systemActionTimedOut',
+        errorMessage:
+            'System action command timed out after ${error.duration.inMilliseconds}ms.',
+      );
+    } on Object catch (error) {
+      return CockpitSystemControlActionResult(
+        platform: request.platform,
+        deviceId: request.deviceId,
+        appId: request.appId,
+        processId: request.processId,
+        action: request.action,
+        availability: capability.availability,
+        success: false,
+        command: <String>[command.executable!, ...command.arguments],
+        recommendedNextStep: 'inspectShellFailure',
+        strategy: capability.strategy,
+        requires: capability.requires,
+        limitations: capability.limitations,
+        errorCode: 'systemActionProcessFailed',
+        errorMessage: _describeSystemControlError(error),
+      );
+    }
+    final exitCode = processResult.exitCode;
+    final success = exitCode == 0;
+    return CockpitSystemControlActionResult(
+      platform: request.platform,
+      deviceId: request.deviceId,
+      appId: request.appId,
+      processId: request.processId,
+      action: request.action,
+      availability: capability.availability,
+      success: success,
+      command: <String>[command.executable!, ...command.arguments],
+      exitCode: exitCode,
+      stdout: '${processResult.stdout}'.trimRight(),
+      stderr: '${processResult.stderr}'.trimRight(),
+      recommendedNextStep: success
+          ? _recommendedNextStepAfterSuccess(request.action)
+          : 'inspectShellFailure',
+      strategy: capability.strategy,
+      requires: capability.requires,
+      limitations: _limitationsAfterSuccess(
+        action: request.action,
+        success: success,
+        limitations: capability.limitations,
+      ),
+      errorCode: success ? null : 'systemActionFailed',
+      errorMessage: success
+          ? null
+          : 'System action command exited with $exitCode.',
+    );
+  }
+}
+
+final class _SystemMacroStep {
+  const _SystemMacroStep({
+    required this.action,
+    this.parameters = const <String, Object?>{},
+    this.optional = false,
+    this.label,
+  });
+
+  final CockpitSystemControlAction action;
+  final Map<String, Object?> parameters;
+  final bool optional;
+  final String? label;
 }
 
 CockpitSystemControlActionResult _invalidEvidencePayload(
@@ -694,18 +1207,22 @@ String? _validateSystemControlValueType(
   if (value == null) {
     return null;
   }
-  return switch (parameter.valueType) {
-    CockpitSystemControlParameterType.string when value is! String =>
-      '${action.name} requires ${parameter.name} to be a string.',
-    CockpitSystemControlParameterType.boolean
-        when value is! bool &&
-            !(value is String &&
-                _parseSystemControlBoolLiteral(value) != null) =>
-      '${action.name} requires ${parameter.name} to be a boolean.',
-    CockpitSystemControlParameterType.stringList when value is! List =>
-      '${action.name} requires ${parameter.name} to be an array of strings.',
-    _ => null,
+  final valid = switch (parameter.valueType) {
+    CockpitSystemControlParameterType.string => value is String,
+    CockpitSystemControlParameterType.integer =>
+      _readDeclaredInteger(value, parameter) != null,
+    CockpitSystemControlParameterType.number =>
+      _readDeclaredNumber(value, parameter) != null,
+    CockpitSystemControlParameterType.boolean =>
+      value is bool ||
+          (value is String && _parseSystemControlBoolLiteral(value) != null),
+    CockpitSystemControlParameterType.stringList =>
+      value is List && value.every((item) => item is String),
   };
+  if (valid) {
+    return null;
+  }
+  return '${action.name} requires ${parameter.name} to be ${_describeSystemControlType(parameter)}.';
 }
 
 bool? _parseSystemControlBoolLiteral(String value) {
@@ -715,6 +1232,86 @@ bool? _parseSystemControlBoolLiteral(String value) {
     'false' || 'no' || '0' => false,
     _ => null,
   };
+}
+
+bool _isSystemControlParameterAbsent(
+  Object? value,
+  CockpitSystemControlParameter parameter,
+) {
+  if (value == null) {
+    return true;
+  }
+  return switch (parameter.valueType) {
+    CockpitSystemControlParameterType.string =>
+      value is String && value.trim().isEmpty,
+    CockpitSystemControlParameterType.integer =>
+      _readDeclaredInteger(value, parameter) == null,
+    CockpitSystemControlParameterType.number =>
+      _readDeclaredNumber(value, parameter) == null,
+    CockpitSystemControlParameterType.boolean =>
+      value is String && value.trim().isEmpty,
+    CockpitSystemControlParameterType.stringList =>
+      value is List && value.isEmpty,
+  };
+}
+
+int? _readDeclaredInteger(
+  Object? value,
+  CockpitSystemControlParameter parameter,
+) {
+  final intValue = switch (value) {
+    int() => value,
+    num() when value.isFinite && value == value.truncateToDouble() =>
+      value.toInt(),
+    String() => int.tryParse(value.trim()),
+    _ => null,
+  };
+  if (intValue == null) {
+    return null;
+  }
+  if (parameter.minimum != null && intValue < parameter.minimum!) {
+    return null;
+  }
+  if (parameter.maximum != null && intValue > parameter.maximum!) {
+    return null;
+  }
+  return intValue;
+}
+
+double? _readDeclaredNumber(
+  Object? value,
+  CockpitSystemControlParameter parameter,
+) {
+  final doubleValue = switch (value) {
+    num() => value.toDouble(),
+    String() => double.tryParse(value.trim()),
+    _ => null,
+  };
+  if (doubleValue == null || !doubleValue.isFinite) {
+    return null;
+  }
+  if (parameter.minimum != null && doubleValue < parameter.minimum!) {
+    return null;
+  }
+  if (parameter.maximum != null && doubleValue > parameter.maximum!) {
+    return null;
+  }
+  return doubleValue;
+}
+
+String _describeSystemControlType(CockpitSystemControlParameter parameter) {
+  final range = <String>[
+    if (parameter.minimum != null) '>= ${parameter.minimum}',
+    if (parameter.maximum != null) '<= ${parameter.maximum}',
+  ].join(' and ');
+  final type = switch (parameter.valueType) {
+    CockpitSystemControlParameterType.string => 'a string',
+    CockpitSystemControlParameterType.integer => 'an integer',
+    CockpitSystemControlParameterType.number => 'a finite number',
+    CockpitSystemControlParameterType.boolean => 'a boolean',
+    CockpitSystemControlParameterType.stringList => 'an array of strings',
+  };
+  return range.isEmpty ? type : '$type ($range)';
 }
 
 String _recommendedNextStepForCommandError(
@@ -754,6 +1351,41 @@ List<String> _limitationsAfterSuccess({
   return <String>{
     ...limitations,
     'simctl privacy may terminate the app',
+  }.toList(growable: false);
+}
+
+Map<String, Object?> _macroTargetParameters(
+  CockpitSystemControlActionRequest request,
+) {
+  final appId = request.appId?.trim();
+  if (appId == null || appId.isEmpty) {
+    return const <String, Object?>{};
+  }
+  final platform = request.platform.trim().toLowerCase();
+  if (platform == 'android') {
+    return <String, Object?>{'packageId': appId};
+  }
+  if (platform == 'ios') {
+    return <String, Object?>{'appId': appId};
+  }
+  return <String, Object?>{'appId': appId};
+}
+
+List<String> _macroLimitations(
+  List<String> limitations,
+  List<Map<String, Object?>> stepResults,
+) {
+  final skipped = stepResults
+      .where((step) => step['skipped'] == true)
+      .map((step) => step['action'])
+      .whereType<String>()
+      .toList(growable: false);
+  if (skipped.isEmpty) {
+    return limitations;
+  }
+  return <String>{
+    ...limitations,
+    'Skipped unavailable optional system actions: ${skipped.join(", ")}',
   }.toList(growable: false);
 }
 

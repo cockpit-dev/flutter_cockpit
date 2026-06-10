@@ -356,6 +356,69 @@ final class CockpitSnapshotSummary {
   );
 }
 
+final class CockpitFocusSnapshot {
+  const CockpitFocusSnapshot({
+    required this.hasPrimaryFocus,
+    this.primaryFocusDebugLabel,
+    this.primaryFocusWidgetType,
+    this.primaryFocusElementType,
+    this.primaryFocusLabel,
+    this.isTextInputFocus = false,
+  });
+
+  final bool hasPrimaryFocus;
+  final String? primaryFocusDebugLabel;
+  final String? primaryFocusWidgetType;
+  final String? primaryFocusElementType;
+  final String? primaryFocusLabel;
+  final bool isTextInputFocus;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'hasPrimaryFocus': hasPrimaryFocus,
+    if (primaryFocusDebugLabel != null)
+      'primaryFocusDebugLabel': primaryFocusDebugLabel,
+    if (primaryFocusWidgetType != null)
+      'primaryFocusWidgetType': primaryFocusWidgetType,
+    if (primaryFocusElementType != null)
+      'primaryFocusElementType': primaryFocusElementType,
+    if (primaryFocusLabel != null) 'primaryFocusLabel': primaryFocusLabel,
+    'isTextInputFocus': isTextInputFocus,
+  };
+
+  factory CockpitFocusSnapshot.fromJson(Map<String, Object?> json) {
+    return CockpitFocusSnapshot(
+      hasPrimaryFocus: json['hasPrimaryFocus'] as bool? ?? false,
+      primaryFocusDebugLabel: json['primaryFocusDebugLabel'] as String?,
+      primaryFocusWidgetType: json['primaryFocusWidgetType'] as String?,
+      primaryFocusElementType: json['primaryFocusElementType'] as String?,
+      primaryFocusLabel: json['primaryFocusLabel'] as String?,
+      isTextInputFocus: json['isTextInputFocus'] as bool? ?? false,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is CockpitFocusSnapshot &&
+            other.hasPrimaryFocus == hasPrimaryFocus &&
+            other.primaryFocusDebugLabel == primaryFocusDebugLabel &&
+            other.primaryFocusWidgetType == primaryFocusWidgetType &&
+            other.primaryFocusElementType == primaryFocusElementType &&
+            other.primaryFocusLabel == primaryFocusLabel &&
+            other.isTextInputFocus == isTextInputFocus;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    hasPrimaryFocus,
+    primaryFocusDebugLabel,
+    primaryFocusWidgetType,
+    primaryFocusElementType,
+    primaryFocusLabel,
+    isTextInputFocus,
+  );
+}
+
 final class CockpitSnapshotTarget {
   CockpitSnapshotTarget({
     required this.registrationId,
@@ -555,6 +618,7 @@ final class CockpitSnapshot {
     this.runtime,
     this.rebuild,
     this.accessibility,
+    this.focus,
   }) : visibleTargets = List.unmodifiable(visibleTargets);
 
   final String? routeName;
@@ -567,6 +631,7 @@ final class CockpitSnapshot {
   final CockpitRuntimeSnapshot? runtime;
   final CockpitRebuildSnapshot? rebuild;
   final CockpitAccessibilitySummary? accessibility;
+  final CockpitFocusSnapshot? focus;
 
   static const ListEquality<CockpitSnapshotTarget> _targetListEquality =
       ListEquality<CockpitSnapshotTarget>();
@@ -583,6 +648,7 @@ final class CockpitSnapshot {
     if (runtime != null) 'runtime': runtime!.toJson(),
     if (rebuild != null) 'rebuild': rebuild!.toJson(),
     if (accessibility != null) 'accessibility': accessibility!.toJson(),
+    if (focus != null) 'focus': focus!.toJson(),
   };
 
   factory CockpitSnapshot.fromJson(Map<String, Object?> json) {
@@ -593,6 +659,7 @@ final class CockpitSnapshot {
     final runtimeJson = json['runtime'] as Map<Object?, Object?>?;
     final rebuildJson = json['rebuild'] as Map<Object?, Object?>?;
     final accessibilityJson = json['accessibility'] as Map<Object?, Object?>?;
+    final focusJson = json['focus'] as Map<Object?, Object?>?;
     return CockpitSnapshot(
       routeName: json['routeName'] as String?,
       visibleTargets:
@@ -638,6 +705,9 @@ final class CockpitSnapshot {
           : CockpitAccessibilitySummary.fromJson(
               Map<String, Object?>.from(accessibilityJson),
             ),
+      focus: focusJson == null
+          ? null
+          : CockpitFocusSnapshot.fromJson(Map<String, Object?>.from(focusJson)),
     );
   }
 
@@ -652,6 +722,7 @@ final class CockpitSnapshot {
     CockpitRuntimeSnapshot? runtime,
     CockpitRebuildSnapshot? rebuild,
     CockpitAccessibilitySummary? accessibility,
+    CockpitFocusSnapshot? focus,
   }) {
     return CockpitSnapshot(
       routeName: routeName ?? this.routeName,
@@ -665,6 +736,7 @@ final class CockpitSnapshot {
       runtime: runtime ?? this.runtime,
       rebuild: rebuild ?? this.rebuild,
       accessibility: accessibility ?? this.accessibility,
+      focus: focus ?? this.focus,
     );
   }
 
@@ -681,6 +753,7 @@ final class CockpitSnapshot {
             other.runtime == runtime &&
             other.rebuild == rebuild &&
             other.accessibility == accessibility &&
+            other.focus == focus &&
             _targetListEquality.equals(other.visibleTargets, visibleTargets);
   }
 
@@ -695,6 +768,7 @@ final class CockpitSnapshot {
     runtime,
     rebuild,
     accessibility,
+    focus,
     _targetListEquality.hash(visibleTargets),
   );
 }
