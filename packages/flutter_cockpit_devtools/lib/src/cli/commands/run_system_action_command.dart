@@ -472,6 +472,19 @@ final class RunSystemActionCommand extends CockpitCliCommand {
     if (permissions.isNotEmpty) {
       parameters['permissions'] = permissions;
     }
+    final permissionMode = argResults?['permission-mode'] as String?;
+    final recordingMode = argResults?['mode'] as String?;
+    if (permissionMode != null &&
+        permissionMode.isNotEmpty &&
+        recordingMode != null &&
+        recordingMode.isNotEmpty &&
+        permissionMode != recordingMode) {
+      throw UsageException(
+        '--permission-mode and --mode both set the "mode" parameter; '
+        'pass only the one matching the action.',
+        usage,
+      );
+    }
     addString('permission-mode', 'mode');
     addString('source-path', 'sourcePath');
     addString('destination-path', 'destinationPath');

@@ -190,6 +190,10 @@ final class CockpitAndroidRemoteSessionLauncher
         deviceId: options.deviceId,
         applicationId: buildArtifact.applicationId,
       );
+      await _bestEffortRemoveForward(
+        deviceId: options.deviceId,
+        hostPort: hostPort,
+      );
       rethrow;
     }
   }
@@ -207,6 +211,19 @@ final class CockpitAndroidRemoteSessionLauncher
         'force-stop',
         applicationId,
       ], timeout: const Duration(seconds: 5));
+    } on Object {
+      // Launch failure reporting takes priority over cleanup failures.
+    }
+  }
+
+  Future<void> _bestEffortRemoveForward({
+    required String deviceId,
+    required int hostPort,
+  }) async {
+    try {
+      await _portForwarder
+          .removeForwarded(deviceId: deviceId, hostPort: hostPort)
+          .timeout(const Duration(seconds: 5));
     } on Object {
       // Launch failure reporting takes priority over cleanup failures.
     }

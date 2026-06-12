@@ -258,7 +258,7 @@ final class CockpitAndroidSystemControlAdapter
           availability: availability,
           strategy: 'adb.shell.am.start.android.settings.SETTINGS',
           requires: deviceRequires,
-          parameters: CockpitSystemControlParameterSets.systemSettings,
+          parameters: CockpitSystemControlParameterSets.androidSystemSettings,
           limitations: <String>[
             'Use settingsAction for a custom android.settings.* action; default opens the main Settings app.',
           ],
@@ -652,6 +652,13 @@ final class CockpitAndroidSystemControlAdapter
       return <String>['-s', deviceId, 'shell', ...shellArgs];
     }
 
+    // adb's shell service space-joins its arguments and the device shell
+    // re-parses the joined string, so a script must travel as one pre-quoted
+    // word or only its first line would reach the inner `sh -c`.
+    List<String> adbShellScript(String script) {
+      return adbShell(<String>['sh', '-c', _shellSingleQuoted(script)]);
+    }
+
     return switch (request.action) {
       CockpitSystemControlAction.tap => cockpitCoordinateCommand(
         request,
@@ -848,7 +855,7 @@ final class CockpitAndroidSystemControlAdapter
           request,
           (script) => CockpitResolvedSystemControlCommand(
             'adb',
-            adbShell(<String>['sh', '-c', script]),
+            adbShellScript(script),
           ),
         ),
       CockpitSystemControlAction.setNetworkSpeed =>
@@ -879,10 +886,8 @@ final class CockpitAndroidSystemControlAdapter
         ),
       CockpitSystemControlAction.setStatusBar => _androidSetStatusBarCommand(
         request,
-        (script) => CockpitResolvedSystemControlCommand(
-          'adb',
-          adbShell(<String>['sh', '-c', script]),
-        ),
+        (script) =>
+            CockpitResolvedSystemControlCommand('adb', adbShellScript(script)),
       ),
       CockpitSystemControlAction.clearStatusBar =>
         CockpitResolvedSystemControlCommand(
@@ -918,14 +923,14 @@ final class CockpitAndroidSystemControlAdapter
           request,
           (script) => CockpitResolvedSystemControlCommand(
             'adb',
-            adbShell(<String>['sh', '-c', script]),
+            adbShellScript(script),
           ),
         ),
       CockpitSystemControlAction.recoverToApp => _packageCommand(
         request,
         (packageId) => CockpitResolvedSystemControlCommand(
           'adb',
-          adbShell(<String>['sh', '-c', _androidRecoverToAppScript(packageId)]),
+          adbShellScript(_androidRecoverToAppScript(packageId)),
         ),
       ),
       CockpitSystemControlAction.resolveBlockers =>
@@ -933,7 +938,7 @@ final class CockpitAndroidSystemControlAdapter
           request,
           (script) => CockpitResolvedSystemControlCommand(
             'adb',
-            adbShell(<String>['sh', '-c', script]),
+            adbShellScript(script),
           ),
         ),
       CockpitSystemControlAction.preparePermissions ||
@@ -1007,7 +1012,7 @@ final class CockpitAndroidSystemControlAdapter
           request,
           (script) => CockpitResolvedSystemControlCommand(
             'adb',
-            adbShell(<String>['sh', '-c', script]),
+            adbShellScript(script),
           ),
         ),
       CockpitSystemControlAction.dismissKeyboard =>
@@ -1032,11 +1037,9 @@ final class CockpitAndroidSystemControlAdapter
       CockpitSystemControlAction.readUiTree =>
         CockpitResolvedSystemControlCommand(
           'adb',
-          adbShell(const <String>[
-            'sh',
-            '-c',
+          adbShellScript(
             'uiautomator dump /sdcard/window.xml >/dev/null && cat /sdcard/window.xml && rm /sdcard/window.xml',
-          ]),
+          ),
         ),
       CockpitSystemControlAction.readProcessList =>
         CockpitResolvedSystemControlCommand(
@@ -1056,20 +1059,16 @@ final class CockpitAndroidSystemControlAdapter
       CockpitSystemControlAction.readDeviceInfo =>
         CockpitResolvedSystemControlCommand(
           'adb',
-          adbShell(const <String>[
-            'sh',
-            '-c',
+          adbShellScript(
             'printf "serial=" && getprop ro.serialno; printf "model=" && getprop ro.product.model; printf "sdk=" && getprop ro.build.version.sdk; printf "release=" && getprop ro.build.version.release; wm size; wm density; settings get system font_scale; settings get secure default_input_method; dumpsys input_method | grep -E "mInputShown|InputShown" | head -n 5 || true',
-          ]),
+          ),
         ),
       CockpitSystemControlAction.readFocusState =>
         CockpitResolvedSystemControlCommand(
           'adb',
-          adbShell(const <String>[
-            'sh',
-            '-c',
+          adbShellScript(
             'printf "windowFocus=\\n"; dumpsys window windows | grep -E "mCurrentFocus|mFocusedApp|mInputMethodTarget" | head -n 20 || true; printf "\\ninputMethod=\\n"; dumpsys input_method | grep -E "mInputShown|InputShown|mServedView|mCurrentFocus|mCurMethodId" | head -n 40 || true',
-          ]),
+          ),
         ),
       CockpitSystemControlAction.readNotificationState =>
         CockpitResolvedSystemControlCommand(
@@ -1078,24 +1077,20 @@ final class CockpitAndroidSystemControlAdapter
         ),
       CockpitSystemControlAction.readSystemLogs => _androidSystemLogsCommand(
         request,
-        (script) => CockpitResolvedSystemControlCommand(
-          'adb',
-          adbShell(<String>['sh', '-c', script]),
-        ),
+        (script) =>
+            CockpitResolvedSystemControlCommand('adb', adbShellScript(script)),
       ),
       CockpitSystemControlAction.setBattery => _androidSetBatteryCommand(
         request,
-        (script) => CockpitResolvedSystemControlCommand(
-          'adb',
-          adbShell(<String>['sh', '-c', script]),
-        ),
+        (script) =>
+            CockpitResolvedSystemControlCommand('adb', adbShellScript(script)),
       ),
       CockpitSystemControlAction.setConnectivity =>
         _androidSetConnectivityCommand(
           request,
           (script) => CockpitResolvedSystemControlCommand(
             'adb',
-            adbShell(<String>['sh', '-c', script]),
+            adbShellScript(script),
           ),
         ),
       CockpitSystemControlAction.setLocale =>
@@ -1222,7 +1217,10 @@ final class CockpitAndroidSystemControlAdapter
       );
     }
     if (batteryState.isValid || batteryLevel.isValid) {
-      final plugged = batteryState.value == 'charging';
+      // "charged" means full while still on power, so it must render as
+      // plugged just like the iOS simctl charged state does.
+      final plugged =
+          batteryState.value == 'charging' || batteryState.value == 'charged';
       broadcasts.add(
         '-e command battery -e level ${batteryLevel.value ?? 100} -e plugged $plugged',
       );

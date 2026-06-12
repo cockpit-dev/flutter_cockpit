@@ -194,7 +194,17 @@ final class CockpitSystemControlParameterSets {
       name: 'settingsAction',
       valueType: CockpitSystemControlParameterType.string,
       description:
-          'Platform settings action. Android example: android.settings.APPLICATION_DETAILS_SETTINGS. iOS ignores this and opens Settings.',
+          'Platform settings target. Android: an android.settings.* intent action (for example android.settings.APPLICATION_DETAILS_SETTINGS). iOS simulator: a settings URL passed to simctl openurl (defaults to App-Prefs:).',
+    ),
+  ];
+
+  static const androidSystemSettings = <CockpitSystemControlParameter>[
+    ...systemSettings,
+    CockpitSystemControlParameter(
+      name: 'packageId',
+      valueType: CockpitSystemControlParameterType.string,
+      description:
+          'Opens the application details page for this package (falls back to --app-id).',
     ),
   ];
 

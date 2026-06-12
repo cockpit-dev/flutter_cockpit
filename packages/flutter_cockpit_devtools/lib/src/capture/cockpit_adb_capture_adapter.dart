@@ -153,17 +153,31 @@ Future<void> _waitForCaptureStream(
   const quietWindow = Duration(milliseconds: 150);
   final deadline = DateTime.now().add(maxDrain);
   var isDone = false;
+  Object? streamError;
+  StackTrace? streamStackTrace;
   unawaited(
     done.then(
       (_) => isDone = true,
-      onError: (Object _, StackTrace _) => isDone = true,
+      onError: (Object error, StackTrace stackTrace) {
+        streamError = error;
+        streamStackTrace = stackTrace;
+        isDone = true;
+      },
     ),
   );
   while (!isDone && DateTime.now().isBefore(deadline)) {
     if (DateTime.now().difference(lastDataAt()) >= quietWindow) {
-      return;
+      break;
     }
     await Future<void>.delayed(const Duration(milliseconds: 25));
+  }
+  // A mid-stream read error means the PNG may be truncated; surface it so the
+  // capture reports failure instead of shipping a corrupt artifact as success.
+  if (streamError != null) {
+    Error.throwWithStackTrace(
+      streamError!,
+      streamStackTrace ?? StackTrace.current,
+    );
   }
 }
 

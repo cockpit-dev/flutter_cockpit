@@ -92,7 +92,10 @@ final class ReadSystemCapabilitiesCommand extends CockpitCliCommand {
 
   @override
   Future<int> run() async {
-    final app = _readDefaultAppHandle();
+    final app = cockpitReadSystemControlAppHandle(
+      argResults: argResults,
+      usage: usage,
+    );
     final platform =
         argResults?['platform'] as String? ??
         app?.platform ??
@@ -115,22 +118,6 @@ final class ReadSystemCapabilitiesCommand extends CockpitCliCommand {
       stdoutSink: _stdoutSink,
     );
     return cockpitSuccessExitCode;
-  }
-
-  CockpitAppHandle? _readDefaultAppHandle() {
-    final path = cockpitResolveAppHandlePath(argResults);
-    if (path == null || path.isEmpty) {
-      return null;
-    }
-    try {
-      final decoded = jsonDecode(File(path).readAsStringSync());
-      if (decoded is Map<Object?, Object?>) {
-        return CockpitAppHandle.fromJson(decoded.cast<String, Object?>());
-      }
-    } on Object {
-      return null;
-    }
-    return null;
   }
 
   Future<String?> _resolveAppId(CockpitAppHandle? app, String platform) async {

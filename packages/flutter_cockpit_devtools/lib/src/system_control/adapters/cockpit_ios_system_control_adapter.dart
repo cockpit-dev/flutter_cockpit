@@ -1159,13 +1159,15 @@ final class CockpitIosSystemControlAdapter
         request,
         CockpitIosWdaAction.pressHome,
       ),
-      CockpitSystemControlAction.pressVolumeUp => _wdaButtonCommand(
-        request,
-        'volumeUp',
-      ),
-      CockpitSystemControlAction.pressVolumeDown => _wdaButtonCommand(
-        request,
-        'volumeDown',
+      // Matches the capability matrix: XCTest/WebDriverAgent excludes
+      // simulator volume keys, so resolution must refuse instead of issuing
+      // a WDA pressButton that can never succeed.
+      CockpitSystemControlAction.pressVolumeUp ||
+      CockpitSystemControlAction
+          .pressVolumeDown => const CockpitResolvedSystemControlCommand.error(
+        code: 'unsupportedSystemAction',
+        message:
+            'iOS simulator volume keys are excluded by XCTest/WebDriverAgent.',
       ),
       CockpitSystemControlAction.pressVolumeMute =>
         const CockpitResolvedSystemControlCommand.error(
@@ -1543,25 +1545,6 @@ final class CockpitIosSystemControlAdapter
     );
   }
 
-  CockpitResolvedSystemControlCommand _wdaButtonCommand(
-    CockpitSystemControlActionRequest request,
-    String name,
-  ) {
-    return _wdaCommand(
-      CockpitSystemControlActionRequest(
-        platform: request.platform,
-        deviceId: request.deviceId,
-        appId: request.appId,
-        processId: request.processId,
-        metadata: request.metadata,
-        action: request.action,
-        parameters: <String, Object?>{...request.parameters, 'name': name},
-        timeout: request.timeout,
-      ),
-      CockpitIosWdaAction.pressButton,
-    );
-  }
-
   CockpitResolvedSystemControlCommand _appScopedCommand(
     CockpitSystemControlActionRequest request,
     CockpitResolvedSystemControlCommand Function(String appId) factory,
@@ -1769,12 +1752,14 @@ final class CockpitIosSystemControlAdapter
     final processName = cockpitReadSystemControlStringParameter(
       request.parameters,
       'processName',
+      // Quotes and backslashes would break the NSPredicate string literal.
+      pattern: cockpitSystemControlProcessNamePattern,
     );
     if (lastMinutes.isInvalid || lines.isInvalid || processName.isInvalid) {
       return const CockpitResolvedSystemControlCommand.error(
         code: 'invalidSystemActionParameter',
         message:
-            'readSystemLogs accepts integer lastMinutes (1-60), integer lines (1-5000), and optional string processName.',
+            'readSystemLogs accepts integer lastMinutes (1-60), integer lines (1-5000), and optional string processName without quotes or backslashes.',
       );
     }
     final minutes = lastMinutes.value ?? 2;
@@ -2124,7 +2109,9 @@ final class CockpitIosSystemControlAdapter
     if (deviceId == null || deviceId.isEmpty) {
       return false;
     }
-    if (deviceId == 'booted') {
+    // Match the service's case-insensitive handling of the simctl
+    // "booted" alias.
+    if (deviceId.toLowerCase() == 'booted') {
       return true;
     }
     return RegExp(

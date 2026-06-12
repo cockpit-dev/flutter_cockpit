@@ -52,14 +52,21 @@ Future<String?> _resolveIosPlatformAppId({
     if (!buildDirectory.existsSync()) {
       continue;
     }
-    final appBundlePath = cockpitSelectBestAppBundlePath(
-      searchRoot: buildDirectory,
-      flavor: flavor,
-      pathContext: pathContext,
-      platformLabel: outputName == 'iphonesimulator'
-          ? 'iOS simulator'
-          : 'iOS device',
-    );
+    final String appBundlePath;
+    try {
+      appBundlePath = cockpitSelectBestAppBundlePath(
+        searchRoot: buildDirectory,
+        flavor: flavor,
+        pathContext: pathContext,
+        platformLabel: outputName == 'iphonesimulator'
+            ? 'iOS simulator'
+            : 'iOS device',
+      );
+    } on StateError {
+      // A stale build directory without any .app bundle must not abort the
+      // best-effort resolution; fall through to the next output flavor.
+      continue;
+    }
     final bundleId = await cockpitResolveIosBundleId(
       appBundlePath: appBundlePath,
     );
@@ -89,12 +96,18 @@ Future<String?> _resolveMacosPlatformAppId({
   if (!productsDirectory.existsSync()) {
     return null;
   }
-  final appBundlePath = cockpitSelectBestAppBundlePath(
-    searchRoot: productsDirectory,
-    flavor: flavor,
-    pathContext: pathContext,
-    platformLabel: 'macOS',
-  );
+  final String appBundlePath;
+  try {
+    appBundlePath = cockpitSelectBestAppBundlePath(
+      searchRoot: productsDirectory,
+      flavor: flavor,
+      pathContext: pathContext,
+      platformLabel: 'macOS',
+    );
+  } on StateError {
+    // An empty products directory means no resolvable app id, not a failure.
+    return null;
+  }
   final bundleId = await cockpitResolveMacosBundleId(
     appBundlePath: appBundlePath,
   );
