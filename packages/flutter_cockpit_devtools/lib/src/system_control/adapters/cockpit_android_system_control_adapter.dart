@@ -329,22 +329,28 @@ final class CockpitAndroidSystemControlAdapter
           ],
           parameters: CockpitSystemControlParameterSets.androidNetworkDelay,
         ),
-        const CockpitSystemControlCapability(
+        CockpitSystemControlCapability(
           action: CockpitSystemControlAction.setStatusBar,
           plane: CockpitPlaneKind.deviceSystemPlane,
-          availability: CockpitSystemControlAvailability.unsupported,
-          strategy: 'android-no-stable-status-bar-override',
-          limitations: <String>[
-            'Android does not expose a stable adb status bar override equivalent to iOS simulator status_bar.',
+          availability: availability,
+          strategy: 'adb.systemui.demo-mode.override',
+          requires: <String>[
+            ...deviceRequires,
+            'SystemUI demo mode (sysui_demo_allowed)',
           ],
+          limitations: <String>[
+            'Uses SystemUI demo mode; some OEM system UIs ignore demo-mode broadcasts.',
+          ],
+          parameters: CockpitSystemControlParameterSets.androidStatusBar,
         ),
-        const CockpitSystemControlCapability(
+        CockpitSystemControlCapability(
           action: CockpitSystemControlAction.clearStatusBar,
           plane: CockpitPlaneKind.deviceSystemPlane,
-          availability: CockpitSystemControlAvailability.unsupported,
-          strategy: 'android-no-stable-status-bar-override',
+          availability: availability,
+          strategy: 'adb.systemui.demo-mode.exit',
+          requires: deviceRequires,
           limitations: <String>[
-            'Android does not expose a stable adb status bar override equivalent to iOS simulator status_bar.',
+            'Exits SystemUI demo mode and restores live status bar content.',
           ],
         ),
         CockpitSystemControlCapability(
@@ -438,7 +444,7 @@ final class CockpitAndroidSystemControlAdapter
           strategy: 'macro.adb.stabilize-screenshot',
           requires: deviceRequires,
           limitations: <String>[
-            'Executes available keyboard, system UI, orientation, appearance, and app recovery actions before screenshot evidence.',
+            'Executes available keyboard, system UI, orientation, appearance, status bar, and app recovery actions before screenshot evidence.',
           ],
           parameters: CockpitSystemControlParameterSets.stabilizeForScreenshot,
           fallbackActions: <CockpitSystemControlAction>[
@@ -446,6 +452,8 @@ final class CockpitAndroidSystemControlAdapter
             CockpitSystemControlAction.collapseSystemUi,
             CockpitSystemControlAction.setOrientation,
             CockpitSystemControlAction.setAppearance,
+            CockpitSystemControlAction.setStatusBar,
+            CockpitSystemControlAction.clearStatusBar,
             CockpitSystemControlAction.recoverToApp,
           ],
         ),
@@ -824,8 +832,26 @@ final class CockpitAndroidSystemControlAdapter
           commandName: 'delay',
           allowedValues: const <String>['gprs', 'edge', 'umts', 'none'],
         ),
-      CockpitSystemControlAction.setStatusBar ||
-      CockpitSystemControlAction.clearStatusBar => _unsupportedCommand(request),
+      CockpitSystemControlAction.setStatusBar => _androidSetStatusBarCommand(
+        request,
+        (script) => CockpitResolvedSystemControlCommand(
+          'adb',
+          adbShell(<String>['sh', '-c', script]),
+        ),
+      ),
+      CockpitSystemControlAction.clearStatusBar =>
+        CockpitResolvedSystemControlCommand(
+          'adb',
+          adbShell(const <String>[
+            'am',
+            'broadcast',
+            '-a',
+            'com.android.systemui.demo',
+            '-e',
+            'command',
+            'exit',
+          ]),
+        ),
       CockpitSystemControlAction.expandNotifications =>
         CockpitResolvedSystemControlCommand(
           'adb',
@@ -1017,13 +1043,146 @@ final class CockpitAndroidSystemControlAdapter
     };
   }
 
-  CockpitResolvedSystemControlCommand _unsupportedCommand(
+  CockpitResolvedSystemControlCommand _androidSetStatusBarCommand(
     CockpitSystemControlActionRequest request,
+    CockpitResolvedSystemControlCommand Function(String script) factory,
   ) {
-    return CockpitResolvedSystemControlCommand.error(
-      code: 'unsupportedSystemAction',
-      message: '${request.action.name} is not executable on Android.',
+    final time = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'time',
     );
+    final dataNetwork = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'dataNetwork',
+      allowedValues:
+          CockpitSystemControlAllowedValues.androidStatusBarDataNetworks,
+    );
+    final wifiMode = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'wifiMode',
+      allowedValues:
+          CockpitSystemControlAllowedValues.androidStatusBarSignalModes,
+    );
+    final wifiBars = cockpitReadSystemControlIntParameter(
+      request.parameters,
+      'wifiBars',
+      minimum: 0,
+      maximum: 4,
+    );
+    final cellularMode = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'cellularMode',
+      allowedValues:
+          CockpitSystemControlAllowedValues.androidStatusBarSignalModes,
+    );
+    final cellularBars = cockpitReadSystemControlIntParameter(
+      request.parameters,
+      'cellularBars',
+      minimum: 0,
+      maximum: 4,
+    );
+    final batteryState = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'batteryState',
+      allowedValues:
+          CockpitSystemControlAllowedValues.iosStatusBarBatteryStates,
+    );
+    final batteryLevel = cockpitReadSystemControlIntParameter(
+      request.parameters,
+      'batteryLevel',
+      minimum: 0,
+      maximum: 100,
+    );
+    if (time.isInvalid ||
+        dataNetwork.isInvalid ||
+        wifiMode.isInvalid ||
+        wifiBars.isInvalid ||
+        cellularMode.isInvalid ||
+        cellularBars.isInvalid ||
+        batteryState.isInvalid ||
+        batteryLevel.isInvalid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'invalidSystemActionParameter',
+        message:
+            'setStatusBar accepts time, dataNetwork, wifiMode, wifiBars, cellularMode, cellularBars, batteryState, and batteryLevel parameters declared by system capabilities.',
+      );
+    }
+    final clock = time.isValid ? _androidDemoClock(time.value!) : null;
+    if (time.isValid && clock == null) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'invalidSystemActionParameter',
+        message: 'setStatusBar time must be H:MM or HH:MM, for example 9:41.',
+      );
+    }
+    final broadcasts = <String>[];
+    if (clock != null) {
+      broadcasts.add('-e command clock -e hhmm $clock');
+    }
+    final wantsWifi =
+        wifiMode.value == 'active' ||
+        (wifiMode.value == null &&
+            (dataNetwork.value == 'wifi' || wifiBars.isValid));
+    if (wifiMode.value == 'hide') {
+      broadcasts.add('-e command network -e wifi hide');
+    } else if (wantsWifi) {
+      broadcasts.add(
+        '-e command network -e wifi show -e fully true -e level ${wifiBars.value ?? 4}',
+      );
+    }
+    final cellularDataType = switch (dataNetwork.value) {
+      '3g' => '3g',
+      '4g' => '4g',
+      'lte' => 'lte',
+      _ => null,
+    };
+    final wantsCellular =
+        cellularMode.value == 'active' ||
+        (cellularMode.value == null &&
+            (cellularDataType != null || cellularBars.isValid));
+    if (cellularMode.value == 'hide' ||
+        (cellularMode.value == null && dataNetwork.value == 'hide')) {
+      broadcasts.add('-e command network -e mobile hide');
+    } else if (wantsCellular) {
+      broadcasts.add(
+        '-e command network -e mobile show -e fully true -e level ${cellularBars.value ?? 4}'
+        '${cellularDataType == null ? '' : ' -e datatype $cellularDataType'}',
+      );
+    }
+    if (batteryState.isValid || batteryLevel.isValid) {
+      final plugged = batteryState.value == 'charging';
+      broadcasts.add(
+        '-e command battery -e level ${batteryLevel.value ?? 100} -e plugged $plugged',
+      );
+    }
+    if (broadcasts.isEmpty) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'missingSystemActionParameter',
+        message:
+            'setStatusBar requires at least one status bar parameter such as time, dataNetwork, wifiBars, or batteryLevel.',
+      );
+    }
+    const demoBroadcast = 'am broadcast -a com.android.systemui.demo';
+    final script = <String>[
+      'set -e',
+      'settings put global sysui_demo_allowed 1',
+      '$demoBroadcast -e command enter >/dev/null',
+      for (final broadcast in broadcasts)
+        '$demoBroadcast $broadcast >/dev/null',
+    ].join('\n');
+    return factory(script);
+  }
+
+  String? _androidDemoClock(String value) {
+    final match = RegExp(r'^(\d{1,2}):(\d{2})$').firstMatch(value.trim());
+    if (match == null) {
+      return null;
+    }
+    final hour = int.parse(match.group(1)!);
+    final minute = int.parse(match.group(2)!);
+    if (hour > 23 || minute > 59) {
+      return null;
+    }
+    return '${hour.toString().padLeft(2, '0')}${match.group(2)!}';
   }
 
   CockpitResolvedSystemControlCommand _grantPermissionCommand(
@@ -1415,7 +1574,7 @@ final class CockpitAndroidSystemControlAdapter
             'resource-id="com.android.packageinstaller:id/permission_deny_button"',
             'text="Deny"',
             'text="DENY"',
-            'text="Don\\u2019t allow"',
+            'text="Don’t allow"',
             'text="Cancel"',
             'text="CANCEL"',
           ]

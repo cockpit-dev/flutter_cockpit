@@ -113,6 +113,19 @@ final class CockpitSystemControlActionService {
       return payloadError;
     }
 
+    // Probe-discovered metadata (for example an auto-discovered WDA endpoint)
+    // must reach command resolution and macro sub-steps.
+    final effectiveRequest = CockpitSystemControlActionRequest(
+      platform: request.platform,
+      deviceId: request.deviceId,
+      appId: request.appId,
+      processId: request.processId,
+      metadata: describe.metadata,
+      action: request.action,
+      parameters: request.parameters,
+      timeout: request.timeout,
+    );
+
     if (request.action == CockpitSystemControlAction.captureScreenshot) {
       return _captureScreenshot(request, profile, capability);
     }
@@ -123,25 +136,15 @@ final class CockpitSystemControlActionService {
       return _stopRecording(request, profile, capability);
     }
     if (request.action == CockpitSystemControlAction.preparePermissions) {
-      return _preparePermissions(request, profile, capability);
+      return _preparePermissions(effectiveRequest, profile, capability);
     }
     if (request.action == CockpitSystemControlAction.stabilizeForScreenshot) {
-      return _stabilizeForScreenshot(request, profile, capability);
+      return _stabilizeForScreenshot(effectiveRequest, profile, capability);
     }
 
-    final commandRequest = CockpitSystemControlActionRequest(
-      platform: request.platform,
-      deviceId: request.deviceId,
-      appId: request.appId,
-      processId: request.processId,
-      metadata: describe.metadata,
-      action: request.action,
-      parameters: request.parameters,
-      timeout: request.timeout,
-    );
     final command = _registry
         .resolve(request.platform)
-        .resolveCommand(commandRequest);
+        .resolveCommand(effectiveRequest);
     if (command.hasError) {
       return _notExecutable(
         request,
@@ -225,6 +228,7 @@ final class CockpitSystemControlActionService {
       strategy: capability.strategy,
       requires: capability.requires,
       limitations: _limitationsAfterSuccess(
+        platform: request.platform,
         action: request.action,
         success: success,
         limitations: capability.limitations,
@@ -983,9 +987,13 @@ final class CockpitSystemControlActionService {
           'action': step.action.name,
           'availability': stepCapability.availability.name,
           'success': false,
+          if (step.optional) 'optional': true,
           'errorCode': payloadError.errorCode,
           'errorMessage': payloadError.errorMessage,
         });
+        if (step.optional) {
+          continue;
+        }
         success = false;
         errorCode = payloadError.errorCode;
         errorMessage = payloadError.errorMessage;
@@ -1000,9 +1008,13 @@ final class CockpitSystemControlActionService {
           'action': step.action.name,
           'availability': stepCapability.availability.name,
           'success': false,
+          if (step.optional) 'optional': true,
           'errorCode': command.errorCode,
           'errorMessage': command.errorMessage,
         });
+        if (step.optional) {
+          continue;
+        }
         success = false;
         errorCode = command.errorCode;
         errorMessage = command.errorMessage;
@@ -1018,6 +1030,7 @@ final class CockpitSystemControlActionService {
         'action': step.action.name,
         'availability': stepResult.availability.name,
         'success': stepResult.success,
+        if (step.optional) 'optional': true,
         if (stepResult.strategy != null) 'strategy': stepResult.strategy,
         if (stepResult.command.isNotEmpty) 'command': stepResult.command,
         if (stepResult.exitCode != null) 'exitCode': stepResult.exitCode,
@@ -1030,6 +1043,9 @@ final class CockpitSystemControlActionService {
           'errorMessage': stepResult.errorMessage,
       });
       if (!stepResult.success) {
+        if (step.optional) {
+          continue;
+        }
         success = false;
         errorCode = stepResult.errorCode ?? 'systemMacroStepFailed';
         errorMessage =
@@ -1134,6 +1150,7 @@ final class CockpitSystemControlActionService {
       strategy: capability.strategy,
       requires: capability.requires,
       limitations: _limitationsAfterSuccess(
+        platform: request.platform,
         action: request.action,
         success: success,
         limitations: capability.limitations,
@@ -1342,11 +1359,13 @@ String _recommendedNextStepAfterSuccess(CockpitSystemControlAction action) {
 }
 
 List<String> _limitationsAfterSuccess({
+  required String platform,
   required CockpitSystemControlAction action,
   required bool success,
   required List<String> limitations,
 }) {
   if (!success ||
+      platform.trim().toLowerCase() != 'ios' ||
       (action != CockpitSystemControlAction.grantPermission &&
           action != CockpitSystemControlAction.revokePermission &&
           action != CockpitSystemControlAction.resetPermission)) {
@@ -1384,12 +1403,25 @@ List<String> _macroLimitations(
       .map((step) => step['action'])
       .whereType<String>()
       .toList(growable: false);
-  if (skipped.isEmpty) {
+  final failedOptional = stepResults
+      .where(
+        (step) =>
+            step['optional'] == true &&
+            step['skipped'] != true &&
+            step['success'] != true,
+      )
+      .map((step) => step['action'])
+      .whereType<String>()
+      .toList(growable: false);
+  if (skipped.isEmpty && failedOptional.isEmpty) {
     return limitations;
   }
   return <String>{
     ...limitations,
-    'Skipped unavailable optional system actions: ${skipped.join(", ")}',
+    if (skipped.isNotEmpty)
+      'Skipped unavailable optional system actions: ${skipped.join(", ")}',
+    if (failedOptional.isNotEmpty)
+      'Optional system actions failed and were skipped: ${failedOptional.join(", ")}',
   }.toList(growable: false);
 }
 

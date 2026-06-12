@@ -68,6 +68,16 @@ final class CockpitSystemControlAllowedValues {
     'charged',
     'discharging',
   ];
+
+  static const androidStatusBarDataNetworks = <String>[
+    'hide',
+    'wifi',
+    '3g',
+    '4g',
+    'lte',
+  ];
+
+  static const androidStatusBarSignalModes = <String>['active', 'hide'];
 }
 
 final class CockpitSystemControlParameterSets {
@@ -371,12 +381,12 @@ final class CockpitSystemControlParameterSets {
       valueType: CockpitSystemControlParameterType.string,
       allowedValues: <String>['default', 'clear', 'stable'],
       description:
-          'iOS simulator status bar handling. default leaves it unchanged, clear removes overrides, stable sets deterministic screenshot values.',
+          'Status bar handling. default leaves it unchanged, clear removes overrides (iOS simctl) or exits demo mode (Android), stable sets deterministic screenshot values.',
     ),
     CockpitSystemControlParameter(
       name: 'time',
       valueType: CockpitSystemControlParameterType.string,
-      description: 'Fixed iOS simulator status bar time when statusBar=stable.',
+      description: 'Fixed status bar time such as 9:41 when statusBar=stable.',
     ),
     CockpitSystemControlParameter(
       name: 'appearance',
@@ -676,6 +686,62 @@ final class CockpitSystemControlParameterSets {
     CockpitSystemControlParameter(
       name: 'operatorName',
       valueType: CockpitSystemControlParameterType.string,
+    ),
+    CockpitSystemControlParameter(
+      name: 'batteryState',
+      valueType: CockpitSystemControlParameterType.string,
+      allowedValues:
+          CockpitSystemControlAllowedValues.iosStatusBarBatteryStates,
+    ),
+    CockpitSystemControlParameter(
+      name: 'batteryLevel',
+      valueType: CockpitSystemControlParameterType.integer,
+      minimum: 0,
+      maximum: 100,
+      description: 'Battery level, 0-100.',
+    ),
+  ];
+
+  static const androidStatusBar = <CockpitSystemControlParameter>[
+    CockpitSystemControlParameter(
+      name: 'time',
+      valueType: CockpitSystemControlParameterType.string,
+      description:
+          'Fixed status bar clock such as 9:41; mapped to SystemUI demo-mode hhmm.',
+    ),
+    CockpitSystemControlParameter(
+      name: 'dataNetwork',
+      valueType: CockpitSystemControlParameterType.string,
+      allowedValues:
+          CockpitSystemControlAllowedValues.androidStatusBarDataNetworks,
+      description:
+          'wifi shows the Wi-Fi icon, cellular types set the mobile datatype, hide hides the mobile icon.',
+    ),
+    CockpitSystemControlParameter(
+      name: 'wifiMode',
+      valueType: CockpitSystemControlParameterType.string,
+      allowedValues:
+          CockpitSystemControlAllowedValues.androidStatusBarSignalModes,
+    ),
+    CockpitSystemControlParameter(
+      name: 'wifiBars',
+      valueType: CockpitSystemControlParameterType.integer,
+      minimum: 0,
+      maximum: 4,
+      description: 'Wi-Fi bars, 0-4.',
+    ),
+    CockpitSystemControlParameter(
+      name: 'cellularMode',
+      valueType: CockpitSystemControlParameterType.string,
+      allowedValues:
+          CockpitSystemControlAllowedValues.androidStatusBarSignalModes,
+    ),
+    CockpitSystemControlParameter(
+      name: 'cellularBars',
+      valueType: CockpitSystemControlParameterType.integer,
+      minimum: 0,
+      maximum: 4,
+      description: 'Cellular bars, 0-4.',
     ),
     CockpitSystemControlParameter(
       name: 'batteryState',

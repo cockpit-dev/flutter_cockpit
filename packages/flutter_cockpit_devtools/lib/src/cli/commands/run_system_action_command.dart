@@ -123,7 +123,10 @@ final class RunSystemActionCommand extends CockpitCliCommand {
         allowed: const <String>['gprs', 'edge', 'umts', 'none'],
         help: 'Android emulator network delay for setNetworkDelay.',
       )
-      ..addOption('time', help: 'iOS simulator status bar time override.')
+      ..addOption(
+        'time',
+        help: 'Status bar time override for setStatusBar, for example 9:41.',
+      )
       ..addOption(
         'data-network',
         allowed: const <String>[
@@ -139,14 +142,16 @@ final class RunSystemActionCommand extends CockpitCliCommand {
           '5g-uwb',
           '5g-uc',
         ],
-        help: 'iOS simulator status bar dataNetwork override.',
+        help:
+            'Status bar dataNetwork override. Android demo mode supports hide, wifi, 3g, 4g, and lte.',
       )
       ..addOption(
         'wifi-mode',
-        allowed: const <String>['searching', 'failed', 'active'],
-        help: 'iOS simulator status bar wifiMode override.',
+        allowed: const <String>['searching', 'failed', 'active', 'hide'],
+        help:
+            'Status bar wifiMode override. iOS: searching/failed/active. Android: active/hide.',
       )
-      ..addOption('wifi-bars', help: 'iOS simulator Wi-Fi bars, 0-3.')
+      ..addOption('wifi-bars', help: 'Wi-Fi bars: iOS 0-3, Android 0-4.')
       ..addOption(
         'cellular-mode',
         allowed: const <String>[
@@ -154,17 +159,19 @@ final class RunSystemActionCommand extends CockpitCliCommand {
           'searching',
           'failed',
           'active',
+          'hide',
         ],
-        help: 'iOS simulator status bar cellularMode override.',
+        help:
+            'Status bar cellularMode override. iOS: notSupported/searching/failed/active. Android: active/hide.',
       )
-      ..addOption('cellular-bars', help: 'iOS simulator cellular bars, 0-4.')
+      ..addOption('cellular-bars', help: 'Cellular bars, 0-4.')
       ..addOption('operator-name', help: 'iOS simulator carrier name override.')
       ..addOption(
         'battery-state',
         allowed: const <String>['charging', 'charged', 'discharging'],
-        help: 'iOS simulator status bar batteryState override.',
+        help: 'Status bar batteryState override.',
       )
-      ..addOption('battery-level', help: 'iOS simulator battery level, 0-100.')
+      ..addOption('battery-level', help: 'Status bar battery level, 0-100.')
       ..addOption('max-depth', help: 'Maximum tree depth for readUiTree.')
       ..addOption('max-nodes', help: 'Maximum tree nodes for readUiTree.')
       ..addOption(
@@ -187,6 +194,15 @@ final class RunSystemActionCommand extends CockpitCliCommand {
         help: 'Keep app data during Android uninstallApp.',
       )
       ..addOption('permission', help: 'Permission name for grantPermission.')
+      ..addMultiOption(
+        'permissions',
+        help: 'Repeatable permission name for preparePermissions.',
+      )
+      ..addOption(
+        'permission-mode',
+        allowed: const <String>['grant', 'revoke', 'reset'],
+        help: 'Permission operation for preparePermissions. Default: grant.',
+      )
       ..addOption(
         'source-path',
         help:
@@ -272,7 +288,7 @@ final class RunSystemActionCommand extends CockpitCliCommand {
 
   @override
   String get helpShape =>
-      'Prefer explicit flags for common actions: --x/--y for tap, --text for typeText/setClipboard/tapNotification, --key for pressKey, --url for openUrl, --settings-action for openSystemSettings, --appearance, --content-size, --orientation, --network-speed, --network-delay, --time/--battery-level for iOS status bar, --title/--body/--tag or --payload-json for postNotification and tapNotification, --decision for dismissSystemDialog or resolveBlockers, --name/--output-path/--purpose/--mode/--layer for capture and recording, repeated --arg for runShell. Use --parameters-json for blocker recovery, notification tap, or less common payloads.';
+      'Prefer explicit flags for common actions: --x/--y for tap, --text for typeText/setClipboard/tapNotification, --key for pressKey, --url for openUrl, --settings-action for openSystemSettings, --appearance, --content-size, --orientation, --network-speed, --network-delay, --time/--battery-level for setStatusBar, repeated --permissions plus --permission-mode for preparePermissions, --title/--body/--tag or --payload-json for postNotification and tapNotification, --decision for dismissSystemDialog or resolveBlockers, --name/--output-path/--purpose/--mode/--layer for capture and recording, repeated --arg for runShell. Use --parameters-json for blocker recovery, notification tap, or less common payloads.';
 
   @override
   String get helpExample =>
@@ -424,6 +440,12 @@ final class RunSystemActionCommand extends CockpitCliCommand {
       parameters['keepData'] = true;
     }
     addString('permission', 'permission');
+    final permissions =
+        argResults?['permissions'] as List<String>? ?? const <String>[];
+    if (permissions.isNotEmpty) {
+      parameters['permissions'] = permissions;
+    }
+    addString('permission-mode', 'mode');
     addString('source-path', 'sourcePath');
     addString('destination-path', 'destinationPath');
     addString('title', 'title');

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import '../../system_control/cockpit_system_control_service.dart';
 import '../cockpit_mcp_tool.dart';
 
@@ -42,7 +44,7 @@ final class CockpitReadSystemCapabilitiesTool extends CockpitMcpTool {
       'wdaUrl': <String, Object?>{
         'type': 'string',
         'description':
-            'iOS simulator WebDriverAgent endpoint for native UI and system dialog control.',
+            'iOS simulator WebDriverAgent endpoint for native UI and system dialog control. Defaults to FLUTTER_COCKPIT_IOS_WDA_URL or probes http://127.0.0.1:8100.',
       },
     },
   };
@@ -69,8 +71,10 @@ final class CockpitReadSystemCapabilitiesTool extends CockpitMcpTool {
   }
 
   Map<String, Object?> _readMetadata(Map<String, Object?> arguments) {
-    final wdaUrl = cockpitReadOptionalString(arguments, 'wdaUrl');
-    if (wdaUrl == null) {
+    final wdaUrl =
+        cockpitReadOptionalString(arguments, 'wdaUrl') ??
+        Platform.environment['FLUTTER_COCKPIT_IOS_WDA_URL']?.trim();
+    if (wdaUrl == null || wdaUrl.isEmpty) {
       return const <String, Object?>{};
     }
     return <String, Object?>{'wdaUrl': wdaUrl};

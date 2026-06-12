@@ -1596,6 +1596,250 @@ void main() {
     },
   );
 
+  test(
+    'ios simulator stabilizeForScreenshot uses auto-discovered WebDriverAgent for native steps',
+    () async {
+      final processManager = _FakeProcessManager();
+      final capturedActions = <CockpitIosWdaAction>[];
+      final service = CockpitSystemControlActionService(
+        processManager: processManager,
+        systemControlService: CockpitSystemControlService(
+          iosWdaEndpointProbe: (uri, {required timeout}) async =>
+              uri == Uri.parse('http://127.0.0.1:8100'),
+        ),
+        iosWdaRunner: (command, {required timeout}) async {
+          capturedActions.add(command.action);
+          return '${command.action.name} ok';
+        },
+      );
+
+      final result = await service.run(
+        const CockpitSystemControlActionRequest(
+          platform: 'ios',
+          deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+          appId: 'dev.cockpit.example',
+          action: CockpitSystemControlAction.stabilizeForScreenshot,
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(
+        capturedActions,
+        containsAll(<CockpitIosWdaAction>[
+          CockpitIosWdaAction.dismissKeyboard,
+          CockpitIosWdaAction.collapseSystemUi,
+        ]),
+      );
+      expect(result.limitations.join('\n'), isNot(contains('dismissKeyboard')));
+      expect(
+        processManager.starts
+            .map((start) => start.arguments.join(' '))
+            .join('\n'),
+        contains(
+          'simctl launch 6FD25DED-11E9-4AE9-B4B5-EDF4601981DC dev.cockpit.example',
+        ),
+      );
+    },
+  );
+
+  test(
+    'android stabilizeForScreenshot without app target skips optional recovery',
+    () async {
+      final processManager = _FakeProcessManager();
+      final service = CockpitSystemControlActionService(
+        processManager: processManager,
+      );
+
+      final result = await service.run(
+        const CockpitSystemControlActionRequest(
+          platform: 'android',
+          deviceId: 'emulator-5554',
+          action: CockpitSystemControlAction.stabilizeForScreenshot,
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(
+        result.limitations.join('\n'),
+        contains(
+          'Optional system actions failed and were skipped: recoverToApp',
+        ),
+      );
+      final payload = jsonDecode(result.stdout!) as Map<String, Object?>;
+      final steps = (payload['steps']! as List<Object?>)
+          .cast<Map<String, Object?>>();
+      final recoverStep = steps.singleWhere(
+        (step) => step['action'] == 'recoverToApp',
+      );
+      expect(recoverStep['success'], isFalse);
+      expect(recoverStep['optional'], isTrue);
+    },
+  );
+
+  test(
+    'android stabilizeForScreenshot statusBar stable applies SystemUI demo mode',
+    () async {
+      final processManager = _FakeProcessManager();
+      final service = CockpitSystemControlActionService(
+        processManager: processManager,
+      );
+
+      final result = await service.run(
+        const CockpitSystemControlActionRequest(
+          platform: 'android',
+          deviceId: 'emulator-5554',
+          appId: 'dev.cockpit.example',
+          action: CockpitSystemControlAction.stabilizeForScreenshot,
+          parameters: <String, Object?>{'statusBar': 'stable'},
+        ),
+      );
+
+      expect(result.success, isTrue);
+      final commands = processManager.starts
+          .map((start) => start.arguments.join(' '))
+          .join('\n');
+      expect(commands, contains('settings put global sysui_demo_allowed 1'));
+      expect(commands, contains('-e command clock -e hhmm 0941'));
+    },
+  );
+
+  test(
+    'android grantPermission success omits iOS simctl limitations',
+    () async {
+      final processManager = _FakeProcessManager();
+      final service = CockpitSystemControlActionService(
+        processManager: processManager,
+      );
+
+      final result = await service.run(
+        const CockpitSystemControlActionRequest(
+          platform: 'android',
+          deviceId: 'emulator-5554',
+          appId: 'dev.cockpit.example',
+          action: CockpitSystemControlAction.grantPermission,
+          parameters: <String, Object?>{
+            'permission': 'android.permission.CAMERA',
+          },
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(
+        result.limitations,
+        isNot(contains('simctl privacy may terminate the app')),
+      );
+    },
+  );
+
+  test(
+    'ios physical device declares blocked capabilities for every action',
+    () async {
+      final processManager = _FakeProcessManager();
+      final service = CockpitSystemControlActionService(
+        processManager: processManager,
+      );
+
+      final result = await service.run(
+        const CockpitSystemControlActionRequest(
+          platform: 'ios',
+          deviceId: '00008110-001234',
+          appId: 'dev.cockpit.example',
+          action: CockpitSystemControlAction.installApp,
+          parameters: <String, Object?>{'appPath': '/tmp/example.app'},
+        ),
+      );
+
+      expect(result.success, isFalse);
+      expect(result.errorCode, 'systemActionNotAvailable');
+      expect(result.availability, CockpitSystemControlAvailability.blocked);
+      expect(
+        result.requires.join('\n'),
+        contains('developer signing and device automation tooling'),
+      );
+      expect(processManager.starts, isEmpty);
+    },
+  );
+
+  test('android setStatusBar drives SystemUI demo mode', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        action: CockpitSystemControlAction.setStatusBar,
+        parameters: <String, Object?>{
+          'time': '9:41',
+          'wifiMode': 'active',
+          'wifiBars': 3,
+          'cellularMode': 'active',
+          'cellularBars': 4,
+          'batteryState': 'charged',
+          'batteryLevel': 100,
+        },
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command.take(6), <String>[
+      'adb',
+      '-s',
+      'emulator-5554',
+      'shell',
+      'sh',
+      '-c',
+    ]);
+    final script = result.command.last;
+    expect(script, contains('settings put global sysui_demo_allowed 1'));
+    expect(script, contains('-e command enter'));
+    expect(script, contains('-e command clock -e hhmm 0941'));
+    expect(
+      script,
+      contains('-e command network -e wifi show -e fully true -e level 3'),
+    );
+    expect(
+      script,
+      contains('-e command network -e mobile show -e fully true -e level 4'),
+    );
+    expect(
+      script,
+      contains('-e command battery -e level 100 -e plugged false'),
+    );
+  });
+
+  test('android clearStatusBar exits SystemUI demo mode', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        action: CockpitSystemControlAction.clearStatusBar,
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command, <String>[
+      'adb',
+      '-s',
+      'emulator-5554',
+      'shell',
+      'am',
+      'broadcast',
+      '-a',
+      'com.android.systemui.demo',
+      '-e',
+      'command',
+      'exit',
+    ]);
+  });
+
   test('android readFocusState reports windows and IME state', () async {
     final processManager = _FakeProcessManager();
     final service = CockpitSystemControlActionService(
