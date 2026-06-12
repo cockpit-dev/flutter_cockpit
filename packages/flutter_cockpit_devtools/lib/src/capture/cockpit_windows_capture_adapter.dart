@@ -136,6 +136,15 @@ final class CockpitWindowsCaptureAdapter implements CockpitHostCaptureAdapter {
 
   static const String _captureScript = r'''
 Add-Type -AssemblyName System.Drawing
+Add-Type @"
+using System.Runtime.InteropServices;
+
+public static class CockpitDpiInterop {
+  [DllImport("user32.dll")]
+  public static extern bool SetProcessDPIAware();
+}
+"@
+[void][CockpitDpiInterop]::SetProcessDPIAware()
 $outputPath = $args[0]
 $left = [int]$args[1]
 $top = [int]$args[2]

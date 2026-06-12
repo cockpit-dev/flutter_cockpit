@@ -5,6 +5,8 @@ import 'package:flutter_cockpit/flutter_cockpit.dart';
 
 import 'cockpit_host_recording_adapter.dart';
 
+const int _screenrecordTimeLimitSeconds = 180;
+
 bool cockpitHasActiveAdbRecordingSession(String deviceId) {
   return cockpitHasActiveHostRecordingSession(_adbSessionCacheKey(deviceId));
 }
@@ -95,6 +97,10 @@ final class CockpitAdbRecordingAdapter implements CockpitHostRecordingAdapter {
       _deviceId,
       'shell',
       'screenrecord',
+      // screenrecord stops itself at its time limit; pin the default so the
+      // behavior is deterministic across Android versions and detectable.
+      '--time-limit',
+      '$_screenrecordTimeLimitSeconds',
       remotePath,
     ]);
 
@@ -215,6 +221,7 @@ final class CockpitAdbRecordingAdapter implements CockpitHostRecordingAdapter {
 
       stopwatch?.stop();
       cockpitClearPersistedHostRecordingSession(_sessionCacheKey);
+      final durationMs = stopwatch?.elapsedMilliseconds ?? _durationMs(session);
       return CockpitRecordingResult(
         state: CockpitRecordingState.completed,
         purpose: request.purpose,
@@ -222,8 +229,12 @@ final class CockpitAdbRecordingAdapter implements CockpitHostRecordingAdapter {
         requestedMode: request.mode,
         requestedLayer: request.layer,
         effectiveLayer: CockpitRecordingLayer.system,
+        fallbackReason:
+            durationMs != null && _reachedScreenrecordLimit(durationMs)
+            ? 'androidScreenrecordTimeLimitReached'
+            : null,
         artifact: cockpitRecordingArtifactForName(request.name),
-        durationMs: stopwatch?.elapsedMilliseconds ?? _durationMs(session),
+        durationMs: durationMs,
         sourceFilePath: outputFile.path,
       );
     } on TimeoutException {
@@ -520,6 +531,11 @@ final class CockpitAdbRecordingAdapter implements CockpitHostRecordingAdapter {
     }
     return _stopTimeout < maximum ? _stopTimeout : maximum;
   }
+
+  bool _reachedScreenrecordLimit(int durationMs) {
+    const toleranceMs = 1500;
+    return durationMs >= (_screenrecordTimeLimitSeconds * 1000) - toleranceMs;
+  }
 }
 
 String _adbSessionCacheKey(String deviceId) => 'adb:$deviceId';
@@ -530,22 +546,36 @@ Future<bool> _isRemoteScreenrecordRunningOnDevice({
   required CockpitRecordingProcessRunner? processRunner,
   required Duration timeout,
 }) async {
-  final pidofResult = await _runAdbProbeProcess(
-    processRunner,
-    executable,
-    <String>['-s', deviceId, 'shell', 'pidof', 'screenrecord'],
-    timeout: timeout,
-  );
+  // A slow or wedged adb probe must not abort recording control; treat probe
+  // timeouts as "cannot prove running" and let process liveness decide.
+  final ProcessResult pidofResult;
+  try {
+    pidofResult = await _runAdbProbeProcess(processRunner, executable, <String>[
+      '-s',
+      deviceId,
+      'shell',
+      'pidof',
+      'screenrecord',
+    ], timeout: timeout);
+  } on TimeoutException {
+    return false;
+  }
   if (pidofResult.exitCode == 0) {
     return true;
   }
 
-  final psResult = await _runAdbProbeProcess(
-    processRunner,
-    executable,
-    <String>['-s', deviceId, 'shell', 'ps', '-A'],
-    timeout: timeout,
-  );
+  final ProcessResult psResult;
+  try {
+    psResult = await _runAdbProbeProcess(processRunner, executable, <String>[
+      '-s',
+      deviceId,
+      'shell',
+      'ps',
+      '-A',
+    ], timeout: timeout);
+  } on TimeoutException {
+    return false;
+  }
   if (psResult.exitCode != 0) {
     return false;
   }
