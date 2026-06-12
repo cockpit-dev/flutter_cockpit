@@ -1446,6 +1446,28 @@ CockpitCaptureAdapter? _defaultCaptureAdapterFor(
       appId: windowAppId,
       processId: request.processId,
     ),
+    // Web evidence captures the browser window through the host adapters.
+    'web' => _hostWindowCaptureAdapterFor(request),
+    _ => null,
+  };
+}
+
+CockpitCaptureAdapter? _hostWindowCaptureAdapterFor(
+  CockpitSystemControlActionRequest request,
+) {
+  final appId = request.appId;
+  final windowAppId = _windowAppIdFor(request);
+  return switch (Platform.operatingSystem) {
+    'macos' when appId != null && appId.trim().isNotEmpty =>
+      CockpitMacosCaptureAdapter(appId: appId),
+    'windows' when windowAppId != null => CockpitWindowsCaptureAdapter(
+      appId: windowAppId,
+      processId: request.processId,
+    ),
+    'linux' when windowAppId != null => CockpitLinuxCaptureAdapter(
+      appId: windowAppId,
+      processId: request.processId,
+    ),
     _ => null,
   };
 }
@@ -1462,6 +1484,28 @@ CockpitRecordingAdapter? _defaultRecordingAdapterFor(
     'ios' when deviceId != null && deviceId.isNotEmpty =>
       CockpitSimctlRecordingAdapter(deviceId: deviceId),
     'macos' when appId != null && appId.isNotEmpty =>
+      CockpitMacosRecordingAdapter(appId: appId),
+    'windows' when windowAppId != null => CockpitWindowsRecordingAdapter(
+      appId: windowAppId,
+      processId: request.processId,
+    ),
+    'linux' when windowAppId != null => CockpitLinuxRecordingAdapter(
+      appId: windowAppId,
+      processId: request.processId,
+    ),
+    // Web evidence records the browser window through the host adapters.
+    'web' => _hostWindowRecordingAdapterFor(request),
+    _ => null,
+  };
+}
+
+CockpitRecordingAdapter? _hostWindowRecordingAdapterFor(
+  CockpitSystemControlActionRequest request,
+) {
+  final appId = request.appId;
+  final windowAppId = _windowAppIdFor(request);
+  return switch (Platform.operatingSystem) {
+    'macos' when appId != null && appId.trim().isNotEmpty =>
       CockpitMacosRecordingAdapter(appId: appId),
     'windows' when windowAppId != null => CockpitWindowsRecordingAdapter(
       appId: windowAppId,

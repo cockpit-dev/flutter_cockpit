@@ -528,10 +528,48 @@ void main() {
         ]),
       );
       expect(
+        result.profile.capabilityFor(CockpitSystemControlAction.tap)?.requires,
+        contains('browser driver or bridge'),
+      );
+      expect(
         result.profile
             .capabilityFor(CockpitSystemControlAction.captureScreenshot)
             ?.requires,
-        contains('browser driver or bridge'),
+        contains('app id or process id'),
+      );
+    },
+  );
+
+  test(
+    'web profile enables host-window evidence with a browser window target',
+    () async {
+      final service = CockpitSystemControlService();
+
+      final result = await service.describe(
+        const CockpitSystemControlDescribeRequest(
+          platform: 'web',
+          deviceId: 'chrome',
+          appId: 'com.google.Chrome',
+        ),
+      );
+
+      expect(
+        result.profile.availableActions,
+        containsAll(<CockpitSystemControlAction>[
+          CockpitSystemControlAction.captureScreenshot,
+          CockpitSystemControlAction.startRecording,
+          CockpitSystemControlAction.stopRecording,
+        ]),
+      );
+      expect(
+        result.profile
+            .capabilityFor(CockpitSystemControlAction.startRecording)
+            ?.strategy,
+        'browser.host-window-recording',
+      );
+      expect(
+        result.profile.blockedActions,
+        contains(CockpitSystemControlAction.tap),
       );
     },
   );

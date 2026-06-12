@@ -78,6 +78,18 @@ final class CockpitSystemControlAllowedValues {
   ];
 
   static const androidStatusBarSignalModes = <String>['active', 'hide'];
+
+  static const macosTccServices = <String>[
+    'all',
+    'accessibility',
+    'addressbook',
+    'calendar',
+    'camera',
+    'microphone',
+    'photos',
+    'reminders',
+    'screencapture',
+  ];
 }
 
 final class CockpitSystemControlParameterSets {
@@ -839,6 +851,46 @@ final class CockpitSystemControlParameterSets {
       valueType: CockpitSystemControlParameterType.string,
       description:
           'Android only: device destination path before scanning media. Defaults to /sdcard/Download/<filename>.',
+    ),
+  ];
+
+  static const hostAddMedia = <CockpitSystemControlParameter>[
+    ...iosAddMedia,
+    CockpitSystemControlParameter(
+      name: 'destinationPath',
+      valueType: CockpitSystemControlParameterType.string,
+      description:
+          'Host destination path. Defaults to the host Downloads folder.',
+    ),
+  ];
+
+  static const hostNotification = <CockpitSystemControlParameter>[
+    CockpitSystemControlParameter(
+      name: 'title',
+      valueType: CockpitSystemControlParameterType.string,
+      description: 'Notification title.',
+    ),
+    CockpitSystemControlParameter(
+      name: 'body',
+      valueType: CockpitSystemControlParameterType.string,
+      description: 'Notification body text.',
+    ),
+  ];
+
+  static const macosResetPermission = <CockpitSystemControlParameter>[
+    CockpitSystemControlParameter(
+      name: 'permission',
+      valueType: CockpitSystemControlParameterType.string,
+      required: true,
+      allowedValues: CockpitSystemControlAllowedValues.macosTccServices,
+      description:
+          'macOS TCC service to reset so the next access re-prompts the user.',
+    ),
+    CockpitSystemControlParameter(
+      name: 'appId',
+      valueType: CockpitSystemControlParameterType.string,
+      description:
+          'Optional bundle id scope; when omitted the service is reset for all apps.',
     ),
   ];
 
