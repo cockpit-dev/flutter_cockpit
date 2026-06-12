@@ -7,6 +7,8 @@
 - Added the Native/System Control Plane: `read-system-capabilities` and `run-system-action` (CLI and MCP) with capability-truthful Android adb, iOS simctl+WebDriverAgent, desktop, and web profiles, declared parameter contracts, and payload validation
 - Added scene-level system macros for real debugging blockers: `resolveBlockers`, `preparePermissions`, `recoverToApp`, `tapNotification`, `readFocusState`, and `stabilizeForScreenshot`
 - Added Android SystemUI demo-mode status bar overrides (`setStatusBar`/`clearStatusBar`) for deterministic screenshot evidence
+- Added desktop host-plane actions through built-in tooling: system settings entry, host appearance, host file push/pull and media copy, app recovery, focus and device reads, notifications, and macOS `tccutil` permission resets
+- Added web (browser) evidence through host window adapters so screenshots and recordings work once the browser app id or process id is known
 - Added task-run bundle writing, summary shaping, structured `logs.json` evidence, and delivery evidence handling
 - Added `read-task-bundle-summary` CLI output for low-token bundle review alongside MCP `read_task_bundle_summary`
 - Added AI-readable default stdout rendering with JSON/path/file output formats for shell-friendly workflows

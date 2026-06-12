@@ -98,7 +98,7 @@ Android Emulator uses adb for input, lifecycle, permissions, settings, orientati
 iOS Simulator uses simctl for lifecycle, privacy, status bar, pasteboard, app-container files, media, recovery, evidence, device info, and bounded `simctl spawn`; non-absolute shell runs through `/bin/sh -lc`. WDA covers native UI, keyboard/focus, orientation, notifications, and system dialogs/blockers. Unsupported simulator actions remain blocked instead of faked.
 `activateWindow` is non-destructive on iOS Simulator and should not terminate an existing Flutter debug or hot-reload session; use `terminateApp` only when a restart is intentional.
 Trust only actions reported as `available`.
-Desktop coordinates use screen pixels. macOS host screenshots/recordings need `--app-id`; Windows/Linux can use `--app-id` or `--process-id`. If an action is not `available`, follow its requirement/fallback or report `blocked_by_environment`.
+Desktop coordinates use screen pixels. macOS host screenshots/recordings need `--app-id`; Windows/Linux can use `--app-id` or `--process-id`. Desktop hosts also expose settings entry, host appearance, clipboard, host file/media copy, focus/device reads, notifications, and macOS `tccutil` permission resets; web evidence uses host window capture once the browser app id or process id is known. If an action is not `available`, follow its requirement/fallback or report `blocked_by_environment`.
 
 Acceptance, release readiness, or artifact-backed handoff:
 
