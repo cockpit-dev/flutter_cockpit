@@ -56,8 +56,12 @@ final class CockpitAdbCaptureAdapter implements CockpitHostCaptureAdapter {
     ]);
     final sink = outputFile.openWrite();
     final stdoutDone = Completer<void>();
+    var lastStdoutDataAt = DateTime.now();
     final stdoutSubscription = process.stdout.listen(
-      sink.add,
+      (chunk) {
+        lastStdoutDataAt = DateTime.now();
+        sink.add(chunk);
+      },
       onError: (Object error, StackTrace stackTrace) {
         if (!stdoutDone.isCompleted) {
           stdoutDone.completeError(error, stackTrace);
@@ -74,7 +78,7 @@ final class CockpitAdbCaptureAdapter implements CockpitHostCaptureAdapter {
 
     try {
       final exitCode = await process.exitCode.timeout(_timeout);
-      await _waitForCaptureStream(stdoutDone.future);
+      await _waitForCaptureStream(stdoutDone.future, () => lastStdoutDataAt);
       await _cancelCaptureSubscription(stdoutSubscription);
       final stderr = await stderrCollector.collectText();
       await _closeCaptureSink(sink);
@@ -138,11 +142,28 @@ final class CockpitAdbCaptureAdapter implements CockpitHostCaptureAdapter {
   }
 }
 
-Future<void> _waitForCaptureStream(Future<void> done) async {
-  try {
-    await done.timeout(const Duration(milliseconds: 200));
-  } on TimeoutException {
-    // The screencap process exited; inherited stdout must not block capture.
+// Drain pending stdout after process exit: keep reading while data is still
+// arriving (slow pipe must not truncate the PNG) but return quickly once the
+// pipe goes quiet, because an inherited stdout handle never closes.
+Future<void> _waitForCaptureStream(
+  Future<void> done,
+  DateTime Function() lastDataAt,
+) async {
+  const maxDrain = Duration(seconds: 2);
+  const quietWindow = Duration(milliseconds: 150);
+  final deadline = DateTime.now().add(maxDrain);
+  var isDone = false;
+  unawaited(
+    done.then(
+      (_) => isDone = true,
+      onError: (Object _, StackTrace _) => isDone = true,
+    ),
+  );
+  while (!isDone && DateTime.now().isBefore(deadline)) {
+    if (DateTime.now().difference(lastDataAt()) >= quietWindow) {
+      return;
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 25));
   }
 }
 

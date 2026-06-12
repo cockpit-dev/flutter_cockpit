@@ -31,7 +31,7 @@ printf '%s\n' "$*" >> "$log_file"
 
 command="$3"
 subcommand="$4"
-remote_path="$5"
+for last_arg in "$@"; do remote_path="$last_arg"; done
 mapped_remote_path="$storage_dir$(printf '%s' "$remote_path" | sed 's#/#_#g')"
 stop_signal_file="$storage_dir/stop-screenrecord.signal"
 running_signal_file="$storage_dir/screenrecord-running.signal"
@@ -146,7 +146,7 @@ printf '%s\n' "$*" >> "$log_file"
 
 command="$3"
 subcommand="$4"
-remote_path="$5"
+for last_arg in "$@"; do remote_path="$last_arg"; done
 mapped_remote_path="$storage_dir$(printf '%s' "$remote_path" | sed 's#/#_#g')"
 stop_signal_file="$storage_dir/stop-screenrecord.signal"
 
