@@ -877,6 +877,123 @@ final class CockpitSystemControlParameterSets {
     ),
   ];
 
+  static const androidSystemLogs = <CockpitSystemControlParameter>[
+    CockpitSystemControlParameter(
+      name: 'lines',
+      valueType: CockpitSystemControlParameterType.integer,
+      minimum: 1,
+      maximum: 5000,
+      description: 'Number of recent logcat lines to read; default is 200.',
+    ),
+    CockpitSystemControlParameter(
+      name: 'packageId',
+      valueType: CockpitSystemControlParameterType.string,
+      description:
+          'Optional package filter; logs are scoped to the running app process when it is found.',
+    ),
+  ];
+
+  static const appleSystemLogs = <CockpitSystemControlParameter>[
+    CockpitSystemControlParameter(
+      name: 'lastMinutes',
+      valueType: CockpitSystemControlParameterType.integer,
+      minimum: 1,
+      maximum: 60,
+      description:
+          'How many recent minutes of unified log to read; default is 2.',
+    ),
+    CockpitSystemControlParameter(
+      name: 'lines',
+      valueType: CockpitSystemControlParameterType.integer,
+      minimum: 1,
+      maximum: 5000,
+      description:
+          'Maximum trailing log lines to return; default is 200 to keep output bounded.',
+    ),
+    CockpitSystemControlParameter(
+      name: 'processName',
+      valueType: CockpitSystemControlParameterType.string,
+      description:
+          'Optional process name predicate filter, for example Runner.',
+    ),
+  ];
+
+  static const linuxSystemLogs = <CockpitSystemControlParameter>[
+    CockpitSystemControlParameter(
+      name: 'lines',
+      valueType: CockpitSystemControlParameterType.integer,
+      minimum: 1,
+      maximum: 5000,
+      description: 'Number of recent journal lines to read; default is 200.',
+    ),
+  ];
+
+  static const windowsSystemLogs = <CockpitSystemControlParameter>[
+    CockpitSystemControlParameter(
+      name: 'lines',
+      valueType: CockpitSystemControlParameterType.integer,
+      minimum: 1,
+      maximum: 1000,
+      description:
+          'Number of recent Application event log entries to read; default is 50.',
+    ),
+  ];
+
+  static const androidBattery = <CockpitSystemControlParameter>[
+    CockpitSystemControlParameter(
+      name: 'level',
+      valueType: CockpitSystemControlParameterType.integer,
+      minimum: 0,
+      maximum: 100,
+      description: 'Simulated battery level, 0-100.',
+    ),
+    CockpitSystemControlParameter(
+      name: 'plugged',
+      valueType: CockpitSystemControlParameterType.boolean,
+      description:
+          'true simulates AC charging; false simulates running on battery.',
+    ),
+    CockpitSystemControlParameter(
+      name: 'reset',
+      valueType: CockpitSystemControlParameterType.boolean,
+      description:
+          'true restores real battery reporting and clears simulated state.',
+    ),
+  ];
+
+  static const androidConnectivity = <CockpitSystemControlParameter>[
+    CockpitSystemControlParameter(
+      name: 'wifi',
+      valueType: CockpitSystemControlParameterType.boolean,
+      description: 'Enable or disable Wi-Fi.',
+    ),
+    CockpitSystemControlParameter(
+      name: 'mobileData',
+      valueType: CockpitSystemControlParameterType.boolean,
+      description: 'Enable or disable mobile data.',
+    ),
+    CockpitSystemControlParameter(
+      name: 'airplaneMode',
+      valueType: CockpitSystemControlParameterType.boolean,
+      description: 'Enable or disable airplane mode (Android 11+).',
+    ),
+  ];
+
+  static const iosLocale = <CockpitSystemControlParameter>[
+    CockpitSystemControlParameter(
+      name: 'locale',
+      valueType: CockpitSystemControlParameterType.string,
+      required: true,
+      description: 'Locale identifier such as zh_CN or en_US.',
+    ),
+    CockpitSystemControlParameter(
+      name: 'language',
+      valueType: CockpitSystemControlParameterType.string,
+      description:
+          'Optional preferred language tag such as zh-Hans; defaults to the locale language.',
+    ),
+  ];
+
   static const macosResetPermission = <CockpitSystemControlParameter>[
     CockpitSystemControlParameter(
       name: 'permission',

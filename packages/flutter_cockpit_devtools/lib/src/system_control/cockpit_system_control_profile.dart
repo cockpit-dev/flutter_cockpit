@@ -57,6 +57,10 @@ enum CockpitSystemControlAction {
   readDeviceInfo,
   readFocusState,
   readNotificationState,
+  readSystemLogs,
+  setBattery,
+  setConnectivity,
+  setLocale,
   runShell;
 
   static CockpitSystemControlAction fromJson(Object? json) {
@@ -558,8 +562,19 @@ List<String> _defaultGroupsForAction(CockpitSystemControlAction action) {
     CockpitSystemControlAction.readWindows ||
     CockpitSystemControlAction.readSystemState ||
     CockpitSystemControlAction.readDeviceInfo ||
+    CockpitSystemControlAction.readSystemLogs ||
     CockpitSystemControlAction.readFocusState => const <String>[
       CockpitSystemControlGroups.inspection,
+    ],
+    CockpitSystemControlAction.setBattery => const <String>[
+      CockpitSystemControlGroups.deviceState,
+    ],
+    CockpitSystemControlAction.setConnectivity => const <String>[
+      CockpitSystemControlGroups.network,
+      CockpitSystemControlGroups.deviceState,
+    ],
+    CockpitSystemControlAction.setLocale => const <String>[
+      CockpitSystemControlGroups.settings,
     ],
     CockpitSystemControlAction.runShell => const <String>[
       CockpitSystemControlGroups.shell,

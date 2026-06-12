@@ -410,16 +410,19 @@ grant/revoke/reset, app settings, appearance, text scale, location, orientation,
 emulator network conditions, notification shade, quick settings, SystemUI
 demo-mode status bar overrides (`setStatusBar`/`clearStatusBar`), file
 push/pull, media import, screenshots, recordings, UI tree,
-process/window/device/system state reads, notification state reads, shell, and
+process/window/device/system state reads, notification state reads, logcat
+tail (`readSystemLogs`), battery simulation (`setBattery`), connectivity
+toggles (`setConnectivity`), shell, and
 UIAutomator-assisted `dismissSystemDialog --decision accept|dismiss`. The
 Android adapter also backs the macro actions for blocker resolution, permission
 preparation, notification tap-through, app recovery, focus reads, and
 screenshot stabilization.
 iOS simulator support is simctl-backed for app lifecycle, privacy grant/revoke
-/reset, URLs, Settings, appearance, content size, location, status bar
-overrides, pasteboard, simulated APNS push, app install/uninstall/data clear,
-app-container file transfer, media import, screenshot, recording,
-process/device/state reads, and shell via `simctl spawn`. iOS native UI and
+/reset, URLs, Settings, appearance, content size, locale (`setLocale`),
+location, status bar overrides, pasteboard, simulated APNS push, app
+install/uninstall/data clear, app-container file transfer, media import,
+screenshot, recording, process/device/state reads, unified log reads
+(`readSystemLogs`), and shell via `simctl spawn`. iOS native UI and
 system dialog control uses WebDriverAgent when reachable. The iOS simulator
 macros combine simctl and WDA according to reported availability, so unavailable
 WDA-only steps are reported as skipped or blocked instead of faked. iOS simulator

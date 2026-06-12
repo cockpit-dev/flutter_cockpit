@@ -344,6 +344,15 @@ final class CockpitDesktopSystemControlAdapter
             limitations: limitations,
           ),
           CockpitSystemControlCapability(
+            action: CockpitSystemControlAction.readSystemLogs,
+            plane: CockpitPlaneKind.hostPlane,
+            availability: CockpitSystemControlAvailability.available,
+            strategy: _systemLogsStrategy,
+            requires: _systemLogsRequires,
+            limitations: limitations,
+            parameters: _systemLogsParameters,
+          ),
+          CockpitSystemControlCapability(
             action: CockpitSystemControlAction.runShell,
             plane: CockpitPlaneKind.hostPlane,
             availability: CockpitSystemControlAvailability.available,
@@ -475,6 +484,33 @@ final class CockpitDesktopSystemControlAdapter
       'windows' => const <String>['PowerShell', 'interactive desktop session'],
       'linux' => const <String>['xdotool', 'X11 DISPLAY'],
       _ => const <String>['host focus inspection tooling'],
+    };
+  }
+
+  String get _systemLogsStrategy {
+    return switch (platform) {
+      'macos' => 'log.show.last',
+      'windows' => 'powershell.get-winevent.application',
+      'linux' => 'journalctl.tail',
+      _ => 'host.system-logs',
+    };
+  }
+
+  List<String> get _systemLogsRequires {
+    return switch (platform) {
+      'macos' => const <String>['log'],
+      'windows' => const <String>['PowerShell'],
+      'linux' => const <String>['journalctl (systemd)'],
+      _ => const <String>['host log tooling'],
+    };
+  }
+
+  List<CockpitSystemControlParameter> get _systemLogsParameters {
+    return switch (platform) {
+      'macos' => CockpitSystemControlParameterSets.appleSystemLogs,
+      'windows' => CockpitSystemControlParameterSets.windowsSystemLogs,
+      'linux' => CockpitSystemControlParameterSets.linuxSystemLogs,
+      _ => const <CockpitSystemControlParameter>[],
     };
   }
 
@@ -824,6 +860,9 @@ final class CockpitDesktopSystemControlAdapter
           '-e',
           _macosReadFocusStateScript,
         ]),
+      CockpitSystemControlAction.readSystemLogs => _macosSystemLogsCommand(
+        request,
+      ),
       CockpitSystemControlAction.openSystemSettings => _desktopSettingsCommand(
         request,
         defaultTarget: 'x-apple.systempreferences:',
@@ -1015,6 +1054,9 @@ final class CockpitDesktopSystemControlAdapter
           '-Command',
           _windowsReadFocusStateScript,
         ]),
+      CockpitSystemControlAction.readSystemLogs => _windowsSystemLogsCommand(
+        request,
+      ),
       CockpitSystemControlAction.openSystemSettings => _desktopSettingsCommand(
         request,
         defaultTarget: 'ms-settings:',
@@ -1216,6 +1258,9 @@ final class CockpitDesktopSystemControlAdapter
           _linuxReadFocusStateScript,
           'flutter_cockpit_linux_focus',
         ]),
+      CockpitSystemControlAction.readSystemLogs => _linuxSystemLogsCommand(
+        request,
+      ),
       CockpitSystemControlAction.openSystemSettings =>
         const CockpitResolvedSystemControlCommand.error(
           code: 'systemActionBlocked',
@@ -1421,6 +1466,104 @@ final class CockpitDesktopSystemControlAdapter
       _linuxTerminateScript,
       'flutter_cockpit_linux_terminate',
       ...target,
+    ]);
+  }
+
+  CockpitResolvedSystemControlCommand _macosSystemLogsCommand(
+    CockpitSystemControlActionRequest request,
+  ) {
+    final lastMinutes = cockpitReadSystemControlIntParameter(
+      request.parameters,
+      'lastMinutes',
+      minimum: 1,
+      maximum: 60,
+    );
+    final lines = cockpitReadSystemControlIntParameter(
+      request.parameters,
+      'lines',
+      minimum: 1,
+      maximum: 5000,
+    );
+    final processName = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'processName',
+    );
+    if (lastMinutes.isInvalid || lines.isInvalid || processName.isInvalid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'invalidSystemActionParameter',
+        message:
+            'readSystemLogs accepts integer lastMinutes (1-60), integer lines (1-5000), and optional string processName.',
+      );
+    }
+    final minutes = lastMinutes.value ?? 2;
+    final lineCount = lines.value ?? 200;
+    // Tail keeps unified-log output bounded for AI consumption.
+    if (processName.isValid) {
+      return CockpitResolvedSystemControlCommand('sh', <String>[
+        '-c',
+        r'log show --style compact --last "$1" --predicate "process == \"$2\"" | tail -n "$3"',
+        'flutter_cockpit_macos_logs',
+        '${minutes}m',
+        processName.value!,
+        '$lineCount',
+      ]);
+    }
+    return CockpitResolvedSystemControlCommand('sh', <String>[
+      '-c',
+      r'log show --style compact --last "$1" | tail -n "$2"',
+      'flutter_cockpit_macos_logs',
+      '${minutes}m',
+      '$lineCount',
+    ]);
+  }
+
+  CockpitResolvedSystemControlCommand _windowsSystemLogsCommand(
+    CockpitSystemControlActionRequest request,
+  ) {
+    final lines = cockpitReadSystemControlIntParameter(
+      request.parameters,
+      'lines',
+      minimum: 1,
+      maximum: 1000,
+    );
+    if (lines.isInvalid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'invalidSystemActionParameter',
+        message: 'readSystemLogs accepts integer lines (1-1000).',
+      );
+    }
+    final count = lines.value ?? 50;
+    return CockpitResolvedSystemControlCommand('powershell', <String>[
+      '-NoProfile',
+      '-NonInteractive',
+      '-Command',
+      'Get-WinEvent -LogName Application -MaxEvents $count | '
+          'Select-Object TimeCreated,ProviderName,LevelDisplayName,Message | '
+          'ConvertTo-Json -Compress',
+    ]);
+  }
+
+  CockpitResolvedSystemControlCommand _linuxSystemLogsCommand(
+    CockpitSystemControlActionRequest request,
+  ) {
+    final lines = cockpitReadSystemControlIntParameter(
+      request.parameters,
+      'lines',
+      minimum: 1,
+      maximum: 5000,
+    );
+    if (lines.isInvalid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'invalidSystemActionParameter',
+        message: 'readSystemLogs accepts integer lines (1-5000).',
+      );
+    }
+    final count = lines.value ?? 200;
+    return CockpitResolvedSystemControlCommand('sh', <String>[
+      '-c',
+      _linuxSystemLogsScript,
+      'flutter_cockpit_linux_logs',
+      '$count',
     ]);
   }
 
@@ -2474,6 +2617,14 @@ $path = 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize'
 if (-not (Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
 Set-ItemProperty -Path $path -Name AppsUseLightTheme -Value $value -Type DWord
 Set-ItemProperty -Path $path -Name SystemUsesLightTheme -Value $value -Type DWord
+''';
+
+  static const String _linuxSystemLogsScript = r'''
+if ! command -v journalctl >/dev/null 2>&1; then
+  echo "flutter_cockpit: journalctl (systemd) is required to read Linux system logs" >&2
+  exit 65
+fi
+journalctl --user --no-pager -n "$1" 2>/dev/null || journalctl --no-pager -n "$1"
 ''';
 
   static const String _linuxReadFocusStateScript = r'''

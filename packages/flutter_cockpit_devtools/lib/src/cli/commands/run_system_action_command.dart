@@ -175,6 +175,28 @@ final class RunSystemActionCommand extends CockpitCliCommand {
       ..addOption('max-depth', help: 'Maximum tree depth for readUiTree.')
       ..addOption('max-nodes', help: 'Maximum tree nodes for readUiTree.')
       ..addOption(
+        'lines',
+        help:
+            'Recent log lines for readSystemLogs (Android logcat, Linux journalctl, Windows event log).',
+      )
+      ..addOption(
+        'last-minutes',
+        help:
+            'Recent minutes of unified log for readSystemLogs on iOS simulators and macOS.',
+      )
+      ..addOption(
+        'process-name',
+        help: 'Optional process filter for readSystemLogs on Apple platforms.',
+      )
+      ..addOption(
+        'locale',
+        help: 'Locale identifier for setLocale, for example zh_CN.',
+      )
+      ..addOption(
+        'language',
+        help: 'Optional preferred language tag for setLocale, e.g. zh-Hans.',
+      )
+      ..addOption(
         'package-id',
         help:
             'Android package id for app-scoped actions; use --app-id for iOS bundle ids and desktop targets.',
@@ -288,7 +310,7 @@ final class RunSystemActionCommand extends CockpitCliCommand {
 
   @override
   String get helpShape =>
-      'Prefer explicit flags for common actions: --x/--y for tap, --text for typeText/setClipboard/tapNotification, --key for pressKey, --url for openUrl, --settings-action for openSystemSettings, --appearance, --content-size, --orientation, --network-speed, --network-delay, --time/--battery-level for setStatusBar, repeated --permissions plus --permission-mode for preparePermissions, --title/--body/--tag or --payload-json for postNotification and tapNotification, --decision for dismissSystemDialog or resolveBlockers, --name/--output-path/--purpose/--mode/--layer for capture and recording, repeated --arg for runShell. Use --parameters-json for blocker recovery, notification tap, or less common payloads.';
+      'Prefer explicit flags for common actions: --x/--y for tap, --text for typeText/setClipboard/tapNotification, --key for pressKey, --url for openUrl, --settings-action for openSystemSettings, --appearance, --content-size, --orientation, --network-speed, --network-delay, --time/--battery-level for setStatusBar, repeated --permissions plus --permission-mode for preparePermissions, --lines/--last-minutes/--process-name for readSystemLogs, --locale/--language for setLocale, --title/--body/--tag or --payload-json for postNotification and tapNotification, --decision for dismissSystemDialog or resolveBlockers, --name/--output-path/--purpose/--mode/--layer for capture and recording, repeated --arg for runShell. Use --parameters-json for setBattery, setConnectivity, blocker recovery, notification tap, or less common payloads.';
 
   @override
   String get helpExample =>
@@ -431,6 +453,11 @@ final class RunSystemActionCommand extends CockpitCliCommand {
     addInt('battery-level', 'batteryLevel');
     addInt('max-depth', 'maxDepth');
     addInt('max-nodes', 'maxNodes');
+    addInt('lines', 'lines');
+    addInt('last-minutes', 'lastMinutes');
+    addString('process-name', 'processName');
+    addString('locale', 'locale');
+    addString('language', 'language');
     addString('package-id', 'packageId');
     addString('app-path', 'appPath');
     if (argResults?['grant-permissions'] == true) {

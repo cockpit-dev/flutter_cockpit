@@ -113,11 +113,11 @@ tag 或文本匹配并点击通知；`stabilizeForScreenshot` 收起干扰状态
 
 模拟器支持坚持按真实能力暴露：
 
-- Android Emulator 通过 `adb` 支持原生 tap/drag/text/key、Back/Home、音量键、应用安装/卸载/启动/终止/清数据、权限授权/撤销/重置、URL/系统设置入口、外观、字号、定位、旋转、emulator 网络速度/延迟、通知栏、快捷设置、收起系统 UI、SystemUI demo-mode status bar 覆盖（`setStatusBar`/`clearStatusBar`）、shell 通知、文件 push/pull、媒体导入并触发扫描、截图、录屏、UI tree、进程/窗口/系统状态读取、设备信息读取、通知状态读取和有界 shell 命令。`dismissSystemDialog --decision accept|dismiss` 会先用 UIAutomator 匹配常见 Android 权限/系统弹窗按钮；`dismiss` 找不到时可以回退 Back。通知点击使用展开通知栏加 UIAutomator 文本匹配。
-- iOS Simulator 通过 `simctl` 支持应用安装/卸载/启动/终止/清数据、隐私权限授权/撤销/重置、URL 和 Settings 入口、外观、内容字号、定位、status bar 覆盖、剪贴板、模拟 APNS push、app container push/pull、媒体导入、截图、录屏、进程读取、模拟器/设备信息读取和有界 `simctl spawn` 命令。
+- Android Emulator 通过 `adb` 支持原生 tap/drag/text/key、Back/Home、音量键、应用安装/卸载/启动/终止/清数据、权限授权/撤销/重置、URL/系统设置入口、外观、字号、定位、旋转、emulator 网络速度/延迟、通知栏、快捷设置、收起系统 UI、SystemUI demo-mode status bar 覆盖（`setStatusBar`/`clearStatusBar`）、shell 通知、文件 push/pull、媒体导入并触发扫描、截图、录屏、UI tree、进程/窗口/系统状态读取、设备信息读取、通知状态读取、logcat 读取（`readSystemLogs`）、电量模拟（`setBattery`）、连接开关（`setConnectivity`）和有界 shell 命令。`dismissSystemDialog --decision accept|dismiss` 会先用 UIAutomator 匹配常见 Android 权限/系统弹窗按钮；`dismiss` 找不到时可以回退 Back。通知点击使用展开通知栏加 UIAutomator 文本匹配。
+- iOS Simulator 通过 `simctl` 支持应用安装/卸载/启动/终止/清数据、隐私权限授权/撤销/重置、URL 和 Settings 入口、外观、内容字号、locale 切换（`setLocale`，需重启应用生效）、定位、status bar 覆盖、剪贴板、模拟 APNS push、app container push/pull、媒体导入、截图、录屏、进程读取、模拟器/设备信息读取、统一日志读取（`readSystemLogs`）和有界 `simctl spawn` 命令。
 - iOS Simulator 原生 UI 动作需要可达的 WebDriverAgent endpoint：tap、long press、drag、文本/按键输入、Home、关闭键盘、系统弹窗 accept/dismiss、通知中心、控制中心、通知点击、旋转、focus 读取和原生 UI tree 读取。
 - iOS Simulator 音量键和清空全部通知没有稳定公开的 `simctl`/XCTest 模拟器 API。因此这些动作会保持 `unsupported` 或 `blocked`，不会伪装成可自动化。需要时按返回的 fallback、可用的 WDA 动作或应用内断言处理。
-- 桌面宿主（macOS/Windows/Linux）通过内置工具暴露 host-plane 能力：URL 与系统设置入口（`open x-apple.systempreferences:` / `ms-settings:`）、宿主外观（System Events / 注册表 / gsettings）、剪贴板、宿主文件 push/pull 与媒体复制、应用激活/恢复/终止、focus 与设备/系统状态读取、进程/窗口列表、通知（`osascript display notification` / `notify-send`）、macOS `tccutil` 的 `resetPermission`、窗口定向输入、原生 UI tree 读取（macOS/Windows）、窗口截图与录屏。没有稳定 app 级工具的宿主全局表面——Home、音量键、status bar、通知中心展开、模拟定位、旋转——会真实地保持 `unsupported` 或 `blocked`。
+- 桌面宿主（macOS/Windows/Linux）通过内置工具暴露 host-plane 能力：URL 与系统设置入口（`open x-apple.systempreferences:` / `ms-settings:`）、宿主外观（System Events / 注册表 / gsettings）、剪贴板、宿主文件 push/pull 与媒体复制、应用激活/恢复/终止、focus 与设备/系统状态读取、宿主系统日志读取（`readSystemLogs`，走 `log show` / `journalctl` / `Get-WinEvent`）、进程/窗口列表、通知（`osascript display notification` / `notify-send`）、macOS `tccutil` 的 `resetPermission`、窗口定向输入、原生 UI tree 读取（macOS/Windows）、窗口截图与录屏。没有稳定 app 级工具的宿主全局表面——Home、音量键、status bar、通知中心展开、模拟定位、旋转——会真实地保持 `unsupported` 或 `blocked`。
 - Web（浏览器）目标在配置浏览器 driver 或 bridge 之前，DOM 层输入保持 blocked；但只要已知浏览器 app id 或 process id（macOS 宿主需要 app id），截图和录屏可以通过宿主窗口 adapter 执行。
 
 默认 AI-readable 能力行会包含紧凑参数信息，例如

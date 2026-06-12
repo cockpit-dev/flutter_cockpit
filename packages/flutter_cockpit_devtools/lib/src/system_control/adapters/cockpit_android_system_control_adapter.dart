@@ -580,6 +580,51 @@ final class CockpitAndroidSystemControlAdapter
           requires: deviceRequires,
         ),
         CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.readSystemLogs,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: availability,
+          strategy: 'adb.logcat.tail',
+          requires: deviceRequires,
+          limitations: <String>[
+            'Reads recent logcat output; pass packageId to scope to the running app process.',
+          ],
+          parameters: CockpitSystemControlParameterSets.androidSystemLogs,
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.setBattery,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: availability,
+          strategy: 'adb.dumpsys.battery',
+          requires: deviceRequires,
+          limitations: <String>[
+            'Simulated battery state persists until setBattery runs with reset=true.',
+          ],
+          parameters: CockpitSystemControlParameterSets.androidBattery,
+        ),
+        CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.setConnectivity,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: availability,
+          strategy: 'adb.svc+cmd.connectivity',
+          requires: deviceRequires,
+          limitations: <String>[
+            'Changes device-wide connectivity; airplane mode toggling requires Android 11+.',
+          ],
+          parameters: CockpitSystemControlParameterSets.androidConnectivity,
+        ),
+        const CockpitSystemControlCapability(
+          action: CockpitSystemControlAction.setLocale,
+          plane: CockpitPlaneKind.deviceSystemPlane,
+          availability: CockpitSystemControlAvailability.blocked,
+          strategy: 'android-locale-requires-root-or-app-override',
+          requires: <String>[
+            'rooted build or app-side locale override (e.g. dart-define / in-app setting)',
+          ],
+          limitations: <String>[
+            'Android exposes no stable unrooted adb command to change the device locale.',
+          ],
+        ),
+        CockpitSystemControlCapability(
           action: CockpitSystemControlAction.runShell,
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
@@ -1030,6 +1075,34 @@ final class CockpitAndroidSystemControlAdapter
         CockpitResolvedSystemControlCommand(
           'adb',
           adbShell(const <String>['dumpsys', 'notification']),
+        ),
+      CockpitSystemControlAction.readSystemLogs => _androidSystemLogsCommand(
+        request,
+        (script) => CockpitResolvedSystemControlCommand(
+          'adb',
+          adbShell(<String>['sh', '-c', script]),
+        ),
+      ),
+      CockpitSystemControlAction.setBattery => _androidSetBatteryCommand(
+        request,
+        (script) => CockpitResolvedSystemControlCommand(
+          'adb',
+          adbShell(<String>['sh', '-c', script]),
+        ),
+      ),
+      CockpitSystemControlAction.setConnectivity =>
+        _androidSetConnectivityCommand(
+          request,
+          (script) => CockpitResolvedSystemControlCommand(
+            'adb',
+            adbShell(<String>['sh', '-c', script]),
+          ),
+        ),
+      CockpitSystemControlAction.setLocale =>
+        const CockpitResolvedSystemControlCommand.error(
+          code: 'systemActionBlocked',
+          message:
+              'Android device locale changes require a rooted build or an app-side locale override.',
         ),
       CockpitSystemControlAction.runShell => cockpitShellCommand(
         request,
@@ -1565,6 +1638,123 @@ final class CockpitAndroidSystemControlAdapter
         dismissKeyboard: dismissKeyboard.value ?? true,
       ),
     );
+  }
+
+  CockpitResolvedSystemControlCommand _androidSystemLogsCommand(
+    CockpitSystemControlActionRequest request,
+    CockpitResolvedSystemControlCommand Function(String script) factory,
+  ) {
+    final lines = cockpitReadSystemControlIntParameter(
+      request.parameters,
+      'lines',
+      minimum: 1,
+      maximum: 5000,
+    );
+    final packageId = _readPackageId(request);
+    if (lines.isInvalid || packageId.isInvalid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'invalidSystemActionParameter',
+        message:
+            'readSystemLogs accepts integer lines (1-5000) and optional string packageId.',
+      );
+    }
+    final lineCount = lines.value ?? 200;
+    final quotedPackage = packageId.isValid
+        ? _shellSingleQuoted(packageId.value!)
+        : null;
+    final script = quotedPackage == null
+        ? 'exec logcat -d -v time -t $lineCount'
+        : '''
+pid="\$(pidof -s $quotedPackage 2>/dev/null || true)"
+if [ -n "\$pid" ]; then
+  exec logcat -d -v time -t $lineCount --pid "\$pid"
+fi
+exec logcat -d -v time -t $lineCount
+''';
+    return factory(script);
+  }
+
+  CockpitResolvedSystemControlCommand _androidSetBatteryCommand(
+    CockpitSystemControlActionRequest request,
+    CockpitResolvedSystemControlCommand Function(String script) factory,
+  ) {
+    final level = cockpitReadSystemControlIntParameter(
+      request.parameters,
+      'level',
+      minimum: 0,
+      maximum: 100,
+    );
+    final plugged = cockpitReadSystemControlBoolParameter(
+      request.parameters,
+      'plugged',
+    );
+    final reset = cockpitReadSystemControlBoolParameter(
+      request.parameters,
+      'reset',
+    );
+    if (level.isInvalid || plugged.isInvalid || reset.isInvalid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'invalidSystemActionParameter',
+        message:
+            'setBattery accepts integer level (0-100) plus boolean plugged and reset parameters.',
+      );
+    }
+    if (reset.value == true) {
+      return factory('exec dumpsys battery reset');
+    }
+    if (!level.isValid && plugged.value == null) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'missingSystemActionParameter',
+        message: 'setBattery requires level, plugged, or reset.',
+      );
+    }
+    final commands = <String>[
+      if (plugged.value == true) 'dumpsys battery set ac 1',
+      if (plugged.value == false) 'dumpsys battery unplug',
+      if (level.isValid) 'dumpsys battery set level ${level.value}',
+    ];
+    return factory('set -e\n${commands.join('\n')}');
+  }
+
+  CockpitResolvedSystemControlCommand _androidSetConnectivityCommand(
+    CockpitSystemControlActionRequest request,
+    CockpitResolvedSystemControlCommand Function(String script) factory,
+  ) {
+    final wifi = cockpitReadSystemControlBoolParameter(
+      request.parameters,
+      'wifi',
+    );
+    final mobileData = cockpitReadSystemControlBoolParameter(
+      request.parameters,
+      'mobileData',
+    );
+    final airplaneMode = cockpitReadSystemControlBoolParameter(
+      request.parameters,
+      'airplaneMode',
+    );
+    if (wifi.isInvalid || mobileData.isInvalid || airplaneMode.isInvalid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'invalidSystemActionParameter',
+        message:
+            'setConnectivity accepts boolean wifi, mobileData, and airplaneMode parameters.',
+      );
+    }
+    if (wifi.value == null &&
+        mobileData.value == null &&
+        airplaneMode.value == null) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'missingSystemActionParameter',
+        message: 'setConnectivity requires wifi, mobileData, or airplaneMode.',
+      );
+    }
+    final commands = <String>[
+      if (airplaneMode.value != null)
+        'cmd connectivity airplane-mode ${airplaneMode.value! ? 'enable' : 'disable'}',
+      if (wifi.value != null) 'svc wifi ${wifi.value! ? 'enable' : 'disable'}',
+      if (mobileData.value != null)
+        'svc data ${mobileData.value! ? 'enable' : 'disable'}',
+    ];
+    return factory('set -e\n${commands.join('\n')}');
   }
 
   String _androidDismissSystemDialogScript(String decision) {
