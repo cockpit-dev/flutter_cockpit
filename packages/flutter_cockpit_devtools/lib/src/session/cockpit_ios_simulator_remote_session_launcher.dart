@@ -133,25 +133,48 @@ final class CockpitIosSimulatorRemoteSessionLauncher
     ], timeout: _remaining(deadline));
 
     final baseUri = Uri.parse('http://127.0.0.1:${options.sessionPort}');
-    final status = await cockpitWaitForRemoteSessionReady(
-      baseUri: baseUri,
-      timeout: _remaining(deadline),
-      statusReader: _statusReader,
-      expectedSessionId: options.launchId,
-      expectedPlatform: options.platform,
-    );
+    try {
+      final status = await cockpitWaitForRemoteSessionReady(
+        baseUri: baseUri,
+        timeout: _remaining(deadline),
+        statusReader: _statusReader,
+        expectedSessionId: options.launchId,
+        expectedPlatform: options.platform,
+      );
+      return CockpitRemoteSessionHandle.fromRemoteStatus(
+        projectDir: options.projectDir,
+        target: options.target,
+        deviceId: options.deviceId,
+        appId: bundleId,
+        host: '127.0.0.1',
+        hostPort: options.sessionPort,
+        devicePort: options.sessionPort,
+        status: status,
+        launchedAt: _now(),
+      );
+    } on Object {
+      await _bestEffortTerminateLaunchedApp(
+        deviceId: options.deviceId,
+        bundleId: bundleId,
+      );
+      rethrow;
+    }
+  }
 
-    return CockpitRemoteSessionHandle.fromRemoteStatus(
-      projectDir: options.projectDir,
-      target: options.target,
-      deviceId: options.deviceId,
-      appId: bundleId,
-      host: '127.0.0.1',
-      hostPort: options.sessionPort,
-      devicePort: options.sessionPort,
-      status: status,
-      launchedAt: _now(),
-    );
+  Future<void> _bestEffortTerminateLaunchedApp({
+    required String deviceId,
+    required String bundleId,
+  }) async {
+    try {
+      await _runRequired('xcrun', <String>[
+        'simctl',
+        'terminate',
+        deviceId,
+        bundleId,
+      ], timeout: const Duration(seconds: 5));
+    } on Object {
+      // Launch failure reporting takes priority over cleanup failures.
+    }
   }
 
   Future<void> _runRequired(

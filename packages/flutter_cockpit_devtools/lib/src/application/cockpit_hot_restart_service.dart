@@ -1,12 +1,7 @@
-import 'dart:io';
-
-import 'package:path/path.dart' as p;
-
 import '../development/cockpit_development_session_status.dart';
 import 'cockpit_app_handle.dart';
 import 'cockpit_app_reference_resolver.dart';
-import 'cockpit_application_service_exception.dart';
-import 'cockpit_compact_json.dart';
+import 'cockpit_development_reload_executor.dart';
 import 'cockpit_reload_development_session_service.dart';
 import 'cockpit_session_registry.dart';
 
@@ -55,57 +50,21 @@ final class CockpitHotRestartService {
   Future<CockpitHotRestartResult> restart(
     CockpitHotRestartRequest request,
   ) async {
-    final resolved = await _appReferenceResolver.resolve(
+    final outcome = await cockpitExecuteDevelopmentReload(
+      mode: CockpitDevelopmentReloadMode.hotRestart,
+      unavailableCode: 'hotRestartUnavailable',
+      unavailableMessage: 'Hot restart is only available for development apps.',
+      reloadService: _reloadService,
+      appReferenceResolver: _appReferenceResolver,
+      registry: _registry,
       appId: request.appId,
       app: request.app,
       appHandlePath: request.appHandlePath,
     );
-    final developmentHandle =
-        resolved.app?.developmentSession ?? resolved.developmentRecord?.handle;
-    if (developmentHandle == null) {
-      throw const CockpitApplicationServiceException(
-        code: 'hotRestartUnavailable',
-        message: 'Hot restart is only available for development apps.',
-      );
-    }
-    final restarted = await _reloadService.reload(
-      CockpitReloadDevelopmentSessionRequest(
-        mode: CockpitDevelopmentReloadMode.hotRestart,
-        sessionHandle: developmentHandle,
-      ),
-    );
-    _registry?.recordDevelopmentSession(
-      handle: restarted.sessionHandle,
-      status: restarted.status,
-      supervisorLogPath: resolved.developmentRecord?.supervisorLogPath,
-    );
-    final app = CockpitAppHandle.fromDevelopmentSession(
-      restarted.sessionHandle,
-      supervisorLogPath:
-          resolved.app?.supervisorLogPath ??
-          resolved.developmentRecord?.supervisorLogPath,
-    );
-    final appJsonPath = await _persistAppIfRequested(
-      path: request.appHandlePath,
-      app: app,
-    );
     return CockpitHotRestartResult(
-      app: app,
-      status: restarted.status,
-      appJsonPath: appJsonPath,
+      app: outcome.app,
+      status: outcome.status,
+      appJsonPath: outcome.appJsonPath,
     );
-  }
-
-  Future<String?> _persistAppIfRequested({
-    required String? path,
-    required CockpitAppHandle app,
-  }) async {
-    if (path == null || path.isEmpty) {
-      return null;
-    }
-    final file = File(path);
-    await file.parent.create(recursive: true);
-    await file.writeAsString(cockpitPrettyJsonText(app.toJson()));
-    return p.normalize(file.path);
   }
 }

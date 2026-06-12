@@ -107,26 +107,41 @@ final class CockpitWindowsRemoteSessionLauncher
     );
 
     final baseUri = Uri.parse('http://127.0.0.1:${options.sessionPort}');
-    final status = await cockpitWaitForRemoteSessionReady(
-      baseUri: baseUri,
-      timeout: _remaining(deadline),
-      statusReader: _statusReader,
-      expectedSessionId: options.launchId,
-      expectedPlatform: options.platform,
-    );
+    try {
+      final status = await cockpitWaitForRemoteSessionReady(
+        baseUri: baseUri,
+        timeout: _remaining(deadline),
+        statusReader: _statusReader,
+        expectedSessionId: options.launchId,
+        expectedPlatform: options.platform,
+      );
+      return CockpitRemoteSessionHandle.fromRemoteStatus(
+        projectDir: options.projectDir,
+        target: options.target,
+        deviceId: options.deviceId,
+        appId: executablePathContext.basenameWithoutExtension(executablePath),
+        processId: processId,
+        host: '127.0.0.1',
+        hostPort: options.sessionPort,
+        devicePort: options.sessionPort,
+        status: status,
+        launchedAt: _now(),
+      );
+    } on Object {
+      _bestEffortKillLaunchedApp(processId);
+      rethrow;
+    }
+  }
 
-    return CockpitRemoteSessionHandle.fromRemoteStatus(
-      projectDir: options.projectDir,
-      target: options.target,
-      deviceId: options.deviceId,
-      appId: executablePathContext.basenameWithoutExtension(executablePath),
-      processId: processId,
-      host: '127.0.0.1',
-      hostPort: options.sessionPort,
-      devicePort: options.sessionPort,
-      status: status,
-      launchedAt: _now(),
-    );
+  void _bestEffortKillLaunchedApp(int? processId) {
+    if (processId == null) {
+      return;
+    }
+    try {
+      Process.killPid(processId);
+    } on Object {
+      // Launch failure reporting takes priority over cleanup failures.
+    }
   }
 
   Future<void> _runRequired(

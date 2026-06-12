@@ -166,25 +166,50 @@ final class CockpitAndroidRemoteSessionLauncher
           ),
         );
     final baseUri = Uri.parse('http://127.0.0.1:$hostPort');
-    final status = await cockpitWaitForRemoteSessionReady(
-      baseUri: baseUri,
-      timeout: _remaining(deadline),
-      statusReader: _statusReader,
-      expectedSessionId: options.launchId,
-      expectedPlatform: options.platform,
-    );
+    try {
+      final status = await cockpitWaitForRemoteSessionReady(
+        baseUri: baseUri,
+        timeout: _remaining(deadline),
+        statusReader: _statusReader,
+        expectedSessionId: options.launchId,
+        expectedPlatform: options.platform,
+      );
+      return CockpitRemoteSessionHandle.fromRemoteStatus(
+        projectDir: options.projectDir,
+        target: options.target,
+        deviceId: options.deviceId,
+        appId: buildArtifact.applicationId,
+        host: '127.0.0.1',
+        hostPort: hostPort,
+        devicePort: options.sessionPort,
+        status: status,
+        launchedAt: _now(),
+      );
+    } on Object {
+      await _bestEffortStopLaunchedApp(
+        deviceId: options.deviceId,
+        applicationId: buildArtifact.applicationId,
+      );
+      rethrow;
+    }
+  }
 
-    return CockpitRemoteSessionHandle.fromRemoteStatus(
-      projectDir: options.projectDir,
-      target: options.target,
-      deviceId: options.deviceId,
-      appId: buildArtifact.applicationId,
-      host: '127.0.0.1',
-      hostPort: hostPort,
-      devicePort: options.sessionPort,
-      status: status,
-      launchedAt: _now(),
-    );
+  Future<void> _bestEffortStopLaunchedApp({
+    required String deviceId,
+    required String applicationId,
+  }) async {
+    try {
+      await _runRequired('adb', <String>[
+        '-s',
+        deviceId,
+        'shell',
+        'am',
+        'force-stop',
+        applicationId,
+      ], timeout: const Duration(seconds: 5));
+    } on Object {
+      // Launch failure reporting takes priority over cleanup failures.
+    }
   }
 
   Future<void> _runRequired(

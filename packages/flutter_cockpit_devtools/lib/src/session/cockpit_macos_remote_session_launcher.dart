@@ -113,25 +113,32 @@ final class CockpitMacosRemoteSessionLauncher
     ], timeout: _remaining(deadline));
 
     final baseUri = Uri.parse('http://127.0.0.1:${options.sessionPort}');
-    final status = await cockpitWaitForRemoteSessionReady(
-      baseUri: baseUri,
-      timeout: _remaining(deadline),
-      statusReader: _statusReader,
-      expectedSessionId: options.launchId,
-      expectedPlatform: options.platform,
-    );
-
-    return CockpitRemoteSessionHandle.fromRemoteStatus(
-      projectDir: options.projectDir,
-      target: options.target,
-      deviceId: options.deviceId,
-      appId: bundleId,
-      host: '127.0.0.1',
-      hostPort: options.sessionPort,
-      devicePort: options.sessionPort,
-      status: status,
-      launchedAt: _now(),
-    );
+    try {
+      final status = await cockpitWaitForRemoteSessionReady(
+        baseUri: baseUri,
+        timeout: _remaining(deadline),
+        statusReader: _statusReader,
+        expectedSessionId: options.launchId,
+        expectedPlatform: options.platform,
+      );
+      return CockpitRemoteSessionHandle.fromRemoteStatus(
+        projectDir: options.projectDir,
+        target: options.target,
+        deviceId: options.deviceId,
+        appId: bundleId,
+        host: '127.0.0.1',
+        hostPort: options.sessionPort,
+        devicePort: options.sessionPort,
+        status: status,
+        launchedAt: _now(),
+      );
+    } on Object {
+      await _bestEffortStopRunningApp(
+        bundleId,
+        timeout: const Duration(seconds: 5),
+      );
+      rethrow;
+    }
   }
 
   Future<void> _bestEffortStopRunningApp(
