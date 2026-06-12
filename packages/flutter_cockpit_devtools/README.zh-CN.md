@@ -298,6 +298,8 @@ development-session 工具：
 - `read_session_logs`
 - `stop_development_session`
 
+`list_apps`、`list_active_sessions` 和 `read_session_logs` 是有意只在 MCP 暴露的：它们读取长驻 MCP server 进程内的 session 注册表。无状态 CLI 用 app handle 覆盖同一工作流——`.dart_tool/flutter_cockpit/latest_app.json` 加显式 `--app-json` 文件——CLI 版列表命令只会返回空注册表，属于假能力。
+
 workspace/roots 工具：
 
 - `add_roots`

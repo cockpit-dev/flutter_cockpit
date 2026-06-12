@@ -360,6 +360,12 @@ Development-session tools:
 - `read_session_logs`
 - `stop_development_session`
 
+`list_apps`, `list_active_sessions`, and `read_session_logs` are MCP-only by
+design: they read the long-lived MCP server's in-process session registry. The
+stateless CLI covers the same workflow through app handles —
+`.dart_tool/flutter_cockpit/latest_app.json` plus explicit `--app-json` files —
+so a CLI listing command would always report an empty registry.
+
 Workspace and roots tools:
 
 - `add_roots`
