@@ -217,7 +217,9 @@ Prepare app permissions in one capability-checked macro before a flow:
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   run-system-action \
   --action preparePermissions \
-  --parameters-json '{"permissions":["microphone","speech"],"mode":"grant"}'
+  --permissions microphone \
+  --permissions speech \
+  --permission-mode grant
 ```
 
 Stabilize native/system state before visual proof:
@@ -501,6 +503,27 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   run-system-action \
   --platform ios \
   --device-id <ios-simulator-udid> \
+  --action clearStatusBar
+```
+
+Android uses the same `setStatusBar`/`clearStatusBar` actions through SystemUI demo mode:
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform android \
+  --device-id emulator-5554 \
+  --action setStatusBar \
+  --time 9:41 \
+  --wifi-mode active \
+  --wifi-bars 4 \
+  --battery-state charged \
+  --battery-level 100
+
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+  run-system-action \
+  --platform android \
+  --device-id emulator-5554 \
   --action clearStatusBar
 ```
 

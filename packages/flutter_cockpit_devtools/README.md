@@ -137,10 +137,11 @@ Simulator support is intentionally capability-truthful:
   volume keys, app install/uninstall/launch/terminate/data clear, permission
   grant/revoke/reset, URL/settings entry, appearance, text scale, location,
   orientation, emulator network speed/delay, notification shade, quick settings,
-  system UI collapse, shell notifications, file push/pull, media import with
-  media scanning, screenshots, recordings, UI tree dumps, process/window/system
-  state reads, device info reads, notification state reads, and bounded shell
-  commands. `dismissSystemDialog --decision accept|dismiss` first tries common
+  system UI collapse, SystemUI demo-mode status bar overrides
+  (`setStatusBar`/`clearStatusBar`), shell notifications, file push/pull, media
+  import with media scanning, screenshots, recordings, UI tree dumps,
+  process/window/system state reads, device info reads, notification state
+  reads, and bounded shell commands. `dismissSystemDialog --decision accept|dismiss` first tries common
   Android permission/system dialog buttons with UIAutomator; `dismiss` can fall
   back to Back. Notification taps use notification expansion plus UIAutomator
   text matching.
