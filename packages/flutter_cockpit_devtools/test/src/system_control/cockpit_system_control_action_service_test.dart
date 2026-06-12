@@ -1878,7 +1878,7 @@ void main() {
     expect(result.command.first, 'powershell');
     final script = _decodeWindowsPowershellScript(result.command);
     expect(script, contains(r'Start-Process -FilePath $args[0]'));
-    expect(script, contains("\$args = @('ms-settings:display')"));
+    expect(script, contains("} 'ms-settings:display'"));
   });
 
   test('macos resetPermission resets a TCC service through tccutil', () async {
@@ -1942,7 +1942,7 @@ void main() {
     expect(result.command.first, 'powershell');
     final script = _decodeWindowsPowershellScript(result.command);
     expect(script, contains('AppsUseLightTheme'));
-    expect(script, contains("\$args = @('dark')"));
+    expect(script, contains("} 'dark'"));
   });
 
   test('linux postNotification posts through notify-send', () async {
@@ -3207,7 +3207,7 @@ void main() {
     expect(result.command, contains('-NoProfile'));
     expect(result.command, contains('-NonInteractive'));
     final script = _decodeWindowsPowershellScript(result.command);
-    expect(script, contains("\$args = @('processId', '4242', '3', '30')"));
+    expect(script, contains("} 'processId' '4242' '3' '30'"));
   });
 
   test('windows readWindows uses visible process windows', () async {
