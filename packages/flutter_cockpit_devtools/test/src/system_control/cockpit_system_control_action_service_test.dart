@@ -2075,6 +2075,156 @@ void main() {
     expect(processManager.starts, isEmpty);
   });
 
+  test('android readSystemLogs tails logcat scoped to the app', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        appId: 'dev.cockpit.example',
+        action: CockpitSystemControlAction.readSystemLogs,
+        parameters: <String, Object?>{'lines': 80},
+      ),
+    );
+
+    expect(result.success, isTrue);
+    final script = result.command.last;
+    expect(script, contains('logcat -d -v time -t 80'));
+    expect(script, contains("pidof -s 'dev.cockpit.example'"));
+  });
+
+  test('android setBattery simulates an unplugged low battery', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        action: CockpitSystemControlAction.setBattery,
+        parameters: <String, Object?>{'level': 7, 'plugged': false},
+      ),
+    );
+
+    expect(result.success, isTrue);
+    final script = result.command.last;
+    expect(script, contains('dumpsys battery unplug'));
+    expect(script, contains('dumpsys battery set level 7'));
+  });
+
+  test('android setBattery requires at least one parameter', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        action: CockpitSystemControlAction.setBattery,
+      ),
+    );
+
+    expect(result.success, isFalse);
+    expect(result.errorCode, 'missingSystemActionParameter');
+    expect(processManager.starts, isEmpty);
+  });
+
+  test('android setConnectivity toggles wifi and airplane mode', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        action: CockpitSystemControlAction.setConnectivity,
+        parameters: <String, Object?>{'wifi': false, 'airplaneMode': true},
+      ),
+    );
+
+    expect(result.success, isTrue);
+    final script = result.command.last;
+    expect(script, contains('cmd connectivity airplane-mode enable'));
+    expect(script, contains('svc wifi disable'));
+  });
+
+  test('ios simulator readSystemLogs reads the unified log', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'ios',
+        deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+        action: CockpitSystemControlAction.readSystemLogs,
+        parameters: <String, Object?>{
+          'lastMinutes': 5,
+          'processName': 'Runner',
+        },
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command.join(' '), contains('log show'));
+    expect(result.command.join(' '), contains('tail -n'));
+    expect(result.command, contains('5m'));
+    expect(result.command, contains('Runner'));
+  });
+
+  test('ios simulator setLocale writes locale and language', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'ios',
+        deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+        action: CockpitSystemControlAction.setLocale,
+        parameters: <String, Object?>{'locale': 'zh_CN'},
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command.join(' '), contains('AppleLocale'));
+    expect(result.command, contains('zh_CN'));
+    expect(result.command, contains('zh-CN'));
+    expect(result.limitations.join('\n'), contains('Relaunch the app'));
+  });
+
+  test('macos readSystemLogs reads the recent unified log', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'macos',
+        action: CockpitSystemControlAction.readSystemLogs,
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command.join(' '), contains('log show'));
+    expect(result.command.join(' '), contains('tail -n'));
+    expect(result.command, contains('2m'));
+    expect(result.command, contains('200'));
+  });
+
   test('android readFocusState reports windows and IME state', () async {
     final processManager = _FakeProcessManager();
     final service = CockpitSystemControlActionService(

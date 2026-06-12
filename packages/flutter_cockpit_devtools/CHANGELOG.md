@@ -9,6 +9,8 @@
 - Added Android SystemUI demo-mode status bar overrides (`setStatusBar`/`clearStatusBar`) for deterministic screenshot evidence
 - Added desktop host-plane actions through built-in tooling: system settings entry, host appearance, host file push/pull and media copy, app recovery, focus and device reads, notifications, and macOS `tccutil` permission resets
 - Added web (browser) evidence through host window adapters so screenshots and recordings work once the browser app id or process id is known
+- Added native system log reads (`readSystemLogs`: logcat, unified log, journalctl, Windows event log) so startup crashes are diagnosable before the runtime observer attaches
+- Added Android battery simulation (`setBattery`) and connectivity toggles (`setConnectivity`), plus iOS simulator locale switching (`setLocale`)
 - Added task-run bundle writing, summary shaping, structured `logs.json` evidence, and delivery evidence handling
 - Added `read-task-bundle-summary` CLI output for low-token bundle review alongside MCP `read_task_bundle_summary`
 - Added AI-readable default stdout rendering with JSON/path/file output formats for shell-friendly workflows

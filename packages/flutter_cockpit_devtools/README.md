@@ -141,7 +141,9 @@ Simulator support is intentionally capability-truthful:
   (`setStatusBar`/`clearStatusBar`), shell notifications, file push/pull, media
   import with media scanning, screenshots, recordings, UI tree dumps,
   process/window/system state reads, device info reads, notification state
-  reads, and bounded shell commands. `dismissSystemDialog --decision accept|dismiss` first tries common
+  reads, logcat tails (`readSystemLogs`), battery simulation (`setBattery`),
+connectivity toggles (`setConnectivity`), and bounded shell commands.
+`dismissSystemDialog --decision accept|dismiss` first tries common
   Android permission/system dialog buttons with UIAutomator; `dismiss` can fall
   back to Back. Notification taps use notification expansion plus UIAutomator
   text matching.
@@ -149,7 +151,9 @@ Simulator support is intentionally capability-truthful:
   clear, privacy grant/revoke/reset, URL and Settings entry, appearance, content
   size, location, status bar overrides, pasteboard, simulated APNS pushes, app
   container push/pull, media import, screenshots, recordings, process reads,
-  simulator/device info reads, and bounded `simctl spawn` commands.
+  simulator/device info reads, locale switching (`setLocale`, relaunch the app
+afterwards), unified log reads (`readSystemLogs`), and bounded `simctl spawn`
+commands.
 - iOS simulator native UI actions require a reachable WebDriverAgent endpoint:
   tap, long press, drag, text/key input, Home, keyboard dismissal, system dialog
   accept/dismiss, notification center, Control Center, notification taps,
@@ -163,8 +167,10 @@ Simulator support is intentionally capability-truthful:
   x-apple.systempreferences:` / `ms-settings:`), host appearance (System
   Events / registry / gsettings), clipboard, host file push/pull and media
   copy, app activation/recovery/termination, focus and device/system reads,
-  process/window lists, notifications (`osascript display notification` /
-  `notify-send`), macOS TCC `resetPermission` via `tccutil`, window-targeted
+  host system log reads (`readSystemLogs` via `log show`, `journalctl`, or
+  `Get-WinEvent`), process/window lists, notifications (`osascript display
+  notification` / `notify-send`), macOS TCC `resetPermission` via `tccutil`,
+  window-targeted
   input, native UI tree reads (macOS/Windows), and window screenshots and
   recordings. Host-global surfaces with no stable app-scoped tooling — Home,
   volume keys, status bar, notification-center expansion, simulated location,

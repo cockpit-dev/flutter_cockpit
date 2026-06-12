@@ -624,6 +624,46 @@ final class CockpitIosSystemControlAdapter
             ],
           ),
           CockpitSystemControlCapability(
+            action: CockpitSystemControlAction.readSystemLogs,
+            plane: CockpitPlaneKind.deviceSystemPlane,
+            availability: CockpitSystemControlAvailability.available,
+            strategy: 'xcrun.simctl.spawn.log-show',
+            requires: <String>['xcrun', 'simulator device id'],
+            limitations: <String>[
+              'Reads the recent unified log; pass processName to scope to the app process.',
+            ],
+            parameters: CockpitSystemControlParameterSets.appleSystemLogs,
+          ),
+          CockpitSystemControlCapability(
+            action: CockpitSystemControlAction.setLocale,
+            plane: CockpitPlaneKind.deviceSystemPlane,
+            availability: CockpitSystemControlAvailability.available,
+            strategy: 'xcrun.simctl.spawn.defaults.locale',
+            requires: <String>['xcrun', 'simulator device id'],
+            limitations: <String>[
+              'Relaunch the app (terminateApp then activateWindow) so the new locale takes effect.',
+            ],
+            parameters: CockpitSystemControlParameterSets.iosLocale,
+          ),
+          const CockpitSystemControlCapability(
+            action: CockpitSystemControlAction.setBattery,
+            plane: CockpitPlaneKind.deviceSystemPlane,
+            availability: CockpitSystemControlAvailability.unsupported,
+            strategy: 'ios-simulator-no-battery-simulation',
+            limitations: <String>[
+              'The iOS simulator cannot simulate battery state; setStatusBar only changes the indicator.',
+            ],
+          ),
+          const CockpitSystemControlCapability(
+            action: CockpitSystemControlAction.setConnectivity,
+            plane: CockpitPlaneKind.deviceSystemPlane,
+            availability: CockpitSystemControlAvailability.unsupported,
+            strategy: 'ios-simulator-shares-host-network',
+            limitations: <String>[
+              'The iOS simulator shares the host network; toggle host connectivity or use a proxy instead.',
+            ],
+          ),
+          CockpitSystemControlCapability(
             action: CockpitSystemControlAction.runShell,
             plane: CockpitPlaneKind.deviceSystemPlane,
             availability: CockpitSystemControlAvailability.available,
@@ -1384,6 +1424,26 @@ final class CockpitIosSystemControlAdapter
           message:
               'iOS simulator delivered notification state has no stable public simctl command.',
         ),
+      CockpitSystemControlAction.readSystemLogs => _iosSystemLogsCommand(
+        request,
+        deviceId,
+      ),
+      CockpitSystemControlAction.setLocale => _iosSetLocaleCommand(
+        request,
+        deviceId,
+      ),
+      CockpitSystemControlAction.setBattery =>
+        const CockpitResolvedSystemControlCommand.error(
+          code: 'unsupportedSystemAction',
+          message:
+              'The iOS simulator cannot simulate battery state; use setStatusBar for the indicator only.',
+        ),
+      CockpitSystemControlAction.setConnectivity =>
+        const CockpitResolvedSystemControlCommand.error(
+          code: 'unsupportedSystemAction',
+          message:
+              'The iOS simulator shares the host network; toggle host connectivity or use a proxy instead.',
+        ),
       CockpitSystemControlAction.pressBack =>
         const CockpitResolvedSystemControlCommand.error(
           code: 'unsupportedSystemAction',
@@ -1687,6 +1747,95 @@ final class CockpitIosSystemControlAdapter
       'addmedia',
       deviceId,
       sourcePath.value!,
+    ]);
+  }
+
+  CockpitResolvedSystemControlCommand _iosSystemLogsCommand(
+    CockpitSystemControlActionRequest request,
+    String deviceId,
+  ) {
+    final lastMinutes = cockpitReadSystemControlIntParameter(
+      request.parameters,
+      'lastMinutes',
+      minimum: 1,
+      maximum: 60,
+    );
+    final lines = cockpitReadSystemControlIntParameter(
+      request.parameters,
+      'lines',
+      minimum: 1,
+      maximum: 5000,
+    );
+    final processName = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'processName',
+    );
+    if (lastMinutes.isInvalid || lines.isInvalid || processName.isInvalid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'invalidSystemActionParameter',
+        message:
+            'readSystemLogs accepts integer lastMinutes (1-60), integer lines (1-5000), and optional string processName.',
+      );
+    }
+    final minutes = lastMinutes.value ?? 2;
+    final lineCount = lines.value ?? 200;
+    // Tail keeps unified-log output bounded for AI consumption.
+    if (processName.isValid) {
+      return CockpitResolvedSystemControlCommand('sh', <String>[
+        '-c',
+        r'xcrun simctl spawn "$1" log show --style compact --last "$2" --predicate "process == \"$3\"" | tail -n "$4"',
+        'flutter_cockpit_ios_logs',
+        deviceId,
+        '${minutes}m',
+        processName.value!,
+        '$lineCount',
+      ]);
+    }
+    return CockpitResolvedSystemControlCommand('sh', <String>[
+      '-c',
+      r'xcrun simctl spawn "$1" log show --style compact --last "$2" | tail -n "$3"',
+      'flutter_cockpit_ios_logs',
+      deviceId,
+      '${minutes}m',
+      '$lineCount',
+    ]);
+  }
+
+  CockpitResolvedSystemControlCommand _iosSetLocaleCommand(
+    CockpitSystemControlActionRequest request,
+    String deviceId,
+  ) {
+    final locale = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'locale',
+    );
+    final language = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'language',
+    );
+    if (locale.isInvalid || language.isInvalid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'invalidSystemActionParameter',
+        message:
+            'setLocale requires a string locale and optional string language.',
+      );
+    }
+    if (!locale.isValid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'missingSystemActionParameter',
+        message: 'setLocale requires a locale parameter such as zh_CN.',
+      );
+    }
+    final resolvedLocale = locale.value!;
+    final resolvedLanguage =
+        language.value ?? resolvedLocale.replaceAll('_', '-');
+    return CockpitResolvedSystemControlCommand('sh', <String>[
+      '-c',
+      r'xcrun simctl spawn "$1" defaults write .GlobalPreferences AppleLocale -string "$2" && xcrun simctl spawn "$1" defaults write .GlobalPreferences AppleLanguages -array "$3"',
+      'flutter_cockpit_ios_locale',
+      deviceId,
+      resolvedLocale,
+      resolvedLanguage,
     ]);
   }
 

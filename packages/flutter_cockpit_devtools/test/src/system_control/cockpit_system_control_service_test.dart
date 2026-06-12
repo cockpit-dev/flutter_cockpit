@@ -1189,8 +1189,19 @@ Map<String, Object?> _fallbackParametersFor(CockpitSystemControlAction action) {
     CockpitSystemControlAction.readWindows ||
     CockpitSystemControlAction.readSystemState ||
     CockpitSystemControlAction.readDeviceInfo ||
+    CockpitSystemControlAction.readSystemLogs ||
     CockpitSystemControlAction.readNotificationState =>
       const <String, Object?>{},
+    CockpitSystemControlAction.setBattery => const <String, Object?>{
+      'level': 50,
+      'plugged': false,
+    },
+    CockpitSystemControlAction.setConnectivity => const <String, Object?>{
+      'wifi': true,
+    },
+    CockpitSystemControlAction.setLocale => const <String, Object?>{
+      'locale': 'zh_CN',
+    },
     CockpitSystemControlAction.preparePermissions => const <String, Object?>{
       'packageId': 'dev.cockpit.example',
       'permissions': <String>['android.permission.CAMERA'],
