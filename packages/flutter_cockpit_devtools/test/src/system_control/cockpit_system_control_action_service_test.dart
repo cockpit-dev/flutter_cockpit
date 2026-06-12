@@ -1840,6 +1840,241 @@ void main() {
     ]);
   });
 
+  test('macos openSystemSettings opens System Settings by default', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'macos',
+        action: CockpitSystemControlAction.openSystemSettings,
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command, <String>['open', 'x-apple.systempreferences:']);
+  });
+
+  test('windows openSystemSettings starts the ms-settings target', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'windows',
+        action: CockpitSystemControlAction.openSystemSettings,
+        parameters: <String, Object?>{'settingsAction': 'ms-settings:display'},
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command.first, 'powershell');
+    expect(result.command.last, 'ms-settings:display');
+  });
+
+  test('macos resetPermission resets a TCC service through tccutil', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'macos',
+        appId: 'dev.cockpit.example',
+        action: CockpitSystemControlAction.resetPermission,
+        parameters: <String, Object?>{'permission': 'camera'},
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command, <String>[
+      'tccutil',
+      'reset',
+      'Camera',
+      'dev.cockpit.example',
+    ]);
+  });
+
+  test('macos setAppearance toggles dark mode through System Events', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'macos',
+        action: CockpitSystemControlAction.setAppearance,
+        parameters: <String, Object?>{'appearance': 'dark'},
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command.first, 'osascript');
+    expect(result.command.last, contains('set dark mode to true'));
+  });
+
+  test('windows setAppearance writes the personalize registry keys', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'windows',
+        action: CockpitSystemControlAction.setAppearance,
+        parameters: <String, Object?>{'appearance': 'dark'},
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command.first, 'powershell');
+    expect(result.command.join(' '), contains('AppsUseLightTheme'));
+    expect(result.command.last, 'dark');
+  });
+
+  test('linux postNotification posts through notify-send', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'linux',
+        action: CockpitSystemControlAction.postNotification,
+        parameters: <String, Object?>{
+          'title': 'Build done',
+          'body': 'All tests passed',
+        },
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command.join(' '), contains('notify-send'));
+    expect(result.command, contains('Build done'));
+    expect(result.command, contains('All tests passed'));
+  });
+
+  test('macos pushFile copies between host paths', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'macos',
+        action: CockpitSystemControlAction.pushFile,
+        parameters: <String, Object?>{
+          'sourcePath': '/tmp/in.json',
+          'destinationPath': '/tmp/out/in.json',
+        },
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command.join(' '), contains('cp -R'));
+    expect(result.command, contains('/tmp/in.json'));
+    expect(result.command, contains('/tmp/out/in.json'));
+  });
+
+  test('macos addMedia defaults to the host Downloads folder', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'macos',
+        action: CockpitSystemControlAction.addMedia,
+        parameters: <String, Object?>{'sourcePath': '/tmp/photo.png'},
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command.join(' '), contains('Downloads'));
+  });
+
+  test('macos readDeviceInfo reports host hardware details', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'macos',
+        action: CockpitSystemControlAction.readDeviceInfo,
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command.join(' '), contains('sw_vers'));
+    expect(result.command.join(' '), contains('hw.model'));
+  });
+
+  test('linux readFocusState reads the active window via xdotool', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'linux',
+        action: CockpitSystemControlAction.readFocusState,
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command.join(' '), contains('getactivewindow'));
+  });
+
+  test('macos recoverToApp activates the target application', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'macos',
+        appId: 'dev.cockpit.example',
+        action: CockpitSystemControlAction.recoverToApp,
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command.first, 'osascript');
+    expect(result.command, contains('dev.cockpit.example'));
+  });
+
+  test('desktop dismissKeyboard reports unsupported truthfully', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'macos',
+        action: CockpitSystemControlAction.dismissKeyboard,
+      ),
+    );
+
+    expect(result.success, isFalse);
+    expect(result.availability, CockpitSystemControlAvailability.unsupported);
+    expect(processManager.starts, isEmpty);
+  });
+
   test('android readFocusState reports windows and IME state', () async {
     final processManager = _FakeProcessManager();
     final service = CockpitSystemControlActionService(

@@ -97,16 +97,30 @@ final class CockpitDesktopSystemControlAdapter
             CockpitSystemControlAction.dismissSystemDialog,
             hasInputTarget: hasInputTarget,
           ),
-          _hostBlocked(
+          _unsupported(
             CockpitSystemControlAction.dismissKeyboard,
-            'desktop-keyboard-dismiss',
-            requires: const <String>['app-specific focus control'],
+            'desktop-no-software-keyboard',
+            'Desktop platforms do not show a software keyboard; release focus through app semantics instead.',
           ),
           _unsupported(
             CockpitSystemControlAction.grantPermission,
             'platform-permission-manager',
             'Desktop permission prompts require app-specific or OS-specific workflows.',
           ),
+          if (platform == 'macos')
+            CockpitSystemControlCapability(
+              action: CockpitSystemControlAction.resetPermission,
+              plane: CockpitPlaneKind.hostPlane,
+              availability: CockpitSystemControlAvailability.available,
+              strategy: 'tccutil.reset',
+              requires: const <String>['tccutil'],
+              limitations: <String>[
+                ...limitations,
+                'Resets TCC permission state so the next access re-prompts; it cannot grant permissions.',
+              ],
+              parameters:
+                  CockpitSystemControlParameterSets.macosResetPermission,
+            ),
           CockpitSystemControlCapability(
             action: CockpitSystemControlAction.openUrl,
             plane: CockpitPlaneKind.hostPlane,
@@ -116,15 +130,35 @@ final class CockpitDesktopSystemControlAdapter
             limitations: limitations,
             parameters: CockpitSystemControlParameterSets.url,
           ),
-          _hostBlocked(
-            CockpitSystemControlAction.openSystemSettings,
-            'desktop-system-settings',
-            requires: const <String>['OS-specific settings URL or automation'],
-          ),
-          _hostBlocked(
-            CockpitSystemControlAction.setAppearance,
-            _setAppearanceStrategy,
+          if (platform == 'linux')
+            _hostBlocked(
+              CockpitSystemControlAction.openSystemSettings,
+              'desktop-system-settings',
+              requires: const <String>[
+                'desktop-specific settings tooling (e.g. gnome-control-center)',
+              ],
+            )
+          else
+            CockpitSystemControlCapability(
+              action: CockpitSystemControlAction.openSystemSettings,
+              plane: CockpitPlaneKind.hostPlane,
+              availability: CockpitSystemControlAvailability.available,
+              strategy: _openSystemSettingsStrategy,
+              requires: _openUrlRequires,
+              limitations: limitations,
+              parameters: CockpitSystemControlParameterSets.systemSettings,
+            ),
+          CockpitSystemControlCapability(
+            action: CockpitSystemControlAction.setAppearance,
+            plane: CockpitPlaneKind.hostPlane,
+            availability: CockpitSystemControlAvailability.available,
+            strategy: _setAppearanceStrategy,
             requires: _appearanceRequires,
+            limitations: <String>[
+              ...limitations,
+              'Changes the host-wide appearance for the logged-in user, not just the target app.',
+            ],
+            parameters: CockpitSystemControlParameterSets.hostAppearance,
           ),
           _hostBlocked(
             CockpitSystemControlAction.setContentSize,
@@ -176,15 +210,64 @@ final class CockpitDesktopSystemControlAdapter
             'desktop-system-ui',
             'Desktop system UI collapse is host-global and not safely app-scoped.',
           ),
-          _hostBlocked(
-            CockpitSystemControlAction.postNotification,
-            'desktop-notification-injection',
-            requires: const <String>['app-specific notification helper'],
-          ),
+          if (platform == 'windows')
+            _hostBlocked(
+              CockpitSystemControlAction.postNotification,
+              'desktop-notification-injection',
+              requires: const <String>['app-specific notification helper'],
+            )
+          else
+            CockpitSystemControlCapability(
+              action: CockpitSystemControlAction.postNotification,
+              plane: CockpitPlaneKind.hostPlane,
+              availability: CockpitSystemControlAvailability.available,
+              strategy: platform == 'macos'
+                  ? 'osascript.display-notification'
+                  : 'notify-send',
+              requires: platform == 'macos'
+                  ? const <String>['osascript']
+                  : const <String>['notify-send (libnotify)'],
+              limitations: <String>[
+                ...limitations,
+                'Posts from the scripting host identity, not the target app; use app notification flows to validate production handling.',
+              ],
+              parameters: CockpitSystemControlParameterSets.hostNotification,
+            ),
           _hostBlocked(
             CockpitSystemControlAction.clearNotifications,
             'desktop-notification-center',
             requires: const <String>['OS-specific notification center control'],
+          ),
+          CockpitSystemControlCapability(
+            action: CockpitSystemControlAction.recoverToApp,
+            plane: CockpitPlaneKind.nativeUiPlane,
+            availability: hasInputTarget
+                ? CockpitSystemControlAvailability.available
+                : CockpitSystemControlAvailability.blocked,
+            strategy: inputStrategy,
+            requires: <String>[
+              ..._targetedInputRequires,
+              if (!hasInputTarget) 'app id or process id',
+            ],
+            limitations: <String>[
+              ...limitations,
+              'Brings the app window to the foreground without restarting it.',
+            ],
+            parameters: CockpitSystemControlParameterSets.recoverToApp,
+          ),
+          _hostFileCapability(CockpitSystemControlAction.pushFile),
+          _hostFileCapability(CockpitSystemControlAction.pullFile),
+          CockpitSystemControlCapability(
+            action: CockpitSystemControlAction.addMedia,
+            plane: CockpitPlaneKind.hostPlane,
+            availability: CockpitSystemControlAvailability.available,
+            strategy: _hostFileStrategy,
+            requires: _hostFileRequires,
+            limitations: <String>[
+              ...limitations,
+              'Copies media into the host Downloads folder by default.',
+            ],
+            parameters: CockpitSystemControlParameterSets.hostAddMedia,
           ),
           CockpitSystemControlCapability(
             action: CockpitSystemControlAction.setClipboard,
@@ -242,6 +325,22 @@ final class CockpitDesktopSystemControlAdapter
             availability: CockpitSystemControlAvailability.available,
             strategy: _systemStateStrategy,
             requires: _systemStateRequires,
+            limitations: limitations,
+          ),
+          CockpitSystemControlCapability(
+            action: CockpitSystemControlAction.readDeviceInfo,
+            plane: CockpitPlaneKind.hostPlane,
+            availability: CockpitSystemControlAvailability.available,
+            strategy: _deviceInfoStrategy,
+            requires: _systemStateRequires,
+            limitations: limitations,
+          ),
+          CockpitSystemControlCapability(
+            action: CockpitSystemControlAction.readFocusState,
+            plane: CockpitPlaneKind.nativeUiPlane,
+            availability: CockpitSystemControlAvailability.available,
+            strategy: _focusStateStrategy,
+            requires: _focusStateRequires,
             limitations: limitations,
           ),
           CockpitSystemControlCapability(
@@ -337,11 +436,79 @@ final class CockpitDesktopSystemControlAdapter
 
   String get _setAppearanceStrategy {
     return switch (platform) {
-      'macos' => 'system-events.appearance-preferences',
-      'windows' => 'registry.apps-use-light-theme',
-      'linux' => 'gsettings.gtk-theme',
+      'macos' => 'osascript.system-events.appearance',
+      'windows' => 'powershell.registry.apps-use-light-theme',
+      'linux' => 'gsettings.color-scheme',
       _ => 'host.appearance',
     };
+  }
+
+  String get _openSystemSettingsStrategy {
+    return switch (platform) {
+      'macos' => 'open.x-apple.systempreferences',
+      'windows' => 'powershell.start-process.ms-settings',
+      _ => 'host.open-system-settings',
+    };
+  }
+
+  String get _deviceInfoStrategy {
+    return switch (platform) {
+      'macos' => 'sw_vers+sysctl.hw-model',
+      'windows' => 'powershell.cim.computer-system+operating-system',
+      'linux' => 'uname+os-release',
+      _ => 'host.device-info',
+    };
+  }
+
+  String get _focusStateStrategy {
+    return switch (platform) {
+      'macos' => 'system-events.frontmost-process',
+      'windows' => 'powershell.foreground-window',
+      'linux' => 'xdotool.getactivewindow',
+      _ => 'host.focus-state',
+    };
+  }
+
+  List<String> get _focusStateRequires {
+    return switch (platform) {
+      'macos' => const <String>['Automation permission for System Events'],
+      'windows' => const <String>['PowerShell', 'interactive desktop session'],
+      'linux' => const <String>['xdotool', 'X11 DISPLAY'],
+      _ => const <String>['host focus inspection tooling'],
+    };
+  }
+
+  String get _hostFileStrategy {
+    return switch (platform) {
+      'macos' || 'linux' => 'host.cp',
+      'windows' => 'powershell.copy-item',
+      _ => 'host.file-copy',
+    };
+  }
+
+  List<String> get _hostFileRequires {
+    return switch (platform) {
+      'macos' || 'linux' => const <String>['host shell'],
+      'windows' => const <String>['PowerShell'],
+      _ => const <String>['host shell'],
+    };
+  }
+
+  CockpitSystemControlCapability _hostFileCapability(
+    CockpitSystemControlAction action,
+  ) {
+    return CockpitSystemControlCapability(
+      action: action,
+      plane: CockpitPlaneKind.hostPlane,
+      availability: CockpitSystemControlAvailability.available,
+      strategy: _hostFileStrategy,
+      requires: _hostFileRequires,
+      limitations: <String>[
+        ...limitations,
+        'Desktop file transfer is a host-side copy; both paths are on the host filesystem.',
+      ],
+      parameters: CockpitSystemControlParameterSets.fileTransfer,
+    );
   }
 
   String get _setContentSizeStrategy {
@@ -441,9 +608,9 @@ final class CockpitDesktopSystemControlAdapter
 
   List<String> get _appearanceRequires {
     return switch (platform) {
-      'macos' => const <String>['explicit user approval'],
-      'windows' => const <String>['explicit user approval'],
-      'linux' => const <String>['desktop-specific theme tooling'],
+      'macos' => const <String>['Automation permission for System Events'],
+      'windows' => const <String>['PowerShell'],
+      'linux' => const <String>['gsettings (GNOME color-scheme)'],
       _ => const <String>['host appearance tooling'],
     };
   }
@@ -647,6 +814,46 @@ final class CockpitDesktopSystemControlAdapter
           '-c',
           'sw_vers && uname -a',
         ]),
+      CockpitSystemControlAction.readDeviceInfo =>
+        CockpitResolvedSystemControlCommand('sh', const <String>[
+          '-c',
+          'sw_vers; uname -m; sysctl -n hw.model',
+        ]),
+      CockpitSystemControlAction.readFocusState =>
+        CockpitResolvedSystemControlCommand('osascript', const <String>[
+          '-e',
+          _macosReadFocusStateScript,
+        ]),
+      CockpitSystemControlAction.openSystemSettings => _desktopSettingsCommand(
+        request,
+        defaultTarget: 'x-apple.systempreferences:',
+        factory: (target) =>
+            CockpitResolvedSystemControlCommand('open', <String>[target]),
+      ),
+      CockpitSystemControlAction.setAppearance => cockpitTextCommand(
+        request,
+        'appearance',
+        (appearance) => _macosSetAppearanceCommand(appearance),
+        trim: true,
+        allowedValues: const <String>['light', 'dark'],
+      ),
+      CockpitSystemControlAction.resetPermission =>
+        _macosResetPermissionCommand(request),
+      CockpitSystemControlAction.postNotification =>
+        _desktopNotificationCommand(
+          request,
+          factory: (title, body) => CockpitResolvedSystemControlCommand(
+            'osascript',
+            <String>['-e', _macosPostNotificationScript, title, body],
+          ),
+        ),
+      CockpitSystemControlAction.recoverToApp => _macosAppleScriptWithTarget(
+        request,
+        _macosActivateTargetScript,
+      ),
+      CockpitSystemControlAction.pushFile ||
+      CockpitSystemControlAction.pullFile => _posixHostFileCommand(request),
+      CockpitSystemControlAction.addMedia => _posixHostAddMediaCommand(request),
       CockpitSystemControlAction.runShell => cockpitShellCommand(
         request,
         (command) => CockpitResolvedSystemControlCommand(
@@ -794,6 +1001,62 @@ final class CockpitDesktopSystemControlAdapter
           '-Command',
           r'Get-CimInstance Win32_OperatingSystem | Select-Object Caption,Version,BuildNumber,OSArchitecture | ConvertTo-Json -Compress',
         ]),
+      CockpitSystemControlAction.readDeviceInfo =>
+        CockpitResolvedSystemControlCommand('powershell', const <String>[
+          '-NoProfile',
+          '-NonInteractive',
+          '-Command',
+          r'[pscustomobject]@{ computerSystem = (Get-CimInstance Win32_ComputerSystem | Select-Object Manufacturer,Model,TotalPhysicalMemory); operatingSystem = (Get-CimInstance Win32_OperatingSystem | Select-Object Caption,Version,BuildNumber,OSArchitecture) } | ConvertTo-Json -Compress',
+        ]),
+      CockpitSystemControlAction.readFocusState =>
+        CockpitResolvedSystemControlCommand('powershell', const <String>[
+          '-NoProfile',
+          '-NonInteractive',
+          '-Command',
+          _windowsReadFocusStateScript,
+        ]),
+      CockpitSystemControlAction.openSystemSettings => _desktopSettingsCommand(
+        request,
+        defaultTarget: 'ms-settings:',
+        factory: (target) =>
+            CockpitResolvedSystemControlCommand('powershell', <String>[
+              '-NoProfile',
+              '-NonInteractive',
+              '-Command',
+              r'Start-Process -FilePath $args[0]',
+              target,
+            ]),
+      ),
+      CockpitSystemControlAction.setAppearance => cockpitTextCommand(
+        request,
+        'appearance',
+        (appearance) =>
+            CockpitResolvedSystemControlCommand('powershell', <String>[
+              '-NoProfile',
+              '-NonInteractive',
+              '-Command',
+              _windowsSetAppearanceScript,
+              appearance.trim().toLowerCase(),
+            ]),
+        trim: true,
+        allowedValues: const <String>['light', 'dark'],
+      ),
+      CockpitSystemControlAction.postNotification =>
+        const CockpitResolvedSystemControlCommand.error(
+          code: 'systemActionBlocked',
+          message:
+              'Windows toast notifications require an app-specific notification helper.',
+        ),
+      CockpitSystemControlAction.recoverToApp => _windowsInput(<String>[
+        'activateWindow',
+        request.appId ?? '',
+        request.processId?.toString() ?? '',
+      ]),
+      CockpitSystemControlAction.pushFile ||
+      CockpitSystemControlAction.pullFile => _windowsHostFileCommand(request),
+      CockpitSystemControlAction.addMedia => _windowsHostAddMediaCommand(
+        request,
+      ),
       CockpitSystemControlAction.runShell => cockpitShellCommand(
         request,
         (command) => CockpitResolvedSystemControlCommand(
@@ -942,6 +1205,54 @@ final class CockpitDesktopSystemControlAdapter
           '-c',
           r'uname -a && printf "XDG_SESSION_TYPE=%s\nXDG_CURRENT_DESKTOP=%s\nWAYLAND_DISPLAY=%s\nDISPLAY=%s\n" "$XDG_SESSION_TYPE" "$XDG_CURRENT_DESKTOP" "$WAYLAND_DISPLAY" "$DISPLAY"',
         ]),
+      CockpitSystemControlAction.readDeviceInfo =>
+        CockpitResolvedSystemControlCommand('sh', const <String>[
+          '-c',
+          'uname -a; cat /etc/os-release 2>/dev/null || true',
+        ]),
+      CockpitSystemControlAction.readFocusState =>
+        CockpitResolvedSystemControlCommand('sh', const <String>[
+          '-c',
+          _linuxReadFocusStateScript,
+          'flutter_cockpit_linux_focus',
+        ]),
+      CockpitSystemControlAction.openSystemSettings =>
+        const CockpitResolvedSystemControlCommand.error(
+          code: 'systemActionBlocked',
+          message:
+              'Linux system settings require desktop-specific tooling such as gnome-control-center.',
+        ),
+      CockpitSystemControlAction.setAppearance => cockpitTextCommand(
+        request,
+        'appearance',
+        (appearance) => CockpitResolvedSystemControlCommand('sh', <String>[
+          '-c',
+          _linuxSetAppearanceScript,
+          'flutter_cockpit_linux_appearance',
+          appearance.trim().toLowerCase(),
+        ]),
+        trim: true,
+        allowedValues: const <String>['light', 'dark'],
+      ),
+      CockpitSystemControlAction.postNotification =>
+        _desktopNotificationCommand(
+          request,
+          factory: (title, body) =>
+              CockpitResolvedSystemControlCommand('sh', <String>[
+                '-c',
+                _linuxPostNotificationScript,
+                'flutter_cockpit_linux_notification',
+                title,
+                body,
+              ]),
+        ),
+      CockpitSystemControlAction.recoverToApp => _linuxTargetedXdotool(
+        request,
+        const <String>[],
+      ),
+      CockpitSystemControlAction.pushFile ||
+      CockpitSystemControlAction.pullFile => _posixHostFileCommand(request),
+      CockpitSystemControlAction.addMedia => _posixHostAddMediaCommand(request),
       CockpitSystemControlAction.runShell => cockpitShellCommand(
         request,
         (command) => CockpitResolvedSystemControlCommand(
@@ -1113,6 +1424,247 @@ final class CockpitDesktopSystemControlAdapter
     ]);
   }
 
+  CockpitResolvedSystemControlCommand _desktopSettingsCommand(
+    CockpitSystemControlActionRequest request, {
+    required String defaultTarget,
+    required CockpitResolvedSystemControlCommand Function(String target)
+    factory,
+  }) {
+    final settingsAction = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'settingsAction',
+    );
+    if (settingsAction.isInvalid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'invalidSystemActionParameter',
+        message: 'openSystemSettings requires a string settingsAction.',
+      );
+    }
+    final value = settingsAction.value?.trim();
+    return factory(value == null || value.isEmpty ? defaultTarget : value);
+  }
+
+  CockpitResolvedSystemControlCommand _macosSetAppearanceCommand(
+    String appearance,
+  ) {
+    final darkMode = appearance.trim().toLowerCase() == 'dark';
+    return CockpitResolvedSystemControlCommand('osascript', <String>[
+      '-e',
+      'tell application "System Events" to tell appearance preferences to set dark mode to $darkMode',
+    ]);
+  }
+
+  CockpitResolvedSystemControlCommand _macosResetPermissionCommand(
+    CockpitSystemControlActionRequest request,
+  ) {
+    final service = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'permission',
+      allowedValues: CockpitSystemControlAllowedValues.macosTccServices,
+    );
+    final parameterAppId = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'appId',
+    );
+    if (service.isInvalid || parameterAppId.isInvalid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'invalidSystemActionParameter',
+        message:
+            'resetPermission requires a valid macOS TCC service and optional string appId.',
+      );
+    }
+    if (!service.isValid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'missingSystemActionParameter',
+        message:
+            'resetPermission requires a permission (TCC service) parameter.',
+      );
+    }
+    final topLevelAppId = request.appId?.trim();
+    final appId =
+        parameterAppId.value ??
+        (topLevelAppId == null || topLevelAppId.isEmpty ? null : topLevelAppId);
+    return CockpitResolvedSystemControlCommand('tccutil', <String>[
+      'reset',
+      _macosTccServiceName(service.value!),
+      ?appId,
+    ]);
+  }
+
+  String _macosTccServiceName(String value) {
+    return switch (value.trim().toLowerCase()) {
+      'all' => 'All',
+      'accessibility' => 'Accessibility',
+      'addressbook' => 'AddressBook',
+      'calendar' => 'Calendar',
+      'camera' => 'Camera',
+      'microphone' => 'Microphone',
+      'photos' => 'Photos',
+      'reminders' => 'Reminders',
+      'screencapture' => 'ScreenCapture',
+      _ => value,
+    };
+  }
+
+  CockpitResolvedSystemControlCommand _desktopNotificationCommand(
+    CockpitSystemControlActionRequest request, {
+    required CockpitResolvedSystemControlCommand Function(
+      String title,
+      String body,
+    )
+    factory,
+  }) {
+    final title = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'title',
+    );
+    final body = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'body',
+    );
+    if (title.isInvalid || body.isInvalid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'invalidSystemActionParameter',
+        message: 'postNotification accepts string title and body.',
+      );
+    }
+    final resolvedTitle = title.value?.trim() ?? '';
+    final resolvedBody = body.value?.trim() ?? '';
+    if (resolvedTitle.isEmpty && resolvedBody.isEmpty) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'missingSystemActionParameter',
+        message: 'postNotification requires title or body.',
+      );
+    }
+    return factory(
+      resolvedTitle.isEmpty ? resolvedBody : resolvedTitle,
+      resolvedBody,
+    );
+  }
+
+  CockpitResolvedSystemControlCommand _posixHostFileCommand(
+    CockpitSystemControlActionRequest request,
+  ) {
+    return _hostFileTransferCommand(request, (sourcePath, destinationPath) {
+      return CockpitResolvedSystemControlCommand('sh', <String>[
+        '-c',
+        _posixHostFileCopyScript,
+        'flutter_cockpit_host_file',
+        sourcePath,
+        destinationPath,
+      ]);
+    });
+  }
+
+  CockpitResolvedSystemControlCommand _windowsHostFileCommand(
+    CockpitSystemControlActionRequest request,
+  ) {
+    return _hostFileTransferCommand(request, (sourcePath, destinationPath) {
+      return CockpitResolvedSystemControlCommand('powershell', <String>[
+        '-NoProfile',
+        '-NonInteractive',
+        '-Command',
+        _windowsHostFileCopyScript,
+        sourcePath,
+        destinationPath,
+      ]);
+    });
+  }
+
+  CockpitResolvedSystemControlCommand _hostFileTransferCommand(
+    CockpitSystemControlActionRequest request,
+    CockpitResolvedSystemControlCommand Function(
+      String sourcePath,
+      String destinationPath,
+    )
+    factory,
+  ) {
+    final sourcePath = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'sourcePath',
+    );
+    final destinationPath = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'destinationPath',
+    );
+    if (sourcePath.isInvalid || destinationPath.isInvalid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'invalidSystemActionParameter',
+        message:
+            'File transfer actions require string sourcePath and destinationPath parameters.',
+      );
+    }
+    if (!sourcePath.isValid || !destinationPath.isValid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'missingSystemActionParameter',
+        message:
+            'File transfer actions require sourcePath and destinationPath parameters.',
+      );
+    }
+    return factory(sourcePath.value!, destinationPath.value!);
+  }
+
+  CockpitResolvedSystemControlCommand _posixHostAddMediaCommand(
+    CockpitSystemControlActionRequest request,
+  ) {
+    return _hostAddMediaCommand(request, (sourcePath, destinationPath) {
+      return CockpitResolvedSystemControlCommand('sh', <String>[
+        '-c',
+        _posixHostAddMediaScript,
+        'flutter_cockpit_host_media',
+        sourcePath,
+        destinationPath ?? '',
+      ]);
+    });
+  }
+
+  CockpitResolvedSystemControlCommand _windowsHostAddMediaCommand(
+    CockpitSystemControlActionRequest request,
+  ) {
+    return _hostAddMediaCommand(request, (sourcePath, destinationPath) {
+      return CockpitResolvedSystemControlCommand('powershell', <String>[
+        '-NoProfile',
+        '-NonInteractive',
+        '-Command',
+        _windowsHostAddMediaScript,
+        sourcePath,
+        destinationPath ?? '',
+      ]);
+    });
+  }
+
+  CockpitResolvedSystemControlCommand _hostAddMediaCommand(
+    CockpitSystemControlActionRequest request,
+    CockpitResolvedSystemControlCommand Function(
+      String sourcePath,
+      String? destinationPath,
+    )
+    factory,
+  ) {
+    final sourcePath = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'sourcePath',
+    );
+    final destinationPath = cockpitReadSystemControlStringParameter(
+      request.parameters,
+      'destinationPath',
+    );
+    if (sourcePath.isInvalid || destinationPath.isInvalid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'invalidSystemActionParameter',
+        message:
+            'addMedia requires string sourcePath and optional destinationPath parameters.',
+      );
+    }
+    if (!sourcePath.isValid) {
+      return const CockpitResolvedSystemControlCommand.error(
+        code: 'missingSystemActionParameter',
+        message: 'addMedia requires a sourcePath parameter.',
+      );
+    }
+    return factory(sourcePath.value!, destinationPath.value);
+  }
+
   String _normalizeDesktopKeyForXdotool(String key) {
     final trimmed = key.trim();
     return switch (trimmed.toLowerCase()) {
@@ -1127,13 +1679,20 @@ final class CockpitDesktopSystemControlAdapter
   }
 
   List<String>? _targetArgs(CockpitSystemControlActionRequest request) {
-    final appId = request.appId?.trim();
     final processId = request.processId;
     if (processId != null) {
       return <String>['processId', '$processId'];
     }
+    final appId = request.appId?.trim();
     if (appId != null && appId.isNotEmpty) {
       return <String>['appId', appId];
+    }
+    final parameterAppId = cockpitReadFirstSystemControlStringParameter(
+      request.parameters,
+      const <String>['appId', 'packageId'],
+    );
+    if (parameterAppId.isValid) {
+      return <String>['appId', parameterAppId.value!];
     }
     return null;
   }
@@ -1857,6 +2416,138 @@ else
   exit 65
 fi
 ''';
+
+  static const String _macosReadFocusStateScript = r'''
+tell application "System Events"
+  set frontProcess to first application process whose frontmost is true
+  set procName to name of frontProcess
+  set procId to unix id of frontProcess
+  set windowTitle to ""
+  try
+    set windowTitle to name of front window of frontProcess
+  end try
+end tell
+return "process=" & procName & linefeed & "pid=" & procId & linefeed & "window=" & windowTitle
+''';
+
+  static const String _macosPostNotificationScript = r'''
+on run argv
+  display notification (item 2 of argv) with title (item 1 of argv)
+end run
+''';
+
+  static const String _windowsReadFocusStateScript = r'''
+Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+using System.Text;
+
+public static class CockpitFocusInterop {
+  [DllImport("user32.dll")]
+  public static extern IntPtr GetForegroundWindow();
+
+  [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+  public static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count);
+
+  [DllImport("user32.dll")]
+  public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+}
+"@
+$handle = [CockpitFocusInterop]::GetForegroundWindow()
+$title = New-Object System.Text.StringBuilder 512
+[void][CockpitFocusInterop]::GetWindowText($handle, $title, 512)
+$procId = [uint32]0
+[void][CockpitFocusInterop]::GetWindowThreadProcessId($handle, [ref]$procId)
+$processName = ''
+try { $processName = (Get-Process -Id $procId -ErrorAction Stop).ProcessName } catch {}
+[pscustomobject]@{
+  processId = [int]$procId
+  processName = $processName
+  windowTitle = $title.ToString()
+} | ConvertTo-Json -Compress
+''';
+
+  static const String _windowsSetAppearanceScript = r'''
+$mode = $args[0]
+$value = if ($mode -eq 'dark') { 0 } else { 1 }
+$path = 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize'
+if (-not (Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
+Set-ItemProperty -Path $path -Name AppsUseLightTheme -Value $value -Type DWord
+Set-ItemProperty -Path $path -Name SystemUsesLightTheme -Value $value -Type DWord
+''';
+
+  static const String _linuxReadFocusStateScript = r'''
+if ! command -v xdotool >/dev/null 2>&1; then
+  echo "flutter_cockpit: xdotool is required to read Linux focus state" >&2
+  exit 65
+fi
+window_id="$(xdotool getactivewindow 2>/dev/null || true)"
+if [ -z "$window_id" ]; then
+  echo "flutter_cockpit: no active window reported by xdotool" >&2
+  exit 69
+fi
+printf "windowId=%s\nname=%s\npid=%s\n" \
+  "$window_id" \
+  "$(xdotool getwindowname "$window_id" 2>/dev/null || true)" \
+  "$(xdotool getwindowpid "$window_id" 2>/dev/null || true)"
+''';
+
+  static const String _linuxSetAppearanceScript = r'''
+mode="$1"
+if ! command -v gsettings >/dev/null 2>&1; then
+  echo "flutter_cockpit: gsettings is required to change the Linux color scheme" >&2
+  exit 65
+fi
+case "$mode" in
+  dark) exec gsettings set org.gnome.desktop.interface color-scheme prefer-dark ;;
+  light) exec gsettings set org.gnome.desktop.interface color-scheme prefer-light ;;
+  *) exit 64 ;;
+esac
+''';
+
+  static const String _linuxPostNotificationScript = r'''
+if ! command -v notify-send >/dev/null 2>&1; then
+  echo "flutter_cockpit: notify-send (libnotify) is required to post Linux notifications" >&2
+  exit 65
+fi
+if [ -n "$2" ]; then
+  exec notify-send "$1" "$2"
+fi
+exec notify-send "$1"
+''';
+
+  static const String _posixHostFileCopyScript = r'''
+mkdir -p "$(dirname "$2")" && cp -R "$1" "$2"
+''';
+
+  static const String _posixHostAddMediaScript = r'''
+src="$1"
+dst="$2"
+if [ -z "$dst" ]; then
+  dst="${XDG_DOWNLOAD_DIR:-$HOME/Downloads}/$(basename "$src")"
+fi
+mkdir -p "$(dirname "$dst")" && cp -R "$src" "$dst" && printf "%s\n" "$dst"
+''';
+
+  static const String _windowsHostFileCopyScript = r'''
+$source = $args[0]
+$destination = $args[1]
+$parent = Split-Path -Parent $destination
+if ($parent) { New-Item -ItemType Directory -Force -Path $parent | Out-Null }
+Copy-Item -Path $source -Destination $destination -Recurse -Force
+''';
+
+  static const String _windowsHostAddMediaScript = r'''
+$source = $args[0]
+$destination = $args[1]
+if ([string]::IsNullOrWhiteSpace($destination)) {
+  $destination = Join-Path (Join-Path $env:USERPROFILE 'Downloads') (Split-Path -Leaf $source)
+}
+$parent = Split-Path -Parent $destination
+if ($parent) { New-Item -ItemType Directory -Force -Path $parent | Out-Null }
+Copy-Item -Path $source -Destination $destination -Recurse -Force
+Write-Output $destination
+''';
 }
 
 final class CockpitWebSystemControlAdapter
@@ -1870,6 +2561,7 @@ final class CockpitWebSystemControlAdapter
   CockpitSystemControlProfile describe(
     CockpitSystemControlTargetContext target,
   ) {
+    final hasEvidenceTarget = target.hasWindowTarget;
     return CockpitSystemControlProfile(
       platform: platform,
       deviceId: target.deviceId,
@@ -1884,7 +2576,7 @@ final class CockpitWebSystemControlAdapter
       ],
       recommendedNextStep: 'preferFlutterSemanticPlane',
       capabilities: cockpitCompleteSystemControlCapabilities(
-        const <CockpitSystemControlCapability>[
+        <CockpitSystemControlCapability>[
           CockpitSystemControlCapability(
             action: CockpitSystemControlAction.tap,
             plane: CockpitPlaneKind.nativeUiPlane,
@@ -2162,27 +2854,44 @@ final class CockpitWebSystemControlAdapter
           CockpitSystemControlCapability(
             action: CockpitSystemControlAction.captureScreenshot,
             plane: CockpitPlaneKind.hostPlane,
-            availability: CockpitSystemControlAvailability.blocked,
-            strategy: 'browser.screenshot',
-            requires: <String>['browser driver or bridge'],
+            availability: hasEvidenceTarget
+                ? CockpitSystemControlAvailability.available
+                : CockpitSystemControlAvailability.blocked,
+            strategy: 'browser.host-window-capture',
+            requires: <String>[
+              'host window capture tooling',
+              'browser app id or process id (macOS hosts require app id)',
+              if (!hasEvidenceTarget) 'app id or process id',
+            ],
             parameters: CockpitSystemControlParameterSets.screenshot,
           ),
           CockpitSystemControlCapability(
             action: CockpitSystemControlAction.startRecording,
             plane: CockpitPlaneKind.hostPlane,
-            availability: CockpitSystemControlAvailability.blocked,
-            strategy: 'browser-host-recording',
-            requires: <String>['ffmpeg', 'host screen capture permission'],
+            availability: hasEvidenceTarget
+                ? CockpitSystemControlAvailability.available
+                : CockpitSystemControlAvailability.blocked,
+            strategy: 'browser.host-window-recording',
+            requires: <String>[
+              'ffmpeg',
+              'host screen capture permission',
+              'browser app id or process id (macOS hosts require app id)',
+              if (!hasEvidenceTarget) 'app id or process id',
+            ],
             parameters: CockpitSystemControlParameterSets.startRecording,
           ),
           CockpitSystemControlCapability(
             action: CockpitSystemControlAction.stopRecording,
             plane: CockpitPlaneKind.hostPlane,
-            availability: CockpitSystemControlAvailability.blocked,
-            strategy: 'browser-host-recording.stop',
+            availability: hasEvidenceTarget
+                ? CockpitSystemControlAvailability.available
+                : CockpitSystemControlAvailability.blocked,
+            strategy: 'browser.host-window-recording.stop',
             requires: <String>[
               'ffmpeg',
               'host screen capture permission',
+              'browser app id or process id (macOS hosts require app id)',
+              if (!hasEvidenceTarget) 'app id or process id',
               'active recording session',
             ],
             parameters: CockpitSystemControlParameterSets.stopRecording,
