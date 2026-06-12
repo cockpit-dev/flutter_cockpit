@@ -27,11 +27,12 @@ Future<bool> cockpitHasLiveAdbRecordingSession(
     return cockpitHasActiveHostRecordingSession(sessionKey);
   }
   if (await _isRemoteScreenrecordRunningOnDevice(
-    executable: executable,
-    deviceId: deviceId,
-    processRunner: processRunner,
-    timeout: const Duration(seconds: 2),
-  )) {
+        executable: executable,
+        deviceId: deviceId,
+        processRunner: processRunner,
+        timeout: const Duration(seconds: 2),
+      ) ==
+      true) {
     return true;
   }
   if (await pidLivenessChecker(persisted.pid)) {
@@ -179,6 +180,11 @@ final class CockpitAdbRecordingAdapter implements CockpitHostRecordingAdapter {
     }
 
     try {
+      // Stop the clock before the stop handshake and pull so the duration
+      // (and the time-limit attribution below) reflects recorded footage,
+      // not stop/pull overhead.
+      stopwatch?.stop();
+      final durationMs = stopwatch?.elapsedMilliseconds ?? _durationMs(session);
       final stopRequested = await _requestRemoteStop();
       if (!stopRequested && process != null) {
         process.kill(ProcessSignal.sigint);
@@ -219,9 +225,7 @@ final class CockpitAdbRecordingAdapter implements CockpitHostRecordingAdapter {
         );
       }
 
-      stopwatch?.stop();
       cockpitClearPersistedHostRecordingSession(_sessionCacheKey);
-      final durationMs = stopwatch?.elapsedMilliseconds ?? _durationMs(session);
       return CockpitRecordingResult(
         state: CockpitRecordingState.completed,
         purpose: request.purpose,
@@ -289,6 +293,12 @@ final class CockpitAdbRecordingAdapter implements CockpitHostRecordingAdapter {
     }
 
     try {
+      // Measure before the stop handshake and pull so the duration (and the
+      // time-limit attribution below) reflects recorded footage only.
+      final durationMs = DateTime.now()
+          .toUtc()
+          .difference(session.startedAt)
+          .inMilliseconds;
       final stopRequested = await _requestRemoteStop();
       if (!stopRequested) {
         _pidSignalSender(session.pid, ProcessSignal.sigint);
@@ -346,11 +356,11 @@ final class CockpitAdbRecordingAdapter implements CockpitHostRecordingAdapter {
         requestedMode: session.request.mode,
         requestedLayer: session.request.layer,
         effectiveLayer: CockpitRecordingLayer.system,
+        fallbackReason: _reachedScreenrecordLimit(durationMs)
+            ? 'androidScreenrecordTimeLimitReached'
+            : null,
         artifact: cockpitRecordingArtifactForName(session.request.name),
-        durationMs: DateTime.now()
-            .toUtc()
-            .difference(session.startedAt)
-            .inMilliseconds,
+        durationMs: durationMs,
         sourceFilePath: outputFile.path,
       );
     } finally {
@@ -429,12 +439,15 @@ final class CockpitAdbRecordingAdapter implements CockpitHostRecordingAdapter {
   Future<bool> _waitForRemoteScreenrecordExit() async {
     final deadline = DateTime.now().add(_stopTimeout);
     while (DateTime.now().isBefore(deadline)) {
-      if (!await _isRemoteScreenrecordRunning()) {
+      // Only a definitive "not running" probe counts as exited. An
+      // inconclusive (timed-out) probe must not let stop proceed while
+      // screenrecord may still be finalizing the mp4 moov atom.
+      if (await _probeRemoteScreenrecordRunning() == false) {
         return true;
       }
       await Future<void>.delayed(const Duration(milliseconds: 100));
     }
-    return !await _isRemoteScreenrecordRunning();
+    return await _probeRemoteScreenrecordRunning() == false;
   }
 
   Future<bool> _restoreableSessionExists() async {
@@ -501,6 +514,10 @@ final class CockpitAdbRecordingAdapter implements CockpitHostRecordingAdapter {
   }
 
   Future<bool> _isRemoteScreenrecordRunning() async {
+    return await _probeRemoteScreenrecordRunning() ?? false;
+  }
+
+  Future<bool?> _probeRemoteScreenrecordRunning() {
     return _isRemoteScreenrecordRunningOnDevice(
       executable: _executable,
       deviceId: _deviceId,
@@ -540,14 +557,16 @@ final class CockpitAdbRecordingAdapter implements CockpitHostRecordingAdapter {
 
 String _adbSessionCacheKey(String deviceId) => 'adb:$deviceId';
 
-Future<bool> _isRemoteScreenrecordRunningOnDevice({
+/// Probes whether screenrecord runs on the device. Returns `true` when proven
+/// running, `false` when a successful probe proves it absent, and `null` when
+/// the probe is inconclusive (adb timed out or `ps` itself failed) so callers
+/// can decide whether "unknown" should count as running or stopped.
+Future<bool?> _isRemoteScreenrecordRunningOnDevice({
   required String executable,
   required String deviceId,
   required CockpitRecordingProcessRunner? processRunner,
   required Duration timeout,
 }) async {
-  // A slow or wedged adb probe must not abort recording control; treat probe
-  // timeouts as "cannot prove running" and let process liveness decide.
   final ProcessResult pidofResult;
   try {
     pidofResult = await _runAdbProbeProcess(processRunner, executable, <String>[
@@ -558,12 +577,14 @@ Future<bool> _isRemoteScreenrecordRunningOnDevice({
       'screenrecord',
     ], timeout: timeout);
   } on TimeoutException {
-    return false;
+    return null;
   }
   if (pidofResult.exitCode == 0) {
     return true;
   }
 
+  // pidof may be missing on older images, so a non-zero exit is not proof of
+  // absence; only a successful ps listing is definitive.
   final ProcessResult psResult;
   try {
     psResult = await _runAdbProbeProcess(processRunner, executable, <String>[
@@ -574,10 +595,10 @@ Future<bool> _isRemoteScreenrecordRunningOnDevice({
       '-A',
     ], timeout: timeout);
   } on TimeoutException {
-    return false;
+    return null;
   }
   if (psResult.exitCode != 0) {
-    return false;
+    return null;
   }
 
   return '${psResult.stdout}'.contains('screenrecord');

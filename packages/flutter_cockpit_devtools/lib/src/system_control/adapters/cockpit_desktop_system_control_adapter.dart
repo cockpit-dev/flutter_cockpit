@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
 import '../cockpit_system_control_action.dart';
@@ -990,96 +993,58 @@ final class CockpitDesktopSystemControlAdapter
       CockpitSystemControlAction.openUrl => cockpitTextCommand(
         request,
         'url',
-        (url) => CockpitResolvedSystemControlCommand('powershell', <String>[
-          '-NoProfile',
-          '-NonInteractive',
-          '-Command',
+        (url) => _windowsPowershell(
           r'Start-Process -FilePath $args[0]',
-          url,
-        ]),
+          arguments: <String>[url],
+        ),
       ),
       CockpitSystemControlAction.readUiTree => _windowsReadUiTreeCommand(
         request,
       ),
-      CockpitSystemControlAction.readProcessList =>
-        CockpitResolvedSystemControlCommand('powershell', const <String>[
-          '-NoProfile',
-          '-NonInteractive',
-          '-Command',
-          r'Get-Process | Select-Object Id,ProcessName,MainWindowTitle,MainWindowHandle | ConvertTo-Json -Compress',
-        ]),
-      CockpitSystemControlAction.readWindows =>
-        CockpitResolvedSystemControlCommand('powershell', const <String>[
-          '-NoProfile',
-          '-NonInteractive',
-          '-Command',
-          r'Get-Process | Where-Object { $_.MainWindowHandle -ne 0 -and $_.MainWindowTitle } | Sort-Object Id | Select-Object Id,ProcessName,MainWindowTitle,MainWindowHandle | ConvertTo-Json -Compress',
-        ]),
+      CockpitSystemControlAction.readProcessList => _windowsPowershell(
+        r'Get-Process | Select-Object Id,ProcessName,MainWindowTitle,MainWindowHandle | ConvertTo-Json -Compress',
+      ),
+      CockpitSystemControlAction.readWindows => _windowsPowershell(
+        r'Get-Process | Where-Object { $_.MainWindowHandle -ne 0 -and $_.MainWindowTitle } | Sort-Object Id | Select-Object Id,ProcessName,MainWindowTitle,MainWindowHandle | ConvertTo-Json -Compress',
+      ),
       CockpitSystemControlAction.setClipboard => cockpitTextCommand(
         request,
         'text',
-        (text) => CockpitResolvedSystemControlCommand('powershell', <String>[
-          '-NoProfile',
-          '-NonInteractive',
-          '-Command',
+        (text) => _windowsPowershell(
           r'Set-Clipboard -Value $args[0]',
-          text,
-        ]),
+          arguments: <String>[text],
+        ),
       ),
-      CockpitSystemControlAction.getClipboard =>
-        CockpitResolvedSystemControlCommand('powershell', const <String>[
-          '-NoProfile',
-          '-NonInteractive',
-          '-Command',
-          r'Get-Clipboard -Raw',
-        ]),
-      CockpitSystemControlAction.readSystemState =>
-        CockpitResolvedSystemControlCommand('powershell', const <String>[
-          '-NoProfile',
-          '-NonInteractive',
-          '-Command',
-          r'Get-CimInstance Win32_OperatingSystem | Select-Object Caption,Version,BuildNumber,OSArchitecture | ConvertTo-Json -Compress',
-        ]),
-      CockpitSystemControlAction.readDeviceInfo =>
-        CockpitResolvedSystemControlCommand('powershell', const <String>[
-          '-NoProfile',
-          '-NonInteractive',
-          '-Command',
-          r'[pscustomobject]@{ computerSystem = (Get-CimInstance Win32_ComputerSystem | Select-Object Manufacturer,Model,TotalPhysicalMemory); operatingSystem = (Get-CimInstance Win32_OperatingSystem | Select-Object Caption,Version,BuildNumber,OSArchitecture) } | ConvertTo-Json -Compress',
-        ]),
-      CockpitSystemControlAction.readFocusState =>
-        CockpitResolvedSystemControlCommand('powershell', const <String>[
-          '-NoProfile',
-          '-NonInteractive',
-          '-Command',
-          _windowsReadFocusStateScript,
-        ]),
+      CockpitSystemControlAction.getClipboard => _windowsPowershell(
+        r'Get-Clipboard -Raw',
+      ),
+      CockpitSystemControlAction.readSystemState => _windowsPowershell(
+        r'Get-CimInstance Win32_OperatingSystem | Select-Object Caption,Version,BuildNumber,OSArchitecture | ConvertTo-Json -Compress',
+      ),
+      CockpitSystemControlAction.readDeviceInfo => _windowsPowershell(
+        r'[pscustomobject]@{ computerSystem = (Get-CimInstance Win32_ComputerSystem | Select-Object Manufacturer,Model,TotalPhysicalMemory); operatingSystem = (Get-CimInstance Win32_OperatingSystem | Select-Object Caption,Version,BuildNumber,OSArchitecture) } | ConvertTo-Json -Compress',
+      ),
+      CockpitSystemControlAction.readFocusState => _windowsPowershell(
+        _windowsReadFocusStateScript,
+      ),
       CockpitSystemControlAction.readSystemLogs => _windowsSystemLogsCommand(
         request,
       ),
       CockpitSystemControlAction.openSystemSettings => _desktopSettingsCommand(
         request,
         defaultTarget: 'ms-settings:',
-        factory: (target) =>
-            CockpitResolvedSystemControlCommand('powershell', <String>[
-              '-NoProfile',
-              '-NonInteractive',
-              '-Command',
-              r'Start-Process -FilePath $args[0]',
-              target,
-            ]),
+        factory: (target) => _windowsPowershell(
+          r'Start-Process -FilePath $args[0]',
+          arguments: <String>[target],
+        ),
       ),
       CockpitSystemControlAction.setAppearance => cockpitTextCommand(
         request,
         'appearance',
-        (appearance) =>
-            CockpitResolvedSystemControlCommand('powershell', <String>[
-              '-NoProfile',
-              '-NonInteractive',
-              '-Command',
-              _windowsSetAppearanceScript,
-              appearance.trim().toLowerCase(),
-            ]),
+        (appearance) => _windowsPowershell(
+          _windowsSetAppearanceScript,
+          arguments: <String>[appearance.trim().toLowerCase()],
+        ),
         trim: true,
         allowedValues: const <String>['light', 'dark'],
       ),
@@ -1378,14 +1343,43 @@ final class CockpitDesktopSystemControlAdapter
     ]);
   }
 
-  CockpitResolvedSystemControlCommand _windowsInput(List<String> args) {
+  /// powershell.exe joins everything after `-Command` into one command
+  /// string and never populates `$args` from argv, so positional values are
+  /// injected as an inert single-quoted `$args` array prepended to the
+  /// script, and the whole body travels as `-EncodedCommand` to survive
+  /// CreateProcess quote re-parsing without any injection surface.
+  CockpitResolvedSystemControlCommand _windowsPowershell(
+    String script, {
+    List<String> arguments = const <String>[],
+  }) {
+    final body = arguments.isEmpty
+        ? script
+        : '\$args = @(${arguments.map(_powershellSingleQuoted).join(', ')})\n'
+              '$script';
     return CockpitResolvedSystemControlCommand('powershell', <String>[
       '-NoProfile',
       '-NonInteractive',
-      '-Command',
-      _windowsInputScript,
-      ...args,
+      '-EncodedCommand',
+      _powershellEncodedCommand(body),
     ]);
+  }
+
+  static String _powershellSingleQuoted(String value) {
+    return "'${value.replaceAll("'", "''")}'";
+  }
+
+  static String _powershellEncodedCommand(String script) {
+    final codeUnits = script.codeUnits;
+    final bytes = Uint8List(codeUnits.length * 2);
+    final view = ByteData.view(bytes.buffer);
+    for (var index = 0; index < codeUnits.length; index += 1) {
+      view.setUint16(index * 2, codeUnits[index], Endian.little);
+    }
+    return base64.encode(bytes);
+  }
+
+  CockpitResolvedSystemControlCommand _windowsInput(List<String> args) {
+    return _windowsPowershell(_windowsInputScript, arguments: args);
   }
 
   CockpitResolvedSystemControlCommand _windowsTerminateCommand(
@@ -1398,13 +1392,7 @@ final class CockpitDesktopSystemControlAdapter
         message: 'This Windows action requires --app-id or --process-id.',
       );
     }
-    return CockpitResolvedSystemControlCommand('powershell', <String>[
-      '-NoProfile',
-      '-NonInteractive',
-      '-Command',
-      _windowsTerminateScript,
-      ...target,
-    ]);
+    return _windowsPowershell(_windowsTerminateScript, arguments: target);
   }
 
   CockpitResolvedSystemControlCommand _windowsReadUiTreeCommand(
@@ -1421,14 +1409,10 @@ final class CockpitDesktopSystemControlAdapter
     if (limits.error != null) {
       return limits.error!;
     }
-    return CockpitResolvedSystemControlCommand('powershell', <String>[
-      '-NoProfile',
-      '-NonInteractive',
-      '-Command',
+    return _windowsPowershell(
       _windowsReadUiTreeScript,
-      ...target,
-      ...limits.values,
-    ]);
+      arguments: <String>[...target, ...limits.values],
+    );
   }
 
   CockpitResolvedSystemControlCommand _linuxTargetedXdotool(
@@ -1487,12 +1471,14 @@ final class CockpitDesktopSystemControlAdapter
     final processName = cockpitReadSystemControlStringParameter(
       request.parameters,
       'processName',
+      // Quotes and backslashes would break the NSPredicate string literal.
+      pattern: cockpitSystemControlProcessNamePattern,
     );
     if (lastMinutes.isInvalid || lines.isInvalid || processName.isInvalid) {
       return const CockpitResolvedSystemControlCommand.error(
         code: 'invalidSystemActionParameter',
         message:
-            'readSystemLogs accepts integer lastMinutes (1-60), integer lines (1-5000), and optional string processName.',
+            'readSystemLogs accepts integer lastMinutes (1-60), integer lines (1-5000), and optional string processName without quotes or backslashes.',
       );
     }
     final minutes = lastMinutes.value ?? 2;
@@ -1533,14 +1519,11 @@ final class CockpitDesktopSystemControlAdapter
       );
     }
     final count = lines.value ?? 50;
-    return CockpitResolvedSystemControlCommand('powershell', <String>[
-      '-NoProfile',
-      '-NonInteractive',
-      '-Command',
+    return _windowsPowershell(
       'Get-WinEvent -LogName Application -MaxEvents $count | '
-          'Select-Object TimeCreated,ProviderName,LevelDisplayName,Message | '
-          'ConvertTo-Json -Compress',
-    ]);
+      'Select-Object TimeCreated,ProviderName,LevelDisplayName,Message | '
+      'ConvertTo-Json -Compress',
+    );
   }
 
   CockpitResolvedSystemControlCommand _linuxSystemLogsCommand(
@@ -1703,14 +1686,10 @@ final class CockpitDesktopSystemControlAdapter
     CockpitSystemControlActionRequest request,
   ) {
     return _hostFileTransferCommand(request, (sourcePath, destinationPath) {
-      return CockpitResolvedSystemControlCommand('powershell', <String>[
-        '-NoProfile',
-        '-NonInteractive',
-        '-Command',
+      return _windowsPowershell(
         _windowsHostFileCopyScript,
-        sourcePath,
-        destinationPath,
-      ]);
+        arguments: <String>[sourcePath, destinationPath],
+      );
     });
   }
 
@@ -1765,14 +1744,10 @@ final class CockpitDesktopSystemControlAdapter
     CockpitSystemControlActionRequest request,
   ) {
     return _hostAddMediaCommand(request, (sourcePath, destinationPath) {
-      return CockpitResolvedSystemControlCommand('powershell', <String>[
-        '-NoProfile',
-        '-NonInteractive',
-        '-Command',
+      return _windowsPowershell(
         _windowsHostAddMediaScript,
-        sourcePath,
-        destinationPath ?? '',
-      ]);
+        arguments: <String>[sourcePath, destinationPath ?? ''],
+      );
     });
   }
 

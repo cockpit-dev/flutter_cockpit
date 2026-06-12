@@ -59,6 +59,25 @@ class CockpitAndroidPortForwarder {
     return hostPort;
   }
 
+  Future<void> removeForwarded({
+    required String deviceId,
+    required int hostPort,
+  }) async {
+    final result = await _processRunner('adb', <String>[
+      '-s',
+      deviceId,
+      'forward',
+      '--remove',
+      'tcp:$hostPort',
+    ]);
+    if (result.exitCode != 0) {
+      throw StateError(
+        'adb forward --remove failed for $deviceId: '
+        '${result.stderr ?? result.stdout}',
+      );
+    }
+  }
+
   Future<int> _resolvedHostPort(int preferredHostPort) async {
     if (await _hostPortAvailabilityChecker(preferredHostPort)) {
       return preferredHostPort;

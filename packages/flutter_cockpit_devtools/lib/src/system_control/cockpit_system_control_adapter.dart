@@ -93,10 +93,15 @@ final class CockpitSystemControlIntParameter {
   bool get isInvalid => isPresent && value == null;
 }
 
+/// Process names feed NSPredicate string literals on Apple platforms, where
+/// embedded quotes or backslashes would corrupt the predicate.
+final RegExp cockpitSystemControlProcessNamePattern = RegExp(r'[^"\\]+');
+
 CockpitSystemControlStringParameter cockpitReadSystemControlStringParameter(
   Map<String, Object?> parameters,
   String key, {
   List<String> allowedValues = const <String>[],
+  RegExp? pattern,
   bool trim = true,
 }) {
   if (!parameters.containsKey(key)) {
@@ -111,6 +116,9 @@ CockpitSystemControlStringParameter cockpitReadSystemControlStringParameter(
     return const CockpitSystemControlStringParameter.absent();
   }
   if (allowedValues.isNotEmpty && !allowedValues.contains(normalized)) {
+    return const CockpitSystemControlStringParameter.invalid();
+  }
+  if (pattern != null && pattern.stringMatch(normalized) != normalized) {
     return const CockpitSystemControlStringParameter.invalid();
   }
   return CockpitSystemControlStringParameter.valid(normalized);

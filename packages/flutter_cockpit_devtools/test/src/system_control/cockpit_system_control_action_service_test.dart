@@ -953,7 +953,9 @@ void main() {
       'shell',
       'sh',
       '-c',
-      'uiautomator dump /sdcard/window.xml >/dev/null && cat /sdcard/window.xml && rm /sdcard/window.xml',
+      // The script travels as one pre-quoted word so the adb shell join
+      // cannot split it.
+      "'uiautomator dump /sdcard/window.xml >/dev/null && cat /sdcard/window.xml && rm /sdcard/window.xml'",
     ]);
   });
 
@@ -1806,7 +1808,8 @@ void main() {
     );
     expect(
       script,
-      contains('-e command battery -e level 100 -e plugged false'),
+      contains('-e command battery -e level 100 -e plugged true'),
+      reason: '"charged" means full while still on power, matching iOS.',
     );
   });
 
@@ -1873,7 +1876,9 @@ void main() {
 
     expect(result.success, isTrue);
     expect(result.command.first, 'powershell');
-    expect(result.command.last, 'ms-settings:display');
+    final script = _decodeWindowsPowershellScript(result.command);
+    expect(script, contains(r'Start-Process -FilePath $args[0]'));
+    expect(script, contains("\$args = @('ms-settings:display')"));
   });
 
   test('macos resetPermission resets a TCC service through tccutil', () async {
@@ -1935,8 +1940,9 @@ void main() {
 
     expect(result.success, isTrue);
     expect(result.command.first, 'powershell');
-    expect(result.command.join(' '), contains('AppsUseLightTheme'));
-    expect(result.command.last, 'dark');
+    final script = _decodeWindowsPowershellScript(result.command);
+    expect(script, contains('AppsUseLightTheme'));
+    expect(script, contains("\$args = @('dark')"));
   });
 
   test('linux postNotification posts through notify-send', () async {
@@ -2094,7 +2100,8 @@ void main() {
     expect(result.success, isTrue);
     final script = result.command.last;
     expect(script, contains('logcat -d -v time -t 80'));
-    expect(script, contains("pidof -s 'dev.cockpit.example'"));
+    expect(script, contains('pidof -s'));
+    expect(script, contains('dev.cockpit.example'));
   });
 
   test('android setBattery simulates an unplugged low battery', () async {
@@ -2135,6 +2142,120 @@ void main() {
     expect(result.success, isFalse);
     expect(result.errorCode, 'missingSystemActionParameter');
     expect(processManager.starts, isEmpty);
+  });
+
+  test('android setBattery reset restores real battery reporting', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        action: CockpitSystemControlAction.setBattery,
+        parameters: <String, Object?>{'reset': true},
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command.last, "'exec dumpsys battery reset'");
+  });
+
+  test('android readSystemLogs tails logcat without app scoping', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'android',
+        deviceId: 'emulator-5554',
+        action: CockpitSystemControlAction.readSystemLogs,
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command.last, "'exec logcat -d -v time -t 200'");
+  });
+
+  test('linux readSystemLogs reads a bounded journalctl tail', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'linux',
+        action: CockpitSystemControlAction.readSystemLogs,
+        parameters: <String, Object?>{'lines': 120},
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command.first, 'sh');
+    expect(result.command, contains('120'));
+    expect(result.command.join('\n'), contains('journalctl'));
+  });
+
+  test('windows readSystemLogs reads bounded application events', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'windows',
+        action: CockpitSystemControlAction.readSystemLogs,
+        parameters: <String, Object?>{'lines': 25},
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command.first, 'powershell');
+    expect(
+      _decodeWindowsPowershellScript(result.command),
+      contains('Get-WinEvent -LogName Application -MaxEvents 25'),
+    );
+  });
+
+  test('ios setStatusBar overrides simulator status bar values', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'ios',
+        deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+        action: CockpitSystemControlAction.setStatusBar,
+        parameters: <String, Object?>{
+          'time': '9:41',
+          'batteryState': 'charged',
+          'batteryLevel': 100,
+        },
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command, <String>[
+      'xcrun',
+      'simctl',
+      'status_bar',
+      '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+      'override',
+      '--time',
+      '9:41',
+      '--batteryState',
+      'charged',
+      '--batteryLevel',
+      '100',
+    ]);
   });
 
   test('android setConnectivity toggles wifi and airplane mode', () async {
@@ -2305,7 +2426,7 @@ void main() {
       'shell',
       'sh',
       '-c',
-      'settings put system accelerometer_rotation 0 && settings put system user_rotation 1',
+      "'settings put system accelerometer_rotation 0 && settings put system user_rotation 1'",
     ]);
   });
 
@@ -3085,12 +3206,8 @@ void main() {
     expect(result.command[0], 'powershell');
     expect(result.command, contains('-NoProfile'));
     expect(result.command, contains('-NonInteractive'));
-    expect(result.command.sublist(result.command.length - 4), <String>[
-      'processId',
-      '4242',
-      '3',
-      '30',
-    ]);
+    final script = _decodeWindowsPowershellScript(result.command);
+    expect(script, contains("\$args = @('processId', '4242', '3', '30')"));
   });
 
   test('windows readWindows uses visible process windows', () async {
@@ -3110,7 +3227,10 @@ void main() {
     expect(result.command[0], 'powershell');
     expect(result.command, contains('-NoProfile'));
     expect(result.command, contains('-NonInteractive'));
-    expect(result.command.last, contains('MainWindowTitle'));
+    expect(
+      _decodeWindowsPowershellScript(result.command),
+      contains('MainWindowTitle'),
+    );
   });
 
   test('linux pressKey targets a window with xdotool key', () async {
@@ -3910,6 +4030,18 @@ final class _FakeManagedProcess implements Process {
     _stdinController.close();
     return true;
   }
+}
+
+/// Windows scripts travel as -EncodedCommand (base64 UTF-16LE) so positional
+/// values stay inert; tests assert against the decoded body.
+String _decodeWindowsPowershellScript(List<String> command) {
+  final encodedIndex = command.indexOf('-EncodedCommand');
+  expect(encodedIndex, isNot(-1), reason: 'expected -EncodedCommand');
+  final bytes = base64.decode(command[encodedIndex + 1]);
+  return String.fromCharCodes(<int>[
+    for (var index = 0; index < bytes.length; index += 2)
+      bytes[index] | (bytes[index + 1] << 8),
+  ]);
 }
 
 final class _HangingManagedProcess implements Process {
