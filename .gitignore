@@ -32,3 +32,9 @@ coverage/
 *.iml
 # OS-generated junk
 .DS_Store
+/third/
+
+# Internal working documents (not shipping docs)
+/docs/designs/
+/docs/plans/
+/docs/superpowers/

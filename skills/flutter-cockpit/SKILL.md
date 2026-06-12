@@ -94,7 +94,7 @@ If `run-system-action` returns `invalidSystemActionParameter` or `missingSystemA
 For `dismissSystemDialog`, use `--decision accept` for the primary action or `--decision dismiss` for the cancel/deny action; omit it to accept.
 For native blockers, prefer `resolveBlockers`. Use `preparePermissions`, `stabilizeForScreenshot`, `readFocusState`, and `tapNotification`; then read app state and errors.
 Use `actionGroups` in JSON output to find capability groups without hard-coding platform lists.
-Android Emulator uses adb for input, lifecycle, permissions, settings, orientation, networking, notifications, recovery, files/media, evidence, UI tree, focus/IME, state, and bounded shell.
+Android Emulator uses adb for input, lifecycle, permissions, settings, orientation, networking, notifications, demo-mode status bar, recovery, files/media, evidence, UI tree, focus/IME, state, and bounded shell.
 iOS Simulator uses simctl for lifecycle, privacy, status bar, pasteboard, app-container files, media, recovery, evidence, device info, and bounded `simctl spawn`; non-absolute shell runs through `/bin/sh -lc`. WDA covers native UI, keyboard/focus, orientation, notifications, and system dialogs/blockers. Unsupported simulator actions remain blocked instead of faked.
 `activateWindow` is non-destructive on iOS Simulator and should not terminate an existing Flutter debug or hot-reload session; use `terminateApp` only when a restart is intentional.
 Trust only actions reported as `available`.

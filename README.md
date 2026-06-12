@@ -407,13 +407,14 @@ For simulator-first development, the system plane is explicit about what can be
 automated. Android emulator support is adb-backed: native coordinates, keys,
 Back/Home, volume keys, app install/uninstall/lifecycle/data clear, permission
 grant/revoke/reset, app settings, appearance, text scale, location, orientation,
-emulator network conditions, notification shade, quick settings, file push/pull,
-media import, screenshots, recordings, UI tree, process/window/device/system
-state reads, notification state reads, shell, and UIAutomator-assisted
-`dismissSystemDialog --decision accept|dismiss`. The Android adapter also
-backs the macro actions for blocker resolution, permission preparation,
-notification tap-through, app recovery, focus reads, and screenshot
-stabilization.
+emulator network conditions, notification shade, quick settings, SystemUI
+demo-mode status bar overrides (`setStatusBar`/`clearStatusBar`), file
+push/pull, media import, screenshots, recordings, UI tree,
+process/window/device/system state reads, notification state reads, shell, and
+UIAutomator-assisted `dismissSystemDialog --decision accept|dismiss`. The
+Android adapter also backs the macro actions for blocker resolution, permission
+preparation, notification tap-through, app recovery, focus reads, and
+screenshot stabilization.
 iOS simulator support is simctl-backed for app lifecycle, privacy grant/revoke
 /reset, URLs, Settings, appearance, content size, location, status bar
 overrides, pasteboard, simulated APNS push, app install/uninstall/data clear,
@@ -425,9 +426,10 @@ WDA-only steps are reported as skipped or blocked instead of faked. iOS simulato
 `activateWindow` brings the app foreground without terminating an existing
 Flutter debug or hot-reload session; use `terminateApp` only when a restart is
 intentional. Simulator features
-with no stable public API, such as iOS simulator volume keys, Notification
-Center expansion, Control Center expansion, and clear-all-notifications, are
-reported as `unsupported` or `blocked`. JSON capability output also exposes
+with no stable public API, such as iOS simulator volume keys and
+clear-all-notifications, are reported as `unsupported` or `blocked`;
+Notification Center and Control Center expansion run through WebDriverAgent
+when it is reachable. JSON capability output also exposes
 `actionGroups` so callers can discover permission, notification, file, media,
 evidence, device-state, and inspection actions without hard-coding
 per-platform lists.

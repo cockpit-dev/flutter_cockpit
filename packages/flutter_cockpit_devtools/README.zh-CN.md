@@ -113,7 +113,7 @@ tag 或文本匹配并点击通知；`stabilizeForScreenshot` 收起干扰状态
 
 模拟器支持坚持按真实能力暴露：
 
-- Android Emulator 通过 `adb` 支持原生 tap/drag/text/key、Back/Home、音量键、应用安装/卸载/启动/终止/清数据、权限授权/撤销/重置、URL/系统设置入口、外观、字号、定位、旋转、emulator 网络速度/延迟、通知栏、快捷设置、收起系统 UI、shell 通知、文件 push/pull、媒体导入并触发扫描、截图、录屏、UI tree、进程/窗口/系统状态读取、设备信息读取、通知状态读取和有界 shell 命令。`dismissSystemDialog --decision accept|dismiss` 会先用 UIAutomator 匹配常见 Android 权限/系统弹窗按钮；`dismiss` 找不到时可以回退 Back。通知点击使用展开通知栏加 UIAutomator 文本匹配。
+- Android Emulator 通过 `adb` 支持原生 tap/drag/text/key、Back/Home、音量键、应用安装/卸载/启动/终止/清数据、权限授权/撤销/重置、URL/系统设置入口、外观、字号、定位、旋转、emulator 网络速度/延迟、通知栏、快捷设置、收起系统 UI、SystemUI demo-mode status bar 覆盖（`setStatusBar`/`clearStatusBar`）、shell 通知、文件 push/pull、媒体导入并触发扫描、截图、录屏、UI tree、进程/窗口/系统状态读取、设备信息读取、通知状态读取和有界 shell 命令。`dismissSystemDialog --decision accept|dismiss` 会先用 UIAutomator 匹配常见 Android 权限/系统弹窗按钮；`dismiss` 找不到时可以回退 Back。通知点击使用展开通知栏加 UIAutomator 文本匹配。
 - iOS Simulator 通过 `simctl` 支持应用安装/卸载/启动/终止/清数据、隐私权限授权/撤销/重置、URL 和 Settings 入口、外观、内容字号、定位、status bar 覆盖、剪贴板、模拟 APNS push、app container push/pull、媒体导入、截图、录屏、进程读取、模拟器/设备信息读取和有界 `simctl spawn` 命令。
 - iOS Simulator 原生 UI 动作需要可达的 WebDriverAgent endpoint：tap、long press、drag、文本/按键输入、Home、关闭键盘、系统弹窗 accept/dismiss、通知中心、控制中心、通知点击、旋转、focus 读取和原生 UI tree 读取。
 - iOS Simulator 音量键和清空全部通知没有稳定公开的 `simctl`/XCTest 模拟器 API。因此这些动作会保持 `unsupported` 或 `blocked`，不会伪装成可自动化。需要时按返回的 fallback、可用的 WDA 动作或应用内断言处理。
@@ -140,8 +140,11 @@ CLI JSON 输出使用 lower camel case keys。
 `launch-app` 会先自动探测 `cockpit/main.dart`，找不到再退回 `lib/main.dart`。
 `run-script` 写出的 bundle 只要状态是 `failed`，命令就会非零退出。
 workspace 命令默认把 `--workspace-root` 或 `--parent-directory` 视为当前目录。
+先做变更，再做观察，按顺序执行。不要把有副作用的 `run-command` 和依赖其结果的 `read-app`、`inspect-ui`、`read-network` 并行。
 当后续几步已经明确，而且流程会跨路由，比如列表 -> 编辑 -> 列表，优先用一次有序的 `run-batch`，不要拆成多次 `run-command` 往返。这样更省 token，也更能避开路由切换窗口期的状态抖动。
 `read-app` 和 snapshot 会暴露 focus 状态。看到 `uiSummary.focus.isTextInputFocus` 为 true，或者软件键盘挡住下一个目标时，先执行不需要 locator 的 `dismissKeyboard`，再继续滚动或点击。
+locator 要用产品语义信号。`Open`、`Edit`、`Save` 这类高频短动作词可以做 fallback，但当多行/多卡片可能暴露同一个词时，不要把它当唯一信号；优先使用 `read-app` / `inspect-ui` 暴露的完整可访问标签，再按需补 `route`、`type` 或 `ancestor`。
+会切换路由的 `tap` 应设置 `parameters.expectedRouteName`；在 CI、录屏、模拟器等延迟可预期的验收流程中再加 `parameters.routeTimeoutMs`，`timeoutMs` 仍然是命令的硬上限。关键路由切换后，再补一个针对 `parameters.routeName` 的 `waitFor`。
 `run-command`、`run-batch` 和 `run-script` 会默认给关键变更命令附加
 best-effort 的 action 后截图，并挂到对应 command step 上。tap、文本输入、
 滚动、拖拽、返回导航等操作不需要额外写截图 JSON 就能留下关键帧证据。
