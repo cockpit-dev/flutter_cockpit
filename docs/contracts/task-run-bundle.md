@@ -54,6 +54,7 @@ Every bundle directory must contain:
 - `environment.json`
 - `steps.json`
 - `observations.json`
+- `logs.json`
 - `acceptance.md`
 - `handoff.json`
 - `delivery.json`
@@ -164,6 +165,21 @@ The observations file stores the extracted observation list for the bundle. Each
 - `beforeAction`
 - `afterAction`
 - `failure`
+
+### `logs.json`
+
+The logs file is the dedicated, chronologically ordered log evidence for the task run. It is derived from the recorded steps so it never invents off-bundle state. It must include:
+
+- `sessionId`
+- `taskId`
+- `platform`
+- `runtimeEventCount`
+- `runtimeErrorCount`
+- `runtimeWarningCount`
+- `entryCount`
+- `entries`
+
+Each entry carries a `source` of `runtime` (runtime events, Flutter errors, uncaught errors, debug logs) or `network` (observed HTTP activity) plus the original payload fields. Entries are deduplicated by event/request id and sorted by recorded time. The file is written even when no log evidence exists so consumers can rely on its presence.
 
 ### `acceptance.md`
 

@@ -53,6 +53,7 @@ void main() {
       isTrue,
     );
     expect(File(p.join(outputDir.path, 'steps.json')).existsSync(), isTrue);
+    expect(File(p.join(outputDir.path, 'logs.json')).existsSync(), isTrue);
     expect(
       Directory(p.join(outputDir.path, 'screenshots')).existsSync(),
       isTrue,
@@ -61,6 +62,87 @@ void main() {
       Directory(p.join(outputDir.path, 'recordings')).existsSync(),
       isTrue,
     );
+  });
+
+  test('writes structured logs derived from runtime event evidence', () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'cockpit_bundle_logs_test',
+    );
+    addTearDown(() async {
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    final writer = TaskRunBundleWriter();
+    final bundle = CockpitContextBundle(
+      manifest: CockpitRunManifest(
+        sessionId: 'session-logs',
+        taskId: 'task-logs',
+        platform: 'android',
+        status: CockpitTaskStatus.completed,
+        startedAt: DateTime.utc(2026, 3, 20, 8),
+        finishedAt: DateTime.utc(2026, 3, 20, 8, 5),
+        artifactRefs: const [],
+        runtimeEventCount: 2,
+        runtimeErrorCount: 1,
+      ),
+      environment: const CockpitEnvironment(
+        platform: 'android',
+        flutterVersion: '3.38.9',
+        dartVersion: '3.10.8',
+      ),
+      steps: [
+        CockpitStepRecord(
+          index: 0,
+          actionType: 'runtime_event',
+          actionArgs: const <String, Object?>{
+            'eventId': 'evt-error-1',
+            'kind': 'flutterError',
+            'severity': 'error',
+            'message': 'Render overflow detected',
+            'recordedAt': '2026-03-20T08:02:00.000Z',
+          },
+          observedAt: DateTime.utc(2026, 3, 20, 8, 2),
+        ),
+        CockpitStepRecord(
+          index: 1,
+          actionType: 'runtime_event',
+          actionArgs: const <String, Object?>{
+            'eventId': 'evt-log-1',
+            'kind': 'debugLog',
+            'severity': 'info',
+            'message': 'Checkout completed',
+            'recordedAt': '2026-03-20T08:01:00.000Z',
+          },
+          observedAt: DateTime.utc(2026, 3, 20, 8, 1),
+        ),
+      ],
+      observations: const [],
+      acceptanceMarkdown: '# Acceptance\n\nDone.',
+      handoff: const {'status': 'completed'},
+    );
+
+    final outputDir = await writer.writeBundle(
+      bundle: bundle,
+      outputRoot: tempDir.path,
+    );
+
+    final logsFile = File(p.join(outputDir.path, 'logs.json'));
+    expect(logsFile.existsSync(), isTrue);
+    final logs =
+        jsonDecode(logsFile.readAsStringSync()) as Map<String, Object?>;
+    expect(logs['sessionId'], 'session-logs');
+    expect(logs['runtimeEventCount'], 2);
+    expect(logs['runtimeErrorCount'], 1);
+    expect(logs['entryCount'], 2);
+    final entries = (logs['entries']! as List<Object?>)
+        .cast<Map<String, Object?>>();
+    expect(entries, hasLength(2));
+    expect(entries.first['message'], 'Checkout completed');
+    expect(entries.last['message'], 'Render overflow detected');
+    expect(entries.last['source'], 'runtime');
+    expect(entries.last['severity'], 'error');
   });
 
   test('task-run directory names sort lexically by start time', () async {

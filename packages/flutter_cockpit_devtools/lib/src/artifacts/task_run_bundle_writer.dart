@@ -142,6 +142,7 @@ final class TaskRunBundleWriter {
           .map((observation) => observation.toJson())
           .toList(growable: false),
     );
+    _writeJson(p.join(outputDirectory.path, 'logs.json'), _logsFor(bundle));
     _writeJson(p.join(outputDirectory.path, 'handoff.json'), finalizedHandoff);
     _writeJson(
       p.join(outputDirectory.path, 'delivery.json'),
@@ -171,6 +172,65 @@ final class TaskRunBundleWriter {
 
   void _writeJson(String path, Object payload) {
     File(path).writeAsStringSync(cockpitPrettyJsonText(payload));
+  }
+
+  Map<String, Object?> _logsFor(CockpitContextBundle bundle) {
+    final entries = <String, _BundleLogEntry>{};
+    for (final step in bundle.steps) {
+      final runtime = step.snapshot?.runtime;
+      if (runtime != null) {
+        for (final event in runtime.entries) {
+          entries['runtime:${event.eventId}'] = _BundleLogEntry(
+            recordedAt: event.recordedAt,
+            payload: <String, Object?>{'source': 'runtime', ...event.toJson()},
+          );
+        }
+      }
+      final network = step.snapshot?.network;
+      if (network != null) {
+        for (final entry in network.entries) {
+          entries['network:${entry.requestId}'] = _BundleLogEntry(
+            recordedAt: entry.startedAt,
+            payload: <String, Object?>{'source': 'network', ...entry.toJson()},
+          );
+        }
+      }
+      if (step.actionType == 'runtime_event') {
+        final eventId = step.actionArgs['eventId'];
+        final key = eventId is String && eventId.isNotEmpty
+            ? 'runtime:$eventId'
+            : 'runtimeStep:${step.index}';
+        entries.putIfAbsent(
+          key,
+          () => _BundleLogEntry(
+            recordedAt:
+                _parseLogTimestamp(step.actionArgs['recordedAt']) ??
+                step.observedAt,
+            payload: <String, Object?>{'source': 'runtime', ...step.actionArgs},
+          ),
+        );
+      }
+    }
+    final ordered = entries.values.toList(growable: true)
+      ..sort((left, right) => left.recordedAt.compareTo(right.recordedAt));
+    final manifest = bundle.manifest;
+    return <String, Object?>{
+      'sessionId': manifest.sessionId,
+      'taskId': manifest.taskId,
+      'platform': manifest.platform,
+      'runtimeEventCount': manifest.runtimeEventCount,
+      'runtimeErrorCount': manifest.runtimeErrorCount,
+      'runtimeWarningCount': manifest.runtimeWarningCount,
+      'entryCount': ordered.length,
+      'entries': ordered.map((entry) => entry.payload).toList(growable: false),
+    };
+  }
+
+  DateTime? _parseLogTimestamp(Object? value) {
+    if (value is! String || value.isEmpty) {
+      return null;
+    }
+    return DateTime.tryParse(value)?.toUtc();
   }
 
   void _validateDeliveryArtifactRefs(Map<String, Object?> delivery) {
@@ -1048,4 +1108,11 @@ final class TaskRunBundleWriter {
     );
     return '${safeTimestamp}_$safeSessionId';
   }
+}
+
+final class _BundleLogEntry {
+  const _BundleLogEntry({required this.recordedAt, required this.payload});
+
+  final DateTime recordedAt;
+  final Map<String, Object?> payload;
 }
