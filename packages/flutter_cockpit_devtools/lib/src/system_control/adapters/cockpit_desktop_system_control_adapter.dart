@@ -1143,6 +1143,8 @@ final class CockpitDesktopSystemControlAdapter
           '--clearmodifiers',
           '--delay',
           '0',
+          // Stops xdotool from parsing text beginning with '-' as an option.
+          '--',
           text,
         ]),
       ),
@@ -1344,18 +1346,18 @@ final class CockpitDesktopSystemControlAdapter
   }
 
   /// powershell.exe joins everything after `-Command` into one command
-  /// string and never populates `$args` from argv, so positional values are
-  /// injected as an inert single-quoted `$args` array prepended to the
-  /// script, and the whole body travels as `-EncodedCommand` to survive
-  /// CreateProcess quote re-parsing without any injection surface.
+  /// string and never populates `$args` from argv, so the script runs as an
+  /// invoked script block (`& { ... } 'arg0' 'arg1'`) whose inert
+  /// single-quoted arguments populate `$args` through PowerShell's own
+  /// argument binding. The whole body travels as `-EncodedCommand` to
+  /// survive CreateProcess quote re-parsing without any injection surface.
   CockpitResolvedSystemControlCommand _windowsPowershell(
     String script, {
     List<String> arguments = const <String>[],
   }) {
     final body = arguments.isEmpty
         ? script
-        : '\$args = @(${arguments.map(_powershellSingleQuoted).join(', ')})\n'
-              '$script';
+        : '& {\n$script\n} ${arguments.map(_powershellSingleQuoted).join(' ')}';
     return CockpitResolvedSystemControlCommand('powershell', <String>[
       '-NoProfile',
       '-NonInteractive',

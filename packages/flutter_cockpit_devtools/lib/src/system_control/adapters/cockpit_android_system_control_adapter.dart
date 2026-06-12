@@ -1066,8 +1066,10 @@ final class CockpitAndroidSystemControlAdapter
       CockpitSystemControlAction.readFocusState =>
         CockpitResolvedSystemControlCommand(
           'adb',
+          // Focus fields moved out of `dumpsys window windows` on modern
+          // Android; the full `dumpsys window` output still carries them.
           adbShellScript(
-            'printf "windowFocus=\\n"; dumpsys window windows | grep -E "mCurrentFocus|mFocusedApp|mInputMethodTarget" | head -n 20 || true; printf "\\ninputMethod=\\n"; dumpsys input_method | grep -E "mInputShown|InputShown|mServedView|mCurrentFocus|mCurMethodId" | head -n 40 || true',
+            'printf "windowFocus=\\n"; dumpsys window | grep -E "mCurrentFocus|mFocusedApp|mFocusedWindow|imeLayeringTarget|mInputMethodTarget" | head -n 20 || true; printf "\\ninputMethod=\\n"; dumpsys input_method | grep -E "mInputShown|InputShown|mServedView|mCurrentFocus|mCurMethodId" | head -n 40 || true',
           ),
         ),
       CockpitSystemControlAction.readNotificationState =>
