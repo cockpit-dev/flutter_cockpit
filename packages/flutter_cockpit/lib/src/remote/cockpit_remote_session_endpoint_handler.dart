@@ -668,6 +668,9 @@ final class CockpitRemoteSessionEndpointHandler {
       truncated: snapshot.truncated,
       summary: snapshot.summary,
       network: snapshot.network,
+      // Focus state is tiny and answers "is the keyboard up / which field is
+      // active" without forcing a diagnostics artifact download.
+      focus: snapshot.focus,
     );
   }
 
