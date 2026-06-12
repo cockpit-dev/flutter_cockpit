@@ -2,6 +2,7 @@ package dev.cockpit.flutter_cockpit
 
 import android.app.Activity
 import android.graphics.Bitmap
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.view.PixelCopy
@@ -22,7 +23,8 @@ class FlutterCockpitPlugin : FlutterPlugin, ActivityAware {
         captureChannel = MethodChannel(binding.binaryMessenger, CAPTURE_CHANNEL_NAME)
         captureChannel.setMethodCallHandler { call, result ->
             when (call.method) {
-                "queryNativeCaptureAvailability" -> result.success(activity != null)
+                "queryNativeCaptureAvailability" ->
+                    result.success(activity != null && supportsWindowPixelCopy())
                 "captureAcceptanceScreenshot" -> captureAcceptanceScreenshot(result)
                 else -> result.notImplemented()
             }
@@ -38,10 +40,21 @@ class FlutterCockpitPlugin : FlutterPlugin, ActivityAware {
         }
     }
 
+    private fun supportsWindowPixelCopy(): Boolean =
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+
     private fun captureAcceptanceScreenshot(result: MethodChannel.Result) {
         val currentActivity = activity
         if (currentActivity == null) {
             result.error("noActivity", "Native capture requires an attached Activity.", null)
+            return
+        }
+        if (!supportsWindowPixelCopy()) {
+            result.error(
+                "captureUnavailable",
+                "Window PixelCopy capture requires Android API 26 or newer.",
+                null,
+            )
             return
         }
 
