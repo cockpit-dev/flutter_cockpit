@@ -48,6 +48,7 @@ void main() {
         'recordingName': 'home_acceptance',
         'recordingPurpose': 'acceptance',
         'recordingState': 'completed',
+        'recordingKind': 'nativeScreen',
         'recordingDurationMs': 2400,
       },
       artifactRefs: const [

@@ -173,13 +173,10 @@ final class CockpitEvidenceIndex {
   }
 
   static bool _recordsNativeRecording(CockpitStepRecord step) {
-    final recordingKind = step.actionArgs['recordingKind'];
-    if (recordingKind is String && recordingKind.isNotEmpty) {
-      return recordingKind == CockpitRecordingKind.nativeScreen.name;
-    }
-    // Recordings without explicit kind metadata come from the native screen
-    // pipeline, the only recording source the runtime ships today.
-    return true;
+    // Only count recordings whose producer explicitly stamped the kind;
+    // claiming "native" for unlabeled artifacts would fabricate evidence.
+    return step.actionArgs['recordingKind'] ==
+        CockpitRecordingKind.nativeScreen.name;
   }
 
   static String _selectPrimaryScreenshotRef(List<CockpitStepRecord> steps) {
@@ -189,24 +186,31 @@ final class CockpitEvidenceIndex {
               CockpitCaptureProfile.nativePreferred) {
         continue;
       }
-      final screenshotRef = _lastArtifactPathForStep(
-        step,
-        roles: _screenshotRoles,
-      );
+      final screenshotRef = _primaryScreenshotPathForStep(step);
       if (screenshotRef != null) {
         return screenshotRef;
       }
     }
     for (final step in steps.reversed) {
-      final screenshotRef = _lastArtifactPathForStep(
-        step,
-        roles: _screenshotRoles,
-      );
+      final screenshotRef = _primaryScreenshotPathForStep(step);
       if (screenshotRef != null) {
         return screenshotRef;
       }
     }
     return '';
+  }
+
+  /// Dedicated 'screenshot' artifacts outrank incidental per-step
+  /// 'step_screenshot' captures when both exist on the same step.
+  static String? _primaryScreenshotPathForStep(CockpitStepRecord step) {
+    return _lastArtifactPathForStep(
+          step,
+          roles: const <String>{'screenshot'},
+        ) ??
+        _lastArtifactPathForStep(
+          step,
+          roles: const <String>{'step_screenshot'},
+        );
   }
 
   static String? _lastArtifactPathForStep(

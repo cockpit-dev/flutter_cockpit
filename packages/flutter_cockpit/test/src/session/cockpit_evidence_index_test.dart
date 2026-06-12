@@ -143,6 +143,12 @@ void main() {
     ]);
 
     expect(index.recordingCount, 3);
-    expect(index.nativeRecordingCount, 2);
+    expect(
+      index.nativeRecordingCount,
+      1,
+      reason:
+          'Only explicitly stamped nativeScreen recordings count; '
+          'unlabeled recordings must not be claimed as native evidence.',
+    );
   });
 }
