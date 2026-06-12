@@ -3533,7 +3533,20 @@ String? _fakeSystemClipboardText;
 Future<CockpitSystemControlDescribeResult> _fakeDescribeSystemControl(
   CockpitSystemControlDescribeRequest request,
 ) {
-  return const CockpitSystemControlService().describe(request);
+  final metadata = <String, Object?>{...request.metadata};
+  if (request.platform == 'android') {
+    metadata['androidDeviceReachable'] = true;
+    metadata['androidDeviceState'] = 'device';
+  }
+  return CockpitSystemControlService().describe(
+    CockpitSystemControlDescribeRequest(
+      platform: request.platform,
+      deviceId: request.deviceId,
+      appId: request.appId,
+      processId: request.processId,
+      metadata: metadata,
+    ),
+  );
 }
 
 Future<CockpitSystemControlActionResult> _fakeRunSystemAction(

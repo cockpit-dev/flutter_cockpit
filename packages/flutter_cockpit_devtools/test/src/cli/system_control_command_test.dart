@@ -137,6 +137,68 @@ void main() {
     },
   );
 
+  test(
+    'read-system-capabilities maps explicit cockpit app id to platform app id',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_system_capabilities_app_id_',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+      await _writeDefaultAppHandle(
+        tempDir,
+        appId: 'remote-session-1',
+        platformAppId: 'dev.cockpit.example',
+      );
+      final output = StringBuffer();
+      CockpitSystemControlDescribeRequest? capturedRequest;
+      final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
+        ..addCommand(
+          ReadSystemCapabilitiesCommand(
+            stdoutSink: output,
+            describe: (request) async {
+              capturedRequest = request;
+              return const CockpitSystemControlDescribeResult(
+                profile: CockpitSystemControlProfile(
+                  platform: 'ios',
+                  deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+                  appId: 'dev.cockpit.example',
+                  adapter: 'ios.simctl+xctest',
+                  preferredPlane: CockpitPlaneKind.flutterSemanticPlane,
+                  fallbackOrder: <CockpitPlaneKind>[
+                    CockpitPlaneKind.flutterSemanticPlane,
+                    CockpitPlaneKind.deviceSystemPlane,
+                  ],
+                  capabilities: <CockpitSystemControlCapability>[],
+                  recommendedNextStep: 'preferFlutterSemanticPlane',
+                ),
+                recommendedNextStep: 'preferFlutterSemanticPlane',
+              );
+            },
+          ),
+        );
+      final previousDirectory = Directory.current;
+      Directory.current = tempDir;
+      addTearDown(() {
+        Directory.current = previousDirectory;
+      });
+
+      final exitCode =
+          await runner.run(const <String>[
+            'read-system-capabilities',
+            '--app-id',
+            'remote-session-1',
+          ]) ??
+          0;
+
+      expect(exitCode, 0);
+      expect(capturedRequest?.appId, 'dev.cockpit.example');
+    },
+  );
+
   test('run-system-action forwards compact action payload', () async {
     final output = StringBuffer();
     CockpitSystemControlActionRequest? capturedRequest;
@@ -204,6 +266,63 @@ void main() {
   });
 
   test(
+    'run-system-action maps explicit cockpit app id to platform app id',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_system_action_app_id_',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+      await _writeDefaultAppHandle(
+        tempDir,
+        appId: 'remote-session-1',
+        platformAppId: 'dev.cockpit.example',
+      );
+      final output = StringBuffer();
+      CockpitSystemControlActionRequest? capturedRequest;
+      final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
+        ..addCommand(
+          RunSystemActionCommand(
+            stdoutSink: output,
+            runAction: (request) async {
+              capturedRequest = request;
+              return const CockpitSystemControlActionResult(
+                platform: 'ios',
+                deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+                appId: 'dev.cockpit.example',
+                action: CockpitSystemControlAction.recoverToApp,
+                availability: CockpitSystemControlAvailability.available,
+                success: true,
+                recommendedNextStep: 'readPostActionState',
+              );
+            },
+          ),
+        );
+      final previousDirectory = Directory.current;
+      Directory.current = tempDir;
+      addTearDown(() {
+        Directory.current = previousDirectory;
+      });
+
+      final exitCode =
+          await runner.run(const <String>[
+            'run-system-action',
+            '--app-id',
+            'remote-session-1',
+            '--action',
+            'recoverToApp',
+          ]) ??
+          0;
+
+      expect(exitCode, 0);
+      expect(capturedRequest?.appId, 'dev.cockpit.example');
+    },
+  );
+
+  test(
     'run-system-action reuses the default app handle and forwards WebDriverAgent metadata',
     () async {
       final tempDir = await Directory.systemTemp.createTemp(
@@ -214,27 +333,10 @@ void main() {
           await tempDir.delete(recursive: true);
         }
       });
-      final appHandleFile = File(
-        p.join(
-          tempDir.path,
-          '.dart_tool',
-          'flutter_cockpit',
-          'latest_app.json',
-        ),
-      );
-      await appHandleFile.parent.create(recursive: true);
-      await appHandleFile.writeAsString(
-        jsonEncode(<String, Object?>{
-          'appId': 'remote-session-1',
-          'mode': 'development',
-          'platform': 'ios',
-          'deviceId': '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
-          'projectDir': tempDir.path,
-          'target': 'cockpit/main.dart',
-          'baseUrl': 'http://127.0.0.1:57331',
-          'launchedAt': '2026-06-09T00:00:00.000Z',
-          'platformAppId': 'dev.cockpit.example',
-        }),
+      await _writeDefaultAppHandle(
+        tempDir,
+        appId: 'remote-session-1',
+        platformAppId: 'dev.cockpit.example',
       );
       final output = StringBuffer();
       CockpitSystemControlActionRequest? capturedRequest;
@@ -457,4 +559,28 @@ void main() {
     expect(capturedRequest?.parameters['layer'], 'system');
     expect(capturedRequest?.parameters['outputPath'], '/tmp/system-flow.mp4');
   });
+}
+
+Future<void> _writeDefaultAppHandle(
+  Directory tempDir, {
+  required String appId,
+  required String platformAppId,
+}) async {
+  final appHandleFile = File(
+    p.join(tempDir.path, '.dart_tool', 'flutter_cockpit', 'latest_app.json'),
+  );
+  await appHandleFile.parent.create(recursive: true);
+  await appHandleFile.writeAsString(
+    jsonEncode(<String, Object?>{
+      'appId': appId,
+      'mode': 'development',
+      'platform': 'ios',
+      'deviceId': '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+      'projectDir': tempDir.path,
+      'target': 'cockpit/main.dart',
+      'baseUrl': 'http://127.0.0.1:57331',
+      'launchedAt': '2026-06-09T00:00:00.000Z',
+      'platformAppId': platformAppId,
+    }),
+  );
 }

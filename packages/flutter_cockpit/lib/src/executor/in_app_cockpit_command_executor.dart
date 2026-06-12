@@ -511,6 +511,7 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
           command: command,
           stopwatch: stopwatch,
           resolution: resolution,
+          activation: activation,
           previousRouteName: previousRouteName,
           failedActivation: 'direct',
         );
@@ -569,6 +570,7 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
           command: command,
           stopwatch: stopwatch,
           resolution: resolution,
+          activation: activation,
           previousRouteName: previousRouteName,
           failedActivation: 'semantic',
         );
@@ -626,12 +628,13 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
     required CockpitCommand command,
     required Stopwatch stopwatch,
     required CockpitTargetResolutionResult resolution,
+    required _TapActivation activation,
     required String? previousRouteName,
     required String failedActivation,
   }) {
     if (!_autoGestureFallbackEligible(
       command: command,
-      activation: _TapActivation.auto,
+      activation: activation,
       previousRouteName: previousRouteName,
     )) {
       return Future<CockpitCommandExecution?>.value();
@@ -2784,7 +2787,12 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
       return _CockpitGesturePreflightResult.error(
         CockpitCommandError.targetNotHittable(
           message:
-              'The resolved target is visible in discovery data but is not hittable at the gesture position.',
+              'The resolved target is visible in discovery data but is not '
+              'hittable at the gesture position (off-viewport or covered by '
+              'another widget). If it is scrolled out of view, run '
+              'scrollUntilVisible with the same locator and retry; if it is '
+              'covered, dismiss the covering surface first. Pass '
+              'hitTestMissPolicy=warn or ignore to override.',
           details: details,
         ),
       );

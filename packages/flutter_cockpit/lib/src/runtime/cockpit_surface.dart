@@ -821,7 +821,8 @@ final class CockpitSurfaceState extends State<CockpitSurface> {
     final widget = element.widget;
     if (widget is Semantics) {
       return _normalizeText(
-        widget.properties.label ??
+        widget.properties.identifier ??
+            widget.properties.label ??
             widget.properties.value ??
             widget.properties.hint,
       );

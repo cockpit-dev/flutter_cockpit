@@ -13,7 +13,12 @@ final class CockpitInteractionPolicy {
     this.routeTransitionVisualDelay = const Duration(milliseconds: 96),
     this.recordingActionVisualDelay = const Duration(milliseconds: 160),
     this.waitForNetworkIdleDuringAcceptanceCapture = true,
-    this.hitTestMissPolicy = CockpitHitTestMissPolicy.warn,
+    // Fail fast by default: continuing after a hit-test miss dispatches the
+    // gesture at a position the target does not own (off-viewport or
+    // covered), which can silently tap an unrelated widget and then burn the
+    // whole command timeout waiting for a commit that never matches. Agents
+    // get a structured targetNotHittable error with a recovery hint instead.
+    this.hitTestMissPolicy = CockpitHitTestMissPolicy.fail,
   });
 
   final Duration targetResolveTimeout;

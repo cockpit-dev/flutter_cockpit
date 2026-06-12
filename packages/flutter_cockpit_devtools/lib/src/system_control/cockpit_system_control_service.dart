@@ -1,3 +1,8 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
+import '../infrastructure/cockpit_process_manager.dart';
 import 'cockpit_system_control_profile.dart';
 import 'cockpit_system_control_adapter.dart';
 import 'cockpit_ios_webdriver_agent_client.dart';
@@ -45,17 +50,92 @@ typedef CockpitSystemControlDescribeFunction =
     Future<CockpitSystemControlDescribeResult> Function(
       CockpitSystemControlDescribeRequest request,
     );
+typedef CockpitAndroidDeviceStateProbe =
+    Future<CockpitAndroidDeviceProbeResult> Function(
+      String deviceId, {
+      required Duration timeout,
+    });
+
+final class CockpitAndroidDeviceProbeResult {
+  const CockpitAndroidDeviceProbeResult({
+    required this.reachable,
+    this.state,
+    this.failureReason,
+  });
+
+  const CockpitAndroidDeviceProbeResult.reachable(String state)
+    : this(reachable: true, state: state);
+
+  const CockpitAndroidDeviceProbeResult.blocked({
+    required String failureReason,
+    String? state,
+  }) : this(reachable: false, state: state, failureReason: failureReason);
+
+  final bool reachable;
+  final String? state;
+  final String? failureReason;
+}
+
+Future<CockpitAndroidDeviceProbeResult> cockpitProbeAndroidDeviceState(
+  CockpitProcessManager processManager,
+  String deviceId, {
+  required Duration timeout,
+}) async {
+  try {
+    final result = await processManager
+        .run('adb', <String>['-s', deviceId, 'get-state'])
+        .timeout(timeout);
+    final state = _processOutputText(result.stdout).trim();
+    if (result.exitCode == 0 && state == 'device') {
+      return CockpitAndroidDeviceProbeResult.reachable(state);
+    }
+    final stderr = _processOutputText(result.stderr).trim();
+    return CockpitAndroidDeviceProbeResult.blocked(
+      state: state.isEmpty ? null : state,
+      failureReason: stderr.isEmpty ? 'adbDeviceNotReady' : stderr,
+    );
+  } on TimeoutException {
+    return const CockpitAndroidDeviceProbeResult.blocked(
+      failureReason: 'adbDeviceProbeTimedOut',
+    );
+  } on ProcessException catch (error) {
+    return CockpitAndroidDeviceProbeResult.blocked(
+      failureReason: error.message.isEmpty ? 'adbUnavailable' : error.message,
+    );
+  } on Object catch (error) {
+    return CockpitAndroidDeviceProbeResult.blocked(failureReason: '$error');
+  }
+}
+
+String _processOutputText(Object? output) {
+  if (output == null) {
+    return '';
+  }
+  if (output is String) {
+    return output;
+  }
+  if (output is List<int>) {
+    return utf8.decode(output, allowMalformed: true);
+  }
+  return '$output';
+}
 
 final class CockpitSystemControlService {
-  const CockpitSystemControlService({
+  CockpitSystemControlService({
+    CockpitProcessManager? processManager,
     CockpitSystemControlRegistry registry =
         const CockpitSystemControlRegistry(),
     CockpitIosWdaEndpointProbe iosWdaEndpointProbe = cockpitProbeIosWdaEndpoint,
-  }) : _registry = registry,
-       _iosWdaEndpointProbe = iosWdaEndpointProbe;
+    CockpitAndroidDeviceStateProbe? androidDeviceStateProbe,
+  }) : _processManager = processManager ?? const LocalCockpitProcessManager(),
+       _registry = registry,
+       _iosWdaEndpointProbe = iosWdaEndpointProbe,
+       _androidDeviceStateProbe = androidDeviceStateProbe;
 
+  final CockpitProcessManager _processManager;
   final CockpitSystemControlRegistry _registry;
   final CockpitIosWdaEndpointProbe _iosWdaEndpointProbe;
+  final CockpitAndroidDeviceStateProbe? _androidDeviceStateProbe;
 
   Future<CockpitSystemControlDescribeResult> describe(
     CockpitSystemControlDescribeRequest request,
@@ -81,6 +161,9 @@ final class CockpitSystemControlService {
     CockpitSystemControlDescribeRequest request,
   ) async {
     final metadata = <String, Object?>{...request.metadata};
+    if (request.platform.trim().toLowerCase() == 'android') {
+      return _resolveAndroidMetadata(metadata, request.deviceId);
+    }
     if (request.platform.trim().toLowerCase() != 'ios' ||
         !_looksLikeIosSimulatorDeviceId(request.deviceId)) {
       return metadata;
@@ -90,6 +173,40 @@ final class CockpitSystemControlService {
       return _discoverLocalWdaMetadata(metadata);
     }
     return _resolveExplicitWdaMetadata(metadata, wdaUrl.trim());
+  }
+
+  Future<Map<String, Object?>> _resolveAndroidMetadata(
+    Map<String, Object?> metadata,
+    String? deviceId,
+  ) async {
+    if (metadata['androidDeviceReachable'] is bool) {
+      return metadata;
+    }
+    final normalizedDeviceId = deviceId?.trim();
+    if (normalizedDeviceId == null || normalizedDeviceId.isEmpty) {
+      return metadata;
+    }
+    final probe =
+        _androidDeviceStateProbe ??
+        (String id, {required Duration timeout}) =>
+            cockpitProbeAndroidDeviceState(
+              _processManager,
+              id,
+              timeout: timeout,
+            );
+    final result = await probe(
+      normalizedDeviceId,
+      timeout: const Duration(seconds: 2),
+    );
+    metadata['androidDeviceReachable'] = result.reachable;
+    if (result.state != null && result.state!.trim().isNotEmpty) {
+      metadata['androidDeviceState'] = result.state!.trim();
+    }
+    if (!result.reachable) {
+      metadata['androidDeviceFailureReason'] =
+          result.failureReason ?? 'adbDeviceNotReady';
+    }
+    return metadata;
   }
 
   Future<Map<String, Object?>> _discoverLocalWdaMetadata(

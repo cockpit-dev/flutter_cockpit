@@ -116,6 +116,97 @@ void main() {
     expect(readmeZh, isNot(contains('--output-ai')));
   });
 
+  test('readmes document the public MCP control surface by category', () {
+    final readmes = <String, String>{
+      'README.md': File('$root/README.md').readAsStringSync(),
+      'README.zh-CN.md': File('$root/README.zh-CN.md').readAsStringSync(),
+      'packages/flutter_cockpit_devtools/README.md': File(
+        '$root/packages/flutter_cockpit_devtools/README.md',
+      ).readAsStringSync(),
+      'packages/flutter_cockpit_devtools/README.zh-CN.md': File(
+        '$root/packages/flutter_cockpit_devtools/README.zh-CN.md',
+      ).readAsStringSync(),
+    };
+    const coreTools = <String>[
+      'list_targets',
+      'launch_app',
+      'launch_target',
+      'list_apps',
+      'read_app',
+      'read_target',
+      'inspect_ui',
+      'inspect_surface',
+      'run_command',
+      'run_batch',
+      'capture_screenshot',
+      'read_system_capabilities',
+      'run_system_action',
+      'run_shell',
+      'wait_idle',
+      'hot_reload',
+      'hot_restart',
+      'start_recording',
+      'stop_recording',
+      'read_network',
+      'read_logs',
+      'read_errors',
+      'stop_app',
+      'run_script',
+      'read_task_bundle_summary',
+      'run_task',
+      'validate_task',
+    ];
+    const advancedTools = <String>[
+      'list_active_sessions',
+      'launch_remote_session',
+      'query_remote_session',
+      'read_remote_status',
+      'read_remote_snapshot',
+      'collect_remote_snapshot',
+      'execute_remote_command',
+      'execute_remote_command_batch',
+      'wait_remote_ui_idle',
+      'start_remote_recording',
+      'stop_remote_recording',
+      'launch_development_session',
+      'query_development_session',
+      'reload_development_session',
+      'collect_development_probe',
+      'compare_development_probe',
+      'read_session_logs',
+      'stop_development_session',
+    ];
+    const workspaceTools = <String>[
+      'add_roots',
+      'remove_roots',
+      'pub_dev_search',
+      'pub',
+      'grep_package_uris',
+      'read_package_uris',
+      'lsp',
+      'analyze_files',
+      'create_project',
+      'analyze_workspace',
+      'format_workspace',
+      'run_tests',
+      'apply_fixes',
+    ];
+
+    for (final entry in readmes.entries) {
+      for (final tool in <String>[
+        ...coreTools,
+        ...advancedTools,
+        ...workspaceTools,
+      ]) {
+        expect(
+          entry.value,
+          contains('`$tool`'),
+          reason: '${entry.key} does not document MCP tool $tool.',
+        );
+      }
+    }
+  });
+
   test('devtools readmes keep output path and output format separate', () {
     final readme = File(
       '$root/packages/flutter_cockpit_devtools/README.md',

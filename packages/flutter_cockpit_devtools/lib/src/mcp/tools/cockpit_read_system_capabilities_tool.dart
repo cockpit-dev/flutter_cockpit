@@ -3,9 +3,10 @@ import '../cockpit_mcp_tool.dart';
 
 final class CockpitReadSystemCapabilitiesTool extends CockpitMcpTool {
   CockpitReadSystemCapabilitiesTool({
-    CockpitSystemControlService service = const CockpitSystemControlService(),
+    CockpitSystemControlService? service,
     CockpitSystemControlDescribeFunction? describe,
-  }) : _describe = describe ?? service.describe;
+  }) : _describe =
+           describe ?? (service ?? CockpitSystemControlService()).describe;
 
   final CockpitSystemControlDescribeFunction _describe;
 

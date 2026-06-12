@@ -277,6 +277,42 @@ void main() {
     },
   );
 
+  test(
+    'ios simulator stabilizeForScreenshot treats auto appearance and orientation as unchanged',
+    () async {
+      final processManager = _FakeProcessManager();
+      final service = CockpitSystemControlActionService(
+        processManager: processManager,
+        systemControlService: CockpitSystemControlService(
+          iosWdaEndpointProbe: (_, {required timeout}) async => false,
+        ),
+      );
+
+      final result = await service.run(
+        const CockpitSystemControlActionRequest(
+          platform: 'ios',
+          deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+          appId: 'dev.cockpit.example',
+          action: CockpitSystemControlAction.stabilizeForScreenshot,
+          parameters: <String, Object?>{
+            'orientation': 'auto',
+            'appearance': 'auto',
+            'statusBar': 'stable',
+          },
+        ),
+      );
+
+      expect(result.success, isTrue);
+      final commands = processManager.starts
+          .map((start) => '${start.executable} ${start.arguments.join(' ')}')
+          .join('\n');
+      expect(commands, isNot(contains('simctl ui')));
+      expect(commands, isNot(contains('orientation')));
+      expect(commands, contains('simctl status_bar'));
+      expect(commands, contains('simctl launch'));
+    },
+  );
+
   test('ios simulator pressHome executes through WebDriverAgent', () async {
     CockpitIosWdaCommand? capturedCommand;
     final service = CockpitSystemControlActionService(
@@ -2278,6 +2314,38 @@ void main() {
     ]);
   });
 
+  test(
+    'ios simulator runShell uses a login-free shell for PATH commands',
+    () async {
+      final processManager = _FakeProcessManager();
+      final service = CockpitSystemControlActionService(
+        processManager: processManager,
+      );
+
+      final result = await service.run(
+        const CockpitSystemControlActionRequest(
+          platform: 'ios',
+          deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+          action: CockpitSystemControlAction.runShell,
+          parameters: <String, Object?>{
+            'command': <String>['echo', 'hello world'],
+          },
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(result.command, <String>[
+        'xcrun',
+        'simctl',
+        'spawn',
+        '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+        '/bin/sh',
+        '-lc',
+        "'echo' 'hello world'",
+      ]);
+    },
+  );
+
   test('macos setClipboard writes through pbcopy without app target', () async {
     final processManager = _FakeProcessManager();
     final service = CockpitSystemControlActionService(
@@ -2469,7 +2537,7 @@ void main() {
   });
 
   test('timed out command returns structured action failure', () async {
-    final service = CockpitSystemControlActionService(
+    final service = _actionServiceWithReachableAndroid(
       processManager: _HangingProcessManager(),
     );
 
@@ -2499,7 +2567,7 @@ void main() {
   });
 
   test('process startup failure returns structured action failure', () async {
-    final service = CockpitSystemControlActionService(
+    final service = _actionServiceWithReachableAndroid(
       processManager: _ThrowingProcessManager(),
     );
 
@@ -2541,7 +2609,7 @@ void main() {
       await sourceFile.writeAsBytes(<int>[137, 80, 78, 71]);
       final outputFile = File('${tempDir.path}/copied.png');
       final processManager = _FakeProcessManager();
-      final service = CockpitSystemControlActionService(
+      final service = _actionServiceWithReachableAndroid(
         processManager: processManager,
         captureAdapterFactory: (_) => _FakeCaptureAdapter(sourceFile),
       );
@@ -2570,7 +2638,7 @@ void main() {
     'captureScreenshot rejects non-string name before adapter capture',
     () async {
       final captureAdapter = _CountingCaptureAdapter();
-      final service = CockpitSystemControlActionService(
+      final service = _actionServiceWithReachableAndroid(
         captureAdapterFactory: (_) => captureAdapter,
       );
 
@@ -2594,7 +2662,7 @@ void main() {
     'captureScreenshot rejects non-string outputPath before adapter capture',
     () async {
       final captureAdapter = _CountingCaptureAdapter();
-      final service = CockpitSystemControlActionService(
+      final service = _actionServiceWithReachableAndroid(
         captureAdapterFactory: (_) => captureAdapter,
       );
 
@@ -2617,7 +2685,7 @@ void main() {
   );
 
   test('captureScreenshot adapter failure returns structured result', () async {
-    final service = CockpitSystemControlActionService(
+    final service = _actionServiceWithReachableAndroid(
       captureAdapterFactory: (_) => const _FailingCaptureAdapter(),
     );
 
@@ -2638,7 +2706,7 @@ void main() {
   test(
     'captureScreenshot fails when an adapter reports success without a source file',
     () async {
-      final service = CockpitSystemControlActionService(
+      final service = _actionServiceWithReachableAndroid(
         captureAdapterFactory: (_) => const _MissingArtifactCaptureAdapter(),
       );
 
@@ -2661,7 +2729,7 @@ void main() {
     () async {
       final processManager = _FakeProcessManager();
       final recordingAdapter = _FakeRecordingAdapter();
-      final service = CockpitSystemControlActionService(
+      final service = _actionServiceWithReachableAndroid(
         processManager: processManager,
         recordingAdapterFactory: (_) => recordingAdapter,
       );
@@ -2689,7 +2757,7 @@ void main() {
 
   test('startRecording rejects non-string name before adapter start', () async {
     final recordingAdapter = _FakeRecordingAdapter();
-    final service = CockpitSystemControlActionService(
+    final service = _actionServiceWithReachableAndroid(
       recordingAdapterFactory: (_) => recordingAdapter,
     );
 
@@ -2710,7 +2778,7 @@ void main() {
 
   test('startRecording rejects unsupported recording mode', () async {
     final recordingAdapter = _FakeRecordingAdapter();
-    final service = CockpitSystemControlActionService(
+    final service = _actionServiceWithReachableAndroid(
       recordingAdapterFactory: (_) => recordingAdapter,
     );
 
@@ -2731,7 +2799,7 @@ void main() {
 
   test('startRecording rejects purpose aliases outside metadata', () async {
     final recordingAdapter = _FakeRecordingAdapter();
-    final service = CockpitSystemControlActionService(
+    final service = _actionServiceWithReachableAndroid(
       recordingAdapterFactory: (_) => recordingAdapter,
     );
 
@@ -2752,7 +2820,7 @@ void main() {
 
   test('startRecording rejects layer aliases outside metadata', () async {
     final recordingAdapter = _FakeRecordingAdapter();
-    final service = CockpitSystemControlActionService(
+    final service = _actionServiceWithReachableAndroid(
       recordingAdapterFactory: (_) => recordingAdapter,
     );
 
@@ -2774,7 +2842,7 @@ void main() {
   test('stopRecording returns completed adapter artifact', () async {
     final processManager = _FakeProcessManager();
     final recordingAdapter = _FakeRecordingAdapter();
-    final service = CockpitSystemControlActionService(
+    final service = _actionServiceWithReachableAndroid(
       processManager: processManager,
       recordingAdapterFactory: (_) => recordingAdapter,
     );
@@ -2798,7 +2866,7 @@ void main() {
     'stopRecording rejects non-string outputPath before adapter stop',
     () async {
       final recordingAdapter = _FakeRecordingAdapter();
-      final service = CockpitSystemControlActionService(
+      final service = _actionServiceWithReachableAndroid(
         recordingAdapterFactory: (_) => recordingAdapter,
       );
 
@@ -2832,7 +2900,7 @@ void main() {
       final sourceFile = File('${tempDir.path}/source.mp4');
       await sourceFile.writeAsBytes(<int>[0, 0, 0, 24, 102, 116, 121, 112]);
       final outputFile = File('${tempDir.path}/copied.mp4');
-      final service = CockpitSystemControlActionService(
+      final service = _actionServiceWithReachableAndroid(
         recordingAdapterFactory: (_) =>
             _FakeRecordingAdapter(sourceFilePath: sourceFile.path),
       );
@@ -2875,7 +2943,7 @@ void main() {
       });
       final sourceFile = File('${tempDir.path}/source.mp4');
       await sourceFile.writeAsBytes(<int>[0, 0, 0, 24, 102, 116, 116, 121]);
-      final service = CockpitSystemControlActionService(
+      final service = _actionServiceWithReachableAndroid(
         recordingAdapterFactory: (_) =>
             _FakeRecordingAdapter(sourceFilePath: sourceFile.path),
       );
@@ -2907,7 +2975,7 @@ void main() {
   test(
     'stopRecording fails when an adapter reports completion without a source file',
     () async {
-      final service = CockpitSystemControlActionService(
+      final service = _actionServiceWithReachableAndroid(
         recordingAdapterFactory: (_) =>
             _FakeRecordingAdapter(sourceFilePath: null),
       );
@@ -2928,7 +2996,7 @@ void main() {
   );
 
   test('stopRecording adapter failure returns structured result', () async {
-    final service = CockpitSystemControlActionService(
+    final service = _actionServiceWithReachableAndroid(
       recordingAdapterFactory: (_) => const _FailingRecordingAdapter(),
     );
 
@@ -2945,6 +3013,24 @@ void main() {
     expect(result.recommendedNextStep, 'inspectRecordingFailure');
     expect(result.errorMessage, contains('No active recording session'));
   });
+}
+
+CockpitSystemControlActionService _actionServiceWithReachableAndroid({
+  CockpitProcessManager? processManager,
+  CockpitSystemControlCaptureAdapterFactory? captureAdapterFactory,
+  CockpitSystemControlRecordingAdapterFactory? recordingAdapterFactory,
+}) {
+  return CockpitSystemControlActionService(
+    processManager: processManager,
+    systemControlService: CockpitSystemControlService(
+      processManager: processManager,
+      androidDeviceStateProbe: (_, {required timeout}) async {
+        return const CockpitAndroidDeviceProbeResult.reachable('device');
+      },
+    ),
+    captureAdapterFactory: captureAdapterFactory,
+    recordingAdapterFactory: recordingAdapterFactory,
+  );
 }
 
 final class _CountingCaptureAdapter implements CockpitCaptureAdapter {
@@ -3075,7 +3161,15 @@ final class _FakeProcessManager implements CockpitProcessManager {
     Encoding? stdoutEncoding,
     Encoding? stderrEncoding,
   }) {
-    throw UnimplementedError();
+    if (executable == 'adb' &&
+        arguments.length == 3 &&
+        arguments[0] == '-s' &&
+        arguments[2] == 'get-state') {
+      return Future<ProcessResult>.value(ProcessResult(0, 0, 'device\n', ''));
+    }
+    throw UnimplementedError(
+      'Unexpected run: $executable ${arguments.join(' ')}',
+    );
   }
 
   @override

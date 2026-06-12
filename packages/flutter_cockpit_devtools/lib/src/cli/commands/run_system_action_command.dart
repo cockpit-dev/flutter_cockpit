@@ -4,11 +4,11 @@ import 'dart:io';
 import 'package:args/command_runner.dart';
 
 import '../../application/cockpit_app_handle.dart';
-import '../../session/cockpit_platform_app_identity.dart';
 import '../../system_control/cockpit_system_control_action_service.dart';
 import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
+import '../cockpit_system_control_cli_support.dart';
 
 final class RunSystemActionCommand extends CockpitCliCommand {
   RunSystemActionCommand({
@@ -342,25 +342,11 @@ final class RunSystemActionCommand extends CockpitCliCommand {
   }
 
   Future<String?> _resolveAppId(CockpitAppHandle? app, String platform) async {
-    final explicit = argResults?['app-id'] as String?;
-    if (explicit != null && explicit.trim().isNotEmpty) {
-      return explicit.trim();
-    }
-    final appPlatformId = app?.platformAppId?.trim();
-    if (appPlatformId != null && appPlatformId.isNotEmpty) {
-      return appPlatformId;
-    }
-    if (app == null) {
-      return null;
-    }
-    try {
-      return await cockpitResolvePlatformAppId(
-        projectDir: app.projectDir,
-        platform: platform,
-      );
-    } on Object {
-      return null;
-    }
+    return cockpitResolveSystemControlAppId(
+      app: app,
+      platform: platform,
+      explicitAppId: argResults?['app-id'] as String?,
+    );
   }
 
   Map<String, Object?> _readMetadata() {

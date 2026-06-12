@@ -254,7 +254,12 @@ final class CockpitRunShellService {
       'ios' => _ResolvedShellExecution(
         scope: 'ios',
         executable: 'xcrun',
-        arguments: <String>['simctl', 'spawn', normalizedDeviceId, ...command],
+        arguments: <String>[
+          'simctl',
+          'spawn',
+          normalizedDeviceId,
+          ..._iosSimulatorShellCommand(command),
+        ],
         command: command,
       ),
       'macos' ||
@@ -278,6 +283,24 @@ final class CockpitRunShellService {
       _ => null,
     };
   }
+}
+
+List<String> _iosSimulatorShellCommand(List<String> command) {
+  if (command.first.startsWith('/')) {
+    return command;
+  }
+  return <String>['/bin/sh', '-lc', _shellCommandLine(command)];
+}
+
+String _shellCommandLine(List<String> command) {
+  return command.map(_shellSingleQuoted).join(' ');
+}
+
+String _shellSingleQuoted(String value) {
+  if (value.isEmpty) {
+    return "''";
+  }
+  return "'${value.replaceAll("'", "'\"'\"'")}'";
 }
 
 String _outputPreview(String output, {int maxChars = 800}) {

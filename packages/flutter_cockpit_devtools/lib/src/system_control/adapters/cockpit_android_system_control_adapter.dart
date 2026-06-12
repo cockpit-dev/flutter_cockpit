@@ -18,13 +18,18 @@ final class CockpitAndroidSystemControlAdapter
   ) {
     final hasDeviceId =
         target.deviceId != null && target.deviceId!.trim().isNotEmpty;
-    final availability = hasDeviceId
+    final deviceReachable = target.metadata['androidDeviceReachable'];
+    final deviceAvailable =
+        hasDeviceId && (deviceReachable is! bool || deviceReachable);
+    final availability = deviceAvailable
         ? CockpitSystemControlAvailability.available
         : CockpitSystemControlAvailability.blocked;
     final isEmulator = (target.deviceId ?? '').startsWith('emulator-');
-    final emulatorAvailability = isEmulator
+    final emulatorAvailability = isEmulator && deviceAvailable
         ? CockpitSystemControlAvailability.available
         : CockpitSystemControlAvailability.blocked;
+    final deviceRequires = _deviceRequires(target);
+    final emulatorRequires = _emulatorRequires(target);
     return CockpitSystemControlProfile(
       platform: platform,
       deviceId: target.deviceId,
@@ -44,7 +49,7 @@ final class CockpitAndroidSystemControlAdapter
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.shell.input.tap',
-          requires: <String>['adb', 'device id'],
+          requires: deviceRequires,
           limitations: <String>['coordinate input has no semantic locator'],
           parameters: CockpitSystemControlParameterSets.coordinate,
         ),
@@ -53,7 +58,7 @@ final class CockpitAndroidSystemControlAdapter
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.shell.input.swipe.hold',
-          requires: <String>['adb', 'device id'],
+          requires: deviceRequires,
           limitations: <String>['coordinate input has no semantic locator'],
           parameters: CockpitSystemControlParameterSets.longPress,
         ),
@@ -62,7 +67,7 @@ final class CockpitAndroidSystemControlAdapter
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.shell.input.swipe',
-          requires: <String>['adb', 'device id'],
+          requires: deviceRequires,
           parameters: CockpitSystemControlParameterSets.drag,
         ),
         CockpitSystemControlCapability(
@@ -70,7 +75,7 @@ final class CockpitAndroidSystemControlAdapter
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.shell.input.text',
-          requires: <String>['adb', 'device id'],
+          requires: deviceRequires,
           limitations: <String>['text must be escaped for adb input'],
           parameters: CockpitSystemControlParameterSets.text,
         ),
@@ -79,7 +84,7 @@ final class CockpitAndroidSystemControlAdapter
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.shell.input.keyevent',
-          requires: <String>['adb', 'device id', 'key name'],
+          requires: <String>[...deviceRequires, 'key name'],
           parameters: CockpitSystemControlParameterSets.key,
         ),
         CockpitSystemControlCapability(
@@ -87,42 +92,42 @@ final class CockpitAndroidSystemControlAdapter
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.shell.input.keyevent.KEYCODE_BACK',
-          requires: <String>['adb', 'device id'],
+          requires: deviceRequires,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.pressHome,
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.shell.input.keyevent.KEYCODE_HOME',
-          requires: <String>['adb', 'device id'],
+          requires: deviceRequires,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.pressVolumeUp,
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.shell.input.keyevent.KEYCODE_VOLUME_UP',
-          requires: <String>['adb', 'device id'],
+          requires: deviceRequires,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.pressVolumeDown,
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.shell.input.keyevent.KEYCODE_VOLUME_DOWN',
-          requires: <String>['adb', 'device id'],
+          requires: deviceRequires,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.pressVolumeMute,
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.shell.input.keyevent.KEYCODE_VOLUME_MUTE',
-          requires: <String>['adb', 'device id'],
+          requires: deviceRequires,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.activateWindow,
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.shell.monkey.launcher',
-          requires: <String>['adb', 'device id', 'package id'],
+          requires: <String>[...deviceRequires, 'package id'],
           parameters: CockpitSystemControlParameterSets.androidApp,
         ),
         CockpitSystemControlCapability(
@@ -130,7 +135,7 @@ final class CockpitAndroidSystemControlAdapter
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.shell.am.force-stop',
-          requires: <String>['adb', 'device id', 'package id'],
+          requires: <String>[...deviceRequires, 'package id'],
           parameters: CockpitSystemControlParameterSets.androidApp,
         ),
         CockpitSystemControlCapability(
@@ -138,7 +143,7 @@ final class CockpitAndroidSystemControlAdapter
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.install',
-          requires: <String>['adb', 'device id', 'apk path'],
+          requires: <String>[...deviceRequires, 'apk path'],
           parameters: CockpitSystemControlParameterSets.installApp,
         ),
         CockpitSystemControlCapability(
@@ -146,7 +151,7 @@ final class CockpitAndroidSystemControlAdapter
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.uninstall',
-          requires: <String>['adb', 'device id', 'package id'],
+          requires: <String>[...deviceRequires, 'package id'],
           parameters: CockpitSystemControlParameterSets.uninstallApp,
         ),
         CockpitSystemControlCapability(
@@ -154,7 +159,7 @@ final class CockpitAndroidSystemControlAdapter
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.shell.pm.clear',
-          requires: <String>['adb', 'device id', 'package id'],
+          requires: <String>[...deviceRequires, 'package id'],
           limitations: <String>[
             'Clears all app data and cache on the emulator/device.',
           ],
@@ -165,7 +170,7 @@ final class CockpitAndroidSystemControlAdapter
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.uiautomator.permission-button',
-          requires: <String>['adb', 'device id'],
+          requires: deviceRequires,
           limitations: <String>[
             'Matches common Android permission and system dialog button ids/text; custom OEM dialogs may still require coordinate or semantic fallback.',
           ],
@@ -179,7 +184,7 @@ final class CockpitAndroidSystemControlAdapter
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.shell.input.keyevent.KEYCODE_BACK',
-          requires: <String>['adb', 'device id'],
+          requires: deviceRequires,
           limitations: <String>[
             'Back dismisses the current IME when it is visible; otherwise it may navigate back.',
           ],
@@ -192,7 +197,11 @@ final class CockpitAndroidSystemControlAdapter
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.shell.pm.grant',
-          requires: <String>['adb', 'package id', 'permission name'],
+          requires: <String>[
+            ...deviceRequires,
+            'package id',
+            'permission name',
+          ],
           parameters: CockpitSystemControlParameterSets.androidGrantPermission,
         ),
         CockpitSystemControlCapability(
@@ -200,7 +209,11 @@ final class CockpitAndroidSystemControlAdapter
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.shell.pm.revoke',
-          requires: <String>['adb', 'package id', 'permission name'],
+          requires: <String>[
+            ...deviceRequires,
+            'package id',
+            'permission name',
+          ],
           parameters: CockpitSystemControlParameterSets.androidRevokePermission,
         ),
         CockpitSystemControlCapability(
@@ -208,7 +221,7 @@ final class CockpitAndroidSystemControlAdapter
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.shell.pm.reset-permissions-or-revoke',
-          requires: <String>['adb', 'package id'],
+          requires: <String>[...deviceRequires, 'package id'],
           limitations: <String>[
             'When permission is omitted, pm reset-permissions support depends on Android API level. Prefer explicit permission for deterministic app-scoped reset.',
           ],
@@ -219,7 +232,7 @@ final class CockpitAndroidSystemControlAdapter
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'macro.adb.permissions+recover',
-          requires: <String>['adb', 'device id', 'package id'],
+          requires: <String>[...deviceRequires, 'package id'],
           limitations: <String>[
             'Executes grant, revoke, or reset for each declared permission and can restore app focus afterwards.',
           ],
@@ -236,7 +249,7 @@ final class CockpitAndroidSystemControlAdapter
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.shell.am.start.VIEW',
-          requires: <String>['adb', 'device id'],
+          requires: deviceRequires,
           parameters: CockpitSystemControlParameterSets.url,
         ),
         CockpitSystemControlCapability(
@@ -244,7 +257,7 @@ final class CockpitAndroidSystemControlAdapter
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.shell.am.start.android.settings.SETTINGS',
-          requires: <String>['adb', 'device id'],
+          requires: deviceRequires,
           parameters: CockpitSystemControlParameterSets.systemSettings,
           limitations: <String>[
             'Use settingsAction for a custom android.settings.* action; default opens the main Settings app.',
@@ -255,7 +268,7 @@ final class CockpitAndroidSystemControlAdapter
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.shell.cmd.uimode.night',
-          requires: <String>['adb', 'device id', 'appearance mode'],
+          requires: <String>[...deviceRequires, 'appearance mode'],
           limitations: <String>[
             'Uses Android UiModeManager night mode; OEM behavior can vary.',
           ],
@@ -266,7 +279,7 @@ final class CockpitAndroidSystemControlAdapter
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.shell.settings.put.system.font_scale',
-          requires: <String>['adb', 'device id', 'content size or font scale'],
+          requires: <String>[...deviceRequires, 'content size or font scale'],
           limitations: <String>[
             'Applies the system font scale and can affect all apps on the device.',
           ],
@@ -277,12 +290,7 @@ final class CockpitAndroidSystemControlAdapter
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: emulatorAvailability,
           strategy: 'adb.emu.geo.fix',
-          requires: <String>[
-            'adb',
-            'Android emulator id',
-            'latitude',
-            'longitude',
-          ],
+          requires: <String>[...emulatorRequires, 'latitude', 'longitude'],
           limitations: <String>[
             'adb emu geo fix is emulator-only; physical devices require app-specific mock-location setup.',
           ],
@@ -293,7 +301,7 @@ final class CockpitAndroidSystemControlAdapter
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.shell.settings.user_rotation',
-          requires: <String>['adb', 'device id', 'orientation'],
+          requires: <String>[...deviceRequires, 'orientation'],
           limitations: <String>[
             'Changes the device-wide rotation setting; use auto to restore sensor rotation.',
           ],
@@ -304,7 +312,7 @@ final class CockpitAndroidSystemControlAdapter
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: emulatorAvailability,
           strategy: 'adb.emu.network.speed',
-          requires: <String>['adb', 'Android emulator id', 'network speed'],
+          requires: <String>[...emulatorRequires, 'network speed'],
           limitations: <String>[
             'Android emulator console network speed is emulator-only.',
           ],
@@ -315,7 +323,7 @@ final class CockpitAndroidSystemControlAdapter
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: emulatorAvailability,
           strategy: 'adb.emu.network.delay',
-          requires: <String>['adb', 'Android emulator id', 'network delay'],
+          requires: <String>[...emulatorRequires, 'network delay'],
           limitations: <String>[
             'Android emulator console network delay is emulator-only.',
           ],
@@ -344,28 +352,28 @@ final class CockpitAndroidSystemControlAdapter
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.shell.cmd.statusbar.expand-notifications',
-          requires: <String>['adb', 'device id'],
+          requires: deviceRequires,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.expandQuickSettings,
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.shell.cmd.statusbar.expand-settings',
-          requires: <String>['adb', 'device id'],
+          requires: deviceRequires,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.collapseSystemUi,
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.shell.cmd.statusbar.collapse',
-          requires: <String>['adb', 'device id'],
+          requires: deviceRequires,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.postNotification,
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.shell.cmd.notification.post',
-          requires: <String>['adb', 'device id'],
+          requires: deviceRequires,
           limitations: <String>[
             'Posts from the Android shell package; use app notification flows to validate production notification handling.',
           ],
@@ -376,7 +384,7 @@ final class CockpitAndroidSystemControlAdapter
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.shell.cmd.statusbar.collapse',
-          requires: <String>['adb', 'device id'],
+          requires: deviceRequires,
           limitations: <String>[
             'Android shell has no stable public clear-all-notifications command; this collapses system UI after notification assertions.',
           ],
@@ -386,7 +394,7 @@ final class CockpitAndroidSystemControlAdapter
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.statusbar.expand+uiautomator.notification-tap',
-          requires: <String>['adb', 'device id', 'visible notification text'],
+          requires: <String>[...deviceRequires, 'visible notification text'],
           limitations: <String>[
             'Matches visible notification text after expanding the shade; OEM notification layouts may require coordinate fallback.',
           ],
@@ -401,7 +409,7 @@ final class CockpitAndroidSystemControlAdapter
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.statusbar.collapse+monkey.launcher',
-          requires: <String>['adb', 'device id', 'package id'],
+          requires: <String>[...deviceRequires, 'package id'],
           limitations: <String>[
             'Brings the app launcher activity forward without clearing app data or killing the process.',
           ],
@@ -412,7 +420,7 @@ final class CockpitAndroidSystemControlAdapter
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.dismiss-dialog+keyboard+statusbar+recover-app',
-          requires: <String>['adb', 'device id', 'package id'],
+          requires: <String>[...deviceRequires, 'package id'],
           limitations: <String>[
             'Handles common permission dialogs, IME focus, and notification shade blockers before restoring the app.',
           ],
@@ -428,7 +436,7 @@ final class CockpitAndroidSystemControlAdapter
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'macro.adb.stabilize-screenshot',
-          requires: <String>['adb', 'device id'],
+          requires: deviceRequires,
           limitations: <String>[
             'Executes available keyboard, system UI, orientation, appearance, and app recovery actions before screenshot evidence.',
           ],
@@ -470,7 +478,7 @@ final class CockpitAndroidSystemControlAdapter
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.push',
-          requires: <String>['adb', 'device id'],
+          requires: deviceRequires,
           parameters: CockpitSystemControlParameterSets.fileTransfer,
         ),
         CockpitSystemControlCapability(
@@ -478,7 +486,7 @@ final class CockpitAndroidSystemControlAdapter
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.pull',
-          requires: <String>['adb', 'device id'],
+          requires: deviceRequires,
           parameters: CockpitSystemControlParameterSets.fileTransfer,
         ),
         CockpitSystemControlCapability(
@@ -486,7 +494,7 @@ final class CockpitAndroidSystemControlAdapter
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.push+media-scan',
-          requires: <String>['adb', 'device id'],
+          requires: deviceRequires,
           parameters: CockpitSystemControlParameterSets.androidAddMedia,
         ),
         CockpitSystemControlCapability(
@@ -494,7 +502,7 @@ final class CockpitAndroidSystemControlAdapter
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.exec-out.screencap',
-          requires: <String>['adb', 'device id'],
+          requires: deviceRequires,
           parameters: CockpitSystemControlParameterSets.screenshot,
         ),
         CockpitSystemControlCapability(
@@ -502,7 +510,7 @@ final class CockpitAndroidSystemControlAdapter
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.shell.screenrecord',
-          requires: <String>['adb', 'device id'],
+          requires: deviceRequires,
           limitations: <String>['Android screenrecord has duration limits'],
           parameters: CockpitSystemControlParameterSets.startRecording,
         ),
@@ -511,7 +519,7 @@ final class CockpitAndroidSystemControlAdapter
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.shell.screenrecord.stop-and-pull',
-          requires: <String>['adb', 'device id', 'active recording session'],
+          requires: <String>[...deviceRequires, 'active recording session'],
           parameters: CockpitSystemControlParameterSets.stopRecording,
         ),
         CockpitSystemControlCapability(
@@ -519,56 +527,56 @@ final class CockpitAndroidSystemControlAdapter
           plane: CockpitPlaneKind.nativeUiPlane,
           availability: availability,
           strategy: 'adb.shell.uiautomator.dump',
-          requires: <String>['adb', 'device id'],
+          requires: deviceRequires,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.readProcessList,
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.shell.ps',
-          requires: <String>['adb', 'device id'],
+          requires: deviceRequires,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.readWindows,
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.shell.dumpsys.window.windows',
-          requires: <String>['adb', 'device id'],
+          requires: deviceRequires,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.readSystemState,
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.shell.dumpsys',
-          requires: <String>['adb', 'device id'],
+          requires: deviceRequires,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.readDeviceInfo,
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.shell.getprop+wm+settings',
-          requires: <String>['adb', 'device id'],
+          requires: deviceRequires,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.readFocusState,
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.shell.dumpsys.window+input_method',
-          requires: <String>['adb', 'device id'],
+          requires: deviceRequires,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.readNotificationState,
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.shell.dumpsys.notification',
-          requires: <String>['adb', 'device id'],
+          requires: deviceRequires,
         ),
         CockpitSystemControlCapability(
           action: CockpitSystemControlAction.runShell,
           plane: CockpitPlaneKind.deviceSystemPlane,
           availability: availability,
           strategy: 'adb.shell',
-          requires: <String>['adb', 'device id'],
+          requires: deviceRequires,
           parameters: CockpitSystemControlParameterSets.shellCommand,
         ),
       ],
@@ -1747,5 +1755,28 @@ exit 0
 
   String _shellSingleQuoted(String value) {
     return "'${value.replaceAll("'", r"""'"'"'""")}'";
+  }
+
+  List<String> _deviceRequires(CockpitSystemControlTargetContext target) {
+    final requires = <String>['adb', 'device id'];
+    final reachable = target.metadata['androidDeviceReachable'];
+    if (reachable == false) {
+      requires.add('reachable adb device');
+      final state = target.metadata['androidDeviceState'];
+      if (state is String && state.trim().isNotEmpty) {
+        requires.add('adb get-state=device (current: ${state.trim()})');
+      }
+      final reason = target.metadata['androidDeviceFailureReason'];
+      if (reason is String && reason.trim().isNotEmpty) {
+        requires.add(reason.trim());
+      }
+    }
+    return requires;
+  }
+
+  List<String> _emulatorRequires(CockpitSystemControlTargetContext target) {
+    final requires = _deviceRequires(target);
+    requires.add('Android emulator id');
+    return requires;
   }
 }

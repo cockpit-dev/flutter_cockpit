@@ -287,7 +287,7 @@ final class CockpitMcpServer {
       registry: sessionRegistry,
     );
     final runShellService = CockpitRunShellService();
-    const systemControlService = CockpitSystemControlService();
+    final systemControlService = CockpitSystemControlService();
     final systemControlActionService = CockpitSystemControlActionService(
       systemControlService: systemControlService,
     );

@@ -1,11 +1,15 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter_cockpit/flutter_cockpit.dart';
+import 'package:flutter_cockpit_devtools/src/infrastructure/cockpit_process_manager.dart';
 import 'package:flutter_cockpit_devtools/src/system_control/cockpit_system_control_adapter.dart';
 import 'package:flutter_cockpit_devtools/src/system_control/cockpit_system_control_service.dart';
 import 'package:test/test.dart';
 
 void main() {
   test('android profile reports executable adb system controls', () async {
-    final service = CockpitSystemControlService();
+    final service = _serviceWithReachableAndroid();
 
     final result = await service.describe(
       const CockpitSystemControlDescribeRequest(
@@ -124,6 +128,57 @@ void main() {
       result.profile.capabilityFor(CockpitSystemControlAction.tap)?.requires,
       contains('device id'),
     );
+  });
+
+  test(
+    'android profile blocks device actions when adb reports offline',
+    () async {
+      final service = CockpitSystemControlService(
+        androidDeviceStateProbe: (_, {required timeout}) async {
+          return const CockpitAndroidDeviceProbeResult.blocked(
+            state: 'offline',
+            failureReason: 'device offline',
+          );
+        },
+      );
+
+      final result = await service.describe(
+        const CockpitSystemControlDescribeRequest(
+          platform: 'android',
+          deviceId: 'emulator-5554',
+        ),
+      );
+
+      expect(
+        result.profile.blockedActions,
+        contains(CockpitSystemControlAction.tap),
+      );
+      expect(
+        result.profile.availableActions,
+        isNot(contains(CockpitSystemControlAction.tap)),
+      );
+      expect(result.metadata['androidDeviceReachable'], isFalse);
+      expect(
+        result.profile.capabilityFor(CockpitSystemControlAction.tap)?.requires,
+        containsAll(<String>[
+          'reachable adb device',
+          'adb get-state=device (current: offline)',
+          'device offline',
+        ]),
+      );
+    },
+  );
+
+  test('android device probe decodes byte stderr from adb failures', () async {
+    final probe = await cockpitProbeAndroidDeviceState(
+      _AdbByteStderrProcessManager(),
+      'emulator-5554',
+      timeout: const Duration(seconds: 1),
+    );
+
+    expect(probe.reachable, isFalse);
+    expect(probe.state, isNull);
+    expect(probe.failureReason, "error: device 'emulator-5554' not found");
   });
 
   test(
@@ -331,7 +386,7 @@ void main() {
   test(
     'android readFocusState is advertised as a parameterless inspection action',
     () async {
-      final service = CockpitSystemControlService();
+      final service = _serviceWithReachableAndroid();
 
       final result = await service.describe(
         const CockpitSystemControlDescribeRequest(
@@ -413,6 +468,9 @@ void main() {
   test('WebDriverAgent auto-discovery only runs for iOS', () async {
     var probeCount = 0;
     final service = CockpitSystemControlService(
+      androidDeviceStateProbe: (_, {required timeout}) async {
+        return const CockpitAndroidDeviceProbeResult.reachable('device');
+      },
       iosWdaEndpointProbe: (_, {required timeout}) async {
         probeCount += 1;
         return true;
@@ -924,6 +982,48 @@ void main() {
       );
     }
   });
+}
+
+final class _AdbByteStderrProcessManager implements CockpitProcessManager {
+  @override
+  Future<ProcessResult> run(
+    String executable,
+    List<String> arguments, {
+    String? workingDirectory,
+    Map<String, String>? environment,
+    bool includeParentEnvironment = true,
+    bool runInShell = false,
+    Encoding? stdoutEncoding,
+    Encoding? stderrEncoding,
+  }) async {
+    return ProcessResult(
+      0,
+      1,
+      const <int>[],
+      "error: device 'emulator-5554' not found".codeUnits,
+    );
+  }
+
+  @override
+  Future<Process> start(
+    String executable,
+    List<String> arguments, {
+    String? workingDirectory,
+    Map<String, String>? environment,
+    bool includeParentEnvironment = true,
+    bool runInShell = false,
+    ProcessStartMode mode = ProcessStartMode.normal,
+  }) {
+    throw UnimplementedError('start is not used by this test.');
+  }
+}
+
+CockpitSystemControlService _serviceWithReachableAndroid() {
+  return CockpitSystemControlService(
+    androidDeviceStateProbe: (_, {required timeout}) async {
+      return const CockpitAndroidDeviceProbeResult.reachable('device');
+    },
+  );
 }
 
 bool _isEvidenceAction(CockpitSystemControlAction action) {

@@ -53,7 +53,11 @@ final class CockpitSystemControlActionService {
        _registry = registry,
        _systemControlService =
            systemControlService ??
-           CockpitSystemControlService(registry: registry),
+           CockpitSystemControlService(
+             processManager:
+                 processManager ?? const LocalCockpitProcessManager(),
+             registry: registry,
+           ),
        _captureAdapterFactory =
            captureAdapterFactory ?? _defaultCaptureAdapterFor,
        _recordingAdapterFactory =
@@ -418,7 +422,7 @@ final class CockpitSystemControlActionService {
         ),
       );
     }
-    if (orientation.value != null) {
+    if (orientation.value != null && orientation.value != 'auto') {
       steps.add(
         _SystemMacroStep(
           action: CockpitSystemControlAction.setOrientation,
@@ -427,7 +431,7 @@ final class CockpitSystemControlActionService {
         ),
       );
     }
-    if (appearance.value != null) {
+    if (appearance.value != null && appearance.value != 'auto') {
       steps.add(
         _SystemMacroStep(
           action: CockpitSystemControlAction.setAppearance,

@@ -102,6 +102,71 @@ void main() {
     },
   );
 
+  testWidgets(
+    'semanticId locator matches Semantics.identifier before label text',
+    (tester) async {
+      FlutterCockpit.initialize(
+        const FlutterCockpitConfiguration(initialRouteName: '/'),
+      );
+
+      final rootKey = GlobalKey<FlutterCockpitRootState>();
+      var tapCount = 0;
+
+      await tester.pumpWidget(
+        FlutterCockpitRoot(
+          key: rootKey,
+          child: MaterialApp(
+            navigatorObservers: <NavigatorObserver>[
+              FlutterCockpit.navigatorObserver,
+            ],
+            home: Scaffold(
+              body: Semantics(
+                identifier: 'activity.open.latest',
+                label: 'Latest recording',
+                button: true,
+                child: TextButton(
+                  onPressed: () => tapCount += 1,
+                  child: const Text('Open'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final live = rootKey.currentState!.snapshot();
+      expect(
+        live.visibleTargets.map((target) => target.semanticId),
+        contains('activity.open.latest'),
+      );
+
+      final executor = InAppCockpitCommandExecutor(
+        registry: FlutterCockpit.binding.registry,
+        snapshotProvider: rootKey.currentState!.snapshot,
+      );
+
+      final result = await executor.execute(
+        CockpitCommand(
+          commandId: 'tap-latest-activity',
+          commandType: CockpitCommandType.tap,
+          locator: const CockpitLocator(semanticId: 'activity.open.latest'),
+        ),
+      );
+      await tester.pump();
+
+      expect(result.success, isTrue);
+      expect(tapCount, 1);
+      expect(
+        result.locatorResolution,
+        const CockpitLocatorResolution(
+          matchedKind: CockpitLocatorKind.semanticId,
+          matchedValue: 'activity.open.latest',
+        ),
+      );
+    },
+  );
+
   testWidgets('FlutterCockpitRoot can escalate snapshot detail on demand', (
     tester,
   ) async {

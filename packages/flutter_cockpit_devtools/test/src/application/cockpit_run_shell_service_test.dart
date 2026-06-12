@@ -147,9 +147,9 @@ void main() {
         'simctl',
         'spawn',
         'A1B2C3D4-0000-1111-2222-333344445555',
-        'defaults',
-        'read',
-        'com.apple.Preferences',
+        '/bin/sh',
+        '-lc',
+        "'defaults' 'read' 'com.apple.Preferences'",
       ]);
       expect(result.scope, 'ios');
       expect(result.success, isTrue);

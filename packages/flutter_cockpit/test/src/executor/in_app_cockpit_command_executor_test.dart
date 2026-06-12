@@ -2919,6 +2919,78 @@ void main() {
   );
 
   testWidgets(
+    'tap direct activation does not fall back to gesture when route expectation fails',
+    (tester) async {
+      final registry = CockpitTargetRegistry(routeName: '/inbox');
+      var directTapCount = 0;
+      var gestureTapCount = 0;
+
+      await tester.pumpWidget(
+        const Directionality(
+          textDirection: TextDirection.ltr,
+          child: SizedBox.shrink(),
+        ),
+      );
+
+      registry.register(
+        CockpitTarget(
+          registrationId: 'open-settings',
+          tooltip: 'Settings',
+          routeName: '/inbox',
+          supportedCommands: const {CockpitCommandType.tap},
+          onTap: () {
+            directTapCount += 1;
+          },
+        ),
+      );
+
+      final executor = InAppCockpitCommandExecutor(
+        registry: registry,
+        waitTickHandler: tester.pump,
+        gestureHandler: (_) async {
+          gestureTapCount += 1;
+          registry.routeName = '/settings';
+        },
+        interactionPolicy: const CockpitInteractionPolicy(
+          preActionVisualDelay: Duration.zero,
+          actionCommitTimeout: Duration(milliseconds: 40),
+          actionVisualDelay: Duration.zero,
+          routeTransitionVisualDelay: Duration.zero,
+          recordingActionVisualDelay: Duration.zero,
+        ),
+      );
+
+      final result = await executor.execute(
+        CockpitCommand(
+          commandId: 'open-settings-direct',
+          commandType: CockpitCommandType.tap,
+          timeoutMs: 30000,
+          locator: const CockpitLocator(tooltip: 'Settings', route: '/inbox'),
+          parameters: const <String, Object?>{
+            'activation': 'direct',
+            'expectedRouteName': '/settings',
+          },
+        ),
+      );
+
+      expect(result.success, isFalse);
+      expect(result.error?.code, CockpitCommandError.timeoutCode);
+      expect(directTapCount, 1);
+      expect(gestureTapCount, 0);
+      expect(registry.routeName, '/inbox');
+      final diagnostics =
+          result.error?.details['failureDiagnostics'] as Map<Object?, Object?>?;
+      expect(diagnostics, containsPair('attemptedActivation', 'direct'));
+      expect(
+        ((result.snapshot?['warnings'] as List<Object?>?) ?? const [])
+            .cast<Map<Object?, Object?>>()
+            .map((warning) => warning['code']),
+        isNot(contains('autoActivationGestureFallback')),
+      );
+    },
+  );
+
+  testWidgets(
     'tap action commit waits use lightweight route state before the final snapshot',
     (tester) async {
       final registry = CockpitTargetRegistry(routeName: '/inbox');

@@ -1336,7 +1336,7 @@ final class CockpitIosSystemControlAdapter
           'simctl',
           'spawn',
           deviceId,
-          ...command,
+          ..._iosSimulatorShellCommand(command),
         ]),
       ),
       CockpitSystemControlAction.readProcessList =>
@@ -1987,6 +1987,24 @@ final class CockpitIosSystemControlAdapter
     }
     return const <String>['booted simulator', 'WebDriverAgent endpoint'];
   }
+}
+
+List<String> _iosSimulatorShellCommand(List<String> command) {
+  if (command.first.startsWith('/')) {
+    return command;
+  }
+  return <String>['/bin/sh', '-lc', _shellCommandLine(command)];
+}
+
+String _shellCommandLine(List<String> command) {
+  return command.map(_shellSingleQuoted).join(' ');
+}
+
+String _shellSingleQuoted(String value) {
+  if (value.isEmpty) {
+    return "''";
+  }
+  return "'${value.replaceAll("'", "'\"'\"'")}'";
 }
 
 enum _IosContainerFileMode { push, pull }

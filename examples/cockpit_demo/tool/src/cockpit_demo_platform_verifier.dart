@@ -487,8 +487,7 @@ final class CockpitDemoPlatformVerifier {
        _timelineRecordingProcessRunner =
            timelineRecordingProcessRunner ?? Process.run,
        _describeSystemControl =
-           describeSystemControl ??
-           const CockpitSystemControlService().describe,
+           describeSystemControl ?? CockpitSystemControlService().describe,
        _runSystemAction =
            runSystemAction ?? CockpitSystemControlActionService().run,
        _isWindows = isWindows ?? Platform.isWindows;
