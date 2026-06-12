@@ -149,6 +149,8 @@ bool _matchesMaterialInteractiveWidget(Element element) {
       widget is CheckboxListTile ||
       widget is Switch ||
       widget is SwitchListTile ||
+      widget is Radio ||
+      widget is RadioListTile ||
       widget is TextField ||
       widget is TextFormField ||
       widget is EditableText ||

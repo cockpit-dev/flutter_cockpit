@@ -134,7 +134,11 @@ final class CockpitStepRecorder {
       usedCaptureFallback: result.usedCaptureFallback,
       degradationReason: result.degradationReason,
       captureRefs: result.artifacts
-          .where((artifact) => artifact.role == 'screenshot')
+          .where(
+            (artifact) =>
+                artifact.role == 'screenshot' ||
+                artifact.role == 'step_screenshot',
+          )
           .toList(growable: false),
     );
   }

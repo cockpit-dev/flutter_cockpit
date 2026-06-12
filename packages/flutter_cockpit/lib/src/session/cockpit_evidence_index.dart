@@ -3,6 +3,7 @@ import '../capture/cockpit_capture_profile.dart';
 import '../control/cockpit_command_status.dart';
 import '../model/cockpit_artifact_ref.dart';
 import '../model/cockpit_step_record.dart';
+import '../recording/cockpit_recording_kind.dart';
 import '../recording/cockpit_recording_purpose.dart';
 
 final class CockpitEvidenceIndex {
@@ -36,11 +37,20 @@ final class CockpitEvidenceIndex {
   final bool deliveryVideoReady;
   final int failureCount;
 
+  static const Set<String> _screenshotRoles = <String>{
+    'screenshot',
+    'step_screenshot',
+  };
+  static const Set<String> _recordingRoles = <String>{'recording'};
+
   factory CockpitEvidenceIndex.fromSteps(List<CockpitStepRecord> steps) {
     final artifactRefs = _dedupeArtifactRefs(steps);
-    final screenshotRefs = _collectArtifactPaths(steps, role: 'screenshot');
+    final screenshotRefs = _collectArtifactPaths(
+      steps,
+      roles: _screenshotRoles,
+    );
     final primaryScreenshotRef = _selectPrimaryScreenshotRef(steps);
-    final recordingRefs = _collectArtifactPaths(steps, role: 'recording');
+    final recordingRefs = _collectArtifactPaths(steps, roles: _recordingRoles);
     final primaryRecordingRef = recordingRefs.isEmpty
         ? ''
         : recordingRefs.first;
@@ -72,7 +82,7 @@ final class CockpitEvidenceIndex {
                   CockpitCaptureProfile.nativePreferred),
     );
     final recordingCount = recordingRefs.length;
-    final nativeRecordingCount = recordingRefs.length;
+    final nativeRecordingCount = _countNativeRecordings(steps);
     final deliveryVideoReady = steps.any(
       (step) =>
           step.artifactRefs.any((artifact) => artifact.role == 'recording') &&
@@ -122,7 +132,7 @@ final class CockpitEvidenceIndex {
 
   static List<String> _collectArtifactPaths(
     List<CockpitStepRecord> steps, {
-    required String role,
+    required Set<String> roles,
   }) {
     final paths = <String>[];
     final seenPaths = <String>{};
@@ -131,13 +141,45 @@ final class CockpitEvidenceIndex {
         ...step.captureRefs,
         ...step.artifactRefs,
       ]) {
-        if (artifact.role != role || !seenPaths.add(artifact.relativePath)) {
+        if (!roles.contains(artifact.role) ||
+            !seenPaths.add(artifact.relativePath)) {
           continue;
         }
         paths.add(artifact.relativePath);
       }
     }
     return List<String>.unmodifiable(paths);
+  }
+
+  static int _countNativeRecordings(List<CockpitStepRecord> steps) {
+    final seenPaths = <String>{};
+    var count = 0;
+    for (final step in steps) {
+      final isNative = _recordsNativeRecording(step);
+      for (final artifact in <CockpitArtifactRef>[
+        ...step.captureRefs,
+        ...step.artifactRefs,
+      ]) {
+        if (!_recordingRoles.contains(artifact.role) ||
+            !seenPaths.add(artifact.relativePath)) {
+          continue;
+        }
+        if (isNative) {
+          count += 1;
+        }
+      }
+    }
+    return count;
+  }
+
+  static bool _recordsNativeRecording(CockpitStepRecord step) {
+    final recordingKind = step.actionArgs['recordingKind'];
+    if (recordingKind is String && recordingKind.isNotEmpty) {
+      return recordingKind == CockpitRecordingKind.nativeScreen.name;
+    }
+    // Recordings without explicit kind metadata come from the native screen
+    // pipeline, the only recording source the runtime ships today.
+    return true;
   }
 
   static String _selectPrimaryScreenshotRef(List<CockpitStepRecord> steps) {
@@ -147,13 +189,19 @@ final class CockpitEvidenceIndex {
               CockpitCaptureProfile.nativePreferred) {
         continue;
       }
-      final screenshotRef = _lastArtifactPathForStep(step, role: 'screenshot');
+      final screenshotRef = _lastArtifactPathForStep(
+        step,
+        roles: _screenshotRoles,
+      );
       if (screenshotRef != null) {
         return screenshotRef;
       }
     }
     for (final step in steps.reversed) {
-      final screenshotRef = _lastArtifactPathForStep(step, role: 'screenshot');
+      final screenshotRef = _lastArtifactPathForStep(
+        step,
+        roles: _screenshotRoles,
+      );
       if (screenshotRef != null) {
         return screenshotRef;
       }
@@ -163,13 +211,13 @@ final class CockpitEvidenceIndex {
 
   static String? _lastArtifactPathForStep(
     CockpitStepRecord step, {
-    required String role,
+    required Set<String> roles,
   }) {
     for (final artifact in <CockpitArtifactRef>[
       ...step.captureRefs.reversed,
       ...step.artifactRefs.reversed,
     ]) {
-      if (artifact.role == role) {
+      if (roles.contains(artifact.role)) {
         return artifact.relativePath;
       }
     }

@@ -28,4 +28,47 @@ void main() {
       DateTime.utc(2026, 3, 30, 10, 0, 0),
     );
   });
+
+  test('captures step_screenshot artifacts as capture evidence', () {
+    final recorder = CockpitStepRecorder(
+      now: () => DateTime.utc(2026, 3, 30, 10, 0, 0),
+      observationAssembler: const CockpitObservationAssembler(),
+    );
+
+    recorder.recordCommandResult(
+      CockpitCommand(
+        commandId: 'cmd-capture',
+        commandType: CockpitCommandType.captureScreenshot,
+      ),
+      CockpitCommandResult(
+        success: true,
+        commandId: 'cmd-capture',
+        commandType: CockpitCommandType.captureScreenshot,
+        durationMs: 12,
+        artifacts: const <CockpitArtifactRef>[
+          CockpitArtifactRef(
+            role: 'screenshot',
+            relativePath: 'screenshots/final.png',
+          ),
+          CockpitArtifactRef(
+            role: 'step_screenshot',
+            relativePath: 'screenshots/step_001.png',
+          ),
+          CockpitArtifactRef(
+            role: 'diagnostics',
+            relativePath: 'diagnostics/final.json',
+          ),
+        ],
+      ),
+    );
+
+    final captureRefs = recorder.steps.single.captureRefs;
+    expect(
+      captureRefs.map((artifact) => artifact.relativePath),
+      unorderedEquals(<String>[
+        'screenshots/final.png',
+        'screenshots/step_001.png',
+      ]),
+    );
+  });
 }

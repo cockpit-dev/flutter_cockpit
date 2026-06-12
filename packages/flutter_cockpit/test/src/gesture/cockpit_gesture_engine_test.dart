@@ -600,6 +600,195 @@ void main() {
 
     expect(latestScale, greaterThan(1.4));
   });
+
+  testWidgets('multiTouch rejects invalid sequences before dispatching', (
+    tester,
+  ) async {
+    var tapCount = 0;
+    final observedEvents = <PointerEvent>[];
+    void recordEvent(PointerEvent event) => observedEvents.add(event);
+
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: Center(
+          child: GestureDetector(
+            key: const ValueKey<String>('multitouch-invalid-target'),
+            behavior: HitTestBehavior.opaque,
+            onTap: () => tapCount += 1,
+            child: const SizedBox(width: 220, height: 220),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    GestureBinding.instance.pointerRouter.addGlobalRoute(recordEvent);
+    addTearDown(
+      () =>
+          GestureBinding.instance.pointerRouter.removeGlobalRoute(recordEvent),
+    );
+
+    final target = _targetFor(tester, 'multitouch-invalid-target');
+    final engine = CockpitGestureEngine(delay: tester.pump);
+
+    await expectLater(
+      engine.perform(
+        CockpitGestureAction.multiTouch(
+          target: target,
+          sequence: const CockpitMultiTouchSequence(
+            steps: <CockpitMultiTouchStep>[
+              CockpitMultiTouchStep(
+                pointer: 1,
+                phase: CockpitMultiTouchPhase.down,
+                atMs: 0,
+                dx: 0,
+                dy: 0,
+              ),
+              CockpitMultiTouchStep(
+                pointer: 2,
+                phase: CockpitMultiTouchPhase.move,
+                atMs: 60,
+                dx: 12,
+                dy: 0,
+              ),
+              CockpitMultiTouchStep(
+                pointer: 1,
+                phase: CockpitMultiTouchPhase.up,
+                atMs: 120,
+                dx: 0,
+                dy: 0,
+              ),
+            ],
+          ),
+        ),
+      ),
+      throwsArgumentError,
+    );
+
+    expect(
+      observedEvents,
+      isEmpty,
+      reason: 'Validation must reject the sequence before any dispatch.',
+    );
+
+    await engine.perform(CockpitGestureAction.tap(target: target));
+    await tester.pumpAndSettle();
+
+    expect(tapCount, 1);
+  });
+
+  testWidgets(
+    'multiTouch cancels active pointers when dispatch fails mid-sequence',
+    (tester) async {
+      var tapCount = 0;
+      final cancelledPointers = <int>[];
+      void recordEvent(PointerEvent event) {
+        if (event is PointerCancelEvent) {
+          cancelledPointers.add(event.pointer);
+        }
+      }
+
+      await tester.pumpWidget(
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: Center(
+            child: GestureDetector(
+              key: const ValueKey<String>('multitouch-cancel-target'),
+              behavior: HitTestBehavior.opaque,
+              onTap: () => tapCount += 1,
+              child: const SizedBox(width: 220, height: 220),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      GestureBinding.instance.pointerRouter.addGlobalRoute(recordEvent);
+      addTearDown(
+        () => GestureBinding.instance.pointerRouter.removeGlobalRoute(
+          recordEvent,
+        ),
+      );
+
+      final target = _targetFor(tester, 'multitouch-cancel-target');
+      var delayCalls = 0;
+      final failingEngine = CockpitGestureEngine(
+        delay: ([duration]) {
+          delayCalls += 1;
+          if (delayCalls > 2) {
+            throw StateError('Injected mid-sequence dispatch failure.');
+          }
+          return tester.pump(duration);
+        },
+      );
+
+      Object? thrown;
+      try {
+        await failingEngine.perform(
+          CockpitGestureAction.multiTouch(
+            target: target,
+            sequence: const CockpitMultiTouchSequence(
+              steps: <CockpitMultiTouchStep>[
+                CockpitMultiTouchStep(
+                  pointer: 1,
+                  phase: CockpitMultiTouchPhase.down,
+                  atMs: 0,
+                  dx: -24,
+                  dy: 0,
+                ),
+                CockpitMultiTouchStep(
+                  pointer: 2,
+                  phase: CockpitMultiTouchPhase.down,
+                  atMs: 0,
+                  dx: 24,
+                  dy: 0,
+                ),
+                CockpitMultiTouchStep(
+                  pointer: 1,
+                  phase: CockpitMultiTouchPhase.move,
+                  atMs: 80,
+                  dx: -48,
+                  dy: 0,
+                ),
+                CockpitMultiTouchStep(
+                  pointer: 1,
+                  phase: CockpitMultiTouchPhase.up,
+                  atMs: 160,
+                  dx: -48,
+                  dy: 0,
+                ),
+                CockpitMultiTouchStep(
+                  pointer: 2,
+                  phase: CockpitMultiTouchPhase.up,
+                  atMs: 160,
+                  dx: 24,
+                  dy: 0,
+                ),
+              ],
+            ),
+          ),
+        );
+      } on StateError catch (error) {
+        thrown = error;
+      }
+      expect(thrown, isA<StateError>());
+
+      expect(
+        cancelledPointers,
+        unorderedEquals(<int>[1, 2]),
+        reason:
+            'Every pointer that was down when the sequence failed must '
+            'receive a PointerCancel.',
+      );
+
+      final engine = CockpitGestureEngine(delay: tester.pump);
+      await engine.perform(CockpitGestureAction.tap(target: target));
+      await tester.pumpAndSettle();
+
+      expect(tapCount, 1);
+    },
+  );
 }
 
 CockpitTarget _targetFor(WidgetTester tester, String keyValue) {

@@ -3,8 +3,10 @@
 import 'dart:async';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
@@ -52,6 +54,7 @@ import '../runtime/cockpit_text_input_request.dart';
 const int _defaultAssertSettleTimeoutMs = 1000;
 const Duration _assertPollInterval = Duration(milliseconds: 16);
 const int _routeTargetReadinessProbeLimit = 6;
+const Duration _hardCommandTimeoutGrace = Duration(milliseconds: 250);
 
 enum _TapActivation { auto, direct, semantic, gesture }
 
@@ -217,6 +220,20 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
   String get _platform => _context.platform;
   String get _transportType => _context.transportType;
 
+  // In release builds semantic nodes can only be resolved through the live
+  // SemanticsOwner tree, which requires the semantics tree to be enabled;
+  // advertising the semantic-plane commands otherwise would fake capability.
+  bool get _semanticPlaneResolvable {
+    if (!kReleaseMode) {
+      return true;
+    }
+    try {
+      return SemanticsBinding.instance.semanticsEnabled;
+    } on Object {
+      return false;
+    }
+  }
+
   @override
   Future<CockpitCapabilities> describeCapabilities() async {
     final supportedCommands = <CockpitCommandType>{
@@ -228,10 +245,12 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
       CockpitCommandType.sendKeyEvent,
       CockpitCommandType.sendKeyDownEvent,
       CockpitCommandType.sendKeyUpEvent,
-      CockpitCommandType.showOnScreen,
-      CockpitCommandType.increase,
-      CockpitCommandType.decrease,
-      CockpitCommandType.dismiss,
+      if (_semanticPlaneResolvable) ...<CockpitCommandType>{
+        CockpitCommandType.showOnScreen,
+        CockpitCommandType.increase,
+        CockpitCommandType.decrease,
+        CockpitCommandType.dismiss,
+      },
       CockpitCommandType.dismissKeyboard,
       CockpitCommandType.longPress,
       CockpitCommandType.doubleTap,
@@ -286,12 +305,17 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
       if (commandTimeout == null) {
         return await execution;
       }
+      // The grace lets in-command wait/assert loops that poll up to the same
+      // budget finish first, so their detailed diagnostics win over the
+      // generic hard-timeout failure.
+      final enforcedTimeout = commandTimeout + _hardCommandTimeoutGrace;
       return await execution.timeout(
-        commandTimeout,
+        enforcedTimeout,
         onTimeout: () => _commandTimeoutExecution(
           command: command,
           durationMs: stopwatch.elapsedMilliseconds,
           timeoutMs: commandTimeout.inMilliseconds,
+          enforcedTimeoutMs: enforcedTimeout.inMilliseconds,
         ),
       );
     } finally {
@@ -311,6 +335,7 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
     required CockpitCommand command,
     required int durationMs,
     required int timeoutMs,
+    required int enforcedTimeoutMs,
   }) {
     final snapshot = _liveSnapshot();
     final expectedRouteName = _expectedRouteName(command);
@@ -325,6 +350,7 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
           'commandId': command.commandId,
           'commandType': command.commandType.name,
           'timeoutMs': timeoutMs,
+          'enforcedTimeoutMs': enforcedTimeoutMs,
           'expectedRouteName': ?expectedRouteName,
           'routeName': snapshot.routeName,
           'visibleTargetCount': _registry.visibleTargets.length,
@@ -2197,6 +2223,14 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
         ),
       );
     }
+    if (_boolParameter(command, 'absent') ?? false) {
+      return _executeWaitForAbsent(
+        command,
+        stopwatch,
+        timeoutMs: timeoutMs,
+        waitCondition: waitCondition,
+      );
+    }
     final minVisibleTargets = _minVisibleTargetsForWait(command);
 
     while (stopwatch.elapsedMilliseconds <= timeoutMs) {
@@ -2289,6 +2323,85 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
         },
       ),
     );
+  }
+
+  Future<CockpitCommandExecution> _executeWaitForAbsent(
+    CockpitCommand command,
+    Stopwatch stopwatch, {
+    required int timeoutMs,
+    required String waitCondition,
+  }) async {
+    while (stopwatch.elapsedMilliseconds <= timeoutMs) {
+      final snapshot = _liveSnapshot();
+      if (_waitConditionIsAbsent(command, snapshot)) {
+        return _successExecution(
+          command: command,
+          durationMs: stopwatch.elapsedMilliseconds,
+          snapshot: snapshot.toJson(),
+        );
+      }
+
+      final remaining = timeoutMs - stopwatch.elapsedMilliseconds;
+      if (remaining <= 0) {
+        break;
+      }
+      final settleCompleted = await _settleWithinCommandBudget(
+        Duration(milliseconds: remaining),
+      );
+      if (!settleCompleted) {
+        break;
+      }
+      await _waitTickHandler(const Duration(milliseconds: 16));
+    }
+
+    final failureSnapshot = _liveSnapshot();
+    return _failureExecution(
+      command: command,
+      durationMs: stopwatch.elapsedMilliseconds,
+      snapshot: failureSnapshot.toJson(),
+      error: CockpitCommandError.timeout(
+        message:
+            'Timed out waiting for $waitCondition to disappear; it is still present.',
+        details: <String, Object?>{
+          'waitCondition': waitCondition,
+          'absent': true,
+          'timeoutMs': timeoutMs,
+          'routeName': failureSnapshot.routeName,
+          'visibleTargetCount': _registry.visibleTargets.length,
+          'visibleTextCandidates': _visibleTextCandidates(
+            _registry.visibleTargets,
+          ).take(12).toList(growable: false),
+        },
+      ),
+    );
+  }
+
+  bool _waitConditionIsAbsent(
+    CockpitCommand command,
+    CockpitSnapshot snapshot,
+  ) {
+    final routeName = _expectedRouteName(command);
+    if (routeName != null && snapshot.routeName == routeName) {
+      return false;
+    }
+
+    final expectedText = _expectedText(command);
+    if (expectedText != null &&
+        _visibleTargetsContainText(_registry.visibleTargets, expectedText)) {
+      return false;
+    }
+
+    final locator = command.locator;
+    if (locator != null &&
+        locator.kind != CockpitLocatorKind.route &&
+        locator.kind != CockpitLocatorKind.text) {
+      final resolution = _resolve(command);
+      if (resolution.isSuccess ||
+          resolution.error?.code == CockpitCommandError.ambiguousTargetCode) {
+        return false;
+      }
+    }
+    return true;
   }
 
   Future<bool> _settleWithinCommandBudget(Duration budget) async {

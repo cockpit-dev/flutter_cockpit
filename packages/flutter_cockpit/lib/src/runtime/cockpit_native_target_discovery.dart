@@ -5,7 +5,6 @@ import 'package:flutter/rendering.dart';
 
 import '../control/cockpit_command_type.dart';
 import 'cockpit_discovery_policy.dart';
-import 'cockpit_runtime_tree_visibility.dart';
 import 'cockpit_semantics_bridge.dart';
 import 'cockpit_snapshot.dart';
 import 'cockpit_target.dart';
@@ -32,37 +31,54 @@ final class CockpitNativeTargetDiscovery {
         .whereType<Element>()
         .toList(growable: false);
     final discoveredTargets = <CockpitTarget>[];
+    final session = _DiscoverySession();
+    // Route scope, offstage state, and viewport clipping are inherited values.
+    // Seed them once from the root's real ancestor chain, then maintain them
+    // along the DFS instead of re-walking every element's ancestors — this
+    // keeps discovery O(tree) instead of O(tree × depth) on deep trees.
+    final rootScope = _seedInheritedScope(
+      rootElement,
+      routeName: routeName,
+      allowInactiveRouteFallback: allowInactiveRouteFallback,
+      rootViewport: rootViewport,
+      explicitElements: explicitElements,
+    );
 
-    void visit(Element element, String path, bool insideActionableTarget) {
+    void visit(
+      Element element,
+      String path,
+      bool insideActionableTarget,
+      _InheritedDiscoveryScope scope,
+    ) {
       if (!element.mounted ||
           policy.ignoresSubtree(element) ||
-          !cockpitIsVisibleInRuntimeTree(
-            element,
-            ignoreCurrentRoute: allowInactiveRouteFallback,
-          ) ||
-          _isCoveredByExplicitTarget(element, explicitElements)) {
+          scope.ancestorHidden ||
+          (!allowInactiveRouteFallback && !(scope.routeIsCurrent ?? true)) ||
+          _isExplicitTargetElement(element, explicitElements)) {
         return;
       }
 
-      final targetRouteName = cockpitResolvedElementRouteName(
-        element,
-        fallbackRouteName: routeName,
-      );
+      final targetRouteName = scope.resolvedRouteName;
+      final effectiveViewport = _marksViewportBoundary(element)
+          ? _intersectViewports(scope.effectiveViewport, element)
+          : scope.effectiveViewport;
 
       final candidate =
-          _isRenderable(element) && _overlapsViewport(element, rootViewport)
+          _isRenderable(element) &&
+              _overlapsClippedViewport(element, effectiveViewport)
           ? _buildTarget(
               element,
               routeName: targetRouteName,
               path: path,
               insideActionableTarget: insideActionableTarget,
+              session: session,
             )
           : null;
       final hasMeaningfulViewportExposure =
           candidate == null ||
-          _hasMeaningfulViewportExposure(
+          _hasMeaningfulClippedViewportExposure(
             element,
-            rootViewport,
+            effectiveViewport,
             strictVisibility: candidate.supportedCommands.isEmpty,
           );
       final createsActionableScope =
@@ -76,18 +92,24 @@ final class CockpitNativeTargetDiscovery {
         return;
       }
 
+      final childScope = scope.scopeForChildren(
+        element,
+        fallbackRouteName: routeName,
+        effectiveViewport: effectiveViewport,
+      );
       var childIndex = 0;
       element.visitChildElements((child) {
         visit(
           child,
           '$path.$childIndex',
           insideActionableTarget || createsActionableScope,
+          childScope,
         );
         childIndex += 1;
       });
     }
 
-    visit(rootElement, 'root', false);
+    visit(rootElement, 'root', false, rootScope);
     return _deduplicateDiscoveredTargets(discoveredTargets);
   }
 
@@ -104,44 +126,56 @@ final class CockpitNativeTargetDiscovery {
         .whereType<Element>()
         .toList(growable: false);
     var found = false;
+    final session = _DiscoverySession();
+    final rootScope = _seedInheritedScope(
+      rootElement,
+      routeName: routeName,
+      allowInactiveRouteFallback: allowInactiveRouteFallback,
+      rootViewport: rootViewport,
+      explicitElements: explicitElements,
+    );
 
-    void visit(Element element, String path, bool insideActionableTarget) {
+    void visit(
+      Element element,
+      String path,
+      bool insideActionableTarget,
+      _InheritedDiscoveryScope scope,
+    ) {
       if (found ||
           !element.mounted ||
           policy.ignoresSubtree(element) ||
-          !cockpitIsVisibleInRuntimeTree(
-            element,
-            ignoreCurrentRoute: allowInactiveRouteFallback,
-          ) ||
-          _isCoveredByExplicitTarget(element, explicitElements)) {
+          scope.ancestorHidden ||
+          (!allowInactiveRouteFallback && !(scope.routeIsCurrent ?? true)) ||
+          _isExplicitTargetElement(element, explicitElements)) {
         return;
       }
 
-      final targetRouteName = cockpitResolvedElementRouteName(
-        element,
-        fallbackRouteName: routeName,
-      );
+      final targetRouteName = scope.resolvedRouteName;
       final candidateRouteMatches = _matchesDiscoveryRoute(
         targetRouteName,
         routeName: routeName,
         allowInactiveRouteFallback: allowInactiveRouteFallback,
       );
+      final effectiveViewport = _marksViewportBoundary(element)
+          ? _intersectViewports(scope.effectiveViewport, element)
+          : scope.effectiveViewport;
       final candidate =
           candidateRouteMatches &&
               _isRenderable(element) &&
-              _overlapsViewport(element, rootViewport)
+              _overlapsClippedViewport(element, effectiveViewport)
           ? _buildTarget(
               element,
               routeName: targetRouteName,
               path: path,
               insideActionableTarget: insideActionableTarget,
+              session: session,
             )
           : null;
       final hasMeaningfulViewportExposure =
           candidate == null ||
-          _hasMeaningfulViewportExposure(
+          _hasMeaningfulClippedViewportExposure(
             element,
-            rootViewport,
+            effectiveViewport,
             strictVisibility: candidate.supportedCommands.isEmpty,
           );
       final createsActionableScope =
@@ -156,18 +190,24 @@ final class CockpitNativeTargetDiscovery {
         return;
       }
 
+      final childScope = scope.scopeForChildren(
+        element,
+        fallbackRouteName: routeName,
+        effectiveViewport: effectiveViewport,
+      );
       var childIndex = 0;
       element.visitChildElements((child) {
         visit(
           child,
           '$path.$childIndex',
           insideActionableTarget || createsActionableScope,
+          childScope,
         );
         childIndex += 1;
       });
     }
 
-    visit(rootElement, 'root', false);
+    visit(rootElement, 'root', false, rootScope);
     return found;
   }
 
@@ -354,11 +394,90 @@ final class CockpitNativeTargetDiscovery {
     return origin & renderObject.size;
   }
 
+  /// Resolves the inherited discovery state for the discovery root by walking
+  /// its real ancestor chain once. The DFS then maintains these values
+  /// incrementally so per-element ancestor walks are no longer needed.
+  _InheritedDiscoveryScope _seedInheritedScope(
+    Element rootElement, {
+    required String? routeName,
+    required bool allowInactiveRouteFallback,
+    required Rect? rootViewport,
+    List<Element> explicitElements = const <Element>[],
+  }) {
+    var ancestorHidden = false;
+    bool? routeIsCurrent;
+    String? scopeRouteName;
+    var scopeResolved = false;
+    var effectiveViewport = rootViewport;
+
+    if (rootElement.mounted) {
+      rootElement.visitAncestorElements((ancestor) {
+        final widget = ancestor.widget;
+        if (widget is Offstage && widget.offstage) {
+          ancestorHidden = true;
+        }
+        // A registered explicit target above the discovery root covers the
+        // whole discovered subtree, matching the previous per-element
+        // ancestor-coverage check.
+        if (_isExplicitTargetElement(ancestor, explicitElements)) {
+          ancestorHidden = true;
+        }
+        if (!scopeResolved &&
+            widget.runtimeType.toString() == '_ModalScopeStatus') {
+          final candidate = widget as dynamic;
+          routeIsCurrent = candidate.isCurrent as bool;
+          scopeRouteName = (candidate.route as Route<dynamic>).settings.name;
+          scopeResolved = true;
+        }
+        if (_marksViewportBoundary(ancestor)) {
+          effectiveViewport = _intersectViewports(effectiveViewport, ancestor);
+        }
+        return true;
+      });
+    }
+
+    return _InheritedDiscoveryScope(
+      ancestorHidden: ancestorHidden,
+      routeIsCurrent: routeIsCurrent,
+      resolvedRouteName: _resolveScopeRouteName(
+        scopeRouteName,
+        hasScope: scopeResolved,
+        fallbackRouteName: routeName,
+      ),
+      effectiveViewport: effectiveViewport,
+    );
+  }
+
+  static String? _resolveScopeRouteName(
+    String? scopeRouteName, {
+    required bool hasScope,
+    required String? fallbackRouteName,
+  }) {
+    if (!hasScope || scopeRouteName == null || scopeRouteName.isEmpty) {
+      return fallbackRouteName;
+    }
+    if (scopeRouteName == '/' &&
+        fallbackRouteName != null &&
+        fallbackRouteName != '/') {
+      return fallbackRouteName;
+    }
+    return scopeRouteName;
+  }
+
+  Rect? _intersectViewports(Rect? current, Element boundaryElement) {
+    final viewport = _viewportBoundsFor(boundaryElement);
+    if (viewport == null) {
+      return current;
+    }
+    return current == null ? viewport : current.intersect(viewport);
+  }
+
   CockpitTarget? _buildTarget(
     Element element, {
     required String? routeName,
     required String path,
     required bool insideActionableTarget,
+    required _DiscoverySession session,
   }) {
     final semantics = cockpitResolveSemanticsTargetInfo(element);
     final tapHandler = _tapHandlerForElement(element);
@@ -393,7 +512,7 @@ final class CockpitNativeTargetDiscovery {
 
     if (!hasDirectHandlers &&
         supportedCommands.isNotEmpty &&
-        _shouldDeferSemanticsOnlyCandidate(element, semantics)) {
+        _shouldDeferSemanticsOnlyCandidate(element, semantics, session)) {
       return null;
     }
 
@@ -402,8 +521,12 @@ final class CockpitNativeTargetDiscovery {
         element,
         semantics: semantics,
         isTextInput: enterTextHandler != null || textInputHandler != null,
+        session: session,
       );
-      final scrollableMetadata = _scrollableMetadataForElement(element);
+      final scrollableMetadata = _scrollableMetadataForElement(
+        element,
+        session,
+      );
       return CockpitTarget(
         registrationId: _registrationId(
           routeName: routeName,
@@ -416,7 +539,7 @@ final class CockpitNativeTargetDiscovery {
         text: metadata.text,
         tooltip: metadata.tooltip,
         typeName: typeName,
-        path: _locatorPathForElement(element),
+        path: _locatorPathForElement(element, session),
         scrollablePath: scrollableMetadata.path,
         scrollableKeyValue: scrollableMetadata.keyValue,
         scrollableTypeName: scrollableMetadata.typeName,
@@ -425,6 +548,7 @@ final class CockpitNativeTargetDiscovery {
         locatorAncestors: _extractLocatorAncestors(
           element,
           routeName: routeName,
+          session: session,
         ),
         onTap: tapHandler,
         onLongPress: longPressHandler,
@@ -461,15 +585,19 @@ final class CockpitNativeTargetDiscovery {
       );
     }
 
-    final metadata = _extractPassiveMetadata(element, semantics: semantics);
+    final metadata = _extractPassiveMetadata(
+      element,
+      semantics: semantics,
+      session: session,
+    );
     if (!_hasAnyMetadata(metadata)) {
       return null;
     }
-    if (_shouldDeferPassiveCandidate(element, semantics)) {
+    if (_shouldDeferPassiveCandidate(element, semantics, session)) {
       return null;
     }
 
-    final scrollableMetadata = _scrollableMetadataForElement(element);
+    final scrollableMetadata = _scrollableMetadataForElement(element, session);
     return CockpitTarget(
       registrationId: _registrationId(
         routeName: routeName,
@@ -482,12 +610,16 @@ final class CockpitNativeTargetDiscovery {
       text: metadata.text,
       tooltip: metadata.tooltip,
       typeName: typeName,
-      path: _locatorPathForElement(element),
+      path: _locatorPathForElement(element, session),
       scrollablePath: scrollableMetadata.path,
       scrollableKeyValue: scrollableMetadata.keyValue,
       scrollableTypeName: scrollableMetadata.typeName,
       routeName: routeName ?? '',
-      locatorAncestors: _extractLocatorAncestors(element, routeName: routeName),
+      locatorAncestors: _extractLocatorAncestors(
+        element,
+        routeName: routeName,
+        session: session,
+      ),
       diagnosticNodeProvider: () => element,
       geometryProvider: () =>
           CockpitTargetGeometryResolver.maybeFromElement(element),
@@ -497,14 +629,16 @@ final class CockpitNativeTargetDiscovery {
   List<CockpitSnapshotAncestor> _extractLocatorAncestors(
     Element element, {
     required String? routeName,
+    required _DiscoverySession session,
   }) {
     final ancestors = <CockpitSnapshotAncestor>[];
     element.visitAncestorElements((ancestor) {
       if (_shouldSkipAncestorElementForLocator(ancestor)) {
         return true;
       }
-      final semanticId = _semanticIdForElement(ancestor);
+      final semanticId = _semanticIdForElement(ancestor, session);
       final keyValue = _keyValueForElement(ancestor);
+      final tooltip = _tooltipForElement(ancestor, session);
       ancestors.add(
         CockpitSnapshotAncestor(
           typeName: ancestor.widget.runtimeType.toString(),
@@ -513,11 +647,11 @@ final class CockpitNativeTargetDiscovery {
           keyValue: keyValue,
           textPreview: _firstNonEmpty(<String?>[
             _passiveTextForElement(ancestor),
-            _tooltipForElement(ancestor),
+            tooltip,
           ]),
-          tooltip: _tooltipForElement(ancestor),
+          tooltip: tooltip,
           routeName: routeName,
-          path: _locatorPathForElement(ancestor),
+          path: _locatorPathForElement(ancestor, session),
         ),
       );
       return true;
@@ -542,36 +676,60 @@ final class CockpitNativeTargetDiscovery {
         ancestor.widget is MergeSemantics;
   }
 
-  String _locatorPathForElement(Element element) {
-    final segments = <String>[];
-    final chain = <Element>[element];
-    element.visitAncestorElements((ancestor) {
-      chain.add(ancestor);
-      return true;
-    });
-    for (final candidate in chain.reversed) {
-      if (_shouldSkipPathElement(candidate)) {
-        continue;
-      }
-      final segment = _locatorPathSegment(
-        candidate.widget.runtimeType.toString(),
-      );
-      if (segment == null) {
-        continue;
-      }
-      segments.add(segment);
+  String _locatorPathForElement(Element element, _DiscoverySession session) {
+    final cached = session.locatorPaths[element];
+    if (cached != null) {
+      return cached;
     }
+    final segments = _pathNodeForElement(element, session).toSegments();
     final trimmedSegments = _trimMeaningfulPathSegments(segments);
+    String result;
     if (trimmedSegments.isEmpty) {
       final fallback = _locatorPathSegment(
         element.widget.runtimeType.toString(),
       );
-      if (fallback == null) {
-        return '/target';
-      }
-      return '/$fallback';
+      result = fallback == null ? '/target' : '/$fallback';
+    } else {
+      result = '/${trimmedSegments.join('/')}';
     }
-    return '/${trimmedSegments.join('/')}';
+    session.locatorPaths[element] = result;
+    return result;
+  }
+
+  /// Resolves the root→element locator segments as a shared parent-linked
+  /// chain, computing each element's contribution at most once per discovery.
+  _LocatorPathNode _pathNodeForElement(
+    Element element,
+    _DiscoverySession session,
+  ) {
+    final cached = session.pathNodes[element];
+    if (cached != null) {
+      return cached;
+    }
+    final pendingChain = <Element>[element];
+    var base = _LocatorPathNode.root;
+    element.visitAncestorElements((ancestor) {
+      final hit = session.pathNodes[ancestor];
+      if (hit != null) {
+        base = hit;
+        return false;
+      }
+      pendingChain.add(ancestor);
+      return true;
+    });
+    var node = base;
+    for (final candidate in pendingChain.reversed) {
+      if (!_shouldSkipPathElement(candidate)) {
+        final segment = _locatorPathSegment(
+          candidate.widget.runtimeType.toString(),
+        );
+        if (segment != null) {
+          node = _LocatorPathNode(node, segment);
+        }
+      }
+      session.pathNodes[candidate] = node;
+    }
+    return node;
   }
 
   String? _locatorPathSegment(String typeName) {
@@ -622,25 +780,28 @@ final class CockpitNativeTargetDiscovery {
         widget is Scrollable;
   }
 
-  _ScrollableLocatorMetadata _scrollableMetadataForElement(Element element) {
+  _ScrollableLocatorMetadata _scrollableMetadataForElement(
+    Element element,
+    _DiscoverySession session,
+  ) {
     final scrollable = _nearestScrollableElement(element);
     if (scrollable == null) {
       return const _ScrollableLocatorMetadata();
     }
     return _ScrollableLocatorMetadata(
-      path: _locatorPathForElement(scrollable),
+      path: _locatorPathForElement(scrollable, session),
       keyValue: _scrollableKeyValue(scrollable),
-      typeName: _scrollableTypeName(scrollable),
+      typeName: _scrollableTypeName(scrollable, session),
     );
   }
 
-  String _scrollableTypeName(Element element) {
+  String _scrollableTypeName(Element element, _DiscoverySession session) {
     final ownType = element.widget.runtimeType.toString();
     if (ownType != 'Scrollable') {
       return ownType;
     }
     final pathHint = _scrollableTypeNameFromPath(
-      _locatorPathForElement(element),
+      _locatorPathForElement(element, session),
     );
     return pathHint ?? ownType;
   }
@@ -745,11 +906,7 @@ final class CockpitNativeTargetDiscovery {
     return true;
   }
 
-  bool _overlapsViewport(Element element, Rect? viewportBounds) {
-    final effectiveViewport = _effectiveViewportBoundsForElement(
-      element,
-      viewportBounds,
-    );
+  bool _overlapsClippedViewport(Element element, Rect? effectiveViewport) {
     if (effectiveViewport == null) {
       return true;
     }
@@ -762,15 +919,11 @@ final class CockpitNativeTargetDiscovery {
     return bounds.overlaps(effectiveViewport);
   }
 
-  bool _hasMeaningfulViewportExposure(
+  bool _hasMeaningfulClippedViewportExposure(
     Element element,
-    Rect? viewportBounds, {
+    Rect? effectiveViewport, {
     required bool strictVisibility,
   }) {
-    final effectiveViewport = _effectiveViewportBoundsForElement(
-      element,
-      viewportBounds,
-    );
     if (effectiveViewport == null) {
       return true;
     }
@@ -793,58 +946,17 @@ final class CockpitNativeTargetDiscovery {
     return widthRatio >= 0.5 && heightRatio >= requiredHeightRatio;
   }
 
-  Rect? _effectiveViewportBoundsForElement(
-    Element element,
-    Rect? rootViewport,
-  ) {
-    Rect? effectiveViewport = rootViewport;
-
-    void intersectWithViewport(Element candidate) {
-      final viewport = _viewportBoundsFor(candidate);
-      if (viewport == null) {
-        return;
-      }
-      effectiveViewport = switch (effectiveViewport) {
-        null => viewport,
-        final Rect current => current.intersect(viewport),
-      };
-    }
-
-    if (_marksViewportBoundary(element)) {
-      intersectWithViewport(element);
-    }
-    element.visitAncestorElements((ancestor) {
-      if (_marksViewportBoundary(ancestor)) {
-        intersectWithViewport(ancestor);
-      }
-      return true;
-    });
-    return effectiveViewport;
-  }
-
   bool _marksViewportBoundary(Element element) {
     return (element is StatefulElement && element.state is ScrollableState) ||
         policy.marksScrollableBoundary(element);
   }
 
-  bool _isCoveredByExplicitTarget(
+  bool _isExplicitTargetElement(
     Element element,
     List<Element> explicitElements,
   ) {
     for (final explicitElement in explicitElements) {
       if (identical(element, explicitElement)) {
-        return true;
-      }
-
-      var isDescendant = false;
-      element.visitAncestorElements((ancestor) {
-        if (identical(ancestor, explicitElement)) {
-          isDescendant = true;
-          return false;
-        }
-        return true;
-      });
-      if (isDescendant) {
         return true;
       }
     }
@@ -854,6 +966,7 @@ final class CockpitNativeTargetDiscovery {
   bool _shouldDeferSemanticsOnlyCandidate(
     Element element,
     CockpitSemanticsTargetInfo? semantics,
+    _DiscoverySession session,
   ) {
     final widget = element.widget;
     final typeName = widget.runtimeType.toString();
@@ -875,10 +988,15 @@ final class CockpitNativeTargetDiscovery {
     if (policy.matchesInteractiveWidget(element)) {
       return false;
     }
+    // RadioGroup-managed radios expose activation only through semantics, so
+    // keep the public widget addressable instead of deferring to internals.
+    if (widget is Radio || widget is RadioListTile) {
+      return false;
+    }
 
     final localKey = _keyValueForElement(element);
-    final localSemanticId = _semanticIdForElement(element);
-    final localTooltip = _tooltipForElement(element);
+    final localSemanticId = _semanticIdForElement(element, session);
+    final localTooltip = _tooltipForElement(element, session);
     final localText = _passiveTextForElement(element);
     if ((widget is StatelessWidget || widget is StatefulWidget) &&
         localKey != null &&
@@ -901,6 +1019,7 @@ final class CockpitNativeTargetDiscovery {
   bool _shouldDeferPassiveCandidate(
     Element element,
     CockpitSemanticsTargetInfo? semantics,
+    _DiscoverySession session,
   ) {
     final widget = element.widget;
     final typeName = widget.runtimeType.toString();
@@ -920,8 +1039,8 @@ final class CockpitNativeTargetDiscovery {
 
     final localSignals = <String?>[
       _keyValueForElement(element),
-      _semanticIdForElement(element),
-      _tooltipForElement(element),
+      _semanticIdForElement(element, session),
+      _tooltipForElement(element, session),
       _passiveTextForElement(element),
     ].where((value) => value != null && value.isNotEmpty);
     if (localSignals.isNotEmpty) {
@@ -973,10 +1092,14 @@ final class CockpitNativeTargetDiscovery {
       }
     }
     if (widget is Checkbox && widget.onChanged != null) {
-      return () => widget.onChanged!.call(!(widget.value ?? false));
+      return () => widget.onChanged!.call(
+        _nextCheckboxValue(widget.value, tristate: widget.tristate),
+      );
     }
     if (widget is CheckboxListTile && widget.onChanged != null) {
-      return () => widget.onChanged!.call(!(widget.value ?? false));
+      return () => widget.onChanged!.call(
+        _nextCheckboxValue(widget.value, tristate: widget.tristate),
+      );
     }
     if (widget is Switch && widget.onChanged != null) {
       return () => widget.onChanged!.call(!widget.value);
@@ -984,12 +1107,61 @@ final class CockpitNativeTargetDiscovery {
     if (widget is SwitchListTile && widget.onChanged != null) {
       return () => widget.onChanged!.call(!widget.value);
     }
+    if (widget is Radio) {
+      // Reading the generic ValueChanged<T?> through Radio<dynamic> trips
+      // Dart's covariant-generics soundness check, so go through dynamic.
+      return _radioTapHandler(
+        onChanged: (widget as dynamic).onChanged as Function?,
+        value: widget.value,
+        groupValue: widget.groupValue,
+        toggleable: widget.toggleable,
+      );
+    }
+    if (widget is RadioListTile) {
+      return _radioTapHandler(
+        onChanged: (widget as dynamic).onChanged as Function?,
+        value: widget.value,
+        groupValue: widget.groupValue,
+        toggleable: widget.toggleable,
+      );
+    }
     final editableState = _editableTextStateForElement(element);
     if (editableState != null) {
       final state = editableState;
       return () => state.widget.focusNode.requestFocus();
     }
     return null;
+  }
+
+  bool? _nextCheckboxValue(bool? value, {required bool tristate}) {
+    if (!tristate) {
+      return !(value ?? false);
+    }
+    return switch (value) {
+      false => true,
+      true => null,
+      null => false,
+    };
+  }
+
+  CockpitTapHandler? _radioTapHandler({
+    required Function? onChanged,
+    required Object? value,
+    required Object? groupValue,
+    required bool toggleable,
+  }) {
+    if (onChanged == null) {
+      return null;
+    }
+    return () {
+      if (groupValue == value) {
+        if (toggleable) {
+          onChanged(null);
+        }
+        return;
+      }
+      onChanged(value);
+    };
   }
 
   CockpitEnterTextHandler? _enterTextHandlerForElement(Element element) {
@@ -1137,6 +1309,7 @@ final class CockpitNativeTargetDiscovery {
     Element element, {
     required CockpitSemanticsTargetInfo? semantics,
     required bool isTextInput,
+    required _DiscoverySession session,
   }) {
     final inputLabel = _inputLabelForElement(element);
     final text = isTextInput && inputLabel != null
@@ -1155,11 +1328,11 @@ final class CockpitNativeTargetDiscovery {
       keyValue: _keyValueForElement(element),
       semanticId: _firstNonEmpty(<String?>[
         semantics?.identifier,
-        _semanticIdForElement(element),
+        _semanticIdForElement(element, session),
       ]),
       tooltip: _firstNonEmpty(<String?>[
         semantics?.tooltip,
-        _tooltipForElement(element),
+        _tooltipForElement(element, session),
       ]),
     );
   }
@@ -1167,6 +1340,7 @@ final class CockpitNativeTargetDiscovery {
   _TargetMetadata _extractPassiveMetadata(
     Element element, {
     required CockpitSemanticsTargetInfo? semantics,
+    required _DiscoverySession session,
   }) {
     final selfText = _passiveTextForElement(element);
     return _TargetMetadata(
@@ -1174,11 +1348,11 @@ final class CockpitNativeTargetDiscovery {
       keyValue: _keyValueForElement(element),
       semanticId: _firstNonEmpty(<String?>[
         semantics?.identifier,
-        _semanticIdForElement(element),
+        _semanticIdForElement(element, session),
       ]),
       tooltip: _firstNonEmpty(<String?>[
         semantics?.tooltip,
-        _tooltipForElement(element),
+        _tooltipForElement(element, session),
       ]),
     );
   }
@@ -1299,31 +1473,40 @@ final class CockpitNativeTargetDiscovery {
     return value;
   }
 
-  String? _semanticIdForElement(Element element) {
-    final customSemanticId = _normalizeText(
-      policy.extractSemanticId?.call(element),
-    );
-    if (customSemanticId != null) {
-      return customSemanticId;
+  String? _semanticIdForElement(Element element, _DiscoverySession session) {
+    if (session.semanticIds.containsKey(element)) {
+      return session.semanticIds[element];
     }
-    final selfSemantic = _semanticIdFromWidget(element.widget);
-    if (selfSemantic != null) {
-      return selfSemantic;
+    final ownValue =
+        _normalizeText(policy.extractSemanticId?.call(element)) ??
+        _semanticIdFromWidget(element.widget);
+    if (ownValue != null) {
+      session.semanticIds[element] = ownValue;
+      return ownValue;
     }
 
-    String? semanticId;
+    final pendingChain = <Element>[element];
+    String? resolved;
     element.visitAncestorElements((ancestor) {
-      final customAncestorSemanticId = _normalizeText(
-        policy.extractSemanticId?.call(ancestor),
-      );
-      if (customAncestorSemanticId != null) {
-        semanticId = customAncestorSemanticId;
+      if (session.semanticIds.containsKey(ancestor)) {
+        resolved = session.semanticIds[ancestor];
         return false;
       }
-      semanticId = _semanticIdFromWidget(ancestor.widget);
-      return semanticId == null;
+      final value =
+          _normalizeText(policy.extractSemanticId?.call(ancestor)) ??
+          _semanticIdFromWidget(ancestor.widget);
+      if (value != null) {
+        resolved = value;
+        session.semanticIds[ancestor] = value;
+        return false;
+      }
+      pendingChain.add(ancestor);
+      return true;
     });
-    return semanticId;
+    for (final pending in pendingChain) {
+      session.semanticIds[pending] = resolved;
+    }
+    return resolved;
   }
 
   String? _semanticIdFromWidget(Widget widget) {
@@ -1337,29 +1520,40 @@ final class CockpitNativeTargetDiscovery {
     return null;
   }
 
-  String? _tooltipForElement(Element element) {
-    final customTooltip = _normalizeText(policy.extractTooltip?.call(element));
-    if (customTooltip != null) {
-      return customTooltip;
+  String? _tooltipForElement(Element element, _DiscoverySession session) {
+    if (session.tooltips.containsKey(element)) {
+      return session.tooltips[element];
     }
-    final selfTooltip = _tooltipFromWidget(element.widget);
-    if (selfTooltip != null) {
-      return selfTooltip;
+    final ownValue =
+        _normalizeText(policy.extractTooltip?.call(element)) ??
+        _tooltipFromWidget(element.widget);
+    if (ownValue != null) {
+      session.tooltips[element] = ownValue;
+      return ownValue;
     }
 
-    String? tooltip;
+    final pendingChain = <Element>[element];
+    String? resolved;
     element.visitAncestorElements((ancestor) {
-      final customAncestorTooltip = _normalizeText(
-        policy.extractTooltip?.call(ancestor),
-      );
-      if (customAncestorTooltip != null) {
-        tooltip = customAncestorTooltip;
+      if (session.tooltips.containsKey(ancestor)) {
+        resolved = session.tooltips[ancestor];
         return false;
       }
-      tooltip = _tooltipFromWidget(ancestor.widget);
-      return tooltip == null;
+      final value =
+          _normalizeText(policy.extractTooltip?.call(ancestor)) ??
+          _tooltipFromWidget(ancestor.widget);
+      if (value != null) {
+        resolved = value;
+        session.tooltips[ancestor] = value;
+        return false;
+      }
+      pendingChain.add(ancestor);
+      return true;
     });
-    return tooltip;
+    for (final pending in pendingChain) {
+      session.tooltips[pending] = resolved;
+    }
+    return resolved;
   }
 
   String? _keyValueForElement(Element element) {
@@ -1481,21 +1675,42 @@ final class CockpitNativeTargetDiscovery {
     return '$readable.${_stableHashHex('$routeName|$typeName|$bestLabel|$path')}';
   }
 
+  static final Map<String, String> _slugCache = <String, String>{};
+  static const int _slugCacheLimit = 4096;
+
   String _slugify(String value) {
+    final cached = _slugCache[value];
+    if (cached != null) {
+      return cached;
+    }
+    final slug = _computeSlug(value);
+    if (_slugCache.length < _slugCacheLimit) {
+      _slugCache[value] = slug;
+    }
+    return slug;
+  }
+
+  String _computeSlug(String value) {
     final buffer = StringBuffer();
+    var lastWasDash = true;
     for (final codeUnit in value.toLowerCase().codeUnits) {
       final isAlphaNumeric =
           (codeUnit >= 48 && codeUnit <= 57) ||
           (codeUnit >= 97 && codeUnit <= 122);
       if (isAlphaNumeric) {
         buffer.writeCharCode(codeUnit);
-      } else if (buffer.isEmpty || buffer.toString().endsWith('-')) {
-        continue;
-      } else {
+        lastWasDash = false;
+      } else if (!lastWasDash) {
         buffer.write('-');
+        lastWasDash = true;
       }
     }
-    final slug = buffer.toString().replaceAll(RegExp(r'-+$'), '');
+    final raw = buffer.toString();
+    var end = raw.length;
+    while (end > 0 && raw.codeUnitAt(end - 1) == 0x2d) {
+      end -= 1;
+    }
+    final slug = end == raw.length ? raw : raw.substring(0, end);
     return slug.isEmpty ? 'value' : slug;
   }
 
@@ -1677,4 +1892,92 @@ final class _ScrollableLocatorMetadata {
   final String? path;
   final String? keyValue;
   final String? typeName;
+}
+
+/// Route, offstage, and viewport state inherited along the discovery DFS so
+/// each element is checked in O(1) instead of re-walking its ancestors.
+final class _InheritedDiscoveryScope {
+  const _InheritedDiscoveryScope({
+    required this.ancestorHidden,
+    required this.routeIsCurrent,
+    required this.resolvedRouteName,
+    required this.effectiveViewport,
+  });
+
+  /// Whether any ancestor is an active Offstage (subtree invisible).
+  final bool ancestorHidden;
+
+  /// Nearest enclosing route's `isCurrent`, or null when no route scope.
+  final bool? routeIsCurrent;
+
+  /// Route name resolved with the discovery fallback rules.
+  final String? resolvedRouteName;
+
+  /// Viewport bounds clipped by all enclosing scrollable boundaries.
+  final Rect? effectiveViewport;
+
+  _InheritedDiscoveryScope scopeForChildren(
+    Element element, {
+    required String? fallbackRouteName,
+    required Rect? effectiveViewport,
+  }) {
+    final widget = element.widget;
+    final hidden = ancestorHidden || (widget is Offstage && widget.offstage);
+    var isCurrent = routeIsCurrent;
+    var routeName = resolvedRouteName;
+    if (widget.runtimeType.toString() == '_ModalScopeStatus') {
+      final candidate = widget as dynamic;
+      isCurrent = candidate.isCurrent as bool;
+      routeName = CockpitNativeTargetDiscovery._resolveScopeRouteName(
+        (candidate.route as Route<dynamic>).settings.name,
+        hasScope: true,
+        fallbackRouteName: fallbackRouteName,
+      );
+    }
+    if (hidden == ancestorHidden &&
+        identical(isCurrent, routeIsCurrent) &&
+        routeName == resolvedRouteName &&
+        identical(effectiveViewport, this.effectiveViewport)) {
+      return this;
+    }
+    return _InheritedDiscoveryScope(
+      ancestorHidden: hidden,
+      routeIsCurrent: isCurrent,
+      resolvedRouteName: routeName,
+      effectiveViewport: effectiveViewport,
+    );
+  }
+}
+
+/// Per-discovery-pass memo so ancestor-derived metadata (locator paths,
+/// inherited semantic ids and tooltips) is computed at most once per element.
+final class _DiscoverySession {
+  final Map<Element, _LocatorPathNode> pathNodes =
+      Map<Element, _LocatorPathNode>.identity();
+  final Map<Element, String> locatorPaths = Map<Element, String>.identity();
+  final Map<Element, String?> semanticIds = Map<Element, String?>.identity();
+  final Map<Element, String?> tooltips = Map<Element, String?>.identity();
+}
+
+/// Parent-linked locator path segment chain shared across sibling subtrees.
+final class _LocatorPathNode {
+  const _LocatorPathNode(this.parent, this.segment);
+
+  static const _LocatorPathNode root = _LocatorPathNode(null, null);
+
+  final _LocatorPathNode? parent;
+  final String? segment;
+
+  List<String> toSegments() {
+    final reversed = <String>[];
+    _LocatorPathNode? node = this;
+    while (node != null) {
+      final segment = node.segment;
+      if (segment != null) {
+        reversed.add(segment);
+      }
+      node = node.parent;
+    }
+    return reversed.reversed.toList(growable: false);
+  }
 }
