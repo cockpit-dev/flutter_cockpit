@@ -2331,14 +2331,23 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
     required int timeoutMs,
     required String waitCondition,
   }) async {
+    // A single absent observation can race a route transition or frame
+    // rebuild where targets briefly unregister before re-registering, so
+    // require two consecutive absent observations separated by a settle.
+    var absentStreak = 0;
     while (stopwatch.elapsedMilliseconds <= timeoutMs) {
       final snapshot = _liveSnapshot();
       if (_waitConditionIsAbsent(command, snapshot)) {
-        return _successExecution(
-          command: command,
-          durationMs: stopwatch.elapsedMilliseconds,
-          snapshot: snapshot.toJson(),
-        );
+        absentStreak += 1;
+        if (absentStreak >= 2) {
+          return _successExecution(
+            command: command,
+            durationMs: stopwatch.elapsedMilliseconds,
+            snapshot: snapshot.toJson(),
+          );
+        }
+      } else {
+        absentStreak = 0;
       }
 
       final remaining = timeoutMs - stopwatch.elapsedMilliseconds;
@@ -2355,16 +2364,21 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
     }
 
     final failureSnapshot = _liveSnapshot();
+    final unconfirmedAbsence = absentStreak > 0;
     return _failureExecution(
       command: command,
       durationMs: stopwatch.elapsedMilliseconds,
       snapshot: failureSnapshot.toJson(),
       error: CockpitCommandError.timeout(
-        message:
-            'Timed out waiting for $waitCondition to disappear; it is still present.',
+        message: unconfirmedAbsence
+            ? 'Timed out waiting for $waitCondition to disappear; it was '
+                  'absent at the deadline but stable absence could not be '
+                  'confirmed within the budget.'
+            : 'Timed out waiting for $waitCondition to disappear; it is still present.',
         details: <String, Object?>{
           'waitCondition': waitCondition,
           'absent': true,
+          if (unconfirmedAbsence) 'unconfirmedAbsence': true,
           'timeoutMs': timeoutMs,
           'routeName': failureSnapshot.routeName,
           'visibleTargetCount': _registry.visibleTargets.length,

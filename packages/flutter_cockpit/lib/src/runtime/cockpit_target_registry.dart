@@ -128,9 +128,11 @@ final class CockpitTargetRegistry {
   CockpitTargetResolutionResult resolve(CockpitLocator locator) {
     return _withDiscoveryCache(() {
       for (final candidate in _flatten(locator)) {
-        final matches = visibleTargets
-            .where((target) => _matches(target, candidate))
-            .toList(growable: false);
+        final matches = _preferCurrentRouteMatches(
+          visibleTargets
+              .where((target) => _matches(target, candidate))
+              .toList(growable: false),
+        );
 
         if (matches.isEmpty) {
           continue;
@@ -586,6 +588,25 @@ final class CockpitTargetRegistry {
         left.isNotEmpty &&
         right.isNotEmpty &&
         left == right;
+  }
+
+  /// Visible targets include co-visible nested-navigator routes so they stay
+  /// addressable, but when a locator matches targets on the host route those
+  /// must win outright instead of tying into an ambiguous-target failure.
+  List<CockpitTarget> _preferCurrentRouteMatches(List<CockpitTarget> matches) {
+    final currentRouteName = routeName;
+    if (currentRouteName == null ||
+        currentRouteName.isEmpty ||
+        matches.length < 2) {
+      return matches;
+    }
+    final routeMatched = matches
+        .where((target) => target.routeName == currentRouteName)
+        .toList(growable: false);
+    if (routeMatched.isEmpty || routeMatched.length == matches.length) {
+      return matches;
+    }
+    return routeMatched;
   }
 
   CockpitTarget? _selectPreferredMatch(

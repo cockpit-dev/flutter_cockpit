@@ -41,7 +41,9 @@ typedef CockpitRemoteArtifactTempFileFactory =
     Future<File> Function(String basename);
 
 const Duration _defaultCommandExecutionTimeout = Duration(seconds: 30);
-const Duration _commandExecutionTimeoutGrace = Duration(milliseconds: 250);
+// Strictly larger than the executor's 250ms hard-timeout grace so the
+// executor's diagnostic-rich timeout always wins over this generic one.
+const Duration _commandExecutionTimeoutGrace = Duration(milliseconds: 600);
 
 final class CockpitRemoteSessionEndpointRequest {
   const CockpitRemoteSessionEndpointRequest({
@@ -207,7 +209,9 @@ final class CockpitRemoteSessionEndpointHandler {
         case ('GET', '/artifacts/download'):
           return _artifactResponseFor(request);
         case ('POST', '/commands/execute'):
-          final command = CockpitCommand.fromJson(request.jsonBody);
+          final command = _decodePayload(
+            () => CockpitCommand.fromJson(request.jsonBody),
+          );
           await _drainRuntimeSteps(clear: true);
           final execution = await _executeCommandWithinBudget(command);
           final runtimeSteps = await _drainRuntimeSteps(clear: true);
@@ -232,9 +236,10 @@ final class CockpitRemoteSessionEndpointHandler {
           }
           return CockpitRemoteSessionEndpointResponse.json(responsePayload);
         case ('POST', '/recording/start'):
-          final recording = await _handleStartRecording(
-            CockpitRecordingRequest.fromJson(request.jsonBody),
+          final recordingRequest = _decodePayload(
+            () => CockpitRecordingRequest.fromJson(request.jsonBody),
           );
+          final recording = await _handleStartRecording(recordingRequest);
           return CockpitRemoteSessionEndpointResponse.json(recording.toJson());
         case ('POST', '/recording/stop'):
           final result = await _handleStopRecording();
@@ -254,16 +259,21 @@ final class CockpitRemoteSessionEndpointHandler {
         'error': 'invalidPayload',
         'message': error.message,
       }, statusCode: HttpStatus.badRequest);
-    } on ArgumentError catch (error) {
-      return CockpitRemoteSessionEndpointResponse.json(<String, Object?>{
-        'error': 'invalidPayload',
-        'message': error.toString(),
-      }, statusCode: HttpStatus.badRequest);
     } catch (error) {
       return CockpitRemoteSessionEndpointResponse.json(<String, Object?>{
         'error': 'serverError',
         'message': error.toString(),
       }, statusCode: HttpStatus.internalServerError);
+    }
+  }
+
+  // Payload decoding errors must surface as 400 invalidPayload while
+  // ArgumentErrors thrown later during execution stay internal (500).
+  T _decodePayload<T>(T Function() decode) {
+    try {
+      return decode();
+    } on ArgumentError catch (error) {
+      throw FormatException('$error');
     }
   }
 

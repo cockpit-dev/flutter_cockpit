@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
@@ -124,12 +126,18 @@ SemanticsNode? cockpitResolveSemanticsNodeFromOwnerTree(Element element) {
   final viewTransform = rootRenderObject is RenderView
       ? rootRenderObject.configuration.toMatrix()
       : Matrix4.identity();
-  final globalCenter = MatrixUtils.transformPoint(
+  final globalElementRect = MatrixUtils.transformRect(
     viewTransform.multiplied(renderObject.getTransformTo(null)),
-    renderObject.size.center(Offset.zero),
+    Offset.zero & renderObject.size,
   );
+  final globalCenter = globalElementRect.center;
 
+  // Containment alone would let a deeper overlay node (modal barrier,
+  // snackbar) win over the element's own node, so require the candidate rect
+  // to substantially coincide with the element bounds and prefer the best
+  // geometric match.
   SemanticsNode? best;
+  var bestScore = 0.0;
   var bestDepth = -1;
   void visit(SemanticsNode node, Matrix4 parentTransform, int depth) {
     final nodeTransform = node.transform;
@@ -138,9 +146,15 @@ SemanticsNode? cockpitResolveSemanticsNodeFromOwnerTree(Element element) {
         : parentTransform.multiplied(nodeTransform);
     if (!node.isMergedIntoParent && !node.rect.isEmpty) {
       final globalRect = MatrixUtils.transformRect(globalTransform, node.rect);
-      if (globalRect.contains(globalCenter) && depth >= bestDepth) {
-        best = node;
-        bestDepth = depth;
+      if (globalRect.contains(globalCenter) &&
+          !node.getSemanticsData().flagsCollection.isHidden) {
+        final score = _semanticsRectAffinity(globalRect, globalElementRect);
+        if (score >= _minimumSemanticsRectAffinity &&
+            (score > bestScore || (score == bestScore && depth >= bestDepth))) {
+          best = node;
+          bestScore = score;
+          bestDepth = depth;
+        }
       }
     }
     node.visitChildren((child) {
@@ -151,6 +165,24 @@ SemanticsNode? cockpitResolveSemanticsNodeFromOwnerTree(Element element) {
 
   visit(rootNode, Matrix4.identity(), 0);
   return best;
+}
+
+const double _minimumSemanticsRectAffinity = 0.25;
+
+double _semanticsRectAffinity(Rect nodeRect, Rect elementRect) {
+  final intersection = nodeRect.intersect(elementRect);
+  if (intersection.width <= 0 || intersection.height <= 0) {
+    return 0;
+  }
+  final intersectionArea = intersection.width * intersection.height;
+  final largerArea = math.max(
+    nodeRect.width * nodeRect.height,
+    elementRect.width * elementRect.height,
+  );
+  if (largerArea <= 0) {
+    return 0;
+  }
+  return intersectionArea / largerArea;
 }
 
 Set<SemanticsAction> _supportedActionsFrom(SemanticsData data) {

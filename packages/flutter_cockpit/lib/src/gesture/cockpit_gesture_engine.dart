@@ -1100,10 +1100,7 @@ final class CockpitGestureEngine {
     required int buttons,
     required Duration timeStamp,
   }) {
-    final clampedPosition = Offset(
-      geometry.clampXToViewport(position.dx),
-      geometry.clampYToViewport(position.dy),
-    );
+    final clampedPosition = _clampToViewport(geometry, position);
     GestureBinding.instance.handlePointerEvent(
       PointerDownEvent(
         timeStamp: timeStamp,
@@ -1126,14 +1123,8 @@ final class CockpitGestureEngine {
     required int buttons,
     required Duration timeStamp,
   }) {
-    final clampedPrevious = Offset(
-      geometry.clampXToViewport(previousPosition.dx),
-      geometry.clampYToViewport(previousPosition.dy),
-    );
-    final clampedNext = Offset(
-      geometry.clampXToViewport(nextPosition.dx),
-      geometry.clampYToViewport(nextPosition.dy),
-    );
+    final clampedPrevious = _clampToViewport(geometry, previousPosition);
+    final clampedNext = _clampToViewport(geometry, nextPosition);
     GestureBinding.instance.handlePointerEvent(
       PointerMoveEvent(
         timeStamp: timeStamp,
@@ -1155,10 +1146,7 @@ final class CockpitGestureEngine {
     required PointerDeviceKind pointerDeviceKind,
     required Duration timeStamp,
   }) {
-    final clampedPosition = Offset(
-      geometry.clampXToViewport(position.dx),
-      geometry.clampYToViewport(position.dy),
-    );
+    final clampedPosition = _clampToViewport(geometry, position);
     GestureBinding.instance.handlePointerEvent(
       PointerUpEvent(
         timeStamp: timeStamp,
@@ -1178,10 +1166,7 @@ final class CockpitGestureEngine {
     required PointerDeviceKind pointerDeviceKind,
     required Duration timeStamp,
   }) {
-    final clampedPosition = Offset(
-      geometry.clampXToViewport(position.dx),
-      geometry.clampYToViewport(position.dy),
-    );
+    final clampedPosition = _clampToViewport(geometry, position);
     GestureBinding.instance.handlePointerEvent(
       PointerCancelEvent(
         timeStamp: timeStamp,
@@ -1209,7 +1194,7 @@ final class CockpitGestureEngine {
         timeStamp: timeStamp,
         pointer: pointer,
         device: 0,
-        position: position,
+        position: _clampToViewport(geometry, position),
         viewId: geometry.viewId,
       ),
     );
@@ -1230,7 +1215,7 @@ final class CockpitGestureEngine {
         timeStamp: timeStamp,
         pointer: pointer,
         device: 0,
-        position: position,
+        position: _clampToViewport(geometry, position),
         pan: pan,
         panDelta: panDelta,
         scale: scale,
@@ -1251,9 +1236,19 @@ final class CockpitGestureEngine {
         timeStamp: timeStamp,
         pointer: pointer,
         device: 0,
-        position: position,
+        position: _clampToViewport(geometry, position),
         viewId: geometry.viewId,
       ),
+    );
+  }
+
+  static Offset _clampToViewport(
+    CockpitTargetGeometry geometry,
+    Offset position,
+  ) {
+    return Offset(
+      geometry.clampXToViewport(position.dx),
+      geometry.clampYToViewport(position.dy),
     );
   }
 
