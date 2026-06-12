@@ -158,6 +158,21 @@ Simulator support is intentionally capability-truthful:
   `simctl`/XCTest simulator API. They remain `unsupported` or `blocked` instead
   of pretending to be automated. Use returned fallbacks, WDA-backed actions when
   available, or app-level assertions.
+- Desktop hosts (macOS/Windows/Linux) expose host-plane actions through
+  built-in tooling: URL and system settings entry (`open
+  x-apple.systempreferences:` / `ms-settings:`), host appearance (System
+  Events / registry / gsettings), clipboard, host file push/pull and media
+  copy, app activation/recovery/termination, focus and device/system reads,
+  process/window lists, notifications (`osascript display notification` /
+  `notify-send`), macOS TCC `resetPermission` via `tccutil`, window-targeted
+  input, native UI tree reads (macOS/Windows), and window screenshots and
+  recordings. Host-global surfaces with no stable app-scoped tooling — Home,
+  volume keys, status bar, notification-center expansion, simulated location,
+  orientation — stay `unsupported` or `blocked` truthfully.
+- Web (browser) targets keep DOM-plane input blocked until a browser driver or
+  bridge is configured, but screenshots and recordings are available through
+  the host window adapters when the browser app id or process id is known
+  (macOS hosts require the app id).
 
 Default AI-readable capability rows include compact parameter metadata such as
 `parameters=[x*:integer | wifiBars:integer[0..3] | appearance*:string(light|dark)]`.
@@ -187,7 +202,7 @@ Serialize mutation, then observation. Do not run a mutating `run-command` in par
 When the next few steps are already known and the flow will cross a route boundary such as list -> editor -> list, prefer one ordered `run-batch` over separate `run-command` round-trips. It cuts token cost and avoids route-transition gaps between commands.
 `read-app` and snapshots expose focus state. When `uiSummary.focus.isTextInputFocus` is true or a software keyboard covers the next target, run `dismissKeyboard` as a locator-free command before scrolling or tapping again.
 Use product-specific locator signals. Short repeated action labels such as `Open`, `Edit`, or `Save` are fine as fallbacks, but they should not be the only signal when multiple rows or cards can expose the same word. Prefer the full accessible label from `read-app` / `inspect-ui`, then add `route`, `type`, or `ancestor` only as needed.
-For route-changing `tap` commands, set `parameters.expectedRouteName`. Add `parameters.routeTimeoutMs` for CI, recording, simulator, or other acceptance flows where runner latency is expected; `timeoutMs` remains the hard command ceiling. Follow critical route crossings with `waitFor` on `parameters.routeName`.
+For route-changing `tap` commands, set `parameters.expectedRouteName`. Add `parameters.routeTimeoutMs` for CI, recording, simulator, or other acceptance flows where runner latency is expected; `timeoutMs` remains the hard command ceiling. Follow critical route crossings with `waitFor` on `parameters.routeName`. To wait for spinners, dialogs, or routes to disappear, use `waitFor` with `parameters.absent: true`.
 `run-command`, `run-batch`, and `run-script` default key mutating commands to
 best-effort after-action screenshots attached to the command step. This gives
 agents key-frame evidence for taps, text input, scrolls, drags, and back

@@ -232,7 +232,7 @@ Prefer `--command-file`, `--commands-file`, and `--config-json` once a payload s
 For code-side questions, prefer `analyze-files`, `lsp`, `grep-package-uris`, `read-package-uris`, and `pub` before workspace-wide commands.
 Serialize mutation, then observation. Do not parallelize `run-command` with the `read-app`, `inspect-ui`, or `read-network` step that depends on its side effects.
 When the next few mutations are already known and the flow will cross route boundaries such as list -> editor -> list, prefer one ordered `run-batch` over separate `run-command` round-trips to reduce token cost and avoid transition gaps between commands.
-For route-changing `tap`, include `parameters.expectedRouteName`; add `parameters.routeTimeoutMs` for CI, recording, simulator, or other acceptance flows where runner latency is expected. `timeoutMs` is the hard command ceiling, not the default route wait. For critical route crossings, follow the tap with `waitFor` on `parameters.routeName`.
+For route-changing `tap`, include `parameters.expectedRouteName`; add `parameters.routeTimeoutMs` for CI, recording, simulator, or other acceptance flows where runner latency is expected. `timeoutMs` is the hard command ceiling, not the default route wait. For critical route crossings, follow the tap with `waitFor` on `parameters.routeName`. To wait for spinners, dialogs, or routes to disappear, use `waitFor` with `parameters.absent: true`.
 `read-app` and snapshots include focus state. When `uiSummary.focus.isTextInputFocus` is true or a software keyboard covers the next control, run a locator-free `dismissKeyboard` command before scrolling or tapping again.
 When an app summary already exposes bounded workflow counters or state fields, prefer those fields before reopening a heavier inspection payload.
 
@@ -433,6 +433,15 @@ when it is reachable. JSON capability output also exposes
 `actionGroups` so callers can discover permission, notification, file, media,
 evidence, device-state, and inspection actions without hard-coding
 per-platform lists.
+Desktop hosts (macOS/Windows/Linux) expose host-plane actions through built-in
+tooling: URL/system-settings entry, host appearance, clipboard, host file
+push/pull and media copy, app activation/recovery/termination, focus and
+device/system reads, process/window lists, notifications, macOS `tccutil`
+permission resets, window-targeted input, native UI tree reads
+(macOS/Windows), and window screenshots/recordings. Web targets keep DOM-plane
+input blocked until a browser driver or bridge exists, while screenshots and
+recordings run through the host window adapters once the browser app id or
+process id is known.
 
 Use `--profile minimal|standard|inspect|evidence` to control token cost. Start small and escalate only when needed.
 When a CLI command exits non-zero, first look for `errorJson: {...}` on stderr.
