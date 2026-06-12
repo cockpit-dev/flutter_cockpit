@@ -526,7 +526,7 @@ final class CockpitGestureEngine {
       );
     }
 
-    final orderedSteps = sequence.steps.toList(growable: true)
+    final orderedSteps = sequence.steps.toList(growable: false)
       ..sort((left, right) {
         final timeCompare = left.atMs.compareTo(right.atMs);
         if (timeCompare != 0) {
@@ -534,83 +534,124 @@ final class CockpitGestureEngine {
         }
         return left.pointer.compareTo(right.pointer);
       });
+    _validateMultiTouchSequence(orderedSteps);
+
     final activePointers = <int, Offset>{};
     var currentAtMs = 0;
+    try {
+      for (final step in orderedSteps) {
+        final deltaMs = step.atMs - currentAtMs;
+        if (deltaMs > 0) {
+          await _delay(Duration(milliseconds: deltaMs));
+        }
+        currentAtMs = step.atMs;
 
+        final position = Offset(origin.dx + step.dx, origin.dy + step.dy);
+        switch (step.phase) {
+          case CockpitMultiTouchPhase.down:
+            _dispatchDown(
+              pointer: step.pointer,
+              geometry: geometry,
+              position: position,
+              pointerDeviceKind: PointerDeviceKind.touch,
+              buttons: kPrimaryButton,
+              timeStamp: Duration(milliseconds: step.atMs),
+            );
+            activePointers[step.pointer] = position;
+          case CockpitMultiTouchPhase.move:
+            _dispatchMove(
+              pointer: step.pointer,
+              geometry: geometry,
+              previousPosition: activePointers[step.pointer]!,
+              nextPosition: position,
+              pointerDeviceKind: PointerDeviceKind.touch,
+              buttons: kPrimaryButton,
+              timeStamp: Duration(milliseconds: step.atMs),
+            );
+            activePointers[step.pointer] = position;
+          case CockpitMultiTouchPhase.up:
+            _dispatchUp(
+              pointer: step.pointer,
+              geometry: geometry,
+              position: position,
+              pointerDeviceKind: PointerDeviceKind.touch,
+              timeStamp: Duration(milliseconds: step.atMs),
+            );
+            activePointers.remove(step.pointer);
+        }
+
+        await _delay(Duration.zero);
+      }
+    } on Object {
+      // Release every still-active pointer so a failed sequence cannot leave
+      // phantom pointers stuck in GestureBinding.
+      _cancelActivePointers(
+        activePointers,
+        geometry: geometry,
+        timeStamp: Duration(milliseconds: currentAtMs),
+      );
+      rethrow;
+    }
+
+    await _delay(Duration.zero);
+  }
+
+  void _validateMultiTouchSequence(List<CockpitMultiTouchStep> orderedSteps) {
+    final activePointers = <int>{};
     for (final step in orderedSteps) {
-      if (step.atMs < currentAtMs) {
-        throw ArgumentError.value(
-          step.atMs,
-          'step.atMs',
-          'Multi-touch steps must be time-ordered.',
-        );
-      }
-
-      final deltaMs = step.atMs - currentAtMs;
-      if (deltaMs > 0) {
-        await _delay(Duration(milliseconds: deltaMs));
-      }
-      currentAtMs = step.atMs;
-
-      final position = Offset(origin.dx + step.dx, origin.dy + step.dy);
       switch (step.phase) {
         case CockpitMultiTouchPhase.down:
-          _dispatchDown(
-            pointer: step.pointer,
-            geometry: geometry,
-            position: position,
-            pointerDeviceKind: PointerDeviceKind.touch,
-            buttons: kPrimaryButton,
-            timeStamp: Duration(milliseconds: step.atMs),
-          );
-          activePointers[step.pointer] = position;
+          if (!activePointers.add(step.pointer)) {
+            throw ArgumentError.value(
+              step.pointer,
+              'step.pointer',
+              'Down events require a pointer that is not already active.',
+            );
+          }
         case CockpitMultiTouchPhase.move:
-          final previousPosition = activePointers[step.pointer];
-          if (previousPosition == null) {
+          if (!activePointers.contains(step.pointer)) {
             throw ArgumentError.value(
               step.pointer,
               'step.pointer',
               'Move events require an active pointer.',
             );
           }
-          _dispatchMove(
-            pointer: step.pointer,
-            geometry: geometry,
-            previousPosition: previousPosition,
-            nextPosition: position,
-            pointerDeviceKind: PointerDeviceKind.touch,
-            buttons: kPrimaryButton,
-            timeStamp: Duration(milliseconds: step.atMs),
-          );
-          activePointers[step.pointer] = position;
         case CockpitMultiTouchPhase.up:
-          if (!activePointers.containsKey(step.pointer)) {
+          if (!activePointers.remove(step.pointer)) {
             throw ArgumentError.value(
               step.pointer,
               'step.pointer',
               'Up events require an active pointer.',
             );
           }
-          _dispatchUp(
-            pointer: step.pointer,
-            geometry: geometry,
-            position: position,
-            pointerDeviceKind: PointerDeviceKind.touch,
-            timeStamp: Duration(milliseconds: step.atMs),
-          );
-          activePointers.remove(step.pointer);
       }
-
-      await _delay(Duration.zero);
     }
-
     if (activePointers.isNotEmpty) {
       throw ArgumentError(
         'Multi-touch sequences must release all active pointers before completion.',
       );
     }
+  }
 
-    await _delay(Duration.zero);
+  void _cancelActivePointers(
+    Map<int, Offset> activePointers, {
+    required CockpitTargetGeometry geometry,
+    required Duration timeStamp,
+  }) {
+    for (final entry in activePointers.entries) {
+      try {
+        _dispatchCancel(
+          pointer: entry.key,
+          geometry: geometry,
+          position: entry.value,
+          pointerDeviceKind: PointerDeviceKind.touch,
+          timeStamp: timeStamp,
+        );
+      } on Object {
+        // Best effort: keep cancelling the remaining pointers.
+      }
+    }
+    activePointers.clear();
   }
 
   Future<void> _performInterpolatedMultiPointerGesture({
@@ -1120,6 +1161,29 @@ final class CockpitGestureEngine {
     );
     GestureBinding.instance.handlePointerEvent(
       PointerUpEvent(
+        timeStamp: timeStamp,
+        pointer: pointer,
+        device: _deviceForKind(pointerDeviceKind),
+        kind: pointerDeviceKind,
+        position: clampedPosition,
+        viewId: geometry.viewId,
+      ),
+    );
+  }
+
+  void _dispatchCancel({
+    required int pointer,
+    required CockpitTargetGeometry geometry,
+    required Offset position,
+    required PointerDeviceKind pointerDeviceKind,
+    required Duration timeStamp,
+  }) {
+    final clampedPosition = Offset(
+      geometry.clampXToViewport(position.dx),
+      geometry.clampYToViewport(position.dy),
+    );
+    GestureBinding.instance.handlePointerEvent(
+      PointerCancelEvent(
         timeStamp: timeStamp,
         pointer: pointer,
         device: _deviceForKind(pointerDeviceKind),

@@ -254,6 +254,11 @@ final class CockpitRemoteSessionEndpointHandler {
         'error': 'invalidPayload',
         'message': error.message,
       }, statusCode: HttpStatus.badRequest);
+    } on ArgumentError catch (error) {
+      return CockpitRemoteSessionEndpointResponse.json(<String, Object?>{
+        'error': 'invalidPayload',
+        'message': error.toString(),
+      }, statusCode: HttpStatus.badRequest);
     } catch (error) {
       return CockpitRemoteSessionEndpointResponse.json(<String, Object?>{
         'error': 'serverError',

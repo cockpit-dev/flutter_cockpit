@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 
@@ -94,7 +95,62 @@ SemanticsNode? _resolveSemanticsNode(Element element) {
     renderObject = renderObject.parent;
     result = renderObject?.debugSemantics;
   }
-  return result;
+  if (result != null || !kReleaseMode) {
+    return result;
+  }
+  // RenderObject.debugSemantics is assert-gated and always null in release
+  // builds, so resolve through the live SemanticsOwner tree instead of
+  // silently disabling the semantic plane.
+  return cockpitResolveSemanticsNodeFromOwnerTree(element);
+}
+
+@visibleForTesting
+SemanticsNode? cockpitResolveSemanticsNodeFromOwnerTree(Element element) {
+  final renderObject = element.findRenderObject();
+  if (renderObject is! RenderBox ||
+      !renderObject.attached ||
+      !renderObject.hasSize) {
+    return null;
+  }
+  final pipelineOwner = renderObject.owner;
+  final rootNode = pipelineOwner?.semanticsOwner?.rootSemanticsNode;
+  if (rootNode == null) {
+    return null;
+  }
+  // The root semantics node lives in the view's physical coordinate space,
+  // so the logical element center must be mapped through the view transform
+  // before rect containment checks.
+  final rootRenderObject = pipelineOwner!.rootNode;
+  final viewTransform = rootRenderObject is RenderView
+      ? rootRenderObject.configuration.toMatrix()
+      : Matrix4.identity();
+  final globalCenter = MatrixUtils.transformPoint(
+    viewTransform.multiplied(renderObject.getTransformTo(null)),
+    renderObject.size.center(Offset.zero),
+  );
+
+  SemanticsNode? best;
+  var bestDepth = -1;
+  void visit(SemanticsNode node, Matrix4 parentTransform, int depth) {
+    final nodeTransform = node.transform;
+    final globalTransform = nodeTransform == null
+        ? parentTransform
+        : parentTransform.multiplied(nodeTransform);
+    if (!node.isMergedIntoParent && !node.rect.isEmpty) {
+      final globalRect = MatrixUtils.transformRect(globalTransform, node.rect);
+      if (globalRect.contains(globalCenter) && depth >= bestDepth) {
+        best = node;
+        bestDepth = depth;
+      }
+    }
+    node.visitChildren((child) {
+      visit(child, globalTransform, depth + 1);
+      return true;
+    });
+  }
+
+  visit(rootNode, Matrix4.identity(), 0);
+  return best;
 }
 
 Set<SemanticsAction> _supportedActionsFrom(SemanticsData data) {

@@ -614,6 +614,96 @@ void main() {
   );
 
   testWidgets(
+    'tristate checkbox direct handler follows the false, true, null cycle',
+    (tester) async {
+      bool? value = false;
+
+      await tester.pumpWidget(
+        CockpitSurface(
+          routeName: '/settings',
+          child: MaterialApp(
+            home: Scaffold(
+              body: Center(
+                child: StatefulBuilder(
+                  builder: (context, setState) => Checkbox(
+                    key: const ValueKey<String>('task-flag'),
+                    tristate: true,
+                    value: value,
+                    onChanged: (next) => setState(() => value = next),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final surfaceState = tester.state<CockpitSurfaceState>(
+        find.byType(CockpitSurface),
+      );
+      Future<void> tapCheckbox() async {
+        final resolution = surfaceState.registry.resolve(
+          const CockpitLocator(key: 'task-flag'),
+        );
+        expect(resolution.isSuccess, isTrue, reason: resolution.error?.message);
+        resolution.target!.onTap!();
+        await tester.pump();
+      }
+
+      await tapCheckbox();
+      expect(value, isTrue);
+      await tapCheckbox();
+      expect(value, isNull);
+      await tapCheckbox();
+      expect(value, isFalse);
+    },
+  );
+
+  testWidgets('non-tristate checkbox direct handler keeps the boolean toggle', (
+    tester,
+  ) async {
+    var value = false;
+
+    await tester.pumpWidget(
+      CockpitSurface(
+        routeName: '/settings',
+        child: MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: StatefulBuilder(
+                builder: (context, setState) => Checkbox(
+                  key: const ValueKey<String>('task-done'),
+                  value: value,
+                  onChanged: (next) => setState(() => value = next ?? false),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final surfaceState = tester.state<CockpitSurfaceState>(
+      find.byType(CockpitSurface),
+    );
+    Future<void> tapCheckbox() async {
+      final resolution = surfaceState.registry.resolve(
+        const CockpitLocator(key: 'task-done'),
+      );
+      expect(resolution.isSuccess, isTrue, reason: resolution.error?.message);
+      resolution.target!.onTap!();
+      await tester.pump();
+    }
+
+    await tapCheckbox();
+    expect(value, isTrue);
+    await tapCheckbox();
+    expect(value, isFalse);
+  });
+
+  testWidgets(
     'does not resolve text targets that only barely overlap the viewport',
     (tester) async {
       await tester.pumpWidget(

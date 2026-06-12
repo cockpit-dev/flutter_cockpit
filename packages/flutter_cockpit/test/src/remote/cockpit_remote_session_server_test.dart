@@ -952,6 +952,58 @@ void main() {
   );
 
   test(
+    'remote command endpoint rejects unknown commandType values with 400 invalidPayload',
+    () async {
+      final handler = CockpitRemoteSessionEndpointHandler(
+        configuration: const CockpitRemoteSessionConfiguration(
+          enabled: true,
+          autoStart: false,
+          port: 0,
+        ),
+        statusProvider: () async => CockpitRemoteSessionStatus(
+          sessionId: 'invalid-command-session',
+          platform: 'android',
+          transportType: 'remoteHttp',
+          currentRouteName: '/home',
+          capabilities: CockpitCapabilities(
+            platform: 'android',
+            transportType: 'remoteHttp',
+            supportsInAppControl: true,
+            supportsFlutterViewCapture: true,
+            supportsNativeScreenCapture: false,
+            supportsHostAutomation: false,
+          ),
+          recordingCapabilities: CockpitRecordingCapabilities(
+            supportsNativeRecording: false,
+          ),
+          snapshot: CockpitSnapshot(routeName: '/home'),
+        ),
+        snapshotProvider: ({required options}) async =>
+            CockpitSnapshot(routeName: '/home'),
+        commandExecutor: (_) async =>
+            throw StateError('The executor must not run for invalid payloads.'),
+        startRecording: (_) async => throw StateError('unused'),
+        stopRecording: () async => throw StateError('unused'),
+      );
+
+      final response = await handler.handle(
+        CockpitRemoteSessionEndpointRequest(
+          method: 'POST',
+          uri: Uri.parse('/commands/execute'),
+          jsonBody: const <String, Object?>{
+            'commandId': 'bogus-command',
+            'commandType': 'launchMissiles',
+          },
+        ),
+      );
+
+      expect(response.statusCode, HttpStatus.badRequest);
+      expect(response.jsonBody?['error'], 'invalidPayload');
+      expect(response.jsonBody?['message'], contains('launchMissiles'));
+    },
+  );
+
+  test(
     'remote snapshot endpoint externalizes large forensic payloads into downloadable diagnostics artifacts',
     () async {
       final tempDir = await Directory.systemTemp.createTemp(

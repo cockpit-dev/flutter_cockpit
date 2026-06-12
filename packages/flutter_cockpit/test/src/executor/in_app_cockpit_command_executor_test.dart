@@ -183,6 +183,123 @@ void main() {
     },
   );
 
+  testWidgets('tap selects a Radio through its direct onChanged handler', (
+    tester,
+  ) async {
+    String? selected = 'inbox';
+
+    await tester.pumpWidget(
+      CockpitSurface(
+        routeName: '/settings',
+        child: MaterialApp(
+          home: Scaffold(
+            body: StatefulBuilder(
+              builder: (context, setState) => Column(
+                children: <Widget>[
+                  // ignore: deprecated_member_use
+                  Radio<String>(
+                    key: const ValueKey<String>('radio-inbox'),
+                    value: 'inbox',
+                    // ignore: deprecated_member_use
+                    groupValue: selected,
+                    // ignore: deprecated_member_use
+                    onChanged: (next) => setState(() => selected = next),
+                  ),
+                  // ignore: deprecated_member_use
+                  Radio<String>(
+                    key: const ValueKey<String>('radio-editor'),
+                    value: 'editor',
+                    // ignore: deprecated_member_use
+                    groupValue: selected,
+                    // ignore: deprecated_member_use
+                    onChanged: (next) => setState(() => selected = next),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final surfaceState = tester.state<CockpitSurfaceState>(
+      find.byType(CockpitSurface),
+    );
+    final executor = InAppCockpitCommandExecutor(
+      registry: surfaceState.registry,
+      waitTickHandler: tester.pump,
+    );
+    final result = await executor.execute(
+      CockpitCommand(
+        commandId: 'select-editor-radio',
+        commandType: CockpitCommandType.tap,
+        locator: const CockpitLocator(key: 'radio-editor'),
+      ),
+    );
+    await tester.pump();
+
+    expect(result.success, isTrue, reason: result.error?.message);
+    expect(selected, 'editor');
+  });
+
+  testWidgets(
+    'tap selects a RadioGroup-managed RadioListTile without a direct handler',
+    (tester) async {
+      String? selected = 'inbox';
+
+      await tester.pumpWidget(
+        CockpitSurface(
+          routeName: '/settings',
+          child: MaterialApp(
+            home: Scaffold(
+              body: StatefulBuilder(
+                builder: (context, setState) => RadioGroup<String>(
+                  groupValue: selected,
+                  onChanged: (next) => setState(() => selected = next),
+                  child: const Column(
+                    children: <Widget>[
+                      RadioListTile<String>(
+                        key: ValueKey<String>('radio-tile-inbox'),
+                        value: 'inbox',
+                        title: Text('Inbox'),
+                      ),
+                      RadioListTile<String>(
+                        key: ValueKey<String>('radio-tile-editor'),
+                        value: 'editor',
+                        title: Text('Editor'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final surfaceState = tester.state<CockpitSurfaceState>(
+        find.byType(CockpitSurface),
+      );
+      final executor = InAppCockpitCommandExecutor(
+        registry: surfaceState.registry,
+        waitTickHandler: tester.pump,
+      );
+      final result = await executor.execute(
+        CockpitCommand(
+          commandId: 'select-editor-radio-tile',
+          commandType: CockpitCommandType.tap,
+          locator: const CockpitLocator(key: 'radio-tile-editor'),
+        ),
+      );
+      await tester.pump();
+
+      expect(result.success, isTrue, reason: result.error?.message);
+      expect(selected, 'editor');
+    },
+  );
+
   test('executes tap against a target located by cockpitId', () async {
     final registry = CockpitTargetRegistry(routeName: '/checkout');
     var wasTapped = false;
@@ -2378,6 +2495,110 @@ void main() {
       expect(result.error?.code, CockpitCommandError.timeoutCode);
       expect(result.error?.details['visibleTargetCount'], 1);
       expect(result.error?.details['routeReadyVisibleTargetCount'], 0);
+    },
+  );
+
+  test('waitFor absent succeeds once the target disappears', () async {
+    final registry = CockpitTargetRegistry(routeName: '/form');
+    registry.register(
+      const CockpitTarget(
+        registrationId: 'spinner',
+        keyValue: 'loading-spinner',
+        routeName: '/form',
+      ),
+    );
+    unawaited(
+      Future<void>.delayed(const Duration(milliseconds: 10), () {
+        registry.unregister('spinner');
+      }),
+    );
+
+    final executor = InAppCockpitCommandExecutor(registry: registry);
+    final result = await executor.execute(
+      CockpitCommand(
+        commandId: 'cmd-wait-for-spinner-gone',
+        commandType: CockpitCommandType.waitFor,
+        locator: const CockpitLocator(key: 'loading-spinner'),
+        parameters: const <String, Object?>{'absent': true},
+        timeoutMs: 500,
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.snapshot?['routeName'], '/form');
+  });
+
+  test(
+    'waitFor absent times out truthfully while text stays visible',
+    () async {
+      final registry = CockpitTargetRegistry(routeName: '/form');
+      registry.register(
+        const CockpitTarget(
+          registrationId: 'banner',
+          text: 'Saving draft',
+          routeName: '/form',
+        ),
+      );
+
+      final executor = InAppCockpitCommandExecutor(registry: registry);
+      final result = await executor.execute(
+        CockpitCommand(
+          commandId: 'cmd-wait-for-banner-gone',
+          commandType: CockpitCommandType.waitFor,
+          parameters: const <String, Object?>{
+            'text': 'Saving draft',
+            'absent': true,
+          },
+          timeoutMs: 40,
+        ),
+      );
+
+      expect(result.success, isFalse);
+      expect(result.error?.code, CockpitCommandError.timeoutCode);
+      expect(result.error?.message, contains('to disappear'));
+      expect(result.error?.message, contains('still present'));
+      expect(result.error?.details['absent'], isTrue);
+      expect(result.error?.details['waitCondition'], 'text "Saving draft"');
+      expect(
+        result.error?.details['visibleTextCandidates'],
+        contains('Saving draft'),
+      );
+    },
+  );
+
+  test(
+    'assert diagnostics win over the hard command timeout grace window',
+    () async {
+      final registry = CockpitTargetRegistry(routeName: '/inbox');
+      registry.register(
+        const CockpitTarget(
+          registrationId: 'headline',
+          text: 'Inbox zero',
+          routeName: '/inbox',
+        ),
+      );
+      final executor = InAppCockpitCommandExecutor(
+        registry: registry,
+        postActionSettler: () async {},
+        waitTickHandler: (_) =>
+            Future<void>.delayed(const Duration(milliseconds: 30)),
+      );
+
+      final result = await executor.execute(
+        CockpitCommand(
+          commandId: 'assert-text-detailed-failure',
+          commandType: CockpitCommandType.assertText,
+          parameters: const <String, Object?>{'text': 'Archive everything'},
+          timeoutMs: 50,
+        ),
+      );
+
+      expect(result.success, isFalse);
+      expect(result.error?.code, CockpitCommandError.assertionFailedCode);
+      expect(
+        result.error?.details['visibleTextCandidates'],
+        contains('Inbox zero'),
+      );
     },
   );
 

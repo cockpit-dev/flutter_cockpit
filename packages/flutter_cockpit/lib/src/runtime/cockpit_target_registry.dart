@@ -485,11 +485,24 @@ final class CockpitTargetRegistry {
       return visibleTargets;
     }
 
-    final routeMatched = visibleTargets
-        .where((target) => target.routeName == currentRouteName)
-        .toList(growable: false);
+    final routeMatched = <CockpitTarget>[];
+    final otherRouteTargets = <CockpitTarget>[];
+    for (final target in visibleTargets) {
+      if (target.routeName == currentRouteName) {
+        routeMatched.add(target);
+      } else {
+        otherRouteTargets.add(target);
+      }
+    }
     if (routeMatched.isNotEmpty) {
-      return routeMatched;
+      // Discovery only surfaces targets whose enclosing route is current in
+      // its own navigator, so other route names belong to nested navigators
+      // that are co-visible with the host route. Keep them addressable while
+      // preferring host-route matches during resolution.
+      if (otherRouteTargets.isEmpty) {
+        return routeMatched;
+      }
+      return <CockpitTarget>[...routeMatched, ...otherRouteTargets];
     }
     if (!allowRouteFallback) {
       return const <CockpitTarget>[];
