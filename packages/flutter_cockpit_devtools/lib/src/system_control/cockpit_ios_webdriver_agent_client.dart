@@ -12,6 +12,8 @@ const String cockpitIosWdaCommandExecutable =
 typedef CockpitIosWdaHttpClientFactory = http.Client Function();
 typedef CockpitIosWdaEndpointProbe =
     Future<bool> Function(Uri baseUri, {required Duration timeout});
+typedef CockpitIosWdaProcessRunner =
+    Future<ProcessResult> Function(String executable, List<String> arguments);
 
 Future<bool> cockpitProbeIosWdaEndpoint(
   Uri baseUri, {
@@ -29,11 +31,14 @@ final class CockpitIosWebDriverAgentClient {
   CockpitIosWebDriverAgentClient({
     http.Client? httpClient,
     CockpitIosWdaHttpClientFactory? httpClientFactory,
+    CockpitIosWdaProcessRunner? processRunner,
   }) : _httpClient = httpClient,
-       _httpClientFactory = httpClientFactory ?? http.Client.new;
+       _httpClientFactory = httpClientFactory ?? http.Client.new,
+       _processRunner = processRunner ?? Process.run;
 
   final http.Client? _httpClient;
   final CockpitIosWdaHttpClientFactory _httpClientFactory;
+  final CockpitIosWdaProcessRunner _processRunner;
 
   Future<void> ping(Uri baseUri, {required Duration timeout}) {
     return _withClient((client) async {
@@ -314,9 +319,11 @@ final class CockpitIosWebDriverAgentClient {
           );
           return 'pressButton name=$name';
         case CockpitIosWdaAction.pressHome:
-          await _postSession(
+          // WebDriverAgent registers /wda/homescreen as a root (session-less)
+          // endpoint; the session-scoped variant 404s on modern WDA builds.
+          await _postRoot(
             client,
-            session,
+            session.baseUri,
             'wda/homescreen',
             const <String, Object?>{},
             timeout: timeout,
@@ -456,7 +463,7 @@ final class CockpitIosWebDriverAgentClient {
           final appId = _requiredString(command.parameters, 'appId');
           final deviceId =
               _optionalString(command.parameters, 'deviceId') ?? 'booted';
-          final launchOutput = await Process.run('xcrun', <String>[
+          final launchOutput = await _processRunner('xcrun', <String>[
             'simctl',
             'launch',
             deviceId,
@@ -491,6 +498,26 @@ final class CockpitIosWebDriverAgentClient {
             session.baseUri,
             '/session/${Uri.encodeComponent(session.sessionId)}/$path',
           ),
+          headers: const <String, String>{
+            'content-type': 'application/json; charset=utf-8',
+          },
+          body: jsonEncode(payload),
+        )
+        .timeout(timeout);
+    _ensureSuccess(response, 'run WebDriverAgent $path');
+    return response;
+  }
+
+  Future<http.Response> _postRoot(
+    http.Client client,
+    Uri baseUri,
+    String path,
+    Map<String, Object?> payload, {
+    required Duration timeout,
+  }) async {
+    final response = await client
+        .post(
+          _resolve(baseUri, '/$path'),
           headers: const <String, String>{
             'content-type': 'application/json; charset=utf-8',
           },
@@ -568,11 +595,34 @@ final class CockpitIosWebDriverAgentClient {
   }
 
   void _ensureSuccess(http.Response response, String operation) {
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw StateError(
-        'Failed to $operation: HTTP ${response.statusCode} ${response.body}',
-      );
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return;
     }
+    throw StateError(
+      'Failed to $operation: HTTP ${response.statusCode} '
+      '${_describeWdaError(response.body)}',
+    );
+  }
+
+  String _describeWdaError(String body) {
+    try {
+      final decoded = _decodeObject(body);
+      final value = decoded['value'];
+      if (value is Map<Object?, Object?>) {
+        final error = value['error'];
+        final message = value['message'];
+        final parts = <String>[
+          if (error is String && error.trim().isNotEmpty) error.trim(),
+          if (message is String && message.trim().isNotEmpty) message.trim(),
+        ];
+        if (parts.isNotEmpty) {
+          return parts.join(': ');
+        }
+      }
+    } on Object {
+      // Fall through to the raw body preview.
+    }
+    return _trimForDiagnostics(body);
   }
 
   String? _readNestedString(Map<String, Object?> json, List<String> path) {
@@ -646,6 +696,9 @@ final class CockpitIosWebDriverAgentClient {
     return value;
   }
 
+  // Notification Center, Control Center, and collapse gestures use
+  // window-size ratios because WDA has no dedicated endpoints for them;
+  // unusual simulator geometries may need coordinate fallbacks.
   Future<void> _openNotificationCenter(
     http.Client client,
     CockpitIosWdaSession session, {
