@@ -10,7 +10,7 @@ topics:
   - automation
   - testing
   - ai
-  - plugin
+  - developer-tools
 
 environment:
   sdk: '>=3.8.0 <4.0.0'
@@ -37,17 +37,6 @@ flutter:
   uses-material-design: true
   plugin:
     platforms:
-      android:
-        package: dev.cockpit.flutter_cockpit
-        pluginClass: FlutterCockpitPlugin
-      ios:
-        pluginClass: FlutterCockpitPlugin
-      macos:
-        pluginClass: FlutterCockpitPlugin
       web:
         pluginClass: FlutterCockpitWeb
         fileName: src/web/flutter_cockpit_web.dart
-      linux:
-        pluginClass: FlutterCockpitPlugin
-      windows:
-        pluginClass: FlutterCockpitPluginCApi
