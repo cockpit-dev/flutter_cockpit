@@ -22,7 +22,7 @@ These stages are decision gates, not a fixed command script or command quota. Sa
 
 ## First-Time App Wiring
 
-Add `flutter_cockpit`, add `cockpit/main.dart`, and keep the production entrypoint intact. Do not add `flutter_cockpit` imports to production `lib/` code. In `cockpit/`, wrap with `FlutterCockpitApp` or `FlutterCockpit.runApp`, register `FlutterCockpit.navigatorObserver` only in the cockpit-owned navigator, and enable `CockpitRemoteSessionConfiguration.resolveFromEnvironment(...)`. For app-owned routers, call `FlutterCockpit.setCurrentRouteName(...)`; do not patch production `lib/` unless accepted.
+Add `flutter_cockpit`, add `cockpit/main.dart`, and keep the production entrypoint intact. Do not add `flutter_cockpit` imports to production `lib/` code. The default runtime package is intentionally Dart/Flutter-first on mobile and desktop, so using it from `dev_dependencies` must not auto-register Cockpit native plugins into production bundles. In `cockpit/`, wrap with `FlutterCockpitApp` or `FlutterCockpit.runApp`, register `FlutterCockpit.navigatorObserver` only in the cockpit-owned navigator, and enable `CockpitRemoteSessionConfiguration.resolveFromEnvironment(...)`. For app-owned routers, call `FlutterCockpit.setCurrentRouteName(...)`; do not patch production `lib/` unless accepted.
 
 ## Stage Protocol
 
