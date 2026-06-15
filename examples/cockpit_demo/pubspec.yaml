@@ -10,8 +10,8 @@ environment:
 resolution: workspace
 
 dependencies:
-  drift: ">=2.31.0 <2.32.0"
-  drift_flutter: ">=0.2.8 <0.3.0"
+  drift: ">=2.29.0 <2.30.0"
+  drift_flutter: ">=0.2.7 <0.2.8"
   flutter:
     sdk: flutter
   flutter_cockpit: ^1.0.0
@@ -23,7 +23,7 @@ dependencies:
 dev_dependencies:
   args: ^2.7.0
   build_runner: ^2.4.0
-  drift_dev: ">=2.31.0 <2.32.0"
+  drift_dev: ">=2.29.0 <2.30.0"
   flutter_lints: ^6.0.0
   flutter_test:
     sdk: flutter
