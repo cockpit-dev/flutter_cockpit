@@ -8,6 +8,9 @@ import 'package:test/test.dart';
 void main() {
   test('reads workspace contracts and workflow protocol', () async {
     final fileSystem = MemoryFileSystem();
+    fileSystem.file('/workspace/docs/contracts/flutter-cockpit-protocol.md')
+      ..createSync(recursive: true)
+      ..writeAsStringSync('# Flutter Cockpit Protocol');
     fileSystem.file('/workspace/docs/contracts/ai-development-protocol.md')
       ..createSync(recursive: true)
       ..writeAsStringSync('# AI Development Protocol');
@@ -31,6 +34,7 @@ void main() {
     );
 
     final result = await service.read(
+      protocolPath: '/workspace/docs/contracts/flutter-cockpit-protocol.md',
       aiDevelopmentProtocolPath:
           '/workspace/docs/contracts/ai-development-protocol.md',
       skillContractPath:
@@ -42,11 +46,13 @@ void main() {
           '/workspace/docs/contracts/control-workflow.schema.json',
     );
 
+    expect(result.protocol.text, '# Flutter Cockpit Protocol');
     expect(result.aiDevelopmentProtocol.text, '# AI Development Protocol');
     expect(result.skillContract.text, '# Skill Contract');
     expect(result.bundleContract.text, '# Bundle Contract');
     expect(result.workflowProtocol.text, '# Workflow Protocol');
     expect(result.workflowSchema.text, '{"title":"Workflow Schema"}');
+    expect(result.toJson()['protocol'], isA<Map<String, Object?>>());
     expect(
       result.toJson()['aiDevelopmentProtocol'],
       isA<Map<String, Object?>>(),
@@ -55,6 +61,26 @@ void main() {
     expect(result.toJson()['workflowProtocol'], isA<Map<String, Object?>>());
     expect(result.toJson()['workflowSchema'], isA<Map<String, Object?>>());
   });
+
+  test(
+    'reads the protocol entry without requiring other contract paths',
+    () async {
+      final fileSystem = MemoryFileSystem();
+      fileSystem.file('/workspace/docs/contracts/flutter-cockpit-protocol.md')
+        ..createSync(recursive: true)
+        ..writeAsStringSync('# Flutter Cockpit Protocol');
+
+      final service = CockpitReadWorkspaceContractsService(
+        fileSystem: LocalCockpitFileSystem(fileSystem: fileSystem),
+      );
+
+      final result = await service.readProtocol(
+        protocolPath: '/workspace/docs/contracts/flutter-cockpit-protocol.md',
+      );
+
+      expect(result.text, '# Flutter Cockpit Protocol');
+    },
+  );
 
   test(
     'reads the AI development protocol without requiring other contract paths',
@@ -170,6 +196,12 @@ void main() {
 
     expect(
       File(
+        '${packageRoot.path}/doc/contracts/flutter-cockpit-protocol.md',
+      ).existsSync(),
+      isTrue,
+    );
+    expect(
+      File(
         '${packageRoot.path}/doc/contracts/ai-development-protocol.md',
       ).existsSync(),
       isTrue,
@@ -200,6 +232,11 @@ void main() {
 
   test('falls back to package-local contracts when workspace docs are absent', () async {
     final fileSystem = MemoryFileSystem();
+    fileSystem.file(
+        '/workspace/packages/flutter_cockpit_devtools/doc/contracts/flutter-cockpit-protocol.md',
+      )
+      ..createSync(recursive: true)
+      ..writeAsStringSync('# Package Flutter Cockpit Protocol');
     fileSystem.file(
         '/workspace/packages/flutter_cockpit_devtools/doc/contracts/ai-development-protocol.md',
       )
@@ -233,6 +270,7 @@ void main() {
 
     final result = await service.read();
 
+    expect(result.protocol.text, '# Package Flutter Cockpit Protocol');
     expect(
       result.aiDevelopmentProtocol.text,
       '# Package AI Development Protocol',
@@ -245,6 +283,9 @@ void main() {
 
   test('falls back when the current directory is the package root', () async {
     final fileSystem = MemoryFileSystem();
+    fileSystem.file('/package/doc/contracts/flutter-cockpit-protocol.md')
+      ..createSync(recursive: true)
+      ..writeAsStringSync('# Local Flutter Cockpit Protocol');
     fileSystem.file('/package/doc/contracts/ai-development-protocol.md')
       ..createSync(recursive: true)
       ..writeAsStringSync('# Local AI Development Protocol');
@@ -268,6 +309,7 @@ void main() {
 
     final result = await service.read();
 
+    expect(result.protocol.text, '# Local Flutter Cockpit Protocol');
     expect(
       result.aiDevelopmentProtocol.text,
       '# Local AI Development Protocol',

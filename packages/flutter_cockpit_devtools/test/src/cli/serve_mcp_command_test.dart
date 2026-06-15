@@ -67,6 +67,8 @@ void main() {
           '--force-roots-fallback',
           '--workspace-root',
           '/workspace',
+          '--protocol-file',
+          'docs/contracts/flutter-cockpit-protocol.md',
           '--ai-development-protocol-file',
           'docs/contracts/ai-development-protocol.md',
           '--skill-contract-file',
@@ -87,6 +89,10 @@ void main() {
     expect(capturedOptions?.disabledNames, <String>{'execution'});
     expect(capturedOptions?.forceRootsFallback, isTrue);
     expect(capturedOptions?.workspaceRoots, <String>['/workspace']);
+    expect(
+      capturedOptions?.protocolPath,
+      'docs/contracts/flutter-cockpit-protocol.md',
+    );
     expect(
       capturedOptions?.aiDevelopmentProtocolPath,
       'docs/contracts/ai-development-protocol.md',

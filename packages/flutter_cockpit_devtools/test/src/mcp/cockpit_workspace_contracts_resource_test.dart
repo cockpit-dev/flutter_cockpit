@@ -6,6 +6,28 @@ import 'package:flutter_cockpit_devtools/src/mcp/resources/cockpit_workspace_con
 import 'package:test/test.dart';
 
 void main() {
+  test('protocol resource reads only the configured protocol file', () async {
+    final fileSystem = MemoryFileSystem();
+    fileSystem.file('/workspace/docs/contracts/flutter-cockpit-protocol.md')
+      ..createSync(recursive: true)
+      ..writeAsStringSync('# Flutter Cockpit Protocol');
+
+    final resource = CockpitWorkspaceProtocolResource(
+      service: CockpitReadWorkspaceContractsService(
+        fileSystem: LocalCockpitFileSystem(fileSystem: fileSystem),
+      ),
+      protocolPath: '/workspace/docs/contracts/flutter-cockpit-protocol.md',
+    );
+
+    final result = await resource.read(
+      const CockpitMcpResourceRequest(uri: 'cockpit://workspace/protocol'),
+    );
+
+    expect(result, isNotNull);
+    final contents = result!.contents.single as CockpitMcpTextResourceContents;
+    expect(contents.text, '# Flutter Cockpit Protocol');
+  });
+
   test(
     'AI development protocol resource reads only the configured protocol file',
     () async {

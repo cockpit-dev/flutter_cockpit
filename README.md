@@ -209,7 +209,7 @@ For delivery:
 2. `run-task` when the tool should own bootstrap, baseline, execution, and classification
 3. `validate-task` when making a final completion claim
 
-Delivery bundles include `steps.json` as the full action log and `trace.json` as the compact step-to-command-to-artifact index. After `validate-task`, `validation.json` records the durable validation verdict for external E2E consumers. The workflow script protocol is documented in [`docs/contracts/control-workflow-protocol.md`](docs/contracts/control-workflow-protocol.md), with the machine-readable schema in [`docs/contracts/control-workflow.schema.json`](docs/contracts/control-workflow.schema.json).
+Delivery bundles include `steps.json` as the full action log and `trace.json` as the compact step-to-command-to-artifact index. After `validate-task`, `validation.json` records the durable validation verdict for external E2E consumers. Start from the protocol map in [`docs/contracts/flutter-cockpit-protocol.md`](docs/contracts/flutter-cockpit-protocol.md); the workflow script protocol is documented in [`docs/contracts/control-workflow-protocol.md`](docs/contracts/control-workflow-protocol.md), with the machine-readable schema in [`docs/contracts/control-workflow.schema.json`](docs/contracts/control-workflow.schema.json).
 The full AI development loop contract is documented in [`docs/contracts/ai-development-protocol.md`](docs/contracts/ai-development-protocol.md).
 
 For target-first and non-Flutter/system work:
@@ -553,6 +553,7 @@ Workspace and roots tools:
 
 Resources:
 
+- `cockpit://workspace/protocol`
 - `cockpit://workspace/ai-development-protocol`
 - `cockpit://workspace/skill-contract`
 - `cockpit://workspace/task-bundle-contract`
@@ -583,6 +584,7 @@ Prompts:
 - Skill install: [`skills/flutter-cockpit/INSTALL.md`](skills/flutter-cockpit/INSTALL.md)
 - App setup reference: [`skills/flutter-cockpit/examples/flutter-app-setup.md`](skills/flutter-cockpit/examples/flutter-app-setup.md)
 - CLI examples: [`skills/flutter-cockpit/examples/cli-command-reference.md`](skills/flutter-cockpit/examples/cli-command-reference.md)
+- Protocol map: [`docs/contracts/flutter-cockpit-protocol.md`](docs/contracts/flutter-cockpit-protocol.md)
 - AI development protocol: [`docs/contracts/ai-development-protocol.md`](docs/contracts/ai-development-protocol.md)
 - Skill contract: [`docs/contracts/flutter-cockpit-skill-contract.md`](docs/contracts/flutter-cockpit-skill-contract.md)
 - Bundle contract: [`docs/contracts/task-run-bundle.md`](docs/contracts/task-run-bundle.md)

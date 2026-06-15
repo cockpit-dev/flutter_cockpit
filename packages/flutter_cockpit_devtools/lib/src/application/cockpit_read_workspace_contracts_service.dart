@@ -3,6 +3,7 @@ import 'cockpit_workspace_document.dart';
 
 final class CockpitWorkspaceContracts {
   const CockpitWorkspaceContracts({
+    required this.protocol,
     required this.aiDevelopmentProtocol,
     required this.skillContract,
     required this.bundleContract,
@@ -10,6 +11,7 @@ final class CockpitWorkspaceContracts {
     required this.workflowSchema,
   });
 
+  final CockpitWorkspaceDocument protocol;
   final CockpitWorkspaceDocument aiDevelopmentProtocol;
   final CockpitWorkspaceDocument skillContract;
   final CockpitWorkspaceDocument bundleContract;
@@ -17,6 +19,7 @@ final class CockpitWorkspaceContracts {
   final CockpitWorkspaceDocument workflowSchema;
 
   Map<String, Object?> toJson() => <String, Object?>{
+    'protocol': protocol.toJson(),
     'aiDevelopmentProtocol': aiDevelopmentProtocol.toJson(),
     'skillContract': skillContract.toJson(),
     'bundleContract': bundleContract.toJson(),
@@ -32,6 +35,7 @@ final class CockpitReadWorkspaceContractsService {
   final CockpitFileSystem _fileSystem;
 
   Future<CockpitWorkspaceContracts> read({
+    String protocolPath = 'docs/contracts/flutter-cockpit-protocol.md',
     String aiDevelopmentProtocolPath =
         'docs/contracts/ai-development-protocol.md',
     String skillContractPath =
@@ -41,6 +45,7 @@ final class CockpitReadWorkspaceContractsService {
     String workflowSchemaPath = 'docs/contracts/control-workflow.schema.json',
   }) async {
     return CockpitWorkspaceContracts(
+      protocol: await readProtocol(protocolPath: protocolPath),
       aiDevelopmentProtocol: await readAiDevelopmentProtocol(
         aiDevelopmentProtocolPath: aiDevelopmentProtocolPath,
       ),
@@ -56,6 +61,15 @@ final class CockpitReadWorkspaceContractsService {
       workflowSchema: await readWorkflowSchema(
         workflowSchemaPath: workflowSchemaPath,
       ),
+    );
+  }
+
+  Future<CockpitWorkspaceDocument> readProtocol({
+    String protocolPath = 'docs/contracts/flutter-cockpit-protocol.md',
+  }) async {
+    return _readDocumentWithPackageFallback(
+      path: protocolPath,
+      packageRelativePath: 'doc/contracts/flutter-cockpit-protocol.md',
     );
   }
 

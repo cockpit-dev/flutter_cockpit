@@ -26,10 +26,8 @@ final class CockpitRunClosedLoopTaskPrompt extends CockpitMcpPrompt {
     return CockpitMcpPromptResult(
       messages: <CockpitMcpPromptMessage>[
         CockpitMcpPromptMessage.user(
-          'Read `cockpit://workspace/skill-contract`, '
-          '`cockpit://workspace/task-bundle-contract`, and '
-          '`cockpit://workspace/control-workflow-protocol` for scripted '
-          'flows, plus '
+          'Read `cockpit://workspace/protocol` first, then the specific '
+          'contract resource it points to only when needed, plus '
           '`cockpit://workspace/capabilities` before acting. Then reuse the '
           'persisted app or target handle whenever possible, prefer bounded '
           'summary reads before full inspection, and if a remote session goes '

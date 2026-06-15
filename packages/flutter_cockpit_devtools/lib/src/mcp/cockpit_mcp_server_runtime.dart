@@ -12,6 +12,7 @@ final class CockpitMcpServerRuntimeOptions {
     required this.disabledNames,
     required this.forceRootsFallback,
     required this.workspaceRoots,
+    required this.protocolPath,
     required this.aiDevelopmentProtocolPath,
     required this.skillContractPath,
     required this.bundleContractPath,
@@ -24,6 +25,7 @@ final class CockpitMcpServerRuntimeOptions {
   final Set<String> disabledNames;
   final bool forceRootsFallback;
   final List<String> workspaceRoots;
+  final String protocolPath;
   final String aiDevelopmentProtocolPath;
   final String skillContractPath;
   final String bundleContractPath;
@@ -106,6 +108,11 @@ final class CockpitMcpServerRuntime {
             'Seed one or more manual workspace roots before the MCP client sends roots. Manual roots merge with client roots.',
       )
       ..addOption(
+        'protocol-file',
+        defaultsTo: 'docs/contracts/flutter-cockpit-protocol.md',
+        help: 'Path to the Flutter Cockpit protocol entry document.',
+      )
+      ..addOption(
         'ai-development-protocol-file',
         defaultsTo: 'docs/contracts/ai-development-protocol.md',
         help: 'Path to the AI development protocol document.',
@@ -144,6 +151,9 @@ final class CockpitMcpServerRuntime {
       workspaceRoots: List<String>.unmodifiable(
         args.multiOption('workspace-root'),
       ),
+      protocolPath:
+          args['protocol-file'] as String? ??
+          'docs/contracts/flutter-cockpit-protocol.md',
       aiDevelopmentProtocolPath:
           args['ai-development-protocol-file'] as String? ??
           'docs/contracts/ai-development-protocol.md',
@@ -185,6 +195,7 @@ final class CockpitMcpServerRuntime {
       ),
       forceRootsFallback: options.forceRootsFallback,
       workspaceRoots: options.workspaceRoots,
+      protocolPath: options.protocolPath,
       aiDevelopmentProtocolPath: options.aiDevelopmentProtocolPath,
       skillContractPath: options.skillContractPath,
       bundleContractPath: options.bundleContractPath,

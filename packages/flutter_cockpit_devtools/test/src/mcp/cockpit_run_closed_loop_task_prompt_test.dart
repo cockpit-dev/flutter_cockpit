@@ -13,9 +13,8 @@ void main() {
 
       expect(result.messages, hasLength(1));
       final text = result.messages.single.text;
-      expect(text, contains('cockpit://workspace/skill-contract'));
-      expect(text, contains('cockpit://workspace/task-bundle-contract'));
-      expect(text, contains('cockpit://workspace/control-workflow-protocol'));
+      expect(text, contains('cockpit://workspace/protocol'));
+      expect(text, contains('specific contract resource'));
       expect(text, isNot(contains('cockpit://workspace/goals')));
     },
   );
