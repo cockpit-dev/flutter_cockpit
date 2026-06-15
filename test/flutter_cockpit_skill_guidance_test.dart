@@ -16,25 +16,10 @@ void main() {
     });
   }
 
-  List<String> exampleReferencePaths(String skill) {
-    final refs = <String>[];
-    var offset = 0;
-    while (true) {
-      final linkStart = skill.indexOf('](examples/', offset);
-      if (linkStart == -1) {
-        return refs;
-      }
-      final pathStart = linkStart + 2;
-      final pathEnd = skill.indexOf(')', pathStart);
-      if (pathEnd == -1) {
-        return refs;
-      }
-      final path = skill.substring(pathStart, pathEnd);
-      if (path.endsWith('.md')) {
-        refs.add(path);
-      }
-      offset = pathEnd + 1;
-    }
+  List<String> localReferencePaths(String skill) {
+    return RegExp(
+      r'\]\(((?:examples|references)/[^)#]+\.md)\)',
+    ).allMatches(skill).map((match) => match.group(1)!).toList();
   }
 
   test('flutter-cockpit skill follows writing-skills structure rules', () {
@@ -440,9 +425,17 @@ void main() {
       skillFiles.map((file) => file.path),
       contains(endsWith('pressure-scenarios.md')),
     );
+    expect(
+      skillFiles.map((file) => file.path),
+      contains(endsWith('references/protocol.md')),
+    );
 
     final skill = docsByName['${skillDir.path}/SKILL.md']!;
-    for (final relativePath in exampleReferencePaths(skill)) {
+    expect(
+      skill,
+      contains('[`references/protocol.md`](references/protocol.md)'),
+    );
+    for (final relativePath in localReferencePaths(skill)) {
       expect(
         File('${skillDir.path}/$relativePath').existsSync(),
         isTrue,
@@ -509,5 +502,14 @@ void main() {
       pressureScenarios,
       contains('CLI reference launch examples use discovered placeholders'),
     );
+
+    final protocol = docsByName['${skillDir.path}/references/protocol.md']!;
+    expect(protocol, contains('cockpit://workspace/protocol'));
+    expect(protocol, contains('docs/contracts/flutter-cockpit-protocol.md'));
+    expect(protocol, contains('docs/contracts/ai-development-protocol.md'));
+    expect(protocol, contains('docs/contracts/control-workflow-protocol.md'));
+    expect(protocol, contains('docs/contracts/control-workflow.schema.json'));
+    expect(protocol, contains('docs/contracts/task-run-bundle.md'));
+    expect(protocol, contains('Load only'));
   });
 }
