@@ -147,7 +147,7 @@ SemanticsNode? cockpitResolveSemanticsNodeFromOwnerTree(Element element) {
     if (!node.isMergedIntoParent && !node.rect.isEmpty) {
       final globalRect = MatrixUtils.transformRect(globalTransform, node.rect);
       if (globalRect.contains(globalCenter) &&
-          !node.getSemanticsData().flagsCollection.isHidden) {
+          !_semanticsDataIsHidden(node.getSemanticsData())) {
         final score = _semanticsRectAffinity(globalRect, globalElementRect);
         if (score >= _minimumSemanticsRectAffinity &&
             (score > bestScore || (score == bestScore && depth >= bestDepth))) {
@@ -165,6 +165,13 @@ SemanticsNode? cockpitResolveSemanticsNodeFromOwnerTree(Element element) {
 
   visit(rootNode, Matrix4.identity(), 0);
   return best;
+}
+
+bool _semanticsDataIsHidden(SemanticsData data) {
+  // Flutter 3.32 is the supported SDK floor and does not expose
+  // SemanticsData.flagsCollection yet.
+  // ignore: deprecated_member_use
+  return data.hasFlag(SemanticsFlag.isHidden);
 }
 
 const double _minimumSemanticsRectAffinity = 0.25;
