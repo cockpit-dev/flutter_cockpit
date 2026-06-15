@@ -4,6 +4,22 @@ Use this as the skill-local protocol map when MCP resources are unavailable or
 the repo root is not already loaded. Load only the contract that reduces the
 current uncertainty.
 
+## Reference Contract
+
+This file is the stable, low-token reference entry for agents that already
+loaded the `flutter-cockpit` skill. It is not the full development workflow and
+must not replace the main `SKILL.md` fast path.
+
+Resolution order:
+
+1. Prefer the MCP resource URI when MCP is available.
+2. Fall back to the repo file when working from a monorepo checkout.
+3. Fall back to `packages/flutter_cockpit_devtools/doc/contracts/` or
+   `doc/contracts/` when running from a published devtools package.
+
+Load only the contract needed for the current uncertainty; do not bulk-load the
+whole contract set.
+
 ## Entry Points
 
 | Need | MCP resource | Repo file |
