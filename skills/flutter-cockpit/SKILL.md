@@ -1,6 +1,6 @@
 ---
 name: flutter-cockpit
-description: Use when a Flutter app or adjacent browser, desktop, device, or host-control task must prove live UI, interaction, route, network, recording, screenshot, or acceptance state with runtime evidence instead of code-only reasoning.
+description: Use when Flutter or host-control tasks must prove live UI, interaction, route, network, recording, screenshot, or acceptance state with runtime evidence.
 ---
 
 # Flutter Cockpit
