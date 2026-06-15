@@ -126,7 +126,7 @@ void main() {
             flutterVersion: '3.38.9',
             dartVersion: '3.10.8',
           ).toJson(),
-          'commands': const <Map<String, Object?>>[],
+          'commands': <Map<String, Object?>>[_noopCommandJson()],
           'failFast': true,
         },
       }),
@@ -210,7 +210,7 @@ void main() {
           flutterVersion: '3.38.9',
           dartVersion: '3.10.8',
         ).toJson(),
-        'commands': const <Map<String, Object?>>[],
+        'commands': <Map<String, Object?>>[_noopCommandJson()],
       },
     });
 
@@ -304,7 +304,7 @@ void main() {
             flutterVersion: '3.38.9',
             dartVersion: '3.10.8',
           ).toJson(),
-          'commands': const <Map<String, Object?>>[],
+          'commands': <Map<String, Object?>>[_noopCommandJson()],
         },
       });
 
@@ -364,7 +364,7 @@ void main() {
             flutterVersion: '3.38.9',
             dartVersion: '3.10.8',
           ).toJson(),
-          'commands': const <Map<String, Object?>>[],
+          'commands': <Map<String, Object?>>[_noopCommandJson()],
           'failFast': true,
         },
       }),
@@ -379,4 +379,75 @@ void main() {
       ),
     );
   });
+
+  test('run tool accepts workflow steps in MCP script objects', () async {
+    CockpitRunRemoteControlScriptRequest? capturedRequest;
+    final bundleDir = Directory.systemTemp.createTempSync(
+      'cockpit_run_remote_control_script_tool_workflow',
+    );
+    addTearDown(() async {
+      if (bundleDir.existsSync()) {
+        await bundleDir.delete(recursive: true);
+      }
+    });
+
+    final tool = CockpitRunRemoteControlScriptTool(
+      run: (request) async {
+        capturedRequest = request;
+        return CockpitRunRemoteControlScriptResult(
+          sessionHandle: null,
+          bundleDir: bundleDir,
+          manifest: CockpitRunManifest(
+            sessionId: 'run-tool-workflow-session',
+            taskId: 'run-tool-workflow-task',
+            platform: 'android',
+            status: CockpitTaskStatus.completed,
+            startedAt: DateTime.utc(2026, 6, 15),
+            finishedAt: DateTime.utc(2026, 6, 15, 0, 1),
+          ),
+          handoff: const <String, Object?>{},
+          delivery: const <String, Object?>{},
+          artifactPaths: CockpitBundleArtifactPaths(),
+        );
+      },
+    );
+
+    await tool.call(<String, Object?>{
+      'baseUrl': 'http://127.0.0.1:58421',
+      'outputRoot': '/tmp/out',
+      'script': <String, Object?>{
+        'sessionId': 'run-tool-workflow-session',
+        'taskId': 'run-tool-workflow-task',
+        'platform': 'android',
+        'steps': <Object?>[
+          <String, Object?>{
+            'stepId': 'wait-ready',
+            'stepType': 'retry',
+            'maxAttempts': 2,
+            'delayMs': 0,
+            'step': <String, Object?>{
+              'stepType': 'command',
+              'command': <String, Object?>{
+                'commandId': 'assert-ready',
+                'commandType': 'assertText',
+                'parameters': <String, Object?>{'text': 'Ready'},
+              },
+            },
+          },
+        ],
+      },
+    });
+
+    expect(capturedRequest?.script.commands, isEmpty);
+    expect(capturedRequest?.script.workflowSteps, hasLength(1));
+    expect(capturedRequest?.script.effectiveWorkflowSteps, hasLength(1));
+  });
+}
+
+Map<String, Object?> _noopCommandJson() {
+  return CockpitCommand(
+    commandId: 'assert-noop',
+    commandType: CockpitCommandType.assertText,
+    parameters: const <String, Object?>{'text': 'Ready'},
+  ).toJson();
 }

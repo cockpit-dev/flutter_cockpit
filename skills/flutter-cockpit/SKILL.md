@@ -13,7 +13,7 @@ Flutter Cockpit is an AI loop, not a screenshot tool or command catalog. Default
 
 Command success is not product proof; prove state, errors, evidence.
 
-These stages are decision gates, not a fixed command script or command quota. Satisfy each gate with the smallest fresh evidence available; skip irrelevant commands; choose CLI, MCP, app-first, target-first, persistent-session, or bundle flows.
+These stages are decision gates, not a fixed command script or command quota. Satisfy each gate with the smallest fresh evidence available; skip irrelevant commands; choose CLI, MCP, app-first, target-first, persistent-session, or bundle flows. Protocol: `docs/contracts/ai-development-protocol.md` or `cockpit://workspace/ai-development-protocol`.
 
 ## When To Use
 
@@ -90,22 +90,48 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-system-action [--
 
 Use `parameters=[name*:type[range](allowed|values)]`; `*` means required. Do not guess payload keys.
 Both commands reuse `.dart_tool/flutter_cockpit/latest_app.json` and resolve platform app ids by default. `--app-id` means native app id; current Cockpit app id maps to `platformAppId` when available. On iOS simulator, prefer `grantPermission`; use WebDriverAgent only when Flutter semantics and simctl cannot handle native UI, dialogs, keyboard/focus, orientation, notifications, Notification Center, or Control Center. Cockpit probes `http://127.0.0.1:8100`; WDA actions stay blocked unless reachable.
-If `run-system-action` returns `invalidSystemActionParameter` or `missingSystemActionParameter`, re-run `read-system-capabilities`, copy parameter names, required markers, allowed values, and ranges, then send only that payload.
+If `run-system-action` returns `invalidSystemActionParameter` or `missingSystemActionParameter`, re-run `read-system-capabilities`, copy parameter metadata, then send only that payload.
 For `dismissSystemDialog`, use `--decision accept` for primary action or `--decision dismiss` for cancel/deny; omit it to accept.
-For native blockers, prefer `resolveBlockers`. Use `preparePermissions`, `stabilizeForScreenshot`, `readFocusState`, and `tapNotification`; then read state and errors.
-Use `actionGroups` in JSON output to find capability groups without hard-coding platform lists.
-Android Emulator uses adb for input, lifecycle, permissions, settings, orientation, networking, connectivity/battery simulation, notifications, demo-mode status bar, recovery, files/media, evidence, UI tree, focus/IME, state, logcat (`readSystemLogs`), and shell.
-iOS Simulator uses simctl for lifecycle, privacy, locale, status bar, pasteboard, app-container files, media, recovery, evidence, device info, unified log (`readSystemLogs`), and bounded `simctl spawn`; non-absolute shell runs through `/bin/sh -lc`. WDA covers native UI, keyboard/focus, orientation, notifications, and dialogs/blockers. Unsupported simulator actions remain blocked instead of faked.
+For native blockers, prefer `resolveBlockers`; use `preparePermissions`, `stabilizeForScreenshot`, `readFocusState`, `tapNotification`, then read state and errors.
+Use `actionGroups` in JSON output to find capability groups without hard-coding platform lists. Android uses adb. iOS Simulator uses simctl plus WDA. Unsupported simulator actions remain blocked instead of faked.
 When the app crashes before the runtime observer attaches, use `run-system-action --action readSystemLogs` for native logs instead of `read-logs`.
 `activateWindow` is non-destructive on iOS Simulator and should not terminate an existing Flutter debug or hot-reload session; use `terminateApp` only when a restart is intentional.
 Trust only actions reported as `available`.
-Desktop coordinates use screen pixels. macOS host screenshots/recordings need `--app-id`; Windows/Linux can use `--app-id` or `--process-id`. Desktop hosts also expose settings, appearance, clipboard, file/media copy, focus/device reads, notifications, and macOS `tccutil` permission resets; web evidence uses host window capture once the browser app id or process id is known. If an action is not `available`, follow its requirement/fallback or report `blocked_by_environment`.
+Desktop coordinates use screen pixels. macOS host screenshots/recordings need `--app-id`; Windows/Linux can use `--app-id` or `--process-id`. If an action is not `available`, follow its requirement/fallback or report `blocked_by_environment`.
 
 Acceptance, release readiness, or artifact-backed handoff:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools validate-task --config-json /tmp/flutter_cockpit_validate_task.json
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools validate-task --config /tmp/flutter_cockpit_validate_task.yaml
 ```
+
+Workflow script for branch/retry/loop E2E flows. Prefer YAML by hand and JSON when generated. Protocol/schema: `docs/contracts/control-workflow-protocol.md`, `docs/contracts/control-workflow.schema.json`, `cockpit://workspace/control-workflow-protocol`, `cockpit://workspace/control-workflow-schema`.
+
+```yaml
+schemaVersion: 1
+sessionId: dev-flow
+taskId: checkout-proof
+platform: android
+failFast: true
+steps:
+  - stepId: wait-ready
+    stepType: retry
+    maxAttempts: 4
+    delayMs: 500
+    step:
+      stepType: command
+      command:
+        commandId: assert-ready
+        commandType: assertText
+        parameters:
+          text: Ready
+```
+
+```bash
+dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-script --app-json /tmp/flutter_cockpit/app.json --script /tmp/flutter_cockpit/workflow.yaml --output-root /tmp/flutter_cockpit/out
+```
+
+Workflow facts are stored in the bundle. Read `issue_evidence.json` for failures, `validation.json` for final validation, and `trace.json` to map artifacts or errors back to a workflow step.
 
 ## Development Defaults
 
@@ -114,7 +140,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools validate-task --confi
 - Be flexible on commands, strict on proof.
 - Every command should reduce uncertainty. Do not run recording, evidence profiles, bundle validation, or raw artifact reads just because they exist.
 - Keep platform and device placeholders until `list-targets` returns real values; read capabilities before choosing shell, recording, browser, or native paths.
-- Prefer file inputs: `--command-file`, `--commands-file`, config JSON.
+- Prefer file inputs: `--command-file`, `--commands-file`, `--config`; YAML by hand, JSON when generated.
 - Safe commands: `tap`, `enterText`, `dismissKeyboard`, `assertText`, `scrollUntilVisible`.
 - Safe locator keys: `text`, `tooltip`, `semanticId`, `type`, `ancestor`, `index`, `fallbacks`; Do not set `type: Text` for button labels.
 - Keep the app alive while more edits are likely. Stop only when the user asks, the session is stuck, `hot-restart` cannot recover, or a clean rebuild/relaunch is required.

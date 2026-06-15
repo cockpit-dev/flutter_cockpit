@@ -976,9 +976,11 @@ Run a script against a running app:
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   run-script \
   --app-json /tmp/flutter_cockpit/app.json \
-  --script-json /tmp/flutter_cockpit/script.json \
+  --script /tmp/flutter_cockpit/workflow.yaml \
   --output-root /tmp/flutter_cockpit/out
 ```
+
+Workflow protocol: `docs/contracts/control-workflow-protocol.md`; machine schema: `docs/contracts/control-workflow.schema.json`.
 
 Prefer `--app-json` for `run-script` even when `--base-url` is known. The app
 handle preserves platform, device, process, and remote-session metadata used by
@@ -990,7 +992,7 @@ Run a full task workflow:
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   run-task \
-  --config-json /tmp/flutter_cockpit/run_task.json
+  --config /tmp/flutter_cockpit/run_task.yaml
 ```
 
 Validate a full task workflow:
@@ -998,7 +1000,7 @@ Validate a full task workflow:
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   validate-task \
-  --config-json /tmp/flutter_cockpit/validate_task.json
+  --config /tmp/flutter_cockpit/validate_task.yaml
 ```
 
 Read the compact delivery summary from an existing bundle:
@@ -1044,7 +1046,7 @@ them.
 - When a locator returns `ambiguousTarget`, prefer adding `index`, `ancestor`, or `type` before changing any app code.
 - `list_apps` is MCP-only. CLI app recovery is `app.json` or `.dart_tool/flutter_cockpit/latest_app.json` first; target discovery is `list-targets`.
 - For target-first CLI loops, persist `target.json` and reuse it across commands the same way you reuse `app.json`.
-- `run-script` exits non-zero when the written bundle status is `failed`.
+- `run-script` and `run-remote-control-script` exit non-zero when the written bundle status is `failed`.
 - Write command output to `--output <path> --output-format json` when a later AI step must read structured state with tools such as `jq`; otherwise `--output <path>` defaults to the AI-readable semantic render.
 - Prefer the lowest-cost public surface: in shell agents, CLI + command files + `jq` usually costs fewer tokens than reopening large payloads in model context; in tool-calling hosts, MCP is fine.
 
@@ -1108,7 +1110,7 @@ Keep a larger result on disk, then read only the needed fields:
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   validate-task \
-  --config-json /tmp/flutter_cockpit/validate_task.json \
+  --config /tmp/flutter_cockpit/validate_task.yaml \
   --output /tmp/flutter_cockpit/validate_task_result.json \
   --output-format json
 ```

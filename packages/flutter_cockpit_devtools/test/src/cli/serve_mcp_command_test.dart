@@ -67,10 +67,16 @@ void main() {
           '--force-roots-fallback',
           '--workspace-root',
           '/workspace',
+          '--ai-development-protocol-file',
+          'docs/contracts/ai-development-protocol.md',
           '--skill-contract-file',
           'docs/contracts/flutter-cockpit-skill-contract.md',
           '--bundle-contract-file',
           'docs/contracts/task-run-bundle.md',
+          '--workflow-protocol-file',
+          'docs/contracts/control-workflow-protocol.md',
+          '--workflow-schema-file',
+          'docs/contracts/control-workflow.schema.json',
           '--log-file',
           logPath,
         ]) ??
@@ -81,6 +87,18 @@ void main() {
     expect(capturedOptions?.disabledNames, <String>{'execution'});
     expect(capturedOptions?.forceRootsFallback, isTrue);
     expect(capturedOptions?.workspaceRoots, <String>['/workspace']);
+    expect(
+      capturedOptions?.aiDevelopmentProtocolPath,
+      'docs/contracts/ai-development-protocol.md',
+    );
+    expect(
+      capturedOptions?.workflowProtocolPath,
+      'docs/contracts/control-workflow-protocol.md',
+    );
+    expect(
+      capturedOptions?.workflowSchemaPath,
+      'docs/contracts/control-workflow.schema.json',
+    );
     expect(capturedSink, isNotNull);
     expect(File(logPath).readAsStringSync(), contains('protocol-log'));
   });

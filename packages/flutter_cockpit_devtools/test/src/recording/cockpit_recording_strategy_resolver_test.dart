@@ -160,6 +160,28 @@ void main() {
     expect(resolution?.fallbackUsed, isFalse);
   });
 
+  test('uses host-screen recording for macOS auto mode', () {
+    final resolver = CockpitRecordingStrategyResolver(
+      remoteAdapterFactory: (client) => _FakeRecordingAdapter(),
+      adbAdapterFactory: (deviceId) => _FakeRecordingAdapter(),
+      simctlAdapterFactory: (deviceId) => _FakeRecordingAdapter(),
+      macosAdapterFactory: (appId) => _FakeRecordingAdapter(),
+    );
+
+    final resolution = resolver.resolveDetailed(
+      platform: 'macos',
+      recording: autoRequest,
+      client: CockpitRemoteSessionClient(
+        baseUri: Uri.parse('http://127.0.0.1:47331'),
+      ),
+      platformAppId: 'dev.cockpit.cockpitDemo',
+    );
+
+    expect(resolution?.implementation, 'macosHost');
+    expect(resolution?.effectiveLayer, CockpitRecordingLayer.hostScreen);
+    expect(resolution?.fallbackUsed, isFalse);
+  });
+
   test('uses process-scoped host recording for Windows full mode', () {
     String? capturedAppId;
     int? capturedProcessId;
@@ -193,6 +215,37 @@ void main() {
         baseUrl: 'http://127.0.0.1:47331',
         launchedAt: DateTime.utc(2026, 3, 24),
       ),
+    );
+
+    expect(resolution?.implementation, 'windowsHost');
+    expect(resolution?.effectiveLayer, CockpitRecordingLayer.hostScreen);
+    expect(resolution?.fallbackUsed, isFalse);
+    expect(capturedAppId, 'cockpit_demo');
+    expect(capturedProcessId, 4101);
+  });
+
+  test('uses process-scoped host recording for Windows auto mode', () {
+    String? capturedAppId;
+    int? capturedProcessId;
+    final resolver = CockpitRecordingStrategyResolver(
+      remoteAdapterFactory: (client) => _FakeRecordingAdapter(),
+      adbAdapterFactory: (deviceId) => _FakeRecordingAdapter(),
+      simctlAdapterFactory: (deviceId) => _FakeRecordingAdapter(),
+      windowsAdapterFactory: (appId, {processId}) {
+        capturedAppId = appId;
+        capturedProcessId = processId;
+        return _FakeRecordingAdapter();
+      },
+    );
+
+    final resolution = resolver.resolveDetailed(
+      platform: 'windows',
+      recording: autoRequest,
+      client: CockpitRemoteSessionClient(
+        baseUri: Uri.parse('http://127.0.0.1:47331'),
+      ),
+      platformAppId: 'cockpit_demo',
+      processId: 4101,
     );
 
     expect(resolution?.implementation, 'windowsHost');
@@ -329,6 +382,37 @@ void main() {
         baseUrl: 'http://127.0.0.1:47331',
         launchedAt: DateTime.utc(2026, 3, 24),
       ),
+    );
+
+    expect(resolution?.implementation, 'linuxHost');
+    expect(resolution?.effectiveLayer, CockpitRecordingLayer.hostScreen);
+    expect(resolution?.fallbackUsed, isFalse);
+    expect(capturedAppId, 'cockpit_demo');
+    expect(capturedProcessId, 5101);
+  });
+
+  test('uses process-scoped host recording for Linux auto mode', () {
+    String? capturedAppId;
+    int? capturedProcessId;
+    final resolver = CockpitRecordingStrategyResolver(
+      remoteAdapterFactory: (client) => _FakeRecordingAdapter(),
+      adbAdapterFactory: (deviceId) => _FakeRecordingAdapter(),
+      simctlAdapterFactory: (deviceId) => _FakeRecordingAdapter(),
+      linuxAdapterFactory: (appId, {processId}) {
+        capturedAppId = appId;
+        capturedProcessId = processId;
+        return _FakeRecordingAdapter();
+      },
+    );
+
+    final resolution = resolver.resolveDetailed(
+      platform: 'linux',
+      recording: autoRequest,
+      client: CockpitRemoteSessionClient(
+        baseUri: Uri.parse('http://127.0.0.1:47331'),
+      ),
+      platformAppId: 'cockpit_demo',
+      processId: 5101,
     );
 
     expect(resolution?.implementation, 'linuxHost');

@@ -136,7 +136,7 @@ Do not pay delivery-grade cost on every edit. Do pay it when the user-facing cla
 - When only one branch decision matters, extract one field:
   `flutter_cockpit_devtools read-errors --app-json /tmp/flutter_cockpit/app.json --stdout-format json | jq '.hasErrors'`
 - Keep larger results off stdout only when a later step needs the full payload again:
-  `flutter_cockpit_devtools run-task --config-json /tmp/run_task.json --output /tmp/runTaskResult.json --output-format json`
+  `flutter_cockpit_devtools run-task --config /tmp/run_task.yaml --output /tmp/runTaskResult.json --output-format json`
   `jq '{classification,recommendedNextStep}' /tmp/runTaskResult.json`
 - Workspace commands default to the current directory, so omit `--workspace-root` unless you are operating outside the repo you already opened.
 - Prefer file inputs over long inline JSON:

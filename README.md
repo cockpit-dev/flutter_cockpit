@@ -205,9 +205,12 @@ For active development and debugging:
 
 For delivery:
 
-1. `run-script` when you need a bundle from an already running app
+1. `run-script --script <workflow.yaml|script.json>` when you need a bundle from an already running app; YAML is the easiest format for hand-written `if`, `retry`, and bounded `loop` workflows
 2. `run-task` when the tool should own bootstrap, baseline, execution, and classification
 3. `validate-task` when making a final completion claim
+
+Delivery bundles include `steps.json` as the full action log and `trace.json` as the compact step-to-command-to-artifact index. After `validate-task`, `validation.json` records the durable validation verdict for external E2E consumers. The workflow script protocol is documented in [`docs/contracts/control-workflow-protocol.md`](docs/contracts/control-workflow-protocol.md), with the machine-readable schema in [`docs/contracts/control-workflow.schema.json`](docs/contracts/control-workflow.schema.json).
+The full AI development loop contract is documented in [`docs/contracts/ai-development-protocol.md`](docs/contracts/ai-development-protocol.md).
 
 For target-first and non-Flutter/system work:
 
@@ -227,7 +230,9 @@ Target-first flows are platform-aware and capability-truthful:
 The public surface is app-first, not session-handle-first. If you omit `--app-json`, `launch-app` writes the latest handle to `.dart_tool/flutter_cockpit/latest_app.json` in the current working directory, and follow-up app commands reuse it automatically. CLI and MCP output uses lower camel case keys.
 `launch-app` is designed as a short command: it waits until the app is ready, writes the reusable handle, and exits. In development mode, a background supervisor keeps `flutter run --machine`, logs, reload, restart, and stop control alive. Agents should not shell-background `launch-app`; use the returned handle with the follow-up commands.
 When a command accepts both `--app-json` and `--base-url`, `--app-json` supplies app identity, platform, and recording metadata while the explicit `--base-url` overrides only the live connection address. If `--app-json` is omitted, explicit `--base-url` wins over the implicit latest-app handle in the current working directory.
-Prefer `--command-file`, `--commands-file`, and `--config-json` once a payload stops being trivial.
+Prefer `--command-file`, `--commands-file`, and `--config` once a payload stops
+being trivial. Use YAML for hand-written task/workflow configs and JSON for
+generated configs.
 `launch-app` auto-detects `cockpit/main.dart` first, then `lib/main.dart`.
 For code-side questions, prefer `analyze-files`, `lsp`, `grep-package-uris`, `read-package-uris`, and `pub` before workspace-wide commands.
 Serialize mutation, then observation. Do not parallelize `run-command` with the `read-app`, `inspect-ui`, or `read-network` step that depends on its side effects.
@@ -345,12 +350,14 @@ For AI-first project validation, keep two verifier tiers:
 - A release verifier for the expensive surfaces. It should add recordings, hot restart, network and log reads, target-first inspection, multi-platform coverage, and acceptance or delivery gates.
 
 Platform-specific capture should be capability-driven rather than hard-coded:
-desktop and physical devices may use remote or host adapters, web may use
-browser-host capture when the host permission gate passes, iOS simulators may
-use simulator-native tooling, and Android emulators may use device tooling. If a
-host permission blocks recording while app control still passes, report it as a
-structured environment warning with the recorder failure reason instead of
-masking the app result.
+app-scoped desktop recording defaults to host adapters when the app handle
+carries a platform app id or process id, web may use browser-host capture when
+the host permission gate passes, iOS simulators may use simulator-native
+tooling, and Android emulators may use device tooling. Use direct remote
+recording only when intentionally working with a remote session instead of an
+app handle. If a host permission blocks recording while app control still
+passes, report it as a structured environment warning with the recorder failure
+reason instead of masking the app result.
 Treat completed recording as evidence only when the stop result includes an
 artifact backed by non-empty bytes or a non-empty source/output file; empty or
 missing artifact content is a failed evidence result, not video proof.
@@ -463,7 +470,7 @@ For `collect-remote-snapshot`, `--emit-artifact-when-large` asks the app to
 externalize oversized diagnostics, while `--download-diagnostics-artifacts`
 explicitly pulls that deferred artifact into the command output. Keep the
 download flag off unless the AI step truly needs the full forensic payload.
-`run-script` now exits non-zero when the written bundle status is `failed`.
+`run-script` and `run-remote-control-script` exit non-zero when the written bundle status is `failed`.
 For dependency and source questions, prefer `analyze-files`, `lsp`, `grep-package-uris`, `read-package-uris`, and `pub` before broader workspace passes.
 
 ## MCP Surface
@@ -546,8 +553,11 @@ Workspace and roots tools:
 
 Resources:
 
+- `cockpit://workspace/ai-development-protocol`
 - `cockpit://workspace/skill-contract`
 - `cockpit://workspace/task-bundle-contract`
+- `cockpit://workspace/control-workflow-protocol`
+- `cockpit://workspace/control-workflow-schema`
 - `cockpit://workspace/roots`
 - `cockpit://workspace/capabilities`
 - `cockpit://app/list`
@@ -573,8 +583,11 @@ Prompts:
 - Skill install: [`skills/flutter-cockpit/INSTALL.md`](skills/flutter-cockpit/INSTALL.md)
 - App setup reference: [`skills/flutter-cockpit/examples/flutter-app-setup.md`](skills/flutter-cockpit/examples/flutter-app-setup.md)
 - CLI examples: [`skills/flutter-cockpit/examples/cli-command-reference.md`](skills/flutter-cockpit/examples/cli-command-reference.md)
+- AI development protocol: [`docs/contracts/ai-development-protocol.md`](docs/contracts/ai-development-protocol.md)
 - Skill contract: [`docs/contracts/flutter-cockpit-skill-contract.md`](docs/contracts/flutter-cockpit-skill-contract.md)
 - Bundle contract: [`docs/contracts/task-run-bundle.md`](docs/contracts/task-run-bundle.md)
+- Workflow protocol: [`docs/contracts/control-workflow-protocol.md`](docs/contracts/control-workflow-protocol.md)
+- Workflow schema: [`docs/contracts/control-workflow.schema.json`](docs/contracts/control-workflow.schema.json)
 
 ## Acknowledgements
 

@@ -148,6 +148,15 @@ final class CockpitRecordingStrategyResolver {
       );
     }
 
+    final remoteCandidate = _firstRemoteCandidate(candidates);
+    if (remoteCandidate != null) {
+      return _buildResolution(
+        candidate: remoteCandidate,
+        request: recording,
+        effectiveLayer: remoteCandidate.layer,
+      );
+    }
+
     return _resolveFromCandidates(
       platform: normalizedPlatform,
       recording: recording,
@@ -255,6 +264,17 @@ final class CockpitRecordingStrategyResolver {
       return null;
     }
     return candidate;
+  }
+
+  _RecordingCandidate? _firstRemoteCandidate(
+    List<_RecordingCandidate> candidates,
+  ) {
+    for (final candidate in candidates) {
+      if (candidate.implementation == 'remote') {
+        return candidate;
+      }
+    }
+    return null;
   }
 
   Future<_RecordingCandidate?> _preferredLiveActiveSessionCandidate(
@@ -608,11 +628,13 @@ final class CockpitRecordingStrategyResolver {
       }
       return ordered;
     }
-    if (mode == CockpitRecordingMode.full && host != null) {
+    final hostFirst =
+        mode == CockpitRecordingMode.auto || mode == CockpitRecordingMode.full;
+    if (hostFirst && host != null) {
       ordered.add(host);
     }
     ordered.add(remote);
-    if (mode != CockpitRecordingMode.full && host != null) {
+    if (!hostFirst && host != null) {
       ordered.add(host);
     }
     return ordered;
@@ -623,7 +645,10 @@ final class CockpitRecordingStrategyResolver {
     CockpitRecordingMode mode,
   ) {
     return switch (mode) {
-      CockpitRecordingMode.auto ||
+      CockpitRecordingMode.auto => switch (platform) {
+        'macos' || 'windows' || 'linux' => CockpitRecordingLayer.hostScreen,
+        _ => _remoteLayerForPlatform(platform),
+      },
       CockpitRecordingMode.cheap => _remoteLayerForPlatform(platform),
       CockpitRecordingMode.native => switch (platform) {
         'web' => null,

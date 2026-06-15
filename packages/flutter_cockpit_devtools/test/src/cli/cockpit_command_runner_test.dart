@@ -113,12 +113,14 @@ void main() {
     final stderrBuffer = StringBuffer();
     final exitCode = await CockpitCommandRunner(
       stderrSink: stderrBuffer,
-    ).run(<String>['run-task', '--config-json', configFile.path]);
+    ).run(<String>['run-task', '--config', configFile.path]);
 
     expect(exitCode, cockpitDataExitCode);
     expect(
       stderrBuffer.toString(),
-      contains('Run task config JSON must decode to an object.'),
+      contains(
+        'Run task config file is invalid: Run task config must decode to an object.',
+      ),
     );
   });
 

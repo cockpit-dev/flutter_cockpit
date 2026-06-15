@@ -18,4 +18,10 @@ void main() {
     expect(CockpitReadLogsService, isNotNull);
     expect(CockpitAppHandle, isNotNull);
   });
+
+  test('exports workflow and contract models used by delivery tooling', () {
+    expect(CockpitControlScript, isNotNull);
+    expect(CockpitWorkflowStep, isNotNull);
+    expect(CockpitReadWorkspaceContractsService, isNotNull);
+  });
 }

@@ -149,9 +149,13 @@ final class CockpitMcpServer {
   factory CockpitMcpServer.standard({
     String serverName = 'flutter_cockpit_devtools',
     String serverVersion = '1.0.0',
+    String aiDevelopmentProtocolPath =
+        'docs/contracts/ai-development-protocol.md',
     String skillContractPath =
         'docs/contracts/flutter-cockpit-skill-contract.md',
     String bundleContractPath = 'docs/contracts/task-run-bundle.md',
+    String workflowProtocolPath = 'docs/contracts/control-workflow-protocol.md',
+    String workflowSchemaPath = 'docs/contracts/control-workflow.schema.json',
     CockpitMcpFeatureConfiguration featureConfiguration =
         const CockpitMcpFeatureConfiguration(),
     bool forceRootsFallback = false,
@@ -160,12 +164,25 @@ final class CockpitMcpServer {
     final rootsTracker = CockpitMcpRootsTracker(
       forceFallback: forceRootsFallback,
     );
+    final resolvedAiDevelopmentProtocolPath =
+        _resolveWorkspacePathForStandardServer(
+          aiDevelopmentProtocolPath,
+          workspaceRoots: workspaceRoots,
+        );
     final resolvedSkillContractPath = _resolveWorkspacePathForStandardServer(
       skillContractPath,
       workspaceRoots: workspaceRoots,
     );
     final resolvedBundleContractPath = _resolveWorkspacePathForStandardServer(
       bundleContractPath,
+      workspaceRoots: workspaceRoots,
+    );
+    final resolvedWorkflowProtocolPath = _resolveWorkspacePathForStandardServer(
+      workflowProtocolPath,
+      workspaceRoots: workspaceRoots,
+    );
+    final resolvedWorkflowSchemaPath = _resolveWorkspacePathForStandardServer(
+      workflowSchemaPath,
       workspaceRoots: workspaceRoots,
     );
     if (workspaceRoots.isNotEmpty) {
@@ -383,11 +400,20 @@ final class CockpitMcpServer {
       CockpitCreateProjectWithValidationPrompt(),
     ];
     final baseResources = <CockpitMcpResource>[
+      CockpitWorkspaceAiDevelopmentProtocolResource(
+        aiDevelopmentProtocolPath: resolvedAiDevelopmentProtocolPath,
+      ),
       CockpitWorkspaceSkillContractResource(
         skillContractPath: resolvedSkillContractPath,
       ),
       CockpitWorkspaceTaskBundleContractResource(
         bundleContractPath: resolvedBundleContractPath,
+      ),
+      CockpitWorkspaceWorkflowProtocolResource(
+        workflowProtocolPath: resolvedWorkflowProtocolPath,
+      ),
+      CockpitWorkspaceWorkflowSchemaResource(
+        workflowSchemaPath: resolvedWorkflowSchemaPath,
       ),
       CockpitWorkspaceRootsResource(
         service: CockpitListWorkspaceRootsService(rootsTracker: rootsTracker),

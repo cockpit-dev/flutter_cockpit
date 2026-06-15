@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:path/path.dart' as p;
+
 import '../artifacts/cockpit_recording_keyframe_extractor.dart';
 import '../validation/cockpit_bundle_artifact_validator.dart';
 import 'cockpit_bundle_artifact_paths.dart';
@@ -211,7 +213,7 @@ final class CockpitValidateTaskService {
       validationFailures: validationFailures,
     );
 
-    return CockpitValidateTaskResult(
+    final result = CockpitValidateTaskResult(
       classification: classification,
       recommendedNextStep: _recommendedNextStep(
         classification,
@@ -222,6 +224,35 @@ final class CockpitValidateTaskService {
       blockedReason: runTaskResult.blockedReason,
       validationFailures: validationFailures,
       warnings: runTaskResult.warnings,
+    );
+    await _persistValidationResult(result);
+    return result;
+  }
+
+  Future<void> _persistValidationResult(
+    CockpitValidateTaskResult result,
+  ) async {
+    final bundleSummary = result.bundleSummary;
+    if (bundleSummary == null) {
+      return;
+    }
+    final file = File(p.join(bundleSummary.bundleDir, 'validation.json'));
+    await file.writeAsString(
+      const JsonEncoder.withIndent('  ').convert(<String, Object?>{
+        'schemaVersion': 1,
+        'bundleDir': bundleSummary.bundleDir,
+        'sessionId': bundleSummary.manifest.sessionId,
+        'taskId': bundleSummary.manifest.taskId,
+        'platform': bundleSummary.manifest.platform,
+        'classification': result.classification.jsonValue,
+        'recommendedNextStep': result.recommendedNextStep,
+        'failureCount': result.validationFailures.length,
+        if (result.blockedReason != null) 'blockedReason': result.blockedReason,
+        if (result.warnings.isNotEmpty) 'warnings': result.warnings,
+        'validationFailures': result.validationFailures
+            .map((failure) => failure.toJson())
+            .toList(growable: false),
+      }),
     );
   }
 

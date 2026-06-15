@@ -131,3 +131,5 @@ export 'src/session/cockpit_remote_session_launcher.dart';
 export 'src/session/cockpit_windows_remote_session_launcher.dart';
 export 'src/runner/cockpit_control_runner.dart';
 export 'src/runner/cockpit_control_run_result.dart';
+export 'src/runner/cockpit_workflow_step.dart';
+export 'src/cli/cockpit_control_script.dart';

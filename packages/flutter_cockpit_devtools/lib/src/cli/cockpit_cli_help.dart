@@ -138,9 +138,9 @@ final class CockpitCliRootRunner extends CommandRunner<int> {
     'Prefer app-first unless target-first surface truth is the real question.',
     'Use stop-app for cleanup or recovery only: user request, stuck supervisor, failed hot restart, or clean rebuild/relaunch.',
     'Delivery loop:',
-    '  run-task --config-json <task.json>',
+    '  run-task --config <task.yaml>',
     '  read-task-bundle-summary --bundle-dir <bundle_dir>',
-    '  validate-task --config-json <validate_task.json>',
+    '  validate-task --config <validate_task.yaml>',
     'Delivery: run-script writes a bundle from a running app. read-task-bundle-summary is the low-token bundle review path. run-task and validate-task launch, execute, classify, and validate end to end.',
     'Workspace commands default --workspace-root or --parent-directory to the current directory.',
   ].join('\n');

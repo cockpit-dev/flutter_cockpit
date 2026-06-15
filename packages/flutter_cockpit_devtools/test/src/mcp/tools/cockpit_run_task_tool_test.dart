@@ -94,7 +94,7 @@ void main() {
           'sessionId': 'mcp-run-task-session',
           'taskId': 'mcp-run-task-id',
           'platform': 'android',
-          'commands': const <Map<String, Object?>>[],
+          'commands': <Map<String, Object?>>[_noopCommandJson()],
           'failFast': true,
         },
         'outputRoot': '/tmp/out',
@@ -158,7 +158,7 @@ void main() {
             flutterVersion: '3.38.9',
             dartVersion: '3.10.8',
           ).toJson(),
-          'commands': const <Map<String, Object?>>[],
+          'commands': <Map<String, Object?>>[_noopCommandJson()],
           'failFast': true,
         },
         'outputRoot': '/tmp/out',
@@ -173,3 +173,9 @@ void main() {
     );
   });
 }
+
+Map<String, Object?> _noopCommandJson() => CockpitCommand(
+  commandId: 'assert-noop',
+  commandType: CockpitCommandType.assertText,
+  parameters: const <String, Object?>{'text': 'Ready'},
+).toJson();

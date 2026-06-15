@@ -117,6 +117,8 @@ void main() {
     final workflow = workflowFile.readAsStringSync();
     final windowsBlock = _workflowJobBlock(workflow, 'windows-runtime-loop');
 
+    expect(windowsBlock, contains('runs-on: windows-2022'));
+    expect(windowsBlock, isNot(contains('runs-on: windows-latest')));
     expect(windowsBlock, contains('SUPERVISOR_LOG_DIR='));
     expect(windowsBlock, contains('import shutil'));
     expect(windowsBlock, contains('candidate_dirs'));

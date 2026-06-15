@@ -224,17 +224,19 @@ void main() {
     final runTaskUsage = _helpForCommand(RunTaskCommand());
     final validateTaskUsage = _helpForCommand(ValidateTaskCommand());
     final readBundleUsage = _helpForCommand(ReadTaskBundleSummaryCommand());
+    final runScriptUsage = _helpForCommand(RunScriptCommand());
+    final runRemoteScriptUsage = _helpForCommand(
+      RunRemoteControlScriptCommand(),
+    );
 
     expect(
       runTaskUsage,
-      contains('flutter_cockpit_devtools run-task --config-json'),
+      contains('flutter_cockpit_devtools run-task --config'),
     );
     expect(
       runTaskUsage,
       isNot(
-        contains(
-          'run-task --config-json /tmp/run_task.json --stdout-format json',
-        ),
+        contains('run-task --config /tmp/run_task.yaml --stdout-format json'),
       ),
     );
     expect(
@@ -243,13 +245,13 @@ void main() {
     );
     expect(
       validateTaskUsage,
-      contains('flutter_cockpit_devtools validate-task --config-json'),
+      contains('flutter_cockpit_devtools validate-task --config'),
     );
     expect(
       validateTaskUsage,
       isNot(
         contains(
-          'validate-task --config-json /tmp/validate_task.json --stdout-format json',
+          'validate-task --config /tmp/validate_task.yaml --stdout-format json',
         ),
       ),
     );
@@ -268,6 +270,8 @@ void main() {
       readBundleUsage,
       contains('lower camel case JSON with --stdout-format json'),
     );
+    expect(runScriptUsage, contains('exits non-zero'));
+    expect(runRemoteScriptUsage, contains('exits non-zero'));
   });
 
   test('app-scoped command help explains default latest_app.json reuse', () {

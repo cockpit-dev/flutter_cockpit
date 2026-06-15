@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:args/command_runner.dart';
 
 import '../../application/cockpit_validate_task_service.dart';
+import '../cockpit_cli_config_file.dart';
 import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
@@ -14,10 +15,15 @@ final class ValidateTaskCommand extends CockpitCliCommand {
     StringSink? stdoutSink,
   }) : _service = service ?? CockpitValidateTaskService(),
        _stdoutSink = stdoutSink ?? stdout {
-    argParser.addOption(
-      'config-json',
-      help: 'Path to a JSON validate-task configuration file.',
-    );
+    argParser
+      ..addOption(
+        'config',
+        help: 'Path to a JSON or YAML validate-task configuration file.',
+      )
+      ..addOption(
+        'config-json',
+        help: 'Deprecated alias for --config. Accepts JSON or YAML.',
+      );
   }
 
   final CockpitValidateTaskService _service;
@@ -42,11 +48,11 @@ final class ValidateTaskCommand extends CockpitCliCommand {
 
   @override
   String get helpNeeds =>
-      'A validate-task config JSON file with the same launch and script inputs as run-task plus validation requirements.';
+      'A validate-task config file with the same launch and script inputs as run-task plus validation requirements.';
 
   @override
   String get helpExample =>
-      'flutter_cockpit_devtools validate-task --config-json /tmp/validate_task.json';
+      'flutter_cockpit_devtools validate-task --config /tmp/validate_task.yaml';
 
   @override
   String get helpWrites =>
@@ -54,24 +60,14 @@ final class ValidateTaskCommand extends CockpitCliCommand {
 
   @override
   Future<int> run() async {
-    final configPath = _readRequiredOption('config-json');
-    final configFile = File(configPath);
-    if (!configFile.existsSync()) {
-      throw UsageException(
-        'Config JSON file does not exist: $configPath',
-        usage,
-      );
-    }
-
-    final decoded = jsonDecode(await configFile.readAsString());
-    if (decoded is! Map<Object?, Object?>) {
-      throw const FormatException(
-        'Validate task config JSON must decode to an object.',
-      );
-    }
+    final configPath = _readRequiredConfigPath();
 
     final request = CockpitValidateTaskRequest.fromJson(
-      Map<String, Object?>.from(decoded),
+      cockpitReadConfigFile(
+        path: configPath,
+        label: 'Validate task config',
+        usage: usage,
+      ),
     );
     final result = await _service.validate(request);
     await cockpitWriteJsonPayload(
@@ -83,11 +79,15 @@ final class ValidateTaskCommand extends CockpitCliCommand {
     return cockpitSuccessExitCode;
   }
 
-  String _readRequiredOption(String name) {
-    final value = argResults?[name] as String?;
-    if (value == null || value.isEmpty) {
-      throw UsageException('--$name is required.', usage);
+  String _readRequiredConfigPath() {
+    final config = argResults?['config'] as String?;
+    if (config != null && config.isNotEmpty) {
+      return config;
     }
-    return value;
+    final legacy = argResults?['config-json'] as String?;
+    if (legacy != null && legacy.isNotEmpty) {
+      return legacy;
+    }
+    throw UsageException('--config is required.', usage);
   }
 }

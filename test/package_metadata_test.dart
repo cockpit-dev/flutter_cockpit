@@ -270,6 +270,50 @@ void main() {
     }
   });
 
+  test('devtools package includes MCP contract fallback documents', () {
+    final contractFiles = <String>[
+      'ai-development-protocol.md',
+      'flutter-cockpit-skill-contract.md',
+      'task-run-bundle.md',
+      'control-workflow-protocol.md',
+      'control-workflow.schema.json',
+    ];
+
+    for (final fileName in contractFiles) {
+      expect(
+        File(
+          'packages/flutter_cockpit_devtools/doc/contracts/$fileName',
+        ).existsSync(),
+        isTrue,
+        reason:
+            'MCP workspace contract resources must work from a published '
+            'flutter_cockpit_devtools package, not only from the monorepo root.',
+      );
+    }
+  });
+
+  test('devtools package readmes expose workflow protocol references', () {
+    final devtoolsReadme = File(
+      'packages/flutter_cockpit_devtools/README.md',
+    ).readAsStringSync();
+    final devtoolsReadmeZh = File(
+      'packages/flutter_cockpit_devtools/README.zh-CN.md',
+    ).readAsStringSync();
+
+    for (final document in <String>[devtoolsReadme, devtoolsReadmeZh]) {
+      expect(document, contains('doc/contracts/ai-development-protocol.md'));
+      expect(document, contains('doc/contracts/control-workflow-protocol.md'));
+      expect(document, contains('doc/contracts/control-workflow.schema.json'));
+      expect(document, contains('cockpit://workspace/ai-development-protocol'));
+      expect(
+        document,
+        contains('cockpit://workspace/control-workflow-protocol'),
+      );
+      expect(document, contains('cockpit://workspace/control-workflow-schema'));
+      expect(document, contains('run-script --script'));
+    }
+  });
+
   test('devtools package ships a copyable MCP config example', () {
     final example = File(
       'packages/flutter_cockpit_devtools/example/mcp_config.json',

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:args/command_runner.dart';
 
 import '../../application/cockpit_run_task_service.dart';
+import '../cockpit_cli_config_file.dart';
 import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_interactive_cli_support.dart';
@@ -12,10 +13,15 @@ final class RunTaskCommand extends CockpitCliCommand {
   RunTaskCommand({CockpitRunTaskService? service, StringSink? stdoutSink})
     : _service = service ?? CockpitRunTaskService(),
       _stdoutSink = stdoutSink ?? stdout {
-    argParser.addOption(
-      'config-json',
-      help: 'Path to a JSON run-task configuration file.',
-    );
+    argParser
+      ..addOption(
+        'config',
+        help: 'Path to a JSON or YAML run-task configuration file.',
+      )
+      ..addOption(
+        'config-json',
+        help: 'Deprecated alias for --config. Accepts JSON or YAML.',
+      );
   }
 
   final CockpitRunTaskService _service;
@@ -40,11 +46,11 @@ final class RunTaskCommand extends CockpitCliCommand {
 
   @override
   String get helpNeeds =>
-      'A run-task config JSON file that describes launch, script, outputRoot, and any evidence requirements.';
+      'A run-task config file that describes launch, script, outputRoot, and any evidence requirements.';
 
   @override
   String get helpExample =>
-      'flutter_cockpit_devtools run-task --config-json /tmp/run_task.json';
+      'flutter_cockpit_devtools run-task --config /tmp/run_task.yaml';
 
   @override
   String get helpWrites =>
@@ -52,24 +58,14 @@ final class RunTaskCommand extends CockpitCliCommand {
 
   @override
   Future<int> run() async {
-    final configPath = _readRequiredOption('config-json');
-    final configFile = File(configPath);
-    if (!configFile.existsSync()) {
-      throw UsageException(
-        'Config JSON file does not exist: $configPath',
-        usage,
-      );
-    }
-
-    final decoded = jsonDecode(await configFile.readAsString());
-    if (decoded is! Map<Object?, Object?>) {
-      throw const FormatException(
-        'Run task config JSON must decode to an object.',
-      );
-    }
+    final configPath = _readRequiredConfigPath();
 
     final request = CockpitRunTaskRequest.fromJson(
-      Map<String, Object?>.from(decoded),
+      cockpitReadConfigFile(
+        path: configPath,
+        label: 'Run task config',
+        usage: usage,
+      ),
     );
     final result = await _service.run(request);
     await cockpitWriteJsonPayload(
@@ -81,11 +77,15 @@ final class RunTaskCommand extends CockpitCliCommand {
     return cockpitSuccessExitCode;
   }
 
-  String _readRequiredOption(String name) {
-    final value = argResults?[name] as String?;
-    if (value == null || value.isEmpty) {
-      throw UsageException('--$name is required.', usage);
+  String _readRequiredConfigPath() {
+    final config = argResults?['config'] as String?;
+    if (config != null && config.isNotEmpty) {
+      return config;
     }
-    return value;
+    final legacy = argResults?['config-json'] as String?;
+    if (legacy != null && legacy.isNotEmpty) {
+      return legacy;
+    }
+    throw UsageException('--config is required.', usage);
   }
 }
