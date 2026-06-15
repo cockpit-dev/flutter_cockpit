@@ -13,8 +13,7 @@ Flutter Cockpit is an AI loop, not a screenshot tool or command catalog. Default
 
 Command success is not product proof; prove state, errors, evidence.
 
-These stages are decision gates, not a fixed command script or command quota. Satisfy each gate with the smallest fresh evidence available; skip irrelevant commands; choose CLI, MCP, app-first, target-first, persistent-session, or bundle flows. Protocol: `docs/contracts/ai-development-protocol.md` or `cockpit://workspace/ai-development-protocol`.
-Protocol map: `docs/contracts/flutter-cockpit-protocol.md` or `cockpit://workspace/protocol`.
+These stages are decision gates, not a fixed command script or command quota. Satisfy each gate with the smallest fresh evidence available; skip irrelevant commands; choose CLI, MCP, app-first, target-first, persistent-session, or bundle flows. Protocol map: [`references/protocol.md`](references/protocol.md), `cockpit://workspace/protocol`.
 
 ## When To Use
 
@@ -106,7 +105,7 @@ Acceptance, release readiness, or artifact-backed handoff:
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools validate-task --config /tmp/flutter_cockpit_validate_task.yaml
 ```
 
-Workflow script for branch/retry/loop E2E flows. Prefer YAML by hand and JSON when generated. Protocol map: `docs/contracts/flutter-cockpit-protocol.md`, `cockpit://workspace/protocol`. Workflow syntax/schema: `docs/contracts/control-workflow-protocol.md`, `docs/contracts/control-workflow.schema.json`, `cockpit://workspace/control-workflow-protocol`, `cockpit://workspace/control-workflow-schema`.
+Workflow script for branch/retry/loop E2E flows. Prefer YAML by hand and JSON when generated. Syntax/schema: [`references/protocol.md`](references/protocol.md), `cockpit://workspace/control-workflow-protocol`, `cockpit://workspace/control-workflow-schema`.
 
 ```yaml
 schemaVersion: 1
