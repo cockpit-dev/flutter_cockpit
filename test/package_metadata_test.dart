@@ -273,6 +273,7 @@ void main() {
   test('devtools package includes MCP contract fallback documents', () {
     final contractFiles = <String>[
       'ai-development-protocol.md',
+      'flutter-cockpit-protocol.md',
       'flutter-cockpit-skill-contract.md',
       'task-run-bundle.md',
       'control-workflow-protocol.md',
