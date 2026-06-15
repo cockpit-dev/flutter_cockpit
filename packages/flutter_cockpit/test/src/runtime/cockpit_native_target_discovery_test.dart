@@ -563,6 +563,52 @@ void main() {
   );
 
   testWidgets(
+    'deduplicates inherited passive semantics across visual descendants',
+    (tester) async {
+      await tester.pumpWidget(
+        CockpitSurface(
+          routeName: '/recording',
+          child: MaterialApp(
+            home: Scaffold(
+              body: Center(
+                child: Semantics(
+                  label: 'Live audio waveform, recording in progress',
+                  container: true,
+                  child: ExcludeSemantics(
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 80),
+                      child: SizedBox(
+                        key: const ValueKey<String>('waveform-frame'),
+                        width: 240,
+                        height: 64,
+                        child: CustomPaint(painter: _TestWaveformPainter()),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final surfaceState = tester.state<CockpitSurfaceState>(
+        find.byType(CockpitSurface),
+      );
+      final matches = surfaceState.registry.visibleTargets
+          .where(
+            (target) =>
+                target.semanticId ==
+                'Live audio waveform, recording in progress',
+          )
+          .toList(growable: false);
+
+      expect(matches, hasLength(1));
+    },
+  );
+
+  testWidgets(
     'does not assign merged descendant semantics text to passive keyed containers',
     (tester) async {
       await tester.pumpWidget(
@@ -739,6 +785,20 @@ void main() {
       );
     },
   );
+}
+
+class _TestWaveformPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = Colors.blue;
+    for (var index = 0; index < 16; index += 1) {
+      final x = index * size.width / 16;
+      canvas.drawRect(Rect.fromLTWH(x, 24, 4, 16), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 Future<CockpitTarget> _resolveKeyedInputTarget(

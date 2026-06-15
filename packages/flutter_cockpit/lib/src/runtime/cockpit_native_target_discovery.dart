@@ -231,7 +231,7 @@ final class CockpitNativeTargetDiscovery {
     final deduplicated = <CockpitTarget>[];
     for (final target in targets) {
       final duplicateIndex = deduplicated.indexWhere(
-        (existing) => _isDuplicatePassiveTextTarget(existing, target),
+        (existing) => _isDuplicatePassiveTarget(existing, target),
       );
       if (duplicateIndex == -1) {
         deduplicated.add(target);
@@ -245,16 +245,15 @@ final class CockpitNativeTargetDiscovery {
     return deduplicated;
   }
 
-  bool _isDuplicatePassiveTextTarget(CockpitTarget left, CockpitTarget right) {
+  bool _isDuplicatePassiveTarget(CockpitTarget left, CockpitTarget right) {
     if (left.supportedCommands.isNotEmpty ||
         right.supportedCommands.isNotEmpty) {
       return false;
     }
-    if (left.routeName != right.routeName || left.text != right.text) {
+    if (left.routeName != right.routeName) {
       return false;
     }
-    final text = left.text;
-    if (text == null || text.isEmpty) {
+    if (!_hasDuplicatePassiveSignal(left, right)) {
       return false;
     }
 
@@ -299,6 +298,59 @@ final class CockpitNativeTargetDiscovery {
     );
     final requiredArea = minArea < rightArea ? minArea : rightArea;
     return overlapArea >= requiredArea * 0.9;
+  }
+
+  bool _hasDuplicatePassiveSignal(CockpitTarget left, CockpitTarget right) {
+    if (_sameNonEmptySignal(left.text, right.text)) {
+      return true;
+    }
+
+    if (!_sameNonEmptySignal(left.semanticId, right.semanticId)) {
+      return false;
+    }
+
+    final label = left.semanticId;
+    if (label == null || label.isEmpty) {
+      return false;
+    }
+
+    return _isPassiveSemanticOnlyTarget(left, label) &&
+        _isPassiveSemanticOnlyTarget(right, label);
+  }
+
+  bool _isPassiveSemanticOnlyTarget(CockpitTarget target, String label) {
+    if (target.supportedCommands.isNotEmpty) {
+      return false;
+    }
+    if (target.text != null && target.text!.isNotEmpty) {
+      if (target.text != label || _isTextContentTarget(target)) {
+        return false;
+      }
+    }
+    if (target.tooltip != null && target.tooltip!.isNotEmpty) {
+      return false;
+    }
+    if (target.cockpitId != null &&
+        target.cockpitId!.isNotEmpty &&
+        target.cockpitId != label) {
+      return false;
+    }
+    return target.semanticId == label;
+  }
+
+  bool _isTextContentTarget(CockpitTarget target) {
+    return switch (target.typeName) {
+      'Text' || 'RichText' || 'EditableText' => true,
+      _ => false,
+    };
+  }
+
+  bool _sameNonEmptySignal(String? left, String? right) {
+    return left != null &&
+        right != null &&
+        left.isNotEmpty &&
+        right.isNotEmpty &&
+        left == right;
   }
 
   bool _areRelatedElements(Element left, Element right) {
