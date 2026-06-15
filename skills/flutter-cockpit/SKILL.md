@@ -11,22 +11,22 @@ Flutter Cockpit is an AI loop, not a screenshot tool or command catalog. Default
 
 `assess -> bootstrap -> baseline -> execute -> observe -> judge -> deliver`
 
-Command success is not product proof; prove state, errors, and evidence.
+Command success is not product proof; prove state, errors, evidence.
 
 These stages are decision gates, not a fixed command script or command quota. Satisfy each gate with the smallest fresh evidence available; skip irrelevant commands; choose CLI, MCP, app-first, target-first, persistent-session, or bundle flows.
 
 ## When To Use
 
-- Live UI, route, interaction, network, log, screenshot, recording, or acceptance proof is needed.
-- A Flutter app, browser, desktop window, simulator, emulator, device, or host needs control.
+- Live UI, route, interaction, network, log, screenshot, recording, or acceptance proof.
+- Flutter app, browser, desktop window, simulator, emulator, device, or host control.
 
 ## First-Time App Wiring
 
-Add `flutter_cockpit`, add `cockpit/main.dart`, and keep the production entrypoint intact. Do not add `flutter_cockpit` imports to production `lib/` code. The default runtime package is intentionally Dart/Flutter-first on mobile and desktop, so using it from `dev_dependencies` must not auto-register Cockpit native plugins into production bundles. In `cockpit/`, wrap with `FlutterCockpitApp` or `FlutterCockpit.runApp`, register `FlutterCockpit.navigatorObserver` only in the cockpit-owned navigator, and enable `CockpitRemoteSessionConfiguration.resolveFromEnvironment(...)`. For app-owned routers, call `FlutterCockpit.setCurrentRouteName(...)`; do not patch production `lib/` unless accepted.
+Add `flutter_cockpit`, add `cockpit/main.dart`, and keep the production entrypoint intact. Do not add `flutter_cockpit` imports to production `lib/` code. The default runtime is Dart/Flutter-first on mobile and desktop, so `dev_dependencies` use must not auto-register Cockpit native plugins into production bundles. In `cockpit/`, wrap with `FlutterCockpitApp` or `FlutterCockpit.runApp`, register `FlutterCockpit.navigatorObserver` only in the cockpit-owned navigator, and enable `CockpitRemoteSessionConfiguration.resolveFromEnvironment(...)`. For app-owned routers, call `FlutterCockpit.setCurrentRouteName(...)`; do not patch production `lib/` unless accepted.
 
 ## Stage Protocol
 
-1. **assess**: choose the smallest truthful surface. Default to app-first. If platform/device is unknown, run `list-targets` and use the returned platform, device id, and capability metadata. Do not guess ids, commands, payload keys, or locator types.
+1. **assess**: choose the smallest truthful surface. Default to app-first. If platform/device is unknown, run `list-targets` and use the returned platform, device id, and capability metadata. Do not guess ids, commands, payload keys, or locators.
 2. **bootstrap**: launch once or reuse a handle. `launch-app` returns after readiness; never shell-background it. Reuse `.dart_tool/flutter_cockpit/latest_app.json`. Use target-first only for non-plain surfaces.
 3. **baseline**: read before acting, unless a fresh equivalent read already answers the same question. Start with `read-app --profile minimal` or `read-target --profile minimal`; capture route, visible state, reachability, and errors.
 4. **execute**: edit, prefer `hot-reload`, and drive UI with `run-command` or short `run-batch`. For route changes, include `expectedRouteName`. After timeout, `remoteUnavailable`, or failed non-idempotent batch, re-read minimal state and resume from the smallest remaining safe step; do not replay blindly.
@@ -36,7 +36,7 @@ Add `flutter_cockpit`, add `cockpit/main.dart`, and keep the production entrypoi
 
 ## Fast Command Pack
 
-Use default AI-readable stdout. Add `--stdout-format json` only for `jq`; add `--output <path>` for file output, and `--output-format json` only for machine-readable files.
+Use default AI-readable stdout. Add `--stdout-format json` only for `jq`; add `--output <path>` for files, and `--output-format json` only for machine-readable files.
 
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools list-targets
@@ -89,17 +89,17 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-system-action [--
 ```
 
 Use `parameters=[name*:type[range](allowed|values)]`; `*` means required. Do not guess payload keys.
-Both commands reuse `.dart_tool/flutter_cockpit/latest_app.json` and resolve platform app ids by default. `--app-id` means native app id; current Cockpit app id maps to `platformAppId` when available. On iOS simulator, prefer `grantPermission`; use WebDriverAgent only when Flutter semantics and simctl cannot handle native UI, system dialogs, keyboard/focus, orientation, notifications, Notification Center, or Control Center. Cockpit probes `http://127.0.0.1:8100` unless configured; WDA actions stay blocked unless reachable.
-If `run-system-action` returns `invalidSystemActionParameter` or `missingSystemActionParameter`, re-run `read-system-capabilities`, copy lower-camel-case parameter names, required markers, allowed values, and numeric ranges, then send only that payload.
-For `dismissSystemDialog`, use `--decision accept` for the primary action or `--decision dismiss` for the cancel/deny action; omit it to accept.
-For native blockers, prefer `resolveBlockers`. Use `preparePermissions`, `stabilizeForScreenshot`, `readFocusState`, and `tapNotification`; then read app state and errors.
+Both commands reuse `.dart_tool/flutter_cockpit/latest_app.json` and resolve platform app ids by default. `--app-id` means native app id; current Cockpit app id maps to `platformAppId` when available. On iOS simulator, prefer `grantPermission`; use WebDriverAgent only when Flutter semantics and simctl cannot handle native UI, dialogs, keyboard/focus, orientation, notifications, Notification Center, or Control Center. Cockpit probes `http://127.0.0.1:8100`; WDA actions stay blocked unless reachable.
+If `run-system-action` returns `invalidSystemActionParameter` or `missingSystemActionParameter`, re-run `read-system-capabilities`, copy parameter names, required markers, allowed values, and ranges, then send only that payload.
+For `dismissSystemDialog`, use `--decision accept` for primary action or `--decision dismiss` for cancel/deny; omit it to accept.
+For native blockers, prefer `resolveBlockers`. Use `preparePermissions`, `stabilizeForScreenshot`, `readFocusState`, and `tapNotification`; then read state and errors.
 Use `actionGroups` in JSON output to find capability groups without hard-coding platform lists.
-Android Emulator uses adb for input, lifecycle, permissions, settings, orientation, networking, connectivity/battery simulation, notifications, demo-mode status bar, recovery, files/media, evidence, UI tree, focus/IME, state, logcat (`readSystemLogs`), and bounded shell.
-iOS Simulator uses simctl for lifecycle, privacy, locale, status bar, pasteboard, app-container files, media, recovery, evidence, device info, unified log (`readSystemLogs`), and bounded `simctl spawn`; non-absolute shell runs through `/bin/sh -lc`. WDA covers native UI, keyboard/focus, orientation, notifications, and system dialogs/blockers. Unsupported simulator actions remain blocked instead of faked.
+Android Emulator uses adb for input, lifecycle, permissions, settings, orientation, networking, connectivity/battery simulation, notifications, demo-mode status bar, recovery, files/media, evidence, UI tree, focus/IME, state, logcat (`readSystemLogs`), and shell.
+iOS Simulator uses simctl for lifecycle, privacy, locale, status bar, pasteboard, app-container files, media, recovery, evidence, device info, unified log (`readSystemLogs`), and bounded `simctl spawn`; non-absolute shell runs through `/bin/sh -lc`. WDA covers native UI, keyboard/focus, orientation, notifications, and dialogs/blockers. Unsupported simulator actions remain blocked instead of faked.
 When the app crashes before the runtime observer attaches, use `run-system-action --action readSystemLogs` for native logs instead of `read-logs`.
 `activateWindow` is non-destructive on iOS Simulator and should not terminate an existing Flutter debug or hot-reload session; use `terminateApp` only when a restart is intentional.
 Trust only actions reported as `available`.
-Desktop coordinates use screen pixels. macOS host screenshots/recordings need `--app-id`; Windows/Linux can use `--app-id` or `--process-id`. Desktop hosts also expose settings entry, host appearance, clipboard, host file/media copy, focus/device reads, notifications, and macOS `tccutil` permission resets; web evidence uses host window capture once the browser app id or process id is known. If an action is not `available`, follow its requirement/fallback or report `blocked_by_environment`.
+Desktop coordinates use screen pixels. macOS host screenshots/recordings need `--app-id`; Windows/Linux can use `--app-id` or `--process-id`. Desktop hosts also expose settings, appearance, clipboard, file/media copy, focus/device reads, notifications, and macOS `tccutil` permission resets; web evidence uses host window capture once the browser app id or process id is known. If an action is not `available`, follow its requirement/fallback or report `blocked_by_environment`.
 
 Acceptance, release readiness, or artifact-backed handoff:
 

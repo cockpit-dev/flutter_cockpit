@@ -5,17 +5,27 @@ import 'package:test/test.dart';
 void main() {
   final root = Directory.current.path;
 
-  test('runtime pubspec exposes flutter_cockpit plugin identifiers', () {
+  test('runtime pubspec exposes only the non-invasive web plugin', () {
     final pubspec = File(
       '$root/packages/flutter_cockpit/pubspec.yaml',
     ).readAsStringSync();
 
-    expect(pubspec, contains('package: dev.cockpit.flutter_cockpit'));
-    expect(pubspec, contains('pluginClass: FlutterCockpitPlugin'));
-    expect(pubspec, contains('linux:'));
     expect(pubspec, contains('web:'));
     expect(pubspec, contains('pluginClass: FlutterCockpitWeb'));
     expect(pubspec, contains('fileName: src/web/flutter_cockpit_web.dart'));
+    expect(
+      pubspec,
+      isNot(
+        matches(
+          RegExp(
+            r'^\s+(android|ios|macos|linux|windows):\s*$',
+            multiLine: true,
+          ),
+        ),
+      ),
+      reason:
+          'The runtime must not auto-register native host plugins from a development-only dependency.',
+    );
   });
 
   test('native plugin sources use flutter_cockpit channel names', () {
@@ -83,7 +93,12 @@ void main() {
     expect(macosPackage, contains('name: "flutter_cockpit"'));
     expect(macosPackage, contains('.macOS("10.15")'));
     expect(manifest, contains('package="dev.cockpit.flutter_cockpit"'));
-    expect(androidGradle, contains('agpMajor < 9'));
+    expect(
+      androidGradle,
+      contains('namespace = "dev.cockpit.flutter_cockpit"'),
+    );
+    expect(androidGradle, isNot(contains('agpMajor < 9')));
+    expect(androidGradle, isNot(contains('kotlin-gradle-plugin')));
     expect(androidGradle, contains('compilerOptions'));
   });
 }
