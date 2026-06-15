@@ -243,62 +243,61 @@ void main() {
     expect(selected, 'editor');
   });
 
-  testWidgets(
-    'tap selects a RadioGroup-managed RadioListTile without a direct handler',
-    (tester) async {
-      String? selected = 'inbox';
+  testWidgets('tap selects a RadioListTile without a direct handler', (
+    tester,
+  ) async {
+    String? selected = 'inbox';
 
-      await tester.pumpWidget(
-        CockpitSurface(
-          routeName: '/settings',
-          child: MaterialApp(
-            home: Scaffold(
-              body: StatefulBuilder(
-                builder: (context, setState) => RadioGroup<String>(
-                  groupValue: selected,
-                  onChanged: (next) => setState(() => selected = next),
-                  child: const Column(
-                    children: <Widget>[
-                      RadioListTile<String>(
-                        key: ValueKey<String>('radio-tile-inbox'),
-                        value: 'inbox',
-                        title: Text('Inbox'),
-                      ),
-                      RadioListTile<String>(
-                        key: ValueKey<String>('radio-tile-editor'),
-                        value: 'editor',
-                        title: Text('Editor'),
-                      ),
-                    ],
+    await tester.pumpWidget(
+      CockpitSurface(
+        routeName: '/settings',
+        child: MaterialApp(
+          home: Scaffold(
+            body: StatefulBuilder(
+              builder: (context, setState) => Column(
+                children: <Widget>[
+                  _legacyRadioListTile(
+                    key: const ValueKey<String>('radio-tile-inbox'),
+                    value: 'inbox',
+                    title: const Text('Inbox'),
+                    groupValue: selected,
+                    onChanged: (next) => setState(() => selected = next),
                   ),
-                ),
+                  _legacyRadioListTile(
+                    key: const ValueKey<String>('radio-tile-editor'),
+                    value: 'editor',
+                    title: const Text('Editor'),
+                    groupValue: selected,
+                    onChanged: (next) => setState(() => selected = next),
+                  ),
+                ],
               ),
             ),
           ),
         ),
-      );
-      await tester.pump();
+      ),
+    );
+    await tester.pump();
 
-      final surfaceState = tester.state<CockpitSurfaceState>(
-        find.byType(CockpitSurface),
-      );
-      final executor = InAppCockpitCommandExecutor(
-        registry: surfaceState.registry,
-        waitTickHandler: tester.pump,
-      );
-      final result = await executor.execute(
-        CockpitCommand(
-          commandId: 'select-editor-radio-tile',
-          commandType: CockpitCommandType.tap,
-          locator: const CockpitLocator(key: 'radio-tile-editor'),
-        ),
-      );
-      await tester.pump();
+    final surfaceState = tester.state<CockpitSurfaceState>(
+      find.byType(CockpitSurface),
+    );
+    final executor = InAppCockpitCommandExecutor(
+      registry: surfaceState.registry,
+      waitTickHandler: tester.pump,
+    );
+    final result = await executor.execute(
+      CockpitCommand(
+        commandId: 'select-editor-radio-tile',
+        commandType: CockpitCommandType.tap,
+        locator: const CockpitLocator(key: 'radio-tile-editor'),
+      ),
+    );
+    await tester.pump();
 
-      expect(result.success, isTrue, reason: result.error?.message);
-      expect(selected, 'editor');
-    },
-  );
+    expect(result.success, isTrue, reason: result.error?.message);
+    expect(selected, 'editor');
+  });
 
   test('executes tap against a target located by cockpitId', () async {
     final registry = CockpitTargetRegistry(routeName: '/checkout');
@@ -5379,4 +5378,23 @@ void main() {
     expect(result.success, isTrue);
     expect(result.snapshot?['diagnosticLevel'], 'investigate');
   });
+}
+
+Widget _legacyRadioListTile({
+  required Key key,
+  required String value,
+  required Widget title,
+  required String? groupValue,
+  required ValueChanged<String?> onChanged,
+}) {
+  return RadioListTile<String>(
+    key: key,
+    value: value,
+    title: title,
+    // Flutter 3.32 is the supported SDK floor and predates RadioGroup.
+    // ignore: deprecated_member_use
+    groupValue: groupValue,
+    // ignore: deprecated_member_use
+    onChanged: onChanged,
+  );
 }
