@@ -1,8 +1,9 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:args/command_runner.dart';
+import 'package:flutter_cockpit/flutter_cockpit.dart';
 
+import '../../application/cockpit_application_service_exception.dart';
 import '../../application/cockpit_run_remote_control_script_service.dart';
 import '../../application/cockpit_session_reference_resolver.dart';
 import '../../artifacts/task_run_bundle_writer.dart';
@@ -13,27 +14,39 @@ import '../cockpit_command_runner.dart';
 import '../cockpit_control_script.dart';
 import '../cockpit_interactive_cli_support.dart';
 
+typedef CockpitRunRemoteControlScriptCommandFunction =
+    Future<CockpitRunRemoteControlScriptResult> Function(
+      CockpitRunRemoteControlScriptRequest request,
+    );
+
 final class RunRemoteControlScriptCommand extends CockpitCliCommand {
   RunRemoteControlScriptCommand({
     CockpitRunRemoteControlScriptService? service,
+    CockpitRunRemoteControlScriptCommandFunction? runScript,
     CockpitAndroidPortForwarder portForwarder =
         const CockpitAndroidPortForwarder(),
     CockpitRecordingStrategyResolver recordingStrategyResolver =
         const CockpitRecordingStrategyResolver(),
     TaskRunBundleWriter writer = const TaskRunBundleWriter(),
-  }) : _service =
-           service ??
-           CockpitRunRemoteControlScriptService(
-             sessionReferenceResolver: CockpitSessionReferenceResolver(
-               portForwarder: portForwarder,
-             ),
-             recordingStrategyResolver: recordingStrategyResolver,
-             writer: writer,
-           ) {
+  }) : _runScript =
+           runScript ??
+           (service ??
+                   CockpitRunRemoteControlScriptService(
+                     sessionReferenceResolver: CockpitSessionReferenceResolver(
+                       portForwarder: portForwarder,
+                     ),
+                     recordingStrategyResolver: recordingStrategyResolver,
+                     writer: writer,
+                   ))
+               .run {
     argParser
       ..addOption('base-url', help: 'Base URL for the running app session.')
       ..addOption('session-json', help: cockpitRemoteSessionJsonOptionHelp)
-      ..addOption('script-json', help: 'Path to a JSON control script file.')
+      ..addOption('script', help: 'Path to a JSON or YAML control script file.')
+      ..addOption(
+        'script-json',
+        help: 'Deprecated alias for --script. Accepts JSON or YAML.',
+      )
       ..addOption(
         'output-root',
         help: 'Directory where the task-run bundle should be written.',
@@ -48,7 +61,7 @@ final class RunRemoteControlScriptCommand extends CockpitCliCommand {
       );
   }
 
-  final CockpitRunRemoteControlScriptService _service;
+  final CockpitRunRemoteControlScriptCommandFunction _runScript;
 
   @override
   String get name => 'run-remote-control-script';
@@ -69,19 +82,19 @@ final class RunRemoteControlScriptCommand extends CockpitCliCommand {
 
   @override
   String get helpNeeds =>
-      'A remote session reference from --session-json, the default latest remote session handle, or --base-url; plus control script JSON and output bundle directory.';
+      'A remote session reference from --session-json, the default latest remote session handle, or --base-url; plus a control script file and output bundle directory.';
 
   @override
   String get helpExample =>
-      'flutter_cockpit_devtools run-remote-control-script --script-json /tmp/script.json --output-root /tmp/bundle';
+      'flutter_cockpit_devtools run-remote-control-script --script /tmp/script.yaml --output-root /tmp/bundle';
 
   @override
   String get helpWrites =>
-      'A task-run bundle under --output-root; prefer run-script for app-first workflows.';
+      'A task-run bundle under --output-root. The command exits non-zero when the bundle status is failed; prefer run-script for app-first workflows.';
 
   @override
   Future<int> run() async {
-    final scriptJsonPath = _readRequiredOption('script-json');
+    final scriptPath = _readRequiredScriptPath();
     final outputRoot = _readRequiredOption('output-root');
     final sessionJsonPath = cockpitResolveRemoteSessionHandlePath(argResults);
     final baseUrl = argResults?['base-url'] as String?;
@@ -94,23 +107,21 @@ final class RunRemoteControlScriptCommand extends CockpitCliCommand {
       );
     }
 
-    final scriptFile = File(scriptJsonPath);
+    final scriptFile = File(scriptPath);
     if (!scriptFile.existsSync()) {
       throw UsageException(
-        'Control script file does not exist: $scriptJsonPath',
+        'Control script file does not exist: $scriptPath',
         usage,
       );
     }
 
-    final decoded = jsonDecode(await scriptFile.readAsString());
-    if (decoded is! Map<String, Object?>) {
-      throw const FormatException(
-        'Control script JSON must decode to an object.',
-      );
-    }
-
-    final script = CockpitControlScript.fromJson(decoded);
-    await _service.run(
+    final scriptText = await scriptFile.readAsString();
+    final script = cockpitDecodeCliJson(
+      decode: () => cockpitControlScriptFromText(scriptText),
+      label: 'script',
+      usage: usage,
+    );
+    final result = await _runScript(
       CockpitRunRemoteControlScriptRequest(
         script: script,
         outputRoot: outputRoot,
@@ -120,6 +131,14 @@ final class RunRemoteControlScriptCommand extends CockpitCliCommand {
         iosDeviceId: argResults?['ios-device-id'] as String?,
       ),
     );
+    if (result.manifest.status == CockpitTaskStatus.failed) {
+      final summary = result.manifest.failureSummary ?? 'Unknown failure.';
+      throw CockpitApplicationServiceException(
+        code: 'controlScriptFailed',
+        message:
+            'Control script bundle failed: $summary See ${result.bundleDir.path}.',
+      );
+    }
     return cockpitSuccessExitCode;
   }
 
@@ -129,5 +148,17 @@ final class RunRemoteControlScriptCommand extends CockpitCliCommand {
       throw UsageException('--$name is required.', usage);
     }
     return value;
+  }
+
+  String _readRequiredScriptPath() {
+    final script = argResults?['script'] as String?;
+    if (script != null && script.isNotEmpty) {
+      return script;
+    }
+    final legacy = argResults?['script-json'] as String?;
+    if (legacy != null && legacy.isNotEmpty) {
+      return legacy;
+    }
+    throw UsageException('--script is required.', usage);
   }
 }

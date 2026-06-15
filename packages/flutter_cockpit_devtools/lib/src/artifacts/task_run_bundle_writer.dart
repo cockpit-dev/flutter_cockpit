@@ -136,6 +136,7 @@ final class TaskRunBundleWriter {
       p.join(outputDirectory.path, 'steps.json'),
       bundle.steps.map(_stepJsonForBundle).toList(growable: false),
     );
+    _writeJson(p.join(outputDirectory.path, 'trace.json'), _traceFor(bundle));
     _writeJson(
       p.join(outputDirectory.path, 'observations.json'),
       bundle.observations
@@ -223,6 +224,67 @@ final class TaskRunBundleWriter {
       'runtimeWarningCount': manifest.runtimeWarningCount,
       'entryCount': ordered.length,
       'entries': ordered.map((entry) => entry.payload).toList(growable: false),
+    };
+  }
+
+  Map<String, Object?> _traceFor(CockpitContextBundle bundle) {
+    final manifest = bundle.manifest;
+    final entries = bundle.steps
+        .map(_traceEntryForStep)
+        .whereType<Map<String, Object?>>()
+        .toList(growable: false);
+    return <String, Object?>{
+      'schemaVersion': 1,
+      'sessionId': manifest.sessionId,
+      'taskId': manifest.taskId,
+      'platform': manifest.platform,
+      'status': manifest.status.name,
+      'entryCount': entries.length,
+      'entries': entries,
+    };
+  }
+
+  Map<String, Object?>? _traceEntryForStep(CockpitStepRecord step) {
+    final args = step.actionArgs;
+    final commandId = args['commandId'];
+    final workflowStepId = args['workflowStepId'];
+    final isWorkflowStep =
+        step.actionType.startsWith('workflow_') || workflowStepId is String;
+    final isCommandStep = step.commandType != null;
+    if (!isWorkflowStep && !isCommandStep && step.artifactRefs.isEmpty) {
+      return null;
+    }
+    return <String, Object?>{
+      'stepIndex': step.index,
+      'actionType': step.actionType,
+      if (workflowStepId is String) 'workflowStepId': workflowStepId,
+      if (args['workflowStepType'] is String)
+        'workflowStepType': args['workflowStepType'],
+      if (commandId is String) 'commandId': commandId,
+      if (step.commandType != null) 'commandType': step.commandType!.name,
+      if (step.status != null) 'status': step.status!.name,
+      if (args['conditionCommandId'] is String)
+        'conditionCommandId': args['conditionCommandId'],
+      if (args['conditionSuccess'] is bool)
+        'conditionSuccess': args['conditionSuccess'],
+      if (args['selectedBranch'] is String)
+        'selectedBranch': args['selectedBranch'],
+      if (args['iteration'] is int) 'iteration': args['iteration'],
+      if (args['attempt'] is int) 'attempt': args['attempt'],
+      if (step.artifactRefs.isNotEmpty)
+        'artifactRefs': step.artifactRefs
+            .map((artifact) => artifact.toJson())
+            .toList(growable: false),
+      if (step.captureRefs.isNotEmpty)
+        'captureRefs': step.captureRefs
+            .map((artifact) => artifact.toJson())
+            .toList(growable: false),
+      if (step.commandError != null)
+        'commandError': step.commandError!.toJson(),
+      if (args['conditionError'] is Map<Object?, Object?>)
+        'conditionError': args['conditionError'],
+      if (args['failureSummary'] is String)
+        'failureSummary': args['failureSummary'],
     };
   }
 

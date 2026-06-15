@@ -12,8 +12,11 @@ final class CockpitMcpServerRuntimeOptions {
     required this.disabledNames,
     required this.forceRootsFallback,
     required this.workspaceRoots,
+    required this.aiDevelopmentProtocolPath,
     required this.skillContractPath,
     required this.bundleContractPath,
+    required this.workflowProtocolPath,
+    required this.workflowSchemaPath,
     this.logFilePath,
   });
 
@@ -21,8 +24,11 @@ final class CockpitMcpServerRuntimeOptions {
   final Set<String> disabledNames;
   final bool forceRootsFallback;
   final List<String> workspaceRoots;
+  final String aiDevelopmentProtocolPath;
   final String skillContractPath;
   final String bundleContractPath;
+  final String workflowProtocolPath;
+  final String workflowSchemaPath;
   final String? logFilePath;
 }
 
@@ -100,6 +106,11 @@ final class CockpitMcpServerRuntime {
             'Seed one or more manual workspace roots before the MCP client sends roots. Manual roots merge with client roots.',
       )
       ..addOption(
+        'ai-development-protocol-file',
+        defaultsTo: 'docs/contracts/ai-development-protocol.md',
+        help: 'Path to the AI development protocol document.',
+      )
+      ..addOption(
         'skill-contract-file',
         defaultsTo: 'docs/contracts/flutter-cockpit-skill-contract.md',
         help: 'Path to the flutter_cockpit skill contract document.',
@@ -108,6 +119,16 @@ final class CockpitMcpServerRuntime {
         'bundle-contract-file',
         defaultsTo: 'docs/contracts/task-run-bundle.md',
         help: 'Path to the task bundle contract document.',
+      )
+      ..addOption(
+        'workflow-protocol-file',
+        defaultsTo: 'docs/contracts/control-workflow-protocol.md',
+        help: 'Path to the control workflow protocol document.',
+      )
+      ..addOption(
+        'workflow-schema-file',
+        defaultsTo: 'docs/contracts/control-workflow.schema.json',
+        help: 'Path to the control workflow JSON Schema document.',
       )
       ..addOption(
         'log-file',
@@ -123,12 +144,21 @@ final class CockpitMcpServerRuntime {
       workspaceRoots: List<String>.unmodifiable(
         args.multiOption('workspace-root'),
       ),
+      aiDevelopmentProtocolPath:
+          args['ai-development-protocol-file'] as String? ??
+          'docs/contracts/ai-development-protocol.md',
       skillContractPath:
           args['skill-contract-file'] as String? ??
           'docs/contracts/flutter-cockpit-skill-contract.md',
       bundleContractPath:
           args['bundle-contract-file'] as String? ??
           'docs/contracts/task-run-bundle.md',
+      workflowProtocolPath:
+          args['workflow-protocol-file'] as String? ??
+          'docs/contracts/control-workflow-protocol.md',
+      workflowSchemaPath:
+          args['workflow-schema-file'] as String? ??
+          'docs/contracts/control-workflow.schema.json',
       logFilePath: args['log-file'] as String?,
     );
   }
@@ -155,8 +185,11 @@ final class CockpitMcpServerRuntime {
       ),
       forceRootsFallback: options.forceRootsFallback,
       workspaceRoots: options.workspaceRoots,
+      aiDevelopmentProtocolPath: options.aiDevelopmentProtocolPath,
       skillContractPath: options.skillContractPath,
       bundleContractPath: options.bundleContractPath,
+      workflowProtocolPath: options.workflowProtocolPath,
+      workflowSchemaPath: options.workflowSchemaPath,
     );
   }
 

@@ -58,6 +58,30 @@ void main() {
     },
   );
 
+  test('recording driver resolves desktop host recording truthfully', () {
+    expect(
+      cockpitDemoRecordingDriverForPlatform(
+        platform: 'macos',
+        deviceId: 'macos',
+      ),
+      'macos-host',
+    );
+    expect(
+      cockpitDemoRecordingDriverForPlatform(
+        platform: 'linux',
+        deviceId: 'linux',
+      ),
+      'linux-host',
+    );
+    expect(
+      cockpitDemoRecordingDriverForPlatform(
+        platform: 'windows',
+        deviceId: 'windows',
+      ),
+      'windows-host',
+    );
+  });
+
   test('iOS host does not declare a missing SceneDelegate', () {
     final iosRunnerDir =
         Directory.current.path.endsWith('examples/cockpit_demo')
@@ -179,6 +203,7 @@ void main() {
       final readErrorsRequests = <CockpitReadErrorsRequest>[];
       final readLogsRequests = <CockpitReadLogsRequest>[];
       final recordingResolverPlatforms = <String>[];
+      final recordingResolverApps = <CockpitAppHandle>[];
       final recordingRequests = <CockpitRecordingRequest>[];
       final systemActionRequests = <CockpitSystemControlActionRequest>[];
       var recordingStopCount = 0;
@@ -547,10 +572,12 @@ void main() {
             ({
               required platform,
               required deviceId,
+              required app,
               required client,
               required recording,
             }) {
               recordingResolverPlatforms.add(platform);
+              recordingResolverApps.add(app);
               return _FakeRecordingAdapter(
                 onStart: (request) async {
                   recordingRequests.add(request);
@@ -811,6 +838,10 @@ void main() {
         'windows',
         'web',
       ]);
+      expect(
+        recordingResolverApps.map((app) => app.platform),
+        recordingResolverPlatforms,
+      );
       expect(recordingRequests, hasLength(6));
       expect(recordingStopCount, 6);
       expect(hotRestartRequests, hasLength(6));
@@ -869,7 +900,14 @@ void main() {
       );
       expect(
         result.platforms.map((platform) => platform.recordingDriver),
-        <String>['remote', 'simctl', 'adb', 'remote', 'remote', 'browser-host'],
+        <String>[
+          'macos-host',
+          'simctl',
+          'adb',
+          'linux-host',
+          'windows-host',
+          'browser-host',
+        ],
       );
       expect(
         result.platforms.map((platform) => platform.systemControlAdapter),
@@ -1384,6 +1422,7 @@ void main() {
           ({
             required platform,
             required deviceId,
+            required app,
             required client,
             required recording,
           }) {
@@ -1645,6 +1684,7 @@ void main() {
             ({
               required platform,
               required deviceId,
+              required app,
               required client,
               required recording,
             }) {
@@ -1859,6 +1899,7 @@ void main() {
           ({
             required platform,
             required deviceId,
+            required app,
             required client,
             required recording,
           }) {
@@ -2052,6 +2093,7 @@ void main() {
           ({
             required platform,
             required deviceId,
+            required app,
             required client,
             required recording,
           }) {
@@ -2211,6 +2253,7 @@ void main() {
             ({
               required platform,
               required deviceId,
+              required app,
               required client,
               required recording,
             }) {
@@ -2329,6 +2372,7 @@ void main() {
           ({
             required platform,
             required deviceId,
+            required app,
             required client,
             required recording,
           }) {
@@ -2454,6 +2498,7 @@ void main() {
           ({
             required platform,
             required deviceId,
+            required app,
             required client,
             required recording,
           }) {
@@ -2594,6 +2639,7 @@ void main() {
           ({
             required platform,
             required deviceId,
+            required app,
             required client,
             required recording,
           }) {
@@ -2733,6 +2779,7 @@ void main() {
             ({
               required platform,
               required deviceId,
+              required app,
               required client,
               required recording,
             }) {
@@ -2923,6 +2970,7 @@ void main() {
             ({
               required platform,
               required deviceId,
+              required app,
               required client,
               required recording,
             }) {
@@ -3166,6 +3214,7 @@ void main() {
             ({
               required platform,
               required deviceId,
+              required app,
               required client,
               required recording,
             }) {

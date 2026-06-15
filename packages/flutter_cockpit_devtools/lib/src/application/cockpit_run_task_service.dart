@@ -84,9 +84,9 @@ final class CockpitRunTaskLaunchRequest {
       target: _readOptionalString(json, 'target'),
       platform: _readRequiredString(json, 'platform'),
       deviceId: _readRequiredString(json, 'deviceId'),
-      sessionPort: _readRequiredInt(json, 'sessionPort'),
+      sessionPort: _readRequiredPositiveInt(json, 'sessionPort'),
       launchTimeout: Duration(
-        seconds: _readOptionalInt(json, 'launchTimeoutSeconds') ?? 120,
+        seconds: _readOptionalPositiveInt(json, 'launchTimeoutSeconds') ?? 120,
       ),
       persistHandlePath: _readOptionalString(json, 'persistHandlePath'),
     );
@@ -324,6 +324,30 @@ int _readRequiredInt(Map<String, Object?> json, String key) {
   return value;
 }
 
+int _readRequiredPositiveInt(Map<String, Object?> json, String key) {
+  final value = _readRequiredInt(json, key);
+  if (value > 0) {
+    return value;
+  }
+  throw CockpitApplicationServiceException(
+    code: 'invalidRunTaskRequest',
+    message: 'Expected a positive integer field.',
+    details: <String, Object?>{'field': key},
+  );
+}
+
+int? _readOptionalPositiveInt(Map<String, Object?> json, String key) {
+  final value = _readOptionalInt(json, key);
+  if (value == null || value > 0) {
+    return value;
+  }
+  throw CockpitApplicationServiceException(
+    code: 'invalidRunTaskRequest',
+    message: 'Expected a positive integer field.',
+    details: <String, Object?>{'field': key},
+  );
+}
+
 int? _readOptionalInt(Map<String, Object?> json, String key) {
   final value = json[key];
   if (value == null) {
@@ -331,9 +355,6 @@ int? _readOptionalInt(Map<String, Object?> json, String key) {
   }
   if (value is int) {
     return value;
-  }
-  if (value is num) {
-    return value.toInt();
   }
   throw CockpitApplicationServiceException(
     code: 'invalidRunTaskRequest',

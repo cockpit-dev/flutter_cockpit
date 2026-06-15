@@ -156,6 +156,13 @@ void main() {
       expect(result.recommendedNextStep, 'delivery_ready');
       expect(result.validationFailures, isEmpty);
       expect(result.bundleSummary?.bundleDir, bundleDir.path);
+      final validationFile = File(p.join(bundleDir.path, 'validation.json'));
+      expect(validationFile.existsSync(), isTrue);
+      final validationJson =
+          jsonDecode(validationFile.readAsStringSync()) as Map<String, Object?>;
+      expect(validationJson['classification'], 'completed');
+      expect(validationJson['bundleDir'], bundleDir.path);
+      expect(validationJson['failureCount'], 0);
     },
   );
 

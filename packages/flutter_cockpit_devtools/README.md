@@ -202,7 +202,15 @@ If `launch-app` omits `--app-json`, it persists the current app handle at `.dart
 `run-shell` is bounded and killable by default. Keep the default timeout for quick probes; pass `--timeout-seconds <n>` only for known-slow shell work.
 When a command accepts both `--app-json` and `--base-url`, precedence is: explicit `--app-json`, then explicit `--base-url`, then the implicit `.dart_tool/flutter_cockpit/latest_app.json` handle in the current working directory.
 `launch-app` auto-detects `cockpit/main.dart` first, then `lib/main.dart`.
-`run-script` exits non-zero when the written bundle status is `failed`.
+`run-script --script <workflow.yaml|script.json>` accepts YAML or JSON scripts.
+Use YAML for hand-written `if`, `retry`, and bounded `loop` workflows, and JSON
+for generated scripts. The AI development protocol is shipped with this package
+at [`doc/contracts/ai-development-protocol.md`](doc/contracts/ai-development-protocol.md).
+The workflow protocol is shipped at
+[`doc/contracts/control-workflow-protocol.md`](doc/contracts/control-workflow-protocol.md)
+with the machine schema at
+[`doc/contracts/control-workflow.schema.json`](doc/contracts/control-workflow.schema.json).
+`run-script` and `run-remote-control-script` exit non-zero when the written bundle status is `failed`.
 Workspace commands default `--workspace-root` or `--parent-directory` to the current directory.
 Serialize mutation, then observation. Do not run a mutating `run-command` in parallel with the `read-app`, `inspect-ui`, or `read-network` call that depends on its result.
 When the next few steps are already known and the flow will cross a route boundary such as list -> editor -> list, prefer one ordered `run-batch` over separate `run-command` round-trips. It cuts token cost and avoids route-transition gaps between commands.
@@ -287,11 +295,11 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   validate-task \
-  --config-json /tmp/validate_task.json --stdout-format json | jq '{classification,recommendedNextStep,validationFailures}'
+  --config /tmp/validate_task.yaml --stdout-format json | jq '{classification,recommendedNextStep,validationFailures}'
 
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   validate-task \
-  --config-json /tmp/validate_task.json \
+  --config /tmp/validate_task.yaml \
   --output /tmp/validate_task_result.json \
   --output-format json
 ```
@@ -304,7 +312,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --bundle-dir /tmp/flutter_cockpit/out/20260530T060304005006Z_session-1
 ```
 
-Default stdout is the full AI-readable semantic render. Add `--stdout-format json` for immediate `jq` projections. Keep larger payloads on disk with `--output <path>`; add `--output-format json` only when a later step must reopen structured JSON. Prefer `--command-file`, `--commands-file`, or `--config-json` over long inline JSON once the request body stops being trivial.
+Default stdout is the full AI-readable semantic render. Add `--stdout-format json` for immediate `jq` projections. Keep larger payloads on disk with `--output <path>`; add `--output-format json` only when a later step must reopen structured JSON. Prefer `--command-file`, `--commands-file`, or `--config` over long inline JSON once the request body stops being trivial; use YAML for hand-written task/workflow configs and JSON for generated configs.
 
 ## MCP
 
@@ -388,7 +396,13 @@ Workspace and roots tools:
 - `run_tests`
 - `apply_fixes`
 
-Resources and prompts are also exposed for contracts, capabilities, task summaries, roots, package reads, and standard closed-loop guidance.
+Resources and prompts are also exposed for contracts, capabilities, task
+summaries, roots, package reads, and standard closed-loop guidance. Read
+`cockpit://workspace/ai-development-protocol` for the AI development loop and
+`cockpit://workspace/control-workflow-protocol` when an MCP host needs the
+script protocol for `run_script`. Use
+`cockpit://workspace/control-workflow-schema` when a tool needs the
+machine-readable workflow schema.
 
 ## Notes
 

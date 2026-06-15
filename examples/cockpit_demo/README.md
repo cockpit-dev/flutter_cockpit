@@ -167,10 +167,16 @@ The full verifier covers:
 
 Recording is platform-aware:
 
-- `remote` on `macos`, `linux`, and `windows`
+- `macos-host` on `macos`
+- `linux-host` on `linux`
+- `windows-host` on `windows`
 - `browser-host` on `web`
 - `simctl` on `ios`
 - `adb` on `android`
+
+Desktop recording is app-scoped by default. Keep the `app.json` handle from
+`launch-app` so the verifier can pass the platform app id, process id, and
+remote-session metadata to the host recorder.
 
 For local macOS web validation, if the desktop has not yet granted screen-capture permission to the terminal, Dart, or `ffmpeg`, use:
 

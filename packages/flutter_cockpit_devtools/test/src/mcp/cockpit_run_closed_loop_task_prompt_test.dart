@@ -15,6 +15,7 @@ void main() {
       final text = result.messages.single.text;
       expect(text, contains('cockpit://workspace/skill-contract'));
       expect(text, contains('cockpit://workspace/task-bundle-contract'));
+      expect(text, contains('cockpit://workspace/control-workflow-protocol'));
       expect(text, isNot(contains('cockpit://workspace/goals')));
     },
   );

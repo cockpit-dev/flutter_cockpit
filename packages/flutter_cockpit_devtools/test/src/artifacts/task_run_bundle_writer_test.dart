@@ -53,6 +53,7 @@ void main() {
       isTrue,
     );
     expect(File(p.join(outputDir.path, 'steps.json')).existsSync(), isTrue);
+    expect(File(p.join(outputDir.path, 'trace.json')).existsSync(), isTrue);
     expect(File(p.join(outputDir.path, 'logs.json')).existsSync(), isTrue);
     expect(
       Directory(p.join(outputDir.path, 'screenshots')).existsSync(),
@@ -63,6 +64,109 @@ void main() {
       isTrue,
     );
   });
+
+  test(
+    'writes workflow trace entries linked to steps, commands, and artifacts',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_bundle_trace_test',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final writer = TaskRunBundleWriter();
+      final bundle = CockpitContextBundle(
+        manifest: CockpitRunManifest(
+          sessionId: 'session-trace',
+          taskId: 'task-trace',
+          platform: 'android',
+          status: CockpitTaskStatus.completed,
+          startedAt: DateTime.utc(2026, 6, 15, 8),
+          finishedAt: DateTime.utc(2026, 6, 15, 8, 1),
+          artifactRefs: const <CockpitArtifactRef>[
+            CockpitArtifactRef(
+              role: 'screenshot',
+              relativePath: 'screenshots/after.png',
+            ),
+          ],
+        ),
+        environment: const CockpitEnvironment(
+          platform: 'android',
+          flutterVersion: '3.38.9',
+          dartVersion: '3.10.8',
+        ),
+        steps: <CockpitStepRecord>[
+          CockpitStepRecord(
+            index: 0,
+            actionType: 'workflow_if',
+            actionArgs: const <String, Object?>{
+              'workflowStepId': 'dismiss-dialog-if-present',
+              'workflowStepType': 'if',
+              'conditionCommandId': 'has-dialog',
+              'conditionSuccess': false,
+              'selectedBranch': 'else',
+            },
+            observedAt: DateTime.utc(2026, 6, 15, 8),
+          ),
+          CockpitStepRecord(
+            index: 1,
+            actionType: 'tap',
+            actionArgs: const <String, Object?>{
+              'commandId': 'tap-continue',
+              'workflowStepId': 'continue-flow',
+              'workflowStepType': 'command',
+            },
+            observedAt: DateTime.utc(2026, 6, 15, 8, 0, 1),
+            commandType: CockpitCommandType.tap,
+            status: CockpitCommandStatus.succeeded,
+            artifactRefs: const <CockpitArtifactRef>[
+              CockpitArtifactRef(
+                role: 'screenshot',
+                relativePath: 'screenshots/after.png',
+              ),
+            ],
+            captureRefs: const <CockpitArtifactRef>[
+              CockpitArtifactRef(
+                role: 'screenshot',
+                relativePath: 'screenshots/after.png',
+              ),
+            ],
+          ),
+        ],
+        observations: const [],
+        acceptanceMarkdown: '# Acceptance\n\nDone.',
+        handoff: const {'status': 'completed'},
+      );
+
+      final outputDir = await writer.writeBundle(
+        bundle: bundle,
+        outputRoot: tempDir.path,
+        artifactPayloads: const <String, List<int>>{
+          'screenshots/after.png': <int>[1, 2, 3],
+        },
+      );
+
+      final trace =
+          jsonDecode(
+                File(p.join(outputDir.path, 'trace.json')).readAsStringSync(),
+              )
+              as Map<String, Object?>;
+      expect(trace['schemaVersion'], 1);
+      expect(trace['entryCount'], 2);
+      final entries = (trace['entries']! as List<Object?>)
+          .cast<Map<String, Object?>>();
+      expect(entries.first['workflowStepId'], 'dismiss-dialog-if-present');
+      expect(entries.first['conditionCommandId'], 'has-dialog');
+      expect(entries.first['selectedBranch'], 'else');
+      expect(entries.last['stepIndex'], 1);
+      expect(entries.last['workflowStepId'], 'continue-flow');
+      expect(entries.last['commandId'], 'tap-continue');
+      expect(entries.last['captureRefs'], isNotEmpty);
+    },
+  );
 
   test('writes structured logs derived from runtime event evidence', () async {
     final tempDir = await Directory.systemTemp.createTemp(

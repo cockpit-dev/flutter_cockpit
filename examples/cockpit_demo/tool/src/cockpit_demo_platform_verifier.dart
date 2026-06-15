@@ -51,6 +51,7 @@ typedef CockpitDemoRecordingAdapterResolver =
     CockpitRecordingAdapter? Function({
       required String platform,
       required String deviceId,
+      required CockpitAppHandle app,
       required CockpitRemoteSessionClient client,
       required CockpitRecordingRequest recording,
     });
@@ -687,6 +688,7 @@ final class CockpitDemoPlatformVerifier {
       final recordingAdapter = _recordingAdapterResolver(
         platform: platform,
         deviceId: deviceId,
+        app: launchedApp,
         client: CockpitRemoteSessionClient(baseUri: appBaseUri),
         recording: recordingRequest,
       );
@@ -2973,6 +2975,7 @@ Future<CockpitReadLogsResult> cockpitDemoReadLogs(
 CockpitRecordingAdapter? cockpitDemoResolveRecordingAdapter({
   required String platform,
   required String deviceId,
+  required CockpitAppHandle app,
   required CockpitRemoteSessionClient client,
   required CockpitRecordingRequest recording,
 }) {
@@ -2980,8 +2983,12 @@ CockpitRecordingAdapter? cockpitDemoResolveRecordingAdapter({
     platform: platform,
     recording: recording,
     client: client,
+    sessionHandle: app.remoteSession,
     androidDeviceId: platform == 'android' ? deviceId : null,
     iosDeviceId: platform == 'ios' ? deviceId : null,
+    platformAppId:
+        app.platformAppId ?? app.remoteSession?.effectivePlatformAppId,
+    processId: app.processId ?? app.remoteSession?.processId,
   );
 }
 
@@ -2997,6 +3004,9 @@ String cockpitDemoRecordingDriverForPlatform({
               cockpitLooksLikeIosSimulatorDeviceId(deviceId)
           ? 'simctl'
           : 'remote',
+    'macos' => 'macos-host',
+    'linux' => 'linux-host',
+    'windows' => 'windows-host',
     'web' => 'browser-host',
     _ => 'remote',
   };

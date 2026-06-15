@@ -258,7 +258,7 @@ void main() {
     expect(skill, contains('run-batch --commands-file'));
     expect(skill, contains('start-recording'));
     expect(skill, contains('stop-recording'));
-    expect(skill, contains('validate-task --config-json'));
+    expect(skill, contains('validate-task --config'));
     expect(skill, contains('--stdout-format json'));
     expect(skill, contains('--output <path>'));
     expect(skill, contains('--output-format json'));
@@ -273,11 +273,11 @@ void main() {
     final escalationSection = skill.substring(escalationStart);
     expect(fastSection, contains('run-command --command-file'));
     expect(fastSection, isNot(contains('start-recording')));
-    expect(fastSection, isNot(contains('validate-task --config-json')));
+    expect(fastSection, isNot(contains('validate-task --config')));
     expect(escalationSection, contains('run-batch --commands-file'));
     expect(escalationSection, contains('start-recording'));
     expect(escalationSection, contains('stop-recording'));
-    expect(escalationSection, contains('validate-task --config-json'));
+    expect(escalationSection, contains('validate-task --config'));
     expect(
       escalationSection,
       contains('Use these only when the next claim needs them'),

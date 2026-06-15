@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:args/command_runner.dart';
@@ -28,7 +27,11 @@ final class RunScriptCommand extends CockpitCliCommand {
            appReferenceResolver ?? CockpitAppReferenceResolver() {
     cockpitAddAppArgs(argParser);
     argParser
-      ..addOption('script-json', help: 'Path to a JSON control script file.')
+      ..addOption('script', help: 'Path to a JSON or YAML control script file.')
+      ..addOption(
+        'script-json',
+        help: 'Deprecated alias for --script. Accepts JSON or YAML.',
+      )
       ..addOption(
         'output-root',
         help: 'Directory where the task-run bundle should be written.',
@@ -61,15 +64,15 @@ final class RunScriptCommand extends CockpitCliCommand {
 
   @override
   String get helpNeeds =>
-      'An app reference, a control script JSON file, and an output directory for the bundle.';
+      'An app reference, a control script file, and an output directory for the bundle.';
 
   @override
   String get helpShape =>
-      'script.json is a task-style control script object with sessionId, task_id, commands, and optional recording settings.';
+      'script is a task-style control script object with sessionId, taskId, commands or steps, and optional recording settings.';
 
   @override
   String get helpExample =>
-      'flutter_cockpit_devtools run-script --app-json /tmp/app.json --script-json /tmp/script.json --output-root /tmp/bundle';
+      'flutter_cockpit_devtools run-script --app-json /tmp/app.json --script /tmp/script.yaml --output-root /tmp/bundle';
 
   @override
   String get helpWrites =>
@@ -78,31 +81,26 @@ final class RunScriptCommand extends CockpitCliCommand {
   @override
   Future<int> run() async {
     cockpitRequireAppReference(argResults, usage);
-    final scriptJsonPath = _readRequiredOption('script-json');
+    final scriptPath = _readRequiredScriptPath();
     final outputRoot = _readRequiredOption('output-root');
 
-    final scriptFile = File(scriptJsonPath);
+    final scriptFile = File(scriptPath);
     if (!scriptFile.existsSync()) {
       throw UsageException(
-        'Control script file does not exist: $scriptJsonPath',
+        'Control script file does not exist: $scriptPath',
         usage,
       );
     }
 
-    final decoded = jsonDecode(await scriptFile.readAsString());
-    if (decoded is! Map<String, Object?>) {
-      throw const FormatException(
-        'Control script JSON must decode to an object.',
-      );
-    }
+    final scriptText = await scriptFile.readAsString();
     final resolved = await _appReferenceResolver.resolve(
       appHandlePath: cockpitResolveAppHandlePath(argResults),
       baseUri: cockpitReadOptionalBaseUri(argResults),
       androidDeviceId: argResults?['android-device-id'] as String?,
     );
     final script = cockpitDecodeCliJson(
-      decode: () => CockpitControlScript.fromJson(decoded),
-      label: 'script JSON',
+      decode: () => cockpitControlScriptFromText(scriptText),
+      label: 'script',
       usage: usage,
     );
     final result = await _runScript(
@@ -148,5 +146,17 @@ final class RunScriptCommand extends CockpitCliCommand {
       throw UsageException('--$name is required.', usage);
     }
     return value;
+  }
+
+  String _readRequiredScriptPath() {
+    final script = argResults?['script'] as String?;
+    if (script != null && script.isNotEmpty) {
+      return script;
+    }
+    final legacy = argResults?['script-json'] as String?;
+    if (legacy != null && legacy.isNotEmpty) {
+      return legacy;
+    }
+    throw UsageException('--script is required.', usage);
   }
 }

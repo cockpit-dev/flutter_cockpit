@@ -712,7 +712,7 @@ jobs:
       - name: Verify macOS runtime loop result
         env:
           EXPECTED_PLATFORM: macos
-          EXPECTED_RECORDING_DRIVER: remote
+          EXPECTED_RECORDING_DRIVER: macos-host
           EXPECTED_SYSTEM_CONTROL_ADAPTER: macos.accessibility+screencapture
         run: |
           python3 - <<'PY'
@@ -1031,7 +1031,7 @@ jobs:
       - name: Verify Linux runtime loop result
         env:
           EXPECTED_PLATFORM: linux
-          EXPECTED_RECORDING_DRIVER: remote
+          EXPECTED_RECORDING_DRIVER: linux-host
           EXPECTED_SYSTEM_CONTROL_ADAPTER: linux.at-spi+x11+portal
         run: |
           python3 - <<'PY'
@@ -1105,7 +1105,7 @@ jobs:
 
   windows-runtime-loop:
     needs: shared-ai-surface-regressions
-    runs-on: windows-latest
+    runs-on: windows-2022
     timeout-minutes: 80
 
     steps:
@@ -1274,7 +1274,7 @@ jobs:
       - name: Verify Windows runtime loop result
         env:
           EXPECTED_PLATFORM: windows
-          EXPECTED_RECORDING_DRIVER: remote
+          EXPECTED_RECORDING_DRIVER: windows-host
           EXPECTED_SYSTEM_CONTROL_ADAPTER: windows.uia+sendinput
         run: |
           python - <<'PY'

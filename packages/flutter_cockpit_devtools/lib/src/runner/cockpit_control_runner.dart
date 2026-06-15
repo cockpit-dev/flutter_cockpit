@@ -5,6 +5,7 @@ import '../adapters/cockpit_capture_adapter.dart';
 import '../adapters/cockpit_recording_adapter.dart';
 import '../application/cockpit_command_evidence_defaults.dart';
 import 'cockpit_control_run_result.dart';
+import 'cockpit_workflow_step.dart';
 
 final class CockpitControlRunner {
   CockpitControlRunner({
@@ -28,7 +29,8 @@ final class CockpitControlRunner {
 
   Future<CockpitControlRunResult> run({
     required CockpitEnvironment environment,
-    required List<CockpitCommand> commands,
+    List<CockpitCommand> commands = const <CockpitCommand>[],
+    List<CockpitWorkflowStep> workflowSteps = const <CockpitWorkflowStep>[],
     CockpitRecordingRequest? recording,
   }) async {
     final capabilities = await _automationAdapter.describeCapabilities();
@@ -43,19 +45,21 @@ final class CockpitControlRunner {
     }
 
     try {
-      for (final rawCommand in commands) {
-        final command = cockpitCommandWithAiEvidenceDefaults(rawCommand);
-        final execution = await _execute(command);
-        _sessionController.importStepRecords(execution.runtimeSteps);
-        _sessionController.recordCommandResult(command, execution.result);
-        artifactPayloads.addAll(execution.artifactPayloads);
-        artifactSourcePaths.addAll(execution.artifactSourcePaths);
-
-        if (failFast && !execution.result.success) {
-          failureSummary =
-              execution.result.error?.message ??
-              'Command ${command.commandId} failed.';
-          break;
+      final effectiveSteps = workflowSteps.isNotEmpty
+          ? workflowSteps
+          : cockpitWorkflowStepsFromCommands(commands);
+      for (final step in effectiveSteps) {
+        final outcome = await _runWorkflowStep(
+          step,
+          artifactPayloads: artifactPayloads,
+          artifactSourcePaths: artifactSourcePaths,
+          mode: _WorkflowExecutionMode.finalResult,
+        );
+        if (!outcome.success) {
+          failureSummary = outcome.failureSummary;
+          if (failFast) {
+            break;
+          }
         }
       }
     } finally {
@@ -204,6 +208,256 @@ final class CockpitControlRunner {
     return _automationAdapter.execute(command);
   }
 
+  Future<_WorkflowStepOutcome> _runWorkflowStep(
+    CockpitWorkflowStep step, {
+    required Map<String, List<int>> artifactPayloads,
+    required Map<String, String> artifactSourcePaths,
+    required _WorkflowExecutionMode mode,
+  }) async {
+    return switch (step) {
+      CockpitCommandWorkflowStep() => _runCommandWorkflowStep(
+        step,
+        artifactPayloads: artifactPayloads,
+        artifactSourcePaths: artifactSourcePaths,
+        mode: mode,
+      ),
+      CockpitIfWorkflowStep() => _runIfWorkflowStep(
+        step,
+        artifactPayloads: artifactPayloads,
+        artifactSourcePaths: artifactSourcePaths,
+        mode: mode,
+      ),
+      CockpitLoopWorkflowStep() => _runLoopWorkflowStep(
+        step,
+        artifactPayloads: artifactPayloads,
+        artifactSourcePaths: artifactSourcePaths,
+        mode: mode,
+      ),
+      CockpitRetryWorkflowStep() => _runRetryWorkflowStep(
+        step,
+        artifactPayloads: artifactPayloads,
+        artifactSourcePaths: artifactSourcePaths,
+        mode: mode,
+      ),
+    };
+  }
+
+  Future<_WorkflowStepOutcome> _runCommandWorkflowStep(
+    CockpitCommandWorkflowStep step, {
+    required Map<String, List<int>> artifactPayloads,
+    required Map<String, String> artifactSourcePaths,
+    required _WorkflowExecutionMode mode,
+  }) async {
+    final command = cockpitCommandWithAiEvidenceDefaults(step.command);
+    final execution = await _execute(command);
+    artifactPayloads.addAll(execution.artifactPayloads);
+    artifactSourcePaths.addAll(execution.artifactSourcePaths);
+
+    if (mode == _WorkflowExecutionMode.finalResult) {
+      _recordCommandExecution(step, command, execution);
+    } else {
+      _sessionController.recordStep(
+        actionType: 'workflow_command_attempt',
+        actionArgs: <String, Object?>{
+          'workflowStepId': step.stepId,
+          'workflowStepType': step.stepType,
+          'commandId': command.commandId,
+          'commandType': command.commandType.name,
+          'success': execution.result.success,
+          if (execution.result.error != null)
+            'commandError': execution.result.error!.toJson(),
+        },
+        artifactRefs: execution.result.artifacts,
+        durationMs: execution.result.durationMs,
+      );
+    }
+
+    return _WorkflowStepOutcome.fromCommandResult(
+      step: step,
+      command: command,
+      execution: execution,
+    );
+  }
+
+  Future<_WorkflowStepOutcome> _runIfWorkflowStep(
+    CockpitIfWorkflowStep step, {
+    required Map<String, List<int>> artifactPayloads,
+    required Map<String, String> artifactSourcePaths,
+    required _WorkflowExecutionMode mode,
+  }) async {
+    final condition = await _runProbeCommand(
+      step.condition,
+      artifactPayloads: artifactPayloads,
+      artifactSourcePaths: artifactSourcePaths,
+    );
+    final selectedSteps = condition.result.success
+        ? step.thenSteps
+        : step.elseSteps;
+    _sessionController.recordStep(
+      actionType: 'workflow_if',
+      actionArgs: <String, Object?>{
+        'workflowStepId': step.stepId,
+        'workflowStepType': step.stepType,
+        'conditionCommandId': condition.result.commandId,
+        'conditionCommandType': condition.result.commandType.name,
+        'conditionSuccess': condition.result.success,
+        'selectedBranch': condition.result.success ? 'then' : 'else',
+        if (condition.result.error != null)
+          'conditionError': condition.result.error!.toJson(),
+      },
+      artifactRefs: condition.result.artifacts,
+      durationMs: condition.result.durationMs,
+    );
+
+    for (final child in selectedSteps) {
+      final outcome = await _runWorkflowStep(
+        child,
+        artifactPayloads: artifactPayloads,
+        artifactSourcePaths: artifactSourcePaths,
+        mode: mode,
+      );
+      if (!outcome.success) {
+        return outcome;
+      }
+    }
+    return const _WorkflowStepOutcome.success();
+  }
+
+  Future<_WorkflowStepOutcome> _runLoopWorkflowStep(
+    CockpitLoopWorkflowStep step, {
+    required Map<String, List<int>> artifactPayloads,
+    required Map<String, String> artifactSourcePaths,
+    required _WorkflowExecutionMode mode,
+  }) async {
+    for (var index = 0; index < step.maxIterations; index += 1) {
+      final condition = await _runProbeCommand(
+        step.condition,
+        artifactPayloads: artifactPayloads,
+        artifactSourcePaths: artifactSourcePaths,
+      );
+      final conditionSuccess = condition.result.success;
+      _sessionController.recordStep(
+        actionType: 'workflow_loop_iteration',
+        actionArgs: <String, Object?>{
+          'workflowStepId': step.stepId,
+          'workflowStepType': step.stepType,
+          'iteration': index + 1,
+          'maxIterations': step.maxIterations,
+          'conditionCommandId': condition.result.commandId,
+          'conditionCommandType': condition.result.commandType.name,
+          'conditionSuccess': conditionSuccess,
+          if (condition.result.error != null)
+            'conditionError': condition.result.error!.toJson(),
+        },
+        artifactRefs: condition.result.artifacts,
+        durationMs: condition.result.durationMs,
+      );
+      if (!conditionSuccess) {
+        return const _WorkflowStepOutcome.success();
+      }
+
+      for (final child in step.steps) {
+        final outcome = await _runWorkflowStep(
+          child,
+          artifactPayloads: artifactPayloads,
+          artifactSourcePaths: artifactSourcePaths,
+          mode: mode,
+        );
+        if (!outcome.success) {
+          return outcome;
+        }
+      }
+    }
+    _sessionController.recordStep(
+      actionType: 'workflow_loop_exhausted',
+      actionArgs: <String, Object?>{
+        'workflowStepId': step.stepId,
+        'workflowStepType': step.stepType,
+        'maxIterations': step.maxIterations,
+      },
+    );
+    return const _WorkflowStepOutcome.success();
+  }
+
+  Future<_WorkflowStepOutcome> _runRetryWorkflowStep(
+    CockpitRetryWorkflowStep step, {
+    required Map<String, List<int>> artifactPayloads,
+    required Map<String, String> artifactSourcePaths,
+    required _WorkflowExecutionMode mode,
+  }) async {
+    _WorkflowStepOutcome? lastOutcome;
+    for (var index = 0; index < step.maxAttempts; index += 1) {
+      final outcome = await _runWorkflowStep(
+        step.step,
+        artifactPayloads: artifactPayloads,
+        artifactSourcePaths: artifactSourcePaths,
+        mode: _WorkflowExecutionMode.probe,
+      );
+      lastOutcome = outcome;
+      _sessionController.recordStep(
+        actionType: 'workflow_retry_attempt',
+        actionArgs: <String, Object?>{
+          'workflowStepId': step.stepId,
+          'workflowStepType': step.stepType,
+          'attempt': index + 1,
+          'maxAttempts': step.maxAttempts,
+          'success': outcome.success,
+          if (outcome.failureSummary != null)
+            'failureSummary': outcome.failureSummary,
+        },
+      );
+      final isFinalAttempt = index + 1 == step.maxAttempts;
+      if (outcome.success || isFinalAttempt) {
+        if (mode == _WorkflowExecutionMode.finalResult) {
+          final commandStep = outcome.commandStep;
+          final command = outcome.command;
+          final execution = outcome.execution;
+          if (commandStep != null && command != null && execution != null) {
+            _recordCommandExecution(commandStep, command, execution);
+          }
+        }
+        if (!outcome.success) {
+          return outcome;
+        }
+        return const _WorkflowStepOutcome.success();
+      }
+      if (step.delayMs > 0) {
+        await Future<void>.delayed(Duration(milliseconds: step.delayMs));
+      }
+    }
+    return lastOutcome ?? const _WorkflowStepOutcome.failure('Retry failed.');
+  }
+
+  Future<CockpitCommandExecution> _runProbeCommand(
+    CockpitCommand rawCommand, {
+    required Map<String, List<int>> artifactPayloads,
+    required Map<String, String> artifactSourcePaths,
+  }) async {
+    final command = cockpitCommandWithAiEvidenceDefaults(rawCommand);
+    final execution = await _execute(command);
+    artifactPayloads.addAll(execution.artifactPayloads);
+    artifactSourcePaths.addAll(execution.artifactSourcePaths);
+    return execution;
+  }
+
+  void _recordCommandExecution(
+    CockpitCommandWorkflowStep step,
+    CockpitCommand command,
+    CockpitCommandExecution execution,
+  ) {
+    _sessionController.importStepRecords(execution.runtimeSteps);
+    _sessionController.recordCommandResult(
+      command.copyWith(
+        parameters: <String, Object?>{
+          ...command.parameters,
+          'workflowStepId': step.stepId,
+          'workflowStepType': step.stepType,
+        },
+      ),
+      execution.result,
+    );
+  }
+
   List<String> _capabilitiesUsed(CockpitCapabilities capabilities) {
     return <String>[
       if (capabilities.supportsInAppControl) 'inAppControl',
@@ -218,4 +472,60 @@ final class CockpitControlRunner {
         ? request.tailStabilizationDelay
         : recordingStopSettleDelay;
   }
+}
+
+enum _WorkflowExecutionMode { finalResult, probe }
+
+final class _WorkflowStepOutcome {
+  const _WorkflowStepOutcome({
+    required this.success,
+    this.failureSummary,
+    this.commandStep,
+    this.command,
+    this.execution,
+  });
+
+  const _WorkflowStepOutcome.success()
+    : success = true,
+      failureSummary = null,
+      commandStep = null,
+      command = null,
+      execution = null;
+
+  const _WorkflowStepOutcome.failure(String summary)
+    : success = false,
+      failureSummary = summary,
+      commandStep = null,
+      command = null,
+      execution = null;
+
+  factory _WorkflowStepOutcome.fromCommandResult({
+    required CockpitCommandWorkflowStep step,
+    required CockpitCommand command,
+    required CockpitCommandExecution execution,
+  }) {
+    final result = execution.result;
+    if (result.success) {
+      return _WorkflowStepOutcome(
+        success: true,
+        commandStep: step,
+        command: command,
+        execution: execution,
+      );
+    }
+    return _WorkflowStepOutcome(
+      success: false,
+      failureSummary:
+          result.error?.message ?? 'Command ${result.commandId} failed.',
+      commandStep: step,
+      command: command,
+      execution: execution,
+    );
+  }
+
+  final bool success;
+  final String? failureSummary;
+  final CockpitCommandWorkflowStep? commandStep;
+  final CockpitCommand? command;
+  final CockpitCommandExecution? execution;
 }

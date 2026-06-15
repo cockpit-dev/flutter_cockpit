@@ -8,6 +8,7 @@ import 'package:flutter_cockpit_devtools/src/application/cockpit_read_task_bundl
 import 'package:flutter_cockpit_devtools/src/application/cockpit_run_task_service.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_validate_task_service.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/validate_task_command.dart';
+import 'package:flutter_cockpit_devtools/src/runner/cockpit_workflow_step.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -39,7 +40,7 @@ void main() {
               'sessionId': 'cli-validate-task-session',
               'taskId': 'cli-validate-task-id',
               'platform': 'android',
-              'commands': <Map<String, Object?>>[],
+              'commands': <Map<String, Object?>>[_noopCommandJson()],
               'failFast': true,
             },
             'outputRoot': tempDir.path,
@@ -139,4 +140,96 @@ void main() {
       );
     },
   );
+
+  test('validate-task reads YAML config through --config', () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'cockpit_validate_task_yaml_cli',
+    );
+    addTearDown(() async {
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    final configFile = File(p.join(tempDir.path, 'validate_task.yaml'));
+    await configFile.writeAsString('''
+runTask:
+  launch:
+    projectDir: /workspace/examples/cockpit_demo
+    target: lib/main.dart
+    platform: android
+    deviceId: emulator-5554
+    sessionPort: 47331
+  script:
+    schemaVersion: 1
+    sessionId: cli-validate-task-yaml-session
+    taskId: cli-validate-task-yaml-id
+    platform: android
+    failFast: true
+    steps:
+      - stepId: wait-ready
+        stepType: retry
+        maxAttempts: 2
+        delayMs: 0
+        step:
+          stepType: command
+          command:
+            commandId: assert-ready
+            commandType: assertText
+            parameters:
+              text: Ready
+  outputRoot: ${tempDir.path}
+validation:
+  expectedClassification: completed
+  requireAcceptanceMarkdown: true
+  requireArtifactFiles: false
+''');
+
+    CockpitValidateTaskRequest? capturedRequest;
+    final runner =
+        CommandRunner<int>(
+          'flutter_cockpit_devtools',
+          'Host-side tooling for flutter_cockpit.',
+        )..addCommand(
+          ValidateTaskCommand(
+            service: CockpitValidateTaskService(
+              validateTask: (request) async {
+                capturedRequest = request;
+                return CockpitValidateTaskResult(
+                  classification: CockpitValidationClassification.completed,
+                  recommendedNextStep: 'delivery_ready',
+                  runTaskResult: CockpitRunTaskResult(
+                    classification: CockpitRunTaskClassification.completed,
+                    recommendedNextStep: 'delivery_ready',
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+
+    final exitCode =
+        await runner.run(<String>[
+          'validate-task',
+          '--config',
+          configFile.path,
+        ]) ??
+        0;
+
+    expect(exitCode, 0);
+    expect(capturedRequest?.runTask.launch?.deviceId, 'emulator-5554');
+    expect(capturedRequest?.runTask.script.commands, isEmpty);
+    expect(capturedRequest?.runTask.script.workflowSteps, hasLength(1));
+    expect(
+      capturedRequest?.runTask.script.workflowSteps.single,
+      isA<CockpitRetryWorkflowStep>(),
+    );
+    expect(capturedRequest?.validation.requireAcceptanceMarkdown, isTrue);
+  });
 }
+
+Map<String, Object?> _noopCommandJson() => CockpitCommand(
+  commandId: 'assert-noop',
+  commandType: CockpitCommandType.assertText,
+  parameters: const <String, Object?>{'text': 'Ready'},
+).toJson();

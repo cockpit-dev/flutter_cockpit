@@ -140,7 +140,15 @@ CLI JSON 输出使用 lower camel case keys。
 `run-shell` 默认有超时并会杀掉超时进程。快速探测保持默认值；只有明确知道 host、adb 或 simctl 命令较慢时才传 `--timeout-seconds <n>`。
 如果命令同时支持 `--app-json` 和 `--base-url`，优先级是：显式 `--app-json`，然后显式 `--base-url`，最后才是当前工作目录里的隐式 `.dart_tool/flutter_cockpit/latest_app.json`。
 `launch-app` 会先自动探测 `cockpit/main.dart`，找不到再退回 `lib/main.dart`。
-`run-script` 写出的 bundle 只要状态是 `failed`，命令就会非零退出。
+`run-script --script <workflow.yaml|script.json>` 支持 YAML 或 JSON 脚本。
+手写 `if`、`retry`、有界 `loop` 工作流时优先用 YAML，生成脚本优先用 JSON。
+发布包内置 AI 开发协议：
+[`doc/contracts/ai-development-protocol.md`](doc/contracts/ai-development-protocol.md)，
+工作流协议：
+[`doc/contracts/control-workflow-protocol.md`](doc/contracts/control-workflow-protocol.md)，
+机器 schema：
+[`doc/contracts/control-workflow.schema.json`](doc/contracts/control-workflow.schema.json)。
+`run-script` 和 `run-remote-control-script` 写出的 bundle 只要状态是 `failed`，命令就会非零退出。
 workspace 命令默认把 `--workspace-root` 或 `--parent-directory` 视为当前目录。
 先做变更，再做观察，按顺序执行。不要把有副作用的 `run-command` 和依赖其结果的 `read-app`、`inspect-ui`、`read-network` 并行。
 当后续几步已经明确，而且流程会跨路由，比如列表 -> 编辑 -> 列表，优先用一次有序的 `run-batch`，不要拆成多次 `run-command` 往返。这样更省 token，也更能避开路由切换窗口期的状态抖动。
@@ -219,11 +227,11 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   validate-task \
-  --config-json /tmp/validate_task.json --stdout-format json | jq '{classification,recommendedNextStep,validationFailures}'
+  --config /tmp/validate_task.yaml --stdout-format json | jq '{classification,recommendedNextStep,validationFailures}'
 
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   validate-task \
-  --config-json /tmp/validate_task.json \
+  --config /tmp/validate_task.yaml \
   --output /tmp/validate_task_result.json \
   --output-format json
 ```
@@ -236,7 +244,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --bundle-dir /tmp/flutter_cockpit/out/20260530T060304005006Z_session-1
 ```
 
-默认 stdout 是完整 AI 语义渲染；需要立刻接 `jq` 时加 `--stdout-format json`。只有后续步骤要重新打开整份结果时，才使用 `--output <path>` 写入文件；需要结构化 JSON 文件时再加 `--output-format json`。只要请求体不再是几行以内，就优先使用 `--command-file`、`--commands-file`、`--config-json`，不要把长 JSON 直接内联进命令。
+默认 stdout 是完整 AI 语义渲染；需要立刻接 `jq` 时加 `--stdout-format json`。只有后续步骤要重新打开整份结果时，才使用 `--output <path>` 写入文件；需要结构化 JSON 文件时再加 `--output-format json`。只要请求体不再是几行以内，就优先使用 `--command-file`、`--commands-file`、`--config`，不要把长 JSON 直接内联进命令；手写 task/workflow 配置优先用 YAML，生成配置优先用 JSON。
 
 ## MCP
 
@@ -316,7 +324,7 @@ workspace/roots 工具：
 - `run_tests`
 - `apply_fixes`
 
-同时还会暴露 contracts、capabilities、task summary、roots、package read 与闭环提示词相关的 resources/prompts。
+同时还会暴露 contracts、capabilities、task summary、roots、package read 与闭环提示词相关的 resources/prompts。MCP 宿主需要 AI 开发闭环时读取 `cockpit://workspace/ai-development-protocol`；需要 `run_script` 的脚本协议时，读取 `cockpit://workspace/control-workflow-protocol`；需要机器校验时，读取 `cockpit://workspace/control-workflow-schema`。
 
 ## 说明
 

@@ -146,6 +146,7 @@ final class CockpitRunRemoteControlScriptService {
     final runResult = await runner.run(
       environment: environment,
       commands: request.script.commands,
+      workflowSteps: request.script.effectiveWorkflowSteps,
       recording: request.script.recording,
     );
     final bundleDir = await _writer.writeBundle(

@@ -17,16 +17,17 @@ Use this pattern when the task must end with bundle-backed evidence. Do not use 
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   run-script \
   --app-json /tmp/flutter_cockpit/app.json \
-  --script-json /tmp/flutter_cockpit/script.json \
+  --script /tmp/flutter_cockpit/workflow.yaml \
   --output-root /tmp/flutter_cockpit/out
 ```
 
-`run-script` exits non-zero when the written bundle status is `failed`.
+`run-script` and `run-remote-control-script` exit non-zero when the written bundle status is `failed`.
+Workflow protocol: `docs/contracts/control-workflow-protocol.md`; machine schema: `docs/contracts/control-workflow.schema.json`.
 
 ```bash
 dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   validate-task \
-  --config-json /tmp/flutter_cockpit/validate_task.json \
+  --config /tmp/flutter_cockpit/validate_task.yaml \
   --stdout-format json | jq '{classification,recommendedNextStep,validationFailures}'
 ```
 
@@ -37,6 +38,8 @@ Use `--output <path>` when another step needs to reopen the full payload from di
 - `manifest.json`
 - `handoff.json`
 - `delivery.json`
+- `trace.json` when a screenshot, recording, or error must be mapped back to a workflow step
+- `validation.json` after `validate-task`
 - `gateSummary`, CLI `read-task-bundle-summary`, or MCP `read_task_bundle_summary` output when available
 - bundle summary evidence paths
 - validation failures when present

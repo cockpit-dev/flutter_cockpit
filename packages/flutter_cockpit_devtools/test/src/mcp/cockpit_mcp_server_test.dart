@@ -173,8 +173,11 @@ void main() {
       expect(
         fixedNames,
         containsAll(<String>[
+          'workspace_ai_development_protocol',
           'workspace_skill_contract',
           'workspace_task_bundle_contract',
+          'workspace_control_workflow_protocol',
+          'workspace_control_workflow_schema',
           'workspaceRoots',
           'apps',
           'latest_task',
@@ -352,6 +355,46 @@ void main() {
       final contents = (result['contents'] as List<Object?>)
           .cast<Map<String, Object?>>();
       expect('${contents.single['text']}', contains('launch-app'));
+
+      final workflowProtocolResponse = await server.handleMessage(
+        <String, Object?>{
+          'jsonrpc': '2.0',
+          'id': 201,
+          'method': 'resources/read',
+          'params': <String, Object?>{
+            'uri': 'cockpit://workspace/control-workflow-protocol',
+          },
+        },
+      );
+
+      final workflowResult =
+          workflowProtocolResponse?['result'] as Map<String, Object?>;
+      final workflowContents = (workflowResult['contents'] as List<Object?>)
+          .cast<Map<String, Object?>>();
+      expect(
+        '${workflowContents.single['text']}',
+        contains('schemaVersion: 1'),
+      );
+
+      final workflowSchemaResponse = await server.handleMessage(
+        <String, Object?>{
+          'jsonrpc': '2.0',
+          'id': 202,
+          'method': 'resources/read',
+          'params': <String, Object?>{
+            'uri': 'cockpit://workspace/control-workflow-schema',
+          },
+        },
+      );
+
+      final schemaResult =
+          workflowSchemaResponse?['result'] as Map<String, Object?>;
+      final schemaContents = (schemaResult['contents'] as List<Object?>)
+          .cast<Map<String, Object?>>();
+      expect(
+        '${schemaContents.single['text']}',
+        contains('"title": "Flutter Cockpit Control Workflow Script"'),
+      );
     },
   );
 }

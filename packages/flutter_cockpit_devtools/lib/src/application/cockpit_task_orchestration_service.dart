@@ -1,6 +1,7 @@
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
 import '../cli/cockpit_control_script.dart';
+import '../runner/cockpit_workflow_step.dart';
 import '../session/cockpit_remote_session_handle.dart';
 import 'cockpit_app_handle.dart';
 import 'cockpit_launch_remote_session_service.dart';
@@ -432,6 +433,23 @@ final class CockpitTaskOrchestrationService {
       ),
       ...script.commands,
     ];
+    final workflowSteps = <CockpitWorkflowStep>[
+      CockpitCommandWorkflowStep(
+        stepId: 'baseline_capture',
+        command: CockpitCommand(
+          commandId: 'baseline_capture',
+          commandType: CockpitCommandType.captureScreenshot,
+          screenshotRequest: CockpitScreenshotRequest(
+            reason: CockpitScreenshotReason.baseline,
+            name: baseline.screenshotName,
+            includeSnapshot: baseline.includeSnapshot,
+            attachToStep: true,
+            snapshotOptions: const CockpitSnapshotOptions.baseline(),
+          ),
+        ),
+      ),
+      ...script.workflowSteps,
+    ];
 
     return CockpitControlScript(
       sessionId: script.sessionId,
@@ -440,6 +458,9 @@ final class CockpitTaskOrchestrationService {
       environment: script.environment,
       recording: script.recording,
       commands: commands,
+      workflowSteps: script.workflowSteps.isEmpty
+          ? const <CockpitWorkflowStep>[]
+          : workflowSteps,
       failFast: script.failFast,
     );
   }

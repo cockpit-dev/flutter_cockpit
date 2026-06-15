@@ -7,6 +7,35 @@ import 'package:test/test.dart';
 
 void main() {
   test(
+    'AI development protocol resource reads only the configured protocol file',
+    () async {
+      final fileSystem = MemoryFileSystem();
+      fileSystem.file('/workspace/docs/contracts/ai-development-protocol.md')
+        ..createSync(recursive: true)
+        ..writeAsStringSync('# AI Development Protocol');
+
+      final resource = CockpitWorkspaceAiDevelopmentProtocolResource(
+        service: CockpitReadWorkspaceContractsService(
+          fileSystem: LocalCockpitFileSystem(fileSystem: fileSystem),
+        ),
+        aiDevelopmentProtocolPath:
+            '/workspace/docs/contracts/ai-development-protocol.md',
+      );
+
+      final result = await resource.read(
+        const CockpitMcpResourceRequest(
+          uri: 'cockpit://workspace/ai-development-protocol',
+        ),
+      );
+
+      expect(result, isNotNull);
+      final contents =
+          result!.contents.single as CockpitMcpTextResourceContents;
+      expect(contents.text, '# AI Development Protocol');
+    },
+  );
+
+  test(
     'skill contract resource reads only the configured skill file',
     () async {
       final fileSystem = MemoryFileSystem();
@@ -62,6 +91,65 @@ void main() {
       final contents =
           result!.contents.single as CockpitMcpTextResourceContents;
       expect(contents.text, '# Bundle Contract');
+    },
+  );
+
+  test(
+    'workflow protocol resource reads only the configured protocol file',
+    () async {
+      final fileSystem = MemoryFileSystem();
+      fileSystem.file('/workspace/docs/contracts/control-workflow-protocol.md')
+        ..createSync(recursive: true)
+        ..writeAsStringSync('# Workflow Protocol');
+
+      final resource = CockpitWorkspaceWorkflowProtocolResource(
+        service: CockpitReadWorkspaceContractsService(
+          fileSystem: LocalCockpitFileSystem(fileSystem: fileSystem),
+        ),
+        workflowProtocolPath:
+            '/workspace/docs/contracts/control-workflow-protocol.md',
+      );
+
+      final result = await resource.read(
+        const CockpitMcpResourceRequest(
+          uri: 'cockpit://workspace/control-workflow-protocol',
+        ),
+      );
+
+      expect(result, isNotNull);
+      final contents =
+          result!.contents.single as CockpitMcpTextResourceContents;
+      expect(contents.text, '# Workflow Protocol');
+    },
+  );
+
+  test(
+    'workflow schema resource reads only the configured schema file',
+    () async {
+      final fileSystem = MemoryFileSystem();
+      fileSystem.file('/workspace/docs/contracts/control-workflow.schema.json')
+        ..createSync(recursive: true)
+        ..writeAsStringSync('{"title":"Workflow Schema"}');
+
+      final resource = CockpitWorkspaceWorkflowSchemaResource(
+        service: CockpitReadWorkspaceContractsService(
+          fileSystem: LocalCockpitFileSystem(fileSystem: fileSystem),
+        ),
+        workflowSchemaPath:
+            '/workspace/docs/contracts/control-workflow.schema.json',
+      );
+
+      final result = await resource.read(
+        const CockpitMcpResourceRequest(
+          uri: 'cockpit://workspace/control-workflow-schema',
+        ),
+      );
+
+      expect(result, isNotNull);
+      final contents =
+          result!.contents.single as CockpitMcpTextResourceContents;
+      expect(contents.text, '{"title":"Workflow Schema"}');
+      expect(contents.mimeType, 'application/schema+json');
     },
   );
 }

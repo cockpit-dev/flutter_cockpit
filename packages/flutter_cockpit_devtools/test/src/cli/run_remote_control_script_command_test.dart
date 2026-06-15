@@ -5,6 +5,7 @@ import 'package:args/command_runner.dart';
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:flutter_cockpit_devtools/flutter_cockpit_devtools.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_app_reference_resolver.dart';
+import 'package:flutter_cockpit_devtools/src/cli/commands/run_remote_control_script_command.dart';
 import 'package:flutter_cockpit_devtools/src/cli/commands/run_script_command.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
@@ -255,6 +256,181 @@ void main() {
       );
     },
   );
+
+  test('run-script accepts YAML workflow scripts through --script', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    final tempDir = await Directory.systemTemp.createTemp(
+      'cockpit_run_script_yaml_workflow',
+    );
+    final requests = <String>[];
+    addTearDown(() async {
+      await server.close(force: true);
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    server.listen((request) async {
+      request.response.headers.contentType = ContentType.json;
+      switch ((request.method, request.uri.path)) {
+        case ('GET', '/health'):
+          request.response.write(
+            jsonEncode(
+              CockpitRemoteSessionStatus(
+                sessionId: 'yaml-workflow-session',
+                platform: 'ios',
+                transportType: 'remoteHttp',
+                currentRouteName: '/home',
+                capabilities: CockpitCapabilities(
+                  platform: 'ios',
+                  transportType: 'remoteHttp',
+                  supportsInAppControl: true,
+                  supportsFlutterViewCapture: true,
+                  supportsNativeScreenCapture: false,
+                  supportsHostAutomation: false,
+                  supportedCommands: const <CockpitCommandType>[
+                    CockpitCommandType.assertText,
+                    CockpitCommandType.tap,
+                  ],
+                  supportedLocatorStrategies: CockpitLocatorKind.values,
+                ),
+                recordingCapabilities: CockpitRecordingCapabilities(
+                  supportsNativeRecording: false,
+                ),
+                snapshot: CockpitSnapshot(routeName: '/home'),
+              ).toJson(),
+            ),
+          );
+        case ('POST', '/commands/execute'):
+          final body =
+              jsonDecode(await utf8.decoder.bind(request).join())
+                  as Map<String, Object?>;
+          final command = CockpitCommand.fromJson(body);
+          requests.add(command.commandId);
+          final success = command.commandId != 'has-dialog';
+          request.response.write(
+            jsonEncode(
+              CockpitRemoteCommandResponse(
+                result: CockpitCommandResult(
+                  success: success,
+                  commandId: command.commandId,
+                  commandType: command.commandType,
+                  durationMs: 5,
+                  error: success
+                      ? null
+                      : CockpitCommandError.assertionFailed(
+                          message: 'Dialog was not present.',
+                        ),
+                ),
+              ).toJson(),
+            ),
+          );
+        default:
+          request.response.statusCode = HttpStatus.notFound;
+          request.response.write(jsonEncode(<String, Object?>{}));
+      }
+      await request.response.close();
+    });
+
+    final appFile = File(p.join(tempDir.path, 'app.json'));
+    await appFile.writeAsString(
+      jsonEncode(
+        CockpitAppHandle(
+          appId: 'yaml-workflow-app',
+          mode: CockpitAppMode.automation,
+          platform: 'ios',
+          deviceId: 'simulator',
+          projectDir: tempDir.path,
+          target: 'lib/main.dart',
+          baseUrl: 'http://127.0.0.1:${server.port}',
+          launchedAt: DateTime.utc(2026, 6, 15),
+          remoteSession: CockpitRemoteSessionHandle(
+            platform: 'ios',
+            deviceId: 'simulator',
+            projectDir: tempDir.path,
+            target: 'lib/main.dart',
+            appId: 'dev.cockpit.yaml',
+            host: '127.0.0.1',
+            hostPort: server.port,
+            devicePort: server.port,
+            baseUrl: 'http://127.0.0.1:${server.port}',
+            launchedAt: DateTime.utc(2026, 6, 15),
+          ),
+        ).toJson(),
+      ),
+    );
+    final scriptFile = File(p.join(tempDir.path, 'script.yaml'));
+    await scriptFile.writeAsString('''
+sessionId: yaml-workflow-session
+taskId: yaml-workflow-task
+platform: ios
+environment:
+  platform: ios
+  flutterVersion: 3.38.9
+  dartVersion: 3.10.8
+steps:
+  - stepId: dismiss-dialog-if-present
+    stepType: if
+    condition:
+      commandId: has-dialog
+      commandType: assertText
+      parameters:
+        text: Allow
+    thenSteps:
+      - stepId: accept-dialog
+        stepType: command
+        command:
+          commandId: tap-allow
+          commandType: tap
+          locator:
+            text: Allow
+    elseSteps:
+      - stepId: continue-flow
+        stepType: command
+        command:
+          commandId: tap-continue
+          commandType: tap
+          locator:
+            text: Continue
+''');
+
+    final runner = CommandRunner<int>('cockpit', 'test')
+      ..addCommand(RunScriptCommand());
+    final exitCode = await runner.run(<String>[
+      'run-script',
+      '--app-json',
+      appFile.path,
+      '--script',
+      scriptFile.path,
+      '--output-root',
+      tempDir.path,
+    ]);
+
+    expect(exitCode, 0);
+    expect(requests, <String>['has-dialog', 'tap-continue']);
+    final bundleDirs = tempDir
+        .listSync()
+        .whereType<Directory>()
+        .where(
+          (directory) =>
+              File(p.join(directory.path, 'steps.json')).existsSync(),
+        )
+        .toList(growable: false);
+    expect(bundleDirs, hasLength(1));
+    final steps =
+        jsonDecode(
+              File(
+                p.join(bundleDirs.single.path, 'steps.json'),
+              ).readAsStringSync(),
+            )
+            as List<Object?>;
+    expect(
+      steps.cast<Map<String, Object?>>().any(
+        (step) => step['actionType'] == 'workflow_if',
+      ),
+      isTrue,
+    );
+  });
 
   test('run-script uses the forwarded host port for Android devices', () async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -739,7 +915,7 @@ void main() {
           flutterVersion: '3.38.9',
           dartVersion: '3.10.8',
         ).toJson(),
-        'commands': <Map<String, Object?>>[],
+        'commands': <Map<String, Object?>>[_noopCommandJson()],
       }),
     );
 
@@ -824,7 +1000,7 @@ void main() {
             flutterVersion: '3.38.9',
             dartVersion: '3.10.8',
           ).toJson(),
-          'commands': <Map<String, Object?>>[],
+          'commands': <Map<String, Object?>>[_noopCommandJson()],
         }),
       );
 
@@ -856,6 +1032,71 @@ void main() {
         'run-script',
         '--app-json',
         appHandleFile.path,
+        '--script-json',
+        scriptFile.path,
+        '--output-root',
+        tempDir.path,
+      ]);
+
+      expect(exitCode, isNonZero);
+    },
+  );
+
+  test(
+    'run-remote-control-script returns non-zero when the written bundle is failed',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_run_remote_control_script_failed_bundle',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final scriptFile = File(p.join(tempDir.path, 'remote_script.json'));
+      await scriptFile.writeAsString(
+        jsonEncode(<String, Object?>{
+          'sessionId': 'remote-control-script-session',
+          'taskId': 'remote-control-script-task',
+          'platform': 'macos',
+          'environment': const CockpitEnvironment(
+            platform: 'macos',
+            flutterVersion: '3.38.9',
+            dartVersion: '3.10.8',
+          ).toJson(),
+          'commands': <Map<String, Object?>>[_noopCommandJson()],
+        }),
+      );
+
+      final bundleDir = Directory(p.join(tempDir.path, 'bundle'))
+        ..createSync(recursive: true);
+      final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
+        ..addCommand(
+          RunRemoteControlScriptCommand(
+            runScript: (_) async => CockpitRunRemoteControlScriptResult(
+              sessionHandle: null,
+              bundleDir: bundleDir,
+              manifest: CockpitRunManifest(
+                sessionId: 'remote-control-script-session',
+                taskId: 'remote-control-script-task',
+                platform: 'macos',
+                status: CockpitTaskStatus.failed,
+                startedAt: DateTime.utc(2026, 3, 30),
+                finishedAt: DateTime.utc(2026, 3, 30, 0, 0, 1),
+                failureSummary: 'The legacy script assertion failed.',
+              ),
+              handoff: const <String, Object?>{},
+              delivery: const <String, Object?>{},
+              artifactPaths: CockpitBundleArtifactPaths(),
+            ),
+          ),
+        );
+
+      final exitCode = await _runCommandRunner(runner, [
+        'run-remote-control-script',
+        '--base-url',
+        'http://127.0.0.1:57331',
         '--script-json',
         scriptFile.path,
         '--output-root',
@@ -926,3 +1167,9 @@ final class _FakeRecordingAdapter implements CockpitRecordingAdapter {
     );
   }
 }
+
+Map<String, Object?> _noopCommandJson() => CockpitCommand(
+  commandId: 'assert-noop',
+  commandType: CockpitCommandType.assertText,
+  parameters: const <String, Object?>{'text': 'Ready'},
+).toJson();

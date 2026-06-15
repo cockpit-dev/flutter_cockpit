@@ -92,12 +92,18 @@ ready to claim. That verifier should add the expensive surfaces: recordings,
 hot restart, network and log reads, target-first inspection, multi-platform
 coverage, and acceptance/delivery gates.
 
-Make recording platform-aware in any verifier: desktop and physical device
-recording often depend on remote or host adapters, browser recording depends on
-host permission, simulators usually have simulator-native capture, and Android
-emulators usually use device tooling. Blocked host permissions should be
-reported as structured environment warnings when the app-control path is still
-valid.
+When a release verifier needs conditionals, retries, or loops, write a YAML
+workflow script for `run-script --script <workflow.yaml>`. Use `if` for optional
+dialogs, `retry` for eventual UI/network state, and bounded `loop` for repeated
+items. The resulting bundle writes `trace.json` for step/artifact/error
+correlation and `validation.json` after `validate-task`.
+
+Make recording platform-aware in any verifier: app-scoped desktop recording
+uses host adapters when the app handle carries a platform app id or process id,
+browser recording depends on host permission, simulators usually have
+simulator-native capture, and Android emulators usually use device tooling.
+Blocked host permissions should be reported as structured environment warnings
+when the app-control path is still valid.
 
 For development-loop video, use flutter_cockpit recording first. A
 `launch-development-session` also writes an app handle, so bare

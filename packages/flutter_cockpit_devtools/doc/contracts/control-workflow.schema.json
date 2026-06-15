@@ -1,0 +1,237 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/cockpit-dev/flutter_cockpit/docs/contracts/control-workflow.schema.json",
+  "title": "Flutter Cockpit Control Workflow Script",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["sessionId", "taskId", "platform"],
+  "anyOf": [
+    {
+      "required": ["commands"]
+    },
+    {
+      "required": ["steps"]
+    }
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1,
+      "default": 1
+    },
+    "sessionId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "taskId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "platform": {
+      "type": "string",
+      "minLength": 1
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "platform": {
+          "type": "string",
+          "minLength": 1
+        },
+        "flutterVersion": {
+          "type": "string"
+        },
+        "dartVersion": {
+          "type": "string"
+        }
+      }
+    },
+    "recording": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "failFast": {
+      "type": "boolean",
+      "default": true
+    },
+    "commands": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/command"
+      }
+    },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/workflowStep"
+      }
+    }
+  },
+  "$defs": {
+    "command": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["commandId", "commandType"],
+      "properties": {
+        "commandId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "commandType": {
+          "type": "string",
+          "minLength": 1
+        },
+        "locator": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "parameters": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+    "workflowStep": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/commandStep"
+        },
+        {
+          "$ref": "#/$defs/ifStep"
+        },
+        {
+          "$ref": "#/$defs/loopStep"
+        },
+        {
+          "$ref": "#/$defs/retryStep"
+        }
+      ]
+    },
+    "stepBase": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["stepType"],
+      "properties": {
+        "stepId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "stepType": {
+          "type": "string"
+        }
+      }
+    },
+    "commandStep": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/stepBase"
+        },
+        {
+          "type": "object",
+          "required": ["command"],
+          "properties": {
+            "stepType": {
+              "const": "command"
+            },
+            "command": {
+              "$ref": "#/$defs/command"
+            }
+          }
+        }
+      ]
+    },
+    "ifStep": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/stepBase"
+        },
+        {
+          "type": "object",
+          "required": ["condition"],
+          "properties": {
+            "stepType": {
+              "const": "if"
+            },
+            "condition": {
+              "$ref": "#/$defs/command"
+            },
+            "thenSteps": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/workflowStep"
+              }
+            },
+            "elseSteps": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/workflowStep"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "loopStep": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/stepBase"
+        },
+        {
+          "type": "object",
+          "required": ["condition", "maxIterations", "steps"],
+          "properties": {
+            "stepType": {
+              "const": "loop"
+            },
+            "condition": {
+              "$ref": "#/$defs/command"
+            },
+            "maxIterations": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "steps": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/workflowStep"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "retryStep": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/stepBase"
+        },
+        {
+          "type": "object",
+          "required": ["step"],
+          "properties": {
+            "stepType": {
+              "const": "retry"
+            },
+            "maxAttempts": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 3
+            },
+            "delayMs": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            },
+            "step": {
+              "$ref": "#/$defs/commandStep"
+            }
+          }
+        }
+      ]
+    }
+  }
+}
