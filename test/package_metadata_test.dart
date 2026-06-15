@@ -105,11 +105,11 @@ void main() {
     expect(demoPubspec, contains('flutter_lints: ^6.0.0'));
     expect(devtoolsPubspec, contains('dart_mcp: ^0.5.1'));
     expect(demoPubspec, contains('flutter_cockpit_devtools: ^1.0.0'));
-    expect(demoPubspec, contains('drift: ">=2.29.0 <2.30.0"'));
-    expect(demoPubspec, contains('drift_flutter: ">=0.2.7 <0.2.8"'));
-    expect(demoPubspec, contains('drift_dev: ">=2.29.0 <2.30.0"'));
-    expect(demoPubspec, contains('sqlite3: ">=2.9.4 <3.0.0"'));
-    expect(demoPubspec, contains('sqlite3_flutter_libs: ">=0.5.42 <0.6.0"'));
+    expect(demoPubspec, contains('drift: ^2.34.0'));
+    expect(demoPubspec, contains('drift_flutter: ^0.3.0'));
+    expect(demoPubspec, contains('drift_dev: ^2.34.0'));
+    expect(demoPubspec, contains('sqlite3: ^3.3.3'));
+    expect(demoPubspec, contains('sqlite3_flutter_libs: ^0.6.0+eol'));
     expect(workspacePubspec, contains("test: '>=1.25.15 <2.0.0'"));
     expect(runtimePubspec, contains("test: '>=1.25.15 <2.0.0'"));
     expect(devtoolsPubspec, contains("test: '>=1.25.15 <2.0.0'"));
@@ -330,6 +330,24 @@ void main() {
       ),
     );
   });
+
+  test('cockpit demo web database assets match resolved dependencies', () {
+    final lockfile = File('pubspec.lock').readAsStringSync();
+    final depsFile = File(
+      'examples/cockpit_demo/web/drift_worker.js.deps',
+    ).readAsStringSync();
+    final wasm = File('examples/cockpit_demo/web/sqlite3.wasm');
+    final wasmHeader = wasm.readAsBytesSync().take(4).toList();
+
+    final driftVersion = _readLockfilePackageVersion(lockfile, 'drift');
+    final sqliteVersion = _readLockfilePackageVersion(lockfile, 'sqlite3');
+
+    expect(depsFile, contains('/drift-$driftVersion/'));
+    expect(depsFile, contains('/sqlite3-$sqliteVersion/'));
+    expect(wasm.existsSync(), isTrue);
+    expect(wasm.lengthSync(), greaterThan(512 * 1024));
+    expect(wasmHeader, equals(<int>[0x00, 0x61, 0x73, 0x6d]));
+  });
 }
 
 String _readPackageVersion(String packageDir) {
@@ -340,6 +358,19 @@ String _readPackageVersion(String packageDir) {
   ).firstMatch(pubspec);
   if (match == null) {
     throw StateError('Unable to read version from $packageDir/pubspec.yaml');
+  }
+  return match.group(1)!;
+}
+
+String _readLockfilePackageVersion(String lockfile, String packageName) {
+  final match = RegExp(
+    '^  ${RegExp.escape(packageName)}:\\n'
+    r'(?:    .+\n)*?'
+    r'    version: "([^"]+)"',
+    multiLine: true,
+  ).firstMatch(lockfile);
+  if (match == null) {
+    throw StateError('Unable to read $packageName from pubspec.lock');
   }
   return match.group(1)!;
 }
