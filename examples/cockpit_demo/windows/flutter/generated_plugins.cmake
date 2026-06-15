@@ -3,7 +3,6 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
-  flutter_cockpit
   sqlite3_flutter_libs
 )
 

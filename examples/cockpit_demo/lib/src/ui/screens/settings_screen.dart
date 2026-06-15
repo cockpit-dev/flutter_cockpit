@@ -527,6 +527,38 @@ final class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ),
                 ],
+                const SizedBox(height: 24),
+                EditorialSection(
+                  padding: const EdgeInsets.fromLTRB(18, 22, 18, 22),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        'INTERACTION LAB',
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                          letterSpacing: 0.95,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text('Command lab', style: theme.textTheme.headlineSmall),
+                      const SizedBox(height: 6),
+                      Text(
+                        'A playground covering every gesture, text-input, and semantics interaction so automation flows can verify each command against a real UI effect.',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      FilledButton.tonal(
+                        key: const Key('settings-open-command-lab'),
+                        onPressed: () =>
+                            Navigator.of(context).pushNamed('/command-lab'),
+                        child: const Text('Open command lab'),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),

@@ -11,6 +11,7 @@ import 'model/todo_filter.dart';
 import 'model/todo_task.dart';
 import 'model/todo_task_sync_status.dart';
 import 'network/todo_sync_gateway.dart';
+import 'ui/screens/command_lab_screen.dart';
 import 'ui/screens/completed_screen.dart';
 import 'ui/screens/inbox_screen.dart';
 import 'ui/screens/settings_screen.dart';
@@ -146,6 +147,8 @@ final class _CockpitDemoAppState extends State<CockpitDemoApp> {
             );
           case '/settings':
             return SettingsScreen(service: _service);
+          case '/command-lab':
+            return const CommandLabScreen();
           case '/sync-conflict':
             final task = settings.arguments;
             if (task is! TodoTask) {
