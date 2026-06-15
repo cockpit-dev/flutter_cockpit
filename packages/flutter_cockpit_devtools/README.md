@@ -204,7 +204,9 @@ When a command accepts both `--app-json` and `--base-url`, precedence is: explic
 `launch-app` auto-detects `cockpit/main.dart` first, then `lib/main.dart`.
 `run-script --script <workflow.yaml|script.json>` accepts YAML or JSON scripts.
 Use YAML for hand-written `if`, `retry`, and bounded `loop` workflows, and JSON
-for generated scripts. The AI development protocol is shipped with this package
+for generated scripts. The protocol map is shipped with this package at
+[`doc/contracts/flutter-cockpit-protocol.md`](doc/contracts/flutter-cockpit-protocol.md).
+The AI development protocol is shipped with this package
 at [`doc/contracts/ai-development-protocol.md`](doc/contracts/ai-development-protocol.md).
 The workflow protocol is shipped at
 [`doc/contracts/control-workflow-protocol.md`](doc/contracts/control-workflow-protocol.md)
@@ -398,7 +400,8 @@ Workspace and roots tools:
 
 Resources and prompts are also exposed for contracts, capabilities, task
 summaries, roots, package reads, and standard closed-loop guidance. Read
-`cockpit://workspace/ai-development-protocol` for the AI development loop and
+`cockpit://workspace/protocol` first for the contract map,
+`cockpit://workspace/ai-development-protocol` for the AI development loop, and
 `cockpit://workspace/control-workflow-protocol` when an MCP host needs the
 script protocol for `run_script`. Use
 `cockpit://workspace/control-workflow-schema` when a tool needs the

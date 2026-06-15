@@ -149,6 +149,7 @@ final class CockpitMcpServer {
   factory CockpitMcpServer.standard({
     String serverName = 'flutter_cockpit_devtools',
     String serverVersion = '1.0.0',
+    String protocolPath = 'docs/contracts/flutter-cockpit-protocol.md',
     String aiDevelopmentProtocolPath =
         'docs/contracts/ai-development-protocol.md',
     String skillContractPath =
@@ -163,6 +164,10 @@ final class CockpitMcpServer {
   }) {
     final rootsTracker = CockpitMcpRootsTracker(
       forceFallback: forceRootsFallback,
+    );
+    final resolvedProtocolPath = _resolveWorkspacePathForStandardServer(
+      protocolPath,
+      workspaceRoots: workspaceRoots,
     );
     final resolvedAiDevelopmentProtocolPath =
         _resolveWorkspacePathForStandardServer(
@@ -400,6 +405,7 @@ final class CockpitMcpServer {
       CockpitCreateProjectWithValidationPrompt(),
     ];
     final baseResources = <CockpitMcpResource>[
+      CockpitWorkspaceProtocolResource(protocolPath: resolvedProtocolPath),
       CockpitWorkspaceAiDevelopmentProtocolResource(
         aiDevelopmentProtocolPath: resolvedAiDevelopmentProtocolPath,
       ),

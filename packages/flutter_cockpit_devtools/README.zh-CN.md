@@ -142,7 +142,9 @@ CLI JSON 输出使用 lower camel case keys。
 `launch-app` 会先自动探测 `cockpit/main.dart`，找不到再退回 `lib/main.dart`。
 `run-script --script <workflow.yaml|script.json>` 支持 YAML 或 JSON 脚本。
 手写 `if`、`retry`、有界 `loop` 工作流时优先用 YAML，生成脚本优先用 JSON。
-发布包内置 AI 开发协议：
+发布包内置协议入口：
+[`doc/contracts/flutter-cockpit-protocol.md`](doc/contracts/flutter-cockpit-protocol.md)，
+AI 开发协议：
 [`doc/contracts/ai-development-protocol.md`](doc/contracts/ai-development-protocol.md)，
 工作流协议：
 [`doc/contracts/control-workflow-protocol.md`](doc/contracts/control-workflow-protocol.md)，
@@ -324,7 +326,7 @@ workspace/roots 工具：
 - `run_tests`
 - `apply_fixes`
 
-同时还会暴露 contracts、capabilities、task summary、roots、package read 与闭环提示词相关的 resources/prompts。MCP 宿主需要 AI 开发闭环时读取 `cockpit://workspace/ai-development-protocol`；需要 `run_script` 的脚本协议时，读取 `cockpit://workspace/control-workflow-protocol`；需要机器校验时，读取 `cockpit://workspace/control-workflow-schema`。
+同时还会暴露 contracts、capabilities、task summary、roots、package read 与闭环提示词相关的 resources/prompts。MCP 宿主先读取 `cockpit://workspace/protocol` 作为协议入口；需要 AI 开发闭环时读取 `cockpit://workspace/ai-development-protocol`；需要 `run_script` 的脚本协议时，读取 `cockpit://workspace/control-workflow-protocol`；需要机器校验时，读取 `cockpit://workspace/control-workflow-schema`。
 
 ## 说明
 

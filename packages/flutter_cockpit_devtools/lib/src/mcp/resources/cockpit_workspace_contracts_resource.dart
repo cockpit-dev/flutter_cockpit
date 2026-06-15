@@ -3,6 +3,49 @@ import '../core/cockpit_mcp_feature_category.dart';
 import '../core/cockpit_mcp_resource.dart';
 import '../core/cockpit_mcp_resource_definition.dart';
 
+final class CockpitWorkspaceProtocolResource extends CockpitMcpResource {
+  CockpitWorkspaceProtocolResource({
+    CockpitReadWorkspaceContractsService? service,
+    this.protocolPath = 'docs/contracts/flutter-cockpit-protocol.md',
+  }) : _service = service ?? CockpitReadWorkspaceContractsService();
+
+  final CockpitReadWorkspaceContractsService _service;
+  final String protocolPath;
+
+  @override
+  CockpitMcpResourceDefinition get definition =>
+      const CockpitMcpResourceDefinition.fixed(
+        name: 'workspace_protocol',
+        uri: 'cockpit://workspace/protocol',
+        description:
+            'The Flutter Cockpit protocol entry point and contract map.',
+        mimeType: 'text/markdown',
+        categories: <CockpitMcpFeatureCategory>[
+          CockpitMcpFeatureCategory.workspace,
+          CockpitMcpFeatureCategory.contextResources,
+        ],
+      );
+
+  @override
+  Future<CockpitMcpResourceResult?> read(
+    CockpitMcpResourceRequest request,
+  ) async {
+    if (request.uri != definition.uri) {
+      return null;
+    }
+    final protocol = await _service.readProtocol(protocolPath: protocolPath);
+    return CockpitMcpResourceResult(
+      contents: <CockpitMcpResourceContents>[
+        CockpitMcpTextResourceContents(
+          uri: request.uri,
+          text: protocol.text,
+          mimeType: definition.mimeType,
+        ),
+      ],
+    );
+  }
+}
+
 final class CockpitWorkspaceAiDevelopmentProtocolResource
     extends CockpitMcpResource {
   CockpitWorkspaceAiDevelopmentProtocolResource({

@@ -342,6 +342,22 @@ void main() {
         'params': <String, Object?>{'protocolVersion': '2024-11-05'},
       });
 
+      final protocolResponse = await server.handleMessage(<String, Object?>{
+        'jsonrpc': '2.0',
+        'id': 198,
+        'method': 'resources/read',
+        'params': <String, Object?>{'uri': 'cockpit://workspace/protocol'},
+      });
+
+      final protocolResult =
+          protocolResponse?['result'] as Map<String, Object?>;
+      final protocolContents = (protocolResult['contents'] as List<Object?>)
+          .cast<Map<String, Object?>>();
+      expect(
+        '${protocolContents.single['text']}',
+        contains('Flutter Cockpit Protocol'),
+      );
+
       final resourceResponse = await server.handleMessage(<String, Object?>{
         'jsonrpc': '2.0',
         'id': 200,

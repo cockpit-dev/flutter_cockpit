@@ -209,7 +209,7 @@ claude mcp list
 2. 需要工具全权负责启动、基线、执行和分类时用 `run-task`
 3. 做最终完成声明时用 `validate-task`
 
-完整 AI 开发闭环契约见 [`docs/contracts/ai-development-protocol.md`](docs/contracts/ai-development-protocol.md)。工作流脚本协议见 [`docs/contracts/control-workflow-protocol.md`](docs/contracts/control-workflow-protocol.md)，机器 schema 见 [`docs/contracts/control-workflow.schema.json`](docs/contracts/control-workflow.schema.json)。
+协议入口见 [`docs/contracts/flutter-cockpit-protocol.md`](docs/contracts/flutter-cockpit-protocol.md)。完整 AI 开发闭环契约见 [`docs/contracts/ai-development-protocol.md`](docs/contracts/ai-development-protocol.md)。工作流脚本协议见 [`docs/contracts/control-workflow-protocol.md`](docs/contracts/control-workflow-protocol.md)，机器 schema 见 [`docs/contracts/control-workflow.schema.json`](docs/contracts/control-workflow.schema.json)。
 
 target-first 或非 Flutter / 系统直控场景：
 
@@ -466,6 +466,7 @@ workspace/roots 工具：
 
 资源：
 
+- `cockpit://workspace/protocol`
 - `cockpit://workspace/ai-development-protocol`
 - `cockpit://workspace/skill-contract`
 - `cockpit://workspace/task-bundle-contract`
@@ -496,6 +497,7 @@ Prompts：
 - Skill 安装：[`skills/flutter-cockpit/INSTALL.md`](skills/flutter-cockpit/INSTALL.md)
 - 应用接入参考：[`skills/flutter-cockpit/examples/flutter-app-setup.md`](skills/flutter-cockpit/examples/flutter-app-setup.md)
 - CLI 示例：[`skills/flutter-cockpit/examples/cli-command-reference.md`](skills/flutter-cockpit/examples/cli-command-reference.md)
+- 协议入口：[`docs/contracts/flutter-cockpit-protocol.md`](docs/contracts/flutter-cockpit-protocol.md)
 - AI 开发协议：[`docs/contracts/ai-development-protocol.md`](docs/contracts/ai-development-protocol.md)
 - Skill 契约：[`docs/contracts/flutter-cockpit-skill-contract.md`](docs/contracts/flutter-cockpit-skill-contract.md)
 - Bundle 契约：[`docs/contracts/task-run-bundle.md`](docs/contracts/task-run-bundle.md)
