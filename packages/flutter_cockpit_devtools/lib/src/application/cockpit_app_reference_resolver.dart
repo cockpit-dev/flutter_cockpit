@@ -47,9 +47,16 @@ final class CockpitAppReferenceResolver {
     String? appHandlePath,
     Uri? baseUri,
     String? androidDeviceId,
+    String? iosDeviceId,
   }) async {
+    final explicitBaseUri = await _resolvedExplicitBaseUri(
+      baseUri: baseUri,
+      androidDeviceId: androidDeviceId,
+      iosDeviceId: iosDeviceId,
+    );
     if (app != null) {
-      final resolvedBaseUri = baseUri ?? await _resolvedBaseUriForApp(app);
+      final resolvedBaseUri =
+          explicitBaseUri ?? await _resolvedBaseUriForApp(app);
       return CockpitResolvedAppReference(
         baseUri: resolvedBaseUri,
         app: _withResolvedBaseUri(app, resolvedBaseUri),
@@ -64,7 +71,7 @@ final class CockpitAppReferenceResolver {
       );
       final remoteRecord = registry?.remoteSessionByAppId(resolvedApp.appId);
       final resolvedBaseUri =
-          baseUri ??
+          explicitBaseUri ??
           await _resolvedBaseUriForApp(
             resolvedApp,
             developmentRecord: developmentRecord,
@@ -81,8 +88,8 @@ final class CockpitAppReferenceResolver {
     if (appId != null && appId.isNotEmpty) {
       final registry = _registry;
       if (registry == null) {
-        if (baseUri != null) {
-          return CockpitResolvedAppReference(baseUri: baseUri);
+        if (explicitBaseUri != null) {
+          return CockpitResolvedAppReference(baseUri: explicitBaseUri);
         }
         throw const CockpitApplicationServiceException(
           code: 'appLookupUnavailable',
@@ -98,7 +105,7 @@ final class CockpitAppReferenceResolver {
       if (preferRemoteRecord) {
         final app = CockpitAppHandle.fromRemoteSession(remoteRecord.handle);
         final resolvedBaseUri =
-            baseUri ??
+            explicitBaseUri ??
             await _resolvedBaseUriForApp(
               app,
               developmentRecord: developmentRecord,
@@ -116,7 +123,7 @@ final class CockpitAppReferenceResolver {
           developmentRecord.handle,
         );
         final resolvedBaseUri =
-            baseUri ??
+            explicitBaseUri ??
             await _resolvedBaseUriForApp(
               app,
               developmentRecord: developmentRecord,
@@ -130,7 +137,7 @@ final class CockpitAppReferenceResolver {
       if (remoteRecord != null) {
         final app = CockpitAppHandle.fromRemoteSession(remoteRecord.handle);
         final resolvedBaseUri =
-            baseUri ??
+            explicitBaseUri ??
             await _resolvedBaseUriForApp(app, remoteRecord: remoteRecord);
         return CockpitResolvedAppReference(
           baseUri: resolvedBaseUri,
@@ -138,8 +145,8 @@ final class CockpitAppReferenceResolver {
           remoteRecord: remoteRecord,
         );
       }
-      if (baseUri != null) {
-        return CockpitResolvedAppReference(baseUri: baseUri);
+      if (explicitBaseUri != null) {
+        return CockpitResolvedAppReference(baseUri: explicitBaseUri);
       }
       throw CockpitApplicationServiceException(
         code: 'unknownAppId',
@@ -148,19 +155,8 @@ final class CockpitAppReferenceResolver {
       );
     }
 
-    if (baseUri != null) {
-      final deviceId = androidDeviceId;
-      if (deviceId == null || deviceId.isEmpty) {
-        return CockpitResolvedAppReference(baseUri: baseUri);
-      }
-      final hostPort = await _portForwarder.ensureForwarded(
-        deviceId: deviceId,
-        preferredHostPort: baseUri.port,
-        devicePort: baseUri.port,
-      );
-      return CockpitResolvedAppReference(
-        baseUri: baseUri.replace(port: hostPort),
-      );
+    if (explicitBaseUri != null) {
+      return CockpitResolvedAppReference(baseUri: explicitBaseUri);
     }
 
     throw const CockpitApplicationServiceException(
@@ -168,6 +164,59 @@ final class CockpitAppReferenceResolver {
       message:
           'An appId, app handle, app handle path, or base URI is required.',
     );
+  }
+
+  Future<Uri?> _resolvedExplicitBaseUri({
+    required Uri? baseUri,
+    required String? androidDeviceId,
+    required String? iosDeviceId,
+  }) async {
+    if (baseUri == null) {
+      return null;
+    }
+    return await _resolvedBaseUriForAndroidDevice(
+          baseUri: baseUri,
+          androidDeviceId: androidDeviceId,
+        ) ??
+        await _resolvedBaseUriForIosDevice(
+          baseUri: baseUri,
+          iosDeviceId: iosDeviceId,
+        ) ??
+        baseUri;
+  }
+
+  Future<Uri?> _resolvedBaseUriForAndroidDevice({
+    required Uri baseUri,
+    required String? androidDeviceId,
+  }) async {
+    final deviceId = androidDeviceId?.trim();
+    if (deviceId == null || deviceId.isEmpty) {
+      return null;
+    }
+    final hostPort = await _portForwarder.ensureForwarded(
+      deviceId: deviceId,
+      preferredHostPort: baseUri.port,
+      devicePort: baseUri.port,
+    );
+    return baseUri.replace(host: '127.0.0.1', port: hostPort);
+  }
+
+  Future<Uri?> _resolvedBaseUriForIosDevice({
+    required Uri baseUri,
+    required String? iosDeviceId,
+  }) async {
+    final deviceId = iosDeviceId?.trim();
+    if (deviceId == null ||
+        deviceId.isEmpty ||
+        cockpitLooksLikeIosSimulatorDeviceId(deviceId)) {
+      return null;
+    }
+
+    final connection = await _iosDeviceConnectionReader(deviceId);
+    if (connection == null || !connection.hasReachableTunnel) {
+      return null;
+    }
+    return baseUri.replace(host: connection.tunnelIpAddress);
   }
 
   Future<CockpitAppHandle> readAppHandle(String path) async {

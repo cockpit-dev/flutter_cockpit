@@ -35,6 +35,7 @@ final class CockpitExecuteRemoteCommandRequest {
     this.sessionHandle,
     this.sessionHandlePath,
     this.androidDeviceId,
+    this.iosDeviceId,
     this.resultProfile = const CockpitInteractiveResultProfile.standard(),
     this.snapshotOptions,
     this.compareAgainstSnapshotRef,
@@ -46,6 +47,7 @@ final class CockpitExecuteRemoteCommandRequest {
   final CockpitRemoteSessionHandle? sessionHandle;
   final String? sessionHandlePath;
   final String? androidDeviceId;
+  final String? iosDeviceId;
   final CockpitInteractiveResultProfile resultProfile;
   final CockpitSnapshotOptions? snapshotOptions;
   final String? compareAgainstSnapshotRef;
@@ -156,6 +158,7 @@ final class CockpitExecuteRemoteCommandService {
       sessionHandle: request.sessionHandle,
       sessionHandlePath: request.sessionHandlePath,
       androidDeviceId: request.androidDeviceId,
+      iosDeviceId: request.iosDeviceId,
     );
     final sessionKey = resolved.baseUri.toString();
 

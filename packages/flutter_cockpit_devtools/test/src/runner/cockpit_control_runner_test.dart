@@ -20,6 +20,17 @@ void main() {
           ],
           'steps': <Object?>[
             <String, Object?>{
+              'stepId': 'record-flow',
+              'stepType': 'startRecording',
+              'recording': <String, Object?>{
+                'purpose': 'acceptance',
+                'name': 'workflow-flow',
+                'mode': 'auto',
+                'attachToStep': true,
+                'tailStabilizationMs': 0,
+              },
+            },
+            <String, Object?>{
               'stepId': 'if-dialog',
               'stepType': 'if',
               'condition': <String, Object?>{
@@ -75,14 +86,27 @@ void main() {
                 },
               ],
             },
+            <String, Object?>{
+              'stepId': 'stop-flow',
+              'stepType': 'stopRecording',
+              'settleMs': 0,
+            },
           ],
         });
 
         expect(script.commands.single.commandId, 'legacy-open');
-        expect(script.workflowSteps, hasLength(3));
-        expect(script.workflowSteps.first, isA<CockpitIfWorkflowStep>());
-        expect(script.workflowSteps[1], isA<CockpitRetryWorkflowStep>());
-        expect(script.workflowSteps[2], isA<CockpitLoopWorkflowStep>());
+        expect(script.workflowSteps, hasLength(5));
+        expect(
+          script.workflowSteps.first,
+          isA<CockpitStartRecordingWorkflowStep>(),
+        );
+        expect(script.workflowSteps[1], isA<CockpitIfWorkflowStep>());
+        expect(script.workflowSteps[2], isA<CockpitRetryWorkflowStep>());
+        expect(script.workflowSteps[3], isA<CockpitLoopWorkflowStep>());
+        expect(
+          script.workflowSteps.last,
+          isA<CockpitStopRecordingWorkflowStep>(),
+        );
         expect(script.toJson(), contains('steps'));
         expect(script.toJson(), containsPair('schemaVersion', 1));
       },
@@ -266,6 +290,29 @@ steps:
             (error) => error.message,
             'message',
             contains('retry step must wrap a command step'),
+          ),
+        ),
+      );
+    });
+
+    test('rejects start recording steps without a recording request', () {
+      expect(
+        () => CockpitControlScript.fromJson(<String, Object?>{
+          'sessionId': 'bad-recording-script',
+          'taskId': 'bad-recording-task',
+          'platform': 'android',
+          'steps': <Object?>[
+            <String, Object?>{
+              'stepId': 'record-flow',
+              'stepType': 'startRecording',
+            },
+          ],
+        }),
+        throwsA(
+          isA<FormatException>().having(
+            (error) => error.message,
+            'message',
+            contains('recording at steps[0].recording must be an object'),
           ),
         ),
       );
@@ -600,6 +647,187 @@ steps:
         expect(commandRecords.single.status, CockpitCommandStatus.failed);
       },
     );
+
+    test(
+      'starts and stops recording inside a workflow and attaches the recording artifact to the trace',
+      () async {
+        final adapter = _FakeAutomationAdapter(
+          capabilities: _capabilities(),
+          resultsByCommandId: <String, CockpitCommandResult>{
+            'tap-open': _result(commandId: 'tap-open'),
+          },
+        );
+        final recordingAdapter = _FakeRecordingAdapter(
+          sourceFilePath: '/tmp/workflow-flow.mp4',
+        );
+        final runner = CockpitControlRunner(
+          automationAdapter: adapter,
+          recordingAdapter: recordingAdapter,
+          sessionController: CockpitSessionController(
+            sessionId: 'workflow-recording',
+            taskId: 'workflow-recording-task',
+            platform: 'android',
+            now: () => DateTime.utc(2026, 6, 15, 12),
+          ),
+          recordingStopSettleDelay: Duration.zero,
+        );
+
+        final runResult = await runner.run(
+          environment: _environment(),
+          workflowSteps: <CockpitWorkflowStep>[
+            const CockpitStartRecordingWorkflowStep(
+              stepId: 'record-flow',
+              recording: CockpitRecordingRequest(
+                purpose: CockpitRecordingPurpose.acceptance,
+                name: 'workflow-flow',
+                attachToStep: true,
+                tailStabilizationDelay: Duration.zero,
+              ),
+            ),
+            CockpitCommandWorkflowStep(
+              stepId: 'open',
+              command: CockpitCommand(
+                commandId: 'tap-open',
+                commandType: CockpitCommandType.tap,
+                locator: const CockpitLocator(text: 'Open'),
+              ),
+            ),
+            const CockpitStopRecordingWorkflowStep(
+              stepId: 'stop-flow',
+              settleDelay: Duration.zero,
+            ),
+          ],
+        );
+
+        expect(runResult.bundle.manifest.status, CockpitTaskStatus.completed);
+        expect(recordingAdapter.startCallCount, 1);
+        expect(recordingAdapter.stopCallCount, 1);
+        expect(recordingAdapter.startedRequests.single.name, 'workflow-flow');
+        expect(
+          runResult.artifactSourcePaths['recordings/workflow-flow.mp4'],
+          '/tmp/workflow-flow.mp4',
+        );
+        final startStep = runResult.bundle.steps.firstWhere(
+          (step) => step.actionType == 'recording_started',
+        );
+        expect(startStep.actionArgs['workflowStepId'], 'record-flow');
+        expect(startStep.actionArgs['recordingName'], 'workflow-flow');
+        final stopStep = runResult.bundle.steps.firstWhere(
+          (step) => step.actionType == 'recording_stopped',
+        );
+        expect(stopStep.actionArgs['workflowStepId'], 'stop-flow');
+        expect(stopStep.artifactRefs.single.relativePath, contains('.mp4'));
+        expect(runResult.bundle.manifest.recordingCount, 1);
+      },
+    );
+
+    test(
+      'fails before executing commands when a top-level requested recording cannot start',
+      () async {
+        final adapter = _FakeAutomationAdapter(
+          capabilities: _capabilities(),
+          resultsByCommandId: <String, CockpitCommandResult>{
+            'tap-open': _result(commandId: 'tap-open'),
+          },
+        );
+        final runner = CockpitControlRunner(
+          automationAdapter: adapter,
+          recordingAdapter: _ThrowingRecordingAdapter(
+            StateError('host recorder unavailable'),
+          ),
+          sessionController: CockpitSessionController(
+            sessionId: 'top-level-recording-failed',
+            taskId: 'top-level-recording-failed-task',
+            platform: 'android',
+            now: () => DateTime.utc(2026, 6, 15, 12, 30),
+          ),
+          recordingStopSettleDelay: Duration.zero,
+        );
+
+        final runResult = await runner.run(
+          environment: _environment(),
+          commands: <CockpitCommand>[
+            CockpitCommand(
+              commandId: 'tap-open',
+              commandType: CockpitCommandType.tap,
+              locator: const CockpitLocator(text: 'Open'),
+            ),
+          ],
+          recording: const CockpitRecordingRequest(
+            purpose: CockpitRecordingPurpose.acceptance,
+            name: 'required-flow',
+            tailStabilizationDelay: Duration.zero,
+          ),
+        );
+
+        expect(runResult.bundle.manifest.status, CockpitTaskStatus.failed);
+        expect(
+          runResult.bundle.manifest.failureSummary,
+          contains('Recording required-flow failed to start'),
+        );
+        expect(adapter.executedCommandIds, isEmpty);
+        final failedStep = runResult.bundle.steps.firstWhere(
+          (step) => step.actionType == 'recording_failed',
+        );
+        expect(failedStep.actionArgs['recordingName'], 'required-flow');
+        expect(
+          failedStep.actionArgs['failureReason'].toString(),
+          contains('host recorder unavailable'),
+        );
+      },
+    );
+
+    test('fails a workflow that tries to start two recordings', () async {
+      final runner = CockpitControlRunner(
+        automationAdapter: _FakeAutomationAdapter(
+          capabilities: _capabilities(),
+          resultsByCommandId: const <String, CockpitCommandResult>{},
+        ),
+        recordingAdapter: _FakeRecordingAdapter(),
+        sessionController: CockpitSessionController(
+          sessionId: 'workflow-double-recording',
+          taskId: 'workflow-double-recording-task',
+          platform: 'android',
+          now: () => DateTime.utc(2026, 6, 15, 13),
+        ),
+        recordingStopSettleDelay: Duration.zero,
+      );
+
+      final runResult = await runner.run(
+        environment: _environment(),
+        workflowSteps: const <CockpitWorkflowStep>[
+          CockpitStartRecordingWorkflowStep(
+            stepId: 'record-one',
+            recording: CockpitRecordingRequest(
+              purpose: CockpitRecordingPurpose.acceptance,
+              name: 'one',
+              tailStabilizationDelay: Duration.zero,
+            ),
+          ),
+          CockpitStartRecordingWorkflowStep(
+            stepId: 'record-two',
+            recording: CockpitRecordingRequest(
+              purpose: CockpitRecordingPurpose.repro,
+              name: 'two',
+              tailStabilizationDelay: Duration.zero,
+            ),
+          ),
+        ],
+      );
+
+      expect(runResult.bundle.manifest.status, CockpitTaskStatus.failed);
+      expect(
+        runResult.bundle.manifest.failureSummary,
+        contains('A workflow recording is already active'),
+      );
+      expect(
+        runResult.bundle.steps
+            .where((step) => step.actionType == 'recording_failed')
+            .last
+            .actionArgs['workflowStepId'],
+        'record-two',
+      );
+    });
   });
 
   test(
@@ -1148,16 +1376,22 @@ final class _FakeCaptureAdapter implements CockpitCaptureAdapter {
 }
 
 final class _FakeRecordingAdapter implements CockpitRecordingAdapter {
+  _FakeRecordingAdapter({this.sourceFilePath = '/tmp/acceptance-tail.mp4'});
+
+  final String sourceFilePath;
   int startCallCount = 0;
   int stopCallCount = 0;
   Stopwatch? _stopwatch;
   Duration? stopElapsed;
+  final List<CockpitRecordingRequest> startedRequests =
+      <CockpitRecordingRequest>[];
 
   @override
   Future<CockpitRecordingSession> startRecording(
     CockpitRecordingRequest request,
   ) async {
     startCallCount += 1;
+    startedRequests.add(request);
     _stopwatch = Stopwatch()..start();
     return CockpitRecordingSession(
       request: request,
@@ -1170,12 +1404,31 @@ final class _FakeRecordingAdapter implements CockpitRecordingAdapter {
     stopCallCount += 1;
     _stopwatch?.stop();
     stopElapsed = _stopwatch?.elapsed;
+    final request = startedRequests.last;
     return CockpitRecordingResult(
       state: CockpitRecordingState.completed,
-      purpose: CockpitRecordingPurpose.acceptance,
+      purpose: request.purpose,
       recordingKind: CockpitRecordingKind.nativeScreen,
-      artifact: cockpitRecordingArtifactForName('acceptance-tail'),
-      sourceFilePath: '/tmp/acceptance-tail.mp4',
+      artifact: cockpitRecordingArtifactForName(request.name),
+      sourceFilePath: sourceFilePath,
     );
+  }
+}
+
+final class _ThrowingRecordingAdapter implements CockpitRecordingAdapter {
+  const _ThrowingRecordingAdapter(this.error);
+
+  final Object error;
+
+  @override
+  Future<CockpitRecordingSession> startRecording(
+    CockpitRecordingRequest request,
+  ) async {
+    throw error;
+  }
+
+  @override
+  Future<CockpitRecordingResult> stopRecording() async {
+    throw StateError('stopRecording should not be called.');
   }
 }

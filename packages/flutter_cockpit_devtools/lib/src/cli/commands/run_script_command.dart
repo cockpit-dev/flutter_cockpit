@@ -35,10 +35,6 @@ final class RunScriptCommand extends CockpitCliCommand {
       ..addOption(
         'output-root',
         help: 'Directory where the task-run bundle should be written.',
-      )
-      ..addOption(
-        'ios-device-id',
-        help: 'Optional iOS Simulator device ID used for host recording.',
       );
   }
 
@@ -97,6 +93,7 @@ final class RunScriptCommand extends CockpitCliCommand {
       appHandlePath: cockpitResolveAppHandlePath(argResults),
       baseUri: cockpitReadOptionalBaseUri(argResults),
       androidDeviceId: argResults?['android-device-id'] as String?,
+      iosDeviceId: argResults?['ios-device-id'] as String?,
     );
     final script = cockpitDecodeCliJson(
       decode: () => cockpitControlScriptFromText(scriptText),

@@ -201,6 +201,11 @@ final class CockpitRecordingStrategyResolver {
             candidate: candidate,
             request: recording,
             effectiveLayer: desiredLayer,
+            runtimeFallbackCandidates: _runtimeFallbackCandidatesFor(
+              request: recording,
+              candidates: candidates,
+              selectedCandidate: candidate,
+            ),
           );
         }
       }
@@ -247,6 +252,11 @@ final class CockpitRecordingStrategyResolver {
       fallbackReason: desiredLayer == null
           ? 'Recording mode ${recording.mode.jsonValue} is unavailable on $platform. Falling back to ${fallbackCandidate.layer.jsonValue}.'
           : 'Recording layer ${desiredLayer.jsonValue} is unavailable on $platform. Falling back to ${fallbackCandidate.layer.jsonValue}.',
+      runtimeFallbackCandidates: _runtimeFallbackCandidatesFor(
+        request: recording,
+        candidates: candidates,
+        selectedCandidate: fallbackCandidate,
+      ),
     );
   }
 
@@ -298,11 +308,14 @@ final class CockpitRecordingStrategyResolver {
     required CockpitRecordingLayer effectiveLayer,
     bool fallbackUsed = false,
     String? fallbackReason,
+    List<_RecordingCandidate> runtimeFallbackCandidates =
+        const <_RecordingCandidate>[],
   }) {
     return CockpitRecordingStrategyResolution(
       implementation: candidate.implementation,
       adapter: _PolicyAwareRecordingAdapter(
         delegate: candidate.factory(),
+        runtimeFallbackCandidates: runtimeFallbackCandidates,
         requestedMode: request.mode,
         requestedLayer: request.layer,
         effectiveLayer: effectiveLayer,
@@ -687,6 +700,19 @@ final class CockpitRecordingStrategyResolver {
     return best;
   }
 
+  List<_RecordingCandidate> _runtimeFallbackCandidatesFor({
+    required CockpitRecordingRequest request,
+    required List<_RecordingCandidate> candidates,
+    required _RecordingCandidate selectedCandidate,
+  }) {
+    if (!request.allowsFallback) {
+      return const <_RecordingCandidate>[];
+    }
+    return candidates
+        .where((candidate) => !identical(candidate, selectedCandidate))
+        .toList(growable: false);
+  }
+
   int _fallbackDistance(
     CockpitRecordingLayer candidate,
     CockpitRecordingLayer desired,
@@ -744,14 +770,16 @@ final class _RecordingCandidate {
 }
 
 final class _PolicyAwareRecordingAdapter implements CockpitRecordingAdapter {
-  const _PolicyAwareRecordingAdapter({
+  _PolicyAwareRecordingAdapter({
     required CockpitRecordingAdapter delegate,
+    required List<_RecordingCandidate> runtimeFallbackCandidates,
     required CockpitRecordingMode requestedMode,
     required CockpitRecordingLayer? requestedLayer,
     required CockpitRecordingLayer effectiveLayer,
     required bool fallbackUsed,
     required String? fallbackReason,
   }) : _delegate = delegate,
+       _runtimeFallbackCandidates = runtimeFallbackCandidates,
        _requestedMode = requestedMode,
        _requestedLayer = requestedLayer,
        _effectiveLayer = effectiveLayer,
@@ -759,28 +787,62 @@ final class _PolicyAwareRecordingAdapter implements CockpitRecordingAdapter {
        _fallbackReason = fallbackReason;
 
   final CockpitRecordingAdapter _delegate;
+  final List<_RecordingCandidate> _runtimeFallbackCandidates;
   final CockpitRecordingMode _requestedMode;
   final CockpitRecordingLayer? _requestedLayer;
   final CockpitRecordingLayer _effectiveLayer;
   final bool _fallbackUsed;
   final String? _fallbackReason;
+  CockpitRecordingAdapter? _activeDelegate;
+  CockpitRecordingLayer? _activeEffectiveLayer;
+  bool _runtimeFallbackUsed = false;
+  String? _runtimeFallbackReason;
 
   @override
   Future<CockpitRecordingSession> startRecording(
     CockpitRecordingRequest request,
-  ) {
-    return _delegate.startRecording(request);
+  ) async {
+    try {
+      final session = await _delegate.startRecording(request);
+      _activeDelegate = _delegate;
+      _activeEffectiveLayer = _effectiveLayer;
+      return session;
+    } on Object catch (primaryError, primaryStackTrace) {
+      if (_runtimeFallbackCandidates.isEmpty) {
+        rethrow;
+      }
+      for (final candidate in _runtimeFallbackCandidates) {
+        final fallbackDelegate = candidate.factory();
+        try {
+          final session = await fallbackDelegate.startRecording(request);
+          _activeDelegate = fallbackDelegate;
+          _activeEffectiveLayer = candidate.layer;
+          _runtimeFallbackUsed = true;
+          _runtimeFallbackReason =
+              'Recording layer ${_effectiveLayer.jsonValue} failed to start: '
+              '$primaryError. Falling back to ${candidate.layer.jsonValue}.';
+          return session;
+        } on Object {
+          // Try the next candidate; the original failure remains the fallback reason.
+        }
+      }
+      Error.throwWithStackTrace(primaryError, primaryStackTrace);
+    }
   }
 
   @override
   Future<CockpitRecordingResult> stopRecording() async {
-    final result = await _delegate.stopRecording();
+    final activeDelegate = _activeDelegate ?? _delegate;
+    final activeEffectiveLayer = _activeEffectiveLayer ?? _effectiveLayer;
+    final result = await activeDelegate.stopRecording();
     return result.copyWith(
       requestedMode: result.requestedMode ?? _requestedMode,
       requestedLayer: result.requestedLayer ?? _requestedLayer,
-      effectiveLayer: result.effectiveLayer ?? _effectiveLayer,
-      fallbackUsed: result.fallbackUsed || _fallbackUsed,
-      fallbackReason: result.fallbackReason ?? _fallbackReason,
+      effectiveLayer: result.effectiveLayer ?? activeEffectiveLayer,
+      fallbackUsed:
+          result.fallbackUsed || _fallbackUsed || _runtimeFallbackUsed,
+      fallbackReason:
+          result.fallbackReason ?? _runtimeFallbackReason ?? _fallbackReason,
     );
   }
 }

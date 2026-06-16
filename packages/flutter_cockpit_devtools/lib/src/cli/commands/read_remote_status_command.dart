@@ -66,6 +66,7 @@ final class ReadRemoteStatusCommand extends CockpitCliCommand {
         baseUri: cockpitReadOptionalBaseUri(argResults),
         sessionHandlePath: cockpitResolveRemoteSessionHandlePath(argResults),
         androidDeviceId: argResults?['android-device-id'] as String?,
+        iosDeviceId: argResults?['ios-device-id'] as String?,
         resultProfile: cockpitReadResultProfile(
           argResults,
           defaultProfile: CockpitInteractiveResultProfileName.minimal,

@@ -23,13 +23,7 @@ final class QueryRemoteSessionCommand extends CockpitCliCommand {
              ),
            ),
        _stdoutSink = stdoutSink ?? stdout {
-    argParser
-      ..addOption('base-url', help: 'Base URL for the running app session.')
-      ..addOption('session-json', help: cockpitRemoteSessionJsonOptionHelp)
-      ..addOption(
-        'android-device-id',
-        help: 'Optional Android device ID used to set up adb port forwarding.',
-      );
+    cockpitAddRemoteSessionArgs(argParser);
   }
 
   final CockpitQueryRemoteSessionService _service;
@@ -81,6 +75,7 @@ final class QueryRemoteSessionCommand extends CockpitCliCommand {
         baseUri: baseUrl == null || baseUrl.isEmpty ? null : Uri.parse(baseUrl),
         sessionHandlePath: sessionJsonPath,
         androidDeviceId: argResults?['android-device-id'] as String?,
+        iosDeviceId: argResults?['ios-device-id'] as String?,
       ),
     );
     await cockpitWriteJsonPayload(

@@ -99,6 +99,7 @@ final class CaptureScreenshotCommand extends CockpitCliCommand {
         baseUri: cockpitReadOptionalBaseUri(argResults),
         appHandlePath: cockpitResolveAppHandlePath(argResults),
         androidDeviceId: argResults?['android-device-id'] as String?,
+        iosDeviceId: argResults?['ios-device-id'] as String?,
         name: argResults?['name'] as String? ?? 'screenshot',
         reason: CockpitScreenshotReason.fromJson(argResults?['reason']),
         includeSnapshot: argResults?['include-snapshot'] as bool? ?? false,

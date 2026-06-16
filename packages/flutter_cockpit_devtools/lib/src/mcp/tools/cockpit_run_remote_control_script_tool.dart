@@ -75,6 +75,7 @@ final class CockpitRunRemoteControlScriptTool extends CockpitMcpTool {
           arguments,
           'androidDeviceId',
         ),
+        iosDeviceId: cockpitReadOptionalString(arguments, 'iosDeviceId'),
       );
       final result = await _run(
         CockpitRunRemoteControlScriptRequest(

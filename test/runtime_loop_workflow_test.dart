@@ -214,6 +214,25 @@ void main() {
       'hot-reload',
       'hot-restart',
     ];
+    final fallbackSuffix = <String>['hot-reload', 'hot-restart'];
+    final startupFallbackCommands = <String>[
+      for (final command in commonExpectedCommands)
+        if (command != 'start-recording' && command != 'stop-recording')
+          command,
+    ];
+    final startupFallbackCommandsWithTimeline = <String>[
+      ...startupFallbackCommands.sublist(
+        0,
+        startupFallbackCommands.length - fallbackSuffix.length,
+      ),
+      'timeline-recording-fallback',
+      ...fallbackSuffix,
+    ];
+    final stopFallbackCommands = <String>[...commonExpectedCommands]
+      ..insert(
+        commonExpectedCommands.indexOf('wait-idle'),
+        'timeline-recording-fallback',
+      );
     final iosExpectedCommands = <String>[
       'launch-app',
       'read-app',
@@ -271,10 +290,6 @@ void main() {
           reason: '$jobName must assert the verifier command "$command".',
         );
       }
-      expect(
-        block,
-        contains('assert platform["verifiedCommands"] == expected_commands'),
-      );
       expect(block, contains('EXPECTED_SYSTEM_CONTROL_ADAPTER'));
       expect(block, contains('platform["systemControlAdapter"]'));
       expect(
@@ -286,6 +301,10 @@ void main() {
         contains('"readProcessList" in platform["systemAvailableActions"]'),
       );
       if (jobName == 'android-runtime-loop') {
+        expect(
+          block,
+          contains('assert platform["verifiedCommands"] == expected_commands'),
+        );
         expect(block, contains('"run-system-action:setNetworkSpeed"'));
         expect(block, contains('"run-system-action:setNetworkDelay"'));
         expect(
@@ -305,9 +324,29 @@ void main() {
       } else {
         expect(
           block,
+          contains('verified_commands = platform["verifiedCommands"]'),
+        );
+        expect(
+          block,
+          contains('assert verified_commands == expected_commands'),
+        );
+        expect(block, contains('assert verified_commands in ('));
+        expect(
+          block,
           contains(
             'platform["systemVerifiedActions"] == ["readSystemState", "readProcessList"]',
           ),
+        );
+        expect(
+          block,
+          contains('expected_driver = os.environ["EXPECTED_RECORDING_DRIVER"]'),
+        );
+        expect(block, contains('startup_fallback_commands'));
+        expect(block, contains('stop_fallback_commands'));
+        expect(block, contains('recording_driver == expected_driver'));
+        expect(
+          block,
+          contains('recording_driver == f"{expected_driver}-fallback"'),
         );
       }
     }

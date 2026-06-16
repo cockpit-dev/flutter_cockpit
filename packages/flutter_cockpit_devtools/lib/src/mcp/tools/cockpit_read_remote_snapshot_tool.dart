@@ -44,6 +44,7 @@ final class CockpitReadRemoteSnapshotTool extends CockpitMcpTool {
     'properties': <String, Object?>{
       'sessionHandle': <String, Object?>{'type': 'object'},
       'sessionHandlePath': <String, Object?>{'type': 'string'},
+      'iosDeviceId': <String, Object?>{'type': 'string'},
       'profile': <String, Object?>{'type': 'string'},
       'snapshotOptions': <String, Object?>{'type': 'object'},
       'compareAgainstSnapshotRef': <String, Object?>{'type': 'string'},
@@ -60,6 +61,7 @@ final class CockpitReadRemoteSnapshotTool extends CockpitMcpTool {
             arguments,
             'sessionHandlePath',
           ),
+          iosDeviceId: cockpitReadOptionalString(arguments, 'iosDeviceId'),
           resultProfile: _readProfile(arguments),
           snapshotOptions: _readOptionalSnapshotOptions(arguments),
           compareAgainstSnapshotRef: cockpitReadOptionalString(

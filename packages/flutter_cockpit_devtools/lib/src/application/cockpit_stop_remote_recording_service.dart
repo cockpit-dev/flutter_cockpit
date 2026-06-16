@@ -18,12 +18,14 @@ final class CockpitStopRemoteRecordingRequest {
     this.sessionHandle,
     this.sessionHandlePath,
     this.androidDeviceId,
+    this.iosDeviceId,
   });
 
   final Uri? baseUri;
   final CockpitRemoteSessionHandle? sessionHandle;
   final String? sessionHandlePath;
   final String? androidDeviceId;
+  final String? iosDeviceId;
 }
 
 final class CockpitStopRemoteRecordingResult {
@@ -96,6 +98,7 @@ final class CockpitStopRemoteRecordingService {
       sessionHandle: request.sessionHandle,
       sessionHandlePath: request.sessionHandlePath,
       androidDeviceId: request.androidDeviceId,
+      iosDeviceId: request.iosDeviceId,
     );
     final recordingResult = await _sessionLock.run(
       resolved.baseUri.toString(),

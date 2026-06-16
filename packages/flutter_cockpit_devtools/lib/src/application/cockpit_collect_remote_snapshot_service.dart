@@ -18,6 +18,7 @@ final class CockpitCollectRemoteSnapshotRequest {
     this.sessionHandle,
     this.sessionHandlePath,
     this.androidDeviceId,
+    this.iosDeviceId,
     this.options = const CockpitSnapshotOptions.live(),
     this.downloadDiagnosticsArtifacts = false,
   });
@@ -26,6 +27,7 @@ final class CockpitCollectRemoteSnapshotRequest {
   final CockpitRemoteSessionHandle? sessionHandle;
   final String? sessionHandlePath;
   final String? androidDeviceId;
+  final String? iosDeviceId;
   final CockpitSnapshotOptions options;
   final bool downloadDiagnosticsArtifacts;
 }
@@ -70,6 +72,7 @@ final class CockpitCollectRemoteSnapshotService {
       sessionHandle: request.sessionHandle,
       sessionHandlePath: request.sessionHandlePath,
       androidDeviceId: request.androidDeviceId,
+      iosDeviceId: request.iosDeviceId,
     );
     final effectiveOptions = _normalizeOptions(request.options);
     final response = await _readSnapshot(

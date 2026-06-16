@@ -1,9 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
 
+import '../platform/ios/cockpit_ios_device_connection.dart';
 import '../remote/cockpit_android_port_forwarder.dart';
 import '../session/cockpit_remote_session_handle.dart';
 import 'cockpit_application_service_exception.dart';
+
+typedef CockpitSessionIosDeviceConnectionReader =
+    Future<CockpitIosDeviceConnection?> Function(String deviceId);
 
 final class CockpitResolvedSessionReference {
   const CockpitResolvedSessionReference({
@@ -19,15 +23,20 @@ final class CockpitSessionReferenceResolver {
   CockpitSessionReferenceResolver({
     CockpitAndroidPortForwarder portForwarder =
         const CockpitAndroidPortForwarder(),
-  }) : _portForwarder = portForwarder;
+    CockpitSessionIosDeviceConnectionReader iosDeviceConnectionReader =
+        _defaultIosDeviceConnectionReader,
+  }) : _portForwarder = portForwarder,
+       _iosDeviceConnectionReader = iosDeviceConnectionReader;
 
   final CockpitAndroidPortForwarder _portForwarder;
+  final CockpitSessionIosDeviceConnectionReader _iosDeviceConnectionReader;
 
   Future<CockpitResolvedSessionReference> resolve({
     Uri? baseUri,
     CockpitRemoteSessionHandle? sessionHandle,
     String? sessionHandlePath,
     String? androidDeviceId,
+    String? iosDeviceId,
   }) async {
     if (sessionHandle != null) {
       final resolvedBaseUri =
@@ -49,18 +58,20 @@ final class CockpitSessionReferenceResolver {
     }
 
     if (baseUri != null) {
-      final deviceId = androidDeviceId;
-      if (deviceId == null || deviceId.isEmpty) {
-        return CockpitResolvedSessionReference(baseUri: baseUri);
+      final resolvedAndroidBaseUri = await _resolvedBaseUriForAndroidDevice(
+        baseUri: baseUri,
+        androidDeviceId: androidDeviceId,
+      );
+      if (resolvedAndroidBaseUri != null) {
+        return CockpitResolvedSessionReference(baseUri: resolvedAndroidBaseUri);
       }
 
-      final hostPort = await _portForwarder.ensureForwarded(
-        deviceId: deviceId,
-        preferredHostPort: baseUri.port,
-        devicePort: baseUri.port,
+      final resolvedIosBaseUri = await _resolvedBaseUriForIosDevice(
+        baseUri: baseUri,
+        iosDeviceId: iosDeviceId,
       );
       return CockpitResolvedSessionReference(
-        baseUri: baseUri.replace(port: hostPort),
+        baseUri: resolvedIosBaseUri ?? baseUri,
       );
     }
 
@@ -68,6 +79,39 @@ final class CockpitSessionReferenceResolver {
       code: 'missingSessionReference',
       message: 'A session handle, handle path, or base URI is required.',
     );
+  }
+
+  Future<Uri?> _resolvedBaseUriForAndroidDevice({
+    required Uri baseUri,
+    required String? androidDeviceId,
+  }) async {
+    final deviceId = androidDeviceId?.trim();
+    if (deviceId == null || deviceId.isEmpty) {
+      return null;
+    }
+    final hostPort = await _portForwarder.ensureForwarded(
+      deviceId: deviceId,
+      preferredHostPort: baseUri.port,
+      devicePort: baseUri.port,
+    );
+    return baseUri.replace(host: '127.0.0.1', port: hostPort);
+  }
+
+  Future<Uri?> _resolvedBaseUriForIosDevice({
+    required Uri baseUri,
+    required String? iosDeviceId,
+  }) async {
+    final deviceId = iosDeviceId?.trim();
+    if (deviceId == null ||
+        deviceId.isEmpty ||
+        cockpitLooksLikeIosSimulatorDeviceId(deviceId)) {
+      return null;
+    }
+    final connection = await _iosDeviceConnectionReader(deviceId);
+    if (connection == null || !connection.hasReachableTunnel) {
+      return null;
+    }
+    return baseUri.replace(host: connection.tunnelIpAddress);
   }
 
   Future<Uri> _resolvedBaseUriForSession(
@@ -127,4 +171,10 @@ final class CockpitSessionReferenceResolver {
       Map<String, Object?>.from(decoded),
     );
   }
+}
+
+Future<CockpitIosDeviceConnection?> _defaultIosDeviceConnectionReader(
+  String deviceId,
+) {
+  return CockpitIosDeviceConnectionProbe().probe(deviceId);
 }

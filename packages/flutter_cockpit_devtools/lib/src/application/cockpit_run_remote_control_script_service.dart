@@ -96,6 +96,7 @@ final class CockpitRunRemoteControlScriptService {
       androidDeviceId: request.portForwardingHandled
           ? null
           : request.androidDeviceId,
+      iosDeviceId: request.portForwardingHandled ? null : request.iosDeviceId,
     );
     await _persistScriptIfRequested(
       path: request.persistScriptPath,

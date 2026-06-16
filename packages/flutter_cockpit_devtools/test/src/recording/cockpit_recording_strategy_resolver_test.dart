@@ -182,6 +182,114 @@ void main() {
     expect(resolution?.fallbackUsed, isFalse);
   });
 
+  test(
+    'falls back to app-window recording when host-screen recording fails to start in auto mode',
+    () async {
+      final remoteAdapter = _FakeRecordingAdapter();
+      final resolver = CockpitRecordingStrategyResolver(
+        remoteAdapterFactory: (client) => remoteAdapter,
+        adbAdapterFactory: (deviceId) => _FakeRecordingAdapter(),
+        simctlAdapterFactory: (deviceId) => _FakeRecordingAdapter(),
+        macosAdapterFactory: (appId) => _ThrowingRecordingAdapter(
+          StateError('Screen Recording permission is missing.'),
+        ),
+      );
+
+      final resolution = resolver.resolveDetailed(
+        platform: 'macos',
+        recording: autoRequest,
+        client: CockpitRemoteSessionClient(
+          baseUri: Uri.parse('http://127.0.0.1:47331'),
+        ),
+        platformAppId: 'dev.cockpit.cockpitDemo',
+      );
+
+      expect(resolution?.implementation, 'macosHost');
+      final session = await resolution!.adapter!.startRecording(autoRequest);
+      final result = await resolution.adapter!.stopRecording();
+
+      expect(session.request, autoRequest);
+      expect(remoteAdapter.startCallCount, 1);
+      expect(result.effectiveLayer, CockpitRecordingLayer.appWindow);
+      expect(result.fallbackUsed, isTrue);
+      expect(result.fallbackReason, contains('host-screen'));
+      expect(result.fallbackReason, contains('app-window'));
+      expect(result.fallbackReason, contains('Screen Recording permission'));
+    },
+  );
+
+  test(
+    'does not fall back when an explicit recording layer fails to start',
+    () async {
+      final remoteAdapter = _FakeRecordingAdapter();
+      final resolver = CockpitRecordingStrategyResolver(
+        remoteAdapterFactory: (client) => remoteAdapter,
+        adbAdapterFactory: (deviceId) => _FakeRecordingAdapter(),
+        simctlAdapterFactory: (deviceId) => _FakeRecordingAdapter(),
+        macosAdapterFactory: (appId) =>
+            _ThrowingRecordingAdapter(StateError('host unavailable')),
+      );
+      const request = CockpitRecordingRequest(
+        purpose: CockpitRecordingPurpose.acceptance,
+        name: 'strict-host',
+        layer: CockpitRecordingLayer.hostScreen,
+      );
+
+      final resolution = resolver.resolveDetailed(
+        platform: 'macos',
+        recording: request,
+        client: CockpitRemoteSessionClient(
+          baseUri: Uri.parse('http://127.0.0.1:47331'),
+        ),
+        platformAppId: 'dev.cockpit.cockpitDemo',
+      );
+
+      await expectLater(
+        resolution!.adapter!.startRecording(request),
+        throwsStateError,
+      );
+      expect(remoteAdapter.startCallCount, 0);
+    },
+  );
+
+  test(
+    'falls back at runtime when an explicit recording layer allows fallback',
+    () async {
+      final remoteAdapter = _FakeRecordingAdapter();
+      final resolver = CockpitRecordingStrategyResolver(
+        remoteAdapterFactory: (client) => remoteAdapter,
+        adbAdapterFactory: (deviceId) => _FakeRecordingAdapter(),
+        simctlAdapterFactory: (deviceId) => _FakeRecordingAdapter(),
+        macosAdapterFactory: (appId) =>
+            _ThrowingRecordingAdapter(StateError('host unavailable')),
+      );
+      const request = CockpitRecordingRequest(
+        purpose: CockpitRecordingPurpose.acceptance,
+        name: 'strict-host-with-fallback',
+        layer: CockpitRecordingLayer.hostScreen,
+        allowFallback: true,
+      );
+
+      final resolution = resolver.resolveDetailed(
+        platform: 'macos',
+        recording: request,
+        client: CockpitRemoteSessionClient(
+          baseUri: Uri.parse('http://127.0.0.1:47331'),
+        ),
+        platformAppId: 'dev.cockpit.cockpitDemo',
+      );
+
+      await resolution!.adapter!.startRecording(request);
+      final result = await resolution.adapter!.stopRecording();
+
+      expect(remoteAdapter.startCallCount, 1);
+      expect(result.effectiveLayer, CockpitRecordingLayer.appWindow);
+      expect(result.fallbackUsed, isTrue);
+      expect(result.fallbackReason, contains('host-screen'));
+      expect(result.fallbackReason, contains('app-window'));
+    },
+  );
+
   test('uses process-scoped host recording for Windows full mode', () {
     String? capturedAppId;
     int? capturedProcessId;
@@ -638,16 +746,50 @@ void main() {
 }
 
 final class _FakeRecordingAdapter implements CockpitRecordingAdapter {
+  int startCallCount = 0;
+  CockpitRecordingRequest? request;
+
   @override
   Future<CockpitRecordingSession> startRecording(
     CockpitRecordingRequest request,
-  ) {
-    throw UnimplementedError();
+  ) async {
+    startCallCount += 1;
+    this.request = request;
+    return CockpitRecordingSession(
+      request: request,
+      state: CockpitRecordingState.recording,
+    );
   }
 
   @override
-  Future<CockpitRecordingResult> stopRecording() {
-    throw UnimplementedError();
+  Future<CockpitRecordingResult> stopRecording() async {
+    return CockpitRecordingResult(
+      state: CockpitRecordingState.completed,
+      purpose: request?.purpose,
+      recordingKind: CockpitRecordingKind.nativeScreen,
+      artifact: const CockpitArtifactRef(
+        role: 'recording',
+        relativePath: 'recordings/fake.mp4',
+      ),
+    );
+  }
+}
+
+final class _ThrowingRecordingAdapter implements CockpitRecordingAdapter {
+  const _ThrowingRecordingAdapter(this.error);
+
+  final Object error;
+
+  @override
+  Future<CockpitRecordingSession> startRecording(
+    CockpitRecordingRequest request,
+  ) async {
+    throw error;
+  }
+
+  @override
+  Future<CockpitRecordingResult> stopRecording() async {
+    throw StateError('Recording was never started.');
   }
 }
 

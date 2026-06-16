@@ -52,6 +52,31 @@ Executes one `CockpitCommand`.
       text: Settings
 ```
 
+### `startRecording`
+
+Starts a recording at an explicit point in the workflow. Use this when only the risky or user-visible part of a flow needs video evidence. `mode: auto` is the default; it prefers the broadest stable system/host recorder and falls back only when the request allows fallback. Explicit `layer` requests are strict unless `allowFallback: true` is set.
+
+```yaml
+- stepId: record-checkout
+  stepType: startRecording
+  recording:
+    purpose: acceptance
+    name: checkout-flow
+    mode: auto
+    attachToStep: true
+    tailStabilizationMs: 1400
+```
+
+### `stopRecording`
+
+Stops the active workflow recording and attaches the recording artifact to the trace. `settleMs` defaults to `1400` so the final visual state is captured before the recorder is finalized.
+
+```yaml
+- stepId: stop-checkout-recording
+  stepType: stopRecording
+  settleMs: 1400
+```
+
 ### `if`
 
 Runs a condition command as a probe. A successful probe executes `thenSteps`; a failed probe executes `elseSteps`. Probe failure does not count as a final command failure.
@@ -127,7 +152,9 @@ Runs a condition command before each iteration. When the condition succeeds, chi
 - Retry intermediate failures do not fail the task unless the final attempt fails.
 - Loop termination by failed condition is success.
 - Loop exhaustion at `maxIterations` is recorded as `workflow_loop_exhausted`; it is not a failure by itself because bounded draining workflows often stop at their budget.
-- Recording starts before the workflow and stops after the workflow, including failure paths.
+- Top-level `recording` starts before the workflow and stops after the workflow, including failure paths.
+- Step-level `startRecording` / `stopRecording` records only the selected workflow segment. A second start while recording is active is a workflow failure; an unclosed active recording is stopped during cleanup.
+- Screenshots and recordings prefer system/host evidence when the platform exposes it and fall back to app/remote evidence when fallback is allowed or the screenshot host capture fails.
 - Artifact payloads and source files from probes, attempts, commands, screenshots, and recordings are all carried into the final task-run bundle.
 
 ## Trace Contract
@@ -141,6 +168,10 @@ Workflow execution may emit these action types:
 - `workflow_loop_exhausted`
 - `workflow_retry_attempt`
 - `workflow_command_attempt`
+- `recording_start_requested`
+- `recording_started`
+- `recording_stopped`
+- `recording_failed`
 
 Trace entries may include:
 

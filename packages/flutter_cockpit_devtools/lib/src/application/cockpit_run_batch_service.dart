@@ -91,6 +91,7 @@ final class CockpitRunBatchService {
       appHandlePath: request.appHandlePath,
       baseUri: request.baseUri,
       androidDeviceId: request.androidDeviceId,
+      iosDeviceId: request.iosDeviceId,
     );
     final recording = request.recording;
     final sessionHandle = resolved.app?.remoteSession;
@@ -180,6 +181,7 @@ final class CockpitRunBatchService {
         finalSnapshotProfile: request.finalSnapshotProfile,
         finalSnapshotOptions: request.finalSnapshotOptions,
         defaultCommandTimeout: request.defaultCommandTimeout,
+        iosDeviceId: request.iosDeviceId,
       ),
     );
   }

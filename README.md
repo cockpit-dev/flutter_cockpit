@@ -358,6 +358,9 @@ recording only when intentionally working with a remote session instead of an
 app handle. If a host permission blocks recording while app control still
 passes, report it as a structured environment warning with the recorder failure
 reason instead of masking the app result.
+`capture-screenshot` follows the same app-first policy: when app metadata is
+available it attempts system/host capture first, then falls back to app capture
+with `usedCaptureFallback` metadata if the host path fails.
 Treat completed recording as evidence only when the stop result includes an
 artifact backed by non-empty bytes or a non-empty source/output file; empty or
 missing artifact content is a failed evidence result, not video proof.

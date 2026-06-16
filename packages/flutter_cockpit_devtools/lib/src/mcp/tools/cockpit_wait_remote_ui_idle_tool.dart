@@ -44,6 +44,7 @@ final class CockpitWaitRemoteUiIdleTool extends CockpitMcpTool {
     'properties': <String, Object?>{
       'sessionHandle': <String, Object?>{'type': 'object'},
       'sessionHandlePath': <String, Object?>{'type': 'string'},
+      'iosDeviceId': <String, Object?>{'type': 'string'},
       'quietWindowMs': <String, Object?>{'type': 'integer'},
       'timeoutMs': <String, Object?>{'type': 'integer'},
       'includeNetworkIdle': <String, Object?>{'type': 'boolean'},
@@ -60,6 +61,7 @@ final class CockpitWaitRemoteUiIdleTool extends CockpitMcpTool {
             arguments,
             'sessionHandlePath',
           ),
+          iosDeviceId: cockpitReadOptionalString(arguments, 'iosDeviceId'),
           quietWindow: Duration(
             milliseconds:
                 cockpitReadOptionalPositiveInt(arguments, 'quietWindowMs') ??

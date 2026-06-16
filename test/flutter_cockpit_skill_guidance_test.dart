@@ -174,7 +174,7 @@ void main() {
     );
     expect(skill, contains('`stop-app` is cleanup or recovery only'));
     expect(skill, contains('not a normal loop step'));
-    expect(skill, contains('framework recording first'));
+    expect(skill, contains('use `start-recording` / `stop-recording`'));
     expect(skill, contains('unless the content is the unresolved question'));
     expect(skill, contains('run `capture-screenshot --name <proof-name>`'));
     expect(skill, contains('Do not set `type: Text` for button labels'));
@@ -317,7 +317,7 @@ void main() {
     );
     expect(
       rapidLoop,
-      contains('use framework recording before external screen tools'),
+      contains('use Cockpit recording commands before external screen tools'),
     );
     expect(rapidLoop, contains('remoteUnavailable'));
     expect(rapidLoop, contains('smallest remaining step'));
@@ -460,7 +460,7 @@ void main() {
       runtimeValidation,
       contains('cleanup or recovery requires `stop-app`'),
     );
-    expect(runtimeValidation, contains('use flutter_cockpit recording first'));
+    expect(runtimeValidation, contains('use Cockpit recording commands first'));
 
     final install = docsByName['${skillDir.path}/INSTALL.md']!;
     expect(install, contains('Do not assume the current agent is Codex'));

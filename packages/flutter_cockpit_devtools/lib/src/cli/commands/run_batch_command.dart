@@ -20,11 +20,6 @@ final class RunBatchCommand extends CockpitCliCommand {
   }) : _runBatch = runBatch ?? (service ?? CockpitRunBatchService()).run,
        _stdoutSink = stdoutSink ?? stdout {
     cockpitAddAppArgs(argParser);
-    argParser.addOption(
-      'ios-device-id',
-      help:
-          'iOS device or simulator ID for host-side batch recording when app metadata is unavailable.',
-    );
     cockpitAddProfileArg(argParser);
     cockpitAddCommandsJsonArgs(argParser);
     cockpitAddCommandTimeoutArg(

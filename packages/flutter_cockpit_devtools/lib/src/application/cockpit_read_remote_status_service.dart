@@ -20,6 +20,7 @@ final class CockpitReadRemoteStatusRequest {
     this.sessionHandle,
     this.sessionHandlePath,
     this.androidDeviceId,
+    this.iosDeviceId,
     this.resultProfile = const CockpitInteractiveResultProfile.minimal(),
     this.snapshotOptions,
   });
@@ -28,6 +29,7 @@ final class CockpitReadRemoteStatusRequest {
   final CockpitRemoteSessionHandle? sessionHandle;
   final String? sessionHandlePath;
   final String? androidDeviceId;
+  final String? iosDeviceId;
   final CockpitInteractiveResultProfile resultProfile;
   final CockpitSnapshotOptions? snapshotOptions;
 }
@@ -116,6 +118,7 @@ final class CockpitReadRemoteStatusService {
       sessionHandle: request.sessionHandle,
       sessionHandlePath: request.sessionHandlePath,
       androidDeviceId: request.androidDeviceId,
+      iosDeviceId: request.iosDeviceId,
     );
     final status = await _readStatus(resolved.baseUri);
     final effectiveSnapshotOptions =

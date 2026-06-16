@@ -33,6 +33,7 @@ final class CockpitExecuteRemoteCommandBatchRequest {
     this.sessionHandle,
     this.sessionHandlePath,
     this.androidDeviceId,
+    this.iosDeviceId,
     this.defaultResultProfile =
         const CockpitInteractiveResultProfile.standard(),
     this.failFast = true,
@@ -47,6 +48,7 @@ final class CockpitExecuteRemoteCommandBatchRequest {
   final CockpitRemoteSessionHandle? sessionHandle;
   final String? sessionHandlePath;
   final String? androidDeviceId;
+  final String? iosDeviceId;
   final CockpitInteractiveResultProfile defaultResultProfile;
   final bool failFast;
   final CockpitRecordingRequest? recording;
@@ -138,6 +140,7 @@ final class CockpitExecuteRemoteCommandBatchService {
       sessionHandle: request.sessionHandle,
       sessionHandlePath: request.sessionHandlePath,
       androidDeviceId: request.androidDeviceId,
+      iosDeviceId: request.iosDeviceId,
     );
     final sessionKey = resolved.baseUri.toString();
 
@@ -182,6 +185,7 @@ final class CockpitExecuteRemoteCommandBatchService {
                 CockpitStartRemoteRecordingRequest(
                   baseUri: resolved.baseUri,
                   sessionHandle: resolved.sessionHandle,
+                  iosDeviceId: request.iosDeviceId,
                   recording: request.recording!,
                 ),
               );
@@ -198,6 +202,7 @@ final class CockpitExecuteRemoteCommandBatchService {
               snapshotOptions: batchCommand.snapshotOptions,
               compareAgainstSnapshotRef: batchCommand.compareAgainstSnapshotRef,
               defaultCommandTimeout: request.defaultCommandTimeout,
+              iosDeviceId: request.iosDeviceId,
             ),
           );
           results.add(result);
@@ -215,6 +220,7 @@ final class CockpitExecuteRemoteCommandBatchService {
                   sessionHandle: resolved.sessionHandle,
                   resultProfile: request.finalSnapshotProfile!,
                   snapshotOptions: request.finalSnapshotOptions,
+                  iosDeviceId: request.iosDeviceId,
                 ),
               );
         if (stopRecordingService != null) {
@@ -222,6 +228,7 @@ final class CockpitExecuteRemoteCommandBatchService {
             CockpitStopRemoteRecordingRequest(
               baseUri: resolved.baseUri,
               sessionHandle: resolved.sessionHandle,
+              iosDeviceId: request.iosDeviceId,
             ),
           );
           recordingStarted = false;
@@ -249,6 +256,7 @@ final class CockpitExecuteRemoteCommandBatchService {
               CockpitStopRemoteRecordingRequest(
                 baseUri: resolved.baseUri,
                 sessionHandle: resolved.sessionHandle,
+                iosDeviceId: request.iosDeviceId,
               ),
             );
           } on Object {

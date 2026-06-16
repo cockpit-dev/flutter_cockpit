@@ -382,7 +382,6 @@ jobs:
               "hot-reload",
               "hot-restart",
           ]
-
           result_path = pathlib.Path(os.environ["RESULT_JSON"])
           data = json.loads(result_path.read_text())
           assert data["success"] is True, data
@@ -596,7 +595,6 @@ jobs:
               "hot-reload",
               "hot-restart",
           ]
-
           result_path = pathlib.Path(os.environ["RESULT_JSON"])
           data = json.loads(result_path.read_text())
           assert data["success"] is True, data
@@ -742,6 +740,21 @@ jobs:
               "hot-reload",
               "hot-restart",
           ]
+          fallback_suffix = ["hot-reload", "hot-restart"]
+          startup_fallback_commands = [
+              command for command in expected_commands
+              if command not in ("start-recording", "stop-recording")
+          ]
+          startup_fallback_commands = (
+              startup_fallback_commands[:-len(fallback_suffix)]
+              + ["timeline-recording-fallback"]
+              + fallback_suffix
+          )
+          stop_fallback_commands = expected_commands.copy()
+          stop_fallback_commands.insert(
+              stop_fallback_commands.index("wait-idle"),
+              "timeline-recording-fallback",
+          )
 
           result_path = pathlib.Path(os.environ["RESULT_JSON"])
           data = json.loads(result_path.read_text())
@@ -751,12 +764,24 @@ jobs:
           platform = data["platforms"][0]
           assert platform["platform"] == os.environ["EXPECTED_PLATFORM"], platform
           assert platform["status"] == "passed", platform
-          assert platform["verifiedCommands"] == expected_commands, platform
+          verified_commands = platform["verifiedCommands"]
           assert platform["systemControlAdapter"] == os.environ["EXPECTED_SYSTEM_CONTROL_ADAPTER"], platform
           assert "readSystemState" in platform["systemAvailableActions"], platform
           assert "readProcessList" in platform["systemAvailableActions"], platform
           assert platform["systemVerifiedActions"] == ["readSystemState", "readProcessList"], platform
-          assert platform["recordingDriver"] == os.environ["EXPECTED_RECORDING_DRIVER"], platform
+          recording_driver = platform["recordingDriver"]
+          expected_driver = os.environ["EXPECTED_RECORDING_DRIVER"]
+          if recording_driver == expected_driver:
+              assert verified_commands == expected_commands, platform
+              assert "start-recording" in verified_commands, platform
+              assert "stop-recording" in verified_commands, platform
+              assert "timeline-recording-fallback" not in verified_commands, platform
+          else:
+              assert recording_driver == f"{expected_driver}-fallback", platform
+              assert verified_commands in (
+                  startup_fallback_commands,
+                  stop_fallback_commands,
+              ), platform
           assert platform["batchCommandCount"] == 32, platform
           assert platform["autoScreenshotCount"] >= 19, platform
           assert platform["networkFailureCount"] == 0, platform
@@ -905,18 +930,19 @@ jobs:
           assert platform.get("systemAvailableActions", []) == [], platform
           assert platform.get("systemVerifiedActions", []) == [], platform
           verified_commands = platform["verifiedCommands"]
+          recording_driver = platform["recordingDriver"]
           if platform["recordingDriver"] == "browser-host":
               assert verified_commands == expected_commands, platform
               assert "start-recording" in verified_commands, platform
               assert "stop-recording" in verified_commands, platform
               assert "timeline-recording-fallback" not in verified_commands, platform
           else:
-              assert platform["recordingDriver"] == "browser-host-fallback", platform
+              assert recording_driver == "browser-host-fallback", platform
               assert verified_commands in (
                   startup_fallback_commands,
                   stop_fallback_commands,
               ), platform
-          assert platform["recordingDriver"] in ("browser-host", "browser-host-fallback"), platform
+          assert recording_driver in ("browser-host", "browser-host-fallback"), platform
           assert platform["batchCommandCount"] == 32, platform
           assert platform["autoScreenshotCount"] >= 19, platform
           assert platform["networkFailureCount"] == 0, platform
@@ -1061,6 +1087,21 @@ jobs:
               "hot-reload",
               "hot-restart",
           ]
+          fallback_suffix = ["hot-reload", "hot-restart"]
+          startup_fallback_commands = [
+              command for command in expected_commands
+              if command not in ("start-recording", "stop-recording")
+          ]
+          startup_fallback_commands = (
+              startup_fallback_commands[:-len(fallback_suffix)]
+              + ["timeline-recording-fallback"]
+              + fallback_suffix
+          )
+          stop_fallback_commands = expected_commands.copy()
+          stop_fallback_commands.insert(
+              stop_fallback_commands.index("wait-idle"),
+              "timeline-recording-fallback",
+          )
 
           result_path = pathlib.Path(os.environ["RESULT_JSON"])
           data = json.loads(result_path.read_text())
@@ -1070,12 +1111,24 @@ jobs:
           platform = data["platforms"][0]
           assert platform["platform"] == os.environ["EXPECTED_PLATFORM"], platform
           assert platform["status"] == "passed", platform
-          assert platform["verifiedCommands"] == expected_commands, platform
+          verified_commands = platform["verifiedCommands"]
           assert platform["systemControlAdapter"] == os.environ["EXPECTED_SYSTEM_CONTROL_ADAPTER"], platform
           assert "readSystemState" in platform["systemAvailableActions"], platform
           assert "readProcessList" in platform["systemAvailableActions"], platform
           assert platform["systemVerifiedActions"] == ["readSystemState", "readProcessList"], platform
-          assert platform["recordingDriver"] == os.environ["EXPECTED_RECORDING_DRIVER"], platform
+          recording_driver = platform["recordingDriver"]
+          expected_driver = os.environ["EXPECTED_RECORDING_DRIVER"]
+          if recording_driver == expected_driver:
+              assert verified_commands == expected_commands, platform
+              assert "start-recording" in verified_commands, platform
+              assert "stop-recording" in verified_commands, platform
+              assert "timeline-recording-fallback" not in verified_commands, platform
+          else:
+              assert recording_driver == f"{expected_driver}-fallback", platform
+              assert verified_commands in (
+                  startup_fallback_commands,
+                  stop_fallback_commands,
+              ), platform
           assert platform["batchCommandCount"] == 32, platform
           assert platform["autoScreenshotCount"] >= 19, platform
           assert platform["networkFailureCount"] == 0, platform
@@ -1304,6 +1357,21 @@ jobs:
               "hot-reload",
               "hot-restart",
           ]
+          fallback_suffix = ["hot-reload", "hot-restart"]
+          startup_fallback_commands = [
+              command for command in expected_commands
+              if command not in ("start-recording", "stop-recording")
+          ]
+          startup_fallback_commands = (
+              startup_fallback_commands[:-len(fallback_suffix)]
+              + ["timeline-recording-fallback"]
+              + fallback_suffix
+          )
+          stop_fallback_commands = expected_commands.copy()
+          stop_fallback_commands.insert(
+              stop_fallback_commands.index("wait-idle"),
+              "timeline-recording-fallback",
+          )
 
           result_path = pathlib.Path(os.environ["RESULT_JSON_POSIX"])
           data = json.loads(result_path.read_text())
@@ -1313,12 +1381,24 @@ jobs:
           platform = data["platforms"][0]
           assert platform["platform"] == os.environ["EXPECTED_PLATFORM"], platform
           assert platform["status"] == "passed", platform
-          assert platform["verifiedCommands"] == expected_commands, platform
+          verified_commands = platform["verifiedCommands"]
           assert platform["systemControlAdapter"] == os.environ["EXPECTED_SYSTEM_CONTROL_ADAPTER"], platform
           assert "readSystemState" in platform["systemAvailableActions"], platform
           assert "readProcessList" in platform["systemAvailableActions"], platform
           assert platform["systemVerifiedActions"] == ["readSystemState", "readProcessList"], platform
-          assert platform["recordingDriver"] == os.environ["EXPECTED_RECORDING_DRIVER"], platform
+          recording_driver = platform["recordingDriver"]
+          expected_driver = os.environ["EXPECTED_RECORDING_DRIVER"]
+          if recording_driver == expected_driver:
+              assert verified_commands == expected_commands, platform
+              assert "start-recording" in verified_commands, platform
+              assert "stop-recording" in verified_commands, platform
+              assert "timeline-recording-fallback" not in verified_commands, platform
+          else:
+              assert recording_driver == f"{expected_driver}-fallback", platform
+              assert verified_commands in (
+                  startup_fallback_commands,
+                  stop_fallback_commands,
+              ), platform
           assert platform["batchCommandCount"] == 32, platform
           assert platform["autoScreenshotCount"] >= 19, platform
           assert platform["networkFailureCount"] == 0, platform

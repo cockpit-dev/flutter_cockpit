@@ -31,6 +31,7 @@ final class CockpitRunCommandTool extends CockpitMcpTool {
       'appJson': <String, Object?>{'type': 'string'},
       'baseUrl': <String, Object?>{'type': 'string'},
       'androidDeviceId': <String, Object?>{'type': 'string'},
+      'iosDeviceId': <String, Object?>{'type': 'string'},
       'command': <String, Object?>{'type': 'object'},
       'timeoutMs': <String, Object?>{'type': 'integer'},
       'profile': <String, Object?>{'type': 'string'},
@@ -51,6 +52,7 @@ final class CockpitRunCommandTool extends CockpitMcpTool {
             arguments,
             'androidDeviceId',
           ),
+          iosDeviceId: cockpitReadOptionalString(arguments, 'iosDeviceId'),
           command: CockpitCommand.fromJson(
             cockpitReadRequiredObject(arguments, 'command'),
           ),

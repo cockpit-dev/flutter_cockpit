@@ -45,6 +45,7 @@ final class CockpitReadRemoteStatusTool extends CockpitMcpTool {
     'properties': <String, Object?>{
       'sessionHandle': <String, Object?>{'type': 'object'},
       'sessionHandlePath': <String, Object?>{'type': 'string'},
+      'iosDeviceId': <String, Object?>{'type': 'string'},
       'profile': <String, Object?>{'type': 'string'},
     },
   };
@@ -59,6 +60,7 @@ final class CockpitReadRemoteStatusTool extends CockpitMcpTool {
             arguments,
             'sessionHandlePath',
           ),
+          iosDeviceId: cockpitReadOptionalString(arguments, 'iosDeviceId'),
           resultProfile: _readProfile(arguments),
         ),
       );

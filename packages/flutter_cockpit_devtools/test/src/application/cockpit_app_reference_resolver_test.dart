@@ -355,6 +355,28 @@ void main() {
       expect(resolved.app?.remoteSession?.baseUrl, 'http://[fd00::9]:57331');
     },
   );
+
+  test(
+    'baseUri with physical ios device id refreshes tunnel ip from device probe',
+    () async {
+      final resolved =
+          await CockpitAppReferenceResolver(
+            iosDeviceConnectionReader: (deviceId) async {
+              expect(deviceId, '00008110-001234560E10801E');
+              return const CockpitIosDeviceConnection(
+                isPhysical: true,
+                tunnelIpAddress: 'fd00::9',
+              );
+            },
+          ).resolve(
+            baseUri: Uri.parse('http://127.0.0.1:57331/cockpit'),
+            iosDeviceId: '00008110-001234560E10801E',
+          );
+
+      expect(resolved.baseUri.toString(), 'http://[fd00::9]:57331/cockpit');
+      expect(resolved.app, isNull);
+    },
+  );
 }
 
 DateTime Function() _clockFrom(List<DateTime> instants) {

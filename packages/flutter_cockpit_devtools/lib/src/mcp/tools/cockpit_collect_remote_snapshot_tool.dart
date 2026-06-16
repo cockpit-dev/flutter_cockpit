@@ -31,6 +31,7 @@ final class CockpitCollectRemoteSnapshotTool extends CockpitMcpTool {
     'properties': <String, Object?>{
       'sessionHandle': <String, Object?>{'type': 'object'},
       'sessionHandlePath': <String, Object?>{'type': 'string'},
+      'iosDeviceId': <String, Object?>{'type': 'string'},
       'snapshotOptions': <String, Object?>{'type': 'object'},
       'downloadDiagnosticsArtifacts': <String, Object?>{'type': 'boolean'},
     },
@@ -50,6 +51,7 @@ final class CockpitCollectRemoteSnapshotTool extends CockpitMcpTool {
             arguments,
             'sessionHandlePath',
           ),
+          iosDeviceId: cockpitReadOptionalString(arguments, 'iosDeviceId'),
           options: snapshotOptionsJson == null
               ? const CockpitSnapshotOptions.live()
               : CockpitSnapshotOptions.fromJson(snapshotOptionsJson),
