@@ -35,7 +35,7 @@ dependencies:
 这样宿主只在开发入口使用 `dev_dependencies` 接入 Cockpit 时，生产包不会自动注册
 Cockpit 原生代码。应用内的 Flutter-view 截图、语义控制、网络信号、运行时诊断和
 远程会话仍然可用。系统弹窗、通知、宿主截图、录屏等原生/系统证据应通过
-`flutter_cockpit_devtools` 的 system action 驱动。
+`cockpit` 的 system action 驱动。
 
 ## 推荐接入方式
 
@@ -90,8 +90,8 @@ flutter run -t cockpit/main.dart
 - 截图和录屏请求
 - 远程会话状态与命令端点
 
-宿主侧编排、MCP、workspace tooling 和交付验证在 [`flutter_cockpit_devtools`](https://pub.dev/packages/flutter_cockpit_devtools) 中。
+宿主侧编排、MCP、workspace tooling 和交付验证在 [`cockpit`](https://pub.dev/packages/cockpit) 中。
 运行时 bundle 模型现在会保留 `targetKind`、`primaryExecutionPlane`、`planesUsed`、`surfaceKindsUsed`、`fallbackCount`，以及 step / observation 级别的 plane 元数据，方便宿主侧准确解释这次控制是按预期平面完成，还是发生了受控降级。
-在 web 上，runtime 直接支持 Flutter semantic 和 Flutter-view 控制路径；method channel 会注册为“显式不可用”的 stub，这样能力判断会保持真实，不会退化成缺少插件的噪音报错。移动端和桌面端的默认包不会自动注册原生 method-channel 录屏或截图能力；应用内截图请走 Flutter-view，宿主录屏或系统截图请走 `flutter_cockpit_devtools` 提供的宿主侧链路。
+在 web 上，runtime 直接支持 Flutter semantic 和 Flutter-view 控制路径；method channel 会注册为“显式不可用”的 stub，这样能力判断会保持真实，不会退化成缺少插件的噪音报错。移动端和桌面端的默认包不会自动注册原生 method-channel 录屏或截图能力；应用内截图请走 Flutter-view，宿主录屏或系统截图请走 `cockpit` 提供的宿主侧链路。
 
 包地址：[pub.dev/packages/flutter_cockpit](https://pub.dev/packages/flutter_cockpit)

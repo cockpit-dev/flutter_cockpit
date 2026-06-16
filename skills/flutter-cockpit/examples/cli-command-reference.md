@@ -1,11 +1,11 @@
 # CLI Command Reference
 
-Use this file when you need copy-ready `flutter_cockpit_devtools` commands.
+Use this file when you need copy-ready `cockpit` commands.
 
 Command prefix:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools <command> ...
+dart run cockpit <command> ...
 ```
 
 ## Basic App Loop
@@ -13,7 +13,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools <command> ...
 List available targets:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools list-targets
+dart run cockpit list-targets
 ```
 
 Choose `--platform` and `--device-id` from `list-targets`. Keep placeholders
@@ -23,7 +23,7 @@ mobile ids are the reported emulator, simulator, or physical device ids.
 Launch an app:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   launch-app \
   --project-dir /abs/path/to/flutter_app \
   --platform <platform-from-list-targets> \
@@ -43,7 +43,7 @@ app is ready; the supervisor continues in the background for logs, reloads, and
 Read lightweight state:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   read-app \
   --profile minimal
 ```
@@ -53,7 +53,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 
 ```bash
 printf '%s\n' '{"commandId":"dismiss-keyboard","commandType":"dismissKeyboard"}' >/tmp/flutter_cockpit_command.json
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-command \
   --command-file /tmp/flutter_cockpit_command.json \
   --profile standard
@@ -66,7 +66,7 @@ For platform-specific powers such as browser DOM access, host shell automation, 
 Launch a normalized target and persist `target.json`:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   launch-target \
   --project-dir /abs/path/to/flutter_app \
   --platform <platform-from-list-targets> \
@@ -81,7 +81,7 @@ For browser target-first work, automation launch is not a supported browser path
 Read the smallest truthful target state:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   read-target \
   --target-json /tmp/flutter_cockpit/target.json \
   --profile minimal
@@ -90,7 +90,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 Inspect the current target surface when the summary is still ambiguous:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   inspect-surface \
   --target-json /tmp/flutter_cockpit/target.json \
   --profile inspect
@@ -99,7 +99,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 Run a shell command through a normalized target:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-shell \
   --scope target \
   --target-json /tmp/flutter_cockpit/target.json \
@@ -111,7 +111,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 Run platform-explicit shells when you already know the device:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-shell \
   --scope android \
   --device-id emulator-5554 \
@@ -120,7 +120,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 ```
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-shell \
   --scope ios \
   --device-id A1B2C3D4-0000-1111-2222-333344445555 \
@@ -140,7 +140,7 @@ Capability rows include compact action payload contracts such as `parameters=[x*
 Read exact platform capabilities:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   read-system-capabilities \
   --platform <platform-from-list-targets> \
   --device-id <device-id-from-list-targets>
@@ -151,7 +151,7 @@ When `.dart_tool/flutter_cockpit/latest_app.json` exists in the current workspac
 For desktop window evidence, add the app/window context from launch metadata:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   read-system-capabilities \
   --platform macos \
   --app-id <platform-app-id>
@@ -164,7 +164,7 @@ For shell pipelines, `--stdout-format json` exposes the same contract as structu
 `capabilities[].parameters[]` entries:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   read-system-capabilities \
   --platform ios \
   --device-id <ios-simulator-udid> \
@@ -174,7 +174,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 For iOS simulator permissions, prefer deterministic `simctl` privacy setup:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --action grantPermission \
   --permission microphone
@@ -183,12 +183,12 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 For iOS simulator native UI, system dialogs, keyboard/focus, Notification Center, Control Center, or notification tap-through that Flutter semantics and `simctl` cannot handle, start WebDriverAgent separately. Cockpit probes the common local simulator endpoint `http://127.0.0.1:8100` when no endpoint is supplied. Use `--wda-url` or `FLUTTER_COCKPIT_IOS_WDA_URL` for a custom endpoint. WDA-backed iOS simulator actions remain blocked unless the endpoint is reachable. iOS simulator volume keys and clear-all delivered notifications are intentionally unsupported because public stable simulator APIs do not expose them.
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   read-system-capabilities \
   --platform ios \
   --device-id <ios-simulator-udid>
 
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --action dismissSystemDialog \
   --decision accept
@@ -197,16 +197,16 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 Recover from common native blockers before continuing app-first validation:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --action readFocusState
 
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --action resolveBlockers \
   --decision accept
 
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --action recoverToApp
 ```
@@ -214,7 +214,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 Prepare app permissions in one capability-checked macro before a flow:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --action preparePermissions \
   --permissions microphone \
@@ -225,7 +225,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 Stabilize native/system state before visual proof:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --action stabilizeForScreenshot \
   --parameters-json '{"dismissKeyboard":true,"collapseSystemUi":true,"orientation":"portrait","statusBar":"stable"}'
@@ -234,7 +234,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 Validate notification delivery and tap-through without manual intervention:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --action tapNotification \
   --parameters-json '{"title":"Download complete"}'
@@ -243,15 +243,15 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 Open or close system panels when they block a flow:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --action expandNotifications
 
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --action expandQuickSettings
 
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --action collapseSystemUi
 ```
@@ -259,13 +259,13 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 Drive a desktop native/system control after reading capabilities:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform macos \
   --app-id <bundle-id> \
   --action activateWindow
 
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform macos \
   --action tap \
@@ -276,7 +276,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 Run a short Android system tap:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform android \
   --device-id emulator-5554 \
@@ -288,7 +288,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 Bring an Android app to the foreground when the package id is known:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform android \
   --device-id emulator-5554 \
@@ -299,14 +299,14 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 Send an Android key event or terminate the app when a clean relaunch is needed:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform android \
   --device-id emulator-5554 \
   --action pressKey \
   --key enter
 
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform android \
   --device-id emulator-5554 \
@@ -318,32 +318,32 @@ Handle Android emulator system UI and permission dialogs after reading
 capabilities:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform android \
   --device-id emulator-5554 \
   --action dismissSystemDialog \
   --decision accept
 
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform android \
   --device-id emulator-5554 \
   --action pressVolumeUp
 
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform android \
   --device-id emulator-5554 \
   --action expandNotifications
 
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform android \
   --device-id emulator-5554 \
   --action expandQuickSettings
 
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform android \
   --device-id emulator-5554 \
@@ -353,21 +353,21 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 Set Android emulator development environment state:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform android \
   --device-id emulator-5554 \
   --action setAppearance \
   --appearance dark
 
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform android \
   --device-id emulator-5554 \
   --action setContentSize \
   --content-size accessibility-large
 
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform android \
   --device-id emulator-5554 \
@@ -375,21 +375,21 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --latitude 37.3349 \
   --longitude -122.009
 
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform android \
   --device-id emulator-5554 \
   --action setOrientation \
   --orientation landscape
 
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform android \
   --device-id emulator-5554 \
   --action setNetworkSpeed \
   --network-speed full
 
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform android \
   --device-id emulator-5554 \
@@ -401,20 +401,20 @@ Open Android system settings or post a shell notification when the workflow
 needs native system state:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform android \
   --device-id emulator-5554 \
   --action openSystemSettings
 
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform android \
   --device-id emulator-5554 \
   --action openSystemSettings \
   --settings-action android.settings.APPLICATION_DETAILS_SETTINGS
 
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform android \
   --device-id emulator-5554 \
@@ -427,14 +427,14 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 iOS simulator app activation and permission setup:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform ios \
   --device-id <ios-simulator-udid> \
   --app-id <ios-bundle-id> \
   --action activateWindow
 
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform ios \
   --device-id <ios-simulator-udid> \
@@ -446,13 +446,13 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 Open iOS simulator Settings or send a simulated APNS push:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform ios \
   --device-id <ios-simulator-udid> \
   --action openSystemSettings
 
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform ios \
   --device-id <ios-simulator-udid> \
@@ -465,21 +465,21 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 Set iOS simulator appearance, content size, or location for responsive and permission-sensitive flows:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform ios \
   --device-id <ios-simulator-udid> \
   --action setAppearance \
   --appearance dark
 
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform ios \
   --device-id <ios-simulator-udid> \
   --action setContentSize \
   --content-size accessibility-large
 
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform ios \
   --device-id <ios-simulator-udid> \
@@ -487,7 +487,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --latitude 37.3349 \
   --longitude -122.009
 
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform ios \
   --device-id <ios-simulator-udid> \
@@ -499,7 +499,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --battery-state charged \
   --battery-level 100
 
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform ios \
   --device-id <ios-simulator-udid> \
@@ -509,7 +509,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 Android uses the same `setStatusBar`/`clearStatusBar` actions through SystemUI demo mode:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform android \
   --device-id emulator-5554 \
@@ -520,7 +520,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --battery-state charged \
   --battery-level 100
 
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform android \
   --device-id emulator-5554 \
@@ -530,14 +530,14 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 Use iOS simulator clipboard when a native paste flow needs setup:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform ios \
   --device-id <ios-simulator-udid> \
   --action setClipboard \
   --text "value to paste"
 
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform ios \
   --device-id <ios-simulator-udid> \
@@ -547,7 +547,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 Read host/device system state as a low-token capability smoke check:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform macos \
   --action readSystemState
@@ -556,23 +556,23 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 Read process/window context before choosing a native target:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform android \
   --device-id emulator-5554 \
   --action readProcessList
 
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform macos \
   --action readWindows
 
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform windows \
   --action readWindows
 
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform linux \
   --action readWindows
@@ -581,7 +581,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 Read a bounded native desktop accessibility tree when Flutter semantics cannot see the target:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform macos \
   --app-id <bundle-id> \
@@ -589,7 +589,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --max-depth 4 \
   --max-nodes 120
 
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform windows \
   --process-id <pid> \
@@ -601,7 +601,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 Capture a native/system screenshot to a real file:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform android \
   --device-id emulator-5554 \
@@ -615,7 +615,7 @@ recordings need the app bundle id; Windows and Linux can target either the app
 id or a process id from launch metadata:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform macos \
   --app-id <bundle-id> \
@@ -623,7 +623,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --name desktop-proof \
   --output-path /tmp/flutter_cockpit/desktop-proof.png
 
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform windows \
   --process-id <pid> \
@@ -631,7 +631,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --name desktop-proof \
   --output-path /tmp/flutter_cockpit/desktop-proof.png
 
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform linux \
   --process-id <pid> \
@@ -643,7 +643,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 Record a native/system flow without blocking the agent:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform android \
   --device-id emulator-5554 \
@@ -654,7 +654,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --layer system
 
 # drive the system/native flow, then stop
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform android \
   --device-id emulator-5554 \
@@ -665,7 +665,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 For desktop system recording, keep the same target context on start and stop:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform windows \
   --process-id <pid> \
@@ -675,7 +675,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
   --mode native \
   --layer system
 
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-system-action \
   --platform windows \
   --process-id <pid> \
@@ -686,7 +686,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 Inspect richer UI state:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   inspect-ui \
   --profile inspect
 ```
@@ -694,7 +694,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 Run one command:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-command \
   --command-json '{"commandId":"assert-ready","commandType":"assertText","parameters":{"text":"<expected-text>"}}'
 ```
@@ -702,7 +702,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 Tap a route-changing control with a top-level locator:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-command \
   --command-json '{"commandId":"tap-settings","commandType":"tap","locator":{"text":"Settings"},"parameters":{"expectedRouteName":"/settings","routeTimeoutMs":5000}}' \
   --profile standard
@@ -725,7 +725,7 @@ jq -n --arg text "Draft release checklist" '{
   }
 }' >/tmp/flutter_cockpit/enter_text.json
 
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-command \
   --command-file /tmp/flutter_cockpit/enter_text.json \
   --profile standard --stdout-format json | jq '{success: .command.success, route: .uiSummary.routeName}'
@@ -749,7 +749,7 @@ jq -n '{
   }
 }' >/tmp/flutter_cockpit/scroll_command.json
 
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-command \
   --command-file /tmp/flutter_cockpit/scroll_command.json \
   --profile standard --stdout-format json | jq '{command: .command.success, route: .uiSummary.routeName, visible: .uiSummary.visibleTargetCount}'
@@ -758,7 +758,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 Run a short batch:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-batch \
   --commands-json '[
     {"commandId":"wait-1","commandType":"waitForUiIdle"},
@@ -771,13 +771,13 @@ If a banner, snackbar, or bottom sheet appears, or a collection mutation changes
 Wait for idle:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools wait-idle
+dart run cockpit wait-idle
 ```
 
 Capture final visible proof without writing command JSON:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   capture-screenshot \
   --name acceptance \
   --profile inspect
@@ -789,7 +789,7 @@ Use this when one app will be edited and reloaded repeatedly. The default
 app-first loop is still cheaper for short tasks.
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   launch-development-session \
   --project-dir /abs/path/to/flutter_app \
   --platform <platform-from-list-targets> \
@@ -802,7 +802,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 app-scoped recording commands instead of external screen-recording tools.
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   collect-development-probe \
   --session-json /tmp/flutter_cockpit/dev_session.json \
   --profile quick \
@@ -814,14 +814,14 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 After edits:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   reload-development-session \
   --session-json /tmp/flutter_cockpit/dev_session.json \
   --mode hot_reload
 ```
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   collect-development-probe \
   --session-json /tmp/flutter_cockpit/dev_session.json \
   --profile quick \
@@ -832,7 +832,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 ```
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   compare-development-probe \
   --from-probe-json /tmp/flutter_cockpit/before_probe.json \
   --to-probe-json /tmp/flutter_cockpit/after_probe.json
@@ -841,7 +841,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 Stop the persistent session when the loop ends:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   stop-development-session \
   --session-json /tmp/flutter_cockpit/dev_session.json
 ```
@@ -852,7 +852,7 @@ Use this only when you intentionally want the lower-level session handle surface
 instead of the app-first `app.json` commands.
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   launch-remote-session \
   --project-dir /abs/path/to/flutter_app \
   --platform <platform-from-list-targets> \
@@ -861,14 +861,14 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 ```
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   read-remote-status \
   --session-json /tmp/flutter_cockpit/session.json \
   --profile minimal
 ```
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   execute-remote-command-batch \
   --session-json /tmp/flutter_cockpit/session.json \
   --commands-file /tmp/flutter_cockpit/commands.json \
@@ -879,7 +879,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 Read network after an action settles:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   read-network \
   --uri-contains /api \
   --only-failures
@@ -888,31 +888,31 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 Read logs or runtime errors:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools read-logs
+dart run cockpit read-logs
 ```
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools read-errors
+dart run cockpit read-errors
 ```
 
 Hot reload or hot restart:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   hot-reload --stdout-format json | jq '{reloadGeneration: .status.reloadGeneration, lastReloadSucceeded: .status.lastReloadSucceeded, lastReloadMode: .status.lastReloadMode}'
 ```
 
 Then verify the changed control. If the intended copy or layout delta is still missing, relaunch once before assuming the app ignored your code edit.
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   hot-restart --stdout-format json | jq '{reloadGeneration: .status.reloadGeneration, lastReloadSucceeded: .status.lastReloadSucceeded, lastReloadMode: .status.lastReloadMode}'
 ```
 
 Stop the app only for cleanup or recovery:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools stop-app
+dart run cockpit stop-app
 ```
 
 ## Recording
@@ -923,7 +923,7 @@ Use recording only when motion, transition, repro timing, or acceptance video is
 Start recording:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   start-recording
 ```
 
@@ -934,7 +934,7 @@ screen capture, or strict layer/fallback control.
 Stop recording:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   stop-recording \
   --app-json /tmp/flutter_cockpit/app.json
 ```
@@ -973,7 +973,7 @@ Use this section for acceptance, release readiness, or artifact-backed handoff. 
 Run a script against a running app:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-script \
   --app-json /tmp/flutter_cockpit/app.json \
   --script /tmp/flutter_cockpit/workflow.yaml \
@@ -990,7 +990,7 @@ connection.
 Run a full task workflow:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-task \
   --config /tmp/flutter_cockpit/run_task.yaml
 ```
@@ -998,7 +998,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 Validate a full task workflow:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   validate-task \
   --config /tmp/flutter_cockpit/validate_task.yaml
 ```
@@ -1006,7 +1006,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 Read the compact delivery summary from an existing bundle:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   read-task-bundle-summary \
   --bundle-dir /tmp/flutter_cockpit/out/20260530T060304005006Z_session-1
 ```
@@ -1018,7 +1018,7 @@ For ordinary development, stop at the rapid loop once the post-action state, cur
 ## MCP
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools serve-mcp
+dart run cockpit serve-mcp
 ```
 
 When an MCP host already supplies roots but the task needs an adjacent repo,
@@ -1053,7 +1053,7 @@ them.
 For short dependent flows, prefer `run-batch` so one request carries the whole ordered chain:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-batch \
   --app-json /tmp/flutter_cockpit/app.json \
   --commands-file /tmp/flutter_cockpit/commands.json \
@@ -1063,7 +1063,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 When the same short flow needs motion or acceptance video, wrap the batch with recording instead of manually pairing `start-recording` and `stop-recording`:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-batch \
   --app-json /tmp/flutter_cockpit/app.json \
   --commands-file /tmp/flutter_cockpit/commands.json \
@@ -1081,7 +1081,7 @@ same reason as manual start/stop recording.
 Search a dependency package before opening files:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   grep-package-uris \
   --package flutter \
   --query ThemeData --stdout-format json | jq '{summary, firstMatch: .packages[0].files[0].packageUri}'
@@ -1090,7 +1090,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 Read only the route and state:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   read-app \
   --app-json /tmp/flutter_cockpit/app.json \
   --profile minimal --stdout-format json | jq '{sessionId,currentRouteName,state}'
@@ -1099,7 +1099,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 Extract one scalar:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   read-app \
   --app-json /tmp/flutter_cockpit/app.json \
   --profile minimal --stdout-format json | jq -r '.currentRouteName'
@@ -1108,7 +1108,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 Keep a larger result on disk, then read only the needed fields:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   validate-task \
   --config /tmp/flutter_cockpit/validate_task.yaml \
   --output /tmp/flutter_cockpit/validate_task_result.json \
@@ -1123,7 +1123,7 @@ jq '{classification,recommendedNextStep,validationFailures}' \
 Prefer command files over long inline JSON:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-command \
   --app-json /tmp/flutter_cockpit/app.json \
   --command-file /tmp/flutter_cockpit/command.json \

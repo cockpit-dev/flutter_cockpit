@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
-import 'package:flutter_cockpit_devtools/flutter_cockpit_devtools.dart';
+import 'package:cockpit/cockpit.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 

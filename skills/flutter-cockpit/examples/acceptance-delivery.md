@@ -14,7 +14,7 @@ Use this pattern when the task must end with bundle-backed evidence. Do not use 
 ## Example
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-script \
   --app-json /tmp/flutter_cockpit/app.json \
   --script /tmp/flutter_cockpit/workflow.yaml \
@@ -25,7 +25,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 Workflow protocol: `docs/contracts/control-workflow-protocol.md`; machine schema: `docs/contracts/control-workflow.schema.json`.
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   validate-task \
   --config /tmp/flutter_cockpit/validate_task.yaml \
   --stdout-format json | jq '{classification,recommendedNextStep,validationFailures}'

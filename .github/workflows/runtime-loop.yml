@@ -49,12 +49,12 @@ jobs:
         run: |
           dart format --output=none --set-exit-if-changed \
             packages/flutter_cockpit \
-            packages/flutter_cockpit_devtools \
+            packages/cockpit \
             examples/cockpit_demo \
             test
-          flutter analyze packages/flutter_cockpit packages/flutter_cockpit_devtools examples/cockpit_demo test
+          flutter analyze packages/flutter_cockpit packages/cockpit examples/cockpit_demo test
           (cd packages/flutter_cockpit && flutter pub publish --dry-run)
-          (cd packages/flutter_cockpit_devtools && dart pub publish --dry-run)
+          (cd packages/cockpit && dart pub publish --dry-run)
           flutter pub get
           git diff --exit-code pubspec.lock
 
@@ -63,7 +63,7 @@ jobs:
         run: |
           dart test test
           (cd packages/flutter_cockpit && flutter test)
-          (cd packages/flutter_cockpit_devtools && dart test)
+          (cd packages/cockpit && dart test)
           flutter pub get
           git diff --exit-code pubspec.lock
           (cd examples/cockpit_demo && flutter test)
@@ -93,11 +93,11 @@ jobs:
         run: flutter pub get
 
       - name: Run MCP surface verification
-        working-directory: packages/flutter_cockpit_devtools
+        working-directory: packages/cockpit
         timeout-minutes: 45
         run: |
-          MCP_VERIFY_LOG="$RUNNER_TEMP/flutter_cockpit_mcp_surface.log"
-          MCP_SUPERVISOR_LOG_DIR="$RUNNER_TEMP/flutter_cockpit_mcp_supervisor_logs"
+          MCP_VERIFY_LOG="$RUNNER_TEMP/cockpit_mcp_surface.log"
+          MCP_SUPERVISOR_LOG_DIR="$RUNNER_TEMP/cockpit_mcp_supervisor_logs"
           mkdir -p "$MCP_SUPERVISOR_LOG_DIR"
           echo "MCP_VERIFY_LOG=$MCP_VERIFY_LOG" >> "$GITHUB_ENV"
           echo "MCP_SUPERVISOR_LOG_DIR=$MCP_SUPERVISOR_LOG_DIR" >> "$GITHUB_ENV"
@@ -300,9 +300,9 @@ jobs:
         timeout-minutes: 10
         run: flutter pub get
 
-      - name: Run Android devtools regression tests
+      - name: Run Android cockpit regression tests
         timeout-minutes: 15
-        working-directory: packages/flutter_cockpit_devtools
+        working-directory: packages/cockpit
         run: |
           dart test \
             test/src/session/cockpit_remote_session_launcher_test.dart \
@@ -450,9 +450,9 @@ jobs:
         timeout-minutes: 10
         run: flutter pub get
 
-      - name: Run iOS devtools regression tests
+      - name: Run iOS cockpit regression tests
         timeout-minutes: 15
-        working-directory: packages/flutter_cockpit_devtools
+        working-directory: packages/cockpit
         run: |
           dart test \
             test/src/session/cockpit_remote_session_launcher_test.dart \
@@ -668,9 +668,9 @@ jobs:
         timeout-minutes: 10
         run: flutter pub get
 
-      - name: Run macOS devtools regression tests
+      - name: Run macOS cockpit regression tests
         timeout-minutes: 15
-        working-directory: packages/flutter_cockpit_devtools
+        working-directory: packages/cockpit
         run: |
           dart test \
             test/src/session/cockpit_remote_session_launcher_test.dart \
@@ -1015,9 +1015,9 @@ jobs:
         timeout-minutes: 10
         run: flutter pub get
 
-      - name: Run Linux desktop devtools regression tests
+      - name: Run Linux desktop cockpit regression tests
         timeout-minutes: 15
-        working-directory: packages/flutter_cockpit_devtools
+        working-directory: packages/cockpit
         run: |
           dart test \
             test/src/session/cockpit_remote_session_launcher_test.dart \
@@ -1187,9 +1187,9 @@ jobs:
         timeout-minutes: 10
         run: flutter pub get
 
-      - name: Run Windows desktop devtools regression tests
+      - name: Run Windows desktop cockpit regression tests
         timeout-minutes: 15
-        working-directory: packages/flutter_cockpit_devtools
+        working-directory: packages/cockpit
         run: |
           dart test \
             test/src/session/cockpit_remote_session_launcher_test.dart \
@@ -1299,7 +1299,7 @@ jobs:
           for directory in candidate_dirs:
               if directory.is_dir():
                   candidates.extend(
-                      directory.glob("flutter_cockpit_development_supervisor_*.log")
+                      directory.glob("cockpit_development_supervisor_*.log")
                   )
 
           seen = set()
@@ -1325,7 +1325,7 @@ jobs:
               print("\n".join(lines[-120:]))
 
           if not copied:
-              print("No flutter_cockpit_development_supervisor_*.log files were found.")
+              print("No cockpit_development_supervisor_*.log files were found.")
           PY
 
       - name: Verify Windows runtime loop result

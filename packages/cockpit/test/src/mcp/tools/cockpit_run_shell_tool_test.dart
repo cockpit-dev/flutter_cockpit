@@ -1,0 +1,112 @@
+import 'package:cockpit/src/application/cockpit_run_shell_service.dart';
+import 'package:cockpit/src/mcp/tools/cockpit_run_shell_tool.dart';
+import 'package:test/test.dart';
+
+void main() {
+  test('run_shell exposes target-aware schema inputs', () {
+    final tool = CockpitRunShellTool();
+
+    final schema = tool.inputSchema;
+    final properties = schema['properties']! as Map<String, Object?>;
+    final scope = properties['scope']! as Map<String, Object?>;
+
+    expect(
+      scope['enum'],
+      containsAll(<String>[
+        'host',
+        'target',
+        'android',
+        'ios',
+        'macos',
+        'windows',
+        'linux',
+      ]),
+    );
+    expect(scope['enum'], isNot(contains('web')));
+    expect(
+      properties.keys,
+      containsAll(<String>[
+        'targetJson',
+        'target',
+        'deviceId',
+        'timeoutSeconds',
+      ]),
+    );
+  });
+
+  test('run_shell executes host commands through the tool surface', () async {
+    final tool = CockpitRunShellTool(
+      runShell: (_) async => const CockpitRunShellResult(
+        scope: 'host',
+        command: <String>['dart', '--version'],
+        exitCode: 0,
+        stdout: 'Dart SDK version: 3.10.8',
+        stderr: '',
+        success: true,
+        recommendedNextStep: 'continue',
+      ),
+    );
+
+    final result = await tool.call(<String, Object?>{
+      'command': <String>['dart', '--version'],
+    });
+
+    expect(result['structuredContent'], isA<Map<String, Object?>>());
+  });
+
+  test(
+    'run_shell forwards targetJson for target-aware shell execution',
+    () async {
+      CockpitRunShellRequest? capturedRequest;
+      final tool = CockpitRunShellTool(
+        runShell: (request) async {
+          capturedRequest = request;
+          return const CockpitRunShellResult(
+            scope: 'android',
+            command: <String>['getprop', 'ro.build.version.sdk'],
+            exitCode: 0,
+            stdout: '34',
+            stderr: '',
+            success: true,
+            recommendedNextStep: 'continue',
+          );
+        },
+      );
+
+      final result = await tool.call(<String, Object?>{
+        'scope': 'target',
+        'targetJson': '/tmp/target.json',
+        'command': <String>['getprop', 'ro.build.version.sdk'],
+      });
+
+      expect(result['structuredContent'], isA<Map<String, Object?>>());
+      expect(capturedRequest?.scope, 'target');
+      expect(capturedRequest?.targetHandlePath, '/tmp/target.json');
+    },
+  );
+
+  test('run_shell forwards timeoutSeconds to the service request', () async {
+    CockpitRunShellRequest? capturedRequest;
+    final tool = CockpitRunShellTool(
+      runShell: (request) async {
+        capturedRequest = request;
+        return const CockpitRunShellResult(
+          scope: 'host',
+          command: <String>['dart', '--version'],
+          exitCode: 0,
+          stdout: 'Dart SDK version: 3.10.8',
+          stderr: '',
+          success: true,
+          recommendedNextStep: 'continue',
+        );
+      },
+    );
+
+    await tool.call(<String, Object?>{
+      'command': <String>['dart', '--version'],
+      'timeoutSeconds': 7,
+    });
+
+    expect(capturedRequest?.timeout, const Duration(seconds: 7));
+  });
+}

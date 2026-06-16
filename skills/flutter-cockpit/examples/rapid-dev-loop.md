@@ -125,28 +125,28 @@ Do not pay delivery-grade cost on every edit. Do pay it when the user-facing cla
 ## Token-Saving Shell Patterns
 
 - Read one small state slice from the default latest-app handle:
-  `flutter_cockpit_devtools read-app --profile minimal --stdout-format json | jq '{currentRouteName,state}'`
+  `cockpit read-app --profile minimal --stdout-format json | jq '{currentRouteName,state}'`
 - If you stay in one repo, let `launch-app` manage `.dart_tool/flutter_cockpit/latest_app.json` and stop repeating `--app-json` unless another step must reopen a named handle from elsewhere.
 - For reload status, project nested fields instead of assuming top-level booleans:
-  `flutter_cockpit_devtools hot-reload --stdout-format json | jq '{reloadGeneration: .status.reloadGeneration, lastReloadSucceeded: .status.lastReloadSucceeded}'`
+  `cockpit hot-reload --stdout-format json | jq '{reloadGeneration: .status.reloadGeneration, lastReloadSucceeded: .status.lastReloadSucceeded}'`
 - For text input flows, verify the next control or saved state instead of expecting `textPreviews` to mirror the field contents:
-  `flutter_cockpit_devtools run-command --command-file /tmp/enter_text.json --profile standard`
+  `cockpit run-command --command-file /tmp/enter_text.json --profile standard`
 - Search first, then open one dependency file:
-  `flutter_cockpit_devtools grep-package-uris --package flutter --query ThemeData --stdout-format json | jq -r '.packages[0].files[0].packageUri'`
+  `cockpit grep-package-uris --package flutter --query ThemeData --stdout-format json | jq -r '.packages[0].files[0].packageUri'`
 - When only one branch decision matters, extract one field:
-  `flutter_cockpit_devtools read-errors --app-json /tmp/flutter_cockpit/app.json --stdout-format json | jq '.hasErrors'`
+  `cockpit read-errors --app-json /tmp/flutter_cockpit/app.json --stdout-format json | jq '.hasErrors'`
 - Keep larger results off stdout only when a later step needs the full payload again:
-  `flutter_cockpit_devtools run-task --config /tmp/run_task.yaml --output /tmp/runTaskResult.json --output-format json`
+  `cockpit run-task --config /tmp/run_task.yaml --output /tmp/runTaskResult.json --output-format json`
   `jq '{classification,recommendedNextStep}' /tmp/runTaskResult.json`
 - Workspace commands default to the current directory, so omit `--workspace-root` unless you are operating outside the repo you already opened.
 - Prefer file inputs over long inline JSON:
-  `flutter_cockpit_devtools run-command --command-file /tmp/command.json --profile standard`
+  `cockpit run-command --command-file /tmp/command.json --profile standard`
 - Use `jq` to trim, not to compensate for asking the app for an unnecessarily heavy profile.
 
 ## Example
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   launch-app \
   --project-dir <project-dir> \
   --platform <platform> \
@@ -154,18 +154,18 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 ```
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools hot-reload
+dart run cockpit hot-reload
 ```
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-command \
   --profile standard \
   --command-json '{"commandId":"open-filter","commandType":"tap","locator":{"text":"<filter-label>","type":"TextButton","ancestor":{"route":"<current-route>"}}}'
 ```
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools read-app --profile minimal
+dart run cockpit read-app --profile minimal
 ```
 
 ## Expected Agent Behavior

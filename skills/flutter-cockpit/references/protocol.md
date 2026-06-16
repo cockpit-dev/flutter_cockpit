@@ -14,8 +14,8 @@ Resolution order:
 
 1. Prefer the MCP resource URI when MCP is available.
 2. Fall back to the repo file when working from a monorepo checkout.
-3. Fall back to `packages/flutter_cockpit_devtools/doc/contracts/` or
-   `doc/contracts/` when running from a published devtools package.
+3. Fall back to `packages/cockpit/doc/contracts/` or
+   `doc/contracts/` when running from a published cockpit package.
 
 Load only the contract needed for the current uncertainty; do not bulk-load the
 whole contract set.
@@ -31,9 +31,9 @@ whole contract set.
 | Bundle traceability | `cockpit://workspace/task-bundle-contract` | `docs/contracts/task-run-bundle.md` |
 | Skill maintenance contract | `cockpit://workspace/skill-contract` | `docs/contracts/flutter-cockpit-skill-contract.md` |
 
-Published devtools packages ship the same files under
+Published cockpit packages ship the same files under
 `doc/contracts/`; monorepo checkouts also expose them under
-`packages/flutter_cockpit_devtools/doc/contracts/`.
+`packages/cockpit/doc/contracts/`.
 
 ## Selection Rules
 

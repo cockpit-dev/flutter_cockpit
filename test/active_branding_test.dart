@@ -44,13 +44,13 @@ void main() {
       'skills/flutter-cockpit/examples/flutter-app-setup.md',
       'packages/flutter_cockpit/lib/src/remote/cockpit_remote_session_configuration.dart',
       'packages/flutter_cockpit/lib/src/runtime/cockpit_runtime_environment.dart',
-      'packages/flutter_cockpit_devtools/lib/src/development/cockpit_development_session_machine_launcher.dart',
-      'packages/flutter_cockpit_devtools/lib/src/session/cockpit_android_remote_session_launcher.dart',
-      'packages/flutter_cockpit_devtools/lib/src/session/cockpit_ios_physical_remote_session_launcher.dart',
-      'packages/flutter_cockpit_devtools/lib/src/session/cockpit_ios_simulator_remote_session_launcher.dart',
-      'packages/flutter_cockpit_devtools/lib/src/session/cockpit_linux_remote_session_launcher.dart',
-      'packages/flutter_cockpit_devtools/lib/src/session/cockpit_macos_remote_session_launcher.dart',
-      'packages/flutter_cockpit_devtools/lib/src/session/cockpit_windows_remote_session_launcher.dart',
+      'packages/cockpit/lib/src/development/cockpit_development_session_machine_launcher.dart',
+      'packages/cockpit/lib/src/session/cockpit_android_remote_session_launcher.dart',
+      'packages/cockpit/lib/src/session/cockpit_ios_physical_remote_session_launcher.dart',
+      'packages/cockpit/lib/src/session/cockpit_ios_simulator_remote_session_launcher.dart',
+      'packages/cockpit/lib/src/session/cockpit_linux_remote_session_launcher.dart',
+      'packages/cockpit/lib/src/session/cockpit_macos_remote_session_launcher.dart',
+      'packages/cockpit/lib/src/session/cockpit_windows_remote_session_launcher.dart',
     ];
 
     for (final relativePath in files) {
@@ -79,7 +79,7 @@ void main() {
   test('active package trees do not keep legacy flutter_pilot filenames', () {
     final packageRoots = <Directory>[
       Directory('$root/packages/flutter_cockpit'),
-      Directory('$root/packages/flutter_cockpit_devtools'),
+      Directory('$root/packages/cockpit'),
     ];
 
     final legacyPaths = packageRoots
@@ -120,11 +120,11 @@ void main() {
     final readmes = <String, String>{
       'README.md': File('$root/README.md').readAsStringSync(),
       'README.zh-CN.md': File('$root/README.zh-CN.md').readAsStringSync(),
-      'packages/flutter_cockpit_devtools/README.md': File(
-        '$root/packages/flutter_cockpit_devtools/README.md',
+      'packages/cockpit/README.md': File(
+        '$root/packages/cockpit/README.md',
       ).readAsStringSync(),
-      'packages/flutter_cockpit_devtools/README.zh-CN.md': File(
-        '$root/packages/flutter_cockpit_devtools/README.zh-CN.md',
+      'packages/cockpit/README.zh-CN.md': File(
+        '$root/packages/cockpit/README.zh-CN.md',
       ).readAsStringSync(),
     };
     const coreTools = <String>[
@@ -208,11 +208,9 @@ void main() {
   });
 
   test('devtools readmes keep output path and output format separate', () {
-    final readme = File(
-      '$root/packages/flutter_cockpit_devtools/README.md',
-    ).readAsStringSync();
+    final readme = File('$root/packages/cockpit/README.md').readAsStringSync();
     final readmeZh = File(
-      '$root/packages/flutter_cockpit_devtools/README.zh-CN.md',
+      '$root/packages/cockpit/README.zh-CN.md',
     ).readAsStringSync();
     final runtimeLoopWorkflow = File(
       '$root/.github/workflows/runtime-loop.yml',

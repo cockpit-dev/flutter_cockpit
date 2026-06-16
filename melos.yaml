@@ -2,7 +2,7 @@ name: flutter_cockpit_workspace
 
 packages:
   - packages/flutter_cockpit
-  - packages/flutter_cockpit_devtools
+  - packages/cockpit
   - examples/cockpit_demo
 
 scripts:
@@ -12,5 +12,5 @@ scripts:
     run: >-
       (dart test test) &&
       (cd packages/flutter_cockpit && flutter test) &&
-      (cd packages/flutter_cockpit_devtools && dart test) &&
+      (cd packages/cockpit && dart test) &&
       (cd examples/cockpit_demo && flutter test)
