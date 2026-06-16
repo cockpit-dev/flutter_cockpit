@@ -1,8 +1,6 @@
-import 'dart:convert';
-import 'dart:typed_data';
-
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
+import '../../platform/windows/cockpit_windows_powershell.dart';
 import '../cockpit_system_control_action.dart';
 import '../cockpit_system_control_adapter.dart';
 import '../cockpit_system_control_parameters.dart';
@@ -1355,29 +1353,9 @@ final class CockpitDesktopSystemControlAdapter
     String script, {
     List<String> arguments = const <String>[],
   }) {
-    final body = arguments.isEmpty
-        ? script
-        : '& {\n$script\n} ${arguments.map(_powershellSingleQuoted).join(' ')}';
     return CockpitResolvedSystemControlCommand('powershell', <String>[
-      '-NoProfile',
-      '-NonInteractive',
-      '-EncodedCommand',
-      _powershellEncodedCommand(body),
+      ...cockpitWindowsPowerShellCommand(script, arguments: arguments),
     ]);
-  }
-
-  static String _powershellSingleQuoted(String value) {
-    return "'${value.replaceAll("'", "''")}'";
-  }
-
-  static String _powershellEncodedCommand(String script) {
-    final codeUnits = script.codeUnits;
-    final bytes = Uint8List(codeUnits.length * 2);
-    final view = ByteData.view(bytes.buffer);
-    for (var index = 0; index < codeUnits.length; index += 1) {
-      view.setUint16(index * 2, codeUnits[index], Endian.little);
-    }
-    return base64.encode(bytes);
   }
 
   CockpitResolvedSystemControlCommand _windowsInput(List<String> args) {

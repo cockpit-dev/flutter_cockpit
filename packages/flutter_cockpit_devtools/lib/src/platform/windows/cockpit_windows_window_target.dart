@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'cockpit_windows_powershell.dart';
+
 typedef CockpitWindowsShellRunner =
     Future<ProcessResult> Function(String executable, List<String> arguments);
 
@@ -42,13 +44,14 @@ Future<CockpitWindowsWindowTarget> cockpitResolveWindowsWindowTarget({
   required Duration activationSettleDelay,
 }) async {
   final result = await processRunner(powershellExecutable, <String>[
-    '-NoProfile',
-    '-NonInteractive',
-    '-Command',
-    _windowTargetScript,
-    appId,
-    processId?.toString() ?? '',
-    activationSettleDelay.inMilliseconds.toString(),
+    ...cockpitWindowsPowerShellCommand(
+      _windowTargetScript,
+      arguments: <String>[
+        appId,
+        processId?.toString() ?? '',
+        activationSettleDelay.inMilliseconds.toString(),
+      ],
+    ),
   ]).timeout(timeout);
   if (result.exitCode != 0) {
     throw StateError(
