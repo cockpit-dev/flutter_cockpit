@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
@@ -19,7 +20,7 @@ void main() {
         }
       });
 
-      final invocations = <String>[];
+      final invocations = <List<String>>[];
       final outputFile = File(p.join(tempDir.path, 'acceptance.png'));
       final adapter = CockpitWindowsCaptureAdapter(
         appId: 'cockpit_demo',
@@ -46,7 +47,8 @@ void main() {
             },
         tempFileFactory: (_) async => outputFile,
         processRunner: (executable, arguments) async {
-          invocations.add('$executable ${arguments.join(' ')}');
+          expect(executable, 'powershell');
+          invocations.add(List<String>.from(arguments));
           outputFile.writeAsStringSync('png-data');
           return ProcessResult(0, 0, '', '');
         },
@@ -75,12 +77,16 @@ void main() {
       );
       expect(execution.artifactSourcePaths, isNotEmpty);
       expect(outputFile.readAsStringSync(), 'png-data');
-      expect(invocations.single, contains('powershell'));
-      expect(invocations.single, isNot(contains('PrimaryScreen.Bounds')));
-      expect(invocations.single, contains('120'));
-      expect(invocations.single, contains('48'));
-      expect(invocations.single, contains('900'));
-      expect(invocations.single, contains('640'));
+      expect(invocations.single[0], '-NoProfile');
+      expect(invocations.single[1], '-NonInteractive');
+      expect(invocations.single[2], '-EncodedCommand');
+      final script = _decodeWindowsPowerShellEncodedCommand(
+        invocations.single[3],
+      );
+      expect(script, isNot(contains('PrimaryScreen.Bounds')));
+      expect(script, contains(r'$outputPath = $args[0]'));
+      expect(script, contains("} '${outputFile.path.replaceAll("'", "''")}'"));
+      expect(script, contains("'120' '48' '900' '640'"));
     },
   );
 
@@ -171,4 +177,12 @@ void main() {
       contains('No visible Windows window was found.'),
     );
   });
+}
+
+String _decodeWindowsPowerShellEncodedCommand(String encoded) {
+  final bytes = base64.decode(encoded);
+  return String.fromCharCodes(<int>[
+    for (var index = 0; index < bytes.length; index += 2)
+      bytes[index] | (bytes[index + 1] << 8),
+  ]);
 }

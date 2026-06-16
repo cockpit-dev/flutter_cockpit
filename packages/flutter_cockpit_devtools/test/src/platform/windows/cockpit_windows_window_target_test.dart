@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_cockpit_devtools/src/platform/windows/cockpit_windows_window_target.dart';
@@ -27,11 +28,12 @@ void main() {
 
     expect(invocation[0], '-NoProfile');
     expect(invocation[1], '-NonInteractive');
-    expect(invocation[2], '-Command');
-    expect(invocation[3], isNot(contains(r'$appId:')));
-    expect(invocation[4], 'cockpit_demo');
-    expect(invocation[5], '4101');
-    expect(invocation[6], '250');
+    expect(invocation[2], '-EncodedCommand');
+    final script = _decodeWindowsPowerShellEncodedCommand(invocation[3]);
+    expect(script, contains(r'& {'));
+    expect(script, contains(r'$appId = $args[0]'));
+    expect(script, contains("} 'cockpit_demo' '4101' '250'"));
+    expect(script, isNot(contains(r'$appId:')));
     expect(target.title, 'Cockpit Demo');
     expect(target.handle, 4242);
     expect(target.left, 120);
@@ -39,4 +41,12 @@ void main() {
     expect(target.width, 900);
     expect(target.height, 640);
   });
+}
+
+String _decodeWindowsPowerShellEncodedCommand(String encoded) {
+  final bytes = base64.decode(encoded);
+  return String.fromCharCodes(<int>[
+    for (var index = 0; index < bytes.length; index += 2)
+      bytes[index] | (bytes[index + 1] << 8),
+  ]);
 }

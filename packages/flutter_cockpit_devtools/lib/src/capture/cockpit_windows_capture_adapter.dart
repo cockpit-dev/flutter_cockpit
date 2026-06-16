@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
 import '../platform/windows/cockpit_windows_window_target.dart';
+import '../platform/windows/cockpit_windows_powershell.dart';
 import '../session/cockpit_session_process_runner.dart';
 import 'cockpit_host_capture_adapter.dart';
 
@@ -67,17 +68,19 @@ final class CockpitWindowsCaptureAdapter implements CockpitHostCaptureAdapter {
         timeout: _timeout,
         activationSettleDelay: _activationSettleDelay,
       );
-      final result = await _runProcess(_powershellExecutable, <String>[
-        '-NoProfile',
-        '-NonInteractive',
-        '-Command',
-        _captureScript,
-        outputFile.path,
-        windowTarget.left.toString(),
-        windowTarget.top.toString(),
-        windowTarget.width.toString(),
-        windowTarget.height.toString(),
-      ]);
+      final result = await _runProcess(
+        _powershellExecutable,
+        cockpitWindowsPowerShellCommand(
+          _captureScript,
+          arguments: <String>[
+            outputFile.path,
+            windowTarget.left.toString(),
+            windowTarget.top.toString(),
+            windowTarget.width.toString(),
+            windowTarget.height.toString(),
+          ],
+        ),
+      );
       stopwatch.stop();
 
       if (result.exitCode != 0) {
