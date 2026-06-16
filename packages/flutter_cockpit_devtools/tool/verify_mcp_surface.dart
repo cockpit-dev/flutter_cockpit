@@ -20,9 +20,13 @@ Future<void> main() async {
     );
   }
   stdout.writeln(reportFile.path);
-  if (report.summary['success'] == false) {
-    exitCode = 1;
-  }
+  exit(await _finishVerifierRun(report.summary['success'] == false ? 1 : 0));
+}
+
+Future<int> _finishVerifierRun(int code) async {
+  await stdout.flush();
+  await stderr.flush();
+  return code;
 }
 
 final class _VerificationReport {

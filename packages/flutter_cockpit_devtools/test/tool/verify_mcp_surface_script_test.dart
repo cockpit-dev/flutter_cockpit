@@ -116,4 +116,21 @@ void main() {
       isNot(contains('if (process.kill()) {\n        await process.exitCode;')),
     );
   });
+
+  test('MCP surface verifier flushes report output and exits explicitly', () {
+    final packageRelativeScript = File('tool/verify_mcp_surface.dart');
+    final repoRelativeScript = File(
+      'packages/flutter_cockpit_devtools/tool/verify_mcp_surface.dart',
+    );
+    final scriptFile = packageRelativeScript.existsSync()
+        ? packageRelativeScript
+        : repoRelativeScript;
+    final script = scriptFile.readAsStringSync();
+
+    expect(script, contains('Future<int> _finishVerifierRun('));
+    expect(script, contains('await stdout.flush();'));
+    expect(script, contains('await stderr.flush();'));
+    expect(script, contains('exit(await _finishVerifierRun('));
+    expect(script, isNot(contains("exitCode = 1;")));
+  });
 }

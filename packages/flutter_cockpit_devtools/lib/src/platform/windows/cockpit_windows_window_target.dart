@@ -169,7 +169,7 @@ if (-not [CockpitWindowInterop]::GetWindowRect($windowHandle, [ref]$rect)) {
 $width = $rect.Right - $rect.Left
 $height = $rect.Bottom - $rect.Top
 if ($width -le 0 -or $height -le 0) {
-  throw "Resolved invalid bounds for process $appId: $($rect.Left),$($rect.Top),$width,$height"
+  throw "Resolved invalid bounds for process ${appId}: $($rect.Left),$($rect.Top),$width,$height"
 }
 [pscustomobject]@{
   title = $process.MainWindowTitle
