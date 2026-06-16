@@ -41,6 +41,7 @@ final class CockpitStopRemoteRecordingTool extends CockpitMcpTool {
     'properties': <String, Object?>{
       'sessionHandle': <String, Object?>{'type': 'object'},
       'sessionHandlePath': <String, Object?>{'type': 'string'},
+      'iosDeviceId': <String, Object?>{'type': 'string'},
     },
   };
 
@@ -54,6 +55,7 @@ final class CockpitStopRemoteRecordingTool extends CockpitMcpTool {
             arguments,
             'sessionHandlePath',
           ),
+          iosDeviceId: cockpitReadOptionalString(arguments, 'iosDeviceId'),
         ),
       );
       return cockpitMcpResult(

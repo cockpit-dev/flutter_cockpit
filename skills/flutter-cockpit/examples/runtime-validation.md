@@ -105,7 +105,7 @@ simulator-native capture, and Android emulators usually use device tooling.
 Blocked host permissions should be reported as structured environment warnings
 when the app-control path is still valid.
 
-For development-loop video, use flutter_cockpit recording first. A
+For development-loop video, use Cockpit recording commands first. A
 `launch-development-session` also writes an app handle, so bare
 `start-recording`, `stop-recording`, and `run-batch --recording-json` can stay
 app-scoped while the development session continues handling hot reload and

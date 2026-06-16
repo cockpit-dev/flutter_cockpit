@@ -61,6 +61,7 @@ final class StopRemoteRecordingCommand extends CockpitCliCommand {
         baseUri: cockpitReadOptionalBaseUri(argResults),
         sessionHandlePath: cockpitResolveRemoteSessionHandlePath(argResults),
         androidDeviceId: argResults?['android-device-id'] as String?,
+        iosDeviceId: argResults?['ios-device-id'] as String?,
       ),
     );
     await cockpitWriteJsonPayload(

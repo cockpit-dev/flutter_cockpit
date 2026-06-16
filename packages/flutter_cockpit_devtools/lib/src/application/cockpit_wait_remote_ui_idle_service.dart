@@ -20,6 +20,7 @@ final class CockpitWaitRemoteUiIdleRequest {
     this.sessionHandle,
     this.sessionHandlePath,
     this.androidDeviceId,
+    this.iosDeviceId,
     this.quietWindow = const Duration(milliseconds: 96),
     this.timeout = const Duration(milliseconds: 1600),
     this.includeNetworkIdle = true,
@@ -29,6 +30,7 @@ final class CockpitWaitRemoteUiIdleRequest {
   final CockpitRemoteSessionHandle? sessionHandle;
   final String? sessionHandlePath;
   final String? androidDeviceId;
+  final String? iosDeviceId;
   final Duration quietWindow;
   final Duration timeout;
   final bool includeNetworkIdle;
@@ -97,6 +99,7 @@ final class CockpitWaitRemoteUiIdleService {
       sessionHandle: request.sessionHandle,
       sessionHandlePath: request.sessionHandlePath,
       androidDeviceId: request.androidDeviceId,
+      iosDeviceId: request.iosDeviceId,
     );
     final stopwatch = Stopwatch()..start();
     final idle = await _sessionLock.run(resolved.baseUri.toString(), () async {

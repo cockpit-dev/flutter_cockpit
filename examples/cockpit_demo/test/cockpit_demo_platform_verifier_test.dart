@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
@@ -1751,7 +1752,10 @@ void main() {
         ),
       );
 
-      expect(result.success, isTrue);
+      expect(
+        result.success,
+        isTrue,
+      );
       expect(readAppAttempts, greaterThanOrEqualTo(4));
       expect(assertNewTaskAttempts, 2);
       expect(createBatchAttempts, 1);
@@ -3033,7 +3037,10 @@ void main() {
         ),
       );
 
-      expect(result.success, isTrue);
+      expect(
+        result.success,
+        isTrue,
+      );
       expect(result.platforms, hasLength(1));
       final platform = result.platforms.single;
       expect(platform.status, 'passed');
@@ -3304,6 +3311,244 @@ void main() {
       expect(
         platform.warnings.single,
         contains('macOS recording did not stop before timeout.'),
+      );
+    },
+  );
+
+  test(
+    'verifier synthesizes a Windows timeline recording when host recording startup evidence is unavailable',
+    () async {
+      final outputRoot = await Directory.systemTemp.createTemp(
+        'cockpit_windows_start_fallback_',
+      );
+      addTearDown(() async {
+        if (await outputRoot.exists()) {
+          await outputRoot.delete(recursive: true);
+        }
+      });
+      final verifier = CockpitDemoPlatformVerifier(
+        describeSystemControl: _fakeDescribeSystemControl,
+        runSystemAction: _fakeRunSystemAction,
+        probeDevices: () async => const <CockpitDemoHostDevice>[
+          CockpitDemoHostDevice(
+            name: 'Windows',
+            deviceId: 'windows',
+            platform: 'windows',
+            emulator: false,
+            supported: true,
+          ),
+        ],
+        wait: (_) async {},
+        runProcess: (executable, arguments, {String? workingDirectory}) async {
+          return ProcessResult(0, 0, '', '');
+        },
+        launchApp: (request) async {
+          return CockpitLaunchAppResult(
+            app: _appForPlatform(
+              platform: request.platform,
+              deviceId: request.deviceId,
+              baseUrl: 'http://127.0.0.1:${request.sessionPort}',
+            ),
+            appJsonPath:
+                '${request.projectDir}/.dart_tool/cockpit_platforms/${request.platform}/app.json',
+          );
+        },
+        readApp: (request) async => CockpitReadAppResult(
+          sessionId: 'windows-session',
+          transportType: 'remoteHttp',
+          capabilities: CockpitCapabilities(
+            platform: 'windows',
+            transportType: 'remoteHttp',
+            supportsInAppControl: true,
+            supportsFlutterViewCapture: true,
+            supportsNativeScreenCapture: true,
+            supportsHostAutomation: true,
+            supportedCommands: const <CockpitCommandType>[
+              CockpitCommandType.tap,
+              CockpitCommandType.enterText,
+              CockpitCommandType.assertText,
+              CockpitCommandType.captureScreenshot,
+            ],
+            supportedLocatorStrategies: CockpitLocatorKind.values,
+          ),
+          recordingCapabilities: CockpitRecordingCapabilities(
+            supportsNativeRecording: true,
+            preferredAcceptanceRecordingKind: CockpitRecordingKind.nativeScreen,
+          ),
+          currentRouteName: '/inbox',
+        ),
+        inspectUi: (_) async => const CockpitInspectUiResult(
+          routeName: '/inbox',
+          diagnosticLevel: 'investigate',
+          truncated: false,
+        ),
+        runCommand: (request) async => _successfulCommandResult(
+          request.command,
+          includeScreenshot:
+              request.command.commandType ==
+                  CockpitCommandType.captureScreenshot ||
+              cockpitCommandTypeIsAiEvidenceKeyOperation(
+                request.command.commandType,
+              ),
+          screenshotByteLength: 512,
+        ),
+        runBatch: (request) async => _successfulBatchResult(request),
+        waitIdle: (_) async => const CockpitWaitIdleResult(
+          idle: true,
+          durationMs: 120,
+          quietWindowMs: 160,
+          timeoutMs: 5000,
+          includeNetworkIdle: true,
+        ),
+        readNetwork: (request) async => CockpitReadNetworkResult(
+          appId: 'windows-network',
+          source: 'app_snapshot',
+          available: true,
+          routeName: '/inbox',
+          summary: CockpitReadNetworkSummary(
+            totalEntryCount: 0,
+            failureCount: 0,
+            capturedEntryCount: 0,
+            inFlightCount: 0,
+            truncated: false,
+            query: request.networkQuery,
+          ),
+          endpointSummaries: const <CockpitNetworkEndpointSummary>[],
+          endpointSummariesTruncated: false,
+          recentFailures: const <CockpitNetworkEntry>[],
+        ),
+        readErrors: (_) async => const CockpitReadErrorsResult(
+          appId: 'windows-errors',
+          routeName: '/inbox',
+          source: 'app_snapshot',
+          errors: <CockpitErrorEntry>[],
+        ),
+        readLogs: (_) async => const CockpitReadLogsResult(
+          appId: 'windows-logs',
+          source: 'app_snapshot',
+          available: true,
+          routeName: '/inbox',
+          lines: <String>['info runtime: windows verification warning path'],
+          truncated: false,
+        ),
+        inspectSurface: (request) async => CockpitInspectSurfaceResult(
+          target: CockpitTargetHandle.fromAppHandle(request.app!),
+          capabilityProfile: CockpitCapabilityProfile(
+            targetKind: CockpitTargetKind.desktopApp,
+            surfaceKinds: <CockpitSurfaceKind>{
+              CockpitSurfaceKind.flutterSemantic,
+              CockpitSurfaceKind.nativeUi,
+              CockpitSurfaceKind.desktopWindow,
+            },
+            actionCapabilities: <CockpitActionCapability>{
+              CockpitActionCapability.tap,
+              CockpitActionCapability.captureScreenshot,
+            },
+            evidenceCapabilities: <CockpitEvidenceCapability>{
+              CockpitEvidenceCapability.windowCapture,
+              CockpitEvidenceCapability.flutterScreenshot,
+            },
+          ),
+          surfaceKind: CockpitSurfaceKind.desktopWindow,
+          selectedPlane: CockpitPlaneKind.flutterSemanticPlane,
+          recommendedNextStep: 'continue',
+          routeName: '/inbox',
+          diagnosticLevel: 'inspect',
+          truncated: false,
+        ),
+        recordingAdapterResolver:
+            ({
+              required platform,
+              required deviceId,
+              required app,
+              required client,
+              required recording,
+            }) {
+              return _FakeRecordingAdapter(
+                onStart: (_) async {
+                  throw StateError(
+                    'Windows recording did not confirm startup or produce output. '
+                    'Ensure the desktop session is active and ffmpeg gdigrab can capture the screen on this host.',
+                  );
+                },
+                onStop: () async =>
+                    throw StateError('stop should not be called'),
+              );
+            },
+        hotReload: (request) async => CockpitHotReloadResult(
+          app: request.app!,
+          status: CockpitDevelopmentSessionStatus(
+            developmentSessionId: 'windows-session',
+            state: CockpitDevelopmentSessionState.ready,
+            appReachable: true,
+            remoteSessionReachable: true,
+            reloadGeneration: 1,
+            lastReloadMode: CockpitDevelopmentReloadMode.hotReload,
+            lastReloadSucceeded: true,
+            lastStatusAt: DateTime.utc(2026, 4, 11),
+          ),
+        ),
+        hotRestart: (request) async => CockpitHotRestartResult(
+          app: request.app!,
+          status: CockpitDevelopmentSessionStatus(
+            developmentSessionId: 'windows-session',
+            state: CockpitDevelopmentSessionState.ready,
+            appReachable: true,
+            remoteSessionReachable: true,
+            reloadGeneration: 2,
+            lastReloadMode: CockpitDevelopmentReloadMode.hotRestart,
+            lastReloadSucceeded: true,
+            lastStatusAt: DateTime.utc(2026, 4, 11, 0, 0, 1),
+          ),
+        ),
+        stopApp: (request) async => CockpitStopAppResult(
+          app: request.app!,
+          status: CockpitAppStopStatus.stopped(mode: request.app!.mode),
+        ),
+        timelineRecordingProcessRunner: (executable, arguments) async {
+          expect(executable, 'ffmpeg');
+          final outputPath = arguments.last;
+          await File(outputPath).writeAsBytes(<int>[1, 2, 3, 4], flush: true);
+          return ProcessResult(0, 0, '', '');
+        },
+      );
+
+      final result = await verifier.verify(
+        CockpitDemoPlatformVerificationRequest(
+          projectDir: '/workspace/examples/cockpit_demo',
+          platforms: const <String>['windows'],
+          outputRoot: outputRoot.path,
+        ),
+      );
+
+      expect(result.success, isTrue);
+      final platform = result.platforms.single;
+      expect(platform.status, 'passed');
+      expect(
+        platform.recordingArtifactRef,
+        'recordings/verify_windows_loop_timeline_fallback.mp4',
+      );
+      expect(platform.recordingOutputPath, isNotNull);
+      expect(File(platform.recordingOutputPath!).existsSync(), isTrue);
+      expect(platform.recordingDriver, 'windows-host-fallback');
+      expect(platform.recordingKind, 'timelineScreenshotFallback');
+      expect(platform.exportedScreenshotCount, platform.autoScreenshotCount);
+      expect(
+        platform.verifiedCommands,
+        contains('timeline-recording-fallback'),
+      );
+      expect(
+        platform.verifiedCommands,
+        isNot(contains('start-recording')),
+      );
+      expect(platform.warnings, hasLength(2));
+      expect(
+        platform.warnings.first,
+        contains('Windows recording did not confirm startup'),
+      );
+      expect(
+        platform.warnings.last,
+        contains('Synthesized a timeline recording'),
       );
     },
   );

@@ -111,6 +111,16 @@ void main() {
     expect(readAppProperties, contains('androidDeviceId'));
     expect(readAppProperties, isNot(contains('resultProfile')));
 
+    final runCommandProperties =
+        ((byName['run_command']!['inputSchema']
+                    as Map<String, Object?>)['properties']
+                as Map<String, Object?>)
+            .keys;
+    expect(
+      runCommandProperties,
+      containsAll(<String>['androidDeviceId', 'iosDeviceId']),
+    );
+
     final runBatchProperties =
         ((byName['run_batch']!['inputSchema']
                     as Map<String, Object?>)['properties']

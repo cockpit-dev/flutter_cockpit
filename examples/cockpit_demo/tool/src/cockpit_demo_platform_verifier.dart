@@ -729,7 +729,7 @@ final class CockpitDemoPlatformVerifier {
         }
         recordingStarted = true;
       } on Object catch (error) {
-        if (!_shouldAllowWebHostRecordingPrerequisiteFailure(
+        if (!_shouldAllowHostRecordingPrerequisiteFailure(
           platform: platform,
           request: request,
           error: error,
@@ -738,7 +738,7 @@ final class CockpitDemoPlatformVerifier {
         }
         recordingFallbackReason = error;
         warnings.add(
-          'Web host recording could not be started on this machine; a timeline recording will be synthesized from exported key-step screenshots: $error',
+          'Host recording could not be started on this machine; a timeline recording will be synthesized from exported key-step screenshots: $error',
         );
       }
       final batchResult = await _runBatchWithRetry(
@@ -799,7 +799,7 @@ final class CockpitDemoPlatformVerifier {
           recordingDurationMs = recordingStop.durationMs;
           recordingKind = recordingStop.recordingKind?.name;
         } on Object catch (error) {
-          if (!_shouldAllowWebHostRecordingPrerequisiteFailure(
+          if (!_shouldAllowHostRecordingPrerequisiteFailure(
             platform: platform,
             request: request,
             error: error,
@@ -823,7 +823,7 @@ final class CockpitDemoPlatformVerifier {
           verifiedCommands.add('stop-recording');
           verifiedCommands.add('timeline-recording-fallback');
           warnings.add(
-            'Web host recording could not be finalized on this machine; synthesized a timeline recording from exported key-step screenshots: $error',
+            'Host recording could not be finalized on this machine; synthesized a timeline recording from exported key-step screenshots: $error',
           );
         }
       }
@@ -1192,7 +1192,7 @@ final class CockpitDemoPlatformVerifier {
           throw CockpitApplicationServiceException(
             code: 'recordingFallbackFailed',
             message:
-                'Web host recording failed and screenshot timeline fallback could not be produced.',
+                'Host recording failed and screenshot timeline fallback could not be produced.',
             details: <String, Object?>{
               'platform': platform,
               'reason': '$recordingFallbackReason',
@@ -1207,7 +1207,7 @@ final class CockpitDemoPlatformVerifier {
         recordingKind = timelineRecording.kind;
         verifiedCommands.add('timeline-recording-fallback');
         warnings.add(
-          'Synthesized a timeline recording from exported key-step screenshots after web host recording startup failed.',
+          'Synthesized a timeline recording from exported key-step screenshots after host recording startup failed.',
         );
       }
 
@@ -1329,12 +1329,11 @@ final class CockpitDemoPlatformVerifier {
         recordingOutputPath: recordingOutputPath,
         recordingDurationMs: recordingDurationMs,
         recordingKind: recordingKind,
-        recordingDriver: recordingFallbackUsed
-            ? 'browser-host-fallback'
-            : cockpitDemoRecordingDriverForPlatform(
-                platform: platform,
-                deviceId: deviceId,
-              ),
+        recordingDriver: _recordingDriverForVerification(
+          platform: platform,
+          deviceId: deviceId,
+          fallbackUsed: recordingFallbackUsed,
+        ),
         screenshotArtifactRef: screenshotArtifact.relativePath,
         screenshotOutputPath: screenshotOutputPath,
         screenshotByteLength: screenshotArtifact.byteLength,
@@ -2157,7 +2156,7 @@ final class CockpitDemoPlatformVerifier {
     required String outputDir,
     required String recordingName,
   }) async {
-    if (platform != 'web') {
+    if (!_canBuildTimelineRecordingFallback(platform)) {
       return null;
     }
     final screenshotsDir = Directory(p.join(outputDir, 'screenshots'));
@@ -2239,6 +2238,13 @@ final class CockpitDemoPlatformVerifier {
         await workingDirectory.delete(recursive: true);
       }
     }
+  }
+
+  bool _canBuildTimelineRecordingFallback(String platform) {
+    return switch (platform) {
+      'linux' || 'macos' || 'web' || 'windows' => true,
+      _ => false,
+    };
   }
 
   String _sanitizeTimelineRecordingName(String value) {
@@ -3053,12 +3059,27 @@ String _formatRuntimeLogLine(CockpitRuntimeEvent entry) {
 
 Future<void> _defaultWait(Duration duration) => Future<void>.delayed(duration);
 
-bool _shouldAllowWebHostRecordingPrerequisiteFailure({
+String _recordingDriverForVerification({
+  required String platform,
+  required String deviceId,
+  required bool fallbackUsed,
+}) {
+  final driver = cockpitDemoRecordingDriverForPlatform(
+    platform: platform,
+    deviceId: deviceId,
+  );
+  return fallbackUsed ? '$driver-fallback' : driver;
+}
+
+bool _shouldAllowHostRecordingPrerequisiteFailure({
   required String platform,
   required CockpitDemoPlatformVerificationRequest request,
   required Object error,
 }) {
-  if (platform != 'web') {
+  if (!_canSynthesizeHostRecordingFallback(
+    platform: platform,
+    request: request,
+  )) {
     return false;
   }
 
@@ -3079,11 +3100,23 @@ bool _shouldAllowWebHostRecordingPrerequisiteFailure({
       ) ||
       message.contains('"error":"recordingStartFailed"') ||
       message.contains('recordingStopFailed') ||
+      message.contains('did not confirm startup or produce output') ||
       message.contains('ffmpeg never confirmed') ||
       message.contains('startup/output evidence') ||
       message.contains('Screen Recording permission') ||
       message.contains('recording output file was missing or empty') ||
       message.contains('desktop capture prerequisite');
+}
+
+bool _canSynthesizeHostRecordingFallback({
+  required String platform,
+  required CockpitDemoPlatformVerificationRequest request,
+}) {
+  return switch (platform) {
+    'linux' || 'macos' || 'windows' => true,
+    'web' => request.allowWebHostRecordingPrerequisiteFailure,
+    _ => false,
+  };
 }
 
 final class _ResolvedRemoteReference {

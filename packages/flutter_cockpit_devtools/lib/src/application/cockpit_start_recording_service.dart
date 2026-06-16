@@ -55,6 +55,7 @@ final class CockpitStartRecordingService {
       appHandlePath: request.appHandlePath,
       baseUri: request.baseUri,
       androidDeviceId: request.androidDeviceId,
+      iosDeviceId: request.iosDeviceId,
     );
     final platform = _resolvedPlatform(
       app: resolved.app,
@@ -107,6 +108,7 @@ final class CockpitStartRecordingService {
       CockpitStartRemoteRecordingRequest(
         baseUri: resolved.baseUri,
         sessionHandle: resolved.app?.remoteSession,
+        iosDeviceId: request.iosDeviceId,
         recording: request.recording,
       ),
     );

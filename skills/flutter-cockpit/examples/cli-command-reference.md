@@ -951,7 +951,7 @@ because it also preserves platform app id, process id, and remote-session
 metadata.
 
 For development-loop recording, do not leave flutter_cockpit for `simctl`,
-QuickTime, Chrome DevTools, or shell screen capture until framework recording
+QuickTime, Chrome DevTools, or shell screen capture until Cockpit recording
 has failed with a concrete `recordingStrategyUnavailable`,
 `recordingStartFailed`, or environment-prerequisite message. Use
 bare `start-recording` before the risky edit/reload/interaction window and

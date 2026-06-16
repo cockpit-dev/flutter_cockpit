@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter_cockpit_devtools/src/platform/ios/cockpit_ios_device_connection.dart';
 import 'package:flutter_cockpit_devtools/src/remote/cockpit_android_port_forwarder.dart';
 import 'package:flutter_cockpit_devtools/src/session/cockpit_remote_session_handle.dart';
 import 'package:flutter_cockpit_devtools/src/application/cockpit_session_reference_resolver.dart';
@@ -145,4 +146,47 @@ void main() {
       expect(resolved.sessionHandle?.devicePort, 47331);
     },
   );
+
+  test(
+    'baseUri with android device id resolves to local forwarded port',
+    () async {
+      final resolver = CockpitSessionReferenceResolver(
+        portForwarder: CockpitAndroidPortForwarder(
+          processRunner: (_, _) async =>
+              ProcessResult(0, 0, 'emulator-5554 tcp:61331 tcp:47331\n', ''),
+          hostPortAllocator: () async => 61331,
+          hostPortAvailabilityChecker: (_) async => true,
+        ),
+      );
+
+      final resolved = await resolver.resolve(
+        baseUri: Uri.parse('http://10.0.2.2:47331/cockpit'),
+        androidDeviceId: 'emulator-5554',
+      );
+
+      expect(resolved.baseUri.host, '127.0.0.1');
+      expect(resolved.baseUri.port, 61331);
+      expect(resolved.baseUri.path, '/cockpit');
+    },
+  );
+
+  test('baseUri with physical ios device id resolves to tunnel ip', () async {
+    final resolver = CockpitSessionReferenceResolver(
+      iosDeviceConnectionReader: (deviceId) async {
+        expect(deviceId, '00008110-001234560E10801E');
+        return const CockpitIosDeviceConnection(
+          isPhysical: true,
+          tunnelIpAddress: 'fd00::9',
+        );
+      },
+    );
+
+    final resolved = await resolver.resolve(
+      baseUri: Uri.parse('http://127.0.0.1:57331/cockpit'),
+      iosDeviceId: '00008110-001234560E10801E',
+    );
+
+    expect(resolved.baseUri.toString(), 'http://[fd00::9]:57331/cockpit');
+    expect(resolved.sessionHandle, isNull);
+  });
 }

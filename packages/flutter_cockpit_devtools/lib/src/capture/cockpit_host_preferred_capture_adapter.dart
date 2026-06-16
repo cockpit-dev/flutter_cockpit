@@ -23,13 +23,21 @@ final class CockpitHostPreferredCaptureAdapter
   @override
   Future<CockpitCommandExecution> capture(CockpitCommand command) async {
     final request = command.screenshotRequest;
-    if (request == null ||
-        request.reason != CockpitScreenshotReason.acceptance) {
+    if (request == null) {
       return _remoteAdapter.capture(command);
     }
 
     await _client.waitForUiIdle(timeout: _preCaptureIdleTimeout);
-    final execution = await _hostAcceptanceAdapter.capture(command);
+    final CockpitCommandExecution execution;
+    try {
+      execution = await _hostAcceptanceAdapter.capture(command);
+    } on Object {
+      final fallbackExecution = await _remoteAdapter.capture(command);
+      return _withFallbackMetadata(
+        fallbackExecution,
+        degradationReason: 'hostCaptureThrew',
+      );
+    }
     if (!execution.result.success) {
       final fallbackExecution = await _remoteAdapter.capture(command);
       if (!fallbackExecution.result.success) {

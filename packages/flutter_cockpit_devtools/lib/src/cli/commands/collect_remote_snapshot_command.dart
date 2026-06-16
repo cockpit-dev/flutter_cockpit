@@ -22,13 +22,8 @@ final class CollectRemoteSnapshotCommand extends CockpitCliCommand {
            collect ??
            (service ?? CockpitCollectRemoteSnapshotService()).collect,
        _stdoutSink = stdoutSink ?? stdout {
+    cockpitAddRemoteSessionArgs(argParser);
     argParser
-      ..addOption('base-url', help: 'Base URL for the running app session.')
-      ..addOption('session-json', help: cockpitRemoteSessionJsonOptionHelp)
-      ..addOption(
-        'android-device-id',
-        help: 'Optional Android device ID used to set up adb port forwarding.',
-      )
       ..addOption(
         'profile',
         help: 'Snapshot detail profile.',
@@ -173,6 +168,7 @@ final class CollectRemoteSnapshotCommand extends CockpitCliCommand {
         baseUri: baseUrl == null || baseUrl.isEmpty ? null : Uri.parse(baseUrl),
         sessionHandlePath: sessionJsonPath,
         androidDeviceId: argResults?['android-device-id'] as String?,
+        iosDeviceId: argResults?['ios-device-id'] as String?,
         options: _readSnapshotOptions(),
         downloadDiagnosticsArtifacts: _readFlag(
           'download-diagnostics-artifacts',

@@ -83,6 +83,11 @@ void cockpitAddRemoteSessionArgs(ArgParser parser) {
       'android-device-id',
       help:
           'Android device ID for adb port forwarding when the app is not directly reachable.',
+    )
+    ..addOption(
+      'ios-device-id',
+      help:
+          'iOS simulator or device ID for system capture, recording, and native control when app metadata is not available.',
     );
   cockpitAddOutputArgs(parser);
 }
@@ -99,6 +104,11 @@ void cockpitAddAppArgs(ArgParser parser) {
       'android-device-id',
       help:
           'Android device ID for adb port forwarding when the app is not directly reachable.',
+    )
+    ..addOption(
+      'ios-device-id',
+      help:
+          'iOS simulator or device ID for system capture, recording, and native control when app metadata is not available.',
     );
   cockpitAddOutputArgs(parser);
 }

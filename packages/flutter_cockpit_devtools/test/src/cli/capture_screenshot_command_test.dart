@@ -44,6 +44,8 @@ void main() {
             'capture-screenshot',
             '--base-url',
             'http://127.0.0.1:47331',
+            '--ios-device-id',
+            '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
             '--name',
             'home',
             '--reason',
@@ -63,6 +65,7 @@ void main() {
       final request = capturedRequest;
       expect(request, isNotNull);
       expect(request!.baseUri, Uri.parse('http://127.0.0.1:47331'));
+      expect(request.iosDeviceId, '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC');
       expect(request.name, 'home');
       expect(request.reason, CockpitScreenshotReason.baseline);
       expect(request.includeSnapshot, isTrue);

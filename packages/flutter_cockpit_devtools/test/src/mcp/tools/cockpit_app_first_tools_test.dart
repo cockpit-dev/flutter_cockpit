@@ -210,6 +210,31 @@ void main() {
     ]);
   });
 
+  test('app-first MCP tools pass iosDeviceId through', () async {
+    final seen = <String>[];
+
+    await CockpitRunCommandTool(
+      runCommand: (request) async {
+        expect(request.iosDeviceId, '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC');
+        seen.add('run_command');
+        return _commandResult();
+      },
+    ).call(<String, Object?>{
+      ..._iosArguments(),
+      'command': <String, Object?>{'commandId': 'tap-1', 'commandType': 'tap'},
+    });
+
+    await CockpitCaptureScreenshotTool(
+      capture: (request) async {
+        expect(request.iosDeviceId, '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC');
+        seen.add('capture_screenshot');
+        return _commandResult();
+      },
+    ).call(<String, Object?>{..._iosArguments(), 'name': 'ios-acceptance'});
+
+    expect(seen, <String>['run_command', 'capture_screenshot']);
+  });
+
   test('recording MCP tools pass iosDeviceId through', () async {
     final seen = <String>[];
 

@@ -19,11 +19,6 @@ final class StopRecordingCommand extends CockpitCliCommand {
   }) : _stop = stop ?? (service ?? CockpitStopRecordingService()).stop,
        _stdoutSink = stdoutSink ?? stdout {
     cockpitAddAppArgs(argParser);
-    argParser.addOption(
-      'ios-device-id',
-      help:
-          'iOS device or simulator ID for host-side recording when app metadata is unavailable.',
-    );
   }
 
   final CockpitStopRecordingFunction _stop;

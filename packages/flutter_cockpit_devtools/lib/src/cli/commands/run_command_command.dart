@@ -88,6 +88,7 @@ final class RunCommandCommand extends CockpitCliCommand {
         baseUri: cockpitReadOptionalBaseUri(argResults),
         appHandlePath: cockpitResolveAppHandlePath(argResults),
         androidDeviceId: argResults?['android-device-id'] as String?,
+        iosDeviceId: argResults?['ios-device-id'] as String?,
         command: cockpitDecodeCliJson(
           decode: () => CockpitCommand.fromJson(commandJson),
           label: 'command JSON',

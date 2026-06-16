@@ -24,6 +24,23 @@ sealed class CockpitWorkflowStep {
         stepId: stepId,
         command: _readCommand(json['command'], '$path.command'),
       ),
+      'startRecording' => CockpitStartRecordingWorkflowStep(
+        stepId: stepId,
+        recording: _readRecordingRequest(
+          json['recording'],
+          '$path.recording',
+        ),
+      ),
+      'stopRecording' => CockpitStopRecordingWorkflowStep(
+        stepId: stepId,
+        settleDelay: Duration(
+          milliseconds: _readNonNegativeInt(
+            json['settleMs'],
+            '$path.settleMs',
+            defaultValue: 1400,
+          ),
+        ),
+      ),
       'if' => CockpitIfWorkflowStep(
         stepId: stepId,
         condition: _readCommand(json['condition'], '$path.condition'),
@@ -66,6 +83,44 @@ sealed class CockpitWorkflowStep {
       ),
     };
   }
+}
+
+final class CockpitStartRecordingWorkflowStep extends CockpitWorkflowStep {
+  const CockpitStartRecordingWorkflowStep({
+    required super.stepId,
+    required this.recording,
+  });
+
+  final CockpitRecordingRequest recording;
+
+  @override
+  String get stepType => 'startRecording';
+
+  @override
+  Map<String, Object?> toJson() => <String, Object?>{
+    'stepId': stepId,
+    'stepType': stepType,
+    'recording': recording.toJson(),
+  };
+}
+
+final class CockpitStopRecordingWorkflowStep extends CockpitWorkflowStep {
+  const CockpitStopRecordingWorkflowStep({
+    required super.stepId,
+    this.settleDelay = const Duration(milliseconds: 1400),
+  });
+
+  final Duration settleDelay;
+
+  @override
+  String get stepType => 'stopRecording';
+
+  @override
+  Map<String, Object?> toJson() => <String, Object?>{
+    'stepId': stepId,
+    'stepType': stepType,
+    'settleMs': settleDelay.inMilliseconds,
+  };
 }
 
 final class CockpitCommandWorkflowStep extends CockpitWorkflowStep {
@@ -253,6 +308,13 @@ CockpitCommand _readCommand(Object? value, String path) {
     throw FormatException('Workflow command at $path must be an object.');
   }
   return CockpitCommand.fromJson(_stringKeyedMap(value, path));
+}
+
+CockpitRecordingRequest _readRecordingRequest(Object? value, String path) {
+  if (value is! Map<Object?, Object?>) {
+    throw FormatException('Workflow recording at $path must be an object.');
+  }
+  return CockpitRecordingRequest.fromJson(_stringKeyedMap(value, path));
 }
 
 Map<String, Object?> _stringKeyedMap(Map<Object?, Object?> value, String path) {

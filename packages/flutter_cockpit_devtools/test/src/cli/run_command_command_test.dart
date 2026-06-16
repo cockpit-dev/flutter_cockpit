@@ -58,6 +58,54 @@ void main() {
     expect(stdoutBuffer.toString(), isNot(contains('\n  "')));
   });
 
+  test('run-command passes mobile device ids through', () async {
+    CockpitRunCommandRequest? capturedRequest;
+    final stdoutBuffer = StringBuffer();
+    final runner = CommandRunner<int>('flutter_cockpit_devtools', 'test')
+      ..addCommand(
+        RunCommandCommand(
+          stdoutSink: stdoutBuffer,
+          runCommand: (request) async {
+            capturedRequest = request;
+            return CockpitRunCommandResult(
+              command: const CockpitInteractiveCommandCore(
+                commandId: 'tap-1',
+                commandType: 'tap',
+                success: true,
+                durationMs: 42,
+                usedCaptureFallback: false,
+              ),
+              artifacts: const <CockpitInteractiveArtifactDescriptor>[],
+            );
+          },
+        ),
+      );
+
+    final exitCode =
+        await runner.run(<String>[
+          'run-command',
+          '--base-url',
+          'http://127.0.0.1:47331',
+          '--android-device-id',
+          'emulator-5554',
+          '--ios-device-id',
+          '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+          '--command-json',
+          jsonEncode(<String, Object?>{
+            'commandId': 'tap-1',
+            'commandType': 'tap',
+          }),
+        ]) ??
+        0;
+
+    expect(exitCode, 0);
+    expect(capturedRequest?.androidDeviceId, 'emulator-5554');
+    expect(
+      capturedRequest?.iosDeviceId,
+      '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+    );
+  });
+
   test(
     'run-command writes pretty json files when output-format json is used',
     () async {

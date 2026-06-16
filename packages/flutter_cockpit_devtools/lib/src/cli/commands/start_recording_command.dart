@@ -22,11 +22,6 @@ final class StartRecordingCommand extends CockpitCliCommand {
   }) : _start = start ?? (service ?? CockpitStartRecordingService()).start,
        _stdoutSink = stdoutSink ?? stdout {
     cockpitAddAppArgs(argParser);
-    argParser.addOption(
-      'ios-device-id',
-      help:
-          'iOS device or simulator ID for host-side recording when app metadata is unavailable.',
-    );
     cockpitAddRecordingArgs(argParser);
   }
 

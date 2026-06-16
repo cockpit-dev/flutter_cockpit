@@ -14,6 +14,7 @@ final class CockpitRunCommandRequest {
     this.appHandlePath,
     this.baseUri,
     this.androidDeviceId,
+    this.iosDeviceId,
     this.resultProfile = const CockpitInteractiveResultProfile.standard(),
     this.snapshotOptions,
     this.compareAgainstSnapshotRef,
@@ -26,6 +27,7 @@ final class CockpitRunCommandRequest {
   final String? appHandlePath;
   final Uri? baseUri;
   final String? androidDeviceId;
+  final String? iosDeviceId;
   final CockpitInteractiveResultProfile resultProfile;
   final CockpitSnapshotOptions? snapshotOptions;
   final String? compareAgainstSnapshotRef;
@@ -54,6 +56,7 @@ final class CockpitRunCommandService {
       appHandlePath: request.appHandlePath,
       baseUri: request.baseUri,
       androidDeviceId: request.androidDeviceId,
+      iosDeviceId: request.iosDeviceId,
     );
     return _executeService.execute(
       CockpitExecuteRemoteCommandRequest(

@@ -48,8 +48,7 @@
       }
     },
     "recording": {
-      "type": "object",
-      "additionalProperties": true
+      "$ref": "#/$defs/recordingRequest"
     },
     "failFast": {
       "type": "boolean",
@@ -100,6 +99,12 @@
           "$ref": "#/$defs/commandStep"
         },
         {
+          "$ref": "#/$defs/startRecordingStep"
+        },
+        {
+          "$ref": "#/$defs/stopRecordingStep"
+        },
+        {
           "$ref": "#/$defs/ifStep"
         },
         {
@@ -109,6 +114,42 @@
           "$ref": "#/$defs/retryStep"
         }
       ]
+    },
+    "recordingRequest": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["purpose", "name"],
+      "properties": {
+        "purpose": {
+          "type": "string",
+          "enum": ["acceptance", "repro"]
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "mode": {
+          "type": "string",
+          "enum": ["auto", "cheap", "native", "full"],
+          "default": "auto"
+        },
+        "layer": {
+          "type": "string",
+          "enum": ["flutter", "app-window", "host-screen", "system"]
+        },
+        "allowFallback": {
+          "type": "boolean"
+        },
+        "attachToStep": {
+          "type": "boolean",
+          "default": false
+        },
+        "tailStabilizationMs": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 1400
+        }
+      }
     },
     "stepBase": {
       "type": "object",
@@ -138,6 +179,45 @@
             },
             "command": {
               "$ref": "#/$defs/command"
+            }
+          }
+        }
+      ]
+    },
+    "startRecordingStep": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/stepBase"
+        },
+        {
+          "type": "object",
+          "required": ["recording"],
+          "properties": {
+            "stepType": {
+              "const": "startRecording"
+            },
+            "recording": {
+              "$ref": "#/$defs/recordingRequest"
+            }
+          }
+        }
+      ]
+    },
+    "stopRecordingStep": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/stepBase"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "stepType": {
+              "const": "stopRecording"
+            },
+            "settleMs": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 1400
             }
           }
         }

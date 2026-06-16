@@ -50,6 +50,7 @@ final class CockpitExecuteRemoteCommandBatchTool extends CockpitMcpTool {
     'properties': <String, Object?>{
       'sessionHandle': <String, Object?>{'type': 'object'},
       'sessionHandlePath': <String, Object?>{'type': 'string'},
+      'iosDeviceId': <String, Object?>{'type': 'string'},
       'commands': <String, Object?>{'type': 'array'},
       'defaultTimeoutMs': <String, Object?>{'type': 'integer'},
       'defaultProfile': <String, Object?>{'type': 'string'},
@@ -70,6 +71,7 @@ final class CockpitExecuteRemoteCommandBatchTool extends CockpitMcpTool {
             arguments,
             'sessionHandlePath',
           ),
+          iosDeviceId: cockpitReadOptionalString(arguments, 'iosDeviceId'),
           commands: cockpitReadRequiredObjectList(
             arguments,
             'commands',

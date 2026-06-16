@@ -203,8 +203,9 @@ If `launch-app` omits `--app-json`, it persists the current app handle at `.dart
 When a command accepts both `--app-json` and `--base-url`, precedence is: explicit `--app-json`, then explicit `--base-url`, then the implicit `.dart_tool/flutter_cockpit/latest_app.json` handle in the current working directory.
 `launch-app` auto-detects `cockpit/main.dart` first, then `lib/main.dart`.
 `run-script --script <workflow.yaml|script.json>` accepts YAML or JSON scripts.
-Use YAML for hand-written `if`, `retry`, and bounded `loop` workflows, and JSON
-for generated scripts. The protocol map is shipped with this package at
+Use YAML for hand-written `if`, `retry`, bounded `loop`, and
+`startRecording` / `stopRecording` workflows, and JSON for generated scripts.
+The protocol map is shipped with this package at
 [`doc/contracts/flutter-cockpit-protocol.md`](doc/contracts/flutter-cockpit-protocol.md).
 The AI development protocol is shipped with this package
 at [`doc/contracts/ai-development-protocol.md`](doc/contracts/ai-development-protocol.md).
@@ -219,6 +220,8 @@ When the next few steps are already known and the flow will cross a route bounda
 `read-app` and snapshots expose focus state. When `uiSummary.focus.isTextInputFocus` is true or a software keyboard covers the next target, run `dismissKeyboard` as a locator-free command before scrolling or tapping again.
 Use product-specific locator signals. Short repeated action labels such as `Open`, `Edit`, or `Save` are fine as fallbacks, but they should not be the only signal when multiple rows or cards can expose the same word. Prefer the full accessible label from `read-app` / `inspect-ui`, then add `route`, `type`, or `ancestor` only as needed.
 For route-changing `tap` commands, set `parameters.expectedRouteName`. Add `parameters.routeTimeoutMs` for CI, recording, simulator, or other acceptance flows where runner latency is expected; `timeoutMs` remains the hard command ceiling. Follow critical route crossings with `waitFor` on `parameters.routeName`. To wait for spinners, dialogs, or routes to disappear, use `waitFor` with `parameters.absent: true`.
+`capture-screenshot` uses app metadata when available and prefers system/host
+capture before falling back to app capture with fallback metadata.
 `run-command`, `run-batch`, and `run-script` default key mutating commands to
 best-effort after-action screenshots attached to the command step. This gives
 agents key-frame evidence for taps, text input, scrolls, drags, and back

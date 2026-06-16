@@ -49,6 +49,7 @@ final class CockpitExecuteRemoteCommandTool extends CockpitMcpTool {
     'properties': <String, Object?>{
       'sessionHandle': <String, Object?>{'type': 'object'},
       'sessionHandlePath': <String, Object?>{'type': 'string'},
+      'iosDeviceId': <String, Object?>{'type': 'string'},
       'command': <String, Object?>{'type': 'object'},
       'timeoutMs': <String, Object?>{'type': 'integer'},
       'profile': <String, Object?>{'type': 'string'},
@@ -67,6 +68,7 @@ final class CockpitExecuteRemoteCommandTool extends CockpitMcpTool {
             arguments,
             'sessionHandlePath',
           ),
+          iosDeviceId: cockpitReadOptionalString(arguments, 'iosDeviceId'),
           command: CockpitCommand.fromJson(
             cockpitReadRequiredObject(arguments, 'command'),
           ),

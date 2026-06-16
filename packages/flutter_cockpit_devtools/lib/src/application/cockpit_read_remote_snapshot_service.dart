@@ -30,6 +30,7 @@ final class CockpitReadRemoteSnapshotRequest {
     this.sessionHandle,
     this.sessionHandlePath,
     this.androidDeviceId,
+    this.iosDeviceId,
     this.resultProfile = const CockpitInteractiveResultProfile.standard(),
     this.snapshotOptions,
     this.compareAgainstSnapshotRef,
@@ -39,6 +40,7 @@ final class CockpitReadRemoteSnapshotRequest {
   final CockpitRemoteSessionHandle? sessionHandle;
   final String? sessionHandlePath;
   final String? androidDeviceId;
+  final String? iosDeviceId;
   final CockpitInteractiveResultProfile resultProfile;
   final CockpitSnapshotOptions? snapshotOptions;
   final String? compareAgainstSnapshotRef;
@@ -116,6 +118,7 @@ final class CockpitReadRemoteSnapshotService {
       sessionHandle: request.sessionHandle,
       sessionHandlePath: request.sessionHandlePath,
       androidDeviceId: request.androidDeviceId,
+      iosDeviceId: request.iosDeviceId,
     );
     final effectiveSnapshotOptions = request.resultProfile
         .resolveSnapshotOptions(request.snapshotOptions);

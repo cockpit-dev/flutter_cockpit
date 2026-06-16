@@ -52,6 +52,8 @@ Published devtools packages ship the same files under
 - Use `--stdout-format json` for pipes and `--output <path> --output-format json`
   for machine-readable files.
 - Workflow files may be YAML or JSON; persisted bundle files are JSON.
+- Workflow nodes include `command`, `if`, `retry`, `loop`, `startRecording`,
+  and `stopRecording`.
 - Unsupported platform actions must be unavailable or blocked by environment,
   not reported as successful.
 - Product proof requires live state or traceable artifacts, not command success

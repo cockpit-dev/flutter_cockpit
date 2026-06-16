@@ -33,6 +33,7 @@ final class CockpitCaptureScreenshotTool extends CockpitMcpTool {
       'appJson': <String, Object?>{'type': 'string'},
       'baseUrl': <String, Object?>{'type': 'string'},
       'androidDeviceId': <String, Object?>{'type': 'string'},
+      'iosDeviceId': <String, Object?>{'type': 'string'},
       'name': <String, Object?>{'type': 'string'},
       'reason': <String, Object?>{'type': 'string'},
       'includeSnapshot': <String, Object?>{'type': 'boolean'},
@@ -71,6 +72,7 @@ final class CockpitCaptureScreenshotTool extends CockpitMcpTool {
             arguments,
             'androidDeviceId',
           ),
+          iosDeviceId: cockpitReadOptionalString(arguments, 'iosDeviceId'),
           name: cockpitReadOptionalString(arguments, 'name') ?? 'screenshot',
           reason: _readReason(arguments),
           includeSnapshot:
