@@ -26,10 +26,7 @@ sealed class CockpitWorkflowStep {
       ),
       'startRecording' => CockpitStartRecordingWorkflowStep(
         stepId: stepId,
-        recording: _readRecordingRequest(
-          json['recording'],
-          '$path.recording',
-        ),
+        recording: _readRecordingRequest(json['recording'], '$path.recording'),
       ),
       'stopRecording' => CockpitStopRecordingWorkflowStep(
         stepId: stepId,

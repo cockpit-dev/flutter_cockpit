@@ -9,6 +9,7 @@ import 'package:flutter_cockpit_devtools/src/artifacts/cockpit_timeline_video_fa
 import 'package:flutter_cockpit_devtools/src/artifacts/task_run_bundle_writer.dart';
 import 'package:flutter_cockpit_devtools/src/cli/cockpit_control_script.dart';
 import 'package:flutter_cockpit_devtools/src/recording/cockpit_recording_strategy_resolver.dart';
+import 'package:flutter_cockpit_devtools/src/runner/cockpit_workflow_step.dart';
 import 'package:flutter_cockpit_devtools/src/session/cockpit_remote_session_handle.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
@@ -690,6 +691,146 @@ void main() {
       expect(
         File(result.artifactPaths.primaryRecordingPath!).readAsBytesSync(),
         <int>[4, 1, 0, 1],
+      );
+    },
+  );
+
+  test(
+    'run service resolves recording strategy for step-level recording requests',
+    () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_run_remote_control_script_service_step_recording',
+      );
+      addTearDown(() async {
+        await server.close(force: true);
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      server.listen((request) async {
+        request.response.headers.contentType = ContentType.json;
+        switch ((request.method, request.uri.path)) {
+          case ('GET', '/health'):
+            request.response.write(
+              jsonEncode(
+                CockpitRemoteSessionStatus(
+                  sessionId: 'windows-step-recording-service',
+                  platform: 'windows',
+                  transportType: 'remoteHttp',
+                  currentRouteName: '/home',
+                  capabilities: CockpitCapabilities(
+                    platform: 'windows',
+                    transportType: 'remoteHttp',
+                    supportsInAppControl: true,
+                    supportsFlutterViewCapture: true,
+                    supportsNativeScreenCapture: true,
+                    supportsHostAutomation: false,
+                    supportedCommands: const <CockpitCommandType>[],
+                    supportedLocatorStrategies: CockpitLocatorKind.values,
+                  ),
+                  recordingCapabilities: CockpitRecordingCapabilities(
+                    supportsNativeRecording: false,
+                    preferredAcceptanceRecordingKind:
+                        CockpitRecordingKind.nativeScreen,
+                  ),
+                  snapshot: CockpitSnapshot(routeName: '/home'),
+                ).toJson(),
+              ),
+            );
+          default:
+            request.response.statusCode = HttpStatus.notFound;
+            request.response.write(
+              jsonEncode(const <String, Object?>{'error': 'notFound'}),
+            );
+        }
+        await request.response.close();
+      });
+
+      String? capturedAppId;
+      int? capturedProcessId;
+      final hostRecordingSource = File(
+        p.join(tempDir.path, 'windows_step_recording.mp4'),
+      )..writeAsBytesSync(const <int>[9, 8, 7, 6]);
+      final service = CockpitRunRemoteControlScriptService(
+        recordingStrategyResolver: CockpitRecordingStrategyResolver(
+          remoteAdapterFactory: (_) =>
+              throw StateError('remote recording adapter should not be used'),
+          windowsAdapterFactory: (appId, {processId}) {
+            capturedAppId = appId;
+            capturedProcessId = processId;
+            return _HostOnlyRecordingAdapter(hostRecordingSource.path);
+          },
+        ),
+      );
+
+      final result = await service.run(
+        CockpitRunRemoteControlScriptRequest(
+          script: CockpitControlScript(
+            sessionId: 'remote-step-recording-session',
+            taskId: 'remote-step-recording-task',
+            platform: 'windows',
+            environment: const CockpitEnvironment(
+              platform: 'windows',
+              flutterVersion: '3.38.9',
+              dartVersion: '3.10.8',
+            ),
+            workflowSteps: const <CockpitWorkflowStep>[
+              CockpitStartRecordingWorkflowStep(
+                stepId: 'record-risky-flow',
+                recording: CockpitRecordingRequest(
+                  purpose: CockpitRecordingPurpose.acceptance,
+                  name: 'windows-step-recording',
+                  mode: CockpitRecordingMode.full,
+                  tailStabilizationDelay: Duration.zero,
+                ),
+              ),
+              CockpitStopRecordingWorkflowStep(
+                stepId: 'stop-risky-flow',
+                settleDelay: Duration.zero,
+              ),
+            ],
+            failFast: true,
+          ),
+          outputRoot: tempDir.path,
+          platformAppId: 'cockpit_demo',
+          processId: 4102,
+          baseUri: Uri.parse('http://127.0.0.1:${server.port}'),
+        ),
+      );
+
+      expect(capturedAppId, 'cockpit_demo');
+      expect(capturedProcessId, 4102);
+      expect(result.manifest.status, CockpitTaskStatus.completed);
+      expect(result.manifest.recordingCount, 1);
+      expect(
+        File(result.artifactPaths.primaryRecordingPath!).readAsBytesSync(),
+        <int>[9, 8, 7, 6],
+      );
+      final trace =
+          jsonDecode(
+                File(
+                  p.join(result.bundleDir.path, 'trace.json'),
+                ).readAsStringSync(),
+              )
+              as Map<String, Object?>;
+      final entries = trace['entries']! as List<Object?>;
+      expect(
+        entries.any(
+          (entry) =>
+              (entry as Map<String, Object?>)['workflowStepId'] ==
+              'record-risky-flow',
+        ),
+        isTrue,
+      );
+      expect(
+        entries.any(
+          (entry) =>
+              (entry as Map<String, Object?>)['workflowStepId'] ==
+              'stop-risky-flow',
+        ),
+        isTrue,
       );
     },
   );

@@ -153,7 +153,7 @@ Runs a condition command before each iteration. When the condition succeeds, chi
 - Loop termination by failed condition is success.
 - Loop exhaustion at `maxIterations` is recorded as `workflow_loop_exhausted`; it is not a failure by itself because bounded draining workflows often stop at their budget.
 - Top-level `recording` starts before the workflow and stops after the workflow, including failure paths.
-- Step-level `startRecording` / `stopRecording` records only the selected workflow segment. A second start while recording is active is a workflow failure; an unclosed active recording is stopped during cleanup.
+- Step-level `startRecording` / `stopRecording` records only the selected workflow segment. Each start resolves the recording strategy from that step's own `recording` request. A second start while recording is active is a workflow failure; an unclosed active recording is stopped during cleanup.
 - Screenshots and recordings prefer system/host evidence when the platform exposes it and fall back to app/remote evidence when fallback is allowed or the screenshot host capture fails.
 - Artifact payloads and source files from probes, attempts, commands, screenshots, and recordings are all carried into the final task-run bundle.
 

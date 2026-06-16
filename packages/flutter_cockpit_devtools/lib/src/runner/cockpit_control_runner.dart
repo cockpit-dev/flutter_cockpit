@@ -41,9 +41,10 @@ final class CockpitControlRunner {
     final recordingState = _WorkflowRecordingState();
 
     if (recording != null) {
-      recordingState.session = await _startRecording(recording);
+      final startOutcome = await _startRecording(recording);
+      recordingState.session = startOutcome.session;
       if (recordingState.session == null) {
-        failureSummary = 'Recording ${recording.name} failed to start.';
+        failureSummary = startOutcome.failureSummary;
       }
     }
 
@@ -111,7 +112,7 @@ final class CockpitControlRunner {
     );
   }
 
-  Future<CockpitRecordingSession?> _startRecording(
+  Future<_RecordingStartOutcome> _startRecording(
     CockpitRecordingRequest request, {
     String? workflowStepId,
     String? workflowStepType,
@@ -150,8 +151,10 @@ final class CockpitControlRunner {
           'recordingState': session.state.name,
         },
       );
-      return session;
+      return _RecordingStartOutcome.success(session);
     } catch (error) {
+      final failureSummary =
+          'Recording ${request.name} failed to start: $error';
       _sessionController.recordStep(
         actionType: 'recording_failed',
         actionArgs: <String, Object?>{
@@ -162,10 +165,10 @@ final class CockpitControlRunner {
           'recordingName': request.name,
           'recordingPurpose': request.purpose.name,
           'recordingState': CockpitRecordingState.failed.name,
-          'failureReason': error.toString(),
+          'failureReason': failureSummary,
         },
       );
-      return null;
+      return _RecordingStartOutcome.failure(failureSummary);
     }
   }
 
@@ -321,11 +324,15 @@ final class CockpitControlRunner {
     }
 
     try {
-      recordingState.session = await _startRecording(
+      final startOutcome = await _startRecording(
         step.recording,
         workflowStepId: step.stepId,
         workflowStepType: step.stepType,
       );
+      recordingState.session = startOutcome.session;
+      if (!startOutcome.success) {
+        return _WorkflowStepOutcome.failure(startOutcome.failureSummary!);
+      }
     } catch (error) {
       final failureSummary = error.toString();
       _sessionController.recordStep(
@@ -342,11 +349,6 @@ final class CockpitControlRunner {
       return _WorkflowStepOutcome.failure(failureSummary);
     }
 
-    if (recordingState.session == null) {
-      return _WorkflowStepOutcome.failure(
-        'Recording ${step.recording.name} failed to start.',
-      );
-    }
     return const _WorkflowStepOutcome.success();
   }
 
@@ -646,6 +648,20 @@ enum _WorkflowExecutionMode { finalResult, probe }
 
 final class _WorkflowRecordingState {
   CockpitRecordingSession? session;
+}
+
+final class _RecordingStartOutcome {
+  const _RecordingStartOutcome.success(CockpitRecordingSession this.session)
+    : success = true,
+      failureSummary = null;
+
+  const _RecordingStartOutcome.failure(this.failureSummary)
+    : success = false,
+      session = null;
+
+  final bool success;
+  final CockpitRecordingSession? session;
+  final String? failureSummary;
 }
 
 final class _RecordingStopOutcome {
