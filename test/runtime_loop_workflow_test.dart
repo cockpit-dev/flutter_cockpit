@@ -343,6 +343,22 @@ void main() {
         );
         expect(block, contains('startup_fallback_commands'));
         expect(block, contains('stop_fallback_commands'));
+        expect(
+          block,
+          contains('if command not in ("start-recording", "stop-recording")'),
+        );
+        expect(block, contains('+ ["timeline-recording-fallback"]'));
+        expect(block, contains('stop_fallback_commands.insert('));
+        expect(
+          startupFallbackCommandsWithTimeline,
+          isNot(contains('start-recording')),
+        );
+        expect(
+          startupFallbackCommandsWithTimeline,
+          isNot(contains('stop-recording')),
+        );
+        expect(stopFallbackCommands, contains('start-recording'));
+        expect(stopFallbackCommands, contains('stop-recording'));
         expect(block, contains('recording_driver == expected_driver'));
         expect(
           block,

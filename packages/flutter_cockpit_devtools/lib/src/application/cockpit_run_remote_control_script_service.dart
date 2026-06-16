@@ -217,9 +217,13 @@ final class CockpitRunRemoteControlScriptService {
     required CockpitRunRemoteControlScriptRequest request,
     required CockpitRemoteSessionHandle? sessionHandle,
   }) {
-    final resolution = _recordingStrategyResolver.resolveDetailed(
+    if (!request.script.requestsRecording) {
+      return null;
+    }
+
+    return _ScriptRecordingAdapter(
+      recordingStrategyResolver: _recordingStrategyResolver,
       platform: request.script.platform,
-      recording: request.script.recording,
       client: client,
       sessionHandle: sessionHandle,
       androidDeviceId:
@@ -234,17 +238,6 @@ final class CockpitRunRemoteControlScriptService {
           request.platformAppId ?? sessionHandle?.effectivePlatformAppId,
       processId: request.processId ?? sessionHandle?.processId,
     );
-    if (resolution?.unsupportedReason != null && resolution?.adapter == null) {
-      throw CockpitApplicationServiceException(
-        code: 'recordingStrategyUnavailable',
-        message: resolution!.unsupportedReason!,
-        details: <String, Object?>{
-          'platform': request.script.platform,
-          'recording': request.script.recording?.toJson(),
-        },
-      );
-    }
-    return resolution?.adapter;
   }
 
   Future<void> _persistScriptIfRequested({
@@ -258,5 +251,88 @@ final class CockpitRunRemoteControlScriptService {
     final file = File(path);
     await file.parent.create(recursive: true);
     await file.writeAsString(cockpitPrettyJsonText(script.toJson()));
+  }
+}
+
+final class _ScriptRecordingAdapter implements CockpitRecordingAdapter {
+  _ScriptRecordingAdapter({
+    required CockpitRecordingStrategyResolver recordingStrategyResolver,
+    required String platform,
+    required CockpitRemoteSessionClient client,
+    required CockpitRemoteSessionHandle? sessionHandle,
+    required String? androidDeviceId,
+    required String? iosDeviceId,
+    required String? platformAppId,
+    required int? processId,
+  }) : _recordingStrategyResolver = recordingStrategyResolver,
+       _platform = platform,
+       _client = client,
+       _sessionHandle = sessionHandle,
+       _androidDeviceId = androidDeviceId,
+       _iosDeviceId = iosDeviceId,
+       _platformAppId = platformAppId,
+       _processId = processId;
+
+  final CockpitRecordingStrategyResolver _recordingStrategyResolver;
+  final String _platform;
+  final CockpitRemoteSessionClient _client;
+  final CockpitRemoteSessionHandle? _sessionHandle;
+  final String? _androidDeviceId;
+  final String? _iosDeviceId;
+  final String? _platformAppId;
+  final int? _processId;
+  CockpitRecordingAdapter? _activeAdapter;
+
+  @override
+  Future<CockpitRecordingSession> startRecording(
+    CockpitRecordingRequest request,
+  ) async {
+    if (_activeAdapter != null) {
+      throw StateError(
+        'A script recording is already active; stop it before starting ${request.name}.',
+      );
+    }
+
+    final resolution = _recordingStrategyResolver.resolveDetailed(
+      platform: _platform,
+      recording: request,
+      client: _client,
+      sessionHandle: _sessionHandle,
+      androidDeviceId: _androidDeviceId,
+      iosDeviceId: _iosDeviceId,
+      platformAppId: _platformAppId,
+      processId: _processId,
+    );
+    final adapter = resolution?.adapter;
+    if (adapter == null) {
+      throw CockpitApplicationServiceException(
+        code: 'recordingStrategyUnavailable',
+        message:
+            resolution?.unsupportedReason ??
+            'No recording strategy is available for $_platform.',
+        details: <String, Object?>{
+          'platform': _platform,
+          'recording': request.toJson(),
+        },
+      );
+    }
+
+    final session = await adapter.startRecording(request);
+    _activeAdapter = adapter;
+    return session;
+  }
+
+  @override
+  Future<CockpitRecordingResult> stopRecording() async {
+    final adapter = _activeAdapter;
+    if (adapter == null) {
+      throw StateError('No active script recording is available to stop.');
+    }
+
+    try {
+      return await adapter.stopRecording();
+    } finally {
+      _activeAdapter = null;
+    }
   }
 }

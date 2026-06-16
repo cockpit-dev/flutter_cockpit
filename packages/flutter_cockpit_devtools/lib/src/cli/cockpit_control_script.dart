@@ -50,6 +50,9 @@ final class CockpitControlScript {
       ? workflowSteps
       : cockpitWorkflowStepsFromCommands(commands);
 
+  bool get requestsRecording =>
+      recording != null || workflowSteps.any(_workflowStepRequestsRecording);
+
   factory CockpitControlScript.fromJson(Map<String, Object?> json) {
     final environmentJson = json['environment'];
     if (environmentJson != null && environmentJson is! Map<Object?, Object?>) {
@@ -173,4 +176,17 @@ final class CockpitControlScript {
 
 CockpitControlScript cockpitControlScriptFromText(String source) {
   return CockpitControlScript.fromJson(cockpitScriptMapFromText(source));
+}
+
+bool _workflowStepRequestsRecording(CockpitWorkflowStep step) {
+  return switch (step) {
+    CockpitStartRecordingWorkflowStep() => true,
+    CockpitStopRecordingWorkflowStep() => false,
+    CockpitCommandWorkflowStep() => false,
+    CockpitIfWorkflowStep() =>
+      step.thenSteps.any(_workflowStepRequestsRecording) ||
+          step.elseSteps.any(_workflowStepRequestsRecording),
+    CockpitLoopWorkflowStep() => step.steps.any(_workflowStepRequestsRecording),
+    CockpitRetryWorkflowStep() => _workflowStepRequestsRecording(step.step),
+  };
 }

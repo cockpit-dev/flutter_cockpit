@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
@@ -1752,10 +1751,7 @@ void main() {
         ),
       );
 
-      expect(
-        result.success,
-        isTrue,
-      );
+      expect(result.success, isTrue);
       expect(readAppAttempts, greaterThanOrEqualTo(4));
       expect(assertNewTaskAttempts, 2);
       expect(createBatchAttempts, 1);
@@ -3037,10 +3033,7 @@ void main() {
         ),
       );
 
-      expect(
-        result.success,
-        isTrue,
-      );
+      expect(result.success, isTrue);
       expect(result.platforms, hasLength(1));
       final platform = result.platforms.single;
       expect(platform.status, 'passed');
@@ -3537,10 +3530,7 @@ void main() {
         platform.verifiedCommands,
         contains('timeline-recording-fallback'),
       );
-      expect(
-        platform.verifiedCommands,
-        isNot(contains('start-recording')),
-      );
+      expect(platform.verifiedCommands, isNot(contains('start-recording')));
       expect(platform.warnings, hasLength(2));
       expect(
         platform.warnings.first,

@@ -109,8 +109,71 @@ void main() {
         );
         expect(script.toJson(), contains('steps'));
         expect(script.toJson(), containsPair('schemaVersion', 1));
+        expect(script.requestsRecording, isTrue);
       },
     );
+
+    test('detects nested workflow recording requests', () {
+      final script = CockpitControlScript.fromJson(<String, Object?>{
+        'sessionId': 'nested-recording-script',
+        'taskId': 'nested-recording-task',
+        'platform': 'android',
+        'steps': <Object?>[
+          <String, Object?>{
+            'stepId': 'retry-recording',
+            'stepType': 'retry',
+            'maxAttempts': 2,
+            'step': <String, Object?>{
+              'stepType': 'command',
+              'command': <String, Object?>{
+                'commandId': 'assert-ready',
+                'commandType': 'assertText',
+                'parameters': <String, Object?>{'text': 'Ready'},
+              },
+            },
+          },
+          <String, Object?>{
+            'stepId': 'if-recording',
+            'stepType': 'if',
+            'condition': <String, Object?>{
+              'commandId': 'has-dialog',
+              'commandType': 'assertText',
+              'parameters': <String, Object?>{'text': 'Allow'},
+            },
+            'thenSteps': <Object?>[
+              <String, Object?>{
+                'stepId': 'record-dialog',
+                'stepType': 'startRecording',
+                'recording': <String, Object?>{
+                  'purpose': 'repro',
+                  'name': 'dialog-flow',
+                  'tailStabilizationMs': 0,
+                },
+              },
+            ],
+          },
+        ],
+      });
+
+      expect(script.requestsRecording, isTrue);
+    });
+
+    test('does not request recording for command-only scripts', () {
+      final script = CockpitControlScript.fromJson(<String, Object?>{
+        'sessionId': 'command-only-script',
+        'taskId': 'command-only-task',
+        'platform': 'android',
+        'commands': <Object?>[
+          <String, Object?>{
+            'commandId': 'tap-open',
+            'commandType': 'tap',
+            'locator': <String, Object?>{'text': 'Open'},
+          },
+        ],
+      });
+
+      expect(script.requestsRecording, isFalse);
+    });
 
     test('decodes YAML control scripts through the same workflow schema', () {
       final script = cockpitControlScriptFromText('''
@@ -764,6 +827,10 @@ steps:
         expect(
           runResult.bundle.manifest.failureSummary,
           contains('Recording required-flow failed to start'),
+        );
+        expect(
+          runResult.bundle.manifest.failureSummary,
+          contains('host recorder unavailable'),
         );
         expect(adapter.executedCommandIds, isEmpty);
         final failedStep = runResult.bundle.steps.firstWhere(
