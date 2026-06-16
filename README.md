@@ -3,7 +3,7 @@
 [![Runtime Loop](https://github.com/cockpit-dev/flutter_cockpit/actions/workflows/runtime-loop.yml/badge.svg)](https://github.com/cockpit-dev/flutter_cockpit/actions/workflows/runtime-loop.yml)
 [![License](https://img.shields.io/github/license/cockpit-dev/flutter_cockpit)](https://github.com/cockpit-dev/flutter_cockpit/blob/main/packages/flutter_cockpit/LICENSE)
 [![flutter_cockpit on pub.dev](https://img.shields.io/pub/v/flutter_cockpit?logo=dart&label=flutter_cockpit)](https://pub.dev/packages/flutter_cockpit)
-[![flutter_cockpit_devtools on pub.dev](https://img.shields.io/pub/v/flutter_cockpit_devtools?logo=dart&label=flutter_cockpit_devtools)](https://pub.dev/packages/flutter_cockpit_devtools)
+[![cockpit on pub.dev](https://img.shields.io/pub/v/cockpit?logo=dart&label=cockpit)](https://pub.dev/packages/cockpit)
 
 [简体中文](README.zh-CN.md)
 
@@ -32,7 +32,7 @@ dependencies:
   flutter_cockpit: ^1.0.0
 
 dev_dependencies:
-  flutter_cockpit_devtools: ^1.0.0
+  cockpit: ^1.0.0
 ```
 
 If only `cockpit/main.dart` imports the runtime, keep `flutter_cockpit` in
@@ -42,7 +42,7 @@ shared-entrypoint or shipped-runtime integration.
 Package pages:
 
 - [`flutter_cockpit` on pub.dev](https://pub.dev/packages/flutter_cockpit)
-- [`flutter_cockpit_devtools` on pub.dev](https://pub.dev/packages/flutter_cockpit_devtools)
+- [`cockpit` on pub.dev](https://pub.dev/packages/cockpit)
 
 Installing the Dart packages does not automatically install the AI skill or expose a globally callable MCP launcher. Those are separate host-side setup steps.
 
@@ -60,19 +60,19 @@ Full host-specific instructions live in [`skills/flutter-cockpit/INSTALL.md`](sk
 
 ## Install MCP
 
-`flutter_cockpit` does not ship a separate MCP package. The MCP server is provided by `flutter_cockpit_devtools`.
+`flutter_cockpit` does not ship a separate MCP package. The MCP server is provided by `cockpit`.
 
 One-shot launch:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools serve-mcp
+dart run cockpit serve-mcp
 ```
 
-If the host expects a globally callable command, install devtools globally:
+If the host expects a globally callable command, install cockpit globally:
 
 ```bash
-dart pub global activate flutter_cockpit_devtools
-flutter_cockpit_mcp
+dart pub global activate cockpit
+cockpit_mcp
 ```
 
 ## Configure MCP In Mainstream Agents
@@ -80,17 +80,17 @@ flutter_cockpit_mcp
 Typical local setup command:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools serve-mcp
+dart run cockpit serve-mcp
 ```
 
-If you already activated `flutter_cockpit_devtools` globally, you can replace the `dart run ... serve-mcp` command below with `flutter_cockpit_mcp`.
+If you already activated `cockpit` globally, you can replace the `dart run ... serve-mcp` command below with `cockpit_mcp`.
 
 ### Codex
 
 Add the local stdio server:
 
 ```bash
-codex mcp add flutterCockpit -- dart run flutter_cockpit_devtools:flutter_cockpit_devtools serve-mcp
+codex mcp add flutterCockpit -- dart run cockpit serve-mcp
 ```
 
 Verify:
@@ -104,7 +104,7 @@ codex mcp list
 Add the local stdio server:
 
 ```bash
-claude mcp add --transport stdio flutter-cockpit -- dart run flutter_cockpit_devtools:flutter_cockpit_devtools serve-mcp
+claude mcp add --transport stdio flutter-cockpit -- dart run cockpit serve-mcp
 ```
 
 Verify inside Claude Code with `/mcp`, or from the shell:
@@ -125,7 +125,7 @@ Add a global MCP config at `~/.cursor/mcp.json`:
       "command": "dart",
       "args": [
         "run",
-        "flutter_cockpit_devtools:flutter_cockpit_devtools",
+        "cockpit",
         "serve-mcp"
       ]
     }
@@ -147,7 +147,7 @@ Add a workspace config at `.vscode/mcp.json`, or add the same server entry to yo
       "command": "dart",
       "args": [
         "run",
-        "flutter_cockpit_devtools:flutter_cockpit_devtools",
+        "cockpit",
         "serve-mcp"
       ]
     }
@@ -170,7 +170,7 @@ Add a global config at `~/.config/opencode/opencode.json`, or add the same block
       "command": [
         "dart",
         "run",
-        "flutter_cockpit_devtools:flutter_cockpit_devtools",
+        "cockpit",
         "serve-mcp"
       ],
       "enabled": true
@@ -190,7 +190,7 @@ These host commands and config entry points can evolve. If a host UI or command 
 ## Packages
 
 - [`packages/flutter_cockpit`](packages/flutter_cockpit): in-app runtime, remote session server, command execution, snapshots, capture, recording
-- [`packages/flutter_cockpit_devtools`](packages/flutter_cockpit_devtools): host-side CLI, MCP server, orchestration, bundle writing, validation, workspace tooling
+- [`packages/cockpit`](packages/cockpit): host-side CLI, MCP server, orchestration, bundle writing, validation, workspace tooling
 
 ## Recommended Loop
 
@@ -284,7 +284,7 @@ Only wire `FlutterCockpit.navigatorObserver` inside a navigator created by the c
 Run a minimal app loop:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   launch-app \
   --project-dir <project-dir> \
   --platform <platform> \
@@ -293,14 +293,14 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 ```
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   read-app \
   --app-json /tmp/flutter_cockpit/app.json \
   --profile minimal
 ```
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-command \
   --app-json /tmp/flutter_cockpit/app.json \
   --command-json '{"commandId":"assert-ready","commandType":"assertText","parameters":{"text":"<expected-text>"}}'
@@ -309,7 +309,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 Run the same loop on web with the exact browser device ID reported by `list-targets`:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   launch-app \
   --project-dir <project-dir> \
   --platform web \
@@ -318,7 +318,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 ```
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   read-app \
   --app-json /tmp/flutter_cockpit/web_app.json \
   --profile minimal
@@ -330,7 +330,7 @@ result now surfaces `recommendedNextStep: "recoverBrowserVisibility"` when the
 page looks backgrounded, throttled, or still reconnecting.
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-command \
   --app-json /tmp/flutter_cockpit/web_app.json \
   --command-json '{"commandId":"assert-ready","commandType":"assertText","parameters":{"text":"<expected-text>"}}'
@@ -481,7 +481,7 @@ For dependency and source questions, prefer `analyze-files`, `lsp`, `grep-packag
 Start MCP over stdio:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools serve-mcp
+dart run cockpit serve-mcp
 ```
 
 Recommended app and target tools:
@@ -582,7 +582,7 @@ Prompts:
 
 - Example app: [`examples/cockpit_demo`](examples/cockpit_demo)
 - Runtime package README: [`packages/flutter_cockpit/README.md`](packages/flutter_cockpit/README.md)
-- Devtools package README: [`packages/flutter_cockpit_devtools/README.md`](packages/flutter_cockpit_devtools/README.md)
+- Host CLI package README: [`packages/cockpit/README.md`](packages/cockpit/README.md)
 - Skill: [`skills/flutter-cockpit/SKILL.md`](skills/flutter-cockpit/SKILL.md)
 - Skill install: [`skills/flutter-cockpit/INSTALL.md`](skills/flutter-cockpit/INSTALL.md)
 - App setup reference: [`skills/flutter-cockpit/examples/flutter-app-setup.md`](skills/flutter-cockpit/examples/flutter-app-setup.md)

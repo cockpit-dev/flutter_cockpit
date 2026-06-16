@@ -8,12 +8,12 @@ void main() {
       'packages/flutter_cockpit/pubspec.yaml',
     ).readAsStringSync();
     final devtoolsPubspec = File(
-      'packages/flutter_cockpit_devtools/pubspec.yaml',
+      'packages/cockpit/pubspec.yaml',
     ).readAsStringSync();
 
     expect(runtimePubspec, contains('name: flutter_cockpit'));
     expect(runtimePubspec, isNot(contains('name: flutter_pilot')));
-    expect(devtoolsPubspec, contains('name: flutter_cockpit_devtools'));
+    expect(devtoolsPubspec, contains('name: cockpit'));
     expect(devtoolsPubspec, contains('flutter_cockpit: ^1.0.0'));
     expect(devtoolsPubspec, isNot(contains('flutter_pilot: ^1.0.0')));
   });
@@ -25,7 +25,7 @@ void main() {
       'packages/flutter_cockpit/pubspec.yaml',
     ).readAsStringSync();
     final devtoolsPubspec = File(
-      'packages/flutter_cockpit_devtools/pubspec.yaml',
+      'packages/cockpit/pubspec.yaml',
     ).readAsStringSync();
     final demoPubspec = File(
       'examples/cockpit_demo/pubspec.yaml',
@@ -39,10 +39,10 @@ void main() {
       'packages/flutter_cockpit/README.zh-CN.md',
     ).readAsStringSync();
     final devtoolsReadme = File(
-      'packages/flutter_cockpit_devtools/README.md',
+      'packages/cockpit/README.md',
     ).readAsStringSync();
     final devtoolsReadmeZh = File(
-      'packages/flutter_cockpit_devtools/README.zh-CN.md',
+      'packages/cockpit/README.zh-CN.md',
     ).readAsStringSync();
     final runtimeLoop = File(
       '.github/workflows/runtime-loop.yml',
@@ -104,7 +104,7 @@ void main() {
     expect(devtoolsPubspec, contains('lints: ^6.1.0'));
     expect(demoPubspec, contains('flutter_lints: ^6.0.0'));
     expect(devtoolsPubspec, contains('dart_mcp: ^0.5.1'));
-    expect(demoPubspec, contains('flutter_cockpit_devtools: ^1.0.0'));
+    expect(demoPubspec, contains('cockpit: ^1.0.0'));
     expect(
       demoPubspec,
       contains('drift: ">=2.29.0 <2.30.0"'),
@@ -130,9 +130,7 @@ void main() {
 
   test('package readmes teach flutter_cockpit installation and usage', () {
     final runtimeVersion = _readPackageVersion('packages/flutter_cockpit');
-    final devtoolsVersion = _readPackageVersion(
-      'packages/flutter_cockpit_devtools',
-    );
+    final devtoolsVersion = _readPackageVersion('packages/cockpit');
     final runtimeReadme = File(
       'packages/flutter_cockpit/README.md',
     ).readAsStringSync();
@@ -140,10 +138,10 @@ void main() {
       'packages/flutter_cockpit/README.zh-CN.md',
     ).readAsStringSync();
     final devtoolsReadme = File(
-      'packages/flutter_cockpit_devtools/README.md',
+      'packages/cockpit/README.md',
     ).readAsStringSync();
     final devtoolsReadmeZh = File(
-      'packages/flutter_cockpit_devtools/README.zh-CN.md',
+      'packages/cockpit/README.zh-CN.md',
     ).readAsStringSync();
 
     expect(runtimeReadme, contains('# flutter_cockpit'));
@@ -153,21 +151,12 @@ void main() {
       contains("package:flutter_cockpit/flutter_cockpit_flutter.dart"),
     );
     expect(runtimeReadme, contains('flutter run -t cockpit/main.dart'));
-    expect(
-      runtimeReadme,
-      contains('https://pub.dev/packages/flutter_cockpit_devtools'),
-    );
+    expect(runtimeReadme, contains('https://pub.dev/packages/cockpit'));
     expect(runtimeReadme, isNot(contains('flutter_pilot')));
 
-    expect(devtoolsReadme, contains('# flutter_cockpit_devtools'));
-    expect(
-      devtoolsReadme,
-      contains('flutter_cockpit_devtools: ^$devtoolsVersion'),
-    );
-    expect(
-      devtoolsReadme,
-      contains('dart run flutter_cockpit_devtools:flutter_cockpit_devtools'),
-    );
+    expect(devtoolsReadme, contains('# cockpit'));
+    expect(devtoolsReadme, contains('cockpit: ^$devtoolsVersion'));
+    expect(devtoolsReadme, contains('dart run cockpit'));
     expect(devtoolsReadme, contains('serve-mcp'));
     expect(devtoolsReadme, contains('read-task-bundle-summary'));
     expect(devtoolsReadme, contains('read_task_bundle_summary'));
@@ -175,14 +164,8 @@ void main() {
     expect(devtoolsReadme, isNot(contains('flutter_pilot')));
 
     expect(runtimeReadmeZh, contains('flutter_cockpit: ^$runtimeVersion'));
-    expect(
-      runtimeReadmeZh,
-      contains('https://pub.dev/packages/flutter_cockpit_devtools'),
-    );
-    expect(
-      devtoolsReadmeZh,
-      contains('flutter_cockpit_devtools: ^$devtoolsVersion'),
-    );
+    expect(runtimeReadmeZh, contains('https://pub.dev/packages/cockpit'));
+    expect(devtoolsReadmeZh, contains('cockpit: ^$devtoolsVersion'));
   });
 
   test('setup docs keep cockpit wiring outside production lib code', () {
@@ -235,10 +218,10 @@ void main() {
       'packages/flutter_cockpit/README.zh-CN.md',
     ).readAsStringSync();
     final devtoolsReadme = File(
-      'packages/flutter_cockpit_devtools/README.md',
+      'packages/cockpit/README.md',
     ).readAsStringSync();
     final devtoolsReadmeZh = File(
-      'packages/flutter_cockpit_devtools/README.zh-CN.md',
+      'packages/cockpit/README.zh-CN.md',
     ).readAsStringSync();
 
     expect(runtimeReadme, isNot(contains('](README.zh-CN.md)')));
@@ -255,7 +238,7 @@ void main() {
     expect(
       devtoolsReadme,
       contains(
-        'https://github.com/cockpit-dev/flutter_cockpit/blob/main/packages/flutter_cockpit_devtools/README.zh-CN.md',
+        'https://github.com/cockpit-dev/flutter_cockpit/blob/main/packages/cockpit/README.zh-CN.md',
       ),
     );
     expect(
@@ -267,7 +250,7 @@ void main() {
     expect(
       devtoolsReadmeZh,
       contains(
-        'https://github.com/cockpit-dev/flutter_cockpit/blob/main/packages/flutter_cockpit_devtools/README.md',
+        'https://github.com/cockpit-dev/flutter_cockpit/blob/main/packages/cockpit/README.md',
       ),
     );
   });
@@ -275,7 +258,7 @@ void main() {
   test('published packages exclude local-only editor metadata', () {
     for (final packageDir in <String>[
       'packages/flutter_cockpit',
-      'packages/flutter_cockpit_devtools',
+      'packages/cockpit',
     ]) {
       final pubignore = File('$packageDir/.pubignore').readAsStringSync();
       expect(pubignore, contains('*.iml'));
@@ -294,13 +277,11 @@ void main() {
 
     for (final fileName in contractFiles) {
       expect(
-        File(
-          'packages/flutter_cockpit_devtools/doc/contracts/$fileName',
-        ).existsSync(),
+        File('packages/cockpit/doc/contracts/$fileName').existsSync(),
         isTrue,
         reason:
             'MCP workspace contract resources must work from a published '
-            'flutter_cockpit_devtools package, not only from the monorepo root.',
+            'cockpit package, not only from the monorepo root.',
       );
     }
   });
@@ -318,19 +299,16 @@ void main() {
       protocolReference,
       contains('docs/contracts/flutter-cockpit-protocol.md'),
     );
-    expect(
-      protocolReference,
-      contains('packages/flutter_cockpit_devtools/doc/contracts/'),
-    );
+    expect(protocolReference, contains('packages/cockpit/doc/contracts/'));
     expect(protocolReference, contains('Load only the contract'));
   });
 
   test('devtools package readmes expose workflow protocol references', () {
     final devtoolsReadme = File(
-      'packages/flutter_cockpit_devtools/README.md',
+      'packages/cockpit/README.md',
     ).readAsStringSync();
     final devtoolsReadmeZh = File(
-      'packages/flutter_cockpit_devtools/README.zh-CN.md',
+      'packages/cockpit/README.zh-CN.md',
     ).readAsStringSync();
 
     for (final document in <String>[devtoolsReadme, devtoolsReadmeZh]) {
@@ -348,9 +326,7 @@ void main() {
   });
 
   test('devtools package ships a copyable MCP config example', () {
-    final example = File(
-      'packages/flutter_cockpit_devtools/example/mcp_config.json',
-    );
+    final example = File('packages/cockpit/example/mcp_config.json');
     expect(example.existsSync(), isTrue);
     expect(
       example.readAsStringSync(),

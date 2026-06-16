@@ -26,17 +26,14 @@ void main() {
     expect(
       workflow,
       contains(
-        'flutter analyze packages/flutter_cockpit packages/flutter_cockpit_devtools examples/cockpit_demo test',
+        'flutter analyze packages/flutter_cockpit packages/cockpit examples/cockpit_demo test',
       ),
     );
     expect(workflow, contains('flutter pub publish --dry-run'));
     expect(workflow, contains('dart pub publish --dry-run'));
     expect(workflow, contains('dart test test'));
     expect(workflow, contains('(cd packages/flutter_cockpit && flutter test)'));
-    expect(
-      workflow,
-      contains('(cd packages/flutter_cockpit_devtools && dart test)'),
-    );
+    expect(workflow, contains('(cd packages/cockpit && dart test)'));
     expect(workflow, contains('(cd examples/cockpit_demo && flutter test)'));
     expect(workflow, isNot(contains('run: melos run test')));
     expect(workflow, isNot(contains('run: dart run melos test')));
@@ -95,10 +92,7 @@ void main() {
         'app["run_system_action_read_system_state"]["action"] == "readSystemState"',
       ),
     );
-    expect(
-      workflow,
-      contains('working-directory: packages/flutter_cockpit_devtools'),
-    );
+    expect(workflow, contains('working-directory: packages/cockpit'));
     expect(workflow, contains(r'STATUS=${PIPESTATUS[0]}'));
     expect(workflow, contains('xvfb-run -a dart run'));
     expect(workflow, contains('reactivecircus/android-emulator-runner@v2'));
@@ -124,10 +118,7 @@ void main() {
     expect(windowsBlock, contains('candidate_dirs'));
     expect(windowsBlock, contains('RUNNER_TEMP'));
     expect(windowsBlock, contains('LOCALAPPDATA'));
-    expect(
-      windowsBlock,
-      contains('flutter_cockpit_development_supervisor_*.log'),
-    );
+    expect(windowsBlock, contains('cockpit_development_supervisor_*.log'));
     expect(
       windowsBlock,
       contains('pathlib.Path(os.environ["RESULT_JSON_POSIX"])'),
@@ -453,10 +444,7 @@ void main() {
         'Run full shared regression suite',
       );
 
-      expect(
-        regressionBlock,
-        contains('(cd packages/flutter_cockpit_devtools && dart test)'),
-      );
+      expect(regressionBlock, contains('(cd packages/cockpit && dart test)'));
       expect(regressionBlock, contains('flutter pub get'));
       expect(regressionBlock, contains('git diff --exit-code pubspec.lock'));
     },

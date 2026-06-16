@@ -1,6 +1,6 @@
 # cockpit_demo
 
-`cockpit_demo` is the repository's production-grade validation app for `flutter_cockpit` and `flutter_cockpit_devtools`.
+`cockpit_demo` is the repository's production-grade validation app for `flutter_cockpit` and `cockpit`.
 
 It is not a throwaway sample. The demo is the executable proof target used by:
 
@@ -53,7 +53,7 @@ That script compiles `web/drift_worker.dart` into `web/drift_worker.js` and copi
 macOS:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   launch-app \
   --project-dir examples/cockpit_demo \
   --platform macos \
@@ -63,7 +63,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 Web:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   launch-app \
   --project-dir examples/cockpit_demo \
   --platform web \
@@ -78,7 +78,7 @@ If a command also accepts `--base-url`, precedence is explicit `--app-json`, the
 When the task is not purely an app-first semantic loop, drive the same demo through the target-first surface:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   launch-target \
   --project-dir examples/cockpit_demo \
   --platform web \
@@ -87,21 +87,21 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 ```
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   read-target \
   --target-json /tmp/cockpit_demo_target.json \
   --profile minimal
 ```
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   inspect-surface \
   --target-json /tmp/cockpit_demo_target.json \
   --profile inspect
 ```
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-shell \
   --scope host \
   --executable pwd

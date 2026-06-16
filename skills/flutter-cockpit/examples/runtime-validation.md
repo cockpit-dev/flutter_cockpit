@@ -28,7 +28,7 @@ shell, browser, and native-surface capabilities.
 Target-first example:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   launch-target \
   --project-dir <project-dir> \
   --platform <platform> \
@@ -37,14 +37,14 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 ```
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   read-target \
   --target-json /tmp/flutter_cockpit/target.json \
   --profile minimal
 ```
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   inspect-surface \
   --target-json /tmp/flutter_cockpit/target.json \
   --profile inspect
@@ -53,7 +53,7 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 ## Example
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   launch-app \
   --project-dir <project-dir> \
   --platform <platform> \
@@ -62,14 +62,14 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
 ```
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   read-app \
   --app-json /tmp/flutter_cockpit/app.json \
   --profile minimal
 ```
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools \
+dart run cockpit \
   run-command \
   --app-json /tmp/flutter_cockpit/app.json \
   --command-json '{"commandId":"assert-ready","commandType":"assertText","parameters":{"text":"<expected-text>"}}'

@@ -6,7 +6,7 @@ Use this when the host needs to drive `flutter_cockpit` from outside the app.
 
 ```yaml
 dev_dependencies:
-  flutter_cockpit_devtools: ^1.0.0
+  cockpit: ^1.0.0
 ```
 
 ```bash
@@ -21,22 +21,22 @@ Default to the low-cost public surface that answers the current task. Do not exp
 CLI:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools list-targets --help
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools launch-app --help
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools launch-target --help
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools read-target --help
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools inspect-surface --help
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-shell --help
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-command --help
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools read-task-bundle-summary --help
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-task --help
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools validate-task --help
+dart run cockpit list-targets --help
+dart run cockpit launch-app --help
+dart run cockpit launch-target --help
+dart run cockpit read-target --help
+dart run cockpit inspect-surface --help
+dart run cockpit run-shell --help
+dart run cockpit run-command --help
+dart run cockpit read-task-bundle-summary --help
+dart run cockpit run-task --help
+dart run cockpit validate-task --help
 ```
 
 MCP:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools serve-mcp
+dart run cockpit serve-mcp
 ```
 
 Generic config:
@@ -48,7 +48,7 @@ Generic config:
       "command": "dart",
       "args": [
         "run",
-        "flutter_cockpit_devtools:flutter_cockpit_devtools",
+        "cockpit",
         "serve-mcp"
       ]
     }

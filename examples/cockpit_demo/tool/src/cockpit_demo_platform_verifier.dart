@@ -3,8 +3,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
-import 'package:flutter_cockpit_devtools/flutter_cockpit_devtools.dart';
-import 'package:flutter_cockpit_devtools/src/platform/ios/cockpit_ios_device_connection.dart';
+import 'package:cockpit/cockpit.dart';
+import 'package:cockpit/src/platform/ios/cockpit_ios_device_connection.dart';
 import 'package:path/path.dart' as p;
 
 import 'cockpit_demo_sync_lab_verification.dart';

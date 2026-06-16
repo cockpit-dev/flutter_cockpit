@@ -10,7 +10,7 @@ const String cockpitWebRecordingChannelName =
 const String cockpitWebNativeCaptureUnavailableMessage =
     'Native acceptance capture is unavailable on web. Use Flutter view capture instead.';
 const String cockpitWebNativeRecordingUnavailableMessage =
-    'Native in-app recording is unavailable on web. Use host-side recording through flutter_cockpit_devtools instead.';
+    'Native in-app recording is unavailable on web. Use host-side recording through cockpit instead.';
 
 Future<Object?> cockpitWebHandleCaptureMethodCall(MethodCall call) async {
   switch (call.method) {

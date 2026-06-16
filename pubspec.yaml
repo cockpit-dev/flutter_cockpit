@@ -6,7 +6,7 @@ environment:
 
 workspace:
   - packages/flutter_cockpit
-  - packages/flutter_cockpit_devtools
+  - packages/cockpit
   - examples/cockpit_demo
 
 dev_dependencies:

@@ -39,22 +39,22 @@ Add `flutter_cockpit`, add `cockpit/main.dart`, and keep the production entrypoi
 Use default AI-readable stdout. Add `--stdout-format json` only for `jq`; add `--output <path>` for files, and `--output-format json` only for machine-readable files.
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools list-targets
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools launch-app --project-dir <dir> --platform <platform> --device-id <id>
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools read-app --profile minimal
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools analyze-files --path <changed-file>
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools hot-reload
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools read-errors --max-errors 10
+dart run cockpit list-targets
+dart run cockpit launch-app --project-dir <dir> --platform <platform> --device-id <id>
+dart run cockpit read-app --profile minimal
+dart run cockpit analyze-files --path <changed-file>
+dart run cockpit hot-reload
+dart run cockpit read-errors --max-errors 10
 ```
 
 ```bash
 printf '%s\n' '{"commandId":"assert-ready","commandType":"assertText","parameters":{"text":"<expected-text>"}}' >/tmp/flutter_cockpit_command.json
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-command --command-file /tmp/flutter_cockpit_command.json --profile standard
+dart run cockpit run-command --command-file /tmp/flutter_cockpit_command.json --profile standard
 ```
 
 ```bash
 printf '%s\n' '{"commandId":"tap-settings","commandType":"tap","locator":{"text":"Settings"},"parameters":{"expectedRouteName":"/settings","routeTimeoutMs":5000}}' >/tmp/flutter_cockpit_command.json
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-command --command-file /tmp/flutter_cockpit_command.json --profile standard
+dart run cockpit run-command --command-file /tmp/flutter_cockpit_command.json --profile standard
 ```
 
 ## Escalation Commands
@@ -64,7 +64,7 @@ Use these only when the next claim needs them; do not add them to every loop.
 Visible final proof:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools capture-screenshot --name acceptance --profile inspect
+dart run cockpit capture-screenshot --name acceptance --profile inspect
 ```
 
 `capture-screenshot` uses app metadata, prefers system/host capture, and falls back to app capture when host capture fails. Use it before external screenshot tools.
@@ -72,15 +72,15 @@ dart run flutter_cockpit_devtools:flutter_cockpit_devtools capture-screenshot --
 Short deterministic flow:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-batch --commands-file /tmp/flutter_cockpit_batch.json --profile standard
+dart run cockpit run-batch --commands-file /tmp/flutter_cockpit_batch.json --profile standard
 ```
 
 Motion, transition, gesture, or bug-repro video:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools start-recording
+dart run cockpit start-recording
 # optional: add --recording-json '{"purpose":"repro","name":"flow-name"}'
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools stop-recording
+dart run cockpit stop-recording
 ```
 
 Recording defaults to `mode:auto`: app handles prefer system/host capture and fall back only when allowed. For a strict layer, pass `--recording-json` with `layer` and `allowFallback:false`.
@@ -88,8 +88,8 @@ Recording defaults to `mode:auto`: app handles prefer system/host capture and fa
 Native/system or non-Flutter surface after Flutter semantics cannot answer it:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools read-system-capabilities [--platform <platform>] [--device-id <device-or-simulator-id>] [--app-id <app-id>] [--process-id <pid>] [--wda-url http://127.0.0.1:8100]
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-system-action [--platform <platform>] [--device-id <device-or-simulator-id>] [--app-id <app-id>] [--process-id <pid>] [--wda-url http://127.0.0.1:8100] --action <available-action>
+dart run cockpit read-system-capabilities [--platform <platform>] [--device-id <device-or-simulator-id>] [--app-id <app-id>] [--process-id <pid>] [--wda-url http://127.0.0.1:8100]
+dart run cockpit run-system-action [--platform <platform>] [--device-id <device-or-simulator-id>] [--app-id <app-id>] [--process-id <pid>] [--wda-url http://127.0.0.1:8100] --action <available-action>
 ```
 
 Use `parameters=[name*:type[range](allowed|values)]`; `*` means required. Do not guess payload keys. Both commands reuse `.dart_tool/flutter_cockpit/latest_app.json` and resolve platform app ids by default. `--app-id` means native app id; Cockpit app id maps to `platformAppId` when available. On iOS simulator, prefer `grantPermission`; use WebDriverAgent only when Flutter semantics and simctl cannot handle native UI, dialogs, focus, orientation, notifications, Notification Center, or Control Center. Cockpit probes `http://127.0.0.1:8100`; WDA actions stay blocked unless reachable.
@@ -100,7 +100,7 @@ Trust only actions reported as `available`. Desktop coordinates use screen pixel
 Acceptance, release readiness, or artifact-backed handoff:
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools validate-task --config /tmp/flutter_cockpit_validate_task.yaml
+dart run cockpit validate-task --config /tmp/flutter_cockpit_validate_task.yaml
 ```
 
 Workflow script for branch/retry/loop E2E flows. Prefer YAML by hand and JSON when generated. Syntax/schema: [`references/protocol.md`](references/protocol.md), `cockpit://workspace/control-workflow-protocol`, `cockpit://workspace/control-workflow-schema`.
@@ -134,7 +134,7 @@ steps:
 ```
 
 ```bash
-dart run flutter_cockpit_devtools:flutter_cockpit_devtools run-script --app-json /tmp/flutter_cockpit/app.json --script /tmp/flutter_cockpit/workflow.yaml --output-root /tmp/flutter_cockpit/out
+dart run cockpit run-script --app-json /tmp/flutter_cockpit/app.json --script /tmp/flutter_cockpit/workflow.yaml --output-root /tmp/flutter_cockpit/out
 ```
 
 Workflow facts are stored in the bundle. Read `issue_evidence.json` for failures, `validation.json` for final validation, and `trace.json` to map artifacts or errors back to a workflow step.

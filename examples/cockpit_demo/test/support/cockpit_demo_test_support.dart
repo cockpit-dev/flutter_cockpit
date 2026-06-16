@@ -5,7 +5,7 @@ import 'package:drift/drift.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_cockpit/flutter_cockpit_flutter.dart';
-import 'package:flutter_cockpit_devtools/flutter_cockpit_devtools.dart';
+import 'package:cockpit/cockpit.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:cockpit_demo/src/data/cockpit_demo_database.dart';
 import 'package:cockpit_demo/src/cockpit_demo_app.dart';
