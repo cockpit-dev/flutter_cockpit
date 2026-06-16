@@ -52,9 +52,11 @@ jobs:
             packages/flutter_cockpit_devtools \
             examples/cockpit_demo \
             test
-          dart analyze packages/flutter_cockpit packages/flutter_cockpit_devtools examples/cockpit_demo test
+          flutter analyze packages/flutter_cockpit packages/flutter_cockpit_devtools examples/cockpit_demo test
           (cd packages/flutter_cockpit && flutter pub publish --dry-run)
           (cd packages/flutter_cockpit_devtools && dart pub publish --dry-run)
+          flutter pub get
+          git diff --exit-code pubspec.lock
 
       - name: Run full shared regression suite
         timeout-minutes: 35
@@ -62,6 +64,8 @@ jobs:
           dart test test
           (cd packages/flutter_cockpit && flutter test)
           (cd packages/flutter_cockpit_devtools && dart test)
+          flutter pub get
+          git diff --exit-code pubspec.lock
           (cd examples/cockpit_demo && flutter test)
 
   macos-mcp-surface:

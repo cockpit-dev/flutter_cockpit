@@ -28,6 +28,7 @@ void main() {
     expect(invocation[0], '-NoProfile');
     expect(invocation[1], '-NonInteractive');
     expect(invocation[2], '-Command');
+    expect(invocation[3], isNot(contains(r'$appId:')));
     expect(invocation[4], 'cockpit_demo');
     expect(invocation[5], '4101');
     expect(invocation[6], '250');

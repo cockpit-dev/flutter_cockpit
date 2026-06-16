@@ -83,8 +83,7 @@ Future<void> main(List<String> arguments) async {
   } on FormatException catch (error) {
     stderr.writeln('Error: ${error.message}');
     stderr.writeln(parser.usage);
-    exitCode = 64;
-    return;
+    exit(await _finishVerifierRun(64));
   }
 
   if (parsed['help'] as bool) {
@@ -93,7 +92,7 @@ Future<void> main(List<String> arguments) async {
     );
     stdout.writeln();
     stdout.writeln(parser.usage);
-    return;
+    exit(await _finishVerifierRun(0));
   }
 
   final request = CockpitDemoRapidVerificationRequest(
@@ -120,10 +119,17 @@ Future<void> main(List<String> arguments) async {
     final file = File(outputPath);
     await file.parent.create(recursive: true);
     await file.writeAsString(jsonText);
+    stdout.writeln('output=${file.path}');
+  } else {
+    stdout.writeln(jsonText);
   }
+  exit(await _finishVerifierRun(result.success ? 0 : 1));
+}
 
-  stdout.writeln(jsonText);
-  exitCode = result.success ? 0 : 1;
+Future<int> _finishVerifierRun(int code) async {
+  await stdout.flush();
+  await stderr.flush();
+  return code;
 }
 
 String? _readOptionalString(ArgResults parsed, String name) {

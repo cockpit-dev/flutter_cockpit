@@ -26,7 +26,7 @@ void main() {
     expect(
       workflow,
       contains(
-        'dart analyze packages/flutter_cockpit packages/flutter_cockpit_devtools examples/cockpit_demo test',
+        'flutter analyze packages/flutter_cockpit packages/flutter_cockpit_devtools examples/cockpit_demo test',
       ),
     );
     expect(workflow, contains('flutter pub publish --dry-run'));
@@ -138,6 +138,35 @@ void main() {
     expect(windowsBlock, contains('supervisorLogPath not found'));
     expect(windowsBlock, contains(r'${{ env.SUPERVISOR_LOG_DIR }}'));
   });
+
+  test('one-shot demo verifiers flush output and exit explicitly', () {
+    for (final verifierFile in <File>[
+      platformVerifierFile,
+      rapidDevVerifierFile,
+    ]) {
+      final verifier = verifierFile.readAsStringSync();
+
+      expect(verifier, contains('Future<int> _finishVerifierRun('));
+      expect(verifier, contains('await stdout.flush();'));
+      expect(verifier, contains('await stderr.flush();'));
+      expect(verifier, contains('exit(await _finishVerifierRun('));
+      expect(verifier, isNot(contains('exitCode = result.success ? 0 : 1;')));
+    }
+  });
+
+  test(
+    'one-shot demo verifiers keep terminal output bounded for file output',
+    () {
+      for (final verifierFile in <File>[
+        platformVerifierFile,
+        rapidDevVerifierFile,
+      ]) {
+        final verifier = verifierFile.readAsStringSync();
+
+        expect(verifier, contains("stdout.writeln('output=\${file.path}');"));
+      }
+    },
+  );
 
   test('desktop runtime loops print verifier diagnostics on failure', () {
     final workflow = workflowFile.readAsStringSync();
@@ -349,6 +378,35 @@ void main() {
     expect(demoReadme, isNot(contains('dart run melos bootstrap')));
   });
 
+  test('publish dry-runs restore Flutter workspace dependency resolution', () {
+    final workflow = workflowFile.readAsStringSync();
+    final readinessBlock = _workflowStepBlock(
+      workflow,
+      'Run publish readiness gates',
+    );
+
+    expect(readinessBlock, contains('flutter pub get'));
+    expect(readinessBlock, contains('git diff --exit-code pubspec.lock'));
+  });
+
+  test(
+    'dart package regression tests restore Flutter workspace resolution',
+    () {
+      final workflow = workflowFile.readAsStringSync();
+      final regressionBlock = _workflowStepBlock(
+        workflow,
+        'Run full shared regression suite',
+      );
+
+      expect(
+        regressionBlock,
+        contains('(cd packages/flutter_cockpit_devtools && dart test)'),
+      );
+      expect(regressionBlock, contains('flutter pub get'));
+      expect(regressionBlock, contains('git diff --exit-code pubspec.lock'));
+    },
+  );
+
   test('web runtime loop installs X11 utilities required by host recording', () {
     final workflow = workflowFile.readAsStringSync();
 
@@ -391,6 +449,13 @@ String _workflowJobBlock(String workflow, String jobName) {
       .map((match) => match.start)
       .firstOrNull;
   return workflow.substring(start, nextJob ?? workflow.length);
+}
+
+String _workflowStepBlock(String workflow, String stepName) {
+  final start = workflow.indexOf('      - name: $stepName');
+  expect(start, isNonNegative, reason: 'Missing workflow step $stepName.');
+  final nextStep = workflow.indexOf('\n      - name:', start + 1);
+  return workflow.substring(start, nextStep == -1 ? workflow.length : nextStep);
 }
 
 String _workflowPlatformLabel(String jobName) {
