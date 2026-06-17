@@ -44,19 +44,48 @@ final class CockpitHostPreferredCaptureAdapter
           },
         );
       }
-      final fallbackExecution = await _remoteAdapter.capture(command);
-      return _withFallbackMetadata(
-        fallbackExecution,
-        degradationReason: 'hostCaptureThrew',
-      );
+      try {
+        final fallbackExecution = await _remoteAdapter.capture(command);
+        return _withFallbackMetadata(
+          fallbackExecution,
+          degradationReason: 'hostCaptureThrew',
+        );
+      } on Object catch (fallbackError) {
+        return _withFallbackMetadata(
+          cockpitFailedCaptureExecution(
+            command: command,
+            durationMs: 0,
+            message: 'Host screenshot capture threw and remote fallback threw.',
+            details: <String, Object?>{
+              'hostError': error.toString(),
+              'remoteFallbackError': fallbackError.toString(),
+            },
+          ),
+          degradationReason:
+              'hostCaptureThrew; remoteFallbackThrew: ${fallbackError.toString()}',
+        );
+      }
     }
     if (!execution.result.success) {
       if (!await _remoteScreenshotFallbackAvailable()) {
         return execution;
       }
-      final fallbackExecution = await _remoteAdapter.capture(command);
+      final CockpitCommandExecution fallbackExecution;
+      try {
+        fallbackExecution = await _remoteAdapter.capture(command);
+      } on Object catch (fallbackError) {
+        return _withFallbackMetadata(
+          execution,
+          degradationReason:
+              'hostCaptureFailed; remoteFallbackThrew: ${fallbackError.toString()}',
+        );
+      }
       if (!fallbackExecution.result.success) {
-        return execution;
+        return _withFallbackMetadata(
+          execution,
+          degradationReason:
+              'hostCaptureFailed; remoteFallbackFailed: ${_failureSummary(fallbackExecution.result)}',
+        );
       }
       return _withFallbackMetadata(
         fallbackExecution,
@@ -121,6 +150,18 @@ final class CockpitHostPreferredCaptureAdapter
       artifactSourcePaths: execution.artifactSourcePaths,
       runtimeSteps: execution.runtimeSteps,
     );
+  }
+
+  String _failureSummary(CockpitCommandResult result) {
+    final error = result.error;
+    if (error != null) {
+      return error.message;
+    }
+    final degradationReason = result.degradationReason;
+    if (degradationReason != null && degradationReason.isNotEmpty) {
+      return degradationReason;
+    }
+    return 'capture returned success=false';
   }
 
   CockpitSnapshotOptions _defaultSnapshotOptionsForReason(

@@ -1135,6 +1135,7 @@ void main() {
 
     expect(json, containsPair('systemAvailableActions', <String>[]));
     expect(json, containsPair('systemVerifiedActions', <String>[]));
+    expect(json, containsPair('systemSkippedActions', <String>[]));
   });
 
   test('iOS exhaustive media probes use an extended action timeout', () async {
@@ -1165,6 +1166,59 @@ void main() {
     );
     expect(addMediaRequest.timeout, greaterThan(const Duration(seconds: 15)));
   });
+
+  test(
+    'iOS exhaustive media timeouts are recorded without blocking core coverage',
+    () async {
+      final systemActionRequests = <CockpitSystemControlActionRequest>[];
+      final verifier = await _createSinglePlatformVerifier(
+        platform: 'ios',
+        deviceId: '87639670-FE4D-446D-9245-5324E0D50184',
+        runSystemAction: (request) async {
+          systemActionRequests.add(request);
+          if (request.action == CockpitSystemControlAction.addMedia) {
+            return CockpitSystemControlActionResult(
+              platform: request.platform,
+              deviceId: request.deviceId,
+              appId: request.appId,
+              processId: request.processId,
+              action: request.action,
+              availability: CockpitSystemControlAvailability.available,
+              success: false,
+              recommendedNextStep: 'inspectSimulatorMediaServices',
+              errorCode: 'systemActionTimedOut',
+              errorMessage: 'System action command timed out after 60000ms.',
+            );
+          }
+          return _fakeRunSystemAction(request);
+        },
+      );
+
+      final result = await verifier.verify(
+        CockpitDemoPlatformVerificationRequest(
+          projectDir: '/workspace/examples/cockpit_demo',
+          platforms: const <String>['ios'],
+          outputRoot: Directory.systemTemp
+              .createTempSync('cockpit_demo_ios_media_timeout_test_')
+              .path,
+          exhaustiveSystemControl: true,
+        ),
+      );
+
+      expect(result.success, isTrue, reason: jsonEncode(result.toJson()));
+      expect(
+        systemActionRequests.map((request) => request.action),
+        contains(CockpitSystemControlAction.addMedia),
+      );
+      expect(result.platforms.single.systemSkippedActions, <String>[
+        'addMedia',
+      ]);
+      expect(
+        result.platforms.single.systemVerifiedActions,
+        isNot(contains('addMedia')),
+      );
+    },
+  );
 
   test('verifier records platform failures and continues by default', () async {
     final verifier = CockpitDemoPlatformVerifier(

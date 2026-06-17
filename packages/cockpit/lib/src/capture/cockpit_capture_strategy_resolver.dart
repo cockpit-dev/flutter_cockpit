@@ -26,6 +26,7 @@ typedef CockpitWindowsCaptureAdapterFactory =
 typedef CockpitLinuxCaptureAdapterFactory =
     CockpitCaptureAdapter Function(String appId, {int? processId});
 typedef CockpitBrowserHostAppIdResolver = String? Function(String deviceId);
+typedef CockpitHostPlatformResolver = String Function();
 
 final class CockpitCaptureStrategyResolver {
   const CockpitCaptureStrategyResolver({
@@ -36,6 +37,7 @@ final class CockpitCaptureStrategyResolver {
     this.windowsAdapterFactory = _defaultWindowsAdapterFactory,
     this.linuxAdapterFactory = _defaultLinuxAdapterFactory,
     this.browserHostAppIdResolver = cockpitResolveBrowserHostAppId,
+    this.hostPlatformResolver = _defaultHostPlatformResolver,
   });
 
   final CockpitRemoteCaptureAdapterFactory remoteAdapterFactory;
@@ -45,6 +47,7 @@ final class CockpitCaptureStrategyResolver {
   final CockpitWindowsCaptureAdapterFactory windowsAdapterFactory;
   final CockpitLinuxCaptureAdapterFactory linuxAdapterFactory;
   final CockpitBrowserHostAppIdResolver browserHostAppIdResolver;
+  final CockpitHostPlatformResolver hostPlatformResolver;
 
   CockpitCaptureAdapter resolve({
     required String platform,
@@ -121,7 +124,7 @@ final class CockpitCaptureStrategyResolver {
       );
       if (browserHostAppId != null && browserHostAppId.isNotEmpty) {
         final hostAdapter = _desktopHostCaptureAdapter(
-          platform: _currentHostPlatform(),
+          platform: hostPlatformResolver(),
           appId: browserHostAppId,
         );
         if (hostAdapter != null) {
@@ -148,7 +151,7 @@ final class CockpitCaptureStrategyResolver {
     };
   }
 
-  String _currentHostPlatform() {
+  static String _defaultHostPlatformResolver() {
     if (Platform.isMacOS) {
       return 'macos';
     }

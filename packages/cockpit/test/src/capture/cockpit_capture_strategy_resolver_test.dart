@@ -305,6 +305,7 @@ void main() {
           expect(deviceId, 'chrome');
           return 'com.google.Chrome';
         },
+        hostPlatformResolver: () => 'macos',
       );
 
       final adapter = resolver.resolve(
@@ -329,6 +330,40 @@ void main() {
 
       expect(adapter, isA<CockpitHostPreferredCaptureAdapter>());
       expect(capturedAppId, 'com.google.Chrome');
+      expect(capturedProcessId, isNull);
+    },
+  );
+
+  test(
+    'uses browser host capture on linux hosts when a browser app id is available',
+    () {
+      final remoteAdapter = _FakeCaptureAdapter();
+      final linuxAdapter = _FakeCaptureAdapter();
+      String? capturedAppId;
+      int? capturedProcessId;
+      final resolver = CockpitCaptureStrategyResolver(
+        remoteAdapterFactory: (client) => remoteAdapter,
+        adbAdapterFactory: (deviceId) => _FakeCaptureAdapter(),
+        simctlAdapterFactory: (deviceId) => _FakeCaptureAdapter(),
+        linuxAdapterFactory: (appId, {processId}) {
+          capturedAppId = appId;
+          capturedProcessId = processId;
+          return linuxAdapter;
+        },
+        browserHostAppIdResolver: (deviceId) => 'google-chrome',
+        hostPlatformResolver: () => 'linux',
+      );
+
+      final adapter = resolver.resolve(
+        platform: 'web',
+        client: CockpitRemoteSessionClient(
+          baseUri: Uri.parse('http://127.0.0.1:47331'),
+        ),
+        deviceId: 'chrome',
+      );
+
+      expect(adapter, isA<CockpitHostPreferredCaptureAdapter>());
+      expect(capturedAppId, 'google-chrome');
       expect(capturedProcessId, isNull);
     },
   );

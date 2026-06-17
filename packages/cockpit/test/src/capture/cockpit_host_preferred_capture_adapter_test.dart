@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:cockpit/src/adapters/cockpit_capture_adapter.dart';
+import 'package:cockpit/src/application/cockpit_application_service_exception.dart';
 import 'package:cockpit/src/capture/cockpit_host_preferred_capture_adapter.dart';
 import 'package:cockpit/src/remote/cockpit_remote_session_client.dart';
 import 'package:test/test.dart';
@@ -652,6 +653,231 @@ void main() {
     },
   );
 
+  test(
+    'keeps host failure when advertised remote screenshot fallback throws',
+    () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() => server.close(force: true));
+      server.listen((request) async {
+        request.response.headers.contentType = ContentType.json;
+        if (request.uri.path == '/commands/execute') {
+          request.response.write(
+            jsonEncode(
+              CockpitCommandResult(
+                success: true,
+                commandId: 'wait-for-idle',
+                commandType: CockpitCommandType.waitForUiIdle,
+                durationMs: 5,
+              ).toJson(),
+            ),
+          );
+        } else if (request.uri.path == '/health') {
+          request.response.write(
+            jsonEncode(
+              CockpitRemoteSessionStatus(
+                sessionId: 'web-session',
+                platform: 'web',
+                transportType: 'remoteHttp',
+                currentRouteName: '/inbox',
+                capabilities: CockpitCapabilities(
+                  platform: 'web',
+                  transportType: 'remoteHttp',
+                  supportsInAppControl: true,
+                  supportsFlutterViewCapture: true,
+                  supportsNativeScreenCapture: false,
+                  supportsHostAutomation: false,
+                  supportedCommands: const <CockpitCommandType>[
+                    CockpitCommandType.captureScreenshot,
+                    CockpitCommandType.waitForUiIdle,
+                  ],
+                ),
+                recordingCapabilities: CockpitRecordingCapabilities(
+                  supportsNativeRecording: false,
+                ),
+                snapshot: CockpitSnapshot(routeName: '/inbox'),
+              ).toJson(),
+            ),
+          );
+        } else {
+          request.response.statusCode = HttpStatus.notFound;
+          request.response.write('{}');
+        }
+        await request.response.close();
+      });
+
+      final remoteAdapter = _ThrowingCaptureAdapter(
+        const CockpitApplicationServiceException(
+          code: 'serverError',
+          message: 'No in-app handler registered for captureScreenshot',
+        ),
+      );
+      final hostAdapter = _FakeCaptureAdapter(
+        execution: CockpitCommandExecution(
+          result: CockpitCommandResult(
+            success: false,
+            commandId: 'capture',
+            commandType: CockpitCommandType.captureScreenshot,
+            durationMs: 12,
+            requestedCaptureProfile: CockpitCaptureProfile.acceptance,
+            error: CockpitCommandError.captureFailed(
+              message: 'host screenshot capture failed',
+            ),
+          ),
+        ),
+      );
+
+      final adapter = CockpitHostPreferredCaptureAdapter(
+        remoteAdapter: remoteAdapter,
+        hostAcceptanceAdapter: hostAdapter,
+        client: CockpitRemoteSessionClient(
+          baseUri: Uri.parse('http://127.0.0.1:${server.port}'),
+        ),
+      );
+
+      final execution = await adapter.capture(
+        CockpitCommand(
+          commandId: 'capture',
+          commandType: CockpitCommandType.captureScreenshot,
+          screenshotRequest: const CockpitScreenshotRequest(
+            reason: CockpitScreenshotReason.acceptance,
+            name: 'acceptance',
+          ),
+        ),
+      );
+
+      expect(hostAdapter.captureCount, 1);
+      expect(remoteAdapter.captureCount, 1);
+      expect(execution.result.success, isFalse);
+      expect(execution.result.error?.message, 'host screenshot capture failed');
+      expect(execution.result.usedCaptureFallback, isTrue);
+      expect(
+        execution.result.degradationReason,
+        contains('remoteFallbackThrew'),
+      );
+      expect(
+        execution.result.degradationReason,
+        contains('No in-app handler registered for captureScreenshot'),
+      );
+    },
+  );
+
+  test(
+    'keeps host failure when advertised remote screenshot fallback fails',
+    () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() => server.close(force: true));
+      server.listen((request) async {
+        request.response.headers.contentType = ContentType.json;
+        if (request.uri.path == '/commands/execute') {
+          request.response.write(
+            jsonEncode(
+              CockpitCommandResult(
+                success: true,
+                commandId: 'wait-for-idle',
+                commandType: CockpitCommandType.waitForUiIdle,
+                durationMs: 5,
+              ).toJson(),
+            ),
+          );
+        } else if (request.uri.path == '/health') {
+          request.response.write(
+            jsonEncode(
+              CockpitRemoteSessionStatus(
+                sessionId: 'web-session',
+                platform: 'web',
+                transportType: 'remoteHttp',
+                currentRouteName: '/inbox',
+                capabilities: CockpitCapabilities(
+                  platform: 'web',
+                  transportType: 'remoteHttp',
+                  supportsInAppControl: true,
+                  supportsFlutterViewCapture: true,
+                  supportsNativeScreenCapture: false,
+                  supportsHostAutomation: false,
+                  supportedCommands: const <CockpitCommandType>[
+                    CockpitCommandType.captureScreenshot,
+                    CockpitCommandType.waitForUiIdle,
+                  ],
+                ),
+                recordingCapabilities: CockpitRecordingCapabilities(
+                  supportsNativeRecording: false,
+                ),
+                snapshot: CockpitSnapshot(routeName: '/inbox'),
+              ).toJson(),
+            ),
+          );
+        } else {
+          request.response.statusCode = HttpStatus.notFound;
+          request.response.write('{}');
+        }
+        await request.response.close();
+      });
+
+      final remoteAdapter = _FakeCaptureAdapter(
+        execution: CockpitCommandExecution(
+          result: CockpitCommandResult(
+            success: false,
+            commandId: 'capture',
+            commandType: CockpitCommandType.captureScreenshot,
+            durationMs: 9,
+            requestedCaptureProfile: CockpitCaptureProfile.acceptance,
+            resolvedCaptureKind: CockpitCaptureKind.flutterView,
+            error: CockpitCommandError.captureFailed(
+              message: 'remote screenshot fallback failed',
+            ),
+          ),
+        ),
+      );
+      final hostAdapter = _FakeCaptureAdapter(
+        execution: CockpitCommandExecution(
+          result: CockpitCommandResult(
+            success: false,
+            commandId: 'capture',
+            commandType: CockpitCommandType.captureScreenshot,
+            durationMs: 12,
+            requestedCaptureProfile: CockpitCaptureProfile.acceptance,
+            error: CockpitCommandError.captureFailed(
+              message: 'host screenshot capture failed',
+            ),
+          ),
+        ),
+      );
+
+      final adapter = CockpitHostPreferredCaptureAdapter(
+        remoteAdapter: remoteAdapter,
+        hostAcceptanceAdapter: hostAdapter,
+        client: CockpitRemoteSessionClient(
+          baseUri: Uri.parse('http://127.0.0.1:${server.port}'),
+        ),
+      );
+
+      final execution = await adapter.capture(
+        CockpitCommand(
+          commandId: 'capture',
+          commandType: CockpitCommandType.captureScreenshot,
+          screenshotRequest: const CockpitScreenshotRequest(
+            reason: CockpitScreenshotReason.acceptance,
+            name: 'acceptance',
+          ),
+        ),
+      );
+
+      expect(hostAdapter.captureCount, 1);
+      expect(remoteAdapter.captureCount, 1);
+      expect(execution.result.success, isFalse);
+      expect(execution.result.error?.message, 'host screenshot capture failed');
+      expect(execution.result.usedCaptureFallback, isTrue);
+      expect(
+        execution.result.degradationReason,
+        contains('remoteFallbackFailed'),
+      );
+      expect(
+        execution.result.degradationReason,
+        contains('remote screenshot fallback failed'),
+      );
+    },
+  );
+
   test('returns remote failure metadata when host capture throws', () async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     addTearDown(() => server.close(force: true));
@@ -759,12 +985,14 @@ final class _FakeCaptureAdapter implements CockpitCaptureAdapter {
 }
 
 final class _ThrowingCaptureAdapter implements CockpitCaptureAdapter {
-  const _ThrowingCaptureAdapter(this.error);
+  _ThrowingCaptureAdapter(this.error);
 
   final Object error;
+  int captureCount = 0;
 
   @override
   Future<CockpitCommandExecution> capture(CockpitCommand command) async {
+    captureCount += 1;
     throw error;
   }
 }
