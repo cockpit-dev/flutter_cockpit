@@ -191,8 +191,9 @@ final class CockpitRemoteSessionClient {
     if (payload.containsKey('result')) {
       final response = CockpitRemoteCommandResponse.fromJson(payload);
       final artifactSourcePaths = await _downloadCommandArtifacts(response);
+      final result = _withDownloadedArtifactRefs(response);
       return CockpitCommandExecution(
-        result: response.result,
+        result: result,
         artifactPayloads: <String, List<int>>{
           for (final payload in response.artifactPayloads)
             payload.artifact.relativePath: payload.bytes,
@@ -203,6 +204,47 @@ final class CockpitRemoteSessionClient {
     }
     return CockpitCommandExecution(
       result: CockpitCommandResult.fromJson(payload),
+    );
+  }
+
+  CockpitCommandResult _withDownloadedArtifactRefs(
+    CockpitRemoteCommandResponse response,
+  ) {
+    if (response.artifactDownloads.isEmpty) {
+      return response.result;
+    }
+    final existingPaths = response.result.artifacts
+        .map((artifact) => artifact.relativePath)
+        .toSet();
+    final downloadedArtifacts = <CockpitArtifactRef>[];
+    for (final download in response.artifactDownloads) {
+      final artifact = download.artifact;
+      if (artifact.relativePath.isEmpty ||
+          !existingPaths.add(artifact.relativePath)) {
+        continue;
+      }
+      downloadedArtifacts.add(artifact);
+    }
+    if (downloadedArtifacts.isEmpty) {
+      return response.result;
+    }
+    final result = response.result;
+    return CockpitCommandResult(
+      success: result.success,
+      commandId: result.commandId,
+      commandType: result.commandType,
+      locatorResolution: result.locatorResolution,
+      durationMs: result.durationMs,
+      artifacts: <CockpitArtifactRef>[
+        ...result.artifacts,
+        ...downloadedArtifacts,
+      ],
+      snapshot: result.snapshot,
+      requestedCaptureProfile: result.requestedCaptureProfile,
+      resolvedCaptureKind: result.resolvedCaptureKind,
+      usedCaptureFallback: result.usedCaptureFallback,
+      degradationReason: result.degradationReason,
+      error: result.error,
     );
   }
 

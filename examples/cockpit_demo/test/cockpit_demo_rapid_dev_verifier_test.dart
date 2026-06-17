@@ -204,6 +204,7 @@ void main() {
           'rapid-dismiss-keyboard',
           'rapid-reveal-high-priority',
           'rapid-select-high-priority',
+          'rapid-reveal-due-date-section',
           'rapid-reveal-today',
           'rapid-select-today',
           'rapid-save-task',
@@ -227,6 +228,14 @@ void main() {
       );
       expect(
         firstBatchLocators['rapid-select-high-priority']!.route,
+        '/editor',
+      );
+      expect(
+        firstBatchLocators['rapid-reveal-due-date-section']!.text,
+        'Due date',
+      );
+      expect(
+        firstBatchLocators['rapid-reveal-due-date-section']!.route,
         '/editor',
       );
       expect(
