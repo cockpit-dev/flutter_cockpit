@@ -210,10 +210,11 @@ final class CockpitLinuxCaptureAdapter implements CockpitHostCaptureAdapter {
                 outputPath,
               ],
       'scrot' => <String>['-u', outputPath],
-      'import' =>
-        windowTarget == null
-            ? null
-            : <String>['-window', windowTarget.windowId, outputPath],
+      'import' => <String>[
+        '-window',
+        windowTarget?.windowId ?? 'root',
+        outputPath,
+      ],
       _ => <String>[outputPath],
     };
   }
