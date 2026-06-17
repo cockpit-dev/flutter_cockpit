@@ -118,4 +118,60 @@ void main() {
       expect(execution.result.error?.message, 'Linux host screenshot failed.');
     },
   );
+
+  test(
+    'linux capture adapter uses import root fallback without a window target',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_linux_import_root_capture',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final invocations = <String>[];
+      final outputFile = File(p.join(tempDir.path, 'web-root.png'));
+      final adapter = CockpitLinuxCaptureAdapter(
+        appId: 'google-chrome',
+        captureExecutables: const <String>['import'],
+        windowActivatorExecutable: null,
+        windowTargetResolver:
+            ({
+              required appId,
+              required processId,
+              required processRunner,
+              required timeout,
+            }) async {
+              throw StateError('No visible Linux window was found for $appId.');
+            },
+        tempFileFactory: (_) async => outputFile,
+        processRunner: (executable, arguments) async {
+          invocations.add('$executable ${arguments.join(' ')}');
+          if (executable == 'import') {
+            outputFile.writeAsStringSync('root-png-data');
+            return ProcessResult(0, 0, '', '');
+          }
+          fail('Unexpected executable: $executable');
+        },
+        activationSettleDelay: Duration.zero,
+      );
+
+      final execution = await adapter.capture(
+        CockpitCommand(
+          commandId: 'capture-web-root',
+          commandType: CockpitCommandType.captureScreenshot,
+          screenshotRequest: const CockpitScreenshotRequest(
+            reason: CockpitScreenshotReason.acceptance,
+            name: 'web-root',
+          ),
+        ),
+      );
+
+      expect(execution.result.success, isTrue);
+      expect(outputFile.readAsStringSync(), 'root-png-data');
+      expect(invocations, <String>['import -window root ${outputFile.path}']);
+    },
+  );
 }
