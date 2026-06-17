@@ -438,6 +438,7 @@ void main() {
             expect(deviceId, 'chrome');
             return 'com.google.Chrome';
           },
+          hostPlatformResolver: () => 'macos',
         ),
       );
 

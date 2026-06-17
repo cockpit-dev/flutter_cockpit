@@ -201,6 +201,7 @@ void main() {
           'rapid-enter-title',
           'rapid-reveal-notes',
           'rapid-enter-notes',
+          'rapid-dismiss-keyboard',
           'rapid-reveal-high-priority',
           'rapid-select-high-priority',
           'rapid-reveal-today',
@@ -225,6 +226,10 @@ void main() {
         'task-editor-priority-high',
       );
       expect(
+        firstBatchLocators['rapid-select-high-priority']!.route,
+        '/editor',
+      );
+      expect(
         firstBatchLocators['rapid-reveal-today']!.semanticId,
         'task-editor-due-today',
       );
@@ -232,6 +237,7 @@ void main() {
         firstBatchLocators['rapid-select-today']!.semanticId,
         'task-editor-due-today',
       );
+      expect(firstBatchLocators['rapid-select-today']!.route, '/editor');
       expect(
         batchRequests.first.defaultResultProfile.name,
         CockpitInteractiveResultProfileName.minimal,
@@ -357,8 +363,8 @@ void main() {
           return CockpitRunBatchResult(
             results: results,
             summary: const CockpitExecuteRemoteCommandBatchSummary(
-              totalCount: 11,
-              successCount: 10,
+              totalCount: 12,
+              successCount: 11,
               failureCount: 1,
               stoppedEarly: true,
             ),
@@ -706,6 +712,7 @@ CockpitReadAppResult _readAppResult(
 }) {
   final textPreviews = <String>[
     'Queue brief: 1 active / 1 due today / 1 priority / 0 conflicts',
+    'HIGH',
     ?createdTaskTitle,
   ];
   return CockpitReadAppResult(

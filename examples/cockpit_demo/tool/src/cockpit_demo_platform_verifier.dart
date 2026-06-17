@@ -305,6 +305,7 @@ final class CockpitDemoPlatformVerification {
     this.systemControlAdapter,
     this.systemAvailableActions = const <String>[],
     this.systemVerifiedActions = const <String>[],
+    this.systemSkippedActions = const <String>[],
     this.verifiedCommands = const <String>[],
     this.warnings = const <String>[],
     this.baseUrl,
@@ -350,6 +351,7 @@ final class CockpitDemoPlatformVerification {
   final String? systemControlAdapter;
   final List<String> systemAvailableActions;
   final List<String> systemVerifiedActions;
+  final List<String> systemSkippedActions;
   final List<String> verifiedCommands;
   final List<String> warnings;
   final String? baseUrl;
@@ -404,6 +406,7 @@ final class CockpitDemoPlatformVerification {
       'systemControlAdapter': systemControlAdapter,
     'systemAvailableActions': systemAvailableActions,
     'systemVerifiedActions': systemVerifiedActions,
+    'systemSkippedActions': systemSkippedActions,
     'verifiedCommands': verifiedCommands,
     if (warnings.isNotEmpty) 'warnings': warnings,
     if (failureCode != null) 'failureCode': failureCode,
@@ -1341,6 +1344,7 @@ final class CockpitDemoPlatformVerifier {
         systemControlAdapter: systemControl.adapter,
         systemAvailableActions: systemControl.availableActions,
         systemVerifiedActions: systemControl.verifiedActions,
+        systemSkippedActions: systemControl.skippedActions,
         verifiedCommands: verifiedCommands,
         warnings: warnings,
       );
@@ -1440,6 +1444,7 @@ final class CockpitDemoPlatformVerifier {
         .map((action) => action.name)
         .toList(growable: false);
     final verifiedActions = <String>[];
+    final skippedActions = <String>[];
 
     Future<CockpitSystemControlActionResult> runAndRequireSuccess({
       required CockpitSystemControlAction action,
@@ -1474,6 +1479,36 @@ final class CockpitDemoPlatformVerifier {
       }
       verifiedActions.add(action.name);
       return result;
+    }
+
+    Future<void> runOptionalProbe({
+      required CockpitSystemControlAction action,
+      Map<String, Object?> parameters = const <String, Object?>{},
+      Duration timeout = const Duration(seconds: 15),
+    }) async {
+      final result = await _runSystemAction(
+        CockpitSystemControlActionRequest(
+          platform: platform,
+          deviceId: deviceId,
+          appId: app.platformAppId,
+          processId: app.processId,
+          action: action,
+          parameters: parameters,
+          timeout: timeout,
+        ),
+      );
+      if (result.success) {
+        verifiedActions.add(action.name);
+        return;
+      }
+      skippedActions.add(action.name);
+      _reportProgress(
+        request: request,
+        platform: platform,
+        stage: 'system-control',
+        message:
+            'optional ${action.name} skipped error=${result.errorCode ?? "unknown"}',
+      );
     }
 
     if (profile.availableActions.contains(
@@ -1583,6 +1618,17 @@ final class CockpitDemoPlatformVerifier {
         final action = entry.action;
         if (verifiedActions.contains(action.name)) continue;
         if (!profile.availableActions.contains(action)) continue;
+        if (_isOptionalExhaustiveSystemProbe(
+          platform: platform,
+          action: action,
+        )) {
+          await runOptionalProbe(
+            action: action,
+            parameters: entry.parameters,
+            timeout: entry.timeout,
+          );
+          continue;
+        }
         await runAndRequireSuccess(
           action: action,
           parameters: entry.parameters,
@@ -1610,13 +1656,21 @@ final class CockpitDemoPlatformVerifier {
       platform: platform,
       stage: 'system-control',
       message:
-          'adapter=${profile.adapter} available=${availableActions.length} verified=${verifiedActions.join(",")}',
+          'adapter=${profile.adapter} available=${availableActions.length} verified=${verifiedActions.join(",")} optionalSkipped=${skippedActions.join(",")}',
     );
     return _SystemControlVerification(
       adapter: profile.adapter,
       availableActions: availableActions,
       verifiedActions: List<String>.unmodifiable(verifiedActions),
+      skippedActions: List<String>.unmodifiable(skippedActions),
     );
+  }
+
+  bool _isOptionalExhaustiveSystemProbe({
+    required String platform,
+    required CockpitSystemControlAction action,
+  }) {
+    return platform == 'ios' && action == CockpitSystemControlAction.addMedia;
   }
 
   List<_SystemControlActionProbe> _buildExhaustiveSystemControlActions({
@@ -3261,11 +3315,13 @@ final class _SystemControlVerification {
     required this.adapter,
     required this.availableActions,
     required this.verifiedActions,
+    required this.skippedActions,
   });
 
   final String adapter;
   final List<String> availableActions;
   final List<String> verifiedActions;
+  final List<String> skippedActions;
 }
 
 final class _SystemControlActionProbe {

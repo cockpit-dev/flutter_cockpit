@@ -332,7 +332,7 @@ final class CockpitDemoRapidDevVerifier {
       );
       _requireBatchSuccess(
         result: createResult,
-        expectedCount: 11,
+        expectedCount: 12,
         platform: platform,
       );
       queueBrief =
@@ -409,6 +409,12 @@ final class CockpitDemoRapidDevVerifier {
         expectedText: taskTitle,
         platform: platform,
         label: 'created task',
+      );
+      _requireReadAppText(
+        result: postReloadRead,
+        expectedText: 'HIGH',
+        platform: platform,
+        label: 'priority chip',
       );
 
       final captureResult = await _captureScreenshotWithRetry(
@@ -981,6 +987,10 @@ List<Map<String, Object?>> _buildRapidCreateTaskBatch({
       },
     },
     <String, Object?>{
+      'commandId': 'rapid-dismiss-keyboard',
+      'commandType': 'dismissKeyboard',
+    },
+    <String, Object?>{
       'commandId': 'rapid-reveal-high-priority',
       'commandType': 'scrollUntilVisible',
       'locator': <String, Object?>{
@@ -1003,6 +1013,7 @@ List<Map<String, Object?>> _buildRapidCreateTaskBatch({
       'locator': <String, Object?>{
         'semanticId': 'task-editor-priority-high',
         'text': 'HIGH',
+        'route': '/editor',
         'ancestor': <String, Object?>{'route': '/editor'},
       },
     },
@@ -1016,8 +1027,8 @@ List<Map<String, Object?>> _buildRapidCreateTaskBatch({
         'ancestor': <String, Object?>{'route': '/editor'},
       },
       'parameters': const <String, Object?>{
-        'maxScrolls': 6,
-        'viewportFraction': 0.62,
+        'maxScrolls': 8,
+        'viewportFraction': 0.46,
         'continuous': true,
         'durationPerStepMs': 180,
         'revealAlignment': 'center',
@@ -1029,6 +1040,7 @@ List<Map<String, Object?>> _buildRapidCreateTaskBatch({
       'locator': <String, Object?>{
         'semanticId': 'task-editor-due-today',
         'text': 'Today',
+        'route': '/editor',
         'ancestor': <String, Object?>{'route': '/editor'},
       },
     },
