@@ -398,6 +398,225 @@ void main() {
   );
 
   testWidgets(
+    'executes rapid due-date selection through the real editor layout',
+    (tester) async {
+      final controller = CockpitSessionController(
+        sessionId: 'rapid-editor-session',
+        taskId: 'rapid-editor-task',
+        platform: 'web',
+      );
+      final registry = CockpitTargetRegistry(routeName: '/inbox');
+      final database = CockpitDemoDatabase.inMemory();
+      addCockpitDemoDatabaseTearDown(tester, database);
+
+      await tester.pumpWidget(
+        CockpitDemoApp(
+          configuration: FlutterCockpitConfiguration(
+            sessionController: controller,
+            registry: registry,
+          ),
+          database: database,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      InAppCockpitCommandExecutor executorForCurrentRoute() {
+        final surfaceState = tester.state<CockpitSurfaceState>(
+          find.byType(CockpitSurface),
+        );
+        return InAppCockpitCommandExecutor(
+          registry: registry,
+          snapshotProvider: surfaceState.snapshot,
+          waitTickHandler: tester.pump,
+          scrollStepHandler:
+              ({
+                required reverse,
+                required viewportFraction,
+                scrollableKey,
+                targetLocator,
+                scrollableLocator,
+                required duration,
+                required gestureProfile,
+                required continuous,
+                required postScrollEnsureVisible,
+              }) {
+                return surfaceState.scrollByViewport(
+                  reverse: reverse,
+                  viewportFraction: viewportFraction,
+                  scrollableKey: scrollableKey,
+                  targetLocator: targetLocator,
+                  scrollableLocator: scrollableLocator,
+                  duration: duration,
+                  gestureProfile: gestureProfile,
+                  continuous: continuous,
+                  postScrollEnsureVisible: postScrollEnsureVisible,
+                );
+              },
+          ensureVisibleHandler:
+              ({
+                required locator,
+                required duration,
+                required alignment,
+                required padding,
+              }) {
+                return surfaceState.ensureLocatorVisible(
+                  locator,
+                  duration: duration,
+                  alignment: alignment,
+                  padding: padding,
+                );
+              },
+        );
+      }
+
+      Future<void> execute(CockpitCommand command) async {
+        final result = await executorForCurrentRoute().execute(command);
+        await tester.pumpAndSettle();
+        expect(result.success, isTrue, reason: result.error?.message);
+      }
+
+      await execute(
+        CockpitCommand(
+          commandId: 'rapid-open-editor',
+          commandType: CockpitCommandType.tap,
+          locator: const CockpitLocator(text: 'New task', route: '/inbox'),
+          parameters: const <String, Object?>{'expectedRouteName': '/editor'},
+        ),
+      );
+      await execute(
+        CockpitCommand(
+          commandId: 'rapid-enter-title',
+          commandType: CockpitCommandType.enterText,
+          locator: const CockpitLocator(
+            text: 'Task title',
+            type: 'TextField',
+            ancestor: CockpitLocator(route: '/editor'),
+          ),
+          parameters: const <String, Object?>{'text': 'Rapid due date proof'},
+        ),
+      );
+      await execute(
+        CockpitCommand(
+          commandId: 'rapid-reveal-notes',
+          commandType: CockpitCommandType.scrollUntilVisible,
+          locator: const CockpitLocator(
+            text: 'Notes',
+            route: '/editor',
+            ancestor: CockpitLocator(route: '/editor'),
+          ),
+          parameters: const <String, Object?>{
+            'maxScrolls': 6,
+            'viewportFraction': 0.62,
+            'continuous': true,
+            'durationPerStepMs': 180,
+            'revealAlignment': 'center',
+          },
+        ),
+      );
+      await execute(
+        CockpitCommand(
+          commandId: 'rapid-enter-notes',
+          commandType: CockpitCommandType.enterText,
+          locator: const CockpitLocator(
+            text: 'Notes',
+            type: 'TextField',
+            ancestor: CockpitLocator(route: '/editor'),
+          ),
+          parameters: const <String, Object?>{
+            'text': 'Created during the rapid AI development verifier.',
+          },
+        ),
+      );
+      await execute(
+        CockpitCommand(
+          commandId: 'rapid-dismiss-keyboard',
+          commandType: CockpitCommandType.dismissKeyboard,
+        ),
+      );
+      await execute(
+        CockpitCommand(
+          commandId: 'rapid-reveal-high-priority',
+          commandType: CockpitCommandType.scrollUntilVisible,
+          locator: const CockpitLocator(
+            semanticId: 'task-editor-priority-high',
+            text: 'HIGH',
+            route: '/editor',
+            ancestor: CockpitLocator(route: '/editor'),
+          ),
+          parameters: const <String, Object?>{
+            'maxScrolls': 6,
+            'viewportFraction': 0.62,
+            'continuous': true,
+            'durationPerStepMs': 180,
+            'revealAlignment': 'center',
+          },
+        ),
+      );
+      await execute(
+        CockpitCommand(
+          commandId: 'rapid-select-high-priority',
+          commandType: CockpitCommandType.tap,
+          locator: const CockpitLocator(
+            semanticId: 'task-editor-priority-high',
+            text: 'HIGH',
+            route: '/editor',
+            ancestor: CockpitLocator(route: '/editor'),
+          ),
+        ),
+      );
+      await execute(
+        CockpitCommand(
+          commandId: 'rapid-reveal-due-date-section',
+          commandType: CockpitCommandType.scrollUntilVisible,
+          locator: const CockpitLocator(
+            text: 'Due date',
+            route: '/editor',
+            ancestor: CockpitLocator(route: '/editor'),
+          ),
+          parameters: const <String, Object?>{
+            'maxScrolls': 6,
+            'viewportFraction': 0.38,
+            'continuous': true,
+            'durationPerStepMs': 180,
+            'revealAlignment': 'center',
+          },
+        ),
+      );
+      await execute(
+        CockpitCommand(
+          commandId: 'rapid-reveal-today',
+          commandType: CockpitCommandType.scrollUntilVisible,
+          locator: const CockpitLocator(
+            semanticId: 'task-editor-due-today',
+            text: 'Today',
+            route: '/editor',
+            ancestor: CockpitLocator(route: '/editor'),
+          ),
+          parameters: const <String, Object?>{
+            'maxScrolls': 8,
+            'viewportFraction': 0.46,
+            'continuous': true,
+            'durationPerStepMs': 180,
+            'revealAlignment': 'center',
+          },
+        ),
+      );
+      await execute(
+        CockpitCommand(
+          commandId: 'rapid-select-today',
+          commandType: CockpitCommandType.tap,
+          locator: const CockpitLocator(
+            semanticId: 'task-editor-due-today',
+            text: 'Today',
+            route: '/editor',
+            ancestor: CockpitLocator(route: '/editor'),
+          ),
+        ),
+      );
+    },
+  );
+
+  testWidgets(
     'creates a follow-up task through the in-app executor with label-based input targeting',
     (tester) async {
       final controller = CockpitSessionController(
