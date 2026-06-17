@@ -2,6 +2,7 @@ import 'package:flutter_cockpit/flutter_cockpit.dart';
 
 import '../adapters/cockpit_capture_adapter.dart';
 import '../remote/cockpit_remote_session_client.dart';
+import 'cockpit_host_capture_adapter.dart';
 
 final class CockpitHostPreferredCaptureAdapter
     implements CockpitCaptureAdapter {
@@ -31,7 +32,18 @@ final class CockpitHostPreferredCaptureAdapter
     final CockpitCommandExecution execution;
     try {
       execution = await _hostAcceptanceAdapter.capture(command);
-    } on Object {
+    } on Object catch (error) {
+      if (!await _remoteScreenshotFallbackAvailable()) {
+        return cockpitFailedCaptureExecution(
+          command: command,
+          durationMs: 0,
+          message: 'Host screenshot capture threw before remote fallback.',
+          details: <String, Object?>{
+            'fallbackSkipped': 'remoteCaptureUnsupported',
+            'error': error.toString(),
+          },
+        );
+      }
       final fallbackExecution = await _remoteAdapter.capture(command);
       return _withFallbackMetadata(
         fallbackExecution,
@@ -39,6 +51,9 @@ final class CockpitHostPreferredCaptureAdapter
       );
     }
     if (!execution.result.success) {
+      if (!await _remoteScreenshotFallbackAvailable()) {
+        return execution;
+      }
       final fallbackExecution = await _remoteAdapter.capture(command);
       if (!fallbackExecution.result.success) {
         return execution;
@@ -122,5 +137,17 @@ final class CockpitHostPreferredCaptureAdapter
       CockpitScreenshotReason.afterAction =>
         const CockpitSnapshotOptions.live(),
     };
+  }
+
+  Future<bool> _remoteScreenshotFallbackAvailable() async {
+    try {
+      final status = await _client.readStatus();
+      return status.capabilities.supportsFlutterViewCapture &&
+          status.capabilities.supportedCommands.contains(
+            CockpitCommandType.captureScreenshot,
+          );
+    } on Object {
+      return false;
+    }
   }
 }

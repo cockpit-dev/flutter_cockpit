@@ -169,6 +169,12 @@ void main() {
   test(
     'capture screenshot service falls back to app capture when system capture fails',
     () async {
+      final remoteServer = await _RemoteStatusServer.start(
+        supportsFlutterViewCapture: true,
+        supportedCommands: const <String>['captureScreenshot'],
+      );
+      addTearDown(remoteServer.close);
+
       final hostAdapter = _FakeCaptureAdapter(
         execution: CockpitCommandExecution(
           result: CockpitCommandResult(
@@ -212,7 +218,7 @@ void main() {
 
       final result = await service.capture(
         CockpitCaptureScreenshotRequest(
-          app: _macosAppHandle(),
+          app: _macosAppHandle(baseUrl: remoteServer.baseUrl),
           name: 'acceptance',
           reason: CockpitScreenshotReason.acceptance,
         ),
@@ -377,9 +383,82 @@ void main() {
       );
     },
   );
+
+  test(
+    'capture screenshot service uses browser host capture for web apps',
+    () async {
+      final hostAdapter = _FakeCaptureAdapter(
+        execution: CockpitCommandExecution(
+          result: CockpitCommandResult(
+            success: true,
+            commandId: 'capture-screenshot',
+            commandType: CockpitCommandType.captureScreenshot,
+            durationMs: 12,
+            artifacts: const <CockpitArtifactRef>[
+              CockpitArtifactRef(
+                role: 'screenshot',
+                relativePath: 'screenshots/web_host.png',
+              ),
+            ],
+            requestedCaptureProfile: CockpitCaptureProfile.acceptance,
+            resolvedCaptureKind: CockpitCaptureKind.nativeAcceptance,
+          ),
+          artifactSourcePaths: const <String, String>{
+            'screenshots/web_host.png': '/tmp/web_host.png',
+          },
+        ),
+      );
+      final remoteAdapter = _FakeCaptureAdapter(
+        execution: CockpitCommandExecution(
+          result: CockpitCommandResult(
+            success: true,
+            commandId: 'capture-screenshot',
+            commandType: CockpitCommandType.captureScreenshot,
+            durationMs: 8,
+            artifacts: const <CockpitArtifactRef>[
+              CockpitArtifactRef(
+                role: 'screenshot',
+                relativePath: 'screenshots/web_remote.png',
+              ),
+            ],
+            resolvedCaptureKind: CockpitCaptureKind.flutterView,
+          ),
+        ),
+      );
+      final service = CockpitCaptureScreenshotService(
+        captureStrategyResolver: CockpitCaptureStrategyResolver(
+          remoteAdapterFactory: (_) => remoteAdapter,
+          adbAdapterFactory: (_) => throw StateError('adb not expected'),
+          simctlAdapterFactory: (_) => throw StateError('simctl not expected'),
+          macosAdapterFactory: (appId) {
+            expect(appId, 'com.google.Chrome');
+            return hostAdapter;
+          },
+          browserHostAppIdResolver: (deviceId) {
+            expect(deviceId, 'chrome');
+            return 'com.google.Chrome';
+          },
+        ),
+      );
+
+      final result = await service.capture(
+        CockpitCaptureScreenshotRequest(
+          app: _webAppHandle(),
+          name: 'web-host',
+          reason: CockpitScreenshotReason.acceptance,
+        ),
+      );
+
+      expect(hostAdapter.captureCount, 1);
+      expect(remoteAdapter.captureCount, 0);
+      expect(result.command.resolvedCaptureKind, 'nativeAcceptance');
+      expect(result.artifacts.single.relativePath, 'screenshots/web_host.png');
+    },
+  );
 }
 
-CockpitAppHandle _macosAppHandle() {
+CockpitAppHandle _macosAppHandle({String baseUrl = 'http://127.0.0.1:47331'}) {
+  final baseUri = Uri.parse(baseUrl);
   return CockpitAppHandle(
     appId: 'macos-app',
     mode: CockpitAppMode.automation,
@@ -387,7 +466,7 @@ CockpitAppHandle _macosAppHandle() {
     deviceId: 'macos',
     projectDir: '/workspace/examples/cockpit_demo',
     target: 'cockpit/main.dart',
-    baseUrl: 'http://127.0.0.1:47331',
+    baseUrl: baseUrl,
     launchedAt: DateTime.utc(2026, 6, 16),
     platformAppId: 'dev.cockpit.demo',
     remoteSession: CockpitRemoteSessionHandle(
@@ -396,6 +475,32 @@ CockpitAppHandle _macosAppHandle() {
       projectDir: '/workspace/examples/cockpit_demo',
       target: 'cockpit/main.dart',
       appId: 'dev.cockpit.demo',
+      host: baseUri.host,
+      hostPort: baseUri.port,
+      devicePort: baseUri.port,
+      baseUrl: baseUrl,
+      launchedAt: DateTime.utc(2026, 6, 16),
+    ),
+  );
+}
+
+CockpitAppHandle _webAppHandle() {
+  return CockpitAppHandle(
+    appId: 'web-app',
+    mode: CockpitAppMode.development,
+    platform: 'web',
+    deviceId: 'chrome',
+    projectDir: '/workspace/examples/cockpit_demo',
+    target: 'cockpit/main.dart',
+    baseUrl: 'http://127.0.0.1:47331',
+    launchedAt: DateTime.utc(2026, 6, 16),
+    remoteSession: CockpitRemoteSessionHandle(
+      platform: 'web',
+      deviceId: 'chrome',
+      projectDir: '/workspace/examples/cockpit_demo',
+      target: 'cockpit/main.dart',
+      appId: 'web-app',
+      platformAppIdKnown: false,
       host: '127.0.0.1',
       hostPort: 47331,
       devicePort: 47331,
@@ -416,4 +521,50 @@ final class _FakeCaptureAdapter implements CockpitCaptureAdapter {
     captureCount += 1;
     return execution;
   }
+}
+
+final class _RemoteStatusServer {
+  const _RemoteStatusServer._(this._server);
+
+  final HttpServer _server;
+
+  String get baseUrl => 'http://127.0.0.1:${_server.port}';
+
+  static Future<_RemoteStatusServer> start({
+    required bool supportsFlutterViewCapture,
+    required List<String> supportedCommands,
+  }) async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    server.listen((request) async {
+      if (request.method == 'GET' && request.uri.path == '/health') {
+        request.response.headers.contentType = ContentType.json;
+        request.response.write(
+          '{"sessionId":"test-session","platform":"macos","transportType":"http",'
+          '"capabilities":{"platform":"macos","transportType":"http",'
+          '"supportsInAppControl":true,'
+          '"supportsFlutterViewCapture":$supportsFlutterViewCapture,'
+          '"supportsNativeScreenCapture":false,'
+          '"supportsHostAutomation":false,'
+          '"supportedCommands":${_jsonStringList(supportedCommands)},'
+          '"supportedLocatorStrategies":[]},'
+          '"recordingCapabilities":{"available":false,"drivers":[]},'
+          '"snapshot":{"schemaVersion":1,"capturedAt":"2026-06-16T00:00:00.000Z",'
+          '"platform":"macos","currentRouteName":"/"}}',
+        );
+      } else {
+        request.response.statusCode = HttpStatus.notFound;
+        request.response.write('{}');
+      }
+      await request.response.close();
+    });
+    return _RemoteStatusServer._(server);
+  }
+
+  Future<void> close() async {
+    await _server.close(force: true);
+  }
+}
+
+String _jsonStringList(List<String> values) {
+  return '[${values.map((value) => '"$value"').join(',')}]';
 }

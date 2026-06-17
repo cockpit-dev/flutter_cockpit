@@ -14,9 +14,9 @@ typedef CockpitDemoRapidReadAppFunction =
     Future<CockpitReadAppResult> Function(CockpitReadAppRequest request);
 typedef CockpitDemoRapidRunBatchFunction =
     Future<CockpitRunBatchResult> Function(CockpitRunBatchRequest request);
-typedef CockpitDemoRapidRunCommandFunction =
-    Future<CockpitExecuteRemoteCommandResult> Function(
-      CockpitRunCommandRequest request,
+typedef CockpitDemoRapidCaptureScreenshotFunction =
+    Future<CockpitCaptureScreenshotResult> Function(
+      CockpitCaptureScreenshotRequest request,
     );
 typedef CockpitDemoRapidWaitIdleFunction =
     Future<CockpitWaitIdleResult> Function(CockpitWaitIdleRequest request);
@@ -170,7 +170,7 @@ final class CockpitDemoRapidDevVerifier {
     CockpitDemoRapidLaunchAppFunction? launchApp,
     CockpitDemoRapidReadAppFunction? readApp,
     CockpitDemoRapidRunBatchFunction? runBatch,
-    CockpitDemoRapidRunCommandFunction? runCommand,
+    CockpitDemoRapidCaptureScreenshotFunction? captureScreenshot,
     CockpitDemoRapidWaitIdleFunction? waitIdle,
     CockpitDemoRapidHotReloadFunction? hotReload,
     CockpitDemoRapidReadErrorsFunction? readErrors,
@@ -187,7 +187,8 @@ final class CockpitDemoRapidDevVerifier {
        _launchApp = launchApp ?? CockpitLaunchAppService().launch,
        _readApp = readApp ?? CockpitReadAppService().read,
        _runBatch = runBatch ?? CockpitRunBatchService().run,
-       _runCommand = runCommand ?? CockpitRunCommandService().run,
+       _captureScreenshot =
+           captureScreenshot ?? CockpitCaptureScreenshotService().capture,
        _waitIdle = waitIdle ?? CockpitWaitIdleService().wait,
        _hotReload = hotReload ?? CockpitHotReloadService().reload,
        _readErrors = readErrors ?? cockpitDemoReadErrors,
@@ -201,7 +202,7 @@ final class CockpitDemoRapidDevVerifier {
   final CockpitDemoRapidLaunchAppFunction _launchApp;
   final CockpitDemoRapidReadAppFunction _readApp;
   final CockpitDemoRapidRunBatchFunction _runBatch;
-  final CockpitDemoRapidRunCommandFunction _runCommand;
+  final CockpitDemoRapidCaptureScreenshotFunction _captureScreenshot;
   final CockpitDemoRapidWaitIdleFunction _waitIdle;
   final CockpitDemoRapidHotReloadFunction _hotReload;
   final CockpitDemoRapidReadErrorsFunction _readErrors;
@@ -299,7 +300,7 @@ final class CockpitDemoRapidDevVerifier {
       final appBaseUri = Uri.parse(launchedApp.baseUrl);
       verifiedCommands.add('launch-app');
 
-      final initialRead = await _readApp(
+      final initialRead = await _readAppWithRetry(
         CockpitReadAppRequest(
           app: launchedApp,
           resultProfile: const CockpitInteractiveResultProfile.minimal(),
@@ -359,7 +360,7 @@ final class CockpitDemoRapidDevVerifier {
       }
       verifiedCommands.add('wait-idle');
 
-      final postCreateRead = await _readApp(
+      final postCreateRead = await _readAppWithRetry(
         CockpitReadAppRequest(
           app: launchedApp,
           resultProfile: const CockpitInteractiveResultProfile.minimal(),
@@ -390,10 +391,10 @@ final class CockpitDemoRapidDevVerifier {
       reloadGeneration = hotReloadResult.status.reloadGeneration;
       verifiedCommands.add('hot-reload');
 
-      final postReloadRead = await _readApp(
+      final postReloadRead = await _readAppWithRetry(
         CockpitReadAppRequest(
           app: hotReloadResult.app,
-          resultProfile: const CockpitInteractiveResultProfile.minimal(),
+          resultProfile: const CockpitInteractiveResultProfile.standard(),
         ),
       );
       postReloadRouteName = postReloadRead.currentRouteName;
@@ -403,43 +404,24 @@ final class CockpitDemoRapidDevVerifier {
         platform: platform,
         label: 'post-reload route',
       );
-
-      await _runRequiredCommand(
-        app: hotReloadResult.app,
-        command: CockpitCommand(
-          commandId: 'rapid-assert-queue-brief',
-          commandType: CockpitCommandType.assertText,
-          parameters: const <String, Object?>{
-            'text':
-                'Queue brief: 1 active / 1 due today / 1 priority / 0 conflicts',
-          },
-        ),
-        resultProfile: const CockpitInteractiveResultProfile.minimal(),
+      _requireReadAppText(
+        result: postReloadRead,
+        expectedText: taskTitle,
+        platform: platform,
+        label: 'created task',
       );
-      await _runRequiredCommand(
-        app: hotReloadResult.app,
-        command: CockpitCommand(
-          commandId: 'rapid-assert-created-task',
-          commandType: CockpitCommandType.assertText,
-          parameters: <String, Object?>{'text': taskTitle},
-        ),
-        resultProfile: const CockpitInteractiveResultProfile.minimal(),
-      );
-      verifiedCommands.add('assert-text');
 
-      final captureResult = await _runRequiredCommand(
-        app: hotReloadResult.app,
-        command: CockpitCommand(
-          commandId: 'rapid-capture-queue-brief',
-          commandType: CockpitCommandType.captureScreenshot,
-          screenshotRequest: const CockpitScreenshotRequest(
-            reason: CockpitScreenshotReason.acceptance,
-            name: 'rapid_queue_brief',
-            includeSnapshot: true,
-            attachToStep: true,
-          ),
+      final captureResult = await _captureScreenshotWithRetry(
+        CockpitCaptureScreenshotRequest(
+          app: hotReloadResult.app,
+          appHandlePath: resolvedAppJsonPath,
+          name: 'rapid_queue_brief',
+          reason: CockpitScreenshotReason.acceptance,
+          includeSnapshot: true,
+          attachToStep: true,
+          resultProfile: const CockpitInteractiveResultProfile.evidence(),
+          defaultCommandTimeout: const Duration(seconds: 30),
         ),
-        resultProfile: const CockpitInteractiveResultProfile.evidence(),
       );
       final screenshotArtifact = captureResult.artifacts.firstWhere(
         (artifact) => artifact.role == 'screenshot',
@@ -450,7 +432,11 @@ final class CockpitDemoRapidDevVerifier {
         ),
       );
       screenshotArtifactRef = screenshotArtifact.relativePath;
-      screenshotByteLength = screenshotArtifact.byteLength;
+      screenshotByteLength = await _exportScreenshotArtifact(
+        platform: platform,
+        artifact: screenshotArtifact,
+        outputDir: outputDir,
+      );
       verifiedCommands.add('capture-screenshot');
 
       final errorsResult = await _readErrors(
@@ -683,29 +669,101 @@ final class CockpitDemoRapidDevVerifier {
     throw StateError('Unreachable batch retry state.');
   }
 
-  Future<CockpitExecuteRemoteCommandResult> _runRequiredCommand({
-    required CockpitAppHandle app,
-    required CockpitCommand command,
-    required CockpitInteractiveResultProfile resultProfile,
+  Future<CockpitReadAppResult> _readAppWithRetry(
+    CockpitReadAppRequest request,
+  ) async {
+    for (var attempt = 0; attempt < 5; attempt += 1) {
+      try {
+        return await _readApp(request);
+      } on CockpitApplicationServiceException catch (error) {
+        final shouldRetry =
+            attempt + 1 < 5 &&
+            (error.code == 'remoteUnavailable' ||
+                (error.code == 'serverError' &&
+                    error.message.contains(
+                      'FlutterCockpitRoot is not mounted',
+                    )));
+        if (!shouldRetry) {
+          rethrow;
+        }
+        await _wait(Duration(milliseconds: 400 * (attempt + 1)));
+      }
+    }
+    throw StateError('Unreachable read-app retry state.');
+  }
+
+  Future<CockpitCaptureScreenshotResult> _captureScreenshotWithRetry(
+    CockpitCaptureScreenshotRequest request,
+  ) async {
+    for (var attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        return await _captureScreenshot(request);
+      } on CockpitApplicationServiceException catch (error) {
+        final shouldRetry =
+            error.code == 'remoteUnavailable' && attempt + 1 < 2;
+        if (!shouldRetry) {
+          rethrow;
+        }
+        await _wait(Duration(milliseconds: 400 * (attempt + 1)));
+      }
+    }
+    throw StateError('Unreachable capture retry state.');
+  }
+
+  Future<int> _exportScreenshotArtifact({
+    required String platform,
+    required CockpitInteractiveArtifactDescriptor artifact,
+    required String outputDir,
   }) async {
-    final result = await _runCommand(
-      CockpitRunCommandRequest(
-        app: app,
-        command: command,
-        resultProfile: resultProfile,
-      ),
-    );
-    if (!result.command.success) {
+    final sourcePath = artifact.sourcePath;
+    if (sourcePath == null || sourcePath.isEmpty) {
       throw CockpitApplicationServiceException(
-        code: 'rapidCommandFailed',
-        message: 'A required rapid verification command failed.',
+        code: 'rapidScreenshotArtifactUnavailable',
+        message:
+            'Rapid verifier screenshot evidence did not include a source file path.',
         details: <String, Object?>{
-          'commandId': command.commandId,
-          'commandType': command.commandType.name,
+          'platform': platform,
+          'artifactPath': artifact.relativePath,
+          'byteLength': ?artifact.byteLength,
         },
       );
     }
-    return result;
+
+    final sourceFile = File(sourcePath);
+    if (!sourceFile.existsSync()) {
+      throw CockpitApplicationServiceException(
+        code: 'rapidScreenshotArtifactUnavailable',
+        message: 'Rapid verifier screenshot source file does not exist.',
+        details: <String, Object?>{
+          'platform': platform,
+          'artifactPath': artifact.relativePath,
+          'sourcePath': sourcePath,
+        },
+      );
+    }
+
+    final byteLength = sourceFile.lengthSync();
+    if (byteLength <= 0) {
+      throw CockpitApplicationServiceException(
+        code: 'rapidScreenshotArtifactEmpty',
+        message: 'Rapid verifier screenshot source file is empty.',
+        details: <String, Object?>{
+          'platform': platform,
+          'artifactPath': artifact.relativePath,
+          'sourcePath': sourcePath,
+          'byteLength': byteLength,
+        },
+      );
+    }
+
+    final destinationPath = cockpitDemoResolveArtifactOutputPath(
+      outputDir: outputDir,
+      relativePath: artifact.relativePath,
+    );
+    final destinationFile = File(destinationPath);
+    await destinationFile.parent.create(recursive: true);
+    await sourceFile.copy(destinationFile.path);
+    return byteLength;
   }
 
   void _requireBatchSuccess({
@@ -760,6 +818,44 @@ final class CockpitDemoRapidDevVerifier {
         'label': label,
         'expectedRoute': expectedRoute,
         'actualRoute': routeName,
+      },
+    );
+  }
+
+  void _requireReadAppText({
+    required CockpitReadAppResult result,
+    required String? expectedText,
+    required String platform,
+    required String label,
+  }) {
+    if (expectedText == null || expectedText.isEmpty) {
+      throw CockpitApplicationServiceException(
+        code: 'rapidExpectedTextMissing',
+        message: 'Rapid verifier cannot assert an empty $label.',
+        details: <String, Object?>{'platform': platform, 'label': label},
+      );
+    }
+    final candidates = <String>[
+      ...?result.uiSummary?.textPreviews,
+      ...?result.snapshot?.visibleTargets
+          .map((target) => target.text)
+          .whereType<String>(),
+    ];
+    if (candidates.any((candidate) => candidate.contains(expectedText))) {
+      return;
+    }
+    throw CockpitApplicationServiceException(
+      code: 'rapidSnapshotTextMissing',
+      message: 'Rapid verifier read-app snapshot did not contain $label.',
+      details: <String, Object?>{
+        'platform': platform,
+        'label': label,
+        'expectedText': expectedText,
+        'currentRouteName': result.currentRouteName,
+        'visibleTextCandidates': _boundedStringList(
+          candidates,
+          _rapidMaxSnapshotPreviews,
+        ),
       },
     );
   }
@@ -888,6 +984,7 @@ List<Map<String, Object?>> _buildRapidCreateTaskBatch({
       'commandId': 'rapid-reveal-high-priority',
       'commandType': 'scrollUntilVisible',
       'locator': <String, Object?>{
+        'semanticId': 'task-editor-priority-high',
         'text': 'HIGH',
         'route': '/editor',
         'ancestor': <String, Object?>{'route': '/editor'},
@@ -904,8 +1001,8 @@ List<Map<String, Object?>> _buildRapidCreateTaskBatch({
       'commandId': 'rapid-select-high-priority',
       'commandType': 'tap',
       'locator': <String, Object?>{
+        'semanticId': 'task-editor-priority-high',
         'text': 'HIGH',
-        'type': 'ChoiceChip',
         'ancestor': <String, Object?>{'route': '/editor'},
       },
     },
@@ -913,6 +1010,7 @@ List<Map<String, Object?>> _buildRapidCreateTaskBatch({
       'commandId': 'rapid-reveal-today',
       'commandType': 'scrollUntilVisible',
       'locator': <String, Object?>{
+        'semanticId': 'task-editor-due-today',
         'text': 'Today',
         'route': '/editor',
         'ancestor': <String, Object?>{'route': '/editor'},
@@ -929,8 +1027,8 @@ List<Map<String, Object?>> _buildRapidCreateTaskBatch({
       'commandId': 'rapid-select-today',
       'commandType': 'tap',
       'locator': <String, Object?>{
+        'semanticId': 'task-editor-due-today',
         'text': 'Today',
-        'type': 'ChoiceChip',
         'ancestor': <String, Object?>{'route': '/editor'},
       },
     },

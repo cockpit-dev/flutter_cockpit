@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import '../adapters/cockpit_capture_adapter.dart';
 import '../platform/ios/cockpit_ios_device_connection.dart';
+import '../platform/web/cockpit_browser_host_app_id.dart';
 import '../remote/cockpit_remote_capture_adapter.dart';
 import '../remote/cockpit_remote_session_client.dart';
 import '../session/cockpit_remote_session_handle.dart';
@@ -22,6 +25,7 @@ typedef CockpitWindowsCaptureAdapterFactory =
     CockpitCaptureAdapter Function(String appId, {int? processId});
 typedef CockpitLinuxCaptureAdapterFactory =
     CockpitCaptureAdapter Function(String appId, {int? processId});
+typedef CockpitBrowserHostAppIdResolver = String? Function(String deviceId);
 
 final class CockpitCaptureStrategyResolver {
   const CockpitCaptureStrategyResolver({
@@ -31,6 +35,7 @@ final class CockpitCaptureStrategyResolver {
     this.macosAdapterFactory = _defaultMacosAdapterFactory,
     this.windowsAdapterFactory = _defaultWindowsAdapterFactory,
     this.linuxAdapterFactory = _defaultLinuxAdapterFactory,
+    this.browserHostAppIdResolver = cockpitResolveBrowserHostAppId,
   });
 
   final CockpitRemoteCaptureAdapterFactory remoteAdapterFactory;
@@ -39,6 +44,7 @@ final class CockpitCaptureStrategyResolver {
   final CockpitMacosCaptureAdapterFactory macosAdapterFactory;
   final CockpitWindowsCaptureAdapterFactory windowsAdapterFactory;
   final CockpitLinuxCaptureAdapterFactory linuxAdapterFactory;
+  final CockpitBrowserHostAppIdResolver browserHostAppIdResolver;
 
   CockpitCaptureAdapter resolve({
     required String platform,
@@ -46,6 +52,7 @@ final class CockpitCaptureStrategyResolver {
     String? platformAppId,
     int? processId,
     CockpitRemoteSessionHandle? sessionHandle,
+    String? deviceId,
     String? androidDeviceId,
     String? iosDeviceId,
   }) {
@@ -108,7 +115,50 @@ final class CockpitCaptureStrategyResolver {
         client: client,
       );
     }
+    if (platform == 'web') {
+      final browserHostAppId = browserHostAppIdResolver(
+        deviceId ?? sessionHandle?.deviceId ?? '',
+      );
+      if (browserHostAppId != null && browserHostAppId.isNotEmpty) {
+        final hostAdapter = _desktopHostCaptureAdapter(
+          platform: _currentHostPlatform(),
+          appId: browserHostAppId,
+        );
+        if (hostAdapter != null) {
+          return CockpitHostPreferredCaptureAdapter(
+            remoteAdapter: remoteAdapter,
+            hostAcceptanceAdapter: hostAdapter,
+            client: client,
+          );
+        }
+      }
+    }
     return remoteAdapter;
+  }
+
+  CockpitCaptureAdapter? _desktopHostCaptureAdapter({
+    required String platform,
+    required String appId,
+  }) {
+    return switch (platform) {
+      'macos' => macosAdapterFactory(appId),
+      'windows' => windowsAdapterFactory(appId),
+      'linux' => linuxAdapterFactory(appId),
+      _ => null,
+    };
+  }
+
+  String _currentHostPlatform() {
+    if (Platform.isMacOS) {
+      return 'macos';
+    }
+    if (Platform.isWindows) {
+      return 'windows';
+    }
+    if (Platform.isLinux) {
+      return 'linux';
+    }
+    return Platform.operatingSystem;
   }
 
   String? _hostAppIdFor({

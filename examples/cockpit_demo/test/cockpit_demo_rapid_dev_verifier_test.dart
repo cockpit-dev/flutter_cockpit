@@ -12,12 +12,19 @@ void main() {
     'rapid verifier validates the low-cost edit reload loop on local targets',
     () async {
       final launchRequests = <CockpitLaunchAppRequest>[];
+      final readAppRequests = <CockpitReadAppRequest>[];
       final batchRequests = <CockpitRunBatchRequest>[];
-      final commandRequests = <CockpitRunCommandRequest>[];
+      final captureRequests = <CockpitCaptureScreenshotRequest>[];
       final bootCommands = <String>[];
       final stoppedPlatforms = <String>[];
       final waitIdlePlatforms = <String>[];
       final readErrorPlatforms = <String>[];
+      final createdTitlesByPlatform = <String, String>{};
+      final screenshotSourceFile = File(
+        '/tmp/cockpit_rapid_dev_source/rapid_queue_brief.png',
+      );
+      await screenshotSourceFile.parent.create(recursive: true);
+      await screenshotSourceFile.writeAsBytes(List<int>.filled(2048, 1));
       var probeCall = 0;
 
       final verifier = CockpitDemoRapidDevVerifier(
@@ -57,9 +64,17 @@ void main() {
                 '${request.projectDir}/.dart_tool/cockpit_rapid_dev/${request.platform}/app.json',
           );
         },
-        readApp: (request) async => _readAppResult(request.app!),
+        readApp: (request) async {
+          readAppRequests.add(request);
+          return _readAppResult(
+            request.app!,
+            createdTaskTitle: createdTitlesByPlatform[request.app!.platform],
+          );
+        },
         runBatch: (request) async {
           batchRequests.add(request);
+          createdTitlesByPlatform[request.app!.platform] =
+              request.commands[1].command.parameters['text'] as String;
           return CockpitRunBatchResult(
             results: request.commands
                 .map(
@@ -101,22 +116,9 @@ void main() {
             ),
           );
         },
-        runCommand: (request) async {
-          commandRequests.add(request);
-          return CockpitExecuteRemoteCommandResult(
-            command: _commandCore(request.command),
-            artifacts:
-                request.command.commandType ==
-                    CockpitCommandType.captureScreenshot
-                ? const <CockpitInteractiveArtifactDescriptor>[
-                    CockpitInteractiveArtifactDescriptor(
-                      role: 'screenshot',
-                      relativePath: 'screenshots/rapid_queue_brief.png',
-                      byteLength: 2048,
-                    ),
-                  ]
-                : const <CockpitInteractiveArtifactDescriptor>[],
-          );
+        captureScreenshot: (request) async {
+          captureRequests.add(request);
+          return _rapidScreenshotResult(sourcePath: screenshotSourceFile.path);
         },
         waitIdle: (request) async {
           waitIdlePlatforms.add(request.app!.platform);
@@ -208,6 +210,28 @@ void main() {
           'rapid-wait-queue-brief',
         ],
       );
+      final firstBatchLocators = <String, CockpitLocator>{
+        for (final entry in batchRequests.first.commands.where(
+          (entry) => entry.command.locator != null,
+        ))
+          entry.command.commandId: entry.command.locator!,
+      };
+      expect(
+        firstBatchLocators['rapid-reveal-high-priority']!.semanticId,
+        'task-editor-priority-high',
+      );
+      expect(
+        firstBatchLocators['rapid-select-high-priority']!.semanticId,
+        'task-editor-priority-high',
+      );
+      expect(
+        firstBatchLocators['rapid-reveal-today']!.semanticId,
+        'task-editor-due-today',
+      );
+      expect(
+        firstBatchLocators['rapid-select-today']!.semanticId,
+        'task-editor-due-today',
+      );
       expect(
         batchRequests.first.defaultResultProfile.name,
         CockpitInteractiveResultProfileName.minimal,
@@ -217,22 +241,45 @@ void main() {
         CockpitInteractiveResultProfileName.standard,
       );
       expect(waitIdlePlatforms, <String>['macos', 'ios', 'android']);
+      expect(captureRequests.map((request) => request.app!.platform), <String>[
+        'macos',
+        'ios',
+        'android',
+      ]);
+      expect(captureRequests.map((request) => request.appHandlePath), <String>[
+        '/workspace/examples/cockpit_demo/.dart_tool/cockpit_rapid_dev/macos/app.json',
+        '/workspace/examples/cockpit_demo/.dart_tool/cockpit_rapid_dev/ios/app.json',
+        '/workspace/examples/cockpit_demo/.dart_tool/cockpit_rapid_dev/android/app.json',
+      ]);
       expect(
-        commandRequests.map((request) => request.command.commandId),
-        <String>[
-          'rapid-assert-queue-brief',
-          'rapid-assert-created-task',
-          'rapid-capture-queue-brief',
-          'rapid-assert-queue-brief',
-          'rapid-assert-created-task',
-          'rapid-capture-queue-brief',
-          'rapid-assert-queue-brief',
-          'rapid-assert-created-task',
-          'rapid-capture-queue-brief',
-        ],
+        captureRequests.map((request) => request.name),
+        everyElement('rapid_queue_brief'),
+      );
+      expect(
+        captureRequests.map((request) => request.includeSnapshot),
+        everyElement(isTrue),
+      );
+      expect(
+        captureRequests.map((request) => request.attachToStep),
+        everyElement(isTrue),
+      );
+      expect(
+        captureRequests.map((request) => request.resultProfile.name),
+        everyElement(CockpitInteractiveResultProfileName.evidence),
       );
       expect(readErrorPlatforms, hasLength(3));
       expect(stoppedPlatforms, <String>['macos', 'ios', 'android']);
+      expect(
+        readAppRequests
+            .where((request) => request.app!.platform == 'macos')
+            .map((request) => request.resultProfile.name)
+            .toList(growable: false),
+        <CockpitInteractiveResultProfileName>[
+          CockpitInteractiveResultProfileName.minimal,
+          CockpitInteractiveResultProfileName.minimal,
+          CockpitInteractiveResultProfileName.standard,
+        ],
+      );
       expect(
         result.platforms.map((platform) => platform.queueBrief),
         everyElement(
@@ -243,13 +290,19 @@ void main() {
         result.platforms.map((platform) => platform.screenshotArtifactRef),
         everyElement('screenshots/rapid_queue_brief.png'),
       );
+      for (final platform in result.platforms) {
+        final exportedScreenshot = File(
+          '${platform.outputDir}/screenshots/rapid_queue_brief.png',
+        );
+        expect(exportedScreenshot.existsSync(), isTrue);
+        expect(exportedScreenshot.lengthSync(), 2048);
+      }
       expect(result.platforms.first.verifiedCommands, <String>[
         'launch-app',
         'read-app',
         'run-batch',
         'wait-idle',
         'hot-reload',
-        'assert-text',
         'capture-screenshot',
         'read-errors',
       ]);
@@ -369,8 +422,127 @@ void main() {
   );
 
   test(
+    'rapid verifier retries read-app while the root remounts after reload',
+    () async {
+      var postReloadReadAttempts = 0;
+      var captureAttempts = 0;
+      String? createdTaskTitle;
+      final verifier = CockpitDemoRapidDevVerifier(
+        probeDevices: () async => _devices(macos: true),
+        runProcess: (executable, arguments, {String? workingDirectory}) async {
+          return ProcessResult(0, 0, '', '');
+        },
+        wait: (_) async {},
+        clock: () => DateTime.utc(2026, 5, 22, 10),
+        launchApp: (request) async {
+          return CockpitLaunchAppResult(
+            app: _appForPlatform(
+              platform: request.platform,
+              deviceId: request.deviceId,
+              baseUrl: 'http://127.0.0.1:${request.sessionPort}',
+            ),
+            appJsonPath:
+                '${request.projectDir}/.dart_tool/cockpit_rapid_dev/${request.platform}/app.json',
+          );
+        },
+        readApp: (request) async {
+          if (request.resultProfile.name ==
+              CockpitInteractiveResultProfileName.standard) {
+            postReloadReadAttempts += 1;
+            if (postReloadReadAttempts == 1) {
+              throw const CockpitApplicationServiceException(
+                code: 'serverError',
+                message: 'Bad state: FlutterCockpitRoot is not mounted.',
+              );
+            }
+          }
+          return _readAppResult(
+            request.app!,
+            createdTaskTitle: createdTaskTitle,
+          );
+        },
+        runBatch: (request) async {
+          createdTaskTitle =
+              request.commands[1].command.parameters['text'] as String;
+          return CockpitRunBatchResult(
+            results: request.commands
+                .map(
+                  (entry) => CockpitExecuteRemoteCommandResult(
+                    command: _commandCore(entry.command),
+                    artifacts: const <CockpitInteractiveArtifactDescriptor>[],
+                  ),
+                )
+                .toList(growable: false),
+            summary: CockpitExecuteRemoteCommandBatchSummary(
+              totalCount: request.commands.length,
+              successCount: request.commands.length,
+              failureCount: 0,
+              stoppedEarly: false,
+            ),
+          );
+        },
+        captureScreenshot: (request) async {
+          captureAttempts += 1;
+          if (captureAttempts == 1) {
+            throw const CockpitApplicationServiceException(
+              code: 'remoteUnavailable',
+              message: 'Remote session is temporarily unavailable.',
+            );
+          }
+          final source = File('/tmp/cockpit_rapid_dev_retry_capture.png');
+          await source.writeAsBytes(List<int>.filled(2048, 2));
+          return _rapidScreenshotResult(sourcePath: source.path);
+        },
+        waitIdle: (request) async => const CockpitWaitIdleResult(
+          idle: true,
+          durationMs: 180,
+          quietWindowMs: 120,
+          timeoutMs: 4000,
+          includeNetworkIdle: true,
+        ),
+        hotReload: (request) async => CockpitHotReloadResult(
+          app: request.app!,
+          status: CockpitDevelopmentSessionStatus(
+            developmentSessionId: 'macos-dev',
+            state: CockpitDevelopmentSessionState.ready,
+            appReachable: true,
+            remoteSessionReachable: true,
+            reloadGeneration: 1,
+            lastReloadMode: CockpitDevelopmentReloadMode.hotReload,
+            lastReloadSucceeded: true,
+            lastStatusAt: DateTime.utc(2026, 5, 22, 10, 1),
+          ),
+        ),
+        readErrors: (request) async => const CockpitReadErrorsResult(
+          appId: 'rapid-errors',
+          source: 'app_snapshot',
+          routeName: '/inbox',
+          errors: <CockpitErrorEntry>[],
+        ),
+        stopApp: (request) async => CockpitStopAppResult(
+          app: request.app!,
+          status: CockpitAppStopStatus.stopped(mode: request.app!.mode),
+        ),
+      );
+
+      final result = await verifier.verify(
+        const CockpitDemoRapidVerificationRequest(
+          projectDir: '/workspace/examples/cockpit_demo',
+          platforms: <String>['macos'],
+          outputRoot: '/tmp/cockpit_rapid_dev',
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(postReloadReadAttempts, 2);
+      expect(captureAttempts, 2);
+    },
+  );
+
+  test(
     'rapid verifier failure includes bounded runtime error previews',
     () async {
+      String? createdTaskTitle;
       final verifier = CockpitDemoRapidDevVerifier(
         probeDevices: () async => _devices(macos: true),
         runProcess: (executable, arguments, {String? workingDirectory}) async {
@@ -389,42 +561,38 @@ void main() {
                 '${request.projectDir}/.dart_tool/cockpit_rapid_dev/${request.platform}/app.json',
           );
         },
-        readApp: (request) async => _readAppResult(request.app!),
-        runBatch: (request) async => CockpitRunBatchResult(
-          results: request.commands
-              .map(
-                (entry) => CockpitExecuteRemoteCommandResult(
-                  command: _commandCore(entry.command),
-                  artifacts: const <CockpitInteractiveArtifactDescriptor>[],
-                ),
-              )
-              .toList(growable: false),
-          summary: CockpitExecuteRemoteCommandBatchSummary(
-            totalCount: request.commands.length,
-            successCount: request.commands.length,
-            failureCount: 0,
-            stoppedEarly: false,
-          ),
-          finalSnapshot: const CockpitReadRemoteSnapshotResult(
-            routeName: '/inbox',
-            diagnosticLevel: 'baseline',
-            truncated: false,
-          ),
-        ),
-        runCommand: (request) async => CockpitExecuteRemoteCommandResult(
-          command: _commandCore(request.command),
-          artifacts:
-              request.command.commandType ==
-                  CockpitCommandType.captureScreenshot
-              ? const <CockpitInteractiveArtifactDescriptor>[
-                  CockpitInteractiveArtifactDescriptor(
-                    role: 'screenshot',
-                    relativePath: 'screenshots/rapid_queue_brief.png',
-                    byteLength: 2048,
+        readApp: (request) async =>
+            _readAppResult(request.app!, createdTaskTitle: createdTaskTitle),
+        runBatch: (request) async {
+          createdTaskTitle =
+              request.commands[1].command.parameters['text'] as String;
+          return CockpitRunBatchResult(
+            results: request.commands
+                .map(
+                  (entry) => CockpitExecuteRemoteCommandResult(
+                    command: _commandCore(entry.command),
+                    artifacts: const <CockpitInteractiveArtifactDescriptor>[],
                   ),
-                ]
-              : const <CockpitInteractiveArtifactDescriptor>[],
-        ),
+                )
+                .toList(growable: false),
+            summary: CockpitExecuteRemoteCommandBatchSummary(
+              totalCount: request.commands.length,
+              successCount: request.commands.length,
+              failureCount: 0,
+              stoppedEarly: false,
+            ),
+            finalSnapshot: const CockpitReadRemoteSnapshotResult(
+              routeName: '/inbox',
+              diagnosticLevel: 'baseline',
+              truncated: false,
+            ),
+          );
+        },
+        captureScreenshot: (request) async {
+          final source = File('/tmp/cockpit_rapid_dev_error_capture.png');
+          await source.writeAsBytes(List<int>.filled(2048, 3));
+          return _rapidScreenshotResult(sourcePath: source.path);
+        },
         waitIdle: (request) async => const CockpitWaitIdleResult(
           idle: true,
           durationMs: 180,
@@ -482,7 +650,6 @@ void main() {
         'run-batch',
         'wait-idle',
         'hot-reload',
-        'assert-text',
         'capture-screenshot',
       ]);
       final json = platform.toJson();
@@ -533,7 +700,14 @@ List<CockpitDemoHostDevice> _devices({
   ];
 }
 
-CockpitReadAppResult _readAppResult(CockpitAppHandle app) {
+CockpitReadAppResult _readAppResult(
+  CockpitAppHandle app, {
+  String? createdTaskTitle,
+}) {
+  final textPreviews = <String>[
+    'Queue brief: 1 active / 1 due today / 1 priority / 0 conflicts',
+    ?createdTaskTitle,
+  ];
   return CockpitReadAppResult(
     sessionId: '${app.platform}-session',
     transportType: 'remoteHttp',
@@ -556,6 +730,23 @@ CockpitReadAppResult _readAppResult(CockpitAppHandle app) {
       supportsNativeRecording: false,
     ),
     currentRouteName: '/inbox',
+    uiSummary: CockpitInteractiveSnapshotSummary(
+      routeName: '/inbox',
+      diagnosticLevel: 'minimal',
+      truncated: false,
+      visibleTargetCount: textPreviews.length,
+      targetsWithCockpitIdCount: 0,
+      targetsWithTextCount: textPreviews.length,
+      networkEntryCount: 0,
+      networkFailureCount: 0,
+      runtimeEntryCount: 0,
+      runtimeErrorCount: 0,
+      rebuildEntryCount: 0,
+      totalRebuildCount: 0,
+      accessibilityTargetCount: 0,
+      accessibilityTraversalCount: 0,
+      textPreviews: textPreviews,
+    ),
   );
 }
 
@@ -571,6 +762,26 @@ CockpitInteractiveCommandCore _commandCore(
     durationMs: 12,
     usedCaptureFallback: false,
     error: error,
+  );
+}
+
+CockpitCaptureScreenshotResult _rapidScreenshotResult({String? sourcePath}) {
+  return CockpitCaptureScreenshotResult(
+    command: const CockpitInteractiveCommandCore(
+      commandId: 'capture-screenshot',
+      commandType: 'captureScreenshot',
+      success: true,
+      durationMs: 12,
+      usedCaptureFallback: false,
+    ),
+    artifacts: <CockpitInteractiveArtifactDescriptor>[
+      CockpitInteractiveArtifactDescriptor(
+        role: 'screenshot',
+        relativePath: 'screenshots/rapid_queue_brief.png',
+        byteLength: 2048,
+        sourcePath: sourcePath,
+      ),
+    ],
   );
 }
 

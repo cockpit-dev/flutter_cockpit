@@ -54,10 +54,10 @@ Future<void> main(List<String> arguments) async {
       help: 'Bootstrap timeout for iOS simulator and Android emulator.',
     )
     ..addFlag(
-      'allow-web-host-recording-prerequisite-failure',
+      'strict-web-host-recording',
       negatable: false,
       help:
-          'Allow local web verification to continue when host-side browser recording is blocked by desktop capture prerequisites.',
+          'Fail web verification when browser-host recording cannot produce a native video instead of synthesizing a timeline from key-step screenshots.',
     )
     ..addFlag(
       'exhaustive-system-control',
@@ -120,8 +120,7 @@ Future<void> main(List<String> arguments) async {
       seconds: int.parse(parsed['device-timeout-seconds'] as String),
     ),
     androidEmulatorId: parsed['android-emulator-id'] as String,
-    allowWebHostRecordingPrerequisiteFailure:
-        parsed['allow-web-host-recording-prerequisite-failure'] as bool,
+    strictWebHostRecording: parsed['strict-web-host-recording'] as bool,
     exhaustiveSystemControl: parsed['exhaustive-system-control'] as bool,
     failFast: parsed['fail-fast'] as bool,
     progressSink: (event) => stderr.writeln(event.toAiLine()),

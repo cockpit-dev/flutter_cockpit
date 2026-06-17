@@ -95,6 +95,7 @@ final class CockpitCaptureScreenshotService {
               app?.platformAppId ?? app?.remoteSession?.effectivePlatformAppId,
           processId: app?.processId ?? app?.remoteSession?.processId,
           sessionHandle: app?.remoteSession,
+          deviceId: app?.deviceId,
           androidDeviceId:
               request.androidDeviceId ??
               (app?.platform == 'android' ? app?.deviceId : null),

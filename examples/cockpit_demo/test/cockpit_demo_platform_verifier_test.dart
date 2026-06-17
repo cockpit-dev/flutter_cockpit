@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
@@ -1121,6 +1122,49 @@ void main() {
       );
     },
   );
+
+  test('platform verification JSON preserves empty system action arrays', () {
+    final json = const CockpitDemoPlatformVerification(
+      platform: 'web',
+      status: 'passed',
+      deviceId: 'chrome',
+      bootstrappedDevice: false,
+      outputDir: '/tmp/web',
+      systemControlAdapter: 'browser.dom+host-recording',
+    ).toJson();
+
+    expect(json, containsPair('systemAvailableActions', <String>[]));
+    expect(json, containsPair('systemVerifiedActions', <String>[]));
+  });
+
+  test('iOS exhaustive media probes use an extended action timeout', () async {
+    final systemActionRequests = <CockpitSystemControlActionRequest>[];
+    final verifier = await _createSinglePlatformVerifier(
+      platform: 'ios',
+      deviceId: '87639670-FE4D-446D-9245-5324E0D50184',
+      runSystemAction: (request) async {
+        systemActionRequests.add(request);
+        return _fakeRunSystemAction(request);
+      },
+    );
+
+    final result = await verifier.verify(
+      CockpitDemoPlatformVerificationRequest(
+        projectDir: '/workspace/examples/cockpit_demo',
+        platforms: const <String>['ios'],
+        outputRoot: Directory.systemTemp
+            .createTempSync('cockpit_demo_ios_probe_test_')
+            .path,
+        exhaustiveSystemControl: true,
+      ),
+    );
+
+    expect(result.success, isTrue, reason: jsonEncode(result.toJson()));
+    final addMediaRequest = systemActionRequests.singleWhere(
+      (request) => request.action == CockpitSystemControlAction.addMedia,
+    );
+    expect(addMediaRequest.timeout, greaterThan(const Duration(seconds: 15)));
+  });
 
   test('verifier records platform failures and continues by default', () async {
     final verifier = CockpitDemoPlatformVerifier(
@@ -2913,7 +2957,7 @@ void main() {
   );
 
   test(
-    'verifier can continue local web validation when host recording prerequisites are explicitly allowed to fail',
+    'verifier defaults web host recording prerequisites to timeline fallback',
     () async {
       final outputRoot = await Directory.systemTemp.createTemp(
         'cockpit_web_start_fallback_',
@@ -3115,7 +3159,6 @@ void main() {
           projectDir: '/workspace/examples/cockpit_demo',
           platforms: const <String>['web'],
           outputRoot: outputRoot.path,
-          allowWebHostRecordingPrerequisiteFailure: true,
         ),
       );
 
@@ -3360,7 +3403,6 @@ void main() {
           projectDir: '/workspace/examples/cockpit_demo',
           platforms: const <String>['web'],
           outputRoot: outputRoot.path,
-          allowWebHostRecordingPrerequisiteFailure: true,
         ),
       );
 
@@ -3390,6 +3432,71 @@ void main() {
       expect(
         platform.warnings.single,
         contains('macOS recording did not stop before timeout.'),
+      );
+    },
+  );
+
+  test(
+    'verifier keeps web host recording failures strict when requested',
+    () async {
+      final outputRoot = await Directory.systemTemp.createTemp(
+        'cockpit_web_strict_recording_',
+      );
+      addTearDown(() async {
+        if (await outputRoot.exists()) {
+          await outputRoot.delete(recursive: true);
+        }
+      });
+      final verifier = await _createSinglePlatformVerifier(
+        platform: 'web',
+        deviceId: 'chrome',
+        recordingAdapterResolver:
+            ({
+              required platform,
+              required deviceId,
+              required app,
+              required client,
+              required recording,
+            }) {
+              return _FakeRecordingAdapter(
+                onStart: (request) async => CockpitRecordingSession(
+                  request: request,
+                  state: CockpitRecordingState.recording,
+                ),
+                onStop: () async => CockpitRecordingResult(
+                  state: CockpitRecordingState.failed,
+                  purpose: CockpitRecordingPurpose.acceptance,
+                  recordingKind: CockpitRecordingKind.nativeScreen,
+                  failureReason: 'browser-host recording output is empty',
+                ),
+              );
+            },
+        timelineRecordingProcessRunner: (executable, arguments) async {
+          fail('strict web host recording must not synthesize a fallback');
+        },
+      );
+
+      final result = await verifier.verify(
+        CockpitDemoPlatformVerificationRequest(
+          projectDir: '/workspace/examples/cockpit_demo',
+          platforms: const <String>['web'],
+          outputRoot: outputRoot.path,
+          strictWebHostRecording: true,
+        ),
+      );
+
+      expect(result.success, isFalse);
+      final platform = result.platforms.single;
+      expect(platform.status, 'failed');
+      expect(platform.failureCode, 'recordingStopFailed');
+      expect(platform.recordingDriver, isNull);
+      expect(
+        platform.verifiedCommands,
+        isNot(contains('timeline-recording-fallback')),
+      );
+      expect(
+        platform.failureMessage,
+        contains('browser-host recording output is empty'),
       );
     },
   );
@@ -3709,6 +3816,7 @@ CockpitAppHandle _appForPlatform({
     target: 'cockpit/main.dart',
     baseUrl: baseUrl,
     launchedAt: DateTime.utc(2026, 4, 11),
+    platformAppId: 'dev.cockpit.cockpit_demo',
   );
 }
 
@@ -3725,6 +3833,8 @@ Future<CockpitDemoPlatformVerifier> _createSinglePlatformVerifier({
   required String platform,
   required String deviceId,
   CockpitDemoSystemControlRunActionFunction? runSystemAction,
+  CockpitDemoRecordingAdapterResolver? recordingAdapterResolver,
+  CockpitDemoTimelineRecordingProcessRunner? timelineRecordingProcessRunner,
 }) async {
   final recordingFile = await _createRecordingArtifact();
   late CockpitAppHandle launchedApp;
@@ -3734,7 +3844,7 @@ Future<CockpitDemoPlatformVerifier> _createSinglePlatformVerifier({
         name: platform,
         deviceId: deviceId,
         platform: platform,
-        emulator: false,
+        emulator: platform == 'ios' || platform == 'android',
         supported: true,
       ),
     ],
@@ -3773,6 +3883,7 @@ Future<CockpitDemoPlatformVerifier> _createSinglePlatformVerifier({
     runCommand: (request) async => _successfulCommandResult(request.command),
     runBatch: (request) async => _successfulBatchResult(request),
     recordingAdapterResolver:
+        recordingAdapterResolver ??
         ({
           required platform,
           required deviceId,
@@ -3827,6 +3938,7 @@ Future<CockpitDemoPlatformVerifier> _createSinglePlatformVerifier({
       app: request.app!,
       status: CockpitAppStopStatus.stopped(mode: request.app!.mode),
     ),
+    timelineRecordingProcessRunner: timelineRecordingProcessRunner,
     wait: (_) async {},
   );
 }

@@ -260,14 +260,18 @@ final class _TaskEditorScreenState extends State<TaskEditorScreen> {
                         runSpacing: 8,
                         children: TodoPriority.values
                             .map(
-                              (priority) => ChoiceChip(
-                                selected: _priority == priority,
-                                label: Text(priority.name.toUpperCase()),
-                                onSelected: (_) {
-                                  setState(() {
-                                    _priority = priority;
-                                  });
-                                },
+                              (priority) => Semantics(
+                                identifier:
+                                    'task-editor-priority-${priority.name}',
+                                child: ChoiceChip(
+                                  selected: _priority == priority,
+                                  label: Text(priority.name.toUpperCase()),
+                                  onSelected: (_) {
+                                    setState(() {
+                                      _priority = priority;
+                                    });
+                                  },
+                                ),
                               ),
                             )
                             .toList(growable: false),
@@ -279,24 +283,35 @@ final class _TaskEditorScreenState extends State<TaskEditorScreen> {
                         spacing: 8,
                         runSpacing: 8,
                         children: <Widget>[
-                          ChoiceChip(
-                            selected: _dueAt == null,
-                            label: const Text('No date'),
-                            onSelected: (_) => _selectDuePreset('none'),
+                          Semantics(
+                            identifier: 'task-editor-due-none',
+                            child: ChoiceChip(
+                              selected: _dueAt == null,
+                              label: const Text('No date'),
+                              onSelected: (_) => _selectDuePreset('none'),
+                            ),
                           ),
-                          ChoiceChip(
-                            selected:
-                                _dueAt != null &&
-                                _dueAt!.difference(DateTime.now()).inDays == 0,
-                            label: const Text('Today'),
-                            onSelected: (_) => _selectDuePreset('today'),
+                          Semantics(
+                            identifier: 'task-editor-due-today',
+                            child: ChoiceChip(
+                              selected:
+                                  _dueAt != null &&
+                                  _dueAt!.difference(DateTime.now()).inDays ==
+                                      0,
+                              label: const Text('Today'),
+                              onSelected: (_) => _selectDuePreset('today'),
+                            ),
                           ),
-                          ChoiceChip(
-                            selected:
-                                _dueAt != null &&
-                                _dueAt!.difference(DateTime.now()).inDays == 1,
-                            label: const Text('Tomorrow'),
-                            onSelected: (_) => _selectDuePreset('tomorrow'),
+                          Semantics(
+                            identifier: 'task-editor-due-tomorrow',
+                            child: ChoiceChip(
+                              selected:
+                                  _dueAt != null &&
+                                  _dueAt!.difference(DateTime.now()).inDays ==
+                                      1,
+                              label: const Text('Tomorrow'),
+                              onSelected: (_) => _selectDuePreset('tomorrow'),
+                            ),
                           ),
                         ],
                       ),

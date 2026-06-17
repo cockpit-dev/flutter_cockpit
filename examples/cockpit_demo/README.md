@@ -178,17 +178,21 @@ Desktop recording is app-scoped by default. Keep the `app.json` handle from
 `launch-app` so the verifier can pass the platform app id, process id, and
 remote-session metadata to the host recorder.
 
-For local macOS web validation, if the desktop has not yet granted screen-capture permission to the terminal, Dart, or `ffmpeg`, use:
+For local web validation, browser app control, screenshots, reloads, and
+runtime-error checks stay strict. If browser-host recording is blocked by local
+desktop capture permissions or ffmpeg output evidence, the verifier synthesizes a
+traceable timeline video from exported key-step screenshots and records a
+structured warning.
+
+Require a real browser-host recording only when that is the claim being tested:
 
 ```bash
 cd examples/cockpit_demo
 dart run tool/verify_platforms.dart \
   --platform web \
-  --allow-web-host-recording-prerequisite-failure \
+  --strict-web-host-recording \
   --output /tmp/cockpit_demo_web_verification.json
 ```
-
-That mode keeps the verifier strict for app control, screenshots, and reload flows while surfacing blocked browser-host recording as a structured warning.
 
 ## What To Inspect
 
