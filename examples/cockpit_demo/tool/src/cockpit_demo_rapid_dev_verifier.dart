@@ -332,7 +332,7 @@ final class CockpitDemoRapidDevVerifier {
       );
       _requireBatchSuccess(
         result: createResult,
-        expectedCount: 12,
+        expectedCount: 13,
         platform: platform,
       );
       queueBrief =
@@ -1015,6 +1015,22 @@ List<Map<String, Object?>> _buildRapidCreateTaskBatch({
         'text': 'HIGH',
         'route': '/editor',
         'ancestor': <String, Object?>{'route': '/editor'},
+      },
+    },
+    <String, Object?>{
+      'commandId': 'rapid-reveal-due-date-section',
+      'commandType': 'scrollUntilVisible',
+      'locator': <String, Object?>{
+        'text': 'Due date',
+        'route': '/editor',
+        'ancestor': <String, Object?>{'route': '/editor'},
+      },
+      'parameters': const <String, Object?>{
+        'maxScrolls': 6,
+        'viewportFraction': 0.38,
+        'continuous': true,
+        'durationPerStepMs': 180,
+        'revealAlignment': 'center',
       },
     },
     <String, Object?>{

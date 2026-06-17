@@ -326,6 +326,91 @@ void main() {
     expect(requestedPaths, <String>['/cockpit/ping']);
   });
 
+  test(
+    'remote session client preserves downloaded command artifact refs',
+    () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() async {
+        await server.close(force: true);
+      });
+
+      server.listen((request) async {
+        switch ((request.method, request.uri.path)) {
+          case ('POST', '/commands/execute'):
+            request.response.headers.contentType = ContentType.json;
+            request.response.write(
+              jsonEncode(
+                CockpitRemoteCommandResponse(
+                  result: CockpitCommandResult(
+                    success: true,
+                    commandId: 'capture-screenshot',
+                    commandType: CockpitCommandType.captureScreenshot,
+                    durationMs: 24,
+                  ),
+                  artifactDownloads: const <CockpitRemoteArtifactDownload>[
+                    CockpitRemoteArtifactDownload(
+                      artifact: CockpitArtifactRef(
+                        role: 'screenshot',
+                        relativePath: 'screenshots/acceptance.png',
+                      ),
+                      downloadPath:
+                          '/artifacts/download?path=screenshots%2Facceptance.png',
+                    ),
+                  ],
+                ).toJson(),
+              ),
+            );
+          case ('GET', '/artifacts/download'):
+            request.response.headers.contentType = ContentType.binary;
+            request.response.add(const <int>[137, 80, 78, 71]);
+          default:
+            request.response.statusCode = HttpStatus.notFound;
+            request.response.write(
+              jsonEncode(const <String, Object?>{'error': 'notFound'}),
+            );
+        }
+        await request.response.close();
+      });
+
+      final downloadDir = await Directory.systemTemp.createTemp(
+        'flutter_cockpit_remote_client_artifact_refs_test_',
+      );
+      addTearDown(() async {
+        if (await downloadDir.exists()) {
+          await downloadDir.delete(recursive: true);
+        }
+      });
+
+      final client = CockpitRemoteSessionClient(
+        baseUri: Uri.parse('http://127.0.0.1:${server.port}'),
+        artifactTempFileFactory: (basename) async =>
+            File('${downloadDir.path}${Platform.pathSeparator}$basename'),
+      );
+
+      final execution = await client.executeDetailed(
+        CockpitCommand(
+          commandId: 'capture-screenshot',
+          commandType: CockpitCommandType.captureScreenshot,
+          screenshotRequest: const CockpitScreenshotRequest(
+            reason: CockpitScreenshotReason.acceptance,
+            name: 'acceptance',
+          ),
+        ),
+      );
+
+      expect(execution.result.artifacts, <CockpitArtifactRef>[
+        const CockpitArtifactRef(
+          role: 'screenshot',
+          relativePath: 'screenshots/acceptance.png',
+        ),
+      ]);
+      expect(
+        execution.artifactSourcePaths.keys,
+        contains('screenshots/acceptance.png'),
+      );
+    },
+  );
+
   test('remote session client checks lightweight control readiness', () async {
     final requestedPaths = <String>[];
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);

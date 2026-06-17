@@ -1501,6 +1501,25 @@ final class CockpitDemoPlatformVerifier {
         verifiedActions.add(action.name);
         return;
       }
+      if (!_shouldSkipOptionalExhaustiveSystemProbeFailure(
+        platform: platform,
+        action: action,
+        result: result,
+      )) {
+        throw CockpitApplicationServiceException(
+          code: 'systemControlActionFailed',
+          message: 'System ${action.name} action failed during verification.',
+          details: <String, Object?>{
+            'platform': platform,
+            'action': result.action.name,
+            'errorCode': result.errorCode,
+            'errorMessage': result.errorMessage,
+            'availability': result.availability.name,
+            'requires': result.requires,
+            'limitations': result.limitations,
+          },
+        );
+      }
       skippedActions.add(action.name);
       _reportProgress(
         request: request,
@@ -1670,7 +1689,21 @@ final class CockpitDemoPlatformVerifier {
     required String platform,
     required CockpitSystemControlAction action,
   }) {
-    return platform == 'ios' && action == CockpitSystemControlAction.addMedia;
+    return platform == 'ios' &&
+        (action == CockpitSystemControlAction.addMedia ||
+            action == CockpitSystemControlAction.readSystemLogs);
+  }
+
+  bool _shouldSkipOptionalExhaustiveSystemProbeFailure({
+    required String platform,
+    required CockpitSystemControlAction action,
+    required CockpitSystemControlActionResult result,
+  }) {
+    return _isOptionalExhaustiveSystemProbe(
+          platform: platform,
+          action: action,
+        ) &&
+        result.errorCode == 'systemActionTimedOut';
   }
 
   List<_SystemControlActionProbe> _buildExhaustiveSystemControlActions({
