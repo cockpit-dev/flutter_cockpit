@@ -247,6 +247,7 @@ final class CockpitDemoPlatformVerificationRequest {
     this.deviceTimeout = const Duration(seconds: 420),
     this.androidEmulatorId = 'Pixel_9_Pro',
     this.allowWebHostRecordingPrerequisiteFailure = false,
+    this.exhaustiveSystemControl = false,
     this.failFast = false,
     this.progressSink,
   });
@@ -260,6 +261,7 @@ final class CockpitDemoPlatformVerificationRequest {
   final Duration deviceTimeout;
   final String androidEmulatorId;
   final bool allowWebHostRecordingPrerequisiteFailure;
+  final bool exhaustiveSystemControl;
   final bool failFast;
   final CockpitDemoVerificationProgressSink? progressSink;
 }
@@ -660,6 +662,7 @@ final class CockpitDemoPlatformVerifier {
         deviceId: deviceId,
         app: launchedApp,
         request: request,
+        outputDir: outputDir,
       );
       verifiedCommands.add('read-system-capabilities');
       verifiedCommands.addAll(
@@ -1418,6 +1421,7 @@ final class CockpitDemoPlatformVerifier {
     required String deviceId,
     required CockpitAppHandle app,
     required CockpitDemoPlatformVerificationRequest request,
+    required String outputDir,
   }) async {
     _reportProgress(
       request: request,
@@ -1533,7 +1537,7 @@ final class CockpitDemoPlatformVerifier {
       }
     }
 
-    if (platform == 'ios' &&
+    if ((platform == 'ios' || request.exhaustiveSystemControl) &&
         profile.availableActions.contains(
           CockpitSystemControlAction.setClipboard,
         ) &&
@@ -1572,6 +1576,20 @@ final class CockpitDemoPlatformVerifier {
       }
       verifiedActions.add(CockpitSystemControlAction.getClipboard.name);
     }
+    if (request.exhaustiveSystemControl) {
+      for (final entry in _buildExhaustiveSystemControlActions(
+        platform: platform,
+        outputDir: outputDir,
+      )) {
+        final action = entry.action;
+        if (verifiedActions.contains(action.name)) continue;
+        if (!profile.availableActions.contains(action)) continue;
+        await runAndRequireSuccess(
+          action: action,
+          parameters: entry.parameters,
+        );
+      }
+    }
 
     if (availableActions.isEmpty && platform != 'web') {
       throw CockpitApplicationServiceException(
@@ -1599,6 +1617,70 @@ final class CockpitDemoPlatformVerifier {
       availableActions: availableActions,
       verifiedActions: List<String>.unmodifiable(verifiedActions),
     );
+  }
+
+  List<_SystemControlActionProbe> _buildExhaustiveSystemControlActions({
+    required String platform,
+    required String outputDir,
+  }) {
+    final tempRoot = Directory(p.join(outputDir, 'system-control-probes'))
+      ..createSync(recursive: true);
+    final pushSource = File(p.join(tempRoot.path, 'push.txt'))
+      ..writeAsStringSync('push');
+    final pulledDestination = p.join(tempRoot.path, 'pulled.txt');
+    final mediaSource = File(p.join(tempRoot.path, 'media.png'))
+      ..writeAsBytesSync(_minimalPngBytes, flush: true);
+    final deviceProbePath = switch (platform) {
+      'android' => '/sdcard/Download/flutter_cockpit_probe.txt',
+      'ios' => 'Documents/flutter_cockpit_probe.txt',
+      _ => p.join(tempRoot.path, 'device-probe.txt'),
+    };
+    if (platform != 'android' && platform != 'ios') {
+      File(deviceProbePath).writeAsStringSync('device-probe');
+    }
+    return <_SystemControlActionProbe>[
+      const _SystemControlActionProbe(
+        CockpitSystemControlAction.readDeviceInfo,
+      ),
+      const _SystemControlActionProbe(
+        CockpitSystemControlAction.readFocusState,
+      ),
+      const _SystemControlActionProbe(
+        CockpitSystemControlAction.readSystemLogs,
+      ),
+      const _SystemControlActionProbe(CockpitSystemControlAction.readWindows),
+      _SystemControlActionProbe(
+        CockpitSystemControlAction.pushFile,
+        parameters: <String, Object?>{
+          'sourcePath': pushSource.path,
+          'destinationPath': deviceProbePath,
+        },
+      ),
+      _SystemControlActionProbe(
+        CockpitSystemControlAction.pullFile,
+        parameters: <String, Object?>{
+          'sourcePath': deviceProbePath,
+          'destinationPath': pulledDestination,
+        },
+      ),
+      _SystemControlActionProbe(
+        CockpitSystemControlAction.addMedia,
+        parameters: <String, Object?>{'sourcePath': mediaSource.path},
+      ),
+      _SystemControlActionProbe(
+        CockpitSystemControlAction.runShell,
+        parameters: <String, Object?>{
+          'command': _systemControlProbeShellCommand(platform),
+        },
+      ),
+    ];
+  }
+
+  List<String> _systemControlProbeShellCommand(String platform) {
+    return switch (platform) {
+      'windows' => const <String>['cmd', '/c', 'echo', 'cockpit-exhaustive'],
+      _ => const <String>['echo', 'cockpit-exhaustive'],
+    };
   }
 
   Future<_ResolvedDevice> _ensureDeviceForPlatform({
@@ -3157,9 +3239,89 @@ final class _SystemControlVerification {
   final List<String> verifiedActions;
 }
 
+final class _SystemControlActionProbe {
+  const _SystemControlActionProbe(
+    this.action, {
+    this.parameters = const <String, Object?>{},
+  });
+
+  final CockpitSystemControlAction action;
+  final Map<String, Object?> parameters;
+}
+
 final class _ResolvedDevice {
   const _ResolvedDevice({required this.deviceId, required this.bootstrapped});
 
   final String deviceId;
   final bool bootstrapped;
 }
+
+const List<int> _minimalPngBytes = <int>[
+  0x89,
+  0x50,
+  0x4E,
+  0x47,
+  0x0D,
+  0x0A,
+  0x1A,
+  0x0A,
+  0x00,
+  0x00,
+  0x00,
+  0x0D,
+  0x49,
+  0x48,
+  0x44,
+  0x52,
+  0x00,
+  0x00,
+  0x00,
+  0x01,
+  0x00,
+  0x00,
+  0x00,
+  0x01,
+  0x08,
+  0x06,
+  0x00,
+  0x00,
+  0x00,
+  0x1F,
+  0x15,
+  0xC4,
+  0x89,
+  0x00,
+  0x00,
+  0x00,
+  0x0A,
+  0x49,
+  0x44,
+  0x41,
+  0x54,
+  0x78,
+  0x9C,
+  0x63,
+  0x00,
+  0x01,
+  0x00,
+  0x00,
+  0x05,
+  0x00,
+  0x01,
+  0x0D,
+  0x0A,
+  0x2D,
+  0xB4,
+  0x00,
+  0x00,
+  0x00,
+  0x00,
+  0x49,
+  0x45,
+  0x4E,
+  0x44,
+  0xAE,
+  0x42,
+  0x60,
+  0x82,
+];
