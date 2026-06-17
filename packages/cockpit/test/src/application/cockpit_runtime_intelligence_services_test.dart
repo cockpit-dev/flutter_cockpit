@@ -576,6 +576,68 @@ void main() {
   });
 
   test(
+    'retries current app runtime errors while Flutter root is remounting',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_runtime_errors_remount',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final appFile = File('${tempDir.path}/app.json');
+      await appFile.writeAsString(
+        jsonEncode(
+          CockpitAppHandle(
+            appId: 'dev.example.web',
+            mode: CockpitAppMode.development,
+            platform: 'web',
+            deviceId: 'chrome',
+            projectDir: '/workspace/app',
+            target: 'cockpit/main.dart',
+            baseUrl: 'http://127.0.0.1:57331',
+            launchedAt: DateTime.utc(2026, 3, 30),
+          ).toJson(),
+        ),
+      );
+      var readCount = 0;
+
+      final result =
+          await CockpitReadRuntimeErrorsService(
+            registry: CockpitSessionRegistry(),
+            latestTaskStore: CockpitLatestTaskStore(),
+            retryDelay: Duration.zero,
+            readSnapshot: (baseUri, options) async {
+              readCount += 1;
+              if (readCount == 1) {
+                throw const CockpitApplicationServiceException(
+                  code: 'serverError',
+                  message: 'Bad state: FlutterCockpitRoot is not mounted.',
+                );
+              }
+              return CockpitRemoteSnapshotResponse(
+                snapshot: CockpitSnapshot(
+                  routeName: '/inbox',
+                  diagnosticLevel: CockpitSnapshotProfile.investigate,
+                ),
+              );
+            },
+          ).read(
+            CockpitReadRuntimeErrorsRequest(
+              appHandlePath: appFile.path,
+              maxErrors: 4,
+            ),
+          );
+
+      expect(readCount, 2);
+      expect(result.hasErrors, isFalse);
+      expect(result.routeName, '/inbox');
+    },
+  );
+
+  test(
     'reads app network summary with endpoint summaries and recent failures',
     () async {
       final tempDir = await Directory.systemTemp.createTemp(

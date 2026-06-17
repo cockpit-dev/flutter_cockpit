@@ -959,12 +959,12 @@ bare `start-recording` before the risky edit/reload/interaction window and
 `run-batch --recording-json` when the whole flow is deterministic or needs
 explicit acceptance/full recording options.
 
-For local web validation, keep browser app control, screenshots, reloads, and
-runtime-error reads strict. If browser-host recording is blocked only because
-the desktop has not granted screen-capture permission yet or ffmpeg cannot prove
-startup/output evidence, classify that as an environment prerequisite warning
-and keep the app-control result separate. Do not claim video recording coverage
-for that run unless the recording command reports a completed artifact.
+For local web platform validation, browser app control, screenshots, reloads,
+and runtime-error reads stay strict. If browser-host recording is blocked by
+desktop capture permissions or ffmpeg output evidence, the example verifier
+synthesizes a timeline video from exported key-step screenshots and records a
+structured warning. Add `--strict-web-host-recording` only when real browser
+video recording is the claim being tested.
 
 ## Bundle And Delivery
 

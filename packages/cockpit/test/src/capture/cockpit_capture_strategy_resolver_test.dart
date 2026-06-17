@@ -1,6 +1,7 @@
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:cockpit/cockpit.dart';
 import 'package:cockpit/src/capture/cockpit_host_preferred_capture_adapter.dart';
+import 'package:cockpit/src/platform/web/cockpit_browser_host_app_id.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -275,6 +276,95 @@ void main() {
     },
   );
 
+  test(
+    'uses browser host capture on web when a supported browser device is available',
+    () {
+      final remoteAdapter = _FakeCaptureAdapter();
+      final hostAdapter = _FakeCaptureAdapter();
+      String? capturedAppId;
+      int? capturedProcessId;
+      final resolver = CockpitCaptureStrategyResolver(
+        remoteAdapterFactory: (client) => remoteAdapter,
+        adbAdapterFactory: (deviceId) => _FakeCaptureAdapter(),
+        simctlAdapterFactory: (deviceId) => _FakeCaptureAdapter(),
+        macosAdapterFactory: (appId) {
+          capturedAppId = appId;
+          return hostAdapter;
+        },
+        windowsAdapterFactory: (appId, {processId}) {
+          capturedAppId = appId;
+          capturedProcessId = processId;
+          return hostAdapter;
+        },
+        linuxAdapterFactory: (appId, {processId}) {
+          capturedAppId = appId;
+          capturedProcessId = processId;
+          return hostAdapter;
+        },
+        browserHostAppIdResolver: (deviceId) {
+          expect(deviceId, 'chrome');
+          return 'com.google.Chrome';
+        },
+      );
+
+      final adapter = resolver.resolve(
+        platform: 'web',
+        client: CockpitRemoteSessionClient(
+          baseUri: Uri.parse('http://127.0.0.1:47331'),
+        ),
+        sessionHandle: CockpitRemoteSessionHandle(
+          platform: 'web',
+          deviceId: 'chrome',
+          projectDir: '/workspace/examples/cockpit_demo',
+          target: 'cockpit/main.dart',
+          appId: 'web-app',
+          platformAppIdKnown: false,
+          host: '127.0.0.1',
+          hostPort: 47331,
+          devicePort: 47331,
+          baseUrl: 'http://127.0.0.1:47331',
+          launchedAt: DateTime.utc(2026, 3, 24),
+        ),
+      );
+
+      expect(adapter, isA<CockpitHostPreferredCaptureAdapter>());
+      expect(capturedAppId, 'com.google.Chrome');
+      expect(capturedProcessId, isNull);
+    },
+  );
+
+  test('uses remote capture on web when the browser host is unsupported', () {
+    final remoteAdapter = _FakeCaptureAdapter();
+    final resolver = CockpitCaptureStrategyResolver(
+      remoteAdapterFactory: (client) => remoteAdapter,
+      adbAdapterFactory: (deviceId) => _FakeCaptureAdapter(),
+      simctlAdapterFactory: (deviceId) => _FakeCaptureAdapter(),
+      browserHostAppIdResolver: (deviceId) => null,
+    );
+
+    final adapter = resolver.resolve(
+      platform: 'web',
+      client: CockpitRemoteSessionClient(
+        baseUri: Uri.parse('http://127.0.0.1:47331'),
+      ),
+      sessionHandle: CockpitRemoteSessionHandle(
+        platform: 'web',
+        deviceId: 'unknown-browser',
+        projectDir: '/workspace/examples/cockpit_demo',
+        target: 'cockpit/main.dart',
+        appId: 'web-app',
+        platformAppIdKnown: false,
+        host: '127.0.0.1',
+        hostPort: 47331,
+        devicePort: 47331,
+        baseUrl: 'http://127.0.0.1:47331',
+        launchedAt: DateTime.utc(2026, 3, 24),
+      ),
+    );
+
+    expect(adapter, same(remoteAdapter));
+  });
+
   test('falls back to remote capture when no host context is available', () {
     final remoteAdapter = _FakeCaptureAdapter();
     final resolver = CockpitCaptureStrategyResolver(
@@ -282,6 +372,7 @@ void main() {
       adbAdapterFactory: (deviceId) => _FakeCaptureAdapter(),
       simctlAdapterFactory: (deviceId) => _FakeCaptureAdapter(),
       macosAdapterFactory: (appId) => _FakeCaptureAdapter(),
+      browserHostAppIdResolver: cockpitResolveBrowserHostAppId,
     );
 
     final adapter = resolver.resolve(

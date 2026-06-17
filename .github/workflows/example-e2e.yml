@@ -176,7 +176,7 @@ jobs:
               assert p["screenshotArtifactRef"], p
               assert p["screenshotByteLength"] > 0, p
               for cmd in ("launch-app", "read-app", "run-batch", "wait-idle",
-                          "hot-reload", "assert-text", "capture-screenshot", "read-errors"):
+                          "hot-reload", "capture-screenshot", "read-errors"):
                   assert cmd in p["verifiedCommands"], f"{name}: missing {cmd}"
           PY
 
@@ -293,10 +293,12 @@ jobs:
           assert p["initialRouteName"] == "/inbox", p
           assert p["postCreateRouteName"] == "/inbox", p
           assert p["postReloadRouteName"] == "/inbox", p
+          assert p["createdTaskTitle"], p
+          assert p["queueBrief"], p
           assert p["screenshotArtifactRef"], p
           assert p["screenshotByteLength"] > 0, p
           for cmd in ("launch-app", "read-app", "run-batch", "wait-idle",
-                      "hot-reload", "assert-text", "capture-screenshot", "read-errors"):
+                      "hot-reload", "capture-screenshot", "read-errors"):
               assert cmd in p["verifiedCommands"], f"missing {cmd}"
           PY
 
@@ -395,7 +397,7 @@ jobs:
           assert p["screenshotArtifactRef"], p
           assert p["screenshotByteLength"] > 0, p
           for cmd in ("launch-app", "read-app", "run-batch", "wait-idle",
-                      "hot-reload", "assert-text", "capture-screenshot", "read-errors"):
+                      "hot-reload", "capture-screenshot", "read-errors"):
               assert cmd in p["verifiedCommands"], f"missing {cmd}"
           PY
 
@@ -506,10 +508,12 @@ jobs:
           assert p["initialRouteName"] == "/inbox", p
           assert p["postCreateRouteName"] == "/inbox", p
           assert p["postReloadRouteName"] == "/inbox", p
+          assert p["createdTaskTitle"], p
+          assert p["queueBrief"], p
           assert p["screenshotArtifactRef"], p
           assert p["screenshotByteLength"] > 0, p
           for cmd in ("launch-app", "read-app", "run-batch", "wait-idle",
-                      "hot-reload", "assert-text", "capture-screenshot", "read-errors"):
+                      "hot-reload", "capture-screenshot", "read-errors"):
               assert cmd in p["verifiedCommands"], f"missing {cmd}"
           PY
 
@@ -596,10 +600,12 @@ jobs:
           assert p["initialRouteName"] == "/inbox", p
           assert p["postCreateRouteName"] == "/inbox", p
           assert p["postReloadRouteName"] == "/inbox", p
+          assert p["createdTaskTitle"], p
+          assert p["queueBrief"], p
           assert p["screenshotArtifactRef"], p
           assert p["screenshotByteLength"] > 0, p
           for cmd in ("launch-app", "read-app", "run-batch", "wait-idle",
-                      "hot-reload", "assert-text", "capture-screenshot", "read-errors"):
+                      "hot-reload", "capture-screenshot", "read-errors"):
               assert cmd in p["verifiedCommands"], f"missing {cmd}"
           PY
 

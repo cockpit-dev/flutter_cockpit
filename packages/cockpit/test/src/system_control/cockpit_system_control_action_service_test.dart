@@ -2044,6 +2044,25 @@ void main() {
     expect(result.command.join(' '), contains('getactivewindow'));
   });
 
+  test('linux readFocusState reports empty focus instead of failing', () async {
+    final processManager = _FakeProcessManager();
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'linux',
+        action: CockpitSystemControlAction.readFocusState,
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.command.join(' '), contains('state=no-active-window'));
+    expect(result.command.join(' '), contains('exit 0'));
+    expect(result.errorCode, isNull);
+  });
+
   test('macos recoverToApp activates the target application', () async {
     final processManager = _FakeProcessManager();
     final service = CockpitSystemControlActionService(

@@ -246,7 +246,7 @@ final class CockpitDemoPlatformVerificationRequest {
     this.launchTimeout = const Duration(seconds: 180),
     this.deviceTimeout = const Duration(seconds: 420),
     this.androidEmulatorId = 'Pixel_9_Pro',
-    this.allowWebHostRecordingPrerequisiteFailure = false,
+    this.strictWebHostRecording = false,
     this.exhaustiveSystemControl = false,
     this.failFast = false,
     this.progressSink,
@@ -260,7 +260,7 @@ final class CockpitDemoPlatformVerificationRequest {
   final Duration launchTimeout;
   final Duration deviceTimeout;
   final String androidEmulatorId;
-  final bool allowWebHostRecordingPrerequisiteFailure;
+  final bool strictWebHostRecording;
   final bool exhaustiveSystemControl;
   final bool failFast;
   final CockpitDemoVerificationProgressSink? progressSink;
@@ -402,10 +402,8 @@ final class CockpitDemoPlatformVerification {
       'screenshotByteLength': screenshotByteLength,
     if (systemControlAdapter != null)
       'systemControlAdapter': systemControlAdapter,
-    if (systemAvailableActions.isNotEmpty)
-      'systemAvailableActions': systemAvailableActions,
-    if (systemVerifiedActions.isNotEmpty)
-      'systemVerifiedActions': systemVerifiedActions,
+    'systemAvailableActions': systemAvailableActions,
+    'systemVerifiedActions': systemVerifiedActions,
     'verifiedCommands': verifiedCommands,
     if (warnings.isNotEmpty) 'warnings': warnings,
     if (failureCode != null) 'failureCode': failureCode,
@@ -1446,6 +1444,7 @@ final class CockpitDemoPlatformVerifier {
     Future<CockpitSystemControlActionResult> runAndRequireSuccess({
       required CockpitSystemControlAction action,
       Map<String, Object?> parameters = const <String, Object?>{},
+      Duration timeout = const Duration(seconds: 15),
     }) async {
       final result = await _runSystemAction(
         CockpitSystemControlActionRequest(
@@ -1455,7 +1454,7 @@ final class CockpitDemoPlatformVerifier {
           processId: app.processId,
           action: action,
           parameters: parameters,
-          timeout: const Duration(seconds: 15),
+          timeout: timeout,
         ),
       );
       if (!result.success) {
@@ -1587,6 +1586,7 @@ final class CockpitDemoPlatformVerifier {
         await runAndRequireSuccess(
           action: action,
           parameters: entry.parameters,
+          timeout: entry.timeout,
         );
       }
     }
@@ -1666,6 +1666,9 @@ final class CockpitDemoPlatformVerifier {
       _SystemControlActionProbe(
         CockpitSystemControlAction.addMedia,
         parameters: <String, Object?>{'sourcePath': mediaSource.path},
+        timeout: platform == 'ios'
+            ? const Duration(seconds: 60)
+            : const Duration(seconds: 15),
       ),
       _SystemControlActionProbe(
         CockpitSystemControlAction.runShell,
@@ -2888,7 +2891,8 @@ Future<CockpitReadNetworkResult> cockpitDemoReadNetwork(
     appHandlePath: request.appHandlePath,
     baseUri: request.baseUri,
   );
-  final snapshot = (await resolved.client.readSnapshotDetailed(
+  final snapshot = (await _readSnapshotDetailedWithRetry(
+    resolved.client,
     options: CockpitSnapshotOptions(
       includeNetworkActivity: true,
       maxNetworkEntries: request.maxEntries <= 0 ? 8 : request.maxEntries,
@@ -2961,7 +2965,8 @@ Future<CockpitReadErrorsResult> cockpitDemoReadErrors(
     appHandlePath: request.appHandlePath,
     baseUri: request.baseUri,
   );
-  final snapshot = (await resolved.client.readSnapshotDetailed(
+  final snapshot = (await _readSnapshotDetailedWithRetry(
+    resolved.client,
     options: CockpitSnapshotOptions(
       profile: CockpitSnapshotProfile.investigate,
       includeRuntimeActivity: true,
@@ -3001,7 +3006,8 @@ Future<CockpitReadLogsResult> cockpitDemoReadLogs(
   );
   final maxLines = request.maxLines <= 0 ? 200 : request.maxLines;
   try {
-    final snapshot = (await resolved.client.readSnapshotDetailed(
+    final snapshot = (await _readSnapshotDetailedWithRetry(
+      resolved.client,
       options: CockpitSnapshotOptions(
         includeRuntimeActivity: true,
         maxRuntimeEntries: maxLines,
@@ -3058,6 +3064,29 @@ Future<CockpitReadLogsResult> cockpitDemoReadLogs(
       truncated: truncated,
     );
   }
+}
+
+Future<CockpitRemoteSnapshotResponse> _readSnapshotDetailedWithRetry(
+  CockpitRemoteSessionClient client, {
+  required CockpitSnapshotOptions options,
+}) async {
+  const maxAttempts = 5;
+  for (var attempt = 0; attempt < maxAttempts; attempt += 1) {
+    try {
+      return await client.readSnapshotDetailed(options: options);
+    } on CockpitApplicationServiceException catch (error) {
+      final shouldRetry =
+          attempt + 1 < maxAttempts &&
+          (error.code == 'remoteUnavailable' ||
+              (error.code == 'serverError' &&
+                  error.message.contains('FlutterCockpitRoot is not mounted')));
+      if (!shouldRetry) {
+        rethrow;
+      }
+      await Future<void>.delayed(Duration(milliseconds: 400 * (attempt + 1)));
+    }
+  }
+  throw StateError('Unreachable snapshot retry state.');
 }
 
 CockpitRecordingAdapter? cockpitDemoResolveRecordingAdapter({
@@ -3196,7 +3225,7 @@ bool _canSynthesizeHostRecordingFallback({
 }) {
   return switch (platform) {
     'linux' || 'macos' || 'windows' => true,
-    'web' => request.allowWebHostRecordingPrerequisiteFailure,
+    'web' => !request.strictWebHostRecording,
     _ => false,
   };
 }
@@ -3243,10 +3272,12 @@ final class _SystemControlActionProbe {
   const _SystemControlActionProbe(
     this.action, {
     this.parameters = const <String, Object?>{},
+    this.timeout = const Duration(seconds: 15),
   });
 
   final CockpitSystemControlAction action;
   final Map<String, Object?> parameters;
+  final Duration timeout;
 }
 
 final class _ResolvedDevice {

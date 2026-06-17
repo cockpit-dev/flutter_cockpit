@@ -2589,8 +2589,8 @@ if ! command -v xdotool >/dev/null 2>&1; then
 fi
 window_id="$(xdotool getactivewindow 2>/dev/null || true)"
 if [ -z "$window_id" ]; then
-  echo "flutter_cockpit: no active window reported by xdotool" >&2
-  exit 69
+  printf "windowId=\nname=\npid=\nstate=no-active-window\n"
+  exit 0
 fi
 printf "windowId=%s\nname=%s\npid=%s\n" \
   "$window_id" \

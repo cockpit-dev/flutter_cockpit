@@ -1,5 +1,6 @@
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
+import 'cockpit_application_service_exception.dart';
 import '../remote/cockpit_remote_session_client.dart';
 import 'cockpit_app_reference_resolver.dart';
 import 'cockpit_latest_task_store.dart';
@@ -94,6 +95,8 @@ final class CockpitReadRuntimeErrorsService {
     required CockpitLatestTaskStore latestTaskStore,
     CockpitAppReferenceResolver? appReferenceResolver,
     CockpitReadRuntimeErrorsSnapshotReader? readSnapshot,
+    int maxSnapshotReadAttempts = 5,
+    Duration retryDelay = const Duration(milliseconds: 400),
   }) : _registry = registry,
        _latestTaskStore = latestTaskStore,
        _appReferenceResolver =
@@ -103,12 +106,18 @@ final class CockpitReadRuntimeErrorsService {
            readSnapshot ??
            ((baseUri, options) => CockpitRemoteSessionClient(
              baseUri: baseUri,
-           ).readSnapshotDetailed(options: options));
+           ).readSnapshotDetailed(options: options)),
+       _maxSnapshotReadAttempts = maxSnapshotReadAttempts < 1
+           ? 1
+           : maxSnapshotReadAttempts,
+       _retryDelay = retryDelay;
 
   final CockpitSessionRegistry _registry;
   final CockpitLatestTaskStore _latestTaskStore;
   final CockpitAppReferenceResolver _appReferenceResolver;
   final CockpitReadRuntimeErrorsSnapshotReader _readSnapshot;
+  final int _maxSnapshotReadAttempts;
+  final Duration _retryDelay;
 
   Future<CockpitReadRuntimeErrorsResult> read(
     CockpitReadRuntimeErrorsRequest request,
@@ -126,7 +135,7 @@ final class CockpitReadRuntimeErrorsService {
       );
       appId = resolved.app?.appId ?? request.appId;
       source = 'app_snapshot';
-      final snapshot = (await _readSnapshot(
+      final snapshot = (await _readSnapshotWithRetry(
         resolved.baseUri,
         CockpitSnapshotOptions(
           profile: CockpitSnapshotProfile.investigate,
@@ -213,6 +222,36 @@ final class CockpitReadRuntimeErrorsService {
                 : null),
       errors: List<CockpitRuntimeErrorEntry>.unmodifiable(errors),
     );
+  }
+
+  Future<CockpitRemoteSnapshotResponse> _readSnapshotWithRetry(
+    Uri baseUri,
+    CockpitSnapshotOptions options,
+  ) async {
+    for (var attempt = 0; attempt < _maxSnapshotReadAttempts; attempt += 1) {
+      try {
+        return await _readSnapshot(baseUri, options);
+      } on CockpitApplicationServiceException catch (error) {
+        final shouldRetry =
+            attempt + 1 < _maxSnapshotReadAttempts &&
+            _isTransientSnapshotReadFailure(error);
+        if (!shouldRetry) {
+          rethrow;
+        }
+        if (_retryDelay > Duration.zero) {
+          await Future<void>.delayed(_retryDelay * (attempt + 1));
+        }
+      }
+    }
+    throw StateError('Unreachable runtime error snapshot retry state.');
+  }
+
+  bool _isTransientSnapshotReadFailure(
+    CockpitApplicationServiceException error,
+  ) {
+    return error.code == 'remoteUnavailable' ||
+        (error.code == 'serverError' &&
+            error.message.contains('FlutterCockpitRoot is not mounted'));
   }
 }
 
