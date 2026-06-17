@@ -429,6 +429,10 @@ final class CockpitDemoRapidDevVerifier {
           defaultCommandTimeout: const Duration(seconds: 30),
         ),
       );
+      _requireCaptureScreenshotSuccess(
+        result: captureResult,
+        platform: platform,
+      );
       final screenshotArtifact = captureResult.artifacts.firstWhere(
         (artifact) => artifact.role == 'screenshot',
         orElse: () => throw CockpitApplicationServiceException(
@@ -824,6 +828,35 @@ final class CockpitDemoRapidDevVerifier {
         'label': label,
         'expectedRoute': expectedRoute,
         'actualRoute': routeName,
+      },
+    );
+  }
+
+  void _requireCaptureScreenshotSuccess({
+    required CockpitCaptureScreenshotResult result,
+    required String platform,
+  }) {
+    final command = result.command;
+    if (command.success) {
+      return;
+    }
+    throw CockpitApplicationServiceException(
+      code: 'captureScreenshotFailed',
+      message: 'Rapid verifier screenshot command failed.',
+      details: <String, Object?>{
+        'platform': platform,
+        'commandId': command.commandId,
+        'commandType': command.commandType,
+        if (command.resolvedCaptureKind != null)
+          'resolvedCaptureKind': command.resolvedCaptureKind,
+        'usedCaptureFallback': command.usedCaptureFallback,
+        if (command.degradationReason != null)
+          'degradationReason': command.degradationReason,
+        if (command.error != null) 'error': command.error!.toJson(),
+        if (result.artifacts.isNotEmpty)
+          'artifacts': result.artifacts
+              .map((artifact) => artifact.toJson())
+              .toList(growable: false),
       },
     );
   }

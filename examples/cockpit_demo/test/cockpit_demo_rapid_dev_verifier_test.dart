@@ -554,6 +554,132 @@ void main() {
     },
   );
 
+  test('rapid verifier preserves capture screenshot command failures', () async {
+    String? createdTaskTitle;
+    final verifier = CockpitDemoRapidDevVerifier(
+      probeDevices: () async => _devices(macos: true),
+      runProcess: (executable, arguments, {String? workingDirectory}) async {
+        return ProcessResult(0, 0, '', '');
+      },
+      wait: (_) async {},
+      clock: () => DateTime.utc(2026, 5, 22, 10, 30),
+      launchApp: (request) async {
+        return CockpitLaunchAppResult(
+          app: _appForPlatform(
+            platform: request.platform,
+            deviceId: request.deviceId,
+            baseUrl: 'http://127.0.0.1:${request.sessionPort}',
+          ),
+          appJsonPath:
+              '${request.projectDir}/.dart_tool/cockpit_rapid_dev/${request.platform}/app.json',
+        );
+      },
+      readApp: (request) async =>
+          _readAppResult(request.app!, createdTaskTitle: createdTaskTitle),
+      runBatch: (request) async {
+        createdTaskTitle =
+            request.commands[1].command.parameters['text'] as String;
+        return CockpitRunBatchResult(
+          results: request.commands
+              .map(
+                (entry) => CockpitExecuteRemoteCommandResult(
+                  command: _commandCore(entry.command),
+                  artifacts: const <CockpitInteractiveArtifactDescriptor>[],
+                ),
+              )
+              .toList(growable: false),
+          summary: CockpitExecuteRemoteCommandBatchSummary(
+            totalCount: request.commands.length,
+            successCount: request.commands.length,
+            failureCount: 0,
+            stoppedEarly: false,
+          ),
+        );
+      },
+      waitIdle: (request) async => const CockpitWaitIdleResult(
+        idle: true,
+        durationMs: 180,
+        quietWindowMs: 120,
+        timeoutMs: 4000,
+        includeNetworkIdle: true,
+      ),
+      hotReload: (request) async => CockpitHotReloadResult(
+        app: request.app!,
+        status: CockpitDevelopmentSessionStatus(
+          developmentSessionId: 'macos-dev',
+          state: CockpitDevelopmentSessionState.ready,
+          appReachable: true,
+          remoteSessionReachable: true,
+          reloadGeneration: 1,
+          lastReloadMode: CockpitDevelopmentReloadMode.hotReload,
+          lastReloadSucceeded: true,
+          lastStatusAt: DateTime.utc(2026, 5, 22, 10, 31),
+        ),
+      ),
+      captureScreenshot: (request) async {
+        return CockpitCaptureScreenshotResult(
+          command: CockpitInteractiveCommandCore(
+            commandId: 'capture-screenshot',
+            commandType: 'captureScreenshot',
+            success: false,
+            durationMs: 12,
+            resolvedCaptureKind: 'nativeAcceptance',
+            usedCaptureFallback: true,
+            degradationReason: 'hostCaptureFailed',
+            error: CockpitCommandError.captureFailed(
+              message: 'Host screenshot capture failed.',
+              details: const <String, Object?>{
+                'fallbackSkipped': 'remoteCaptureUnsupported',
+              },
+            ),
+          ),
+          artifacts: const <CockpitInteractiveArtifactDescriptor>[],
+        );
+      },
+      readErrors: (request) async => const CockpitReadErrorsResult(
+        appId: 'rapid-errors',
+        source: 'app_snapshot',
+        routeName: '/inbox',
+        errors: <CockpitErrorEntry>[],
+      ),
+      stopApp: (request) async => CockpitStopAppResult(
+        app: request.app!,
+        status: CockpitAppStopStatus.stopped(mode: request.app!.mode),
+      ),
+    );
+
+    final result = await verifier.verify(
+      const CockpitDemoRapidVerificationRequest(
+        projectDir: '/workspace/examples/cockpit_demo',
+        platforms: <String>['macos'],
+        outputRoot: '/tmp/cockpit_rapid_dev',
+      ),
+    );
+
+    expect(result.success, isFalse);
+    final platform = result.platforms.single;
+    expect(platform.failureCode, 'captureScreenshotFailed');
+    expect(platform.verifiedCommands, <String>[
+      'launch-app',
+      'read-app',
+      'run-batch',
+      'wait-idle',
+      'hot-reload',
+    ]);
+    final details = platform.failureDetails!;
+    expect(details['commandId'], 'capture-screenshot');
+    expect(details['resolvedCaptureKind'], 'nativeAcceptance');
+    expect(details['usedCaptureFallback'], isTrue);
+    expect(details['degradationReason'], 'hostCaptureFailed');
+    expect(details['error'], isA<Map<String, Object?>>());
+    final error = details['error']! as Map<String, Object?>;
+    expect(error['code'], 'captureFailed');
+    expect(error['message'], 'Host screenshot capture failed.');
+    expect(error['details'], isA<Map<String, Object?>>());
+    final errorDetails = error['details']! as Map<String, Object?>;
+    expect(errorDetails['fallbackSkipped'], 'remoteCaptureUnsupported');
+  });
+
   test(
     'rapid verifier failure includes bounded runtime error previews',
     () async {

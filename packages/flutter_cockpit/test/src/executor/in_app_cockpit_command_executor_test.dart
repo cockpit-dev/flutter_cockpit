@@ -4915,6 +4915,129 @@ void main() {
     },
   );
 
+  test(
+    'scrollUntilVisible applies reveal alignment after a scroll makes the target resolvable',
+    () async {
+      final registry = CockpitTargetRegistry(routeName: '/list');
+      var scrollCount = 0;
+      CockpitRevealAlignment? capturedAlignment;
+
+      final executor = InAppCockpitCommandExecutor(
+        registry: registry,
+        scrollStepHandler:
+            ({
+              required reverse,
+              required viewportFraction,
+              scrollableKey,
+              targetLocator,
+              scrollableLocator,
+              required duration,
+              required gestureProfile,
+              required continuous,
+              required postScrollEnsureVisible,
+            }) async {
+              scrollCount += 1;
+              registry.register(
+                CockpitTarget(
+                  registrationId: 'task-$scrollCount',
+                  semanticId: 'task-$scrollCount',
+                  text: 'Task $scrollCount',
+                  routeName: '/list',
+                ),
+              );
+              return const CockpitScrollStepResult(didScroll: true);
+            },
+        ensureVisibleHandler:
+            ({
+              required locator,
+              required duration,
+              required alignment,
+              required padding,
+            }) async {
+              if (scrollCount == 0) {
+                return false;
+              }
+              capturedAlignment = alignment;
+              return true;
+            },
+      );
+
+      final result = await executor.execute(
+        CockpitCommand(
+          commandId: 'scroll-forward-reveal-after-scroll',
+          commandType: CockpitCommandType.scrollUntilVisible,
+          locator: const CockpitLocator(
+            semanticId: 'task-1',
+            text: 'Task 1',
+            ancestor: CockpitLocator(route: '/list'),
+          ),
+          parameters: const <String, Object?>{'revealAlignment': 'center'},
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(capturedAlignment, CockpitRevealAlignment.center);
+    },
+  );
+
+  test(
+    'scrollUntilVisible does not satisfy a compound text locator with text alone',
+    () async {
+      final registry = CockpitTargetRegistry(routeName: '/editor');
+
+      registry.register(
+        const CockpitTarget(
+          registrationId: 'due-section-label',
+          text: 'Today',
+          routeName: '/editor',
+        ),
+      );
+
+      final executor = InAppCockpitCommandExecutor(
+        registry: registry,
+        scrollStepHandler:
+            ({
+              required reverse,
+              required viewportFraction,
+              scrollableKey,
+              targetLocator,
+              scrollableLocator,
+              required duration,
+              required gestureProfile,
+              required continuous,
+              required postScrollEnsureVisible,
+            }) async {
+              return const CockpitScrollStepResult(didScroll: false);
+            },
+      );
+
+      final result = await executor.execute(
+        CockpitCommand(
+          commandId: 'scroll-to-today-chip',
+          commandType: CockpitCommandType.scrollUntilVisible,
+          locator: const CockpitLocator(
+            semanticId: 'task-editor-due-today',
+            text: 'Today',
+            ancestor: CockpitLocator(route: '/editor'),
+          ),
+          parameters: const <String, Object?>{'maxScrolls': 1},
+        ),
+      );
+
+      expect(result.success, isFalse);
+      expect(result.error?.code, CockpitCommandError.targetNotFoundCode);
+      expect(result.error?.details['requestedLocator'], <String, Object?>{
+        'semanticId': 'task-editor-due-today',
+        'text': 'Today',
+        'ancestor': <String, Object?>{
+          'route': '/editor',
+          'fallbacks': <Object?>[],
+        },
+        'fallbacks': <Object?>[],
+      });
+    },
+  );
+
   testWidgets(
     'tap does not reject a visible text field when the probe stays inside its bounds',
     (tester) async {
