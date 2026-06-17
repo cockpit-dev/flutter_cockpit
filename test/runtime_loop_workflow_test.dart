@@ -5,6 +5,12 @@ import 'package:test/test.dart';
 void main() {
   final root = Directory.current.absolute.path;
   final workflowFile = File('$root/.github/workflows/runtime-loop.yml');
+  final exampleE2eWorkflowFile = File(
+    '$root/.github/workflows/example-e2e.yml',
+  );
+  final platformCapabilitiesWorkflowFile = File(
+    '$root/.github/workflows/platform-capabilities.yml',
+  );
   final melosConfigFile = File('$root/melos.yaml');
   final demoReadmeFile = File('$root/examples/cockpit_demo/README.md');
   final platformVerifierFile = File(
@@ -480,6 +486,56 @@ void main() {
       expect(verifier, contains("defaultsTo: 'json'"));
       expect(verifier, isNot(contains("'output-json'")));
     }
+  });
+
+  test('example e2e workflow is self-contained and strict', () {
+    final workflow = exampleE2eWorkflowFile.readAsStringSync();
+
+    for (final jobName in <String>[
+      'rapid-dev-macos-ios',
+      'rapid-dev-android',
+      'rapid-dev-web',
+      'rapid-dev-linux',
+      'rapid-dev-windows',
+    ]) {
+      final block = _workflowJobBlock(workflow, jobName);
+      expect(
+        block,
+        contains('subosito/flutter-action@v2'),
+        reason: '$jobName must install the pinned Flutter SDK.',
+      );
+      expect(
+        block,
+        contains('flutter-version: \${{ env.FLUTTER_VERSION }}'),
+        reason: '$jobName must use the workflow Flutter version.',
+      );
+    }
+
+    final webBlock = _workflowJobBlock(workflow, 'rapid-dev-web');
+    expect(webBlock, contains('assert data["success"] is True'));
+    expect(webBlock, isNot(contains('known web gap')));
+    expect(webBlock, isNot(contains('failureCode"] == "serverError"')));
+  });
+
+  test('platform capability workflow verifies actions strictly', () {
+    final workflow = platformCapabilitiesWorkflowFile.readAsStringSync();
+    final verifier = File(
+      '$root/examples/cockpit_demo/tool/src/cockpit_demo_platform_verifier.dart',
+    ).readAsStringSync();
+
+    expect(workflow, contains('name: platform-capabilities'));
+    expect(workflow, contains('--exhaustive-system-control'));
+    expect(workflow, contains('assert data["success"] is True'));
+    expect(workflow, isNot(contains('WARN ')));
+    expect(workflow, isNot(contains('only {sc_ratio:.0%}')));
+    expect(workflow, isNot(contains('sc_ratio >= 0.5')));
+
+    expect(verifier, contains('request.exhaustiveSystemControl'));
+    expect(verifier, contains('systemControlActionFailed'));
+    expect(
+      verifier,
+      isNot(contains('exhaustive action \${action.name} failed (best-effort)')),
+    );
   });
 }
 

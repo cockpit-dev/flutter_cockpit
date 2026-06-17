@@ -60,6 +60,12 @@ Future<void> main(List<String> arguments) async {
           'Allow local web verification to continue when host-side browser recording is blocked by desktop capture prerequisites.',
     )
     ..addFlag(
+      'exhaustive-system-control',
+      negatable: false,
+      help:
+          'Exercise every available platform system control action (not just the core subset) against the live app.',
+    )
+    ..addFlag(
       'fail-fast',
       negatable: false,
       help: 'Stop after the first platform failure.',
@@ -116,6 +122,7 @@ Future<void> main(List<String> arguments) async {
     androidEmulatorId: parsed['android-emulator-id'] as String,
     allowWebHostRecordingPrerequisiteFailure:
         parsed['allow-web-host-recording-prerequisite-failure'] as bool,
+    exhaustiveSystemControl: parsed['exhaustive-system-control'] as bool,
     failFast: parsed['fail-fast'] as bool,
     progressSink: (event) => stderr.writeln(event.toAiLine()),
   );
