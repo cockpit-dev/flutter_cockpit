@@ -122,11 +122,52 @@ void main() {
         platforms,
         equals(<String>{'android', 'ios', 'macos', 'linux', 'windows', 'web'}),
       );
-      expect(workflow, contains('--platform "\${{ matrix.platform }}"'));
+      expect(workflow, contains('export VALIDATION_PLATFORM='));
       expect(
         workflow,
         contains('assert data["manifest"]["platform"] == platform'),
       );
+    },
+  );
+
+  test('Android validation example script is POSIX sh compatible', () {
+    final workflow = File(
+      p.join(repoRoot.path, '.github', 'workflows', 'validation-examples.yml'),
+    ).readAsStringSync();
+    final step = _workflowStep(
+      workflow,
+      'Run rapid validation workflow example (Android)',
+    );
+    final withBlock = step['with']! as Map<String, Object?>;
+    final script = withBlock['script']! as String;
+
+    expect(script, isNot(contains('bash -lc')));
+    expect(script, isNot(contains('pipefail')));
+    expect(script, contains(r'> "$LOG_PATH" 2>&1'));
+    expect(script, contains(r'cat "$LOG_PATH"'));
+  });
+
+  test(
+    'Linux and web validation examples keep launch and script in one Xvfb session',
+    () {
+      final workflow = File(
+        p.join(
+          repoRoot.path,
+          '.github',
+          'workflows',
+          'validation-examples.yml',
+        ),
+      ).readAsStringSync();
+      final step = _workflowStep(
+        workflow,
+        'Run rapid validation workflow example',
+      );
+      final env = step['env']! as Map<String, Object?>;
+      final script = step['run']! as String;
+
+      expect(env, contains('VALIDATION_DRIVER'));
+      expect(script, contains(r'xvfb-run -a "$VALIDATION_DRIVER"'));
+      expect(script, isNot(contains('RUNNER_PREFIX=(xvfb-run -a)')));
     },
   );
 
@@ -401,6 +442,16 @@ Map<String, Object?> _decodeYamlMap(String source) {
     throw StateError('Expected YAML object.');
   }
   return _stringKeyedMap(decoded);
+}
+
+Map<String, Object?> _workflowStep(String source, String name) {
+  final decoded = _decodeYamlMap(source);
+  final jobs = decoded['jobs']! as Map<String, Object?>;
+  final validationJob = jobs['validation-example']! as Map<String, Object?>;
+  final steps = validationJob['steps']! as List<Object?>;
+  return steps.cast<Map<String, Object?>>().firstWhere(
+    (step) => step['name'] == name,
+  );
 }
 
 Object? _normalizeYamlValue(Object? value) {
