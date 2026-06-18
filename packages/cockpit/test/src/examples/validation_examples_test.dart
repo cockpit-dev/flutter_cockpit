@@ -192,6 +192,25 @@ void main() {
     },
   );
 
+  test('validation example keeps Linux apt payload bounded', () {
+    final workflow = File(
+      p.join(repoRoot.path, '.github', 'workflows', 'validation-examples.yml'),
+    ).readAsStringSync();
+    final linuxInstall = RegExp(
+      r'linux\)([\s\S]*?)flutter config --enable-linux-desktop',
+    ).firstMatch(workflow)!.group(1)!;
+
+    expect(linuxInstall, contains('libgtk-3-dev'));
+    expect(linuxInstall, contains('clang'));
+    expect(linuxInstall, contains('cmake'));
+    expect(linuxInstall, contains('ninja-build'));
+    expect(linuxInstall, contains('pkg-config'));
+    expect(linuxInstall, contains('xvfb'));
+    expect(linuxInstall, contains('x11-utils'));
+    expect(linuxInstall, isNot(contains('libgstreamer')));
+    expect(linuxInstall, isNot(contains('gstreamer1.0-libav')));
+  });
+
   test(
     'platform capability workflow avoids installing recommended apt payloads',
     () {
