@@ -215,33 +215,29 @@ jobs:
             -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot-save
             -camera-back none -camera-front none
           script: |
-            bash -lc '
-              set +e
-              set -o pipefail
-              adb devices
-              cd "$GITHUB_WORKSPACE/examples/cockpit_demo"
-              dart run cockpit launch-app \
-                --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo" \
-                --target cockpit/main.dart \
-                --platform android \
-                --device-id emulator-5554 \
-                --session-port 58491 \
-                --launch-timeout-seconds 600 \
-                --app-json "$APP_JSON"
-              LAUNCH_STATUS=$?
-              if [ "$LAUNCH_STATUS" -ne 0 ]; then
-                set +o pipefail
-                exit "$LAUNCH_STATUS"
-              fi
-              dart run cockpit run-script \
-                --app-json "$APP_JSON" \
-                --script validation/rapid-smoke.workflow.yaml \
-                --platform android \
-                --output-root "$BUNDLE_DIR" 2>&1 | tee "$LOG_PATH"
-              STATUS=${PIPESTATUS[0]}
-              set +o pipefail
-              exit "$STATUS"
-            '
+            set +e
+            adb devices
+            cd "$GITHUB_WORKSPACE/examples/cockpit_demo"
+            dart run cockpit launch-app \
+              --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo" \
+              --target cockpit/main.dart \
+              --platform android \
+              --device-id emulator-5554 \
+              --session-port 58491 \
+              --launch-timeout-seconds 600 \
+              --app-json "$APP_JSON"
+            LAUNCH_STATUS=$?
+            if [ "$LAUNCH_STATUS" -ne 0 ]; then
+              exit "$LAUNCH_STATUS"
+            fi
+            dart run cockpit run-script \
+              --app-json "$APP_JSON" \
+              --script validation/rapid-smoke.workflow.yaml \
+              --platform android \
+              --output-root "$BUNDLE_DIR" > "$LOG_PATH" 2>&1
+            STATUS=$?
+            cat "$LOG_PATH"
+            exit "$STATUS"
 
       - name: Run rapid validation workflow example
         if: matrix.platform != 'android' && matrix.platform != 'windows'
@@ -251,38 +247,49 @@ jobs:
           APP_JSON: ${{ runner.temp }}/cockpit-demo-validation-app.json
           BUNDLE_DIR: ${{ runner.temp }}/cockpit-demo-validation-bundle
           LOG_PATH: ${{ runner.temp }}/cockpit-demo-validation.log
+          VALIDATION_DRIVER: ${{ runner.temp }}/cockpit-demo-validation-driver.sh
         run: |
           set +e
           set -o pipefail
-          RUNNER_PREFIX=()
-          if [ "${{ matrix.platform }}" = "linux" ] || [ "${{ matrix.platform }}" = "web" ]; then
-            RUNNER_PREFIX=(xvfb-run -a)
-          fi
+          cat > "$VALIDATION_DRIVER" <<'SH'
+          #!/usr/bin/env bash
+          set +e
           DEVICE_ARGS=()
-          if [ "${{ matrix.platform }}" = "web" ]; then
+          if [ "$VALIDATION_PLATFORM" = "web" ]; then
             DEVICE_ARGS=(--device-id chrome)
           elif [ -n "${IOS_DEVICE_ID:-}" ]; then
             DEVICE_ARGS=(--device-id "$IOS_DEVICE_ID")
           fi
-          "${RUNNER_PREFIX[@]}" dart run cockpit launch-app \
+          dart run cockpit launch-app \
             --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo" \
             --target cockpit/main.dart \
-            --platform "${{ matrix.platform }}" \
+            --platform "$VALIDATION_PLATFORM" \
             "${DEVICE_ARGS[@]}" \
             --session-port 58491 \
             --launch-timeout-seconds 600 \
             --app-json "$APP_JSON"
-          LAUNCH_STATUS=${PIPESTATUS[0]}
+          LAUNCH_STATUS=$?
           if [ "$LAUNCH_STATUS" -ne 0 ]; then
-            set +o pipefail
             exit "$LAUNCH_STATUS"
           fi
-          "${RUNNER_PREFIX[@]}" dart run cockpit run-script \
+          dart run cockpit run-script \
             --app-json "$APP_JSON" \
             --script validation/rapid-smoke.workflow.yaml \
-            --platform "${{ matrix.platform }}" \
+            --platform "$VALIDATION_PLATFORM" \
             --output-root "$BUNDLE_DIR" 2>&1 | tee "$LOG_PATH"
           STATUS=${PIPESTATUS[0]}
+          exit "$STATUS"
+          SH
+          chmod +x "$VALIDATION_DRIVER"
+
+          export VALIDATION_PLATFORM="${{ matrix.platform }}"
+          if [ "$VALIDATION_PLATFORM" = "linux" ] || [ "$VALIDATION_PLATFORM" = "web" ]; then
+            xvfb-run -a "$VALIDATION_DRIVER"
+            STATUS=$?
+          else
+            "$VALIDATION_DRIVER"
+            STATUS=$?
+          fi
           set +o pipefail
           set -e
           exit "$STATUS"
