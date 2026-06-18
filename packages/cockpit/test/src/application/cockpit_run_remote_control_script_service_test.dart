@@ -448,7 +448,12 @@ void main() {
         ],
         'failFast': true,
       });
-      final service = CockpitRunRemoteControlScriptService();
+      final service = CockpitRunRemoteControlScriptService(
+        hostFlutterVersionReader: () async =>
+            throw StateError('Flutter SDK unavailable'),
+        hostDartVersionReader: () async =>
+            throw StateError('Dart SDK unavailable'),
+      );
 
       final result = await service.run(
         CockpitRunRemoteControlScriptRequest(
@@ -471,6 +476,135 @@ void main() {
           'platform': 'ios',
           'flutterVersion': '3.38.9',
           'dartVersion': '3.10.8',
+        },
+      );
+    },
+  );
+
+  test(
+    'run service falls back to host SDK environment when remote health omits it',
+    () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_run_remote_control_script_service_host_env',
+      );
+      addTearDown(() async {
+        await server.close(force: true);
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      server.listen((request) async {
+        request.response.headers.contentType = ContentType.json;
+        switch ((request.method, request.uri.path)) {
+          case ('GET', '/health'):
+            request.response.write(
+              jsonEncode(
+                CockpitRemoteSessionStatus(
+                  sessionId: 'service-remote-demo',
+                  platform: 'web',
+                  transportType: 'remoteHttp',
+                  currentRouteName: '/home',
+                  capabilities: CockpitCapabilities(
+                    platform: 'web',
+                    transportType: 'remoteHttp',
+                    supportsInAppControl: true,
+                    supportsFlutterViewCapture: true,
+                    supportsNativeScreenCapture: true,
+                    supportsHostAutomation: false,
+                    supportedCommands: <CockpitCommandType>[
+                      CockpitCommandType.tap,
+                    ],
+                    supportedLocatorStrategies: CockpitLocatorKind.values,
+                  ),
+                  recordingCapabilities: CockpitRecordingCapabilities(
+                    supportsNativeRecording: true,
+                    preferredAcceptanceRecordingKind:
+                        CockpitRecordingKind.nativeScreen,
+                  ),
+                  snapshot: CockpitSnapshot(routeName: '/home'),
+                ).toJson(),
+              ),
+            );
+          case ('POST', '/commands/execute'):
+            final body =
+                jsonDecode(await utf8.decoder.bind(request).join())
+                    as Map<String, Object?>;
+            final command = CockpitCommand.fromJson(body);
+            request.response.write(
+              jsonEncode(
+                CockpitRemoteCommandResponse(
+                  result: CockpitCommandResult(
+                    success: true,
+                    commandId: command.commandId,
+                    commandType: command.commandType,
+                    durationMs: 20,
+                  ),
+                ).toJson(),
+              ),
+            );
+          default:
+            request.response.statusCode = HttpStatus.notFound;
+            request.response.write(
+              jsonEncode(const <String, Object?>{'error': 'notFound'}),
+            );
+        }
+        await request.response.close();
+      });
+
+      final handle = CockpitRemoteSessionHandle(
+        platform: 'web',
+        deviceId: 'chrome',
+        projectDir: '/workspace/examples/cockpit_demo',
+        target: 'lib/main.dart',
+        appId: 'dev.cockpit.cockpit_demo',
+        host: '127.0.0.1',
+        hostPort: server.port,
+        devicePort: server.port,
+        baseUrl: 'http://127.0.0.1:${server.port}',
+        launchedAt: DateTime.utc(2026, 3, 21, 0, 0),
+      );
+      final script = CockpitControlScript.fromJson(<String, Object?>{
+        'sessionId': 'remote-script-session',
+        'taskId': 'remote-script-task',
+        'platform': 'web',
+        'commands': <Map<String, Object?>>[
+          <String, Object?>{
+            'commandId': 'remote-open',
+            'commandType': 'tap',
+            'locator': const CockpitLocator(
+              cockpitId: 'open_form_button',
+            ).toJson(),
+          },
+        ],
+        'failFast': true,
+      });
+      final service = CockpitRunRemoteControlScriptService(
+        hostFlutterVersionReader: () async => '3.32.0',
+        hostDartVersionReader: () async => '3.8.0',
+      );
+
+      final result = await service.run(
+        CockpitRunRemoteControlScriptRequest(
+          sessionHandle: handle,
+          script: script,
+          outputRoot: tempDir.path,
+        ),
+      );
+
+      expect(result.manifest.status, CockpitTaskStatus.completed);
+      expect(
+        jsonDecode(
+              await File(
+                p.join(result.bundleDir.path, 'environment.json'),
+              ).readAsString(),
+            )
+            as Map<String, Object?>,
+        const <String, Object?>{
+          'platform': 'web',
+          'flutterVersion': '3.32.0',
+          'dartVersion': '3.8.0',
         },
       );
     },
@@ -701,7 +835,12 @@ void main() {
         ],
         'failFast': true,
       });
-      final service = CockpitRunRemoteControlScriptService();
+      final service = CockpitRunRemoteControlScriptService(
+        hostFlutterVersionReader: () async =>
+            throw StateError('Flutter SDK unavailable'),
+        hostDartVersionReader: () async =>
+            throw StateError('Dart SDK unavailable'),
+      );
 
       expect(
         () => service.run(

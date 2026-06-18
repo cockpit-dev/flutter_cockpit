@@ -143,6 +143,7 @@ void main() {
 
     expect(script, isNot(contains('bash -lc')));
     expect(script, isNot(contains('pipefail')));
+    expect(script, isNot(contains('\\\n')));
     expect(script, contains(r'> "$LOG_PATH" 2>&1'));
     expect(script, contains(r'cat "$LOG_PATH"'));
   });
