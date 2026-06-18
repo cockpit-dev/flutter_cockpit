@@ -238,13 +238,20 @@ void main() {
         firstBatchLocators['rapid-reveal-due-date-section']!.route,
         '/editor',
       );
-      expect(
-        firstBatchLocators['rapid-reveal-today']!.semanticId,
-        'task-editor-due-today',
-      );
+      expect(firstBatchLocators['rapid-reveal-today']!.text, 'Today');
+      expect(firstBatchLocators['rapid-reveal-today']!.semanticId, isNull);
       expect(
         firstBatchLocators['rapid-select-today']!.semanticId,
         'task-editor-due-today',
+      );
+      expect(
+        batchRequests.first.commands
+            .singleWhere(
+              (entry) => entry.command.commandId == 'rapid-reveal-today',
+            )
+            .command
+            .parameters,
+        containsPair('revealPaddingPx', 24),
       );
       expect(firstBatchLocators['rapid-select-today']!.route, '/editor');
       expect(

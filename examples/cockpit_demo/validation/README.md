@@ -16,10 +16,21 @@ dart run cockpit run-script --app-json /tmp/cockpit_demo_app.json --script valid
 dart run cockpit read-task-bundle-summary --bundle-dir /tmp/cockpit_demo_rapid_smoke
 ```
 
-The example files keep `platform: macos` so they are copyable for local desktop
-smoke runs. When replaying the same workflow on another target, pass
-`--platform <platform>` to `run-script`; do not duplicate the YAML only to
-change the top-level platform.
+The workflow files are the same YAML on every platform. They keep
+`platform: macos` only as a local default; pass `run-script --platform` to bind
+the run to the launched app handle instead of copying the YAML to change one
+field.
+
+Supported overrides: `android`, `ios`, `macos`, `linux`, `windows`, `web`.
+
+```bash
+dart run cockpit run-script --app-json /tmp/cockpit_demo_app.json --script validation/rapid-smoke.workflow.yaml --platform android --output-root /tmp/cockpit_demo_android
+dart run cockpit run-script --app-json /tmp/cockpit_demo_app.json --script validation/rapid-smoke.workflow.yaml --platform ios --output-root /tmp/cockpit_demo_ios
+dart run cockpit run-script --app-json /tmp/cockpit_demo_app.json --script validation/rapid-smoke.workflow.yaml --platform macos --output-root /tmp/cockpit_demo_macos
+dart run cockpit run-script --app-json /tmp/cockpit_demo_app.json --script validation/rapid-smoke.workflow.yaml --platform linux --output-root /tmp/cockpit_demo_linux
+dart run cockpit run-script --app-json /tmp/cockpit_demo_app.json --script validation/rapid-smoke.workflow.yaml --platform windows --output-root /tmp/cockpit_demo_windows
+dart run cockpit run-script --app-json /tmp/cockpit_demo_app.json --script validation/rapid-smoke.workflow.yaml --platform web --output-root /tmp/cockpit_demo_web
+```
 
 ## Commands-only script
 

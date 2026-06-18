@@ -130,6 +130,22 @@ void main() {
     },
   );
 
+  test('validation examples document all supported platform invocations', () {
+    final readme = File(
+      p.join(validationDir.path, 'README.md'),
+    ).readAsStringSync();
+
+    expect(readme, contains('Supported overrides'));
+    expect(readme, contains('android'));
+    expect(readme, contains('ios'));
+    expect(readme, contains('macos'));
+    expect(readme, contains('linux'));
+    expect(readme, contains('windows'));
+    expect(readme, contains('web'));
+    expect(readme, contains('run-script --platform'));
+    expect(readme, contains('same YAML'));
+  });
+
   test('Android validation example script is POSIX sh compatible', () {
     final workflow = File(
       p.join(repoRoot.path, '.github', 'workflows', 'validation-examples.yml'),
