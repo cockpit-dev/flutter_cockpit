@@ -140,14 +140,32 @@ void main() {
     );
     final withBlock = step['with']! as Map<String, Object?>;
     final script = withBlock['script']! as String;
+    final driver = File(
+      p.join(
+        repoRoot.path,
+        '.github',
+        'scripts',
+        'run-validation-example-android.sh',
+      ),
+    );
 
     expect(script, isNot(contains('bash -lc')));
     expect(script, isNot(contains('pipefail')));
-    expect(script, contains(r'cat > "$VALIDATION_DRIVER"'));
-    expect(script, contains(r'"$VALIDATION_DRIVER"'));
-    expect(script, contains(r'cd "$GITHUB_WORKSPACE/examples/cockpit_demo"'));
-    expect(script, contains(r'> "$LOG_PATH" 2>&1'));
-    expect(script, contains(r'cat "$LOG_PATH"'));
+    expect(
+      script.trim(),
+      r'bash "$GITHUB_WORKSPACE/.github/scripts/run-validation-example-android.sh"',
+    );
+    expect(driver.existsSync(), isTrue);
+
+    final driverSource = driver.readAsStringSync();
+    expect(
+      driverSource,
+      contains(r'cd "$GITHUB_WORKSPACE/examples/cockpit_demo"'),
+    );
+    expect(driverSource, contains('dart run cockpit launch-app'));
+    expect(driverSource, contains('dart run cockpit run-script'));
+    expect(driverSource, contains(r'> "$LOG_PATH" 2>&1'));
+    expect(driverSource, contains(r'cat "$LOG_PATH"'));
   });
 
   test(
