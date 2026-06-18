@@ -432,6 +432,78 @@ steps:
     );
   });
 
+  test(
+    'run-script can override reusable script platform at launch time',
+    () async {
+      CockpitRunRemoteControlScriptRequest? capturedRequest;
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_run_script_platform_override',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final scriptFile = File(p.join(tempDir.path, 'script.yaml'));
+      await scriptFile.writeAsString('''
+sessionId: reusable-script-session
+taskId: reusable-script-task
+platform: macos
+environment:
+  platform: macos
+  flutterVersion: 3.32.0
+  dartVersion: 3.8.0
+commands:
+  - commandId: assert-ready
+    commandType: assertText
+    parameters:
+      text: Ready
+''');
+
+      final command = RunScriptCommand(
+        runScript: (request) async {
+          capturedRequest = request;
+          final bundleDir = Directory(p.join(tempDir.path, 'bundle'));
+          await bundleDir.create();
+          return CockpitRunRemoteControlScriptResult(
+            sessionHandle: null,
+            bundleDir: bundleDir,
+            manifest: CockpitRunManifest(
+              sessionId: request.script.sessionId,
+              taskId: request.script.taskId,
+              platform: request.script.platform,
+              status: CockpitTaskStatus.completed,
+              startedAt: DateTime.utc(2026, 6, 18),
+              finishedAt: DateTime.utc(2026, 6, 18, 0, 0, 1),
+            ),
+            handoff: const <String, Object?>{},
+            delivery: const <String, Object?>{},
+            artifactPaths: CockpitBundleArtifactPaths(),
+          );
+        },
+      );
+      final runner = CommandRunner<int>('cockpit', 'test')..addCommand(command);
+
+      final exitCode = await runner.run(<String>[
+        'run-script',
+        '--base-url',
+        'http://127.0.0.1:58421',
+        '--script',
+        scriptFile.path,
+        '--platform',
+        'android',
+        '--output-root',
+        tempDir.path,
+      ]);
+
+      expect(exitCode, 0);
+      expect(capturedRequest?.script.platform, 'android');
+      expect(capturedRequest?.script.environment?.platform, 'android');
+      expect(capturedRequest?.script.toJson()['platform'], 'android');
+    },
+  );
+
   test('run-script uses the forwarded host port for Android devices', () async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     final tempDir = await Directory.systemTemp.createTemp(

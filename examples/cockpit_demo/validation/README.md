@@ -16,6 +16,11 @@ dart run cockpit run-script --app-json /tmp/cockpit_demo_app.json --script valid
 dart run cockpit read-task-bundle-summary --bundle-dir /tmp/cockpit_demo_rapid_smoke
 ```
 
+The example files keep `platform: macos` so they are copyable for local desktop
+smoke runs. When replaying the same workflow on another target, pass
+`--platform <platform>` to `run-script`; do not duplicate the YAML only to
+change the top-level platform.
+
 ## Commands-only script
 
 `commands-only.workflow.yaml` demonstrates the shortest supported script shape:

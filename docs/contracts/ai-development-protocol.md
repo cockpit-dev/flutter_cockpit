@@ -83,8 +83,11 @@ Use workflow files when the task needs branch, retry, loop, or replayable E2E
 steps. Prefer YAML for hand-written workflows and JSON for generated workflows.
 
 ```bash
-dart run cockpit run-script --app-json /tmp/flutter_cockpit/app.json --script /tmp/flutter_cockpit/workflow.yaml --output-root /tmp/flutter_cockpit/out
+dart run cockpit run-script --app-json /tmp/flutter_cockpit/app.json --script /tmp/flutter_cockpit/workflow.yaml --platform <platform> --output-root /tmp/flutter_cockpit/out
 ```
+
+Use `--platform` when one workflow is replayed across several targets; do not
+copy a YAML file just to change its top-level `platform`.
 
 For tool-owned bootstrap and validation, embed the same script object under the
 task config `script` field:

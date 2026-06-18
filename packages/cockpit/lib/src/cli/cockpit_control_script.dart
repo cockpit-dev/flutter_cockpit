@@ -3,6 +3,14 @@ import 'package:flutter_cockpit/flutter_cockpit.dart';
 import '../runner/cockpit_workflow_step.dart';
 
 const int cockpitControlWorkflowSchemaVersion = 1;
+const List<String> cockpitControlScriptSupportedPlatforms = <String>[
+  'android',
+  'ios',
+  'macos',
+  'windows',
+  'linux',
+  'web',
+];
 
 final class CockpitControlScript {
   const CockpitControlScript({
@@ -52,6 +60,39 @@ final class CockpitControlScript {
 
   bool get requestsRecording =>
       recording != null || workflowSteps.any(_workflowStepRequestsRecording);
+
+  CockpitControlScript withPlatform(String platform) {
+    final normalizedPlatform = platform.trim();
+    if (normalizedPlatform.isEmpty) {
+      throw const FormatException(
+        'Control script platform override must be a non-empty string.',
+      );
+    }
+    if (!cockpitControlScriptSupportedPlatforms.contains(normalizedPlatform)) {
+      throw FormatException(
+        'Control script platform override must be one of '
+        '${cockpitControlScriptSupportedPlatforms.join(', ')}.',
+      );
+    }
+    final currentEnvironment = environment;
+    return CockpitControlScript(
+      schemaVersion: schemaVersion,
+      sessionId: sessionId,
+      taskId: taskId,
+      platform: normalizedPlatform,
+      environment: currentEnvironment == null
+          ? null
+          : CockpitEnvironment(
+              platform: normalizedPlatform,
+              flutterVersion: currentEnvironment.flutterVersion,
+              dartVersion: currentEnvironment.dartVersion,
+            ),
+      recording: recording,
+      commands: commands,
+      workflowSteps: workflowSteps,
+      failFast: failFast,
+    );
+  }
 
   factory CockpitControlScript.fromJson(Map<String, Object?> json) {
     final environmentJson = json['environment'];

@@ -134,10 +134,13 @@ steps:
 ```
 
 ```bash
-dart run cockpit run-script --app-json /tmp/flutter_cockpit/app.json --script /tmp/flutter_cockpit/workflow.yaml --output-root /tmp/flutter_cockpit/out
+dart run cockpit run-script --app-json /tmp/flutter_cockpit/app.json --script /tmp/flutter_cockpit/workflow.yaml --platform <platform> --output-root /tmp/flutter_cockpit/out
 ```
 
-Workflow facts are stored in the bundle. Read `issue_evidence.json` for failures, `validation.json` for final validation, and `trace.json` to map artifacts or errors back to a workflow step.
+Use `--platform` to run one reusable workflow on the current target instead of
+copying the YAML only to change `platform`. Workflow facts are stored in the
+bundle. Read `issue_evidence.json` for failures, `validation.json` for final
+validation, and `trace.json` to map artifacts or errors back to a workflow step.
 
 ## Development Defaults
 
