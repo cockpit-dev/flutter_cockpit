@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:cockpit/src/capture/cockpit_linux_capture_adapter.dart';
 import 'package:cockpit/src/platform/linux/cockpit_linux_window_target.dart';
+import 'package:cockpit/src/recording/cockpit_linux_recording_adapter.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -116,6 +117,7 @@ void main() {
 
       expect(execution.result.success, isFalse);
       expect(execution.result.error?.message, 'Linux host screenshot failed.');
+      expect(execution.result.error?.details['attempts'], isA<List<Object?>>());
     },
   );
 
@@ -307,6 +309,134 @@ void main() {
       expect(
         outputFile.parent.listSync().whereType<File>().map((file) => file.path),
         <String>[outputFile.path],
+      );
+    },
+  );
+
+  test(
+    'linux capture adapter uses ffmpeg x11grab root fallback without xwd or import',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_linux_ffmpeg_root_capture',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final invocations = <String>[];
+      final outputFile = File(p.join(tempDir.path, 'web-root.png'));
+      final adapter = CockpitLinuxCaptureAdapter(
+        appId: 'google-chrome',
+        captureExecutables: const <String>[
+          'grim',
+          'xwd-ffmpeg',
+          'ffmpeg-x11grab',
+          'import',
+        ],
+        windowActivatorExecutable: null,
+        displayConfigResolver: () async => const CockpitLinuxDisplayConfig(
+          display: ':99',
+          captureSize: '1280x720',
+        ),
+        windowTargetResolver:
+            ({
+              required appId,
+              required processId,
+              required processRunner,
+              required timeout,
+            }) async {
+              throw StateError('No visible Linux window was found for $appId.');
+            },
+        tempFileFactory: (_) async => outputFile,
+        processRunner: (executable, arguments) async {
+          invocations.add('$executable ${arguments.join(' ')}');
+          if (executable == 'xwd') {
+            throw ProcessException(executable, arguments, 'missing', 127);
+          }
+          if (executable == 'ffmpeg') {
+            outputFile.writeAsStringSync('ffmpeg-png-data');
+            return ProcessResult(0, 0, '', '');
+          }
+          if (executable == 'import') {
+            throw ProcessException(executable, arguments, 'missing', 127);
+          }
+          fail('Unexpected executable: $executable');
+        },
+        activationSettleDelay: Duration.zero,
+      );
+
+      final execution = await adapter.capture(
+        CockpitCommand(
+          commandId: 'capture-web-root',
+          commandType: CockpitCommandType.captureScreenshot,
+          screenshotRequest: const CockpitScreenshotRequest(
+            reason: CockpitScreenshotReason.acceptance,
+            name: 'web-root',
+          ),
+        ),
+      );
+
+      expect(execution.result.success, isTrue);
+      expect(outputFile.readAsStringSync(), 'ffmpeg-png-data');
+      expect(invocations, hasLength(2));
+      expect(invocations[0], startsWith('xwd -root -silent -out '));
+      expect(
+        invocations[1],
+        'ffmpeg -y -loglevel error -f x11grab -video_size 1280x720 -frames:v 1 -i :99+0,0 ${outputFile.path}',
+      );
+    },
+  );
+
+  test(
+    'linux capture adapter includes every failed screenshot attempt in diagnostics',
+    () async {
+      final adapter = CockpitLinuxCaptureAdapter(
+        appId: 'google-chrome',
+        captureExecutables: const <String>['grim', 'xwd-ffmpeg', 'import'],
+        windowActivatorExecutable: null,
+        displayConfigResolver: () async => const CockpitLinuxDisplayConfig(
+          display: ':99',
+          captureSize: '1280x720',
+        ),
+        windowTargetResolver:
+            ({
+              required appId,
+              required processId,
+              required processRunner,
+              required timeout,
+            }) async {
+              throw StateError('No visible Linux window was found for $appId.');
+            },
+        processRunner: (executable, arguments) async {
+          throw ProcessException(executable, arguments, 'missing', 127);
+        },
+        activationSettleDelay: Duration.zero,
+      );
+
+      final execution = await adapter.capture(
+        CockpitCommand(
+          commandId: 'capture-web-root',
+          commandType: CockpitCommandType.captureScreenshot,
+          screenshotRequest: const CockpitScreenshotRequest(
+            reason: CockpitScreenshotReason.acceptance,
+            name: 'web-root',
+          ),
+        ),
+      );
+
+      expect(execution.result.success, isFalse);
+      final attempts =
+          execution.result.error?.details['attempts'] as List<Object?>?;
+      expect(attempts, hasLength(3));
+      expect(
+        attempts,
+        containsAll(<Object?>[
+          containsPair('executable', 'grim'),
+          containsPair('executable', 'xwd'),
+          containsPair('executable', 'import'),
+        ]),
       );
     },
   );

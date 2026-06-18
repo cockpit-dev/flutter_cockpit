@@ -741,7 +741,7 @@ void main() {
             .capabilityFor(CockpitSystemControlAction.captureScreenshot)
             ?.requires,
         contains(
-          'one screenshot path: gnome-screenshot, grim, scrot, import, or xwd+ffmpeg',
+          'one screenshot path: gnome-screenshot, grim, scrot, import, xwd+ffmpeg, or ffmpeg x11grab',
         ),
       );
       expect(

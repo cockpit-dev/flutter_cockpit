@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
 import '../platform/linux/cockpit_linux_window_target.dart';
+import '../recording/cockpit_linux_recording_adapter.dart';
 import '../session/cockpit_session_process_runner.dart';
 import 'cockpit_host_capture_adapter.dart';
 
@@ -16,12 +17,14 @@ final class CockpitLinuxCaptureAdapter implements CockpitHostCaptureAdapter {
       'grim',
       'scrot',
       'xwd-ffmpeg',
+      'ffmpeg-x11grab',
       'import',
     ],
     String? windowActivatorExecutable = 'wmctrl',
     CockpitCaptureProcessRunner? processRunner,
     CockpitCaptureTempFileFactory tempFileFactory =
         cockpitCreateCaptureTempFile,
+    CockpitLinuxDisplayConfigResolver? displayConfigResolver,
     CockpitLinuxWindowTargetResolver windowTargetResolver =
         cockpitResolveLinuxWindowTarget,
     Duration timeout = const Duration(seconds: 5),
@@ -32,6 +35,11 @@ final class CockpitLinuxCaptureAdapter implements CockpitHostCaptureAdapter {
        _windowActivatorExecutable = windowActivatorExecutable,
        _processRunner = processRunner,
        _tempFileFactory = tempFileFactory,
+       _displayConfigResolver =
+           displayConfigResolver ??
+           (() => CockpitLinuxRecordingAdapter.resolveDisplayConfig(
+             processRunner,
+           )),
        _windowTargetResolver = windowTargetResolver,
        _timeout = timeout,
        _activationSettleDelay = activationSettleDelay;
@@ -42,6 +50,7 @@ final class CockpitLinuxCaptureAdapter implements CockpitHostCaptureAdapter {
   final String? _windowActivatorExecutable;
   final CockpitCaptureProcessRunner? _processRunner;
   final CockpitCaptureTempFileFactory _tempFileFactory;
+  final CockpitLinuxDisplayConfigResolver _displayConfigResolver;
   final CockpitLinuxWindowTargetResolver _windowTargetResolver;
   final Duration _timeout;
   final Duration _activationSettleDelay;
@@ -73,15 +82,16 @@ final class CockpitLinuxCaptureAdapter implements CockpitHostCaptureAdapter {
       final result = await _capture(outputFile.path, windowTarget);
       stopwatch.stop();
 
-      if (result.exitCode != 0) {
+      if (result.processResult.exitCode != 0) {
         return cockpitFailedCaptureExecution(
           command: command,
           durationMs: stopwatch.elapsedMilliseconds,
           message: 'Linux host screenshot failed.',
           details: <String, Object?>{
             'appId': _appId,
-            'exitCode': result.exitCode,
-            'stderr': '${result.stderr}'.trim(),
+            'exitCode': result.processResult.exitCode,
+            'stderr': '${result.processResult.stderr}'.trim(),
+            'attempts': result.attempts,
           },
         );
       }
@@ -107,6 +117,18 @@ final class CockpitLinuxCaptureAdapter implements CockpitHostCaptureAdapter {
         durationMs: stopwatch.elapsedMilliseconds,
         message: 'Linux host screenshot timed out.',
         details: <String, Object?>{'appId': _appId},
+      );
+    } on _CockpitLinuxCaptureFailure catch (error) {
+      stopwatch.stop();
+      return cockpitFailedCaptureExecution(
+        command: command,
+        durationMs: stopwatch.elapsedMilliseconds,
+        message: 'Linux host screenshot failed.',
+        details: <String, Object?>{
+          'appId': _appId,
+          'error': error.message,
+          'attempts': error.attempts,
+        },
       );
     } on StateError catch (error) {
       stopwatch.stop();
@@ -160,22 +182,37 @@ final class CockpitLinuxCaptureAdapter implements CockpitHostCaptureAdapter {
     }
   }
 
-  Future<ProcessResult> _capture(
+  Future<_CockpitLinuxCaptureAttemptResult> _capture(
     String outputPath,
     CockpitLinuxWindowTarget? windowTarget,
   ) async {
     Object? lastFailure;
+    final attempts = <Map<String, Object?>>[];
     for (final executable in _captureExecutables) {
       try {
-        final result = executable == 'xwd-ffmpeg'
-            ? await _captureWithXwdAndFfmpeg(outputPath, windowTarget)
-            : await _captureWithExecutable(
-                executable,
-                outputPath,
-                windowTarget,
-              );
+        final result = switch (executable) {
+          'xwd-ffmpeg' => await _captureWithXwdAndFfmpeg(
+            outputPath,
+            windowTarget,
+            attempts,
+          ),
+          'ffmpeg-x11grab' => await _captureWithFfmpegX11Grab(
+            outputPath,
+            windowTarget,
+            attempts,
+          ),
+          _ => await _captureWithExecutable(
+            executable,
+            outputPath,
+            windowTarget,
+            attempts,
+          ),
+        };
         if (result.exitCode == 0) {
-          return result;
+          return _CockpitLinuxCaptureAttemptResult(
+            processResult: result,
+            attempts: attempts,
+          );
         }
         lastFailure = StateError(
           '$executable exited with ${result.exitCode}: ${result.stderr ?? result.stdout}',
@@ -186,9 +223,11 @@ final class CockpitLinuxCaptureAdapter implements CockpitHostCaptureAdapter {
         lastFailure = error;
       }
     }
-    throw StateError(
-      lastFailure?.toString() ??
+    throw _CockpitLinuxCaptureFailure(
+      message:
+          lastFailure?.toString() ??
           'No Linux screenshot executable succeeded for $_appId.',
+      attempts: attempts,
     );
   }
 
@@ -196,30 +235,37 @@ final class CockpitLinuxCaptureAdapter implements CockpitHostCaptureAdapter {
     String executable,
     String outputPath,
     CockpitLinuxWindowTarget? windowTarget,
+    List<Map<String, Object?>> attempts,
   ) async {
     final arguments = _captureArgumentsFor(
       executable,
       outputPath,
       windowTarget,
     );
+    final attempt = _startAttempt(executable, arguments);
+    attempts.add(attempt);
     if (arguments == null) {
+      attempt['status'] = 'skipped';
+      attempt['error'] =
+          '$executable requires a resolved Linux window target for $_appId.';
       throw StateError(
         '$executable requires a resolved Linux window target for $_appId.',
       );
     }
-    return _runProcess(executable, arguments);
+    return _runAttempt(executable, arguments, attempt);
   }
 
   Future<ProcessResult> _captureWithXwdAndFfmpeg(
     String outputPath,
     CockpitLinuxWindowTarget? windowTarget,
+    List<Map<String, Object?>> attempts,
   ) async {
     final rawFile = File('$outputPath.xwd');
     if (rawFile.existsSync()) {
       rawFile.deleteSync();
     }
     try {
-      final xwdResult = await _runProcess('xwd', <String>[
+      final xwdArguments = <String>[
         if (windowTarget == null) ...<String>['-root'] else ...<String>[
           '-id',
           windowTarget.windowId,
@@ -227,7 +273,10 @@ final class CockpitLinuxCaptureAdapter implements CockpitHostCaptureAdapter {
         '-silent',
         '-out',
         rawFile.path,
-      ]);
+      ];
+      final xwdAttempt = _startAttempt('xwd', xwdArguments);
+      attempts.add(xwdAttempt);
+      final xwdResult = await _runAttempt('xwd', xwdArguments, xwdAttempt);
       if (xwdResult.exitCode != 0) {
         return xwdResult;
       }
@@ -239,19 +288,55 @@ final class CockpitLinuxCaptureAdapter implements CockpitHostCaptureAdapter {
           'xwd produced an empty XWD artifact.',
         );
       }
-      return _runProcess('ffmpeg', <String>[
+      final ffmpegArguments = <String>[
         '-y',
         '-loglevel',
         'error',
         '-i',
         rawFile.path,
         outputPath,
-      ]);
+      ];
+      final ffmpegAttempt = _startAttempt('xwd-ffmpeg', ffmpegArguments);
+      attempts.add(ffmpegAttempt);
+      return _runAttempt('ffmpeg', ffmpegArguments, ffmpegAttempt);
     } finally {
       if (rawFile.existsSync()) {
         rawFile.deleteSync();
       }
     }
+  }
+
+  Future<ProcessResult> _captureWithFfmpegX11Grab(
+    String outputPath,
+    CockpitLinuxWindowTarget? windowTarget,
+    List<Map<String, Object?>> attempts,
+  ) async {
+    final displayConfig = await _displayConfigResolver();
+    final arguments = <String>[
+      '-y',
+      '-loglevel',
+      'error',
+      '-f',
+      'x11grab',
+      if (windowTarget != null) ...<String>[
+        '-window_id',
+        windowTarget.windowId,
+      ],
+      '-video_size',
+      windowTarget == null
+          ? displayConfig.captureSize
+          : '${windowTarget.width}x${windowTarget.height}',
+      '-frames:v',
+      '1',
+      '-i',
+      windowTarget == null
+          ? '${displayConfig.display}+0,0'
+          : displayConfig.display,
+      outputPath,
+    ];
+    final attempt = _startAttempt('ffmpeg-x11grab', arguments);
+    attempts.add(attempt);
+    return _runAttempt('ffmpeg', arguments, attempt);
   }
 
   List<String>? _captureArgumentsFor(
@@ -290,4 +375,58 @@ final class CockpitLinuxCaptureAdapter implements CockpitHostCaptureAdapter {
       timeout: _timeout,
     );
   }
+
+  Future<ProcessResult> _runAttempt(
+    String executable,
+    List<String> arguments,
+    Map<String, Object?> attempt,
+  ) async {
+    try {
+      final result = await _runProcess(executable, arguments);
+      attempt['exitCode'] = result.exitCode;
+      if ('${result.stderr}'.trim().isNotEmpty) {
+        attempt['stderr'] = '${result.stderr}'.trim();
+      }
+      attempt['status'] = result.exitCode == 0 ? 'succeeded' : 'failed';
+      return result;
+    } on ProcessException catch (error) {
+      attempt['status'] = 'failed';
+      attempt['error'] = error.toString();
+      rethrow;
+    }
+  }
+
+  Map<String, Object?> _startAttempt(
+    String executable,
+    List<String>? arguments,
+  ) {
+    final attempt = <String, Object?>{'executable': executable};
+    if (arguments != null) {
+      attempt['arguments'] = arguments;
+    }
+    return attempt;
+  }
+}
+
+final class _CockpitLinuxCaptureAttemptResult {
+  const _CockpitLinuxCaptureAttemptResult({
+    required this.processResult,
+    required this.attempts,
+  });
+
+  final ProcessResult processResult;
+  final List<Map<String, Object?>> attempts;
+}
+
+final class _CockpitLinuxCaptureFailure implements Exception {
+  const _CockpitLinuxCaptureFailure({
+    required this.message,
+    required this.attempts,
+  });
+
+  final String message;
+  final List<Map<String, Object?>> attempts;
+
+  @override
+  String toString() => message;
 }
