@@ -1,0 +1,36 @@
+schemaVersion: 1
+sessionId: cockpit-demo-rapid-smoke
+taskId: rapid-smoke
+platform: macos
+failFast: true
+steps:
+  - stepId: wait-inbox
+    stepType: retry
+    maxAttempts: 4
+    delayMs: 500
+    step:
+      stepType: command
+      command:
+        commandId: assert-inbox-ready
+        commandType: assertText
+        parameters:
+          text: Inbox
+  - stepId: capture-inbox
+    stepType: command
+    command:
+      commandId: capture-inbox
+      commandType: captureScreenshot
+      parameters:
+        name: rapid_smoke_inbox
+        purpose: acceptance
+  - stepId: assert-queue-brief
+    stepType: retry
+    maxAttempts: 4
+    delayMs: 500
+    step:
+      stepType: command
+      command:
+        commandId: assert-queue-brief
+        commandType: assertText
+        parameters:
+          text: "Queue brief:"

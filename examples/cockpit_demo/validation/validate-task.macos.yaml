@@ -1,0 +1,62 @@
+runTask:
+  launch:
+    projectDir: .
+    target: cockpit/main.dart
+    platform: macos
+    deviceId: macos
+    sessionPort: 58491
+    launchTimeoutSeconds: 600
+    persistHandlePath: .dart_tool/cockpit_validation_examples/macos_app.json
+  script:
+    schemaVersion: 1
+    sessionId: cockpit-demo-validate-task
+    taskId: macos-recorded-acceptance
+    platform: macos
+    failFast: true
+    steps:
+      - stepId: start-acceptance-recording
+        stepType: startRecording
+        recording:
+          purpose: acceptance
+          name: validate_task_acceptance
+          mode: auto
+          attachToStep: true
+          tailStabilizationMs: 1400
+      - stepId: wait-inbox
+        stepType: retry
+        maxAttempts: 4
+        delayMs: 500
+        step:
+          stepType: command
+          command:
+            commandId: assert-inbox-ready
+            commandType: assertText
+            parameters:
+              text: Inbox
+      - stepId: capture-acceptance
+        stepType: command
+        command:
+          commandId: capture-acceptance
+          commandType: captureScreenshot
+          parameters:
+            name: validate_task_acceptance
+            purpose: acceptance
+      - stepId: stop-acceptance-recording
+        stepType: stopRecording
+        settleMs: 1400
+  outputRoot: .dart_tool/cockpit_validation_examples/validate_task_bundle
+  baseline:
+    captureScreenshot: true
+    screenshotName: validate_task_baseline
+    includeSnapshot: true
+  requirements:
+    requireScreenshotEvidence: true
+    requireVideoEvidence: true
+validation:
+  expectedClassification: completed
+  requireAcceptanceMarkdown: true
+  requireEnvironmentSnapshot: true
+  requirePrimaryScreenshot: true
+  requirePrimaryRecording: true
+  requireArtifactFiles: true
+  requireAcceptanceSemanticEvidence: true

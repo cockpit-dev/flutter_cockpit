@@ -1,0 +1,103 @@
+name: validation-examples
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/validation-examples.yml'
+      - 'examples/cockpit_demo/validation/**'
+      - 'packages/cockpit/**'
+      - 'packages/flutter_cockpit/**'
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/validation-examples.yml'
+      - 'examples/cockpit_demo/validation/**'
+      - 'packages/cockpit/**'
+      - 'packages/flutter_cockpit/**'
+
+env:
+  FLUTTER_VERSION: '3.32.0'
+
+jobs:
+  macos-validation-example:
+    runs-on: macos-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+
+      - name: Install dependencies
+        timeout-minutes: 15
+        run: brew install ffmpeg
+
+      - name: Enable macOS desktop
+        run: flutter config --enable-macos-desktop
+
+      - name: Bootstrap workspace
+        timeout-minutes: 10
+        run: flutter pub get
+
+      - name: Validate bundled YAML examples parse
+        timeout-minutes: 5
+        run: dart test packages/cockpit/test/src/examples/validation_examples_test.dart
+
+      - name: Run rapid validation workflow example
+        working-directory: examples/cockpit_demo
+        timeout-minutes: 12
+        env:
+          APP_JSON: ${{ runner.temp }}/cockpit-demo-validation-app.json
+          BUNDLE_DIR: ${{ runner.temp }}/cockpit-demo-validation-bundle
+          SUMMARY_JSON: ${{ runner.temp }}/cockpit-demo-validation-summary.json
+        run: |
+          set -eo pipefail
+          dart run cockpit launch-app \
+            --project-dir "$PWD" \
+            --target cockpit/main.dart \
+            --platform macos \
+            --device-id macos \
+            --session-port 58491 \
+            --launch-timeout-seconds 600 \
+            --app-json "$APP_JSON"
+          dart run cockpit run-script \
+            --app-json "$APP_JSON" \
+            --script validation/rapid-smoke.workflow.yaml \
+            --output-root "$BUNDLE_DIR"
+          dart run cockpit read-task-bundle-summary \
+            --bundle-dir "$BUNDLE_DIR" \
+            --output "$SUMMARY_JSON" \
+            --output-format json
+
+      - name: Verify rapid validation bundle
+        env:
+          SUMMARY_JSON: ${{ runner.temp }}/cockpit-demo-validation-summary.json
+        run: |
+          python3 - "$SUMMARY_JSON" <<'PY'
+          import json, pathlib, sys
+          data = json.loads(pathlib.Path(sys.argv[1]).read_text())
+          assert data["manifest"]["status"] == "completed", data
+          assert data["manifest"]["platform"] == "macos", data
+          evidence = data["evidenceSummary"]
+          assert evidence["screenshotCount"] >= 1, data
+          assert evidence["failureCount"] == 0, data
+          delivery = data["delivery"]
+          assert delivery["primaryScreenshotRef"], data
+          PY
+
+      - name: Upload validation example bundle
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: cockpit-demo-validation-example
+          retention-days: 14
+          if-no-files-found: warn
+          path: |
+            ${{ runner.temp }}/cockpit-demo-validation-app.json
+            ${{ runner.temp }}/cockpit-demo-validation-bundle
+            ${{ runner.temp }}/cockpit-demo-validation-summary.json
