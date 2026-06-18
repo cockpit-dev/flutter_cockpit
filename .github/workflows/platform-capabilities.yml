@@ -85,6 +85,8 @@ jobs:
       - name: Install platform dependencies
         timeout-minutes: 15
         shell: bash
+        env:
+          DEBIAN_FRONTEND: noninteractive
         run: |
           apt_retry() {
             for attempt in 1 2 3; do
@@ -97,7 +99,7 @@ jobs:
           case "${{ matrix.platform }}" in
             android)
               apt_retry sudo apt-get update
-              apt_retry sudo apt-get install -y ffmpeg
+              apt_retry sudo apt-get install -y --no-install-recommends ffmpeg
               export ANDROID_SDK_ROOT="/usr/local/lib/android/sdk"
               export PATH="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools:$PATH"
               set +o pipefail
@@ -111,7 +113,7 @@ jobs:
               ;;
             linux)
               apt_retry sudo apt-get update
-              apt_retry sudo apt-get install -y ffmpeg x11-utils xvfb xdotool xclip \
+              apt_retry sudo apt-get install -y --no-install-recommends ffmpeg x11-utils xvfb xdotool xclip \
                 libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
                 gstreamer1.0-libav clang cmake git ninja-build pkg-config \
                 libgtk-3-dev liblzma-dev libstdc++-12-dev
@@ -119,7 +121,7 @@ jobs:
               ;;
             web)
               apt_retry sudo apt-get update
-              apt_retry sudo apt-get install -y ffmpeg x11-utils xvfb
+              apt_retry sudo apt-get install -y --no-install-recommends ffmpeg x11-utils xvfb
               ;;
             windows)
               choco install ffmpeg -y
