@@ -112,6 +112,19 @@ void main() {
     },
   );
 
+  test('example workflow gives Linux desktop dependencies enough time', () {
+    final workflow = File(
+      p.join(repoRoot.path, '.github', 'workflows', 'example-e2e.yml'),
+    ).readAsStringSync();
+
+    expect(workflow, contains('DEBIAN_FRONTEND: noninteractive'));
+    expect(
+      workflow,
+      contains('sudo apt-get install -y --no-install-recommends'),
+    );
+    expect(workflow, contains('timeout-minutes: 25'));
+  });
+
   test('adaptive example exercises branch and loop workflow nodes', () {
     final script = cockpitControlScriptFromText(
       File(
