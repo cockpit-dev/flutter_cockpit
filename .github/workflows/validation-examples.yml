@@ -206,6 +206,7 @@ jobs:
           APP_JSON: ${{ runner.temp }}/cockpit-demo-validation-app.json
           BUNDLE_DIR: ${{ runner.temp }}/cockpit-demo-validation-bundle
           LOG_PATH: ${{ runner.temp }}/cockpit-demo-validation.log
+          VALIDATION_DRIVER: ${{ runner.temp }}/cockpit-demo-validation-android-driver.sh
         with:
           api-level: 34
           arch: x86_64
@@ -215,9 +216,11 @@ jobs:
             -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot-save
             -camera-back none -camera-front none
           script: |
+            cat > "$VALIDATION_DRIVER" <<'SH'
+            #!/usr/bin/env sh
             set +e
             adb devices
-            cd "$GITHUB_WORKSPACE/examples/cockpit_demo"
+            cd "$GITHUB_WORKSPACE/examples/cockpit_demo" || exit 1
             dart run cockpit launch-app --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo" --target cockpit/main.dart --platform android --device-id emulator-5554 --session-port 58491 --launch-timeout-seconds 600 --app-json "$APP_JSON"
             LAUNCH_STATUS=$?
             if [ "$LAUNCH_STATUS" -ne 0 ]; then
@@ -227,6 +230,9 @@ jobs:
             STATUS=$?
             cat "$LOG_PATH"
             exit "$STATUS"
+            SH
+            chmod +x "$VALIDATION_DRIVER"
+            "$VALIDATION_DRIVER"
 
       - name: Run rapid validation workflow example
         if: matrix.platform != 'android' && matrix.platform != 'windows'
