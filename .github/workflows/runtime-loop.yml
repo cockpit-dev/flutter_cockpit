@@ -247,6 +247,7 @@ jobs:
 
       - name: Upload MCP surface artifacts
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: macos-mcp-surface
@@ -419,6 +420,7 @@ jobs:
 
       - name: Upload Android runtime loop bundle
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: android-runtime-loop-bundle
@@ -634,6 +636,7 @@ jobs:
 
       - name: Upload iOS runtime loop bundle
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: ios-runtime-loop-bundle
@@ -803,6 +806,7 @@ jobs:
 
       - name: Upload macOS runtime loop bundle
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: macos-runtime-loop-bundle
@@ -964,6 +968,7 @@ jobs:
 
       - name: Upload web runtime loop bundle
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: web-runtime-loop-bundle
@@ -1150,6 +1155,7 @@ jobs:
 
       - name: Upload Linux runtime loop bundle
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: linux-runtime-loop-bundle
@@ -1420,6 +1426,7 @@ jobs:
 
       - name: Upload Windows runtime loop bundle
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: windows-runtime-loop-bundle
