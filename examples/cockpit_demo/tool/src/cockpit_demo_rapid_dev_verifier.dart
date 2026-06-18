@@ -1070,17 +1070,17 @@ List<Map<String, Object?>> _buildRapidCreateTaskBatch({
       'commandId': 'rapid-reveal-today',
       'commandType': 'scrollUntilVisible',
       'locator': <String, Object?>{
-        'semanticId': 'task-editor-due-today',
         'text': 'Today',
         'route': '/editor',
         'ancestor': <String, Object?>{'route': '/editor'},
       },
       'parameters': const <String, Object?>{
         'maxScrolls': 8,
-        'viewportFraction': 0.46,
+        'viewportFraction': 0.52,
         'continuous': true,
         'durationPerStepMs': 180,
         'revealAlignment': 'center',
+        'revealPaddingPx': 24,
       },
     },
     <String, Object?>{

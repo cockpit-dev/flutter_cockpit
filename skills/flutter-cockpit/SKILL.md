@@ -7,13 +7,13 @@ description: Use when Flutter or host-control tasks must prove live UI, interact
 
 ## Overview
 
-Flutter Cockpit is an AI loop, not a screenshot tool or command catalog. Default to rapid development validation: prove the current change with the cheapest live loop that answers the user, then stop. Claims follow:
+Flutter Cockpit is an AI loop, not a screenshot tool or command catalog. Default to rapid development validation: prove the current change with the cheapest live loop that answers the user, then stop. Claims:
 
 `assess -> bootstrap -> baseline -> execute -> observe -> judge -> deliver`
 
 Command success is not product proof; prove state, errors, evidence.
 
-These stages are decision gates, not a fixed command script or command quota. Satisfy each gate with the smallest fresh evidence available; skip irrelevant commands; choose CLI, MCP, app-first, target-first, persistent-session, or bundle flows. Protocol map: [`references/protocol.md`](references/protocol.md), `cockpit://workspace/protocol`.
+These stages are decision gates, not a fixed command script or command quota. Satisfy each gate with the smallest fresh evidence available; skip irrelevant commands; choose CLI, MCP, app-first, target-first, persistent-session, or bundle flows. Protocol: [`references/protocol.md`](references/protocol.md), `cockpit://workspace/protocol`.
 
 ## When To Use
 
@@ -26,9 +26,9 @@ Add `flutter_cockpit`, add `cockpit/main.dart`, and keep the production entrypoi
 
 ## Stage Protocol
 
-1. **assess**: choose the smallest truthful surface. Default to app-first. If platform/device is unknown, run `list-targets` and use the returned platform, device id, and capability metadata. Do not guess ids, commands, payload keys, or locators.
-2. **bootstrap**: launch once or reuse a handle. `launch-app` returns after readiness; never shell-background it. Reuse `.dart_tool/flutter_cockpit/latest_app.json`. Use target-first only for non-plain surfaces.
-3. **baseline**: read before acting, unless a fresh equivalent read already answers the same question. Start with `read-app --profile minimal` or `read-target --profile minimal`; capture route, visible state, reachability, and errors.
+1. **assess**: choose the smallest truthful surface. Default to app-first. If platform/device is unknown, run `list-targets` and use the returned platform, device id, and capability metadata. Do not guess ids, payload keys, or locators.
+2. **bootstrap**: launch once or reuse a handle. `launch-app` returns after readiness; never shell-background it. Reuse `.dart_tool/flutter_cockpit/latest_app.json`. Use target-first only for non-app surfaces.
+3. **baseline**: read before acting, unless a fresh equivalent read already answers the same question. Start with `read-app --profile minimal` or `read-target --profile minimal`; capture route, state, reachability, and errors.
 4. **execute**: edit, prefer `hot-reload`, and drive UI with `run-command` or short `run-batch`. For route changes, include `expectedRouteName`. After timeout, `remoteUnavailable`, or failed non-idempotent batch, re-read minimal state and resume from the smallest remaining safe step; do not replay blindly.
 5. **observe**: read post-action state before judging. Use `read-app`, `read-errors --max-errors 10`, `inspect-ui`, or `read-network`. If focus blocks controls, run `dismissKeyboard`. For visible UI claims, run `capture-screenshot --name <proof-name>`. For animation, transition, gesture, or repro, use `start-recording` / `stop-recording`.
 6. **judge**: compare baseline, observed state, and outcome. Do not open screenshots, videos, or raw artifacts unless the content is the unresolved question, the artifact looks wrong, or the user asks.
@@ -59,7 +59,7 @@ dart run cockpit run-command --command-file /tmp/flutter_cockpit_command.json --
 
 ## Escalation Commands
 
-Use these only when the next claim needs them; do not add them to every loop.
+Use these only when the next claim needs them.
 
 Visible final proof:
 
@@ -138,13 +138,13 @@ dart run cockpit run-script --app-json /tmp/flutter_cockpit/app.json --script /t
 ```
 
 Use `--platform` to run one reusable workflow on the current target instead of
-copying the YAML only to change `platform`. Workflow facts are stored in the
-bundle. Read `issue_evidence.json` for failures, `validation.json` for final
-validation, and `trace.json` to map artifacts or errors back to a workflow step.
+copying YAML only to change `platform`. Workflow facts are stored in the bundle.
+Read `issue_evidence.json` for failures, `validation.json` for final validation,
+and `trace.json` to map artifacts or errors back to a step.
 
 ## Development Defaults
 
-- Fast path for most edits: reuse/launch -> `read-app --profile minimal` -> edit -> `hot-reload` -> smallest post-action read -> `read-errors --max-errors 10` -> screenshot for visible UI claims.
+- Fast path for most edits: reuse/launch -> `read-app --profile minimal` -> edit -> `hot-reload` -> post-action read -> `read-errors --max-errors 10` -> screenshot for visible claims.
 - Use `minimal -> standard -> inspect -> evidence`; escalate only when needed.
 - Be flexible on commands, strict on proof.
 - Every command should reduce uncertainty. Do not run recording, evidence profiles, bundle validation, or raw artifact reads just because they exist.
@@ -156,7 +156,7 @@ validation, and `trace.json` to map artifacts or errors back to a workflow step.
 
 ## Failure Recovery
 
-- If syntax is unclear, run `help <command>` or open one reference file.
+- If syntax is unclear, run `help <command>`.
 - On non-zero exit, read `errorJson.code`, `errorJson.message`, and `details` before prose stderr.
 - Use `failureDiagnostics` before changing locators, timeouts, route waits, or retry strategy.
 - For bundles, read AI summaries, `read-task-bundle-summary`, and `issueEvidence` before raw artifacts.

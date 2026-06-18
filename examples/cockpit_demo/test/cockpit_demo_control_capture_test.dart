@@ -400,6 +400,11 @@ void main() {
   testWidgets(
     'executes rapid due-date selection through the real editor layout',
     (tester) async {
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = const Size(800, 600);
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
       final controller = CockpitSessionController(
         sessionId: 'rapid-editor-session',
         taskId: 'rapid-editor-task',
@@ -472,7 +477,11 @@ void main() {
       Future<void> execute(CockpitCommand command) async {
         final result = await executorForCurrentRoute().execute(command);
         await tester.pumpAndSettle();
-        expect(result.success, isTrue, reason: result.error?.message);
+        expect(
+          result.success,
+          isTrue,
+          reason: result.error?.toJson().toString(),
+        );
       }
 
       await execute(
@@ -587,17 +596,17 @@ void main() {
           commandId: 'rapid-reveal-today',
           commandType: CockpitCommandType.scrollUntilVisible,
           locator: const CockpitLocator(
-            semanticId: 'task-editor-due-today',
             text: 'Today',
             route: '/editor',
             ancestor: CockpitLocator(route: '/editor'),
           ),
           parameters: const <String, Object?>{
             'maxScrolls': 8,
-            'viewportFraction': 0.46,
+            'viewportFraction': 0.52,
             'continuous': true,
             'durationPerStepMs': 180,
             'revealAlignment': 'center',
+            'revealPaddingPx': 24,
           },
         ),
       );
