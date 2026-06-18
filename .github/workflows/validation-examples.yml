@@ -69,8 +69,19 @@ jobs:
             --app-json "$APP_JSON" \
             --script validation/rapid-smoke.workflow.yaml \
             --output-root "$BUNDLE_DIR"
+          RUN_SCRIPT_BUNDLE_DIR="$(
+            find "$BUNDLE_DIR" -mindepth 2 -maxdepth 2 -name manifest.json -print \
+              | sed 's#/manifest.json$##' \
+              | sort \
+              | tail -n 1
+          )"
+          if [ -z "$RUN_SCRIPT_BUNDLE_DIR" ]; then
+            echo "run-script did not write a task bundle under $BUNDLE_DIR" >&2
+            find "$BUNDLE_DIR" -maxdepth 3 -type f -print >&2 || true
+            exit 65
+          fi
           dart run cockpit read-task-bundle-summary \
-            --bundle-dir "$BUNDLE_DIR" \
+            --bundle-dir "$RUN_SCRIPT_BUNDLE_DIR" \
             --output "$SUMMARY_JSON" \
             --output-format json
 

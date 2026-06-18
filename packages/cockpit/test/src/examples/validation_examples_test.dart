@@ -75,6 +75,18 @@ void main() {
     expect(assertedTexts, isNot(contains('Queue brief:')));
   });
 
+  test('validation workflow reads the actual run-script bundle directory', () {
+    final workflow = File(
+      p.join(repoRoot.path, '.github', 'workflows', 'validation-examples.yml'),
+    ).readAsStringSync();
+
+    expect(workflow, contains('RUN_SCRIPT_BUNDLE_DIR='));
+    expect(
+      workflow,
+      isNot(contains('read-task-bundle-summary \\\n            --bundle-dir "\$BUNDLE_DIR"')),
+    );
+  });
+
   test('adaptive example exercises branch and loop workflow nodes', () {
     final script = cockpitControlScriptFromText(
       File(
