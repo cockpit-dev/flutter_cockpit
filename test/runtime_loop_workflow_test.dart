@@ -517,6 +517,39 @@ void main() {
     expect(webBlock, isNot(contains('failureCode"] == "serverError"')));
   });
 
+  test('workflow artifact uploads cannot mask verifier results', () {
+    for (final entry in <MapEntry<String, File>>[
+      MapEntry<String, File>('runtime-loop', workflowFile),
+      MapEntry<String, File>('example-e2e', exampleE2eWorkflowFile),
+      MapEntry<String, File>(
+        'validation-examples',
+        File('$root/.github/workflows/validation-examples.yml'),
+      ),
+      MapEntry<String, File>(
+        'platform-capabilities',
+        platformCapabilitiesWorkflowFile,
+      ),
+    ]) {
+      final workflow = entry.value.readAsStringSync();
+      final uploadStepPattern = RegExp(
+        r'^      - name: .*Upload[\s\S]*?^        uses: actions/upload-artifact@v7',
+        multiLine: true,
+      );
+      final matches = uploadStepPattern.allMatches(workflow).toList();
+
+      expect(matches, isNotEmpty, reason: '${entry.key} should upload bundles');
+      for (final match in matches) {
+        final block = match.group(0)!;
+        expect(
+          block,
+          contains('continue-on-error: true'),
+          reason:
+              '${entry.key} artifact upload should preserve verifier result when GitHub artifact storage is temporarily unavailable.',
+        );
+      }
+    }
+  });
+
   test('platform capability workflow verifies actions strictly', () {
     final workflow = platformCapabilitiesWorkflowFile.readAsStringSync();
     final verifier = File(

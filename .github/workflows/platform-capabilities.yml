@@ -410,6 +410,7 @@ jobs:
 
       - name: Upload capability bundle
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: platform-capabilities-${{ matrix.platform }}
