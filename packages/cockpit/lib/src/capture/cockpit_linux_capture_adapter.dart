@@ -326,12 +326,12 @@ final class CockpitLinuxCaptureAdapter implements CockpitHostCaptureAdapter {
       windowTarget == null
           ? displayConfig.captureSize
           : '${windowTarget.width}x${windowTarget.height}',
-      '-frames:v',
-      '1',
       '-i',
       windowTarget == null
           ? '${displayConfig.display}+0,0'
           : displayConfig.display,
+      '-frames:v',
+      '1',
       outputPath,
     ];
     final attempt = _startAttempt('ffmpeg-x11grab', arguments);
