@@ -54,6 +54,26 @@ void main() {
     expect(script.effectiveWorkflowSteps.any(_containsScreenshot), isTrue);
   });
 
+  test('rapid smoke example is deterministic on a clean app database', () {
+    final script = cockpitControlScriptFromText(
+      File(
+        p.join(validationDir.path, 'rapid-smoke.workflow.yaml'),
+      ).readAsStringSync(),
+    );
+    final assertedTexts = _allSteps(script.effectiveWorkflowSteps)
+        .whereType<CockpitCommandWorkflowStep>()
+        .where(
+          (step) => step.command.commandType == CockpitCommandType.assertText,
+        )
+        .map((step) => step.command.parameters['text'])
+        .whereType<String>()
+        .toList();
+
+    expect(assertedTexts, contains('Fresh canvas'));
+    expect(assertedTexts, contains('No tasks yet'));
+    expect(assertedTexts, isNot(contains('Queue brief:')));
+  });
+
   test('adaptive example exercises branch and loop workflow nodes', () {
     final script = cockpitControlScriptFromText(
       File(

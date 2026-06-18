@@ -25,14 +25,21 @@ steps:
         reason: acceptance
         includeSnapshot: true
         attachToStep: true
-  - stepId: assert-queue-brief
+  - stepId: assert-empty-canvas
     stepType: retry
     maxAttempts: 4
     delayMs: 500
     step:
       stepType: command
       command:
-        commandId: assert-queue-brief
+        commandId: assert-empty-canvas
         commandType: assertText
         parameters:
-          text: "Queue brief:"
+          text: Fresh canvas
+  - stepId: assert-empty-message
+    stepType: command
+    command:
+      commandId: assert-empty-message
+      commandType: assertText
+      parameters:
+        text: No tasks yet
