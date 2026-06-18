@@ -1,0 +1,36 @@
+schemaVersion: 1
+sessionId: cockpit-demo-recorded-acceptance
+taskId: recorded-acceptance
+platform: macos
+failFast: true
+steps:
+  - stepId: start-acceptance-recording
+    stepType: startRecording
+    recording:
+      purpose: acceptance
+      name: recorded-acceptance
+      mode: auto
+      attachToStep: true
+      tailStabilizationMs: 1400
+  - stepId: wait-inbox
+    stepType: retry
+    maxAttempts: 4
+    delayMs: 500
+    step:
+      stepType: command
+      command:
+        commandId: assert-inbox-ready
+        commandType: assertText
+        parameters:
+          text: Inbox
+  - stepId: capture-acceptance
+    stepType: command
+    command:
+      commandId: capture-acceptance
+      commandType: captureScreenshot
+      parameters:
+        name: recorded_acceptance
+        purpose: acceptance
+  - stepId: stop-acceptance-recording
+    stepType: stopRecording
+    settleMs: 1400

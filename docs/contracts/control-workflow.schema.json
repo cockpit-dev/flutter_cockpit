@@ -32,20 +32,7 @@
       "minLength": 1
     },
     "environment": {
-      "type": "object",
-      "additionalProperties": true,
-      "properties": {
-        "platform": {
-          "type": "string",
-          "minLength": 1
-        },
-        "flutterVersion": {
-          "type": "string"
-        },
-        "dartVersion": {
-          "type": "string"
-        }
-      }
+      "$ref": "#/$defs/environment"
     },
     "recording": {
       "$ref": "#/$defs/recordingRequest"
@@ -70,6 +57,22 @@
     }
   },
   "$defs": {
+    "environment": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "platform": {
+          "type": "string",
+          "minLength": 1
+        },
+        "flutterVersion": {
+          "type": "string"
+        },
+        "dartVersion": {
+          "type": "string"
+        }
+      }
+    },
     "command": {
       "type": "object",
       "additionalProperties": true,
@@ -80,16 +83,291 @@
           "minLength": 1
         },
         "commandType": {
-          "type": "string",
-          "minLength": 1
+          "$ref": "#/$defs/commandType"
         },
         "locator": {
-          "type": "object",
-          "additionalProperties": true
+          "$ref": "#/$defs/locator"
         },
         "parameters": {
           "type": "object",
           "additionalProperties": true
+        },
+        "capturePolicy": {
+          "type": "string",
+          "enum": [
+            "none",
+            "afterAction",
+            "onFailure",
+            "afterActionAndFailure"
+          ],
+          "default": "none"
+        },
+        "captureFailurePolicy": {
+          "type": "string",
+          "enum": ["failCommand", "degradeCommand"],
+          "default": "failCommand"
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "snapshotOptions": {
+          "$ref": "#/$defs/snapshotOptions"
+        },
+        "screenshotRequest": {
+          "$ref": "#/$defs/screenshotRequest"
+        }
+      }
+    },
+    "commandType": {
+      "type": "string",
+      "enum": [
+        "tap",
+        "enterText",
+        "focusTextInput",
+        "setTextEditingValue",
+        "sendTextInputAction",
+        "sendKeyEvent",
+        "sendKeyDownEvent",
+        "sendKeyUpEvent",
+        "longPress",
+        "doubleTap",
+        "drag",
+        "fling",
+        "swipe",
+        "pinchZoom",
+        "rotate",
+        "panZoom",
+        "multiTouch",
+        "scrollUntilVisible",
+        "clearNetworkActivity",
+        "waitForNetworkIdle",
+        "waitForUiIdle",
+        "back",
+        "showOnScreen",
+        "increase",
+        "decrease",
+        "dismiss",
+        "dismissKeyboard",
+        "waitFor",
+        "assertVisible",
+        "assertText",
+        "captureScreenshot",
+        "collectSnapshot"
+      ]
+    },
+    "locator": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "cockpitId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "semanticId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tooltip": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "route": {
+          "type": "string",
+          "minLength": 1
+        },
+        "registrationId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "ancestor": {
+          "$ref": "#/$defs/locator"
+        },
+        "fallbacks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/locator"
+          },
+          "default": []
+        }
+      },
+      "not": {
+        "anyOf": [
+          {
+            "required": ["kind"]
+          },
+          {
+            "required": ["value"]
+          }
+        ]
+      }
+    },
+    "snapshotOptions": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "profile": {
+          "type": "string",
+          "enum": ["live", "baseline", "investigate", "forensic"],
+          "default": "live"
+        },
+        "maxTargets": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 25
+        },
+        "maxAncestorsPerTarget": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0
+        },
+        "maxPropertiesPerTarget": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0
+        },
+        "includeStyleDetails": {
+          "type": "boolean",
+          "default": false
+        },
+        "includeDiagnosticProperties": {
+          "type": "boolean",
+          "default": false
+        },
+        "emitArtifactWhenLarge": {
+          "type": "boolean",
+          "default": false
+        },
+        "includeRebuildActivity": {
+          "type": "boolean",
+          "default": false
+        },
+        "maxRebuildEntries": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 8
+        },
+        "includeNetworkActivity": {
+          "type": "boolean",
+          "default": false
+        },
+        "maxNetworkEntries": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 8
+        },
+        "networkQuery": {
+          "$ref": "#/$defs/networkQuery"
+        },
+        "includeRuntimeActivity": {
+          "type": "boolean",
+          "default": false
+        },
+        "maxRuntimeEntries": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 8
+        },
+        "runtimeQuery": {
+          "$ref": "#/$defs/runtimeQuery"
+        },
+        "includeAccessibilitySummary": {
+          "type": "boolean",
+          "default": false
+        },
+        "maxAccessibilityEntries": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 8
+        }
+      }
+    },
+    "networkQuery": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "method": {
+          "type": "string",
+          "minLength": 1
+        },
+        "uriContains": {
+          "type": "string",
+          "minLength": 1
+        },
+        "onlyFailures": {
+          "type": "boolean",
+          "default": false
+        },
+        "statusCodeAtLeast": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 599
+        }
+      }
+    },
+    "runtimeQuery": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "onlyErrors": {
+          "type": "boolean",
+          "default": false
+        },
+        "messageContains": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "screenshotRequest": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["reason", "name"],
+      "properties": {
+        "reason": {
+          "type": "string",
+          "enum": [
+            "baseline",
+            "before_action",
+            "after_action",
+            "assertion_failure",
+            "acceptance"
+          ]
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "includeSnapshot": {
+          "type": "boolean",
+          "default": false
+        },
+        "attachToStep": {
+          "type": "boolean",
+          "default": false
+        },
+        "snapshotOptions": {
+          "$ref": "#/$defs/snapshotOptions"
         }
       }
     },
@@ -122,7 +400,7 @@
       "properties": {
         "purpose": {
           "type": "string",
-          "enum": ["acceptance", "repro"]
+          "enum": ["acceptance", "repro", "diagnostic", "debug", "investigation"]
         },
         "name": {
           "type": "string",
@@ -242,13 +520,15 @@
               "type": "array",
               "items": {
                 "$ref": "#/$defs/workflowStep"
-              }
+              },
+              "default": []
             },
             "elseSteps": {
               "type": "array",
               "items": {
                 "$ref": "#/$defs/workflowStep"
-              }
+              },
+              "default": []
             }
           }
         }

@@ -42,6 +42,42 @@ If `stepId` is omitted, the parser assigns a path-like id from the node position
 
 Executes one `CockpitCommand`.
 
+Command fields:
+
+- `commandId`, required stable id used in traces and artifacts
+- `commandType`, required; supported values are `tap`, `enterText`,
+  `focusTextInput`, `setTextEditingValue`, `sendTextInputAction`,
+  `sendKeyEvent`, `sendKeyDownEvent`, `sendKeyUpEvent`, `longPress`,
+  `doubleTap`, `drag`, `fling`, `swipe`, `pinchZoom`, `rotate`, `panZoom`,
+  `multiTouch`, `scrollUntilVisible`, `clearNetworkActivity`,
+  `waitForNetworkIdle`, `waitForUiIdle`, `back`, `showOnScreen`, `increase`,
+  `decrease`, `dismiss`, `dismissKeyboard`, `waitFor`, `assertVisible`,
+  `assertText`, `captureScreenshot`, and `collectSnapshot`
+- `locator`, optional target locator
+- `parameters`, optional command-specific payload object
+- `capturePolicy`, optional; `none`, `afterAction`, `onFailure`, or
+  `afterActionAndFailure`
+- `captureFailurePolicy`, optional; `failCommand` or `degradeCommand`
+- `timeoutMs`, optional command timeout in milliseconds
+- `snapshotOptions`, optional snapshot tuning for command evidence
+- `screenshotRequest`, optional structured screenshot request
+
+Locator fields are multi-signal by design. Use one or more of `cockpitId`,
+`semanticId`, `key`, `text`, `tooltip`, `type`, `route`, `registrationId`, and
+`path`; add `index` only to disambiguate duplicate matches; scope with
+`ancestor`; add `fallbacks` for non-invasive multi-condition matching. Legacy
+`kind`/`value` locators are rejected.
+
+Snapshot options use fixed lower-camel-case fields: `profile` (`live`,
+`baseline`, `investigate`, `forensic`), target/property limits, diagnostic
+toggles, `networkQuery`, `runtimeQuery`, and accessibility limits. Network query
+fields are `method`, `uriContains`, `onlyFailures`, and `statusCodeAtLeast`.
+Runtime query fields are `onlyErrors` and `messageContains`.
+
+Screenshot request fields are `reason` (`baseline`, `before_action`,
+`after_action`, `assertion_failure`, `acceptance`), `name`, `includeSnapshot`,
+`attachToStep`, and optional `snapshotOptions`.
+
 ```yaml
 - stepId: tap-settings
   stepType: command
@@ -196,6 +232,32 @@ Trace entries may include:
 Consumers should read `trace.json` first for step-to-artifact correlation, then open `steps.json` only when the compact trace does not explain the next action.
 
 ## Minimal Complete Script
+
+Top-level `commands` is the shortest linear form. It is expanded to command
+workflow steps at runtime.
+
+```yaml
+schemaVersion: 1
+sessionId: quick-proof
+taskId: inbox-proof
+platform: macos
+failFast: true
+commands:
+  - commandId: assert-inbox
+    commandType: assertText
+    parameters:
+      text: Inbox
+  - commandId: capture-inbox
+    commandType: captureScreenshot
+    screenshotRequest:
+      reason: acceptance
+      name: inbox-proof
+      includeSnapshot: true
+      attachToStep: true
+```
+
+Use `steps` when the flow needs retry, branch, loop, or explicit recording
+control:
 
 ```yaml
 schemaVersion: 1
