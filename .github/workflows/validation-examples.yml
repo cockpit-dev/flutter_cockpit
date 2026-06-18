@@ -214,24 +214,34 @@ jobs:
           emulator-options: >-
             -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot-save
             -camera-back none -camera-front none
-          script: >-
-            set -e;
-            set -o pipefail;
-            adb devices;
-            cd "$GITHUB_WORKSPACE/examples/cockpit_demo";
-            dart run cockpit launch-app
-            --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo"
-            --target cockpit/main.dart
-            --platform android
-            --device-id emulator-5554
-            --session-port 58491
-            --launch-timeout-seconds 600
-            --app-json "$APP_JSON";
-            dart run cockpit run-script
-            --app-json "$APP_JSON"
-            --script validation/rapid-smoke.workflow.yaml
-            --platform android
-            --output-root "$BUNDLE_DIR" 2>&1 | tee "$LOG_PATH"
+          script: |
+            bash -lc '
+              set +e
+              set -o pipefail
+              adb devices
+              cd "$GITHUB_WORKSPACE/examples/cockpit_demo"
+              dart run cockpit launch-app \
+                --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo" \
+                --target cockpit/main.dart \
+                --platform android \
+                --device-id emulator-5554 \
+                --session-port 58491 \
+                --launch-timeout-seconds 600 \
+                --app-json "$APP_JSON"
+              LAUNCH_STATUS=$?
+              if [ "$LAUNCH_STATUS" -ne 0 ]; then
+                set +o pipefail
+                exit "$LAUNCH_STATUS"
+              fi
+              dart run cockpit run-script \
+                --app-json "$APP_JSON" \
+                --script validation/rapid-smoke.workflow.yaml \
+                --platform android \
+                --output-root "$BUNDLE_DIR" 2>&1 | tee "$LOG_PATH"
+              STATUS=${PIPESTATUS[0]}
+              set +o pipefail
+              exit "$STATUS"
+            '
 
       - name: Run rapid validation workflow example
         if: matrix.platform != 'android' && matrix.platform != 'windows'
