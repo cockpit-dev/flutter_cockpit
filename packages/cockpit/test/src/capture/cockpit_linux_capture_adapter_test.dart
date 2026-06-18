@@ -174,4 +174,140 @@ void main() {
       expect(invocations, <String>['import -window root ${outputFile.path}']);
     },
   );
+
+  test(
+    'linux capture adapter uses xwd and ffmpeg root fallback without a window target',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_linux_xwd_root_capture',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final invocations = <String>[];
+      final outputFile = File(p.join(tempDir.path, 'web-root.png'));
+      final adapter = CockpitLinuxCaptureAdapter(
+        appId: 'google-chrome',
+        captureExecutables: const <String>['xwd-ffmpeg'],
+        windowActivatorExecutable: null,
+        windowTargetResolver:
+            ({
+              required appId,
+              required processId,
+              required processRunner,
+              required timeout,
+            }) async {
+              throw StateError('No visible Linux window was found for $appId.');
+            },
+        tempFileFactory: (_) async => outputFile,
+        processRunner: (executable, arguments) async {
+          invocations.add('$executable ${arguments.join(' ')}');
+          if (executable == 'xwd') {
+            final outIndex = arguments.indexOf('-out');
+            expect(outIndex, isNonNegative);
+            File(arguments[outIndex + 1]).writeAsStringSync('xwd-data');
+            return ProcessResult(0, 0, '', '');
+          }
+          if (executable == 'ffmpeg') {
+            outputFile.writeAsStringSync('converted-png-data');
+            return ProcessResult(0, 0, '', '');
+          }
+          fail('Unexpected executable: $executable');
+        },
+        activationSettleDelay: Duration.zero,
+      );
+
+      final execution = await adapter.capture(
+        CockpitCommand(
+          commandId: 'capture-web-root',
+          commandType: CockpitCommandType.captureScreenshot,
+          screenshotRequest: const CockpitScreenshotRequest(
+            reason: CockpitScreenshotReason.acceptance,
+            name: 'web-root',
+          ),
+        ),
+      );
+
+      expect(execution.result.success, isTrue);
+      expect(outputFile.readAsStringSync(), 'converted-png-data');
+      expect(invocations, hasLength(2));
+      expect(invocations[0], startsWith('xwd -root -silent -out '));
+      expect(invocations[1], startsWith('ffmpeg -y -loglevel error -i '));
+      expect(
+        outputFile.parent.listSync().whereType<File>().map((file) => file.path),
+        <String>[outputFile.path],
+      );
+    },
+  );
+
+  test(
+    'linux capture adapter skips target-only tools before xwd root fallback',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_linux_xwd_after_target_only_capture',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final invocations = <String>[];
+      final outputFile = File(p.join(tempDir.path, 'web-root.png'));
+      final adapter = CockpitLinuxCaptureAdapter(
+        appId: 'google-chrome',
+        captureExecutables: const <String>['grim', 'xwd-ffmpeg'],
+        windowActivatorExecutable: null,
+        windowTargetResolver:
+            ({
+              required appId,
+              required processId,
+              required processRunner,
+              required timeout,
+            }) async {
+              throw StateError('No visible Linux window was found for $appId.');
+            },
+        tempFileFactory: (_) async => outputFile,
+        processRunner: (executable, arguments) async {
+          invocations.add('$executable ${arguments.join(' ')}');
+          if (executable == 'xwd') {
+            final outIndex = arguments.indexOf('-out');
+            expect(outIndex, isNonNegative);
+            File(arguments[outIndex + 1]).writeAsStringSync('xwd-data');
+            return ProcessResult(0, 0, '', '');
+          }
+          if (executable == 'ffmpeg') {
+            outputFile.writeAsStringSync('converted-png-data');
+            return ProcessResult(0, 0, '', '');
+          }
+          fail('Unexpected executable: $executable');
+        },
+        activationSettleDelay: Duration.zero,
+      );
+
+      final execution = await adapter.capture(
+        CockpitCommand(
+          commandId: 'capture-web-root',
+          commandType: CockpitCommandType.captureScreenshot,
+          screenshotRequest: const CockpitScreenshotRequest(
+            reason: CockpitScreenshotReason.acceptance,
+            name: 'web-root',
+          ),
+        ),
+      );
+
+      expect(execution.result.success, isTrue);
+      expect(outputFile.readAsStringSync(), 'converted-png-data');
+      expect(invocations, hasLength(2));
+      expect(invocations[0], startsWith('xwd -root -silent -out '));
+      expect(invocations[1], startsWith('ffmpeg -y -loglevel error -i '));
+      expect(
+        outputFile.parent.listSync().whereType<File>().map((file) => file.path),
+        <String>[outputFile.path],
+      );
+    },
+  );
 }

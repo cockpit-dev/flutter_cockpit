@@ -720,7 +720,7 @@ final class CockpitDesktopSystemControlAdapter
       'linux' => const <String>[
         'desktop session',
         'wmctrl recommended',
-        'one screenshot tool: gnome-screenshot, grim, scrot, or import',
+        'one screenshot path: gnome-screenshot, grim, scrot, import, or xwd+ffmpeg',
       ],
       _ => requires,
     };

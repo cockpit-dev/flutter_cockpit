@@ -47,7 +47,7 @@ final class CockpitSystemControlRegistry {
         adapter: 'linux.at-spi+x11+portal',
         inputStrategy: 'AT-SPI or X11 input',
         screenshotStrategy:
-            'xdg-desktop-portal, grim, gnome-screenshot, or X11',
+            'xdg-desktop-portal, grim, gnome-screenshot, xwd+ffmpeg, or X11',
         recordingStrategy: 'PipeWire portal or ffmpeg x11grab',
         requires: <String>['desktop session', 'portal permission on Wayland'],
         limitations: <String>[
