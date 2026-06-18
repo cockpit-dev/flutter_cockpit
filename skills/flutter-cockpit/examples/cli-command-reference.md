@@ -977,6 +977,7 @@ dart run cockpit \
   run-script \
   --app-json /tmp/flutter_cockpit/app.json \
   --script /tmp/flutter_cockpit/workflow.yaml \
+  --platform android \
   --output-root /tmp/flutter_cockpit/out
 ```
 
@@ -986,6 +987,8 @@ Prefer `--app-json` for `run-script` even when `--base-url` is known. The app
 handle preserves platform, device, process, and remote-session metadata used by
 host screenshots and recordings; `--base-url` only overrides the live HTTP
 connection.
+Use `--platform` when replaying one workflow file against the current target;
+do not duplicate workflows just to change their top-level `platform`.
 
 Run a full task workflow:
 

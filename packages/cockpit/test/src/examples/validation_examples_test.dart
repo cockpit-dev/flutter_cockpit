@@ -54,7 +54,7 @@ void main() {
     expect(script.effectiveWorkflowSteps.any(_containsScreenshot), isTrue);
   });
 
-  test('rapid smoke example is deterministic on a clean app database', () {
+  test('rapid smoke example is deterministic with or without demo data', () {
     final script = cockpitControlScriptFromText(
       File(
         p.join(validationDir.path, 'rapid-smoke.workflow.yaml'),
@@ -69,8 +69,11 @@ void main() {
         .whereType<String>()
         .toList();
 
-    expect(assertedTexts, contains('Fresh canvas'));
-    expect(assertedTexts, contains('Create task'));
+    expect(assertedTexts, contains('Inbox'));
+    expect(assertedTexts, contains('New task'));
+    expect(assertedTexts, isNot(contains('Search title or notes')));
+    expect(assertedTexts, isNot(contains('Fresh canvas')));
+    expect(assertedTexts, isNot(contains('Create task')));
     expect(assertedTexts, isNot(contains('No tasks yet')));
     expect(assertedTexts, isNot(contains('Queue brief:')));
   });
@@ -90,6 +93,42 @@ void main() {
       ),
     );
   });
+
+  test(
+    'validation examples run the reusable smoke workflow on every platform',
+    () {
+      final workflow = File(
+        p.join(
+          repoRoot.path,
+          '.github',
+          'workflows',
+          'validation-examples.yml',
+        ),
+      ).readAsStringSync();
+      final decoded = _decodeYamlMap(workflow);
+      final jobs = decoded['jobs']! as Map<String, Object?>;
+      final validationJob = jobs['validation-example'] as Map<String, Object?>?;
+
+      expect(validationJob, isNotNull);
+      final strategy = validationJob!['strategy']! as Map<String, Object?>;
+      final matrix = strategy['matrix']! as Map<String, Object?>;
+      final include = matrix['include']! as List<Object?>;
+      final platforms = include
+          .cast<Map<String, Object?>>()
+          .map((entry) => entry['platform'])
+          .toSet();
+
+      expect(
+        platforms,
+        equals(<String>{'android', 'ios', 'macos', 'linux', 'windows', 'web'}),
+      );
+      expect(workflow, contains('--platform "\${{ matrix.platform }}"'));
+      expect(
+        workflow,
+        contains('assert data["manifest"]["platform"] == platform'),
+      );
+    },
+  );
 
   test(
     'platform capability workflow avoids installing recommended apt payloads',

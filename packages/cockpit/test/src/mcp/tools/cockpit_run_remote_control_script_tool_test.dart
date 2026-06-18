@@ -105,6 +105,94 @@ void main() {
     },
   );
 
+  test('run tool can override reusable script platform', () async {
+    CockpitRunRemoteControlScriptRequest? capturedRequest;
+    final bundleDir = Directory.systemTemp.createTempSync(
+      'cockpit_run_remote_control_script_tool_platform_override',
+    );
+    addTearDown(() async {
+      if (bundleDir.existsSync()) {
+        await bundleDir.delete(recursive: true);
+      }
+    });
+
+    final tool = CockpitRunRemoteControlScriptTool(
+      run: (request) async {
+        capturedRequest = request;
+        return CockpitRunRemoteControlScriptResult(
+          sessionHandle: null,
+          bundleDir: bundleDir,
+          manifest: CockpitRunManifest(
+            sessionId: request.script.sessionId,
+            taskId: request.script.taskId,
+            platform: request.script.platform,
+            status: CockpitTaskStatus.completed,
+            startedAt: DateTime.utc(2026, 6, 18),
+            finishedAt: DateTime.utc(2026, 6, 18, 0, 0, 1),
+          ),
+          handoff: const <String, Object?>{},
+          delivery: const <String, Object?>{},
+          artifactPaths: CockpitBundleArtifactPaths(),
+        );
+      },
+    );
+
+    await tool.call(<String, Object?>{
+      'baseUrl': 'http://127.0.0.1:58421',
+      'outputRoot': '/tmp/out',
+      'platform': 'web',
+      'script': <String, Object?>{
+        'sessionId': 'run-tool-session',
+        'taskId': 'run-tool-task',
+        'platform': 'macos',
+        'environment': const CockpitEnvironment(
+          platform: 'macos',
+          flutterVersion: '3.32.0',
+          dartVersion: '3.8.0',
+        ).toJson(),
+        'commands': <Map<String, Object?>>[_noopCommandJson()],
+      },
+    });
+
+    expect(capturedRequest?.script.platform, 'web');
+    expect(capturedRequest?.script.environment?.platform, 'web');
+  });
+
+  test(
+    'run tool rejects invalid platform overrides before execution',
+    () async {
+      var called = false;
+      final tool = CockpitRunRemoteControlScriptTool(
+        run: (_) async {
+          called = true;
+          throw StateError('run should not be reached');
+        },
+      );
+
+      expect(
+        () => tool.call(<String, Object?>{
+          'baseUrl': 'http://127.0.0.1:58421',
+          'outputRoot': '/tmp/out',
+          'platform': 'freebsd',
+          'script': <String, Object?>{
+            'sessionId': 'run-tool-session',
+            'taskId': 'run-tool-task',
+            'platform': 'macos',
+            'commands': <Map<String, Object?>>[_noopCommandJson()],
+          },
+        }),
+        throwsA(
+          isA<CockpitMcpError>().having(
+            (error) => error.data['argument'],
+            'argument',
+            'platform',
+          ),
+        ),
+      );
+      expect(called, isFalse);
+    },
+  );
+
   test('run tool maps service errors into MCP errors', () async {
     final tool = CockpitRunRemoteControlScriptTool(
       run: (_) async => throw const CockpitApplicationServiceException(

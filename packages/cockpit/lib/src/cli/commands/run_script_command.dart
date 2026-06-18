@@ -33,6 +33,12 @@ final class RunScriptCommand extends CockpitCliCommand {
         help: 'Deprecated alias for --script. Accepts JSON or YAML.',
       )
       ..addOption(
+        'platform',
+        allowed: cockpitControlScriptSupportedPlatforms,
+        help:
+            'Override script.platform for reusable scripts that run unchanged on multiple targets.',
+      )
+      ..addOption(
         'output-root',
         help: 'Directory where the task-run bundle should be written.',
       );
@@ -95,11 +101,15 @@ final class RunScriptCommand extends CockpitCliCommand {
       androidDeviceId: argResults?['android-device-id'] as String?,
       iosDeviceId: argResults?['ios-device-id'] as String?,
     );
-    final script = cockpitDecodeCliJson(
+    final decodedScript = cockpitDecodeCliJson(
       decode: () => cockpitControlScriptFromText(scriptText),
       label: 'script',
       usage: usage,
     );
+    final platformOverride = argResults?['platform'] as String?;
+    final script = platformOverride == null || platformOverride.isEmpty
+        ? decodedScript
+        : decodedScript.withPlatform(platformOverride);
     final result = await _runScript(
       CockpitRunRemoteControlScriptRequest(
         script: script,

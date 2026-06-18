@@ -43,6 +43,12 @@ final class CockpitRunRemoteControlScriptTool extends CockpitMcpTool {
       'baseUrl': <String, Object?>{'type': 'string'},
       'androidDeviceId': <String, Object?>{'type': 'string'},
       'iosDeviceId': <String, Object?>{'type': 'string'},
+      'platform': <String, Object?>{
+        'type': 'string',
+        'enum': cockpitControlScriptSupportedPlatforms,
+        'description':
+            'Optional override for script.platform when reusing one script across platforms.',
+      },
       'script': <String, Object?>{'type': 'object'},
       'outputRoot': <String, Object?>{'type': 'string'},
       'persistScriptPath': <String, Object?>{'type': 'string'},
@@ -55,7 +61,11 @@ final class CockpitRunRemoteControlScriptTool extends CockpitMcpTool {
       final scriptJson = cockpitReadRequiredObject(arguments, 'script');
       late final CockpitControlScript script;
       try {
-        script = CockpitControlScript.fromJson(scriptJson);
+        final decodedScript = CockpitControlScript.fromJson(scriptJson);
+        final platformOverride = _readPlatformOverride(arguments);
+        script = platformOverride == null || platformOverride.isEmpty
+            ? decodedScript
+            : decodedScript.withPlatform(platformOverride);
       } on FormatException catch (error) {
         throw CockpitMcpError.invalidArguments(
           error.message,
@@ -142,5 +152,22 @@ final class CockpitRunRemoteControlScriptTool extends CockpitMcpTool {
     } on Object catch (error) {
       cockpitRethrowAsMcpError(error);
     }
+  }
+
+  String? _readPlatformOverride(Map<String, Object?> arguments) {
+    final platform = cockpitReadOptionalString(arguments, 'platform');
+    if (platform == null) {
+      return null;
+    }
+    if (cockpitControlScriptSupportedPlatforms.contains(platform)) {
+      return platform;
+    }
+    throw CockpitMcpError.invalidArguments(
+      'Unsupported platform override.',
+      details: <String, Object?>{
+        'argument': 'platform',
+        'allowed': cockpitControlScriptSupportedPlatforms,
+      },
+    );
   }
 }

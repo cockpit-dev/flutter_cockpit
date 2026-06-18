@@ -25,21 +25,14 @@ steps:
         reason: acceptance
         includeSnapshot: true
         attachToStep: true
-  - stepId: assert-empty-canvas
+  - stepId: assert-new-task-action
     stepType: retry
     maxAttempts: 4
     delayMs: 500
     step:
       stepType: command
       command:
-        commandId: assert-empty-canvas
+        commandId: assert-new-task-action
         commandType: assertText
         parameters:
-          text: Fresh canvas
-  - stepId: assert-empty-action
-    stepType: command
-    command:
-      commandId: assert-empty-action
-      commandType: assertText
-      parameters:
-        text: Create task
+          text: New task

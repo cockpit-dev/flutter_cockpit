@@ -29,6 +29,12 @@ Optional:
 
 `commands` is the simple linear form. `steps` is the workflow form. Any provided list must be non-empty. When `steps` is present, it is the execution plan; `commands` may remain for legacy replay metadata but is not the preferred source of control flow.
 
+`platform` is the script's default execution target. Reusable workflows may be
+run against another target with `run-script --platform <platform>` or MCP
+`run_script.platform`; the override also updates `environment.platform` for that
+run. Prefer a runtime platform override over copying a workflow file only to
+change `platform`.
+
 ## Node Types
 
 Every workflow node is an object with:
@@ -293,7 +299,7 @@ steps:
 Run it:
 
 ```bash
-dart run cockpit run-script --app-json /tmp/flutter_cockpit/app.json --script /tmp/flutter_cockpit/workflow.yaml --output-root /tmp/flutter_cockpit/out
+dart run cockpit run-script --app-json /tmp/flutter_cockpit/app.json --script /tmp/flutter_cockpit/workflow.yaml --platform android --output-root /tmp/flutter_cockpit/out
 ```
 
 For tool-owned bootstrap and validation, embed the same script object under the
