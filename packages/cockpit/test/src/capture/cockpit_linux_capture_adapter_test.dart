@@ -384,7 +384,7 @@ void main() {
       expect(invocations[0], startsWith('xwd -root -silent -out '));
       expect(
         invocations[1],
-        'ffmpeg -y -loglevel error -f x11grab -video_size 1280x720 -frames:v 1 -i :99+0,0 ${outputFile.path}',
+        'ffmpeg -y -loglevel error -f x11grab -video_size 1280x720 -i :99+0,0 -frames:v 1 ${outputFile.path}',
       );
     },
   );
