@@ -10,12 +10,15 @@ import '../recording/cockpit_recording_strategy_resolver.dart';
 import '../remote/cockpit_remote_automation_adapter.dart';
 import '../remote/cockpit_remote_session_client.dart';
 import '../runner/cockpit_control_runner.dart';
+import '../session/cockpit_remote_session_launcher.dart';
 import '../session/cockpit_remote_session_handle.dart';
 import 'cockpit_bundle_artifact_paths.dart';
 import 'cockpit_application_service_exception.dart';
 import 'cockpit_compact_json.dart';
 import 'cockpit_read_task_bundle_summary_service.dart';
 import 'cockpit_session_reference_resolver.dart';
+
+typedef CockpitHostVersionReader = Future<String> Function();
 
 final class CockpitRunRemoteControlScriptRequest {
   const CockpitRunRemoteControlScriptRequest({
@@ -73,6 +76,9 @@ final class CockpitRunRemoteControlScriptService {
     TaskRunBundleWriter writer = const TaskRunBundleWriter(),
     CockpitReadTaskBundleSummaryService readSummaryService =
         const CockpitReadTaskBundleSummaryService(),
+    CockpitHostVersionReader hostFlutterVersionReader =
+        cockpitReadActiveFlutterVersion,
+    CockpitHostVersionReader hostDartVersionReader = cockpitReadHostDartVersion,
     Duration environmentResolutionTimeout = const Duration(seconds: 10),
     Duration environmentResolutionRetryDelay = const Duration(
       milliseconds: 250,
@@ -83,6 +89,8 @@ final class CockpitRunRemoteControlScriptService {
        _recordingStrategyResolver = recordingStrategyResolver,
        _writer = writer,
        _readSummaryService = readSummaryService,
+       _hostFlutterVersionReader = hostFlutterVersionReader,
+       _hostDartVersionReader = hostDartVersionReader,
        _environmentResolutionTimeout = environmentResolutionTimeout,
        _environmentResolutionRetryDelay = environmentResolutionRetryDelay;
 
@@ -91,6 +99,8 @@ final class CockpitRunRemoteControlScriptService {
   final CockpitRecordingStrategyResolver _recordingStrategyResolver;
   final TaskRunBundleWriter _writer;
   final CockpitReadTaskBundleSummaryService _readSummaryService;
+  final CockpitHostVersionReader _hostFlutterVersionReader;
+  final CockpitHostVersionReader _hostDartVersionReader;
   final Duration _environmentResolutionTimeout;
   final Duration _environmentResolutionRetryDelay;
 
@@ -198,16 +208,49 @@ final class CockpitRunRemoteControlScriptService {
       return resolvedEnvironment;
     }
 
+    final hostEnvironmentResult = await _tryResolveHostEnvironment(
+      platform: script.platform,
+    );
+    final hostEnvironment = hostEnvironmentResult.environment;
+    if (hostEnvironment != null) {
+      return hostEnvironment;
+    }
+
     throw CockpitApplicationServiceException(
       code: 'missingEnvironment',
       message:
-          'Control script environment is required when remote session health does not expose environment.',
+          'Control script environment is required when remote session health '
+          'does not expose environment and host SDK versions cannot be resolved.',
       details: <String, Object?>{
         'baseUrl': client.baseUri.toString(),
         'sessionHandle': sessionHandle?.toJson(),
         'sessionId': status.sessionId,
+        'hostEnvironmentError': hostEnvironmentResult.error,
       },
     );
+  }
+
+  Future<_HostEnvironmentResolutionResult> _tryResolveHostEnvironment({
+    required String platform,
+  }) async {
+    try {
+      final flutterVersion = (await _hostFlutterVersionReader()).trim();
+      final dartVersion = (await _hostDartVersionReader()).trim();
+      if (flutterVersion.isEmpty || dartVersion.isEmpty) {
+        return _HostEnvironmentResolutionResult.error(
+          'Host SDK readers returned empty versions.',
+        );
+      }
+      return _HostEnvironmentResolutionResult.environment(
+        CockpitEnvironment(
+          platform: platform,
+          flutterVersion: flutterVersion,
+          dartVersion: dartVersion,
+        ),
+      );
+    } on Object catch (error) {
+      return _HostEnvironmentResolutionResult.error(error.toString());
+    }
   }
 
   Future<CockpitRemoteSessionStatus> _readStatusForEnvironment({
@@ -316,6 +359,42 @@ final class CockpitRunRemoteControlScriptService {
     await file.parent.create(recursive: true);
     await file.writeAsString(cockpitPrettyJsonText(script.toJson()));
   }
+}
+
+Future<String> cockpitReadHostDartVersion() async {
+  final version = _parseDartVersion(Platform.version);
+  if (version == null) {
+    throw StateError('Unable to resolve Dart version from Platform.version.');
+  }
+  return version;
+}
+
+String? _parseDartVersion(String runtimeVersion) {
+  final match = RegExp(r'^(\d+\.\d+\.\d+)').firstMatch(runtimeVersion.trim());
+  return match?.group(1);
+}
+
+final class _HostEnvironmentResolutionResult {
+  const _HostEnvironmentResolutionResult._({
+    required this.environment,
+    required this.error,
+  });
+
+  factory _HostEnvironmentResolutionResult.environment(
+    CockpitEnvironment environment,
+  ) {
+    return _HostEnvironmentResolutionResult._(
+      environment: environment,
+      error: null,
+    );
+  }
+
+  factory _HostEnvironmentResolutionResult.error(String error) {
+    return _HostEnvironmentResolutionResult._(environment: null, error: error);
+  }
+
+  final CockpitEnvironment? environment;
+  final String? error;
 }
 
 final class _ScriptRecordingAdapter implements CockpitRecordingAdapter {
