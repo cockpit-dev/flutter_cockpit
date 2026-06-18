@@ -83,7 +83,11 @@ void main() {
     expect(workflow, contains('RUN_SCRIPT_BUNDLE_DIR='));
     expect(
       workflow,
-      isNot(contains('read-task-bundle-summary \\\n            --bundle-dir "\$BUNDLE_DIR"')),
+      isNot(
+        contains(
+          'read-task-bundle-summary \\\n            --bundle-dir "\$BUNDLE_DIR"',
+        ),
+      ),
     );
   });
 
