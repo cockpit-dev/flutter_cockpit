@@ -45,14 +45,18 @@ steps:
         command:
           commandId: capture-conflict-state
           commandType: captureScreenshot
-          parameters:
+          screenshotRequest:
             name: adaptive_conflict_state
-            purpose: diagnostics
+            reason: assertion_failure
+            includeSnapshot: true
+            attachToStep: true
   - stepId: capture-final-state
     stepType: command
     command:
       commandId: capture-final-state
       commandType: captureScreenshot
-      parameters:
+      screenshotRequest:
         name: adaptive_final_state
-        purpose: acceptance
+        reason: acceptance
+        includeSnapshot: true
+        attachToStep: true

@@ -20,9 +20,11 @@ steps:
     command:
       commandId: capture-inbox
       commandType: captureScreenshot
-      parameters:
+      screenshotRequest:
         name: rapid_smoke_inbox
-        purpose: acceptance
+        reason: acceptance
+        includeSnapshot: true
+        attachToStep: true
   - stepId: assert-queue-brief
     stepType: retry
     maxAttempts: 4

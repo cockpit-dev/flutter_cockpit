@@ -1,6 +1,11 @@
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 
 CockpitCommand cockpitCommandWithAiEvidenceDefaults(CockpitCommand command) {
+  final explicitCaptureCommand = _withExplicitScreenshotRequest(command);
+  if (explicitCaptureCommand != null) {
+    return explicitCaptureCommand;
+  }
+
   if (!_shouldDefaultToAfterActionCapture(command)) {
     return command;
   }
@@ -17,6 +22,52 @@ CockpitCommand cockpitCommandWithAiEvidenceDefaults(CockpitCommand command) {
           attachToStep: true,
         ),
   );
+}
+
+CockpitCommand? _withExplicitScreenshotRequest(CockpitCommand command) {
+  if (command.commandType != CockpitCommandType.captureScreenshot ||
+      command.screenshotRequest != null) {
+    return null;
+  }
+
+  final name = _stringParameter(command, 'name') ?? command.commandId;
+  final reasonValue =
+      _stringParameter(command, 'reason') ??
+      _stringParameter(command, 'purpose') ??
+      CockpitScreenshotReason.acceptance.jsonValue;
+  return command.copyWith(
+    screenshotRequest: CockpitScreenshotRequest(
+      reason: _screenshotReasonFromLegacyValue(reasonValue),
+      name: name,
+      includeSnapshot: _boolParameter(command, 'includeSnapshot') ?? false,
+      attachToStep: _boolParameter(command, 'attachToStep') ?? true,
+      snapshotOptions: command.snapshotOptions,
+    ),
+  );
+}
+
+CockpitScreenshotReason _screenshotReasonFromLegacyValue(String value) {
+  final normalized = value.trim().toLowerCase();
+  return switch (normalized) {
+    'diagnostic' ||
+    'diagnostics' ||
+    'debug' ||
+    'investigation' => CockpitScreenshotReason.assertionFailure,
+    _ => CockpitScreenshotReason.fromJson(value),
+  };
+}
+
+String? _stringParameter(CockpitCommand command, String key) {
+  final value = command.parameters[key];
+  if (value is String && value.trim().isNotEmpty) {
+    return value.trim();
+  }
+  return null;
+}
+
+bool? _boolParameter(CockpitCommand command, String key) {
+  final value = command.parameters[key];
+  return value is bool ? value : null;
 }
 
 bool cockpitCommandUsesAiEvidenceDefaults(CockpitCommand command) {
