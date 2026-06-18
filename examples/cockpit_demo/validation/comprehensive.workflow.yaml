@@ -354,12 +354,9 @@ steps:
     command:
       commandId: capture-editor-evidence
       commandType: captureScreenshot
-      parameters:
-        name: comprehensive_editor
-        purpose: diagnostics
       screenshotRequest:
         name: comprehensive_editor
-        reason: acceptance
+        reason: assertion_failure
         includeSnapshot: true
         attachToStep: true
 
@@ -429,9 +426,11 @@ steps:
         command:
           commandId: capture-conflict-loop
           commandType: captureScreenshot
-          parameters:
+          screenshotRequest:
             name: comprehensive_conflict_loop
-            purpose: diagnostics
+            reason: assertion_failure
+            includeSnapshot: true
+            attachToStep: true
 
   - stepId: dismiss-keyboard
     stepType: command

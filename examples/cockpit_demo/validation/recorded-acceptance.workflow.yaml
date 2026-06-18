@@ -28,9 +28,11 @@ steps:
     command:
       commandId: capture-acceptance
       commandType: captureScreenshot
-      parameters:
+      screenshotRequest:
         name: recorded_acceptance
-        purpose: acceptance
+        reason: acceptance
+        includeSnapshot: true
+        attachToStep: true
   - stepId: stop-acceptance-recording
     stepType: stopRecording
     settleMs: 1400

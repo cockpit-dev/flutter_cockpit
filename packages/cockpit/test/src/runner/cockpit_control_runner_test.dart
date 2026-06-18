@@ -1112,6 +1112,142 @@ steps:
     );
   });
 
+  test(
+    'normalizes short captureScreenshot parameters before capture adapters run',
+    () async {
+      final adapter = _FakeAutomationAdapter(
+        capabilities: _capabilities(),
+        resultsByCommandId: const <String, CockpitCommandResult>{},
+      );
+      final captureAdapter = _FakeCaptureAdapter(
+        executionByCommandId: <String, CockpitCommandExecution>{
+          'cmd-capture': CockpitCommandExecution(
+            result: CockpitCommandResult(
+              success: true,
+              commandId: 'cmd-capture',
+              commandType: CockpitCommandType.captureScreenshot,
+              durationMs: 12,
+              artifacts: const <CockpitArtifactRef>[
+                CockpitArtifactRef(
+                  role: 'screenshot',
+                  relativePath: 'screenshots/ci_acceptance.png',
+                ),
+              ],
+            ),
+            artifactPayloads: const <String, List<int>>{
+              'screenshots/ci_acceptance.png': <int>[1, 2, 3],
+            },
+          ),
+        },
+      );
+      final runner = CockpitControlRunner(
+        automationAdapter: adapter,
+        captureAdapter: captureAdapter,
+        sessionController: CockpitSessionController(
+          sessionId: 'runner-short-capture',
+          taskId: 'runner-short-capture-task',
+          platform: 'macos',
+          now: () => DateTime.utc(2026, 6, 18, 7),
+        ),
+      );
+
+      final runResult = await runner.run(
+        environment: const CockpitEnvironment(
+          platform: 'macos',
+          flutterVersion: '3.32.0',
+          dartVersion: '3.8.0',
+        ),
+        commands: <CockpitCommand>[
+          CockpitCommand(
+            commandId: 'cmd-capture',
+            commandType: CockpitCommandType.captureScreenshot,
+            parameters: const <String, Object?>{
+              'name': 'ci_acceptance',
+              'purpose': 'acceptance',
+            },
+          ),
+        ],
+      );
+
+      expect(captureAdapter.capturedCommandIds, <String>['cmd-capture']);
+      expect(
+        captureAdapter.capturedCommands.single.screenshotRequest?.toJson(),
+        {
+          'reason': 'acceptance',
+          'name': 'ci_acceptance',
+          'includeSnapshot': false,
+          'attachToStep': true,
+        },
+      );
+      expect(runResult.bundle.manifest.status, CockpitTaskStatus.completed);
+      expect(runResult.bundle.manifest.screenshotCount, 1);
+    },
+  );
+
+  test(
+    'maps legacy diagnostic capture purpose to assertion failure screenshots',
+    () async {
+      final adapter = _FakeAutomationAdapter(
+        capabilities: _capabilities(),
+        resultsByCommandId: const <String, CockpitCommandResult>{},
+      );
+      final captureAdapter = _FakeCaptureAdapter(
+        executionByCommandId: <String, CockpitCommandExecution>{
+          'cmd-capture': CockpitCommandExecution(
+            result: CockpitCommandResult(
+              success: true,
+              commandId: 'cmd-capture',
+              commandType: CockpitCommandType.captureScreenshot,
+              durationMs: 12,
+              artifacts: const <CockpitArtifactRef>[
+                CockpitArtifactRef(
+                  role: 'screenshot',
+                  relativePath: 'screenshots/diagnostic.png',
+                ),
+              ],
+            ),
+            artifactPayloads: const <String, List<int>>{
+              'screenshots/diagnostic.png': <int>[1, 2, 3],
+            },
+          ),
+        },
+      );
+      final runner = CockpitControlRunner(
+        automationAdapter: adapter,
+        captureAdapter: captureAdapter,
+        sessionController: CockpitSessionController(
+          sessionId: 'runner-diagnostic-capture',
+          taskId: 'runner-diagnostic-capture-task',
+          platform: 'macos',
+          now: () => DateTime.utc(2026, 6, 18, 7),
+        ),
+      );
+
+      await runner.run(
+        environment: const CockpitEnvironment(
+          platform: 'macos',
+          flutterVersion: '3.32.0',
+          dartVersion: '3.8.0',
+        ),
+        commands: <CockpitCommand>[
+          CockpitCommand(
+            commandId: 'cmd-capture',
+            commandType: CockpitCommandType.captureScreenshot,
+            parameters: const <String, Object?>{
+              'name': 'diagnostic',
+              'purpose': 'diagnostics',
+            },
+          ),
+        ],
+      );
+
+      expect(
+        captureAdapter.capturedCommands.single.screenshotRequest?.reason,
+        CockpitScreenshotReason.assertionFailure,
+      );
+    },
+  );
+
   test('stops on the first hard failure when failFast is enabled', () async {
     final adapter = _FakeAutomationAdapter(
       capabilities: CockpitCapabilities(
@@ -1434,10 +1570,12 @@ final class _FakeCaptureAdapter implements CockpitCaptureAdapter {
 
   final Map<String, CockpitCommandExecution> _executionByCommandId;
   final List<String> capturedCommandIds = <String>[];
+  final List<CockpitCommand> capturedCommands = <CockpitCommand>[];
 
   @override
   Future<CockpitCommandExecution> capture(CockpitCommand command) async {
     capturedCommandIds.add(command.commandId);
+    capturedCommands.add(command);
     return _executionByCommandId[command.commandId]!;
   }
 }
