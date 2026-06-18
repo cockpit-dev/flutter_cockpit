@@ -15,6 +15,7 @@ final class CockpitLinuxCaptureAdapter implements CockpitHostCaptureAdapter {
       'gnome-screenshot',
       'grim',
       'scrot',
+      'xwd-ffmpeg',
       'import',
     ],
     String? windowActivatorExecutable = 'wmctrl',
@@ -166,18 +167,13 @@ final class CockpitLinuxCaptureAdapter implements CockpitHostCaptureAdapter {
     Object? lastFailure;
     for (final executable in _captureExecutables) {
       try {
-        final arguments = _captureArgumentsFor(
-          executable,
-          outputPath,
-          windowTarget,
-        );
-        if (arguments == null) {
-          lastFailure = StateError(
-            '$executable requires a resolved Linux window target for $_appId.',
-          );
-          continue;
-        }
-        final result = await _runProcess(executable, arguments);
+        final result = executable == 'xwd-ffmpeg'
+            ? await _captureWithXwdAndFfmpeg(outputPath, windowTarget)
+            : await _captureWithExecutable(
+                executable,
+                outputPath,
+                windowTarget,
+              );
         if (result.exitCode == 0) {
           return result;
         }
@@ -186,12 +182,76 @@ final class CockpitLinuxCaptureAdapter implements CockpitHostCaptureAdapter {
         );
       } on ProcessException catch (error) {
         lastFailure = error;
+      } on StateError catch (error) {
+        lastFailure = error;
       }
     }
     throw StateError(
       lastFailure?.toString() ??
           'No Linux screenshot executable succeeded for $_appId.',
     );
+  }
+
+  Future<ProcessResult> _captureWithExecutable(
+    String executable,
+    String outputPath,
+    CockpitLinuxWindowTarget? windowTarget,
+  ) async {
+    final arguments = _captureArgumentsFor(
+      executable,
+      outputPath,
+      windowTarget,
+    );
+    if (arguments == null) {
+      throw StateError(
+        '$executable requires a resolved Linux window target for $_appId.',
+      );
+    }
+    return _runProcess(executable, arguments);
+  }
+
+  Future<ProcessResult> _captureWithXwdAndFfmpeg(
+    String outputPath,
+    CockpitLinuxWindowTarget? windowTarget,
+  ) async {
+    final rawFile = File('$outputPath.xwd');
+    if (rawFile.existsSync()) {
+      rawFile.deleteSync();
+    }
+    try {
+      final xwdResult = await _runProcess('xwd', <String>[
+        if (windowTarget == null) ...<String>['-root'] else ...<String>[
+          '-id',
+          windowTarget.windowId,
+        ],
+        '-silent',
+        '-out',
+        rawFile.path,
+      ]);
+      if (xwdResult.exitCode != 0) {
+        return xwdResult;
+      }
+      if (!rawFile.existsSync() || rawFile.lengthSync() == 0) {
+        return ProcessResult(
+          0,
+          1,
+          xwdResult.stdout,
+          'xwd produced an empty XWD artifact.',
+        );
+      }
+      return _runProcess('ffmpeg', <String>[
+        '-y',
+        '-loglevel',
+        'error',
+        '-i',
+        rawFile.path,
+        outputPath,
+      ]);
+    } finally {
+      if (rawFile.existsSync()) {
+        rawFile.deleteSync();
+      }
+    }
   }
 
   List<String>? _captureArgumentsFor(
