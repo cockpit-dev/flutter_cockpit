@@ -73,18 +73,26 @@ final class CockpitRunRemoteControlScriptService {
     TaskRunBundleWriter writer = const TaskRunBundleWriter(),
     CockpitReadTaskBundleSummaryService readSummaryService =
         const CockpitReadTaskBundleSummaryService(),
+    Duration environmentResolutionTimeout = const Duration(seconds: 10),
+    Duration environmentResolutionRetryDelay = const Duration(
+      milliseconds: 250,
+    ),
   }) : _sessionReferenceResolver =
            sessionReferenceResolver ?? CockpitSessionReferenceResolver(),
        _captureStrategyResolver = captureStrategyResolver,
        _recordingStrategyResolver = recordingStrategyResolver,
        _writer = writer,
-       _readSummaryService = readSummaryService;
+       _readSummaryService = readSummaryService,
+       _environmentResolutionTimeout = environmentResolutionTimeout,
+       _environmentResolutionRetryDelay = environmentResolutionRetryDelay;
 
   final CockpitSessionReferenceResolver _sessionReferenceResolver;
   final CockpitCaptureStrategyResolver _captureStrategyResolver;
   final CockpitRecordingStrategyResolver _recordingStrategyResolver;
   final TaskRunBundleWriter _writer;
   final CockpitReadTaskBundleSummaryService _readSummaryService;
+  final Duration _environmentResolutionTimeout;
+  final Duration _environmentResolutionRetryDelay;
 
   Future<CockpitRunRemoteControlScriptResult> run(
     CockpitRunRemoteControlScriptRequest request,
@@ -180,20 +188,10 @@ final class CockpitRunRemoteControlScriptService {
       return explicitEnvironment;
     }
 
-    final CockpitRemoteSessionStatus status;
-    try {
-      status = await client.readStatus();
-    } on Object catch (error) {
-      throw CockpitApplicationServiceException(
-        code: 'environmentResolutionFailed',
-        message: 'Failed to resolve environment from remote session health.',
-        details: <String, Object?>{
-          'baseUrl': client.baseUri.toString(),
-          'sessionHandle': sessionHandle?.toJson(),
-          'error': error.toString(),
-        },
-      );
-    }
+    final status = await _readStatusForEnvironment(
+      client: client,
+      sessionHandle: sessionHandle,
+    );
 
     final resolvedEnvironment = status.environment;
     if (resolvedEnvironment != null) {
@@ -211,6 +209,72 @@ final class CockpitRunRemoteControlScriptService {
       },
     );
   }
+
+  Future<CockpitRemoteSessionStatus> _readStatusForEnvironment({
+    required CockpitRemoteSessionClient client,
+    required CockpitRemoteSessionHandle? sessionHandle,
+  }) async {
+    final deadline = DateTime.now().toUtc().add(_environmentResolutionTimeout);
+    var attempts = 0;
+    Object? lastError;
+
+    while (true) {
+      attempts += 1;
+      try {
+        return await client.readStatus();
+      } on Object catch (error) {
+        if (!_isRemoteUnavailable(error)) {
+          throw _environmentResolutionFailed(
+            client: client,
+            sessionHandle: sessionHandle,
+            attempts: attempts,
+            error: error,
+          );
+        }
+        lastError = error;
+      }
+
+      final now = DateTime.now().toUtc();
+      if (!now.isBefore(deadline)) {
+        throw _environmentResolutionFailed(
+          client: client,
+          sessionHandle: sessionHandle,
+          attempts: attempts,
+          error: lastError,
+        );
+      }
+
+      final remaining = deadline.difference(now);
+      final delay = remaining < _environmentResolutionRetryDelay
+          ? remaining
+          : _environmentResolutionRetryDelay;
+      if (delay > Duration.zero) {
+        await Future<void>.delayed(delay);
+      }
+    }
+  }
+
+  CockpitApplicationServiceException _environmentResolutionFailed({
+    required CockpitRemoteSessionClient client,
+    required CockpitRemoteSessionHandle? sessionHandle,
+    required int attempts,
+    required Object error,
+  }) {
+    return CockpitApplicationServiceException(
+      code: 'environmentResolutionFailed',
+      message: 'Failed to resolve environment from remote session health.',
+      details: <String, Object?>{
+        'baseUrl': client.baseUri.toString(),
+        'sessionHandle': sessionHandle?.toJson(),
+        'attempts': attempts,
+        'error': error.toString(),
+      },
+    );
+  }
+
+  bool _isRemoteUnavailable(Object error) =>
+      error is CockpitApplicationServiceException &&
+      error.code == 'remoteUnavailable';
 
   CockpitRecordingAdapter? _resolvedRecordingAdapter({
     required CockpitRemoteSessionClient client,
