@@ -54,8 +54,7 @@ final class CockpitLinuxRecordingAdapter
        _ffprobeProcessRunner = ffprobeProcessRunner ?? processRunner,
        _tempFileFactory = tempFileFactory,
        _displayConfigResolver =
-           displayConfigResolver ??
-           (() => _resolveDisplayConfig(processRunner)),
+           displayConfigResolver ?? (() => resolveDisplayConfig(processRunner)),
        _windowTargetResolver = windowTargetResolver,
        _startupTimeout = startupTimeout,
        _commandTimeout = commandTimeout,
@@ -587,7 +586,7 @@ final class CockpitLinuxRecordingAdapter
     }
   }
 
-  static Future<CockpitLinuxDisplayConfig> _resolveDisplayConfig(
+  static Future<CockpitLinuxDisplayConfig> resolveDisplayConfig(
     CockpitRecordingProcessRunner? processRunner,
   ) async {
     final display = Platform.environment['DISPLAY'];
