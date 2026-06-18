@@ -70,7 +70,8 @@ void main() {
         .toList();
 
     expect(assertedTexts, contains('Fresh canvas'));
-    expect(assertedTexts, contains('No tasks yet'));
+    expect(assertedTexts, contains('Create task'));
+    expect(assertedTexts, isNot(contains('No tasks yet')));
     expect(assertedTexts, isNot(contains('Queue brief:')));
   });
 

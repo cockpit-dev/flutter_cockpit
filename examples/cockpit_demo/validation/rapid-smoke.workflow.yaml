@@ -36,10 +36,10 @@ steps:
         commandType: assertText
         parameters:
           text: Fresh canvas
-  - stepId: assert-empty-message
+  - stepId: assert-empty-action
     stepType: command
     command:
-      commandId: assert-empty-message
+      commandId: assert-empty-action
       commandType: assertText
       parameters:
-        text: No tasks yet
+        text: Create task
