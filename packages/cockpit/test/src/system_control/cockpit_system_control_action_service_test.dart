@@ -2750,6 +2750,39 @@ void main() {
     ]);
   });
 
+  test(
+    'ios simulator readSystemState retries transient CoreSimulator timeouts',
+    () async {
+      final processManager = _TransientHangingProcessManager();
+      final service = CockpitSystemControlActionService(
+        processManager: processManager,
+      );
+
+      final result = await service.run(
+        const CockpitSystemControlActionRequest(
+          platform: 'ios',
+          deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+          action: CockpitSystemControlAction.readSystemState,
+          timeout: Duration(milliseconds: 1),
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(result.errorCode, isNull);
+      expect(processManager.starts, hasLength(2));
+      expect(
+        processManager.starts.map((start) => start.arguments).toList(),
+        everyElement(<String>[
+          'simctl',
+          'list',
+          '-j',
+          'devices',
+          '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+        ]),
+      );
+    },
+  );
+
   test('ios simulator setClipboard writes through simctl pbcopy', () async {
     final processManager = _FakeProcessManager();
     final service = CockpitSystemControlActionService(
@@ -3993,6 +4026,45 @@ final class _HangingProcessManager implements CockpitProcessManager {
     ProcessStartMode mode = ProcessStartMode.normal,
   }) async {
     return _HangingManagedProcess();
+  }
+}
+
+final class _TransientHangingProcessManager implements CockpitProcessManager {
+  final starts = <_StartedProcess>[];
+
+  @override
+  Future<ProcessResult> run(
+    String executable,
+    List<String> arguments, {
+    String? workingDirectory,
+    Map<String, String>? environment,
+    bool includeParentEnvironment = true,
+    bool runInShell = false,
+    Encoding? stdoutEncoding,
+    Encoding? stderrEncoding,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Process> start(
+    String executable,
+    List<String> arguments, {
+    String? workingDirectory,
+    Map<String, String>? environment,
+    bool includeParentEnvironment = true,
+    bool runInShell = false,
+    ProcessStartMode mode = ProcessStartMode.normal,
+  }) async {
+    starts.add(
+      _StartedProcess(
+        executable: executable,
+        arguments: List<String>.unmodifiable(arguments),
+      ),
+    );
+    return starts.length == 1
+        ? _HangingManagedProcess()
+        : _FakeManagedProcess();
   }
 }
 

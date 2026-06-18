@@ -162,82 +162,7 @@ final class CockpitSystemControlActionService {
       return _runIosWebDriverAgentCommand(request, capability, command);
     }
 
-    final ProcessResult processResult;
-    try {
-      processResult = await cockpitRunManagedProcessWithTimeout(
-        _processManager,
-        command.executable!,
-        command.arguments,
-        timeout: request.timeout,
-      );
-    } on CockpitManagedProcessTimeoutException catch (error) {
-      return CockpitSystemControlActionResult(
-        platform: request.platform,
-        deviceId: request.deviceId,
-        appId: request.appId,
-        processId: request.processId,
-        action: request.action,
-        availability: capability.availability,
-        success: false,
-        command: <String>[command.executable!, ...command.arguments],
-        stdout: error.stdout.trimRight(),
-        stderr: error.stderr.trimRight(),
-        recommendedNextStep: 'inspectShellFailure',
-        strategy: capability.strategy,
-        requires: capability.requires,
-        limitations: capability.limitations,
-        errorCode: 'systemActionTimedOut',
-        errorMessage:
-            'System action command timed out after ${error.duration.inMilliseconds}ms.',
-      );
-    } on Object catch (error) {
-      return CockpitSystemControlActionResult(
-        platform: request.platform,
-        deviceId: request.deviceId,
-        appId: request.appId,
-        processId: request.processId,
-        action: request.action,
-        availability: capability.availability,
-        success: false,
-        command: <String>[command.executable!, ...command.arguments],
-        recommendedNextStep: 'inspectShellFailure',
-        strategy: capability.strategy,
-        requires: capability.requires,
-        limitations: capability.limitations,
-        errorCode: 'systemActionProcessFailed',
-        errorMessage: _describeSystemControlError(error),
-      );
-    }
-    final exitCode = processResult.exitCode;
-    final success = exitCode == 0;
-    return CockpitSystemControlActionResult(
-      platform: request.platform,
-      deviceId: request.deviceId,
-      appId: request.appId,
-      processId: request.processId,
-      action: request.action,
-      availability: capability.availability,
-      success: success,
-      command: <String>[command.executable!, ...command.arguments],
-      exitCode: exitCode,
-      stdout: '${processResult.stdout}'.trimRight(),
-      stderr: '${processResult.stderr}'.trimRight(),
-      recommendedNextStep: success
-          ? _recommendedNextStepAfterSuccess(request.action)
-          : 'inspectShellFailure',
-      strategy: capability.strategy,
-      requires: capability.requires,
-      limitations: _limitationsAfterSuccess(
-        platform: request.platform,
-        action: request.action,
-        success: success,
-        limitations: capability.limitations,
-      ),
-      errorCode: success ? null : 'systemActionFailed',
-      errorMessage: success
-          ? null
-          : 'System action command exited with $exitCode.',
-    );
+    return _runProcessCommand(request, capability, command);
   }
 
   Future<CockpitSystemControlActionResult> _preparePermissions(
@@ -1084,14 +1009,31 @@ final class CockpitSystemControlActionService {
     if (command.executable == cockpitIosWdaCommandExecutable) {
       return _runIosWebDriverAgentCommand(request, capability, command);
     }
-    final ProcessResult processResult;
+    return _runProcessCommand(request, capability, command);
+  }
+
+  Future<CockpitSystemControlActionResult> _runProcessCommand(
+    CockpitSystemControlActionRequest request,
+    CockpitSystemControlCapability capability,
+    CockpitResolvedSystemControlCommand command,
+  ) async {
+    late final ProcessResult processResult;
     try {
-      processResult = await cockpitRunManagedProcessWithTimeout(
-        _processManager,
-        command.executable!,
-        command.arguments,
-        timeout: request.timeout,
-      );
+      for (var attempt = 0; ; attempt += 1) {
+        try {
+          processResult = await cockpitRunManagedProcessWithTimeout(
+            _processManager,
+            command.executable!,
+            command.arguments,
+            timeout: request.timeout,
+          );
+          break;
+        } on CockpitManagedProcessTimeoutException {
+          if (attempt + 1 >= _timeoutAttemptLimit(request)) {
+            rethrow;
+          }
+        }
+      }
     } on CockpitManagedProcessTimeoutException catch (error) {
       return CockpitSystemControlActionResult(
         platform: request.platform,
@@ -1161,6 +1103,19 @@ final class CockpitSystemControlActionService {
           : 'System action command exited with $exitCode.',
     );
   }
+}
+
+int _timeoutAttemptLimit(CockpitSystemControlActionRequest request) {
+  if (request.platform != 'ios') {
+    return 1;
+  }
+  return switch (request.action) {
+    CockpitSystemControlAction.readSystemState ||
+    CockpitSystemControlAction.readDeviceInfo ||
+    CockpitSystemControlAction.readProcessList ||
+    CockpitSystemControlAction.readSystemLogs => 2,
+    _ => 1,
+  };
 }
 
 final class _SystemMacroStep {
