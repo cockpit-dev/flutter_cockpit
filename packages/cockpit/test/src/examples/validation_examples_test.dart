@@ -91,6 +91,27 @@ void main() {
     );
   });
 
+  test(
+    'platform capability workflow avoids installing recommended apt payloads',
+    () {
+      final workflow = File(
+        p.join(
+          repoRoot.path,
+          '.github',
+          'workflows',
+          'platform-capabilities.yml',
+        ),
+      ).readAsStringSync();
+
+      expect(workflow, contains('DEBIAN_FRONTEND: noninteractive'));
+      expect(
+        workflow,
+        contains('sudo apt-get install -y --no-install-recommends'),
+      );
+      expect(workflow, isNot(contains('sudo apt-get install -y ffmpeg x11')));
+    },
+  );
+
   test('adaptive example exercises branch and loop workflow nodes', () {
     final script = cockpitControlScriptFromText(
       File(
