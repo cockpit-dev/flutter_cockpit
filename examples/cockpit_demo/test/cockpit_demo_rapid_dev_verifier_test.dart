@@ -239,7 +239,10 @@ void main() {
         '/editor',
       );
       expect(firstBatchLocators['rapid-reveal-today']!.text, 'Today');
-      expect(firstBatchLocators['rapid-reveal-today']!.semanticId, isNull);
+      expect(
+        firstBatchLocators['rapid-reveal-today']!.semanticId,
+        'task-editor-due-today',
+      );
       expect(
         firstBatchLocators['rapid-select-today']!.semanticId,
         'task-editor-due-today',
