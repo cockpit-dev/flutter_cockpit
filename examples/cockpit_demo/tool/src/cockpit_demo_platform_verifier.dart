@@ -89,8 +89,8 @@ const List<String> cockpitDemoSupportedVerificationPlatforms = <String>[
   'windows',
 ];
 
-const int cockpitDemoExpectedBatchCommandCount = 32;
-const int cockpitDemoMinimumAutoScreenshotCount = 19;
+const int cockpitDemoExpectedBatchCommandCount = 31;
+const int cockpitDemoMinimumAutoScreenshotCount = 18;
 const CockpitInteractiveResultProfile _artifactEvidenceProfile =
     CockpitInteractiveResultProfile(
       name: CockpitInteractiveResultProfileName.standard,
@@ -758,7 +758,7 @@ final class CockpitDemoPlatformVerifier {
       await _requireBatchSuccess(
         platform: platform,
         result: batchResult,
-        expectedCount: 9,
+        expectedCount: 8,
         outputDir: outputDir,
       );
       autoScreenshotCount += _autoScreenshotCount(batchResult);

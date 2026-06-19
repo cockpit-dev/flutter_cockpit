@@ -710,7 +710,6 @@ void main() {
         CockpitCommandType.waitFor,
         CockpitCommandType.enterText,
         CockpitCommandType.scrollUntilVisible,
-        CockpitCommandType.tap,
         CockpitCommandType.enterText,
         CockpitCommandType.tap,
         CockpitCommandType.waitFor,
@@ -728,7 +727,7 @@ void main() {
           CockpitCommandType.waitFor,
         ]),
       );
-      expect(batchedCommandTypes.length, 192);
+      expect(batchedCommandTypes.length, 186);
       expect(batchRequests, hasLength(30));
       final firstBatchCommands = batchRequests.first.commands
           .map((batchCommand) => batchCommand.command)
@@ -764,25 +763,25 @@ void main() {
       expect(firstBatchCommands[4].locator?.text, 'Notes');
       expect(firstBatchCommands[4].locator?.route, '/editor');
       expect(firstBatchCommands[4].locator?.ancestor?.route, '/editor');
-      expect(firstBatchCommands[5].commandId, 'verify-focus-task-notes');
-      expect(firstBatchCommands[5].locator?.text, 'Notes');
-      expect(firstBatchCommands[5].locator?.type, isNull);
-      expect(firstBatchCommands[5].locator?.ancestor?.route, '/editor');
-      expect(firstBatchCommands[6].commandId, 'verify-enter-task-notes');
-      expect(firstBatchCommands[6].locator?.text, 'Notes');
-      expect(firstBatchCommands[6].locator?.type, 'TextField');
-      expect(firstBatchCommands[6].locator?.ancestor?.route, '/editor');
-      expect(firstBatchCommands[7].locator?.text, 'Save task');
-      expect(firstBatchCommands[7].locator?.ancestor?.route, '/editor');
-      expect(firstBatchCommands[7].commandId, 'verify-save-task');
-      expect(firstBatchCommands[7].parameters['expectedRouteName'], '/inbox');
-      expect(firstBatchCommands[7].parameters['routeTimeoutMs'], 3000);
       expect(
-        firstBatchCommands[8].commandId,
+        firstBatchCommands.map((command) => command.commandId),
+        isNot(contains('verify-focus-task-notes')),
+      );
+      expect(firstBatchCommands[5].commandId, 'verify-enter-task-notes');
+      expect(firstBatchCommands[5].locator?.text, 'Notes');
+      expect(firstBatchCommands[5].locator?.type, 'TextField');
+      expect(firstBatchCommands[5].locator?.ancestor?.route, '/editor');
+      expect(firstBatchCommands[6].locator?.text, 'Save task');
+      expect(firstBatchCommands[6].locator?.ancestor?.route, '/editor');
+      expect(firstBatchCommands[6].commandId, 'verify-save-task');
+      expect(firstBatchCommands[6].parameters['expectedRouteName'], '/inbox');
+      expect(firstBatchCommands[6].parameters['routeTimeoutMs'], 3000);
+      expect(
+        firstBatchCommands[7].commandId,
         'verify-wait-for-inbox-route-after-save',
       );
-      expect(firstBatchCommands[8].commandType, CockpitCommandType.waitFor);
-      expect(firstBatchCommands[8].parameters['routeName'], '/inbox');
+      expect(firstBatchCommands[7].commandType, CockpitCommandType.waitFor);
+      expect(firstBatchCommands[7].parameters['routeName'], '/inbox');
       final syncLabBatchCommands = batchRequests[1].commands
           .map((batchCommand) => batchCommand.command.commandId)
           .toList(growable: false);
@@ -861,15 +860,15 @@ void main() {
       );
       expect(
         result.platforms.map((platform) => platform.batchCommandCount),
-        everyElement(32),
+        everyElement(31),
       );
       expect(
         result.platforms.map((platform) => platform.autoScreenshotCount),
-        everyElement(greaterThanOrEqualTo(19)),
+        everyElement(greaterThanOrEqualTo(18)),
       );
       expect(
         result.platforms.map((platform) => platform.exportedScreenshotCount),
-        everyElement(greaterThanOrEqualTo(19)),
+        everyElement(greaterThanOrEqualTo(18)),
       );
       expect(
         result.platforms.map((platform) => platform.networkFailureCount),
@@ -2422,7 +2421,7 @@ void main() {
       failedPlatform.failureDetails,
       containsPair('commandType', 'waitFor'),
     );
-    expect(failedPlatform.failureDetails, containsPair('expectedCount', 9));
+    expect(failedPlatform.failureDetails, containsPair('expectedCount', 8));
     expect(
       failedPlatform.failureDetails['error'],
       containsPair('code', CockpitCommandError.timeoutCode),

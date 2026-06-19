@@ -30,7 +30,7 @@ void main() {
       taskTitle: 'Cockpit demo sync conflict 42',
     );
 
-    expect(commands, hasLength(9));
+    expect(commands, hasLength(8));
     expect(commands[0]['commandId'], 'verify-open-editor');
     expect(commands[0]['commandType'], 'tap');
     expect(commands[0]['locator'], <String, Object?>{
@@ -89,30 +89,29 @@ void main() {
       'durationPerStepMs': 180,
       'revealAlignment': 'center',
     });
-    expect(commands[5]['commandId'], 'verify-focus-task-notes');
+    expect(
+      commands.map((command) => command['commandId']),
+      isNot(contains('verify-focus-task-notes')),
+    );
+    expect(commands[5]['commandId'], 'verify-enter-task-notes');
     expect(commands[5]['locator'], <String, Object?>{
-      'text': 'Notes',
-      'ancestor': <String, Object?>{'route': '/editor'},
-    });
-    expect(commands[6]['commandId'], 'verify-enter-task-notes');
-    expect(commands[6]['locator'], <String, Object?>{
       'text': 'Notes',
       'type': 'TextField',
       'ancestor': <String, Object?>{'route': '/editor'},
     });
-    expect(commands[7]['commandId'], 'verify-save-task');
-    expect(commands[7]['locator'], <String, Object?>{
+    expect(commands[6]['commandId'], 'verify-save-task');
+    expect(commands[6]['locator'], <String, Object?>{
       'text': 'Save task',
       'ancestor': <String, Object?>{'route': '/editor'},
     });
-    expect(commands[7]['parameters'], <String, Object?>{
+    expect(commands[6]['parameters'], <String, Object?>{
       'expectedRouteName': '/inbox',
       'routeTimeoutMs': 3000,
     });
-    expect(commands[8]['commandId'], 'verify-wait-for-inbox-route-after-save');
-    expect(commands[8]['commandType'], 'waitFor');
-    expect(commands[8]['timeoutMs'], 12000);
-    expect(commands[8]['parameters'], <String, Object?>{'routeName': '/inbox'});
+    expect(commands[7]['commandId'], 'verify-wait-for-inbox-route-after-save');
+    expect(commands[7]['commandType'], 'waitFor');
+    expect(commands[7]['timeoutMs'], 12000);
+    expect(commands[7]['parameters'], <String, Object?>{'routeName': '/inbox'});
   });
 
   test('route transitions wait for the first interactive target', () {
