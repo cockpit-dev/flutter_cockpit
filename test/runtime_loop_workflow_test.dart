@@ -19,6 +19,9 @@ void main() {
   final rapidDevVerifierFile = File(
     '$root/examples/cockpit_demo/tool/verify_rapid_dev.dart',
   );
+  final androidVerifierScriptFile = File(
+    '$root/.github/scripts/run-android-verifier.sh',
+  );
 
   test('runtime loop workflow uses full verifier coverage on every platform', () {
     final workflow = workflowFile.readAsStringSync();
@@ -50,11 +53,16 @@ void main() {
     expect(workflow, contains('linux-runtime-loop:'));
     expect(workflow, contains('windows-runtime-loop:'));
 
+    final androidVerifierScript = androidVerifierScriptFile.readAsStringSync();
     expect(
-      workflow,
-      contains('dart run tool/verify_platforms.dart --platform android'),
+      androidVerifierScript,
+      contains('dart run tool/verify_platforms.dart'),
     );
-    expect(workflow, contains(r'--launch-timeout-seconds 600 >"$LOG_PATH"'));
+    expect(androidVerifierScript, contains('--platform android'));
+    expect(
+      androidVerifierScript,
+      contains('--launch-timeout-seconds "\$LAUNCH_TIMEOUT_SECONDS"'),
+    );
     expect(
       workflow,
       contains('dart run tool/verify_platforms.dart --platform ios'),
@@ -542,8 +550,51 @@ void main() {
       'Run rapid-dev verifier (Android)',
     );
     expect(androidVerifierBlock, isNot(contains('pipefail')));
-    expect(androidVerifierBlock, contains(r'STATUS=$?'));
-    expect(androidVerifierBlock, contains(r'cat "$LOG_PATH"'));
+    expect(
+      androidVerifierBlock,
+      contains(
+        'script: bash "\$GITHUB_WORKSPACE/.github/scripts/run-android-verifier.sh" rapid-dev',
+      ),
+    );
+  });
+
+  test('android emulator runner steps use single-shell repository scripts', () {
+    final androidVerifierScript = androidVerifierScriptFile.readAsStringSync();
+
+    expect(androidVerifierScript, contains('cd "\$PROJECT_DIR"'));
+    expect(androidVerifierScript, contains('STATUS=\$?'));
+    expect(androidVerifierScript, contains('cat "\$LOG_PATH"'));
+    expect(androidVerifierScript, contains('platform-capabilities)'));
+    expect(androidVerifierScript, contains('runtime-loop)'));
+    expect(androidVerifierScript, contains('rapid-dev)'));
+
+    final workflowSteps = <String, String>{
+      'runtime-loop': _workflowStepBlock(
+        workflowFile.readAsStringSync(),
+        'Run Android full verifier',
+      ),
+      'example-e2e': _workflowStepBlock(
+        exampleE2eWorkflowFile.readAsStringSync(),
+        'Run rapid-dev verifier (Android)',
+      ),
+      'platform-capabilities': _workflowStepBlock(
+        platformCapabilitiesWorkflowFile.readAsStringSync(),
+        'Run exhaustive capability verifier (Android)',
+      ),
+    };
+
+    for (final entry in workflowSteps.entries) {
+      expect(
+        entry.value,
+        contains(
+          'script: bash "\$GITHUB_WORKSPACE/.github/scripts/run-android-verifier.sh"',
+        ),
+        reason:
+            '${entry.key} must run Android verifier logic inside one bash process because android-emulator-runner executes inline script lines independently.',
+      );
+      expect(entry.value, isNot(contains('cd "\$GITHUB_WORKSPACE')));
+      expect(entry.value, isNot(contains('dart run tool/verify_')));
+    }
   });
 
   test('workflow artifact uploads cannot mask verifier results', () {
