@@ -44,6 +44,8 @@ typedef CockpitPlatformAppIdResolver =
       required String platform,
       String? flavor,
     });
+typedef CockpitDevelopmentMachineDiagnosticLogger =
+    FutureOr<void> Function(String message);
 
 final class CockpitLaunchDevelopmentMachineSessionRequest {
   const CockpitLaunchDevelopmentMachineSessionRequest({
@@ -115,6 +117,7 @@ final class CockpitDevelopmentSessionMachineLauncher {
         _resolveIosPhysicalAppBundlePath,
     CockpitPlatformAppIdResolver platformAppIdResolver =
         cockpitResolvePlatformAppId,
+    CockpitDevelopmentMachineDiagnosticLogger? diagnosticLogger,
     Future<void> Function(Duration duration)? delay,
     DateTime Function()? now,
   }) : _machineClientStarter =
@@ -128,6 +131,7 @@ final class CockpitDevelopmentSessionMachineLauncher {
        _iosFallbackBundleIdResolver = iosFallbackBundleIdResolver,
        _iosFallbackAppBundlePathResolver = iosFallbackAppBundlePathResolver,
        _platformAppIdResolver = platformAppIdResolver,
+       _diagnosticLogger = diagnosticLogger,
        _delay = delay ?? Future<void>.delayed,
        _now = now ?? DateTime.now;
 
@@ -140,6 +144,7 @@ final class CockpitDevelopmentSessionMachineLauncher {
   final CockpitIosFallbackAppBundlePathResolver
   _iosFallbackAppBundlePathResolver;
   final CockpitPlatformAppIdResolver _platformAppIdResolver;
+  final CockpitDevelopmentMachineDiagnosticLogger? _diagnosticLogger;
   final Future<void> Function(Duration duration) _delay;
   final DateTime Function() _now;
 
@@ -251,6 +256,10 @@ final class CockpitDevelopmentSessionMachineLauncher {
         : request.hostPort;
     final publicHost = endpoint.publicHost;
     final baseUri = Uri(scheme: 'http', host: publicHost, port: hostPort);
+    await _logDiagnostic(
+      'remote_status_probe begin platform=${request.platform} '
+      'base_url=$baseUri host_port=$hostPort device_port=${request.sessionPort}',
+    );
     final effectiveDeadline = deadline ?? _now().add(request.launchTimeout);
     late final CockpitRemoteSessionStatus status;
     late final String appId;
@@ -415,21 +424,41 @@ final class CockpitDevelopmentSessionMachineLauncher {
     Duration pollInterval = const Duration(milliseconds: 500),
   }) async {
     String? lastRejectedStatus;
+    Object? lastProbeError;
+    var probeAttempts = 0;
     while (true) {
       final remaining = deadline.difference(_now());
       if (remaining <= Duration.zero) {
         break;
       }
+      probeAttempts += 1;
       try {
         final status = await _statusReader(baseUri).timeout(remaining);
         if (_remoteStatusMatchesRequest(request: request, status: status)) {
+          await _logDiagnostic(
+            'remote_status_probe ready base_url=$baseUri '
+            'attempt=$probeAttempts platform=${status.platform} '
+            'session_id=${status.sessionId}',
+          );
           return status;
         }
         lastRejectedStatus =
             'platform=${status.platform}, expected=${request.platform}, '
             'sessionId=${status.sessionId}, '
             'expectedSessionId=${request.launchId ?? ''}';
-      } on Object {
+        await _logDiagnostic(
+          'remote_status_probe rejected base_url=$baseUri '
+          'attempt=$probeAttempts ${_compactDiagnostic(lastRejectedStatus)}',
+        );
+      } on Object catch (error) {
+        lastProbeError = error;
+        if (_shouldLogRemoteProbeFailure(probeAttempts, error)) {
+          await _logDiagnostic(
+            'remote_status_probe failed base_url=$baseUri '
+            'attempt=$probeAttempts error=${_compactDiagnostic(error)}'
+            '${_machineDiagnosticsSuffix(machineClient)}',
+          );
+        }
         final exitError = _machineExitError(
           request: request,
           machineClient: machineClient,
@@ -455,6 +484,13 @@ final class CockpitDevelopmentSessionMachineLauncher {
     }
     final exitCode = machineClient.lastExitCode;
     final diagnostics = machineClient.recentDiagnosticSummary;
+    await _logDiagnostic(
+      'remote_status_probe timed_out base_url=$baseUri attempts=$probeAttempts'
+      '${lastProbeError == null ? '' : ' last_error=${_compactDiagnostic(lastProbeError)}'}'
+      '${lastRejectedStatus == null ? '' : ' last_rejected=${_compactDiagnostic(lastRejectedStatus)}'}'
+      '${exitCode == null ? '' : ' machine_exit_code=$exitCode'}'
+      '${diagnostics.isEmpty ? '' : ' diagnostics=${_compactDiagnostic(diagnostics)}'}',
+    );
     final suffix = exitCode == null
         ? ''
         : diagnostics.isEmpty
@@ -466,6 +502,41 @@ final class CockpitDevelopmentSessionMachineLauncher {
       '${lastRejectedStatus == null ? '' : ' (last rejected health: $lastRejectedStatus)'}.',
       deadline.difference(_now()),
     );
+  }
+
+  bool _shouldLogRemoteProbeFailure(int attempt, Object error) {
+    if (attempt <= 3) {
+      return true;
+    }
+    if (attempt % 20 == 0) {
+      return true;
+    }
+    final message = '$error'.toLowerCase();
+    return !message.contains('connection refused');
+  }
+
+  String _machineDiagnosticsSuffix(CockpitFlutterRunMachineClient client) {
+    final diagnostics = client.recentDiagnosticSummary;
+    if (diagnostics.isEmpty) {
+      return '';
+    }
+    return ' diagnostics=${_compactDiagnostic(diagnostics)}';
+  }
+
+  String _compactDiagnostic(Object? value, {int maxLength = 600}) {
+    final text = '$value'.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (text.length <= maxLength) {
+      return text;
+    }
+    return '${text.substring(0, maxLength)}...';
+  }
+
+  Future<void> _logDiagnostic(String message) async {
+    final logger = _diagnosticLogger;
+    if (logger == null) {
+      return;
+    }
+    await logger(message);
   }
 
   bool _remoteStatusMatchesRequest({

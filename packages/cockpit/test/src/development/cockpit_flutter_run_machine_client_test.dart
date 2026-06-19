@@ -205,6 +205,37 @@ void main() {
     );
   });
 
+  test('non-machine stdout lines are retained in recent diagnostics', () async {
+    final stdoutController = StreamController<String>();
+    final stderrController = StreamController<String>();
+    final exitCode = Completer<int>();
+
+    final client = CockpitFlutterRunMachineClient(
+      stdoutLines: stdoutController.stream,
+      stderrLines: stderrController.stream,
+      exitCode: exitCode.future,
+      requestWriter: (_) async {},
+    );
+    addTearDown(() async {
+      await stdoutController.close();
+      await stderrController.close();
+      if (!exitCode.isCompleted) {
+        exitCode.complete(0);
+      }
+      await client.dispose();
+    });
+
+    stdoutController.add(
+      'flutter_cockpit remote session startup failed: SocketException',
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    expect(
+      client.recentDiagnosticSummary,
+      contains('flutter_cockpit remote session startup failed'),
+    );
+  });
+
   test('dispose runs the owned process shutdown hook', () async {
     final stdoutController = StreamController<String>();
     final stderrController = StreamController<String>();

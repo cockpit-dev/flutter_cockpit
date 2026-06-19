@@ -79,6 +79,7 @@ Future<void> main(List<String> args) async {
     final portForwarder = const CockpitAndroidPortForwarder();
     final machineLauncher = CockpitDevelopmentSessionMachineLauncher(
       portForwarder: portForwarder,
+      diagnosticLogger: writeLog,
     );
     final machineLaunchRequest = CockpitLaunchDevelopmentMachineSessionRequest(
       projectDir: projectDir,

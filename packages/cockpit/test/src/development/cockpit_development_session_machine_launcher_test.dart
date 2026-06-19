@@ -922,6 +922,77 @@ void main() {
   );
 
   test(
+    'development machine launcher logs remote-health probe failures before timeout',
+    () async {
+      final stdoutController = StreamController<String>();
+      final stderrController = StreamController<String>();
+      final exitCode = Completer<int>();
+      final diagnosticLog = <String>[];
+      var now = DateTime.utc(2026, 4, 4, 21);
+
+      final launcher = CockpitDevelopmentSessionMachineLauncher(
+        machineClientStarter:
+            ({
+              required projectDir,
+              required target,
+              required deviceId,
+              flavor,
+              flutterExecutable,
+              extraArgs = const <String>[],
+            }) async {
+              final client = CockpitFlutterRunMachineClient(
+                stdoutLines: stdoutController.stream,
+                stderrLines: stderrController.stream,
+                exitCode: exitCode.future,
+                requestWriter: (_) async {},
+              );
+              stdoutController.add(
+                '[{"event":"app.start","params":{"appId":"app-1"}}]',
+              );
+              return client;
+            },
+        statusReader: (_) async => throw StateError('connection refused'),
+        portForwarder: const _RecordingPortForwarder(58331),
+        diagnosticLogger: diagnosticLog.add,
+        delay: (duration) async {
+          now = now.add(duration);
+          await Future<void>.delayed(Duration.zero);
+        },
+        now: () => now,
+      );
+      addTearDown(() async {
+        await stdoutController.close();
+        await stderrController.close();
+        if (!exitCode.isCompleted) {
+          exitCode.complete(0);
+        }
+      });
+
+      await expectLater(
+        () => launcher.launch(
+          const CockpitLaunchDevelopmentMachineSessionRequest(
+            projectDir: '/workspace/examples/cockpit_demo',
+            target: 'cockpit/main.dart',
+            platform: 'android',
+            deviceId: 'emulator-5554',
+            sessionPort: 47331,
+            hostPort: 57331,
+            launchTimeout: Duration(milliseconds: 120),
+            flutterVersion: '3.39.0',
+            flutterExecutable: '/opt/flutter/bin/flutter',
+          ),
+        ),
+        throwsA(isA<TimeoutException>()),
+      );
+
+      final joinedLog = diagnosticLog.join('\n');
+      expect(joinedLog, contains('remote_status_probe failed'));
+      expect(joinedLog, contains('base_url=http://127.0.0.1:58331'));
+      expect(joinedLog, contains('remote_status_probe timed_out'));
+    },
+  );
+
+  test(
     'development machine launcher enforces the launch timeout on a hanging remote-health probe',
     () async {
       final launcher = CockpitDevelopmentSessionMachineLauncher(

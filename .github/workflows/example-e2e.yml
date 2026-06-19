@@ -124,6 +124,7 @@ jobs:
           OUTPUT_ROOT: ${{ runner.temp }}/rapid-dev-macos-ios-out
           RESULT_JSON: ${{ runner.temp }}/rapid-dev-macos-ios.json
           LOG_PATH: ${{ runner.temp }}/rapid-dev-macos-ios.log
+          FLUTTER_COCKPIT_SUPERVISOR_LOG_DIR: ${{ runner.temp }}/rapid-dev-macos-ios-out/supervisor-logs
         run: |
           set +e
           set -o pipefail
@@ -146,9 +147,17 @@ jobs:
         env:
           RESULT_JSON: ${{ runner.temp }}/rapid-dev-macos-ios.json
           LOG_PATH: ${{ runner.temp }}/rapid-dev-macos-ios.log
+          FLUTTER_COCKPIT_SUPERVISOR_LOG_DIR: ${{ runner.temp }}/rapid-dev-macos-ios-out/supervisor-logs
         run: |
           [ -f "$LOG_PATH" ] && cat "$LOG_PATH" || true
           [ -f "$RESULT_JSON" ] && cat "$RESULT_JSON" || true
+          if [ -d "$FLUTTER_COCKPIT_SUPERVISOR_LOG_DIR" ]; then
+            for file in "$FLUTTER_COCKPIT_SUPERVISOR_LOG_DIR"/*.log; do
+              [ -f "$file" ] || continue
+              printf '%s\n' "$file"
+              tail -n 160 "$file" || true
+            done
+          fi
 
       - name: Verify rapid-dev result
         env:
@@ -244,6 +253,7 @@ jobs:
           OUTPUT_ROOT: ${{ runner.temp }}/rapid-dev-android-out
           RESULT_JSON: ${{ runner.temp }}/rapid-dev-android.json
           LOG_PATH: ${{ runner.temp }}/rapid-dev-android.log
+          FLUTTER_COCKPIT_SUPERVISOR_LOG_DIR: ${{ runner.temp }}/rapid-dev-android-out/supervisor-logs
         with:
           api-level: 34
           arch: x86_64
@@ -252,17 +262,18 @@ jobs:
           emulator-options: >-
             -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot-save
             -camera-back none -camera-front none
-          script: >-
-            set -e;
-            adb devices;
-            cd "$GITHUB_WORKSPACE/examples/cockpit_demo";
-            dart run tool/verify_rapid_dev.dart --platform android
-            --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo"
-            --output-root "$OUTPUT_ROOT"
-            --output "$RESULT_JSON"
-            --output-format json
-            --android-emulator-id "Pixel_9_Pro"
-            --launch-timeout-seconds 600
+          script: |
+            set -eo pipefail
+            adb devices
+            cd "$GITHUB_WORKSPACE/examples/cockpit_demo"
+            dart run tool/verify_rapid_dev.dart \
+            --platform android \
+            --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo" \
+            --output-root "$OUTPUT_ROOT" \
+            --output "$RESULT_JSON" \
+            --output-format json \
+            --android-emulator-id "Pixel_9_Pro" \
+            --launch-timeout-seconds 600 \
             --device-timeout-seconds 600 2>&1 | tee "$LOG_PATH"
 
       - name: Print diagnostics
@@ -270,9 +281,17 @@ jobs:
         env:
           RESULT_JSON: ${{ runner.temp }}/rapid-dev-android.json
           LOG_PATH: ${{ runner.temp }}/rapid-dev-android.log
+          FLUTTER_COCKPIT_SUPERVISOR_LOG_DIR: ${{ runner.temp }}/rapid-dev-android-out/supervisor-logs
         run: |
           [ -f "$LOG_PATH" ] && cat "$LOG_PATH" || true
           [ -f "$RESULT_JSON" ] && cat "$RESULT_JSON" || true
+          if [ -d "$FLUTTER_COCKPIT_SUPERVISOR_LOG_DIR" ]; then
+            for file in "$FLUTTER_COCKPIT_SUPERVISOR_LOG_DIR"/*.log; do
+              [ -f "$file" ] || continue
+              printf '%s\n' "$file"
+              tail -n 160 "$file" || true
+            done
+          fi
 
       - name: Verify rapid-dev Android result
         env:
@@ -350,6 +369,7 @@ jobs:
           OUTPUT_ROOT: ${{ runner.temp }}/rapid-dev-web-out
           RESULT_JSON: ${{ runner.temp }}/rapid-dev-web.json
           LOG_PATH: ${{ runner.temp }}/rapid-dev-web.log
+          FLUTTER_COCKPIT_SUPERVISOR_LOG_DIR: ${{ runner.temp }}/rapid-dev-web-out/supervisor-logs
         run: |
           set +e
           set -o pipefail
@@ -370,9 +390,17 @@ jobs:
         env:
           RESULT_JSON: ${{ runner.temp }}/rapid-dev-web.json
           LOG_PATH: ${{ runner.temp }}/rapid-dev-web.log
+          FLUTTER_COCKPIT_SUPERVISOR_LOG_DIR: ${{ runner.temp }}/rapid-dev-web-out/supervisor-logs
         run: |
           [ -f "$LOG_PATH" ] && cat "$LOG_PATH" || true
           [ -f "$RESULT_JSON" ] && cat "$RESULT_JSON" || true
+          if [ -d "$FLUTTER_COCKPIT_SUPERVISOR_LOG_DIR" ]; then
+            for file in "$FLUTTER_COCKPIT_SUPERVISOR_LOG_DIR"/*.log; do
+              [ -f "$file" ] || continue
+              printf '%s\n' "$file"
+              tail -n 160 "$file" || true
+            done
+          fi
 
       - name: Verify rapid-dev web result
         env:
@@ -469,6 +497,7 @@ jobs:
           OUTPUT_ROOT: ${{ runner.temp }}/rapid-dev-linux-out
           RESULT_JSON: ${{ runner.temp }}/rapid-dev-linux.json
           LOG_PATH: ${{ runner.temp }}/rapid-dev-linux.log
+          FLUTTER_COCKPIT_SUPERVISOR_LOG_DIR: ${{ runner.temp }}/rapid-dev-linux-out/supervisor-logs
         run: |
           set +e
           set -o pipefail
@@ -489,9 +518,17 @@ jobs:
         env:
           RESULT_JSON: ${{ runner.temp }}/rapid-dev-linux.json
           LOG_PATH: ${{ runner.temp }}/rapid-dev-linux.log
+          FLUTTER_COCKPIT_SUPERVISOR_LOG_DIR: ${{ runner.temp }}/rapid-dev-linux-out/supervisor-logs
         run: |
           [ -f "$LOG_PATH" ] && cat "$LOG_PATH" || true
           [ -f "$RESULT_JSON" ] && cat "$RESULT_JSON" || true
+          if [ -d "$FLUTTER_COCKPIT_SUPERVISOR_LOG_DIR" ]; then
+            for file in "$FLUTTER_COCKPIT_SUPERVISOR_LOG_DIR"/*.log; do
+              [ -f "$file" ] || continue
+              printf '%s\n' "$file"
+              tail -n 160 "$file" || true
+            done
+          fi
 
       - name: Verify rapid-dev Linux result
         env:
@@ -564,6 +601,7 @@ jobs:
           OUTPUT_ROOT: ${{ runner.temp }}/rapid-dev-windows-out
           RESULT_JSON: ${{ runner.temp }}/rapid-dev-windows.json
           LOG_PATH: ${{ runner.temp }}/rapid-dev-windows.log
+          FLUTTER_COCKPIT_SUPERVISOR_LOG_DIR: ${{ runner.temp }}/rapid-dev-windows-out/supervisor-logs
         shell: pwsh
         run: |
           $ErrorActionPreference = "Continue"
@@ -581,10 +619,17 @@ jobs:
         env:
           RESULT_JSON: ${{ runner.temp }}/rapid-dev-windows.json
           LOG_PATH: ${{ runner.temp }}/rapid-dev-windows.log
+          FLUTTER_COCKPIT_SUPERVISOR_LOG_DIR: ${{ runner.temp }}/rapid-dev-windows-out/supervisor-logs
         shell: pwsh
         run: |
           if (Test-Path "$env:LOG_PATH") { Get-Content "$env:LOG_PATH" }
           if (Test-Path "$env:RESULT_JSON") { Get-Content "$env:RESULT_JSON" }
+          if (Test-Path "$env:FLUTTER_COCKPIT_SUPERVISOR_LOG_DIR") {
+            Get-ChildItem "$env:FLUTTER_COCKPIT_SUPERVISOR_LOG_DIR" -Filter '*.log' | ForEach-Object {
+              Write-Host $_.FullName
+              Get-Content $_.FullName -Tail 160
+            }
+          }
 
       - name: Verify rapid-dev Windows result
         env:
