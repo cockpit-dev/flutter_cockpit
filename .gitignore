@@ -28,7 +28,9 @@ coverage/
 .vscode/
 .fleet/
 .zed/
-.claude/
+.claude/*
+!.claude/skills/
+!.claude/skills/**
 *.iml
 # OS-generated junk
 .DS_Store
