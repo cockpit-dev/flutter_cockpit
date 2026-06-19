@@ -536,6 +536,14 @@ void main() {
     expect(webBlock, contains('assert data["success"] is True'));
     expect(webBlock, isNot(contains('known web gap')));
     expect(webBlock, isNot(contains('failureCode"] == "serverError"')));
+
+    final androidVerifierBlock = _workflowStepBlock(
+      workflow,
+      'Run rapid-dev verifier (Android)',
+    );
+    expect(androidVerifierBlock, isNot(contains('pipefail')));
+    expect(androidVerifierBlock, contains(r'STATUS=$?'));
+    expect(androidVerifierBlock, contains(r'cat "$LOG_PATH"'));
   });
 
   test('workflow artifact uploads cannot mask verifier results', () {
