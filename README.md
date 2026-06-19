@@ -58,6 +58,19 @@ Install the flutter-cockpit skill for the current AI host by following https://g
 
 Full host-specific instructions live in [`skills/flutter-cockpit/INSTALL.md`](skills/flutter-cockpit/INSTALL.md).
 
+## Agent Integrations
+
+Repo-local adapters are included for mainstream agents:
+
+- Codex plugin: [`plugins/codex/flutter-cockpit`](plugins/codex/flutter-cockpit)
+- Claude Code plugin: [`plugins/claude-code/flutter-cockpit`](plugins/claude-code/flutter-cockpit)
+- Cursor rule: [`.cursor/rules/flutter-cockpit.mdc`](.cursor/rules/flutter-cockpit.mdc)
+- Kiro steering: [`.kiro/steering/flutter-cockpit.md`](.kiro/steering/flutter-cockpit.md)
+- OpenCode/OMP skill: [`.agents/skills/flutter-cockpit`](.agents/skills/flutter-cockpit)
+- OpenCode config: [`opencode.json`](opencode.json)
+
+See [`docs/agent-integrations.md`](docs/agent-integrations.md) for plugin, rule, steering, skill, and MCP setup.
+
 ## Install MCP
 
 `flutter_cockpit` does not ship a separate MCP package. The MCP server is provided by `cockpit`.
@@ -164,6 +177,9 @@ Add a global config at `~/.config/opencode/opencode.json`, or add the same block
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
+  "instructions": [
+    "AGENTS.md"
+  ],
   "mcp": {
     "flutterCockpit": {
       "type": "local",

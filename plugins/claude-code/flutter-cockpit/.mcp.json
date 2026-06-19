@@ -1,0 +1,11 @@
+{
+  "flutter-cockpit": {
+    "type": "stdio",
+    "command": "dart",
+    "args": [
+      "run",
+      "cockpit",
+      "serve-mcp"
+    ]
+  }
+}

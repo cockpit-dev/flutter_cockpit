@@ -58,6 +58,19 @@ Install the flutter-cockpit skill for the current AI host by following https://g
 
 完整宿主侧说明见 [`skills/flutter-cockpit/INSTALL.md`](skills/flutter-cockpit/INSTALL.md)。
 
+## Agent 接入
+
+仓库已内置主流 Agent 的本地接入资产：
+
+- Codex plugin: [`plugins/codex/flutter-cockpit`](plugins/codex/flutter-cockpit)
+- Claude Code plugin: [`plugins/claude-code/flutter-cockpit`](plugins/claude-code/flutter-cockpit)
+- Cursor rule: [`.cursor/rules/flutter-cockpit.mdc`](.cursor/rules/flutter-cockpit.mdc)
+- Kiro steering: [`.kiro/steering/flutter-cockpit.md`](.kiro/steering/flutter-cockpit.md)
+- OpenCode/OMP skill: [`.agents/skills/flutter-cockpit`](.agents/skills/flutter-cockpit)
+- OpenCode config: [`opencode.json`](opencode.json)
+
+插件、规则、steering、skill 和 MCP 配置见 [`docs/agent-integrations.md`](docs/agent-integrations.md)。
+
 ## 安装 MCP
 
 `flutter_cockpit` 没有单独拆出一个 MCP 包。MCP server 由 `cockpit` 提供。
@@ -164,6 +177,9 @@ claude mcp list
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
+  "instructions": [
+    "AGENTS.md"
+  ],
   "mcp": {
     "flutterCockpit": {
       "type": "local",

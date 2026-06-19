@@ -1,0 +1,22 @@
+---
+description: Use Flutter Cockpit when a Flutter or host-control task needs live UI, route, screenshot, recording, or validation evidence.
+globs:
+  - "**/*.dart"
+  - "pubspec.yaml"
+  - "cockpit/**"
+alwaysApply: false
+---
+
+Read `skills/flutter-cockpit/SKILL.md` before driving a Flutter app or claiming runtime validation.
+
+Default to the smallest live loop:
+
+```bash
+dart run cockpit list-targets
+dart run cockpit launch-app --project-dir <dir> --platform <platform> --device-id <id>
+dart run cockpit read-app --profile minimal
+dart run cockpit hot-reload
+dart run cockpit capture-screenshot --name acceptance --profile inspect
+```
+
+Prefer CLI or MCP through `dart run cockpit serve-mcp`. Do not treat command success as product proof; verify app state, errors, and evidence.
