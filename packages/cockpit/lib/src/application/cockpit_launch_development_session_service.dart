@@ -302,7 +302,6 @@ final class CockpitDevelopmentSessionDaemonLauncher {
         : request.sessionPort;
     final deadline = DateTime.now().add(request.launchTimeout);
     Object? lastFailure;
-    CockpitDevelopmentSessionSupervisorResponse? lastSupervisorResponse;
     CockpitSpawnedDevelopmentSupervisor? activeAttempt;
     CockpitSpawnedDevelopmentSupervisor? lastAttempt;
 
@@ -337,11 +336,12 @@ final class CockpitDevelopmentSessionDaemonLauncher {
       final attemptDeadline = DateTime.now().add(attemptTimeout);
       var shouldRetryAttempt = false;
       var permanentStartupFailure = false;
+      CockpitDevelopmentSessionSupervisorResponse? attemptSupervisorResponse;
 
       while (DateTime.now().isBefore(attemptDeadline)) {
         try {
           final response = await _supervisorStatusReader(attempt.baseUri);
-          lastSupervisorResponse = response;
+          attemptSupervisorResponse = response;
           if (response.status.state == CockpitDevelopmentSessionState.ready) {
             await _releaseAttempt(attempt);
             activeAttempt = null;
@@ -391,12 +391,12 @@ final class CockpitDevelopmentSessionDaemonLauncher {
         await _delay(const Duration(milliseconds: 500));
       }
 
-      if (lastSupervisorResponse != null &&
-          lastFailure == null &&
+      if (attemptSupervisorResponse != null &&
+          (lastFailure == null || _isTransientStartupFailure(lastFailure)) &&
           !permanentStartupFailure &&
           !shouldRetryAttempt) {
         lastFailure = StateError(
-          'last supervisor status ${_formatSupervisorStatus(lastSupervisorResponse.status)}',
+          'last supervisor status ${_formatSupervisorStatus(attemptSupervisorResponse.status)}',
         );
       }
 
@@ -482,6 +482,9 @@ final class CockpitDevelopmentSessionDaemonLauncher {
     await supervisorLogFile.parent.create(recursive: true);
     await supervisorLogFile.create(recursive: true);
     final supervisorEntrypoint = await _resolveSupervisorEntrypoint();
+    final supervisorLaunchTimeout = _childSupervisorLaunchTimeout(
+      request.launchTimeout,
+    );
     final process = await Process.start(
       dartExecutable,
       <String>[
@@ -510,7 +513,7 @@ final class CockpitDevelopmentSessionDaemonLauncher {
         '--flutter-version',
         flutterVersion,
         '--launch-timeout-seconds',
-        request.launchTimeout.inSeconds.toString(),
+        supervisorLaunchTimeout.inSeconds.toString(),
       ],
       workingDirectory: request.projectDir,
       mode: ProcessStartMode.detachedWithStdio,
@@ -622,6 +625,15 @@ final class CockpitDevelopmentSessionDaemonLauncher {
       return false;
     }
     return error.toLowerCase().contains('startup lock');
+  }
+
+  static Duration _childSupervisorLaunchTimeout(Duration parentTimeout) {
+    const diagnosticHeadroom = Duration(seconds: 8);
+    const minimumTimeout = Duration(seconds: 1);
+    if (parentTimeout <= diagnosticHeadroom + minimumTimeout) {
+      return parentTimeout;
+    }
+    return parentTimeout - diagnosticHeadroom;
   }
 
   static bool _isTransientStartupFailure(Object failure) {

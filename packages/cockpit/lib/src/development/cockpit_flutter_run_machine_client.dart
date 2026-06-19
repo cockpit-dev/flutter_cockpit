@@ -35,7 +35,7 @@ final class CockpitFlutterRunMachineClient {
       StreamController<CockpitFlutterRunMachineEvent>.broadcast();
   final Map<int, Completer<Object?>> _requestCompleters =
       <int, Completer<Object?>>{};
-  final List<String> _recentStderrLines = <String>[];
+  final List<String> _recentDiagnosticLines = <String>[];
   late final StreamSubscription<String> _stdoutSubscription;
   late final StreamSubscription<String> _stderrSubscription;
   late final StreamSubscription<int> _exitCodeSubscription;
@@ -52,7 +52,8 @@ final class CockpitFlutterRunMachineClient {
   Uri? get currentVmServiceUri => _currentVmServiceUri;
   int? get lastExitCode => _lastExitCode;
   String? get lastStderrLine => _lastStderrLine;
-  String get recentDiagnosticSummary => _recentStderrLines.join('\n').trim();
+  String get recentDiagnosticSummary =>
+      _recentDiagnosticLines.join('\n').trim();
 
   Future<Uri> get vmServiceUri => _vmServiceUriCompleter.future;
 
@@ -266,6 +267,7 @@ final class CockpitFlutterRunMachineClient {
     try {
       decoded = jsonDecode(line);
     } on FormatException {
+      _appendRecentDiagnostic(line);
       _eventsController.add(
         CockpitFlutterRunMachineEvent(
           kind: CockpitFlutterRunMachineEventKind.stdout,
@@ -280,6 +282,7 @@ final class CockpitFlutterRunMachineClient {
         ? Map<String, Object?>.from(decoded.first as Map<Object?, Object?>)
         : null;
     if (payload == null) {
+      _appendRecentDiagnostic(line);
       _eventsController.add(
         CockpitFlutterRunMachineEvent(
           kind: CockpitFlutterRunMachineEventKind.stdout,
@@ -380,10 +383,7 @@ final class CockpitFlutterRunMachineClient {
 
   void _handleStderrLine(String line) {
     _lastStderrLine = line;
-    _recentStderrLines.add(line);
-    if (_recentStderrLines.length > 10) {
-      _recentStderrLines.removeAt(0);
-    }
+    _appendRecentDiagnostic(line);
     _eventsController.add(
       CockpitFlutterRunMachineEvent(
         kind: CockpitFlutterRunMachineEventKind.stderr,
@@ -416,6 +416,17 @@ final class CockpitFlutterRunMachineClient {
     return 'Flutter run machine exited before the request completed '
         '(exitCode=$code)'
         '${recentDiagnosticSummary.isEmpty ? '' : ': $recentDiagnosticSummary'}';
+  }
+
+  void _appendRecentDiagnostic(String line) {
+    final trimmed = line.trim();
+    if (trimmed.isEmpty) {
+      return;
+    }
+    _recentDiagnosticLines.add(trimmed);
+    if (_recentDiagnosticLines.length > 20) {
+      _recentDiagnosticLines.removeAt(0);
+    }
   }
 
   static CockpitFlutterRunMachineEventKind _kindForEventName(String eventName) {

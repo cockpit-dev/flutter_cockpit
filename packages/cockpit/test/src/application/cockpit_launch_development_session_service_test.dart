@@ -961,6 +961,106 @@ void main() {
     },
   );
 
+  test(
+    'daemon launcher does not let an old transient connection error hide the last supervisor state',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit-development-supervisor-transient-',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final stuckHandle = _handle().copyWith(
+        supervisorBaseUrl: 'http://127.0.0.1:60019',
+      );
+      final stuckStatus = _readyStatus(stuckHandle).copyWith(
+        state: CockpitDevelopmentSessionState.starting,
+        appReachable: false,
+        remoteSessionReachable: false,
+      );
+      var statusReadCount = 0;
+
+      final launcher = CockpitDevelopmentSessionDaemonLauncher(
+        supervisorStatusReader: (_) async {
+          statusReadCount += 1;
+          if (statusReadCount == 1) {
+            throw SocketException(
+              'Connection refused',
+              address: InternetAddress.loopbackIPv4,
+              port: 38624,
+            );
+          }
+          return CockpitDevelopmentSessionSupervisorResponse(
+            sessionHandle: stuckHandle,
+            status: stuckStatus,
+          );
+        },
+        portForwarder: const _StubPortForwarder(57331),
+        flutterVersionReader: () async => '3.39.0',
+        flutterExecutableReader: () async => '/opt/flutter/bin/flutter',
+        dartExecutableReader: () async =>
+            '/opt/flutter/bin/cache/dart-sdk/bin/dart',
+        supervisorLogDirectoryReader: () => tempDir.path,
+        allocatePort: () async => 60019,
+        delay: (_) => Future<void>.delayed(const Duration(milliseconds: 10)),
+        spawnSupervisor:
+            ({
+              required request,
+              required flutterVersion,
+              required flutterExecutable,
+              required dartExecutable,
+              required hostPort,
+              required supervisorPort,
+              required supervisorLogFile,
+            }) async {
+              await supervisorLogFile.writeAsString(
+                '[2026-06-19T06:15:37Z] machine event app.started\n'
+                '[2026-06-19T06:15:38Z] remote_status_probe base_url=http://127.0.0.1:58431 failed=connection refused\n',
+              );
+              return CockpitSpawnedDevelopmentSupervisor(
+                baseUri: Uri.parse('http://127.0.0.1:$supervisorPort'),
+                stop: () async {},
+                logPath: supervisorLogFile.path,
+              );
+            },
+      );
+
+      await expectLater(
+        () => launcher.launch(
+          const CockpitLaunchDevelopmentSessionRequest(
+            projectDir: '/workspace/examples/cockpit_demo',
+            target: 'cockpit/main.dart',
+            platform: 'android',
+            deviceId: 'emulator-5554',
+            sessionPort: 58431,
+            launchTimeout: Duration(milliseconds: 80),
+          ),
+        ),
+        throwsA(
+          isA<StateError>()
+              .having(
+                (error) => error.message,
+                'message',
+                contains('last supervisor status state=starting'),
+              )
+              .having(
+                (error) => error.message,
+                'message',
+                contains('remote_status_probe base_url=http://127.0.0.1:58431'),
+              )
+              .having(
+                (error) => error.message,
+                'message',
+                isNot(contains('port = 38624')),
+              ),
+        ),
+      );
+    },
+  );
+
   test('daemon launcher rehydrates fallback-coded supervisor failures', () async {
     final launcher = CockpitDevelopmentSessionDaemonLauncher(
       supervisorStatusReader: (_) async =>
