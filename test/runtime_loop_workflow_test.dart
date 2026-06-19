@@ -106,8 +106,8 @@ void main() {
     expect(workflow, contains('xcrun", "simctl", "bootstatus"'));
     expect(workflow, isNot(contains('timeout 150 xcrun')));
     expect(workflow, contains('"sync_lab_conflict_recovery"'));
-    expect(workflow, contains('assert platform["batchCommandCount"] == 32'));
-    expect(workflow, contains('assert platform["autoScreenshotCount"] >= 19'));
+    expect(workflow, contains('assert platform["batchCommandCount"] == 31'));
+    expect(workflow, contains('assert platform["autoScreenshotCount"] >= 18'));
     expect(workflow, contains('assert platform["recordingOutputPath"]'));
     expect(workflow, contains('assert platform["screenshotByteLength"] > 0'));
     expect(workflow, isNot(contains('platform["batchCommandCount"] == 4')));
@@ -187,6 +187,27 @@ void main() {
         contains(r'[ -f "$RESULT_JSON" ] && cat "$RESULT_JSON" || true'),
       );
     }
+  });
+
+  test('linux runtime loop keeps apt payload bounded and retried', () {
+    final workflow = workflowFile.readAsStringSync();
+    final linuxBlock = _workflowJobBlock(workflow, 'linux-runtime-loop');
+
+    expect(linuxBlock, contains('DEBIAN_FRONTEND: noninteractive'));
+    expect(linuxBlock, contains('apt_retry()'));
+    expect(
+      linuxBlock,
+      contains('sudo apt-get install -y --no-install-recommends'),
+    );
+    expect(linuxBlock, contains('libgtk-3-dev'));
+    expect(linuxBlock, contains('clang'));
+    expect(linuxBlock, contains('cmake'));
+    expect(linuxBlock, contains('ninja-build'));
+    expect(linuxBlock, contains('pkg-config'));
+    expect(linuxBlock, contains('xvfb'));
+    expect(linuxBlock, contains('x11-utils'));
+    expect(linuxBlock, isNot(contains('libgstreamer')));
+    expect(linuxBlock, isNot(contains('gstreamer1.0-libav')));
   });
 
   test('runtime loop command assertions track full verifier output', () {

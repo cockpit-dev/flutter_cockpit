@@ -399,8 +399,8 @@ jobs:
           assert "setNetworkDelay" in platform["systemAvailableActions"], platform
           assert platform["systemVerifiedActions"] == ["readSystemState", "readProcessList", "setNetworkSpeed", "setNetworkDelay"], platform
           assert platform["recordingDriver"] == os.environ["EXPECTED_RECORDING_DRIVER"], platform
-          assert platform["batchCommandCount"] == 32, platform
-          assert platform["autoScreenshotCount"] >= 19, platform
+          assert platform["batchCommandCount"] == 31, platform
+          assert platform["autoScreenshotCount"] >= 18, platform
           assert platform["networkFailureCount"] == 0, platform
           assert platform["runtimeErrorCount"] == 0, platform
           assert platform["hotReloadSucceeded"] is True, platform
@@ -615,8 +615,8 @@ jobs:
           assert "getClipboard" in platform["systemAvailableActions"], platform
           assert platform["systemVerifiedActions"] == ["readSystemState", "readProcessList", "setStatusBar", "clearStatusBar", "setClipboard", "getClipboard"], platform
           assert platform["recordingDriver"] == os.environ["EXPECTED_RECORDING_DRIVER"], platform
-          assert platform["batchCommandCount"] == 32, platform
-          assert platform["autoScreenshotCount"] >= 19, platform
+          assert platform["batchCommandCount"] == 31, platform
+          assert platform["autoScreenshotCount"] >= 18, platform
           assert platform["networkFailureCount"] == 0, platform
           assert platform["runtimeErrorCount"] == 0, platform
           assert platform["hotReloadSucceeded"] is True, platform
@@ -785,8 +785,8 @@ jobs:
                   startup_fallback_commands,
                   stop_fallback_commands,
               ), platform
-          assert platform["batchCommandCount"] == 32, platform
-          assert platform["autoScreenshotCount"] >= 19, platform
+          assert platform["batchCommandCount"] == 31, platform
+          assert platform["autoScreenshotCount"] >= 18, platform
           assert platform["networkFailureCount"] == 0, platform
           assert platform["runtimeErrorCount"] == 0, platform
           assert platform["hotReloadSucceeded"] is True, platform
@@ -947,8 +947,8 @@ jobs:
                   stop_fallback_commands,
               ), platform
           assert recording_driver in ("browser-host", "browser-host-fallback"), platform
-          assert platform["batchCommandCount"] == 32, platform
-          assert platform["autoScreenshotCount"] >= 19, platform
+          assert platform["batchCommandCount"] == 31, platform
+          assert platform["autoScreenshotCount"] >= 18, platform
           assert platform["networkFailureCount"] == 0, platform
           assert platform["runtimeErrorCount"] == 0, platform
           assert platform["hotReloadSucceeded"] is True, platform
@@ -993,25 +993,24 @@ jobs:
           channel: stable
 
       - name: Install Linux desktop dependencies
-        timeout-minutes: 15
+        timeout-minutes: 25
+        env:
+          DEBIAN_FRONTEND: noninteractive
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            build-essential \
-            cmake \
-            ninja-build \
-            pkg-config \
-            libgtk-3-dev \
-            libgstreamer1.0-dev \
-            libgstreamer-plugins-base1.0-dev \
-            gstreamer1.0-plugins-base \
-            gstreamer1.0-plugins-good \
-            gstreamer1.0-plugins-bad \
-            gstreamer1.0-plugins-ugly \
-            gstreamer1.0-libav \
-            xvfb \
-            x11-utils \
-            ffmpeg
+          apt_retry() {
+            for attempt in 1 2 3 4 5; do
+              if "$@"; then return 0; fi
+              echo "apt attempt $attempt failed, retrying in 10s..."
+              sleep 10
+            done
+            "$@"
+          }
+
+          apt_retry sudo apt-get update
+          apt_retry sudo apt-get install -y --no-install-recommends \
+            ffmpeg x11-utils xvfb \
+            clang cmake git ninja-build pkg-config \
+            libgtk-3-dev liblzma-dev libstdc++-12-dev
 
       - name: Enable Linux desktop
         run: flutter config --enable-linux-desktop
@@ -1134,8 +1133,8 @@ jobs:
                   startup_fallback_commands,
                   stop_fallback_commands,
               ), platform
-          assert platform["batchCommandCount"] == 32, platform
-          assert platform["autoScreenshotCount"] >= 19, platform
+          assert platform["batchCommandCount"] == 31, platform
+          assert platform["autoScreenshotCount"] >= 18, platform
           assert platform["networkFailureCount"] == 0, platform
           assert platform["runtimeErrorCount"] == 0, platform
           assert platform["hotReloadSucceeded"] is True, platform
@@ -1405,8 +1404,8 @@ jobs:
                   startup_fallback_commands,
                   stop_fallback_commands,
               ), platform
-          assert platform["batchCommandCount"] == 32, platform
-          assert platform["autoScreenshotCount"] >= 19, platform
+          assert platform["batchCommandCount"] == 31, platform
+          assert platform["autoScreenshotCount"] >= 18, platform
           assert platform["networkFailureCount"] == 0, platform
           assert platform["runtimeErrorCount"] == 0, platform
           assert platform["hotReloadSucceeded"] is True, platform

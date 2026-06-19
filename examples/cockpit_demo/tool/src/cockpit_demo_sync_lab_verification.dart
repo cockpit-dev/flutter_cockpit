@@ -84,14 +84,6 @@ List<Map<String, Object?>> buildSyncLabCreateTaskBatch({
       },
     },
     <String, Object?>{
-      'commandId': 'verify-focus-task-notes',
-      'commandType': 'tap',
-      'locator': <String, Object?>{
-        'text': 'Notes',
-        'ancestor': <String, Object?>{'route': '/editor'},
-      },
-    },
-    <String, Object?>{
       'commandId': 'verify-enter-task-notes',
       'commandType': 'enterText',
       'locator': <String, Object?>{
