@@ -333,18 +333,7 @@ jobs:
           emulator-options: >-
             -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot-save
             -camera-back none -camera-front none
-          script: >-
-            adb devices &&
-            cd "$GITHUB_WORKSPACE/examples/cockpit_demo" &&
-            if dart run tool/verify_platforms.dart --platform android
-            --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo"
-            --output-root "$OUTPUT_ROOT"
-            --output "$RESULT_JSON"
-            --output-format json
-            --android-emulator-id "Pixel_9_Pro"
-            --launch-timeout-seconds 600 >"$LOG_PATH" 2>&1;
-            then cat "$LOG_PATH";
-            else status=$?; cat "$LOG_PATH" || true; cat "$RESULT_JSON" || true; exit "$status"; fi
+          script: bash "$GITHUB_WORKSPACE/.github/scripts/run-android-verifier.sh" runtime-loop
 
       - name: Print Android verifier diagnostics
         if: failure()

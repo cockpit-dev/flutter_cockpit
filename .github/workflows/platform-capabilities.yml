@@ -157,19 +157,7 @@ jobs:
           emulator-options: >-
             -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot-save
             -camera-back none -camera-front none
-          script: >-
-            set -e;
-            adb devices;
-            cd "$GITHUB_WORKSPACE/examples/cockpit_demo";
-            dart run tool/verify_platforms.dart --platform android
-            --exhaustive-system-control
-            --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo"
-            --output-root "$OUTPUT_ROOT"
-            --output "$RESULT_JSON"
-            --output-format json
-            --android-emulator-id "Pixel_9_Pro"
-            --launch-timeout-seconds 600
-            --device-timeout-seconds 600 2>&1 | tee "$LOG_PATH"
+          script: bash "$GITHUB_WORKSPACE/.github/scripts/run-android-verifier.sh" platform-capabilities
 
       - name: Boot iOS simulator
         if: matrix.platform == 'ios'

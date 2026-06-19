@@ -262,24 +262,7 @@ jobs:
           emulator-options: >-
             -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot-save
             -camera-back none -camera-front none
-          script: |
-            set -e
-            adb devices
-            cd "$GITHUB_WORKSPACE/examples/cockpit_demo"
-            mkdir -p "$OUTPUT_ROOT"
-            set +e
-            dart run tool/verify_rapid_dev.dart \
-            --platform android \
-            --project-dir "$GITHUB_WORKSPACE/examples/cockpit_demo" \
-            --output-root "$OUTPUT_ROOT" \
-            --output "$RESULT_JSON" \
-            --output-format json \
-            --android-emulator-id "Pixel_9_Pro" \
-            --launch-timeout-seconds 600 \
-            --device-timeout-seconds 600 > "$LOG_PATH" 2>&1
-            STATUS=$?
-            cat "$LOG_PATH"
-            exit "$STATUS"
+          script: bash "$GITHUB_WORKSPACE/.github/scripts/run-android-verifier.sh" rapid-dev
 
       - name: Print diagnostics
         if: failure()
