@@ -2,7 +2,7 @@
 
 Use this steering note when a Flutter or host-control task needs live UI, route, screenshot, recording, or validation evidence.
 
-Read `skills/flutter-cockpit/SKILL.md` before controlling an app or claiming validation.
+Use the Flutter Cockpit Power when installed, or read `skills/flutter-cockpit/SKILL.md` before controlling an app or claiming validation.
 
 Fast path:
 
@@ -14,4 +14,4 @@ dart run cockpit hot-reload
 dart run cockpit capture-screenshot --name acceptance --profile inspect
 ```
 
-Prefer the smallest live evidence that answers the task. Use `dart run cockpit serve-mcp` when the agent supports MCP.
+Prefer the smallest live evidence that answers the task. Use `.kiro/settings/mcp.json` or `dart run cockpit serve-mcp` when the agent supports MCP.

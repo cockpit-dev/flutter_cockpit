@@ -1,0 +1,20 @@
+{
+  "name": "flutter-cockpit",
+  "interface": {
+    "displayName": "Flutter Cockpit"
+  },
+  "plugins": [
+    {
+      "name": "flutter-cockpit",
+      "source": {
+        "source": "local",
+        "path": "./plugins/codex/flutter-cockpit"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

@@ -7,7 +7,7 @@ globs:
 alwaysApply: false
 ---
 
-Read `skills/flutter-cockpit/SKILL.md` before driving a Flutter app or claiming runtime validation.
+Load the `flutter-cockpit` skill from `.cursor/skills/flutter-cockpit` before driving a Flutter app or claiming runtime validation. If skill discovery is unavailable, read `skills/flutter-cockpit/SKILL.md`.
 
 Default to the smallest live loop:
 
@@ -19,4 +19,4 @@ dart run cockpit hot-reload
 dart run cockpit capture-screenshot --name acceptance --profile inspect
 ```
 
-Prefer CLI or MCP through `dart run cockpit serve-mcp`. Do not treat command success as product proof; verify app state, errors, and evidence.
+Prefer `.cursor/mcp.json` or CLI through `dart run cockpit serve-mcp`. Do not treat command success as product proof; verify app state, errors, and evidence.

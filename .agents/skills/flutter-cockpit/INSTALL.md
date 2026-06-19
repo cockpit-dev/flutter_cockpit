@@ -32,11 +32,15 @@ If the host supports repo-local skill loading by path, it may be able to load th
 
 This repository also includes native adapters for common hosts:
 
+- Codex marketplace: `.agents/plugins/marketplace.json`
 - Codex plugin: `plugins/codex/flutter-cockpit`
+- Claude Code skill: `.claude/skills/flutter-cockpit`
 - Claude Code plugin: `plugins/claude-code/flutter-cockpit`
 - Cursor rule: `.cursor/rules/flutter-cockpit.mdc`
+- Cursor skill/MCP: `.cursor/skills/flutter-cockpit`, `.cursor/mcp.json`
 - Kiro steering: `.kiro/steering/flutter-cockpit.md`
-- OpenCode/OMP skill: `.agents/skills/flutter-cockpit`
+- Kiro Power/MCP: `plugins/kiro/flutter-cockpit`, `.kiro/settings/mcp.json`
+- OpenCode/OMP skill: `.opencode/skills/flutter-cockpit`, `.pi/skills/flutter-cockpit`, `.agents/skills/flutter-cockpit`
 - OpenCode config: `opencode.json`
 
 Use `docs/agent-integrations.md` in the source repository when the host supports plugins, rules, steering files, native skill discovery, or MCP setup. Use the symlink flow below when the host only supports personal skill directories.
@@ -49,10 +53,17 @@ These are common examples, not universal rules:
   - prefer `~/.agents/skills/flutter-cockpit`
   - some setups still use `~/.codex/skills/flutter-cockpit`
 - **Claude Code**
+  - repo-local `.claude/skills/flutter-cockpit`
   - `~/.claude/skills/flutter-cockpit`
+- **Cursor**
+  - repo-local `.cursor/skills/flutter-cockpit`
+- **OpenCode**
+  - repo-local `.opencode/skills/flutter-cockpit`
 - **OpenCode / OMP**
   - repo-local `.agents/skills/flutter-cockpit`
   - personal skills may also use `~/.agents/skills/flutter-cockpit`
+- **Pi / OMP**
+  - repo-local `.pi/skills/flutter-cockpit`
 - **Other hosts**
   - use that host's documented personal-skill or local-skill directory
   - if the host supports direct path loading, use `skills/flutter-cockpit/` itself

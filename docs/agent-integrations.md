@@ -1,6 +1,6 @@
 # Agent Integrations
 
-Flutter Cockpit ships one canonical AI workflow at `skills/flutter-cockpit/SKILL.md` and host-native adapters for common coding agents. Keep the canonical skill as the source of truth; packaged skill adapters carry a synced copy so installed plugins still work outside this repository.
+Flutter Cockpit ships one canonical AI workflow at `skills/flutter-cockpit/SKILL.md` and host-native adapters for common coding agents. Keep the canonical skill as the source of truth; native skill directories and packaged plugins carry synced copies so installed or repo-local adapters work outside this repository.
 
 ## Codex
 
@@ -9,10 +9,11 @@ Codex supports installable plugins with `.codex-plugin/plugin.json`.
 Repository asset:
 
 ```text
+.agents/plugins/marketplace.json
 plugins/codex/flutter-cockpit
 ```
 
-The plugin exposes:
+The marketplace entry points Codex at the local plugin. The plugin exposes:
 
 - `skills/flutter-cockpit` as a complete Codex skill.
 - `.mcp.json` with `flutterCockpit -> dart run cockpit serve-mcp`.
@@ -30,10 +31,12 @@ Claude Code supports plugins with `.claude-plugin/plugin.json`, skills, and `.mc
 Repository asset:
 
 ```text
+.claude/skills/flutter-cockpit
+.mcp.json
 plugins/claude-code/flutter-cockpit
 ```
 
-The plugin exposes:
+Repo-local Claude Code can discover `.claude/skills/flutter-cockpit` and the project `.mcp.json`. The plugin exposes:
 
 - `skills/flutter-cockpit` as a complete Claude Code skill.
 - `.mcp.json` with `flutter-cockpit -> dart run cockpit serve-mcp`.
@@ -46,15 +49,17 @@ claude mcp add --transport stdio flutter-cockpit -- dart run cockpit serve-mcp
 
 ## Cursor
 
-Cursor uses project rules rather than this repository's plugin manifest.
+Cursor uses project rules, project skills, and project MCP config rather than this repository's plugin manifest.
 
 Repository asset:
 
 ```text
 .cursor/rules/flutter-cockpit.mdc
+.cursor/skills/flutter-cockpit
+.cursor/mcp.json
 ```
 
-For MCP, add a global or project `.cursor/mcp.json` entry:
+The rule gives Cursor the trigger, `.cursor/skills/flutter-cockpit` gives it the full on-demand workflow, and `.cursor/mcp.json` exposes the local MCP server:
 
 ```json
 {
@@ -70,24 +75,27 @@ For MCP, add a global or project `.cursor/mcp.json` entry:
 
 ## Kiro
 
-Kiro uses steering documents for project guidance.
+Kiro uses steering documents for project guidance, workspace MCP config for tools, and Powers for a distributable native bundle.
 
 Repository asset:
 
 ```text
 .kiro/steering/flutter-cockpit.md
+.kiro/settings/mcp.json
+plugins/kiro/flutter-cockpit
 ```
 
-If the installed Kiro version supports MCP configuration, add `dart run cockpit serve-mcp` using its current MCP settings UI or config file. Otherwise use the CLI commands from the steering file.
+The workspace steering file is the repo-local trigger. `.kiro/settings/mcp.json` exposes the local MCP server. `plugins/kiro/flutter-cockpit` is the Kiro Power bundle with `POWER.md`, `mcp.json`, and the full skill copy.
 
 ## OpenCode
 
-OpenCode can discover Agent Skills from `.agents/skills/<name>/SKILL.md` and configures MCP servers through the `mcp` option. This repository uses `.agents/skills/flutter-cockpit` for the full on-demand skill and `opencode.json` for the local MCP server.
+OpenCode discovers project skills from `.opencode/skills/<name>/SKILL.md`, also understands shared Agent Skills under `.agents/skills/<name>/SKILL.md`, and configures MCP servers through the `mcp` option. This repository uses `.opencode/skills/flutter-cockpit` for the OpenCode-native on-demand skill, `.agents/skills/flutter-cockpit` for shared agents, and `opencode.json` for the local MCP server.
 
 Repository asset:
 
 ```text
 opencode.json
+.opencode/skills/flutter-cockpit
 .agents/skills/flutter-cockpit
 ```
 
@@ -111,9 +119,10 @@ The skill body stays out of always-on instructions so OpenCode can load it only 
 
 ## OMP / Oh My Pi
 
-OMP discovers Agent Skills from `.agents/skills/<name>/SKILL.md`. The repository includes the native project skill here:
+OMP / Pi discovers project skills from `.pi/skills/<name>/SKILL.md` and shared Agent Skills from `.agents/skills/<name>/SKILL.md`. The repository includes both so Pi-native and shared-agent discovery work without extra copying:
 
 ```text
+.pi/skills/flutter-cockpit
 .agents/skills/flutter-cockpit
 ```
 
