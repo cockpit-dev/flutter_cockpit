@@ -596,6 +596,7 @@ void main() {
           commandId: 'rapid-reveal-today',
           commandType: CockpitCommandType.scrollUntilVisible,
           locator: const CockpitLocator(
+            semanticId: 'task-editor-due-today',
             text: 'Today',
             route: '/editor',
             ancestor: CockpitLocator(route: '/editor'),

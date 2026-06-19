@@ -1070,6 +1070,7 @@ List<Map<String, Object?>> _buildRapidCreateTaskBatch({
       'commandId': 'rapid-reveal-today',
       'commandType': 'scrollUntilVisible',
       'locator': <String, Object?>{
+        'semanticId': 'task-editor-due-today',
         'text': 'Today',
         'route': '/editor',
         'ancestor': <String, Object?>{'route': '/editor'},
