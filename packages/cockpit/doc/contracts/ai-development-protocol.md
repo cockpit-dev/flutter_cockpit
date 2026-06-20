@@ -89,6 +89,27 @@ dart run cockpit run-script --app-json /tmp/flutter_cockpit/app.json --script /t
 Use `--platform` when one workflow is replayed across several targets; do not
 copy a YAML file just to change its top-level `platform`.
 
+For a full-fidelity board over the same artifacts:
+
+```bash
+dart run cockpit devtools --history-root /tmp/flutter_cockpit/out
+```
+
+Use one stable workflow `sessionId` per isolated development or validation job,
+`taskId` for the current objective, and `runId` for one execution attempt. Reuse
+the same `sessionId` for retries of the same job; choose a new `sessionId` for
+unrelated work. The board opens the current latest `sessionId` scope, rewrites
+the URL to that concrete scope, and offers a scope selector for older sessions
+or `all runs` when cross-session audit is intentional. Timeline, screenshots,
+recordings, and failures stay traceable without mixing separate jobs. The main
+timeline is scope-level: retries with the same `sessionId` render together in
+execution order, while run details and bundle panels remain per-run. Artifact
+links carry the owning run and event key so repeated relative paths stay
+traceable. Use `--scope latest` only when a live operations board should keep
+following the newest job. API clients may pass `scope=current` or
+`scope=latest`; both resolve to the current latest scope and report `scopeMode`
+so readers can distinguish pinned and following views.
+
 For tool-owned bootstrap and validation, embed the same script object under the
 task config `script` field:
 

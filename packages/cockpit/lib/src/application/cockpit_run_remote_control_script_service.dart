@@ -1,11 +1,15 @@
 import 'dart:io';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
+import 'package:path/path.dart' as p;
 
 import '../adapters/cockpit_recording_adapter.dart';
 import '../artifacts/task_run_bundle_writer.dart';
 import '../capture/cockpit_capture_strategy_resolver.dart';
 import '../cli/cockpit_control_script.dart';
+import '../devtools/cockpit_live_run_identity.dart';
+import '../devtools/cockpit_live_run_observer.dart';
+import '../devtools/cockpit_live_run_store.dart';
 import '../recording/cockpit_recording_strategy_resolver.dart';
 import '../remote/cockpit_remote_automation_adapter.dart';
 import '../remote/cockpit_remote_session_client.dart';
@@ -33,6 +37,8 @@ final class CockpitRunRemoteControlScriptRequest {
     this.iosDeviceId,
     this.persistScriptPath,
     this.portForwardingHandled = false,
+    this.liveRunId,
+    this.liveRunDisplayName,
   });
 
   final CockpitControlScript script;
@@ -46,6 +52,8 @@ final class CockpitRunRemoteControlScriptRequest {
   final String? iosDeviceId;
   final String? persistScriptPath;
   final bool portForwardingHandled;
+  final String? liveRunId;
+  final String? liveRunDisplayName;
 }
 
 final class CockpitRunRemoteControlScriptResult {
@@ -151,6 +159,7 @@ final class CockpitRunRemoteControlScriptService {
               ? resolved.sessionHandle?.deviceId
               : null),
     );
+    final liveStore = await _tryStartLiveStore(request);
     final runner = CockpitControlRunner(
       automationAdapter: CockpitRemoteAutomationAdapter(client: client),
       captureAdapter: captureAdapter,
@@ -161,6 +170,9 @@ final class CockpitRunRemoteControlScriptService {
         platform: request.script.platform,
       ),
       failFast: request.script.failFast,
+      liveObserver: liveStore == null
+          ? null
+          : CockpitLiveRunStoreObserver(store: liveStore),
     );
     final runResult = await runner.run(
       environment: environment,
@@ -174,6 +186,12 @@ final class CockpitRunRemoteControlScriptService {
       artifactPayloads: runResult.artifactPayloads,
       artifactSourcePaths: runResult.artifactSourcePaths,
     );
+    await _tryFinalizeLiveStore(
+      liveStore: liveStore,
+      outputRoot: request.outputRoot,
+      bundleDir: bundleDir,
+      manifest: runResult.bundle.manifest,
+    );
     final summary = await _readSummaryService.read(
       CockpitReadTaskBundleSummaryRequest(bundleDir: bundleDir.path),
     );
@@ -186,6 +204,69 @@ final class CockpitRunRemoteControlScriptService {
       delivery: summary.delivery,
       artifactPaths: summary.artifactPaths,
     );
+  }
+
+  Future<CockpitLiveRunStore?> _tryStartLiveStore(
+    CockpitRunRemoteControlScriptRequest request,
+  ) async {
+    try {
+      final liveRunId =
+          request.liveRunId ?? cockpitCreateLiveRunId(request.script.sessionId);
+      final store = CockpitLiveRunStore(
+        historyRoot: request.outputRoot,
+        runId: liveRunId,
+        displayName: request.liveRunDisplayName ?? request.script.taskId,
+        runDirectoryName: liveRunId,
+      );
+      await store.initialize(
+        sessionId: request.script.sessionId,
+        taskId: request.script.taskId,
+        platform: request.script.platform,
+      );
+      return store;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _tryFinalizeLiveStore({
+    required CockpitLiveRunStore? liveStore,
+    required String outputRoot,
+    required Directory bundleDir,
+    required CockpitRunManifest manifest,
+  }) async {
+    if (liveStore == null) {
+      return;
+    }
+    try {
+      final relativeBundleDir = p.relative(bundleDir.path, from: outputRoot);
+      final status = manifest.status.name;
+      await liveStore.appendEvent(
+        type: 'bundle_written',
+        status: status,
+        stage: 'bundle',
+        bundleDir: relativeBundleDir,
+        recommendedNextStep:
+            'Read the delivery summary before deciding the next action.',
+        details: <String, Object?>{
+          'bundleDir': bundleDir.path,
+          'commandCount': manifest.commandCount,
+          'screenshotCount': manifest.screenshotCount,
+          'recordingCount': manifest.recordingCount,
+        },
+      );
+      await liveStore.updateState(
+        (state) => state.copyWith(
+          status: status,
+          bundleDir: relativeBundleDir,
+          finishedAt: manifest.finishedAt,
+          recommendedNextStep:
+              'read-task-bundle-summary --bundle-dir ${bundleDir.path}',
+        ),
+      );
+    } catch (_) {
+      return;
+    }
   }
 
   Future<CockpitEnvironment> _resolveEnvironment({

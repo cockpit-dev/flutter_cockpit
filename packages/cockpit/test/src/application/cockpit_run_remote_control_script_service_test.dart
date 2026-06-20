@@ -193,6 +193,44 @@ void main() {
         ).readAsBytesSync(),
         <int>[1, 2, 3],
       );
+
+      final liveIndex =
+          jsonDecode(
+                File(p.join(tempDir.path, 'index.json')).readAsStringSync(),
+              )
+              as Map<String, Object?>;
+      expect(liveIndex['runCount'], 1);
+      final liveRun =
+          (liveIndex['runs']! as List<Object?>).single as Map<String, Object?>;
+      expect(liveRun['runId'], contains('remote-script-session'));
+      expect(liveRun['runId'], isNot('remote-script-session'));
+      expect(liveRun['sessionId'], 'remote-script-session');
+      expect(
+        liveRun['bundleDir'],
+        p.relative(result.bundleDir.path, from: tempDir.path),
+      );
+      final liveState =
+          jsonDecode(
+                File(
+                  p.join(
+                    tempDir.path,
+                    liveRun['liveDir']! as String,
+                    'live_state.json',
+                  ),
+                ).readAsStringSync(),
+              )
+              as Map<String, Object?>;
+      expect(liveState['status'], 'completed');
+      expect(liveState['sessionId'], 'remote-script-session');
+      expect(liveState['bundleDir'], liveRun['bundleDir']);
+      final liveEvents = File(
+        p.join(tempDir.path, liveRun['liveDir']! as String, 'events.ndjson'),
+      ).readAsLinesSync();
+      expect(liveEvents.any((line) => line.contains('"run_started"')), isTrue);
+      expect(
+        liveEvents.any((line) => line.contains('"bundle_written"')),
+        isTrue,
+      );
     },
   );
 

@@ -7,11 +7,11 @@ description: Use when Flutter or host-control tasks must prove live UI, interact
 
 ## Overview
 
-Flutter Cockpit is an AI loop, not a screenshot tool or command catalog. Default to rapid development validation: prove the current change with the cheapest live loop that answers the user, then stop. Claims:
+Default to rapid development validation: prove the current change with the cheapest live loop that answers the user, then stop.
 
 `assess -> bootstrap -> baseline -> execute -> observe -> judge -> deliver`
 
-Command success is not product proof; prove state, errors, evidence.
+Command success is not product proof; verify state, errors, evidence.
 
 These stages are decision gates, not a fixed command script or command quota. Satisfy each gate with the smallest fresh evidence available; skip irrelevant commands; choose CLI, MCP, app-first, target-first, persistent-session, or bundle flows. Protocol: [`references/protocol.md`](references/protocol.md), `cockpit://workspace/protocol`.
 
@@ -141,6 +141,27 @@ Use `--platform` to run one reusable workflow on the current target instead of
 copying YAML only to change `platform`. Workflow facts are stored in the bundle.
 Read `issue_evidence.json` for failures, `validation.json` for final validation,
 and `trace.json` to map artifacts or errors back to a step.
+
+Board:
+
+```bash
+dart run cockpit devtools --history-root /tmp/flutter_cockpit/out
+```
+
+Use the same `--output-root`. Treat `sessionId` as one isolated development or
+validation job, `taskId` as the current objective, and `runId` as one execution
+attempt. Reuse a `sessionId` for retries of the same job; choose a new
+`sessionId` for unrelated work. The board defaults to the latest workflow
+`sessionId` scope, then pins the URL to that concrete scope so different jobs do
+not mix timelines. Use the scope selector for older sessions or `all runs` only
+for cross-session audit; pass `--scope latest` only when a live board should
+keep following the newest job. `scope=current` and `scope=latest` resolve to the
+latest scope; trust the board's `pinned scope` / `following latest` label when
+judging isolation. Timeline is scope-level: retries with the same `sessionId`
+render together in execution order, while run details and bundles stay per-run.
+Artifact links carry the owning run and event key.
+Run lists are paged while scope totals stay visible. Paste workflow/config only
+when running from the board is useful.
 
 ## Development Defaults
 

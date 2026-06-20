@@ -100,7 +100,7 @@ final class CockpitCliRootRunner extends CommandRunner<int> {
       'stop-remote-recording',
     ]);
     buffer.writeln();
-    _writeSection(buffer, 'Server', const <String>['serve-mcp']);
+    _writeSection(buffer, 'Server', const <String>['serve-mcp', 'devtools']);
     buffer.writeln();
     buffer.writeln(
       'Run "$executableName help <command>" for more information about a command.',

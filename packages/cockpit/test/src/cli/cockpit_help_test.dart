@@ -10,6 +10,7 @@ import 'package:cockpit/src/cli/commands/capture_screenshot_command.dart';
 import 'package:cockpit/src/cli/commands/collect_development_probe_command.dart';
 import 'package:cockpit/src/cli/commands/collect_remote_snapshot_command.dart';
 import 'package:cockpit/src/cli/commands/compare_development_probe_command.dart';
+import 'package:cockpit/src/cli/commands/devtools_command.dart';
 import 'package:cockpit/src/cli/commands/execute_remote_command_batch_command.dart';
 import 'package:cockpit/src/cli/commands/execute_remote_command_command.dart';
 import 'package:cockpit/src/cli/commands/launch_app_command.dart';
@@ -434,6 +435,7 @@ final List<dynamic> _topLevelCommands = <dynamic>[
   RunTaskCommand(),
   ValidateTaskCommand(),
   ServeMcpCommand(),
+  DevtoolsCommand(waitForShutdown: () async {}),
   RunScriptCommand(),
   RunRemoteControlScriptCommand(),
 ];

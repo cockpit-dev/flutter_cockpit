@@ -4,9 +4,10 @@ import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:yaml/yaml.dart';
 
 sealed class CockpitWorkflowStep {
-  const CockpitWorkflowStep({required this.stepId});
+  const CockpitWorkflowStep({required this.stepId, this.description});
 
   final String stepId;
+  final String? description;
 
   String get stepType;
 
@@ -19,17 +20,24 @@ sealed class CockpitWorkflowStep {
     final rawType = json['stepType'] ?? json['type'];
     final stepType = _readStringValue(rawType, '$path.stepType');
     final stepId = _readOptionalString(json['stepId']) ?? path;
+    final description = _readOptionalDescription(
+      json['description'],
+      '$path.description',
+    );
     return switch (stepType) {
       'command' => CockpitCommandWorkflowStep(
         stepId: stepId,
+        description: description,
         command: _readCommand(json['command'], '$path.command'),
       ),
       'startRecording' => CockpitStartRecordingWorkflowStep(
         stepId: stepId,
+        description: description,
         recording: _readRecordingRequest(json['recording'], '$path.recording'),
       ),
       'stopRecording' => CockpitStopRecordingWorkflowStep(
         stepId: stepId,
+        description: description,
         settleDelay: Duration(
           milliseconds: _readNonNegativeInt(
             json['settleMs'],
@@ -40,6 +48,7 @@ sealed class CockpitWorkflowStep {
       ),
       'if' => CockpitIfWorkflowStep(
         stepId: stepId,
+        description: description,
         condition: _readCommand(json['condition'], '$path.condition'),
         thenSteps: _readWorkflowSteps(
           json['thenSteps'],
@@ -54,6 +63,7 @@ sealed class CockpitWorkflowStep {
       ),
       'loop' => CockpitLoopWorkflowStep(
         stepId: stepId,
+        description: description,
         maxIterations: _readPositiveInt(
           json['maxIterations'],
           '$path.maxIterations',
@@ -63,6 +73,7 @@ sealed class CockpitWorkflowStep {
       ),
       'retry' => CockpitRetryWorkflowStep(
         stepId: stepId,
+        description: description,
         maxAttempts: _readPositiveInt(
           json['maxAttempts'],
           '$path.maxAttempts',
@@ -85,6 +96,7 @@ sealed class CockpitWorkflowStep {
 final class CockpitStartRecordingWorkflowStep extends CockpitWorkflowStep {
   const CockpitStartRecordingWorkflowStep({
     required super.stepId,
+    super.description,
     required this.recording,
   });
 
@@ -97,6 +109,7 @@ final class CockpitStartRecordingWorkflowStep extends CockpitWorkflowStep {
   Map<String, Object?> toJson() => <String, Object?>{
     'stepId': stepId,
     'stepType': stepType,
+    if (description != null) 'description': description,
     'recording': recording.toJson(),
   };
 }
@@ -104,6 +117,7 @@ final class CockpitStartRecordingWorkflowStep extends CockpitWorkflowStep {
 final class CockpitStopRecordingWorkflowStep extends CockpitWorkflowStep {
   const CockpitStopRecordingWorkflowStep({
     required super.stepId,
+    super.description,
     this.settleDelay = const Duration(milliseconds: 1400),
   });
 
@@ -116,6 +130,7 @@ final class CockpitStopRecordingWorkflowStep extends CockpitWorkflowStep {
   Map<String, Object?> toJson() => <String, Object?>{
     'stepId': stepId,
     'stepType': stepType,
+    if (description != null) 'description': description,
     'settleMs': settleDelay.inMilliseconds,
   };
 }
@@ -123,6 +138,7 @@ final class CockpitStopRecordingWorkflowStep extends CockpitWorkflowStep {
 final class CockpitCommandWorkflowStep extends CockpitWorkflowStep {
   const CockpitCommandWorkflowStep({
     required super.stepId,
+    super.description,
     required this.command,
   });
 
@@ -135,6 +151,7 @@ final class CockpitCommandWorkflowStep extends CockpitWorkflowStep {
   Map<String, Object?> toJson() => <String, Object?>{
     'stepId': stepId,
     'stepType': stepType,
+    if (description != null) 'description': description,
     'command': command.toJson(),
   };
 }
@@ -142,6 +159,7 @@ final class CockpitCommandWorkflowStep extends CockpitWorkflowStep {
 final class CockpitIfWorkflowStep extends CockpitWorkflowStep {
   const CockpitIfWorkflowStep({
     required super.stepId,
+    super.description,
     required this.condition,
     required this.thenSteps,
     this.elseSteps = const <CockpitWorkflowStep>[],
@@ -158,6 +176,7 @@ final class CockpitIfWorkflowStep extends CockpitWorkflowStep {
   Map<String, Object?> toJson() => <String, Object?>{
     'stepId': stepId,
     'stepType': stepType,
+    if (description != null) 'description': description,
     'condition': condition.toJson(),
     'thenSteps': thenSteps.map((step) => step.toJson()).toList(growable: false),
     if (elseSteps.isNotEmpty)
@@ -170,6 +189,7 @@ final class CockpitIfWorkflowStep extends CockpitWorkflowStep {
 final class CockpitLoopWorkflowStep extends CockpitWorkflowStep {
   const CockpitLoopWorkflowStep({
     required super.stepId,
+    super.description,
     required this.maxIterations,
     required this.condition,
     required this.steps,
@@ -186,6 +206,7 @@ final class CockpitLoopWorkflowStep extends CockpitWorkflowStep {
   Map<String, Object?> toJson() => <String, Object?>{
     'stepId': stepId,
     'stepType': stepType,
+    if (description != null) 'description': description,
     'maxIterations': maxIterations,
     'condition': condition.toJson(),
     'steps': steps.map((step) => step.toJson()).toList(growable: false),
@@ -195,6 +216,7 @@ final class CockpitLoopWorkflowStep extends CockpitWorkflowStep {
 final class CockpitRetryWorkflowStep extends CockpitWorkflowStep {
   const CockpitRetryWorkflowStep({
     required super.stepId,
+    super.description,
     required this.maxAttempts,
     required this.delayMs,
     required this.step,
@@ -211,6 +233,7 @@ final class CockpitRetryWorkflowStep extends CockpitWorkflowStep {
   Map<String, Object?> toJson() => <String, Object?>{
     'stepId': stepId,
     'stepType': stepType,
+    if (description != null) 'description': description,
     'maxAttempts': maxAttempts,
     'delayMs': delayMs,
     'step': step.toJson(),
@@ -353,6 +376,16 @@ String? _readOptionalString(Object? value) {
     return value;
   }
   throw const FormatException('Workflow stepId must be a non-empty string.');
+}
+
+String? _readOptionalDescription(Object? value, String path) {
+  if (value == null) {
+    return null;
+  }
+  if (value is String && value.trim().isNotEmpty) {
+    return value;
+  }
+  throw FormatException('$path must be a non-empty string.');
 }
 
 int _readPositiveInt(Object? value, String path, {int? defaultValue}) {

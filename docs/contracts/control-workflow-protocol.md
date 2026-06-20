@@ -41,8 +41,20 @@ Every workflow node is an object with:
 
 - `stepType`
 - optional `stepId`
+- optional `description`
 
 If `stepId` is omitted, the parser assigns a path-like id from the node position. Production scripts should set stable `stepId` values so bundle traces remain readable across runs.
+`description` explains the step intent for humans, AI agents, live events, and
+timeline UIs. It is metadata only and must not replace executable assertions or
+validation gates.
+
+Runtime timeline events for nested nodes include observability metadata in the
+event `details`: `workflowStepDepth`, `parentWorkflowStepId`,
+`parentWorkflowStepType`, `rootWorkflowStepId`, `relation`, `siblingIndex`, and
+for retries or loops, `attempt`/`maxAttempts` or
+`iteration`/`maxIterations`. These fields make live boards and downstream tools
+able to group internal probe steps under the user-authored workflow node without
+changing script execution semantics.
 
 ### `command`
 
@@ -87,6 +99,7 @@ Screenshot request fields are `reason` (`baseline`, `before_action`,
 ```yaml
 - stepId: tap-settings
   stepType: command
+  description: Open settings before checking sync configuration.
   command:
     commandId: tap-settings
     commandType: tap
@@ -301,6 +314,26 @@ Run it:
 ```bash
 dart run cockpit run-script --app-json /tmp/flutter_cockpit/app.json --script /tmp/flutter_cockpit/workflow.yaml --platform android --output-root /tmp/flutter_cockpit/out
 ```
+
+Open the optional full-fidelity board over the same output root:
+
+```bash
+dart run cockpit devtools --history-root /tmp/flutter_cockpit/out
+```
+
+The board groups runs by workflow `sessionId`, opens the current latest scope,
+and rewrites the URL to that concrete scope. Use one stable `sessionId` per
+development or validation job, `taskId` for the current objective, and `runId`
+for one execution attempt. Reuse the same `sessionId` for retries of the same
+job so its timeline, artifacts, and failures remain isolated from unrelated
+work under the same `--history-root`; use the `all runs` scope only for
+intentional cross-session audit. The main timeline is scope-level: retries with
+the same `sessionId` render together in execution order, while run details and
+bundle panels remain per-run. Artifact links carry the owning run and event key
+so repeated relative paths stay traceable. Pass `--scope latest` only for a
+board that should keep following the newest job. Run-index responses include
+`scopeMode`; `scope=current` and `scope=latest` are aliases for the current
+latest scope.
 
 For tool-owned bootstrap and validation, embed the same script object under the
 task config `script` field and run:

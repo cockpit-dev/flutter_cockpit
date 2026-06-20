@@ -232,6 +232,34 @@ For delivery:
 Delivery bundles include `steps.json` as the full action log and `trace.json` as the compact step-to-command-to-artifact index. After `validate-task`, `validation.json` records the durable validation verdict for external E2E consumers. Start from the protocol map in [`docs/contracts/flutter-cockpit-protocol.md`](docs/contracts/flutter-cockpit-protocol.md); the workflow script protocol is documented in [`docs/contracts/control-workflow-protocol.md`](docs/contracts/control-workflow-protocol.md), with the machine-readable schema in [`docs/contracts/control-workflow.schema.json`](docs/contracts/control-workflow.schema.json).
 The full AI development loop contract is documented in [`docs/contracts/ai-development-protocol.md`](docs/contracts/ai-development-protocol.md).
 
+For long or confusing delivery runs, start the local dashboard against the same
+output root used by `run-script`, `run-task`, or `validate-task`:
+
+```bash
+dart run cockpit devtools --history-root /tmp/flutter_cockpit/out
+```
+
+CLI and MCP summaries remain the low-token default. The dashboard is for
+full-fidelity state, timeline, screenshots, recordings, and bundle files. The
+history model is `sessionId` for one isolated development or validation job,
+`taskId` for the current objective inside that job, and `runId` for one
+execution attempt. Reuse the same `sessionId` for retries of the same job; use a
+new `sessionId` for unrelated work. The dashboard opens the current latest
+workflow `sessionId` scope and pins the URL to that concrete scope so unrelated
+jobs under the same history root do not mix timelines. Use the scope selector
+for older sessions or `all runs` only when you intentionally want a cross-session
+audit. Pass `--scope latest` when you intentionally want the board to keep
+following the newest job. It can also read `scope=current` and `scope=latest`
+API URLs as aliases for the current latest scope; the UI labels pinned views as
+`pinned scope` and live-following views as `following latest`. Timelines display
+the selected run in execution order and link screenshots, recordings, and errors
+back to event sequence numbers. The dashboard can also parse pasted workflow
+YAML/JSON or submit `runScript` / `validateTask` payloads as background jobs
+under the same history root. Run lists are paged for long-lived history roots
+while scope totals remain visible. If a large or partially written bundle JSON
+cannot be summarized safely, the dashboard reports it in `summaryFileIssues` and
+keeps serving the remaining timeline and artifacts.
+
 For target-first and non-Flutter/system work:
 
 1. `launch-target`

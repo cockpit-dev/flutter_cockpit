@@ -1,6 +1,4 @@
 PODS:
-  - flutter_cockpit (1.0.0):
-    - FlutterMacOS
   - FlutterMacOS (1.0.0)
   - path_provider_foundation (0.0.1):
     - Flutter
@@ -32,7 +30,6 @@ PODS:
     - sqlite3/session
 
 DEPENDENCIES:
-  - flutter_cockpit (from `Flutter/ephemeral/.symlinks/plugins/flutter_cockpit/macos`)
   - FlutterMacOS (from `Flutter/ephemeral`)
   - path_provider_foundation (from `Flutter/ephemeral/.symlinks/plugins/path_provider_foundation/darwin`)
   - sqlite3_flutter_libs (from `Flutter/ephemeral/.symlinks/plugins/sqlite3_flutter_libs/darwin`)
@@ -42,8 +39,6 @@ SPEC REPOS:
     - sqlite3
 
 EXTERNAL SOURCES:
-  flutter_cockpit:
-    :path: Flutter/ephemeral/.symlinks/plugins/flutter_cockpit/macos
   FlutterMacOS:
     :path: Flutter/ephemeral
   path_provider_foundation:
@@ -52,7 +47,6 @@ EXTERNAL SOURCES:
     :path: Flutter/ephemeral/.symlinks/plugins/sqlite3_flutter_libs/darwin
 
 SPEC CHECKSUMS:
-  flutter_cockpit: 15d61c1ea6b99aa6248d54f5c527eb30bab4c627
   FlutterMacOS: 8f6f14fa908a6fb3fba0cd85dbd81ec4b251fb24
   path_provider_foundation: 080d55be775b7414fd5a5ef3ac137b97b097e564
   sqlite3: a51c07cf16e023d6c48abd5e5791a61a47354921

@@ -58,6 +58,7 @@ import 'commands/analyze_files_command.dart';
 import 'commands/analyze_workspace_command.dart';
 import 'commands/apply_fixes_command.dart';
 import 'commands/create_project_command.dart';
+import 'commands/devtools_command.dart';
 import 'commands/format_workspace_command.dart';
 import 'commands/grep_package_uris_command.dart';
 
@@ -191,6 +192,7 @@ final class CockpitCommandRunner {
       RunTaskCommand(),
       ValidateTaskCommand(),
       ServeMcpCommand(),
+      DevtoolsCommand(),
       RunScriptCommand(),
       RunRemoteControlScriptCommand(),
     ];
