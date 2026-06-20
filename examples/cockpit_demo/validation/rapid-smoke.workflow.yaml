@@ -6,6 +6,7 @@ failFast: true
 steps:
   - stepId: wait-inbox
     stepType: retry
+    description: Wait until the inbox screen is ready before collecting proof.
     maxAttempts: 4
     delayMs: 500
     step:
@@ -17,6 +18,7 @@ steps:
           text: Inbox
   - stepId: capture-inbox
     stepType: command
+    description: Capture acceptance evidence for the loaded inbox.
     command:
       commandId: capture-inbox
       commandType: captureScreenshot
@@ -27,6 +29,7 @@ steps:
         attachToStep: true
   - stepId: assert-new-task-action
     stepType: retry
+    description: Confirm the primary task creation action is available.
     maxAttempts: 4
     delayMs: 500
     step:

@@ -248,6 +248,7 @@ final class TaskRunBundleWriter {
     final args = step.actionArgs;
     final commandId = args['commandId'];
     final workflowStepId = args['workflowStepId'];
+    final workflowStepDescription = _workflowStepDescription(args);
     final isWorkflowStep =
         step.actionType.startsWith('workflow_') || workflowStepId is String;
     final isCommandStep = step.commandType != null;
@@ -260,6 +261,9 @@ final class TaskRunBundleWriter {
       if (workflowStepId is String) 'workflowStepId': workflowStepId,
       if (args['workflowStepType'] is String)
         'workflowStepType': args['workflowStepType'],
+      // ignore: use_null_aware_elements
+      if (workflowStepDescription != null)
+        'description': workflowStepDescription,
       if (commandId is String) 'commandId': commandId,
       if (step.commandType != null) 'commandType': step.commandType!.name,
       if (step.status != null) 'status': step.status!.name,
@@ -286,6 +290,14 @@ final class TaskRunBundleWriter {
       if (args['failureSummary'] is String)
         'failureSummary': args['failureSummary'],
     };
+  }
+
+  String? _workflowStepDescription(Map<String, Object?> args) {
+    final description = args['workflowStepDescription'] ?? args['description'];
+    if (description is String && description.isNotEmpty) {
+      return description;
+    }
+    return null;
   }
 
   DateTime? _parseLogTimestamp(Object? value) {

@@ -4,6 +4,7 @@ import '../adapters/cockpit_automation_adapter.dart';
 import '../adapters/cockpit_capture_adapter.dart';
 import '../adapters/cockpit_recording_adapter.dart';
 import '../application/cockpit_command_evidence_defaults.dart';
+import '../devtools/cockpit_live_run_observer.dart';
 import 'cockpit_control_run_result.dart';
 import 'cockpit_workflow_step.dart';
 
@@ -15,15 +16,18 @@ final class CockpitControlRunner {
     required CockpitSessionController sessionController,
     this.failFast = true,
     this.recordingStopSettleDelay = const Duration(milliseconds: 1400),
+    CockpitLiveRunObserver? liveObserver,
   }) : _automationAdapter = automationAdapter,
        _captureAdapter = captureAdapter,
        _recordingAdapter = recordingAdapter,
-       _sessionController = sessionController;
+       _sessionController = sessionController,
+       _liveObserver = liveObserver;
 
   final CockpitAutomationAdapter _automationAdapter;
   final CockpitCaptureAdapter? _captureAdapter;
   final CockpitRecordingAdapter? _recordingAdapter;
   final CockpitSessionController _sessionController;
+  final CockpitLiveRunObserver? _liveObserver;
   final bool failFast;
   final Duration recordingStopSettleDelay;
 
@@ -33,89 +37,135 @@ final class CockpitControlRunner {
     List<CockpitWorkflowStep> workflowSteps = const <CockpitWorkflowStep>[],
     CockpitRecordingRequest? recording,
   }) async {
-    final capabilities = await _automationAdapter.describeCapabilities();
-    final capabilitiesUsed = _capabilitiesUsed(capabilities);
-    final artifactPayloads = <String, List<int>>{};
-    final artifactSourcePaths = <String, String>{};
-    String? failureSummary;
-    final recordingState = _WorkflowRecordingState();
-
-    if (recording != null) {
-      final startOutcome = await _startRecording(recording);
-      recordingState.session = startOutcome.session;
-      if (recordingState.session == null) {
-        failureSummary = startOutcome.failureSummary;
-      }
-    }
-
     try {
-      if (failureSummary == null) {
-        final effectiveSteps = workflowSteps.isNotEmpty
-            ? workflowSteps
-            : cockpitWorkflowStepsFromCommands(commands);
-        for (final step in effectiveSteps) {
-          final outcome = await _runWorkflowStep(
-            step,
-            artifactPayloads: artifactPayloads,
-            artifactSourcePaths: artifactSourcePaths,
-            recordingState: recordingState,
-            mode: _WorkflowExecutionMode.finalResult,
-          );
-          if (!outcome.success) {
-            failureSummary = outcome.failureSummary;
-            if (failFast) {
-              break;
+      final capabilities = await _automationAdapter.describeCapabilities();
+      final capabilitiesUsed = _capabilitiesUsed(capabilities);
+      _emitLiveEvent(
+        CockpitLiveRunEventDraft(
+          type: 'run_started',
+          status: 'running',
+          stage: 'setup',
+          details: <String, Object?>{'capabilitiesUsed': capabilitiesUsed},
+        ),
+      );
+      final artifactPayloads = <String, List<int>>{};
+      final artifactSourcePaths = <String, String>{};
+      String? failureSummary;
+      final recordingState = _WorkflowRecordingState();
+
+      if (recording != null) {
+        final startOutcome = await _startRecording(recording);
+        recordingState.session = startOutcome.session;
+        if (recordingState.session == null) {
+          failureSummary = startOutcome.failureSummary;
+        }
+      }
+
+      try {
+        if (failureSummary == null) {
+          final effectiveSteps = workflowSteps.isNotEmpty
+              ? workflowSteps
+              : cockpitWorkflowStepsFromCommands(commands);
+          for (final step in effectiveSteps) {
+            final outcome = await _runWorkflowStep(
+              step,
+              artifactPayloads: artifactPayloads,
+              artifactSourcePaths: artifactSourcePaths,
+              recordingState: recordingState,
+              mode: _WorkflowExecutionMode.finalResult,
+              context: const _WorkflowStepContext.root(),
+            );
+            if (!outcome.success) {
+              failureSummary = outcome.failureSummary;
+              if (failFast) {
+                break;
+              }
             }
           }
         }
-      }
-    } finally {
-      final recordingSession = recordingState.session;
-      recordingState.session = null;
-      if (recordingSession != null) {
-        final settleDelay = _effectiveRecordingStopSettleDelay(
-          recordingSession.request,
+      } finally {
+        final recordingSession = recordingState.session;
+        recordingState.session = null;
+        if (recordingSession != null) {
+          final settleDelay = _effectiveRecordingStopSettleDelay(
+            recordingSession.request,
+          );
+          if (settleDelay > Duration.zero) {
+            await Future<void>.delayed(settleDelay);
+          }
+        }
+        final stopOutcome = await _stopRecording(
+          session: recordingSession,
+          artifactPayloads: artifactPayloads,
+          artifactSourcePaths: artifactSourcePaths,
         );
-        if (settleDelay > Duration.zero) {
-          await Future<void>.delayed(settleDelay);
+        if (!stopOutcome.success && failureSummary == null) {
+          failureSummary = stopOutcome.failureSummary;
         }
       }
-      final stopOutcome = await _stopRecording(
-        session: recordingSession,
-        artifactPayloads: artifactPayloads,
-        artifactSourcePaths: artifactSourcePaths,
-      );
-      if (!stopOutcome.success && failureSummary == null) {
-        failureSummary = stopOutcome.failureSummary;
+
+      final CockpitControlRunResult result;
+      if (failureSummary != null) {
+        result = CockpitControlRunResult(
+          bundle: _sessionController.finishWithFailure(
+            environment: environment,
+            failureSummary: failureSummary,
+            capabilitiesUsed: capabilitiesUsed,
+          ),
+          artifactPayloads: artifactPayloads,
+          artifactSourcePaths: artifactSourcePaths,
+        );
+        _emitLiveEvent(
+          CockpitLiveRunEventDraft(
+            type: 'run_finished',
+            status: 'failed',
+            stage: 'finish',
+            error: <String, Object?>{'message': failureSummary},
+            details: <String, Object?>{'capabilitiesUsed': capabilitiesUsed},
+          ),
+        );
+      } else {
+        result = CockpitControlRunResult(
+          bundle: _sessionController.finish(
+            environment: environment,
+            capabilitiesUsed: capabilitiesUsed,
+          ),
+          artifactPayloads: artifactPayloads,
+          artifactSourcePaths: artifactSourcePaths,
+        );
+        _emitLiveEvent(
+          CockpitLiveRunEventDraft(
+            type: 'run_finished',
+            status: 'completed',
+            stage: 'finish',
+            details: <String, Object?>{'capabilitiesUsed': capabilitiesUsed},
+          ),
+        );
       }
-    }
-
-    if (failureSummary != null) {
-      return CockpitControlRunResult(
-        bundle: _sessionController.finishWithFailure(
-          environment: environment,
-          failureSummary: failureSummary,
-          capabilitiesUsed: capabilitiesUsed,
+      await _flushLiveObserver();
+      return result;
+    } catch (error) {
+      _emitLiveEvent(
+        CockpitLiveRunEventDraft(
+          type: 'run_finished',
+          status: 'failed',
+          stage: 'finish',
+          error: <String, Object?>{
+            'type': error.runtimeType.toString(),
+            'message': error.toString(),
+          },
         ),
-        artifactPayloads: artifactPayloads,
-        artifactSourcePaths: artifactSourcePaths,
       );
+      await _flushLiveObserver();
+      rethrow;
     }
-
-    return CockpitControlRunResult(
-      bundle: _sessionController.finish(
-        environment: environment,
-        capabilitiesUsed: capabilitiesUsed,
-      ),
-      artifactPayloads: artifactPayloads,
-      artifactSourcePaths: artifactSourcePaths,
-    );
   }
 
   Future<_RecordingStartOutcome> _startRecording(
     CockpitRecordingRequest request, {
     String? workflowStepId,
     String? workflowStepType,
+    String? workflowStepDescription,
   }) async {
     final recordingAdapter = _recordingAdapter;
     if (recordingAdapter == null) {
@@ -130,6 +180,7 @@ final class CockpitControlRunner {
         ..._workflowStepRecordingArgs(
           workflowStepId: workflowStepId,
           workflowStepType: workflowStepType,
+          workflowStepDescription: workflowStepDescription,
         ),
         'recordingName': request.name,
         'recordingPurpose': request.purpose.name,
@@ -145,6 +196,7 @@ final class CockpitControlRunner {
           ..._workflowStepRecordingArgs(
             workflowStepId: workflowStepId,
             workflowStepType: workflowStepType,
+            workflowStepDescription: workflowStepDescription,
           ),
           'recordingName': session.request.name,
           'recordingPurpose': session.request.purpose.name,
@@ -161,6 +213,7 @@ final class CockpitControlRunner {
           ..._workflowStepRecordingArgs(
             workflowStepId: workflowStepId,
             workflowStepType: workflowStepType,
+            workflowStepDescription: workflowStepDescription,
           ),
           'recordingName': request.name,
           'recordingPurpose': request.purpose.name,
@@ -178,6 +231,7 @@ final class CockpitControlRunner {
     required Map<String, String> artifactSourcePaths,
     String? workflowStepId,
     String? workflowStepType,
+    String? workflowStepDescription,
   }) async {
     final recordingAdapter = _recordingAdapter;
     if (session == null || recordingAdapter == null) {
@@ -205,6 +259,7 @@ final class CockpitControlRunner {
           ..._workflowStepRecordingArgs(
             workflowStepId: workflowStepId,
             workflowStepType: workflowStepType,
+            workflowStepDescription: workflowStepDescription,
           ),
           'recordingName': session.request.name,
           'recordingPurpose': session.request.purpose.name,
@@ -233,6 +288,7 @@ final class CockpitControlRunner {
           ..._workflowStepRecordingArgs(
             workflowStepId: workflowStepId,
             workflowStepType: workflowStepType,
+            workflowStepDescription: workflowStepDescription,
           ),
           'recordingName': session.request.name,
           'recordingPurpose': session.request.purpose.name,
@@ -259,47 +315,85 @@ final class CockpitControlRunner {
     required Map<String, String> artifactSourcePaths,
     required _WorkflowRecordingState recordingState,
     required _WorkflowExecutionMode mode,
+    required _WorkflowStepContext context,
   }) async {
-    return switch (step) {
-      CockpitStartRecordingWorkflowStep() => _runStartRecordingWorkflowStep(
+    _emitLiveEvent(
+      _liveEventForWorkflowStep(
         step,
-        recordingState: recordingState,
-      ),
-      CockpitStopRecordingWorkflowStep() => _runStopRecordingWorkflowStep(
-        step,
-        artifactPayloads: artifactPayloads,
-        artifactSourcePaths: artifactSourcePaths,
-        recordingState: recordingState,
-      ),
-      CockpitCommandWorkflowStep() => _runCommandWorkflowStep(
-        step,
-        artifactPayloads: artifactPayloads,
-        artifactSourcePaths: artifactSourcePaths,
-        recordingState: recordingState,
+        type: 'workflow_step_started',
+        status: 'running',
         mode: mode,
+        context: context,
       ),
-      CockpitIfWorkflowStep() => _runIfWorkflowStep(
-        step,
-        artifactPayloads: artifactPayloads,
-        artifactSourcePaths: artifactSourcePaths,
-        recordingState: recordingState,
-        mode: mode,
-      ),
-      CockpitLoopWorkflowStep() => _runLoopWorkflowStep(
-        step,
-        artifactPayloads: artifactPayloads,
-        artifactSourcePaths: artifactSourcePaths,
-        recordingState: recordingState,
-        mode: mode,
-      ),
-      CockpitRetryWorkflowStep() => _runRetryWorkflowStep(
-        step,
-        artifactPayloads: artifactPayloads,
-        artifactSourcePaths: artifactSourcePaths,
-        recordingState: recordingState,
-        mode: mode,
-      ),
-    };
+    );
+    try {
+      final outcome = await switch (step) {
+        CockpitStartRecordingWorkflowStep() => _runStartRecordingWorkflowStep(
+          step,
+          recordingState: recordingState,
+        ),
+        CockpitStopRecordingWorkflowStep() => _runStopRecordingWorkflowStep(
+          step,
+          artifactPayloads: artifactPayloads,
+          artifactSourcePaths: artifactSourcePaths,
+          recordingState: recordingState,
+        ),
+        CockpitCommandWorkflowStep() => _runCommandWorkflowStep(
+          step,
+          artifactPayloads: artifactPayloads,
+          artifactSourcePaths: artifactSourcePaths,
+          recordingState: recordingState,
+          mode: mode,
+        ),
+        CockpitIfWorkflowStep() => _runIfWorkflowStep(
+          step,
+          artifactPayloads: artifactPayloads,
+          artifactSourcePaths: artifactSourcePaths,
+          recordingState: recordingState,
+          mode: mode,
+          context: context,
+        ),
+        CockpitLoopWorkflowStep() => _runLoopWorkflowStep(
+          step,
+          artifactPayloads: artifactPayloads,
+          artifactSourcePaths: artifactSourcePaths,
+          recordingState: recordingState,
+          mode: mode,
+          context: context,
+        ),
+        CockpitRetryWorkflowStep() => _runRetryWorkflowStep(
+          step,
+          artifactPayloads: artifactPayloads,
+          artifactSourcePaths: artifactSourcePaths,
+          recordingState: recordingState,
+          mode: mode,
+          context: context,
+        ),
+      };
+      _emitLiveEvent(
+        _liveEventForWorkflowStep(
+          step,
+          type: 'workflow_step_completed',
+          status: outcome.success ? 'completed' : 'failed',
+          mode: mode,
+          context: context,
+          outcome: outcome,
+        ),
+      );
+      return outcome;
+    } catch (error) {
+      _emitLiveEvent(
+        _liveEventForWorkflowStep(
+          step,
+          type: 'workflow_step_completed',
+          status: 'failed',
+          mode: mode,
+          context: context,
+          error: error,
+        ),
+      );
+      rethrow;
+    }
   }
 
   Future<_WorkflowStepOutcome> _runStartRecordingWorkflowStep(
@@ -314,6 +408,8 @@ final class CockpitControlRunner {
         actionArgs: <String, Object?>{
           'workflowStepId': step.stepId,
           'workflowStepType': step.stepType,
+          if (step.description != null)
+            'workflowStepDescription': step.description,
           'recordingName': step.recording.name,
           'recordingPurpose': step.recording.purpose.name,
           'recordingState': CockpitRecordingState.failed.name,
@@ -328,6 +424,7 @@ final class CockpitControlRunner {
         step.recording,
         workflowStepId: step.stepId,
         workflowStepType: step.stepType,
+        workflowStepDescription: step.description,
       );
       recordingState.session = startOutcome.session;
       if (!startOutcome.success) {
@@ -340,6 +437,8 @@ final class CockpitControlRunner {
         actionArgs: <String, Object?>{
           'workflowStepId': step.stepId,
           'workflowStepType': step.stepType,
+          if (step.description != null)
+            'workflowStepDescription': step.description,
           'recordingName': step.recording.name,
           'recordingPurpose': step.recording.purpose.name,
           'recordingState': CockpitRecordingState.failed.name,
@@ -367,6 +466,8 @@ final class CockpitControlRunner {
         actionArgs: <String, Object?>{
           'workflowStepId': step.stepId,
           'workflowStepType': step.stepType,
+          if (step.description != null)
+            'workflowStepDescription': step.description,
           'recordingState': CockpitRecordingState.failed.name,
           'failureReason': failureSummary,
         },
@@ -384,6 +485,7 @@ final class CockpitControlRunner {
       artifactSourcePaths: artifactSourcePaths,
       workflowStepId: step.stepId,
       workflowStepType: step.stepType,
+      workflowStepDescription: step.description,
     );
     if (!stopOutcome.success) {
       return _WorkflowStepOutcome.failure(stopOutcome.failureSummary!);
@@ -411,6 +513,8 @@ final class CockpitControlRunner {
         actionArgs: <String, Object?>{
           'workflowStepId': step.stepId,
           'workflowStepType': step.stepType,
+          if (step.description != null)
+            'workflowStepDescription': step.description,
           'commandId': command.commandId,
           'commandType': command.commandType.name,
           'success': execution.result.success,
@@ -435,6 +539,7 @@ final class CockpitControlRunner {
     required Map<String, String> artifactSourcePaths,
     required _WorkflowRecordingState recordingState,
     required _WorkflowExecutionMode mode,
+    required _WorkflowStepContext context,
   }) async {
     final condition = await _runProbeCommand(
       step.condition,
@@ -449,6 +554,8 @@ final class CockpitControlRunner {
       actionArgs: <String, Object?>{
         'workflowStepId': step.stepId,
         'workflowStepType': step.stepType,
+        if (step.description != null)
+          'workflowStepDescription': step.description,
         'conditionCommandId': condition.result.commandId,
         'conditionCommandType': condition.result.commandType.name,
         'conditionSuccess': condition.result.success,
@@ -460,13 +567,19 @@ final class CockpitControlRunner {
       durationMs: condition.result.durationMs,
     );
 
-    for (final child in selectedSteps) {
+    for (var index = 0; index < selectedSteps.length; index += 1) {
+      final child = selectedSteps[index];
       final outcome = await _runWorkflowStep(
         child,
         artifactPayloads: artifactPayloads,
         artifactSourcePaths: artifactSourcePaths,
         recordingState: recordingState,
         mode: mode,
+        context: context.child(
+          parent: step,
+          relation: condition.result.success ? 'then' : 'else',
+          siblingIndex: index,
+        ),
       );
       if (!outcome.success) {
         return outcome;
@@ -481,6 +594,7 @@ final class CockpitControlRunner {
     required Map<String, String> artifactSourcePaths,
     required _WorkflowRecordingState recordingState,
     required _WorkflowExecutionMode mode,
+    required _WorkflowStepContext context,
   }) async {
     for (var index = 0; index < step.maxIterations; index += 1) {
       final condition = await _runProbeCommand(
@@ -494,6 +608,8 @@ final class CockpitControlRunner {
         actionArgs: <String, Object?>{
           'workflowStepId': step.stepId,
           'workflowStepType': step.stepType,
+          if (step.description != null)
+            'workflowStepDescription': step.description,
           'iteration': index + 1,
           'maxIterations': step.maxIterations,
           'conditionCommandId': condition.result.commandId,
@@ -509,13 +625,25 @@ final class CockpitControlRunner {
         return const _WorkflowStepOutcome.success();
       }
 
-      for (final child in step.steps) {
+      for (
+        var childIndex = 0;
+        childIndex < step.steps.length;
+        childIndex += 1
+      ) {
+        final child = step.steps[childIndex];
         final outcome = await _runWorkflowStep(
           child,
           artifactPayloads: artifactPayloads,
           artifactSourcePaths: artifactSourcePaths,
           recordingState: recordingState,
           mode: mode,
+          context: context.child(
+            parent: step,
+            relation: 'loop',
+            siblingIndex: childIndex,
+            iteration: index + 1,
+            maxIterations: step.maxIterations,
+          ),
         );
         if (!outcome.success) {
           return outcome;
@@ -527,6 +655,8 @@ final class CockpitControlRunner {
       actionArgs: <String, Object?>{
         'workflowStepId': step.stepId,
         'workflowStepType': step.stepType,
+        if (step.description != null)
+          'workflowStepDescription': step.description,
         'maxIterations': step.maxIterations,
       },
     );
@@ -539,6 +669,7 @@ final class CockpitControlRunner {
     required Map<String, String> artifactSourcePaths,
     required _WorkflowRecordingState recordingState,
     required _WorkflowExecutionMode mode,
+    required _WorkflowStepContext context,
   }) async {
     _WorkflowStepOutcome? lastOutcome;
     for (var index = 0; index < step.maxAttempts; index += 1) {
@@ -548,6 +679,13 @@ final class CockpitControlRunner {
         artifactSourcePaths: artifactSourcePaths,
         recordingState: recordingState,
         mode: _WorkflowExecutionMode.probe,
+        context: context.child(
+          parent: step,
+          relation: 'retry',
+          siblingIndex: 0,
+          attempt: index + 1,
+          maxAttempts: step.maxAttempts,
+        ),
       );
       lastOutcome = outcome;
       _sessionController.recordStep(
@@ -555,6 +693,8 @@ final class CockpitControlRunner {
         actionArgs: <String, Object?>{
           'workflowStepId': step.stepId,
           'workflowStepType': step.stepType,
+          if (step.description != null)
+            'workflowStepDescription': step.description,
           'attempt': index + 1,
           'maxAttempts': step.maxAttempts,
           'success': outcome.success,
@@ -608,10 +748,90 @@ final class CockpitControlRunner {
           ...command.parameters,
           'workflowStepId': step.stepId,
           'workflowStepType': step.stepType,
+          if (step.description != null)
+            'workflowStepDescription': step.description,
         },
       ),
       execution.result,
     );
+  }
+
+  CockpitLiveRunEventDraft _liveEventForWorkflowStep(
+    CockpitWorkflowStep step, {
+    required String type,
+    required String status,
+    required _WorkflowExecutionMode mode,
+    required _WorkflowStepContext context,
+    _WorkflowStepOutcome? outcome,
+    Object? error,
+  }) {
+    final command = _commandForWorkflowStep(step);
+    final result = outcome?.execution?.result;
+    return CockpitLiveRunEventDraft(
+      type: type,
+      status: status,
+      stage: 'control',
+      workflowStepId: step.stepId,
+      workflowStepType: step.stepType,
+      description: step.description,
+      commandId: command?.commandId,
+      commandType: command?.commandType.name,
+      artifactRefs:
+          result?.artifacts
+              .map((artifact) => artifact.toJson())
+              .toList(growable: false) ??
+          const <Map<String, Object?>>[],
+      error: error == null && outcome?.failureSummary == null
+          ? null
+          : <String, Object?>{
+              if (outcome?.failureSummary != null)
+                'message': outcome!.failureSummary,
+              if (error != null) ...<String, Object?>{
+                'type': error.runtimeType.toString(),
+                'message': error.toString(),
+              },
+            },
+      details: <String, Object?>{
+        'mode': mode.name,
+        ...context.toJson(),
+        if (outcome != null) 'success': outcome.success,
+        if (result != null) ...<String, Object?>{
+          'commandDurationMs': result.durationMs,
+          'usedCaptureFallback': result.usedCaptureFallback,
+          if (result.requestedCaptureProfile != null)
+            'requestedCaptureProfile': result.requestedCaptureProfile!.name,
+          if (result.resolvedCaptureKind != null)
+            'resolvedCaptureKind': result.resolvedCaptureKind!.name,
+        },
+      },
+    );
+  }
+
+  CockpitCommand? _commandForWorkflowStep(CockpitWorkflowStep step) {
+    return switch (step) {
+      CockpitCommandWorkflowStep() => step.command,
+      CockpitIfWorkflowStep() => step.condition,
+      CockpitLoopWorkflowStep() => step.condition,
+      CockpitRetryWorkflowStep() => _commandForWorkflowStep(step.step),
+      CockpitStartRecordingWorkflowStep() => null,
+      CockpitStopRecordingWorkflowStep() => null,
+    };
+  }
+
+  void _emitLiveEvent(CockpitLiveRunEventDraft event) {
+    try {
+      _liveObserver?.record(event);
+    } catch (_) {
+      // Observability must never break the underlying control flow.
+    }
+  }
+
+  Future<void> _flushLiveObserver() async {
+    try {
+      await _liveObserver?.flush();
+    } catch (_) {
+      // Returning the automation result is more important than live telemetry.
+    }
   }
 
   List<String> _capabilitiesUsed(CockpitCapabilities capabilities) {
@@ -632,6 +852,7 @@ final class CockpitControlRunner {
   Map<String, Object?> _workflowStepRecordingArgs({
     required String? workflowStepId,
     required String? workflowStepType,
+    required String? workflowStepDescription,
   }) {
     final args = <String, Object?>{};
     if (workflowStepId != null) {
@@ -640,11 +861,90 @@ final class CockpitControlRunner {
     if (workflowStepType != null) {
       args['workflowStepType'] = workflowStepType;
     }
+    if (workflowStepDescription != null) {
+      args['workflowStepDescription'] = workflowStepDescription;
+    }
     return args;
   }
 }
 
 enum _WorkflowExecutionMode { finalResult, probe }
+
+final class _WorkflowStepContext {
+  const _WorkflowStepContext({
+    required this.depth,
+    this.parentWorkflowStepId,
+    this.parentWorkflowStepType,
+    this.rootWorkflowStepId,
+    this.relation,
+    this.siblingIndex,
+    this.attempt,
+    this.maxAttempts,
+    this.iteration,
+    this.maxIterations,
+  });
+
+  const _WorkflowStepContext.root()
+    : depth = 0,
+      parentWorkflowStepId = null,
+      parentWorkflowStepType = null,
+      rootWorkflowStepId = null,
+      relation = null,
+      siblingIndex = null,
+      attempt = null,
+      maxAttempts = null,
+      iteration = null,
+      maxIterations = null;
+
+  final int depth;
+  final String? parentWorkflowStepId;
+  final String? parentWorkflowStepType;
+  final String? rootWorkflowStepId;
+  final String? relation;
+  final int? siblingIndex;
+  final int? attempt;
+  final int? maxAttempts;
+  final int? iteration;
+  final int? maxIterations;
+
+  _WorkflowStepContext child({
+    required CockpitWorkflowStep parent,
+    required String relation,
+    required int siblingIndex,
+    int? attempt,
+    int? maxAttempts,
+    int? iteration,
+    int? maxIterations,
+  }) {
+    return _WorkflowStepContext(
+      depth: depth + 1,
+      parentWorkflowStepId: parent.stepId,
+      parentWorkflowStepType: parent.stepType,
+      rootWorkflowStepId: rootWorkflowStepId ?? parent.stepId,
+      relation: relation,
+      siblingIndex: siblingIndex,
+      attempt: attempt,
+      maxAttempts: maxAttempts,
+      iteration: iteration,
+      maxIterations: maxIterations,
+    );
+  }
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'workflowStepDepth': depth,
+    if (parentWorkflowStepId != null)
+      'parentWorkflowStepId': parentWorkflowStepId,
+    if (parentWorkflowStepType != null)
+      'parentWorkflowStepType': parentWorkflowStepType,
+    if (rootWorkflowStepId != null) 'rootWorkflowStepId': rootWorkflowStepId,
+    if (relation != null) 'relation': relation,
+    if (siblingIndex != null) 'siblingIndex': siblingIndex,
+    if (attempt != null) 'attempt': attempt,
+    if (maxAttempts != null) 'maxAttempts': maxAttempts,
+    if (iteration != null) 'iteration': iteration,
+    if (maxIterations != null) 'maxIterations': maxIterations,
+  };
+}
 
 final class _WorkflowRecordingState {
   CockpitRecordingSession? session;

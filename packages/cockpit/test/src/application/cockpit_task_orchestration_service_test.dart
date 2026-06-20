@@ -30,6 +30,7 @@ void main() {
       });
 
       final handle = _sessionHandle(platform: 'android');
+      CockpitRunRemoteControlScriptRequest? capturedRunScriptRequest;
       final service = CockpitTaskOrchestrationService(
         launch: (_) async => CockpitLaunchRemoteSessionResult(
           sessionHandle: handle,
@@ -40,13 +41,16 @@ void main() {
           ),
         ),
         query: (_) async => throw UnimplementedError(),
-        runScript: (_) async => _runScriptResult(
-          bundleDir: bundleDir,
-          handle: handle,
-          platform: 'android',
-          screenshotRelativePath: 'screenshots/acceptance.png',
-          recordingRelativePath: 'recordings/acceptance.mp4',
-        ),
+        runScript: (request) async {
+          capturedRunScriptRequest = request;
+          return _runScriptResult(
+            bundleDir: bundleDir,
+            handle: handle,
+            platform: 'android',
+            screenshotRelativePath: 'screenshots/acceptance.png',
+            recordingRelativePath: 'recordings/acceptance.mp4',
+          );
+        },
         readSummary: (_) async => _summary(
           bundleDir: bundleDir,
           platform: 'android',
@@ -67,6 +71,8 @@ void main() {
           ),
           script: _script(platform: 'android'),
           outputRoot: bundleDir.path,
+          liveRunId: '20260619T120000000Z_task-orchestration-session',
+          liveRunDisplayName: 'Task orchestration acceptance',
           baseline: const CockpitRunTaskBaselineRequest(
             captureScreenshot: true,
           ),
@@ -104,6 +110,14 @@ void main() {
       expect(
         result.isGateSatisfied(CockpitTaskGate.finalAssertionPassed),
         isTrue,
+      );
+      expect(
+        capturedRunScriptRequest?.liveRunId,
+        '20260619T120000000Z_task-orchestration-session',
+      );
+      expect(
+        capturedRunScriptRequest?.liveRunDisplayName,
+        'Task orchestration acceptance',
       );
     },
   );

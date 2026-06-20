@@ -29,6 +29,8 @@ void main() {
       script: _script(platform: 'android'),
       outputRoot: '/tmp/output',
       persistScriptPath: '/tmp/script.json',
+      liveRunId: '20260619T120000000Z_run-task-session',
+      liveRunDisplayName: 'Run task acceptance',
       baseline: const CockpitRunTaskBaselineRequest(
         captureScreenshot: true,
         screenshotName: 'baseline-home',
@@ -54,6 +56,8 @@ void main() {
       'script': _script(platform: 'android').toJson(),
       'outputRoot': '/tmp/output',
       'persistScriptPath': '/tmp/script.json',
+      'liveRunId': '20260619T120000000Z_run-task-session',
+      'liveRunDisplayName': 'Run task acceptance',
       'baseline': <String, Object?>{
         'captureScreenshot': true,
         'screenshotName': 'baseline-home',

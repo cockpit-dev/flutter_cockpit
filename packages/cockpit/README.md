@@ -85,6 +85,34 @@ Recommended app-first loop:
 5. `hot-reload` or `hot-restart`
 6. `run-script`, `run-task`, or `validate-task` for delivery
 
+For full-fidelity observability of delivery runs, point the local dashboard at
+the same output root used by the run:
+
+```bash
+dart run cockpit devtools --history-root /tmp/flutter_cockpit/out
+```
+
+The command stays running until interrupted and serves only on loopback by
+default. Use CLI/MCP summaries for low-token agent decisions; use the dashboard
+when timeline, screenshots, recordings, or bundle files need human inspection.
+Runs are grouped by workflow `sessionId`. Treat `sessionId` as the isolated
+development or validation job, `taskId` as the current objective, and `runId` as
+one execution attempt. Reuse a `sessionId` for retries of the same job and use a
+new `sessionId` for unrelated work. The dashboard opens the current latest scope
+and pins the URL to that concrete scope, with a selector for older sessions or
+`all runs` when cross-session audit is intentional. Pass `--scope latest` only
+when you want it to keep following the newest job. `scope=current` and
+`scope=latest` API URLs resolve to the current latest scope, while the UI
+distinguishes `pinned scope` from `following latest`. Timelines render the
+active session/scope across its runs in execution order; run details and bundle
+panels track the selected run. Artifact links include the owning run and event
+key so repeated relative paths stay traceable. The dashboard can also parse
+workflow YAML/JSON and submit `runScript` or `validateTask` payloads as
+background jobs under the same history root. Run lists are paged for long-lived
+history roots while scope totals remain visible.
+Large or partially written bundle JSON is reported through `summaryFileIssues`
+instead of failing the dashboard.
+
 Target-first loop when the agent needs direct system or non-Flutter control:
 
 1. `launch-target`

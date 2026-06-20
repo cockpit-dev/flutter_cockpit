@@ -128,6 +128,8 @@ final class CockpitTaskOrchestrationService {
               script: script,
               outputRoot: request.outputRoot,
               persistScriptPath: request.persistScriptPath,
+              liveRunId: request.liveRunId,
+              liveRunDisplayName: request.liveRunDisplayName,
             ),
           );
         } on CockpitApplicationServiceException catch (error) {

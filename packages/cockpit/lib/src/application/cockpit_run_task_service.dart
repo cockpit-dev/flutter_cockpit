@@ -153,6 +153,8 @@ final class CockpitRunTaskRequest {
     required this.script,
     required this.outputRoot,
     this.persistScriptPath,
+    this.liveRunId,
+    this.liveRunDisplayName,
     this.baseline = const CockpitRunTaskBaselineRequest(),
     this.requirements = const CockpitRunTaskEvidenceRequirements(),
   });
@@ -163,6 +165,8 @@ final class CockpitRunTaskRequest {
   final CockpitControlScript script;
   final String outputRoot;
   final String? persistScriptPath;
+  final String? liveRunId;
+  final String? liveRunDisplayName;
   final CockpitRunTaskBaselineRequest baseline;
   final CockpitRunTaskEvidenceRequirements requirements;
 
@@ -173,6 +177,8 @@ final class CockpitRunTaskRequest {
     'script': script.toJson(),
     'outputRoot': outputRoot,
     if (persistScriptPath != null) 'persistScriptPath': persistScriptPath,
+    if (liveRunId != null) 'liveRunId': liveRunId,
+    if (liveRunDisplayName != null) 'liveRunDisplayName': liveRunDisplayName,
     'baseline': baseline.toJson(),
     'requirements': requirements.toJson(),
   };
@@ -195,12 +201,32 @@ final class CockpitRunTaskRequest {
       script: CockpitControlScript.fromJson(scriptJson),
       outputRoot: _readRequiredString(json, 'outputRoot'),
       persistScriptPath: _readOptionalString(json, 'persistScriptPath'),
+      liveRunId: _readOptionalString(json, 'liveRunId'),
+      liveRunDisplayName: _readOptionalString(json, 'liveRunDisplayName'),
       baseline: baselineJson == null
           ? const CockpitRunTaskBaselineRequest()
           : CockpitRunTaskBaselineRequest.fromJson(baselineJson),
       requirements: requirementsJson == null
           ? const CockpitRunTaskEvidenceRequirements()
           : CockpitRunTaskEvidenceRequirements.fromJson(requirementsJson),
+    );
+  }
+
+  CockpitRunTaskRequest withLiveRun({
+    required String liveRunId,
+    String? liveRunDisplayName,
+  }) {
+    return CockpitRunTaskRequest(
+      launch: launch,
+      sessionHandle: sessionHandle,
+      sessionHandlePath: sessionHandlePath,
+      script: script,
+      outputRoot: outputRoot,
+      persistScriptPath: persistScriptPath,
+      liveRunId: liveRunId,
+      liveRunDisplayName: liveRunDisplayName ?? this.liveRunDisplayName,
+      baseline: baseline,
+      requirements: requirements,
     );
   }
 }

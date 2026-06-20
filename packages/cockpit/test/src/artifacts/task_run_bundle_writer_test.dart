@@ -105,6 +105,7 @@ void main() {
             actionArgs: const <String, Object?>{
               'workflowStepId': 'dismiss-dialog-if-present',
               'workflowStepType': 'if',
+              'workflowStepDescription': 'Dismiss optional dialog.',
               'conditionCommandId': 'has-dialog',
               'conditionSuccess': false,
               'selectedBranch': 'else',
@@ -118,6 +119,7 @@ void main() {
               'commandId': 'tap-continue',
               'workflowStepId': 'continue-flow',
               'workflowStepType': 'command',
+              'workflowStepDescription': 'Continue the main flow.',
             },
             observedAt: DateTime.utc(2026, 6, 15, 8, 0, 1),
             commandType: CockpitCommandType.tap,
@@ -159,10 +161,12 @@ void main() {
       final entries = (trace['entries']! as List<Object?>)
           .cast<Map<String, Object?>>();
       expect(entries.first['workflowStepId'], 'dismiss-dialog-if-present');
+      expect(entries.first['description'], 'Dismiss optional dialog.');
       expect(entries.first['conditionCommandId'], 'has-dialog');
       expect(entries.first['selectedBranch'], 'else');
       expect(entries.last['stepIndex'], 1);
       expect(entries.last['workflowStepId'], 'continue-flow');
+      expect(entries.last['description'], 'Continue the main flow.');
       expect(entries.last['commandId'], 'tap-continue');
       expect(entries.last['captureRefs'], isNotEmpty);
     },

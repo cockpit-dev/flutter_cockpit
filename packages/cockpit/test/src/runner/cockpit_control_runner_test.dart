@@ -417,6 +417,62 @@ steps:
   });
 
   group('workflow steps', () {
+    test('emits parent metadata for nested live workflow events', () async {
+      final adapter = _FakeAutomationAdapter(
+        capabilities: _capabilities(),
+        resultsByCommandId: <String, CockpitCommandResult>{
+          'assert-ready': _result(
+            commandId: 'assert-ready',
+            commandType: CockpitCommandType.assertText,
+          ),
+        },
+      );
+      final liveObserver = _CapturingLiveObserver();
+      final runner = CockpitControlRunner(
+        automationAdapter: adapter,
+        sessionController: CockpitSessionController(
+          sessionId: 'live-session',
+          taskId: 'live-task',
+          platform: 'macos',
+        ),
+        liveObserver: liveObserver,
+      );
+
+      await runner.run(
+        environment: _environment(),
+        workflowSteps: <CockpitWorkflowStep>[
+          CockpitRetryWorkflowStep(
+            stepId: 'retry-ready',
+            maxAttempts: 2,
+            delayMs: 0,
+            step: CockpitCommandWorkflowStep(
+              stepId: 'assert-ready-step',
+              command: CockpitCommand(
+                commandId: 'assert-ready',
+                commandType: CockpitCommandType.assertText,
+              ),
+            ),
+          ),
+        ],
+      );
+
+      final stepStarted = liveObserver.events
+          .where((event) => event.type == 'workflow_step_started')
+          .toList(growable: false);
+      expect(stepStarted, hasLength(2));
+      expect(stepStarted.first.workflowStepId, 'retry-ready');
+      expect(stepStarted.first.details, containsPair('workflowStepDepth', 0));
+      expect(stepStarted.last.workflowStepId, 'assert-ready-step');
+      expect(
+        stepStarted.last.details,
+        containsPair('parentWorkflowStepId', 'retry-ready'),
+      );
+      expect(stepStarted.last.details, containsPair('workflowStepDepth', 1));
+      expect(stepStarted.last.details, containsPair('attempt', 1));
+      expect(stepStarted.last.details, containsPair('maxAttempts', 2));
+      expect(stepStarted.last.details, containsPair('relation', 'retry'));
+    });
+
     test(
       'executes the matching if branch without recording probe failures as command failures',
       () async {
@@ -446,6 +502,7 @@ steps:
           workflowSteps: <CockpitWorkflowStep>[
             CockpitIfWorkflowStep(
               stepId: 'dismiss-dialog-if-present',
+              description: 'Dismiss optional dialog when it appears.',
               condition: CockpitCommand(
                 commandId: 'probe-dialog',
                 commandType: CockpitCommandType.assertText,
@@ -464,6 +521,7 @@ steps:
               elseSteps: <CockpitWorkflowStep>[
                 CockpitCommandWorkflowStep(
                   stepId: 'tap-fallback-step',
+                  description: 'Continue because the dialog was absent.',
                   command: CockpitCommand(
                     commandId: 'tap-fallback',
                     commandType: CockpitCommandType.tap,
@@ -493,8 +551,19 @@ steps:
           containsPair('conditionCommandId', 'probe-dialog'),
         );
         expect(
+          workflowStep.actionArgs,
+          containsPair(
+            'workflowStepDescription',
+            'Dismiss optional dialog when it appears.',
+          ),
+        );
+        expect(
           runResult.bundle.steps.last.actionArgs['workflowStepId'],
           'tap-fallback-step',
+        );
+        expect(
+          runResult.bundle.steps.last.actionArgs['workflowStepDescription'],
+          'Continue because the dialog was absent.',
         );
       },
     );
@@ -541,6 +610,7 @@ steps:
           workflowSteps: <CockpitWorkflowStep>[
             CockpitLoopWorkflowStep(
               stepId: 'delete-items',
+              description: 'Delete all visible queued items.',
               maxIterations: 5,
               condition: CockpitCommand(
                 commandId: 'has-item',
@@ -550,6 +620,7 @@ steps:
               steps: <CockpitWorkflowStep>[
                 CockpitCommandWorkflowStep(
                   stepId: 'delete-current',
+                  description: 'Delete the currently visible item.',
                   command: CockpitCommand(
                     commandId: 'tap-delete',
                     commandType: CockpitCommandType.tap,
@@ -573,8 +644,19 @@ steps:
             .where((step) => step.actionType == 'workflow_loop_iteration')
             .toList(growable: false);
         expect(loopRecords, hasLength(3));
+        expect(
+          loopRecords.first.actionArgs['workflowStepDescription'],
+          'Delete all visible queued items.',
+        );
         expect(loopRecords.last.actionArgs['conditionSuccess'], false);
         expect(loopRecords.last.actionArgs['iteration'], 3);
+        final deleteRecord = runResult.bundle.steps.firstWhere(
+          (step) => step.actionArgs['workflowStepId'] == 'delete-current',
+        );
+        expect(
+          deleteRecord.actionArgs['workflowStepDescription'],
+          'Delete the currently visible item.',
+        );
       },
     );
 
@@ -611,10 +693,12 @@ steps:
         workflowSteps: <CockpitWorkflowStep>[
           CockpitRetryWorkflowStep(
             stepId: 'wait-ready',
+            description: 'Retry until the ready label appears.',
             maxAttempts: 3,
             delayMs: 0,
             step: CockpitCommandWorkflowStep(
               stepId: 'assert-ready-step',
+              description: 'Assert the ready label is visible.',
               command: CockpitCommand(
                 commandId: 'assert-ready',
                 commandType: CockpitCommandType.assertText,
@@ -634,11 +718,19 @@ steps:
           .where((step) => step.actionType == 'workflow_retry_attempt')
           .toList(growable: false);
       expect(attempts, hasLength(2));
+      expect(
+        attempts.first.actionArgs['workflowStepDescription'],
+        'Retry until the ready label appears.',
+      );
       expect(attempts.first.actionArgs['success'], false);
       expect(attempts.last.actionArgs['success'], true);
       expect(
         runResult.bundle.steps.last.status,
         CockpitCommandStatus.succeeded,
+      );
+      expect(
+        runResult.bundle.steps.last.actionArgs['workflowStepDescription'],
+        'Assert the ready label is visible.',
       );
     });
 
@@ -740,6 +832,7 @@ steps:
           workflowSteps: <CockpitWorkflowStep>[
             const CockpitStartRecordingWorkflowStep(
               stepId: 'record-flow',
+              description: 'Record the workflow acceptance segment.',
               recording: CockpitRecordingRequest(
                 purpose: CockpitRecordingPurpose.acceptance,
                 name: 'workflow-flow',
@@ -757,6 +850,7 @@ steps:
             ),
             const CockpitStopRecordingWorkflowStep(
               stepId: 'stop-flow',
+              description: 'Stop and attach the workflow recording.',
               settleDelay: Duration.zero,
             ),
           ],
@@ -774,11 +868,19 @@ steps:
           (step) => step.actionType == 'recording_started',
         );
         expect(startStep.actionArgs['workflowStepId'], 'record-flow');
+        expect(
+          startStep.actionArgs['workflowStepDescription'],
+          'Record the workflow acceptance segment.',
+        );
         expect(startStep.actionArgs['recordingName'], 'workflow-flow');
         final stopStep = runResult.bundle.steps.firstWhere(
           (step) => step.actionType == 'recording_stopped',
         );
         expect(stopStep.actionArgs['workflowStepId'], 'stop-flow');
+        expect(
+          stopStep.actionArgs['workflowStepDescription'],
+          'Stop and attach the workflow recording.',
+        );
         expect(stopStep.artifactRefs.single.relativePath, contains('.mp4'));
         expect(runResult.bundle.manifest.recordingCount, 1);
       },
@@ -1461,6 +1563,140 @@ steps:
       expect(stopwatch.elapsed, greaterThanOrEqualTo(configuredTailDelay));
     },
   );
+
+  test('emits live observer events and flushes before returning', () async {
+    final observer = _CapturingLiveObserver();
+    final adapter = _FakeAutomationAdapter(
+      capabilities: _capabilities(),
+      resultsByCommandId: <String, CockpitCommandResult>{
+        'cmd-open': _result(commandId: 'cmd-open'),
+      },
+    );
+    final runner = CockpitControlRunner(
+      automationAdapter: adapter,
+      sessionController: CockpitSessionController(
+        sessionId: 'runner-live-observer',
+        taskId: 'runner-live-observer-task',
+        platform: 'android',
+        now: () => DateTime.utc(2026, 6, 19, 9),
+      ),
+      liveObserver: observer,
+    );
+
+    final result = await runner.run(
+      environment: _environment(),
+      workflowSteps: <CockpitWorkflowStep>[
+        CockpitCommandWorkflowStep(
+          stepId: 'open-settings',
+          description: 'Open settings before checking sync state.',
+          command: CockpitCommand(
+            commandId: 'cmd-open',
+            commandType: CockpitCommandType.tap,
+            locator: const CockpitLocator(text: 'Settings'),
+          ),
+        ),
+      ],
+    );
+
+    expect(result.bundle.manifest.status, CockpitTaskStatus.completed);
+    expect(observer.flushCallCount, 1);
+    expect(observer.events.map((event) => event.type), <String>[
+      'run_started',
+      'workflow_step_started',
+      'workflow_step_completed',
+      'run_finished',
+    ]);
+    final stepStarted = observer.events[1];
+    expect(stepStarted.workflowStepId, 'open-settings');
+    expect(stepStarted.workflowStepType, 'command');
+    expect(
+      stepStarted.description,
+      'Open settings before checking sync state.',
+    );
+    expect(stepStarted.commandId, 'cmd-open');
+    expect(observer.events[2].status, 'completed');
+    expect(observer.events.last.status, 'completed');
+  });
+
+  test('emits failed live observer status for failed workflow steps', () async {
+    final observer = _CapturingLiveObserver();
+    final adapter = _FakeAutomationAdapter(
+      capabilities: _capabilities(),
+      resultsByCommandId: <String, CockpitCommandResult>{
+        'cmd-open': _result(commandId: 'cmd-open', success: false),
+      },
+    );
+    final runner = CockpitControlRunner(
+      automationAdapter: adapter,
+      sessionController: CockpitSessionController(
+        sessionId: 'runner-live-observer-step-failure',
+        taskId: 'runner-live-observer-step-failure-task',
+        platform: 'android',
+        now: () => DateTime.utc(2026, 6, 19, 9),
+      ),
+      liveObserver: observer,
+    );
+
+    final result = await runner.run(
+      environment: _environment(),
+      workflowSteps: <CockpitWorkflowStep>[
+        CockpitCommandWorkflowStep(
+          stepId: 'open-settings',
+          command: CockpitCommand(
+            commandId: 'cmd-open',
+            commandType: CockpitCommandType.tap,
+            locator: const CockpitLocator(text: 'Settings'),
+          ),
+        ),
+      ],
+    );
+
+    expect(result.bundle.manifest.status, CockpitTaskStatus.failed);
+    expect(observer.events.map((event) => event.type), <String>[
+      'run_started',
+      'workflow_step_started',
+      'workflow_step_completed',
+      'run_finished',
+    ]);
+    expect(observer.events[2].status, 'failed');
+    expect(observer.events[2].error, isNotNull);
+    expect(observer.events.last.status, 'failed');
+  });
+
+  test('live observer failures do not fail the underlying run', () async {
+    final observer = _ThrowingLiveObserver();
+    final adapter = _FakeAutomationAdapter(
+      capabilities: _capabilities(),
+      resultsByCommandId: <String, CockpitCommandResult>{
+        'cmd-open': _result(commandId: 'cmd-open'),
+      },
+    );
+    final runner = CockpitControlRunner(
+      automationAdapter: adapter,
+      sessionController: CockpitSessionController(
+        sessionId: 'runner-live-observer-failure',
+        taskId: 'runner-live-observer-failure-task',
+        platform: 'android',
+        now: () => DateTime.utc(2026, 6, 19, 9),
+      ),
+      liveObserver: observer,
+    );
+
+    final result = await runner.run(
+      environment: _environment(),
+      commands: <CockpitCommand>[
+        CockpitCommand(
+          commandId: 'cmd-open',
+          commandType: CockpitCommandType.tap,
+          locator: const CockpitLocator(text: 'Settings'),
+        ),
+      ],
+    );
+
+    expect(result.bundle.manifest.status, CockpitTaskStatus.completed);
+    expect(observer.recordCallCount, greaterThan(0));
+    expect(observer.flushCallCount, 1);
+  });
 }
 
 final class _FakeAutomationAdapter implements CockpitAutomationAdapter {
@@ -1635,5 +1871,37 @@ final class _ThrowingRecordingAdapter implements CockpitRecordingAdapter {
   @override
   Future<CockpitRecordingResult> stopRecording() async {
     throw StateError('stopRecording should not be called.');
+  }
+}
+
+final class _CapturingLiveObserver implements CockpitLiveRunObserver {
+  final List<CockpitLiveRunEventDraft> events = <CockpitLiveRunEventDraft>[];
+  var flushCallCount = 0;
+
+  @override
+  void record(CockpitLiveRunEventDraft event) {
+    events.add(event);
+  }
+
+  @override
+  Future<void> flush() async {
+    flushCallCount += 1;
+  }
+}
+
+final class _ThrowingLiveObserver implements CockpitLiveRunObserver {
+  var recordCallCount = 0;
+  var flushCallCount = 0;
+
+  @override
+  void record(CockpitLiveRunEventDraft event) {
+    recordCallCount += 1;
+    throw StateError('observer record failed');
+  }
+
+  @override
+  Future<void> flush() async {
+    flushCallCount += 1;
+    throw StateError('observer flush failed');
   }
 }
