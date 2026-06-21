@@ -468,21 +468,21 @@ commands:
       expect(
         dashboard.body,
         contains(
-          "fact('scopeId', hasAnyRuns() ? live.scopeId || run.scopeId || state.activeScopeId : 'none')",
+          "fact('scopeId', hasAnyRuns() ? state.activeScopeId || state.selectedScopeId || live.scopeId || run.scopeId : 'none')",
         ),
       );
+      expect(dashboard.body, contains("fact('scopeLabel', boardScopeLabel())"));
       expect(
         dashboard.body,
         contains(
-          "fact('scopeLabel', live.scopeLabel || run.scopeLabel || activeScopeLabel())",
+          "fact('scopeKind', hasAnyRuns() ? allRuns ? 'all' : live.scopeKind || run.scopeKind || state.activeScopeKind : 'none')",
         ),
       );
-      expect(
-        dashboard.body,
-        contains(
-          "fact('scopeKind', hasAnyRuns() ? live.scopeKind || run.scopeKind || state.activeScopeKind : 'none')",
-        ),
-      );
+      expect(dashboard.body, contains('function isAllRunsScope()'));
+      expect(dashboard.body, contains('function boardScopeLabel()'));
+      expect(dashboard.body, contains('function runScopeLabel(run, live)'));
+      expect(dashboard.body, contains("fact('runScopeId'"));
+      expect(dashboard.body, contains("fact('runScopeLabel'"));
       expect(dashboard.body, contains('data-testid="runs-panel"'));
       expect(
         dashboard.body,
@@ -543,6 +543,12 @@ commands:
       expect(dashboard.body, contains('context-pill'));
       expect(dashboard.body, contains('activeScopeId'));
       expect(dashboard.body, contains('function activeScopeLabel()'));
+      expect(dashboard.body, contains("addPill('scope', boardScopeLabel()"));
+      expect(dashboard.body, contains("if (allRuns) addPill('run scope'"));
+      expect(
+        dashboard.body,
+        contains("const scopePrefix = isAllRunsScope() ? 'board' : 'scope'"),
+      );
       expect(dashboard.body, contains('isolation'));
       expect(dashboard.body, contains('mixed sessions'));
       expect(dashboard.body, contains('data-testid="evidence-panel"'));
@@ -610,10 +616,6 @@ commands:
       expect(
         dashboard.body,
         contains('if (!isCurrentSelection(revision, runId)) return'),
-      );
-      expect(
-        dashboard.body,
-        contains('event.runId && event.runId !== options.runId'),
       );
       expect(dashboard.body, contains('activeScopeLabel()'));
       expect(dashboard.body, contains('state.runs = []'));
@@ -707,15 +709,22 @@ commands:
         dashboard.body,
         contains("els.launcherPanel.addEventListener('toggle'"),
       );
-      expect(dashboard.body, contains('INITIAL_EVENT_TAIL_BYTES'));
-      expect(dashboard.body, contains('fetchEventsIncremental'));
-      expect(dashboard.body, contains('initialTailWholeLines'));
+      expect(dashboard.body, contains('MAX_EVENTS = 350'));
+      expect(dashboard.body, contains('TIMELINE_RENDER_LIMIT = 120'));
+      expect(dashboard.body, contains('function refreshScopeEvents()'));
       expect(dashboard.body, contains('panel-heading-actions'));
       expect(dashboard.body, contains('.timeline-panel > .panel-summary'));
+      expect(dashboard.body, contains('bundleSummaryUnavailable'));
+      expect(dashboard.body, contains('summaryError.message'));
       expect(
         dashboard.body,
-        contains(r'headers.range = `bytes=${state.eventsByteOffset}-`'),
+        contains(
+          r'const result = await fetchJson(`/api/events?${requestKey}`)',
+        ),
       );
+      expect(dashboard.body, isNot(contains('fetchEventsIncremental')));
+      expect(dashboard.body, isNot(contains('eventsByteOffset')));
+      expect(dashboard.body, isNot(contains('INITIAL_EVENT_TAIL_BYTES')));
       expect(dashboard.body, isNot(contains('lastEventsText')));
       expect(
         dashboard.body,
@@ -846,13 +855,9 @@ commands:
         final dashboard = await _get(handle.uri);
         expect(dashboard.statusCode, HttpStatus.ok);
         expect(dashboard.body, contains('function hasAnyRuns()'));
+        expect(dashboard.body, contains('function isAllRunsScope()'));
         expect(dashboard.body, contains("return 'no runs'"));
-        expect(
-          dashboard.body,
-          contains(
-            "const allRuns = hasAnyRuns() && (state.activeScopeId === 'all' || state.selectedScopeId === 'all')",
-          ),
-        );
+        expect(dashboard.body, contains('return hasAnyRuns() && ('));
       },
     );
 
@@ -1260,6 +1265,103 @@ commands:
         ),
       );
     });
+
+    test(
+      'indexes history-local absolute bundle directories as relative paths',
+      () async {
+        final tempDir = await Directory.systemTemp.createTemp(
+          'cockpit_devtools_relative_bundle_index_test',
+        );
+        addTearDown(() async {
+          if (tempDir.existsSync()) {
+            await tempDir.delete(recursive: true);
+          }
+        });
+        final store = CockpitLiveRunStore(
+          historyRoot: tempDir.path,
+          runId: 'absolute-bundle-run',
+          runDirectoryName: 'absolute-bundle-run',
+        );
+        await store.initialize(
+          sessionId: 'absolute-bundle-session',
+          taskId: 'absolute-bundle-task',
+          platform: 'macos',
+        );
+        final bundleDir = Directory(p.join(store.runDirectory.path, 'bundle'))
+          ..createSync(recursive: true);
+
+        await store.appendEvent(
+          type: 'bundle_written',
+          status: 'completed',
+          bundleDir: bundleDir.path,
+        );
+
+        final index =
+            jsonDecode(
+                  File(p.join(tempDir.path, 'index.json')).readAsStringSync(),
+                )
+                as Map<String, Object?>;
+        final run =
+            (index['runs']! as List<Object?>).single as Map<String, Object?>;
+        expect(
+          run['bundleDir'],
+          p.join('runs', 'absolute-bundle-run', 'bundle'),
+        );
+      },
+    );
+
+    test(
+      'serves legacy absolute bundle directories only inside history root',
+      () async {
+        final tempDir = await Directory.systemTemp.createTemp(
+          'cockpit_devtools_absolute_bundle_dir_test',
+        );
+        final outsideDir = await Directory.systemTemp.createTemp(
+          'cockpit_devtools_outside_bundle_dir_test',
+        );
+        addTearDown(() async {
+          if (tempDir.existsSync()) {
+            await tempDir.delete(recursive: true);
+          }
+          if (outsideDir.existsSync()) {
+            await outsideDir.delete(recursive: true);
+          }
+        });
+        await _writeRunFixture(tempDir);
+        final indexFile = File(p.join(tempDir.path, 'index.json'));
+        final index =
+            jsonDecode(indexFile.readAsStringSync()) as Map<String, Object?>;
+        final runs = (index['runs']! as List<Object?>)
+            .cast<Map<String, Object?>>();
+        runs.single['bundleDir'] = p.join(
+          tempDir.path,
+          'runs',
+          'run-1',
+          'bundle',
+        );
+        indexFile.writeAsStringSync(jsonEncode(index));
+
+        final server = CockpitDevtoolsServer(
+          historyRoot: tempDir.path,
+          token: 'secret',
+        );
+        final handle = await server.start();
+        addTearDown(handle.close);
+
+        final allowed = await _get(
+          handle.uri.resolve('/api/runs/run-1/bundle-summary?token=secret'),
+        );
+        expect(allowed.statusCode, HttpStatus.ok);
+        expect(jsonDecode(allowed.body), containsPair('status', 'failed'));
+
+        runs.single['bundleDir'] = outsideDir.path;
+        indexFile.writeAsStringSync(jsonEncode(index));
+        final rejected = await _get(
+          handle.uri.resolve('/api/runs/run-1/bundle-summary?token=secret'),
+        );
+        expect(rejected.statusCode, HttpStatus.forbidden);
+      },
+    );
 
     test(
       'streams byte ranges for recordings without loading whole files',

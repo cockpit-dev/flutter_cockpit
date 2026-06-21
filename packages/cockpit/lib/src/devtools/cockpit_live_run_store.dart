@@ -284,7 +284,8 @@ final class CockpitLiveRunStore {
             'finishedAt': current.finishedAt!.toUtc().toIso8601String(),
           'runDir': p.relative(_runDirectory.path, from: historyRoot),
           'liveDir': p.relative(_liveDirectory.path, from: historyRoot),
-          if (current.bundleDir != null) 'bundleDir': current.bundleDir,
+          if (current.bundleDir != null)
+            'bundleDir': _historyRelativePath(current.bundleDir!),
           if (current.workspaceId != null) 'workspaceId': current.workspaceId,
           if (current.scopeId != null) 'scopeId': current.scopeId,
           if (current.scopeKind != null) 'scopeKind': current.scopeKind,
@@ -385,6 +386,16 @@ final class CockpitLiveRunStore {
     throw CockpitLiveRunPathException(
       'Resolved run directory escapes history root: ${_runDirectory.path}',
     );
+  }
+
+  String _historyRelativePath(String path) {
+    final normalizedHistoryRoot = p.normalize(p.absolute(historyRoot));
+    final normalizedPath = p.normalize(p.absolute(path));
+    if (normalizedPath == normalizedHistoryRoot ||
+        p.isWithin(normalizedHistoryRoot, normalizedPath)) {
+      return p.relative(normalizedPath, from: normalizedHistoryRoot);
+    }
+    return path;
   }
 
   Future<void> _writeScopeIndexes({
