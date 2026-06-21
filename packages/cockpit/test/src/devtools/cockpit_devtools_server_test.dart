@@ -119,6 +119,77 @@ void main() {
       );
     });
 
+    test('dashboard global panel controls also govern future dynamic panels', () {
+      expect(cockpitDevtoolsIndexHtml, contains('panelGroupOpenOverride'));
+      expect(cockpitDevtoolsIndexHtml, contains('timelineEventsOpenOverride'));
+      expect(
+        cockpitDevtoolsIndexHtml,
+        contains('state.panelGroupOpenOverride = open'),
+      );
+      expect(
+        cockpitDevtoolsIndexHtml,
+        contains('state.timelineEventsOpenOverride = open'),
+      );
+      expect(
+        cockpitDevtoolsIndexHtml,
+        contains('Object.keys(state.dynamicPanelOpen).length > 0'),
+      );
+      expect(
+        cockpitDevtoolsIndexHtml,
+        contains('state.dynamicPanelOpen[key] = open'),
+      );
+      expect(
+        cockpitDevtoolsIndexHtml,
+        contains('state.timelineEventsOpenOverride = state.expandAll'),
+      );
+      expect(
+        cockpitDevtoolsIndexHtml,
+        contains("typeof state.panelGroupOpenOverride === 'boolean'"),
+      );
+      expect(
+        cockpitDevtoolsIndexHtml,
+        contains('function defaultDynamicPanelOpen(defaultOpen)'),
+      );
+      expect(
+        cockpitDevtoolsIndexHtml,
+        contains('function defaultEventPanelOpen(defaultOpen)'),
+      );
+      expect(
+        cockpitDevtoolsIndexHtml,
+        contains('defaultDynamicPanelOpen(options.defaultOpen !== false)'),
+      );
+      expect(
+        cockpitDevtoolsIndexHtml,
+        contains('defaultEventPanelOpen(state.expandAll || selected)'),
+      );
+      expect(
+        cockpitDevtoolsIndexHtml,
+        contains(
+          'defaultDynamicPanelOpen(eager || artifactPriority(displayArtifact) <= 2)',
+        ),
+      );
+      expect(
+        cockpitDevtoolsIndexHtml,
+        contains('panel.dataset.dynamicPanelKind = options.dynamicPanelKind'),
+      );
+      expect(
+        cockpitDevtoolsIndexHtml,
+        contains('panel.dataset.dynamicPanelId = options.dynamicPanelId'),
+      );
+      expect(
+        cockpitDevtoolsIndexHtml,
+        contains("dynamicPanelKind: 'event-inline'"),
+      );
+      expect(
+        cockpitDevtoolsIndexHtml,
+        contains(r"dynamicPanelId: `${eventKey(event)}:metadata`"),
+      );
+      expect(
+        cockpitDevtoolsIndexHtml,
+        contains(r"dynamicPanelId: `${eventKey(event)}:artifacts`"),
+      );
+    });
+
     test('parses workflow YAML through the token-protected API', () async {
       final tempDir = await Directory.systemTemp.createTemp(
         'cockpit_devtools_parse_test',
