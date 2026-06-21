@@ -148,6 +148,15 @@ void main() {
       );
       expect(
         cockpitDevtoolsIndexHtml,
+        contains("document.querySelectorAll('details.collapsible-panel')"),
+      );
+      expect(
+        cockpitDevtoolsIndexHtml,
+        contains('for (const panel of panelElements())'),
+      );
+      expect(cockpitDevtoolsIndexHtml, contains('panel.open = open'));
+      expect(
+        cockpitDevtoolsIndexHtml,
         contains('function defaultDynamicPanelOpen(defaultOpen)'),
       );
       expect(
