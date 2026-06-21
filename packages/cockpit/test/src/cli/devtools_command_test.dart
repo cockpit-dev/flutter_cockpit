@@ -7,6 +7,24 @@ import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 void main() {
+  test('devtools command help documents latest scope', () {
+    final runner = CommandRunner<int>('cockpit', 'test')
+      ..addCommand(
+        DevtoolsCommand(
+          stdoutSink: StringBuffer(),
+          waitForShutdown: () async {},
+        ),
+      );
+    final command = runner.commands['devtools']!;
+
+    expect(
+      command.usage,
+      contains(
+        'Initial history scope for the board URL. Use current, latest, all, or a concrete session/task scope id.',
+      ),
+    );
+  });
+
   test(
     'devtools command starts server and prints the local dashboard URL',
     () async {

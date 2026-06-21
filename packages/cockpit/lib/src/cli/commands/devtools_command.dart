@@ -41,7 +41,7 @@ final class DevtoolsCommand extends CockpitCliCommand {
         'scope',
         defaultsTo: 'current',
         help:
-            'Initial history scope for the board URL. Use current, all, or a concrete session/task scope id.',
+            'Initial history scope for the board URL. Use current, latest, all, or a concrete session/task scope id.',
       );
   }
 

@@ -212,6 +212,7 @@ final class CockpitDevtoolsServer {
         return;
       }
       final run = _resolveRun(runId);
+      final job = _jobs[runId];
       if (run == null) {
         await _writeJson(request, HttpStatus.notFound, <String, Object?>{
           'error': 'runNotFound',
@@ -219,10 +220,34 @@ final class CockpitDevtoolsServer {
         return;
       }
       if (segments.length == 4 && action == 'state') {
-        await _serveFile(request, _resolveLivePath(run, 'live_state.json'));
+        final liveDir = run.liveDir;
+        if (liveDir != null) {
+          await _serveFile(request, _resolveLivePath(run, 'live_state.json'));
+          return;
+        }
+        if (job != null) {
+          await _writeJson(request, HttpStatus.ok, _liveStateFromJob(job));
+          return;
+        }
+        await _writeJson(request, HttpStatus.notFound, <String, Object?>{
+          'error': 'liveStateNotFound',
+        });
         return;
       }
       if (segments.length == 4 && action == 'events.ndjson') {
+        if (run.liveDir == null) {
+          await _writeText(
+            request,
+            HttpStatus.ok,
+            '',
+            contentType: ContentType(
+              'application',
+              'x-ndjson',
+              charset: 'utf-8',
+            ),
+          );
+          return;
+        }
         await _serveFile(
           request,
           _resolveLivePath(run, 'events.ndjson'),
@@ -231,6 +256,15 @@ final class CockpitDevtoolsServer {
         return;
       }
       if (segments.length == 4 && action == 'events') {
+        if (run.liveDir == null) {
+          await _writeText(
+            request,
+            HttpStatus.ok,
+            ': connected\n\n',
+            contentType: ContentType('text', 'event-stream', charset: 'utf-8'),
+          );
+          return;
+        }
         await _serveSse(request, _resolveLivePath(run, 'events.ndjson'));
         return;
       }
@@ -257,7 +291,14 @@ final class CockpitDevtoolsServer {
   }
 
   Future<void> _serveBundleSummary(HttpRequest request, _RunEntry run) async {
-    final bundleRoot = _resolveUnderHistory(run.bundleDir);
+    final bundleDir = run.bundleDir;
+    if (bundleDir == null) {
+      await _writeJson(request, HttpStatus.notFound, <String, Object?>{
+        'error': 'bundleNotFound',
+      });
+      return;
+    }
+    final bundleRoot = _resolveUnderHistory(bundleDir);
     final manifestFile = _readOptionalBundleJson(bundleRoot, 'manifest.json');
     final deliveryFile = _readOptionalBundleJson(bundleRoot, 'delivery.json');
     final issueEvidenceFile = _readOptionalBundleJson(
@@ -630,8 +671,9 @@ final class CockpitDevtoolsServer {
   }
 
   Future<void> _serveRunIndex(HttpRequest request) async {
-    final indexFile = File(p.join(historyRoot, 'index.json'));
-    if (!indexFile.existsSync()) {
+    final index = _readIndex();
+    final runs = _readRunsWithJobs(index);
+    if (runs.isEmpty) {
       await _writeJson(request, HttpStatus.ok, <String, Object?>{
         'schemaVersion': 1,
         'runCount': 0,
@@ -643,8 +685,6 @@ final class CockpitDevtoolsServer {
       });
       return;
     }
-    final index = _readIndex();
-    final runs = _readRuns(index);
     final scopes = _readScopes(index, runs);
     final scopeSelection = _selectedScope(
       request.uri.queryParameters,
@@ -658,9 +698,10 @@ final class CockpitDevtoolsServer {
       selectedScopeId: selectedScopeId,
     );
     final runPage = _pageRuns(filteredRuns, query: request.uri.queryParameters);
-    final currentScopeId =
-        index['currentScopeId'] is String &&
-            (index['currentScopeId']! as String).trim().isNotEmpty
+    final currentScopeId = scopeSelection.mode == 'latest'
+        ? selectedScopeId
+        : index['currentScopeId'] is String &&
+              (index['currentScopeId']! as String).trim().isNotEmpty
         ? (index['currentScopeId']! as String).trim()
         : scopes.isEmpty
         ? null
@@ -699,8 +740,9 @@ final class CockpitDevtoolsServer {
   }
 
   Future<void> _serveScopeEvents(HttpRequest request) async {
-    final indexFile = File(p.join(historyRoot, 'index.json'));
-    if (!indexFile.existsSync()) {
+    final index = _readIndex();
+    final runs = _readRunsWithJobs(index);
+    if (runs.isEmpty) {
       await _writeJson(request, HttpStatus.ok, <String, Object?>{
         'schemaVersion': 1,
         'scopeMode': 'current',
@@ -712,8 +754,6 @@ final class CockpitDevtoolsServer {
       });
       return;
     }
-    final index = _readIndex();
-    final runs = _readRuns(index);
     final scopes = _readScopes(index, runs);
     final scopeSelection = _selectedScope(
       request.uri.queryParameters,
@@ -905,12 +945,20 @@ final class CockpitDevtoolsServer {
   }
 
   String _resolveLivePath(_RunEntry run, String relativePath) {
-    final liveRoot = _resolveUnderHistory(run.liveDir);
+    final liveDir = run.liveDir;
+    if (liveDir == null) {
+      throw const _ForbiddenPathException();
+    }
+    final liveRoot = _resolveUnderHistory(liveDir);
     return _resolveUnderRoot(liveRoot, relativePath);
   }
 
   String _resolveBundlePath(_RunEntry run, String relativePath) {
-    final bundleRoot = _resolveUnderHistory(run.bundleDir);
+    final bundleDir = run.bundleDir;
+    if (bundleDir == null) {
+      throw const _ForbiddenPathException();
+    }
+    final bundleRoot = _resolveUnderHistory(bundleDir);
     return _resolveUnderRoot(bundleRoot, relativePath);
   }
 
@@ -944,20 +992,17 @@ final class CockpitDevtoolsServer {
 
   _RunEntry? _resolveRun(String runId) {
     final index = _readIndex();
-    final runs = index['runs'];
-    if (runs is! List) {
-      return null;
-    }
-    for (final item in runs.whereType<Map>()) {
-      final run = item.map(
-        (key, value) => MapEntry<String, Object?>(key.toString(), value),
-      );
+    final runs = _readRunsWithJobs(index);
+    for (final run in runs) {
       if (run['runId'] != runId) {
         continue;
       }
       final liveDir = run['liveDir'] as String?;
       final bundleDir = run['bundleDir'] as String? ?? run['runDir'] as String?;
-      if (liveDir == null || bundleDir == null) {
+      if (run['jobOnly'] == true) {
+        return _RunEntry(liveDir: liveDir, bundleDir: bundleDir);
+      }
+      if (liveDir == null && bundleDir == null) {
         return null;
       }
       return _RunEntry(liveDir: liveDir, bundleDir: bundleDir);
@@ -977,6 +1022,116 @@ final class CockpitDevtoolsServer {
     return decoded.map(
       (key, value) => MapEntry<String, Object?>(key.toString(), value),
     );
+  }
+
+  List<Map<String, Object?>> _readRunsWithJobs(Map<String, Object?> index) {
+    final historyRuns = _readRuns(index);
+    if (_jobs.isEmpty) {
+      return historyRuns;
+    }
+    final knownRunIds = historyRuns
+        .map((run) => run['runId'])
+        .whereType<String>()
+        .toSet();
+    final jobRuns = _jobs.values
+        .where((job) => !knownRunIds.contains(job.runId))
+        .map(_runEntryFromJob)
+        .toList(growable: false);
+    if (jobRuns.isEmpty) {
+      return historyRuns;
+    }
+    final runs = <Map<String, Object?>>[...historyRuns, ...jobRuns];
+    runs.sort((left, right) {
+      final rightUpdated =
+          right['updatedAt'] as String? ?? right['startedAt'] as String? ?? '';
+      final leftUpdated =
+          left['updatedAt'] as String? ?? left['startedAt'] as String? ?? '';
+      final updatedOrder = rightUpdated.compareTo(leftUpdated);
+      if (updatedOrder != 0) {
+        return updatedOrder;
+      }
+      final rightRunId = right['runId'] as String? ?? '';
+      final leftRunId = left['runId'] as String? ?? '';
+      return rightRunId.compareTo(leftRunId);
+    });
+    return runs;
+  }
+
+  Map<String, Object?> _runEntryFromJob(_DevtoolsJob job) {
+    final bundleDir = _historyRelativeJobBundleDir(job);
+    return _normalizeRunScope(<String, Object?>{
+      'runId': job.runId,
+      'displayName': job.taskId,
+      'status': job.status,
+      'startedAt': job.startedAt.toIso8601String(),
+      'updatedAt': job.updatedAt.toIso8601String(),
+      if (job.finishedAt != null)
+        'finishedAt': job.finishedAt!.toIso8601String(),
+      'sessionId': job.sessionId,
+      'taskId': job.taskId,
+      'platform': job.platform,
+      'scopeId': job.sessionId,
+      'scopeKind': 'session',
+      'scopeLabel': job.taskId,
+      'jobKind': job.kind,
+      'jobOnly': true,
+      'bundleDir': ?bundleDir,
+    });
+  }
+
+  String? _historyRelativeJobBundleDir(_DevtoolsJob job) {
+    final rawBundleDir = job.result?['bundleDir'];
+    if (rawBundleDir is! String || rawBundleDir.trim().isEmpty) {
+      return null;
+    }
+    final raw = rawBundleDir.trim();
+    final normalizedRoot = p.normalize(p.absolute(historyRoot));
+    final resolved = p.normalize(
+      p.absolute(p.isAbsolute(raw) ? raw : p.join(normalizedRoot, raw)),
+    );
+    if (resolved == normalizedRoot || !p.isWithin(normalizedRoot, resolved)) {
+      return null;
+    }
+    return p.relative(resolved, from: normalizedRoot);
+  }
+
+  Map<String, Object?> _liveStateFromJob(_DevtoolsJob job) {
+    final bundleDir = _historyRelativeJobBundleDir(job);
+    final manifest = job.result?['manifest'];
+    return <String, Object?>{
+      'schemaVersion': 1,
+      'runId': job.runId,
+      'displayName': job.taskId,
+      'status': job.status,
+      'stage': 'devtools-job',
+      'scopeId': job.sessionId,
+      'scopeKind': 'session',
+      'scopeLabel': job.taskId,
+      'sessionId': job.sessionId,
+      'taskId': job.taskId,
+      'platform': job.platform,
+      'startedAt': job.startedAt.toIso8601String(),
+      'updatedAt': job.updatedAt.toIso8601String(),
+      if (job.finishedAt != null)
+        'finishedAt': job.finishedAt!.toIso8601String(),
+      'bundleDir': ?bundleDir,
+      'counts': <String, Object?>{
+        'eventCount': 0,
+        'errorCount': job.error == null ? 0 : 1,
+        if (manifest is Map<Object?, Object?>) ...<String, Object?>{
+          if (manifest['screenshotCount'] != null)
+            'artifactCount': manifest['screenshotCount'],
+          if (manifest['recordingCount'] != null)
+            'recordingCount': manifest['recordingCount'],
+        },
+      },
+      'job': job.toJson(),
+      if (job.error != null) 'lastError': job.error,
+      if (job.status == 'completed' && bundleDir != null)
+        'recommendedNextStep': 'inspect bundle evidence from the dashboard',
+      if (job.status == 'failed')
+        'recommendedNextStep': 'inspect devtools job error before retrying',
+    };
   }
 
   List<Map<String, Object?>> _readRuns(Map<String, Object?> index) {
@@ -999,18 +1154,35 @@ final class CockpitDevtoolsServer {
     Map<String, Object?> index,
     List<Map<String, Object?>> runs,
   ) {
+    final derivedScopes = _deriveScopesFromRuns(runs);
     final scopes = index['scopes'];
     if (scopes is List && scopes.isNotEmpty) {
-      return scopes
-          .whereType<Map>()
-          .map(
-            (entry) => entry.map(
-              (key, value) => MapEntry<String, Object?>(key.toString(), value),
-            ),
-          )
-          .toList(growable: false);
+      final mergedById = <String, Map<String, Object?>>{};
+      for (final scope in scopes.whereType<Map>().map(
+        (entry) => entry.map(
+          (key, value) => MapEntry<String, Object?>(key.toString(), value),
+        ),
+      )) {
+        final scopeId = scope['scopeId'];
+        if (scopeId is String && scopeId.trim().isNotEmpty) {
+          mergedById[scopeId] = scope;
+        }
+      }
+      for (final scope in derivedScopes) {
+        final scopeId = scope['scopeId'];
+        if (scopeId is! String || scopeId.trim().isEmpty) {
+          continue;
+        }
+        mergedById[scopeId] = <String, Object?>{
+          ...?mergedById[scopeId],
+          ...scope,
+        };
+      }
+      final merged = mergedById.values.toList(growable: false);
+      merged.sort(_compareScopesByUpdatedAt);
+      return merged;
     }
-    return _deriveScopesFromRuns(runs);
+    return derivedScopes;
   }
 
   _RunScopeSelection _selectedScope(
@@ -1060,6 +1232,15 @@ final class CockpitDevtoolsServer {
     String? requestedScope,
   }) {
     final currentScopeId = index['currentScopeId'];
+    if (mode == 'latest' &&
+        scopes.isNotEmpty &&
+        scopes.first['scopeId'] is String) {
+      return _RunScopeSelection(
+        scopeId: scopes.first['scopeId']! as String,
+        mode: mode,
+        requestedScope: requestedScope,
+      );
+    }
     if (currentScopeId is String && currentScopeId.trim().isNotEmpty) {
       return _RunScopeSelection(
         scopeId: currentScopeId.trim(),
@@ -1737,12 +1918,23 @@ List<Map<String, Object?>> _deriveScopesFromRuns(
     scope.add(run);
   }
   final scopes = byId.values.map((scope) => scope.toJson()).toList();
-  scopes.sort((left, right) {
-    final rightUpdated = right['updatedAt'] as String? ?? '';
-    final leftUpdated = left['updatedAt'] as String? ?? '';
-    return rightUpdated.compareTo(leftUpdated);
-  });
+  scopes.sort(_compareScopesByUpdatedAt);
   return scopes;
+}
+
+int _compareScopesByUpdatedAt(
+  Map<String, Object?> left,
+  Map<String, Object?> right,
+) {
+  final rightUpdated = right['updatedAt'] as String? ?? '';
+  final leftUpdated = left['updatedAt'] as String? ?? '';
+  final updatedOrder = rightUpdated.compareTo(leftUpdated);
+  if (updatedOrder != 0) {
+    return updatedOrder;
+  }
+  final rightScopeId = right['scopeId'] as String? ?? '';
+  final leftScopeId = left['scopeId'] as String? ?? '';
+  return rightScopeId.compareTo(leftScopeId);
 }
 
 final class CockpitDevtoolsServerHandle {
@@ -1810,8 +2002,8 @@ final class _DerivedScope {
 final class _RunEntry {
   const _RunEntry({required this.liveDir, required this.bundleDir});
 
-  final String liveDir;
-  final String bundleDir;
+  final String? liveDir;
+  final String? bundleDir;
 }
 
 final class _RunPage {

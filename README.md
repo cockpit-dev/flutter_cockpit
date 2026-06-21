@@ -251,14 +251,19 @@ for older sessions or `all runs` only when you intentionally want a cross-sessio
 audit. Pass `--scope latest` when you intentionally want the board to keep
 following the newest job. It can also read `scope=current` and `scope=latest`
 API URLs as aliases for the current latest scope; the UI labels pinned views as
-`pinned scope` and live-following views as `following latest`. Timelines display
-the selected run in execution order and link screenshots, recordings, and errors
-back to event sequence numbers. The dashboard can also parse pasted workflow
-YAML/JSON or submit `runScript` / `validateTask` payloads as background jobs
-under the same history root. Run lists are paged for long-lived history roots
-while scope totals remain visible. If a large or partially written bundle JSON
-cannot be summarized safely, the dashboard reports it in `summaryFileIssues` and
-keeps serving the remaining timeline and artifacts.
+`pinned scope` and live-following views as `following latest`. The timeline is
+scope-level, so retries with the same `sessionId` render together in execution
+order while run detail and bundle panels stay tied to the selected run.
+Screenshots, recordings, diagnostics, and errors link back to their owning run
+and event sequence. The dashboard can also parse pasted workflow YAML/JSON or
+submit `runScript` / `validateTask` payloads as background jobs under the same
+history root; in-flight submitted jobs remain visible before their live history
+files are written, and completed submitted jobs expose their bundle summaries
+and artifacts through the same run API when the bundle stays under the history
+root. Run lists are paged for long-lived history roots while scope totals remain
+visible. If a large or partially written bundle JSON cannot be summarized
+safely, the dashboard reports it in `summaryFileIssues` and keeps serving the
+remaining timeline and artifacts.
 
 For target-first and non-Flutter/system work:
 

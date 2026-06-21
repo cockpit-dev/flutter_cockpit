@@ -140,7 +140,7 @@ Board:
 dart run cockpit devtools --history-root /tmp/flutter_cockpit/out
 ```
 
-Use the same `--output-root`. Treat `sessionId` as one isolated development or validation job, `taskId` as objective, and `runId` as one execution attempt. Reuse `sessionId` for retries; choose a new `sessionId` for unrelated work. The board defaults to latest workflow `sessionId` scope and pins the URL so jobs do not mix timelines. Use scope selector or `all runs` for cross-session audit; pass `--scope latest` only when a live board should keep following the newest job. `scope=current` and `scope=latest` resolve to the latest scope; trust `pinned scope` / `following latest`. Timeline is scope-level: retries with the same `sessionId` render together in execution order, while run details and bundles stay per-run. Artifact links carry the owning run and event key. Run lists are paged while scope totals stay visible. Paste workflow/config only when running from the board is useful.
+Use the same `--output-root`. `sessionId` isolates one job, `taskId` names the objective, and `runId` is one attempt. Reuse `sessionId` for retries; use a new one for unrelated work. The board opens pinned to the latest `sessionId` so timelines do not mix. Use the scope selector or `all runs` for cross-session audit; use `--scope latest` only when the board should follow new jobs. Trust `pinned scope` / `following latest`. Timeline is scope-level: retries share one timeline, while details and bundles stay per-run. Artifact links carry owning run/event. Submitted jobs appear before live files; completed jobs expose in-root bundle summaries/artifacts. Run lists are paged while scope totals stay visible. Paste workflow/config only when launching from the board helps.
 
 ## Development Defaults
 

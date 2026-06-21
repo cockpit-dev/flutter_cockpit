@@ -31,13 +31,16 @@ If only `cockpit/main.dart` imports the runtime, prefer putting
 `flutter_cockpit` under `dev_dependencies`. Use production `dependencies` only
 for an explicit shared-entrypoint or shipped-runtime integration.
 
-The default runtime package does not declare Android, iOS, macOS, Linux, or
-Windows native plugins. This keeps host apps from auto-registering Cockpit
-native code in production bundles when the dependency is used only from a
-development entrypoint. Flutter-view screenshots, semantic control, network
-signals, runtime diagnostics, and remote sessions continue to work in-app.
-Native/system evidence such as system dialogs, notifications, host screenshots,
-or recordings should be driven by `cockpit` system actions.
+The runtime package declares native plugin entries for Android, iOS, macOS,
+Linux, Windows, and web. That lets app-window screenshots and recording
+fallbacks register consistently whenever the cockpit entrypoint is compiled.
+Keep the integration low-intrusion by importing it from `cockpit/main.dart`
+instead of production `lib/` code unless the host app explicitly ships a shared
+runtime entrypoint. Flutter-view screenshots, semantic control, network signals,
+runtime diagnostics, and remote sessions work in-app. System dialogs,
+notifications, host screenshots, and host recordings should still be driven by
+`cockpit` system actions so capability discovery and platform fallbacks remain
+truthful.
 
 ## Recommended Integration
 
@@ -94,6 +97,6 @@ flutter run -t cockpit/main.dart
 
 Host-side orchestration, MCP, workspace tooling, and delivery validation live in [`cockpit`](https://pub.dev/packages/cockpit).
 The runtime bundle models now preserve `targetKind`, `primaryExecutionPlane`, `planesUsed`, `surfaceKindsUsed`, `fallbackCount`, plus per-step and per-observation plane metadata so host-side tooling can explain when Flutter control stayed on-plan versus when it had to degrade to another surface.
-On web, the runtime supports the Flutter semantic and Flutter-view control path directly, while the method channels are registered as explicit unavailable stubs so capability checks stay truthful instead of failing through missing-plugin noise. On mobile and desktop, native method-channel recording and capture are intentionally not auto-registered by the default package; use Flutter-view screenshots in-app and host-side recording or system capture through `cockpit`.
+On web, the runtime supports the Flutter semantic and Flutter-view control path directly, while the method channels are registered as explicit unavailable stubs so capability checks stay truthful instead of failing through missing-plugin noise. On mobile and desktop, native method-channel recording and capture register through the package plugin entries and are used as app-window evidence fallbacks; prefer system or host evidence through `cockpit` when the goal is to prove system dialogs, notifications, host windows, or cross-app behavior.
 
 Package page: [pub.dev/packages/flutter_cockpit](https://pub.dev/packages/flutter_cockpit)
