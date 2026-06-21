@@ -1054,7 +1054,7 @@ List<Map<String, Object?>> _buildRapidCreateTaskBatch({
       'commandId': 'rapid-reveal-due-date-section',
       'commandType': 'scrollUntilVisible',
       'locator': <String, Object?>{
-        'text': 'Due date',
+        'semanticId': 'task-editor-due-section',
         'route': '/editor',
         'ancestor': <String, Object?>{'route': '/editor'},
       },

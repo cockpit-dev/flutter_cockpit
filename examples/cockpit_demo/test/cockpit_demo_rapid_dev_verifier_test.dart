@@ -231,9 +231,10 @@ void main() {
         '/editor',
       );
       expect(
-        firstBatchLocators['rapid-reveal-due-date-section']!.text,
-        'Due date',
+        firstBatchLocators['rapid-reveal-due-date-section']!.semanticId,
+        'task-editor-due-section',
       );
+      expect(firstBatchLocators['rapid-reveal-due-date-section']!.text, isNull);
       expect(
         firstBatchLocators['rapid-reveal-due-date-section']!.route,
         '/editor',

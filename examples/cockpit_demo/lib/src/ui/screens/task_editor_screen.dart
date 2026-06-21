@@ -277,43 +277,58 @@ final class _TaskEditorScreenState extends State<TaskEditorScreen> {
                             .toList(growable: false),
                       ),
                       const SizedBox(height: 18),
-                      Text('Due date', style: theme.textTheme.titleSmall),
-                      const SizedBox(height: 10),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: <Widget>[
-                          Semantics(
-                            identifier: 'task-editor-due-none',
-                            child: ChoiceChip(
-                              selected: _dueAt == null,
-                              label: const Text('No date'),
-                              onSelected: (_) => _selectDuePreset('none'),
+                      Semantics(
+                        container: true,
+                        identifier: 'task-editor-due-section',
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text('Due date', style: theme.textTheme.titleSmall),
+                            const SizedBox(height: 10),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: <Widget>[
+                                Semantics(
+                                  identifier: 'task-editor-due-none',
+                                  child: ChoiceChip(
+                                    selected: _dueAt == null,
+                                    label: const Text('No date'),
+                                    onSelected: (_) => _selectDuePreset('none'),
+                                  ),
+                                ),
+                                Semantics(
+                                  identifier: 'task-editor-due-today',
+                                  child: ChoiceChip(
+                                    selected:
+                                        _dueAt != null &&
+                                        _dueAt!
+                                                .difference(DateTime.now())
+                                                .inDays ==
+                                            0,
+                                    label: const Text('Today'),
+                                    onSelected: (_) =>
+                                        _selectDuePreset('today'),
+                                  ),
+                                ),
+                                Semantics(
+                                  identifier: 'task-editor-due-tomorrow',
+                                  child: ChoiceChip(
+                                    selected:
+                                        _dueAt != null &&
+                                        _dueAt!
+                                                .difference(DateTime.now())
+                                                .inDays ==
+                                            1,
+                                    label: const Text('Tomorrow'),
+                                    onSelected: (_) =>
+                                        _selectDuePreset('tomorrow'),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                          Semantics(
-                            identifier: 'task-editor-due-today',
-                            child: ChoiceChip(
-                              selected:
-                                  _dueAt != null &&
-                                  _dueAt!.difference(DateTime.now()).inDays ==
-                                      0,
-                              label: const Text('Today'),
-                              onSelected: (_) => _selectDuePreset('today'),
-                            ),
-                          ),
-                          Semantics(
-                            identifier: 'task-editor-due-tomorrow',
-                            child: ChoiceChip(
-                              selected:
-                                  _dueAt != null &&
-                                  _dueAt!.difference(DateTime.now()).inDays ==
-                                      1,
-                              label: const Text('Tomorrow'),
-                              onSelected: (_) => _selectDuePreset('tomorrow'),
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ],
                   ),

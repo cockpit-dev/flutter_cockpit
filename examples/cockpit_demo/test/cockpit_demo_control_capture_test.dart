@@ -578,7 +578,7 @@ void main() {
           commandId: 'rapid-reveal-due-date-section',
           commandType: CockpitCommandType.scrollUntilVisible,
           locator: const CockpitLocator(
-            text: 'Due date',
+            semanticId: 'task-editor-due-section',
             route: '/editor',
             ancestor: CockpitLocator(route: '/editor'),
           ),
