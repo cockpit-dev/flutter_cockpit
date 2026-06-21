@@ -151,13 +151,11 @@ const String cockpitDevtoolsIndexHtml = r'''
       border-bottom: 1px solid var(--line);
       background: rgba(12, 17, 16, .26);
     }
-    .run-detail-panel,
-    .runs-panel,
-    .launcher-panel {
+    .collapsible-panel {
       position: relative;
     }
     .panel-heading-row {
-      padding-right: 96px;
+      padding-right: 112px;
     }
     .panel-heading-actions {
       display: flex;
@@ -168,19 +166,23 @@ const String cockpitDevtoolsIndexHtml = r'''
       top: 6px;
       right: 8px;
       z-index: 1;
+      max-width: calc(100% - 80px);
+      overflow-x: auto;
+      scrollbar-width: none;
+      white-space: nowrap;
     }
-    .run-detail-panel:not([open]) .panel-header,
-    .runs-panel:not([open]) .panel-header,
-    .launcher-panel:not([open]) .panel-header {
+    .panel-heading-actions::-webkit-scrollbar { display: none; }
+    .run-detail-panel > .panel-summary { padding-right: 120px; }
+    .runs-panel > .panel-summary { padding-right: 82px; }
+    .timeline-panel > .panel-summary { padding-right: 220px; }
+    .inspector-panel > .panel-summary { padding-right: 150px; }
+    .collapsible-panel:not([open]) > .panel-header {
       border-bottom: 0;
     }
-    .run-detail-panel:not([open]) .panel-heading-row,
-    .runs-panel:not([open]) .panel-heading-row {
+    .collapsible-panel:not([open]) > .panel-heading-row {
       border-bottom: 0;
     }
-    .compact-run-summary,
-    .compact-runs-summary,
-    .compact-launcher-summary {
+    .panel-summary {
       display: flex;
       justify-content: flex-start;
       align-items: center;
@@ -188,33 +190,26 @@ const String cockpitDevtoolsIndexHtml = r'''
       cursor: pointer;
       list-style: none;
     }
-    .compact-run-summary::-webkit-details-marker,
-    .compact-runs-summary::-webkit-details-marker,
-    .compact-launcher-summary::-webkit-details-marker {
+    .panel-summary::-webkit-details-marker {
       display: none;
     }
-    .compact-run-summary::before,
-    .compact-runs-summary::before,
-    .compact-launcher-summary::before {
+    .panel-summary::before {
       content: "+";
       flex: 0 0 auto;
       width: 14px;
       color: var(--soft);
       font: 11px/1 "SFMono-Regular", "Cascadia Code", "Liberation Mono", monospace;
     }
-    .run-detail-panel[open] .compact-run-summary::before {
+    .collapsible-panel[open] > .panel-summary::before {
       content: "-";
     }
-    .runs-panel[open] .compact-runs-summary::before {
-      content: "-";
-    }
-    .launcher-panel[open] .compact-launcher-summary::before {
-      content: "-";
-    }
-    .compact-launcher-summary h2 {
+    .panel-summary h2 {
       flex: 0 0 auto;
     }
-    .compact-launcher-summary .meta {
+    .panel-summary h3 {
+      flex: 0 0 auto;
+    }
+    .panel-summary .meta {
       min-width: 0;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -427,6 +422,10 @@ const String cockpitDevtoolsIndexHtml = r'''
       flex-wrap: wrap;
       gap: 5px;
       align-items: center;
+    }
+    .panel-heading-actions.timeline-toolbar,
+    .panel-heading-actions.tabs {
+      flex-wrap: nowrap;
     }
     .tab, .tool-button {
       display: inline-flex;
@@ -689,7 +688,7 @@ const String cockpitDevtoolsIndexHtml = r'''
       inset: 0;
       background: rgba(3, 7, 6, .82);
     }
-    .media-viewer-panel {
+    .media-viewer-dialog {
       position: relative;
       z-index: 1;
       display: grid;
@@ -839,6 +838,24 @@ const String cockpitDevtoolsIndexHtml = r'''
       grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
       gap: 12px;
     }
+    .subpanel {
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow: hidden;
+      background: rgba(8, 17, 14, .42);
+    }
+    .subpanel-summary {
+      padding: 7px 8px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(12, 17, 16, .3);
+    }
+    .subpanel-body {
+      padding: 6px;
+    }
+    .subpanel:not([open]) > .subpanel-summary {
+      border-bottom: 0;
+    }
     .sr-only {
       position: absolute;
       width: 1px;
@@ -933,8 +950,8 @@ const String cockpitDevtoolsIndexHtml = r'''
   </header>
   <main>
     <aside class="rail">
-      <details class="panel runs-panel" data-testid="runs-panel" aria-label="Runs" open>
-        <summary class="panel-header panel-heading-row compact-runs-summary">
+      <details class="panel collapsible-panel runs-panel" data-testid="runs-panel" aria-label="Runs" open>
+        <summary class="panel-header panel-heading-row panel-summary compact-runs-summary">
           <h2>Runs</h2>
         </summary>
         <div class="panel-heading-actions">
@@ -952,8 +969,8 @@ const String cockpitDevtoolsIndexHtml = r'''
       </details>
     </aside>
     <div class="workspace">
-      <details class="panel run-detail-panel" data-testid="run-detail">
-        <summary class="panel-header panel-heading-row compact-run-summary">
+      <details class="panel collapsible-panel run-detail-panel" data-testid="run-detail">
+        <summary class="panel-header panel-heading-row panel-summary compact-run-summary">
           <h2 id="run-detail-heading">Run Detail</h2>
         </summary>
         <div class="panel-heading-actions tabs" aria-label="Detail actions">
@@ -969,15 +986,15 @@ const String cockpitDevtoolsIndexHtml = r'''
           </div>
         </div>
       </details>
-      <section class="panel">
-        <div class="panel-header">
+      <details class="panel collapsible-panel timeline-panel" data-testid="timeline-panel" open>
+        <summary class="panel-header panel-heading-row panel-summary">
           <h2>Timeline</h2>
-          <div class="timeline-toolbar">
-            <button class="tool-button active" type="button" data-filter="all" aria-pressed="true">all</button>
-            <button class="tool-button" type="button" data-filter="failed" aria-pressed="false">errors</button>
-            <button class="tool-button" type="button" data-filter="artifact" aria-pressed="false">artifacts</button>
-            <button class="tool-button" type="button" id="expandTimeline" aria-pressed="false">expand</button>
-          </div>
+        </summary>
+        <div class="panel-heading-actions timeline-toolbar">
+          <button class="tool-button active" type="button" data-filter="all" aria-pressed="true">all</button>
+          <button class="tool-button" type="button" data-filter="failed" aria-pressed="false">errors</button>
+          <button class="tool-button" type="button" data-filter="artifact" aria-pressed="false">artifacts</button>
+          <button class="tool-button" type="button" id="expandTimeline" aria-pressed="false">expand</button>
         </div>
         <div class="panel-body">
           <div class="timeline-shell">
@@ -988,18 +1005,18 @@ const String cockpitDevtoolsIndexHtml = r'''
             </div>
           </div>
         </div>
-      </section>
-      <section class="panel">
-        <div class="panel-header">
+      </details>
+      <details class="panel collapsible-panel evidence-panel" data-testid="evidence-panel" open>
+        <summary class="panel-header panel-summary">
           <h2>Evidence Gallery</h2>
           <span class="meta" id="artifactSummary">no artifacts</span>
-        </div>
+        </summary>
         <div class="panel-body">
           <div class="artifact-grid" id="artifactGallery" data-testid="artifact-gallery"></div>
         </div>
-      </section>
-      <details class="panel launcher-panel" data-testid="launcher-panel">
-        <summary class="panel-header compact-launcher-summary">
+      </details>
+      <details class="panel collapsible-panel launcher-panel" data-testid="launcher-panel">
+        <summary class="panel-header panel-summary compact-launcher-summary">
           <h2>Workflow Launcher</h2>
           <span class="meta">paste YAML/JSON only when you need to run from the board</span>
         </summary>
@@ -1031,37 +1048,45 @@ steps:
             <button class="action primary" id="submitRun" type="button">Submit run</button>
           </div>
           <div class="split">
-            <div>
-              <h3>Parsed / Result</h3>
-              <div class="code-view" id="launchResult">{}</div>
-            </div>
-            <div>
-              <h3>Payload Tree</h3>
-              <div class="code-view" id="payloadPreview"></div>
-            </div>
+            <details class="subpanel collapsible-panel" data-testid="launch-result-panel" open>
+              <summary class="subpanel-summary panel-summary">
+                <h3>Parsed / Result</h3>
+              </summary>
+              <div class="subpanel-body">
+                <div class="code-view" id="launchResult">{}</div>
+              </div>
+            </details>
+            <details class="subpanel collapsible-panel" data-testid="payload-preview-panel" open>
+              <summary class="subpanel-summary panel-summary">
+                <h3>Payload Tree</h3>
+              </summary>
+              <div class="subpanel-body">
+                <div class="code-view" id="payloadPreview"></div>
+              </div>
+            </details>
           </div>
         </div>
       </details>
     </div>
     <aside class="inspector">
-      <section class="panel" data-testid="inspector-panel">
-        <div class="panel-header">
+      <details class="panel collapsible-panel inspector-panel" data-testid="inspector-panel" open>
+        <summary class="panel-header panel-heading-row panel-summary">
           <h2>Inspector</h2>
-          <div class="tabs" role="tablist" aria-label="Inspector view">
-            <button class="tab" type="button" role="tab" id="tabEvent" aria-selected="true">event</button>
-            <button class="tab" type="button" role="tab" id="tabState" aria-selected="false">state</button>
-            <button class="tab" type="button" role="tab" id="tabYaml" aria-selected="false">yaml</button>
-          </div>
+        </summary>
+        <div class="panel-heading-actions tabs" role="tablist" aria-label="Inspector view">
+          <button class="tab" type="button" role="tab" id="tabEvent" aria-selected="true">event</button>
+          <button class="tab" type="button" role="tab" id="tabState" aria-selected="false">state</button>
+          <button class="tab" type="button" role="tab" id="tabYaml" aria-selected="false">yaml</button>
         </div>
         <div class="panel-body">
           <div class="code-view" id="inspector"></div>
         </div>
-      </section>
+      </details>
     </aside>
   </main>
   <div class="media-viewer" id="mediaViewer" data-testid="media-viewer" hidden>
     <div class="media-viewer-backdrop" id="mediaViewerBackdrop"></div>
-    <section class="media-viewer-panel" role="dialog" aria-modal="true" aria-labelledby="mediaViewerTitle">
+    <section class="media-viewer-dialog" role="dialog" aria-modal="true" aria-labelledby="mediaViewerTitle">
       <div class="media-viewer-toolbar">
         <div class="media-viewer-title">
           <strong id="mediaViewerTitle">Artifact</strong>

@@ -642,6 +642,7 @@ final class _CockpitExecutionSummary {
     required this.planesUsed,
     required this.surfaceKindsUsed,
     required this.fallbackCount,
+    required this.recordingStepSeen,
   });
 
   final CockpitTargetKind? targetKind;
@@ -649,6 +650,7 @@ final class _CockpitExecutionSummary {
   final List<CockpitPlaneKind> planesUsed;
   final List<CockpitSurfaceKind> surfaceKindsUsed;
   final int fallbackCount;
+  final bool recordingStepSeen;
 }
 
 final class CockpitBundleEvidenceView {
@@ -1783,6 +1785,7 @@ final class CockpitReadTaskBundleSummaryService {
       handoff: handoff,
       delivery: delivery,
       artifactPaths: artifactPaths,
+      executionSummary: executionSummary,
     );
     final keyframeFailureCodes = _deliveryKeyframeFailureCodes(
       bundleDir: bundleDir,
@@ -1807,8 +1810,16 @@ final class CockpitReadTaskBundleSummaryService {
     );
     final screenshotReady =
         manifest.deliveryArtifactsReady && screenshotFailureCodes.isEmpty;
+    final videoEvidenceRequired = _videoEvidenceRequired(
+      manifest: manifest,
+      handoff: handoff,
+      delivery: delivery,
+      artifactPaths: artifactPaths,
+      executionSummary: executionSummary,
+    );
     final recordingReadyOrExplained =
-        manifest.deliveryVideoReady && recordingFailureCodes.isEmpty;
+        !videoEvidenceRequired ||
+        (manifest.deliveryVideoReady && recordingFailureCodes.isEmpty);
     final deliveryValidated =
         screenshotReady &&
         recordingReadyOrExplained &&
@@ -1837,12 +1848,7 @@ final class CockpitReadTaskBundleSummaryService {
           gateName: CockpitTaskGate.postconditionsSatisfied.name,
         ) ??
         finalAssertionPassed;
-    final handoffArtifactsReady = _readGateOverride(
-      handoff: handoff,
-      gateName: CockpitTaskGate.artifactsReady.name,
-    );
-    final artifactsReady =
-        (handoffArtifactsReady ?? deliveryValidated) && deliveryValidated;
+    final artifactsReady = deliveryValidated;
     final logsCollected =
         _readGateOverride(
           handoff: handoff,
@@ -2024,17 +2030,36 @@ final class CockpitReadTaskBundleSummaryService {
     required Map<String, Object?> handoff,
     required Map<String, Object?> delivery,
     required CockpitBundleArtifactPaths artifactPaths,
+    required _CockpitExecutionSummary executionSummary,
   }) {
-    if (manifest.deliveryVideoFailureCodes.isNotEmpty) {
-      return manifest.deliveryVideoFailureCodes;
+    if (!_videoEvidenceRequired(
+      manifest: manifest,
+      handoff: handoff,
+      delivery: delivery,
+      artifactPaths: artifactPaths,
+      executionSummary: executionSummary,
+    )) {
+      return const <String>[];
     }
-    final primaryRecordingRef = delivery['primaryRecordingRef'] as String?;
     final recordingFailureReason =
         handoff['recordingFailureReason'] as String? ??
         _readNestedString(delivery, 'readiness', 'video', 'failureReason');
     if (recordingFailureReason != null && recordingFailureReason.isNotEmpty) {
       return const <String>['recordingFailed'];
     }
+    final manifestVideoFailureCodes = _actionableVideoFailureCodes(
+      manifest.deliveryVideoFailureCodes,
+    );
+    if (manifestVideoFailureCodes.isNotEmpty) {
+      return manifestVideoFailureCodes;
+    }
+    final deliveryVideoFailureCodes = _actionableVideoFailureCodes(
+      _readStringList(delivery['videoFailureCodes']),
+    );
+    if (deliveryVideoFailureCodes.isNotEmpty) {
+      return deliveryVideoFailureCodes;
+    }
+    final primaryRecordingRef = delivery['primaryRecordingRef'] as String?;
     if (primaryRecordingRef == null || primaryRecordingRef.isEmpty) {
       return const <String>['primaryRecordingMissing'];
     }
@@ -2047,6 +2072,42 @@ final class CockpitReadTaskBundleSummaryService {
       return const <String>[];
     }
     return <String>['acceptanceRecordingMissing'];
+  }
+
+  bool _videoEvidenceRequired({
+    required CockpitRunManifest manifest,
+    required Map<String, Object?> handoff,
+    required Map<String, Object?> delivery,
+    required CockpitBundleArtifactPaths artifactPaths,
+    required _CockpitExecutionSummary executionSummary,
+  }) {
+    final primaryRecordingRef = delivery['primaryRecordingRef'] as String?;
+    final recordingFailureReason =
+        handoff['recordingFailureReason'] as String? ??
+        _readNestedString(delivery, 'readiness', 'video', 'failureReason');
+    final deliveryVideoFailureCodes = _readStringList(
+      delivery['videoFailureCodes'],
+    );
+    return manifest.deliveryVideoReady ||
+        manifest.recordingCount > 0 ||
+        executionSummary.recordingStepSeen ||
+        _hasActionableVideoFailureCodes(manifest.deliveryVideoFailureCodes) ||
+        artifactPaths.primaryRecordingPath != null ||
+        artifactPaths.videoAttachmentPaths.isNotEmpty ||
+        (primaryRecordingRef != null && primaryRecordingRef.isNotEmpty) ||
+        _readStringList(delivery['videoAttachmentRefs']).isNotEmpty ||
+        _hasActionableVideoFailureCodes(deliveryVideoFailureCodes) ||
+        (recordingFailureReason != null && recordingFailureReason.isNotEmpty);
+  }
+
+  bool _hasActionableVideoFailureCodes(List<String> failureCodes) {
+    return failureCodes.any((code) => code != 'primaryRecordingMissing');
+  }
+
+  List<String> _actionableVideoFailureCodes(List<String> failureCodes) {
+    return failureCodes
+        .where((code) => code != 'primaryRecordingMissing')
+        .toList(growable: false);
   }
 
   List<String> _deliveryKeyframeFailureCodes({
@@ -2319,6 +2380,7 @@ final class CockpitReadTaskBundleSummaryService {
       fallbackCount: manifest.fallbackCount > inferred.fallbackCount
           ? manifest.fallbackCount
           : inferred.fallbackCount,
+      recordingStepSeen: inferred.recordingStepSeen,
     );
   }
 
@@ -2329,6 +2391,7 @@ final class CockpitReadTaskBundleSummaryService {
     final planesUsed = <CockpitPlaneKind>[];
     final surfaceKindsUsed = <CockpitSurfaceKind>[];
     var fallbackCount = 0;
+    var recordingStepSeen = false;
 
     void addPlane(CockpitPlaneKind? plane) {
       if (plane != null && !planesUsed.contains(plane)) {
@@ -2343,6 +2406,8 @@ final class CockpitReadTaskBundleSummaryService {
     }
 
     for (final step in steps) {
+      recordingStepSeen =
+          recordingStepSeen || step.actionType.startsWith('recording_');
       targetKind ??= step.targetKind ?? step.observation?.targetKind;
       final executionPlane =
           step.executionPlane ??
@@ -2370,6 +2435,7 @@ final class CockpitReadTaskBundleSummaryService {
       planesUsed: planesUsed,
       surfaceKindsUsed: surfaceKindsUsed,
       fallbackCount: fallbackCount,
+      recordingStepSeen: recordingStepSeen,
     );
   }
 
@@ -2430,6 +2496,13 @@ final class CockpitReadTaskBundleSummaryService {
 
   List<String> _mergeFailureCodes(List<String> left, List<String> right) {
     return List<String>.unmodifiable(<String>{...left, ...right});
+  }
+
+  List<String> _readStringList(Object? value) {
+    if (value is! List<Object?>) {
+      return const <String>[];
+    }
+    return value.whereType<String>().toList(growable: false);
   }
 
   bool? _readGateOverride({

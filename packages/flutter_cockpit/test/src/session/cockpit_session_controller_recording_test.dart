@@ -2,6 +2,76 @@ import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('screenshot-only acceptance does not require video evidence', () {
+    final timestamps = <DateTime>[
+      DateTime.utc(2026, 3, 20, 12, 0, 0),
+      DateTime.utc(2026, 3, 20, 12, 0, 1),
+      DateTime.utc(2026, 3, 20, 12, 0, 2),
+    ].iterator;
+
+    DateTime nextTimestamp() {
+      final didMove = timestamps.moveNext();
+      if (!didMove) {
+        throw StateError('No more timestamps available.');
+      }
+      return timestamps.current;
+    }
+
+    final controller = CockpitSessionController(
+      sessionId: 'session-screenshot-only',
+      taskId: 'task-home',
+      platform: 'macos',
+      now: nextTimestamp,
+    );
+
+    controller.recordStep(
+      actionType: 'captureScreenshot',
+      actionArgs: const <String, Object?>{},
+      requestedCaptureProfile: CockpitCaptureProfile.acceptance,
+      captureRefs: const <CockpitArtifactRef>[
+        CockpitArtifactRef(
+          role: 'screenshot',
+          relativePath: 'screenshots/home_acceptance.png',
+        ),
+      ],
+    );
+
+    final bundle = controller.finish(
+      environment: const CockpitEnvironment(
+        platform: 'macos',
+        flutterVersion: '3.38.9',
+        dartVersion: '3.10.8',
+      ),
+      capabilitiesUsed: const ['nativeScreenshot'],
+    );
+
+    expect(bundle.manifest.deliveryArtifactsReady, isTrue);
+    expect(bundle.manifest.deliveryVideoReady, isFalse);
+    expect(bundle.manifest.recordingCount, 0);
+    expect(bundle.manifest.deliveryVideoFailureCodes, isEmpty);
+    expect(bundle.handoff['recordingReadyOrExplained'], isTrue);
+    expect(bundle.handoff['deliveryValidated'], isTrue);
+    expect(
+      (bundle.handoff['gates']
+          as Map<Object?, Object?>)['recordingReadyOrExplained'],
+      isTrue,
+    );
+    expect(
+      (bundle.handoff['gateFailureCodes']
+          as Map<Object?, Object?>)['recordingReadyOrExplained'],
+      isEmpty,
+    );
+    expect(bundle.delivery['primaryRecordingRef'], isNull);
+    expect(bundle.delivery['videoFailureCodes'], isEmpty);
+    expect(
+      (((bundle.delivery['readiness'] as Map<Object?, Object?>)['video']
+                  as Map<Object?, Object?>)['failureCodes']
+              as List<Object?>)
+          .cast<String>(),
+      isEmpty,
+    );
+  });
+
   test('session close counts recording artifacts and delivery readiness', () {
     final timestamps = <DateTime>[
       DateTime.utc(2026, 3, 20, 13, 0, 0),

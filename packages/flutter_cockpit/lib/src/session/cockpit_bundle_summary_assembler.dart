@@ -37,16 +37,23 @@ final class CockpitBundleSummaryAssembler {
     final deliveryArtifactFailureCodes = _deliveryArtifactFailureCodes(
       evidenceIndex,
     );
+    final recordingEvidenceRequired = _recordingEvidenceRequired(
+      evidenceIndex: evidenceIndex,
+      steps: steps,
+      recordingFailureReason: recordingFailureReason,
+    );
     final deliveryVideoFailureCodes = _deliveryVideoFailureCodes(
       evidenceIndex: evidenceIndex,
       recordingFailureReason: recordingFailureReason,
+      recordingEvidenceRequired: recordingEvidenceRequired,
     );
     final deliveryValidationFailureCodes = _combinedFailureCodes(
       deliveryArtifactFailureCodes,
       deliveryVideoFailureCodes,
     );
     final screenshotReady = evidenceIndex.deliveryArtifactsReady;
-    final recordingReadyOrExplained = evidenceIndex.deliveryVideoReady;
+    final recordingReadyOrExplained =
+        !recordingEvidenceRequired || evidenceIndex.deliveryVideoReady;
     final deliveryValidated = screenshotReady && recordingReadyOrExplained;
     final commandCount = steps.where((step) => step.commandType != null).length;
     final runtimeSummary = _summarizeRuntimeActivity(steps);
@@ -377,7 +384,11 @@ final class CockpitBundleSummaryAssembler {
   List<String> _deliveryVideoFailureCodes({
     required CockpitEvidenceIndex evidenceIndex,
     required String? recordingFailureReason,
+    required bool recordingEvidenceRequired,
   }) {
+    if (!recordingEvidenceRequired) {
+      return const <String>[];
+    }
     if (evidenceIndex.deliveryVideoReady) {
       return const <String>[];
     }
@@ -389,6 +400,18 @@ final class CockpitBundleSummaryAssembler {
       return const <String>['primaryRecordingMissing'];
     }
     return const <String>['acceptanceRecordingMissing'];
+  }
+
+  bool _recordingEvidenceRequired({
+    required CockpitEvidenceIndex evidenceIndex,
+    required List<CockpitStepRecord> steps,
+    required String? recordingFailureReason,
+  }) {
+    return evidenceIndex.deliveryVideoReady ||
+        evidenceIndex.recordingCount > 0 ||
+        evidenceIndex.primaryRecordingRef.isNotEmpty ||
+        (recordingFailureReason != null && recordingFailureReason.isNotEmpty) ||
+        steps.any((step) => step.actionType.startsWith('recording_'));
   }
 
   List<String> _combinedFailureCodes(List<String> left, List<String> right) {
