@@ -91,17 +91,28 @@ exit 0
 ''');
       await Process.run('chmod', <String>['+x', executable.path]);
 
+      final childPidPath = p.join(tempDir.path, 'child.pid');
       final stopwatch = Stopwatch()..start();
       final result = await cockpitRunProcessWithTimeout(
         executable.path,
-        <String>[p.join(tempDir.path, 'child.pid')],
+        <String>[childPidPath],
         timeout: const Duration(seconds: 5),
       );
       stopwatch.stop();
 
       expect(result.exitCode, 0);
       expect(result.stdout, contains('ready'));
-      expect(stopwatch.elapsed, lessThan(const Duration(seconds: 1)));
+      expect(
+        stopwatch.elapsed,
+        lessThan(const Duration(seconds: 3)),
+        reason:
+            'The parent process exits immediately while the inherited-pipe '
+            'child sleeps for 10 seconds. This should prove the runner does '
+            'not wait for inherited stdio without failing under full-suite '
+            'scheduler load.',
+      );
+      final childPid = int.parse(File(childPidPath).readAsStringSync().trim());
+      expect(await _isProcessAlive(childPid), isTrue);
     },
   );
 
