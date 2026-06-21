@@ -13,7 +13,7 @@ Default to rapid development validation: prove the current change with the cheap
 
 Command success is not product proof; verify state, errors, evidence.
 
-These stages are decision gates, not a fixed command script or command quota. Satisfy each gate with the smallest fresh evidence available; skip irrelevant commands; choose CLI, MCP, app-first, target-first, persistent-session, or bundle flows. Protocol: [`references/protocol.md`](references/protocol.md), `cockpit://workspace/protocol`.
+These stages are decision gates, not a fixed command script or command quota. Satisfy each gate with the smallest fresh evidence available; skip irrelevant commands; choose CLI, MCP, app-first, target-first, persistent-session, or bundle flows. [`references/protocol.md`](references/protocol.md).
 
 ## When To Use
 
@@ -22,21 +22,21 @@ These stages are decision gates, not a fixed command script or command quota. Sa
 
 ## First-Time App Wiring
 
-Add `flutter_cockpit`, add `cockpit/main.dart`, and keep the production entrypoint intact. Do not add `flutter_cockpit` imports to production `lib/` code. In `cockpit/`, wrap with `FlutterCockpitApp` or `FlutterCockpit.runApp`, register `FlutterCockpit.navigatorObserver` only in the cockpit-owned navigator, and enable `CockpitRemoteSessionConfiguration.resolveFromEnvironment(...)`. For app-owned routers, call `FlutterCockpit.setCurrentRouteName(...)`; avoid production `lib/` patches unless accepted.
+Add `flutter_cockpit`, add `cockpit/main.dart`, and keep the production entrypoint intact. Do not add `flutter_cockpit` imports to production `lib/` code. In `cockpit/`, wrap with `FlutterCockpitApp` or `FlutterCockpit.runApp`, register `FlutterCockpit.navigatorObserver` only in the cockpit-owned navigator, and enable `CockpitRemoteSessionConfiguration.resolveFromEnvironment(...)`. For app-owned routers, call `FlutterCockpit.setCurrentRouteName(...)`.
 
 ## Stage Protocol
 
 1. **assess**: choose the smallest truthful surface. Default to app-first. If platform/device is unknown, run `list-targets` and use the returned platform, device id, and capability metadata. Do not guess ids, payload keys, or locators.
-2. **bootstrap**: launch once or reuse a handle. `launch-app` returns after readiness; never shell-background it. Reuse `.dart_tool/flutter_cockpit/latest_app.json`. Use target-first only for non-app surfaces.
-3. **baseline**: read before acting, unless a fresh equivalent read already answers the same question. Start with `read-app --profile minimal` or `read-target --profile minimal`; capture route, state, reachability, and errors.
+2. **bootstrap**: launch once or reuse a handle. `launch-app` returns after readiness; never shell-background it. Reuse `.dart_tool/flutter_cockpit/latest_app.json`; use target-first only for non-app surfaces.
+3. **baseline**: read before acting, unless a fresh equivalent read already answers the same question. Start with `read-app --profile minimal` or `read-target --profile minimal`; capture route, state, errors.
 4. **execute**: edit, prefer `hot-reload`, and drive UI with `run-command` or short `run-batch`. For route changes, include `expectedRouteName`. After timeout, `remoteUnavailable`, or failed non-idempotent batch, re-read minimal state and resume from the smallest remaining safe step; do not replay blindly.
 5. **observe**: read post-action state before judging. Use `read-app`, `read-errors --max-errors 10`, `inspect-ui`, or `read-network`. If focus blocks controls, run `dismissKeyboard`. For visible UI claims, run `capture-screenshot --name <proof-name>`. For animation, transition, gesture, or repro, use `start-recording` / `stop-recording`.
-6. **judge**: compare baseline, observed state, and outcome. Do not open screenshots, videos, or raw artifacts unless the content is the unresolved question, the artifact looks wrong, or the user asks.
+6. **judge**: compare baseline, observed state, and outcome. Do not open screenshots, videos, or raw artifacts unless the content is the unresolved question, the artifact looks wrong, or user asks.
 7. **deliver**: for acceptance work, run `validate-task` and report the smallest useful evidence. `stop-app` is cleanup or recovery only, not a normal loop step.
 
 ## Fast Command Pack
 
-Use default AI-readable stdout. Add `--stdout-format json` only for `jq`; add `--output <path>` for files, and `--output-format json` only for machine-readable files.
+Default stdout is AI-readable. Add `--stdout-format json` only for `jq`; add `--output <path>` for files, `--output-format json` for machine-readable files.
 
 ```bash
 dart run cockpit list-targets
@@ -67,7 +67,7 @@ Visible final proof:
 dart run cockpit capture-screenshot --name acceptance --profile inspect
 ```
 
-`capture-screenshot` uses app metadata, prefers system/host capture, and falls back to app capture when host capture fails. Use it before external screenshot tools.
+`capture-screenshot` uses app metadata, prefers system/host capture, falls back to app capture, and comes before external screenshot tools.
 
 Short deterministic flow:
 
@@ -83,7 +83,7 @@ dart run cockpit start-recording
 dart run cockpit stop-recording
 ```
 
-Recording defaults to `mode:auto`: app handles prefer system/host capture and fall back only when allowed. For a strict layer, pass `--recording-json` with `layer` and `allowFallback:false`.
+Recording defaults to `mode:auto`: app handles prefer system/host capture and fall back only when allowed. For strict layer, pass `--recording-json` with `layer` and `allowFallback:false`.
 
 Native/system or non-Flutter surface after Flutter semantics cannot answer it:
 
@@ -92,10 +92,9 @@ dart run cockpit read-system-capabilities [--platform <platform>] [--device-id <
 dart run cockpit run-system-action [--platform <platform>] [--device-id <device-or-simulator-id>] [--app-id <app-id>] [--process-id <pid>] [--wda-url http://127.0.0.1:8100] --action <available-action>
 ```
 
-Use `parameters=[name*:type[range](allowed|values)]`; `*` means required. Do not guess payload keys. Both commands reuse `.dart_tool/flutter_cockpit/latest_app.json` and resolve platform app ids by default. `--app-id` means native app id; Cockpit app id maps to `platformAppId` when available. On iOS simulator, prefer `grantPermission`; use WebDriverAgent only when Flutter semantics and simctl cannot handle native UI, dialogs, focus, orientation, notifications, Notification Center, or Control Center. Cockpit probes `http://127.0.0.1:8100`; WDA actions stay blocked unless reachable.
-If `run-system-action` returns `invalidSystemActionParameter` or `missingSystemActionParameter`, re-run `read-system-capabilities`, copy parameter metadata, then send only that payload. For `dismissSystemDialog`, use `--decision accept` for primary action or `--decision dismiss` for cancel/deny; omit it to accept.
-Use `actionGroups` in JSON output instead of hard-coded platform lists. Android uses adb. iOS Simulator uses simctl plus WDA. Unsupported simulator actions stay blocked instead of faked. For native crash logs before the runtime observer attaches, use `run-system-action --action readSystemLogs`. `activateWindow` on iOS Simulator must not terminate Flutter debug or hot-reload sessions; use `terminateApp` only for intentional restart.
-Trust only actions reported as `available`. Desktop coordinates use screen pixels. macOS host screenshots/recordings need `--app-id`; Windows/Linux can use `--app-id` or `--process-id`. If an action is not `available`, follow its requirement/fallback or report `blocked_by_environment`.
+Use `parameters=[name*:type[range](allowed|values)]`; `*` means required. Do not guess payload keys. Commands reuse `.dart_tool/flutter_cockpit/latest_app.json` and resolve platform app ids. `--app-id` means native app id. On parameter errors, re-run `read-system-capabilities`, copy metadata, and send only that payload. For `dismissSystemDialog`, use `--decision accept` or `--decision dismiss`; omit it to accept.
+Use JSON `actionGroups` instead of hard-coded platform lists. Android uses adb. iOS Simulator uses simctl plus WDA; WDA actions stay blocked unless reachable. Unsupported simulator actions stay blocked instead of faked. For native crash logs before runtime attaches, use `run-system-action --action readSystemLogs`. `activateWindow` on iOS Simulator must not terminate Flutter debug or hot-reload sessions; use `terminateApp` only for restart.
+Trust only actions reported as `available`. Desktop coordinates use screen pixels. macOS host screenshots/recordings need `--app-id`; Windows/Linux can use `--app-id` or `--process-id`. If not `available`, follow its requirement/fallback or report `blocked_by_environment`.
 
 Acceptance, release readiness, or artifact-backed handoff:
 
@@ -103,7 +102,7 @@ Acceptance, release readiness, or artifact-backed handoff:
 dart run cockpit validate-task --config /tmp/flutter_cockpit_validate_task.yaml
 ```
 
-Workflow script for branch/retry/loop E2E flows. Prefer YAML by hand and JSON when generated. Syntax/schema: [`references/protocol.md`](references/protocol.md), `cockpit://workspace/control-workflow-protocol`, `cockpit://workspace/control-workflow-schema`.
+Workflow script for branch/retry/loop E2E flows. Prefer YAML by hand and JSON when generated. Schema: [`references/protocol.md`](references/protocol.md), `cockpit://workspace/control-workflow-protocol`, `cockpit://workspace/control-workflow-schema`.
 
 ```yaml
 schemaVersion: 1
@@ -114,10 +113,6 @@ failFast: true
 steps:
   - stepId: record-flow
     stepType: startRecording
-    recording:
-      purpose: acceptance
-      name: checkout-flow
-      mode: auto
   - stepId: wait-ready
     stepType: retry
     maxAttempts: 4
@@ -137,10 +132,7 @@ steps:
 dart run cockpit run-script --app-json /tmp/flutter_cockpit/app.json --script /tmp/flutter_cockpit/workflow.yaml --platform <platform> --output-root /tmp/flutter_cockpit/out
 ```
 
-Use `--platform` to run one reusable workflow on the current target instead of
-copying YAML only to change `platform`. Workflow facts are stored in the bundle.
-Read `issue_evidence.json` for failures, `validation.json` for final validation,
-and `trace.json` to map artifacts or errors back to a step.
+Use `--platform` to run one reusable workflow on the current target instead of copying YAML only to change `platform`. Read `issue_evidence.json`, `validation.json`, and `trace.json` for failure, validation, artifact mapping.
 
 Board:
 
@@ -148,20 +140,7 @@ Board:
 dart run cockpit devtools --history-root /tmp/flutter_cockpit/out
 ```
 
-Use the same `--output-root`. Treat `sessionId` as one isolated development or
-validation job, `taskId` as the current objective, and `runId` as one execution
-attempt. Reuse a `sessionId` for retries of the same job; choose a new
-`sessionId` for unrelated work. The board defaults to the latest workflow
-`sessionId` scope, then pins the URL to that concrete scope so different jobs do
-not mix timelines. Use the scope selector for older sessions or `all runs` only
-for cross-session audit; pass `--scope latest` only when a live board should
-keep following the newest job. `scope=current` and `scope=latest` resolve to the
-latest scope; trust the board's `pinned scope` / `following latest` label when
-judging isolation. Timeline is scope-level: retries with the same `sessionId`
-render together in execution order, while run details and bundles stay per-run.
-Artifact links carry the owning run and event key.
-Run lists are paged while scope totals stay visible. Paste workflow/config only
-when running from the board is useful.
+Use the same `--output-root`. Treat `sessionId` as one isolated development or validation job, `taskId` as objective, and `runId` as one execution attempt. Reuse `sessionId` for retries; choose a new `sessionId` for unrelated work. The board defaults to latest workflow `sessionId` scope and pins the URL so jobs do not mix timelines. Use scope selector or `all runs` for cross-session audit; pass `--scope latest` only when a live board should keep following the newest job. `scope=current` and `scope=latest` resolve to the latest scope; trust `pinned scope` / `following latest`. Timeline is scope-level: retries with the same `sessionId` render together in execution order, while run details and bundles stay per-run. Artifact links carry the owning run and event key. Run lists are paged while scope totals stay visible. Paste workflow/config only when running from the board is useful.
 
 ## Development Defaults
 
@@ -173,7 +152,7 @@ when running from the board is useful.
 - Prefer file inputs: `--command-file`, `--commands-file`, `--config`; YAML by hand, JSON when generated.
 - Safe commands: `tap`, `enterText`, `dismissKeyboard`, `assertText`, `scrollUntilVisible`.
 - Safe locator keys: `text`, `tooltip`, `semanticId`, `type`, `ancestor`, `index`, `fallbacks`. Do not set `type: Text` for button labels.
-- Keep the app alive while more edits are likely. Stop only when the user asks, the session is stuck, `hot-restart` cannot recover, or a clean rebuild/relaunch is required.
+- Keep the app alive while more edits are likely. Stop only when asked, stuck, `hot-restart` cannot recover, or clean rebuild/relaunch is required.
 
 ## Failure Recovery
 
@@ -194,12 +173,8 @@ when running from the board is useful.
 ## Common Mistakes
 
 - Running random commands instead of walking the seven stages.
-- Relaunching or stopping after every edit instead of hot reload plus bounded reads.
+- Relaunching or stopping after every edit.
 - Treating command success, bundle completion, or artifact existence as product proof.
-- Using external screenshot or recording tools before Cockpit screenshot or recording commands.
+- Using external screenshot or recording tools first.
 - Opening large artifacts before summaries identify the missing fact.
 - Claiming completion without baseline, post-action state, errors, and evidence.
-
-## Reference Map
-
-Deep dives: [`examples/cli-command-reference.md`](examples/cli-command-reference.md), [`examples/rapid-dev-loop.md`](examples/rapid-dev-loop.md), [`examples/flutter-app-setup.md`](examples/flutter-app-setup.md), [`examples/host-devtools-setup.md`](examples/host-devtools-setup.md), [`examples/runtime-validation.md`](examples/runtime-validation.md), [`examples/acceptance-delivery.md`](examples/acceptance-delivery.md), [`examples/failure-with-evidence.md`](examples/failure-with-evidence.md).
