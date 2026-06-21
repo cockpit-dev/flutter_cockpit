@@ -84,6 +84,42 @@ void main() {
       },
     );
 
+    test('dashboard dynamic review surfaces are native collapsible panels', () {
+      expect(
+        cockpitDevtoolsIndexHtml,
+        contains("item.className = `event collapsible-panel"),
+      );
+      expect(
+        cockpitDevtoolsIndexHtml,
+        contains("const item = document.createElement('details');"),
+      );
+      expect(
+        cockpitDevtoolsIndexHtml,
+        contains("card.className = 'artifact collapsible-panel';"),
+      );
+      expect(
+        cockpitDevtoolsIndexHtml,
+        contains("const card = document.createElement('details');"),
+      );
+      expect(cockpitDevtoolsIndexHtml, contains('function createInlinePanel('));
+      expect(cockpitDevtoolsIndexHtml, contains('event-meta-panel'));
+      expect(cockpitDevtoolsIndexHtml, contains('event-artifacts-panel'));
+      expect(
+        cockpitDevtoolsIndexHtml,
+        contains('panel.dataset.dynamicPanelKind'),
+      );
+      expect(
+        cockpitDevtoolsIndexHtml,
+        contains(
+          "setDynamicPanelOpen('event', eventKey(event), state.expandAll)",
+        ),
+      );
+      expect(
+        cockpitDevtoolsIndexHtml,
+        contains("setDynamicPanelOpen('artifact', artifactPanelId, card.open)"),
+      );
+    });
+
     test('parses workflow YAML through the token-protected API', () async {
       final tempDir = await Directory.systemTemp.createTemp(
         'cockpit_devtools_parse_test',
@@ -572,12 +608,13 @@ commands:
       expect(dashboard.body, contains('rootWorkflowStepId'));
       expect(dashboard.body, contains("details.relation === 'retry'"));
       expect(dashboard.body, contains("details.relation === 'loop'"));
+      expect(dashboard.body, contains('.event:not([open]) .event-description'));
       expect(
         dashboard.body,
-        contains('.event:not(.expanded) .event-description'),
+        contains("const item = document.createElement('details');"),
       );
-      expect(dashboard.body, contains("item.setAttribute('role', 'button')"));
-      expect(dashboard.body, contains("item.setAttribute('aria-expanded'"));
+      expect(dashboard.body, contains('event-summary panel-summary'));
+      expect(dashboard.body, contains('item.open = expanded'));
       expect(dashboard.body, contains('if (expanded) {'));
       expect(dashboard.body, contains('payloadPreviewDirty'));
       expect(dashboard.body, contains("!els.launcherPanel.open"));

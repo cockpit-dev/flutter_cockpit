@@ -512,13 +512,10 @@ const String cockpitDevtoolsIndexHtml = r'''
     }
     .event {
       position: relative;
-      display: grid;
-      gap: 5px;
-      padding: 7px 8px 7px 16px;
       border: 1px solid var(--line);
       border-radius: 9px;
       background: rgba(13, 21, 18, .88);
-      cursor: pointer;
+      overflow: hidden;
     }
     .event::before {
       content: "";
@@ -538,6 +535,19 @@ const String cockpitDevtoolsIndexHtml = r'''
     .event[aria-selected="true"] {
       border-color: rgba(114, 228, 181, .72);
       background: rgba(24, 43, 37, .94);
+    }
+    .event > .event-summary {
+      padding: 7px 8px 7px 16px;
+      align-items: flex-start;
+    }
+    .event > .event-summary::before {
+      margin-top: 3px;
+    }
+    .event-summary-content {
+      display: grid;
+      gap: 5px;
+      min-width: 0;
+      flex: 1 1 auto;
     }
     .event-head {
       display: grid;
@@ -574,6 +584,7 @@ const String cockpitDevtoolsIndexHtml = r'''
       line-height: 1.45;
       overflow-wrap: anywhere;
     }
+    .event:not([open]) .event-description,
     .event:not(.expanded) .event-description {
       display: -webkit-box;
       -webkit-box-orient: vertical;
@@ -581,6 +592,7 @@ const String cockpitDevtoolsIndexHtml = r'''
       max-height: 4.35em;
       overflow: hidden;
     }
+    .event[open] .event-description,
     .event.expanded .event-description {
       max-height: 9em;
       overflow: auto;
@@ -590,20 +602,35 @@ const String cockpitDevtoolsIndexHtml = r'''
     .event-details {
       display: none;
       border-top: 1px solid rgba(43, 62, 56, .72);
-      padding-top: 6px;
+      padding: 6px;
     }
+    .event[open] > .event-details,
     .event.expanded .event-details { display: grid; gap: 6px; }
     .artifact-grid {
       grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     }
     .artifact {
-      display: grid;
-      gap: 6px;
+      display: block;
       min-width: 0;
       border: 1px solid var(--line);
       border-radius: 9px;
-      padding: 7px;
       background: rgba(8, 17, 14, .58);
+      overflow: hidden;
+    }
+    .artifact-summary {
+      align-items: flex-start;
+      padding: 7px;
+    }
+    .artifact-summary::before {
+      margin-top: 2px;
+    }
+    .artifact-body {
+      display: grid;
+      gap: 6px;
+      padding: 0 7px 7px;
+    }
+    .artifact:not([open]) > .artifact-summary {
+      padding-bottom: 7px;
     }
     .artifact-media {
       display: grid;
@@ -870,6 +897,27 @@ const String cockpitDevtoolsIndexHtml = r'''
       padding: 6px;
     }
     .subpanel:not([open]) > .subpanel-summary {
+      border-bottom: 0;
+    }
+    .inline-panel {
+      min-width: 0;
+      border: 1px solid rgba(43, 62, 56, .84);
+      border-radius: 8px;
+      overflow: hidden;
+      background: rgba(8, 17, 14, .38);
+    }
+    .inline-panel-summary {
+      padding: 6px 7px;
+      border-bottom: 1px solid rgba(43, 62, 56, .72);
+      background: rgba(12, 17, 16, .24);
+    }
+    .inline-panel-summary .meta {
+      font-size: 10px;
+    }
+    .inline-panel-body {
+      padding: 6px;
+    }
+    .inline-panel:not([open]) > .inline-panel-summary {
       border-bottom: 0;
     }
     .sr-only {
@@ -1168,6 +1216,7 @@ steps:
       mediaViewerActualSize: false,
       mediaViewerReturnFocus: null,
       payloadPreviewDirty: true,
+      dynamicPanelOpen: {},
       eventsByteOffset: 0,
       eventsPartialLine: '',
       eventsHaveLoaded: false,
@@ -1282,6 +1331,21 @@ steps:
       element.textContent = text;
       parent.appendChild(element);
       return element;
+    }
+
+    function createInlinePanel(title, summaryText, className = '') {
+      const panel = document.createElement('details');
+      panel.className = `inline-panel collapsible-panel${className ? ` ${className}` : ''}`;
+      panel.open = true;
+      const summary = document.createElement('summary');
+      summary.className = 'inline-panel-summary panel-summary';
+      appendElement(summary, 'h3', title);
+      if (summaryText) appendText(summary, summaryText, 'meta');
+      panel.appendChild(summary);
+      const body = document.createElement('div');
+      body.className = 'inline-panel-body';
+      panel.appendChild(body);
+      return {panel, body};
     }
 
     function textValue(value) {
@@ -1503,9 +1567,35 @@ steps:
       renderUnknownTree(els.payloadPreview, els.launchPayload.value);
     }
 
+    function dynamicPanelKey(kind, id) {
+      return `${kind}:${id || 'unknown'}`;
+    }
+
+    function dynamicPanelOpen(kind, id, defaultOpen) {
+      const value = state.dynamicPanelOpen[dynamicPanelKey(kind, id)];
+      return typeof value === 'boolean' ? value : defaultOpen;
+    }
+
+    function setDynamicPanelOpen(kind, id, open) {
+      state.dynamicPanelOpen[dynamicPanelKey(kind, id)] = open;
+    }
+
+    function pruneDynamicPanelState(kind, allowedKeys) {
+      const prefix = `${kind}:`;
+      for (const key of Object.keys(state.dynamicPanelOpen)) {
+        if (key.startsWith(prefix) && !allowedKeys.has(key)) {
+          delete state.dynamicPanelOpen[key];
+        }
+      }
+    }
+
     let runsPanelAutoCollapsedForCompact = false;
 
     function panelElements() {
+      return Array.from(document.querySelectorAll('details.collapsible-panel'));
+    }
+
+    function persistentPanelElements() {
       return Array.from(document.querySelectorAll('details.collapsible-panel[data-panel-id]'));
     }
 
@@ -1523,7 +1613,7 @@ steps:
     function savePanelState() {
       try {
         const panelState = {};
-        for (const panel of panelElements()) {
+        for (const panel of persistentPanelElements()) {
           panelState[panel.dataset.panelId] = panel.open;
         }
         localStorage.setItem(PANEL_STATE_STORAGE_KEY, JSON.stringify(panelState));
@@ -1535,7 +1625,7 @@ steps:
     function restorePanelState() {
       const storedState = readStoredPanelState();
       state.hasStoredPanelState = Object.keys(storedState).length > 0;
-      for (const panel of panelElements()) {
+      for (const panel of persistentPanelElements()) {
         const restored = storedState[panel.dataset.panelId];
         if (typeof restored === 'boolean') {
           panel.open = restored;
@@ -1544,17 +1634,31 @@ steps:
     }
 
     function setPanelGroupOpen(open) {
+      let dynamicPanelsChanged = false;
       for (const panel of panelElements()) {
         panel.open = open;
+        if (panel.dataset.dynamicPanelKind && panel.dataset.dynamicPanelId) {
+          setDynamicPanelOpen(
+            panel.dataset.dynamicPanelKind,
+            panel.dataset.dynamicPanelId,
+            open,
+          );
+          dynamicPanelsChanged = true;
+        }
       }
+      state.expandAll = open;
       savePanelState();
       if (els.launcherPanel.open && state.payloadPreviewDirty) {
         renderPayloadPreview({force: true});
       }
+      if (dynamicPanelsChanged) {
+        state.lastRenderedSignature = '';
+        renderAll();
+      }
     }
 
     function wirePanelStatePersistence() {
-      for (const panel of panelElements()) {
+      for (const panel of persistentPanelElements()) {
         panel.addEventListener('toggle', savePanelState);
       }
     }
@@ -1902,6 +2006,22 @@ steps:
         return state.events.find((event) => event.runId === runId && event.seq === seq) || null;
       }
       return null;
+    }
+
+    function selectArtifactEvent(displayArtifact, event = null) {
+      const targetEvent = event || eventForArtifact(displayArtifact);
+      if (targetEvent) {
+        selectTimelineEvent(targetEvent);
+        state.inspectorTab = 'event';
+      } else if (displayArtifact.eventKey || displayArtifact.eventSeq) {
+        const runId = artifactRunId(displayArtifact);
+        if (runId && state.selectedRunId !== runId) {
+          selectRun(runId);
+        }
+        state.selectedEventKey = displayArtifact.eventKey || null;
+        state.selectedEventSeq = displayArtifact.eventSeq || null;
+        state.inspectorTab = 'event';
+      }
     }
 
     function setStatus(statusText) {
@@ -2293,16 +2413,30 @@ steps:
       add('depth', details.workflowStepDepth);
       add('attempt', details.attempt && details.maxAttempts ? `${details.attempt}/${details.maxAttempts}` : details.attempt);
       add('iteration', details.iteration && details.maxIterations ? `${details.iteration}/${details.maxIterations}` : details.iteration);
-      if (facts.children.length) container.appendChild(facts);
+      if (facts.children.length) {
+        const metaPanel = createInlinePanel(
+          'Metadata',
+          `${Math.floor(facts.children.length / 2)} field(s)`,
+          'event-meta-panel',
+        );
+        metaPanel.body.appendChild(facts);
+        container.appendChild(metaPanel.panel);
+      }
 
       const artifacts = [...(event.captureRefs || []), ...(event.artifactRefs || [])];
       if (artifacts.length) {
+        const artifactPanel = createInlinePanel(
+          'Artifacts',
+          `${artifacts.length} linked`,
+          'event-artifacts-panel',
+        );
         const grid = document.createElement('div');
         grid.className = 'artifact-grid';
         for (const artifact of artifacts.slice(0, 6)) {
           grid.appendChild(renderArtifactCard(artifact, event, true));
         }
-        container.appendChild(grid);
+        artifactPanel.body.appendChild(grid);
+        container.appendChild(artifactPanel.panel);
       }
     }
 
@@ -2351,15 +2485,28 @@ steps:
         return;
       }
       for (const event of events) {
-        const item = document.createElement('article');
+        const item = document.createElement('details');
         const key = eventKey(event);
         const selected = key === state.selectedEventKey;
-        const expanded = state.expandAll || selected;
-        item.className = `event ${statusClass(event.status)}${expanded ? ' expanded' : ''}`;
-        item.setAttribute('role', 'button');
+        const expanded = dynamicPanelOpen('event', key, state.expandAll || selected);
+        item.className = `event collapsible-panel ${statusClass(event.status)}${expanded ? ' expanded' : ''}`;
+        item.open = expanded;
+        item.dataset.dynamicPanelKind = 'event';
+        item.dataset.dynamicPanelId = key;
         item.setAttribute('aria-selected', selected ? 'true' : 'false');
-        item.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-        item.tabIndex = 0;
+        item.addEventListener('toggle', () => {
+          setDynamicPanelOpen('event', key, item.open);
+        });
+
+        const summary = document.createElement('summary');
+        summary.className = 'event-summary panel-summary';
+        summary.setAttribute('aria-label', [
+          `event ${event.seq || ''}`,
+          event.type || 'event',
+          event.status || 'unknown'
+        ].filter(Boolean).join(' | '));
+        const summaryContent = document.createElement('div');
+        summaryContent.className = 'event-summary-content';
 
         const head = document.createElement('div');
         head.className = 'event-head';
@@ -2383,14 +2530,16 @@ steps:
         }
         head.appendChild(title);
         appendText(head, formatTime(event.timestamp), 'meta');
-        item.appendChild(head);
+        summaryContent.appendChild(head);
 
         if (event.description || event.error?.message || event.recommendedNextStep) {
           const description = document.createElement('div');
           description.className = 'event-description';
           description.textContent = event.error?.message || event.description || event.recommendedNextStep;
-          item.appendChild(description);
+          summaryContent.appendChild(description);
         }
+        summary.appendChild(summaryContent);
+        item.appendChild(summary);
 
         if (expanded) {
           const details = document.createElement('div');
@@ -2408,15 +2557,18 @@ steps:
           renderInspector();
           refreshSelected().catch((error) => setStatus(`error: ${error.message}`));
         };
-        item.onclick = select;
-        item.onkeydown = (keyboardEvent) => {
-          if (keyboardEvent.key === 'Enter' || keyboardEvent.key === ' ') {
-            keyboardEvent.preventDefault();
+        summary.onclick = () => {
+          setTimeout(() => {
+            setDynamicPanelOpen('event', key, item.open);
             select();
-          }
+          }, 0);
         };
         els.timeline.appendChild(item);
       }
+      pruneDynamicPanelState(
+        'event',
+        new Set(events.map((event) => dynamicPanelKey('event', eventKey(event)))),
+      );
       if (shouldKeepTailVisible) {
         els.timelineScroll.scrollTop = els.timelineScroll.scrollHeight;
       }
@@ -2429,9 +2581,21 @@ steps:
         eventKey: artifact?.eventKey || (event ? eventKey(event) : null),
         eventSeq: artifact?.eventSeq || event?.seq
       };
-      const card = document.createElement('article');
-      card.className = 'artifact';
-      renderArtifactPreview(card, displayArtifact, {eager});
+      const card = document.createElement('details');
+      card.className = 'artifact collapsible-panel';
+      const artifactPanelId = `${displayArtifact.runId || ''}|${artifactPath(displayArtifact)}`;
+      card.open = dynamicPanelOpen(
+        'artifact',
+        artifactPanelId,
+        eager || artifactPriority(displayArtifact) <= 2,
+      );
+      card.dataset.dynamicPanelKind = 'artifact';
+      card.dataset.dynamicPanelId = artifactPanelId;
+      card.addEventListener('toggle', () => {
+        setDynamicPanelOpen('artifact', artifactPanelId, card.open);
+      });
+      const summary = document.createElement('summary');
+      summary.className = 'artifact-summary panel-summary';
       const caption = document.createElement('div');
       caption.className = 'artifact-caption';
       appendElement(caption, 'strong', artifactLabel(displayArtifact));
@@ -2442,6 +2606,12 @@ steps:
         displayArtifact.eventSeq || event?.seq ? `event #${displayArtifact.eventSeq || event?.seq}` : '',
         displayArtifact.capturedAt || event?.timestamp ? formatDateTime(displayArtifact.capturedAt || event?.timestamp) : ''
       ].filter(Boolean).join(' | '));
+      summary.appendChild(caption);
+      card.appendChild(summary);
+
+      const body = document.createElement('div');
+      body.className = 'artifact-body';
+      renderArtifactPreview(body, displayArtifact, {eager});
       const url = artifactUrl(state.selectedRunId, displayArtifact);
       if (url) {
         const link = document.createElement('a');
@@ -2451,24 +2621,15 @@ steps:
         link.rel = 'noreferrer';
         link.textContent = 'open artifact';
         link.onclick = (event) => event.stopPropagation();
-        caption.appendChild(link);
+        body.appendChild(link);
       }
-      card.appendChild(caption);
-      card.onclick = () => {
-        const targetEvent = event || eventForArtifact(displayArtifact);
-        if (targetEvent) {
-          selectTimelineEvent(targetEvent);
-          state.inspectorTab = 'event';
-        } else if (displayArtifact.eventKey || displayArtifact.eventSeq) {
-          const runId = artifactRunId(displayArtifact);
-          if (runId && state.selectedRunId !== runId) {
-            selectRun(runId);
-          }
-          state.selectedEventKey = displayArtifact.eventKey || null;
-          state.selectedEventSeq = displayArtifact.eventSeq || null;
-          state.inspectorTab = 'event';
-        }
-        renderAll();
+      card.appendChild(body);
+      summary.onclick = () => {
+        setTimeout(() => {
+          setDynamicPanelOpen('artifact', artifactPanelId, card.open);
+          selectArtifactEvent(displayArtifact, event);
+          renderAll();
+        }, 0);
       };
       return card;
     }
@@ -2490,6 +2651,14 @@ steps:
         const event = eventForArtifact(artifact);
         els.artifactGallery.appendChild(renderArtifactCard(artifact, event, index < EAGER_ARTIFACT_COUNT));
       }
+      pruneDynamicPanelState(
+        'artifact',
+        new Set(
+          artifacts
+            .slice(0, 60)
+            .map((artifact) => dynamicPanelKey('artifact', `${artifactRunId(artifact)}|${artifactPath(artifact)}`)),
+        ),
+      );
     }
 
     function renderInspectorTabs() {
@@ -2954,6 +3123,9 @@ steps:
     document.getElementById('formatYaml').onclick = formatPayloadAsYaml;
     document.getElementById('expandTimeline').onclick = () => {
       state.expandAll = !state.expandAll;
+      for (const event of state.events) {
+        setDynamicPanelOpen('event', eventKey(event), state.expandAll);
+      }
       renderTimeline();
     };
     els.collapsePanels.onclick = () => setPanelGroupOpen(false);
