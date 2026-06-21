@@ -2126,6 +2126,15 @@ steps:
         (state.scopeMode === 'latest' || state.requestedScope === 'latest' || initialScope === 'latest');
     }
 
+    function hasAnyRuns() {
+      return Boolean(
+        (state.totalRunCount || 0) > 0 ||
+        (state.filteredRunCount || 0) > 0 ||
+        (state.returnedRunCount || 0) > 0 ||
+        state.runs.length > 0
+      );
+    }
+
     function scopeModeLabel() {
       if (state.selectedScopeId === 'all') return 'all runs';
       if (state.pinnedScopeId) return 'pinned scope';
@@ -2134,6 +2143,7 @@ steps:
     }
 
     function activeScopeLabel() {
+      if (state.hasLoadedRuns && !hasAnyRuns()) return 'no runs';
       if (state.activeScopeId === 'all' || state.selectedScopeId === 'all') return 'all runs';
       return state.activeScopeLabel ||
         scopeLabelFor(state.activeScopeId || state.selectedScopeId || state.currentScopeId) ||
@@ -2366,9 +2376,9 @@ steps:
       const live = state.liveState || {};
       fact('runId', live.runId || run.runId);
       fact('scopeMode', scopeModeLabel());
-      fact('scopeId', live.scopeId || run.scopeId || state.activeScopeId);
+      fact('scopeId', hasAnyRuns() ? live.scopeId || run.scopeId || state.activeScopeId : 'none');
       fact('scopeLabel', live.scopeLabel || run.scopeLabel || activeScopeLabel());
-      fact('scopeKind', live.scopeKind || run.scopeKind || state.activeScopeKind);
+      fact('scopeKind', hasAnyRuns() ? live.scopeKind || run.scopeKind || state.activeScopeKind : 'none');
       fact('taskId', live.taskId || run.taskId);
       fact('sessionId', live.sessionId || run.sessionId);
       fact('platform', live.platform || run.platform);
@@ -2419,10 +2429,10 @@ steps:
         appendElement(pill, 'strong', textValue(value) || 'unknown');
         els.timelineContext.appendChild(pill);
       };
-      const allRuns = state.activeScopeId === 'all' || state.selectedScopeId === 'all';
+      const allRuns = hasAnyRuns() && (state.activeScopeId === 'all' || state.selectedScopeId === 'all');
       addPill('scope', live.scopeLabel || run.scopeLabel || activeScopeLabel(), allRuns ? 'warn' : '');
       addPill('mode', scopeModeLabel());
-      addPill('isolation', allRuns ? 'mixed sessions' : (live.scopeKind || run.scopeKind || state.activeScopeKind || 'session'));
+      addPill('isolation', allRuns ? 'mixed sessions' : (hasAnyRuns() ? live.scopeKind || run.scopeKind || state.activeScopeKind || 'session' : 'none'));
       addPill('session', live.sessionId || run.sessionId);
       addPill('run', live.runId || run.runId || state.selectedRunId);
     }
