@@ -1206,7 +1206,6 @@ steps:
     const initialScope = searchParams.get('scope') || 'current';
     const MAX_EVENTS = 350;
     const TIMELINE_RENDER_LIMIT = 120;
-    const INITIAL_EVENT_TAIL_BYTES = 262144;
     const AUTO_REFRESH_MS = 1500;
     const EAGER_ARTIFACT_COUNT = 8;
     const RUN_PAGE_LIMIT = 200;
@@ -1246,10 +1245,6 @@ steps:
       dynamicPanelOpen: {},
       panelGroupOpenOverride: null,
       timelineEventsOpenOverride: null,
-      eventsByteOffset: 0,
-      eventsPartialLine: '',
-      eventsHaveLoaded: false,
-      lastFetchedEventCount: null,
       lastScopeEventsKey: '',
       lastLiveStateText: '',
       lastBundleSummaryKey: '',
@@ -1311,20 +1306,6 @@ steps:
       const response = await fetch(api(path), {cache: 'no-store'});
       if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
       return response.json();
-    }
-
-    async function fetchText(path) {
-      const response = await fetch(api(path), {cache: 'no-store'});
-      if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
-      return response.text();
-    }
-
-    async function fetchTextResponse(path, options = {}) {
-      const response = await fetch(api(path), {cache: 'no-store', ...options});
-      if (!response.ok && response.status !== 206) {
-        throw new Error(`${response.status} ${response.statusText}`);
-      }
-      return response;
     }
 
     async function postJson(path, body) {
@@ -2153,6 +2134,22 @@ steps:
         '';
     }
 
+    function isAllRunsScope() {
+      return hasAnyRuns() && (
+        state.activeScopeId === 'all' ||
+        state.selectedScopeId === 'all' ||
+        state.scopeMode === 'all'
+      );
+    }
+
+    function boardScopeLabel() {
+      return activeScopeLabel();
+    }
+
+    function runScopeLabel(run, live) {
+      return live.scopeLabel || run.scopeLabel || live.scopeId || run.scopeId || '';
+    }
+
     function selectRun(runId) {
       const nextRunId = runId || null;
       if (state.selectedRunId === nextRunId) return false;
@@ -2376,9 +2373,14 @@ steps:
       const live = state.liveState || {};
       fact('runId', live.runId || run.runId);
       fact('scopeMode', scopeModeLabel());
-      fact('scopeId', hasAnyRuns() ? live.scopeId || run.scopeId || state.activeScopeId : 'none');
-      fact('scopeLabel', live.scopeLabel || run.scopeLabel || activeScopeLabel());
-      fact('scopeKind', hasAnyRuns() ? live.scopeKind || run.scopeKind || state.activeScopeKind : 'none');
+      const allRuns = isAllRunsScope();
+      fact('scopeId', hasAnyRuns() ? state.activeScopeId || state.selectedScopeId || live.scopeId || run.scopeId : 'none');
+      fact('scopeLabel', boardScopeLabel());
+      fact('scopeKind', hasAnyRuns() ? allRuns ? 'all' : live.scopeKind || run.scopeKind || state.activeScopeKind : 'none');
+      if (allRuns) {
+        fact('runScopeId', live.scopeId || run.scopeId);
+        fact('runScopeLabel', runScopeLabel(run, live));
+      }
       fact('taskId', live.taskId || run.taskId);
       fact('sessionId', live.sessionId || run.sessionId);
       fact('platform', live.platform || run.platform);
@@ -2429,10 +2431,11 @@ steps:
         appendElement(pill, 'strong', textValue(value) || 'unknown');
         els.timelineContext.appendChild(pill);
       };
-      const allRuns = hasAnyRuns() && (state.activeScopeId === 'all' || state.selectedScopeId === 'all');
-      addPill('scope', live.scopeLabel || run.scopeLabel || activeScopeLabel(), allRuns ? 'warn' : '');
+      const allRuns = isAllRunsScope();
+      addPill('scope', boardScopeLabel(), allRuns ? 'warn' : '');
       addPill('mode', scopeModeLabel());
       addPill('isolation', allRuns ? 'mixed sessions' : (hasAnyRuns() ? live.scopeKind || run.scopeKind || state.activeScopeKind || 'session' : 'none'));
+      if (allRuns) addPill('run scope', runScopeLabel(run, live));
       addPill('session', live.sessionId || run.sessionId);
       addPill('run', live.runId || run.runId || state.selectedRunId);
     }
@@ -2560,12 +2563,13 @@ steps:
         : `${matchingEvents.length}/${state.events.length} event(s) match ${eventFilterLabel()} filter`;
       const run = selectedRun() || {};
       const runLabel = run.displayName || run.taskId || run.runId || state.selectedRunId || 'no run selected';
-      const scopeLabel = run.scopeLabel || state.liveState?.scopeLabel || activeScopeLabel();
+      const scopeLabel = boardScopeLabel();
       const modeLabel = scopeModeLabel();
+      const scopePrefix = isAllRunsScope() ? 'board' : 'scope';
       const summary = matchingEvents.length > events.length
         ? `${loadedPrefix}showing latest ${events.length} of ${eventCountLabel}, oldest to newest`
         : `${loadedPrefix}${eventCountLabel}, oldest to newest`;
-      els.timelineSummary.textContent = `${summary} | ${modeLabel}${scopeLabel ? ` | scope ${scopeLabel}` : ''} | selected ${runLabel}`;
+      els.timelineSummary.textContent = `${summary} | ${modeLabel}${scopeLabel ? ` | ${scopePrefix} ${scopeLabel}` : ''} | selected ${runLabel}`;
       if (!events.length) {
         const empty = document.createElement('div');
         empty.className = 'empty';
@@ -2885,10 +2889,6 @@ steps:
       state.scopeEventCount = 0;
       state.returnedScopeEventCount = 0;
       state.hasMoreScopeEvents = false;
-      state.eventsByteOffset = 0;
-      state.eventsPartialLine = '';
-      state.eventsHaveLoaded = false;
-      state.lastFetchedEventCount = null;
       state.lastScopeEventsKey = '';
     }
 
@@ -2904,82 +2904,6 @@ steps:
         state.selectedEventSeq = null;
         resetEventCursor();
       }
-    }
-
-    function parseEventsText(text, options = {}) {
-      const previousLastKey = eventKey(state.events[state.events.length - 1]);
-      const wasFollowingTail = !state.selectedEventKey ||
-        state.selectedEventKey === previousLastKey;
-      const combined = state.eventsPartialLine + text;
-      const lines = combined.split(/\n/);
-      state.eventsPartialLine = lines.pop() || '';
-      const events = [];
-      for (const line of lines) {
-        if (!line.trim()) continue;
-        try {
-          const event = JSON.parse(line);
-          if (options.runId && event.runId && event.runId !== options.runId) {
-            continue;
-          }
-          event.eventKey = eventKey(event);
-          events.push(event);
-        } catch (_) {
-          // Ignore partial lines while a writer is appending.
-        }
-      }
-      if (!events.length) return false;
-      state.events = [...state.events, ...events].slice(-MAX_EVENTS);
-      const selectedStillLoaded = state.events.some((event) => eventKey(event) === state.selectedEventKey);
-      if ((wasFollowingTail || !selectedStillLoaded) && state.events.length) {
-        const latestEvent = state.events[state.events.length - 1];
-        followTimelineEvent(latestEvent);
-        if (latestEvent.runId && state.selectedRunId !== latestEvent.runId) {
-          selectRun(latestEvent.runId);
-        }
-      }
-      return true;
-    }
-
-    function initialTailWholeLines(text, rangeStart) {
-      if (rangeStart <= 0 || !text) return text;
-      if (text[0] === '\n') return text.slice(1);
-      const firstLineBreak = text.indexOf('\n');
-      return firstLineBreak < 0 ? '' : text.slice(firstLineBreak + 1);
-    }
-
-    async function fetchEventsIncremental(encodedRunId, eventCount, runId, revision) {
-      const headers = {};
-      if (state.eventsHaveLoaded) {
-        headers.range = `bytes=${state.eventsByteOffset}-`;
-      } else {
-        headers.range = `bytes=-${INITIAL_EVENT_TAIL_BYTES}`;
-      }
-      const response = await fetchTextResponse(
-        `/api/runs/${encodedRunId}/events.ndjson`,
-        {headers}
-      );
-      const text = await response.text();
-      if (!isCurrentSelection(revision, runId)) return false;
-      const contentRange = response.headers.get('content-range') || '';
-      const rangeMatch = contentRange.match(/^bytes (\d+)-(\d+)\/(\d+)$/);
-      const contentLength = Number(response.headers.get('content-length') || 0);
-      const rangeStart = rangeMatch ? Number(rangeMatch[1]) : 0;
-      const rangeEnd = rangeMatch ? Number(rangeMatch[2]) : Math.max(0, contentLength - 1);
-      const totalLength = rangeMatch ? Number(rangeMatch[3]) : contentLength;
-      const fileWasRewritten = state.eventsHaveLoaded && totalLength < state.eventsByteOffset;
-      const resetFromFullBody = response.status === 200 || !state.eventsHaveLoaded || fileWasRewritten;
-      if (resetFromFullBody && rangeStart === 0) {
-        state.events = [];
-        state.eventsPartialLine = '';
-      }
-      const eventText = !state.eventsHaveLoaded && response.status === 206
-        ? initialTailWholeLines(text, rangeStart)
-        : text;
-      const changed = parseEventsText(eventText, {runId});
-      state.eventsByteOffset = rangeMatch ? rangeEnd + 1 : totalLength;
-      state.eventsHaveLoaded = true;
-      state.lastFetchedEventCount = eventCount;
-      return changed;
     }
 
     async function refreshScopeEvents() {
@@ -3116,9 +3040,22 @@ steps:
             run.updatedAt || ''
           ].join('|');
           if (summaryRefreshKey !== state.lastBundleSummaryKey) {
-            const nextBundleSummary = await fetchJson(`/api/runs/${encodedRunId}/bundle-summary`);
-            if (!isCurrentSelection(revision, runId)) return;
-            state.bundleSummary = nextBundleSummary;
+            try {
+              const nextBundleSummary = await fetchJson(`/api/runs/${encodedRunId}/bundle-summary`);
+              if (!isCurrentSelection(revision, runId)) return;
+              state.bundleSummary = nextBundleSummary;
+            } catch (summaryError) {
+              if (!isCurrentSelection(revision, runId)) return;
+              state.bundleSummary = {
+                schemaVersion: 1,
+                summaryFileIssues: [{
+                  reason: 'bundleSummaryUnavailable',
+                  message: summaryError.message,
+                  bundleDir: bundleSummaryKey
+                }],
+                artifactRefs: []
+              };
+            }
             state.lastBundleSummaryKey = summaryRefreshKey;
           }
         }

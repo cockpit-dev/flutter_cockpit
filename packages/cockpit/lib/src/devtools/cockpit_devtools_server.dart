@@ -915,6 +915,14 @@ final class CockpitDevtoolsServer {
   }
 
   String _resolveUnderHistory(String relativePath) {
+    if (p.isAbsolute(relativePath)) {
+      final normalizedRoot = p.normalize(p.absolute(historyRoot));
+      final resolved = p.normalize(p.absolute(relativePath));
+      if (resolved == normalizedRoot || p.isWithin(normalizedRoot, resolved)) {
+        return resolved;
+      }
+      throw const _ForbiddenPathException();
+    }
     return _resolveUnderRoot(historyRoot, relativePath);
   }
 
