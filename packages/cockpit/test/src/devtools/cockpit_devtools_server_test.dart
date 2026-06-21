@@ -468,7 +468,7 @@ commands:
       expect(
         dashboard.body,
         contains(
-          "fact('scopeId', live.scopeId || run.scopeId || state.activeScopeId)",
+          "fact('scopeId', hasAnyRuns() ? live.scopeId || run.scopeId || state.activeScopeId : 'none')",
         ),
       );
       expect(
@@ -480,7 +480,7 @@ commands:
       expect(
         dashboard.body,
         contains(
-          "fact('scopeKind', live.scopeKind || run.scopeKind || state.activeScopeKind)",
+          "fact('scopeKind', hasAnyRuns() ? live.scopeKind || run.scopeKind || state.activeScopeKind : 'none')",
         ),
       );
       expect(dashboard.body, contains('data-testid="runs-panel"'));
@@ -842,6 +842,17 @@ commands:
         expect(decoded['scopeId'], 'all');
         expect(decoded['scopes'], isEmpty);
         expect(decoded['runs'], isEmpty);
+
+        final dashboard = await _get(handle.uri);
+        expect(dashboard.statusCode, HttpStatus.ok);
+        expect(dashboard.body, contains('function hasAnyRuns()'));
+        expect(dashboard.body, contains("return 'no runs'"));
+        expect(
+          dashboard.body,
+          contains(
+            "const allRuns = hasAnyRuns() && (state.activeScopeId === 'all' || state.selectedScopeId === 'all')",
+          ),
+        );
       },
     );
 
