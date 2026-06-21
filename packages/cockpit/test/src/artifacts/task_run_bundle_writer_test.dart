@@ -479,10 +479,24 @@ void main() {
         flutterVersion: '3.32.0',
         dartVersion: '3.8.0',
       ),
-      steps: const [],
+      steps: <CockpitStepRecord>[
+        CockpitStepRecord(
+          index: 0,
+          actionType: 'recording_start_requested',
+          actionArgs: const <String, Object?>{'recordingPurpose': 'acceptance'},
+          observedAt: DateTime.utc(2026, 5, 30, 8),
+        ),
+      ],
       observations: const [],
-      acceptanceMarkdown: '# Acceptance\n\nScreenshot only.',
+      acceptanceMarkdown:
+          '# Acceptance\n\nScreenshot captured; recording requested.',
       handoff: const <String, Object?>{'status': 'completed'},
+      delivery: const <String, Object?>{
+        'primaryScreenshotRef': 'screenshots/acceptance.png',
+        'attachmentRefs': ['screenshots/acceptance.png'],
+        'deliveryArtifactsReady': true,
+        'deliveryVideoReady': false,
+      },
     );
 
     final outputDir = await writer.writeBundle(
