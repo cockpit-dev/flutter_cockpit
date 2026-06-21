@@ -231,6 +231,9 @@ const String cockpitDevtoolsIndexHtml = r'''
       text-overflow: ellipsis;
       white-space: nowrap;
     }
+    .media-viewer-panel > .media-viewer-toolbar::before {
+      margin-top: 1px;
+    }
     .rail .panel, .inspector .panel, .workspace .panel {
       border-radius: 10px;
       overflow: hidden;
@@ -744,12 +747,27 @@ const String cockpitDevtoolsIndexHtml = r'''
       box-shadow: 0 20px 48px rgba(0, 0, 0, .42);
       overflow: hidden;
     }
+    .media-viewer-panel:not([open]) {
+      grid-template-rows: auto;
+      height: auto;
+      align-self: start;
+    }
+    .media-viewer-panel:not([open]) > .media-viewer-stage {
+      display: none;
+    }
+    .media-viewer-panel > .media-viewer-toolbar {
+      cursor: pointer;
+      list-style: none;
+    }
+    .media-viewer-panel > .media-viewer-toolbar::-webkit-details-marker {
+      display: none;
+    }
     .media-viewer-toolbar {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 12px;
+      display: flex;
+      gap: 6px;
       align-items: center;
       padding: 12px;
+      padding-right: 390px;
       border-bottom: 1px solid var(--line);
       background: rgba(13, 21, 18, .96);
     }
@@ -757,6 +775,7 @@ const String cockpitDevtoolsIndexHtml = r'''
       min-width: 0;
       display: grid;
       gap: 4px;
+      flex: 1 1 auto;
     }
     .media-viewer-title strong,
     .media-viewer-title span {
@@ -769,7 +788,16 @@ const String cockpitDevtoolsIndexHtml = r'''
       flex-wrap: wrap;
       justify-content: flex-end;
       gap: 8px;
+      position: absolute;
+      top: 10px;
+      right: 12px;
+      z-index: 2;
+      max-width: min(380px, calc(100% - 96px));
+      overflow-x: auto;
+      scrollbar-width: none;
+      white-space: nowrap;
     }
+    .media-viewer-actions::-webkit-scrollbar { display: none; }
     .media-viewer-stage {
       display: grid;
       place-items: center;
@@ -967,14 +995,13 @@ const String cockpitDevtoolsIndexHtml = r'''
         grid-template-columns: minmax(0, 1fr) minmax(170px, .9fr);
       }
       .media-viewer-toolbar {
-        grid-template-columns: minmax(0, 1fr);
         gap: 8px;
+        padding-right: 194px;
       }
       .media-viewer-actions {
-        justify-content: flex-start;
         flex-wrap: nowrap;
-        overflow-x: auto;
-        padding-bottom: 2px;
+        gap: 6px;
+        max-width: min(186px, calc(100% - 76px));
       }
       .overview {
         grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1020,7 +1047,7 @@ const String cockpitDevtoolsIndexHtml = r'''
   </header>
   <main>
     <aside class="rail">
-      <details class="panel collapsible-panel runs-panel" data-testid="runs-panel" data-panel-id="runs" aria-label="Runs" open>
+      <details class="panel collapsible-panel runs-panel" data-testid="runs-panel" data-panel-id="runs" data-panel-persist="true" aria-label="Runs" open>
         <summary class="panel-header panel-heading-row panel-summary compact-runs-summary">
           <h2>Runs</h2>
         </summary>
@@ -1039,7 +1066,7 @@ const String cockpitDevtoolsIndexHtml = r'''
       </details>
     </aside>
     <div class="workspace">
-      <details class="panel collapsible-panel run-detail-panel" data-testid="run-detail" data-panel-id="run-detail">
+      <details class="panel collapsible-panel run-detail-panel" data-testid="run-detail" data-panel-id="run-detail" data-panel-persist="true">
         <summary class="panel-header panel-heading-row panel-summary compact-run-summary">
           <h2 id="run-detail-heading">Run Detail</h2>
         </summary>
@@ -1056,7 +1083,7 @@ const String cockpitDevtoolsIndexHtml = r'''
           </div>
         </div>
       </details>
-      <details class="panel collapsible-panel timeline-panel" data-testid="timeline-panel" data-panel-id="timeline" open>
+      <details class="panel collapsible-panel timeline-panel" data-testid="timeline-panel" data-panel-id="timeline" data-panel-persist="true" open>
         <summary class="panel-header panel-heading-row panel-summary">
           <h2>Timeline</h2>
         </summary>
@@ -1076,7 +1103,7 @@ const String cockpitDevtoolsIndexHtml = r'''
           </div>
         </div>
       </details>
-      <details class="panel collapsible-panel evidence-panel" data-testid="evidence-panel" data-panel-id="evidence" open>
+      <details class="panel collapsible-panel evidence-panel" data-testid="evidence-panel" data-panel-id="evidence" data-panel-persist="true" open>
         <summary class="panel-header panel-summary">
           <h2>Evidence Gallery</h2>
           <span class="meta" id="artifactSummary">no artifacts</span>
@@ -1085,7 +1112,7 @@ const String cockpitDevtoolsIndexHtml = r'''
           <div class="artifact-grid" id="artifactGallery" data-testid="artifact-gallery"></div>
         </div>
       </details>
-      <details class="panel collapsible-panel launcher-panel" data-testid="launcher-panel" data-panel-id="launcher">
+      <details class="panel collapsible-panel launcher-panel" data-testid="launcher-panel" data-panel-id="launcher" data-panel-persist="true">
         <summary class="panel-header panel-summary compact-launcher-summary">
           <h2>Workflow Launcher</h2>
           <span class="meta">paste YAML/JSON only when you need to run from the board</span>
@@ -1139,7 +1166,7 @@ steps:
       </details>
     </div>
     <aside class="inspector">
-      <details class="panel collapsible-panel inspector-panel" data-testid="inspector-panel" data-panel-id="inspector" open>
+      <details class="panel collapsible-panel inspector-panel" data-testid="inspector-panel" data-panel-id="inspector" data-panel-persist="true" open>
         <summary class="panel-header panel-heading-row panel-summary">
           <h2>Inspector</h2>
         </summary>
@@ -1156,22 +1183,22 @@ steps:
   </main>
   <div class="media-viewer" id="mediaViewer" data-testid="media-viewer" hidden>
     <div class="media-viewer-backdrop" id="mediaViewerBackdrop"></div>
-    <section class="media-viewer-dialog" role="dialog" aria-modal="true" aria-labelledby="mediaViewerTitle">
-      <div class="media-viewer-toolbar">
+    <details class="media-viewer-dialog media-viewer-panel collapsible-panel" data-panel-id="media-viewer" data-panel-persist="true" open role="dialog" aria-modal="true" aria-labelledby="mediaViewerTitle">
+      <summary class="media-viewer-toolbar panel-summary">
         <div class="media-viewer-title">
           <strong id="mediaViewerTitle">Artifact</strong>
           <span class="meta" id="mediaViewerPath"></span>
         </div>
-        <div class="media-viewer-actions">
-          <button class="tool-button" type="button" id="mediaViewerSize">actual size</button>
-          <button class="tool-button" type="button" id="mediaViewerCopy">copy link</button>
-          <a class="tool-button" id="mediaViewerDownload" href="#" download>download</a>
-          <a class="tool-button" id="mediaViewerOpen" href="#" target="_blank" rel="noreferrer">open</a>
-          <button class="tool-button" type="button" id="mediaViewerClose">close</button>
-        </div>
+      </summary>
+      <div class="media-viewer-actions">
+        <button class="tool-button" type="button" id="mediaViewerSize">actual size</button>
+        <button class="tool-button" type="button" id="mediaViewerCopy">copy link</button>
+        <a class="tool-button" id="mediaViewerDownload" href="#" download>download</a>
+        <a class="tool-button" id="mediaViewerOpen" href="#" target="_blank" rel="noreferrer">open</a>
+        <button class="tool-button" type="button" id="mediaViewerClose">close</button>
       </div>
       <div class="media-viewer-stage" id="mediaViewerStage"></div>
-    </section>
+    </details>
   </div>
   <script>
     const searchParams = new URLSearchParams(location.search);
@@ -1260,6 +1287,7 @@ steps:
       launchResult: document.getElementById('launchResult'),
       payloadPreview: document.getElementById('payloadPreview'),
       mediaViewer: document.getElementById('mediaViewer'),
+      mediaViewerPanel: document.querySelector('[data-panel-id="media-viewer"]'),
       mediaViewerStage: document.getElementById('mediaViewerStage'),
       mediaViewerTitle: document.getElementById('mediaViewerTitle'),
       mediaViewerPath: document.getElementById('mediaViewerPath'),
@@ -1596,7 +1624,7 @@ steps:
     }
 
     function persistentPanelElements() {
-      return Array.from(document.querySelectorAll('details.collapsible-panel[data-panel-id]'));
+      return Array.from(document.querySelectorAll('details.collapsible-panel[data-panel-persist="true"]'));
     }
 
     function readStoredPanelState() {
@@ -1909,6 +1937,7 @@ steps:
       els.mediaViewerDownload.href = url;
       els.mediaViewerDownload.download = artifactDownloadName(artifact);
       renderMediaViewerArtifact(artifact);
+      els.mediaViewerPanel.open = true;
       els.mediaViewer.hidden = false;
       document.body.classList.add('media-viewer-open');
       els.mediaViewerClose.focus();
@@ -2440,6 +2469,14 @@ steps:
       }
     }
 
+    function ensureEventDetailsRendered(item, event) {
+      if (!item.open || item.querySelector(':scope > .event-details')) return;
+      const details = document.createElement('div');
+      details.className = 'event-details';
+      renderEventDetails(details, event);
+      item.appendChild(details);
+    }
+
     function renderTimeline() {
       const latestKey = eventKey(state.events[state.events.length - 1]);
       const shouldKeepTailVisible = Boolean(els.timelineScroll) && (
@@ -2496,6 +2533,8 @@ steps:
         item.setAttribute('aria-selected', selected ? 'true' : 'false');
         item.addEventListener('toggle', () => {
           setDynamicPanelOpen('event', key, item.open);
+          item.classList.toggle('expanded', item.open);
+          ensureEventDetailsRendered(item, event);
         });
 
         const summary = document.createElement('summary');
@@ -2541,12 +2580,7 @@ steps:
         summary.appendChild(summaryContent);
         item.appendChild(summary);
 
-        if (expanded) {
-          const details = document.createElement('div');
-          details.className = 'event-details';
-          renderEventDetails(details, event);
-          item.appendChild(details);
-        }
+        ensureEventDetailsRendered(item, event);
 
         const select = () => {
           selectTimelineEvent(event);
