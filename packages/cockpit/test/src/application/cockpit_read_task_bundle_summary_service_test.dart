@@ -660,7 +660,7 @@ void main() {
   );
 
   test(
-    'issue evidence reflects derived gate failures when handoff omits gates',
+    'screenshot-only bundles do not fail recording gates when video was not requested',
     () async {
       final tempDir = await Directory.systemTemp.createTemp(
         'cockpit_read_task_bundle_summary_service_derived_gate_issues',
@@ -705,6 +705,9 @@ void main() {
             failureCount: 0,
             deliveryArtifactsReady: true,
             deliveryVideoReady: false,
+            deliveryVideoFailureCodes: const <String>[
+              'primaryRecordingMissing',
+            ],
           ).toJson(),
         ),
       );
@@ -714,6 +717,18 @@ void main() {
           'commandCount': 1,
           'screenshotCount': 1,
           'recordingCount': 0,
+          'recordingReadyOrExplained': false,
+          'deliveryValidated': false,
+          'gates': <String, Object?>{
+            'artifactsReady': false,
+            'recordingReadyOrExplained': false,
+            'deliveryValidated': false,
+          },
+          'gateFailureCodes': <String, Object?>{
+            'artifactsReady': <String>['primaryRecordingMissing'],
+            'recordingReadyOrExplained': <String>['primaryRecordingMissing'],
+            'deliveryValidated': <String>['primaryRecordingMissing'],
+          },
         }),
       );
       await File(p.join(bundleDir.path, 'delivery.json')).writeAsString(
@@ -722,6 +737,13 @@ void main() {
           'attachmentRefs': <String>['screenshots/acceptance.png'],
           'deliveryArtifactsReady': true,
           'deliveryVideoReady': false,
+          'videoFailureCodes': <String>['primaryRecordingMissing'],
+          'readiness': <String, Object?>{
+            'video': <String, Object?>{
+              'ready': false,
+              'failureCodes': <String>['primaryRecordingMissing'],
+            },
+          },
           'deliveryKeyframesReady': false,
         }),
       );
@@ -745,24 +767,144 @@ void main() {
         result.gateSummary.isSatisfied(
           CockpitTaskGate.recordingReadyOrExplained,
         ),
-        isFalse,
+        isTrue,
       );
       expect(
-        result.issueEvidence['recommendedNextStep'],
-        'inspect_issue_evidence',
+        result.gateSummary.failureCodesFor(
+          CockpitTaskGate.recordingReadyOrExplained,
+        ),
+        isEmpty,
       );
-      expect(result.issueEvidence['issueKinds'], contains('gateFailure'));
+      expect(
+        result.gateSummary.isSatisfied(CockpitTaskGate.artifactsReady),
+        isTrue,
+      );
+      expect(
+        result.gateSummary.isSatisfied(CockpitTaskGate.deliveryValidated),
+        isTrue,
+      );
+      expect(result.evidenceSummary['recordingReadyOrExplained'], isTrue);
+      expect(result.evidenceSummary['artifactsReady'], isTrue);
+      expect(result.evidenceSummary['deliveryValidated'], isTrue);
       final gateFailures =
           result.issueEvidence['gateFailures'] as List<Object?>;
       expect(
         gateFailures,
-        contains(
-          allOf(
-            isA<Map<String, Object?>>(),
-            containsPair('gate', 'recordingReadyOrExplained'),
-            containsPair('failureCodes', <String>['primaryRecordingMissing']),
+        isNot(
+          contains(
+            allOf(
+              isA<Map<String, Object?>>(),
+              containsPair('gate', 'recordingReadyOrExplained'),
+            ),
           ),
         ),
+      );
+      expect(
+        jsonEncode(result.issueEvidence),
+        isNot(contains('primaryRecordingMissing')),
+      );
+    },
+  );
+
+  test(
+    'delivery video failure codes are preserved when recording was requested but no file exists',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_read_task_bundle_summary_service_delivery_video_failure',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final bundleDir = Directory(p.join(tempDir.path, 'bundle'));
+      await Directory(
+        p.join(bundleDir.path, 'screenshots'),
+      ).create(recursive: true);
+      await File(
+        p.join(bundleDir.path, 'screenshots', 'acceptance.png'),
+      ).writeAsBytes(const <int>[1, 2, 3]);
+      await File(p.join(bundleDir.path, 'manifest.json')).writeAsString(
+        jsonEncode(
+          CockpitRunManifest(
+            sessionId: 'recording-failed-session',
+            taskId: 'recording-failed-task',
+            platform: 'ios',
+            status: CockpitTaskStatus.completed,
+            startedAt: DateTime.utc(2026, 5, 30),
+            finishedAt: DateTime.utc(2026, 5, 30, 0, 0, 1),
+            artifactRefs: const <CockpitArtifactRef>[
+              CockpitArtifactRef(
+                role: 'screenshot',
+                relativePath: 'screenshots/acceptance.png',
+              ),
+            ],
+            commandCount: 1,
+            screenshotCount: 1,
+            recordingCount: 0,
+            failureCount: 0,
+            deliveryArtifactsReady: true,
+            deliveryVideoReady: false,
+          ).toJson(),
+        ),
+      );
+      await File(p.join(bundleDir.path, 'handoff.json')).writeAsString(
+        jsonEncode(<String, Object?>{
+          'status': 'completed',
+          'recordingFailureReason': 'screenRecordingPermissionDenied',
+        }),
+      );
+      await File(p.join(bundleDir.path, 'delivery.json')).writeAsString(
+        jsonEncode(<String, Object?>{
+          'primaryScreenshotRef': 'screenshots/acceptance.png',
+          'attachmentRefs': <String>['screenshots/acceptance.png'],
+          'deliveryArtifactsReady': true,
+          'deliveryVideoReady': false,
+          'videoFailureCodes': <String>[
+            'primaryRecordingMissing',
+            'recordingFailed',
+          ],
+          'readiness': <String, Object?>{
+            'video': <String, Object?>{
+              'ready': false,
+              'failureCodes': <String>[
+                'primaryRecordingMissing',
+                'recordingFailed',
+              ],
+              'failureReason': 'screenRecordingPermissionDenied',
+            },
+          },
+        }),
+      );
+      await File(
+        p.join(bundleDir.path, 'acceptance.md'),
+      ).writeAsString('# Acceptance\n\n- Status: completed\n');
+      await File(p.join(bundleDir.path, 'steps.json')).writeAsString('[]');
+      await File(
+        p.join(bundleDir.path, 'observations.json'),
+      ).writeAsString('[]');
+
+      final result = await const CockpitReadTaskBundleSummaryService().read(
+        CockpitReadTaskBundleSummaryRequest(bundleDir: bundleDir.path),
+      );
+
+      expect(
+        result.gateSummary.isSatisfied(
+          CockpitTaskGate.recordingReadyOrExplained,
+        ),
+        isFalse,
+      );
+      expect(
+        result.gateSummary.failureCodesFor(
+          CockpitTaskGate.recordingReadyOrExplained,
+        ),
+        <String>['recordingFailed'],
+      );
+      expect(jsonEncode(result.issueEvidence), contains('recordingFailed'));
+      expect(
+        jsonEncode(result.issueEvidence),
+        isNot(contains('primaryRecordingMissing')),
       );
     },
   );

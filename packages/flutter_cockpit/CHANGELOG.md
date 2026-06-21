@@ -14,4 +14,5 @@
 - Added direct activation for Radio/RadioListTile and the real tristate Checkbox cycle, with occlusion-safe multi-touch validation and pointer-cancel cleanup
 - Added release-build semantics resolution through the live SemanticsOwner tree so the semantic plane stays truthful outside debug builds
 - Defaulted `CockpitInteractionPolicy.hitTestMissPolicy` to `fail` so taps that miss their target surface as errors instead of silently passing as no-ops
+- Fixed screenshot-only acceptance bundles so video evidence gates are satisfied when recording was not requested, while real recording failures still surface explicitly
 - Guarded Android window PixelCopy capture behind API 26 so older devices report `captureUnavailable` instead of crashing

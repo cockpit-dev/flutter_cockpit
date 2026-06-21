@@ -58,8 +58,10 @@ final class CockpitIssueEvidenceBuilder {
     );
     final deliveryVideoFailureCodes = _deliveryVideoFailureCodes(
       manifest: manifest,
+      handoff: handoff,
       delivery: delivery,
       artifactPaths: artifactPaths,
+      steps: steps,
     );
     final effectiveGateFailures = <Map<String, Object?>>[
       ...gateFailures,
@@ -75,9 +77,11 @@ final class CockpitIssueEvidenceBuilder {
     final artifactIssues = _artifactIssues(
       bundleDir: bundleDir,
       manifest: manifest,
+      handoff: handoff,
       delivery: delivery,
       artifactPaths: artifactPaths,
       diagnosticsArtifactPaths: diagnosticsArtifactPaths,
+      steps: steps,
     );
     final issueKinds = <String>[
       if (failedCommands.isNotEmpty) 'commandFailure',
@@ -389,16 +393,29 @@ final class CockpitIssueEvidenceBuilder {
   List<Map<String, Object?>> _artifactIssues({
     required String bundleDir,
     required CockpitRunManifest manifest,
+    required Map<String, Object?> handoff,
     required Map<String, Object?> delivery,
     required CockpitBundleArtifactPaths artifactPaths,
     required List<String> diagnosticsArtifactPaths,
+    required List<CockpitStepRecord> steps,
   }) {
     final issues = <Map<String, Object?>>[];
+    final videoEvidenceRequired = _videoEvidenceRequired(
+      manifest: manifest,
+      handoff: handoff,
+      delivery: delivery,
+      artifactPaths: artifactPaths,
+      steps: steps,
+    );
     for (final code in <String>{
       ...manifest.deliveryArtifactFailureCodes,
-      ...manifest.deliveryVideoFailureCodes,
       ..._readStringList(delivery['artifactFailureCodes']),
-      ..._readStringList(delivery['videoFailureCodes']),
+      if (videoEvidenceRequired)
+        ..._actionableVideoFailureCodes(manifest.deliveryVideoFailureCodes),
+      if (videoEvidenceRequired)
+        ..._actionableVideoFailureCodes(
+          _readStringList(delivery['videoFailureCodes']),
+        ),
     }) {
       issues.add(<String, Object?>{'code': code});
     }
@@ -453,15 +470,43 @@ final class CockpitIssueEvidenceBuilder {
 
   List<String> _deliveryVideoFailureCodes({
     required CockpitRunManifest manifest,
+    required Map<String, Object?> handoff,
     required Map<String, Object?> delivery,
     required CockpitBundleArtifactPaths artifactPaths,
+    required List<CockpitStepRecord> steps,
   }) {
+    if (!_videoEvidenceRequired(
+      manifest: manifest,
+      handoff: handoff,
+      delivery: delivery,
+      artifactPaths: artifactPaths,
+      steps: steps,
+    )) {
+      return const <String>[];
+    }
     if (manifest.deliveryVideoReady &&
         manifest.deliveryVideoFailureCodes.isEmpty) {
       return const <String>[];
     }
-    if (manifest.deliveryVideoFailureCodes.isNotEmpty) {
-      return manifest.deliveryVideoFailureCodes;
+    final readiness = _readMap(delivery['readiness']);
+    final videoReadiness = _readMap(readiness?['video']);
+    final failureReason =
+        _readString(handoff['recordingFailureReason']) ??
+        _readString(videoReadiness?['failureReason']);
+    if (failureReason != null) {
+      return const <String>['recordingFailed'];
+    }
+    final manifestVideoFailureCodes = _actionableVideoFailureCodes(
+      manifest.deliveryVideoFailureCodes,
+    );
+    if (manifestVideoFailureCodes.isNotEmpty) {
+      return manifestVideoFailureCodes;
+    }
+    final deliveryVideoFailureCodes = _actionableVideoFailureCodes(
+      _readStringList(delivery['videoFailureCodes']),
+    );
+    if (deliveryVideoFailureCodes.isNotEmpty) {
+      return deliveryVideoFailureCodes;
     }
     final primaryRecordingRef = delivery['primaryRecordingRef'] as String?;
     if (primaryRecordingRef == null || primaryRecordingRef.isEmpty) {
@@ -473,6 +518,44 @@ final class CockpitIssueEvidenceBuilder {
       return const <String>['acceptanceRecordingMissing'];
     }
     return const <String>[];
+  }
+
+  bool _videoEvidenceRequired({
+    required CockpitRunManifest manifest,
+    required Map<String, Object?> handoff,
+    required Map<String, Object?> delivery,
+    required CockpitBundleArtifactPaths artifactPaths,
+    required List<CockpitStepRecord> steps,
+  }) {
+    final primaryRecordingRef = delivery['primaryRecordingRef'] as String?;
+    final readiness = _readMap(delivery['readiness']);
+    final videoReadiness = _readMap(readiness?['video']);
+    final failureReason =
+        _readString(handoff['recordingFailureReason']) ??
+        _readString(videoReadiness?['failureReason']);
+    final deliveryVideoFailureCodes = _readStringList(
+      delivery['videoFailureCodes'],
+    );
+    return manifest.deliveryVideoReady ||
+        manifest.recordingCount > 0 ||
+        steps.any((step) => step.actionType.startsWith('recording_')) ||
+        _hasActionableVideoFailureCodes(manifest.deliveryVideoFailureCodes) ||
+        artifactPaths.primaryRecordingPath != null ||
+        artifactPaths.videoAttachmentPaths.isNotEmpty ||
+        (primaryRecordingRef != null && primaryRecordingRef.isNotEmpty) ||
+        _readStringList(delivery['videoAttachmentRefs']).isNotEmpty ||
+        _hasActionableVideoFailureCodes(deliveryVideoFailureCodes) ||
+        failureReason != null;
+  }
+
+  bool _hasActionableVideoFailureCodes(List<String> failureCodes) {
+    return failureCodes.any((code) => code != 'primaryRecordingMissing');
+  }
+
+  List<String> _actionableVideoFailureCodes(List<String> failureCodes) {
+    return failureCodes
+        .where((code) => code != 'primaryRecordingMissing')
+        .toList(growable: false);
   }
 
   Iterable<Map<String, Object?>> _deliveryAttachmentIssues({

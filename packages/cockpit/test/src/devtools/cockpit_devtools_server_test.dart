@@ -294,12 +294,56 @@ commands:
         ),
       );
       expect(dashboard.body, contains('data-testid="runs-panel"'));
+      expect(
+        dashboard.body,
+        contains(
+          '<details class="panel collapsible-panel runs-panel" data-testid="runs-panel"',
+        ),
+      );
       expect(dashboard.body, contains('compact-runs-summary'));
+      expect(dashboard.body, contains('data-testid="run-detail"'));
+      expect(
+        dashboard.body,
+        contains(
+          '<details class="panel collapsible-panel run-detail-panel" data-testid="run-detail">',
+        ),
+      );
       expect(dashboard.body, contains('data-testid="launcher-panel"'));
+      expect(
+        dashboard.body,
+        contains(
+          '<details class="panel collapsible-panel launcher-panel" data-testid="launcher-panel">',
+        ),
+      );
       expect(dashboard.body, contains('Workflow Launcher'));
       expect(dashboard.body, contains('compact-launcher-summary'));
+      expect(dashboard.body, contains('data-testid="launch-result-panel"'));
+      expect(
+        dashboard.body,
+        contains(
+          '<details class="subpanel collapsible-panel" data-testid="launch-result-panel" open>',
+        ),
+      );
+      expect(dashboard.body, contains('data-testid="payload-preview-panel"'));
+      expect(
+        dashboard.body,
+        contains(
+          '<details class="subpanel collapsible-panel" data-testid="payload-preview-panel" open>',
+        ),
+      );
+      expect(dashboard.body, contains('subpanel-summary'));
+      expect(dashboard.body, contains('subpanel-body'));
       expect(dashboard.body, contains('justify-content: flex-start'));
       expect(dashboard.body, contains('panel-heading-row'));
+      expect(dashboard.body, contains('collapsible-panel'));
+      expect(dashboard.body, contains('panel-summary'));
+      expect(dashboard.body, contains('data-testid="timeline-panel"'));
+      expect(
+        dashboard.body,
+        contains(
+          '<details class="panel collapsible-panel timeline-panel" data-testid="timeline-panel" open>',
+        ),
+      );
       expect(dashboard.body, contains('data-testid="timeline-list"'));
       expect(dashboard.body, contains('data-testid="timeline-context"'));
       expect(dashboard.body, contains('function renderTimelineContext()'));
@@ -311,8 +355,21 @@ commands:
       expect(dashboard.body, contains('function activeScopeLabel()'));
       expect(dashboard.body, contains('isolation'));
       expect(dashboard.body, contains('mixed sessions'));
+      expect(dashboard.body, contains('data-testid="evidence-panel"'));
+      expect(
+        dashboard.body,
+        contains(
+          '<details class="panel collapsible-panel evidence-panel" data-testid="evidence-panel" open>',
+        ),
+      );
       expect(dashboard.body, contains('data-testid="artifact-gallery"'));
       expect(dashboard.body, contains('data-testid="inspector-panel"'));
+      expect(
+        dashboard.body,
+        contains(
+          '<details class="panel collapsible-panel inspector-panel" data-testid="inspector-panel" open>',
+        ),
+      );
       expect(dashboard.body, contains('renderJsonTree'));
       expect(dashboard.body, contains('renderYamlTree'));
       expect(dashboard.body, contains('renderArtifactPreview'));
@@ -375,6 +432,8 @@ commands:
         isNot(contains('candidate.seq === artifact.eventSeq')),
       );
       expect(dashboard.body, contains('data-testid="media-viewer"'));
+      expect(dashboard.body, contains('media-viewer-dialog'));
+      expect(dashboard.body, isNot(contains('media-viewer-panel')));
       expect(dashboard.body, contains('openMediaViewer'));
       expect(dashboard.body, contains('video.controls = false'));
       expect(dashboard.body, contains('video.tabIndex = -1'));
@@ -448,12 +507,8 @@ commands:
       expect(dashboard.body, contains('INITIAL_EVENT_TAIL_BYTES'));
       expect(dashboard.body, contains('fetchEventsIncremental'));
       expect(dashboard.body, contains('initialTailWholeLines'));
-      expect(
-        dashboard.body,
-        contains(
-          '<details class="panel launcher-panel" data-testid="launcher-panel">',
-        ),
-      );
+      expect(dashboard.body, contains('panel-heading-actions'));
+      expect(dashboard.body, contains('.timeline-panel > .panel-summary'));
       expect(
         dashboard.body,
         contains(r'headers.range = `bytes=${state.eventsByteOffset}-`'),
