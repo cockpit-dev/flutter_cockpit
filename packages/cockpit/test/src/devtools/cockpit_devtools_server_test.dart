@@ -3,12 +3,87 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:cockpit/cockpit.dart';
+import 'package:cockpit/src/devtools/cockpit_devtools_index_html.dart';
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 void main() {
   group('CockpitDevtoolsServer', () {
+    test(
+      'dashboard exposes every panel as a persistent collapsible details',
+      () {
+        final htmlTags = RegExp(r'<([a-z]+)\s+[^>]*class="([^"]+)"[^>]*>')
+            .allMatches(cockpitDevtoolsIndexHtml)
+            .where((match) {
+              final classes = match.group(2)!.split(RegExp(r'\s+'));
+              return classes.contains('panel') || classes.contains('subpanel');
+            })
+            .toList();
+        final panelMatches = htmlTags
+            .where((match) => match.group(1) == 'details')
+            .toList();
+        final nonCollapsiblePanels = htmlTags
+            .where((match) => match.group(1) != 'details')
+            .map((match) => match.group(0))
+            .toList();
+        final panelIds = <String>{};
+        expect(panelMatches, hasLength(greaterThanOrEqualTo(8)));
+        expect(nonCollapsiblePanels, isEmpty);
+
+        for (final panel in panelMatches) {
+          final tag = panel.group(0)!;
+          final idMatch = RegExp(r'data-panel-id="([^"]+)"').firstMatch(tag);
+          final start = panel.start;
+          final nextPanel = panelMatches
+              .where((candidate) => candidate.start > start)
+              .firstOrNull;
+          final panelHtml = cockpitDevtoolsIndexHtml.substring(
+            start,
+            nextPanel?.start ?? cockpitDevtoolsIndexHtml.length,
+          );
+          expect(idMatch, isNotNull, reason: tag);
+          expect(panelIds.add(idMatch!.group(1)!), isTrue, reason: tag);
+          expect(panelHtml, contains('<summary '));
+          expect(panelHtml, contains('panel-summary'));
+        }
+
+        expect(
+          panelIds,
+          containsAll(<String>{
+            'runs',
+            'run-detail',
+            'timeline',
+            'evidence',
+            'launcher',
+            'launch-result',
+            'payload-preview',
+            'inspector',
+          }),
+        );
+
+        expect(cockpitDevtoolsIndexHtml, contains('PANEL_STATE_STORAGE_KEY'));
+        expect(
+          cockpitDevtoolsIndexHtml,
+          contains('function restorePanelState()'),
+        );
+        expect(
+          cockpitDevtoolsIndexHtml,
+          contains('function setPanelGroupOpen('),
+        );
+        expect(
+          cockpitDevtoolsIndexHtml,
+          contains('details.collapsible-panel[data-panel-id]'),
+        );
+        expect(
+          cockpitDevtoolsIndexHtml,
+          contains('.collapsible-panel:not([open]) > .panel-summary'),
+        );
+        expect(cockpitDevtoolsIndexHtml, contains('id="collapsePanels"'));
+        expect(cockpitDevtoolsIndexHtml, contains('id="expandPanels"'));
+      },
+    );
+
     test('parses workflow YAML through the token-protected API', () async {
       final tempDir = await Directory.systemTemp.createTemp(
         'cockpit_devtools_parse_test',
@@ -297,7 +372,7 @@ commands:
       expect(
         dashboard.body,
         contains(
-          '<details class="panel collapsible-panel runs-panel" data-testid="runs-panel"',
+          '<details class="panel collapsible-panel runs-panel" data-testid="runs-panel" data-panel-id="runs"',
         ),
       );
       expect(dashboard.body, contains('compact-runs-summary'));
@@ -305,14 +380,14 @@ commands:
       expect(
         dashboard.body,
         contains(
-          '<details class="panel collapsible-panel run-detail-panel" data-testid="run-detail">',
+          '<details class="panel collapsible-panel run-detail-panel" data-testid="run-detail" data-panel-id="run-detail">',
         ),
       );
       expect(dashboard.body, contains('data-testid="launcher-panel"'));
       expect(
         dashboard.body,
         contains(
-          '<details class="panel collapsible-panel launcher-panel" data-testid="launcher-panel">',
+          '<details class="panel collapsible-panel launcher-panel" data-testid="launcher-panel" data-panel-id="launcher">',
         ),
       );
       expect(dashboard.body, contains('Workflow Launcher'));
@@ -321,14 +396,14 @@ commands:
       expect(
         dashboard.body,
         contains(
-          '<details class="subpanel collapsible-panel" data-testid="launch-result-panel" open>',
+          '<details class="subpanel collapsible-panel" data-testid="launch-result-panel" data-panel-id="launch-result" open>',
         ),
       );
       expect(dashboard.body, contains('data-testid="payload-preview-panel"'));
       expect(
         dashboard.body,
         contains(
-          '<details class="subpanel collapsible-panel" data-testid="payload-preview-panel" open>',
+          '<details class="subpanel collapsible-panel" data-testid="payload-preview-panel" data-panel-id="payload-preview" open>',
         ),
       );
       expect(dashboard.body, contains('subpanel-summary'));
@@ -341,7 +416,7 @@ commands:
       expect(
         dashboard.body,
         contains(
-          '<details class="panel collapsible-panel timeline-panel" data-testid="timeline-panel" open>',
+          '<details class="panel collapsible-panel timeline-panel" data-testid="timeline-panel" data-panel-id="timeline" open>',
         ),
       );
       expect(dashboard.body, contains('data-testid="timeline-list"'));
@@ -359,7 +434,7 @@ commands:
       expect(
         dashboard.body,
         contains(
-          '<details class="panel collapsible-panel evidence-panel" data-testid="evidence-panel" open>',
+          '<details class="panel collapsible-panel evidence-panel" data-testid="evidence-panel" data-panel-id="evidence" open>',
         ),
       );
       expect(dashboard.body, contains('data-testid="artifact-gallery"'));
@@ -367,9 +442,15 @@ commands:
       expect(
         dashboard.body,
         contains(
-          '<details class="panel collapsible-panel inspector-panel" data-testid="inspector-panel" open>',
+          '<details class="panel collapsible-panel inspector-panel" data-testid="inspector-panel" data-panel-id="inspector" open>',
         ),
       );
+      expect(dashboard.body, contains('id="collapsePanels"'));
+      expect(dashboard.body, contains('id="expandPanels"'));
+      expect(dashboard.body, contains('PANEL_STATE_STORAGE_KEY'));
+      expect(dashboard.body, contains('localStorage.setItem'));
+      expect(dashboard.body, contains('function restorePanelState()'));
+      expect(dashboard.body, contains('function setPanelGroupOpen(open)'));
       expect(dashboard.body, contains('renderJsonTree'));
       expect(dashboard.body, contains('renderYamlTree'));
       expect(dashboard.body, contains('renderArtifactPreview'));

@@ -89,6 +89,19 @@ const String cockpitDevtoolsIndexHtml = r'''
       justify-content: flex-end;
       gap: 6px;
     }
+    .header-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 6px;
+    }
+    .panel-controls {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 5px;
+    }
     .chip {
       display: inline-flex;
       align-items: center;
@@ -181,6 +194,9 @@ const String cockpitDevtoolsIndexHtml = r'''
     }
     .collapsible-panel:not([open]) > .panel-heading-row {
       border-bottom: 0;
+    }
+    .collapsible-panel:not([open]) > .panel-summary {
+      padding-right: 9px;
     }
     .panel-summary {
       display: flex;
@@ -941,16 +957,22 @@ const String cockpitDevtoolsIndexHtml = r'''
       <h1>Flutter Cockpit Devtools</h1>
       <div class="subhead" id="status">loading local live history</div>
     </div>
-    <div class="status-strip" aria-label="Run status summary">
-      <div class="chip"><span class="dot" id="selectedStatusDot"></span><strong id="selectedStatus">unknown</strong></div>
-      <div class="chip"><span>runs</span><strong id="runCount">0</strong></div>
-      <div class="chip"><span>events</span><strong id="eventCount">0</strong></div>
-      <div class="chip"><span>artifacts</span><strong id="artifactCount">0</strong></div>
+    <div class="header-actions">
+      <div class="status-strip" aria-label="Run status summary">
+        <div class="chip"><span class="dot" id="selectedStatusDot"></span><strong id="selectedStatus">unknown</strong></div>
+        <div class="chip"><span>runs</span><strong id="runCount">0</strong></div>
+        <div class="chip"><span>events</span><strong id="eventCount">0</strong></div>
+        <div class="chip"><span>artifacts</span><strong id="artifactCount">0</strong></div>
+      </div>
+      <div class="panel-controls" aria-label="Panel controls">
+        <button class="tool-button" type="button" id="collapsePanels">collapse all</button>
+        <button class="tool-button" type="button" id="expandPanels">expand all</button>
+      </div>
     </div>
   </header>
   <main>
     <aside class="rail">
-      <details class="panel collapsible-panel runs-panel" data-testid="runs-panel" aria-label="Runs" open>
+      <details class="panel collapsible-panel runs-panel" data-testid="runs-panel" data-panel-id="runs" aria-label="Runs" open>
         <summary class="panel-header panel-heading-row panel-summary compact-runs-summary">
           <h2>Runs</h2>
         </summary>
@@ -969,7 +991,7 @@ const String cockpitDevtoolsIndexHtml = r'''
       </details>
     </aside>
     <div class="workspace">
-      <details class="panel collapsible-panel run-detail-panel" data-testid="run-detail">
+      <details class="panel collapsible-panel run-detail-panel" data-testid="run-detail" data-panel-id="run-detail">
         <summary class="panel-header panel-heading-row panel-summary compact-run-summary">
           <h2 id="run-detail-heading">Run Detail</h2>
         </summary>
@@ -986,7 +1008,7 @@ const String cockpitDevtoolsIndexHtml = r'''
           </div>
         </div>
       </details>
-      <details class="panel collapsible-panel timeline-panel" data-testid="timeline-panel" open>
+      <details class="panel collapsible-panel timeline-panel" data-testid="timeline-panel" data-panel-id="timeline" open>
         <summary class="panel-header panel-heading-row panel-summary">
           <h2>Timeline</h2>
         </summary>
@@ -1006,7 +1028,7 @@ const String cockpitDevtoolsIndexHtml = r'''
           </div>
         </div>
       </details>
-      <details class="panel collapsible-panel evidence-panel" data-testid="evidence-panel" open>
+      <details class="panel collapsible-panel evidence-panel" data-testid="evidence-panel" data-panel-id="evidence" open>
         <summary class="panel-header panel-summary">
           <h2>Evidence Gallery</h2>
           <span class="meta" id="artifactSummary">no artifacts</span>
@@ -1015,7 +1037,7 @@ const String cockpitDevtoolsIndexHtml = r'''
           <div class="artifact-grid" id="artifactGallery" data-testid="artifact-gallery"></div>
         </div>
       </details>
-      <details class="panel collapsible-panel launcher-panel" data-testid="launcher-panel">
+      <details class="panel collapsible-panel launcher-panel" data-testid="launcher-panel" data-panel-id="launcher">
         <summary class="panel-header panel-summary compact-launcher-summary">
           <h2>Workflow Launcher</h2>
           <span class="meta">paste YAML/JSON only when you need to run from the board</span>
@@ -1048,7 +1070,7 @@ steps:
             <button class="action primary" id="submitRun" type="button">Submit run</button>
           </div>
           <div class="split">
-            <details class="subpanel collapsible-panel" data-testid="launch-result-panel" open>
+            <details class="subpanel collapsible-panel" data-testid="launch-result-panel" data-panel-id="launch-result" open>
               <summary class="subpanel-summary panel-summary">
                 <h3>Parsed / Result</h3>
               </summary>
@@ -1056,7 +1078,7 @@ steps:
                 <div class="code-view" id="launchResult">{}</div>
               </div>
             </details>
-            <details class="subpanel collapsible-panel" data-testid="payload-preview-panel" open>
+            <details class="subpanel collapsible-panel" data-testid="payload-preview-panel" data-panel-id="payload-preview" open>
               <summary class="subpanel-summary panel-summary">
                 <h3>Payload Tree</h3>
               </summary>
@@ -1069,7 +1091,7 @@ steps:
       </details>
     </div>
     <aside class="inspector">
-      <details class="panel collapsible-panel inspector-panel" data-testid="inspector-panel" open>
+      <details class="panel collapsible-panel inspector-panel" data-testid="inspector-panel" data-panel-id="inspector" open>
         <summary class="panel-header panel-heading-row panel-summary">
           <h2>Inspector</h2>
         </summary>
@@ -1113,6 +1135,7 @@ steps:
     const AUTO_REFRESH_MS = 1500;
     const EAGER_ARTIFACT_COUNT = 8;
     const RUN_PAGE_LIMIT = 200;
+    const PANEL_STATE_STORAGE_KEY = 'flutter-cockpit-devtools-panels:v1';
     const state = {
       scopes: [],
       selectedScopeId: (initialScope === 'current' || initialScope === 'latest') ? '' : initialScope,
@@ -1155,6 +1178,7 @@ steps:
       lastRenderedSignature: '',
       hasLoadedRuns: false,
       hasResolvedInitialScope: initialScope !== 'current',
+      hasStoredPanelState: false,
       selectionRevision: 0,
       timer: null
     };
@@ -1179,6 +1203,8 @@ steps:
       artifactGallery: document.getElementById('artifactGallery'),
       artifactSummary: document.getElementById('artifactSummary'),
       launcherPanel: document.querySelector('[data-testid="launcher-panel"]'),
+      collapsePanels: document.getElementById('collapsePanels'),
+      expandPanels: document.getElementById('expandPanels'),
       inspector: document.getElementById('inspector'),
       launchKind: document.getElementById('launchKind'),
       launchPayload: document.getElementById('launchPayload'),
@@ -1479,8 +1505,67 @@ steps:
 
     let runsPanelAutoCollapsedForCompact = false;
 
+    function panelElements() {
+      return Array.from(document.querySelectorAll('details.collapsible-panel[data-panel-id]'));
+    }
+
+    function readStoredPanelState() {
+      try {
+        const text = localStorage.getItem(PANEL_STATE_STORAGE_KEY);
+        if (!text) return {};
+        const decoded = JSON.parse(text);
+        return isObject(decoded) ? decoded : {};
+      } catch (_) {
+        return {};
+      }
+    }
+
+    function savePanelState() {
+      try {
+        const panelState = {};
+        for (const panel of panelElements()) {
+          panelState[panel.dataset.panelId] = panel.open;
+        }
+        localStorage.setItem(PANEL_STATE_STORAGE_KEY, JSON.stringify(panelState));
+      } catch (_) {
+        // Storage can be disabled in hardened browser profiles.
+      }
+    }
+
+    function restorePanelState() {
+      const storedState = readStoredPanelState();
+      state.hasStoredPanelState = Object.keys(storedState).length > 0;
+      for (const panel of panelElements()) {
+        const restored = storedState[panel.dataset.panelId];
+        if (typeof restored === 'boolean') {
+          panel.open = restored;
+        }
+      }
+    }
+
+    function setPanelGroupOpen(open) {
+      for (const panel of panelElements()) {
+        panel.open = open;
+      }
+      savePanelState();
+      if (els.launcherPanel.open && state.payloadPreviewDirty) {
+        renderPayloadPreview({force: true});
+      }
+    }
+
+    function wirePanelStatePersistence() {
+      for (const panel of panelElements()) {
+        panel.addEventListener('toggle', savePanelState);
+      }
+    }
+
     function applyDensityLayout() {
-      if (innerWidth < 760 && els.runsPanel && !runsPanelAutoCollapsedForCompact) {
+      if (
+        innerWidth < 760 &&
+        els.runsPanel &&
+        !runsPanelAutoCollapsedForCompact &&
+        !state.hasStoredPanelState
+      ) {
         els.runsPanel.open = false;
         runsPanelAutoCollapsedForCompact = true;
       }
@@ -2871,6 +2956,8 @@ steps:
       state.expandAll = !state.expandAll;
       renderTimeline();
     };
+    els.collapsePanels.onclick = () => setPanelGroupOpen(false);
+    els.expandPanels.onclick = () => setPanelGroupOpen(true);
     els.mediaViewerClose.onclick = closeMediaViewer;
     els.mediaViewerBackdrop.onclick = closeMediaViewer;
     els.mediaViewerSize.onclick = toggleMediaViewerSize;
@@ -2910,7 +2997,9 @@ steps:
     document.getElementById('tabState').onclick = () => { state.inspectorTab = 'state'; renderInspector(); };
     document.getElementById('tabYaml').onclick = () => { state.inspectorTab = 'yaml'; renderInspector(); };
 
+    restorePanelState();
     applyDensityLayout();
+    wirePanelStatePersistence();
     renderAll();
     renderPayloadPreview();
     tick();
