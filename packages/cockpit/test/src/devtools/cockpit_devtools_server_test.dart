@@ -10,79 +10,78 @@ import 'package:test/test.dart';
 
 void main() {
   group('CockpitDevtoolsServer', () {
-    test(
-      'dashboard exposes every panel as a persistent collapsible details',
-      () {
-        final htmlTags = RegExp(r'<([a-z]+)\s+[^>]*class="([^"]+)"[^>]*>')
-            .allMatches(cockpitDevtoolsIndexHtml)
-            .where((match) {
-              final classes = match.group(2)!.split(RegExp(r'\s+'));
-              return classes.contains('panel') || classes.contains('subpanel');
-            })
-            .toList();
-        final panelMatches = htmlTags
-            .where((match) => match.group(1) == 'details')
-            .toList();
-        final nonCollapsiblePanels = htmlTags
-            .where((match) => match.group(1) != 'details')
-            .map((match) => match.group(0))
-            .toList();
-        final panelIds = <String>{};
-        expect(panelMatches, hasLength(greaterThanOrEqualTo(8)));
-        expect(nonCollapsiblePanels, isEmpty);
+    test('dashboard exposes every panel as a collapsible details surface', () {
+      final htmlTags = RegExp(r'<([a-z]+)\s+[^>]*class="([^"]+)"[^>]*>')
+          .allMatches(cockpitDevtoolsIndexHtml)
+          .where((match) {
+            final classes = match.group(2)!.split(RegExp(r'\s+'));
+            return classes.contains('panel') ||
+                classes.contains('subpanel') ||
+                classes.contains('media-viewer-panel');
+          })
+          .toList();
+      final panelMatches = htmlTags
+          .where((match) => match.group(1) == 'details')
+          .toList();
+      final nonCollapsiblePanels = htmlTags
+          .where((match) => match.group(1) != 'details')
+          .map((match) => match.group(0))
+          .toList();
+      final panelIds = <String>{};
+      expect(panelMatches, hasLength(greaterThanOrEqualTo(8)));
+      expect(nonCollapsiblePanels, isEmpty);
 
-        for (final panel in panelMatches) {
-          final tag = panel.group(0)!;
-          final idMatch = RegExp(r'data-panel-id="([^"]+)"').firstMatch(tag);
-          final start = panel.start;
-          final nextPanel = panelMatches
-              .where((candidate) => candidate.start > start)
-              .firstOrNull;
-          final panelHtml = cockpitDevtoolsIndexHtml.substring(
-            start,
-            nextPanel?.start ?? cockpitDevtoolsIndexHtml.length,
-          );
-          expect(idMatch, isNotNull, reason: tag);
-          expect(panelIds.add(idMatch!.group(1)!), isTrue, reason: tag);
-          expect(panelHtml, contains('<summary '));
-          expect(panelHtml, contains('panel-summary'));
-        }
+      for (final panel in panelMatches) {
+        final tag = panel.group(0)!;
+        final idMatch = RegExp(r'data-panel-id="([^"]+)"').firstMatch(tag);
+        final start = panel.start;
+        final nextPanel = panelMatches
+            .where((candidate) => candidate.start > start)
+            .firstOrNull;
+        final panelHtml = cockpitDevtoolsIndexHtml.substring(
+          start,
+          nextPanel?.start ?? cockpitDevtoolsIndexHtml.length,
+        );
+        expect(idMatch, isNotNull, reason: tag);
+        expect(panelIds.add(idMatch!.group(1)!), isTrue, reason: tag);
+        expect(panelHtml, contains('<summary '));
+        expect(panelHtml, contains('panel-summary'));
+      }
 
-        expect(
-          panelIds,
-          containsAll(<String>{
-            'runs',
-            'run-detail',
-            'timeline',
-            'evidence',
-            'launcher',
-            'launch-result',
-            'payload-preview',
-            'inspector',
-          }),
-        );
+      expect(
+        panelIds,
+        containsAll(<String>{
+          'runs',
+          'run-detail',
+          'timeline',
+          'evidence',
+          'launcher',
+          'launch-result',
+          'payload-preview',
+          'inspector',
+          'media-viewer',
+        }),
+      );
 
-        expect(cockpitDevtoolsIndexHtml, contains('PANEL_STATE_STORAGE_KEY'));
-        expect(
-          cockpitDevtoolsIndexHtml,
-          contains('function restorePanelState()'),
-        );
-        expect(
-          cockpitDevtoolsIndexHtml,
-          contains('function setPanelGroupOpen('),
-        );
-        expect(
-          cockpitDevtoolsIndexHtml,
-          contains('details.collapsible-panel[data-panel-id]'),
-        );
-        expect(
-          cockpitDevtoolsIndexHtml,
-          contains('.collapsible-panel:not([open]) > .panel-summary'),
-        );
-        expect(cockpitDevtoolsIndexHtml, contains('id="collapsePanels"'));
-        expect(cockpitDevtoolsIndexHtml, contains('id="expandPanels"'));
-      },
-    );
+      expect(cockpitDevtoolsIndexHtml, contains('PANEL_STATE_STORAGE_KEY'));
+      expect(
+        cockpitDevtoolsIndexHtml,
+        contains('function restorePanelState()'),
+      );
+      expect(cockpitDevtoolsIndexHtml, contains('function setPanelGroupOpen('));
+      expect(
+        cockpitDevtoolsIndexHtml,
+        contains(
+          "document.querySelectorAll('details.collapsible-panel[data-panel-persist=\"true\"]')",
+        ),
+      );
+      expect(
+        cockpitDevtoolsIndexHtml,
+        contains('.collapsible-panel:not([open]) > .panel-summary'),
+      );
+      expect(cockpitDevtoolsIndexHtml, contains('id="collapsePanels"'));
+      expect(cockpitDevtoolsIndexHtml, contains('id="expandPanels"'));
+    });
 
     test('dashboard dynamic review surfaces are native collapsible panels', () {
       expect(
@@ -416,14 +415,14 @@ commands:
       expect(
         dashboard.body,
         contains(
-          '<details class="panel collapsible-panel run-detail-panel" data-testid="run-detail" data-panel-id="run-detail">',
+          '<details class="panel collapsible-panel run-detail-panel" data-testid="run-detail" data-panel-id="run-detail"',
         ),
       );
       expect(dashboard.body, contains('data-testid="launcher-panel"'));
       expect(
         dashboard.body,
         contains(
-          '<details class="panel collapsible-panel launcher-panel" data-testid="launcher-panel" data-panel-id="launcher">',
+          '<details class="panel collapsible-panel launcher-panel" data-testid="launcher-panel" data-panel-id="launcher"',
         ),
       );
       expect(dashboard.body, contains('Workflow Launcher'));
@@ -452,7 +451,7 @@ commands:
       expect(
         dashboard.body,
         contains(
-          '<details class="panel collapsible-panel timeline-panel" data-testid="timeline-panel" data-panel-id="timeline" open>',
+          '<details class="panel collapsible-panel timeline-panel" data-testid="timeline-panel" data-panel-id="timeline"',
         ),
       );
       expect(dashboard.body, contains('data-testid="timeline-list"'));
@@ -470,7 +469,7 @@ commands:
       expect(
         dashboard.body,
         contains(
-          '<details class="panel collapsible-panel evidence-panel" data-testid="evidence-panel" data-panel-id="evidence" open>',
+          '<details class="panel collapsible-panel evidence-panel" data-testid="evidence-panel" data-panel-id="evidence"',
         ),
       );
       expect(dashboard.body, contains('data-testid="artifact-gallery"'));
@@ -478,7 +477,7 @@ commands:
       expect(
         dashboard.body,
         contains(
-          '<details class="panel collapsible-panel inspector-panel" data-testid="inspector-panel" data-panel-id="inspector" open>',
+          '<details class="panel collapsible-panel inspector-panel" data-testid="inspector-panel" data-panel-id="inspector"',
         ),
       );
       expect(dashboard.body, contains('id="collapsePanels"'));
@@ -550,7 +549,13 @@ commands:
       );
       expect(dashboard.body, contains('data-testid="media-viewer"'));
       expect(dashboard.body, contains('media-viewer-dialog'));
-      expect(dashboard.body, isNot(contains('media-viewer-panel')));
+      expect(
+        dashboard.body,
+        contains(
+          '<details class="media-viewer-dialog media-viewer-panel collapsible-panel" data-panel-id="media-viewer" data-panel-persist="true" open',
+        ),
+      );
+      expect(dashboard.body, contains('media-viewer-toolbar panel-summary'));
       expect(dashboard.body, contains('openMediaViewer'));
       expect(dashboard.body, contains('video.controls = false'));
       expect(dashboard.body, contains('video.tabIndex = -1'));
@@ -615,7 +620,7 @@ commands:
       );
       expect(dashboard.body, contains('event-summary panel-summary'));
       expect(dashboard.body, contains('item.open = expanded'));
-      expect(dashboard.body, contains('if (expanded) {'));
+      expect(dashboard.body, contains('ensureEventDetailsRendered'));
       expect(dashboard.body, contains('payloadPreviewDirty'));
       expect(dashboard.body, contains("!els.launcherPanel.open"));
       expect(
