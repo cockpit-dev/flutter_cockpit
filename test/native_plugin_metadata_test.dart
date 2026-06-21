@@ -5,26 +5,63 @@ import 'package:test/test.dart';
 void main() {
   final root = Directory.current.path;
 
-  test('runtime pubspec exposes only the non-invasive web plugin', () {
-    final pubspec = File(
-      '$root/packages/flutter_cockpit/pubspec.yaml',
-    ).readAsStringSync();
+  test(
+    'runtime pubspec registers app-side plugins on every Flutter platform',
+    () {
+      final pubspec = File(
+        '$root/packages/flutter_cockpit/pubspec.yaml',
+      ).readAsStringSync();
 
-    expect(pubspec, contains('web:'));
-    expect(pubspec, contains('pluginClass: FlutterCockpitWeb'));
-    expect(pubspec, contains('fileName: src/web/flutter_cockpit_web.dart'));
+      for (final entry in <String, String>{
+        'android': 'pluginClass: FlutterCockpitPlugin',
+        'ios': 'pluginClass: FlutterCockpitPlugin',
+        'linux': 'pluginClass: FlutterCockpitPlugin',
+        'macos': 'pluginClass: FlutterCockpitPlugin',
+        'windows': 'pluginClass: FlutterCockpitPluginCApi',
+        'web': 'pluginClass: FlutterCockpitWeb',
+      }.entries) {
+        expect(
+          pubspec,
+          matches(RegExp('^      ${entry.key}:\\s*\$', multiLine: true)),
+          reason:
+              'App-window capture and recording fallbacks require the runtime plugin to register on ${entry.key}.',
+        );
+        expect(pubspec, contains(entry.value));
+      }
+      expect(pubspec, contains('package: dev.cockpit.flutter_cockpit'));
+      expect(pubspec, contains('web:'));
+      expect(pubspec, contains('pluginClass: FlutterCockpitWeb'));
+      expect(pubspec, contains('fileName: src/web/flutter_cockpit_web.dart'));
+    },
+  );
+
+  test('example desktop generated registrants include the native runtime plugin', () {
     expect(
-      pubspec,
-      isNot(
-        matches(
-          RegExp(
-            r'^\s+(android|ios|macos|linux|windows):\s*$',
-            multiLine: true,
-          ),
-        ),
+      File(
+        '$root/examples/cockpit_demo/macos/Flutter/GeneratedPluginRegistrant.swift',
+      ).readAsStringSync(),
+      allOf(
+        contains('import flutter_cockpit'),
+        contains('FlutterCockpitPlugin.register'),
       ),
-      reason:
-          'The runtime must not auto-register native host plugins from a development-only dependency.',
+    );
+    expect(
+      File(
+        '$root/examples/cockpit_demo/linux/flutter/generated_plugin_registrant.cc',
+      ).readAsStringSync(),
+      allOf(
+        contains('#include <flutter_cockpit/flutter_cockpit_plugin.h>'),
+        contains('flutter_cockpit_plugin_register_with_registrar'),
+      ),
+    );
+    expect(
+      File(
+        '$root/examples/cockpit_demo/windows/flutter/generated_plugin_registrant.cc',
+      ).readAsStringSync(),
+      allOf(
+        contains('#include <flutter_cockpit/flutter_cockpit_plugin_c_api.h>'),
+        contains('FlutterCockpitPluginCApiRegisterWithRegistrar'),
+      ),
     );
   });
 

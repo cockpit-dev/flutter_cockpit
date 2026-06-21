@@ -108,7 +108,10 @@ active session/scope across its runs in execution order; run details and bundle
 panels track the selected run. Artifact links include the owning run and event
 key so repeated relative paths stay traceable. The dashboard can also parse
 workflow YAML/JSON and submit `runScript` or `validateTask` payloads as
-background jobs under the same history root. Run lists are paged for long-lived
+background jobs under the same history root; in-flight submitted jobs remain
+visible before their live history files are written, and completed submitted
+jobs expose bundle summaries and artifacts through the same run API when the
+bundle remains under the history root. Run lists are paged for long-lived
 history roots while scope totals remain visible.
 Large or partially written bundle JSON is reported through `summaryFileIssues`
 instead of failing the dashboard.

@@ -3,25 +3,36 @@ import 'dart:io';
 import 'package:test/test.dart';
 
 void main() {
-  test('runtime package does not auto-register native host plugins', () {
+  test('runtime package registers app-window plugins on every platform', () {
     final pubspecFile = _packageFile('pubspec.yaml');
     expect(pubspecFile.existsSync(), isTrue);
 
     final source = pubspecFile.readAsStringSync();
     expect(source, contains('plugin:'));
-    expect(source, contains('web:'));
-    expect(
-      source,
-      isNot(
-        matches(
-          RegExp(
-            r'^\s+(android|ios|macos|linux|windows):\s*$',
-            multiLine: true,
-          ),
-        ),
-      ),
-      reason: 'Cockpit must not leak native plugins into host release bundles.',
-    );
+    for (final entry in <String, List<String>>{
+      'android': <String>[
+        'package: dev.cockpit.flutter_cockpit',
+        'pluginClass: FlutterCockpitPlugin',
+      ],
+      'ios': <String>['pluginClass: FlutterCockpitPlugin'],
+      'linux': <String>['pluginClass: FlutterCockpitPlugin'],
+      'macos': <String>['pluginClass: FlutterCockpitPlugin'],
+      'windows': <String>['pluginClass: FlutterCockpitPluginCApi'],
+      'web': <String>[
+        'pluginClass: FlutterCockpitWeb',
+        'fileName: src/web/flutter_cockpit_web.dart',
+      ],
+    }.entries) {
+      expect(
+        source,
+        matches(RegExp('^      ${entry.key}:\\s*\$', multiLine: true)),
+        reason:
+            'The runtime plugin must register app-window capture and recording fallbacks on ${entry.key}.',
+      );
+      for (final expectedLine in entry.value) {
+        expect(source, contains(expectedLine), reason: entry.key);
+      }
+    }
   });
 }
 

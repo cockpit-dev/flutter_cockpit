@@ -85,6 +85,28 @@ dart run cockpit run-command --help
 5. `hot-reload` 或 `hot-restart`
 6. 交付时用 `run-script`、`run-task` 或 `validate-task`
 
+完整观测交付运行时，把本地看板指向同一个 output root：
+
+```bash
+dart run cockpit devtools --history-root /tmp/flutter_cockpit/out
+```
+
+命令会在 loopback 上启动服务并保持运行，直到进程被中断。CLI/MCP 摘要仍是
+低 token 默认入口；当 timeline、截图、录屏或 bundle 文件需要人工检查时再打开
+看板。运行会按 workflow `sessionId` 分组：`sessionId` 表示一个隔离开发或验证任务，
+`taskId` 表示当前目标，`runId` 表示一次执行尝试。同一任务重试时复用
+`sessionId`，无关任务使用新的 `sessionId`。看板默认打开当前最新 scope 并固定 URL，
+避免不同任务混在同一 timeline；需要看历史时用 scope selector 或 `all runs`，需要持续
+跟随新任务时传 `--scope latest`。`scope=current` 和 `scope=latest` API URL 都解析到当前
+最新 scope；UI 会区分 `pinned scope` 与 `following latest`。Timeline 是 scope 级别：
+同一 `sessionId` 的重试按执行顺序一起展示，run detail 和 bundle 面板跟随当前选中
+run。artifact 链接带有所属 run 和 event key，重复相对路径也能追溯。看板还可以解析
+workflow YAML/JSON，并把 `runScript` 或 `validateTask` 作为后台 job 提交；提交中的
+job 在 live history 文件写入前也会显示；完成后的提交 job 只要 bundle 仍在同一个
+history root 下，也会通过同一套 run API 暴露 bundle summary 和 artifact。长期 history
+root 会分页显示 run list，同时保留 scope 总数。过大或部分写入的 bundle JSON 会通过
+`summaryFileIssues` 报告，而不是让看板失败。
+
 target-first 闭环：
 
 1. `launch-target`

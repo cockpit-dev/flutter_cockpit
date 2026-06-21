@@ -811,6 +811,7 @@ final class _PolicyAwareRecordingAdapter implements CockpitRecordingAdapter {
       if (_runtimeFallbackCandidates.isEmpty) {
         rethrow;
       }
+      final fallbackFailures = <_RuntimeRecordingFallbackFailure>[];
       for (final candidate in _runtimeFallbackCandidates) {
         final fallbackDelegate = candidate.factory();
         try {
@@ -822,9 +823,27 @@ final class _PolicyAwareRecordingAdapter implements CockpitRecordingAdapter {
               'Recording layer ${_effectiveLayer.jsonValue} failed to start: '
               '$primaryError. Falling back to ${candidate.layer.jsonValue}.';
           return session;
-        } on Object {
-          // Try the next candidate; the original failure remains the fallback reason.
+        } on Object catch (fallbackError) {
+          fallbackFailures.add(
+            _RuntimeRecordingFallbackFailure(
+              layer: candidate.layer,
+              implementation: candidate.implementation,
+              error: fallbackError,
+            ),
+          );
         }
+      }
+      if (fallbackFailures.isNotEmpty) {
+        Error.throwWithStackTrace(
+          StateError(
+            _runtimeFallbackFailureMessage(
+              primaryError: primaryError,
+              primaryLayer: _effectiveLayer,
+              fallbackFailures: fallbackFailures,
+            ),
+          ),
+          primaryStackTrace,
+        );
       }
       Error.throwWithStackTrace(primaryError, primaryStackTrace);
     }
@@ -845,4 +864,34 @@ final class _PolicyAwareRecordingAdapter implements CockpitRecordingAdapter {
           result.fallbackReason ?? _runtimeFallbackReason ?? _fallbackReason,
     );
   }
+}
+
+final class _RuntimeRecordingFallbackFailure {
+  const _RuntimeRecordingFallbackFailure({
+    required this.layer,
+    required this.implementation,
+    required this.error,
+  });
+
+  final CockpitRecordingLayer layer;
+  final String implementation;
+  final Object error;
+}
+
+String _runtimeFallbackFailureMessage({
+  required Object primaryError,
+  required CockpitRecordingLayer primaryLayer,
+  required List<_RuntimeRecordingFallbackFailure> fallbackFailures,
+}) {
+  final buffer = StringBuffer(
+    'Recording ${primaryLayer.jsonValue} failed to start: $primaryError.',
+  );
+  buffer.write(' Runtime fallbacks were attempted but none could start.');
+  for (final failure in fallbackFailures) {
+    buffer.write(
+      ' ${failure.layer.jsonValue} fallback failed'
+      ' (${failure.implementation}): ${failure.error}.',
+    );
+  }
+  return buffer.toString();
 }

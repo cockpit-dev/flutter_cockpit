@@ -277,6 +277,13 @@ steps:
             final bundleDir = Directory(
               p.join(request.outputRoot, 'runs', 'submitted-bundle'),
             )..createSync(recursive: true);
+            _writeMinimalBundleEvidence(
+              bundleDir,
+              sessionId: request.script.sessionId,
+              taskId: request.script.taskId,
+              platform: request.script.platform,
+              status: 'completed',
+            );
             return CockpitRunRemoteControlScriptResult(
               sessionHandle: request.sessionHandle,
               bundleDir: bundleDir,
@@ -322,6 +329,38 @@ commands:
         expect(runId, contains('submitted-session'));
         expect(body['status'], 'running');
 
+        final runsWhileRunning = await _get(
+          handle.uri.resolve('/api/runs?token=secret&scope=latest'),
+        );
+        expect(runsWhileRunning.statusCode, HttpStatus.ok);
+        final runsWhileRunningJson =
+            jsonDecode(runsWhileRunning.body) as Map<String, Object?>;
+        expect(runsWhileRunningJson['runCount'], 1);
+        expect(runsWhileRunningJson['scopeId'], 'submitted-session');
+        expect(runsWhileRunningJson['scopeMode'], 'latest');
+        expect(runsWhileRunningJson['scopeKind'], 'session');
+        expect(runsWhileRunningJson['scopeLabel'], 'submitted-task');
+        expect(
+          (runsWhileRunningJson['runs']! as List<Object?>).single,
+          allOf(
+            containsPair('runId', runId),
+            containsPair('status', 'running'),
+            containsPair('jobOnly', true),
+          ),
+        );
+
+        final eventsWhileRunning = await _get(
+          handle.uri.resolve('/api/events?token=secret&scope=latest'),
+        );
+        expect(eventsWhileRunning.statusCode, HttpStatus.ok);
+        final eventsWhileRunningJson =
+            jsonDecode(eventsWhileRunning.body) as Map<String, Object?>;
+        expect(eventsWhileRunningJson['scopeId'], 'submitted-session');
+        expect(eventsWhileRunningJson['scopeMode'], 'latest');
+        expect(eventsWhileRunningJson['runCount'], 1);
+        expect(eventsWhileRunningJson['eventCount'], 0);
+        expect(eventsWhileRunningJson['events'], isEmpty);
+
         final jobWhileRunning = await _get(
           handle.uri.resolve('/api/runs/$runId/job?token=secret'),
         );
@@ -329,6 +368,28 @@ commands:
         expect(
           jsonDecode(jobWhileRunning.body),
           containsPair('status', 'running'),
+        );
+
+        final stateWhileRunning = await _get(
+          handle.uri.resolve('/api/runs/$runId/state?token=secret'),
+        );
+        expect(stateWhileRunning.statusCode, HttpStatus.ok);
+        expect(
+          jsonDecode(stateWhileRunning.body),
+          allOf(
+            containsPair('runId', runId),
+            containsPair('status', 'running'),
+            containsPair('stage', 'devtools-job'),
+          ),
+        );
+
+        final missingBundleWhileRunning = await _get(
+          handle.uri.resolve('/api/runs/$runId/bundle-summary?token=secret'),
+        );
+        expect(missingBundleWhileRunning.statusCode, HttpStatus.notFound);
+        expect(
+          jsonDecode(missingBundleWhileRunning.body),
+          containsPair('error', 'bundleNotFound'),
         );
 
         expect(submittedRequests, hasLength(1));
@@ -353,6 +414,64 @@ commands:
           final decoded = jsonDecode(job.body) as Map<String, Object?>;
           expect(decoded['status'], 'completed');
         });
+
+        final runsAfterCompletion = await _get(
+          handle.uri.resolve('/api/runs?token=secret&scope=latest'),
+        );
+        final runsAfterCompletionJson =
+            jsonDecode(runsAfterCompletion.body) as Map<String, Object?>;
+        expect(
+          (runsAfterCompletionJson['runs']! as List<Object?>).single,
+          allOf(
+            containsPair('runId', runId),
+            containsPair('status', 'completed'),
+            containsPair('bundleDir', p.join('runs', 'submitted-bundle')),
+          ),
+        );
+
+        final syntheticState = await _get(
+          handle.uri.resolve('/api/runs/$runId/state?token=secret'),
+        );
+        expect(syntheticState.statusCode, HttpStatus.ok);
+        final syntheticStateJson =
+            jsonDecode(syntheticState.body) as Map<String, Object?>;
+        expect(syntheticStateJson['status'], 'completed');
+        expect(
+          syntheticStateJson['bundleDir'],
+          p.join('runs', 'submitted-bundle'),
+        );
+        expect(syntheticStateJson['job'], containsPair('status', 'completed'));
+
+        final syntheticEvents = await _get(
+          handle.uri.resolve('/api/runs/$runId/events.ndjson?token=secret'),
+        );
+        expect(syntheticEvents.statusCode, HttpStatus.ok);
+        expect(syntheticEvents.body, isEmpty);
+
+        final completedBundleSummary = await _get(
+          handle.uri.resolve('/api/runs/$runId/bundle-summary?token=secret'),
+        );
+        expect(completedBundleSummary.statusCode, HttpStatus.ok);
+        final completedBundleSummaryJson =
+            jsonDecode(completedBundleSummary.body) as Map<String, Object?>;
+        expect(completedBundleSummaryJson['status'], 'completed');
+        expect(
+          completedBundleSummaryJson['artifactRefs'],
+          contains(
+            allOf(
+              containsPair('role', 'screenshot'),
+              containsPair('relativePath', 'screenshots/final.png'),
+            ),
+          ),
+        );
+
+        final completedArtifact = await _getBytes(
+          handle.uri.resolve(
+            '/api/runs/$runId/bundle/screenshots/final.png?token=secret',
+          ),
+        );
+        expect(completedArtifact.statusCode, HttpStatus.ok);
+        expect(completedArtifact.body, <int>[9, 8, 7]);
 
         final rejected = await _postJson(
           handle.uri.resolve('/api/runs?token=secret'),
@@ -1746,6 +1865,43 @@ Future<void> _writeRunFixture(Directory root) async {
       ],
     }),
   );
+}
+
+void _writeMinimalBundleEvidence(
+  Directory bundleDir, {
+  required String sessionId,
+  required String taskId,
+  required String platform,
+  required String status,
+}) {
+  Directory(p.join(bundleDir.path, 'screenshots')).createSync(recursive: true);
+  File(
+    p.join(bundleDir.path, 'screenshots', 'final.png'),
+  ).writeAsBytesSync(<int>[9, 8, 7]);
+  File(p.join(bundleDir.path, 'manifest.json')).writeAsStringSync(
+    jsonEncode(<String, Object?>{
+      'sessionId': sessionId,
+      'taskId': taskId,
+      'platform': platform,
+      'status': status,
+      'screenshotCount': 1,
+      'artifactRefs': <Object?>[
+        <String, Object?>{
+          'role': 'screenshot',
+          'relativePath': 'screenshots/final.png',
+        },
+      ],
+    }),
+  );
+  File(p.join(bundleDir.path, 'delivery.json')).writeAsStringSync(
+    jsonEncode(<String, Object?>{
+      'summary': 'Submitted run completed from devtools.',
+      'primaryScreenshotRef': 'screenshots/final.png',
+    }),
+  );
+  File(
+    p.join(bundleDir.path, 'trace.json'),
+  ).writeAsStringSync(jsonEncode(<String, Object?>{'entries': <Object?>[]}));
 }
 
 Future<void> _writeLegacyScopedIndex(Directory root) async {

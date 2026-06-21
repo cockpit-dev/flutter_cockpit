@@ -290,6 +290,59 @@ void main() {
     },
   );
 
+  test(
+    'reports every runtime recording fallback failure when no candidate can start',
+    () async {
+      final remoteAdapter = _ThrowingRecordingAdapter(
+        StateError('app window recorder has no active window'),
+      );
+      final resolver = CockpitRecordingStrategyResolver(
+        remoteAdapterFactory: (client) => remoteAdapter,
+        adbAdapterFactory: (deviceId) => _FakeRecordingAdapter(),
+        simctlAdapterFactory: (deviceId) => _FakeRecordingAdapter(),
+        macosAdapterFactory: (appId) => _ThrowingRecordingAdapter(
+          StateError('host recorder has no screen input'),
+        ),
+      );
+
+      final resolution = resolver.resolveDetailed(
+        platform: 'macos',
+        recording: autoRequest,
+        client: CockpitRemoteSessionClient(
+          baseUri: Uri.parse('http://127.0.0.1:47331'),
+        ),
+        platformAppId: 'dev.cockpit.cockpitDemo',
+      );
+
+      await expectLater(
+        resolution!.adapter!.startRecording(autoRequest),
+        throwsA(
+          isA<StateError>()
+              .having(
+                (error) => error.message,
+                'message',
+                contains('host-screen failed to start'),
+              )
+              .having(
+                (error) => error.message,
+                'message',
+                contains('app-window fallback failed'),
+              )
+              .having(
+                (error) => error.message,
+                'message',
+                contains('host recorder has no screen input'),
+              )
+              .having(
+                (error) => error.message,
+                'message',
+                contains('app window recorder has no active window'),
+              ),
+        ),
+      );
+    },
+  );
+
   test('uses process-scoped host recording for Windows full mode', () {
     String? capturedAppId;
     int? capturedProcessId;
