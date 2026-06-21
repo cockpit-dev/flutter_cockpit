@@ -1244,6 +1244,8 @@ steps:
       mediaViewerReturnFocus: null,
       payloadPreviewDirty: true,
       dynamicPanelOpen: {},
+      panelGroupOpenOverride: null,
+      timelineEventsOpenOverride: null,
       eventsByteOffset: 0,
       eventsPartialLine: '',
       eventsHaveLoaded: false,
@@ -1361,10 +1363,27 @@ steps:
       return element;
     }
 
-    function createInlinePanel(title, summaryText, className = '') {
+    function createInlinePanel(title, summaryText, className = '', options = {}) {
       const panel = document.createElement('details');
       panel.className = `inline-panel collapsible-panel${className ? ` ${className}` : ''}`;
-      panel.open = true;
+      if (options.dynamicPanelKind && options.dynamicPanelId) {
+        panel.dataset.dynamicPanelKind = options.dynamicPanelKind;
+        panel.dataset.dynamicPanelId = options.dynamicPanelId;
+        panel.open = dynamicPanelOpen(
+          options.dynamicPanelKind,
+          options.dynamicPanelId,
+          defaultDynamicPanelOpen(options.defaultOpen !== false),
+        );
+        panel.addEventListener('toggle', () => {
+          setDynamicPanelOpen(
+            options.dynamicPanelKind,
+            options.dynamicPanelId,
+            panel.open,
+          );
+        });
+      } else {
+        panel.open = options.defaultOpen !== false;
+      }
       const summary = document.createElement('summary');
       summary.className = 'inline-panel-summary panel-summary';
       appendElement(summary, 'h3', title);
@@ -1599,6 +1618,18 @@ steps:
       return `${kind}:${id || 'unknown'}`;
     }
 
+    function defaultDynamicPanelOpen(defaultOpen) {
+      return typeof state.panelGroupOpenOverride === 'boolean'
+        ? state.panelGroupOpenOverride
+        : defaultOpen;
+    }
+
+    function defaultEventPanelOpen(defaultOpen) {
+      return typeof state.timelineEventsOpenOverride === 'boolean'
+        ? state.timelineEventsOpenOverride
+        : defaultDynamicPanelOpen(defaultOpen);
+    }
+
     function dynamicPanelOpen(kind, id, defaultOpen) {
       const value = state.dynamicPanelOpen[dynamicPanelKey(kind, id)];
       return typeof value === 'boolean' ? value : defaultOpen;
@@ -1662,7 +1693,12 @@ steps:
     }
 
     function setPanelGroupOpen(open) {
-      let dynamicPanelsChanged = false;
+      let dynamicPanelsChanged = Object.keys(state.dynamicPanelOpen).length > 0;
+      state.panelGroupOpenOverride = open;
+      state.timelineEventsOpenOverride = open;
+      for (const key of Object.keys(state.dynamicPanelOpen)) {
+        state.dynamicPanelOpen[key] = open;
+      }
       for (const panel of panelElements()) {
         panel.open = open;
         if (panel.dataset.dynamicPanelKind && panel.dataset.dynamicPanelId) {
@@ -2447,6 +2483,10 @@ steps:
           'Metadata',
           `${Math.floor(facts.children.length / 2)} field(s)`,
           'event-meta-panel',
+          {
+            dynamicPanelKind: 'event-inline',
+            dynamicPanelId: `${eventKey(event)}:metadata`,
+          },
         );
         metaPanel.body.appendChild(facts);
         container.appendChild(metaPanel.panel);
@@ -2458,6 +2498,10 @@ steps:
           'Artifacts',
           `${artifacts.length} linked`,
           'event-artifacts-panel',
+          {
+            dynamicPanelKind: 'event-inline',
+            dynamicPanelId: `${eventKey(event)}:artifacts`,
+          },
         );
         const grid = document.createElement('div');
         grid.className = 'artifact-grid';
@@ -2525,7 +2569,11 @@ steps:
         const item = document.createElement('details');
         const key = eventKey(event);
         const selected = key === state.selectedEventKey;
-        const expanded = dynamicPanelOpen('event', key, state.expandAll || selected);
+        const expanded = dynamicPanelOpen(
+          'event',
+          key,
+          defaultEventPanelOpen(state.expandAll || selected),
+        );
         item.className = `event collapsible-panel ${statusClass(event.status)}${expanded ? ' expanded' : ''}`;
         item.open = expanded;
         item.dataset.dynamicPanelKind = 'event';
@@ -2621,7 +2669,7 @@ steps:
       card.open = dynamicPanelOpen(
         'artifact',
         artifactPanelId,
-        eager || artifactPriority(displayArtifact) <= 2,
+        defaultDynamicPanelOpen(eager || artifactPriority(displayArtifact) <= 2),
       );
       card.dataset.dynamicPanelKind = 'artifact';
       card.dataset.dynamicPanelId = artifactPanelId;
@@ -3157,6 +3205,7 @@ steps:
     document.getElementById('formatYaml').onclick = formatPayloadAsYaml;
     document.getElementById('expandTimeline').onclick = () => {
       state.expandAll = !state.expandAll;
+      state.timelineEventsOpenOverride = state.expandAll;
       for (const event of state.events) {
         setDynamicPanelOpen('event', eventKey(event), state.expandAll);
       }
