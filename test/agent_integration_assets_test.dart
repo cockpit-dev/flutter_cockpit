@@ -8,6 +8,8 @@ void main() {
 
   String read(String path) => File('$root/$path').readAsStringSync();
 
+  List<int> readBytes(String path) => File('$root/$path').readAsBytesSync();
+
   Map<String, Object?> readJson(String path) {
     return jsonDecode(read(path)) as Map<String, Object?>;
   }
@@ -39,7 +41,11 @@ void main() {
 
     expect(copyFiles, canonicalFiles, reason: path);
     for (final file in canonicalFiles) {
-      expect(read('$path/$file'), read('$canonicalPath/$file'), reason: file);
+      expect(
+        readBytes('$path/$file'),
+        readBytes('$canonicalPath/$file'),
+        reason: '$path/$file',
+      );
     }
   }
 
