@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:cockpit/src/cli/cockpit_control_script.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -14,6 +15,17 @@ void main() {
           (unit >= 97 && unit <= 122) ||
           unit == 45;
     });
+  }
+
+  List<String> fencedBlocks(String markdown, String language) {
+    final pattern = RegExp(
+      '```$language\\n([\\s\\S]*?)\\n```',
+      multiLine: true,
+    );
+    return pattern
+        .allMatches(markdown)
+        .map((match) => match.group(1)!)
+        .toList(growable: false);
   }
 
   List<String> localReferencePaths(String skill) {
@@ -244,6 +256,13 @@ void main() {
     expect(skill, contains('start-recording'));
     expect(skill, contains('stop-recording'));
     expect(skill, contains('validate-task --config'));
+    expect(skill, contains('download bundle'));
+    expect(skill, contains('/api/runs/<runId>/bundle-download'));
+    expect(skill, contains('download_manifest.json'));
+    expect(skill, contains('run_metadata.json'));
+    expect(skill, contains('bundle/**'));
+    expect(skill, contains('live/**'));
+    expect(skill, contains('missingRoots'));
     expect(skill, contains('--stdout-format json'));
     expect(skill, contains('--output <path>'));
     expect(skill, contains('--output-format json'));
@@ -390,6 +409,12 @@ void main() {
       contains('return to the rapid loop instead of manufacturing extra'),
     );
     expect(acceptanceDelivery, contains('artifacts.'));
+    expect(acceptanceDelivery, contains('download bundle'));
+    expect(acceptanceDelivery, contains('download_manifest.json'));
+    expect(acceptanceDelivery, contains('run_metadata.json'));
+    expect(acceptanceDelivery, contains('bundle/**'));
+    expect(acceptanceDelivery, contains('live/**'));
+    expect(acceptanceDelivery, contains('missingRoots'));
     expect(
       hostSetup,
       contains('low-cost public surface that answers the current task'),
@@ -400,6 +425,22 @@ void main() {
         'Do not expose or invoke delivery workflows as the normal edit loop',
       ),
     );
+  });
+
+  test('flutter-cockpit skill workflow examples parse in production', () {
+    final skill = readRepoFile('skills/flutter-cockpit/SKILL.md');
+    final workflowBlocks = fencedBlocks(skill, 'yaml')
+        .where((block) => block.contains('schemaVersion: 1'))
+        .toList(growable: false);
+
+    expect(workflowBlocks, isNotEmpty);
+    for (final block in workflowBlocks) {
+      expect(
+        () => cockpitControlScriptFromText(block),
+        returnsNormally,
+        reason: block,
+      );
+    }
   });
 
   test('flutter-cockpit skill references stay consistent', () {

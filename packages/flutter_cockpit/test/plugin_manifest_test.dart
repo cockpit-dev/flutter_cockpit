@@ -34,6 +34,27 @@ void main() {
       }
     }
   });
+
+  test('Darwin SwiftPM packages use Flutter template-compatible metadata', () {
+    final iosPackage = _packageFile(
+      'ios/flutter_cockpit/Package.swift',
+    ).readAsStringSync();
+    final macosPackage = _packageFile(
+      'macos/flutter_cockpit/Package.swift',
+    ).readAsStringSync();
+
+    expect(iosPackage, contains('name: "flutter_cockpit"'));
+    expect(iosPackage, contains('.iOS("13.0")'));
+    expect(iosPackage, contains('dependencies: []'));
+    expect(iosPackage, contains('.process("PrivacyInfo.xcprivacy")'));
+    expect(iosPackage, isNot(contains('FlutterFramework')));
+
+    expect(macosPackage, contains('name: "flutter_cockpit"'));
+    expect(macosPackage, contains('.macOS("10.15")'));
+    expect(macosPackage, contains('dependencies: []'));
+    expect(macosPackage, contains('.process("PrivacyInfo.xcprivacy")'));
+    expect(macosPackage, isNot(contains('FlutterFramework')));
+  });
 }
 
 File _packageFile(String relativePath) {

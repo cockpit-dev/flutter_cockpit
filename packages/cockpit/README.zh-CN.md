@@ -101,11 +101,17 @@ dart run cockpit devtools --history-root /tmp/flutter_cockpit/out
 最新 scope；UI 会区分 `pinned scope` 与 `following latest`。Timeline 是 scope 级别：
 同一 `sessionId` 的重试按执行顺序一起展示，run detail 和 bundle 面板跟随当前选中
 run。artifact 链接带有所属 run 和 event key，重复相对路径也能追溯。看板还可以解析
-workflow YAML/JSON，并把 `runScript` 或 `validateTask` 作为后台 job 提交；提交中的
-job 在 live history 文件写入前也会显示；完成后的提交 job 只要 bundle 仍在同一个
-history root 下，也会通过同一套 run API 暴露 bundle summary 和 artifact。长期 history
-root 会分页显示 run list，同时保留 scope 总数。过大或部分写入的 bundle JSON 会通过
-`summaryFileIssues` 报告，而不是让看板失败。
+workflow YAML/JSON，并把 `runScript` 或 `validateTask` 作为后台 job 提交。从看板提交
+真实运行时需要保留 CLI 通常会提供的可执行 envelope，例如 `sessionHandle`、
+`baseUrl`、`outputRoot` 和平台 id；在 JSON/YAML 间切换时不要只保留内部 workflow。
+提交中的 job 在 live history 文件写入前也会显示；完成后的提交 job 只要 bundle 仍在
+同一个 history root 下，也会通过同一套 run API 暴露 bundle summary 和 artifact。
+长期 history root 会分页显示 run list，同时保留 scope 总数。过大或部分写入的 bundle
+JSON 会通过 `summaryFileIssues` 报告，而不是让看板失败。run detail 面板通过
+`GET /api/runs/<runId>/bundle-download` 提供 `download bundle`；响应是受
+token 保护的 tar 流，包含 `download_manifest.json`、`run_metadata.json`、
+`bundle/**` 和 `live/**`，live-only 或部分运行缺失的根目录会记录在
+`missingRoots`。
 
 target-first 闭环：
 

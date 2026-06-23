@@ -7,7 +7,7 @@ description: Use when Flutter or host-control tasks must prove live UI, interact
 
 ## Overview
 
-Default to rapid development validation: prove the current change with the cheapest live loop that answers the user, then stop.
+Default to rapid development validation: prove changes with the cheapest live loop that answers the user, then stop.
 
 `assess -> bootstrap -> baseline -> execute -> observe -> judge -> deliver`
 
@@ -61,7 +61,7 @@ dart run cockpit run-command --command-file /tmp/flutter_cockpit_command.json --
 
 Use these only when the next claim needs them.
 
-Visible final proof:
+Final proof:
 
 ```bash
 dart run cockpit capture-screenshot --name acceptance --profile inspect
@@ -75,7 +75,7 @@ Short deterministic flow:
 dart run cockpit run-batch --commands-file /tmp/flutter_cockpit_batch.json --profile standard
 ```
 
-Motion, transition, gesture, or bug-repro video:
+Motion, transition, gesture, or repro video:
 
 ```bash
 dart run cockpit start-recording
@@ -96,13 +96,13 @@ Use `parameters=[name*:type[range](allowed|values)]`; `*` means required. Do not
 Use JSON `actionGroups` instead of hard-coded platform lists. Android uses adb. iOS Simulator uses simctl plus WDA; WDA actions stay blocked unless reachable. Unsupported simulator actions stay blocked instead of faked. For native crash logs before runtime attaches, use `run-system-action --action readSystemLogs`. `activateWindow` on iOS Simulator must not terminate Flutter debug or hot-reload sessions; use `terminateApp` only for restart.
 Trust only actions reported as `available`. Desktop coordinates use screen pixels. macOS host screenshots/recordings need `--app-id`; Windows/Linux can use `--app-id` or `--process-id`. If not `available`, follow its requirement/fallback or report `blocked_by_environment`.
 
-Acceptance, release readiness, or artifact-backed handoff:
+Acceptance, release, or artifact handoff:
 
 ```bash
 dart run cockpit validate-task --config /tmp/flutter_cockpit_validate_task.yaml
 ```
 
-Workflow script for branch/retry/loop E2E flows. Prefer YAML by hand and JSON when generated. Schema: [`references/protocol.md`](references/protocol.md), `cockpit://workspace/control-workflow-protocol`, `cockpit://workspace/control-workflow-schema`.
+Workflow script for branch/retry/loop E2E. Prefer YAML by hand and JSON when generated. Schema: [`references/protocol.md`](references/protocol.md), `cockpit://workspace/control-workflow-protocol`, `cockpit://workspace/control-workflow-schema`.
 
 ```yaml
 schemaVersion: 1
@@ -113,6 +113,11 @@ failFast: true
 steps:
   - stepId: record-flow
     stepType: startRecording
+    recording:
+      purpose: acceptance
+      name: checkout-proof
+      mode: auto
+      attachToStep: true
   - stepId: wait-ready
     stepType: retry
     maxAttempts: 4
@@ -132,7 +137,7 @@ steps:
 dart run cockpit run-script --app-json /tmp/flutter_cockpit/app.json --script /tmp/flutter_cockpit/workflow.yaml --platform <platform> --output-root /tmp/flutter_cockpit/out
 ```
 
-Use `--platform` to run one reusable workflow on the current target instead of copying YAML only to change `platform`. Read `issue_evidence.json`, `validation.json`, and `trace.json` for failure, validation, artifact mapping.
+Use `--platform` to run one reusable workflow on the current target. Read `issue_evidence.json` for failure, `trace.json` for artifact mapping, and `validation.json` only after `validate-task`.
 
 Board:
 
@@ -140,7 +145,7 @@ Board:
 dart run cockpit devtools --history-root /tmp/flutter_cockpit/out
 ```
 
-Use the same `--output-root`. `sessionId` isolates one job, `taskId` names the objective, and `runId` is one attempt. Reuse `sessionId` for retries; use a new one for unrelated work. The board opens pinned to the latest `sessionId` so timelines do not mix. Use the scope selector or `all runs` for cross-session audit; use `--scope latest` only when the board should follow new jobs. Trust `pinned scope` / `following latest`. Timeline is scope-level: retries share one timeline, while details and bundles stay per-run. Artifact links carry owning run/event. Submitted jobs appear before live files; completed jobs expose in-root bundle summaries/artifacts. Run lists are paged while scope totals stay visible. Paste workflow/config only when launching from the board helps.
+Use same `--output-root`. `sessionId` isolates one job, `taskId` names the objective, and `runId` is one attempt. Reuse `sessionId` for retries; use a new one for unrelated work. The board pins latest `sessionId`; use selector/`all runs` for audit and `--scope latest` to follow. Timeline is scope-level, details/bundles stay per-run, and artifact links carry owning run/event. Submitted jobs and completed in-root bundles share the run API. For handoff, click `download bundle` or GET `/api/runs/<runId>/bundle-download`; the streamed tar contains `download_manifest.json`, `run_metadata.json`, `bundle/**`, `live/**`, with absent parts in `missingRoots`. Board launches need executable envelope: `sessionHandle`, `baseUrl`, `outputRoot`, platform ids.
 
 ## Development Defaults
 

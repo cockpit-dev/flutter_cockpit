@@ -104,6 +104,24 @@ final class CockpitDevtoolsServer {
         );
         return;
       }
+      if (path == '/favicon.ico') {
+        if (request.method == 'POST') {
+          await _writeText(
+            request,
+            HttpStatus.methodNotAllowed,
+            'method not allowed',
+          );
+          return;
+        }
+        await _writeBinary(
+          request,
+          HttpStatus.ok,
+          _faviconBytes,
+          contentType: ContentType('image', 'x-icon'),
+          cacheControl: 'public, max-age=3600',
+        );
+        return;
+      }
       if (!path.startsWith('/api/')) {
         await _writeText(request, HttpStatus.notFound, 'not found');
         return;
@@ -272,6 +290,10 @@ final class CockpitDevtoolsServer {
         await _serveBundleSummary(request, run);
         return;
       }
+      if (segments.length == 4 && action == 'bundle-download') {
+        await _serveBundleDownload(request, runId, run);
+        return;
+      }
       if (segments.length >= 5 && action == 'artifacts') {
         await _serveFile(
           request,
@@ -332,6 +354,123 @@ final class CockpitDevtoolsServer {
         trace: trace,
       ),
     });
+  }
+
+  Future<void> _serveBundleDownload(
+    HttpRequest request,
+    String runId,
+    _RunEntry run,
+  ) async {
+    final entries = <_RunDownloadEntry>[];
+    final files = <Map<String, Object?>>[];
+    final missingRoots = <String>[];
+
+    void addJsonEntry(String archivePath, Map<String, Object?> value) {
+      final bytes = utf8.encode(
+        const JsonEncoder.withIndent('  ').convert(value),
+      );
+      entries.add(_RunDownloadEntry.memory(archivePath, bytes));
+      files.add(<String, Object?>{
+        'path': archivePath,
+        'sizeBytes': bytes.length,
+        'source': 'generated',
+      });
+    }
+
+    void addDirectoryFiles({
+      required String sourceLabel,
+      required String archivePrefix,
+      required String? rootPath,
+    }) {
+      if (rootPath == null) {
+        missingRoots.add(sourceLabel);
+        return;
+      }
+      final root = Directory(rootPath);
+      if (!root.existsSync()) {
+        missingRoots.add(sourceLabel);
+        return;
+      }
+      final fileEntities =
+          root
+              .listSync(recursive: true, followLinks: false)
+              .whereType<File>()
+              .toList()
+            ..sort((left, right) => left.path.compareTo(right.path));
+      for (final file in fileEntities) {
+        final stat = file.statSync();
+        if (stat.type != FileSystemEntityType.file) {
+          continue;
+        }
+        final relative = p.relative(file.path, from: root.path);
+        final archivePath = _archivePath(p.join(archivePrefix, relative));
+        entries.add(_RunDownloadEntry.file(archivePath, file, stat.size));
+        files.add(<String, Object?>{
+          'path': archivePath,
+          'sizeBytes': stat.size,
+          'source': sourceLabel,
+        });
+      }
+    }
+
+    final runMetadata = _runMetadata(runId);
+    if (runMetadata == null) {
+      await _writeJson(request, HttpStatus.notFound, <String, Object?>{
+        'error': 'runNotFound',
+      });
+      return;
+    }
+    final explicitBundleDir = runMetadata['bundleDir'] as String?;
+    final bundleRoot = explicitBundleDir == null
+        ? null
+        : _resolveUnderHistory(explicitBundleDir);
+    final liveRoot = run.liveDir == null
+        ? null
+        : _resolveUnderHistory(run.liveDir!);
+
+    addJsonEntry('run_metadata.json', runMetadata);
+    addDirectoryFiles(
+      sourceLabel: 'bundle',
+      archivePrefix: 'bundle',
+      rootPath: bundleRoot,
+    );
+    addDirectoryFiles(
+      sourceLabel: 'live',
+      archivePrefix: 'live',
+      rootPath: liveRoot,
+    );
+    final manifest = <String, Object?>{
+      'schemaVersion': 1,
+      'runId': runId,
+      'generatedAt': DateTime.now().toUtc().toIso8601String(),
+      'bundleRoot': ?explicitBundleDir,
+      'liveRoot': ?run.liveDir,
+      'missingRoots': missingRoots,
+      'files': files,
+    };
+    final manifestBytes = utf8.encode(
+      const JsonEncoder.withIndent('  ').convert(manifest),
+    );
+    entries.insert(
+      0,
+      _RunDownloadEntry.memory('download_manifest.json', manifestBytes),
+    );
+
+    final response = request.response;
+    response
+      ..statusCode = HttpStatus.ok
+      ..headers.contentType = ContentType('application', 'x-tar')
+      ..headers.set(HttpHeaders.cacheControlHeader, 'no-store')
+      ..headers.set(
+        'content-disposition',
+        'attachment; filename="${_downloadFileName(runId, runMetadata)}"',
+      );
+    _setCommonSecurityHeaders(response.headers);
+    if (request.method == 'HEAD') {
+      await response.close();
+      return;
+    }
+    await _writeTar(response, entries);
   }
 
   Future<void> _parseWorkflow(HttpRequest request) async {
@@ -1010,6 +1149,35 @@ final class CockpitDevtoolsServer {
     return null;
   }
 
+  Map<String, Object?>? _runMetadata(String runId) {
+    final index = _readIndex();
+    final runs = _readRunsWithJobs(index);
+    for (final run in runs) {
+      if (run['runId'] != runId) {
+        continue;
+      }
+      return <String, Object?>{
+        'schemaVersion': 1,
+        'runId': runId,
+        if (run['displayName'] != null) 'displayName': run['displayName'],
+        if (run['status'] != null) 'status': run['status'],
+        if (run['startedAt'] != null) 'startedAt': run['startedAt'],
+        if (run['updatedAt'] != null) 'updatedAt': run['updatedAt'],
+        if (run['finishedAt'] != null) 'finishedAt': run['finishedAt'],
+        if (run['scopeId'] != null) 'scopeId': run['scopeId'],
+        if (run['scopeKind'] != null) 'scopeKind': run['scopeKind'],
+        if (run['scopeLabel'] != null) 'scopeLabel': run['scopeLabel'],
+        if (run['sessionId'] != null) 'sessionId': run['sessionId'],
+        if (run['taskId'] != null) 'taskId': run['taskId'],
+        if (run['platform'] != null) 'platform': run['platform'],
+        if (run['runDir'] != null) 'runDir': run['runDir'],
+        if (run['liveDir'] != null) 'liveDir': run['liveDir'],
+        if (run['bundleDir'] != null) 'bundleDir': run['bundleDir'],
+      };
+    }
+    return null;
+  }
+
   Map<String, Object?> _readIndex() {
     final file = File(p.join(historyRoot, 'index.json'));
     if (!file.existsSync()) {
@@ -1553,6 +1721,319 @@ final class CockpitDevtoolsServer {
     }
     await request.response.close();
   }
+
+  Future<void> _writeBinary(
+    HttpRequest request,
+    int statusCode,
+    List<int> body, {
+    required ContentType contentType,
+    String cacheControl = 'no-store',
+  }) async {
+    request.response
+      ..statusCode = statusCode
+      ..headers.contentType = contentType
+      ..headers.set(HttpHeaders.cacheControlHeader, cacheControl);
+    _setCommonSecurityHeaders(request.response.headers);
+    if (request.method != 'HEAD') {
+      request.response.add(body);
+    }
+    await request.response.close();
+  }
+}
+
+const List<int> _faviconBytes = <int>[
+  0x00,
+  0x00,
+  0x01,
+  0x00,
+  0x01,
+  0x00,
+  0x01,
+  0x01,
+  0x00,
+  0x00,
+  0x01,
+  0x00,
+  0x20,
+  0x00,
+  0x30,
+  0x00,
+  0x00,
+  0x00,
+  0x16,
+  0x00,
+  0x00,
+  0x00,
+  0x28,
+  0x00,
+  0x00,
+  0x00,
+  0x01,
+  0x00,
+  0x00,
+  0x00,
+  0x02,
+  0x00,
+  0x00,
+  0x00,
+  0x01,
+  0x00,
+  0x20,
+  0x00,
+  0x00,
+  0x00,
+  0x00,
+  0x00,
+  0x08,
+  0x00,
+  0x00,
+  0x00,
+  0x00,
+  0x00,
+  0x00,
+  0x00,
+  0x00,
+  0x00,
+  0x00,
+  0x00,
+  0x00,
+  0x00,
+  0x00,
+  0x00,
+  0x72,
+  0xe4,
+  0xb5,
+  0xff,
+  0x00,
+  0x00,
+  0x00,
+  0x00,
+];
+
+const int _tarTypeRegularFile = 0x30;
+const int _tarTypePaxExtendedHeader = 0x78;
+
+Future<void> _writeTar(IOSink sink, List<_RunDownloadEntry> entries) async {
+  try {
+    for (var index = 0; index < entries.length; index += 1) {
+      final entry = entries[index];
+      final archivePath = _archivePath(entry.archivePath);
+      final paxHeaders = _paxHeadersForEntry(archivePath, entry.size);
+      if (paxHeaders.isNotEmpty) {
+        final paxBytes = _paxPayload(paxHeaders);
+        sink.add(
+          _tarHeader(
+            'PaxHeaders/flutter-cockpit-$index',
+            paxBytes.length,
+            typeFlag: _tarTypePaxExtendedHeader,
+          ),
+        );
+        sink.add(paxBytes);
+        final paxPadding = _tarPadding(paxBytes.length);
+        if (paxPadding > 0) {
+          sink.add(List<int>.filled(paxPadding, 0));
+        }
+      }
+      final headerPath = paxHeaders.isEmpty
+          ? archivePath
+          : 'pax/flutter-cockpit-$index';
+      final headerSize = _fitsTarOctal(entry.size, 12) ? entry.size : 0;
+      sink.add(_tarHeader(headerPath, headerSize));
+      if (entry.bytes != null) {
+        sink.add(entry.bytes!);
+      } else if (entry.file != null) {
+        await for (final chunk in entry.file!.openRead()) {
+          sink.add(chunk);
+        }
+      }
+      final padding = _tarPadding(entry.size);
+      if (padding > 0) {
+        sink.add(List<int>.filled(padding, 0));
+      }
+    }
+    sink.add(List<int>.filled(1024, 0));
+  } finally {
+    await sink.close();
+  }
+}
+
+List<int> _tarHeader(
+  String path,
+  int size, {
+  int typeFlag = _tarTypeRegularFile,
+}) {
+  final split = _splitTarPath(path);
+  final header = List<int>.filled(512, 0);
+  _writeAscii(header, 0, 100, split.name);
+  _writeOctal(header, 100, 8, 0x1a4);
+  _writeOctal(header, 108, 8, 0);
+  _writeOctal(header, 116, 8, 0);
+  _writeOctal(header, 124, 12, size);
+  _writeOctal(
+    header,
+    136,
+    12,
+    DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000,
+  );
+  for (var index = 148; index < 156; index += 1) {
+    header[index] = 0x20;
+  }
+  header[156] = typeFlag;
+  _writeAscii(header, 257, 6, 'ustar');
+  _writeAscii(header, 263, 2, '00');
+  if (split.prefix.isNotEmpty) {
+    _writeAscii(header, 345, 155, split.prefix);
+  }
+  final checksum = header.fold<int>(0, (total, byte) => total + byte);
+  _writeOctal(header, 148, 8, checksum);
+  return header;
+}
+
+_TarPath _splitTarPath(String rawPath) {
+  final path = _archivePath(rawPath);
+  if (!_isAscii(path)) {
+    throw FormatException('Archive path requires a pax header: $path');
+  }
+  final bytes = ascii.encode(path);
+  if (bytes.length <= 100) {
+    return _TarPath(name: path, prefix: '');
+  }
+  final segments = path.split('/');
+  for (var index = segments.length - 1; index > 0; index -= 1) {
+    final name = segments.sublist(index).join('/');
+    final prefix = segments.sublist(0, index).join('/');
+    if (ascii.encode(name).length <= 100 &&
+        ascii.encode(prefix).length <= 155) {
+      return _TarPath(name: name, prefix: prefix);
+    }
+  }
+  throw FormatException('Archive path is too long for ustar: $path');
+}
+
+Map<String, String> _paxHeadersForEntry(String archivePath, int size) {
+  final headers = <String, String>{};
+  if (!_fitsUstarPath(archivePath)) {
+    headers['path'] = archivePath;
+  }
+  if (!_fitsTarOctal(size, 12)) {
+    headers['size'] = size.toString();
+  }
+  return headers;
+}
+
+bool _fitsUstarPath(String rawPath) {
+  final path = _archivePath(rawPath);
+  if (!_isAscii(path)) {
+    return false;
+  }
+  final bytes = ascii.encode(path);
+  if (bytes.length <= 100) {
+    return true;
+  }
+  final segments = path.split('/');
+  for (var index = segments.length - 1; index > 0; index -= 1) {
+    final name = segments.sublist(index).join('/');
+    final prefix = segments.sublist(0, index).join('/');
+    if (ascii.encode(name).length <= 100 &&
+        ascii.encode(prefix).length <= 155) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool _isAscii(String value) {
+  return value.codeUnits.every((unit) => unit <= 0x7f);
+}
+
+bool _fitsTarOctal(int value, int length) {
+  return value >= 0 && value.toRadixString(8).length <= length - 1;
+}
+
+List<int> _paxPayload(Map<String, String> headers) {
+  final buffer = StringBuffer();
+  for (final entry in headers.entries) {
+    buffer.write(_paxRecord(entry.key, entry.value));
+  }
+  return utf8.encode(buffer.toString());
+}
+
+String _paxRecord(String key, String value) {
+  final data = '$key=$value\n';
+  var length = utf8.encode(data).length + 3;
+  while (true) {
+    final record = '$length $data';
+    final actualLength = utf8.encode(record).length;
+    if (actualLength == length) {
+      return record;
+    }
+    length = actualLength;
+  }
+}
+
+String _archivePath(String path) {
+  return path
+      .replaceAll(r'\', '/')
+      .split('/')
+      .where(
+        (segment) => segment.isNotEmpty && segment != '.' && segment != '..',
+      )
+      .join('/');
+}
+
+int _tarPadding(int size) {
+  final remainder = size % 512;
+  return remainder == 0 ? 0 : 512 - remainder;
+}
+
+void _writeAscii(List<int> target, int offset, int length, String value) {
+  final bytes = ascii.encode(value);
+  if (bytes.length > length) {
+    throw FormatException('Value exceeds tar field length: $value');
+  }
+  target.setRange(offset, offset + bytes.length, bytes);
+}
+
+void _writeOctal(List<int> target, int offset, int length, int value) {
+  final text = value.toRadixString(8);
+  final maxDigits = length - 1;
+  if (text.length > maxDigits) {
+    throw FormatException('Value exceeds tar octal field length: $value');
+  }
+  final padded = text.padLeft(maxDigits, '0');
+  _writeAscii(target, offset, maxDigits, padded);
+  target[offset + length - 1] = 0;
+}
+
+String _downloadFileName(String runId, Map<String, Object?> runMetadata) {
+  final timestamp =
+      _downloadTimestamp(runMetadata['updatedAt']) ??
+      _downloadTimestamp(runMetadata['startedAt']) ??
+      _downloadTimestamp(DateTime.now().toUtc().toIso8601String())!;
+  return 'flutter-cockpit-$timestamp-${_downloadSafeName(runId)}.tar';
+}
+
+String? _downloadTimestamp(Object? value) {
+  if (value is! String || value.trim().isEmpty) {
+    return null;
+  }
+  final parsed = DateTime.tryParse(value);
+  if (parsed == null) {
+    return null;
+  }
+  final utc = parsed.toUtc();
+  String two(int number) => number.toString().padLeft(2, '0');
+  return '${utc.year}${two(utc.month)}${two(utc.day)}T'
+      '${two(utc.hour)}${two(utc.minute)}${two(utc.second)}Z';
+}
+
+String _downloadSafeName(String value) {
+  final sanitized = value
+      .trim()
+      .replaceAll(RegExp(r'[^A-Za-z0-9._-]+'), '-')
+      .replaceAll(RegExp(r'-+'), '-')
+      .replaceAll(RegExp(r'^[-.]+|[-.]+$'), '');
+  return sanitized.isEmpty ? 'run' : sanitized;
 }
 
 String _relativePathFromSegments(Iterable<String> segments) {
@@ -2004,6 +2485,43 @@ final class _RunEntry {
 
   final String? liveDir;
   final String? bundleDir;
+}
+
+final class _RunDownloadEntry {
+  const _RunDownloadEntry._({
+    required this.archivePath,
+    required this.size,
+    this.file,
+    this.bytes,
+  });
+
+  factory _RunDownloadEntry.file(String archivePath, File file, int size) {
+    return _RunDownloadEntry._(
+      archivePath: archivePath,
+      file: file,
+      size: size,
+    );
+  }
+
+  factory _RunDownloadEntry.memory(String archivePath, List<int> bytes) {
+    return _RunDownloadEntry._(
+      archivePath: archivePath,
+      bytes: bytes,
+      size: bytes.length,
+    );
+  }
+
+  final String archivePath;
+  final File? file;
+  final List<int>? bytes;
+  final int size;
+}
+
+final class _TarPath {
+  const _TarPath({required this.name, required this.prefix});
+
+  final String name;
+  final String prefix;
 }
 
 final class _RunPage {

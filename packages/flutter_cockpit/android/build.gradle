@@ -2,6 +2,8 @@ group = "dev.cockpit.flutter_cockpit"
 version = "1.0-SNAPSHOT"
 
 buildscript {
+    ext.kotlin_version = "2.2.20"
+
     repositories {
         google()
         mavenCentral()
@@ -9,6 +11,7 @@ buildscript {
 
     dependencies {
         classpath("com.android.tools.build:gradle:8.11.1")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version")
     }
 }
 
@@ -20,6 +23,7 @@ allprojects {
 }
 
 apply plugin: "com.android.library"
+apply plugin: "org.jetbrains.kotlin.android"
 
 android {
     namespace = "dev.cockpit.flutter_cockpit"
@@ -39,8 +43,8 @@ android {
     }
 }
 
-kotlin {
-    compilerOptions {
-        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+    kotlinOptions {
+        jvmTarget = "17"
     }
 }

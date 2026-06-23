@@ -103,10 +103,13 @@ jobs:
             ios|macos)
               brew install ffmpeg
               flutter config --enable-macos-desktop
+              flutter config --enable-swift-package-manager
               ;;
             linux)
               apt_retry sudo apt-get update
               apt_retry sudo apt-get install -y --no-install-recommends ffmpeg x11-utils xvfb \
+                libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+                gstreamer1.0-libav \
                 clang cmake git ninja-build pkg-config \
                 libgtk-3-dev liblzma-dev libstdc++-12-dev
               flutter config --enable-linux-desktop

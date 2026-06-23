@@ -110,6 +110,7 @@ jobs:
             ios|macos)
               brew install ffmpeg
               flutter config --enable-macos-desktop
+              flutter config --enable-swift-package-manager
               ;;
             linux)
               apt_retry sudo apt-get update

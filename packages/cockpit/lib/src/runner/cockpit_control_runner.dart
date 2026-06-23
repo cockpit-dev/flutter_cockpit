@@ -546,6 +546,14 @@ final class CockpitControlRunner {
       artifactPayloads: artifactPayloads,
       artifactSourcePaths: artifactSourcePaths,
     );
+    final controlDetails = <String, Object?>{
+      'conditionCommandId': condition.result.commandId,
+      'conditionCommandType': condition.result.commandType.name,
+      'conditionSuccess': condition.result.success,
+      'selectedBranch': condition.result.success ? 'then' : 'else',
+      if (condition.result.error != null)
+        'conditionError': condition.result.error!.toJson(),
+    };
     final selectedSteps = condition.result.success
         ? step.thenSteps
         : step.elseSteps;
@@ -556,12 +564,7 @@ final class CockpitControlRunner {
         'workflowStepType': step.stepType,
         if (step.description != null)
           'workflowStepDescription': step.description,
-        'conditionCommandId': condition.result.commandId,
-        'conditionCommandType': condition.result.commandType.name,
-        'conditionSuccess': condition.result.success,
-        'selectedBranch': condition.result.success ? 'then' : 'else',
-        if (condition.result.error != null)
-          'conditionError': condition.result.error!.toJson(),
+        ...controlDetails,
       },
       artifactRefs: condition.result.artifacts,
       durationMs: condition.result.durationMs,
@@ -582,10 +585,10 @@ final class CockpitControlRunner {
         ),
       );
       if (!outcome.success) {
-        return outcome;
+        return outcome.withDetails(controlDetails);
       }
     }
-    return const _WorkflowStepOutcome.success();
+    return _WorkflowStepOutcome.success(details: controlDetails);
   }
 
   Future<_WorkflowStepOutcome> _runLoopWorkflowStep(
@@ -603,6 +606,15 @@ final class CockpitControlRunner {
         artifactSourcePaths: artifactSourcePaths,
       );
       final conditionSuccess = condition.result.success;
+      final controlDetails = <String, Object?>{
+        'iteration': index + 1,
+        'maxIterations': step.maxIterations,
+        'conditionCommandId': condition.result.commandId,
+        'conditionCommandType': condition.result.commandType.name,
+        'conditionSuccess': conditionSuccess,
+        if (condition.result.error != null)
+          'conditionError': condition.result.error!.toJson(),
+      };
       _sessionController.recordStep(
         actionType: 'workflow_loop_iteration',
         actionArgs: <String, Object?>{
@@ -610,19 +622,13 @@ final class CockpitControlRunner {
           'workflowStepType': step.stepType,
           if (step.description != null)
             'workflowStepDescription': step.description,
-          'iteration': index + 1,
-          'maxIterations': step.maxIterations,
-          'conditionCommandId': condition.result.commandId,
-          'conditionCommandType': condition.result.commandType.name,
-          'conditionSuccess': conditionSuccess,
-          if (condition.result.error != null)
-            'conditionError': condition.result.error!.toJson(),
+          ...controlDetails,
         },
         artifactRefs: condition.result.artifacts,
         durationMs: condition.result.durationMs,
       );
       if (!conditionSuccess) {
-        return const _WorkflowStepOutcome.success();
+        return _WorkflowStepOutcome.success(details: controlDetails);
       }
 
       for (
@@ -646,7 +652,7 @@ final class CockpitControlRunner {
           ),
         );
         if (!outcome.success) {
-          return outcome;
+          return outcome.withDetails(controlDetails);
         }
       }
     }
@@ -660,7 +666,12 @@ final class CockpitControlRunner {
         'maxIterations': step.maxIterations,
       },
     );
-    return const _WorkflowStepOutcome.success();
+    return _WorkflowStepOutcome.success(
+      details: <String, Object?>{
+        'maxIterations': step.maxIterations,
+        'loopExhausted': true,
+      },
+    );
   }
 
   Future<_WorkflowStepOutcome> _runRetryWorkflowStep(
@@ -794,7 +805,18 @@ final class CockpitControlRunner {
       details: <String, Object?>{
         'mode': mode.name,
         ...context.toJson(),
+        if (command?.locator != null) 'locator': command!.locator!.toJson(),
+        if (command != null && command.parameters.isNotEmpty)
+          'parameters': command.parameters,
+        if (step is CockpitStartRecordingWorkflowStep)
+          'recording': <String, Object?>{
+            'purpose': step.recording.purpose.name,
+            'name': step.recording.name,
+            'mode': step.recording.mode.name,
+            'attachToStep': step.recording.attachToStep,
+          },
         if (outcome != null) 'success': outcome.success,
+        if (outcome != null) ...outcome.details,
         if (result != null) ...<String, Object?>{
           'commandDurationMs': result.durationMs,
           'usedCaptureFallback': result.usedCaptureFallback,
@@ -980,9 +1002,10 @@ final class _WorkflowStepOutcome {
     this.commandStep,
     this.command,
     this.execution,
+    this.details = const <String, Object?>{},
   });
 
-  const _WorkflowStepOutcome.success()
+  const _WorkflowStepOutcome.success({this.details = const <String, Object?>{}})
     : success = true,
       failureSummary = null,
       commandStep = null,
@@ -994,7 +1017,8 @@ final class _WorkflowStepOutcome {
       failureSummary = summary,
       commandStep = null,
       command = null,
-      execution = null;
+      execution = null,
+      details = const <String, Object?>{};
 
   factory _WorkflowStepOutcome.fromCommandResult({
     required CockpitCommandWorkflowStep step,
@@ -1025,4 +1049,16 @@ final class _WorkflowStepOutcome {
   final CockpitCommandWorkflowStep? commandStep;
   final CockpitCommand? command;
   final CockpitCommandExecution? execution;
+  final Map<String, Object?> details;
+
+  _WorkflowStepOutcome withDetails(Map<String, Object?> extraDetails) {
+    return _WorkflowStepOutcome(
+      success: success,
+      failureSummary: failureSummary,
+      commandStep: commandStep,
+      command: command,
+      execution: execution,
+      details: <String, Object?>{...extraDetails, ...details},
+    );
+  }
 }

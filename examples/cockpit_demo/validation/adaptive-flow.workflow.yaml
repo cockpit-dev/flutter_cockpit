@@ -18,10 +18,10 @@ steps:
   - stepId: close-settings-if-open
     stepType: if
     condition:
-      commandId: has-settings
-      commandType: assertText
-      parameters:
-        text: Settings
+      commandId: has-settings-close
+      commandType: assertVisible
+      locator:
+        tooltip: Close
     thenSteps:
       - stepId: close-settings
         stepType: command

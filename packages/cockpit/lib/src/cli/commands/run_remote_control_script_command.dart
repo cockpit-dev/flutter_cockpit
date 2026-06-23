@@ -13,6 +13,7 @@ import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_control_script.dart';
 import '../cockpit_interactive_cli_support.dart';
+import '../cockpit_run_script_cli_payload.dart';
 
 typedef CockpitRunRemoteControlScriptCommandFunction =
     Future<CockpitRunRemoteControlScriptResult> Function(
@@ -28,6 +29,7 @@ final class RunRemoteControlScriptCommand extends CockpitCliCommand {
     CockpitRecordingStrategyResolver recordingStrategyResolver =
         const CockpitRecordingStrategyResolver(),
     TaskRunBundleWriter writer = const TaskRunBundleWriter(),
+    StringSink? stdoutSink,
   }) : _runScript =
            runScript ??
            (service ??
@@ -38,7 +40,8 @@ final class RunRemoteControlScriptCommand extends CockpitCliCommand {
                      recordingStrategyResolver: recordingStrategyResolver,
                      writer: writer,
                    ))
-               .run {
+               .run,
+       _stdoutSink = stdoutSink ?? stdout {
     argParser
       ..addOption('base-url', help: 'Base URL for the running app session.')
       ..addOption('session-json', help: cockpitRemoteSessionJsonOptionHelp)
@@ -59,9 +62,11 @@ final class RunRemoteControlScriptCommand extends CockpitCliCommand {
         'ios-device-id',
         help: 'Optional iOS Simulator device ID used for host recording.',
       );
+    cockpitAddOutputArgs(argParser);
   }
 
   final CockpitRunRemoteControlScriptCommandFunction _runScript;
+  final StringSink _stdoutSink;
 
   @override
   String get name => 'run-remote-control-script';
@@ -137,8 +142,22 @@ final class RunRemoteControlScriptCommand extends CockpitCliCommand {
         code: 'controlScriptFailed',
         message:
             'Control script bundle failed: $summary See ${result.bundleDir.path}.',
+        details: cockpitRunScriptFailureDetails(
+          result: result,
+          outputRoot: outputRoot,
+        ),
       );
     }
+    await cockpitWriteJsonPayload(
+      commandName: name,
+      payload: cockpitRunScriptResultPayload(
+        commandName: name,
+        result: result,
+        outputRoot: outputRoot,
+      ),
+      argResults: argResults,
+      stdoutSink: _stdoutSink,
+    );
     return cockpitSuccessExitCode;
   }
 

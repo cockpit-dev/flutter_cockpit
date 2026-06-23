@@ -187,7 +187,7 @@ const String cockpitDevtoolsIndexHtml = r'''
     .panel-heading-actions::-webkit-scrollbar { display: none; }
     .run-detail-panel > .panel-summary { padding-right: 120px; }
     .runs-panel > .panel-summary { padding-right: 82px; }
-    .timeline-panel > .panel-summary { padding-right: 220px; }
+    .timeline-panel > .panel-summary { padding-right: 310px; }
     .inspector-panel > .panel-summary { padding-right: 150px; }
     .collapsible-panel:not([open]) > .panel-header {
       border-bottom: 0;
@@ -299,30 +299,34 @@ const String cockpitDevtoolsIndexHtml = r'''
       box-shadow: 0 0 0 3px rgba(114, 228, 181, .12);
     }
     .overview {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 1px;
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      overflow: hidden;
-      background: var(--line);
-    }
-    .run-detail .overview {
-      max-height: 92px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      min-width: 0;
     }
     .compact-summary {
       min-width: 0;
     }
     .metric {
       display: grid;
-      gap: 4px;
-      min-height: 42px;
-      padding: 6px;
-      background: rgba(20, 31, 28, .96);
+      flex: 1 1 130px;
+      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-areas:
+        "label label"
+        "value value"
+        "hint hint";
+      align-content: start;
+      gap: 3px;
+      min-height: 54px;
+      padding: 7px 8px;
+      border: 1px solid rgba(43, 62, 56, .72);
+      border-radius: 8px;
+      background: rgba(20, 31, 28, .88);
       min-width: 0;
       overflow: hidden;
     }
     .metric span {
+      grid-area: label;
       color: var(--muted);
       font: 10px/1.2 "SFMono-Regular", "Cascadia Code", "Liberation Mono", monospace;
       overflow: hidden;
@@ -330,9 +334,10 @@ const String cockpitDevtoolsIndexHtml = r'''
       white-space: nowrap;
     }
     .metric strong {
-      font-size: 17px;
-      line-height: 1;
-      letter-spacing: -.03em;
+      grid-area: value;
+      font-size: 15px;
+      line-height: 1.08;
+      letter-spacing: -.02em;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -341,23 +346,60 @@ const String cockpitDevtoolsIndexHtml = r'''
       font-size: 13px;
       line-height: 1.18;
     }
+    .metric .muted {
+      grid-area: hint;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 10px;
+    }
     .run-detail {
       display: grid;
-      grid-template-columns: minmax(0, 1.1fr) minmax(260px, .9fr);
+      grid-template-columns: minmax(0, 1fr);
       gap: 8px;
       align-items: start;
     }
     .run-facts-scroll {
-      max-height: 92px;
+      max-height: 270px;
       overflow: auto;
       overscroll-behavior: contain;
       padding-right: 3px;
     }
+    .run-facts {
+      display: grid;
+      gap: 6px;
+    }
+    .fact-group {
+      border: 1px solid rgba(43, 62, 56, .72);
+      border-radius: 8px;
+      background: rgba(8, 17, 14, .32);
+      overflow: hidden;
+    }
+    .fact-group > summary {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 7px;
+      background: rgba(12, 17, 16, .26);
+    }
+    .fact-group > summary h3 {
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .fact-group > summary .meta {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .fact-group-body {
+      padding: 6px 7px;
+    }
     .facts {
       display: grid;
-      grid-template-columns: 74px minmax(0, 1fr);
-      column-gap: 8px;
-      row-gap: 3px;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 5px;
     }
     .facts dt, .facts dd {
       margin: 0;
@@ -369,27 +411,24 @@ const String cockpitDevtoolsIndexHtml = r'''
       font: 10px/1.25 "SFMono-Regular", "Cascadia Code", "Liberation Mono", monospace;
     }
     .facts dd {
-      padding-bottom: 3px;
-      border-bottom: 1px solid rgba(43, 62, 56, .72);
+      color: var(--ink);
+      font: 11px/1.35 "SFMono-Regular", "Cascadia Code", "Liberation Mono", monospace;
     }
-    .facts dd:last-child { border-bottom: 0; }
-    .fact {
+    .facts .fact-row {
       display: grid;
-      grid-template-columns: 74px minmax(0, 1fr);
-      gap: 8px;
-      padding: 5px 0;
-      border-bottom: 1px solid rgba(43, 62, 56, .72);
-    }
-    .fact:last-child { border-bottom: 0; }
-    .fact dt {
-      margin: 0;
-      color: var(--soft);
-      font: 10px/1.25 "SFMono-Regular", "Cascadia Code", "Liberation Mono", monospace;
-    }
-    .fact dd {
-      margin: 0;
+      gap: 2px;
       min-width: 0;
-      overflow-wrap: anywhere;
+      padding: 5px 6px;
+      border-radius: 6px;
+      background: rgba(20, 31, 28, .68);
+      border: 1px solid rgba(43, 62, 56, .44);
+    }
+    .facts .fact-row.important {
+      border-color: rgba(114, 228, 181, .28);
+      background: rgba(24, 43, 37, .8);
+    }
+    .facts .fact-row.wide {
+      grid-column: 1 / -1;
     }
     .launcher-grid {
       display: grid;
@@ -464,6 +503,11 @@ const String cockpitDevtoolsIndexHtml = r'''
       border-color: rgba(114, 228, 181, .62);
       color: var(--accent);
       background: rgba(114, 228, 181, .1);
+    }
+    .tab[aria-disabled="true"] {
+      opacity: .45;
+      pointer-events: none;
+      cursor: not-allowed;
     }
     .timeline-list {
       position: relative;
@@ -567,6 +611,14 @@ const String cockpitDevtoolsIndexHtml = r'''
     }
     .event-title strong {
       overflow-wrap: anywhere;
+    }
+    .badge.kind {
+      color: var(--ink);
+      border-color: rgba(114, 228, 181, .34);
+      background: rgba(114, 228, 181, .08);
+    }
+    .badge.phase {
+      color: var(--soft);
     }
     .badge {
       display: inline-flex;
@@ -991,9 +1043,6 @@ const String cockpitDevtoolsIndexHtml = r'''
       .split {
         grid-template-columns: 1fr;
       }
-      .run-detail {
-        grid-template-columns: minmax(0, 1fr) minmax(170px, .9fr);
-      }
       .media-viewer-toolbar {
         gap: 8px;
         padding-right: 194px;
@@ -1004,10 +1053,13 @@ const String cockpitDevtoolsIndexHtml = r'''
         max-width: min(186px, calc(100% - 76px));
       }
       .overview {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 5px;
+      }
+      .metric {
+        flex-basis: 120px;
       }
       .facts {
-        grid-template-columns: 78px minmax(0, 1fr);
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
       }
       .compact-launcher-summary {
         align-items: flex-start;
@@ -1021,7 +1073,7 @@ const String cockpitDevtoolsIndexHtml = r'''
         grid-template-columns: 1fr;
       }
       .run-facts-scroll {
-        max-height: 92px;
+        max-height: 360px;
       }
     }
   </style>
@@ -1072,6 +1124,7 @@ const String cockpitDevtoolsIndexHtml = r'''
         </summary>
         <div class="panel-heading-actions tabs" aria-label="Detail actions">
           <button class="tab" type="button" id="selectLatest">latest</button>
+          <a class="tab" id="downloadBundle" href="#" download="" aria-disabled="true">download bundle</a>
           <button class="tab" type="button" id="copyRunId">copy id</button>
         </div>
         <div class="panel-body run-detail">
@@ -1079,7 +1132,7 @@ const String cockpitDevtoolsIndexHtml = r'''
             <div class="overview" id="overview"></div>
           </div>
           <div class="run-facts-scroll">
-            <dl class="facts" id="runFacts"></dl>
+            <div class="run-facts" id="runFacts"></div>
           </div>
         </div>
       </details>
@@ -1088,6 +1141,8 @@ const String cockpitDevtoolsIndexHtml = r'''
           <h2>Timeline</h2>
         </summary>
         <div class="panel-heading-actions timeline-toolbar">
+          <button class="tool-button active" type="button" id="timelineOrder" aria-pressed="true">newest</button>
+          <button class="tool-button active" type="button" id="followTimeline" aria-pressed="true">follow</button>
           <button class="tool-button active" type="button" data-filter="all" aria-pressed="true">all</button>
           <button class="tool-button" type="button" data-filter="failed" aria-pressed="false">errors</button>
           <button class="tool-button" type="button" data-filter="artifact" aria-pressed="false">artifacts</button>
@@ -1236,6 +1291,9 @@ steps:
       returnedScopeEventCount: 0,
       hasMoreScopeEvents: false,
       eventFilter: 'all',
+      timelineOrder: 'desc',
+      timelineFollowLatest: true,
+      suppressTimelineScrollEvent: false,
       inspectorTab: 'event',
       expandAll: false,
       mediaViewerArtifact: null,
@@ -1269,10 +1327,13 @@ steps:
       runSearch: document.getElementById('runSearch'),
       overview: document.getElementById('overview'),
       runFacts: document.getElementById('runFacts'),
+      downloadBundle: document.getElementById('downloadBundle'),
       timeline: document.getElementById('timeline'),
       timelineScroll: document.querySelector('[data-testid="timeline-scroll"]'),
       timelineContext: document.getElementById('timelineContext'),
       timelineSummary: document.getElementById('timelineSummary'),
+      timelineOrder: document.getElementById('timelineOrder'),
+      followTimeline: document.getElementById('followTimeline'),
       artifactGallery: document.getElementById('artifactGallery'),
       artifactSummary: document.getElementById('artifactSummary'),
       launcherPanel: document.querySelector('[data-testid="launcher-panel"]'),
@@ -1419,6 +1480,58 @@ steps:
       return '';
     }
 
+    function titleCaseWords(value) {
+      return String(value || '')
+        .replace(/[_-]+/g, ' ')
+        .replace(/\b\w/g, (match) => match.toUpperCase())
+        .trim();
+    }
+
+    function shortEventType(value) {
+      const type = String(value || 'event');
+      if (type.startsWith('workflow_step_')) {
+        return type.slice('workflow_step_'.length);
+      }
+      if (type.startsWith('run_')) {
+        return type.slice('run_'.length);
+      }
+      if (type === 'bundle_written') return 'written';
+      return titleCaseWords(type) || 'event';
+    }
+
+    function eventKindLabel(event) {
+      const details = event.details || {};
+      if (details.relation === 'retry') return 'retry';
+      if (details.relation === 'loop') return 'loop';
+      if (details.conditionCommandId || details.selectedBranch) return 'branch';
+      if (event.commandType) return event.commandType;
+      if (event.workflowStepType && event.workflowStepType !== 'command') {
+        return event.workflowStepType;
+      }
+      if (String(event.type || '').startsWith('run_')) return 'run';
+      if (event.type === 'bundle_written') return 'bundle';
+      return 'step';
+    }
+
+    function eventTitleLabel(event) {
+      const stepId = textValue(event.workflowStepId).trim();
+      if (stepId) return stepId;
+      const commandId = textValue(event.commandId).trim();
+      if (commandId) return commandId;
+      if (String(event.type || '').startsWith('run_')) return 'run';
+      if (event.type === 'bundle_written') return 'bundle';
+      return titleCaseWords(event.type || 'event') || 'event';
+    }
+
+    function shouldShowEventPhase(phaseLabel, kindLabel, status) {
+      if (!phaseLabel || phaseLabel === kindLabel || phaseLabel === status) {
+        return false;
+      }
+      return !['started', 'completed', 'finished', 'written'].includes(
+        String(phaseLabel).toLowerCase(),
+      );
+    }
+
     function isObject(value) {
       return value !== null && typeof value === 'object' && !Array.isArray(value);
     }
@@ -1484,6 +1597,13 @@ steps:
     function renderJsonTree(target, value) {
       clearNode(target);
       target.classList.remove('yaml-tree');
+      const tree = document.createElement('div');
+      tree.className = 'tree';
+      tree.appendChild(renderJsonNode(null, value, 0));
+      target.appendChild(tree);
+    }
+
+    function appendJsonTree(target, value) {
       const tree = document.createElement('div');
       tree.className = 'tree';
       tree.appendChild(renderJsonNode(null, value, 0));
@@ -1566,12 +1686,182 @@ steps:
       renderYamlTree(target, source);
     }
 
+    const LAUNCHER_ENVELOPE_KEYS = new Set([
+      'kind',
+      'scriptText',
+      'configText',
+      'source',
+      'script',
+      'platform',
+      'request',
+      'validateTask',
+      'runTask',
+      'outputRoot',
+      'baseUrl',
+      'sessionHandle',
+      'sessionHandlePath',
+      'platformAppId',
+      'processId',
+      'androidDeviceId',
+      'iosDeviceId',
+      'persistScriptPath',
+      'portForwardingHandled'
+    ]);
+    const LAUNCHER_CONTEXT_KEYS = new Set([
+      'scriptText',
+      'configText',
+      'source',
+      'script',
+      'request',
+      'validateTask',
+      'runTask',
+      'outputRoot',
+      'baseUrl',
+      'sessionHandle',
+      'sessionHandlePath',
+      'platformAppId',
+      'processId',
+      'androidDeviceId',
+      'iosDeviceId',
+      'persistScriptPath',
+      'portForwardingHandled'
+    ]);
+
+    function parseYamlScalar(value) {
+      const trimmed = String(value || '').trim();
+      if (!trimmed) return '';
+      if (trimmed === 'null' || trimmed === '~') return null;
+      if (trimmed === 'true') return true;
+      if (trimmed === 'false') return false;
+      if (/^-?\d+(\.\d+)?$/.test(trimmed)) return Number(trimmed);
+      if (
+        (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+        (trimmed.startsWith('[') && trimmed.endsWith(']'))
+      ) {
+        try { return JSON.parse(trimmed); } catch (_) {}
+      }
+      if (
+        (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+        (trimmed.startsWith("'") && trimmed.endsWith("'"))
+      ) {
+        const quote = trimmed[0];
+        const body = trimmed.slice(1, -1);
+        return quote === '"' ? JSON.parse(trimmed) : body.replace(/''/g, "'");
+      }
+      return trimmed;
+    }
+
+    function blockScalarValue(lines) {
+      const nonEmpty = lines.filter((line) => line.trim());
+      const baseIndent = nonEmpty.length
+        ? Math.min(...nonEmpty.map((line) => line.match(/^ */)[0].length))
+        : 0;
+      return lines
+        .map((line) => line.length >= baseIndent ? line.slice(baseIndent) : line.trimStart())
+        .join('\n')
+        .replace(/\n+$/, '');
+    }
+
+    function parseLauncherYamlEnvelope(source) {
+      const lines = source.replace(/\t/g, '  ').split(/\r?\n/);
+      const result = {};
+      let foundEnvelopeKey = false;
+      let foundContextKey = false;
+      for (let index = 0; index < lines.length; index += 1) {
+        const raw = lines[index];
+        if (!raw.trim() || raw.trimStart().startsWith('#')) continue;
+        const indent = raw.match(/^ */)[0].length;
+        if (indent !== 0) continue;
+        const match = /^([A-Za-z_][A-Za-z0-9_-]*):(.*)$/.exec(raw);
+        if (!match) continue;
+        const key = match[1];
+        let value = match[2].trimStart();
+        if (!LAUNCHER_ENVELOPE_KEYS.has(key)) continue;
+        foundEnvelopeKey = true;
+        if (LAUNCHER_CONTEXT_KEYS.has(key)) foundContextKey = true;
+        if (value === '|' || value === '|-' || value === '|+') {
+          const blockLines = [];
+          while (index + 1 < lines.length) {
+            const next = lines[index + 1];
+            if (!next.trim()) {
+              blockLines.push('');
+              index += 1;
+              continue;
+            }
+            const nextIndent = next.match(/^ */)[0].length;
+            if (nextIndent <= indent) break;
+            blockLines.push(next);
+            index += 1;
+          }
+          result[key] = blockScalarValue(blockLines);
+        } else {
+          result[key] = parseYamlScalar(value);
+        }
+      }
+      return foundEnvelopeKey && foundContextKey ? result : null;
+    }
+
+    function hasLauncherEnvelopeContext(value) {
+      return Boolean(
+        value &&
+        typeof value === 'object' &&
+        !Array.isArray(value) &&
+        Object.keys(value).some((key) => LAUNCHER_CONTEXT_KEYS.has(key))
+      );
+    }
+
+    function yamlScalar(value) {
+      if (value === null || value === undefined) return 'null';
+      if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+      const text = String(value);
+      if (!text || /[:#\[\]{}&,*!|>'"%@`\n\r]/.test(text) || /^\s|\s$/.test(text)) {
+        return JSON.stringify(text);
+      }
+      return text;
+    }
+
+    function payloadNeedsEnvelope(payload) {
+      if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return false;
+      return Object.keys(payload).some((key) => {
+        if (key === 'kind' || key === 'scriptText' || key === 'configText') return false;
+        return LAUNCHER_ENVELOPE_KEYS.has(key);
+      });
+    }
+
+    function payloadToYaml(payload) {
+      if (!payloadNeedsEnvelope(payload)) {
+        return payload.configText || payload.scriptText || JSON.stringify(payload, null, 2);
+      }
+      const lines = [];
+      const keys = Object.keys(payload);
+      for (const key of keys) {
+        const value = payload[key];
+        if (value === undefined) continue;
+        if (key === 'scriptText' || key === 'configText' || key === 'source') {
+          lines.push(`${key}: |`);
+          const text = String(value || '').replace(/\r\n/g, '\n');
+          for (const line of text.split('\n')) {
+            lines.push(`  ${line}`);
+          }
+        } else if (isObject(value) || Array.isArray(value)) {
+          lines.push(`${key}: ${JSON.stringify(value)}`);
+        } else {
+          lines.push(`${key}: ${yamlScalar(value)}`);
+        }
+      }
+      return `${lines.join('\n')}\n`;
+    }
+
     function launcherPayload() {
       const text = els.launchPayload.value.trim();
       if (!text) return {kind: els.launchKind.value};
       if (text.startsWith('{')) {
         const decoded = JSON.parse(text);
         return {kind: els.launchKind.value, ...decoded};
+      }
+      const envelope = parseLauncherYamlEnvelope(text);
+      if (hasLauncherEnvelopeContext(envelope)) {
+        return {kind: els.launchKind.value, ...envelope};
       }
       return els.launchKind.value === 'validateTask'
         ? {kind: 'validateTask', configText: text}
@@ -1744,6 +2034,39 @@ steps:
       if (!ownerRunId || !path) return '';
       const encodedPath = path.split('/').map(encodeURIComponent).join('/');
       return api(`/api/runs/${encodeURIComponent(ownerRunId)}/bundle/${encodedPath}`).toString();
+    }
+
+    function bundleDownloadUrl(runId = state.selectedRunId) {
+      if (!runId) return '';
+      return api(`/api/runs/${encodeURIComponent(runId)}/bundle-download`).toString();
+    }
+
+    function compactTimestamp(value) {
+      const date = new Date(value || '');
+      if (Number.isNaN(date.getTime())) return '';
+      const two = (number) => String(number).padStart(2, '0');
+      return `${date.getUTCFullYear()}${two(date.getUTCMonth() + 1)}${two(date.getUTCDate())}T${two(date.getUTCHours())}${two(date.getUTCMinutes())}${two(date.getUTCSeconds())}Z`;
+    }
+
+    function safeFileName(value) {
+      return String(value || '')
+        .trim()
+        .replace(/[^A-Za-z0-9._-]+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^[-.]+|[-.]+$/g, '') || 'run';
+    }
+
+    function bundleDownloadName(run = selectedRun()) {
+      const runId = run?.runId || state.selectedRunId || 'run';
+      const timestamp = compactTimestamp(run?.updatedAt || run?.startedAt) || compactTimestamp(new Date().toISOString());
+      return `flutter-cockpit-${timestamp}-${safeFileName(runId)}.tar`;
+    }
+
+    function bundleDownloadStatus(run = selectedRun()) {
+      if (!run?.runId && !state.selectedRunId) return 'unavailable';
+      if (run?.bundleDir || state.liveState?.bundleDir) return 'available';
+      if (run?.liveDir) return 'live only';
+      return 'metadata only';
     }
 
     function artifactLabel(artifact) {
@@ -1999,6 +2322,76 @@ steps:
       return event.eventKey || `${event.runId || state.selectedRunId || 'run'}#${event.seq || 'event'}`;
     }
 
+    function latestEvent() {
+      return state.events[state.events.length - 1] || null;
+    }
+
+    function latestEventKey() {
+      return eventKey(latestEvent());
+    }
+
+    function timelineLatestEdgeDistance() {
+      const scroll = els.timelineScroll;
+      if (!scroll) return 0;
+      return state.timelineOrder === 'desc'
+        ? scroll.scrollTop
+        : scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight;
+    }
+
+    function isTimelineAtLatestEdge() {
+      return timelineLatestEdgeDistance() < 64;
+    }
+
+    function setTimelineFollowLatest(follow) {
+      state.timelineFollowLatest = Boolean(follow);
+      syncTimelineControls();
+      if (els.timelineSummary) {
+        const from = state.timelineFollowLatest ? 'follow paused' : 'following latest';
+        const to = state.timelineFollowLatest ? 'following latest' : 'follow paused';
+        if (els.timelineSummary.textContent.includes(from)) {
+          els.timelineSummary.textContent = els.timelineSummary.textContent.replace(from, to);
+        }
+      }
+    }
+
+    function scrollTimelineToLatest() {
+      const scroll = els.timelineScroll;
+      if (!scroll) return;
+      state.suppressTimelineScrollEvent = true;
+      if (state.timelineOrder === 'desc') {
+        scroll.scrollTop = 0;
+      } else {
+        scroll.scrollTop = scroll.scrollHeight;
+      }
+      requestAnimationFrame(() => {
+        state.suppressTimelineScrollEvent = false;
+      });
+    }
+
+    function syncTimelineControls() {
+      if (els.timelineOrder) {
+        const newestFirst = state.timelineOrder === 'desc';
+        els.timelineOrder.textContent = newestFirst ? 'newest' : 'oldest';
+        els.timelineOrder.classList.toggle('active', newestFirst);
+        els.timelineOrder.setAttribute('aria-pressed', newestFirst ? 'true' : 'false');
+        els.timelineOrder.setAttribute(
+          'aria-label',
+          newestFirst ? 'Timeline order: newest first' : 'Timeline order: oldest first',
+        );
+      }
+      if (els.followTimeline) {
+        els.followTimeline.classList.toggle('active', state.timelineFollowLatest);
+        els.followTimeline.setAttribute('aria-pressed', state.timelineFollowLatest ? 'true' : 'false');
+        els.followTimeline.textContent = state.timelineFollowLatest ? 'follow' : 'paused';
+        els.followTimeline.setAttribute(
+          'aria-label',
+          state.timelineFollowLatest
+            ? 'Following latest timeline event'
+            : 'Timeline follow paused by user navigation',
+        );
+      }
+    }
+
     function selectTimelineEvent(event) {
       if (!event) {
         state.selectedEventKey = null;
@@ -2030,6 +2423,7 @@ steps:
       }
       state.selectedEventKey = eventKey(event);
       state.selectedEventSeq = event.seq || null;
+      state.timelineFollowLatest = true;
     }
 
     function selectedEvent() {
@@ -2358,44 +2752,86 @@ steps:
       return candidate.length > 34 ? `${candidate.slice(0, 31)}...` : candidate;
     }
 
-    function fact(label, value) {
+    function fact(target, label, value, options = {}) {
+      if (value === undefined || value === null || value === '') return;
+      const row = document.createElement('div');
+      row.className = `fact-row${options.important ? ' important' : ''}${options.wide ? ' wide' : ''}`;
       const dt = document.createElement('dt');
       dt.textContent = label;
       const dd = document.createElement('dd');
       dd.textContent = textValue(value) || 'unknown';
-      els.runFacts.appendChild(dt);
-      els.runFacts.appendChild(dd);
+      row.appendChild(dt);
+      row.appendChild(dd);
+      target.appendChild(row);
+    }
+
+    function factGroup(title, summary, options = {}) {
+      const panel = createInlinePanel(
+        title,
+        summary,
+        'fact-group',
+        {defaultOpen: options.open !== false},
+      );
+      panel.body.classList.add('fact-group-body');
+      const facts = document.createElement('dl');
+      facts.className = 'facts';
+      panel.body.appendChild(facts);
+      els.runFacts.appendChild(panel.panel);
+      return facts;
     }
 
     function renderFacts() {
       clearNode(els.runFacts);
       const run = selectedRun() || {};
       const live = state.liveState || {};
-      fact('runId', live.runId || run.runId);
-      fact('scopeMode', scopeModeLabel());
       const allRuns = isAllRunsScope();
-      fact('scopeId', hasAnyRuns() ? state.activeScopeId || state.selectedScopeId || live.scopeId || run.scopeId : 'none');
-      fact('scopeLabel', boardScopeLabel());
-      fact('scopeKind', hasAnyRuns() ? allRuns ? 'all' : live.scopeKind || run.scopeKind || state.activeScopeKind : 'none');
+      const identityFacts = factGroup('Identity', live.taskId || run.taskId || live.runId || run.runId || 'selected run');
+      fact(identityFacts, 'taskId', live.taskId || run.taskId, {important: true, wide: true});
+      fact(identityFacts, 'runId', live.runId || run.runId, {important: true, wide: true});
+      fact(identityFacts, 'sessionId', live.sessionId || run.sessionId);
+      fact(identityFacts, 'platform', live.platform || run.platform);
+
+      const scopeFacts = factGroup('Scope', boardScopeLabel() || scopeModeLabel());
+      fact(scopeFacts, 'scopeMode', scopeModeLabel(), {important: true});
+      fact(scopeFacts, 'scopeId', hasAnyRuns() ? state.activeScopeId || state.selectedScopeId || live.scopeId || run.scopeId : 'none');
+      fact(scopeFacts, 'scopeLabel', boardScopeLabel(), {important: true, wide: true});
+      fact(scopeFacts, 'scopeKind', hasAnyRuns() ? allRuns ? 'all' : live.scopeKind || run.scopeKind || state.activeScopeKind : 'none');
       if (allRuns) {
-        fact('runScopeId', live.scopeId || run.scopeId);
-        fact('runScopeLabel', runScopeLabel(run, live));
+        fact(scopeFacts, 'runScopeId', live.scopeId || run.scopeId);
+        fact(scopeFacts, 'runScopeLabel', runScopeLabel(run, live), {important: true, wide: true});
       }
-      fact('taskId', live.taskId || run.taskId);
-      fact('sessionId', live.sessionId || run.sessionId);
-      fact('platform', live.platform || run.platform);
-      fact('startedAt', formatDateTime(live.startedAt || run.startedAt));
-      fact('updatedAt', formatDateTime(live.updatedAt || run.updatedAt));
-      fact('bundleDir', live.bundleDir || run.bundleDir);
-      fact('recommendedNextStep', live.recommendedNextStep);
-      fact('bundleStatus', state.bundleSummary?.status);
-      fact('deliveryVideoSource', state.bundleSummary?.deliveryVideoSource);
+
+      const timingFacts = factGroup('Timing', formatTime(live.updatedAt || run.updatedAt) || 'not started', {open: false});
+      fact(timingFacts, 'startedAt', formatDateTime(live.startedAt || run.startedAt));
+      fact(timingFacts, 'updatedAt', formatDateTime(live.updatedAt || run.updatedAt), {important: true});
+
+      const bundleFacts = factGroup('Bundle', state.bundleSummary?.status || live.recommendedNextStep || 'pending', {open: false});
+      fact(bundleFacts, 'recommendedNextStep', live.recommendedNextStep, {important: true, wide: true});
+      fact(bundleFacts, 'bundleStatus', state.bundleSummary?.status);
+      fact(bundleFacts, 'bundleDownload', bundleDownloadStatus(run), {important: true});
+      fact(bundleFacts, 'downloadName', bundleDownloadName(run), {wide: true});
+      fact(bundleFacts, 'deliveryVideoSource', state.bundleSummary?.deliveryVideoSource);
       fact(
+        bundleFacts,
         'summaryIssues',
         Array.isArray(state.bundleSummary?.summaryFileIssues)
           ? state.bundleSummary.summaryFileIssues.length
           : '',
       );
+      fact(bundleFacts, 'bundleDir', live.bundleDir || run.bundleDir, {wide: true});
+    }
+
+    function syncBundleDownloadAction() {
+      const run = selectedRun();
+      const runId = run?.runId || state.selectedRunId || '';
+      const href = bundleDownloadUrl(runId);
+      const enabled = Boolean(runId && href);
+      els.downloadBundle.href = enabled ? href : '#';
+      els.downloadBundle.download = enabled ? bundleDownloadName(run) : '';
+      els.downloadBundle.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+      els.downloadBundle.title = enabled
+        ? `Download ${bundleDownloadStatus(run)} evidence package`
+        : 'No selected run to download';
     }
 
     function renderHeaderSummary() {
@@ -2405,6 +2841,7 @@ steps:
       const status = live.status || run.status || 'unknown';
       els.selectedStatus.textContent = status;
       els.selectedStatusDot.className = `dot ${statusClass(status)}`;
+      syncBundleDownloadAction();
       if (!state.hasLoadedRuns) {
         els.runCount.textContent = '...';
         els.eventCount.textContent = '...';
@@ -2464,9 +2901,129 @@ steps:
       const expandButton = document.getElementById('expandTimeline');
       expandButton.classList.toggle('active', state.expandAll);
       expandButton.setAttribute('aria-pressed', state.expandAll ? 'true' : 'false');
+      syncTimelineControls();
+    }
+
+    function hasExecutionDetailValue(value) {
+      if (value === undefined || value === null || value === '') return false;
+      if (Array.isArray(value)) return value.length > 0;
+      if (isObject(value)) return Object.keys(value).length > 0;
+      return true;
+    }
+
+    function compactExecutionValue(value) {
+      if (value === undefined || value === null || value === '') return undefined;
+      if (Array.isArray(value)) {
+        const compactItems = value
+          .map((item) => compactExecutionValue(item))
+          .filter((item) => item !== undefined);
+        return compactItems.length ? compactItems : undefined;
+      }
+      if (isObject(value)) {
+        const compactObject = {};
+        for (const [key, childValue] of Object.entries(value)) {
+          const compactChild = compactExecutionValue(childValue);
+          if (compactChild !== undefined) compactObject[key] = compactChild;
+        }
+        return Object.keys(compactObject).length ? compactObject : undefined;
+      }
+      return value;
+    }
+
+    function commandInputFromDetails(details) {
+      const input = {};
+      if (hasExecutionDetailValue(details.locator)) {
+        input.locator = details.locator;
+      }
+      if (hasExecutionDetailValue(details.parameters)) {
+        input.parameters = details.parameters;
+      }
+      if (hasExecutionDetailValue(details.recording)) {
+        input.recording = details.recording;
+      }
+      if (hasExecutionDetailValue(details.conditionCommandId)) {
+        input.condition = {
+          commandId: details.conditionCommandId,
+          commandType: details.conditionCommandType,
+          success: details.conditionSuccess,
+          error: details.conditionError,
+        };
+      }
+      if (hasExecutionDetailValue(details.selectedBranch)) {
+        input.branch = details.selectedBranch;
+      }
+      if (hasExecutionDetailValue(details.relation)) {
+        input.relation = {
+          type: details.relation,
+          attempt: details.attempt,
+          maxAttempts: details.maxAttempts,
+          iteration: details.iteration,
+          maxIterations: details.maxIterations,
+          parentWorkflowStepId: details.parentWorkflowStepId,
+        };
+      }
+      return compactExecutionValue(input) || {};
+    }
+
+    function commandOutputFromEvent(event, details) {
+      const output = {};
+      if (hasExecutionDetailValue(details.success)) output.success = details.success;
+      if (hasExecutionDetailValue(details.commandDurationMs)) output.durationMs = details.commandDurationMs;
+      if (hasExecutionDetailValue(details.usedCaptureFallback)) output.usedCaptureFallback = details.usedCaptureFallback;
+      if (hasExecutionDetailValue(details.requestedCaptureProfile)) output.requestedCaptureProfile = details.requestedCaptureProfile;
+      if (hasExecutionDetailValue(details.resolvedCaptureKind)) output.resolvedCaptureKind = details.resolvedCaptureKind;
+      if (hasExecutionDetailValue(details.failureSummary)) output.failureSummary = details.failureSummary;
+      if (hasExecutionDetailValue(event.error)) output.error = event.error;
+      if (hasExecutionDetailValue(event.recommendedNextStep)) output.recommendedNextStep = event.recommendedNextStep;
+      if (hasExecutionDetailValue(event.bundleDir)) output.bundleDir = event.bundleDir;
+      return compactExecutionValue(output) || {};
+    }
+
+    function renderExecutionDetails(container, event) {
+      const details = event.details || {};
+      const commandInput = commandInputFromDetails(details);
+      const commandOutput = commandOutputFromEvent(event, details);
+      const payload = compactExecutionValue({
+        step: {
+          id: event.workflowStepId,
+          type: event.workflowStepType,
+          description: event.description,
+          eventType: event.type,
+          status: event.status,
+          mode: details.mode,
+        },
+        command: {
+          id: event.commandId,
+          type: event.commandType,
+        },
+      }) || {};
+      if (hasExecutionDetailValue(commandInput)) payload.input = commandInput;
+      if (hasExecutionDetailValue(commandOutput)) payload.output = commandOutput;
+      const hasExecution = hasExecutionDetailValue(event.commandId) ||
+        hasExecutionDetailValue(event.commandType) ||
+        hasExecutionDetailValue(commandInput) ||
+        hasExecutionDetailValue(commandOutput) ||
+        String(event.type || '').startsWith('workflow_step_');
+      if (!hasExecution) return;
+      const executionPanel = createInlinePanel(
+        'Execution',
+        [
+          event.commandType || event.workflowStepType || shortEventType(event.type),
+          event.status || '',
+          details.commandDurationMs ? `${details.commandDurationMs}ms` : '',
+        ].filter(Boolean).join(' | '),
+        'event-execution-panel',
+        {
+          dynamicPanelKind: 'event-inline',
+          dynamicPanelId: `${eventKey(event)}:execution`,
+        },
+      );
+      appendJsonTree(executionPanel.body, payload);
+      container.appendChild(executionPanel.panel);
     }
 
     function renderEventDetails(container, event) {
+      renderExecutionDetails(container, event);
       const facts = document.createElement('dl');
       facts.className = 'facts';
       const add = (label, value) => {
@@ -2478,6 +3035,7 @@ steps:
         facts.appendChild(dt);
         facts.appendChild(dd);
       };
+      add('eventType', event.type);
       add('step', event.workflowStepId);
       add('stepType', event.workflowStepType);
       add('command', event.commandId);
@@ -2491,6 +3049,19 @@ steps:
       add('depth', details.workflowStepDepth);
       add('attempt', details.attempt && details.maxAttempts ? `${details.attempt}/${details.maxAttempts}` : details.attempt);
       add('iteration', details.iteration && details.maxIterations ? `${details.iteration}/${details.maxIterations}` : details.iteration);
+      add('conditionCommand', details.conditionCommandId);
+      add('conditionType', details.conditionCommandType);
+      if (typeof details.conditionSuccess === 'boolean') {
+        add('condition', details.conditionSuccess ? 'true' : 'false');
+      }
+      add('branch', details.selectedBranch);
+      if (details.conditionError) {
+        add(
+          'conditionError',
+          details.conditionError.message || details.conditionError.code || details.conditionError,
+        );
+      }
+      if (details.loopExhausted) add('loop', 'exhausted');
       if (facts.children.length) {
         const metaPanel = createInlinePanel(
           'Metadata',
@@ -2535,12 +3106,7 @@ steps:
     }
 
     function renderTimeline() {
-      const latestKey = eventKey(state.events[state.events.length - 1]);
-      const shouldKeepTailVisible = Boolean(els.timelineScroll) && (
-        !state.selectedEventKey ||
-        state.selectedEventKey === latestKey ||
-        els.timelineScroll.scrollHeight - els.timelineScroll.scrollTop - els.timelineScroll.clientHeight < 48
-      );
+      const shouldKeepLatestVisible = Boolean(els.timelineScroll) && state.timelineFollowLatest;
       clearNode(els.timeline);
       if (!state.hasLoadedRuns) {
         syncEventFilterButtons();
@@ -2553,7 +3119,10 @@ steps:
       }
       syncEventFilterButtons();
       const matchingEvents = state.events.filter(eventMatchesFilter);
-      const events = matchingEvents.slice(-TIMELINE_RENDER_LIMIT);
+      const latestEvents = matchingEvents.slice(-TIMELINE_RENDER_LIMIT);
+      const events = state.timelineOrder === 'desc'
+        ? [...latestEvents].reverse()
+        : latestEvents;
       const totalEventCount = Number(state.scopeEventCount || state.liveState?.counts?.eventCount || state.events.length || 0);
       const loadedPrefix = totalEventCount > state.events.length
         ? `${state.events.length}/${totalEventCount} loaded, `
@@ -2561,15 +3130,18 @@ steps:
       const eventCountLabel = state.eventFilter === 'all'
         ? `${matchingEvents.length} event(s)`
         : `${matchingEvents.length}/${state.events.length} event(s) match ${eventFilterLabel()} filter`;
+      const visibleOrderLabel = state.timelineOrder === 'desc'
+        ? 'newest first'
+        : 'oldest first';
       const run = selectedRun() || {};
       const runLabel = run.displayName || run.taskId || run.runId || state.selectedRunId || 'no run selected';
       const scopeLabel = boardScopeLabel();
       const modeLabel = scopeModeLabel();
       const scopePrefix = isAllRunsScope() ? 'board' : 'scope';
       const summary = matchingEvents.length > events.length
-        ? `${loadedPrefix}showing latest ${events.length} of ${eventCountLabel}, oldest to newest`
-        : `${loadedPrefix}${eventCountLabel}, oldest to newest`;
-      els.timelineSummary.textContent = `${summary} | ${modeLabel}${scopeLabel ? ` | ${scopePrefix} ${scopeLabel}` : ''} | selected ${runLabel}`;
+        ? `${loadedPrefix}showing latest ${events.length} of ${eventCountLabel}, ${visibleOrderLabel}`
+        : `${loadedPrefix}${eventCountLabel}, ${visibleOrderLabel}`;
+      els.timelineSummary.textContent = `${summary} | ${state.timelineFollowLatest ? 'following latest' : 'follow paused'} | ${modeLabel}${scopeLabel ? ` | ${scopePrefix} ${scopeLabel}` : ''} | selected ${runLabel}`;
       if (!events.length) {
         const empty = document.createElement('div');
         empty.className = 'empty';
@@ -2577,16 +3149,22 @@ steps:
           ? 'no events match the active filter'
           : 'no events recorded yet';
         els.timeline.appendChild(empty);
+        pruneDynamicPanelState('event', new Set());
+        pruneDynamicPanelState('event-inline', new Set());
         return;
       }
+      const latestVisibleKey = eventKey(
+        state.timelineOrder === 'desc' ? events[0] : events[events.length - 1],
+      );
       for (const event of events) {
         const item = document.createElement('details');
         const key = eventKey(event);
         const selected = key === state.selectedEventKey;
+        const latest = key === latestVisibleKey;
         const expanded = dynamicPanelOpen(
           'event',
           key,
-          defaultEventPanelOpen(state.expandAll || selected),
+          defaultEventPanelOpen(state.expandAll || selected || latest),
         );
         item.className = `event collapsible-panel ${statusClass(event.status)}${expanded ? ' expanded' : ''}`;
         item.open = expanded;
@@ -2601,9 +3179,15 @@ steps:
 
         const summary = document.createElement('summary');
         summary.className = 'event-summary panel-summary';
+        const details = event.details || {};
+        const titleLabel = eventTitleLabel(event);
+        const kindLabel = eventKindLabel(event);
+        const phaseLabel = shortEventType(event.type);
         summary.setAttribute('aria-label', [
           `event ${event.seq || ''}`,
-          event.type || 'event',
+          titleLabel,
+          kindLabel,
+          phaseLabel,
           event.status || 'unknown'
         ].filter(Boolean).join(' | '));
         const summaryContent = document.createElement('div');
@@ -2614,17 +3198,36 @@ steps:
         const title = document.createElement('div');
         title.className = 'event-title';
         appendText(title, `#${event.seq}`, 'badge');
-        appendElement(title, 'strong', event.type || 'event');
+        appendElement(title, 'strong', titleLabel);
+        appendText(title, kindLabel, 'badge kind');
+        if (shouldShowEventPhase(phaseLabel, kindLabel, event.status)) {
+          appendText(title, phaseLabel, 'badge phase');
+        }
         appendText(title, event.status || 'unknown', `badge ${statusBadgeClass(event.status)}`);
         if (event.runId && state.runs.length > 1) appendText(title, event.runId, 'badge');
-        const details = event.details || {};
-        if (event.workflowStepId) appendText(title, event.workflowStepId, 'badge');
+        if (event.commandId && event.commandId !== titleLabel) appendText(title, event.commandId, 'badge');
         if (details.parentWorkflowStepId) appendText(title, `in ${details.parentWorkflowStepId}`, 'badge');
         if (details.relation === 'retry' && details.attempt) {
           appendText(title, `try ${details.attempt}/${details.maxAttempts || '?'}`, 'badge');
         }
         if (details.relation === 'loop' && details.iteration) {
           appendText(title, `loop ${details.iteration}/${details.maxIterations || '?'}`, 'badge');
+        }
+        if (details.relation !== 'loop' && details.iteration && details.maxIterations) {
+          appendText(title, `loop ${details.iteration}/${details.maxIterations}`, 'badge');
+        }
+        if (typeof details.conditionSuccess === 'boolean') {
+          appendText(
+            title,
+            `condition ${details.conditionSuccess ? 'true' : 'false'}`,
+            `badge ${details.conditionSuccess ? 'good' : 'warn'}`,
+          );
+        }
+        if (details.selectedBranch) {
+          appendText(title, `branch ${details.selectedBranch}`, 'badge');
+        }
+        if (details.loopExhausted) {
+          appendText(title, 'loop exhausted', 'badge warn');
         }
         if ((event.artifactRefs || []).length || (event.captureRefs || []).length) {
           appendText(title, `${(event.artifactRefs || []).length + (event.captureRefs || []).length} artifact`, 'badge good');
@@ -2665,8 +3268,16 @@ steps:
         'event',
         new Set(events.map((event) => dynamicPanelKey('event', eventKey(event)))),
       );
-      if (shouldKeepTailVisible) {
-        els.timelineScroll.scrollTop = els.timelineScroll.scrollHeight;
+      const visibleEventInlineKeys = new Set();
+      for (const event of events) {
+        const key = eventKey(event);
+        visibleEventInlineKeys.add(dynamicPanelKey('event-inline', `${key}:execution`));
+        visibleEventInlineKeys.add(dynamicPanelKey('event-inline', `${key}:metadata`));
+        visibleEventInlineKeys.add(dynamicPanelKey('event-inline', `${key}:artifacts`));
+      }
+      pruneDynamicPanelState('event-inline', visibleEventInlineKeys);
+      if (shouldKeepLatestVisible) {
+        scrollTimelineToLatest();
       }
     }
 
@@ -2741,6 +3352,7 @@ steps:
         empty.className = 'empty';
         empty.textContent = 'Screenshots, keyframes, recordings, and diagnostics appear here when a run produces artifact refs.';
         els.artifactGallery.appendChild(empty);
+        pruneDynamicPanelState('artifact', new Set());
         return;
       }
       for (const [index, artifact] of artifacts.slice(0, 60).entries()) {
@@ -2940,8 +3552,10 @@ steps:
       ].join('|');
       if (nextKey === state.lastScopeEventsKey) return;
       const previousLastKey = eventKey(state.events[state.events.length - 1]);
-      const wasFollowingTail = !state.selectedEventKey ||
-        state.selectedEventKey === previousLastKey;
+      const wasFollowingTail = state.timelineFollowLatest && (
+        !state.selectedEventKey ||
+        state.selectedEventKey === previousLastKey
+      );
       state.events = nextEvents;
       state.lastScopeEventsKey = nextKey;
       const selectedStillLoaded = state.events.some((event) => eventKey(event) === state.selectedEventKey);
@@ -3122,9 +3736,7 @@ steps:
         try {
           const decoded = JSON.parse(text);
           els.launchKind.value = decoded.kind || els.launchKind.value;
-          if (decoded.scriptText || decoded.configText) {
-            els.launchPayload.value = decoded.scriptText || decoded.configText;
-          }
+          els.launchPayload.value = payloadToYaml({kind: els.launchKind.value, ...decoded});
         } catch (error) {
           renderLaunchResult(`error: ${error.message}`);
         }
@@ -3141,6 +3753,12 @@ steps:
       selectScope('');
       tick();
     };
+    els.downloadBundle.onclick = (event) => {
+      event.stopPropagation();
+      if (els.downloadBundle.getAttribute('aria-disabled') === 'true') {
+        event.preventDefault();
+      }
+    };
     document.getElementById('copyRunId').onclick = async (event) => {
       event.stopPropagation();
       if (!state.selectedRunId || !navigator.clipboard) return;
@@ -3156,6 +3774,16 @@ steps:
       for (const event of state.events) {
         setDynamicPanelOpen('event', eventKey(event), state.expandAll);
       }
+      renderTimeline();
+    };
+    els.timelineOrder.onclick = () => {
+      state.timelineOrder = state.timelineOrder === 'desc' ? 'asc' : 'desc';
+      setTimelineFollowLatest(true);
+      renderTimeline();
+    };
+    els.followTimeline.onclick = () => {
+      setTimelineFollowLatest(true);
+      followTimelineEvent(latestEvent());
       renderTimeline();
     };
     els.collapsePanels.onclick = () => setPanelGroupOpen(false);
@@ -3192,9 +3820,17 @@ steps:
     for (const button of document.querySelectorAll('[data-filter]')) {
       button.onclick = () => {
         state.eventFilter = button.dataset.filter;
+        setTimelineFollowLatest(true);
+        followTimelineEvent(latestEvent());
         renderTimeline();
       };
     }
+    els.timelineScroll.addEventListener('scroll', () => {
+      if (state.suppressTimelineScrollEvent) return;
+      if (state.timelineFollowLatest && !isTimelineAtLatestEdge()) {
+        setTimelineFollowLatest(false);
+      }
+    }, {passive: true});
     document.getElementById('tabEvent').onclick = () => { state.inspectorTab = 'event'; renderInspector(); };
     document.getElementById('tabState').onclick = () => { state.inspectorTab = 'state'; renderInspector(); };
     document.getElementById('tabYaml').onclick = () => { state.inspectorTab = 'yaml'; renderInspector(); };

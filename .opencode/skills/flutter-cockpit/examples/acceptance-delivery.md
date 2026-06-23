@@ -33,6 +33,8 @@ dart run cockpit \
 
 Use `--output <path>` when another step needs to reopen the full payload from disk. Add `--output-format json` only when that file must be parsed by tools such as `jq`; otherwise the file defaults to the AI-readable semantic render.
 
+For human or external-tool handoff, open DevTools on the same output root and use `download bundle`, or call `GET /api/runs/<runId>/bundle-download`. The streamed tar contains `download_manifest.json`, `run_metadata.json`, `bundle/**`, and `live/**`; `missingRoots` lists unavailable roots for live-only or partial runs.
+
 ## Required Reads
 
 - `manifest.json`

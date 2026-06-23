@@ -197,26 +197,30 @@ void main() {
     }
   });
 
-  test('linux runtime loop keeps apt payload bounded and retried', () {
-    final workflow = workflowFile.readAsStringSync();
-    final linuxBlock = _workflowJobBlock(workflow, 'linux-runtime-loop');
+  test(
+    'linux runtime loop installs plugin build dependencies with retries',
+    () {
+      final workflow = workflowFile.readAsStringSync();
+      final linuxBlock = _workflowJobBlock(workflow, 'linux-runtime-loop');
 
-    expect(linuxBlock, contains('DEBIAN_FRONTEND: noninteractive'));
-    expect(linuxBlock, contains('apt_retry()'));
-    expect(
-      linuxBlock,
-      contains('sudo apt-get install -y --no-install-recommends'),
-    );
-    expect(linuxBlock, contains('libgtk-3-dev'));
-    expect(linuxBlock, contains('clang'));
-    expect(linuxBlock, contains('cmake'));
-    expect(linuxBlock, contains('ninja-build'));
-    expect(linuxBlock, contains('pkg-config'));
-    expect(linuxBlock, contains('xvfb'));
-    expect(linuxBlock, contains('x11-utils'));
-    expect(linuxBlock, isNot(contains('libgstreamer')));
-    expect(linuxBlock, isNot(contains('gstreamer1.0-libav')));
-  });
+      expect(linuxBlock, contains('DEBIAN_FRONTEND: noninteractive'));
+      expect(linuxBlock, contains('apt_retry()'));
+      expect(
+        linuxBlock,
+        contains('sudo apt-get install -y --no-install-recommends'),
+      );
+      expect(linuxBlock, contains('libgtk-3-dev'));
+      expect(linuxBlock, contains('clang'));
+      expect(linuxBlock, contains('cmake'));
+      expect(linuxBlock, contains('ninja-build'));
+      expect(linuxBlock, contains('pkg-config'));
+      expect(linuxBlock, contains('xvfb'));
+      expect(linuxBlock, contains('x11-utils'));
+      expect(linuxBlock, contains('libgstreamer1.0-dev'));
+      expect(linuxBlock, contains('libgstreamer-plugins-base1.0-dev'));
+      expect(linuxBlock, contains('gstreamer1.0-libav'));
+    },
+  );
 
   test('runtime loop command assertions track full verifier output', () {
     final workflow = workflowFile.readAsStringSync();

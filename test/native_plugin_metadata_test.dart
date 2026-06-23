@@ -65,6 +65,60 @@ void main() {
     );
   });
 
+  test('example macOS project uses SwiftPM without CocoaPods integration', () {
+    final macosRoot = Directory('$root/examples/cockpit_demo/macos');
+
+    expect(File('${macosRoot.path}/Podfile').existsSync(), isFalse);
+    expect(File('${macosRoot.path}/Podfile.lock').existsSync(), isFalse);
+
+    for (final relativePath in <String>[
+      'Flutter/Flutter-Debug.xcconfig',
+      'Flutter/Flutter-Release.xcconfig',
+      'Runner.xcworkspace/contents.xcworkspacedata',
+      'Runner.xcodeproj/project.pbxproj',
+    ]) {
+      final source = File('${macosRoot.path}/$relativePath').readAsStringSync();
+      expect(source, isNot(contains('Pods')));
+      expect(source, isNot(contains('PODS_ROOT')));
+      expect(source, isNot(contains('[CP]')));
+    }
+
+    final project = File(
+      '${macosRoot.path}/Runner.xcodeproj/project.pbxproj',
+    ).readAsStringSync();
+    expect(project, contains('FlutterGeneratedPluginSwiftPackage'));
+  });
+
+  test('example iOS project uses SwiftPM without CocoaPods integration', () {
+    final iosRoot = Directory('$root/examples/cockpit_demo/ios');
+
+    expect(File('${iosRoot.path}/Podfile').existsSync(), isFalse);
+    expect(File('${iosRoot.path}/Podfile.lock').existsSync(), isFalse);
+
+    for (final relativePath in <String>[
+      'Flutter/Debug.xcconfig',
+      'Flutter/Release.xcconfig',
+      'Runner.xcworkspace/contents.xcworkspacedata',
+      'Runner.xcodeproj/project.pbxproj',
+    ]) {
+      final source = File('${iosRoot.path}/$relativePath').readAsStringSync();
+      expect(source, isNot(contains('Pods')));
+      expect(source, isNot(contains('PODS_ROOT')));
+      expect(source, isNot(contains('[CP]')));
+    }
+
+    final project = File(
+      '${iosRoot.path}/Runner.xcodeproj/project.pbxproj',
+    ).readAsStringSync();
+    expect(project, contains('FlutterGeneratedPluginSwiftPackage'));
+    expect(
+      File(
+        '${iosRoot.path}/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme',
+      ).readAsStringSync(),
+      contains('Run Prepare Flutter Framework Script'),
+    );
+  });
+
   test('native plugin sources use flutter_cockpit channel names', () {
     final androidPlugin = File(
       '$root/packages/flutter_cockpit/android/src/main/kotlin/dev/cockpit/flutter_cockpit/FlutterCockpitPlugin.kt',
@@ -127,15 +181,28 @@ void main() {
     expect(macosPodspec, contains('flutter_cockpit/Sources/flutter_cockpit'));
     expect(iosPackage, contains('name: "flutter_cockpit"'));
     expect(iosPackage, contains('.iOS("13.0")'));
+    expect(iosPackage, contains('dependencies: []'));
+    expect(iosPackage, contains('.process("PrivacyInfo.xcprivacy")'));
+    expect(iosPackage, isNot(contains('FlutterFramework')));
     expect(macosPackage, contains('name: "flutter_cockpit"'));
     expect(macosPackage, contains('.macOS("10.15")'));
+    expect(macosPackage, contains('dependencies: []'));
+    expect(macosPackage, contains('.process("PrivacyInfo.xcprivacy")'));
+    expect(macosPackage, isNot(contains('FlutterFramework')));
     expect(manifest, contains('package="dev.cockpit.flutter_cockpit"'));
     expect(
       androidGradle,
       contains('namespace = "dev.cockpit.flutter_cockpit"'),
     );
     expect(androidGradle, isNot(contains('agpMajor < 9')));
-    expect(androidGradle, isNot(contains('kotlin-gradle-plugin')));
-    expect(androidGradle, contains('compilerOptions'));
+    expect(
+      androidGradle,
+      contains('org.jetbrains.kotlin:kotlin-gradle-plugin'),
+    );
+    expect(
+      androidGradle,
+      contains('apply plugin: "org.jetbrains.kotlin.android"'),
+    );
+    expect(androidGradle, contains('KotlinCompile'));
   });
 }

@@ -208,7 +208,7 @@ void main() {
     },
   );
 
-  test('validation example keeps Linux apt payload bounded', () {
+  test('validation example installs Linux plugin build dependencies', () {
     final workflow = File(
       p.join(repoRoot.path, '.github', 'workflows', 'validation-examples.yml'),
     ).readAsStringSync();
@@ -223,8 +223,10 @@ void main() {
     expect(linuxInstall, contains('pkg-config'));
     expect(linuxInstall, contains('xvfb'));
     expect(linuxInstall, contains('x11-utils'));
-    expect(linuxInstall, isNot(contains('libgstreamer')));
-    expect(linuxInstall, isNot(contains('gstreamer1.0-libav')));
+    expect(linuxInstall, contains('libgstreamer1.0-dev'));
+    expect(linuxInstall, contains('libgstreamer-plugins-base1.0-dev'));
+    expect(linuxInstall, contains('gstreamer1.0-libav'));
+    expect(workflow, contains('--no-install-recommends'));
   });
 
   test(
@@ -277,6 +279,30 @@ void main() {
       isNotEmpty,
     );
   });
+
+  test(
+    'adaptive example optional dialog probe does not match launcher button',
+    () {
+      final script = cockpitControlScriptFromText(
+        File(
+          p.join(validationDir.path, 'adaptive-flow.workflow.yaml'),
+        ).readAsStringSync(),
+      );
+      final optionalDialogStep = script.effectiveWorkflowSteps
+          .whereType<CockpitIfWorkflowStep>()
+          .singleWhere((step) => step.stepId == 'close-settings-if-open');
+
+      expect(
+        optionalDialogStep.condition.commandType,
+        CockpitCommandType.assertVisible,
+      );
+      expect(optionalDialogStep.condition.locator?.tooltip, 'Close');
+      expect(
+        optionalDialogStep.condition.parameters.values,
+        isNot(contains('Settings')),
+      );
+    },
+  );
 
   test('recorded acceptance example exercises step-scoped recording', () {
     final script = cockpitControlScriptFromText(
