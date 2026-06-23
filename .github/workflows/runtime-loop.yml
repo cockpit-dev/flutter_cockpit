@@ -85,8 +85,10 @@ jobs:
         timeout-minutes: 15
         run: brew install ffmpeg
 
-      - name: Enable macOS desktop
-        run: flutter config --enable-macos-desktop
+      - name: Enable macOS desktop and SwiftPM
+        run: |
+          flutter config --enable-macos-desktop
+          flutter config --enable-swift-package-manager
 
       - name: Bootstrap workspace
         timeout-minutes: 10
@@ -653,8 +655,10 @@ jobs:
         timeout-minutes: 15
         run: brew install ffmpeg
 
-      - name: Enable macOS desktop
-        run: flutter config --enable-macos-desktop
+      - name: Enable macOS desktop and SwiftPM
+        run: |
+          flutter config --enable-macos-desktop
+          flutter config --enable-swift-package-manager
 
       - name: Bootstrap workspace
         timeout-minutes: 10
@@ -998,6 +1002,8 @@ jobs:
           apt_retry sudo apt-get update
           apt_retry sudo apt-get install -y --no-install-recommends \
             ffmpeg x11-utils xvfb \
+            libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+            gstreamer1.0-libav \
             clang cmake git ninja-build pkg-config \
             libgtk-3-dev liblzma-dev libstdc++-12-dev
 

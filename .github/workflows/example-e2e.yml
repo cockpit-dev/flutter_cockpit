@@ -48,8 +48,10 @@ jobs:
         timeout-minutes: 15
         run: brew install ffmpeg
 
-      - name: Enable macOS desktop
-        run: flutter config --enable-macos-desktop
+      - name: Enable macOS desktop and SwiftPM
+        run: |
+          flutter config --enable-macos-desktop
+          flutter config --enable-swift-package-manager
 
       - name: Bootstrap workspace
         timeout-minutes: 10

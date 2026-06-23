@@ -10,6 +10,7 @@ import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
 import '../cockpit_control_script.dart';
 import '../cockpit_interactive_cli_support.dart';
+import '../cockpit_run_script_cli_payload.dart';
 
 typedef CockpitRunScriptFunction =
     Future<CockpitRunRemoteControlScriptResult> Function(
@@ -21,10 +22,12 @@ final class RunScriptCommand extends CockpitCliCommand {
     CockpitRunRemoteControlScriptService? service,
     CockpitRunScriptFunction? runScript,
     CockpitAppReferenceResolver? appReferenceResolver,
+    StringSink? stdoutSink,
   }) : _runScript =
            runScript ?? (service ?? CockpitRunRemoteControlScriptService()).run,
        _appReferenceResolver =
-           appReferenceResolver ?? CockpitAppReferenceResolver() {
+           appReferenceResolver ?? CockpitAppReferenceResolver(),
+       _stdoutSink = stdoutSink ?? stdout {
     cockpitAddAppArgs(argParser);
     argParser
       ..addOption('script', help: 'Path to a JSON or YAML control script file.')
@@ -46,6 +49,7 @@ final class RunScriptCommand extends CockpitCliCommand {
 
   final CockpitRunScriptFunction _runScript;
   final CockpitAppReferenceResolver _appReferenceResolver;
+  final StringSink _stdoutSink;
 
   @override
   String get name => 'run-script';
@@ -142,8 +146,22 @@ final class RunScriptCommand extends CockpitCliCommand {
         code: 'controlScriptFailed',
         message:
             'Control script bundle failed: $summary See ${result.bundleDir.path}.',
+        details: cockpitRunScriptFailureDetails(
+          result: result,
+          outputRoot: outputRoot,
+        ),
       );
     }
+    await cockpitWriteJsonPayload(
+      commandName: name,
+      payload: cockpitRunScriptResultPayload(
+        commandName: name,
+        result: result,
+        outputRoot: outputRoot,
+      ),
+      argResults: argResults,
+      stdoutSink: _stdoutSink,
+    );
     return cockpitSuccessExitCode;
   }
 

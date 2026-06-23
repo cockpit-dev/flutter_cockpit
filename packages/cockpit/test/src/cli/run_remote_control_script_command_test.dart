@@ -504,6 +504,279 @@ commands:
     },
   );
 
+  test('run-script emits a compact bundle handoff on success', () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'cockpit_run_script_success_output',
+    );
+    addTearDown(() async {
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    final scriptFile = File(p.join(tempDir.path, 'script.yaml'));
+    await scriptFile.writeAsString('''
+sessionId: success-output-session
+taskId: success-output-task
+platform: macos
+environment:
+  platform: macos
+  flutterVersion: 3.32.0
+  dartVersion: 3.8.0
+commands:
+  - commandId: assert-ready
+    commandType: assertText
+    parameters:
+      text: Ready
+''');
+
+    final bundleDir = Directory(p.join(tempDir.path, 'bundle'))
+      ..createSync(recursive: true);
+    final primaryScreenshot = p.join(
+      bundleDir.path,
+      'screenshots',
+      'acceptance.png',
+    );
+    final primaryRecording = p.join(
+      bundleDir.path,
+      'recordings',
+      'acceptance.mp4',
+    );
+    final stdoutBuffer = StringBuffer();
+    final runner = CommandRunner<int>('cockpit', 'test')
+      ..addCommand(
+        RunScriptCommand(
+          stdoutSink: stdoutBuffer,
+          runScript: (request) async => CockpitRunRemoteControlScriptResult(
+            sessionHandle: null,
+            bundleDir: bundleDir,
+            manifest: CockpitRunManifest(
+              sessionId: request.script.sessionId,
+              taskId: request.script.taskId,
+              platform: request.script.platform,
+              status: CockpitTaskStatus.completed,
+              startedAt: DateTime.utc(2026, 6, 18),
+              finishedAt: DateTime.utc(2026, 6, 18, 0, 0, 1),
+              commandCount: 1,
+              screenshotCount: 1,
+              recordingCount: 1,
+              deliveryArtifactsReady: true,
+              deliveryVideoReady: true,
+            ),
+            handoff: const <String, Object?>{'status': 'completed'},
+            delivery: const <String, Object?>{
+              'primaryScreenshotRef': 'screenshots/acceptance.png',
+              'primaryRecordingRef': 'recordings/acceptance.mp4',
+            },
+            artifactPaths: CockpitBundleArtifactPaths(
+              primaryScreenshotPath: primaryScreenshot,
+              primaryRecordingPath: primaryRecording,
+            ),
+          ),
+        ),
+      );
+
+    final exitCode =
+        await runner.run(<String>[
+          'run-script',
+          '--base-url',
+          'http://127.0.0.1:58421',
+          '--script',
+          scriptFile.path,
+          '--output-root',
+          tempDir.path,
+        ]) ??
+        0;
+
+    expect(exitCode, 0);
+    final output = stdoutBuffer.toString();
+    expect(output, contains('cockpit.v=1'));
+    expect(output, contains('command=run-script'));
+    expect(output, contains('status=completed'));
+    expect(output, contains('next=dart run cockpit read-task-bundle-summary'));
+    expect(output, contains('bundle dir=${bundleDir.path}'));
+    expect(output, contains('sessionId=success-output-session'));
+    expect(output, contains('taskId=success-output-task'));
+    expect(output, contains('platform=macos'));
+    expect(output, contains('counts commands=1 failures=0 screenshots=1'));
+    expect(output, contains('recordings=1'));
+    expect(output, contains('paths primaryScreenshot=$primaryScreenshot'));
+    expect(output, contains('primaryRecording=$primaryRecording'));
+    expect(
+      output,
+      contains(
+        'devtoolsCommand=dart run cockpit devtools --history-root ${tempDir.path} --scope success-output-session',
+      ),
+    );
+    expect(() => jsonDecode(output), throwsA(isA<FormatException>()));
+  });
+
+  test('run-script file output keeps stdout to the output path only', () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'cockpit_run_script_file_output',
+    );
+    addTearDown(() async {
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    final scriptFile = File(p.join(tempDir.path, 'script.yaml'));
+    await scriptFile.writeAsString('''
+sessionId: file-output-session
+taskId: file-output-task
+platform: macos
+environment:
+  platform: macos
+  flutterVersion: 3.32.0
+  dartVersion: 3.8.0
+commands:
+  - commandId: assert-ready
+    commandType: assertText
+    parameters:
+      text: Ready
+''');
+
+    final bundleDir = Directory(p.join(tempDir.path, 'bundle'))
+      ..createSync(recursive: true);
+    final outputFile = File(p.join(tempDir.path, 'run-script-result.json'));
+    final stdoutBuffer = StringBuffer();
+    final runner = CommandRunner<int>('cockpit', 'test')
+      ..addCommand(
+        RunScriptCommand(
+          stdoutSink: stdoutBuffer,
+          runScript: (request) async => CockpitRunRemoteControlScriptResult(
+            sessionHandle: null,
+            bundleDir: bundleDir,
+            manifest: CockpitRunManifest(
+              sessionId: request.script.sessionId,
+              taskId: request.script.taskId,
+              platform: request.script.platform,
+              status: CockpitTaskStatus.completed,
+              startedAt: DateTime.utc(2026, 6, 18),
+              finishedAt: DateTime.utc(2026, 6, 18, 0, 0, 1),
+              commandCount: 1,
+            ),
+            handoff: const <String, Object?>{'status': 'completed'},
+            delivery: const <String, Object?>{},
+            artifactPaths: CockpitBundleArtifactPaths(),
+          ),
+        ),
+      );
+
+    final exitCode =
+        await runner.run(<String>[
+          'run-script',
+          '--base-url',
+          'http://127.0.0.1:58421',
+          '--script',
+          scriptFile.path,
+          '--output-root',
+          tempDir.path,
+          '--output',
+          outputFile.path,
+          '--output-format',
+          'json',
+        ]) ??
+        0;
+
+    expect(exitCode, 0);
+    expect(stdoutBuffer.toString().trim(), 'output=${outputFile.path}');
+    final decoded =
+        jsonDecode(await outputFile.readAsString()) as Map<String, Object?>;
+    expect(decoded['status'], 'completed');
+    expect(
+      decoded['recommendedNextStep'],
+      contains('read-task-bundle-summary'),
+    );
+    expect(decoded['devtoolsCommand'], contains('dart run cockpit devtools'));
+    expect(
+      (decoded['bundleSummary'] as Map<String, Object?>)['bundleDir'],
+      bundleDir.path,
+    );
+  });
+
+  test(
+    'run-remote-control-script emits a compact bundle handoff on success',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_run_remote_control_script_success_output',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final scriptFile = File(p.join(tempDir.path, 'script.yaml'));
+      await scriptFile.writeAsString('''
+sessionId: legacy-output-session
+taskId: legacy-output-task
+platform: macos
+environment:
+  platform: macos
+  flutterVersion: 3.32.0
+  dartVersion: 3.8.0
+commands:
+  - commandId: assert-ready
+    commandType: assertText
+    parameters:
+      text: Ready
+''');
+
+      final bundleDir = Directory(p.join(tempDir.path, 'bundle'))
+        ..createSync(recursive: true);
+      final stdoutBuffer = StringBuffer();
+      final runner = CommandRunner<int>('cockpit', 'test')
+        ..addCommand(
+          RunRemoteControlScriptCommand(
+            stdoutSink: stdoutBuffer,
+            runScript: (request) async => CockpitRunRemoteControlScriptResult(
+              sessionHandle: null,
+              bundleDir: bundleDir,
+              manifest: CockpitRunManifest(
+                sessionId: request.script.sessionId,
+                taskId: request.script.taskId,
+                platform: request.script.platform,
+                status: CockpitTaskStatus.completed,
+                startedAt: DateTime.utc(2026, 6, 18),
+                finishedAt: DateTime.utc(2026, 6, 18, 0, 0, 1),
+                commandCount: 1,
+              ),
+              handoff: const <String, Object?>{'status': 'completed'},
+              delivery: const <String, Object?>{},
+              artifactPaths: CockpitBundleArtifactPaths(),
+            ),
+          ),
+        );
+
+      final exitCode =
+          await runner.run(<String>[
+            'run-remote-control-script',
+            '--base-url',
+            'http://127.0.0.1:58421',
+            '--script',
+            scriptFile.path,
+            '--output-root',
+            tempDir.path,
+          ]) ??
+          0;
+
+      expect(exitCode, 0);
+      final output = stdoutBuffer.toString();
+      expect(output, contains('command=run-remote-control-script'));
+      expect(output, contains('status=completed'));
+      expect(output, contains('bundle dir=${bundleDir.path}'));
+      expect(output, contains('sessionId=legacy-output-session'));
+      expect(
+        output,
+        contains(
+          'devtoolsCommand=dart run cockpit devtools --history-root ${tempDir.path} --scope legacy-output-session',
+        ),
+      );
+    },
+  );
+
   test('run-script uses the forwarded host port for Android devices', () async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     final tempDir = await Directory.systemTemp.createTemp(
@@ -1098,17 +1371,36 @@ commands:
           ),
         );
 
-      final exitCode = await _runCommandRunner(runner, [
-        'run-script',
-        '--app-json',
-        appHandleFile.path,
-        '--script-json',
-        scriptFile.path,
-        '--output-root',
-        tempDir.path,
-      ]);
-
-      expect(exitCode, isNonZero);
+      await expectLater(
+        runner.run(<String>[
+          'run-script',
+          '--app-json',
+          appHandleFile.path,
+          '--script-json',
+          scriptFile.path,
+          '--output-root',
+          tempDir.path,
+        ]),
+        throwsA(
+          isA<CockpitApplicationServiceException>()
+              .having((error) => error.code, 'code', 'controlScriptFailed')
+              .having(
+                (error) => error.details['bundleDir'],
+                'bundleDir',
+                bundleDir.path,
+              )
+              .having(
+                (error) => error.details['recommendedNextStep'],
+                'recommendedNextStep',
+                contains('read-task-bundle-summary'),
+              )
+              .having(
+                (error) => error.details['devtoolsCommand'],
+                'devtoolsCommand',
+                contains('--scope remote-script-session'),
+              ),
+        ),
+      );
     },
   );
 
@@ -1163,17 +1455,36 @@ commands:
           ),
         );
 
-      final exitCode = await _runCommandRunner(runner, [
-        'run-remote-control-script',
-        '--base-url',
-        'http://127.0.0.1:57331',
-        '--script-json',
-        scriptFile.path,
-        '--output-root',
-        tempDir.path,
-      ]);
-
-      expect(exitCode, isNonZero);
+      await expectLater(
+        runner.run(<String>[
+          'run-remote-control-script',
+          '--base-url',
+          'http://127.0.0.1:57331',
+          '--script-json',
+          scriptFile.path,
+          '--output-root',
+          tempDir.path,
+        ]),
+        throwsA(
+          isA<CockpitApplicationServiceException>()
+              .having((error) => error.code, 'code', 'controlScriptFailed')
+              .having(
+                (error) => error.details['bundleDir'],
+                'bundleDir',
+                bundleDir.path,
+              )
+              .having(
+                (error) => error.details['failureSummary'],
+                'failureSummary',
+                'The legacy script assertion failed.',
+              )
+              .having(
+                (error) => error.details['devtoolsCommand'],
+                'devtoolsCommand',
+                contains('--scope remote-control-script-session'),
+              ),
+        ),
+      );
     },
   );
 }

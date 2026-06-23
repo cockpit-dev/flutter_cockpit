@@ -108,7 +108,11 @@ links carry the owning run and event key so repeated relative paths stay
 traceable. Use `--scope latest` only when a live operations board should keep
 following the newest job. API clients may pass `scope=current` or
 `scope=latest`; both resolve to the current latest scope and report `scopeMode`
-so readers can distinguish pinned and following views.
+so readers can distinguish pinned and following views. Use `download bundle` or
+`GET /api/runs/<runId>/bundle-download` when a complete portable handoff is
+needed. The response is a streamed tar containing `download_manifest.json`,
+`run_metadata.json`, `bundle/**`, and `live/**`; absent roots are recorded in
+`missingRoots`.
 
 For tool-owned bootstrap and validation, embed the same script object under the
 task config `script` field:

@@ -44,6 +44,10 @@ dev_dependencies:
 - [`flutter_cockpit` on pub.dev](https://pub.dev/packages/flutter_cockpit)
 - [`cockpit` on pub.dev](https://pub.dev/packages/cockpit)
 
+维护者发布顺序：先发布 `packages/flutter_cockpit`，再发布 `packages/cockpit`。
+宿主侧 `cockpit` 包会从 pub.dev 解析 runtime 包，因此 `cockpit` 的 dry-run
+和正式发布都必须先看到匹配版本的 `flutter_cockpit` 已经在线可用。
+
 安装 Dart 包本身，并不会自动安装 AI skill，也不会自动提供全局可调用的 MCP 启动命令。这两件事都属于宿主侧额外配置。
 
 ## 安装 Skill
@@ -246,11 +250,17 @@ workflow `sessionId` scope 并把 URL 固定到具体 scope，避免同一个 hi
 `--scope latest` 时看板会继续跟随最新任务。Timeline 是 scope 级别的，同一
 `sessionId` 的重试会按执行顺序一起展示；run detail 和 bundle 面板仍跟随当前选中
 run。截图、录屏、诊断和错误都会关联到所属 run 与事件序号。看板也可以解析粘贴的
-workflow YAML/JSON，并以后台 job 方式提交 `runScript` / `validateTask`；提交中的
-job 在 live history 文件写入前也会显示；完成后的提交 job 只要 bundle 仍在同一个
-history root 下，也会通过同一套 run API 暴露 bundle summary 和 artifact。长期
-history root 会分页展示 run list，同时保留 scope 总数。过大或部分写入的 bundle
-JSON 会显示到 `summaryFileIssues`，不会导致整个看板不可用。
+workflow YAML/JSON，并以后台 job 方式提交 `runScript` / `validateTask`。从看板提交
+真实运行时需要保留 CLI 通常会提供的可执行 envelope，例如 `sessionHandle`、
+`baseUrl`、`outputRoot` 和平台 id；在 JSON/YAML 间切换时不要只保留内部 workflow。
+提交中的 job 在 live history 文件写入前也会显示；完成后的提交 job 只要 bundle 仍在
+同一个 history root 下，也会通过同一套 run API 暴露 bundle summary 和 artifact。
+长期 history root 会分页展示 run list，同时保留 scope 总数。过大或部分写入的 bundle
+JSON 会显示到 `summaryFileIssues`，不会导致整个看板不可用。run detail 面板还提供
+`download bundle`，对应 `GET /api/runs/<runId>/bundle-download`。下载会以受
+token 保护的 tar 流式输出，不会把大型视频读入内存；内容包含
+`download_manifest.json`、`run_metadata.json`、`bundle/**` 和 `live/**`，
+不可用的根目录会记录在 `missingRoots`。
 
 target-first 或非 Flutter / 系统直控场景：
 

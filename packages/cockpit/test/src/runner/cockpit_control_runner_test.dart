@@ -1593,6 +1593,9 @@ steps:
             commandId: 'cmd-open',
             commandType: CockpitCommandType.tap,
             locator: const CockpitLocator(text: 'Settings'),
+            parameters: const <String, Object?>{
+              'expectedRouteName': '/settings',
+            },
           ),
         ),
       ],
@@ -1614,7 +1617,20 @@ steps:
       'Open settings before checking sync state.',
     );
     expect(stepStarted.commandId, 'cmd-open');
+    expect(stepStarted.details['locator'], containsPair('text', 'Settings'));
+    expect(stepStarted.details['parameters'], <String, Object?>{
+      'expectedRouteName': '/settings',
+    });
     expect(observer.events[2].status, 'completed');
+    expect(
+      observer.events[2].details['locator'],
+      containsPair('text', 'Settings'),
+    );
+    expect(observer.events[2].details['parameters'], <String, Object?>{
+      'expectedRouteName': '/settings',
+    });
+    expect(observer.events[2].details['success'], isTrue);
+    expect(observer.events[2].details['commandDurationMs'], 10);
     expect(observer.events.last.status, 'completed');
   });
 
@@ -1662,6 +1678,105 @@ steps:
     expect(observer.events[2].error, isNotNull);
     expect(observer.events.last.status, 'failed');
   });
+
+  test(
+    'emits live observer control-flow metadata for branches and loops',
+    () async {
+      final observer = _CapturingLiveObserver();
+      final adapter = _FakeAutomationAdapter.sequence(
+        capabilities: _capabilities(),
+        resultsByCommandId: <String, List<CockpitCommandResult>>{
+          'has-dialog': <CockpitCommandResult>[
+            _result(
+              commandId: 'has-dialog',
+              commandType: CockpitCommandType.assertText,
+              success: false,
+            ),
+          ],
+          'has-item': <CockpitCommandResult>[
+            _result(
+              commandId: 'has-item',
+              commandType: CockpitCommandType.assertText,
+              success: false,
+            ),
+          ],
+        },
+      );
+      final runner = CockpitControlRunner(
+        automationAdapter: adapter,
+        sessionController: CockpitSessionController(
+          sessionId: 'runner-live-control-flow',
+          taskId: 'runner-live-control-flow-task',
+          platform: 'android',
+          now: () => DateTime.utc(2026, 6, 19, 9),
+        ),
+        liveObserver: observer,
+      );
+
+      final result = await runner.run(
+        environment: _environment(),
+        workflowSteps: <CockpitWorkflowStep>[
+          CockpitIfWorkflowStep(
+            stepId: 'dismiss-dialog-if-present',
+            condition: CockpitCommand(
+              commandId: 'has-dialog',
+              commandType: CockpitCommandType.assertText,
+              parameters: const <String, Object?>{'text': 'Dialog'},
+            ),
+            thenSteps: <CockpitWorkflowStep>[
+              CockpitCommandWorkflowStep(
+                stepId: 'tap-dialog',
+                command: CockpitCommand(
+                  commandId: 'tap-dialog',
+                  commandType: CockpitCommandType.tap,
+                  locator: const CockpitLocator(text: 'Dialog'),
+                ),
+              ),
+            ],
+          ),
+          CockpitLoopWorkflowStep(
+            stepId: 'drain-items',
+            maxIterations: 2,
+            condition: CockpitCommand(
+              commandId: 'has-item',
+              commandType: CockpitCommandType.assertText,
+              parameters: const <String, Object?>{'text': 'Item'},
+            ),
+            steps: <CockpitWorkflowStep>[
+              CockpitCommandWorkflowStep(
+                stepId: 'tap-item',
+                command: CockpitCommand(
+                  commandId: 'tap-item',
+                  commandType: CockpitCommandType.tap,
+                  locator: const CockpitLocator(text: 'Item'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      );
+
+      expect(result.bundle.manifest.status, CockpitTaskStatus.completed);
+      final ifEvent = observer.events.firstWhere(
+        (event) =>
+            event.type == 'workflow_step_completed' &&
+            event.workflowStepId == 'dismiss-dialog-if-present',
+      );
+      expect(ifEvent.details, containsPair('conditionSuccess', false));
+      expect(ifEvent.details, containsPair('selectedBranch', 'else'));
+      expect(ifEvent.details, containsPair('conditionCommandId', 'has-dialog'));
+
+      final loopEvent = observer.events.firstWhere(
+        (event) =>
+            event.type == 'workflow_step_completed' &&
+            event.workflowStepId == 'drain-items',
+      );
+      expect(loopEvent.details, containsPair('conditionSuccess', false));
+      expect(loopEvent.details, containsPair('iteration', 1));
+      expect(loopEvent.details, containsPair('maxIterations', 2));
+      expect(loopEvent.details, containsPair('conditionCommandId', 'has-item'));
+    },
+  );
 
   test('live observer failures do not fail the underlying run', () async {
     final observer = _ThrowingLiveObserver();

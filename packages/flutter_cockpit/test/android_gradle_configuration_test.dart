@@ -3,19 +3,19 @@ import 'dart:io';
 import 'package:test/test.dart';
 
 void main() {
-  test('Android plugin uses Flutter built-in Kotlin wiring', () {
+  test('Android plugin applies Kotlin wiring for its Kotlin sources', () {
     final buildFile = _packageFile('android/build.gradle');
     expect(buildFile.existsSync(), isTrue);
 
     final source = buildFile.readAsStringSync();
-    expect(source, isNot(contains('apply plugin: "kotlin-android"')));
-    expect(
-      source,
-      isNot(contains('org.jetbrains.kotlin:kotlin-gradle-plugin')),
-    );
-    expect(source, contains('kotlin {'));
-    expect(source, contains('compilerOptions'));
-    expect(source, contains('JvmTarget.JVM_17'));
+    expect(source, contains('src/main/kotlin'));
+    expect(source, contains('apply plugin: "org.jetbrains.kotlin.android"'));
+    expect(source, contains('org.jetbrains.kotlin:kotlin-gradle-plugin'));
+    expect(source, contains('tasks.withType'));
+    expect(source, contains('KotlinCompile'));
+    expect(source, contains('jvmTarget = "17"'));
+    expect(source, isNot(contains('kotlin {')));
+    expect(source, isNot(contains('JvmTarget.JVM_17')));
   });
 }
 

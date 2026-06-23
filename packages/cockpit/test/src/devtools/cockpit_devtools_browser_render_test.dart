@@ -82,12 +82,28 @@ void main() {
     timelineSummary: text('#timelineSummary'),
     timelineContext: text('[data-testid="timeline-context"]'),
     facts: text('#runFacts'),
+    factGroups: Array.from(document.querySelectorAll('#runFacts .fact-group > summary h3')).map((node) => node.textContent || ''),
+    runDetailGrid: getComputedStyle(document.querySelector('.run-detail')).gridTemplateColumns,
+    runFactsScrollHeight: document.querySelector('.run-facts-scroll').scrollHeight,
+    runFactsClientHeight: document.querySelector('.run-facts-scroll').clientHeight,
+    bundleDownloadText: document.querySelector('#downloadBundle')?.textContent || '',
+    bundleDownloadHref: document.querySelector('#downloadBundle')?.href || '',
+    bundleDownloadName: document.querySelector('#downloadBundle')?.getAttribute('download') || '',
+    bundleDownloadDisabled: document.querySelector('#downloadBundle')?.getAttribute('aria-disabled') || '',
     artifactSummary: text('#artifactSummary'),
     artifacts: allText('.artifact'),
     media,
     timelineScrollClientHeight: document.querySelector('[data-testid="timeline-scroll"]').clientHeight,
     timelineScrollHeight: document.querySelector('[data-testid="timeline-scroll"]').scrollHeight,
+    timelineScrollTop: document.querySelector('[data-testid="timeline-scroll"]').scrollTop,
+    timelineOrderText: document.querySelector('#timelineOrder').textContent,
+    timelineOrderPressed: document.querySelector('#timelineOrder').getAttribute('aria-pressed'),
+    followText: document.querySelector('#followTimeline').textContent,
+    followPressed: document.querySelector('#followTimeline').getAttribute('aria-pressed'),
     renderedEvents: document.querySelectorAll('[data-testid="timeline-list"] .event').length,
+    eventHeadings: Array.from(document.querySelectorAll('[data-testid="timeline-list"] .event-title strong')).slice(0, 8).map((node) => node.textContent || ''),
+    eventKinds: Array.from(document.querySelectorAll('[data-testid="timeline-list"] .event-title .badge.kind')).slice(0, 8).map((node) => node.textContent || ''),
+    openEventHeadings: Array.from(document.querySelectorAll('[data-testid="timeline-list"] .event[open] .event-title strong')).map((node) => node.textContent || ''),
     firstEvent: document.querySelector('[data-testid="timeline-list"] .event')?.textContent || '',
     lastEvent: Array.from(document.querySelectorAll('[data-testid="timeline-list"] .event')).at(-1)?.textContent || '',
     inspector: text('#inspector'),
@@ -128,20 +144,83 @@ void main() {
           initial['timelineSummary'],
           contains('showing latest 120 of 170 event(s)'),
         );
-        expect(initial['timelineSummary'], contains('oldest to newest'));
+        expect(initial['timelineSummary'], contains('newest first'));
+        expect(initial['timelineSummary'], contains('following latest'));
         expect(initial['timelineSummary'], contains('selected Settings proof'));
         expect(initial['timeline'], contains('change-settings'));
         expect(initial['timeline'], contains('loop 2/3'));
         expect(initial['timeline'], contains('try 2/3'));
         expect(initial['timeline'], contains('settings-run-final.webm'));
+        expect(
+          initial['eventHeadings'] as List<Object?>,
+          isNot(contains('workflow_step_started')),
+        );
+        expect(
+          initial['eventHeadings'] as List<Object?>,
+          everyElement(anyOf(startsWith('step-'), 'change-settings')),
+        );
+        expect(initial['eventKinds'] as List<Object?>, contains('assertText'));
+        expect(initial['eventKinds'] as List<Object?>, contains('tap'));
         expect(initial['timeline'], isNot(contains('checkout-run-')));
+        expect(initial['timelineOrderText'], 'newest');
+        expect(initial['timelineOrderPressed'], 'true');
+        expect(initial['followText'], 'follow');
+        expect(initial['followPressed'], 'true');
         expect(initial['facts'], contains('settings-flow'));
         expect(initial['facts'], contains('Settings flow'));
+        expect(
+          initial['factGroups'] as List<Object?>,
+          containsAll(<String>['Identity', 'Scope', 'Timing', 'Bundle']),
+        );
+        expect((initial['runDetailGrid'] as String).split(' ').length, 1);
+        expect(initial['runFactsClientHeight'], greaterThan(0));
+        expect(
+          initial['runFactsScrollHeight'],
+          greaterThanOrEqualTo(initial['runFactsClientHeight'] as int),
+        );
+        expect(initial['bundleDownloadText'], 'download bundle');
+        expect(
+          initial['bundleDownloadHref'],
+          contains('/api/runs/settings-run/bundle-download'),
+        );
+        expect(
+          initial['bundleDownloadName'],
+          allOf(startsWith('flutter-cockpit-'), endsWith('-settings-run.tar')),
+        );
+        expect(initial['bundleDownloadDisabled'], 'false');
+        expect(initial['facts'], contains('bundleDownload'));
+        expect(initial['facts'], contains('available'));
+        final bundleDownload = await tab.evaluateMap('''
+(async () => {
+  const link = document.querySelector('#downloadBundle');
+  const response = await fetch(link.href, {cache: 'no-store'});
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  const nameBytes = bytes.slice(0, 100);
+  const nullIndex = nameBytes.indexOf(0);
+  const headerName = new TextDecoder('ascii')
+    .decode(nameBytes.slice(0, nullIndex < 0 ? 100 : nullIndex));
+  return {
+    ok: response.ok,
+    contentType: response.headers.get('content-type') || '',
+    byteLength: bytes.byteLength,
+    headerName
+  };
+})()
+''');
+        expect(bundleDownload['ok'], isTrue);
+        expect(bundleDownload['contentType'], contains('application/x-tar'));
+        expect(bundleDownload['byteLength'], greaterThan(1024));
+        expect(bundleDownload['headerName'], 'download_manifest.json');
         expect(initial['artifactSummary'], contains('linked artifact'));
         expect(initial['artifacts'], isNotEmpty);
         expect(initial['renderedEvents'], 120);
-        expect(initial['firstEvent'], contains('#51'));
-        expect(initial['lastEvent'], contains('#170'));
+        expect(initial['firstEvent'], contains('#170'));
+        expect(initial['lastEvent'], contains('#51'));
+        expect(
+          initial['openEventHeadings'] as List<Object?>,
+          contains('step-170'),
+        );
+        expect(initial['timelineScrollTop'], 0);
         expect(initial['timelineScrollClientHeight'], greaterThan(0));
         expect(
           initial['timelineScrollHeight'],
@@ -399,6 +478,92 @@ Array.from(document.querySelectorAll('.artifact-media video')).some((video) => v
         expect(stateInspector['details'], greaterThanOrEqualTo(4));
         expect(stateInspector['hasYamlClass'], isFalse);
 
+        final executablePayload = <String, Object?>{
+          'kind': 'runScript',
+          'outputRoot': tempDir.path,
+          'baseUrl': 'http://127.0.0.1:12345',
+          'platformAppId': 'dev.cockpit.demo',
+          'sessionHandle': _sessionHandleJson(),
+          'scriptText': '''
+schemaVersion: 1
+sessionId: launcher-envelope-session
+taskId: launcher-envelope-task
+platform: android
+steps:
+  - stepId: assert-ready
+    stepType: command
+    description: Ensure executable payload context survives format changes.
+    command:
+      commandId: assert-ready
+      commandType: assertText
+      parameters:
+        text: Ready
+''',
+        };
+        await tab.evaluate('''
+(() => {
+  const input = document.querySelector('#launchPayload');
+  input.value = ${jsonEncode(const JsonEncoder.withIndent('  ').convert(executablePayload))};
+  input.dispatchEvent(new Event('input', {bubbles: true}));
+})()
+''');
+        await tab.click("document.querySelector('#formatYaml')");
+        await tab.waitForExpression(
+          "!document.querySelector('#launchPayload').value.trim().startsWith('{') && "
+          "document.querySelector('#launchPayload').value.includes('sessionHandle:') && "
+          "document.querySelector('#launchPayload').value.includes('outputRoot:') && "
+          "document.querySelector('#payloadPreview').textContent.includes('launcher-envelope-session')",
+        );
+        final executableYaml = await tab.evaluateMap('''
+(() => ({
+  payload: document.querySelector('#launchPayload').value,
+  previewText: document.querySelector('#payloadPreview').textContent,
+  details: document.querySelectorAll('#payloadPreview details').length
+}))()
+''');
+        expect(executableYaml['payload'], contains('sessionHandle:'));
+        expect(executableYaml['payload'], contains('baseUrl:'));
+        expect(executableYaml['payload'], contains('platformAppId:'));
+        expect(executableYaml['payload'], contains('scriptText: |'));
+        expect(executableYaml['payload'], contains('launcher-envelope-task'));
+        expect(executableYaml['previewText'], contains('sessionHandle'));
+        expect(
+          executableYaml['previewText'],
+          contains('launcher-envelope-session'),
+        );
+        expect(executableYaml['details'], greaterThanOrEqualTo(4));
+
+        await tab.click("document.querySelector('#formatJson')");
+        await tab.waitForExpression(
+          "document.querySelector('#launchPayload').value.trim().startsWith('{') && "
+          "document.querySelector('#launchPayload').value.includes('sessionHandle') && "
+          "document.querySelector('#launchPayload').value.includes('launcher-envelope-task')",
+        );
+        final executableJson = await tab.evaluateMap('''
+(() => {
+  const payload = JSON.parse(document.querySelector('#launchPayload').value);
+  return {
+    kind: payload.kind,
+    outputRoot: payload.outputRoot,
+    baseUrl: payload.baseUrl,
+    platformAppId: payload.platformAppId,
+    sessionPlatform: payload.sessionHandle && payload.sessionHandle.platform,
+    scriptText: payload.scriptText,
+    previewText: document.querySelector('#payloadPreview').textContent
+  };
+})()
+''');
+        expect(executableJson['kind'], 'runScript');
+        expect(executableJson['outputRoot'], tempDir.path);
+        expect(executableJson['baseUrl'], 'http://127.0.0.1:12345');
+        expect(executableJson['platformAppId'], 'dev.cockpit.demo');
+        expect(executableJson['sessionPlatform'], 'android');
+        expect(
+          executableJson['scriptText'],
+          contains('launcher-envelope-task'),
+        );
+        expect(executableJson['previewText'], contains('sessionHandle'));
+
         await tab.click("document.querySelector('#tabEvent')");
         await tab.waitForExpression(
           "document.querySelector('#tabEvent').getAttribute('aria-selected') === 'true'",
@@ -455,7 +620,9 @@ Array.from(document.querySelectorAll('.artifact-media video')).some((video) => v
 (() => ({
   summary: document.querySelector('#timelineSummary').textContent,
   eventCount: document.querySelectorAll('[data-testid="timeline-list"] .event').length,
-  timeline: document.querySelector('[data-testid="timeline-list"]').textContent
+  timeline: document.querySelector('[data-testid="timeline-list"]').textContent,
+  firstHeading: document.querySelector('[data-testid="timeline-list"] .event .event-title strong')?.textContent || '',
+  openHeadings: Array.from(document.querySelectorAll('[data-testid="timeline-list"] .event[open] .event-title strong')).map((node) => node.textContent || '')
 }))()
 ''');
         expect(
@@ -465,6 +632,10 @@ Array.from(document.querySelectorAll('.artifact-media video')).some((video) => v
         expect(artifactFilter['eventCount'], greaterThan(0));
         expect(artifactFilter['eventCount'], lessThan(120));
         expect(artifactFilter['timeline'], contains('artifact'));
+        expect(
+          artifactFilter['openHeadings'] as List<Object?>,
+          contains(artifactFilter['firstHeading']),
+        );
 
         await tab.click("document.querySelector('[data-filter=\"failed\"]')");
         await tab.waitForExpression(
@@ -485,11 +656,141 @@ Array.from(document.querySelectorAll('.artifact-media video')).some((video) => v
           noSettingsErrors['timeline'],
           contains('no events match the active filter'),
         );
+        final emptyFilterDynamicState = await tab.evaluateMap('''
+(() => {
+  const keys = Object.keys(state.dynamicPanelOpen || {});
+  return {
+    eventKeys: keys.filter((key) => key.startsWith('event:')).length,
+    visibleEvents: document.querySelectorAll('[data-testid="timeline-list"] .event').length,
+    eventInlineKeys: keys.filter((key) => key.startsWith('event-inline:')).length
+  };
+})()
+''');
+        expect(emptyFilterDynamicState['eventKeys'], lessThanOrEqualTo(1));
+        expect(emptyFilterDynamicState['visibleEvents'], 0);
+        expect(emptyFilterDynamicState['eventInlineKeys'], 0);
 
         await tab.click("document.querySelector('[data-filter=\"all\"]')");
         await tab.waitForExpression(
           "document.querySelector('[data-filter=\"all\"]').getAttribute('aria-pressed') === 'true'",
         );
+        await tab.click(
+          "document.querySelectorAll('[data-testid=\"timeline-list\"] .event > summary')[1]",
+        );
+        await tab.waitForExpression(
+          "Array.from(document.querySelectorAll('[data-testid=\"timeline-list\"] .event[open] .event-details')).some((node) => "
+          "node.textContent.includes('eventType') && node.textContent.includes('workflow_step_started')) && "
+          "Array.from(document.querySelectorAll('[data-testid=\"timeline-list\"] .event[open] .event-execution-panel')).some((node) => "
+          "node.textContent.includes('Execution') && node.textContent.includes('parameters') && node.textContent.includes('success'))",
+        );
+        final expandedEvent = await tab.evaluateMap('''
+(() => {
+  const details = Array.from(document.querySelectorAll('[data-testid="timeline-list"] .event[open] .event-details'))
+    .find((node) => node.textContent.includes('workflow_step_started'));
+  const event = details?.closest('.event');
+  return {
+    heading: event?.querySelector('.event-title strong')?.textContent || '',
+    titleText: event?.querySelector('.event-title')?.textContent || '',
+    details: details?.textContent || '',
+    execution: event?.querySelector('.event-execution-panel')?.textContent || '',
+    followText: document.querySelector('#followTimeline').textContent,
+    followPressed: document.querySelector('#followTimeline').getAttribute('aria-pressed'),
+    summary: document.querySelector('#timelineSummary').textContent
+  };
+})()
+''');
+        expect(expandedEvent['heading'], isNot('workflow_step_started'));
+        expect(
+          expandedEvent['titleText'],
+          isNot(contains('workflow_step_started')),
+        );
+        expect(expandedEvent['details'], contains('eventType'));
+        expect(expandedEvent['details'], contains('workflow_step_started'));
+        expect(expandedEvent['execution'], contains('Execution'));
+        expect(expandedEvent['execution'], contains('parameters'));
+        expect(expandedEvent['execution'], contains('text'));
+        expect(expandedEvent['execution'], contains('success'));
+        expect(expandedEvent['followText'], 'follow');
+        expect(expandedEvent['followPressed'], 'true');
+        expect(expandedEvent['summary'], contains('following latest'));
+
+        await tab.click("document.querySelector('#timelineOrder')");
+        await tab.waitForExpression(
+          "document.querySelector('#timelineOrder').textContent === 'oldest' && "
+          "document.querySelector('#timelineSummary').textContent.includes('oldest first') && "
+          "document.querySelector('[data-testid=\"timeline-list\"] .event').textContent.includes('#51')",
+        );
+        final oldestFirst = await tab.evaluateMap('''
+(() => {
+  const scroll = document.querySelector('[data-testid="timeline-scroll"]');
+  return {
+    orderText: document.querySelector('#timelineOrder').textContent,
+    orderPressed: document.querySelector('#timelineOrder').getAttribute('aria-pressed'),
+    followText: document.querySelector('#followTimeline').textContent,
+    followPressed: document.querySelector('#followTimeline').getAttribute('aria-pressed'),
+    summary: document.querySelector('#timelineSummary').textContent,
+    firstEvent: document.querySelector('[data-testid="timeline-list"] .event')?.textContent || '',
+    lastEvent: Array.from(document.querySelectorAll('[data-testid="timeline-list"] .event')).at(-1)?.textContent || '',
+    scrollTop: scroll.scrollTop,
+    latestEdgeDistance: scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight,
+    openEventHeadings: Array.from(document.querySelectorAll('[data-testid="timeline-list"] .event[open] .event-title strong')).map((node) => node.textContent || '')
+  };
+})()
+''');
+        expect(oldestFirst['orderText'], 'oldest');
+        expect(oldestFirst['orderPressed'], 'false');
+        expect(oldestFirst['followText'], 'follow');
+        expect(oldestFirst['followPressed'], 'true');
+        expect(oldestFirst['summary'], contains('oldest first'));
+        expect(oldestFirst['summary'], contains('following latest'));
+        expect(oldestFirst['firstEvent'], contains('#51'));
+        expect(oldestFirst['lastEvent'], contains('#170'));
+        expect(oldestFirst['latestEdgeDistance'], lessThan(8));
+        expect(
+          oldestFirst['openEventHeadings'] as List<Object?>,
+          contains('step-170'),
+        );
+
+        await tab.evaluate('''
+(() => {
+  const scroll = document.querySelector('[data-testid="timeline-scroll"]');
+  scroll.scrollTop = 0;
+  scroll.dispatchEvent(new Event('scroll', {bubbles: true}));
+})()
+''');
+        await tab.waitForExpression(
+          "document.querySelector('#followTimeline').textContent === 'paused' && "
+          "document.querySelector('#timelineSummary').textContent.includes('follow paused')",
+        );
+        final pausedFollow = await tab.evaluateMap('''
+(() => ({
+  followText: document.querySelector('#followTimeline').textContent,
+  followPressed: document.querySelector('#followTimeline').getAttribute('aria-pressed'),
+  summary: document.querySelector('#timelineSummary').textContent
+}))()
+''');
+        expect(pausedFollow['followText'], 'paused');
+        expect(pausedFollow['followPressed'], 'false');
+        expect(pausedFollow['summary'], contains('follow paused'));
+
+        await tab.click("document.querySelector('#followTimeline')");
+        await tab.waitForExpression(
+          "document.querySelector('#followTimeline').textContent === 'follow' && "
+          "document.querySelector('#timelineSummary').textContent.includes('following latest')",
+        );
+        final resumedFollow = await tab.evaluateMap('''
+(() => {
+  const scroll = document.querySelector('[data-testid="timeline-scroll"]');
+  return {
+    followText: document.querySelector('#followTimeline').textContent,
+    followPressed: document.querySelector('#followTimeline').getAttribute('aria-pressed'),
+    latestEdgeDistance: scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight
+  };
+})()
+''');
+        expect(resumedFollow['followText'], 'follow');
+        expect(resumedFollow['followPressed'], 'true');
+        expect(resumedFollow['latestEdgeDistance'], lessThan(8));
 
         await tab.click("document.querySelector('#collapsePanels')");
         await tab.waitForExpression(
@@ -618,11 +919,12 @@ Array.from(document.querySelectorAll('.artifact-media video')).some((video) => v
           "document.querySelector('[data-testid=\"timeline-list\"]').textContent.includes('Checkout confirmation text did not appear')",
         );
         await tab.click(
-          "document.querySelector('[data-testid=\"timeline-list\"] .event summary')",
+          "Array.from(document.querySelectorAll('[data-testid=\"timeline-list\"] .event summary')).find((node) => node.textContent.includes('Checkout confirmation text did not appear'))",
         );
         await tab.waitForExpression(
           "document.querySelector('#selectedStatus').textContent === 'failed' && "
-          "document.querySelector('[data-testid=\"timeline-list\"] .event[aria-selected=\"true\"]')",
+          "document.querySelector('[data-testid=\"timeline-list\"] .event[aria-selected=\"true\"]') && "
+          "document.querySelector('#inspector').textContent.includes('assertTextFailed')",
         );
         final checkoutFailure = await tab.evaluateMap('''
 (() => ({
@@ -651,7 +953,7 @@ Array.from(document.querySelectorAll('.artifact-media video')).some((video) => v
           "document.querySelectorAll('[data-testid=\"timeline-list\"] .event').length > 0",
         );
         await tab.click(
-          "document.querySelector('[data-testid=\"timeline-list\"] .event summary')",
+          "Array.from(document.querySelectorAll('[data-testid=\"timeline-list\"] .event summary')).at(-1)",
         );
         await tab.waitForExpression(
           "document.querySelector('[data-testid=\"timeline-list\"] .event[aria-selected=\"true\"]') && "
@@ -737,6 +1039,25 @@ Array.from(document.querySelectorAll('.artifact-media video')).some((video) => v
         expect(liveRefresh['eventCount'], '171');
         expect(liveRefresh['timeline'], contains('live-refresh'));
         expect(liveRefresh['summary'], contains('171 event(s)'));
+        final dynamicPanelState = await tab.evaluateMap('''
+(() => {
+  const keys = Object.keys(state.dynamicPanelOpen || {});
+  return {
+    total: keys.length,
+    eventInline: keys.filter((key) => key.startsWith('event-inline:')).length,
+    staleCheckoutInline: keys.filter((key) => key.startsWith('event-inline:checkout-run')).length,
+    staleCheckoutEvents: keys.filter((key) => key.startsWith('event:checkout-run')).length,
+    visibleEvents: document.querySelectorAll('[data-testid="timeline-list"] .event').length
+  };
+        })()
+''');
+        expect(dynamicPanelState['visibleEvents'], 120);
+        expect(
+          dynamicPanelState['eventInline'],
+          lessThanOrEqualTo((dynamicPanelState['visibleEvents']! as int) * 3),
+        );
+        expect(dynamicPanelState['staleCheckoutInline'], 0);
+        expect(dynamicPanelState['staleCheckoutEvents'], 0);
 
         await tab.setViewport(width: 390, height: 740);
         await tab.reload();
@@ -748,9 +1069,15 @@ Array.from(document.querySelectorAll('.artifact-media video')).some((video) => v
   const mainStyle = getComputedStyle(document.querySelector('main'));
   const railStyle = getComputedStyle(document.querySelector('.rail'));
   const timelineScroll = document.querySelector('[data-testid="timeline-scroll"]');
+  const runDetail = document.querySelector('.run-detail');
+  const runFacts = document.querySelector('.run-facts-scroll');
   return {
     columns: mainStyle.gridTemplateColumns,
     railPosition: railStyle.position,
+    runDetailColumns: getComputedStyle(runDetail).gridTemplateColumns,
+    factGroupCount: document.querySelectorAll('#runFacts .fact-group').length,
+    runFactsClientHeight: runFacts.clientHeight,
+    runFactsScrollHeight: runFacts.scrollHeight,
     timelineClientHeight: timelineScroll.clientHeight,
     timelineScrollHeight: timelineScroll.scrollHeight,
     bodyWidth: document.body.scrollWidth,
@@ -760,6 +1087,13 @@ Array.from(document.querySelectorAll('.artifact-media video')).some((video) => v
 ''');
         expect(mobile['columns'], isNot(contains('420px')));
         expect(mobile['railPosition'], 'static');
+        expect((mobile['runDetailColumns'] as String).split(' ').length, 1);
+        expect(mobile['factGroupCount'], greaterThanOrEqualTo(4));
+        expect(mobile['runFactsClientHeight'], greaterThan(0));
+        expect(
+          mobile['runFactsScrollHeight'],
+          greaterThanOrEqualTo(mobile['runFactsClientHeight'] as int),
+        );
         expect(mobile['timelineClientHeight'], greaterThan(0));
         expect(
           mobile['timelineScrollHeight'],
@@ -861,6 +1195,502 @@ Array.from(document.querySelectorAll('.artifact-media video')).some((video) => v
         unauthorizedTab.expectNoPageErrors();
       },
       timeout: const Timeout(Duration(seconds: 30)),
+    );
+
+    test(
+      'renders a real run-script history bundle written by the service',
+      () async {
+        final chrome = _findChromeExecutable();
+        if (chrome == null) {
+          markTestSkipped('Chrome/Chromium executable was not found.');
+          return;
+        }
+
+        final tempDir = await Directory.systemTemp.createTemp(
+          'cockpit_devtools_real_run_script_history_test',
+        );
+        final remoteServer = await HttpServer.bind(
+          InternetAddress.loopbackIPv4,
+          0,
+        );
+        addTearDown(() async {
+          await remoteServer.close(force: true);
+          if (tempDir.existsSync()) {
+            await tempDir.delete(recursive: true);
+          }
+        });
+
+        final screenshotBytes = _pngBytes(labelHash: 0x20260622);
+        final recordingBytes = base64Decode(_tinyWebmBase64);
+        final commandHits = <String, int>{};
+        var activeRecordingRequest = const CockpitRecordingRequest(
+          purpose: CockpitRecordingPurpose.acceptance,
+          name: 'real-dashboard-flow',
+          mode: CockpitRecordingMode.cheap,
+          attachToStep: true,
+          tailStabilizationDelay: Duration.zero,
+        );
+        remoteServer.listen((request) async {
+          switch ((request.method, request.uri.path)) {
+            case ('GET', '/health'):
+              request.response.headers.contentType = ContentType.json;
+              request.response.write(
+                jsonEncode(
+                  CockpitRemoteSessionStatus(
+                    sessionId: 'real-remote-session',
+                    platform: 'web',
+                    transportType: 'remoteHttp',
+                    currentRouteName: '/inbox',
+                    capabilities: CockpitCapabilities(
+                      platform: 'web',
+                      transportType: 'remoteHttp',
+                      supportsInAppControl: true,
+                      supportsFlutterViewCapture: true,
+                      supportsNativeScreenCapture: true,
+                      supportsHostAutomation: false,
+                      supportedCommands: const <CockpitCommandType>[
+                        CockpitCommandType.tap,
+                        CockpitCommandType.assertText,
+                        CockpitCommandType.captureScreenshot,
+                      ],
+                      supportedLocatorStrategies: CockpitLocatorKind.values,
+                    ),
+                    recordingCapabilities: CockpitRecordingCapabilities(
+                      supportsNativeRecording: true,
+                      preferredAcceptanceRecordingKind:
+                          CockpitRecordingKind.nativeScreen,
+                      supportedLayers: const <CockpitRecordingLayer>[
+                        CockpitRecordingLayer.hostScreen,
+                      ],
+                      preferredLayer: CockpitRecordingLayer.hostScreen,
+                    ),
+                    snapshot: CockpitSnapshot(routeName: '/inbox'),
+                    environment: const CockpitEnvironment(
+                      platform: 'web',
+                      flutterVersion: '3.32.0',
+                      dartVersion: '3.8.0',
+                    ),
+                  ).toJson(),
+                ),
+              );
+            case ('POST', '/commands/execute'):
+              request.response.headers.contentType = ContentType.json;
+              final body =
+                  jsonDecode(await utf8.decoder.bind(request).join())
+                      as Map<String, Object?>;
+              final command = CockpitCommand.fromJson(body);
+              final commandHit = commandHits.update(
+                command.commandId,
+                (count) => count + 1,
+                ifAbsent: () => 1,
+              );
+              var success = true;
+              CockpitCommandError? error;
+              if (command.commandId == 'assert-real-ready' && commandHit == 1) {
+                success = false;
+                error = CockpitCommandError.assertionFailed(
+                  message: 'Inbox was not ready on the first poll.',
+                  details: const <String, Object?>{'text': 'Ready'},
+                );
+              }
+              if (command.commandId == 'has-real-settings-dialog') {
+                success = false;
+                error = CockpitCommandError.assertionFailed(
+                  message: 'Settings dialog is not open.',
+                  details: const <String, Object?>{'text': 'Settings'},
+                );
+              }
+              if (command.commandId == 'has-real-queue-item' &&
+                  commandHit > 2) {
+                success = false;
+                error = CockpitCommandError.assertionFailed(
+                  message: 'No queued items remain.',
+                  details: const <String, Object?>{'text': 'Queued'},
+                );
+              }
+              final screenshotPath = switch (command.commandId) {
+                'capture-real-queue-state' =>
+                  'screenshots/real-queue-state-$commandHit.png',
+                'capture-real-proof' => 'screenshots/real-flow-final.png',
+                _
+                    when command.commandType ==
+                        CockpitCommandType.captureScreenshot =>
+                  'screenshots/${command.commandId}.png',
+                _ => null,
+              };
+              final screenshotPayload = switch (command.commandId) {
+                'capture-real-proof' => screenshotBytes,
+                _ when screenshotPath != null => _pngBytes(
+                  labelHash: 0x20260622 + commandHit,
+                ),
+                _ => null,
+              };
+              request.response.write(
+                jsonEncode(
+                  CockpitRemoteCommandResponse(
+                    result: CockpitCommandResult(
+                      success: success,
+                      commandId: command.commandId,
+                      commandType: command.commandType,
+                      durationMs: screenshotPath != null ? 42 : 18,
+                      artifacts: screenshotPath == null
+                          ? const <CockpitArtifactRef>[]
+                          : <CockpitArtifactRef>[
+                              CockpitArtifactRef(
+                                role: 'screenshot',
+                                relativePath: screenshotPath,
+                              ),
+                            ],
+                      snapshot: CockpitSnapshot(routeName: '/inbox').toJson(),
+                      requestedCaptureProfile: screenshotPath != null
+                          ? CockpitCaptureProfile.acceptance
+                          : null,
+                      error: error,
+                    ),
+                    artifactPayloads: screenshotPath == null
+                        ? const <CockpitRemoteArtifactPayload>[]
+                        : <CockpitRemoteArtifactPayload>[
+                            CockpitRemoteArtifactPayload(
+                              artifact: CockpitArtifactRef(
+                                role: 'screenshot',
+                                relativePath: screenshotPath,
+                              ),
+                              bytes: screenshotPayload!,
+                            ),
+                          ],
+                  ).toJson(),
+                ),
+              );
+            case ('POST', '/recording/start'):
+              request.response.headers.contentType = ContentType.json;
+              final body =
+                  jsonDecode(await utf8.decoder.bind(request).join())
+                      as Map<String, Object?>;
+              activeRecordingRequest = CockpitRecordingRequest.fromJson(body);
+              request.response.write(
+                jsonEncode(
+                  CockpitRecordingSession(
+                    request: activeRecordingRequest,
+                    state: CockpitRecordingState.recording,
+                  ).toJson(),
+                ),
+              );
+            case ('POST', '/recording/stop'):
+              request.response.headers.contentType = ContentType.json;
+              request.response.write(
+                jsonEncode(
+                  CockpitRemoteRecordingResponse(
+                    result: CockpitRecordingResult(
+                      state: CockpitRecordingState.completed,
+                      purpose: activeRecordingRequest.purpose,
+                      recordingKind: CockpitRecordingKind.nativeScreen,
+                      requestedMode: activeRecordingRequest.mode,
+                      requestedLayer: activeRecordingRequest.layer,
+                      effectiveLayer: CockpitRecordingLayer.hostScreen,
+                      artifact: const CockpitArtifactRef(
+                        role: 'recording',
+                        relativePath: 'recordings/real-dashboard-flow.webm',
+                      ),
+                      durationMs: 600,
+                    ),
+                    artifactDownloads: const <CockpitRemoteArtifactDownload>[
+                      CockpitRemoteArtifactDownload(
+                        artifact: CockpitArtifactRef(
+                          role: 'recording',
+                          relativePath: 'recordings/real-dashboard-flow.webm',
+                        ),
+                        downloadPath: '/artifacts/real-dashboard-flow.webm',
+                      ),
+                    ],
+                  ).toJson(),
+                ),
+              );
+            case ('GET', '/artifacts/real-dashboard-flow.webm'):
+              request.response.headers.contentType = ContentType.binary;
+              request.response.add(recordingBytes);
+            default:
+              request.response.statusCode = HttpStatus.notFound;
+              request.response.headers.contentType = ContentType.json;
+              request.response.write(
+                jsonEncode(const <String, Object?>{'error': 'notFound'}),
+              );
+          }
+          await request.response.close();
+        });
+
+        final service = CockpitRunRemoteControlScriptService();
+        final runResult = await service.run(
+          CockpitRunRemoteControlScriptRequest(
+            script: CockpitControlScript(
+              sessionId: 'real-dashboard-session',
+              taskId: 'real-dashboard-task',
+              platform: 'web',
+              workflowSteps: <CockpitWorkflowStep>[
+                CockpitStartRecordingWorkflowStep(
+                  stepId: 'start-real-recording',
+                  description: 'Start recording the real dashboard flow.',
+                  recording: CockpitRecordingRequest(
+                    purpose: CockpitRecordingPurpose.acceptance,
+                    name: 'real-dashboard-flow',
+                    mode: CockpitRecordingMode.cheap,
+                    attachToStep: true,
+                    tailStabilizationDelay: Duration.zero,
+                  ),
+                ),
+                CockpitCommandWorkflowStep(
+                  stepId: 'assert-real-inbox',
+                  description: 'Assert the live app is on the inbox surface.',
+                  command: CockpitCommand(
+                    commandId: 'assert-real-inbox',
+                    commandType: CockpitCommandType.assertText,
+                    parameters: <String, Object?>{'text': 'Inbox'},
+                  ),
+                ),
+                CockpitRetryWorkflowStep(
+                  stepId: 'wait-real-ready',
+                  description: 'Retry until the live inbox is ready.',
+                  maxAttempts: 3,
+                  delayMs: 0,
+                  step: CockpitCommandWorkflowStep(
+                    stepId: 'assert-real-ready-step',
+                    description: 'Assert the ready marker is visible.',
+                    command: CockpitCommand(
+                      commandId: 'assert-real-ready',
+                      commandType: CockpitCommandType.assertText,
+                      parameters: <String, Object?>{'text': 'Ready'},
+                    ),
+                  ),
+                ),
+                CockpitIfWorkflowStep(
+                  stepId: 'close-real-settings-if-open',
+                  description: 'Close the settings dialog only when present.',
+                  condition: CockpitCommand(
+                    commandId: 'has-real-settings-dialog',
+                    commandType: CockpitCommandType.assertText,
+                    parameters: <String, Object?>{'text': 'Settings'},
+                  ),
+                  thenSteps: <CockpitWorkflowStep>[
+                    CockpitCommandWorkflowStep(
+                      stepId: 'close-real-settings',
+                      description: 'Close the visible settings dialog.',
+                      command: CockpitCommand(
+                        commandId: 'close-real-settings',
+                        commandType: CockpitCommandType.tap,
+                        locator: const CockpitLocator(tooltip: 'Close'),
+                      ),
+                    ),
+                  ],
+                  elseSteps: <CockpitWorkflowStep>[
+                    CockpitCommandWorkflowStep(
+                      stepId: 'continue-real-inbox',
+                      description: 'Continue because settings is absent.',
+                      command: CockpitCommand(
+                        commandId: 'continue-real-inbox',
+                        commandType: CockpitCommandType.assertText,
+                        parameters: <String, Object?>{'text': 'Inbox'},
+                      ),
+                    ),
+                  ],
+                ),
+                CockpitLoopWorkflowStep(
+                  stepId: 'drain-real-queue',
+                  description: 'Capture each visible queued item.',
+                  maxIterations: 3,
+                  condition: CockpitCommand(
+                    commandId: 'has-real-queue-item',
+                    commandType: CockpitCommandType.assertText,
+                    parameters: <String, Object?>{'text': 'Queued'},
+                  ),
+                  steps: <CockpitWorkflowStep>[
+                    CockpitCommandWorkflowStep(
+                      stepId: 'capture-real-queue-state-step',
+                      description: 'Capture the current queue state.',
+                      command: CockpitCommand(
+                        commandId: 'capture-real-queue-state',
+                        commandType: CockpitCommandType.captureScreenshot,
+                        screenshotRequest: CockpitScreenshotRequest(
+                          reason: CockpitScreenshotReason.acceptance,
+                          name: 'real-queue-state',
+                          includeSnapshot: true,
+                          attachToStep: true,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                CockpitCommandWorkflowStep(
+                  stepId: 'capture-real-proof',
+                  description: 'Capture the acceptance screenshot.',
+                  command: CockpitCommand(
+                    commandId: 'capture-real-proof',
+                    commandType: CockpitCommandType.captureScreenshot,
+                    screenshotRequest: CockpitScreenshotRequest(
+                      reason: CockpitScreenshotReason.acceptance,
+                      name: 'real-flow-final',
+                      includeSnapshot: true,
+                      attachToStep: true,
+                    ),
+                  ),
+                ),
+                CockpitStopRecordingWorkflowStep(
+                  stepId: 'stop-real-recording',
+                  description: 'Stop recording after the acceptance proof.',
+                  settleDelay: Duration.zero,
+                ),
+              ],
+              failFast: true,
+            ),
+            outputRoot: tempDir.path,
+            baseUri: Uri.parse('http://127.0.0.1:${remoteServer.port}'),
+            liveRunDisplayName: 'Real run-script dashboard proof',
+          ),
+        );
+        expect(runResult.manifest.status, CockpitTaskStatus.completed);
+        expect(runResult.artifactPaths.primaryScreenshotPath, isNotNull);
+        expect(runResult.artifactPaths.primaryRecordingPath, isNotNull);
+        expect(
+          img
+              .decodePng(
+                File(
+                  runResult.artifactPaths.primaryScreenshotPath!,
+                ).readAsBytesSync(),
+              )
+              ?.width,
+          160,
+        );
+        expect(
+          File(runResult.artifactPaths.primaryRecordingPath!).lengthSync(),
+          recordingBytes.length,
+        );
+
+        final server = CockpitDevtoolsServer(
+          historyRoot: tempDir.path,
+          token: 'secret',
+        );
+        final handle = await server.start();
+        addTearDown(handle.close);
+
+        final browser = await _ChromeCdpBrowser.start(chrome);
+        addTearDown(browser.close);
+        final tab = await browser.openTab(
+          handle.uri.replace(
+            queryParameters: <String, String>{
+              'token': 'secret',
+              'scope': 'real-dashboard-session',
+            },
+          ),
+        );
+        await tab.setViewport(width: 1280, height: 860);
+
+        await tab.waitForExpression(
+          "document.querySelector('#selectedStatus').textContent === 'completed' && "
+          "document.querySelector('[data-testid=\"run-list\"]').textContent.includes('Real run-script dashboard proof') && "
+          "document.querySelector('[data-testid=\"timeline-list\"]').textContent.includes('wait-real-ready') && "
+          "document.querySelector('[data-testid=\"timeline-list\"]').textContent.includes('drain-real-queue') && "
+          "document.querySelector('[data-testid=\"timeline-list\"]').textContent.includes('capture-real-proof') && "
+          "document.querySelector('[data-testid=\"artifact-gallery\"]').textContent.includes('real-queue-state-1.png') && "
+          "document.querySelector('[data-testid=\"artifact-gallery\"]').textContent.includes('real-flow-final.png') && "
+          "document.querySelector('[data-testid=\"artifact-gallery\"]').textContent.includes('real-dashboard-flow.webm')",
+          timeout: const Duration(seconds: 8),
+        );
+        await tab.waitForExpression('''
+Array.from(document.querySelectorAll('.artifact-media img')).some((img) => img.complete && img.naturalWidth === 160) &&
+Array.from(document.querySelectorAll('.artifact-media video')).some((video) => video.readyState >= 1 && video.videoWidth > 0)
+''', timeout: const Duration(seconds: 8));
+
+        final rendered = await tab.evaluateMap('''
+(() => ({
+  url: location.href,
+  selectedStatus: document.querySelector('#selectedStatus').textContent,
+  runCount: document.querySelector('#runCount').textContent,
+  eventCount: document.querySelector('#eventCount').textContent,
+  artifactCount: document.querySelector('#artifactCount').textContent,
+  context: document.querySelector('[data-testid="timeline-context"]').textContent,
+  timeline: document.querySelector('[data-testid="timeline-list"]').textContent,
+  gallery: document.querySelector('[data-testid="artifact-gallery"]').textContent,
+  imageWidth: Array.from(document.querySelectorAll('.artifact-media img')).find((img) => img.complete && img.naturalWidth > 0)?.naturalWidth || 0,
+  videoWidth: Array.from(document.querySelectorAll('.artifact-media video')).find((video) => video.readyState >= 1 && video.videoWidth > 0)?.videoWidth || 0,
+  screenshotHref: Array.from(document.querySelectorAll('.artifact-open')).find((node) => node.href.includes('real-flow-final.png'))?.href || '',
+  queueScreenshotHref: Array.from(document.querySelectorAll('.artifact-open')).find((node) => node.href.includes('real-queue-state-1.png'))?.href || '',
+  recordingHref: Array.from(document.querySelectorAll('.artifact-open')).find((node) => node.href.includes('real-dashboard-flow.webm'))?.href || '',
+  bodyWidth: document.body.scrollWidth,
+  viewportWidth: innerWidth
+}))()
+''');
+        expect(rendered['url'], contains('scope=real-dashboard-session'));
+        expect(rendered['selectedStatus'], 'completed');
+        expect(rendered['runCount'], '1');
+        expect(
+          int.parse(rendered['eventCount']! as String),
+          greaterThanOrEqualTo(8),
+        );
+        expect(int.parse(rendered['artifactCount']! as String), greaterThan(1));
+        expect(rendered['context'], contains('real-dashboard-session'));
+        expect(rendered['context'], contains('pinned scope'));
+        expect(rendered['timeline'], contains('start-real-recording'));
+        expect(rendered['timeline'], contains('assert-real-inbox'));
+        expect(rendered['timeline'], contains('wait-real-ready'));
+        expect(rendered['timeline'], contains('try 1/3'));
+        expect(rendered['timeline'], contains('try 2/3'));
+        expect(rendered['timeline'], contains('close-real-settings-if-open'));
+        expect(rendered['timeline'], contains('condition false'));
+        expect(rendered['timeline'], contains('branch else'));
+        expect(rendered['timeline'], contains('continue-real-inbox'));
+        expect(rendered['timeline'], contains('drain-real-queue'));
+        expect(rendered['timeline'], contains('loop 1/3'));
+        expect(rendered['timeline'], contains('loop 2/3'));
+        expect(rendered['timeline'], contains('loop 3/3'));
+        expect(rendered['timeline'], contains('capture-real-proof'));
+        expect(rendered['timeline'], contains('stop-real-recording'));
+        expect(rendered['gallery'], contains('real-queue-state-1.png'));
+        expect(rendered['gallery'], contains('real-queue-state-2.png'));
+        expect(rendered['gallery'], contains('real-flow-final.png'));
+        expect(rendered['gallery'], contains('real-dashboard-flow.webm'));
+        expect(rendered['imageWidth'], 160);
+        expect(rendered['videoWidth'], greaterThan(0));
+        expect(rendered['screenshotHref'], contains('/bundle/screenshots/'));
+        expect(
+          rendered['queueScreenshotHref'],
+          contains('/bundle/screenshots/'),
+        );
+        expect(rendered['recordingHref'], contains('/bundle/recordings/'));
+        expect(
+          rendered['bodyWidth'],
+          lessThanOrEqualTo((rendered['viewportWidth'] as int) + 2),
+        );
+
+        await tab.click(
+          "Array.from(document.querySelectorAll('.artifact-media.clickable')).find((node) => node.querySelector('video'))",
+        );
+        await tab.waitForExpression(
+          '!document.querySelector("[data-testid=\\"media-viewer\\"]").hidden && '
+          'document.querySelector("#mediaViewerStage video") && '
+          'document.querySelector("#mediaViewerStage video").readyState >= 1',
+        );
+        final viewer = await tab.evaluateMap('''
+(() => {
+  const video = document.querySelector('#mediaViewerStage video');
+  return {
+    title: document.querySelector('#mediaViewerTitle').textContent,
+    path: document.querySelector('#mediaViewerPath').textContent,
+    href: document.querySelector('#mediaViewerDownload').href,
+    download: document.querySelector('#mediaViewerDownload').getAttribute('download'),
+    controls: video.controls,
+    videoWidth: video.videoWidth,
+    bodyLocked: document.body.classList.contains('media-viewer-open')
+  };
+})()
+''');
+        expect(viewer['title'], contains('recording'));
+        expect(viewer['path'], contains('real-dashboard-flow.webm'));
+        expect(viewer['href'], contains('/bundle/recordings/'));
+        expect(viewer['download'], 'real-dashboard-flow.webm');
+        expect(viewer['controls'], isTrue);
+        expect(viewer['videoWidth'], greaterThan(0));
+        expect(viewer['bodyLocked'], isTrue);
+        tab.expectNoPageErrors();
+      },
+      timeout: const Timeout(Duration(seconds: 45)),
     );
 
     test(
@@ -1199,6 +2029,11 @@ Array.from(document.querySelectorAll('.artifact-media video')).some((video) => v
           lessThanOrEqualTo((paged['viewportWidth'] as int) + 2),
         );
 
+        await tab.click("document.querySelector('.artifact summary')");
+        await tab.waitForExpression(
+          "Object.keys(state.dynamicPanelOpen || {}).some((key) => key.startsWith('artifact:'))",
+        );
+
         await tab.evaluate(r'''
 (() => {
   const input = document.querySelector('#runSearch');
@@ -1293,6 +2128,24 @@ Array.from(document.querySelectorAll('.artifact-media video')).some((video) => v
           "document.querySelector('[data-testid=\"timeline-list\"]').textContent.includes('no events recorded yet')",
           timeout: const Duration(seconds: 5),
         );
+        final runningValidationState = await tab.evaluateMap('''
+(() => {
+  const keys = Object.keys(state.dynamicPanelOpen || {});
+  return {
+    gallery: document.querySelector('[data-testid="artifact-gallery"]').textContent,
+    artifactKeys: keys.filter((key) => key.startsWith('artifact:')).length,
+    eventKeys: keys.filter((key) => key.startsWith('event:')).length,
+    eventInlineKeys: keys.filter((key) => key.startsWith('event-inline:')).length
+  };
+})()
+''');
+        expect(
+          runningValidationState['gallery'],
+          contains('Screenshots, keyframes, recordings'),
+        );
+        expect(runningValidationState['artifactKeys'], 0);
+        expect(runningValidationState['eventKeys'], 0);
+        expect(runningValidationState['eventInlineKeys'], 0);
         await tab.click("document.querySelector('#tabState')");
         await tab.waitForExpression(
           "document.querySelector('#inspector').textContent.includes('validateTask') && "
@@ -1356,6 +2209,173 @@ Array.from(document.querySelectorAll('.artifact-media video')).some((video) => v
         );
         expect(invalid['selectedStatus'], 'completed');
         expect(invalid['runList'], contains('validate-dashboard-task'));
+        tab.expectNoPageErrors();
+      },
+      timeout: const Timeout(Duration(seconds: 45)),
+    );
+
+    test(
+      'renders failed submitted jobs without stale timeline or evidence',
+      () async {
+        final chrome = _findChromeExecutable();
+        if (chrome == null) {
+          markTestSkipped('Chrome/Chromium executable was not found.');
+          return;
+        }
+
+        final tempDir = await Directory.systemTemp.createTemp(
+          'cockpit_devtools_failed_job_browser_test',
+        );
+        addTearDown(() async {
+          if (tempDir.existsSync()) {
+            await tempDir.delete(recursive: true);
+          }
+        });
+        await _writeBrowserFixture(tempDir);
+        final submittedRequest =
+            Completer<CockpitRunRemoteControlScriptRequest>();
+
+        final server = CockpitDevtoolsServer(
+          historyRoot: tempDir.path,
+          token: 'secret',
+          runScript: (request) async {
+            if (!submittedRequest.isCompleted) {
+              submittedRequest.complete(request);
+            }
+            throw StateError(
+              'Dashboard submitted run failed before bundle creation.',
+            );
+          },
+        );
+        final handle = await server.start();
+        addTearDown(handle.close);
+
+        final browser = await _ChromeCdpBrowser.start(chrome);
+        addTearDown(browser.close);
+        final tab = await browser.openTab(
+          handle.uri.replace(
+            queryParameters: <String, String>{
+              'token': 'secret',
+              'scope': 'settings-flow',
+            },
+          ),
+        );
+        await tab.setViewport(width: 1280, height: 860);
+
+        await tab.waitForExpression(
+          "document.querySelector('[data-testid=\"artifact-gallery\"]').textContent.includes('settings-run-final.webm') && "
+          "document.querySelectorAll('.artifact').length > 0",
+        );
+        await tab.click("document.querySelector('.artifact summary')");
+        await tab.waitForExpression(
+          "Object.keys(state.dynamicPanelOpen || {}).some((key) => key.startsWith('artifact:'))",
+        );
+
+        final payload = <String, Object?>{
+          'kind': 'runScript',
+          'script': <String, Object?>{
+            'schemaVersion': 1,
+            'sessionId': 'failed-dashboard-session',
+            'taskId': 'failed-dashboard-task',
+            'platform': 'web',
+            'steps': <Object?>[
+              <String, Object?>{
+                'stepId': 'assert-ready',
+                'stepType': 'command',
+                'description': 'This job fails inside the DevTools runner.',
+                'command': <String, Object?>{
+                  'commandId': 'assert-ready',
+                  'commandType': 'assertText',
+                  'parameters': <String, Object?>{'text': 'Ready'},
+                },
+              },
+            ],
+          },
+        };
+        await tab.click(
+          "document.querySelector('[data-testid=\"launcher-panel\"] > summary')",
+        );
+        await tab.evaluate('''
+(() => {
+  const input = document.querySelector('#launchPayload');
+  input.value = ${jsonEncode(const JsonEncoder.withIndent('  ').convert(payload))};
+  input.dispatchEvent(new Event('input', {bubbles: true}));
+})()
+''');
+        await tab.waitForExpression(
+          "document.querySelector('#payloadPreview').textContent.includes('failed-dashboard-task')",
+        );
+        await tab.click("document.querySelector('#submitRun')");
+        final submitted = await submittedRequest.future.timeout(
+          const Duration(seconds: 4),
+        );
+        expect(submitted.script.sessionId, 'failed-dashboard-session');
+        expect(submitted.liveRunId, isNotNull);
+
+        await tab.waitForExpression(
+          "document.querySelector('#selectedStatus').textContent === 'failed' && "
+          "document.querySelector('[data-testid=\"run-list\"]').textContent.includes('failed-dashboard-task') && "
+          "document.querySelector('[data-testid=\"timeline-list\"]').textContent.includes('no events recorded yet') && "
+          "document.querySelector('[data-testid=\"artifact-gallery\"]').textContent.includes('Screenshots, keyframes, recordings')",
+          timeout: const Duration(seconds: 5),
+        );
+        await tab.click("document.querySelector('#tabState')");
+        await tab.waitForExpression(
+          "document.querySelector('#inspector').textContent.includes('Dashboard submitted run failed before bundle creation') && "
+          "document.querySelector('#inspector').textContent.includes('StateError')",
+        );
+        final failedJob = await tab.evaluateMap('''
+(() => {
+  const keys = Object.keys(state.dynamicPanelOpen || {});
+  return {
+    url: location.href,
+    selectedStatus: document.querySelector('#selectedStatus').textContent,
+    runCount: document.querySelector('#runCount').textContent,
+    eventCount: document.querySelector('#eventCount').textContent,
+    artifactCount: document.querySelector('#artifactCount').textContent,
+    context: document.querySelector('[data-testid="timeline-context"]').textContent,
+    facts: document.querySelector('#runFacts').textContent,
+    timeline: document.querySelector('[data-testid="timeline-list"]').textContent,
+    gallery: document.querySelector('[data-testid="artifact-gallery"]').textContent,
+    inspector: document.querySelector('#inspector').textContent,
+    artifactKeys: keys.filter((key) => key.startsWith('artifact:')).length,
+    eventKeys: keys.filter((key) => key.startsWith('event:')).length,
+    eventInlineKeys: keys.filter((key) => key.startsWith('event-inline:')).length,
+    staleSettingsArtifacts: document.querySelector('[data-testid="artifact-gallery"]').textContent.includes('settings-run-final.webm'),
+    bodyWidth: document.body.scrollWidth,
+    viewportWidth: innerWidth
+  };
+})()
+''');
+        expect(failedJob['url'], contains('scope=failed-dashboard-session'));
+        expect(failedJob['selectedStatus'], 'failed');
+        expect(failedJob['runCount'], '1');
+        expect(failedJob['eventCount'], '0');
+        expect(failedJob['artifactCount'], '0');
+        expect(failedJob['context'], contains('failed-dashboard-task'));
+        expect(failedJob['context'], contains('pinned scope'));
+        expect(
+          failedJob['facts'],
+          contains('inspect devtools job error before retrying'),
+        );
+        expect(failedJob['timeline'], contains('no events recorded yet'));
+        expect(
+          failedJob['gallery'],
+          contains('Screenshots, keyframes, recordings'),
+        );
+        expect(
+          failedJob['inspector'],
+          contains('Dashboard submitted run failed before bundle creation'),
+        );
+        expect(failedJob['inspector'], contains('failed'));
+        expect(failedJob['artifactKeys'], 0);
+        expect(failedJob['eventKeys'], 0);
+        expect(failedJob['eventInlineKeys'], 0);
+        expect(failedJob['staleSettingsArtifacts'], isFalse);
+        expect(
+          failedJob['bodyWidth'],
+          lessThanOrEqualTo((failedJob['viewportWidth'] as int) + 2),
+        );
         tab.expectNoPageErrors();
       },
       timeout: const Timeout(Duration(seconds: 45)),
@@ -1810,6 +2830,13 @@ Future<CockpitLiveRunStore> _writeWorkflowRun({
       recommendedNextStep: isFailed ? 'inspect failure artifacts' : null,
       details: <String, Object?>{
         'rootWorkflowStepId': 'root',
+        'mode': 'finalResult',
+        'success': !isFailed,
+        'commandDurationMs': 24 + index,
+        'parameters': <String, Object?>{
+          'text': index.isEven ? 'Settings' : 'Ready',
+          if (index == eventCount - 1) 'expectedRouteName': '/settings',
+        },
         if (index == eventCount - 1) ...<String, Object?>{
           'parentWorkflowStepId': 'settings-loop',
           'relation': 'loop',
@@ -1837,6 +2864,10 @@ Future<CockpitLiveRunStore> _writeWorkflowRun({
 }
 
 void _writePng(String path, {required int labelHash}) {
+  File(path).writeAsBytesSync(_pngBytes(labelHash: labelHash));
+}
+
+List<int> _pngBytes({required int labelHash}) {
   final image = img.Image(width: 160, height: 96);
   final bg = img.ColorRgb8(10, 17, 16);
   final accent = img.ColorRgb8(114, 228, 181);
@@ -1858,7 +2889,7 @@ void _writePng(String path, {required int labelHash}) {
     y2: 72,
     color: img.ColorRgb8(22, 33, 30),
   );
-  File(path).writeAsBytesSync(img.encodePng(image));
+  return img.encodePng(image);
 }
 
 String? _findChromeExecutable() {
@@ -1966,13 +2997,12 @@ final class _ChromeCdpBrowser {
 
   Future<void> close() async {
     process.kill();
-    await process.exitCode.timeout(
-      const Duration(seconds: 2),
-      onTimeout: () => -1,
-    );
-    if (userDataDir.existsSync()) {
-      await userDataDir.delete(recursive: true);
+    final exited = await _waitForExit(const Duration(seconds: 4));
+    if (!exited && !Platform.isWindows) {
+      process.kill(ProcessSignal.sigkill);
+      await _waitForExit(const Duration(seconds: 4));
     }
+    await _deleteUserDataDir();
   }
 
   Future<void> _waitUntilReady() async {
@@ -1989,6 +3019,35 @@ final class _ChromeCdpBrowser {
     }
     throw StateError(
       'Chrome remote debugging did not become ready: $lastError',
+    );
+  }
+
+  Future<bool> _waitForExit(Duration timeout) async {
+    try {
+      await process.exitCode.timeout(timeout);
+      return true;
+    } on TimeoutException {
+      return false;
+    }
+  }
+
+  Future<void> _deleteUserDataDir() async {
+    Object? lastError;
+    for (var attempt = 0; attempt < 12; attempt += 1) {
+      if (!userDataDir.existsSync()) {
+        return;
+      }
+      try {
+        await userDataDir.delete(recursive: true);
+        return;
+      } on FileSystemException catch (error) {
+        lastError = error;
+        await Future<void>.delayed(Duration(milliseconds: 150 + attempt * 75));
+      }
+    }
+    throw FileSystemException(
+      'Could not delete Chrome user data directory after retries: $lastError',
+      userDataDir.path,
     );
   }
 }

@@ -12,6 +12,8 @@ Remote session bootstrap metadata is intentionally outside this contract. A host
 
 The bundle directory is the durable source of truth. Later tooling may expose a bounded summary view derived from the bundle, but that summary is a consumer surface, not a second persistence format.
 
+DevTools may export a selected run as a streamed tar through `GET /api/runs/<runId>/bundle-download`. That export is a transport package, not a replacement bundle format. It contains `download_manifest.json`, `run_metadata.json`, `bundle/**`, and `live/**`; live-only or partial runs report absent roots in `missingRoots`.
+
 The current repository exposes this through CLI `read-task-bundle-summary` and MCP `read_task_bundle_summary`, which may derive:
 
 - `evidence`

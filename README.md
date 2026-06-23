@@ -44,6 +44,11 @@ Package pages:
 - [`flutter_cockpit` on pub.dev](https://pub.dev/packages/flutter_cockpit)
 - [`cockpit` on pub.dev](https://pub.dev/packages/cockpit)
 
+Release order for maintainers: publish `packages/flutter_cockpit` first, then
+publish `packages/cockpit`. The host package depends on the runtime package from
+pub.dev, so `cockpit` dry-runs and releases must see the matching
+`flutter_cockpit` version already available remotely.
+
 Installing the Dart packages does not automatically install the AI skill or expose a globally callable MCP launcher. Those are separate host-side setup steps.
 
 ## Install Skill
@@ -257,13 +262,20 @@ order while run detail and bundle panels stay tied to the selected run.
 Screenshots, recordings, diagnostics, and errors link back to their owning run
 and event sequence. The dashboard can also parse pasted workflow YAML/JSON or
 submit `runScript` / `validateTask` payloads as background jobs under the same
-history root; in-flight submitted jobs remain visible before their live history
-files are written, and completed submitted jobs expose their bundle summaries
-and artifacts through the same run API when the bundle stays under the history
-root. Run lists are paged for long-lived history roots while scope totals remain
-visible. If a large or partially written bundle JSON cannot be summarized
-safely, the dashboard reports it in `summaryFileIssues` and keeps serving the
-remaining timeline and artifacts.
+history root. Board-submitted runs need the executable envelope that CLI
+normally supplies, such as `sessionHandle`, `baseUrl`, `outputRoot`, and
+platform ids; keep those fields when switching between JSON and YAML instead of
+pasting only the inner workflow. In-flight submitted jobs remain visible before
+their live history files are written, and completed submitted jobs expose their
+bundle summaries and artifacts through the same run API when the bundle stays
+under the history root. Run lists are paged for long-lived history roots while
+scope totals remain visible. If a large or partially written bundle JSON cannot
+be summarized safely, the dashboard reports it in `summaryFileIssues` and keeps
+serving the remaining timeline and artifacts. The run detail panel also exposes
+`download bundle`, backed by `GET /api/runs/<runId>/bundle-download`. The
+streamed tar is token-protected, avoids loading large media into memory, and
+contains `download_manifest.json`, `run_metadata.json`, `bundle/**`, and
+`live/**`; unavailable roots are listed in `missingRoots`.
 
 For target-first and non-Flutter/system work:
 

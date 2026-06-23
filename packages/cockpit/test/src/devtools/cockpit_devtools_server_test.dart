@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:cockpit/cockpit.dart';
 import 'package:cockpit/src/devtools/cockpit_devtools_index_html.dart';
@@ -169,7 +170,9 @@ void main() {
       );
       expect(
         cockpitDevtoolsIndexHtml,
-        contains('defaultEventPanelOpen(state.expandAll || selected)'),
+        contains(
+          'defaultEventPanelOpen(state.expandAll || selected || latest)',
+        ),
       );
       expect(
         cockpitDevtoolsIndexHtml,
@@ -191,11 +194,66 @@ void main() {
       );
       expect(
         cockpitDevtoolsIndexHtml,
+        contains(r"dynamicPanelId: `${eventKey(event)}:execution`"),
+      );
+      expect(
+        cockpitDevtoolsIndexHtml,
         contains(r"dynamicPanelId: `${eventKey(event)}:metadata`"),
       );
       expect(
         cockpitDevtoolsIndexHtml,
         contains(r"dynamicPanelId: `${eventKey(event)}:artifacts`"),
+      );
+    });
+
+    test('dashboard prunes hidden dynamic review state', () {
+      expect(
+        cockpitDevtoolsIndexHtml,
+        contains("pruneDynamicPanelState(\n        'event',"),
+      );
+      expect(
+        cockpitDevtoolsIndexHtml,
+        contains("const visibleEventInlineKeys = new Set();"),
+      );
+      expect(
+        cockpitDevtoolsIndexHtml,
+        contains(
+          r"visibleEventInlineKeys.add(dynamicPanelKey('event-inline', `${key}:execution`));",
+        ),
+      );
+      expect(
+        cockpitDevtoolsIndexHtml,
+        contains(
+          r"visibleEventInlineKeys.add(dynamicPanelKey('event-inline', `${key}:metadata`));",
+        ),
+      );
+      expect(
+        cockpitDevtoolsIndexHtml,
+        contains(
+          r"visibleEventInlineKeys.add(dynamicPanelKey('event-inline', `${key}:artifacts`));",
+        ),
+      );
+      expect(
+        cockpitDevtoolsIndexHtml,
+        contains(
+          "pruneDynamicPanelState('event-inline', visibleEventInlineKeys)",
+        ),
+      );
+      expect(
+        cockpitDevtoolsIndexHtml,
+        contains("pruneDynamicPanelState('event', new Set());"),
+      );
+      expect(
+        cockpitDevtoolsIndexHtml,
+        contains("pruneDynamicPanelState('event-inline', new Set());"),
+      );
+      expect(
+        cockpitDevtoolsIndexHtml,
+        contains("pruneDynamicPanelState(\n        'artifact',"),
+      );
+      expect(
+        cockpitDevtoolsIndexHtml,
+        contains("pruneDynamicPanelState('artifact', new Set());"),
       );
     });
 
@@ -570,6 +628,21 @@ commands:
         contains('no-store'),
       );
       _expectSecurityHeaders(dashboard.headers);
+      final favicon = await _getBytes(handle.uri.resolve('/favicon.ico'));
+      expect(favicon.statusCode, HttpStatus.ok);
+      expect(favicon.body, isNotEmpty);
+      expect(favicon.headers.contentType?.mimeType, 'image/x-icon');
+      expect(
+        favicon.headers.value(HttpHeaders.cacheControlHeader),
+        contains('max-age=3600'),
+      );
+      _expectSecurityHeaders(favicon.headers);
+      final faviconHead = await _headBytes(handle.uri.resolve('/favicon.ico'));
+      expect(faviconHead.statusCode, HttpStatus.ok);
+      expect(faviconHead.body, isEmpty);
+      expect(faviconHead.headers.contentType?.mimeType, 'image/x-icon');
+      final faviconPut = await _putBytes(handle.uri.resolve('/favicon.ico'));
+      expect(faviconPut.statusCode, HttpStatus.methodNotAllowed);
       expect(dashboard.body, contains('Flutter Cockpit Devtools'));
       expect(dashboard.body, contains('data-density="compact"'));
       expect(dashboard.body, contains('/api/workflows/parse'));
@@ -580,28 +653,30 @@ commands:
       expect(dashboard.body, contains('data-testid="run-detail"'));
       expect(dashboard.body, contains('run-detail-heading'));
       expect(dashboard.body, contains('compact-summary'));
+      expect(dashboard.body, contains('id="downloadBundle"'));
+      expect(dashboard.body, contains('download bundle</a>'));
+      expect(dashboard.body, contains('function bundleDownloadUrl('));
+      expect(dashboard.body, contains('bundle-download'));
+      expect(dashboard.body, contains('function syncBundleDownloadAction()'));
       expect(dashboard.body, contains('run-facts-scroll'));
       expect(dashboard.body, contains('hasLoadedRuns'));
       expect(dashboard.body, contains('loading run history...'));
       expect(dashboard.body, contains("els.runCount.textContent = '...'"));
-      expect(
-        dashboard.body,
-        contains(
-          "fact('scopeId', hasAnyRuns() ? state.activeScopeId || state.selectedScopeId || live.scopeId || run.scopeId : 'none')",
-        ),
-      );
-      expect(dashboard.body, contains("fact('scopeLabel', boardScopeLabel())"));
-      expect(
-        dashboard.body,
-        contains(
-          "fact('scopeKind', hasAnyRuns() ? allRuns ? 'all' : live.scopeKind || run.scopeKind || state.activeScopeKind : 'none')",
-        ),
-      );
+      expect(dashboard.body, contains('function factGroup'));
+      expect(dashboard.body, contains('class="run-facts" id="runFacts"'));
+      expect(dashboard.body, contains("factGroup('Identity'"));
+      expect(dashboard.body, contains("factGroup('Scope'"));
+      expect(dashboard.body, contains("factGroup('Timing'"));
+      expect(dashboard.body, contains("factGroup('Bundle'"));
+      expect(dashboard.body, contains("fact(identityFacts, 'taskId'"));
+      expect(dashboard.body, contains("fact(scopeFacts, 'scopeId'"));
+      expect(dashboard.body, contains("fact(scopeFacts, 'scopeLabel'"));
+      expect(dashboard.body, contains("fact(scopeFacts, 'scopeKind'"));
       expect(dashboard.body, contains('function isAllRunsScope()'));
       expect(dashboard.body, contains('function boardScopeLabel()'));
       expect(dashboard.body, contains('function runScopeLabel(run, live)'));
-      expect(dashboard.body, contains("fact('runScopeId'"));
-      expect(dashboard.body, contains("fact('runScopeLabel'"));
+      expect(dashboard.body, contains("fact(scopeFacts, 'runScopeId'"));
+      expect(dashboard.body, contains("fact(scopeFacts, 'runScopeLabel'"));
       expect(dashboard.body, contains('data-testid="runs-panel"'));
       expect(
         dashboard.body,
@@ -693,6 +768,10 @@ commands:
       expect(dashboard.body, contains('function setPanelGroupOpen(open)'));
       expect(dashboard.body, contains('renderJsonTree'));
       expect(dashboard.body, contains('renderYamlTree'));
+      expect(dashboard.body, contains('LAUNCHER_CONTEXT_KEYS'));
+      expect(dashboard.body, contains('parseLauncherYamlEnvelope'));
+      expect(dashboard.body, contains('payloadToYaml'));
+      expect(dashboard.body, contains('payloadNeedsEnvelope'));
       expect(dashboard.body, contains('renderArtifactPreview'));
       expect(dashboard.body, contains('scopeSelect'));
       expect(dashboard.body, contains('resetSelectedRunCaches'));
@@ -773,19 +852,15 @@ commands:
       expect(dashboard.body, contains('timelineScroll'));
       expect(dashboard.body, contains('timelineSummary'));
       expect(dashboard.body, contains('event(s) match'));
-      expect(dashboard.body, contains('oldest to newest'));
+      expect(dashboard.body, contains('newest first'));
+      expect(dashboard.body, contains('oldest first'));
       expect(
         dashboard.body,
         contains(
-          'const events = matchingEvents.slice(-TIMELINE_RENDER_LIMIT);',
+          'const latestEvents = matchingEvents.slice(-TIMELINE_RENDER_LIMIT);',
         ),
       );
-      expect(
-        dashboard.body,
-        isNot(
-          contains('matchingEvents.slice(-TIMELINE_RENDER_LIMIT).reverse()'),
-        ),
-      );
+      expect(dashboard.body, contains("state.timelineOrder === 'desc'"));
       expect(dashboard.body, contains('loading events'));
       expect(
         dashboard.body,
@@ -937,6 +1012,208 @@ commands:
         ),
       );
       expect(traversal.statusCode, HttpStatus.forbidden);
+    });
+
+    test('streams a complete run bundle download as tar evidence', () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_devtools_bundle_download_test',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+      await _writeRunFixture(tempDir);
+
+      final server = CockpitDevtoolsServer(
+        historyRoot: tempDir.path,
+        token: 'secret',
+      );
+      final handle = await server.start();
+      addTearDown(handle.close);
+
+      final unauthorized = await _getBytes(
+        handle.uri.resolve('/api/runs/run-1/bundle-download'),
+      );
+      expect(unauthorized.statusCode, HttpStatus.unauthorized);
+
+      final response = await _getBytes(
+        handle.uri.resolve('/api/runs/run-1/bundle-download?token=secret'),
+      );
+      expect(response.statusCode, HttpStatus.ok);
+      expect(response.headers.contentType?.mimeType, 'application/x-tar');
+      expect(
+        response.headers.value(HttpHeaders.cacheControlHeader),
+        contains('no-store'),
+      );
+      expect(
+        response.headers.value('content-disposition'),
+        contains(
+          'attachment; filename="flutter-cockpit-20260619T100001Z-run-1.tar"',
+        ),
+      );
+      _expectSecurityHeaders(response.headers);
+
+      final entries = _readTarEntries(response.body);
+      expect(entries.keys, contains('download_manifest.json'));
+      expect(entries.keys, contains('run_metadata.json'));
+      expect(entries.keys, contains('bundle/manifest.json'));
+      expect(entries.keys, contains('bundle/delivery.json'));
+      expect(entries.keys, contains('bundle/trace.json'));
+      expect(entries.keys, contains('bundle/screenshots/first.png'));
+      expect(entries.keys, contains('bundle/recordings/flow.mp4'));
+      expect(entries.keys, contains('bundle/keyframes/tail.png'));
+      expect(entries.keys, contains('live/live_state.json'));
+      expect(entries.keys, contains('live/events.ndjson'));
+      expect(entries['bundle/screenshots/first.png'], <int>[1, 2, 3]);
+      expect(
+        entries['bundle/recordings/flow.mp4'],
+        List<int>.generate(10, (index) => index),
+      );
+
+      final manifest =
+          jsonDecode(utf8.decode(entries['download_manifest.json']!))
+              as Map<String, Object?>;
+      expect(manifest['schemaVersion'], 1);
+      expect(manifest['runId'], 'run-1');
+      expect(manifest['bundleRoot'], p.join('runs', 'run-1', 'bundle'));
+      expect(manifest['liveRoot'], p.join('runs', 'run-1', 'live'));
+      expect(manifest['missingRoots'], isEmpty);
+      expect(manifest['files'], isA<List<Object?>>());
+      expect(
+        (manifest['files']! as List<Object?>),
+        contains(
+          allOf(
+            containsPair('path', 'bundle/recordings/flow.mp4'),
+            containsPair('sizeBytes', 10),
+          ),
+        ),
+      );
+
+      final metadata =
+          jsonDecode(utf8.decode(entries['run_metadata.json']!))
+              as Map<String, Object?>;
+      expect(metadata['runId'], 'run-1');
+      expect(metadata['status'], 'running');
+      expect(metadata['bundleDir'], p.join('runs', 'run-1', 'bundle'));
+
+      final head = await _headBytes(
+        handle.uri.resolve('/api/runs/run-1/bundle-download?token=secret'),
+      );
+      expect(head.statusCode, HttpStatus.ok);
+      expect(head.body, isEmpty);
+      expect(head.headers.contentType?.mimeType, 'application/x-tar');
+    });
+
+    test(
+      'bundle download does not treat runDir as a synthetic bundle',
+      () async {
+        final tempDir = await Directory.systemTemp.createTemp(
+          'cockpit_devtools_live_only_download_test',
+        );
+        addTearDown(() async {
+          if (tempDir.existsSync()) {
+            await tempDir.delete(recursive: true);
+          }
+        });
+        final runDir = Directory(p.join(tempDir.path, 'runs', 'live-only'))
+          ..createSync(recursive: true);
+        final liveDir = Directory(p.join(runDir.path, 'live'))
+          ..createSync(recursive: true);
+        File(p.join(liveDir.path, 'live_state.json')).writeAsStringSync(
+          jsonEncode(<String, Object?>{
+            'schemaVersion': 1,
+            'runId': 'live-only',
+            'status': 'running',
+          }),
+        );
+        File(p.join(liveDir.path, 'events.ndjson')).writeAsStringSync('');
+        File(p.join(tempDir.path, 'index.json')).writeAsStringSync(
+          jsonEncode(<String, Object?>{
+            'schemaVersion': 1,
+            'runCount': 1,
+            'runs': <Object?>[
+              <String, Object?>{
+                'runId': 'live-only',
+                'status': 'running',
+                'updatedAt': '2026-06-19T10:00:01.000Z',
+                'runDir': p.join('runs', 'live-only'),
+                'liveDir': p.join('runs', 'live-only', 'live'),
+              },
+            ],
+          }),
+        );
+        final server = CockpitDevtoolsServer(
+          historyRoot: tempDir.path,
+          token: 'secret',
+        );
+        final handle = await server.start();
+        addTearDown(handle.close);
+
+        final response = await _getBytes(
+          handle.uri.resolve(
+            '/api/runs/live-only/bundle-download?token=secret',
+          ),
+        );
+        expect(response.statusCode, HttpStatus.ok);
+        final entries = _readTarEntries(response.body);
+        expect(entries.keys, contains('download_manifest.json'));
+        expect(entries.keys, contains('run_metadata.json'));
+        expect(entries.keys, contains('live/live_state.json'));
+        expect(entries.keys, isNot(contains('bundle/live/live_state.json')));
+        final manifest =
+            jsonDecode(utf8.decode(entries['download_manifest.json']!))
+                as Map<String, Object?>;
+        expect(manifest, isNot(contains('bundleRoot')));
+        expect(manifest['missingRoots'], contains('bundle'));
+      },
+    );
+
+    test('bundle download preserves utf8 and long archive paths', () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_devtools_bundle_download_pax_test',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+      await _writeRunFixture(tempDir);
+      final bundleDir = Directory(
+        p.join(tempDir.path, 'runs', 'run-1', 'bundle'),
+      );
+      final utf8File = File(p.join(bundleDir.path, 'screenshots', '设置结果.png'))
+        ..writeAsBytesSync(<int>[4, 5, 6]);
+      final longName = '${List<String>.filled(24, 'segment').join('-')}.json';
+      final longFile = File(p.join(bundleDir.path, 'diagnostics', longName))
+        ..writeAsBytesSync(<int>[7, 8, 9]);
+
+      final server = CockpitDevtoolsServer(
+        historyRoot: tempDir.path,
+        token: 'secret',
+      );
+      final handle = await server.start();
+      addTearDown(handle.close);
+
+      final response = await _getBytes(
+        handle.uri.resolve('/api/runs/run-1/bundle-download?token=secret'),
+      );
+
+      expect(response.statusCode, HttpStatus.ok);
+      final entries = _readTarEntries(response.body);
+      final utf8ArchivePath =
+          'bundle/${p.relative(utf8File.path, from: bundleDir.path).replaceAll(r'\', '/')}';
+      final longArchivePath =
+          'bundle/${p.relative(longFile.path, from: bundleDir.path).replaceAll(r'\', '/')}';
+      expect(entries[utf8ArchivePath], <int>[4, 5, 6]);
+      expect(entries[longArchivePath], <int>[7, 8, 9]);
+
+      final manifest =
+          jsonDecode(utf8.decode(entries['download_manifest.json']!))
+              as Map<String, Object?>;
+      final files = manifest['files']! as List<Object?>;
+      expect(files, contains(containsPair('path', utf8ArchivePath)));
+      expect(files, contains(containsPair('path', longArchivePath)));
     });
 
     test(
@@ -2020,6 +2297,105 @@ Future<_BytesResponse> _getBytes(
     headers: response.headers,
     body: body,
   );
+}
+
+Future<_BytesResponse> _headBytes(Uri uri) async {
+  final client = HttpClient();
+  addTearDown(client.close);
+  final request = await client.headUrl(uri);
+  final response = await request.close();
+  final body = await response.fold<List<int>>(
+    <int>[],
+    (bytes, chunk) => bytes..addAll(chunk),
+  );
+  return _BytesResponse(
+    statusCode: response.statusCode,
+    headers: response.headers,
+    body: body,
+  );
+}
+
+Future<_BytesResponse> _putBytes(Uri uri) async {
+  final client = HttpClient();
+  addTearDown(client.close);
+  final request = await client.openUrl('PUT', uri);
+  final response = await request.close();
+  final body = await response.fold<List<int>>(
+    <int>[],
+    (bytes, chunk) => bytes..addAll(chunk),
+  );
+  return _BytesResponse(
+    statusCode: response.statusCode,
+    headers: response.headers,
+    body: body,
+  );
+}
+
+Map<String, List<int>> _readTarEntries(List<int> bytes) {
+  final entries = <String, List<int>>{};
+  var nextPaxHeaders = <String, String>{};
+  var offset = 0;
+  while (offset + 512 <= bytes.length) {
+    final header = bytes.sublist(offset, offset + 512);
+    if (header.every((byte) => byte == 0)) {
+      break;
+    }
+    final name = _tarString(header, 0, 100);
+    final prefix = _tarString(header, 345, 155);
+    final size = _tarOctal(header, 124, 12);
+    final typeFlag = header[156];
+    final contentStart = offset + 512;
+    final paxSize = int.tryParse(nextPaxHeaders['size'] ?? '');
+    final contentSize = paxSize ?? size;
+    final contentEnd = contentStart + contentSize;
+    if (typeFlag == 0x78) {
+      nextPaxHeaders = _readPaxHeaders(bytes.sublist(contentStart, contentEnd));
+      offset = contentStart + ((size + 511) ~/ 512) * 512;
+      continue;
+    }
+    final fallbackPath = prefix.isEmpty ? name : '$prefix/$name';
+    final path = nextPaxHeaders['path'] ?? fallbackPath;
+    entries[path] = bytes.sublist(contentStart, contentEnd);
+    offset = contentStart + ((contentSize + 511) ~/ 512) * 512;
+    nextPaxHeaders = <String, String>{};
+  }
+  return entries;
+}
+
+Map<String, String> _readPaxHeaders(List<int> bytes) {
+  final headers = <String, String>{};
+  var offset = 0;
+  while (offset < bytes.length) {
+    final spaceIndex = bytes.indexOf(0x20, offset);
+    if (spaceIndex <= offset) {
+      break;
+    }
+    final length = int.parse(ascii.decode(bytes.sublist(offset, spaceIndex)));
+    final record = utf8.decode(bytes.sublist(spaceIndex + 1, offset + length));
+    final equalsIndex = record.indexOf('=');
+    if (equalsIndex > 0) {
+      final value = record.endsWith('\n')
+          ? record.substring(equalsIndex + 1, record.length - 1)
+          : record.substring(equalsIndex + 1);
+      headers[record.substring(0, equalsIndex)] = value;
+    }
+    offset += length;
+  }
+  return headers;
+}
+
+String _tarString(List<int> bytes, int start, int length) {
+  final end = min(start + length, bytes.length);
+  var nullIndex = start;
+  while (nullIndex < end && bytes[nullIndex] != 0) {
+    nullIndex += 1;
+  }
+  return ascii.decode(bytes.sublist(start, nullIndex)).trim();
+}
+
+int _tarOctal(List<int> bytes, int start, int length) {
+  final value = _tarString(bytes, start, length).trim();
+  return value.isEmpty ? 0 : int.parse(value, radix: 8);
 }
 
 final class _TextResponse {

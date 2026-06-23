@@ -333,7 +333,10 @@ bundle panels remain per-run. Artifact links carry the owning run and event key
 so repeated relative paths stay traceable. Pass `--scope latest` only for a
 board that should keep following the newest job. Run-index responses include
 `scopeMode`; `scope=current` and `scope=latest` are aliases for the current
-latest scope.
+latest scope. The board exposes `download bundle` through
+`GET /api/runs/<runId>/bundle-download`; the streamed tar contains
+`download_manifest.json`, `run_metadata.json`, `bundle/**`, and `live/**`, with
+unavailable roots listed in `missingRoots`.
 
 For tool-owned bootstrap and validation, embed the same script object under the
 task config `script` field and run:

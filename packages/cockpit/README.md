@@ -108,13 +108,19 @@ active session/scope across its runs in execution order; run details and bundle
 panels track the selected run. Artifact links include the owning run and event
 key so repeated relative paths stay traceable. The dashboard can also parse
 workflow YAML/JSON and submit `runScript` or `validateTask` payloads as
-background jobs under the same history root; in-flight submitted jobs remain
-visible before their live history files are written, and completed submitted
-jobs expose bundle summaries and artifacts through the same run API when the
-bundle remains under the history root. Run lists are paged for long-lived
-history roots while scope totals remain visible.
+background jobs under the same history root. Board-submitted runs need the
+executable envelope that CLI normally supplies, such as `sessionHandle`,
+`baseUrl`, `outputRoot`, and platform ids; keep those fields when switching
+between JSON and YAML instead of pasting only the inner workflow. In-flight
+submitted jobs remain visible before their live history files are written, and
+completed submitted jobs expose bundle summaries and artifacts through the same
+run API when the bundle remains under the history root. Run lists are paged for
+long-lived history roots while scope totals remain visible.
 Large or partially written bundle JSON is reported through `summaryFileIssues`
-instead of failing the dashboard.
+instead of failing the dashboard. The run detail panel exposes `download bundle`
+through `GET /api/runs/<runId>/bundle-download`; the response is a
+token-protected streamed tar with `download_manifest.json`, `run_metadata.json`,
+`bundle/**`, and `live/**`, plus `missingRoots` for live-only or partial runs.
 
 Target-first loop when the agent needs direct system or non-Flutter control:
 
