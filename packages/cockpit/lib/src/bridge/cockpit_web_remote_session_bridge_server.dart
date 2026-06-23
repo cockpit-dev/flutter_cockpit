@@ -49,10 +49,11 @@ final class CockpitWebRemoteSessionBridgeServer {
 
   HttpServer? _server;
   StreamSubscription<HttpRequest>? _requestSubscription;
-  WebSocket? _socket;
-  StreamSubscription<Object?>? _socketSubscription;
-  final Map<String, Completer<CockpitRemoteBridgeResponse>> _pending =
-      <String, Completer<CockpitRemoteBridgeResponse>>{};
+  final List<_BridgeConnection> _connections = <_BridgeConnection>[];
+  _BridgeConnection? _activeConnection;
+  int _nextConnectionId = 0;
+  final Map<String, _PendingBridgeRequest> _pending =
+      <String, _PendingBridgeRequest>{};
   final Map<String, _BridgeArtifactEntry> _localArtifacts =
       <String, _BridgeArtifactEntry>{};
   Uri? _baseUri;
@@ -82,13 +83,17 @@ final class CockpitWebRemoteSessionBridgeServer {
   Future<void> close() async {
     _failPending(StateError('Bridge server closed.'));
     await _bestEffortStopActiveRecording();
-    await _socketSubscription?.cancel();
-    await _socket?.close();
+    final connections = _connections.toList(growable: false);
+    _connections.clear();
+    _activeConnection = null;
+    for (final connection in connections) {
+      connection.closed = true;
+      await connection.subscription?.cancel();
+      await connection.socket.close();
+    }
     await _requestSubscription?.cancel();
     await _server?.close(force: true);
     await _deleteGeneratedArtifacts();
-    _socketSubscription = null;
-    _socket = null;
     _requestSubscription = null;
     _server = null;
     _baseUri = null;
@@ -125,35 +130,39 @@ final class CockpitWebRemoteSessionBridgeServer {
 
   Future<void> _handleConnect(HttpRequest request) async {
     final socket = await WebSocketTransformer.upgrade(request);
-    await _socketSubscription?.cancel();
-    await _socket?.close();
-    _socket = socket;
-    _socketSubscription = socket.listen(
+    final connection = _BridgeConnection(
+      id: ++_nextConnectionId,
+      socket: socket,
+    );
+    _connections.add(connection);
+    _activeConnection ??= connection;
+    _pruneClosedConnections();
+    connection.subscription = socket.listen(
       (payload) {
-        _handleSocketPayload(payload);
+        _handleSocketPayload(connection, payload);
       },
       onDone: () {
-        _socketSubscription = null;
-        _socket = null;
-        _failPending(StateError('Bridge client disconnected.'));
+        _removeConnection(
+          connection,
+          StateError('Bridge client disconnected.'),
+        );
       },
       onError: (Object error, StackTrace stackTrace) {
-        _socketSubscription = null;
-        _socket = null;
-        _failPending(error);
+        _removeConnection(connection, error);
       },
       cancelOnError: true,
     );
   }
 
-  void _handleSocketPayload(Object? payload) {
+  void _handleSocketPayload(_BridgeConnection connection, Object? payload) {
     if (payload == null) {
       return;
     }
     try {
       final decoded = jsonDecode('$payload');
       if (decoded is! Map<Object?, Object?>) {
-        _completePendingWithBridgeError(
+        _completeConnectionPendingWithBridgeError(
+          connection,
           statusCode: HttpStatus.badGateway,
           error: 'bridgeInvalidResponse',
           message: 'Bridge response payload must be a JSON object.',
@@ -163,7 +172,8 @@ final class CockpitWebRemoteSessionBridgeServer {
       final responseJson = Map<String, Object?>.from(decoded);
       final rawRequestId = responseJson['requestId'];
       if (rawRequestId is! String || rawRequestId.isEmpty) {
-        _completePendingWithBridgeError(
+        _completeConnectionPendingWithBridgeError(
+          connection,
           statusCode: HttpStatus.badGateway,
           error: 'bridgeInvalidResponse',
           message:
@@ -172,9 +182,11 @@ final class CockpitWebRemoteSessionBridgeServer {
         return;
       }
       final response = CockpitRemoteBridgeResponse.fromJson(responseJson);
-      final completer = _pending.remove(response.requestId);
-      if (completer == null) {
-        _completePendingWithBridgeError(
+      final pendingRequest = _pending[response.requestId];
+      if (pendingRequest == null ||
+          !identical(pendingRequest.connection, connection)) {
+        _completeConnectionPendingWithBridgeError(
+          connection,
           statusCode: HttpStatus.badGateway,
           error: 'bridgeUnknownResponse',
           message:
@@ -184,15 +196,20 @@ final class CockpitWebRemoteSessionBridgeServer {
         );
         return;
       }
-      completer.complete(response);
+      _pending.remove(response.requestId);
+      connection.pendingRequestIds.remove(response.requestId);
+      connection.stale = false;
+      pendingRequest.completer.complete(response);
     } on FormatException catch (error) {
-      _completePendingWithBridgeError(
+      _completeConnectionPendingWithBridgeError(
+        connection,
         statusCode: HttpStatus.badGateway,
         error: 'bridgeInvalidResponse',
         message: error.message,
       );
     } on Object catch (error) {
-      _completePendingWithBridgeError(
+      _completeConnectionPendingWithBridgeError(
+        connection,
         statusCode: HttpStatus.badGateway,
         error: 'bridgeInvalidResponse',
         message: '$error',
@@ -239,8 +256,8 @@ final class CockpitWebRemoteSessionBridgeServer {
   Future<CockpitRemoteSessionEndpointResponse> _forward(
     HttpRequest request,
   ) async {
-    final socket = _socket;
-    if (socket == null) {
+    _pruneClosedConnections();
+    if (_connections.isEmpty) {
       return const CockpitRemoteSessionEndpointResponse.json(<String, Object?>{
         'error': 'bridgeUnavailable',
         'message': 'The browser bridge is not connected.',
@@ -261,25 +278,183 @@ final class CockpitWebRemoteSessionBridgeServer {
       }
       jsonBody = Map<String, Object?>.from(decoded);
     }
-    final requestId =
-        'bridge-${DateTime.now().toUtc().microsecondsSinceEpoch}-${_pending.length}';
-    final completer = Completer<CockpitRemoteBridgeResponse>();
-    _pending[requestId] = completer;
-    socket.add(
-      jsonEncode(
-        CockpitRemoteBridgeRequest(
-          requestId: requestId,
-          method: request.method,
-          path: request.uri.toString(),
-          jsonBody: jsonBody,
-        ).toJson(),
-      ),
-    );
+    final routePath = _routePathFor(request.uri.path);
+    if (routePath == '/ready') {
+      return _readyForwardResponse();
+    }
 
-    try {
-      final response = await completer.future.timeout(
-        _forwardTimeoutFor(request, jsonBody),
+    final selected = await _selectConnectionFor(routePath);
+    final connection = selected.connection;
+    if (connection == null) {
+      return selected.failureResponse ?? _bridgeUnavailableResponse();
+    }
+    final response = await _sendBridgeRequest(
+      connection: connection,
+      method: request.method,
+      path: request.uri.toString(),
+      jsonBody: jsonBody,
+      timeout: _forwardTimeoutFor(request, jsonBody),
+    );
+    if (_isUnmountedRootResponse(response)) {
+      connection.stale = true;
+      final retry = await _selectConnectionFor(
+        routePath,
+        excludedConnection: connection,
       );
+      final retryConnection = retry.connection;
+      if (retryConnection != null && _canRetryForwardedRequest(jsonBody)) {
+        return _endpointResponseFromBridgeResponse(
+          await _sendBridgeRequest(
+            connection: retryConnection,
+            method: request.method,
+            path: request.uri.toString(),
+            jsonBody: jsonBody,
+            timeout: _forwardTimeoutFor(request, jsonBody),
+          ),
+        );
+      }
+    }
+    return _endpointResponseFromBridgeResponse(response);
+  }
+
+  Future<CockpitRemoteSessionEndpointResponse> _readyForwardResponse() async {
+    final selected = await _selectConnectionFor('/ready');
+    final connection = selected.connection;
+    if (connection == null) {
+      return selected.failureResponse ?? _bridgeUnavailableResponse();
+    }
+    final response = await _sendBridgeRequest(
+      connection: connection,
+      method: 'GET',
+      path: _joinPath(_normalizedRoutePrefix, 'ready'),
+      timeout: _probeTimeout,
+    );
+    return _endpointResponseFromBridgeResponse(response);
+  }
+
+  Future<_BridgeConnectionSelection> _selectConnectionFor(
+    String? routePath, {
+    _BridgeConnection? excludedConnection,
+  }) async {
+    _pruneClosedConnections();
+    final candidates = _connections
+        .where(
+          (connection) =>
+              !connection.closed && !identical(connection, excludedConnection),
+        )
+        .toList(growable: false);
+    if (candidates.isEmpty) {
+      return const _BridgeConnectionSelection();
+    }
+    candidates.sort((left, right) {
+      if (left.stale != right.stale) {
+        return left.stale ? 1 : -1;
+      }
+      return right.id.compareTo(left.id);
+    });
+
+    if (routePath != '/ready' && candidates.length == 1) {
+      final candidate = candidates.single;
+      if (!candidate.stale) {
+        _activeConnection = candidate;
+        return _BridgeConnectionSelection(connection: candidate);
+      }
+    }
+
+    CockpitRemoteSessionEndpointResponse? lastFailure;
+    for (final candidate in candidates) {
+      final response = await _sendBridgeRequest(
+        connection: candidate,
+        method: 'GET',
+        path: _joinPath(_normalizedRoutePrefix, 'ready'),
+        timeout: _probeTimeout,
+      );
+      if (_bridgeResponseIsReady(response)) {
+        candidate.stale = false;
+        _activeConnection = candidate;
+        return _BridgeConnectionSelection(connection: candidate);
+      }
+      if (_isBridgeFailure(response)) {
+        lastFailure = _endpointResponseFromBridgeResponse(response);
+      }
+      candidate.stale = true;
+    }
+
+    final active = _activeConnection;
+    if (routePath == '/ready' &&
+        active != null &&
+        !active.closed &&
+        !identical(active, excludedConnection)) {
+      return _BridgeConnectionSelection(connection: active);
+    }
+    if (routePath == '/ready') {
+      if (candidates.isNotEmpty) {
+        return _BridgeConnectionSelection(connection: candidates.first);
+      }
+    }
+
+    return _BridgeConnectionSelection(
+      failureResponse: lastFailure ?? _bridgeUnavailableResponse(),
+    );
+  }
+
+  Future<CockpitRemoteBridgeResponse> _sendBridgeRequest({
+    required _BridgeConnection connection,
+    required String method,
+    required String path,
+    Map<String, Object?>? jsonBody,
+    required Duration timeout,
+  }) async {
+    if (connection.closed) {
+      return _bridgeError(
+        statusCode: HttpStatus.serviceUnavailable,
+        error: 'bridgeUnavailable',
+        message: 'The browser bridge connection is closed.',
+      );
+    }
+    final requestId =
+        'bridge-${connection.id}-${DateTime.now().toUtc().microsecondsSinceEpoch}-${_pending.length}';
+    final completer = Completer<CockpitRemoteBridgeResponse>();
+    _pending[requestId] = _PendingBridgeRequest(
+      connection: connection,
+      completer: completer,
+    );
+    connection.pendingRequestIds.add(requestId);
+    try {
+      connection.socket.add(
+        jsonEncode(
+          CockpitRemoteBridgeRequest(
+            requestId: requestId,
+            method: method,
+            path: path,
+            jsonBody: jsonBody,
+          ).toJson(),
+        ),
+      );
+      return await completer.future.timeout(timeout);
+    } on TimeoutException {
+      _pending.remove(requestId);
+      connection.pendingRequestIds.remove(requestId);
+      return _bridgeError(
+        statusCode: HttpStatus.gatewayTimeout,
+        error: 'bridgeTimeout',
+        message: 'The browser bridge did not respond before timeout.',
+      );
+    } on Object catch (error) {
+      _pending.remove(requestId);
+      connection.pendingRequestIds.remove(requestId);
+      return _bridgeError(
+        statusCode: HttpStatus.serviceUnavailable,
+        error: 'bridgeUnavailable',
+        message: '$error',
+      );
+    }
+  }
+
+  CockpitRemoteSessionEndpointResponse _endpointResponseFromBridgeResponse(
+    CockpitRemoteBridgeResponse response,
+  ) {
+    try {
       return response.jsonBody != null
           ? CockpitRemoteSessionEndpointResponse.json(
               response.jsonBody!,
@@ -291,18 +466,75 @@ final class CockpitWebRemoteSessionBridgeServer {
               contentType: response.contentType,
             );
     } on FormatException catch (error) {
-      _pending.remove(requestId);
       return CockpitRemoteSessionEndpointResponse.json(<String, Object?>{
         'error': 'bridgeInvalidResponse',
         'message': error.message,
       }, statusCode: HttpStatus.badGateway);
-    } on TimeoutException {
-      _pending.remove(requestId);
-      return const CockpitRemoteSessionEndpointResponse.json(<String, Object?>{
-        'error': 'bridgeTimeout',
-        'message': 'The browser bridge did not respond before timeout.',
-      }, statusCode: HttpStatus.gatewayTimeout);
     }
+  }
+
+  Duration get _probeTimeout {
+    const maximum = Duration(seconds: 2);
+    return requestTimeout < maximum ? requestTimeout : maximum;
+  }
+
+  bool _bridgeResponseIsReady(CockpitRemoteBridgeResponse response) {
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      return false;
+    }
+    final body = response.jsonBody;
+    return body != null &&
+        body['ready'] == true &&
+        body['supportsInAppControl'] == true;
+  }
+
+  bool _isBridgeFailure(CockpitRemoteBridgeResponse response) {
+    final error = response.jsonBody?['error'];
+    return response.statusCode >= 500 || error == 'bridgeTimeout';
+  }
+
+  bool _isUnmountedRootResponse(CockpitRemoteBridgeResponse response) {
+    final body = response.jsonBody;
+    if (body == null) {
+      return false;
+    }
+    final message = '${body['message'] ?? ''}';
+    return body['error'] == 'serverError' &&
+        message.contains('FlutterCockpitRoot is not mounted');
+  }
+
+  bool _canRetryForwardedRequest(Map<String, Object?>? jsonBody) {
+    if (jsonBody == null) {
+      return true;
+    }
+    return switch (jsonBody['commandType']) {
+      'assertText' ||
+      'assertVisible' ||
+      'captureScreenshot' ||
+      'collectSnapshot' ||
+      'waitFor' ||
+      'waitForUiIdle' => true,
+      _ => false,
+    };
+  }
+
+  CockpitRemoteSessionEndpointResponse _bridgeUnavailableResponse() {
+    return const CockpitRemoteSessionEndpointResponse.json(<String, Object?>{
+      'error': 'bridgeUnavailable',
+      'message': 'The browser bridge is not connected.',
+    }, statusCode: HttpStatus.serviceUnavailable);
+  }
+
+  CockpitRemoteBridgeResponse _bridgeError({
+    required int statusCode,
+    required String error,
+    required String message,
+  }) {
+    return CockpitRemoteBridgeResponse(
+      requestId: 'bridge-error',
+      statusCode: statusCode,
+      jsonBody: <String, Object?>{'error': error, 'message': message},
+    );
   }
 
   Duration _forwardTimeoutFor(
@@ -628,26 +860,60 @@ final class CockpitWebRemoteSessionBridgeServer {
   void _failPending(Object error) {
     final pending = _pending.values.toList(growable: false);
     _pending.clear();
-    for (final completer in pending) {
-      if (!completer.isCompleted) {
-        completer.completeError(error);
+    for (final pendingRequest in pending) {
+      pendingRequest.connection.pendingRequestIds.clear();
+      if (!pendingRequest.completer.isCompleted) {
+        pendingRequest.completer.completeError(error);
       }
     }
   }
 
-  void _completePendingWithBridgeError({
+  void _removeConnection(_BridgeConnection connection, Object error) {
+    if (connection.closed) {
+      return;
+    }
+    connection.closed = true;
+    _connections.remove(connection);
+    if (identical(_activeConnection, connection)) {
+      _activeConnection = null;
+    }
+    _failConnectionPending(connection, error);
+  }
+
+  void _pruneClosedConnections() {
+    _connections.removeWhere((connection) => connection.closed);
+    final active = _activeConnection;
+    if (active != null && active.closed) {
+      _activeConnection = null;
+    }
+  }
+
+  void _failConnectionPending(_BridgeConnection connection, Object error) {
+    final requestIds = connection.pendingRequestIds.toList(growable: false);
+    connection.pendingRequestIds.clear();
+    for (final requestId in requestIds) {
+      final pendingRequest = _pending.remove(requestId);
+      if (pendingRequest != null && !pendingRequest.completer.isCompleted) {
+        pendingRequest.completer.completeError(error);
+      }
+    }
+  }
+
+  void _completeConnectionPendingWithBridgeError(
+    _BridgeConnection connection, {
     required int statusCode,
     required String error,
     required String message,
   }) {
-    if (_pending.isEmpty) {
+    if (connection.pendingRequestIds.isEmpty) {
       return;
     }
-    final requestIds = _pending.keys.toList(growable: false);
+    final requestIds = connection.pendingRequestIds.toList(growable: false);
     final responseBody = <String, Object?>{'error': error, 'message': message};
     for (final requestId in requestIds) {
-      final completer = _pending.remove(requestId);
-      completer?.complete(
+      final pendingRequest = _pending.remove(requestId);
+      connection.pendingRequestIds.remove(requestId);
+      pendingRequest?.completer.complete(
         CockpitRemoteBridgeResponse(
           requestId: requestId,
           statusCode: statusCode,
@@ -725,6 +991,34 @@ final class _BridgeArtifactEntry {
 
   final String? sourceFilePath;
   final bool deleteOnClose;
+}
+
+final class _BridgeConnection {
+  _BridgeConnection({required this.id, required this.socket});
+
+  final int id;
+  final WebSocket socket;
+  final Set<String> pendingRequestIds = <String>{};
+  StreamSubscription<Object?>? subscription;
+  bool closed = false;
+  bool stale = false;
+}
+
+final class _PendingBridgeRequest {
+  const _PendingBridgeRequest({
+    required this.connection,
+    required this.completer,
+  });
+
+  final _BridgeConnection connection;
+  final Completer<CockpitRemoteBridgeResponse> completer;
+}
+
+final class _BridgeConnectionSelection {
+  const _BridgeConnectionSelection({this.connection, this.failureResponse});
+
+  final _BridgeConnection? connection;
+  final CockpitRemoteSessionEndpointResponse? failureResponse;
 }
 
 String _sanitizeArtifactBasename(String relativePath) {
