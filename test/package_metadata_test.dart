@@ -339,6 +339,11 @@ void main() {
     );
   });
 
+  test('tracked repository markdown local links resolve', () {
+    final missingLinks = _localMarkdownLinkIssues();
+    expect(missingLinks, isEmpty, reason: missingLinks.join('\n'));
+  });
+
   test('cockpit demo web database assets match resolved dependencies', () {
     final lockfile = File('pubspec.lock').readAsStringSync();
     final depsFile = File(
@@ -368,6 +373,60 @@ String _readPackageVersion(String packageDir) {
     throw StateError('Unable to read version from $packageDir/pubspec.yaml');
   }
   return match.group(1)!;
+}
+
+List<String> _localMarkdownLinkIssues() {
+  final files = _trackedMarkdownFiles();
+  final missing = <String>[];
+  for (final path in files) {
+    final markdown = _stripMarkdownCode(File(path).readAsStringSync());
+    final linkPattern = RegExp(r'!?\[[^\]]+\]\(([^)\s]+)(?:\s+"[^"]*")?\)');
+    for (final match in linkPattern.allMatches(markdown)) {
+      final rawLink = match.group(1)!.trim();
+      if (_isExternalOrAnchorLink(rawLink)) {
+        continue;
+      }
+      final targetPath = Uri.decodeComponent(rawLink).split('#').first;
+      if (targetPath.isEmpty) {
+        continue;
+      }
+      final resolvedPath = targetPath.startsWith('/')
+          ? targetPath.substring(1)
+          : '${File(path).parent.path}/$targetPath';
+      if (!File(resolvedPath).existsSync() &&
+          !Directory(resolvedPath).existsSync()) {
+        missing.add('$path -> $rawLink ($resolvedPath)');
+      }
+    }
+  }
+  return missing;
+}
+
+List<String> _trackedMarkdownFiles() {
+  final result = Process.runSync('git', <String>['ls-files', '*.md']);
+  if (result.exitCode != 0) {
+    throw StateError('Unable to list tracked markdown files: ${result.stderr}');
+  }
+  return (result.stdout as String)
+      .split('\n')
+      .where((path) => path.endsWith('.md'))
+      .where((path) => !path.split('/').contains('third'))
+      .toList(growable: false);
+}
+
+String _stripMarkdownCode(String markdown) {
+  final withoutFencedBlocks = markdown.replaceAll(
+    RegExp(r'```[\s\S]*?```'),
+    '',
+  );
+  return withoutFencedBlocks.replaceAll(RegExp(r'`[^`\n]*`'), '');
+}
+
+bool _isExternalOrAnchorLink(String link) {
+  if (link.startsWith('#')) {
+    return true;
+  }
+  return RegExp(r'^[a-z][a-z0-9+.-]*:').hasMatch(link);
 }
 
 String _readLockfilePackageVersion(String lockfile, String packageName) {
