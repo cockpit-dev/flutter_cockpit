@@ -1103,7 +1103,76 @@ commands:
       expect(head.statusCode, HttpStatus.ok);
       expect(head.body, isEmpty);
       expect(head.headers.contentType?.mimeType, 'application/x-tar');
+      expect(
+        head.headers.value('content-disposition'),
+        contains(
+          'attachment; filename="flutter-cockpit-20260619T100001Z-run-1.tar"',
+        ),
+      );
+      expect(
+        head.headers.value(HttpHeaders.cacheControlHeader),
+        contains('no-store'),
+      );
     });
+
+    test(
+      'rejects bundle downloads when indexed roots escape history root',
+      () async {
+        final tempDir = await Directory.systemTemp.createTemp(
+          'cockpit_devtools_bundle_download_escape_test',
+        );
+        final outsideDir = await Directory.systemTemp.createTemp(
+          'cockpit_devtools_bundle_download_outside_test',
+        );
+        addTearDown(() async {
+          if (tempDir.existsSync()) {
+            await tempDir.delete(recursive: true);
+          }
+          if (outsideDir.existsSync()) {
+            await outsideDir.delete(recursive: true);
+          }
+        });
+        await _writeRunFixture(tempDir);
+        final indexFile = File(p.join(tempDir.path, 'index.json'));
+        final index =
+            jsonDecode(indexFile.readAsStringSync()) as Map<String, Object?>;
+        final run =
+            (index['runs']! as List<Object?>).single as Map<String, Object?>;
+        final safeBundleDir = run['bundleDir'] as String;
+        final safeLiveDir = run['liveDir'] as String;
+
+        final server = CockpitDevtoolsServer(
+          historyRoot: tempDir.path,
+          token: 'secret',
+        );
+        final handle = await server.start();
+        addTearDown(handle.close);
+
+        run['bundleDir'] = outsideDir.path;
+        indexFile.writeAsStringSync(jsonEncode(index));
+        final rejectedBundle = await _getBytes(
+          handle.uri.resolve('/api/runs/run-1/bundle-download?token=secret'),
+        );
+        expect(rejectedBundle.statusCode, HttpStatus.forbidden);
+        expect(utf8.decode(rejectedBundle.body), contains('forbiddenPath'));
+
+        run['bundleDir'] = safeBundleDir;
+        run['liveDir'] = outsideDir.path;
+        indexFile.writeAsStringSync(jsonEncode(index));
+        final rejectedLive = await _getBytes(
+          handle.uri.resolve('/api/runs/run-1/bundle-download?token=secret'),
+        );
+        expect(rejectedLive.statusCode, HttpStatus.forbidden);
+        expect(utf8.decode(rejectedLive.body), contains('forbiddenPath'));
+
+        run['liveDir'] = safeLiveDir;
+        indexFile.writeAsStringSync(jsonEncode(index));
+        final allowed = await _getBytes(
+          handle.uri.resolve('/api/runs/run-1/bundle-download?token=secret'),
+        );
+        expect(allowed.statusCode, HttpStatus.ok);
+      },
+    );
 
     test(
       'bundle download does not treat runDir as a synthetic bundle',
