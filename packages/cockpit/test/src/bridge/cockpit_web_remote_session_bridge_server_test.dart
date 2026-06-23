@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -416,6 +417,275 @@ void main() {
   });
 
   test(
+    'web bridge keeps stale reconnecting clients from replacing a ready client',
+    () async {
+      final server = CockpitWebRemoteSessionBridgeServer(
+        bindHost: '127.0.0.1',
+        bindPort: 0,
+        requestTimeout: const Duration(seconds: 2),
+      );
+      await server.start();
+      addTearDown(server.close);
+
+      final staleSocket = await WebSocket.connect(server.connectUri.toString());
+      addTearDown(staleSocket.close);
+      _serveBridgeSocket(staleSocket, (message) {
+        return CockpitRemoteBridgeResponse(
+          requestId: message.requestId,
+          statusCode: message.uri.path == '/ready' ? 200 : 500,
+          jsonBody: message.uri.path == '/ready'
+              ? const <String, Object?>{
+                  'ready': false,
+                  'currentRouteName': '/inbox',
+                  'supportsInAppControl': false,
+                }
+              : const <String, Object?>{
+                  'error': 'serverError',
+                  'message': 'Bad state: FlutterCockpitRoot is not mounted.',
+                },
+        );
+      });
+
+      final readySocket = await WebSocket.connect(server.connectUri.toString());
+      addTearDown(readySocket.close);
+      _serveBridgeSocket(readySocket, (message) {
+        switch (message.uri.path) {
+          case '/ready':
+            return CockpitRemoteBridgeResponse(
+              requestId: message.requestId,
+              statusCode: 200,
+              jsonBody: const <String, Object?>{
+                'ready': true,
+                'currentRouteName': '/inbox',
+                'supportsInAppControl': true,
+              },
+            );
+          case '/snapshot':
+            return CockpitRemoteBridgeResponse(
+              requestId: message.requestId,
+              statusCode: 200,
+              jsonBody: CockpitSnapshot(routeName: '/inbox').toJson(),
+            );
+          case '/commands/execute':
+            return CockpitRemoteBridgeResponse(
+              requestId: message.requestId,
+              statusCode: 200,
+              jsonBody: <String, Object?>{
+                'result': CockpitCommandResult(
+                  success: true,
+                  commandId: 'wait-ready',
+                  commandType: CockpitCommandType.waitForUiIdle,
+                  durationMs: 4,
+                  snapshot: CockpitSnapshot(routeName: '/inbox').toJson(),
+                ).toJson(),
+              },
+            );
+          default:
+            return CockpitRemoteBridgeResponse(
+              requestId: message.requestId,
+              statusCode: 404,
+              jsonBody: const <String, Object?>{'error': 'notFound'},
+            );
+        }
+      });
+
+      final staleReconnect = await WebSocket.connect(
+        server.connectUri.toString(),
+      );
+      addTearDown(staleReconnect.close);
+      _serveBridgeSocket(staleReconnect, (message) {
+        return CockpitRemoteBridgeResponse(
+          requestId: message.requestId,
+          statusCode: message.uri.path == '/ready' ? 200 : 500,
+          jsonBody: message.uri.path == '/ready'
+              ? const <String, Object?>{
+                  'ready': false,
+                  'currentRouteName': '/inbox',
+                  'supportsInAppControl': false,
+                }
+              : const <String, Object?>{
+                  'error': 'serverError',
+                  'message': 'Bad state: FlutterCockpitRoot is not mounted.',
+                },
+        );
+      });
+
+      final ready = await _readJson(server.baseUri.resolve('/ready'));
+      expect(ready['ready'], isTrue);
+      expect(ready['supportsInAppControl'], isTrue);
+
+      final snapshot = await _readJson(server.baseUri.resolve('/snapshot'));
+      expect(snapshot['routeName'], '/inbox');
+
+      final command = await _postJson(
+        server.baseUri.resolve('/commands/execute'),
+        CockpitCommand(
+          commandId: 'wait-ready',
+          commandType: CockpitCommandType.waitForUiIdle,
+          timeoutMs: 1000,
+        ).toJson(),
+      );
+      expect((command['result'] as Map<Object?, Object?>)['success'], isTrue);
+    },
+  );
+
+  test(
+    'web bridge returns not-ready status when only a reconnecting client remains',
+    () async {
+      final server = CockpitWebRemoteSessionBridgeServer(
+        bindHost: '127.0.0.1',
+        bindPort: 0,
+        requestTimeout: const Duration(seconds: 1),
+      );
+      await server.start();
+      addTearDown(server.close);
+
+      final readySocket = await WebSocket.connect(server.connectUri.toString());
+      _serveBridgeSocket(readySocket, (message) {
+        return CockpitRemoteBridgeResponse(
+          requestId: message.requestId,
+          statusCode: 200,
+          jsonBody: const <String, Object?>{
+            'ready': true,
+            'currentRouteName': '/inbox',
+            'supportsInAppControl': true,
+          },
+        );
+      });
+
+      final reconnectingSocket = await WebSocket.connect(
+        server.connectUri.toString(),
+      );
+      addTearDown(reconnectingSocket.close);
+      _serveBridgeSocket(reconnectingSocket, (message) {
+        return CockpitRemoteBridgeResponse(
+          requestId: message.requestId,
+          statusCode: 200,
+          jsonBody: const <String, Object?>{
+            'ready': false,
+            'currentRouteName': '/inbox',
+            'supportsInAppControl': false,
+          },
+        );
+      });
+
+      await readySocket.close();
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+
+      final response = await _readJsonResponse(
+        server.baseUri.resolve('/ready'),
+      );
+
+      expect(response.statusCode, HttpStatus.ok);
+      expect(response.body['ready'], isFalse);
+      expect(response.body['supportsInAppControl'], isFalse);
+    },
+  );
+
+  test(
+    'web bridge ignores cross-connection response ids without cancelling owner request',
+    () async {
+      final server = CockpitWebRemoteSessionBridgeServer(
+        bindHost: '127.0.0.1',
+        bindPort: 0,
+        requestTimeout: const Duration(seconds: 1),
+      );
+      await server.start();
+      addTearDown(server.close);
+
+      final snapshotRequestId = Completer<String>();
+      final allowSnapshotResponse = Completer<void>();
+      final readySocket = await WebSocket.connect(server.connectUri.toString());
+      addTearDown(readySocket.close);
+      readySocket.listen((payload) async {
+        final message = CockpitRemoteBridgeRequest.fromJson(
+          Map<String, Object?>.from(
+            jsonDecode(payload as String) as Map<Object?, Object?>,
+          ),
+        );
+        switch (message.uri.path) {
+          case '/ready':
+            readySocket.add(
+              jsonEncode(
+                CockpitRemoteBridgeResponse(
+                  requestId: message.requestId,
+                  statusCode: 200,
+                  jsonBody: const <String, Object?>{
+                    'ready': true,
+                    'currentRouteName': '/inbox',
+                    'supportsInAppControl': true,
+                  },
+                ).toJson(),
+              ),
+            );
+          case '/snapshot':
+            if (!snapshotRequestId.isCompleted) {
+              snapshotRequestId.complete(message.requestId);
+            }
+            await allowSnapshotResponse.future;
+            readySocket.add(
+              jsonEncode(
+                CockpitRemoteBridgeResponse(
+                  requestId: message.requestId,
+                  statusCode: 200,
+                  jsonBody: CockpitSnapshot(routeName: '/inbox').toJson(),
+                ).toJson(),
+              ),
+            );
+          default:
+            readySocket.add(
+              jsonEncode(
+                CockpitRemoteBridgeResponse(
+                  requestId: message.requestId,
+                  statusCode: 404,
+                  jsonBody: const <String, Object?>{'error': 'notFound'},
+                ).toJson(),
+              ),
+            );
+        }
+      });
+
+      final reconnectingSocket = await WebSocket.connect(
+        server.connectUri.toString(),
+      );
+      addTearDown(reconnectingSocket.close);
+      _serveBridgeSocket(reconnectingSocket, (message) {
+        return CockpitRemoteBridgeResponse(
+          requestId: message.requestId,
+          statusCode: 200,
+          jsonBody: const <String, Object?>{
+            'ready': false,
+            'currentRouteName': '/inbox',
+            'supportsInAppControl': false,
+          },
+        );
+      });
+
+      final snapshotFuture = _readJsonResponse(
+        server.baseUri.resolve('/snapshot'),
+      );
+      final hijackedRequestId = await snapshotRequestId.future;
+      reconnectingSocket.add(
+        jsonEncode(
+          CockpitRemoteBridgeResponse(
+            requestId: hijackedRequestId,
+            statusCode: 200,
+            jsonBody: const <String, Object?>{'hijacked': true},
+          ).toJson(),
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      allowSnapshotResponse.complete();
+
+      final response = await snapshotFuture;
+
+      expect(response.statusCode, HttpStatus.ok);
+      expect(response.body['routeName'], '/inbox');
+      expect(response.body.containsKey('hijacked'), isFalse);
+    },
+  );
+
+  test(
     'web bridge stops an active host recording when the server closes',
     () async {
       var stopRecordingCount = 0;
@@ -692,6 +962,21 @@ final class _FakeHostRecordingAdapter implements CockpitHostRecordingAdapter {
   Future<CockpitRecordingResult> stopRecording() {
     return onStop();
   }
+}
+
+void _serveBridgeSocket(
+  WebSocket socket,
+  CockpitRemoteBridgeResponse Function(CockpitRemoteBridgeRequest request)
+  handle,
+) {
+  socket.listen((payload) {
+    final message = CockpitRemoteBridgeRequest.fromJson(
+      Map<String, Object?>.from(
+        jsonDecode(payload as String) as Map<Object?, Object?>,
+      ),
+    );
+    socket.add(jsonEncode(handle(message).toJson()));
+  });
 }
 
 Future<Map<String, Object?>> _readJson(Uri uri) async {

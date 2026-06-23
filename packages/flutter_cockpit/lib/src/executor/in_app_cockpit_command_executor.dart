@@ -1212,17 +1212,50 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
         .toDouble();
     final explicitRevealRequested =
         revealAlignment != CockpitRevealAlignment.nearest || revealPadding > 0;
+    final allowsGenericResolution = _allowsGenericScrollResolution(locator);
 
-    Future<CockpitCommandExecution> buildScrollSuccess(
+    Future<CockpitCommandExecution?> buildScrollSuccess(
       CockpitTargetResolutionResult successResolution,
     ) async {
-      if (explicitRevealRequested) {
-        await _attemptEnsureVisible(
-          locator,
-          durationPerStep,
-          alignment: revealAlignment,
-          padding: revealPadding,
-        );
+      var candidateResolution = successResolution;
+      for (var attempt = 0; attempt < 2; attempt += 1) {
+        if (explicitRevealRequested) {
+          await _attemptEnsureVisible(
+            locator,
+            durationPerStep,
+            alignment: revealAlignment,
+            padding: revealPadding,
+          );
+          await _postActionSettler();
+          await _settleBeforeObservation();
+          await _waitForVisualContinuity(
+            commandType: CockpitCommandType.scrollUntilVisible,
+            routeChanged: false,
+          );
+        }
+        final satisfied = _scrollLocatorResolution(command);
+        if (satisfied != null) {
+          candidateResolution = _scrollResolutionSuccess(satisfied);
+        } else {
+          candidateResolution = allowsGenericResolution
+              ? await _resolveWithRetry(command, attempts: 2)
+              : _resolve(command);
+        }
+        if (candidateResolution.isSuccess) {
+          return _buildSuccessWithOptionalCapture(
+            command: command,
+            durationMs: stopwatch.elapsedMilliseconds,
+            resolution: candidateResolution,
+          );
+        }
+      }
+
+      if (await _attemptEnsureVisible(
+        locator,
+        durationPerStep,
+        alignment: revealAlignment,
+        padding: revealPadding,
+      )) {
         await _postActionSettler();
         await _settleBeforeObservation();
         await _waitForVisualContinuity(
@@ -1230,14 +1263,10 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
           routeChanged: false,
         );
       }
-      return _buildSuccessWithOptionalCapture(
-        command: command,
-        durationMs: stopwatch.elapsedMilliseconds,
-        resolution: successResolution,
-      );
+      return null;
     }
 
-    Future<CockpitCommandExecution> buildScrollSatisfiedSuccess(
+    Future<CockpitCommandExecution?> buildScrollSatisfiedSuccess(
       CockpitLocatorResolution locatorResolution,
     ) {
       return buildScrollSuccess(_scrollResolutionSuccess(locatorResolution));
@@ -1245,10 +1274,12 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
 
     final initialSatisfied = _scrollLocatorResolution(command);
     if (initialSatisfied != null) {
-      return buildScrollSatisfiedSuccess(initialSatisfied);
+      final success = await buildScrollSatisfiedSuccess(initialSatisfied);
+      if (success != null) {
+        return success;
+      }
     }
 
-    final allowsGenericResolution = _allowsGenericScrollResolution(locator);
     var resolution = allowsGenericResolution
         ? await _resolveWithRetry(command)
         : _resolve(command);
@@ -1258,7 +1289,10 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
     var usedDirectionFallback = false;
     CockpitScrollStepResult? lastScrollStep;
     if (allowsGenericResolution && resolution.isSuccess) {
-      return buildScrollSuccess(resolution);
+      final success = await buildScrollSuccess(resolution);
+      if (success != null) {
+        return success;
+      }
     }
 
     if (await _attemptEnsureVisible(
@@ -1277,7 +1311,10 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
           ? await _resolveWithRetry(command, attempts: 2)
           : _resolve(command);
       if (resolution.isSuccess) {
-        return buildScrollSuccess(resolution);
+        final success = await buildScrollSuccess(resolution);
+        if (success != null) {
+          return success;
+        }
       }
     }
 
@@ -1310,12 +1347,18 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
           );
           final satisfied = _scrollLocatorResolution(command);
           if (satisfied != null) {
-            return buildScrollSatisfiedSuccess(satisfied);
+            final success = await buildScrollSatisfiedSuccess(satisfied);
+            if (success != null) {
+              return success;
+            }
           }
           if (allowsGenericResolution) {
             resolution = await _resolveWithRetry(command, attempts: 2);
             if (resolution.isSuccess) {
-              return buildScrollSuccess(resolution);
+              final success = await buildScrollSuccess(resolution);
+              if (success != null) {
+                return success;
+              }
             }
             if (resolution.error?.code ==
                 CockpitCommandError.ambiguousTargetCode) {
@@ -1346,14 +1389,20 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
 
         final satisfied = _scrollLocatorResolution(command);
         if (satisfied != null) {
-          return buildScrollSatisfiedSuccess(satisfied);
+          final success = await buildScrollSatisfiedSuccess(satisfied);
+          if (success != null) {
+            return success;
+          }
         }
 
         resolution = allowsGenericResolution
             ? await _resolveWithRetry(command, attempts: 2)
             : _resolve(command);
         if (allowsGenericResolution && resolution.isSuccess) {
-          return buildScrollSuccess(resolution);
+          final success = await buildScrollSuccess(resolution);
+          if (success != null) {
+            return success;
+          }
         }
         if (await _attemptEnsureVisible(
           locator,
@@ -1371,7 +1420,10 @@ final class InAppCockpitCommandExecutor implements CockpitCommandExecutor {
               ? await _resolveWithRetry(command, attempts: 2)
               : _resolve(command);
           if (resolution.isSuccess) {
-            return buildScrollSuccess(resolution);
+            final success = await buildScrollSuccess(resolution);
+            if (success != null) {
+              return success;
+            }
           }
         }
         if (resolution.error?.code == CockpitCommandError.ambiguousTargetCode) {

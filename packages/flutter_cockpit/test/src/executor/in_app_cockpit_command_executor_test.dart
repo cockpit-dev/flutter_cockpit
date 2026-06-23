@@ -4981,6 +4981,99 @@ void main() {
   );
 
   test(
+    'scrollUntilVisible revalidates locator visibility after final reveal',
+    () async {
+      final registry = CockpitTargetRegistry(routeName: '/editor');
+      registry.register(
+        CockpitTarget(
+          registrationId: 'due-today',
+          semanticId: 'task-editor-due-today',
+          text: 'Today',
+          routeName: '/editor',
+          supportedCommands: const {CockpitCommandType.tap},
+          onTap: () {},
+        ),
+      );
+      var ensureVisibleCount = 0;
+
+      final executor = InAppCockpitCommandExecutor(
+        registry: registry,
+        postActionSettler: () async {},
+        scrollStepHandler:
+            ({
+              required reverse,
+              required viewportFraction,
+              scrollableKey,
+              targetLocator,
+              scrollableLocator,
+              required duration,
+              required gestureProfile,
+              required continuous,
+              required postScrollEnsureVisible,
+            }) async {
+              return const CockpitScrollStepResult(didScroll: false);
+            },
+        ensureVisibleHandler:
+            ({
+              required locator,
+              required duration,
+              required alignment,
+              required padding,
+            }) async {
+              ensureVisibleCount += 1;
+              registry.unregister('due-today');
+              return true;
+            },
+        interactionPolicy: const CockpitInteractionPolicy(
+          targetResolveTimeout: Duration.zero,
+          targetResolvePollInterval: Duration.zero,
+          uiIdleQuietWindow: Duration.zero,
+          uiIdleTimeout: Duration.zero,
+          preActionVisualDelay: Duration.zero,
+          actionCommitTimeout: Duration.zero,
+          actionVisualDelay: Duration.zero,
+          routeTransitionVisualDelay: Duration.zero,
+          recordingPreActionVisualDelay: Duration.zero,
+          recordingActionVisualDelay: Duration.zero,
+        ),
+      );
+
+      final result = await executor.execute(
+        CockpitCommand(
+          commandId: 'scroll-to-today',
+          commandType: CockpitCommandType.scrollUntilVisible,
+          locator: const CockpitLocator(
+            semanticId: 'task-editor-due-today',
+            text: 'Today',
+            route: '/editor',
+            ancestor: CockpitLocator(route: '/editor'),
+          ),
+          parameters: const <String, Object?>{
+            'maxScrolls': 0,
+            'revealAlignment': 'center',
+          },
+        ),
+      );
+
+      expect(ensureVisibleCount, greaterThanOrEqualTo(1));
+      expect(result.success, isFalse);
+      expect(result.error?.code, CockpitCommandError.targetNotFoundCode);
+      expect(
+        registry
+            .resolve(
+              const CockpitLocator(
+                semanticId: 'task-editor-due-today',
+                text: 'Today',
+                route: '/editor',
+              ),
+            )
+            .isSuccess,
+        isFalse,
+      );
+    },
+  );
+
+  test(
     'scrollUntilVisible does not satisfy a compound text locator with text alone',
     () async {
       final registry = CockpitTargetRegistry(routeName: '/editor');

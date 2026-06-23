@@ -45,8 +45,11 @@ final class FlutterCockpitRoot extends StatefulWidget {
 }
 
 final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
-  final GlobalKey<CockpitSurfaceState> _surfaceKey =
-      GlobalKey<CockpitSurfaceState>();
+  // Keep this key untyped. Flutter web hot restart can keep this State object
+  // while remounting CockpitSurface from a new code generation; a typed
+  // GlobalKey<CockpitSurfaceState> can then reject the fresh State by stale
+  // generic type identity and make the remote bridge look ready but unusable.
+  final GlobalKey _surfaceKey = GlobalKey();
   CockpitRemoteSessionServer? _remoteSessionServer;
   CockpitRemoteSessionBridgeClient? _remoteSessionBridgeClient;
   Future<void>? _remoteSessionStartFuture;
@@ -76,10 +79,7 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
   CockpitSnapshot snapshot({
     CockpitSnapshotOptions options = const CockpitSnapshotOptions(),
   }) {
-    final surfaceState = _surfaceKey.currentState;
-    if (surfaceState == null) {
-      throw StateError('FlutterCockpitRoot is not mounted.');
-    }
+    final surfaceState = _requireSurfaceState();
     final snapshot = surfaceState.snapshot(options: options);
     final networkObserver = FlutterCockpit.binding.networkObserver;
     final runtimeObserver = FlutterCockpit.binding.runtimeObserver;
@@ -128,10 +128,7 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
             snapshotOptions: _defaultSnapshotOptionsFor(request.reason),
           )
         : request;
-    final surfaceState = _surfaceKey.currentState;
-    if (surfaceState == null) {
-      throw StateError('FlutterCockpitRoot is not mounted.');
-    }
+    final surfaceState = _requireSurfaceState();
 
     if (effectiveRequest.reason == CockpitScreenshotReason.acceptance) {
       await waitForUiIdle();
@@ -217,10 +214,7 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
   }
 
   Future<void> performGesture(CockpitGestureAction action) {
-    final surfaceState = _surfaceKey.currentState;
-    if (surfaceState == null) {
-      throw StateError('FlutterCockpitRoot is not mounted.');
-    }
+    final surfaceState = _requireSurfaceState();
     return surfaceState.performGesture(action);
   }
 
@@ -235,6 +229,16 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
 
   Future<CockpitRemoteSessionStatus> remoteSessionStatus() {
     return _withRemoteSessionStarted(_buildRemoteSessionStatus);
+  }
+
+  dynamic get _surfaceStateOrNull => _surfaceKey.currentState;
+
+  dynamic _requireSurfaceState() {
+    final surfaceState = _surfaceStateOrNull;
+    if (surfaceState == null) {
+      throw StateError('FlutterCockpitRoot is not mounted.');
+    }
+    return surfaceState;
   }
 
   @override
@@ -340,7 +344,7 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
             required continuous,
             required postScrollEnsureVisible,
           }) {
-            final surfaceState = _surfaceKey.currentState;
+            final surfaceState = _surfaceStateOrNull;
             if (surfaceState == null) {
               return Future<CockpitScrollStepResult>.value(
                 const CockpitScrollStepResult(didScroll: false),
@@ -365,7 +369,7 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
             required alignment,
             required padding,
           }) {
-            final surfaceState = _surfaceKey.currentState;
+            final surfaceState = _surfaceStateOrNull;
             if (surfaceState == null) {
               return Future<bool>.value(false);
             }
@@ -377,7 +381,7 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
             );
           },
       gestureHandler: (action) {
-        final surfaceState = _surfaceKey.currentState;
+        final surfaceState = _surfaceStateOrNull;
         if (surfaceState == null) {
           return Future<void>.error(
             StateError('FlutterCockpitRoot surface is not mounted.'),
@@ -451,7 +455,7 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
   }
 
   Map<String, Object?> _buildRemoteSessionReady() {
-    final surfaceMounted = _surfaceKey.currentState != null;
+    final surfaceMounted = _surfaceStateOrNull != null;
     return <String, Object?>{
       'ready': surfaceMounted,
       'currentRouteName': FlutterCockpit.binding.currentRouteName.value,
@@ -566,7 +570,7 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
             required continuous,
             required postScrollEnsureVisible,
           }) {
-            final surfaceState = _surfaceKey.currentState;
+            final surfaceState = _surfaceStateOrNull;
             if (surfaceState == null) {
               return Future<CockpitScrollStepResult>.value(
                 const CockpitScrollStepResult(didScroll: false),
@@ -591,7 +595,7 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
             required alignment,
             required padding,
           }) {
-            final surfaceState = _surfaceKey.currentState;
+            final surfaceState = _surfaceStateOrNull;
             if (surfaceState == null) {
               return Future<bool>.value(false);
             }
@@ -603,7 +607,7 @@ final class FlutterCockpitRootState extends State<FlutterCockpitRoot> {
             );
           },
       gestureHandler: (action) {
-        final surfaceState = _surfaceKey.currentState;
+        final surfaceState = _surfaceStateOrNull;
         if (surfaceState == null) {
           return Future<void>.error(
             StateError('FlutterCockpitRoot surface is not mounted.'),
