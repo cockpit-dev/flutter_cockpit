@@ -773,6 +773,19 @@ const String cockpitDevtoolsIndexHtml = r'''
     .artifact-media.video {
       place-items: stretch;
     }
+    .artifact-media.video.poster-backed {
+      grid-template-rows: minmax(0, 1fr) 42px;
+      gap: 1px;
+      aspect-ratio: 16 / 13;
+    }
+    .artifact-media.video.poster-backed img {
+      min-height: 0;
+    }
+    .artifact-media.video.poster-backed video {
+      min-height: 0;
+      object-fit: cover;
+      border-top: 1px solid rgba(43, 62, 56, .72);
+    }
     .artifact-media.video::before {
       content: "video";
       position: absolute;
@@ -1415,6 +1428,7 @@ steps:
       lastLiveStateText: '',
       lastBundleSummaryKey: '',
       lastRenderedSignature: '',
+      lastRenderedMediaSignature: null,
       hasLoadedRuns: false,
       hasResolvedInitialScope: initialScope !== 'current',
       hasStoredPanelState: false,
@@ -2230,6 +2244,32 @@ steps:
       return parts;
     }
 
+    function primeVideoMetadata(video, status = null, options = {}) {
+      let settled = false;
+      const pendingMs = options.pendingMs || 1800;
+      const markReady = () => {
+        settled = true;
+      };
+      const markPending = () => {
+        if (settled || !status || video.readyState >= 1 || video.error) return;
+        status.className = 'media-status';
+        status.textContent = 'metadata pending';
+      };
+      video.addEventListener('loadedmetadata', markReady, {once: true});
+      video.addEventListener('error', markReady, {once: true});
+      setTimeout(markPending, pendingMs);
+      try {
+        video.load();
+      } catch (_) {
+        // Some embedded browsers gate media loading until the element is painted.
+        setTimeout(() => {
+          try {
+            video.load();
+          } catch (_) {}
+        }, 0);
+      }
+    }
+
     function primaryRecordingArtifact() {
       const artifacts = collectArtifacts();
       return artifacts.find((artifact) =>
@@ -2348,12 +2388,34 @@ steps:
         media.appendChild(img);
       } else if (kind === 'video' && url) {
         media.classList.add('video');
+        const posterUrl = artifactPosterUrl(state.selectedRunId, artifact);
+        if (posterUrl) {
+          const poster = document.createElement('img');
+          poster.loading = options.eager ? 'eager' : 'lazy';
+          poster.decoding = 'async';
+          poster.alt = `${artifactLabel(artifact)} poster ${artifactPath(artifact)}`;
+          poster.onload = () => {
+            if (status.textContent === 'loading') {
+              status.className = isTimelinePreview
+                ? 'media-status synthetic'
+                : 'media-status ready';
+              status.textContent = poster.naturalWidth && poster.naturalHeight
+                ? `${poster.naturalWidth}x${poster.naturalHeight} poster`
+                : 'poster ready';
+            }
+          };
+          poster.onerror = () => {
+            if (status.textContent === 'loading') status.textContent = 'poster unavailable';
+          };
+          poster.src = posterUrl;
+          media.appendChild(poster);
+          media.classList.add('poster-backed');
+        }
         const video = document.createElement('video');
         video.controls = true;
         video.muted = true;
         video.playsInline = true;
         video.preload = 'metadata';
-        const posterUrl = artifactPosterUrl(state.selectedRunId, artifact);
         if (posterUrl) video.poster = posterUrl;
         video.setAttribute('aria-label', `Play ${artifactLabel(artifact)} ${artifactPath(artifact)}`);
         video.onloadedmetadata = () => {
@@ -2375,6 +2437,7 @@ steps:
           status.textContent = 'video failed';
         };
         video.src = url;
+        primeVideoMetadata(video, status);
         media.appendChild(video);
       } else {
         const placeholder = document.createElement('div');
@@ -2383,7 +2446,7 @@ steps:
         media.appendChild(placeholder);
         status.textContent = kind;
       }
-      if (kind === 'image' && url) {
+      if ((kind === 'image' || kind === 'video') && url) {
         media.classList.add('clickable');
         media.tabIndex = 0;
         media.setAttribute('role', 'button');
@@ -2461,6 +2524,7 @@ steps:
         const posterUrl = artifactPosterUrl(state.selectedRunId, artifact);
         if (posterUrl) video.poster = posterUrl;
         video.src = url;
+        primeVideoMetadata(video);
         els.mediaViewerStage.appendChild(video);
         if (isTimelinePreviewArtifact(artifact)) {
           const note = document.createElement('p');
@@ -2689,6 +2753,7 @@ steps:
     function advanceSelectionRevision() {
       state.selectionRevision += 1;
       state.lastRenderedSignature = '';
+      state.lastRenderedMediaSignature = null;
       return state.selectionRevision;
     }
 
@@ -3048,9 +3113,13 @@ steps:
       els.primaryRecordingCard.appendChild(copy);
     }
 
+    function renderMediaSurfaces() {
+      renderPrimaryRecording();
+      renderArtifacts();
+    }
+
     function renderFacts() {
       clearNode(els.runFacts);
-      renderPrimaryRecording();
       const run = selectedRun() || {};
       const live = state.liveState || {};
       const allRuns = isAllRunsScope();
@@ -3747,13 +3816,38 @@ steps:
       ].join('|');
     }
 
+    function mediaSignature() {
+      return collectArtifacts()
+        .slice(0, 60)
+        .map((artifact) => [
+          artifactRunId(artifact),
+          artifactKind(artifact),
+          artifactPath(artifact),
+          artifactLabel(artifact),
+          artifact.posterRef || '',
+          artifact.linkedScreenshotRef || '',
+          artifact.source || '',
+          artifact.videoSource || artifact.deliveryVideoSource || '',
+          artifact.durationMs || '',
+          artifact.workflowStepId || '',
+          artifact.eventKey || '',
+          artifact.eventSeq || '',
+        ].join(':'))
+        .join('|');
+    }
+
     function renderAll() {
       const signature = renderSignature();
-      if (signature === state.lastRenderedSignature) {
+      const nextMediaSignature = mediaSignature();
+      const mediaChanged = nextMediaSignature !== state.lastRenderedMediaSignature;
+      if (signature === state.lastRenderedSignature && !mediaChanged) {
         renderHeaderSummary();
         return;
       }
       state.lastRenderedSignature = signature;
+      if (mediaChanged) {
+        state.lastRenderedMediaSignature = nextMediaSignature;
+      }
       renderHeaderSummary();
       renderScopes();
       renderRuns();
@@ -3761,7 +3855,9 @@ steps:
       renderFacts();
       renderTimelineContext();
       renderTimeline();
-      renderArtifacts();
+      if (mediaChanged) {
+        renderMediaSurfaces();
+      }
       renderInspector();
       renderPayloadPreview();
     }
@@ -3781,6 +3877,7 @@ steps:
       state.lastLiveStateText = '';
       state.lastBundleSummaryKey = '';
       state.lastRenderedSignature = '';
+      state.lastRenderedMediaSignature = null;
       if (options.clearEvents) {
         state.selectedEventKey = null;
         state.selectedEventSeq = null;

@@ -1672,7 +1672,8 @@ Array.from(document.querySelectorAll('.artifact-media video')).some((video) => v
   context: document.querySelector('[data-testid="timeline-context"]').textContent,
   timeline: document.querySelector('[data-testid="timeline-list"]').textContent,
   gallery: document.querySelector('[data-testid="artifact-gallery"]').textContent,
-  imageWidth: Array.from(document.querySelectorAll('.artifact-media img')).find((img) => img.complete && img.naturalWidth > 0)?.naturalWidth || 0,
+  screenshotWidth: Array.from(document.querySelectorAll('.artifact-media img')).find((img) => img.complete && img.naturalWidth === 160)?.naturalWidth || 0,
+  recordingPosterWidth: document.querySelector('[data-testid="primary-recording-card"] .artifact-media img')?.naturalWidth || 0,
   videoWidth: Array.from(document.querySelectorAll('.artifact-media video')).find((video) => video.readyState >= 1 && video.videoWidth > 0)?.videoWidth || 0,
   primaryRecording: document.querySelector('[data-testid="primary-recording-card"]')?.textContent || '',
   primaryRecordingHref: document.querySelector('[data-testid="primary-recording-card"] a')?.href || '',
@@ -1713,7 +1714,8 @@ Array.from(document.querySelectorAll('.artifact-media video')).some((video) => v
         expect(rendered['gallery'], contains('real-queue-state-2.png'));
         expect(rendered['gallery'], contains('real-flow-final.png'));
         expect(rendered['gallery'], contains('real-dashboard-flow.webm'));
-        expect(rendered['imageWidth'], 160);
+        expect(rendered['screenshotWidth'], 160);
+        expect(rendered['recordingPosterWidth'], greaterThan(0));
         expect(rendered['videoWidth'], greaterThan(0));
         expect(rendered['primaryRecording'], contains('Primary recording'));
         expect(rendered['primaryRecording'], contains('nativeRecording'));
