@@ -80,9 +80,10 @@ comprehensive sections that a real acceptance flow needs.
 
 ## Recording-backed workflow
 
-`recorded-acceptance.workflow.yaml` records only the acceptance segment. The
-recording defaults to `mode: auto`, so Cockpit prefers system or host recording
-and falls back only when the platform adapter allows it.
+`recorded-acceptance.workflow.yaml` records only the acceptance segment. It
+waits for Inbox, navigates Inbox -> Today -> Inbox, then captures final
+evidence. The recording defaults to `mode: auto`, so Cockpit prefers system or
+host recording and falls back only when the platform adapter allows it.
 
 ```bash
 dart run cockpit run-script --app-json /tmp/cockpit_demo_app.json --script validation/recorded-acceptance.workflow.yaml --output-root /tmp/cockpit_demo_recorded_acceptance

@@ -714,8 +714,8 @@ const String cockpitDevtoolsIndexHtml = r'''
       display: block;
       background: #050807;
     }
-    .artifact-media video {
-      pointer-events: none;
+    .artifact-media.video {
+      place-items: stretch;
     }
     .artifact-media .placeholder {
       padding: 8px;
@@ -738,6 +738,10 @@ const String cockpitDevtoolsIndexHtml = r'''
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+    .artifact-media.video .media-status {
+      top: 5px;
+      bottom: auto;
     }
     .media-status.ready { color: var(--good); }
     .media-status.error {
@@ -770,6 +774,34 @@ const String cockpitDevtoolsIndexHtml = r'''
     .artifact-open:hover, .artifact-open:focus-visible {
       text-decoration: underline;
       outline: none;
+    }
+    .media-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      align-items: center;
+    }
+    .media-actions button,
+    .media-actions a {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 4px 7px;
+      border: 1px solid rgba(43, 62, 56, .88);
+      border-radius: 999px;
+      background: rgba(8, 17, 14, .72);
+      color: var(--accent);
+      text-decoration: none;
+      cursor: pointer;
+      font: 10px/1.1 "SFMono-Regular", "Cascadia Code", "Liberation Mono", monospace;
+    }
+    .media-actions button:hover,
+    .media-actions button:focus-visible,
+    .media-actions a:hover,
+    .media-actions a:focus-visible {
+      border-color: rgba(114, 228, 181, .62);
+      outline: none;
+      text-decoration: none;
     }
     body.media-viewer-open {
       overflow: hidden;
@@ -2189,13 +2221,13 @@ steps:
         img.src = url;
         media.appendChild(img);
       } else if (kind === 'video' && url) {
+        media.classList.add('video');
         const video = document.createElement('video');
-        video.controls = false;
+        video.controls = true;
         video.muted = true;
         video.playsInline = true;
         video.preload = 'metadata';
-        video.tabIndex = -1;
-        video.setAttribute('aria-hidden', 'true');
+        video.setAttribute('aria-label', `Play ${artifactLabel(artifact)} ${artifactPath(artifact)}`);
         video.onloadedmetadata = () => {
           status.className = isTimelinePreview
             ? 'media-status synthetic'
@@ -2230,7 +2262,7 @@ steps:
         media.appendChild(placeholder);
         status.textContent = kind;
       }
-      if ((kind === 'image' || kind === 'video') && url) {
+      if (kind === 'image' && url) {
         media.classList.add('clickable');
         media.tabIndex = 0;
         media.setAttribute('role', 'button');
@@ -2256,7 +2288,33 @@ steps:
       }
       media.appendChild(status);
       container.appendChild(media);
+      if ((kind === 'image' || kind === 'video') && url) {
+        renderArtifactActions(container, artifact, media);
+      }
       return media;
+    }
+
+    function renderArtifactActions(container, artifact, trigger) {
+      const url = artifactUrl(state.selectedRunId, artifact);
+      if (!url) return;
+      const actions = document.createElement('div');
+      actions.className = 'media-actions';
+      const view = document.createElement('button');
+      view.type = 'button';
+      view.textContent = 'view large';
+      view.onclick = (event) => {
+        event.stopPropagation();
+        openMediaViewer(artifact, view);
+      };
+      actions.appendChild(view);
+      const open = document.createElement('a');
+      open.href = url;
+      open.target = '_blank';
+      open.rel = 'noreferrer';
+      open.textContent = 'open artifact';
+      open.onclick = (event) => event.stopPropagation();
+      actions.appendChild(open);
+      container.appendChild(actions);
     }
 
     function renderMediaViewerArtifact(artifact) {
@@ -3357,7 +3415,8 @@ steps:
       body.className = 'artifact-body';
       renderArtifactPreview(body, displayArtifact, {eager});
       const url = artifactUrl(state.selectedRunId, displayArtifact);
-      if (url) {
+      const kind = artifactKind(displayArtifact);
+      if (url && kind !== 'image' && kind !== 'video') {
         const link = document.createElement('a');
         link.className = 'artifact-open';
         link.href = url;

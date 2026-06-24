@@ -837,11 +837,12 @@ commands:
       );
       expect(dashboard.body, contains('media-viewer-toolbar panel-summary'));
       expect(dashboard.body, contains('openMediaViewer'));
-      expect(dashboard.body, contains('video.controls = false'));
-      expect(dashboard.body, contains('video.tabIndex = -1'));
+      expect(dashboard.body, contains('video.controls = true'));
+      expect(dashboard.body, contains("video.setAttribute('aria-label'"));
+      expect(dashboard.body, contains('media-actions'));
+      expect(dashboard.body, contains('view large'));
       expect(dashboard.body, contains('.artifact-media video'));
-      expect(dashboard.body, contains('pointer-events: none'));
-      expect(dashboard.body, contains('openMediaViewer(artifact, media)'));
+      expect(dashboard.body, contains('renderArtifactActions'));
       expect(dashboard.body, contains('download</a>'));
       expect(dashboard.body, contains('copy link'));
       expect(dashboard.body, contains('actual size'));
