@@ -62,6 +62,7 @@ void main() {
   const media = Array.from(document.querySelectorAll('.artifact-media img, .artifact-media video')).map((node) => ({
     tag: node.tagName,
     src: node.currentSrc || node.src || '',
+    controls: node.tagName === 'VIDEO' ? node.controls : undefined,
     complete: node.tagName === 'IMG' ? node.complete : undefined,
     naturalWidth: node.naturalWidth || undefined,
     readyState: node.tagName === 'VIDEO' ? node.readyState : undefined,
@@ -82,6 +83,7 @@ void main() {
     timelineSummary: text('#timelineSummary'),
     timelineContext: text('[data-testid="timeline-context"]'),
     facts: text('#runFacts'),
+    mediaActions: Array.from(document.querySelectorAll('.media-actions')).map((node) => node.textContent || ''),
     factGroups: Array.from(document.querySelectorAll('#runFacts .fact-group > summary h3')).map((node) => node.textContent || ''),
     runDetailGrid: getComputedStyle(document.querySelector('.run-detail')).gridTemplateColumns,
     runFactsScrollHeight: document.querySelector('.run-facts-scroll').scrollHeight,
@@ -246,6 +248,7 @@ Array.from(document.querySelectorAll('.artifact-media video')).some((video) => v
 (() => Array.from(document.querySelectorAll('.artifact-media img, .artifact-media video')).map((node) => ({
   tag: node.tagName,
   src: node.currentSrc || node.src || '',
+  controls: node.tagName === 'VIDEO' ? node.controls : undefined,
   complete: node.tagName === 'IMG' ? node.complete : undefined,
   naturalWidth: node.naturalWidth || undefined,
   readyState: node.tagName === 'VIDEO' ? node.readyState : undefined,
@@ -268,13 +271,20 @@ Array.from(document.querySelectorAll('.artifact-media video')).some((video) => v
           contains(
             allOf(
               containsPair('tag', 'VIDEO'),
+              containsPair('controls', true),
               containsPair('readyState', greaterThanOrEqualTo(1)),
               containsPair('videoWidth', 96),
             ),
           ),
         );
+        expect(
+          initial['mediaActions'] as List<Object?>,
+          contains(contains('view large')),
+        );
 
-        await tab.click("document.querySelector('.artifact-media.clickable')");
+        await tab.click(
+          "document.querySelector('.artifact .media-actions button')",
+        );
         await tab.waitForExpression(
           '!document.querySelector("[data-testid=\\"media-viewer\\"]").hidden && '
           'document.querySelector("#mediaViewerStage img, #mediaViewerStage video") && '
@@ -339,7 +349,7 @@ Array.from(document.querySelectorAll('.artifact-media video')).some((video) => v
         );
 
         await tab.click(
-          "Array.from(document.querySelectorAll('.artifact-media.clickable')).find((node) => node.querySelector('video'))",
+          "Array.from(document.querySelectorAll('.artifact')).find((node) => node.querySelector('.artifact-media video')).querySelector('.media-actions button')",
         );
         await tab.waitForExpression(
           '!document.querySelector("[data-testid=\\"media-viewer\\"]").hidden && '
@@ -946,7 +956,7 @@ steps:
 (() => ({
   gallery: document.querySelector('[data-testid="artifact-gallery"]').textContent,
   mediaStatuses: Array.from(document.querySelectorAll('.artifact-media .media-status')).map((node) => node.textContent || ''),
-  mediaLabels: Array.from(document.querySelectorAll('.artifact-media.clickable')).map((node) => node.getAttribute('aria-label') || '')
+  videoLabels: Array.from(document.querySelectorAll('.artifact-media video')).map((node) => node.getAttribute('aria-label') || '')
 }))()
 ''');
         expect(checkoutPreview['gallery'], contains('timeline preview'));
@@ -955,7 +965,7 @@ steps:
           contains(predicate<String>((text) => text.contains('synthetic'))),
         );
         expect(
-          checkoutPreview['mediaLabels'] as List<Object?>,
+          checkoutPreview['videoLabels'] as List<Object?>,
           contains(
             predicate<String>(
               (text) =>
@@ -1019,7 +1029,8 @@ steps:
     timeline: document.querySelector('[data-testid="timeline-list"]').textContent,
     gallery: document.querySelector('[data-testid="artifact-gallery"]').textContent,
     placeholderCount: document.querySelectorAll('.artifact-media .placeholder').length,
-    clickableMediaCount: document.querySelectorAll('.artifact-media.clickable').length,
+    imagePreviewButtonCount: document.querySelectorAll('.artifact-media.clickable img').length,
+    videoControlCount: Array.from(document.querySelectorAll('.artifact-media video')).filter((video) => video.controls).length,
     artifactLinks: artifactCards.map((node) => node.textContent)
   };
 })()
@@ -1031,7 +1042,8 @@ steps:
         expect(checkoutArtifacts['timeline'], contains('diagnostics'));
         expect(checkoutArtifacts['gallery'], contains('diagnostics'));
         expect(checkoutArtifacts['placeholderCount'], greaterThan(0));
-        expect(checkoutArtifacts['clickableMediaCount'], greaterThan(0));
+        expect(checkoutArtifacts['imagePreviewButtonCount'], greaterThan(0));
+        expect(checkoutArtifacts['videoControlCount'], greaterThan(0));
         expect(
           checkoutArtifacts['artifactLinks'],
           contains(predicate<String>((text) => text.contains('diagnostics'))),
@@ -1662,9 +1674,9 @@ Array.from(document.querySelectorAll('.artifact-media video')).some((video) => v
   gallery: document.querySelector('[data-testid="artifact-gallery"]').textContent,
   imageWidth: Array.from(document.querySelectorAll('.artifact-media img')).find((img) => img.complete && img.naturalWidth > 0)?.naturalWidth || 0,
   videoWidth: Array.from(document.querySelectorAll('.artifact-media video')).find((video) => video.readyState >= 1 && video.videoWidth > 0)?.videoWidth || 0,
-  screenshotHref: Array.from(document.querySelectorAll('.artifact-open')).find((node) => node.href.includes('real-flow-final.png'))?.href || '',
-  queueScreenshotHref: Array.from(document.querySelectorAll('.artifact-open')).find((node) => node.href.includes('real-queue-state-1.png'))?.href || '',
-  recordingHref: Array.from(document.querySelectorAll('.artifact-open')).find((node) => node.href.includes('real-dashboard-flow.webm'))?.href || '',
+  screenshotHref: Array.from(document.querySelectorAll('.media-actions a, .artifact-open')).find((node) => node.href.includes('real-flow-final.png'))?.href || '',
+  queueScreenshotHref: Array.from(document.querySelectorAll('.media-actions a, .artifact-open')).find((node) => node.href.includes('real-queue-state-1.png'))?.href || '',
+  recordingHref: Array.from(document.querySelectorAll('.media-actions a, .artifact-open')).find((node) => node.href.includes('real-dashboard-flow.webm'))?.href || '',
   bodyWidth: document.body.scrollWidth,
   viewportWidth: innerWidth
 }))()
@@ -1712,7 +1724,7 @@ Array.from(document.querySelectorAll('.artifact-media video')).some((video) => v
         );
 
         await tab.click(
-          "Array.from(document.querySelectorAll('.artifact-media.clickable')).find((node) => node.querySelector('video'))",
+          "Array.from(document.querySelectorAll('.artifact')).find((node) => node.querySelector('.artifact-media video')).querySelector('.media-actions button')",
         );
         await tab.waitForExpression(
           '!document.querySelector("[data-testid=\\"media-viewer\\"]").hidden && '
@@ -1975,7 +1987,7 @@ Array.from(document.querySelectorAll('.artifact-media video')).some((video) => v
   facts: document.querySelector('#runFacts').textContent,
   gallery: document.querySelector('[data-testid="artifact-gallery"]').textContent,
   imageCount: Array.from(document.querySelectorAll('.artifact-media img')).filter((img) => img.complete && img.naturalWidth > 0).length,
-  artifactHref: Array.from(document.querySelectorAll('.artifact-open')).find((node) => node.textContent.includes('open artifact'))?.href || ''
+  artifactHref: Array.from(document.querySelectorAll('.media-actions a, .artifact-open')).find((node) => node.textContent.includes('open artifact'))?.href || ''
 }))()
 ''');
         expect(submittedEvidence['selectedStatus'], 'completed');
@@ -2484,7 +2496,7 @@ Array.from(document.querySelectorAll('.artifact-media video')).some((video) => v
   hasInjectedImage: Boolean(document.querySelector('[data-testid="run-list"] img[src="x"]')),
   hasInjectedScript: Boolean(document.querySelector('[data-testid="timeline-list"] script')),
   xssValue: window.__cockpitXss || null,
-  artifactHref: document.querySelector('.artifact-open')?.href || '',
+  artifactHref: document.querySelector('.media-actions a, .artifact-open')?.href || '',
   artifactImgSrc: document.querySelector('.artifact-media img')?.currentSrc || '',
   artifactAlt: document.querySelector('.artifact-media img')?.alt || '',
   mediaReadyCount: Array.from(document.querySelectorAll('.artifact-media img')).filter((img) => img.complete && img.naturalWidth > 0).length,
