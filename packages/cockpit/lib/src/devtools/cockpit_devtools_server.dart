@@ -2258,7 +2258,20 @@ List<Map<String, Object?>> _bundleArtifactRefs({
     addArtifact(relativePath: ref, role: 'screenshot', source: 'delivery');
   }
   for (final ref in _stringListValue(delivery?['videoAttachmentRefs'])) {
-    addArtifact(relativePath: ref, role: 'recording', source: 'delivery');
+    addArtifact(
+      relativePath: ref,
+      role: 'recording',
+      source: 'delivery',
+      extra: <String, Object?>{
+        if (delivery?['deliveryVideoSynthesized'] != null)
+          'synthesized': delivery?['deliveryVideoSynthesized'],
+        if (delivery?['deliveryVideoSource'] != null)
+          'videoSource': delivery?['deliveryVideoSource'],
+        if (delivery?['deliveryVideoDurationMs'] != null)
+          'durationMs': delivery?['deliveryVideoDurationMs'],
+        'posterRef': ?recordingPosterRef,
+      },
+    );
   }
   addArtifact(
     relativePath: delivery?['timelinePreviewRef'],

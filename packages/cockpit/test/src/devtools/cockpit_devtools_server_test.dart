@@ -129,6 +129,25 @@ void main() {
       );
     });
 
+    test('dashboard primes recording previews and opens videos directly', () {
+      expect(cockpitDevtoolsIndexHtml, contains('function primeVideoMetadata'));
+      expect(cockpitDevtoolsIndexHtml, contains('metadata pending'));
+      expect(cockpitDevtoolsIndexHtml, contains('video.load();'));
+      expect(cockpitDevtoolsIndexHtml, contains('poster-backed'));
+      expect(
+        cockpitDevtoolsIndexHtml,
+        contains('const poster = document.createElement'),
+      );
+      expect(
+        cockpitDevtoolsIndexHtml,
+        contains("if ((kind === 'image' || kind === 'video') && url)"),
+      );
+      expect(
+        cockpitDevtoolsIndexHtml,
+        contains("openMediaViewer(artifact, media);"),
+      );
+    });
+
     test('dashboard global panel controls also govern future dynamic panels', () {
       expect(cockpitDevtoolsIndexHtml, contains('panelGroupOpenOverride'));
       expect(cockpitDevtoolsIndexHtml, contains('timelineEventsOpenOverride'));
