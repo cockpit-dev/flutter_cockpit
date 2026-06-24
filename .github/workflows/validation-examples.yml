@@ -101,12 +101,7 @@ jobs:
             android)
               apt_retry sudo apt-get update
               apt_retry sudo apt-get install -y --no-install-recommends ffmpeg
-              export ANDROID_SDK_ROOT="/usr/local/lib/android/sdk"
-              export PATH="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools:$PATH"
-              set +o pipefail
-              yes | sdkmanager --licenses > /dev/null
-              set -o pipefail
-              sdkmanager --install "platforms;android-36" "ndk;27.0.12077973"
+              bash "$GITHUB_WORKSPACE/.github/scripts/install-android-sdk-for-emulator-runner.sh"
               ;;
             ios|macos)
               brew install ffmpeg

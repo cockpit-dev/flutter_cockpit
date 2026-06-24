@@ -22,6 +22,9 @@ void main() {
   final androidVerifierScriptFile = File(
     '$root/.github/scripts/run-android-verifier.sh',
   );
+  final androidSdkInstallerScriptFile = File(
+    '$root/.github/scripts/install-android-sdk-for-emulator-runner.sh',
+  );
 
   test('runtime loop workflow uses full verifier coverage on every platform', () {
     final workflow = workflowFile.readAsStringSync();
@@ -251,6 +254,74 @@ void main() {
         isNot(contains('choco install ffmpeg -y\n')),
         reason:
             '${entry.key} should not keep the non-retrying Chocolatey install path.',
+      );
+    }
+  });
+
+  test('android emulator workflows preinstall SDK components with retries', () {
+    expect(
+      androidSdkInstallerScriptFile.existsSync(),
+      isTrue,
+      reason:
+          'Android emulator runner installs SDK packages internally with no retry, '
+          'so CI must preinstall the same packages with retry first.',
+    );
+    final installer = androidSdkInstallerScriptFile.readAsStringSync();
+    expect(installer, contains('sdkmanager_retry()'));
+    expect(installer, contains('sdkmanager_retry "emulator"'));
+    expect(
+      installer,
+      contains(
+        r'sdkmanager_retry "system-images;android-$SYSTEM_IMAGE_API_LEVEL;$ANDROID_EMULATOR_TARGET;$ANDROID_EMULATOR_ARCH"',
+      ),
+    );
+    expect(
+      installer,
+      contains(
+        r'ANDROID_EMULATOR_API_LEVEL="${ANDROID_EMULATOR_API_LEVEL:-34}"',
+      ),
+    );
+    expect(
+      installer,
+      contains(r'ANDROID_COMPILE_API_LEVEL="${ANDROID_COMPILE_API_LEVEL:-36}"'),
+    );
+
+    for (final entry in <MapEntry<String, File>>[
+      MapEntry<String, File>('runtime-loop', workflowFile),
+      MapEntry<String, File>('example-e2e', exampleE2eWorkflowFile),
+      MapEntry<String, File>(
+        'validation-examples',
+        File('$root/.github/workflows/validation-examples.yml'),
+      ),
+      MapEntry<String, File>(
+        'platform-capabilities',
+        platformCapabilitiesWorkflowFile,
+      ),
+    ]) {
+      final workflow = entry.value.readAsStringSync();
+      final installIndex = workflow.indexOf(
+        'bash "\$GITHUB_WORKSPACE/.github/scripts/'
+        'install-android-sdk-for-emulator-runner.sh"',
+      );
+      final runnerIndex = workflow.indexOf(
+        'uses: reactivecircus/android-emulator-runner@v2',
+      );
+
+      expect(
+        installIndex,
+        isNonNegative,
+        reason: '${entry.key} must preinstall Android SDK packages with retry.',
+      );
+      expect(
+        runnerIndex,
+        isNonNegative,
+        reason: '${entry.key} must run the Android emulator action.',
+      );
+      expect(
+        installIndex,
+        lessThan(runnerIndex),
+        reason:
+            '${entry.key} must preinstall SDK packages before the emulator action.',
       );
     }
   });
