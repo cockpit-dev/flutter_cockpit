@@ -469,14 +469,12 @@ machine-readable workflow schema.
 
 ## Verification
 
-Repository-only MCP verification from a source checkout:
-
-```bash
-cd packages/cockpit
-dart run tool/verify_mcp_surface.dart
-```
-
-This verifier exercises the real `serve-mcp` stdio surface, workspace tooling, target-first commands, and delivery tools end to end.
-The repository `runtime-loop` workflow runs it on macOS as the MCP and target-first release gate.
+Repository-only MCP verification is maintained in the source tree at
+[`packages/cockpit/tool/verify_mcp_surface.dart`](https://github.com/cockpit-dev/flutter_cockpit/blob/main/packages/cockpit/tool/verify_mcp_surface.dart).
+It exercises the real `serve-mcp` stdio surface, workspace tooling,
+target-first commands, and delivery tools end to end.
+The repository `runtime-loop` workflow runs it on macOS as the MCP and
+target-first release gate:
+[`runtime-loop.yml`](https://github.com/cockpit-dev/flutter_cockpit/actions/workflows/runtime-loop.yml).
 
 Package page: [pub.dev/packages/cockpit](https://pub.dev/packages/cockpit)
