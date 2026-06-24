@@ -2809,6 +2809,43 @@ void main() {
     ]);
   });
 
+  test('ios simulator setClipboard retries transient simctl exit', () async {
+    final processManager = _TransientFailingProcessManager(
+      failures: const <_FakeProcessExit>[
+        _FakeProcessExit(
+          exitCode: 60,
+          stderr: 'Pasteboard service is not ready yet.',
+        ),
+      ],
+    );
+    final service = CockpitSystemControlActionService(
+      processManager: processManager,
+    );
+
+    final result = await service.run(
+      const CockpitSystemControlActionRequest(
+        platform: 'ios',
+        deviceId: '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+        action: CockpitSystemControlAction.setClipboard,
+        parameters: <String, Object?>{'text': 'hello clipboard'},
+      ),
+    );
+
+    expect(result.success, isTrue);
+    expect(result.errorCode, isNull);
+    expect(processManager.starts, hasLength(2));
+    expect(
+      processManager.starts.map((start) => start.arguments).toList(),
+      everyElement(<String>[
+        '-c',
+        r'printf "%s" "$2" | xcrun simctl pbcopy "$1"',
+        'flutter_cockpit_ios_clipboard',
+        '6FD25DED-11E9-4AE9-B4B5-EDF4601981DC',
+        'hello clipboard',
+      ]),
+    );
+  });
+
   test('ios simulator getClipboard reads through simctl pbpaste', () async {
     final processManager = _FakeProcessManager();
     final service = CockpitSystemControlActionService(
@@ -4068,6 +4105,57 @@ final class _TransientHangingProcessManager implements CockpitProcessManager {
   }
 }
 
+final class _TransientFailingProcessManager implements CockpitProcessManager {
+  _TransientFailingProcessManager({required List<_FakeProcessExit> failures})
+    : _failures = List<_FakeProcessExit>.of(failures);
+
+  final List<_FakeProcessExit> _failures;
+  final starts = <_StartedProcess>[];
+
+  @override
+  Future<ProcessResult> run(
+    String executable,
+    List<String> arguments, {
+    String? workingDirectory,
+    Map<String, String>? environment,
+    bool includeParentEnvironment = true,
+    bool runInShell = false,
+    Encoding? stdoutEncoding,
+    Encoding? stderrEncoding,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Process> start(
+    String executable,
+    List<String> arguments, {
+    String? workingDirectory,
+    Map<String, String>? environment,
+    bool includeParentEnvironment = true,
+    bool runInShell = false,
+    ProcessStartMode mode = ProcessStartMode.normal,
+  }) async {
+    starts.add(
+      _StartedProcess(
+        executable: executable,
+        arguments: List<String>.unmodifiable(arguments),
+      ),
+    );
+    if (_failures.isEmpty) {
+      return _FakeManagedProcess();
+    }
+    return _FakeManagedProcess(exit: _failures.removeAt(0));
+  }
+}
+
+final class _FakeProcessExit {
+  const _FakeProcessExit({required this.exitCode, this.stderr = ''});
+
+  final int exitCode;
+  final String stderr;
+}
+
 final class _ThrowingProcessManager implements CockpitProcessManager {
   @override
   Future<ProcessResult> run(
@@ -4098,6 +4186,11 @@ final class _ThrowingProcessManager implements CockpitProcessManager {
 }
 
 final class _FakeManagedProcess implements Process {
+  _FakeManagedProcess({
+    _FakeProcessExit exit = const _FakeProcessExit(exitCode: 0),
+  }) : _exit = exit;
+
+  final _FakeProcessExit _exit;
   final StreamController<List<int>> _stdinController =
       StreamController<List<int>>();
 
@@ -4105,10 +4198,10 @@ final class _FakeManagedProcess implements Process {
   Stream<List<int>> get stdout => const Stream<List<int>>.empty();
 
   @override
-  Stream<List<int>> get stderr => const Stream<List<int>>.empty();
+  Stream<List<int>> get stderr => _streamText(_exit.stderr);
 
   @override
-  Future<int> get exitCode async => 0;
+  Future<int> get exitCode async => _exit.exitCode;
 
   @override
   int get pid => 1234;
@@ -4121,6 +4214,13 @@ final class _FakeManagedProcess implements Process {
     _stdinController.close();
     return true;
   }
+}
+
+Stream<List<int>> _streamText(String text) {
+  if (text.isEmpty) {
+    return const Stream<List<int>>.empty();
+  }
+  return Stream<List<int>>.value(utf8.encode(text));
 }
 
 /// Windows scripts travel as -EncodedCommand (base64 UTF-16LE) so positional

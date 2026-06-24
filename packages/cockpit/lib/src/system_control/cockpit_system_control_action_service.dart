@@ -1017,9 +1017,10 @@ final class CockpitSystemControlActionService {
     CockpitSystemControlCapability capability,
     CockpitResolvedSystemControlCommand command,
   ) async {
-    late final ProcessResult processResult;
+    final attemptLimit = _processAttemptLimit(request);
+    late ProcessResult processResult;
     try {
-      for (var attempt = 0; ; attempt += 1) {
+      for (var attempt = 1; ; attempt += 1) {
         try {
           processResult = await cockpitRunManagedProcessWithTimeout(
             _processManager,
@@ -1027,9 +1028,11 @@ final class CockpitSystemControlActionService {
             command.arguments,
             timeout: request.timeout,
           );
-          break;
+          if (processResult.exitCode == 0 || attempt >= attemptLimit) {
+            break;
+          }
         } on CockpitManagedProcessTimeoutException {
-          if (attempt + 1 >= _timeoutAttemptLimit(request)) {
+          if (attempt >= attemptLimit) {
             rethrow;
           }
         }
@@ -1105,11 +1108,15 @@ final class CockpitSystemControlActionService {
   }
 }
 
-int _timeoutAttemptLimit(CockpitSystemControlActionRequest request) {
+int _processAttemptLimit(CockpitSystemControlActionRequest request) {
   if (request.platform != 'ios') {
     return 1;
   }
   return switch (request.action) {
+    CockpitSystemControlAction.setStatusBar ||
+    CockpitSystemControlAction.clearStatusBar ||
+    CockpitSystemControlAction.setClipboard ||
+    CockpitSystemControlAction.getClipboard ||
     CockpitSystemControlAction.readSystemState ||
     CockpitSystemControlAction.readDeviceInfo ||
     CockpitSystemControlAction.readProcessList ||

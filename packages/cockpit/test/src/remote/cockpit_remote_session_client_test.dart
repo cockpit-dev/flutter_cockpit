@@ -1105,6 +1105,99 @@ void main() {
   );
 
   test(
+    'remote session client retries transient command artifact download timeouts',
+    () async {
+      final downloadDir = await Directory.systemTemp.createTemp(
+        'flutter_cockpit_retry_command_artifact_',
+      );
+      addTearDown(() async {
+        if (await downloadDir.exists()) {
+          await downloadDir.delete(recursive: true);
+        }
+      });
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() async {
+        await server.close(force: true);
+      });
+      var downloadAttempts = 0;
+
+      server.listen((request) async {
+        request.response.headers.contentType = ContentType.json;
+        switch ((request.method, request.uri.path)) {
+          case ('POST', '/commands/execute'):
+            request.response.write(
+              jsonEncode(
+                CockpitRemoteCommandResponse(
+                  result: CockpitCommandResult(
+                    success: true,
+                    commandId: 'tap-retry-screenshot',
+                    commandType: CockpitCommandType.tap,
+                    durationMs: 12,
+                    artifacts: const <CockpitArtifactRef>[
+                      CockpitArtifactRef(
+                        role: 'screenshot',
+                        relativePath: 'screenshots/retry.png',
+                      ),
+                    ],
+                  ),
+                  artifactDownloads: const <CockpitRemoteArtifactDownload>[
+                    CockpitRemoteArtifactDownload(
+                      artifact: CockpitArtifactRef(
+                        role: 'screenshot',
+                        relativePath: 'screenshots/retry.png',
+                      ),
+                      downloadPath:
+                          '/artifacts/download?path=screenshots%2Fretry.png',
+                    ),
+                  ],
+                ).toJson(),
+              ),
+            );
+            await request.response.close();
+          case ('GET', '/artifacts/download'):
+            downloadAttempts += 1;
+            request.response.headers.contentType = ContentType.binary;
+            if (downloadAttempts == 1) {
+              await Future<void>.delayed(const Duration(milliseconds: 120));
+            } else {
+              request.response.add(const <int>[1, 2, 3]);
+            }
+            await request.response.close();
+          default:
+            request.response.statusCode = HttpStatus.notFound;
+            request.response.write(
+              jsonEncode(const <String, Object?>{'error': 'notFound'}),
+            );
+            await request.response.close();
+        }
+      });
+
+      final client = CockpitRemoteSessionClient(
+        baseUri: Uri.parse('http://127.0.0.1:${server.port}'),
+        artifactDownloadTimeout: const Duration(milliseconds: 40),
+        artifactTempFileFactory: (basename) async =>
+            File('${downloadDir.path}${Platform.pathSeparator}$basename'),
+      );
+
+      final execution = await client.executeDetailed(
+        CockpitCommand(
+          commandId: 'tap-retry-screenshot',
+          commandType: CockpitCommandType.tap,
+        ),
+      );
+
+      expect(downloadAttempts, 2);
+      expect(execution.artifactSourcePaths['screenshots/retry.png'], isNotNull);
+      expect(
+        await File(
+          execution.artifactSourcePaths['screenshots/retry.png']!,
+        ).readAsBytes(),
+        <int>[1, 2, 3],
+      );
+    },
+  );
+
+  test(
     'remote session client rejects cross-origin artifact download paths',
     () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);

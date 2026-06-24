@@ -393,6 +393,25 @@ final class CockpitRemoteSessionClient {
   }
 
   Future<List<int>> _download(String relativePath) async {
+    for (
+      var attempt = 0;
+      attempt < _artifactDownloadMaxAttempts;
+      attempt += 1
+    ) {
+      try {
+        return await _downloadOnce(relativePath);
+      } on CockpitApplicationServiceException catch (error) {
+        if (error.code != 'remoteUnavailable' ||
+            attempt + 1 >= _artifactDownloadMaxAttempts) {
+          rethrow;
+        }
+        await Future<void>.delayed(_artifactDownloadRetryDelay(attempt));
+      }
+    }
+    throw StateError('Unreachable artifact download retry state.');
+  }
+
+  Future<List<int>> _downloadOnce(String relativePath) async {
     final client = _httpClientFactory();
     try {
       return await (() async {
@@ -434,6 +453,31 @@ final class CockpitRemoteSessionClient {
   }
 
   Future<File> _downloadToFile(
+    String relativePath, {
+    required String artifactRelativePath,
+  }) async {
+    for (
+      var attempt = 0;
+      attempt < _artifactDownloadMaxAttempts;
+      attempt += 1
+    ) {
+      try {
+        return await _downloadToFileOnce(
+          relativePath,
+          artifactRelativePath: artifactRelativePath,
+        );
+      } on CockpitApplicationServiceException catch (error) {
+        if (error.code != 'remoteUnavailable' ||
+            attempt + 1 >= _artifactDownloadMaxAttempts) {
+          rethrow;
+        }
+        await Future<void>.delayed(_artifactDownloadRetryDelay(attempt));
+      }
+    }
+    throw StateError('Unreachable artifact download retry state.');
+  }
+
+  Future<File> _downloadToFileOnce(
     String relativePath, {
     required String artifactRelativePath,
   }) async {
@@ -667,6 +711,12 @@ final class CockpitRemoteSessionClient {
       _ => 0,
     };
   }
+}
+
+const int _artifactDownloadMaxAttempts = 3;
+
+Duration _artifactDownloadRetryDelay(int attempt) {
+  return Duration(milliseconds: 100 * (attempt + 1));
 }
 
 final class _StructuredRemoteError {
