@@ -1674,6 +1674,9 @@ Array.from(document.querySelectorAll('.artifact-media video')).some((video) => v
   gallery: document.querySelector('[data-testid="artifact-gallery"]').textContent,
   imageWidth: Array.from(document.querySelectorAll('.artifact-media img')).find((img) => img.complete && img.naturalWidth > 0)?.naturalWidth || 0,
   videoWidth: Array.from(document.querySelectorAll('.artifact-media video')).find((video) => video.readyState >= 1 && video.videoWidth > 0)?.videoWidth || 0,
+  primaryRecording: document.querySelector('[data-testid="primary-recording-card"]')?.textContent || '',
+  primaryRecordingHref: document.querySelector('[data-testid="primary-recording-card"] a')?.href || '',
+  primaryRecordingPoster: document.querySelector('[data-testid="primary-recording-card"] video')?.poster || '',
   screenshotHref: Array.from(document.querySelectorAll('.media-actions a, .artifact-open')).find((node) => node.href.includes('real-flow-final.png'))?.href || '',
   queueScreenshotHref: Array.from(document.querySelectorAll('.media-actions a, .artifact-open')).find((node) => node.href.includes('real-queue-state-1.png'))?.href || '',
   recordingHref: Array.from(document.querySelectorAll('.media-actions a, .artifact-open')).find((node) => node.href.includes('real-dashboard-flow.webm'))?.href || '',
@@ -1712,6 +1715,18 @@ Array.from(document.querySelectorAll('.artifact-media video')).some((video) => v
         expect(rendered['gallery'], contains('real-dashboard-flow.webm'));
         expect(rendered['imageWidth'], 160);
         expect(rendered['videoWidth'], greaterThan(0));
+        expect(rendered['primaryRecording'], contains('Primary recording'));
+        expect(rendered['primaryRecording'], contains('nativeRecording'));
+        expect(rendered['primaryRecording'], contains('0.6s'));
+        expect(rendered['primaryRecording'], contains('stop-real-recording'));
+        expect(
+          rendered['primaryRecordingHref'],
+          contains('/bundle/recordings/real-dashboard-flow.webm'),
+        );
+        expect(
+          rendered['primaryRecordingPoster'],
+          contains('/bundle/keyframes/'),
+        );
         expect(rendered['screenshotHref'], contains('/bundle/screenshots/'));
         expect(
           rendered['queueScreenshotHref'],

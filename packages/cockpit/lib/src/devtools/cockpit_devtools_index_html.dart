@@ -366,6 +366,62 @@ const String cockpitDevtoolsIndexHtml = r'''
       overscroll-behavior: contain;
       padding-right: 3px;
     }
+    .primary-evidence {
+      display: none;
+      grid-template-columns: minmax(120px, 220px) minmax(0, 1fr);
+      gap: 8px;
+      align-items: stretch;
+      padding: 7px;
+      border: 1px solid rgba(114, 228, 181, .38);
+      border-radius: 9px;
+      background:
+        linear-gradient(135deg, rgba(114, 228, 181, .1), rgba(224, 192, 103, .05)),
+        rgba(8, 17, 14, .46);
+    }
+    .primary-evidence.ready {
+      display: grid;
+    }
+    .primary-evidence-copy {
+      min-width: 0;
+      display: grid;
+      gap: 5px;
+      align-content: start;
+    }
+    .primary-evidence-copy strong {
+      font-size: 13px;
+      line-height: 1.12;
+    }
+    .primary-evidence-copy .meta {
+      overflow-wrap: anywhere;
+      white-space: normal;
+    }
+    .primary-evidence-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      align-items: center;
+    }
+    .primary-evidence-actions button,
+    .primary-evidence-actions a {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 4px 7px;
+      border: 1px solid rgba(43, 62, 56, .88);
+      border-radius: 999px;
+      background: rgba(8, 17, 14, .72);
+      color: var(--accent);
+      text-decoration: none;
+      cursor: pointer;
+      font: 10px/1.1 "SFMono-Regular", "Cascadia Code", "Liberation Mono", monospace;
+    }
+    .primary-evidence-actions button:hover,
+    .primary-evidence-actions button:focus-visible,
+    .primary-evidence-actions a:hover,
+    .primary-evidence-actions a:focus-visible {
+      border-color: rgba(114, 228, 181, .62);
+      outline: none;
+    }
     .run-facts {
       display: grid;
       gap: 6px;
@@ -1109,6 +1165,9 @@ const String cockpitDevtoolsIndexHtml = r'''
       .facts {
         grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
       }
+      .primary-evidence {
+        grid-template-columns: 1fr;
+      }
       .compact-launcher-summary {
         align-items: flex-start;
       }
@@ -1179,6 +1238,7 @@ const String cockpitDevtoolsIndexHtml = r'''
           <div class="compact-summary">
             <div class="overview" id="overview"></div>
           </div>
+          <div class="primary-evidence" id="primaryRecordingCard" data-testid="primary-recording-card" hidden></div>
           <div class="run-facts-scroll">
             <div class="run-facts" id="runFacts"></div>
           </div>
@@ -1374,6 +1434,7 @@ steps:
       scopeSelect: document.getElementById('scopeSelect'),
       runSearch: document.getElementById('runSearch'),
       overview: document.getElementById('overview'),
+      primaryRecordingCard: document.getElementById('primaryRecordingCard'),
       runFacts: document.getElementById('runFacts'),
       downloadBundle: document.getElementById('downloadBundle'),
       timeline: document.getElementById('timeline'),
@@ -2117,6 +2178,16 @@ steps:
       return 'metadata only';
     }
 
+    function formatDurationMs(value) {
+      const number = Number(value);
+      if (!Number.isFinite(number) || number < 0) return '';
+      if (number < 1000) return `${Math.round(number)}ms`;
+      if (number < 60000) return `${(number / 1000).toFixed(1)}s`;
+      const minutes = Math.floor(number / 60000);
+      const seconds = Math.round((number - minutes * 60000) / 1000);
+      return `${minutes}m ${String(seconds).padStart(2, '0')}s`;
+    }
+
     function artifactLabel(artifact) {
       if (isTimelinePreviewArtifact(artifact)) return 'timeline preview';
       return artifact?.role || artifact?.kind || artifactKind(artifact);
@@ -2136,6 +2207,41 @@ steps:
       const path = artifactPath(artifact);
       const fileName = path.split('/').filter(Boolean).pop();
       return fileName || 'cockpit-artifact';
+    }
+
+    function artifactPosterUrl(runId, artifact) {
+      const posterRef = artifact?.posterRef || artifact?.linkedScreenshotRef;
+      if (typeof posterRef !== 'string' || !posterRef.trim()) return '';
+      return artifactUrl(runId, {
+        role: 'poster',
+        relativePath: posterRef.trim(),
+        runId: artifactRunId(artifact, runId),
+      });
+    }
+
+    function recordingArtifactMeta(artifact, event = null) {
+      const parts = [];
+      const source = artifact?.videoSource || artifact?.deliveryVideoSource;
+      const duration = formatDurationMs(artifact?.durationMs);
+      const step = artifact?.workflowStepId || event?.workflowStepId;
+      if (source) parts.push(source);
+      if (duration) parts.push(duration);
+      if (step) parts.push(step);
+      return parts;
+    }
+
+    function primaryRecordingArtifact() {
+      const artifacts = collectArtifacts();
+      return artifacts.find((artifact) =>
+        artifactKind(artifact) === 'video' &&
+        !isTimelinePreviewArtifact(artifact) &&
+        (
+          String(artifact?.source || '').toLowerCase() === 'delivery' ||
+          artifactPath(artifact) === state.bundleSummary?.primaryRecordingRef
+        )
+      ) || artifacts.find((artifact) =>
+        artifactKind(artifact) === 'video' && !isTimelinePreviewArtifact(artifact)
+      ) || null;
     }
 
     function artifactPriority(artifact) {
@@ -2159,7 +2265,7 @@ steps:
 
     function collectArtifacts() {
       const artifacts = [];
-      const seen = new Set();
+      const artifactIndexes = new Map();
       const selectedRunId = state.selectedRunId || '';
       const push = (artifact, event) => {
         if (!artifact || typeof artifact !== 'object') return;
@@ -2168,9 +2274,7 @@ steps:
         const runId = artifactRunId(artifact, event?.runId || state.selectedRunId);
         if (selectedRunId && runId && runId !== selectedRunId) return;
         const key = `${runId}|${path}`;
-        if (seen.has(key)) return;
-        seen.add(key);
-        artifacts.push({
+        const next = {
           ...artifact,
           runId,
           eventKey: artifact.eventKey || (event ? eventKey(event) : null),
@@ -2178,7 +2282,17 @@ steps:
           eventType: event?.type || artifact.eventType,
           workflowStepId: artifact.workflowStepId || event?.workflowStepId,
           capturedAt: artifact.capturedAt || event?.timestamp
-        });
+        };
+        const existingIndex = artifactIndexes.get(key);
+        if (existingIndex !== undefined) {
+          const existing = artifacts[existingIndex];
+          artifacts[existingIndex] = artifactPriority(next) < artifactPriority(existing)
+            ? {...existing, ...next}
+            : {...next, ...existing};
+          return;
+        }
+        artifactIndexes.set(key, artifacts.length);
+        artifacts.push(next);
       };
       for (const artifact of state.liveState?.recentArtifacts || []) push(artifact, null);
       for (const artifact of state.bundleSummary?.artifactRefs || []) {
@@ -2239,6 +2353,8 @@ steps:
         video.muted = true;
         video.playsInline = true;
         video.preload = 'metadata';
+        const posterUrl = artifactPosterUrl(state.selectedRunId, artifact);
+        if (posterUrl) video.poster = posterUrl;
         video.setAttribute('aria-label', `Play ${artifactLabel(artifact)} ${artifactPath(artifact)}`);
         video.onloadedmetadata = () => {
           status.className = isTimelinePreview
@@ -2342,6 +2458,8 @@ steps:
         video.muted = true;
         video.playsInline = true;
         video.preload = 'metadata';
+        const posterUrl = artifactPosterUrl(state.selectedRunId, artifact);
+        if (posterUrl) video.poster = posterUrl;
         video.src = url;
         els.mediaViewerStage.appendChild(video);
         if (isTimelinePreviewArtifact(artifact)) {
@@ -2880,8 +2998,59 @@ steps:
       return facts;
     }
 
+    function renderPrimaryRecording() {
+      clearNode(els.primaryRecordingCard);
+      const artifact = primaryRecordingArtifact();
+      const url = artifact ? artifactUrl(state.selectedRunId, artifact) : '';
+      if (!artifact || !url) {
+        els.primaryRecordingCard.hidden = true;
+        els.primaryRecordingCard.classList.remove('ready');
+        return;
+      }
+      els.primaryRecordingCard.hidden = false;
+      els.primaryRecordingCard.classList.add('ready');
+
+      const previewWrap = document.createElement('div');
+      renderArtifactPreview(previewWrap, artifact, {eager: true});
+      const preview = previewWrap.firstElementChild;
+      if (preview) els.primaryRecordingCard.appendChild(preview);
+
+      const copy = document.createElement('div');
+      copy.className = 'primary-evidence-copy';
+      appendElement(copy, 'strong', 'Primary recording');
+      appendText(copy, artifactPath(artifact), 'meta');
+      const event = eventForArtifact(artifact);
+      const meta = recordingArtifactMeta(artifact, event);
+      if (meta.length) appendText(copy, meta.join(' | '), 'meta');
+
+      const actions = document.createElement('div');
+      actions.className = 'primary-evidence-actions';
+      const view = document.createElement('button');
+      view.type = 'button';
+      view.textContent = 'view large';
+      view.onclick = (event) => {
+        event.stopPropagation();
+        openMediaViewer(artifact, view);
+      };
+      actions.appendChild(view);
+      const open = document.createElement('a');
+      open.href = url;
+      open.target = '_blank';
+      open.rel = 'noreferrer';
+      open.textContent = 'open recording';
+      actions.appendChild(open);
+      const download = document.createElement('a');
+      download.href = url;
+      download.download = artifactDownloadName(artifact);
+      download.textContent = 'download';
+      actions.appendChild(download);
+      copy.appendChild(actions);
+      els.primaryRecordingCard.appendChild(copy);
+    }
+
     function renderFacts() {
       clearNode(els.runFacts);
+      renderPrimaryRecording();
       const run = selectedRun() || {};
       const live = state.liveState || {};
       const allRuns = isAllRunsScope();

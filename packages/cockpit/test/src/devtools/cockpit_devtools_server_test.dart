@@ -1066,6 +1066,7 @@ commands:
             containsPair('source', 'delivery'),
             containsPair('videoSource', 'nativeRecording'),
             containsPair('durationMs', 2400),
+            containsPair('posterRef', 'keyframes/tail.png'),
           ),
         );
       },
@@ -2281,12 +2282,16 @@ Future<void> _writePrimaryRecordingRunFixture(Directory root) async {
     ..createSync(recursive: true);
   Directory(p.join(bundleDir.path, 'screenshots')).createSync();
   Directory(p.join(bundleDir.path, 'recordings')).createSync();
+  Directory(p.join(bundleDir.path, 'keyframes')).createSync();
   File(
     p.join(bundleDir.path, 'screenshots', 'first.png'),
   ).writeAsBytesSync(<int>[1, 2, 3]);
   File(
     p.join(bundleDir.path, 'recordings', 'flow.mp4'),
   ).writeAsBytesSync(List<int>.generate(10, (index) => index));
+  File(
+    p.join(bundleDir.path, 'keyframes', 'tail.png'),
+  ).writeAsBytesSync(<int>[4, 5, 6]);
   File(p.join(bundleDir.path, 'manifest.json')).writeAsStringSync(
     jsonEncode(<String, Object?>{
       'sessionId': 'session-1',
@@ -2319,6 +2324,13 @@ Future<void> _writePrimaryRecordingRunFixture(Directory root) async {
       'deliveryVideoSource': 'nativeRecording',
       'deliveryVideoDurationMs': 2400,
       'videoFailureCodes': <Object?>[],
+      'keyframes': <Object?>[
+        <String, Object?>{
+          'ref': 'keyframes/tail.png',
+          'label': 'tail',
+          'offsetMs': 2400,
+        },
+      ],
     }),
   );
   File(

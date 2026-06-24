@@ -2185,6 +2185,7 @@ List<Map<String, Object?>> _bundleArtifactRefs({
 }) {
   final artifacts = <Map<String, Object?>>[];
   final artifactIndexes = <String, int>{};
+  final recordingPosterRef = _primaryRecordingPosterRef(delivery);
 
   void addArtifact({
     required Object? relativePath,
@@ -2208,7 +2209,9 @@ List<Map<String, Object?>> _bundleArtifactRefs({
       final existing = artifacts[existingIndex];
       if (_artifactSourcePriority(source) >
           _artifactSourcePriority(existing['source'] as String?)) {
-        artifacts[existingIndex] = artifact;
+        artifacts[existingIndex] = <String, Object?>{...existing, ...artifact};
+      } else {
+        artifacts[existingIndex] = <String, Object?>{...artifact, ...existing};
       }
       return;
     }
@@ -2248,6 +2251,7 @@ List<Map<String, Object?>> _bundleArtifactRefs({
         'videoSource': delivery?['deliveryVideoSource'],
       if (delivery?['deliveryVideoDurationMs'] != null)
         'durationMs': delivery?['deliveryVideoDurationMs'],
+      'posterRef': ?recordingPosterRef,
     },
   );
   for (final ref in _stringListValue(delivery?['attachmentRefs'])) {
@@ -2328,6 +2332,17 @@ List<Map<String, Object?>> _bundleArtifactRefs({
   }
 
   return artifacts;
+}
+
+String? _primaryRecordingPosterRef(Map<String, Object?>? delivery) {
+  final keyframes = _mapListValue(delivery?['keyframes']);
+  for (final keyframe in keyframes.reversed) {
+    final ref = keyframe['ref'];
+    if (ref is String && ref.trim().isNotEmpty) {
+      return ref.trim();
+    }
+  }
+  return null;
 }
 
 int _artifactSourcePriority(String? source) {
