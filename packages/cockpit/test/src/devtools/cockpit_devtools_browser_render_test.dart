@@ -277,6 +277,35 @@ Array.from(document.querySelectorAll('.artifact-media video')).some((video) => v
             ),
           ),
         );
+        final recordingStoryboard = await tab.evaluateMap('''
+(() => {
+  const recordingCard = Array.from(document.querySelectorAll('.artifact'))
+    .find((node) => node.querySelector('.artifact-media video'));
+  const storyboardImages = Array.from(recordingCard?.querySelectorAll('.recording-storyboard img') || []);
+  const video = recordingCard?.querySelector('.artifact-media video');
+  return {
+    count: storyboardImages.length,
+    sources: storyboardImages.map((img) => img.src),
+    naturals: storyboardImages.map((img) => img.naturalWidth),
+    videoOpacity: video ? getComputedStyle(video).opacity : '',
+    videoPointerEvents: video ? getComputedStyle(video).pointerEvents : ''
+  };
+})()
+''');
+        expect(recordingStoryboard['count'], greaterThanOrEqualTo(4));
+        expect(
+          recordingStoryboard['sources'] as List<Object?>,
+          everyElement(contains('/bundle/keyframes/')),
+        );
+        expect(
+          recordingStoryboard['naturals'] as List<Object?>,
+          everyElement(greaterThan(0)),
+        );
+        expect(recordingStoryboard['videoOpacity'], isIn(<String>['0', '1']));
+        expect(
+          recordingStoryboard['videoPointerEvents'],
+          isIn(<String>['none', 'auto']),
+        );
         expect(
           initial['mediaActions'] as List<Object?>,
           contains(contains('view large')),
@@ -2769,6 +2798,12 @@ Future<CockpitLiveRunStore> _writeWorkflowRun({
     File(
       p.join(bundleDir.path, 'recordings', '$runId-final.webm'),
     ).writeAsBytesSync(base64Decode(_tinyWebmBase64));
+    for (var index = 1; index <= 3; index += 1) {
+      _writePng(
+        p.join(bundleDir.path, 'keyframes', '$runId-keyframe-$index.png'),
+        labelHash: runId.hashCode ^ (0x33 * index),
+      );
+    }
   }
   if (includeTimelinePreview) {
     File(
@@ -2861,6 +2896,13 @@ Future<CockpitLiveRunStore> _writeWorkflowRun({
           'label': 'final visual',
           'offsetMs': 600,
         },
+        if (includeVideo)
+          for (var index = 1; index <= 3; index += 1)
+            <String, Object?>{
+              'ref': 'keyframes/$runId-keyframe-$index.png',
+              'label': 'frame $index',
+              'offsetMs': index * 200,
+            },
       ],
     }),
   );
