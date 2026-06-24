@@ -1,5 +1,3 @@
-import 'cockpit_http_network_observer.dart';
-
 final class CockpitHttpNetworkObserverConfiguration {
   const CockpitHttpNetworkObserverConfiguration({
     this.maxRetainedEntries = 200,
@@ -16,17 +14,6 @@ final class CockpitHttpNetworkObserverConfiguration {
   final int maxBodyBytes;
   final bool captureHeaders;
   final bool captureBodies;
-
-  CockpitHttpNetworkObserver buildObserver() {
-    return CockpitHttpNetworkObserver(
-      maxRetainedEntries: maxRetainedEntries,
-      maxHeaderCount: maxHeaderCount,
-      maxHeaderValueLength: maxHeaderValueLength,
-      maxBodyBytes: maxBodyBytes,
-      captureHeaders: captureHeaders,
-      captureBodies: captureBodies,
-    );
-  }
 
   @override
   bool operator ==(Object other) {

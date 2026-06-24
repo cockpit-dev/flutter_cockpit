@@ -8,6 +8,7 @@ import 'package:flutter/widgets.dart';
 import '../model/cockpit_environment.dart';
 import '../capture/cockpit_native_capture.dart';
 import '../network/cockpit_http_network_observer.dart';
+import '../network/cockpit_http_network_observer_configuration.dart';
 import '../network/cockpit_network_observer.dart';
 import '../recording/cockpit_native_recording.dart';
 import '../recording/cockpit_recording_capabilities.dart';
@@ -49,7 +50,7 @@ final class FlutterCockpitBinding {
           ),
       networkObserver =
           configuration.networkObserver ??
-          configuration.httpNetworkObserver?.buildObserver(),
+          _buildHttpNetworkObserver(configuration.httpNetworkObserver),
       runtimeStepBuffer = CockpitRuntimeStepBuffer(),
       currentRouteName = ValueNotifier<String>(
         _normalizeConfiguredRouteName(configuration.initialRouteName),
@@ -254,7 +255,7 @@ final class FlutterCockpitBinding {
   ) {
     final nextObserver =
         nextConfiguration.networkObserver ??
-        nextConfiguration.httpNetworkObserver?.buildObserver();
+        _buildHttpNetworkObserver(nextConfiguration.httpNetworkObserver);
     if (identical(networkObserver, nextObserver)) {
       return;
     }
@@ -421,6 +422,22 @@ String _recordingProbeFailureMessage(Object error) {
     StateError(:final message) => message,
     _ => '$error',
   };
+}
+
+CockpitHttpNetworkObserver? _buildHttpNetworkObserver(
+  CockpitHttpNetworkObserverConfiguration? configuration,
+) {
+  if (configuration == null) {
+    return null;
+  }
+  return CockpitHttpNetworkObserver(
+    maxRetainedEntries: configuration.maxRetainedEntries,
+    maxHeaderCount: configuration.maxHeaderCount,
+    maxHeaderValueLength: configuration.maxHeaderValueLength,
+    maxBodyBytes: configuration.maxBodyBytes,
+    captureHeaders: configuration.captureHeaders,
+    captureBodies: configuration.captureBodies,
+  );
 }
 
 String _normalizeConfiguredRouteName(String routeName) {

@@ -1535,6 +1535,7 @@ final class CockpitDemoPlatformVerifier {
     )) {
       await runAndRequireSuccess(
         action: CockpitSystemControlAction.readSystemState,
+        timeout: _systemControlReadTimeout(platform),
       );
     }
 
@@ -1704,6 +1705,13 @@ final class CockpitDemoPlatformVerifier {
           action: action,
         ) &&
         result.errorCode == 'systemActionTimedOut';
+  }
+
+  Duration _systemControlReadTimeout(String platform) {
+    return switch (platform) {
+      'ios' => const Duration(seconds: 45),
+      _ => const Duration(seconds: 15),
+    };
   }
 
   List<_SystemControlActionProbe> _buildExhaustiveSystemControlActions({
