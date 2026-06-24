@@ -2184,7 +2184,7 @@ List<Map<String, Object?>> _bundleArtifactRefs({
   required Map<String, Object?>? trace,
 }) {
   final artifacts = <Map<String, Object?>>[];
-  final seen = <String>{};
+  final artifactIndexes = <String, int>{};
 
   void addArtifact({
     required Object? relativePath,
@@ -2197,15 +2197,23 @@ List<Map<String, Object?>> _bundleArtifactRefs({
     }
     final path = relativePath.trim();
     final key = '$role|$path';
-    if (!seen.add(key)) {
-      return;
-    }
-    artifacts.add(<String, Object?>{
+    final artifact = <String, Object?>{
       'role': role,
       'relativePath': path,
       'source': ?source,
       ...extra,
-    });
+    };
+    final existingIndex = artifactIndexes[key];
+    if (existingIndex != null) {
+      final existing = artifacts[existingIndex];
+      if (_artifactSourcePriority(source) >
+          _artifactSourcePriority(existing['source'] as String?)) {
+        artifacts[existingIndex] = artifact;
+      }
+      return;
+    }
+    artifactIndexes[key] = artifacts.length;
+    artifacts.add(artifact);
   }
 
   for (final artifact in _mapListValue(manifest?['artifactRefs'])) {
@@ -2320,6 +2328,15 @@ List<Map<String, Object?>> _bundleArtifactRefs({
   }
 
   return artifacts;
+}
+
+int _artifactSourcePriority(String? source) {
+  return switch (source) {
+    'delivery' => 30,
+    'trace' => 20,
+    'manifest' => 10,
+    _ => 0,
+  };
 }
 
 List<Map<String, Object?>> _mapListValue(Object? value) {

@@ -276,7 +276,11 @@ final class CockpitControlRunner {
             : <CockpitArtifactRef>[artifact],
       );
       if (result.state == CockpitRecordingState.completed) {
-        return const _RecordingStopOutcome.success();
+        return _RecordingStopOutcome.success(
+          artifactRefs: artifact == null
+              ? const <CockpitArtifactRef>[]
+              : <CockpitArtifactRef>[artifact],
+        );
       }
       return _RecordingStopOutcome.failure(
         result.failureReason ?? 'Recording did not complete successfully.',
@@ -490,7 +494,7 @@ final class CockpitControlRunner {
     if (!stopOutcome.success) {
       return _WorkflowStepOutcome.failure(stopOutcome.failureSummary!);
     }
-    return const _WorkflowStepOutcome.success();
+    return _WorkflowStepOutcome.success(artifactRefs: stopOutcome.artifactRefs);
   }
 
   Future<_WorkflowStepOutcome> _runCommandWorkflowStep(
@@ -787,11 +791,11 @@ final class CockpitControlRunner {
       description: step.description,
       commandId: command?.commandId,
       commandType: command?.commandType.name,
-      artifactRefs:
-          result?.artifacts
-              .map((artifact) => artifact.toJson())
-              .toList(growable: false) ??
-          const <Map<String, Object?>>[],
+      artifactRefs: outcome == null
+          ? const <Map<String, Object?>>[]
+          : outcome.artifactRefs
+                .map((artifact) => artifact.toJson())
+                .toList(growable: false),
       error: error == null && outcome?.failureSummary == null
           ? null
           : <String, Object?>{
@@ -987,12 +991,18 @@ final class _RecordingStartOutcome {
 }
 
 final class _RecordingStopOutcome {
-  const _RecordingStopOutcome.success() : success = true, failureSummary = null;
+  const _RecordingStopOutcome.success({
+    this.artifactRefs = const <CockpitArtifactRef>[],
+  }) : success = true,
+       failureSummary = null;
 
-  const _RecordingStopOutcome.failure(this.failureSummary) : success = false;
+  const _RecordingStopOutcome.failure(this.failureSummary)
+    : success = false,
+      artifactRefs = const <CockpitArtifactRef>[];
 
   final bool success;
   final String? failureSummary;
+  final List<CockpitArtifactRef> artifactRefs;
 }
 
 final class _WorkflowStepOutcome {
@@ -1002,15 +1012,18 @@ final class _WorkflowStepOutcome {
     this.commandStep,
     this.command,
     this.execution,
+    this.artifactRefs = const <CockpitArtifactRef>[],
     this.details = const <String, Object?>{},
   });
 
-  const _WorkflowStepOutcome.success({this.details = const <String, Object?>{}})
-    : success = true,
-      failureSummary = null,
-      commandStep = null,
-      command = null,
-      execution = null;
+  const _WorkflowStepOutcome.success({
+    this.details = const <String, Object?>{},
+    this.artifactRefs = const <CockpitArtifactRef>[],
+  }) : success = true,
+       failureSummary = null,
+       commandStep = null,
+       command = null,
+       execution = null;
 
   const _WorkflowStepOutcome.failure(String summary)
     : success = false,
@@ -1018,6 +1031,7 @@ final class _WorkflowStepOutcome {
       commandStep = null,
       command = null,
       execution = null,
+      artifactRefs = const <CockpitArtifactRef>[],
       details = const <String, Object?>{};
 
   factory _WorkflowStepOutcome.fromCommandResult({
@@ -1032,6 +1046,7 @@ final class _WorkflowStepOutcome {
         commandStep: step,
         command: command,
         execution: execution,
+        artifactRefs: result.artifacts,
       );
     }
     return _WorkflowStepOutcome(
@@ -1041,6 +1056,7 @@ final class _WorkflowStepOutcome {
       commandStep: step,
       command: command,
       execution: execution,
+      artifactRefs: result.artifacts,
     );
   }
 
@@ -1049,6 +1065,7 @@ final class _WorkflowStepOutcome {
   final CockpitCommandWorkflowStep? commandStep;
   final CockpitCommand? command;
   final CockpitCommandExecution? execution;
+  final List<CockpitArtifactRef> artifactRefs;
   final Map<String, Object?> details;
 
   _WorkflowStepOutcome withDetails(Map<String, Object?> extraDetails) {
@@ -1058,6 +1075,7 @@ final class _WorkflowStepOutcome {
       commandStep: commandStep,
       command: command,
       execution: execution,
+      artifactRefs: artifactRefs,
       details: <String, Object?>{...extraDetails, ...details},
     );
   }

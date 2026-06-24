@@ -717,6 +717,18 @@ const String cockpitDevtoolsIndexHtml = r'''
     .artifact-media.video {
       place-items: stretch;
     }
+    .artifact-media.video::before {
+      content: "video";
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      color: rgba(237, 246, 241, .74);
+      font: 700 12px/1 "SFMono-Regular", "Cascadia Code", "Liberation Mono", monospace;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      pointer-events: none;
+    }
     .artifact-media .placeholder {
       padding: 8px;
       color: var(--muted);
@@ -2241,13 +2253,6 @@ steps:
           status.textContent = isTimelinePreview
             ? `synthetic ${loadedText}`
             : loadedText;
-          if (Number.isFinite(video.duration) && video.duration > 0.3) {
-            try {
-              video.currentTime = Math.min(0.25, video.duration / 3);
-            } catch (_) {
-              // Some browsers block seeking until more data is buffered.
-            }
-          }
         };
         video.onerror = () => {
           status.className = 'media-status error';

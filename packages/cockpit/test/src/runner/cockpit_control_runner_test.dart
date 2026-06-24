@@ -815,9 +815,11 @@ steps:
         final recordingAdapter = _FakeRecordingAdapter(
           sourceFilePath: '/tmp/workflow-flow.mp4',
         );
+        final liveObserver = _CapturingLiveObserver();
         final runner = CockpitControlRunner(
           automationAdapter: adapter,
           recordingAdapter: recordingAdapter,
+          liveObserver: liveObserver,
           sessionController: CockpitSessionController(
             sessionId: 'workflow-recording',
             taskId: 'workflow-recording-task',
@@ -882,6 +884,20 @@ steps:
           'Stop and attach the workflow recording.',
         );
         expect(stopStep.artifactRefs.single.relativePath, contains('.mp4'));
+        final stopLiveEvent = liveObserver.events.singleWhere(
+          (event) =>
+              event.type == 'workflow_step_completed' &&
+              event.workflowStepId == 'stop-flow',
+        );
+        expect(
+          stopLiveEvent.artifactRefs,
+          contains(
+            allOf(
+              containsPair('role', 'recording'),
+              containsPair('relativePath', 'recordings/workflow-flow.mp4'),
+            ),
+          ),
+        );
         expect(runResult.bundle.manifest.recordingCount, 1);
       },
     );
