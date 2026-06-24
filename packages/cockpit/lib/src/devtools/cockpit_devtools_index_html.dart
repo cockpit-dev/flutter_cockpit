@@ -744,6 +744,10 @@ const String cockpitDevtoolsIndexHtml = r'''
       color: var(--bad);
       border-color: rgba(255, 126, 115, .46);
     }
+    .media-status.synthetic {
+      color: var(--warn);
+      border-color: rgba(245, 185, 92, .55);
+    }
     .artifact-caption {
       display: grid;
       gap: 3px;
@@ -2070,7 +2074,18 @@ steps:
     }
 
     function artifactLabel(artifact) {
+      if (isTimelinePreviewArtifact(artifact)) return 'timeline preview';
       return artifact?.role || artifact?.kind || artifactKind(artifact);
+    }
+
+    function isTimelinePreviewArtifact(artifact) {
+      const path = artifactPath(artifact).toLowerCase();
+      const role = String(artifact?.role || artifact?.kind || '').toLowerCase();
+      const source = String(artifact?.videoSource || artifact?.deliveryVideoSource || artifact?.source || '').toLowerCase();
+      return role.includes('timeline_preview') ||
+        role.includes('timeline preview') ||
+        source.includes('timelinefallback') ||
+        path.includes('_timeline_fallback.');
     }
 
     function artifactDownloadName(artifact) {
@@ -2085,13 +2100,15 @@ steps:
       const source = String(artifact?.source || artifact?.eventType || '').toLowerCase();
       const kind = artifactKind(artifact);
       const isDelivery = source.includes('delivery') || label.includes('delivery');
+      const isTimelinePreview = isTimelinePreviewArtifact(artifact);
       const isKeyframe = label.includes('keyframe') || path.includes('/keyframes/');
       const isDiagnostic = label.includes('diagnostic') || path.includes('/diagnostics/') || kind === 'json';
-      if (kind === 'video' && isDelivery) return 0;
-      if (kind === 'video') return 1;
+      if (kind === 'video' && isDelivery && !isTimelinePreview) return 0;
+      if (kind === 'video' && !isTimelinePreview) return 1;
       if (kind === 'image' && isKeyframe) return 4;
       if (kind === 'image' && isDelivery) return 2;
       if (kind === 'image' && !isKeyframe) return 3;
+      if (isTimelinePreview) return 5;
       if (isDiagnostic) return 8;
       return 6;
     }
@@ -2099,11 +2116,13 @@ steps:
     function collectArtifacts() {
       const artifacts = [];
       const seen = new Set();
+      const selectedRunId = state.selectedRunId || '';
       const push = (artifact, event) => {
         if (!artifact || typeof artifact !== 'object') return;
         const path = artifactPath(artifact);
         if (!path) return;
         const runId = artifactRunId(artifact, event?.runId || state.selectedRunId);
+        if (selectedRunId && runId && runId !== selectedRunId) return;
         const key = `${runId}|${path}`;
         if (seen.has(key)) return;
         seen.add(key);
@@ -2127,6 +2146,9 @@ steps:
         });
       }
       for (const event of state.events) {
+        if (selectedRunId && event?.runId && event.runId !== selectedRunId) {
+          continue;
+        }
         for (const artifact of event.artifactRefs || []) push(artifact, event);
         for (const artifact of event.captureRefs || []) push(artifact, event);
       }
@@ -2145,9 +2167,10 @@ steps:
       media.className = 'artifact-media';
       const kind = artifactKind(artifact);
       const url = artifactUrl(state.selectedRunId, artifact);
+      const isTimelinePreview = isTimelinePreviewArtifact(artifact);
       const status = document.createElement('span');
       status.className = 'media-status';
-      status.textContent = 'loading';
+      status.textContent = isTimelinePreview ? 'synthetic timeline' : 'loading';
       if (kind === 'image' && url) {
         const img = document.createElement('img');
         img.loading = options.eager ? 'eager' : 'lazy';
@@ -2174,13 +2197,18 @@ steps:
         video.tabIndex = -1;
         video.setAttribute('aria-hidden', 'true');
         video.onloadedmetadata = () => {
-          status.className = 'media-status ready';
+          status.className = isTimelinePreview
+            ? 'media-status synthetic'
+            : 'media-status ready';
           const duration = Number.isFinite(video.duration)
             ? `${video.duration.toFixed(1)}s`
             : 'video ready';
-          status.textContent = video.videoWidth && video.videoHeight
+          const loadedText = video.videoWidth && video.videoHeight
             ? `${video.videoWidth}x${video.videoHeight} ${duration}`
             : duration;
+          status.textContent = isTimelinePreview
+            ? `synthetic ${loadedText}`
+            : loadedText;
           if (Number.isFinite(video.duration) && video.duration > 0.3) {
             try {
               video.currentTime = Math.min(0.25, video.duration / 3);
@@ -2207,6 +2235,9 @@ steps:
         media.tabIndex = 0;
         media.setAttribute('role', 'button');
         media.setAttribute('aria-label', `View ${artifactLabel(artifact)} ${artifactPath(artifact)}`);
+        if (isTimelinePreview) {
+          media.title = 'Synthetic timeline preview from screenshots, not a native recording.';
+        }
         const activateMedia = () => {
           media.focus({preventScroll: true});
           openMediaViewer(artifact, media);
@@ -2250,6 +2281,12 @@ steps:
         video.preload = 'metadata';
         video.src = url;
         els.mediaViewerStage.appendChild(video);
+        if (isTimelinePreviewArtifact(artifact)) {
+          const note = document.createElement('p');
+          note.className = 'media-viewer-placeholder';
+          note.textContent = 'Synthetic timeline preview from captured screenshots. This is not proof that native recording succeeded.';
+          els.mediaViewerStage.appendChild(note);
+        }
         return;
       }
       const placeholder = document.createElement('div');

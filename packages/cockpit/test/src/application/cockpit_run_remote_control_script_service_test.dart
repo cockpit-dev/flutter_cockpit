@@ -362,23 +362,23 @@ void main() {
         ),
       );
 
-      expect(result.manifest.deliveryVideoReady, isTrue);
+      expect(result.manifest.deliveryVideoReady, isFalse);
       expect(result.manifest.recordingCount, 1);
       expect(result.delivery['deliveryVideoSynthesized'], isTrue);
+      expect(result.delivery['primaryRecordingRef'], isNull);
       expect(
-        result.delivery['primaryRecordingRef'],
+        result.delivery['timelinePreviewRef'],
         'recordings/finalized_timeline_fallback.mp4',
       );
+      expect(result.artifactPaths.primaryRecordingPath, isNull);
       expect(
-        result.artifactPaths.primaryRecordingPath,
-        p.join(
-          result.bundleDir.path,
-          'recordings',
-          'finalized_timeline_fallback.mp4',
-        ),
-      );
-      expect(
-        File(result.artifactPaths.primaryRecordingPath!).readAsBytesSync(),
+        File(
+          p.join(
+            result.bundleDir.path,
+            'recordings',
+            'finalized_timeline_fallback.mp4',
+          ),
+        ).readAsBytesSync(),
         <int>[0, 1, 2, 3],
       );
     },
@@ -1211,7 +1211,7 @@ final class _FakeTimelineFallbackBuilder
     sourceFile.writeAsBytesSync(const <int>[0, 1, 2, 3]);
     return CockpitTimelineVideoFallbackResult(
       artifact: CockpitArtifactRef(
-        role: 'recording',
+        role: 'timeline_preview',
         relativePath: relativePath,
       ),
       sourceFilePath: sourceFile.path,

@@ -986,8 +986,9 @@ commands:
         bundleSummaryJson['artifactRefs'],
         contains(containsPair('relativePath', 'recordings/fallback.mp4')),
       );
+      expect(bundleSummaryJson['primaryRecordingRef'], isNull);
       expect(
-        bundleSummaryJson['primaryRecordingRef'],
+        bundleSummaryJson['timelinePreviewRef'],
         'recordings/fallback.mp4',
       );
       expect(bundleSummaryJson, isNot(contains('trace')));
@@ -2120,21 +2121,24 @@ Future<void> _writeRunFixture(Directory root) async {
           'relativePath': 'screenshots/first.png',
         },
         <String, Object?>{
-          'role': 'recording',
+          'role': 'timeline_preview',
           'relativePath': 'recordings/fallback.mp4',
         },
       ],
       'recordingCount': 1,
-      'deliveryVideoReady': true,
+      'deliveryVideoReady': false,
+      'deliveryVideoFailureCodes': <Object?>['recordingFailed'],
     }),
   );
   File(p.join(bundleDir.path, 'delivery.json')).writeAsStringSync(
     jsonEncode(<String, Object?>{
       'summary': 'Delivery blocked by task failure',
       'primaryScreenshotRef': 'screenshots/first.png',
-      'primaryRecordingRef': 'recordings/fallback.mp4',
+      'timelinePreviewRef': 'recordings/fallback.mp4',
       'deliveryVideoSynthesized': true,
       'deliveryVideoSource': 'timelineFallback',
+      'deliveryVideoReady': false,
+      'videoFailureCodes': <Object?>['recordingFailed'],
       'keyframes': <Object?>[
         <String, Object?>{
           'ref': 'keyframes/tail.png',

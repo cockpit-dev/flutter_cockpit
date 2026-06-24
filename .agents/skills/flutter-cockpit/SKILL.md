@@ -129,6 +129,16 @@ steps:
         commandType: assertText
         parameters:
           text: Ready
+  - stepId: capture-proof
+    stepType: command
+    command:
+      commandId: capture-proof
+      commandType: captureScreenshot
+      screenshotRequest:
+        reason: acceptance
+        name: checkout-proof
+        includeSnapshot: true
+        attachToStep: true
   - stepId: stop-recording
     stepType: stopRecording
 ```

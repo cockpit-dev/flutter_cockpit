@@ -115,7 +115,7 @@ final class DefaultCockpitTimelineVideoFallbackBuilder
     );
     return CockpitTimelineVideoFallbackResult(
       artifact: CockpitArtifactRef(
-        role: 'recording',
+        role: 'timeline_preview',
         relativePath:
             'recordings/${_sanitizedBaseName(bundle)}_timeline_fallback.mp4',
       ),

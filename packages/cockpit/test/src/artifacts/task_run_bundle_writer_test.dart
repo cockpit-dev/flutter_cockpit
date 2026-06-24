@@ -1364,37 +1364,36 @@ void main() {
               )
               as Map<String, Object?>;
 
-      expect(manifestJson['deliveryVideoReady'], isTrue);
+      expect(manifestJson['deliveryVideoReady'], isFalse);
       expect(manifestJson['recordingCount'], 1);
-      expect(manifestJson['deliveryVideoFailureCodes'], isEmpty);
-      expect(deliveryJson['deliveryVideoReady'], isTrue);
+      expect(manifestJson['deliveryVideoFailureCodes'], <Object?>[
+        'recordingFailed',
+      ]);
+      expect(deliveryJson['deliveryVideoReady'], isFalse);
       expect(deliveryJson['deliveryVideoSynthesized'], isTrue);
       expect(
         ((deliveryJson['readiness'] as Map<Object?, Object?>)['video']
             as Map<Object?, Object?>)['ready'],
-        isTrue,
+        isFalse,
       );
       expect(
         ((deliveryJson['readiness'] as Map<Object?, Object?>)['video']
             as Map<Object?, Object?>)['failureCodes'],
-        isEmpty,
+        <Object?>['recordingFailed'],
       );
       expect(
         ((deliveryJson['readiness'] as Map<Object?, Object?>)['video']
-                as Map<Object?, Object?>)
-            .containsKey('failureReason'),
-        isFalse,
+            as Map<Object?, Object?>)['failureReason'],
+        'simctl recording output did not finalize.',
       );
+      expect(deliveryJson['primaryRecordingRef'], isNull);
       expect(
-        deliveryJson['primaryRecordingRef'],
+        deliveryJson['timelinePreviewRef'],
         'recordings/task-fallback-video_session-fallback-video_timeline_fallback.mp4',
       );
       expect(
         File(
-          p.join(
-            outputDir.path,
-            deliveryJson['primaryRecordingRef']! as String,
-          ),
+          p.join(outputDir.path, deliveryJson['timelinePreviewRef']! as String),
         ).readAsBytesSync(),
         <int>[0, 1, 2, 3],
       );
@@ -1402,12 +1401,12 @@ void main() {
       expect(
         ((handoffJson['gates']
             as Map<Object?, Object?>)['recordingReadyOrExplained']),
-        isTrue,
+        isFalse,
       );
       expect(
         ((handoffJson['gateFailureCodes']
             as Map<Object?, Object?>)['recordingReadyOrExplained']),
-        isEmpty,
+        <Object?>['recordingFailed'],
       );
     },
   );
@@ -2529,7 +2528,7 @@ final class _FakeTimelineVideoFallbackBuilder
     await file.writeAsBytes(const <int>[0, 1, 2, 3]);
     return CockpitTimelineVideoFallbackResult(
       artifact: const CockpitArtifactRef(
-        role: 'recording',
+        role: 'timeline_preview',
         relativePath:
             'recordings/task-fallback-video_session-fallback-video_timeline_fallback.mp4',
       ),

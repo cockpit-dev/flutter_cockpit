@@ -2119,6 +2119,8 @@ Map<String, Object?> _summaryFieldsFromDelivery(Map<String, Object?> delivery) {
       'primaryScreenshotRef': delivery['primaryScreenshotRef'],
     if (delivery['primaryRecordingRef'] != null)
       'primaryRecordingRef': delivery['primaryRecordingRef'],
+    if (delivery['timelinePreviewRef'] != null)
+      'timelinePreviewRef': delivery['timelinePreviewRef'],
     if (delivery['deliveryVideoSynthesized'] != null)
       'deliveryVideoSynthesized': delivery['deliveryVideoSynthesized'],
     if (delivery['deliveryVideoSource'] != null)
@@ -2245,6 +2247,30 @@ List<Map<String, Object?>> _bundleArtifactRefs({
   }
   for (final ref in _stringListValue(delivery?['videoAttachmentRefs'])) {
     addArtifact(relativePath: ref, role: 'recording', source: 'delivery');
+  }
+  addArtifact(
+    relativePath: delivery?['timelinePreviewRef'],
+    role: 'timeline_preview',
+    source: 'delivery',
+    extra: <String, Object?>{
+      'synthesized': true,
+      'videoSource': 'timelineFallback',
+      if (delivery?['deliveryVideoDurationMs'] != null)
+        'durationMs': delivery?['deliveryVideoDurationMs'],
+    },
+  );
+  for (final ref in _stringListValue(
+    delivery?['timelinePreviewAttachmentRefs'],
+  )) {
+    addArtifact(
+      relativePath: ref,
+      role: 'timeline_preview',
+      source: 'delivery',
+      extra: const <String, Object?>{
+        'synthesized': true,
+        'videoSource': 'timelineFallback',
+      },
+    );
   }
   for (final keyframe in _mapListValue(delivery?['keyframes'])) {
     addArtifact(
