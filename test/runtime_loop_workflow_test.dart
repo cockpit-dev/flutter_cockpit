@@ -222,6 +222,39 @@ void main() {
     },
   );
 
+  test('shared workflows retry transient Windows ffmpeg installs', () {
+    for (final entry in <MapEntry<String, File>>[
+      MapEntry<String, File>(
+        'validation-examples',
+        File('$root/.github/workflows/validation-examples.yml'),
+      ),
+      MapEntry<String, File>(
+        'platform-capabilities',
+        platformCapabilitiesWorkflowFile,
+      ),
+    ]) {
+      final workflow = entry.value.readAsStringSync();
+      expect(
+        workflow,
+        contains('choco_retry()'),
+        reason:
+            '${entry.key} should not fail permanently on a transient Chocolatey package stream error.',
+      );
+      expect(
+        workflow,
+        contains('choco_retry choco install ffmpeg -y --no-progress'),
+        reason:
+            '${entry.key} should use the quiet retrying Windows dependency installer.',
+      );
+      expect(
+        workflow,
+        isNot(contains('choco install ffmpeg -y\n')),
+        reason:
+            '${entry.key} should not keep the non-retrying Chocolatey install path.',
+      );
+    }
+  });
+
   test('runtime loop command assertions track full verifier output', () {
     final workflow = workflowFile.readAsStringSync();
     final commonExpectedCommands = <String>[

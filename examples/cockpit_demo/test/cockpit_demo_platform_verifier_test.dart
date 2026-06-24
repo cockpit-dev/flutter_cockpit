@@ -1167,6 +1167,42 @@ void main() {
   });
 
   test(
+    'iOS core system state probe allows CoreSimulator startup latency',
+    () async {
+      final systemActionRequests = <CockpitSystemControlActionRequest>[];
+      final verifier = await _createSinglePlatformVerifier(
+        platform: 'ios',
+        deviceId: '87639670-FE4D-446D-9245-5324E0D50184',
+        runSystemAction: (request) async {
+          systemActionRequests.add(request);
+          return _fakeRunSystemAction(request);
+        },
+      );
+
+      final result = await verifier.verify(
+        CockpitDemoPlatformVerificationRequest(
+          projectDir: '/workspace/examples/cockpit_demo',
+          platforms: const <String>['ios'],
+          outputRoot: Directory.systemTemp
+              .createTempSync('cockpit_demo_ios_system_state_timeout_test_')
+              .path,
+          exhaustiveSystemControl: true,
+        ),
+      );
+
+      expect(result.success, isTrue, reason: jsonEncode(result.toJson()));
+      final readSystemStateRequest = systemActionRequests.firstWhere(
+        (request) =>
+            request.action == CockpitSystemControlAction.readSystemState,
+      );
+      expect(
+        readSystemStateRequest.timeout,
+        greaterThan(const Duration(seconds: 15)),
+      );
+    },
+  );
+
+  test(
     'iOS exhaustive media timeouts are recorded without blocking core coverage',
     () async {
       final systemActionRequests = <CockpitSystemControlActionRequest>[];

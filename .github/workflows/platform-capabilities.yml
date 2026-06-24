@@ -96,6 +96,14 @@ jobs:
             done
             "$@"
           }
+          choco_retry() {
+            for attempt in 1 2 3 4; do
+              if "$@"; then return 0; fi
+              echo "choco attempt $attempt failed, retrying in 15s..."
+              sleep 15
+            done
+            "$@"
+          }
           case "${{ matrix.platform }}" in
             android)
               apt_retry sudo apt-get update
@@ -125,7 +133,7 @@ jobs:
               apt_retry sudo apt-get install -y --no-install-recommends ffmpeg x11-utils xvfb
               ;;
             windows)
-              choco install ffmpeg -y
+              choco_retry choco install ffmpeg -y --no-progress
               flutter config --enable-windows-desktop
               ;;
           esac

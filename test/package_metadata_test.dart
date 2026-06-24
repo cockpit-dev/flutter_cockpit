@@ -265,6 +265,48 @@ void main() {
     }
   });
 
+  test('published packages include package-local examples', () {
+    final runtimeExample = File('packages/flutter_cockpit/example/main.dart');
+    final devtoolsExample = File('packages/cockpit/example/main.dart');
+
+    expect(runtimeExample.existsSync(), isTrue);
+    expect(devtoolsExample.existsSync(), isTrue);
+
+    final runtimeSource = runtimeExample.readAsStringSync();
+    final devtoolsSource = devtoolsExample.readAsStringSync();
+
+    expect(
+      runtimeSource,
+      contains("package:flutter_cockpit/flutter_cockpit_flutter.dart"),
+    );
+    expect(
+      runtimeSource,
+      contains('CockpitRemoteSessionConfiguration.resolveFromEnvironment'),
+    );
+    expect(runtimeSource, contains('FlutterCockpit.navigatorObserver'));
+    expect(runtimeSource, contains('FlutterCockpit.setCurrentRouteName'));
+
+    expect(devtoolsSource, contains("package:cockpit/cockpit.dart"));
+    expect(devtoolsSource, contains('CockpitCommandRunner'));
+    expect(devtoolsSource, contains('read-system-capabilities'));
+    expect(devtoolsSource, contains('capture-screenshot'));
+  });
+
+  test(
+    'pure Dart runtime export does not expose dart:io implementation files',
+    () {
+      final exportGraph = _runtimeLibraryGraph();
+      expect(
+        exportGraph,
+        isNot(contains('src/network/cockpit_http_network_observer.dart')),
+        reason:
+            'package:flutter_cockpit/flutter_cockpit.dart is consumed by host '
+            'tools and web model code; dart:io observers belong in the Flutter '
+            'entrypoint export.',
+      );
+    },
+  );
+
   test(
     'published cockpit readmes do not present pubignored tools as package commands',
     () {
@@ -393,6 +435,57 @@ String _readPackageVersion(String packageDir) {
     throw StateError('Unable to read version from $packageDir/pubspec.yaml');
   }
   return match.group(1)!;
+}
+
+Set<String> _runtimeLibraryGraph() {
+  final visited = <String>{};
+  final pending = <String>['packages/flutter_cockpit/lib/flutter_cockpit.dart'];
+  while (pending.isNotEmpty) {
+    final path = pending.removeLast();
+    if (!visited.add(path)) {
+      continue;
+    }
+    final file = File(path);
+    if (!file.existsSync()) {
+      continue;
+    }
+    final source = file.readAsStringSync();
+    for (final match in RegExp(
+      r"(?:export|import)\s+'([^']+)';",
+    ).allMatches(source)) {
+      final rawTarget = match.group(1)!;
+      if (rawTarget.startsWith('dart:') || rawTarget.startsWith('package:')) {
+        continue;
+      }
+      if (!rawTarget.endsWith('.dart')) {
+        continue;
+      }
+      final resolved = rawTarget.startsWith('src/')
+          ? 'packages/flutter_cockpit/lib/$rawTarget'
+          : _normalizePackagePath('${file.parent.path}/$rawTarget');
+      pending.add(resolved);
+    }
+  }
+  return visited
+      .map((path) => path.replaceFirst('packages/flutter_cockpit/lib/', ''))
+      .toSet();
+}
+
+String _normalizePackagePath(String path) {
+  final segments = <String>[];
+  for (final segment in path.split('/')) {
+    if (segment.isEmpty || segment == '.') {
+      continue;
+    }
+    if (segment == '..') {
+      if (segments.isNotEmpty) {
+        segments.removeLast();
+      }
+      continue;
+    }
+    segments.add(segment);
+  }
+  return segments.join('/');
 }
 
 List<String> _localMarkdownLinkIssues() {
