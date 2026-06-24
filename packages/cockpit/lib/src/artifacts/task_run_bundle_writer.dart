@@ -66,6 +66,7 @@ final class TaskRunBundleWriter {
       timelineVideoFallback,
     );
     final delivery = _withTimelineVideoFallbackDelivery(
+      bundle,
       bundle.delivery,
       timelineVideoFallback,
     );
@@ -332,6 +333,18 @@ final class TaskRunBundleWriter {
       allowedRoots: const <String>{'recordings'},
       message: 'Delivery recording refs must stay under recordings/.',
     );
+    _validateDeliveryRef(
+      delivery['timelinePreviewRef'],
+      fieldName: 'timelinePreviewRef',
+      allowedRoots: const <String>{'recordings'},
+      message: 'Timeline preview refs must stay under recordings/.',
+    );
+    _validateDeliveryRefList(
+      delivery['timelinePreviewAttachmentRefs'],
+      fieldName: 'timelinePreviewAttachmentRefs',
+      allowedRoots: const <String>{'recordings'},
+      message: 'Timeline preview refs must stay under recordings/.',
+    );
     _validateDeliveryKeyframeRefs(delivery['keyframes']);
   }
 
@@ -455,6 +468,10 @@ final class TaskRunBundleWriter {
           when ref.isNotEmpty)
         ref,
       ..._stringRefs(delivery['videoAttachmentRefs']),
+      if (delivery['timelinePreviewRef'] case final String ref
+          when ref.isNotEmpty)
+        ref,
+      ..._stringRefs(delivery['timelinePreviewAttachmentRefs']),
     ]) {
       _validateDeliveryArtifactFileExists(
         outputDirectory: outputDirectory,
@@ -550,13 +567,11 @@ final class TaskRunBundleWriter {
     required Map<String, Object?> delivery,
     required Directory outputDirectory,
   }) async {
-    final primaryRecordingRef = delivery['primaryRecordingRef'] as String?;
-    if (primaryRecordingRef == null || primaryRecordingRef.isEmpty) {
+    final recordingRef = _recordingRefForKeyframes(delivery);
+    if (recordingRef == null || recordingRef.isEmpty) {
       return null;
     }
-    final recordingFile = File(
-      p.join(outputDirectory.path, primaryRecordingRef),
-    );
+    final recordingFile = File(p.join(outputDirectory.path, recordingRef));
     if (!recordingFile.existsSync()) {
       return const CockpitRecordingKeyframeExtractionResult(
         keyframes: <CockpitRecordingKeyframe>[],
@@ -572,10 +587,22 @@ final class TaskRunBundleWriter {
     }
     return _keyframeExtractor.extract(
       recordingPath: recordingFile.path,
-      recordingRelativePath: primaryRecordingRef,
+      recordingRelativePath: recordingRef,
       steps: bundle.steps,
       bundleDirectoryPath: outputDirectory.path,
     );
+  }
+
+  String? _recordingRefForKeyframes(Map<String, Object?> delivery) {
+    final primaryRecordingRef = delivery['primaryRecordingRef'] as String?;
+    if (primaryRecordingRef != null && primaryRecordingRef.isNotEmpty) {
+      return primaryRecordingRef;
+    }
+    final timelinePreviewRef = delivery['timelinePreviewRef'] as String?;
+    if (timelinePreviewRef != null && timelinePreviewRef.isNotEmpty) {
+      return timelinePreviewRef;
+    }
+    return null;
   }
 
   CockpitRecordingKeyframeExtractionResult? _supplementRecordingKeyframes({
@@ -592,9 +619,8 @@ final class TaskRunBundleWriter {
       return keyframeExtraction;
     }
 
-    final primaryRecordingRef =
-        delivery['primaryRecordingRef'] as String? ?? '';
-    if (primaryRecordingRef.isEmpty) {
+    final recordingRef = _recordingRefForKeyframes(delivery) ?? '';
+    if (recordingRef.isEmpty) {
       return keyframeExtraction;
     }
 
@@ -629,7 +655,7 @@ final class TaskRunBundleWriter {
       bundle: bundle,
       recordingStartTime: recordingStarted.observedAt,
       durationMs: durationMs,
-      recordingRelativePath: primaryRecordingRef,
+      recordingRelativePath: recordingRef,
     );
     for (final candidate in screenshotCandidates) {
       if (_containsEquivalentKeyframe(keyframes, candidate)) {
@@ -802,8 +828,10 @@ final class TaskRunBundleWriter {
       deliveryArtifactFailureCodes: manifest.deliveryArtifactFailureCodes,
       recordingCount: manifest.recordingCount > 0 ? manifest.recordingCount : 1,
       nativeRecordingCount: manifest.nativeRecordingCount,
-      deliveryVideoReady: true,
-      deliveryVideoFailureCodes: const <String>[],
+      deliveryVideoReady: manifest.deliveryVideoReady,
+      deliveryVideoFailureCodes: manifest.deliveryVideoFailureCodes.isNotEmpty
+          ? manifest.deliveryVideoFailureCodes
+          : const <String>['recordingFailed'],
       runtimeEventCount: manifest.runtimeEventCount,
       runtimeErrorCount: manifest.runtimeErrorCount,
       runtimeWarningCount: manifest.runtimeWarningCount,
@@ -811,6 +839,7 @@ final class TaskRunBundleWriter {
   }
 
   Map<String, Object?> _withTimelineVideoFallbackDelivery(
+    CockpitContextBundle bundle,
     Map<String, Object?> delivery,
     CockpitTimelineVideoFallbackResult? timelineVideoFallback,
   ) {
@@ -820,25 +849,38 @@ final class TaskRunBundleWriter {
 
     final readiness = _readJsonMap(delivery['readiness']);
     final videoReadiness = _readJsonMap(readiness['video']);
+    final existingVideoFailureCodes = _readStringList(
+      delivery['videoFailureCodes'],
+    );
+    final videoFailureCodes = existingVideoFailureCodes.isNotEmpty
+        ? existingVideoFailureCodes
+        : const <String>['recordingFailed'];
+    final failureReason =
+        videoReadiness['failureReason'] ??
+        _recordingFailureReason(bundle: bundle, delivery: delivery);
     return <String, Object?>{
       ...delivery,
-      'primaryRecordingRef': timelineVideoFallback.artifact.relativePath,
-      'videoAttachmentRefs': <String>[
-        timelineVideoFallback.artifact.relativePath,
-      ],
-      'deliveryVideoReady': true,
+      'primaryRecordingRef': null,
+      'videoAttachmentRefs': const <String>[],
+      'deliveryVideoReady': false,
       'deliveryVideoSynthesized': true,
       'deliveryVideoSource': 'timelineFallback',
       'deliveryVideoDurationMs': timelineVideoFallback.durationMs,
       'deliveryVideoScreenshotRefs': timelineVideoFallback.screenshotRefs,
-      'videoFailureCodes': const <String>[],
+      'timelinePreviewRef': timelineVideoFallback.artifact.relativePath,
+      'timelinePreviewAttachmentRefs': <String>[
+        timelineVideoFallback.artifact.relativePath,
+      ],
+      'videoFailureCodes': videoFailureCodes,
       'readiness': <String, Object?>{
         ...readiness,
         'video': <String, Object?>{
           ...videoReadiness,
-          'ready': true,
-          'failureCodes': const <String>[],
+          'ready': false,
+          'failureCodes': videoFailureCodes,
+          'failureReason': ?failureReason,
           'source': 'timelineFallback',
+          'synthesizedPreviewReady': true,
         },
       },
     };
@@ -854,34 +896,74 @@ final class TaskRunBundleWriter {
 
     final gates = _readJsonMap(handoff['gates']);
     final gateFailureCodes = _readJsonMap(handoff['gateFailureCodes']);
+    final existingRecordingFailureCodes = _readStringList(
+      gateFailureCodes['recordingReadyOrExplained'],
+    );
+    final recordingFailureCodes = existingRecordingFailureCodes.isNotEmpty
+        ? existingRecordingFailureCodes
+        : const <String>['recordingFailed'];
+    final deliveryFailureCodes = _readStringList(
+      gateFailureCodes['deliveryValidated'],
+    );
     return <String, Object?>{
       ...handoff,
       'recordingCount': 1,
-      'deliveryVideoReady': true,
+      'deliveryVideoReady': false,
       'deliveryVideoSynthesized': true,
       'deliveryVideoSource': 'timelineFallback',
       'deliveryVideoDurationMs': timelineVideoFallback.durationMs,
-      'videoFailureCodes': const <String>[],
-      'recordingReadyOrExplained': true,
+      'timelinePreviewRef': timelineVideoFallback.artifact.relativePath,
+      'videoFailureCodes': recordingFailureCodes,
+      'recordingReadyOrExplained': false,
       'deliveryValidated':
-          (handoff['screenshotReady'] as bool? ?? true) && true,
+          (handoff['screenshotReady'] as bool? ?? true) && false,
       'gates': <String, Object?>{
         ...gates,
-        'recordingReadyOrExplained': true,
+        'recordingReadyOrExplained': false,
         'deliveryValidated':
             (gates['screenshotReady'] as bool? ??
                 handoff['screenshotReady'] as bool? ??
                 true) &&
-            true,
+            false,
       },
       'gateFailureCodes': <String, Object?>{
         ...gateFailureCodes,
-        'recordingReadyOrExplained': const <String>[],
-        'deliveryValidated': _readStringList(
-          gateFailureCodes['screenshotReady'],
-        ),
+        'recordingReadyOrExplained': recordingFailureCodes,
+        'deliveryValidated': deliveryFailureCodes.isNotEmpty
+            ? deliveryFailureCodes
+            : recordingFailureCodes,
       },
     };
+  }
+
+  String? _recordingFailureReason({
+    required CockpitContextBundle bundle,
+    required Map<String, Object?> delivery,
+  }) {
+    final readiness = _readJsonMap(delivery['readiness']);
+    final videoReadiness = _readJsonMap(readiness['video']);
+    final failureReason = videoReadiness['failureReason'];
+    if (failureReason is String && failureReason.isNotEmpty) {
+      return failureReason;
+    }
+    for (final step in bundle.steps.reversed) {
+      if (step.actionType != 'recording_failed') {
+        continue;
+      }
+      final stepFailureReason = step.actionArgs['failureReason'];
+      if (stepFailureReason is String && stepFailureReason.isNotEmpty) {
+        return stepFailureReason;
+      }
+      final failureSummary = step.actionArgs['failureSummary'];
+      if (failureSummary is String && failureSummary.isNotEmpty) {
+        return failureSummary;
+      }
+    }
+    final summary = delivery['summary'];
+    if (summary is String && summary.isNotEmpty) {
+      return summary;
+    }
+    return null;
   }
 
   String _withTimelineVideoFallbackAcceptanceSummary(

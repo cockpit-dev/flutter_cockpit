@@ -913,6 +913,58 @@ steps:
         expect(checkout['timeline'], contains('checkout-run-2'));
         expect(checkout['timeline'], isNot(contains('settings-run')));
 
+        await tab.waitForExpression(
+          "document.querySelector('#selectedStatus').textContent === 'completed' && "
+          "document.querySelector('[data-testid=\"artifact-gallery\"]').textContent.includes('checkout-run-2-final.png')",
+        );
+        final checkoutRetryArtifacts = await tab.evaluateMap('''
+(() => ({
+  gallery: document.querySelector('[data-testid="artifact-gallery"]').textContent
+}))()
+''');
+        expect(
+          checkoutRetryArtifacts['gallery'],
+          contains('checkout-run-2-final.png'),
+        );
+        expect(
+          checkoutRetryArtifacts['gallery'],
+          isNot(contains('checkout-run-1-final.png')),
+        );
+        expect(
+          checkoutRetryArtifacts['gallery'],
+          isNot(contains('checkout-run-1-timeline-preview.webm')),
+        );
+
+        await tab.click(
+          'document.querySelector(".run[data-run-id=\\"checkout-run-1\\"]")',
+        );
+        await tab.waitForExpression(
+          "document.querySelector('#selectedStatus').textContent === 'failed' && "
+          "document.querySelector('[data-testid=\"artifact-gallery\"]').textContent.includes('timeline preview')",
+        );
+        final checkoutPreview = await tab.evaluateMap('''
+(() => ({
+  gallery: document.querySelector('[data-testid="artifact-gallery"]').textContent,
+  mediaStatuses: Array.from(document.querySelectorAll('.artifact-media .media-status')).map((node) => node.textContent || ''),
+  mediaLabels: Array.from(document.querySelectorAll('.artifact-media.clickable')).map((node) => node.getAttribute('aria-label') || '')
+}))()
+''');
+        expect(checkoutPreview['gallery'], contains('timeline preview'));
+        expect(
+          checkoutPreview['mediaStatuses'] as List<Object?>,
+          contains(predicate<String>((text) => text.contains('synthetic'))),
+        );
+        expect(
+          checkoutPreview['mediaLabels'] as List<Object?>,
+          contains(
+            predicate<String>(
+              (text) =>
+                  text.contains('timeline preview') &&
+                  text.contains('timeline-preview.webm'),
+            ),
+          ),
+        );
+
         await tab.click("document.querySelector('[data-filter=\"failed\"]')");
         await tab.waitForExpression(
           "document.querySelector('#timelineSummary').textContent.includes('match error filter') && "
@@ -2482,6 +2534,7 @@ Future<Map<String, CockpitLiveRunStore>> _writeBrowserFixture(
     artifactEvery: 0,
     finalBundle: true,
     includeFailure: true,
+    includeTimelinePreview: true,
   );
   stores['checkout-run-2'] = await _writeWorkflowRun(
     root: root,
@@ -2650,6 +2703,7 @@ Future<CockpitLiveRunStore> _writeWorkflowRun({
   required bool finalBundle,
   bool includeFailure = false,
   bool includeVideo = false,
+  bool includeTimelinePreview = false,
   bool includeMissingMedia = false,
 }) async {
   var ticks = 0;
@@ -2687,6 +2741,11 @@ Future<CockpitLiveRunStore> _writeWorkflowRun({
       p.join(bundleDir.path, 'recordings', '$runId-final.webm'),
     ).writeAsBytesSync(base64Decode(_tinyWebmBase64));
   }
+  if (includeTimelinePreview) {
+    File(
+      p.join(bundleDir.path, 'recordings', '$runId-timeline-preview.webm'),
+    ).writeAsBytesSync(base64Decode(_tinyWebmBase64));
+  }
   File(
     p.join(bundleDir.path, 'diagnostics', '$runId-trace.json'),
   ).writeAsStringSync(
@@ -2704,6 +2763,8 @@ Future<CockpitLiveRunStore> _writeWorkflowRun({
       'screenshotCount': 1,
       'recordingCount': includeVideo ? 1 : 0,
       'deliveryVideoReady': includeVideo,
+      if (includeTimelinePreview && !includeVideo)
+        'deliveryVideoFailureCodes': <Object?>['recordingFailed'],
       'artifactRefs': <Object?>[
         <String, Object?>{
           'role': 'screenshot',
@@ -2713,6 +2774,11 @@ Future<CockpitLiveRunStore> _writeWorkflowRun({
           <String, Object?>{
             'role': 'recording',
             'relativePath': 'recordings/$runId-final.webm',
+          },
+        if (includeTimelinePreview)
+          <String, Object?>{
+            'role': 'timeline_preview',
+            'relativePath': 'recordings/$runId-timeline-preview.webm',
           },
         if (includeMissingMedia) ...<Object?>[
           <String, Object?>{
@@ -2736,6 +2802,25 @@ Future<CockpitLiveRunStore> _writeWorkflowRun({
         'deliveryVideoSynthesized': false,
         'deliveryVideoSource': 'nativeRecording',
         'deliveryVideoDurationMs': 600,
+      },
+      if (includeTimelinePreview) ...<String, Object?>{
+        'timelinePreviewRef': 'recordings/$runId-timeline-preview.webm',
+        'timelinePreviewAttachmentRefs': <Object?>[
+          'recordings/$runId-timeline-preview.webm',
+        ],
+        'deliveryVideoReady': false,
+        'deliveryVideoSynthesized': true,
+        'deliveryVideoSource': 'timelineFallback',
+        'deliveryVideoDurationMs': 600,
+        'videoFailureCodes': <Object?>['recordingFailed'],
+        'readiness': <String, Object?>{
+          'video': <String, Object?>{
+            'ready': false,
+            'failureCodes': <Object?>['recordingFailed'],
+            'source': 'timelineFallback',
+            'synthesizedPreviewReady': true,
+          },
+        },
       },
       if (includeMissingMedia) ...<String, Object?>{
         'attachmentRefs': <Object?>['screenshots/$runId-missing.png'],
@@ -2813,6 +2898,11 @@ Future<CockpitLiveRunStore> _writeWorkflowRun({
                 <String, Object?>{
                   'role': 'recording',
                   'relativePath': 'recordings/$runId-final.webm',
+                },
+              if (hasFailureDiagnostics)
+                <String, Object?>{
+                  'role': 'screenshot',
+                  'relativePath': 'screenshots/$runId-final.png',
                 },
               if (hasFailureDiagnostics)
                 <String, Object?>{

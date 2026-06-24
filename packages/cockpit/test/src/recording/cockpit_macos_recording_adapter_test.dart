@@ -2,11 +2,20 @@ import 'dart:io';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:cockpit/src/platform/macos/cockpit_macos_window_target.dart';
+import 'package:cockpit/src/recording/cockpit_host_recording_adapter.dart';
 import 'package:cockpit/src/recording/cockpit_macos_recording_adapter.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 void main() {
+  setUp(() {
+    cockpitClearActiveHostRecordingSession('macos:com.google.Chrome');
+  });
+
+  tearDown(() {
+    cockpitClearActiveHostRecordingSession('macos:com.google.Chrome');
+  });
+
   test(
     'macos recording adapter starts and finalizes a host recording artifact',
     () async {
@@ -402,7 +411,7 @@ exit 0
   );
 
   test(
-    'macos recording adapter accepts avfoundation pixel-format negotiation as browser-host startup evidence',
+    'macos recording adapter rejects pixel-format negotiation without recorded frames',
     () async {
       final tempDir = await Directory.systemTemp.createTemp(
         'cockpit_macos_browser_pixel_format_recording_adapter',
@@ -448,7 +457,7 @@ exit 0
         appId: 'com.google.Chrome',
         ffmpegExecutable: ffmpegExecutable.path,
         osascriptExecutable: osascriptExecutable.path,
-        startupTimeout: const Duration(seconds: 2),
+        startupTimeout: const Duration(milliseconds: 200),
         startupEvidenceTimeout: const Duration(milliseconds: 100),
         stopTimeout: const Duration(seconds: 2),
         finalizationPollInterval: const Duration(milliseconds: 10),
@@ -460,20 +469,24 @@ exit 0
         ),
       );
 
-      final session = await adapter.startRecording(
-        const CockpitRecordingRequest(
-          purpose: CockpitRecordingPurpose.acceptance,
-          name: 'browser-host-pixel-format-demo',
-          attachToStep: true,
+      await expectLater(
+        adapter.startRecording(
+          const CockpitRecordingRequest(
+            purpose: CockpitRecordingPurpose.acceptance,
+            name: 'browser-host-pixel-format-demo',
+            attachToStep: true,
+          ),
         ),
-      );
-      final result = await adapter.stopRecording();
-
-      expect(session.state, CockpitRecordingState.recording);
-      expect(result.state, CockpitRecordingState.completed);
-      expect(
-        File(result.sourceFilePath!).readAsStringSync(),
-        'browser-pixel-format-video',
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            allOf(
+              contains('ffmpeg never confirmed macOS screen capture startup'),
+              contains('Overriding selected pixel format'),
+            ),
+          ),
+        ),
       );
     },
   );

@@ -163,11 +163,13 @@ final class CockpitMacosRecordingAdapter
       if (!started) {
         await stderrSubscription.cancel();
         await cockpitKillRecordingProcess(process);
+        cockpitClearActiveHostRecordingSession(_sessionCacheKey);
         throw StateError(_buildStartupFailureMessage(recentStderrLines));
       }
     } on Object {
       await stderrSubscription.cancel();
       await cockpitKillRecordingProcess(process);
+      cockpitClearActiveHostRecordingSession(_sessionCacheKey);
       rethrow;
     }
 
@@ -713,9 +715,7 @@ final class CockpitMacosRecordingAdapter
   bool _hasStartupConfirmation(List<String> recentStderrLines) {
     return recentStderrLines.any(
       (line) =>
-          line.contains('Press [q] to stop') ||
-          line.contains('Output #0') ||
-          line.contains('Overriding selected pixel format'),
+          line.contains('Press [q] to stop') || line.contains('Output #0'),
     );
   }
 
