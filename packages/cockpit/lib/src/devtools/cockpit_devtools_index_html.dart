@@ -774,17 +774,23 @@ const String cockpitDevtoolsIndexHtml = r'''
       place-items: stretch;
     }
     .artifact-media.video.poster-backed {
-      grid-template-rows: minmax(0, 1fr) 42px;
-      gap: 1px;
-      aspect-ratio: 16 / 13;
+      aspect-ratio: 16 / 10;
     }
     .artifact-media.video.poster-backed img {
+      grid-area: 1 / 1;
       min-height: 0;
     }
     .artifact-media.video.poster-backed video {
-      min-height: 0;
-      object-fit: cover;
-      border-top: 1px solid rgba(43, 62, 56, .72);
+      grid-area: 1 / 1;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .artifact-media.video.video-ready video {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .artifact-media.video.video-ready.poster-backed img {
+      display: none;
     }
     .artifact-media.video::before {
       content: "video";
@@ -797,6 +803,37 @@ const String cockpitDevtoolsIndexHtml = r'''
       letter-spacing: .08em;
       text-transform: uppercase;
       pointer-events: none;
+    }
+    .artifact-media.video.poster-backed::before {
+      content: "recording";
+      place-items: start end;
+      padding: 8px;
+      color: rgba(237, 246, 241, .62);
+    }
+    .artifact-media.video.video-ready::before {
+      display: none;
+    }
+    .recording-storyboard {
+      position: absolute;
+      left: 6px;
+      right: 6px;
+      bottom: 6px;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+      gap: 4px;
+      pointer-events: none;
+    }
+    .recording-storyboard img {
+      width: 100%;
+      height: clamp(26px, 14vw, 48px);
+      object-fit: cover;
+      border: 1px solid rgba(237, 246, 241, .28);
+      border-radius: 5px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, .36);
+    }
+    .artifact-media.video.video-ready .recording-storyboard {
+      display: none;
     }
     .artifact-media .placeholder {
       padding: 8px;
@@ -970,6 +1007,7 @@ const String cockpitDevtoolsIndexHtml = r'''
     .media-viewer-stage {
       display: grid;
       place-items: center;
+      position: relative;
       overflow: auto;
       padding: 12px;
       background:
@@ -1002,6 +1040,41 @@ const String cockpitDevtoolsIndexHtml = r'''
       overflow-wrap: anywhere;
       text-align: center;
       font: 12px/1.45 "SFMono-Regular", "Cascadia Code", "Liberation Mono", monospace;
+    }
+    .media-viewer-storyboard {
+      position: absolute;
+      left: 18px;
+      right: 18px;
+      bottom: 18px;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 8px;
+      padding: 8px;
+      border: 1px solid rgba(43, 62, 56, .8);
+      border-radius: 12px;
+      background: rgba(5, 8, 7, .78);
+      backdrop-filter: blur(10px);
+    }
+    .media-viewer-storyboard figure {
+      margin: 0;
+      min-width: 0;
+      display: grid;
+      gap: 4px;
+    }
+    .media-viewer-storyboard img {
+      width: 100%;
+      height: 78px;
+      object-fit: cover;
+      border-radius: 7px;
+      border: 1px solid rgba(237, 246, 241, .22);
+    }
+    .media-viewer-storyboard figcaption {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--muted);
+      font: 10px/1.2 "SFMono-Regular", "Cascadia Code", "Liberation Mono", monospace;
     }
     .code-view {
       border: 1px solid var(--line);
@@ -2244,16 +2317,63 @@ steps:
       return parts;
     }
 
+    function recordingKeyframeArtifacts(artifact) {
+      const runId = artifactRunId(artifact);
+      const currentPath = artifactPath(artifact);
+      const keyframes = [];
+      const seen = new Set();
+      const push = (candidate, event = null) => {
+        if (!candidate || typeof candidate !== 'object') return;
+        const path = artifactPath(candidate);
+        if (!path || path === currentPath) return;
+        if (!path.startsWith('keyframes/') && !String(candidate.role || '').toLowerCase().includes('keyframe')) {
+          return;
+        }
+        const candidateRunId = artifactRunId(candidate, event?.runId || runId);
+        if (candidateRunId !== runId) return;
+        const key = `${candidateRunId}|${path}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        keyframes.push({
+          ...candidate,
+          runId: candidateRunId,
+          eventSeq: candidate.eventSeq || event?.seq,
+          workflowStepId: candidate.workflowStepId || event?.workflowStepId,
+          capturedAt: candidate.capturedAt || event?.timestamp
+        });
+      };
+      for (const candidate of state.bundleSummary?.artifactRefs || []) {
+        push(candidate, null);
+      }
+      for (const candidate of state.liveState?.recentArtifacts || []) {
+        push(candidate, null);
+      }
+      for (const event of state.events) {
+        if (event?.runId && event.runId !== runId) continue;
+        for (const candidate of event.artifactRefs || []) push(candidate, event);
+        for (const candidate of event.captureRefs || []) push(candidate, event);
+      }
+      return keyframes
+        .sort((left, right) => Number(left.offsetMs || 0) - Number(right.offsetMs || 0))
+        .slice(0, 4);
+    }
+
     function primeVideoMetadata(video, status = null, options = {}) {
       let settled = false;
       const pendingMs = options.pendingMs || 1800;
+      const container = options.container || null;
       const markReady = () => {
         settled = true;
+        if (container && video.readyState >= 1 && !video.error) {
+          container.classList.add('video-ready');
+        }
       };
       const markPending = () => {
         if (settled || !status || video.readyState >= 1 || video.error) return;
         status.className = 'media-status';
-        status.textContent = 'metadata pending';
+        status.textContent = options.posterUrl
+          ? 'poster preview - open video'
+          : 'video metadata pending';
       };
       video.addEventListener('loadedmetadata', markReady, {once: true});
       video.addEventListener('error', markReady, {once: true});
@@ -2267,6 +2387,65 @@ steps:
             video.load();
           } catch (_) {}
         }, 0);
+      }
+    }
+
+    function renderVideoPoster(media, artifact, posterUrl, status, options) {
+      if (!posterUrl) return null;
+      const poster = document.createElement('img');
+      poster.loading = options.eager ? 'eager' : 'lazy';
+      poster.decoding = 'async';
+      poster.alt = `${artifactLabel(artifact)} poster ${artifactPath(artifact)}`;
+      poster.onload = () => {
+        if (status.textContent === 'loading') {
+          status.className = isTimelinePreviewArtifact(artifact)
+            ? 'media-status synthetic'
+            : 'media-status ready';
+          status.textContent = poster.naturalWidth && poster.naturalHeight
+            ? `${poster.naturalWidth}x${poster.naturalHeight} poster`
+            : 'poster ready';
+        }
+      };
+      poster.onerror = () => {
+        if (status.textContent === 'loading') status.textContent = 'poster unavailable';
+      };
+      poster.src = posterUrl;
+      media.appendChild(poster);
+      media.classList.add('poster-backed');
+      return poster;
+    }
+
+    function renderRecordingStoryboard(container, artifact, options = {}) {
+      const keyframes = recordingKeyframeArtifacts(artifact);
+      if (keyframes.length <= 1) return;
+      const storyboard = document.createElement('div');
+      storyboard.className = options.viewer
+        ? 'media-viewer-storyboard'
+        : 'recording-storyboard';
+      for (const keyframe of keyframes) {
+        const url = artifactUrl(state.selectedRunId, keyframe);
+        if (!url) continue;
+        const image = document.createElement('img');
+        image.loading = options.eager ? 'eager' : 'lazy';
+        image.decoding = 'async';
+        image.alt = `${keyframe.label || 'keyframe'} ${artifactPath(keyframe)}`;
+        image.src = url;
+        if (options.viewer) {
+          const figure = document.createElement('figure');
+          figure.appendChild(image);
+          const caption = document.createElement('figcaption');
+          caption.textContent = [
+            formatDurationMs(keyframe.offsetMs),
+            keyframe.label || ''
+          ].filter(Boolean).join(' ');
+          figure.appendChild(caption);
+          storyboard.appendChild(figure);
+        } else {
+          storyboard.appendChild(image);
+        }
+      }
+      if (storyboard.childElementCount > 0) {
+        container.appendChild(storyboard);
       }
     }
 
@@ -2303,6 +2482,25 @@ steps:
       return 6;
     }
 
+    function mergeArtifactMetadata(base, overlay) {
+      return {
+        ...base,
+        ...overlay,
+        posterRef: overlay.posterRef || base.posterRef,
+        linkedScreenshotRef: overlay.linkedScreenshotRef || base.linkedScreenshotRef,
+        videoSource: overlay.videoSource || overlay.deliveryVideoSource || base.videoSource || base.deliveryVideoSource,
+        deliveryVideoSource: overlay.deliveryVideoSource || base.deliveryVideoSource,
+        durationMs: overlay.durationMs ?? base.durationMs,
+        offsetMs: overlay.offsetMs ?? base.offsetMs,
+        label: overlay.label || base.label,
+        keyframeSource: overlay.keyframeSource || base.keyframeSource,
+        workflowStepId: overlay.workflowStepId || base.workflowStepId,
+        eventKey: overlay.eventKey || base.eventKey,
+        eventSeq: overlay.eventSeq ?? base.eventSeq,
+        capturedAt: overlay.capturedAt || base.capturedAt
+      };
+    }
+
     function collectArtifacts() {
       const artifacts = [];
       const artifactIndexes = new Map();
@@ -2327,8 +2525,8 @@ steps:
         if (existingIndex !== undefined) {
           const existing = artifacts[existingIndex];
           artifacts[existingIndex] = artifactPriority(next) < artifactPriority(existing)
-            ? {...existing, ...next}
-            : {...next, ...existing};
+            ? mergeArtifactMetadata(existing, next)
+            : mergeArtifactMetadata(next, existing);
           return;
         }
         artifactIndexes.set(key, artifacts.length);
@@ -2389,28 +2587,7 @@ steps:
       } else if (kind === 'video' && url) {
         media.classList.add('video');
         const posterUrl = artifactPosterUrl(state.selectedRunId, artifact);
-        if (posterUrl) {
-          const poster = document.createElement('img');
-          poster.loading = options.eager ? 'eager' : 'lazy';
-          poster.decoding = 'async';
-          poster.alt = `${artifactLabel(artifact)} poster ${artifactPath(artifact)}`;
-          poster.onload = () => {
-            if (status.textContent === 'loading') {
-              status.className = isTimelinePreview
-                ? 'media-status synthetic'
-                : 'media-status ready';
-              status.textContent = poster.naturalWidth && poster.naturalHeight
-                ? `${poster.naturalWidth}x${poster.naturalHeight} poster`
-                : 'poster ready';
-            }
-          };
-          poster.onerror = () => {
-            if (status.textContent === 'loading') status.textContent = 'poster unavailable';
-          };
-          poster.src = posterUrl;
-          media.appendChild(poster);
-          media.classList.add('poster-backed');
-        }
+        renderVideoPoster(media, artifact, posterUrl, status, options);
         const video = document.createElement('video');
         video.controls = true;
         video.muted = true;
@@ -2419,6 +2596,7 @@ steps:
         if (posterUrl) video.poster = posterUrl;
         video.setAttribute('aria-label', `Play ${artifactLabel(artifact)} ${artifactPath(artifact)}`);
         video.onloadedmetadata = () => {
+          media.classList.add('video-ready');
           status.className = isTimelinePreview
             ? 'media-status synthetic'
             : 'media-status ready';
@@ -2434,11 +2612,12 @@ steps:
         };
         video.onerror = () => {
           status.className = 'media-status error';
-          status.textContent = 'video failed';
+          status.textContent = posterUrl ? 'poster preview - video failed' : 'video failed';
         };
         video.src = url;
-        primeVideoMetadata(video, status);
+        primeVideoMetadata(video, status, {container: media, posterUrl});
         media.appendChild(video);
+        renderRecordingStoryboard(media, artifact, {eager: options.eager});
       } else {
         const placeholder = document.createElement('div');
         placeholder.className = 'placeholder';
@@ -2516,16 +2695,44 @@ steps:
         return;
       }
       if (kind === 'video' && url) {
+        const posterUrl = artifactPosterUrl(state.selectedRunId, artifact);
+        if (posterUrl) {
+          const poster = document.createElement('img');
+          poster.alt = `${artifactLabel(artifact)} poster ${artifactPath(artifact)}`;
+          poster.decoding = 'async';
+          poster.src = posterUrl;
+          els.mediaViewerStage.appendChild(poster);
+        }
+        renderRecordingStoryboard(els.mediaViewerStage, artifact, {
+          eager: true,
+          viewer: true,
+        });
         const video = document.createElement('video');
         video.controls = true;
         video.muted = true;
         video.playsInline = true;
         video.preload = 'metadata';
-        const posterUrl = artifactPosterUrl(state.selectedRunId, artifact);
         if (posterUrl) video.poster = posterUrl;
+        video.addEventListener('loadedmetadata', () => {
+          if (posterUrl) {
+            clearNode(els.mediaViewerStage);
+            els.mediaViewerStage.classList.toggle('actual', state.mediaViewerActualSize);
+            els.mediaViewerStage.appendChild(video);
+          }
+        }, {once: true});
+        video.addEventListener('error', () => {
+          if (posterUrl) {
+            const note = document.createElement('p');
+            note.className = 'media-viewer-placeholder';
+            note.textContent = 'Video metadata is not available in this browser. Use open or download to play the original recording.';
+            els.mediaViewerStage.appendChild(note);
+          }
+        }, {once: true});
         video.src = url;
         primeVideoMetadata(video);
-        els.mediaViewerStage.appendChild(video);
+        if (!posterUrl) {
+          els.mediaViewerStage.appendChild(video);
+        }
         if (isTimelinePreviewArtifact(artifact)) {
           const note = document.createElement('p');
           note.className = 'media-viewer-placeholder';
