@@ -120,6 +120,15 @@ void main() {
       );
     });
 
+    test('dashboard keeps artifact video cards lightweight', () {
+      expect(cockpitDevtoolsIndexHtml, contains("video.preload = 'metadata'"));
+      expect(cockpitDevtoolsIndexHtml, isNot(contains('video.currentTime')));
+      expect(
+        cockpitDevtoolsIndexHtml,
+        contains('.artifact-media.video::before'),
+      );
+    });
+
     test('dashboard global panel controls also govern future dynamic panels', () {
       expect(cockpitDevtoolsIndexHtml, contains('panelGroupOpenOverride'));
       expect(cockpitDevtoolsIndexHtml, contains('timelineEventsOpenOverride'));
@@ -819,7 +828,7 @@ commands:
       expect(dashboard.body, contains('state.runs = []'));
       expect(dashboard.body, contains('media-status'));
       expect(dashboard.body, contains('open artifact'));
-      expect(dashboard.body, contains('video.currentTime'));
+      expect(dashboard.body, isNot(contains('video.currentTime')));
       expect(dashboard.body, contains('artifactPriority'));
       expect(dashboard.body, contains('EAGER_ARTIFACT_COUNT'));
       expect(dashboard.body, contains('renderArtifactCard(artifact, event,'));
@@ -1015,6 +1024,52 @@ commands:
       );
       expect(traversal.statusCode, HttpStatus.forbidden);
     });
+
+    test(
+      'bundle summary keeps delivery metadata for primary recordings',
+      () async {
+        final tempDir = await Directory.systemTemp.createTemp(
+          'cockpit_devtools_primary_recording_summary_test',
+        );
+        addTearDown(() async {
+          if (tempDir.existsSync()) {
+            await tempDir.delete(recursive: true);
+          }
+        });
+        await _writePrimaryRecordingRunFixture(tempDir);
+
+        final server = CockpitDevtoolsServer(
+          historyRoot: tempDir.path,
+          token: 'secret',
+        );
+        final handle = await server.start();
+        addTearDown(handle.close);
+
+        final response = await _get(
+          handle.uri.resolve('/api/runs/run-1/bundle-summary?token=secret'),
+        );
+        expect(response.statusCode, HttpStatus.ok);
+        final decoded = jsonDecode(response.body) as Map<String, Object?>;
+        final artifactRefs = (decoded['artifactRefs']! as List<Object?>)
+            .cast<Map<String, Object?>>();
+        final recordingRefs = artifactRefs
+            .where(
+              (artifact) => artifact['relativePath'] == 'recordings/flow.mp4',
+            )
+            .toList(growable: false);
+
+        expect(recordingRefs, hasLength(1));
+        expect(
+          recordingRefs.single,
+          allOf(
+            containsPair('role', 'recording'),
+            containsPair('source', 'delivery'),
+            containsPair('videoSource', 'nativeRecording'),
+            containsPair('durationMs', 2400),
+          ),
+        );
+      },
+    );
 
     test('streams a complete run bundle download as tar evidence', () async {
       final tempDir = await Directory.systemTemp.createTemp(
@@ -2208,6 +2263,87 @@ Future<void> _writeRunFixture(Directory root) async {
         <String, Object?>{
           'runId': 'run-1',
           'status': 'running',
+          'updatedAt': '2026-06-19T10:00:01.000Z',
+          'runDir': p.join('runs', 'run-1'),
+          'liveDir': p.join('runs', 'run-1', 'live'),
+          'bundleDir': p.join('runs', 'run-1', 'bundle'),
+        },
+      ],
+    }),
+  );
+}
+
+Future<void> _writePrimaryRecordingRunFixture(Directory root) async {
+  final runDir = Directory(p.join(root.path, 'runs', 'run-1'));
+  final liveDir = Directory(p.join(runDir.path, 'live'))
+    ..createSync(recursive: true);
+  final bundleDir = Directory(p.join(runDir.path, 'bundle'))
+    ..createSync(recursive: true);
+  Directory(p.join(bundleDir.path, 'screenshots')).createSync();
+  Directory(p.join(bundleDir.path, 'recordings')).createSync();
+  File(
+    p.join(bundleDir.path, 'screenshots', 'first.png'),
+  ).writeAsBytesSync(<int>[1, 2, 3]);
+  File(
+    p.join(bundleDir.path, 'recordings', 'flow.mp4'),
+  ).writeAsBytesSync(List<int>.generate(10, (index) => index));
+  File(p.join(bundleDir.path, 'manifest.json')).writeAsStringSync(
+    jsonEncode(<String, Object?>{
+      'sessionId': 'session-1',
+      'taskId': 'task-1',
+      'platform': 'macos',
+      'status': 'completed',
+      'artifactRefs': <Object?>[
+        <String, Object?>{
+          'role': 'screenshot',
+          'relativePath': 'screenshots/first.png',
+        },
+        <String, Object?>{
+          'role': 'recording',
+          'relativePath': 'recordings/flow.mp4',
+        },
+      ],
+      'recordingCount': 1,
+      'deliveryVideoReady': true,
+      'deliveryVideoFailureCodes': <Object?>[],
+    }),
+  );
+  File(p.join(bundleDir.path, 'delivery.json')).writeAsStringSync(
+    jsonEncode(<String, Object?>{
+      'summary': 'Ready for delivery',
+      'primaryScreenshotRef': 'screenshots/first.png',
+      'primaryRecordingRef': 'recordings/flow.mp4',
+      'videoAttachmentRefs': <Object?>['recordings/flow.mp4'],
+      'deliveryVideoReady': true,
+      'deliveryVideoSynthesized': false,
+      'deliveryVideoSource': 'nativeRecording',
+      'deliveryVideoDurationMs': 2400,
+      'videoFailureCodes': <Object?>[],
+    }),
+  );
+  File(
+    p.join(bundleDir.path, 'trace.json'),
+  ).writeAsStringSync(jsonEncode(<String, Object?>{'entries': <Object?>[]}));
+  File(p.join(liveDir.path, 'live_state.json')).writeAsStringSync(
+    jsonEncode(<String, Object?>{
+      'schemaVersion': 1,
+      'runId': 'run-1',
+      'status': 'completed',
+      'startedAt': '2026-06-19T10:00:00.000Z',
+      'updatedAt': '2026-06-19T10:00:01.000Z',
+      'bundleDir': p.join('runs', 'run-1', 'bundle'),
+    }),
+  );
+  File(p.join(liveDir.path, 'events.ndjson')).writeAsStringSync('');
+  File(p.join(root.path, 'index.json')).writeAsStringSync(
+    jsonEncode(<String, Object?>{
+      'schemaVersion': 1,
+      'updatedAt': '2026-06-19T10:00:01.000Z',
+      'runCount': 1,
+      'runs': <Object?>[
+        <String, Object?>{
+          'runId': 'run-1',
+          'status': 'completed',
           'updatedAt': '2026-06-19T10:00:01.000Z',
           'runDir': p.join('runs', 'run-1'),
           'liveDir': p.join('runs', 'run-1', 'live'),

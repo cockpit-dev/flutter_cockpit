@@ -99,9 +99,9 @@ final class TaskRunBundleWriter {
       );
     }
 
-    final finalizedDelivery = _withKeyframes(
-      delivery,
-      finalizedKeyframeExtraction,
+    final finalizedDelivery = _withRecordingVideoMetadata(
+      bundle: bundle,
+      delivery: _withKeyframes(delivery, finalizedKeyframeExtraction),
     );
     _validateDeliveryArtifactRefs(finalizedDelivery);
     final finalizedHandoff = _withKeyframeHandoff(
@@ -1087,6 +1087,64 @@ final class TaskRunBundleWriter {
     };
   }
 
+  Map<String, Object?> _withRecordingVideoMetadata({
+    required CockpitContextBundle bundle,
+    required Map<String, Object?> delivery,
+  }) {
+    final primaryRecordingRef = delivery['primaryRecordingRef'];
+    if (primaryRecordingRef is! String || primaryRecordingRef.isEmpty) {
+      return Map<String, Object?>.from(delivery);
+    }
+    if (delivery['deliveryVideoSource'] != null &&
+        delivery['deliveryVideoDurationMs'] != null) {
+      return Map<String, Object?>.from(delivery);
+    }
+
+    CockpitStepRecord? stopStep;
+    for (final step in bundle.steps.reversed) {
+      final hasPrimaryRecording = step.artifactRefs.any(
+        (artifact) =>
+            artifact.role == 'recording' &&
+            artifact.relativePath == primaryRecordingRef,
+      );
+      if (hasPrimaryRecording &&
+          (step.actionType == 'recording_stopped' ||
+              step.actionType == 'stopRecording')) {
+        stopStep = step;
+        break;
+      }
+    }
+
+    final recordingKind = stopStep?.actionArgs['recordingKind'];
+    final source =
+        delivery['deliveryVideoSource'] ??
+        (recordingKind == CockpitRecordingKind.nativeScreen.name ||
+                bundle.manifest.nativeRecordingCount > 0
+            ? 'nativeRecording'
+            : 'recording');
+    final durationMs =
+        delivery['deliveryVideoDurationMs'] ??
+        _positiveInt(stopStep?.actionArgs['recordingDurationMs']);
+    final readiness = _readJsonMap(delivery['readiness']);
+    final videoReadiness = _readJsonMap(readiness['video']);
+
+    return <String, Object?>{
+      ...delivery,
+      'deliveryVideoSource': source,
+      'deliveryVideoDurationMs': ?durationMs,
+      if (readiness.isNotEmpty || videoReadiness.isNotEmpty)
+        'readiness': <String, Object?>{
+          ...readiness,
+          'video': <String, Object?>{
+            ...videoReadiness,
+            if (videoReadiness['source'] == null) 'source': source,
+            if (durationMs != null && videoReadiness['durationMs'] == null)
+              'durationMs': durationMs,
+          },
+        },
+    };
+  }
+
   Map<String, Object?> _withKeyframeHandoff(
     Map<String, Object?> handoff,
     CockpitRecordingKeyframeExtractionResult? keyframeExtraction,
@@ -1139,6 +1197,16 @@ final class TaskRunBundleWriter {
       return const <String>[];
     }
     return value.cast<String>();
+  }
+
+  int? _positiveInt(Object? value) {
+    if (value is int && value > 0) {
+      return value;
+    }
+    if (value is num && value > 0) {
+      return value.round();
+    }
+    return null;
   }
 
   Map<String, Object?> _stepJsonForBundle(CockpitStepRecord step) {

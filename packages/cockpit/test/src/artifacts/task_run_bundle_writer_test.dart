@@ -1209,7 +1209,19 @@ void main() {
         flutterVersion: '3.38.9',
         dartVersion: '3.10.8',
       ),
-      steps: const [],
+      steps: <CockpitStepRecord>[
+        CockpitStepRecord(
+          index: 0,
+          actionType: 'recording_stopped',
+          actionArgs: const <String, Object?>{
+            'recordingState': 'completed',
+            'recordingKind': 'nativeScreen',
+            'recordingDurationMs': 3200,
+          },
+          observedAt: DateTime.utc(2026, 3, 20, 8, 0, 3),
+          artifactRefs: <CockpitArtifactRef>[artifact],
+        ),
+      ],
       observations: const [],
       acceptanceMarkdown: '# Acceptance\n\nRecorded.',
       handoff: const {'status': 'completed'},
@@ -1232,6 +1244,15 @@ void main() {
       File(p.join(outputDir.path, artifact.relativePath)).readAsBytesSync(),
       <int>[0, 1, 2, 3, 4],
     );
+    final deliveryJson =
+        jsonDecode(
+              await File(
+                p.join(outputDir.path, 'delivery.json'),
+              ).readAsString(),
+            )
+            as Map<String, Object?>;
+    expect(deliveryJson['deliveryVideoSource'], 'nativeRecording');
+    expect(deliveryJson['deliveryVideoDurationMs'], 3200);
   });
 
   test(
