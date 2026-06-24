@@ -378,14 +378,10 @@ workspace/roots 工具：
 
 ## 验证
 
-源码仓库内的 MCP 发布级验证：
-
-```bash
-cd packages/cockpit
-dart run tool/verify_mcp_surface.dart
-```
-
+源码仓库内的 MCP 发布级验证维护在
+[`packages/cockpit/tool/verify_mcp_surface.dart`](https://github.com/cockpit-dev/flutter_cockpit/blob/main/packages/cockpit/tool/verify_mcp_surface.dart)。
 这条 verifier 会把真实的 `serve-mcp` stdio 面、workspace tooling、target-first 命令和交付工具链一起做端到端验证。
-仓库内的 `runtime-loop` workflow 会在 macOS 上执行它，把 MCP 和 target-first 能力作为发布闸门的一部分。
+仓库内的 `runtime-loop` workflow 会在 macOS 上执行它，把 MCP 和 target-first 能力作为发布闸门的一部分：
+[`runtime-loop.yml`](https://github.com/cockpit-dev/flutter_cockpit/actions/workflows/runtime-loop.yml)。
 
 包地址：[pub.dev/packages/cockpit](https://pub.dev/packages/cockpit)

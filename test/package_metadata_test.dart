@@ -265,6 +265,26 @@ void main() {
     }
   });
 
+  test(
+    'published cockpit readmes do not present pubignored tools as package commands',
+    () {
+      final devtoolsReadme = File(
+        'packages/cockpit/README.md',
+      ).readAsStringSync();
+      final devtoolsReadmeZh = File(
+        'packages/cockpit/README.zh-CN.md',
+      ).readAsStringSync();
+
+      for (final document in <String>[devtoolsReadme, devtoolsReadmeZh]) {
+        expect(
+          document,
+          isNot(contains('dart run tool/verify_mcp_surface.dart')),
+        );
+        expect(document, contains('github.com/cockpit-dev/flutter_cockpit'));
+      }
+    },
+  );
+
   test('devtools package includes MCP contract fallback documents', () {
     final contractFiles = <String>[
       'ai-development-protocol.md',
