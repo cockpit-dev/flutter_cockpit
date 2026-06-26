@@ -1446,6 +1446,26 @@ final class CockpitDemoPlatformVerifier {
     final verifiedActions = <String>[];
     final skippedActions = <String>[];
 
+    Map<String, Object?> failureDetails(
+      CockpitSystemControlActionResult result,
+    ) {
+      final stdout = _boundedFailureText(result.stdout);
+      final stderr = _boundedFailureText(result.stderr);
+      return <String, Object?>{
+        'platform': platform,
+        'action': result.action.name,
+        'errorCode': result.errorCode,
+        'errorMessage': result.errorMessage,
+        'availability': result.availability.name,
+        'requires': result.requires,
+        'limitations': result.limitations,
+        if (result.command.isNotEmpty) 'command': result.command,
+        if (result.exitCode != null) 'exitCode': result.exitCode,
+        'stdout': ?stdout,
+        'stderr': ?stderr,
+      };
+    }
+
     Future<CockpitSystemControlActionResult> runAndRequireSuccess({
       required CockpitSystemControlAction action,
       Map<String, Object?> parameters = const <String, Object?>{},
@@ -1466,15 +1486,7 @@ final class CockpitDemoPlatformVerifier {
         throw CockpitApplicationServiceException(
           code: 'systemControlActionFailed',
           message: 'System ${action.name} action failed during verification.',
-          details: <String, Object?>{
-            'platform': platform,
-            'action': result.action.name,
-            'errorCode': result.errorCode,
-            'errorMessage': result.errorMessage,
-            'availability': result.availability.name,
-            'requires': result.requires,
-            'limitations': result.limitations,
-          },
+          details: failureDetails(result),
         );
       }
       verifiedActions.add(action.name);
@@ -1509,15 +1521,7 @@ final class CockpitDemoPlatformVerifier {
         throw CockpitApplicationServiceException(
           code: 'systemControlActionFailed',
           message: 'System ${action.name} action failed during verification.',
-          details: <String, Object?>{
-            'platform': platform,
-            'action': result.action.name,
-            'errorCode': result.errorCode,
-            'errorMessage': result.errorMessage,
-            'availability': result.availability.name,
-            'requires': result.requires,
-            'limitations': result.limitations,
-          },
+          details: failureDetails(result),
         );
       }
       skippedActions.add(action.name);
@@ -1619,13 +1623,7 @@ final class CockpitDemoPlatformVerifier {
         throw CockpitApplicationServiceException(
           code: 'systemControlActionFailed',
           message: 'System getClipboard action failed during verification.',
-          details: <String, Object?>{
-            'platform': platform,
-            'action': getResult.action.name,
-            'errorCode': getResult.errorCode,
-            'errorMessage': getResult.errorMessage,
-            'stdout': getResult.stdout,
-          },
+          details: failureDetails(getResult),
         );
       }
       verifiedActions.add(CockpitSystemControlAction.getClipboard.name);
@@ -2618,6 +2616,17 @@ final class CockpitDemoPlatformVerifier {
       }
     }
     return merged;
+  }
+
+  String? _boundedFailureText(String? value) {
+    if (value == null || value.isEmpty) {
+      return null;
+    }
+    const maxLength = 4096;
+    if (value.length <= maxLength) {
+      return value;
+    }
+    return '${value.substring(0, maxLength)}\n...[truncated ${value.length - maxLength} chars]';
   }
 
   String? _extractSupervisorLogPath(String? message) {

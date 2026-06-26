@@ -1353,6 +1353,60 @@ void main() {
     },
   );
 
+  test('system control failures include command output diagnostics', () async {
+    final verifier = await _createSinglePlatformVerifier(
+      platform: 'ios',
+      deviceId: '87639670-FE4D-446D-9245-5324E0D50184',
+      runSystemAction: (request) async {
+        if (request.action == CockpitSystemControlAction.runShell) {
+          return CockpitSystemControlActionResult(
+            platform: request.platform,
+            deviceId: request.deviceId,
+            appId: request.appId,
+            processId: request.processId,
+            action: request.action,
+            availability: CockpitSystemControlAvailability.available,
+            success: false,
+            command: const <String>[
+              'xcrun',
+              'simctl',
+              'spawn',
+              '87639670-FE4D-446D-9245-5324E0D50184',
+              '/bin/sh',
+              '-lc',
+              'echo cockpit-exhaustive',
+            ],
+            exitCode: 134,
+            stdout: 'partial output',
+            stderr: 'CoreSimulator abort',
+            recommendedNextStep: 'inspectShellFailure',
+            errorCode: 'systemActionFailed',
+            errorMessage: 'System action command exited with 134.',
+          );
+        }
+        return _fakeRunSystemAction(request);
+      },
+    );
+
+    final result = await verifier.verify(
+      CockpitDemoPlatformVerificationRequest(
+        projectDir: '/workspace/examples/cockpit_demo',
+        platforms: const <String>['ios'],
+        outputRoot: Directory.systemTemp
+            .createTempSync('cockpit_demo_ios_failure_details_test_')
+            .path,
+        exhaustiveSystemControl: true,
+      ),
+    );
+
+    expect(result.success, isFalse);
+    final details = result.platforms.single.failureDetails;
+    expect(details['command'], isA<List<Object?>>());
+    expect(details['exitCode'], 134);
+    expect(details['stdout'], 'partial output');
+    expect(details['stderr'], 'CoreSimulator abort');
+  });
+
   test('verifier records platform failures and continues by default', () async {
     final verifier = CockpitDemoPlatformVerifier(
       probeDevices: () async => const <CockpitDemoHostDevice>[
