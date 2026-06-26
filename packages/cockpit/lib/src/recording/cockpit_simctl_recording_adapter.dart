@@ -169,7 +169,7 @@ final class CockpitSimctlRecordingAdapter
     }
 
     try {
-      final exited = await _requestGracefulStop(persistedSession.pid);
+      final exited = await _requestGracefulStop(persistedSession);
       if (!exited) {
         return CockpitRecordingResult(
           state: CockpitRecordingState.failed,
@@ -178,12 +178,12 @@ final class CockpitSimctlRecordingAdapter
           failureReason: _stopTimeoutFailureReason,
         );
       }
-      return await _finalizeStoppedRecording(
-        request: persistedSession.request,
-        outputFile: File(persistedSession.outputFilePath),
-        durationMs: DateTime.now()
-            .difference(persistedSession.startedAt)
-            .inMilliseconds,
+      final durationMs = DateTime.now()
+          .difference(persistedSession.startedAt)
+          .inMilliseconds;
+      return await _finalizeStoppedRecordingWithRecovery(
+        session: persistedSession,
+        durationMs: durationMs,
       );
     } on TimeoutException {
       _pidSignalSender(persistedSession.pid, ProcessSignal.sigkill);
@@ -213,7 +213,7 @@ final class CockpitSimctlRecordingAdapter
         state: CockpitRecordingState.failed,
         purpose: request.purpose,
         recordingKind: CockpitRecordingKind.nativeScreen,
-        failureReason: 'simctl recording output file was missing or empty.',
+        failureReason: _missingOutputFailureReason,
       );
     }
     final finalized = await _waitForFinalizedOutput(
@@ -342,31 +342,171 @@ final class CockpitSimctlRecordingAdapter
     return !await _isProcessRunning(pid);
   }
 
-  Future<bool> _requestGracefulStop(int pid) async {
-    final stopped = await cockpitSignalRecordingPid(
-      pid,
-      ProcessSignal.sigint,
-      signalSender: _pidSignalSender,
-      livenessChecker: _pidLivenessChecker,
-      waitTimeout: _stopTimeout,
-      pollInterval: _finalizationPollInterval,
+  Future<bool> _requestGracefulStop(
+    _PersistedSimctlRecordingSession session,
+  ) async {
+    final pids = <int>{
+      session.pid,
+      ...await _discoverLiveRecordingPids(session.outputFilePath),
+    };
+    return _requestGracefulStopForPids(
+      pids,
+      outputFilePath: session.outputFilePath,
     );
-    if (stopped) {
+  }
+
+  Future<CockpitRecordingResult> _finalizeStoppedRecordingWithRecovery({
+    required _PersistedSimctlRecordingSession session,
+    required int durationMs,
+  }) async {
+    final outputFile = File(session.outputFilePath);
+    var result = await _finalizeStoppedRecording(
+      request: session.request,
+      outputFile: outputFile,
+      durationMs: durationMs,
+    );
+    if (result.state != CockpitRecordingState.failed ||
+        result.failureReason != _missingOutputFailureReason) {
+      return result;
+    }
+
+    final lateRecorderPids = await _discoverLiveRecordingPids(
+      session.outputFilePath,
+    );
+    if (lateRecorderPids.isEmpty) {
+      return result;
+    }
+    final stopped = await _requestGracefulStopForPids(
+      lateRecorderPids,
+      outputFilePath: session.outputFilePath,
+    );
+    if (!stopped) {
+      return result;
+    }
+    result = await _finalizeStoppedRecording(
+      request: session.request,
+      outputFile: outputFile,
+      durationMs: durationMs,
+    );
+    return result;
+  }
+
+  Future<bool> _requestGracefulStopForPids(
+    Set<int> pids, {
+    required String outputFilePath,
+  }) async {
+    var livePids = await _livePids(pids);
+    if (livePids.isEmpty) {
       return true;
     }
 
-    try {
-      _pidSignalSender(pid, ProcessSignal.sigkill);
-    } on Object {
-      // The process may already be gone; the liveness check below is final.
+    _sendSignalToPids(livePids, ProcessSignal.sigint);
+    if (await _waitForPidsExit(livePids, timeout: _stopTimeout)) {
+      return true;
     }
-    await cockpitWaitForPidExit(
-      pid,
+
+    final latePids = await _discoverLiveRecordingPids(outputFilePath);
+    final unsignaledLatePids = latePids.difference(livePids);
+    if (unsignaledLatePids.isNotEmpty) {
+      _sendSignalToPids(unsignaledLatePids, ProcessSignal.sigint);
+      livePids = <int>{...livePids, ...unsignaledLatePids};
+      if (await _waitForPidsExit(
+        livePids,
+        timeout: _stopStageTimeout(const Duration(seconds: 3)),
+      )) {
+        return true;
+      }
+    }
+
+    livePids = await _livePids(<int>{...livePids, ...latePids});
+    if (livePids.isEmpty) {
+      return true;
+    }
+    _sendSignalToPids(livePids, ProcessSignal.sigkill);
+    await _waitForPidsExit(
+      livePids,
       timeout: _stopStageTimeout(const Duration(seconds: 2)),
-      livenessChecker: _pidLivenessChecker,
-      pollInterval: _finalizationPollInterval,
     );
     return false;
+  }
+
+  void _sendSignalToPids(Set<int> pids, ProcessSignal signal) {
+    for (final pid in pids) {
+      try {
+        _pidSignalSender(pid, signal);
+      } on Object {
+        // The process may already be gone; liveness polling is authoritative.
+      }
+    }
+  }
+
+  Future<bool> _waitForPidsExit(
+    Set<int> pids, {
+    required Duration timeout,
+  }) async {
+    final deadline = DateTime.now().add(timeout);
+    while (DateTime.now().isBefore(deadline)) {
+      if ((await _livePids(pids)).isEmpty) {
+        return true;
+      }
+      await Future<void>.delayed(_finalizationPollInterval);
+    }
+    return (await _livePids(pids)).isEmpty;
+  }
+
+  Future<Set<int>> _livePids(Iterable<int> pids) async {
+    final result = <int>{};
+    for (final pid in pids) {
+      if (pid > 0 && await _isProcessRunning(pid)) {
+        result.add(pid);
+      }
+    }
+    return result;
+  }
+
+  Future<Set<int>> _discoverLiveRecordingPids(String outputFilePath) async {
+    if (outputFilePath.isEmpty || Platform.isWindows) {
+      return const <int>{};
+    }
+    try {
+      final result = await _runProcess('/bin/ps', <String>[
+        '-axo',
+        'pid=,ppid=,command=',
+        '-ww',
+      ], timeout: _stopStageTimeout(const Duration(seconds: 3)));
+      if (result.exitCode != 0) {
+        return const <int>{};
+      }
+      final processes = _parseProcessList('${result.stdout}');
+      final matchedPids = <int>{};
+      for (final process in processes) {
+        if (_isSimctlRecordingCommand(
+          process.command,
+          outputFilePath: outputFilePath,
+        )) {
+          matchedPids.add(process.pid);
+        }
+      }
+
+      var changed = true;
+      while (changed) {
+        changed = false;
+        for (final process in processes) {
+          if (matchedPids.contains(process.ppid) &&
+              _isSimctlRelatedCommand(process.command) &&
+              matchedPids.add(process.pid)) {
+            changed = true;
+          }
+        }
+      }
+      return await _livePids(matchedPids);
+    } on TimeoutException {
+      return const <int>{};
+    } on ProcessException {
+      return const <int>{};
+    } on Object {
+      return const <int>{};
+    }
   }
 
   Future<bool> _isProcessRunning(int pid) async {
@@ -587,6 +727,55 @@ final class _CockpitRecordingTimelineProbe {
   final int? frameCount;
 }
 
+final class _CockpitProcessListingEntry {
+  const _CockpitProcessListingEntry({
+    required this.pid,
+    required this.ppid,
+    required this.command,
+  });
+
+  final int pid;
+  final int ppid;
+  final String command;
+}
+
+List<_CockpitProcessListingEntry> _parseProcessList(String output) {
+  final entries = <_CockpitProcessListingEntry>[];
+  for (final rawLine in const LineSplitter().convert(output)) {
+    final line = rawLine.trimLeft();
+    if (line.isEmpty || line.startsWith('PID ')) {
+      continue;
+    }
+    final match = RegExp(r'^(\d+)\s+(\d+)\s+(.+)$').firstMatch(line);
+    if (match == null) {
+      continue;
+    }
+    final pid = int.tryParse(match.group(1)!);
+    final ppid = int.tryParse(match.group(2)!);
+    final command = match.group(3)!.trim();
+    if (pid == null || ppid == null || command.isEmpty) {
+      continue;
+    }
+    entries.add(
+      _CockpitProcessListingEntry(pid: pid, ppid: ppid, command: command),
+    );
+  }
+  return entries;
+}
+
+bool _isSimctlRecordingCommand(
+  String command, {
+  required String outputFilePath,
+}) {
+  return _isSimctlRelatedCommand(command) &&
+      command.contains('recordVideo') &&
+      command.contains(outputFilePath);
+}
+
+bool _isSimctlRelatedCommand(String command) {
+  return command.contains('simctl') || command.contains('xcrun');
+}
+
 String _formatDuration(Duration duration) {
   final milliseconds = duration.inMilliseconds;
   if (milliseconds < 1000 || milliseconds % 1000 != 0) {
@@ -594,3 +783,6 @@ String _formatDuration(Duration duration) {
   }
   return '${duration.inSeconds}s';
 }
+
+const String _missingOutputFailureReason =
+    'simctl recording output file was missing or empty.';
