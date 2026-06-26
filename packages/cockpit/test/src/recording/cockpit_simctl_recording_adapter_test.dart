@@ -113,6 +113,73 @@ void main() {
   );
 
   test(
+    'simctl adapter stops the live recorder when xcrun exits before simctl',
+    () async {
+      const deviceId = 'simulator-orphan-child';
+      await _deletePersistedSession(deviceId);
+      addTearDown(() => _deletePersistedSession(deviceId));
+
+      final tempDir = await Directory.systemTemp.createTemp(
+        'cockpit_simctl_recording_orphan_child',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+
+      final runtime = _FakeSimctlRuntime(
+        pid: 4211,
+        startupLine: 'Recording started',
+        childPid: 4212,
+        parentStopsBeforeChild: true,
+        onChildStop: (outputPath) async {
+          File(outputPath).writeAsStringSync('simctl-child-video');
+        },
+      );
+
+      final adapter = CockpitSimctlRecordingAdapter(
+        deviceId: deviceId,
+        processStarter: runtime.start,
+        pidSignalSender: runtime.sendSignal,
+        pidLivenessChecker: runtime.isRunning,
+        tempFileFactory: (basename) async =>
+            File(p.join(tempDir.path, basename)),
+        processRunner: runtime.runProcess,
+        stopTimeout: const Duration(milliseconds: 300),
+        finalizationPollInterval: const Duration(milliseconds: 10),
+      );
+
+      await adapter.startRecording(
+        const CockpitRecordingRequest(
+          purpose: CockpitRecordingPurpose.acceptance,
+          name: 'host-simctl-orphan-child',
+          attachToStep: true,
+        ),
+      );
+      final result = await adapter.stopRecording();
+
+      expect(
+        result.state,
+        CockpitRecordingState.completed,
+        reason: result.failureReason,
+      );
+      expect(
+        runtime.receivedSignalsByPid[4211],
+        contains(ProcessSignal.sigint),
+      );
+      expect(
+        runtime.receivedSignalsByPid[4212],
+        contains(ProcessSignal.sigint),
+      );
+      expect(
+        File(result.sourceFilePath!).readAsStringSync(),
+        'simctl-child-video',
+      );
+    },
+  );
+
+  test(
     'simctl adapter accepts sparse simulator recordings when ffprobe reports a usable timeline',
     () async {
       const deviceId = 'simulator-321';
@@ -362,18 +429,27 @@ Future<void> _deletePersistedSession(String deviceId) async {
 final class _FakeSimctlRuntime {
   _FakeSimctlRuntime({
     required this.pid,
+    this.childPid,
     this.startupLine,
     this.onStop,
+    this.onChildStop,
     this.ignoreSigint = false,
+    this.parentStopsBeforeChild = false,
   }) : _process = _FakeSimctlProcess(pid: pid, startupLine: startupLine);
 
   final int pid;
+  final int? childPid;
   final String? startupLine;
   final Future<void> Function(String outputPath)? onStop;
+  final Future<void> Function(String outputPath)? onChildStop;
   final bool ignoreSigint;
+  final bool parentStopsBeforeChild;
   final _FakeSimctlProcess _process;
   final List<ProcessSignal> receivedSignals = <ProcessSignal>[];
+  final Map<int, List<ProcessSignal>> receivedSignalsByPid =
+      <int, List<ProcessSignal>>{};
   bool _running = true;
+  bool _childRunning = true;
   List<String> lastArguments = const <String>[];
   String? _outputPath;
 
@@ -384,11 +460,31 @@ final class _FakeSimctlRuntime {
   }
 
   bool sendSignal(int targetPid, ProcessSignal signal) {
+    receivedSignalsByPid
+        .putIfAbsent(targetPid, () => <ProcessSignal>[])
+        .add(signal);
+    if (targetPid == childPid) {
+      if (!_childRunning) {
+        return false;
+      }
+      if (signal == ProcessSignal.sigint &&
+          _outputPath != null &&
+          onChildStop != null) {
+        unawaited(onChildStop!(_outputPath!).then((_) => _stopChild()));
+        return true;
+      }
+      unawaited(_stopChild());
+      return true;
+    }
     if (targetPid != pid || !_running) {
       return false;
     }
     receivedSignals.add(signal);
     if (signal == ProcessSignal.sigint && ignoreSigint) {
+      return true;
+    }
+    if (signal == ProcessSignal.sigint && parentStopsBeforeChild) {
+      unawaited(_stop());
       return true;
     }
     if (signal == ProcessSignal.sigint &&
@@ -402,12 +498,51 @@ final class _FakeSimctlRuntime {
   }
 
   Future<bool> isRunning(int targetPid) async {
+    if (targetPid == childPid) {
+      return _childRunning;
+    }
     return targetPid == pid && _running;
+  }
+
+  Future<ProcessResult> runProcess(
+    String executable,
+    List<String> arguments,
+  ) async {
+    if (executable == 'ffprobe') {
+      return _ffprobeUnavailable(executable, arguments);
+    }
+    if (executable == '/bin/ps' &&
+        arguments.length == 3 &&
+        arguments[0] == '-axo') {
+      return ProcessResult(0, 0, _processListOutput(), '');
+    }
+    throw ProcessException(executable, arguments, 'unexpected command');
+  }
+
+  String _processListOutput() {
+    final outputPath = _outputPath;
+    final buffer = StringBuffer()..writeln('  PID  PPID COMMAND');
+    if (_running) {
+      buffer.writeln(
+        '$pid     1 xcrun simctl io simulator-wrapper recordVideo --force ${outputPath ?? ''}',
+      );
+    }
+    final childPid = this.childPid;
+    if (childPid != null && _childRunning) {
+      buffer.writeln(
+        '$childPid $pid /Applications/Xcode.app/Contents/Developer/usr/bin/simctl io simulator-orphan-child recordVideo --codec=h264 --force ${outputPath ?? ''}',
+      );
+    }
+    return buffer.toString();
   }
 
   Future<void> _stop() async {
     _running = false;
     await _process.closeWithExitCode(0);
+  }
+
+  Future<void> _stopChild() async {
+    _childRunning = false;
   }
 }
 
