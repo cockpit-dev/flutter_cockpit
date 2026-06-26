@@ -2349,13 +2349,54 @@ List<Map<String, Object?>> _bundleArtifactRefs({
 
 String? _primaryRecordingPosterRef(Map<String, Object?>? delivery) {
   final keyframes = _mapListValue(delivery?['keyframes']);
-  for (final keyframe in keyframes.reversed) {
+  final prioritized = keyframes.toList(growable: false)
+    ..sort(_compareRecordingPosterKeyframes);
+  for (final keyframe in prioritized) {
     final ref = keyframe['ref'];
     if (ref is String && ref.trim().isNotEmpty) {
       return ref.trim();
     }
   }
   return null;
+}
+
+int _compareRecordingPosterKeyframes(
+  Map<String, Object?> left,
+  Map<String, Object?> right,
+) {
+  final rank =
+      _recordingPosterKeyframeRank(left) - _recordingPosterKeyframeRank(right);
+  if (rank != 0) {
+    return rank;
+  }
+  return _numberValue(
+    left['offsetMs'],
+  ).compareTo(_numberValue(right['offsetMs']));
+}
+
+int _recordingPosterKeyframeRank(Map<String, Object?> keyframe) {
+  final label = _stringValue(keyframe['label'])?.toLowerCase() ?? '';
+  final source = _stringValue(keyframe['source'])?.toLowerCase() ?? '';
+  if (label.contains('midpoint')) {
+    return 0;
+  }
+  if (source == 'stepcapture') {
+    return 1;
+  }
+  if (source == 'syntheticcoverage') {
+    return 2;
+  }
+  if (label.contains('tail')) {
+    return 4;
+  }
+  return 3;
+}
+
+num _numberValue(Object? value) {
+  if (value is num) {
+    return value;
+  }
+  return 0;
 }
 
 int _artifactSourcePriority(String? source) {

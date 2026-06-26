@@ -281,12 +281,14 @@ Array.from(document.querySelectorAll('.artifact-media video')).some((video) => v
 (() => {
   const recordingCard = Array.from(document.querySelectorAll('.artifact'))
     .find((node) => node.querySelector('.artifact-media video'));
+  const storyboard = recordingCard?.querySelector('.recording-storyboard');
   const storyboardImages = Array.from(recordingCard?.querySelectorAll('.recording-storyboard img') || []);
   const video = recordingCard?.querySelector('.artifact-media video');
   return {
     count: storyboardImages.length,
     sources: storyboardImages.map((img) => img.src),
     naturals: storyboardImages.map((img) => img.naturalWidth),
+    storyboardDisplay: storyboard ? getComputedStyle(storyboard).display : '',
     videoOpacity: video ? getComputedStyle(video).opacity : '',
     videoPointerEvents: video ? getComputedStyle(video).pointerEvents : ''
   };
@@ -301,6 +303,7 @@ Array.from(document.querySelectorAll('.artifact-media video')).some((video) => v
           recordingStoryboard['naturals'] as List<Object?>,
           everyElement(greaterThan(0)),
         );
+        expect(recordingStoryboard['storyboardDisplay'], isNot('none'));
         expect(recordingStoryboard['videoOpacity'], isIn(<String>['0', '1']));
         expect(
           recordingStoryboard['videoPointerEvents'],
