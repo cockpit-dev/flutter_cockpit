@@ -1045,7 +1045,7 @@ commands:
     });
 
     test(
-      'bundle summary keeps delivery metadata for primary recordings',
+      'bundle summary keeps delivery metadata and representative poster for primary recordings',
       () async {
         final tempDir = await Directory.systemTemp.createTemp(
           'cockpit_devtools_primary_recording_summary_test',
@@ -1085,7 +1085,7 @@ commands:
             containsPair('source', 'delivery'),
             containsPair('videoSource', 'nativeRecording'),
             containsPair('durationMs', 2400),
-            containsPair('posterRef', 'keyframes/tail.png'),
+            containsPair('posterRef', 'keyframes/midpoint.png'),
           ),
         );
       },
@@ -2185,6 +2185,9 @@ Future<void> _writeRunFixture(Directory root) async {
   File(
     p.join(bundleDir.path, 'keyframes', 'tail.png'),
   ).writeAsBytesSync(<int>[1, 2, 3, 4]);
+  File(
+    p.join(bundleDir.path, 'keyframes', 'midpoint.png'),
+  ).writeAsBytesSync(<int>[1, 2, 3, 4]);
   File(p.join(bundleDir.path, 'manifest.json')).writeAsStringSync(
     jsonEncode(<String, Object?>{
       'sessionId': 'session-1',
@@ -2216,6 +2219,12 @@ Future<void> _writeRunFixture(Directory root) async {
       'deliveryVideoReady': false,
       'videoFailureCodes': <Object?>['recordingFailed'],
       'keyframes': <Object?>[
+        <String, Object?>{
+          'ref': 'keyframes/midpoint.png',
+          'label': 'midpoint',
+          'offsetMs': 800,
+          'source': 'syntheticCoverage',
+        },
         <String, Object?>{
           'ref': 'keyframes/tail.png',
           'label': 'tail',
@@ -2311,6 +2320,9 @@ Future<void> _writePrimaryRecordingRunFixture(Directory root) async {
   File(
     p.join(bundleDir.path, 'keyframes', 'tail.png'),
   ).writeAsBytesSync(<int>[4, 5, 6]);
+  File(
+    p.join(bundleDir.path, 'keyframes', 'midpoint.png'),
+  ).writeAsBytesSync(<int>[7, 8, 9]);
   File(p.join(bundleDir.path, 'manifest.json')).writeAsStringSync(
     jsonEncode(<String, Object?>{
       'sessionId': 'session-1',
@@ -2344,6 +2356,12 @@ Future<void> _writePrimaryRecordingRunFixture(Directory root) async {
       'deliveryVideoDurationMs': 2400,
       'videoFailureCodes': <Object?>[],
       'keyframes': <Object?>[
+        <String, Object?>{
+          'ref': 'keyframes/midpoint.png',
+          'label': 'midpoint',
+          'offsetMs': 1200,
+          'source': 'syntheticCoverage',
+        },
         <String, Object?>{
           'ref': 'keyframes/tail.png',
           'label': 'tail',

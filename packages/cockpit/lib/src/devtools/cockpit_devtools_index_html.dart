@@ -833,7 +833,10 @@ const String cockpitDevtoolsIndexHtml = r'''
       box-shadow: 0 4px 12px rgba(0, 0, 0, .36);
     }
     .artifact-media.video.video-ready .recording-storyboard {
-      display: none;
+      opacity: .86;
+    }
+    .artifact-media.video.video-ready .recording-storyboard img {
+      height: clamp(18px, 9vw, 32px);
     }
     .artifact-media .placeholder {
       padding: 8px;
