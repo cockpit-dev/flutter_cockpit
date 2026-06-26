@@ -107,6 +107,20 @@ void main() {
       expect(process.killSignals, contains(ProcessSignal.sigkill));
     });
   });
+
+  test('process descendant parser returns children before grandchildren', () {
+    const psOutput = '''
+      10       1
+      11      10
+      12      11
+      13      10
+      20       1
+      bad input
+    ''';
+
+    expect(cockpitProcessDescendantsFromPs(psOutput, 10), <int>[11, 13, 12]);
+    expect(cockpitProcessDescendantsFromPs(psOutput, 20), isEmpty);
+  });
 }
 
 typedef _RunHandler =
