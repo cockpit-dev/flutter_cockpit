@@ -73,11 +73,13 @@ final class CockpitTaskOrchestrationService {
             CockpitLaunchRemoteSessionRequest(
               projectDir: request.launch!.projectDir,
               target: request.launch!.target,
+              flavor: request.launch!.flavor,
               platform: request.launch!.platform,
               deviceId: request.launch!.deviceId,
               sessionPort: request.launch!.sessionPort,
               launchTimeout: request.launch!.launchTimeout,
               persistHandlePath: request.launch!.persistHandlePath,
+              launchConfiguration: request.launch!.launchConfiguration,
             ),
           );
           sessionHandle = launchResult.sessionHandle;

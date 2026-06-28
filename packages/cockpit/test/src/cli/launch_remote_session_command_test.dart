@@ -310,6 +310,76 @@ void main() {
       );
     },
   );
+
+  test('launch-remote-session forwards launch configuration flags', () async {
+    CockpitRemoteSessionLaunchOptions? capturedOptions;
+    final runner =
+        CommandRunner<int>('cockpit', 'Host-side tooling for flutter_cockpit.')
+          ..addCommand(
+            LaunchRemoteSessionCommand(
+              service: CockpitLaunchRemoteSessionService(
+                entrypointResolver: CockpitEntrypointResolver(
+                  exists: (_) => true,
+                ),
+                launcher: _CapturingRemoteSessionLauncher(
+                  onLaunch: (options) => capturedOptions = options,
+                ),
+                statusReader: (_) async => CockpitRemoteSessionStatus(
+                  sessionId: 'launch-demo-android',
+                  platform: 'android',
+                  transportType: 'remoteHttp',
+                  currentRouteName: '/home',
+                  capabilities: CockpitCapabilities(
+                    platform: 'android',
+                    transportType: 'remoteHttp',
+                    supportsInAppControl: true,
+                    supportsFlutterViewCapture: true,
+                    supportsNativeScreenCapture: true,
+                    supportsHostAutomation: false,
+                  ),
+                  recordingCapabilities: CockpitRecordingCapabilities(
+                    supportsNativeRecording: true,
+                  ),
+                  snapshot: CockpitSnapshot(routeName: '/home'),
+                ),
+              ),
+            ),
+          );
+
+    final exitCode =
+        await runner.run(<String>[
+          'launch-remote-session',
+          '--project-dir',
+          '/workspace/examples/cockpit_demo',
+          '--platform',
+          'android',
+          '--android-device-id',
+          'emulator-5554',
+          '--dart-define',
+          'API_URL=https://example.test',
+          '--dart-define-from-file',
+          'config/dev.json',
+          '--flutter-arg',
+          '--track-widget-creation',
+          '--env',
+          'API_TOKEN=secret',
+        ]) ??
+        0;
+
+    expect(exitCode, 0);
+    expect(capturedOptions?.launchConfiguration.dartDefines, <String>[
+      'API_URL=https://example.test',
+    ]);
+    expect(capturedOptions?.launchConfiguration.dartDefineFromFiles, <String>[
+      'config/dev.json',
+    ]);
+    expect(capturedOptions?.launchConfiguration.flutterArgs, <String>[
+      '--track-widget-creation',
+    ]);
+    expect(capturedOptions?.launchConfiguration.environment, <String, String>{
+      'API_TOKEN': 'secret',
+    });
+  });
 }
 
 final class _FakeRemoteSessionLauncher implements CockpitRemoteSessionLauncher {

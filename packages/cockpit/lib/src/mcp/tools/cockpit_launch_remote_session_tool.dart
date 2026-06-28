@@ -1,5 +1,6 @@
 import '../../application/cockpit_launch_remote_session_service.dart';
 import '../../application/cockpit_session_registry.dart';
+import '../cockpit_flutter_launch_configuration_mcp.dart';
 import '../cockpit_mcp_error.dart';
 import '../cockpit_mcp_tool.dart';
 
@@ -34,6 +35,7 @@ final class CockpitLaunchRemoteSessionTool extends CockpitMcpTool {
     'properties': <String, Object?>{
       'projectDir': <String, Object?>{'type': 'string'},
       'target': <String, Object?>{'type': 'string'},
+      'flavor': <String, Object?>{'type': 'string'},
       'platform': <String, Object?>{
         'type': 'string',
         'enum': <String>['android', 'ios', 'macos', 'windows', 'linux'],
@@ -42,6 +44,7 @@ final class CockpitLaunchRemoteSessionTool extends CockpitMcpTool {
       'sessionPort': <String, Object?>{'type': 'integer'},
       'launchTimeoutSeconds': <String, Object?>{'type': 'integer'},
       'persistHandlePath': <String, Object?>{'type': 'string'},
+      ...cockpitFlutterLaunchConfigurationMcpProperties,
     },
   };
 
@@ -64,6 +67,7 @@ final class CockpitLaunchRemoteSessionTool extends CockpitMcpTool {
         CockpitLaunchRemoteSessionRequest(
           projectDir: cockpitReadRequiredString(arguments, 'projectDir'),
           target: cockpitReadOptionalString(arguments, 'target'),
+          flavor: cockpitReadOptionalString(arguments, 'flavor'),
           platform: platform,
           deviceId: cockpitReadRequiredString(arguments, 'deviceId'),
           sessionPort: cockpitReadRequiredPort(arguments, 'sessionPort'),
@@ -78,6 +82,9 @@ final class CockpitLaunchRemoteSessionTool extends CockpitMcpTool {
           persistHandlePath: cockpitReadOptionalString(
             arguments,
             'persistHandlePath',
+          ),
+          launchConfiguration: cockpitReadMcpFlutterLaunchConfiguration(
+            arguments,
           ),
         ),
       );

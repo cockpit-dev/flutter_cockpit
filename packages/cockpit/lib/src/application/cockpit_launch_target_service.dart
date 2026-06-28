@@ -5,6 +5,7 @@ import 'package:flutter_cockpit/flutter_cockpit.dart';
 import 'package:path/path.dart' as p;
 
 import '../platform/cockpit_platform_driver_registry.dart';
+import '../session/cockpit_flutter_launch_configuration.dart';
 import '../targets/cockpit_target_handle.dart';
 import 'cockpit_app_handle.dart';
 import 'cockpit_application_service_exception.dart';
@@ -34,6 +35,7 @@ final class CockpitLaunchTargetRequest {
     this.mode = CockpitAppMode.development,
     this.launchTimeout = const Duration(seconds: 120),
     this.targetHandlePath,
+    this.launchConfiguration = CockpitFlutterLaunchConfiguration.empty,
   });
 
   final String projectDir;
@@ -46,6 +48,7 @@ final class CockpitLaunchTargetRequest {
   final CockpitAppMode mode;
   final Duration launchTimeout;
   final String? targetHandlePath;
+  final CockpitFlutterLaunchConfiguration launchConfiguration;
 }
 
 final class CockpitLaunchTargetResult {
@@ -132,6 +135,7 @@ final class CockpitLaunchTargetService {
         sessionPort: request.sessionPort,
         mode: request.mode,
         launchTimeout: request.launchTimeout,
+        launchConfiguration: request.launchConfiguration,
       ),
     );
     final launchedProfile = await _resolveLaunchedProfile(

@@ -8,6 +8,7 @@ import '../../application/cockpit_app_handle.dart';
 import '../../application/cockpit_launch_target_service.dart';
 import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
+import '../cockpit_flutter_launch_configuration_cli.dart';
 import '../cockpit_interactive_cli_support.dart';
 
 typedef CockpitLaunchTargetCliFunction =
@@ -74,6 +75,7 @@ final class LaunchTargetCommand extends CockpitCliCommand {
         help:
             'Optional path where the normalized target handle JSON is written. Persist this when later target-first reads must reopen the same surface.',
       );
+    cockpitAddFlutterLaunchConfigurationOptions(argParser);
   }
 
   final CockpitLaunchTargetCliFunction _launch;
@@ -139,6 +141,10 @@ final class LaunchTargetCommand extends CockpitCliCommand {
         targetHandlePath:
             _readOptionalOption('target-json') ??
             cockpitDefaultTargetHandlePath(),
+        launchConfiguration: cockpitReadFlutterLaunchConfiguration(
+          argResults,
+          usage,
+        ),
       ),
     );
     await cockpitWriteJsonPayload(

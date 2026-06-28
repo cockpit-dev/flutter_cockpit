@@ -9,6 +9,7 @@ import 'package:cockpit/src/application/cockpit_run_remote_control_script_servic
 import 'package:cockpit/src/application/cockpit_run_task_service.dart';
 import 'package:cockpit/src/application/cockpit_task_gate.dart';
 import 'package:cockpit/src/cli/cockpit_control_script.dart';
+import 'package:cockpit/src/session/cockpit_flutter_launch_configuration.dart';
 import 'package:cockpit/src/session/cockpit_remote_session_handle.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
@@ -16,14 +17,21 @@ import 'package:test/test.dart';
 void main() {
   test('run task request json uses lower camel case keys', () {
     final request = CockpitRunTaskRequest(
-      launch: const CockpitRunTaskLaunchRequest(
+      launch: CockpitRunTaskLaunchRequest(
         projectDir: '/workspace/examples/cockpit_demo',
         target: 'cockpit/main.dart',
+        flavor: 'staging',
         platform: 'android',
         deviceId: 'emulator-5554',
         sessionPort: 47331,
         launchTimeout: Duration(seconds: 90),
         persistHandlePath: '/tmp/session.json',
+        launchConfiguration: CockpitFlutterLaunchConfiguration(
+          dartDefines: const <String>['API_URL=https://example.test'],
+          dartDefineFromFiles: const <String>['config/dev.json'],
+          flutterArgs: const <String>['--track-widget-creation'],
+          environment: const <String, String>{'API_TOKEN': 'secret'},
+        ),
       ),
       sessionHandlePath: '/tmp/existing-session.json',
       script: _script(platform: 'android'),
@@ -46,11 +54,18 @@ void main() {
       'launch': <String, Object?>{
         'projectDir': '/workspace/examples/cockpit_demo',
         'target': 'cockpit/main.dart',
+        'flavor': 'staging',
         'platform': 'android',
         'deviceId': 'emulator-5554',
         'sessionPort': 47331,
         'launchTimeoutSeconds': 90,
         'persistHandlePath': '/tmp/session.json',
+        'launchConfiguration': <String, Object?>{
+          'dartDefines': <String>['API_URL=https://example.test'],
+          'dartDefineFromFiles': <String>['config/dev.json'],
+          'flutterArgs': <String>['--track-widget-creation'],
+          'environmentKeys': <String>['API_TOKEN'],
+        },
       },
       'sessionHandlePath': '/tmp/existing-session.json',
       'script': _script(platform: 'android').toJson(),
@@ -67,6 +82,17 @@ void main() {
         'requireScreenshotEvidence': true,
         'requireVideoEvidence': true,
       },
+    });
+    final fullConfigJson =
+        request.toJson(includeEnvironmentValues: true)['launch']
+            as Map<String, Object?>;
+    expect(
+      fullConfigJson['launchConfiguration'],
+      containsPair('environment', <String, String>{'API_TOKEN': 'secret'}),
+    );
+    final roundTripped = CockpitRunTaskLaunchRequest.fromJson(fullConfigJson);
+    expect(roundTripped.launchConfiguration.environment, <String, String>{
+      'API_TOKEN': 'secret',
     });
   });
 

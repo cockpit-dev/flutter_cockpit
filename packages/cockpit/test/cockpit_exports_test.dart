@@ -12,6 +12,7 @@ void main() {
 
   test('exports AI-first app services and models', () {
     expect(CockpitLaunchAppService, isNotNull);
+    expect(CockpitFlutterLaunchConfiguration, isNotNull);
     expect(CockpitListAppsService, isNotNull);
     expect(CockpitReadAppService, isNotNull);
     expect(CockpitInspectUiService, isNotNull);

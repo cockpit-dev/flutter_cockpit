@@ -92,4 +92,51 @@ void main() {
       throwsA(isA<CockpitMcpError>()),
     );
   });
+
+  test('launch_target accepts launch configuration payloads', () async {
+    CockpitLaunchTargetRequest? capturedRequest;
+    final tool = CockpitLaunchTargetTool(
+      launch: (request) async {
+        capturedRequest = request;
+        return CockpitLaunchTargetResult(
+          target: CockpitTargetHandle(
+            targetId: 'dev.cockpit.demo',
+            targetKind: CockpitTargetKind.flutterApp,
+            platform: 'android',
+            deviceId: 'emulator-5554',
+            projectDir: request.projectDir,
+            target: request.target ?? 'cockpit/main.dart',
+            connection: const CockpitTargetConnection(
+              baseUrl: 'http://127.0.0.1:57331',
+            ),
+            launchedAt: DateTime.utc(2026, 4, 11),
+          ),
+        );
+      },
+    );
+
+    await tool.call(<String, Object?>{
+      'projectDir': '/workspace/examples/cockpit_demo',
+      'platform': 'android',
+      'deviceId': 'emulator-5554',
+      'sessionPort': 57331,
+      'dartDefines': <String>['API_URL=https://example.test'],
+      'dartDefineFromFiles': <String>['config/dev.json'],
+      'flutterArgs': <String>['--track-widget-creation'],
+      'environment': <String, Object?>{'API_TOKEN': 'secret'},
+    });
+
+    expect(capturedRequest?.launchConfiguration.dartDefines, <String>[
+      'API_URL=https://example.test',
+    ]);
+    expect(capturedRequest?.launchConfiguration.dartDefineFromFiles, <String>[
+      'config/dev.json',
+    ]);
+    expect(capturedRequest?.launchConfiguration.flutterArgs, <String>[
+      '--track-widget-creation',
+    ]);
+    expect(capturedRequest?.launchConfiguration.environment, <String, String>{
+      'API_TOKEN': 'secret',
+    });
+  });
 }

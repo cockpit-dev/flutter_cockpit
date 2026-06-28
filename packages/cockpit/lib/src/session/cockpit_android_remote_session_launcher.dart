@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import '../remote/cockpit_android_port_forwarder.dart';
+import 'cockpit_flutter_launch_configuration.dart';
 import 'cockpit_remote_session_handle.dart';
 import 'cockpit_remote_session_launch_options.dart';
 import 'cockpit_remote_session_launcher.dart';
@@ -17,6 +18,7 @@ typedef CockpitWorkingDirectoryProcessRunner =
       String executable,
       List<String> arguments, {
       String? workingDirectory,
+      Map<String, String>? environment,
     });
 
 typedef CockpitAndroidBuildArtifactResolver =
@@ -106,14 +108,18 @@ final class CockpitAndroidRemoteSessionLauncher
         options.target,
         if (options.flavor case final flavor?
             when flavor.isNotEmpty) ...<String>['--flavor', flavor],
-        '--dart-define=FLUTTER_COCKPIT_REMOTE_ENABLED=true',
-        '--dart-define=FLUTTER_COCKPIT_REMOTE_HOST=${cockpitRemoteBindHostForPlatform(options.platform)}',
-        '--dart-define=FLUTTER_COCKPIT_REMOTE_PORT=${options.sessionPort}',
-        if (options.launchId case final launchId? when launchId.isNotEmpty)
-          '--dart-define=FLUTTER_COCKPIT_REMOTE_LAUNCH_ID=$launchId',
-        '--dart-define=FLUTTER_COCKPIT_FLUTTER_VERSION=$flutterVersion',
+        ...cockpitBuildFlutterLaunchArguments(
+          userConfiguration: options.launchConfiguration,
+          internalArguments: cockpitBuildRemoteControlDartDefineArguments(
+            host: cockpitRemoteBindHostForPlatform(options.platform),
+            port: options.sessionPort,
+            flutterVersion: flutterVersion,
+            launchId: options.launchId,
+          ),
+        ),
       ],
       workingDirectory: options.projectDir,
+      environment: options.launchConfiguration.processEnvironment,
       timeout: _remaining(deadline),
     );
 
@@ -233,6 +239,7 @@ final class CockpitAndroidRemoteSessionLauncher
     String executable,
     List<String> arguments, {
     String? workingDirectory,
+    Map<String, String>? environment,
     required Duration timeout,
   }) async {
     final result = _useKillableProcessRunner
@@ -240,12 +247,14 @@ final class CockpitAndroidRemoteSessionLauncher
             executable,
             arguments,
             workingDirectory: workingDirectory,
+            environment: environment,
             timeout: timeout,
           )
         : await _processRunner(
             executable,
             arguments,
             workingDirectory: workingDirectory,
+            environment: environment,
           ).timeout(
             timeout,
             onTimeout: () => throw TimeoutException(
@@ -274,11 +283,13 @@ final class CockpitAndroidRemoteSessionLauncher
     String executable,
     List<String> arguments, {
     String? workingDirectory,
+    Map<String, String>? environment,
   }) {
     return cockpitRunShortProcess(
       executable,
       arguments,
       workingDirectory: workingDirectory,
+      environment: environment,
     );
   }
 

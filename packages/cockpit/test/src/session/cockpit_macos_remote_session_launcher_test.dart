@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_cockpit/flutter_cockpit.dart';
+import 'package:cockpit/src/session/cockpit_flutter_launch_configuration.dart';
 import 'package:cockpit/src/session/cockpit_macos_remote_session_launcher.dart';
 import 'package:cockpit/src/session/cockpit_remote_session_launch_options.dart';
 import 'package:test/test.dart';
@@ -11,10 +12,16 @@ void main() {
     'macos remote session launcher builds, opens, and returns a handle',
     () async {
       final invocations = <String>[];
+      Map<String, Object?>? startInvocation;
       final launcher = CockpitMacosRemoteSessionLauncher(
         flutterVersionReader: () async => '3.38.9',
         processRunner:
-            (executable, arguments, {String? workingDirectory}) async {
+            (
+              executable,
+              arguments, {
+              String? workingDirectory,
+              Map<String, String>? environment,
+            }) async {
               invocations.add('$executable ${arguments.join(' ')}');
               return ProcessResult(0, 0, '', '');
             },
@@ -23,6 +30,22 @@ void main() {
                 '$projectDir/build/macos/Build/Products/Debug/cockpit_demo.app',
         bundleIdResolver: ({required String appBundlePath}) async =>
             'dev.cockpit.cockpitDemo',
+        bundleExecutablePathResolver: ({required String appBundlePath}) async =>
+            throw StateError('executable path should be resolved only for env'),
+        appStarter:
+            ({
+              required String appBundlePath,
+              required String? executablePath,
+              required Map<String, String>? environment,
+              required Duration timeout,
+            }) async {
+              startInvocation = <String, Object?>{
+                'appBundlePath': appBundlePath,
+                'executablePath': executablePath,
+                'environment': environment,
+              };
+              return null;
+            },
         statusReader: (baseUri) async => CockpitRemoteSessionStatus(
           sessionId: 'macos-bootstrap-session',
           platform: 'macos',
@@ -72,12 +95,12 @@ void main() {
           'osascript -e tell application id "dev.cockpit.cockpitDemo" to quit',
         ),
       );
-      expect(
-        invocations,
-        contains(
-          'open -n /workspace/examples/cockpit_demo/build/macos/Build/Products/Debug/cockpit_demo.app',
-        ),
-      );
+      expect(startInvocation, <String, Object?>{
+        'appBundlePath':
+            '/workspace/examples/cockpit_demo/build/macos/Build/Products/Debug/cockpit_demo.app',
+        'executablePath': null,
+        'environment': null,
+      });
     },
   );
 
@@ -89,7 +112,12 @@ void main() {
         flutterVersionReader: () async =>
             throw StateError('legacy version reader should not be used'),
         processRunner:
-            (executable, arguments, {String? workingDirectory}) async {
+            (
+              executable,
+              arguments, {
+              String? workingDirectory,
+              Map<String, String>? environment,
+            }) async {
               invocations.add('$executable ${arguments.join(' ')}');
               if (executable == '/opt/flutter/bin/flutter' &&
                   arguments.join(' ') == '--version --machine') {
@@ -153,23 +181,29 @@ void main() {
       var buildCount = 0;
       final launcher = CockpitMacosRemoteSessionLauncher(
         flutterVersionReader: () async => '3.44.0',
-        processRunner: (executable, arguments, {String? workingDirectory}) async {
-          invocations.add('$executable ${arguments.join(' ')}');
-          if (arguments.length >= 2 &&
-              arguments[0] == 'build' &&
-              arguments[1] == 'macos') {
-            buildCount += 1;
-            if (buildCount == 1) {
-              return ProcessResult(
-                0,
-                1,
-                '',
-                "file 'FlutterPluginRegistrarMacOS.h' has been modified since the module file 'flutter_cockpit.pcm' was built",
-              );
-            }
-          }
-          return ProcessResult(0, 0, '', '');
-        },
+        processRunner:
+            (
+              executable,
+              arguments, {
+              String? workingDirectory,
+              Map<String, String>? environment,
+            }) async {
+              invocations.add('$executable ${arguments.join(' ')}');
+              if (arguments.length >= 2 &&
+                  arguments[0] == 'build' &&
+                  arguments[1] == 'macos') {
+                buildCount += 1;
+                if (buildCount == 1) {
+                  return ProcessResult(
+                    0,
+                    1,
+                    '',
+                    "file 'FlutterPluginRegistrarMacOS.h' has been modified since the module file 'flutter_cockpit.pcm' was built",
+                  );
+                }
+              }
+              return ProcessResult(0, 0, '', '');
+            },
         appBundlePathResolver:
             ({required String projectDir, String? flavor}) async =>
                 '$projectDir/build/macos/Build/Products/Debug/cockpit_demo.app',
@@ -213,12 +247,18 @@ void main() {
   test('macos remote session launcher times out slow build stages', () async {
     final launcher = CockpitMacosRemoteSessionLauncher(
       flutterVersionReader: () async => '3.38.9',
-      processRunner: (executable, arguments, {String? workingDirectory}) {
-        return Future<ProcessResult>.delayed(
-          const Duration(milliseconds: 150),
-          () => ProcessResult(0, 0, '', ''),
-        );
-      },
+      processRunner:
+          (
+            executable,
+            arguments, {
+            String? workingDirectory,
+            Map<String, String>? environment,
+          }) {
+            return Future<ProcessResult>.delayed(
+              const Duration(milliseconds: 150),
+              () => ProcessResult(0, 0, '', ''),
+            );
+          },
       now: () => DateTime.utc(2026, 3, 24, 12),
     );
 
@@ -273,7 +313,12 @@ void main() {
       final launcher = CockpitMacosRemoteSessionLauncher(
         flutterVersionReader: () async => '3.38.9',
         processRunner:
-            (executable, arguments, {String? workingDirectory}) async {
+            (
+              executable,
+              arguments, {
+              String? workingDirectory,
+              Map<String, String>? environment,
+            }) async {
               return ProcessResult(0, 0, '', '');
             },
         bundleIdResolver: ({required String appBundlePath}) async {
@@ -351,7 +396,12 @@ void main() {
       final launcher = CockpitMacosRemoteSessionLauncher(
         flutterVersionReader: () async => '3.38.9',
         processRunner:
-            (executable, arguments, {String? workingDirectory}) async {
+            (
+              executable,
+              arguments, {
+              String? workingDirectory,
+              Map<String, String>? environment,
+            }) async {
               return ProcessResult(0, 0, '', '');
             },
         bundleIdResolver: ({required String appBundlePath}) async {
@@ -432,7 +482,12 @@ void main() {
       final launcher = CockpitMacosRemoteSessionLauncher(
         flutterVersionReader: () async => '3.38.9',
         processRunner:
-            (executable, arguments, {String? workingDirectory}) async {
+            (
+              executable,
+              arguments, {
+              String? workingDirectory,
+              Map<String, String>? environment,
+            }) async {
               return ProcessResult(0, 0, '', '');
             },
         bundleIdResolver: ({required String appBundlePath}) async {
@@ -470,6 +525,103 @@ void main() {
       );
 
       expect(resolvedBundlePath, topLevelBundle.path);
+    },
+  );
+
+  test(
+    'macos launcher forwards user Flutter arguments and runtime environment',
+    () async {
+      final buildInvocations = <Map<String, Object?>>[];
+      Map<String, Object?>? startInvocation;
+      final launcher = CockpitMacosRemoteSessionLauncher(
+        flutterVersionReader: () async => '3.38.9',
+        processRunner:
+            (
+              executable,
+              arguments, {
+              String? workingDirectory,
+              Map<String, String>? environment,
+            }) async {
+              buildInvocations.add(<String, Object?>{
+                'executable': executable,
+                'arguments': arguments,
+                'environment': environment,
+              });
+              return ProcessResult(0, 0, '', '');
+            },
+        appBundlePathResolver:
+            ({required String projectDir, String? flavor}) async =>
+                '$projectDir/build/macos/Build/Products/Debug/cockpit_demo.app',
+        bundleIdResolver: ({required String appBundlePath}) async =>
+            'dev.cockpit.cockpitDemo',
+        bundleExecutablePathResolver: ({required String appBundlePath}) async =>
+            '$appBundlePath/Contents/MacOS/cockpit_demo',
+        appStarter:
+            ({
+              required String appBundlePath,
+              required String? executablePath,
+              required Map<String, String>? environment,
+              required Duration timeout,
+            }) async {
+              startInvocation = <String, Object?>{
+                'appBundlePath': appBundlePath,
+                'executablePath': executablePath,
+                'environment': environment,
+              };
+              return 6101;
+            },
+        statusReader: (baseUri) async => CockpitRemoteSessionStatus(
+          sessionId: 'macos-launch-config',
+          platform: 'macos',
+          transportType: 'remoteHttp',
+          currentRouteName: '/home',
+          capabilities: CockpitCapabilities(
+            platform: 'macos',
+            transportType: 'remoteHttp',
+            supportsInAppControl: true,
+            supportsFlutterViewCapture: true,
+            supportsNativeScreenCapture: true,
+            supportsHostAutomation: true,
+          ),
+          recordingCapabilities: CockpitRecordingCapabilities(
+            supportsNativeRecording: true,
+          ),
+          snapshot: CockpitSnapshot(routeName: '/home'),
+        ),
+      );
+
+      final handle = await launcher.launch(
+        CockpitRemoteSessionLaunchOptions(
+          projectDir: '/workspace/examples/cockpit_demo',
+          target: 'cockpit/main.dart',
+          platform: 'macos',
+          deviceId: 'macos',
+          sessionPort: 47331,
+          launchConfiguration: CockpitFlutterLaunchConfiguration(
+            dartDefines: const <String>['API_URL=https://example.test'],
+            dartDefineFromFiles: const <String>['config/dev.json'],
+            flutterArgs: const <String>['--track-widget-creation'],
+            environment: const <String, String>{'API_TOKEN': 'secret'},
+          ),
+        ),
+      );
+
+      expect(
+        buildInvocations.first['arguments'],
+        containsAllInOrder(<String>[
+          '--dart-define=API_URL=https://example.test',
+          '--dart-define-from-file=config/dev.json',
+          '--track-widget-creation',
+          '--dart-define=FLUTTER_COCKPIT_REMOTE_ENABLED=true',
+        ]),
+      );
+      expect(buildInvocations.first['environment'], <String, String>{
+        'API_TOKEN': 'secret',
+      });
+      expect(startInvocation?['environment'], <String, String>{
+        'API_TOKEN': 'secret',
+      });
+      expect(handle.processId, 6101);
     },
   );
 }

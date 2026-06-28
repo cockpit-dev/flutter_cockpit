@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'cockpit_android_remote_session_launcher.dart';
+import 'cockpit_flutter_launch_configuration.dart';
 import 'cockpit_remote_session_handle.dart';
 import 'cockpit_remote_session_launch_options.dart';
 import 'cockpit_remote_session_launcher.dart';
@@ -15,6 +16,7 @@ typedef CockpitDesktopAppStarter =
       required String executablePath,
       List<String> arguments,
       String? workingDirectory,
+      Map<String, String>? environment,
       required Duration timeout,
     });
 
@@ -85,14 +87,18 @@ final class CockpitWindowsRemoteSessionLauncher
         '--debug',
         '--target',
         options.target,
-        '--dart-define=FLUTTER_COCKPIT_REMOTE_ENABLED=true',
-        '--dart-define=FLUTTER_COCKPIT_REMOTE_HOST=127.0.0.1',
-        '--dart-define=FLUTTER_COCKPIT_REMOTE_PORT=${options.sessionPort}',
-        if (options.launchId case final launchId? when launchId.isNotEmpty)
-          '--dart-define=FLUTTER_COCKPIT_REMOTE_LAUNCH_ID=$launchId',
-        '--dart-define=FLUTTER_COCKPIT_FLUTTER_VERSION=$flutterVersion',
+        ...cockpitBuildFlutterLaunchArguments(
+          userConfiguration: options.launchConfiguration,
+          internalArguments: cockpitBuildRemoteControlDartDefineArguments(
+            host: '127.0.0.1',
+            port: options.sessionPort,
+            flutterVersion: flutterVersion,
+            launchId: options.launchId,
+          ),
+        ),
       ],
       workingDirectory: options.projectDir,
+      environment: options.launchConfiguration.processEnvironment,
       timeout: _remaining(deadline),
     );
 
@@ -103,6 +109,7 @@ final class CockpitWindowsRemoteSessionLauncher
     final processId = await _appStarter(
       executablePath: executablePath,
       workingDirectory: executablePathContext.dirname(executablePath),
+      environment: options.launchConfiguration.processEnvironment,
       timeout: _capTimeout(_remaining(deadline), const Duration(seconds: 10)),
     );
 
@@ -148,6 +155,7 @@ final class CockpitWindowsRemoteSessionLauncher
     String executable,
     List<String> arguments, {
     String? workingDirectory,
+    Map<String, String>? environment,
     required Duration timeout,
   }) async {
     final result = _useKillableProcessRunner
@@ -155,12 +163,14 @@ final class CockpitWindowsRemoteSessionLauncher
             executable,
             arguments,
             workingDirectory: workingDirectory,
+            environment: environment,
             timeout: timeout,
           )
         : await _processRunner(
             executable,
             arguments,
             workingDirectory: workingDirectory,
+            environment: environment,
           ).timeout(
             timeout,
             onTimeout: () => throw TimeoutException(
@@ -193,11 +203,13 @@ final class CockpitWindowsRemoteSessionLauncher
     String executable,
     List<String> arguments, {
     String? workingDirectory,
+    Map<String, String>? environment,
   }) {
     return cockpitRunShortProcess(
       executable,
       arguments,
       workingDirectory: workingDirectory,
+      environment: environment,
     );
   }
 
@@ -205,6 +217,7 @@ final class CockpitWindowsRemoteSessionLauncher
     required String executablePath,
     List<String> arguments = const <String>[],
     String? workingDirectory,
+    Map<String, String>? environment,
     required Duration timeout,
   }) async {
     final process =
@@ -212,6 +225,7 @@ final class CockpitWindowsRemoteSessionLauncher
           executablePath,
           arguments,
           workingDirectory: workingDirectory,
+          environment: environment,
           mode: ProcessStartMode.detached,
         ).timeout(
           timeout,

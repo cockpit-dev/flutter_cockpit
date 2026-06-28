@@ -292,6 +292,62 @@ void main() {
     final decoded = jsonDecode(output.toString()) as Map<String, Object?>;
     expect(decoded.containsKey('persistedHandlePath'), isFalse);
   });
+
+  test(
+    'launch-development-session forwards flavor and launch configuration flags',
+    () async {
+      CockpitLaunchDevelopmentSessionRequest? capturedRequest;
+      final runner = CommandRunner<int>('cockpit', 'test')
+        ..addCommand(
+          LaunchDevelopmentSessionCommand(
+            launch: (request) async {
+              capturedRequest = request;
+              return CockpitLaunchDevelopmentSessionResult(
+                sessionHandle: _handle(reloadGeneration: 0),
+                status: _status(CockpitDevelopmentSessionState.ready),
+              );
+            },
+          ),
+        );
+
+      final exitCode =
+          await runner.run(<String>[
+            'launch-development-session',
+            '--project-dir',
+            '/workspace/examples/cockpit_demo',
+            '--platform',
+            'android',
+            '--android-device-id',
+            'emulator-5554',
+            '--flavor',
+            'staging',
+            '--dart-define',
+            'API_URL=https://example.test',
+            '--dart-define-from-file',
+            'config/dev.json',
+            '--flutter-arg',
+            '--track-widget-creation',
+            '--env',
+            'API_TOKEN=secret',
+          ]) ??
+          0;
+
+      expect(exitCode, 0);
+      expect(capturedRequest?.flavor, 'staging');
+      expect(capturedRequest?.launchConfiguration.dartDefines, <String>[
+        'API_URL=https://example.test',
+      ]);
+      expect(capturedRequest?.launchConfiguration.dartDefineFromFiles, <String>[
+        'config/dev.json',
+      ]);
+      expect(capturedRequest?.launchConfiguration.flutterArgs, <String>[
+        '--track-widget-creation',
+      ]);
+      expect(capturedRequest?.launchConfiguration.environment, <String, String>{
+        'API_TOKEN': 'secret',
+      });
+    },
+  );
 }
 
 CockpitDevelopmentSessionHandle _handle({required int reloadGeneration}) {

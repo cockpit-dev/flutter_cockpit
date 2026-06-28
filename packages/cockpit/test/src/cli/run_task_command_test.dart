@@ -140,9 +140,19 @@ void main() {
 launch:
   projectDir: /workspace/examples/cockpit_demo
   target: lib/main.dart
+  flavor: staging
   platform: android
   deviceId: emulator-5554
   sessionPort: 47331
+  launchConfiguration:
+    dartDefines:
+      - API_URL=https://example.test
+    dartDefineFromFiles:
+      - config/dev.json
+    flutterArgs:
+      - --track-widget-creation
+    environment:
+      API_TOKEN: secret
 script:
   schemaVersion: 1
   sessionId: cli-run-task-yaml-session
@@ -192,6 +202,21 @@ requirements:
 
     expect(exitCode, 0);
     expect(capturedRequest?.launch?.deviceId, 'emulator-5554');
+    expect(capturedRequest?.launch?.flavor, 'staging');
+    expect(capturedRequest?.launch?.launchConfiguration.dartDefines, <String>[
+      'API_URL=https://example.test',
+    ]);
+    expect(
+      capturedRequest?.launch?.launchConfiguration.dartDefineFromFiles,
+      <String>['config/dev.json'],
+    );
+    expect(capturedRequest?.launch?.launchConfiguration.flutterArgs, <String>[
+      '--track-widget-creation',
+    ]);
+    expect(
+      capturedRequest?.launch?.launchConfiguration.environment,
+      <String, String>{'API_TOKEN': 'secret'},
+    );
     expect(capturedRequest?.baseline.captureScreenshot, isTrue);
     expect(capturedRequest?.script.commands, isEmpty);
     expect(capturedRequest?.script.workflowSteps, hasLength(1));
@@ -252,6 +277,34 @@ requirements:
         isA<CockpitApplicationServiceException>()
             .having((error) => error.code, 'code', 'invalidRunTaskRequest')
             .having((error) => error.details['field'], 'field', 'sessionPort'),
+      ),
+    );
+  });
+
+  test('run-task rejects invalid launch configuration with field details', () {
+    expect(
+      () => CockpitRunTaskRequest.fromJson(<String, Object?>{
+        'launch': <String, Object?>{
+          'projectDir': '/workspace/examples/cockpit_demo',
+          'platform': 'android',
+          'deviceId': 'emulator-5554',
+          'sessionPort': 47331,
+          'launchConfiguration': <String, Object?>{
+            'flutterArgs': <String>['--dart-define API_URL=https://example'],
+          },
+        },
+        'script': <String, Object?>{
+          'sessionId': 'invalid-launch-config-session',
+          'taskId': 'invalid-launch-config-task',
+          'platform': 'android',
+          'commands': <Map<String, Object?>>[_noopCommandJson()],
+        },
+        'outputRoot': '/tmp/out',
+      }),
+      throwsA(
+        isA<CockpitApplicationServiceException>()
+            .having((error) => error.code, 'code', 'invalidLaunchConfiguration')
+            .having((error) => error.details['field'], 'field', 'flutterArgs'),
       ),
     );
   });

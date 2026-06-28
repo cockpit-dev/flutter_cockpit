@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:args/args.dart';
@@ -9,6 +10,7 @@ import 'package:cockpit/src/development/cockpit_flutter_run_machine_client.dart'
 import 'package:cockpit/src/development/cockpit_shutdown_signal_watcher.dart';
 import 'package:cockpit/src/remote/cockpit_android_port_forwarder.dart';
 import 'package:cockpit/src/remote/cockpit_remote_session_client.dart';
+import 'package:cockpit/src/session/cockpit_flutter_launch_configuration.dart';
 import 'package:cockpit/src/session/cockpit_remote_session_handle.dart';
 import 'package:cockpit/src/session/cockpit_remote_session_launcher.dart';
 
@@ -25,6 +27,7 @@ Future<void> main(List<String> args) async {
     ..addOption('flutter-executable', mandatory: true)
     ..addOption('log-file', mandatory: true)
     ..addOption('flutter-version', mandatory: true)
+    ..addFlag('launch-config-stdin', negatable: false)
     ..addOption('launch-timeout-seconds', defaultsTo: '300');
   final results = parser.parse(args);
 
@@ -42,6 +45,7 @@ Future<void> main(List<String> args) async {
   final launchTimeout = Duration(
     seconds: int.parse(results['launch-timeout-seconds']! as String),
   );
+  final launchConfiguration = await _readLaunchConfiguration(results);
 
   final logFile = File(logFilePath);
   await logFile.parent.create(recursive: true);
@@ -93,6 +97,7 @@ Future<void> main(List<String> args) async {
       flutterExecutable: flutterExecutable,
       flutterVersion: flutterVersion,
       launchId: developmentHandle.developmentSessionId,
+      launchConfiguration: launchConfiguration,
     );
     await writeLog(
       'boot project_dir=$projectDir target=$target platform=$platform '
@@ -217,4 +222,24 @@ Future<void> main(List<String> args) async {
     await logSink.close();
   }
   exit(exitCode);
+}
+
+Future<CockpitFlutterLaunchConfiguration> _readLaunchConfiguration(
+  ArgResults results,
+) async {
+  if (results['launch-config-stdin'] != true) {
+    return CockpitFlutterLaunchConfiguration.empty;
+  }
+  final line = await stdin.transform(utf8.decoder).join();
+  final trimmed = line.trim();
+  if (trimmed.isEmpty) {
+    return CockpitFlutterLaunchConfiguration.empty;
+  }
+  final decoded = jsonDecode(trimmed);
+  if (decoded is! Map<Object?, Object?>) {
+    throw StateError('Launch configuration stdin must contain a JSON object.');
+  }
+  return CockpitFlutterLaunchConfiguration.fromJson(
+    Map<String, Object?>.from(decoded),
+  );
 }

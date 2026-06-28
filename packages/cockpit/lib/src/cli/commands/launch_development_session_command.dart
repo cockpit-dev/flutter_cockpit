@@ -5,6 +5,7 @@ import 'package:args/command_runner.dart';
 import '../../application/cockpit_launch_development_session_service.dart';
 import '../cockpit_cli_help.dart';
 import '../cockpit_command_runner.dart';
+import '../cockpit_flutter_launch_configuration_cli.dart';
 import '../cockpit_interactive_cli_support.dart';
 
 typedef CockpitLaunchDevelopmentSessionFunction =
@@ -27,6 +28,11 @@ final class LaunchDevelopmentSessionCommand extends CockpitCliCommand {
         'target',
         help:
             'Optional Dart entrypoint. When omitted, cockpit tries cockpit/main.dart first, then lib/main.dart.',
+      )
+      ..addOption(
+        'flavor',
+        help:
+            'Optional Flutter flavor / Xcode scheme to build and run. Use this for consumer apps that do not launch through the default flavor.',
       )
       ..addOption(
         'platform',
@@ -62,6 +68,7 @@ final class LaunchDevelopmentSessionCommand extends CockpitCliCommand {
         help:
             'Optional path where the app handle JSON should be written for app-scoped commands such as start-recording, stop-recording, and run-batch --recording-json.',
       );
+    cockpitAddFlutterLaunchConfigurationOptions(argParser);
   }
 
   final CockpitLaunchDevelopmentSessionFunction _launch;
@@ -113,6 +120,7 @@ final class LaunchDevelopmentSessionCommand extends CockpitCliCommand {
       CockpitLaunchDevelopmentSessionRequest(
         projectDir: cockpitReadProjectDirOption(argResults),
         target: _readOptionalOption('target'),
+        flavor: _readOptionalOption('flavor'),
         platform: platform,
         deviceId: _resolveDeviceId(platform),
         sessionPort: cockpitReadRequiredPortOption(
@@ -134,6 +142,10 @@ final class LaunchDevelopmentSessionCommand extends CockpitCliCommand {
             cockpitDefaultDevelopmentSessionHandlePath(),
         persistAppHandlePath:
             _readOptionalOption('app-json') ?? cockpitDefaultAppHandlePath(),
+        launchConfiguration: cockpitReadFlutterLaunchConfiguration(
+          argResults,
+          usage,
+        ),
       ),
     );
 

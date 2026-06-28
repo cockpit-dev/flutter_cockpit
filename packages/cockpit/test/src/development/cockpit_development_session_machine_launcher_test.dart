@@ -6,6 +6,7 @@ import 'package:cockpit/src/development/cockpit_development_session_machine_laun
 import 'package:cockpit/src/development/cockpit_flutter_run_machine_client.dart';
 import 'package:cockpit/src/platform/ios/cockpit_ios_device_connection.dart';
 import 'package:cockpit/src/remote/cockpit_android_port_forwarder.dart';
+import 'package:cockpit/src/session/cockpit_flutter_launch_configuration.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -27,6 +28,7 @@ void main() {
               flavor,
               flutterExecutable,
               extraArgs = const <String>[],
+              environment,
             }) async {
               capturedStarts.add(<String, Object?>{
                 'projectDir': projectDir,
@@ -107,6 +109,90 @@ void main() {
   );
 
   test(
+    'launch forwards user Flutter args before cockpit defines and passes process environment',
+    () async {
+      final stdoutController = StreamController<String>();
+      final stderrController = StreamController<String>();
+      final exitCode = Completer<int>();
+      Map<String, Object?>? capturedStart;
+      final launcher = CockpitDevelopmentSessionMachineLauncher(
+        machineClientStarter:
+            ({
+              required projectDir,
+              required target,
+              required deviceId,
+              flavor,
+              flutterExecutable,
+              extraArgs = const <String>[],
+              environment,
+            }) async {
+              capturedStart = <String, Object?>{
+                'extraArgs': extraArgs,
+                'environment': environment,
+              };
+              final client = CockpitFlutterRunMachineClient(
+                stdoutLines: stdoutController.stream,
+                stderrLines: stderrController.stream,
+                exitCode: exitCode.future,
+                requestWriter: (_) async {},
+              );
+              stdoutController.add(
+                '[{"event":"app.start","params":{"appId":"machine-app-1"}}]',
+              );
+              stdoutController.add(
+                '[{"event":"app.debugPort","params":{"wsUri":"ws://127.0.0.1:34567/abcd/ws"}}]',
+              );
+              return client;
+            },
+        statusReader: (_) async => _readyStatus('android'),
+        portForwarder: const _RecordingPortForwarder(58331),
+        platformAppIdResolver:
+            ({required projectDir, required platform, flavor}) async =>
+                'dev.example.android',
+        now: () => DateTime.utc(2026, 4, 4, 15),
+      );
+
+      final result = await launcher.launch(
+        CockpitLaunchDevelopmentMachineSessionRequest(
+          projectDir: '/workspace/examples/cockpit_demo',
+          target: 'cockpit/main.dart',
+          platform: 'android',
+          deviceId: 'emulator-5554',
+          sessionPort: 47331,
+          hostPort: 57331,
+          launchTimeout: const Duration(seconds: 10),
+          flutterVersion: '3.39.0',
+          flutterExecutable: '/opt/flutter/bin/flutter',
+          launchConfiguration: CockpitFlutterLaunchConfiguration(
+            dartDefines: const <String>['API_URL=https://example.test'],
+            dartDefineFromFiles: const <String>['config/dev.json'],
+            flutterArgs: const <String>['--track-widget-creation'],
+            environment: const <String, String>{'API_TOKEN': 'secret'},
+          ),
+        ),
+      );
+
+      expect(capturedStart?['extraArgs'], <String>[
+        '--dart-define=API_URL=https://example.test',
+        '--dart-define-from-file=config/dev.json',
+        '--track-widget-creation',
+        '--dart-define=FLUTTER_COCKPIT_REMOTE_ENABLED=true',
+        '--dart-define=FLUTTER_COCKPIT_REMOTE_HOST=0.0.0.0',
+        '--dart-define=FLUTTER_COCKPIT_REMOTE_PORT=47331',
+        '--dart-define=FLUTTER_COCKPIT_FLUTTER_VERSION=3.39.0',
+      ]);
+      expect(capturedStart?['environment'], <String, String>{
+        'API_TOKEN': 'secret',
+      });
+
+      await stdoutController.close();
+      await stderrController.close();
+      exitCode.complete(0);
+      await result.machineClient.dispose();
+    },
+  );
+
+  test(
     'ios development launch binds the remote session to a host-reachable address',
     () async {
       final stdoutController = StreamController<String>();
@@ -123,6 +209,7 @@ void main() {
               flavor,
               flutterExecutable,
               extraArgs = const <String>[],
+              environment,
             }) async {
               capturedStarts.add(<String, Object?>{
                 'projectDir': projectDir,
@@ -211,6 +298,7 @@ void main() {
               flavor,
               flutterExecutable,
               extraArgs = const <String>[],
+              environment,
             }) async {
               capturedStarts.add(<String, Object?>{
                 'projectDir': projectDir,
@@ -291,6 +379,7 @@ void main() {
               flavor,
               flutterExecutable,
               extraArgs = const <String>[],
+              environment,
             }) async {
               capturedExtraArgs = extraArgs;
               Future<void>.microtask(() {
@@ -372,6 +461,7 @@ void main() {
               flavor,
               flutterExecutable,
               extraArgs = const <String>[],
+              environment,
             }) async {
               startAttempts.add('$projectDir|$target|$deviceId');
               final stdoutController = StreamController<String>();
@@ -477,6 +567,7 @@ void main() {
             flavor,
             flutterExecutable,
             extraArgs = const <String>[],
+            environment,
           }) async {
             capturedStarts.add(<String, Object?>{
               'projectDir': projectDir,
@@ -546,6 +637,7 @@ void main() {
               flavor,
               flutterExecutable,
               extraArgs = const <String>[],
+              environment,
             }) async {
               capturedStarts.add(<String, Object?>{
                 'projectDir': projectDir,
@@ -638,6 +730,7 @@ void main() {
               flavor,
               flutterExecutable,
               extraArgs = const <String>[],
+              environment,
             }) async {
               final client = CockpitFlutterRunMachineClient(
                 stdoutLines: stdoutController.stream,
@@ -700,6 +793,7 @@ void main() {
               flavor,
               flutterExecutable,
               extraArgs = const <String>[],
+              environment,
             }) async {
               final client = CockpitFlutterRunMachineClient(
                 stdoutLines: stdoutController.stream,
@@ -774,6 +868,7 @@ void main() {
               flavor,
               flutterExecutable,
               extraArgs = const <String>[],
+              environment,
             }) async {
               final client = CockpitFlutterRunMachineClient(
                 stdoutLines: stdoutController.stream,
@@ -856,6 +951,7 @@ void main() {
               flavor,
               flutterExecutable,
               extraArgs = const <String>[],
+              environment,
             }) async {
               final client = CockpitFlutterRunMachineClient(
                 stdoutLines: stdoutController.stream,
@@ -939,6 +1035,7 @@ void main() {
               flavor,
               flutterExecutable,
               extraArgs = const <String>[],
+              environment,
             }) async {
               final client = CockpitFlutterRunMachineClient(
                 stdoutLines: stdoutController.stream,
@@ -1004,6 +1101,7 @@ void main() {
               flavor,
               flutterExecutable,
               extraArgs = const <String>[],
+              environment,
             }) async => CockpitFlutterRunMachineClient(
               stdoutLines: const Stream<String>.empty(),
               stderrLines: const Stream<String>.empty(),
@@ -1052,6 +1150,7 @@ void main() {
               flavor,
               flutterExecutable,
               extraArgs = const <String>[],
+              environment,
             }) async => CockpitFlutterRunMachineClient(
               stdoutLines: const Stream<String>.empty(),
               stderrLines: const Stream<String>.empty(),

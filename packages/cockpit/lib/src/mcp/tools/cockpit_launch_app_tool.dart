@@ -1,6 +1,7 @@
 import '../../application/cockpit_app_handle.dart';
 import '../../application/cockpit_launch_app_service.dart';
 import '../cockpit_mcp_error.dart';
+import '../cockpit_flutter_launch_configuration_mcp.dart';
 import '../cockpit_mcp_tool.dart';
 
 typedef CockpitLaunchAppToolFunction =
@@ -58,6 +59,7 @@ final class CockpitLaunchAppTool extends CockpitMcpTool {
       },
       'launchTimeoutSeconds': <String, Object?>{'type': 'integer'},
       'appJson': <String, Object?>{'type': 'string'},
+      ...cockpitFlutterLaunchConfigurationMcpProperties,
     },
   };
 
@@ -85,6 +87,9 @@ final class CockpitLaunchAppTool extends CockpitMcpTool {
                 600,
           ),
           appHandlePath: cockpitReadOptionalString(arguments, 'appJson'),
+          launchConfiguration: cockpitReadMcpFlutterLaunchConfiguration(
+            arguments,
+          ),
         ),
       );
       return cockpitMcpResult(

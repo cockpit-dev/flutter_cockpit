@@ -393,6 +393,15 @@ done
         appId: 'cockpit_demo',
         ffmpegExecutable: ffmpegExecutable.path,
         windowActivatorExecutable: ffmpegExecutable.path,
+        windowTargetResolver:
+            ({
+              required appId,
+              required processId,
+              required processRunner,
+              required timeout,
+            }) async {
+              throw StateError('window resolution unavailable');
+            },
         displayConfigResolver: () async => const CockpitLinuxDisplayConfig(
           display: ':99',
           captureSize: '1440x900',

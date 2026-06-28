@@ -233,6 +233,49 @@ void main() {
       'linux',
     );
   });
+
+  test(
+    'launch development tool accepts flavor and launch configuration payloads',
+    () async {
+      CockpitLaunchDevelopmentSessionRequest? capturedRequest;
+      final tool = CockpitLaunchDevelopmentSessionTool(
+        launch: (request) async {
+          capturedRequest = request;
+          return CockpitLaunchDevelopmentSessionResult(
+            sessionHandle: _handle(),
+            status: _status(CockpitDevelopmentSessionState.ready),
+          );
+        },
+      );
+
+      await tool.call(<String, Object?>{
+        'projectDir': '/workspace/examples/cockpit_demo',
+        'target': 'lib/main.dart',
+        'flavor': 'staging',
+        'platform': 'android',
+        'deviceId': 'emulator-5554',
+        'sessionPort': 47331,
+        'dartDefines': <String>['API_URL=https://example.test'],
+        'dartDefineFromFiles': <String>['config/dev.json'],
+        'flutterArgs': <String>['--track-widget-creation'],
+        'environment': <String, Object?>{'API_TOKEN': 'secret'},
+      });
+
+      expect(capturedRequest?.flavor, 'staging');
+      expect(capturedRequest?.launchConfiguration.dartDefines, <String>[
+        'API_URL=https://example.test',
+      ]);
+      expect(capturedRequest?.launchConfiguration.dartDefineFromFiles, <String>[
+        'config/dev.json',
+      ]);
+      expect(capturedRequest?.launchConfiguration.flutterArgs, <String>[
+        '--track-widget-creation',
+      ]);
+      expect(capturedRequest?.launchConfiguration.environment, <String, String>{
+        'API_TOKEN': 'secret',
+      });
+    },
+  );
 }
 
 CockpitDevelopmentSessionHandle _handle() => CockpitDevelopmentSessionHandle(
